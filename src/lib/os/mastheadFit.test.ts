@@ -21,7 +21,9 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   feedReadingPlacement,
+  bandCentreRules,
   feedReadingRoomPx,
+  hypotheticalPx,
   layoutMasthead,
   readMastheadCss,
   type FeedReadingPx,
@@ -86,11 +88,19 @@ function journalItems(vw: number): MastheadItemPx[] {
   const centre: MastheadItemPx =
     band && CSS.band.centre === "own-row"
       ? { key: "modes", basisPx: MODE_BAR.w, heightPx: MODE_BAR.h, fullRow: true }
-      : { key: "modes", basisPx: MODE_BAR.w, heightPx: MODE_BAR.h, grows: true };
+      : band
+        ? {
+            key: "modes",
+            basisPx: Math.max(MODE_BAR.w, CSS.band.centreFloorPx),
+            heightPx: MODE_BAR.h,
+            grows: CSS.band.centreGrow > 0,
+          }
+        : { key: "modes", basisPx: MODE_BAR.w, heightPx: MODE_BAR.h, grows: true };
   const reading: MastheadItemPx = band
     ? {
         key: "reading",
-        basisPx: JOURNAL_READING.stacked, // flex-basis 0 floored at min-content
+        basisPx: 0, // flex: 1 1 0% — base size zero, floored at min-content
+        minPx: JOURNAL_READING.stacked,
         heightPx: JOURNAL_READING.stackedH,
         grows: true,
         maxPx: JOURNAL_READING.oneLine,
@@ -123,9 +133,73 @@ describe("the stylesheet, read", () => {
     expect(doorsPlatesPx(1440)).toBeCloseTo(236.53125, 1);
   });
 
-  it("the band lets the wrap decide where the mode bar stands — never a forced row, never reordered", () => {
+  it("the band lets the wrap decide where the mode bar stands — never a forced row, never reordered, never grown", () => {
     expect(CSS.band.centre).toBe("wrap-decides");
     expect(CSS.band.centreReordered).toBe(false);
+    expect(CSS.band.centreGrow).toBe(0);
+  });
+
+  // Verifier RED 2026-09-27 (round 3): only the FIRST ':not(:empty)' rule was
+  // read, so a second band rule on the mode bar walked past the guard.
+  describe("a LATER band rule on the mode bar is read too", () => {
+    const ANCHOR = ".wm-os-masthead-center:empty { flex-grow: 0 !important; }";
+    const withRule = (rule: string) => {
+      expect(SOURCE).toContain(ANCHOR);
+      return readMastheadCss(SOURCE.replace(ANCHOR, `${ANCHOR}\n          ${rule}`));
+    };
+    it.each([
+      ".wm-os-masthead > .wm-os-masthead-center { flex-basis: 100% !important; }",
+      ".wm-os-feed-standing, .wm-os-masthead-center:not(:empty) { width: 100% !important; }",
+      ".wm-os-masthead-center:not(:empty) { min-width: 100% !important; }",
+      ".wm-os-masthead-center:not(:empty) { flex: 0 0 100% !important; }",
+      ".wm-os-masthead-center:not(:empty) { min-width: 1200px !important; }",
+    ])("%s → own-row", (rule) => {
+      expect(withRule(rule).band.centre).toBe("own-row");
+    });
+    it("a later order or grow is read as well", () => {
+      expect(withRule(".wm-os-masthead-center:not(:empty) { order: 2 !important; }").band.centreReordered).toBe(true);
+      expect(withRule(".wm-os-masthead .wm-os-masthead-center { flex-grow: 1 !important; }").band.centreGrow).toBe(1);
+    });
+    it("rules that land on the empty centre or on the item after it are not the mode bar's", () => {
+      expect(withRule(".wm-os-masthead-center:empty { flex-basis: 100% !important; }").band.centre).toBe("wrap-decides");
+      expect(withRule(".wm-os-masthead-center + * { width: 100% !important; }").band.centre).toBe("wrap-decides");
+      expect(bandCentreRules(SOURCE).map((r) => r.selector)).toEqual([".wm-os-masthead-center:not(:empty)"]);
+    });
+  });
+});
+
+describe("layoutMasthead resolves flexible lengths as CSS does", () => {
+  const F: MastheadFrame = { padXPx: 0, padYPx: 0, borderBottomPx: 0, columnGapPx: 0, rowGapPx: 0 };
+  it("growers start from their FLEX BASE size, not their min-clamped size", () => {
+    // A: base 100. B: flex 1 1 0%, min 50. Free = 300 - 100 - 0 = 200, 100 each.
+    const l = layoutMasthead(300, F, [
+      { key: "a", basisPx: 100, heightPx: 1, grows: true },
+      { key: "b", basisPx: 0, minPx: 50, heightPx: 1, grows: true },
+    ]);
+    expect(l.rows[0].widthsPx).toEqual([200, 100]);
+  });
+  it("a max-violator freezes and the rest share what it gives back", () => {
+    const l = layoutMasthead(300, F, [
+      { key: "a", basisPx: 100, heightPx: 1, grows: true },
+      { key: "b", basisPx: 0, minPx: 50, maxPx: 60, heightPx: 1, grows: true },
+    ]);
+    expect(l.rows[0].widthsPx).toEqual([240, 60]);
+    expect(l.rows[0].freePx).toBe(0);
+  });
+  it("a min-violator freezes at its floor", () => {
+    const l = layoutMasthead(160, F, [
+      { key: "a", basisPx: 100, heightPx: 1, grows: true },
+      { key: "b", basisPx: 0, minPx: 50, heightPx: 1, grows: true },
+    ]);
+    expect(l.rows[0].widthsPx).toEqual([110, 50]);
+  });
+  it("what no grower can take is left over for the auto margins", () => {
+    const l = layoutMasthead(300, F, [
+      { key: "a", basisPx: 100, heightPx: 1 },
+      { key: "b", basisPx: 0, minPx: 50, maxPx: 60, heightPx: 1, grows: true },
+    ]);
+    expect(l.rows[0].widthsPx).toEqual([100, 60]);
+    expect(l.rows[0].freePx).toBe(140);
   });
 });
 
@@ -144,9 +218,33 @@ describe("/journal's masthead, desktop 901–1440", () => {
     expect(journal(1399).heightPx).toBe(journal(1440).heightPx);
   });
 
-  it("at 1280 the reading stacks its phrases and the row still holds", () => {
+  // Verifier RED 2026-09-27 (round 3): at flex-grow 1 the mode bar took the
+  // row's leftover, so the reading stayed stacked at 1280–1399 beside ~130px
+  // of empty mode-bar box. The leftover belongs to the reading first.
+  it("the reading takes the leftover before anything else: one line, or every spare pixel of the row", () => {
+    for (let vw = OS_RAIL_BREAKPOINT_PX + 1; vw <= OS_MASTHEAD_COMPACT_MAX_PX; vw++) {
+      const l = journal(vw);
+      for (const row of l.rows) {
+        const k = row.keys.indexOf("reading");
+        if (k < 0) continue;
+        const oneLine = row.widthsPx[k] >= JOURNAL_READING.oneLine - 1e-9;
+        expect(oneLine || row.freePx < 1e-9, `${vw}: reading ${row.widthsPx[k]} with ${row.freePx}px spare`).toBe(true);
+      }
+      const modes = l.rows.flatMap((r) => r.keys.map((key, k) => [key, r.widthsPx[k]] as const)).find(([key]) => key === "modes");
+      expect(modes?.[1], `${vw}: the mode bar grew past its one-row width`).toBeCloseTo(MODE_BAR.w, 6);
+    }
+  });
+
+  it.each([1360, 1399])("at %ipx the reading reads on ONE line and the rest is spare", (vw) => {
+    const row = journal(vw).rows[0];
+    expect(row.widthsPx[row.keys.indexOf("reading")]).toBeCloseTo(JOURNAL_READING.oneLine, 6);
+    expect(row.freePx).toBeGreaterThan(0);
+  });
+
+  it("at 1280 the reading gets every spare pixel and the row still holds", () => {
     const l = journal(1280);
     expect(l.rows).toHaveLength(1);
+    expect(l.rows[0].freePx).toBeCloseTo(0, 6);
     expect(l.heightPx).toBe(oneRowPx(1280, MODE_BAR.h));
   });
 
@@ -172,8 +270,9 @@ describe("/journal's masthead, desktop 901–1440", () => {
     for (let vw = OS_RAIL_BREAKPOINT_PX + 1; vw <= 1440; vw++) {
       const items = journalItems(vw);
       const f = frame(vw);
-      const whole = items.reduce((a, i) => a + i.basisPx, 0) + f.columnGapPx * (items.length - 1);
-      if (whole <= vw - 2 * f.padXPx) expect(journal(vw).rows, String(vw)).toHaveLength(1);
+      const avail = vw - 2 * f.padXPx;
+      const whole = items.reduce((a, i) => a + hypotheticalPx(i, avail), 0) + f.columnGapPx * (items.length - 1);
+      if (whole <= avail) expect(journal(vw).rows, String(vw)).toHaveLength(1);
     }
   });
 

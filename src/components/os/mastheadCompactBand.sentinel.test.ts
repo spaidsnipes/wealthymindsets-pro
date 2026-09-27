@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { OS_MASTHEAD_COMPACT_MAX_PX, OS_RAIL_BREAKPOINT_PX } from "./WMOperatingSystem";
+import { bandCentreRules } from "@/lib/os/mastheadFit";
 
 const OS = readFileSync(path.join(process.cwd(), "src/components/os/WMOperatingSystem.tsx"), "utf8");
 
@@ -62,8 +63,17 @@ describe("the compact masthead band", () => {
     const b = band();
     const rule = /\.wm-os-masthead-center:not\(:empty\) \{([^}]*)\}/.exec(b);
     expect(rule, "the band does not size the mode bar").not.toBeNull();
-    expect(rule![1]).toContain("flex: 1 0 auto !important;");
-    expect(rule![1]).not.toMatch(/100%|order:/);
+    // Verifier RED 2026-09-27 (round 3): at flex-grow 1 the mode bar ate the
+    // leftover and /journal's reading stayed stacked at 1280-1399.
+    expect(rule![1]).toContain("flex: 0 0 auto !important;");
+    // EVERY band rule that lands on the mode bar, not just the first.
+    const rules = bandCentreRules(OS);
+    expect(rules.length).toBeGreaterThan(0);
+    for (const r of rules) {
+      expect(JSON.stringify(r.decls), r.selector).not.toMatch(/100%|"order"/);
+      expect(r.decls["flex-grow"] ?? "0", r.selector).toBe("0");
+      if (r.decls.flex !== undefined) expect(r.decls.flex.split(/\s+/)[0], r.selector).toBe("0");
+    }
     expect(b).toMatch(/\.wm-os-masthead-center:empty \{ flex-grow: 0 !important; \}/);
   });
 

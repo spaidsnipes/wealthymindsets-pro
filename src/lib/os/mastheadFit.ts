@@ -13,8 +13,10 @@
  *                             what the band does with the mode bar. Widen a
  *                             plate or re-force the mode bar onto its own row
  *                             in the stylesheet and the numbers here move.
- *   layoutMasthead(...)       flex-wrap line breaking and growth over those
- *                             boxes, returning rows and the masthead height.
+ *   layoutMasthead(...)       flex-wrap line breaking over hypothetical sizes,
+ *                             then CSS's flexible-length resolution (flex base
+ *                             size, min/max clamp and freeze loop), returning
+ *                             rows, widths, leftover and the masthead height.
  *
  * The only numbers this module does not own are TEXT widths (a word's width is
  * the font's business); callers pass those as measured in Chromium, labelled.
@@ -44,9 +46,19 @@ export interface MastheadCss {
     readonly columnGapPx: number;
     readonly rowGapPx: number;
     readonly centre: CentreRule;
-    /** True when the band moves the centre after everything else (`order`). */
+    /** True when any band rule moves the centre out of DOM order (`order`). */
     readonly centreReordered: boolean;
+    /** The mode bar's flex-grow in the band (the inline style's 1 unless a band rule sets it). */
+    readonly centreGrow: number;
+    /** The widest px floor a band rule puts on the mode bar (min-width / width / flex-basis); 0 if none. */
+    readonly centreFloorPx: number;
   };
+}
+
+/** One band rule whose selector lands on the masthead centre (not `:empty`, not a sibling after it). */
+export interface CentreRuleRead {
+  readonly selector: string;
+  readonly decls: Readonly<Record<string, string>>;
 }
 
 export interface PlateCss {
@@ -96,6 +108,64 @@ function plateCss(css: string, deckMarkFallback: number): PlateCss {
   };
 }
 
+/** Does this selector (one of a comma list) style the NON-EMPTY masthead centre itself? */
+function targetsCentre(selector: string): boolean {
+  // A relational :has(...) names a NEIGHBOUR of the centre, never the centre.
+  const plain = selector.replace(/:has\([^)]*\)/g, ":has()").trim();
+  const last = plain.split(/\s*[>+~]\s*|\s+/).pop() ?? "";
+  if (!last.includes(".wm-os-masthead-center")) return false;
+  return !last.replace(/:not\(:empty\)/g, "").includes(":empty");
+}
+
+function declarations(body: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const d of body.split(";")) {
+    const at = d.indexOf(":");
+    if (at < 0) continue;
+    const prop = d.slice(0, at).trim().toLowerCase();
+    const value = d.slice(at + 1).replace(/!important/g, "").trim();
+    if (prop) out[prop] = value;
+  }
+  return out;
+}
+
+/**
+ * EVERY band rule that targets the mode bar, in source order — not just the
+ * first `:not(:empty)` rule. A second rule later in the band (a selector list,
+ * a more specific selector) would otherwise override the one read and slip
+ * past the guard.
+ */
+export function bandCentreRules(source: string): CentreRuleRead[] {
+  const band = stripComments(block(source, BAND_BLOCK_HEAD).slice(BAND_BLOCK_HEAD.length));
+  const out: CentreRuleRead[] = [];
+  const rule = /([^{}]+)\{([^{}]*)\}/g;
+  for (let m = rule.exec(band); m !== null; m = rule.exec(band)) {
+    const selectors = m[1].split(",").filter(targetsCentre);
+    if (selectors.length > 0) out.push({ selector: selectors.join(", ").trim(), decls: declarations(m[2]) });
+  }
+  return out;
+}
+
+const pct = (v: string | undefined): number | null => {
+  const m = v === undefined ? null : /^([\d.]+)%$/.exec(v.trim());
+  return m ? Number(m[1]) : null;
+};
+const px = (v: string | undefined): number | null => {
+  const m = v === undefined ? null : /^([\d.]+)px$/.exec(v.trim());
+  return m ? Number(m[1]) : null;
+};
+
+/** The flex shorthand's parts (grow, shrink, basis) — only the forms this stylesheet writes. */
+function flexParts(v: string | undefined): { grow?: number; basis?: string } {
+  if (v === undefined) return {};
+  const t = v.trim().split(/\s+/);
+  if (t.length === 1 && t[0] === "none") return { grow: 0, basis: "auto" };
+  if (t.length === 1 && t[0] === "auto") return { grow: 1, basis: "auto" };
+  const grow = Number(t[0]);
+  const basis = t.length === 3 ? t[2] : t.length === 2 && !/^[\d.]+$/.test(t[1]) ? t[1] : undefined;
+  return { grow: Number.isFinite(grow) ? grow : undefined, basis };
+}
+
 /** Read the masthead's box geometry out of WMOperatingSystem.tsx's source. */
 export function readMastheadCss(source: string): MastheadCss {
   const header = /className="wm-os-masthead"[\s\S]*?gap: (\d+),\s*padding: "(\d+)px (\d+)px",\s*borderBottom: `(\d+)px/.exec(source);
@@ -105,8 +175,30 @@ export function readMastheadCss(source: string): MastheadCss {
   const desktopCss = stripComments(block(source, DESKTOP_BLOCK_HEAD));
   const bandCss = stripComments(block(source, BAND_BLOCK_HEAD));
   const desktop = plateCss(desktopCss, 12);
-  const centre = /\.wm-os-masthead-center:not\(:empty\) \{([^}]*)\}/.exec(bandCss)?.[1] ?? "";
-  const ownRow = /flex-basis: 100%|flex: [\d.]+ [\d.]+ 100%/.test(centre);
+  const railPx = num(/export const OS_RAIL_BREAKPOINT_PX = (\d+);/, source, "the rail breakpoint");
+  // The room a mode bar has in the band's narrowest row: a floor wider than
+  // this can never share a row, so it is a forced row of its own.
+  const roomPx = railPx + 1 - 2 * Number(header[3]);
+  let ownRow = false;
+  let reordered = false;
+  let grow = 1; // the inline style: flex 1 1 auto
+  let floorPx = 0;
+  for (const { decls } of bandCentreRules(source)) {
+    const flex = flexParts(decls.flex);
+    if (flex.grow !== undefined) grow = flex.grow;
+    if (decls["flex-grow"] !== undefined) grow = Number(decls["flex-grow"]);
+    const sizes = [flex.basis, decls["flex-basis"], decls.width, decls["min-width"]];
+    for (const v of sizes) {
+      const p = pct(v);
+      if (p !== null && p >= 100) ownRow = true;
+      const w = px(v);
+      if (w !== null) {
+        floorPx = Math.max(floorPx, w);
+        if (w > roomPx) ownRow = true;
+      }
+    }
+    if (decls.order !== undefined && Number(decls.order) !== 0) reordered = true;
+  }
   return {
     padYPx: Number(header[2]),
     padXPx: Number(header[3]),
@@ -119,7 +211,9 @@ export function readMastheadCss(source: string): MastheadCss {
       columnGapPx: num(/\.wm-os-masthead \{[^}]*?column-gap: (\d+)px/, bandCss, "band column gap"),
       rowGapPx: num(/\.wm-os-masthead \{[^}]*?row-gap: (\d+)px/, bandCss, "band row gap"),
       centre: ownRow ? "own-row" : "wrap-decides",
-      centreReordered: /order: [1-9]/.test(centre),
+      centreReordered: reordered,
+      centreGrow: grow,
+      centreFloorPx: floorPx,
     },
   };
 }
@@ -128,11 +222,13 @@ export function readMastheadCss(source: string): MastheadCss {
 
 export interface MastheadItemPx {
   readonly key: string;
-  /** The size the wrap sees (flex basis after its min clamp). */
+  /** The FLEX BASE SIZE (the reading's `flex: 1 1 0%` has base 0). */
   readonly basisPx: number;
   readonly heightPx: number;
   /** flex-grow 1. */
   readonly grows?: boolean;
+  /** min-width (the reading's min-content); undefined = 0. */
+  readonly minPx?: number;
   /** max-width while growing; undefined = unbounded. */
   readonly maxPx?: number;
   /** Height once grown to maxPx (a reading that reached one line). */
@@ -156,6 +252,8 @@ export interface MastheadRowLayout {
   readonly heightPx: number;
   /** Items + gaps; > available means the row spills. */
   readonly usedPx: number;
+  /** What growth left over — the auto margins' share (0 when a grower is unbounded). */
+  readonly freePx: number;
 }
 
 export interface MastheadLayout {
@@ -164,10 +262,61 @@ export interface MastheadLayout {
   readonly heightPx: number;
 }
 
+/** CSS's hypothetical main size: the base size clamped by max, then min (min wins). */
+export function hypotheticalPx(item: MastheadItemPx, availablePx: number): number {
+  if (item.fullRow) return availablePx;
+  const capped = item.maxPx === undefined ? item.basisPx : Math.min(item.basisPx, item.maxPx);
+  return Math.max(item.minPx ?? 0, capped);
+}
+
+/**
+ * CSS Flexbox §9.7 "resolve the flexible lengths", growing only (every row
+ * this module is asked about fits its hypothetical sizes; shrinking is not
+ * modelled, and a row that overflows keeps its hypothetical sizes and reports
+ * usedPx > available). Inflexible items (grow 0, or a base size above the
+ * hypothetical) freeze at their hypothetical size; the rest start from their
+ * FLEX BASE SIZE and share the free space by grow factor (all 1 here); each
+ * round clamps to min/max, and the min- or max-violators freeze by the sign of
+ * the total violation, until every item is frozen.
+ */
+function growLine(items: readonly MastheadItemPx[], availablePx: number, gapsPx: number): number[] {
+  const hyp = items.map((i) => hypotheticalPx(i, availablePx));
+  const target = [...hyp];
+  // The spec picks growing when the flex BASE sizes (not the clamped ones) leave room.
+  if (items.reduce((a, i, k) => a + (i.fullRow ? hyp[k] : i.basisPx), 0) + gapsPx >= availablePx) return target;
+  const frozen = items.map((i, k) => !i.grows || i.fullRow === true || i.basisPx > hyp[k]);
+  for (let guard = 0; guard < 2 * items.length + 2 && frozen.includes(false); guard++) {
+    const open = items.map((_, k) => k).filter((k) => !frozen[k]);
+    const taken = items.reduce((a, it, k) => a + (frozen[k] ? target[k] : it.basisPx), 0);
+    const free = availablePx - gapsPx - taken;
+    let violation = 0;
+    const clamped = new Map<number, number>();
+    for (const k of open) {
+      const raw = items[k].basisPx + free / open.length;
+      const lo = items[k].minPx ?? 0;
+      const hi = items[k].maxPx ?? Infinity;
+      const c = Math.max(lo, Math.min(raw, hi));
+      clamped.set(k, c);
+      violation += c - raw;
+    }
+    for (const k of open) {
+      const c = clamped.get(k)!;
+      const raw = items[k].basisPx + free / open.length;
+      target[k] = c;
+      if (Math.abs(violation) < 1e-9) frozen[k] = true;
+      else if (violation > 0 && c > raw) frozen[k] = true; // min violation
+      else if (violation < 0 && c < raw) frozen[k] = true; // max violation
+    }
+  }
+  return target;
+}
+
 /**
  * CSS flex-wrap line breaking (items in order; a new line when the next item's
- * basis plus one gap would pass the edge), then flex-grow 1 shared equally
- * among growers, each clamped at its max, and the masthead's height.
+ * hypothetical size plus one gap would pass the edge), then the flexible
+ * lengths resolved per line as CSS does (growLine), and the masthead's height.
+ * Heights are per item: a reading that reached its max-width is one line tall,
+ * anything narrower is its stacked height.
  */
 export function layoutMasthead(
   viewportPx: number,
@@ -179,7 +328,7 @@ export function layoutMasthead(
   let line: MastheadItemPx[] = [];
   let used = 0;
   for (const item of items) {
-    const basis = item.fullRow ? available : item.basisPx;
+    const basis = hypotheticalPx(item, available);
     const next = line.length === 0 ? basis : used + frame.columnGapPx + basis;
     if (line.length > 0 && next > available) {
       lines.push(line);
@@ -193,29 +342,18 @@ export function layoutMasthead(
   if (line.length > 0) lines.push(line);
 
   const rows = lines.map((l): MastheadRowLayout => {
-    const widths = l.map((i) => (i.fullRow ? available : i.basisPx));
     const gaps = frame.columnGapPx * (l.length - 1);
-    let free = available - gaps - widths.reduce((a, b) => a + b, 0);
-    // Equal shares to every grower still under its max, until none is left.
-    for (let guard = 0; free > 0.01 && guard < 16; guard++) {
-      const open = l.map((i, k) => k).filter((k) => l[k].grows && (l[k].maxPx === undefined || widths[k] < l[k].maxPx!));
-      if (open.length === 0) break;
-      const share = free / open.length;
-      for (const k of open) {
-        const cap = l[k].maxPx === undefined ? Infinity : l[k].maxPx! - widths[k];
-        const take = Math.min(share, cap);
-        widths[k] += take;
-        free -= take;
-      }
-    }
+    const widths = growLine(l, available, gaps);
     const heights = l.map((i, k) =>
-      i.maxPx !== undefined && i.heightAtMaxPx !== undefined && widths[k] >= i.maxPx ? i.heightAtMaxPx : i.heightPx,
+      i.maxPx !== undefined && i.heightAtMaxPx !== undefined && widths[k] >= i.maxPx - 1e-9 ? i.heightAtMaxPx : i.heightPx,
     );
+    const usedPx = widths.reduce((a, b) => a + b, 0) + gaps;
     return {
       keys: l.map((i) => i.key),
       widthsPx: widths,
       heightPx: Math.max(...heights),
-      usedPx: widths.reduce((a, b) => a + b, 0) + gaps,
+      usedPx,
+      freePx: Math.max(0, available - usedPx),
     };
   });
 

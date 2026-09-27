@@ -2762,8 +2762,10 @@ export function WMOperatingSystem({
              165 at 1024, 119 at 1280.
 
              So the row may wrap, and what wraps is chosen:
-             - the mode bar, where a room has one, takes a whole second row and
-               lays its seven modes out side by side;
+             - the mode bar, where a room has one, stays in row one wherever
+               its seven modes fit there side by side; where they do not, it
+               moves WHOLE to the start of the next row — never folded into a
+               column, never forced onto a row of its own when it fits;
              - the feed reading keeps its phrases whole (see feedLabelLines),
                stacks them beside the pip when that is enough, and only when
                even that cannot fit does it move whole to the right of a
@@ -2789,18 +2791,25 @@ export function WMOperatingSystem({
              fits, and where it does not, the wrap moves it WHOLE to the start
              of the next row, the utilities and the reading following it in
              reading order. Never folded into a column, never reordered, so
-             focus order still matches what the eye reads. */
-          .wm-os-masthead-center:not(:empty) { flex: 1 0 auto !important; }
+             focus order still matches what the eye reads.
+             It does not GROW either (verifier RED 2026-09-27: at flex-grow 1
+             it ate the row's leftover, and /journal's reading stayed stacked
+             on two lines at 1280 to 1399 beside ~130px of empty mode-bar
+             box). The leftover goes first to the reading, up to its one-line
+             width, and only then to the auto margins below. */
+          .wm-os-masthead-center:not(:empty) { flex: 0 0 auto !important; }
           /* When the mode bar does wrap, row one is the wordmark and the
              doors alone, and the band's flex-end would slide them toward the
              middle (measured: wordmark at x 441 of 901). The item just before
              the centre takes the leftover instead, so the leading edge stays
-             leading. Where the centre grows (a room with a mode bar in row
-             one) there is no leftover and this margin is zero. */
+             leading. Where the mode bar stands in row one, whatever the
+             reading leaves is shared by this margin and the utilities' one,
+             so the mode bar stands in the middle of the gap between the doors
+             and the utilities. */
           .wm-os-masthead > :has(+ .wm-os-masthead-center) { margin-right: auto !important; }
           /* The reading grows from its stacked width up to its one-line width
-             and no further; whatever is left over goes to the auto margin in
-             front of the utilities, so utilities and reading stay together
+             and no further; whatever is left over goes to the auto margins
+             (in front of the utilities, and after the doors), so utilities and reading stay together
              at the trailing edge, as F24 draws them. An empty centre (the
              instrument view) is no longer the spacer — the margin is. */
           .wm-os-masthead-center:empty { flex-grow: 0 !important; }
