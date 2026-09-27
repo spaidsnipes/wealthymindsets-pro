@@ -68,6 +68,8 @@ export interface PlateCss {
   readonly plateInnerGapPx: number;
   readonly deckPadXPx: number;
   readonly deckMarkPx: number;
+  /** The masthead W plate's side padding (Garden 16 §13, 2026-09-27). */
+  readonly wPadXPx: number;
 }
 
 function num(re: RegExp, text: string, what: string): number {
@@ -104,6 +106,10 @@ function plateCss(css: string, deckMarkFallback: number): PlateCss {
     deckMarkPx: (() => {
       const m = /\.wm-os-equipment-plate-mark \{[^}]*?width: (\d+)px/.exec(css);
       return m ? Number(m[1]) : deckMarkFallback;
+    })(),
+    wPadXPx: (() => {
+      const own = /\.wm-os-w-door \{[^}]*?padding: 0 (\d+)px/.exec(css);
+      return own ? Number(own[1]) : num(/\.wm-os-equipment-plate \{[^}]*?padding: 0 (\d+)px/, css, "plate padding");
     })(),
   };
 }

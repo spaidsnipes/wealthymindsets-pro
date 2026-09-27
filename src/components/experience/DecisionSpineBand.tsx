@@ -1891,11 +1891,13 @@ function WebullLiveCard({ reading }: { readonly reading: WebullLiveReading }): R
         <span aria-hidden="true" style={{ ...PLAQUE_STAMP, color: "#ede6d3", textAlign: "center" }}>{reading.refusal ?? "refused"}</span>
       ) : (
         <>
-          <span aria-hidden="true" style={{ display: "grid", gridTemplateColumns: "1fr auto", columnGap: 8 }}>
-            <span style={{ ...PLAQUE_STAMP, color: "#ede6d3", letterSpacing: "0.1em" }}>{reading.symbol} last</span>
-            <span style={{ ...PLAQUE_STAMP, color: "#ede6d3", fontVariantNumeric: "tabular-nums" }}>{fmt(reading.price)}</span>
-            <span style={{ ...PLAQUE_STAMP, color: "#8a8271", letterSpacing: "0.1em" }}>Bid · Ask</span>
-            <span style={{ ...PLAQUE_STAMP, color: "#8a8271", fontVariantNumeric: "tabular-nums" }}>{fmt(reading.bid)} · {fmt(reading.ask)}</span>
+          <span aria-hidden="true" style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 8, rowGap: 2, whiteSpace: "nowrap" }}>
+            <span style={{ ...PLAQUE_STAMP, color: "#ede6d3", letterSpacing: "0.1em" }}>{reading.symbol}</span>
+            <span style={{ ...PLAQUE_STAMP, color: "#ede6d3", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>{fmt(reading.price)}</span>
+            <span style={{ ...PLAQUE_STAMP, color: "#8a8271", letterSpacing: "0.1em" }}>Bid</span>
+            <span style={{ ...PLAQUE_STAMP, color: "#8a8271", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>{fmt(reading.bid)}</span>
+            <span style={{ ...PLAQUE_STAMP, color: "#8a8271", letterSpacing: "0.1em" }}>Ask</span>
+            <span style={{ ...PLAQUE_STAMP, color: "#8a8271", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>{fmt(reading.ask)}</span>
           </span>
           <span aria-hidden="true" style={{ ...PLAQUE_STAMP, color: "#8a8271", textAlign: "center", letterSpacing: "0.08em" }}>
             Webull time {t} · {reading.framesPerMin}/min

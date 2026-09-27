@@ -1023,8 +1023,10 @@ function WDoorPlate({
       >
         {equipmentGlyph(entry.id)}
       </span>
+      {/* The W mark IS the "WM"; the words say what it opens. The accessible
+          name above keeps the full W_DOOR_LABEL. */}
       <span className="wm-os-equipment-plate-word" style={{ whiteSpace: "nowrap" }}>
-        {W_DOOR_LABEL}
+        {W_DOOR_LABEL.replace(/^WM\s+/, "")}
       </span>
     </button>
   );
@@ -2822,7 +2824,10 @@ export function WMOperatingSystem({
                stylesheet — it reads any such declaration as a re-typed
                breakpoint literal, and that guard is worth more to the product
                than the one property it costs here. */
-            width: 176px !important;
+            /* 152, not 176 (2026-09-27): with the W plate between the pair
+               (Garden 16 section 13), 176 pushed the feed reading off the
+               right edge at 1440 (measured: squeezed to 25px, text to x 1520). */
+            width: 152px !important;
             min-height: 58px !important;
             gap: 13px !important;
             padding: 0 22px !important;
@@ -2846,11 +2851,11 @@ export function WMOperatingSystem({
              "Command" over "Deck". It is not one of the matched pair; it
              stands after a hairline as its own control, so it takes the
              width its name needs and never splits it. */
-          .wm-os-command-deck { width: auto !important; }
+          .wm-os-command-deck { width: auto !important; padding: 0 16px !important; }
           .wm-os-command-deck .wm-os-equipment-plate-word { white-space: nowrap; }
           /* The W sizes to its name, like the deck: it is not one of the
              matched Workspace/Tools pair, it is the intelligence door. */
-          .wm-os-w-door { width: auto !important; }
+          .wm-os-w-door { width: auto !important; padding: 0 16px !important; }
           .wm-os-w-door .wm-os-equipment-plate-word { white-space: nowrap; }
         }
         /* THE COMPACT MASTHEAD BAND — see OS_MASTHEAD_COMPACT_MAX_PX. Later in
@@ -2932,7 +2937,7 @@ export function WMOperatingSystem({
           }
           .wm-os-equipment-plate-mark { width: 18px !important; height: 18px !important; }
           .wm-os-equipment-plate-word { font-size: 13px !important; }
-          .wm-os-command-deck,
+          .wm-os-command-deck { width: auto !important; padding: 0 12px !important; }
           .wm-os-w-door { width: auto !important; padding: 0 12px !important; }
           /* The mark alone; the words stay in the accessibility tree. */
           .wm-os-w-door .wm-os-equipment-plate-word,

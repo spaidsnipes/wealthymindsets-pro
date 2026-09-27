@@ -45,6 +45,8 @@ const ROOMS = { w: 59.515625, h: 32 };
 const COMMUNITY = { w: 90.015625, h: 32 };
 /** "Command Deck" at the desktop plate's 15px. */
 const DECK_WORD_15PX = 105.109375;
+/** "Smart Money" at the desktop plate word (15px Georgia, 0.6px tracking), measured on serving 2026-09-27. */
+const W_WORD_15PX = 96.21875;
 /** Plate borders: 1px each side (inline `border: 1px solid`). */
 const PLATE_BORDERS = 2;
 /** The seven-mode bar laid out in ONE row (max-content), 44px tap floor + 3px pad + 1px border. */
@@ -68,7 +70,11 @@ function chartsPlatesPx(vw: number): number {
   const deck = band
     ? 2 * p.deckPadXPx + p.deckMarkPx + PLATE_BORDERS // the mark alone; the word is visually hidden
     : 2 * p.deckPadXPx + p.deckMarkPx + p.plateInnerGapPx + DECK_WORD_15PX + PLATE_BORDERS;
-  return ROOMS.w + COMMUNITY.w + 2 * p.plateWidthPx + CSS.deckRulePx + deck + 5 * p.platesGapPx;
+  // The W plate (Garden 16 §13): mark + word on desktop, the mark alone in the band.
+  const w = band
+    ? 2 * p.wPadXPx + p.deckMarkPx + PLATE_BORDERS
+    : 2 * p.wPadXPx + p.deckMarkPx + p.plateInnerGapPx + W_WORD_15PX + PLATE_BORDERS;
+  return ROOMS.w + COMMUNITY.w + 2 * p.plateWidthPx + w + CSS.deckRulePx + deck + 6 * p.platesGapPx;
 }
 
 function frame(vw: number): MastheadFrame {
@@ -127,8 +133,10 @@ describe("the stylesheet, read", () => {
     expect(CSS.band.rowGapPx).toBeGreaterThan(0);
     expect(CSS.band.plateWidthPx).toBeLessThan(CSS.desktop.plateWidthPx);
     // Cross-check the derivation against the whole plate groups Chromium measured.
-    expect(chartsPlatesPx(1280)).toBeCloseTo(464.53125, 1);
-    expect(chartsPlatesPx(1440)).toBeCloseTo(744.640625, 1);
+    // Re-derived 2026-09-27 with the masthead W plate (Garden 16 §13); the
+    // serving glass is re-measured against these after deploy.
+    expect(chartsPlatesPx(1280)).toBeCloseTo(514.53125, 1);
+    expect(chartsPlatesPx(1440)).toBeCloseTo(861.859375, 1);
     expect(doorsPlatesPx(1280)).toBeCloseTo(228.53125, 1);
     expect(doorsPlatesPx(1440)).toBeCloseTo(236.53125, 1);
   });
@@ -306,7 +314,9 @@ function chartsRow(vw: number): MastheadRowPx {
 describe("the /charts feed reading, desktop 901–1440", () => {
   it.each([
     [901, "second-row"],
-    [1024, "stacked"],
+    // 1024: the W plate (2026-09-27) takes the room the stacked reading had;
+    // the band recomposes it onto the second row, whole, inside the viewport.
+    [1024, "second-row"],
     [1280, "one-line"],
     [1440, "stacked"],
   ] as const)("at %ipx it stands %s — inside the viewport either way", (vw, placement) => {
@@ -316,7 +326,8 @@ describe("the /charts feed reading, desktop 901–1440", () => {
   it("901 is the width that forced the second row: five pixels were never going to hold a reading", () => {
     expect(feedReadingRoomPx(901, chartsRow(901))).toBeLessThan(SESSION_CLOSED.stackedPx);
     // With the desktop gap instead of the band's, the room was the 5px the glass showed.
-    expect(Math.round(feedReadingRoomPx(901, { ...chartsRow(901), gapPx: CSS.gapPx }))).toBe(5);
+    // It was 5px on the glass before the W plate; the W only takes more.
+    expect(Math.round(feedReadingRoomPx(901, { ...chartsRow(901), gapPx: CSS.gapPx }))).toBeLessThanOrEqual(5);
   });
 
   it("the named widths straddle the bands the way the stylesheet does", () => {
@@ -324,3 +335,4 @@ describe("the /charts feed reading, desktop 901–1440", () => {
     expect(inBand(1440)).toBe(false);
   });
 });
+
