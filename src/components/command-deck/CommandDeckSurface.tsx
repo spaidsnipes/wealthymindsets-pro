@@ -81,7 +81,7 @@ import type { PerCapabilityFidelityReport } from "@/lib/marketData/perCapability
 import type { DeckEmphasis, DeckSurface } from "@/lib/experience/selectDeckEmphasis";
 import type { ExperienceMode } from "@/lib/experience/decisionContextBus";
 import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
-import { DECK_PHASE_LABEL } from "@/lib/experience/decisionLifecycle";
+import { DECK_PHASE_LABEL, DECK_PHASE_ORDER } from "@/lib/experience/decisionLifecycle";
 import { selectPrepChecklistBand } from "@/lib/experience/selectPrepChecklistBand";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { useLearningGenomeBundle } from "@/lib/learningGenome/useLearningGenomeBundle";
@@ -105,12 +105,11 @@ const EYEBROW: React.CSSProperties = {
 };
 
 /**
- * The six phases, in the deck page's own order. The WORDS come from the one
+ * The six phases. The ORDER and the WORDS come from the one
  * lifecycle owner (decisionLifecycle) so the Workspace mode row's read-back and
  * this control can never name the same phase two ways.
  */
-const PHASE_ORDER: readonly TradePhase[] = ["PREPARATION", "APPROACH", "DECISION", "POSITION", "POST_EXIT", "REVIEW"];
-export const COMMAND_DECK_PHASES: readonly { readonly id: TradePhase; readonly label: string }[] = PHASE_ORDER.map(
+export const COMMAND_DECK_PHASES: readonly { readonly id: TradePhase; readonly label: string }[] = DECK_PHASE_ORDER.map(
   (id) => ({ id, label: DECK_PHASE_LABEL[id] }),
 );
 

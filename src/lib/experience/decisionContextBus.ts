@@ -23,8 +23,8 @@
  */
 
 import {
-  LIFECYCLE_START,
   modeForStage,
+  stageAttachedTo,
   stageForMode,
   type LifecycleStage,
 } from "./decisionLifecycle";
@@ -181,18 +181,22 @@ export class DecisionContextBus {
 
   /**
    * A room says which market it is showing. First attachment keeps whatever the
-   * trader already said; a DIFFERENT market returns the lifecycle to its start —
-   * "In Trade" said on TSLA is not a trade on ES1!.
+   * trader already said UNLESS it claims a trade (EXECUTE/MANAGE/POST_EXIT said
+   * on no market is not a trade on this one); a DIFFERENT market returns the
+   * lifecycle to its start — "In Trade" said on TSLA is not a trade on ES1!.
+   * The rule is decisionLifecycle's `stageAttachedTo`, the same one render reads.
    */
   attachSymbol(symbol: string): DecisionContext {
     const current = this.context.stageSymbol;
     if (current === symbol) return this.context;
-    if (current === null) {
+    const kept = stageAttachedTo(this.context, symbol);
+    // A non-lifecycle job (LEARN) is not a stage to carry or reset on first attach.
+    if (current === null && (kept === this.context.stage || this.context.stage === null)) {
       this.context = { ...this.context, stageSymbol: symbol };
       for (const l of this.listeners) l();
       return this.context;
     }
-    this.commit({ mode: modeForStage(LIFECYCLE_START), stage: LIFECYCLE_START, stageSymbol: symbol, source: "default" });
+    this.commit({ mode: modeForStage(kept), stage: kept, stageSymbol: symbol, source: "default" });
     return this.context;
   }
 

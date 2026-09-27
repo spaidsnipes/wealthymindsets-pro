@@ -172,17 +172,58 @@ export function stageForMode(mode: ExperienceMode): LifecycleStage | null {
  * another symbol does not travel (§32 "attached to symbol"); a non-lifecycle
  * job (LEARN, set elsewhere) has no phase and reads as the lifecycle start
  * rather than inventing one. `stageSymbol === null` means "not yet attached",
- * which belongs to whichever market first attaches it.
+ * which belongs to whichever market first attaches it — unless it claims a
+ * trade (see `stageAttachedTo`).
  */
 export function lifecyclePhaseFor(
   ctx: { readonly stage: LifecycleStage | null; readonly stageSymbol: string | null },
   symbol: string,
 ): TradePhase {
-  if (ctx.stageSymbol !== null && ctx.stageSymbol !== symbol) return phaseForStage(LIFECYCLE_START);
-  return phaseForStage(ctx.stage ?? LIFECYCLE_START);
+  return phaseForStage(stageAttachedTo(ctx, symbol));
 }
 
-/** Words for the room's read-back line under the mode row. */
+/**
+ * The stages that CLAIM A TRADE on a market: deciding it, holding it, having
+ * just left it. A stage said with no market attached (MANAGE pressed on a room
+ * that names no symbol) is not a trade on whichever market opens next.
+ */
+export const TRADE_BEARING_STAGES: readonly LifecycleStage[] = ["EXECUTE", "MANAGE", "POST_EXIT"] as const;
+
+export function isTradeBearingStage(stage: LifecycleStage | null): boolean {
+  return stage !== null && TRADE_BEARING_STAGES.includes(stage);
+}
+
+/**
+ * THE ONE RULE for "what stage is the trader in ON THIS MARKET" — read by
+ * `lifecyclePhaseFor` in render and by the bus when a room attaches, so the
+ * render and the owner can never disagree:
+ *   · declared on another market → the lifecycle start;
+ *   · declared on no market → kept when it claims no trade (OBSERVE/PREP/WAIT/
+ *     REVIEW), the start when it does (EXECUTE/MANAGE/POST_EXIT) — a trade is
+ *     only ever a trade on the market it was said on;
+ *   · declared on THIS market → itself.
+ * A non-lifecycle job (LEARN, stage null) reads the start.
+ */
+export function stageAttachedTo(
+  ctx: { readonly stage: LifecycleStage | null; readonly stageSymbol: string | null },
+  symbol: string,
+): LifecycleStage {
+  if (ctx.stageSymbol !== null && ctx.stageSymbol !== symbol) return LIFECYCLE_START;
+  if (ctx.stageSymbol === null && isTradeBearingStage(ctx.stage)) return LIFECYCLE_START;
+  return ctx.stage ?? LIFECYCLE_START;
+}
+
+/** The deck's six phases, in §32's order — every phase control renders THIS order. */
+export const DECK_PHASE_ORDER: readonly TradePhase[] = [
+  "PREPARATION",
+  "APPROACH",
+  "DECISION",
+  "POSITION",
+  "POST_EXIT",
+  "REVIEW",
+] as const;
+
+/** Words for every phase control and the room's read-back line under the mode row. */
 export const DECK_PHASE_LABEL: Readonly<Record<TradePhase, string>> = {
   PREPARATION: "Prep",
   APPROACH: "Approach",

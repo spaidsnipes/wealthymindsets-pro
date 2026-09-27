@@ -19,9 +19,21 @@ import path from "node:path";
 import { DecisionContextBus } from "@/lib/experience/decisionContextBus";
 import { lifecyclePhaseFor } from "@/lib/experience/decisionLifecycle";
 
-const SRC = readFileSync(path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/(^|[^:])\/\/.*$/gm, "$1");
+const read = (rel: string) =>
+  readFileSync(path.join(process.cwd(), rel), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+const SRC = read("src/components/chart/ChartsDashboard.tsx");
+const DECK_PAGE = read("src/app/command-deck/page.tsx");
+
+/**
+ * THE WHOLE ATTACH EFFECT, deps included (verifier MEDIUM, round 3): a
+ * substring pin on `attachLifecycleSymbol(symbol);` survived dropping `symbol`
+ * from the deps — the effect then attaches once and a market change never
+ * reaches the owner, so the mode row keeps TSLA's "MANAGE" on ES1!.
+ */
+const ATTACH_EFFECT =
+  /React\.useEffect\(\(\) => \{\s*attachLifecycleSymbol\(symbol\);\s*\}, \[attachLifecycleSymbol, symbol\]\);/;
 
 describe("the room's trade phase is scoped to the symbol", () => {
   it("reads the phase FOR ITS SYMBOL before the one compile reads it, and attaches the symbol to the owner", () => {
@@ -32,6 +44,27 @@ describe("the room's trade phase is scoped to the symbol", () => {
     expect(attach, "the room no longer tells the lifecycle owner which market it shows").toBeGreaterThan(-1);
     expect(compile).toBeGreaterThan(read);
     expect(SRC, "a second, room-local phase store came back").not.toMatch(/useState<TradePhase>/);
+    expect(SRC, "the attach effect no longer re-runs on a market change").toMatch(ATTACH_EFFECT);
+  });
+
+  it("/command-deck reads and writes the SAME owner, for its symbol — no room-local phase", () => {
+    expect(DECK_PAGE).toContain("const phase: CommandPhase = lifecyclePhaseFor(experienceContext, symbol);");
+    expect(DECK_PAGE).toContain("(p: CommandPhase) => setLifecycleStage(stageForPhase(p), symbol)");
+    expect(DECK_PAGE, "the attach effect no longer re-runs on a market change").toMatch(ATTACH_EFFECT);
+    expect(DECK_PAGE).toMatch(/label: DECK_PHASE_LABEL\[id\]/);
+    expect(DECK_PAGE).not.toMatch(/useState<CommandPhase>|useState<TradePhase>/);
+  });
+
+  it("attach on every symbol change: a room walking TSLA → ES1! → TSLA ends at the start, not TSLA's old trade", () => {
+    const bus = new DecisionContextBus();
+    // What the room's effect does on each symbol it renders.
+    bus.attachSymbol("TSLA");
+    bus.setStage("MANAGE", "TSLA");
+    bus.attachSymbol("ES1!");
+    expect(bus.getContext()).toMatchObject({ stage: "OBSERVE", stageSymbol: "ES1!" });
+    bus.attachSymbol("TSLA");
+    expect(bus.getContext()).toMatchObject({ stage: "OBSERVE", mode: "OBSERVE", stageSymbol: "TSLA" });
+    expect(lifecyclePhaseFor(bus.getContext(), "TSLA")).toBe("PREPARATION");
   });
 
   it("TSLA 'In Trade' → ES1! reads PREPARATION in the same render, and the owner resets on attach", () => {

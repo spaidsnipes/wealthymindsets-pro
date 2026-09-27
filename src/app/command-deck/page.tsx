@@ -114,6 +114,12 @@ import { composeMarketCanvasVM } from "@/lib/marketData/viewModels/composeMarket
 import DecisionReceiptPanel from "@/components/experience/DecisionReceiptPanel";
 import { selectDecisionReceipt } from "@/lib/traderMemory/viewModels/selectDecisionReceipt";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
+import {
+  DECK_PHASE_LABEL,
+  DECK_PHASE_ORDER,
+  lifecyclePhaseFor,
+  stageForPhase,
+} from "@/lib/experience/decisionLifecycle";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
 import { routeQuestion } from "@/lib/experience/questionRouter";
 import { selectQuestionFocus } from "@/lib/experience/selectQuestionFocus";
@@ -190,14 +196,14 @@ import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 
 type CommandPhase = TradePhase;
 
-const PHASES: readonly { id: CommandPhase; label: string }[] = [
-  { id: "PREPARATION", label: "Prep" },
-  { id: "APPROACH", label: "Approach" },
-  { id: "DECISION", label: "Decide" },
-  { id: "POSITION", label: "In Trade" },
-  { id: "POST_EXIT", label: "Post-Exit" },
-  { id: "REVIEW", label: "Review" },
-];
+/**
+ * The deck's phase control. ORDER and WORDS come from the ONE lifecycle owner
+ * (decisionLifecycle, Garden 16 §15/§32) — this room holds no phase table.
+ */
+const PHASES: readonly { id: CommandPhase; label: string }[] = DECK_PHASE_ORDER.map((id) => ({
+  id,
+  label: DECK_PHASE_LABEL[id],
+}));
 
 /**
  * The §10 surface elements /command-deck actually routes through admission.
@@ -294,7 +300,6 @@ function CommandDeckInner() {
     if (!seed.shouldSeedContext) return;
     setActiveSymbol(seed.displaySymbol);
   }, [requestedSymbol, setActiveSymbol]);
-  const [phase, setPhase] = React.useState<CommandPhase>("PREPARATION");
   const [whyTarget, setWhyTarget] = React.useState<WhyTarget | null>(null);
   const [showEvidence, setShowEvidence] = React.useState<boolean>(false);
   const [proofChainOpen, setProofChainOpen] = React.useState(false);
@@ -305,8 +310,28 @@ function CommandDeckInner() {
   // the shell's EMPHASIS around the human's current job — the market truth
   // below is untouched. `context.mode` is the live job; `emphasis.job` is its
   // single-line caption. This surface is the first WM Experience Shell cutover.
-  const { context: experienceContext, setMode: setExperienceMode } = useDecisionContext();
+  const {
+    context: experienceContext,
+    setMode: setExperienceMode,
+    setStage: setLifecycleStage,
+    attachSymbol: attachLifecycleSymbol,
+  } = useDecisionContext();
   const experienceEmphasis = shellEmphasis(experienceContext.mode);
+
+  // ONE LIFECYCLE OWNER (Garden 16 §15/§32). The deck's phase is a READ of the
+  // one lifecycle stage on the DecisionContextBus FOR THIS MARKET — the same
+  // stage the Workspace mode row and the /charts deck read and write. There is
+  // no room-local phase store: a press here writes the one stage, attached to
+  // this symbol, and a market change returns it to the lifecycle start in the
+  // same render (lifecyclePhaseFor) and in the owner (attachSymbol).
+  const phase: CommandPhase = lifecyclePhaseFor(experienceContext, symbol);
+  React.useEffect(() => {
+    attachLifecycleSymbol(symbol);
+  }, [attachLifecycleSymbol, symbol]);
+  const setPhase = React.useCallback(
+    (p: CommandPhase) => setLifecycleStage(stageForPhase(p), symbol),
+    [setLifecycleStage, symbol],
+  );
 
   // Identity routes through canonicalMarketStateIdentity — the SAME helper
   // chartMarketStatePublisher writes with — so the deck cannot silently

@@ -171,6 +171,16 @@ describe("PROCESS — the phase control is wired to the room's one chain", () =>
     expect(inTrade).toMatch(/Management · active/);
   });
 
+  it("the one-lifecycle line under the control: said for a lifecycle job, and LEARN is named as not a stage", () => {
+    const owner = (html: string) =>
+      html.match(/data-testid="command-deck-lifecycle-owner"[^>]*>([^<]*)</)?.[1] ?? null;
+    for (const job of ["OBSERVE", "MANAGE", "REVIEW"] as const) {
+      expect(owner(renderDeck({ job })), job).toBe("One lifecycle: the Workspace mode row and this phase move together.");
+    }
+    const learn = owner(renderDeck({ job: "LEARN" }));
+    expect(learn).toBe("Your job is LEARN — not a trade-lifecycle stage. Pressing a phase re-enters the lifecycle.");
+  });
+
   it("no chain compiled → it says so, and invents no headline", () => {
     const html = renderDeck({ state: null });
     expect(html).toContain('data-testid="command-deck-chain-unresolved"');

@@ -19,7 +19,10 @@ import {
   phaseForStage,
   routeForMode,
   stageForMode,
+  stageAttachedTo,
   stageForPhase,
+  isTradeBearingStage,
+  TRADE_BEARING_STAGES,
   type LifecycleStage,
 } from "./decisionLifecycle";
 import { DecisionContextBus, EXPERIENCE_MODES, type ExperienceMode } from "./decisionContextBus";
@@ -46,6 +49,9 @@ describe("the mapping is total in both directions", () => {
 });
 
 describe("each control's press round-trips on its own face", () => {
+  it("the deck's Prep writes the lifecycle START, OBSERVE — not PREP", () => {
+    expect(stageForPhase("PREPARATION")).toBe("OBSERVE");
+  });
   it("deck: phase → stage → phase is the identity", () => {
     for (const p of PHASES) expect(phaseForStage(stageForPhase(p)), p).toBe(p);
   });
@@ -85,7 +91,56 @@ describe("the stage belongs to one market", () => {
   });
   it("an unattached stage belongs to whichever market reads it; a non-lifecycle job reads the start", () => {
     expect(lifecyclePhaseFor({ stage: "WAIT", stageSymbol: null }, "GC1!")).toBe("APPROACH");
+    expect(lifecyclePhaseFor({ stage: "REVIEW", stageSymbol: null }, "GC1!")).toBe("REVIEW");
     expect(lifecyclePhaseFor({ stage: null, stageSymbol: "GC1!" }, "GC1!")).toBe("PREPARATION");
+  });
+});
+
+describe("a trade said on NO market is not a trade on the first market opened (verifier MEDIUM, round 3)", () => {
+  it("the trade-bearing stages are exactly EXECUTE, MANAGE, POST_EXIT", () => {
+    expect(LIFECYCLE_STAGES.filter(isTradeBearingStage)).toEqual(["EXECUTE", "MANAGE", "POST_EXIT"]);
+    expect(TRADE_BEARING_STAGES).toEqual(["EXECUTE", "MANAGE", "POST_EXIT"]);
+    expect(isTradeBearingStage(null)).toBe(false);
+  });
+  it("in render: an unattached trade-bearing stage reads PREPARATION on any market", () => {
+    for (const stage of TRADE_BEARING_STAGES) {
+      expect(lifecyclePhaseFor({ stage, stageSymbol: null }, "ES1!"), stage).toBe("PREPARATION");
+      expect(stageAttachedTo({ stage, stageSymbol: null }, "ES1!"), stage).toBe(LIFECYCLE_START);
+      // Declared on THIS market, it is itself.
+      expect(stageAttachedTo({ stage, stageSymbol: "ES1!" }, "ES1!"), stage).toBe(stage);
+    }
+  });
+  it("in the owner: MANAGE pressed before /charts attaches → the first attach returns to the start", () => {
+    for (const mode of ["EXECUTE", "MANAGE"] as const) {
+      const bus = new DecisionContextBus();
+      bus.setMode(mode); // pressed on a room that names no market
+      expect(bus.getContext().stageSymbol).toBeNull();
+      bus.attachSymbol("ES1!");
+      expect(bus.getContext(), mode).toMatchObject({ stage: LIFECYCLE_START, mode: "OBSERVE", stageSymbol: "ES1!", source: "default" });
+      expect(lifecyclePhaseFor(bus.getContext(), "ES1!"), mode).toBe("PREPARATION");
+    }
+    const exited = new DecisionContextBus();
+    exited.setStage("POST_EXIT");
+    exited.attachSymbol("GC1!");
+    expect(exited.getContext()).toMatchObject({ stage: LIFECYCLE_START, stageSymbol: "GC1!" });
+  });
+  it("a trade declared on THIS market survives its own first attach, and non-trade stages are kept", () => {
+    const bus = new DecisionContextBus();
+    bus.setStage("MANAGE", "TSLA");
+    bus.attachSymbol("TSLA");
+    expect(bus.getContext()).toMatchObject({ stage: "MANAGE", mode: "MANAGE", stageSymbol: "TSLA" });
+    for (const mode of ["PREP", "WAIT", "REVIEW"] as const) {
+      const b = new DecisionContextBus();
+      b.setMode(mode);
+      b.attachSymbol("ES1!");
+      expect(b.getContext(), mode).toMatchObject({ stage: mode, mode, stageSymbol: "ES1!" });
+    }
+  });
+  it("LEARN set before any room attaches stays LEARN (a job, not a stage to reset)", () => {
+    const bus = new DecisionContextBus();
+    bus.setMode("LEARN");
+    bus.attachSymbol("ES1!");
+    expect(bus.getContext()).toMatchObject({ mode: "LEARN", stage: null, stageSymbol: "ES1!" });
   });
 });
 
