@@ -34,7 +34,22 @@
 <script>
   const q = new URLSearchParams(location.search);
   const id = (q.get("plate") || "").replace(/[^A-Za-z0-9_-]/g, "");
-  if (id) document.getElementById("pimg").src = "https://drive.google.com/thumbnail?id=" + id + "&sz=w1600";
+  // Drive serves a plate through more than one door; a door that refuses one
+  // file (measured: H-201's thumbnail stayed blank) falls through to the next.
+  const doors = id ? [
+    "https://drive.google.com/thumbnail?id=" + id + "&sz=w1600",
+    "https://lh3.googleusercontent.com/d/" + id + "=w1600",
+    "https://drive.google.com/uc?export=view&id=" + id,
+  ] : [];
+  const pimg = document.getElementById("pimg");
+  let door = 0;
+  const next = () => {
+    if (door < doors.length) { pimg.src = doors[door++]; return; }
+    document.getElementById("plab").textContent += " · plate did not load from Drive";
+  };
+  pimg.onerror = next;
+  pimg.onload = () => { if (pimg.naturalWidth < 50) next(); };
+  next();
   document.getElementById("plab").textContent = "CANON · " + (q.get("name") || id || "no plate");
   // Only a same-origin /charts path — this page frames nothing else.
   let g = q.get("glass") || "/charts";
