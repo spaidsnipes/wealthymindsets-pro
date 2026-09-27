@@ -1,0 +1,32 @@
+/**
+ * UI-06 · ABSORPTION IS EFFORT AGAINST DISPLACEMENT, DRAWN (2026-09-27).
+ * The plate's effort ridges under price against a weaker displacement line,
+ * gold where effort ran high and displacement stayed weak — painted from the
+ * ONE anatomy measurement, behind the candles.
+ */
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+const MC = readFileSync("src/components/chart/MainChart.tsx", "utf8");
+const at = MC.indexOf("UI-06 · THE EFFORT TERRAIN");
+const block = at > 0 ? MC.slice(at, at + 6500) : "";
+
+describe("effort terrain", () => {
+  it("reads the anatomy owner's own fields — nothing re-measured", () => {
+    expect(block.length).toBeGreaterThan(0);
+    expect(block).toContain("terr[j].b.effortNorm");
+    expect(block).toContain("terr[i].b.displacementNorm");
+    expect(block).toContain("terr[i].b.absorbing");
+    expect(block).not.toMatch(/selectAbsorptionAnatomy\(/);
+  });
+  it("multi-scale ridges, gold absorbing span, displacement line; behind the candles; silent when UNMEASURED", () => {
+    expect(block).toContain("const layers = [9, 5, 3, 1];");
+    expect(block).toContain('ctx.clip(cutT, "evenodd");');
+    expect(block).toContain('anatomy.basis !== "UNMEASURED"');
+    expect(block).toContain("ds.absorptionTerrain = `BARS:");
+  });
+  it("words ask speaks(); the receipt is withdrawn with the layer", () => {
+    expect(block).toContain('if (att.speaks("absorption")) {');
+    expect(MC).toContain('"absorptionTerrain", "absorptionTravel"');
+  });
+});

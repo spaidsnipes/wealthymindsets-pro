@@ -199,7 +199,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
 
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
 const ANATOMY_BLOCK_RECEIPTS = [
-  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTravel", "absorptionWall", "absorptionWords", "absorptionZones",
+  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTerrain", "absorptionTravel", "absorptionWall", "absorptionWords", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded", "exhaustionEffortResult", "exhaustionWords",
   "questionCallout", "questionChoice", "questionLensForm", "questionLensHome", "questionLensTag", "questionBandYielded",
@@ -10156,6 +10156,109 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // rows, and what side evidence tinted them (NO_SIDE = grey).
             if (shelfRowsDrawn.length > 0) ds.absorptionRows = shelfRowsDrawn.join(",");
             else delete ds.absorptionRows;
+
+            /* ── UI-06 · THE EFFORT TERRAIN (Garden 16 emergency order §22/§29) ──
+               The plate draws absorption as EFFORT (pressure) ridges under the
+               price line against a weaker DISPLACEMENT line, and marks the zone
+               where effort ran high and displacement stayed weak. Painted from
+               THIS frame's anatomy (effortNorm, displacementNorm, absorbing —
+               the one owner's measurement), in the pane's lower band, behind
+               the candles:
+                 ridges    effort at 1 / 3 / 5 / 9-bar smoothing (multi-scale
+                           effort; back ridges fainter)
+                 line      displacement (ivory) — effort vs result, visible
+                 gold      the owner's absorbing bars
+               Basis stays the owner's (EFFORT · VOLUME / DELTA). */
+            {
+              const terr = pts.filter(p => p.x >= 0 && p.x <= W);
+              if (anatomy.basis !== "UNMEASURED" && terr.length >= 8) {
+                let paneBotT = H;
+                try { const ps = (chart as any).paneSize?.(0); if (ps && Number.isFinite(ps.height) && ps.height > 0) paneBotT = ps.height; } catch { /* canvas height */ }
+                const bandH = Math.min(110, Math.max(60, paneBotT * 0.16));
+                const base = paneBotT - 8;
+                const smooth = (k: number) => terr.map((_, i) => {
+                  let sum = 0, n = 0;
+                  for (let j = Math.max(0, i - (k >> 1)); j <= Math.min(terr.length - 1, i + (k >> 1)); j++) { sum += terr[j].b.effortNorm; n++; }
+                  return n ? sum / n : 0;
+                });
+                const vrT = chart.timeScale().getVisibleLogicalRange();
+                const cutT = new Path2D();
+                cutT.rect(0, 0, W, H);
+                for (const cr of candleCutOutRects(barsRef.current ?? [], {
+                  visible: vrT ? { from: +vrT.from, to: +vrT.to } : null,
+                  barSpacing: bsp,
+                  timeToX: t => { const xk = chart.timeScale().timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                  priceToY: pp => { const yk = srs.priceToCoordinate(pp); return yk == null ? null : +yk; },
+                }, terr[0].x - bsp, terr[terr.length - 1].x + bsp)) cutT.rect(cr.x, cr.y, cr.w, cr.h);
+                ctx.save();
+                ctx.globalAlpha = att.alpha("absorption");
+                ctx.clip(cutT, "evenodd");
+                const layers = [9, 5, 3, 1];
+                layers.forEach((k, li) => {
+                  const e = smooth(k);
+                  const lift = (layers.length - 1 - li) * 7;
+                  const y = (i: number) => base - lift - e[i] * bandH;
+                  ctx.beginPath();
+                  ctx.moveTo(terr[0].x, base - lift);
+                  for (let i = 0; i < terr.length; i++) ctx.lineTo(terr[i].x, y(i));
+                  ctx.lineTo(terr[terr.length - 1].x, base - lift);
+                  ctx.closePath();
+                  const g = ctx.createLinearGradient(0, base - lift - bandH, 0, base - lift);
+                  const a = 0.1 + li * 0.07;
+                  g.addColorStop(0, `rgba(214,210,200,${(a + 0.12).toFixed(2)})`);
+                  g.addColorStop(1, `rgba(120,118,112,${(a * 0.4).toFixed(2)})`);
+                  ctx.fillStyle = g;
+                  ctx.fill();
+                  ctx.strokeStyle = `rgba(230,226,216,${(0.25 + li * 0.15).toFixed(2)})`;
+                  ctx.lineWidth = li === layers.length - 1 ? 1.2 : 0.8;
+                  ctx.beginPath();
+                  for (let i = 0; i < terr.length; i++) (i ? ctx.lineTo(terr[i].x, y(i)) : ctx.moveTo(terr[i].x, y(i)));
+                  ctx.stroke();
+                });
+                // Absorbing bars: the front ridge turns gold where the owner flagged them.
+                const front = smooth(1);
+                ctx.strokeStyle = "rgba(232,184,92,0.95)";
+                ctx.lineWidth = 2;
+                let absorbingDrawn = 0;
+                for (let i = 1; i < terr.length; i++) {
+                  if (!terr[i].b.absorbing && !terr[i - 1].b.absorbing) continue;
+                  ctx.beginPath();
+                  ctx.moveTo(terr[i - 1].x, base - front[i - 1] * bandH);
+                  ctx.lineTo(terr[i].x, base - front[i] * bandH);
+                  ctx.stroke();
+                  absorbingDrawn++;
+                }
+                // Displacement — the result — as one ivory line over the ridges.
+                ctx.strokeStyle = "rgba(245,240,228,0.85)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath();
+                for (let i = 0; i < terr.length; i++) {
+                  const yy = base - terr[i].b.displacementNorm * bandH;
+                  (i ? ctx.lineTo(terr[i].x, yy) : ctx.moveTo(terr[i].x, yy));
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+                if (att.speaks("absorption")) {
+                  ctx.save();
+                  ctx.globalAlpha = att.textAlpha("absorption");
+                  ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                  ctx.textAlign = "left";
+                  ctx.textBaseline = "bottom";
+                  ctx.fillStyle = "rgba(230,226,216,0.9)";
+                  const tx = Math.max(8, terr[0].x + 4);
+                  ctx.fillText("EFFORT — ridges", tx, base - bandH - 10);
+                  ctx.fillStyle = "rgba(245,240,228,0.95)";
+                  ctx.fillText("┈ DISPLACEMENT", tx + 96, base - bandH - 10);
+                  if (absorbingDrawn) { ctx.fillStyle = "rgba(232,184,92,1)"; ctx.fillText("━ ABSORBING", tx + 190, base - bandH - 10); }
+                  ctx.restore();
+                }
+                ds.absorptionTerrain = `BARS:${terr.length}|ABSORBING:${absorbingDrawn}`;
+              } else {
+                ds.absorptionTerrain = anatomy.basis === "UNMEASURED" ? "UNMEASURED" : "TOO_FEW_BARS";
+              }
+            }
 
             // ── BASIS. Compact, always visible, never a vendor name.
             const basisTxt = BASIS_LABEL[anatomy.basis];
