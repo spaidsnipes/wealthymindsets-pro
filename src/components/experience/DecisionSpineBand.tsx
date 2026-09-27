@@ -45,6 +45,7 @@
  * the difference.
  */
 
+import type { WebullLiveReading } from "@/lib/marketData/useWebullLiveCrypto";
 import * as React from "react";
 import type { QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
 import type { AbsorptionRailRead } from "@/lib/marketData/selectAbsorptionAnatomy";
@@ -264,6 +265,11 @@ export interface DecisionSpineBandProps {
   readonly questionLens?: QuestionLensVM | null;
   /** F06A · the chart's own newest absorption zone, for the flow card's ABSORPTION row. */
   readonly absorptionRead?: AbsorptionRailRead | null;
+  /**
+   * WEBULL, LIVE (Garden 16 §34, 2026-09-27): Webull's own real-time frames for
+   * the chart's crypto symbol — the lane Webull answers today. Absent → absent card.
+   */
+  readonly webullLive?: WebullLiveReading | null;
   /** F06A · buy/sell by price from the heard tape (selectTapeFootprint), with its "since". */
   readonly tapeFootprint?: TapeFootprintVM | null;
   /**
@@ -1584,6 +1590,8 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         );
       })() : null}
 
+      {rail && props.webullLive && !replayEngaged ? <WebullLiveCard reading={props.webullLive} /> : null}
+
       {/* F06A · ORDER FLOW CONTEXT — beneath the plaque, at rest, ONLY with a
           lawful reading. The tape's aggressor split (not F06A's book "stacks",
           which no owner here publishes), with its provenance printed. Absent
@@ -1853,3 +1861,47 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
 }
 
 export default DecisionSpineBand;
+
+
+/**
+ * WEBULL · LIVE — the price, bid and ask Webull's real-time broker just pushed,
+ * with WEBULL's timestamp and the frame rate, so arrival is visible and a stall
+ * is visible. REFUSED prints Webull's own code. Nothing is inferred.
+ */
+function WebullLiveCard({ reading }: { readonly reading: WebullLiveReading }): React.ReactElement {
+  const fmt = (n: number | null) => (n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const t = reading.providerAtMs != null ? new Date(reading.providerAtMs).toISOString().slice(11, 19) + "Z" : "—";
+  const word = reading.phase === "LIVE" ? "LIVE" : reading.phase === "REFUSED" ? "REFUSED" : reading.phase === "RETRYING" ? "RECONNECTING" : "CONNECTING";
+  const ink = reading.phase === "LIVE" ? "#c4a574" : reading.phase === "REFUSED" ? "#d98b7a" : "#8a8271";
+  return (
+    <div
+      data-testid="spine-webull-live"
+      data-webull-phase={reading.phase}
+      role="status"
+      aria-live="polite"
+      aria-label={reading.phase === "REFUSED"
+        ? `Webull refused ${reading.symbol}: ${reading.refusal ?? "no code"}.`
+        : `Webull ${word.toLowerCase()} for ${reading.symbol}. Last ${fmt(reading.price)}, bid ${fmt(reading.bid)}, ask ${fmt(reading.ask)}, Webull time ${t}, ${reading.framesPerMin} frames in the last minute.`}
+      style={{ display: "flex", flexDirection: "column", gap: 4, margin: "0 2px 10px", padding: "9px 11px 8px", border: "1px solid rgba(196,165,116,0.24)", borderRadius: 2 }}
+    >
+      <span aria-hidden="true" style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em", textAlign: "center" }}>
+        Webull · <span style={{ color: ink }}>{word}</span>
+      </span>
+      {reading.phase === "REFUSED" ? (
+        <span aria-hidden="true" style={{ ...PLAQUE_STAMP, color: "#ede6d3", textAlign: "center" }}>{reading.refusal ?? "refused"}</span>
+      ) : (
+        <>
+          <span aria-hidden="true" style={{ display: "grid", gridTemplateColumns: "1fr auto", columnGap: 8 }}>
+            <span style={{ ...PLAQUE_STAMP, color: "#ede6d3", letterSpacing: "0.1em" }}>{reading.symbol} last</span>
+            <span style={{ ...PLAQUE_STAMP, color: "#ede6d3", fontVariantNumeric: "tabular-nums" }}>{fmt(reading.price)}</span>
+            <span style={{ ...PLAQUE_STAMP, color: "#8a8271", letterSpacing: "0.1em" }}>Bid · Ask</span>
+            <span style={{ ...PLAQUE_STAMP, color: "#8a8271", fontVariantNumeric: "tabular-nums" }}>{fmt(reading.bid)} · {fmt(reading.ask)}</span>
+          </span>
+          <span aria-hidden="true" style={{ ...PLAQUE_STAMP, color: "#8a8271", textAlign: "center", letterSpacing: "0.08em" }}>
+            Webull time {t} · {reading.framesPerMin}/min
+          </span>
+        </>
+      )}
+    </div>
+  );
+}

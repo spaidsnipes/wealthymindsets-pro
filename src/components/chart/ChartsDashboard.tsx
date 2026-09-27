@@ -336,6 +336,7 @@ import selectStructureZoneObjects from "@/lib/marketData/viewModels/selectStruct
 import { selectLiquidityLifecycle } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { bookBucketStep, placeBookEventsOnBars } from "@/lib/marketData/bookLiquidityLifecycle";
 import { useBookLiquidityLifecycle } from "@/lib/marketData/useBookLiquidityLifecycle";
+import { useWebullLiveCrypto } from "@/lib/marketData/useWebullLiveCrypto";
 import { DiscoveryUnusualStates } from "@/components/scanner/DiscoveryUnusualStates";
 import { BOARD_STOCK_SYMBOLS } from "@/lib/marketData/sp500Board";
 import { selectAuctionState } from "@/lib/marketData/viewModels/selectAuctionState";
@@ -4174,7 +4175,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       onToggleRaw={() => setRawOn(v => !v)}
     />
   ) : null;
+  const webullLive = useWebullLiveCrypto(symbol);
   const decisionSpineProps = {
+    // Webull's own real-time frames for a USD crypto symbol (measured working
+    // 2026-09-27; stocks/futures refused by package, so not asked here).
+    webullLive,
     decisionId: currentSceneDecision?.decisionId ?? null,
     decisionIdAbsence: sceneDecisionAbsence,
     // NOW — the moment the decision is being made in. Composed, never
