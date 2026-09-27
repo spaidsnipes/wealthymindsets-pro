@@ -41,7 +41,8 @@ describe("GET /api/market-data/webull/ticks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.held = null;
-    mocks.requireAuth.mockResolvedValue({ ok: true });
+    mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "owner-1" } });
+    vi.stubEnv("WEBULL_OWNER_USER_ID", "owner-1");
     mocks.resolveWebullSessionToken.mockResolvedValue({
       accessToken: "minted-session-value", awaiting2fa: false, note: "live",
     });
@@ -188,5 +189,21 @@ describe("GET /api/market-data/webull/ticks", () => {
     expect(invalid.status).toBe(400);
     expect(await invalid.json()).toMatchObject({ source: "webull", state: "INVALID_PROFILE" });
     expect(mocks.fetchWebullTickSnapshot).not.toHaveBeenCalled();
+  });
+});
+
+describe("licensed Webull data is the owner's (GP12 §21, Garden 16 §35)", () => {
+  it("refuses a signed-in user who is not the named owner, and everyone when no owner is named", async () => {
+    const { GET } = await import("./route");
+    const path = "/api/market-data/webull/ticks?symbol=TSLA";
+    mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "someone-else" } });
+    vi.stubEnv("WEBULL_OWNER_USER_ID", "owner-1");
+    const other = await GET(new NextRequest(`https://wm.test${path}`));
+    expect(other.status).toBe(403);
+    expect((await other.json()).code).toBe("BROKER_ACCOUNT_NOT_AUTHORIZED");
+    vi.stubEnv("WEBULL_OWNER_USER_ID", "");
+    const nobody = await GET(new NextRequest(`https://wm.test${path}`));
+    expect(nobody.status).toBe(403);
+    expect((await nobody.json()).code).toBe("BROKER_OWNER_NOT_CONFIGURED");
   });
 });

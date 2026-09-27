@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { webullOwnerGate, webullOwnerRefusal } from "@/lib/broker/webullOwner";
 import { fetchWebullTickSnapshot, webullDataConfigFromEnv, type WebullSigningProfile } from "@/lib/marketData/adapters/webullMarketData";
 import { classifyWebullTickSnapshot } from "@/lib/marketData/adapters/webullTicksWireStatus";
 import { resolveWebullSessionToken, webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
@@ -16,6 +17,12 @@ const SYMBOL_PATTERN = /^[A-Z][A-Z0-9.-]{0,14}$/;
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // Stock prints are licensed Nasdaq data on the owner's key: owner only
+  // (GP12 §21, Garden 16 §35 — see the stream route).
+  const owner = webullOwnerGate(auth.user.sub, process.env);
+  if (!owner.allowed) {
+    return NextResponse.json(webullOwnerRefusal(owner), { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
 
   // NO DEFAULT — see the moomoo tick route for the measured substitution.
   const requested = request.nextUrl.searchParams.get("symbol");

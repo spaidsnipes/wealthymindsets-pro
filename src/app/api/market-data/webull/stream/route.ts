@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { webullOwnerGate, webullOwnerRefusal } from "@/lib/broker/webullOwner";
+
+/** Webull categories that need no exchange data package (Webull Market Data API overview). */
+const WEBULL_UNLICENSED_CATEGORIES: readonly string[] = ["US_CRYPTO", "US_EVENT"];
 import { webullDataConfigFromEnv } from "@/lib/marketData/adapters/webullMarketData";
 import { rawSocketSupport } from "@/lib/runtime/rawSockets";
 import type { DuplexSocket } from "@/lib/marketData/webullQuotesHandshake";
@@ -106,6 +110,21 @@ export async function GET(request: NextRequest) {
 
   const requestedCategory = (url.searchParams.get("category") ?? "US_STOCK") as WebullCategory;
   const category = WEBULL_CATEGORIES.includes(requestedCategory) ? requestedCategory : "US_STOCK";
+
+  /**
+   * LICENSED DATA IS THE OWNER'S (GP12 §21, Garden 16 §35 — 2026-09-27). The
+   * Founder attached Nasdaq Basic (Non-Display) to the OpenAPI key; from that
+   * moment this route would stream licensed Nasdaq quotes to ANY signed-in WM
+   * user through his key. Consumption rights are not redistribution rights, so
+   * every licensed category goes through the one owner gate. Crypto and event
+   * contracts need no exchange package and stay as they were.
+   */
+  if (!WEBULL_UNLICENSED_CATEGORIES.includes(category)) {
+    const owner = webullOwnerGate(auth.user.sub, process.env);
+    if (!owner.allowed) {
+      return NextResponse.json(webullOwnerRefusal(owner), { status: 403, headers: { "Cache-Control": "no-store" } });
+    }
+  }
   const requestedSubTypes = (url.searchParams.get("subTypes") ?? "QUOTE")
     .split(",")
     .map((value) => value.trim().toUpperCase())
