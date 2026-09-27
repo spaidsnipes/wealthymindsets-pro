@@ -237,3 +237,11 @@ describe("positions lane — a refused session is retired, not re-sent (Garden 1
     expect((await uncoded.read())?.status).toBe(WEBULL_TOKEN_STATUSES.NORMAL);
   });
 });
+
+import { envelopeKeys } from "./webullPositions";
+describe("unrecognized envelopes are named by key, never by value (2026-09-27)", () => {
+  it("names top-level and data{} keys only", () => {
+    expect(envelopeKeys({ code: "0", data: { holdings: [], total: 3 } })).toBe("code,data data{holdings,total}");
+    expect(envelopeKeys([1])).toBe("[array]");
+  });
+});

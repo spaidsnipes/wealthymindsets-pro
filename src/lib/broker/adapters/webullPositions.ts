@@ -120,9 +120,27 @@ function rowsOf(payload: unknown): readonly Record<string, unknown>[] | null {
       : null;
   if (Array.isArray(payload)) return validate(payload);
   if (!payload || typeof payload !== "object") return null;
-  const envelope = payload as { data?: unknown; result?: unknown };
-  const rows = Array.isArray(envelope.data) ? envelope.data : Array.isArray(envelope.result) ? envelope.result : null;
+  // Webull OpenAPI v3 wraps rows under different keys by endpoint (serving,
+  // 2026-09-27: /account/positions answered an envelope this parser did not
+  // know). Rows are looked for under the known row keys, top level first, then
+  // inside `data`. Nothing else is inferred.
+  const ROW_KEYS = ["data", "result", "holdings", "positions", "items", "list"] as const;
+  const find = (o: Record<string, unknown>): unknown[] | null => {
+    for (const k of ROW_KEYS) if (Array.isArray(o[k])) return o[k] as unknown[];
+    return null;
+  };
+  const top = payload as Record<string, unknown>;
+  const rows = find(top) ?? (top.data && typeof top.data === "object" && !Array.isArray(top.data) ? find(top.data as Record<string, unknown>) : null);
   return rows ? validate(rows) : null;
+}
+
+/** An envelope's key NAMES only (never values) — for an honest "unrecognized" note. */
+export function envelopeKeys(payload: unknown): string {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return Array.isArray(payload) ? "[array]" : typeof payload;
+  const top = Object.keys(payload as object).slice(0, 8);
+  const d = (payload as { data?: unknown }).data;
+  const inner = d && typeof d === "object" && !Array.isArray(d) ? ` data{${Object.keys(d as object).slice(0, 8).join(",")}}` : "";
+  return `${top.join(",")}${inner}`;
 }
 
 /**
@@ -315,12 +333,15 @@ export async function probeWebullPositions(
     );
     if ("failure" in positionsResult) return positionsResult.failure;
     let rows: readonly Record<string, unknown>[] | null;
+    let shape = "unparseable JSON";
     try {
-      rows = rowsOf(await positionsResult.response.json());
+      const payload = await positionsResult.response.json();
+      shape = envelopeKeys(payload);
+      rows = rowsOf(payload);
     } catch {
       rows = null;
     }
-    if (!rows) return receipt("PROVIDER_ERROR", "Webull returned an unrecognized positions envelope.");
+    if (!rows) return receipt("PROVIDER_ERROR", `Webull returned an unrecognized positions envelope (keys: ${shape}).`);
     for (const row of rows) {
       const normalized = normalizeWebullPositionRow(row);
       if (normalized) positions.push(normalized);
