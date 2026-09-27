@@ -9,7 +9,7 @@
  */
 import * as React from "react";
 
-type Props = React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string | { pathname?: string }; prefetch?: unknown; replace?: unknown; scroll?: unknown };
+type Props = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & { href: string | { pathname?: string }; prefetch?: unknown; replace?: unknown; scroll?: unknown };
 
 export default function Link({ href, prefetch: _p, replace: _r, scroll: _s, children, ...rest }: Props) {
   const to = typeof href === "string" ? href : href.pathname ?? "";
