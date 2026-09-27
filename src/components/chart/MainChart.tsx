@@ -17488,6 +17488,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ? null
               : { x0: Math.min(xa, xb) - bsp / 2, x1: Math.max(xa, xb) + bsp / 2, y0: +ya, y1: +yb };
             const ia = lensBarAt(wnd.fromTime), ib = lensBarAt(wnd.toTime);
+            // Which coordinate failed, when the window cannot be placed (proof channel).
+            if (!region) ds.liquidityWeatherUnplaced = `x:${xa == null ? "null" : Math.round(xa)}..${xb == null ? "null" : Math.round(xb)} y:${ya == null ? "null" : Math.round(+ya)}..${yb == null ? "null" : Math.round(+yb)} bars:${ia}..${ib}/${lensBars.length} t:${Math.round(wnd.fromTime / 1000)}..${Math.round(wnd.toTime / 1000)}`;
+            else delete ds.liquidityWeatherUnplaced;
             // H-501 first (NEAR yields whatever the window), then the camera,
             // then whether enough tape is held for a lens to be read at all.
             const gate = weatherLensGate({
@@ -17594,7 +17597,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           let contours = 0;
           let untimed = 0;
           /** F08B storm: each painted cell's MEASURED colour, weight and time span on screen. */
-          const stormCols: { x0: number; x1: number; rgb: [number, number, number]; weight: number }[] = [];
+          const stormCols: { x0: number; x1: number; rgb: [number, number, number]; weight: number; intensity: number }[] = [];
           // WHEN THE COST WAS PAID. A cell spans the bars its segment's prints
           // traded on (first print's bar to last print's bar), not the whole
           // camera: a band across every bar claimed the cost held over time
@@ -17632,10 +17635,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const cx0 = timed ? Math.max(0, Math.min(xFrom!, xTo!) - heatSpacing / 2) : 0;
             const cx1 = timed ? Math.min(W, Math.max(xFrom!, xTo!) + heatSpacing / 2) : W;
             const cw = Math.max(1, cx1 - cx0);
-            {
-              const m = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(tone);
-              if (m) stormCols.push({ x0: cx0, x1: cx1, rgb: [+m[1], +m[2], +m[3]], weight: heat.maxOpacity > 0 ? 0.7 + 0.3 * Math.min(1, alpha / heat.maxOpacity) : 0 });
-            }
+            stormCols.push({ x0: cx0, x1: cx1, rgb: [0, 0, 0], intensity: cell.intensity, weight: heat.maxOpacity > 0 ? 0.7 + 0.3 * Math.min(1, alpha / heat.maxOpacity) : 0 });
 
             /* THE TIDE IS A TEXTURE OF THE SAME CELL, NOT ANOTHER READING.
                The old renderer filled the whole price band with a flat slab.
@@ -17740,6 +17740,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
              (the same cut-out) and inside the ring. STILL holds the phase;
              LIVE drifts it slowly. No cell under a column → clear air there. */
           if (hctx && painted > 0 && stormCols.length > 0) {
+            // The storm's colour speaks the RING's legend: HELD is this
+            // window's dearest measured cell and MOVED its cheapest, so each
+            // column is placed on the ramp between the window's own extremes.
+            {
+              const lo = Math.min(...stormCols.map(c => c.intensity)), hi = Math.max(...stormCols.map(c => c.intensity));
+              for (const c of stormCols) {
+                const t = hi > lo ? (c.intensity - lo) / (hi - lo) : 0.5;
+                const m = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(heatRampColor(t));
+                if (m) c.rgb = [+m[1], +m[2], +m[3]];
+              }
+            }
             const L = weatherLens;
             const nowS = performance.now() / 1000;
             const ph = stormPhaseRef.current;
@@ -17819,6 +17830,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.heatLensCells;
           delete ds.heatLensContours;
           delete ds.heatLensUntimed;
+          delete ds.weatherStorm;
         }
         /* ══ F08B · WEATHER IS A LENS — THE RING, ITS WORDS, ITS READOUT ══════
            Painted after the field it clips (above), in the plate's grammar:
