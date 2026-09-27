@@ -103,3 +103,25 @@ describe("priceFormatFor", () => {
     expect(priceFormatFor(0).precision).toBe(2);
   });
 });
+
+describe("the axis never prints a price the instrument cannot have (§50, TSLA 1M glass)", () => {
+  it("equities, crypto and cash indices print nothing below zero; zero and above print at the precision", async () => {
+    const { axisPriceFormatFor } = await import("./pricePrecision");
+    for (const sym of ["TSLA", "BTC", "SPX"]) {
+      const f = axisPriceFormatFor(2, sym);
+      expect(f.type, sym).toBe("custom");
+      if (f.type !== "custom") continue;
+      expect(f.formatter(-40)).toBe("");
+      expect(f.formatter(-0.01)).toBe("");
+      expect(f.formatter(0)).toBe("0.00");
+      expect(f.formatter(372.11)).toBe("372.11");
+      expect(f.minMove).toBe(0.01);
+    }
+  });
+  it("futures and FX keep every label — a future can settle negative (CL, April 2020)", async () => {
+    const { axisPriceFormatFor, priceFormatFor } = await import("./pricePrecision");
+    expect(axisPriceFormatFor(2, "CL1!")).toEqual(priceFormatFor(2));
+    expect(axisPriceFormatFor(2, "ES1!")).toEqual(priceFormatFor(2));
+    expect(axisPriceFormatFor(5, "EURUSD")).toEqual(priceFormatFor(5));
+  });
+});

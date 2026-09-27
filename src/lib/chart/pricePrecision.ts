@@ -97,3 +97,32 @@ export function priceFormatFor(precision: number): { type: "price"; precision: n
   const p = Math.min(MAX_PRICE_PRECISION, Math.max(MIN_PRICE_PRECISION, Math.round(precision)));
   return { type: "price", precision: p, minMove: Number((10 ** -p).toFixed(p)) };
 }
+
+/**
+ * THE AXIS NEVER PRINTS A PRICE THE INSTRUMENT CANNOT HAVE — Garden 16 §50,
+ * found on the glass 2026-09-27 (TSLA 1M, real Webull bars): the candle pane
+ * keeps a margin under the lowest price for the volume band, and the axis
+ * labelled that margin "-40.00 · -80.00 · -120.00" — prices a share cannot
+ * trade at. For classes that cannot print below zero (equities, crypto,
+ * cash indices) a negative level gets no label; the margin stays (the volume
+ * band needs it), only the untrue numbers go. Futures and FX keep every label:
+ * a future can settle negative (CL, April 2020) and a spread can be negative.
+ */
+export type AxisPriceFormat =
+  | ReturnType<typeof priceFormatFor>
+  | { type: "custom"; minMove: number; formatter: (price: number) => string };
+
+export function cannotPrintBelowZero(symbol: string): boolean {
+  const c = classifySymbol(symbol);
+  return c === "EQUITY" || c === "CRYPTO" || c === "INDEX";
+}
+
+export function axisPriceFormatFor(precision: number, symbol: string): AxisPriceFormat {
+  const base = priceFormatFor(precision);
+  if (!cannotPrintBelowZero(symbol)) return base;
+  return {
+    type: "custom",
+    minMove: base.minMove,
+    formatter: (price: number) => (price < 0 ? "" : price.toFixed(base.precision)),
+  };
+}

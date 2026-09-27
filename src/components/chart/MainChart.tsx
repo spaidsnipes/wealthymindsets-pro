@@ -27,7 +27,7 @@ import {
   PHASE_WORD, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
   wordOnTopArc, type WeatherLens,
 } from "@/lib/chart/liquidityGlassGeometry";
-import { priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
+import { priceFormatFor, axisPriceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { currentProofScene } from "@/lib/chart/proofScene";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
@@ -3663,7 +3663,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // The axis, last-price tag and crosshair quote the market's own
       // precision, not the library default of two decimals (EURUSD 1h read
       // 1.15 / 1.14 / 1.13). Read from the raw bars, not Heikin-Ashi averages.
-      try { cs.applyOptions({ priceFormat: priceFormatFor(pricePrecisionFromBars(data, symbol)) }); } catch { /* series type without a price scale */ }
+      try { cs.applyOptions({ priceFormat: axisPriceFormatFor(pricePrecisionFromBars(data, symbol), symbol) }); } catch { /* series type without a price scale */ }
       chartRef.current  = chart;
       candleRef.current = cs;
       markersPluginRef.current = null; // fresh series → re-attach markers plugin on next update

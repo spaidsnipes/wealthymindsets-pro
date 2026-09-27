@@ -24,8 +24,10 @@ const CHART = strip(readFileSync(path.join(process.cwd(), "src/components/chart/
 
 describe("market precision (Sentinel)", () => {
   it("the price series takes its priceFormat from the raw bars", () => {
-    expect(CHART).toContain("cs.applyOptions({ priceFormat: priceFormatFor(pricePrecisionFromBars(data, symbol)) });");
-    const at = CHART.indexOf("cs.applyOptions({ priceFormat: priceFormatFor(");
+    // Same precision owner; since 2026-09-27 the axis format also refuses to
+    // label a price the instrument cannot have (axisPriceFormatFor, §50).
+    expect(CHART).toContain("cs.applyOptions({ priceFormat: axisPriceFormatFor(pricePrecisionFromBars(data, symbol), symbol) });");
+    const at = CHART.indexOf("cs.applyOptions({ priceFormat: axisPriceFormatFor(");
     expect(CHART.indexOf("candleRef.current = cs;", at)).toBeGreaterThan(at);
   });
 
