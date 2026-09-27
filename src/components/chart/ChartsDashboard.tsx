@@ -2009,10 +2009,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // rebuilt as a fresh object on every cursor move, so `indexOf` would miss.
     const at = chartBars.findIndex(b => b.time === inspectBar.time);
     const end = at >= 0 ? at : chartBars.length;
+    // No volume evidence, no effort claim (Garden 16 §27, volumeTruth.ts): a
+    // spot FX or placeholder-volume feed hands NO volume (null = unmeasured),
+    // never its 0/1 flags — 0 would read as "traded nothing", a real claim.
     return chartBars.slice(0, end).map(b => ({
-      volume: b.volume, open: b.open, close: b.close,
+      volume: volumeIsReal ? b.volume : null, open: b.open, close: b.close,
     }));
-  }, [chartBars, inspectBar]);
+  }, [chartBars, volumeIsReal, inspectBar]);
 
   /**
    * IS THE SUBJECT STILL BEING BUILT?
@@ -2066,11 +2069,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
 
   const effortVsResultVM = React.useMemo(
     () => selectEffortVsResult({
-      bar: inspectBar ? { volume: inspectBar.v, open: inspectBar.o, close: inspectBar.c } : null,
+      bar: inspectBar ? { volume: volumeIsReal ? inspectBar.v : null, open: inspectBar.o, close: inspectBar.c } : null,
       priorBars: effortPriorBars,
       subjectIsForming: effortSubjectIsForming,
     }),
-    [inspectBar, effortPriorBars, effortSubjectIsForming],
+    [inspectBar, effortPriorBars, effortSubjectIsForming, volumeIsReal],
   );
 
   /**

@@ -526,6 +526,11 @@
   .wm-chart-volume-footer[data-volume-state="NOT_REPORTED"] {
     font-style: italic;
   }
+  /* A named silence (spot FX / placeholder volume, volumeTruth.ts) is a
+     refusal too, and reads as one. */
+  .wm-chart-volume-footer[data-volume-state="SILENT"] {
+    font-style: italic;
+  }
 
   /* `.wm-chart-toolbar-pinned` USED TO BE UNSTUCK HERE, AND IS NOW GONE.
      D-701 demolished the cluster on 2026-09-21 and its controls moved behind

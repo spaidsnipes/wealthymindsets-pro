@@ -9396,6 +9396,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // that decides what "enough" means.
         const tail = srcBars.slice(from, to);
         const WINDOW = tail.length;
+        // No volume evidence, no volume claim (Garden 16 §27): spot FX and
+        // placeholder-volume feeds (volumeTruth.ts) hand the selector zero
+        // effort, so it answers UNMEASURED instead of "EFFORT · VOLUME" read
+        // from a feed's 0/1 placeholders (serving, EURUSD 15m, 2026-09-27).
+        const effortIsReal = volumeTruthFor(symbol, srcBars).real;
 
         const anatomyInput: AnatomyBarInput[] = tail.map(b => {
           // Real tape or null — never synthesized. Unstamped on purpose:
@@ -9411,7 +9416,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           return {
             time: b.time as number,
             open: b.open, high: b.high, low: b.low, close: b.close,
-            volume: Number.isFinite(b.volume) ? b.volume : 0,
+            volume: effortIsReal && Number.isFinite(b.volume) ? b.volume : 0,
             askVol, bidVol,
           };
         });
@@ -19590,7 +19595,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             style={{
               position: "absolute",
               bottom: TIMEFRAME_CHIP_BOTTOM_PX,
-              left: 10,
+              left: 30, // clear of the W badge (left 6, 18 wide) — it read "Wol 4"
               height: 28,
               display: "flex",
               alignItems: "center",
