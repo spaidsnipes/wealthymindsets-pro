@@ -411,10 +411,13 @@ describe("selectRecordedMoney — a stored futures P&L that is not futures money
     expect(selectRecordedMoney({ ...es, pnl: 500 }).mismatch).toBeNull();
   });
 
-  it("a legacy YM entry stored at 1x is flagged as not YM money", () => {
+  it("a legacy YM entry stored at 1x is flagged as UNCHECKABLE YM money — never called 'not YM money' (WM has no YM price)", () => {
     const r = selectRecordedMoney({ ...es, symbol: "YM1!", entry: 40000, exit: 40010, pnl: 10 });
     expect(r.label).toBe("FUTURES YM · UNPRICED");
-    expect(r.mismatch).toContain("not YM money");
+    expect(r.mismatch).toMatch(/^the recorded P&L \$10\.00 cannot be checked as YM money — /);
+    expect(r.mismatch).not.toContain("not YM money");
+    const opt = selectRecordedMoney({ ...es, contractType: "option", entry: 10, exit: 12, pnl: 200 });
+    expect(opt.mismatch).toMatch(/^the recorded P&L \$200\.00 cannot be checked as ES money — an option on ES futures/);
   });
 
   it("stock and option entries are never second-guessed (fees / imported figures)", () => {
@@ -619,8 +622,8 @@ describe("describeLegacyFuturesMoney — Garden 16 §65 Y1: only a futures row s
     expect(d.note).not.toMatch(/\$1 per point\. /);
     expect(d.note).not.toMatch(/understate/);
     expect(d.note).toBe(
-      "2 entries carry a recorded P&L that is not their contract's money "
-      + "(an option on futures, a futures root WM cannot price, or a figure that is neither $1 per point nor the point value). "
+      "2 entries carry a recorded P&L WM cannot confirm as their contract's money "
+      + "(an option on futures, which WM cannot price; a futures figure that is neither $1 per point nor the point value). "
       + "They are counted here as recorded. Open one to see why.",
     );
   });
@@ -686,7 +689,58 @@ describe("describeLegacyFuturesMoney — Garden 16 §65 Y1 repair: an UNPRICED r
     expect(d.count).toBe(1);
     expect(d.otherCount).toBe(1);
     expect(d.chip).toBe("1 futures at $1/pt · 1 money mismatch");
-    expect(d.note).toMatch(/^1 futures entry was not priced at its point value .* understate it\. .*not available yet\. 1 other entry carries a recorded P&L that is not its contract's money/);
+    expect(d.note).toMatch(/^1 futures entry was not priced at its point value .* understate it\. .*not available yet\. 1 other entry carries a recorded P&L WM cannot confirm as its contract's money/);
+  });
+
+  it("only UNKNOWN + other-mismatch rows (no priced $1/pt row): the other sentence still says 'other' (verifier LOW, G16 r3)", () => {
+    const d = describeLegacyFuturesMoney([ym, optOnEs]);
+    expect(d).toMatchObject({ count: 0, unknownCount: 1, unknownRoots: ["YM"], otherCount: 1 });
+    expect(d.chip).toBe("1 futures money UNKNOWN · 1 money mismatch");
+    expect(d.note).toContain("1 other entry carries");
+    // The UNKNOWN sentence has no priced group before it, so it is not "other".
+    expect(d.note).toMatch(/^1 futures entry was saved at \$1 per point; WM has no point value for YM/);
+    expect(d.note).not.toMatch(/understate|see its futures money/);
+  });
+});
+
+describe("describeLegacyFuturesMoney — §1/§20: the other sentence names only the kinds its rows have", () => {
+  const es = { symbol: "ES1!", entry: 5000, exit: 5010, size: 1, side: "long" as const };
+  const ym77 = { symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long" as const, pnl: 77 };
+  const optOnEs = { symbol: "ES1!", contractType: "option" as const, entry: 10, exit: 12, size: 1, side: "long" as const, pnl: 200 };
+
+  it("an option on ES alone is told it is an option on futures — no unpriced root, no 'neither' figure", () => {
+    expect(describeLegacyFuturesMoney([optOnEs]).note).toBe(
+      "1 entry carries a recorded P&L WM cannot confirm as its contract's money (an option on futures, which WM cannot price). "
+      + "It is counted here as recorded. Open it to see why.",
+    );
+  });
+
+  it("an ES row at $123 alone is told it is a 'neither' figure — nothing about options or unpriced roots", () => {
+    expect(describeLegacyFuturesMoney([{ ...es, pnl: 123 }]).note).toBe(
+      "1 entry carries a recorded P&L WM cannot confirm as its contract's money (a futures figure that is neither $1 per point nor the point value). "
+      + "It is counted here as recorded. Open it to see why.",
+    );
+  });
+
+  it("a YM row at $77 names YM as the unpriced root, never 'understate' or 'not its money'", () => {
+    const d = describeLegacyFuturesMoney([ym77, { ...ym77, symbol: "ZB1!", entry: 110, exit: 111, pnl: 5 }]);
+    expect(d.note).toBe(
+      "2 entries carry a recorded P&L WM cannot confirm as their contract's money (a futures root WM has no point value for (YM, ZB)). "
+      + "They are counted here as recorded. Open one to see why.",
+    );
+    expect(d.note).not.toMatch(/that is not/);
+  });
+
+  it("all three kinds present are listed in a fixed order", () => {
+    expect(describeLegacyFuturesMoney([{ ...es, pnl: 123 }, ym77, optOnEs]).note).toContain(
+      "(an option on futures, which WM cannot price; a futures root WM has no point value for (YM); a futures figure that is neither $1 per point nor the point value)",
+    );
+  });
+
+  it("the row chip: an unpriced root not at 1x reads UNPRICED, never MONEY MISMATCH; a priced root keeps MONEY MISMATCH", () => {
+    expect(selectContractChip(ym77)!.text).toBe("FUT YM · UNPRICED");
+    expect(selectContractChip({ ...ym77, pnl: 10 })!.text).toBe("FUT YM · SAVED AT 1x");
+    expect(selectContractChip({ ...es, pnl: 123 })!.text).toBe("FUT ES · MONEY MISMATCH");
   });
 });
 

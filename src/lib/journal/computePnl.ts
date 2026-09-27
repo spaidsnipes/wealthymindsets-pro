@@ -174,7 +174,9 @@ export function selectRecordedMoney(e: RecordedMoneyInput): RecordedMoney {
   if (money.status === "UNPRICED") {
     return {
       label: money.label,
-      mismatch: `the recorded P&L ${formatUsd(e.pnl)} is not ${money.root} money — ${money.reason}`,
+      // §1/§20: WM has no price for this contract, so it cannot say the stored
+      // figure is WRONG — only that it cannot be checked (verifier, G16 r3).
+      mismatch: `the recorded P&L ${formatUsd(e.pnl)} cannot be checked as ${money.root} money — ${money.reason}`,
       savedAtOneX,
     };
   }
@@ -236,9 +238,12 @@ export function selectContractChip(e: RecordedMoneyInput): ContractChip | null {
   }
   const recorded = selectRecordedMoney(e);
   if (recorded.mismatch !== null) {
+    // "MONEY MISMATCH" only where WM knows the money (a PRICED root): an
+    // unpriced root's figure cannot be called a mismatch, only UNPRICED.
+    const tag = recorded.savedAtOneX ? "SAVED AT 1x" : money.status === "PRICED" ? "MONEY MISMATCH" : "UNPRICED";
     return {
       basis,
-      text: recorded.savedAtOneX ? `FUT ${root} · SAVED AT 1x` : `FUT ${root} · MONEY MISMATCH`,
+      text: `FUT ${root} · ${tag}`,
       words: `${money.label} — ${recorded.mismatch}`,
       flagged: true,
     };
@@ -271,7 +276,9 @@ export function selectContractChip(e: RecordedMoneyInput): ContractChip | null {
  * to see). Every other flagged row — an option on futures (stored at the
  * equity 100x), a futures figure that is neither 1x nor the point value, an
  * unpriced root not at 1x — is counted in `otherCount` and gets a neutral
- * sentence.
+ * sentence that names ONLY the kinds present (and the unpriced roots), and
+ * says WM cannot confirm the figure — never that an unpriceable figure is
+ * "not" its money, which WM cannot know.
  *
  * Never counted: M0 records (`selectRecordedMoney` owns that rule), shares,
  * equity options. Re-pricing a saved entry is not built yet; the note says
@@ -300,6 +307,11 @@ export function describeLegacyFuturesMoney(records: readonly RecordedMoneyInput[
   let unknownCount = 0;
   const unknownRoots: string[] = [];
   let otherCount = 0;
+  // Which kinds the "other" group actually holds, so its sentence names only
+  // those (§20: never list a cause no row has).
+  let otherOptionOnFutures = false;
+  const otherUnpricedRoots: string[] = [];
+  let otherPricedFigure = false;
   for (const r of records) {
     const recorded = selectRecordedMoney(r);
     if (recorded.mismatch === null) continue;
@@ -308,7 +320,12 @@ export function describeLegacyFuturesMoney(records: readonly RecordedMoneyInput[
     else if (recorded.savedAtOneX && money.status === "UNPRICED" && money.refusal === "NO_POINT_VALUE") {
       unknownCount += 1;
       if (!unknownRoots.includes(money.root)) unknownRoots.push(money.root);
-    } else otherCount += 1;
+    } else {
+      otherCount += 1;
+      if (money.status === "PRICED") otherPricedFigure = true;
+      else if (money.refusal === "OPTION_ON_FUTURES") otherOptionOnFutures = true;
+      else if (!otherUnpricedRoots.includes(money.root)) otherUnpricedRoots.push(money.root);
+    }
   }
   if (count === 0 && unknownCount === 0 && otherCount === 0) return NO_LEGACY_FUTURES_MONEY;
   const sentences: string[] = [];
@@ -335,9 +352,13 @@ export function describeLegacyFuturesMoney(records: readonly RecordedMoneyInput[
   }
   if (otherCount > 0) {
     const one = otherCount === 1;
+    const kinds: string[] = [];
+    if (otherOptionOnFutures) kinds.push("an option on futures, which WM cannot price");
+    if (otherUnpricedRoots.length > 0) kinds.push(`a futures root WM has no point value for (${otherUnpricedRoots.join(", ")})`);
+    if (otherPricedFigure) kinds.push("a futures figure that is neither $1 per point nor the point value");
     sentences.push(
-      `${otherCount} ${count + unknownCount > 0 ? "other " : ""}${one ? "entry carries a recorded P&L that is" : "entries carry a recorded P&L that is"} not ${one ? "its" : "their"} contract's money `
-      + `(an option on futures, a futures root WM cannot price, or a figure that is neither $1 per point nor the point value). `
+      `${otherCount} ${count + unknownCount > 0 ? "other " : ""}${one ? "entry carries" : "entries carry"} a recorded P&L WM cannot confirm as ${one ? "its" : "their"} contract's money `
+      + `(${kinds.join("; ")}). `
       + `${one ? "It is" : "They are"} counted here as recorded. Open ${one ? "it" : "one"} to see why.`,
     );
     chips.push(`${otherCount} money mismatch`);

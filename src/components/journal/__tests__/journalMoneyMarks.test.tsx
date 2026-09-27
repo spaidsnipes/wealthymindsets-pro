@@ -78,7 +78,7 @@ describe("LegacyFuturesMoneyNote — what the totals say", () => {
     const html = renderToStaticMarkup(
       <LegacyFuturesMoneyNote records={[{ symbol: "ES1!", contractType: "option", entry: 10, exit: 12, size: 1, side: "long", pnl: 200 }]} />,
     );
-    expect(html).toContain("1 entry carries a recorded P&amp;L that is not its contract&#x27;s money");
+    expect(html).toContain("1 entry carries a recorded P&amp;L WM cannot confirm as its contract&#x27;s money (an option on futures, which WM cannot price)");
     expect(html).not.toContain("$1 per point.");
     expect(html).not.toContain("understate");
   });
