@@ -558,7 +558,11 @@ const out = join(ROOT, ".geometry-measure.mjs");
 writeFileSync(src, ENTRY);
 execFileSync(join(ROOT, "node_modules/.bin/esbuild"), [
   src, "--bundle", "--platform=node", "--format=esm", "--jsx=automatic",
-  "--external:react", "--external:react-dom", `--outfile=${out}`,
+  "--external:react", "--external:react-dom",
+  // next/link is CommonJS and cannot ride in a node ESM bundle; for a static
+  // render it IS its anchor, so the stub measures the same box (see the stub).
+  `--alias:next/link=${join(ROOT, "scripts/stubs/next-link.tsx")}`,
+  `--outfile=${out}`,
 ], { stdio: "inherit" });
 
 const { surfaces } = await import(pathToFileURL(out).href);
