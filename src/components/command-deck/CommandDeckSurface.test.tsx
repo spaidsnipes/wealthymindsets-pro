@@ -391,20 +391,32 @@ describe("THE PLATE'S HIERARCHY — verdict, then the rail, then the book, then 
     }
   });
 
-  it("the headline is the room's one story's right of way and its reason — the rail's own words", () => {
+  it("the headline is the room's one story's reason — the rail's own words — and the verdict rides as data only", () => {
     const vm = compileAt("PREPARATION");
     const html = renderDeck({ phase: "PREPARATION" });
     expect(html).toContain(`data-verdict="${vm.oneStory.decision.value}"`);
-    expect(html).toMatch(new RegExp(`data-testid="command-deck-verdict"[^>]*>${vm.oneStory.decision.value}<`));
     expect(text(html)).toContain(vm.oneStory.decision.detail);
   });
 
-  it("the verdict is the largest type in the drawer", () => {
+  it("NO SECOND WAIT (SPEC §246/§342): the drawer never prints the verdict word the rail owns", () => {
+    for (const phase of ["PREPARATION", "POSITION", "REVIEW"] as const) {
+      const vm = compileAt(phase);
+      const html = renderDeck({ phase });
+      expect(html).not.toContain('data-testid="command-deck-verdict"');
+      // The verdict word appears nowhere as a word in the drawer (the job chip
+      // names a JOB and is exempt by its own testid).
+      const words = text(html.replace(/<button[^>]*>(?:(?!<\/button>)[^])*?(?:Suggested job|Possibly)(?:(?!<\/button>)[^])*<\/button>/g, ""));
+      expect(words.match(new RegExp(`\\b${vm.oneStory.decision.value}\\b`, "g")) ?? [], phase).toEqual([]);
+      expect(text(html)).toContain("The verdict itself is the right rail");
+    }
+  });
+
+  it("the reason is the largest type in the drawer", () => {
     const html = renderDeck({});
     const sizes = [...html.matchAll(/font-size:(\d+(?:\.\d+)?)px/g)].map((m) => Number(m[1]));
-    const verdict = Number(html.match(/data-testid="command-deck-verdict"[^>]*style="[^"]*font-size:(\d+)px/)?.[1]);
-    expect(verdict).toBeGreaterThan(0);
-    expect(Math.max(...sizes)).toBe(verdict);
+    const reason = Number(html.match(/data-testid="command-deck-wait-reason"[^>]*style="[^"]*font-size:(\d+)px/)?.[1]);
+    expect(reason).toBeGreaterThan(0);
+    expect(Math.max(...sizes)).toBe(reason);
   });
 
   it("DECISION_ID is the room's identity when there is one, and the room's absence sentence when not", () => {

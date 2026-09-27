@@ -394,23 +394,30 @@ function HeadlinePlate({
         <span style={{ ...EYEBROW, ...ENGRAVED, fontSize: 9 }}>Right of way</span>
         <Hallmark testId="command-deck-paper">Paper</Hallmark>
       </div>
-      <div
-        data-testid="command-deck-verdict"
+      {/*
+        NO SECOND WAIT (SPEC §246/§342, Garden 11): "the right rail already
+        owns WAIT … No second … WAIT verdict." Found on the glass 2026-09-27:
+        this plate printed WAIT at 30px beside the rail's own WAIT plaque. The
+        plate now leads with WHAT the rail's verdict is waiting on — the
+        room's one decision detail — and names where the verdict lives. The
+        verdict stays on the plate as data (data-verdict), never as a word.
+      */}
+      <p
+        data-testid="command-deck-wait-reason"
         data-verdict={decision.value}
         style={{
           fontFamily: SERIF,
-          fontSize: 30,
-          lineHeight: 1.05,
-          letterSpacing: 3,
+          fontSize: 17,
+          lineHeight: 1.3,
           color: decision.tone === "warn" ? WM.state.objection : GOLD,
-          textShadow: "0 0 14px rgba(196,165,116,0.12), 0 1px 0 rgba(0,0,0,0.9)",
+          textShadow: "0 1px 0 rgba(0,0,0,0.9)",
           margin: "8px 0 4px",
         }}
       >
-        {decision.value}
-      </div>
-      <p data-testid="command-deck-wait-reason" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.45, color: PEARL }}>
         {decision.detail}
+      </p>
+      <p data-testid="command-deck-verdict-home" style={{ margin: 0, fontSize: 11, lineHeight: 1.45, color: MUTED }}>
+        The verdict itself is the right rail's — one word, one place.
       </p>
       <div
         style={{

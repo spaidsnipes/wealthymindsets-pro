@@ -402,10 +402,14 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
       label: "Management",
       verdict: phase === "POSITION" ? "ACTIVE" : phase === "POST_EXIT" ? "COMPLETE" : "PENDING",
       resolution: phase === "POSITION" || phase === "POST_EXIT" ? "RESOLVED" : "UNKNOWN",
+      // DECLARED, NOT OBSERVED (Garden 16 §36, found on the glass 2026-09-27):
+      // `phase` is what the trader told the room, not a position anyone read.
+      // "Trade open" beside a Book whose Position reads UNOBSERVED was an
+      // execution claim with no evidence. The words say whose fact it is.
       narrative:
-        phase === "POSITION" ? "Trade open — management rules apply."
-      : phase === "POST_EXIT" ? "Trade closed — post-exit integrity applies."
-      :                          "No open position — management not active.",
+        phase === "POSITION" ? "You declared a trade — management rules apply. No position is read here."
+      : phase === "POST_EXIT" ? "You declared the trade closed — post-exit integrity applies."
+      :                          "No trade declared — management not active.",
       indicator: phase === "POSITION" ? "OK" : phase === "POST_EXIT" ? "WATCH" : "UNKNOWN",
       // Management is a readout of `phase`. Nothing pays it directly.
       payableBy: "COMPOSITION",
