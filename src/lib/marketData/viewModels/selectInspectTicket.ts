@@ -91,6 +91,7 @@
  */
 
 import type { CanonicalBarIdentity } from "@/lib/marketData/canonicalBar";
+import { readLadderBar, type FlowLadderBar } from "@/lib/marketData/flowLadder";
 import { buildInspectChain } from "@/lib/marketData/inspectChain";
 import { ALL_MARKET_FIDELITIES } from "@/lib/marketData/marketFidelityAlgebra";
 
@@ -228,6 +229,14 @@ export interface InspectTicketInput {
    */
   readonly barIsForming?: boolean;
   readonly chain?: InspectChainInput | null;
+  /**
+   * THIS BAR'S ROW OF THE ONE FLOW LADDER (MainChart `tickAccRef`, read via
+   * the published `FlowLadderReader`). Delta and imbalance are read off this
+   * row — never re-folded from `prints` here (§15, one owner per truth). The
+   * held prints only decide REACH: whether enough signed trades inside the bar
+   * stand behind the row for its sign to mean anything.
+   */
+  readonly ladderBar?: FlowLadderBar | null;
 }
 
 /**
@@ -444,14 +453,20 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
             "side crossed the spread. This venue does not sign its prints, so a " +
             "signed sum would be a guess wearing a plus or a minus.";
 
-  let buyVol = 0;
-  let sellVol = 0;
-  for (const p of signed) {
-    if (p.side === "buy") buyVol += p.size as number;
-    else sellVol += p.size as number;
-  }
-  const canRead = reach === "COVERS_BAR";
-  const delta = buyVol - sellVol;
+  /* The one ladder's row for this bar — the same row the footprint cells and
+   * Delta Bubbles under this candle read. Not a second fold of `signed`. */
+  const ladder = readLadderBar(input.ladderBar);
+  const buyVol = ladder?.buy ?? 0;
+  const sellVol = ladder?.sell ?? 0;
+  const canRead = reach === "COVERS_BAR" && ladder !== null;
+  const delta = ladder?.delta ?? 0;
+
+  const perTradeAbsenceNow =
+    reach === "COVERS_BAR" && ladder === null
+      ? "The one flow ladder holds no signed volume for this bar yet. The chart " +
+        "folds a tape into it only when that tape's aggressor side is verified, " +
+        "so this ticket does not sum the sides a second time on its own."
+      : perTradeAbsence;
 
   const deltaRow = row(
     "DELTA",
@@ -460,11 +475,12 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
       ? {
           value: `${delta > 0 ? "+" : delta < 0 ? "−" : ""}${formatCount(Math.abs(delta))}`,
           basis:
-            `Buyer-crossed volume minus seller-crossed volume across the ` +
-            `${signed.length} signed prints this room holds inside this bar.`,
+            `Ask-side minus bid-side volume on this bar's row of the one flow ` +
+            `ladder — the row its footprint cells and delta bubbles read. ` +
+            `${signed.length} signed prints held inside this bar stand behind it.`,
         }
       : null,
-    perTradeAbsence,
+    perTradeAbsenceNow,
   );
 
   const heavier = Math.max(buyVol, sellVol);
@@ -487,7 +503,7 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
       ? "Every signed print inside this bar crossed on the same side, so there " +
         "is no lighter side to divide by. That one-sidedness is itself the " +
         "reading, and it is in the delta above."
-      : perTradeAbsence,
+      : perTradeAbsenceNow,
   );
 
   /* ── FIDELITY, LINEAGE, CHAIN — FROM THE ADMITTED IDENTITY ─────────────── */
@@ -532,7 +548,9 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
       "this room holds reaches it and states sides."
     : "The full footprint is not offered for this bar. It divides a signed tape " +
       "by price level, and " +
-      (reach === "TAPE_IS_ELSEWHERE"
+      (reach === "COVERS_BAR"
+        ? "the one flow ladder holds no signed volume for this bar."
+        : reach === "TAPE_IS_ELSEWHERE"
         ? "this bar's trades are no longer held."
         : reach === "TAPE_IS_UNSIGNED"
           ? "this venue does not sign its prints."

@@ -8,9 +8,14 @@
  * every candle on the chart.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { stripComments } from "@/lib/sourceScan";
+
 import type { CanonicalBarIdentity } from "@/lib/marketData/canonicalBar";
+import type { FlowLadderBar } from "@/lib/marketData/flowLadder";
 import {
   selectInspectTicket,
   identityForBar,
@@ -49,6 +54,9 @@ const coveringTape = (): InspectPrint[] => [
   print({ side: "sell", size: 15, timeMs: BAR_OPEN_MS + 4 }),
 ];
 
+/** This bar's row of the one flow ladder, as MainChart folded the covering tape. */
+const coveringLadderRow = (): FlowLadderBar => new Map([[100, { bid: 25, ask: 50 }]]);
+
 const base = (over = {}) =>
   selectInspectTicket({
     barOpenMs: BAR_OPEN_MS,
@@ -56,6 +64,7 @@ const base = (over = {}) =>
     price: 5297.75,
     barVolume: 623,
     prints: coveringTape(),
+    ladderBar: coveringLadderRow(),
     ...over,
   });
 
@@ -91,6 +100,36 @@ describe("the ticket reads what it can read", () => {
     const vm = base();
     expect(vm.version).toBe(INSPECT_TICKET_VERSION);
     expect(vm.headline.length).toBeGreaterThan(0);
+  });
+});
+
+describe("§15 — delta and imbalance are READ OFF the one flow ladder, never re-folded", () => {
+  it("the ladder row decides the numbers; the held prints only decide reach", () => {
+    // Same covering prints (buy 50 / sell 25 if summed), a DIFFERENT ladder
+    // row. A second fold of the prints would print +25; the ticket must print
+    // the ladder's own delta, the one the footprint cell under it shows.
+    const vm = base({ ladderBar: new Map([[100, { bid: 40, ask: 100 }], [100.5, { bid: 20, ask: 0 }]]) });
+    expect(rowOf(vm, "DELTA").value).toBe("+40");
+    expect(rowOf(vm, "IMBALANCE").value).toBe("1.7:1 buy");
+    expect(rowOf(vm, "DELTA").basis).toMatch(/one flow ladder/);
+  });
+
+  it("no ladder row → no delta, and the ticket says the ladder is the missing fact", () => {
+    for (const ladderBar of [null, undefined, new Map()]) {
+      const vm = base({ ladderBar });
+      expect(vm.reach).toBe("COVERS_BAR");
+      expect(rowOf(vm, "DELTA").state).toBe("UNREAD");
+      expect(rowOf(vm, "DELTA").absence).toMatch(/one flow ladder/);
+      expect(rowOf(vm, "IMBALANCE").state).toBe("UNREAD");
+      expect(vm.footprintDoorAvailable).toBe(false);
+      expect(vm.footprintDoorNote).toMatch(/one flow ladder/);
+    }
+  });
+
+  it("the source holds no side-fold of its own (comment-stripped)", () => {
+    const src = stripComments(readFileSync(join(process.cwd(), "src/lib/marketData/viewModels/selectInspectTicket.ts"), "utf8"));
+    expect(src).not.toMatch(/\b(buyVol|sellVol)\s*\+=/);
+    expect(src).toMatch(/readLadderBar\(input\.ladderBar\)/);
   });
 });
 
@@ -362,7 +401,7 @@ describe("every sentence this compiler can emit is well formed", () => {
   });
 
   it("an all-one-side bar explains the missing ratio instead of dividing by zero", () => {
-    const vm = base({ prints: coveringTape().map(p => ({ ...p, side: "buy" as const })) });
+    const vm = base({ prints: coveringTape().map(p => ({ ...p, side: "buy" as const })), ladderBar: new Map([[100, { bid: 0, ask: 75 }]]) });
     expect(rowOf(vm, "DELTA").state).toBe("READ");
     const imb = rowOf(vm, "IMBALANCE");
     expect(imb.state).toBe("UNREAD");

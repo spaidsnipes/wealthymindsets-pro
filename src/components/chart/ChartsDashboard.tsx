@@ -296,6 +296,8 @@ import { QuestionLensChooser } from "@/components/chart/QuestionLensChooser";
 import type { AbsorptionRailRead } from "@/lib/marketData/selectAbsorptionAnatomy";
 import type { TapeFootprintVM } from "@/lib/marketData/viewModels/selectTapeFootprint";
 import { identityForBar, indexBarIdentitiesBySecond, selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
+import type { FlowLadderReader } from "@/lib/marketData/flowLadder";
+import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
 import { pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
@@ -852,6 +854,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [railLens, setRailLens] = useState<QuestionLensVM | null>(null);
   const [railAbsorption, setRailAbsorption] = useState<AbsorptionRailRead | null>(null);
   const [railFootprint, setRailFootprint] = useState<TapeFootprintVM | null>(null);
+  // §15 — the chart's ONE flow ladder, as a reader (MainChart `onFlowLadder`).
+  const [flowLadderReader, setFlowLadderReader] = useState<FlowLadderReader | null>(null);
+  const onFlowLadder = useCallback((read: FlowLadderReader | null) => setFlowLadderReader(() => read), []);
   // What the trader ASKED of the Question Lens (Auto = the camera chooses).
   const [questionChoice, setQuestionChoice] = useState<QuestionChoice>(() => {
     const v = lsGet("wm_questionChoice", "AUTO") as string;
@@ -2351,9 +2356,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // The same successor-existence rule Effort vs Result uses for "forming".
       barIsForming: effortSubjectIsForming,
       chain: { objects: chartMarketObjects, selectedObjectId: selectedMarketObjectId, decisionId: inspectDecisionId },
+      // §15 — delta/imbalance are this bar's row of the chart's one ladder.
+      ladderBar: inspectBar && flowLadderReader ? flowLadderReader(inspectBar.time) : null,
     }),
     [inspectBar, chartBarSpanMs, recentTicks, chartBarIdentityIndex, effortSubjectIsForming,
-      chartMarketObjects, selectedMarketObjectId, inspectDecisionId],
+      chartMarketObjects, selectedMarketObjectId, inspectDecisionId, flowLadderReader],
   );
 
   /*
@@ -2561,9 +2568,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const chartOrderFlowEquipment = React.useMemo(
     () => ({
       equipmentId: "order-flow",
-      // The W door's name (Garden 16 §14) — equal to W_DOOR_LABEL, pinned by
-      // equipmentIsNotADestination + oneWDoor sentinels.
-      title: "WM Smart Money",
+      // The W door's name (Garden 16 §14) — from its one owner, never re-typed.
+      title: W_DOOR_LABEL,
       verdict: chartOrderFlowStanding.verdict,
       headline: chartOrderFlowStanding.headline,
       counts: [
@@ -5770,6 +5776,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       onQuestionLensRead={setRailLens}
                       onAbsorptionRead={setRailAbsorption}
                       onTapeFootprint={setRailFootprint}
+                      onFlowLadder={onFlowLadder}
                       lensInRail={!narrowViewport && !optionsOpen}
                       questionChoiceOnChart={questionChoice}
                       rawOnChart={rawOn}

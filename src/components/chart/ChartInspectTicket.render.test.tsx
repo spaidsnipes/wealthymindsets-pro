@@ -53,6 +53,8 @@ const vmFor = (prints: InspectPrint[]) =>
     price: 5297.75,
     barVolume: 623,
     prints,
+    // The one flow ladder's row for this bar (MainChart folded the same tape).
+    ladderBar: new Map([[100, { bid: 25, ask: 50 }]]),
   });
 
 const markup = (

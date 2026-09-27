@@ -27,6 +27,7 @@ import {
   CAMERA_PROMISE,
   arrangementCameraLabel,
 } from "@/lib/marketData/viewModels/selectChartArrangement";
+import { PROFILE_PRESETS } from "@/lib/marketData/viewModels/profileStackPresets";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { stripComments } from "@/lib/sourceScan";
 import {
@@ -131,6 +132,33 @@ describe("W — WM Smart Money / Market Intelligence is not a camera", () => {
         ).toBe(false);
       }
     }
+  });
+
+  it("the W drawers' titles come from W_DOOR_LABEL — no room re-types the name", () => {
+    for (const rel of ["src/components/chart/ChartsDashboard.tsx", "src/app/command-deck/page.tsx"]) {
+      const src = stripComments(readFileSync(join(process.cwd(), rel), "utf8"));
+      expect(src, `${rel} re-types the W door's name`).not.toContain(`"${W_DOOR_LABEL}"`);
+      const w = src.slice(src.indexOf('equipmentId: "order-flow"'));
+      expect(w.slice(0, 300), `${rel}'s W drawer does not take its title from the owner`).toMatch(
+        /title:\s*W_DOOR_LABEL,/,
+      );
+      expect(src).toMatch(/import \{ W_DOOR_LABEL \} from "@\/lib\/workspace\/marketIntelligence";/);
+    }
+  });
+
+  it("WIDENED GUARD: an 'Order Flow' button outside the rail is the camera's profile preset, and points at the W", () => {
+    // The Profiles stack presets are a third place the words appear. The only
+    // one allowed is the ORDER_FLOW preset — the profile half of the Order
+    // Flow camera — and it must send the trader to a door that exists.
+    const flowPresets = PROFILE_PRESETS.filter((p) => /order\s*flow/i.test(p.label));
+    expect(flowPresets.map((p) => p.id)).toEqual(["ORDER_FLOW"]);
+    for (const p of PROFILE_PRESETS) {
+      expect(p.note, `preset ${p.id} names the retired "Order flow" door`).not.toMatch(/order\s*flow/i);
+    }
+    const note = flowPresets[0].note;
+    expect(note).toContain(`live in ${W_DOOR_LABEL}`);
+    // …and that door is really in the /charts hand, under that name.
+    expect(roomEquipment(INSTRUMENT_VIEW_ROUTE).find((e) => e.id === W_ID)?.label).toBe(W_DOOR_LABEL);
   });
 
   it("the W's hint names the installed families and confesses the rest (§20)", () => {

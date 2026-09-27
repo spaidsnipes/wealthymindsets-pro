@@ -14,6 +14,7 @@ import {
 import React, { useState, useRef, useEffect } from "react";
 import { Heart, Bell, ChevronDown } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
 
 /* ── Symbol metadata ──────────────────────────────────────── */
 const SYMBOL_NAMES: Record<string, string> = {
@@ -149,10 +150,11 @@ export function StockInfoPanel({ symbol }: Props) {
     }).catch(() => {});
   }, [symbol]);
 
-  // Calculate net outflow from recent ticks
-  const netOutflow = recentTicks.reduce((s, t) => {
-    return s + (t.side === "sell" ? t.size : -t.size);
-  }, 0);
+  // §15 — net flow is the window aggressor sum, read from its one owner
+  // (selectAggressorFlow). The panel used to fold the ticks itself, counting
+  // quotes as trades and every UNSIGNED print as a buy.
+  const tradeFlow = selectAggressorFlow(recentTicks);
+  const netOutflow = -tradeFlow.cvd;
 
   // Shared guard — finiteness/sign alone cannot tell "flat" from "no reference
   // close yet". See selectTickerChangeDisplay.
@@ -367,9 +369,15 @@ export function StockInfoPanel({ symbol }: Props) {
           }}>
             <div style={{ fontSize: 10, color: "#8B8FA8", marginBottom: 2 }}>Trade Overview</div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 11, color: netOutflow > 0 ? "#FF4D67" : "#00C076", fontFamily: "monospace" }}>
-                Net {netOutflow > 0 ? "Outflow" : "Inflow"}: {Math.abs(netOutflow).toFixed(0)}
-              </span>
+              {tradeFlow.hasFlow ? (
+                <span style={{ fontSize: 11, color: netOutflow > 0 ? "#FF4D67" : "#00C076", fontFamily: "monospace" }}>
+                  Net {netOutflow > 0 ? "Outflow" : "Inflow"}: {Math.abs(netOutflow).toFixed(0)}
+                </span>
+              ) : (
+                <span style={{ fontSize: 11, color: "#8B8FA8", fontFamily: "monospace" }} title="No signed executed prints are held, so no net flow is read.">
+                  Net flow: UNKNOWN
+                </span>
+              )}
               <span style={{ fontSize: 9, color: "#4A5070" }}>Unit</span>
             </div>
           </div>

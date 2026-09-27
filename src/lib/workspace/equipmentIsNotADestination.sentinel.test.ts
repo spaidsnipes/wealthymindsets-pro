@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { roomEquipment } from "./roomEquipment";
+import { W_DOOR_LABEL } from "./marketIntelligence";
 
 /**
  * SENTINEL — EQUIPMENT AND DESTINATIONS MAY NOT SHARE A NAME.
@@ -272,7 +273,11 @@ describe("SENTINEL — equipment is not a destination", () => {
           `no descriptor for ${room} equipment "${e.id}" in ${descriptorSources(room).join(" or ")}`,
         ).toBeDefined();
 
-        const title = /title:\s*"([^"]+)"/.exec(found!.src.slice(found!.at, found!.at + 1200))?.[1];
+        // A title may be a literal, or a named owner's constant (the W door's
+        // `W_DOOR_LABEL`, §14) — resolved here to the owner's words, so the
+        // comparison below still reads what the trader sees.
+        const tm = /title:\s*(?:"([^"]+)"|(W_DOOR_LABEL)\b)/.exec(found!.src.slice(found!.at, found!.at + 1200));
+        const title = tm?.[1] ?? (tm?.[2] && /import \{[^}]*\bW_DOOR_LABEL\b[^}]*\} from "@\/lib\/workspace\/marketIntelligence"/.test(found!.src) ? W_DOOR_LABEL : undefined);
         expect(title, `${found!.rel} → "${e.id}" descriptor has no title to compare`).toBeDefined();
         expect(
           title,

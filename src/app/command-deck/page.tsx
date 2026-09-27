@@ -161,6 +161,7 @@ import useOrderFlowReadings from "@/lib/marketData/useOrderFlowReadings";
 import { selectOrderFlowStanding } from "@/lib/marketData/viewModels/selectOrderFlowStanding";
 import { provenTapeWireBlock } from "@/lib/marketData/provenTapeWireBlock";
 import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
+import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -1494,9 +1495,8 @@ function CommandDeckInner() {
       equipmentId: "order-flow",
       // The rail's own words. A widget that opened under a different title
       // reads as a different thing having loaded.
-      // The W door's name (Garden 16 §14) — equal to W_DOOR_LABEL, pinned by
-      // equipmentIsNotADestination + oneWDoor sentinels.
-      title: "WM Smart Money",
+      // The W door's name (Garden 16 §14) — from its one owner, never re-typed.
+      title: W_DOOR_LABEL,
       verdict: orderFlowStanding.verdict,
       headline: orderFlowStanding.headline,
       counts: [

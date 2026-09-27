@@ -19,6 +19,7 @@
 
 import type { ProfileId } from "./selectProfileMenu";
 import { stackableProfileIds } from "./myProfileStack";
+import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 
 export type PresetId = "CLEAN" | "DAY_TRADER" | "AUCTION" | "ORDER_FLOW" | "MEMORY" | "RESEARCH";
 
@@ -44,7 +45,10 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
   },
   {
     id: "ORDER_FLOW", label: "Order Flow",
-    note: "developing value and the camera's own profile — flow tools live in Order flow",
+    // Points at the door the flow tools actually live behind (the W, §14). The
+    // "Order flow" door it used to name was renamed; the note must not send
+    // the trader looking for a button that no longer exists.
+    note: `developing value and the camera's own profile — flow tools live in ${W_DOOR_LABEL}`,
     on: ["LIVING_PROFILE", "VISIBLE_RANGE_PROFILE"],
   },
   {

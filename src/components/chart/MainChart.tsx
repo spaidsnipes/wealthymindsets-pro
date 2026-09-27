@@ -241,6 +241,7 @@ import {
 } from "@/lib/marketData/selectAbsorptionAnatomy";
 import { selectStackedImbalanceGlass } from "@/lib/marketData/viewModels/selectStackedImbalanceGlass";
 import { selectTapeFootprint, type TapeFootprintVM } from "@/lib/marketData/viewModels/selectTapeFootprint";
+import type { FlowLadderReader } from "@/lib/marketData/flowLadder";
 import { stackAnchor, stackSlab } from "@/lib/chart/stackedImbalanceAnchor";
 import type { StackedImbalanceVM } from "@/lib/marketData/viewModels/selectStackedImbalance";
 import { selectValueCandleGlass, selectValueCandleGlassPlan } from "@/lib/marketData/viewModels/selectValueCandleGlass";
@@ -1284,6 +1285,13 @@ interface Props {
   onAbsorptionRead?: (read: AbsorptionRailRead | null) => void;
   /** F06A · the rail's footprint — buy/sell by price from the heard tape (throttled, on change). */
   onTapeFootprint?: (fp: TapeFootprintVM | null) => void;
+  /**
+   * §15 — the ONE flow ladder (`tickAccRef`), published as a reader so a room
+   * surface (the Inspect Ticket) reads a bar's row instead of folding the tape
+   * a second time. Re-published (new identity) at most ~4×/s while it fills;
+   * null when the ladder is rebuilt for a new symbol/source/timeframe.
+   */
+  onFlowLadder?: (read: FlowLadderReader | null) => void;
   /** SHOW RAW — every overlay reading hidden, candles bare; switches untouched. */
   rawOnChart?: boolean;
   /** The continuation owner's verdict, for the Question Lens's Continuing? (verbatim). */
@@ -1669,6 +1677,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   lensInRail = false,
   onAbsorptionRead,
   onTapeFootprint,
+  onFlowLadder,
   rawOnChart = false,
   continuationOnChart = null,
   permissionOnChart = null,
@@ -1991,6 +2000,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const absorptionReadKeyRef = useRef<string>("");
   const onTapeFootprintRef = useRef(onTapeFootprint);
   onTapeFootprintRef.current = onTapeFootprint;
+  const onFlowLadderRef = useRef(onFlowLadder);
+  onFlowLadderRef.current = onFlowLadder;
   const footprintPublishRef = useRef<{ at: number; key: string }>({ at: 0, key: "" });
   const rawRef = useRef(false);
   rawRef.current = rawOnChart;
@@ -2805,6 +2816,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // The rail's footprint belonged to the old buckets: withdraw it now.
     footprintPublishRef.current = { at: 0, key: "NONE" };
     onTapeFootprintRef.current?.(null);
+    onFlowLadderRef.current?.(null);
     bigTradePrintAccRef.current = new Map();
     processedTicksRef.current = new Set();
     // Session counters + horizon + sparkline are NOT reset here. They live in
@@ -2891,6 +2903,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // subscriber (chip, future multi-symbol panels) re-renders.
       pushCvdSample(canonicalSym, tapeSource ?? "unavailable");
       setSessionTapeTick(t => t + 1);
+      // §15 — hand the room THE ladder's rows (fresh identity = re-read).
+      onFlowLadderRef.current?.((barTimeSec: number) => tickAccRef.current.get(barTimeSec) ?? null);
     }
     // F06A rail footprint — at most every 2 s, and only when it changed.
     if (now - footprintPublishRef.current.at > 2000) {
