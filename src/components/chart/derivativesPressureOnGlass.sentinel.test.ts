@@ -58,6 +58,7 @@ describe("a wall is an object: click → one selection → Inspect explains", ()
   it("the glass publishes the wall bodies it drew and hit-tests them", () => {
     expect(block).toContain("pressureWallHitRef.current.push({ strike: w.strike");
     expect(MC).toContain("onSelectPressureWall?.(wallHit.strike);");
+    expect(block).toContain("ds.pressureWallHitAt =");
   });
   it("the selection is the ONE reducer's PRESSURE_WALL kind; the room scopes it to its chart", () => {
     expect(SEL).toContain('readonly kind: "PRESSURE_WALL";');

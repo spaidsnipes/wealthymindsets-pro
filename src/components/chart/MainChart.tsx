@@ -13934,6 +13934,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.restore();
             }
             ds.derivativesPressurePainted = painted.join("|") || "NONE";
+            // Where each wall is on this glass, for a browser proof to find and
+            // click it (as memoryGhostHitAt): "strike@x,y" at the body's centre.
+            ds.pressureWallHitAt = pressureWallHitRef.current.map(r => `${r.strike}@${Math.round(r.x + r.w / 2)},${Math.round(r.y + r.h / 2)}`).join("|") || "NONE";
           } else {
             ds.derivativesPressure = att.offWord(layerOnRef.current.derivativesPressure === true);
           }
