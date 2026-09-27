@@ -6,6 +6,8 @@
  * GET /api/yahoo?sym=NQ1!&type=candles&tf=1m&bars=300 → OHLCV array
  */
 
+import { withholdUntradedOutliers } from "@/lib/marketData/untradedOutlierBars";
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { NextResponse } from "next/server";
 import { aggregateYahooBars, resolveYahooTimeframe } from "@/lib/yahooTimeframes";
 import {
@@ -297,7 +299,14 @@ export async function GET(request: Request) {
         });
       }
 
-      const aggregated = aggregateYahooBars(baseCandles, plan, bars);
+      // Untraded outliers are WITHHELD before aggregation (equities only, and
+      // only where this feed reports volume): a zero-volume bar whose range is
+      // many times its traded neighbours' carries no trade, so its range is no
+      // price anyone paid (TSLA 5m, 2026-09-25 20:55Z/21:00Z: 346.5 vs ~372).
+      const outliers = classifySymbol(rawSym) === "EQUITY"
+        ? withholdUntradedOutliers(baseCandles)
+        : { kept: baseCandles, withheld: [] as number[] };
+      const aggregated = aggregateYahooBars(outliers.kept, plan, bars);
 
       /* ── M8: THIS IS THE ARTERY'S FIRST PRODUCTION CONSUMER ─────────────────
          Every bar below is now minted as a CanonicalBar and run through
@@ -339,6 +348,8 @@ export async function GET(request: Request) {
         baseInterval: plan.interval,
         candles,
         barIdentities,
+        // What was withheld and why — the chart names the gap, never hides it.
+        withheld: outliers.withheld.length ? { reason: "UNTRADED_OUTLIER", times: outliers.withheld } : undefined,
         // The canonical identity these bars carry, published so a consumer can
         // read it instead of assuming it. `sessionKnown: false` is the honest
         // half — see `yahooCandleIngress.ts`.
