@@ -157,8 +157,28 @@ function netExposureAt(S: number, prepared: readonly Prepared[]): { net: number;
   return { net, gross, byStrike };
 }
 
-/** Wall lifecycle from the chart's OWN bars: tests, acceptance, scar. */
-export function wallLife(strike: number, bars: readonly PressureBar[], spot: number): Pick<PressureWall, "life" | "tests" | "closesBeyond" | "firstTestTime" | "side"> {
+/**
+ * SESSIONS, NOT BARS. A wall's test count may not depend on the timeframe it is
+ * viewed on (found in the Founder's Chrome: TSLA 5m read WEAKENING, 1D read
+ * DEFENDED ×2 for the same wall and the same week). The window's bars are
+ * folded into trading days (US Eastern, a fixed −4h offset) first; a DAY
+ * tests the wall, and a day's close is its acceptance.
+ */
+export function sessionsOf(bars: readonly PressureBar[]): PressureBar[] {
+  const days: PressureBar[] = [];
+  let key: number | null = null;
+  for (const b of bars) {
+    const k = Math.floor((b.time - 4 * 3600) / 86_400);
+    if (k !== key) { days.push({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }); key = k; continue; }
+    const d = days[days.length - 1];
+    days[days.length - 1] = { time: d.time, open: d.open, high: Math.max(d.high, b.high), low: Math.min(d.low, b.low), close: b.close };
+  }
+  return days;
+}
+
+/** Wall lifecycle from the chart's OWN bars, read per session: tests, acceptance, scar. */
+export function wallLife(strike: number, barsIn: readonly PressureBar[], spot: number): Pick<PressureWall, "life" | "tests" | "closesBeyond" | "firstTestTime" | "side"> {
+  const bars = sessionsOf(barsIn);
   const side: "ABOVE" | "BELOW" = spot >= strike ? "ABOVE" : "BELOW";
   let tests = 0;
   let firstTestTime: number | null = null;
@@ -184,7 +204,7 @@ export function wallLife(strike: number, bars: readonly PressureBar[], spot: num
   }
   const crossed = closesBeyond > 0 && origin !== side ? closesBeyond : 0;
   let life: WallLife;
-  if (crossed >= 3) life = "BROKEN";
+  if (crossed >= 2) life = "BROKEN";
   else if (crossed >= 1) life = "BREAKING";
   else if (tests >= 4) life = "WEAKENING";
   else if (tests >= 2) life = "DEFENDED";

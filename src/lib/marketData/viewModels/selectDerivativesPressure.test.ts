@@ -52,17 +52,28 @@ describe("honest silences", () => {
   });
 });
 
-describe("wall lifecycle is OBSERVED from the chart's own bars", () => {
-  it("no touch → BORN; each rejected touch is a test; enough tests → DEFENDED / WEAKENING", () => {
-    expect(wallLife(110, [bar(1, 100, 101, 99, 100), bar(2, 100, 102, 99, 101)], 101).life).toBe("BORN");
-    const tests = (n: number) => [bar(0, 100, 101, 99, 100), ...Array.from({ length: n }, (_, i) => bar(i + 1, 105, 110.5, 104, 106))];
+describe("wall lifecycle is OBSERVED from the chart's own bars, per session", () => {
+  const DAY = 86_400, T0 = 1_789_000_000 - (1_789_000_000 % DAY) + 14 * 3600; // 14:00 UTC
+  const day = (i: number, o: number, h: number, l: number, c: number) => bar(T0 + i * DAY, o, h, l, c);
+  it("no touch → BORN; each rejected session is a test; enough tests → DEFENDED / WEAKENING", () => {
+    expect(wallLife(110, [day(0, 100, 101, 99, 100), day(1, 100, 102, 99, 101)], 101).life).toBe("BORN");
+    const tests = (n: number) => [day(0, 100, 101, 99, 100), ...Array.from({ length: n }, (_, i) => day(i + 1, 105, 110.5, 104, 106))];
     expect(wallLife(110, tests(1), 106)).toMatchObject({ life: "TESTED", tests: 1 });
     expect(wallLife(110, tests(2), 106).life).toBe("DEFENDED");
     expect(wallLife(110, tests(5), 106).life).toBe("WEAKENING");
   });
   it("closes beyond the wall are acceptance: BREAKING, then BROKEN", () => {
-    const up = [bar(0, 100, 101, 99, 100), bar(1, 108, 111, 107, 111), bar(2, 111, 112, 110.5, 112), bar(3, 112, 113, 111, 113)];
+    const up = [day(0, 100, 101, 99, 100), day(1, 108, 111, 107, 111), day(2, 111, 112, 110.5, 112)];
     expect(wallLife(110, up.slice(0, 2), 111).life).toBe("BREAKING");
-    expect(wallLife(110, up, 113).life).toBe("BROKEN");
+    expect(wallLife(110, up, 112).life).toBe("BROKEN");
+  });
+  it("the same week reads the same on 5m and on 1D (timeframe-invariant)", () => {
+    const daily = [day(0, 100, 101, 99, 100), day(1, 105, 110.5, 104, 106), day(2, 106, 110.2, 105, 107)];
+    const intraday = daily.flatMap(d => [
+      bar(d.time, d.open, d.open + 0.1, d.open - 0.1, d.open),
+      bar(d.time + 300, d.open, d.high, d.low, (d.open + d.close) / 2),
+      bar(d.time + 600, (d.open + d.close) / 2, d.high - 0.3, d.low + 0.1, d.close),
+    ]);
+    expect(wallLife(110, intraday, 107)).toMatchObject({ life: wallLife(110, daily, 107).life, tests: wallLife(110, daily, 107).tests });
   });
 });
