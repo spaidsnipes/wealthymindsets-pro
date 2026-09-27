@@ -43,14 +43,30 @@
  * bar's prints into its own buy/sell sums under different names — and its
  * successor still matched three spellings, so a `reduce`, an `aggressor ===
  * "BUY"`, an `isBuyer` flag or a destructured loop walked past it (and
- * selectDeltaDivergence's own signed-CVD fold was never listed). The scan
- * below detects the COMPUTATION: any side test and any accumulation within
- * one small window, or a side-signed value bound to a name that is then
- * accumulated (`foldSites`). Its non-vacuity test feeds it rewritten folds in
- * every shape it claims to catch. Any re-sum of already-folded sides
+ * selectDeltaDivergence's own signed-CVD fold was never listed). Round 4
+ * (verifier, 2026-09-27) found the round-3 scan still lexical and still
+ * blind to keyed accumulators, switch/case folds, SIGN tables and
+ * `.toLowerCase()` side tests while claiming "every shape"; those four are now
+ * caught, and the claim is cut down to what is proved.
+ *
+ * WHAT THE SCAN IS: a LEXICAL guard over comment-stripped source. It flags a
+ * side test/steer near an accumulation, an accumulator indexed by side, or a
+ * side-signed carrier that is later summed — exactly the shapes listed on
+ * `foldSites` below, each with a specimen in its NOT VACUOUS test, and each
+ * new one with a mutation that turns that specimen RED. It is NOT a data-flow
+ * analysis: the renamed-local, far-apart, helper-call and additive-table
+ * shapes listed on `foldSites` pass it. Any re-sum of already-folded sides
  * (`ask/bid/buy/sell/askVol/bidVol/buyVol/sellVol +=`) is listed separately.
- * A file that folds fails unless it is on the named allow-list below with its
- * owner and the reason it may exist. Stale entries fail too.
+ * A file that folds (in a caught shape) fails unless it is on the named
+ * allow-list below with its owner and the reason it may exist. Stale entries
+ * fail too.
+ *
+ * WHAT BACKS THE ONE-LADDER LAW beyond the scan: the ownership table above,
+ * the exact-count pins in "one flow brain" (one ladder ref, one ladder fold,
+ * one Tape-CVD call, one session-counter writer, one readings compiler), and
+ * review of every new flow selector against the table. A green run is
+ * evidence of no fold in a caught shape outside the allow-list — not proof
+ * that no second fold exists.
  *
  * Source scans, comment-stripped: prose names the things it forbids.
  */
@@ -97,21 +113,64 @@ function countAcross(re: RegExp): number {
 }
 
 /**
- * THE COMPUTATION DETECTOR. A side-fold is two things near each other: a SIDE
- * TEST and an ACCUMULATION. The spelling of either is free — `side`, `aggressor`,
- * `aggressorSide`, `isBuy`, `isBuyer`, `"buy" === side`, upper-case `"BUY"` —
- * and so is the shape: `+=`, `-=`, `x = x + …`, a `reduce` accumulator, a
- * ternary, an if/else, a destructured loop. A file folds when any side test and
- * any accumulation sit within FOLD_WINDOW characters of each other (one
- * statement, or an if/else pair), or when a side-SIGNED value is bound to a
- * name (`signed = side === "buy" ? size : -size`) and that name is accumulated
- * anywhere in the file — the fold split across two functions.
+ * THE COMPUTATION DETECTOR — a LEXICAL guard, not a data-flow analysis.
+ *
+ * A side-fold is two things near each other: a SIDE TEST and an ACCUMULATION.
+ * It recognises these, and only these, spellings and shapes (each one has a
+ * specimen in the NOT VACUOUS test below):
+ *
+ *   side test   `side` / `aggressor…` compared (either operand order, optional
+ *               `.toLowerCase()` / `.toUpperCase()`) to "buy"/"sell" in any of
+ *               three casings; `isBuy` / `isSell` / `isBuyer` / `isSeller`;
+ *               `case "buy":` / `case "sell":` in a switch
+ *   side steer  a side-keyed lookup MULTIPLIED into a value
+ *               (`SIGN[t.side] * t.size`)
+ *   accumulate  `+=` / `-=` (not `± 1`), `x = x ± …`, a `reduce` accumulator,
+ *               `acc ± (side-test …)`
+ *   keyed fold  an accumulator INDEXED by side: `totals[t.side] += size`,
+ *               `acc[t.side] = (acc[t.side] ?? 0) + size`,
+ *               `m.set(t.side, (m.get(t.side) ?? 0) + size)`
+ *
+ * A file folds when a side test or steer and an accumulation sit within
+ * FOLD_WINDOW characters (one statement, an if/else pair, a short switch),
+ * when a keyed fold appears anywhere, or when a side-SIGNED value is bound to a
+ * name (`signed = side === "buy" ? size : -size`, `signed = SIGN[side] * size`)
+ * and that name is accumulated anywhere in the same file.
+ *
+ * WHAT IT DOES NOT CATCH (known, not smoothed over):
+ *   - a side read through a renamed local (`const k = t.side; tot[k] += …`,
+ *     `const { side: s } = t; if (s === "buy") …`) or a differently named
+ *     field (`t.dir > 0`, `t.b`, a numeric sign already on the print);
+ *   - a side test and its accumulation more than FOLD_WINDOW characters apart
+ *     with no signed carrier between them (an UNSIGNED carrier such as
+ *     `q = isBuy ? size : 0` summed far away), or a carrier summed in another
+ *     file;
+ *   - a fold behind a helper call (`sumBy(xs, sideSize)`, `Object.groupBy`
+ *     then a sum, a filter in one statement and a sum in another);
+ *   - a lookup table that is ADDED rather than multiplied, or a long switch
+ *     whose `case` label sits more than FOLD_WINDOW characters from its `+=`;
+ *   - anything outside src/ .ts/.tsx, and anything its comment stripper
+ *     mistakes for a comment.
+ *
+ * What backs the one-ladder law beyond this scan: the OWNERSHIP TABLE in this
+ * file's header and the exact-count pins in "one flow brain" below (one
+ * ladder ref, one ladder fold, one selectTapeCvd call, one writer of the
+ * session counters, one compiler of the readings), plus human review of any
+ * new flow selector against that table. A green scan means "no fold in a
+ * shape listed above outside the allow-list" — nothing more.
  */
 const SIDE_WORD = String.raw`(?:buy|sell|BUY|SELL|Buy|Sell)`;
-const SIDE_TEST = String.raw`(?:\b(?:side|aggressor\w*)\s*[!=]==?\s*["']${SIDE_WORD}["']` +
-  String.raw`|["']${SIDE_WORD}["']\s*[!=]==?\s*[\w.?\][]*\b(?:side|aggressor\w*)\b` +
-  String.raw`|\bis(?:Buy|Sell)(?:er)?\b)`;
+const SIDE_REF = String.raw`\b(?:side|aggressor\w*)\b(?:\s*\.\s*to(?:Lower|Upper)Case\s*\(\s*\))?`;
+const SIDE_TEST = String.raw`(?:${SIDE_REF}\s*[!=]==?\s*["']${SIDE_WORD}["']` +
+  String.raw`|["']${SIDE_WORD}["']\s*[!=]==?\s*[\w.?\][]*${SIDE_REF}` +
+  String.raw`|\bis(?:Buy|Sell)(?:er)?\b` +
+  String.raw`|\bcase\s*["']${SIDE_WORD}["']\s*:)`;
 const SIDE_TEST_RE = new RegExp(SIDE_TEST, "g");
+/** A side-keyed index: `[t.side]`, `[p?.aggressorSide]`, `[side.toLowerCase()]`. */
+const SIDE_INDEX = String.raw`\[\s*[\w.?]*${SIDE_REF}\s*\]`;
+/** A side-keyed LOOKUP multiplied into a value: `SIGN[t.side] * size`, `size * SIGN[side]`. */
+const SIDE_STEER = String.raw`(?:\w+${SIDE_INDEX}\s*\*|\*\s*\w+${SIDE_INDEX})`;
+const SIDE_STEER_RE = new RegExp(SIDE_STEER, "g");
 /** Accumulations. `+= 1` is a counter step, not a size fold. */
 const ACCUM_RES: readonly RegExp[] = [
   /(?<![-+])[-+]=(?!=)(?!\s*1\b)/g,
@@ -119,12 +178,24 @@ const ACCUM_RES: readonly RegExp[] = [
   /\.reduce\s*\(\s*\(?\s*(\w+)[\s\S]{0,240}?\b\1\s*[-+](?![-+=])/g,
   new RegExp(String.raw`[\w.\]]+\s*[-+]\s*\(\s*[\w.\][]*` + SIDE_TEST, "g"),
 ];
-/** A name bound to a side-SIGNED value: `? x : -x` or `? -x : x`. */
-const SIGNED_CARRIER_RE = new RegExp(
-  String.raw`\b(\w+)\s*[:=]\s*\(?\s*[\w.\][]*` + SIDE_TEST +
-    String.raw`\s*\)?\s*\?\s*(?:([\w.]+)\s*:\s*-\s*\2\b|-\s*([\w.]+)\s*:\s*\3\b)`,
-  "g",
-);
+/** Folds INTO an accumulator keyed by side — a fold on their own, no window needed. */
+const KEYED_FOLD_RES: readonly RegExp[] = [
+  // totals[t.side] += size   (a keyed `+= 1` is a counter)
+  new RegExp(String.raw`\w${SIDE_INDEX}\s*[-+]=(?!=)(?!\s*1\b)`, "g"),
+  // acc[t.side] = (acc[t.side] ?? 0) + size
+  new RegExp(String.raw`\w${SIDE_INDEX}\s*=(?!=)[^;\n]{0,160}?[\w)\]]\s*[-+]\s*(?!1\b)[\w(]`, "g"),
+  // m.set(t.side, (m.get(t.side) ?? 0) + size)
+  new RegExp(String.raw`\.set\s*\(\s*[\w.?]*${SIDE_REF}\s*,[^;\n]{0,160}?[\w)\]]\s*[-+]\s*(?!1\b)[\w(]`, "g"),
+];
+/** A name bound to a side-SIGNED value: `? x : -x`, `? -x : x`, or `SIGN[side] * x`. */
+const SIGNED_CARRIER_RES: readonly RegExp[] = [
+  new RegExp(
+    String.raw`\b(\w+)\s*[:=]\s*\(?\s*[\w.\][]*` + SIDE_TEST +
+      String.raw`\s*\)?\s*\?\s*(?:([\w.]+)\s*:\s*-\s*\2\b|-\s*([\w.]+)\s*:\s*\3\b)`,
+    "g",
+  ),
+  new RegExp(String.raw`\b(\w+)\s*[:=]\s*[\w.]*\s*` + SIDE_STEER, "g"),
+];
 const FOLD_WINDOW = 160;
 
 function spans(src: string, res: readonly RegExp[]): Array<[number, number]> {
@@ -140,16 +211,19 @@ function spans(src: string, res: readonly RegExp[]): Array<[number, number]> {
 function foldSites(src: string): string[] {
   const out: string[] = [];
   const accums = spans(src, ACCUM_RES);
-  for (const [ss, se] of spans(src, [SIDE_TEST_RE])) {
+  for (const [ss, se] of spans(src, [SIDE_TEST_RE, SIDE_STEER_RE])) {
     const near = accums.find(([as, ae]) => (as >= se ? as - se : ss >= ae ? ss - ae : 0) <= FOLD_WINDOW);
     if (near) out.push(src.slice(Math.min(ss, near[0]), Math.max(se, near[1])));
   }
-  for (const m of src.matchAll(SIGNED_CARRIER_RE)) {
-    const name = m[1];
-    const acc = new RegExp(
-      String.raw`(?:[-+]=\s*[\w.]*\b${name}\b|[\w)\]]\s*[-+]\s*[\w.]*\b${name}\b)(?!\s*[:=(])`,
-    ).exec(src);
-    if (acc) out.push(`${m[0]} … ${acc[0]}`);
+  for (const [ks, ke] of spans(src, KEYED_FOLD_RES)) out.push(src.slice(ks, ke));
+  for (const carrier of SIGNED_CARRIER_RES) {
+    for (const m of src.matchAll(carrier)) {
+      const name = m[1];
+      const acc = new RegExp(
+        String.raw`(?:[-+]=\s*[\w.]*\b${name}\b|[\w)\]]\s*[-+]\s*[\w.]*\b${name}\b)(?!\s*[:=(])`,
+      ).exec(src);
+      if (acc) out.push(`${m[0]} … ${acc[0]}`);
+    }
   }
   return out;
 }
@@ -234,7 +308,7 @@ const SIDE_SUMS: Readonly<Record<string, string>> = {
 };
 
 describe("THE FOLD SCAN — every side-fold in production code is named, or the build is red", () => {
-  it("NOT VACUOUS: the detector catches the fold in every shape, under any spelling", () => {
+  it("NOT VACUOUS: the detector catches every shape its header lists (and only those are claimed)", () => {
     const FOLDS: Record<string, string> = {
       // The ladder's own fold, and the exact fold the Inspect Ticket used to carry.
       ladder: `bid: existing.bid + (tick.side === "sell" ? tick.size : 0),`,
@@ -254,8 +328,22 @@ describe("THE FOLD SCAN — every side-fold in production code is named, or the 
       signedCarrier:
         `function sided(t) { return { signed: t.side === "buy" ? t.size : -t.size }; }\n` +
         `${"/* far away */\n".repeat(40)}function path(ps) { let cvd = 0; for (const p of ps) cvd += p.signed; return cvd; }`,
+      // Round 4 — shapes the round-3 scan let through (verifier, 2026-09-27):
+      keyedCompound: `for (const t of prints) totals[t.side] += t.size;`,
+      keyedAssign: `acc[p.aggressorSide] = (acc[p.aggressorSide] ?? 0) + p.qty;`,
+      mapSet: `byside.set(t.side, (byside.get(t.side) ?? 0) + t.size);`,
+      switchCase:
+        `switch (t.side) {\n  case "buy":\n    buyVol2 += t.size;\n    break;\n  case "sell":\n    sellVol2 += t.size;\n}`,
+      signTable: `const SIGN = { buy: 1, sell: -1 };\nfor (const t of prints) cvd += SIGN[t.side] * t.size;`,
+      signTableTrailing: `net = net + t.size * SIGN[t.aggressor];`,
+      signTableCarrier:
+        `function sided(t) { return { signed: SIGN[t.side] * t.size }; }\n` +
+        `${"/* far away */\n".repeat(40)}function path(ps) { let cvd = 0; for (const p of ps) cvd += p.signed; return cvd; }`,
+      lowerCase: `if (t.side.toLowerCase() === "buy") up += t.size;`,
+      upperCaseYoda: `if ("SELL" === p.aggressor.toUpperCase()) { down += p.size; }`,
     };
-    for (const [shape, src] of Object.entries(FOLDS)) expect(isTapeFold(src), shape).toBe(true);
+    // Every shape is checked before failing, so a regression names ALL it lets through.
+    expect(Object.entries(FOLDS).filter(([, src]) => !isTapeFold(src)).map(([shape]) => shape), "missed").toEqual([]);
     expect(SIDE_SUM_RE.test(`buyVol += p.size;`)).toBe(true);
     // …and not a filter, a colour choice, a counter, or a signed value never summed.
     const NOT_FOLDS: Record<string, string> = {
@@ -263,8 +351,27 @@ describe("THE FOLD SCAN — every side-fold in production code is named, or the 
       colour: `const c = side === "buy" ? green : red;`,
       counter: `if (t.side === "buy") buys += 1;`,
       signedNeverSummed: `const value = side === "buy" ? dominant : -dominant;\nreturn { value };`,
+      keyedCounter: `counts[t.side] += 1;`,
+      keyedRead: `const c = COLOURS[t.side];\nstyle.color = c;`,
+      keyedPlainSet: `lastBySide.set(t.side, t.price);`,
+      signTableNeverSummed: `const dir = SIGN[t.side] * 1;\nreturn dir;`,
     };
-    for (const [shape, src] of Object.entries(NOT_FOLDS)) expect(isTapeFold(src), shape).toBe(false);
+    expect(Object.entries(NOT_FOLDS).filter(([, src]) => isTapeFold(src)).map(([shape]) => shape), "false alarms").toEqual([]);
+  });
+
+  it("KNOWN BLIND SPOTS: the shapes the header says pass the scan do pass it (the header is not a claim beyond this)", () => {
+    // If one of these starts being caught, move it into the header's caught
+    // list and into the specimens above. Until then the ownership table, the
+    // exact-count pins and review are what stand in front of it.
+    const PASSES: Record<string, string> = {
+      renamedLocal: `const k = t.side;\ntotals[k] += t.size;`,
+      renamedDestructure: `const { side: s } = t;\nif (s === "buy") up += t.size;`,
+      otherField: `if (t.dir > 0) up += t.size;`,
+      unsignedCarrierFar: `const q = t.side === "buy" ? t.size : 0;\n${"/* far */\n".repeat(40)}acc += q;`,
+      helperCall: `const up = sumBy(prints, sideSize);`,
+      additiveTable: `cvd += OFFSET[t.side] + t.size;`,
+    };
+    expect(Object.entries(PASSES).filter(([, src]) => isTapeFold(src)).map(([shape]) => shape)).toEqual([]);
   });
 
   it("NOT VACUOUS: the scan catches the real folds it lists, in their real files", () => {
