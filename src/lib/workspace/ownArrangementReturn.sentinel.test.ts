@@ -25,10 +25,17 @@ describe("the trader's own arrangement", () => {
 
   it("the room captures at the ONE desk door, only for a named camera pressed while no desk is in force", () => {
     const door = ROOM.slice(ROOM.indexOf("arrangementDeskRef.current = (desk: ArrangementId | SavedLayoutRequest) => {"), ROOM.indexOf("useEffect(() => subscribeSavedLayoutRequests("));
-    expect(door).toContain('if (typeof desk === "string" && arrangementVM.activeId === null) {');
-    expect(door).toContain("const own = captureArrangement(arrangementMenu);");
-    expect(door.indexOf("announceOwnArrangement(own)")).toBeLessThan(door.indexOf("applyRespectingLocks("));
+    expect(door).toContain('if (typeof desk === "string") keepOwnArrangement();');
+    expect(door.indexOf("keepOwnArrangement()")).toBeLessThan(door.indexOf("applyRespectingLocks("));
+    const keep = ROOM.slice(ROOM.indexOf("const keepOwnArrangement = () => {"), ROOM.indexOf("const applyPresetKeepingOwn"));
+    expect(keep).toContain("if (arrangementVM.activeId !== null) return;");
+    expect(keep).toContain("const own = captureArrangement(arrangementMenu);");
     expect(ROOM.match(/announceOwnArrangement\(/g) ?? []).toHaveLength(2); // the capture + the room's leave
+  });
+
+  it("a preset keeps the trader's arrangement too, then applies through the locks", () => {
+    expect(ROOM).toContain("<ProfilePresetBar active={profileMenuActive} onApply={applyPresetKeepingOwn} />");
+    expect(ROOM).toMatch(/const applyPresetKeepingOwn = [^]*?keepOwnArrangement\(\);\s*applyRespectingLocks\(s\);/);
   });
 
   it("the room withdraws it when it leaves", () => {

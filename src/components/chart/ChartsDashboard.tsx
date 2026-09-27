@@ -3414,15 +3414,24 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // and is re-validated by the SAME compiler. Both leave through
   // `applyRespectingLocks` — a saved layout cannot set a switch a desk could
   // not, and a locked lane holds against it exactly as it holds against a desk.
+  // A camera or a preset never eats the trader's own arrangement (Garden 16
+  // §46): pressed while no desk is in force, the capture it replaces is handed
+  // to the Workspace door as "Your arrangement" (equipmentChannel OWN_ARRANGEMENT).
+  const keepOwnArrangement = () => {
+    if (arrangementVM.activeId !== null) return;
+    const own = captureArrangement(arrangementMenu);
+    if (Object.values(own).some(Boolean)) announceOwnArrangement(own);
+  };
+  const applyPresetKeepingOwn = (s: Readonly<Partial<Record<ProfileId, boolean>>>) => {
+    keepOwnArrangement();
+    applyRespectingLocks(s);
+  };
   const arrangementDeskRef = useRef<(desk: ArrangementId | SavedLayoutRequest) => void>(() => {});
   arrangementDeskRef.current = (desk: ArrangementId | SavedLayoutRequest) => {
     // A camera never eats the trader's own arrangement (Garden 16 §46): pressed
     // while no desk is in force, the capture it replaces is handed to the
     // Workspace door as "Your arrangement" (equipmentChannel OWN_ARRANGEMENT).
-    if (typeof desk === "string" && arrangementVM.activeId === null) {
-      const own = captureArrangement(arrangementMenu);
-      if (Object.values(own).some(Boolean)) announceOwnArrangement(own);
-    }
+    if (typeof desk === "string") keepOwnArrangement();
     applyRespectingLocks(
       typeof desk === "string"
         ? arrangementSwitches(desk, arrangementMenu)
@@ -5367,7 +5376,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 */
                 onApply={applyRespectingLocks}
               />
-              <ProfilePresetBar active={profileMenuActive} onApply={applyRespectingLocks} />
+              <ProfilePresetBar active={profileMenuActive} onApply={applyPresetKeepingOwn} />
               <ProfilesMenu
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}
