@@ -160,11 +160,20 @@ describe("selectProfileMenu — availability is measured, never assumed", () => 
     expect(vm.readyCount).toBe(ALL_IDS.length - SIDED.length);
   });
 
-  it("Liquidity Weather waits for prints without falsely asking for aggressor side", () => {
+  it("Liquidity Weather reads the traded bars without prints, and never asks for aggressor side", () => {
+    // Garden 16 §28 (2026-09-27): the same judge reads the chart's traded bars
+    // when there is no tape window — the lens is on the glass, so the row is READY.
     const vm = selectProfileMenu(input({ printsPresent: false, observedAggressorFlow: false }));
     const weather = vm.entries.find(e => e.id === "LIQUIDITY_WEATHER")!;
-    expect(weather.availability).toBe("WAITING_FOR_PRINTS");
-    expect(weather.availabilityNote).toMatch(/side is not required/i);
+    expect(weather.availability).toBe("READY");
+  });
+
+  it("too few traded bars is the weather owner's own refusal, in its own words", () => {
+    const why = "12 traded bars on this chart — at least 24 are needed before a cost trend means anything.";
+    const vm = selectProfileMenu(input({ printsPresent: false, observedAggressorFlow: false, speciesRefusal: { LIQUIDITY_WEATHER: why } }));
+    const weather = vm.entries.find(e => e.id === "LIQUIDITY_WEATHER")!;
+    expect(weather.availability).toBe("REFUSED_BY_DATA");
+    expect(weather.availabilityNote).toBe(why);
   });
 
   it("the side-dependent rows share ONE fact about the tape", () => {
@@ -375,15 +384,13 @@ describe("selectProfileMenu — a lit switch that draws nothing says so", () => 
     }
   });
 
-  it("a lit Liquidity Weather row says waiting for prints when prints are absent", () => {
+  it("a lit Liquidity Weather row is not silent when prints are absent — it draws from the traded bars", () => {
     const vm = selectProfileMenu(input({
       printsPresent: false,
       observedAggressorFlow: false,
       active: { LIQUIDITY_WEATHER: true },
     }));
-    expect(vm.silentCount).toBe(1);
-    expect(vm.silentSummary).toBe("1 silent · waiting for prints");
-    expect(vm.silentNote).toMatch(/per-trade prints/i);
+    expect(vm.silentCount).toBe(0);
   });
 
   /*

@@ -3251,6 +3251,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         heading="On price · order-flow readings"
         testId="order-flow-tools-menu"
         columns={1}
+        speciesRefusal={chartLiquidityWeather.stage === "UNMEASURED" ? { LIQUIDITY_WEATHER: chartLiquidityWeather.detail } : undefined}
         active={profileMenuActive}
         onToggle={onProfileMenuToggle}
       />
@@ -3352,6 +3353,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     barsPresent: chartBars.length > 0,
     printsPresent: chartOrderFlowReadings.printsPresent,
     observedAggressorFlow: chartFlowSnap.hasFlow,
+    speciesRefusal: chartLiquidityWeather.stage === "UNMEASURED" ? { LIQUIDITY_WEATHER: chartLiquidityWeather.detail } : undefined,
     active: {
       FIXED_RANGE: fixedVPActive,
       SESSION: sessionVPChart,

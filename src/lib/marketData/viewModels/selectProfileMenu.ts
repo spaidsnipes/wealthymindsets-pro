@@ -750,7 +750,11 @@ const NEEDS_SIDED_TAPE: ReadonlySet<ProfileId> = new Set<ProfileId>([
 
 /** Readings that need real prints but deliberately do not need aggressor side. */
 const NEEDS_PRINTS: ReadonlySet<ProfileId> = new Set<ProfileId>([
-  "LIQUIDITY_WEATHER",
+  // LIQUIDITY_WEATHER left this set 2026-09-27 (Garden 16 §28): the same judge
+  // reads the chart's traded bars when the tape has no window
+  // (selectLiquidityWeatherFromBars). Too few traded bars is the owner's own
+  // refusal, passed in through `speciesRefusal` — never "waiting for prints"
+  // while the lens is on the glass.
   // Living Profile can survive on bar volume alone (`buildLivingProfileSnapshot`
   // falls back to bar-level distribution), so it does NOT need side. It does
   // need SOMETHING to bucket, and bars-only is the minimum.

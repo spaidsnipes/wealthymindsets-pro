@@ -579,7 +579,7 @@ export function SettingsPanel({
         <div className="px-4 py-2">
           {tab === "display" && (
             <div role="tabpanel" id="wm-settings-panel-display" aria-labelledby="wm-settings-tab-display">
-              <Row label="Dark Mode" sub="Premium dark theme for night trading">
+              <Row label="Dark Mode" sub="App pages · the market room is always dark">
                 <Toggle label="Dark Mode" on={darkMode} set={setDarkMode} />
               </Row>
               <Row label="Show P&L in header" sub="Display live profit/loss in the top bar">
