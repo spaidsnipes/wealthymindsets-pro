@@ -108,3 +108,12 @@ describe("no lookahead in replay (Garden 16 §46, serving c216f713)", () => {
     expect(block).toContain('"DERIVATIVES PRESSURE · withheld in replay — this positioning was published after the replay clock"');
   });
 });
+
+describe("the camera holds the walls it is showing (Garden 16 reconstruction §11)", () => {
+  it("with the pressure world on, the nearest wall above/below (≤ WALL_CAMERA_REACH of price) joins the price range", () => {
+    expect(MC).toContain("const WALL_CAMERA_REACH = 0.04;");
+    expect(MC).toContain("if (layerOnRef.current?.derivativesPressure === true && dpCam && dpCam.drawn) {");
+    expect(MC).toContain("const near = dpCam.walls.map(w => w.strike).filter(k => Math.abs(k - last) / last <= WALL_CAMERA_REACH);");
+    expect(MC).toContain("const margin = (hi - lo) * (wallHeld ? 0.14 : 0.06);");
+  });
+});

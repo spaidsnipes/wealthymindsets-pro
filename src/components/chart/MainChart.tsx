@@ -141,6 +141,8 @@ const CHART_SWING_LOOKBACK = STRUCTURE_DEFAULT_LOOKBACK;
 const LIQUIDITY_SWEEP_LOOKBACK = 4;
 /** Appearance › Crosshair › Line style → Lightweight Charts LineStyle (0 solid · 1 dotted · 2 dashed). */
 const CROSSHAIR_LINE_STYLE = { solid: 0, dotted: 1, dashed: 2 } as const;
+/** How far from the last close a pressure wall may pull the price camera to hold it (share of price). */
+const WALL_CAMERA_REACH = 0.04;
 
 /**
  * THE PRICE LEGEND'S RESERVED HEADROOM, WITH ONE OWNER.
@@ -2192,10 +2194,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       const band  = Math.max(p98Hi - p02Lo, q(his, 0.5) - q(los, 0.5), p98Hi * 0.002);
       if (!(band > 0)) return fallback;
       // Allow real wicks up to 1.5 bands beyond the robust band; clip only beyond.
-      const hi = Math.min(his[his.length - 1], p98Hi + band * 1.5);
-      const lo = Math.max(los[0],              p02Lo - band * 1.5);
+      let hi = Math.min(his[his.length - 1], p98Hi + band * 1.5);
+      let lo = Math.max(los[0],              p02Lo - band * 1.5);
       if (!(hi > lo)) return fallback;
-      const margin = (hi - lo) * 0.06;
+      // THE CAMERA HOLDS THE WALLS IT IS SHOWING (Garden 16 reconstruction §11,
+      // serving SPY/TSLA 1h 2026-09-27: both walls sat just above the candles'
+      // range, under the header, and were only NAMED as off-camera). With the
+      // pressure world on, the nearest wall above and below price — each within
+      // WALL_CAMERA_REACH of the last close — joins the range, with headroom so
+      // the masonry clears the header. Off → the candles alone, as before.
+      let wallHeld = false;
+      const dpCam = derivativesPressureRef.current;
+      if (layerOnRef.current?.derivativesPressure === true && dpCam && dpCam.drawn) {
+        const last = slice[slice.length - 1]?.close;
+        if (Number.isFinite(last) && last > 0) {
+          const near = dpCam.walls.map(w => w.strike).filter(k => Math.abs(k - last) / last <= WALL_CAMERA_REACH);
+          const above = near.filter(k => k > hi).sort((a, b) => a - b)[0];
+          const below = near.filter(k => k < lo).sort((a, b) => b - a)[0];
+          if (above != null) { hi = above; wallHeld = true; }
+          if (below != null) { lo = below; wallHeld = true; }
+        }
+      }
+      const margin = (hi - lo) * (wallHeld ? 0.14 : 0.06);
       return { priceRange: { minValue: lo - margin, maxValue: hi + margin } };
     } catch { return fallback; }
   });
