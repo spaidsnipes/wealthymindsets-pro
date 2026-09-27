@@ -98,8 +98,14 @@ describe("SENTINEL — the phase is ROOM state, and the room's ONE compile hears
     );
   });
 
-  it("the phase is held by the room, and the drawer writes it through the room's own setter", () => {
-    expect(room).toMatch(/const \[tradePhase, setTradePhase\] = React\.useState<TradePhase>\("PREPARATION"\)/);
+  // RE-PINNED 2026-09-27 (Garden 16 §15/§32): the phase is held by the ONE
+  // lifecycle owner (the DecisionContextBus stage), which the Workspace mode
+  // row writes too. Still not drawer-local; now also not room-local.
+  it("the phase is a read of the ONE lifecycle owner, and the drawer writes that owner through the room's setter", () => {
+    expect(room).toMatch(/const tradePhase: TradePhase = lifecyclePhaseFor\(lifecycleContext, symbol\);/);
+    expect(room).toMatch(/useDecisionContext\(\)/);
+    expect(room).toMatch(/setLifecycleStage\(stageForPhase\(phase\), symbol\)/);
+    expect(room).not.toMatch(/useState<TradePhase>/);
     expect(room).toMatch(/onPhase=\{setTradePhase\}/);
     expect(room).toMatch(/phase=\{tradePhase\}/);
   });

@@ -6,6 +6,7 @@ import {
   type DecisionContextBus,
   type ExperienceMode,
 } from "./decisionContextBus";
+import type { LifecycleStage } from "./decisionLifecycle";
 
 /**
  * useDecisionContext — thin, concurrent-safe React binding over the
@@ -24,6 +25,10 @@ export interface UseDecisionContext {
   readonly setMode: (mode: ExperienceMode, question?: string) => void;
   readonly setQuestion: (question: string) => void;
   readonly proposeMode: (mode: ExperienceMode) => void;
+  /** The Command Deck's write of the ONE lifecycle stage (decisionLifecycle). */
+  readonly setStage: (stage: LifecycleStage, symbol?: string) => void;
+  /** A room names its market; a different market resets the lifecycle. */
+  readonly attachSymbol: (symbol: string) => void;
 }
 
 export function useDecisionContext(
@@ -41,5 +46,11 @@ export function useDecisionContext(
   const setQuestion = useCallback((question: string) => { bus.setQuestion(question); }, [bus]);
   const proposeMode = useCallback((mode: ExperienceMode) => { bus.proposeMode(mode); }, [bus]);
 
-  return { context, setMode, setQuestion, proposeMode };
+  const setStage = useCallback(
+    (stage: LifecycleStage, symbol?: string) => { bus.setStage(stage, symbol); },
+    [bus],
+  );
+  const attachSymbol = useCallback((symbol: string) => { bus.attachSymbol(symbol); }, [bus]);
+
+  return { context, setMode, setQuestion, proposeMode, setStage, attachSymbol };
 }

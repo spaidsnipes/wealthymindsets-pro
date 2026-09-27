@@ -236,6 +236,9 @@ import { COMMAND_DECK_REGION_ID } from "@/lib/workspace/roomEquipment";
 import CommandDeckSurface from "@/components/command-deck/CommandDeckSurface";
 import { useChartCommandDeck } from "@/components/command-deck/useChartCommandDeck";
 import type { TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
+// THE ONE DECISION-LIFECYCLE OWNER (Garden 16 §15/§32, 2026-09-27).
+import { useDecisionContext } from "@/lib/experience/useDecisionContext";
+import { lifecyclePhaseFor, stageForPhase } from "@/lib/experience/decisionLifecycle";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
 // Real aggressor flow still grades the canonical capability state here;
@@ -1475,15 +1478,30 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     the same press. Held here, not in the drawer, so putting the drawer down
     does not reset what the trader said they were doing.
   */
-  const [tradePhase, setTradePhase] = React.useState<TradePhase>("PREPARATION");
+  /*
+    ONE LIFECYCLE OWNER — 2026-09-27, Garden 16 §15/§32. The phase was room
+    state here while the Workspace's Experience mode row wrote the job bus and
+    nothing on /charts heard it: two owners of "where is the trader in this
+    decision", one of them a dead control. The phase is now a READ of the ONE
+    lifecycle stage on the DecisionContextBus, and the deck's control writes
+    that stage — so the mode row and the deck move each other and the chain.
+  */
+  const { context: lifecycleContext, setStage: setLifecycleStage, attachSymbol: attachLifecycleSymbol } =
+    useDecisionContext();
   // THE PHASE BELONGS TO ONE MARKET (verifier YELLOW, 2026-09-26): "In Trade"
-  // said on TSLA is not a trade on ES1!. A symbol change returns the room to
-  // PREPARATION — the chain never reads "Managing" for a market never entered.
-  const [tradePhaseSymbol, setTradePhaseSymbol] = React.useState(symbol);
-  if (tradePhaseSymbol !== symbol) {
-    setTradePhaseSymbol(symbol);
-    setTradePhase("PREPARATION");
-  }
+  // said on TSLA is not a trade on ES1!. `lifecyclePhaseFor` answers the start
+  // phase (PREPARATION) in the SAME render the symbol changes — no frame
+  // compiles the new market with the old phase — and the effect below then
+  // returns the one stage to its start for the new market, so the mode row
+  // agrees.
+  const tradePhase: TradePhase = lifecyclePhaseFor(lifecycleContext, symbol);
+  React.useEffect(() => {
+    attachLifecycleSymbol(symbol);
+  }, [attachLifecycleSymbol, symbol]);
+  const setTradePhase = React.useCallback(
+    (phase: TradePhase) => setLifecycleStage(stageForPhase(phase), symbol),
+    [setLifecycleStage, symbol],
+  );
   const chartCanvasVM = useMarketCanvasVM({
     identity: canvasIdentity,
     ownerId: canvasUser?.id ?? null,

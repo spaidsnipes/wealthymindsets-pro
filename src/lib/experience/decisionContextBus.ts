@@ -22,6 +22,13 @@
  * useDecisionContext.ts. Deterministic and fully unit-testable.
  */
 
+import {
+  LIFECYCLE_START,
+  modeForStage,
+  stageForMode,
+  type LifecycleStage,
+} from "./decisionLifecycle";
+
 export const DECISION_CONTEXT_SCHEMA_VERSION = "wm.decision-context.v1" as const;
 
 export type ExperienceMode =
@@ -54,6 +61,15 @@ export interface DecisionContext {
   /** Epoch ms when the current mode committed. */
   readonly since: number;
   readonly source: ModeSource;
+  /**
+   * THE ONE DECISION-LIFECYCLE STAGE (Garden 16 §15/§32; see decisionLifecycle).
+   * `mode` is always its projection when non-null; null only while the job is a
+   * non-lifecycle one (LEARN). The Command Deck's phase and the Experience mode
+   * row both read and write THIS — there is no second phase store.
+   */
+  readonly stage: LifecycleStage | null;
+  /** The market the stage was declared on (§32 "attached to symbol"); null until a room attaches it. */
+  readonly stageSymbol: string | null;
 }
 
 export type ProposeStatus = "COMMITTED" | "PENDING" | "NOOP";
@@ -87,12 +103,15 @@ export class DecisionContextBus {
   constructor(opts: DecisionContextBusOptions = {}) {
     this.confirmationsRequired = Math.max(1, opts.confirmationsRequired ?? DEFAULT_CONFIRMATIONS);
     this.now = opts.now ?? (() => Date.now());
+    const mode = opts.initialMode ?? "OBSERVE";
     this.context = {
       schemaVersion: DECISION_CONTEXT_SCHEMA_VERSION,
-      mode: opts.initialMode ?? "OBSERVE",
+      mode,
       question: opts.initialQuestion?.trim() || DEFAULT_QUESTION,
       since: this.now(),
       source: "default",
+      stage: stageForMode(mode),
+      stageSymbol: null,
     };
   }
 
@@ -105,7 +124,14 @@ export class DecisionContextBus {
     return () => this.listeners.delete(listener);
   }
 
-  private commit(next: Partial<DecisionContext> & { mode: ExperienceMode; source: ModeSource }): void {
+  /**
+   * Every commit names BOTH the mode and the stage; each caller derives one from
+   * the other through decisionLifecycle, so the pair cannot split (the public
+   * writes are pinned in decisionLifecycle.test.ts).
+   */
+  private commit(
+    next: Partial<DecisionContext> & { mode: ExperienceMode; source: ModeSource; stage: LifecycleStage | null },
+  ): void {
     this.pending = null;
     this.context = {
       ...this.context,
@@ -120,15 +146,53 @@ export class DecisionContextBus {
    * and bypasses hysteresis). Optionally sets the lens question at the same time.
    */
   setMode(mode: ExperienceMode, question?: string): DecisionContext {
-    if (mode === this.context.mode && (question === undefined || question.trim() === this.context.question)) {
+    const stage = stageForMode(mode);
+    if (
+      mode === this.context.mode &&
+      stage === this.context.stage &&
+      (question === undefined || question.trim() === this.context.question)
+    ) {
       this.pending = null;
       return this.context;
     }
     this.commit({
       mode,
+      stage,
       source: "user",
       ...(question !== undefined && question.trim() ? { question: question.trim() } : {}),
     });
+    return this.context;
+  }
+
+  /**
+   * The Command Deck's write — a lifecycle stage, by the human. Commits
+   * immediately (human intent bypasses hysteresis) and projects the mode row.
+   * `symbol` attaches the stage to the market it was declared on.
+   */
+  setStage(stage: LifecycleStage, symbol?: string): DecisionContext {
+    const stageSymbol = symbol ?? this.context.stageSymbol;
+    if (stage === this.context.stage && stageSymbol === this.context.stageSymbol) {
+      this.pending = null;
+      return this.context;
+    }
+    this.commit({ mode: modeForStage(stage), stage, stageSymbol, source: "user" });
+    return this.context;
+  }
+
+  /**
+   * A room says which market it is showing. First attachment keeps whatever the
+   * trader already said; a DIFFERENT market returns the lifecycle to its start —
+   * "In Trade" said on TSLA is not a trade on ES1!.
+   */
+  attachSymbol(symbol: string): DecisionContext {
+    const current = this.context.stageSymbol;
+    if (current === symbol) return this.context;
+    if (current === null) {
+      this.context = { ...this.context, stageSymbol: symbol };
+      for (const l of this.listeners) l();
+      return this.context;
+    }
+    this.commit({ mode: modeForStage(LIFECYCLE_START), stage: LIFECYCLE_START, stageSymbol: symbol, source: "default" });
     return this.context;
   }
 
@@ -158,7 +222,7 @@ export class DecisionContextBus {
       this.pending.count += 1;
     }
     if (this.pending.count >= this.confirmationsRequired) {
-      this.commit({ mode, source: "market" });
+      this.commit({ mode, stage: stageForMode(mode), source: "market" });
       return { status: "COMMITTED", context: this.context, remaining: 0 };
     }
     return {

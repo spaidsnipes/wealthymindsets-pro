@@ -81,6 +81,7 @@ import type { PerCapabilityFidelityReport } from "@/lib/marketData/perCapability
 import type { DeckEmphasis, DeckSurface } from "@/lib/experience/selectDeckEmphasis";
 import type { ExperienceMode } from "@/lib/experience/decisionContextBus";
 import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
+import { DECK_PHASE_LABEL } from "@/lib/experience/decisionLifecycle";
 import { selectPrepChecklistBand } from "@/lib/experience/selectPrepChecklistBand";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { useLearningGenomeBundle } from "@/lib/learningGenome/useLearningGenomeBundle";
@@ -103,15 +104,15 @@ const EYEBROW: React.CSSProperties = {
   color: GOLD,
 };
 
-/** The six phases, in the deck page's own order and words. */
-export const COMMAND_DECK_PHASES: readonly { readonly id: TradePhase; readonly label: string }[] = [
-  { id: "PREPARATION", label: "Prep" },
-  { id: "APPROACH", label: "Approach" },
-  { id: "DECISION", label: "Decide" },
-  { id: "POSITION", label: "In Trade" },
-  { id: "POST_EXIT", label: "Post-Exit" },
-  { id: "REVIEW", label: "Review" },
-];
+/**
+ * The six phases, in the deck page's own order. The WORDS come from the one
+ * lifecycle owner (decisionLifecycle) so the Workspace mode row's read-back and
+ * this control can never name the same phase two ways.
+ */
+const PHASE_ORDER: readonly TradePhase[] = ["PREPARATION", "APPROACH", "DECISION", "POSITION", "POST_EXIT", "REVIEW"];
+export const COMMAND_DECK_PHASES: readonly { readonly id: TradePhase; readonly label: string }[] = PHASE_ORDER.map(
+  (id) => ({ id, label: DECK_PHASE_LABEL[id] }),
+);
 
 export type CommandDeckSection = "PROCESS" | "STORY" | "STEWARD" | "RECEIPT" | "PREP_LEARN" | "WIRE";
 
@@ -293,6 +294,15 @@ function ProcessSection({
           );
         })}
       </div>
+
+      {/* ONE LIFECYCLE (Garden 16 §15/§32): this control and the Workspace's
+          Experience mode row write the SAME stage. Said once, so the trader
+          knows pressing either moves both. */}
+      <span data-testid="command-deck-lifecycle-owner" style={{ fontSize: 10, lineHeight: 1.4, color: HINT_INK }}>
+        {deck.job === "LEARN"
+          ? "Your job is LEARN — not a trade-lifecycle stage. Pressing a phase re-enters the lifecycle."
+          : "One lifecycle: the Workspace mode row and this phase move together."}
+      </span>
 
       {/* THE CHAIN, READING THE PHASE. Not a caption about the control — the
           room's own chain headline, compiled with the phase just pressed. */}

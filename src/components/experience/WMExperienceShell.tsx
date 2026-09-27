@@ -199,7 +199,10 @@ function SanctuaryRoom({
       >
         Mode
       </div>
-      <ExperienceModeBar bus={bus} />
+      {/* THE LIFECYCLE FACE — on the market room the six lifecycle modes write
+          the ONE stage the Command Deck's phase writes (decisionLifecycle), and
+          the read-back under the row names what the chain now compiles. */}
+      <ExperienceModeBar bus={bus} lifecycle />
     </div>
   );
 

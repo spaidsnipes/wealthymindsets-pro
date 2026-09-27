@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import { WM } from "@/lib/design/wmTokens";
 import {
   EXPERIENCE_MODES,
@@ -8,6 +9,12 @@ import {
 } from "@/lib/experience/decisionContextBus";
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
+import {
+  DECK_PHASE_LABEL,
+  phaseForStage,
+  routeForMode,
+  type LifecycleStage,
+} from "@/lib/experience/decisionLifecycle";
 
 /**
  * ExperienceModeBar — the seven human operating states (Founder Phase 1):
@@ -48,6 +55,28 @@ export interface ExperienceModeBarProps {
    * Default `false` — every route that never asked keeps the bar it had.
    */
   collapsed?: boolean;
+  /**
+   * THE DECISION-LIFECYCLE FACE (Garden 16 §15/§32, 2026-09-27) — set by the
+   * market room only. There the six lifecycle modes write the ONE stage the
+   * Command Deck's phase control also writes, and a read-back line under the
+   * row names the deck phase and chain phase that stage compiles, so a press is
+   * visible in the room, not only in this row's aria-current. LEARN is not a
+   * lifecycle stage (Garden 11: "LEARN = WOW Academy"): here it is a door to
+   * the Academy, said in its own title, never a silent phase.
+   *
+   * Default `false` — every other room keeps the bar it had.
+   */
+  lifecycle?: boolean;
+}
+
+/** The read-back line's test id — the glass script reads it too. */
+export const EXPERIENCE_MODE_LIFECYCLE_TESTID = "experience-mode-lifecycle";
+
+/** The words the read-back line says for a stage (null = a non-lifecycle job). */
+export function lifecycleReadback(stage: LifecycleStage | null): string {
+  if (stage === null) return "Not in a trade lifecycle — LEARN is a changed job. Pick a stage to re-enter it.";
+  const phase = phaseForStage(stage);
+  return `Command Deck phase · ${DECK_PHASE_LABEL[phase]} — the decision chain now reads ${phase.replace("_", "-").toLowerCase()}.`;
 }
 
 /** The id the collapsed chip points `aria-controls` at. */
@@ -82,7 +111,7 @@ function modeHint(mode: ExperienceMode): string {
   return shellEmphasis(mode).job.replace(/\.$/, "");
 }
 
-export function ExperienceModeBar({ bus, className, collapsed = false }: ExperienceModeBarProps) {
+export function ExperienceModeBar({ bus, className, collapsed = false, lifecycle = false }: ExperienceModeBarProps) {
   const { context, setMode } = useDecisionContext(bus);
   const [open, setOpen] = React.useState(false);
   const chipRef = React.useRef<HTMLButtonElement | null>(null);
@@ -137,7 +166,14 @@ export function ExperienceModeBar({ bus, className, collapsed = false }: Experie
 
   return (
     <div
-      style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}
+      style={{
+        display: "flex",
+        // The lifecycle face stacks its read-back UNDER the row it answers.
+        flexDirection: lifecycle ? "column" : "row",
+        alignItems: lifecycle ? "stretch" : "center",
+        gap: 6,
+        position: "relative",
+      }}
     >
       {!collapsed ? null : (
         <button
@@ -217,6 +253,40 @@ export function ExperienceModeBar({ bus, className, collapsed = false }: Experie
     >
       {EXPERIENCE_MODES.map((mode) => {
         const active = mode === context.mode;
+        const route = lifecycle ? routeForMode(mode) : null;
+        if (route && route.kind === "ROOM") {
+          // A CHANGED JOB IS A DOOR, NOT A PHASE. Same face as its six
+          // siblings; it navigates to the Academy and says so in its title.
+          return (
+            <Link
+              key={mode}
+              href={route.href}
+              data-mode-route="ROOM"
+              title={`${modeHint(mode)} — ${route.reason}`}
+              style={{
+                flex: "1 1 auto",
+                minWidth: 52,
+                minHeight: 44,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: 0.6,
+                textTransform: "uppercase",
+                padding: "5px 8px",
+                borderRadius: WM.radius.md,
+                border: `1px dashed ${WM.border.hair}`,
+                color: WM.text.muted,
+                background: "transparent",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {mode}
+            </Link>
+          );
+        }
         return (
           <button
             key={mode}
@@ -323,6 +393,16 @@ export function ExperienceModeBar({ bus, className, collapsed = false }: Experie
       })}
     </nav>
       )}
+      {lifecycle ? (
+        <p
+          data-testid={EXPERIENCE_MODE_LIFECYCLE_TESTID}
+          data-stage={context.stage ?? "NONE"}
+          aria-live="polite"
+          style={{ margin: 0, fontSize: 11, lineHeight: 1.45, color: WM.text.muted }}
+        >
+          {lifecycleReadback(context.stage)}
+        </p>
+      ) : null}
     </div>
   );
 }
