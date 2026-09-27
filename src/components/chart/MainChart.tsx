@@ -14200,6 +14200,75 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 });
                 ctx.lineWidth = 1;
                 if (holes || chipped) painted.push(`MASONRY@${w.strike}:holes=${holes}:chips=${chipped}`);
+                /* WALL CONTACT — the signature interaction (Garden 16 five-hour
+                   order: "the canonical market event causes both visual objects
+                   to respond … never because sprite touched sprite"). Read ONLY
+                   from the forming (newest) bar's real high/low against this
+                   strike, on the same price scale the candle uses:
+                     PRESSURE  the extreme is within 0.4% of price of the wall:
+                               the face toward price heats with proximity
+                     CONTACT   the wick reached the wall's band: impact mark at
+                               the wick's x, dust in LIVE only (held in STILL)
+                     HELD      contact, then this bar pulled back ≥ a quarter of
+                               its own range from the wall — a fact about this
+                               bar, never a forecast. */
+                if (!broken) {
+                  const lb = (barsRef.current ?? [])[(barsRef.current ?? []).length - 1];
+                  const xl = lb ? tsD.timeToCoordinate(lb.time as never) : null;
+                  if (lb && xl != null && Number.isFinite(lb.high) && Number.isFinite(lb.low)) {
+                    const above = w.strike >= Number(lb.close);
+                    const ext = above ? Number(lb.high) : Number(lb.low);
+                    const yExt = yOfD(ext);
+                    const faceY = above ? top + wallH : top;
+                    const reach = Math.max(1e-9, Number(lb.close) * 0.004);
+                    const gap = above ? w.strike - ext : ext - w.strike;
+                    const prox = Math.max(0, Math.min(1, 1 - gap / reach));
+                    const contact = yExt != null && (above ? yExt <= faceY : yExt >= faceY);
+                    const range = Math.max(1e-9, Number(lb.high) - Number(lb.low));
+                    const pulledBack = contact && (above ? ext - Number(lb.close) : Number(lb.close) - ext) >= range * 0.25;
+                    const state = contact ? (pulledBack ? "HELD" : "CONTACT") : prox > 0 ? "PRESSURE" : "CLEAR";
+                    if (state !== "CLEAR") {
+                      // The face toward price heats with proximity.
+                      const heat = ctx.createLinearGradient(0, faceY + (above ? 10 : -10), 0, faceY);
+                      heat.addColorStop(0, "rgba(255,150,70,0)");
+                      heat.addColorStop(1, `rgba(255,170,90,${((0.18 + 0.5 * prox) * baseA).toFixed(3)})`);
+                      ctx.fillStyle = heat;
+                      ctx.fillRect(x0, above ? faceY : faceY - 10, len, 10);
+                    }
+                    if (contact) {
+                      const ix = Math.max(x0 + 4, Math.min(x1 - 4, +xl));
+                      // Impact: a hot star where the wick meets the face.
+                      const g = ctx.createRadialGradient(ix, faceY, 0, ix, faceY, 16);
+                      g.addColorStop(0, `rgba(255,236,190,${(0.95 * baseA).toFixed(3)})`);
+                      g.addColorStop(0.4, `rgba(255,170,80,${(0.55 * baseA).toFixed(3)})`);
+                      g.addColorStop(1, "rgba(255,140,60,0)");
+                      ctx.fillStyle = g;
+                      ctx.beginPath(); ctx.arc(ix, faceY, 16, 0, Math.PI * 2); ctx.fill();
+                      ctx.strokeStyle = `rgba(255,220,160,${(0.85 * baseA).toFixed(3)})`;
+                      ctx.lineWidth = 1;
+                      ctx.beginPath();
+                      for (let r = 0; r < 6; r++) { const a = (r / 6) * Math.PI + (above ? 0 : Math.PI); ctx.moveTo(ix, faceY); ctx.lineTo(ix + Math.cos(a) * 9, faceY + Math.sin(a) * 9 * (above ? 1 : -1)); }
+                      ctx.stroke();
+                      // Dust — LIVE only, bounded (8 motes), from the impact, deterministic per frame time.
+                      if (motionOnRef.current) {
+                        const tt = performance.now() / 1000;
+                        const prevDustA = ctx.globalAlpha;
+                        ctx.fillStyle = `rgba(214,180,120,${(0.6 * baseA).toFixed(3)})`;
+                        for (let k = 0; k < 8; k++) {
+                          const life = ((tt * 0.9 + k / 8) % 1);
+                          const ang = (k / 8) * Math.PI * 0.9 + 0.1;
+                          const dx = Math.cos(ang) * 22 * life * (k % 2 ? 1 : -1);
+                          const dy = (above ? 1 : -1) * Math.sin(ang) * 14 * life + 10 * life * life;
+                          ctx.globalAlpha = prevDustA * Math.max(0, 1 - life);
+                          ctx.fillRect(ix + dx, faceY + dy, 1.8, 1.8);
+                        }
+                        ctx.globalAlpha = prevDustA;
+                      }
+                      if (pulledBack && dpSpeaks) wallWords.push({ word: `HELD · ${fmtD(w.strike)}`, x: ix + 30, y: faceY + (above ? 10 : -10) });
+                    }
+                    painted.push(`CONTACT@${w.strike}:${state}:${prox.toFixed(2)}`);
+                  }
+                }
                 if (dpSpeaks) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${w.life}${w.tests ? ` ×${w.tests}` : ""}`, x: x0, y: top + wallH / 2 });
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }
