@@ -35,6 +35,12 @@ interface DiscoveryAnswer {
 }
 
 export const DISCOVERY_ROWS_SHOWN = 24;
+/**
+ * On the chart's left wall F14 keeps grid, scale and Selected State card in one
+ * view. 14 rows pushed the card below the fold at 1920×799 (serving, beside
+ * F14, 2026-09-27); 8 keeps the three together. OPEN FULL shows every row.
+ */
+export const DISCOVERY_ROWS_ON_WALL = 8;
 const GOLD = "#C9A55C";
 
 export function DiscoveryUnusualStates({ symbols, onLand, landedSymbol = null, compact = false, unabridged = false }: {
@@ -62,7 +68,7 @@ export function DiscoveryUnusualStates({ symbols, onLand, landedSymbol = null, c
     return () => { live = false; };
   }, [symsKey]);
 
-  const rows = useMemo(() => (answer?.rows ?? []).slice(0, unabridged ? undefined : compact ? 14 : DISCOVERY_ROWS_SHOWN), [answer, compact, unabridged]);
+  const rows = useMemo(() => (answer?.rows ?? []).slice(0, unabridged ? undefined : compact ? DISCOVERY_ROWS_ON_WALL : DISCOVERY_ROWS_SHOWN), [answer, compact, unabridged]);
   // The most unusual cell is selected first, so the card is never empty over a full grid.
   const selected = useMemo(() => {
     if (sel) {
