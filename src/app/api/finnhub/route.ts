@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { toFinnhubSym } from "@/lib/finnhubSymbol";
+import { FH_NATIVE_RES } from "@/lib/marketData/finnhubBarRoute";
 import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
 import { classifyFinnhubStatus, finnhubUpstreamMessage } from "@/lib/marketData/finnhubUpstreamStatus";
 import { finnhubQuoteObservedAt } from "@/lib/marketData/finnhubQuoteTime";
@@ -87,28 +88,9 @@ function getFinnhubKey(): string {
   return _finnhubKeyCache;
 }
 
-// Finnhub candle resolution mapping — FAIL-CLOSED (WM-CHART-P0-03).
-// Only intervals Finnhub serves NATIVELY are mapped here. Requests for
-// intervals Finnhub does not support natively (2m, 3m, 10m, 2h, 4h)
-// return `null` so the route responds with an honest UNAVAILABLE state
-// rather than silently substituting a different bar size and labelling
-// it with the requested one — the exact defect that produced
-// "1-minute bars labelled 2m" in prod.
-// Finnhub free-tier native resolutions (per finnhub.io/docs/api/stock-candles):
-//   1, 5, 15, 30, 60, D, W, M.
-const FH_NATIVE_RES: Record<string, string> = {
-  "1m": "1",
-  "5m": "5",
-  "15m": "15",
-  "30m": "30",
-  "1h": "60",
-  "D":  "D",
-  "1D": "D",
-  "W":  "W",
-  "1W": "W",
-  "M":  "M",
-  "1M": "M",
-};
+// Finnhub candle resolution mapping — FAIL-CLOSED (WM-CHART-P0-03). The table
+// lives in @/lib/marketData/finnhubBarRoute so the timeframe ladder reads the
+// same owner this route serves from (Garden 16 §26, 2026-09-27).
 
 const CACHE = new Map<string, { data: unknown; ts: number }>();
 

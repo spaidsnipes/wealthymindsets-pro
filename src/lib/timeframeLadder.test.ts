@@ -8,6 +8,7 @@ import {
 import { resolveYahooTimeframe } from "./yahooTimeframes";
 import { EXCHANGE_TIMEFRAME_SECONDS } from "./marketData/exchangeTimeframes";
 import { ALPACA_TF_MAP } from "./marketData/alpacaBarRoute";
+import { FH_NATIVE_RES } from "./marketData/finnhubBarRoute";
 
 /**
  * THE CANONICAL LADDER — Garden 16 §21 ("Recover the actual registry. DO NOT
@@ -44,13 +45,19 @@ it("/api/alpaca serves from the lib's ALPACA_TF_MAP and keeps no private copy", 
   expect(route).toContain("const hit = ALPACA_TF_MAP[tf];");
 });
 
+/** Finnhub's table, read from the lib the route imports (moved 2026-09-27). */
 function finnhubResKeys(): string[] {
-  const src = SRC("app/api/finnhub/route.ts");
-  const start = src.indexOf("const FH_NATIVE_RES");
-  expect(start).toBeGreaterThan(-1);
-  const block = src.slice(start, src.indexOf("};", start));
-  return [...block.matchAll(/"([^"]+)":\s*"/g)].map(m => m[1]);
+  const keys = Object.keys(FH_NATIVE_RES);
+  expect(keys.length).toBeGreaterThan(5);
+  return keys;
 }
+
+it("/api/finnhub serves from the lib's FH_NATIVE_RES and keeps no private copy", () => {
+  const route = SRC("app/api/finnhub/route.ts");
+  expect(route).toContain('import { FH_NATIVE_RES } from "@/lib/marketData/finnhubBarRoute";');
+  expect(route).not.toMatch(/const FH_NATIVE_RES/);
+  expect(route).toContain("const resolution = FH_NATIVE_RES[tf];");
+});
 
 /** Alpaca's bucket name for a bucket of exactly this size. */
 function exactAlpacaBucket(r: CanonRung): string | null {

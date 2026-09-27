@@ -27,12 +27,23 @@
  *                        toAlpacaCryptoSymbol(sym), and when that is not the
  *                        coin's own "BASE/USD" pair Alpaca has nothing to
  *                        answer ("BTCUSD" → "BTCUSD/USD"), so the chart falls on.
- *   3. /api/finnhub    — equities only; its native set is a subset of
- *                        Alpaca's for every chart id (pinned by test), so it
- *                        never changes the answer and is not walked here.
+ *   3. /api/finnhub    — "Finnhub REST": equities only (crypto is not asked
+ *                        here). Served when toFinnhubSym resolves and
+ *                        FH_NATIVE_RES has the id. Walked, not assumed away.
  *   4. /api/yahoo      — resolveYahooSymbol must resolve; resolveYahooTimeframe
  *                        names the plan, and its `sourceMode` says native or
  *                        reconstructed.
+ *   5. /api/finnhub    — the last door, asked for crypto too
+ *                        (fetchFinnhubCandles: only equityVendorSkipNoun stops
+ *                        it). Same table, same symbol owner as door 3.
+ *
+ * DOOR 5 IS WHY THE WALK HAS NO SHORTCUT (verifier, 2026-09-27). This module
+ * used to skip Finnhub on the claim "its intervals are a subset of Alpaca's".
+ * That holds only when Alpaca ANSWERS. For a USDT pair (BTCUSDT) Alpaca is
+ * asked for "BTCUSDT/USD", which is no pair, and Yahoo refuses to answer a
+ * USDT request with a USD price, so Finnhub's BINANCE:BTCUSDT is the door that
+ * serves 1D / 1W / 1M (and, where no Coinbase product exists — SHIBUSDT —
+ * 1m / 5m / 15m / 30m / 1h too). The ladder called those "No bar route".
  *
  * ── ONE ASSUMPTION, STATED ───────────────────────────────────────────────────
  * A door that WOULD answer is taken to answer. Alpaca's equity lane needs a
@@ -45,6 +56,8 @@
  */
 import { ALPACA_TF_MAP, toAlpacaCryptoSymbol } from "@/lib/marketData/alpacaBarRoute";
 import { coinbaseProduct } from "@/lib/marketData/coinbaseProduct";
+import { FH_NATIVE_RES } from "@/lib/marketData/finnhubBarRoute";
+import { toFinnhubSym } from "@/lib/finnhubSymbol";
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { resolveExchangeTimeframe } from "@/lib/marketData/exchangeTimeframes";
 import { classifySymbol, equityVendorSkipNoun } from "@/lib/marketData/symbolAssetClass";
@@ -65,7 +78,7 @@ export interface BarBucket {
 }
 
 export interface ChartBarRoute {
-  /** The door that serves: a venue name ("Coinbase"), "Alpaca" or "Yahoo". */
+  /** The door that serves: a venue name ("Coinbase"), "Alpaca", "Finnhub" or "Yahoo". */
   readonly vendor: string;
   /** NATIVE = the vendor publishes this bucket. RECONSTRUCTED = WM folds it
    *  from a finer one the vendor does publish. */
@@ -98,6 +111,12 @@ function fromAlpaca(name: string): BarBucket | null {
   if (!m) return null;
   const unit = ({ Min: "minute", Hour: "hour", Day: "day", Week: "week", Month: "month" } as const)[m[2] as "Min"];
   return normalize({ n: Number(m[1]), unit });
+}
+
+/** Finnhub's resolution ("1", "60", "D", "W", "M") as a bucket. */
+function fromFinnhub(resolution: string): BarBucket | null {
+  if (/^\d+$/.test(resolution)) return normalize({ n: Number(resolution), unit: "minute" });
+  return ({ D: { n: 1, unit: "day" }, W: { n: 1, unit: "week" }, M: { n: 1, unit: "month" } } as const)[resolution as "D"] ?? null;
 }
 
 /** Yahoo's interval string ("1m", "60m", "1d", "1wk", "1mo", "3mo") as a bucket. */
@@ -146,6 +165,18 @@ export function alpacaCryptoPairResolves(symbol: string): boolean {
   return base !== null && toAlpacaCryptoSymbol(symbol.toUpperCase()) === `${base}/USD`;
 }
 
+/**
+ * Does /api/finnhub serve this id for this symbol, and as what bucket? The
+ * route answers 404 when toFinnhubSym is null and UNAVAILABLE (no bars) when
+ * FH_NATIVE_RES lacks the id; MainChart does not ask it for futures / forex /
+ * spot metals (equityVendorSkipNoun).
+ */
+export function finnhubBucket(tf: string, sym: string): BarBucket | null {
+  if (equityVendorSkipNoun(sym) || toFinnhubSym(sym) === null) return null;
+  if (!Object.prototype.hasOwnProperty.call(FH_NATIVE_RES, tf)) return null;
+  return fromFinnhub(FH_NATIVE_RES[tf]);
+}
+
 /** The venue lane MainChart opens for this symbol, or null. */
 function venueOf(symbol: string): Exchange | null {
   const pinned = parseExchangeSymbol(symbol);
@@ -177,7 +208,13 @@ export function chartBarRouteFor(timeframe: string, symbol: string): ChartBarRou
     if (bucket && (!crypto || alpacaCryptoPairResolves(sym))) return route(tf, "Alpaca", "NATIVE", bucket, null);
   }
 
-  // 4. Yahoo (3, Finnhub, is a subset of Alpaca — see the header).
+  // 3. Finnhub REST — equities only (fetchFinnhubCandlesDirect skips crypto).
+  if (classifySymbol(sym) !== "CRYPTO") {
+    const fh = finnhubBucket(tf, sym);
+    if (fh) return route(tf, "Finnhub", "NATIVE", fh, null);
+  }
+
+  // 4. Yahoo.
   if (resolveYahooSymbol(sym).kind !== "UNRESOLVED") {
     const plan = resolveYahooTimeframe(tf);
     const base = plan ? fromYahoo(plan.interval) : null;
@@ -191,6 +228,10 @@ export function chartBarRouteFor(timeframe: string, symbol: string): ChartBarRou
       return route(tf, "Yahoo", "RECONSTRUCTED", bucket, base);
     }
   }
+
+  // 5. Finnhub — the last door, crypto included (fetchFinnhubCandles).
+  const fh = finnhubBucket(tf, sym);
+  if (fh) return route(tf, "Finnhub", "NATIVE", fh, null);
   return null;
 }
 
