@@ -60,6 +60,12 @@ export interface LiquidityLifecycleVM {
   readonly venue?: string;
   /** Why PULLED is refused, or null when the book makes it observable. */
   readonly pulledRefusal: string | null;
+  /**
+   * OBSERVED_BOOK only: the resting size seen at each price bucket, averaged
+   * per bar (F08A's depth glow behind price). Absent on the candle basis —
+   * a candle cannot show resting size.
+   */
+  readonly depthByBar?: readonly { readonly time: number; readonly rows: readonly { readonly price: number; readonly size: number }[] }[];
 }
 
 const median = (xs: number[]) => {

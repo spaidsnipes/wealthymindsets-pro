@@ -52,6 +52,10 @@ export const CONSUME_SHARE = 0.5;
 export const TRADE_MEMORY_MS = 15_000;
 /** Ended pools are memory; they are kept this long. */
 export const ENDED_MEMORY_MS = 30 * 60_000;
+/** The observed book is sampled for depth at most this often … */
+export const DEPTH_SAMPLE_MS = 2_000;
+/** … and kept this long (memory only — nothing is stored; GP12 §21). */
+export const DEPTH_HISTORY_MS = 3 * 60 * 60_000;
 
 export interface BookLevel { readonly price: number; readonly size: number }
 
@@ -92,6 +96,7 @@ export function createBookLifecycleTracker(opts: { readonly step: number; readon
   const bucketOf = (p: number) => Math.floor(p / step);
   const tracks = new Map<string, Track>();
   const trades: { atMs: number; bucket: number; qty: number }[] = [];
+  const depth: { atMs: number; rows: [number, number][] }[] = [];
 
   const add = (t: Track, stage: LifecycleStage, atMs: number) => {
     if (stage === "TOUCHED" || stage === "REFILLED" || !t.events.some(e => e.stage === stage)) t.events.push({ stage, atMs });
@@ -166,6 +171,11 @@ export function createBookLifecycleTracker(opts: { readonly step: number; readon
     applyBook(atMs, bids, asks) {
       applySide(atMs, "bid", bids);
       applySide(atMs, "ask", asks);
+      if (!depth.length || atMs - depth[depth.length - 1].atMs >= DEPTH_SAMPLE_MS) {
+        const all = bucketize([...bids, ...asks]);
+        depth.push({ atMs, rows: [...all.entries()] });
+        while (depth.length && depth[0].atMs < atMs - DEPTH_HISTORY_MS) depth.shift();
+      }
       while (trades.length && trades[0].atMs < atMs - TRADE_MEMORY_MS * 2) trades.shift();
       for (const t of [...tracks.values()]) {
         if (t.ended && atMs - (t.events[t.events.length - 1]?.atMs ?? atMs) > ENDED_MEMORY_MS) tracks.delete(t.key);
@@ -211,6 +221,8 @@ export function createBookLifecycleTracker(opts: { readonly step: number; readon
         basis: "OBSERVED_BOOK",
         venue: opts.venue,
         pulledRefusal: null,
+        // Raw samples in ms; placeBookEventsOnBars folds them into bars.
+        depthByBar: depth.map(d => ({ time: d.atMs, rows: d.rows.map(([b, size]) => ({ price: (b + 0.5) * step, size })) })),
       };
     },
   };
@@ -234,7 +246,23 @@ export function placeBookEventsOnBars(vm: LiquidityLifecycleVM, barTimesSec: rea
     }
     return ans;
   };
-  return { ...vm, pools: vm.pools.map(p => ({ ...p, events: p.events.map(e => ({ stage: e.stage, time: snap(e.time) })) })) };
+  // Depth samples: the mean resting size per price, per bar that contains them.
+  const byBar = new Map<number, { n: number; sum: Map<number, number> }>();
+  for (const d of vm.depthByBar ?? []) {
+    const t = snap(d.time);
+    const cell = byBar.get(t) ?? { n: 0, sum: new Map<number, number>() };
+    cell.n++;
+    for (const r of d.rows) cell.sum.set(r.price, (cell.sum.get(r.price) ?? 0) + r.size);
+    byBar.set(t, cell);
+  }
+  const depthByBar = [...byBar.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([time, c]) => ({ time, rows: [...c.sum.entries()].map(([price, sum]) => ({ price, size: sum / c.n })) }));
+  return {
+    ...vm,
+    pools: vm.pools.map(p => ({ ...p, events: p.events.map(e => ({ stage: e.stage, time: snap(e.time) })) })),
+    ...(vm.depthByBar ? { depthByBar } : {}),
+  };
 }
 
 /**

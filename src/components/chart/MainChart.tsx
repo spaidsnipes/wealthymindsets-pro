@@ -16981,6 +16981,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.liquidityLifecycleBasis;
             delete ds.liquidityLifecycleRefused;
             delete ds.liquidityLifecycleVenue;
+            delete ds.liquidityDepthTint;
           } else {
             ds.liquidityLifecycle = lc.drawn ? lc.pools.map(p => p.stage).join(",") : lc.reason;
             ds.liquidityLifecycleBasis = lc.basis;
@@ -17059,6 +17060,40 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.globalAlpha = att.textAlpha("liquidityLifecycle");
             clipToPaneL();
             ctx.clip(cutL, "evenodd");
+            /* F08A DEPTH GLOW · P-601 OPACITY REGULATOR (MAX 0.30). On an
+               OBSERVED book only (depthByBar is absent on the candle basis):
+               the resting size seen at each price, per bar, as brass heat
+               BEHIND the candles (same cut-out). Intensity is the square root
+               of size over the heaviest cell, capped at 0.30 — heat informs,
+               it never out-shouts price. Garden 16 §29/§30/§31. */
+            const depthL = lc.basis === "OBSERVED_BOOK" ? lc.depthByBar ?? [] : [];
+            if (depthL.length > 0 && lc.step > 0) {
+              const DEPTH_ALPHA_MAX = 0.3;
+              let maxCell = 0;
+              for (const col of depthL) for (const r of col.rows) if (r.size > maxCell) maxCell = r.size;
+              let cellsPainted = 0, colsPainted = 0;
+              if (maxCell > 0) {
+                for (const col of depthL) {
+                  const xc = xOf(col.time);
+                  if (xc == null || xc < -spacingL || xc > rightL) continue;
+                  const x0c = Math.max(0, xc - spacingL / 2), wC = Math.min(rightL, xc + spacingL / 2) - x0c;
+                  if (wC <= 0) continue;
+                  colsPainted++;
+                  for (const r of col.rows) {
+                    const yTop = srs.priceToCoordinate(r.price + lc.step / 2), yBot = srs.priceToCoordinate(r.price - lc.step / 2);
+                    if (yTop == null || yBot == null) continue;
+                    const a = DEPTH_ALPHA_MAX * Math.sqrt(r.size / maxCell);
+                    if (a < 0.02) continue;
+                    ctx.fillStyle = `rgba(${INK},${a.toFixed(3)})`;
+                    ctx.fillRect(x0c, Math.min(+yTop, +yBot), wC, Math.max(1, Math.abs(+yBot - +yTop)));
+                    cellsPainted++;
+                  }
+                }
+              }
+              ds.liquidityDepthTint = `${colsPainted}x${cellsPainted}:MAX${DEPTH_ALPHA_MAX}`;
+            } else {
+              delete ds.liquidityDepthTint;
+            }
             for (let pi = 0; pi < lc.pools.length; pi++) {
               const pool = lc.pools[pi];
               const role = rolesL[pi];
@@ -17333,6 +17368,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.liquidityLifecycleBasis;
           delete ds.liquidityLifecycleRefused;
           delete ds.liquidityLifecycleVenue;
+          delete ds.liquidityDepthTint;
         }
 
         /* ══ H-1001 · RISK ON PRICE — hardware brackets on the price axis ════

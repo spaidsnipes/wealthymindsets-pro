@@ -117,4 +117,16 @@ describe("observed-book liquidity lifecycle", () => {
     expect(bookBucketStep([{ high: 10, low: 7 }, { high: 10, low: 4 }, { high: 10, low: 1 }])).toBe(2);
     expect(bookBucketStep([])).toBe(0);
   });
+
+  it("the observed book is sampled into per-bar depth: mean resting size per price (F08A depth glow)", () => {
+    const t = createBookLifecycleTracker({ step: 1, venue: "Kraken" });
+    t.applyBook(600_000, bids({ price: 95, size: 4 }), asks);   // bar 600 s
+    t.applyBook(601_000, bids({ price: 95, size: 8 }), asks);   // < 2 s later: not sampled
+    t.applyBook(603_000, bids({ price: 95, size: 6 }), asks);   // sampled, same bar
+    t.applyBook(900_000, bids(), asks);                          // bar 900 s
+    const placed = placeBookEventsOnBars(t.read(0), [600, 900]);
+    expect(placed.depthByBar!.map(d => d.time)).toEqual([600, 900]);
+    const at95 = placed.depthByBar![0].rows.find(r => r.price === 95.5)!;
+    expect(at95.size).toBe(5); // (4 + 6) / 2 — the unsampled 8 is not in it
+  });
 });

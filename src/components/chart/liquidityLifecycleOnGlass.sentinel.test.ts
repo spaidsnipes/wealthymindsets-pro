@@ -120,6 +120,16 @@ describe("F08A — each pool is a glowing LADDER bounded in time by its lifecycl
   // Garden 16 §30 (2026-09-27): PULLED is observable ONLY on an observed book
   // (bookLiquidityLifecycle, Kraken USD crypto). On the candle basis it stays
   // refused, and the receipt and tag say which basis the glass is showing.
+  // P-601 "OPACITY REGULATOR (MAX 0.30)" and F08A's depth glow: observed book only.
+  it("the depth glow paints only on an observed book, behind the candles, never above 0.30", () => {
+    expect(block).toContain('const depthL = lc.basis === "OBSERVED_BOOK" ? lc.depthByBar ?? [] : [];');
+    expect(block).toContain("const DEPTH_ALPHA_MAX = 0.3;");
+    expect(block).toMatch(/const a = DEPTH_ALPHA_MAX \* Math\.sqrt\(r\.size \/ maxCell\);/);
+    // Painted after the candle cut-out clip, before the ladders.
+    expect(block.indexOf('ctx.clip(cutL, "evenodd");')).toBeLessThan(block.indexOf("const depthL ="));
+    expect(block.indexOf("const depthL =")).toBeLessThan(block.indexOf("for (let pi = 0; pi < lc.pools.length; pi++)"));
+  });
+
   it("PULLED is refused on the candle basis and stated only on an observed book", () => {
     expect(block).toContain('ds.liquidityLifecycleRefused = lc.basis === "OBSERVED_BOOK" ? "NONE" : "PULLED,DEPTH:no-book";');
     expect(block).toContain("ds.liquidityLifecycleVenue = lc.venue");
