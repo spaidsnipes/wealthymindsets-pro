@@ -10,6 +10,13 @@
  * readers: the route that serves the bars and the ladder that labels them.
  */
 
+/**
+ * Equity bars are restated for SPLITS (Alpaca `adjustment=split`), never raw:
+ * a raw history paints a split as a crash (TSLA 2022 3:1 read as −66%).
+ * Dividends are not folded in. Garden 16 §26.
+ */
+export const EQUITY_BAR_ADJUSTMENT = "split" as const;
+
 export const ALPACA_TF_MAP: Readonly<Record<string, { timeframe: string; daysBack: number }>> = Object.freeze({
   "1m":  { timeframe: "1Min",  daysBack: 2   },
   "2m":  { timeframe: "2Min",  daysBack: 5   },

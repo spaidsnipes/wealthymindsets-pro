@@ -25,6 +25,7 @@ import {
 } from "@/lib/marketData/alpacaCandleIngress";
 import { canonicalBarIdentity } from "@/lib/marketData/canonicalBar";
 import { ALPACA_TF_MAP, toAlpacaCryptoSymbol as toCryptoSym } from "@/lib/marketData/alpacaBarRoute";
+import { EQUITY_BAR_ADJUSTMENT } from "@/lib/marketData/alpacaBarRoute";
 
 // WM-ENV-P1-02: server-only. NEXT_PUBLIC_* prefix on a broker-secret env var
 // invites a future client-side read that would leak the key into the browser
@@ -324,7 +325,15 @@ export async function GET(request: Request) {
         }
         // Use sort=desc to get MOST RECENT bars first (avoids hitting limit before reaching today)
         // Then reverse to get chronological order for the chart
-        const url = `${DATA_BASE}/v2/stocks/${encodeURIComponent(rawSym)}/bars?timeframe=${timeframe}&start=${start}&end=${end}&limit=${bars}&feed=iex&adjustment=raw&sort=desc`;
+        //
+        // SPLIT-ADJUSTED, NOT RAW (Garden 16 §26/§20, serving TSLA 2026-09-27).
+        // The raw adjustment painted TSLA at ~2,900 in 2020 and a cliff to ~200
+        // at the Aug-2022 3:1 split: a crash that never happened, on every
+        // interval whose history crosses a split (1D reaches back to 2021).
+        // A split changes the share count, not the market; every bar is
+        // restated in today's shares. Dividends are NOT folded in — prices
+        // stay the prices that traded, split-restated only.
+        const url = `${DATA_BASE}/v2/stocks/${encodeURIComponent(rawSym)}/bars?timeframe=${timeframe}&start=${start}&end=${end}&limit=${bars}&feed=iex&adjustment=${EQUITY_BAR_ADJUSTMENT}&sort=desc`;
         const json = await alpacaFetch(url, 20_000, true) as any;
         rawBars = (json?.bars ?? []).reverse(); // reverse to chronological order
       }
