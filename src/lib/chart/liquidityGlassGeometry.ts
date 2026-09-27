@@ -139,9 +139,12 @@ export function ladderInk(p: { rungs: number; consumed: boolean; barsQuiet: numb
   return {
     age,
     rungAlpha: Math.min(0.95, 0.5 + 0.1 * p.rungs) * age,
-    glowAlpha: (0.07 + 0.15 * w) * age,
-    lineWidth: !p.consumed && p.rungs >= LADDER_RUNGS.PERSISTED ? 1.25 : 1,
-    blur: p.consumed ? 2 : 6,
+    // Garden 16 reconstruction (plate F08A beside the glass, 2026-09-27): a
+    // standing pool is a LUMINOUS bar — bloom and blur roughly doubled; a
+    // consumed pool stays memory-quiet.
+    glowAlpha: (p.consumed ? 0.07 + 0.15 * w : 0.16 + 0.3 * w) * age,
+    lineWidth: p.consumed ? 1 : p.rungs >= LADDER_RUNGS.PERSISTED ? 1.5 : 1.2,
+    blur: p.consumed ? 2 : 13,
   };
 }
 

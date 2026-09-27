@@ -18483,13 +18483,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const ink = ladderInk({ rungs: lastRungs, consumed: span.consumed || span.pulled, barsQuiet, weight });
               const age = ink.age;
               // GLOW — a soft halo around the ladder, its volume's weight.
-              const halo = 10;
+              // PLATE F08A (read beside the glass, Garden 16 reconstruction
+              // 2026-09-27): a pool is a LUMINOUS BAR — a lit core across its
+              // band inside a wide bloom — not a hairline bundle. Same one
+              // ink, same owner (ladderInk), brighter: the bloom is its volume
+              // weight, the core its maturity/age.
+              const halo = 22;
               const glow = ctx.createLinearGradient(0, top - halo, 0, top + h + halo);
               glow.addColorStop(0, `rgba(${INK},0)`);
               glow.addColorStop(0.5, `rgba(${INK},${ink.glowAlpha})`);
               glow.addColorStop(1, `rgba(${INK},0)`);
               ctx.fillStyle = glow;
               ctx.fillRect(x0, top - halo, xEnd - x0, h + 2 * halo);
+              {
+                const coreH = Math.max(4, h);
+                const coreTop = top + h / 2 - coreH / 2;
+                const core = ctx.createLinearGradient(0, coreTop, 0, coreTop + coreH);
+                core.addColorStop(0, `rgba(${INK},0)`);
+                core.addColorStop(0.5, `rgba(${INK},${(0.5 * age).toFixed(3)})`);
+                core.addColorStop(1, `rgba(${INK},0)`);
+                ctx.fillStyle = core;
+                ctx.fillRect(x0, coreTop, xEnd - x0, coreH);
+              }
               // GARDEN 11 RECOGNITION (TSLA 15m, &proof=nolabels, 2026-09-26
               // 04:06 CDT): with the words hidden the pools read as generic
               // bundles of lines. The biography is now GEOMETRY, one ink:
