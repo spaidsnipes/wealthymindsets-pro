@@ -44,12 +44,20 @@
  */
 
 import { formatVolumeMagnitude } from "@/lib/chart/stockInfoSessionFacts";
+import type { VolumeTruth } from "@/lib/chart/volumeTruth";
 
 export type ChartVolumeFooterState =
   /** WM has a usable quantity for the bar. */
   | "OBSERVED"
   /** WM has the bar; the bar did not carry a usable volume. */
-  | "NOT_REPORTED";
+  | "NOT_REPORTED"
+  /**
+   * The instrument has no centralised volume (spot FX / metals) or the feed
+   * sends only 0/1 placeholders (volumeTruth.ts). "Vol 1" on EURUSD was a
+   * placeholder printed as a count (serving, 2026-09-26); the band names the
+   * silence instead.
+   */
+  | "SILENT";
 
 export interface ChartVolumeFooterFact {
   /** What the band prints. Never a bare glyph, never an empty string. */
@@ -93,7 +101,11 @@ export function formatBarVolume(n: number): string {
 export function chartVolumeFooterFact(
   volume: unknown,
   barScopeTitle: string,
+  truth?: VolumeTruth,
 ): ChartVolumeFooterFact {
+  if (truth && !truth.real) {
+    return { state: "SILENT", text: truth.text, title: truth.title };
+  }
   // A bar can legitimately trade zero, so zero is OBSERVED and prints as `0`.
   // What is not usable is a non-number, a NaN, an infinity, or a negative
   // quantity — none of those is a count of anything, and rendering `NaN` or

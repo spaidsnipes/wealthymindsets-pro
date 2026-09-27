@@ -83,8 +83,12 @@ describe("Living Profile view wiring", () => {
     // Pin moved 2026-09-27 (Garden 16 §21/§22, serving TSLA 1D beside P110):
     // the bars are the SESSION's bars, from the one session-window owner —
     // the room still hands both sources and still does not choose between them.
-    expect(src).toMatch(/buildLivingProfileSnapshot\(\s*recentTicks,\s*livingSessionBars\s*\)/);
-    expect(src).toMatch(/livingSessionBars\s*=\s*React\.useMemo\(\s*\(\)\s*=>\s*selectSessionWindowBars\(chartBars,\s*sessionWindowFor\(/);
+    // Pin moved 2026-09-27 (volumeTruth.ts): the session bars pass the volume
+    // gate first and placeholder-volume feeds hand no tape — still both
+    // sources, still no choice made here.
+    expect(src).toMatch(/buildLivingProfileSnapshot\(\s*volumeIsReal \? recentTicks : null,\s*livingSessionBars\s*\)/);
+    expect(src).toMatch(/livingSessionBars\s*=\s*React\.useMemo\(\s*\(\)\s*=>\s*selectSessionWindowBars\(\[\.\.\.volumeBars\],\s*sessionWindowFor\(/);
+    expect(src).toMatch(/volumeBars\s*=\s*React\.useMemo\(\(\)\s*=>\s*volumeBearingBars\(symbol,\s*chartBars\)/);
     // And it must not reach around that owner into the engine.
     expect(src).not.toMatch(/computeProfileFrom(Trades|Bars)\s*\(/);
   });

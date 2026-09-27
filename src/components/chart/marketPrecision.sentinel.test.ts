@@ -24,22 +24,31 @@ const CHART = strip(readFileSync(path.join(process.cwd(), "src/components/chart/
 
 describe("market precision (Sentinel)", () => {
   it("the price series takes its priceFormat from the raw bars", () => {
-    // Same precision owner; since 2026-09-27 the axis format also refuses to
-    // label a price the instrument cannot have (axisPriceFormatFor, §50).
-    expect(CHART).toContain("cs.applyOptions({ priceFormat: axisPriceFormatFor(pricePrecisionFromBars(data, symbol), symbol) });");
+    // Same site, two owners composed: display decimals from displayPrecisionFor
+    // (GP12 §27 — EURUSD read 1.139212 from the grid detector alone) and the
+    // axis format that refuses a price the instrument cannot have (§50).
+    expect(CHART).toContain("cs.applyOptions({ priceFormat: axisPriceFormatFor(displayPrecisionFor(symbol, data), symbol) });");
     const at = CHART.indexOf("cs.applyOptions({ priceFormat: axisPriceFormatFor(");
     expect(CHART.indexOf("candleRef.current = cs;", at)).toBeGreaterThan(at);
   });
 
   it("the header legend's precision is read from the bars, the base rule only before any bar", () => {
-    expect(CHART).toContain("const dp        = candles.length ? pricePrecisionFromBars(candles, symbol) : (base < 10 ? 4 : 2);");
+    // Pin moved 2026-09-26 (GP12 §27): display decimals come from the one
+    // display owner, displayPrecisionFor(symbol, …), which asks the instrument
+    // first (EURUSD read 1.139212 from the grid detector alone). Not weakened:
+    // the same site, a stricter owner.
+    expect(CHART).toContain("const dp        = candles.length ? displayPrecisionFor(symbol, candles) : (base < 10 ? 4 : 2);");
     expect(CHART).not.toContain("const dp        = base < 10 ? 4 : 2;");
   });
 });
 
 describe("profile-family level names quote the same precision", () => {
   it("one per-frame precision from the owner, used by every level name", () => {
-    expect(CHART).toContain("const pxDp = pricePrecisionFromBars(barsRef.current ?? [], symbol);");
+    // Pin moved 2026-09-26 (GP12 §27): display decimals come from the one
+    // display owner, displayPrecisionFor(symbol, …), which asks the instrument
+    // first (EURUSD read 1.139212 from the grid detector alone). Not weakened:
+    // the same site, a stricter owner.
+    expect(CHART).toContain("const pxDp = displayPrecisionFor(symbol, barsRef.current ?? []);");
     for (const s of ["`TPO POC ${tpo.poc?.toFixed(pxDp)", "`CMP POC ${cp.poc?.toFixed(pxDp)}`", "`VRP POC ${vrpVM.poc?.toFixed(pxDp)}`", "`FUSED POC ${f.poc.toFixed(pxDp)}`", "`LEG POC ${sp.poc.toFixed(pxDp)}`", "`dPOC ${last.poc.toFixed(pxDp)}"]) {
       expect(CHART, s).toContain(s);
     }
@@ -49,7 +58,11 @@ describe("profile-family level names quote the same precision", () => {
 
 describe("the classic VP column's price tags quote the same precision", () => {
   it("computes its own precision from the bars it measured (it can run before the frame's pxDp)", () => {
-    expect(CHART).toContain("const vpDp = pricePrecisionFromBars(barsToUse, symbol);");
+    // Pin moved 2026-09-26 (GP12 §27): display decimals come from the one
+    // display owner, displayPrecisionFor(symbol, …), which asks the instrument
+    // first (EURUSD read 1.139212 from the grid detector alone). Not weakened:
+    // the same site, a stricter owner.
+    expect(CHART).toContain("const vpDp = displayPrecisionFor(symbol, barsToUse);");
     // Pin updated 2026-09-25 (P-110 canon pass, M47): every VP level — POC
     // included — is named and chipped through vpPrice, the market's decimals
     // with thousands grouping. The BTC ≥10,000 rounding ("VAH 64,348") is gone:
@@ -67,7 +80,11 @@ describe("the classic VP column's price tags quote the same precision", () => {
 
 describe("drawing chips quote the same precision", () => {
   it("the drawing renderer's dec reads the bars; the Fixed Range chip uses it", () => {
-    expect(CHART).toContain("const dec = drawBars.length ? pricePrecisionFromBars(drawBars, symbol) : (base > 100 ? 2 : base > 1 ? 3 : 5);");
+    // Pin moved 2026-09-26 (GP12 §27): display decimals come from the one
+    // display owner, displayPrecisionFor(symbol, …), which asks the instrument
+    // first (EURUSD read 1.139212 from the grid detector alone). Not weakened:
+    // the same site, a stricter owner.
+    expect(CHART).toContain("const dec = drawBars.length ? displayPrecisionFor(symbol, drawBars) : (base > 100 ? 2 : base > 1 ? 3 : 5);");
     expect(CHART).toContain("POC ${vm.poc?.toFixed(dec)}${est}`");
   });
 });
@@ -81,7 +98,11 @@ describe("GP12 §27 — calculation precision is not display precision", () => {
   });
 
   it("overlay indicator lines speak the market's own decimals", () => {
-    expect(CHART).toContain("const overlayPriceFormat = priceFormatFor(pricePrecisionFromBars(bars, symbol));");
+    // Pin moved 2026-09-26 (GP12 §27): display decimals come from the one
+    // display owner, displayPrecisionFor(symbol, …), which asks the instrument
+    // first (EURUSD read 1.139212 from the grid detector alone). Not weakened:
+    // the same site, a stricter owner.
+    expect(CHART).toContain("const overlayPriceFormat = priceFormatFor(displayPrecisionFor(symbol, bars));");
     expect(CHART).toMatch(/crosshairMarkerVisible: false, priceFormat: overlayPriceFormat \}/);
   });
 
@@ -101,7 +122,11 @@ describe("every other price named on the glass quotes the same precision", () =>
   // Added 2026-09-25 (NOAH lane): the frame's pxDp is read before the first
   // layer that names a price (the tape bubbles paint long before the profiles).
   it("pxDp is read once, ahead of the bubbles", () => {
-    const at = CHART.indexOf("const pxDp = pricePrecisionFromBars(barsRef.current ?? [], symbol);");
+    // Pin moved 2026-09-26 (GP12 §27): display decimals come from the one
+    // display owner, displayPrecisionFor(symbol, …), which asks the instrument
+    // first (EURUSD read 1.139212 from the grid detector alone). Not weakened:
+    // the same site, a stricter owner.
+    const at = CHART.indexOf("const pxDp = displayPrecisionFor(symbol, barsRef.current ?? []);");
     expect(at).toBeGreaterThan(-1);
     expect(CHART.indexOf("const pxDp =", at + 1)).toBe(-1);
     expect(at).toBeLessThan(CHART.indexOf("const lbl = p.toFixed(pxDp);"));
@@ -117,3 +142,43 @@ describe("every other price named on the glass quotes the same precision", () =>
   });
 });
 
+
+describe("GP12 §27 — ONE display-precision owner (2026-09-26)", () => {
+  // MEASURED ON SERVING 2026-09-26 05:01 CDT, EURUSD 15m: the axis and legend
+  // read "1.139212" (six decimals) because every display site asked the bar-grid
+  // detector, which cannot see a venue grid in Yahoo's computed FX floats. The
+  // display owner asks the instrument first. This pins that every DISPLAY site
+  // asks the owner and that the grid detector is called directly only by the
+  // CALCULATION path (the drawing magnet's snap grid).
+  const DASH = strip(readFileSync(path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8"));
+
+  it("MainChart calls the grid detector exactly once, inside the magnet snap", () => {
+    const calls = CHART.match(/pricePrecisionFromBars\(/g) ?? [];
+    expect(calls.length).toBe(1);
+    const snapAt = CHART.indexOf("const snapLogical = useCallback(");
+    const callAt = CHART.indexOf("pricePrecisionFromBars(");
+    expect(snapAt).toBeGreaterThan(-1);
+    expect(callAt).toBeGreaterThan(snapAt);
+    expect(callAt).toBeLessThan(CHART.indexOf("}, [magnetActive, symbol]);", snapAt));
+  });
+
+  it("every display site in MainChart asks displayPrecisionFor(symbol, …)", () => {
+    for (const s of [
+      "axisPriceFormatFor(displayPrecisionFor(symbol, data), symbol)",
+      "priceFormatFor(displayPrecisionFor(symbol, bars))",
+      "const pxDp = displayPrecisionFor(symbol, barsRef.current ?? []);",
+      "const vpDp = displayPrecisionFor(symbol, barsToUse);",
+      "priceDp: displayPrecisionFor(symbol, barsRef.current ?? []),",
+      "displayPrecisionFor(symbol, candles)",
+      "displayPrecisionFor(symbol, drawBars)",
+    ]) expect(CHART, s).toContain(s);
+    // The Data Window's O/H/L/C cells read the legend's dp, not a base rule.
+    expect(CHART).toContain("row.value.toFixed(dp)");
+    expect(CHART).not.toContain("row.value.toFixed(base < 10 ? 4 : 2)");
+  });
+
+  it("the room's Inspect ticket asks the same owner; no grid-detector call remains there", () => {
+    expect(DASH).toContain("displayPrecisionFor(symbol, chartBars)");
+    expect(DASH).not.toContain("pricePrecisionFromBars(");
+  });
+});

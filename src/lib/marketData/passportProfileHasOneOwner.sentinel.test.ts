@@ -42,7 +42,11 @@ describe("the Passport profile dimension has exactly one source owner", () => {
     const src = publisher();
     expect(src).toContain("buildLivingProfileSnapshot");
     expect(src).toContain("selectLivingProfile");
-    expect(src).toMatch(/buildLivingProfileSnapshot\(\s*input\.recentTicks\s*,/);
+    // The tape still enters through the chooser; since 2026-09-26 it is gated
+    // by the volume owner (volumeTruth.ts) — spot FX / placeholder feeds hand
+    // it no ticks, so no POC is sealed from a placeholder unit.
+    expect(src).toMatch(/buildLivingProfileSnapshot\(\s*volumeIsReal \? input\.recentTicks : null\s*,/);
+    expect(src).toContain("const volumeIsReal = volumeTruthFor(input.symbol, profileBars).real;");
   });
 
   it("NEVER reaches past the chooser into either engine", () => {

@@ -54,8 +54,12 @@ describe("every precision read carries the symbol", () => {
   it("MainChart and ChartsDashboard never ask the bars alone", () => {
     for (const [name, src] of [["MainChart", MC], ["ChartsDashboard", CD]] as const) {
       const calls = [...src.matchAll(/pricePrecisionFromBars\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)].map(m => m[1]);
-      expect(calls.length, `${name} has no precision reads`).toBeGreaterThan(0);
+      // Display sites read displayPrecisionFor(symbol, …) (GP12 §27, 2026-09-26):
+      // the symbol is its FIRST argument, so it cannot be dropped either.
+      const display = [...src.matchAll(/displayPrecisionFor\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)].map(m => m[1]);
+      expect(calls.length + display.length, `${name} has no precision reads`).toBeGreaterThan(0);
       for (const args of calls) expect(args, `${name}: pricePrecisionFromBars(${args})`).toMatch(/,\s*symbol$/);
+      for (const args of display) expect(args, `${name}: displayPrecisionFor(${args})`).toMatch(/^symbol,/);
     }
   });
 });

@@ -18,7 +18,10 @@
  */
 
 import type { CanonicalBar } from "@/lib/marketData/canonicalBar";
+import { forexPairCodes } from "@/lib/marketData/canonicalIdentity";
+import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { spotMetalFutures } from "@/lib/yahooSymbol";
 
 export const MIN_PRICE_PRECISION = 2;
 export const MAX_PRICE_PRECISION = 8;
@@ -125,4 +128,110 @@ export function axisPriceFormatFor(precision: number, symbol: string): AxisPrice
     minMove: base.minMove,
     formatter: (price: number) => (price < 0 ? "" : price.toFixed(base.precision)),
   };
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * DISPLAY PRECISION — the ONE owner of how many decimals a price is SHOWN at.
+ *
+ * MEASURED ON SERVING (2026-09-26 05:01 CDT, desktop, /charts?symbol=EURUSD
+ * &tf=15m): the legend and axis read "1.139212" — six decimals. EURUSD quotes
+ * five (pipettes). Yahoo's FX rates are computed float32s with no venue grid
+ * (1.1393414735794067 on the wire); normalised to seven significant figures
+ * that is 1.139341, "exact" at six decimals, so the grid detector said 6. The
+ * detector was right about the floats and wrong about the market.
+ *
+ * GP12 §27: split calculation precision from display precision; use tick size
+ * / asset-class metadata for display. So display asks the INSTRUMENT first,
+ * when its class is known, and the bars only when it is not:
+ *
+ *   spot metals        XAUUSD 2 · XAGUSD 3 · XPTUSD 2 · XPDUSD 2 (quote convention)
+ *   spot FX            JPY-quoted 3 · other listed quotes 5 (pipettes)
+ *   futures            the contract's tick (contractEconomics' one tick table), never below 2;
+ *                      1/32-family treasuries and unlisted roots → bar grid
+ *   equities / indices 2 at and above $1 (cents); sub-dollar → bar grid
+ *   crypto / unknown   the bar-grid detector, unchanged
+ *
+ * `pricePrecisionFromBars` stays exactly as it was: it is still the answer for
+ * every class above that says "bar grid", and calculation paths (the magnet
+ * snap) keep reading it directly.
+ *
+ * PURE. DETERMINISTIC.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/** Which fact the displayed decimals were read from — for receipts and tests. */
+export type DisplayPrecisionBasis =
+  | "SPOT_METAL"
+  | "FX_PIPETTE"
+  | "FX_JPY_PIPETTE"
+  | "FUTURES_TICK"
+  | "EQUITY_CENTS"
+  | "BAR_GRID";
+
+export interface DisplayPrecisionReading {
+  readonly dp: number;
+  readonly basis: DisplayPrecisionBasis;
+}
+
+/** Spot metals' quote convention (dollars per troy ounce). */
+const SPOT_METAL_DP: Readonly<Record<string, number>> = { XAUUSD: 2, XAGUSD: 3, XPTUSD: 2, XPDUSD: 2 };
+
+/** Quote currencies whose pairs are conventionally quoted to five decimals. */
+const FIVE_DP_QUOTES = new Set(["USD", "EUR", "GBP", "AUD", "NZD", "CAD", "CHF", "SGD", "CNH", "HKD", "NOK", "SEK", "ZAR", "MXN", "TRY"]);
+
+const clampDp = (d: number) => Math.min(MAX_PRICE_PRECISION, Math.max(MIN_PRICE_PRECISION, d));
+
+/** The decimals a decimal tick states: 0.25 → 2, 0.005 → 3, 1 → 0. */
+function tickDecimals(tick: number): number {
+  for (let d = 0; d <= MAX_PRICE_PRECISION; d++) if (exactAt(tick, d)) return d;
+  return MAX_PRICE_PRECISION;
+}
+
+export function displayPrecisionReading(symbol: string, bars: readonly PrecisionBar[]): DisplayPrecisionReading {
+  const grid = (): DisplayPrecisionReading => ({ dp: pricePrecisionFromBars(bars), basis: "BAR_GRID" });
+  const sym = (symbol ?? "").trim().toUpperCase();
+  if (!sym) return grid();
+
+  const metal = spotMetalFutures(sym);
+  if (metal) {
+    const key = sym.replace(/[-/]/g, "");
+    const dp = SPOT_METAL_DP[key === "XAU" ? "XAUUSD" : key === "XAG" ? "XAGUSD" : key];
+    if (dp != null) return { dp: clampDp(dp), basis: "SPOT_METAL" };
+  }
+
+  const cls = classifySymbol(sym);
+  // The class owner answers UNKNOWN for listed pairs its notation regex does
+  // not name (USDMXN, USDZAR); the pair owner still knows both legs.
+  if (cls === "FOREX" || (cls === "UNKNOWN" && forexPairCodes(sym) !== null)) {
+    const pair = forexPairCodes(sym.replace(/=X$/, ""));
+    if (pair) {
+      if (pair[1] === "JPY") return { dp: 3, basis: "FX_JPY_PIPETTE" };
+      if (FIVE_DP_QUOTES.has(pair[1])) return { dp: 5, basis: "FX_PIPETTE" };
+    }
+    return grid();
+  }
+
+  if (cls === "FUTURES") {
+    // The tick comes from its one owner (contractEconomics): a contract with a
+    // published spec shows its tick's decimals; any other root reads the grid.
+    const e = instrumentEconomics(sym, null);
+    if (e.status === "PRICED" && e.tickSize != null) return { dp: clampDp(tickDecimals(e.tickSize)), basis: "FUTURES_TICK" };
+    return grid();
+  }
+
+  if (cls === "EQUITY" || cls === "INDEX") {
+    let last: number | null = null;
+    for (let i = bars.length - 1; i >= 0; i--) {
+      const c = bars[i]?.close;
+      if (Number.isFinite(c) && c > 0) { last = c; break; }
+    }
+    if (last != null && last >= 1) return { dp: MIN_PRICE_PRECISION, basis: "EQUITY_CENTS" };
+    return grid();
+  }
+
+  return grid();
+}
+
+/** How many decimals every DISPLAYED price of this instrument is printed at. */
+export function displayPrecisionFor(symbol: string, bars: readonly PrecisionBar[]): number {
+  return displayPrecisionReading(symbol, bars).dp;
 }

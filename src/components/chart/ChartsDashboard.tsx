@@ -308,7 +308,8 @@ import type { FlowLadderReader } from "@/lib/marketData/flowLadder";
 import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
-import { pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
+import { displayPrecisionFor } from "@/lib/chart/pricePrecision";
+import { volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { BREATH_SAMPLE, selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
 import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
@@ -1210,6 +1211,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     replayCamera && cameraWalksHistory ? replayCamera.bars : liveChartBars;
   const chartBarIdentities: readonly CanonicalBarIdentity[] =
     replayCamera && cameraWalksHistory ? replayCamera.identities : liveChartBarIdentities;
+  /**
+   * The bars VOLUME-WEIGHTED readings may read (volumeTruth.ts). Spot FX has
+   * no centralised volume and Yahoo ships 0 on every EURUSD bar; the live fold
+   * carried a 1, and every "some bar has volume" gate let a profile be built
+   * out of that one placeholder unit (serving, 2026-09-26). Same bars, no
+   * volume, when the field is not a count — each layer's NO_VOLUME silence
+   * then speaks. Prices untouched; the same array when volume is real.
+   */
+  const volumeIsReal = React.useMemo(() => volumeTruthFor(symbol, chartBars).real, [symbol, chartBars]);
+  const volumeBars = React.useMemo(() => volumeBearingBars(symbol, chartBars), [symbol, chartBars]);
   // Read by `startReplay` through a ref, so the callback stays stable for the
   // equipment subscription that holds it and still freezes TODAY's bars.
   const replaySourceRef = useRef({ bars: liveChartBars, identities: liveChartBarIdentities, scope: replayScopeKey });
@@ -1457,8 +1468,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // is where price sits against them. That position is the reading, and it
   // needs the room's live price, not the last print inside the sample.
   const livingSessionBars = React.useMemo(
-    () => selectSessionWindowBars(chartBars, sessionWindowFor(symbol, timeframe, !!extHours)),
-    [chartBars, symbol, timeframe, extHours],
+    () => selectSessionWindowBars([...volumeBars], sessionWindowFor(symbol, timeframe, !!extHours)),
+    [volumeBars, symbol, timeframe, extHours],
   );
   const livingProfileVM = React.useMemo(
     () =>
@@ -1466,11 +1477,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // loaded history. Its bar path read every loaded bar, so on TSLA 1D the
       // body's POC (182.50) and VAL (155.00) sat below a camera whose every
       // candle traded 300–500 (serving, beside P110, 2026-09-27). The bars
-      // now go through the ONE session-window owner the canvas uses.
-      selectLivingProfile(buildLivingProfileSnapshot(recentTicks, livingSessionBars), {
+      // now go through the ONE session-window owner the canvas uses, after
+      // the volume gate (volumeTruth.ts): placeholder volume builds no body.
+      selectLivingProfile(buildLivingProfileSnapshot(volumeIsReal ? recentTicks : null, livingSessionBars), {
         livePrice: ticker.price,
       }),
-    [recentTicks, livingSessionBars, ticker.price],
+    [recentTicks, livingSessionBars, volumeIsReal, ticker.price],
   );
 
   // Micah + Noah 2026-09-02 — /charts joins Phase 3 Market Canvas as a
@@ -1681,13 +1693,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // canvas, so Inspect and selection can later read the same reading.
   const candleLiquidityLifecycle = React.useMemo(
     () => liquidityLifecycleOn
-      ? selectLiquidityLifecycle(chartBars.map(b => ({
+      ? selectLiquidityLifecycle(volumeBars.map(b => ({
           time: typeof b.time === "number" ? b.time : Number(b.time),
           high: b.high, low: b.low, close: b.close,
           volume: Number.isFinite(b.volume) ? b.volume : 0,
         })))
       : null,
-    [liquidityLifecycleOn, chartBars],
+    [liquidityLifecycleOn, volumeBars],
   );
   // Garden 16 §30 — where a real book is observed (Kraken, USD crypto pairs),
   // pools are resting size that was SEEN and PULLED is observable; every
@@ -1708,12 +1720,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Memory's remembered levels are canonical LEVEL objects while its layer is on.
   const valueMigrationVM = React.useMemo(
     () => selectValueMigration(
-      chartBars.map(b => ({
+      volumeBars.map(b => ({
         time: typeof b.time === "number" ? b.time : Number(b.time),
         open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
       })),
     ),
-    [chartBars],
+    [volumeBars],
   );
 
   /** P-110 #4 — prior sessions' FINAL migration value, carried forward. */
@@ -2038,7 +2050,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     return selectClarityAnatomy({
       bar: { open: inspectBar.o, high: inspectBar.h, low: inspectBar.l, close: inspectBar.c },
       priorBars: chartBars.slice(Math.max(0, end - BREATH_SAMPLE), end),
-      dp: pricePrecisionFromBars(chartBars, symbol),
+      dp: displayPrecisionFor(symbol, chartBars),
     });
   }, [inspectBar, chartBars, symbol]);
 
@@ -2180,12 +2192,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   /** P-110 #9 — completed sessions only, from the shared session splitter. */
   const compositeProfileVM = React.useMemo(
     () => selectCompositeProfile(
-      chartBars.map(b => ({
+      volumeBars.map(b => ({
         time: typeof b.time === "number" ? b.time : Number(b.time),
         open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
       })),
     ),
-    [chartBars],
+    [volumeBars],
   );
   // What each profile species' own selector refused, so the Profiles door
   // says "DATA REFUSES · <why>" instead of READY over an empty lane.

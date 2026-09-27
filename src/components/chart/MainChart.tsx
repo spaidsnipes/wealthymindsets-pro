@@ -29,7 +29,8 @@ import {
   PHASE_WORD, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
   wordOnTopArc, type WeatherLens,
 } from "@/lib/chart/liquidityGlassGeometry";
-import { priceFormatFor, axisPriceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
+import { axisPriceFormatFor, displayPrecisionFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
+import { volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { currentProofScene } from "@/lib/chart/proofScene";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
@@ -3618,7 +3619,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // vocabulary — it is a chosen costume, not the room's default material.
       const volUp   = chartSettings?.neon ? "rgba(0,255,163,0.70)" : VOLUME_UP_DEFAULT;
       const volDown = chartSettings?.neon ? "rgba(255,46,99,0.70)"  : VOLUME_DOWN_DEFAULT;
-      vs.setData(volumeSeriesPoints(data, volUp, volDown) as any);
+      vs.setData(volumeSeriesPoints(data, volUp, volDown, symbol) as any);
 
       // CANDLE DENSITY — match TradingView / Moomoo / Webull.
       // Lightweight-Charts derives candle BODY width from barSpacing via its
@@ -3685,7 +3686,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // The axis, last-price tag and crosshair quote the market's own
       // precision, not the library default of two decimals (EURUSD 1h read
       // 1.15 / 1.14 / 1.13). Read from the raw bars, not Heikin-Ashi averages.
-      try { cs.applyOptions({ priceFormat: axisPriceFormatFor(pricePrecisionFromBars(data, symbol), symbol) }); } catch { /* series type without a price scale */ }
+      try { cs.applyOptions({ priceFormat: axisPriceFormatFor(displayPrecisionFor(symbol, data), symbol) }); } catch { /* series type without a price scale */ }
       chartRef.current  = chart;
       candleRef.current = cs;
       markersPluginRef.current = null; // fresh series → re-attach markers plugin on next update
@@ -3995,7 +3996,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
     try {
       candleRef.current.update(bar as any);
-      volRef.current.update({
+      // No histogram point for a placeholder volume (volumeTruth.ts): EURUSD's
+      // live 1 was drawn as a full-height bar over a week of 0s (2026-09-26).
+      if (volumeTruthFor(symbol, [...prevBars, bar]).real) volRef.current.update({
         time:  bar.time,
         value: bar.volume,
         color: bar.close >= bar.open
@@ -4116,6 +4119,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         bars,
         chartSettings?.neon ? "rgba(0,255,163,0.70)" : VOLUME_UP_DEFAULT,
         chartSettings?.neon ? "rgba(255,46,99,0.70)"  : VOLUME_DOWN_DEFAULT,
+        symbol,
       ) as any);
     } catch { /* same */ }
     barsRef.current = bars;
@@ -4350,7 +4354,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // Helper: overlay line on main price scale. It lives on the PRICE scale,
     // so it speaks the market's own decimals (pricePrecision.ts) — not the
     // library's 2-dp default, which read USDJPY 150.123 as 150.12.
-    const overlayPriceFormat = priceFormatFor(pricePrecisionFromBars(bars, symbol));
+    const overlayPriceFormat = priceFormatFor(displayPrecisionFor(symbol, bars));
     const addLine = (vals: number[], color: string, width = 1, style = 0, lastVal = false) => {
       try {
         const s = chart.addSeries(LW.LineSeries,{ color, lineWidth: width, lineStyle: style, priceLineVisible: false, lastValueVisible: lastVal, crosshairMarkerVisible: false, priceFormat: overlayPriceFormat });
@@ -6168,7 +6172,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // (pricePrecision.ts): "TPO POC 1.15" beside "TPO VAL 1.15" on EURUSD
       // was two decimals naming two different prices (serving, 2026-09-25).
       // Read once, before the first layer that names a price (the bubbles).
-      const pxDp = pricePrecisionFromBars(barsRef.current ?? [], symbol);
+      const pxDp = displayPrecisionFor(symbol, barsRef.current ?? []);
       // Guard so the WM VP layer draws exactly once per frame regardless of which
       // call site fires first (big-trades mode draws VP early, under the bubbles).
       let vpDrawn = false;
@@ -8423,10 +8427,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          * the nearest 1/2/2.5/5/10·10ⁿ), same even spread, same up/down split by
          * candle direction, same 70% value area — only the geometry is corrected.
          */
-        const snap = computeProfileFromBars(barsToUse, { targetRows: rows, valueAreaPct: 0.7 });
+        // Placeholder volume (spot FX / all-0/1 feeds, volumeTruth.ts) builds no
+        // profile: one live "1" over 0s drew a VP out of a flag (2026-09-26).
+        const snap = computeProfileFromBars([...volumeBearingBars(symbol, barsToUse)], { targetRows: rows, valueAreaPct: 0.7 });
         // The market's own decimals for this column's price tags (pricePrecision.ts);
         // computed here, not read from the frame, because this can run first.
-        const vpDp = pricePrecisionFromBars(barsToUse, symbol);
+        const vpDp = displayPrecisionFor(symbol, barsToUse);
         if (snap.rows.length === 0 || snap.totalVolume <= 0) return { declined: "NO_VOLUME", rows: 0 };
         const tickSz = snap.tickSize;
 
@@ -10553,7 +10559,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 pivots: marketStructureRef.current?.drawn ? marketStructureRef.current.pivots : [],
                 choice: questionChoiceRef.current,
                 continuation: continuationRef.current,
-                priceDp: pricePrecisionFromBars(barsRef.current ?? [], symbol),
+                priceDp: displayPrecisionFor(symbol, barsRef.current ?? []),
                 // PERMISSION?'s items sit on the bar the ledger was read at —
                 // the H-101 debt tag's event bar, the one bar the compiler names.
                 permission: permissionRef.current ? { ...permissionRef.current, eventBarTime: debtTagRef.current?.barTimeSec ?? null } : null,
@@ -18001,7 +18007,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // static base rule put EURUSD at two decimals: "1.14 +0.00 (+0.20%)" with
   // O/H/L all "1.14" (serving, EURUSD 1h, 2026-09-25). The base rule stays
   // only as the answer before any bar has arrived.
-  const dp        = candles.length ? pricePrecisionFromBars(candles, symbol) : (base < 10 ? 4 : 2);
+  const dp        = candles.length ? displayPrecisionFor(symbol, candles) : (base < 10 ? 4 : 2);
+  // Is the feed's volume a count at all (volumeTruth.ts)? Spot FX printed
+  // "Vol 1" — a placeholder — in the footer (serving, EURUSD 15m, 2026-09-26).
+  const volumeTruth = volumeTruthFor(symbol, candles);
   /**
    * WHICH OF THE TWO PLACES RENDERS THE TRADED QUANTITY — decided once, here.
    *
@@ -18199,7 +18208,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     // Drawing chips quote the market's own decimals (pricePrecision.ts), read
     // from the bars; the static base rule only before any bar has arrived.
     const drawBars = barsRef.current ?? [];
-    const dec = drawBars.length ? pricePrecisionFromBars(drawBars, symbol) : (base > 100 ? 2 : base > 1 ? 3 : 5);
+    const dec = drawBars.length ? displayPrecisionFor(symbol, drawBars) : (base > 100 ? 2 : base > 1 ? 3 : 5);
     const dashArr = (st: DrawStyle): number[] => st.dash === "dashed" ? [7, 5] : st.dash === "dotted" ? [2, 4] : [];
     const rayToEdge = (a: Pt, dx: number, dy: number): Pt => {
       let tB = Infinity;
@@ -19417,6 +19426,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const fact = chartVolumeFooterFact(
           last.volume,
           dataWindowBarScope(last.time as number, timeframe, true, nowMs).volume.title,
+          volumeTruth,
         );
         return (
           <div
@@ -19773,7 +19783,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   no band (compare, pinned 5m/15m) keep it right here, so no
                   configuration renders it zero times. */}
               {volumeInFooter ? null : (
-                <span title={stripScope.volume.title}>V <span className="text-wm-text">{last.volume.toLocaleString()}</span></span>
+                volumeTruth.real
+                  ? <span title={stripScope.volume.title}>V <span className="text-wm-text">{last.volume.toLocaleString()}</span></span>
+                  : <span title={volumeTruth.title} data-volume-state="SILENT">{volumeTruth.text}</span>
               )}
             </div>
           );
@@ -20807,12 +20819,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               { cell: scope.high,   value: dataWindow.h, color: "#00C076" },
               { cell: scope.low,    value: dataWindow.l, color: "#FF4D67" },
               { cell: scope.close,  value: dataWindow.c, color: "#E2E8FF" },
-              { cell: scope.volume, value: dataWindow.v, color: "#8896BE", fmt: formatVolume },
+              { cell: scope.volume, value: dataWindow.v, color: "#8896BE", fmt: volumeTruth.real ? formatVolume : () => volumeTruth.short },
             ].map(row => (
               <div key={row.cell.label} title={row.cell.title} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
                 <span style={{ fontSize: 10, color: "#4A5580", fontFamily: "monospace" }}>{row.cell.label}</span>
                 <span style={{ fontSize: 10, color: row.color, fontFamily: "monospace" }}>
-                  {row.fmt ? row.fmt(row.value) : row.value.toFixed(base < 10 ? 4 : 2)}
+                  {row.fmt ? row.fmt(row.value) : row.value.toFixed(dp)}
                 </span>
               </div>
             ))}

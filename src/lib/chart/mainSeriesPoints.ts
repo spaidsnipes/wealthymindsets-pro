@@ -18,6 +18,7 @@
  * still live at the `addSeries` call sites in MainChart; only the DATA moved.
  */
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import { volumeTruthFor } from "@/lib/chart/volumeTruth";
 
 /** Heikin Ashi transform (moved from MainChart unchanged). Causal: bar i reads only bars ≤ i. */
 export function toHeikinAshi(bars: readonly LegacyOhlcvTuple[]): LegacyOhlcvTuple[] {
@@ -170,12 +171,20 @@ export function baselineBasePrice(bars: readonly LegacyOhlcvTuple[], fallback: n
   return display[Math.floor(display.length / 2)]?.close ?? fallback;
 }
 
-/** The volume histogram's points — raw bars, never Heikin Ashi. */
+/**
+ * The volume histogram's points — raw bars, never Heikin Ashi.
+ *
+ * Given the `symbol`, a feed whose volume is not a count (spot FX / metals,
+ * or all-0/1 placeholders — volumeTruth.ts) draws NO histogram: EURUSD's
+ * placeholder 1 was scaled to a full-height bar (serving, 2026-09-26).
+ */
 export function volumeSeriesPoints(
   bars: readonly LegacyOhlcvTuple[],
   volUp: string,
   volDown: string,
+  symbol?: string,
 ): MainSeriesPoint[] {
+  if (symbol !== undefined && !volumeTruthFor(symbol, bars).real) return [];
   return bars.map(c => ({
     time:  c.time,
     value: c.volume,

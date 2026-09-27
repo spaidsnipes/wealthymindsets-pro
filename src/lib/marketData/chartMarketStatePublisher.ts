@@ -41,6 +41,7 @@ import {
   type BarCloseCandidate,
 } from "./deriveLastBarClose";
 import { derivePriceTail } from "./derivePriceTail";
+import { volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 
 export interface ChartMarketStatePublicationInput {
   readonly symbol: string;
@@ -443,8 +444,12 @@ export function createChartMarketStatePublication(
   // would let that difference be measured against a set nobody used.
   const profileBars = profileBarsFrom(input.bars);
   const volumeGapNote = candleVolumeGapNote(input.bars, profileBars.length, barSourceName);
+  // Same volume gate the room applies (volumeTruth.ts, 2026-09-26): spot FX /
+  // placeholder-volume feeds build no profile, so the Passport cannot seal a
+  // POC the panel refused to draw from a placeholder unit.
+  const volumeIsReal = volumeTruthFor(input.symbol, profileBars).real;
   const livingProfile = selectLivingProfile(
-    buildLivingProfileSnapshot(input.recentTicks, profileBars),
+    buildLivingProfileSnapshot(volumeIsReal ? input.recentTicks : null, [...volumeBearingBars(input.symbol, profileBars)]),
     { livePrice: input.ticker.price },
   );
   const profileEvidenceInput = {

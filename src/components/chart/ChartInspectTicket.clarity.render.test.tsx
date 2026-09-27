@@ -63,7 +63,12 @@ describe("one owner: the room hands the ticket the owner's reading", () => {
     expect(block).toContain("selectClarityAnatomy(");
     expect(block).toContain("inspectBar.o");
     expect(block).toContain("chartBars.slice(Math.max(0, end - BREATH_SAMPLE), end)");
-    expect(block).toContain("pricePrecisionFromBars(chartBars, symbol)"); // Garden 16: the owner needs the class (equity cents grid)
+    // Pin moved 2026-09-26 (GP12 §27): the market's DISPLAY decimals now come
+    // from the one display owner, which consults the instrument first — the
+    // grid detector alone printed EURUSD at 6 dp. Not weakened: the old call is
+    // now forbidden here.
+    expect(block).toContain("displayPrecisionFor(symbol, chartBars)");
+    expect(block).not.toContain("pricePrecisionFromBars(");
     expect(room).toContain("clarity={clarityVM}");
   });
 });

@@ -17,6 +17,9 @@ describe("formatVolume — a traded bar is never called empty", () => {
   });
   it("the Data Window uses it", () => {
     const code = readFileSync(join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
-    expect(code).toContain("value: dataWindow.v, color: \"#8896BE\", fmt: formatVolume");
+    // Pin extended 2026-09-26: real volume still reads formatVolume; a feed
+    // whose volume is not a count (spot FX, all-0/1 placeholders —
+    // volumeTruth.ts) names the silence instead of printing its placeholder.
+    expect(code).toContain("value: dataWindow.v, color: \"#8896BE\", fmt: volumeTruth.real ? formatVolume : () => volumeTruth.short");
   });
 });
