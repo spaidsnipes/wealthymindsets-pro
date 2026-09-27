@@ -1337,6 +1337,8 @@ interface Props {
   mtfAncestryOnChart?: boolean;
   /** Garden 15 §2 — Derivatives Pressure on this chart, and the room's ONE compilation of it. */
   derivativesPressureOnChart?: boolean;
+  /** Garden 16 §15 — the room's posture from the one compiled decision ("QUIET" = WAIT / NO TRADE). */
+  roomPosture?: "QUIET" | null;
   derivativesPressure?: DerivativesPressureVM | null;
   /** A click on a pressure wall selects it (by strike) through the one selection owner. */
   onSelectPressureWall?: (strike: number) => void;
@@ -1724,6 +1726,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   liquidityLifecycleOnChart = false,
   mtfAncestryOnChart = false,
   derivativesPressureOnChart = false,
+  roomPosture = null,
   derivativesPressure = null,
   onSelectPressureWall,
   selectedPressureWallStrike = null,
@@ -2011,6 +2014,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     motionOnRef.current = motionAllowed(livingMarket, reduced);
     livingReceiptRef.current = livingMarketReceipt(livingMarket, reduced);
   }, [livingMarket]);
+  const roomPostureRef = useRef<"QUIET" | null>(null);
+  roomPostureRef.current = roomPosture;
   const derivativesPressureRef = useRef<DerivativesPressureVM | null>(null);
   derivativesPressureRef.current = derivativesPressure;
   // The wall rects painted this frame (what a click hits), and the selected strike.
@@ -6152,6 +6157,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       zoneHitsRef.current = [];
       nearTapeHitsRef.current = [];
       memoryGhostHitRef.current = null;
+      /* Garden 16 §15 · WAIT IS A POSTURE, NOT A CARD. While the one compiled
+         decision grants no authorization, the room goes quiet at its edges —
+         a faint darkening that never reaches the centre where price lives —
+         and the governor has already stepped every supporting layer back. */
+      canvas.dataset.roomPosture = roomPostureRef.current ?? "OPEN";
+      if (roomPostureRef.current === "QUIET") {
+        let pr = W - 60;
+        try { const cr = chartRef.current; if (cr) pr = W - cr.priceScale("right").width(); } catch { /* keep default */ }
+        const cxV = pr / 2, cyV = H / 2;
+        const vig = ctx.createRadialGradient(cxV, cyV, Math.min(pr, H) * 0.42, cxV, cyV, Math.hypot(pr, H) * 0.62);
+        vig.addColorStop(0, "rgba(4,5,8,0)");
+        vig.addColorStop(1, "rgba(4,5,8,0.24)");
+        ctx.save();
+        ctx.fillStyle = vig;
+        ctx.fillRect(0, 0, pr, H);
+        ctx.restore();
+      }
       // SHOW RAW (Founder correction). The glass paints NOTHING but its own
       // stamp; no switch is changed, so turning raw off restores every reading
       // exactly as it was. The candles and volume are the chart's own series.
@@ -6429,6 +6451,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         fusedParents: fusionObjectRef.current ? (stackPrefsRef.current.fusion ?? fusionObjectRef.current.sources.map(s => s.species as StackSpecies)) : [],
         feedState: feedStateRef.current,
         selection: attSelection,
+        posture: roomPostureRef.current,
       });
       canvas.dataset.attentionSelection = att.selectionReceipt;
       // The selected bubble, marked at full strength outside its layer's

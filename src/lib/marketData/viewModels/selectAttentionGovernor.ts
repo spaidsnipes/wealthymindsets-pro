@@ -88,6 +88,9 @@ export interface LayerAttention {
   readonly lane?: StackSpecies;
 }
 
+/** How far SUPPORTING and MEMORY layers step back while the room waits. */
+export const POSTURE_QUIET = 0.72;
+
 export const TIER_CEILING: Readonly<Record<AttentionTier, number>> = {
   SELECTED: 1,
   LIVE: 1,
@@ -187,6 +190,13 @@ export interface AttentionGovernorInput {
   readonly density: SemanticDensityVM;
   /** Question Lens quiet: 1 = no lens, < 1 while a question is asked. */
   readonly questionQuiet: number;
+  /**
+   * Garden 16 emergency order §15 — WAIT IS A MARKET POSTURE. "QUIET" when the
+   * one compiled decision grants no authorization (WAIT / NO TRADE): the
+   * supporting and memory layers step back together; price, live anchors,
+   * chrome and the selection keep their strength.
+   */
+  readonly posture?: "QUIET" | null;
   /**
    * The regime breaker's lights, or null when switched off (every light 1).
    * `fixtures` lights the regime's own fixtures; absent, they take the
@@ -311,9 +321,11 @@ export function selectAttentionGovernor(
       // The layer's OWN standing sets the ceiling; staleness is one shared
       // factor on top, never a lower ceiling for the present alone.
       const staleDim = stale ? STALE_DIM : 1;
+      // WAIT quiets the room: context steps back, the present does not.
+      const postureDim = input.posture === "QUIET" && (tier === "SUPPORTING" || tier === "MEMORY") ? POSTURE_QUIET : 1;
       // A QUIET layer (H-501 permission) is never louder than QUIET_CEILING.
       const quietCap = permission.of(key, opts) === "QUIET" ? QUIET_CEILING : 1;
-      a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[spec.tier], quietCap, depth * quiet * light * lane) * recede * staleDim);
+      a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[spec.tier], quietCap, depth * quiet * light * lane) * recede * staleDim * postureDim);
     }
     // The receipt records what the layer was actually given, when it asked —
     // a layer painted before the Question Lens was not quieted by it.
@@ -323,7 +335,7 @@ export function selectAttentionGovernor(
 
   return {
     version: ATTENTION_GOVERNOR_VERSION,
-    receipt: `D:${input.density.depth}|Q:${r2(quiet)}|SEL:${selWord}|STALE:${stale ? 1 : 0}`,
+    receipt: `D:${input.density.depth}|Q:${r2(quiet)}|SEL:${selWord}|STALE:${stale ? 1 : 0}${input.posture === "QUIET" ? "|POSTURE:QUIET" : ""}`,
     selectionReceipt,
     receding,
     tierOf,

@@ -6099,6 +6099,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       liquidityLifecycleOnChart={liquidityLifecycleOn}
                       mtfAncestryOnChart={mtfAncestryOn}
                       derivativesPressureOnChart={derivativesPressureOn}
+                      roomPosture={chartCanvasVM.oneStory?.decision?.value === "WAIT" || chartCanvasVM.oneStory?.decision?.value === "NO TRADE" ? "QUIET" : null}
                       derivativesPressure={derivativesPressureVM}
                       onSelectPressureWall={strike => actOnChartSelection({ type: "select", selection: { kind: "PRESSURE_WALL", symbol, timeframe, strike } })}
                       selectedPressureWallStrike={activeSelectedWall?.strike ?? null}
