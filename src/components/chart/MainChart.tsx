@@ -10226,12 +10226,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (anatomy.basis !== "UNMEASURED" && terr.length >= 8) {
                 let paneBotT = H;
                 try { const ps = (chart as any).paneSize?.(0); if (ps && Number.isFinite(ps.height) && ps.height > 0) paneBotT = ps.height; } catch { /* canvas height */ }
-                const bandH = Math.min(110, Math.max(60, paneBotT * 0.16));
-                const base = paneBotT - 8;
+                /* PLATE UI_06 (read beside the glass, Garden 16 reconstruction
+                   2026-09-27): the effort mass WRAPS THE PRICE PATH — nested
+                   translucent ridges above and below price, thick where effort
+                   ran high — so absorption reads as force the structure took
+                   while price failed to travel through it. The centreline is
+                   the close path itself (the displacement IS price); thickness
+                   is the owner's effortNorm at 9/5/3/1-bar smoothing. */
+                const envH = Math.min(96, Math.max(44, paneBotT * 0.13));
+                void paneBotT;
                 const smooth = (k: number) => terr.map((_, i) => {
                   let sum = 0, n = 0;
                   for (let j = Math.max(0, i - (k >> 1)); j <= Math.min(terr.length - 1, i + (k >> 1)); j++) { sum += terr[j].b.effortNorm; n++; }
                   return n ? sum / n : 0;
+                });
+                const mid = terr.map((_, i) => {
+                  let sum = 0, n = 0;
+                  for (let j = Math.max(0, i - 1); j <= Math.min(terr.length - 1, i + 1); j++) { sum += terr[j].y; n++; }
+                  return sum / n;
                 });
                 const vrT = chart.timeScale().getVisibleLogicalRange();
                 const cutT = new Path2D();
@@ -10246,51 +10258,42 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.globalAlpha = att.alpha("absorption");
                 ctx.clip(cutT, "evenodd");
                 const layers = [9, 5, 3, 1];
+                const spread = [1, 0.8, 0.6, 0.4];
+                const halves: number[][] = [];
                 layers.forEach((k, li) => {
                   const e = smooth(k);
-                  const lift = (layers.length - 1 - li) * 7;
-                  const y = (i: number) => base - lift - e[i] * bandH;
+                  const half = e.map(v => Math.max(1.5, v * envH * spread[li]));
+                  halves.push(half);
                   ctx.beginPath();
-                  ctx.moveTo(terr[0].x, base - lift);
-                  for (let i = 0; i < terr.length; i++) ctx.lineTo(terr[i].x, y(i));
-                  ctx.lineTo(terr[terr.length - 1].x, base - lift);
+                  for (let i = 0; i < terr.length; i++) (i ? ctx.lineTo(terr[i].x, mid[i] - half[i]) : ctx.moveTo(terr[i].x, mid[i] - half[i]));
+                  for (let i = terr.length - 1; i >= 0; i--) ctx.lineTo(terr[i].x, mid[i] + half[i]);
                   ctx.closePath();
-                  const g = ctx.createLinearGradient(0, base - lift - bandH, 0, base - lift);
-                  const a = 0.1 + li * 0.07;
-                  g.addColorStop(0, `rgba(214,210,200,${(a + 0.12).toFixed(2)})`);
-                  g.addColorStop(1, `rgba(120,118,112,${(a * 0.4).toFixed(2)})`);
-                  ctx.fillStyle = g;
+                  ctx.fillStyle = `rgba(${196 + li * 10},${192 + li * 10},${182 + li * 10},${(0.07 + li * 0.035).toFixed(3)})`;
                   ctx.fill();
-                  ctx.strokeStyle = `rgba(230,226,216,${(0.25 + li * 0.15).toFixed(2)})`;
-                  ctx.lineWidth = li === layers.length - 1 ? 1.2 : 0.8;
+                  ctx.strokeStyle = `rgba(230,226,216,${(0.18 + li * 0.1).toFixed(2)})`;
+                  ctx.lineWidth = li === layers.length - 1 ? 1.1 : 0.7;
                   ctx.beginPath();
-                  for (let i = 0; i < terr.length; i++) (i ? ctx.lineTo(terr[i].x, y(i)) : ctx.moveTo(terr[i].x, y(i)));
+                  for (let i = 0; i < terr.length; i++) (i ? ctx.lineTo(terr[i].x, mid[i] - half[i]) : ctx.moveTo(terr[i].x, mid[i] - half[i]));
+                  ctx.stroke();
+                  ctx.beginPath();
+                  for (let i = 0; i < terr.length; i++) (i ? ctx.lineTo(terr[i].x, mid[i] + half[i]) : ctx.moveTo(terr[i].x, mid[i] + half[i]));
                   ctx.stroke();
                 });
-                // Absorbing bars: the front ridge turns gold where the owner flagged them.
-                const front = smooth(1);
+                // Absorbing bars: the outer ridge's edges turn gold where the owner flagged them.
+                const outer = halves[0];
                 ctx.strokeStyle = "rgba(232,184,92,0.95)";
                 ctx.lineWidth = 2;
                 let absorbingDrawn = 0;
                 for (let i = 1; i < terr.length; i++) {
                   if (!terr[i].b.absorbing && !terr[i - 1].b.absorbing) continue;
                   ctx.beginPath();
-                  ctx.moveTo(terr[i - 1].x, base - front[i - 1] * bandH);
-                  ctx.lineTo(terr[i].x, base - front[i] * bandH);
+                  ctx.moveTo(terr[i - 1].x, mid[i - 1] - outer[i - 1]);
+                  ctx.lineTo(terr[i].x, mid[i] - outer[i]);
+                  ctx.moveTo(terr[i - 1].x, mid[i - 1] + outer[i - 1]);
+                  ctx.lineTo(terr[i].x, mid[i] + outer[i]);
                   ctx.stroke();
                   absorbingDrawn++;
                 }
-                // Displacement — the result — as one ivory line over the ridges.
-                ctx.strokeStyle = "rgba(245,240,228,0.85)";
-                ctx.lineWidth = 1;
-                ctx.setLineDash([2, 2]);
-                ctx.beginPath();
-                for (let i = 0; i < terr.length; i++) {
-                  const yy = base - terr[i].b.displacementNorm * bandH;
-                  (i ? ctx.lineTo(terr[i].x, yy) : ctx.moveTo(terr[i].x, yy));
-                }
-                ctx.stroke();
-                ctx.setLineDash([]);
                 ctx.restore();
                 if (att.speaks("absorption")) {
                   ctx.save();
@@ -10300,10 +10303,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.textBaseline = "bottom";
                   ctx.fillStyle = "rgba(230,226,216,0.9)";
                   const tx = Math.max(8, terr[0].x + 4);
-                  ctx.fillText("EFFORT — ridges", tx, base - bandH - 10);
-                  ctx.fillStyle = "rgba(245,240,228,0.95)";
-                  ctx.fillText("┈ DISPLACEMENT", tx + 96, base - bandH - 10);
-                  if (absorbingDrawn) { ctx.fillStyle = "rgba(232,184,92,1)"; ctx.fillText("━ ABSORBING", tx + 190, base - bandH - 10); }
+                  const ty = Math.max(HEADER_FLOOR_Y + 12, mid[0] - outer[0] - 6);
+                  ctx.fillText("EFFORT — the mass around price", tx, ty);
+                  if (absorbingDrawn) { ctx.fillStyle = "rgba(232,184,92,1)"; ctx.fillText("━ ABSORBING", tx + 168, ty); }
                   ctx.restore();
                 }
                 ds.absorptionTerrain = `BARS:${terr.length}|ABSORBING:${absorbingDrawn}`;

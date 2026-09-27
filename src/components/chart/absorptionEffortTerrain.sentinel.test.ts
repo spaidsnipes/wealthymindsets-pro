@@ -15,7 +15,9 @@ describe("effort terrain", () => {
   it("reads the anatomy owner's own fields — nothing re-measured", () => {
     expect(block.length).toBeGreaterThan(0);
     expect(block).toContain("terr[j].b.effortNorm");
-    expect(block).toContain("terr[i].b.displacementNorm");
+    // Garden 16 reconstruction (plate UI_06): the displacement IS the price
+    // path — the ridges wrap the close path (terr[j].y), not a separate line.
+    expect(block).toContain("sum += terr[j].y;");
     expect(block).toContain("terr[i].b.absorbing");
     expect(block).not.toMatch(/selectAbsorptionAnatomy\(/);
   });
