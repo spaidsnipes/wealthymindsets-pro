@@ -1,5 +1,6 @@
 "use client";
 
+import { permissionAt } from "@/lib/marketData/viewModels/selectSemanticPermission";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { clsx } from "clsx";
@@ -502,7 +503,7 @@ const FOOTPRINT_TYPES: { id: FootprintType; label: string; desc: string }[] = [
    lives in `orderFlowToolCapability` — not here, and not six times. */
 export function FootprintControls({
   active, enabled, onChange, onDisable, bigTradesOverlay = false,
-  tapeSource = null, observedAggressorFlow = false, wrapNote = false,
+  tapeSource = null, observedAggressorFlow = false, wrapNote = false, semanticDepth = null,
 }: {
   active: FootprintType;
   enabled: boolean;
@@ -518,6 +519,8 @@ export function FootprintControls({
    * The 30px study row keeps its one truncated line.
    */
   wrapNote?: boolean;
+  /** The glass's measured depth — a drawable tool the permission table silences here says so. */
+  semanticDepth?: "FAR" | "MID" | "NEAR" | null;
 }) {
   const capabilityOf = (id: FootprintType, label: string) =>
     orderFlowToolCapability(id, label, { source: tapeSource, observedAggressorFlow });
@@ -529,6 +532,14 @@ export function FootprintControls({
     enabled ? active : bigTradesOverlay ? "big-trades" : null;
   const armedEntry = armed ? FOOTPRINT_TYPES.find(t => t.id === armed) ?? null : null;
   const armedCapability = armedEntry ? capabilityOf(armedEntry.id, armedEntry.label) : null;
+  // Garden 16 §46 (serving b28007a9, BTC-USD 1m): Big Trades pressed at FAR drew
+  // nothing and the door said nothing. The ONE permission table decides; this
+  // only reads it back in words.
+  const silencedAt =
+    armed && armedCapability?.drawable && semanticDepth &&
+    permissionAt(armed === "big-trades" ? "bigTrades" : "footprint", semanticDepth) === "SILENT"
+      ? semanticDepth
+      : null;
 
   return (
     <>
@@ -593,6 +604,17 @@ export function FootprintControls({
           the trader who clicked a tool, saw nothing appear, and drew their own
           conclusion. When the ARMED tool cannot draw, the reason is rendered —
           not hidden behind a pointer. */}
+      {silencedAt && (
+        <span
+          role="status"
+          data-of-armed-state="SILENT_AT_DEPTH"
+          className={wrapNote
+            ? "ml-2 basis-full whitespace-normal text-[10px] leading-snug text-amber-300/90"
+            : "ml-2 shrink-0 max-w-[30ch] truncate text-[10px] leading-tight text-amber-300/90"}
+        >
+          {`Armed, silent at ${silencedAt} — zoom in (fewer bars) and the prints speak`}
+        </span>
+      )}
       {armedCapability && !armedCapability.drawable && (
         <span
           role="status"

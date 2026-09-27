@@ -1375,6 +1375,8 @@ interface Props {
   onExpectedEnvelope?: (vm: ExpectedEnvelopeVM | null) => void;
   /** T-210 · the ancestry reading the glass painted this frame (null when off) — for the MTF Inspect ticket. */
   onMtfAncestry?: (vm: MtfAncestryVM | null) => void;
+  /** Garden 16 §46 · the measured semantic depth (FAR/MID/NEAR, null = unmeasured), on change only — for doors that must say why a tool is silent. */
+  onSemanticDepth?: (depth: "FAR" | "MID" | "NEAR" | null) => void;
   /** H-601 #3 — the fused profile object (or the named refusal), for Inspect. */
   onProfileFusion?: (fused: FusedProfileObject | null, refusal: string | null) => void;
   /** The Visible Range species' own refusal (null when drawn or off), reported on change only. */
@@ -1751,6 +1753,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   selectedMemoryGhostStart = null,
   onExpectedEnvelope,
   onMtfAncestry,
+  onSemanticDepth,
   onProfileFusion,
   onVisibleRangeRefusal,
   onSessionVpRefusal,
@@ -2013,6 +2016,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const onExpectedEnvelopeRef = useRef<typeof onExpectedEnvelope>(undefined);
   const onMtfAncestryRef = useRef<typeof onMtfAncestry>(undefined);
   useEffect(() => { onMtfAncestryRef.current = onMtfAncestry; }, [onMtfAncestry]);
+  const onSemanticDepthRef = useRef<typeof onSemanticDepth>(undefined);
+  useEffect(() => { onSemanticDepthRef.current = onSemanticDepth; }, [onSemanticDepth]);
+  const semanticDepthSentRef = useRef<string | undefined>(undefined);
   // T-210 · per-bar session-clock memo for the ancestry owner, reset when the camera changes.
   // Garden 15 §2 — the room's derivatives compilation, read by the paint loop.
   // Garden 16 §7 · LIVING MARKET — LIVE / STILL, one presentation state. STILL
@@ -17339,6 +17345,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             : null;
           const zoom = selectSemanticZoom({ visibleBarCount: count });
           ds.semanticZoom = zoom.tag ?? `UNMEASURED:${zoom.reason ?? ""}`;
+          {
+            const depthNow = zoom.tag ?? null;
+            if (semanticDepthSentRef.current !== String(depthNow)) {
+              semanticDepthSentRef.current = String(depthNow);
+              onSemanticDepthRef.current?.(depthNow);
+            }
+          }
           ds.semanticDensity = `${semanticDensity.macro}/${semanticDensity.mid}/${semanticDensity.micro}`;
           if (zoom.visibleBarCount != null) ds.semanticZoomBars = String(zoom.visibleBarCount);
           else delete ds.semanticZoomBars;

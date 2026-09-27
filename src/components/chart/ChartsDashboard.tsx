@@ -2416,6 +2416,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, [derivativesPressureOn, derivativesReceipt, symbol, chartBars, cameraWalksHistory]);
   // T-210 — the ancestry the glass painted, for the MTF Inspect ticket; re-render only when the receipt changes.
   const [mtfAncestryVM, setMtfAncestryVM] = useState<MtfAncestryVM | null>(null);
+  // Garden 16 §46 — the glass's measured depth, so the order-flow door can say
+  // why an armed tool drew nothing (the permission table silenced it).
+  const [semanticDepth, setSemanticDepth] = useState<"FAR" | "MID" | "NEAR" | null>(null);
   const onMtfAncestry = useCallback((vm: MtfAncestryVM | null) => {
     setMtfAncestryVM(prev => ((prev?.receipt ?? "") === (vm?.receipt ?? "") ? prev : vm));
   }, []);
@@ -3250,6 +3253,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           bigTradesOverlay={bigTradesSimul && bigTradesOverlay}
           tapeSource={source}
           observedAggressorFlow={chartFlowSnap.hasFlow}
+          semanticDepth={semanticDepth}
           onDisable={() => setFootprintEnabled(false)}
           onChange={onFootprintChange}
           wrapNote
@@ -5472,6 +5476,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 // as an absence reported with too wide a scope.
                 tapeSource={source}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
+                semanticDepth={semanticDepth}
                 onDisable={() => setFootprintEnabled(false)}
                 onChange={onFootprintChange}
               />
@@ -6127,6 +6132,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       derivativesPressureOnChart={derivativesPressureOn}
                       roomPosture={chartCanvasVM.oneStory?.decision?.value === "WAIT" || chartCanvasVM.oneStory?.decision?.value === "NO TRADE" ? "QUIET" : null}
                       derivativesPressure={derivativesPressureVM}
+                      onSemanticDepth={setSemanticDepth}
                       onSelectPressureWall={strike => actOnChartSelection({ type: "select", selection: { kind: "PRESSURE_WALL", symbol, timeframe, strike } })}
                       selectedPressureWallStrike={activeSelectedWall?.strike ?? null}
                       onSelectPressureFront={() => actOnChartSelection({ type: "select", selection: { kind: "PRESSURE_FRONT", symbol, timeframe } })}
