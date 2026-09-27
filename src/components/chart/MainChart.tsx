@@ -2215,7 +2215,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // pressure world on, the nearest wall above and below price — each within
       // WALL_CAMERA_REACH of the last close — joins the range, with headroom so
       // the masonry clears the header. Off → the candles alone, as before.
-      let wallHeld = false;
+      // The masonry is ~60px and the header band ~100px: a held wall needs room
+      // on ITS side (serving SPY 5m: 775 held with 14% headroom still sat
+      // under the header and read OFF_CAMERA).
+      let wallTop = false, wallBottom = false;
       const dpCam = derivativesPressureRef.current;
       if (layerOnRef.current?.derivativesPressure === true && dpCam && dpCam.drawn) {
         const last = slice[slice.length - 1]?.close;
@@ -2223,17 +2226,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const near = dpCam.walls.map(w => w.strike).filter(k => Math.abs(k - last) / last <= WALL_CAMERA_REACH);
           const above = near.filter(k => k > hi).sort((a, b) => a - b)[0];
           const below = near.filter(k => k < lo).sort((a, b) => b - a)[0];
-          if (above != null) { hi = above; wallHeld = true; }
-          if (below != null) { lo = below; wallHeld = true; }
+          if (above != null) { hi = above; wallTop = true; }
+          if (below != null) { lo = below; wallBottom = true; }
           // A wall INSIDE the range but at its very edge sits under the header
           // (serving TSLA 1h: 385 at the top of the candles' range read
           // OFF_CAMERA) — it earns the same headroom.
           const edge = (hi - lo) * 0.1;
-          if (near.some(k => (k <= hi && k >= hi - edge) || (k >= lo && k <= lo + edge))) wallHeld = true;
+          if (near.some(k => k <= hi && k >= hi - edge)) wallTop = true;
+          if (near.some(k => k >= lo && k <= lo + edge)) wallBottom = true;
         }
       }
-      const margin = (hi - lo) * (wallHeld ? 0.14 : 0.06);
-      return { priceRange: { minValue: lo - margin, maxValue: hi + margin } };
+      const span = hi - lo;
+      return { priceRange: { minValue: lo - span * (wallBottom ? 0.3 : 0.06), maxValue: hi + span * (wallTop ? 0.34 : 0.06) } };
     } catch { return fallback; }
   });
 

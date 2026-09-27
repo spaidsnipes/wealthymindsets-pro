@@ -114,7 +114,7 @@ describe("the camera holds the walls it is showing (Garden 16 reconstruction §1
     expect(MC).toContain("const WALL_CAMERA_REACH = 0.04;");
     expect(MC).toContain("if (layerOnRef.current?.derivativesPressure === true && dpCam && dpCam.drawn) {");
     expect(MC).toContain("const near = dpCam.walls.map(w => w.strike).filter(k => Math.abs(k - last) / last <= WALL_CAMERA_REACH);");
-    expect(MC).toContain("const margin = (hi - lo) * (wallHeld ? 0.14 : 0.06);");
+    expect(MC).toContain("return { priceRange: { minValue: lo - span * (wallBottom ? 0.3 : 0.06), maxValue: hi + span * (wallTop ? 0.34 : 0.06) } };");
   });
 });
 
