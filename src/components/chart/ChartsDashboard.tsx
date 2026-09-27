@@ -4130,6 +4130,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // the client's first paint (mounted=false on both → they match), then swap in
   // the real dashboard after mount. One gate covers every localStorage-derived
   // value at once and prevents the whole class of bug from ever recurring.
+  // Every hook sits ABOVE the hydration gate: a hook below it runs on the
+  // second render and not the first — React #310, /charts down on serving
+  // 2026-09-27 04:22Z (sentinel: hooksAboveHydrationGate).
+  const webullLive = useWebullLiveCrypto(symbol);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   if (!mounted) {
@@ -4177,7 +4181,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       onToggleRaw={() => setRawOn(v => !v)}
     />
   ) : null;
-  const webullLive = useWebullLiveCrypto(symbol);
   const decisionSpineProps = {
     // Webull's own real-time frames for a USD crypto symbol (measured working
     // 2026-09-27; stocks/futures refused by package, so not asked here).
