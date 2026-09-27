@@ -126,6 +126,19 @@ export const WEBULL_SDK_CONTRACT = {
     sdkSource: "webull/data/request/get_crypto_snapshot_request.py",
   },
   /**
+   * Futures snapshot (SDK 3.0.2, get_futures_snapshot_request.py). Webull
+   * documents futures data as its own exchange subscription (CME / CBOT /
+   * COMEX / NYMEX, individual or bundle). Measured, never assumed — the Founder
+   * holds the wires canon's Webull-as-the-main-data-wire, and this rung is how
+   * the keeper says whether that wire carries futures today.
+   */
+  FUTURES_SNAPSHOTS: {
+    path: "/market-data/futures/snapshots/list",
+    apiVersion: "v3",
+    needsMarketData: true,
+    sdkSource: "webull/data/request/get_futures_snapshot_request.py",
+  },
+  /**
    * THE SESSION LANE — how an access token is BORN, not where one is pasted.
    *
    * This row exists because WM Pro spent roughly three months treating

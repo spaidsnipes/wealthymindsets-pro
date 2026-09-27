@@ -20,7 +20,7 @@ export interface WebullKeeperView {
   readonly expiresInMs?: number;
   readonly authMode?: string;
   readonly broker?: { readonly state: string; readonly accountCount: number; readonly atMs: number };
-  readonly capabilities?: { readonly verdict: string; readonly stocks: string; readonly crypto: string; readonly atMs: number };
+  readonly capabilities?: { readonly verdict: string; readonly stocks: string; readonly crypto: string; readonly futures?: string; readonly atMs: number };
   readonly reconciliation?: {
     readonly state: string;
     readonly accounts: number;
@@ -206,7 +206,13 @@ export function webullCapabilityCertificate(
     { capability: "STREAMING", status: stocksOk ? "NOT PROVED" : "NOT ENTITLED", evidence: stocksOk ? "The quote stream has not been exercised by the keeper." : "Stock streaming rides the same Non-Display package." },
     { capability: "STOCKS", status: stocksOk ? "PROVED" : stocksDenied ? "NOT ENTITLED" : "NOT PROVED", evidence: stocksDenied ? "MARKET_DATA_NOT_SUBSCRIBED on snapshot and ticks, both signatures." : stocksOk ? "Snapshots answered." : "Not probed." },
     { capability: "OPTIONS", status: "NOT ENTITLED", evidence: "Options data needs Webull's OPRA OpenAPI package; none is attached." },
-    { capability: "FUTURES", status: "NOT ENTITLED", evidence: "Futures data needs Webull's CME OpenAPI package; none is attached." },
+    (() => {
+      const f = caps?.futures;
+      if (!f) return { capability: "FUTURES", status: "NOT PROVED" as const, evidence: "Not probed yet — the keeper asks for an ES snapshot from 2026-09-27." };
+      if (/:OK\b/.test(f)) return { capability: "FUTURES", status: "PROVED" as const, evidence: "Webull answered an ES futures snapshot." };
+      if (/DENIED_ENTITLEMENT/.test(f)) return { capability: "FUTURES", status: "NOT ENTITLED" as const, evidence: "Webull refused the ES snapshot by package: futures data is its own CME/CBOT/COMEX/NYMEX OpenAPI subscription." };
+      return { capability: "FUTURES", status: "NOT PROVED" as const, evidence: `Webull's answer on ES: ${f}.` };
+    })(),
     { capability: "ORDER FLOW", status: "NOT ENTITLED", evidence: "Webull's order-flow data is its own OpenAPI package; none is attached." },
     { capability: "DEPTH", status: "NOT ENTITLED", evidence: "Depth (TotalView) is its own OpenAPI package; none is attached." },
     {

@@ -356,8 +356,10 @@ describe("probeWebullEntitlement", () => {
     // inventory (once) and the real-time streaming lane (once per signing
     // profile). This fixture denies every market-data path, so no streaming
     // subscription is ever accepted and none has to be released.
-    // The crypto control rung is the third out-of-band read, once per profile.
-    expect(seen).toHaveLength(webullRungSpecs("TSLA").length + 1 + 2 * WEBULL_SIGNING_PROFILES.length);
+    // The crypto control rung is the third out-of-band read, once per profile;
+    // the futures snapshot (2026-09-27) the fourth, once per profile.
+    expect(seen).toHaveLength(webullRungSpecs("TSLA").length + 1 + 3 * WEBULL_SIGNING_PROFILES.length);
+    expect(seen.filter((url) => url.includes("/market-data/futures/snapshots/list"))).toHaveLength(WEBULL_SIGNING_PROFILES.length);
     expect(seen.filter((url) => url.includes("/app/subscriptions/list"))).toHaveLength(1);
     // The whole reason it is out of band: it must never reach the verdict.
     expect(report.rungs.some((rung) => rung.rung === "SUBSCRIPTIONS")).toBe(false);
@@ -487,9 +489,9 @@ describe("the entitlement ladder climbs on a LIVING session", () => {
     // on ALL of them, including the ones that are not rungs. This fixture
     // answers 200 to everything, so each signing profile opens a streaming
     // subscription AND releases it — two calls per profile — and the crypto
-    // control rung is asked once per profile.
+    // control rung and the futures snapshot are each asked once per profile.
     expect(tokens).toHaveLength(
-      webullRungSpecs("TSLA").length + 1 + WEBULL_SIGNING_PROFILES.length * 3,
+      webullRungSpecs("TSLA").length + 1 + WEBULL_SIGNING_PROFILES.length * 4,
     );
     expect(new Set(tokens)).toEqual(new Set(["minted-session-value"]));
   });

@@ -83,6 +83,9 @@
  */
 import type { WebullAuthModeReader } from "@/lib/marketData/webullAuthMode";
 import { randomUUID } from "crypto";
+
+/** The futures contract the keeper asks about: E-mini S&P, Dec 2026 (front month on 2026-09-27). */
+export const WEBULL_FUTURES_PROBE_SYMBOL = "ESZ6";
 import { buildWebullSignedHeaders } from "./adapters/webullMarketData";
 import { WEBULL_SIGNING_PROFILES, type WebullSigningProfile } from "./webullSigningCanary";
 import { WEBULL_SDK_CONTRACT, type WebullEndpointContract } from "./webullSdkContract";
@@ -115,6 +118,8 @@ export type WebullRungName =
   | "SUBSCRIPTIONS"
   /** The no-subscription control rung. Out-of-band — see `WebullEntitlementReport.crypto`. */
   | "CRYPTO_SNAPSHOT"
+  /** Futures data, measured. Out-of-band — see `WebullEntitlementReport.futures`. */
+  | "FUTURES_SNAPSHOT"
   /** The streaming lane. Out-of-band like SUBSCRIPTIONS — see `WebullStreamingProbe`. */
   | "STREAMING_SUBSCRIBE"
   | "STREAMING_UNSUBSCRIBE";
@@ -209,6 +214,12 @@ export interface WebullEntitlementReport {
    * Out-of-band: it NEVER participates in `verdict`.
    */
   readonly crypto?: readonly WebullRungReceipt[];
+  /**
+   * ES front-month snapshot, once per signing profile. Out-of-band: it never
+   * participates in `verdict`. Webull documents futures data as its own
+   * exchange subscription; this is the measurement of whether the key has it.
+   */
+  readonly futures?: readonly WebullRungReceipt[];
 }
 
 interface RungSpec {
@@ -829,6 +840,24 @@ export async function probeWebullEntitlement(
     crypto = undefined;
   }
 
+  let futures: WebullRungReceipt[] | undefined;
+  try {
+    const receipts: WebullRungReceipt[] = [];
+    for (const profile of WEBULL_SIGNING_PROFILES) {
+      receipts.push(await climbRung(
+        fetchImpl,
+        rungSpec("FUTURES_SNAPSHOT", WEBULL_SDK_CONTRACT.FUTURES_SNAPSHOTS, { category: "US_FUTURES", symbols: WEBULL_FUTURES_PROBE_SYMBOL }, profile),
+        creds,
+        checkedAt,
+        makeNonce(),
+        timeoutMs,
+      ));
+    }
+    futures = receipts;
+  } catch {
+    futures = undefined;
+  }
+
   /**
    * The real-time door, asked once per signing profile, and never allowed to
    * fail the climb above. Same restraint as the subscription read: this is a
@@ -910,5 +939,6 @@ export async function probeWebullEntitlement(
     ...(subscriptions ? { subscriptions } : {}),
     ...(streaming ? { streaming } : {}),
     ...(crypto ? { crypto } : {}),
+    ...(futures ? { futures } : {}),
   };
 }

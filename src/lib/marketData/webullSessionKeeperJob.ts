@@ -139,6 +139,7 @@ export async function runWebullSessionKeeper(
         verdict: ladder.verdict,
         stocks: receiptLine(ladder.rungs.filter((r) => r.gate === "MARKET_DATA")),
         crypto: receiptLine(ladder.crypto),
+        ...(ladder.futures ? { futures: receiptLine(ladder.futures) } : {}),
         atMs: Date.now(),
       },
     };

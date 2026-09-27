@@ -92,7 +92,7 @@ describe("Garden 16 §34 — each Webull capability is proved separately", () =>
     const s = status(webullCapabilityCertificate(keeper, 1_000_000 + 60_000, { ownerNamed: false, liveOrdersEnabled: false }));
     expect(s).toMatchObject({
       AUTH: "PROVED", OWNER: "NOT CONFIGURED", ACCOUNT: "PROVED", "MARKET DATA": "PARTIAL", ENTITLEMENT: "NOT ENTITLED",
-      STOCKS: "NOT ENTITLED", OPTIONS: "NOT ENTITLED", FUTURES: "NOT ENTITLED", DEPTH: "NOT ENTITLED",
+      STOCKS: "NOT ENTITLED", OPTIONS: "NOT ENTITLED", FUTURES: "NOT PROVED", DEPTH: "NOT ENTITLED",
       TRADING: "NOT AUTHORIZED", "ORDER EVENTS": "PARTIAL", "POSITION STATE": "NOT PROVED", "TOKEN/SESSION RECOVERY": "PROVED",
     });
     expect(Object.keys(s)).toHaveLength(20);
@@ -106,4 +106,15 @@ describe("Garden 16 §34 — each Webull capability is proved separately", () =>
   it("no record proves nothing", () => {
     expect(webullCapabilityCertificate(null, 0, { ownerNamed: true, liveOrdersEnabled: false }).every(r => r.status === "NOT PROVED")).toBe(true);
   });
+});
+
+describe("FUTURES on the certificate is Webull's measured answer on ES", () => {
+  const base: WebullKeeperView = { outcome: "TOKEN_NOT_REQUIRED", note: "n", atMs: 0, authMode: "TOKENLESS" };
+  const row = (futures?: string) => webullCapabilityCertificate(
+    { ...base, capabilities: { verdict: "V", stocks: "x", crypto: "y", ...(futures ? { futures } : {}), atMs: 0 } },
+    60_000, { ownerNamed: true, liveOrdersEnabled: false },
+  ).find(r => r.capability === "FUTURES")!;
+  it("not asked yet → NOT PROVED", () => expect(row().status).toBe("NOT PROVED"));
+  it("refused by package → NOT ENTITLED", () => expect(row("FUTURES_SNAPSHOT/legacy-sha1:DENIED_ENTITLEMENT(MARKET_DATA_NOT_SUBSCRIBED)").status).toBe("NOT ENTITLED"));
+  it("answered → PROVED", () => expect(row("FUTURES_SNAPSHOT/legacy-sha1:OK").status).toBe("PROVED"));
 });

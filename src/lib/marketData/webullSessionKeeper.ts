@@ -119,6 +119,8 @@ export interface KeeperResult {
     readonly verdict: string;
     readonly stocks: string;
     readonly crypto: string;
+    /** ES front-month snapshot per signing profile (absent on records before 2026-09-27). */
+    readonly futures?: string;
     readonly atMs: number;
   };
   /**
