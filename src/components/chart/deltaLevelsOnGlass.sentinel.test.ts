@@ -34,9 +34,14 @@ const ROOM = strip(read("src/components/chart/ChartsDashboard.tsx"));
 const block = (() => {
   const at = CHART.indexOf("const dl = deltaLevelsRef.current");
   expect(at, "the delta-levels block was renamed or removed").toBeGreaterThan(-1);
-  const end = CHART.indexOf("selectHeatLens", at);
-  expect(end, "the heat lens no longer follows this block").toBeGreaterThan(at);
-  return CHART.slice(at, end);
+  const heat = CHART.indexOf("selectHeatLens", at);
+  expect(heat, "the heat lens no longer follows this block").toBeGreaterThan(at);
+  // The block ends where the NEXT layer's code begins (2026-09-27): reading to
+  // the heat lens swept in six other layers (regime, ghost, envelope, T-210 …),
+  // so the MTF layer's green band read as a green delta lane. (Comments are
+  // stripped here, so the boundary is the next layer's own gate.)
+  const next = CHART.indexOf("layerOnRef.current.regimeLighting", at);
+  return CHART.slice(at, next > at && next < heat ? next : heat);
 })();
 
 describe("the reading reaches the chart", () => {

@@ -157,6 +157,8 @@ export const LAYER_ATTENTION = {
   expectedEnvelope: { tier: "SUPPORTING", depth: null, light: null },
   contradiction: { tier: "SUPPORTING", depth: null, light: null },
   liquidityLifecycle: { tier: "SUPPORTING", depth: null, light: null },
+  // T-210 / F10: the higher timeframes' ancestry — context the present grew from.
+  mtfAncestry: { tier: "SUPPORTING", depth: null, light: null },
   // H-901's own fixtures, measured from the bars on camera: context drawn
   // about the regime reading, lit by its breaker.
   regimeMagnets: { tier: "SUPPORTING", depth: null, light: "MAGNET_FIXTURES" },

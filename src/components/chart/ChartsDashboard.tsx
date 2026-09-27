@@ -312,6 +312,7 @@ import { displayPrecisionFor } from "@/lib/chart/pricePrecision";
 import { volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { BREATH_SAMPLE, selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
+import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import selectLivingProfileGlass from "@/lib/marketData/viewModels/selectLivingProfileGlass";
 import selectMarketStructureGlass from "@/lib/marketData/viewModels/selectMarketStructureGlass";
@@ -893,6 +894,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // draws when the trader has drawn a Long / Short Position with a stop.
   const [riskOnPriceOn, setRiskOnPriceOn] = useState<boolean>(() => lsGet("wm_ofRiskOnPrice", true) as boolean);
   const [liquidityLifecycleOn, setLiquidityLifecycleOn] = useState<boolean>(() => lsGet("wm_ofLiquidityLifecycle", false) as boolean);
+  // T-210 / F10 — higher-TF ancestry on the one chart. OFF by default.
+  const [mtfAncestryOn, setMtfAncestryOn] = useState<boolean>(() => lsGet("wm_ofMtfAncestry", false) as boolean);
   // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
   const [scaffoldingDepth, setScaffoldingDepth] = useState<ScaffoldingDepth | "OFF">(() => {
     const v = lsGet("wm_ofScaffolding", "OFF") as string;
@@ -1145,6 +1148,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofContradiction",    contradictionOn);
   usePersistOnChange("wm_ofRiskOnPrice",      riskOnPriceOn);
   usePersistOnChange("wm_ofLiquidityLifecycle", liquidityLifecycleOn);
+  usePersistOnChange("wm_ofMtfAncestry",      mtfAncestryOn);
 
   // ── Bar replay ──────────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -2324,6 +2328,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     const sig = (v: ExpectedEnvelopeVM | null) => (v ? `${v.reason}|${v.sessions}|${v.sessionStart}|${v.upper?.toFixed(4)}|${v.lower?.toFixed(4)}|${v.up?.matchedBy}|${v.down?.matchedBy}` : "");
     setEnvelopeVM(prev => (sig(prev) === sig(vm) ? prev : vm));
   }, []);
+  // The one display owner's decimals for this chart (Inspect prints MTF prices with it).
+  const chartDisplayDp = React.useMemo(() => displayPrecisionFor(symbol, chartBars), [symbol, chartBars]);
+  // T-210 — the ancestry the glass painted, for the MTF Inspect ticket; re-render only when the receipt changes.
+  const [mtfAncestryVM, setMtfAncestryVM] = useState<MtfAncestryVM | null>(null);
+  const onMtfAncestry = useCallback((vm: MtfAncestryVM | null) => {
+    setMtfAncestryVM(prev => ((prev?.receipt ?? "") === (vm?.receipt ?? "") ? prev : vm));
+  }, []);
   // H-601 #3 — the fused profile object for Inspect and the stack bar.
   const [fusion, setFusionState] = useState<{ fused: FusedProfileObject | null; refusal: string | null }>({ fused: null, refusal: null });
   const onProfileFusion = useCallback((fused: FusedProfileObject | null, refusal: string | null) => {
@@ -3059,6 +3070,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   RISK_ON_PRICE: riskOnPriceOn,
                   LIQUIDITY_LIFECYCLE: liquidityLifecycleOn,
                   MARKET_STRUCTURE: marketStructureOn,
+                  MTF_ANCESTRY: mtfAncestryOn,
   };
   const onProfileMenuToggle = (id: ProfileId) => {
                   if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
@@ -3088,6 +3100,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "CONTRADICTION") setContradictionOn(v => !v);
                   else if (id === "RISK_ON_PRICE") setRiskOnPriceOn(v => !v);
                   else if (id === "LIQUIDITY_LIFECYCLE") setLiquidityLifecycleOn(v => !v);
+                  else if (id === "MTF_ANCESTRY") setMtfAncestryOn(v => !v);
                   else if (id === "SCAFFOLDING") {
                     setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
                   }
@@ -3242,6 +3255,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.CONTRADICTION !== undefined) setContradictionOn(s.CONTRADICTION);
       if (s.RISK_ON_PRICE !== undefined) setRiskOnPriceOn(s.RISK_ON_PRICE);
       if (s.LIQUIDITY_LIFECYCLE !== undefined) setLiquidityLifecycleOn(s.LIQUIDITY_LIFECYCLE);
+      if (s.MTF_ANCESTRY !== undefined) setMtfAncestryOn(s.MTF_ANCESTRY);
       if (s.SCAFFOLDING !== undefined) setScaffoldingDepth(d => (s.SCAFFOLDING ? (d === "OFF" ? "FOUNDATION" : d) : "OFF"));
     },
     [],
@@ -3293,6 +3307,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       RISK_ON_PRICE: riskOnPriceOn,
       LIQUIDITY_LIFECYCLE: liquidityLifecycleOn,
       MARKET_STRUCTURE: marketStructureOn,
+      MTF_ANCESTRY: mtfAncestryOn,
     },
   });
 
@@ -6008,6 +6023,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       contradictionOnChart={contradictionOn}
                       riskOnPriceOnChart={riskOnPriceOn}
                       liquidityLifecycleOnChart={liquidityLifecycleOn}
+                      mtfAncestryOnChart={mtfAncestryOn}
                       liquidityLifecycle={chartLiquidityLifecycle}
                       riskReceipt={riskReceipt}
                       onRiskOnPrice={onRiskOnPrice}
@@ -6016,6 +6032,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       onSelectMemoryGhost={ghost => ghost.analogueEnd != null && actOnChartSelection({ type: "select", selection: { kind: "MEMORY_GHOST", symbol, timeframe, ghost, asOf: ghost.analogueEnd } })}
                       selectedMemoryGhostStart={activeSelectedGhost?.ghost.analogueStart ?? null}
                       onExpectedEnvelope={onExpectedEnvelope}
+                      onMtfAncestry={onMtfAncestry}
                       onProfileFusion={onProfileFusion}
                       onVisibleRangeRefusal={setVisibleRangeRefusal}
                       onSessionVpRefusal={setSessionVpRefusal}
@@ -6071,6 +6088,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         memoryGhost={activeSelectedGhost?.ghost ?? memoryGhostVM}
                         memoryGhostFrozenAsOf={activeSelectedGhost?.asOf ?? null}
                         envelope={envelopeVM}
+                        mtfAncestry={mtfAncestryOn ? mtfAncestryVM : null}
+                        priceDp={chartDisplayDp}
                         fusion={fusion.fused}
                         profileDna={profileDnaOn ? profileDnaVM : null}
                         profileDnaOnGlass={livingProfileOn && livingProfileGlass.drawn}

@@ -73,7 +73,11 @@ describe("the chart has one selection, owned by selectChartSelection", () => {
   it("the ticket reads the same union the glass is told about", () => {
     const ticketAt = ROOM.indexOf("<ChartInspectTicket");
     expect(ticketAt).toBeGreaterThan(-1);
-    const ticket = ROOM.slice(ticketAt, ticketAt + 1600);
+    // The element itself, to its own "/>" — a fixed character window cut the
+    // pinned props off once the ticket gained two (T-210, 2026-09-27).
+    const ticketEnd = ROOM.indexOf("/>", ticketAt);
+    expect(ticketEnd).toBeGreaterThan(ticketAt);
+    const ticket = ROOM.slice(ticketAt, ticketEnd);
     expect(ticket).toContain("open={inspectOpen}");
     expect(ticket).toContain("selectedPrint={activeSelectedPrint}");
     expect(ticket).toContain("selectedProfileSlice={activeProfileSlice}");

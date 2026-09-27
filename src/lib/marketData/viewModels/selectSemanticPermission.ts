@@ -95,6 +95,10 @@ export const SEMANTIC_PERMISSION = {
   regimeMagnets: [X, S, X],      // full-width σ lines are zone-scale fixtures
   expectedEnvelope: [S, S, X],
   marketStructure: [Q, S, Q],    // QUIET: chevrons + the owner's letters only; FAR: major swings only
+  // T-210 / F10 (2026-09-26): HTF ancestry on the one chart. FAR's form is
+  // the D shelf only (a major level; band + node are withheld as a FORM read);
+  // QUIET keeps geometry + the horizon tags (4H / 1H / D), no captions.
+  mtfAncestry: [Q, S, Q],
 
   // ── Zones + profile + market objects: MID speaks ─────────────────────────
   marketZones: [X, S, Q],        // unselected zones are wordless outlines already

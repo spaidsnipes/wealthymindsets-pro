@@ -64,6 +64,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "LIQUIDITY_LIFECYCLE",
   "RISK_ON_PRICE",
   "MARKET_STRUCTURE",
+  // T-210 / F10. HTF ancestry resampled from the chart's own bars — bars only.
+  "MTF_ANCESTRY",
 ];
 
 /** The rows that require provider-stated aggressor side. */

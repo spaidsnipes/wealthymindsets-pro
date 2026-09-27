@@ -41,7 +41,9 @@ describe("semantic permission — one table, every painting layer", () => {
     );
     // Reduced forms: dimmed candles, major swings with the owner's letters,
     // Living's skeleton, and the fidelity bridges (an outage keeps its words).
-    expect(at("FAR", "QUIET")).toEqual(["candles", "dataGaps", "livingProfile", "marketStructure"].sort());
+    // + mtfAncestry (T-210, 2026-09-26): the D shelf only — a major level —
+    // with its horizon tag; band, node and captions withheld at FAR.
+    expect(at("FAR", "QUIET")).toEqual(["candles", "dataGaps", "livingProfile", "marketStructure", "mtfAncestry"].sort());
     // What serving still carried at FAR on 2026-09-25 (TSLA 15m, 755 bars) is silent.
     for (const k of [
       "scaffolding", "exhaustion", "debtTag", "valueCandle", "weather", "liquidityLifecycle",

@@ -54,6 +54,7 @@ import { percentileOrdinal } from "@/lib/chart/footprintCanon";
 import { RESPONSE_BARS, type PrintResponseVM } from "@/lib/marketData/viewModels/selectPrintResponse";
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
+import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfiles";
 import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBubbleVolume } from "@/lib/bubbleClaim";
@@ -732,6 +733,8 @@ export function ChartInspectTicket({
   memoryGhost = null,
   memoryGhostFrozenAsOf = null,
   envelope = null,
+  mtfAncestry = null,
+  priceDp = null,
   fusion = null,
   profileDna = null,
   profileDnaOnGlass = false,
@@ -774,6 +777,10 @@ export function ChartInspectTicket({
   memoryGhostFrozenAsOf?: number | null;
   /** H-801 · the envelope and its surprise, as counts of this chart's sessions. */
   envelope?: ExpectedEnvelopeVM | null;
+  /** T-210 · the ancestry the glass painted: 4H band · 1H node · D shelf, or each one's silence. */
+  mtfAncestry?: MtfAncestryVM | null;
+  /** The market's display decimals, from displayPrecisionFor (the one display owner). */
+  priceDp?: number | null;
   /** H-601 #3 · the fused profile object — sources, method, recomputed levels. */
   fusion?: FusedProfileObject | null;
   /** P-110 #5 · the DNA reading when the layer is on; null when it is off. */
@@ -791,6 +798,8 @@ export function ChartInspectTicket({
   /** F07B · select one member of a selected cluster — the room's one selection. */
   onSelectPrint?: (print: SelectedBigTrade) => void;
 }) {
+  // T-210 · MTF prices at the market's display decimals (the band's body is raw bar prices).
+  const mtfPx = (v: number) => (priceDp != null ? v.toFixed(priceDp) : String(+v.toPrecision(8)));
   const clock = zonedClock(timeZone);
   if (!open) {
     return (
@@ -1183,6 +1192,29 @@ export function ChartInspectTicket({
       )}
 
       {profileDna && <ProfileDnaBlock dna={profileDna} onGlass={profileDnaOnGlass} />}
+
+      {/* T-210 · the plate's MTF INSPECT TICKET: ancestry + nodes + shelf, each ACTIVE or its named silence. */}
+      {mtfAncestry && (
+        <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-mtf={mtfAncestry.receipt} style={{ color: "#C8C0AE" }}>
+          <div className="font-bold tracking-wide text-wm-gold">MTF INSPECT · ANCESTRY + NODES + SHELF</div>
+          <div>Time reference · structural (resampled from this chart&apos;s own bars, not a second clock)</div>
+          {mtfAncestry.band.kind === "BAND" ? (
+            <div data-inspect-mtf-band="ACTIVE">4H ancestry · ACTIVE (band) — body {mtfPx(mtfAncestry.band.low)}–{mtfPx(mtfAncestry.band.high)} from {clock.minute(mtfAncestry.band.firstTime)} {clock.zone(mtfAncestry.band.firstTime)} · {mtfAncestry.band.relation === "INSIDE" ? "price sits inside it" : `nearest body, ${mtfPx(mtfAncestry.band.distance)} away`} · {mtfAncestry.band.age === 0 ? "newest completed 4H" : `${mtfAncestry.band.age} 4H bar${mtfAncestry.band.age === 1 ? "" : "s"} back`}</div>
+          ) : (
+            <div data-inspect-mtf-band={mtfAncestry.band.reason}>4H ancestry · SILENT — {mtfAncestry.band.reason}</div>
+          )}
+          {mtfAncestry.node.kind === "NODE" ? (
+            <div data-inspect-mtf-node="ACTIVE">1H node · ACTIVE (node) — {mtfPx(mtfAncestry.node.low)}–{mtfPx(mtfAncestry.node.high)}, peak {mtfPx(mtfAncestry.node.price)} · {Math.round(mtfAncestry.node.share * 100)}% of the hour&apos;s volume · hour from {clock.minute(mtfAncestry.node.firstTime)} · DERIVED (bar volume spread over each bar&apos;s range)</div>
+          ) : (
+            <div data-inspect-mtf-node={mtfAncestry.node.reason}>1H node · SILENT — {mtfAncestry.node.reason}</div>
+          )}
+          {mtfAncestry.shelf.kind === "SHELF" ? (
+            <div data-inspect-mtf-shelf="ACTIVE">Daily shelf · ACTIVE (shelf) — {mtfAncestry.shelf.level} {mtfPx(mtfAncestry.shelf.price)} of session {mtfAncestry.shelf.day} · price {mtfAncestry.shelf.side.toLowerCase()} it</div>
+          ) : (
+            <div data-inspect-mtf-shelf={mtfAncestry.shelf.reason}>Daily shelf · SILENT — {mtfAncestry.shelf.reason}</div>
+          )}
+        </div>
+      )}
 
       {/* H-801 · where a typical session of THIS market reached — never a forecast. */}
       {envelope && (

@@ -255,3 +255,35 @@ export function selectSessionWindowBars<B extends { readonly time: number | stri
   if (latest == null) return [];
   return bars.filter(b => sessionKeyOf(Number(b.time), win) === latest);
 }
+
+/**
+ * A CLOCK-ALIGNED HIGHER-TIMEFRAME BUCKET INSIDE ONE SESSION (T-210 / F10,
+ * added 2026-09-26 for `selectMtfAncestry`).
+ *
+ * The 1H and 4H bars a multi-timeframe reading resamples are cut on the ET
+ * wall clock (00:00, 04:00, 08:00 … for 4H; each hour for 1H) AND never cross
+ * a session boundary this owner names: the key carries the session key, so a
+ * Globex 16:00–20:00 bucket is two buckets (16:00–17:00 of one day, 18:00–20:00
+ * of the next) and an RTH 08:00–12:00 bucket is its 09:30–12:00 portion.
+ * A bar outside every session belongs to no bucket (null), exactly as
+ * `sessionKeyOf` says. `startSec` / `endSec` are the bucket's CLOCK edges,
+ * not the first / last bar's.
+ *
+ * Crypto and other continuous markets are bucketed on the same ET clock (the
+ * owner's CONTINUOUS_ET_DAY), not UTC — named, not hidden.
+ */
+export interface ClockBucket {
+  readonly key: string;
+  readonly startSec: number;
+  readonly endSec: number;
+}
+
+export function clockBucketOf(sec: number, win: SessionWindow, spanMinutes: number): ClockBucket | null {
+  if (!(spanMinutes > 0)) return null;
+  const session = sessionKeyOf(sec, win);
+  if (session == null) return null;
+  const p = etParts(sec);
+  const idx = Math.floor(p.minute / spanMinutes);
+  const startSec = sec - (p.minute - idx * spanMinutes) * 60 - (((sec % 60) + 60) % 60);
+  return { key: `${session}|${p.date}|${spanMinutes}:${idx}`, startSec, endSec: startSec + spanMinutes * 60 };
+}

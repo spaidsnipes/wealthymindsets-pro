@@ -70,7 +70,8 @@ export type ProfileId =
   | "CONTRADICTION"
   | "RISK_ON_PRICE"
   | "LIQUIDITY_LIFECYCLE"
-  | "MARKET_STRUCTURE";
+  | "MARKET_STRUCTURE"
+  | "MTF_ANCESTRY";
 
 /**
  * READY — it can draw now.
@@ -176,6 +177,9 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   CONTRADICTION: "READING",
   RISK_ON_PRICE: "READING",
   LIQUIDITY_LIFECYCLE: "ORDER_FLOW",
+  // T-210 / F10 (W · Structure / Memory-Context): higher-TF ancestry is a
+  // reading of the SAME camera — never a room, never a second chart.
+  MTF_ANCESTRY: "READING",
 };
 
 export interface ProfileMenuEntry {
@@ -687,6 +691,21 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectMarketStructure.ts",
     levels: ["Swing highs", "Swing lows"],
+  },
+  {
+    id: "MTF_ANCESTRY",
+    label: "MTF Ancestry",
+    /*
+      T-210 / F10 "MULTI-TIMEFRAME IS ONE EXECUTION VIEW. NOT FOUR CHARTS."
+      The 4H body price grew from, the last completed hour's volume node and
+      the prior day's nearest high / low — each resampled from the bars this
+      chart loaded, tagged 4H / 1H / D at the right edge. An HTF bar the
+      loaded history cannot complete is a named silence.
+    */
+    what: "the 4H body price grew from, the last hour's volume node and the prior day's nearest high or low — resampled from this chart's bars, on this chart",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectMtfAncestry.ts",
+    levels: ["4H ancestry band", "1H node", "Daily shelf (PDH / PDL)"],
   },
 ];
 

@@ -334,6 +334,7 @@ import type { SelectedAnatomy } from "@/lib/marketData/viewModels/chartSelection
 import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import { DEFAULT_STACK_PREFS, orderStack, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
+import { selectMtfAncestry, type MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import {
   arrowOutline,
   contradictionGlyph,
@@ -1329,6 +1330,8 @@ interface Props {
   riskOnPriceOnChart?: boolean;
   /** Founder mockup · Liquidity Weather lifecycle on price. */
   liquidityLifecycleOnChart?: boolean;
+  /** T-210 / F10 — higher-TF ancestry (4H band · 1H node · D shelf) on this one chart. */
+  mtfAncestryOnChart?: boolean;
   /** The room's ONE lifecycle compilation; the canvas draws it and never recomputes it. */
   liquidityLifecycle?: LiquidityLifecycleVM | null;
   /** H-1001 — the receipt torn from this camera's decision, frozen. */
@@ -1348,6 +1351,8 @@ interface Props {
   selectedMemoryGhostStart?: number | null;
   /** H-801 — the envelope and its surprise counts, handed up for Inspect. */
   onExpectedEnvelope?: (vm: ExpectedEnvelopeVM | null) => void;
+  /** T-210 · the ancestry reading the glass painted this frame (null when off) — for the MTF Inspect ticket. */
+  onMtfAncestry?: (vm: MtfAncestryVM | null) => void;
   /** H-601 #3 — the fused profile object (or the named refusal), for Inspect. */
   onProfileFusion?: (fused: FusedProfileObject | null, refusal: string | null) => void;
   /** The Visible Range species' own refusal (null when drawn or off), reported on change only. */
@@ -1707,6 +1712,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   contradictionOnChart = false,
   riskOnPriceOnChart = true,
   liquidityLifecycleOnChart = false,
+  mtfAncestryOnChart = false,
   liquidityLifecycle = null,
   riskReceipt = null,
   onRiskOnPrice,
@@ -1715,6 +1721,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onSelectMemoryGhost,
   selectedMemoryGhostStart = null,
   onExpectedEnvelope,
+  onMtfAncestry,
   onProfileFusion,
   onVisibleRangeRefusal,
   onSessionVpRefusal,
@@ -1975,6 +1982,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const onContradictionRef = useRef<typeof onContradiction>(undefined);
   const onMemoryGhostRef = useRef<typeof onMemoryGhost>(undefined);
   const onExpectedEnvelopeRef = useRef<typeof onExpectedEnvelope>(undefined);
+  const onMtfAncestryRef = useRef<typeof onMtfAncestry>(undefined);
+  useEffect(() => { onMtfAncestryRef.current = onMtfAncestry; }, [onMtfAncestry]);
+  // T-210 · per-bar session-clock memo for the ancestry owner, reset when the camera changes.
+  const mtfMemoRef = useRef<{ key: string; memo: Map<string, string | null> }>({ key: "", memo: new Map() });
   const onProfileFusionRef = useRef<typeof onProfileFusion>(undefined);
   useEffect(() => { onProfileFusionRef.current = onProfileFusion; }, [onProfileFusion]);
   const onVisibleRangeRefusalRef = useRef<typeof onVisibleRangeRefusal>(undefined);
@@ -2042,7 +2053,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   permissionRef.current = permissionOnChart;
   const debtTagRef = useRef<typeof debtTagOnChart>(null);
   debtTagRef.current = debtTagOnChart;
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -2069,8 +2080,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       contradiction: contradictionOnChart,
       riskOnPrice: riskOnPriceOnChart,
       liquidityLifecycle: liquidityLifecycleOnChart,
+      mtfAncestry: mtfAncestryOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart, riskOnPriceOnChart, liquidityLifecycleOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart, riskOnPriceOnChart, liquidityLifecycleOnChart, mtfAncestryOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -13515,6 +13527,234 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         } else {
           ds.expectedEnvelope = att.offWord(layerOnRef.current.expectedEnvelope === true);
           onExpectedEnvelopeRef.current?.(null);
+        }
+
+        /* ══ T-210 / F10 · MTF IS NOT FOUR CHARTS — ancestry on the one chart ══
+           Canon plate WM_H_T210_MTF_NOT_FOUR_CHARTS: on the ONE execution
+           chart, a translucent green 4H ANCESTRY BAND tagged "4H" at the right
+           edge, a hatched grey 1H NODE box tagged "1H", a dashed gold DAILY
+           SHELF tagged "D". Each is read by selectMtfAncestry from THIS
+           chart's own loaded bars through the one session owner — nothing is
+           fetched, and an element the history cannot build is a named silence
+           on the glass, never an estimate. Every fill is cut out of the
+           candles, so price stays sovereign. */
+        delete ds.mtfAncestryPainted;
+        if (layerOnRef.current.mtfAncestry === true && att.paints("mtfAncestry") && srs) {
+          const barsM = (barsRef.current ?? []).map(b => ({ time: Number(b.time), open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
+          const memoKey = `${symbol}|${timeframe}|${extendedHours ? 1 : 0}`;
+          if (mtfMemoRef.current.key !== memoKey) mtfMemoRef.current = { key: memoKey, memo: new Map() };
+          const mtf = selectMtfAncestry({
+            bars: barsM,
+            window: sessionWindowFor(symbol, timeframe, !!extendedHours),
+            chartSec: barInterval(),
+            precision: displayPrecisionFor(symbol, barsM),
+            asOfSec: replayCameraRef.current ? null : Date.now() / 1000,
+            memo: mtfMemoRef.current.memo,
+          });
+          ds.mtfAncestry = mtf.receipt;
+          onMtfAncestryRef.current?.(mtf);
+          // QUIET at a depth: the bodies stay, the words and tags go (H-501).
+          const mtfSpeaks = att.speaks("mtfAncestry");
+          const tsM = chart.timeScale();
+          let axisWM = 60;
+          try { axisWM = chart.priceScale("right").width(); } catch { /* keep default */ }
+          const plotRightM = Math.max(8, W - axisWM);
+          let paneBotM = H;
+          try {
+            const ps = (chart as any).paneSize?.(0);
+            if (ps && Number.isFinite(ps.height) && ps.height > 0) paneBotM = ps.height;
+          } catch { /* keep the canvas height */ }
+          // A time left of the camera pins to the left edge: the element began
+          // before the first bar on screen and still reaches the present.
+          const xOf = (t: number): number => {
+            const x = tsM.timeToCoordinate(t as never);
+            if (x != null) return Math.max(0, +x);
+            const vr = tsM.getVisibleRange();
+            return vr && t < Number(vr.from) ? 0 : plotRightM;
+          };
+          const yOf = (p: number): number | null => { const y = srs.priceToCoordinate(p); return y == null ? null : +y; };
+          const vrM = tsM.getVisibleLogicalRange();
+          const cutM = new Path2D();
+          cutM.rect(0, 0, W, H);
+          for (const r of candleCutOutRects(barsM, {
+            visible: vrM ? { from: +vrM.from, to: +vrM.to } : null,
+            barSpacing: bsp,
+            timeToX: t => { const xk = tsM.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+            priceToY: p => yOf(p),
+          }, 0, plotRightM)) cutM.rect(r.x, r.y, r.w, r.h);
+          const TAG_W = 26, TAG_H = 18;
+          const painted: string[] = [];
+          const silences: string[] = [];
+          const SILENCE_WORD: Record<string, string> = {
+            NO_BARS: "no bars", CHART_TF_NOT_BELOW: "chart is not below it", NO_SESSION: "no session",
+            NO_COMPLETE_BAR: "no complete bar loaded", NO_VOLUME: "no volume",
+          };
+          // The tag: the plate's boxed timeframe letter at the right edge, on
+          // the element's own price — a label that CONFIRMS a drawn body.
+          // The tag: the plate's boxed timeframe letter, on the element's own
+          // price — a label that CONFIRMS a drawn body. The plate sets it at the
+          // right edge; our live edge prints candles there, so the tag goes
+          // through the keep-out placer: right edge when clear, else the
+          // element's own left end — never over a candle body (price first).
+          const tag = (label: string, yMid: number, ink: string, back: string, xStart: number) => {
+            if (!mtfSpeaks) return "QUIET";
+            const ty = Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotM - TAG_H - 2, yMid - TAG_H / 2));
+            const pref = { x: plotRightM - TAG_W - 6, y: ty, w: TAG_W, h: TAG_H };
+            const alt = { x: Math.max(keepOutMinX(), xStart + 4), y: ty, w: TAG_W, h: TAG_H };
+            const spot = placeClearOfKeepOut(
+              pref,
+              [...keepOut(), ...rowBodiesAt(ty, ty + TAG_H)],
+              { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [alt] },
+            );
+            recordKeepOut(keepOutLedger, spot);
+            const { x: tx, y: tyy } = spot.rect;
+            ctx.fillStyle = back;
+            ctx.fillRect(tx, tyy, TAG_W, TAG_H);
+            ctx.strokeStyle = ink;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(tx + 0.5, tyy + 0.5, TAG_W - 1, TAG_H - 1);
+            ctx.fillStyle = ink;
+            ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(label, tx + TAG_W / 2, tyy + TAG_H / 2 + 0.5);
+            floatingChips.push({ x: tx, y: tyy, w: TAG_W, h: TAG_H });
+            return spot.mode;
+          };
+          const nameIn = (text: string, x0: number, x1: number, yMid: number, ink: string) => {
+            if (!mtfSpeaks) return;
+            ctx.font = "italic 600 10px ui-sans-serif, system-ui, sans-serif";
+            const w = ctx.measureText(text).width;
+            if (x1 - x0 < w + 16) return;
+            ctx.fillStyle = ink;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(text, (x0 + x1) / 2, yMid);
+          };
+          ctx.save();
+          ctx.globalAlpha = att.alpha("mtfAncestry");
+          ctx.beginPath();
+          ctx.rect(0, HEADER_FLOOR_Y, plotRightM, Math.max(0, paneBotM - HEADER_FLOOR_Y));
+          ctx.clip();
+
+          // 4H ANCESTRY BAND — the ancestor bar's BODY, from its first bar to
+          // the present; translucent green, a thin green edge.
+          if (mtf.band.kind === "BAND") {
+            const b = mtf.band;
+            const yT = yOf(b.high), yB = yOf(b.low);
+            if (yT != null && yB != null) {
+              const x0 = xOf(b.firstTime), x1 = plotRightM - 4;
+              const top = Math.min(yT, yB), h = Math.max(2, Math.abs(yB - yT));
+              if (x1 > x0) {
+                ctx.save();
+                ctx.clip(cutM, "evenodd");
+                ctx.fillStyle = "rgba(76,175,96,0.16)";
+                ctx.fillRect(x0, top, x1 - x0, h);
+                ctx.restore();
+                ctx.strokeStyle = "rgba(96,196,112,0.75)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x0 + 0.5, top + 0.5, x1 - x0 - 1, h - 1);
+                nameIn("4H ANCESTRY BAND", x0, x1, top + h / 2, "rgba(140,214,150,0.9)");
+                tag("4H", top + h / 2, "rgba(120,210,132,1)", "rgba(12,32,18,0.9)", x0);
+                painted.push(`BAND@${b.firstTime}:${b.relation}`);
+              }
+            }
+          } else silences.push(`4H · ${SILENCE_WORD[mtf.band.reason] ?? mtf.band.reason}`);
+
+          // 1H NODE — the hour's highest-volume rows, a hatched grey box from
+          // that hour to the present.
+          if (mtf.node.kind === "NODE") {
+            const n = mtf.node;
+            const yT = yOf(n.high), yB = yOf(n.low);
+            if (yT != null && yB != null) {
+              const x0 = xOf(n.firstTime), x1 = plotRightM - 4;
+              const top = Math.min(yT, yB), h = Math.max(4, Math.abs(yB - yT));
+              if (x1 > x0) {
+                ctx.save();
+                ctx.clip(cutM, "evenodd");
+                ctx.fillStyle = "rgba(150,156,168,0.12)";
+                ctx.fillRect(x0, top, x1 - x0, h);
+                ctx.beginPath();
+                ctx.rect(x0, top, x1 - x0, h);
+                ctx.clip();
+                ctx.strokeStyle = "rgba(186,192,204,0.55)";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                for (let hx = x0 - h; hx < x1; hx += 6) { ctx.moveTo(hx, top + h); ctx.lineTo(hx + h, top); }
+                ctx.stroke();
+                ctx.restore();
+                ctx.strokeStyle = "rgba(196,202,214,0.9)";
+                ctx.lineWidth = 1.25;
+                ctx.strokeRect(x0 + 0.5, top + 0.5, x1 - x0 - 1, h - 1);
+                ctx.lineWidth = 1;
+                nameIn("1H NODE", x0, x1, top + h / 2, "rgba(214,218,226,0.9)");
+                tag("1H", top + h / 2, "rgba(206,210,220,1)", "rgba(24,26,32,0.9)", x0);
+                painted.push(`NODE@${n.price}`);
+              }
+            }
+          } else silences.push(`1H · ${SILENCE_WORD[mtf.node.reason] ?? mtf.node.reason}`);
+
+          // DAILY SHELF — the completed session's PDH or PDL, dashed gold across
+          // the chart; the name sits on the shelf, below it.
+          if (mtf.shelf.kind === "SHELF") {
+            const sh = mtf.shelf;
+            const y = yOf(sh.price);
+            // OFF CAMERA IS SAID, NOT CLAMPED. The shelf can sit outside the
+            // price range on screen (TSLA 15m: PDH 386.83 over a 372 tape): the
+            // tag rides the pane's edge with an arrow and the level's price, and
+            // no line is drawn at a height the level is not at.
+            const offTop = y != null && y < HEADER_FLOOR_Y, offBot = y != null && y > paneBotM;
+            if (y != null && (offTop || offBot) && mtfSpeaks) {
+              const word = `D ${sh.level} ${sh.price.toFixed(displayPrecisionFor(symbol, barsM))} ${offTop ? "▲" : "▼"}`;
+              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+              const ww = ctx.measureText(word).width + 12, wh = 16;
+              const wx = plotRightM - ww - 6, wy = offTop ? HEADER_FLOOR_Y + 4 : paneBotM - wh - 4;
+              ctx.fillStyle = "rgba(30,24,8,0.9)";
+              ctx.fillRect(wx, wy, ww, wh);
+              ctx.setLineDash([4, 3]);
+              ctx.strokeStyle = "rgba(232,184,64,0.9)";
+              ctx.strokeRect(wx + 0.5, wy + 0.5, ww - 1, wh - 1);
+              ctx.setLineDash([]);
+              ctx.fillStyle = "rgba(232,184,64,1)";
+              ctx.textAlign = "left";
+              ctx.textBaseline = "middle";
+              ctx.fillText(word, wx + 6, wy + wh / 2 + 0.5);
+              floatingChips.push({ x: wx, y: wy, w: ww, h: wh });
+              painted.push(`SHELF:${sh.level}@${sh.price}:OFF_${offTop ? "TOP" : "BOTTOM"}`);
+            } else if (y != null) {
+              const x1 = plotRightM - 4;
+              ctx.strokeStyle = "rgba(232,184,64,0.95)";
+              ctx.lineWidth = 1.5;
+              ctx.setLineDash([7, 5]);
+              ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(x1, y + 0.5); ctx.stroke();
+              ctx.setLineDash([]);
+              ctx.font = "italic 600 10px ui-sans-serif, system-ui, sans-serif";
+              ctx.fillStyle = "rgba(232,184,64,0.95)";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "top";
+              if (mtfSpeaks) ctx.fillText(`DAILY SHELF · ${sh.level}`, x1 * 0.4, y + 5);
+              tag("D", y, "rgba(232,184,64,1)", "rgba(30,24,8,0.9)", 6);
+              painted.push(`SHELF:${sh.level}@${sh.price}`);
+            }
+          } else silences.push(`D · ${SILENCE_WORD[mtf.shelf.reason] ?? mtf.shelf.reason}`);
+          ctx.restore();
+
+          if (silences.length && mtfSpeaks) {
+            const words = `MTF · ${silences.join(" · ")}`;
+            ctx.save();
+            ctx.globalAlpha = att.textAlpha("mtfAncestry");
+            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.fillStyle = "rgba(200,192,174,0.85)";
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            ctx.fillText(words, 12, H - 100);
+            floatingChips.push({ x: 12, y: H - 100 - 7, w: ctx.measureText(words).width, h: 14 });
+            ctx.restore();
+          }
+          ds.mtfAncestryPainted = painted.join("|") || "NONE";
+        } else {
+          ds.mtfAncestry = att.offWord(layerOnRef.current.mtfAncestry === true);
+          onMtfAncestryRef.current?.(null);
         }
 
         /* ══ H-401 · CONTRADICTION NOT AVERAGED — both truths paint ══════════
