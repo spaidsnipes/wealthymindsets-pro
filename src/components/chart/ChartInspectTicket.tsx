@@ -730,6 +730,7 @@ export function ChartInspectTicket({
   activeDecisionId = null,
   contradiction = null,
   memoryGhost = null,
+  memoryGhostFrozenAsOf = null,
   envelope = null,
   fusion = null,
   profileDna = null,
@@ -768,6 +769,9 @@ export function ChartInspectTicket({
   contradiction?: ContradictionVM | null;
   /** H-201 · "Analogue sample / mismatch belongs in Inspect." */
   memoryGhost?: MemoryGhostVM | null;
+  /** H-201 · set when the ghost was CLICKED: the analogue's own last bar
+   *  (unix s). `memoryGhost` is then the reading frozen at the click. */
+  memoryGhostFrozenAsOf?: number | null;
   /** H-801 · the envelope and its surprise, as counts of this chart's sessions. */
   envelope?: ExpectedEnvelopeVM | null;
   /** H-601 #3 · the fused profile object — sources, method, recomputed levels. */
@@ -1206,8 +1210,11 @@ export function ChartInspectTicket({
 
       {/* H-201 · the analogue behind the ghost: sample, fit, mismatch — or why none. */}
       {memoryGhost && (
-        <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-memory-ghost={memoryGhost.reason} style={{ color: "#C8C0AE" }}>
-          <div className="font-bold tracking-wide text-wm-gold">MEMORY GHOST · {memoryGhost.drawn ? "ANALOGUE" : "NO ANALOGUE DRAWN"}</div>
+        <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-memory-ghost={memoryGhost.reason} data-inspect-memory-ghost-frozen={memoryGhostFrozenAsOf ?? undefined} style={{ color: "#C8C0AE" }}>
+          <div className="font-bold tracking-wide text-wm-gold">MEMORY GHOST · {memoryGhost.drawn ? "ANALOGUE" : "NO ANALOGUE DRAWN"}{memoryGhostFrozenAsOf != null ? " · SELECTED" : ""}</div>
+          {memoryGhostFrozenAsOf != null && (
+            <div data-testid="inspect-memory-ghost-asof">Frozen as of {clock.minute(memoryGhostFrozenAsOf)} {clock.zone(memoryGhostFrozenAsOf)} — the analogue as it was clicked; the live ghost may move on</div>
+          )}
           {memoryGhost.drawn && memoryGhost.analogueStart != null && memoryGhost.analogueEnd != null ? (
             <>
               <div>Sample · {clock.minute(memoryGhost.analogueStart)} → {clock.hhmm(memoryGhost.analogueEnd)} {clock.zone(memoryGhost.analogueEnd)} · {memoryGhost.points.length} bars</div>

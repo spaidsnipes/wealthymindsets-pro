@@ -2,10 +2,11 @@
  * ONE SELECTION AT A TIME — what the chart has selected, and whether Inspect
  * is open on it.
  *
- * The chart offers four things to select: a market OBJECT (a swing zone or a
+ * The chart offers five things to select: a market OBJECT (a swing zone or a
  * structure LEVEL, by objectId), a big-trade or delta PRINT (a bubble), a
- * Living Profile SLICE (a clicked price in the lane), and an ANATOMY object
- * (an absorption shelf or an exhaustion mark). Each has its own selected
+ * Living Profile SLICE (a clicked price in the lane), an ANATOMY object
+ * (an absorption shelf or an exhaustion mark), and the MEMORY GHOST's
+ * analogue (frozen as it was clicked). Each has its own selected
  * treatment on the glass — zone fill plus callout, LEVEL diamond, slice
  * outline, bubble, shelf or mark halo — and the ONE Inspect ticket reads
  * whichever is selected.
@@ -34,6 +35,7 @@
 
 import type { SelectedBigTrade } from "@/lib/bigTradeLevels";
 import { anatomyReadingDrawn, type AnatomyInspectVM } from "./anatomySelection";
+import type { MemoryGhostVM } from "./selectMemoryGhost";
 
 export interface SelectedAnatomy {
   readonly kind: "ANATOMY";
@@ -47,11 +49,27 @@ export interface SelectedAnatomy {
   readonly lastDrawn: AnatomyInspectVM | null;
 }
 
+/**
+ * H-201 · "CLICK GHOST OPENS PASSPORT OF THAT HISTORICAL OBJECT WITH FROZEN
+ * ASOF". The analogue reading that was on the glass when it was clicked,
+ * held as it was: the live ghost may find a different analogue on the next
+ * bar, and Inspect keeps describing the one the trader chose. `asOf` is the
+ * analogue's own last bar (unix seconds) — the historical object's clock.
+ */
+export interface SelectedMemoryGhost {
+  readonly kind: "MEMORY_GHOST";
+  readonly symbol: string;
+  readonly timeframe: string;
+  readonly ghost: MemoryGhostVM;
+  readonly asOf: number;
+}
+
 export type ChartSelection =
   | { readonly kind: "OBJECT"; readonly objectId: string }
   | { readonly kind: "PRINT"; readonly print: SelectedBigTrade }
   | { readonly kind: "SLICE"; readonly symbol: string; readonly timeframe: string; readonly price: number }
-  | SelectedAnatomy;
+  | SelectedAnatomy
+  | SelectedMemoryGhost;
 
 export type ChartSelectionKind = ChartSelection["kind"];
 
@@ -141,7 +159,7 @@ export function selectChartSelection(
       if (current?.kind === "OBJECT" && compiled(current.objectId)) return state;
       if (current?.kind === "PRINT"
         && current.print.symbol === action.symbol && current.print.timeframe === action.timeframe) return state;
-      if ((current?.kind === "SLICE" || current?.kind === "ANATOMY")
+      if ((current?.kind === "SLICE" || current?.kind === "ANATOMY" || current?.kind === "MEMORY_GHOST")
         && current.symbol === action.symbol && current.timeframe === action.timeframe) return state;
       const restored: ChartSelection | null = compiled(action.savedObjectId)
         ? { kind: "OBJECT", objectId: action.savedObjectId }
@@ -184,6 +202,11 @@ export function selectedSliceOf(
 /** The selected anatomy object, or null when the selection is not one. */
 export function selectedAnatomyOf(state: ChartSelectionState): SelectedAnatomy | null {
   return state.selection?.kind === "ANATOMY" ? state.selection : null;
+}
+
+/** The selected (frozen) memory ghost, or null when the selection is not one. */
+export function selectedMemoryGhostOf(state: ChartSelectionState): SelectedMemoryGhost | null {
+  return state.selection?.kind === "MEMORY_GHOST" ? state.selection : null;
 }
 
 /**

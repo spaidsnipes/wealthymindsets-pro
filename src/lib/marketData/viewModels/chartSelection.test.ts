@@ -6,6 +6,7 @@ import {
   releasesObject,
   selectChartSelection as reduce,
   selectedAnatomyOf,
+  selectedMemoryGhostOf,
   selectedObjectIdOf,
   selectedPrintOf,
   selectedSliceOf,
@@ -14,6 +15,7 @@ import {
   type SelectedAnatomy,
 } from "./chartSelection";
 import type { AnatomyInspectVM, AnatomyResolution } from "./anatomySelection";
+import { selectMemoryGhost } from "./selectMemoryGhost";
 
 const print = (over: Partial<SelectedBigTrade> = {}): SelectedBigTrade => ({
   priceLevel: 101.25, bid: 0, ask: 5000, total: 5000, printKey: "T-1",
@@ -207,5 +209,40 @@ describe("selectChartSelection — an ANATOMY object (shelf or mark) is one more
     expect(reduce(s, { type: "closeInspect" })).toEqual(CHART_SELECTION_AT_REST);
     expect(reduce(s, { type: "clear", kinds: ["PRINT"] })).toBe(s);
     expect(reduce(s, { type: "clear", kinds: ["ANATOMY"] })).toEqual({ selection: null, inspectOpen: true });
+  });
+});
+
+describe("H-201 · the memory ghost is selected FROZEN, as it was clicked", () => {
+  // A real analogue from bars that repeat their shape: the owner, not a stub.
+  const bars = Array.from({ length: 80 }, (_, i) => {
+    const close = 100 + 5 * Math.sin((i % 20) / 3) + i * 0.01;
+    return { time: 1_700_000_000 + i * 300, open: close - 0.2, high: close + 0.5, low: close - 0.5, close };
+  });
+  const ghost = selectMemoryGhost(bars);
+  const pick = (symbol = "AAPL", timeframe = "5m"): ChartSelectionAction =>
+    ({ type: "select", selection: { kind: "MEMORY_GHOST", symbol, timeframe, ghost, asOf: ghost.analogueEnd! } });
+
+  it("the fixture draws a real analogue", () => {
+    expect(ghost.drawn).toBe(true);
+    expect(ghost.analogueEnd).not.toBeNull();
+  });
+
+  it("a click selects it alone and opens Inspect on the reading as it was, with the analogue's own clock", () => {
+    const s = run({ type: "toggleObject", objectId: "ZONE-1" }, pick());
+    expect(s.inspectOpen).toBe(true);
+    expect(selectedObjectIdOf(s)).toBeNull();
+    const g = selectedMemoryGhostOf(s);
+    expect(g?.ghost).toBe(ghost);
+    expect(g?.asOf).toBe(ghost.analogueEnd);
+    expect(g!.asOf).toBeLessThan(bars[bars.length - 1].time);
+  });
+
+  it("reconcile keeps it on its own chart and drops it on another; clear by kind lets it go", () => {
+    const s = run(pick());
+    expect(reduce(s, reconcile([], null))).toBe(s);
+    expect(reduce(s, reconcile([], null, "AAPL", "15m")).selection).toBeNull();
+    expect(reduce(s, { type: "clear", kinds: ["ANATOMY"] })).toBe(s);
+    expect(reduce(s, { type: "clear", kinds: ["MEMORY_GHOST"] })).toEqual({ selection: null, inspectOpen: true });
+    expect(selectedMemoryGhostOf(run(pick(), { type: "select", selection: { kind: "PRINT", print: print() } }))).toBeNull();
   });
 });

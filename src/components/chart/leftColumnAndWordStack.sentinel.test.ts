@@ -63,7 +63,15 @@ describe("left column and word stack", () => {
   it("the Structure Profile name and the memory-ghost caption stay below the header chrome", () => {
     expect(CHART).not.toMatch(/x0 \+ 4, Math\.max\(14, top - 4\)/);
     expect(CHART).toMatch(/x0 \+ 4, Math\.max\(HEADER_FLOOR_Y \+ 12, top - 4\),/);
-    expect(CHART).toMatch(/const ly = Math\.max\(HEADER_FLOOR_Y \+ 7, lastXY\.y - 16\);/);
+    // Pin updated 2026-09-26 (H-201 plate pass): the ghost caption left the
+    // price line for the keep-out owner (above the bracket's top rule, else
+    // below its bottom rule); every slot it may try is floored below the
+    // header chrome and kept inside the candle pane. The old floor must not
+    // come back beside it.
+    expect(CHART).toMatch(/const capY = \(y: number\) => Math\.max\(HEADER_FLOOR_Y \+ 2, Math\.min\(pane0Bottom - capH - 2, y\)\);/);
+    expect(CHART).toMatch(/const capAbove = \{ x: capX, y: capY\(bracket\.yHi - 10 - capH\), w: capW, h: capH \};/);
+    expect(CHART).toMatch(/const capBelow = \{ x: capX, y: capY\(bracket\.yLo \+ 10\), w: capW, h: capH \};/);
+    expect(CHART).not.toMatch(/lastXY\.y - 16/);
   });
 
   it("the profile stack's words join the chip ledger, and the Structure chips step clear of them", () => {

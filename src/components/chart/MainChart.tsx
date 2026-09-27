@@ -1339,6 +1339,13 @@ interface Props {
   onContradiction?: (vm: ContradictionVM | null) => void;
   /** H-201 — the ghost's analogue sample / mismatch, handed up for Inspect. */
   onMemoryGhost?: (vm: MemoryGhostVM | null) => void;
+  /** H-201 — "CLICK GHOST OPENS PASSPORT OF THAT HISTORICAL OBJECT WITH
+   *  FROZEN ASOF": a click on the painted ghost hands up the reading that was
+   *  on screen; the room freezes it into the one selection. */
+  onSelectMemoryGhost?: (vm: MemoryGhostVM) => void;
+  /** The selected ghost's analogue start (unix s), or null — the glass names
+   *  whether the ghost it paints is still the one Inspect froze. */
+  selectedMemoryGhostStart?: number | null;
   /** H-801 — the envelope and its surprise counts, handed up for Inspect. */
   onExpectedEnvelope?: (vm: ExpectedEnvelopeVM | null) => void;
   /** H-601 #3 — the fused profile object (or the named refusal), for Inspect. */
@@ -1705,6 +1712,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onRiskOnPrice,
   onContradiction,
   onMemoryGhost,
+  onSelectMemoryGhost,
+  selectedMemoryGhostStart = null,
   onExpectedEnvelope,
   onProfileFusion,
   onVisibleRangeRefusal,
@@ -1949,6 +1958,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const nearTapeHitsRef = useRef<{ x: number; y: number; r: number; barTime: number; dot: NearTapeDot }[]>([]);
   /** R-19 · structure-zone bands painted this frame, for band clicks. */
   const zoneHitsRef = useRef<{ objectId: string; x: number; y: number; w: number; h: number }[]>([]);
+  /** H-201 · the ghost painted this frame (its candle columns and caption), for a ghost click. */
+  const memoryGhostHitRef = useRef<{ rects: { x: number; y: number; w: number; h: number }[]; vm: MemoryGhostVM } | null>(null);
   /** The frame those hits were painted from, so a click reads the reading that was on screen. */
   const anatomyFrameRef = useRef<{ anatomy: AbsorptionAnatomyVM; windowCapped: boolean } | null>(null);
 
@@ -1976,6 +1987,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const fusionObjectRef = useRef<FusedProfileObject | null>(null);
   useEffect(() => { onExpectedEnvelopeRef.current = onExpectedEnvelope; }, [onExpectedEnvelope]);
   useEffect(() => { onMemoryGhostRef.current = onMemoryGhost; }, [onMemoryGhost]);
+  const selectedMemoryGhostStartRef = useRef<number | null>(null);
+  useEffect(() => { selectedMemoryGhostStartRef.current = selectedMemoryGhostStart ?? null; }, [selectedMemoryGhostStart]);
   useEffect(() => { onContradictionRef.current = onContradiction; }, [onContradiction]);
   useEffect(() => { onRiskOnPriceRef.current = onRiskOnPrice; }, [onRiskOnPrice]);
   useEffect(() => { activeDecisionIdRef.current = activeDecisionId ?? null; }, [activeDecisionId]);
@@ -6090,6 +6103,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       anatomyHitsRef.current = [];
       zoneHitsRef.current = [];
       nearTapeHitsRef.current = [];
+      memoryGhostHitRef.current = null;
       // SHOW RAW (Founder correction). The glass paints NOTHING but its own
       // stamp; no switch is changed, so turning raw off restores every reading
       // exactly as it was. The candles and volume are the chart's own series.
@@ -13049,10 +13063,75 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // The owner's ceiling is the ghost's brightness, in every form;
             // the attention governor (MEMORY) may only lower it.
             ctx.globalAlpha = Math.min(ghost.opacity, att.alpha("memoryGhost"));
-            let lastXY: { x: number; y: number } | null = null;
             // Below this slot width a hollow ghost body cannot be told from its
             // neighbours or from the live body it sits on, so the path speaks.
             const GHOST_CANDLE_MIN_SPACING = 8;
+            /*
+              H-201 · THE PLATE'S GHOST (2026-09-26). Serving TSLA 5m, 04:58
+              CDT: the ghost drew as faint SOLID hollow outlines that could not
+              be told from the live candles with the labels hidden, the bracket
+              was a faint box, and the caption printed ACROSS the newest live
+              bars at the price line. The plate draws each ghost candle as a
+              DASHED-OUTLINE body on a dashed wick, in bone ink at "GHOST
+              OPACITY 0.18 MAX", and brackets the analogue with thin dashed
+              rules at its high and low across its span and a dashed vertical
+              at the segment start. The ceiling above still owns brightness;
+              legibility comes from the dash, the bone ink and the >=1.2 stroke.
+            */
+            const GHOST_INK = "rgba(237,230,211,1)";
+            const bwG = Math.max(3, Math.round(bsp * 0.6));
+            const extremes = ghost.candles.length ? ghost.candles.map(c => [c.high, c.low]) : ghost.points.map(p => [p.price, p.price]);
+            const hiG = Math.max(...extremes.map(e => e[0])), loG = Math.min(...extremes.map(e => e[1]));
+            const xFirstG = tsG.timeToCoordinate(ghost.points[0].time as never);
+            const xLastG = tsG.timeToCoordinate(ghost.points[ghost.points.length - 1].time as never);
+            const yHiG = srs.priceToCoordinate(hiG), yLoG = srs.priceToCoordinate(loG);
+            // The bracket ends at the newest bar's own body edge: nothing right of it.
+            const bracket = xFirstG != null && xLastG != null && yHiG != null && yLoG != null
+              ? { x0: Math.round(+xFirstG - bsp * 0.5) + 0.5, x1: +xLastG + bwG / 2, yHi: Math.round(+yHiG) + 0.5, yLo: Math.round(+yLoG) + 0.5 }
+              : null;
+            const strokeBracket = () => {
+              if (!bracket) return;
+              ctx.strokeStyle = GHOST_INK; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+              ctx.beginPath();
+              ctx.moveTo(bracket.x0 - 6, bracket.yHi); ctx.lineTo(bracket.x1, bracket.yHi);
+              ctx.moveTo(bracket.x0 - 6, bracket.yLo); ctx.lineTo(bracket.x1, bracket.yLo);
+              ctx.moveTo(bracket.x0, bracket.yHi - 8); ctx.lineTo(bracket.x0, bracket.yLo + 8);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            };
+            // What a click on the ghost hits: the columns painted this frame.
+            const ghostHits: { x: number; y: number; w: number; h: number }[] = [];
+            // THE GHOST STAYS IN THE PANE (the H-801 fan's rule, cd520b21):
+            // between the header floor and the candle pane's bottom, and every
+            // chip already on the glass is cut out of it — one clip per chip,
+            // so two overlapping chips never re-fill. The receipt names how
+            // many ghost columns reached past either edge and how many chips
+            // sat on the ghost's span.
+            const colYs: [number, number][] = [];
+            for (const [h, l] of extremes) {
+              const yh = srs.priceToCoordinate(h), yl = srs.priceToCoordinate(l);
+              if (yh != null && yl != null) colYs.push([+yh, +yl]);
+            }
+            const clipTop = colYs.filter(([yh]) => yh < HEADER_FLOOR_Y).length;
+            const clipBot = colYs.filter(([, yl]) => yl > pane0Bottom).length;
+            const chipsOnGhost = bracket
+              ? floatingChips.filter(r => r.x < bracket.x1 && r.x + r.w > bracket.x0 - 6 && r.y < bracket.yLo + 8 && r.y + r.h > bracket.yHi - 8).length
+              : 0;
+            ds.memoryGhostClipped = [
+              clipTop ? `TOP:${clipTop}/${colYs.length}` : "",
+              clipBot ? `BOTTOM:${clipBot}/${colYs.length}` : "",
+              chipsOnGhost ? `CHIPS:${chipsOnGhost}` : "",
+            ].filter(Boolean).join("|") || "NONE";
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, HEADER_FLOOR_Y, plotRight, Math.max(0, pane0Bottom - HEADER_FLOOR_Y));
+            ctx.clip();
+            for (const r of floatingChips) {
+              ctx.beginPath();
+              ctx.rect(0, 0, W, H);
+              ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+              ctx.clip("evenodd");
+            }
             if (ghost.candles.length > 1 && bsp >= GHOST_CANDLE_MIN_SPACING) {
               // CANON F03A — memory as ghost CANDLES on the canvas: the
               // analogue's own bars, re-based, TIME-TRUE on the live bars they
@@ -13074,8 +13153,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.rect(+x - bsp * 0.46, Math.min(+lo, +lc) - 1, bsp * 0.92, Math.abs(+lc - +lo) + 2);
               }
               ctx.clip("evenodd");
-              const bw = Math.max(3, Math.round(bsp * 0.6));
-              ctx.strokeStyle = "rgba(200,194,180,0.9)"; ctx.lineWidth = 1;
+              const bw = bwG;
+              // Dashed outline, dashed wick, bone ink, a stroke that survives 0.18.
+              ctx.strokeStyle = GHOST_INK; ctx.lineWidth = 1.25; ctx.setLineDash([3, 2]);
               let drawnCandles = 0;
               for (const c of ghost.candles) {
                 const x = tsG.timeToCoordinate(c.time as never);
@@ -13086,11 +13166,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const top = Math.min(+yo, +yc), hB = Math.max(1, Math.abs(+yc - +yo));
                 ctx.beginPath(); ctx.moveTo(cxg, +yh); ctx.lineTo(cxg, top); ctx.moveTo(cxg, top + hB); ctx.lineTo(cxg, +yl); ctx.stroke();
                 ctx.strokeRect(Math.round(cxg - bw / 2) + 0.5, Math.round(top) + 0.5, bw, Math.max(1, Math.round(hB)));
-                lastXY = { x: +x, y: +yc };
+                ghostHits.push({ x: cxg - bw / 2 - 2, y: Math.min(+yh, +yl) - 2, w: bw + 4, h: Math.abs(+yl - +yh) + 4 });
                 drawnCandles++;
               }
+              ctx.setLineDash([]);
+              // The bracket passes behind the live bodies, like the ghost.
+              strokeBracket();
               ctx.restore();
-              ds.memoryGhostForm = `CANDLES:${drawnCandles}`;
+              ds.memoryGhostForm = `DASHED:${drawnCandles}`;
             } else {
               ctx.strokeStyle = "rgba(237,230,211,1)";
               ctx.lineWidth = 3;
@@ -13102,26 +13185,73 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const y = srs.priceToCoordinate(pt.price);
                 if (x == null || y == null) continue;
                 if (!started) { ctx.moveTo(+x, +y); started = true; } else ctx.lineTo(+x, +y);
-                lastXY = { x: +x, y: +y };
+                ghostHits.push({ x: +x - 4, y: +y - 6, w: 8, h: 12 });
               }
               ctx.stroke();
               ctx.setLineDash([]);
               if (started) ds.memoryGhostForm = "PATH";
               else delete ds.memoryGhostForm;
+              if (started) strokeBracket();
             }
+            ctx.restore();
+            // Is the ghost on the glass the one Inspect froze? (The selected
+            // treatment: its caption wears a solid gold rule while it is.)
+            const selStart = selectedMemoryGhostStartRef.current;
+            const selectedHere = selStart != null && selStart === ghost.analogueStart;
+            ds.memoryGhostSelected = selStart == null ? "NONE" : selectedHere ? "ON_GLASS" : "DRIFTED";
             ctx.globalAlpha = 0.85;
-            if (lastXY) {
+            /*
+              THE CAPTION IS NOT A WORD ON CANDLES (2026-09-26). It printed at
+              the price line across the newest bars. It now asks the keep-out
+              owner strictly: above the bracket's top rule at its left end,
+              else below the bottom rule; it may slide left along its row; if
+              every spot sits on a body or a chip it is HELD — the ghost and
+              Inspect still carry the analogue. H-501: words only where the
+              permission table lets memoryGhost SPEAK.
+            */
+            if (!att.speaks("memoryGhost")) {
+              ds.memoryGhostCaption = "QUIET";
+            } else if (!bracket || ghostHits.length === 0) {
+              ds.memoryGhostCaption = "HELD";
+            } else {
               const when = new Date(ghost.analogueStart! * 1000).toISOString().slice(5, 16).replace("T", " ");
               const t = `MEMORY · ${when} UTC · fit ${ghost.fit!.toFixed(2)} · off ${ghost.mismatchPct!.toFixed(2)}%`;
-              const tw = ctx.measureText(t).width;
-              const lx = Math.max(4, Math.min(lastXY.x - tw - 14, W - 90 - tw));
-              // Box is ly−7…ly+7: below the header chrome, like every floating chip.
-              const ly = Math.max(HEADER_FLOOR_Y + 7, lastXY.y - 16);
-              ctx.fillStyle = "rgba(11,10,8,0.85)";
-              ctx.fillRect(lx - 4, ly - 7, tw + 8, 14);
-              ctx.fillStyle = "rgba(237,230,211,0.9)";
-              ctx.fillText(t, lx, ly);
+              const capW = ctx.measureText(t).width + 10, capH = 14;
+              const capY = (y: number) => Math.max(HEADER_FLOOR_Y + 2, Math.min(pane0Bottom - capH - 2, y));
+              const capX = Math.max(keepOutMinX(), Math.min(bracket.x0 - 6, plotRight - 2 - capW));
+              const capAbove = { x: capX, y: capY(bracket.yHi - 10 - capH), w: capW, h: capH };
+              const capBelow = { x: capX, y: capY(bracket.yLo + 10), w: capW, h: capH };
+              const spotG = placeClearOfKeepOut(
+                capAbove,
+                [...keepOut(), ...rowBodiesAt(Math.min(capAbove.y, capBelow.y), Math.max(capAbove.y, capBelow.y) + capH)],
+                { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [capBelow] },
+              );
+              if (spotG.mode === "BLOCKED" || spotG.rect.x + capW > plotRight - 2) {
+                ds.memoryGhostCaption = "HELD";
+              } else {
+                recordKeepOut(keepOutLedger, spotG);
+                floatingChips.push({ ...spotG.rect });
+                ghostHits.push({ ...spotG.rect });
+                const r = spotG.rect;
+                ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotG, 0.85)})`;
+                ctx.fillRect(r.x, r.y, capW, capH);
+                ctx.strokeStyle = selectedHere ? "rgba(240,190,70,0.9)" : "rgba(237,230,211,0.35)";
+                ctx.setLineDash(selectedHere ? [] : [3, 2]);
+                ctx.strokeRect(r.x + 0.5, r.y + 0.5, capW - 1, capH - 1);
+                ctx.setLineDash([]);
+                ctx.fillStyle = "rgba(237,230,211,0.9)";
+                ctx.fillText(t, r.x + 5, r.y + capH / 2 + 0.5);
+                ds.memoryGhostCaption = spotG.mode;
+              }
             }
+            memoryGhostHitRef.current = ghostHits.length ? { rects: ghostHits, vm: ghost } : null;
+            // Where the ghost is on this glass, for a browser proof to find
+            // and click it: the bracket box, and the centre of its middle column.
+            if (bracket) ds.memoryGhostBracket = `${Math.round(bracket.x0)},${Math.round(bracket.yHi)},${Math.round(bracket.x1 - bracket.x0)}x${Math.round(bracket.yLo - bracket.yHi)}`;
+            else delete ds.memoryGhostBracket;
+            const midHit = ghostHits[Math.floor(ghostHits.length / 2)];
+            if (midHit) ds.memoryGhostHitAt = `${Math.round(midHit.x + midHit.w / 2)},${Math.round(midHit.y + midHit.h / 2)}`;
+            else delete ds.memoryGhostHitAt;
           } else {
             const t = ghost.reason === "INSUFFICIENT_HISTORY"
               ? "MEMORY · not enough history on this chart for an analogue"
@@ -13131,11 +13261,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillText(t, 12, H - 72);
             // The form receipt names what is on the glass; a silence has none.
             delete ds.memoryGhostForm;
+            delete ds.memoryGhostCaption;
+            delete ds.memoryGhostClipped;
+            delete ds.memoryGhostSelected;
           }
           ctx.restore();
         } else {
           ds.memoryGhost = att.offWord(layerOnRef.current.memoryGhost === true);
           delete ds.memoryGhostForm;
+          delete ds.memoryGhostCaption;
+          delete ds.memoryGhostClipped;
+          delete ds.memoryGhostSelected;
           onMemoryGhostRef.current?.(null);
         }
 
@@ -19033,7 +19169,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       onSelectMarketObject?.(zoneHit.objectId);
       return;
     }
-  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, symbol, timeframe, selectBigTradeAt]);
+    /*
+      H-201 · "CLICK GHOST OPENS PASSPORT OF THAT HISTORICAL OBJECT WITH
+      FROZEN ASOF". The rects are the ghost columns (and its caption) the
+      paint loop drew on the frame on screen; the reading handed up is that
+      same frame's. Last in line: every more specific object on the glass
+      wins where it overlaps the ghost.
+    */
+    const ghostHit = memoryGhostHitRef.current;
+    if (ghostHit && ghostHit.rects.some(g => x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h)) {
+      onSelectMemoryGhost?.(ghostHit.vm);
+      return;
+    }
+  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, onSelectMemoryGhost, symbol, timeframe, selectBigTradeAt]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking

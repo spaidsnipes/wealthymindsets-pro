@@ -325,6 +325,7 @@ import {
   releasesObject,
   selectChartSelection,
   selectedAnatomyOf,
+  selectedMemoryGhostOf,
   selectedObjectIdOf,
   selectedPrintOf,
   selectedSliceOf,
@@ -1768,6 +1769,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const selectedPrint = selectedPrintOf(chartSelection);
   const selectedSlicePrice = selectedSliceOf(chartSelection);
   const selectedAnatomy = selectedAnatomyOf(chartSelection);
+  const selectedMemoryGhost = selectedMemoryGhostOf(chartSelection);
   const inspectOpen = chartSelection.inspectOpen;
   // CONTINUITY (Garden 12 · Defect 7): the selected object survives a refresh
   // in this browser session — keyed by symbol:timeframe, restored only when
@@ -1809,6 +1811,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (!absorptionAnatomy) actOnChartSelection({ type: "clear", kinds: ["ANATOMY"] });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fires on the layer switch only
   }, [absorptionAnatomy]);
+  // H-201 · the ghost is paint on slab, not a destination: switched off, the
+  // analogue it opened is let go with it.
+  useEffect(() => {
+    if (!memoryGhostOn) actOnChartSelection({ type: "clear", kinds: ["MEMORY_GHOST"] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fires on the layer switch only
+  }, [memoryGhostOn]);
   const continuationHealthVM = React.useMemo(() =>
     selectContinuationHealth({ structure: chartStructureVM, regime: chartRegimeVM }),
   [chartStructureVM, chartRegimeVM]);
@@ -1945,6 +1953,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // A shelf or mark is measured on THIS chart's window; one made on another
   // symbol or timeframe is never shown here.
   const activeSelectedAnatomy = selectedAnatomy?.symbol === symbol && selectedAnatomy.timeframe === timeframe ? selectedAnatomy : null;
+  // H-201 · the clicked analogue, frozen — only on the chart it was clicked on.
+  const activeSelectedGhost = selectedMemoryGhost?.symbol === symbol && selectedMemoryGhost.timeframe === timeframe ? selectedMemoryGhost : null;
 
   /* The span comes from the bars the chart DREW, not from a second
    * string→seconds table beside `EXCHANGE_TIMEFRAME_SECONDS`. A parallel
@@ -6000,6 +6010,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       onRiskOnPrice={onRiskOnPrice}
                       onContradiction={onContradiction}
                       onMemoryGhost={onMemoryGhost}
+                      onSelectMemoryGhost={ghost => ghost.analogueEnd != null && actOnChartSelection({ type: "select", selection: { kind: "MEMORY_GHOST", symbol, timeframe, ghost, asOf: ghost.analogueEnd } })}
+                      selectedMemoryGhostStart={activeSelectedGhost?.ghost.analogueStart ?? null}
                       onExpectedEnvelope={onExpectedEnvelope}
                       onProfileFusion={onProfileFusion}
                       onVisibleRangeRefusal={setVisibleRangeRefusal}
@@ -6053,7 +6065,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         printResponse={selectedPrintResponse}
                         onSelectPrint={print => actOnChartSelection({ type: "select", selection: { kind: "PRINT", print } })}
                         contradiction={contradictionVM}
-                        memoryGhost={memoryGhostVM}
+                        memoryGhost={activeSelectedGhost?.ghost ?? memoryGhostVM}
+                        memoryGhostFrozenAsOf={activeSelectedGhost?.asOf ?? null}
                         envelope={envelopeVM}
                         fusion={fusion.fused}
                         profileDna={profileDnaOn ? profileDnaVM : null}
