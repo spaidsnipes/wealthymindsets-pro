@@ -736,6 +736,7 @@ export function ChartInspectTicket({
   envelope = null,
   mtfAncestry = null,
   pressureWall = null,
+  pressureFront = null,
   priceDp = null,
   fusion = null,
   profileDna = null,
@@ -783,6 +784,8 @@ export function ChartInspectTicket({
   mtfAncestry?: MtfAncestryVM | null;
   /** Garden 15 §5 — the selected pressure wall (by strike) and the world it stands in. */
   pressureWall?: { strike: number; vm: DerivativesPressureVM } | null;
+  /** Garden 15 §4 — the selected zero-gamma front: the derivatives environment itself. */
+  pressureFront?: DerivativesPressureVM | null;
   /** The market's display decimals, from displayPrecisionFor (the one display owner). */
   priceDp?: number | null;
   /** H-601 #3 · the fused profile object — sources, method, recomputed levels. */
@@ -1196,6 +1199,26 @@ export function ChartInspectTicket({
       )}
 
       {profileDna && <ProfileDnaBlock dna={profileDna} onGlass={profileDnaOnGlass} />}
+
+      {/* GARDEN 15 §4 · THE ZERO-GAMMA FRONT — the environment, explained. */}
+      {pressureFront && (
+        <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-pressure-front={pressureFront.drawn ? pressureFront.climate : "SILENT"} style={{ color: "#C8C0AE" }}>
+          {pressureFront.drawn ? (
+            <>
+              <div className="font-bold tracking-wide text-wm-gold">DERIVATIVES ENVIRONMENT · {pressureFront.climate.replace("_", " ")}</div>
+              <div>What · the price where expected dealer hedging flips: above one side it leans against moves (damping), past it it leans with them (amplifying). An expected response, not a direction call.</div>
+              <div>Where · zero-gamma front {pressureFront.zeroGamma != null ? mtfPx(pressureFront.zeroGamma) : "none within ±20%"} · price {mtfPx(pressureFront.spot)} {pressureFront.zeroGamma != null ? (pressureFront.spot >= pressureFront.zeroGamma ? "above it" : "below it") : ""}</div>
+              <div>Climate at price · {pressureFront.climate.replace("_", " ")} (net / gross {pressureFront.climateRatio.toFixed(2)}; ±0.12 or closer is MIXED)</div>
+              <div>Evidence · {pressureFront.contracts} contracts with open interest · {pressureFront.walls.length} wall{pressureFront.walls.length === 1 ? "" : "s"} · {pressureFront.pockets.length} acceleration pocket{pressureFront.pockets.length === 1 ? "" : "s"}{pressureFront.envelope ? ` · expected move ±${mtfPx(pressureFront.envelope.session)} (IV30, DERIVED)` : ""}</div>
+              <div>Class · INFERRED ({pressureFront.assumption}) · actual price response outranks this model</div>
+              <div>Fidelity · {pressureFront.fidelity} (Cboe) · chain {pressureFront.clocks.chainAsOf ?? "—"} · OI prior session · model {clock.minute(pressureFront.clocks.modelAsOf)}</div>
+              <div>Lineage · Cboe delayed OI + IV → selectDerivativesPressure v{pressureFront.version} → geography sweep → this front</div>
+            </>
+          ) : (
+            <div>The derivatives reading went silent ({pressureFront.receipt.replace("PRESSURE:SILENT:", "")}) — no environment is guessed at.</div>
+          )}
+        </div>
+      )}
 
       {/* GARDEN 15 §5 · THE SELECTED PRESSURE WALL — what / where / evidence / class / clocks / life / lineage. */}
       {pressureWall && (() => {

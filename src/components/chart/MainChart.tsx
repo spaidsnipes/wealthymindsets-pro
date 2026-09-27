@@ -1342,6 +1342,10 @@ interface Props {
   derivativesPressure?: DerivativesPressureVM | null;
   /** A click on a pressure wall selects it (by strike) through the one selection owner. */
   onSelectPressureWall?: (strike: number) => void;
+  /** A click on the zero-gamma front selects the derivatives environment. */
+  onSelectPressureFront?: () => void;
+  /** The front is the selection on this chart (its selected treatment). */
+  pressureFrontSelected?: boolean;
   /** The selected wall's strike on this chart, for its selected treatment. */
   selectedPressureWallStrike?: number | null;
   /** The room's ONE lifecycle compilation; the canvas draws it and never recomputes it. */
@@ -1729,6 +1733,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   roomPosture = null,
   derivativesPressure = null,
   onSelectPressureWall,
+  onSelectPressureFront,
+  pressureFrontSelected = false,
   selectedPressureWallStrike = null,
   liquidityLifecycle = null,
   riskReceipt = null,
@@ -2021,6 +2027,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // The wall rects painted this frame (what a click hits), and the selected strike.
   const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number }[]>([]);
   const selectedPressureWallStrikeRef = useRef<number | null>(null);
+  // The front's hit band this frame (full plot width, ±6px), and its selected state.
+  const pressureFrontHitRef = useRef<{ y: number; x1: number } | null>(null);
+  const pressureFrontSelectedRef = useRef(false);
+  pressureFrontSelectedRef.current = pressureFrontSelected;
   selectedPressureWallStrikeRef.current = selectedPressureWallStrike;
   const mtfMemoRef = useRef<{ key: string; memo: Map<string, string | null> }>({ key: "", memo: new Map() });
   // H-101 · the MarketObject pins' diamonds, in canvas pixels, for placers that
@@ -13692,6 +13702,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ds.livingMarket = livingReceiptRef.current;
         delete ds.derivativesPressurePainted;
         pressureWallHitRef.current = [];
+        pressureFrontHitRef.current = null;
         {
           const dp = derivativesPressureRef.current;
           if (layerOnRef.current.derivativesPressure === true && att.paints("derivativesPressure") && srs && dp) {
@@ -13932,9 +13943,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (y != null && y >= HEADER_FLOOR_Y && y <= paneBotD) {
                   const above = dp.geography.find(g => g.price > dp.zeroGamma! * 1.004);
                   const ampAbove = above ? above.net < 0 : false;
+                  pressureFrontHitRef.current = { y, x1: plotRightD };
                   ctx.save();
                   ctx.shadowColor = "rgba(236,214,160,0.8)";
-                  ctx.shadowBlur = 8;
+                  ctx.shadowBlur = pressureFrontSelectedRef.current ? 16 : 8;
                   ctx.strokeStyle = `rgba(236,214,160,${0.9 * baseA})`;
                   ctx.lineWidth = 1.6;
                   ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(plotRightD, y); ctx.stroke();
@@ -14021,6 +14033,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ds.derivativesPressurePainted = painted.join("|") || "NONE";
             // Where each wall is on this glass, for a browser proof to find and
             // click it (as memoryGhostHitAt): "strike@x,y" at the body's centre.
+            ds.pressureFrontHitAt = pressureFrontHitRef.current ? `${Math.round(pressureFrontHitRef.current.x1 * 0.3)},${Math.round(pressureFrontHitRef.current.y)}` : "NONE";
             ds.pressureWallHitAt = pressureWallHitRef.current.map(r => `${r.strike}@${Math.round(r.x + r.w / 2)},${Math.round(r.y + r.h / 2)}`).join("|") || "NONE";
           } else {
             ds.derivativesPressure = att.offWord(layerOnRef.current.derivativesPressure === true);
@@ -19975,6 +19988,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       onSelectPressureWall?.(wallHit.strike);
       return;
     }
+    // The zero-gamma front: its line, ±6px, across the plot.
+    const front = pressureFrontHitRef.current;
+    if (front && x <= front.x1 && Math.abs(y - front.y) <= 6) {
+      onSelectPressureFront?.();
+      return;
+    }
     /*
       R-19 · A CLICK ON A ZONE'S BAND SELECTS THE ZONE — the same act as its
       pin, so the ONE selection reducer opens the same Passport. Where bands
@@ -19999,7 +20018,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       onSelectMemoryGhost?.(ghostHit.vm);
       return;
     }
-  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, onSelectMemoryGhost, onSelectPressureWall, symbol, timeframe, selectBigTradeAt]);
+  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, onSelectMemoryGhost, onSelectPressureWall, onSelectPressureFront, symbol, timeframe, selectBigTradeAt]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking

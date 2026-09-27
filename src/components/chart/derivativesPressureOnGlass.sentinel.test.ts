@@ -66,10 +66,24 @@ describe("a wall is an object: click → one selection → Inspect explains", ()
   it("the selection is the ONE reducer's PRESSURE_WALL kind; the room scopes it to its chart", () => {
     expect(SEL).toContain('readonly kind: "PRESSURE_WALL";');
     expect(CD).toContain('selection: { kind: "PRESSURE_WALL", symbol, timeframe, strike }');
-    expect(CD).toContain('actOnChartSelection({ type: "clear", kinds: ["PRESSURE_WALL"] })');
+    expect(CD).toContain('actOnChartSelection({ type: "clear", kinds: ["PRESSURE_WALL", "PRESSURE_FRONT"] })');
   });
   it("Inspect answers what / where / evidence / class / fidelity / life / contradiction / lineage", () => {
     for (const w of ["What ·", "Where ·", "Evidence ·", "Class ·", "Fidelity ·", "Life ·", "Contradiction ·", "Lineage ·"]) expect(IT).toContain(w);
     expect(IT).toContain("NO LONGER A WALL");
+  });
+});
+
+describe("the environment is inspectable: click the zero-gamma front", () => {
+  const SEL = readFileSync("src/lib/marketData/viewModels/chartSelection.ts", "utf8");
+  const IT = readFileSync("src/components/chart/ChartInspectTicket.tsx", "utf8");
+  it("the front publishes its hit band and a click selects it through the one reducer", () => {
+    expect(block).toContain("pressureFrontHitRef.current = { y, x1: plotRightD };");
+    expect(MC).toContain("if (front && x <= front.x1 && Math.abs(y - front.y) <= 6) {");
+    expect(SEL).toContain('readonly kind: "PRESSURE_FRONT";');
+    expect(CD).toContain('selection: { kind: "PRESSURE_FRONT", symbol, timeframe }');
+  });
+  it("Inspect explains the environment: what, where, climate, evidence, class, fidelity, lineage", () => {
+    for (const w of ["DERIVATIVES ENVIRONMENT", "What · the price where expected dealer hedging flips", "Climate at price", "Class · INFERRED", "Lineage · Cboe delayed OI + IV"]) expect(IT).toContain(w);
   });
 });

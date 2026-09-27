@@ -77,13 +77,25 @@ export interface SelectedPressureWall {
   readonly strike: number;
 }
 
+/**
+ * GARDEN 15 §4 · THE ZERO-GAMMA FRONT — the derivatives environment itself,
+ * selected by clicking its transition line. Inspect reads the room's current
+ * compilation (climate, what flips across the front, clocks, assumption).
+ */
+export interface SelectedPressureFront {
+  readonly kind: "PRESSURE_FRONT";
+  readonly symbol: string;
+  readonly timeframe: string;
+}
+
 export type ChartSelection =
   | { readonly kind: "OBJECT"; readonly objectId: string }
   | { readonly kind: "PRINT"; readonly print: SelectedBigTrade }
   | { readonly kind: "SLICE"; readonly symbol: string; readonly timeframe: string; readonly price: number }
   | SelectedAnatomy
   | SelectedMemoryGhost
-  | SelectedPressureWall;
+  | SelectedPressureWall
+  | SelectedPressureFront;
 
 export type ChartSelectionKind = ChartSelection["kind"];
 
@@ -173,7 +185,7 @@ export function selectChartSelection(
       if (current?.kind === "OBJECT" && compiled(current.objectId)) return state;
       if (current?.kind === "PRINT"
         && current.print.symbol === action.symbol && current.print.timeframe === action.timeframe) return state;
-      if ((current?.kind === "SLICE" || current?.kind === "ANATOMY" || current?.kind === "MEMORY_GHOST" || current?.kind === "PRESSURE_WALL")
+      if ((current?.kind === "SLICE" || current?.kind === "ANATOMY" || current?.kind === "MEMORY_GHOST" || current?.kind === "PRESSURE_WALL" || current?.kind === "PRESSURE_FRONT")
         && current.symbol === action.symbol && current.timeframe === action.timeframe) return state;
       const restored: ChartSelection | null = compiled(action.savedObjectId)
         ? { kind: "OBJECT", objectId: action.savedObjectId }
@@ -221,6 +233,11 @@ export function selectedAnatomyOf(state: ChartSelectionState): SelectedAnatomy |
 /** The selected (frozen) memory ghost, or null when the selection is not one. */
 export function selectedMemoryGhostOf(state: ChartSelectionState): SelectedMemoryGhost | null {
   return state.selection?.kind === "MEMORY_GHOST" ? state.selection : null;
+}
+
+/** The selected zero-gamma front, or null when the selection is not one. */
+export function selectedPressureFrontOf(state: ChartSelectionState): SelectedPressureFront | null {
+  return state.selection?.kind === "PRESSURE_FRONT" ? state.selection : null;
 }
 
 /** The selected pressure wall, or null when the selection is not one. */
