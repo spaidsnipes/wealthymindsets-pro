@@ -318,10 +318,11 @@ describe("the lens speaks only where it can be read — serving BTC-USD 1m, 2026
   it("registers the title arc, the readout and the ring in the chip ledger", () => {
     expect(lensBlock).toMatch(/if \(titleBox && !titleYields\) floatingChips\.push\(titleBox\);/);
     expect(lensBlock).toMatch(/floatingChips\.push\(\{ x: R\.x, y: R\.y, w: R\.w, h: R\.h \}\);/);
-    expect(lensBlock).toMatch(/floatingChips\.push\(\{ x: L\.cx - L\.rx - 6, y: L\.cy - L\.ry - 6, w: L\.rx \* 2 \+ 12, h: L\.ry \* 2 \+ 20 \}\);/);
+    // Garden 16 (2026-09-27): the ring is the F08B brass bezel now — its box is the bezel's outer edge.
+    expect(lensBlock).toContain("floatingChips.push({ x: L.cx - L.rx - LENS_BEZEL_W - 2, y: L.cy - L.ry - LENS_BEZEL_W - 2, w: L.rx * 2 + 2 * LENS_BEZEL_W + 4, h: L.ry * 2 + 2 * LENS_BEZEL_W + 16 });");
     // The ring is registered AFTER the readout is placed (its own slots would
     // otherwise be refused by the ring's box).
-    expect(lensBlock.indexOf("w: L.rx * 2 + 12")).toBeGreaterThan(lensBlock.indexOf("ds.liquidityWeatherReadout = spot.mode;"));
+    expect(lensBlock.indexOf("w: L.rx * 2 + 2 * LENS_BEZEL_W + 4")).toBeGreaterThan(lensBlock.indexOf("ds.liquidityWeatherReadout = spot.mode;"));
   });
 
   it("the value-band chip it collided with is on the ledger", () => {

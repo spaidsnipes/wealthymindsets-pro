@@ -176,6 +176,8 @@ export const LENS_MIN_RX = 84;
 export const LENS_MIN_RY = 60;
 /** Air between the measured region's corners and the ring. */
 export const LENS_PAD = 10;
+/** The most a lens may stretch from a circle (only when the window is wider than the pane can hold round). */
+export const LENS_MAX_ASPECT = 1.25;
 
 /**
  * Normalised distance of a point from the lens centre: ≤ 1 is inside.
@@ -205,10 +207,17 @@ export function fitWeatherLens(region: ScreenBox, plot: ScreenBox): WeatherLens 
   // Only the part of the region the camera shows is enclosed.
   const bx0 = Math.max(plot.x0, rx0), bx1 = Math.min(plot.x1, rx1);
   const by0 = Math.max(plot.y0, ry0), by1 = Math.min(plot.y1, ry1);
-  let rx = Math.max(LENS_MIN_RX, ((bx1 - bx0) / 2) * Math.SQRT2 + LENS_PAD);
-  let ry = Math.max(LENS_MIN_RY, ((by1 - by0) / 2) * Math.SQRT2 + LENS_PAD);
-  rx = Math.min(rx, (plot.x1 - plot.x0) / 2);
-  ry = Math.min(ry, (plot.y1 - plot.y0) / 2);
+  // F08B IS A CIRCLE (Founder plate WM_NewMockup_79, read beside serving
+  // 2026-09-27): a round brass loupe, never a squashed ellipse. The radius
+  // encloses the region's half-diagonal, capped by the pane; only a window
+  // wider than the pane can hold stretches it, to at most LENS_MAX_ASPECT.
+  const halfDiag = Math.hypot((bx1 - bx0) / 2, (by1 - by0) / 2);
+  const rCap = Math.min((plot.x1 - plot.x0) / 2, (plot.y1 - plot.y0) / 2);
+  const r = Math.min(rCap, Math.max(LENS_MIN_RX, halfDiag + LENS_PAD));
+  let rx = r;
+  const ry = r;
+  const needRx = ((bx1 - bx0) / 2) / Math.sqrt(Math.max(0.05, 1 - Math.pow(Math.min(0.95, ((by1 - by0) / 2) / ry), 2))) + LENS_PAD;
+  if (needRx > rx) rx = Math.min(r * LENS_MAX_ASPECT, (plot.x1 - plot.x0) / 2, needRx);
   const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
   const cx = clamp((bx0 + bx1) / 2, plot.x0 + rx, plot.x1 - rx);
   const cy = clamp((by0 + by1) / 2, plot.y0 + ry, plot.y1 - ry);
@@ -218,6 +227,8 @@ export function fitWeatherLens(region: ScreenBox, plot: ScreenBox): WeatherLens 
     lensDistance(probe, bx0, by1), lensDistance(probe, bx1, by1),
   );
   // Grow (never shrink) until every visible corner of the region is inside.
+  // Grow (never shrink) until every visible corner of the region is inside —
+  // uniformly, so a circle stays a circle.
   const grow = k > 1 ? k * 1.02 : 1;
   return { cx, cy, rx: rx * grow, ry: ry * grow };
 }

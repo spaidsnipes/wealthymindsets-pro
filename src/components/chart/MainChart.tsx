@@ -512,6 +512,7 @@ import type {
   LegacyOhlcvTuple,
 } from "@/lib/marketData/canonicalBar";
 import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
+import { renderStormPixels, stormSeed, LENS_BEZEL_W, STORM_BODY_MAX_ALPHA, STORM_DRIFT_PER_SEC, STORM_TEXTURE_SIZE } from "@/lib/chart/weatherStorm";
 import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
 import type { WaitStandingVM } from "@/lib/marketData/viewModels/selectWaitStanding";
 import {
@@ -1933,6 +1934,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   useEffect(() => { stackPrefsRef.current = profileStackPrefs ?? DEFAULT_STACK_PREFS; }, [profileStackPrefs]);
   /** Offscreen layer the P-601 heat cells composite into before meeting the glass once. */
   const heatLayerRef = useRef<HTMLCanvasElement | null>(null);
+  /** F08B storm texture cache (weatherStorm.ts) — rebuilt only when its key changes; STILL holds the frozen phase. */
+  const stormCacheRef = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
+  const stormPhaseRef = useRef<{ phase: number; at: number }>({ phase: 0, at: 0 });
   const scaffoldingStructureRef = useRef<MarketStructureVM | null>(null);
   useEffect(() => {
     scaffoldingDepthRef.current = scaffoldingDepthOnChart;
@@ -17589,6 +17593,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           let painted = 0;
           let contours = 0;
           let untimed = 0;
+          /** F08B storm: each painted cell's MEASURED colour, weight and time span on screen. */
+          const stormCols: { x0: number; x1: number; rgb: [number, number, number]; weight: number }[] = [];
           // WHEN THE COST WAS PAID. A cell spans the bars its segment's prints
           // traded on (first print's bar to last print's bar), not the whole
           // camera: a band across every bar claimed the cost held over time
@@ -17626,6 +17632,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const cx0 = timed ? Math.max(0, Math.min(xFrom!, xTo!) - heatSpacing / 2) : 0;
             const cx1 = timed ? Math.min(W, Math.max(xFrom!, xTo!) + heatSpacing / 2) : W;
             const cw = Math.max(1, cx1 - cx0);
+            {
+              const m = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(tone);
+              if (m) stormCols.push({ x0: cx0, x1: cx1, rgb: [+m[1], +m[2], +m[3]], weight: heat.maxOpacity > 0 ? 0.7 + 0.3 * Math.min(1, alpha / heat.maxOpacity) : 0 });
+            }
 
             /* THE TIDE IS A TEXTURE OF THE SAME CELL, NOT ANOTHER READING.
                The old renderer filled the whole price band with a flat slab.
@@ -17720,6 +17730,66 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             painted++;
           }
           ctxHeat.restore();
+          /* F08B · THE STORM (Founder plate WM_NewMockup_79, Garden 16 order
+             "the storms … the exact looks", 2026-09-27). The lens holds a
+             turbulent medium, not a tint: weatherStorm.ts owns the texture
+             (a deterministic field, no market fact); its COLOUR at each column
+             is the measured cell covering that time (gold where the tape
+             persisted, steel blue where price responded) and its DENSITY is
+             that cell's own weight against the regulator. Behind the candles
+             (the same cut-out) and inside the ring. STILL holds the phase;
+             LIVE drifts it slowly. No cell under a column → clear air there. */
+          if (hctx && painted > 0 && stormCols.length > 0) {
+            const L = weatherLens;
+            const nowS = performance.now() / 1000;
+            const ph = stormPhaseRef.current;
+            if (motionOnRef.current) { if (ph.at > 0) ph.phase += Math.min(0.5, nowS - ph.at) * STORM_DRIFT_PER_SEC; ph.at = nowS; }
+            else ph.at = 0;
+            const phaseQ = Math.round(ph.phase / 0.004) * 0.004;
+            const seed = stormSeed(`${symbol}|${timeframe}`);
+            const span = 2 * L.rx;
+            const colKey = stormCols.map(c => `${Math.round(c.x0 - L.cx)}:${Math.round(c.x1 - L.cx)}:${c.rgb.join(",")}:${c.weight.toFixed(2)}`).join(";");
+            const key = `${seed}|${Math.round(L.rx)}|${Math.round(L.ry)}|${phaseQ.toFixed(3)}|${colKey}`;
+            let cache = stormCacheRef.current;
+            let stormPx = 0;
+            if (!cache || cache.key !== key) {
+              const S = STORM_TEXTURE_SIZE;
+              const sc = cache?.canvas ?? document.createElement("canvas");
+              sc.width = S; sc.height = S;
+              const sctx = sc.getContext("2d");
+              if (sctx) {
+                const img = sctx.createImageData(S, S);
+                const reach = span * 0.3;
+                stormPx = renderStormPixels(img.data, S, seed, phaseQ, (u) => {
+                  const x = L.cx - L.rx + u * span;
+                  let best: (typeof stormCols)[number] | null = null, bestD = Infinity;
+                  for (const c of stormCols) {
+                    const d = x < c.x0 ? c.x0 - x : x > c.x1 ? x - c.x1 : 0;
+                    if (d < bestD || (d === bestD && best && c.weight > best.weight)) { best = c; bestD = d; }
+                  }
+                  if (!best || bestD > reach) return { rgb: [0, 0, 0], weight: 0 };
+                  return { rgb: best.rgb, weight: best.weight * (1 - bestD / reach) };
+                });
+                sctx.putImageData(img, 0, 0);
+              }
+              cache = { key, canvas: sc };
+              stormCacheRef.current = cache;
+            }
+            mainCtx.save();
+            mainCtx.beginPath();
+            mainCtx.ellipse(L.cx, L.cy, L.rx, L.ry, 0, 0, Math.PI * 2);
+            mainCtx.clip();
+            if (weatherLensCut) mainCtx.clip(weatherLensCut, "evenodd");
+            if (weatherLensChipCut) mainCtx.clip(weatherLensChipCut, "evenodd");
+            mainCtx.globalAlpha = STORM_BODY_MAX_ALPHA * att.alpha("weather");
+            mainCtx.imageSmoothingEnabled = true;
+            mainCtx.imageSmoothingQuality = "high";
+            mainCtx.drawImage(cache.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
+            mainCtx.restore();
+            ds.weatherStorm = `${motionOnRef.current ? "LIVE" : "STILL"}|${stormCols.length}|${phaseQ.toFixed(3)}${stormPx ? "|REBUILT" : ""}`;
+          } else {
+            delete ds.weatherStorm;
+          }
           if (hctx && painted > 0) {
             mainCtx.save();
             // F08B: INSIDE THE LENS ONLY, and BEHIND THE CANDLES — the field
@@ -17816,31 +17886,70 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.setLineDash([]);
             ctx.restore(); // the lens's inside
 
+            /* F08B BEZEL (Founder plate WM_NewMockup_79): a broad brass band
+               — inner and outer bevels, fine ticks, eight rivets — with the
+               lens's own legend inlaid on the lower arc and its title engraved
+               in the band. Material, not data: the only facts on it are the
+               legend ramp (the field's HELD → MOVED scale) and the newest-cell
+               notch, exactly as before. */
+            const BZ = LENS_BEZEL_W;
+            const band = (o: number) => { ctx.beginPath(); ctx.ellipse(L.cx, L.cy, L.rx + o, L.ry + o, 0, 0, Math.PI * 2); };
             const brass = ctx.createLinearGradient(L.cx - L.rx, L.cy - L.ry, L.cx + L.rx, L.cy + L.ry);
-            brass.addColorStop(0, "rgba(236,210,150,0.95)");
-            brass.addColorStop(0.45, "rgba(184,142,70,0.95)");
-            brass.addColorStop(1, "rgba(104,76,36,0.95)");
-            ctx.lineWidth = 4;
+            brass.addColorStop(0, "rgba(238,214,156,0.97)");
+            brass.addColorStop(0.3, "rgba(196,156,84,0.97)");
+            brass.addColorStop(0.55, "rgba(122,88,40,0.97)");
+            brass.addColorStop(0.8, "rgba(186,146,76,0.97)");
+            brass.addColorStop(1, "rgba(92,66,30,0.97)");
+            ctx.lineWidth = BZ;
             ctx.strokeStyle = brass;
-            ctx.beginPath();
-            ctx.ellipse(L.cx, L.cy, L.rx + 2, L.ry + 2, 0, 0, Math.PI * 2);
+            band(BZ / 2);
+            ctx.stroke();
+            // Bevels: dark seat against the glass, lit lip, dark outer edge, outer glint.
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = "rgba(34,24,10,0.95)";
+            band(0);
             ctx.stroke();
             ctx.lineWidth = 1;
-            ctx.strokeStyle = "rgba(52,38,18,0.90)";
-            ctx.beginPath();
-            ctx.ellipse(L.cx, L.cy, L.rx, L.ry, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(250,228,170,0.55)";
+            band(1.6);
             ctx.stroke();
-            ctx.strokeStyle = "rgba(236,210,150,0.50)";
-            ctx.beginPath();
-            ctx.ellipse(L.cx, L.cy, L.rx + 4.5, L.ry + 4.5, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(40,28,12,0.95)";
+            band(BZ);
             ctx.stroke();
-            // The lower arc is the legend: the field's own ramp, HELD → MOVED.
-            const legendSteps = 24;
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = "rgba(236,210,150,0.45)";
+            band(BZ + 1.5);
+            ctx.stroke();
+            // Ticks on the band (every sixth long), rivets at the eight winds.
+            ctx.strokeStyle = "rgba(52,36,14,0.75)";
+            for (let k = 0; k < 96; k++) {
+              const t = (k / 96) * Math.PI * 2;
+              const long = k % 6 === 0;
+              const p0 = ringPoint(L, t, BZ - (long ? 5 : 3.2)), p1 = ringPoint(L, t, BZ - 1.2);
+              ctx.lineWidth = long ? 1.1 : 0.7;
+              ctx.beginPath();
+              ctx.moveTo(p0.x, p0.y);
+              ctx.lineTo(p1.x, p1.y);
+              ctx.stroke();
+            }
+            for (let k = 0; k < 8; k++) {
+              const t = (k / 8) * Math.PI * 2 + Math.PI / 8;
+              const rp = ringPoint(L, t, BZ / 2);
+              const rv = ctx.createRadialGradient(rp.x - 0.8, rp.y - 0.8, 0.2, rp.x, rp.y, 2.6);
+              rv.addColorStop(0, "rgba(255,240,200,0.98)");
+              rv.addColorStop(0.5, "rgba(170,128,60,0.98)");
+              rv.addColorStop(1, "rgba(50,34,14,0.98)");
+              ctx.fillStyle = rv;
+              ctx.beginPath();
+              ctx.arc(rp.x, rp.y, 2.6, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            // The lower arc is the legend: the field's own ramp, HELD → MOVED, inlaid.
+            const legendSteps = 32;
+            ctx.lineWidth = 3;
             for (let k = 0; k < legendSteps; k++) {
               ctx.strokeStyle = heatRampColor(1 - (k + 0.5) / legendSteps);
               ctx.beginPath();
-              ctx.ellipse(L.cx, L.cy, L.rx + 2, L.ry + 2, 0, scaleAngle(1 - k / legendSteps), scaleAngle(1 - (k + 1) / legendSteps), true);
+              ctx.ellipse(L.cx, L.cy, L.rx + BZ / 2, L.ry + BZ / 2, 0, scaleAngle(1 - k / legendSteps), scaleAngle(1 - (k + 1) / legendSteps), true);
               ctx.stroke();
             }
             const newest = heat.drawable && heat.cells.length > 0
@@ -17848,7 +17957,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               : null;
             if (newest) {
               const tn = scaleAngle(newest.intensity);
-              const n0 = ringPoint(L, tn, -3), n1 = ringPoint(L, tn, 8);
+              const n0 = ringPoint(L, tn, -3), n1 = ringPoint(L, tn, LENS_BEZEL_W + 3);
               ctx.strokeStyle = "rgba(237,230,211,0.95)";
               ctx.lineWidth = 1.5;
               ctx.beginPath();
@@ -17859,12 +17968,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.restore(); // the candle cut-out
 
             // ── The words, whole, set on the ring.
-            ctx.font = "600 8px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = "700 9px Georgia, 'Times New Roman', serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillStyle = "rgba(226,196,128,0.95)";
+            // Engraved INTO the brass band (plate): dark letters on the metal.
+            ctx.fillStyle = "rgba(38,26,10,0.95)";
             const ringTitle = [..."LIQUIDITY WEATHER"];
-            const glyphs = wordOnTopArc(L, ringTitle.map(c => ctx.measureText(c).width + 1.4), 11);
+            const glyphs = wordOnTopArc(L, ringTitle.map(c => ctx.measureText(c).width + 2.2), LENS_BEZEL_W / 2);
             // THE TITLE YIELDS to a chip already on the glass (serving 14:48:
             // it printed through "VALUE · BAND 62% OF RANGE · 242 PRINTS").
             // Yielded, the lens is still named — by the readout's first row.
@@ -17884,7 +17994,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (titleBox && !titleYields) floatingChips.push(titleBox);
             ctx.font = "600 7px ui-sans-serif, system-ui, sans-serif";
             ctx.textBaseline = "top";
-            const heldAt = ringPoint(L, SCALE_HEAVY_T, 9), movedAt = ringPoint(L, SCALE_THIN_T, 9);
+            const heldAt = ringPoint(L, SCALE_HEAVY_T, LENS_BEZEL_W + 6), movedAt = ringPoint(L, SCALE_THIN_T, LENS_BEZEL_W + 6);
             ctx.textAlign = "right";
             ctx.fillStyle = heatRampColor(1);
             ctx.fillText("HELD", heldAt.x, heldAt.y);
@@ -17979,7 +18089,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // THE RING ITSELF IS REGISTERED (after its readout was placed, so
             // the readout's own slots are not refused by the ring's box): later
             // layers step around the lens, HELD / MOVED included.
-            floatingChips.push({ x: L.cx - L.rx - 6, y: L.cy - L.ry - 6, w: L.rx * 2 + 12, h: L.ry * 2 + 20 });
+            floatingChips.push({ x: L.cx - L.rx - LENS_BEZEL_W - 2, y: L.cy - L.ry - LENS_BEZEL_W - 2, w: L.rx * 2 + 2 * LENS_BEZEL_W + 4, h: L.ry * 2 + 2 * LENS_BEZEL_W + 16 });
 
             ds.liquidityWeatherLens = `${Math.round(L.cx)},${Math.round(L.cy)},${Math.round(L.rx)},${Math.round(L.ry)}`;
             ds.liquidityWeatherRing = titleYields ? "YIELDED" : "LIQUIDITY WEATHER";
