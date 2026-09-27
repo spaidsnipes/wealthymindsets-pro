@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
-import { X, Settings, Info, BarChart2, TrendingUp, Sliders } from "lucide-react";
+import { X, Settings, Info, BarChart2 } from "lucide-react";
 
 import {
   CANDLE_DOWN_DEFAULT,
@@ -116,7 +116,10 @@ export const TIMEZONE_OPTIONS: { value: string; label: string }[] = [
   { value: "UTC",                 label: "UTC" },
 ];
 
-type Tab = "symbol" | "chart" | "scales" | "trading";
+// Garden 16 §46 (2026-09-27): "Scales" (log · auto · % duplicated the price-axis
+// buttons with no reader; Indexed-to-100 had no implementation) and "Trading"
+// (no position overlay exists) were switches that changed nothing — withdrawn.
+type Tab = "symbol" | "chart";
 
 interface Props {
   open: boolean;
@@ -148,6 +151,10 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: bool
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
       <span style={{ fontSize: 12, color: "#8896BE" }}>{label}</span>
       <button
+        type="button"
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
         onClick={() => onChange(!value)}
         style={{
           width: 36, height: 18, borderRadius: 9, cursor: "pointer", border: "none",
@@ -190,8 +197,6 @@ function getSymInfo(sym: string) {
 const TABS: { id: Tab; icon: React.ReactNode; label: string }[] = [
   { id: "symbol",  icon: <Info size={13} />,     label: "Symbol" },
   { id: "chart",   icon: <BarChart2 size={13} />, label: "Chart" },
-  { id: "scales",  icon: <Sliders size={13} />,   label: "Scales" },
-  { id: "trading", icon: <TrendingUp size={13} />, label: "Trading" },
 ];
 
 export function ChartSettingsModal({ open, onClose, symbol, settings, onSettingsChange }: Props) {
@@ -433,37 +438,6 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                 </div>
               )}
 
-              {/* SCALES TAB */}
-              {tab === "scales" && (
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Price Scale Mode</div>
-                  <Toggle value={s.logScale}      onChange={v => set({ logScale: v })}      label="Logarithmic scale" />
-                  <Toggle value={s.autoScale}     onChange={v => set({ autoScale: v })}     label="Auto scale" />
-                  <Toggle value={s.percentageMode} onChange={v => set({ percentageMode: v })} label="Percentage mode" />
-                  <Toggle value={s.indexedTo100}  onChange={v => set({ indexedTo100: v })}  label="Indexed to 100" />
-                  <div style={{ marginTop: 12, padding: "12px", background: "#141824", borderRadius: 6, border: "1px solid #263050" }}>
-                    <p style={{ fontSize: 11, color: "#8896BE", margin: 0, lineHeight: 1.6 }}>
-                      <strong style={{ color: "#E2E8FF" }}>Log scale</strong> — Use logarithmic price axis for long-term charts.<br/>
-                      <strong style={{ color: "#E2E8FF" }}>Percentage mode</strong> — Show price as % change from first bar.<br/>
-                      <strong style={{ color: "#E2E8FF" }}>Indexed to 100</strong> — Normalize first bar to 100 for comparison.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* TRADING TAB */}
-              {tab === "trading" && (
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Trade Overlay</div>
-                  <Toggle value={s.showPositions} onChange={v => set({ showPositions: v })} label="Show positions on chart" />
-                  <Toggle value={s.showPnL}       onChange={v => set({ showPnL: v })}       label="Show P&L on chart" />
-                  <div style={{ marginTop: 12, padding: "12px", background: "#141824", borderRadius: 6, border: "1px solid #263050" }}>
-                    <p style={{ fontSize: 11, color: "#8896BE", margin: 0, lineHeight: 1.6 }}>
-                      When enabled, open positions will be shown as horizontal lines on the chart with entry price and unrealized P&L displayed.
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Footer */}

@@ -139,6 +139,8 @@ import { STRUCTURE_DEFAULT_LOOKBACK } from "@/lib/marketData/viewModels/selectMa
  */
 const CHART_SWING_LOOKBACK = STRUCTURE_DEFAULT_LOOKBACK;
 const LIQUIDITY_SWEEP_LOOKBACK = 4;
+/** Appearance › Crosshair › Line style → Lightweight Charts LineStyle (0 solid · 1 dotted · 2 dashed). */
+const CROSSHAIR_LINE_STYLE = { solid: 0, dotted: 1, dashed: 2 } as const;
 
 /**
  * THE PRICE LEGEND'S RESERVED HEADROOM, WITH ONE OWNER.
@@ -1090,7 +1092,11 @@ interface Props {
     background?: string;
     gridVisible?: boolean;
     gridColor?: string;
+    crosshairVisible?: boolean;
     crosshairColor?: string;
+    crosshairStyle?: "solid" | "dashed" | "dotted";
+    priceScaleVisible?: boolean;
+    timeScaleVisible?: boolean;
     logScale?: boolean;
     autoScale?: boolean;
     percentageMode?: boolean;
@@ -5834,14 +5840,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         layout: {
           background: { color: chartSettings.background ?? MARKET_FIELD_DEFAULT },
         },
-        grid: chartSettings.gridColor ? {
-          vertLines: { color: chartSettings.gridColor, style: 4 },
-          horzLines: { color: chartSettings.gridColor, style: 4 },
-        } : undefined,
-        crosshair: chartSettings.crosshairColor ? {
-          vertLine: { color: chartSettings.crosshairColor },
-          horzLine: { color: chartSettings.crosshairColor },
-        } : undefined,
+        // Garden 16 §46: every Appearance switch has a visible consumer —
+        // "Show gridlines", "Show crosshair", its line style and both scales
+        // were saved but never read (Founder Tour, 2026-09-27).
+        grid: {
+          vertLines: { visible: chartSettings.gridVisible !== false, ...(chartSettings.gridColor ? { color: chartSettings.gridColor, style: 4 } : {}) },
+          horzLines: { visible: chartSettings.gridVisible !== false, ...(chartSettings.gridColor ? { color: chartSettings.gridColor, style: 4 } : {}) },
+        },
+        crosshair: {
+          vertLine: { visible: chartSettings.crosshairVisible !== false, labelVisible: chartSettings.crosshairVisible !== false, style: CROSSHAIR_LINE_STYLE[chartSettings.crosshairStyle ?? "solid"], ...(chartSettings.crosshairColor ? { color: chartSettings.crosshairColor } : {}) },
+          horzLine: { visible: chartSettings.crosshairVisible !== false, labelVisible: chartSettings.crosshairVisible !== false, style: CROSSHAIR_LINE_STYLE[chartSettings.crosshairStyle ?? "solid"], ...(chartSettings.crosshairColor ? { color: chartSettings.crosshairColor } : {}) },
+        },
+        rightPriceScale: { visible: chartSettings.priceScaleVisible !== false },
+        timeScale: { visible: chartSettings.timeScaleVisible !== false },
       });
       // Update candle colors — skip for types that manage their own colors (hollow, volume, orderflow)
       const skipBodyColorOverride = ["hollow", "volume-candles", "vp-candles", "orderflow-candles",
