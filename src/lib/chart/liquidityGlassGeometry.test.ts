@@ -144,6 +144,8 @@ describe("F08B — the weather is a lens over the region it measured", () => {
     expect(L.cy + L.ry).toBeLessThanOrEqual(plot.y1 + 0.001);
     expect(L.cx).toBeGreaterThan((region.x0 + region.x1) / 2); // toward the newest end
     expect(L.rx).toBe(L.ry); // a circle
+    // centred on the region's price, as far as the pane allows
+    expect(Math.abs(L.cy - (region.y0 + region.y1) / 2)).toBeLessThan(60);
   });
 
   it("a region scrolled off the camera draws no lens", () => {

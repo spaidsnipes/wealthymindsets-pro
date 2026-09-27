@@ -17908,11 +17908,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const BZ = LENS_BEZEL_W;
             const band = (o: number) => { ctx.beginPath(); ctx.ellipse(L.cx, L.cy, L.rx + o, L.ry + o, 0, 0, Math.PI * 2); };
             const brass = ctx.createLinearGradient(L.cx - L.rx, L.cy - L.ry, L.cx + L.rx, L.cy + L.ry);
-            brass.addColorStop(0, "rgba(238,214,156,0.97)");
-            brass.addColorStop(0.3, "rgba(196,156,84,0.97)");
-            brass.addColorStop(0.55, "rgba(122,88,40,0.97)");
-            brass.addColorStop(0.8, "rgba(186,146,76,0.97)");
-            brass.addColorStop(1, "rgba(92,66,30,0.97)");
+            // Plate: a dark bronze band between two lit brass lips; the title is gold ON it.
+            brass.addColorStop(0, "rgba(96,70,34,0.97)");
+            brass.addColorStop(0.35, "rgba(58,42,20,0.97)");
+            brass.addColorStop(0.6, "rgba(40,29,14,0.97)");
+            brass.addColorStop(1, "rgba(74,54,26,0.97)");
             ctx.lineWidth = BZ;
             ctx.strokeStyle = brass;
             band(BZ / 2);
@@ -17922,22 +17922,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.strokeStyle = "rgba(34,24,10,0.95)";
             band(0);
             ctx.stroke();
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = "rgba(250,228,170,0.55)";
-            band(1.6);
+            ctx.lineWidth = 2.2;
+            ctx.strokeStyle = "rgba(214,176,98,0.95)";
+            band(1.4);
             ctx.stroke();
-            ctx.strokeStyle = "rgba(40,28,12,0.95)";
+            ctx.strokeStyle = "rgba(214,176,98,0.95)";
             band(BZ);
             ctx.stroke();
-            ctx.strokeStyle = "rgba(236,210,150,0.45)";
-            band(BZ + 1.5);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "rgba(250,230,176,0.55)";
+            band(BZ + 1.6);
             ctx.stroke();
             // Ticks on the band (every sixth long), rivets at the eight winds.
-            ctx.strokeStyle = "rgba(52,36,14,0.75)";
+            ctx.strokeStyle = "rgba(201,165,92,0.55)";
             for (let k = 0; k < 96; k++) {
               const t = (k / 96) * Math.PI * 2;
               const long = k % 6 === 0;
-              const p0 = ringPoint(L, t, BZ - (long ? 5 : 3.2)), p1 = ringPoint(L, t, BZ - 1.2);
+              const p0 = ringPoint(L, t, BZ - (long ? 3.6 : 2.4)), p1 = ringPoint(L, t, BZ - 1);
               ctx.lineWidth = long ? 1.1 : 0.7;
               ctx.beginPath();
               ctx.moveTo(p0.x, p0.y);
@@ -17981,13 +17982,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.restore(); // the candle cut-out
 
             // ── The words, whole, set on the ring.
-            ctx.font = "700 9px Georgia, 'Times New Roman', serif";
+            ctx.font = "700 11px Georgia, 'Times New Roman', serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            // Engraved INTO the brass band (plate): dark letters on the metal.
-            ctx.fillStyle = "rgba(38,26,10,0.95)";
+            // Set in gold ON the dark bronze band (plate).
+            ctx.fillStyle = "rgba(226,190,112,0.98)";
             const ringTitle = [..."LIQUIDITY WEATHER"];
-            const glyphs = wordOnTopArc(L, ringTitle.map(c => ctx.measureText(c).width + 2.2), LENS_BEZEL_W / 2);
+            const glyphs = wordOnTopArc(L, ringTitle.map(c => ctx.measureText(c).width + 2.2), LENS_BEZEL_W / 2 - 1.5);
             // THE TITLE YIELDS to a chip already on the glass (serving 14:48:
             // it printed through "VALUE · BAND 62% OF RANGE · 242 PRINTS").
             // Yielded, the lens is still named — by the readout's first row.

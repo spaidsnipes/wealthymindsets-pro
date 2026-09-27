@@ -21,9 +21,9 @@
 /** The storm body's ceiling inside the lens (F08B; candles are cut out of it, so it cannot bury them). */
 export const STORM_BODY_MAX_ALPHA = 0.66;
 /** The brass bezel's band width (px) around the lens (F08B plate). */
-export const LENS_BEZEL_W = 13;
+export const LENS_BEZEL_W = 16;
 /** Texture resolution (square). Upscaled with smoothing into the lens — the softness is part of the smoke. */
-export const STORM_TEXTURE_SIZE = 176;
+export const STORM_TEXTURE_SIZE = 128;
 /** LIVE drift: phase units per second. Slow — weather drifts, it does not boil. */
 export const STORM_DRIFT_PER_SEC = 0.035;
 
@@ -60,13 +60,13 @@ function fbm(x: number, y: number, seed: number, octaves = 4): number {
  * the smoke has body and clear lanes rather than an even fog.
  */
 export function stormDensity(u: number, v: number, seed: number, phase: number): number {
-  const x = u * 3.2, y = v * 3.2;
+  const x = u * 2.4, y = v * 2.4;
   const wx = fbm(x + phase * 0.7, y - phase * 0.3, seed + 101);
   const wy = fbm(x - phase * 0.4 + 5.2, y + phase * 0.5 + 1.3, seed + 211);
   const qx = x + 1.8 * wx, qy = y + 1.8 * wy;
   const body = fbm(qx + phase, qy, seed + 307, 5);
   const ridge = 1 - Math.abs(2 * fbm(qx * 1.7 - phase * 0.6, qy * 1.7, seed + 401, 4) - 1);
-  const d = 0.62 * body + 0.38 * ridge * ridge;
+  const d = 0.78 * body + 0.22 * ridge * ridge;
   // Contrast: lanes clear, cores gather.
   const t = Math.max(0, Math.min(1, (d - 0.34) / 0.5));
   return t * t * (3 - 2 * t);
@@ -117,9 +117,9 @@ export function renderStormPixels(
       const glow = d * d * d;
       const [r, g, b] = tone.rgb;
       // Luminous cores (plate): the measured colour lit from within, never a new hue.
-      out[i] = Math.min(255, r * (0.7 + 0.55 * d) + 60 * glow);
-      out[i + 1] = Math.min(255, g * (0.7 + 0.55 * d) + 55 * glow);
-      out[i + 2] = Math.min(255, b * (0.7 + 0.55 * d) + 45 * glow);
+      out[i] = Math.min(255, r * (0.85 + 0.6 * d) + 80 * glow);
+      out[i + 1] = Math.min(255, g * (0.85 + 0.6 * d) + 72 * glow);
+      out[i + 2] = Math.min(255, b * (0.85 + 0.6 * d) + 56 * glow);
       out[i + 3] = Math.round(255 * Math.min(1, tone.weight * (0.18 + 0.82 * d) * rim));
       painted++;
     }

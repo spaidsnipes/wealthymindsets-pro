@@ -182,6 +182,8 @@ export const LENS_MIN_RY = 60;
 export const LENS_PAD = 10;
 /** The most a lens may stretch from a circle (only when the window is wider than the pane can hold round). */
 export const LENS_MAX_ASPECT = 1.25;
+/** A PARTIAL lens's radius as a share of the pane's half-height (plate WM_NewMockup_79). */
+export const LENS_PARTIAL_SHARE = 0.84;
 
 /**
  * Normalised distance of a point from the lens centre: ≤ 1 is inside.
@@ -239,7 +241,8 @@ export function fitWeatherLens(region: ScreenBox, plot: ScreenBox): WeatherLens 
   const grow = k > 1 ? k * 1.02 : 1;
   const gmax = rCap / Math.max(rx, ry);
   if (grow <= gmax) return { cx, cy, rx: rx * grow, ry: ry * grow };
-  const R = { rx: rCap, ry: rCap };
+  // Plate: the loupe is about four-fifths of the pane, centred on the price it reads.
+  const R = { rx: rCap * LENS_PARTIAL_SHARE, ry: rCap * LENS_PARTIAL_SHARE };
   const cxN = clamp(bx1 - R.rx * 0.85, plot.x0 + R.rx, plot.x1 - R.rx);
   const cyN = clamp((by0 + by1) / 2, plot.y0 + R.ry, plot.y1 - R.ry);
   return { cx: cxN, cy: cyN, ...R, partial: true };
