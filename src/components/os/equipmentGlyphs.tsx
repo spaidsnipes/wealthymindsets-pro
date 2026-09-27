@@ -255,6 +255,20 @@ export const EQUIPMENT_GLYPHS: Readonly<Record<string, React.ReactElement>> = {
     </Glyph>
   ),
   /** Where you have actually performed — your own measured curve. */
+  /** F14 Discovery heat — a 3×3 state grid with one cell ringed. */
+  "heat-discovery": (
+    <Glyph>
+      <rect x="3" y="3" width="5" height="5" rx="1" />
+      <rect x="9.5" y="3" width="5" height="5" rx="1" />
+      <rect x="16" y="3" width="5" height="5" rx="1" />
+      <rect x="3" y="9.5" width="5" height="5" rx="1" />
+      <rect x="8.5" y="8.5" width="7" height="7" rx="1.5" />
+      <rect x="16" y="9.5" width="5" height="5" rx="1" />
+      <rect x="3" y="16" width="5" height="5" rx="1" />
+      <rect x="9.5" y="16" width="5" height="5" rx="1" />
+      <rect x="16" y="16" width="5" height="5" rx="1" />
+    </Glyph>
+  ),
   "personal-edge": (
     <Glyph>
       <path d="M3.5 19.5V4.5" />

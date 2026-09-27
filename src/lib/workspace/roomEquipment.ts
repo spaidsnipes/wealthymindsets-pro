@@ -705,6 +705,21 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       kind: "lens",
     },
     /**
+     * HEAT · DISCOVERY — F14 "Heat lands same camera" (Garden 16 §29).
+     *
+     * The plate draws the Discovery heat BESIDE the chart, and a selected
+     * state LANDS on that same chart: "LANDED · NO SECOND ENGINE". So it is a
+     * lens of this room, on the left wall over the live market, not a view of
+     * the Scanner Deck's map. Heat is how UNUSUAL a measured daily state is
+     * (discoveryStates), and landing sets this room's own symbol.
+     */
+    {
+      id: "heat-discovery",
+      label: "Heat · Discovery",
+      hint: "Which markets are in an unusual state — select one and it lands on this chart",
+      kind: "lens",
+    },
+    /**
      * ── THE TWO INSTRUMENTS THE CHART ROOM ALWAYS HAD AND NEVER DECLARED ────
      *
      * Everything above this line is a READING. That is why "Tools" over a live

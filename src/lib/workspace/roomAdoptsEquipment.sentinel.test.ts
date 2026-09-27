@@ -270,6 +270,18 @@ const ROOMS = [
     content: "chartEquipmentContent",
     journey: "chartEquipment",
     descriptors: [
+      /**
+       * HEAT · DISCOVERY (F14, Garden 16 §29). Its binding is the room's own
+       * symbol: the lens says LANDED only when the chart beside it IS the
+       * selected market, and landing sets that same symbol — no second camera.
+       */
+      {
+        id: "heat-discovery",
+        memo: "chartHeatDiscoveryEquipment",
+        reads: /landedSymbol=\{symbol\}/,
+        deps: "[symbol, setActiveSymbol]",
+        depth: "DiscoveryUnusualStates",
+      },
       {
         id: "market-reality",
         memo: "chartMarketRealityEquipment",

@@ -336,6 +336,8 @@ import selectStructureZoneObjects from "@/lib/marketData/viewModels/selectStruct
 import { selectLiquidityLifecycle } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
 import { bookBucketStep, placeBookEventsOnBars } from "@/lib/marketData/bookLiquidityLifecycle";
 import { useBookLiquidityLifecycle } from "@/lib/marketData/useBookLiquidityLifecycle";
+import { DiscoveryUnusualStates } from "@/components/scanner/DiscoveryUnusualStates";
+import { BOARD_STOCK_SYMBOLS } from "@/lib/marketData/sp500Board";
 import { selectAuctionState } from "@/lib/marketData/viewModels/selectAuctionState";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
@@ -3993,6 +3995,29 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, [chartCommandDeck, tradePhase, lifecycleStage, setTradePhase, currentSceneDecision?.decisionId, sceneDecisionAbsence, riskPlan, symbol, canvasUser?.id, chartEdgeNowMs, chartCanvasState?.qualityState, chartCapabilityReport]);
 
   /*
+    HEAT · DISCOVERY (F14, Garden 16 §29) — the Discovery heat on the left wall
+    beside the live chart. Selecting a state LANDS that market on this chart:
+    the room's own active symbol changes, the camera stays, nothing navigates
+    and no second chart engine is mounted ("LANDED · NO SECOND ENGINE").
+  */
+  const chartHeatDiscoveryEquipment = React.useMemo(() => ({
+    equipmentId: "heat-discovery",
+    title: "Heat · Discovery",
+    verdict: "DAILY STATES",
+    headline: "Heat is how unusual a measured state is today — select one and that market lands on this chart.",
+    counts: [],
+    renderDepth: (unabridged: boolean) => (
+      <DiscoveryUnusualStates
+        symbols={BOARD_STOCK_SYMBOLS}
+        landedSymbol={symbol}
+        onLand={(sym: string) => setActiveSymbol(sym)}
+        compact={!unabridged}
+        unabridged={unabridged}
+      />
+    ),
+  }), [symbol, setActiveSymbol]);
+
+  /*
     The chooser. The room hands the layer ONE descriptor — the one the rail
     asked for — so the layer never learns that this room has more than one piece
     of equipment, and never has to choose. Choosing is the room's job because
@@ -4006,6 +4031,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       "decision-chain": chartDecisionChainEquipment,
       "personal-edge": chartPersonalEdgeEquipment,
       "command-deck": chartCommandDeckEquipment,
+      "heat-discovery": chartHeatDiscoveryEquipment,
     }[chartEquipment.equipmentId ?? ""] ?? chartMarketRealityEquipment);
 
   /* ── THE HONESTY READING ────────────────────────────────────────────────────
