@@ -334,6 +334,8 @@ import selectRegimeLighting from "@/lib/marketData/viewModels/selectRegimeLighti
 import { SCAFFOLDING_DEPTHS, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import selectStructureZoneObjects from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 import { selectLiquidityLifecycle } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
+import { bookBucketStep, placeBookEventsOnBars } from "@/lib/marketData/bookLiquidityLifecycle";
+import { useBookLiquidityLifecycle } from "@/lib/marketData/useBookLiquidityLifecycle";
 import { selectAuctionState } from "@/lib/marketData/viewModels/selectAuctionState";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/selectStructureMarketObjects";
@@ -1663,7 +1665,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }), [chartStructureVM, chartBars, chartBarIdentities]);
   // Compiled once per bar change here, never per animation frame in the
   // canvas, so Inspect and selection can later read the same reading.
-  const chartLiquidityLifecycle = React.useMemo(
+  const candleLiquidityLifecycle = React.useMemo(
     () => liquidityLifecycleOn
       ? selectLiquidityLifecycle(chartBars.map(b => ({
           time: typeof b.time === "number" ? b.time : Number(b.time),
@@ -1672,6 +1674,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         })))
       : null,
     [liquidityLifecycleOn, chartBars],
+  );
+  // Garden 16 §30 — where a real book is observed (Kraken, USD crypto pairs),
+  // pools are resting size that was SEEN and PULLED is observable; every
+  // other symbol keeps the candle reading and its refusal. The book reading
+  // replaces the candle one only once its first snapshot has arrived.
+  const bookLiquidityLifecycle = useBookLiquidityLifecycle(
+    symbol,
+    liquidityLifecycleOn,
+    React.useMemo(() => bookBucketStep(chartBars), [chartBars]),
+  );
+  const chartLiquidityLifecycle = React.useMemo(
+    () => bookLiquidityLifecycle
+      ? placeBookEventsOnBars(bookLiquidityLifecycle, chartBars.map(b => (typeof b.time === "number" ? b.time : Number(b.time))))
+      : candleLiquidityLifecycle,
+    [bookLiquidityLifecycle, candleLiquidityLifecycle, chartBars],
   );
   // Hoisted above the market objects (they depend only on the bars): Profile
   // Memory's remembered levels are canonical LEVEL objects while its layer is on.

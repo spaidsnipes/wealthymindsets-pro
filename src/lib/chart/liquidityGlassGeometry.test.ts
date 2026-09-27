@@ -41,8 +41,13 @@ describe("F08A — a pool is BOUNDED IN TIME by its lifecycle", () => {
     expect(poolSpan([])).toBeNull();
   });
 
-  it("never names PULLED — this feed has no book", () => {
-    expect(Object.keys(PHASE_WORD)).not.toContain("PULLED");
+  // Garden 16 §30 (2026-09-27): the word exists for the observed-book reading;
+  // the candle selector still never emits the stage (selectLiquidityLifecycle tests).
+  it("PULLED ends a pool like CONSUMED, and says which it was", () => {
+    expect(PHASE_WORD.PULLED).toBe("PULLED");
+    const s = poolSpan([{ stage: "APPEARED", time: 1 }, { stage: "PULLED", time: 5 }])!;
+    expect(s).toMatchObject({ endTime: 5, pulled: true, consumed: false });
+    expect(poolSpan([{ stage: "APPEARED", time: 1 }, { stage: "CONSUMED", time: 5 }])).toMatchObject({ pulled: false, consumed: true });
   });
 
   it("rungs spread over the pool's band, or keep a 3px pitch centred on a thin one", () => {

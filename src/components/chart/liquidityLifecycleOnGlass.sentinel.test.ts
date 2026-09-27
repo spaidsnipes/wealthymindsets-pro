@@ -103,9 +103,9 @@ describe("F08A — each pool is a glowing LADDER bounded in time by its lifecycl
     expect(block).toContain("const glow = ctx.createLinearGradient(0, top - halo, 0, top + h + halo);");
     // Pin moved 2026-09-26 (serving 04:04, "very faint next to F08A"): the
     // glow, blur, width and rung alpha come from ONE owner, ladderInk.
-    expect(block).toContain("const ink = ladderInk({ rungs: lastRungs, consumed: span.consumed, barsQuiet, weight });");
+    expect(block).toContain("const ink = ladderInk({ rungs: lastRungs, consumed: span.consumed || span.pulled, barsQuiet, weight });");
     expect(block).toMatch(/ctx\.shadowBlur = ink\.blur;[\s\S]*ctx\.shadowBlur = 0;/);
-    expect(block).toContain("ladderInk({ rungs: ph.rungs, consumed: span.consumed, barsQuiet, weight }).rungAlpha");
+    expect(block).toContain("ladderInk({ rungs: ph.rungs, consumed: span.consumed || span.pulled, barsQuiet, weight }).rungAlpha");
   });
 
   it("marks every lifecycle event with a dashed phase tick and a consumed pool with an end cap", () => {
@@ -113,12 +113,16 @@ describe("F08A — each pool is a glowing LADDER bounded in time by its lifecycl
     expect(block).toMatch(/ctx\.setLineDash\(\[2, 2\]\);[\s\S]*ctx\.moveTo\(xs, top - 6\);/);
     expect(block).toContain("words.push({ text: PHASE_WORD[tk.stage]");
     // Pin moved 2026-09-26 (Garden 11): the cap is a BOLD bar, the rungs fade after it.
-    expect(block).toMatch(/if \(span\.consumed\) \{[\s\S]*ctx\.lineWidth = 2\.5;[\s\S]*ctx\.moveTo\(xEnd - 1\.25, top - 5\);/);
+    // Garden 16 §30: a PULLED pool (observed book only) ends too, on a DASHED cap.
+    expect(block).toMatch(/if \(span\.consumed \|\| span\.pulled\) \{[\s\S]*ctx\.lineWidth = 2\.5;[\s\S]*if \(span\.pulled\) ctx\.setLineDash\(\[3, 2\]\);[\s\S]*ctx\.moveTo\(xEnd - 1\.25, top - 5\);/);
   });
 
-  it("never draws PULLED — this feed has no book", () => {
-    expect(block).not.toMatch(/"PULLED"/);
-    expect(block).toContain('ds.liquidityLifecycleRefused = "PULLED,DEPTH:no-book";');
+  // Garden 16 §30 (2026-09-27): PULLED is observable ONLY on an observed book
+  // (bookLiquidityLifecycle, Kraken USD crypto). On the candle basis it stays
+  // refused, and the receipt and tag say which basis the glass is showing.
+  it("PULLED is refused on the candle basis and stated only on an observed book", () => {
+    expect(block).toContain('ds.liquidityLifecycleRefused = lc.basis === "OBSERVED_BOOK" ? "NONE" : "PULLED,DEPTH:no-book";');
+    expect(block).toContain("ds.liquidityLifecycleVenue = lc.venue");
   });
 
   it("keeps candles in front — ladders, glow and ticks paint inside the candle cut-out", () => {
@@ -154,7 +158,7 @@ describe("no caption on the glass — the honesty is a receipt and one compact t
   });
 
   it("the one tag is placed clear of the candles and chips by the keep-out placer", () => {
-    expect(block).toContain('const tag = "CANDLE-EST · NO BOOK · PULL REFUSED";');
+    expect(block).toContain('const tag = lc.basis === "OBSERVED_BOOK" ? `BOOK · ${(lc.venue ?? "ONE VENUE").toUpperCase()} · ONE VENUE` : "CANDLE-EST · NO BOOK · PULL REFUSED";');
     expect(block).toMatch(/const tagSpot = placeClearOfKeepOut\(below, keepOut\(\), \{/);
     expect(block).toContain("recordKeepOut(keepOutLedger, tagSpot);");
     // Pin moved 2026-09-26: a placed tag must also sit inside the pane.
@@ -230,7 +234,7 @@ describe("Garden 11 — with the words hidden, the stage is still geometry (TSLA
   });
 
   it("maturity is rung count AND brightness from one owner; all in family ink", () => {
-    expect(block).toContain("const rungA = ladderInk({ rungs: ph.rungs, consumed: span.consumed, barsQuiet, weight }).rungAlpha;");
+    expect(block).toContain("const rungA = ladderInk({ rungs: ph.rungs, consumed: span.consumed || span.pulled, barsQuiet, weight }).rungAlpha;");
     expect(block).toContain("ctx.globalAlpha = att.textAlpha(\"liquidityLifecycle\");");
   });
 });

@@ -30,7 +30,8 @@ export const AWAY_BARS = 3;
 export const HOLD_BARS = 3;
 export const MAX_POOLS = 6;
 
-export type LifecycleStage = "APPEARED" | "GREW" | "PERSISTED" | "TOUCHED" | "REFILLED" | "CONSUMED";
+/** PULLED is emitted only on an OBSERVED book (bookLiquidityLifecycle); the candle reading refuses it. */
+export type LifecycleStage = "APPEARED" | "GREW" | "PERSISTED" | "TOUCHED" | "REFILLED" | "CONSUMED" | "PULLED";
 export const STAGE_ORDER: readonly (LifecycleStage | "PULLED")[] = ["APPEARED", "GREW", "PERSISTED", "TOUCHED", "REFILLED", "CONSUMED", "PULLED"];
 export const PULLED_REFUSAL = "PULLED needs order-book depth — this feed has none, so no pool is ever called pulled";
 
@@ -43,6 +44,8 @@ export interface LiquidityPool {
   readonly stage: LifecycleStage;
   readonly events: readonly { readonly stage: LifecycleStage; readonly time: number }[];
   readonly volume: number;
+  /** Which side of an observed book the size rested on (book basis only). */
+  readonly side?: "bid" | "ask";
 }
 
 export interface LiquidityLifecycleVM {
@@ -51,8 +54,12 @@ export interface LiquidityLifecycleVM {
   readonly reason: "DRAWN" | "TOO_FEW_BARS" | "NO_VOLUME" | "NO_POOLS";
   readonly pools: readonly LiquidityPool[];
   readonly step: number;
-  readonly basis: "CANDLE_ESTIMATED";
-  readonly pulledRefusal: string;
+  /** CANDLE_ESTIMATED: volume-at-price from bars. OBSERVED_BOOK: resting size seen on one venue's book. */
+  readonly basis: "CANDLE_ESTIMATED" | "OBSERVED_BOOK";
+  /** The venue whose book was observed (OBSERVED_BOOK only). */
+  readonly venue?: string;
+  /** Why PULLED is refused, or null when the book makes it observable. */
+  readonly pulledRefusal: string | null;
 }
 
 const median = (xs: number[]) => {
@@ -196,7 +203,7 @@ export function rankPoolsForGlass(
 ): PoolGlassRole[] {
   const perSide = Math.max(0, Math.floor(opts.perSide ?? GLASS_POOLS_PER_SIDE));
   const roles: PoolGlassRole[] = pools.map(() => "MEMORY");
-  const standing = pools.map((p, i) => ({ p, i })).filter(({ p }) => p.stage !== "CONSUMED");
+  const standing = pools.map((p, i) => ({ p, i })).filter(({ p }) => p.stage !== "CONSUMED" && p.stage !== "PULLED");
   if (typeof price === "number" && Number.isFinite(price)) {
     const dist = (p: LiquidityPool) => Math.abs(p.price - price);
     const above = standing.filter(({ p }) => p.price > price).sort((a, z) => dist(a.p) - dist(z.p));

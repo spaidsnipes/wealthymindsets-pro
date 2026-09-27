@@ -16978,10 +16978,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.liquidityLifecycleTag;
             delete ds.liquidityLifecycleBasis;
             delete ds.liquidityLifecycleRefused;
+            delete ds.liquidityLifecycleVenue;
           } else {
             ds.liquidityLifecycle = lc.drawn ? lc.pools.map(p => p.stage).join(",") : lc.reason;
             ds.liquidityLifecycleBasis = lc.basis;
-            ds.liquidityLifecycleRefused = "PULLED,DEPTH:no-book";
+            ds.liquidityLifecycleRefused = lc.basis === "OBSERVED_BOOK" ? "NONE" : "PULLED,DEPTH:no-book";
+            if (lc.venue) ds.liquidityLifecycleVenue = lc.venue; else delete ds.liquidityLifecycleVenue;
             const INK = "201,165,92";
             const tsLc = chart.timeScale();
             let axisWL = 60;
@@ -17088,7 +17090,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (xEnd - sx0 < 2) continue;
                 const stubRungs = span.phases.length > 0 ? span.phases[span.phases.length - 1].rungs : 2;
                 const stubQuiet = pool.events.length ? barsSince(pool.events[pool.events.length - 1].time) : 0;
-                const stubInk = ladderInk({ rungs: stubRungs, consumed: span.consumed, barsQuiet: stubQuiet, weight: pool.volume / maxVolL });
+                const stubInk = ladderInk({ rungs: stubRungs, consumed: span.consumed || span.pulled, barsQuiet: stubQuiet, weight: pool.volume / maxVolL });
                 ctx.globalAlpha = memoryA;
                 const stubFade = ctx.createLinearGradient(sx0, 0, xEnd, 0);
                 stubFade.addColorStop(0, `rgba(${INK},0)`);
@@ -17102,13 +17104,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.lineTo(xEnd, yy);
                 }
                 ctx.stroke();
-                if (span.consumed) {
+                if (span.consumed || span.pulled) {
+                  // CONSUMED: a solid cap (it traded away). PULLED: a dashed
+                  // cap (it left the observed book without trading).
                   ctx.lineWidth = 1.5;
                   ctx.strokeStyle = `rgba(${INK},${Math.min(0.9, 0.35 + stubInk.age)})`;
+                  if (span.pulled) ctx.setLineDash([2, 2]);
                   ctx.beginPath();
                   ctx.moveTo(xEnd - 0.75, top - 3);
                   ctx.lineTo(xEnd - 0.75, top + h + 3);
                   ctx.stroke();
+                  ctx.setLineDash([]);
                 }
                 memoryL++;
                 continue;
@@ -17121,7 +17127,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const lastRungs = span.phases.length > 0 ? span.phases[span.phases.length - 1].rungs : 2;
               // One owner for how brightly a pool is lit (ladderInk): a
               // standing pool dims with age only to 0.8; consumed is memory.
-              const ink = ladderInk({ rungs: lastRungs, consumed: span.consumed, barsQuiet, weight });
+              const ink = ladderInk({ rungs: lastRungs, consumed: span.consumed || span.pulled, barsQuiet, weight });
               const age = ink.age;
               // GLOW — a soft halo around the ladder, its volume's weight.
               const halo = 10;
@@ -17152,7 +17158,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const xa = ph.fromTime === span.startTime ? x0 : Math.max(x0, xOf(ph.fromTime) ?? x0);
                 const xb = ph.toTime == null ? xEnd : Math.min(xEnd, (xOf(ph.toTime) ?? xEnd) + (ph.toTime === span.endTime ? spacingL / 2 : 0));
                 if (xb <= xa) continue;
-                const rungA = ladderInk({ rungs: ph.rungs, consumed: span.consumed, barsQuiet, weight }).rungAlpha;
+                const rungA = ladderInk({ rungs: ph.rungs, consumed: span.consumed || span.pulled, barsQuiet, weight }).rungAlpha;
                 lastRungAlpha = rungA;
                 if (ph.fromTime === span.startTime && !bornOnCamera) {
                   // Its history runs off the camera: the rungs fade in.
@@ -17199,7 +17205,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.lineTo(xs, top - 4);
                   ctx.lineTo(xs + 3, top - 8);
                   ctx.stroke();
-                } else if (tk.stage !== "CONSUMED") {
+                } else if (tk.stage !== "CONSUMED" && tk.stage !== "PULLED") {
                   // GREW / PERSISTED / REFILLED — a dashed phase tick where the
                   // ladder gains its next rung.
                   ctx.lineWidth = 1;
@@ -17214,8 +17220,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (!said.has(tk.stage)) { said.add(tk.stage); words.push({ text: PHASE_WORD[tk.stage], x: xs + 2, y: top - 8, alpha: age }); }
               }
               if (bornOnCamera) births++;
-              if (span.consumed) {
-                // END CAP — a bold bar where the pool stops, and the rungs fade
+              if (span.consumed || span.pulled) {
+                // END CAP — a bold bar where the pool stops (PULLED: dashed —
+                // the size left the observed book without trading), and the rungs fade
                 // out after it (memory, not liquidity still standing).
                 const tail = Math.min(16, spacingL * 2, Math.max(0, rightL - xEnd));
                 if (tail > 1) {
@@ -17234,14 +17241,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 }
                 ctx.lineWidth = 2.5;
                 ctx.strokeStyle = `rgba(${INK},${markA})`;
+                if (span.pulled) ctx.setLineDash([3, 2]);
                 ctx.beginPath();
                 ctx.moveTo(xEnd - 1.25, top - 5);
                 ctx.lineTo(xEnd - 1.25, top + h + 5);
                 ctx.stroke();
+                ctx.setLineDash([]);
               } else if (!tagAt || weight > tagAt.weight) {
                 tagAt = { xEnd, top, bottom: top + h, weight };
               }
-              spans.push(`${bornOnCamera ? "" : "<"}${Math.round(x0)}-${Math.round(xEnd)}${span.consumed ? "c" : ""}`);
+              spans.push(`${bornOnCamera ? "" : "<"}${Math.round(x0)}-${Math.round(xEnd)}${span.consumed ? "c" : span.pulled ? "p" : ""}`);
               painted++;
             }
             ctx.restore(); // releases the candle cut-out
@@ -17274,7 +17283,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
             // ONE COMPACT TAG — the layer's honesty, at the live pool's end.
             if (tagAt) {
-              const tag = "CANDLE-EST · NO BOOK · PULL REFUSED";
+              const tag = lc.basis === "OBSERVED_BOOK" ? `BOOK · ${(lc.venue ?? "ONE VENUE").toUpperCase()} · ONE VENUE` : "CANDLE-EST · NO BOOK · PULL REFUSED";
               const tw = ctx.measureText(tag).width;
               const below = { x: tagAt.xEnd - tw, y: tagAt.bottom + 3, w: tw, h: 9 };
               const above = { x: tagAt.xEnd - tw, y: tagAt.top - 20, w: tw, h: 9 };
@@ -17321,6 +17330,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.liquidityLifecycleTag;
           delete ds.liquidityLifecycleBasis;
           delete ds.liquidityLifecycleRefused;
+          delete ds.liquidityLifecycleVenue;
         }
 
         /* ══ H-1001 · RISK ON PRICE — hardware brackets on the price axis ════

@@ -41,6 +41,7 @@ export const PHASE_WORD: Readonly<Record<LifecycleStage, string>> = {
   TOUCHED: "TOUCH",
   REFILLED: "REFILL",
   CONSUMED: "CONSUMED",
+  PULLED: "PULLED",
 };
 
 export interface PoolPhase {
@@ -53,12 +54,14 @@ export interface PoolPhase {
 export interface PoolSpan {
   /** APPEARED. The ladder does not exist on the glass before this bar. */
   readonly startTime: number;
-  /** CONSUMED bar, or null while the pool still stands (it runs to the live edge). */
+  /** CONSUMED or PULLED bar, or null while the pool still stands (it runs to the live edge). */
   readonly endTime: number | null;
   readonly consumed: boolean;
+  /** The size left an OBSERVED book without trading (book basis only). */
+  readonly pulled: boolean;
   /** Consecutive stretches of one ladder form, in time order, covering start→end. */
   readonly phases: readonly PoolPhase[];
-  /** One dashed tick per lifecycle event, in time order. PULLED is not a stage this feed can reach. */
+  /** One mark per lifecycle event, in time order. PULLED appears only on an observed book. */
   readonly ticks: readonly { readonly stage: LifecycleStage; readonly time: number }[];
 }
 
@@ -71,7 +74,7 @@ export interface PoolSpan {
 export function poolSpan(events: readonly { readonly stage: LifecycleStage; readonly time: number }[]): PoolSpan | null {
   const ev = events.filter(e => Number.isFinite(e.time)).slice().sort((a, z) => a.time - z.time);
   if (ev.length === 0) return null;
-  const consume = ev.find(e => e.stage === "CONSUMED") ?? null;
+  const consume = ev.find(e => e.stage === "CONSUMED" || e.stage === "PULLED") ?? null;
   const endTime = consume ? consume.time : null;
   const live = consume ? ev.filter(e => e.time <= consume.time) : ev;
 
@@ -79,7 +82,7 @@ export function poolSpan(events: readonly { readonly stage: LifecycleStage; read
   let rungs: number = LADDER_RUNGS.APPEARED;
   for (let k = 0; k < live.length; k++) {
     const e = live[k];
-    if (e.stage === "CONSUMED") break;
+    if (e.stage === "CONSUMED" || e.stage === "PULLED") break;
     if (e.stage in LADDER_RUNGS) rungs = Math.max(rungs, LADDER_RUNGS[e.stage as keyof typeof LADDER_RUNGS]);
     const last = phases[phases.length - 1];
     if (last && last.rungs === rungs) continue; // same form — the stretch simply continues
@@ -90,7 +93,7 @@ export function poolSpan(events: readonly { readonly stage: LifecycleStage; read
     const last = phases[phases.length - 1];
     phases[phases.length - 1] = { ...last, toTime: endTime };
   }
-  return { startTime: ev[0].time, endTime, consumed: consume != null, phases, ticks: live.map(e => ({ stage: e.stage, time: e.time })) };
+  return { startTime: ev[0].time, endTime, consumed: consume?.stage === "CONSUMED", pulled: consume?.stage === "PULLED", phases, ticks: live.map(e => ({ stage: e.stage, time: e.time })) };
 }
 
 /**
