@@ -148,6 +148,9 @@ export const SEMANTIC_PERMISSION = {
   riskOnPrice: [S, S, S],
   questionLens: [S, S, S],       // a question the trader asked is a selection of attention
   candleTimer: [S, S, S],
+  // Five-hour order (2026-09-27): the forming candle's own anatomy (wick history
+  // + tempo). Silent at FAR (a regime view); MID and NEAR read the live bar.
+  formingCandle: [X, S, S],
 } as const satisfies Readonly<Record<string, PermissionRow>>;
 
 export type DepthLayer = keyof typeof SEMANTIC_PERMISSION;

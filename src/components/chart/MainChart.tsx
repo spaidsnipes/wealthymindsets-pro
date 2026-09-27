@@ -4215,6 +4215,26 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   }, [liveBar, ready]); // eslint-disable-line react-hooks/exhaustive-deps
   // A new symbol or timeframe is a new market clock measurement (marketClockProbe).
   useEffect(() => { resetMarketClock(); }, [symbol, timeframe]);
+  /* THE FORMING CANDLE'S OWN PRINTS (Garden 16 five-hour order: "the candle
+     participates … the probe develops … tempo becomes perceptible where
+     evidence supports it"). A bounded ring of real executed prints (price,
+     provider time), fed from the same recentTicks the chart already holds;
+     the paint reads the ones inside the forming bar. Reset per market. */
+  const formingPrintsRef = useRef<{ p: number; t: number }[]>([]);
+  const formingLastTRef = useRef(0);
+  useEffect(() => { formingPrintsRef.current = []; formingLastTRef.current = 0; }, [symbol, timeframe]);
+  useEffect(() => {
+    if (!recentTicks?.length) return;
+    const ring = formingPrintsRef.current;
+    let lastT = formingLastTRef.current;
+    for (const tk of recentTicks) {
+      if (!tk.trade || !Number.isFinite(tk.price) || !Number.isFinite(tk.time) || tk.time <= lastT) continue;
+      ring.push({ p: tk.price, t: tk.time });
+      lastT = tk.time;
+    }
+    formingLastTRef.current = lastT;
+    if (ring.length > 800) ring.splice(0, ring.length - 800);
+  }, [recentTicks]);
 
   /* ── BAR REPLAY CAMERA (M9 repair 2) ────────────────────────────────
    * The room freezes its canonical bars at the press and hands this chart the
@@ -9345,6 +9365,76 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
           }
         } catch { /* chart may be mid-transition; safe to skip this frame */ }
+      }
+
+      /* ══ THE CANDLE PARTICIPATES — FORMING-CANDLE ANATOMY ═════════════════
+         Garden 16 five-hour order: "Price descends: CANDLE DESCENDS … a new
+         extreme: WICK/EXTREME GEOMETRY UPDATES … accelerates: TEMPO BECOMES
+         PERCEPTIBLE WHERE EVIDENCE SUPPORTS IT … loses effectiveness:
+         DETERIORATION … probes structure: THE PROBE DEVELOPS." The candle
+         itself is Lightweight Charts' live series (it already grows,
+         contracts and re-extends from every print). This paints what the
+         series cannot, from the forming bar's OWN real prints only:
+           WICK HISTORY  every price level this bar's prints visited, marked on
+                         the candle, brightest newest — the probe's path
+           TEMPO         prints/sec over the last 3s against this bar's own
+                         rate: a warm aura when it accelerates (≥1.3×), a cool
+                         fading rim when it deteriorates (≤0.6×); it breathes
+                         only in LIVE
+         No prints (history, a closed market, a feed with no trades) → nothing
+         is drawn and the receipt says why. Silent at FAR (permission table). */
+      {
+        const lbF = barsRef.current.length ? barsRef.current[barsRef.current.length - 1] : null;
+        const xF = lbF ? chart.timeScale().timeToCoordinate(lbF.time as never) : null;
+        const barStartMs = lbF ? Number(lbF.time) * 1000 : 0;
+        const prints = lbF ? formingPrintsRef.current.filter(q => q.t >= barStartMs) : [];
+        if (!att.paints("formingCandle")) {
+          canvas.dataset.formingCandle = att.offWord(true);
+        } else if (!lbF || xF == null || !srs) {
+          canvas.dataset.formingCandle = "NO_BAR";
+        } else if (prints.length < 3) {
+          canvas.dataset.formingCandle = `NO_PRINTS:${prints.length}`;
+        } else {
+          const x = +xF;
+          const w = Math.max(3, bsp * 0.8);
+          const t0 = prints[0].t, t1 = prints[prints.length - 1].t;
+          const newestAt = new Map<number, number>();
+          for (const q of prints) {
+            const y = srs.priceToCoordinate(q.p);
+            if (y == null) continue;
+            newestAt.set(Math.round(+y), q.t);
+          }
+          ctx.save();
+          for (const [y, t] of newestAt) {
+            const rec = t1 > t0 ? (t - t0) / (t1 - t0) : 1;
+            ctx.fillStyle = `rgba(236,204,132,${(0.12 + 0.7 * rec).toFixed(3)})`;
+            ctx.fillRect(x - w / 2 - 3, y, 2, 1);
+            ctx.fillRect(x + w / 2 + 1, y, 2, 1);
+          }
+          const recent = prints.filter(q => q.t >= t1 - 3000).length / 3;
+          const base = prints.length / Math.max(3, (t1 - barStartMs) / 1000);
+          const tempo = base > 0 ? recent / base : 1;
+          const yO = srs.priceToCoordinate(Number(lbF.open)), yC = srs.priceToCoordinate(Number(lbF.close));
+          if (yO != null && yC != null) {
+            const top = Math.min(+yO, +yC) - 3, h = Math.max(4, Math.abs(+yC - +yO)) + 6;
+            const breathe = motionOnRef.current ? 0.8 + 0.2 * Math.sin(performance.now() / 180) : 1;
+            if (tempo >= 1.3) {
+              ctx.shadowColor = "rgba(255,190,110,0.9)";
+              ctx.shadowBlur = 10 * breathe;
+              ctx.strokeStyle = `rgba(255,196,120,${(Math.min(0.85, 0.3 + 0.25 * (tempo - 1)) * breathe).toFixed(3)})`;
+              ctx.lineWidth = 1.5;
+              ctx.strokeRect(x - w / 2 - 2, top, w + 4, h);
+            } else if (tempo <= 0.6) {
+              ctx.strokeStyle = `rgba(150,170,196,${(0.45 * (1 - tempo)).toFixed(3)})`;
+              ctx.setLineDash([2, 2]);
+              ctx.lineWidth = 1;
+              ctx.strokeRect(x - w / 2 - 2, top, w + 4, h);
+              ctx.setLineDash([]);
+            }
+          }
+          ctx.restore();
+          canvas.dataset.formingCandle = `PRINTS:${prints.length}|LEVELS:${newestAt.size}|TEMPO:${tempo.toFixed(2)}`;
+        }
       }
 
       /* ══════════════════════════════════════════════════════
