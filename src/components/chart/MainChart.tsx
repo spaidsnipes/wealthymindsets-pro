@@ -8296,7 +8296,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }),
         };
         const dg = dataGapsCache.vm;
-        let painted = 0, worded = 0;
+        let painted = 0, worded = 0, wordsWithheld = 0;
+        // LABEL SOUP (Founder's Chrome, TSLA 15m, 2026-09-27): every overnight
+        // one-interval hole printed "NO BAR · 1 interval" — dozens stacked down
+        // the left. At MID a short hole (< 3 intervals) keeps its dashed bridge
+        // but only the two NEWEST on camera carry words; NEAR still names
+        // every hole; ≥ 3 intervals are named at every depth (rule above).
+        const shortWordAllowed = new Set<number>();
+        if (semanticDensity.depth !== "NEAR") {
+          const onCam = dg.gaps.filter(g => g.emptyIntervals < 3 && chart.timeScale().timeToCoordinate(g.fromTime as never) != null)
+            .sort((a, b) => b.fromTime - a.fromTime).slice(0, 2);
+          for (const g of onCam) shortWordAllowed.add(g.fromTime);
+        }
+        const gapWordRects: { x: number; y: number; w: number; h: number }[] = [];
         ctx.save();
         ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
         for (const g of att.paints("dataGaps") ? dg.gaps : []) {
@@ -8314,6 +8326,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // 2026-09-26 · the depth rule is the permission table's (dataGaps is
           // QUIET at FAR: the bridge, no words).
           if (!att.speaks("dataGaps") && g.emptyIntervals < 3) continue;
+          if (semanticDensity.depth !== "NEAR" && g.emptyIntervals < 3 && !shortWordAllowed.has(g.fromTime)) { wordsWithheld++; continue; }
           const my = Math.min(+y0, +y1) - 10;
           const t = `‑ ‑ ${g.label} ‑`;
           const tw = ctx.measureText(t).width + 8;
@@ -8322,6 +8335,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           let plotW = W;
           try { plotW = chart.timeScale().width(); } catch { /* keep W */ }
           const mx = Math.max(tw / 2 + 4, Math.min(plotW - tw / 2 - 4, (+x0 + +x1) / 2));
+          // Never stack gap words on each other: a chip that would overlap one
+          // already placed waits (its bridge is still on the glass).
+          const rect = { x: mx - tw / 2, y: my - 12, w: tw, h: 13 };
+          if (gapWordRects.some(r => rect.x < r.x + r.w && rect.x + rect.w > r.x && rect.y < r.y + r.h && rect.y + rect.h > r.y)) { wordsWithheld++; continue; }
+          gapWordRects.push(rect);
           ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(mx - tw / 2, my - 12, tw, 13);
           ctx.fillStyle = "rgba(237,230,211,0.9)"; ctx.fillText(t, mx, my);
           forceChips.push({ x: mx - tw / 2, y: my - 12, w: tw, h: 13 });
@@ -8332,6 +8350,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         canvas.dataset.dataGaps = dg.reason === "MEASURED" ? `${dg.gaps.length}:${painted}` : dg.reason;
         // How many bridges carried their words this frame (FAR withholds short holes' words).
         canvas.dataset.dataGapsWorded = String(worded);
+        canvas.dataset.dataGapsWordsWithheld = String(wordsWithheld);
         // Which owner said two bars share a session (CONTINUOUS / BAR_IDENTITY / MARKET_CLOCK).
         canvas.dataset.dataGapsSession = dg.sessionSource ?? "NONE";
       } catch { /* camera mid-transition */ }
