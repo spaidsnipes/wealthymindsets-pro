@@ -302,7 +302,7 @@ describe("8 · live defects, serving 2026-09-26 03:59–04:00 CDT", () => {
   it("VP (Regime desk): ONE label per level — name + price chip as one pair, clear of candles and chips", () => {
     expect(VP).toMatch(/const pair = placeLevelPair\(\{[\s\S]*?keepOut: profileCandlesAt\(bandTop, bandBot\), blockers: forceChips,\s*\}\);/);
     // The name is the tag (+ EST when bar-built) — the price lives only in the chip.
-    expect(VP).toContain("ctx.fillText(nameTxt, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);");
+    expect(VP).toContain("ctx.fillText(nameTxt, nameRect.x + 3, nameRect.y + nameRect.h / 2 + 0.5);");
     expect(VP).not.toMatch(/`\$\{tag\} \$\{vpPrice\(p\)\}`/);
     expect(VP).toContain("ctx.fillText(chipTxt, cr.x + cr.w / 2, cr.y + cr.h / 2 + 0.5);");
     // The old 40px slide cap (why chips stayed on the Sep 25 bodies) is gone.

@@ -110,6 +110,15 @@ describe("the level pair (M47: one name + one price chip, placed as a unit)", ()
     expect(p.onCandles).toBe(true);
   });
 
+  it("nowhere clear OFF the candles (other chips fill every row): YIELDED, no name, onCandles false — the case MainChart withholds too", () => {
+    // Chips already on the glass across the whole band; no candle anywhere.
+    const chips = [{ x: 0, y: 0, w: 2000, h: 1000 }];
+    const p = placeLevelPair({ ...base, keepOut: [], blockers: chips });
+    expect(p.mode).toBe("YIELDED");
+    expect(p.name).toBeNull();
+    expect(p.onCandles).toBe(false);
+  });
+
   it("never slides left of the left chrome", () => {
     expect(LEFT_CHROME_RIGHT).toBe(84);
     const candles = [{ x: 90, y: 0, w: 1100, h: 1000 }];

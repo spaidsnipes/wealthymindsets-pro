@@ -43,7 +43,7 @@ describe("G16 §23 · Profile Fusion on the glass", () => {
 describe("G16 §20 · bar-built level chips wear EST on the glass, never on a candle", () => {
   it("Session / Fixed WM VP level names route through profileLevelTag(…, snap.quality) and the pair placer", () => {
     expect(CHART).toContain("const nameTxt = profileLevelTag(tag, snap.quality);");
-    expect(CHART).toContain("ctx.fillText(nameTxt, pair.name.x + 3");
+    expect(CHART).toContain("ctx.fillText(nameTxt, nameRect.x + 3");
     expect(CHART).toContain("const edgeTxt = `${profileLevelTag(tag, snap.quality)} ");
   });
 
@@ -58,19 +58,22 @@ describe("G16 §20 · no bare VP price on a candle; withheld chips hold no row",
   const MEMORY = CHART.slice(CHART.indexOf("const labelYs: number[] = [];"), CHART.indexOf("delete ds.profileMemoryChipsWithheld;") + 40);
 
   it("a Session / Fixed level pair with no clear row withholds its gold chip (the rule already drew) and counts it", () => {
-    expect(VP_LEVEL).toMatch(/const cr = pair\.chip;[\s\S]{0,600}?if \(pair\.onCandles\) \{\s*vpChipsWithheld\+\+;\s*vpWordsWithheld\+\+;\s*ctx\.restore\(\);\s*return;\s*\}/);
+    expect(VP_LEVEL).toMatch(/const cr = pair\.chip;[\s\S]{0,900}?if \(pair\.onCandles \|\| !pair\.name\) \{\s*vpChipsWithheld\+\+;\s*vpWordsWithheld\+\+;\s*ctx\.restore\(\);\s*return;\s*\}/);
     // The withhold comes before any chip is reserved, counted or painted.
-    const withheld = VP_LEVEL.indexOf("if (pair.onCandles) {");
+    const withheld = VP_LEVEL.indexOf("if (pair.onCandles || !pair.name) {");
     expect(withheld).toBeGreaterThan(-1);
     expect(VP_LEVEL.indexOf("forceChips.push({ ...cr });")).toBeGreaterThan(withheld);
     expect(VP_LEVEL.indexOf("vpChipsPlaced++;")).toBeGreaterThan(withheld);
     expect(VP_LEVEL.indexOf("ctx.fillRect(cr.x, cr.y, cr.w, cr.h);")).toBeGreaterThan(withheld);
     // No faded on-candle chip survives below the withhold.
     expect(VP_LEVEL).not.toMatch(/keepOutBackingAlpha\(pair,/);
-    expect(VP_LEVEL.slice(withheld + "if (pair.onCandles) {".length)).not.toContain("pair.onCandles");
+    expect(VP_LEVEL.slice(withheld + "if (pair.onCandles || !pair.name) {".length)).not.toContain("pair.onCandles");
+    // Off the candles too (round-5): a YIELDED pair has no name, so its chip is
+    // withheld — below the withhold the name is always painted, never optional.
+    expect(VP_LEVEL.slice(withheld)).not.toMatch(/if \(pair\.name\)|pair\.name \?|else vpWordsWithheld/);
     // Both name paints (halo + fill) carry the EST-bearing tag.
-    expect(VP_LEVEL).toContain("ctx.strokeText(nameTxt, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);");
-    expect(VP_LEVEL).toContain("ctx.fillText(nameTxt, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);");
+    expect(VP_LEVEL).toContain("ctx.strokeText(nameTxt, nameRect.x + 3, nameRect.y + nameRect.h / 2 + 0.5);");
+    expect(VP_LEVEL).toContain("ctx.fillText(nameTxt, nameRect.x + 3, nameRect.y + nameRect.h / 2 + 0.5);");
     // The count is a receipt, written and cleared with its siblings.
     expect(CHART).toContain("ds.vpLevelChipsWithheld = String(vpChipsWithheld);");
     expect(CHART).toMatch(/delete ds\.vpLevelChips; delete ds\.vpWordsWithheld; delete ds\.vpLevelPairsMoved;\s*delete ds\.vpLevelChipsWithheld;/);

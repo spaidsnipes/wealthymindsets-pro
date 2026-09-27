@@ -8789,30 +8789,32 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // name — and no EST — printed on a body is a naked claim. The chip is
           // withheld too (counted, vpLevelChipsWithheld) as Profile Memory
           // withholds its S-n chips; the level keeps its rule.
-          if (pair.onCandles) {
+          // OFF the candles the same law holds (round-5 verifier): YIELDED
+          // with no clear row for the name printed the gold price alone — no
+          // POC, no EST — beside other chips. A price never speaks without its
+          // name: no name, no chip.
+          if (pair.onCandles || !pair.name) {
             vpChipsWithheld++;
             vpWordsWithheld++;
             ctx.restore();
             return;
           }
+          const nameRect = pair.name;
           forceChips.push({ ...cr });
           vpChipsPlaced++;
           if (pair.mode !== "ROW") vpPairsMoved++;
-          if (pair.name) forceChips.push({ ...pair.name });
-          else vpWordsWithheld++;
+          forceChips.push({ ...nameRect });
           if (pair.leader) {
             ctx.strokeStyle = ink(0.6); ctx.lineWidth = 1; ctx.setLineDash([1, 2]);
             ctx.beginPath(); ctx.moveTo(cr.x + cr.w, cr.y + cr.h / 2); ctx.lineTo(vpChipRight, midY); ctx.stroke();
             ctx.setLineDash([]);
           }
-          if (pair.name) {
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-            ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
-            ctx.strokeText(nameTxt, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);
-            ctx.fillStyle = ink(0.95);
-            ctx.fillText(nameTxt, pair.name.x + 3, pair.name.y + pair.name.h / 2 + 0.5);
-          }
+          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
+          ctx.strokeText(nameTxt, nameRect.x + 3, nameRect.y + nameRect.h / 2 + 0.5);
+          ctx.fillStyle = ink(0.95);
+          ctx.fillText(nameTxt, nameRect.x + 3, nameRect.y + nameRect.h / 2 + 0.5);
           ctx.font = LEVEL_CHIP_FONT;
           ctx.fillStyle = ink(0.92);
           ctx.fillRect(cr.x, cr.y, cr.w, cr.h);
