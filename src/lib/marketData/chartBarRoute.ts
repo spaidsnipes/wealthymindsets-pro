@@ -29,13 +29,24 @@
  *                        answer ("BTCUSD" → "BTCUSD/USD"), so the chart falls on.
  *   3. /api/finnhub    — "Finnhub REST": equities only (crypto is not asked
  *                        here). Served when toFinnhubSym resolves and
- *                        FH_NATIVE_RES has the id. Walked, not assumed away.
+ *                        FH_NATIVE_RES has the id. UNREACHABLE TODAY: for a
+ *                        non-crypto symbol door 3 is reached only when Alpaca
+ *                        (door 2) declined the id, and every FH_NATIVE_RES id
+ *                        is in ALPACA_TF_MAP, so Alpaca never declines one
+ *                        Finnhub would serve. Kept (not deleted) because it is
+ *                        the chart's real order; the invariant that makes it
+ *                        dead is pinned in chartBarRoute.test.ts, so a row
+ *                        added to FH_NATIVE_RES alone turns it live and RED.
  *   4. /api/yahoo      — resolveYahooSymbol must resolve; resolveYahooTimeframe
  *                        names the plan, and its `sourceMode` says native or
  *                        reconstructed.
  *   5. /api/finnhub    — the last door, asked for crypto too
  *                        (fetchFinnhubCandles: only equityVendorSkipNoun stops
- *                        it). Same table, same symbol owner as door 3.
+ *                        it). Same table, same symbol owner as door 3. A
+ *                        BINANCE: pair is asked of Finnhub's /crypto/candle,
+ *                        an equity of /stock/candle (finnhubCandlePath; the
+ *                        request URL is pinned in finnhubBarRoute.test.ts and
+ *                        on the wire in api/finnhub/route.test.ts).
  *
  * DOOR 5 IS WHY THE WALK HAS NO SHORTCUT (verifier, 2026-09-27). This module
  * used to skip Finnhub on the claim "its intervals are a subset of Alpaca's".

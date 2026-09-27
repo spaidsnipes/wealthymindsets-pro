@@ -76,6 +76,26 @@ describe("GET /api/finnhub — honest upstream failure classification", () => {
     expect(body.sym).toBe("SUI");
   });
 
+  it("THE CANDLE WIRE: a USDT pair's bars are asked of /crypto/candle, an equity's of /stock/candle", async () => {
+    const asked: URL[] = [];
+    globalThis.fetch = (async (input: string) => {
+      asked.push(new URL(String(input)));
+      return new Response(JSON.stringify({ s: "ok", t: [1757000000], o: [1], h: [2], l: [0.5], c: [1.5], v: [10] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const { GET } = await loadRoute();
+    const res = await GET(new Request("http://localhost/api/finnhub?sym=BTCUSDT&type=candles&tf=1D&bars=10"));
+    const body = await res.json();
+    expect(asked[0].pathname).toBe("/api/v1/crypto/candle");
+    expect(asked[0].searchParams.get("symbol")).toBe("BINANCE:BTCUSDT");
+    expect(asked[0].searchParams.get("resolution")).toBe("D");
+    expect(body.candles).toHaveLength(1);
+
+    await GET(new Request("http://localhost/api/finnhub?sym=TSLA&type=candles&tf=1h&bars=10"));
+    expect(asked[1].pathname).toBe("/api/v1/stock/candle");
+    expect(asked[1].searchParams.get("symbol")).toBe("TSLA");
+  });
+
   it("THE DISCLOSURE: a USD request reports the USDT pair it was answered from", async () => {
     globalThis.fetch = vi.fn(async () =>
       new Response(JSON.stringify({ c: 79800, pc: 79000, o: 79100, h: 80000, l: 78900, t: 1757000000 }), { status: 200 }),

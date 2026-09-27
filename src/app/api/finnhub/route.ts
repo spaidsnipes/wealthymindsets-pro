@@ -10,7 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { toFinnhubSym } from "@/lib/finnhubSymbol";
-import { FH_NATIVE_RES } from "@/lib/marketData/finnhubBarRoute";
+import { FH_NATIVE_RES, FINNHUB_API_BASE, finnhubCandleUrl } from "@/lib/marketData/finnhubBarRoute";
 import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
 import { classifyFinnhubStatus, finnhubUpstreamMessage } from "@/lib/marketData/finnhubUpstreamStatus";
 import { finnhubQuoteObservedAt } from "@/lib/marketData/finnhubQuoteTime";
@@ -32,7 +32,7 @@ import { canonicalBarIdentity } from "@/lib/marketData/canonicalBar";
  * caller has moved to this proxy and NEXT_PUBLIC_FINNHUB_KEY is deleted.
  */
 const COMMITTED_FALLBACK = "d8efu9hr01qth3ch5f20d8efu9hr01qth3ch5f2g";
-const BASE = "https://finnhub.io/api/v1";
+const BASE = FINNHUB_API_BASE;
 
 // Lazy resolution so Next.js build-time page-data collection doesn't
 // crash when the prod key isn't available in the build environment. Real
@@ -217,7 +217,10 @@ export async function GET(request: Request) {
       const secs = perBar * bars * 1.5; // 1.5x buffer for gaps/weekends
       const from = now - Math.round(secs);
 
-      const url = `${BASE}/stock/candle?symbol=${encodeURIComponent(fhSym)}&resolution=${resolution}&from=${from}&to=${now}&token=${getFinnhubKey()}`;
+      // Crypto (BINANCE:…) is asked of Finnhub's crypto candle endpoint,
+      // equities of its stock one — finnhubCandlePath owns the choice. The
+      // stock endpoint does not serve a Binance pair.
+      const url = finnhubCandleUrl({ providerSym: fhSym, resolution, from, to: now, token: getFinnhubKey() });
       const json = await fhFetch(url, 20_000) as any;
       if (json.s !== "ok" || !Array.isArray(json.t)) {
         return NextResponse.json({ candles: [], qualityState: "UNAVAILABLE", reason: json.s === "no_data" ? "Finnhub reports no data for this symbol/range" : "Finnhub error" });

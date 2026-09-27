@@ -54,7 +54,10 @@ function finnhubResKeys(): string[] {
 
 it("/api/finnhub serves from the lib's FH_NATIVE_RES and keeps no private copy", () => {
   const route = SRC("app/api/finnhub/route.ts");
-  expect(route).toContain('import { FH_NATIVE_RES } from "@/lib/marketData/finnhubBarRoute";');
+  expect(route).toContain('import { FH_NATIVE_RES, FINNHUB_API_BASE, finnhubCandleUrl } from "@/lib/marketData/finnhubBarRoute";');
+  // The candle request is built by the lib (crypto → /crypto/candle), not by hand.
+  expect(route).not.toMatch(/\/stock\/candle|\/crypto\/candle/);
+  expect(route).toContain("const url = finnhubCandleUrl({");
   expect(route).not.toMatch(/const FH_NATIVE_RES/);
   expect(route).toContain("const resolution = FH_NATIVE_RES[tf];");
 });

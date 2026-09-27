@@ -170,6 +170,17 @@ describe("the model walks the real route tables, not a copy", () => {
     expect(seen).toBeGreaterThan(5);
   });
 
+  it("door 3 (Finnhub REST, equities) is unreachable: for non-crypto symbols Alpaca covers every FH_NATIVE_RES id", () => {
+    // Door 3 is walked only after Alpaca (door 2) declined, and for a
+    // non-crypto symbol Alpaca declines only an id ALPACA_TF_MAP lacks.
+    for (const tf of Object.keys(FH_NATIVE_RES)) {
+      expect(Object.prototype.hasOwnProperty.call(ALPACA_TF_MAP, tf), `FH_NATIVE_RES "${tf}" is not in ALPACA_TF_MAP — door 3 is live`).toBe(true);
+    }
+    for (const sym of ["TSLA", "SPY", "AAPL"]) {
+      for (const tf of TF_IDS) expect(chartBarRouteFor(tf, sym)?.vendor, `${sym} ${tf}`).not.toBe("Finnhub");
+    }
+  });
+
   it("bucket words are plain and calendar-honest", () => {
     expect(bucketWords({ n: 1, unit: "month" })).toBe("monthly");
     expect(bucketWords({ n: 3, unit: "month" })).toBe("quarterly");
