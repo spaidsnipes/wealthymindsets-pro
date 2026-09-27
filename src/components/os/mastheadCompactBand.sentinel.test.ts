@@ -56,10 +56,20 @@ describe("the compact masthead band", () => {
     expect(band()).toMatch(/\.wm-os-masthead \{[^}]*flex-wrap: wrap !important;/);
   });
 
-  it("gives a room's mode bar a whole row, and leaves an empty centre out of it", () => {
+  // Verifier RED 2026-09-27: forcing the mode bar onto a row of its own cost
+  // /journal 52px at 1360-1399 (73 -> 125) where the seven modes fit inline.
+  it("lets the wrap decide where a room's mode bar stands — its one-row width, never shrunk, never reordered", () => {
     const b = band();
-    expect(b).toMatch(/\.wm-os-masthead-center:not\(:empty\) \{ flex-basis: 100% !important; order: 1; \}/);
+    const rule = /\.wm-os-masthead-center:not\(:empty\) \{([^}]*)\}/.exec(b);
+    expect(rule, "the band does not size the mode bar").not.toBeNull();
+    expect(rule![1]).toContain("flex: 1 0 auto !important;");
+    expect(rule![1]).not.toMatch(/100%|order:/);
     expect(b).toMatch(/\.wm-os-masthead-center:empty \{ flex-grow: 0 !important; \}/);
+  });
+
+  it("keeps the wordmark and doors at the leading edge when the mode bar wraps below them", () => {
+    // Measured without it: safe flex-end slid row one to the wordmark at x 441 of 901.
+    expect(band()).toMatch(/\.wm-os-masthead > :has\(\+ \.wm-os-masthead-center\) \{ margin-right: auto !important; \}/);
   });
 
   it("the feed reading's floor is its own widest phrase and its ceiling one line — never zero", () => {

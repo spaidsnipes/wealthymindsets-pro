@@ -2780,7 +2780,24 @@ export function WMOperatingSystem({
             justify-content: flex-end;
             justify-content: safe flex-end;
           }
-          .wm-os-masthead-center:not(:empty) { flex-basis: 100% !important; order: 1; }
+          /* THE MODE BAR KEEPS ITS PLACE AND LETS THE WRAP DECIDE (Garden 16
+             section 51 repair, measured 2026-09-27). Forcing it onto a row of
+             its own cost every doors room 52px of height even where the seven
+             modes fit beside the doors: /journal at 1360 to 1399 went from a
+             73px masthead to 125px. Its basis is now its own one-row width
+             and it never shrinks, so it stays inline wherever that width
+             fits, and where it does not, the wrap moves it WHOLE to the start
+             of the next row, the utilities and the reading following it in
+             reading order. Never folded into a column, never reordered, so
+             focus order still matches what the eye reads. */
+          .wm-os-masthead-center:not(:empty) { flex: 1 0 auto !important; }
+          /* When the mode bar does wrap, row one is the wordmark and the
+             doors alone, and the band's flex-end would slide them toward the
+             middle (measured: wordmark at x 441 of 901). The item just before
+             the centre takes the leftover instead, so the leading edge stays
+             leading. Where the centre grows (a room with a mode bar in row
+             one) there is no leftover and this margin is zero. */
+          .wm-os-masthead > :has(+ .wm-os-masthead-center) { margin-right: auto !important; }
           /* The reading grows from its stacked width up to its one-line width
              and no further; whatever is left over goes to the auto margin in
              front of the utilities, so utilities and reading stay together

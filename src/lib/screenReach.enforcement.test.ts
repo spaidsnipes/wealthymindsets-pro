@@ -203,7 +203,7 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
   },
   "src/lib/os/mastheadFit.ts": {
     reason: "OPS_TOOLING",
-    note: "The compact masthead band's wrap rule (Garden 16 §51) written as arithmetic over glass-measured widths, so 901/1024/1280/1440 can be pinned and a widened masthead item caught before it reaches the glass. The browser places the feed reading from the stylesheet in WMOperatingSystem.tsx; no screen should import a model of its own layout. Consumed only by mastheadFit.test.ts.",
+    note: "The desktop masthead's wrap rule (Garden 16 §51) written as arithmetic: box geometry read from WMOperatingSystem.tsx's own stylesheet, text widths measured in Chromium, so masthead rows and height at 901/1024/1280/1360/1399/1440 can be pinned and a widened plate or a re-forced mode-bar row caught before it reaches the glass. The browser places the feed reading from the stylesheet in WMOperatingSystem.tsx; no screen should import a model of its own layout. Consumed only by mastheadFit.test.ts.",
   },
   "src/lib/design/internalNames.ts": {
     reason: "OPS_TOOLING",
