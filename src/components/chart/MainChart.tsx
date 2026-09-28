@@ -516,6 +516,7 @@ import type {
 import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
 import { marketClockReceipt, noteSeries, notePaint, resetMarketClock } from "@/lib/chart/marketClockProbe";
 import { QUIET_CEILING } from "@/lib/marketData/viewModels/selectSemanticPermission";
+import { selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 /** The forming candle's own print ring (bounded; a truncated ring is named in its receipt). */
 const FORMING_RING_CAP = 3000;
 import { positioningSourceWords } from "@/lib/marketData/cboeDelayedOptions";
@@ -9589,6 +9590,112 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             canvas.dataset.flowCurrent = `${flowSpeaks ? "BARS" : `QUIET:POOLED${k}`}:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}`;
           }
         }
+      }
+
+      /* ══ F05B · THE CANDLE'S ANATOMY ON PRICE (Garden 16 master order §18,
+         §10 card-erasure test) ═══════════════════════════════════════════════
+         Canon WM_NewMockup_73 F05B "Candle anatomy Inspect, camera alive": the
+         selected candle carries its TRUTH HIGH / TRUTH LOW, its centerline and
+         balance (D), and a PRESSURE SPLIT and BATTLE BALANCE — on the candle,
+         not only as Inspect text. Dissection is deliberate: it appears for the
+         bar whose own range the cursor is on (SELECT depth).
+           geometry  selectClarityAnatomy — the ONE owner Inspect reads
+           pressure  the bar's SIDED prints (tickAccRef, the one tape ladder):
+                     buy = lifted asks, sell = hit bids. No sided prints →
+                     "UNREAD", never inferred from candle colour (H-701). */
+      {
+        const cp = crosshairPointRef.current;
+        let wrote = false;
+        if (cp && srs && att.paints("anatomyCards", { selectedItem: true })) {
+          const tsA = chart.timeScale();
+          const tA = tsA.coordinateToTime(cp.x);
+          const idx = tA == null ? -1 : barsRef.current.findIndex(b => b.time === tA);
+          const barA = idx >= 0 ? barsRef.current[idx] : null;
+          const xA = barA ? tsA.timeToCoordinate(barA.time as never) : null;
+          const yH = barA ? srs.priceToCoordinate(Number(barA.high)) : null;
+          const yL = barA ? srs.priceToCoordinate(Number(barA.low)) : null;
+          const yO = barA ? srs.priceToCoordinate(Number(barA.open)) : null;
+          const yC = barA ? srs.priceToCoordinate(Number(barA.close)) : null;
+          if (barA && xA != null && yH != null && yL != null && yO != null && yC != null
+              && cp.y >= +yH - 10 && cp.y <= +yL + 10 && Math.abs(cp.x - +xA) <= Math.max(6, bsp * 0.6)) {
+            const dpA = displayPrecisionFor(symbol, barsRef.current ?? []);
+            const vmA = selectClarityAnatomy({
+              bar: barA as never,
+              priorBars: barsRef.current.slice(Math.max(0, idx - 20), idx) as never,
+              dp: dpA,
+            });
+            if (vmA.state === "READ") {
+              const x = +xA, h = +yH, l = +yL, w = Math.max(6, bsp * 0.8);
+              const arm = w / 2 + 22;
+              const mid = (h + l) / 2;
+              ctx.save();
+              ctx.globalAlpha = att.textAlpha("anatomyCards");
+              // TRUTH HIGH / TRUTH LOW brackets — the plate's ceiling and floor.
+              ctx.strokeStyle = "rgba(226,190,112,0.95)";
+              ctx.lineWidth = 1.4;
+              for (const y of [h, l]) {
+                ctx.beginPath();
+                ctx.moveTo(x - arm, y + (y === h ? 5 : -5)); ctx.lineTo(x - arm, y); ctx.lineTo(x + arm, y); ctx.lineTo(x + arm, y + (y === h ? 5 : -5));
+                ctx.stroke();
+              }
+              // Centerline + the balance marker where the close sits against it.
+              ctx.setLineDash([3, 3]);
+              ctx.strokeStyle = "rgba(226,190,112,0.55)";
+              ctx.beginPath(); ctx.moveTo(x - arm, mid); ctx.lineTo(x + arm, mid); ctx.stroke();
+              ctx.setLineDash([]);
+              const yc = +yC;
+              ctx.fillStyle = "rgba(245,214,140,1)";
+              ctx.beginPath(); ctx.moveTo(x + arm + 6, yc); ctx.lineTo(x + arm + 11, yc - 4); ctx.lineTo(x + arm + 16, yc); ctx.lineTo(x + arm + 11, yc + 4); ctx.closePath(); ctx.fill();
+              // Words on the brackets (the plate's names, the owner's numbers).
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.textBaseline = "middle";
+              const tag = (txt: string, tx: number, ty: number) => {
+                const tw = ctx.measureText(txt).width + 8;
+                ctx.fillStyle = "rgba(11,10,8,0.88)";
+                ctx.fillRect(tx, ty - 7, tw, 14);
+                ctx.fillStyle = "rgba(236,214,160,0.98)";
+                ctx.fillText(txt, tx + 4, ty + 0.5);
+                return tw;
+              };
+              tag(`TRUTH HIGH ${Number(barA.high).toFixed(dpA)}`, x + arm + 4, h - 9);
+              tag(`TRUTH LOW ${Number(barA.low).toFixed(dpA)}`, x + arm + 4, l + 9);
+              const D = vmA.balance ?? 0;
+              tag(`D ${D >= 0 ? "+" : "−"}${Math.abs(D).toFixed(2)} · close ${vmA.closeLocationPct}% of range · body ${vmA.bodyEfficiencyPct}%`, x + arm + 20, yc);
+              // BATTLE BALANCE — a beam that tilts with D (geometry, not aggression).
+              const bx = x - arm - 34, by = mid;
+              const ang = Math.max(-1, Math.min(1, D * 2)) * 0.35;
+              ctx.strokeStyle = "rgba(226,190,112,0.9)";
+              ctx.lineWidth = 1.5;
+              ctx.beginPath(); ctx.moveTo(bx, by + 2); ctx.lineTo(bx, by + 14); ctx.moveTo(bx - 7, by + 14); ctx.lineTo(bx + 7, by + 14); ctx.stroke();
+              ctx.beginPath(); ctx.moveTo(bx - 16 * Math.cos(ang), by + 16 * Math.sin(ang)); ctx.lineTo(bx + 16 * Math.cos(ang), by - 16 * Math.sin(ang)); ctx.stroke();
+              for (const sgn of [-1, 1]) {
+                const px = bx + sgn * 16 * Math.cos(ang), py = by - sgn * 16 * Math.sin(ang);
+                ctx.beginPath(); ctx.arc(px, py + 5, 4, 0, Math.PI); ctx.stroke();
+              }
+              // PRESSURE SPLIT — only from this bar's sided prints.
+              const lvA = tickAccRef.current.get(Number(barA.time));
+              let buyA = 0, sellA = 0;
+              if (lvA) for (const v of lvA.values()) { buyA += v.ask; sellA += v.bid; }
+              const totA = buyA + sellA;
+              const sy = l + 26, sw = 120, sx = x - sw / 2;
+              if (totA > 0) {
+                const bw = sw * (buyA / totA);
+                const inks = flowColorsRef.current;
+                ctx.fillStyle = `rgba(${inks.btSell},0.85)`;
+                ctx.fillRect(sx, sy, sw - bw, 6);
+                ctx.fillStyle = `rgba(${inks.btBuy},0.85)`;
+                ctx.fillRect(sx + sw - bw, sy, bw, 6);
+                tag(`SELL ${Math.round((sellA / totA) * 100)}% · BUY ${Math.round((buyA / totA) * 100)}% · sided prints`, sx, sy + 16);
+              } else {
+                tag("PRESSURE · UNREAD — no sided prints for this bar", sx, sy + 6);
+              }
+              ctx.restore();
+              canvas.dataset.clarityOnPrice = `BAR:${barA.time}|D:${D.toFixed(2)}|${totA > 0 ? `SPLIT:${Math.round((buyA / totA) * 100)}` : "SPLIT:UNREAD"}`;
+              wrote = true;
+            }
+          }
+        }
+        if (!wrote) canvas.dataset.clarityOnPrice = "NONE";
       }
 
       /* ══════════════════════════════════════════════════════
