@@ -1421,6 +1421,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     cleanupFns.current.forEach(fn => fn());
     cleanupFns.current = [];
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    // Zeroed, or scheduleFlush would short-circuit forever on a frame that will never fire.
+    rafRef.current = 0;
     tickBuf.current = [];
     droppedRef.current = { count: 0, size: 0 };
 

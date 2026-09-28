@@ -25,3 +25,14 @@ describe("boundTickBuffer — a hidden tab cannot hoard the tape", () => {
     expect(kept.some(t => t.time === tick(4999).time)).toBe(true);
   });
 });
+
+describe("resubscribe cannot orphan the flush", () => {
+  it("zeroes the frame handle after cancelling it on resubscribe", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("src/hooks/useWebSocket.ts", "utf8");
+    const at = src.indexOf("    tickBuf.current = [];\n    droppedRef.current");
+    const before = src.slice(Math.max(0, at - 400), at);
+    expect(before).toContain("cancelAnimationFrame(rafRef.current);");
+    expect(before).toContain("rafRef.current = 0;");
+  });
+});
