@@ -19,3 +19,14 @@ describe("compound camera — one market, one camera, many senses", () => {
     expect(camerasInForce(null)).toEqual([]);
   });
 });
+
+describe("camera loadouts are compositions, not new workspaces", () => {
+  it("a loadout turns its senses on and the trader's other toggles off; unknown rows untouched", async () => {
+    const { loadoutSwitches, CAMERA_LOADOUTS } = await import("./selectChartArrangement");
+    const current = { ABSORPTION: false, TPO_PROFILE: true, REGIME_LIGHTING: true };
+    const scalp = loadoutSwitches(current, "SCALP");
+    for (const a of CAMERA_LOADOUTS.find(l => l.id === "SCALP")!.arms) expect(scalp[a], a).toBe(true);
+    expect(scalp.TPO_PROFILE).toBe(false);
+    expect(scalp.REGIME_LIGHTING).toBe(false);
+  });
+});

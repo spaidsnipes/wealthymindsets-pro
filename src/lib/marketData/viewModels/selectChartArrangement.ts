@@ -539,3 +539,26 @@ export function camerasInForce(current: Readonly<Partial<Record<string, boolean>
     .filter(a => a.arms.length > 0 && a.arms.every(arm => current[arm] === true))
     .map(a => a.id);
 }
+
+/*
+  ── CAMERA LOADOUTS (Garden 16 §59: "Loadout ≠ new Workspace. Loadout ≠ new
+  market.") — named compositions of senses the chart already owns, applied
+  through the same saved-layout door. A loadout is a preset: its senses on,
+  every other TOGGLE the trader has off. Rows it does not know are untouched.
+*/
+export type LoadoutId = "SCALP" | "TREND" | "SNIPER" | "REVIEW";
+export const CAMERA_LOADOUTS: readonly { readonly id: LoadoutId; readonly label: string; readonly senses: string; readonly arms: readonly ProfileId[] }[] = [
+  { id: "SCALP", label: "Scalp", senses: "Flow + Liquidity + Structure", arms: ["ABSORPTION", "IMBALANCE_STACK", "DELTA_DIVERGENCE", "LIQUIDITY_WEATHER", "LIQUIDITY_LIFECYCLE", "MARKET_STRUCTURE"] },
+  { id: "TREND", label: "Trend", senses: "Regime + Profile + Memory", arms: ["REGIME_LIGHTING", "DERIVATIVES_PRESSURE", "SESSION", "FIXED_RANGE", "LIVING_PROFILE", "PROFILE_MEMORY", "MEMORY_GHOST", "MARKET_STRUCTURE"] },
+  { id: "SNIPER", label: "Sniper", senses: "Structure + Flow + Anatomy", arms: ["MARKET_STRUCTURE", "ABSORPTION", "ANATOMY_CARDS", "EFFORT_MARK", "VALUE_CANDLE", "STRUCTURE_PROFILE"] },
+  { id: "REVIEW", label: "Review", senses: "Memory + Session + Effort", arms: ["SESSION", "EFFORT_MARK", "PROFILE_MEMORY", "MEMORY_GHOST", "VALUE_MIGRATION"] },
+];
+
+/** The loadout's switch set over the trader's current TOGGLE rows: its senses on, the rest off. */
+export function loadoutSwitches(current: Readonly<Partial<Record<string, boolean>>> | null, id: LoadoutId): Record<string, boolean> {
+  const spec = CAMERA_LOADOUTS.find(l => l.id === id);
+  const out: Record<string, boolean> = {};
+  for (const k of Object.keys(current ?? {})) out[k] = false;
+  for (const arm of spec?.arms ?? []) out[arm] = true;
+  return out;
+}

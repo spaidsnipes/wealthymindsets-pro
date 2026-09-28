@@ -54,7 +54,7 @@ import {
   storeSavedLayouts,
   type SavedLayout,
 } from "@/lib/workspace/savedLayouts";
-import { ARRANGEMENT_SPECS, camerasInForce, composeCamera, savedArrangementInForce, type ArrangementId } from "@/lib/marketData/viewModels/selectChartArrangement";
+import { ARRANGEMENT_SPECS, CAMERA_LOADOUTS, camerasInForce, composeCamera, loadoutSwitches, savedArrangementInForce, type ArrangementId } from "@/lib/marketData/viewModels/selectChartArrangement";
 
 /** The frame's own ink, handed in so the door paints in the hand it sits in. */
 export interface SavedLayoutsInk {
@@ -287,6 +287,26 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                     }}
                   >
                     {on ? "✓ " : "+ "}{a.label}
+                  </button>
+                );
+              })}
+            </div>
+            {/* CAMERA LOADOUTS (§59) — named compositions, same door. */}
+            <div data-testid="camera-loadouts" style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", marginTop: 2 }}>
+              <span style={{ fontSize: 9, letterSpacing: 1.2, textTransform: "uppercase", color: ink.muted }}>Loadouts</span>
+              {CAMERA_LOADOUTS.map(l => {
+                const on = savedArrangementInForce(loadoutSwitches(capture, l.id), capture);
+                return (
+                  <button
+                    key={l.id}
+                    type="button"
+                    data-testid={`loadout-${l.id}`}
+                    aria-pressed={on}
+                    title={`${l.label}: ${l.senses}`}
+                    onClick={() => requestSavedLayout({ layoutId: `loadout:${l.id}`, switches: loadoutSwitches(capture, l.id) })}
+                    style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, cursor: "pointer", border: `1px solid ${on ? ink.gold : ink.rule}`, color: on ? ink.gold : ink.pearl, background: "transparent" }}
+                  >
+                    {l.label}
                   </button>
                 );
               })}
