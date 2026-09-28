@@ -117,6 +117,31 @@ export function retainRecentTicks(
   return [...incoming, ...previous].slice(0, limit);
 }
 
+/**
+ * ONE MARKET CLOCK — THE BUFFER IS BOUNDED (Garden 16 five-hour order: "throw
+ * away stale frames"). A backgrounded tab gets no animation frames, so the
+ * flush never runs while prints keep arriving: measured on serving
+ * 2026-09-27, 1,902 prints piled up in ~90 s. Unbounded, that is a memory leak
+ * on the hottest path, AND the eventual flush handed `retainRecentTicks` an
+ * oldest-first batch larger than the retention ceiling — which kept the
+ * OLDEST 2,000 prints of the backlog and discarded the newest.
+ *
+ * Bounded at the retention ceiling, dropping the OLDEST prints: they are
+ * exactly the ones retention would have shed. Their size is carried in `shed`
+ * so day volume stays exact. PURE (mutates only its arguments).
+ */
+export function boundTickBuffer(
+  buf: Tick[],
+  shed: { count: number; size: number },
+  limit: number = RECENT_TICK_RETENTION,
+): void {
+  const over = buf.length - limit;
+  if (over <= 0) return;
+  const gone = buf.splice(0, over);
+  shed.count += gone.length;
+  for (const t of gone) shed.size += t.size;
+}
+
 /* M8 ADOPTION — one private past retired, 2026-09-18.
  *
  * This file used to declare its own `OHLCVBar`: six fields, the same six
@@ -1209,7 +1234,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // rather than as a local copy of that shape under a second name.
   const barRef     = useRef<LegacyOhlcvTuple | null>(null);
   const lastBarEventAtRef = useRef<number | null>(null);
-  const tickBuf    = useRef<Tick[]>([]);      // batched buffer
+  const tickBuf    = useRef<Tick[]>([]);      // batched buffer (bounded — see boundTickBuffer)
+  const droppedRef = useRef({ count: 0, size: 0 }); // prints shed from the buffer before a flush
   const bookRef    = useRef(buildBook());
   const rafRef     = useRef<number>(0);
   const volRef     = useRef(0);
@@ -1256,8 +1282,10 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     if (tickBuf.current.length === 0) return;
 
     const ticks = tickBuf.current.splice(0, tickBuf.current.length);
+    const dropped = droppedRef.current;
+    droppedRef.current = { count: 0, size: 0 };
     // One newest snapshot per frame; every older print's frame is thrown away (marketClockProbe).
-    noteFlush(performance.now(), ticks.length);
+    noteFlush(performance.now(), ticks.length + dropped.count);
     const last  = ticks[ticks.length - 1];
     const price = last.price;
     const now   = Date.now();
@@ -1277,7 +1305,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       : undefined;
 
     setState(prev => {
-      const newVol = prev.ticker.volume + ticks.reduce((s, t) => s + t.size, 0);
+      const newVol = prev.ticker.volume + dropped.size + ticks.reduce((s, t) => s + t.size, 0);
       // Day-change is vs the REAL prior close (from the quote). Falling back to
       // baseRef.current (the hardcoded seed, e.g. TSLA 405) produced a fabricated
       // −18% header on TSLA whenever a WS tick landed before fetchRealQuote
@@ -1341,6 +1369,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
     priceRef.current = tick.price;
     tickBuf.current.push(tick);
+    boundTickBuffer(tickBuf.current, droppedRef.current);
     noteArrival(performance.now());
     barRef.current = barUpdate.bar;
     lastBarEventAtRef.current = barUpdate.lastEventAt;
@@ -1393,6 +1422,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     cleanupFns.current = [];
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     tickBuf.current = [];
+    droppedRef.current = { count: 0, size: 0 };
 
     const b = getBasePrice(symbol);
     baseRef.current  = b;
