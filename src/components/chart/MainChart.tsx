@@ -6422,6 +6422,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Chips painted before the floating-chip owner exists (print tickets,
       // the force→response tag, NEAR anatomy); it is seeded from this list.
       const forceChips: { x: number; y: number; w: number; h: number }[] = [];
+      // What each drawn VP column measured — reported up for Profile Fusion.
+      // Declared HERE, before any VP pass: runWMVP() runs early in the Big
+      // Trades path, and a declaration further down threw 'Cannot access …
+      // before initialization' on every footprint frame (serving 2026-09-28).
+      const vpLevelsOut: { FIXED?: VpLevelTriple; SESSION?: VpLevelTriple } = {};
       // UI-02 × H-701 · ONE ENCODING OF VALUE PER BAR. The Value Candle block
       // (later this frame) records each bar it painted glass on here; the
       // NEAR value hatch is queued, and painted after it only on bars the
@@ -8649,8 +8654,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         reasons are compiled into a receipt by src/lib/vpRenderReceipt.ts and
         stamped onto the overlay canvas by runWMVP. §5 SYSTEM TRUTH LAW.
       */
-      // What each drawn VP column measured — reported up for Profile Fusion.
-      const vpLevelsOut: { FIXED?: VpLevelTriple; SESSION?: VpLevelTriple } = {};
       function drawWMVP(barsToUse: LegacyOhlcvTuple[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1, alphaScale = 1, span: "SESSION" | null = null): { declined: VpDeclineReason | null; rows: number; geometry?: VpColumnGeometry } {
         // `rows` is incremented at the one place a row is actually painted, so
         // the count is of pixels committed and not of buckets considered.
