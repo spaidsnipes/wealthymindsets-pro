@@ -9455,7 +9455,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.beginPath(); ctx.arc(x + w / 2 + 8, +yb, 3, 0, Math.PI * 2); ctx.stroke();
           }
           const recent = prints.filter(q => q.t >= t1 - 3000).length / 3;
-          const base = prints.length / Math.max(3, (t1 - barStartMs) / 1000);
+          // The baseline covers only the span the ring still holds: once the
+          // ring (cap 800) drops a busy bar's first prints, dividing by the
+          // whole bar's age understated the rate and INFLATED tempo (serving
+          // BTC 15m read TEMPO 5.17 on a truncated ring).
+          const spanStart = Math.max(barStartMs, t0);
+          const base = prints.length / Math.max(3, (t1 - spanStart) / 1000);
           const tempo = base > 0 ? recent / base : 1;
           const yO = srs.priceToCoordinate(Number(lbF.open)), yC = srs.priceToCoordinate(Number(lbF.close));
           if (yO != null && yC != null) {

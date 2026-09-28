@@ -38,3 +38,10 @@ describe("one event, many senses — a big print registers on the forming candle
     expect(block).not.toMatch(/bigThreshold|BIG_PRINT_MIN|sizeThreshold/);
   });
 });
+
+describe("tempo is honest on a truncated ring", () => {
+  it("the baseline rate covers only the span the ring still holds", () => {
+    expect(block).toContain("const spanStart = Math.max(barStartMs, t0);");
+    expect(block).toContain("(t1 - spanStart) / 1000");
+  });
+});
