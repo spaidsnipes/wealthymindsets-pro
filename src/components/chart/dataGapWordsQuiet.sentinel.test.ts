@@ -14,7 +14,8 @@ describe("data-gap words", () => {
     expect(MC).toContain("if (g.emptyIntervals < 3 && !shortWordAllowed.has(g.fromTime)) { wordsWithheld++; continue; }");
   });
   it("words never stack on each other, and the withheld count is published", () => {
-    expect(MC).toContain("if (gapWordRects.some(r => rect.x < r.x + r.w");
+    // 2026-09-28: the no-stack rule is one of the spot tests (legend headroom, other words, candles).
+    expect(MC).toContain("if (gapWordRects.some(hits(q)) || profileCandleCut().rects.some(hits(q))) continue;");
     expect(MC).toContain("canvas.dataset.dataGapsWordsWithheld = String(wordsWithheld);");
   });
   it("the bridge itself is still drawn for every hole", () => {

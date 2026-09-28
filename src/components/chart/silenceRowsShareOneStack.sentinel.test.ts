@@ -24,14 +24,15 @@ describe("lower-left silence lines never share a row", () => {
 
 describe("gap words never print inside the price legend's headroom", () => {
   it("a word that would rise into the legend hangs below its bridge, or waits", () => {
-    expect(MC).toContain("if (my - 12 < BELOW_PRICE_LEGEND) my = Math.max(+y0, +y1) + 16;");
-    expect(MC).toContain("if (my - 12 < BELOW_PRICE_LEGEND || my > H) { wordsWithheld++; continue; }");
+    expect(MC).toContain("for (const cy of [yTop - 10, yBot + 16, yTop - 24, yBot + 30]) {");
+    expect(MC).toContain("if (cy - 12 < BELOW_PRICE_LEGEND || cy > H) continue;");
   });
 });
 
 describe("gap words never print on a candle", () => {
   it("a chip that would overlap the one candle cut-out waits", () => {
     const gap = MC.slice(MC.indexOf("const gapWordRects:"), MC.indexOf("canvas.dataset.dataGapsWorded"));
-    expect(gap).toContain("if (profileCandleCut().rects.some(r => rect.x < r.x + r.w");
+    expect(gap).toContain("if (gapWordRects.some(hits(q)) || profileCandleCut().rects.some(hits(q))) continue;");
+    expect(gap).toContain("if (!Number.isFinite(my)) { wordsWithheld++; continue; }");
   });
 });

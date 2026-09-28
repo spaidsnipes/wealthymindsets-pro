@@ -8533,14 +8533,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // QUIET at FAR: the bridge, no words).
           if (!att.speaks("dataGaps") && g.emptyIntervals < 3) continue;
           if (g.emptyIntervals < 3 && !shortWordAllowed.has(g.fromTime)) { wordsWithheld++; continue; }
-          // The words ride above the bridge — unless that lifts them into the
-          // price legend's reserved headroom (serving NQ1! 5m, 2026-09-28: a
-          // hole near the top of the range printed "NO BAR · 1 interval" over
-          // "NQ1! · 5m"). Then they hang below the bridge; with no room there
-          // either, they wait (the bridge is still on the glass).
-          let my = Math.min(+y0, +y1) - 10;
-          if (my - 12 < BELOW_PRICE_LEGEND) my = Math.max(+y0, +y1) + 16;
-          if (my - 12 < BELOW_PRICE_LEGEND || my > H) { wordsWithheld++; continue; }
+          // WHERE THE WORDS GO. They ride above the bridge; a spot that would
+          // sit in the price legend's headroom (serving NQ1! 5m, 2026-09-28:
+          // "NO BAR · 1 interval" over "NQ1! · 5m"), on another gap's words,
+          // or on a candle (serving TSLA 5m: a hole starting off camera
+          // clamped its words onto a wick — the one candle cut-out decides)
+          // is not taken. The next spot is tried — below the bridge, then a
+          // row further out each way — and only with none free do the words
+          // wait (the bridge is still on the glass).
           const t = `‑ ‑ ${g.label} ‑`;
           const tw = ctx.measureText(t).width + 8;
           // Inside the plot: a hole at the live edge centred its words under
@@ -8548,14 +8548,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           let plotW = W;
           try { plotW = chart.timeScale().width(); } catch { /* keep W */ }
           const mx = Math.max(tw / 2 + 4, Math.min(plotW - tw / 2 - 4, (+x0 + +x1) / 2));
-          // Never stack gap words on each other: a chip that would overlap one
-          // already placed waits (its bridge is still on the glass).
+          const hits = (q: { x: number; y: number; w: number; h: number }) => (r: { x: number; y: number; w: number; h: number }) =>
+            q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y;
+          const yTop = Math.min(+y0, +y1), yBot = Math.max(+y0, +y1);
+          let my = NaN;
+          for (const cy of [yTop - 10, yBot + 16, yTop - 24, yBot + 30]) {
+            if (cy - 12 < BELOW_PRICE_LEGEND || cy > H) continue;
+            const q = { x: mx - tw / 2, y: cy - 12, w: tw, h: 13 };
+            if (gapWordRects.some(hits(q)) || profileCandleCut().rects.some(hits(q))) continue;
+            my = cy; break;
+          }
+          if (!Number.isFinite(my)) { wordsWithheld++; continue; }
           const rect = { x: mx - tw / 2, y: my - 12, w: tw, h: 13 };
-          if (gapWordRects.some(r => rect.x < r.x + r.w && rect.x + rect.w > r.x && rect.y < r.y + r.h && rect.y + rect.h > r.y)) { wordsWithheld++; continue; }
-          // Candles stay clean: a chip on a body or wick waits (serving TSLA
-          // 5m, 2026-09-28: a hole starting off camera clamped its words to
-          // the left edge, over a candle). The one candle cut-out decides.
-          if (profileCandleCut().rects.some(r => rect.x < r.x + r.w && rect.x + rect.w > r.x && rect.y < r.y + r.h && rect.y + rect.h > r.y)) { wordsWithheld++; continue; }
           gapWordRects.push(rect);
           ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(mx - tw / 2, my - 12, tw, 13);
           ctx.fillStyle = "rgba(237,230,211,0.9)"; ctx.fillText(t, mx, my);
