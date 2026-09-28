@@ -3373,7 +3373,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const passportToolsNode = (
     <div data-testid="passport-object-picker" className="space-y-1">
       <div className="px-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-wm-text-dim">
-        Objects on the candles · select to read its passport
+        Swing zones on the candles ({chartStructureZones.length}) · select one to read its passport
       </div>
       {chartStructureZones.length === 0 ? (
         <p className="px-1 text-[11px]" style={{ color: "#C8C0AE" }}>No confirmed swing zone on this chart yet.</p>
