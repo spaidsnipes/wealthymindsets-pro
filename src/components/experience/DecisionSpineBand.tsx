@@ -1620,7 +1620,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         <div
           data-testid="spine-flow-context"
           data-provenance={flowContext.provenance}
-          aria-label={`Order flow context. Aggressor buy ${flowContext.buyPct} percent, aggressor sell ${flowContext.sellPct} percent of sided tape volume. ${flowContext.basis}.`}
+          aria-label={`Order flow context. Aggressor buy ${flowContext.buyPct} percent, aggressor sell ${flowContext.sellPct} percent of sided tape volume${flowContext.sidedPrints != null ? `, over ${flowContext.sidedPrints} sided prints` : ""}. ${flowContext.basis}.`}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -1673,6 +1673,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           ) : null}
           <span aria-hidden="true" data-testid="spine-flow-basis" style={{ ...PLAQUE_STAMP, textAlign: "center" }}>
             {flowContext.basis}
+            {flowContext.sidedPrints != null ? ` · ${flowContext.sidedPrints.toLocaleString()} sided print${flowContext.sidedPrints === 1 ? "" : "s"}` : ""}
           </span>
         </div>
       ) : null}

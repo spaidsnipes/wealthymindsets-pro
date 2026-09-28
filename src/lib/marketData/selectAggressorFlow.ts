@@ -152,6 +152,12 @@ export interface AggressorFlowSnapshot {
    * reconstruction may not wear the same chrome as a venue-asserted aggressor.
    */
   readonly provenance: AggressorProvenance;
+  /**
+   * How many SIDED prints the two volumes stand on. A 100% / 0% split over
+   * three prints is not the statement it looks like (serving TSLA, 2026-09-28:
+   * the plaque flipped 0/100 ↔ 100/0 at the open) — surfaces print this.
+   */
+  readonly sidedPrints?: number;
 }
 
 /**
@@ -178,6 +184,7 @@ export function selectAggressorFlow(
 
   let askVol = 0;
   let bidVol = 0;
+  let sidedPrints = 0;
   let pv = 0;
   let vol = 0;
   let sawTick = false;
@@ -203,6 +210,7 @@ export function selectAggressorFlow(
     }
     if (t.side === "buy") askVol += size;
     else bidVol += size;
+    sidedPrints++;
     const p = aggressorProvenanceOf(t.marketEvent?.aggressorMethod);
     if (p === "PROVIDER") sawProvider = true;
     else if (p === "INFERRED") sawInferred = true;
@@ -234,5 +242,6 @@ export function selectAggressorFlow(
     oneSided,
     askDom: askVol >= bidVol,
     provenance,
+    sidedPrints,
   };
 }

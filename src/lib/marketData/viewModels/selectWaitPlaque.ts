@@ -338,6 +338,8 @@ export interface PlaqueFlowContextVM {
   readonly provenance: AggressorProvenance;
   /** How the sides are known, in words — printed, never hovered. */
   readonly basis: string;
+  /** The sided prints the split stands on (absent when the snapshot does not say). */
+  readonly sidedPrints?: number | null;
 }
 
 const FLOW_BASIS: Readonly<Record<AggressorProvenance, string>> = Object.freeze({
@@ -356,7 +358,7 @@ export function selectPlaqueFlowContext(
   const total = snap.askVol + snap.bidVol;
   if (!(total > 0) || !Number.isFinite(total)) return null;
   const buyPct = Math.round((snap.askVol / total) * 100);
-  return { buyPct, sellPct: 100 - buyPct, provenance: snap.provenance, basis: FLOW_BASIS[snap.provenance] };
+  return { buyPct, sellPct: 100 - buyPct, provenance: snap.provenance, basis: FLOW_BASIS[snap.provenance], sidedPrints: snap.sidedPrints ?? null };
 }
 
 export default selectWaitPlaque;
