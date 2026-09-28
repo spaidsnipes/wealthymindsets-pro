@@ -52,3 +52,27 @@ describe("ORDERS reads the keeper's open-order reconciliation", () => {
     expect(ordersRowFromStatus({ httpStatus: 200, body: { connected: true } })).toBeNull();
   });
 });
+
+describe("ACCOUNT reads what Webull reported — never assumed", () => {
+  it("a full read prints net liquidation; a partial read prints no total", async () => {
+    const { accountRowFromRead } = await import("./brokerBookRows");
+    expect(accountRowFromRead(null)).toBeNull();
+    const full = accountRowFromRead({ httpStatus: 200, body: { state: "OBSERVED", accounts: 3, answered: 3, netLiquidation: 1234.5, dayPnl: -2, checkedAt: "t" } });
+    expect(full?.state).toBe("$1,234.50");
+    expect(full?.detail).toContain("day P/L −$2.00");
+    const part = accountRowFromRead({ httpStatus: 200, body: { state: "PARTIAL", accounts: 3, answered: 2, unread: ["CASH:429"], netLiquidation: null } });
+    expect(part?.state).toBe("PARTIAL");
+    expect(part?.detail).toContain("CASH:429");
+    expect(accountRowFromRead({ httpStatus: 403, body: null })?.state).toBe("UNOBSERVED");
+  });
+});
+
+describe("readWebullBalance parses the SDK's balance shape", () => {
+  it("reads totals and USD day buying power from the fixture", async () => {
+    const { readWebullBalance } = await import("@/lib/broker/adapters/webullOrders");
+    const { WEBULL_ACCOUNT_BALANCE_FIXTURE } = await import("@/lib/broker/adapters/__fixtures__/webullResponses");
+    const f = (async () => new Response(JSON.stringify(WEBULL_ACCOUNT_BALANCE_FIXTURE), { status: 200 })) as unknown as typeof fetch;
+    const b = await readWebullBalance(f, { appKey: "k", appSecret: "s", now: () => new Date("2026-09-28T00:00:00Z"), nonce: () => "n" }, "acct");
+    expect(b).toMatchObject({ state: "OK", currency: "USD", netLiquidation: 5.95, cash: 0.45, dayBuyingPower: 0.45, unrealizedPnl: -1.5, dayPnl: 0 });
+  });
+});

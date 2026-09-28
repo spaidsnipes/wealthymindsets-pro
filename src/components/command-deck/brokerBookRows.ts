@@ -105,6 +105,42 @@ export function positionRowFromRead(read: WebullPositionsRead | null, symbol: st
   return { key: "position", label: "Position", state: mine.some(p => p.quantity < 0) ? "SHORT" : "LONG", detail: `Webull · ${words.join(" · ")} (as reported by the broker)`, tone: "set" };
 }
 
+export interface WebullBalanceRead {
+  readonly httpStatus: number;
+  readonly body: {
+    readonly state?: string;
+    readonly accounts?: number;
+    readonly answered?: number;
+    readonly unread?: readonly string[];
+    readonly netLiquidation?: number | null;
+    readonly dayPnl?: number | null;
+    readonly checkedAt?: string;
+  } | null;
+}
+
+const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * ACCOUNT — what Webull reported the book is worth, summed over the accounts
+ * that answered. A partial read says who did not answer and prints no total;
+ * no read, no number.
+ */
+export function accountRowFromRead(read: WebullBalanceRead | null): BookRowVM | null {
+  if (!read) return null;
+  const b = read.body;
+  if (read.httpStatus !== 200 || !b || !b.state) {
+    return { key: "account", label: "Account", state: "UNOBSERVED", detail: `The Webull balance read was refused (HTTP ${read.httpStatus}) — no balance is assumed.`, tone: "refused" };
+  }
+  if (b.state === "OBSERVED" && b.netLiquidation != null) {
+    const day = b.dayPnl != null ? ` · day P/L ${b.dayPnl >= 0 ? "+" : "−"}${usd(Math.abs(b.dayPnl))}` : "";
+    return { key: "account", label: "Account", state: usd(b.netLiquidation), detail: `Webull · net liquidation across ${b.answered} account(s), as reported at ${b.checkedAt ?? "—"}${day}.`, tone: "set" };
+  }
+  if (b.state === "PARTIAL") {
+    return { key: "account", label: "Account", state: "PARTIAL", detail: `Webull · ${b.answered} of ${b.accounts} accounts answered; ${(b.unread ?? []).join(", ")} did not — no total is printed from a partial read.`, tone: "quiet" };
+  }
+  return { key: "account", label: "Account", state: "UNOBSERVED", detail: `Webull balance read ${b.state} — no balance is assumed.`, tone: "quiet" };
+}
+
 export const ORDERS_ROW_WEBULL: BookRowVM = {
   key: "orders", label: "Orders", state: "UNOBSERVED",
   detail: "No Webull open-order read has been recorded yet — this deck cannot see working orders. Order preview exists; placement stays gated.",

@@ -31,11 +31,13 @@ describe("GP12 §15 / Garden 16 §35 — User A never inherits User B's Webull a
 
   it("every Webull broker route that reads or acts on the platform's accounts asks the one gate", () => {
     const route = (p: string) => readFileSync(path.join(ROUTES, p, "route.ts"), "utf8");
-    for (const r of ["order-preview", "positions", "status", "session"]) {
+    for (const r of ["balance", "order-preview", "positions", "status", "session"]) {
       expect(route(r), r).toMatch(/const owner = webullOwnerGate\(auth\.user\.sub, process\.env\);\n\s*if \(!owner\.allowed\) return NextResponse\.json\(webullOwnerRefusal\(owner\), \{ status: 403 \}\);/);
     }
     // A new route under /api/broker/webull joins this list or fails here.
-    expect(readdirSync(ROUTES).sort()).toEqual(["order-preview", "positions", "session", "status"]);
+    expect(readdirSync(ROUTES).sort()).toEqual(["balance", "order-preview", "positions", "session", "status"]);
+    // The balance route reads money; it can reach no order path (preview, place, cancel).
+    expect(route("balance")).not.toMatch(/submitWebullOrderOnce|previewWebullOrder|ORDER_(PLACE|CANCEL|PREVIEW)/);
     // The preview route cannot reach the place path at all.
     expect(route("order-preview")).not.toMatch(/submitWebullOrderOnce/);
   });

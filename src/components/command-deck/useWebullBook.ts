@@ -7,12 +7,13 @@
  * imports this and never fetches itself (commandDeckOneOrganism.sentinel).
  */
 import * as React from "react";
-import type { WebullPositionsRead, WebullStatusRead } from "./brokerBookRows";
+import type { WebullBalanceRead, WebullPositionsRead, WebullStatusRead } from "./brokerBookRows";
 
 /** The deck reads the owner's Webull book when it mounts, then every minute (brokerBookRows.ts). */
-export function useWebullBook(): { status: WebullStatusRead | null; positions: WebullPositionsRead | null } {
+export function useWebullBook(): { status: WebullStatusRead | null; positions: WebullPositionsRead | null; balance: WebullBalanceRead | null } {
   const [status, setStatus] = React.useState<WebullStatusRead | null>(null);
   const [positions, setPositions] = React.useState<WebullPositionsRead | null>(null);
+  const [balance, setBalance] = React.useState<WebullBalanceRead | null>(null);
   React.useEffect(() => {
     let alive = true;
     const read = async (url: string) => {
@@ -32,11 +33,16 @@ export function useWebullBook(): { status: WebullStatusRead | null; positions: W
       const p = await read("/api/broker/webull/positions");
       if (!alive) return;
       if (p) setPositions(p);
+      await new Promise((r) => window.setTimeout(r, 2_000));
+      if (!alive) return;
+      const bal = await read("/api/broker/webull/balance");
+      if (!alive) return;
+      if (bal) setBalance(bal);
     };
     void load();
     const t = window.setInterval(load, 120_000); // Webull rate-limits the positions read (serving 2026-09-27): every two minutes.
     return () => { alive = false; window.clearInterval(t); };
   }, []);
-  return { status, positions };
+  return { status, positions, balance };
 }
 

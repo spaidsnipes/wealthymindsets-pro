@@ -277,6 +277,56 @@ export async function listWebullAccounts(
   return { state: "OK", accounts };
 }
 
+// ── balance (read-only) ─────────────────────────────────────────────────────
+
+export type WebullBalanceResult =
+  | {
+      readonly state: "OK";
+      readonly currency: string | null;
+      readonly netLiquidation: number | null;
+      readonly cash: number | null;
+      readonly dayBuyingPower: number | null;
+      readonly unrealizedPnl: number | null;
+      readonly dayPnl: number | null;
+    }
+  | { readonly state: "REJECTED"; readonly status: number; readonly reason: string }
+  | { readonly state: "NO_ANSWER"; readonly reason: string };
+
+const numStr = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  return Number.isFinite(n) ? n : null;
+};
+
+/**
+ * One account's balance, USD. `get_account_balance_request.py`:
+ * `/trading/assets/balances/get`, v3 GET, account_id + total_asset_currency.
+ * READ-ONLY: a number the broker reported, never a derived one.
+ */
+export async function readWebullBalance(
+  fetchImpl: typeof fetch,
+  config: WebullOrderConfig,
+  accountId: string,
+): Promise<WebullBalanceResult> {
+  const t = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ACCOUNT_BALANCE, {
+    query: { account_id: accountId, total_asset_currency: "USD" },
+  });
+  if (t.kind === "NO_ANSWER") return { state: "NO_ANSWER", reason: t.reason };
+  if (t.status < 200 || t.status >= 300) return { state: "REJECTED", status: t.status, reason: providerWords(t.payload) || `HTTP ${t.status}` };
+  const raw = t.payload as Record<string, unknown> | null;
+  const p = raw && typeof raw.data === "object" && raw.data && !Array.isArray(raw.data) ? (raw.data as Record<string, unknown>) : raw;
+  const assets = Array.isArray(p?.account_currency_assets) ? (p!.account_currency_assets as Record<string, unknown>[]) : [];
+  const usd = assets.find((a) => a && a.currency === "USD") ?? null;
+  return {
+    state: "OK",
+    currency: typeof p?.total_asset_currency === "string" ? p.total_asset_currency : null,
+    netLiquidation: numStr(p?.total_net_liquidation_value),
+    cash: numStr(p?.total_cash_balance),
+    dayBuyingPower: numStr(usd?.day_buying_power),
+    unrealizedPnl: numStr(p?.total_unrealized_profit_loss),
+    dayPnl: numStr(p?.total_day_profit_loss),
+  };
+}
+
 // ── preview (non-money) ──────────────────────────────────────────────────────
 
 export type WebullPreviewResult =
