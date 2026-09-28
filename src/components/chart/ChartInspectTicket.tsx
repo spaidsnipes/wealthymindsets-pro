@@ -1089,6 +1089,7 @@ export function ChartInspectTicket({
           </div>
         )}
         <p className="mt-2 border-t border-wm-border pt-2 text-[10px]" style={{ color: "#C8C0AE" }}>Participant and intent: UNKNOWN. This retained print is not a live quote. Raw tape is session-only; refresh may remove it.</p>
+        <LearnThis kind="PRINT" />
       </section>
     );
   }
