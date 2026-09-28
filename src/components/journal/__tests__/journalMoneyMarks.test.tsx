@@ -54,12 +54,12 @@ describe("JournalContractChip — what a journal list row shows", () => {
 describe("JournalContractChip — Garden 16 §65: words and style agree", () => {
   it("an M0 day on an unpriced root is a quiet blue chip whose words do not say UNPRICED", () => {
     const html = renderToStaticMarkup(
-      <JournalContractChip entry={{ ...ES, symbol: "YM1!", entry: 40000, exit: 40010, pnl: 0, dayModel: "M0" }} />,
+      <JournalContractChip entry={{ ...ES, symbol: "6J1!", entry: 40000, exit: 40010, pnl: 0, dayModel: "M0" }} />,
     );
-    expect(html).toContain(">FUT YM</span>");
+    expect(html).toContain(">FUT 6J</span>");
     expect(html).toContain("text-wm-blue");
     expect(html).not.toContain("UNPRICED");
-    expect(html).toContain('title="FUTURES YM · M0 no-trade day — no money recorded"');
+    expect(html).toContain('title="FUTURES 6J · M0 no-trade day — no money recorded"');
   });
 
   it("an option on ES is a dim, flagged OPT chip that says why on hover", () => {
@@ -115,14 +115,14 @@ describe("the chart's P&L strip counts the same rows", () => {
     expect(report.headline.text).toBe("+$0.00");
   });
 
-  it("a YM1! row saved at $1/pt reaches the strip as UNKNOWN, never as '$1/pt' or 'understate' (§65 Y1 repair)", () => {
+  it("a 6J1! row saved at $1/pt reaches the strip as UNKNOWN, never as '$1/pt' or 'understate' (§65 Y1 repair)", () => {
     const raw = JSON.stringify([
-      { id: "y", date: "2026-09-03", symbol: "YM1!", side: "long", entry: 40000, exit: 40010, size: 1, pnl: 10, result: "win" },
+      { id: "y", date: "2026-09-03", symbol: "6J1!", side: "long", entry: 40000, exit: 40010, size: 1, pnl: 10, result: "win" },
     ]);
     const lf = compilePnlStats(raw).legacyFutures;
-    expect(lf).toMatchObject({ count: 0, unknownCount: 1, unknownRoots: ["YM"], otherCount: 0 });
+    expect(lf).toMatchObject({ count: 0, unknownCount: 1, unknownRoots: ["6J"], otherCount: 0 });
     expect(lf.chip).toBe("1 futures money UNKNOWN");
-    expect(lf.note).toContain("WM has no point value for YM, so its true money is UNKNOWN");
+    expect(lf.note).toContain("WM has no point value for 6J, so its true money is UNKNOWN");
     expect(lf.note).not.toMatch(/understate|\$1\/pt|see its futures money/);
   });
 

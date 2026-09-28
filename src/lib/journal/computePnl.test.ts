@@ -305,13 +305,13 @@ describe("computeJournalPnl — futures are priced at their point value", () => 
 });
 
 describe("unpriced futures — named, never 1x, never a 0 breakeven", () => {
-  for (const symbol of ["YM1!", "MES1!", "MES=F", "/YM"]) {
+  for (const symbol of ["6J1!", "6B1!", "6B=F", "/6J"]) {
     it(`${symbol}: no published point value -> UNPRICED with a named reason`, () => {
       const m = journalMoneyFor({ symbol, contractType: "stock" });
       expect(m.status).toBe("UNPRICED");
       if (m.status !== "UNPRICED") return;
       expect(m.refusal).toBe("NO_POINT_VALUE");
-      expect(m.reason).toMatch(/no published point value on file for (YM|MES)/);
+      expect(m.reason).toMatch(/no published point value on file for (6J|6B)/);
       // Neither the 1x number nor 0 comes out of the math.
       const pnl = computeJournalPnl({ entry: 40000, exit: 40010, size: 1, side: "long", symbol });
       expect(Number.isNaN(pnl)).toBe(true);
@@ -322,19 +322,19 @@ describe("unpriced futures — named, never 1x, never a 0 breakeven", () => {
   }
 
   it("a micro never inherits its big brother's multiplier (MES is not $50)", () => {
-    expect(journalMoneyFor({ symbol: "MES1!" }).status).toBe("UNPRICED");
+    expect(journalMoneyFor({ symbol: "6B1!" }).status).toBe("UNPRICED");
     expect(journalMoneyFor({ symbol: "ES1!" }).status).toBe("PRICED");
   });
 
-  it("THE SAVE GATE refuses YM through the existing pricing verdict, by name", () => {
-    const v = selectJournalPricing({ entry: 40000, exit: 40010, size: 1, symbol: "YM1!", contractType: "stock" });
+  it("THE SAVE GATE refuses 6J through the existing pricing verdict, by name", () => {
+    const v = selectJournalPricing({ entry: 40000, exit: 40010, size: 1, symbol: "6J1!", contractType: "stock" });
     expect(v.status).toBe("UNPRICEABLE");
     if (v.status !== "UNPRICEABLE") return;
     expect(v.money?.refusal).toBe("NO_POINT_VALUE");
-    expect(v.money?.root).toBe("YM");
+    expect(v.money?.root).toBe("6J");
     expect(v.missing).toEqual([]); // no typed value can fix it — not "add the missing value"
-    expect(v.note).toContain("YM");
-    expect(v.note).toContain("no published point value on file for YM");
+    expect(v.note).toContain("6J");
+    expect(v.note).toContain("no published point value on file for 6J");
     expect(v.note).toContain("$1 per point");
     expect(v.note).toContain("0.00R");
     expect(v.note).not.toMatch(/Add the missing value/);
@@ -342,13 +342,13 @@ describe("unpriced futures — named, never 1x, never a 0 breakeven", () => {
   });
 
   it("the instrument refusal wins even when values are also missing (the right fix is named)", () => {
-    const v = selectJournalPricing({ symbol: "MES1!" });
+    const v = selectJournalPricing({ symbol: "6B1!" });
     expect(v.status).toBe("UNPRICEABLE");
-    if (v.status === "UNPRICEABLE") expect(v.money?.root).toBe("MES");
+    if (v.status === "UNPRICEABLE") expect(v.money?.root).toBe("6B");
   });
 
   it("M0 no-trade day stays savable whatever the symbol", () => {
-    expect(selectJournalPricing({ isNoTradeDay: true, symbol: "YM1!" }).status).toBe("NO_TRADE_DAY");
+    expect(selectJournalPricing({ isNoTradeDay: true, symbol: "6J1!" }).status).toBe("NO_TRADE_DAY");
   });
 
   it("a priced futures trade passes the gate", () => {
@@ -393,7 +393,7 @@ describe("stock and option money is unchanged by the futures fix", () => {
     expect(journalMoneyFor({ symbol: "TSLA", contractType: "option" }).label).toBe("OPTION · 100x");
     expect(journalMoneyFor({ symbol: "ES1!", contractType: "stock" }).label).toBe("FUTURES ES · $50.00 / pt");
     expect(journalMoneyFor({ symbol: "CL1!" }).label).toBe("FUTURES CL · $1,000.00 / pt");
-    expect(journalMoneyFor({ symbol: "YM1!" }).label).toBe("FUTURES YM · UNPRICED");
+    expect(journalMoneyFor({ symbol: "6J1!" }).label).toBe("FUTURES 6J · UNPRICED");
   });
 });
 
@@ -411,11 +411,11 @@ describe("selectRecordedMoney — a stored futures P&L that is not futures money
     expect(selectRecordedMoney({ ...es, pnl: 500 }).mismatch).toBeNull();
   });
 
-  it("a legacy YM entry stored at 1x is flagged as UNCHECKABLE YM money — never called 'not YM money' (WM has no YM price)", () => {
-    const r = selectRecordedMoney({ ...es, symbol: "YM1!", entry: 40000, exit: 40010, pnl: 10 });
-    expect(r.label).toBe("FUTURES YM · UNPRICED");
-    expect(r.mismatch).toMatch(/^the recorded P&L \$10\.00 cannot be checked as YM money — /);
-    expect(r.mismatch).not.toContain("not YM money");
+  it("a legacy 6J entry stored at 1x is flagged as UNCHECKABLE 6J money — never called 'not 6J money' (WM has no 6J price)", () => {
+    const r = selectRecordedMoney({ ...es, symbol: "6J1!", entry: 40000, exit: 40010, pnl: 10 });
+    expect(r.label).toBe("FUTURES 6J · UNPRICED");
+    expect(r.mismatch).toMatch(/^the recorded P&L \$10\.00 cannot be checked as 6J money — /);
+    expect(r.mismatch).not.toContain("not 6J money");
     const opt = selectRecordedMoney({ ...es, contractType: "option", entry: 10, exit: 12, pnl: 200 });
     expect(opt.mismatch).toMatch(/^the recorded P&L \$200\.00 cannot be checked as ES option money — an option on ES futures/);
   });
@@ -445,7 +445,7 @@ describe("selectJournalSaveMoney — review RED: an M0 day is never priced, a Na
   }
 
   it("THE DEFECT: an M0 day on YM1! with hidden entry/exit/size saves a finite 0, not NaN", () => {
-    const form = { symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long" as const, dayModel: "M0" as const, plannedRDollars: 100 };
+    const form = { symbol: "6J1!", entry: 40000, exit: 40010, size: 1, side: "long" as const, dayModel: "M0" as const, plannedRDollars: 100 };
     // The gate still lets the no-trade day through, as canon §3 requires...
     expect(selectJournalPricing({ ...form, isNoTradeDay: true }).status).toBe("NO_TRADE_DAY");
     // ...and computeJournalPnl on the same form is the NaN that used to be written.
@@ -456,7 +456,7 @@ describe("selectJournalSaveMoney — review RED: an M0 day is never priced, a Na
   });
 
   it("that M0 record survives the round trip the old one did not (JSON -> hydrate)", () => {
-    const { record } = savedRecord({ symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long", dayModel: "M0", plannedRDollars: 100 });
+    const { record } = savedRecord({ symbol: "6J1!", entry: 40000, exit: 40010, size: 1, side: "long", dayModel: "M0", plannedRDollars: 100 });
     const back = hydrateJournalEntry(JSON.parse(JSON.stringify(record)));
     expect(back).not.toBeNull();
     expect(back!.pnl).toBe(0);
@@ -474,9 +474,9 @@ describe("selectJournalSaveMoney — review RED: an M0 day is never priced, a Na
 
   it("refuses a non-finite P&L by name instead of writing it", () => {
     // The gate refuses YM1! first; this is the second lock on the same door.
-    const r = selectJournalSaveMoney({ symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long" });
+    const r = selectJournalSaveMoney({ symbol: "6J1!", entry: 40000, exit: 40010, size: 1, side: "long" });
     expect(r.status).toBe("REFUSED");
-    if (r.status === "REFUSED") expect(r.reason).toBe("WM cannot price this YM trade: no published point value on file for YM");
+    if (r.status === "REFUSED") expect(r.reason).toBe("WM cannot price this 6J trade: no published point value on file for 6J");
     // Overflow is non-finite too, and is refused rather than written as null.
     const huge = selectJournalSaveMoney({ symbol: "TSLA", entry: 1, exit: 1e308, size: 1e308, side: "long" });
     expect(huge).toEqual({ status: "REFUSED", reason: "WM could not compute a finite P&L for this trade" });
@@ -519,10 +519,10 @@ describe("dated contract codes are priced as their root (review YELLOW)", () => 
     }
   });
 
-  it("a dated micro stays unpriced by name (MESZ6 is not $50)", () => {
+  it("a dated micro prices as ITS OWN contract — MESZ6 is $5 a point, never ES's $50 (spec on file 2026-09-27)", () => {
     const m = journalMoneyFor({ symbol: "MESZ6" });
-    expect(m.status).toBe("UNPRICED");
     expect(m.root).toBe("MES");
+    expect(computeJournalPnl({ entry: 5000, exit: 5010, size: 1, side: "long", symbol: "MESZ6" })).toBe(50);
   });
 
   it("bare roots stay shares — ES is Eversource, CL is Colgate-Palmolive", () => {
@@ -538,7 +538,7 @@ describe("journalContractBasis / selectContractChip — review NIT: futures are 
   it("the basis follows the journal money, not the stock/option picker", () => {
     expect(journalContractBasis({ symbol: "ES1!", contractType: "stock" })).toBe("futures");
     expect(journalContractBasis({ symbol: "ESZ6" })).toBe("futures");
-    expect(journalContractBasis({ symbol: "YM1!" })).toBe("futures");
+    expect(journalContractBasis({ symbol: "6J1!" })).toBe("futures");
     expect(journalContractBasis({ symbol: "TSLA", contractType: "stock" })).toBe("stock");
     expect(journalContractBasis({ symbol: "TSLA" })).toBe("stock");
     expect(journalContractBasis({ symbol: "ES", contractType: "stock" })).toBe("stock");
@@ -560,15 +560,15 @@ describe("journalContractBasis / selectContractChip — review NIT: futures are 
     expect(c.words).toContain("$500.00");
     // A stored figure that is neither 1x nor the point value is not called 1x.
     expect(selectContractChip({ ...row, symbol: "ES1!", pnl: 123 })!.text).toBe("FUT ES · MONEY MISMATCH");
-    expect(selectContractChip({ ...row, symbol: "YM1!", entry: 40000, exit: 40010, pnl: 10 })!.text).toBe("FUT YM · SAVED AT 1x");
+    expect(selectContractChip({ ...row, symbol: "6J1!", entry: 40000, exit: 40010, pnl: 10 })!.text).toBe("FUT 6J · SAVED AT 1x");
   });
 
   it("an M0 record is never told its money is wrong", () => {
     expect(selectRecordedMoney({ ...row, symbol: "ES1!", pnl: 0, dayModel: "M0" }).mismatch).toBeNull();
     expect(selectContractChip({ ...row, symbol: "ES1!", pnl: 0, dayModel: "M0" })!.text).toBe("FUT ES");
     // Found on the glass: an M0 day on an unpriced root claimed "UNPRICED".
-    expect(selectContractChip({ ...row, symbol: "YM1!", entry: 40000, exit: 40010, pnl: 0, dayModel: "M0" }))
-      .toMatchObject({ text: "FUT YM", flagged: false });
+    expect(selectContractChip({ ...row, symbol: "6J1!", entry: 40000, exit: 40010, pnl: 0, dayModel: "M0" }))
+      .toMatchObject({ text: "FUT 6J", flagged: false });
   });
 });
 
@@ -635,8 +635,8 @@ describe("describeLegacyFuturesMoney — Garden 16 §65 Y1: only a futures row s
   });
 
   it("an unpriced root NOT at 1x is neutral; an unpriced root AT 1x is UNKNOWN, never a $1/pt 'understate'", () => {
-    const ym = { ...es, symbol: "YM1!", entry: 40000, exit: 40010 };
-    expect(journalMoneyFor(ym).status).toBe("UNPRICED"); // WM has no YM point value
+    const ym = { ...es, symbol: "6J1!", entry: 40000, exit: 40010 };
+    expect(journalMoneyFor(ym).status).toBe("UNPRICED"); // WM has no 6J point value
     expect(describeLegacyFuturesMoney([{ ...ym, pnl: 77 }])).toMatchObject({ count: 0, unknownCount: 0, otherCount: 1 });
     expect(describeLegacyFuturesMoney([{ ...ym, pnl: 10 }])).toMatchObject({ count: 0, unknownCount: 1, otherCount: 0 });
   });
@@ -645,17 +645,17 @@ describe("describeLegacyFuturesMoney — Garden 16 §65 Y1: only a futures row s
 describe("describeLegacyFuturesMoney — Garden 16 §65 Y1 repair: an UNPRICED root saved at 1x is UNKNOWN", () => {
   const es = { symbol: "ES1!", entry: 5000, exit: 5010, size: 1, side: "long" as const };
   // YM1!: futures notation, no point value on file. Stored the pre-§17 way: 10 points x $1.
-  const ym = { symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long" as const, pnl: 10 };
+  const ym = { symbol: "6J1!", entry: 40000, exit: 40010, size: 1, side: "long" as const, pnl: 10 };
   const optOnEs = { symbol: "ES1!", contractType: "option" as const, entry: 10, exit: 12, size: 1, side: "long" as const, pnl: 200 };
 
-  it("a YM1! row saved at $1/pt is counted UNKNOWN, with its own sentence naming YM — no 'understate', no '$1/pt' chip", () => {
+  it("a YM1! row saved at $1/pt is counted UNKNOWN, with its own sentence naming 6J — no 'understate', no '$1/pt' chip", () => {
     expect(selectRecordedMoney(ym).savedAtOneX).toBe(true);
     const d = describeLegacyFuturesMoney([ym]);
-    expect(d).toMatchObject({ count: 0, unknownCount: 1, unknownRoots: ["YM"], otherCount: 0 });
+    expect(d).toMatchObject({ count: 0, unknownCount: 1, unknownRoots: ["6J"], otherCount: 0 });
     expect(d.chip).toBe("1 futures money UNKNOWN");
     expect(d.chip).not.toMatch(/\$1\/pt/);
     expect(d.note).toBe(
-      "1 futures entry was saved at $1 per point; WM has no point value for YM, so its true money is UNKNOWN. "
+      "1 futures entry was saved at $1 per point; WM has no point value for 6J, so its true money is UNKNOWN. "
       + "It is counted here as recorded.",
     );
     expect(d.note).not.toMatch(/understate/);
@@ -664,21 +664,21 @@ describe("describeLegacyFuturesMoney — Garden 16 §65 Y1 repair: an UNPRICED r
   });
 
   it("plural, roots de-duplicated in first-seen order", () => {
-    const d = describeLegacyFuturesMoney([ym, { ...ym, symbol: "ZB1!", entry: 110, exit: 111, pnl: 1 }, { ...ym, pnl: 10 }]);
-    expect(journalMoneyFor({ symbol: "ZB1!" }).status).toBe("UNPRICED");
-    expect(d).toMatchObject({ count: 0, unknownCount: 3, unknownRoots: ["YM", "ZB"] });
+    const d = describeLegacyFuturesMoney([ym, { ...ym, symbol: "VX1!", entry: 110, exit: 111, pnl: 1 }, { ...ym, pnl: 10 }]);
+    expect(journalMoneyFor({ symbol: "VX1!" }).status).toBe("UNPRICED");
+    expect(d).toMatchObject({ count: 0, unknownCount: 3, unknownRoots: ["6J", "VX"] });
     expect(d.note).toBe(
-      "3 futures entries were saved at $1 per point; WM has no point value for YM, ZB, so their true money is UNKNOWN. "
+      "3 futures entries were saved at $1 per point; WM has no point value for 6J, VX, so their true money is UNKNOWN. "
       + "They are counted here as recorded.",
     );
   });
 
-  it("a book with a PRICED ES $1/pt save, an UNPRICED YM $1/pt save and an option on ES gets three sentences in order", () => {
+  it("a book with a PRICED ES $1/pt save, an UNPRICED 6J $1/pt save and an option on ES gets three sentences in order", () => {
     const d = describeLegacyFuturesMoney([{ ...es, pnl: 10 }, ym, optOnEs]);
     expect(d).toMatchObject({ count: 1, unknownCount: 1, otherCount: 1 });
     expect(d.chip).toBe("1 futures at $1/pt · 1 futures money UNKNOWN · 1 unpriced money UNKNOWN");
     expect(d.note).toMatch(
-      /^1 futures entry was not priced at its point value .* understate it\. .*not available yet\. 1 other futures entry was saved at \$1 per point; WM has no point value for YM, so its true money is UNKNOWN\. It is counted here as recorded\. 1 other entry carries/,
+      /^1 futures entry was not priced at its point value .* understate it\. .*not available yet\. 1 other futures entry was saved at \$1 per point; WM has no point value for 6J, so its true money is UNKNOWN\. It is counted here as recorded\. 1 other entry carries/,
     );
     // The understate sentence speaks for exactly one entry — the priced ES row.
     expect(d.note!.match(/understate/g)).toHaveLength(1);
@@ -694,18 +694,18 @@ describe("describeLegacyFuturesMoney — Garden 16 §65 Y1 repair: an UNPRICED r
 
   it("only UNKNOWN + other-mismatch rows (no priced $1/pt row): the other sentence still says 'other' (verifier LOW, G16 r3)", () => {
     const d = describeLegacyFuturesMoney([ym, optOnEs]);
-    expect(d).toMatchObject({ count: 0, unknownCount: 1, unknownRoots: ["YM"], otherCount: 1 });
+    expect(d).toMatchObject({ count: 0, unknownCount: 1, unknownRoots: ["6J"], otherCount: 1 });
     expect(d.chip).toBe("1 futures money UNKNOWN · 1 unpriced money UNKNOWN");
     expect(d.note).toContain("1 other entry carries");
     // The UNKNOWN sentence has no priced group before it, so it is not "other".
-    expect(d.note).toMatch(/^1 futures entry was saved at \$1 per point; WM has no point value for YM/);
+    expect(d.note).toMatch(/^1 futures entry was saved at \$1 per point; WM has no point value for 6J/);
     expect(d.note).not.toMatch(/understate|see its futures money/);
   });
 });
 
 describe("describeLegacyFuturesMoney — §1/§20: the other sentence names only the kinds its rows have", () => {
   const es = { symbol: "ES1!", entry: 5000, exit: 5010, size: 1, side: "long" as const };
-  const ym77 = { symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long" as const, pnl: 77 };
+  const ym77 = { symbol: "6J1!", entry: 40000, exit: 40010, size: 1, side: "long" as const, pnl: 77 };
   const optOnEs = { symbol: "ES1!", contractType: "option" as const, entry: 10, exit: 12, size: 1, side: "long" as const, pnl: 200 };
 
   it("an option on ES alone is told it is an option on futures — no unpriced root, no 'neither' figure", () => {
@@ -722,10 +722,10 @@ describe("describeLegacyFuturesMoney — §1/§20: the other sentence names only
     );
   });
 
-  it("a YM row at $77 names YM as the unpriced root, never 'understate' or 'not its money'", () => {
-    const d = describeLegacyFuturesMoney([ym77, { ...ym77, symbol: "ZB1!", entry: 110, exit: 111, pnl: 5 }]);
+  it("a 6J row at $77 names 6J as the unpriced root, never 'understate' or 'not its money'", () => {
+    const d = describeLegacyFuturesMoney([ym77, { ...ym77, symbol: "VX1!", entry: 110, exit: 111, pnl: 5 }]);
     expect(d.note).toBe(
-      "2 entries carry a recorded P&L WM cannot confirm as their contract's money (a futures root WM has no point value for (YM, ZB)). "
+      "2 entries carry a recorded P&L WM cannot confirm as their contract's money (a futures root WM has no point value for (6J, VX)). "
       + "They are counted here as recorded. Open one to see why.",
     );
     expect(d.note).not.toMatch(/that is not/);
@@ -733,26 +733,26 @@ describe("describeLegacyFuturesMoney — §1/§20: the other sentence names only
 
   it("all three kinds present are listed in a fixed order", () => {
     expect(describeLegacyFuturesMoney([{ ...es, pnl: 123 }, ym77, optOnEs]).note).toContain(
-      "(an option on futures, which WM cannot price; a futures root WM has no point value for (YM); a futures figure that is neither $1 per point nor the point value)",
+      "(an option on futures, which WM cannot price; a futures root WM has no point value for (6J); a futures figure that is neither $1 per point nor the point value)",
     );
   });
 
   it("the row chip: an unpriced root not at 1x reads UNPRICED, never MONEY MISMATCH; a priced root keeps MONEY MISMATCH", () => {
-    expect(selectContractChip(ym77)!.text).toBe("FUT YM · UNPRICED");
-    expect(selectContractChip({ ...ym77, pnl: 10 })!.text).toBe("FUT YM · SAVED AT 1x");
+    expect(selectContractChip(ym77)!.text).toBe("FUT 6J · UNPRICED");
+    expect(selectContractChip({ ...ym77, pnl: 10 })!.text).toBe("FUT 6J · SAVED AT 1x");
     expect(selectContractChip({ ...es, pnl: 123 })!.text).toBe("FUT ES · MONEY MISMATCH");
   });
 
-  it("de-duplicates an unpriced root in the other sentence: two YM rows name YM once (verifier LOW, G16 r4)", () => {
+  it("de-duplicates an unpriced root in the other sentence: two 6J rows name 6J once (verifier LOW, G16 r4)", () => {
     const d = describeLegacyFuturesMoney([ym77, { ...ym77, pnl: 55 }]);
     expect(d.otherCount).toBe(2);
-    expect(d.note).toContain("(a futures root WM has no point value for (YM))");
-    expect(d.note).not.toContain("YM, YM");
+    expect(d.note).toContain("(a futures root WM has no point value for (6J))");
+    expect(d.note).not.toContain("6J, 6J");
   });
 
   it("the summary chip agrees with the row chip: MISMATCH only for a PRICED root, UNKNOWN for rows WM cannot price (verifier MEDIUM, G16 r4)", () => {
-    // Only unpriceable rows: an option on ES, a YM and a ZB not saved at 1x.
-    const zb = { ...ym77, symbol: "ZB1!", entry: 110, exit: 111, pnl: 5 };
+    // Only unpriceable rows: an option on ES, a 6J and a VX not saved at 1x.
+    const zb = { ...ym77, symbol: "VX1!", entry: 110, exit: 111, pnl: 5 };
     const unpriced = describeLegacyFuturesMoney([optOnEs, ym77, zb]);
     expect(unpriced.otherCount).toBe(3);
     expect(unpriced.chip).toBe("3 unpriced money UNKNOWN");
@@ -769,7 +769,7 @@ describe("describeLegacyFuturesMoney — §1/§20: the other sentence names only
     const m = selectRecordedMoney(optOnEs).mismatch!;
     expect(m).toContain("cannot be checked as ES option money");
     expect(m).not.toContain("as ES money");
-    expect(selectRecordedMoney(ym77).mismatch).toContain("cannot be checked as YM money");
+    expect(selectRecordedMoney(ym77).mismatch).toContain("cannot be checked as 6J money");
   });
 });
 
@@ -798,10 +798,10 @@ describe("Y3 — a legacy SHORT futures trade and an option on futures", () => {
 
 describe("M0 NIT — an M0 chip's words agree with its unflagged style", () => {
   it("an M0 day on an unpriced root never says UNPRICED in the title of a quiet chip", () => {
-    const c = selectContractChip({ symbol: "YM1!", entry: 40000, exit: 40010, size: 1, side: "long", pnl: 0, dayModel: "M0" })!;
+    const c = selectContractChip({ symbol: "6J1!", entry: 40000, exit: 40010, size: 1, side: "long", pnl: 0, dayModel: "M0" })!;
     expect(c.flagged).toBe(false);
     expect(c.words).not.toMatch(/UNPRICED/);
-    expect(c.words).toBe("FUTURES YM · M0 no-trade day — no money recorded");
+    expect(c.words).toBe("FUTURES 6J · M0 no-trade day — no money recorded");
     expect(selectContractChip({ symbol: "ES1!", entry: 5000, exit: 5010, size: 1, side: "long", pnl: 0, dayModel: "M0" })!.words)
       .toBe("FUTURES ES · M0 no-trade day — no money recorded");
   });
@@ -813,7 +813,7 @@ describe("Y2 — the row chip gate and the Proof Lane gate read the money basis"
     expect(journalRowShowsProofChips(bare)).toBe(true);
     expect(journalShowsProofLane(bare)).toBe(true);
     expect(journalRowShowsProofChips({ symbol: "ESZ6" })).toBe(true);
-    expect(journalShowsProofLane({ symbol: "YM1!" })).toBe(true);
+    expect(journalShowsProofLane({ symbol: "6J1!" })).toBe(true);
     expect(journalRowShowsProofChips({ symbol: "ES1!", contractType: "option" })).toBe(true);
   });
 

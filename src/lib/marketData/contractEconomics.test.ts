@@ -23,8 +23,11 @@ describe("contract spec — one owner, two halves", () => {
     expect(Object.keys(CONTRACT_TICK_SIZES).sort()).toEqual(Object.keys(CONTRACT_MULTIPLIERS).sort());
   });
 
-  it("tick sizes match the broker's instrument record (Webull US_FUTURES, 2026-09-26)", () => {
-    expect(CONTRACT_TICK_SIZES).toEqual({ "NQ1!": 0.25, "ES1!": 0.25, "RTY1!": 0.1, "GC1!": 0.1, "CL1!": 0.01 });
+  it("tick sizes match the broker's instrument record (Webull US_FUTURES, 2026-09-26) for the original five", () => {
+    // The five checked against Webull's instrument record; the 13 added on
+    // 2026-09-27 are pinned to exchange specs in futuresEconomicsSpec.test.ts.
+    expect(CONTRACT_TICK_SIZES).toMatchObject({ "NQ1!": 0.25, "ES1!": 0.25, "RTY1!": 0.1, "GC1!": 0.1, "CL1!": 0.01 });
+    expect(Object.keys(CONTRACT_TICK_SIZES).length).toBe(18);
   });
 
   it("tick values are the published ones", () => {
@@ -81,8 +84,8 @@ describe("certificate B · ES1!", () => {
     expect(r.status === "PRICED" && r.rewardWords).toBe("reward $600.00 per 1 contract");
     const noTarget = selectRiskEconomics("ES1!", { entry: 6512.25, stop: 6507.25, target: null });
     expect(noTarget.status === "PRICED" && noTarget.rewardWords).toBeNull();
-    expect(selectRiskEconomics("YM1!", { entry: 100, stop: 99, target: 110 }).status === "REFUSED").toBe(true);
-    const refused = selectRiskEconomics("YM1!", { entry: 100, stop: 99, target: 110 });
+    expect(selectRiskEconomics("6J1!", { entry: 100, stop: 99, target: 110 }).status === "REFUSED").toBe(true);
+    const refused = selectRiskEconomics("6J1!", { entry: 100, stop: 99, target: 110 });
     expect(refused.status === "REFUSED" && refused.rewardWords).toBeNull();
   });
 
@@ -109,8 +112,8 @@ describe("certificate C · GC1!", () => {
 });
 
 describe("refusals are named, never priced at 1x", () => {
-  it("a futures contract with no published point value refuses (Dow, Silver, a micro)", () => {
-    for (const [s, root] of [["YM1!", "YM"], ["SI1!", "SI"], ["MES1!", "MES"], ["MGC1!", "MGC"]] as const) {
+  it("a futures contract with no published point value refuses (Yen, Pound, VIX)", () => {
+    for (const [s, root] of [["6J1!", "6J"], ["6B1!", "6B"], ["VX1!", "VX"]] as const) {
       const r = selectRiskEconomics(s, { entry: 100, stop: 99, target: null });
       expect(r.status).toBe("REFUSED");
       expect(r.receipt).toBe(`REFUSED:NO_POINT_VALUE:${root}`);
@@ -186,8 +189,9 @@ describe("snapToTick — a plan is placed where an order could be", () => {
   it("does not invent a grid it does not have (FX, crypto, contracts without a spec)", () => {
     expect(snapToTick("EURUSD", 1.142371)).toBe(1.142371);
     expect(snapToTick("BTC-USD", 84012.337)).toBe(84012.337);
-    expect(snapToTick("YM1!", 42017.3)).toBe(42017.3);
-    expect(snapToTick("MES1!", 6512.37)).toBe(6512.37);
+    expect(snapToTick("6J1!", 0.0067123)).toBe(0.0067123);
+    // A contract whose spec is now on file snaps to ITS grid (YM: whole points).
+    expect(snapToTick("YM1!", 42017.3)).toBe(42017);
     expect(Number.isNaN(snapToTick("ES1!", NaN))).toBe(true);
   });
 
