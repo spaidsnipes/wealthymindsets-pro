@@ -6,6 +6,7 @@
  * GET /api/yahoo?sym=NQ1!&type=candles&tf=1m&bars=300 → OHLCV array
  */
 
+import { foldYahooLastRow } from "@/lib/marketData/yahooLastRow";
 import { withholdUntradedOutliers } from "@/lib/marketData/untradedOutlierBars";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { NextResponse } from "next/server";
@@ -298,6 +299,11 @@ export async function GET(request: Request) {
           volume: vols?.[i] ?? 0,
         });
       }
+
+      // Yahoo's final intraday row is stamped at the LAST TRADE, not a bar
+      // open — folded into its interval's bar (lib/marketData/yahooLastRow).
+      const lastRow = foldYahooLastRow(baseCandles, interval);
+      baseCandles.splice(0, baseCandles.length, ...lastRow.bars);
 
       // Untraded outliers are WITHHELD before aggregation (equities only, and
       // only where this feed reports volume): a zero-volume bar whose range is
