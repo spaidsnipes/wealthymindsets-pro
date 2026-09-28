@@ -54,7 +54,7 @@ import {
   storeSavedLayouts,
   type SavedLayout,
 } from "@/lib/workspace/savedLayouts";
-import { savedArrangementInForce } from "@/lib/marketData/viewModels/selectChartArrangement";
+import { ARRANGEMENT_SPECS, camerasInForce, composeCamera, savedArrangementInForce, type ArrangementId } from "@/lib/marketData/viewModels/selectChartArrangement";
 
 /** The frame's own ink, handed in so the door paints in the hand it sits in. */
 export interface SavedLayoutsInk {
@@ -253,6 +253,47 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
       >
         Saved layouts
       </div>
+
+      {/* COMPOUND CAMERA (Garden 16 §13–§15): ONE MARKET, ONE CAMERA, MANY
+          SENSES. "+ Camera" adds its senses to what is on — nothing on is
+          switched off — through the same saved-layout door (compiler-validated,
+          locks honoured). The line above names every camera fully in force. */}
+      {capture ? (() => {
+        const inForce = camerasInForce(capture);
+        const composable = ARRANGEMENT_SPECS.filter(a => a.arms.length > 0);
+        return (
+          <div data-testid="compound-camera" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "0 4px" }}>
+            <div data-testid="compound-camera-in-force" style={{ fontSize: 10, color: inForce.length > 1 ? ink.gold : ink.hint, letterSpacing: 0.4 }}>
+              {inForce.length === 0
+                ? "Camera · your own composition"
+                : `Camera · ${inForce.map(id => ARRANGEMENT_SPECS.find(a => a.id === id)?.label.toUpperCase()).join(" + ")}`}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {composable.map(a => {
+                const on = inForce.includes(a.id as ArrangementId);
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    data-testid={`compound-add-${a.id}`}
+                    disabled={on}
+                    aria-pressed={on}
+                    title={on ? `${a.label}'s senses are all on` : `Add ${a.label}'s senses to what is already on — nothing is switched off`}
+                    onClick={() => requestSavedLayout({ layoutId: `compose:${a.id}`, switches: composeCamera(capture, a.id as ArrangementId) })}
+                    style={{
+                      fontSize: 10, padding: "4px 8px", borderRadius: 999, cursor: on ? "default" : "pointer",
+                      border: `1px solid ${on ? ink.gold : ink.rule}`, color: on ? ink.gold : ink.pearl,
+                      background: "transparent", opacity: on ? 0.85 : 1,
+                    }}
+                  >
+                    {on ? "✓ " : "+ "}{a.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })() : null}
 
       {/* THE WAY BACK (Garden 16 §46): a camera replaced the trader's own
           arrangement; offered until the chart is arranged that way again. */}

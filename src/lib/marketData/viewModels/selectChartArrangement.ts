@@ -505,3 +505,37 @@ export function selectChartArrangement(
     declaration,
   };
 }
+
+/*
+  ── COMPOUND CAMERA (Garden 16 master order §13–§15: "ONE MARKET. ONE CAMERA.
+  MANY SENSES." — "enable Order Flow → Regime forced OFF … merely because an
+  old UI assumed one mode" is forbidden) ────────────────────────────────────
+
+  A camera PRESS is still a composition preset (it replaces: that is what a
+  preset is). COMPOSING adds a camera's senses to what is already on — the
+  union, through the SAME compiler and the SAME saved-layout door, so no
+  second camera engine, store or MarketState exists. Nothing already on is
+  switched off by composing.
+*/
+export function cameraArms(id: ArrangementId): readonly ProfileId[] {
+  return ARRANGEMENTS.find(a => a.id === id)?.arms ?? [];
+}
+
+/** Current switches ∪ the camera's arms. Rows the camera does not arm are left exactly as they were. */
+export function composeCamera(
+  current: Readonly<Partial<Record<string, boolean>>> | null,
+  id: ArrangementId,
+): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(current ?? {})) if (typeof v === "boolean") out[k] = v;
+  for (const arm of cameraArms(id)) out[arm] = true;
+  return out;
+}
+
+/** Every named camera whose senses are ALL on right now (Clean is the absence of senses, never "in force" inside a compound). */
+export function camerasInForce(current: Readonly<Partial<Record<string, boolean>>> | null): ArrangementId[] {
+  if (!current) return [];
+  return ARRANGEMENTS
+    .filter(a => a.arms.length > 0 && a.arms.every(arm => current[arm] === true))
+    .map(a => a.id);
+}
