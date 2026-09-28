@@ -53,6 +53,24 @@ export const UNBUILT_WINGS: readonly MarketIntelligenceWing[] = [
 ];
 
 /**
+ * The wings the CHART ROOM installs from its own chart layers (Garden 16 OS
+ * sweep, 2026-09-27): STRUCTURE = Market Structure · MTF Ancestry · Structure
+ * Profile; MEMORY/CONTEXT = Memory Ghost · Profile Memory. They switch the
+ * same layers Chart tools switches. A room without those layers (the deck)
+ * installs none and keeps confessing — the confession is per room, never
+ * global.
+ */
+export const CHART_ROOM_WINGS: readonly MarketIntelligenceWing[] = [
+  MARKET_INTELLIGENCE_WINGS.STRUCTURE,
+  MARKET_INTELLIGENCE_WINGS.MEMORY_CONTEXT,
+];
+
+/** The unbuilt wings a room still has to confess, given what it installs. */
+export function unbuiltWingsIn(installedHere: readonly MarketIntelligenceWing[]): MarketIntelligenceWing[] {
+  return UNBUILT_WINGS.filter((w) => !installedHere.includes(w));
+}
+
+/**
  * The W door's name. The brand's own two words for its intelligence; NOT
  * "Order flow" — that phrase now belongs to exactly one thing, the camera.
  */
@@ -65,12 +83,13 @@ export const W_DOOR_ROLE = "Market intelligence";
  * The W tile's hint: role, the installed families, and the ones that are not
  * installed — derived, so it cannot claim a wing the panel does not mount.
  */
-export function wDoorHint(): string {
+export function wDoorHint(installedHere: readonly MarketIntelligenceWing[] = []): string {
+  const unbuilt = unbuiltWingsIn(installedHere);
   const installed = Object.values(MARKET_INTELLIGENCE_WINGS).filter(
-    (w) => !UNBUILT_WINGS.includes(w),
+    (w) => !unbuilt.includes(w),
   );
-  const missing = UNBUILT_WINGS.length
-    ? ` · ${UNBUILT_WINGS.join(", ")} not installed yet`
+  const missing = unbuilt.length
+    ? ` · ${unbuilt.join(", ")} not installed yet`
     : "";
   return `${W_DOOR_ROLE} — ${installed.join(" · ")}${missing}`;
 }

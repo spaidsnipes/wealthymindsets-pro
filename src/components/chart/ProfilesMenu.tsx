@@ -67,6 +67,7 @@ export function ProfilesMenu({
   active,
   onToggle,
   families,
+  only,
   heading = "Price instruments",
   testId = "profiles-menu-panel",
   columns = 2,
@@ -83,6 +84,8 @@ export function ProfilesMenu({
   onToggle: (id: ProfileId) => void;
   /** One door per family — omitted shows the whole catalogue. */
   families?: readonly ProfileFamily[];
+  /** Only these rows (see ProfileMenuInput.only). */
+  only?: ProfileMenuInput["only"];
   /** The grid's small caps heading ("Price instruments", "Order-flow tools" …). */
   heading?: string;
   testId?: string;
@@ -93,7 +96,7 @@ export function ProfilesMenu({
   /** Species whose selector refused the bars on screen, with its reason (see selectProfileMenu). */
   speciesRefusal?: ProfileMenuInput["speciesRefusal"];
 }) {
-  const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, families, speciesRefusal });
+  const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, families, only, speciesRefusal });
 
   return (
     <section

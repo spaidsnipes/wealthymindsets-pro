@@ -221,6 +221,8 @@ export interface ProfileMenuInput {
   readonly active: Readonly<Partial<Record<ProfileId, boolean>>>;
   /** Only these families' rows (one door each). Omitted → the whole catalogue. */
   readonly families?: readonly ProfileFamily[];
+  /** Only these rows, in catalogue order (a door that installs a named few, e.g. the W's Structure wing). */
+  readonly only?: readonly ProfileId[];
   /**
    * Species whose own selector refused the bars on screen, with its reason as
    * a sentence. Without this the row read READY over an empty chart — the
@@ -769,7 +771,7 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
     fams && fams.length === 1
       ? fams[0] === "ORDER_FLOW" ? "ORDER FLOW" : fams[0] === "READING" ? "READING LENSES" : "PROFILES"
       : "PROFILES";
-  const entries: ProfileMenuEntry[] = CATALOGUE.filter(spec => !fams || fams.includes(PROFILE_FAMILY[spec.id])).map(spec => {
+  const entries: ProfileMenuEntry[] = CATALOGUE.filter(spec => (!fams || fams.includes(PROFILE_FAMILY[spec.id])) && (!input.only || input.only.includes(spec.id))).map(spec => {
     // Ordering matters. "No bars" is the wider absence and is checked first:
     // reporting "this tape states no side" on an empty chart would name the
     // narrower gap while the bigger one goes unmentioned.

@@ -16,9 +16,9 @@
 import React, { useSyncExternalStore } from "react";
 
 /** Each tool-family door has its own slot; the dashboard publishes, the drawer reads. */
-export type ToolsSlotKey = "order-flow" | "market-object-passport";
+export type ToolsSlotKey = "order-flow" | "market-object-passport" | "w-structure" | "w-memory";
 
-const current: Record<ToolsSlotKey, React.ReactNode> = { "order-flow": null, "market-object-passport": null };
+const current: Record<ToolsSlotKey, React.ReactNode> = { "order-flow": null, "market-object-passport": null, "w-structure": null, "w-memory": null };
 const subs = new Set<() => void>();
 
 export function publishToolsSlot(key: ToolsSlotKey, node: React.ReactNode): void {

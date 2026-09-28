@@ -33,6 +33,7 @@ import { stripComments } from "@/lib/sourceScan";
 import {
   MARKET_INTELLIGENCE_WINGS,
   UNBUILT_WINGS,
+  CHART_ROOM_WINGS,
   W_DOOR_LABEL,
   wDoorHint,
 } from "./marketIntelligence";
@@ -115,7 +116,9 @@ describe("W — WM Smart Money / Market Intelligence is not a camera", () => {
     for (const room of equippedRooms()) {
       for (const e of roomEquipment(room).filter((x) => x.id === W_ID)) {
         expect(e.label, `${room} names the W door differently`).toBe(W_DOOR_LABEL);
-        expect(e.hint).toBe(wDoorHint());
+        // Per-room confession (2026-09-27): /charts installs STRUCTURE and
+        // MEMORY/CONTEXT from its own chart layers; every other room confesses.
+        expect(e.hint).toBe(room === INSTRUMENT_VIEW_ROUTE ? wDoorHint(CHART_ROOM_WINGS) : wDoorHint());
         expect(e.kind).toBe("lens");
       }
     }

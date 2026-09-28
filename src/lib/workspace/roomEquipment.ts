@@ -39,7 +39,7 @@ import {
 // THE W DOOR'S WORDS have one owner (Garden 16 §14/§15). Both rooms that hand
 // out the W read the same two exports, so the deck and the chart room cannot
 // name WM's intelligence two ways.
-import { W_DOOR_LABEL, wDoorHint } from "@/lib/workspace/marketIntelligence";
+import { W_DOOR_LABEL, wDoorHint, CHART_ROOM_WINGS } from "@/lib/workspace/marketIntelligence";
 
 /**
  * WHICH OF THE TWO HANDS THIS BELONGS IN.
@@ -599,7 +599,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
       // the URL contract); the NAME is the brand's intelligence door, because
       // "Order Flow" is now exactly one thing: the camera in the Workspace hand.
       label: W_DOOR_LABEL,
-      hint: wDoorHint(),
+      hint: wDoorHint(CHART_ROOM_WINGS),
       kind: "lens",
     },
     {

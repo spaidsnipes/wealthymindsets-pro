@@ -56,7 +56,7 @@ import StackedImbalancePanel from "@/components/experience/StackedImbalancePanel
 import ValueCandlePanel from "@/components/experience/ValueCandlePanel";
 
 import type { OrderFlowReadingSet } from "@/lib/marketData/useOrderFlowReadings";
-import { MARKET_INTELLIGENCE_WINGS, UNBUILT_WINGS } from "@/lib/workspace/marketIntelligence";
+import { MARKET_INTELLIGENCE_WINGS, UNBUILT_WINGS, type MarketIntelligenceWing } from "@/lib/workspace/marketIntelligence";
 
 /** The tape window every one of these five reads. Named once. */
 const WINDOW_LABEL = "session tape";
@@ -106,6 +106,13 @@ export interface OrderFlowDepthPanelProps {
    * in rooms that have no such panel; no stair is drawn there.
    */
   readonly onOpenReadout?: () => void;
+  /**
+   * The STRUCTURE and MEMORY/CONTEXT instruments a room installs from its own
+   * chart layers (the chart room: the same switches Chart tools holds). A
+   * room that hands none keeps confessing those wings.
+   */
+  readonly structureInstruments?: React.ReactNode;
+  readonly memoryInstruments?: React.ReactNode;
 }
 
 export function OrderFlowDepthPanel({
@@ -113,7 +120,15 @@ export function OrderFlowDepthPanel({
   symbol,
   unabridged,
   onOpenReadout,
+  structureInstruments,
+  memoryInstruments,
 }: OrderFlowDepthPanelProps): React.ReactElement {
+  // Confessed per room: a wing this room installs is not "not installed".
+  const installedHere: MarketIntelligenceWing[] = [
+    ...(structureInstruments ? [MARKET_INTELLIGENCE_WINGS.STRUCTURE] : []),
+    ...(memoryInstruments ? [MARKET_INTELLIGENCE_WINGS.MEMORY_CONTEXT] : []),
+  ];
+  const unbuiltHere = UNBUILT_WINGS.filter((w) => !installedHere.includes(w));
   return (
     <div style={{ display: "grid", gap: 12 }} data-testid="order-flow-depth">
       {/*
@@ -154,12 +169,20 @@ export function OrderFlowDepthPanel({
         foot or they stand nowhere. The deck still reaches `unabridged` and
         renders these same lines there — same objects, one more depth.
       */}
-      <div
-        data-testid="order-flow-unbuilt-wings"
-        style={{ fontSize: 10, opacity: 0.5 }}
-      >
-        No instrument installed yet in {UNBUILT_WINGS.join(" or ")}.
-      </div>
+      {structureInstruments ? (
+        <Wing name={MARKET_INTELLIGENCE_WINGS.STRUCTURE}>{structureInstruments}</Wing>
+      ) : null}
+      {memoryInstruments ? (
+        <Wing name={MARKET_INTELLIGENCE_WINGS.MEMORY_CONTEXT}>{memoryInstruments}</Wing>
+      ) : null}
+      {unbuiltHere.length ? (
+        <div
+          data-testid="order-flow-unbuilt-wings"
+          style={{ fontSize: 10, opacity: 0.5 }}
+        >
+          No instrument installed yet in {unbuiltHere.join(" or ")}.
+        </div>
+      ) : null}
       {onOpenReadout ? (
         <button
           type="button"

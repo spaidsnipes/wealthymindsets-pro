@@ -2807,6 +2807,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             the complete set of things that can change this descriptor.
           */
           onOpenReadout={() => setSmartMoneyOpen(true)}
+          // The live switches arrive through slots (orderFlowToolsSlot): this
+          // memo's deps stay the readings it describes.
+          structureInstruments={<ToolsSlot slot="w-structure" />}
+          memoryInstruments={<ToolsSlot slot="w-memory" />}
         />
         </div>
       ),
@@ -3298,6 +3302,36 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     </div>
   );
   useEffect(() => { publishOrderFlowTools(orderFlowToolsNode); });
+  // THE W's STRUCTURE and MEMORY/CONTEXT wings (Garden 16 OS sweep): the same
+  // switches Chart tools holds, published live into the W drawer's slots.
+  const wStructureNode = (
+    <ProfilesMenu
+      barsPresent={chartBars.length > 0}
+      printsPresent={chartOrderFlowReadings.printsPresent}
+      observedAggressorFlow={chartFlowSnap.hasFlow}
+      only={["MARKET_STRUCTURE", "MTF_ANCESTRY", "STRUCTURE_PROFILE"]}
+      heading="Structure · on the candles"
+      testId="w-structure-instruments"
+      columns={1}
+      active={profileMenuActive}
+      onToggle={onProfileMenuToggle}
+    />
+  );
+  const wMemoryNode = (
+    <ProfilesMenu
+      barsPresent={chartBars.length > 0}
+      printsPresent={chartOrderFlowReadings.printsPresent}
+      observedAggressorFlow={chartFlowSnap.hasFlow}
+      only={["MEMORY_GHOST", "PROFILE_MEMORY"]}
+      heading="Memory / context · on the candles"
+      testId="w-memory-instruments"
+      columns={1}
+      speciesRefusal={profileSpeciesRefusalVM}
+      active={profileMenuActive}
+      onToggle={onProfileMenuToggle}
+    />
+  );
+  useEffect(() => { publishToolsSlot("w-structure", wStructureNode); publishToolsSlot("w-memory", wMemoryNode); });
 
   /*
     TOOLS › MARKET OBJECT PASSPORT — the objects ON the candles, as a picker.

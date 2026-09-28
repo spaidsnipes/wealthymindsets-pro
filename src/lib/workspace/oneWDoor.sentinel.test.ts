@@ -83,7 +83,9 @@ describe("one W door — the Market Intelligence family has one warehouse", () =
     // 2026-09-26 so the W tile's hint could be derived from it too; the panel
     // must still RENDER from it, not from a retyped list.
     expect(DEPTH_PANEL).toMatch(/data-testid="order-flow-unbuilt-wings"/);
-    expect(DEPTH_PANEL).toMatch(/\{UNBUILT_WINGS\.join\(/);
+    // Per room: the confession names the unbuilt wings THIS room did not install.
+    expect(DEPTH_PANEL).toMatch(/const unbuiltHere = UNBUILT_WINGS\.filter\(/);
+    expect(DEPTH_PANEL).toMatch(/\{unbuiltHere\.join\(/);
     expect(DEPTH_PANEL).toMatch(/import \{[^}]*UNBUILT_WINGS[^}]*\} from "@\/lib\/workspace\/marketIntelligence"/);
     expect(UNBUILT_WINGS).toEqual([
       MARKET_INTELLIGENCE_WINGS.STRUCTURE,
@@ -92,10 +94,11 @@ describe("one W door — the Market Intelligence family has one warehouse", () =
   });
 
   it("every mounted reading wears a wing tag", () => {
-    // Five readings, five <Wing> mounts. A sixth reading landing without a
-    // wing would silently fall outside the family this door claims to serve.
+    // Five readings + the two installable wings (STRUCTURE, MEMORY/CONTEXT —
+    // handed in by a room with chart layers), seven <Wing> mounts. A reading
+    // landing without a wing would fall outside the family this door serves.
     const wingMounts = DEPTH_PANEL.match(/<Wing name=\{MARKET_INTELLIGENCE_WINGS\./g) ?? [];
-    expect(wingMounts).toHaveLength(5);
+    expect(wingMounts).toHaveLength(7);
   });
 
   it("NOT VACUOUS: stripComments did not blank the scanned sources", () => {
