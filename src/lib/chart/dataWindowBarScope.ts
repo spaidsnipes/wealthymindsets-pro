@@ -1,3 +1,4 @@
+import { fmtSessionDate, isSessionTimeframe } from "./sessionDateLabel";
 import { selectChartCloseLabel } from "../marketData/selectChartCloseLabel";
 
 /**
@@ -98,9 +99,15 @@ export interface DataWindowBarScope {
 function fmtBarTime(
   barOpenedAtSeconds: number | null | undefined,
   timeZone?: string,
+  timeframe?: string | null,
 ): string | null {
   if (typeof barOpenedAtSeconds !== "number") return null;
   if (!Number.isFinite(barOpenedAtSeconds) || barOpenedAtSeconds <= 0) return null;
+  // A daily-or-longer bar is its SESSION DATE (sessionDateLabel owns why):
+  // no clock time, and never the evening before in a zone west of the venue.
+  if (isSessionTimeframe(timeframe)) {
+    return fmtSessionDate(barOpenedAtSeconds, timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone, { month: "short", day: "numeric", year: "numeric" });
+  }
   try {
     return new Intl.DateTimeFormat("en-US", {
       month: "short",
@@ -127,7 +134,7 @@ export function dataWindowBarScope(
   timeZone?: string,
 ): DataWindowBarScope {
   const tf = (typeof timeframe === "string" ? timeframe.trim() : "") || "";
-  const when = fmtBarTime(barOpenedAtSeconds, timeZone);
+  const when = fmtBarTime(barOpenedAtSeconds, timeZone, timeframe);
   const closeWord = selectChartCloseLabel(barOpenedAtSeconds, timeframe, nowMs);
 
   // The bar's name, used in every cell's hover so no cell can be read loose

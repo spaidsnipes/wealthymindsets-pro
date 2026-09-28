@@ -232,6 +232,7 @@ const REGIME_FIELD_RGB = { BALANCE: "128,150,72", TRANSITION: "214,150,50", WAIT
 /** The field's brightest point, at the live edge — it tints the glass, never the candles (cut out). */
 const REGIME_FIELD_PEAK = 0.07;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
+import { fmtSessionDate, isSessionTimeframe } from "@/lib/chart/sessionDateLabel";
 import { DATA_WINDOW_W, placeDataWindow } from "@/lib/chart/dataWindowPlacement";
 import { formatVolume } from "@/lib/chart/formatVolume";
 import { absorptionShelfRows, shelfRowCount } from "@/lib/chart/absorptionShelfRows";
@@ -2817,8 +2818,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const clock24hRef    = useRef<boolean>(chartSettings?.clock24h ?? false);
 
   // Crosshair / price-axis time label → honours the user's timezone + 12/24h choice.
+  // The formatters are chart options, set once; they read the timeframe here.
+  const sessionTfRef = useRef(isSessionTimeframe(timeframe));
+  sessionTfRef.current = isSessionTimeframe(timeframe);
   const fmtAxisTime = useCallback((t: any): string => {
     const sec = typeof t === "number" ? t : (t?.timestamp ?? Math.floor(Date.now() / 1000));
+    // A daily-or-longer bar is its session date (sessionDateLabel), never a
+    // local 11 PM the evening before (serving TSLA 1D, 2026-09-28).
+    if (sessionTfRef.current) return fmtSessionDate(sec, tzRef.current, { month: "short", day: "numeric", year: "numeric" });
     try {
       return new Intl.DateTimeFormat("en-US", {
         timeZone: tzRef.current, hour12: !clock24hRef.current,
@@ -2834,6 +2841,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     const tz = tzRef.current;
     try {
       // tickType: 0=Year 1=Month 2=DayOfMonth 3=Time 4=TimeWithSeconds
+      if (sessionTfRef.current) {
+        return tickType <= 1
+          ? fmtSessionDate(sec, tz, { year: "numeric", month: "short" })
+          : fmtSessionDate(sec, tz, { month: "short", day: "numeric" });
+      }
       if (tickType <= 1) return new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "short" }).format(d);
       if (tickType === 2) return new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short", day: "numeric" }).format(d);
       return new Intl.DateTimeFormat("en-US", {

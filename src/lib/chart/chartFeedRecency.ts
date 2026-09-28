@@ -1,3 +1,4 @@
+import { fmtSessionDate } from "./sessionDateLabel";
 /**
  * `LAST 07:23 PM` — THE SAME NUMBER MEANS "PERFECTLY FRESH" OR "ELEVEN MINUTES
  * DEAD", AND THE PRODUCT DOES NOT SAY WHICH.
@@ -154,7 +155,12 @@ export function chartFeedRecency(
   }
   if (now == null || now <= 0) return UNKNOWN("it has no clock to measure against.");
 
-  const clock = fmtClock(opened, timeZone);
+  // A daily-or-longer bar opened on a SESSION DATE, not at a clock time — a
+  // Chicago trader's TSLA 1D read "BAR OPENED 11:00 PM" for today's session
+  // (serving, 2026-09-28). sessionDateLabel owns the zone.
+  const clock = interval >= 86_400
+    ? fmtSessionDate(opened, timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone, { month: "short", day: "numeric" })
+    : fmtClock(opened, timeZone);
   if (clock == null) return UNKNOWN("the bar timestamp could not be read as a time.");
 
   const rawAgeSeconds = now / 1000 - opened;
