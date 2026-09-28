@@ -9455,7 +9455,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           canvas.dataset.flowCurrent = "NO_SIDED_TAPE";
         } else {
           const tsF = chart.timeScale();
-          const rows: { x: number; y: number; buy: number; sell: number }[] = [];
+          const rows: { x: number; yHigh: number; yLow: number; buy: number; sell: number }[] = [];
           for (const b of barsRef.current.slice(-400)) {
             const lv = accF.get(Number(b.time));
             if (!lv) continue;
@@ -9463,9 +9463,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             for (const v of lv.values()) { buy += v.ask; sell += v.bid; }
             if (buy + sell <= 0) continue;
             const xx = tsF.timeToCoordinate(b.time as never);
-            const yy = srs.priceToCoordinate(Number(b.close));
-            if (xx == null || yy == null || +xx < -bsp || +xx > W) continue;
-            rows.push({ x: +xx, y: +yy, buy, sell });
+            const yh = srs.priceToCoordinate(Number(b.high));
+            const yl = srs.priceToCoordinate(Number(b.low));
+            if (xx == null || yh == null || yl == null || +xx < -bsp || +xx > W) continue;
+            rows.push({ x: +xx, yHigh: +yh, yLow: +yl, buy, sell });
           }
           if (rows.length === 0) {
             canvas.dataset.flowCurrent = "NO_SIDED_BARS_IN_VIEW";
@@ -9481,24 +9482,36 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const up = net >= 0;
               const onesided = Math.abs(net) / total;
               const n = Math.max(1, Math.round(1 + 5 * Math.sqrt(total / peak)));
-              const len = 8 + 30 * onesided;
+              // Length is the bar's OWN range (px) scaled by one-sidedness — a
+              // current reads at every zoom, not as 8px dust.
+              const rangePx = Math.abs(r.yLow - r.yHigh);
+              const len = Math.min(110, Math.max(14, rangePx * 0.9 + 18)) * (0.35 + 0.65 * onesided);
+              const weight = Math.sqrt(total / peak);
               const rgb = up ? inks.btBuy : inks.btSell;
+              // Launch from the wick extreme in the current's direction.
+              const base = up ? r.yHigh - 3 : r.yLow + 3;
+              const dir = up ? -1 : 1;
               for (let k = 0; k < n; k++) {
-                const off = ((k + 0.5) / n - 0.5) * Math.max(3, bsp * 0.9);
+                const off = ((k + 0.5) / n - 0.5) * Math.max(4, bsp * 0.9);
                 // Drift along the current's own direction (LIVE); phase per streak.
                 const ph = ((tt * 0.8 + k * 0.37 + r.x * 0.013) % 1);
-                const y0 = r.y + (up ? -1 : 1) * (4 + ph * 10);
-                const y1 = y0 + (up ? -1 : 1) * len;
-                // Solid body + brighter head (a gradient per streak cost ~1k/frame).
-                const a = 0.2 + 0.45 * onesided;
+                const y0 = base + dir * ph * len * 0.35;
+                const y1 = y0 + dir * len * (0.7 + 0.3 * ((k * 0.61) % 1));
+                const a = 0.28 + 0.5 * onesided;
+                // Halo then core (two solid strokes; a gradient per streak cost ~1k/frame).
+                ctx.strokeStyle = `rgba(${rgb},${(a * 0.28).toFixed(3)})`;
+                ctx.lineWidth = 4 + 3 * weight;
+                ctx.beginPath(); ctx.moveTo(r.x + off, y0); ctx.lineTo(r.x + off, y1); ctx.stroke();
                 ctx.strokeStyle = `rgba(${rgb},${a.toFixed(3)})`;
-                ctx.lineWidth = 1.1;
-                ctx.beginPath();
-                ctx.moveTo(r.x + off, y0);
-                ctx.lineTo(r.x + off, y1);
-                ctx.stroke();
+                ctx.lineWidth = 1.4 + 1.2 * weight;
+                ctx.beginPath(); ctx.moveTo(r.x + off, y0); ctx.lineTo(r.x + off, y1); ctx.stroke();
+                // Arrow head: the direction is read, not guessed.
                 ctx.fillStyle = `rgba(${rgb},${Math.min(1, a + 0.35).toFixed(3)})`;
-                ctx.fillRect(r.x + off - 1, y1 - 1, 2, 2);
+                ctx.beginPath();
+                ctx.moveTo(r.x + off, y1 + dir * 4);
+                ctx.lineTo(r.x + off - 3, y1 - dir * 1);
+                ctx.lineTo(r.x + off + 3, y1 - dir * 1);
+                ctx.closePath(); ctx.fill();
               }
             }
             ctx.restore();
