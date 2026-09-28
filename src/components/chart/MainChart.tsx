@@ -14276,6 +14276,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // ── WALLS (bricks) ──────────────────────────────────────────
               const wallWords: { word: string; x: number; y: number }[] = [];
               const offCamera: string[] = [];
+              // The masonry each drawn wall occupies — no pressure chip may sit
+              // on the bricks (serving BTC: off-camera wall chips landed on the 85,000 wall).
+              const masonryRects: { x: number; y: number; w: number; h: number }[] = [];
               const strikesSorted = [...new Set(dp.walls.map(w => w.strike))];
               const spacingPx = (() => {
                 const y1 = yOfD(dp.spot), y2 = yOfD(dp.spot * 1.0125);
@@ -14517,6 +14520,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     painted.push(`CONTACT@${w.strike}:${state}:${prox.toFixed(2)}`);
                   }
                 }
+                masonryRects.push({ x: x0, y: top - 2, w: len + 2, h: wallH + 4 });
                 if (dpSpeaks) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${w.life}${w.tests ? ` ×${w.tests}` : ""}`, x: x0, y: top + wallH / 2 });
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }
@@ -14531,7 +14535,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
                 const chip = (word: string, pref: { x: number; y: number }, alts: { x: number; y: number }[]) => {
                   const ww = ctx.measureText(word).width + 10;
-                  const spotW = placeClearOfKeepOut({ ...pref, w: ww, h: 14 }, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + 14)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts.map(a => ({ ...a, w: ww, h: 14 })) });
+                  const spotW = placeClearOfKeepOut({ ...pref, w: ww, h: 14 }, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + 14)], { minX: keepOutMinX(), blockers: [...floatingChips, ...masonryRects], strict: true, alternates: alts.map(a => ({ ...a, w: ww, h: 14 })) });
                   if (spotW.mode === "BLOCKED") return;
                   recordKeepOut(keepOutLedger, spotW);
                   floatingChips.push({ ...spotW.rect });
