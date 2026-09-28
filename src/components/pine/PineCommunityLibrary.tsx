@@ -23,14 +23,9 @@ export interface CommunityScript {
   category:    "Trend" | "Momentum" | "Volume" | "Smart Money" | "Order Flow" | "Oscillator" | "Strategy";
   description: string;
   tags:        string[];
-  stars:       number;
-  forks:       number;
-  views:       number;
   featured:    boolean;
-  verified:    boolean;
   code:        string;
   preview:     string; // thumbnail color
-  updatedDays: number;
 }
 
 const COMMUNITY_SCRIPTS: CommunityScript[] = [
@@ -42,8 +37,7 @@ const COMMUNITY_SCRIPTS: CommunityScript[] = [
     category: "Smart Money",
     description: "Context · Location · Confirmation signal overlay. Marks valid CLC setups with arrows, draws structure levels, and alerts on confirmation candle close.",
     tags: ["CLC", "Smart Money", "NQ", "Structure"],
-    stars: 847, forks: 312, views: 14280, featured: true, verified: true,
-    updatedDays: 2,
+    featured: true,
     preview: "#00D4AA",
     code: `//@version=6
 indicator("CLC Rule Signal v3", overlay=true, shorttitle="CLC")
@@ -77,8 +71,7 @@ hline(midpoint, "Midpoint", color.gray, linestyle=hline.style_dashed)`,
     category: "Trend",
     description: "VWAP with ±1σ, ±2σ, ±3σ deviation bands. Highlights when price enters extreme zones. Custom color gradient per band. Works on all timeframes.",
     tags: ["VWAP", "Deviation", "Bands", "Day Trading"],
-    stars: 623, forks: 198, views: 9840, featured: true, verified: true,
-    updatedDays: 5,
+    featured: true,
     preview: "#F0B429",
     code: `//@version=6
 indicator("VWAP Bands Pro", overlay=true, shorttitle="VWAP+")
@@ -122,8 +115,7 @@ plot(vwap - stdev*mult3, "-3σ", color=color.new(#8B5CF6, 40), linewidth=1)`,
     category: "Smart Money",
     description: "Full ICT Smart Money toolkit: Order Blocks, Fair Value Gaps, Break of Structure, Change of Character, Liquidity sweeps, and more. One-click on/off for each element.",
     tags: ["ICT", "Order Blocks", "FVG", "BOS", "CHoCH"],
-    stars: 1204, forks: 481, views: 28400, featured: true, verified: true,
-    updatedDays: 1,
+    featured: true,
     preview: "#8B5CF6",
     code: `//@version=6
 indicator("Smart Money Concepts", overlay=true, max_bars_back=500, shorttitle="SMC")
@@ -162,8 +154,7 @@ plotshape(bos_bear, "BOS Bearish", shape.labeldown, location.abovebar, #FF4D6A, 
     category: "Smart Money",
     description: "Identifies Wyckoff Accumulation and Distribution phases. Labels PS, SC, AR, ST, Spring, SOS, LPS, UTAD. Color-coded background for each phase.",
     tags: ["Wyckoff", "Accumulation", "Distribution", "Phases"],
-    stars: 589, forks: 203, views: 11200, featured: false, verified: true,
-    updatedDays: 8,
+    featured: false,
     preview: "#4FA3E0",
     code: `//@version=6
 indicator("Wyckoff Phase Detector", overlay=true, shorttitle="Wyckoff")
@@ -193,8 +184,7 @@ hline(mid,     "Midpoint",   color.gray,  linestyle=hline.style_dotted)`,
     category: "Order Flow",
     description: "Detects divergence between price action and Cumulative Volume Delta. Signals exhaustion moves before reversal. Plots divergence arrows and CVD histogram.",
     tags: ["CVD", "Delta", "Divergence", "Order Flow"],
-    stars: 432, forks: 156, views: 7840, featured: false, verified: true,
-    updatedDays: 12,
+    featured: false,
     preview: "#FF4D6A",
     code: `//@version=6
 indicator("CVD Delta Divergence", overlay=false, shorttitle="CVD Div")
@@ -229,8 +219,7 @@ plotshape(bearDiv, "Bear Div", shape.arrowdown, location.top,    #FF4D6A, size=s
     category: "Momentum",
     description: "Enhanced TTM Squeeze with Momentum histogram, Squeeze dots (black/gray/red), and integrated Bollinger/Keltner compression signal. Color-gradient momentum bars.",
     tags: ["Squeeze", "Momentum", "TTM", "Volatility"],
-    stars: 778, forks: 267, views: 16200, featured: true, verified: false,
-    updatedDays: 4,
+    featured: true,
     preview: "#F0B429",
     code: `//@version=6
 indicator("TTM Squeeze Pro", overlay=false, shorttitle="SQZ")
@@ -273,8 +262,7 @@ plotshape(sqzOff, "SQZ Off", shape.circle, location.bottom, color.gray,  size=si
     category: "Momentum",
     description: "RSI with automatic bullish and bearish divergence detection. Draws divergence lines on the RSI pane and on the chart. Hidden divergence detection included.",
     tags: ["RSI", "Divergence", "Hidden", "Momentum"],
-    stars: 541, forks: 189, views: 9100, featured: false, verified: true,
-    updatedDays: 20,
+    featured: false,
     preview: "#8B5CF6",
     code: `//@version=6
 indicator("RSI Divergence Pro", overlay=false, shorttitle="RSI Div")
@@ -311,8 +299,7 @@ plotshape(bearDiv, "Bear Div", shape.triangledown, location.top,    #FF4D6A, siz
     category: "Order Flow",
     description: "Detects anomalous off-exchange volume prints. Highlights potential dark pool activity with volume-spike analysis. Marks prints on chart with size-scaled icons.",
     tags: ["Dark Pool", "Volume", "Institutional", "Off-Exchange"],
-    stars: 394, forks: 128, views: 6200, featured: false, verified: false,
-    updatedDays: 31,
+    featured: false,
     preview: "#4FA3E0",
     code: `//@version=6
 indicator("Dark Pool Print Detector", overlay=true, shorttitle="DP")
@@ -345,7 +332,7 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 const CATS = ["All", "Featured", "Smart Money", "Order Flow", "Trend", "Momentum", "Volume", "Oscillator", "Strategy"];
-const SORTS = ["Most Stars", "Most Forks", "Most Viewed", "Newest"];
+const SORTS = ["Featured", "A–Z"];
 
 /* ── Script card component ──────────────────────────────── */
 function ScriptCard({
@@ -371,21 +358,15 @@ function ScriptCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <h3 className="text-xs font-bold text-wm-text truncate">{script.title}</h3>
-            {script.verified && (
-              <span title="Verified" className="text-wm-blue">
-                <Award size={11} />
-              </span>
-            )}
             {script.featured && (
               <span className="px-1 py-0.5 rounded text-[8px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30">
                 FEATURED
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[10px] text-wm-text-muted">{script.authorBadge} {script.author}</span>
-            <span className="text-[9px] text-wm-text-dim">· {script.updatedDays === 0 ? "Today" : `${script.updatedDays}d ago`}</span>
-          </div>
+          {/* No author, rating or recency is printed: this is a WM curated
+              library, not a community with members, and those numbers had no
+              owner (no-fake-data law, 2026-09-28). */}
         </div>
         <span
           className="px-1.5 py-0.5 rounded text-[9px] font-semibold shrink-0"
@@ -414,14 +395,8 @@ function ScriptCard({
           className={clsx("flex items-center gap-1 text-[10px] transition-colors", starred ? "text-wm-gold" : "text-wm-text-dim hover:text-wm-gold")}
         >
           <Star size={11} className={starred ? "fill-wm-gold" : ""} />
-          {script.stars + (starred ? 1 : 0)}
+          {starred ? "Saved" : "Save"}
         </button>
-        <span className="flex items-center gap-1 text-[10px] text-wm-text-dim">
-          <GitFork size={10} /> {script.forks}
-        </span>
-        <span className="flex items-center gap-1 text-[10px] text-wm-text-dim">
-          <Eye size={10} /> {script.views.toLocaleString()}
-        </span>
 
         <div className="ml-auto flex items-center gap-1">
           <button
@@ -525,7 +500,7 @@ interface Props {
 export function PineCommunityLibrary({ onClose, onImport }: Props) {
   const [search,    setSearch]    = useState("");
   const [cat,       setCat]       = useState("All");
-  const [sort,      setSort]      = useState("Most Stars");
+  const [sort,      setSort]      = useState("Featured");
   const [preview,   setPreview]   = useState<CommunityScript | null>(null);
 
   const filtered = useMemo(() => {
@@ -544,10 +519,8 @@ export function PineCommunityLibrary({ onClose, onImport }: Props) {
       );
     }
 
-    if (sort === "Most Stars")  items.sort((a, b) => b.stars  - a.stars);
-    if (sort === "Most Forks")  items.sort((a, b) => b.forks  - a.forks);
-    if (sort === "Most Viewed") items.sort((a, b) => b.views  - a.views);
-    if (sort === "Newest")      items.sort((a, b) => a.updatedDays - b.updatedDays);
+    if (sort === "Featured") items.sort((a, b) => Number(b.featured) - Number(a.featured));
+    if (sort === "A–Z")      items.sort((a, b) => a.title.localeCompare(b.title));
 
     return items;
   }, [search, cat, sort]);
@@ -581,16 +554,11 @@ export function PineCommunityLibrary({ onClose, onImport }: Props) {
             <BookOpen size={16} className="text-white" />
           </div>
           <div>
-            <h2 className="text-sm font-black text-wm-text">Pine Script Community Library</h2>
-            <p className="text-[10px] text-wm-text-muted">{COMMUNITY_SCRIPTS.length} verified indicators · Browse, fork, add to chart</p>
+            <h2 className="text-sm font-black text-wm-text">Pine Script Library — WM curated</h2>
+            <p className="text-[10px] text-wm-text-muted">{COMMUNITY_SCRIPTS.length} curated indicators · Browse, add to chart</p>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            {/* Stats */}
-            <div className="hidden sm:flex items-center gap-3 mr-2">
-              <span className="flex items-center gap-1 text-[10px] text-wm-gold"><Flame size={11} /> {COMMUNITY_SCRIPTS.reduce((s, i) => s + i.stars, 0).toLocaleString()} Stars</span>
-              <span className="flex items-center gap-1 text-[10px] text-wm-text-muted"><GitFork size={11} /> {COMMUNITY_SCRIPTS.reduce((s, i) => s + i.forks, 0).toLocaleString()} Forks</span>
-            </div>
             <button onClick={onClose} className="text-wm-text-dim hover:text-wm-text">
               <X size={18} />
             </button>
@@ -675,7 +643,7 @@ export function PineCommunityLibrary({ onClose, onImport }: Props) {
         {/* ── Footer ─────────────────────────────────────── */}
         <div className="px-4 py-2.5 border-t border-wm-border bg-wm-dark shrink-0 flex items-center justify-between">
           <span className="text-[10px] text-wm-text-dim">
-            {filtered.length} of {COMMUNITY_SCRIPTS.length} scripts · Community-built & reviewed
+            {filtered.length} of {COMMUNITY_SCRIPTS.length} scripts · WM curated library
           </span>
           <button
             className="flex items-center gap-1 text-[10px] text-wm-blue hover:text-wm-text transition-colors"
