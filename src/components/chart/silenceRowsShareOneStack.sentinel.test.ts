@@ -21,3 +21,10 @@ describe("lower-left silence lines never share a row", () => {
     expect(MC.match(/const rowY = takeSilenceRow\(\);/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("gap words never print inside the price legend's headroom", () => {
+  it("a word that would rise into the legend hangs below its bridge, or waits", () => {
+    expect(MC).toContain("if (my - 12 < BELOW_PRICE_LEGEND) my = Math.max(+y0, +y1) + 16;");
+    expect(MC).toContain("if (my - 12 < BELOW_PRICE_LEGEND || my > H) { wordsWithheld++; continue; }");
+  });
+});

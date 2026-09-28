@@ -8533,7 +8533,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // QUIET at FAR: the bridge, no words).
           if (!att.speaks("dataGaps") && g.emptyIntervals < 3) continue;
           if (g.emptyIntervals < 3 && !shortWordAllowed.has(g.fromTime)) { wordsWithheld++; continue; }
-          const my = Math.min(+y0, +y1) - 10;
+          // The words ride above the bridge — unless that lifts them into the
+          // price legend's reserved headroom (serving NQ1! 5m, 2026-09-28: a
+          // hole near the top of the range printed "NO BAR · 1 interval" over
+          // "NQ1! · 5m"). Then they hang below the bridge; with no room there
+          // either, they wait (the bridge is still on the glass).
+          let my = Math.min(+y0, +y1) - 10;
+          if (my - 12 < BELOW_PRICE_LEGEND) my = Math.max(+y0, +y1) + 16;
+          if (my - 12 < BELOW_PRICE_LEGEND || my > H) { wordsWithheld++; continue; }
           const t = `‑ ‑ ${g.label} ‑`;
           const tw = ctx.measureText(t).width + 8;
           // Inside the plot: a hole at the live edge centred its words under
