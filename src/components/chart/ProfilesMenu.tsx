@@ -136,7 +136,9 @@ export function ProfilesMenu({
         <div
           role="menu"
           aria-label="Profiles"
-          className="rounded-lg border border-wm-border bg-wm-surface/95 p-2"
+          // Five-hour order: "no stacked admin cards, no border warehouses" —
+          // the equipment list shares the Chart tools grammar (no frame).
+          className="p-1"
         >
           {/* THE SUMMARY LINE — what the chip used to say, said in place.
               `vm.summary` carries the switched-on count AND the SILENT suffix;
@@ -185,10 +187,13 @@ export function ProfilesMenu({
                   data-profile-id={entry.id}
                   data-profile-availability={entry.availability}
                   data-profile-active={entry.active ? "1" : "0"}
-                  className="min-w-0 rounded border px-2 py-1.5 text-left transition-colors hover:bg-wm-card"
+                  className="min-w-0 px-2 py-1.5 text-left transition-colors hover:bg-wm-card"
+                  // A row, not a card: only the active reading carries the gold
+                  // left edge (the Chart tools / Workspace rail grammar).
                   style={{
-                    borderColor: entry.active ? "rgba(212,175,55,0.32)" : "rgba(139,143,168,0.18)",
-                    background: entry.active ? "rgba(212,175,55,0.055)" : "rgba(19,21,32,0.54)",
+                    border: "none",
+                    borderLeft: entry.active ? "2px solid rgba(212,175,55,0.85)" : "2px solid transparent",
+                    background: entry.active ? "rgba(212,175,55,0.07)" : "transparent",
                   }}
                 >
                   <div className="flex min-w-0 items-center gap-1.5">

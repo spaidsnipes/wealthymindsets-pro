@@ -28,7 +28,7 @@ export function useWebullBook(): { status: WebullStatusRead | null; positions: W
       if (p) setPositions(p);
     };
     void load();
-    const t = window.setInterval(load, 60_000);
+    const t = window.setInterval(load, 120_000); // Webull rate-limits the positions read (serving 2026-09-27): every two minutes.
     return () => { alive = false; window.clearInterval(t); };
   }, []);
   return { status, positions };

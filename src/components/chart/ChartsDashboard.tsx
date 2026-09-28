@@ -3254,7 +3254,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       <div className="px-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-wm-text-dim">
         On each candle · footprint
       </div>
-      <div className="flex flex-wrap items-center gap-1 rounded-lg border border-wm-border bg-wm-surface/95 p-2">
+      <div className="flex flex-wrap items-center gap-1 p-1">
         <FootprintControls
           active={footprintType}
           enabled={footprintEnabled}
