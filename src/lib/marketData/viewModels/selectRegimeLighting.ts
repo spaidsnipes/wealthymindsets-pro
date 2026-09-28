@@ -106,7 +106,31 @@ const BREAKER: Readonly<Record<RegimeVerdict, RegimeBreaker | null>> = {
   UNKNOWN: null,
 };
 
+/**
+ * THE WORDS NAME THE VERDICT, THE LIGHT IS THE BREAKER'S. COMPRESSION throws
+ * the RANGE breaker and EXPANSION the TRANSITION breaker — the lighting is
+ * right — but the title used to say the breaker's word. Serving BTC 1m,
+ * 2026-09-28: the header read "REGIME TREND" (the tape dimension) while the
+ * glass read "REGIME · RANGE · channel capped" for a COMPRESSION verdict — a
+ * range the same screen denied. The verdict was volatility compressing inside
+ * a trend; the glass now says so.
+ */
 export function selectRegimeLighting(
+  regime: { readonly verdict: RegimeVerdict } | null | undefined,
+): RegimeLightingVM {
+  const vm = lightByBreaker(regime);
+  if (vm.verdict === "COMPRESSION" || vm.verdict === "EXPANSION") {
+    const word = vm.verdict;
+    return {
+      ...vm,
+      title: vm.title ? vm.title.replace(/^REGIME · (RANGE|TRANSITION) · /, `REGIME · ${word} · `) : vm.title,
+      chip: vm.chip.replace(/^REGIME · (RANGE|TRANSITION) ON · /, `REGIME · ${word} · ${vm.breaker} BREAKER ON · `),
+    };
+  }
+  return vm;
+}
+
+function lightByBreaker(
   regime: { readonly verdict: RegimeVerdict } | null | undefined,
 ): RegimeLightingVM {
   const verdict = regime?.verdict ?? null;

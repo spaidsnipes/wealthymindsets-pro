@@ -124,12 +124,28 @@ describe("H-901 v2 — the plate's own fixtures, lit by the one breaker", () => 
     for (const verdict of ALL) {
       const v = L(verdict);
       if (v.breaker) {
-        expect(v.title).toMatch(new RegExp(`^REGIME · ${v.breaker} · `));
+        // The title names the VERDICT (COMPRESSION / EXPANSION keep their own word); the breaker's word otherwise.
+        const word = verdict === "COMPRESSION" || verdict === "EXPANSION" ? verdict : v.breaker;
+        expect(v.title).toMatch(new RegExp(`^REGIME · ${word} · `));
         expect(v.title!.length).toBeLessThan(48);
       } else {
         expect(v.title).toBeNull();
       }
       expect(v.title ?? "").not.toMatch(/ONLY ONE ON|CIRCUIT/);
     }
+  });
+});
+
+describe("the words name the verdict; the light is the breaker's (serving BTC 1m, 2026-09-28)", () => {
+  it("COMPRESSION lights RANGE but is called COMPRESSION; EXPANSION lights TRANSITION but is called EXPANSION", () => {
+    const c = L("COMPRESSION");
+    expect(c.breaker).toBe("RANGE");
+    expect(c.title).toBe("REGIME · COMPRESSION · channel capped");
+    expect(c.chip).toBe("REGIME · COMPRESSION · RANGE BREAKER ON · TREND FIXTURES CAPPED");
+    const e = L("EXPANSION");
+    expect(e.breaker).toBe("TRANSITION");
+    expect(e.title).toBe("REGIME · EXPANSION · all fixtures dimmed");
+    expect(L("BALANCE").title).toBe("REGIME · RANGE · channel capped");
+    expect(L("TRANSITION").title).toBe("REGIME · TRANSITION · all fixtures dimmed");
   });
 });
