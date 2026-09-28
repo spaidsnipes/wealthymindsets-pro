@@ -89,7 +89,7 @@ import {
   recordSkip,
   withPaintBudget,
 } from "@/lib/chart/paintBudgetLedger";
-import { coinbaseProduct, useWebSocket } from "@/hooks/useWebSocket";
+import { coinbaseProduct, useWebSocket, type Tick } from "@/hooks/useWebSocket";
 import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
@@ -516,6 +516,7 @@ import type {
 import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
 import { marketClockReceipt, noteSeries, notePaint, resetMarketClock } from "@/lib/chart/marketClockProbe";
 import { QUIET_CEILING } from "@/lib/marketData/viewModels/selectSemanticPermission";
+import { coinbaseProductFor, fetchCoinbaseTradeHistory } from "@/lib/marketData/coinbaseTradeBackfill";
 import { ANATOMY_MODE_EVENT, ANATOMY_MODE_KEY } from "@/lib/chart/anatomyMode";
 import { selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 /** The forming candle's own print ring (bounded; a truncated ring is named in its receipt). */
@@ -3018,6 +3019,63 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     setSessionTapeTick(t => t + 1);
   }), []);
 
+  /*
+    ONE FOLD FOR EVERY PRINT (Garden 16 §27 "one Order Flow brain"): the live
+    tape and the provider backfill enter THE ladder (tickAccRef) and the
+    big-trade accumulator through this one function — same dedupe (eventId),
+    same bar bucketing, same price grid. `heardLive` false = a backfilled print:
+    it is ladder evidence, but it never counts as the room having heard it
+    (session tape stats / horizon stay "heard live").
+  */
+  const foldPrintRef = useRef<(tick: Tick, heardLive: boolean) => boolean>(() => false);
+  const foldPrint = (tick: Tick, heardLive: boolean): boolean => {
+    const intervalSec = getIntervalSec(timeframe);
+    const minTick = base > 10_000 ? 0.25 : base > 1_000 ? 0.25 : base > 100 ? 0.01 : 0.0001;
+    const dp      = base > 100 ? 2 : 4;
+
+    if (!tick.trade) return false;
+    if (!Number.isFinite(tick.price) || tick.price <= 0) return false;
+    if (!Number.isFinite(tick.size)  || tick.size  <= 0) return false;
+    const dedupeKey = marketTickDedupeKey(tick);
+    if (processedTicksRef.current.has(dedupeKey)) return false;
+    processedTicksRef.current.add(dedupeKey);
+    if (processedTicksRef.current.size > 8000) {
+      processedTicksRef.current = new Set([...processedTicksRef.current].slice(-4000));
+    }
+
+    const barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
+    const priceLevel = +(Math.round(tick.price / minTick) * minTick).toFixed(dp);
+    if (!bigTradePrintAccRef.current.has(barTime)) bigTradePrintAccRef.current.set(barTime, []);
+    bigTradePrintAccRef.current.get(barTime)!.push({
+      price: tick.price,
+      bid: tick.side === "sell" ? tick.size : 0,
+      ask: tick.side === "buy" ? tick.size : 0,
+      printKey: dedupeKey,
+      timeMs: tick.time,
+      aggressorMethod: tick.marketEvent?.aggressorMethod,
+    });
+    if (!tickAccRef.current.has(barTime)) tickAccRef.current.set(barTime, new Map());
+    const heardSec = tick.time / 1000;
+    if (tickAccStartedAtRef.current == null || heardSec < tickAccStartedAtRef.current) tickAccStartedAtRef.current = heardSec;
+    const lvlMap = tickAccRef.current.get(barTime)!;
+    const existing = lvlMap.get(priceLevel) ?? { bid: 0, ask: 0 };
+    lvlMap.set(priceLevel, {
+      bid: existing.bid + (tick.side === "sell" ? tick.size : 0),
+      ask: existing.ask + (tick.side === "buy"  ? tick.size : 0),
+    });
+    // WM Session Tape Stats — cumulative counters routed through the
+    // per-symbol store so switching symbols preserves each symbol's window.
+    if (heardLive) recordSessionTrade(
+      canonicalSym,
+      tapeSource ?? "unavailable",
+      { side: tick.side ?? null, size: tick.size, time: tick.time },
+      tick.size >= minBigTradeLot(base),
+    );
+    if (heardLive) tapeHorizonRef.current = sessionSlot.horizon; // hydrate ref after first horizon stamp
+    return true;
+  };
+  foldPrintRef.current = foldPrint;
+
   useEffect(() => {
     if (!recentTicks?.length || !hasRealAggressorTape(tapeSource ?? "")) return;
     const intervalSec = getIntervalSec(timeframe);
@@ -3026,46 +3084,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
     let ladderChanged = false;
     recentTicks.forEach(tick => {
-      if (!tick.trade) return;
-      if (!Number.isFinite(tick.price) || tick.price <= 0) return;
-      if (!Number.isFinite(tick.size)  || tick.size  <= 0) return;
-      const dedupeKey = marketTickDedupeKey(tick);
-      if (processedTicksRef.current.has(dedupeKey)) return;
-      processedTicksRef.current.add(dedupeKey);
-      if (processedTicksRef.current.size > 8000) {
-        processedTicksRef.current = new Set([...processedTicksRef.current].slice(-4000));
-      }
-
-      const barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
-      const priceLevel = +(Math.round(tick.price / minTick) * minTick).toFixed(dp);
-      if (!bigTradePrintAccRef.current.has(barTime)) bigTradePrintAccRef.current.set(barTime, []);
-      bigTradePrintAccRef.current.get(barTime)!.push({
-        price: tick.price,
-        bid: tick.side === "sell" ? tick.size : 0,
-        ask: tick.side === "buy" ? tick.size : 0,
-        printKey: dedupeKey,
-        timeMs: tick.time,
-        aggressorMethod: tick.marketEvent?.aggressorMethod,
-      });
-      if (!tickAccRef.current.has(barTime)) tickAccRef.current.set(barTime, new Map());
-      const heardSec = tick.time / 1000;
-      if (tickAccStartedAtRef.current == null || heardSec < tickAccStartedAtRef.current) tickAccStartedAtRef.current = heardSec;
-      const lvlMap = tickAccRef.current.get(barTime)!;
-      const existing = lvlMap.get(priceLevel) ?? { bid: 0, ask: 0 };
-      lvlMap.set(priceLevel, {
-        bid: existing.bid + (tick.side === "sell" ? tick.size : 0),
-        ask: existing.ask + (tick.side === "buy"  ? tick.size : 0),
-      });
-      ladderChanged = true;
-      // WM Session Tape Stats — cumulative counters routed through the
-      // per-symbol store so switching symbols preserves each symbol's window.
-      recordSessionTrade(
-        canonicalSym,
-        tapeSource ?? "unavailable",
-        { side: tick.side ?? null, size: tick.size, time: tick.time },
-        tick.size >= minBigTradeLot(base),
-      );
-      tapeHorizonRef.current = sessionSlot.horizon; // hydrate ref after first horizon stamp
+      if (foldPrint(tick, true)) ladderChanged = true;
     });
     if (tickAccRef.current.size > 400) {
       const oldest = [...tickAccRef.current.keys()].sort((a, b) => a - b)[0];
@@ -3103,6 +3122,43 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       }
     }
   }, [recentTicks, timeframe, base, tapeSource, canonicalSym, sessionSlot]);
+
+  // ── TAPE BACKFILL (Garden 16 §26–§28; F06A) ──────────────────────────────
+  // The ladder held only prints heard since load, so every order-flow reading
+  // refused the morning (serving 2026-09-28: imbalanceStack NO_STACK). On a
+  // Coinbase tape, the exchange's PUBLIC trade history fills the ladder's own
+  // window through the ONE fold (heardLive=false), with the same eventIds the
+  // live socket uses (a print heard both ways folds once). Bounded: the
+  // ladder's 400-bar window, at most 40 pages. The receipt says what came.
+  const tapeBackfillRef = useRef<string>("NONE");
+  useEffect(() => {
+    tapeBackfillRef.current = "NONE";
+    if (tapeSource !== "coinbase") return;
+    const product = coinbaseProductFor(canonicalSym);
+    if (!product) return;
+    const ctrl = new AbortController();
+    const intervalSec = getIntervalSec(timeframe);
+    const sinceMs = Date.now() - Math.min(400 * intervalSec, 6 * 3600) * 1000;
+    tapeBackfillRef.current = `LOADING:${product}`;
+    void fetchCoinbaseTradeHistory(product, canonicalSym, { sinceMs, maxPages: 40, signal: ctrl.signal })
+      .then(({ ticks, pages, reachedMs, complete }) => {
+        if (ctrl.signal.aborted) return;
+        let folded = 0;
+        for (const t of ticks) if (foldPrintRef.current(t, false)) folded++;
+        while (tickAccRef.current.size > 400) {
+          const oldest = Math.min(...tickAccRef.current.keys());
+          tickAccRef.current.delete(oldest);
+          bigTradePrintAccRef.current.delete(oldest);
+        }
+        const nextOldest = tickAccRef.current.size ? Math.min(...tickAccRef.current.keys()) : NaN;
+        if (Number.isFinite(nextOldest)) tickAccStartedAtRef.current = Math.min(tickAccStartedAtRef.current ?? nextOldest, nextOldest);
+        tapeBackfillRef.current = `COINBASE_REST:${folded}prints:${pages}pages:from ${reachedMs ? new Date(Math.max(reachedMs, sinceMs)).toISOString().slice(11, 16) : "—"}Z:${complete ? "WINDOW" : "PARTIAL"}`;
+        flowLadderPublisherRef.current?.changed();
+        onTapeFootprintRef.current?.(selectTapeFootprint(tickAccRef.current, tickAccStartedAtRef.current));
+      })
+      .catch(() => { if (!ctrl.signal.aborted) tapeBackfillRef.current = "REFUSED:TRANSPORT"; });
+    return () => ctrl.abort();
+  }, [tapeSource, canonicalSym, timeframe]);
 
   // ── Tape CVD (H-701) — cumulative signed tape, only where it was heard ──
   // One candle per bar the accumulator holds executions for: open = prior
@@ -9516,6 +9572,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          sided prints carry nothing — never inferred from candle colour. */
       {
         const accF = tickAccRef.current;
+        canvas.dataset.tapeBackfill = tapeBackfillRef.current;
         if (!att.paints("flowCurrent")) {
           canvas.dataset.flowCurrent = att.offWord(true);
         } else if (!srs || accF.size === 0) {

@@ -419,7 +419,11 @@ describe("THE FOLD SCAN — every side-fold in production code is named, or the 
   it("the ladder is published after EVERY fold that changed it — the ticket never rests a batch behind", () => {
     // The fold effect marks a change on the ladder write and on eviction…
     const fold = CHART.slice(CHART.indexOf("let ladderChanged = false;"));
-    expect(fold.slice(0, 4000)).toMatch(/ask:\s*existing\.ask[\s\S]{0,120}ladderChanged = true;/);
+    // (2026-09-28: the write lives in THE one fold, `foldPrint`, shared with the
+    // provider backfill; it reports the write, and the live effect marks it.)
+    expect(fold.slice(0, 4000)).toMatch(/if \(foldPrint\(tick, true\)\) ladderChanged = true;/);
+    const foldFn = CHART.slice(CHART.indexOf("const foldPrint = (tick: Tick, heardLive: boolean): boolean => {"));
+    expect(foldFn.slice(0, 4000)).toMatch(/ask:\s*existing\.ask[\s\S]{0,900}return true;/);
     expect(fold.slice(0, 4000)).toMatch(/tickAccRef\.current\.delete\(oldest\);[\s\S]{0,120}ladderChanged = true;/);
     // …and publishes through the throttle-and-trail rule, OUTSIDE the 250 ms
     // chip throttle (inside it, a fold in the window told no one).
