@@ -516,6 +516,7 @@ import type {
 import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
 import { marketClockReceipt, noteSeries, notePaint, resetMarketClock } from "@/lib/chart/marketClockProbe";
 import { QUIET_CEILING } from "@/lib/marketData/viewModels/selectSemanticPermission";
+import { wallContact } from "@/lib/marketData/viewModels/wallContact";
 import { coinbaseProductFor, fetchCoinbaseTradeHistory } from "@/lib/marketData/coinbaseTradeBackfill";
 import { ANATOMY_MODE_EVENT, ANATOMY_MODE_KEY } from "@/lib/chart/anatomyMode";
 import { selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
@@ -14817,16 +14818,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   const xl = lb ? tsD.timeToCoordinate(lb.time as never) : null;
                   if (lb && xl != null && Number.isFinite(lb.high) && Number.isFinite(lb.low)) {
                     const above = w.strike >= Number(lb.close);
-                    const ext = above ? Number(lb.high) : Number(lb.low);
-                    const yExt = yOfD(ext);
                     const faceY = above ? top + wallH : top;
-                    const reach = Math.max(1e-9, Number(lb.close) * 0.004);
-                    const gap = above ? w.strike - ext : ext - w.strike;
-                    const prox = Math.max(0, Math.min(1, 1 - gap / reach));
-                    const contact = yExt != null && (above ? yExt <= faceY : yExt >= faceY);
-                    const range = Math.max(1e-9, Number(lb.high) - Number(lb.low));
-                    const pulledBack = contact && (above ? ext - Number(lb.close) : Number(lb.close) - ext) >= range * 0.25;
-                    const state = contact ? (pulledBack ? "HELD" : "CONTACT") : prox > 0 ? "PRESSURE" : "CLEAR";
+                    // The face's PRICE on this scale; the decision is the owner's (wallContact).
+                    let facePrice = w.strike;
+                    try { const fp = srs?.coordinateToPrice(faceY); if (fp != null && Number.isFinite(+fp)) facePrice = +fp; } catch { /* keep strike */ }
+                    const wc = wallContact({ high: Number(lb.high), low: Number(lb.low), close: Number(lb.close), strike: w.strike, facePrice });
+                    const prox = wc.proximity;
+                    const contact = wc.state === "CONTACT" || wc.state === "HELD";
+                    const pulledBack = wc.state === "HELD";
+                    const state = wc.state;
                     if (state !== "CLEAR") {
                       // The face toward price heats with proximity.
                       const heat = ctx.createLinearGradient(0, faceY + (above ? 10 : -10), 0, faceY);

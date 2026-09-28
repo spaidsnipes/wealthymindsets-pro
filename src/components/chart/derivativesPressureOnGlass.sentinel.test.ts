@@ -133,9 +133,12 @@ describe("climate is material, bound to the same exposure (Garden 16 reconstruct
 describe("wall contact is caused by the forming candle, never by sprites (five-hour order)", () => {
   it("reads only the newest bar's real high/low against the strike, on the candle's price scale", () => {
     expect(block).toContain("const lb = (barsRef.current ?? [])[(barsRef.current ?? []).length - 1];");
-    expect(block).toContain("const ext = above ? Number(lb.high) : Number(lb.low);");
-    expect(block).toContain("const contact = yExt != null && (above ? yExt <= faceY : yExt >= faceY);");
-    expect(block).toContain('const state = contact ? (pulledBack ? "HELD" : "CONTACT") : prox > 0 ? "PRESSURE" : "CLEAR";');
+    // 2026-09-28: the decision lives in the pure owner (wallContact), proven
+    // from fixtures; the paint hands it the newest bar's real prices and the
+    // face's price on the candle's own scale.
+    expect(block).toContain("const wc = wallContact({ high: Number(lb.high), low: Number(lb.low), close: Number(lb.close), strike: w.strike, facePrice });");
+    expect(block).toContain("const fp = srs?.coordinateToPrice(faceY);");
+    expect(block).toContain("const state = wc.state;");
     expect(block).toContain("painted.push(`CONTACT@${w.strike}:${state}:${prox.toFixed(2)}`);");
   });
   it("dust moves only in LIVE and is bounded", () => {
