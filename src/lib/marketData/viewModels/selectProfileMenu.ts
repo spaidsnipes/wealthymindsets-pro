@@ -921,7 +921,7 @@ export function profileSpeciesRefusals(vms: {
   const st = vms.structure;
   if (st && st.reason !== "DRAWN" && st.reason !== "NO_BARS") out.STRUCTURE_PROFILE = st.note || "no lawful structure leg to anchor on";
   const m = vms.memory?.reason;
-  if (m === "NO_PRIOR_SESSION") out.PROFILE_MEMORY = "no completed prior session to remember";
+  if (m === "NO_PRIOR_SESSION") out.PROFILE_MEMORY = "no completed prior session in the loaded bars to remember — a continuous (24/7) feed has no session gap to close one";
   else if (m === "NO_MIGRATION") out.PROFILE_MEMORY = "no developing value yet to remember";
   const v = vms.visibleRange?.reason;
   if (v === "TOO_FEW_BARS_IN_VIEW") out.VISIBLE_RANGE_PROFILE = "too few bars in view to profile — zoom out";
