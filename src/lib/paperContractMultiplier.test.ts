@@ -87,21 +87,23 @@ describe("contract point value", () => {
   });
 
   it("root-awareness adds no coverage it does not have", () => {
-    // A micro is its own contract (MES = $5, not on file): never its big brother.
-    for (const s of ["MES1!", "MES=F", "MNQ1!", "MGC1!"]) {
-      expect(contractMultiplier(s), s).toBe(1);
-      expect(contractSpecKey(s), s).toBeNull();
-    }
+    // A micro is its own contract, never its big brother (2026-09-27: each micro
+    // now carries its OWN exchange spec — MES $5, MNQ $2, MGC 10 oz).
+    expect(contractMultiplier("MES1!")).toBe(5);
+    expect(contractMultiplier("MNQ1!")).toBe(2);
+    expect(contractMultiplier("MGC1!")).toBe(10);
     // A bare equity ticker that spells a root is not a futures contract.
     for (const s of ["ES", "CL", "GC", "NQ"]) expect(contractMultiplier(s), s).toBe(1);
     // Contracts without a published value on file stay uncovered.
-    for (const s of ["YM1!", "YM=F", "/YM", "SI1!"]) expect(contractMultiplier(s), s).toBe(1);
+    for (const s of ["6J1!", "6B1!", "VX1!"]) expect(contractMultiplier(s), s).toBe(1);
     // A prototype name is not a row.
     expect(contractSpecKey("constructor")).toBeNull();
   });
 
-  it("the table itself is unchanged: five rows, /paper's five contracts", () => {
-    expect(Object.keys(CONTRACT_MULTIPLIERS).sort()).toEqual(["CL1!", "ES1!", "GC1!", "NQ1!", "RTY1!"]);
+  it("the table is exactly the exchange-verified set (futuresEconomicsSpec.test.ts)", () => {
+    expect(Object.keys(CONTRACT_MULTIPLIERS).sort()).toEqual(
+      ["6E1!", "CL1!", "ES1!", "GC1!", "HG1!", "M2K1!", "MCL1!", "MES1!", "MGC1!", "MNQ1!", "MYM1!", "NG1!", "NQ1!", "RTY1!", "SI1!", "YM1!", "ZB1!", "ZN1!"],
+    );
   });
 });
 
@@ -327,8 +329,12 @@ describe("BLOCKER-GUARD: the universe cannot outgrow the multiplier table", () =
   it("the table names no symbol the universe does not trade", () => {
     // The opposite drift: a stale entry for a delisted contract reads as
     // coverage that no longer applies to anything.
+    // Rows beyond /paper's universe are the exchange-verified contracts the
+    // chart's risk rail prices (2026-09-27) — each pinned to its spec in
+    // futuresEconomicsSpec.test.ts, so none is a stale guess.
     const universe = new Set(universeEntries().map(([sym]) => sym));
-    const orphaned = Object.keys(CONTRACT_MULTIPLIERS).filter((s) => !universe.has(s));
-    expect(orphaned).toEqual([]);
+    const orphaned = Object.keys(CONTRACT_MULTIPLIERS).filter((s) => !universe.has(s)).sort();
+    const specVerified = readFileSync(join(process.cwd(), "src/lib/marketData/futuresEconomicsSpec.test.ts"), "utf8");
+    for (const s of orphaned) expect(specVerified, `${s} has no exchange spec pin`).toContain(`"${s}": [`);
   });
 });

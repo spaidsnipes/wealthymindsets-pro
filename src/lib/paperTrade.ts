@@ -107,6 +107,22 @@ export const CONTRACT_MULTIPLIERS: Readonly<Record<string, number>> = Object.fre
   "RTY1!": 50,
   "GC1!": 100,
   "CL1!": 1_000,
+  // Five-hour order (2026-09-27) "whether futures economics are correct":
+  // serving REFUSED every contract below. Exchange contract specifications —
+  // dollars per 1.0 point of the quoted price.
+  "MNQ1!": 2,        // CME Micro E-mini Nasdaq-100: $2 × index
+  "MES1!": 5,        // CME Micro E-mini S&P 500: $5 × index
+  "YM1!": 5,         // CBOT E-mini Dow: $5 × index
+  "MYM1!": 0.5,      // CBOT Micro E-mini Dow: $0.50 × index
+  "M2K1!": 5,        // CME Micro E-mini Russell 2000: $5 × index
+  "MCL1!": 100,      // NYMEX Micro WTI: 100 barrels
+  "MGC1!": 10,       // COMEX Micro Gold: 10 troy oz
+  "SI1!": 5_000,     // COMEX Silver: 5,000 troy oz
+  "NG1!": 10_000,    // NYMEX Henry Hub Natural Gas: 10,000 MMBtu
+  "HG1!": 25_000,    // COMEX Copper: 25,000 lb
+  "ZB1!": 1_000,     // CBOT 30-Year T-Bond: $100,000 face → $1,000 per point
+  "ZN1!": 1_000,     // CBOT 10-Year T-Note: $100,000 face → $1,000 per point
+  "6E1!": 125_000,   // CME Euro FX: €125,000
 });
 
 /**

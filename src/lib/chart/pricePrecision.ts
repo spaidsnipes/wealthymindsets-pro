@@ -214,7 +214,12 @@ export function displayPrecisionReading(symbol: string, bars: readonly Precision
     // The tick comes from its one owner (contractEconomics): a contract with a
     // published spec shows its tick's decimals; any other root reads the grid.
     const e = instrumentEconomics(sym, null);
-    if (e.status === "PRICED" && e.tickSize != null) return { dp: clampDp(tickDecimals(e.tickSize)), basis: "FUTURES_TICK" };
+    // A decimal tick names the quote's decimals. A FRACTIONAL tick (Treasuries:
+    // 1/32, 1/64 of a point) does not — ZN would print six decimals — so its
+    // display reads the bars' own grid, while the money keeps the exact tick.
+    const inv = e.status === "PRICED" && e.tickSize != null ? 1 / e.tickSize : NaN;
+    const fractionalTick = [32, 64, 128].includes(Math.round(inv)) && Math.abs(inv - Math.round(inv)) < 1e-9;
+    if (e.status === "PRICED" && e.tickSize != null && !fractionalTick) return { dp: clampDp(tickDecimals(e.tickSize)), basis: "FUTURES_TICK" };
     return grid();
   }
 

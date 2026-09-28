@@ -47,6 +47,20 @@ export const CONTRACT_TICK_SIZES: Readonly<Record<string, number>> = Object.free
   "RTY1!": 0.1,
   "GC1!": 0.1,
   "CL1!": 0.01,
+  // Exchange minimum price fluctuations (2026-09-27; see CONTRACT_MULTIPLIERS).
+  "MNQ1!": 0.25,     // $0.50 / tick
+  "MES1!": 0.25,     // $1.25 / tick
+  "YM1!": 1,         // $5.00 / tick
+  "MYM1!": 1,        // $0.50 / tick
+  "M2K1!": 0.1,      // $0.50 / tick
+  "MCL1!": 0.01,     // $1.00 / tick
+  "MGC1!": 0.1,      // $1.00 / tick
+  "SI1!": 0.005,     // $25.00 / tick
+  "NG1!": 0.001,     // $10.00 / tick
+  "HG1!": 0.0005,    // $12.50 / tick
+  "ZB1!": 0.03125,   // 1/32 point = $31.25
+  "ZN1!": 0.015625,  // 1/64 point (half of 1/32) = $15.625
+  "6E1!": 0.00005,   // $6.25 / tick
 });
 
 /** SEC Rule 612 minimum quoting increments for US equities. */

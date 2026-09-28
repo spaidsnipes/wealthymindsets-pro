@@ -138,7 +138,7 @@ describe("chart order path — contract coverage", () => {
     expect(referencingFiles("placeChartMarketOrder", [ORDER_MODULE])).toEqual([]);
   });
 
-  it("BLOCKER: ten chart futures have no point value — pinned, not hidden", () => {
+  it("BLOCKER: the chart futures with no point value — pinned, not hidden", () => {
     const uncovered = chartFutures()
       .filter(([sym]) => contractMultiplier(sym) === 1)
       .map(([sym, label]) => `${sym} (${label})`);
@@ -153,12 +153,9 @@ describe("chart order path — contract coverage", () => {
         "is worse than a missing one, because 1x is obviously wrong and a " +
         "plausible wrong number is not.",
     ).toEqual([
-      "YM1! (Dow Jones Futures)",
-      "SI1! (Silver Futures)",
-      "HG1! (Copper Futures)",
-      "ZB1! (30-Year T-Bond Futures)",
-      "ZN1! (10-Year T-Note Futures)",
-      "6E1! (Euro Futures)",
+      // PIN UPDATED 2026-09-27 (five-hour order, "futures economics are
+      // correct"): YM, SI, HG, NG, ZB, ZN, 6E now carry their exchange specs
+      // (futuresEconomicsSpec.test.ts). What remains has no spec on file yet.
       "6J1! (Yen Futures)",
       "6B1! (British Pound Futures)",
       // PIN UPDATED 2026-09-25 (GP12 §26). `VX1! (VIX Futures)` left this list
@@ -168,7 +165,6 @@ describe("chart order path — contract coverage", () => {
       // with a real CFE multiplier ($1,000/pt) that nobody has entered — which
       // is exactly what this list exists to keep visible.
       "VX1! (VIX Futures)",
-      "NG1! (Natural Gas Futures)",
     ]);
   });
 });

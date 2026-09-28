@@ -57,16 +57,18 @@ describe("displayPrecisionFor — the table", () => {
     expect(displayPrecisionFor("/ES", bars([6612.25]))).toBe(2);
     // GC's 0.1 tick is one decimal; the product's two-decimal floor holds.
     expect(displayPrecisionFor("GC1!", bars([3765.1]))).toBe(2);
-    // A root with no published spec on file reads the bars' own grid.
+    // SI's spec is on file since 2026-09-27: its 0.005 tick quotes three decimals.
     const si = bars([44.515, 44.52, 44.505]);
-    expect(displayPrecisionFor("SI1!", si)).toBe(pricePrecisionFromBars(si));
-    expect(displayPrecisionReading("SI1!", si).basis).toBe("BAR_GRID");
+    expect(displayPrecisionFor("SI1!", si)).toBe(3);
+    expect(displayPrecisionReading("SI1!", si).basis).toBe("FUTURES_TICK");
     expect(displayPrecisionReading("ES1!", []).basis).toBe("FUTURES_TICK");
   });
 
   it("ZN1!'s 1/64ths are not a decimal tick — the bar-grid detector answers", () => {
     const zn = bars([112.015625, 112.03125, 112.046875, 112.0625]);
-    expect(CONTRACT_TICK_SIZES["ZN1!"]).toBeUndefined();
+    // The exact 1/64 tick is on file for the MONEY (2026-09-27); the display
+    // still reads the bars' grid — a fractional tick names no decimals.
+    expect(CONTRACT_TICK_SIZES["ZN1!"]).toBe(0.015625);
     expect(displayPrecisionFor("ZN1!", zn)).toBe(pricePrecisionFromBars(zn));
     expect(displayPrecisionReading("ZN1!", zn).basis).toBe("BAR_GRID");
   });
