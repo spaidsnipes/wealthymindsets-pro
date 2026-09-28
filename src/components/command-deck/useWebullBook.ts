@@ -22,9 +22,15 @@ export function useWebullBook(): { status: WebullStatusRead | null; positions: W
       } catch { return null; }
     };
     const load = async () => {
-      const [s, p] = await Promise.all([read("/api/broker/webull/status"), read("/api/broker/webull/positions")]);
+      // In sequence, never together: both routes open with Webull's account
+      // list, and two at once were answered 429 (serving 2026-09-27).
+      const s = await read("/api/broker/webull/status");
       if (!alive) return;
       if (s) setStatus(s);
+      await new Promise((r) => window.setTimeout(r, 2_000));
+      if (!alive) return;
+      const p = await read("/api/broker/webull/positions");
+      if (!alive) return;
       if (p) setPositions(p);
     };
     void load();

@@ -317,7 +317,7 @@ export async function probeWebullPositions(
     if (readsSent++ > 0) await pause(paceMs);
     const first = await signedGet(path, apiVersion, query);
     if (!("failure" in first) || first.failure.state !== "RATE_LIMITED") return first;
-    await pause(paceMs * 2);
+    await pause(paceMs * 3);
     return signedGet(path, apiVersion, query);
   };
 
