@@ -45,7 +45,13 @@ export async function GET(request: Request): Promise<Response> {
     if (b.state !== "OK") { unread.push(`${a.accountType ?? "UNTYPED"}:${b.state === "REJECTED" ? b.status : "NO_ANSWER"}`); continue; }
     answered.push({ type: a.accountType ?? "UNTYPED", netLiquidation: b.netLiquidation, cash: b.cash, dayBuyingPower: b.dayBuyingPower, dayPnl: b.dayPnl });
   }
-  const sum = (k: "netLiquidation" | "cash" | "dayPnl") => answered.every((x) => x[k] != null) ? +answered.reduce((s, x) => s + (x[k] as number), 0).toFixed(2) : null;
+  // Summed over the accounts that REPORTED the figure; an account whose
+  // envelope carries none (serving: one CASH account) is named, never counted as 0.
+  const sum = (k: "netLiquidation" | "cash" | "dayPnl") => {
+    const has = answered.filter((x) => x[k] != null);
+    return has.length ? +has.reduce((s, x) => s + (x[k] as number), 0).toFixed(2) : null;
+  };
+  const netSilent = answered.filter((x) => x.netLiquidation == null).map((x) => x.type);
   return NextResponse.json(
     {
       state: answered.length === 0 ? "UNREAD" : unread.length ? "PARTIAL" : "OBSERVED",
@@ -53,6 +59,8 @@ export async function GET(request: Request): Promise<Response> {
       answered: answered.length,
       unread,
       netLiquidation: sum("netLiquidation"),
+      netReported: answered.length - netSilent.length,
+      netSilent,
       cash: sum("cash"),
       dayPnl: sum("dayPnl"),
       byType: answered.map((x) => ({ type: x.type, netLiquidation: x.netLiquidation, dayBuyingPower: x.dayBuyingPower })),

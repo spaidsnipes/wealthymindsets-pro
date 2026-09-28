@@ -76,3 +76,13 @@ describe("readWebullBalance parses the SDK's balance shape", () => {
     expect(b).toMatchObject({ state: "OK", currency: "USD", netLiquidation: 5.95, cash: 0.45, dayBuyingPower: 0.45, unrealizedPnl: -1.5, dayPnl: 0 });
   });
 });
+
+describe("an account that reports no net liquidation is named, never summed as 0", () => {
+  it("prints the reported sum and names the silent account", async () => {
+    const { accountRowFromRead } = await import("./brokerBookRows");
+    const row = accountRowFromRead({ httpStatus: 200, body: { state: "OBSERVED", accounts: 3, answered: 3, netLiquidation: 100, netReported: 2, netSilent: ["CASH"], checkedAt: "t" } });
+    expect(row?.state).toBe("$100.00");
+    expect(row?.detail).toContain("reported by 2 of 3");
+    expect(row?.detail).toContain("CASH reported no net liquidation (not counted as 0)");
+  });
+});

@@ -113,6 +113,9 @@ export interface WebullBalanceRead {
     readonly answered?: number;
     readonly unread?: readonly string[];
     readonly netLiquidation?: number | null;
+    /** Accounts whose balance carried a net liquidation figure, and the types of those that did not. */
+    readonly netReported?: number;
+    readonly netSilent?: readonly string[];
     readonly dayPnl?: number | null;
     readonly checkedAt?: string;
   } | null;
@@ -133,7 +136,8 @@ export function accountRowFromRead(read: WebullBalanceRead | null): BookRowVM | 
   }
   if (b.state === "OBSERVED" && b.netLiquidation != null) {
     const day = b.dayPnl != null ? ` · day P/L ${b.dayPnl >= 0 ? "+" : "−"}${usd(Math.abs(b.dayPnl))}` : "";
-    return { key: "account", label: "Account", state: usd(b.netLiquidation), detail: `Webull · net liquidation across ${b.answered} account(s), as reported at ${b.checkedAt ?? "—"}${day}.`, tone: "set" };
+    const silent = b.netSilent?.length ? ` · ${b.netSilent.join(", ")} reported no net liquidation (not counted as 0)` : "";
+    return { key: "account", label: "Account", state: usd(b.netLiquidation), detail: `Webull · net liquidation reported by ${b.netReported ?? b.answered} of ${b.answered} account(s), at ${b.checkedAt ?? "—"}${day}${silent}.`, tone: "set" };
   }
   if (b.state === "PARTIAL") {
     return { key: "account", label: "Account", state: "PARTIAL", detail: `Webull · ${b.answered} of ${b.accounts} accounts answered; ${(b.unread ?? []).join(", ")} did not — no total is printed from a partial read.`, tone: "quiet" };
