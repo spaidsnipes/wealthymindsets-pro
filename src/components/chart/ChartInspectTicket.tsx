@@ -58,6 +58,8 @@ import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhos
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import { wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import { LEARN_LESSON, learnHref, type LearnableSelection } from "@/lib/academy/academyContinuity";
+import { printLocationInStructure, type PrintLocationVM } from "@/lib/marketData/viewModels/printLocationInStructure";
+import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
@@ -699,6 +701,25 @@ function SessionRankCard({ rank, combined }: { rank: { pct: number | null; print
 
 const fmtMove = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: v >= 100 ? 0 : v >= 1 ? 2 : 4 });
 
+function LocationCard({ loc, fmt }: { loc: PrintLocationVM | null; fmt: (n: number) => string }) {
+  if (!loc) return null;
+  return (
+    <F07Card title="LOCATION IN STRUCTURE" testId="inspect-print-location">
+      {loc.location === "UNREAD" ? (
+        <div className="text-[11px]" style={{ color: UNREAD_COLOR }}>NOT PLACED · {loc.note}</div>
+      ) : (
+        <>
+          <div className="text-[12px] font-bold text-white" data-print-location={loc.location}>{loc.note.toUpperCase()}</div>
+          <div className="text-[10px]" style={{ color: "#C8C0AE" }}>
+            last high {loc.lastHigh ? fmt(loc.lastHigh.price) : "—"} · last low {loc.lastLow ? fmt(loc.lastLow.price) : "—"}{loc.bias ? ` · structure ${loc.bias.replace(/_/g, " ").toLowerCase()}` : ""}
+          </div>
+          <div className="text-[10px]" style={{ color: "#C8C0AE" }}>swings confirmed before the print only · "at" = within {(loc.tolerance * 100).toFixed(2)}%</div>
+        </>
+      )}
+    </F07Card>
+  );
+}
+
 function ResponseCard({ pr }: { pr: PrintResponseVM | null | undefined }) {
   if (!pr) return null;
   if (!pr.drawn) {
@@ -740,6 +761,7 @@ export function ChartInspectTicket({
   onOpenChange,
   onOpenFootprint,
   selectedPrint = null,
+  structure = null,
   selectedProfileSlice = null,
   profileSliceSymbol = "",
   profileSliceAsOf = null,
@@ -774,6 +796,8 @@ export function ChartInspectTicket({
   /** Takes the trader to the surface that divides this bar by price level. */
   onOpenFootprint: () => void;
   selectedPrint?: SelectedBigTrade | null;
+  /** The ONE structure owner's read (for a print's location in structure). */
+  structure?: MarketStructureVM | null;
   /** H-601 · a clicked Living Profile bucket, resolved by `selectProfileSlice`. */
   selectedProfileSlice?: ProfileSliceResult | null;
   profileSliceSymbol?: string;
@@ -971,6 +995,7 @@ export function ChartInspectTicket({
             anchor {String(p.priceLevel)} @ {p.timeMs != null ? clock.exact(p.timeMs) : "UNKNOWN"} · {formatBubbleVolume(p.ask)} bought · {formatBubbleVolume(p.bid)} sold
           </div>
           <SessionRankCard rank={p.sessionRank} combined />
+          <LocationCard loc={p.timeMs != null ? printLocationInStructure(p.priceLevel, p.timeMs / 1000, structure) : null} fmt={n => n.toFixed(2)} />
           <F07Card title="CLUSTER COUNT" testId="inspect-cluster-count">
             <div className="text-[18px] font-bold leading-tight text-white">{c.n}</div>
             <div className="text-[10px]" style={{ color: "#C8C0AE" }}>BARS TOUCHED · {c.barsTouched}</div>
@@ -1055,6 +1080,7 @@ export function ChartInspectTicket({
           <dt>Size relation</dt><dd>{relation}</dd>
         </dl>
         <SessionRankCard rank={p.sessionRank} combined={false} />
+        <LocationCard loc={p.timeMs != null ? printLocationInStructure(p.priceLevel, p.timeMs / 1000, structure) : null} fmt={n => n.toFixed(2)} />
         <ResponseCard pr={printResponse} />
         {/*
           F06B · RAW TAPE FOR THIS OBJECT ONLY, camera alive. The glass shows

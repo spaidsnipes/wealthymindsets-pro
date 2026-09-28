@@ -6320,6 +6320,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         followingLiveBar={inspectFollowingLiveBar}
                         open={inspectOpen}
                         selectedPrint={activeSelectedPrint}
+                        structure={chartStructureVM}
                         printResponse={selectedPrintResponse}
                         onSelectPrint={print => actOnChartSelection({ type: "select", selection: { kind: "PRINT", print } })}
                         contradiction={contradictionVM}
