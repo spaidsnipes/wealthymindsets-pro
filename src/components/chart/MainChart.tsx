@@ -8547,16 +8547,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // the price axis ("NO BAR · 3 inte…", serving BTC 1m 2026-09-26).
           let plotW = W;
           try { plotW = chart.timeScale().width(); } catch { /* keep W */ }
-          const mx = Math.max(tw / 2 + 4, Math.min(plotW - tw / 2 - 4, (+x0 + +x1) / 2));
+          const clampX = (x: number) => Math.max(tw / 2 + 4, Math.min(plotW - tw / 2 - 4, x));
+          const mid = (+x0 + +x1) / 2;
           const hits = (q: { x: number; y: number; w: number; h: number }) => (r: { x: number; y: number; w: number; h: number }) =>
             q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y;
           const yTop = Math.min(+y0, +y1), yBot = Math.max(+y0, +y1);
-          let my = NaN;
-          for (const cy of [yTop - 10, yBot + 16, yTop - 24, yBot + 30]) {
+          let my = NaN, mx = clampX(mid);
+          // Each height is tried centred on the hole, then slid half a chip
+          // either way (serving TSLA 5m: the overnight hole sat between tall
+          // candles on both sides, so every centred height touched one).
+          spot: for (const cy of [yTop - 10, yBot + 16, yTop - 24, yBot + 30]) {
             if (cy - 12 < BELOW_PRICE_LEGEND || cy > H) continue;
-            const q = { x: mx - tw / 2, y: cy - 12, w: tw, h: 13 };
-            if (gapWordRects.some(hits(q)) || profileCandleCut().rects.some(hits(q))) continue;
-            my = cy; break;
+            for (const cx of [mid, mid - tw * 0.6, mid + tw * 0.6]) {
+              const px = clampX(cx);
+              const q = { x: px - tw / 2, y: cy - 12, w: tw, h: 13 };
+              if (gapWordRects.some(hits(q)) || profileCandleCut().rects.some(hits(q))) continue;
+              my = cy; mx = px; break spot;
+            }
           }
           if (!Number.isFinite(my)) { wordsWithheld++; continue; }
           const rect = { x: mx - tw / 2, y: my - 12, w: tw, h: 13 };

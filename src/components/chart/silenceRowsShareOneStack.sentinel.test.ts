@@ -36,3 +36,9 @@ describe("gap words never print on a candle", () => {
     expect(gap).toContain("if (!Number.isFinite(my)) { wordsWithheld++; continue; }");
   });
 });
+
+describe("gap words slide before they wait", () => {
+  it("each height is tried centred, then half a chip either way", () => {
+    expect(MC).toContain("for (const cx of [mid, mid - tw * 0.6, mid + tw * 0.6]) {");
+  });
+});
