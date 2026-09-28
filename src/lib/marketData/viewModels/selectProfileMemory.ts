@@ -52,6 +52,25 @@ export interface MemoryLevel {
   readonly firstTestAt: number | null;
   /** Times of the most recent tests (at most RECENT_TEST_TIMES), oldest first — what the glass notches. */
   readonly recentTestTimes: readonly number[];
+  /**
+   * Memory life (Garden 16 master order §36), derived only from the counts
+   * above: FRESH (S-1) · AGING (S-2/3) · OLD (S-4+) · WEAKENING (traded
+   * through ≥ 3 times) · REACTIVATED (an older level that stayed naked through
+   * a whole later session, then was traded into). A reading of age and
+   * contact — never a claim about what the level will do.
+   */
+  readonly life: MemoryLife;
+}
+
+export type MemoryLife = "FRESH" | "AGING" | "OLD" | "WEAKENING" | "REACTIVATED";
+
+/** PURE: the life word from a level's own counts and the newest session's formation time. */
+export function memoryLife(l: Pick<MemoryLevel, "sessionsAgo" | "tests" | "firstTestAt">, newestSessionFormedAt: number | null): MemoryLife {
+  if (l.tests >= 3) return "WEAKENING";
+  if (l.tests > 0 && l.sessionsAgo >= 2 && newestSessionFormedAt != null && l.firstTestAt != null && l.firstTestAt > newestSessionFormedAt) return "REACTIVATED";
+  if (l.sessionsAgo <= 1) return "FRESH";
+  if (l.sessionsAgo <= 3) return "AGING";
+  return "OLD";
 }
 
 export interface ProfileMemoryVM {
@@ -110,6 +129,7 @@ export function selectProfileMemory(
       levels.push({
         kind, price, sessionsAgo: current - s, formedAt: f.time,
         tests, naked: tests === 0, firstTestAt, recentTestTimes,
+        life: memoryLife({ sessionsAgo: current - s, tests, firstTestAt }, finals.get(sessions[0])?.time ?? null),
       });
     }
   }

@@ -17566,7 +17566,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (y < PRICE_LEGEND_OVERLAY_H + 7) continue;
               // G16 §20: remembered value is bar-built (Value Migration →
               // candle-estimated), so the chip's level name says EST.
-              const text = `S-${l.sessionsAgo} ${profileLevelTag(l.kind, mem.quality)} ${l.price.toFixed(pxDp)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`}`;
+              const text = `S-${l.sessionsAgo} ${profileLevelTag(l.kind, mem.quality)} ${l.price.toFixed(pxDp)} · ${l.naked ? "NAKED" : `${l.tests} TEST${l.tests === 1 ? "" : "S"}`} · ${l.life}`;
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const lx = endX - w - 4;
               // The label ends where its line ends — at the live edge. It

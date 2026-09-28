@@ -77,3 +77,17 @@ describe("what it remembers", () => {
     expect(naked.recentTestTimes).toEqual([]);
   });
 });
+
+describe("memory life (§36) — derived from the level's own counts", () => {
+  it("fresh, aging, old, weakening, reactivated", async () => {
+    const { memoryLife } = await import("./selectProfileMemory");
+    expect(memoryLife({ sessionsAgo: 1, tests: 0, firstTestAt: null }, 1000)).toBe("FRESH");
+    expect(memoryLife({ sessionsAgo: 2, tests: 0, firstTestAt: null }, 1000)).toBe("AGING");
+    expect(memoryLife({ sessionsAgo: 5, tests: 0, firstTestAt: null }, 1000)).toBe("OLD");
+    expect(memoryLife({ sessionsAgo: 2, tests: 3, firstTestAt: 900 }, 1000)).toBe("WEAKENING");
+    // An S-3 level that stayed naked through S-1 (formed at 1000), first traded at 1500.
+    expect(memoryLife({ sessionsAgo: 3, tests: 1, firstTestAt: 1500 }, 1000)).toBe("REACTIVATED");
+    // Tested before the newest session formed: not a reactivation, just aging.
+    expect(memoryLife({ sessionsAgo: 3, tests: 1, firstTestAt: 800 }, 1000)).toBe("AGING");
+  });
+});
