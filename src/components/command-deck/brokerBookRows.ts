@@ -32,6 +32,18 @@ export interface WebullStatusRead {
     readonly state?: string;
     readonly code?: string;
     readonly error?: string;
+    /** The keeper's last open-order reconciliation (status route, whitelisted counts only). */
+    readonly sessionKeeper?: {
+      readonly reconciliation?: {
+        readonly state: string;
+        readonly accounts: number;
+        readonly openOrders: number;
+        readonly external: number;
+        readonly unresolved: number;
+        readonly unreadable?: readonly string[];
+        readonly atMs: number;
+      };
+    } | null;
   } | null;
 }
 
@@ -65,6 +77,11 @@ export function brokerRowFromRead(read: WebullStatusRead | null): BookRowVM | nu
   };
 }
 
+/** ETH-USD, ETHUSD, eth/usd → ETHUSD. */
+export function bookSymbolKey(symbol: string): string {
+  return symbol.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 export function positionRowFromRead(read: WebullPositionsRead | null, symbol: string): BookRowVM | null {
   if (!read) return null;
   const b = read.body;
@@ -75,7 +92,10 @@ export function positionRowFromRead(read: WebullPositionsRead | null, symbol: st
     return { key: "position", label: "Position", state: "UNOBSERVED", detail: `Webull positions read ${b.state ?? "UNKNOWN"} — flat is never assumed.`, tone: "quiet" };
   }
   const sym = symbol.trim().toUpperCase();
-  const mine = (b.positions ?? []).filter(p => p.symbol === sym);
+  // Webull names crypto ETHUSD where the chart says ETH-USD: compare the
+  // letters and digits only, or a real holding would read as a false FLAT.
+  const key = bookSymbolKey(sym);
+  const mine = (b.positions ?? []).filter(p => bookSymbolKey(p.symbol) === key);
   if (mine.length === 0) {
     return { key: "position", label: "Position", state: "FLAT", detail: `Webull · ${b.accountsQueried ?? "?"} account(s) read at ${b.checkedAt ?? "—"}: no ${sym} position.`, tone: "set" };
   }
@@ -87,6 +107,38 @@ export function positionRowFromRead(read: WebullPositionsRead | null, symbol: st
 
 export const ORDERS_ROW_WEBULL: BookRowVM = {
   key: "orders", label: "Orders", state: "UNOBSERVED",
-  detail: "No Webull open-order reader is wired — this deck cannot see working orders. Order preview exists; placement stays gated.",
+  detail: "No Webull open-order read has been recorded yet — this deck cannot see working orders. Order preview exists; placement stays gated.",
   tone: "quiet",
 };
+
+/** An open-order read older than this is history, not the book. */
+export const ORDERS_READ_FRESH_MS = 30 * 60_000;
+
+const ageWords = (ms: number) => ms < 90_000 ? `${Math.max(1, Math.round(ms / 1000))}s` : `${Math.round(ms / 60_000)} min`;
+
+/**
+ * ORDERS from the keeper's reconciliation of every account's Webull open-order
+ * list. NONE WORKING only when EVERY account answered and the read is fresh;
+ * a partial read names the accounts that did not answer and never says none.
+ * Open lists lag (GP12 §33) — the detail says so.
+ */
+export function ordersRowFromStatus(read: WebullStatusRead | null, nowMs: number = Date.now()): BookRowVM | null {
+  const rec = read?.body?.sessionKeeper?.reconciliation;
+  if (!read || !rec) return null;
+  const age = nowMs - rec.atMs;
+  if (!(age >= 0) || age > ORDERS_READ_FRESH_MS) {
+    return { key: "orders", label: "Orders", state: "UNOBSERVED", detail: `The last Webull open-order read is ${ageWords(Math.max(0, age))} old — too old to stand for the book.`, tone: "quiet" };
+  }
+  if (rec.state === "OK") {
+    const ext = rec.external > 0 ? ` · ${rec.external} placed outside WM` : "";
+    const unres = rec.unresolved > 0 ? ` · ${rec.unresolved} WM submission(s) need an exact lookup` : "";
+    return rec.openOrders === 0
+      ? { key: "orders", label: "Orders", state: "NONE WORKING", detail: `Webull · all ${rec.accounts} accounts' open-order lists read ${ageWords(age)} ago: nothing working${unres}. Lists lag; placement stays gated.`, tone: "set" }
+      : { key: "orders", label: "Orders", state: `${rec.openOrders} WORKING`, detail: `Webull · ${rec.openOrders} open order(s) across ${rec.accounts} accounts, read ${ageWords(age)} ago${ext}${unres}. Lists lag; placement stays gated.`, tone: "set" };
+  }
+  if (rec.state === "PARTIAL") {
+    const missing = rec.unreadable?.length ? rec.unreadable.join(", ") : "some accounts";
+    return { key: "orders", label: "Orders", state: "PARTIAL", detail: `Webull · ${rec.openOrders} open in the accounts that answered, ${ageWords(age)} ago; ${missing} did not answer — "none" is never concluded from a partial read.`, tone: "quiet" };
+  }
+  return { key: "orders", label: "Orders", state: "UNOBSERVED", detail: `The Webull open-order read ${rec.state}${rec.unreadable?.length ? ` (${rec.unreadable.join(", ")})` : ""} — working orders are not known.`, tone: "refused" };
+}

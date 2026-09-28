@@ -53,6 +53,7 @@ const RECORD_TTL_SECONDS = 7 * 24 * 3600;
 export async function runWebullSessionKeeper(
   env: Record<string, unknown>,
   fetchImpl: typeof fetch = fetch,
+  paceMs = 1_100,
 ): Promise<KeeperResult | null> {
   if (!webullSessionIsDurable(env)) {
     console.log("[webull-keeper] skipped: no durable session store is bound");
@@ -105,7 +106,10 @@ export async function runWebullSessionKeeper(
     } else {
       let open = 0, external = 0, unresolved = 0, failed = 0, truncated = false;
       const unreadable: string[] = [];
-      for (const a of accounts.accounts) {
+      for (const [i, a] of accounts.accounts.entries()) {
+        // Webull caps account-family reads per second: back-to-back, the third
+        // account's list answered 429 (keeper record, serving 2026-09-27).
+        if (i > 0 && paceMs > 0) await new Promise<void>((r) => setTimeout(r, paceMs));
         const page = await listWebullOpenOrders(fetchImpl, orderCfg, a.accountId);
         if (page.state !== "OK") {
           failed++;

@@ -87,7 +87,7 @@
  */
 
 import * as React from "react";
-import { brokerRowFromRead, positionRowFromRead, ORDERS_ROW_WEBULL } from "./brokerBookRows";
+import { brokerRowFromRead, ordersRowFromStatus, positionRowFromRead, ORDERS_ROW_WEBULL } from "./brokerBookRows";
 import { useWebullBook } from "./useWebullBook";
 
 import StoryRibbon from "@/components/chart/StoryRibbon";
@@ -762,7 +762,7 @@ function BookPlate({ deck, risk, symbol }: { deck: ChartCommandDeck; risk: RiskO
     },
     riskRow(risk),
     brokerRow,
-    book.status ? ORDERS_ROW_WEBULL : {
+    book.status ? (ordersRowFromStatus(book.status) ?? ORDERS_ROW_WEBULL) : {
       key: "orders",
       label: "Orders",
       state: "UNOBSERVED",
