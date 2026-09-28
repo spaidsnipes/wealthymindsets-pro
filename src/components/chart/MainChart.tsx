@@ -9627,6 +9627,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (vmA.state === "READ") {
               const x = +xA, h = +yH, l = +yL, w = Math.max(6, bsp * 0.8);
               const arm = w / 2 + 22;
+              // The cursor's Data Window takes the bar's RIGHT unless the pane
+              // has no room there (dataWindowPlacement) — the anatomy's words
+              // take the OTHER side, so neither covers the other.
+              const dwRight = x + Math.max(1, bsp / 2) + 8 + DATA_WINDOW_W <= W - 88;
+              const side = dwRight ? -1 : 1;
               const mid = (h + l) / 2;
               ctx.save();
               ctx.globalAlpha = att.textAlpha("anatomyCards");
@@ -9645,24 +9650,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.setLineDash([]);
               const yc = +yC;
               ctx.fillStyle = "rgba(245,214,140,1)";
-              ctx.beginPath(); ctx.moveTo(x + arm + 6, yc); ctx.lineTo(x + arm + 11, yc - 4); ctx.lineTo(x + arm + 16, yc); ctx.lineTo(x + arm + 11, yc + 4); ctx.closePath(); ctx.fill();
+              const mx = x + side * (arm + 11);
+              ctx.beginPath(); ctx.moveTo(mx - 5, yc); ctx.lineTo(mx, yc - 4); ctx.lineTo(mx + 5, yc); ctx.lineTo(mx, yc + 4); ctx.closePath(); ctx.fill();
               // Words on the brackets (the plate's names, the owner's numbers).
               ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
               ctx.textBaseline = "middle";
-              const tag = (txt: string, tx: number, ty: number) => {
+              // `tx` is the tag's near edge; on the left side it grows leftward.
+              const tag = (txt: string, txNear: number, ty: number) => {
                 const tw = ctx.measureText(txt).width + 8;
+                const tx = side > 0 ? txNear : txNear - tw;
                 ctx.fillStyle = "rgba(11,10,8,0.88)";
                 ctx.fillRect(tx, ty - 7, tw, 14);
                 ctx.fillStyle = "rgba(236,214,160,0.98)";
                 ctx.fillText(txt, tx + 4, ty + 0.5);
                 return tw;
               };
-              tag(`TRUTH HIGH ${Number(barA.high).toFixed(dpA)}`, x + arm + 4, h - 9);
-              tag(`TRUTH LOW ${Number(barA.low).toFixed(dpA)}`, x + arm + 4, l + 9);
+              tag(`TRUTH HIGH ${Number(barA.high).toFixed(dpA)}`, x + side * (arm + 4), h - 9);
+              tag(`TRUTH LOW ${Number(barA.low).toFixed(dpA)}`, x + side * (arm + 4), l + 9);
               const D = vmA.balance ?? 0;
-              tag(`D ${D >= 0 ? "+" : "−"}${Math.abs(D).toFixed(2)} · close ${vmA.closeLocationPct}% of range · body ${vmA.bodyEfficiencyPct}%`, x + arm + 20, yc);
+              tag(`D ${D >= 0 ? "+" : "−"}${Math.abs(D).toFixed(2)} · close ${vmA.closeLocationPct}% of range · body ${vmA.bodyEfficiencyPct}%`, x + side * (arm + 20), yc);
               // BATTLE BALANCE — a beam that tilts with D (geometry, not aggression).
-              const bx = x - arm - 34, by = mid;
+              // The beam hangs under the candle, clear of both word columns.
+              const bx = x, by = l + 58;
               const ang = Math.max(-1, Math.min(1, D * 2)) * 0.35;
               ctx.strokeStyle = "rgba(226,190,112,0.9)";
               ctx.lineWidth = 1.5;
@@ -9685,9 +9694,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillRect(sx, sy, sw - bw, 6);
                 ctx.fillStyle = `rgba(${inks.btBuy},0.85)`;
                 ctx.fillRect(sx + sw - bw, sy, bw, 6);
-                tag(`SELL ${Math.round((sellA / totA) * 100)}% · BUY ${Math.round((buyA / totA) * 100)}% · sided prints`, sx, sy + 16);
+                tag(`SELL ${Math.round((sellA / totA) * 100)}% · BUY ${Math.round((buyA / totA) * 100)}% · sided prints`, side > 0 ? sx : sx + sw, sy + 16);
               } else {
-                tag("PRESSURE · UNREAD — no sided prints for this bar", sx, sy + 6);
+                tag("PRESSURE · UNREAD — no sided prints for this bar", side > 0 ? sx : sx + sw, sy + 6);
               }
               ctx.restore();
               canvas.dataset.clarityOnPrice = `BAR:${barA.time}|D:${D.toFixed(2)}|${totA > 0 ? `SPLIT:${Math.round((buyA / totA) * 100)}` : "SPLIT:UNREAD"}`;
