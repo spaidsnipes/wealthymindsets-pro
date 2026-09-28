@@ -36,7 +36,12 @@ export async function GET(request: Request): Promise<Response> {
   for (const a of accounts.accounts) {
     // The account list was just read: pace every balance read after it.
     await new Promise<void>((r) => setTimeout(r, PACE_MS));
-    const b = await readWebullBalance(fetch, orderCfg, a.accountId);
+    let b = await readWebullBalance(fetch, orderCfg, a.accountId);
+    // One paced retry on 429 (the positions lane's rule): serving answered CASH:429 at 1.1 s.
+    if (b.state === "REJECTED" && b.status === 429) {
+      await new Promise<void>((r) => setTimeout(r, PACE_MS * 3));
+      b = await readWebullBalance(fetch, orderCfg, a.accountId);
+    }
     if (b.state !== "OK") { unread.push(`${a.accountType ?? "UNTYPED"}:${b.state === "REJECTED" ? b.status : "NO_ANSWER"}`); continue; }
     answered.push({ type: a.accountType ?? "UNTYPED", netLiquidation: b.netLiquidation, cash: b.cash, dayBuyingPower: b.dayBuyingPower, dayPnl: b.dayPnl });
   }
