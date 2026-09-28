@@ -268,7 +268,7 @@ describe("arrangementSwitches hands back a complete, honest switch set", () => {
     const switches = arrangementSwitches("REGIME", menu);
     for (const e of menu.entries) {
       if (e.gesture !== "TOGGLE") continue;
-      const expected = ["FIXED_RANGE", "SESSION"].includes(e.id);
+      const expected = ["FIXED_RANGE", "SESSION", "DERIVATIVES_PRESSURE", "MARKET_STRUCTURE", "REGIME_LIGHTING"].includes(e.id);
       expect(
         switches[e.id],
         `${e.id} was left ${switches[e.id]} by REGIME. A desk that only turns ` +

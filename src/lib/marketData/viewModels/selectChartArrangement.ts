@@ -209,14 +209,17 @@ const ARRANGEMENTS: readonly ArrangementSpec[] = [
   {
     id: "REGIME",
     label: "Regime",
-    purpose: "where price has been accepted, and where it has not",
+    purpose: "the market's environment — where price was accepted, the pressure it trades inside, its structure",
     /*
-      Both volume profiles, and nothing else. These are built from bars alone,
-      so this desk is deliverable in full on every chart the product can draw —
-      including every feed on which ORDER FLOW is mute. That is not a happy
-      accident; it is the reason a trader on a quiet tape has somewhere to go.
+      Both volume profiles (bars alone — deliverable on every chart), and since
+      2026-09-27 (five-hour order: "FAR: world / environment / regime / major
+      geography"; Garden 16 §32 puts major pressure geography there) the
+      environment itself: the derivatives pressure world, market structure and
+      the regime light. The pressure world needs an options chain (Cboe covers
+      US equities and ETFs); where there is none the compiler's readiness count
+      says so before the press, and the profiles still deliver.
     */
-    arms: ["FIXED_RANGE", "SESSION"],
+    arms: ["FIXED_RANGE", "SESSION", "DERIVATIVES_PRESSURE", "MARKET_STRUCTURE", "REGIME_LIGHTING"],
   },
   {
     id: "REVIEW",
