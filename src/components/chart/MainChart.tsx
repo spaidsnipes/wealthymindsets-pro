@@ -12503,14 +12503,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if ((mode === "FOUNDER" || mode === "FUSION") && bodyAnchors.length) {
           const pulse = motionOnRef.current ? 0.75 + 0.25 * Math.sin(performance.now() / 420) : 1;
           const pick = [...bodyAnchors].sort((a, b) => b.x - a.x).slice(0, 3);
+          // Candles are never covered (serving BTC 5m: a red body stood on
+          // the push's wicks): every visible candle's body+wick is a blocker.
+          const tsB = chart.timeScale();
+          let spacingB = 6;
+          try { const sp = tsB.options().barSpacing; if (Number.isFinite(sp) && sp > 0) spacingB = sp; } catch { /* keep default */ }
+          const vrB = tsB.getVisibleLogicalRange();
+          const candleBlockers = srs ? candleCutOutRects(barsRef.current ?? [], {
+            visible: vrB ? { from: +vrB.from, to: +vrB.to } : null,
+            barSpacing: spacingB,
+            timeToX: t => { const xx = tsB.timeToCoordinate(t as never); return xx == null ? null : +xx; },
+            priceToY: pp => { const yy = srs.priceToCoordinate(pp); return yy == null ? null : +yy; },
+          }, 0, W) : [];
           for (const b of pick) {
             const gold = b.kind === "ABSORB";
             const rgb = gold ? "240,192,96" : "226,92,92";
             // G06 scale: a figure you can read at a glance, not a stick glyph.
             const FW = 52, FH = 84;
             const spot = placeClearOfKeepOut({ x: b.x, y: b.y - FH / 2, w: FW, h: FH }, keepOut(), {
-              minX: keepOutMinX(), blockers: floatingChips, strict: true,
-              alternates: [{ x: b.x, y: b.y - FH - 8, w: FW, h: FH }, { x: b.x, y: b.y + 8, w: FW, h: FH }, { x: b.x - FW - 24, y: b.y - FH / 2, w: FW, h: FH }],
+              minX: keepOutMinX(), blockers: [...floatingChips, ...candleBlockers], strict: true,
+              alternates: [
+                { x: b.x, y: b.y - FH - 8, w: FW, h: FH }, { x: b.x, y: b.y + 8, w: FW, h: FH },
+                { x: b.x, y: b.y - FH - 60, w: FW, h: FH }, { x: b.x, y: b.y + 60, w: FW, h: FH },
+                { x: b.x - FW - 24, y: b.y - FH / 2, w: FW, h: FH },
+              ],
             });
             if (spot.mode === "BLOCKED") continue;
             const cx = spot.rect.x + FW / 2, top = spot.rect.y + 4;
