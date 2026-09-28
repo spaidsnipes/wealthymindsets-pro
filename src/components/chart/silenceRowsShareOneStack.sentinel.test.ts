@@ -25,7 +25,7 @@ describe("lower-left silence lines never share a row", () => {
 describe("gap words never print inside the price legend's headroom", () => {
   it("a word that would rise into the legend hangs below its bridge, or waits", () => {
     expect(MC).toContain("for (const cy of [yTop - 10, yBot + 16, yTop - 24, yBot + 30]) {");
-    expect(MC).toContain("if (cy - 12 < BELOW_PRICE_LEGEND || cy > H) continue;");
+    expect(MC).toContain("if (cy - 12 < READING_ANCHOR_ROW_BOTTOM + 2 || cy > H) continue;");
   });
 });
 
@@ -40,5 +40,17 @@ describe("gap words never print on a candle", () => {
 describe("gap words slide before they wait", () => {
   it("each height is tried centred, then half a chip either way", () => {
     expect(MC).toContain("for (const cx of [mid, mid - tw * 0.6, mid + tw * 0.6]) {");
+  });
+});
+
+describe("the reading-anchor chip row is one number the canvas can see", () => {
+  it("READING_ANCHOR_ROW_BOTTOM matches both chips' top-16 h-6", () => {
+    expect(MC).toContain("const READING_ANCHOR_ROW_BOTTOM = 64 + 24;");
+    for (const f of ["src/components/chart/ChartEffortVsResult.tsx", "src/components/chart/ChartInspectTicket.tsx"]) {
+      const src = readFileSync(f, "utf8");
+      const m = src.match(/className="wm-chart-reading-anchor[^"]*"/g) ?? [];
+      expect(m.length).toBeGreaterThan(0);
+      for (const c of m) { expect(c).toContain(" top-16 "); expect(c).toContain(" h-6 "); }
+    }
   });
 });

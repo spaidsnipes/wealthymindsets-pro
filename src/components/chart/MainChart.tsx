@@ -187,6 +187,13 @@ const BELOW_PRICE_LEGEND = PRICE_LEGEND_OVERLAY_H + PANE_TOP_LEFT_INSET;
  * Left-to-right: the `D` toggle, then the BASIS caption.
  */
 const DATA_WINDOW_TOGGLE_PX = 22;
+/**
+ * The collapsed EFFORT / INSPECT chips (`.wm-chart-reading-anchor`, Tailwind
+ * `top-16 h-6`: 64px + 24px) are DOM, so no canvas word can see them. Their
+ * row's bottom edge, for canvas words that must not print under them (serving
+ * TSLA 5m, 2026-09-28: "NO BAR · 1 interval" slid onto EFFORT).
+ */
+const READING_ANCHOR_ROW_BOTTOM = 64 + 24;
 const BASIS_CAPTION_X =
   PANE_TOP_LEFT_INSET + DATA_WINDOW_TOGGLE_PX + PANE_TOP_LEFT_INSET;
 
@@ -8557,7 +8564,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // either way (serving TSLA 5m: the overnight hole sat between tall
           // candles on both sides, so every centred height touched one).
           spot: for (const cy of [yTop - 10, yBot + 16, yTop - 24, yBot + 30]) {
-            if (cy - 12 < BELOW_PRICE_LEGEND || cy > H) continue;
+            if (cy - 12 < READING_ANCHOR_ROW_BOTTOM + 2 || cy > H) continue;
             for (const cx of [mid, mid - tw * 0.6, mid + tw * 0.6]) {
               const px = clampX(cx);
               const q = { x: px - tw / 2, y: cy - 12, w: tw, h: 13 };
