@@ -516,6 +516,7 @@ import type {
 import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
 import { marketClockReceipt, noteSeries, notePaint, resetMarketClock } from "@/lib/chart/marketClockProbe";
 import { QUIET_CEILING } from "@/lib/marketData/viewModels/selectSemanticPermission";
+import { positioningSourceWords } from "@/lib/marketData/cboeDelayedOptions";
 import { renderStormPixels, stormSeed, LENS_BEZEL_W, STORM_BODY_MAX_ALPHA, STORM_DRIFT_PER_SEC, STORM_TEXTURE_SIZE } from "@/lib/chart/weatherStorm";
 import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
 import type { WaitStandingVM } from "@/lib/marketData/viewModels/selectWaitStanding";
@@ -14608,7 +14609,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
               // ── CLIMATE (global) — one line, the environment's name ────
               if (dpSpeaks) {
-                const word = `DERIVATIVES PRESSURE · ${dp.climate.replace("_", " ")} · Cboe delayed · OI prior session · INFERRED`;
+                const srcW = positioningSourceWords(dp.source);
+                const word = `DERIVATIVES PRESSURE · ${dp.climate.replace("_", " ")} · ${srcW.name} · ${srcW.oi} · INFERRED`;
                 ctx.save();
                 ctx.globalAlpha = att.textAlpha("derivativesPressure");
                 ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";

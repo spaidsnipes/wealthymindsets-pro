@@ -315,6 +315,7 @@ import { BREATH_SAMPLE, selectClarityAnatomy } from "@/lib/marketData/viewModels
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import { cboeSymbolFor, type CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
+import { deribitCurrencyFor } from "@/lib/marketData/deribitOptions";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { selectLiquidityWeatherFromBars } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { selectDerivativesPressure, WALL_TEST_WINDOW_DAYS, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
@@ -2395,14 +2396,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // tests are observed price response) and the canvas only paints.
   const [derivativesReceipt, setDerivativesReceipt] = useState<{ symbol: string; receipt: CboeOptionsReceipt | null; edge: string | null } | null>(null);
   useEffect(() => {
-    const cboe = derivativesPressureOn ? cboeSymbolFor(symbol) : null;
-    if (!cboe || classifySymbol(symbol) === "CRYPTO" || classifySymbol(symbol) === "FOREX" || classifySymbol(symbol) === "FUTURES") {
+    // BTC / ETH read Deribit's public options (Cboe lists no crypto options);
+    // listed underlyings read Cboe delayed. Anything else has no chain.
+    const deribit = derivativesPressureOn ? deribitCurrencyFor(symbol) : null;
+    const cboe = derivativesPressureOn && !deribit ? cboeSymbolFor(symbol) : null;
+    const route = deribit
+      ? `/api/market-data/deribit/options?symbol=${encodeURIComponent(symbol)}`
+      : `/api/market-data/cboe/options?symbol=${encodeURIComponent(symbol)}`;
+    if (!deribit && (!cboe || classifySymbol(symbol) === "CRYPTO" || classifySymbol(symbol) === "FOREX" || classifySymbol(symbol) === "FUTURES")) {
       setDerivativesReceipt(derivativesPressureOn ? { symbol, receipt: null, edge: "UNSUPPORTED" } : null);
       return;
     }
     let alive = true;
     const load = () => {
-      fetch(`/api/market-data/cboe/options?symbol=${encodeURIComponent(symbol)}`, { cache: "no-store" })
+      fetch(route, { cache: "no-store" })
         .then(async r => {
           const j = await r.json().catch(() => null);
           if (!alive) return;

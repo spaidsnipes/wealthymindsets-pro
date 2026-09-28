@@ -724,7 +724,7 @@ const CATALOGUE: readonly ProfileSpec[] = [
       whose cracks are observed tests, and the IV expected move. Cboe delayed
       open interest (prior session); dealer side is an assumption → INFERRED.
     */
-    what: "where dealer hedging is expected to damp or amplify moves — pressure field, zero-gamma front, brick walls with observed tests, and the IV expected move (Cboe delayed, INFERRED)",
+    what: "where dealer hedging is expected to damp or amplify moves — pressure field, zero-gamma front, brick walls with observed tests, and the IV expected move (Cboe delayed; BTC / ETH from Deribit public — INFERRED)",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectDerivativesPressure.ts",
     levels: ["Pressure climate", "Zero-gamma front", "Pressure walls", "Acceleration pockets", "Expected move"],

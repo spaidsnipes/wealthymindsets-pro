@@ -29,7 +29,7 @@
  */
 
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
-import type { CboeOptionRow, CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
+import type { CboeOptionRow, CboeOptionsReceipt, OptionsPositioningSource } from "@/lib/marketData/cboeDelayedOptions";
 
 export const DERIVATIVES_PRESSURE_VERSION = 1;
 /** Risk-free rate assumed by the gamma model (stated, not observed). */
@@ -110,9 +110,10 @@ export type DerivativesPressureVM =
       readonly pockets: readonly PressurePocket[];
       readonly envelope: ExpectedMove | null;
       readonly contracts: number;
-      readonly clocks: { readonly chainAsOf: string | null; readonly underlyingAsOf: string | null; readonly oiAsOf: "PRIOR_SESSION"; readonly modelAsOf: number };
-      readonly source: "CBOE_DELAYED";
-      readonly fidelity: "DELAYED";
+      readonly clocks: { readonly chainAsOf: string | null; readonly underlyingAsOf: string | null; readonly oiAsOf: "PRIOR_SESSION" | "CURRENT"; readonly modelAsOf: number };
+      readonly source: OptionsPositioningSource;
+      /** DELAYED (Cboe ≈15 min) or SNAPSHOT (Deribit public, polled). */
+      readonly fidelity: "DELAYED" | "SNAPSHOT";
       readonly epistemic: { readonly exposure: "INFERRED"; readonly envelope: "DERIVED"; readonly tests: "OBSERVED" };
       readonly assumption: string;
       readonly receipt: string;
@@ -142,14 +143,15 @@ const yearsTo = (expiration: string, nowMs: number) => {
   return Math.max(ms, 3_600_000) / (365 * 86_400_000);
 };
 
-interface Prepared { readonly row: CboeOptionRow; readonly sign: 1 | -1; readonly sigma: number; readonly T: number }
+/** `mult`: units per contract — 100 shares on a listed equity option, 1 coin on Deribit. */
+interface Prepared { readonly row: CboeOptionRow; readonly sign: 1 | -1; readonly sigma: number; readonly T: number; readonly mult: number }
 
 /** $ gamma exposure per 1% move if price stood at S (calls +, puts −). */
 function netExposureAt(S: number, prepared: readonly Prepared[]): { net: number; gross: number; byStrike: Map<number, number> } {
   let net = 0, gross = 0;
   const byStrike = new Map<number, number>();
   for (const p of prepared) {
-    const e = bsGamma(S, p.row.strike, p.sigma, p.T) * p.row.openInterest * 100 * S * S * 0.01 * p.sign;
+    const e = bsGamma(S, p.row.strike, p.sigma, p.T) * p.row.openInterest * p.mult * S * S * 0.01 * p.sign;
     net += e;
     gross += Math.abs(e);
     byStrike.set(p.row.strike, (byStrike.get(p.row.strike) ?? 0) + e);
@@ -234,7 +236,7 @@ export function selectDerivativesPressure(
     if (row.strike < spot * (1 - SWEEP * 1.5) || row.strike > spot * (1 + SWEEP * 1.5)) continue;
     const sigma = row.iv != null && row.iv > 0.01 ? row.iv : iv30;
     if (!sigma) continue;
-    prepared.push({ row, sign: row.type === "call" ? 1 : -1, sigma, T: yearsTo(row.expiration, nowMs) });
+    prepared.push({ row, sign: row.type === "call" ? 1 : -1, sigma, T: yearsTo(row.expiration, nowMs), mult: receipt.source === "DERIBIT_PUBLIC" ? 1 : 100 });
   }
   if (prepared.length < MIN_ROWS) return refuse("TOO_FEW_CONTRACTS", prepared.length);
 
@@ -281,7 +283,8 @@ export function selectDerivativesPressure(
   const nearest = [...new Set(prepared.map(p => p.row.expiration))].sort()[0] ?? null;
   const envelope: ExpectedMove | null = iv30
     ? {
-        session: spot * iv30 * Math.sqrt(1 / 252),
+        // Crypto trades every day of the year; listed equities ~252 sessions.
+        session: spot * iv30 * Math.sqrt(1 / (receipt.source === "DERIBIT_PUBLIC" ? 365 : 252)),
         toExpiry: nearest ? spot * iv30 * Math.sqrt(yearsTo(nearest, nowMs)) : null,
         expiry: nearest,
       }
@@ -310,11 +313,13 @@ export function selectDerivativesPressure(
     pockets,
     envelope,
     contracts: prepared.length,
-    clocks: { chainAsOf: receipt.chainAsOf, underlyingAsOf: receipt.underlyingAsOf, oiAsOf: "PRIOR_SESSION", modelAsOf: Math.floor(nowMs / 1000) },
-    source: "CBOE_DELAYED",
-    fidelity: "DELAYED",
+    clocks: { chainAsOf: receipt.chainAsOf, underlyingAsOf: receipt.underlyingAsOf, oiAsOf: receipt.source === "DERIBIT_PUBLIC" ? "CURRENT" : "PRIOR_SESSION", modelAsOf: Math.floor(nowMs / 1000) },
+    source: receipt.source,
+    fidelity: receipt.source === "DERIBIT_PUBLIC" ? "SNAPSHOT" : "DELAYED",
     epistemic: { exposure: "INFERRED", envelope: "DERIVED", tests: "OBSERVED" },
-    assumption: "Dealers assumed long calls / short puts (calls +, puts −); Black–Scholes gamma at each contract's Cboe IV, r = 4%.",
+    assumption: receipt.source === "DERIBIT_PUBLIC"
+      ? "Dealers assumed long calls / short puts (calls +, puts −) — on crypto this convention is weaker than on listed equities; Black–Scholes gamma at each contract's Deribit mark IV, r = 4%."
+      : "Dealers assumed long calls / short puts (calls +, puts −); Black–Scholes gamma at each contract's Cboe IV, r = 4%.",
     receipt: receiptStr,
   };
 }

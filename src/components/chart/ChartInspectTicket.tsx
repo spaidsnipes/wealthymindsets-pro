@@ -49,6 +49,7 @@
  */
 
 import React from "react";
+import { positioningSourceWords } from "@/lib/marketData/cboeDelayedOptions";
 import type { BigTradeClusterMember, SelectedBigTrade } from "@/lib/bigTradeLevels";
 import { percentileOrdinal } from "@/lib/chart/footprintCanon";
 import { RESPONSE_BARS, type PrintResponseVM } from "@/lib/marketData/viewModels/selectPrintResponse";
@@ -1245,8 +1246,8 @@ export function ChartInspectTicket({
               <div>Climate at price · {pressureFront.climate.replace("_", " ")} (net / gross {pressureFront.climateRatio.toFixed(2)}; ±0.12 or closer is MIXED)</div>
               <div>Evidence · {pressureFront.contracts} contracts with open interest · {pressureFront.walls.length} wall{pressureFront.walls.length === 1 ? "" : "s"} · {pressureFront.pockets.length} acceleration pocket{pressureFront.pockets.length === 1 ? "" : "s"}{pressureFront.envelope ? ` · expected move ±${mtfPx(pressureFront.envelope.session)} (IV30, DERIVED)` : ""}</div>
               <div>Class · INFERRED ({pressureFront.assumption}) · actual price response outranks this model</div>
-              <div>Fidelity · {pressureFront.fidelity} (Cboe) · chain {pressureFront.clocks.chainAsOf ?? "—"} · OI prior session · model {clock.minute(pressureFront.clocks.modelAsOf)}</div>
-              <div>Lineage · Cboe delayed OI + IV → selectDerivativesPressure v{pressureFront.version} → geography sweep → this front</div>
+              <div>Fidelity · {pressureFront.fidelity} ({positioningSourceWords(pressureFront.source).name}) · chain {pressureFront.clocks.chainAsOf ?? "—"} · {positioningSourceWords(pressureFront.source).oi} · model {clock.minute(pressureFront.clocks.modelAsOf)}</div>
+              <div>Lineage · {positioningSourceWords(pressureFront.source).name} OI + IV → selectDerivativesPressure v{pressureFront.version} → geography sweep → this front</div>
             </>
           ) : (
             <div>The derivatives reading went silent ({pressureFront.receipt.replace("PRESSURE:SILENT:", "")}) — no environment is guessed at.</div>
@@ -1294,11 +1295,11 @@ export function ChartInspectTicket({
             <div>Where · strike {mtfPx(w.strike)}, price {w.side === "ABOVE" ? "above" : "below"} it · {(w.share * 100).toFixed(1)}% of gross exposure</div>
             <div>Evidence · call OI {w.callOi.toLocaleString()} · put OI {w.putOi.toLocaleString()} · ≈${(w.exposure / 1e6).toFixed(1)}M per 1% move</div>
             <div>Class · exposure INFERRED ({dp.assumption}) · tests OBSERVED on this chart&apos;s bars</div>
-            <div>Fidelity · {dp.fidelity} (Cboe) · clocks: chain {dp.clocks.chainAsOf ?? "—"} · underlying {dp.clocks.underlyingAsOf ?? "—"} · OI prior session</div>
+            <div>Fidelity · {dp.fidelity} ({positioningSourceWords(dp.source).name}) · clocks: chain {dp.clocks.chainAsOf ?? "—"} · underlying {dp.clocks.underlyingAsOf ?? "—"} · {positioningSourceWords(dp.source).oi}</div>
             <div data-testid="inspect-pressure-wall-life">Life · {lifeWords[w.life]} · {w.tests} test{w.tests === 1 ? "" : "s"}{w.firstTestTime != null ? ` since ${clock.minute(w.firstTestTime)} ${clock.zone(w.firstTestTime)}` : ""}{w.closesBeyond ? ` · ${w.closesBeyond} close${w.closesBeyond === 1 ? "" : "s"} beyond` : ""}</div>
             <div>Contradiction · {contra}</div>
             <div>Climate · {dp.climate.replace("_", " ")} at price ({dp.climateRatio.toFixed(2)}) · zero-gamma front {dp.zeroGamma != null ? mtfPx(dp.zeroGamma) : "none in ±20%"}</div>
-            <div>Lineage · Cboe delayed OI + IV → selectDerivativesPressure v{dp.version} → this wall ({dp.contracts} contracts)</div>
+            <div>Lineage · {positioningSourceWords(dp.source).name} OI + IV → selectDerivativesPressure v{dp.version} → this wall ({dp.contracts} contracts)</div>
           </div>
         );
       })()}

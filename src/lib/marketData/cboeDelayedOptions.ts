@@ -34,8 +34,18 @@ export interface CboeOptionRow {
   readonly volume: number | null;
 }
 
+/** Who published the positioning. The Cboe lane is DELAYED with prior-session OI; Deribit is a public snapshot with current OI. */
+export type OptionsPositioningSource = typeof CBOE_OPTIONS_SOURCE | "DERIBIT_PUBLIC";
+
+/** The words every surface prints for a positioning source — one owner, never retyped. */
+export function positioningSourceWords(source: OptionsPositioningSource): { readonly name: string; readonly oi: string } {
+  return source === "DERIBIT_PUBLIC"
+    ? { name: "Deribit public", oi: "OI current" }
+    : { name: "Cboe delayed", oi: "OI prior session" };
+}
+
 export interface CboeOptionsReceipt {
-  readonly source: typeof CBOE_OPTIONS_SOURCE;
+  readonly source: OptionsPositioningSource;
   readonly underlying: string;
   /** The underlying's last price in the same delayed snapshot. */
   readonly spot: number | null;

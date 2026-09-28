@@ -56,7 +56,10 @@ describe("the pressure world on the glass", () => {
     expect(block).toContain("OFF_CAMERA");
   });
   it("truth is named on the glass: source, delay, OI clock, epistemic class", () => {
-    expect(block).toContain("Cboe delayed · OI prior session · INFERRED");
+    // The source and its OI clock come from ONE owner (Cboe delayed · OI prior
+    // session, or Deribit public · OI current) — never retyped at the paint.
+    expect(block).toContain("const srcW = positioningSourceWords(dp.source);");
+    expect(block).toContain("${srcW.name} · ${srcW.oi} · INFERRED");
   });
 });
 
@@ -89,7 +92,7 @@ describe("the environment is inspectable: click the zero-gamma front", () => {
     expect(CD).toContain('selection: { kind: "PRESSURE_FRONT", symbol, timeframe }');
   });
   it("Inspect explains the environment: what, where, climate, evidence, class, fidelity, lineage", () => {
-    for (const w of ["DERIVATIVES ENVIRONMENT", "What · the price where expected dealer hedging flips", "Climate at price", "Class · INFERRED", "Lineage · Cboe delayed OI + IV"]) expect(IT).toContain(w);
+    for (const w of ["DERIVATIVES ENVIRONMENT", "What · the price where expected dealer hedging flips", "Climate at price", "Class · INFERRED", "Lineage · {positioningSourceWords(pressureFront.source).name} OI + IV"]) expect(IT).toContain(w);
   });
 });
 
@@ -137,5 +140,13 @@ describe("wall contact is caused by the forming candle, never by sprites (five-h
   });
   it("dust moves only in LIVE and is bounded", () => {
     expect(block).toMatch(/if \(motionOnRef\.current\) \{[\s\S]*?for \(let k = 0; k < 8; k\+\+\)/);
+  });
+});
+
+describe("positioning source words — one owner", () => {
+  it("Cboe says delayed + prior-session OI; Deribit says public + current OI", async () => {
+    const { positioningSourceWords } = await import("@/lib/marketData/cboeDelayedOptions");
+    expect(positioningSourceWords("CBOE_DELAYED")).toEqual({ name: "Cboe delayed", oi: "OI prior session" });
+    expect(positioningSourceWords("DERIBIT_PUBLIC")).toEqual({ name: "Deribit public", oi: "OI current" });
   });
 });

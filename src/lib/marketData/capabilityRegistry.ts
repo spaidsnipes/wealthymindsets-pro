@@ -12,6 +12,7 @@ export type MarketProviderPath =
   | "alpaca-rest"
   | "alpaca-options-snapshot"
   | "cboe-delayed-options"
+  | "deribit-public-options"
   | "moomoo-opend-bridge"
   | "longbridge-openapi-bridge"
   | "webull-openapi-ticks"
@@ -265,6 +266,28 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     attributionRequired: true,
     evidence: "src/app/api/market-data/cboe/options/route.ts + marketData/cboeDelayedOptions.ts; consumed by ChartsDashboard.tsx (Derivatives Pressure)",
+  }),
+  capability({
+    // Garden 16 (2026-09-27): BTC / ETH positioning for Derivatives Pressure —
+    // Cboe lists no crypto options. Deribit's PUBLIC book summary (no
+    // credential) carries current OI (coins), mark IV and the index; DVOL is
+    // its 30-day IV index. A polled snapshot, not a stream. Rights for
+    // redistribution are UNKNOWN and fail closed: display only, no raw
+    // persistence, the source named on every object.
+    providerPath: "deribit-public-options",
+    assetClass: "options",
+    eventType: "quote",
+    availability: "PARTIAL",
+    collectionScope: "REQUEST_SCOPED",
+    fidelityClass: "OBSERVED",
+    timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
+    sequenceSupported: false,
+    aggressorMethod: "NONE",
+    sessionCoverage: "Request-scoped Deribit public option summaries (BTC, ETH), polled every 2 min; open_interest is current; mark_iv is Deribit's model, not an observation",
+    fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
+    attributionRequired: true,
+    evidence: "src/app/api/market-data/deribit/options/route.ts + marketData/deribitOptions.ts; consumed by ChartsDashboard.tsx (Derivatives Pressure)",
   }),
   capability({
     providerPath: "moomoo-opend-bridge",
