@@ -110,7 +110,14 @@ export async function runWebullSessionKeeper(
         // Webull caps account-family reads per second: back-to-back, the third
         // account's list answered 429 (keeper record, serving 2026-09-27).
         if (i > 0 && paceMs > 0) await new Promise<void>((r) => setTimeout(r, paceMs));
-        const page = await listWebullOpenOrders(fetchImpl, orderCfg, a.accountId);
+        let page = await listWebullOpenOrders(fetchImpl, orderCfg, a.accountId);
+        // One paced retry on 429 (the positions / balance lanes' rule): the
+        // keeper read CASH:429 on every run even at 1.1 s spacing (serving,
+        // 2026-09-28) — its own account-list and entitlement reads go first.
+        if (page.state === "REJECTED" && page.status === 429 && paceMs > 0) {
+          await new Promise<void>((r) => setTimeout(r, paceMs * 3));
+          page = await listWebullOpenOrders(fetchImpl, orderCfg, a.accountId);
+        }
         if (page.state !== "OK") {
           failed++;
           // Webull's own account-type word and the refusal's HTTP status — never an id.
