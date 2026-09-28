@@ -372,10 +372,12 @@ const CATALOGUE: readonly ProfileSpec[] = [
   },
   {
     id: "LIQUIDITY_WEATHER",
-    // Carries the P-601 HEAT LENS: the same switch pipes the weather onto
-    // price as heat bands, so the heatmap invention is reachable on the
-    // candles from Tools › Order flow and never needs a room of its own.
-    label: "Liquidity Weather · Heat Lens",
+    // Carries the P-601 lens: the same switch pipes the weather onto price as
+    // bands, so the invention is reachable on the candles from Tools › Order
+    // flow and never needs a room of its own. Named for its ONE species
+    // (Garden 16: "Heat, Weather and Pressure are different species") —
+    // "Heat" is Tools › Heat · Discovery, Pressure is Derivatives Pressure.
+    label: "Liquidity Weather",
     what: "how much size it costs to move price, painted on price as heat bands — dear is hot, cheap is cool",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectLiquidityWeather.ts",
