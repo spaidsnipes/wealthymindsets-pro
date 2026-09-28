@@ -58,6 +58,7 @@ import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhos
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import { wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import { LEARN_LESSON, learnHref, type LearnableSelection } from "@/lib/academy/academyContinuity";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfiles";
@@ -380,7 +381,7 @@ function AnatomyTicket({ sel, onClose, timeZone }: { sel: SelectedAnatomy; onClo
 
 /** §53 · the Academy door for a selection the Academy actually teaches. */
 function LearnThis({ kind }: { kind: LearnableSelection }) {
-  const from = typeof window === "undefined" ? "/charts" : window.location.pathname + window.location.search;
+  const from = typeof window === "undefined" ? INSTRUMENT_VIEW_ROUTE : window.location.pathname + window.location.search;
   return (
     <a
       href={learnHref(kind, from)}

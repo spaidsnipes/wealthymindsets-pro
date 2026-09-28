@@ -4,8 +4,10 @@
  *
  * The door only opens where the Academy holds a real lesson for what the
  * trader selected — no lesson is invented for a selection that has none.
- * `from` is always a /charts path (never an open redirect).
+ * `from` is always an instrument-view path (never an open redirect).
  */
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+
 export type LearnableSelection = "ANATOMY" | "PRINT" | "PROFILE_LEVEL";
 
 /** Selection → the Academy lesson that teaches it (ids from /education's catalogue). */
@@ -16,14 +18,16 @@ export const LEARN_LESSON: Readonly<Record<LearnableSelection, { readonly lesson
 };
 
 export function learnHref(kind: LearnableSelection, fromPath: string): string {
-  const from = safeChartsReturn(fromPath) ?? "/charts";
+  const from = safeChartsReturn(fromPath) ?? INSTRUMENT_VIEW_ROUTE;
   return `/education?lesson=${encodeURIComponent(LEARN_LESSON[kind].lessonId)}&from=${encodeURIComponent(from)}`;
 }
 
-/** Only a same-origin /charts path survives; anything else is refused (null). */
+/** Only a same-origin instrument-view path survives; anything else is refused (null). */
 export function safeChartsReturn(from: string | null | undefined): string | null {
   if (!from) return null;
-  if (!/^\/charts(\?[A-Za-z0-9_\-.%!=&,:]*)?$/.test(from)) return null;
+  const [path, query] = from.split("?", 2);
+  if (path !== INSTRUMENT_VIEW_ROUTE) return null;
+  if (query !== undefined && !/^[A-Za-z0-9_\-.%!=&,:]*$/.test(query)) return null;
   return from;
 }
 
