@@ -57,6 +57,7 @@ import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradi
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import { wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
+import { LEARN_LESSON, learnHref, type LearnableSelection } from "@/lib/academy/academyContinuity";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfiles";
@@ -372,7 +373,22 @@ function AnatomyTicket({ sel, onClose, timeZone }: { sel: SelectedAnatomy; onClo
           ? "Cannot separate absorption from an empty auction, a halt, or two large participants crossing. Resting orders are not observed (no book)."
           : "A fact about the push, not a forecast."}
       </p>
+      <LearnThis kind="ANATOMY" />
     </section>
+  );
+}
+
+/** §53 · the Academy door for a selection the Academy actually teaches. */
+function LearnThis({ kind }: { kind: LearnableSelection }) {
+  const from = typeof window === "undefined" ? "/charts" : window.location.pathname + window.location.search;
+  return (
+    <a
+      href={learnHref(kind, from)}
+      data-testid={`inspect-learn-${kind}`}
+      className="mt-2 block rounded border border-wm-gold/40 px-2 py-1 text-[10px] font-semibold text-wm-gold hover:bg-wm-gold/10"
+    >
+      Learn this in the Academy → {LEARN_LESSON[kind].title} · then back to this chart
+    </a>
   );
 }
 
@@ -912,7 +928,8 @@ export function ChartInspectTicket({
             {sl.miss === "NO_PROFILE" ? "No Living Profile is drawn, so there is no slice to read." : "No traded bucket at that price. The profile took no volume there."}
           </p>
         )}
-      </section>
+        <LearnThis kind="PROFILE_LEVEL" />
+       </section>
     );
   }
 

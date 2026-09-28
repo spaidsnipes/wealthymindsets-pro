@@ -8,6 +8,7 @@
 import { shufflePick } from "@/lib/shufflePick";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
 import React, { useEffect, useRef, useState } from "react";
+import { returnLabel, safeChartsReturn } from "@/lib/academy/academyContinuity";
 import Link from "next/link";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import {
@@ -558,6 +559,22 @@ export default function EducationPage() {
   const [expandedId,   setExpandedId]   = useState<number | null>(1);
   const [activeLesson, setActiveLesson] = useState<{ lesson: Lesson; color: string } | null>(null);
   const [progressPersistence, setProgressPersistence] = useState<"IDLE" | "PERSISTED" | "UNAVAILABLE">("IDLE");
+  // ACADEMY CONTINUITY (§53): arrived from a chart's "Learn this" — open that
+  // lesson, and keep the way back to the same symbol and timeframe.
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const from = safeChartsReturn(q.get("from"));
+      if (from) setReturnTo(from);
+      const want = q.get("lesson");
+      if (!want) return;
+      for (const m of MODULES) {
+        const l = m.lessons.find(x => x.id === want);
+        if (l) { setExpandedId(m.id); setActiveLesson({ lesson: l, color: m.color }); break; }
+      }
+    } catch { /* no URL: the room opens as usual */ }
+  }, []);
 
   const serializeProgress = (nextMods: Module[]) => {
     const toSave: Record<number, { completed: boolean; lessons: Record<string, boolean> }> = {};
@@ -597,6 +614,16 @@ export default function EducationPage() {
   // through. Same cure already applied to /journal, /paper and /proof-lane.
   return (
     <div style={{ display:"flex",flexDirection:"column",width:"100%",height:"100%",overflow:"hidden" }}>
+      {returnTo ? (
+        <a
+          href={returnTo}
+          data-testid="academy-return-to-market"
+          className="shrink-0 px-4 py-2 text-[11px] font-semibold"
+          style={{ color: "#d4af37", borderBottom: "1px solid rgba(139,106,41,0.35)", background: "rgba(11,10,8,0.6)" }}
+        >
+          ← Back to {returnLabel(returnTo)} — the same market you were reading
+        </a>
+      ) : null}
 
       {/* Header — WM atmosphere, aligned with the OS-wide vocabulary */}
       <div
