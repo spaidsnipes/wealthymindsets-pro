@@ -1287,7 +1287,10 @@ input[type=range]::-webkit-slider-runnable-track {
     padding-inline: 4px !important;
     border-color: transparent !important;
     border-radius: 0 !important;
-    background: transparent !important;
+    /* A label, not a card — but a legible one: with no backing the Living
+       Profile's top rows printed straight through "INSPECT" (serving GC1!
+       15m, 2026-09-28). The same restrained glass the live-session chip wears. */
+    background: rgba(7, 9, 15, 0.72) !important;
     box-shadow: none !important;
   }
 
