@@ -316,6 +316,7 @@ import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import { cboeSymbolFor, type CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
 import { deribitCurrencyFor, dvolFrom, normalizeDeribitOptions } from "@/lib/marketData/deribitOptions";
+import { ANATOMY_MODES, readAnatomyMode, writeAnatomyMode, type AnatomyMode } from "@/lib/chart/anatomyMode";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { selectLiquidityWeatherFromBars } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { selectDerivativesPressure, WALL_TEST_WINDOW_DAYS, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
@@ -2266,6 +2267,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [visibleRangeRefusal, setVisibleRangeRefusal] = useState<string | null>(null);
   // Session VP's decline is decided in the paint (its column), so the canvas reports it too.
   const [sessionVpRefusal, setSessionVpRefusal] = useState<string | null>(null);
+  // Dual Anatomy representation (Appearance preference; MainChart reads the same key).
+  const [anatomyMode, setAnatomyMode] = useState<AnatomyMode>("MARKET");
+  useEffect(() => { setAnatomyMode(readAnatomyMode()); }, []);
   // The VP columns the paint actually drew, with their levels (MainChart reports on change).
   const [vpDrawnLevels, setVpDrawnLevels] = useState<VpDrawnLevels>({});
   const profileSpeciesRefusalVM = React.useMemo(
@@ -3303,6 +3307,25 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   */
   const orderFlowToolsNode = (
     <div data-testid="order-flow-tools" className="space-y-2">
+      {/* DUAL ANATOMY (Garden 16 §17–§20): how the SAME absorption / exhaustion
+          events are shown — mechanics, the Founder body (G06), or both fused. */}
+      <div data-testid="anatomy-mode" className="flex flex-wrap items-center gap-1 px-1">
+        <span className="mr-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-wm-text-dim">Anatomy</span>
+        {ANATOMY_MODES.map(m => (
+          <button
+            key={m}
+            type="button"
+            data-testid={`anatomy-mode-${m}`}
+            aria-pressed={anatomyMode === m}
+            onClick={() => { writeAnatomyMode(m); setAnatomyMode(m); }}
+            className="rounded-full px-2 py-0.5 text-[10px]"
+            style={{ border: `1px solid ${anatomyMode === m ? "rgba(212,175,55,0.8)" : "rgba(139,106,41,0.35)"}`, color: anatomyMode === m ? "#d4af37" : "#C8C0AE" }}
+            title={m === "OFF" ? "No anatomy manifestation" : m === "MARKET" ? "The mechanics alone — shelves, marks, fuel" : m === "FOUNDER" ? "The Founder body on each absorption / exhaustion event (G06)" : "Body and mechanics tied to the same event"}
+          >
+            {m === "OFF" ? "Off" : m === "MARKET" ? "Market" : m === "FOUNDER" ? "Founder" : "Fusion"}
+          </button>
+        ))}
+      </div>
       <div className="px-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-wm-text-dim">
         On each candle · footprint
       </div>

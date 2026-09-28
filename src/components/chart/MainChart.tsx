@@ -516,6 +516,7 @@ import type {
 import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
 import { marketClockReceipt, noteSeries, notePaint, resetMarketClock } from "@/lib/chart/marketClockProbe";
 import { QUIET_CEILING } from "@/lib/marketData/viewModels/selectSemanticPermission";
+import { ANATOMY_MODE_EVENT, ANATOMY_MODE_KEY } from "@/lib/chart/anatomyMode";
 import { selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 /** The forming candle's own print ring (bounded; a truncated ring is named in its receipt). */
 const FORMING_RING_CAP = 3000;
@@ -2052,6 +2053,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // settles every self-driven motion on the SAME objects; reduced motion too.
   const [livingMarket, setLivingMarket] = useState<LivingMarket>(() => readLivingMarket());
   const motionOnRef = useRef(true);
+  // DUAL ANATOMY mode (Appearance; persisted). OFF · MARKET · FOUNDER · FUSION.
+  const anatomyModeRef = useRef<"OFF" | "MARKET" | "FOUNDER" | "FUSION">("MARKET");
+  useEffect(() => {
+    const read = () => {
+      try {
+        const v = localStorage.getItem(ANATOMY_MODE_KEY);
+        anatomyModeRef.current = v === "OFF" || v === "FOUNDER" || v === "FUSION" ? v : "MARKET";
+      } catch { anatomyModeRef.current = "MARKET"; }
+    };
+    read();
+    window.addEventListener(ANATOMY_MODE_EVENT, read);
+    return () => window.removeEventListener(ANATOMY_MODE_EVENT, read);
+  }, []);
   const livingReceiptRef = useRef<string>("LIVE");
   useEffect(() => {
     writeLivingMarket(livingMarket);
@@ -9810,6 +9824,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Chips that float with price and were painted this frame; later chrome
       // steps around them instead of printing through them.
       const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];
+      // DUAL ANATOMY (Garden 16 §17–§20): the canonical absorption / exhaustion
+      // EVENTS this frame drew, collected where their owners paint them. The
+      // Founder body (G06) is a manifestation of exactly these — never of a
+      // candle that carries no event.
+      const bodyAnchors: { kind: "ABSORB" | "EXHAUST"; x: number; y: number; ex: number; ey: number }[] = [];
       // An active Question Lens owns the plot's left column (strip, debt card,
       // control card, Ask chooser) up to this x. Anything that must stay
       // readable steps right of it rather than printing where the lens paints.
@@ -10207,6 +10226,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const yHi = +yHiR, yLo = +yLoR;
               const bw = Math.max(2, x1 - x0);
               const bh = Math.max(2, yLo - yHi);
+              bodyAnchors.push({ kind: "ABSORB", x: x1 + 8, y: (yHi + yLo) / 2, ex: (x0 + x1) / 2, ey: (yHi + yLo) / 2 });
 
               // SELECTED IS LOUDEST. The selected shelf keeps full ink and gains
               // solid edges and a halo; how loud its peers are is the attention
@@ -10779,6 +10799,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const markSelected = anatomySelReading?.currentId === anatomyTargetId(markTarget(m));
                 // Withheld at this depth unless it is the selected mark.
                 if (!att.paints("exhaustion", { selectedItem: markSelected })) continue;
+                bodyAnchors.push({ kind: "EXHAUST", x: x + 10, y: y0, ex: x, ey: +yr });
                 // The box of what this mark drew (fuel + rings) — its hit body and halo.
                 let mx0 = x - 6, my0 = y0 - 9, mx1 = x + 7, my1 = y0 + 9;
                 let markDrew = false;
@@ -12464,6 +12485,87 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.fillText(txt, 20, 185.5);
           ctx.restore();
         }
+      }
+
+      /* ══ DUAL ANATOMY · THE FOUNDER BODY (G06 "Absorption vs Exhaustion
+         Anatomy — the strong absorb, the weak exhaust") ══════════════════════
+         Mode is an Appearance preference (wm_anatomyMode): OFF · MARKET ·
+         FOUNDER · FUSION. MARKET is the mechanics alone (the shelves and marks
+         their owners already paint). FOUNDER hangs the G06 body on each
+         canonical event: gold, energy CONVERGING to the core (power retained)
+         for absorption; red, energy LEAKING outward (power leaked) for
+         exhaustion. FUSION ties the body to its event's evidence with a thread
+         — one event, one truth, two representations. The body breathes only
+         in LIVE; STILL holds it. Newest three, clear of the candles. */
+      {
+        const mode = anatomyModeRef.current;
+        let drawnBodies = 0;
+        if ((mode === "FOUNDER" || mode === "FUSION") && bodyAnchors.length) {
+          const pulse = motionOnRef.current ? 0.75 + 0.25 * Math.sin(performance.now() / 420) : 1;
+          const pick = [...bodyAnchors].sort((a, b) => b.x - a.x).slice(0, 3);
+          for (const b of pick) {
+            const gold = b.kind === "ABSORB";
+            const rgb = gold ? "240,192,96" : "226,92,92";
+            const spot = placeClearOfKeepOut({ x: b.x, y: b.y - 26, w: 34, h: 52 }, keepOut(), {
+              minX: keepOutMinX(), blockers: floatingChips, strict: true,
+              alternates: [{ x: b.x, y: b.y - 60, w: 34, h: 52 }, { x: b.x, y: b.y + 8, w: 34, h: 52 }],
+            });
+            if (spot.mode === "BLOCKED") continue;
+            const cx = spot.rect.x + 17, cy = spot.rect.y + 26;
+            floatingChips.push({ ...spot.rect });
+            ctx.save();
+            if (mode === "FUSION") {
+              ctx.strokeStyle = `rgba(${rgb},0.55)`;
+              ctx.setLineDash([2, 3]);
+              ctx.lineWidth = 1;
+              ctx.beginPath(); ctx.moveTo(cx, cy - 8); ctx.lineTo(b.ex, b.ey); ctx.stroke();
+              ctx.setLineDash([]);
+              ctx.fillStyle = `rgba(${rgb},0.9)`;
+              ctx.beginPath(); ctx.arc(b.ex, b.ey, 2.2, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.shadowColor = `rgba(${rgb},0.9)`;
+            ctx.shadowBlur = 8 * pulse;
+            ctx.strokeStyle = `rgba(${rgb},0.95)`;
+            ctx.lineWidth = 2;
+            ctx.lineCap = "round";
+            // The figure: head, torso, arms, legs (G06 silhouette).
+            ctx.beginPath(); ctx.arc(cx, cy - 19, 3.6, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(cx - 7, cy - 12); ctx.lineTo(cx + 7, cy - 12);          // shoulders
+            ctx.moveTo(cx, cy - 15); ctx.lineTo(cx, cy + 3);                   // spine
+            ctx.moveTo(cx - 5, cy + 3); ctx.lineTo(cx + 5, cy + 3);            // hips
+            if (gold) {                                                        // arms braced, fists in
+              ctx.moveTo(cx - 7, cy - 12); ctx.lineTo(cx - 10, cy - 3); ctx.lineTo(cx - 3, cy - 5);
+              ctx.moveTo(cx + 7, cy - 12); ctx.lineTo(cx + 10, cy - 3); ctx.lineTo(cx + 3, cy - 5);
+              ctx.moveTo(cx - 5, cy + 3); ctx.lineTo(cx - 7, cy + 19);         // planted stance
+              ctx.moveTo(cx + 5, cy + 3); ctx.lineTo(cx + 7, cy + 19);
+            } else {                                                           // arms dropped, knees giving
+              ctx.moveTo(cx - 7, cy - 12); ctx.lineTo(cx - 11, cy + 2); ctx.lineTo(cx - 12, cy + 7);
+              ctx.moveTo(cx + 7, cy - 12); ctx.lineTo(cx + 11, cy + 2); ctx.lineTo(cx + 12, cy + 7);
+              ctx.moveTo(cx - 5, cy + 3); ctx.lineTo(cx - 3, cy + 11); ctx.lineTo(cx - 6, cy + 19);
+              ctx.moveTo(cx + 5, cy + 3); ctx.lineTo(cx + 3, cy + 11); ctx.lineTo(cx + 6, cy + 19);
+            }
+            ctx.stroke();
+            // The core, and energy: converging (retained) or leaking (spent).
+            ctx.shadowBlur = 12 * pulse;
+            ctx.fillStyle = `rgba(${gold ? "255,226,150" : "255,140,140"},${(gold ? 0.95 : 0.45) * pulse})`;
+            ctx.beginPath(); ctx.arc(cx, cy - 8, gold ? 2.6 : 1.8, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.lineWidth = 1;
+            for (let k = 0; k < 8; k++) {
+              const a = (k / 8) * Math.PI * 2 + 0.2;
+              const r0 = gold ? 17 : 9, r1 = gold ? 10 : 16 + 3 * (1 - pulse);
+              ctx.strokeStyle = `rgba(${rgb},${gold ? 0.7 : 0.45})`;
+              ctx.beginPath();
+              ctx.moveTo(cx + Math.cos(a) * r0, cy - 8 + Math.sin(a) * r0);
+              ctx.lineTo(cx + Math.cos(a) * r1, cy - 8 + Math.sin(a) * r1);
+              ctx.stroke();
+            }
+            ctx.restore();
+            drawnBodies++;
+          }
+        }
+        canvas.dataset.dualAnatomy = `${mode}|EVENTS:${bodyAnchors.length}|BODIES:${drawnBodies}`;
       }
 
       /* ══════════════════════════════════════════════════════════════════════
