@@ -8,9 +8,10 @@
  * chart already publishes on its overlay canvas — the paint ledger
  * (data-paint-*) and the market clock (data-market-clock) — plus JS heap.
  *
- *   __wmSoak.start(15000)   sample every 15 s
+ *   __wmSoak.start(15000)   sample every 15 s (each sample persisted)
+ *   __wmSoak.resume()       after a reload/navigation: continue the same soak
  *   __wmSoak.report()       the summary over what was ACTUALLY sampled
- *   __wmSoak.stop()
+ *   __wmSoak.stop() / clear()
  *
  * The summary states its own duration; a soak is only as long as its samples.
  */
@@ -69,15 +70,29 @@
     };
   }
 
+  // Samples are persisted as they are taken: on 2026-09-27 a 50-minute soak
+  // lost its in-page samples when the tab was navigated away. After a reload,
+  // `__wmSoak.resume()` reads them back; `report()` then spans both.
+  const KEY = "wm_soak_samples_v1";
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(api.samples.slice(-2000))); } catch { /* storage full or blocked: the in-page copy still stands */ } };
+  const take = () => { api.samples.push(sample()); persist(); };
   const api = {
     samples: [],
     timer: null,
     start(everyMs = 15000) {
       api.stop();
-      api.samples.push(sample());
-      api.timer = setInterval(() => api.samples.push(sample()), everyMs);
+      take();
+      api.timer = setInterval(take, everyMs);
       return "soak started";
     },
+    resume(everyMs = 15000) {
+      try { api.samples = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { api.samples = []; }
+      api.stop();
+      take();
+      api.timer = setInterval(take, everyMs);
+      return `soak resumed with ${api.samples.length} samples`;
+    },
+    clear() { api.stop(); api.samples = []; try { localStorage.removeItem(KEY); } catch { /* nothing to clear */ } },
     stop() { if (api.timer) clearInterval(api.timer); api.timer = null; },
     report() { return summarize(api.samples); },
     _summarize: summarize,
