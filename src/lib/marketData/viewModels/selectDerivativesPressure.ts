@@ -107,6 +107,13 @@ export type DerivativesPressureVM =
       readonly geography: readonly GeographySample[];
       readonly zeroGamma: number | null;
       readonly walls: readonly PressureWall[];
+      /**
+       * The span of bars the wall tests were actually counted over (seconds).
+       * A 1m chart loads hours, a 15m chart a week: the same wall read BORN on
+       * one and DEFENDED ×2 on the other (serving BTC, 2026-09-28). Surfaces
+       * say the span when it is shorter than the test window.
+       */
+      readonly testSpanSec: number;
       readonly pockets: readonly PressurePocket[];
       readonly envelope: ExpectedMove | null;
       readonly contracts: number;
@@ -310,6 +317,7 @@ export function selectDerivativesPressure(
     geography,
     zeroGamma,
     walls,
+    testSpanSec: bars.length >= 2 ? Math.max(0, bars[bars.length - 1].time - bars[0].time) : 0,
     pockets,
     envelope,
     contracts: prepared.length,
@@ -322,4 +330,11 @@ export function selectDerivativesPressure(
       : "Dealers assumed long calls / short puts (calls +, puts −); Black–Scholes gamma at each contract's Cboe IV, r = 4%.",
     receipt: receiptStr,
   };
+}
+
+/** "6h seen" / "3.2d seen" when the tests were counted over less than the window; null when the window was covered. */
+export function wallTestSpanWords(spanSec: number): string | null {
+  if (!(spanSec >= 0) || spanSec >= (WALL_TEST_WINDOW_DAYS - 0.5) * 86_400) return null;
+  const h = spanSec / 3600;
+  return h < 48 ? `${Math.max(1, Math.round(h))}h seen` : `${(h / 24).toFixed(1)}d seen`;
 }

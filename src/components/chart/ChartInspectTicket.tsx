@@ -56,7 +56,7 @@ import { RESPONSE_BARS, type PrintResponseVM } from "@/lib/marketData/viewModels
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
-import type { DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
+import { wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import type { ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfiles";
@@ -1296,7 +1296,7 @@ export function ChartInspectTicket({
             <div>Evidence · call OI {w.callOi.toLocaleString()} · put OI {w.putOi.toLocaleString()} · ≈${(w.exposure / 1e6).toFixed(1)}M per 1% move</div>
             <div>Class · exposure INFERRED ({dp.assumption}) · tests OBSERVED on this chart&apos;s bars</div>
             <div>Fidelity · {dp.fidelity} ({positioningSourceWords(dp.source).name}) · clocks: chain {dp.clocks.chainAsOf ?? "—"} · underlying {dp.clocks.underlyingAsOf ?? "—"} · {positioningSourceWords(dp.source).oi}</div>
-            <div data-testid="inspect-pressure-wall-life">Life · {lifeWords[w.life]} · {w.tests} test{w.tests === 1 ? "" : "s"}{w.firstTestTime != null ? ` since ${clock.minute(w.firstTestTime)} ${clock.zone(w.firstTestTime)}` : ""}{w.closesBeyond ? ` · ${w.closesBeyond} close${w.closesBeyond === 1 ? "" : "s"} beyond` : ""}</div>
+            <div data-testid="inspect-pressure-wall-life">Life · {lifeWords[w.life]} · {w.tests} test{w.tests === 1 ? "" : "s"}{w.firstTestTime != null ? ` since ${clock.minute(w.firstTestTime)} ${clock.zone(w.firstTestTime)}` : ""}{w.closesBeyond ? ` · ${w.closesBeyond} close${w.closesBeyond === 1 ? "" : "s"} beyond` : ""}{wallTestSpanWords(dp.testSpanSec) ? ` · counted over the ${wallTestSpanWords(dp.testSpanSec)!.replace(" seen", "")} this chart has loaded — a longer timeframe sees more of the week` : ""}</div>
             <div>Contradiction · {contra}</div>
             <div>Climate · {dp.climate.replace("_", " ")} at price ({dp.climateRatio.toFixed(2)}) · zero-gamma front {dp.zeroGamma != null ? mtfPx(dp.zeroGamma) : "none in ±20%"}</div>
             <div>Lineage · {positioningSourceWords(dp.source).name} OI + IV → selectDerivativesPressure v{dp.version} → this wall ({dp.contracts} contracts)</div>

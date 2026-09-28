@@ -77,3 +77,12 @@ describe("wall lifecycle is OBSERVED from the chart's own bars, per session", ()
     expect(wallLife(110, intraday, 107)).toMatchObject({ life: wallLife(110, daily, 107).life, tests: wallLife(110, daily, 107).tests });
   });
 });
+
+describe("a wall says how much history its tests were counted over", () => {
+  it("hours on a short chart, nothing once the window is covered", async () => {
+    const { wallTestSpanWords, WALL_TEST_WINDOW_DAYS } = await import("./selectDerivativesPressure");
+    expect(wallTestSpanWords(6 * 3600)).toBe("6h seen");
+    expect(wallTestSpanWords(3.2 * 86_400)).toBe("3.2d seen");
+    expect(wallTestSpanWords(WALL_TEST_WINDOW_DAYS * 86_400)).toBeNull();
+  });
+});

@@ -340,7 +340,7 @@ import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewMode
 import { DEFAULT_STACK_PREFS, orderStack, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectMtfAncestry, type MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
-import type { DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
+import { wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import { livingMarketReceipt, motionAllowed, prefersReducedMotion, readLivingMarket, writeLivingMarket, type LivingMarket } from "@/lib/chart/livingMarket";
 import {
   arrowOutline,
@@ -14795,7 +14795,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 }
                 ctx.restore();
                 masonryRects.push({ x: x0, y: top - 2, w: len + 2, h: wallH + 4 });
-                if (dpSpeaks) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${w.life}${w.tests ? ` ×${w.tests}` : ""}`, x: x0, y: top + wallH / 2 });
+                const seenW = wallTestSpanWords(dp.testSpanSec);
+                if (dpSpeaks) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${w.life}${w.tests ? ` ×${w.tests}` : ""}${seenW ? ` · ${seenW}` : ""}`, x: x0, y: top + wallH / 2 });
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }
               void strikesSorted;
