@@ -14996,8 +14996,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
                     ctx.textAlign = "left";
                     ctx.textBaseline = "bottom";
+                    // The front's name sits on the front line, never on a
+                    // candle (serving SPY 1h, 2026-09-28: bars ran through it
+                    // at the left edge). Above the line, then below it, stepping
+                    // right along it; with no clear spot it keeps the left edge
+                    // on a dark backing — the front is always named.
+                    const frontWords = `ZERO-GAMMA FRONT ${fmtD(dp.zeroGamma)} · ${ampAbove ? "amplifying above" : "amplifying below"}`;
+                    const fw = ctx.measureText(frontWords).width;
+                    const candlesF = profileCandleCut().rects;
+                    let fx = 8, fy = y - 6, clear = false;
+                    spotF: for (const by of [y - 6, y + 15]) {
+                      for (let cx = 8; cx + fw + 8 <= plotRightD; cx += 40) {
+                        const q = { x: cx - 2, y: by - 11, w: fw + 4, h: 12 };
+                        if (!candlesF.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y)) { fx = cx; fy = by; clear = true; break spotF; }
+                      }
+                    }
+                    if (!clear) { ctx.fillStyle = `rgba(11,10,8,${0.85 * baseA})`; ctx.fillRect(fx - 3, fy - 12, fw + 6, 13); }
                     ctx.fillStyle = `rgba(236,214,160,${0.95 * baseA})`;
-                    ctx.fillText(`ZERO-GAMMA FRONT ${fmtD(dp.zeroGamma)} · ${ampAbove ? "amplifying above" : "amplifying below"}`, 8, y - 6);
+                    ctx.fillText(frontWords, fx, fy);
+                    painted.push(`FRONT_WORDS@${Math.round(fx)}:${clear ? "CLEAR" : "BACKED"}`);
                   }
                   painted.push(`FRONT@${dp.zeroGamma.toFixed(2)}`);
                 } else painted.push("FRONT:OFF_CAMERA");

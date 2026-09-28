@@ -153,3 +153,11 @@ describe("positioning source words — one owner", () => {
     expect(positioningSourceWords("DERIBIT_PUBLIC")).toEqual({ name: "Deribit public", oi: "OI current" });
   });
 });
+
+describe("the zero-gamma front's name never sits on a candle (serving SPY 1h, 2026-09-28)", () => {
+  it("searches above / below the line along it against the one candle cut-out; backed when nothing is clear", () => {
+    expect(block).toContain("const candlesF = profileCandleCut().rects;");
+    expect(block).toContain("spotF: for (const by of [y - 6, y + 15]) {");
+    expect(block).toContain('painted.push(`FRONT_WORDS@${Math.round(fx)}:${clear ? "CLEAR" : "BACKED"}`);');
+  });
+});
