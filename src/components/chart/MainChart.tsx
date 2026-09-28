@@ -6428,6 +6428,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Trades path, and a declaration further down threw 'Cannot access …
       // before initialization' on every footprint frame (serving 2026-09-28).
       const vpLevelsOut: { FIXED?: VpLevelTriple; SESSION?: VpLevelTriple } = {};
+      // THE SILENCE LINES SHARE ONE ROW STACK. A layer that is on but has
+      // nothing to draw says why in one line at the lower left. Two of them
+      // (Derivatives Pressure with no option chain, Risk on Price with no
+      // position) were each hard-coded at H - 114 and printed over each
+      // other on serving NQ1! 5m (2026-09-28). The first keeps the row; each
+      // later one steps up a row.
+      let silenceRowY = H - 114;
+      const takeSilenceRow = (): number => { const y = silenceRowY; silenceRowY -= 14; return y; };
       // UI-02 × H-701 · ONE ENCODING OF VALUE PER BAR. The Value Candle block
       // (later this frame) records each bar it painted glass on here; the
       // NEAR value hatch is queued, and painted after it only on bars the
@@ -15008,8 +15016,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
-              ctx.fillText(words, 12, H - 114);
-              floatingChips.push({ x: 12, y: H - 121, w: ctx.measureText(words).width, h: 14 });
+              const rowY = takeSilenceRow();
+              ctx.fillText(words, 12, rowY);
+              floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(words).width, h: 14 });
               ctx.restore();
             }
             ds.derivativesPressurePainted = painted.join("|") || "NONE";
@@ -19636,9 +19645,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.font = fontR(700, 9);
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.fillText(silentR, 12, H - 114);
+            const rowY = takeSilenceRow();
+            ctx.fillText(silentR, 12, rowY);
             // A chip, so later words step around it.
-            floatingChips.push({ x: 12, y: H - 114 - 7, w: ctx.measureText(silentR).width, h: 14 });
+            floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(silentR).width, h: 14 });
             ctx.restore();
             ds.riskOnPriceSilence = rv.reason;
           }
