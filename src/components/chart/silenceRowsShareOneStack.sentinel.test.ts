@@ -54,3 +54,9 @@ describe("the reading-anchor chip row is one number the canvas can see", () => {
     }
   });
 });
+
+describe("the candle timer never climbs into the top-left chrome", () => {
+  it("its ceiling is below the reading-anchor row", () => {
+    expect(MC).toContain("const cy    = Math.max(READING_ANCHOR_ROW_BOTTOM + 2 + boxH / 2, Math.min(H - boxH / 2 - 1, y));");
+  });
+});

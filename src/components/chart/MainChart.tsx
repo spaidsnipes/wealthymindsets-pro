@@ -9851,7 +9851,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const boxH  = 19;
           const boxW  = Math.round(tw + 30);
           const x     = 2;
-          const cy    = Math.max(boxH / 2 + 1, Math.min(H - boxH / 2 - 1, y));
+          // Price above the camera pinned the countdown to the pane's top edge,
+          // over "BTC-USD · 1D" and the D / EFFORT corner (serving BTC-USD 1D,
+          // 2026-09-28). Its ceiling is below that corner's rows.
+          const cy    = Math.max(READING_ANCHOR_ROW_BOTTOM + 2 + boxH / 2, Math.min(H - boxH / 2 - 1, y));
           const boxY  = Math.round(cy - boxH / 2);
           const border = flash ? "#FF2E63" : (neon ? "#00FFA3" : "#2F80ED");
           // FL-06: desktop is one continuous price instrument. The countdown
