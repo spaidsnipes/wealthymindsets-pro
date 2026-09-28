@@ -65,6 +65,7 @@ const config = {
   mintSession: false,
   now: () => new Date("2026-09-22T18:00:00Z"),
   nonce: () => "nonce",
+  paceMs: 0,
 } as const;
 
 describe("normalizeWebullPositionRow — the honest-price rule", () => {
@@ -192,6 +193,18 @@ describe("probeWebullPositions — the signed aggregate read", () => {
     const receipt = await probeWebullPositions(fetchImpl, config);
     expect(receipt.state).toBe(state);
     expect(receipt.positions).toHaveLength(0);
+  });
+
+  it("gives a 429 exactly one paced retry, then reads the accounts", async () => {
+    let positionsCalls = 0;
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) => {
+      if (String(url).includes("/trading/accounts/list")) return new Response(JSON.stringify([ACCOUNTS[1]]), { status: 200 });
+      positionsCalls++;
+      return positionsCalls === 1 ? new Response("{}", { status: 429 }) : new Response(JSON.stringify([]), { status: 200 });
+    }) as unknown as typeof fetch;
+    const receipt = await probeWebullPositions(fetchImpl, config);
+    expect(positionsCalls).toBe(2);
+    expect(receipt.state).toBe("NO_POSITIONS");
   });
 
   it("treats an unrecognized positions envelope as PROVIDER_ERROR, not as empty", async () => {

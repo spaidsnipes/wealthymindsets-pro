@@ -41,6 +41,12 @@ export interface WebullBrokerConfig {
   readonly mintSession?: boolean;
   /** Who says whether a session token is required at all. Tests inject one. */
   readonly authModeReader?: WebullAuthModeReader;
+  /**
+   * Spacing (ms) between consecutive signed reads in one probe. Webull caps
+   * account-family endpoints per second; three accounts read back-to-back
+   * were answered 429 (measured 2026-09-27). Tests pass 0.
+   */
+  readonly paceMs?: number;
 }
 
 /**

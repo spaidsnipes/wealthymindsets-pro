@@ -308,7 +308,20 @@ export async function probeWebullPositions(
     return { response };
   };
 
-  const accountsResult = await signedGet(ACCOUNT_LIST_PATH, WEBULL_SDK_CONTRACT.ACCOUNT_LIST.apiVersion, {});
+  // Webull caps account-family reads per second: space every read after the
+  // first, and give a 429 exactly one paced retry before reporting it.
+  const paceMs = Math.max(0, Math.min(5_000, config.paceMs ?? 1_100));
+  const pause = (ms: number) => (ms > 0 ? new Promise<void>((r) => setTimeout(r, ms)) : Promise.resolve());
+  let readsSent = 0;
+  const pacedGet: typeof signedGet = async (path, apiVersion, query) => {
+    if (readsSent++ > 0) await pause(paceMs);
+    const first = await signedGet(path, apiVersion, query);
+    if (!("failure" in first) || first.failure.state !== "RATE_LIMITED") return first;
+    await pause(paceMs * 2);
+    return signedGet(path, apiVersion, query);
+  };
+
+  const accountsResult = await pacedGet(ACCOUNT_LIST_PATH, WEBULL_SDK_CONTRACT.ACCOUNT_LIST.apiVersion, {});
   if ("failure" in accountsResult) return accountsResult.failure;
   let accountRows: readonly Record<string, unknown>[] | null;
   try {
@@ -326,7 +339,7 @@ export async function probeWebullPositions(
 
   const positions: WebullPaintablePosition[] = [];
   for (const accountId of accountIds) {
-    const positionsResult = await signedGet(
+    const positionsResult = await pacedGet(
       ACCOUNT_POSITIONS_PATH,
       WEBULL_SDK_CONTRACT.ACCOUNT_POSITIONS.apiVersion,
       { account_id: accountId, page_size: "100" },
