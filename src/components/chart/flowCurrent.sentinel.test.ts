@@ -15,7 +15,8 @@ describe("flow current", () => {
   it("exists and asks the permission table", () => {
     expect(block.length).toBeGreaterThan(0);
     expect(block).toContain('if (!att.paints("flowCurrent")) {');
-    expect(permissionAt("flowCurrent", "FAR")).toBe("SILENT");
+    expect(permissionAt("flowCurrent", "FAR")).toBe("QUIET");
+    expect(block, "FAR changes the representation (pooled buckets), not the visibility").toContain("QUIET:POOLED");
   });
   it("reads only sided prints per bar — buy = ask, sell = bid — and names the silence", () => {
     expect(block).toContain("for (const v of lv.values()) { buy += v.ask; sell += v.bid; }");

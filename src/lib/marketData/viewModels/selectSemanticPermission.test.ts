@@ -45,7 +45,10 @@ describe("semantic permission — one table, every painting layer", () => {
     // Living's skeleton, and the fidelity bridges (an outage keeps its words).
     // + mtfAncestry (T-210, 2026-09-26): the D shelf only — a major level —
     // with its horizon tag; band, node and captions withheld at FAR.
-    expect(at("FAR", "QUIET")).toEqual(["candles", "dataGaps", "livingProfile", "marketStructure", "mtfAncestry"].sort());
+    // + flowCurrent / formingCandle (Garden 16, 2026-09-27: "semantic zoom
+    // changes the representation, not the visibility") — pooled currents and
+    // the live bar's tempo aura, geometry only, under the QUIET ceiling.
+    expect(at("FAR", "QUIET")).toEqual(["candles", "dataGaps", "flowCurrent", "formingCandle", "livingProfile", "marketStructure", "mtfAncestry"].sort());
     // What serving still carried at FAR on 2026-09-25 (TSLA 15m, 755 bars) is silent.
     for (const k of [
       "scaffolding", "exhaustion", "debtTag", "valueCandle", "weather", "liquidityLifecycle",

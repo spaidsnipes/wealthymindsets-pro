@@ -515,6 +515,7 @@ import type {
 } from "@/lib/marketData/canonicalBar";
 import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
 import { marketClockReceipt, noteSeries, notePaint, resetMarketClock } from "@/lib/chart/marketClockProbe";
+import { QUIET_CEILING } from "@/lib/marketData/viewModels/selectSemanticPermission";
 import { renderStormPixels, stormSeed, LENS_BEZEL_W, STORM_BODY_MAX_ALPHA, STORM_DRIFT_PER_SEC, STORM_TEXTURE_SIZE } from "@/lib/chart/weatherStorm";
 import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
 import type { WaitStandingVM } from "@/lib/marketData/viewModels/selectWaitStanding";
@@ -9401,7 +9402,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                          fading rim when it deteriorates (≤0.6×); it breathes
                          only in LIVE
          No prints (history, a closed market, a feed with no trades) → nothing
-         is drawn and the receipt says why. Silent at FAR (permission table). */
+         is drawn and the receipt says why. FAR is QUIET (permission table):
+         "semantic zoom changes the representation, not the visibility" — the
+         tempo aura stays, the per-level wick marks are withheld. */
       {
         const lbF = barsRef.current.length ? barsRef.current[barsRef.current.length - 1] : null;
         const xF = lbF ? chart.timeScale().timeToCoordinate(lbF.time as never) : null;
@@ -9423,8 +9426,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (y == null) continue;
             newestAt.set(Math.round(+y), q.t);
           }
+          // FAR (QUIET): the same candle, reduced form — tempo only, no wick marks.
+          const fcSpeaks = att.speaks("formingCandle");
           ctx.save();
-          for (const [y, t] of newestAt) {
+          if (!fcSpeaks) ctx.globalAlpha = QUIET_CEILING;
+          if (fcSpeaks) for (const [y, t] of newestAt) {
             const rec = t1 > t0 ? (t - t0) / (t1 - t0) : 1;
             ctx.fillStyle = `rgba(236,204,132,${(0.12 + 0.7 * rec).toFixed(3)})`;
             ctx.fillRect(x - w / 2 - 3, y, 2, 1);
@@ -9452,7 +9458,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
           }
           ctx.restore();
-          canvas.dataset.formingCandle = `PRINTS:${prints.length}|LEVELS:${newestAt.size}|TEMPO:${tempo.toFixed(2)}`;
+          canvas.dataset.formingCandle = `${fcSpeaks ? "" : "QUIET:"}PRINTS:${prints.length}|LEVELS:${newestAt.size}|TEMPO:${tempo.toFixed(2)}`;
         }
       }
 
@@ -9487,6 +9493,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (xx == null || yh == null || yl == null || +xx < -bsp || +xx > W) continue;
             rows.push({ x: +xx, yHigh: +yh, yLow: +yl, buy, sell });
           }
+          // FAR (QUIET): the same sided tape, coarser form — bars too thin for
+          // their own streaks pool into ~10px buckets (sums, never estimates).
+          const flowSpeaks = att.speaks("flowCurrent");
+          const k = flowSpeaks ? 1 : Math.max(1, Math.ceil(10 / Math.max(0.5, bsp)));
+          if (k > 1 && rows.length > 1) {
+            const pooled: typeof rows = [];
+            for (let i = 0; i < rows.length; i += k) {
+              const g = rows.slice(i, i + k);
+              pooled.push({
+                x: g.reduce((a, r) => a + r.x, 0) / g.length,
+                yHigh: Math.min(...g.map(r => r.yHigh)),
+                yLow: Math.max(...g.map(r => r.yLow)),
+                buy: g.reduce((a, r) => a + r.buy, 0),
+                sell: g.reduce((a, r) => a + r.sell, 0),
+              });
+            }
+            rows.splice(0, rows.length, ...pooled);
+          }
           if (rows.length === 0) {
             canvas.dataset.flowCurrent = "NO_SIDED_BARS_IN_VIEW";
           } else {
@@ -9495,6 +9519,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const tt = motionOnRef.current ? performance.now() / 1000 : 0;
             ctx.save();
             ctx.lineCap = "round";
+            if (!flowSpeaks) ctx.globalAlpha = QUIET_CEILING;
             for (const r of rows) {
               const total = r.buy + r.sell;
               const net = r.buy - r.sell;
@@ -9534,7 +9559,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
             }
             ctx.restore();
-            canvas.dataset.flowCurrent = `BARS:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}`;
+            canvas.dataset.flowCurrent = `${flowSpeaks ? "BARS" : `QUIET:POOLED${k}`}:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}`;
           }
         }
       }

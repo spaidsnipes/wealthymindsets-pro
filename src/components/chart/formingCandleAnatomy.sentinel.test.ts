@@ -13,10 +13,10 @@ const at = MC.indexOf("THE CANDLE PARTICIPATES — FORMING-CANDLE ANATOMY");
 const block = at > 0 ? MC.slice(at, MC.indexOf("CANDLE TIMER — countdown pinned", at)) : "";
 
 describe("forming-candle anatomy", () => {
-  it("exists and asks the permission table (silent at FAR, speaks at MID/NEAR)", () => {
+  it("exists and asks the permission table (QUIET tempo form at FAR, speaks at MID/NEAR)", () => {
     expect(block.length).toBeGreaterThan(0);
     expect(block).toContain('if (!att.paints("formingCandle")) {');
-    expect(permissionAt("formingCandle", "FAR")).toBe("SILENT");
+    expect(permissionAt("formingCandle", "FAR")).toBe("QUIET");
     expect(permissionAt("formingCandle", "MID")).toBe("SPEAK");
   });
   it("reads only this bar's real prints; the ring is fed from recentTicks trades and reset per market", () => {

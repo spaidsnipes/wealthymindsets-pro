@@ -149,10 +149,12 @@ export const SEMANTIC_PERMISSION = {
   questionLens: [S, S, S],       // a question the trader asked is a selection of attention
   candleTimer: [S, S, S],
   // Five-hour order (2026-09-27): the forming candle's own anatomy (wick history
-  // + tempo). Silent at FAR (a regime view); MID and NEAR read the live bar.
-  formingCandle: [X, S, S],
-  // "Give Flow direction": the sided tape's current on each bar's close.
-  flowCurrent: [X, S, S],
+  // + tempo). "Semantic zoom changes the representation, not the visibility":
+  // FAR is QUIET — the tempo aura only; MID and NEAR read the whole live bar.
+  formingCandle: [Q, S, S],
+  // "Give Flow direction": the sided tape's current on each bar. FAR is QUIET —
+  // bars too thin for their own streaks pool into ~10px buckets.
+  flowCurrent: [Q, S, S],
 } as const satisfies Readonly<Record<string, PermissionRow>>;
 
 export type DepthLayer = keyof typeof SEMANTIC_PERMISSION;
