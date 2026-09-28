@@ -1057,6 +1057,11 @@ function snapTick(price: number, tick: number): number {
 }
 
 /* ── Props ──────────────────────────────────────────────── */
+/** One VP column's measured levels (computeProfileFromBars). */
+export interface VpLevelTriple { readonly poc: number; readonly vah: number; readonly val: number }
+/** The VP columns drawn this frame — absent when not drawn (declined or off). */
+export interface VpDrawnLevels { readonly FIXED?: VpLevelTriple; readonly SESSION?: VpLevelTriple }
+
 interface Props {
   symbol:          string;
   timeframe:       string;
@@ -1390,6 +1395,8 @@ interface Props {
   onVisibleRangeRefusal?: (reason: string | null) => void;
   /** The Session VP column's decline (null when drawn or off), reported on change only. */
   onSessionVpRefusal?: (reason: VpDeclineReason | null) => void;
+  /** The drawn Fixed / Session VP levels, on change only — Profile Fusion fuses what the glass shows. */
+  onVpLevels?: (levels: VpDrawnLevels) => void;
   /** Scaffolding lens depth (Foundation → Intermediate → Pro) or OFF. */
   scaffoldingDepthOnChart?: ScaffoldingDepth | "OFF";
   /** The ONE structure owner's reading, for the scaffolding's bias + location steps and the FAR envelope's pivots. */
@@ -1766,6 +1773,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onProfileFusion,
   onVisibleRangeRefusal,
   onSessionVpRefusal,
+  onVpLevels,
   scaffoldingStructure = null,
   regimeLighting = null,
   regimeLightingOnChart = false,
@@ -2075,6 +2083,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const onSessionVpRefusalRef = useRef<typeof onSessionVpRefusal>(undefined);
   useEffect(() => { onSessionVpRefusalRef.current = onSessionVpRefusal; }, [onSessionVpRefusal]);
   const lastSessionVpRefusalRef = useRef<VpDeclineReason | null>(null);
+  const onVpLevelsRef = useRef<typeof onVpLevels>(undefined);
+  useEffect(() => { onVpLevelsRef.current = onVpLevels; }, [onVpLevels]);
+  const lastVpLevelsKeyRef = useRef<string>("");
   const fusionObjectRef = useRef<FusedProfileObject | null>(null);
   useEffect(() => { onExpectedEnvelopeRef.current = onExpectedEnvelope; }, [onExpectedEnvelope]);
   useEffect(() => { onMemoryGhostRef.current = onMemoryGhost; }, [onMemoryGhost]);
@@ -8562,6 +8573,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         reasons are compiled into a receipt by src/lib/vpRenderReceipt.ts and
         stamped onto the overlay canvas by runWMVP. §5 SYSTEM TRUTH LAW.
       */
+      // What each drawn VP column measured — reported up for Profile Fusion.
+      const vpLevelsOut: { FIXED?: VpLevelTriple; SESSION?: VpLevelTriple } = {};
       function drawWMVP(barsToUse: LegacyOhlcvTuple[], barColor: string, labelText: string, yOffset: number, colIndex = 0, nCols = 1, alphaScale = 1, span: "SESSION" | null = null): { declined: VpDeclineReason | null; rows: number; geometry?: VpColumnGeometry } {
         // `rows` is incremented at the one place a row is actually painted, so
         // the count is of pixels committed and not of buckets considered.
@@ -9111,6 +9124,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // already indicated by the highlighted toolbar toggle + its gear.)
         void labelText; void yOffset; void barColor;
         ctx.restore();
+        vpLevelsOut[span === "SESSION" ? "SESSION" : "FIXED"] = { poc: snap.poc, vah: snap.vah, val: snap.val };
         return { declined: null, rows: rowsPainted, geometry };
       }
 
@@ -9208,6 +9222,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (sessionRefusal !== lastSessionVpRefusalRef.current) {
             lastSessionVpRefusalRef.current = sessionRefusal;
             onSessionVpRefusalRef.current?.(sessionRefusal);
+          }
+          const levelsKey = JSON.stringify(vpLevelsOut);
+          if (levelsKey !== lastVpLevelsKeyRef.current) {
+            lastVpLevelsKeyRef.current = levelsKey;
+            onVpLevelsRef.current?.({ ...vpLevelsOut });
           }
         }
         // Read from the ref rather than the captured local: this runs inside a

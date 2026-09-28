@@ -35,7 +35,12 @@ export const PROFILE_FUSION_VERSION = 1;
 export const FUSION_TOLERANCE_FRAC = 0.0008;
 export const MAX_FUSED_ZONES = 4;
 
-export type FusionSpecies = "LIVING" | "TPO" | "STRUCTURE" | "MEMORY";
+/**
+ * FIXED / SESSION (the WM VP columns) and COMPOSITE joined 2026-09-27: the
+ * glass drew three species while Fusion said "1 on (LIVING)" — a species the
+ * trader can SEE must be a species Fusion can hear.
+ */
+export type FusionSpecies = "LIVING" | "TPO" | "STRUCTURE" | "MEMORY" | "FIXED" | "SESSION" | "COMPOSITE";
 
 export interface FusionSourceLevel {
   readonly species: FusionSpecies;

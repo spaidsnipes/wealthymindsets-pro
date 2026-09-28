@@ -12,7 +12,7 @@ import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
 import { ChartToolbar } from "./ChartToolbar";
-import { MainChart } from "./MainChart";
+import { MainChart, type VpDrawnLevels } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
 import { IndicatorSettingsModal } from "./IndicatorSettingsModal";
 import { AssetClassSwitcher } from "./AssetClassSwitcher";
@@ -2265,6 +2265,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [visibleRangeRefusal, setVisibleRangeRefusal] = useState<string | null>(null);
   // Session VP's decline is decided in the paint (its column), so the canvas reports it too.
   const [sessionVpRefusal, setSessionVpRefusal] = useState<string | null>(null);
+  // The VP columns the paint actually drew, with their levels (MainChart reports on change).
+  const [vpDrawnLevels, setVpDrawnLevels] = useState<VpDrawnLevels>({});
   const profileSpeciesRefusalVM = React.useMemo(
     () => profileSpeciesRefusals({
       composite: compositeProfileVM, tpo: tpoProfileVM, structure: structureProfileVM, memory: profileMemoryVM,
@@ -2302,8 +2304,22 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (profileMemoryOn && profileMemoryVM.drawn) {
       for (const l of profileMemoryVM.levels) push("MEMORY", `S-${l.sessionsAgo} ${l.kind}`, l.price);
     }
+    if (compositeProfileOn && compositeProfileVM.drawn) {
+      push("COMPOSITE", "POC", compositeProfileVM.poc);
+      push("COMPOSITE", "VAH", compositeProfileVM.vah);
+      push("COMPOSITE", "VAL", compositeProfileVM.val);
+    }
+    // Only columns the paint DREW this frame are present (declined/off → absent).
+    for (const sp of ["FIXED", "SESSION"] as const) {
+      const l = vpDrawnLevels[sp];
+      if (!l) continue;
+      // Bar-built columns are candle-estimated — the glass says "POC EST", so does the provenance.
+      push(sp, "POC EST", l.poc);
+      push(sp, "VAH EST", l.vah);
+      push(sp, "VAL EST", l.val);
+    }
     return selectProfileFusion(levels);
-  }, [livingProfileOn, livingProfileGlass, tpoProfileOn, tpoProfileVM, structureProfileOn, structureProfileVM, profileMemoryOn, profileMemoryVM]);
+  }, [livingProfileOn, livingProfileGlass, tpoProfileOn, tpoProfileVM, structureProfileOn, structureProfileVM, profileMemoryOn, profileMemoryVM, compositeProfileOn, compositeProfileVM, vpDrawnLevels]);
 
   const auctionStateVM = React.useMemo(
     () => chartCanvasState
@@ -6168,6 +6184,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       onProfileFusion={onProfileFusion}
                       onVisibleRangeRefusal={setVisibleRangeRefusal}
                       onSessionVpRefusal={setSessionVpRefusal}
+                      onVpLevels={setVpDrawnLevels}
                       scaffoldingStructure={chartStructureVM}
                       /*
                         The trader's four switches, carried SEPARATELY from the

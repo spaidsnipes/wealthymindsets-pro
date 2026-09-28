@@ -51,3 +51,16 @@ describe("fused zones", () => {
     expect(selectProfileFusion([...a].reverse())).toEqual(selectProfileFusion(a));
   });
 });
+
+describe("Fusion hears every species the glass draws (2026-09-27)", () => {
+  it("Session VP + Fixed VP agreeing at one price is a fused zone", () => {
+    const v = selectProfileFusion([
+      { species: "SESSION", kind: "POC EST", price: 84735 },
+      { species: "FIXED", kind: "POC EST", price: 84740 },
+      { species: "LIVING", kind: "VAL", price: 83900 },
+    ]);
+    expect(v.speciesOffered).toEqual(["FIXED", "LIVING", "SESSION"]);
+    expect(v.drawn).toBe(true);
+    expect(v.zones[0].provenance).toContain("SESSION POC EST");
+  });
+});
