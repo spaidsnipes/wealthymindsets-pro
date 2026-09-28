@@ -287,7 +287,7 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     fallbackSemantics: "EXPLICIT",
     rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     attributionRequired: true,
-    evidence: "src/app/api/market-data/deribit/options/route.ts + marketData/deribitOptions.ts; consumed by ChartsDashboard.tsx (Derivatives Pressure)",
+    evidence: "ChartsDashboard.tsx reads Deribit's public API from the browser (CORS allows the origin; Cloudflare egress is throttled 429) and normalizes with marketData/deribitOptions.ts; src/app/api/market-data/deribit/options/route.ts is the fallback",
   }),
   capability({
     providerPath: "moomoo-opend-bridge",

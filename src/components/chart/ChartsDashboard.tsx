@@ -315,7 +315,7 @@ import { BREATH_SAMPLE, selectClarityAnatomy } from "@/lib/marketData/viewModels
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import { cboeSymbolFor, type CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
-import { deribitCurrencyFor } from "@/lib/marketData/deribitOptions";
+import { deribitCurrencyFor, dvolFrom, normalizeDeribitOptions } from "@/lib/marketData/deribitOptions";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { selectLiquidityWeatherFromBars } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { selectDerivativesPressure, WALL_TEST_WINDOW_DAYS, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
@@ -2408,7 +2408,32 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       return;
     }
     let alive = true;
+    // Deribit throttles Cloudflare's shared egress (measured on serving
+    // 2026-09-27: the worker route answered 429 four of four; the browser's
+    // own IP 200). Its public API allows this origin (CORS), so the chart reads
+    // it directly and normalizes with the SAME pure normalizer; the worker
+    // route stays the fallback.
+    const loadDeribitDirect = async (cur: "BTC" | "ETH") => {
+      const base = "https://www.deribit.com/api/v2/public";
+      const now = Date.now();
+      const [book, vol] = await Promise.all([
+        fetch(`${base}/get_book_summary_by_currency?currency=${cur}&kind=option`, { cache: "no-store" }),
+        fetch(`${base}/get_volatility_index_data?currency=${cur}&start_timestamp=${now - 3 * 3_600_000}&end_timestamp=${now}&resolution=3600`, { cache: "no-store" }).catch(() => null),
+      ]);
+      if (!book.ok) throw new Error(`HTTP ${book.status}`);
+      const dvol = vol && vol.ok ? dvolFrom(await vol.json().catch(() => null)) : null;
+      return normalizeDeribitOptions(await book.json(), cur, 60, now, dvol);
+    };
     const load = () => {
+      if (deribit) {
+        loadDeribitDirect(deribit)
+          .then(receipt => { if (alive) setDerivativesReceipt({ symbol, receipt, edge: null }); })
+          .catch(() => { if (alive) loadRoute(); });
+        return;
+      }
+      loadRoute();
+    };
+    const loadRoute = () => {
       fetch(route, { cache: "no-store" })
         .then(async r => {
           const j = await r.json().catch(() => null);
