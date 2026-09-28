@@ -9436,6 +9436,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillRect(x - w / 2 - 3, y, 2, 1);
             ctx.fillRect(x + w / 2 + 1, y, 2, 1);
           }
+          // ONE EVENT, MANY SENSES: a print the big-trade judge qualifies
+          // (getRealBigTradeLevels — the same judge the Big Trades discs ask)
+          // also registers ON the forming candle, at its exact price, in its
+          // side's ink — whether or not the Big Trades layer is switched on.
+          const bigHere = getRealBigTradeLevels(lbF as LegacyOhlcvTuple).slice(0, 3);
+          const inksB = flowColorsRef.current;
+          for (const lv of bigHere) {
+            const yb = srs.priceToCoordinate(lv.priceLevel);
+            if (yb == null) continue;
+            const buy = lv.ask >= lv.bid;
+            const rgbB = buy ? inksB.btBuy : inksB.btSell;
+            ctx.fillStyle = `rgba(${rgbB},0.95)`;
+            ctx.fillRect(x - w / 2 - 5, +yb - 1, w + 10, 2);
+            ctx.strokeStyle = `rgba(${rgbB},0.7)`;
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.arc(x + w / 2 + 8, +yb, 3, 0, Math.PI * 2); ctx.stroke();
+          }
           const recent = prints.filter(q => q.t >= t1 - 3000).length / 3;
           const base = prints.length / Math.max(3, (t1 - barStartMs) / 1000);
           const tempo = base > 0 ? recent / base : 1;
@@ -9458,7 +9475,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
           }
           ctx.restore();
-          canvas.dataset.formingCandle = `${fcSpeaks ? "" : "QUIET:"}PRINTS:${prints.length}|LEVELS:${newestAt.size}|TEMPO:${tempo.toFixed(2)}`;
+          canvas.dataset.formingCandle = `${fcSpeaks ? "" : "QUIET:"}PRINTS:${prints.length}|LEVELS:${newestAt.size}|TEMPO:${tempo.toFixed(2)}|BIG:${bigHere.length}`;
         }
       }
 

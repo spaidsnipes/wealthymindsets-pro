@@ -30,3 +30,11 @@ describe("forming-candle anatomy", () => {
     expect(block).toContain("canvas.dataset.formingCandle = `NO_PRINTS:${prints.length}`;");
   });
 });
+
+describe("one event, many senses — a big print registers on the forming candle", () => {
+  it("asks the SAME big-trade judge the discs ask (no second threshold) and reports BIG:n", () => {
+    expect(block).toContain("getRealBigTradeLevels(lbF");
+    expect(block).toContain("|BIG:${bigHere.length}");
+    expect(block).not.toMatch(/bigThreshold|BIG_PRINT_MIN|sizeThreshold/);
+  });
+});
