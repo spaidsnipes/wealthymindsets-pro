@@ -12506,61 +12506,105 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           for (const b of pick) {
             const gold = b.kind === "ABSORB";
             const rgb = gold ? "240,192,96" : "226,92,92";
-            const spot = placeClearOfKeepOut({ x: b.x, y: b.y - 26, w: 34, h: 52 }, keepOut(), {
+            // G06 scale: a figure you can read at a glance, not a stick glyph.
+            const FW = 52, FH = 84;
+            const spot = placeClearOfKeepOut({ x: b.x, y: b.y - FH / 2, w: FW, h: FH }, keepOut(), {
               minX: keepOutMinX(), blockers: floatingChips, strict: true,
-              alternates: [{ x: b.x, y: b.y - 60, w: 34, h: 52 }, { x: b.x, y: b.y + 8, w: 34, h: 52 }],
+              alternates: [{ x: b.x, y: b.y - FH - 8, w: FW, h: FH }, { x: b.x, y: b.y + 8, w: FW, h: FH }, { x: b.x - FW - 24, y: b.y - FH / 2, w: FW, h: FH }],
             });
             if (spot.mode === "BLOCKED") continue;
-            const cx = spot.rect.x + 17, cy = spot.rect.y + 26;
+            const cx = spot.rect.x + FW / 2, top = spot.rect.y + 4;
+            const u = FH / 84; // body unit
+            const coreY = top + 30 * u;
             floatingChips.push({ ...spot.rect });
             ctx.save();
             if (mode === "FUSION") {
-              ctx.strokeStyle = `rgba(${rgb},0.55)`;
+              ctx.strokeStyle = `rgba(${rgb},0.6)`;
               ctx.setLineDash([2, 3]);
-              ctx.lineWidth = 1;
-              ctx.beginPath(); ctx.moveTo(cx, cy - 8); ctx.lineTo(b.ex, b.ey); ctx.stroke();
+              ctx.lineWidth = 1.2;
+              ctx.beginPath(); ctx.moveTo(cx, coreY); ctx.lineTo(b.ex, b.ey); ctx.stroke();
               ctx.setLineDash([]);
-              ctx.fillStyle = `rgba(${rgb},0.9)`;
-              ctx.beginPath(); ctx.arc(b.ex, b.ey, 2.2, 0, Math.PI * 2); ctx.fill();
+              ctx.fillStyle = `rgba(${rgb},0.95)`;
+              ctx.beginPath(); ctx.arc(b.ex, b.ey, 2.6, 0, Math.PI * 2); ctx.fill();
             }
-            ctx.shadowColor = `rgba(${rgb},0.9)`;
-            ctx.shadowBlur = 8 * pulse;
-            ctx.strokeStyle = `rgba(${rgb},0.95)`;
-            ctx.lineWidth = 2;
+            // Aura — the body's field (G06: power retained glows, leaked power fades).
+            const aura = ctx.createRadialGradient(cx, coreY, 2, cx, coreY, 40 * u);
+            aura.addColorStop(0, `rgba(${rgb},${(gold ? 0.34 : 0.22) * pulse})`);
+            aura.addColorStop(1, `rgba(${rgb},0)`);
+            ctx.fillStyle = aura;
+            ctx.fillRect(cx - 44 * u, coreY - 44 * u, 88 * u, 88 * u);
+            // Silhouette: head, neck, V-torso, thick limbs — filled, lit from the core.
+            const body = ctx.createLinearGradient(cx, top, cx, top + FH);
+            body.addColorStop(0, gold ? "rgba(255,226,150,0.95)" : "rgba(255,150,140,0.9)");
+            body.addColorStop(0.45, gold ? "rgba(214,160,60,0.9)" : "rgba(190,52,52,0.85)");
+            body.addColorStop(1, gold ? "rgba(120,82,24,0.85)" : "rgba(96,20,20,0.8)");
+            ctx.shadowColor = `rgba(${rgb},0.95)`;
+            ctx.shadowBlur = 10 * pulse;
+            ctx.fillStyle = body;
+            ctx.strokeStyle = body;
             ctx.lineCap = "round";
-            // The figure: head, torso, arms, legs (G06 silhouette).
-            ctx.beginPath(); ctx.arc(cx, cy - 19, 3.6, 0, Math.PI * 2); ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(cx - 7, cy - 12); ctx.lineTo(cx + 7, cy - 12);          // shoulders
-            ctx.moveTo(cx, cy - 15); ctx.lineTo(cx, cy + 3);                   // spine
-            ctx.moveTo(cx - 5, cy + 3); ctx.lineTo(cx + 5, cy + 3);            // hips
-            if (gold) {                                                        // arms braced, fists in
-              ctx.moveTo(cx - 7, cy - 12); ctx.lineTo(cx - 10, cy - 3); ctx.lineTo(cx - 3, cy - 5);
-              ctx.moveTo(cx + 7, cy - 12); ctx.lineTo(cx + 10, cy - 3); ctx.lineTo(cx + 3, cy - 5);
-              ctx.moveTo(cx - 5, cy + 3); ctx.lineTo(cx - 7, cy + 19);         // planted stance
-              ctx.moveTo(cx + 5, cy + 3); ctx.lineTo(cx + 7, cy + 19);
-            } else {                                                           // arms dropped, knees giving
-              ctx.moveTo(cx - 7, cy - 12); ctx.lineTo(cx - 11, cy + 2); ctx.lineTo(cx - 12, cy + 7);
-              ctx.moveTo(cx + 7, cy - 12); ctx.lineTo(cx + 11, cy + 2); ctx.lineTo(cx + 12, cy + 7);
-              ctx.moveTo(cx - 5, cy + 3); ctx.lineTo(cx - 3, cy + 11); ctx.lineTo(cx - 6, cy + 19);
-              ctx.moveTo(cx + 5, cy + 3); ctx.lineTo(cx + 3, cy + 11); ctx.lineTo(cx + 6, cy + 19);
-            }
-            ctx.stroke();
-            // The core, and energy: converging (retained) or leaking (spent).
-            ctx.shadowBlur = 12 * pulse;
-            ctx.fillStyle = `rgba(${gold ? "255,226,150" : "255,140,140"},${(gold ? 0.95 : 0.45) * pulse})`;
-            ctx.beginPath(); ctx.arc(cx, cy - 8, gold ? 2.6 : 1.8, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.lineWidth = 1;
-            for (let k = 0; k < 8; k++) {
-              const a = (k / 8) * Math.PI * 2 + 0.2;
-              const r0 = gold ? 17 : 9, r1 = gold ? 10 : 16 + 3 * (1 - pulse);
-              ctx.strokeStyle = `rgba(${rgb},${gold ? 0.7 : 0.45})`;
-              ctx.beginPath();
-              ctx.moveTo(cx + Math.cos(a) * r0, cy - 8 + Math.sin(a) * r0);
-              ctx.lineTo(cx + Math.cos(a) * r1, cy - 8 + Math.sin(a) * r1);
+            ctx.lineJoin = "round";
+            ctx.beginPath(); ctx.arc(cx, top + 7 * u, 6 * u, 0, Math.PI * 2); ctx.fill();          // head
+            ctx.beginPath();                                                                   // torso (V)
+            ctx.moveTo(cx - 13 * u, top + 17 * u); ctx.lineTo(cx + 13 * u, top + 17 * u);
+            ctx.lineTo(cx + 7 * u, top + 44 * u); ctx.lineTo(cx - 7 * u, top + 44 * u); ctx.closePath(); ctx.fill();
+            const limb = (w: number, pts: number[][]) => {
+              ctx.lineWidth = w * u;
+              ctx.beginPath(); ctx.moveTo(cx + pts[0][0] * u, top + pts[0][1] * u);
+              for (const q of pts.slice(1)) ctx.lineTo(cx + q[0] * u, top + q[1] * u);
               ctx.stroke();
+            };
+            if (gold) {
+              // Planted, braced: arms flexed in to the core, legs set wide.
+              limb(5.5, [[-12, 19], [-19, 33], [-8, 34]]);
+              limb(5.5, [[12, 19], [19, 33], [8, 34]]);
+              limb(6.5, [[-5, 44], [-11, 63], [-13, 80]]);
+              limb(6.5, [[5, 44], [11, 63], [13, 80]]);
+            } else {
+              // Spent: arms hanging out, knees buckling, weight falling.
+              limb(5, [[-12, 19], [-20, 38], [-23, 50]]);
+              limb(5, [[12, 19], [20, 38], [23, 50]]);
+              limb(6, [[-5, 44], [-4, 62], [-10, 80]]);
+              limb(6, [[5, 44], [4, 62], [10, 80]]);
             }
+            ctx.shadowBlur = 0;
+            // Energy veins from the core out along the body (the G06 wiring).
+            ctx.lineWidth = 0.9;
+            ctx.strokeStyle = gold ? "rgba(255,240,190,0.85)" : "rgba(255,170,160,0.55)";
+            for (const v of [[-17, 32], [17, 32], [-11, 72], [11, 72], [0, 4]]) {
+              ctx.beginPath(); ctx.moveTo(cx, coreY); ctx.quadraticCurveTo(cx + v[0] * u * 0.4, coreY + (top + v[1] * u - coreY) * 0.5 - 4 * u, cx + v[0] * u, top + v[1] * u); ctx.stroke();
+            }
+            // The core: bright and whole (retained) or dim and flickering (leaked).
+            ctx.shadowColor = `rgba(${rgb},1)`;
+            ctx.shadowBlur = 14 * pulse;
+            ctx.fillStyle = gold ? `rgba(255,236,170,${0.98 * pulse})` : `rgba(255,120,110,${0.5 * pulse})`;
+            ctx.beginPath(); ctx.arc(cx, coreY, (gold ? 3.6 : 2.4) * u, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+            // The field: converging arrows (energy compounded) / sparks drifting off (energy wasted).
+            for (let k = 0; k < 10; k++) {
+              const ang = (k / 10) * Math.PI * 2 + 0.15;
+              if (gold) {
+                const r0 = 34 * u, r1 = 24 * u;
+                ctx.strokeStyle = `rgba(${rgb},0.6)`;
+                ctx.lineWidth = 1;
+                const x0 = cx + Math.cos(ang) * r0, y0 = coreY + Math.sin(ang) * r0;
+                const x1 = cx + Math.cos(ang) * r1, y1 = coreY + Math.sin(ang) * r1;
+                ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+                ctx.fillStyle = `rgba(${rgb},0.8)`;
+                ctx.beginPath(); ctx.arc(x1, y1, 1.1, 0, Math.PI * 2); ctx.fill();
+              } else {
+                const drift = motionOnRef.current ? ((performance.now() / 1400 + k * 0.13) % 1) : 0.5;
+                const r = (18 + 22 * drift) * u;
+                ctx.fillStyle = `rgba(${rgb},${0.7 * (1 - drift)})`;
+                ctx.beginPath(); ctx.arc(cx + Math.cos(ang) * r, coreY + Math.sin(ang) * r, 1.4, 0, Math.PI * 2); ctx.fill();
+              }
+            }
+            // The plate's own words, small, under the feet.
+            ctx.font = "700 8px ui-sans-serif, system-ui, sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillStyle = gold ? "rgba(240,200,110,0.95)" : "rgba(230,110,110,0.95)";
+            ctx.fillText(gold ? "ABSORBING · POWER RETAINED" : "EXHAUSTING · POWER LEAKED", cx, top + FH + 6);
+            ctx.textAlign = "left";
             ctx.restore();
             drawnBodies++;
           }
