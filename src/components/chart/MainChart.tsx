@@ -14327,6 +14327,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // Where the cracks run (their x), so the bricks they cross chip.
                 const crackCount = broken ? 0 : Math.min(6, w.tests);
                 const crackXs = Array.from({ length: crackCount }, (_, i) => x0 + len * (0.14 + 0.7 * hash(99, i)));
+                // A level chip already on the glass (a VP's name + price) keeps
+                // its face: the masonry is clipped around it, never painted over
+                // it (serving BTC: the 85,000 wall buried a VAH EST chip).
+                const chipsUnder = floatingChips.filter(c => c.x < x1 && c.x + c.w > x0 && c.y < top + wallH && c.y + c.h > top);
+                ctx.save();
+                if (chipsUnder.length) {
+                  ctx.beginPath();
+                  ctx.rect(0, 0, W, paneBotD + 40);
+                  for (const c of chipsUnder) ctx.rect(c.x - 1, c.y - 1, c.w + 2, c.h + 2);
+                  ctx.clip("evenodd");
+                }
                 if (!broken) {
                   // The body's back face and cast shadow — the wall stands IN the field.
                   const sh = ctx.createLinearGradient(0, top + wallH, 0, top + wallH + 14);
@@ -14520,6 +14531,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     painted.push(`CONTACT@${w.strike}:${state}:${prox.toFixed(2)}`);
                   }
                 }
+                ctx.restore();
                 masonryRects.push({ x: x0, y: top - 2, w: len + 2, h: wallH + 4 });
                 if (dpSpeaks) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${w.life}${w.tests ? ` ×${w.tests}` : ""}`, x: x0, y: top + wallH / 2 });
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
