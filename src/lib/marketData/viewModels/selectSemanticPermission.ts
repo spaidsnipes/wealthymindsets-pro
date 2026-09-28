@@ -151,6 +151,8 @@ export const SEMANTIC_PERMISSION = {
   // Five-hour order (2026-09-27): the forming candle's own anatomy (wick history
   // + tempo). Silent at FAR (a regime view); MID and NEAR read the live bar.
   formingCandle: [X, S, S],
+  // "Give Flow direction": the sided tape's current on each bar's close.
+  flowCurrent: [X, S, S],
 } as const satisfies Readonly<Record<string, PermissionRow>>;
 
 export type DepthLayer = keyof typeof SEMANTIC_PERMISSION;

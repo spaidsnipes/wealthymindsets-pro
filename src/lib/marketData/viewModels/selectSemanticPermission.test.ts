@@ -27,10 +27,10 @@ describe("semantic permission — one table, every painting layer", () => {
       expect(k in SEMANTIC_PERMISSION, `${k} paints with no permission row`).toBe(true);
     }
     // And the painting blocks the governor does not tier.
-    for (const k of ["candles", "farEnvelope", "dataGaps", "microDelta", "nearGeometry", "forceResponse", "tapeHorizon", "volumeProfile", "debtTag", "candleTimer", "formingCandle"]) {
+    for (const k of ["candles", "farEnvelope", "dataGaps", "microDelta", "nearGeometry", "forceResponse", "tapeHorizon", "volumeProfile", "debtTag", "candleTimer", "formingCandle", "flowCurrent"]) {
       expect(k in SEMANTIC_PERMISSION, k).toBe(true);
     }
-    expect(DEPTH_LAYERS.length).toBe(Object.keys(LAYER_ATTENTION).length + 11);
+    expect(DEPTH_LAYERS.length).toBe(Object.keys(LAYER_ATTENTION).length + 12);
   });
 
   it("FAR is the plate's left panel: DIM CANDLES · REGIME ENVELOPE · MAJOR STRUCTURE ONLY", () => {

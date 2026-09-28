@@ -9437,6 +9437,76 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
       }
 
+      /* ══ FLOW CURRENT — "Give Flow direction" (five-hour order) ══════════════
+         Order flow LIVES ON PRICE (F06A). Every bar that holds real SIDED prints
+         (tickAccRef: per bar, per price, aggressor bid/ask) carries a current:
+           direction  net aggression — buying runs UP from the close, selling
+                      presses DOWN
+           density    streak count ∝ the bar's sided volume vs the view's peak
+           length     how one-sided it was (|net| / total)
+           ink        the Appearance order-flow inks (big-trade buy / sell)
+         It drifts along its direction in LIVE and holds in STILL. Bars with no
+         sided prints carry nothing — never inferred from candle colour. */
+      {
+        const accF = tickAccRef.current;
+        if (!att.paints("flowCurrent")) {
+          canvas.dataset.flowCurrent = att.offWord(true);
+        } else if (!srs || accF.size === 0) {
+          canvas.dataset.flowCurrent = "NO_SIDED_TAPE";
+        } else {
+          const tsF = chart.timeScale();
+          const rows: { x: number; y: number; buy: number; sell: number }[] = [];
+          for (const b of barsRef.current.slice(-400)) {
+            const lv = accF.get(Number(b.time));
+            if (!lv) continue;
+            let buy = 0, sell = 0;
+            for (const v of lv.values()) { buy += v.ask; sell += v.bid; }
+            if (buy + sell <= 0) continue;
+            const xx = tsF.timeToCoordinate(b.time as never);
+            const yy = srs.priceToCoordinate(Number(b.close));
+            if (xx == null || yy == null || +xx < -bsp || +xx > W) continue;
+            rows.push({ x: +xx, y: +yy, buy, sell });
+          }
+          if (rows.length === 0) {
+            canvas.dataset.flowCurrent = "NO_SIDED_BARS_IN_VIEW";
+          } else {
+            const peak = Math.max(...rows.map(r => r.buy + r.sell));
+            const inks = flowColorsRef.current;
+            const tt = motionOnRef.current ? performance.now() / 1000 : 0;
+            ctx.save();
+            ctx.lineCap = "round";
+            for (const r of rows) {
+              const total = r.buy + r.sell;
+              const net = r.buy - r.sell;
+              const up = net >= 0;
+              const onesided = Math.abs(net) / total;
+              const n = Math.max(1, Math.round(1 + 5 * Math.sqrt(total / peak)));
+              const len = 8 + 30 * onesided;
+              const rgb = up ? inks.btBuy : inks.btSell;
+              for (let k = 0; k < n; k++) {
+                const off = ((k + 0.5) / n - 0.5) * Math.max(3, bsp * 0.9);
+                // Drift along the current's own direction (LIVE); phase per streak.
+                const ph = ((tt * 0.8 + k * 0.37 + r.x * 0.013) % 1);
+                const y0 = r.y + (up ? -1 : 1) * (4 + ph * 10);
+                const y1 = y0 + (up ? -1 : 1) * len;
+                // Solid body + brighter head (a gradient per streak cost ~1k/frame).
+                const a = 0.2 + 0.45 * onesided;
+                ctx.strokeStyle = `rgba(${rgb},${a.toFixed(3)})`;
+                ctx.lineWidth = 1.1;
+                ctx.beginPath();
+                ctx.moveTo(r.x + off, y0);
+                ctx.lineTo(r.x + off, y1);
+                ctx.stroke();
+                ctx.fillStyle = `rgba(${rgb},${Math.min(1, a + 0.35).toFixed(3)})`;
+                ctx.fillRect(r.x + off - 1, y1 - 1, 2, 2);
+              }
+            }
+            ctx.restore();
+            canvas.dataset.flowCurrent = `BARS:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}`;
+          }
+        }
+      }
+
       /* ══════════════════════════════════════════════════════
          CANDLE TIMER — countdown pinned to the LIVE PRICE LINE
          on the left edge, so it travels vertically with price.
