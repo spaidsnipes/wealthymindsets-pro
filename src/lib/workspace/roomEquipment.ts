@@ -818,7 +818,7 @@ const EQUIPMENT_BY_ROOM: Readonly<Record<string, readonly RoomEquipment[]>> = {
     {
       id: "arrange-regime",
       label: arrangementCameraLabel("REGIME"),
-      hint: "Both volume profiles — where price has been accepted",
+      hint: "The environment — accepted value, the derivatives pressure world, structure, regime light",
       kind: "workspace",
       direct: true,
       momentary: true,
