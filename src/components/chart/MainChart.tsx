@@ -8552,6 +8552,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // already placed waits (its bridge is still on the glass).
           const rect = { x: mx - tw / 2, y: my - 12, w: tw, h: 13 };
           if (gapWordRects.some(r => rect.x < r.x + r.w && rect.x + rect.w > r.x && rect.y < r.y + r.h && rect.y + rect.h > r.y)) { wordsWithheld++; continue; }
+          // Candles stay clean: a chip on a body or wick waits (serving TSLA
+          // 5m, 2026-09-28: a hole starting off camera clamped its words to
+          // the left edge, over a candle). The one candle cut-out decides.
+          if (profileCandleCut().rects.some(r => rect.x < r.x + r.w && rect.x + rect.w > r.x && rect.y < r.y + r.h && rect.y + rect.h > r.y)) { wordsWithheld++; continue; }
           gapWordRects.push(rect);
           ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(mx - tw / 2, my - 12, tw, 13);
           ctx.fillStyle = "rgba(237,230,211,0.9)"; ctx.fillText(t, mx, my);

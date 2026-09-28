@@ -28,3 +28,10 @@ describe("gap words never print inside the price legend's headroom", () => {
     expect(MC).toContain("if (my - 12 < BELOW_PRICE_LEGEND || my > H) { wordsWithheld++; continue; }");
   });
 });
+
+describe("gap words never print on a candle", () => {
+  it("a chip that would overlap the one candle cut-out waits", () => {
+    const gap = MC.slice(MC.indexOf("const gapWordRects:"), MC.indexOf("canvas.dataset.dataGapsWorded"));
+    expect(gap).toContain("if (profileCandleCut().rects.some(r => rect.x < r.x + r.w");
+  });
+});
