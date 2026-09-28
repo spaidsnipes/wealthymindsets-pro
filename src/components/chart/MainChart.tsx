@@ -516,6 +516,8 @@ import type {
 import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
 import { marketClockReceipt, noteSeries, notePaint, resetMarketClock } from "@/lib/chart/marketClockProbe";
 import { QUIET_CEILING } from "@/lib/marketData/viewModels/selectSemanticPermission";
+/** The forming candle's own print ring (bounded; a truncated ring is named in its receipt). */
+const FORMING_RING_CAP = 3000;
 import { positioningSourceWords } from "@/lib/marketData/cboeDelayedOptions";
 import { renderStormPixels, stormSeed, LENS_BEZEL_W, STORM_BODY_MAX_ALPHA, STORM_DRIFT_PER_SEC, STORM_TEXTURE_SIZE } from "@/lib/chart/weatherStorm";
 import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
@@ -4246,7 +4248,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       lastT = tk.time;
     }
     formingLastTRef.current = lastT;
-    if (ring.length > 800) ring.splice(0, ring.length - 800);
+    // 3,000 prints: a busy crypto 15m bar holds well over 800 (serving BTC hit the old cap).
+    if (ring.length > FORMING_RING_CAP) ring.splice(0, ring.length - FORMING_RING_CAP);
   }, [recentTicks]);
 
   /* ── BAR REPLAY CAMERA (M9 repair 2) ────────────────────────────────
@@ -9481,7 +9484,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
           }
           ctx.restore();
-          canvas.dataset.formingCandle = `${fcSpeaks ? "" : "QUIET:"}PRINTS:${prints.length}|LEVELS:${newestAt.size}|TEMPO:${tempo.toFixed(2)}|BIG:${bigHere.length}`;
+          const truncated = t0 > barStartMs + 1000 && formingPrintsRef.current.length >= FORMING_RING_CAP;
+          canvas.dataset.formingCandle = `${fcSpeaks ? "" : "QUIET:"}PRINTS:${prints.length}|LEVELS:${newestAt.size}|TEMPO:${tempo.toFixed(2)}|BIG:${bigHere.length}${truncated ? "|RING:TRUNCATED" : ""}`;
         }
       }
 
