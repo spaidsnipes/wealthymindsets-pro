@@ -123,7 +123,7 @@ Whichever path you pick, these four names go into Cloudflare (from `.env.example
 
 After Cloudflare install, in Supabase → **Authentication → URL Configuration**:
 - Add your new Cloudflare URL to **Site URL** and **Redirect URLs** (both the `.workers.dev` preview URL and your production domain).
-- Keep the old Vercel URLs in the Redirect URLs list until the Vercel prod is retired — that's the canon rollback path.
+- ~~Keep the old Vercel URLs…~~ **Retired 2026-08-24:** the Vercel account is cancelled; remove its URLs from Redirect URLs. Rollback is `wrangler rollback` (below). (G12, 2026-09-29)
 
 ---
 
@@ -140,10 +140,14 @@ Because your Registry doc has raw secret values in it, you should assume they ma
 
 ## Rollback plan (never skip)
 
-Per Hosting Runbook §Emergency Exit:
+**CURRENT (G12, 2026-09-29):** Vercel was retired 2026-08-24 and the account is cancelled — there is no Vercel fallback. Roll back on Cloudflare: `./node_modules/.bin/wrangler deployments list` → `./node_modules/.bin/wrangler rollback <deployment-id>`.
+
+<details><summary>Historical (pre-2026-08-24) cutover plan — not current authority</summary>
+
 - Keep the Vercel project — even paused — until Cloudflare passes a 24-hour observation window.
 - Don't cancel Vercel billing until: (a) Cloudflare deploy is stable, (b) domain cutover DNS has propagated globally, (c) auth callbacks in Supabase have been updated to include the new host.
 - If Cloudflare fails post-cutover: resume Vercel billing → DNS back to Vercel → you're back on the last-known-good build.
+</details>
 
 ---
 

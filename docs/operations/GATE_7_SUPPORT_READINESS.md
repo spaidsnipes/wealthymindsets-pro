@@ -1,3 +1,19 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This is a **point-in-time record**. It was true on its date and is preserved as
+> evidence of what was observed then. Do not take a current action, diagnosis,
+> release decision or task claim from it.
+>
+> **Current production is `https://wealthymindsetspro.com`** (Cloudflare Workers /
+> OpenNext). Any Vercel host, env or dashboard step below is a `GHOST_HOST` signal:
+> the Vercel host was retired 2026-08-24 and cannot serve this app.
+>
+> Demoted 2026-09-29 under Garden Gate G12 (RETIREMENT / COMPOST). See `README.md`.
+<!-- END:ath-historical-lineage -->
+
 # Bible §46 Gate 7 — Support Readiness Gap List (M26)
 
 **Bible §46 Gate 7.** **Adopted:** 2026-08-09. **Assessed against HEAD:** `a9ed05f`.

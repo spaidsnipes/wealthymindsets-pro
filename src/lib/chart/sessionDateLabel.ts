@@ -15,11 +15,12 @@
  *
  * PURE. DETERMINISTIC.
  */
+import { getTimeframe, isTFId, type TFId } from "@/lib/timeframes";
 
-const SESSION_TIMEFRAMES = new Set(["1D", "1W", "1M", "3M", "6M", "1Y", "3Y"]);
-
+/** Daily-or-longer, read from the ONE timeframe registry (no private list). */
 export function isSessionTimeframe(tf: string | null | undefined): boolean {
-  return typeof tf === "string" && SESSION_TIMEFRAMES.has(tf.trim());
+  if (typeof tf !== "string" || !isTFId(tf.trim())) return false;
+  return getTimeframe(tf.trim() as TFId).candleIntervalSec >= 86_400;
 }
 
 function isMidnightIn(sec: number, timeZone: string): boolean {

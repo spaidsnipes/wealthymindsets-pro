@@ -5,6 +5,7 @@
  */
 
 import { Resend } from "resend";
+import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
 import { acceptedEnvNames, resolveProviderEnv } from "@/lib/broker/resolveProviderEnv";
 
@@ -321,7 +322,8 @@ function featureList(items: { icon: string; title: string; desc: string }[]): st
 ───────────────────────────────────────────────────────────── */
 
 export function buildWelcomeEmail(firstName: string, email: string): { html: string; text: string } {
-  const dashboardUrl = `${APP_URL}/command-deck`;
+  // G12: the welcome CTA lands where every other entry lands (founderLanding).
+  const dashboardUrl = `${APP_URL}${FOUNDER_LANDING_ROUTE}`;
 
   const html = emailShell(`
     ${h2("Welcome to your Operating System")}

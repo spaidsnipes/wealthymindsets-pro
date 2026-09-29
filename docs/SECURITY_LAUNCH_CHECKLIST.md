@@ -34,12 +34,12 @@ create policy "delete own or mod" on lounge_posts for delete to authenticated
 - [ ] Dashboard → Auth → Providers → Email → enable "Leaked password protection" after confirming email+password is the only flow in use.
 
 ## 4. Launch-day env/dashboard items (owner: Dave)
-- [ ] Supabase Auth → URL Configuration: Site URL `https://wealthymindsets-pro.vercel.app`; Redirect URLs += `…/login?confirmed=1`, `…/reset-password` (+ any custom domain).
-- [ ] Vercel: `RESEND_FROM_EMAIL` = verified-domain sender; verify domain in Resend (SPF/DKIM/DMARC). Until then invited users receive NO email.
+- [ ] Supabase Auth → URL Configuration: Site URL `https://wealthymindsetspro.com` (Cloudflare Workers; the Vercel host was retired 2026-08-24 — corrected 2026-09-29, G12); Redirect URLs += `…/login?confirmed=1`, `…/reset-password` (+ any custom domain).
+- [ ] Cloudflare Worker secret (`wrangler secret put RESEND_FROM_EMAIL`) = verified-domain sender; verify domain in Resend (SPF/DKIM/DMARC). Until then invited users receive NO email.
 - [ ] Confirm Dreamboard's Vercel Production Supabase ref (identity audit gap).
-- [ ] Verify `JWT_SECRET` is set in Vercel prod env (auth falls back to a known dev secret otherwise — session forgery risk).
+- [ ] Verify `JWT_SECRET` is set as a Cloudflare Worker secret (auth falls back to a known dev secret otherwise — session forgery risk).
 
 ## 5. Rollback plan
 - Policies: `drop policy` new ones, recreate the previous permissive policy (recorded in Dashboard → Policies history / this file's git history).
-- App: `git revert` the lounge-auth wiring commit; Vercel instant rollback to prior deployment.
+- App: `git revert` the lounge-auth wiring commit; `wrangler deployments list` → `wrangler rollback <id>` to the prior deployment (Vercel is retired).
 - Kill switch: feature-flag lounge/radio writes off (render read-only) if abuse appears before policies land.

@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { useRouter } from "next/navigation";
 import { DREAMBOARD_URL } from "@/lib/canonicalUrl";
 
@@ -12,7 +13,7 @@ import { DREAMBOARD_URL } from "@/lib/canonicalUrl";
  * subtitle underneath, thin gold hairlines separating tiles, hover =
  * gold border intensification.
  *
- * WM PRO routes to /command-deck. MARKETPLACE routes to /shop — the
+ * WM PRO routes to the one landing (FOUNDER_LANDING_ROUTE, /charts — G12 2026-09-29; was /command-deck). MARKETPLACE routes to /shop — the
  * Marketplace-lite (branded apparel, accessories, books, lifestyle)
  * that already ships inside WM Pro. Other tiles open external URLs
  * when defined, otherwise render as 'coming soon' placeholders.
@@ -30,7 +31,7 @@ interface Realm {
 }
 
 const REALMS: readonly Realm[] = [
-  { key: "wm-pro",       label: "WM PRO",      tagline: "Trade · Track · Transform", href: "/command-deck", glyph: "◇", active: true },
+  { key: "wm-pro",       label: "WM PRO",      tagline: "Trade · Track · Transform", href: FOUNDER_LANDING_ROUTE, glyph: "◇", active: true },
   { key: "dreamboard",   label: "DREAMBOARD",  tagline: "Plan · Create · Manifest",   href: `${DREAMBOARD_URL}/`, external: true, glyph: "★" },
   { key: "powertribes",  label: "POWERTRIBES", tagline: "Lead · Build · Scale",        glyph: "✦" },
   { key: "marketplace",  label: "MARKETPLACE", tagline: "Merch · Books · Lifestyle",   href: "/shop", glyph: "◈" },

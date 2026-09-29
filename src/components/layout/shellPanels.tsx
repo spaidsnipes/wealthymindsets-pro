@@ -26,6 +26,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { CHART_TF_SHIPPED, normalizeTFId } from "@/lib/timeframes";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { BarChart2, Bell, Monitor, Search, Settings, Shield, Trash2, X } from "lucide-react";
@@ -434,7 +435,7 @@ export function SettingsPanel({
       if (typeof s.darkMode === "boolean") setDarkMode(s.darkMode);
       if (typeof s.soundOn === "boolean") setSoundOn(s.soundOn);
       if (typeof s.showPnl === "boolean") setShowPnl(s.showPnl);
-      if (s.defaultTF) setDefaultTF(s.defaultTF);
+      if (s.defaultTF) setDefaultTF(s.defaultTF === "last" || s.defaultTF === "none" ? s.defaultTF : (normalizeTFId(String(s.defaultTF)) ?? s.defaultTF));
       if (s.defSym) setDefSym(s.defSym);
       if (s.chartTheme) setChartTheme(s.chartTheme);
       if (s.fontSize) setFontSize(s.fontSize);
@@ -633,7 +634,8 @@ export function SettingsPanel({
                   className="min-h-11 rounded-lg border border-wm-border bg-wm-surface px-2 py-1 text-xs text-wm-text outline-none focus-visible:ring-2 focus-visible:ring-wm-gold">
                   <option value="last">Last Used</option>
                   <option value="none">None</option>
-                  {["1m","2m","5m","15m","30m","1h","D","W","M"].map(t => <option key={t} value={t}>{t}</option>)}
+                  {/* G12: the one timeframe registry — the retired "D"/"W"/"M" ids were written to storage from here. */}
+                  {CHART_TF_SHIPPED.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </Row>
               {/* Garden 16 §46 (2026-09-27): "Auto-save Journal", "Paper Trade

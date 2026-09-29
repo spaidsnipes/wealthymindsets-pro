@@ -1,3 +1,19 @@
+<!-- BEGIN:ath-historical-lineage -->
+> # ⛔ HISTORICAL LINEAGE — NOT CURRENT AUTHORITY
+>
+> **MEMORY MAY TEACH. ONLY CURRENT AUTHORITY MAY COMMAND.**
+>
+> This is a **point-in-time record**. It was true on its date and is preserved as
+> evidence of what was observed then. Do not take a current action, diagnosis,
+> release decision or task claim from it.
+>
+> **Current production is `https://wealthymindsetspro.com`** (Cloudflare Workers /
+> OpenNext). Any Vercel host, env or dashboard step below is a `GHOST_HOST` signal:
+> the Vercel host was retired 2026-08-24 and cannot serve this app.
+>
+> Demoted 2026-09-29 under Garden Gate G12 (RETIREMENT / COMPOST). See `README.md`.
+<!-- END:ath-historical-lineage -->
+
 # Phoenix / WealthyMindsets Pro — Production Audit
 
 **Date:** 2026-07-28 · **Auditor:** Forge · **Repo state:** `main` @ `938aeef`, 2 files uncommitted (see below) · **Status:** Phase 1 (local) complete. Phase 2 (live authenticated verification) blocked — see Access Blockers.

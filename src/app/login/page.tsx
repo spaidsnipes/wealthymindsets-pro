@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, Suspense } from "react";
+import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, TrendingUp, Zap, Shield, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -100,7 +101,7 @@ function LoginPage() {
     }).then(async response => {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Your email was verified, but the WOW World session could not be created.");
-      window.location.assign("/command-deck");
+      window.location.assign(FOUNDER_LANDING_ROUTE); // G12: the one landing owner, not the quarantined deck
     }).catch(error => {
       setError(error instanceof Error ? error.message : "Your verification could not be completed.");
       setSubmitting(false);
@@ -186,7 +187,7 @@ function LoginPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Your code could not be verified.");
-      window.location.assign("/command-deck");
+      window.location.assign(FOUNDER_LANDING_ROUTE); // G12: the one landing owner, not the quarantined deck
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Your code could not be verified.");
       setSubmitting(false);

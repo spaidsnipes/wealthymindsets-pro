@@ -21,6 +21,7 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
+import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import Link from "next/link";
@@ -181,8 +182,8 @@ export default function ReadinessPage() {
                 >
                   <Plug2 size={14} aria-hidden="true" /> Connect or review brokers
                 </button>
-                <Link href="/command-deck" className="rounded-full border border-[#f0b429]/25 bg-[#f0b429]/5 px-4 py-2 text-xs font-semibold text-[#f0b429] transition hover:border-[#f0b429]/50 hover:bg-[#f0b429]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0b429]">
-                  ← Command Deck
+                <Link href={FOUNDER_LANDING_ROUTE} className="rounded-full border border-[#f0b429]/25 bg-[#f0b429]/5 px-4 py-2 text-xs font-semibold text-[#f0b429] transition hover:border-[#f0b429]/50 hover:bg-[#f0b429]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f0b429]">
+                  ← Market
                 </Link>
               </div>
             </div>

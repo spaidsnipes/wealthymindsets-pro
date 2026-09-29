@@ -48,12 +48,13 @@ describe("email.ts — template builders (truth-lock)", () => {
       expect(text).toContain("Trader");
     });
 
-    it("includes the account email and the command-deck destination", () => {
+    it("includes the account email and the one landing destination (founderLanding)", () => {
       const { html, text } = buildWelcomeEmail("Dave", "dave@example.com");
       expect(html).toContain("dave@example.com");
       expect(text).toContain("dave@example.com");
-      expect(html).toContain("/command-deck");
-      expect(text).toContain("/command-deck");
+      expect(html).toContain("/charts");
+      expect(html).not.toContain("/command-deck");
+      expect(text).toContain("/charts");
     });
 
     it("carries the honesty covenant (never a beautiful lie)", () => {

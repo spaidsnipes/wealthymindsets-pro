@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -616,8 +617,8 @@ function VaultHeader() {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <Link
-          href="/command-deck"
-          aria-label="Back to Command Deck"
+          href={FOUNDER_LANDING_ROUTE}
+          aria-label="Back to the market"
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             color: WM.text.muted, fontSize: 11, letterSpacing: 0.2,
