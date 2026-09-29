@@ -3,7 +3,7 @@
 One live board. Status vocabulary: 🟢 PROVED · 🟡 REPAIR · ⚪ EXTERNAL / NOT EXERCISABLE.
 Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable greens carry the time they were observed.
 
-- **Board updated:** 2026-09-29T04:55Z (23:55 CDT) by ATHOS.
+- **Board updated:** 2026-09-29T06:45Z (01:45 CDT) by ATHOS — game-build shift appended (§3b).
 - **Serving:** `https://wealthymindsetspro.com` = `main` = `6988bd3`.
 - **Starting baseline (Founder receipt):** G0–G13 = 🟢 7 · 🟡 7 · 🔴 0.
 - **Shift commits:** `f8e018c4` G3/G4 · `2f97de6c` `c5da473` G6 · `8d940235` `9b17142d` `f5083951` G7 · `63928db4` `9198420` `d1a2f10` G12 · `2613950c` board.
@@ -71,6 +71,27 @@ Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable 
 | G-G12-05 | G12 | Link-only brokers cannot pass for wired | /readiness broker panel: "Not wired in WM Pro — opens Tradovate's own site; WM reads no data from it" (5 in view); wired API broker keeps "Verify … API account" | `9198420` |
 | G-G12-06 | G12 | One writer for `wm_settings` | lib/settings/appSettingsStore; serving Settings → Save: 1 announcement, 0 key drift (Founder settings restored byte-exact) | `d1a2f10` 01:04Z |
 | G-G12-03 | G12 | No live doc routes builders to Vercel | SECURITY_LAUNCH_CHECKLIST + CLOUDFLARE_DEPLOY_GUIDE corrected; 4 dated docs demoted with the historical-lineage marker; ops sentinels 88/88 | `63928db` |
+
+## 3b. Game-build reconstruction shift (2026-09-29 00:02–01:45 CDT) — START `29ebd3c7` → FINAL `34d6127`
+
+Status vocabulary: PROVED = seen on serving glass beside the Founder plate · BUILT = gate green + serving, not yet seen on glass. Only Sheriff says CLOSED.
+
+| Slice | Plate | Commits | Status | Evidence (serving) |
+|---|---|---|---|---|
+| Founder Anatomy bodies | G06 | `2bdac07` `2c74480` | PROVED | `FUSION\|EVENTS:1\|BODIES:1`; ABSORB figure standing over its ETH-USD 15m shelf ("ABSORBING · POWER RETAINED") |
+| Body stands on its event (smaller camera sizes) | G06 | `34d6127` | BUILT | at ETH 15m NEAR no candle-free room within 2.5 widths even at 72px — the far spot is kept by design there |
+| Weather lens: smoke body + glass sheen/seat | F08B | `f4b80e5` | PROVED | `weatherStorm LIVE\|12`, blue/gold smoke visible (was grey haze) |
+| Weather lens: column seams dissolved | F08B | `b0a7098` | PROVED | vertical stripes gone on ETH/BTC glass; 4.6 ms per rebuild |
+| Weather lens: polished brass rim | F08B/G03 | `e304102` | PROVED | rim lit upper-left, shadow lower-right |
+| Loupe handle | G03 | `772d76a` `ea6a3dc` | PROVED | `weatherLensHandle SE:123` / `SW:123` at the live edge; G03 plate pinned beside serving |
+| Storm billows | G03 | `c4e2b3c` | PROVED | curling smoke with dark lanes beside G03; hue stays measured |
+| Inspect collision: depth plate vs INSPECT chip | — | `92c8b91` | PROVED | `DECISION_ID wmd_g46niwqabmnv1u` fully legible above the chip (was smeared under it) |
+| Absorption shelf as laid courses | F06A | `6958158` | PROVED | ETH-USD 15m NEAR `absorptionRows 8R:NO_SIDE` — mortar + joints per bar; grey (no measured side) |
+| Wall casts onto the weather | (no wall plate) | `c4db78d` | BUILT | SPY 1h `WALL@785:BORN`; wall-over-lens frame not re-seen after deploy |
+| LIVE/STILL frozen frame | — | none | PROVED | STILL: storm phase held 0.580; only bar clock + live price pixels change |
+| Performance | — | — | PROVED | lens + handle + storm on camera: mean 4.1 ms, longest 8.9 ms, budget 33 ms MET, 0 over, 0 layer faults |
+
+Deltas remaining: F06A plate colour (red/green slabs) needs a measured side — grey is correct without one · stacked-imbalance slabs are sub-pixel on 1-cent tick markets (honest) · F08B storm hue depends on the measured tones (single tone when the tape is one-sided) · one unexplained NEAR→MID/173 camera reset seen once mid-pan in a throttled hidden tab (unverified; harness suspected) · G04/G10/Mockup_46/Mockup_132 are cards/composites/diagrams, not on-glass game builds — not reconstructed.
 
 ## 4. Known limits of this board
 
