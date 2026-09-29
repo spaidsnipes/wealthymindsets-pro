@@ -23,3 +23,14 @@ describe("dual anatomy", () => {
     expect(block).toContain("canvas.dataset.dualAnatomy");
   });
 });
+
+describe("the Founder body IS the G06 figure (2026-09-29 game-build order)", () => {
+  it("draws the plate's own figures, loaded once, never claimed before they load", async () => {
+    const { readFileSync, existsSync } = await import("node:fs");
+    const MC = readFileSync("src/components/chart/MainChart.tsx", "utf8");
+    expect(MC).toContain('const G06_BODY_SRC = { ABSORB: "/founder/anatomy/g06-absorb.png", EXHAUST: "/founder/anatomy/g06-exhaust.png" } as const;');
+    expect(MC).toContain("ctx.drawImage(sprite, spot.rect.x, spot.rect.y, FW, FH);");
+    expect(MC).toContain("if (!sprite) { ctx.restore(); continue; }");
+    for (const f of ["public/founder/anatomy/g06-absorb.png", "public/founder/anatomy/g06-exhaust.png"]) expect(existsSync(f)).toBe(true);
+  });
+});
