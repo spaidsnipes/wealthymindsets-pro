@@ -108,7 +108,10 @@ describe("(b) the chart places and draws — it decides nothing", () => {
     // Unconditional: a statement of its own, not the tail of an `if`.
     expect(block).toMatch(/\n[ \t]*canvas\.dataset\.debtTag = tagState;/);
     // Published OUTSIDE the try, so a thrown frame still says what it is.
-    expect(block.indexOf("canvas.dataset.debtTag = tagState;")).toBeGreaterThan(block.lastIndexOf("catch"));
+    // The G7 layer-isolation wrappers (`catch (err) { layerFault(...) }`) are
+    // the frame's, not the tag's own try; they are set aside before comparing.
+    const own = block.replace(/catch \(err\) \{ layerFault\("[A-Z0-9_]+", err\);/g, "");
+    expect(own.indexOf("canvas.dataset.debtTag = tagState;")).toBeGreaterThan(own.lastIndexOf("catch"));
   });
 
   it("paints after the claimed layers, not inside them", () => {

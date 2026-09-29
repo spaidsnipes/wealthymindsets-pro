@@ -19,7 +19,8 @@ import path from "node:path";
 const SRC = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
 
 function anatomyBlock(): string {
-  const i = SRC.indexOf("      if (absorptionAnatomyActive) {\n        try {");
+  // G7 (2026-09-29): the block may sit inside its layer-isolation wrapper (`try { if (…) {`).
+  const i = SRC.indexOf("if (absorptionAnatomyActive) {\n        try {");
   expect(i).toBeGreaterThan(-1);
   let d = 0;
   for (let k = SRC.indexOf("{", i); k < SRC.length; k++) {

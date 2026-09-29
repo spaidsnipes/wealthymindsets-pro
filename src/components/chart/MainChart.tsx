@@ -6348,6 +6348,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       if (setCanvasTextSilenced(ctx, proofNoLabelsRequested(window.location.search))) canvas.dataset.proof = "NOLABELS";
       else delete canvas.dataset.proof;
 
+      // G7 · EVERY LAYER IS ISOLATED AND NAMED (2026-09-29). A throw in one
+      // layer used to either escape the frame (killing every later layer) or
+      // vanish into a silent `catch {}`. Each top-level layer now reports its
+      // fault here; the frame publishes them as `layerFaults` and paints on.
+      const layerFaults: string[] = [];
+      const layerFault = (name: string, err: unknown) => {
+        layerFaults.push(`${name}: ${err instanceof Error ? err.message : String(err)}`.slice(0, 100));
+      };
       // G7: every frame starts from clean 2D state — a layer that threw after
       // save()/clip() can never leave its clip or save stack on the next frame.
       (ctx as CanvasRenderingContext2D & { reset?: () => void }).reset?.();
@@ -6658,7 +6666,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ?? deltaBubblesRef.current.find(b => b.spawnKey === selectedBubbleKey);
           attSelection = { kind: "BUBBLE", key: selectedBubbleKey, onCamera: bub != null && inPlot(bub.x, bub.y), inspecting };
         }
-      } catch { /* camera mid-transition: no focus this frame */ }
+      } catch (err) { layerFault("ATTENTION_FOCUS", err); /* camera mid-transition: no focus this frame */ }
       let att = selectAttentionGovernor({
         density: semanticDensity,
         questionQuiet: 1,
@@ -6773,7 +6781,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete canvas.dataset.farForm;
           delete canvas.dataset.semanticCandlesDim;
         }
-      } catch { /* camera mid-transition */ }
+      } catch (err) { layerFault("FAR_PICTURE", err); /* camera mid-transition */ }
 
       /* ═══════════════════════════════════════════════════════
          FOOTPRINT MODES — ON EACH CANDLE, AS THE CANON DRAWS THEM.
@@ -6902,7 +6910,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          • The bar's delta, when shown above the column, is halo text read
            from barTapeDelta — the NEAR volume-band row's own owner.
       ══════════════════════════════════════════════════════ */
-      if (effectiveFP === "bid-ask") {
+      try { if (effectiveFP === "bid-ask") {
         let cellText = 0, deltaText = 0;
         ctx.save();
         ctx.globalAlpha = att.alpha("footprint");
@@ -6976,7 +6984,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ctx.restore();
         canvas.dataset.fpCellText = String(cellText);
         canvas.dataset.fpDeltaText = String(deltaText);
-      }
+      } } catch (err) { layerFault("FP_BID_ASK", err); }
 
       /* ══════════════════════════════════════════════════════
          MODE 2: WM DELTA BUBBLES — the Founder-preserved Nectar trail.
@@ -6986,7 +6994,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          serving showed tiny rings sitting on a full cell grid). Separate
          from Big Trades; only in delta footprint mode.
       ══════════════════════════════════════════════════════ */
-      if (effectiveFP === "delta") {
+      try { if (effectiveFP === "delta") {
         const realTapeD = hasRealAggressorTape(tapeSourceRef.current ?? "");
         if (!realTapeD) {
           if (deltaBubblesRef.current.length) {
@@ -7187,7 +7195,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       } else if (deltaBubblesRef.current.length) {
         deltaBubblesRef.current = [];
         deltaBubbleSpawnRef.current = new Set();
-      }
+      } } catch (err) { layerFault("FP_DELTA", err); }
 
       /* ══════════════════════════════════════════════════════
          MODE 3: VOLUME PROFILE — a per-candle horizontal histogram.
@@ -7198,7 +7206,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          profile family's POC ink. Numbers only at NEAR, only where the
          row is tall enough and the number ends before the next column.
       ══════════════════════════════════════════════════════ */
-      if (effectiveFP === "volume-profile") {
+      try { if (effectiveFP === "volume-profile") {
         let rowNumbers = 0;
         const vpDepth = semanticDensity.depth;
         const vpNumbers = vpDepth === "NEAR";
@@ -7246,7 +7254,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         });
         ctx.restore();
         canvas.dataset.vpRowNumbers = vpNumbers ? String(rowNumbers) : "NOT_NEAR";
-      }
+      } } catch (err) { layerFault("FP_VOLUME_PROFILE", err); }
 
       /* ══════════════════════════════════════════════════════
          MODE 4: IMBALANCE — tint + edge marks.
@@ -7258,7 +7266,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          ≥ MIN_STACK_LEVELS adjacent rows leaning one way: a bracket on that
          edge and the run's weakest ratio, in formatImbalanceRatio's words.
       ══════════════════════════════════════════════════════ */
-      if (effectiveFP === "imbalance") {
+      try { if (effectiveFP === "imbalance") {
         let rowsTinted = 0, runsFound = 0, runWords = 0;
         const words: { word: string; buy: boolean; bx: number; yMid: number; yTop: number; yBot: number; cx: number }[] = [];
         ctx.save();
@@ -7335,7 +7343,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         canvas.dataset.imbalanceRows = String(rowsTinted);
         canvas.dataset.imbalanceRuns = String(runsFound);
         canvas.dataset.imbalanceRunWords = String(runWords);
-      }
+      } } catch (err) { layerFault("FP_IMBALANCE", err); }
 
       /* ══════════════════════════════════════════════════════
          MODE 5: AGG / PASSIVE PROXY — the Nectar trail.
@@ -7348,7 +7356,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          who defended (Garden 12). The zone's price is written inside.
          No pills, no 2×2 grid, no cells: aggressor rings on price.
       ══════════════════════════════════════════════════════ */
-      if (effectiveFP === "aggressive-passive") {
+      try { if (effectiveFP === "aggressive-passive") {
         const ringsAP: { x: number; y: number; side: "buy" | "sell"; volume: number; dashed: boolean; price: number; bar: number }[] = [];
         visibleBars.forEach(c => {
           const rawCx = chart.timeScale().timeToCoordinate(c.time as any);
@@ -7398,7 +7406,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         fpRings += apDrawn;
         canvas.dataset.aggPassiveRings = String(apDrawn);
         canvas.dataset.aggPassiveIntoExtreme = String(apInto);
-      }
+      } } catch (err) { layerFault("FP_AGG_PASSIVE", err); }
 
       /* ══════════════════════════════════════════════════════
          SHARED ORDER-FLOW LEGEND — REMOVED FROM THE CHART.
@@ -7422,7 +7430,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // Big Trades draws when it's the active exclusive mode OR when Simultaneous
       // Mode is on (bigTradesOverlay) — in the latter case the primary order-flow
       // block above has already drawn, and we paint the bubbles on top.
-      if (effectiveFP === "big-trades" || (bigTradesOverlay && att.paints("bigTrades"))) {
+      try { if (effectiveFP === "big-trades" || (bigTradesOverlay && att.paints("bigTrades"))) {
         // ── Pause / Refresh controls (toolbar gear dropdown) ──────────────
         // Refresh: wipe all bubbles + the per-bar dedupe set so the engine
         // re-detects and re-spawns from scratch this frame.
@@ -7924,7 +7932,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         for (const k of ["bigTradeBubbleIdentity", "bigTradeBubbleTop", "bigTradeBubbleOldest",
           "bigTradesDrawn", "bigTradeInscribed", "bigTradeQuieted", "responsePaths",
           "bigTradeCallout", "bigTradeCalloutSlot", "bigTradeAheadOfBars", "bigTradeClusters", "bigTradeOverlaps"] as const) delete canvas.dataset[k];
-      }
+      } } catch (err) { layerFault("BIG_TRADES", err); }
 
       // O-06 · THE FOOTPRINT RECEIPT, after every mode has painted (Big
       // Trades included — it used to publish before the bubbles and said
@@ -7932,7 +7940,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // and paint are three different states; the form says WHAT painted
       // (cells, histogram, tint, trail, bubbles), rows are counted only where
       // rows painted, rings only where rings did.
-      {
+      try {
         const dsFp = canvas.dataset;
         const fpBars = fpBarsPainted + fpTrailBars.size;
         if (effectiveFP === ("__off__" as FootprintType)) {
@@ -7961,7 +7969,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
         // Painted nothing → no claim about where the numbers stood.
         if (effectiveFP === ("__off__" as FootprintType) || fpBars === 0) delete dsFp.footprintBadges;
-      }
+      } catch (err) { layerFault("FOOTPRINT_RECEIPT", err); }
 
       /* ── CANON F13 · MICRO: PER-BAR DELTA ON THE SAME CAMERA ────────────
          At NEAR only (the zoom word's own count), each bar that holds CAPTURED
@@ -8076,7 +8084,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete canvas.dataset.nearBarDeltaBasis;
         }
         canvas.dataset.nearBarDelta = att.permission.paints("microDelta") ? String(printed) : `NOT_NEAR:${depthD}`;
-      } catch { /* camera mid-transition */ }
+      } catch (err) { layerFault("MICRO_DELTA", err); /* camera mid-transition */ }
 
       /* ── H-701 · FORCE → RESPONSE ON THE SELECTED PRINT (canon plate
          WM_A_H701_FORCE_RESPONSE). The selected object is the loudest thing
@@ -8231,7 +8239,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete canvas.dataset.printResponse;
           delete canvas.dataset.printEnvelope;
         }
-      } catch { /* camera mid-transition */ }
+      } catch (err) { layerFault("FORCE_RESPONSE", err); /* camera mid-transition */ }
 
       /* ── H-501 · NEAR SPEAKS IN GEOMETRY (canon plates H-501 NEAR "tape
          paths, candle components, local anchors"; H-701 "one candle — one
@@ -8501,7 +8509,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         } else {
           for (const k of NEAR_GLASS_RECEIPTS) delete canvas.dataset[k];
         }
-      } catch { /* camera mid-transition */ }
+      } catch (err) { layerFault("NEAR_GEOMETRY", err); /* camera mid-transition */ }
 
       /* ── FIDELITY · DATA GAPS ON THE GLASS (canon "Fidelity Five, Not A
          Rainbow"): where no bar arrived inside a session, the hole is bridged
@@ -8603,7 +8611,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         canvas.dataset.dataGapsWordsWithheld = String(wordsWithheld);
         // Which owner said two bars share a session (CONTINUOUS / BAR_IDENTITY / MARKET_CLOCK).
         canvas.dataset.dataGapsSession = dg.sessionSource ?? "NONE";
-      } catch { /* camera mid-transition */ }
+      } catch (err) { layerFault("DATA_GAPS", err); /* camera mid-transition */ }
 
       /* ══════════════════════════════════════════════════════
          WM FIXED VP & SESSION VP — right-anchored inside chart
@@ -9445,7 +9453,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          legible truth artefact per directive Part XLIII.
       ══════════════════════════════════════════════════════ */
       const horizon = tapeHorizonRef.current;
-      if (horizon && horizon.sym === symbol && footprintEnabled && att.paints("tapeHorizon")) {
+      try { if (horizon && horizon.sym === symbol && footprintEnabled && att.paints("tapeHorizon")) {
         try {
           const horizonBarSec = tapeHorizonBarStart(horizon.startedAtSec, getIntervalSec(timeframe));
           const xRaw = chart.timeScale().timeToCoordinate(horizonBarSec as any);
@@ -9528,7 +9536,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
           }
         } catch { /* chart may be mid-transition; safe to skip this frame */ }
-      }
+      } } catch (err) { layerFault("TAPE_HORIZON", err); }
 
       /* ══ THE CANDLE PARTICIPATES — FORMING-CANDLE ANATOMY ═════════════════
          Garden 16 five-hour order: "Price descends: CANDLE DESCENDS … a new
@@ -9548,7 +9556,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          is drawn and the receipt says why. FAR is QUIET (permission table):
          "semantic zoom changes the representation, not the visibility" — the
          tempo aura stays, the per-level wick marks are withheld. */
-      {
+      try {
         const lbF = barsRef.current.length ? barsRef.current[barsRef.current.length - 1] : null;
         const xF = lbF ? chart.timeScale().timeToCoordinate(lbF.time as never) : null;
         const barStartMs = lbF ? Number(lbF.time) * 1000 : 0;
@@ -9626,7 +9634,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const truncated = t0 > barStartMs + 1000 && formingPrintsRef.current.length >= FORMING_RING_CAP;
           canvas.dataset.formingCandle = `${fcSpeaks ? "" : "QUIET:"}PRINTS:${prints.length}|LEVELS:${newestAt.size}|TEMPO:${tempo.toFixed(2)}|BIG:${bigHere.length}${truncated ? "|RING:TRUNCATED" : ""}`;
         }
-      }
+      } catch (err) { layerFault("FORMING_CANDLE", err); }
 
       /* ══ FLOW CURRENT — "Give Flow direction" (five-hour order) ══════════════
          Order flow LIVES ON PRICE (F06A). Every bar that holds real SIDED prints
@@ -9638,7 +9646,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            ink        the Appearance order-flow inks (big-trade buy / sell)
          It drifts along its direction in LIVE and holds in STILL. Bars with no
          sided prints carry nothing — never inferred from candle colour. */
-      {
+      try {
         const accF = tickAccRef.current;
         canvas.dataset.tapeBackfill = tapeBackfillRef.current;
         if (!att.paints("flowCurrent")) {
@@ -9729,7 +9737,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             canvas.dataset.flowCurrent = `${flowSpeaks ? "BARS" : `QUIET:POOLED${k}`}:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}`;
           }
         }
-      }
+      } catch (err) { layerFault("FLOW_CURRENT", err); }
 
       /* ══ F05B · THE CANDLE'S ANATOMY ON PRICE (Garden 16 master order §18,
          §10 card-erasure test) ═══════════════════════════════════════════════
@@ -9742,7 +9750,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            pressure  the bar's SIDED prints (tickAccRef, the one tape ladder):
                      buy = lifted asks, sell = hit bids. No sided prints →
                      "UNREAD", never inferred from candle colour (H-701). */
-      {
+      try {
         const cp = crosshairPointRef.current;
         let wrote = false;
         if (cp && srs && att.paints("anatomyCards", { selectedItem: true })) {
@@ -9844,14 +9852,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
         if (!wrote) canvas.dataset.clarityOnPrice = "NONE";
-      }
+      } catch (err) { layerFault("F05B_ANATOMY", err); }
 
       /* ══════════════════════════════════════════════════════
          CANDLE TIMER — countdown pinned to the LIVE PRICE LINE
          on the left edge, so it travels vertically with price.
          Gated by chartSettings.candleTimer (Chart Settings toggle).
       ══════════════════════════════════════════════════════ */
-      if (candleTimerRef.current && countdownRef.current && att.paints("candleTimer")) {
+      try { if (candleTimerRef.current && countdownRef.current && att.paints("candleTimer")) {
         const liveBars = barsRef.current;
         const lastBar  = liveBars.length ? liveBars[liveBars.length - 1] : null;
         const yRaw = lastBar ? srs?.priceToCoordinate(lastBar.close) : null;
@@ -9900,7 +9908,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.setLineDash([]);
           ctx.restore();
         }
-      }
+      } } catch (err) { layerFault("CANDLE_TIMER", err); }
 
       /* ══════════════════════════════════════════════════════════════════════
          ABSORPTION ANATOMY — Founder Asset 06, drawn in price/time space.
@@ -10119,7 +10127,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
         return anatomyFrame;
       };
-      if (!absorptionAnatomyActive) {
+      try { if (!absorptionAnatomyActive) {
         const ds = canvas.dataset;
         if (absorptionReadKeyRef.current !== "OFF") { absorptionReadKeyRef.current = "OFF"; onAbsorptionReadRef.current?.(null); }
         ds.absorption = "OFF";
@@ -10130,8 +10138,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // the block stopped running — a receipt for a lens nobody could see.
         for (const k of ANATOMY_BLOCK_RECEIPTS) delete ds[k];
         ds.questionLens = "OFF";
-      }
-      if (absorptionAnatomyActive) {
+      } } catch (err) { layerFault("ABSORPTION_OFF", err); }
+      try { if (absorptionAnatomyActive) {
         try {
           const ts = chart.timeScale();
           const { anatomy, windowCapped } = anatomyInView();
@@ -12584,9 +12592,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.anatomySelected;
           }
         } catch { /* chart may be mid-transition; safe to skip this frame */ }
-      }
+      } } catch (err) { layerFault("ABSORPTION_ANATOMY", err); }
 
-      {
+      try {
         const depth = scaffoldingDepthRef.current;
         // Withheld by the depth (H-501): named, and no refusal chip either.
         const scaffoldPaints = depth !== "OFF" && att.paints("scaffolding");
@@ -12613,7 +12621,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.fillText(txt, 20, 185.5);
           ctx.restore();
         }
-      }
+      } catch (err) { layerFault("SCAFFOLDING", err); }
 
       /* ══ DUAL ANATOMY · THE FOUNDER BODY (G06 "Absorption vs Exhaustion
          Anatomy — the strong absorb, the weak exhaust") ══════════════════════
@@ -12625,7 +12633,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          exhaustion. FUSION ties the body to its event's evidence with a thread
          — one event, one truth, two representations. The body breathes only
          in LIVE; STILL holds it. Newest three, clear of the candles. */
-      {
+      try {
         const mode = anatomyModeRef.current;
         let drawnBodies = 0;
         if ((mode === "FOUNDER" || mode === "FUSION") && bodyAnchors.length) {
@@ -12754,7 +12762,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
         canvas.dataset.dualAnatomy = `${mode}|EVENTS:${bodyAnchors.length}|BODIES:${drawnBodies}`;
-      }
+      } catch (err) { layerFault("DUAL_ANATOMY", err); }
 
       /* ══════════════════════════════════════════════════════════════════════
          THE WM VALUE CANDLE — A CANDLE, ON THE BAR IT MEASURED (canon UI-02).
@@ -13044,7 +13052,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.valueCandleAt;
           delete ds.valueCandleCog;
         }
-      } catch { /* chart may be mid-transition; safe to skip this frame */ }
+      } catch (err) { layerFault("VALUE_CANDLE", err); /* chart may be mid-transition; safe to skip this frame */ }
 
       /* ── H-701 · THE NEAR VALUE HATCH, after the Value Candle (UI-02).
          Queued by the NEAR block; painted here only on bars the Value Candle
@@ -13084,7 +13092,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (hatched + bracketed > 0) dsH.nearHatch = hatched > 0 ? `HATCH:${hatched}` : `BRACKET:${bracketed}`; else delete dsH.nearHatch;
           if (yieldedVc > 0) dsH.nearHatchYieldedToValueCandle = String(yieldedVc); else delete dsH.nearHatchYieldedToValueCandle;
         }
-      } catch { /* camera mid-transition */ }
+      } catch (err) { layerFault("NEAR_VALUE_HATCH", err); /* camera mid-transition */ }
 
       /* ══════════════════════════════════════════════════════════════════════
          STACKED IMBALANCE — PUT BACK ON THE PRICE IT IS A CLAIM ABOUT.
@@ -13359,7 +13367,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.imbalanceStackLabel;
           delete ds.imbalanceStackAnchor;
         }
-      } catch { /* chart may be mid-transition; safe to skip this frame */ }
+      } catch (err) { layerFault("STACKED_IMBALANCE", err); /* chart may be mid-transition; safe to skip this frame */ }
 
       /* ══════════════════════════════════════════════════════════════════════
          DELTA DIVERGENCE — THE TWO PRICES IT COMPARED, AT THOSE PRICES.
@@ -13537,7 +13545,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.deltaDivergenceWords;
           delete ds.deltaDivergenceTag;
         }
-      } catch { /* chart may be mid-transition; safe to skip this frame */ }
+      } catch (err) { layerFault("DELTA_DIVERGENCE", err); /* chart may be mid-transition; safe to skip this frame */ }
 
       /* ══════════════════════════════════════════════════════════════════════
          LIQUIDITY WEATHER — AND THE ADMISSION THAT MOST OF IT HAS NO PRICE.
@@ -19816,7 +19824,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.riskReceipt;
           delete ds.riskReceiptHits;
         }
-      } catch { /* chart may be mid-transition; safe to skip this frame */ }
+      } catch (err) { layerFault("WEATHER_PROFILES_MEMORY", err); /* chart may be mid-transition; safe to skip this frame */ }
 
       /* ══ H-101 · THE DEBT TAG LIVES ON THE EVENT ═══════════════════════════
          Sheet H-101 ("EVIDENCE DEBT — WAIT IS A FINISHED ORGANISM") hangs a
@@ -19828,7 +19836,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          Its own block, after every claimed layer, so it only steps AROUND what
          they already put on the glass (`floatingChips`).
          Receipt, in every state: DRAWN · OFF_CAMERA (bar not in view) · NONE. */
-      {
+      try {
         const tagT = debtTagRef.current;
         let tagState: "NONE" | "OFF_CAMERA" | "DRAWN" = "NONE";
         let tagMode: string | null = null;
@@ -19934,7 +19942,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete canvas.dataset.debtTagBar;
           delete canvas.dataset.debtTagPlacement;
         }
-      }
+      } catch (err) { layerFault("DEBT_TAG", err); }
 
       /* ══ PRICE-LINE WORDS · PAPER AND BROKER ══════════════════════════════
          Found on the glass 2026-09-26 (Garden 16 §17): the native price-line
@@ -19948,7 +19956,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          on a chip, never on the profile body. A word with no clear spot is
          WITHHELD — the line and its axis price stay, the receipt names it.
          Receipt, every frame: `priceLineWords` (`PAPER@370:SLID,…` or NONE). */
-      {
+      try {
         const wordsP = [...priceLineWordsRef.current.paper, ...priceLineWordsRef.current.broker];
         const placedP: { kind: PriceLineWords["kind"]; price: number; mode: string }[] = [];
         if (wordsP.length) {
@@ -19998,7 +20006,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.restore();
         }
         canvas.dataset.priceLineWords = priceLineWordsReceipt(placedP);
-      }
+      } catch (err) { layerFault("PRICE_LINE_WORDS", err); }
 
       // ATTENTION RECEIPT — every layer that painted through the governor
       // this frame, with the tier and alpha it was given. Published at the
@@ -20031,7 +20039,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // ── Tape CVD caption (H-701): the pane names its source and its start ──
       const cvdSeries = tapeCvdSeriesRef.current;
       const cvd = tapeCvdRef.current;
-      if (cvdSeries && cvd) {
+      try { if (cvdSeries && cvd) {
         canvas.dataset.cvdSource = cvd.refused ? "REFUSED" : "TAPE";
         canvas.dataset.cvdBars = String(cvd.points.length);
         canvas.dataset.cvdSides = cvd.sidesInferred ? "INFERRED" : "LABELLED";
@@ -20053,6 +20061,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         delete canvas.dataset.cvdBars;
         delete canvas.dataset.cvdSides;
       }
+      } catch (err) { layerFault("CVD_PANE", err); }
+      if (layerFaults.length) canvas.dataset.layerFaults = `${layerFaults.length}:${layerFaults.slice(0, 4).join(" | ")}`;
+      else delete canvas.dataset.layerFaults;
     };
 
     // Use a continuous loop so the canvas always stays in sync with chart scroll/zoom
