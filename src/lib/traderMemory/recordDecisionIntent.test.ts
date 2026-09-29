@@ -106,3 +106,22 @@ describe("recordDecisionIntent", () => {
     expect(f).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("a continued decision already on the shared record reads as RECORDED (serving /paper, 2026-09-29)", () => {
+  const input = { decisionId: "wmd_abc" as never, intent: "Get me in now." as never, deviceId: "dev_1" } as never;
+  const respond = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
+  it("409 on the version-0 write, then the record read back at version 1 → RECORDED", async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(respond(409, { verdict: "REJECT_STALE" }))
+      .mockResolvedValueOnce(respond(200, { status: "PROJECTED", position: { decisionId: "wmd_abc", reconVersion: 1 } }));
+    const r = await recordDecisionIntent(input, fetchImpl as unknown as typeof fetch);
+    expect(r.status).toBe("RECORDED");
+    expect(fetchImpl.mock.calls[1][0]).toBe("/api/decision-position?decisionId=wmd_abc");
+  });
+  it("BREAK: 409 and the read-back does not show THIS decision → still UNRECORDED", async () => {
+    for (const back of [{ status: "PROJECTED", position: { decisionId: "wmd_other", reconVersion: 1 } }, { status: "PROJECTED", position: null }, { status: "UNAVAILABLE" }]) {
+      const fetchImpl = vi.fn().mockResolvedValueOnce(respond(409, { verdict: "REJECT_STALE" })).mockResolvedValueOnce(respond(200, back));
+      expect((await recordDecisionIntent(input, fetchImpl as unknown as typeof fetch)).status).toBe("UNRECORDED");
+    }
+  });
+});

@@ -108,6 +108,14 @@ export async function recordDecisionIntent(
     return UNREACHED;
   }
 
+  // A CONTINUED decision (G6, 2026-09-29: the ticket continues the scene's
+  // decision instead of minting one per order) is proposed as version 0 again
+  // and the authority rightly answers REJECT_STALE — the record already
+  // exists. Serving /paper then told the trader "WM could not write it to the
+  // shared record" while it sat there at version 1. On a stale refusal the
+  // record is READ BACK: if this decision is already on it, that is RECORDED,
+  // and only what was read is claimed.
+  if (response.status === 409) return (await alreadyOnRecord(input.decisionId, fetchImpl)) ?? UNREACHED;
   if (!response.ok) return UNREACHED;
 
   let body: unknown;
@@ -150,4 +158,21 @@ function readWriteReceipt(body: unknown): {
         ? record.nextReconVersion
         : null,
   };
+}
+
+async function alreadyOnRecord(decisionId: string, fetchImpl: typeof fetch): Promise<IntentRecordResult | null> {
+  try {
+    const res = await fetchImpl(`/api/decision-position?decisionId=${encodeURIComponent(decisionId)}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const body = await res.json() as { status?: unknown; position?: { decisionId?: unknown; reconVersion?: unknown } | null };
+    const p = body?.position;
+    if (body?.status !== "PROJECTED" || !p || p.decisionId !== decisionId) return null;
+    if (typeof p.reconVersion !== "number" || !Number.isSafeInteger(p.reconVersion) || p.reconVersion < 1) return null;
+    return {
+      status: "RECORDED",
+      note: "This decision is already on the shared record. Your other devices can see it.",
+    };
+  } catch {
+    return null;
+  }
 }
