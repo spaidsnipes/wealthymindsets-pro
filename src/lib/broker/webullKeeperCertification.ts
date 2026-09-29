@@ -20,6 +20,7 @@
  */
 import type { CertStageReport } from "./certification";
 import type { KeeperResult } from "../marketData/webullSessionKeeper";
+import type { CertifiedCapabilityRow, SourceCertification } from "../marketData/sourceCapabilityCertification";
 
 /** Three missed 15-minute runs plus slack. */
 export const KEEPER_FRESH_MS = 35 * 60_000;
@@ -71,6 +72,20 @@ export function webullStagesFromKeeper(record: KeeperResult | null, nowMs: numbe
       : { stage: "read_account_state", status: r.state === "PARTIAL" ? "PENDING" : "FAIL", note: `Reconciliation ${r.state}${r.unreadable?.length ? ` (unread: ${r.unreadable.join(", ")})` : ""}.`, observedAt: iso(r.atMs) });
   } else if (r) out.push({ stage: "read_account_state", status: "PENDING", note: `Reconciliation is ${age(r.atMs)}.`, observedAt: iso(r.atMs) });
 
+  // RECONNECT → RECONCILE. Every keeper run is a fresh Worker invocation: no
+  // connection survives from the last one. It re-reads every account's open
+  // orders and compares them with WM's durable order ledger. The stage passes
+  // only when that comparison was complete, the ledger was readable, and no
+  // WM order was left unresolved — i.e. the state after reconnecting matches
+  // what WM recorded.
+  if (r && fresh(r.atMs)) {
+    if (r.state === "OK" && r.ledger !== "UNREADABLE" && r.unresolved === 0) {
+      out.push({ stage: "reconnect_reconcile", status: "PASS", note: `Fresh keeper session re-read ${r.accounts} account(s) and matched the ${r.ledger === "KV" ? "durable" : "empty"} order ledger (0 unresolved).`, observedAt: iso(r.atMs) });
+    } else {
+      out.push({ stage: "reconnect_reconcile", status: r.unresolved > 0 ? "FAIL" : "PENDING", note: `Reconciliation ${r.state}, ledger ${r.ledger}, ${r.unresolved} unresolved.`, observedAt: iso(r.atMs) });
+    }
+  }
+
   for (const stage of ORDER_STAGES) out.push({ stage, status: "BLOCKED", note: ORDER_BLOCK });
   return out;
 }
@@ -80,4 +95,49 @@ export function webullConnectedFromKeeper(record: KeeperResult | null, nowMs: nu
   const b = record?.broker;
   if (!b || !(nowMs - b.atMs >= 0 && nowMs - b.atMs <= KEEPER_FRESH_MS)) return null;
   return b.state === "CONNECTED" && b.accountCount > 0;
+}
+
+/* ── G4 · the market-data certification reads the same record ─────────────
+   `/api/market-data/certification` probed one TSLA canary; after hours the
+   canary is stale, so Webull's PRICE / ACCOUNT / ORDERS / FUTURES rows fell to
+   NOT_IMPLEMENTED ("not probed") while the keeper held fresh signed evidence
+   for every one of them (serving, 2026-09-29 01:15Z). Rows the probe OBSERVED
+   are never touched; only unobserved rows are filled, only from a fresh
+   record, and a denied rung is reported as the denial it is. */
+
+type RowStatus = CertifiedCapabilityRow["status"];
+
+function rungStatus(line: string | undefined): { status: RowStatus; note: string } | null {
+  if (!line || line === "NOT_ASKED") return null;
+  if (/:OK\b/.test(line)) return { status: "ACTIVE_DEGRADED", note: `Signed snapshot read answered (${line}); not a streaming certification.` };
+  if (/DENIED_ENTITLEMENT/.test(line)) return { status: "BLOCKED_ENTITLEMENT", note: `This account is not entitled (${line}).` };
+  if (/DENIED_AUTH/.test(line)) return { status: "BLOCKED_AUTH", note: `Signed read refused as unauthenticated (${line}).` };
+  return null; // rate limit / timeout / provider error: nothing proven either way
+}
+
+export function withWebullKeeperEvidence(cert: SourceCertification, record: KeeperResult | null, nowMs: number): SourceCertification {
+  const fresh = (ms: number | undefined): ms is number => typeof ms === "number" && nowMs - ms >= 0 && nowMs - ms <= KEEPER_FRESH_MS;
+  const fill = new Map<string, Omit<CertifiedCapabilityRow, "capability">>();
+  const c = record?.capabilities;
+  if (c && fresh(c.atMs)) {
+    const at = new Date(c.atMs).toISOString();
+    const stocks = rungStatus(c.stocks);
+    if (stocks) fill.set("PRICE", { status: stocks.status, fidelity: stocks.status === "ACTIVE_DEGRADED" ? "SNAPSHOT" : "NONE", observedAt: at, note: `Keeper entitlement ladder: ${stocks.note}` });
+    const fut = rungStatus(c.futures);
+    if (fut) fill.set("FUTURES", { status: fut.status, fidelity: fut.status === "ACTIVE_DEGRADED" ? "SNAPSHOT" : "NONE", observedAt: at, note: `Keeper entitlement ladder: ${fut.note}` });
+  }
+  const b = record?.broker;
+  if (b && fresh(b.atMs) && b.state === "CONNECTED" && b.accountCount > 0) {
+    fill.set("ACCOUNT", { status: "ACTIVE_CERTIFIED", fidelity: "SNAPSHOT", observedAt: new Date(b.atMs).toISOString(), note: `${b.accountCount} account(s) listed by the keeper's signed read.` });
+  }
+  const r = record?.reconciliation;
+  if (r && fresh(r.atMs) && r.state === "OK") {
+    fill.set("ORDERS", { status: "ACTIVE_DEGRADED", fidelity: "SNAPSHOT", observedAt: new Date(r.atMs).toISOString(), note: `Open orders READ on ${r.accounts} account(s) (${r.openOrders} open); placement is blocked by design — read-only.` });
+  }
+  if (fill.size === 0) return cert;
+  const rows = cert.rows.map(row => {
+    const f = row.status === "NOT_IMPLEMENTED" ? fill.get(row.capability) : undefined;
+    return f ? { capability: row.capability, ...f } : row;
+  });
+  return { ...cert, rows, certifiedCount: rows.filter(x => x.status === "ACTIVE_CERTIFIED").length, fullyCertified: rows.every(x => x.status === "ACTIVE_CERTIFIED") };
 }

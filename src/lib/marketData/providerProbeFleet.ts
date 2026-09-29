@@ -56,6 +56,8 @@ import { probeLongbridgeMarketData } from "./adapters/longbridgeTicks";
 import { certifyTastytradeMarketData } from "./adapters/tastytradeMarketData";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
 import { getTastytradeCapabilities } from "@/lib/tastytrade";
+import { readWebullKeeperRecord } from "./webullSessionKeeperJob";
+import { withWebullKeeperEvidence } from "@/lib/broker/webullKeeperCertification";
 
 export interface ProbedProvider {
   readonly certification: SourceCertification;
@@ -147,9 +149,14 @@ export async function probeMarketDataFleet(
     note: tastytradeObservation.note,
   });
 
+  // G4: rows the canary did not observe are filled from the keeper's fresh
+  // signed record (the same evidence /api/broker/certification reads).
+  const keeper = await readWebullKeeperRecord(await webullWorkerEnv()).catch(() => null);
+  const webullWithKeeper = withWebullKeeperEvidence(webull, keeper, Date.now());
+
   return [
     { certification: moomoo, providerTier: "CERTIFIED_NEW" },
-    { certification: webull, providerTier: "CERTIFIED_NEW" },
+    { certification: webullWithKeeper, providerTier: "CERTIFIED_NEW" },
     { certification: alpaca, providerTier: "CANONICAL" },
     { certification: longbridge, providerTier: "CERTIFIED_NEW" },
     { certification: tastytrade, providerTier: "CERTIFIED_NEW" },
