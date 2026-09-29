@@ -78,3 +78,21 @@ describe("Alpaca canonical market-data certification", () => {
     expect(cert.rows.find((row) => row.capability === "PRICE")?.note).toMatch(/did not respond within 250 ms/i);
   });
 });
+
+describe("BARS from the snapshot's daily bar (G4, 2026-09-29)", () => {
+  const now = () => new Date("2026-09-29T01:00:00Z");
+  const body = (dailyBar: unknown) => new Response(JSON.stringify({
+    latestTrade: { p: 358.1, s: 10, t: "2026-09-28T23:59:00Z" }, // stale after hours
+    dailyBar,
+  }), { status: 200 });
+  it("after hours: the stale trade is still refused as current, but a valid daily bar certifies BARS", async () => {
+    const c = await probeAlpacaMarketData(vi.fn().mockResolvedValue(body({ o: 370, h: 372, l: 356, c: 358, v: 1000, t: "2026-09-28T04:00:00Z" })) as unknown as typeof fetch, { key: "k", secret: "s", now });
+    expect(c.rows.find(r => r.capability === "BARS")?.status).toBe("ACTIVE_DEGRADED");
+    expect(c.rows.find(r => r.capability === "PRICE")?.status).toBe("NOT_IMPLEMENTED");
+    expect(c.rows.find(r => r.capability === "PRICE")?.note).toContain("stale evidence was not exposed as current");
+  });
+  it("BREAK: an inside-out daily bar certifies nothing", async () => {
+    const c = await probeAlpacaMarketData(vi.fn().mockResolvedValue(body({ o: 370, h: 350, l: 356, c: 358, v: 1000, t: "2026-09-28T04:00:00Z" })) as unknown as typeof fetch, { key: "k", secret: "s", now });
+    expect(c.rows.find(r => r.capability === "BARS")?.status).toBe("NOT_IMPLEMENTED");
+  });
+});

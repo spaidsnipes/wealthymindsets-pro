@@ -18,8 +18,28 @@ export interface AlpacaMarketDataConfig {
 
 type AlpacaSnapshot = {
   readonly latestTrade?: { readonly p?: unknown; readonly s?: unknown; readonly t?: unknown };
-  readonly dailyBar?: { readonly v?: unknown };
+  readonly dailyBar?: { readonly o?: unknown; readonly h?: unknown; readonly l?: unknown; readonly c?: unknown; readonly v?: unknown; readonly t?: unknown };
 };
+
+/**
+ * G4 (2026-09-29): the same snapshot carries the symbol's DAILY BAR. A
+ * completed OHLCV bar is history, not a freshness claim, so it certifies BARS
+ * even after hours — when the latest trade is (rightly) refused as stale. The
+ * chart draws Alpaca bars all day; the matrix said NOT_IMPLEMENTED.
+ */
+function dailyBarReport(body: AlpacaSnapshot | null, symbol: string): SourceCapabilityReport | null {
+  const d = body?.dailyBar;
+  const [o, h, l, c, v] = [d?.o, d?.h, d?.l, d?.c, d?.v].map(Number);
+  const t = typeof d?.t === "string" ? Date.parse(d.t) : Number.NaN;
+  if (![o, h, l, c].every(x => x > 0) || !(h >= Math.max(o, c, l)) || !(l <= Math.min(o, c, h)) || !(v >= 0) || !Number.isFinite(t)) return null;
+  return {
+    capability: "BARS",
+    status: "ACTIVE_DEGRADED",
+    fidelity: "SNAPSHOT",
+    observedAt: new Date(t).toISOString(),
+    note: `A geometrically valid ${symbol} IEX daily bar (O/H/L/C/V) was returned by the snapshot; the full historical bar route is not certified by this probe.`,
+  };
+}
 
 function zeroState(note: string, status: "NOT_IMPLEMENTED" | "BLOCKED_AUTH" = "NOT_IMPLEMENTED"): SourceCertification {
   return certifySource("alpaca", [{ capability: "PRICE", status, fidelity: "NONE", note }]);
@@ -86,8 +106,12 @@ export async function probeAlpacaMarketData(
 
   const stalenessMs = Math.max(0, now().getTime() - timestamp);
   const maxTradeAgeMs = Math.max(1_000, config.maxTradeAgeMs ?? 60_000);
+  const bars = dailyBarReport(body, symbol);
   if (stalenessMs > maxTradeAgeMs) {
-    return zeroState(`Alpaca returned a valid ${symbol} IEX trade, but its provider timestamp was ${stalenessMs} ms old; stale evidence was not exposed as current.`);
+    const staleNote = `Alpaca returned a valid ${symbol} IEX trade, but its provider timestamp was ${stalenessMs} ms old; stale evidence was not exposed as current.`;
+    return bars
+      ? certifySource("alpaca", [{ capability: "PRICE", status: "NOT_IMPLEMENTED", fidelity: "NONE", note: staleNote }, bars])
+      : zeroState(staleNote);
   }
   const observedAt = new Date(timestamp).toISOString();
   const reports: SourceCapabilityReport[] = [
@@ -116,5 +140,6 @@ export async function probeAlpacaMarketData(
       note: "Positive executed size was present on the observed IEX trade.",
     },
   ];
+  if (bars) reports.push(bars);
   return certifySource("alpaca", reports);
 }
