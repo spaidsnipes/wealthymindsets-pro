@@ -4,7 +4,7 @@ One live board. Status vocabulary: 🟢 PROVED · 🟡 REPAIR · ⚪ EXTERNAL / 
 Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable greens carry the time they were observed.
 
 - **Board updated:** 2026-09-29T06:45Z (01:45 CDT) by ATHOS — game-build shift appended (§3b).
-- **Serving:** `https://wealthymindsetspro.com` = `main` = `6988bd3`.
+- **Serving:** `https://wealthymindsetspro.com` = `main` (last code SHA `34d6127`; board commits follow).
 - **Starting baseline (Founder receipt):** G0–G13 = 🟢 7 · 🟡 7 · 🔴 0.
 - **Shift commits:** `f8e018c4` G3/G4 · `2f97de6c` `c5da473` G6 · `8d940235` `9b17142d` `f5083951` G7 · `63928db4` `9198420` `d1a2f10` G12 · `2613950c` board.
 
