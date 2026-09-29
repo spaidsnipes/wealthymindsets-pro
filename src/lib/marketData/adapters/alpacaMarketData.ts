@@ -29,7 +29,7 @@ type AlpacaSnapshot = {
  */
 function dailyBarReport(body: AlpacaSnapshot | null, symbol: string): SourceCapabilityReport | null {
   const d = body?.dailyBar;
-  const why = (reason: string): SourceCapabilityReport => ({ capability: "BARS", status: "NOT_IMPLEMENTED", fidelity: "NONE", note: `Snapshot daily bar not certified: ${reason}.` });
+  const why = (reason: string): SourceCapabilityReport => ({ capability: "BARS", status: "NOT_IMPLEMENTED", fidelity: "NONE", note: `Alpaca IEX snapshot did not contain a valid ${symbol} daily bar: ${reason}.` });
   if (!d || typeof d !== "object") return why("the snapshot carried no dailyBar");
   const [o, h, l, c, v] = [d.o, d.h, d.l, d.c, d.v].map(Number);
   const t = typeof d.t === "string" ? Date.parse(d.t) : Number.NaN;
