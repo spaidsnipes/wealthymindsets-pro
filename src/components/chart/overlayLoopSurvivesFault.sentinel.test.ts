@@ -29,3 +29,10 @@ describe("the profile family is isolated inside the frame", () => {
     expect(MC).toContain("(ctx as CanvasRenderingContext2D & { reset?: () => void }).reset?.();\n      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);");
   });
 });
+
+describe("the pressure world is isolated inside the frame", () => {
+  it("its block is try/catch with a named fault receipt and a balanced save/restore", () => {
+    expect(MC).toContain("ds.derivativesPressureFault = (err instanceof Error");
+    expect(MC).toMatch(/pressureFrontHitRef\.current = null;[\s\S]{0,200}ctx\.save\(\);\s*try \{\s*const dp = derivativesPressureRef\.current;/);
+  });
+});

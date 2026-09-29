@@ -14540,7 +14540,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         delete ds.derivativesPressurePainted;
         pressureWallHitRef.current = [];
         pressureFrontHitRef.current = null;
-        {
+        // G7 · the pressure world is ISOLATED: a throw inside it is named
+        // (derivativesPressureFault) and every later layer still paints.
+        ctx.save();
+        try {
           const dp = derivativesPressureRef.current;
           if (layerOnRef.current.derivativesPressure === true && att.paints("derivativesPressure") && srs && dp) {
             ds.derivativesPressure = dp.receipt;
@@ -15105,7 +15108,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           } else {
             ds.derivativesPressure = att.offWord(layerOnRef.current.derivativesPressure === true);
           }
-        }
+          delete ds.derivativesPressureFault;
+        } catch (err) {
+          ds.derivativesPressureFault = (err instanceof Error ? `${err.name}: ${err.message}` : String(err)).slice(0, 120);
+        } finally { ctx.restore(); }
 
         /* ══ T-210 / F10 · MTF IS NOT FOUR CHARTS — ancestry on the one chart ══
            Canon plate WM_H_T210_MTF_NOT_FOUR_CHARTS: on the ONE execution
