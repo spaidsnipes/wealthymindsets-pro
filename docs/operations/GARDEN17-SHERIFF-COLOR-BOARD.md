@@ -27,7 +27,7 @@ Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable 
 | ID | Dependency | Why ATH cannot exercise it | How WM Pro behaves | Local degradation proof |
 |---|---|---|---|---|
 | X-01 | CME futures market data (Webull OpenAPI futures) | Entitlement not purchased (403 `MARKET_DATA_NOT_SUBSCRIBED`) | NQ/ES bars from Yahoo (~10 min delay, named "N BARS BEHIND"); Webull ticks refuse `NQ1!` as INVALID_SYMBOL (400); futures order flow silent | 🟢 PROVED 2026-09-29 00:02Z (`/api/market-data/webull/ticks?symbol=NQ1!` → 400 INVALID_SYMBOL; ES header "BAR OPENED 02:00 PM · 1 BAR BEHIND") |
-| X-02 | Stripe keys / entitlement owner | No `STRIPE_*` secrets; owner decision open | No invented checkout success | 🟡 not re-proved this shift |
+| X-02 | Stripe keys / entitlement owner | No `STRIPE_*` secrets; owner decision open | /shop banner "Concept catalog · checkout not connected"; the button reads "Checkout not connected"; pressing it: "Checkout is not connected yet. Your concept cart remains saved in this session." — no fake success, no redirect | 🟢 PROVED 2026-09-29 01:08Z (serving `d1a2f10`, real click) |
 | X-03 | OAuth providers | Provider configuration is the Founder's | Email/password path only | 🟡 not re-proved this shift |
 | X-04 | tastytrade | `TASTYTRADE_REFRESH_TOKEN` absent | Cert NONE with the named missing secret | 🟢 PROVED 00:02Z (`/api/broker/certification` note) |
 | X-05 | moomoo | OpenD bridge not deployed (`MOOMOO_BRIDGE_URL`) | Market-data cert rows NOT_IMPLEMENTED with the named missing env | 🟢 PROVED 00:02Z |
