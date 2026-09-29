@@ -16253,6 +16253,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.clip();
               const bodyAboveFloor = silhouette.filter(q => q.y - rowH / 2 < HEADER_FLOOR_Y).length;
               ds.livingProfileBodyClipped = bodyAboveFloor > 0 ? `HEADER:${bodyAboveFloor}` : "NONE";
+              // MAKEUP GOVERNOR — the fill quiets over price; the rim does not.
+              const bodyOverPrice = Number(ds.livingProfileCandlesKept ?? "0") > 0;
+              const alphaBeforeFill = ctx.globalAlpha;
+              if (bodyOverPrice) ctx.globalAlpha = alphaBeforeFill * C.overPriceFill;
+              ds.livingProfileBodyGoverned = bodyOverPrice ? `OVER_PRICE:${C.overPriceFill}` : "FULL";
               const g = ctx.createLinearGradient(rightEdge, 0, rightEdge - bodyW, 0);
               g.addColorStop(0, pk.rgbaAs("VALUE", "ANCHOR", C.tailBase));
               g.addColorStop(1, pk.rgbaAs("VALUE", "ANCHOR", C.tailTip));
@@ -16280,6 +16285,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 for (const q of silhouette) ctx.fillRect(q.x - 2, Math.round(q.y - rowH / 2), rightEdge - q.x + 4, 1);
                 ctx.restore();
               }
+              ctx.globalAlpha = alphaBeforeFill;
               // The lit rim: Living's lit gold at rest, the trader's POC ink
               // once chosen, with a soft glow — the plate's luminous edge.
               ctx.shadowColor = pk.chosenOr("POC", 0.6, "rgba(233,196,106,0.6)");

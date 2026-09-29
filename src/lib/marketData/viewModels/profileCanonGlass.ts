@@ -71,6 +71,14 @@ export const LIVING_BODY_CANON = Object.freeze({
   /** The POC mark on the body. */
   pocDotRadius: 6,
   pocGlowRadius: 18,
+  /**
+   * MAKEUP GOVERNOR (Garden 17 master order §XIII–§XIX, 2026-09-29): where the
+   * body's mass lies over candles, its FILL is multiplied by this — the rim,
+   * POC and value rules keep full strength, so the auction silhouette stays
+   * recognisable while the candles stay the face. Serving BTC-USD 5m: the
+   * 0.76–0.88 value mass turned ~30 live candles into islands in gold.
+   */
+  overPriceFill: 0.5,
 });
 
 /* ── THE LEVEL CHIP ─────────────────────────────────────────────────────────
