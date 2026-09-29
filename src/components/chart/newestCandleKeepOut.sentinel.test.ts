@@ -76,7 +76,8 @@ describe("the profile family's level chips yield to the candles", () => {
   });
 
   it("ties a moved or slid chip back to its price with a dotted leader", () => {
-    expect(chip).toMatch(/if \(levelChipNeedsLeader\(r, y, spotL\.mode === "SLID"\)\) \{[\s\S]*?setLineDash\(\[1, 2\]\)[\s\S]*?lineTo\(anchorX, y\)/);
+    // 2026-09-29: a chip moved to the right-hand stack draws no leader across the chart.
+    expect(chip).toMatch(/if \(!movedToStack && levelChipNeedsLeader\(r, y, spotL\.mode === "SLID"\)\) \{[\s\S]*?setLineDash\(\[1, 2\]\)[\s\S]*?lineTo\(anchorX, y\)/);
   });
 });
 
@@ -214,5 +215,13 @@ describe("the Structure Profile's name and LEG POC chip clear every body under t
     expect(chipFn).toMatch(/ctx\.fillStyle = `rgba\(11,10,8,\$\{keepOutBackingAlpha\(spotP, 0\.82\)\}\)`;\s*ctx\.fillRect\(spotP\.rect\.x, spotP\.rect\.y, w, 14\);/);
     expect(chipFn).toContain("ctx.fillText(text, spotP.rect.x + 4, spotP.rect.y + 12);");
     expect(chipFn).not.toContain('ctx.fillStyle = "rgba(11,10,8,0.82)"');
+  });
+});
+
+describe("price sovereignty: a column chip with no free slot goes to the stack, not onto candles (G9, 2026-09-29)", () => {
+  it("tries the right-hand level stack before accepting an on-candle spot", () => {
+    const MC = readFileSync("src/components/chart/MainChart.tsx", "utf8");
+    expect(MC).toContain("if (opts.leftX != null && spotL.onCandles) {");
+    expect(MC).toContain("if (!spotR.onCandles) { spotL = spotR; movedToStack = true; levelChipsToStack++; }");
   });
 });

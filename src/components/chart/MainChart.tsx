@@ -15756,6 +15756,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         let levelChipsPlaced = 0;
         let levelChipsMoved = 0;
         let levelChipsYielded = 0;
+        let levelChipsToStack = 0;
         // `leftX` anchors a chip by its LEFT end instead (TPO's, beside its column).
         const levelChip = (y: number, text: string, ink: string, opts: { rightX?: number; leftX?: number; minX?: number; floorY?: number } = {}) => {
           const floorY = opts.floorY ?? HEADER_FLOOR_Y;
@@ -15780,11 +15781,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const alternates = opts.leftX != null
             ? [...slots.alternates, ...[40, 80, 120].flatMap(dx => [slots.preferred, ...slots.alternates].map(s => ({ ...s, x: s.x + dx })))]
             : slots.alternates;
-          const spotL = placeClearOfKeepOut(
+          let spotL = placeClearOfKeepOut(
             slots.preferred,
             [...keepOut(), ...profileCandlesAt(slots.top, slots.bottom)],
             { minX: Math.max(keepOutMinX(), opts.minX ?? 4), blockers: floatingChips, strict: true, alternates },
           );
+          // PRICE SOVEREIGNTY (G9, 2026-09-29). A column-anchored chip (TPO)
+          // with no candle-free slot beside its column used to print ON the
+          // candles, mid-chart (serving ETH 15m: TPO VAH / POC / VAL across
+          // the bodies). It now tries the right-hand level stack — the grammar
+          // every other species' chips use — and only if that is covered too
+          // does it keep the backed on-candle spot.
+          let movedToStack = false;
+          if (opts.leftX != null && spotL.onCandles) {
+            const stackRight = plotRight - LEVEL_CHIP_EDGE_GAP;
+            const s2 = levelChipSlots({ y: yy, w: cw, rightX: stackRight, floorY, footY: pane0Bottom - 2 });
+            const spotR = placeClearOfKeepOut(
+              s2.preferred,
+              [...keepOut(), ...profileCandlesAt(s2.top, s2.bottom)],
+              { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: s2.alternates },
+            );
+            if (!spotR.onCandles) { spotL = spotR; movedToStack = true; levelChipsToStack++; }
+          }
           recordKeepOut(keepOutLedger, spotL);
           const r = spotL.rect;
           // The chip joins the chip ledger, so a later reading's words step around it.
@@ -15792,7 +15810,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           levelChipsPlaced++;
           if (spotL.mode !== "CLEAR") levelChipsMoved++;
           if (spotL.onCandles) levelChipsYielded++;
-          if (levelChipNeedsLeader(r, y, spotL.mode === "SLID")) {
+          if (!movedToStack && levelChipNeedsLeader(r, y, spotL.mode === "SLID")) {
             ctx.save();
             ctx.globalAlpha *= 0.6;
             ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.setLineDash([1, 2]);
@@ -17918,7 +17936,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         */
         if (profileCutBy.size > 0) ds.profileCandleCut = `${[...profileCutBy].join(",")}:${profileCut ? profileCut.rects.length : 0}`;
         else delete ds.profileCandleCut;
-        if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y`;
+        if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y:${levelChipsToStack}S`;
         else delete ds.profileLevelChips;
         // The organism glyphs painted this frame, in paint order — e.g.
         // "SESSION,SESSION_TICK,LIVING,COMPOSITE". A species whose glyph found
