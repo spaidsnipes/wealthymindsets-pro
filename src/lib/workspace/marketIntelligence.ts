@@ -74,7 +74,7 @@ export function unbuiltWingsIn(installedHere: readonly MarketIntelligenceWing[])
  * The W door's name. The brand's own two words for its intelligence; NOT
  * "Order flow" — that phrase now belongs to exactly one thing, the camera.
  */
-export const W_DOOR_LABEL = "WM Smart Money";
+export const W_DOOR_LABEL = "WM Smart Money Tools";
 
 /** What the W door opens onto, stated before the press. */
 export const W_DOOR_ROLE = "Market intelligence";

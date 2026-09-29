@@ -98,7 +98,6 @@ import {
 import type { EquipmentShortfall } from "@/lib/workspace/equipmentChannel";
 import { announceOpenDoorEdge } from "@/lib/os/openDoorEdge";
 import { SavedLayoutsDoor } from "./SavedLayoutsDoor";
-import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 import { CAMERA_PROMISE } from "@/lib/marketData/viewModels/selectChartArrangement";
 // The drawn mark on a tile. Keyed by equipment id and exhaustive by sentinel —
 // see `equipmentGlyphs.tsx` for why it is not a positional array.
@@ -940,97 +939,13 @@ function CommandDeckPlate({
   );
 }
 
-/**
- * THE W — WM SMART MONEY, ON THE MASTHEAD (Garden 16 §13/§14, 2026-09-27).
- *
- * §13 names W its own category — "Which WM intelligence senses are active" —
- * between CAMERA (Workspace) and TOOL. It lived as the first tile INSIDE the
- * Tools hand, so a guest read it as one more tool and had to open Tools to
- * find it (serving /charts, 2026-09-27). §14: "Use the actual W/logo
- * identity … A guest should immediately understand: CAMERA CHANGES HOW I VIEW
- * THE SAME MARKET. W ACTIVATES WM INTELLIGENCE."
- *
- * ONE OWNER, A SECOND DOOR. It opens the very equipment the Tools tile opens
- * (the registry entry whose label is W_DOOR_LABEL), through the same
- * requestEquipment channel, and its held state is the room's announced stage
- * — never a second panel, never a second compilation.
+/*
+ * THE W — WM SMART MONEY TOOLS. Garden 16 §13/§14 put a second W door on the
+ * masthead; Garden 17's master order (§III/§IV, 2026-09-29) freezes the rail at
+ * WORKSPACE · TOOLS · COMMAND DECK · ROOMS · COMMUNITY and puts WM Smart Money
+ * Tools, with its W, INSIDE Tools — one family, one toolbox. The masthead plate
+ * is gone; the Tools entry (registry label W_DOOR_LABEL, W glyph) is the door.
  */
-function WDoorPlate({
-  activeHref,
-  entry,
-  onPress,
-}: {
-  readonly activeHref: string;
-  readonly entry: RoomEquipment;
-  readonly onPress: () => void;
-}): React.ReactElement {
-  const [held, setHeld] = React.useState<boolean>(() => heldEquipmentIds().has(entry.id));
-  const heldRef = React.useRef(held);
-  React.useEffect(() => {
-    const first = heldEquipmentIds().has(entry.id);
-    heldRef.current = first;
-    setHeld(first);
-    return subscribeEquipmentStage(({ equipmentId, stage }) => {
-      const next =
-        equipmentId === null
-          ? false
-          : equipmentId === entry.id
-            ? stage !== "closed"
-            : stage !== "closed" && isJourneyEquipment(activeHref, equipmentId)
-              ? false
-              : heldRef.current;
-      if (next === heldRef.current) return;
-      heldRef.current = next;
-      setHeld(next);
-    });
-  }, [activeHref, entry.id]);
-  return (
-    <button
-      type="button"
-      data-testid="os-w-door"
-      data-equipment-open={held ? "true" : undefined}
-      className="wm-os-equipment-plate wm-os-w-door"
-      aria-label={W_DOOR_LABEL}
-      aria-pressed={held}
-      title={entry.hint}
-      onClick={() => {
-        onPress();
-        requestEquipment(entry.id, held ? "put-down" : "pick-up");
-      }}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        gap: 7,
-        minHeight: 34,
-        padding: "7px 13px",
-        borderRadius: 3,
-        border: `1px solid ${held ? GOLD : "rgba(196,165,116,0.42)"}`,
-        background: held
-          ? "rgba(196,165,116,0.14)"
-          : "linear-gradient(180deg, rgba(196,165,116,0.07), rgba(196,165,116,0.02))",
-        cursor: "pointer",
-        ...EYEBROW,
-        color: held ? GOLD : PEARL,
-        fontSize: 10,
-        letterSpacing: 1.8,
-      }}
-    >
-      <span
-        aria-hidden
-        className="wm-os-equipment-plate-mark"
-        style={{ flex: "0 0 auto", display: "block", width: 12, height: 12, color: GOLD }}
-      >
-        {equipmentGlyph(entry.id)}
-      </span>
-      {/* The W mark IS the "WM"; the words say what it opens. The accessible
-          name above keeps the full W_DOOR_LABEL. */}
-      <span className="wm-os-equipment-plate-word" style={{ whiteSpace: "nowrap" }}>
-        {W_DOOR_LABEL.replace(/^WM\s+/, "")}
-      </span>
-    </button>
-  );
-}
 
 /**
  * One standing condition, in one of its two layouts.
@@ -1535,9 +1450,6 @@ export function WMOperatingSystem({
   // not drawn at all rather than guessing which (2026-09-26).
   const deckEntries = roomEquipmentOfKind(activeHref, "deck");
   const commandDeckEntry = deckEntries.length === 1 ? deckEntries[0] : null;
-  // The room's W door (§13/§14): the one registry entry wearing W_DOOR_LABEL.
-  const wDoorEntries = roomEquipment(activeHref).filter((e) => e.label === W_DOOR_LABEL);
-  const wDoorEntry = wDoorEntries.length === 1 ? wDoorEntries[0] : null;
   // Which piece of equipment the trader has picked up. `null` — nothing — is
   // the only legal FIRST value on a market scene, and unlike `railOpen` it is
   // not seeded from a room's opinion: there is no opinion that justifies
@@ -1840,72 +1752,10 @@ export function WMOperatingSystem({
                 Market
               </Link>
             )}
-            {(
-              [
-                {
-                  kind: "rooms" as const,
-                  label: "Rooms",
-                  testid: "os-market-rooms",
-                  className: "wm-os-market-rooms",
-                  title: "Open rooms for discovery, replay, review, and research",
-                },
-                {
-                  kind: "community" as const,
-                  label: "Community",
-                  testid: "os-market-community",
-                  className: "wm-os-market-community",
-                  title: "Open the community, media and account destinations",
-                },
-              ]
-            ).map((door) => {
-              const open = scenePanel === door.kind;
-              return (
-                <button
-                  key={door.kind}
-                  ref={(el) => {
-                    doorwayTriggers.current[door.kind] = el;
-                  }}
-                  type="button"
-                  className={door.className}
-                  data-testid={door.testid}
-                  data-presentation={open ? "active-doorway" : "direct-doorway"}
-                  onClick={() =>
-                    setScenePanel((current) => (current === door.kind ? null : door.kind))
-                  }
-                  aria-expanded={open}
-                  aria-controls={open ? "wm-os-rail" : undefined}
-                  aria-label={door.label}
-                  title={door.title}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: 32,
-                    padding: "6px 9px",
-                    borderRadius: 3,
-                    // V01/V12 keep changed-job DOORWAYS, not further brass
-                    // equipment plates. Closed, the word itself is the doorway;
-                    // the outline is earned only while its own panel is open.
-                    border: `1px solid ${open ? GOLD : "transparent"}`,
-                    background: open ? "rgba(196,165,116,0.10)" : "transparent",
-                    color: open ? GOLD : MUTED,
-                    cursor: "pointer",
-                    ...EYEBROW,
-                    fontSize: 9,
-                    letterSpacing: 1.5,
-                  }}
-                >
-                  {door.label}
-                </button>
-              );
-            })}
             {(["workspace", "tools"] as const).filter(() => !doorsOnly).map((kind) => {
               const open = scenePanel === kind;
               return (
                 <React.Fragment key={kind}>
-                {kind === "tools" && wDoorEntry !== null ? (
-                  <WDoorPlate activeHref={activeHref} entry={wDoorEntry} onPress={() => setScenePanel(null)} />
-                ) : null}
                 <button
                   type="button"
                   // Escape returns focus HERE, not to the top of the document.
@@ -2022,6 +1872,69 @@ export function WMOperatingSystem({
                 />
               </>
             ) : null}
+            {/* GARDEN 17 MASTER ORDER §III (2026-09-29): the market rail is
+                exactly WORKSPACE · TOOLS · COMMAND DECK · ROOMS · COMMUNITY.
+                WM Smart Money Tools (with the W) lives INSIDE Tools — it is a
+                Tools entry, not a sixth top-level plate. */}
+            {(
+              [
+                {
+                  kind: "rooms" as const,
+                  label: "Rooms",
+                  testid: "os-market-rooms",
+                  className: "wm-os-market-rooms",
+                  title: "Open rooms for discovery, replay, review, and research",
+                },
+                {
+                  kind: "community" as const,
+                  label: "Community",
+                  testid: "os-market-community",
+                  className: "wm-os-market-community",
+                  title: "Open the community, media and account destinations",
+                },
+              ]
+            ).map((door) => {
+              const open = scenePanel === door.kind;
+              return (
+                <button
+                  key={door.kind}
+                  ref={(el) => {
+                    doorwayTriggers.current[door.kind] = el;
+                  }}
+                  type="button"
+                  className={door.className}
+                  data-testid={door.testid}
+                  data-presentation={open ? "active-doorway" : "direct-doorway"}
+                  onClick={() =>
+                    setScenePanel((current) => (current === door.kind ? null : door.kind))
+                  }
+                  aria-expanded={open}
+                  aria-controls={open ? "wm-os-rail" : undefined}
+                  aria-label={door.label}
+                  title={door.title}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 32,
+                    padding: "6px 9px",
+                    borderRadius: 3,
+                    // V01/V12 keep changed-job DOORWAYS, not further brass
+                    // equipment plates. Closed, the word itself is the doorway;
+                    // the outline is earned only while its own panel is open.
+                    border: `1px solid ${open ? GOLD : "transparent"}`,
+                    background: open ? "rgba(196,165,116,0.10)" : "transparent",
+                    color: open ? GOLD : MUTED,
+                    cursor: "pointer",
+                    ...EYEBROW,
+                    fontSize: 9,
+                    letterSpacing: 1.5,
+                  }}
+                >
+                  {door.label}
+                </button>
+              );
+            })}
           </div>
         ) : (
         <button

@@ -160,23 +160,34 @@ export function ProfilesMenu({
             <div className="text-[9px] uppercase tracking-[0.16em] text-wm-text-dim">
               {heading}
             </div>
-            <div className="text-[9px] uppercase tracking-[0.12em] text-wm-text-dim">
-              {vm.readyCount}/{vm.entries.length} ready
+            {/* CAPABILITY TRUTH, NOT A FRACTION (Garden 17 master order §VI,
+                2026-09-29): "5/9 READY" read as "WM Pro built five of nine".
+                Say what this feed can do: every reading is BUILT; the count is
+                what is AVAILABLE here, and what this feed cannot supply. */}
+            <div className="text-[9px] uppercase tracking-[0.12em] text-wm-text-dim text-right" data-testid={`${testId}-capability`}>
+              {(() => {
+                const waiting = vm.entries.filter(e => e.availability === "WAITING_FOR_BARS" || e.availability === "WAITING_FOR_PRINTS").length;
+                const unavailable = vm.entries.length - vm.readyCount - waiting;
+                if (unavailable === 0 && waiting === 0) return `All ${vm.entries.length} available`;
+                return `Degraded · ${vm.readyCount} available${unavailable > 0 ? ` · ${unavailable} unavailable on this feed` : ""}${waiting > 0 ? ` · ${waiting} waiting for data` : ""}`;
+              })()}
             </div>
           </div>
 
           <div className={columns === 1 ? "grid grid-cols-1 gap-1" : "grid grid-cols-2 gap-1"} data-testid={testId === "profiles-menu-panel" ? "profiles-instrument-grid" : `${testId}-grid`}>
             {vm.entries.map(entry => {
               const ready = entry.availability === "READY";
+              // Human states (master order §VI/§VIII): AVAILABLE · DRAWING ·
+              // WAITING · UNAVAILABLE ON THIS FEED — never a bare "READY".
               const stateLabel = ready
-                ? entry.active ? (stateDetail?.[entry.id] ? `DRAWING · ${stateDetail[entry.id]}` : "DRAWING") : "READY"
+                ? entry.active ? (stateDetail?.[entry.id] ? `DRAWING · ${stateDetail[entry.id]}` : "DRAWING") : "AVAILABLE"
                 : entry.availability === "WAITING_FOR_BARS"
                   ? "WAITING FOR BARS"
                   : entry.availability === "WAITING_FOR_PRINTS"
                     ? "WAITING FOR PRINTS"
                     : entry.availability === "REFUSED_BY_DATA"
-                      ? entry.active ? "SILENT · DATA REFUSES" : "DATA REFUSES"
-                      : entry.active ? "SILENT · TAPE REQUIRED" : "TAPE REQUIRED";
+                      ? entry.active ? "SILENT · UNAVAILABLE ON THIS FEED" : "UNAVAILABLE ON THIS FEED"
+                      : entry.active ? "SILENT · TAPE REQUIRED" : "UNAVAILABLE ON THIS FEED · NEEDS SIDED TAPE";
 
               return (
                 <button

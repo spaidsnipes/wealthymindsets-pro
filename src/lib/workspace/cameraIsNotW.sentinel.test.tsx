@@ -122,7 +122,7 @@ describe("W — WM Smart Money / Market Intelligence is not a camera", () => {
         expect(e.kind).toBe("lens");
       }
     }
-    expect(W_DOOR_LABEL).toBe("WM Smart Money");
+    expect(W_DOOR_LABEL).toBe("WM Smart Money Tools");
   });
 
   it("no equipment but a camera is called 'order flow' — the collision cannot return", () => {
