@@ -555,6 +555,7 @@ import { selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityA
 /** The forming candle's own print ring (bounded; a truncated ring is named in its receipt). */
 const FORMING_RING_CAP = 3000;
 import { positioningSourceWords } from "@/lib/marketData/cboeDelayedOptions";
+import { senseEventStates } from "@/lib/chart/senseEventStates";
 import { renderStormPixels, stormSeed, LENS_BEZEL_W, STORM_BODY_MAX_ALPHA, STORM_DRIFT_PER_SEC, STORM_TEXTURE_SIZE } from "@/lib/chart/weatherStorm";
 import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
 import type { WaitStandingVM } from "@/lib/marketData/viewModels/selectWaitStanding";
@@ -1429,6 +1430,8 @@ interface Props {
   onMtfAncestry?: (vm: MtfAncestryVM | null) => void;
   /** Garden 16 §46 · the measured semantic depth (FAR/MID/NEAR, null = unmeasured), on change only — for doors that must say why a tool is silent. */
   onSemanticDepth?: (depth: "FAR" | "MID" | "NEAR" | null) => void;
+  /** No silent nothing (master order §VIII): each order-flow sense's state from this frame's receipts, sent on change. */
+  onSenseEvents?: (states: Record<string, string>) => void;
   /** H-601 #3 — the fused profile object (or the named refusal), for Inspect. */
   onProfileFusion?: (fused: FusedProfileObject | null, refusal: string | null) => void;
   /** The Visible Range species' own refusal (null when drawn or off), reported on change only. */
@@ -1810,6 +1813,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onExpectedEnvelope,
   onMtfAncestry,
   onSemanticDepth,
+  onSenseEvents,
   onProfileFusion,
   onVisibleRangeRefusal,
   onSessionVpRefusal,
@@ -2081,6 +2085,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const onSemanticDepthRef = useRef<typeof onSemanticDepth>(undefined);
   useEffect(() => { onSemanticDepthRef.current = onSemanticDepth; }, [onSemanticDepth]);
   const semanticDepthSentRef = useRef<string | undefined>(undefined);
+  const onSenseEventsRef = useRef<typeof onSenseEvents>(undefined);
+  useEffect(() => { onSenseEventsRef.current = onSenseEvents; }, [onSenseEvents]);
+  const senseEventsSentRef = useRef<string>("");
   // T-210 · per-bar session-clock memo for the ancestry owner, reset when the camera changes.
   // Garden 15 §2 — the room's derivatives compilation, read by the paint loop.
   // Garden 16 §7 · LIVING MARKET — LIVE / STILL, one presentation state. STILL
@@ -20304,6 +20311,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // did not paint has nothing new to say about what painting costs.
         const ds = canvasRef.current?.dataset;
         if (ds) for (const [k, v] of Object.entries(paintLedgerReceipt(paintLedger))) ds[k] = v;
+        // NO SILENT NOTHING: what each order-flow sense painted this frame, told to the room on change.
+        if (ds && onSenseEventsRef.current) {
+          const states = senseEventStates(ds);
+          const key = JSON.stringify(states);
+          if (key !== senseEventsSentRef.current) { senseEventsSentRef.current = key; onSenseEventsRef.current(states); }
+        }
       } else if (verdict.skipped) {
         // Every non-painting frame is counted, INCLUDING an ordinary BUDGET
         // skip — that count is the denominator. "4 paints" means nothing

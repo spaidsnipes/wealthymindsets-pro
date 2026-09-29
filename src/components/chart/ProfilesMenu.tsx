@@ -41,6 +41,7 @@
  * still prints `silentNote` verbatim.
  */
 
+import { senseIsQuiet } from "@/lib/chart/senseEventStates";
 import React from "react";
 import { Layers, Check } from "lucide-react";
 import {
@@ -180,7 +181,11 @@ export function ProfilesMenu({
               // Human states (master order §VI/§VIII): AVAILABLE · DRAWING ·
               // WAITING · UNAVAILABLE ON THIS FEED — never a bare "READY".
               const stateLabel = ready
-                ? entry.active ? (stateDetail?.[entry.id] ? `DRAWING · ${stateDetail[entry.id]}` : "DRAWING") : "AVAILABLE"
+                ? entry.active
+                  ? (stateDetail?.[entry.id]
+                    ? (senseIsQuiet(stateDetail[entry.id]) ? `ACTIVE · ${stateDetail[entry.id]}` : `DRAWING · ${stateDetail[entry.id]}`)
+                    : "DRAWING")
+                  : "AVAILABLE"
                 : entry.availability === "WAITING_FOR_BARS"
                   ? "WAITING FOR BARS"
                   : entry.availability === "WAITING_FOR_PRINTS"

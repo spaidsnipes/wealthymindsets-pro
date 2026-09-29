@@ -2471,6 +2471,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Garden 16 §46 — the glass's measured depth, so the order-flow door can say
   // why an armed tool drew nothing (the permission table silenced it).
   const [semanticDepth, setSemanticDepth] = useState<"FAR" | "MID" | "NEAR" | null>(null);
+  // No silent nothing (master order §VIII): each order-flow sense's state, told by the chart from its own receipts.
+  const [senseEvents, setSenseEvents] = useState<Record<string, string>>({});
   const onMtfAncestry = useCallback((vm: MtfAncestryVM | null) => {
     setMtfAncestryVM(prev => ((prev?.receipt ?? "") === (vm?.receipt ?? "") ? prev : vm));
   }, []);
@@ -3342,6 +3344,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         heading="On price · order-flow readings"
         testId="order-flow-tools-menu"
         columns={1}
+        stateDetail={senseEvents}
         speciesRefusal={chartLiquidityWeather.stage === "UNMEASURED" ? { LIQUIDITY_WEATHER: chartLiquidityWeather.detail } : undefined}
         active={profileMenuActive}
         onToggle={onProfileMenuToggle}
@@ -6247,6 +6250,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       roomPosture={chartCanvasVM.oneStory?.decision?.value === "WAIT" || chartCanvasVM.oneStory?.decision?.value === "NO TRADE" ? "QUIET" : null}
                       derivativesPressure={derivativesPressureVM}
                       onSemanticDepth={setSemanticDepth}
+                      onSenseEvents={setSenseEvents}
                       onSelectPressureWall={strike => actOnChartSelection({ type: "select", selection: { kind: "PRESSURE_WALL", symbol, timeframe, strike } })}
                       selectedPressureWallStrike={activeSelectedWall?.strike ?? null}
                       onSelectPressureFront={() => actOnChartSelection({ type: "select", selection: { kind: "PRESSURE_FRONT", symbol, timeframe } })}
