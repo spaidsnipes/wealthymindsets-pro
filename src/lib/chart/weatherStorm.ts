@@ -104,6 +104,22 @@ export function renderStormPixels(
   let painted = 0;
   const tones: StormTone[] = [];
   for (let px = 0; px < size; px++) tones.push(toneAt((px + 0.5) / size));
+  // Column seams dissolved (F08B beside serving 2026-09-29: the measured
+  // cells painted as hard vertical stripes; the plate's smoke flows across
+  // time). Each pixel's colour is the weight-averaged MEASURED colour of its
+  // neighbouring columns, sampled where the smoke's own density bends it —
+  // measured colours only, blended where they meet; clear air stays clear.
+  const blend = Math.max(1, Math.round(size / 24));
+  const tint = (center: number): [number, number, number] | null => {
+    let r = 0, g = 0, b = 0, w = 0;
+    for (let k = center - blend; k <= center + blend; k++) {
+      const t = tones[Math.max(0, Math.min(size - 1, k))];
+      if (t.weight <= 0) continue;
+      const f = t.weight * (1 - Math.abs(k - center) / (blend + 1));
+      r += t.rgb[0] * f; g += t.rgb[1] * f; b += t.rgb[2] * f; w += f;
+    }
+    return w > 0 ? [r / w, g / w, b / w] : null;
+  };
   for (let py = 0; py < size; py++) {
     const v = (py + 0.5) / size;
     for (let px = 0; px < size; px++) {
@@ -120,7 +136,8 @@ export function renderStormPixels(
       // Saturation pushed away from grey (F08B, beside the serving glass
       // 2026-09-29: the plate's smoke is deep yellow-green and teal; serving
       // read washed grey) — the SAME measured hue, deeper, never a new one.
-      const [r0, g0, b0] = tone.rgb;
+      const bent = Math.round(px + (stormDensity(v, u, seed + 1, phase) - 0.5) * blend * 3);
+      const [r0, g0, b0] = tint(bent) ?? tone.rgb;
       const grey = (r0 + g0 + b0) / 3;
       const r = grey + (r0 - grey) * STORM_SATURATION, g = grey + (g0 - grey) * STORM_SATURATION, b = grey + (b0 - grey) * STORM_SATURATION;
       // Luminous cores (plate): the measured colour lit from within, never a new hue.
