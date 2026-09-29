@@ -18363,16 +18363,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             */
             if (short) lines.push({ t: `DECISION_ID ${short}`, c: "rgba(194,184,146,0.8)" });
             const pw = Math.max(ctx.measureText(zoom.tag).width, ...lines.map(l => ctx.measureText(l.t).width)) + 12;
-            const top = 26;
+            // The plate ENDS ABOVE the INSPECT chip's row (DOM, top 64): at a
+            // 12px pitch the fourth line (DECISION_ID) printed under the
+            // translucent chip and read as smeared glyphs (serving BTC-USD 5m,
+            // 2026-09-29). A 10px pitch keeps all four lines on the plate.
+            const top = 24, pitch = 10;
+            const plateH = Math.min((lines.length + 1) * pitch + 3, READING_ANCHOR_ROW_BOTTOM - 24 - (top - 3));
             ctx.fillStyle = "rgba(11,10,8,0.82)";
-            ctx.fillRect(rightX - pw + 6, top - 3, pw, (lines.length + 1) * 12 + 5);
+            ctx.fillRect(rightX - pw + 6, top - 3, pw, plateH);
             // Chrome is an obstacle too: later readings step around the plate.
-            floatingChips.push({ x: rightX - pw + 6, y: top - 3, w: pw, h: (lines.length + 1) * 12 + 5 });
+            floatingChips.push({ x: rightX - pw + 6, y: top - 3, w: pw, h: plateH });
             ctx.fillStyle = "rgba(201,165,92,0.85)";
             ctx.fillText(zoom.tag, rightX, top);
             lines.forEach((l, i) => {
               ctx.fillStyle = l.c;
-              ctx.fillText(l.t, rightX, top + (i + 1) * 12);
+              ctx.fillText(l.t, rightX, top + (i + 1) * pitch);
             });
             ctx.restore();
           }
