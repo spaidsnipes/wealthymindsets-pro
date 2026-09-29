@@ -18906,7 +18906,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                the lens's radius — the receipt says which. */
             {
               const rr = Math.min(L.rx, L.ry);
-              const hw = Math.max(9, Math.min(20, rr * 0.1));
+              const hw = Math.max(10, Math.min(30, rr * 0.15));
               const plotR = weatherPlotRight - 4, plotB = pane0Bottom - 4;
               let handle: { t: number; len: number; x: number; y: number } | null = null;
               for (const t of [Math.PI / 4, (3 * Math.PI) / 4]) {
@@ -18931,7 +18931,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   return g;
                 };
                 // Grip: a tapered turned rod, lit along one flank.
-                const gw0 = hw * 0.5, gw1 = hw * 0.4, f = hw * 1.25;
+                const gw0 = hw * 0.56, gw1 = hw * 0.46, f = hw * 1.1;
                 ctx.beginPath();
                 ctx.moveTo(f, -gw0);
                 ctx.lineTo(len, -gw1);
