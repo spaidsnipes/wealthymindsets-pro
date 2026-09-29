@@ -10420,14 +10420,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const shelfRowsOnPrice = desktopShelfInstrument && shelfDepth !== "FAR"
                 ? absorptionShelfRows(zone, anatomy.bars, shelfRowCount(bh))
                 : [];
-              const rowRects: { x: number; y: number; w: number; h: number }[] = [];
+              const rowRects: { x: number; y: number; w: number; h: number; sx: number }[] = [];
               let rowsWithRuns = 0;
               for (const row of shelfRowsOnPrice) {
                 const ryA = srs.priceToCoordinate(row.hi);
                 const ryB = srs.priceToCoordinate(row.lo);
                 if (ryA == null || ryB == null) continue;
                 const rTop = Math.min(+ryA, +ryB), rBot = Math.max(+ryA, +ryB);
-                const rowGap = shelfRowsOnPrice.length > 1 ? 1 : 0;
+                // Mortar between courses (F06A beside serving 2026-09-29).
+                const rowGap = shelfRowsOnPrice.length > 1 ? (rBot - rTop >= 7 ? 2 : 1) : 0;
                 let drew = false;
                 for (const run of row.runs) {
                   const xa = ts.timeToCoordinate(run.fromTime as never);
@@ -10436,7 +10437,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   const rx0 = Math.max(x0, +xa - spacing / 2);
                   const rx1 = Math.min(x1, +xz + spacing / 2);
                   if (rx1 - rx0 < 1) continue;
-                  rowRects.push({ x: rx0, y: rTop + rowGap / 2, w: rx1 - rx0, h: Math.max(1, rBot - rTop - rowGap) });
+                  rowRects.push({ x: rx0, y: rTop + rowGap / 2, w: rx1 - rx0, h: Math.max(1, rBot - rTop - rowGap), sx: +xa - spacing / 2 });
                   drew = true;
                 }
                 if (drew) rowsWithRuns++;
@@ -10484,6 +10485,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   // Each slab's lit top edge: a body, not a tint.
                   ctx.fillStyle = `rgba(255,244,220,${shelfSelected ? 0.28 : 0.18})`;
                   for (const r of rowRects) ctx.fillRect(r.x, r.y, r.w, 1);
+                  /* COURSES, NOT A VEIL (F06A beside serving, 2026-09-29: the
+                     plate's shelf is laid masonry; serving read as a pale
+                     hatched sheet). Material only: a lit face, a shadowed
+                     underside, and a joint at every bar boundary — each block
+                     IS one bar whose traded range reached that row, the same
+                     runs the owner cut. No side, no volume, no new fact. */
+                  ctx.fillStyle = `rgba(${rowInk},0.10)`;
+                  for (const r of rowRects) if (r.h >= 6) ctx.fillRect(r.x, r.y + 1, r.w, Math.floor(r.h * 0.45));
+                  ctx.fillStyle = "rgba(0,0,0,0.34)";
+                  for (const r of rowRects) if (r.h >= 4) ctx.fillRect(r.x, r.y + r.h - 1.5, r.w, 1.5);
+                  ctx.fillStyle = "rgba(8,7,5,0.55)";
+                  for (const r of rowRects) {
+                    if (spacing < 6) continue;
+                    for (let jx = r.sx + spacing; jx < r.x + r.w - 1; jx += spacing) if (jx > r.x + 1) ctx.fillRect(Math.round(jx) - 0.5, r.y, 1, r.h);
+                  }
                   ctx.restore();
                 } else {
                   ctx.fillStyle = desktopShelfInstrument
@@ -10500,7 +10516,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 if (rowRects.length > 0) for (const r of rowRects) ctx.rect(r.x, r.y, r.w, r.h);
                 else ctx.rect(x0, yHi, bw, bh);
                 ctx.clip();
-                ctx.strokeStyle = `rgba(${rowInk},${shelfSelected ? 0.36 : 0.24})`;
+                // Over laid courses the hatch is only a whisper; the no-rows box keeps it.
+                ctx.strokeStyle = `rgba(${rowInk},${rowRects.length > 0 ? (shelfSelected ? 0.14 : 0.07) : shelfSelected ? 0.36 : 0.24})`;
                 ctx.lineWidth = 1;
                 const hatchStep = 7;
                 for (let hx = x0 - bh; hx < x1 + bh; hx += hatchStep) {
