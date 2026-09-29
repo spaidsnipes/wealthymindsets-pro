@@ -68,6 +68,7 @@
  */
 
 import type { ScopedDecisionIdentity } from "@/lib/expressionShortlist";
+import { canonicalInstrumentId } from "@/lib/marketData/canonicalIdentity";
 
 import {
   DECISION_IDENTITY_LAW_VERSION,
@@ -126,6 +127,17 @@ function isBirthCause(value: unknown): value is DecisionBirthCause {
  * signed-out visitor shares, which is the collision this scoping exists to
  * prevent.
  */
+/**
+ * ONE INSTRUMENT, ONE DECISION (G6, 2026-09-29). The scope is the CANONICAL
+ * instrument, not its spelling: serving /paper booked a decision under "BTC"
+ * while /charts?symbol=BTC-USD — the same instrument — found none and would
+ * have minted a second. `canonicalInstrumentId` is the identity layer's one
+ * answer to "which instrument" ("BTC", "BTC-USD", "BTCUSD" → "BTC-USD").
+ */
+function instrumentScope(underlying: string): string {
+  try { return canonicalInstrumentId(underlying); } catch { return underlying.toUpperCase(); }
+}
+
 export function decisionContinuityKey(
   owner: string | null | undefined,
   underlying: string | null | undefined,
@@ -133,6 +145,11 @@ export function decisionContinuityKey(
   const o = owner?.trim() ?? "";
   const u = underlying?.trim() ?? "";
   if (o === "" || u === "") return null;
+  return `${DECISION_CONTINUITY_KEY_PREFIX}${encodeURIComponent(o)}:${encodeURIComponent(instrumentScope(u))}`;
+}
+
+/** The pre-2026-09-29 key (raw spelling) — read once so no decision is orphaned. */
+function legacyContinuityKey(o: string, u: string): string {
   return `${DECISION_CONTINUITY_KEY_PREFIX}${encodeURIComponent(o)}:${encodeURIComponent(u)}`;
 }
 
@@ -190,13 +207,14 @@ export function readSceneDecision(
   const u = underlying!.trim();
 
   try {
-    const raw = storage.getItem(key);
+    const raw = storage.getItem(key) ?? storage.getItem(legacyContinuityKey(o, u));
     if (raw == null) return null;
     const parsed = JSON.parse(raw) as Partial<DecisionContinuityEnvelope>;
     if (
       parsed.version !== VERSION
       || parsed.owner !== o
-      || parsed.underlying !== u
+      || typeof parsed.underlying !== "string"
+      || instrumentScope(parsed.underlying) !== instrumentScope(u)
       || !isDecisionIdentity(parsed.identity)
     ) {
       return null;

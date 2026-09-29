@@ -248,3 +248,28 @@ describe("B-501 · the listener filter", () => {
     )).toBe(false);
   });
 });
+
+describe("one instrument, one decision — the scope is canonical (serving /paper ↔ /charts, 2026-09-29)", () => {
+  it("a decision booked under BTC is found under BTC-USD and BTCUSD, and not under ETH", async () => {
+    const { readSceneDecision: read, writeSceneDecision: write, decisionContinuityKey: key } = await import("./decisionContinuity");
+    const { mintDecisionId } = await import("./decisionIdentity");
+    const mem = new Map<string, string>();
+    const storage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
+    const born = mintDecisionId({ cause: "EXPLICIT_INTENT", deviceId: "d", nowMs: 1, nonce: "abc" });
+    if (!born.ok) throw new Error("mint");
+    expect(write({ owner: "o", underlying: "BTC", identity: born.identity }, { storage, onChanged: () => {} })).toBe(true);
+    expect(key("o", "BTC")).toBe(key("o", "BTC-USD"));
+    expect(read("o", "BTC-USD", storage)?.identity.decisionId).toBe(born.identity.decisionId);
+    expect(read("o", "BTCUSD", storage)?.identity.decisionId).toBe(born.identity.decisionId);
+    expect(read("o", "ETH-USD", storage)).toBeNull();
+  });
+  it("a decision stored under the old raw-spelling key is still found (no orphan)", async () => {
+    const { readSceneDecision: read } = await import("./decisionContinuity");
+    const { mintDecisionId } = await import("./decisionIdentity");
+    const born = mintDecisionId({ cause: "EXPLICIT_INTENT", deviceId: "d", nowMs: 1, nonce: "old" });
+    if (!born.ok) throw new Error("mint");
+    const mem = new Map<string, string>([["wm:decision-identity:v1:o:BTC", JSON.stringify({ version: 1, owner: "o", underlying: "BTC", identity: born.identity })]]);
+    const storage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
+    expect(read("o", "BTC", storage)?.identity.decisionId).toBe(born.identity.decisionId);
+  });
+});
