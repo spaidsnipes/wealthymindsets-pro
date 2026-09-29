@@ -14624,18 +14624,50 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // ── FIELD ────────────────────────────────────────────────────
               const geo = dp.geography;
               const maxAbs = Math.max(1, ...geo.map(g => Math.abs(g.net)));
-              for (let i = 0; i < geo.length - 1; i++) {
-                const a = geo[i], b = geo[i + 1];
-                const ya = yOfD(a.price), yb = yOfD(b.price);
-                if (ya == null || yb == null) continue;
-                const top = Math.min(ya, yb), h = Math.abs(yb - ya) + 0.6;
-                if (top > paneBotD || top + h < HEADER_FLOOR_Y) continue;
-                const net = (a.net + b.net) / 2;
-                const k = Math.min(1, Math.abs(net) / maxAbs);
-                const alpha = (0.06 + 0.24 * Math.sqrt(k)) * baseA;
-                ctx.fillStyle = net >= 0 ? `rgba(84,140,204,${alpha})` : `rgba(222,108,44,${alpha})`;
-                ctx.fillRect(0, top, plotRightD, h);
+              const paintFieldBase = (mult: number) => {
+                for (let i = 0; i < geo.length - 1; i++) {
+                  const a = geo[i], b = geo[i + 1];
+                  const ya = yOfD(a.price), yb = yOfD(b.price);
+                  if (ya == null || yb == null) continue;
+                  const top = Math.min(ya, yb), h = Math.abs(yb - ya) + 0.6;
+                  if (top > paneBotD || top + h < HEADER_FLOOR_Y) continue;
+                  const net = (a.net + b.net) / 2;
+                  const k = Math.min(1, Math.abs(net) / maxAbs);
+                  const alpha = (0.06 + 0.24 * Math.sqrt(k)) * baseA * mult;
+                  ctx.fillStyle = net >= 0 ? `rgba(84,140,204,${alpha})` : `rgba(222,108,44,${alpha})`;
+                  ctx.fillRect(0, top, plotRightD, h);
+                }
+              };
+              /* CANDLE CLEAR ZONE (Garden 17 master order §XIX/§XX, 2026-09-29:
+                 "pressure field may retain geometry but reduce fill intensity
+                 through the live bar corridor"). Serving ETH-USD 15m with every
+                 sense on: the amplifying field flooded the lower half in orange
+                 and the live candles sat in it. Through the newest 12 bars'
+                 own price corridor the field keeps its geometry at 30% fill and
+                 drops its texture; everywhere else it keeps its full mass. */
+              let clearZone: { x: number; y: number; w: number; h: number } | null = null;
+              {
+                const nCZ = Math.min(12, barsD.length);
+                if (nCZ > 0) {
+                  let lo = Infinity, hi = -Infinity;
+                  for (let i = barsD.length - nCZ; i < barsD.length; i++) { lo = Math.min(lo, barsD[i].low); hi = Math.max(hi, barsD[i].high); }
+                  const xk = tsD.timeToCoordinate(barsD[barsD.length - nCZ].time as never);
+                  const yh = yOfD(hi), yl = yOfD(lo);
+                  if (xk != null && yh != null && yl != null) {
+                    const x0 = Math.max(0, +xk - bsp);
+                    if (x0 < plotRightD) clearZone = { x: x0, y: yh - 20, w: plotRightD - x0, h: yl - yh + 40 };
+                  }
+                }
               }
+              ds.derivativesPressureClearZone = clearZone ? `${Math.round(clearZone.x)},${Math.round(clearZone.y)},${Math.round(clearZone.w)},${Math.round(clearZone.h)}` : "NONE";
+              ctx.save();
+              if (clearZone) {
+                const outside = new Path2D();
+                outside.rect(0, 0, W, H);
+                outside.rect(clearZone.x, clearZone.y, clearZone.w, clearZone.h);
+                ctx.clip(outside, "evenodd");
+              }
+              paintFieldBase(1);
               /* CLIMATE AS MATERIAL (Garden 16 reconstruction §26: "climate,
                  fields, corridors … pressure geography"). Each band's texture
                  is bound to the same net exposure k that tints it:
@@ -14702,6 +14734,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 }
               }
               ctx.lineWidth = 1;
+              ctx.restore(); // the field outside the clear zone
+              if (clearZone) {
+                ctx.save();
+                ctx.beginPath(); ctx.rect(clearZone.x, clearZone.y, clearZone.w, clearZone.h); ctx.clip();
+                paintFieldBase(0.3);
+                ctx.restore();
+              }
               painted.push(`FIELD:${geo.length}`);
 
               // ── POCKETS (acceleration corridors) ────────────────────────
