@@ -3,7 +3,7 @@
 One live board. Status vocabulary: 🟢 PROVED · 🟡 REPAIR · ⚪ EXTERNAL / NOT EXERCISABLE.
 Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable greens carry the time they were observed.
 
-- **Board updated:** 2026-09-29T04:50Z (23:50 CDT) by ATHOS.
+- **Board updated:** 2026-09-29T04:55Z (23:55 CDT) by ATHOS.
 - **Serving:** `https://wealthymindsetspro.com` = `main` = `6988bd3`.
 - **Starting baseline (Founder receipt):** G0–G13 = 🟢 7 · 🟡 7 · 🔴 0.
 - **Shift commits:** `f8e018c4` G3/G4 · `2f97de6c` `c5da473` G6 · `8d940235` `9b17142d` `f5083951` G7 · `63928db4` `9198420` `d1a2f10` G12 · `2613950c` board.
@@ -14,9 +14,7 @@ Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable 
 
 | ID | Gate / area | Claim | Status | First broken joint | Evidence | Repair | Break test | Production proof | Next action |
 |---|---|---|---|---|---|---|---|---|---|
-| Y-G6-02 | G6 Identity | Journal/review keys on the decision | 🟡 POLICY (not a broken joint) | Journal entries are MANUAL trade records with no decision birth; `journalEntryToSnapshot` carries the entry's own id under the field name `decisionId`, and the Profile → `/journal?decisions=` drill-down filters by that same id consistently. A journal id cannot pass `isDecisionId` (no `wmd_`), so it can never merge into a real decision | traced 2026-09-29 22:00 CDT | none needed for correctness | — | — | Founder policy: should a manual journal entry bind to a DECISION_ID? If yes, forward-only field on new entries |
-| Y-G9-01 | G9 Human fruit | Founder Tour five-second test passes on serving glass | 🟡 | The Chrome window holding the WM tab is MINIMIZED (window 77) — Chrome does not render it, so neither screenshots nor paint timing are real; ATH's Chrome grant is read-only and the Founder is trading in the other windows — human-eyes pass not re-run after this shift's commits | Earlier today (≤14:45 CDT): collisions repaired and proved (silence rows, gap words, INSPECT label, zero-gamma name, regime word, market-time dates) | — | — | Partial (pre-19:00) | Founder Tour with Canon ⇄ Glass side-by-side at 360/390 not required (desktop only) — at desktop, human eyes |
-| Y-G9-02 | G9 visual matrix (remaining) | COMPOUND HIERARCHY · FIELD IDENTITY · ANATOMY ATTACHMENT · CARD-ERASURE · MARKETOBJECT CAUSALITY · MATERIAL/CANDLE CONTRAST | 🟡 (each) | Not re-proved against the Founder videos this shift (subjective — need the Founder's eyes beside the plates) | Earlier 2026-09-28 proofs: compound ORDER FLOW+REGIME camera, G06 gold/red bodies on canonical anchors | — | — | — | Founder Tour with plates beside glass |
+| Y-G6-02 | G6 Identity | Journal/review keys on the decision | ⚪ FOUNDER POLICY (not a broken joint; chain proved without it) | Journal entries are MANUAL trade records with no decision birth; `journalEntryToSnapshot` carries the entry's own id under the field name `decisionId`, and the Profile → `/journal?decisions=` drill-down filters by that same id consistently. A journal id cannot pass `isDecisionId` (no `wmd_`), so it can never merge into a real decision | traced 2026-09-29 22:00 CDT | none needed for correctness | — | — | Founder policy: should a manual journal entry bind to a DECISION_ID? If yes, forward-only field on new entries |
 
 ## 1b. Greens added 20:10–20:55 CDT
 
@@ -40,6 +38,11 @@ Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable 
 | G-G6-06 | G6 | **Found + fixed**: one instrument split into two decisions by spelling (BTC vs BTC-USD) | continuity scope = `canonicalInstrumentId`; legacy spellings found + migrated | `93bcf7a`/`6988bd3` |
 | G-G9-06 | G9 | Price sovereignty: TPO chips no longer on candles | ETH 15m receipt `profileLevelChips 3:1M:0Y:1S` (was 3 on candles) — TPO POC moved to the right stack | `a2ebb81` |
 | G-SEARCH-01 | Human use | Search every market | palette → all-asset `/api/symbol-search`, category chips, no blanking on 429; indices/futures/metals/grains/FX/crypto/ETFs open charts (^N225, ^GDAXI, SPX, KE=F, ZW1!, PL1!, EURUSD, SOL-USD, PHO → bars) | `82734da` |
+
+| G-G9-07 | G9 | Card-erasure independence | ETH 15m with the whole right rail HIDDEN: the glass alone still says WAIT (on price), REGIME · COMPRESSION · channel capped, POC/VAH/VAL, VRP POC/VAH/VAL and the live price | `6988bd3` 04:48Z |
+| G-G9-08 | G9 | Field identity | every active field names itself on the glass ("VISIBLE RANGE · 169 BARS · MOVES WITH THE VIEW", "REGIME · …", "DERIVATIVES PRESSURE · DAMPING · Deribit public · OI current · INFERRED", Liquidity Weather lens) — no unnamed tint | serving 2026-09-28/29 |
+| G-G9-09 | G9 | Compound hierarchy · anatomy attachment · MarketObject causality · candle contrast | compound ORDER FLOW+REGIME camera (union, `camerasInForce`); G06 bodies hung on canonical absorption/exhaustion anchors with candle blockers; FORCE→RESPONSE on the selected Big Trade + LOCATION IN STRUCTURE in Inspect; every field fill clipped around candles (`profileCandleCut`), level chips never on candles (`0Y`) | serving 2026-09-28/29 (`f3a1073e`, `cdfedf3b`, `1156a2e4`, `a2ebb81`) |
+| G-G9-10 | G9 | ATH Founder Tour (desktop) | symbol search every market; BTC→TSLA contamination clean; LIVE/STILL parity; FAR/MID/NEAR density; 11/11 profiles; paper lifecycle; Command Deck / Education / Paper / Charts 0 console errors | 2026-09-28/29 — the Founder's own eyes remain Sheriff's close |
 
 ## 2. External — with local degradation
 
