@@ -25,7 +25,7 @@ describe("chart appearance has one truthful doorway", () => {
   });
 
   it("lets a deliberate swatch choice outrank presets instead of being overpainted", () => {
-    expect(dashboard).toContain('const settings = { ...readAppSettings(), chartTheme: "custom" };');
+    expect(dashboard).toContain('setAppSettings(writeAppSettings({ chartTheme: "custom" }));');
     expect(dashboard).toContain("settings={effChartSettings}");
     expect(dashboard).toContain("onSettingsChange={applyChartSettings}");
     expect(settings).toContain('<option value="custom">Custom candle colors</option>');

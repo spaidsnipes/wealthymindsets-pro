@@ -87,8 +87,9 @@ describe("shared shell modal drawer accessibility", () => {
   });
 
   it("preserves existing settings, export, cache, notification, and sign-out handlers", () => {
-    expect(panels).toContain('localStorage.setItem("wm_settings"');
-    expect(panels).toContain('window.dispatchEvent(new CustomEvent("wm-settings-changed"))');
+    // G12 (2026-09-29): Save goes through the ONE wm_settings writer, which
+    // merges, writes and announces "wm-settings-changed" exactly once.
+    expect(panels).toContain("writeAppSettings({ darkMode, soundOn, showPnl, defaultTF, defSym, chartTheme, fontSize });");
     expect(panels).toContain('a.download = "wealthymindsets-export.json"');
     expect(panels).toContain("window.location.reload()");
     expect(panels).toContain("onClick={() => markOne(n.id)}");

@@ -1,6 +1,7 @@
 "use client";
 
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
+import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsStore";
 
 import {
   currentProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue,
@@ -651,10 +652,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const symbol    = activeSymbol;
   const setSymbol = setActiveSymbol;
   // ── App settings (from Settings panel) ──────────────────────
-  function readAppSettings(): Record<string, unknown> {
-    if (typeof window === "undefined") return {};
-    try { return JSON.parse(localStorage.getItem("wm_settings") || "{}"); } catch { return {}; }
-  }
+  // readAppSettings / writeAppSettings: the ONE owner of wm_settings (G12).
   const [appSettings, setAppSettings] = useState<Record<string, unknown>>(() => readAppSettings());
   useEffect(() => {
     const h = () => setAppSettings(readAppSettings());
@@ -1079,10 +1077,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // color channels. The current product default is Classic red/green;
       // leaving the app preset on `custom` would immediately reveal the old
       // gold storage defaults and make Reset contradict the settings label.
-      const settings = { ...readAppSettings(), chartTheme: "green-red" };
-      try { localStorage.setItem("wm_settings", JSON.stringify(settings)); } catch {}
-      setAppSettings(settings);
-      window.dispatchEvent(new CustomEvent("wm-settings-changed"));
+      setAppSettings(writeAppSettings({ chartTheme: "green-red" }));
       return;
     }
 
@@ -1096,10 +1091,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // A deliberate swatch choice becomes the active palette immediately.
     // Without this handoff, the app-wide preset silently overpainted the
     // trader's six candle channels and the picker appeared to do nothing.
-    const settings = { ...readAppSettings(), chartTheme: "custom" };
-    try { localStorage.setItem("wm_settings", JSON.stringify(settings)); } catch {}
-    setAppSettings(settings);
-    window.dispatchEvent(new CustomEvent("wm-settings-changed"));
+    setAppSettings(writeAppSettings({ chartTheme: "custom" }));
   }, [effChartSettings]);
 
   // ── NEW: Layout ─────────────────────────────────────────────

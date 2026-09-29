@@ -27,6 +27,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { CHART_TF_SHIPPED, normalizeTFId } from "@/lib/timeframes";
+import { writeAppSettings } from "@/lib/settings/appSettingsStore";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { BarChart2, Bell, Monitor, Search, Settings, Shield, Trash2, X } from "lucide-react";
@@ -521,13 +522,9 @@ export function SettingsPanel({
           <button
             type="button"
             onClick={() => {
-              localStorage.setItem("wm_settings", JSON.stringify({
-                // Merged over what is stored so withdrawn keys a reader may
-                // still hold are not silently rewritten.
-                ...(() => { try { return JSON.parse(localStorage.getItem("wm_settings") ?? "{}"); } catch { return {}; } })(),
-                darkMode, soundOn, showPnl, defaultTF, defSym, chartTheme, fontSize,
-              }));
-              window.dispatchEvent(new CustomEvent("wm-settings-changed"));
+              // The one wm_settings writer: merged over what is stored (withdrawn
+              // keys a reader may still hold are not rewritten), announced once.
+              writeAppSettings({ darkMode, soundOn, showPnl, defaultTF, defSym, chartTheme, fontSize });
               onClose();
             }}
             className="min-h-11 w-full rounded-xl text-sm font-bold text-wm-black transition-all hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
