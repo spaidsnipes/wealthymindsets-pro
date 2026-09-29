@@ -18491,7 +18491,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             barSpacing: bsp,
             timeToX: t => { const xk = tsW.timeToCoordinate(t as never); return xk == null ? null : +xk; },
             priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
-          }, weatherLens.cx - weatherLens.rx - 8, weatherLens.cx + weatherLens.rx + 8)) cut.rect(r.x, r.y, r.w, r.h);
+          }, weatherLens.cx - weatherLens.rx * 1.5 - 8, weatherLens.cx + weatherLens.rx * 1.5 + 8)) cut.rect(r.x, r.y, r.w, r.h);
 
           // THE LENS YIELDS TO THE CHIPS ALREADY PLACED (serving, 14:48 CDT:
           // the value-band chip and the SWING labels sat under the ring). Every
@@ -18896,6 +18896,79 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                legend ramp (the field's HELD → MOVED scale) and the newest-cell
                notch, exactly as before. */
             const BZ = LENS_BEZEL_W;
+            /* G03 · THE LOUPE'S HANDLE (game-build plate G03, beside serving
+               2026-09-29): the weather lens is a magnifying glass held over the
+               tape — a polished brass handle leaves the rim down and away. Pure
+               material, no market fact. It is drawn under the bezel (the rim
+               seats its ferrule), inside the same candle and chip cut as the
+               ring, and only where the plot has room: lower-right, else
+               lower-left, shortened to fit, and never at all below a third of
+               the lens's radius — the receipt says which. */
+            {
+              const rr = Math.min(L.rx, L.ry);
+              const hw = Math.max(9, Math.min(20, rr * 0.1));
+              const plotR = weatherPlotRight - 4, plotB = pane0Bottom - 4;
+              let handle: { t: number; len: number; x: number; y: number } | null = null;
+              for (const t of [Math.PI / 4, (3 * Math.PI) / 4]) {
+                const s0 = ringPoint(L, t, BZ - 2);
+                const dx = Math.cos(t), dy = Math.sin(t);
+                const fits = (l: number) => {
+                  const ex = s0.x + dx * l, ey = s0.y + dy * l;
+                  return ex + hw <= plotR && ex - hw >= 0 && ey + hw <= plotB;
+                };
+                let len = rr * 0.6;
+                while (len >= rr * 0.33 && !fits(len)) len -= 4;
+                if (len >= rr * 0.33) { handle = { t, len, x: s0.x, y: s0.y }; break; }
+              }
+              if (handle) {
+                const { t, len } = handle;
+                ctx.save();
+                ctx.translate(handle.x, handle.y);
+                ctx.rotate(t);
+                const across = (h: number, stops: [number, string][]) => {
+                  const g = ctx.createLinearGradient(0, -h, 0, h);
+                  for (const [o, c] of stops) g.addColorStop(o, c);
+                  return g;
+                };
+                // Grip: a tapered turned rod, lit along one flank.
+                const gw0 = hw * 0.5, gw1 = hw * 0.4, f = hw * 1.25;
+                ctx.beginPath();
+                ctx.moveTo(f, -gw0);
+                ctx.lineTo(len, -gw1);
+                ctx.lineTo(len, gw1);
+                ctx.lineTo(f, gw0);
+                ctx.closePath();
+                ctx.fillStyle = across(gw0, [[0, "rgba(92,64,28,0.98)"], [0.22, "rgba(236,200,124,0.98)"], [0.45, "rgba(170,126,58,0.98)"], [0.8, "rgba(72,50,20,0.98)"], [1, "rgba(40,28,12,0.98)"]]);
+                ctx.fill();
+                // Turned rings along the grip.
+                ctx.strokeStyle = "rgba(40,28,12,0.7)";
+                ctx.lineWidth = 1;
+                for (const k of [0.3, 0.55]) {
+                  const gx = f + (len - f) * k, gh = gw0 + (gw1 - gw0) * k;
+                  ctx.beginPath(); ctx.moveTo(gx, -gh); ctx.lineTo(gx, gh); ctx.stroke();
+                }
+                // Ferrule: the collar the rim seats into.
+                const fh = hw * 0.66;
+                ctx.fillStyle = across(fh, [[0, "rgba(110,78,34,0.98)"], [0.25, "rgba(250,222,150,0.98)"], [0.55, "rgba(186,140,66,0.98)"], [1, "rgba(52,36,14,0.98)"]]);
+                ctx.fillRect(0, -fh, f, fh * 2);
+                ctx.strokeStyle = "rgba(40,28,12,0.85)";
+                ctx.strokeRect(0.5, -fh + 0.5, f - 1, fh * 2 - 1);
+                // End knob.
+                const kr = gw1 * 1.25;
+                const knob = ctx.createRadialGradient(len - kr * 0.3, -kr * 0.4, kr * 0.1, len, 0, kr);
+                knob.addColorStop(0, "rgba(255,236,180,0.98)");
+                knob.addColorStop(0.5, "rgba(176,130,60,0.98)");
+                knob.addColorStop(1, "rgba(50,34,14,0.98)");
+                ctx.fillStyle = knob;
+                ctx.beginPath(); ctx.arc(len, 0, kr, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+                const ex = handle.x + Math.cos(t) * len, ey = handle.y + Math.sin(t) * len;
+                floatingChips.push({ x: Math.min(handle.x, ex) - hw, y: Math.min(handle.y, ey) - hw, w: Math.abs(ex - handle.x) + 2 * hw, h: Math.abs(ey - handle.y) + 2 * hw });
+                ds.weatherLensHandle = `${t < Math.PI / 2 ? "SE" : "SW"}:${Math.round(len)}`;
+              } else {
+                ds.weatherLensHandle = "NO_ROOM";
+              }
+            }
             const band = (o: number) => { ctx.beginPath(); ctx.ellipse(L.cx, L.cy, L.rx + o, L.ry + o, 0, 0, Math.PI * 2); };
             const brass = ctx.createLinearGradient(L.cx - L.rx, L.cy - L.ry, L.cx + L.rx, L.cy + L.ry);
             // Plate: a dark bronze band between two lit brass lips; the title is gold ON it.
@@ -19132,6 +19205,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.liquidityWeatherStage;
             delete ds.liquidityWeatherShelves;
             delete ds.liquidityWeatherLens;
+            delete ds.weatherLensHandle;
             delete ds.liquidityWeatherRing;
             delete ds.liquidityWeatherReadout;
             // GATHERING — too little tape for a lens to be read. No mini lens;
