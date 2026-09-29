@@ -29,9 +29,14 @@ type AlpacaSnapshot = {
  */
 function dailyBarReport(body: AlpacaSnapshot | null, symbol: string): SourceCapabilityReport | null {
   const d = body?.dailyBar;
-  const [o, h, l, c, v] = [d?.o, d?.h, d?.l, d?.c, d?.v].map(Number);
-  const t = typeof d?.t === "string" ? Date.parse(d.t) : Number.NaN;
-  if (![o, h, l, c].every(x => x > 0) || !(h >= Math.max(o, c, l)) || !(l <= Math.min(o, c, h)) || !(v >= 0) || !Number.isFinite(t)) return null;
+  const why = (reason: string): SourceCapabilityReport => ({ capability: "BARS", status: "NOT_IMPLEMENTED", fidelity: "NONE", note: `Snapshot daily bar not certified: ${reason}.` });
+  if (!d || typeof d !== "object") return why("the snapshot carried no dailyBar");
+  const [o, h, l, c, v] = [d.o, d.h, d.l, d.c, d.v].map(Number);
+  const t = typeof d.t === "string" ? Date.parse(d.t) : Number.NaN;
+  if (![o, h, l, c].every(x => x > 0)) return why(`non-positive price field (o ${d.o}, h ${d.h}, l ${d.l}, c ${d.c})`);
+  if (!(h >= Math.max(o, c, l)) || !(l <= Math.min(o, c, h))) return why(`inside-out geometry (o ${o}, h ${h}, l ${l}, c ${c})`);
+  if (!(v >= 0)) return why(`unreadable volume (${d.v})`);
+  if (!Number.isFinite(t)) return why(`unreadable bar time (${String(d.t)})`);
   return {
     capability: "BARS",
     status: "ACTIVE_DEGRADED",
@@ -109,9 +114,7 @@ export async function probeAlpacaMarketData(
   const bars = dailyBarReport(body, symbol);
   if (stalenessMs > maxTradeAgeMs) {
     const staleNote = `Alpaca returned a valid ${symbol} IEX trade, but its provider timestamp was ${stalenessMs} ms old; stale evidence was not exposed as current.`;
-    return bars
-      ? certifySource("alpaca", [{ capability: "PRICE", status: "NOT_IMPLEMENTED", fidelity: "NONE", note: staleNote }, bars])
-      : zeroState(staleNote);
+    return certifySource("alpaca", [{ capability: "PRICE", status: "NOT_IMPLEMENTED", fidelity: "NONE", note: staleNote }, ...(bars ? [bars] : [])]);
   }
   const observedAt = new Date(timestamp).toISOString();
   const reports: SourceCapabilityReport[] = [
