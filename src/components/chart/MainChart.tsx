@@ -20036,6 +20036,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
     // Use a continuous loop so the canvas always stays in sync with chart scroll/zoom
     let running = true;
+    let paintFaults = 0;
+    const paintFaultsSeen = new Set<string>();
     const loop = (now: number) => {
       if (!running) return;
       // Dense footprint/profile paint allocates working maps and arrays. Running
@@ -20062,7 +20064,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       if (verdict.draw) {
         lastOverlayDrawAt = now;
         const startedAt = performance.now();
-        draw();
+        /* G7 · ONE RENDERER MAY NOT KILL THE GLASS (2026-09-29). A throw
+           anywhere in draw() used to escape this loop BEFORE the reschedule
+           below, so the overlay never painted again — even after the cause
+           was gone (proved on serving by fault injection: one throw, frozen
+           receipts, still frozen after the fault was lifted). The frame is
+           caught, named on the canvas (`paintFault`), logged once per distinct
+           fault, the 2D state the throw left behind (an open clip, an
+           unbalanced save) is reset, and the loop always continues. */
+        try {
+          draw();
+          if (canvasRef.current?.dataset.paintFault) delete canvasRef.current.dataset.paintFault;
+        } catch (err) {
+          const name = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+          paintFaults += 1;
+          const ds = canvasRef.current?.dataset;
+          if (ds) ds.paintFault = `${paintFaults}:${name.slice(0, 120)}`;
+          if (!paintFaultsSeen.has(name)) { paintFaultsSeen.add(name); console.error("[overlay] frame fault — isolated, loop continues:", err); }
+          try { (canvasRef.current?.getContext("2d") as (CanvasRenderingContext2D & { reset?: () => void }) | null)?.reset?.(); } catch { /* nothing further to undo */ }
+        }
         paintLedger = recordPaint(paintLedger, performance.now() - startedAt);
         // MARKET CLOCK → PAINT (marketClockProbe): the newest candle update reached this paint.
         notePaint(performance.now());
