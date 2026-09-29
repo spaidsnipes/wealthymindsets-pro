@@ -1,6 +1,7 @@
 import { normalizeTFId, type TFId } from "@/lib/timeframes";
 
-const MARKET_SYMBOL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9.\-!/]{0,14}$/;
+// A leading ^ is an index (^SPX, ^N225) — search offers it, so a deep link must open it (Garden 17 master order §LVIII, 2026-09-29).
+const MARKET_SYMBOL_PATTERN = /^\^?[A-Za-z0-9][A-Za-z0-9.\-!/=]{0,14}$/;
 
 /**
  * A market-surface query value may seed canonical state, but it may never

@@ -107,7 +107,7 @@ describe("chart deep-link continuity", () => {
   });
 
   it("accepts the symbols the app actually routes", () => {
-    for (const s of ["NVDA", "AMD", "TSLA", "BTC", "ES1!", "NQ1!", "BRK.B", "EUR/USD"]) {
+    for (const s of ["NVDA", "AMD", "TSLA", "BTC", "ES1!", "NQ1!", "BRK.B", "EUR/USD", "^SPX", "^N225"]) {
       expect(normalizeMarketSurfaceSymbol(s)).toBe(s);
     }
   });
