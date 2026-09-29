@@ -3,8 +3,8 @@
 One live board. Status vocabulary: 🟢 PROVED · 🟡 REPAIR · ⚪ EXTERNAL / NOT EXERCISABLE.
 Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable greens carry the time they were observed.
 
-- **Board updated:** 2026-09-29T01:05Z (20:05 CDT) by ATHOS (Claude, one-thread WM Pro).
-- **Serving:** `https://wealthymindsetspro.com` = `main` = `d1a2f10` (Cloudflare Workers; `/api/build-identity`).
+- **Board updated:** 2026-09-29T01:55Z (20:55 CDT) by ATHOS.
+- **Serving:** `https://wealthymindsetspro.com` = `main` = `7585d4d` (Cloudflare Workers; `/api/build-identity`).
 - **Starting baseline (Founder receipt):** G0–G13 = 🟢 7 · 🟡 7 · 🔴 0.
 - **Shift commits:** `f8e018c4` G3/G4 · `2f97de6c` `c5da473` G6 · `8d940235` `9b17142d` `f5083951` G7 · `63928db4` `9198420` `d1a2f10` G12 · `2613950c` board.
 
@@ -18,9 +18,16 @@ Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable 
 | Y-G6-01 | G6 Identity | Same DECISION_ID chart → order → fill → exit → receipt → reload | 🟡 (repair shipped, serving receipt pending) | `src/app/paper/page.tsx:774` re-minted at order intent (chart id A, order id B) — **repaired** `2f97de6c` (continueOrMint over readSceneDecision); exit dropped id — **repaired** (`decisionOfOpenPosition`, named refusal `EXIT: decision identity absent`); 4 boundaries accepted any string — **repaired** (isDecisionId) | 4 break tests (`paperExitDecision.test.ts`); gate 14,804 green | shipped | unit fault-injection: lost / malformed id fails by transition name | Serving: needs the same paper order as Y-G10-01 | Same Founder OK; then read order.decisionId === chart scene id on glass |
 | Y-G6-02 | G6 Identity | Journal/review keys on the decision | 🟡 | `journalEntryToSnapshot.ts:93` uses the journal's own `record.id` as decisionId (second id space); `journalDecisionFilter.ts:4` accepts any string | agent trace 2026-09-29 | not started — changing it would drop existing journal links; needs a migration decision | — | — | Decide: link journal rows to real decision ids (forward only) |
 | Y-G6-03 | G6 Identity | Command Deck scene id survives reload | 🟡 (repair shipped `c5da473`) | Deck held its decision in React state only — **repaired**: reads/writes decisionContinuity (same owner as /charts + ticket) | gate green; deck pin re-pointed | shipped | — | Serving deck reads honest absence "No decision born yet on this scene — permission has not crossed here." (market WAIT, no crossing to observe) | Observe on the first real permission crossing |
-| Y-G9-01 | G9 Human fruit | Founder Tour five-second test passes on serving glass | 🟡 | Screenshots unavailable since ~19:10 CDT: Founder's Chrome not compositing the automation tab (occluded) — human-eyes pass not re-run after this shift's commits | Earlier today (≤14:45 CDT): collisions repaired and proved (silence rows, gap words, INSPECT label, zero-gamma name, regime word, market-time dates) | — | — | Partial (pre-19:00) | Founder Tour with Canon ⇄ Glass side-by-side at 360/390 not required (desktop only) — at desktop, human eyes |
+| Y-G9-01 | G9 Human fruit | Founder Tour five-second test passes on serving glass | 🟡 | The Chrome window holding the WM tab is MINIMIZED (window 77) — Chrome does not render it, so neither screenshots nor paint timing are real; ATH's Chrome grant is read-only and the Founder is trading in the other windows — human-eyes pass not re-run after this shift's commits | Earlier today (≤14:45 CDT): collisions repaired and proved (silence rows, gap words, INSPECT label, zero-gamma name, regime word, market-time dates) | — | — | Partial (pre-19:00) | Founder Tour with Canon ⇄ Glass side-by-side at 360/390 not required (desktop only) — at desktop, human eyes |
 | Y-G9-02 | G9 visual matrix | PRICE SOVEREIGNTY · COMPOUND HIERARCHY · FIELD IDENTITY · ANATOMY ATTACHMENT · SEMANTIC DENSITY · CARD-ERASURE · MARKETOBJECT CAUSALITY · MATERIAL/CANDLE CONTRAST · SYMBOL-SWITCH CONTAMINATION · PROFILE-FAMILY SERVING PROOF · LIVE/STILL PARITY | 🟡 (each) | Not re-proved against the Founder videos this shift | — | — | — | — | Work item-by-item with plates beside glass |
-| Y-G3-01 | G3 Availability | reconnect_reconcile stage exercised | 🟡 | No disconnect→reconnect→state-match run recorded for the broker lane | cert shows PENDING (honest) | — | provider fault-injection on serving recovered (see G7) | — | Record a keeper-side reconnect receipt |
+
+## 1b. Greens added 20:10–20:55 CDT
+
+| ID | Gate | Claim | Evidence | Observed |
+|---|---|---|---|---|
+| G-G3-03 | G3 | reconnect_reconcile | Each keeper run = fresh Worker session re-reading every account's open orders against the durable ledger; PASS only when complete, readable, 0 unresolved (break tests: unresolved → FAIL, unreadable ledger → PENDING). Serving Webull cert **READ_ONLY · 6/12, 0 pending** (6 = order stages BLOCKED by design + auth_refresh SKIP, 2FA off) | `80acbc4` 01:24Z |
+| G-G4-03 | G4 | Market-data rights stated, not guessed | Webull: PRICE snapshot · ACCOUNT certified · ORDERS read-only · **FUTURES BLOCKED_ENTITLEMENT** (keeper ladder 403) — rows the after-hours canary could not observe; observed rows never overridden. Alpaca: **BARS ACTIVE_DEGRADED** from a valid daily bar; stale PRICE refused ("20145107 ms old; stale evidence was not exposed as current") | `80acbc4` / `036277f` |
+| G-G7-05 | G7 | Every top-level overlay layer isolated and named | 19 bare layers wrapped + 11 silent `catch {}` named (incl. one spanning ~6,000 lines); AST sentinel. Serving injection: gap-word fault → `layerFaults="1:DATA_GAPS: …"`, TPO fault → `"1:WEATHER_PROFILES_MEMORY: …"`, `paintFault` empty, later layers (debt tag, TPO) still DRAWN | `7585d4d` 01:50Z |
 
 ## 2. External — with local degradation
 
@@ -52,5 +59,5 @@ Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable 
 
 ## 4. Known limits of this board
 
-- G7 layer isolation covers the overlay loop, the profile family and the pressure world. Other inline layers (footprint, weather, memory…) are protected at FRAME level only: a persistent throw in one of them still costs the layers painted after it (named by `paintFault`), until the fault clears.
+- G7: sub-layers INSIDE one top-level layer share that layer's isolation (e.g. a fault in one profile species inside WEATHER_PROFILES_MEMORY ends that region for the frame, named).
 - A throw after an inner `clip()` inside an isolated layer can leave that one frame's later layers clipped; the next frame starts from `ctx.reset()`.
