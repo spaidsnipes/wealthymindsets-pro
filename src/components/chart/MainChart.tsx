@@ -18916,12 +18916,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.strokeStyle = "rgba(214,176,98,0.95)";
             band(1.4);
             ctx.stroke();
-            ctx.strokeStyle = "rgba(214,176,98,0.95)";
-            band(BZ);
+            // POLISHED RIM (F08B beside serving, 2026-09-29): the plate's
+            // outer ring is thick polished brass — lit upper-left, falling to
+            // shadow lower-right — around the dark engraved band; serving had
+            // a 2px lip. Material only.
+            const polish = ctx.createLinearGradient(L.cx - L.rx, L.cy - L.ry, L.cx + L.rx, L.cy + L.ry);
+            polish.addColorStop(0, "rgba(246,214,140,0.98)");
+            polish.addColorStop(0.3, "rgba(196,150,72,0.98)");
+            polish.addColorStop(0.62, "rgba(120,86,38,0.98)");
+            polish.addColorStop(1, "rgba(172,130,62,0.98)");
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = polish;
+            band(BZ + 2);
             ctx.stroke();
             ctx.lineWidth = 1;
+            ctx.strokeStyle = "rgba(40,28,12,0.9)";
+            band(BZ - 0.5);
+            ctx.stroke();
             ctx.strokeStyle = "rgba(250,230,176,0.55)";
-            band(BZ + 1.6);
+            band(BZ + 4.6);
             ctx.stroke();
             if (weatherSelectedRef.current) {
               // Selected: the one selection's gold rule around the loupe.
@@ -19104,7 +19117,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // THE RING ITSELF IS REGISTERED (after its readout was placed, so
             // the readout's own slots are not refused by the ring's box): later
             // layers step around the lens, HELD / MOVED included.
-            floatingChips.push({ x: L.cx - L.rx - LENS_BEZEL_W - 2, y: L.cy - L.ry - LENS_BEZEL_W - 2, w: L.rx * 2 + 2 * LENS_BEZEL_W + 4, h: L.ry * 2 + 2 * LENS_BEZEL_W + 16 });
+            floatingChips.push({ x: L.cx - L.rx - LENS_BEZEL_W - 5, y: L.cy - L.ry - LENS_BEZEL_W - 5, w: L.rx * 2 + 2 * LENS_BEZEL_W + 10, h: L.ry * 2 + 2 * LENS_BEZEL_W + 19 });
 
             ds.liquidityWeatherLens = `${Math.round(L.cx)},${Math.round(L.cy)},${Math.round(L.rx)},${Math.round(L.ry)}${L.partial ? "|PARTIAL" : ""}`;
             weatherLensHitRef.current = { cx: L.cx, cy: L.cy, rx: L.rx, ry: L.ry };
