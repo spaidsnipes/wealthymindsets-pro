@@ -3,10 +3,10 @@
 One live board. Status vocabulary: 🟢 PROVED · 🟡 REPAIR · ⚪ EXTERNAL / NOT EXERCISABLE.
 Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable greens carry the time they were observed.
 
-- **Board updated:** 2026-09-29T00:45Z (19:45 CDT) by ATHOS (Claude, one-thread WM Pro).
-- **Serving:** `https://wealthymindsetspro.com` = `main` = `63928db4` (Cloudflare Workers; `/api/build-identity`).
+- **Board updated:** 2026-09-29T01:05Z (20:05 CDT) by ATHOS (Claude, one-thread WM Pro).
+- **Serving:** `https://wealthymindsetspro.com` = `main` = `d1a2f10` (Cloudflare Workers; `/api/build-identity`).
 - **Starting baseline (Founder receipt):** G0–G13 = 🟢 7 · 🟡 7 · 🔴 0.
-- **Shift commits:** `f8e018c4` G3/G4 · `2f97de6c` G6 · `8d940235` `9b17142d` `f5083951` G7 · `63928db4` G12.
+- **Shift commits:** `f8e018c4` G3/G4 · `2f97de6c` `c5da473` G6 · `8d940235` `9b17142d` `f5083951` G7 · `63928db4` `9198420` `d1a2f10` G12 · `2613950c` board.
 
 ---
 
@@ -17,12 +17,9 @@ Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable 
 | Y-G10-01 | G10 Safety / Execution | Bounded paper lifecycle intent→risk→capability→submit→ack→fill→protect→modify→cancel→flatten→reconcile→receipt, with every block (wrong account, unsupported instrument, bad qty, risk fail, stale, unknown owner, offline) | 🟡 | Not exercised on serving this shift: a serving lifecycle receipt needs paper orders in the Founder's book, and paper writes reach his shared decision record (`/api/decision-position`) | Unit suites (paperTrade, orderSubmitGuard, paperCancelCertainty, webullOrders mapping refusals) green; Webull order stages certified BLOCKED by design | — | Needs lawful paper run | NONE yet | Founder OK to run a paper lifecycle on his production paper book (or a named sandbox owner) → capture receipt |
 | Y-G6-01 | G6 Identity | Same DECISION_ID chart → order → fill → exit → receipt → reload | 🟡 (repair shipped, serving receipt pending) | `src/app/paper/page.tsx:774` re-minted at order intent (chart id A, order id B) — **repaired** `2f97de6c` (continueOrMint over readSceneDecision); exit dropped id — **repaired** (`decisionOfOpenPosition`, named refusal `EXIT: decision identity absent`); 4 boundaries accepted any string — **repaired** (isDecisionId) | 4 break tests (`paperExitDecision.test.ts`); gate 14,804 green | shipped | unit fault-injection: lost / malformed id fails by transition name | Serving: needs the same paper order as Y-G10-01 | Same Founder OK; then read order.decisionId === chart scene id on glass |
 | Y-G6-02 | G6 Identity | Journal/review keys on the decision | 🟡 | `journalEntryToSnapshot.ts:93` uses the journal's own `record.id` as decisionId (second id space); `journalDecisionFilter.ts:4` accepts any string | agent trace 2026-09-29 | not started — changing it would drop existing journal links; needs a migration decision | — | — | Decide: link journal rows to real decision ids (forward only) |
-| Y-G6-03 | G6 Identity | Command Deck scene id survives reload | 🟡 | Deck's scene decision is React state only (not written through decisionContinuity) | agent trace | not started | — | — | Route deck births through writeSceneDecision (same owner as /charts) |
+| Y-G6-03 | G6 Identity | Command Deck scene id survives reload | 🟡 (repair shipped `c5da473`) | Deck held its decision in React state only — **repaired**: reads/writes decisionContinuity (same owner as /charts + ticket) | gate green; deck pin re-pointed | shipped | — | Serving deck reads honest absence "No decision born yet on this scene — permission has not crossed here." (market WAIT, no crossing to observe) | Observe on the first real permission crossing |
 | Y-G9-01 | G9 Human fruit | Founder Tour five-second test passes on serving glass | 🟡 | Screenshots unavailable since ~19:10 CDT: Founder's Chrome not compositing the automation tab (occluded) — human-eyes pass not re-run after this shift's commits | Earlier today (≤14:45 CDT): collisions repaired and proved (silence rows, gap words, INSPECT label, zero-gamma name, regime word, market-time dates) | — | — | Partial (pre-19:00) | Founder Tour with Canon ⇄ Glass side-by-side at 360/390 not required (desktop only) — at desktop, human eyes |
 | Y-G9-02 | G9 visual matrix | PRICE SOVEREIGNTY · COMPOUND HIERARCHY · FIELD IDENTITY · ANATOMY ATTACHMENT · SEMANTIC DENSITY · CARD-ERASURE · MARKETOBJECT CAUSALITY · MATERIAL/CANDLE CONTRAST · SYMBOL-SWITCH CONTAMINATION · PROFILE-FAMILY SERVING PROOF · LIVE/STILL PARITY | 🟡 (each) | Not re-proved against the Founder videos this shift | — | — | — | — | Work item-by-item with plates beside glass |
-| Y-G12-01 | G12 Retirement | `/signup` answered by middleware, not a client redirect | 🟡 | `legacyRouteAliases` rewrites pathname only; target needs `?mode=signup` | agent sweep | not started | — | — | Teach the alias owner a query target, then add `/signup` |
-| Y-G12-02 | G12 Retirement | One writer per settings fact | 🟡 | `wm_settings` written by `shellPanels.tsx:523` and `ChartsDashboard.tsx:1083/1100` (both write `chartTheme`) | agent sweep | not started | — | — | One settings writer module |
-| Y-G12-03 | G12 Retirement | Link-only brokers labelled "not wired" | 🟡 | `BrokerConnectPanel.tsx:56+` lists ~10 brokers with no adapter | agent sweep | not started | — | — | Group them under a "not wired" label |
 | Y-G3-01 | G3 Availability | reconnect_reconcile stage exercised | 🟡 | No disconnect→reconnect→state-match run recorded for the broker lane | cert shows PENDING (honest) | — | provider fault-injection on serving recovered (see G7) | — | Record a keeper-side reconnect receipt |
 
 ## 2. External — with local degradation
@@ -48,6 +45,9 @@ Only Sheriff says CLOSED. A green here is a claim with its evidence; perishable 
 | G-G7-04 | G7 | Layer isolation inside the frame | Profile-family fault → `vpFault` named, `paintFault` empty, pressure/regime kept painting (`9b17142`); pressure-world fault → `derivativesPressureFault` named, all 101 receipts published in the faulted frame (`f508395`) | 2026-09-29 00:31Z / 00:38Z |
 | G-G12-01 | G12 | One landing path | Serving `63928db`: /readiness "← Market" → /charts · /nectar "Back to the market" → /charts · WM PRO realm door → /charts · login/email use FOUNDER_LANDING_ROUTE | 2026-09-29 00:47Z |
 | G-G12-02 | G12 | One timeframe registry in Settings | Default Timeframe options = last, none, 1m…1h, 1D, 1W, 1M (no retired D/W/M) | 2026-09-29 00:48Z |
+| G-G12-04 | G12 | `/signup` answered by the alias owner | `curl -I /signup` → `HTTP/2 308` `location: /login?mode=signup` (alias owner parses query) | `9198420` |
+| G-G12-05 | G12 | Link-only brokers cannot pass for wired | /readiness broker panel: "Not wired in WM Pro — opens Tradovate's own site; WM reads no data from it" (5 in view); wired API broker keeps "Verify … API account" | `9198420` |
+| G-G12-06 | G12 | One writer for `wm_settings` | lib/settings/appSettingsStore; serving Settings → Save: 1 announcement, 0 key drift (Founder settings restored byte-exact) | `d1a2f10` 01:04Z |
 | G-G12-03 | G12 | No live doc routes builders to Vercel | SECURITY_LAUNCH_CHECKLIST + CLOUDFLARE_DEPLOY_GUIDE corrected; 4 dated docs demoted with the historical-lineage marker; ops sentinels 88/88 | `63928db` |
 
 ## 4. Known limits of this board
