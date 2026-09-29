@@ -22,6 +22,8 @@
 export const STORM_BODY_MAX_ALPHA = 0.86;
 /** How far the measured hue is pushed from grey inside the storm (F08B plate depth). */
 export const STORM_SATURATION = 1.45;
+/** Light in the smoke's lanes (d = 0) as a share of the measured colour; cores reach 1.5×. */
+export const STORM_LIGHT_FLOOR = 0.5;
 /** The brass bezel's band width (px) around the lens (F08B plate). */
 export const LENS_BEZEL_W = 16;
 /** Texture resolution (square). Upscaled with smoothing into the lens — the softness is part of the smoke. */
@@ -141,9 +143,13 @@ export function renderStormPixels(
       const grey = (r0 + g0 + b0) / 3;
       const r = grey + (r0 - grey) * STORM_SATURATION, g = grey + (g0 - grey) * STORM_SATURATION, b = grey + (b0 - grey) * STORM_SATURATION;
       // Luminous cores (plate): the measured colour lit from within, never a new hue.
-      out[i] = Math.max(0, Math.min(255, r * (0.85 + 0.6 * d) + 80 * glow));
-      out[i + 1] = Math.max(0, Math.min(255, g * (0.85 + 0.6 * d) + 72 * glow));
-      out[i + 2] = Math.max(0, Math.min(255, b * (0.85 + 0.6 * d) + 56 * glow));
+      // BILLOWS (G03 beside serving 2026-09-29): the plate's smoke has dark
+      // lanes between bright curling cores; serving read as an even fog. The
+      // same hue, a wider light range: lanes drop to half, cores lift ~1.5×.
+      const lit = STORM_LIGHT_FLOOR + (1 - STORM_LIGHT_FLOOR + 0.5) * d;
+      out[i] = Math.max(0, Math.min(255, r * lit + 80 * glow));
+      out[i + 1] = Math.max(0, Math.min(255, g * lit + 72 * glow));
+      out[i + 2] = Math.max(0, Math.min(255, b * lit + 56 * glow));
       // The body is SMOKE, not a haze: a floor so the medium fills the lens.
       out[i + 3] = Math.round(255 * Math.min(1, tone.weight * (0.34 + 0.66 * d) * rim));
       painted++;
