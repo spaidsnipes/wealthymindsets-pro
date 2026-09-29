@@ -194,6 +194,15 @@ const DATA_WINDOW_TOGGLE_PX = 22;
  * TSLA 5m, 2026-09-28: "NO BAR · 1 interval" slid onto EFFORT).
  */
 const READING_ANCHOR_ROW_BOTTOM = 64 + 24;
+/**
+ * The TPO column's geometry — ONE owner, read by the TPO paint and by every
+ * earlier layer that must keep its words out of the column (the zero-gamma
+ * name, 2026-09-29). `lensRight` is the Question Lens column's right edge
+ * when that column is active.
+ */
+function tpoColumnGeometry(W: number, lensRight: number | null): { leftEdge: number; colMax: number } {
+  return { leftEdge: lensRight ?? 84, colMax: Math.min(140, Math.round(W * 0.14)) };
+}
 const BASIS_CAPTION_X =
   PANE_TOP_LEFT_INSET + DATA_WINDOW_TOGGLE_PX + PANE_TOP_LEFT_INSET;
 
@@ -15030,11 +15039,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     const frontWords = `ZERO-GAMMA FRONT ${fmtD(dp.zeroGamma)} · ${ampAbove ? "amplifying above" : "amplifying below"}`;
                     const fw = ctx.measureText(frontWords).width;
                     const candlesF = profileCandleCut().rects;
+                    // The TPO column paints LATER in the frame over this left
+                    // band (serving ETH 15m, 2026-09-29: its letters ran through
+                    // "ZERO-GAMMA FRONT"), so while TPO paints its column is
+                    // reserved here the same way a candle is.
+                    const tpoCol = layerOnRef.current.tpo && att.paints("tpo")
+                      ? (() => { const g = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null); return [{ x: g.leftEdge - 8, y: -1e6, w: g.colMax + 16, h: 2e6 }]; })()
+                      : [];
                     let fx = 8, fy = y - 6, clear = false;
                     spotF: for (const by of [y - 6, y + 15]) {
                       for (let cx = 8; cx + fw + 8 <= plotRightD; cx += 40) {
                         const q = { x: cx - 2, y: by - 11, w: fw + 4, h: 12 };
-                        if (!candlesF.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y)) { fx = cx; fy = by; clear = true; break spotF; }
+                        if (![...candlesF, ...tpoCol].some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y)) { fx = cx; fy = by; clear = true; break spotF; }
                       }
                     }
                     if (!clear) { ctx.fillStyle = `rgba(11,10,8,${0.85 * baseA})`; ctx.fillRect(fx - 3, fy - 12, fw + 6, 13); }
@@ -16962,8 +16978,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // opaque box (left-3, 64px wide → x 12–76) still hid the first
             // letters of two rows — measured by its box, not its word
             // (serving, NQ1! 5m desktop, 2026-09-25). 76 + 8.
-            const leftEdge = lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 84;
-            const colMax = Math.min(140, Math.round(W * 0.14));
+            const { leftEdge, colMax } = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null);
             // COLLISION GOVERNOR · TPO YIELDS TO RESERVED CHROME. The price
             // legend (a transparent DOM band, PRICE_LEGEND_OVERLAY_H) and any
             // floating chip already placed in the column (the BASIS caption)

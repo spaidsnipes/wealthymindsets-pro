@@ -161,3 +161,11 @@ describe("the zero-gamma front's name never sits on a candle (serving SPY 1h, 20
     expect(block).toContain('painted.push(`FRONT_WORDS@${Math.round(fx)}:${clear ? "CLEAR" : "BACKED"}`);');
   });
 });
+
+describe("the zero-gamma name keeps out of the TPO column (serving ETH 15m, 2026-09-29)", () => {
+  it("reserves the column from the ONE geometry owner while TPO paints", () => {
+    expect(block).toContain('const tpoCol = layerOnRef.current.tpo && att.paints("tpo")');
+    expect(block).toContain("if (![...candlesF, ...tpoCol].some(");
+    expect(MC).toContain("const { leftEdge, colMax } = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null);");
+  });
+});
