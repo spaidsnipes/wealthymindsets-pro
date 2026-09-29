@@ -19,7 +19,9 @@
  */
 
 /** The storm body's ceiling inside the lens (F08B; candles are cut out of it, so it cannot bury them). */
-export const STORM_BODY_MAX_ALPHA = 0.66;
+export const STORM_BODY_MAX_ALPHA = 0.86;
+/** How far the measured hue is pushed from grey inside the storm (F08B plate depth). */
+export const STORM_SATURATION = 1.45;
 /** The brass bezel's band width (px) around the lens (F08B plate). */
 export const LENS_BEZEL_W = 16;
 /** Texture resolution (square). Upscaled with smoothing into the lens — the softness is part of the smoke. */
@@ -115,12 +117,18 @@ export function renderStormPixels(
       // Rim darkening — the lens's depth, not data.
       const rim = 1 - Math.pow(r2, 3) * 0.55;
       const glow = d * d * d;
-      const [r, g, b] = tone.rgb;
+      // Saturation pushed away from grey (F08B, beside the serving glass
+      // 2026-09-29: the plate's smoke is deep yellow-green and teal; serving
+      // read washed grey) — the SAME measured hue, deeper, never a new one.
+      const [r0, g0, b0] = tone.rgb;
+      const grey = (r0 + g0 + b0) / 3;
+      const r = grey + (r0 - grey) * STORM_SATURATION, g = grey + (g0 - grey) * STORM_SATURATION, b = grey + (b0 - grey) * STORM_SATURATION;
       // Luminous cores (plate): the measured colour lit from within, never a new hue.
-      out[i] = Math.min(255, r * (0.85 + 0.6 * d) + 80 * glow);
-      out[i + 1] = Math.min(255, g * (0.85 + 0.6 * d) + 72 * glow);
-      out[i + 2] = Math.min(255, b * (0.85 + 0.6 * d) + 56 * glow);
-      out[i + 3] = Math.round(255 * Math.min(1, tone.weight * (0.18 + 0.82 * d) * rim));
+      out[i] = Math.max(0, Math.min(255, r * (0.85 + 0.6 * d) + 80 * glow));
+      out[i + 1] = Math.max(0, Math.min(255, g * (0.85 + 0.6 * d) + 72 * glow));
+      out[i + 2] = Math.max(0, Math.min(255, b * (0.85 + 0.6 * d) + 56 * glow));
+      // The body is SMOKE, not a haze: a floor so the medium fills the lens.
+      out[i + 3] = Math.round(255 * Math.min(1, tone.weight * (0.34 + 0.66 * d) * rim));
       painted++;
     }
   }

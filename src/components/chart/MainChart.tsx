@@ -18867,6 +18867,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               shelves++;
             }
             ctx.setLineDash([]);
+            // GLASS (F08B / G03): a soft specular sheen on the upper-left of
+            // the lens and a darker seat at its edge — the lens reads as a
+            // physical glass over the market. Material only; behind the candles.
+            {
+              const sheen = ctx.createRadialGradient(L.cx - L.rx * 0.42, L.cy - L.ry * 0.5, 2, L.cx - L.rx * 0.42, L.cy - L.ry * 0.5, L.rx * 0.75);
+              sheen.addColorStop(0, "rgba(255,248,230,0.10)");
+              sheen.addColorStop(1, "rgba(255,248,230,0)");
+              ctx.fillStyle = sheen;
+              ctx.fillRect(L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
+              const seat = ctx.createRadialGradient(L.cx, L.cy, Math.min(L.rx, L.ry) * 0.78, L.cx, L.cy, Math.max(L.rx, L.ry));
+              seat.addColorStop(0, "rgba(6,6,4,0)");
+              seat.addColorStop(1, "rgba(6,6,4,0.34)");
+              ctx.fillStyle = seat;
+              ctx.fillRect(L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
+            }
             ctx.restore(); // the lens's inside
 
             /* F08B BEZEL (Founder plate WM_NewMockup_79): a broad brass band
