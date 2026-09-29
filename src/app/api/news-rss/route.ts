@@ -12,11 +12,13 @@
  */
 
 import { NextResponse } from "next/server";
+import { CANONICAL_URL } from "@/lib/canonicalUrl";
 
 export const revalidate = 0;
 
 // SEC EDGAR requires a descriptive UA with contact info, otherwise it 403s.
-const UA = "WealthyMindsets/1.0 (contact: dhill5711@gmail.com; +https://wealthymindsets-pro.dhill5711.workers.dev)";
+// G12 (2026-09-29): the contact URL is the canonical host, not a retired workers.dev preview.
+const UA = `WealthyMindsets/1.0 (contact: dhill5711@gmail.com; +${CANONICAL_URL})`;
 
 type Feed = { source: string; url: string };
 

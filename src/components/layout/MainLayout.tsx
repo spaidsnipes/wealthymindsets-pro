@@ -265,7 +265,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
    *
    * The 2026-09-13 Founder audit named G2 (root/ownership) and G9 (human
    * fruit) RED because "the actual parent did not change." The Founder
-   * lands on `FOUNDER_LANDING_ROUTE = "/command-deck"`, and until this
+   * lands on `FOUNDER_LANDING_ROUTE = "/command-deck" (SUPERSEDED 2026-09-17: the landing is /charts — founderLanding.ts)`, and until this
    * moment that route rendered INSIDE the July shell — the left-rail,
    * ticker tape, music player, Mobile Session pill, Spaidbot chrome and
    * a dashboard nav that competes with MARKET for the first viewport.

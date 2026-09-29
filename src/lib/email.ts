@@ -193,7 +193,7 @@ function emailShell(content: string, previewText: string): string {
                 color: #4A5580;
               ">
                 © ${new Date().getFullYear()} WealthyMindsets Pro · Elite Institutional Trading Platform<br/>
-                <a href="${APP_URL}" style="color: #4A5580;">wealthymindsets.com</a>
+                <a href="${APP_URL}" style="color: #4A5580;">${(() => { try { return new URL(APP_URL).host; } catch { return APP_URL; } })()}</a>
               </p>
             </td>
           </tr>
