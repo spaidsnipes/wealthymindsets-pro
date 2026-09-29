@@ -65,6 +65,7 @@ import {
   type Position,
   type Trade,
   decisionOfOpenPosition,
+  cancelProtectionAtFlatten,
 } from "@/lib/paperTrade";
 import { selectFillQueueBasis, describeFillQueueBasis } from "@/lib/paperFillQueueBasis";
 import { selectExecutionRealism, describeExecutionRealism } from "@/lib/paperExecutionRealism";
@@ -2350,7 +2351,11 @@ export default function PaperTradingPage() {
         type: "market", qty: plan.qty, status: "pending", ts: Date.now(),
         ...(exitDecision.ok ? { decisionId: exitDecision.decisionId } : {}),
       };
-      return [closeOrd, ...prev];
+      // G10: the protective stop / take-profit on this position is cancelled
+      // with it — otherwise it outlives the position and opens the opposite one.
+      const guarded = cancelProtectionAtFlatten(prev, symbol, plan.side);
+      if (guarded.cancelled > 0) console.info(`[paper] flatten cancelled ${guarded.cancelled} protective order(s) on ${symbol}`);
+      return [closeOrd, ...guarded.orders];
     });
   };
 

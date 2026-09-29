@@ -1365,3 +1365,33 @@ export function decisionOfOpenPosition(
     ? { ok: true, decisionId: opener.decisionId }
     : { ok: false, transition: "EXIT: decision identity absent" };
 }
+
+/**
+ * FLATTEN CANCELS THE PROTECTION IT MADE MEANINGLESS (G10, 2026-09-29).
+ *
+ * Serving /paper, measured with real clicks: long 1 BTC, a protective sell
+ * STOP working at 79,000, then Close position. The position went flat and the
+ * stop stayed PENDING — a sell with nothing to protect, which on a drop to
+ * 79,000 would have opened an unintended SHORT.
+ *
+ * At flatten, every working NON-market order on that symbol in the CLOSING
+ * direction (the protective stop, a take-profit limit) is cancelled: it existed
+ * to exit a position that is being exited now. Pending market orders are the
+ * close itself (sized by selectCloseOrderPlan) and are left alone, as are
+ * orders that would ADD to the position.
+ */
+export function cancelProtectionAtFlatten(
+  orders: readonly Order[],
+  symbol: string,
+  closingSide: OrderSide,
+): { orders: Order[]; cancelled: number } {
+  let cancelled = 0;
+  const next = orders.map(o => {
+    if (o.symbol === symbol && o.status === "pending" && o.side === closingSide && o.type !== "market") {
+      cancelled++;
+      return { ...o, status: "cancelled" as OrderStatus };
+    }
+    return o;
+  });
+  return { orders: next, cancelled };
+}

@@ -24,3 +24,19 @@ describe("G6 — one decision from chart to exit (2026-09-29)", () => {
     expect(onTicket.ok && onTicket.identity.decisionId).toBe(chart.identity.decisionId);
   });
 });
+
+import { cancelProtectionAtFlatten } from "./paperTrade";
+describe("G10 — flatten cancels the protection it made meaningless (serving /paper, 2026-09-29)", () => {
+  const o = (x: Partial<Order>): Order => ({ id: Math.random().toString(36).slice(2), symbol: "BTC", side: "sell", type: "stop", qty: 1, status: "pending", ts: 1, ...x } as Order);
+  it("a working protective sell stop on a long is cancelled at flatten", () => {
+    const r = cancelProtectionAtFlatten([o({ stopPx: 79000 } as Partial<Order>)], "BTC", "sell");
+    expect(r.cancelled).toBe(1);
+    expect(r.orders[0].status).toBe("cancelled");
+  });
+  it("leaves the close itself, orders that add to the position, and other symbols alone", () => {
+    const r = cancelProtectionAtFlatten([
+      o({ type: "market" }), o({ side: "buy", type: "limit" }), o({ symbol: "ETH" }), o({ status: "filled" }),
+    ], "BTC", "sell");
+    expect(r.cancelled).toBe(0);
+  });
+});
