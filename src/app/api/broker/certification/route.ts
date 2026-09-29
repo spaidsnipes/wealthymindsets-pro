@@ -8,6 +8,7 @@ import {
   type CertStageReport,
 } from "../../../../lib/broker/certification";
 import type { BrokerId } from "../../../../lib/broker/BrokerAdapter";
+import { observedCertification } from "../../../../lib/broker/observedCertification";
 
 /**
  * /api/broker/certification — canon §W3 aggregate.
@@ -68,14 +69,17 @@ function deriveReports(implemented: boolean, envConfigured: boolean, connected: 
   return [{ stage: "auth", status: "PENDING", note: "Adapter present; live cert harness has not run." }];
 }
 
-function buildBrokerCertification(): BrokerCertificationResponse {
-  const brokers = listAdapters().map((adapter) => {
+async function buildBrokerCertification(nowMs: number): Promise<BrokerCertificationResponse> {
+  const brokers = await Promise.all(listAdapters().map(async (adapter) => {
     const id = adapter.id;
     const h = adapter.health();
     const implemented = h?.implemented ?? false;
     const envConfigured = h?.envConfigured ?? false;
     const connected = h?.connected ?? false;
-    const reports = deriveReports(implemented, envConfigured, connected);
+    // A broker with a durable observation is certified FROM it (G3/G4,
+    // 2026-09-29: Webull read 0/12 while its reads were proven live).
+    const observed = implemented ? await observedCertification(id, nowMs) : null;
+    const reports = observed ? observed.reports : deriveReports(implemented, envConfigured, connected);
     const result = computeCertificationLevel(id, reports);
     return {
       brokerId: id,
@@ -89,7 +93,7 @@ function buildBrokerCertification(): BrokerCertificationResponse {
       implemented,
       note: h?.note ?? "Adapter not registered.",
     };
-  });
+  }));
   return {
     generatedAt: new Date().toISOString(),
     brokers,
@@ -103,7 +107,7 @@ export async function GET(request: Request): Promise<Response> {
   // and /api/broker/readiness). Presence-only, no secret VALUE ever shipped.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
-  const body = buildBrokerCertification();
+  const body = await buildBrokerCertification(Date.now());
   return NextResponse.json(body, {
     status: 200,
     headers: { "Cache-Control": "no-store" },

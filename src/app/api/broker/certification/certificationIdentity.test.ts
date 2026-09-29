@@ -66,6 +66,11 @@ function stubAdapter(id: string, health: BrokerHealth): BrokerAdapter {
   return { id, health: () => health } as unknown as BrokerAdapter;
 }
 
+// These stubs are "adapter present, never probed" by construction. A broker
+// with a durable observation (observedCertification, 2026-09-29) is certified
+// from it instead; this file's premise is the health()-only path, so no stub
+// here has an observation.
+vi.mock("../../../../lib/broker/observedCertification", () => ({ observedCertification: async () => null }));
 vi.mock("../../../../lib/broker/adapters", () => ({
   listAdapters: () => [
     stubAdapter("alpaca", HEALTH.absent),

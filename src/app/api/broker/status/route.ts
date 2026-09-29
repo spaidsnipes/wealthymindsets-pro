@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/requireAuth";
 import { listAdapters } from "../../../../lib/broker/adapters";
 import { computeCertificationLevel, type CertLevel, type CertStageReport } from "../../../../lib/broker/certification";
 import type { BrokerId } from "../../../../lib/broker/BrokerAdapter";
+import { observedCertification } from "../../../../lib/broker/observedCertification";
 
 /**
  * /api/broker/status
@@ -102,16 +103,20 @@ function deriveCertReports(implemented: boolean, envConfigured: boolean, connect
  * row here disagreed with `/api/broker/{id}/status`, the Founder would
  * have two answers to one question.
  */
-function brokerReport(adapter: { readonly id: BrokerId; health(): BrokerHealthLike }): ProviderReport {
+async function brokerReport(adapter: { readonly id: BrokerId; health(): BrokerHealthLike }, nowMs: number): Promise<ProviderReport> {
   const h = adapter.health();
-  const reports = deriveCertReports(h.implemented, h.envConfigured, h.connected);
+  // The same observation /api/broker/certification reads (one owner): a
+  // broker with a durable, fresh record reports what was OBSERVED, not
+  // health()'s never-probing `connected: false`.
+  const observed = h.implemented ? await observedCertification(adapter.id, nowMs) : null;
+  const reports = observed ? observed.reports : deriveCertReports(h.implemented, h.envConfigured, h.connected);
   const cert = computeCertificationLevel(adapter.id, reports);
   return {
     provider: adapter.id,
     kind: "broker",
     implemented: h.implemented,
     envConfigured: h.envConfigured,
-    connected: h.connected,
+    connected: observed?.connected ?? h.connected,
     note: h.note,
     certLevel: cert.level,
     certPassedStages: cert.passedStages.length,
@@ -148,11 +153,11 @@ export interface BrokerStatusResponse {
   readonly envConfiguredCount: number;
 }
 
-function buildBrokerStatus(): BrokerStatusResponse {
+async function buildBrokerStatus(nowMs: number): Promise<BrokerStatusResponse> {
   // Every registered adapter, in the registry's own stable order, then the
   // non-adapter AI row. No broker name is typed in this file.
   const providers: readonly ProviderReport[] = [
-    ...listAdapters().map(brokerReport),
+    ...(await Promise.all(listAdapters().map(a => brokerReport(a, nowMs)))),
     geminiReport(),
   ];
   return {
@@ -170,7 +175,7 @@ export async function GET(request: Request): Promise<Response> {
   // logged-in local session still receives the report.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
-  const body = buildBrokerStatus();
+  const body = await buildBrokerStatus(Date.now());
   return NextResponse.json(body, {
     status: 200,
     headers: { "Cache-Control": "no-store" },
