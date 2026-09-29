@@ -18903,6 +18903,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               seat.addColorStop(1, "rgba(6,6,4,0.34)");
               ctx.fillStyle = seat;
               ctx.fillRect(L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
+              // A WALL STANDING IN THE WEATHER CASTS ONTO IT (brick-wall
+              // physics, serving SPY 1h 2026-09-29: the 785 wall floated over
+              // the storm — its own cast shadow was painted first and the lens
+              // covered it). The lens lays the wall's contact shadow on its
+              // glass, below the body, the way the wall casts on bare glass.
+              for (const wr of pressureWallHitRef.current) {
+                if (wr.x > L.cx + L.rx || wr.x + wr.w < L.cx - L.rx) continue;
+                const yb = wr.y + wr.h - 4;
+                if (yb > L.cy + L.ry || yb + 18 < L.cy - L.ry) continue;
+                const cast = ctx.createLinearGradient(0, yb, 0, yb + 18);
+                cast.addColorStop(0, "rgba(0,0,0,0.5)");
+                cast.addColorStop(1, "rgba(0,0,0,0)");
+                ctx.fillStyle = cast;
+                ctx.fillRect(wr.x + 7, yb, wr.w - 7, 18);
+              }
             }
             ctx.restore(); // the lens's inside
 
