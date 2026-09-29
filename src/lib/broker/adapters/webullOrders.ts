@@ -1,3 +1,4 @@
+import { isDecisionId } from "@/lib/traderMemory/decisionIdentity";
 /**
  * WEBULL ORDERS — preview, place-once, exact lookup, reconcile. GP12 Mission B.
  *
@@ -81,6 +82,8 @@ function price(value: number | undefined): string | null {
 
 export function mapToWebullStockOrder(intent: WebullOrderIntent): MapResult {
   if (!intent.decisionId?.trim()) return { ok: false, reason: "No Decision_ID: an order must express a decision." };
+  // G6: a present-but-malformed id is refused by the same validator the minter mirrors.
+  if (!isDecisionId(intent.decisionId)) return { ok: false, reason: "Malformed Decision_ID: WM did not mint this identity, so the order cannot claim it." };
   if (!CLIENT_ORDER_ID.test(intent.clientOrderId)) {
     return { ok: false, reason: "The client order id is missing or malformed; it is the only thing that makes this order reconcilable." };
   }

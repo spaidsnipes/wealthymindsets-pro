@@ -1,3 +1,4 @@
+import { isDecisionId } from "@/lib/traderMemory/decisionIdentity";
 /**
  * FROZEN asOf RECEIPT — H-1001 / F20 · V22.
  *
@@ -120,7 +121,7 @@ function isReceipt(v: unknown): v is RiskReceipt {
   if (!v || typeof v !== "object") return false;
   const x = v as Record<string, unknown>;
   const plan = x.plan as Record<string, unknown> | undefined;
-  return x.version === RISK_RECEIPT_VERSION && typeof x.decisionId === "string" && typeof x.asOf === "number"
+  return x.version === RISK_RECEIPT_VERSION && isDecisionId(x.decisionId) && typeof x.asOf === "number"
     && Number.isFinite(x.asOf) && x.fill === "NO_FILL" && !!plan && typeof plan.entry === "number" && typeof plan.stop === "number";
 }
 

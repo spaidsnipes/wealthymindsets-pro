@@ -28,12 +28,12 @@ function listableKv(initial: Record<string, string> = {}): WebullKvListable & { 
 }
 
 const row = (over: Partial<LedgerRecord> = {}): LedgerRecord => ({
-  clientOrderId: "c1", decisionId: "D-1", accountId: "a-1", state: "SUBMITTING",
+  clientOrderId: "c1", decisionId: "wmd_D-1", accountId: "a-1", state: "SUBMITTING",
   brokerOrderId: null, brokerStatus: null, note: "", updatedAtMs: 1, ...over,
 });
 
 const intent: WebullOrderIntent = {
-  clientOrderId: "a1b2c3d4e5f60718293a4b5c6d7e8f90", decisionId: "D-7", accountId: "a-1",
+  clientOrderId: "a1b2c3d4e5f60718293a4b5c6d7e8f90", decisionId: "wmd_D-7", accountId: "a-1",
   symbol: "TSLA", side: "buy", type: "limit", qty: 1, limitPx: 250.5, tif: "day", assetClass: "equity",
 };
 

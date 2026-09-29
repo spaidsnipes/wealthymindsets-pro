@@ -1,3 +1,4 @@
+import { isDecisionId } from "@/lib/traderMemory/decisionIdentity";
 /**
  * THE WEBULL ORDER LEDGER, DURABLE — GP12 §32: "WM intentId → stable
  * clientOrderId → Webull broker orderId. Persist it."
@@ -44,7 +45,7 @@ export function parseLedgerRecord(raw: string | null): LedgerRecord | null {
   try {
     const r = JSON.parse(raw) as Partial<LedgerRecord>;
     if (typeof r.clientOrderId !== "string" || !r.clientOrderId) return null;
-    if (typeof r.decisionId !== "string" || typeof r.accountId !== "string") return null;
+    if (!isDecisionId(r.decisionId) || typeof r.accountId !== "string") return null;
     if (!STATES.includes(r.state as LedgerState)) return null;
     if (typeof r.updatedAtMs !== "number" || !Number.isFinite(r.updatedAtMs)) return null;
     return {

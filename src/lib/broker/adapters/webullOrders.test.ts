@@ -34,7 +34,7 @@ const live = { ...config, liveOrdersEnabled: true };
 
 const intent = (over: Partial<WebullOrderIntent> = {}): WebullOrderIntent => ({
   clientOrderId: "a1b2c3d4e5f60718293a4b5c6d7e8f90",
-  decisionId: "D-1842",
+  decisionId: "wmd_D-1842",
   accountId: "ACC1",
   symbol: "TSLA",
   side: "buy",

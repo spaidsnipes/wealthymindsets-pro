@@ -1,3 +1,4 @@
+import { isDecisionId } from "@/lib/traderMemory/decisionIdentity";
 /**
  * /api/decision-position — THE SHARED DECISION / POSITION AUTHORITY, wired.
  *
@@ -176,7 +177,7 @@ export async function POST(request: Request) {
 
   const write = body as Partial<AuthorityWrite> & Record<string, unknown>;
 
-  if (typeof write.decisionId !== "string" || write.decisionId.trim() === "") {
+  if (typeof write.decisionId !== "string" || write.decisionId.trim() === "" || !isDecisionId(write.decisionId)) {
     return NextResponse.json(
       {
         verdict: "REJECT_ROLE",

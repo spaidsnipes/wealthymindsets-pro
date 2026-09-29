@@ -1337,3 +1337,31 @@ export function placeChartMarketOrder(
   const position = positions.find(p => p.symbol === symbol) ?? null;
   return { ok: true, symbol, side, qty, fillPx, realized, cash, position };
 }
+
+/**
+ * THE EXIT CARRIES THE DECISION THAT OPENED THE POSITION (G6, 2026-09-29).
+ *
+ * `closePosition` built its close order with no `decisionId`, so the exit
+ * trade could not be traced to the decision it ended — the chain broke at
+ * EXIT while every earlier stage carried it. A position has no id of its own;
+ * its decision is the one on the newest FILLED order on that symbol whose side
+ * opened it (buy for a long, sell for a short). Never re-minted here.
+ *
+ * Absent when no such order carries a valid id (a book from before the field,
+ * or a manual order): the caller discloses that by name —
+ * `EXIT: decision identity absent` — rather than inventing one.
+ */
+export function decisionOfOpenPosition(
+  orders: readonly Order[],
+  symbol: string,
+  positionQty: number,
+): { ok: true; decisionId: DecisionId } | { ok: false; transition: "EXIT: decision identity absent" } {
+  const openingSide: OrderSide = positionQty > 0 ? "buy" : "sell";
+  const opener = [...orders]
+    .filter(o => o.symbol === symbol && o.status === "filled" && o.side === openingSide)
+    .sort((a, b) => b.ts - a.ts)
+    .find(o => o.decisionId !== undefined);
+  return opener && isDecisionId(opener.decisionId)
+    ? { ok: true, decisionId: opener.decisionId }
+    : { ok: false, transition: "EXIT: decision identity absent" };
+}

@@ -7,7 +7,7 @@ import { GET, POST } from "./route";
 
 const request = () => new Request("http://localhost/api/decision-position", {
   method: "POST", headers: { "content-type": "application/json" },
-  body: JSON.stringify({ decisionId: "decision-one", baseReconVersion: 0, role: "CLIENT_INTENT", intent: "WAIT" }),
+  body: JSON.stringify({ decisionId: "wmd_decision-one", baseReconVersion: 0, role: "CLIENT_INTENT", intent: "WAIT" }),
 });
 
 beforeEach(() => {
@@ -105,7 +105,7 @@ const read = (decisionId?: string) =>
   );
 
 const ROW = {
-  decision_id: "decision-one",
+  decision_id: "wmd_decision-one",
   recon_version: 4,
   intent: "GET ME IN NOW",
   intent_device_id: "phone-1",
@@ -118,25 +118,25 @@ const ROW = {
 describe("shared position projection", () => {
   it("projects the record a second device asks for", async () => {
     mocks.rpc.mockResolvedValue({ data: [ROW], error: null });
-    const body = await (await GET(read("decision-one"))).json();
+    const body = await (await GET(read("wmd_decision-one"))).json();
     expect(body.status).toBe("PROJECTED");
     expect(body.position.reconVersion).toBe(4);
     expect(body.position.intent).toBe("GET ME IN NOW");
-    expect(body.position.decisionId).toBe("decision-one");
+    expect(body.position.decisionId).toBe("wmd_decision-one");
   });
 
   it("scopes the read to the signed-in owner, never to the caller's claim", async () => {
     mocks.rpc.mockResolvedValue({ data: [ROW], error: null });
-    await GET(read("decision-one"));
+    await GET(read("wmd_decision-one"));
     expect(mocks.rpc).toHaveBeenCalledWith(
       "wm_read_decision_position",
-      expect.objectContaining({ p_owner_id: "owner-one", p_decision_id: "decision-one" }),
+      expect.objectContaining({ p_owner_id: "owner-one", p_decision_id: "wmd_decision-one" }),
     );
   });
 
   it("keeps NOT YET RECONCILED absent instead of defaulting it to zero", async () => {
     mocks.rpc.mockResolvedValue({ data: [ROW], error: null });
-    const { position } = await (await GET(read("decision-one"))).json();
+    const { position } = await (await GET(read("wmd_decision-one"))).json();
     for (const field of ["quantityFilled", "quantityProtected", "executionState", "protectionState"]) {
       expect(position[field], `${field} must stay absent`).toBeNull();
     }
@@ -144,7 +144,7 @@ describe("shared position projection", () => {
 
   it("reads a numeric quantity that arrives as a PostgREST string", async () => {
     mocks.rpc.mockResolvedValue({ data: [{ ...ROW, quantity_filled: "3", quantity_protected: "0" }], error: null });
-    const { position } = await (await GET(read("decision-one"))).json();
+    const { position } = await (await GET(read("wmd_decision-one"))).json();
     expect(position.quantityFilled).toBe(3);
     // A REAL zero survives. The rule is "absence is not zero", not "zero is absence".
     expect(position.quantityProtected).toBe(0);
@@ -156,7 +156,7 @@ describe("shared position projection", () => {
     ["unverifiable version", { data: [{ ...ROW, recon_version: "garbage" }], error: null }],
   ])("does not let %s read as a flat position", async (_name, receipt) => {
     mocks.rpc.mockResolvedValue(receipt);
-    const result = await GET(read("decision-one"));
+    const result = await GET(read("wmd_decision-one"));
     expect(result.status).toBe(503);
     const body = await result.json();
     expect(body.status).toBe("UNVERIFIED");
@@ -166,7 +166,7 @@ describe("shared position projection", () => {
 
   it("does not select an arbitrary record from a duplicated authority receipt", async () => {
     mocks.rpc.mockResolvedValue({ data: [{ ...ROW }, { ...ROW }], error: null });
-    const result = await GET(read("decision-one"));
+    const result = await GET(read("wmd_decision-one"));
     expect(result.status).toBe(503);
     const body = await result.json();
     expect(body.status).toBe("UNVERIFIED");
@@ -175,7 +175,7 @@ describe("shared position projection", () => {
 
   it("separates a decision the authority has never heard of from an unreachable one", async () => {
     mocks.rpc.mockResolvedValue({ data: [], error: null });
-    const result = await GET(read("decision-one"));
+    const result = await GET(read("wmd_decision-one"));
     expect(result.status).toBe(200);
     const body = await result.json();
     expect(body.status).toBe("NOT_RECORDED");
@@ -194,7 +194,7 @@ describe("shared position projection", () => {
 
   it("refuses to project anything to a caller with no session", async () => {
     mocks.auth.mockResolvedValue({ ok: false, response: new Response(null, { status: 401 }) });
-    expect((await GET(read("decision-one"))).status).toBe(401);
+    expect((await GET(read("wmd_decision-one"))).status).toBe(401);
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 });

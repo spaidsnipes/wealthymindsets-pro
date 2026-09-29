@@ -47,6 +47,6 @@ describe("the paper ticket is wired through the guard in the right place", () =>
     const guard = submit.indexOf("if (!acceptOrderSubmit(lastSubmitRef.current, now)) return;");
     expect(guard).toBeGreaterThan(submit.indexOf("setLevelIssues([]);"));
     expect(guard).toBeLessThan(submit.indexOf("setReachNote(null);"));
-    expect(guard).toBeLessThan(submit.indexOf("mintDecisionId("));
+    expect(guard).toBeLessThan(submit.indexOf("continueOrMint("));
   });
 });

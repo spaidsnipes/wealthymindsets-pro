@@ -25,9 +25,14 @@ const PAPER_PAGE = resolve(process.cwd(), "src/app/paper/page.tsx");
 const src = readFileSync(PAPER_PAGE, "utf8");
 
 describe("decision birth — the intent surface mints identity", () => {
-  it("the paper order ticket mints a DECISION_ID at all", () => {
-    expect(src).toContain("mintDecisionId");
+  it("the paper order ticket CONTINUES the scene's decision, minting only when none was born (G6, 2026-09-29)", () => {
+    // It used to call mintDecisionId directly — a second birth that split the
+    // chart's id A from the order's id B. One identity, continued.
+    expect(src).toContain("const scene = readSceneDecision(decisionOwner, sym);");
+    expect(src).toContain("continueOrMint(scene?.identity ?? null, {");
+    expect(src).not.toMatch(/\bmintDecisionId\(/);
     expect(src).toMatch(/cause:\s*"EXPLICIT_INTENT"/);
+    expect(src).toContain("if (born.ok && !scene) writeSceneDecision({ owner: decisionOwner, underlying: sym, identity: born.identity });");
   });
 
   it("mints AFTER the ticket's refusals, so a declined order cannot burn an identity", () => {
@@ -35,7 +40,7 @@ describe("decision birth — the intent surface mints identity", () => {
     // If the mint moved above them, every abandoned ticket would consume a
     // decision id and the blotter would carry ids belonging to nothing.
     const guard = src.indexOf("if (!levels.ok)");
-    const mint = src.indexOf("mintDecisionId({");
+    const mint = src.indexOf("continueOrMint(scene?.identity ?? null, {");
     expect(guard, "level guard not found — has the ticket been rewritten?").toBeGreaterThan(-1);
     expect(mint, "mint not found").toBeGreaterThan(-1);
     expect(mint).toBeGreaterThan(guard);
@@ -45,7 +50,7 @@ describe("decision birth — the intent surface mints identity", () => {
     // decisionIdentity refuses broker-shaped seeds, but nothing stops a caller
     // passing the order's own id. That would make the identity die with the
     // order it was supposed to outlive.
-    const mintCall = src.slice(src.indexOf("mintDecisionId({"), src.indexOf("const order: Order"));
+    const mintCall = src.slice(src.indexOf("continueOrMint(scene?.identity ?? null, {"), src.indexOf("const order: Order"));
     expect(mintCall).not.toMatch(/nonce:\s*ord\b/);
     expect(mintCall).not.toMatch(/nonce:\s*order\./);
     expect(mintCall).not.toMatch(/nonce:\s*id\b/);
@@ -146,7 +151,7 @@ describe("decision reach — the trader is told when a decision stayed on the de
   it("clears the previous decision's notice when a new decision is made", () => {
     // A stale notice under a fresh ticket describes the wrong decision.
     const clear = src.indexOf("setReachNote(null);");
-    const mint = src.indexOf("mintDecisionId({");
+    const mint = src.indexOf("continueOrMint(scene?.identity ?? null, {");
     expect(clear, "no clear-on-submit").toBeGreaterThan(-1);
     expect(clear).toBeLessThan(mint);
   });

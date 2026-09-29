@@ -64,6 +64,7 @@ import {
   type OrderType,
   type Position,
   type Trade,
+  decisionOfOpenPosition,
 } from "@/lib/paperTrade";
 import { selectFillQueueBasis, describeFillQueueBasis } from "@/lib/paperFillQueueBasis";
 import { selectExecutionRealism, describeExecutionRealism } from "@/lib/paperExecutionRealism";
@@ -116,7 +117,9 @@ import { selectExpressionCard } from "@/lib/expressionCard";
 import { limitPriceCell, fillPriceCell } from "@/lib/paper/orderBlotterCells";
 import { paperAccountStats, paperWinRateStat, UNREADABLE_BOOK_REASON } from "@/lib/paper/paperAccountStats";
 import { paperSpotStat, describeObservationAge } from "@/lib/paper/paperSpotDisclosure";
-import { mintDecisionId } from "@/lib/traderMemory/decisionIdentity";
+import { continueOrMint } from "@/lib/traderMemory/decisionIdentity";
+import { readSceneDecision, writeSceneDecision } from "@/lib/traderMemory/decisionContinuity";
+import { useAuth } from "@/contexts/AuthContext";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordDecisionIntent } from "@/lib/traderMemory/recordDecisionIntent";
 import { validateTicketLevels, purposeOrderType, purposeSentence, purposeTradeoff,
@@ -684,6 +687,7 @@ function OrderTicket({
   onSubmit: (o: Order) => void;
   initialSymbol?: string;
 }) {
+  const { user: authUser } = useAuth();
   const [sym,    setSym]    = useState(initialSymbol ?? "NQ1!");
   const [side,   setSide]   = useState<OrderSide>("buy");
   const [type,   setType]   = useState<OrderType>("market");
@@ -771,12 +775,21 @@ function OrderTicket({
      * and the retry gets a new one; this does not. They are two different
      * questions and they get two different answers.
      */
-    const born = mintDecisionId({
+    // G6 (2026-09-29): the ticket CONTINUES the decision already born on this
+    // owner's scene for this instrument (/charts permission or expression,
+    // persisted by decisionContinuity) — it used to mint a second id here, so
+    // the chart and receipt carried id A while the order and its trades
+    // carried id B. It mints only when no decision exists yet, and writes that
+    // birth back to the scene so /charts continues it in turn.
+    const decisionOwner = authUser?.id ?? "signed-out";
+    const scene = readSceneDecision(decisionOwner, sym);
+    const born = continueOrMint(scene?.identity ?? null, {
       cause: "EXPLICIT_INTENT",
       deviceId: thisDeviceId(),
       nowMs: Date.now(),
       nonce: uid() + uid(),
     });
+    if (born.ok && !scene) writeSceneDecision({ owner: decisionOwner, underlying: sym, identity: born.identity });
 
     const order: Order = {
       id:     uid(),
@@ -2328,9 +2341,14 @@ export default function PaperTradingPage() {
     setOrders(prev => {
       const plan = selectCloseOrderPlan(pos.qty, prev, symbol);
       if (!plan) return prev;                    // already covered by pending
+      // G6: the exit carries the decision that opened the position; with
+      // none on record the absence is named, never re-minted.
+      const exitDecision = decisionOfOpenPosition(prev, symbol, pos.qty);
+      if (!exitDecision.ok) console.warn(`[paper] ${exitDecision.transition} (${symbol})`);
       const closeOrd: Order = {
         id: uid(), symbol, side: plan.side,
         type: "market", qty: plan.qty, status: "pending", ts: Date.now(),
+        ...(exitDecision.ok ? { decisionId: exitDecision.decisionId } : {}),
       };
       return [closeOrd, ...prev];
     });
