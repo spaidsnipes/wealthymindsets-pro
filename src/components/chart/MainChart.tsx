@@ -12698,17 +12698,32 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // G06 scale: a figure you can read at a glance, not a stick glyph.
             // SEMANTIC CAMERA: NEAR is physiology — the body grows into a
             // figure you can study; MID keeps it a companion to price.
-            const FH = spacingB >= 12 ? 150 : spacingB >= 7 ? 116 : 92, FW = Math.round(FH * 270 / 280);
-            const spot = placeClearOfKeepOut({ x: b.x, y: b.y - FH / 2, w: FW, h: FH }, keepOut(), {
+            const FH0 = spacingB >= 12 ? 150 : spacingB >= 7 ? 116 : 92;
+            const placeBody = (fh: number, fw: number) => placeClearOfKeepOut({ x: b.x, y: b.y - fh / 2, w: fw, h: fh }, keepOut(), {
               // Never in the legend / D / EFFORT·INSPECT rows (serving BTC 5m, 2026-09-29).
               minX: keepOutMinX(), blockers: [...floatingChips, ...candleBlockers, { x: 0, y: 0, w: W, h: READING_ANCHOR_ROW_BOTTOM + 4 }], strict: true,
               alternates: [
-                { x: b.x, y: b.y - FH - 8, w: FW, h: FH }, { x: b.x, y: b.y + 8, w: FW, h: FH },
-                { x: b.x, y: b.y - FH - 60, w: FW, h: FH }, { x: b.x, y: b.y + 60, w: FW, h: FH },
-                { x: b.x - FW - 24, y: b.y - FH / 2, w: FW, h: FH },
+                { x: b.x, y: b.y - fh - 8, w: fw, h: fh }, { x: b.x, y: b.y + 8, w: fw, h: fh },
+                { x: b.x, y: b.y - fh - 60, w: fw, h: fh }, { x: b.x, y: b.y + 60, w: fw, h: fh },
+                { x: b.x - fw - 24, y: b.y - fh / 2, w: fw, h: fh },
               ],
             });
-            if (spot.mode === "BLOCKED") continue;
+            // THE BODY STANDS ON ITS EVENT (G06 beside serving ETH-USD 15m NEAR,
+            // 2026-09-29: the 150px figure found no candle-free room near its
+            // shelf and walked ~500px away on a dotted leader). The largest
+            // size that stands within 2.5 body-widths of its event wins; only
+            // when none does is the far, full-size spot kept.
+            let FH = FH0, FW = Math.round(FH0 * 270 / 280);
+            let spot: ReturnType<typeof placeBody> | null = null;
+            for (const fh of [FH0, 116, 92, 72].filter(h => h <= FH0)) {
+              const fw = Math.round(fh * 270 / 280);
+              const cand = placeBody(fh, fw);
+              if (cand.mode === "BLOCKED") continue;
+              const near = Math.hypot(cand.rect.x - b.x, cand.rect.y + fh / 2 - b.y) <= 2.5 * fw;
+              if (!spot || near) { spot = cand; FH = fh; FW = fw; }
+              if (near) break;
+            }
+            if (!spot) continue;
             const cx = spot.rect.x + FW / 2, top = spot.rect.y + 4;
             const u = FH / 84; // body unit
             const coreY = spot.rect.y + FH * 0.29; // the plate's chest core
