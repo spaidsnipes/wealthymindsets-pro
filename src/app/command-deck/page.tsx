@@ -106,6 +106,7 @@ import {
   type ScopedDecisionIdentity,
 } from "@/lib/expressionShortlist";
 import { birthOnPermissionCrossing } from "@/lib/traderMemory/permissionBirth";
+import { readSceneDecision, writeSceneDecision } from "@/lib/traderMemory/decisionContinuity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { SanctuarySessionProvider, type SanctuarySessionSignal } from "@/lib/experience/sanctuarySessionContext";
 import type { OptionContract, OptionChainFidelity, OptionChainSource } from "@/lib/optionContractResponse";
@@ -677,11 +678,21 @@ function CommandDeckInner() {
     // stale storage once the room, owner, or thesis side changes.
     setOptionSelection(null);
   }, [symbol, expressionOwner, expressionDirection]);
+  // G6 (2026-09-29): the deck's decision was React state only, so a reload
+  // lost it and the next permission crossing minted a SECOND id for the same
+  // owner/instrument. It now reads and writes the same scoped record /charts
+  // and the paper ticket use (decisionContinuity) — one decision per scene.
   React.useEffect(() => {
-    setSceneDecision(null);
+    const restored = readSceneDecision(expressionOwner, symbol);
+    setSceneDecision(restored);
     priorPermission.current = null;
-    setSceneDecisionAbsence("No decision born yet on this scene — permission has not crossed here.");
+    setSceneDecisionAbsence(restored
+      ? "Decision carried from an earlier view of this instrument."
+      : "No decision born yet on this scene — permission has not crossed here.");
   }, [symbol, expressionOwner]);
+  React.useEffect(() => {
+    if (sceneDecision) writeSceneDecision(sceneDecision);
+  }, [sceneDecision]);
   // ── BUILD ORDER §10 SCENE COMPILER ─────────────────────────────────────────
   // The OS layer: given the state, what is ADMITTED to the surface. This is not
   // emphasis (shellEmphasis already does that) — it is admission, and the panel

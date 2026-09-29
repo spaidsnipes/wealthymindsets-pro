@@ -58,18 +58,19 @@ describe("the deck births its own decision on permission crossing", () => {
     expect(src).toContain("setSceneDecision((current) => adoptSceneDecision(current, candidate))");
   });
 
-  it("clears the decision AND resets the prior ref when the room changes", () => {
-    // A TSLA decision must not follow the trader to BTC. Both pieces of
-    // state (sceneDecision AND priorPermission) reset together — if only
-    // one clears, the next TSLA re-entry would either lose the id
-    // silently or fail to mint a new one.
+  it("re-reads the SCOPED decision AND resets the prior ref when the room changes (G6, 2026-09-29)", () => {
+    // A TSLA decision must not follow the trader to BTC — and returning to
+    // TSLA must find the SAME one, not mint a second (the deck used to hold it
+    // in React state only). readSceneDecision is scoped by owner AND
+    // underlying, so BTC can never be handed TSLA's decision.
     const src = DECK();
-    const cleanupIdx = src.indexOf("setSceneDecision(null);");
-    expect(cleanupIdx).toBeGreaterThan(0);
-    // The same effect that clears sceneDecision must clear the ref.
-    const cleanupBlock = src.slice(cleanupIdx, cleanupIdx + 400);
-    expect(cleanupBlock).toContain("priorPermission.current = null");
-    expect(cleanupBlock).toContain('setSceneDecisionAbsence("No decision born yet on this scene');
+    const idx = src.indexOf("const restored = readSceneDecision(expressionOwner, symbol);");
+    expect(idx).toBeGreaterThan(0);
+    const block = src.slice(idx, idx + 400);
+    expect(block).toContain("setSceneDecision(restored);");
+    expect(block).toContain("priorPermission.current = null");
+    expect(block).toContain('"No decision born yet on this scene');
+    expect(src).toContain("if (sceneDecision) writeSceneDecision(sceneDecision);");
   });
 
   it("the fused room reads decisionId from the born scene, absence from state", () => {
