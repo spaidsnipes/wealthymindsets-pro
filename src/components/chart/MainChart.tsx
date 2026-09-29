@@ -12679,9 +12679,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const gold = b.kind === "ABSORB";
             const rgb = gold ? "240,192,96" : "226,92,92";
             // G06 scale: a figure you can read at a glance, not a stick glyph.
-            const FH = 92, FW = Math.round(FH * 270 / 280);
+            // SEMANTIC CAMERA: NEAR is physiology — the body grows into a
+            // figure you can study; MID keeps it a companion to price.
+            const FH = spacingB >= 12 ? 150 : spacingB >= 7 ? 116 : 92, FW = Math.round(FH * 270 / 280);
             const spot = placeClearOfKeepOut({ x: b.x, y: b.y - FH / 2, w: FW, h: FH }, keepOut(), {
-              minX: keepOutMinX(), blockers: [...floatingChips, ...candleBlockers], strict: true,
+              // Never in the legend / D / EFFORT·INSPECT rows (serving BTC 5m, 2026-09-29).
+              minX: keepOutMinX(), blockers: [...floatingChips, ...candleBlockers, { x: 0, y: 0, w: W, h: READING_ANCHOR_ROW_BOTTOM + 4 }], strict: true,
               alternates: [
                 { x: b.x, y: b.y - FH - 8, w: FW, h: FH }, { x: b.x, y: b.y + 8, w: FW, h: FH },
                 { x: b.x, y: b.y - FH - 60, w: FW, h: FH }, { x: b.x, y: b.y + 60, w: FW, h: FH },
