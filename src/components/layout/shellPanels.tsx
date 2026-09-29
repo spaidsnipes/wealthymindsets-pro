@@ -65,8 +65,13 @@ export function initialUnreadNotificationCount(): number {
 const CAT_COLOR: Record<string,string> = {
   Futures:"text-wm-gold",  Stock:"text-wm-blue",
   ETF:"text-wm-green",     Crypto:"text-wm-purple",
-  Forex:"text-wm-text-muted",
+  Forex:"text-wm-text-muted", Index:"text-wm-gold", Fund:"text-wm-green",
 };
+
+/** The palette's category filter (Founder, 2026-09-28: "it used to also say crypto forex futures stocks"). */
+const SEARCH_CATEGORIES = ["All", "Stock", "ETF", "Index", "Futures", "Forex", "Crypto"] as const;
+type SearchCategoryFilter = (typeof SEARCH_CATEGORIES)[number];
+const CATEGORY_LABEL: Record<SearchCategoryFilter, string> = { All: "All", Stock: "Stocks", ETF: "ETFs", Index: "Indices", Futures: "Futures", Forex: "Forex", Crypto: "Crypto" };
 
 const DEFAULT_QUICK = ["NQ1!","ES1!","BTC","AAPL","NVDA","TSLA","SPY","GC1!"];
 
@@ -121,33 +126,38 @@ export function SearchPanel({
   // this picker drifted apart in the first place.
   const localResults = matchCuratedSymbols(query, 10);
 
-  // Debounced Finnhub live search for any symbol not in local list
+  // Debounced live search across EVERY asset class (/api/symbol-search:
+  // stocks, ETFs, indices, futures, forex, crypto — cached, keyless fallback).
+  // It used to call Finnhub on every keystroke: stocks only in practice, and
+  // HTTP 429 after about a dozen keystrokes, which BLANKED the suggestions
+  // mid-typing (Founder, 2026-09-28). A failed answer now keeps the last good
+  // suggestions and says why, instead of emptying the list.
+  const [searchNote, setSearchNote] = useState<string | null>(null);
+  const [category, setCategory] = useState<SearchCategoryFilter>("All");
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    if (query.length < 1) { setLiveResults([]); setSearching(false); return; }
+    if (query.trim().length < 1) { setLiveResults([]); setSearching(false); setSearchNote(null); return; }
     setSearching(true);
+    const asked = query.trim();
     searchTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/finnhub?q=${encodeURIComponent(query)}&type=search`, { cache: "no-store" });
-        const json = await res.json();
-        const localSymSet = new Set(localResults.map(s => s.sym));
-        const live = (json.results ?? [])
-          .filter((r: any) => !localSymSet.has(r.sym) && r.sym && r.name)
-          .slice(0, 12)
-          .map((r: any) => ({
-            sym:   r.sym,
-            label: r.name,
-            cat:   r.type === "Crypto" ? "Crypto" : r.type === "ETF" ? "ETF" :
-                   r.type === "Forex" ? "Forex" : "Stock",
-          }));
-        setLiveResults(live);
-      } catch { setLiveResults([]); }
+        const res = await fetch(`/api/symbol-search?q=${encodeURIComponent(asked)}`);
+        const json = await res.json() as { results?: { sym?: string; label?: string; cat?: string }[]; error?: string };
+        if (!res.ok || json.error) { setSearchNote(json.error ? "Live search is unavailable right now — curated markets below still open." : `Live search answered HTTP ${res.status} — curated markets below still open.`); return; }
+        const localSymSet = new Set(matchCuratedSymbols(asked, 10).map(s => s.sym));
+        setLiveResults((json.results ?? [])
+          .filter(r => r.sym && r.label && !localSymSet.has(r.sym))
+          .slice(0, 20)
+          .map(r => ({ sym: r.sym!, label: r.label!, cat: r.cat ?? "Stock" })));
+        setSearchNote(null);
+      } catch { setSearchNote("Live search did not answer — curated markets below still open."); }
       finally { setSearching(false); }
-    }, 250);
+    }, 220);
     return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
-  }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [query]);
 
-  const allResults = [...localResults, ...liveResults];
+  const unfiltered = [...localResults, ...liveResults];
+  const allResults = category === "All" ? unfiltered : unfiltered.filter(r => r.cat === category);
 
   const pick = useCallback((sym: string) => {
     setActiveSymbol(sym.toUpperCase());
@@ -208,6 +218,19 @@ export function SearchPanel({
         <div role="status" aria-live="polite" className="sr-only">
           {searching ? "Searching" : query ? `${allResults.length} result${allResults.length === 1 ? "" : "s"}` : "Quick access"}
         </div>
+
+        {/* Category filter — every asset class, one row */}
+        <div role="group" aria-label="Filter by market" className="flex flex-wrap gap-1.5 px-4 pt-2.5 pb-1">
+          {SEARCH_CATEGORIES.map(c => (
+            <button key={c} type="button" aria-pressed={category === c} onClick={() => setCategory(c)}
+              data-testid={`search-category-${c}`}
+              className={clsx("min-h-8 rounded-full border px-2.5 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold",
+                category === c ? "border-wm-gold/60 bg-wm-gold/15 text-wm-gold" : "border-wm-border text-wm-text-muted hover:text-wm-text")}>
+              {CATEGORY_LABEL[c]}
+            </button>
+          ))}
+        </div>
+        {searchNote && <div role="status" className="px-4 pb-1 text-[10px] text-wm-text-dim">{searchNote}</div>}
 
         {/* Results */}
         {allResults.length > 0 && (
@@ -294,7 +317,7 @@ export function SearchPanel({
         )}
 
         <div className="px-4 py-2 border-t border-wm-border text-[10px] text-wm-text-dim flex items-center justify-between">
-          <span>Search any stock, ETF, future, crypto, or forex worldwide</span>
+          <span>Stocks · ETFs · indices · futures (metals, energy, grains) · forex · crypto — worldwide</span>
           <span>
             <kbd className="border border-wm-border rounded px-1">↵</kbd> open &nbsp;
             <kbd className="border border-wm-border rounded px-1">ESC</kbd> close

@@ -27,6 +27,7 @@ import {
   yahooQuoteTypeCategory,
 } from "@/lib/marketData/searchResultCategory";
 import { rankSymbolHits } from "@/lib/marketData/symbolSearchRank";
+import { fromYahooSearchSymbol } from "@/lib/yahooSymbol";
 
 /**
  * Asked of the vendor vs. returned to the caller. These are different numbers
@@ -88,14 +89,23 @@ async function yahooSearch(q: string): Promise<SearchHit[]> {
   });
   if (!res.ok) throw new Error(`Yahoo ${res.status}`);
   const json = (await res.json()) as { quotes?: YahooQuote[] };
+  // Every hit is named the way WM opens it, and a form the chart cannot open
+  // (a dated contract, an index code without ^) is not offered at all
+  // (fromYahooSearchSymbol, 2026-09-28).
+  const seen = new Set<string>();
   return (json.quotes ?? [])
     .filter((r): r is YahooQuote & { symbol: string } => Boolean(r.symbol))
-    .map((r) => ({
-      sym: r.symbol,
-      label: r.shortname ?? r.longname ?? r.symbol,
-      cat: reconcileSearchCategory(r.symbol, yahooQuoteTypeCategory(r.quoteType)),
-      exchange: r.exchange ?? "",
-    }));
+    .flatMap((r) => {
+      const sym = fromYahooSearchSymbol(r.symbol, r.quoteType);
+      if (!sym || seen.has(sym)) return [];
+      seen.add(sym);
+      return [{
+        sym,
+        label: r.shortname ?? r.longname ?? sym,
+        cat: reconcileSearchCategory(sym, yahooQuoteTypeCategory(r.quoteType)),
+        exchange: r.exchange ?? "",
+      }];
+    });
 }
 
 export async function GET(request: Request) {

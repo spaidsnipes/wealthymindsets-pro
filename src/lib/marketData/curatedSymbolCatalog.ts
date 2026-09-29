@@ -54,10 +54,12 @@ const RAW_CURATED_SYMBOLS = [
   { sym:"ES1!",  label:"S&P 500 Futures",           cat:"Futures", aliases:["sp500","es","spy futures","mes"] },
   { sym:"RTY1!", label:"Russell 2000 Futures",      cat:"Futures", aliases:["rty","russell","m2k"] },
   { sym:"YM1!",  label:"Dow Jones Futures",         cat:"Futures", aliases:["ym","dow","us30 futures","mym"] },
-  { sym:"GC1!",  label:"Gold Futures",              cat:"Futures", aliases:["gold","xauusd","xau","mgc"] },
+  { sym:"GC1!",  label:"Gold Futures",              cat:"Futures", aliases:["gold","xauusd","xau","spot gold","mgc"] },
   { sym:"CL1!",  label:"Crude Oil WTI Futures",     cat:"Futures", aliases:["oil","crude","wti","mcl"] },
-  { sym:"SI1!",  label:"Silver Futures",            cat:"Futures", aliases:["silver","xagusd","sil"] },
+  { sym:"SI1!",  label:"Silver Futures",            cat:"Futures", aliases:["silver","xagusd","xag","spot silver","sil"] },
   { sym:"HG1!",  label:"Copper Futures",            cat:"Futures", aliases:["copper"] },
+  { sym:"PL1!",  label:"Platinum Futures",          cat:"Futures", aliases:["platinum","xptusd"] },
+  { sym:"PA1!",  label:"Palladium Futures",         cat:"Futures", aliases:["palladium","xpdusd"] },
   { sym:"ZB1!",  label:"30-Year T-Bond Futures",    cat:"Futures", aliases:["bonds","treasury","zb"] },
   { sym:"ZN1!",  label:"10-Year T-Note Futures",    cat:"Futures", aliases:["10yr","zn","notes"] },
   { sym:"6E1!",  label:"Euro Futures",              cat:"Futures", aliases:["euro","eurusd futures","6e"] },
@@ -76,8 +78,9 @@ const RAW_CURATED_SYMBOLS = [
   { sym:"EURUSD", label:"Euro / US Dollar",         cat:"Forex", aliases:["euro dollar","6e","eur"] },
   { sym:"GBPUSD", label:"British Pound / USD",      cat:"Forex", aliases:["cable","pound","gbp","sterling"] },
   { sym:"USDJPY", label:"US Dollar / Japanese Yen", cat:"Forex", aliases:["dollar yen","jpy","yen"] },
-  { sym:"XAUUSD", label:"Gold / US Dollar (Spot)",  cat:"Forex", aliases:["xau","spot gold"] },
-  { sym:"XAGUSD", label:"Silver / US Dollar (Spot)",cat:"Forex", aliases:["silver","xag","spot silver"] },
+  // Spot XAUUSD / XAGUSD are not listed: no spot-metal feed is connected, so
+  // opening them is refused (yahooSymbol SPOT_METALS). Their words point at the
+  // futures WM charts (2026-09-28).
   { sym:"US30",   label:"Dow Jones Index (Cash)",   cat:"Forex", aliases:["dow","dji","dow jones","us30","ym"] },
   { sym:"US500",  label:"S&P 500 Index (Cash)",     cat:"Forex", aliases:["sp500","spx","s&p","us500"] },
   { sym:"US100",  label:"Nasdaq 100 Index (Cash)",  cat:"Forex", aliases:["nasdaq","ndx","us100","nq"] },

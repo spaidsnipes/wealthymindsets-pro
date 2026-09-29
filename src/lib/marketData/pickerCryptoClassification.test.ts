@@ -237,7 +237,8 @@ describe("compact currency pairs are pairs, not equities", () => {
   it("PROOF the compact pairs really exist in the pickers", () => {
     expect(COMPACT_PAIRS).toContain("EURUSD");
     expect(COMPACT_PAIRS).toContain("USDJPY");
-    expect(COMPACT_PAIRS).toContain("XAUUSD");
+    // XAUUSD left the pickers 2026-09-28: no spot-metal feed is connected, so it
+    // only ever opened a refusal; its words now point at GC1! futures.
     expect(COMPACT_PAIRS.length).toBeGreaterThan(8);
   });
 

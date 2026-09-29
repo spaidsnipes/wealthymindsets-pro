@@ -156,6 +156,10 @@ describe("chart order path — contract coverage", () => {
       // PIN UPDATED 2026-09-27 (five-hour order, "futures economics are
       // correct"): YM, SI, HG, NG, ZB, ZN, 6E now carry their exchange specs
       // (futuresEconomicsSpec.test.ts). What remains has no spec on file yet.
+      // Listed in the picker 2026-09-28 (metals search). Point values NOT typed
+      // from memory — look up the CME spec before covering them.
+      "PL1! (Platinum Futures)",
+      "PA1! (Palladium Futures)",
       "6J1! (Yen Futures)",
       "6B1! (British Pound Futures)",
       // PIN UPDATED 2026-09-25 (GP12 §26). `VX1! (VIX Futures)` left this list

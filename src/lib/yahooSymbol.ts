@@ -345,3 +345,35 @@ export function toYahooSymbol(sym: string): string {
 
   return up;
 }
+
+/**
+ * YAHOO → WM, for a search hit (2026-09-28: "why can't I search every single
+ * index, ticker…"). The inverse of `toYahooSymbol`, owned here beside it:
+ *   · an instrument WM already names keeps WM's name (GC=F → GC1!, ^GSPC → SPX);
+ *   · other continuous futures stay `ROOT=F`, other indices `^CODE`, which the
+ *     chart resolves as-is;
+ *   · a six-letter FX pair drops `=X` (EURUSD=X → EURUSD);
+ *   · dated contract codes (`KEOZ26.NYB`, `M6EH27.CME`) and index codes without
+ *     `^` (`18QQ.Z`) are null — the chart cannot open them, so a picker must
+ *     not offer them.
+ */
+const WM_NAME_FOR_YAHOO: ReadonlyMap<string, string> = (() => {
+  const m = new Map<string, string>();
+  for (const [wm, yf] of Object.entries(YF_MAP)) if (!m.has(yf)) m.set(yf, wm);
+  return m;
+})();
+
+export function fromYahooSearchSymbol(symbol: string, quoteType: string | undefined): string | null {
+  const s = (symbol ?? "").trim().toUpperCase();
+  if (!s) return null;
+  const named = WM_NAME_FOR_YAHOO.get(s);
+  if (named) return named;
+  const t = (quoteType ?? "").toUpperCase();
+  if (t === "FUTURE") return /^[A-Z0-9]{1,5}=F$/.test(s) ? s : null;
+  if (t === "INDEX") return s.startsWith("^") ? s : null;
+  if (t === "CURRENCY") {
+    if (/^(EUR|GBP|USD|JPY|AUD|NZD|CAD|CHF|CNH)(USD|JPY|EUR|GBP|AUD|NZD|CAD|CHF|CNH)=X$/.test(s)) return s.slice(0, -2);
+    return /=X$/.test(s) ? s : null;
+  }
+  return s;
+}
