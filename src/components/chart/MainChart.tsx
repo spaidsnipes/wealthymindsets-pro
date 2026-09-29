@@ -6348,6 +6348,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       if (setCanvasTextSilenced(ctx, proofNoLabelsRequested(window.location.search))) canvas.dataset.proof = "NOLABELS";
       else delete canvas.dataset.proof;
 
+      // G7: every frame starts from clean 2D state — a layer that threw after
+      // save()/clip() can never leave its clip or save stack on the next frame.
+      (ctx as CanvasRenderingContext2D & { reset?: () => void }).reset?.();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
       // The keep-out receipt describes labels on THIS glass; it goes with the
@@ -9259,9 +9262,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
       // Hoisted so big-trades mode can draw VP early (under the bubbles). The
       // vpDrawn guard ensures it runs only once per frame.
+      // G7 · the profile family is ISOLATED: a throw inside it is named
+      // (canvas vpFault) and the layers painted after it still paint — the
+      // serving fault injection (2026-09-29) threw in a profile chip and took
+      // every later layer of the frame with it.
       function runWMVP() {
         if (vpDrawn) return;
         vpDrawn = true;
+        ctx?.save();
+        try { runWMVPBody(); if (canvasRef.current?.dataset.vpFault) delete canvasRef.current.dataset.vpFault; }
+        catch (err) {
+          const ds = canvasRef.current?.dataset;
+          if (ds) ds.vpFault = (err instanceof Error ? `${err.name}: ${err.message}` : String(err)).slice(0, 120);
+        } finally { ctx?.restore(); }
+      }
+      function runWMVPBody() {
         // H-501 · the toolbar's VP columns ask the ONE permission table: FAR
         // withholds them. Asked-for but withheld is its own receipt, never
         // "nothing requested" (vpRequested stays) and never a decline.

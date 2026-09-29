@@ -21,3 +21,11 @@ describe("the overlay paint loop survives a renderer fault", () => {
     expect(loop).toContain("if (canvasRef.current?.dataset.paintFault) delete canvasRef.current.dataset.paintFault;");
   });
 });
+
+describe("the profile family is isolated inside the frame", () => {
+  it("runWMVP wraps its body, names the fault, restores state; every frame starts from reset 2D state", () => {
+    expect(MC).toContain("try { runWMVPBody(); if (canvasRef.current?.dataset.vpFault) delete canvasRef.current.dataset.vpFault; }");
+    expect(MC).toContain("if (ds) ds.vpFault = (err instanceof Error");
+    expect(MC).toContain("(ctx as CanvasRenderingContext2D & { reset?: () => void }).reset?.();\n      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);");
+  });
+});
