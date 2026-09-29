@@ -207,7 +207,18 @@ export function readSceneDecision(
   const u = underlying!.trim();
 
   try {
-    const raw = storage.getItem(key) ?? storage.getItem(legacyContinuityKey(o, u));
+    let raw = storage.getItem(key) ?? storage.getItem(legacyContinuityKey(o, u));
+    // A record written before the canonical scope under ANOTHER spelling of
+    // this instrument ("BTC" for "BTC-USD") is found by scanning this owner's
+    // continuity records and matching canonically — then migrated to the
+    // canonical key so the next reader finds it directly.
+    if (raw == null) {
+      const found = findBySpelling(storage, o, u);
+      if (found != null) {
+        raw = found;
+        try { storage.setItem(key, found); } catch { /* read still succeeds; migration retried next read */ }
+      }
+    }
     if (raw == null) return null;
     const parsed = JSON.parse(raw) as Partial<DecisionContinuityEnvelope>;
     if (
@@ -297,4 +308,22 @@ export function isDecisionContinuityStorageEvent(
     return false;
   }
   return true;
+}
+
+/** Browser storage can enumerate; a test port may not — then there is nothing to scan. */
+function findBySpelling(storage: StoragePort, o: string, u: string): string | null {
+  const enumerable = storage as StoragePort & { length?: number; key?: (i: number) => string | null };
+  if (typeof enumerable.length !== "number" || typeof enumerable.key !== "function") return null;
+  const prefix = `${DECISION_CONTINUITY_KEY_PREFIX}${encodeURIComponent(o)}:`;
+  const want = instrumentScope(u);
+  for (let i = 0; i < enumerable.length; i++) {
+    const k = enumerable.key(i);
+    if (!k || !k.startsWith(prefix)) continue;
+    let spelled = "";
+    try { spelled = decodeURIComponent(k.slice(prefix.length)); } catch { continue; }
+    if (instrumentScope(spelled) !== want) continue;
+    const v = storage.getItem(k);
+    if (v != null) return v;
+  }
+  return null;
 }

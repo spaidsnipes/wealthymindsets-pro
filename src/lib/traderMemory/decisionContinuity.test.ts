@@ -273,3 +273,20 @@ describe("one instrument, one decision — the scope is canonical (serving /pape
     expect(read("o", "BTC", storage)?.identity.decisionId).toBe(born.identity.decisionId);
   });
 });
+
+describe("a pre-canonical record under ANOTHER spelling is found and migrated (serving, 2026-09-29)", () => {
+  it("BTC record → read as BTC-USD → found, and the canonical key now holds it", async () => {
+    const { readSceneDecision: read, decisionContinuityKey: key } = await import("./decisionContinuity");
+    const { mintDecisionId } = await import("./decisionIdentity");
+    const born = mintDecisionId({ cause: "EXPLICIT_INTENT", deviceId: "d", nowMs: 1, nonce: "mig" });
+    if (!born.ok) throw new Error("mint");
+    const mem = new Map<string, string>([["wm:decision-identity:v1:o:BTC", JSON.stringify({ version: 1, owner: "o", underlying: "BTC", identity: born.identity })]]);
+    const storage = {
+      getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v),
+      get length() { return mem.size; }, key: (i: number) => [...mem.keys()][i] ?? null,
+    };
+    expect(read("o", "BTC-USD", storage)?.identity.decisionId).toBe(born.identity.decisionId);
+    expect(mem.has(key("o", "BTC-USD")!)).toBe(true);
+    expect(read("other-owner", "BTC-USD", storage)).toBeNull();
+  });
+});
