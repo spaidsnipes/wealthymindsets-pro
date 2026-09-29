@@ -110,3 +110,12 @@ describe("× A REDIRECT THAT SHIPS THE APP IS NOT A REDIRECT", () => {
     }
   });
 });
+
+describe("/signup is answered by the alias owner (G12, 2026-09-29)", () => {
+  it("maps to the login page's signup mode, query parsed not pasted", async () => {
+    const { legacyAliasTarget } = await import("./legacyRouteAliases");
+    expect(legacyAliasTarget("/signup")).toBe("/login?mode=signup");
+    const t = new URL(legacyAliasTarget("/signup")!, "https://wealthymindsetspro.com");
+    expect([t.pathname, t.search]).toEqual(["/login", "?mode=signup"]);
+  });
+});

@@ -1232,6 +1232,12 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
           </div>
         ) : (
           <div className="space-y-2">
+            {/* G12 (2026-09-29): a broker with no adapter, managed or runtime
+                connection is a link to its own site — WM reads nothing from
+                it. Said on the card so it cannot pass for a wired provider. */}
+            <p data-testid="broker-not-wired" className="text-[9px] font-bold uppercase tracking-wider text-wm-text-dim">
+              Not wired in WM Pro — opens {broker.name}&apos;s own site; WM reads no data from it
+            </p>
             <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
               className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-[12px] font-bold transition-all hover:brightness-110"
               style={{ background:`linear-gradient(135deg,${broker.color}33,${broker.color}22)`, color:broker.color, border:`1px solid ${broker.color}50` }}>

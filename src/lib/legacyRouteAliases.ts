@@ -48,6 +48,9 @@ export const LEGACY_ROUTE_ALIASES: Readonly<Record<string, string>> = {
   // The retired live Heatmaps Room. Its map lives in the Scanner Deck now
   // (`@/lib/routing/opportunityMap`); old links land there, never on a room.
   "/heatmaps": "/scanner/map",
+  // The signup door is a mode of /login; the page stub shipped the whole app
+  // shell before a client redirect (G12, 2026-09-29).
+  "/signup": "/login?mode=signup",
 };
 
 /**

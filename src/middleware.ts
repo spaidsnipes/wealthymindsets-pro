@@ -58,7 +58,11 @@ export function middleware(request: NextRequest) {
   const aliasTarget = legacyAliasTarget(request.nextUrl.pathname);
   if (aliasTarget) {
     const url = request.nextUrl.clone();
-    url.pathname = aliasTarget;
+    // A target may carry its own query (G12: "/signup" → "/login?mode=signup");
+    // it is parsed, never pasted into the pathname.
+    const target = new URL(aliasTarget, request.nextUrl.origin);
+    url.pathname = target.pathname;
+    if (target.search) url.search = target.search;
     return NextResponse.redirect(url, 308);
   }
 
