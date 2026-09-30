@@ -36,7 +36,14 @@
  * Salmonation's price under the word "Sui" is a wrong number that looks right.
  */
 
-import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
+import { cryptoBaseTicker, FX_CURRENCY_CODES } from "@/lib/marketData/canonicalIdentity";
+
+// FX pairs Yahoo quotes as "<PAIR>=X", from the identity owner's ONE currency
+// list (was a private nine-code copy: USDMXN opened to a Yahoo 404). Metals
+// stay out — spot gold / silver resolve to their futures.
+const FX_YAHOO = [...FX_CURRENCY_CODES].filter(c => c !== "XAU" && c !== "XAG").join("|");
+const FX_PAIR = new RegExp(`^(${FX_YAHOO})(${FX_YAHOO})$`);
+const FX_PAIR_X = new RegExp(`^(${FX_YAHOO})(${FX_YAHOO})=X$`);
 
 /**
  * Explicit overrides. Everything here is a mapping that cannot be derived —
@@ -341,7 +348,7 @@ export function toYahooSymbol(sym: string): string {
   // Forex pairs: Yahoo uses the "EURUSD=X" format (no slash).
   // Handles "EUR/USD", "GBP/JPY", and also bare 6-letter pairs like "EURUSD".
   if (up.includes("/")) return `${up.replace("/", "")}=X`;
-  if (/^(EUR|GBP|USD|JPY|AUD|NZD|CAD|CHF|CNH)(USD|JPY|EUR|GBP|AUD|NZD|CAD|CHF|CNH)$/.test(up)) return `${up}=X`;
+  if (FX_PAIR.test(up) && up.slice(0, 3) !== up.slice(3)) return `${up}=X`;
 
   return up;
 }
@@ -372,7 +379,7 @@ export function fromYahooSearchSymbol(symbol: string, quoteType: string | undefi
   if (t === "FUTURE") return /^[A-Z0-9]{1,5}=F$/.test(s) ? s : null;
   if (t === "INDEX") return s.startsWith("^") ? s : null;
   if (t === "CURRENCY") {
-    if (/^(EUR|GBP|USD|JPY|AUD|NZD|CAD|CHF|CNH)(USD|JPY|EUR|GBP|AUD|NZD|CAD|CHF|CNH)=X$/.test(s)) return s.slice(0, -2);
+    if (FX_PAIR_X.test(s)) return s.slice(0, -2);
     // Yahoo's three-letter form quotes against the dollar: MXN=X is USD/MXN.
     if (/^[A-Z]{3}=X$/.test(s)) return `USD${s.slice(0, 3)}`;
     return /=X$/.test(s) ? s : null;

@@ -546,6 +546,8 @@ const FX_CODES = new Set([
   "KRW", "MXN", "NOK", "NZD", "SEK", "SGD", "TRY", "USD", "ZAR",
   "XAG", "XAU",
 ]);
+/** The currency codes the identity owner recognises — the ONE list every FX reader uses. */
+export const FX_CURRENCY_CODES: ReadonlySet<string> = FX_CODES;
 
 /**
  * Recover the two legs of a currency pair, or null if this is not one.
