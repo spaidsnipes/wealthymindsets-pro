@@ -1,16 +1,41 @@
 import { rankSymbolHits, normalizeSymbolToken } from "./symbolSearchRank";
+import { FX_CURRENCY_CODES } from "./canonicalIdentity";
+import { matchCuratedSymbols } from "./curatedSymbolCatalog";
 
 export type InstrumentSearchHit = { sym: string; label: string; cat: string; exchange?: string; aliases?: readonly string[] };
 
+// Currency identity comes from the canonical owner; human names come from
+// the platform's currency display names, not a second hardcoded pair universe.
+const currencyNames = new Intl.DisplayNames(["en"], { type: "currency" });
+const fiatNames = [...FX_CURRENCY_CODES].filter(code => code !== "XAU" && code !== "XAG")
+  .map(code => ({ code, name: currencyNames.of(code) ?? code }));
+
+export function matchCanonicalInstruments(query: string, limit = 20): InstrumentSearchHit[] {
+  const q = normalizeSymbolToken(query);
+  if (!q) return [];
+  const fx: InstrumentSearchHit[] = [];
+  for (const base of fiatNames) for (const quote of fiatNames) {
+    if (base.code === quote.code) continue;
+    const sym = `${base.code}${quote.code}`;
+    const label = `${base.name} / ${quote.name}`;
+    const aliases = [`${base.name} ${quote.name}`];
+    if (normalizeSymbolToken(sym) === q || aliases.some(alias => normalizeSymbolToken(alias) === q)) {
+      fx.push({ sym, label, cat: "Forex", aliases });
+    }
+  }
+  return mergeInstrumentSearch(query, fx, matchCuratedSymbols(query, limit), limit);
+}
+
 /** Rank the whole answer, so a local substring cannot bury a remote exact ticker. */
 export function mergeInstrumentSearch(query: string, local: readonly InstrumentSearchHit[], remote: readonly InstrumentSearchHit[], limit = 30): InstrumentSearchHit[] {
-  const seen = new Set<string>();
-  return rankSymbolHits(query, [...local, ...remote].filter(hit => {
+  const unique = new Map<string, InstrumentSearchHit>();
+  for (const hit of [...local, ...remote]) {
     const key = normalizeSymbolToken(hit.sym);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }), limit, { dropUnmatched: false });
+    const existing = unique.get(key);
+    if (!existing) unique.set(key, hit);
+    else if (!existing.exchange && hit.exchange) unique.set(key, { ...existing, exchange: hit.exchange });
+  }
+  return rankSymbolHits(query, [...unique.values()], limit, { dropUnmatched: false });
 }
 
 export function instrumentSearchSelection(query: string, hits: readonly InstrumentSearchHit[]): string | null {

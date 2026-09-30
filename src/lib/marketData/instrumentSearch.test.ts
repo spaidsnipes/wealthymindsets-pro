@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchInstrumentSearch, mergeInstrumentSearch, instrumentSearchSelection } from "./instrumentSearch";
+import { fetchInstrumentSearch, mergeInstrumentSearch, instrumentSearchSelection, matchCanonicalInstruments } from "./instrumentSearch";
 import { matchCuratedSymbols } from "./curatedSymbolCatalog";
 import { toYahooSymbol, fromYahooSearchSymbol } from "../yahooSymbol";
 import { instrumentEconomics } from "./contractEconomics";
@@ -17,6 +17,19 @@ describe("universal discovery selection", () => {
     ["MNQ", "MNQ1!"], ["MES", "MES1!"], ["MGC", "MGC1!"], ["MCL", "MCL1!"],
   ])("Enter on %s resolves %s", (query, sym) => {
     expect(instrumentSearchSelection(query, matchCuratedSymbols(query, 20))).toBe(sym);
+  });
+  it.each([
+    ["US Dollar Mexican Peso", "USDMXN"],
+    ["Australian Dollar Canadian Dollar", "AUDCAD"],
+    ["Euro British Pound", "EURGBP"],
+    ["British Pound Yen", "GBPJPY"],
+    ["Micro Nasdaq", "MNQ1!"],
+  ])("human query %s resolves %s without a tiny pair universe", (query, sym) => {
+    expect(matchCanonicalInstruments(query)[0]?.sym).toBe(sym);
+  });
+  it("does not guess arbitrary foreign names or same-currency pairs", () => {
+    expect(matchCanonicalInstruments("unknown dollar unknown peso")).toEqual([]);
+    expect(matchCanonicalInstruments("US Dollar US Dollar")).toEqual([]);
   });
   it("Enter cannot open an unresolved human name while discovery is pending or failed", () => {
     expect(instrumentSearchSelection("Antero Resources", [])).toBeNull();
@@ -52,6 +65,9 @@ describe("universal discovery selection", () => {
   });
   it("deduplicates vendor notation while retaining the curated identity", () => {
     expect(mergeInstrumentSearch("btc", [{sym:"BTCUSD",label:"Bitcoin",cat:"Crypto"}], [{sym:"BTC-USD",label:"Bitcoin USD",cat:"Crypto"}])).toHaveLength(1);
+  });
+  it("retains venue metadata when a vendor confirms the curated instrument", () => {
+    expect(mergeInstrumentSearch("Tesla", [{sym:"TSLA",label:"Tesla",cat:"Stock"}], [{sym:"TSLA",label:"Tesla Inc.",cat:"Stock",exchange:"NMS"}])[0]).toMatchObject({sym:"TSLA",label:"Tesla",exchange:"NMS"});
   });
   it("retains a vendor result absent from the curated universe", () => {
     expect(mergeInstrumentSearch("Antero", [], [{sym:"AR",label:"Antero Resources",cat:"Stock"}])[0]?.sym).toBe("AR");

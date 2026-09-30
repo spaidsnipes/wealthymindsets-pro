@@ -82,10 +82,11 @@ export function symbolMatchRank(query: string, hit: RankableHit): MatchRank {
   if (sym.startsWith(q)) return MATCH_RANK.SYMBOL_PREFIX;
   if (sym.includes(q)) return MATCH_RANK.SYMBOL_CONTAINS;
 
-  // Raw, not normalized: names contain spaces and hyphens meaningfully.
+  // Match names both as written and without notation separators, so
+  // "British Pound Yen" finds "British Pound / Yen".
   const label = (hit.label ?? "").toLowerCase();
   const rawQ = query.trim().toLowerCase();
-  if (rawQ && label.includes(rawQ)) return MATCH_RANK.LABEL;
+  if (rawQ && (label.includes(rawQ) || normalizeSymbolToken(label).includes(q))) return MATCH_RANK.LABEL;
   if (hit.aliases?.some((a) => a.toLowerCase().includes(rawQ))) return MATCH_RANK.LABEL;
 
   return MATCH_RANK.NONE;

@@ -26,7 +26,7 @@ import {
   reconcileSearchCategory,
   yahooQuoteTypeCategory,
 } from "@/lib/marketData/searchResultCategory";
-import { rankSymbolHits } from "@/lib/marketData/symbolSearchRank";
+import { matchCanonicalInstruments, mergeInstrumentSearch } from "@/lib/marketData/instrumentSearch";
 import { fromYahooSearchSymbol } from "@/lib/yahooSymbol";
 
 /**
@@ -112,6 +112,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") ?? "").trim();
   if (!q) return NextResponse.json({ results: [] });
+  const canonicalMatches = matchCanonicalInstruments(q, RESULT_LIMIT);
 
   if (POLYGON_KEY) {
     try {
@@ -133,10 +134,10 @@ export async function GET(request: Request) {
           cat: reconcileSearchCategory(r.ticker, polygonCategory(r.market, r.type)),
           exchange: r.primary_exchange ?? r.market ?? "",
         }));
-        const results = rankSymbolHits(q, hits, RESULT_LIMIT, { dropUnmatched: false });
+        const results = mergeInstrumentSearch(q, canonicalMatches, hits, RESULT_LIMIT);
         // One vendor's empty answer does not exhaust the market universe.
         // In particular, futures discovery must still reach Yahoo.
-        if (results.length > 0) return NextResponse.json({ results, vendor: "polygon" });
+        if (hits.length > 0) return NextResponse.json({ results, vendor: "polygon" });
       }
       // Polygon answered with an error (bad/expired/over-quota key). Fall
       // through: the trader's question is still answerable.
@@ -150,9 +151,7 @@ export async function GET(request: Request) {
     // already relevance-ish, but two vendors feeding one dropdown must not
     // order it by two different rules — that is how the same query starts
     // looking like two different products depending on which key is set.
-    const results = rankSymbolHits(q, await yahooSearch(q), RESULT_LIMIT, {
-      dropUnmatched: false,
-    });
+    const results = mergeInstrumentSearch(q, canonicalMatches, await yahooSearch(q), RESULT_LIMIT);
     return NextResponse.json({
       results,
       vendor: "yahoo",
@@ -175,6 +174,8 @@ export async function GET(request: Request) {
         // phrase is deliberately lowercase here.
         error:
           `Symbol search is UNAVAILABLE: Polygon is ${POLYGON_KEY ? "configured but did not answer" : "not configured (POLYGON_KEY is unset)"}, and the keyless Yahoo fallback also failed (${String(err)}).`,
+        results: canonicalMatches,
+        discoveryScope: "Canonical identities only; live discovery is unavailable. No feed availability is implied.",
         edge: "UNAVAILABLE",
         vendorsTried: ["polygon", "yahoo"],
       },

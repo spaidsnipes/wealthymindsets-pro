@@ -79,7 +79,7 @@ const RAW_CURATED_SYMBOLS = [
   { sym:"SPX", label:"S&P 500 Index", cat:"Index", aliases:["s&p 500","sp500","s&p"], exchange:"S&P DJI" },
   { sym:"NDX", label:"Nasdaq-100 Index", cat:"Index", aliases:["nasdaq","nasdaq 100"], exchange:"NASDAQ" },
   { sym:"DJI", label:"Dow Jones Industrial Average", cat:"Index", aliases:["dow","dow jones","djia"], exchange:"S&P DJI" },
-  { sym:"MNQ1!", label:"Micro E-mini Nasdaq-100 Futures", cat:"Futures", aliases:["mnq"], exchange:"CME" },
+  { sym:"MNQ1!", label:"Micro E-mini Nasdaq-100 Futures", cat:"Futures", aliases:["mnq","micro nasdaq","micro nasdaq futures"], exchange:"CME" },
   { sym:"MES1!", label:"Micro E-mini S&P 500 Futures", cat:"Futures", aliases:["mes"], exchange:"CME" },
   { sym:"M2K1!", label:"Micro E-mini Russell 2000 Futures", cat:"Futures", aliases:["m2k"], exchange:"CME" },
   { sym:"MYM1!", label:"Micro E-mini Dow Futures", cat:"Futures", aliases:["mym"], exchange:"CME" },
@@ -101,9 +101,8 @@ const RAW_CURATED_SYMBOLS = [
   { sym:"EURUSD", label:"Euro / US Dollar",         cat:"Forex", aliases:["euro dollar","eur"] },
   { sym:"GBPUSD", label:"British Pound / USD",      cat:"Forex", aliases:["cable","pound","gbp","sterling"] },
   { sym:"USDJPY", label:"US Dollar / Japanese Yen", cat:"Forex", aliases:["dollar yen","jpy","yen"] },
-  // Spot XAUUSD / XAGUSD are not listed: no spot-metal feed is connected, so
-  // opening them is refused (yahooSymbol SPOT_METALS). Their words point at the
-  // futures WM charts (2026-09-28).
+  // Spot XAUUSD / XAGUSD are not listed: no spot-metal feed is connected.
+  // They are not aliases for gold/silver futures, which are distinct markets.
   { sym:"US30",   label:"Dow Jones Index (Cash)",   cat:"Forex", aliases:["us30"] },
   { sym:"US500",  label:"S&P 500 Index (Cash)",     cat:"Forex", aliases:["us500"] },
   { sym:"US100",  label:"Nasdaq 100 Index (Cash)",  cat:"Forex", aliases:["us100"] },

@@ -152,7 +152,7 @@ describe("one ranking owner, not two careful copies", () => {
 
   it("the route delegates too, for BOTH vendors", () => {
     const code = stripComments(read("src/app/api/symbol-search/route.ts"));
-    expect(code.match(/rankSymbolHits\(/g) ?? []).toHaveLength(2);
+    expect(code.match(/mergeInstrumentSearch\(/g) ?? []).toHaveLength(2);
   });
 
   it("the route asks the vendor for MORE than it returns", () => {

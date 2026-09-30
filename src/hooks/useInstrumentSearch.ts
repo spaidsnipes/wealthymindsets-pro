@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
-import { fetchInstrumentSearch, mergeInstrumentSearch, type InstrumentSearchHit } from "@/lib/marketData/instrumentSearch";
+import { fetchInstrumentSearch, matchCanonicalInstruments, mergeInstrumentSearch, type InstrumentSearchHit } from "@/lib/marketData/instrumentSearch";
 
 /** One discovery request lifecycle for both chart and shell search. */
 export function useInstrumentSearch(query: string) {
@@ -24,7 +23,7 @@ export function useInstrumentSearch(query: string) {
   // Query-tagged state hides the old market immediately, before effect cleanup.
   const current = asked && answer.query === asked ? answer : null;
   return {
-    results: mergeInstrumentSearch(asked, matchCuratedSymbols(asked, 20), current?.hits ?? []),
+    results: mergeInstrumentSearch(asked, matchCanonicalInstruments(asked, 20), current?.hits ?? []),
     searching: Boolean(asked && (!current || current.pending)),
     failure: current?.failure ?? null,
   };
