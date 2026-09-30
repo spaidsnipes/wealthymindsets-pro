@@ -14690,12 +14690,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const vrD = tsD.getVisibleLogicalRange();
               const cutD = new Path2D();
               cutD.rect(0, 0, W, H);
+              const cutRectsD: { x: number; y: number; w: number; h: number }[] = [];
               for (const r of candleCutOutRects(barsD, {
                 visible: vrD ? { from: +vrD.from, to: +vrD.to } : null,
                 barSpacing: bsp,
                 timeToX: t => { const xk = tsD.timeToCoordinate(t as never); return xk == null ? null : +xk; },
                 priceToY: p => yOfD(p),
-              }, 0, plotRightD)) cutD.rect(r.x, r.y, r.w, r.h);
+              }, 0, plotRightD)) { cutD.rect(r.x, r.y, r.w, r.h); cutRectsD.push(r); }
               ctx.save();
               ctx.beginPath();
               ctx.rect(0, HEADER_FLOOR_Y, plotRightD, Math.max(0, paneBotD - HEADER_FLOOR_Y));
@@ -14943,6 +14944,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     const xk = at >= 0 ? tsD.timeToCoordinate(barsD[at].time as never) : null;
                     let x = xk == null ? (at < 0 ? x1 - 6 : x0 + 6) : +xk;
                     x = Math.max(x0 + 6, Math.min(x1 - 6, x));
+                    // VISIBLE AT ITS TEST (serving NVDA 1h, magnified: the crack
+                    // stood exactly behind the red test candle's body). Step to
+                    // the nearest candle-free x within three bars of the test.
+                    {
+                      const clear = (px: number) => !cutRectsD.some(r => r.x < px + 4 && r.x + r.w > px - 4 && r.y < top + wallH && r.y + r.h > top);
+                      if (!clear(x)) {
+                        for (let dd = 2; dd <= bsp * 3; dd += 2) {
+                          if (x + dd <= x1 - 6 && clear(x + dd)) { x += dd; break; }
+                          if (x - dd >= x0 + 6 && clear(x - dd)) { x -= dd; break; }
+                        }
+                      }
+                    }
                     // Keep cracks apart: step right from a crowded spot (bounded — never spins).
                     for (let guard = 0; guard < 12 && xs.some(p => Math.abs(p - x) < 8); guard++) x = Math.min(x1 - 6, x + 9);
                     xs.push(x);
