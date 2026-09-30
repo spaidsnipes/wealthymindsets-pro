@@ -9852,7 +9852,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const net = r.buy - r.sell;
               const up = net >= 0;
               const onesided = Math.abs(net) / total;
-              const n = Math.max(1, Math.round(1 + 5 * Math.sqrt(total / peak)));
+              // STREAKS STAY LINES (serving TSLA 15m, 2026-09-30): six haloed
+              // streaks inside one 9px bar merged into a soft green / red blob
+              // over the forming candle. The count is capped so each streak
+              // keeps ≥ 4px of its own, and the halo never wider than that
+              // pitch; the bar's weight still reads in the core's width.
+              const spread = Math.max(4, bsp * 0.9);
+              const n = Math.min(Math.max(1, Math.floor(spread / 4)), Math.max(1, Math.round(1 + 5 * Math.sqrt(total / peak))));
+              const pitch = spread / n;
               // Length is the bar's OWN range (px) scaled by one-sidedness — a
               // current reads at every zoom, not as 8px dust.
               const rangePx = Math.abs(r.yLow - r.yHigh);
@@ -9863,7 +9870,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const base = up ? r.yHigh - 3 : r.yLow + 3;
               const dir = up ? -1 : 1;
               for (let k = 0; k < n; k++) {
-                const off = ((k + 0.5) / n - 0.5) * Math.max(4, bsp * 0.9);
+                const off = ((k + 0.5) / n - 0.5) * spread;
                 // Drift along the current's own direction (LIVE); phase per streak.
                 const ph = ((tt * 0.8 + k * 0.37 + r.x * 0.013) % 1);
                 const y0 = base + dir * ph * len * 0.35;
@@ -9871,10 +9878,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const a = 0.28 + 0.5 * onesided;
                 // Halo then core (two solid strokes; a gradient per streak cost ~1k/frame).
                 ctx.strokeStyle = `rgba(${rgb},${(a * 0.28).toFixed(3)})`;
-                ctx.lineWidth = 4 + 3 * weight;
+                ctx.lineWidth = Math.min(4 + 3 * weight, pitch);
                 ctx.beginPath(); ctx.moveTo(r.x + off, y0); ctx.lineTo(r.x + off, y1); ctx.stroke();
                 ctx.strokeStyle = `rgba(${rgb},${a.toFixed(3)})`;
-                ctx.lineWidth = 1.4 + 1.2 * weight;
+                ctx.lineWidth = Math.min(1.4 + 1.2 * weight, Math.max(1, pitch * 0.6));
                 ctx.beginPath(); ctx.moveTo(r.x + off, y0); ctx.lineTo(r.x + off, y1); ctx.stroke();
                 // Arrow head: the direction is read, not guessed.
                 ctx.fillStyle = `rgba(${rgb},${Math.min(1, a + 0.35).toFixed(3)})`;
