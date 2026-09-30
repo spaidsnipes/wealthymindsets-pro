@@ -32,7 +32,7 @@ import {
 import { axisPriceFormatFor, displayPrecisionFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
-import { currentProofScene } from "@/lib/chart/proofScene";
+import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
 import {
@@ -21939,6 +21939,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       try {
         const payload = JSON.stringify(drawingsRef.current);
         if (payload === lastSavedDrawRef.current) return;
+        // A proof scene writes NOTHING back — drawings included (serving
+        // 2026-09-29: a Bid/Ask Split box drawn inside ?scene=clean was saved
+        // into the trader's own ETH-USD drawings).
+        if (proofSceneHoldsWrites()) return;
         localStorage.setItem(drawStorageKey(), payload);
         lastSavedDrawRef.current = payload;
       } catch { /* quota / serialization — non-fatal */ }
