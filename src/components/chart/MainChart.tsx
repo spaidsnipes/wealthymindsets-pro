@@ -14843,7 +14843,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const gapMid = x0 + len * 0.55, gapHalf = breaking ? 30 : 0;
                 // Where the cracks run (their x), so the bricks they cross chip.
                 const crackCount = broken ? 0 : Math.min(6, w.tests);
-                const crackXs = Array.from({ length: crackCount }, (_, i) => x0 + len * (0.14 + 0.7 * hash(99, i)));
+                // DAMAGE LOCALITY (master order §XXX): each crack stands at its
+                // OWN test — the observed test bar's place on the time axis,
+                // clamped into the wall's body (older than the camera → the
+                // wall's left end, newer → its right end), never a hash.
+                const crackXs = (() => {
+                  const times = (w.testTimes ?? []).slice(-crackCount);
+                  const xs: number[] = [];
+                  for (const t of times) {
+                    let lo = 0, hi = barsD.length - 1, at = -1;
+                    while (lo <= hi) { const mid = (lo + hi) >> 1; if (barsD[mid].time >= t) { at = mid; hi = mid - 1; } else lo = mid + 1; }
+                    const xk = at >= 0 ? tsD.timeToCoordinate(barsD[at].time as never) : null;
+                    let x = xk == null ? (at < 0 ? x1 - 6 : x0 + 6) : +xk;
+                    x = Math.max(x0 + 6, Math.min(x1 - 6, x));
+                    while (xs.some(p => Math.abs(p - x) < 5)) x = Math.max(x0 + 6, x - 6);
+                    xs.push(x);
+                  }
+                  return xs;
+                })();
                 // A level chip already on the glass (a VP's name + price) keeps
                 // its face: the masonry is clipped around it, never painted over
                 // it (serving BTC: the 85,000 wall buried a VAH EST chip).

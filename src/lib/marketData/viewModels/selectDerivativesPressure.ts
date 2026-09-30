@@ -77,6 +77,8 @@ export interface PressureWall {
   readonly closesBeyond: number;
   /** Time of the first observed test (unix s), for a scar's age. */
   readonly firstTestTime: number | null;
+  /** Every observed test's session time (unix s), oldest first — where the damage belongs (master order §XXX). */
+  readonly testTimes: readonly number[];
 }
 
 export interface PressurePocket {
@@ -186,11 +188,12 @@ export function sessionsOf(bars: readonly PressureBar[]): PressureBar[] {
 }
 
 /** Wall lifecycle from the chart's OWN bars, read per session: tests, acceptance, scar. */
-export function wallLife(strike: number, barsIn: readonly PressureBar[], spot: number): Pick<PressureWall, "life" | "tests" | "closesBeyond" | "firstTestTime" | "side"> {
+export function wallLife(strike: number, barsIn: readonly PressureBar[], spot: number): Pick<PressureWall, "life" | "tests" | "closesBeyond" | "firstTestTime" | "testTimes" | "side"> {
   const bars = sessionsOf(barsIn);
   const side: "ABOVE" | "BELOW" = spot >= strike ? "ABOVE" : "BELOW";
   let tests = 0;
   let firstTestTime: number | null = null;
+  const testTimes: number[] = [];
   // A test: the bar reached the wall and closed back on the side it came from.
   for (let i = 1; i < bars.length; i++) {
     const b = bars[i], prev = bars[i - 1];
@@ -199,6 +202,7 @@ export function wallLife(strike: number, barsIn: readonly PressureBar[], spot: n
     if (!reached) continue;
     if ((fromBelow && b.close < strike) || (fromAbove && b.close > strike)) {
       tests++;
+      testTimes.push(b.time);
       if (firstTestTime == null) firstTestTime = b.time;
     }
   }
@@ -219,7 +223,7 @@ export function wallLife(strike: number, barsIn: readonly PressureBar[], spot: n
   else if (tests >= 2) life = "DEFENDED";
   else if (tests === 1) life = "TESTED";
   else life = "BORN";
-  return { life, tests, closesBeyond: crossed, firstTestTime, side };
+  return { life, tests, closesBeyond: crossed, firstTestTime, testTimes, side };
 }
 
 export function selectDerivativesPressure(

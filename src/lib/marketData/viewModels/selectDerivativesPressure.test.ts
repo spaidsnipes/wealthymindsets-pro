@@ -61,6 +61,10 @@ describe("wall lifecycle is OBSERVED from the chart's own bars, per session", ()
     expect(wallLife(110, tests(1), 106)).toMatchObject({ life: "TESTED", tests: 1 });
     expect(wallLife(110, tests(2), 106).life).toBe("DEFENDED");
     expect(wallLife(110, tests(5), 106).life).toBe("WEAKENING");
+    // Damage locality: every test keeps its own time, one per test, oldest first.
+    const lived = wallLife(110, tests(3), 106);
+    expect(lived.testTimes).toHaveLength(lived.tests);
+    expect([...lived.testTimes].sort((a, b) => a - b)).toEqual(lived.testTimes);
   });
   it("closes beyond the wall are acceptance: BREAKING, then BROKEN", () => {
     const up = [day(0, 100, 101, 99, 100), day(1, 108, 111, 107, 111), day(2, 111, 112, 110.5, 112)];
