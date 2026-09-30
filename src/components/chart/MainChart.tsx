@@ -7832,6 +7832,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // popped it and demoted another.
         // Every disc and ring that reaches the glass, for the overlap receipt.
         const drawnDiscs: { x: number; y: number; r: number }[] = [];
+        // ACTIVE CANDLE ALWAYS WINS (master order §XX: never buried by Big
+        // Trade markers). Serving BTC-USD 15m: a cluster disc at its true
+        // price/time sat over the forming candle. The disc keeps its place;
+        // the forming bar's high–low column is cut out of it.
+        let formingCut: Path2D | null = null;
+        if (btNewest) {
+          const fx = chart.timeScale().timeToCoordinate(btNewest.time as never);
+          const fyh = srs.priceToCoordinate(btNewest.high), fyl = srs.priceToCoordinate(btNewest.low);
+          if (fx != null && fyh != null && fyl != null) {
+            const half = Math.max(3, (chart.timeScale().options().barSpacing || 8) * 0.45);
+            formingCut = new Path2D();
+            formingCut.rect(0, 0, W, H);
+            formingCut.rect(+fx - half - 1, +fyh - 2, 2 * half + 2, +fyl - +fyh + 4);
+          }
+        }
+        let discsYieldedToForming = 0;
         for (const b of [...bigDiscs].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {
           const buy = b.side === "buy";
           const selB = selDiscKey != null && b.spawnKey === selDiscKey;
@@ -7858,6 +7874,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const Ry = Math.max(0.1, b.r / wob);
 
           ctx.save();
+          if (formingCut) { ctx.clip(formingCut, "evenodd"); discsYieldedToForming++; }
           ctx.globalAlpha = att.alpha("bigTrades", { selectedItem: selB });
           // Luminous gold body: a lit glass disc, brighter at the rim.
           ctx.save();
@@ -7906,6 +7923,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // still intersect. After clustering it is 0; anything else is a knot.
         canvas.dataset.bigTradeOverlaps = String(countCircleOverlaps(drawnDiscs));
         canvas.dataset.bigTradesDrawn = String(bigDrawn);
+        canvas.dataset.bigTradeFormingCut = formingCut ? `YIELDS:${discsYieldedToForming}` : "NONE";
         canvas.dataset.bigTradeInscribed = String(bigInscribed);
         canvas.dataset.bigTradeQuieted = String(bubblesQuieted);
         canvas.dataset.responsePaths = String(responsePaths);
@@ -8011,7 +8029,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // The count and status speak for an OFF layer; every other receipt
         // described pixels that are no longer on the glass.
         for (const k of ["bigTradeBubbleIdentity", "bigTradeBubbleTop", "bigTradeBubbleOldest",
-          "bigTradesDrawn", "bigTradeInscribed", "bigTradeQuieted", "responsePaths",
+          "bigTradeFormingCut", "bigTradesDrawn", "bigTradeInscribed", "bigTradeQuieted", "responsePaths",
           "bigTradeCallout", "bigTradeCalloutSlot", "bigTradeAheadOfBars", "bigTradeClusters", "bigTradeOverlaps"] as const) delete canvas.dataset[k];
       } } catch (err) { layerFault("BIG_TRADES", err); }
 
