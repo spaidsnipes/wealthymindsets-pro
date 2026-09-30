@@ -16634,6 +16634,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.livingProfileNodesWithheld;
             // DNA describes the profile on the glass; with none drawn, it says so.
             ds.profileDna = layerOnRef.current.profileDna ? "LIVING_PROFILE_NOT_DRAWN" : "OFF";
+            // NO SILENT NOTHING (master order §VIII/§XXXIX): DNA alone had an
+            // empty glass. It is a reading OF the Living body — say that.
+            if (layerOnRef.current.profileDna) {
+              const quiet = "PROFILE DNA · ACTIVE · READS THE LIVING PROFILE — TURN LIVING PROFILE ON";
+              ctx.save();
+              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.fillStyle = "rgba(200,192,174,0.85)";
+              ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              const rowY = takeSilenceRow();
+              ctx.fillText(quiet, 12, rowY);
+              floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+              ctx.restore();
+            }
             delete ds.profileDnaShape;
             delete ds.profileDnaSpine;
             delete ds.profileDnaDiamond;
@@ -17720,6 +17733,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const mem = profileMemoryRef.current;
           const on = layerOnRef.current.profileMemory && att.paints("profileMemory");
           ds.profileMemory = on ? (mem ? mem.reason : "NO_READING") : att.offWord(layerOnRef.current.profileMemory);
+          // NO SILENT NOTHING (master order §VIII/§XXXIX): serving ETH-USD 15m,
+          // Memory alone read NO_PRIOR_SESSION and the glass stayed empty.
+          if (on && !mem?.drawn) {
+            const why = (mem?.reason ?? "NO_READING") === "NO_PRIOR_SESSION"
+              ? "NO COMPLETED PRIOR SESSION ON THIS MARKET"
+              : String(mem?.reason ?? "NO READING").replace(/_/g, " ");
+            const quiet = `PROFILE MEMORY · ACTIVE · ${why}`;
+            ctx.save();
+            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.fillStyle = "rgba(200,192,174,0.85)";
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            const rowY = takeSilenceRow();
+            ctx.fillText(quiet, 12, rowY);
+            floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+            ctx.restore();
+          }
           if (on && mem?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("profileMemory");
             const ts = chart.timeScale();
