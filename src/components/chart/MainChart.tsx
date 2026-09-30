@@ -15869,6 +15869,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.save();
                   ctx.globalAlpha = att.alpha("contradiction");
                   ctx.clip(cutC, "evenodd");
+                  // …and every word already on the glass (serving TSLA 15m,
+                  // 2026-09-30: the UP arrow's shaft ran through "NO BAR ·
+                  // 1 interval"). One clip per chip, so overlaps never cancel.
+                  for (const r of floatingChips) {
+                    ctx.beginPath();
+                    ctx.rect(0, 0, W, H);
+                    ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+                    ctx.clip("evenodd");
+                  }
                   const bw = box.x1 - box.x0, bh = Math.max(1, Math.round(box.yBot - box.yTop));
                   ctx.fillStyle = "rgba(237,230,211,0.05)";
                   ctx.fillRect(box.x0, box.yTop, bw, bh);

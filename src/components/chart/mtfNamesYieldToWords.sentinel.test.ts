@@ -31,3 +31,13 @@ describe("the tag places before the name", () => {
     expect(MC.indexOf('tag("1H", top + h / 2')).toBeLessThan(MC.indexOf('nameIn("1H NODE"'));
   });
 });
+
+describe("the contradiction glyph sits behind words already on the glass", () => {
+  it("its zone, arrows and crack are clipped around every chip", () => {
+    const at = MC.indexOf('ctx.globalAlpha = att.alpha("contradiction");\n                  ctx.clip(cutC, "evenodd");');
+    expect(at).toBeGreaterThan(-1);
+    const block = MC.slice(at, at + 900);
+    expect(block).toContain("for (const r of floatingChips) {");
+    expect(block).toContain("ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);");
+  });
+});
