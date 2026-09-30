@@ -20303,6 +20303,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         sort(lo2.effort, "EFFORT MARK", ds.effortMark, /^UNMEASURED/, /^(UNREAD|NO_READING)/);
         sort(lo2.deltaLevels, "DELTA LEVELS", ds.deltaLevels, /^(UNMEASURED|NO_TAPE|NO_PRINTS)/, /^(NO_|NONE)/);
         sort(lo2.liquidityLifecycle === true, "LIQUIDITY LIFECYCLE", ds.liquidityLifecycle, /^UNMEASURED/, /^(NO_POOLS|NO_READING)/);
+        // Footprint senses (big trades, bubbles, bid × ask…): on, and nothing
+        // executed on this camera yet (serving BTC-USD 5m: big trades on, tape
+        // still loading, glass silent).
+        {
+          const fp = ds.footprint ?? "OFF";
+          if (fp !== "OFF" && !/^SILENT/.test(fp)) {
+            const mode = fp.split(":")[0];
+            const name = mode.replace(/-/g, " ").toUpperCase();
+            const loading = /^LOADING/.test(ds.tapeBackfill ?? "");
+            const bigIdle = mode === "big-trades" && ds.bigTradesDrawn === "0";
+            if (/:NO_EXECUTIONS$/.test(fp) || bigIdle) (loading || ds.bigTradeBubbleStatus === "WAITING_FOR_PRINTS" ? waiting : noEvent).push(name);
+          }
+        }
         const parts: string[] = [];
         if (waiting.length) parts.push(`WAITING FOR SIDED PRINTS: ${waiting.join(", ")}`);
         if (noEvent.length) parts.push(`ACTIVE · NO CURRENT EVENT: ${noEvent.join(", ")}`);
