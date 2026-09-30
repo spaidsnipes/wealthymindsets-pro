@@ -145,6 +145,12 @@ Deltas remaining: Session / Fixed / Composite VP share one grey histogram body (
 | Footprint Bid × Ask | — | PROVED | BTC-USD 1m: footprint bodies + per-level columns on every bar |
 | BROKEN wall scar | `8587438` | PROVED | NVDA 1h 227.5 magnified: ghost courses with missing bricks |
 
+| Active candle wins · big trades | `390db80` | PROVED | BTC-USD 15m: forming candle crisp through the disc, `bigTradeFormingCut YIELDS:3` |
+| Motion is event language | `3e533df` `f3ddf38` `849e49a` | BUILT | big-trade membranes breathe only while the print is arriving (≤3 bars); anatomy core/aura/motes move only while the event is live; 0 faults |
+| Founder's own /charts after the shift | — | PROVED | TSLA 5m reload: 0 layer faults, mean 3.6 ms, budget MET, 0 console errors |
+
+Deltas remaining: Session / Fixed / Composite share one grey histogram body (told apart by glyph, session rule, brackets, CMP chips) · synthetic-drag harness cannot prove box tools without pointer moves (real drags commit) · Founder last-symbol key TSLA (from session 2; prior value unknown).
+
 Founder decisions surfaced (not decided): crypto session split — Composite / Memory / Expected Envelope read "no completed session" on 24/7 crypto (§LXXVIII).
 
 ## 4. Known limits of this board
