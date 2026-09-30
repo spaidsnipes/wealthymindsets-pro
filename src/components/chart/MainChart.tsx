@@ -8664,6 +8664,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const pcl = profileColumnLeftRef.current;
         const profileColLeft = Math.min(pcl.prev, pcl.cur);
         pcl.prev = pcl.cur; pcl.cur = Infinity;
+        // THE ACTIVE CANDLE ALWAYS WINS (serving TSLA 15m, 2026-09-30: a
+        // one-interval hole's words slid right into the live bar's column, where
+        // the flow current rises from the forming candle and crossed them). No
+        // gap word left of the plot edge lands within a bar and a half of the
+        // newest bar.
+        const lastGapBar = gapSrc && gapSrc.length ? gapSrc[gapSrc.length - 1] : null;
+        const liveXg = lastGapBar ? chart.timeScale().timeToCoordinate(lastGapBar.time as never) : null;
+        const liveColLeft = liveXg == null ? Infinity : +liveXg - Math.max(12, bsp * 1.5);
         ctx.save();
         ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
         for (const g of att.paints("dataGaps") ? dg.gaps : []) {
@@ -8712,6 +8720,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const q = { x: px - tw / 2, y: cy - 12, w: tw, h: 13 };
               if (gapWordRects.some(hits(q)) || profileCandleCut().rects.some(hits(q))) continue;
               if (q.x + q.w > profileColLeft - 4) continue;
+              if (q.x + q.w > liveColLeft) continue;
               my = cy; mx = px; break spot;
             }
           }
