@@ -4277,8 +4277,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     equipmentId: "heat-discovery",
     title: "Heat · Discovery",
     verdict: "DAILY STATES",
-    headline: "Heat is how unusual a measured state is today — select one and that market lands on this chart.",
-    counts: [],
+    // CLICK → MANIFEST (Garden 17 §XXX): the preview said "select one" with
+    // nothing to select — the ranking lives in the drawer. It now says where.
+    headline: "Heat is how unusual a measured state is today — open the drawer for today's ranking; the market you select lands on this chart.",
+    counts: [{ testId: "equipment-count-heat-board", label: `${BOARD_STOCK_SYMBOLS.length} markets on the board` }],
     renderDepth: (unabridged: boolean) => (
       <DiscoveryUnusualStates
         symbols={BOARD_STOCK_SYMBOLS}
