@@ -16995,6 +16995,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.compositeProfileRows;
             delete ds.compositeProfileSessions;
             delete ds.compositeProfileStrata;
+            // NO SILENT NOTHING (master order §VIII): serving EURUSD 15m
+            // (2026-09-30), Composite ON read NO_VOLUME and the glass said
+            // nothing at all. A switched-on Composite that cannot draw names why.
+            if (on && cp && !cp.drawn) {
+              const why = cp.reason === "NO_VOLUME" ? "UNAVAILABLE ON THIS FEED · NO TRADED VOLUME"
+                : cp.reason === "NO_COMPLETED_SESSION" ? "NO CURRENT EVENT · NO COMPLETED SESSION IN VIEW"
+                : "WAITING FOR BARS";
+              const quiet = `COMPOSITE PROFILE · ${why}`;
+              ctx.save();
+              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.fillStyle = "rgba(200,192,174,0.85)";
+              ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              const rowY = takeSilenceRow();
+              ctx.fillText(quiet, 12, rowY);
+              floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+              ctx.restore();
+            }
           }
         }
 
@@ -23291,7 +23308,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             role="status"
             className="absolute pointer-events-none"
             style={{
-              top: 8, right: 8, zIndex: 6,
+              // Below the header band and the INSPECT row (serving EURUSD 15m,
+              // 2026-09-30: at top 8 it printed over "BAR OPENED 12:00 PM ·
+              // FORMING"); still over the right edge, the lane it accounts for.
+              top: READING_ANCHOR_ROW_BOTTOM + 6, right: 8, zIndex: 6,
               maxWidth: 260,
               padding: "4px 8px",
               borderRadius: 4,
