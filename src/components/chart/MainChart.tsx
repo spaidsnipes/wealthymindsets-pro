@@ -18964,10 +18964,48 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             mainCtx.clip();
             if (weatherLensCut) mainCtx.clip(weatherLensCut, "evenodd");
             if (weatherLensChipCut) mainCtx.clip(weatherLensChipCut, "evenodd");
-            mainCtx.globalAlpha = STORM_BODY_MAX_ALPHA * att.alpha("weather");
             mainCtx.imageSmoothingEnabled = true;
             mainCtx.imageSmoothingQuality = "high";
-            mainCtx.drawImage(cache.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
+            /* CANDLE CLEAR ZONE (master order §XIX/§XXXI: weather belongs behind,
+               around and between price — "not on top of the live bar"). Serving
+               ETH-USD 15m compound: the brightest smoke sat right behind the
+               newest candles. Through the newest 12 bars' own price corridor the
+               storm thins to 35%; everywhere else in the lens it keeps its body. */
+            let stormClear: { x: number; y: number; w: number; h: number } | null = null;
+            try {
+              const barsSC = barsRef.current ?? [];
+              const nSC = Math.min(12, barsSC.length);
+              if (nSC > 0) {
+                let lo = Infinity, hi = -Infinity;
+                for (let i = barsSC.length - nSC; i < barsSC.length; i++) { lo = Math.min(lo, barsSC[i].low); hi = Math.max(hi, barsSC[i].high); }
+                const xk = chart.timeScale().timeToCoordinate(barsSC[barsSC.length - nSC].time as never);
+                const yh = srs.priceToCoordinate(hi), yl = srs.priceToCoordinate(lo);
+                if (xk != null && yh != null && yl != null) {
+                  const sp = chart.timeScale().options().barSpacing || 8;
+                  stormClear = { x: +xk - sp, y: +yh - 16, w: W, h: +yl - +yh + 32 };
+                }
+              }
+            } catch { stormClear = null; }
+            ds.weatherStormClearZone = stormClear ? `${Math.round(stormClear.x)},${Math.round(stormClear.y)},${Math.round(stormClear.h)}` : "NONE";
+            const stormA = STORM_BODY_MAX_ALPHA * att.alpha("weather");
+            if (stormClear) {
+              mainCtx.save();
+              const outsideSC = new Path2D();
+              outsideSC.rect(0, 0, W, H);
+              outsideSC.rect(stormClear.x, stormClear.y, stormClear.w, stormClear.h);
+              mainCtx.clip(outsideSC, "evenodd");
+              mainCtx.globalAlpha = stormA;
+              mainCtx.drawImage(cache.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
+              mainCtx.restore();
+              mainCtx.save();
+              mainCtx.beginPath(); mainCtx.rect(stormClear.x, stormClear.y, stormClear.w, stormClear.h); mainCtx.clip();
+              mainCtx.globalAlpha = stormA * 0.35;
+              mainCtx.drawImage(cache.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
+              mainCtx.restore();
+            } else {
+              mainCtx.globalAlpha = stormA;
+              mainCtx.drawImage(cache.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
+            }
             mainCtx.restore();
             ds.weatherStorm = `${motionOnRef.current ? "LIVE" : "STILL"}|${stormCols.length}|${phaseQ.toFixed(3)}${stormPx ? "|REBUILT" : ""}`;
           } else {
