@@ -14687,6 +14687,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 }
               }
               ds.derivativesPressureClearZone = clearZone ? `${Math.round(clearZone.x)},${Math.round(clearZone.y)},${Math.round(clearZone.w)},${Math.round(clearZone.h)}` : "NONE";
+              /* COMPOUND GOVERNOR (master order §XVI/§XVII): pressure is one of
+                 several ENVIRONMENT senses. With three or more sharing the glass
+                 (weather, profiles, regime, TPO…) it steps down to SUPPORTING —
+                 its fill at 70%, geometry and texture unchanged. Alone or with
+                 one neighbour it keeps its full mass. */
+              const lo = layerOnRef.current;
+              const envOn = [lo.weather, lo.livingProfile, lo.visibleRangeProfile, lo.tpo, lo.regimeLighting, lo.compositeProfile, lo.derivativesPressure].filter(Boolean).length;
+              const fieldRole = envOn >= 3 ? 0.7 : 1;
+              ds.derivativesPressureRole = fieldRole < 1 ? `SUPPORTING:${envOn}` : `PRIMARY:${envOn}`;
               ctx.save();
               if (clearZone) {
                 const outside = new Path2D();
@@ -14694,7 +14703,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 outside.rect(clearZone.x, clearZone.y, clearZone.w, clearZone.h);
                 ctx.clip(outside, "evenodd");
               }
-              paintFieldBase(1);
+              paintFieldBase(fieldRole);
               /* CLIMATE AS MATERIAL (Garden 16 reconstruction §26: "climate,
                  fields, corridors … pressure geography"). Each band's texture
                  is bound to the same net exposure k that tints it:
@@ -14765,7 +14774,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (clearZone) {
                 ctx.save();
                 ctx.beginPath(); ctx.rect(clearZone.x, clearZone.y, clearZone.w, clearZone.h); ctx.clip();
-                paintFieldBase(0.3);
+                paintFieldBase(0.3 * fieldRole);
                 ctx.restore();
               }
               painted.push(`FIELD:${geo.length}`);
