@@ -75,6 +75,12 @@ const RAW_CURATED_SYMBOLS = [
   // index has its own row below, and "vix" searches find it, not this one.
   { sym:"VX1!",  label:"VIX Futures",               cat:"Futures", aliases:["vx","vix futures"] },
   { sym:"^VIX",  label:"CBOE Volatility Index",     cat:"Index",   aliases:["vix","volatility","fear"] },
+  // World indices (serving universal search, 2026-09-30: "DAX" ranked a DAX
+  // ETF and a volatility index above the DAX itself). Each opens as a chart.
+  { sym:"^GDAXI", label:"DAX Performance Index",    cat:"Index",   aliases:["dax","germany","dax 40"] },
+  { sym:"^N225",  label:"Nikkei 225",               cat:"Index",   aliases:["nikkei","japan"] },
+  { sym:"^FTSE",  label:"FTSE 100",                 cat:"Index",   aliases:["ftse","uk index"] },
+  { sym:"^HSI",   label:"Hang Seng Index",          cat:"Index",   aliases:["hang seng","hong kong"] },
   { sym:"NG1!",  label:"Natural Gas Futures",       cat:"Futures", aliases:["natgas","natural gas"] },
   // Grains (serving universal search, 2026-09-30: "CORN" ranked Cornerstone
   // and Corning above corn futures). Yahoo carries each as =F (yahooSymbol).

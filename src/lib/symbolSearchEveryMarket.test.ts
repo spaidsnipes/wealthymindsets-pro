@@ -46,5 +46,7 @@ describe("every market is searchable (Founder, 2026-09-28)", () => {
     expect(matchCuratedSymbols("soybeans", 3).map(s => s.sym)[0]).toBe("ZS1!");
     expect(matchCuratedSymbols("10 year", 3).map(s => s.sym)[0]).toBe("ZN1!");
     expect(fromYahooSearchSymbol("ZC=F", "FUTURE")).toBe("ZC1!");
+    expect(matchCuratedSymbols("dax", 3).map(s => s.sym)[0]).toBe("^GDAXI");
+    expect(matchCuratedSymbols("nikkei", 3).map(s => s.sym)[0]).toBe("^N225");
   });
 });
