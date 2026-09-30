@@ -133,9 +133,20 @@ export function currentProofScene(): ProofScene {
   return cached.scene;
 }
 
+/**
+ * Whether THIS page load opened as a proof scene. Latched on the first read:
+ * a door inside the room can rewrite the address (serving 2026-09-29: opening
+ * WM Smart Money Tools left the page on a bare /charts), and a proof scene
+ * that silently stopped holding writes would save its test layers into the
+ * trader's own chart. Only a fresh load clears it.
+ */
+let loadedAsProofScene: boolean | null = null;
+
 /** True while a proof scene is open: nothing may be written back to saved preferences. */
 export function proofSceneHoldsWrites(): boolean {
-  return currentProofScene().active;
+  const now = currentProofScene().active;
+  if (loadedAsProofScene === null && typeof window !== "undefined") loadedAsProofScene = now;
+  return now || loadedAsProofScene === true;
 }
 
 /** The geometry a proof selection reads from a compiled market object. */
