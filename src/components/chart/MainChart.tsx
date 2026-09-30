@@ -23713,7 +23713,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const host = containerRef.current;
               if (!host || typeof document === "undefined") return [];
               const o = host.getBoundingClientRect();
-              return [...document.querySelectorAll("aside.room-equipment")].map(el => {
+              return [...document.querySelectorAll("[data-testid=\"room-equipment\"]")].map(el => {
                 const r = el.getBoundingClientRect();
                 return { x: r.left - o.left, y: r.top - o.top, w: r.width, h: r.height };
               }).filter(r => r.w > 0 && r.h > 0);
