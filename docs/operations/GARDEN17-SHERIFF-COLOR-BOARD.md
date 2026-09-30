@@ -153,7 +153,7 @@ Deltas remaining: Session / Fixed / Composite share one grey histogram body (tol
 
 Founder decisions surfaced (not decided): crypto session split — Composite / Memory / Expected Envelope read "no completed session" on 24/7 crypto (§LXXVIII).
 
-## 3e. Browser shift (2026-09-30 11:13 → 13:50 CDT), START `9837d27` → last code `9919765`
+## 3e. Browser shift (2026-09-30 11:13 → 15:12 CDT), START `9837d27` → last code `c22236f`
 
 All work found in the browser on serving `/charts` (own tab, proof scenes; Founder settings untouched — `wm_absorptionAnatomy` "false", `wm_last_symbol` is the Founder's own MNQ1!).
 
@@ -176,6 +176,12 @@ All work found in the browser on serving `/charts` (own tab, proof scenes; Found
 | SPY: zero-gamma words + structure silence | `23ba16d` | PROVED | "ZERO-GAMMA FRONT 766.73" clear of "NO BAR · 3 intervals"; "STRUCTURE · 10-BAR LEG … TOO SHORT TO PROFILE" now a bottom-left row (ran through a dozen candles) |
 | MTF silence reads its reason once | `5d1a0ab` | BUILT | "MTF · 4H / 1H / D · chart is not below them" |
 | Forming candle at NEAR | `9919765` | PROVED | ETH-USD 1m Bid×Ask, 5× magnifier: big-trade ticks beside the body (were bars across it), cell numbers 1.4 / 3.4 / 2.7 legible, path faint over cells; 14.6 ms, 0 faults |
+| MTF wording on glass | `5d1a0ab` | PROVED | TSLA 1D: one line "MTF · 4H / 1H / D · chart is not below them" |
+| MTF band names yield | `cbde481` `fac4ca1` `4055c02` | PROVED | TSLA 15m: "NO BAR · 1 interval" no longer on "4H ANCESTRY BAND"; tag places before name; name clears candles + PDL dash or stays quiet (tag still names it) |
+| Contradiction glyph behind words | `c4e2f2d` | PROVED | TSLA 15m: UP arrow shaft stops at the "NO BAR" chip |
+| MTF tags out of profile columns | `1d05711` | PROVED | BTC-USD 15m + Session VP: 1H / D tags left of the profile, 4H at band's left end |
+| WAIT leader behind words | `c22236f` | PROVED | BTC-USD 15m: leader no longer crosses "83,350.00" VAL chip; ETH-USD 1h sweep clean, 0 faults |
+| Delta · disk | — | OPEN | 14:40 the Mac's disk hit 100% (Epic Games 40 GB in /Users/Shared, Claude app data 12 GB); free space swings 0.1–3.7 GB; Founder's data untouched |
 | Data window beside a full-height drawer | — | PROVED | Heat drawer (18–358 px): data window at x≈419, right of the drawer |
 | Tools doors click→manifest | — | PROVED | Market reality, Passport, Decision chain, Personal edge, Heat (drawer ranks 105/107), Chart tools, WM Smart Money Tools ("ALL 9 AVAILABLE" with live tape); Rooms, Community, Command Deck open |
 | Cameras | — | PROVED | Regime / Review / Order Flow each paint their arrangement; `wm_of*` keys unchanged (proof latch) |
