@@ -16829,8 +16829,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.livingProfileUntraded;
             // NO SILENT NOTHING (master order §VIII/§XXXIX): DNA alone had an
             // empty glass. It is a reading OF the Living body — say that.
+            // Living ON but unable to draw (serving EURUSD 15m, 2026-09-30:
+            // spot FX has no central volume — NO_PROFILE) said nothing at all,
+            // and DNA told the trader to switch on a layer that was already on.
+            const livingOnMute = on && !!lp && !lp.drawn;
+            if (livingOnMute) {
+              const rL = lp!.reason;
+              const quietL = rL === "NO_PROFILE"
+                ? "LIVING PROFILE · UNAVAILABLE ON THIS FEED · NO VOLUME DISTRIBUTED ACROSS PRICE"
+                : rL === "TOO_FEW_BUCKETS" ? "LIVING PROFILE · NO CURRENT EVENT · TOO FEW PRICE BUCKETS FOR A SHAPE"
+                : rL === "NO_READING" || rL === "UNMEASURED" ? "LIVING PROFILE · WAITING FOR BARS"
+                : `LIVING PROFILE · NO CURRENT EVENT · ${rL.replace(/_/g, " ")}`;
+              ctx.save();
+              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.fillStyle = "rgba(200,192,174,0.85)";
+              ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              const rowL = takeSilenceRow();
+              ctx.fillText(quietL, 12, rowL);
+              floatingChips.push({ x: 12, y: rowL - 7, w: ctx.measureText(quietL).width, h: 14 });
+              ctx.restore();
+            }
             if (layerOnRef.current.profileDna) {
-              const quiet = "PROFILE DNA · ACTIVE · READS THE LIVING PROFILE — TURN LIVING PROFILE ON";
+              const quiet = livingOnMute
+                ? "PROFILE DNA · ACTIVE · READS THE LIVING PROFILE, WHICH CANNOT DRAW HERE"
+                : "PROFILE DNA · ACTIVE · READS THE LIVING PROFILE — TURN LIVING PROFILE ON";
               ctx.save();
               ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
               ctx.fillStyle = "rgba(200,192,174,0.85)";
