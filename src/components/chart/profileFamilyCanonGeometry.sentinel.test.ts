@@ -241,7 +241,8 @@ describe("6 · the family's receipts", () => {
   it("publishes the cut-out and the chips after the last species, and withdraws them when nothing painted", () => {
     expect(CHART).toContain('if (profileCutBy.size > 0) ds.profileCandleCut = `${[...profileCutBy].join(",")}:${profileCut ? profileCut.rects.length : 0}`;');
     expect(CHART).toMatch(/else delete ds\.profileCandleCut;/);
-    expect(CHART).toContain("if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y:${levelChipsToStack}S`;");
+    // 2026-09-29: the receipt also counts chips the label-density governor quieted (":<n>Q").
+    expect(CHART).toContain("if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y:${levelChipsToStack}S${levelChipsQuieted ? `:${levelChipsQuieted}Q` : \"\"}`;");
     expect(CHART).toMatch(/else delete ds\.profileLevelChips;/);
     expect(CHART).toContain("ds.vpLevelChips = String(vpChipsPlaced);");
     expect(CHART).toMatch(/delete ds\.vpLevelChips; delete ds\.vpWordsWithheld;/);

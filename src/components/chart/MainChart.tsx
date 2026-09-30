@@ -15959,6 +15959,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         */
         const levelChipYs: number[] = [];
         let levelChipsPlaced = 0;
+        let levelChipsQuieted = 0;
         let levelChipsMoved = 0;
         let levelChipsYielded = 0;
         let levelChipsToStack = 0;
@@ -16013,6 +16014,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // The chip joins the chip ledger, so a later reading's words step around it.
           floatingChips.push({ x: r.x, y: r.y, w: r.w, h: r.h });
           levelChipsPlaced++;
+          // LABEL DENSITY (master order §XVII/§XL, the Founder's TSLA 5m stack:
+          // a dozen equal-weight chips at the right edge). With three or more
+          // species in the stack, every non-primary species' chip steps back to
+          // 65% — same place, same words; Living's names lead.
+          if (stackOrder.length >= 3 && !/^LIVING\b/.test(text)) { ctx.globalAlpha *= 0.65; levelChipsQuieted++; }
           if (spotL.mode !== "CLEAR") levelChipsMoved++;
           if (spotL.onCandles) levelChipsYielded++;
           if (!movedToStack && levelChipNeedsLeader(r, y, spotL.mode === "SLID")) {
@@ -18178,7 +18184,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         else delete ds.profileCandleCut;
         if (profileQuietedBy.size > 0) ds.profileQuietedForLiveCandle = [...profileQuietedBy].join(",");
         else delete ds.profileQuietedForLiveCandle;
-        if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y:${levelChipsToStack}S`;
+        if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y:${levelChipsToStack}S${levelChipsQuieted ? `:${levelChipsQuieted}Q` : ""}`;
         else delete ds.profileLevelChips;
         // The organism glyphs painted this frame, in paint order — e.g.
         // "SESSION,SESSION_TICK,LIVING,COMPOSITE". A species whose glyph found
