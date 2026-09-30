@@ -453,15 +453,18 @@ export function selectChartArrangement(
               : "This tape has not stated an aggressor side, so these cannot be drawn from volume alone";
       note =
         `${spec.label}: ${spec.purpose}. ` +
-        `${deliverableCount} of ${armedCount} readings can draw here — ${names} cannot. ` +
+        `${deliverableCount} available here, ${armedCount - deliverableCount} not — ${names} cannot draw on this feed. ` +
         `${why}.`;
     }
 
     const shortNote = readiness === "FULL" || spec.arms.length === 0
       ? ""
       : mute.some(e => e.availability === "NEEDS_SIDED_TAPE")
-        ? `${deliverableCount} of ${armedCount} draw here · rest need a sided tape`
-        : `${deliverableCount} of ${armedCount} draw here · rest waiting for data`;
+        // Capability truth, never a fraction (Garden 17 master order §VI: "4/9
+        // READY" read as "WM Pro built four of nine"). Every sense is built;
+        // this says what THIS feed can carry.
+        ? `Degraded · ${deliverableCount} available · ${armedCount - deliverableCount} need sided tape`
+        : `Degraded · ${deliverableCount} available · ${armedCount - deliverableCount} waiting for data`;
     return {
       ...spec,
       active: matches(spec, toggles),
