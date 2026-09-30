@@ -15025,6 +15025,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 });
                 ctx.lineWidth = 1;
                 if (holes || chipped) painted.push(`MASONRY@${w.strike}:holes=${holes}:chips=${chipped}`);
+                if (crackXs.length) painted.push(`CRACKS@${w.strike}:${crackXs.map(x => Math.round(x)).join("/")}:x${Math.round(x0)}-${Math.round(x1)}:y${Math.round(top)}+${Math.round(wallH)}`);
                 /* WALL CONTACT — the signature interaction (Garden 16 five-hour
                    order: "the canonical market event causes both visual objects
                    to respond … never because sprite touched sprite"). Read ONLY
