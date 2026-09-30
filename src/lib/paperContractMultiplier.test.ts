@@ -102,7 +102,7 @@ describe("contract point value", () => {
 
   it("the table is exactly the exchange-verified set (futuresEconomicsSpec.test.ts)", () => {
     expect(Object.keys(CONTRACT_MULTIPLIERS).sort()).toEqual(
-      ["6E1!", "CL1!", "ES1!", "GC1!", "HG1!", "M2K1!", "MCL1!", "MES1!", "MGC1!", "MNQ1!", "MYM1!", "NG1!", "NQ1!", "RTY1!", "SI1!", "YM1!", "ZB1!", "ZN1!"],
+      ["6E1!", "CL1!", "ES1!", "GC1!", "HG1!", "M2K1!", "MCL1!", "MES1!", "MGC1!", "MNQ1!", "MYM1!", "NG1!", "NQ1!", "RTY1!", "SI1!", "YM1!", "ZB1!", "ZC1!", "ZN1!", "ZS1!", "ZW1!"],
     );
   });
 });

@@ -123,6 +123,13 @@ export const CONTRACT_MULTIPLIERS: Readonly<Record<string, number>> = Object.fre
   "ZB1!": 1_000,     // CBOT 30-Year T-Bond: $100,000 face → $1,000 per point
   "ZN1!": 1_000,     // CBOT 10-Year T-Note: $100,000 face → $1,000 per point
   "6E1!": 125_000,   // CME Euro FX: €125,000
+  // CBOT grains (2026-09-30): 5,000 bushels, quoted in CENTS per bushel —
+  // Webull US_FUTURES ZCZ6 / ZSX6 / ZWZ6: size 5000, currency USX, min_tick
+  // 0.25, XCBT; the chart's feed (Yahoo ZC=F / ZS=F / ZW=F) also quotes USX.
+  // One point = 1¢ × 5,000 = $50.
+  "ZC1!": 50,        // CBOT Corn
+  "ZS1!": 50,        // CBOT Soybeans
+  "ZW1!": 50,        // CBOT Chicago SRW Wheat
 });
 
 /**

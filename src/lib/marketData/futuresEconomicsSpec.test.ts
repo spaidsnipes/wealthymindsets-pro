@@ -13,6 +13,8 @@ const SPEC: Record<string, [tick: number, tickValue: number]> = {
   "CL1!": [0.01, 10], "MCL1!": [0.01, 1], "GC1!": [0.1, 10], "MGC1!": [0.1, 1],
   "SI1!": [0.005, 25], "NG1!": [0.001, 10], "HG1!": [0.0005, 12.5],
   "ZB1!": [0.03125, 31.25], "ZN1!": [0.015625, 15.625], "6E1!": [0.00005, 6.25],
+  // CBOT grains (2026-09-30, Webull ZCZ6/ZSX6/ZWZ6: 5000 bu, USX, ¼¢).
+  "ZC1!": [0.25, 12.5], "ZS1!": [0.25, 12.5], "ZW1!": [0.25, 12.5],
 };
 
 describe("futures economics", () => {

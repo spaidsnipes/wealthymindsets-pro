@@ -27,7 +27,8 @@ describe("contract spec — one owner, two halves", () => {
     // The five checked against Webull's instrument record; the 13 added on
     // 2026-09-27 are pinned to exchange specs in futuresEconomicsSpec.test.ts.
     expect(CONTRACT_TICK_SIZES).toMatchObject({ "NQ1!": 0.25, "ES1!": 0.25, "RTY1!": 0.1, "GC1!": 0.1, "CL1!": 0.01 });
-    expect(Object.keys(CONTRACT_TICK_SIZES).length).toBe(18);
+    // 21 since 2026-09-30: the three CBOT grains (futuresEconomicsSpec.test.ts).
+    expect(Object.keys(CONTRACT_TICK_SIZES).length).toBe(21);
   });
 
   it("tick values are the published ones", () => {

@@ -61,6 +61,9 @@ export const CONTRACT_TICK_SIZES: Readonly<Record<string, number>> = Object.free
   "ZB1!": 0.03125,   // 1/32 point = $31.25
   "ZN1!": 0.015625,  // 1/64 point (half of 1/32) = $15.625
   "6E1!": 0.00005,   // $6.25 / tick
+  "ZC1!": 0.25,      // ¼¢ = $12.50 / tick
+  "ZS1!": 0.25,      // ¼¢ = $12.50 / tick
+  "ZW1!": 0.25,      // ¼¢ = $12.50 / tick
 });
 
 /** SEC Rule 612 minimum quoting increments for US equities. */
