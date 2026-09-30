@@ -14823,8 +14823,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                      scar        BROKEN — the ghost of the courses, a rubble line
                    Solidity is held below full everywhere (INFERRED exposure),
                    and candles pass in FRONT (the block's candle cut-out). */
-                const courses = Math.max(4, Math.min(6, Math.round(spacingPx / 8)));
-                const courseH = 12;
+                // ONE WALL PER STRIKE (master order §XXVIII, serving NVDA 1h: the
+                // 230 / 232.5 / 235 walls, 24px apart, each drew 48–72px of
+                // masonry and merged into one mass — no wall, no lifecycle, could
+                // be told apart). A wall takes at most the room to its nearest
+                // neighbouring wall less a mortar gap: fewer courses first, then
+                // shorter bricks (never under 6px). A lone wall keeps its size.
+                let courses = Math.max(4, Math.min(6, Math.round(spacingPx / 8)));
+                let courseH = 12;
+                {
+                  const ys = yOfD(w.strike);
+                  let gap = Infinity;
+                  for (const o of strikesSorted) {
+                    if (o === w.strike) continue;
+                    const yo = yOfD(o);
+                    if (yo != null && ys != null) gap = Math.min(gap, Math.abs(yo - ys));
+                  }
+                  const room = gap - 8;
+                  if (Number.isFinite(room) && room < courses * courseH) {
+                    courses = Math.max(2, Math.min(courses, Math.floor(room / 8)));
+                    courseH = Math.max(6, Math.min(12, Math.floor(room / courses)));
+                  }
+                }
                 const wallH = courses * courseH;
                 const len = Math.min(plotRightD * 0.62, 170 + w.share * 2800);
                 const x1 = plotRightD - 2, x0 = x1 - len;
