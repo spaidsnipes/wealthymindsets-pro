@@ -13,6 +13,8 @@
 export const SENSE_ON_CAMERA = "ON CAMERA";
 export const SENSE_NO_EVENT = "NO CURRENT EVENT";
 export const SENSE_UNAVAILABLE = "UNAVAILABLE ON THIS FEED";
+export const SENSE_NOT_ENTITLED = "NOT ENTITLED";
+export const SENSE_BROKEN = "BROKEN / NOT WIRED";
 
 /** Receipts are a DOMStringMap in the browser; a plain record in tests. */
 export type Receipts = Readonly<Record<string, string | undefined>>;
@@ -20,7 +22,8 @@ export type Receipts = Readonly<Record<string, string | undefined>>;
 export function senseEventStates(r: Receipts): Record<string, string> {
   const out: Record<string, string> = {};
   const zones = Number(r.absorptionZones ?? NaN);
-  if (Number.isFinite(zones)) out.ABSORPTION = zones > 0 ? `${SENSE_ON_CAMERA} · ${zones} ZONE${zones === 1 ? "" : "S"}` : SENSE_NO_EVENT;
+  if (r.absorptionBasis === "UNMEASURED") out.ABSORPTION = SENSE_UNAVAILABLE;
+  else if (Number.isFinite(zones)) out.ABSORPTION = zones > 0 ? `${SENSE_ON_CAMERA} · ${zones} ZONE${zones === 1 ? "" : "S"}` : SENSE_NO_EVENT;
 
   const stack = r.imbalanceStack;
   if (stack === "DRAWN") out.IMBALANCE_STACK = SENSE_ON_CAMERA;
@@ -38,14 +41,25 @@ export function senseEventStates(r: Receipts): Record<string, string> {
 
   const wx = r.liquidityWeather;
   if (wx === "DRAWN") out.LIQUIDITY_WEATHER = SENSE_ON_CAMERA;
+  else if (wx === "UNMEASURED") out.LIQUIDITY_WEATHER = SENSE_UNAVAILABLE;
 
   const effort = r.effortMark;
   if (effort === "DRAWN") out.EFFORT_MARK = SENSE_ON_CAMERA;
   else if (effort === "UNREAD") out.EFFORT_MARK = SENSE_NO_EVENT;
+  // A renderer fault overrides an older successful receipt from the same
+  // frame. Fault text identifies the layer; it never proves missing entitlement.
+  const faultOwners: Record<string, string> = {
+    ABSORPTION_ANATOMY: "ABSORPTION", DUAL_ANATOMY: "ANATOMY_CARDS",
+    VALUE_CANDLE: "VALUE_CANDLE", STACKED_IMBALANCE: "IMBALANCE_STACK",
+    DELTA_DIVERGENCE: "DELTA_DIVERGENCE",
+  };
+  for (const [layer, id] of Object.entries(faultOwners)) {
+    if (r.layerFaults?.includes(`${layer}:`)) out[id] = SENSE_BROKEN;
+  }
   return out;
 }
 
 /** True when the drawer should say ACTIVE rather than DRAWING. */
 export function senseIsQuiet(detail: string | undefined): boolean {
-  return detail === SENSE_NO_EVENT || detail === SENSE_UNAVAILABLE;
+  return detail === SENSE_NO_EVENT || detail === SENSE_UNAVAILABLE || detail === SENSE_NOT_ENTITLED || detail === SENSE_BROKEN;
 }

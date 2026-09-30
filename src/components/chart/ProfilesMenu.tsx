@@ -41,7 +41,7 @@
  * still prints `silentNote` verbatim.
  */
 
-import { senseIsQuiet } from "@/lib/chart/senseEventStates";
+import { senseIsQuiet, SENSE_UNAVAILABLE, SENSE_NOT_ENTITLED, SENSE_BROKEN } from "@/lib/chart/senseEventStates";
 import React from "react";
 import { Layers, Check } from "lucide-react";
 import {
@@ -98,6 +98,9 @@ export function ProfilesMenu({
   speciesRefusal?: ProfileMenuInput["speciesRefusal"];
 }) {
   const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, families, only, speciesRefusal });
+  const menuName = testId === "order-flow-tools-menu" ? "WM Order Flow Camera" : "Profiles menu";
+  const manifestationNotes = vm.entries.filter(e => e.active && stateDetail?.[e.id])
+    .map(e => `${e.label}: ${stateDetail![e.id]}`).join(". ");
 
   return (
     <section
@@ -120,10 +123,8 @@ export function ProfilesMenu({
       */
       aria-label={
         vm.activeCount === 0
-          ? "Profiles menu. Nothing switched on."
-          : vm.silentCount > 0
-            ? `Profiles menu. ${vm.activeCount} of ${vm.entries.length} switched on, ${vm.activeCount - vm.silentCount} drawing. ${vm.silentNote}`
-            : `Profiles menu. ${vm.activeCount} of ${vm.entries.length} switched on and drawing.`
+          ? `${menuName}. Nothing switched on.`
+          : `${menuName}. ${vm.activeCount} of ${vm.entries.length} switched on. ${vm.silentNote} ${manifestationNotes}`.trim()
       }
       title={
         vm.silentNote ||
@@ -139,7 +140,7 @@ export function ProfilesMenu({
     >
         <div
           role="menu"
-          aria-label="Profiles"
+          aria-label={menuName}
           // Five-hour order: "no stacked admin cards, no border warehouses" —
           // the equipment list shares the Chart tools grammar (no frame).
           className="p-1"
@@ -159,7 +160,7 @@ export function ProfilesMenu({
 
           <div className="flex items-center justify-between gap-3 px-1 pb-2">
             <div className="text-[9px] uppercase tracking-[0.16em] text-wm-text-dim">
-              {heading}
+              {testId === "order-flow-tools-menu" ? "WM Order Flow Camera" : heading}
             </div>
             {/* CAPABILITY TRUTH, NOT A FRACTION (Garden 17 master order §VI,
                 2026-09-29): "5/9 READY" read as "WM Pro built five of nine".
@@ -168,9 +169,13 @@ export function ProfilesMenu({
             <div className="text-[9px] uppercase tracking-[0.12em] text-wm-text-dim text-right" data-testid={`${testId}-capability`}>
               {(() => {
                 const waiting = vm.entries.filter(e => e.availability === "WAITING_FOR_BARS" || e.availability === "WAITING_FOR_PRINTS").length;
-                const unavailable = vm.entries.length - vm.readyCount - waiting;
-                if (unavailable === 0 && waiting === 0) return `All ${vm.entries.length} available`;
-                return `Degraded · ${vm.readyCount} available${unavailable > 0 ? ` · ${unavailable} unavailable on this feed` : ""}${waiting > 0 ? ` · ${waiting} waiting for data` : ""}`;
+                const refusedByReceipt = vm.entries.filter(e => e.availability === "READY" && stateDetail?.[e.id] === SENSE_UNAVAILABLE).length;
+                const notEntitled = vm.entries.filter(e => e.availability === "READY" && stateDetail?.[e.id] === SENSE_NOT_ENTITLED).length;
+                const broken = vm.entries.filter(e => e.availability === "READY" && stateDetail?.[e.id] === SENSE_BROKEN).length;
+                const available = vm.readyCount - refusedByReceipt - notEntitled - broken;
+                const unavailable = vm.entries.length - vm.readyCount - waiting + refusedByReceipt;
+                if (unavailable === 0 && waiting === 0 && notEntitled === 0 && broken === 0) return `All ${vm.entries.length} available`;
+                return `Degraded · ${available} available${unavailable > 0 ? ` · ${unavailable} unavailable on this feed` : ""}${notEntitled > 0 ? ` · ${notEntitled} not entitled` : ""}${broken > 0 ? ` · ${broken} broken / not wired` : ""}${waiting > 0 ? ` · ${waiting} waiting for data` : ""}`;
               })()}
             </div>
           </div>
@@ -184,7 +189,7 @@ export function ProfilesMenu({
                 ? entry.active
                   ? (stateDetail?.[entry.id]
                     ? (senseIsQuiet(stateDetail[entry.id]) ? `ACTIVE · ${stateDetail[entry.id]}` : `DRAWING · ${stateDetail[entry.id]}`)
-                    : "DRAWING")
+                    : "ACTIVE · AVAILABLE")
                   : "AVAILABLE"
                 : entry.availability === "WAITING_FOR_BARS"
                   ? "WAITING FOR BARS"

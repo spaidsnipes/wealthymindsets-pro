@@ -37,7 +37,8 @@ import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
+import { useInstrumentSearch } from "@/hooks/useInstrumentSearch";
+import { instrumentSearchSelection } from "@/lib/marketData/instrumentSearch";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { requestBrokerConnect } from "@/lib/broker/brokerConnectDoor";
 
@@ -88,12 +89,6 @@ export function SearchPanel({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Live Finnhub search results
-  const [liveResults, setLiveResults] = useState<{ sym: string; label: string; cat: string; exchange?: string }[]>([]);
-  const [searching, setSearching] = useState(false);
-
   const [quickSyms, setQuickSyms] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem("wm_quick_syms") ?? "null") ?? DEFAULT_QUICK; } catch { return DEFAULT_QUICK; }
   });
@@ -119,44 +114,9 @@ export function SearchPanel({
     onClose,
   });
 
-  // Local filtered results — matches symbol, label, and aliases.
-  // The query normalisation that used to live here as `qLow` is gone on
-  // purpose: `matchCuratedSymbols` owns how a typed query is folded against
-  // the catalog. Keeping a local copy of that rule is how the two halves of
-  // this picker drifted apart in the first place.
-  const localResults = matchCuratedSymbols(query, 10);
-
-  // Debounced live search across EVERY asset class (/api/symbol-search:
-  // stocks, ETFs, indices, futures, forex, crypto — cached, keyless fallback).
-  // It used to call Finnhub on every keystroke: stocks only in practice, and
-  // HTTP 429 after about a dozen keystrokes, which BLANKED the suggestions
-  // mid-typing (Founder, 2026-09-28). A failed answer now keeps the last good
-  // suggestions and says why, instead of emptying the list.
-  const [searchNote, setSearchNote] = useState<string | null>(null);
+  const { results: unfiltered, searching, failure } = useInstrumentSearch(query);
+  const searchNote = failure ? `Live search unavailable — curated markets remain available. ${failure}` : null;
   const [category, setCategory] = useState<SearchCategoryFilter>("All");
-  useEffect(() => {
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    if (query.trim().length < 1) { setLiveResults([]); setSearching(false); setSearchNote(null); return; }
-    setSearching(true);
-    const asked = query.trim();
-    searchTimerRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/symbol-search?q=${encodeURIComponent(asked)}`);
-        const json = await res.json() as { results?: { sym?: string; label?: string; cat?: string; exchange?: string }[]; error?: string };
-        if (!res.ok || json.error) { setSearchNote(json.error ? "Live search is unavailable right now — curated markets below still open." : `Live search answered HTTP ${res.status} — curated markets below still open.`); return; }
-        const localSymSet = new Set(matchCuratedSymbols(asked, 10).map(s => s.sym));
-        setLiveResults((json.results ?? [])
-          .filter(r => r.sym && r.label && !localSymSet.has(r.sym))
-          .slice(0, 20)
-          .map(r => ({ sym: r.sym!, label: r.label!, cat: r.cat ?? "Stock", exchange: r.exchange || undefined })));
-        setSearchNote(null);
-      } catch { setSearchNote("Live search did not answer — curated markets below still open."); }
-      finally { setSearching(false); }
-    }, 220);
-    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
-  }, [query]);
-
-  const unfiltered = [...localResults, ...liveResults];
   const allResults = category === "All" ? unfiltered : unfiltered.filter(r => r.cat === category);
 
   const pick = useCallback((sym: string) => {
@@ -167,8 +127,7 @@ export function SearchPanel({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      // Priority: local results → live Finnhub → raw typed symbol
-      const target = allResults[0]?.sym ?? (query.trim().toUpperCase() || null);
+      const target = instrumentSearchSelection(query, allResults);
       if (target) pick(target);
     }
   };
@@ -209,7 +168,7 @@ export function SearchPanel({
           />
           {searching && <div aria-hidden="true" className="w-3 h-3 rounded-full border-2 border-wm-blue border-t-transparent animate-spin shrink-0" />}
           {query && !searching && (
-            <button type="button" aria-label="Clear symbol search" onClick={() => { setQuery(""); setLiveResults([]); }} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-wm-text-dim hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
+            <button type="button" aria-label="Clear symbol search" onClick={() => { setQuery(""); }} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-wm-text-dim hover:bg-wm-surface hover:text-wm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
               <X size={14} aria-hidden="true" />
             </button>
           )}

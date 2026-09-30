@@ -57,7 +57,7 @@ const between = (from: string, to: string) => {
 /** Where the glass is compiled and its reason stamped. */
 // 2026-09-26 (H-501 permission): OFF stays the trader's word; a withheld
 // layer says SILENT:<depth> through the governor's offWord.
-const glassBlock = between("selectLiquidityWeatherGlass(liquidityWeatherRef.current)", "ds.liquidityWeather = on ? glass.reason : att.offWord(layerOnRef.current.weather);");
+const glassBlock = between("selectLiquidityWeatherGlass(sampledWeather)", "ds.liquidityWeather = on ? glass.reason : att.offWord(layerOnRef.current.weather);");
 /** Where the lens is placed. */
 const geoBlock = between("let weatherLens: WeatherLens | null = null;", "weatherLensCut = cut;");
 /** What the lens paints: tint, shelves, ring, words, readout, receipts. */
@@ -129,7 +129,7 @@ describe("A COST HAS NO PRICE, and nothing here invents one for it", () => {
     // and no word-stack chip, anywhere from the weather's compile to its lens.
     // (`glass` is also the local name of the value-candle and divergence
     // readings above this block; their labels are theirs.)
-    const weatherRegion = between("selectLiquidityWeatherGlass(liquidityWeatherRef.current)", "delete ds.liquidityWeatherReadout;");
+    const weatherRegion = between("selectLiquidityWeatherGlass(sampledWeather)", "delete ds.liquidityWeatherReadout;");
     expect(weatherRegion).not.toMatch(/fillText\(glass\.label/);
     expect(weatherRegion).not.toMatch(/fillText\(glass\.detail/);
     expect(weatherRegion).not.toMatch(/fillText\(glass\.stallLabel/);
@@ -346,7 +346,7 @@ describe("the lens speaks only where it can be read — serving BTC-USD 1m, 2026
 
 describe("the trader can quiet this layer, and the chart says WHICH silence it is", () => {
   it("a switched-off layer paints NOTHING, not merely fewer shelves", () => {
-    expect(lensBlock).toMatch(/if \(on && glass\.drawn && L\) \{/);
+    expect(lensBlock).toMatch(/if \(on && L && \(glass\.drawn \|\| aperture\)\) \{/);
   });
 
   it("reads the switch from a REF, never from the overlay's dependency array", () => {

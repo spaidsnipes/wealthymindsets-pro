@@ -59,7 +59,7 @@ function walk(dir: string, acc: string[] = []): string[] {
 
 describe("composeMarketCanvasVM enforcement — canon §Single-Writer / Many-Readers", () => {
   it("no file outside the whitelist imports selectMarketCanvas without going through the compiler", () => {
-    const files = walk(SRC_ROOT).filter((f) => !isAllowedFile(f));
+    const files = walk(join(SRC_ROOT, "src")).filter((f) => !isAllowedFile(f));
     const violations: string[] = [];
 
     // Match imports of the `selectMarketCanvas` function specifically.

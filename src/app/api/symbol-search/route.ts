@@ -134,9 +134,9 @@ export async function GET(request: Request) {
           exchange: r.primary_exchange ?? r.market ?? "",
         }));
         const results = rankSymbolHits(q, hits, RESULT_LIMIT, { dropUnmatched: false });
-        // An empty Polygon result set is an ANSWER ("no such ticker"), not a
-        // failure, so it is returned rather than retried against Yahoo.
-        return NextResponse.json({ results, vendor: "polygon" });
+        // One vendor's empty answer does not exhaust the market universe.
+        // In particular, futures discovery must still reach Yahoo.
+        if (results.length > 0) return NextResponse.json({ results, vendor: "polygon" });
       }
       // Polygon answered with an error (bad/expired/over-quota key). Fall
       // through: the trader's question is still answerable.
@@ -159,7 +159,7 @@ export async function GET(request: Request) {
       // Named so a caller can tell "this is the backup vendor" from "this is
       // the one we prefer" without inferring it from the shape of the data.
       degraded: POLYGON_KEY
-        ? "Polygon search did not answer; these results are from Yahoo, which needs no key."
+        ? "Polygon returned no matches or was unavailable; these results are from Yahoo, which needs no key."
         : "POLYGON_KEY is not set on this host runtime; these results are from Yahoo, which needs no key.",
     });
   } catch (err) {

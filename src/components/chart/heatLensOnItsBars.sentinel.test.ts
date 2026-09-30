@@ -20,8 +20,8 @@ const strip = (s: string) =>
 const CHART = strip(readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8"));
 
 describe("heat lens on its bars", () => {
-  const start = CHART.indexOf("const heat = selectHeatLens(liquidityWeatherRef.current);");
-  const block = CHART.slice(start, CHART.indexOf("delete ds.heatLensUntimed;\n        }", start));
+  const start = CHART.indexOf("const heat = selectHeatLens(sampledWeather);");
+  const block = CHART.slice(start, CHART.indexOf("ds.liquidityWeatherLensState = weatherLensWhy;", start));
 
   it("finds the heat lens block", () => {
     expect(start).toBeGreaterThan(-1);
@@ -36,7 +36,42 @@ describe("heat lens on its bars", () => {
     expect(block).not.toMatch(/bezierCurveTo\(W \* 0\.24/);
   });
 
-  it("counts cells that had to fall back to the full camera", () => {
+  it("refuses unplaceable cells before painting rather than inventing full-camera coverage", () => {
+    expect(block).toContain("if (!timed) { untimed++; continue; }");
+    const refusal = block.indexOf("if (!timed) { untimed++; continue; }");
+    expect(refusal).toBeLessThan(block.indexOf("ctxHeat.fillRect(cx0, top, cw, band);"));
+    expect(block).not.toMatch(/const cx[01] = timed \?/);
+  });
+
+  it("retains the refusal count even when no heat cell can be placed", () => {
     expect(block).toContain("ds.heatLensUntimed = String(untimed);");
+    const receipt = block.indexOf("ds.heatLensUntimed = String(untimed);");
+    expect(receipt).toBeLessThan(block.indexOf("if (painted > 0) {"));
+    const emptyPaint = block.match(/if \(painted > 0\) \{[^}]*\} else \{([^}]*)\}/);
+    expect(emptyPaint).not.toBeNull();
+    expect(emptyPaint![1]).not.toContain("delete ds.heatLensUntimed;");
+  });
+
+  it("paints no span for either missing endpoint, and keeps a valid cell local", () => {
+    // Execute the renderer's span gate with a paint spy: missing coordinates
+    // must never produce a rectangle, including a partial timed segment.
+    const from = block.indexOf("const timed = xFrom != null && xTo != null;");
+    const to = block.indexOf("const cw = Math.max(1, cx1 - cx0);", from);
+    expect(from).toBeGreaterThan(-1);
+    expect(to).toBeGreaterThan(from);
+    const gate = block.slice(from, to + "const cw = Math.max(1, cx1 - cx0);".length);
+    const run = new Function("endpoints", `
+      const W = 1000, heatSpacing = 6, painted = [];
+      let untimed = 0;
+      for (const [xFrom, xTo] of endpoints) {
+        ${gate}
+        painted.push({ x: cx0, width: cw });
+      }
+      return { untimed, painted };
+    `);
+    expect(run([[null, null], [12, null], [null, 42]]))
+      .toEqual({ untimed: 3, painted: [] });
+    expect(run([[42, 12], [null, 42]]))
+      .toEqual({ untimed: 1, painted: [{ x: 9, width: 36 }] });
   });
 });

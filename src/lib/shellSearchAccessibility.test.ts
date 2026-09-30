@@ -58,7 +58,7 @@ describe("global symbol search accessibility", () => {
   it("preserves quick symbols, provider search, and chart selection behavior", () => {
     expect(layout).toContain('localStorage.setItem("wm_quick_syms"');
     // 2026-09-28: the provider search is the all-asset route (was Finnhub, stocks-only, rate-limited).
-    expect(layout).toContain("fetch(`/api/symbol-search?q=${encodeURIComponent(asked)}`)");
+    expect(layout).toContain("useInstrumentSearch(query)");
     expect(layout).toContain("setActiveSymbol(sym.toUpperCase())");
     // Asserts the NAVIGATION, not the string. Picking a symbol is a NAMED
     // destination, so it must derive from INSTRUMENT_VIEW_ROUTE — pinning the

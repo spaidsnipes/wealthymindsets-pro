@@ -17,4 +17,14 @@ describe("no silent nothing — receipts become human states", () => {
     expect(senseEventStates({})).toEqual({});
     expect(senseIsQuiet(undefined)).toBe(false);
   });
+  it("unmeasured absorption is unsupported even when its old zone count is zero", () => {
+    expect(senseEventStates({ absorptionBasis: "UNMEASURED", absorptionZones: "0" }).ABSORPTION).toBe(SENSE_UNAVAILABLE);
+    expect(senseEventStates({ liquidityWeather: "UNMEASURED" }).LIQUIDITY_WEATHER).toBe(SENSE_UNAVAILABLE);
+  });
+  it("a renderer fault overrides a successful stale receipt and remains separate from data support", () => {
+    const states = senseEventStates({ valueCandle: "DRAWN", layerFaults: "1:VALUE_CANDLE: paint failed" });
+    expect(states.VALUE_CANDLE).toBe("BROKEN / NOT WIRED");
+    expect(senseIsQuiet(states.VALUE_CANDLE)).toBe(true);
+    expect(senseIsQuiet("NOT ENTITLED")).toBe(true);
+  });
 });

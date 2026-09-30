@@ -292,7 +292,8 @@ import { selectLiquidityWeatherGlass } from "@/lib/marketData/viewModels/selectL
 import { heatRampColor, selectHeatLens } from "@/lib/marketData/viewModels/selectHeatLens";
 import { HEAT_SMOKE_LAYER_WEIGHT } from "@/lib/marketData/viewModels/selectHeatLens";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
-import { HEAVY_RATIO } from "@/lib/marketData/viewModels/selectLiquidityWeather";
+import { HEAVY_RATIO, selectLiquidityWeatherFromBars } from "@/lib/marketData/viewModels/selectLiquidityWeather";
+import { constrainWeatherLens, weatherLensBarSpan, isWeatherLensBezel } from "@/lib/chart/weatherLensDrag";
 import type { EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
 import type { DeltaLevelsGlass } from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import type { LivingProfileGlass } from "@/lib/marketData/viewModels/selectLivingProfileGlass";
@@ -1405,6 +1406,8 @@ interface Props {
   onSelectPressureFront?: () => void;
   /** F08B · a click inside the weather lens selects it (Inspect explains the reading). */
   onSelectWeather?: () => void;
+  /** The aperture estimate for Inspect; null returns inspection to the live owner. */
+  onWeatherApertureRead?: (vm: LiquidityWeatherVM | null) => void;
   weatherSelected?: boolean;
   /** The front is the selection on this chart (its selected treatment). */
   pressureFrontSelected?: boolean;
@@ -1804,6 +1807,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onSelectPressureFront,
   pressureFrontSelected = false,
   onSelectWeather,
+  onWeatherApertureRead,
   weatherSelected = false,
   selectedPressureWallStrike = null,
   liquidityLifecycle = null,
@@ -2145,6 +2149,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   pressureFrontSelectedRef.current = pressureFrontSelected;
   /** The weather lens disc painted this frame (hit target for selection). */
   const weatherLensHitRef = useRef<{ cx: number; cy: number; rx: number; ry: number } | null>(null);
+  const weatherDragHandleRef = useRef<HTMLButtonElement | null>(null);
+  const weatherApertureRef = useRef<{ logical: number; price: number; rx: number; ry: number } | null>(null);
+  const weatherGrabRef = useRef<{ pointer: number; dx: number; dy: number; rx: number; ry: number } | null>(null);
+  const weatherSampleCacheRef = useRef<{ key: string; vm: LiquidityWeatherVM } | null>(null);
+  const weatherApertureReadRef = useRef(onWeatherApertureRead);
+  weatherApertureReadRef.current = onWeatherApertureRead;
+  const weatherPublishedRef = useRef<LiquidityWeatherVM | null>(null);
+  const [weatherDetached, setWeatherDetached] = useState(false);
+  useEffect(() => {
+    weatherApertureRef.current = null;
+    weatherGrabRef.current = null;
+    weatherSampleCacheRef.current = null;
+    weatherPublishedRef.current = null;
+    weatherApertureReadRef.current?.(null);
+    setWeatherDetached(false);
+  }, [symbol, timeframe, liquidityWeatherOnChart]);
   const weatherSelectedRef = useRef(false);
   weatherSelectedRef.current = weatherSelected;
   selectedPressureWallStrikeRef.current = selectedPressureWallStrike;
@@ -5893,6 +5913,66 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     } catch {}
   }, [logScale, pctMode, autoScale, ready]);
 
+  // Native capture gives the physical bezel first ownership, before the
+  // chart's pan handlers. Interior candles and more specific objects keep clicks.
+  useEffect(() => {
+    if (!ready || !liquidityWeatherOnChart) return;
+    const host = containerRef.current;
+    if (!host) return;
+    let nativePointer: number | null = null;
+    const down = (e: PointerEvent) => {
+      if (!e.isPrimary || e.button !== 0 || drawingToolRef.current !== "cursor" || window.innerWidth < 1024) return;
+      if ((e.target as Element)?.closest?.("[data-weather-lens-control]")) return;
+      const hit = weatherLensHitRef.current;
+      const rect = host.getBoundingClientRect();
+      if (!hit || !isWeatherLensBezel(e.clientX - rect.left, e.clientY - rect.top, hit)) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      nativePointer = e.pointerId;
+      weatherGrabRef.current = { pointer: e.pointerId, dx: e.clientX - rect.left - hit.cx, dy: e.clientY - rect.top - hit.cy, rx: hit.rx, ry: hit.ry };
+      host.setPointerCapture(e.pointerId);
+      host.style.cursor = "grabbing";
+    };
+    const move = (e: PointerEvent) => {
+      const grab = weatherGrabRef.current;
+      if (!grab || nativePointer !== e.pointerId) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      const chart = chartRef.current, series = candleRef.current;
+      if (!chart || !series) return;
+      const rect = host.getBoundingClientRect();
+      let axis = 60, bottom = host.clientHeight;
+      try { axis = chart.priceScale("right").width(); bottom = (chart as any).paneSize?.(0)?.height ?? bottom; } catch { /* keep plot fallback */ }
+      const center = constrainWeatherLens(e.clientX - rect.left - grab.dx, e.clientY - rect.top - grab.dy, grab.rx, grab.ry, host.clientWidth - axis, bottom, 64);
+      const logical = chart.timeScale().coordinateToLogical(center.x);
+      const price = series.coordinateToPrice(center.y);
+      if (logical == null || price == null) return;
+      weatherApertureRef.current = { logical: +logical, price: +price, rx: grab.rx, ry: grab.ry };
+      setWeatherDetached(true);
+    };
+    const up = (e: PointerEvent) => {
+      if (nativePointer !== e.pointerId) return;
+      e.stopImmediatePropagation();
+      nativePointer = null;
+      weatherGrabRef.current = null;
+      if (host.hasPointerCapture(e.pointerId)) host.releasePointerCapture(e.pointerId);
+      host.style.cursor = "";
+    };
+    host.addEventListener("pointerdown", down, true);
+    window.addEventListener("pointermove", move, true);
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", up, true);
+    host.addEventListener("lostpointercapture", up, true);
+    return () => {
+      host.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("pointermove", move, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", up, true);
+      host.removeEventListener("lostpointercapture", up, true);
+      if (nativePointer != null && host.hasPointerCapture(nativePointer)) host.releasePointerCapture(nativePointer);
+      weatherGrabRef.current = null;
+      host.style.cursor = "";
+    };
+  }, [ready, liquidityWeatherOnChart, symbol, timeframe]);
+
   /* ── True vertical price-drag on the chart body ──────────────
      LWC handles horizontal time-scroll on the body itself; we add the
      vertical axis so the two combine into free 2D panning. Active only in
@@ -5915,6 +5995,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
     const onDown = (e: PointerEvent) => {
       if (!e.isPrimary || e.button !== 0) return;
+      if ((e.target as Element)?.closest?.("[data-weather-lens-control]")) return;
       if (drawingToolRef.current !== "cursor") return; // let drawing tools own the mouse
       // Skip the right price-axis gutter — that region is owned by the dedicated
       // axis drag-to-SCALE handler below. Body drag = pan; axis drag = stretch.
@@ -13803,7 +13884,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
          the axis. Nothing else does.
       ══════════════════════════════════════════════════════════════════════ */
       try {
-        const glass = selectLiquidityWeatherGlass(liquidityWeatherRef.current);
+        let sampledWeather = liquidityWeatherRef.current;
+        const aperture = weatherApertureRef.current;
+        if (aperture && layerOnRef.current.weather) {
+          const sourceBars = barsRef.current ?? [];
+          const spacing = chart.timeScale().options().barSpacing || 8;
+          const span = weatherLensBarSpan(aperture.logical, aperture.rx, spacing, sourceBars.length);
+          const selectedBars = sourceBars.slice(span.from, span.to);
+          // Provider corrections can revise an interior candle without touching
+          // either endpoint. The small aperture digest invalidates that sample.
+          const digest = selectedBars.map(b => `${b.time}:${b.open}:${b.high}:${b.low}:${b.close}:${b.volume}`).join(";");
+          const key = `${symbol}|${timeframe}|${span.from}|${span.to}|${volumeTruthFor(symbol, sourceBars).real}|${digest}`;
+          if (weatherSampleCacheRef.current?.key !== key) {
+            const gated = volumeBearingBars(symbol, sourceBars);
+            weatherSampleCacheRef.current = { key, vm: selectLiquidityWeatherFromBars(gated.slice(span.from, span.to)) };
+          }
+          sampledWeather = weatherSampleCacheRef.current.vm;
+        }
+        const inspectSample = aperture && layerOnRef.current.weather ? sampledWeather : null;
+        if (weatherPublishedRef.current !== inspectSample) {
+          weatherPublishedRef.current = inspectSample;
+          weatherApertureReadRef.current?.(inspectSample);
+        }
+        const glass = selectLiquidityWeatherGlass(sampledWeather);
         const ds = canvas.dataset;
         // OFF is not UNMEASURED. The tape answered; the trader closed the
         // layer. A receipt that conflated the two would make a switched-off
@@ -13814,7 +13917,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // NO SILENT NOTHING (master order §VIII): switched on, and this feed
         // cannot measure it (serving EURGBP 15m: UNMEASURED, and the glass said nothing).
         if (on && glass.reason === "UNMEASURED") {
-          const quiet = "LIQUIDITY WEATHER · UNAVAILABLE ON CURRENT FEED";
+          const quiet = aperture ? "WEATHER LENS · SELECTED CANDLES UNMEASURED — NO TRADED VOLUME / TOO FEW BARS" : "LIQUIDITY WEATHER · UNAVAILABLE ON CURRENT FEED";
           ctx.save();
           ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
           ctx.fillStyle = "rgba(200,192,174,0.85)";
@@ -18966,7 +19069,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            beside it, and it is the mechanical form of S-501's "ZONES SHALL
            NOT BURY CANDLES." Hard-coding an alpha here would put the regulator
            somewhere it could be quietly raised. */
-        const heat = selectHeatLens(liquidityWeatherRef.current);
+        const heat = selectHeatLens(sampledWeather);
         /* ══ F08B · WEATHER IS A LENS — WHERE IT SITS ═════════════════════════
            The Founder's plate (and FL06 ⑤ "Liquidity Weather (Lens)") draws
            the weather as a brass-ringed lens over the price/time region the
@@ -19043,6 +19146,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
           }
         }
+        // A grabbed lens samples this aperture's candles. It never transports
+        // the newest tape reading into history; candle estimates stay named.
+        if (aperture && on) {
+          const x = chart.timeScale().logicalToCoordinate(aperture.logical as never);
+          const y = srs.priceToCoordinate(aperture.price);
+          if (x != null && y != null && +x + aperture.rx >= 0 && +x - aperture.rx <= weatherPlotRight
+              && +y + aperture.ry >= HEADER_FLOOR_Y && +y - aperture.ry <= pane0Bottom) {
+            // Camera motion may clip the aperture, but must never slide its
+            // visible centre away from the logical/price anchor being sampled.
+            weatherLens = { cx: +x, cy: +y, rx: aperture.rx, ry: aperture.ry,
+              partial: +x - aperture.rx < 0 || +x + aperture.rx > weatherPlotRight || +y - aperture.ry < HEADER_FLOOR_Y || +y + aperture.ry > pane0Bottom };
+            weatherLensWhy = glass.drawn ? "SELECTED_CANDLE_ESTIMATE" : "SELECTED_UNMEASURED";
+          } else { weatherLens = null; weatherLensWhy = "SELECTED_OFF_CAMERA"; }
+        }
+        const dragHandle = weatherDragHandleRef.current;
+        if (dragHandle) {
+          dragHandle.style.display = on && weatherLens && window.innerWidth >= 1024 ? "block" : "none";
+          if (weatherLens) {
+            dragHandle.style.left = `${Math.max(0, Math.min(weatherPlotRight - 108, weatherLens.cx - 54))}px`;
+            dragHandle.style.top = `${Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - 28, weatherLens.cy + weatherLens.ry + 18))}px`;
+            dragHandle.textContent = aperture ? "DRAG · CANDLE EST." : "DRAG LENS";
+          }
+        }
+        ds.weatherLensSample = aperture ? "SELECTED_CANDLES_ESTIMATE_NO_TAPE_NO_BOOK" : "LIVE_OWNER_WINDOW";
         if (weatherLens) {
           const tsW = chart.timeScale();
           const vrW = tsW.getVisibleLogicalRange();
@@ -19138,8 +19265,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // WHEN THE COST WAS PAID. A cell spans the bars its segment's prints
           // traded on (first print's bar to last print's bar), not the whole
           // camera: a band across every bar claimed the cost held over time
-          // the tape never measured. A cell whose prints carry no time falls
-          // back to full width and is counted in ds.heatLensUntimed.
+          // the tape never measured. Unplaceable cells paint nothing and are
+          // counted in ds.heatLensUntimed, including when every cell refuses.
           const heatBars = barsRef.current ?? [];
           let heatSpacing = 6;
           try { const sp = chart.timeScale().options().barSpacing; if (Number.isFinite(sp) && sp > 0) heatSpacing = sp; } catch { /* keep default */ }
@@ -19168,9 +19295,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const xFrom = cell.fromTime != null ? barXAt(cell.fromTime) : null;
             const xTo = cell.toTime != null ? barXAt(cell.toTime) : null;
             const timed = xFrom != null && xTo != null;
-            if (!timed) untimed++;
-            const cx0 = timed ? Math.max(0, Math.min(xFrom!, xTo!) - heatSpacing / 2) : 0;
-            const cx1 = timed ? Math.min(W, Math.max(xFrom!, xTo!) + heatSpacing / 2) : W;
+            if (!timed) { untimed++; continue; }
+            const cx0 = Math.max(0, Math.min(xFrom, xTo) - heatSpacing / 2);
+            const cx1 = Math.min(W, Math.max(xFrom, xTo) + heatSpacing / 2);
             const cw = Math.max(1, cx1 - cx0);
             stormCols.push({ x0: cx0, x1: cx1, rgb: [0, 0, 0], intensity: cell.intensity, weight: heat.maxOpacity > 0 ? 0.7 + 0.3 * Math.min(1, alpha / heat.maxOpacity) : 0 });
 
@@ -19412,14 +19539,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             mainCtx.restore();
             weatherVeil = glassAlpha;
           }
+          ds.heatLensUntimed = String(untimed);
           if (painted > 0) {
             ds.heatLensCells = String(painted);
             ds.heatLensContours = String(contours);
-            ds.heatLensUntimed = String(untimed);
           } else {
             delete ds.heatLensCells;
             delete ds.heatLensContours;
-            delete ds.heatLensUntimed;
           }
         } else {
           delete ds.heatLensCells;
@@ -19453,7 +19579,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const L = weatherLens;
           ds.liquidityWeatherLensState = weatherLensWhy;
           weatherLensHitRef.current = null;
-          if (on && glass.drawn && L) {
+          if (on && L && (glass.drawn || aperture)) {
             ctx.save();
             ctx.globalAlpha = att.alpha("weather");
             ctx.beginPath();
@@ -23460,6 +23586,65 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             <path d="M8 13 L13.5 31 L19 20 L22 25 L25 20 L30.5 31 L36 13" stroke="#F0B429" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
           </svg>
         </div>
+        {liquidityWeatherOnChart && (
+          <>
+            <button
+              ref={weatherDragHandleRef}
+              type="button"
+              data-weather-lens-control="drag"
+              data-testid="weather-lens-drag"
+              aria-label="Drag liquidity weather lens across candles; arrow keys move the selected window"
+              title="Drag to inspect these candles. Selected weather is estimated from candle volume and range, not historical tape or order book. Double-click to return to live."
+              style={{ display: "none", position: "absolute", zIndex: 22, width: 108, height: 24, borderRadius: 12, border: "1px solid #9e8245", color: "#ead9ad", background: "#17140e", fontSize: 9, letterSpacing: 0.5, cursor: "grab", touchAction: "none" }}
+              onPointerDown={e => {
+                if (!e.isPrimary || e.button !== 0) return;
+                e.preventDefault(); e.stopPropagation();
+                const hit = weatherLensHitRef.current;
+                const rect = containerRef.current?.getBoundingClientRect();
+                if (!hit || !rect) return;
+                e.currentTarget.setPointerCapture(e.pointerId);
+                weatherGrabRef.current = { pointer: e.pointerId, dx: e.clientX - rect.left - hit.cx, dy: e.clientY - rect.top - hit.cy, rx: hit.rx, ry: hit.ry };
+                e.currentTarget.style.cursor = "grabbing";
+              }}
+              onPointerMove={e => {
+                const grab = weatherGrabRef.current;
+                if (!grab || grab.pointer !== e.pointerId) return;
+                e.preventDefault(); e.stopPropagation();
+                const host = containerRef.current, chart = chartRef.current, series = candleRef.current;
+                if (!host || !chart || !series) return;
+                const rect = host.getBoundingClientRect();
+                let axis = 60, bottom = host.clientHeight;
+                try { axis = chart.priceScale("right").width(); bottom = (chart as any).paneSize?.(0)?.height ?? bottom; } catch { /* current plot bounds */ }
+                const center = constrainWeatherLens(e.clientX - rect.left - grab.dx, e.clientY - rect.top - grab.dy, grab.rx, grab.ry, host.clientWidth - axis, bottom, 64);
+                const logical = chart.timeScale().coordinateToLogical(center.x);
+                const price = series.coordinateToPrice(center.y);
+                if (logical == null || price == null) return;
+                weatherApertureRef.current = { logical: +logical, price: +price, rx: grab.rx, ry: grab.ry };
+                setWeatherDetached(true);
+              }}
+              onPointerUp={e => {
+                e.stopPropagation();
+                weatherGrabRef.current = null;
+                if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+                e.currentTarget.style.cursor = "grab";
+              }}
+              onPointerCancel={e => { e.stopPropagation(); weatherGrabRef.current = null; e.currentTarget.style.cursor = "grab"; }}
+              onLostPointerCapture={() => { weatherGrabRef.current = null; }}
+              onClick={e => e.stopPropagation()}
+              onDoubleClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); }}
+              onKeyDown={e => {
+                if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+                e.preventDefault(); e.stopPropagation();
+                const hit = weatherLensHitRef.current, chart = chartRef.current, series = candleRef.current;
+                if (!hit || !chart || !series) return;
+                const logical = chart.timeScale().coordinateToLogical(hit.cx + (e.key === "ArrowRight" ? 12 : e.key === "ArrowLeft" ? -12 : 0));
+                const price = series.coordinateToPrice(hit.cy + (e.key === "ArrowDown" ? 12 : e.key === "ArrowUp" ? -12 : 0));
+                if (logical != null && price != null) { weatherApertureRef.current = { logical: +logical, price: +price, rx: hit.rx, ry: hit.ry }; setWeatherDetached(true); }
+              }}
+            >DRAG LENS</button>
+            {weatherDetached && <button type="button" className="hidden lg:block" data-weather-lens-control="live" data-testid="weather-lens-live" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); }} style={{ position: "absolute", right: 76, bottom: 42, zIndex: 22, color: "#d8cfb8", background: "#17140e", border: "1px solid #9e8245", borderRadius: 10, fontSize: 10, padding: "4px 9px" }}>Return lens to live</button>}
+          </>
+        )}
         <canvas
           ref={canvasRef}
           className="absolute top-0 left-0 pointer-events-none"

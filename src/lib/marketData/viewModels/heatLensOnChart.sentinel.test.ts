@@ -55,7 +55,7 @@ describe("P-601 heat on the candles — the regulator travels with the cell", ()
     expect(SOURCE).toContain(
       'import { heatRampColor, selectHeatLens } from "@/lib/marketData/viewModels/selectHeatLens"',
     );
-    expect(heatBlock()).toContain("selectHeatLens(liquidityWeatherRef.current)");
+    expect(heatBlock()).toContain("selectHeatLens(sampledWeather)");
   });
 
   it("paints at the cell's own opacity, capped by the published regulator", () => {

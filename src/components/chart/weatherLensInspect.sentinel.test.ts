@@ -23,7 +23,16 @@ describe("the weather lens is selectable and inspectable", () => {
     expect(SEL).toContain('readonly kind: "WEATHER";');
     expect(CD).toContain('selection: { kind: "WEATHER", symbol, timeframe }');
     expect(CD).toContain('if (!liquidityWeatherOn) actOnChartSelection({ type: "clear", kinds: ["WEATHER"] });');
-    expect(CD).toContain("weatherLens={activeSelectedWeather ? chartLiquidityWeather : null}");
+    expect(CD).toContain("weatherLens={activeSelectedWeather ? weatherInspectReading : null}");
+  });
+  it("the aperture reading reaches Inspect and resets on scope/off/live changes", () => {
+    expect(CD).toContain("weatherApertureSample, chartLiquidityWeather, symbol, timeframe, liquidityWeatherOn");
+    expect(CD).toContain("setWeatherApertureSample(null); }, [symbol, timeframe, liquidityWeatherOn]");
+    expect(CD).toContain("onWeatherApertureRead={vm => setWeatherApertureSample(vm ? { symbol, timeframe, vm } : null)}");
+    expect(MC).toContain("const inspectSample = aperture && layerOnRef.current.weather ? sampledWeather : null;");
+    expect(MC).toContain("weatherApertureReadRef.current?.(inspectSample)");
+    expect(MC).toContain("[symbol, timeframe, liquidityWeatherOnChart]");
+    expect(MC).toContain('data-testid="weather-lens-live"');
   });
   it("Inspect answers what / where / evidence / class / fidelity / lineage from the one reading", () => {
     for (const w of ["LIQUIDITY WEATHER ·", "What ·", "Where ·", "Evidence ·", "Class ·", "Fidelity ·", "Lineage ·"]) expect(IT).toContain(w);

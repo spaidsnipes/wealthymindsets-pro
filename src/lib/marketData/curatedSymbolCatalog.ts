@@ -46,18 +46,19 @@ export interface CuratedSymbol {
   readonly label: string;
   readonly cat: string;
   readonly aliases?: readonly string[];
+  readonly exchange?: string;
 }
 
 const RAW_CURATED_SYMBOLS = [
   // ── Futures ──────────────────────────────────────────────
-  { sym:"NQ1!",  label:"Nasdaq-100 Futures",        cat:"Futures", aliases:["nasdaq","nq","tech futures","mnq"] },
-  { sym:"ES1!",  label:"S&P 500 Futures",           cat:"Futures", aliases:["sp500","es","spy futures","mes"] },
-  { sym:"RTY1!", label:"Russell 2000 Futures",      cat:"Futures", aliases:["rty","russell","m2k"] },
-  { sym:"YM1!",  label:"Dow Jones Futures",         cat:"Futures", aliases:["ym","dow","us30 futures","mym"] },
-  { sym:"GC1!",  label:"Gold Futures",              cat:"Futures", aliases:["gold","xauusd","xau","spot gold","mgc"] },
-  { sym:"CL1!",  label:"Crude Oil WTI Futures",     cat:"Futures", aliases:["oil","crude","wti","mcl"] },
-  { sym:"SI1!",  label:"Silver Futures",            cat:"Futures", aliases:["silver","xagusd","xag","spot silver","sil"] },
-  { sym:"HG1!",  label:"Copper Futures",            cat:"Futures", aliases:["copper"] },
+  { sym:"NQ1!",  label:"Nasdaq-100 Futures",        cat:"Futures", aliases:["nq","nasdaq futures","nasdaq-100 futures","tech futures"] },
+  { sym:"ES1!",  label:"S&P 500 Futures",           cat:"Futures", aliases:["es","sp500 futures","s&p 500 futures","spy futures"] },
+  { sym:"RTY1!", label:"Russell 2000 Futures",      cat:"Futures", aliases:["rty","russell futures"] },
+  { sym:"YM1!",  label:"Dow Jones Futures",         cat:"Futures", aliases:["ym","dow futures","us30 futures"] },
+  { sym:"GC1!",  label:"Gold Futures",              cat:"Futures", aliases:["gold","gc","gold futures"] },
+  { sym:"CL1!",  label:"Crude Oil WTI Futures",     cat:"Futures", aliases:["oil","cl","crude","wti"] },
+  { sym:"SI1!",  label:"Silver Futures",            cat:"Futures", aliases:["silver","si","silver futures"] },
+  { sym:"HG1!",  label:"Copper Futures",            cat:"Futures", aliases:["copper","hg"] },
   { sym:"PL1!",  label:"Platinum Futures",          cat:"Futures", aliases:["platinum","xptusd"] },
   { sym:"PA1!",  label:"Palladium Futures",         cat:"Futures", aliases:["palladium","xpdusd"] },
   { sym:"ZB1!",  label:"30-Year T-Bond Futures",    cat:"Futures", aliases:["bonds","treasury","zb","30 year","30-year","30yr"] },
@@ -75,6 +76,15 @@ const RAW_CURATED_SYMBOLS = [
   // index has its own row below, and "vix" searches find it, not this one.
   { sym:"VX1!",  label:"VIX Futures",               cat:"Futures", aliases:["vx","vix futures"] },
   { sym:"^VIX",  label:"CBOE Volatility Index",     cat:"Index",   aliases:["vix","volatility","fear"] },
+  { sym:"SPX", label:"S&P 500 Index", cat:"Index", aliases:["s&p 500","sp500","s&p"], exchange:"S&P DJI" },
+  { sym:"NDX", label:"Nasdaq-100 Index", cat:"Index", aliases:["nasdaq","nasdaq 100"], exchange:"NASDAQ" },
+  { sym:"DJI", label:"Dow Jones Industrial Average", cat:"Index", aliases:["dow","dow jones","djia"], exchange:"S&P DJI" },
+  { sym:"MNQ1!", label:"Micro E-mini Nasdaq-100 Futures", cat:"Futures", aliases:["mnq"], exchange:"CME" },
+  { sym:"MES1!", label:"Micro E-mini S&P 500 Futures", cat:"Futures", aliases:["mes"], exchange:"CME" },
+  { sym:"M2K1!", label:"Micro E-mini Russell 2000 Futures", cat:"Futures", aliases:["m2k"], exchange:"CME" },
+  { sym:"MYM1!", label:"Micro E-mini Dow Futures", cat:"Futures", aliases:["mym"], exchange:"CME" },
+  { sym:"MGC1!", label:"Micro Gold Futures", cat:"Futures", aliases:["mgc"], exchange:"COMEX" },
+  { sym:"MCL1!", label:"Micro WTI Crude Oil Futures", cat:"Futures", aliases:["mcl"], exchange:"NYMEX" },
   // World indices (serving universal search, 2026-09-30: "DAX" ranked a DAX
   // ETF and a volatility index above the DAX itself). Each opens as a chart.
   { sym:"^GDAXI", label:"DAX Performance Index",    cat:"Index",   aliases:["dax","germany","dax 40"] },
@@ -88,15 +98,15 @@ const RAW_CURATED_SYMBOLS = [
   { sym:"ZS1!",  label:"Soybean Futures",           cat:"Futures", aliases:["soybeans","soybean","soy","zs"] },
   { sym:"ZW1!",  label:"Wheat Futures",             cat:"Futures", aliases:["wheat","zw"] },
   // ── Forex / FX ───────────────────────────────────────────
-  { sym:"EURUSD", label:"Euro / US Dollar",         cat:"Forex", aliases:["euro dollar","6e","eur"] },
+  { sym:"EURUSD", label:"Euro / US Dollar",         cat:"Forex", aliases:["euro dollar","eur"] },
   { sym:"GBPUSD", label:"British Pound / USD",      cat:"Forex", aliases:["cable","pound","gbp","sterling"] },
   { sym:"USDJPY", label:"US Dollar / Japanese Yen", cat:"Forex", aliases:["dollar yen","jpy","yen"] },
   // Spot XAUUSD / XAGUSD are not listed: no spot-metal feed is connected, so
   // opening them is refused (yahooSymbol SPOT_METALS). Their words point at the
   // futures WM charts (2026-09-28).
-  { sym:"US30",   label:"Dow Jones Index (Cash)",   cat:"Forex", aliases:["dow","dji","dow jones","us30","ym"] },
-  { sym:"US500",  label:"S&P 500 Index (Cash)",     cat:"Forex", aliases:["sp500","spx","s&p","us500"] },
-  { sym:"US100",  label:"Nasdaq 100 Index (Cash)",  cat:"Forex", aliases:["nasdaq","ndx","us100","nq"] },
+  { sym:"US30",   label:"Dow Jones Index (Cash)",   cat:"Forex", aliases:["us30"] },
+  { sym:"US500",  label:"S&P 500 Index (Cash)",     cat:"Forex", aliases:["us500"] },
+  { sym:"US100",  label:"Nasdaq 100 Index (Cash)",  cat:"Forex", aliases:["us100"] },
   { sym:"USDCAD", label:"US Dollar / Canadian Dollar",  cat:"Forex", aliases:["loonie","cad","usdcad"] },
   { sym:"AUDUSD", label:"Australian Dollar / USD",  cat:"Forex", aliases:["aussie","aud","audusd"] },
   { sym:"NZDUSD", label:"New Zealand Dollar / USD", cat:"Forex", aliases:["kiwi","nzd"] },

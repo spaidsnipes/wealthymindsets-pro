@@ -1,6 +1,7 @@
 "use client";
 
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
+import { weatherInspectReading as selectWeatherInspectReading } from "@/lib/chart/weatherLensDrag";
 import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsStore";
 
 import {
@@ -319,7 +320,7 @@ import { cboeSymbolFor, type CboeOptionsReceipt } from "@/lib/marketData/cboeDel
 import { deribitCurrencyFor, dvolFrom, normalizeDeribitOptions } from "@/lib/marketData/deribitOptions";
 import { ANATOMY_MODES, readAnatomyMode, writeAnatomyMode, type AnatomyMode } from "@/lib/chart/anatomyMode";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
-import { selectLiquidityWeatherFromBars } from "@/lib/marketData/viewModels/selectLiquidityWeather";
+import { selectLiquidityWeatherFromBars, type LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { selectDerivativesPressure, WALL_TEST_WINDOW_DAYS, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import selectDeltaLevelsGlass from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import selectLivingProfileGlass from "@/lib/marketData/viewModels/selectLivingProfileGlass";
@@ -1364,6 +1365,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     const fromBars = selectLiquidityWeatherFromBars(bars);
     return fromBars.stage === "UNMEASURED" ? tape : fromBars;
   }, [chartOrderFlowReadings.liquidityWeather, valueCandleBarSec, volumeBars]);
+  const [weatherApertureSample, setWeatherApertureSample] = useState<{ symbol: string; timeframe: string; vm: LiquidityWeatherVM } | null>(null);
+  useEffect(() => { setWeatherApertureSample(null); }, [symbol, timeframe, liquidityWeatherOn]);
+  const weatherInspectReading = selectWeatherInspectReading(
+    weatherApertureSample, chartLiquidityWeather, symbol, timeframe, liquidityWeatherOn,
+  );
   // The hook clears ticker state after a symbol transition. Retain the symbol
   // that actually owns the current render's ticker until that clear lands, so
   // the next Options request can never inherit the prior underlying's spot.
@@ -6259,6 +6265,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       pressureFrontSelected={activeSelectedFront != null}
                       onSelectWeather={() => actOnChartSelection({ type: "select", selection: { kind: "WEATHER", symbol, timeframe } })}
                       weatherSelected={activeSelectedWeather != null}
+                      onWeatherApertureRead={vm => setWeatherApertureSample(vm ? { symbol, timeframe, vm } : null)}
                       liquidityLifecycle={chartLiquidityLifecycle}
                       riskReceipt={riskReceipt}
                       onRiskOnPrice={onRiskOnPrice}
@@ -6328,7 +6335,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         mtfAncestry={mtfAncestryOn ? mtfAncestryVM : null}
                         pressureWall={activeSelectedWall && derivativesPressureVM ? { strike: activeSelectedWall.strike, vm: derivativesPressureVM } : null}
                         pressureFront={activeSelectedFront && derivativesPressureVM ? derivativesPressureVM : null}
-                        weatherLens={activeSelectedWeather ? chartLiquidityWeather : null}
+                        weatherLens={activeSelectedWeather ? weatherInspectReading : null}
                         priceDp={chartDisplayDp}
                         fusion={fusion.fused}
                         profileDna={profileDnaOn ? profileDnaVM : null}

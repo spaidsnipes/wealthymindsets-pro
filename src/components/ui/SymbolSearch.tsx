@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Search, X } from "lucide-react";
-import { CURATED_SYMBOLS, matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
+import { CURATED_SYMBOLS } from "@/lib/marketData/curatedSymbolCatalog";
+import { useInstrumentSearch } from "@/hooks/useInstrumentSearch";
+import { instrumentSearchSelection } from "@/lib/marketData/instrumentSearch";
 
 /**
  * The shortlist is NOT declared here any more. It is owned by
@@ -30,77 +32,11 @@ interface Props {
 export function SymbolSearch({ value, onChange, placeholder = "Search symbol…", className = "" }: Props) {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
-  const [liveResults, setLiveResults] = useState<{ sym: string; label: string; cat: string }[]>([]);
-  const [searching, setSearching] = useState(false);
-  /**
-   * Why the LIVE half of this dropdown is empty, when it is empty for a reason
-   * other than "no such ticker".
-   *
-   * `doSearch` used to `catch { /* ignore *\/ }` and read `json.results ?? []`,
-   * so a route that had answered 503 with the exact missing variable named
-   * rendered as "No results for ..." — a sentence about the MARKET, produced by
-   * a failure in this app. The trader's next move after those two messages is
-   * different, so they may not look the same.
-   */
-  const [liveFailure, setLiveFailure] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-
-  // Keep query in sync when value changes externally
+  const { results, searching, failure: liveFailure } = useInstrumentSearch(query);
+  const allResults = query.trim() ? results : LOCAL_SYMBOLS.slice(0, 8);
   useEffect(() => { setQuery(value); }, [value]);
-
-  // Local filter — matches symbol, label, and aliases
-  const q = query.toLowerCase().replace(/[/\-_\s]/g, "");
-  // Matching is the catalog owner's job too: two surfaces that rank the same
-  // query differently are still two answers to one question.
-  const localMatches = query.length >= 1
-    ? matchCuratedSymbols(query, 10)
-    : LOCAL_SYMBOLS.slice(0, 8);
-
-  // Dedupe live results against local
-  const localSymSet = new Set(localMatches.map(s => s.sym));
-  const allResults = [
-    ...localMatches,
-    ...liveResults.filter(r => !localSymSet.has(r.sym)),
-  ].slice(0, 14);
-
-  // Debounced Polygon search
-  const doSearch = useCallback((q: string) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (q.length < 1) { setLiveResults([]); setLiveFailure(null); setSearching(false); return; }
-    setSearching(true);
-    timerRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/symbol-search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
-        const json = await res.json() as {
-          results?: { sym: string; label: string; cat: string }[];
-          error?: string;
-        };
-        if (json.error) {
-          setLiveResults([]);
-          setLiveFailure(json.error);
-          return;
-        }
-        const hits = (json.results ?? []).slice(0, 8).map((r) => ({
-          sym: r.sym,
-          label: r.label,
-          cat: r.cat,
-        }));
-        setLiveResults(hits);
-        setLiveFailure(null);
-      } catch (err) {
-        setLiveResults([]);
-        setLiveFailure(`Symbol search could not be reached (${String(err)}). Local symbols are still listed.`);
-      }
-      finally { setSearching(false); }
-    }, 300);
-  }, []);
-
-  const handleInput = (q: string) => {
-    setQuery(q);
-    setOpen(true);
-    doSearch(q);
-  };
+  const handleInput = (q: string) => { setQuery(q); setOpen(true); };
 
   const pick = (sym: string) => {
     setQuery(sym);
@@ -126,7 +62,10 @@ export function SymbolSearch({ value, onChange, placeholder = "Search symbol…"
           onChange={e => handleInput(e.target.value)}
           onFocus={() => setOpen(true)}
           onKeyDown={e => {
-            if (e.key === "Enter" && query) pick(query.toUpperCase());
+            if (e.key === "Enter") {
+              const target = instrumentSearchSelection(query, allResults);
+              if (target) pick(target);
+            }
             if (e.key === "Escape") setOpen(false);
           }}
           placeholder={placeholder}
@@ -135,7 +74,7 @@ export function SymbolSearch({ value, onChange, placeholder = "Search symbol…"
         />
         {searching && <div className="w-3 h-3 rounded-full border-2 border-wm-blue border-t-transparent animate-spin shrink-0" />}
         {query && !searching && (
-          <button onClick={() => { setQuery(""); setLiveResults([]); onChange(""); }} className="text-wm-text-dim hover:text-wm-text">
+          <button onClick={() => { setQuery(""); onChange(""); }} className="text-wm-text-dim hover:text-wm-text">
             <X size={11} />
           </button>
         )}
@@ -154,7 +93,7 @@ export function SymbolSearch({ value, onChange, placeholder = "Search symbol…"
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold text-wm-text">{s.sym}</div>
-                <div className="text-[9px] text-wm-text-dim truncate">{s.label}</div>
+                <div className="text-[9px] text-wm-text-dim truncate">{s.label}{s.exchange ? ` · ${s.exchange}` : ""}</div>
               </div>
               <span className={`text-[9px] font-semibold shrink-0 ${CAT_COLOR[s.cat] ?? "text-wm-text-muted"}`}>
                 {s.cat}

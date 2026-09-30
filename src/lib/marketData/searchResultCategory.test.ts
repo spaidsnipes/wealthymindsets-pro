@@ -162,7 +162,8 @@ describe("the picker does not turn an app failure into a claim about the market"
     expect(picker, "an empty catch here re-buries the reason").not.toMatch(
       /catch\s*\{\s*\/\*\s*ignore\s*\*\/\s*\}/,
     );
-    expect(picker).toMatch(/setLiveFailure/);
+    expect(picker).toMatch(/failure: liveFailure/);
+    expect(picker).toMatch(/useInstrumentSearch\(query\)/);
   });
 
   it("says WHICH sentence it is saying", () => {
