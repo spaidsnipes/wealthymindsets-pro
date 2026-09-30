@@ -8515,7 +8515,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (pathPts === 0) ctx.moveTo(xp, +yp); else ctx.lineTo(xp, +yp);
               pathPts++;
             }
-            ctx.strokeStyle = "rgba(237,230,211,0.72)"; ctx.lineWidth = 1; ctx.lineJoin = "round";
+            // Over the live bar's footprint cells the path steps back like the
+            // dots do, so the rows' numbers read (serving ETH-USD 1m NEAR,
+            // 2026-09-30: the path zigzagged across "2.3×5.8").
+            const pathOnCells = fpCells.some(q => liveN.cx >= q.x && liveN.cx <= q.x + q.w);
+            ctx.strokeStyle = `rgba(237,230,211,${pathOnCells ? 0.3 : 0.72})`; ctx.lineWidth = 1; ctx.lineJoin = "round";
             if (pathPts > 1) ctx.stroke(); else pathPts = 0;
           }
 
@@ -9775,10 +9779,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const buy = lv.ask >= lv.bid;
             const rgbB = buy ? inksB.btBuy : inksB.btSell;
             ctx.fillStyle = `rgba(${rgbB},0.95)`;
-            ctx.fillRect(x - w / 2 - 5, +yb - 1, w + 10, 2);
+            // Beside the body, never across it — the forming candle is the
+            // face (serving ETH-USD 1m NEAR, 2026-09-30: three sell bars ran
+            // straight through the live body and its footprint cells).
+            ctx.fillRect(x - w / 2 - 8, +yb - 1, 6, 2);
+            ctx.fillRect(x + w / 2 + 2, +yb - 1, 6, 2);
             ctx.strokeStyle = `rgba(${rgbB},0.7)`;
             ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.arc(x + w / 2 + 8, +yb, 3, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(x + w / 2 + 11, +yb, 3, 0, Math.PI * 2); ctx.stroke();
           }
           const recent = prints.filter(q => q.t >= t1 - 3000).length / 3;
           // The baseline covers only the span the ring still holds: once the
