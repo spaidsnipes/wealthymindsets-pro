@@ -153,6 +153,33 @@ Deltas remaining: Session / Fixed / Composite share one grey histogram body (tol
 
 Founder decisions surfaced (not decided): crypto session split — Composite / Memory / Expected Envelope read "no completed session" on 24/7 crypto (§LXXVIII).
 
+## 3e. Browser shift (2026-09-30 11:13 CDT →), START `9837d27`
+
+All work found in the browser on serving `/charts` (own tab, proof scenes; Founder settings untouched — `wm_absorptionAnatomy` "false", `wm_last_symbol` is the Founder's own MNQ1!).
+
+| Item | Commit | Status | Evidence (serving) |
+|---|---|---|---|
+| Gap words out of profile columns | `87a5afc` | PROVED | TSLA 15m Session+Fixed+Composite: "NO BAR · 1 interval" no longer on the Fixed body (worded 4, withheld 8) |
+| Session VP wears a contour | `10efdd3` | PROVED | 5× magnifier: Session (POC 350.24) silhouette traced, Fixed solid; `vpSessionContour 324` |
+| Data window clear of docked Tools cards | `6d72b88` `c374726` | PROVED | MARKET REALITY docked: data window below the card, heading "15M BAR · SEP 22, 08:15" readable (was under the card) |
+| Heat preview says where the ranking is | `2904541` | PROVED | "…open the drawer for today's ranking… · 107 markets on the board" |
+| Flow current streaks stay lines | `6159495` | PROVED | BTC 5m: two distinct red streaks with heads (was a soft blob over the forming candle) |
+| Search: grains, 10 YEAR, world indices | `2302863` `38e01ce` | PROVED | CORN→ZC1! first and opens (502, −4.3%); WHEAT→ZW1!; DAX→^GDAXI (opens 25199); SILVER/NATURAL GAS/EURO/DOGECOIN/S&P/DOW/VIX/NIKKEI/HANG SENG/FTSE first-hit correct |
+| Gap words out of the live candle's column | `6fa44cd` | BUILT | words land ≥1.5 bars left of the newest bar or wait |
+| EURUSD: VP notice leaves the header | `eaaab37` | PROVED | notice at y 173 below INSPECT (was over "BAR OPENED · FORMING") |
+| Composite / Living name why they cannot draw | `eaaab37` `1de62a5` | PROVED | EURUSD: "COMPOSITE PROFILE · UNAVAILABLE ON THIS FEED · NO TRADED VOLUME", "LIVING PROFILE · UNAVAILABLE ON THIS FEED · NO VOLUME DISTRIBUTED ACROSS PRICE"; DNA "READS THE LIVING PROFILE, WHICH CANNOT DRAW HERE"; BTC: "COMPOSITE PROFILE · NO CURRENT EVENT · NO COMPLETED SESSION IN VIEW" |
+| Bottom-left rows share one stack | `6513c96` | PROVED | MTF (571) and CONTRADICTION (557) on their own rows (both were at H−100, overprinted) |
+| EFFORT UNMEASURED leaves the legend | `6513c96` | PROVED | now beside D at (38,44) (was (8,16) under "EURUSD 15m") |
+| Daily shelf label out of the word band | `a57532e` | PROVED | "DAILY SHELF · PDL" right-aligned at the edge (ran across the ORDER FLOW row) |
+| Left column clear of the open room rail | `5cbc70b` `e50c06e` | PROVED | Workspace open: silence rows at x≈225, D toggle beside the rail, Review camera FOUNDATION VIEW card fully readable (left half was under the rail); scaffolding line "NOT MEASURED ON THIS FEED" (said "SWITCH ON ABSORPTION" while it was on) |
+| Tools doors click→manifest | — | PROVED | Market reality, Passport, Decision chain, Personal edge, Heat (drawer ranks 105/107), Chart tools, WM Smart Money Tools ("ALL 9 AVAILABLE" with live tape); Rooms, Community, Command Deck open |
+| Cameras | — | PROVED | Regime / Review / Order Flow each paint their arrangement; `wm_of*` keys unchanged (proof latch) |
+| Performance | — | PROVED | all-on EURUSD mean 16.2 ms / longest 26.7 MET; all-on AAPL 11.5 MET after warm-up; SPX 15.5; 0 layer faults everywhere |
+
+Checked, not defects: NQ "2 BARS BEHIND" / CHART INTEGRITY · WOUNDED (delayed CME feed, honest); TPO POC 1.1625 on EURUSD (built from ~2,963 loaded bars, off camera); Webull BTC bid/ask spread ≈2% (Webull's own snapshot agrees); DAX "1 BAR BEHIND" after Xetra close (no proven session clock — honest).
+
+Deltas remaining: EFFORT reading-anchor chip (DOM, other component) still sits under an open rail; MTF shelf "D" tag can land at the left edge in the word band; /journal wears a different top rail (MARKET · ROOMS · COMMUNITY · JOURNAL) — the five-door rail order is scoped to /charts; grains' CBOT point values pinned as uncovered (not typed from memory).
+
 ## 4. Known limits of this board
 
 - G7: sub-layers INSIDE one top-level layer share that layer's isolation (e.g. a fault in one profile species inside WEATHER_PROFILES_MEMORY ends that region for the frame, named).
