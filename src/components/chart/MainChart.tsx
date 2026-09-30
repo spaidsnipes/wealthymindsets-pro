@@ -15561,10 +15561,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const ty = Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotM - TAG_H - 2, yMid - TAG_H / 2));
             const pref = { x: plotRightM - TAG_W - 6, y: ty, w: TAG_W, h: TAG_H };
             const alt = { x: Math.max(keepOutMinX(), xStart + 4), y: ty, w: TAG_W, h: TAG_H };
+            // The left alternate is refused inside the bottom-left word band:
+            // those rows paint later and cannot see a tag (serving EURUSD 15m,
+            // 2026-09-30: the shelf's "D" tag sat on "PROFILE MEMORY").
+            const altInWordBand = ty + TAG_H > silenceRowY - 14 * 7;
             const spot = placeClearOfKeepOut(
               pref,
               [...keepOut(), ...rowBodiesAt(ty, ty + TAG_H)],
-              { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [alt] },
+              { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: altInWordBand ? [] : [alt] },
             );
             recordKeepOut(keepOutLedger, spot);
             const { x: tx, y: tyy } = spot.rect;
