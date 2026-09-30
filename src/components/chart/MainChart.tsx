@@ -6513,6 +6513,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // later one steps up a row.
       let silenceRowY = H - 114;
       const takeSilenceRow = (): number => { const y = silenceRowY; silenceRowY -= 14; return y; };
+      // THE ROOM'S LEFT RAIL COVERS THE GLASS (serving TSLA 15m, 2026-09-30:
+      // with Workspace open, the Review camera's anatomy card and every
+      // bottom-left silence line sat under the 264px rail, which overlays the
+      // chart without resizing it). Measured once per frame; left-column words
+      // start right of it, and every keep-out placer's minimum x follows.
+      const railOcclusionX = (() => {
+        try {
+          const rail = document.querySelector('[data-testid="os-rail"]');
+          if (!rail) return 0;
+          const rr = rail.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
+          if (!(rr.width > 0) || !(rr.height > 0) || rr.right <= cr.left) return 0;
+          return Math.max(0, Math.round(rr.right - cr.left));
+        } catch { return 0; }
+      })();
+      const silenceX = Math.max(12, railOcclusionX + 12);
       // UI-02 × H-701 · ONE ENCODING OF VALUE PER BAR. The Value Candle block
       // (later this frame) records each bar it painted glass on here; the
       // NEAR value hatch is queued, and painted after it only on bars the
@@ -10187,7 +10202,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // time-bounded ladders and F08B draws weather as a lens, and their
       // honesty statements travel as receipts and one compact tag.)
       // A slid label never lands in the column an active Question Lens owns.
-      const keepOutMinX = () => (lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 4);
+      const keepOutMinX = () => Math.max(lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 4, railOcclusionX + 4);
       // Every candle body in view, once per frame, for a label that prints on
       // a row of history (the profile stack's one label column sits left of
       // the Living body, over older candles). Filtered per row by the caller.
@@ -12956,8 +12971,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
           const rowY = takeSilenceRow();
-          ctx.fillText(quiet, 12, rowY);
-          floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+          ctx.fillText(quiet, silenceX, rowY);
+          floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
           ctx.restore();
           canvas.dataset.dualAnatomySilence = "NO_EVENT";
         } else delete canvas.dataset.dualAnatomySilence;
@@ -13785,8 +13800,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
           const rowY = takeSilenceRow();
-          ctx.fillText(quiet, 12, rowY);
-          floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+          ctx.fillText(quiet, silenceX, rowY);
+          floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
           ctx.restore();
         }
         // F08B "WEATHER IS A LENS" (2026-09-25). The stage, the engine's
@@ -15442,8 +15457,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
               const rowY = takeSilenceRow();
-              ctx.fillText(words, 12, rowY);
-              floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(words).width, h: 14 });
+              ctx.fillText(words, silenceX, rowY);
+              floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(words).width, h: 14 });
               ctx.restore();
             }
             ds.derivativesPressurePainted = painted.join("|") || "NONE";
@@ -15703,8 +15718,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // 2026-09-30: MTF and CONTRADICTION were both hard-coded at H - 100
             // and printed over each other).
             const mtfRowY = takeSilenceRow();
-            ctx.fillText(words, 12, mtfRowY);
-            floatingChips.push({ x: 12, y: mtfRowY - 7, w: ctx.measureText(words).width, h: 14 });
+            ctx.fillText(words, silenceX, mtfRowY);
+            floatingChips.push({ x: silenceX, y: mtfRowY - 7, w: ctx.measureText(words).width, h: 14 });
             ctx.restore();
           }
           ds.mtfAncestryPainted = painted.join("|") || "NONE";
@@ -15931,9 +15946,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // One row of the shared silence stack (it shared H - 100 with MTF).
               ctx.textBaseline = "middle";
               const cvRowY = takeSilenceRow();
-              ctx.fillText(t, 12, cvRowY);
+              ctx.fillText(t, silenceX, cvRowY);
               // A chip, so TPO letters painted later yield to these words.
-              floatingChips.push({ x: 12, y: cvRowY - 7, w: ctx.measureText(t).width, h: 14 });
+              floatingChips.push({ x: silenceX, y: cvRowY - 7, w: ctx.measureText(t).width, h: 14 });
             }
             ds.contradictionPlaced = placed;
             ctx.restore();
@@ -16867,8 +16882,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
               const rowL = takeSilenceRow();
-              ctx.fillText(quietL, 12, rowL);
-              floatingChips.push({ x: 12, y: rowL - 7, w: ctx.measureText(quietL).width, h: 14 });
+              ctx.fillText(quietL, silenceX, rowL);
+              floatingChips.push({ x: silenceX, y: rowL - 7, w: ctx.measureText(quietL).width, h: 14 });
               ctx.restore();
             }
             if (layerOnRef.current.profileDna) {
@@ -16880,8 +16895,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
               const rowY = takeSilenceRow();
-              ctx.fillText(quiet, 12, rowY);
-              floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+              ctx.fillText(quiet, silenceX, rowY);
+              floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
               ctx.restore();
             }
           }
@@ -17052,8 +17067,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
               const rowY = takeSilenceRow();
-              ctx.fillText(quiet, 12, rowY);
-              floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+              ctx.fillText(quiet, silenceX, rowY);
+              floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
               ctx.restore();
             }
           }
@@ -18000,8 +18015,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
             const rowY = takeSilenceRow();
-            ctx.fillText(quiet, 12, rowY);
-            floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+            ctx.fillText(quiet, silenceX, rowY);
+            floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
             ctx.restore();
           }
           if (on && mem?.drawn) {
@@ -20379,9 +20394,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
             const rowY = takeSilenceRow();
-            ctx.fillText(silentR, 12, rowY);
+            ctx.fillText(silentR, silenceX, rowY);
             // A chip, so later words step around it.
-            floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(silentR).width, h: 14 });
+            floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(silentR).width, h: 14 });
             ctx.restore();
             ds.riskOnPriceSilence = rv.reason;
           }
@@ -20514,8 +20529,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
           const rowY = takeSilenceRow();
-          ctx.fillText(quiet, 12, rowY);
-          floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+          ctx.fillText(quiet, silenceX, rowY);
+          floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
           ctx.restore();
           ds.orderFlowQuiet = `W:${waiting.length}|N:${noEvent.length}`;
         } else delete ds.orderFlowQuiet;
