@@ -15026,7 +15026,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                       continue;
                     }
                     if (broken) {
-                      ctx.strokeStyle = `rgba(190,168,120,${0.24 * baseA})`;
+                      // THE SCAR (master order §XXVIII: BROKEN → SCAR must visibly
+                      // transform; serving NVDA 1h magnified, the 24% dashed
+                      // outlines were barely there). A ghost course: a faint
+                      // fired-clay fill, a firmer broken outline, and every third
+                      // brick missing — the wall that was, not the wall that is.
+                      if (r < 0.33) continue;
+                      ctx.fillStyle = `rgba(150,112,64,${0.13 * baseA})`;
+                      ctx.fillRect(bx0 + 1, yb + 1, bw - 2, courseH - 3);
+                      ctx.strokeStyle = `rgba(200,172,120,${0.42 * baseA})`;
                       ctx.setLineDash([2, 3]);
                       ctx.strokeRect(bx0 + 0.5, yb + 0.5, bw - 1, courseH - 2);
                       ctx.setLineDash([]);
