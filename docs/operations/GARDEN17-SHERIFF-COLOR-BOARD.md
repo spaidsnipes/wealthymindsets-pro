@@ -119,9 +119,9 @@ Session 1 START `d8cd30d` → `3b24c39`; session 2 START `3b24c39` → this boar
 | Active candle wins · profile stack | `562e692` | PROVED | Founder's own TSLA 5m stack: `profileQuietedForLiveCandle FIXED_VP,COMPOSITE,VISIBLE_RANGE,STRUCTURE,FUSION,MEMORY` |
 | Activation acknowledgement (§LXIV) | `6f1ecef` | PROVED | Chart tools → Visible Range on: `activationSpotlight visibleRangeProfile` for ~0.5–1.2 s, then cleared |
 | Card erasure (§LXIX) | — | PROVED | NVDA 1h `proof=nolabels`: loupe, walls, Living body, TPO, VRP, pressure bands all read with every word hidden; each lane keeps its organism glyph |
-| Camera silhouette (§XLVII) | — | PROVED (NEAR) / PARTIAL (FAR vs MID) | NEAR drops environment for candle physiology (0.28/0.6/1); FAR and MID differ mainly in density |
+| Camera silhouette (§XLVII) | — | PROVED | FAR (353 bars): candles dimmed, regime envelope + MAJOR HIGH/LOW + wall + pressure, lens/profiles/chips withheld · MID: market objects, lens, profiles · NEAR: environment drops, candle physiology + Living body |
 
-Deltas remaining: Session / Fixed / Composite VP share one grey histogram body (told apart by organism glyph, session rule, brackets, CMP chips) · wall cracks sit under their own test candles (price wins) · FAR vs MID camera differ mainly in density · TPO letter paint uncached · Founder's last-symbol key now TSLA (palette picks leave the proof scene; prior value unknown) · wm_ofVisibleRangeProfile read "true" after a proof-scene toggle (Founder's own stack showed VRP on, so likely unchanged).
+Deltas remaining: Session / Fixed / Composite VP share one grey histogram body (told apart by organism glyph, session rule, brackets, CMP chips) · wall cracks sit under their own test candles (price wins) · TPO letter paint uncached · Founder's last-symbol key now TSLA (palette picks leave the proof scene; prior value unknown) · wm_ofVisibleRangeProfile read "true" after a proof-scene toggle (Founder's own stack showed VRP on, so likely unchanged).
 
 ## 4. Known limits of this board
 
