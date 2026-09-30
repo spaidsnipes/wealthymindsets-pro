@@ -7870,8 +7870,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // Only the membrane breathes; the centre stays on the evidence.
           const t = nowMs / 520 + b.phase;
           const wob = motionOnRef.current ? 1 + Math.sin(t) * BIG_TRADE_BREATH : 1;
-          const Rx = Math.max(0.1, b.r * wob);
-          const Ry = Math.max(0.1, b.r / wob);
+          // MOTION IS EVENT LANGUAGE (master order §L: no generic pulse). The
+          // membrane breathes only while the print is ARRIVING — within three
+          // bars of its execution — then settles; an old print is still.
+          let barSecBT = 60;
+          try { barSecBT = getIntervalSec(timeframe); } catch { /* keep 60 */ }
+          const arriving = btNewest != null && Number(btNewest.time) - b.anchorTime <= 3 * barSecBT;
+          const breath = arriving ? wob : 1;
+          const Rx = Math.max(0.1, b.r * breath);
+          const Ry = Math.max(0.1, b.r / breath);
 
           ctx.save();
           if (formingCut) { ctx.clip(formingCut, "evenodd"); discsYieldedToForming++; }
