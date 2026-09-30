@@ -91,7 +91,7 @@ export function SearchPanel({
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Live Finnhub search results
-  const [liveResults, setLiveResults] = useState<{ sym: string; label: string; cat: string }[]>([]);
+  const [liveResults, setLiveResults] = useState<{ sym: string; label: string; cat: string; exchange?: string }[]>([]);
   const [searching, setSearching] = useState(false);
 
   const [quickSyms, setQuickSyms] = useState<string[]>(() => {
@@ -142,13 +142,13 @@ export function SearchPanel({
     searchTimerRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/symbol-search?q=${encodeURIComponent(asked)}`);
-        const json = await res.json() as { results?: { sym?: string; label?: string; cat?: string }[]; error?: string };
+        const json = await res.json() as { results?: { sym?: string; label?: string; cat?: string; exchange?: string }[]; error?: string };
         if (!res.ok || json.error) { setSearchNote(json.error ? "Live search is unavailable right now — curated markets below still open." : `Live search answered HTTP ${res.status} — curated markets below still open.`); return; }
         const localSymSet = new Set(matchCuratedSymbols(asked, 10).map(s => s.sym));
         setLiveResults((json.results ?? [])
           .filter(r => r.sym && r.label && !localSymSet.has(r.sym))
           .slice(0, 20)
-          .map(r => ({ sym: r.sym!, label: r.label!, cat: r.cat ?? "Stock" })));
+          .map(r => ({ sym: r.sym!, label: r.label!, cat: r.cat ?? "Stock", exchange: r.exchange || undefined })));
         setSearchNote(null);
       } catch { setSearchNote("Live search did not answer — curated markets below still open."); }
       finally { setSearching(false); }
@@ -249,8 +249,10 @@ export function SearchPanel({
                   <div className="text-sm font-bold text-wm-text">{s.sym}</div>
                   <div className="text-[10px] text-wm-text-dim truncate">{s.label}</div>
                 </div>
-                <span className={clsx("text-[10px] font-semibold", CAT_COLOR[s.cat] ?? "text-wm-text-muted")}>
+                {/* Result contract (master order §LVI): class, and the venue where the vendor names one. */}
+                <span className={clsx("text-[10px] font-semibold text-right", CAT_COLOR[s.cat] ?? "text-wm-text-muted")}>
                   {s.cat}
+                  {"exchange" in s && s.exchange ? <span className="block text-[9px] font-normal text-wm-text-dim">{s.exchange}</span> : null}
                 </span>
               </button>
             ))}
