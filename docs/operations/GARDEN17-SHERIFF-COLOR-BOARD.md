@@ -115,9 +115,13 @@ Session 1 START `d8cd30d` → `3b24c39`; session 2 START `3b24c39` → this boar
 | Cross-asset matrix (15 markets × senses) | — | PROVED | every cell a state (DRAWN / NO EVENT / UNSUPPORTED / UNMEASURED), 0 layer faults on all 15 |
 | Symbol switch TSLA→NQ→EURGBP→BTC→TSLA | — | PROVED | own pressure / VRP POC / memory per market; TSLA returns identical |
 | LIVE→STILL→LIVE backflip | — | PROVED | same wall, VRP POC, lens, anatomy, symbol; only storm motion changes |
-| Performance | `0066405` | OPEN | all senses on: mean 42–48 ms > 33 ms budget in a throttled tab; singles: clean 3.5 · pressure 8.6 · weather 14 · profiles 15 (TPO letters +5 ms) |
+| Performance | `0066405` `839ddda` `9ca108a` | PROVED | all senses on (ETH 15m, 21 layers): mean 13.1 ms · longest 16.9 ms · budget 33 ms MET · 0/93 over · 0 faults (was 42–53 ms): per-column storm blend, split storm rebuild, stress governor sheds texture only |
+| Active candle wins · profile stack | `562e692` | PROVED | Founder's own TSLA 5m stack: `profileQuietedForLiveCandle FIXED_VP,COMPOSITE,VISIBLE_RANGE,STRUCTURE,FUSION,MEMORY` |
+| Activation acknowledgement (§LXIV) | `6f1ecef` | PROVED | Chart tools → Visible Range on: `activationSpotlight visibleRangeProfile` for ~0.5–1.2 s, then cleared |
+| Card erasure (§LXIX) | — | PROVED | NVDA 1h `proof=nolabels`: loupe, walls, Living body, TPO, VRP, pressure bands all read with every word hidden; each lane keeps its organism glyph |
+| Camera silhouette (§XLVII) | — | PROVED (NEAR) / PARTIAL (FAR vs MID) | NEAR drops environment for candle physiology (0.28/0.6/1); FAR and MID differ mainly in density |
 
-Deltas remaining: Session / Fixed / Composite VP share one grey silhouette (distinguished only by session rule, brackets, CMP chips) · wall cracks sit under their own test candles · tool-activation focus cue (§LXIV) not built · TPO letter paint uncached · Founder's last-symbol key now TSLA (palette picks leave the proof scene; prior value unknown).
+Deltas remaining: Session / Fixed / Composite VP share one grey histogram body (told apart by organism glyph, session rule, brackets, CMP chips) · wall cracks sit under their own test candles (price wins) · FAR vs MID camera differ mainly in density · TPO letter paint uncached · Founder's last-symbol key now TSLA (palette picks leave the proof scene; prior value unknown) · wm_ofVisibleRangeProfile read "true" after a proof-scene toggle (Founder's own stack showed VRP on, so likely unchanged).
 
 ## 4. Known limits of this board
 
