@@ -15675,7 +15675,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillStyle = "rgba(232,184,64,0.95)";
               ctx.textAlign = "center";
               ctx.textBaseline = "top";
-              if (mtfSpeaks) ctx.fillText(`DAILY SHELF · ${sh.level}`, x1 * 0.4, y + 5);
+              if (mtfSpeaks) {
+                // THE BOTTOM-LEFT WORD STACK IS PAINTED LATER and cannot see
+                // this label (serving EURUSD 15m, 2026-09-30: "DAILY SHELF · RD"
+                // ran across the ORDER FLOW quiet row). A shelf in that band
+                // names itself at the right edge instead.
+                const shelfTxt = `DAILY SHELF · ${sh.level}`;
+                const inWordBand = y + 5 > silenceRowY - 14 * 7 && x1 * 0.4 < 700;
+                if (inWordBand) { ctx.textAlign = "right"; ctx.fillText(shelfTxt, x1 - 16, y + 5); }
+                else ctx.fillText(shelfTxt, x1 * 0.4, y + 5);
+              }
               tag("D", y, "rgba(232,184,64,1)", "rgba(30,24,8,0.9)", 6);
               painted.push(`SHELF:${sh.level}@${sh.price}`);
             }
