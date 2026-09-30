@@ -93,6 +93,32 @@ Status vocabulary: PROVED = seen on serving glass beside the Founder plate · BU
 
 Deltas remaining: F06A plate colour (red/green slabs) needs a measured side — grey is correct without one · stacked-imbalance slabs are sub-pixel on 1-cent tick markets (honest) · F08B storm hue depends on the measured tones (single tone when the tape is one-sided) · one unexplained NEAR→MID/173 camera reset seen once mid-pan in a throttled hidden tab (unverified; harness suspected) · G04/G10/Mockup_46/Mockup_132 are cards/composites/diagrams, not on-glass game builds — not reconstructed.
 
+## 3c. Garden 17 master order — two sessions, 2026-09-29 (17:20–18:00 and 21:00–00:00 CDT)
+
+Session 1 START `d8cd30d` → `3b24c39`; session 2 START `3b24c39` → this board. PROVED = seen on serving glass; BUILT = gate green + serving, not seen.
+
+| Item | Commits | Status | Evidence (serving) |
+|---|---|---|---|
+| Top rail = Workspace · Tools · Command Deck · Rooms · Community | `89dfd2a` | PROVED | DOM plates exactly those five, in that order |
+| WM Smart Money Tools (+ W glyph) inside Tools | `89dfd2a` | PROVED | first entry of the Tools panel; masthead W plate removed |
+| No "N/9 READY" — capability truth | `89dfd2a` | PROVED | Chart tools "ALL 12 AVAILABLE"; rows AVAILABLE / DRAWING / WAITING / UNAVAILABLE ON THIS FEED |
+| No silent nothing (drawer) | `e67e0e6` | BUILT | senseEventStates → "ACTIVE · NO CURRENT EVENT" |
+| No silent nothing (glass) | `5459049` `9d3a524` `4f51f2d` | PROVED | EURGBP: pressure UNSUPPORTED · LIQUIDITY WEATHER · UNAVAILABLE ON CURRENT FEED · FOUNDER ANATOMY · ACTIVE · NO CURRENT … EVENT; DNA / Memory alone now speak |
+| Makeup governor · Living body over price ×0.5 | `f12ae26` | PROVED | `livingProfileBodyGoverned OVER_PRICE:0.5`, candles read through the body |
+| Pressure field clear zone + compound role | `3b24c39` `37e4061` | PROVED | `derivativesPressureClearZone`, `derivativesPressureRole SUPPORTING:5` |
+| Weather storm clear zone | `543847e` | PROVED | `weatherStormClearZone`; smoke thins on the live corridor |
+| Brick walls: one wall per strike | `0f99bae` | PROVED | NVDA 1h: 227.5 BROKEN · 230/232.5 DEFENDED · 235 BORN as four separate walls |
+| Brick walls: damage locality + fracture relief | `91cd7b8` `64cfa05` `e85b06f` | BUILT | cracks at each test's own bar (receipt CRACKS@…); occluded by the test candles themselves — price wins |
+| Universal search: human names | (curated owner) | PROVED | TESLA→TSLA, S&P 500→SPY/ES1!/US500, NASDAQ FUTURES→NQ1!, GOLD→GC1!, OIL→CL1!, EURGBP, GBPJPY, BITCOIN→BTCUSD, ETHEREUM→ETHUSD; ^SPX opens from the palette |
+| Index deep links | `e1095cc` | PROVED | `?symbol=^SPX` opens (was refused) |
+| Result contract: venue | `492f66d` | PROVED | NQ1! "Futures · CME" |
+| Cross-asset matrix (15 markets × senses) | — | PROVED | every cell a state (DRAWN / NO EVENT / UNSUPPORTED / UNMEASURED), 0 layer faults on all 15 |
+| Symbol switch TSLA→NQ→EURGBP→BTC→TSLA | — | PROVED | own pressure / VRP POC / memory per market; TSLA returns identical |
+| LIVE→STILL→LIVE backflip | — | PROVED | same wall, VRP POC, lens, anatomy, symbol; only storm motion changes |
+| Performance | `0066405` | OPEN | all senses on: mean 42–48 ms > 33 ms budget in a throttled tab; singles: clean 3.5 · pressure 8.6 · weather 14 · profiles 15 (TPO letters +5 ms) |
+
+Deltas remaining: Session / Fixed / Composite VP share one grey silhouette (distinguished only by session rule, brackets, CMP chips) · wall cracks sit under their own test candles · tool-activation focus cue (§LXIV) not built · TPO letter paint uncached · Founder's last-symbol key now TSLA (palette picks leave the proof scene; prior value unknown).
+
 ## 4. Known limits of this board
 
 - G7: sub-layers INSIDE one top-level layer share that layer's isolation (e.g. a fault in one profile species inside WEATHER_PROFILES_MEMORY ends that region for the frame, named).
