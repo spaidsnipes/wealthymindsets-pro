@@ -102,6 +102,9 @@ export function renderStormPixels(
   seed: number,
   phase: number,
   toneAt: (u: number) => StormTone,
+  /** Rows [rowFrom, rowTo) only — a rebuild may be split across frames (performance pass 2026-09-29). */
+  rowFrom = 0,
+  rowTo = size,
 ): number {
   let painted = 0;
   const tones: StormTone[] = [];
@@ -126,7 +129,7 @@ export function renderStormPixels(
     }
     tints.push(w > 0 ? [r / w, g / w, b / w] : null);
   }
-  for (let py = 0; py < size; py++) {
+  for (let py = Math.max(0, rowFrom); py < Math.min(size, rowTo); py++) {
     const v = (py + 0.5) / size;
     for (let px = 0; px < size; px++) {
       const u = (px + 0.5) / size;

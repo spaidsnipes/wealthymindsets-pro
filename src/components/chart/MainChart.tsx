@@ -1997,6 +1997,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const heatLayerRef = useRef<HTMLCanvasElement | null>(null);
   /** F08B storm texture cache (weatherStorm.ts) — rebuilt only when its key changes; STILL holds the frozen phase. */
   const stormCacheRef = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
+  /** A storm rebuild in progress: half the rows per frame, swapped in when whole (performance pass). */
+  const stormBuildRef = useRef<{ key: string; img: ImageData; nextRow: number } | null>(null);
   const stormPhaseRef = useRef<{ phase: number; at: number }>({ phase: 0, at: 0 });
   /** The pressure field's ember-streak sprite (drawn once). */
   const emberSpriteRef = useRef<HTMLCanvasElement | null>(null);
@@ -18947,26 +18949,43 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             let stormPx = 0;
             if (!cache || cache.key !== key) {
               const S = STORM_TEXTURE_SIZE;
-              const sc = cache?.canvas ?? document.createElement("canvas");
-              sc.width = S; sc.height = S;
-              const sctx = sc.getContext("2d");
-              if (sctx) {
-                const img = sctx.createImageData(S, S);
-                const reach = span * 0.3;
-                stormPx = renderStormPixels(img.data, S, seed, phaseQ, (u) => {
-                  const x = L.cx - L.rx + u * span;
-                  let best: (typeof stormCols)[number] | null = null, bestD = Infinity;
-                  for (const c of stormCols) {
-                    const d = x < c.x0 ? c.x0 - x : x > c.x1 ? x - c.x1 : 0;
-                    if (d < bestD || (d === bestD && best && c.weight > best.weight)) { best = c; bestD = d; }
-                  }
-                  if (!best || bestD > reach) return { rgb: [0, 0, 0], weight: 0 };
-                  return { rgb: best.rgb, weight: best.weight * (1 - bestD / reach) };
-                });
-                sctx.putImageData(img, 0, 0);
+              const reach = span * 0.3;
+              const toneAt = (u: number) => {
+                const x = L.cx - L.rx + u * span;
+                let best: (typeof stormCols)[number] | null = null, bestD = Infinity;
+                for (const c of stormCols) {
+                  const d = x < c.x0 ? c.x0 - x : x > c.x1 ? x - c.x1 : 0;
+                  if (d < bestD || (d === bestD && best && c.weight > best.weight)) { best = c; bestD = d; }
+                }
+                if (!best || bestD > reach) return { rgb: [0, 0, 0] as [number, number, number], weight: 0 };
+                return { rgb: best.rgb, weight: best.weight * (1 - bestD / reach) };
+              };
+              // SPLIT REBUILD: with a texture already on the glass, a new one is
+              // rendered half per frame and swapped in whole — no frame carries
+              // the full 128² noise render (serving all-senses: rebuild frames
+              // spiked to ~53 ms). The first texture renders at once.
+              let build = stormBuildRef.current;
+              if (!cache) {
+                build = { key, img: new ImageData(S, S), nextRow: 0 };
+                stormPx = renderStormPixels(build.img.data, S, seed, phaseQ, toneAt, 0, S);
+                build.nextRow = S;
+              } else {
+                // A build in progress always finishes (then the next key starts) —
+                // a key that moves every frame can never starve the storm.
+                if (!build) build = { key, img: new ImageData(S, S), nextRow: 0 };
+                const to = Math.min(S, build.nextRow + Math.ceil(S / 2));
+                stormPx = renderStormPixels(build.img.data, S, seed, phaseQ, toneAt, build.nextRow, to);
+                build.nextRow = to;
               }
-              cache = { key, canvas: sc };
-              stormCacheRef.current = cache;
+              stormBuildRef.current = build;
+              if (build.nextRow >= S) {
+                const sc = document.createElement("canvas");
+                sc.width = S; sc.height = S;
+                sc.getContext("2d")?.putImageData(build.img, 0, 0);
+                cache = { key: build.key, canvas: sc };
+                stormCacheRef.current = cache;
+                stormBuildRef.current = null;
+              }
             }
             mainCtx.save();
             mainCtx.beginPath();
@@ -19005,16 +19024,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               outsideSC.rect(stormClear.x, stormClear.y, stormClear.w, stormClear.h);
               mainCtx.clip(outsideSC, "evenodd");
               mainCtx.globalAlpha = stormA;
-              mainCtx.drawImage(cache.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
+              mainCtx.drawImage(cache!.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
               mainCtx.restore();
               mainCtx.save();
               mainCtx.beginPath(); mainCtx.rect(stormClear.x, stormClear.y, stormClear.w, stormClear.h); mainCtx.clip();
               mainCtx.globalAlpha = stormA * 0.35;
-              mainCtx.drawImage(cache.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
+              mainCtx.drawImage(cache!.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
               mainCtx.restore();
             } else {
               mainCtx.globalAlpha = stormA;
-              mainCtx.drawImage(cache.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
+              mainCtx.drawImage(cache!.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
             }
             mainCtx.restore();
             ds.weatherStorm = `${motionOnRef.current ? "LIVE" : "STILL"}|${stormCols.length}|${phaseQ.toFixed(3)}${stormPx ? "|REBUILT" : ""}`;
