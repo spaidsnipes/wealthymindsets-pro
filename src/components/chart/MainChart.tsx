@@ -6530,6 +6530,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // before the VP section's own lines are reached.
       let profileCut: { path: Path2D; rects: ReturnType<typeof candleCutOutRects> } | null = null;
       const profileCutBy = new Set<string>();
+      /** Non-primary profile species quieted this frame because the live candle stands in the stack. */
+      const profileQuietedBy = new Set<string>();
       // The organism glyphs painted this frame (receipt profileSpeciesGlyphs).
       const profileGlyphs: string[] = [];
       let vpChipsPlaced = 0;
@@ -8693,6 +8695,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (!ctx) return;
         profileCutBy.add(species);
         ctx.clip(profileCandleCut().path, "evenodd");
+        /* ACTIVE CANDLE ALWAYS WINS (master order §XX/§XL). Serving TSLA 5m, the
+           Founder's own stack: Composite, Visible Range and Living columns stood
+           at the axis and the newest candles — the forming bar included — sat
+           inside three histograms. When the live candle is inside the stack's
+           lanes, every NON-PRIMARY species paints at 55% (the caller's save()
+           scopes it); Living keeps its own governor and TPO its left lane. */
+        if (species !== "LIVING" && species !== "LIVING_MOVIE" && species !== "TPO") {
+          const stackL = Number(canvas?.dataset.profileStackLeft);
+          const barsQ = barsRef.current ?? [];
+          const last = barsQ[barsQ.length - 1];
+          const lx = last ? chart.timeScale().timeToCoordinate(last.time as never) : null;
+          if (lx != null && Number.isFinite(stackL) && +lx > stackL - 4) {
+            ctx.globalAlpha *= 0.55;
+            profileQuietedBy.add(species);
+          }
+        }
       }
       // Every candle body and wick under a row band: the keep-out for profile words.
       function profileCandlesAt(yTop: number, yBot: number) {
@@ -18128,6 +18146,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         */
         if (profileCutBy.size > 0) ds.profileCandleCut = `${[...profileCutBy].join(",")}:${profileCut ? profileCut.rects.length : 0}`;
         else delete ds.profileCandleCut;
+        if (profileQuietedBy.size > 0) ds.profileQuietedForLiveCandle = [...profileQuietedBy].join(",");
+        else delete ds.profileQuietedForLiveCandle;
         if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y:${levelChipsToStack}S`;
         else delete ds.profileLevelChips;
         // The organism glyphs painted this frame, in paint order — e.g.
