@@ -78,7 +78,7 @@ describe("left column and word stack", () => {
     // Pin updated 2026-09-25 (P-110 canon pass): the stack's words are the
     // family's level chips now; each joins the ledger where it was placed.
     expect(CHART).toMatch(/recordKeepOut\(keepOutLedger, spotL\);\s*const r = spotL\.rect;\s*floatingChips\.push\(\{ x: r\.x, y: r\.y, w: r\.w, h: r\.h \}\);/);
-    const chipFn = CHART.slice(CHART.indexOf("const chip = (text: string, x: number, y: number) => {"), CHART.indexOf("`STRUCTURE · FROM ${kind}"));
+    const chipFn = CHART.slice(CHART.indexOf("const chip = (text: string, x: number, y: number, rowIfBlocked = false) => {"), CHART.indexOf("`STRUCTURE · FROM ${kind}"));
     expect(chipFn.length).toBeGreaterThan(200);
     expect(chipFn).toContain("const taken = (yy: number) => floatingChips.some(");
     // Pin updated 2026-09-25 (keep-out completion): the row the chips leave

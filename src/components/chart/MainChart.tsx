@@ -15391,12 +15391,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     spotF: for (const by of [y - 6, y + 15]) {
                       for (let cx = 8; cx + fw + 8 <= plotRightD; cx += 40) {
                         const q = { x: cx - 2, y: by - 11, w: fw + 4, h: 12 };
-                        if (![...candlesF, ...tpoCol].some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y)) { fx = cx; fy = by; clear = true; break spotF; }
+                        // …and the words already on the glass (serving SPY 5m,
+                        // 2026-09-30: printed over "NO BAR · 2 intervals").
+                        if (![...candlesF, ...tpoCol, ...forceChips, ...floatingChips].some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y)) { fx = cx; fy = by; clear = true; break spotF; }
                       }
                     }
                     if (!clear) { ctx.fillStyle = `rgba(11,10,8,${0.85 * baseA})`; ctx.fillRect(fx - 3, fy - 12, fw + 6, 13); }
                     ctx.fillStyle = `rgba(236,214,160,${0.95 * baseA})`;
                     ctx.fillText(frontWords, fx, fy);
+                    floatingChips.push({ x: fx - 2, y: fy - 11, w: fw + 4, h: 12 });
                     painted.push(`FRONT_WORDS@${Math.round(fx)}:${clear ? "CLEAR" : "BACKED"}`);
                   }
                   painted.push(`FRONT@${dp.zeroGamma.toFixed(2)}`);
@@ -17788,7 +17791,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // profile stack's VRP/LIVING labels, another reading's chip) steps
             // a row away until it is clear, and then joins the ledger itself —
             // measured on serving: "LEG POC 84425" printed over "VRP POC 84420".
-            const chip = (text: string, x: number, y: number) => {
+            const chip = (text: string, x: number, y: number, rowIfBlocked = false) => {
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const maxX = W - 76 - livingCol - w;
               // INSIDE THE PLOT, right of the left chrome (2026-09-26, serving:
@@ -17827,6 +17830,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 [...keepOut(), ...rowBodiesAt(bandS[0], bandS[1]), ...profileCandlesAt(bandS[0], bandS[1])],
                 { minX: Math.max(keepOutMinX(), LEFT_CHROME_RIGHT, Math.min(cx, x0 - w - 6)), blockers: floatingChips, strict: true, alternates: altsS },
               );
+              // A SILENCE SENTENCE NEVER SITS ON PRICE (serving SPY 5m,
+              // 2026-09-30: "STRUCTURE · 8-BAR LEG … TOO SHORT TO PROFILE" ran
+              // through a dozen candle bodies on a yielded backing). With no
+              // clear spot near its swing, it takes a row of the shared silence
+              // stack instead; the rule on price still marks the swing.
+              if (rowIfBlocked && spotP.mode === "BLOCKED") {
+                const rowSt = takeSilenceRow();
+                ctx.save();
+                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.fillStyle = "rgba(200,192,174,0.85)";
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                ctx.fillText(text, silenceX, rowSt);
+                floatingChips.push({ x: silenceX, y: rowSt - 7, w: ctx.measureText(text).width, h: 14 });
+                ctx.restore();
+                return;
+              }
               recordKeepOut(keepOutLedger, spotP);
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotP, 0.82)})`;
               ctx.fillRect(spotP.rect.x, spotP.rect.y, w, 14);
@@ -17839,7 +17858,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // The rule form: one chip names the swing, the leg and why its
               // shape is withheld; the leg POC the rule carries is named by the
               // family's level chip on its own row, like every species' POC.
-              chip(silence, x0 + 4, Math.max(HEADER_FLOOR_Y + 12, (legDrawn ? top : 0) - 4));
+              chip(silence, x0 + 4, Math.max(HEADER_FLOOR_Y + 12, (legDrawn ? top : 0) - 4), true);
               if (sp.poc != null) {
                 const ypS = srs.priceToCoordinate(sp.poc);
                 if (ypS != null) levelChip(+ypS, `LEG POC ${sp.poc.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
