@@ -84,6 +84,7 @@ import {
 import { overlayFrameBudgetMs, overlayFrameVerdict } from "@/lib/chartOverlayGovernor";
 import {
   emptyPaintLedger,
+  meanPaintMs,
   paintLedgerReceipt,
   recordPaint,
   recordSkip,
@@ -2088,6 +2089,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   const onSenseEventsRef = useRef<typeof onSenseEvents>(undefined);
   useEffect(() => { onSenseEventsRef.current = onSenseEvents; }, [onSenseEvents]);
   const senseEventsSentRef = useRef<string>("");
+  /* STRESS GOVERNOR (master order §LXXV): true while the measured paint mean
+     exceeds its budget. Non-primary texture steps down first — never price,
+     candles, risk, orders, positions or the Decision_ID. */
+  const paintStressRef = useRef(false);
   // T-210 · per-bar session-clock memo for the ancestry owner, reset when the camera changes.
   // Garden 15 §2 — the room's derivatives compilation, read by the paint loop.
   // Garden 16 §7 · LIVING MARKET — LIVE / STILL, one presentation state. STILL
@@ -14713,7 +14718,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                               from the zero-gamma front (longer, denser with k);
                               they drift in LIVE and hold in STILL. */
               const emberDrift = motionOnRef.current ? (performance.now() / 1000) * 18 : 0;
-              for (let i = 0; i < geo.length - 1; i++) {
+              // Under stress the field keeps its fill and drops its grain (receipt below).
+              const fieldTextured = !paintStressRef.current;
+              ds.derivativesPressureTexture = fieldTextured ? "ON" : "SHED_UNDER_STRESS";
+              for (let i = 0; fieldTextured && i < geo.length - 1; i++) {
                 const ga = geo[i], gb = geo[i + 1];
                 const ya = yOfD(ga.price), yb = yOfD(gb.price);
                 if (ya == null || yb == null) continue;
@@ -18928,7 +18936,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (motionOnRef.current) { if (ph.at > 0) ph.phase += Math.min(0.5, nowS - ph.at) * STORM_DRIFT_PER_SEC; ph.at = nowS; }
             else ph.at = 0;
             // Rebuild step 0.006 (≈ every 5th LIVE frame at 30 fps) — same drift speed, fewer 128² noise renders (performance pass 2026-09-29).
-            const phaseQ = Math.round(ph.phase / 0.006) * 0.006;
+            // Under stress the storm re-renders half as often (drift speed unchanged).
+            const stormStep = paintStressRef.current ? 0.012 : 0.006;
+            const phaseQ = Math.round(ph.phase / stormStep) * stormStep;
             const seed = stormSeed(`${symbol}|${timeframe}`);
             const span = 2 * L.rx;
             const colKey = stormCols.map(c => `${Math.round(c.x0 - L.cx)}:${Math.round(c.x1 - L.cx)}:${c.rgb.join(",")}:${c.weight.toFixed(2)}`).join(";");
@@ -20492,6 +20502,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           try { (canvasRef.current?.getContext("2d") as (CanvasRenderingContext2D & { reset?: () => void }) | null)?.reset?.(); } catch { /* nothing further to undo */ }
         }
         paintLedger = recordPaint(paintLedger, performance.now() - startedAt);
+        { const m = meanPaintMs(paintLedger); paintStressRef.current = m != null && m > paintLedger.budgetMs; }
         // MARKET CLOCK → PAINT (marketClockProbe): the newest candle update reached this paint.
         notePaint(performance.now());
         if (canvasRef.current) canvasRef.current.dataset.marketClock = marketClockReceipt();
