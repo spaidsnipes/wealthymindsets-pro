@@ -12776,7 +12776,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const mode = anatomyModeRef.current;
         let drawnBodies = 0;
         if ((mode === "FOUNDER" || mode === "FUSION") && bodyAnchors.length) {
-          const pulse = motionOnRef.current ? 0.75 + 0.25 * Math.sin(performance.now() / 420) : 1;
+          const pulseLive = motionOnRef.current ? 0.75 + 0.25 * Math.sin(performance.now() / 420) : 1;
+          // MOTION IS EVENT LANGUAGE (master order §L): a body breathes only
+          // while its event is live — within the newest three bars — and holds
+          // still once the event is history.
+          const barsA = barsRef.current ?? [];
+          const newestA = barsA[barsA.length - 1];
+          const newestXA = newestA ? chart.timeScale().timeToCoordinate(newestA.time as never) : null;
           const pick = [...bodyAnchors].sort((a, b) => b.x - a.x).slice(0, 3);
           // Candles are never covered (serving BTC 5m: a red body stood on
           // the push's wicks): every visible candle's body+wick is a blocker.
@@ -12791,6 +12797,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             priceToY: pp => { const yy = srs.priceToCoordinate(pp); return yy == null ? null : +yy; },
           }, 0, W) : [];
           for (const b of pick) {
+            const pulse = newestXA != null && +newestXA - b.ex <= 3 * spacingB ? pulseLive : 1;
             const gold = b.kind === "ABSORB";
             const rgb = gold ? "240,192,96" : "226,92,92";
             // G06 scale: a figure you can read at a glance, not a stick glyph.
