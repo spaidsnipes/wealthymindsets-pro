@@ -14876,7 +14876,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     const xk = at >= 0 ? tsD.timeToCoordinate(barsD[at].time as never) : null;
                     let x = xk == null ? (at < 0 ? x1 - 6 : x0 + 6) : +xk;
                     x = Math.max(x0 + 6, Math.min(x1 - 6, x));
-                    while (xs.some(p => Math.abs(p - x) < 5)) x = Math.max(x0 + 6, x - 6);
+                    // Keep cracks apart: step right from a crowded spot (bounded — never spins).
+                    for (let guard = 0; guard < 12 && xs.some(p => Math.abs(p - x) < 8); guard++) x = Math.min(x1 - 6, x + 9);
                     xs.push(x);
                   }
                   return xs;
@@ -14997,10 +14998,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // Cracks: one per OBSERVED test, from the face price came from,
                 // branching as they run.
                 ctx.strokeStyle = `rgba(12,9,5,${0.95 * baseA})`;
-                crackXs.forEach((cx0, i) => {
+                // RELIEF (serving NVDA 1h: a dark fissure on dark brick did not
+                // read) — each crack is the dark split plus a lit lip beside it.
+                const crackPath = (cx0: number, i: number, dx: number) => {
                   const fromTop = w.side !== "ABOVE";
-                  let xx = cx0, yy = fromTop ? top : top + wallH;
-                  ctx.lineWidth = 1.6;
+                  let xx = cx0 + dx, yy = fromTop ? top : top + wallH;
                   ctx.beginPath(); ctx.moveTo(xx, yy);
                   for (let sgm = 1; sgm <= 4; sgm++) {
                     yy += (fromTop ? 1 : -1) * (wallH / 4.4);
@@ -15012,7 +15014,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                       ctx.moveTo(xx, yy);
                     }
                   }
-                  ctx.stroke();
+                };
+                crackXs.forEach((cx0, i) => {
+                  ctx.strokeStyle = `rgba(255,232,180,${0.55 * baseA})`;
+                  ctx.lineWidth = 1;
+                  crackPath(cx0, i, 1.4); ctx.stroke();
+                  ctx.strokeStyle = `rgba(8,6,3,${0.98 * baseA})`;
+                  ctx.lineWidth = 2.2;
+                  crackPath(cx0, i, 0); ctx.stroke();
                 });
                 ctx.lineWidth = 1;
                 if (holes || chipped) painted.push(`MASONRY@${w.strike}:holes=${holes}:chips=${chipped}`);
