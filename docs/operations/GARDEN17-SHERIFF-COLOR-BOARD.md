@@ -153,7 +153,7 @@ Deltas remaining: Session / Fixed / Composite share one grey histogram body (tol
 
 Founder decisions surfaced (not decided): crypto session split — Composite / Memory / Expected Envelope read "no completed session" on 24/7 crypto (§LXXVIII).
 
-## 3e. Browser shift (2026-09-30 11:13 CDT →), START `9837d27`
+## 3e. Browser shift (2026-09-30 11:13 → 13:10 CDT), START `9837d27` → FINAL `0e51b72` (last code)
 
 All work found in the browser on serving `/charts` (own tab, proof scenes; Founder settings untouched — `wm_absorptionAnatomy` "false", `wm_last_symbol` is the Founder's own MNQ1!).
 
@@ -172,13 +172,15 @@ All work found in the browser on serving `/charts` (own tab, proof scenes; Found
 | EFFORT UNMEASURED leaves the legend | `6513c96` | PROVED | now beside D at (38,44) (was (8,16) under "EURUSD 15m") |
 | Daily shelf label out of the word band | `a57532e` | PROVED | "DAILY SHELF · PDL" right-aligned at the edge (ran across the ORDER FLOW row) |
 | Left column clear of the open room rail | `5cbc70b` `e50c06e` | PROVED | Workspace open: silence rows at x≈225, D toggle beside the rail, Review camera FOUNDATION VIEW card fully readable (left half was under the rail); scaffolding line "NOT MEASURED ON THIS FEED" (said "SWITCH ON ABSORPTION" while it was on) |
+| EFFORT chip + MTF shelf tag | `def97e6` `0e51b72` | PROVED / BUILT | Workspace open: EFFORT chip beside D, right of the rail (PROVED); shelf "D" tag refuses the left edge inside the word band (BUILT) |
+| Data window beside a full-height drawer | — | PROVED | Heat drawer (18–358 px): data window at x≈419, right of the drawer |
 | Tools doors click→manifest | — | PROVED | Market reality, Passport, Decision chain, Personal edge, Heat (drawer ranks 105/107), Chart tools, WM Smart Money Tools ("ALL 9 AVAILABLE" with live tape); Rooms, Community, Command Deck open |
 | Cameras | — | PROVED | Regime / Review / Order Flow each paint their arrangement; `wm_of*` keys unchanged (proof latch) |
 | Performance | — | PROVED | all-on EURUSD mean 16.2 ms / longest 26.7 MET; all-on AAPL 11.5 MET after warm-up; SPX 15.5; 0 layer faults everywhere |
 
 Checked, not defects: NQ "2 BARS BEHIND" / CHART INTEGRITY · WOUNDED (delayed CME feed, honest); TPO POC 1.1625 on EURUSD (built from ~2,963 loaded bars, off camera); Webull BTC bid/ask spread ≈2% (Webull's own snapshot agrees); DAX "1 BAR BEHIND" after Xetra close (no proven session clock — honest).
 
-Deltas remaining: EFFORT reading-anchor chip (DOM, other component) still sits under an open rail; MTF shelf "D" tag can land at the left edge in the word band; /journal wears a different top rail (MARKET · ROOMS · COMMUNITY · JOURNAL) — the five-door rail order is scoped to /charts; grains' CBOT point values pinned as uncovered (not typed from memory).
+Deltas remaining: the chart pane is overlaid (not resized) by an open room rail, so candles under it stay hidden while it is open (words and controls now step clear); /journal wears a different top rail (MARKET · ROOMS · COMMUNITY · JOURNAL) — the five-door rail order is scoped to /charts; grains' CBOT point values pinned as uncovered (not typed from memory).
 
 ## 4. Known limits of this board
 
