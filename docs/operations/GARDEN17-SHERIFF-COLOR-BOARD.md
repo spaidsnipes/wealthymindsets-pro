@@ -137,6 +137,15 @@ Deltas remaining: Session / Fixed / Composite VP share one grey histogram body (
 | Order Flow camera wording | `0e8a4d4` | PROVED | Workspace: "Order Flow camera · Degraded · 4 available · 3 need sided tape" (was "4 of 7 draw here") |
 | Inspect never covers its object | — | PROVED | select=zone: Passport docked left, supply zone clear on the right |
 | Anatomy attachment | — | PROVED | NQ1! 15m: EXHAUSTING body in candle-free space, leader thread to the exhaustion mark |
+| Top rail click → manifest | — | PROVED | Workspace (modes + cameras), Tools (WM Smart Money Tools first), Rooms (Journal/Backtest/Scanner…), Community (Academy/Lounge/WM TV…), Command Deck (drawer) |
+| Activation spotlight covers anatomy + footprint | `aa6a1aa` | PROVED | Absorption vs Exhaustion on → `activationSpotlight absorption` ~1.25 s, body drawn |
+| Proof scene latches for the page lifetime | `52d0df1` | PROVED | drawer + anatomy toggle inside a proof scene: `wm_absorptionAnatomy` stays "false" |
+| Search break test II | `4900352` `951b355` | PROVED | COSTCO→COST, LITECOIN→LTCUSD, AVALANCHE→AVAXUSD open with bars; USDMXN / USDZAR found AND open (FX mapper now reads the identity owner's one currency list; was a Yahoo 404) |
+| Regression sweep, all senses | — | PROVED | TSLA / NQ1! / EURGBP / BTC-USD: 0 layer faults, no paint fault, budget MET (mean 4.9–9.7 ms) |
+| Footprint Bid × Ask | — | PROVED | BTC-USD 1m: footprint bodies + per-level columns on every bar |
+| BROKEN wall scar | `8587438` | PROVED | NVDA 1h 227.5 magnified: ghost courses with missing bricks |
+
+Founder decisions surfaced (not decided): crypto session split — Composite / Memory / Expected Envelope read "no completed session" on 24/7 crypto (§LXXVIII).
 
 ## 4. Known limits of this board
 
