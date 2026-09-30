@@ -123,6 +123,21 @@ Session 1 START `d8cd30d` → `3b24c39`; session 2 START `3b24c39` → this boar
 
 Deltas remaining: Session / Fixed / Composite VP share one grey histogram body (told apart by organism glyph, session rule, brackets, CMP chips) · wall cracks sit under their own test candles (price wins) · TPO letter paint uncached · Founder's last-symbol key now TSLA (palette picks leave the proof scene; prior value unknown) · wm_ofVisibleRangeProfile read "true" after a proof-scene toggle (Founder's own stack showed VRP on, so likely unchanged).
 
+## 3d. Master order continuation shift (2026-09-29 23:04 → 2026-09-30 CDT), START `93b48a3`
+
+| Item | Commits | Status | Evidence (serving) |
+|---|---|---|---|
+| Where-is-it sweep (23 Chart-tools switches + order-flow senses, alone, pixel diff vs clean) | — | DONE | changed glass: Regime 11.1% · VRP 4.8% · TPO 3.9% · MTF 3.7% · Fixed 3.4% · Living 3.1% · … ; silent-nothing found: Imbalance Stack, Delta Divergence, Effort Mark, Liquidity Lifecycle, Big Trades |
+| Order flow quiet row | `2b05ddf` `9a928f5` | PROVED | ETH: "ORDER FLOW · WAITING FOR SIDED PRINTS: IMBALANCE STACK, DELTA DIVERGENCE · ACTIVE · NO CURRENT EVENT: EFFORT MARK, LIQUIDITY LIFECYCLE"; BTC: "… WAITING FOR SIDED PRINTS: BIG TRADES" |
+| Profile 11 Bid/Ask Split | — | PROVED | ETH 15m box: "BID/ASK SPLIT · TAPE 20/42 BARS · MAKER-SIDE · net −1.9k", DELTA + VOLUME columns |
+| Proof scene holds drawing writes | `cc5d564` | BUILT (fix) | a proof-scene box had been autosaved into the trader's ETH-USD drawings — removed by hand; autosave now skips in a proof scene |
+| Label density governor | `3207058` | PROVED | Founder's TSLA 5m stack `profileLevelChips 13:4M:0Y:1S:10Q` — Living chips lead |
+| TPO blocks batched by ink | `f237852` | PROVED | identical blocks, fewer canvas calls |
+| Wall crack visible at its test | `d14383f` | PROVED | NVDA 1h, magnified 5×: fracture with lit lip + chipped corner beside the test candle (was hidden behind it) |
+| Order Flow camera wording | `0e8a4d4` | PROVED | Workspace: "Order Flow camera · Degraded · 4 available · 3 need sided tape" (was "4 of 7 draw here") |
+| Inspect never covers its object | — | PROVED | select=zone: Passport docked left, supply zone clear on the right |
+| Anatomy attachment | — | PROVED | NQ1! 15m: EXHAUSTING body in candle-free space, leader thread to the exhaustion mark |
+
 ## 4. Known limits of this board
 
 - G7: sub-layers INSIDE one top-level layer share that layer's isolation (e.g. a fault in one profile species inside WEATHER_PROFILES_MEMORY ends that region for the frame, named).
