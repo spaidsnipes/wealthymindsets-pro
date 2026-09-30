@@ -16634,6 +16634,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.livingProfileNodesWithheld;
             // DNA describes the profile on the glass; with none drawn, it says so.
             ds.profileDna = layerOnRef.current.profileDna ? "LIVING_PROFILE_NOT_DRAWN" : "OFF";
+            delete ds.profileDnaShape;
+            delete ds.profileDnaSpine;
+            delete ds.profileDnaDiamond;
+            delete ds.livingProfileBars;
+            delete ds.livingProfileMarks;
+            delete ds.livingProfileUntraded;
             // NO SILENT NOTHING (master order §VIII/§XXXIX): DNA alone had an
             // empty glass. It is a reading OF the Living body — say that.
             if (layerOnRef.current.profileDna) {
@@ -16647,12 +16653,6 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
               ctx.restore();
             }
-            delete ds.profileDnaShape;
-            delete ds.profileDnaSpine;
-            delete ds.profileDnaDiamond;
-            delete ds.livingProfileBars;
-            delete ds.livingProfileMarks;
-            delete ds.livingProfileUntraded;
           }
         }
 
