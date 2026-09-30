@@ -169,6 +169,11 @@ describe("chart order path — contract coverage", () => {
       // with a real CFE multiplier ($1,000/pt) that nobody has entered — which
       // is exactly what this list exists to keep visible.
       "VX1! (VIX Futures)",
+      // Listed in the picker 2026-09-30 (grains search). Point values NOT typed
+      // from memory — look up the CBOT spec before covering them.
+      "ZC1! (Corn Futures)",
+      "ZS1! (Soybean Futures)",
+      "ZW1! (Wheat Futures)",
     ]);
   });
 });

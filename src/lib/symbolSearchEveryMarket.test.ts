@@ -40,4 +40,11 @@ describe("every market is searchable (Founder, 2026-09-28)", () => {
     expect(gold).not.toContain("XAUUSD");
     expect(matchCuratedSymbols("platinum", 5).map(s => s.sym)).toContain("PL1!");
   });
+  it("grains and treasury words reach their futures (serving search, 2026-09-30)", () => {
+    expect(matchCuratedSymbols("corn", 3).map(s => s.sym)[0]).toBe("ZC1!");
+    expect(matchCuratedSymbols("wheat", 3).map(s => s.sym)[0]).toBe("ZW1!");
+    expect(matchCuratedSymbols("soybeans", 3).map(s => s.sym)[0]).toBe("ZS1!");
+    expect(matchCuratedSymbols("10 year", 3).map(s => s.sym)[0]).toBe("ZN1!");
+    expect(fromYahooSearchSymbol("ZC=F", "FUTURE")).toBe("ZC1!");
+  });
 });

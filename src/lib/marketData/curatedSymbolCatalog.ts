@@ -60,8 +60,10 @@ const RAW_CURATED_SYMBOLS = [
   { sym:"HG1!",  label:"Copper Futures",            cat:"Futures", aliases:["copper"] },
   { sym:"PL1!",  label:"Platinum Futures",          cat:"Futures", aliases:["platinum","xptusd"] },
   { sym:"PA1!",  label:"Palladium Futures",         cat:"Futures", aliases:["palladium","xpdusd"] },
-  { sym:"ZB1!",  label:"30-Year T-Bond Futures",    cat:"Futures", aliases:["bonds","treasury","zb"] },
-  { sym:"ZN1!",  label:"10-Year T-Note Futures",    cat:"Futures", aliases:["10yr","zn","notes"] },
+  { sym:"ZB1!",  label:"30-Year T-Bond Futures",    cat:"Futures", aliases:["bonds","treasury","zb","30 year","30-year","30yr"] },
+  // "10 YEAR" ranked a 5–10-year CORPORATE bond ETF above the note future
+  // (serving universal search, 2026-09-30).
+  { sym:"ZN1!",  label:"10-Year T-Note Futures",    cat:"Futures", aliases:["10yr","zn","notes","10 year","10-year","ten year"] },
   { sym:"6E1!",  label:"Euro Futures",              cat:"Futures", aliases:["euro","eurusd futures","6e"] },
   { sym:"6J1!",  label:"Yen Futures",               cat:"Futures", aliases:["yen","usdjpy futures","6j"] },
   { sym:"6B1!",  label:"British Pound Futures",     cat:"Futures", aliases:["pound","gbpusd futures","6b"] },
@@ -74,6 +76,11 @@ const RAW_CURATED_SYMBOLS = [
   { sym:"VX1!",  label:"VIX Futures",               cat:"Futures", aliases:["vx","vix futures"] },
   { sym:"^VIX",  label:"CBOE Volatility Index",     cat:"Index",   aliases:["vix","volatility","fear"] },
   { sym:"NG1!",  label:"Natural Gas Futures",       cat:"Futures", aliases:["natgas","natural gas"] },
+  // Grains (serving universal search, 2026-09-30: "CORN" ranked Cornerstone
+  // and Corning above corn futures). Yahoo carries each as =F (yahooSymbol).
+  { sym:"ZC1!",  label:"Corn Futures",              cat:"Futures", aliases:["corn","zc"] },
+  { sym:"ZS1!",  label:"Soybean Futures",           cat:"Futures", aliases:["soybeans","soybean","soy","zs"] },
+  { sym:"ZW1!",  label:"Wheat Futures",             cat:"Futures", aliases:["wheat","zw"] },
   // ── Forex / FX ───────────────────────────────────────────
   { sym:"EURUSD", label:"Euro / US Dollar",         cat:"Forex", aliases:["euro dollar","6e","eur"] },
   { sym:"GBPUSD", label:"British Pound / USD",      cat:"Forex", aliases:["cable","pound","gbp","sterling"] },
