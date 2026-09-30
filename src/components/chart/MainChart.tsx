@@ -12796,6 +12796,20 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
         }
         canvas.dataset.dualAnatomy = `${mode}|EVENTS:${bodyAnchors.length}|BODIES:${drawnBodies}`;
+        // NO SILENT NOTHING (master order §VIII): the sense is on and nothing
+        // lawful happened on this camera — say so, in the silence row.
+        if (absorptionAnatomyActive && mode !== "OFF" && bodyAnchors.length === 0) {
+          const quiet = "FOUNDER ANATOMY · ACTIVE · NO CURRENT ABSORPTION / EXHAUSTION EVENT";
+          ctx.save();
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.fillStyle = "rgba(200,192,174,0.85)";
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          const rowY = takeSilenceRow();
+          ctx.fillText(quiet, 12, rowY);
+          floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+          ctx.restore();
+          canvas.dataset.dualAnatomySilence = "NO_EVENT";
+        } else delete canvas.dataset.dualAnatomySilence;
       } catch (err) { layerFault("DUAL_ANATOMY", err); }
 
       /* ══════════════════════════════════════════════════════════════════════
@@ -13611,6 +13625,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // H-501 · switched on AND permitted at this depth by the ONE table.
         const on = layerOnRef.current.weather && att.paints("weather");
         ds.liquidityWeather = on ? glass.reason : att.offWord(layerOnRef.current.weather);
+        // NO SILENT NOTHING (master order §VIII): switched on, and this feed
+        // cannot measure it (serving EURGBP 15m: UNMEASURED, and the glass said nothing).
+        if (on && glass.reason === "UNMEASURED") {
+          const quiet = "LIQUIDITY WEATHER · UNAVAILABLE ON CURRENT FEED";
+          ctx.save();
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.fillStyle = "rgba(200,192,174,0.85)";
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          const rowY = takeSilenceRow();
+          ctx.fillText(quiet, 12, rowY);
+          floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+          ctx.restore();
+        }
         // F08B "WEATHER IS A LENS" (2026-09-25). The stage, the engine's
         // sentence and the shelf caption used to print here as three word
         // lines in the bottom-left corner — words about a place, printed
@@ -15149,7 +15176,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // ── CLIMATE (global) — one line, the environment's name ────
               if (dpSpeaks) {
                 const srcW = positioningSourceWords(dp.source);
-                const word = `DERIVATIVES PRESSURE · ${dp.climate.replace("_", " ")} · ${srcW.name} · ${srcW.oi} · INFERRED`;
+                const word = `DERIVATIVES PRESSURE · ${dp.climate.replace("_", " ")} · ${srcW.name} · ${srcW.oi} · INFERRED${dp.walls.length === 0 ? " · NO CURRENT WALL EVENT" : ""}`;
                 ctx.save();
                 ctx.globalAlpha = att.textAlpha("derivativesPressure");
                 ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
