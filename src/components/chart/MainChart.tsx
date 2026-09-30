@@ -20281,6 +20281,45 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
       } catch (err) { layerFault("WEATHER_PROFILES_MEMORY", err); /* chart may be mid-transition; safe to skip this frame */ }
 
+      /* ══ NO SILENT NOTHING · ORDER FLOW, ONE ROW (master order §VIII) ═════
+         Serving ETH-USD 15m where-is-it sweep (2026-09-29): Imbalance Stack,
+         Delta Divergence, Effort Mark, Delta Levels and Liquidity Lifecycle
+         could be switched on and leave the glass unchanged (UNMEASURED /
+         NO_STACK / NO_SWING / UNREAD / NO_POOLS). Several are on by default,
+         so one row per sense would be its own clutter: every quiet order-flow
+         sense that is switched on is named in ONE silence row, read from the
+         receipts this frame already published. */
+      try {
+        const ds = canvas.dataset;
+        const lo2 = layerOnRef.current;
+        const waiting: string[] = [], noEvent: string[] = [];
+        const sort = (on: boolean, name: string, r: string | undefined, waitWords: RegExp, quietWords: RegExp) => {
+          if (!on || r == null) return;
+          if (waitWords.test(r)) waiting.push(name);
+          else if (quietWords.test(r)) noEvent.push(name);
+        };
+        sort(lo2.stack, "IMBALANCE STACK", ds.imbalanceStack, /^UNMEASURED/, /^NO_STACK/);
+        sort(lo2.divergence, "DELTA DIVERGENCE", ds.deltaDivergence, /^UNMEASURED/, /^(NO_SWING|NONE)/);
+        sort(lo2.effort, "EFFORT MARK", ds.effortMark, /^UNMEASURED/, /^(UNREAD|NO_READING)/);
+        sort(lo2.deltaLevels, "DELTA LEVELS", ds.deltaLevels, /^(UNMEASURED|NO_TAPE|NO_PRINTS)/, /^(NO_|NONE)/);
+        sort(lo2.liquidityLifecycle === true, "LIQUIDITY LIFECYCLE", ds.liquidityLifecycle, /^UNMEASURED/, /^(NO_POOLS|NO_READING)/);
+        const parts: string[] = [];
+        if (waiting.length) parts.push(`WAITING FOR SIDED PRINTS: ${waiting.join(", ")}`);
+        if (noEvent.length) parts.push(`ACTIVE · NO CURRENT EVENT: ${noEvent.join(", ")}`);
+        if (parts.length) {
+          const quiet = `ORDER FLOW · ${parts.join(" · ")}`;
+          ctx.save();
+          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.fillStyle = "rgba(200,192,174,0.85)";
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          const rowY = takeSilenceRow();
+          ctx.fillText(quiet, 12, rowY);
+          floatingChips.push({ x: 12, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
+          ctx.restore();
+          ds.orderFlowQuiet = `W:${waiting.length}|N:${noEvent.length}`;
+        } else delete ds.orderFlowQuiet;
+      } catch (err) { layerFault("ORDER_FLOW_QUIET", err); }
+
       /* ══ H-101 · THE DEBT TAG LIVES ON THE EVENT ═══════════════════════════
          Sheet H-101 ("EVIDENCE DEBT — WAIT IS A FINISHED ORGANISM") hangs a
          brass WAIT tag on the event candle by a leader while the market stays
