@@ -1987,6 +1987,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    *  reason as the six above it: this file's rule is where a value is read,
    *  not how often it changes. */
   const livingProfileRef = useRef<LivingProfileGlass | null>(null);
+  /* The profile family's leftmost column edge (x), for words painted BEFORE
+     the profiles in the frame (data-gap words): `cur` gathers this frame's
+     lanes, `prev` the last frame's — a word reads both, so a lane painted early
+     (big-trades mode's runWMVP) or late (the stack) is seen either way. */
+  const profileColumnLeftRef = useRef<{ cur: number; prev: number }>({ cur: Infinity, prev: Infinity });
   useEffect(() => { livingProfileRef.current = livingProfileGlass ?? null; }, [livingProfileGlass]);
 
   const marketStructureRef = useRef<MarketStructureGlass | null>(null);
@@ -8651,6 +8656,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         for (const g of dg.gaps.filter(g => g.emptyIntervals < 3 && chart.timeScale().timeToCoordinate(g.fromTime as never) != null)
           .sort((a, b) => b.fromTime - a.fromTime).slice(0, 2)) shortWordAllowed.add(g.fromTime);
         const gapWordRects: { x: number; y: number; w: number; h: number }[] = [];
+        // PROFILE COLUMNS ARE NOT A PLACE FOR WORDS (serving TSLA 15m,
+        // 2026-09-30, Session + Fixed + Composite: "NO BAR · 1 interval" printed
+        // across the Fixed body and beside CMP VAL). The words are painted
+        // before the profiles, so the family's column edge is last frame's
+        // (and any lane already laid this frame); right of it, no word.
+        const pcl = profileColumnLeftRef.current;
+        const profileColLeft = Math.min(pcl.prev, pcl.cur);
+        pcl.prev = pcl.cur; pcl.cur = Infinity;
         ctx.save();
         ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
         for (const g of att.paints("dataGaps") ? dg.gaps : []) {
@@ -8698,6 +8711,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const px = clampX(cx);
               const q = { x: px - tw / 2, y: cy - 12, w: tw, h: 13 };
               if (gapWordRects.some(hits(q)) || profileCandleCut().rects.some(hits(q))) continue;
+              if (q.x + q.w > profileColLeft - 4) continue;
               my = cy; mx = px; break spot;
             }
           }
@@ -9018,6 +9032,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (!col.fits) return { declined: "NO_ROOM", rows: 0 };
         const vpW = col.width;
         const vpRight = col.right;
+        profileColumnLeftRef.current.cur = Math.min(profileColumnLeftRef.current.cur, vpRight - vpW);
         // The SAME three numbers the layout was computed from, carried out to
         // the receipt. Not re-derived there: re-deriving is how a measurement
         // starts describing a frame other than the one that was painted.
@@ -15989,7 +16004,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // by the trader's width step. The plan owns the room it takes.
           livingBodyTarget: Math.min(Math.round(plotRight * 0.28 * stackWidth("LIVING", stackPrefsRef.current)), 360),
         });
-        if (stackOrder.length > 0) ds.profileStackLeft = String(stackPlan.stackLeft);
+        if (stackOrder.length > 0) {
+          ds.profileStackLeft = String(stackPlan.stackLeft);
+          profileColumnLeftRef.current.cur = Math.min(profileColumnLeftRef.current.cur, stackPlan.stackLeft);
+        }
         else delete ds.profileStackLeft;
         // Every profile species' geometry receipt is withdrawn here and
         // re-published below only by a layer that actually paints this frame —
