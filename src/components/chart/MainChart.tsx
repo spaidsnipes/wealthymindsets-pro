@@ -12741,17 +12741,23 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
               const tw2 = ctx.measureText(txt).width;
               const desktopBasisChrome = W >= 960;
+              // THE BASIS SLOT, NOT THE LEGEND (serving EURUSD 15m, 2026-09-30:
+              // this refusal kept the pre-legend (8, 8) spot and printed
+              // "EFFORT UNMEASURED" under "EURUSD 15m"). Same slot as the
+              // measured basis caption: right of D, below the price legend.
+              const rbx = BASIS_CAPTION_X, rby = BELOW_PRICE_LEGEND;
               if (!desktopBasisChrome) {
                 ctx.fillStyle = "rgba(14,12,8,0.86)";
-                ctx.fillRect(8, 8, tw2 + 12, 14);
+                ctx.fillRect(rbx, rby, tw2 + 12, 14);
                 ctx.strokeStyle = "rgba(139,106,41,0.35)";
                 ctx.lineWidth = 1;
-                ctx.strokeRect(8.5, 8.5, tw2 + 11, 13);
+                ctx.strokeRect(rbx + 0.5, rby + 0.5, tw2 + 11, 13);
               }
               ctx.fillStyle = "rgba(138,130,113,0.95)";
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
-              ctx.fillText(txt, desktopBasisChrome ? 8 : 14, 15.5);
+              ctx.fillText(txt, desktopBasisChrome ? rbx : rbx + 6, rby + 7.5);
+              floatingChips.push({ x: rbx, y: rby, w: tw2 + 12, h: 15 });
               ctx.restore();
             }
           }
@@ -15684,8 +15690,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left";
             ctx.textBaseline = "middle";
-            ctx.fillText(words, 12, H - 100);
-            floatingChips.push({ x: 12, y: H - 100 - 7, w: ctx.measureText(words).width, h: 14 });
+            // One row of the shared silence stack (serving EURUSD 15m,
+            // 2026-09-30: MTF and CONTRADICTION were both hard-coded at H - 100
+            // and printed over each other).
+            const mtfRowY = takeSilenceRow();
+            ctx.fillText(words, 12, mtfRowY);
+            floatingChips.push({ x: 12, y: mtfRowY - 7, w: ctx.measureText(words).width, h: 14 });
             ctx.restore();
           }
           ds.mtfAncestryPainted = painted.join("|") || "NONE";
@@ -15909,9 +15919,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 : cv.state === "AGREE"
                 ? `CONTRADICTION · none at price — ${cv.up.length + cv.down.length} families lean ${cv.up.length ? "up" : "down"} · still your read`
                 : `CONTRADICTION · not enough families lean (${cv.silent.map(x => x.family.toLowerCase()).join(", ")} silent)`;
-              ctx.fillText(t, 12, H - 100);
+              // One row of the shared silence stack (it shared H - 100 with MTF).
+              ctx.textBaseline = "middle";
+              const cvRowY = takeSilenceRow();
+              ctx.fillText(t, 12, cvRowY);
               // A chip, so TPO letters painted later yield to these words.
-              floatingChips.push({ x: 12, y: H - 100 - 10, w: ctx.measureText(t).width, h: 14 });
+              floatingChips.push({ x: 12, y: cvRowY - 7, w: ctx.measureText(t).width, h: 14 });
             }
             ds.contradictionPlaced = placed;
             ctx.restore();

@@ -40,7 +40,10 @@ describe("the FL-06 absorption shelf stays attached to measured price geometry",
     expect(chart).toContain("const desktopBasisChrome = W >= 960");
     expect(chart).toContain("ctx.fillText(basisTxt, bx, by + 7.5)");
     expect(chart).toContain("ctx.fillText(basisTxt, bx + 6, by + 7.5)");
-    expect(chart).toContain("ctx.fillText(txt, desktopBasisChrome ? 8 : 14, 15.5)");
+    // Pin moved 2026-09-30: the UNMEASURED refusal takes the measured basis
+    // slot (it kept the pre-legend (8, 8) spot and printed under the symbol).
+    expect(chart).toContain("ctx.fillText(txt, desktopBasisChrome ? rbx : rbx + 6, rby + 7.5)");
+    expect(chart).not.toContain("ctx.fillText(txt, desktopBasisChrome ? 8 : 14, 15.5)");
   });
 
   it("keeps the measured-window count while making it quiet desktop chrome", () => {

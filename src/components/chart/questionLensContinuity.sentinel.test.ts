@@ -85,7 +85,9 @@ describe("question lens and restored selection", () => {
     // reserves no caption row for them; CONTRADICTION's chip still yields.
     expect(block).not.toContain("lcLine");
     expect(CHART).not.toContain("liquidityCaptionLine");
-    expect(CHART).toContain("floatingChips.push({ x: 12, y: H - 100 - 10, w: ctx.measureText(t).width, h: 14 });");
+    // Pin moved 2026-09-30: CONTRADICTION takes a row of the shared silence
+    // stack (it and MTF were both hard-coded at H - 100, over each other).
+    expect(CHART).toContain("floatingChips.push({ x: 12, y: cvRowY - 7, w: ctx.measureText(t).width, h: 14 });");
     expect(CHART).not.toMatch(/wordChip\(glass\.label, wy\);/);
     // The BASIS caption announces itself so later layers can yield to it.
     expect(CHART).toMatch(/floatingChips\.push\(\{ x: bx, y: by, w: bwTxt \+ 6, h: 15 \}\)/);
