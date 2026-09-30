@@ -153,7 +153,7 @@ Deltas remaining: Session / Fixed / Composite share one grey histogram body (tol
 
 Founder decisions surfaced (not decided): crypto session split — Composite / Memory / Expected Envelope read "no completed session" on 24/7 crypto (§LXXVIII).
 
-## 3e. Browser shift (2026-09-30 11:13 → 13:10 CDT), START `9837d27` → FINAL `0e51b72` (last code)
+## 3e. Browser shift (2026-09-30 11:13 → 13:50 CDT), START `9837d27` → last code `9919765`
 
 All work found in the browser on serving `/charts` (own tab, proof scenes; Founder settings untouched — `wm_absorptionAnatomy` "false", `wm_last_symbol` is the Founder's own MNQ1!).
 
@@ -173,6 +173,9 @@ All work found in the browser on serving `/charts` (own tab, proof scenes; Found
 | Daily shelf label out of the word band | `a57532e` | PROVED | "DAILY SHELF · PDL" right-aligned at the edge (ran across the ORDER FLOW row) |
 | Left column clear of the open room rail | `5cbc70b` `e50c06e` | PROVED | Workspace open: silence rows at x≈225, D toggle beside the rail, Review camera FOUNDATION VIEW card fully readable (left half was under the rail); scaffolding line "NOT MEASURED ON THIS FEED" (said "SWITCH ON ABSORPTION" while it was on) |
 | EFFORT chip + MTF shelf tag | `def97e6` `0e51b72` | PROVED / BUILT | Workspace open: EFFORT chip beside D, right of the rail (PROVED); shelf "D" tag refuses the left edge inside the word band (BUILT) |
+| SPY: zero-gamma words + structure silence | `23ba16d` | PROVED | "ZERO-GAMMA FRONT 766.73" clear of "NO BAR · 3 intervals"; "STRUCTURE · 10-BAR LEG … TOO SHORT TO PROFILE" now a bottom-left row (ran through a dozen candles) |
+| MTF silence reads its reason once | `5d1a0ab` | BUILT | "MTF · 4H / 1H / D · chart is not below them" |
+| Forming candle at NEAR | `9919765` | PROVED | ETH-USD 1m Bid×Ask, 5× magnifier: big-trade ticks beside the body (were bars across it), cell numbers 1.4 / 3.4 / 2.7 legible, path faint over cells; 14.6 ms, 0 faults |
 | Data window beside a full-height drawer | — | PROVED | Heat drawer (18–358 px): data window at x≈419, right of the drawer |
 | Tools doors click→manifest | — | PROVED | Market reality, Passport, Decision chain, Personal edge, Heat (drawer ranks 105/107), Chart tools, WM Smart Money Tools ("ALL 9 AVAILABLE" with live tape); Rooms, Community, Command Deck open |
 | Cameras | — | PROVED | Regime / Review / Order Flow each paint their arrangement; `wm_of*` keys unchanged (proof latch) |
