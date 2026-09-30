@@ -112,7 +112,11 @@ export function renderStormPixels(
   // neighbouring columns, sampled where the smoke's own density bends it —
   // measured colours only, blended where they meet; clear air stays clear.
   const blend = Math.max(1, Math.round(size / 24));
-  const tint = (center: number): [number, number, number] | null => {
+  // One weighted average per column, computed ONCE per render (was per pixel:
+  // an 11-column window × 16k pixels — the lens alone cost ~14 ms/frame on
+  // serving, 2026-09-29 performance pass).
+  const tints: ([number, number, number] | null)[] = [];
+  for (let center = 0; center < size; center++) {
     let r = 0, g = 0, b = 0, w = 0;
     for (let k = center - blend; k <= center + blend; k++) {
       const t = tones[Math.max(0, Math.min(size - 1, k))];
@@ -120,8 +124,8 @@ export function renderStormPixels(
       const f = t.weight * (1 - Math.abs(k - center) / (blend + 1));
       r += t.rgb[0] * f; g += t.rgb[1] * f; b += t.rgb[2] * f; w += f;
     }
-    return w > 0 ? [r / w, g / w, b / w] : null;
-  };
+    tints.push(w > 0 ? [r / w, g / w, b / w] : null);
+  }
   for (let py = 0; py < size; py++) {
     const v = (py + 0.5) / size;
     for (let px = 0; px < size; px++) {
@@ -138,8 +142,9 @@ export function renderStormPixels(
       // Saturation pushed away from grey (F08B, beside the serving glass
       // 2026-09-29: the plate's smoke is deep yellow-green and teal; serving
       // read washed grey) — the SAME measured hue, deeper, never a new one.
-      const bent = Math.round(px + (stormDensity(v, u, seed + 1, phase) - 0.5) * blend * 3);
-      const [r0, g0, b0] = tint(bent) ?? tone.rgb;
+      // Bent by the smoke's own density (the one sample this pixel already has).
+      const bent = Math.max(0, Math.min(size - 1, Math.round(px + (d - 0.5) * blend * 3)));
+      const [r0, g0, b0] = tints[bent] ?? tone.rgb;
       const grey = (r0 + g0 + b0) / 3;
       const r = grey + (r0 - grey) * STORM_SATURATION, g = grey + (g0 - grey) * STORM_SATURATION, b = grey + (b0 - grey) * STORM_SATURATION;
       // Luminous cores (plate): the measured colour lit from within, never a new hue.

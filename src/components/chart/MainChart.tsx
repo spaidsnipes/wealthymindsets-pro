@@ -18815,7 +18815,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const ph = stormPhaseRef.current;
             if (motionOnRef.current) { if (ph.at > 0) ph.phase += Math.min(0.5, nowS - ph.at) * STORM_DRIFT_PER_SEC; ph.at = nowS; }
             else ph.at = 0;
-            const phaseQ = Math.round(ph.phase / 0.004) * 0.004;
+            // Rebuild step 0.006 (≈ every 5th LIVE frame at 30 fps) — same drift speed, fewer 128² noise renders (performance pass 2026-09-29).
+            const phaseQ = Math.round(ph.phase / 0.006) * 0.006;
             const seed = stormSeed(`${symbol}|${timeframe}`);
             const span = 2 * L.rx;
             const colKey = stormCols.map(c => `${Math.round(c.x0 - L.cx)}:${Math.round(c.x1 - L.cx)}:${c.rgb.join(",")}:${c.weight.toFixed(2)}`).join(";");
