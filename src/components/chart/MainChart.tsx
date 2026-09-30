@@ -15753,8 +15753,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 // names itself at the right edge instead.
                 const shelfTxt = `DAILY SHELF · ${sh.level}`;
                 const inWordBand = y + 5 > silenceRowY - 14 * 7 && x1 * 0.4 < 700;
-                if (inWordBand) { ctx.textAlign = "right"; ctx.fillText(shelfTxt, x1 - 16, y + 5); }
-                else ctx.fillText(shelfTxt, x1 * 0.4, y + 5);
+                // Centred at 40% (or right-aligned in the word band), then the
+                // other; it prints over no chip already on the glass and
+                // announces itself (same law as the band names, 2026-09-30).
+                const sw = ctx.measureText(shelfTxt).width;
+                const slots = [
+                  { l: x1 * 0.4 - sw / 2, align: "center" as const, x: x1 * 0.4 },
+                  { l: x1 - 16 - sw, align: "right" as const, x: x1 - 16 },
+                ];
+                const order = inWordBand ? [slots[1]] : slots;
+                const pick = order.find(o => {
+                  const q = { x: o.l - 2, y: y + 3, w: sw + 4, h: 13 };
+                  return !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y);
+                });
+                if (pick) {
+                  ctx.textAlign = pick.align;
+                  ctx.fillText(shelfTxt, pick.x, y + 5);
+                  floatingChips.push({ x: pick.l - 2, y: y + 3, w: sw + 4, h: 13 });
+                }
               }
               tag("D", y, "rgba(232,184,64,1)", "rgba(30,24,8,0.9)", 6);
               painted.push(`SHELF:${sh.level}@${sh.price}`);

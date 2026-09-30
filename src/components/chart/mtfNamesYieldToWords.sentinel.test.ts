@@ -63,3 +63,13 @@ describe("every leader passes behind words (one owner)", () => {
     expect(MC.match(/clipOutChips\(ctx, W, H, /g)?.length ?? 0).toBeGreaterThanOrEqual(5);
   });
 });
+
+describe("the daily shelf's name yields to words too", () => {
+  it("40% centre, then right edge; none clear → quiet; placed name announces itself", () => {
+    const at = MC.indexOf("const shelfTxt = `DAILY SHELF · ${sh.level}`;");
+    const block = MC.slice(at, at + 1600);
+    expect(block).toContain("const order = inWordBand ? [slots[1]] : slots;");
+    expect(block).toContain("!floatingChips.some(");
+    expect(block).toContain("floatingChips.push({ x: pick.l - 2, y: y + 3, w: sw + 4, h: 13 });");
+  });
+});
