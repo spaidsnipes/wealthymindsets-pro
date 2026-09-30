@@ -2095,6 +2095,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
      exceeds its budget. Non-primary texture steps down first — never price,
      candles, risk, orders, positions or the Decision_ID. */
   const paintStressRef = useRef(false);
+  /* ACTIVATION ACKNOWLEDGEMENT (master order §LXIV): the layer switches seen
+     last frame, and the one sense spotlighted after it switched on. */
+  const prevLayerOnRef = useRef<Record<string, boolean> | null>(null);
+  const spotlightRef = useRef<{ layer: string; until: number } | null>(null);
   // T-210 · per-bar session-clock memo for the ancestry owner, reset when the camera changes.
   // Garden 15 §2 — the room's derivatives compilation, read by the paint loop.
   // Garden 16 §7 · LIVING MARKET — LIVE / STILL, one presentation state. STILL
@@ -6720,6 +6724,32 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         posture: roomPostureRef.current,
       });
       canvas.dataset.attentionSelection = att.selectionReceipt;
+      // ACTIVATION SPOTLIGHT (master order §LXIV: "manifestation gets a brief
+      // restrained focus cue. Then the chart returns to normal"). A sense that
+      // switched on this frame is spotlighted for 1.2 s — every OTHER overlay
+      // layer runs at 45% through the one attention governor. Representation
+      // only: candles, price and truth are untouched; never on first paint.
+      try {
+        const nowS = performance.now();
+        const cur = layerOnRef.current as unknown as Record<string, boolean>;
+        const prev = prevLayerOnRef.current;
+        if (prev) for (const k of Object.keys(cur)) if (cur[k] === true && prev[k] !== true) spotlightRef.current = { layer: k, until: nowS + 1200 };
+        prevLayerOnRef.current = { ...cur };
+        const spot = spotlightRef.current;
+        if (spot && nowS < spot.until) {
+          const base = att;
+          const dim = (k: string) => (k === spot.layer || k.startsWith(spot.layer) ? 1 : 0.45);
+          att = {
+            ...base,
+            alpha: (k, o) => base.alpha(k, o) * dim(k),
+            textAlpha: (k, o) => base.textAlpha(k, o) * dim(k),
+          };
+          canvas.dataset.activationSpotlight = spot.layer;
+        } else {
+          spotlightRef.current = null;
+          delete canvas.dataset.activationSpotlight;
+        }
+      } catch (err) { layerFault("ACTIVATION_SPOTLIGHT", err); }
       // The selected bubble, marked at full strength outside its layer's
       // alpha: a 2px ivory ring at r+6 and a dotted hairline from the disc to
       // the price axis at the print's own price.
