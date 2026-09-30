@@ -153,7 +153,7 @@ Deltas remaining: Session / Fixed / Composite share one grey histogram body (tol
 
 Founder decisions surfaced (not decided): crypto session split — Composite / Memory / Expected Envelope read "no completed session" on 24/7 crypto (§LXXVIII).
 
-## 3e. Browser shift (2026-09-30 11:13 → 15:12 CDT), START `9837d27` → last code `c22236f`
+## 3e. Browser shift (2026-09-30 11:13 → 15:45 CDT), START `9837d27` → last code `8777463`
 
 All work found in the browser on serving `/charts` (own tab, proof scenes; Founder settings untouched — `wm_absorptionAnatomy` "false", `wm_last_symbol` is the Founder's own MNQ1!).
 
@@ -181,6 +181,10 @@ All work found in the browser on serving `/charts` (own tab, proof scenes; Found
 | Contradiction glyph behind words | `c4e2f2d` | PROVED | TSLA 15m: UP arrow shaft stops at the "NO BAR" chip |
 | MTF tags out of profile columns | `1d05711` | PROVED | BTC-USD 15m + Session VP: 1H / D tags left of the profile, 4H at band's left end |
 | WAIT leader behind words | `c22236f` | PROVED | BTC-USD 15m: leader no longer crosses "83,350.00" VAL chip; ETH-USD 1h sweep clean, 0 faults |
+| Every plate leader behind words | `89b742c` | BUILT | one owner `src/lib/chart/clipOutChips.ts` (unit-tested); big-trade disc, evidence-debt plate, cue-ring word, scaffolding plaque, ring plate leaders clip every chip but their own plate; not seen on glass (Founder's Chrome window minimized 15:13 → 15:45) |
+| CBOT grains money | `bf6e3ac` | BUILT | ZC / ZS / ZW: $50 per 1¢ point, ¼¢ tick = $12.50 — from Webull US_FUTURES ZCZ6/ZSX6/ZWZ6 (size 5000, USX, min_tick 0.25, XCBT) + Yahoo quotes USX; left the uncovered pin; rail money shows only with a stop set, not seen on glass |
+| Daily shelf name yields | `8777463` | BUILT | 40% centre → right edge → quiet; announces its rect; CI typecheck · sentinels · build success, Workers Builds success |
+| Delta · /journal rail | — | OPEN (Founder) | `destinations="rail"` rooms keep their own rail by pinned design (ShellAccessParity.test.tsx); five-door order there is a design call |
 | Delta · disk | — | OPEN | 14:40 the Mac's disk hit 100% (Epic Games 40 GB in /Users/Shared, Claude app data 12 GB); free space swings 0.1–3.7 GB; Founder's data untouched |
 | Data window beside a full-height drawer | — | PROVED | Heat drawer (18–358 px): data window at x≈419, right of the drawer |
 | Tools doors click→manifest | — | PROVED | Market reality, Passport, Decision chain, Personal edge, Heat (drawer ranks 105/107), Chart tools, WM Smart Money Tools ("ALL 9 AVAILABLE" with live tape); Rooms, Community, Command Deck open |
