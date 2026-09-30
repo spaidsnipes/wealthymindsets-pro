@@ -15576,9 +15576,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // those rows paint later and cannot see a tag (serving EURUSD 15m,
             // 2026-09-30: the shelf's "D" tag sat on "PROFILE MEMORY").
             const altInWordBand = ty + TAG_H > silenceRowY - 14 * 7;
+            // A profile column is not a place for a tag (serving BTC-USD 15m,
+            // 2026-09-30: the 1H and 4H tags sat on the Session profile's
+            // bars). The family's column edge — this frame's lanes so far, or
+            // last frame's — is kept out; with nothing clear the tag keeps its
+            // edge, as before.
+            const pclT = profileColumnLeftRef.current;
+            const colLeftT = Math.min(pclT.prev, pclT.cur);
+            const profileColT = Number.isFinite(colLeftT) ? [{ x: colLeftT, y: 0, w: W - colLeftT, h: H }] : [];
             const spot = placeClearOfKeepOut(
               pref,
-              [...keepOut(), ...rowBodiesAt(ty, ty + TAG_H)],
+              [...keepOut(), ...rowBodiesAt(ty, ty + TAG_H), ...profileColT],
               { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: altInWordBand ? [] : [alt] },
             );
             recordKeepOut(keepOutLedger, spot);

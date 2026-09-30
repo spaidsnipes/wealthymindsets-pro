@@ -41,3 +41,10 @@ describe("the contradiction glyph sits behind words already on the glass", () =>
     expect(block).toContain("ctx.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);");
   });
 });
+
+describe("MTF tags stay out of profile columns", () => {
+  it("the family's column edge is part of the tag's keep-out", () => {
+    expect(MC).toContain("const colLeftT = Math.min(pclT.prev, pclT.cur);");
+    expect(MC).toContain("[...keepOut(), ...rowBodiesAt(ty, ty + TAG_H), ...profileColT],");
+  });
+});
