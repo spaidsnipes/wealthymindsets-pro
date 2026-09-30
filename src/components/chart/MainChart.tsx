@@ -578,6 +578,7 @@ import {
 import { PROFILE_INK_AT_REST, resolveProfileInk } from "@/lib/chart/profileFamilyInk";
 // The legend headline steps past an open Workspace/Tools door (see openDoorEdge.ts).
 import { ClearOfOpenDoor } from "@/components/os/ClearOfOpenDoor";
+import { doorInsetFor, openDoorEdge } from "@/lib/os/openDoorEdge";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
 // NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
@@ -6520,11 +6521,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // start right of it, and every keep-out placer's minimum x follows.
       const railOcclusionX = (() => {
         try {
-          const rail = document.querySelector('[data-testid="os-rail"]');
-          if (!rail) return 0;
-          const rr = rail.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
-          if (!(rr.width > 0) || !(rr.height > 0) || rr.right <= cr.left) return 0;
-          return Math.max(0, Math.round(rr.right - cr.left));
+          // The room's one door-edge owner (openDoorEdge) — the same number
+          // the price legend's ClearOfOpenDoor band steps past.
+          const cr = canvas.getBoundingClientRect();
+          return doorInsetFor(openDoorEdge(), cr.left, cr.width);
         } catch { return 0; }
       })();
       const silenceX = Math.max(12, railOcclusionX + 12);
@@ -11068,7 +11068,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // caption held `by = 8` from before the legend moved into the pane,
             // and was printing under the headline price. Derived, not re-typed,
             // so it tracks the legend if the legend's height ever changes.
-            const bx = BASIS_CAPTION_X, by = BELOW_PRICE_LEGEND;
+            const bx = BASIS_CAPTION_X + railOcclusionX, by = BELOW_PRICE_LEGEND;
             const desktopBasisChrome = W >= 960;
             if (!absorbPaints) {
               // The field's provenance is withheld with the field.
@@ -12760,7 +12760,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // this refusal kept the pre-legend (8, 8) spot and printed
               // "EFFORT UNMEASURED" under "EURUSD 15m"). Same slot as the
               // measured basis caption: right of D, below the price legend.
-              const rbx = BASIS_CAPTION_X, rby = BELOW_PRICE_LEGEND;
+              const rbx = BASIS_CAPTION_X + railOcclusionX, rby = BELOW_PRICE_LEGEND;
               if (!desktopBasisChrome) {
                 ctx.fillStyle = "rgba(14,12,8,0.86)";
                 ctx.fillRect(rbx, rby, tw2 + 12, 14);
@@ -12813,18 +12813,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         if (scaffoldPaints && (scaffoldPainted == null || !scaffoldPainted.includes(":CAUTION") && !scaffoldPainted.includes(":CLEAR"))) {
           // Refusal is a render: the lens reads effort, and effort is not being read.
           ctx.save();
+          // Absorption already ON but effort unreadable (serving EURUSD 15m,
+          // Review camera, 2026-09-30) is not "switch it on" — say what is true.
           const txt = scaffoldPainted == null
-            ? "SCAFFOLDING · READS EFFORT — SWITCH ON ABSORPTION"
+            ? (absorptionAnatomyActive ? "SCAFFOLDING · READS EFFORT — NOT MEASURED ON THIS FEED" : "SCAFFOLDING · READS EFFORT — SWITCH ON ABSORPTION")
             : `SCAFFOLDING · ${scaffoldPainted.split(":")[1] === "TOO_FEW_BARS" ? "TOO FEW BARS ON SCREEN" : "EFFORT NOT MEASURED"}`;
           ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
           const tw = ctx.measureText(txt).width;
+          // Clear of an open room rail (it overlays the chart's left column).
+          const sx = Math.max(12, railOcclusionX + 12);
           ctx.fillStyle = "rgba(11,10,8,0.9)";
-          ctx.fillRect(12, 176, tw + 16, 18);
+          ctx.fillRect(sx, 176, tw + 16, 18);
           ctx.strokeStyle = "rgba(201,165,92,0.6)";
-          ctx.strokeRect(12.5, 176.5, tw + 15, 17);
+          ctx.strokeRect(sx + 0.5, 176.5, tw + 15, 17);
           ctx.fillStyle = "rgba(237,230,211,0.9)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          ctx.fillText(txt, 20, 185.5);
+          ctx.fillText(txt, sx + 8, 185.5);
           ctx.restore();
         }
       } catch (err) { layerFault("SCAFFOLDING", err); }
@@ -23865,6 +23869,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             it cannot drift from the legend the way a literal `36` would.
             Capability is untouched: same control, same handler, same title,
             one corner down. */}
+        {/* Steps past an open room door like the price legend above it
+            (serving 2026-09-30: under the Workspace rail it could not be
+            seen or pressed). */}
+        <ClearOfOpenDoor style={{ position: "absolute", top: BELOW_PRICE_LEGEND, left: PANE_TOP_LEFT_INSET, zIndex: 70, width: 22, height: 22 }}>
         <button
           type="button"
           onClick={() => setDataWindowOpen(v => !v)}
@@ -23874,7 +23882,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           aria-label="Data window"
           aria-pressed={dataWindowOpen}
           style={{
-            position: "absolute", top: BELOW_PRICE_LEGEND, left: PANE_TOP_LEFT_INSET, zIndex: 70,
+            display: "block",
             width: 22, height: 22, borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer",
             background: dataWindowOpen ? "rgba(47,128,237,0.2)" : "rgba(20,24,36,0.85)",
             border: `1px solid ${dataWindowOpen ? "rgba(47,128,237,0.5)" : "#263050"}`,
@@ -23883,6 +23891,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         >
           D
         </button>
+        </ClearOfOpenDoor>
 
         {/* ── Right-click context menu ──────────────────── */}
         {ctxMenu && (

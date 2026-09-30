@@ -286,7 +286,7 @@ describe("the market field has ONE material owner", () => {
     expect(
       CODE(MAIN_CHART),
       "the absorption BASIS caption no longer clears the price legend",
-    ).toMatch(/const bx = BASIS_CAPTION_X, by = BELOW_PRICE_LEGEND;/);
+    ).toMatch(/const bx = BASIS_CAPTION_X \+ railOcclusionX, by = BELOW_PRICE_LEGEND;/);
     expect(strip![1], "the legend is painting its own material again").toMatch(
       /background:\s*"transparent"/,
     );

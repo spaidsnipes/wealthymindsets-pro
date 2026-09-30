@@ -114,8 +114,11 @@ describe("the legend headline steps past the open door (symbol + price stay read
       // about the band being door-aware; its right edge is owned elsewhere.
       /<ClearOfOpenDoor\s+style=\{\{\s*position: "absolute", top: 0, left: 0, right: priceLegendInset, height: PRICE_LEGEND_OVERLAY_H,/,
     );
-    // Exactly one: a second door-aware legend would be a second price owner.
-    expect(CHART.match(/<ClearOfOpenDoor\b/g) ?? []).toHaveLength(1);
+    // Exactly one door-aware LEGEND (a second would be a second price owner).
+    // 2026-09-30: the D (data window) toggle below it wears the same band so it
+    // is not hidden under the Workspace rail — a control, not a headline.
+    expect(CHART.match(/<ClearOfOpenDoor\b/g) ?? []).toHaveLength(2);
+    expect(CHART.match(/<ClearOfOpenDoor\s+style=\{\{\s*position: "absolute", top: 0, left: 0/g) ?? []).toHaveLength(1);
   });
 
   it("the band measures its OWN pane against the announced edge (split layouts are not pushed)", () => {
