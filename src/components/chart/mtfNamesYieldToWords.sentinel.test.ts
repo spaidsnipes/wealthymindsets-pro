@@ -11,9 +11,11 @@ const MC = readFileSync("src/components/chart/MainChart.tsx", "utf8");
 
 describe("MTF band names never print over other words", () => {
   it("nameIn checks the chips, slides, or stays quiet", () => {
-    const body = MC.slice(MC.indexOf("const nameIn = ("), MC.indexOf("const nameIn = (") + 1400);
+    const body = MC.slice(MC.indexOf("const nameIn = ("), MC.indexOf("const nameIn = (") + 2200);
     expect(body).toContain("const clear = [(x0 + x1) / 2, x0 + 8 + w / 2, x1 - 8 - w / 2].find(");
-    expect(body).toContain("!floatingChips.some(");
+    expect(body).toContain("...floatingChips,");
+    expect(body).toContain("...rowBodiesAt(yMid - 7, yMid + 7),");
+    expect(body).toContain("!nameBlockers.some(");
     expect(body).toContain("if (clear == null) return;");
     expect(body).toContain("floatingChips.push({ x: clear - w / 2 - 2, y: yMid - 7, w: w + 4, h: 14 });");
   });

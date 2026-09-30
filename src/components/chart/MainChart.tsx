@@ -15605,9 +15605,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // (serving TSLA 15m, 2026-09-30: "NO BAR · 1 interval" sat on
             // "4H ANCESTRY BAND"). Centred, then either end of its own body;
             // with none clear it stays quiet — the boxed tag still names it.
+            // Nor across a candle body or the daily shelf's dashed line, which
+            // paints after it (serving TSLA 15m, 2026-09-30: a thin band's name
+            // sat on the PDL dash and the bars beside it).
+            const shelfY = mtf.shelf.kind === "SHELF" ? yOf(mtf.shelf.price) : null;
+            const nameBlockers = [
+              ...floatingChips,
+              ...keepOut(),
+              ...rowBodiesAt(yMid - 7, yMid + 7),
+              ...(shelfY != null ? [{ x: 0, y: shelfY - 2, w: plotRightM, h: 4 }] : []),
+            ];
             const clear = [(x0 + x1) / 2, x0 + 8 + w / 2, x1 - 8 - w / 2].find(cx => {
               const q = { x: cx - w / 2 - 2, y: yMid - 7, w: w + 4, h: 14 };
-              return !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y);
+              return !nameBlockers.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y);
             });
             if (clear == null) return;
             ctx.fillStyle = ink;
