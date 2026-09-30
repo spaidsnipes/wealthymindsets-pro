@@ -15718,7 +15718,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.restore();
 
           if (silences.length && mtfSpeaks) {
-            const words = `MTF · ${silences.join(" · ")}`;
+            // One reason for every tier reads once (serving TSLA 1D, 2026-09-30:
+            // "4H · chart is not below it · 1H · chart is not below it · D · …").
+            const parts = silences.map(t => { const i = t.indexOf(" · "); return i < 0 ? null : { tier: t.slice(0, i), why: t.slice(i + 3) }; });
+            const sameWhy = parts.length > 1 && parts.every(p => p && p.why === parts[0]!.why);
+            const words = sameWhy
+              ? `MTF · ${parts.map(p => p!.tier).join(" / ")} · ${parts[0]!.why.replace(/\bit$/, "them")}`
+              : `MTF · ${silences.join(" · ")}`;
             ctx.save();
             ctx.globalAlpha = att.textAlpha("mtfAncestry");
             ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
