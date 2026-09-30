@@ -48,3 +48,11 @@ describe("MTF tags stay out of profile columns", () => {
     expect(MC).toContain("[...keepOut(), ...rowBodiesAt(ty, ty + TAG_H), ...profileColT],");
   });
 });
+
+describe("the WAIT tag's leader passes behind words", () => {
+  it("its stroke is clipped around every chip but the plate's own", () => {
+    const at = MC.indexOf("for (const q of floatingChips.slice(0, -1)) {");
+    expect(at).toBeGreaterThan(MC.indexOf("floatingChips.push({ x: spotT.rect.x, y: spotT.rect.y, w: spotT.rect.w, h: spotT.rect.h });"));
+    expect(MC.slice(at, at + 500)).toContain("ctx.beginPath(); ctx.moveTo(x, pinY); ctx.lineTo(r.x + r.w / 2, endY); ctx.stroke();");
+  });
+});

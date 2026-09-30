@@ -20687,9 +20687,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // nearest edge, with a pin on the candle — "lives on the event".
               const pinY = plateAbove ? yHi - 2 : yLo + 2;
               const endY = plateAbove ? r.y + r.h : r.y;
+              // The leader passes BEHIND words already on the glass (serving
+              // BTC-USD 15m, 2026-09-30: it ran through the "83,350.00" VAL
+              // chip the plate itself had stepped around). Every chip but the
+              // plate's own is cut out of the stroke, one clip per chip.
+              ctx.save();
+              for (const q of floatingChips.slice(0, -1)) {
+                ctx.beginPath();
+                ctx.rect(0, 0, W, H);
+                ctx.rect(q.x - 1, q.y - 1, q.w + 2, q.h + 2);
+                ctx.clip("evenodd");
+              }
               ctx.strokeStyle = "rgba(201,165,92,0.85)";
               ctx.lineWidth = 1;
               ctx.beginPath(); ctx.moveTo(x, pinY); ctx.lineTo(r.x + r.w / 2, endY); ctx.stroke();
+              ctx.restore();
               ctx.fillStyle = "#d4af37";
               ctx.beginPath(); ctx.arc(x, pinY, 2, 0, Math.PI * 2); ctx.fill();
               // The plate. Solid brass when it is clear of the newest bodies;
