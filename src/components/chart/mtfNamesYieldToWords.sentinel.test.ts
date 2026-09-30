@@ -22,3 +22,10 @@ describe("MTF band names never print over other words", () => {
       .toBeLessThan(MC.indexOf("const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];"));
   });
 });
+
+describe("the tag places before the name", () => {
+  it("a name never pushes its own tag off the right edge", () => {
+    expect(MC.indexOf('tag("4H", top + h / 2')).toBeLessThan(MC.indexOf('nameIn("4H ANCESTRY BAND"'));
+    expect(MC.indexOf('tag("1H", top + h / 2')).toBeLessThan(MC.indexOf('nameIn("1H NODE"'));
+  });
+});

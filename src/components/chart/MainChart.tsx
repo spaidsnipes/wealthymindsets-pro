@@ -15640,8 +15640,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.strokeStyle = "rgba(96,196,112,0.75)";
                 ctx.lineWidth = 1;
                 ctx.strokeRect(x0 + 0.5, top + 0.5, x1 - x0 - 1, h - 1);
-                nameIn("4H ANCESTRY BAND", x0, x1, top + h / 2, "rgba(140,214,150,0.9)");
+                // The tag places first (it confirms the body); the name yields to it.
                 tag("4H", top + h / 2, "rgba(120,210,132,1)", "rgba(12,32,18,0.9)", x0);
+                nameIn("4H ANCESTRY BAND", x0, x1, top + h / 2, "rgba(140,214,150,0.9)");
                 painted.push(`BAND@${b.firstTime}:${b.relation}`);
               }
             }
@@ -15674,8 +15675,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.lineWidth = 1.25;
                 ctx.strokeRect(x0 + 0.5, top + 0.5, x1 - x0 - 1, h - 1);
                 ctx.lineWidth = 1;
-                nameIn("1H NODE", x0, x1, top + h / 2, "rgba(214,218,226,0.9)");
                 tag("1H", top + h / 2, "rgba(206,210,220,1)", "rgba(24,26,32,0.9)", x0);
+                nameIn("1H NODE", x0, x1, top + h / 2, "rgba(214,218,226,0.9)");
                 painted.push(`NODE@${n.price}`);
               }
             }
