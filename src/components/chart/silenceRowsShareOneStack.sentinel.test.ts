@@ -50,7 +50,10 @@ describe("the reading-anchor chip row is one number the canvas can see", () => {
       const src = readFileSync(f, "utf8");
       const m = src.match(/className="wm-chart-reading-anchor[^"]*"/g) ?? [];
       expect(m.length).toBeGreaterThan(0);
-      for (const c of m) { expect(c).toContain(" top-16 "); expect(c).toContain(" h-6 "); }
+      // 2026-09-30: the EFFORT chip's row moved onto its ClearOfOpenDoor band
+      // (top: 64 = top-16) so it steps past an open room door.
+      const bandTop = src.includes('<ClearOfOpenDoor style={{ position: "absolute", top: 64,');
+      for (const c of m) { if (!bandTop) expect(c).toContain(" top-16 "); expect(c).toContain(" h-6 "); }
     }
   });
 });

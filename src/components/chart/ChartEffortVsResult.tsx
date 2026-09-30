@@ -46,6 +46,7 @@
 
 import React from "react";
 import { Scale, X } from "lucide-react";
+import { ClearOfOpenDoor } from "@/components/os/ClearOfOpenDoor";
 
 import type {
   EffortResultRow,
@@ -130,16 +131,20 @@ export function ChartEffortVsResult({
 
   if (!open) {
     return (
-      <button
-        onClick={() => onOpenChange(true)}
-        aria-label="Open the effort versus result reading for the bar under the cursor"
-        data-testid="chart-effort-result-reopen"
-        className="wm-chart-reading-anchor absolute top-16 left-3 z-20 flex items-center gap-1 rounded border px-2 h-6 text-[10px] font-bold tracking-wide"
-        style={{ background: "#131520", borderColor: "#1E2030", color: "#8B8FA8" }}
-      >
-        <Scale size={10} />
-        EFFORT
-      </button>
+      // Steps past an open room door like the price legend and the D toggle
+      // (serving 2026-09-30: under the Workspace rail it could not be seen).
+      <ClearOfOpenDoor style={{ position: "absolute", top: 64, left: 12, zIndex: 20 }}>
+        <button
+          onClick={() => onOpenChange(true)}
+          aria-label="Open the effort versus result reading for the bar under the cursor"
+          data-testid="chart-effort-result-reopen"
+          className="wm-chart-reading-anchor flex items-center gap-1 rounded border px-2 h-6 text-[10px] font-bold tracking-wide"
+          style={{ background: "#131520", borderColor: "#1E2030", color: "#8B8FA8" }}
+        >
+          <Scale size={10} />
+          EFFORT
+        </button>
+      </ClearOfOpenDoor>
     );
   }
 
