@@ -579,6 +579,7 @@ import { PROFILE_INK_AT_REST, resolveProfileInk } from "@/lib/chart/profileFamil
 // The legend headline steps past an open Workspace/Tools door (see openDoorEdge.ts).
 import { ClearOfOpenDoor } from "@/components/os/ClearOfOpenDoor";
 import { doorInsetFor, openDoorEdge } from "@/lib/os/openDoorEdge";
+import { clipOutChips } from "@/lib/chart/clipOutChips";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
 // NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
@@ -8013,8 +8014,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const lx = Math.max(r.x, Math.min(r.x + r.w, b.x)), ly = Math.max(r.y, Math.min(r.y + r.h, b.y));
                 const ang = Math.atan2(ly - b.y, lx - b.x);
                 const rimX = b.x + Math.cos(ang) * (b.r + 2), rimY = b.y + Math.sin(ang) * (b.r + 2);
+                ctx.save(); clipOutChips(ctx, W, H, forceChips, r);
                 ctx.strokeStyle = "rgba(232,184,92,0.9)"; ctx.lineWidth = 1; ctx.setLineDash([]);
                 ctx.beginPath(); ctx.moveTo(rimX, rimY); ctx.lineTo(lx, ly); ctx.stroke();
+                ctx.restore();
                 ctx.beginPath(); ctx.arc(rimX, rimY, 2.5, 0, Math.PI * 2);
                 ctx.fillStyle = "rgba(240,200,110,1)"; ctx.fill();
                 // A backing on a protected body yields (keepOutBackingAlpha).
@@ -8311,8 +8314,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const py0 = up ? ey + 30 : ey - 50;
               const debt = plate(["UNPAID EVIDENCE DEBT", `${pr.responseBars}/3 response bars closed`], px0, py0, true);
               // The leader leaves the plate where it actually landed.
+              ctx.save(); clipOutChips(ctx, W, H, forceChips, debt);
               ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(232,184,92,0.7)"; ctx.lineWidth = 1;
               ctx.beginPath(); ctx.moveTo(ex < debt.x ? debt.x : debt.x + debt.w, debt.y + debt.h / 2); ctx.lineTo(ex - 5, ey); ctx.stroke(); ctx.setLineDash([]);
+              ctx.restore();
             }
             if (xEnd != null) {
               // EXPECTED ENVELOPE (ghost): ±1 median bar range around the
@@ -12007,8 +12012,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                       // The leader, from the ring's edge to the word's near side.
                       const ex = r.x + r.w / 2 < ax ? r.x + r.w : r.x, ey = r.y + r.h / 2;
                       const ang = Math.atan2(ey - ay, ex - ax);
+                      ctx.save(); clipOutChips(ctx, W, H, floatingChips, r);
                       ctx.strokeStyle = ink; ctx.lineWidth = 1;
                       ctx.beginPath(); ctx.moveTo(ax + 7 * Math.cos(ang), ay + 7 * Math.sin(ang)); ctx.lineTo(ex, ey); ctx.stroke();
+                      ctx.restore();
                     }
                     ctx.fillStyle = muted ? "rgba(11,10,8,0.7)" : "rgba(11,10,8,0.88)";
                     ctx.fillRect(r.x, r.y, r.w, r.h);
@@ -12525,6 +12532,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                       const fromY = above ? plaque.y + plaque.h : below ? plaque.y : Math.max(plaque.y, Math.min(plaque.y + plaque.h, tipY));
                       const tipX = beside ? bar.x + (fromX < bar.x ? -hb : hb) : bar.x;
                       ctx.save();
+                      clipOutChips(ctx, W, H, floatingChips, plaque);
                       ctx.setLineDash([2, 3]);
                       ctx.strokeStyle = HAIR; ctx.lineWidth = 1;
                       ctx.beginPath(); ctx.moveTo(fromX, fromY); ctx.lineTo(tipX, tipY); ctx.stroke();
@@ -19750,6 +19758,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const tl = Math.atan2((R.y + R.h / 2 - L.cy) / L.ry, (R.x + R.w / 2 - L.cx) / L.rx);
               const onRing = ringPoint(L, tl, 5);
               const ax = Math.max(R.x, Math.min(R.x + R.w, onRing.x)), ay = Math.max(R.y, Math.min(R.y + R.h, onRing.y));
+              ctx.save(); clipOutChips(ctx, W, H, floatingChips, R);
               ctx.setLineDash([2, 2]);
               ctx.strokeStyle = "rgba(201,165,92,0.70)";
               ctx.lineWidth = 1;
@@ -19758,6 +19767,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.lineTo(onRing.x, onRing.y);
               ctx.stroke();
               ctx.setLineDash([]);
+              ctx.restore();
               ctx.fillStyle = "rgba(201,165,92,0.95)";
               ctx.fillRect(onRing.x - 1.5, onRing.y - 1.5, 3, 3);
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.86)})`;

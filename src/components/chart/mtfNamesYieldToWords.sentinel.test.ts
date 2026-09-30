@@ -56,3 +56,10 @@ describe("the WAIT tag's leader passes behind words", () => {
     expect(MC.slice(at, at + 500)).toContain("ctx.beginPath(); ctx.moveTo(x, pinY); ctx.lineTo(r.x + r.w / 2, endY); ctx.stroke();");
   });
 });
+
+describe("every leader passes behind words (one owner)", () => {
+  it("the five plate/word leaders clip through clipOutChips", () => {
+    expect(MC).toContain('import { clipOutChips } from "@/lib/chart/clipOutChips";');
+    expect(MC.match(/clipOutChips\(ctx, W, H, /g)?.length ?? 0).toBeGreaterThanOrEqual(5);
+  });
+});
