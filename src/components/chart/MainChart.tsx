@@ -12797,7 +12797,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             priceToY: pp => { const yy = srs.priceToCoordinate(pp); return yy == null ? null : +yy; },
           }, 0, W) : [];
           for (const b of pick) {
-            const pulse = newestXA != null && +newestXA - b.ex <= 3 * spacingB ? pulseLive : 1;
+            const eventLive = newestXA != null && +newestXA - b.ex <= 3 * spacingB;
+            const pulse = eventLive ? pulseLive : 1;
             const gold = b.kind === "ABSORB";
             const rgb = gold ? "240,192,96" : "226,92,92";
             // G06 scale: a figure you can read at a glance, not a stick glyph.
@@ -12867,7 +12868,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             for (let k = 0; k < 10; k++) {
               const ang = (k / 10) * Math.PI * 2 + 0.15;
               if (gold) {
-                const conv = motionOnRef.current ? ((performance.now() / 1600 + k * 0.1) % 1) : 0.5;
+                const conv = motionOnRef.current && eventLive ? ((performance.now() / 1600 + k * 0.1) % 1) : 0.5;
                 const r0 = (44 - 18 * conv) * u, r1 = r0 - 8 * u;
                 ctx.strokeStyle = `rgba(${rgb},0.6)`;
                 ctx.lineWidth = 1;
@@ -12877,7 +12878,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.fillStyle = `rgba(${rgb},0.8)`;
                 ctx.beginPath(); ctx.arc(x1, y1, 1.1, 0, Math.PI * 2); ctx.fill();
               } else {
-                const drift = motionOnRef.current ? ((performance.now() / 1400 + k * 0.13) % 1) : 0.5;
+                const drift = motionOnRef.current && eventLive ? ((performance.now() / 1400 + k * 0.13) % 1) : 0.5;
                 const r = (18 + 22 * drift) * u;
                 ctx.fillStyle = `rgba(${rgb},${0.7 * (1 - drift)})`;
                 ctx.beginPath(); ctx.arc(cx + Math.cos(ang) * r, coreY + Math.sin(ang) * r, 1.4, 0, Math.PI * 2); ctx.fill();
