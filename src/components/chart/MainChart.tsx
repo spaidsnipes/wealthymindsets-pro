@@ -6731,14 +6731,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // only: candles, price and truth are untouched; never on first paint.
       try {
         const nowS = performance.now();
-        const cur = layerOnRef.current as unknown as Record<string, boolean>;
+        // The layer switches, plus the two senses switched outside them:
+        // Founder Anatomy and the footprint family (big trades, bubbles…).
+        const cur: Record<string, boolean> = {
+          ...(layerOnRef.current as unknown as Record<string, boolean>),
+          absorption: absorptionAnatomyActive === true,
+          footprint: footprintEnabled === true && String(footprintType) !== "none",
+        };
         const prev = prevLayerOnRef.current;
         if (prev) for (const k of Object.keys(cur)) if (cur[k] === true && prev[k] !== true) spotlightRef.current = { layer: k, until: nowS + 1200 };
         prevLayerOnRef.current = { ...cur };
         const spot = spotlightRef.current;
         if (spot && nowS < spot.until) {
           const base = att;
-          const dim = (k: string) => (k === spot.layer || k.startsWith(spot.layer) ? 1 : 0.45);
+          const family: Record<string, readonly string[]> = {
+            absorption: ["absorption", "exhaustion", "anatomyCards"],
+            footprint: ["footprint", "bubbles", "bigTrades"],
+          };
+          const lit = family[spot.layer] ?? [spot.layer];
+          const dim = (k: string) => (lit.some(l => k === l || k.startsWith(l)) ? 1 : 0.45);
           att = {
             ...base,
             alpha: (k, o) => base.alpha(k, o) * dim(k),
