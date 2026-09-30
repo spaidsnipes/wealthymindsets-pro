@@ -46,6 +46,13 @@ export interface DataWindowPlacementInput {
   readonly paneH: number;
   /** The first y below the legend band AND the chip row under it. */
   readonly topFloor: number;
+  /**
+   * Room furniture docked over the pane (pane pixels): a Tools preview card
+   * (serving TSLA 15m, 2026-09-30: MARKET REALITY docked top-left and the
+   * panel's heading — which bar it reads — slid under it). The panel never
+   * sits under one: it drops below it, or takes the bar's other side.
+   */
+  readonly avoid?: readonly { x: number; y: number; w: number; h: number }[];
 }
 
 export interface DataWindowPlacement {
@@ -73,10 +80,31 @@ export function placeDataWindow(input: DataWindowPlacementInput): DataWindowPlac
   const rightLimit = paneW - DATA_WINDOW_AXIS_RESERVE;
   const top0 = clampTop(finite(input.barHighY) ? input.barHighY - 10 : topFloor);
 
+  const avoid = input.avoid ?? [];
+  const covered = (left: number, top: number) => avoid.find(r =>
+    left < r.x + r.w && left + DATA_WINDOW_W > r.x && top < r.y + r.h && top + DATA_WINDOW_H > r.y);
+  // Clear of docked furniture: as placed, else just below what covers it,
+  // else null (that side is taken).
+  const clearOfDock = (left: number, top: number): number | null => {
+    let t = top;
+    for (let i = 0; i < avoid.length + 1; i++) {
+      const hit = covered(left, t);
+      if (!hit) return t;
+      t = hit.y + hit.h + DATA_WINDOW_MARGIN;
+      if (t > maxTop) return null;
+    }
+    return null;
+  };
+
   const rightLeft = input.barX + gap;
-  if (rightLeft + DATA_WINDOW_W <= rightLimit) {
-    return { left: Math.round(rightLeft), top: Math.round(clearChipColumn(rightLeft, top0)), side: "RIGHT" };
-  }
   const leftLeft = Math.max(DATA_WINDOW_MARGIN, input.barX - gap - DATA_WINDOW_W);
-  return { left: Math.round(leftLeft), top: Math.round(clearChipColumn(leftLeft, top0)), side: "LEFT" };
+  const sides: { side: DataWindowSide; left: number }[] = rightLeft + DATA_WINDOW_W <= rightLimit
+    ? [{ side: "RIGHT", left: rightLeft }, { side: "LEFT", left: leftLeft }]
+    : [{ side: "LEFT", left: leftLeft }];
+  for (const s of sides) {
+    const top = clearOfDock(s.left, clearChipColumn(s.left, top0));
+    if (top != null) return { left: Math.round(s.left), top: Math.round(top), side: s.side };
+  }
+  const first = sides[0];
+  return { left: Math.round(first.left), top: Math.round(clearChipColumn(first.left, top0)), side: first.side };
 }

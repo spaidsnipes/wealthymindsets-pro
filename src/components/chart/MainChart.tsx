@@ -23701,6 +23701,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             paneW: containerRef.current?.clientWidth ?? 0,
             paneH: containerRef.current?.clientHeight ?? 0,
             topFloor: BELOW_PRICE_LEGEND + DATA_WINDOW_TOGGLE_PX + 2 * PANE_TOP_LEFT_INSET,
+            // Room furniture docked over this pane (Tools preview cards), in pane pixels.
+            avoid: (() => {
+              const host = containerRef.current;
+              if (!host || typeof document === "undefined") return [];
+              const o = host.getBoundingClientRect();
+              return [...document.querySelectorAll("aside.room-equipment")].map(el => {
+                const r = el.getBoundingClientRect();
+                return { x: r.left - o.left, y: r.top - o.top, w: r.width, h: r.height };
+              }).filter(r => r.w > 0 && r.h > 0);
+            })(),
           });
           return (
           <div

@@ -96,3 +96,24 @@ describe("nothing else floats in the price-legend band", () => {
     expect(reset - cluster).toBeLessThan(2500);
   });
 });
+
+describe("the data window never sits under docked room furniture", () => {
+  const base = { barSpacing: 6, paneW: 1600, paneH: 760, topFloor: 60 };
+  it("drops below a Tools card docked over its spot (serving TSLA 15m, 2026-09-30)", () => {
+    const card = { x: 18, y: 41, w: 340, h: 168 };
+    const p = placeDataWindow({ ...base, barX: 110, barHighY: 150, avoid: [card] });
+    expect(p.side).toBe("RIGHT");
+    expect(p.top).toBeGreaterThanOrEqual(card.y + card.h);
+  });
+  it("takes the bar's other side when dropping below has no room", () => {
+    const tall = { x: 100, y: 0, w: 300, h: 760 };
+    const p = placeDataWindow({ ...base, barX: 600, barHighY: 150, avoid: [tall] });
+    expect(p.side).toBe("RIGHT");
+    const q = placeDataWindow({ ...base, barX: 420, barHighY: 150, avoid: [{ x: 420, y: 0, w: 400, h: 760 }] });
+    expect(q.side).toBe("LEFT");
+  });
+  it("with nothing docked, placement is unchanged", () => {
+    expect(placeDataWindow({ ...base, barX: 400, barHighY: 200, avoid: [] }))
+      .toEqual(placeDataWindow({ ...base, barX: 400, barHighY: 200 }));
+  });
+});
