@@ -8855,6 +8855,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         // `rows` is incremented at the one place a row is actually painted, so
         // the count is of pixels committed and not of buckets considered.
         let rowsPainted = 0;
+        let sessionContourRows = 0;
         if (!barsToUse.length || !ctx) return { declined: "NO_BARS", rows: 0 };
         // Dynamic tick size: ~25 rows so each bar is tall and clearly readable
         const priceRange = barsToUse.reduce((r, b) => ({ hi: Math.max(r.hi, b.high), lo: Math.min(r.lo, b.low) }), { hi: -Infinity, lo: Infinity });
@@ -9162,6 +9163,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.fillStyle = vpUpRgba(((inValue ? 0.55 : 0.30) * alphaScale).toFixed(2));
             ctx.fillRect(vpRight - barW, rowY, barW, rh);
           }
+          // SESSION WEARS A CONTOUR (Garden 17 · profiles visibly distinct):
+          // Session and Fixed were one shelf ink told apart only by alpha, so
+          // with the words hidden two gold slabs stood side by side. Session's
+          // rows carry a bright leading edge — its silhouette is DRAWN, a line
+          // tracing the day's shape — while Fixed stays a solid slab. Same ink,
+          // no side claim; a contour, not a colour.
+          if (span === "SESSION" && barW >= 2) {
+            ctx.fillStyle = (isPOC ? vpPocRgba : vpUpRgba)(0.95);
+            ctx.fillRect(vpRight - barW, rowY, 1, rh);
+            sessionContourRows++;
+          }
           // Volume numbers — label ONLY the POC and other MAJOR nodes (≥30% of the
           // POC volume), NEVER every level. Printing a number on all ~46 rows turned
           // the profile into a vertical spreadsheet of tiny 0.0x values that buried
@@ -9402,6 +9414,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         void labelText; void yOffset; void barColor;
         ctx.restore();
         vpLevelsOut[span === "SESSION" ? "SESSION" : "FIXED"] = { poc: snap.poc, vah: snap.vah, val: snap.val };
+        // Names the Session form on the glass (rows carrying the contour edge).
+        if (span === "SESSION" && canvasRef.current) canvasRef.current.dataset.vpSessionContour = String(sessionContourRows);
         return { declined: null, rows: rowsPainted, geometry };
       }
 
@@ -9428,7 +9442,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const dsVp = canvasRef.current?.dataset;
         if ((fixedVPActive || sessionVPActive) && !att.paints("volumeProfile")) {
           if (dsVp) {
-            for (const k of ["vpDeclined", "vpRows", "vpNote", "vpAxisClearance", "vpLevelChips", "vpLevelChipsWithheld", "vpWordsWithheld", "vpSpan", "vpSessionWindow"] as const) delete dsVp[k];
+            for (const k of ["vpDeclined", "vpRows", "vpNote", "vpAxisClearance", "vpLevelChips", "vpLevelChipsWithheld", "vpWordsWithheld", "vpSpan", "vpSessionWindow", "vpSessionContour"] as const) delete dsVp[k];
             dsVp.vpRequested = String((fixedVPActive ? 1 : 0) + (sessionVPActive ? 1 : 0));
             dsVp.vpDrawn = "0";
             dsVp.vpSilent = att.offWord(true);
@@ -9440,6 +9454,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const nVPCols = bothVP ? 2 : 1;
         // Withdrawn each frame; re-published only by a Session column that framed itself.
         if (canvasRef.current) delete canvasRef.current.dataset.vpSpan;
+        if (canvasRef.current) delete canvasRef.current.dataset.vpSessionContour;
         /*
           THE RENDER RECEIPT. One entry per profile the toolbar asked for, so a
           frame where Fixed drew and Session did not is recorded as exactly
