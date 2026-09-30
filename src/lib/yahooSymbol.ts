@@ -373,6 +373,8 @@ export function fromYahooSearchSymbol(symbol: string, quoteType: string | undefi
   if (t === "INDEX") return s.startsWith("^") ? s : null;
   if (t === "CURRENCY") {
     if (/^(EUR|GBP|USD|JPY|AUD|NZD|CAD|CHF|CNH)(USD|JPY|EUR|GBP|AUD|NZD|CAD|CHF|CNH)=X$/.test(s)) return s.slice(0, -2);
+    // Yahoo's three-letter form quotes against the dollar: MXN=X is USD/MXN.
+    if (/^[A-Z]{3}=X$/.test(s)) return `USD${s.slice(0, 3)}`;
     return /=X$/.test(s) ? s : null;
   }
   return s;

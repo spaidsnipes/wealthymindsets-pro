@@ -12,7 +12,9 @@ describe("every market is searchable (Founder, 2026-09-28)", () => {
     expect(fromYahooSearchSymbol("^GSPC", "INDEX")).toBe("SPX");
     expect(fromYahooSearchSymbol("^N225", "INDEX")).toBe("^N225");
     expect(fromYahooSearchSymbol("EURUSD=X", "CURRENCY")).toBe("EURUSD");
-    expect(fromYahooSearchSymbol("JPY=X", "CURRENCY")).toBe("JPY=X");
+    // 2026-09-29: Yahoo's three-letter form is quoted against the dollar — one instrument, one name.
+    expect(fromYahooSearchSymbol("JPY=X", "CURRENCY")).toBe("USDJPY");
+    expect(fromYahooSearchSymbol("MXN=X", "CURRENCY")).toBe("USDMXN");
     expect(fromYahooSearchSymbol("SOL-USD", "CRYPTOCURRENCY")).toBe("SOL-USD");
     expect(fromYahooSearchSymbol("PHO", "ETF")).toBe("PHO");
   });
