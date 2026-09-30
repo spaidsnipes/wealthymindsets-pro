@@ -17313,6 +17313,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             };
             // A square cell: as wide as the column allows, never taller than its row.
             const side = Math.max(1, Math.min(cellW - (cellW >= 3 ? 1 : 0), Math.max(1, rowH - 1)));
+            // BLOCKS batched by ink (performance pass 2026-09-29): one path per
+            // colour, filled once, instead of a fillStyle switch per cell — same
+            // pixels, a fraction of the canvas calls on a ~3,000-cell column.
+            const blockBatches = new Map<string, Path2D>();
             for (const r of tpo.rows) {
               const yr = srs.priceToCoordinate(r.price);
               if (yr == null) continue;
@@ -17330,8 +17334,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.fillStyle = ink(rgb, base * (0.35 + 0.65 * late));
                   ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);
                 } else {
-                  ctx.fillStyle = ink(tpoPeriodInk(pk.role.TAIL, pk.role.ANCHOR, late), base * (0.45 + 0.45 * late));
-                  ctx.fillRect(x, y + (h - side) / 2, side, side);
+                  const st = ink(tpoPeriodInk(pk.role.TAIL, pk.role.ANCHOR, late), base * (0.45 + 0.45 * late));
+                  let bp = blockBatches.get(st);
+                  if (!bp) { bp = new Path2D(); blockBatches.set(st, bp); }
+                  bp.rect(x, y + (h - side) / 2, side, side);
                 }
               }
               drawnRows++;
@@ -17345,6 +17351,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
             }
 
+            for (const [st, bp] of blockBatches) { ctx.fillStyle = st; ctx.fill(bp); }
             // TPO POC / VAH / VAL: short reference strokes across the column
             // (behind the candles, inside the clip above), and the family's
             // level chip just right of the column — so the levels are quotable

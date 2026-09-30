@@ -373,7 +373,9 @@ describe("9 · every species wears its organism glyph (Garden 11 recognition tes
     const texts = [...TPO.matchAll(/ctx\.fillText\(/g)];
     expect(texts.length, "TPO's only fillText is the NEAR letter").toBe(1);
     between(TPO, "if (asText) {", "ctx.fillText(r.letters[k], x, y + h / 2 + 0.5);", "} else {");
-    expect(TPO).toContain("ctx.fillStyle = ink(tpoPeriodInk(pk.role.TAIL, pk.role.ANCHOR, late), base * (0.45 + 0.45 * late));");
+    // 2026-09-29: blocks are batched by ink (one Path2D per colour) — same ink formula.
+    expect(TPO).toContain("const st = ink(tpoPeriodInk(pk.role.TAIL, pk.role.ANCHOR, late), base * (0.45 + 0.45 * late));");
+    expect(TPO).toContain("for (const [st, bp] of blockBatches) { ctx.fillStyle = st; ctx.fill(bp); }");
   });
 
   it("Composite is a gapless body with session tint bands; VRP is framed by four lane corners; Structure is a cube box", () => {

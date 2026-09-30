@@ -52,7 +52,8 @@ describe("profile family glass honesty", () => {
     // (tpoCellsYielded), so the blocks are legible squares whose colour is
     // their period — recess (early) → brass (late) — from the pure owner.
     expect(CHART).toMatch(/ink\(tpoPeriodInk\(pk\.role\.TAIL, pk\.role\.ANCHOR, late\), base \* \(0\.45 \+ 0\.45 \* late\)\)/);
-    expect(CHART).toContain("ctx.fillRect(x, y + (h - side) / 2, side, side);");
+    // 2026-09-29: the same square, batched into its ink's Path2D.
+    expect(CHART).toContain("bp.rect(x, y + (h - side) / 2, side, side);");
   });
 
   it("owners, not the paint, compute ghosts and memory tests", () => {
