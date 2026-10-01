@@ -333,6 +333,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
   const liveCount = displayChain.reduce((n, r) => n + (r.liveC ? 1 : 0) + (r.liveP ? 1 : 0), 0);
 
   const atm = chain.find(r => r.itm === "atm");
+  const liveAtm = displayChain.find(r => r.itm === "atm");
   // The screen reads the owner, not the `: 0` sentinel. The numeric sentinel is
   // left feeding the fetch-gating control flow it already feeds.
   const spotState = classifyOptionSpot({ symbol, spot });
@@ -410,7 +411,20 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
         >
           Spot: <span className={clsx("font-bold", spotFact.measured ? "text-wm-text" : "text-wm-text-dim")}>{spotFact.text}</span>
         </span>
-        {hasAvailableData && atm && (
+        {liveCount > 0 && (
+          <span data-testid="options-live-badge" className="ml-1 text-[10px] font-bold" style={{ color: "#7fd1a8" }} title="Bid, ask, IV and Greeks for these contracts come from tastytrade's real-time DXLink stream on the owner's account.">
+            ● LIVE · tastytrade · {liveCount} near the money
+          </span>
+        )}
+        {hasAvailableData && atm && (liveAtm?.liveC ? (
+          <div
+            className="ml-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-wm-text-dim sm:ml-3"
+            title="tastytrade's live Greeks event for the at-the-money call."
+          >
+            <span>ATM CALL IV · tastytrade live: <span className="text-wm-gold font-bold">{formatOptionPercent(liveAtm.cIV)}</span></span>
+            <span>ATM CALL Δ · tastytrade live: <span className="text-wm-blue font-bold">{formatOptionNumber(liveAtm.cDelta, 2)}</span></span>
+          </div>
+        ) : (
           <div
             className="ml-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-wm-text-dim sm:ml-3"
             title="When present, these call-side fields have no field-level Greek or IV timestamp. Quote and trade receipt age does not date them."
@@ -418,7 +432,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
             <span>ATM CALL IV · TIMING UNVERIFIED: <span className="text-wm-gold font-bold">{formatOptionPercent(atm.cIV)}</span></span>
             <span>ATM CALL Δ · TIMING UNVERIFIED: <span className="text-wm-blue font-bold">{formatOptionNumber(atm.cDelta, 2)}</span></span>
           </div>
-        )}
+        ))}
         <div className="ml-auto flex items-center gap-2">
           <button onClick={fetchContracts} title="Refresh options data" aria-label="Refresh options data"
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded transition-colors hover:bg-wm-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold">
