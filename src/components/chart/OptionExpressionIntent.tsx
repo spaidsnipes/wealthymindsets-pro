@@ -1,5 +1,6 @@
 "use client";
 
+import { WebullOptionPreflight } from "./WebullOptionPreflight";
 import { useEffect, useRef, useState } from "react";
 import {
   OPTION_CHAIN_SOURCE,
@@ -210,5 +211,8 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
     <p role="status" className="mt-2">{receipt}</p>
     {decisionId && <p className="mt-1 break-all text-wm-text-muted">Decision: {decisionId}. Only intent text is shared; structured contract recovery is not yet supported.</p>}
     {decisionId && !busy && <OptionDecisionReceipt key={`${ownerId}:${decisionId}`} decisionId={decisionId} ownerId={ownerId} />}
+    {/* Garden 18 §XC–§XCIII: broker eligibility → account → preflight, on the
+        SAME decision this recorded expression belongs to. */}
+    <WebullOptionPreflight osi={contract.symbol} decisionId={decisionId || null} referenceAsk={contract.ask ?? null} />
   </section>;
 }

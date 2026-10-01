@@ -4,6 +4,7 @@ import { webullBrokerConfigFromEnv } from "@/lib/broker/adapters/webullBrokerCon
 import {
   listWebullAccounts,
   mintClientOrderId,
+  parseOsi,
   previewWebullOrder,
   type WebullOrderIntent,
 } from "@/lib/broker/adapters/webullOrders";
@@ -50,7 +51,21 @@ export async function POST(request: Request): Promise<Response> {
   // refusal could never fire. The class is now asked of its one owner, and a
   // non-equity is refused HERE — before any session, account or network call —
   // with 422, because an unsupported class is not a healthy 200.
-  const symbolIn = typeof input.symbol === "string" ? input.symbol : "";
+  // GARDEN 18 §LXXXIV/§XCIII — AN OPTION IS NAMED BY ITS CONTRACT. When the
+  // trader's expression is an option, the body carries its OSI identity and
+  // the opening/closing intent; the leg is built from the OSI, never re-typed,
+  // and the UNDERLYING must itself be an eligible US equity.
+  const osiIn = typeof input.optionOsi === "string" ? input.optionOsi : null;
+  const contract = osiIn ? parseOsi(osiIn) : null;
+  const POSITION_INTENTS = ["BUY_TO_OPEN", "BUY_TO_CLOSE", "SELL_TO_OPEN", "SELL_TO_CLOSE"] as const;
+  const positionIntent = POSITION_INTENTS.find((p) => p === input.positionIntent) ?? null;
+  if (osiIn !== null && (!contract || !positionIntent)) {
+    return NextResponse.json(
+      { state: "REFUSED_LOCAL", reason: !contract ? `"${osiIn}" is not an OSI option contract.` : "An option order must say whether it opens or closes (BUY_TO_OPEN, BUY_TO_CLOSE, SELL_TO_OPEN, SELL_TO_CLOSE)." },
+      { status: 422, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  const symbolIn = contract ? contract.underlying : typeof input.symbol === "string" ? input.symbol : "";
   const scope = webullPreviewScope(symbolIn);
   if (!scope.eligible) {
     return NextResponse.json(
@@ -103,7 +118,9 @@ export async function POST(request: Request): Promise<Response> {
     tif: (["day", "gtc", "ioc", "fok"] as const).find((t) => t === input.tif) ?? "day",
     // DERIVED from the class owner via the scope above — never a literal, so
     // `mapToWebullStockOrder`'s equity-only refusal is live again downstream.
-    assetClass: scope.orderAssetClass,
+    // An option is the one other class, and only with its parsed contract.
+    assetClass: contract ? "option" : scope.orderAssetClass,
+    ...(contract && positionIntent ? { option: { ...contract, positionIntent } } : {}),
   };
 
   const result = await previewWebullOrder(fetch, orderCfg, intent);

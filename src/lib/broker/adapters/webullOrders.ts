@@ -47,6 +47,58 @@ const DEFAULT_HOST = "api.webull.com";
 export interface WebullOrderIntent extends UniversalOrderIntent {
   /** The Decision_ID this order expresses. Required: no orphan orders. */
   readonly decisionId: string;
+  /** The exact option contract (assetClass "option" only) — from its OSI identity, never re-typed. */
+  readonly option?: WebullOptionLeg;
+}
+
+/** Garden 18 §XCIII: the contract a trader selected, and whether the order opens or closes. */
+export interface WebullOptionLeg {
+  readonly underlying: string;
+  /** YYYY-MM-DD */
+  readonly expiry: string;
+  readonly strike: number;
+  readonly right: "CALL" | "PUT";
+  readonly positionIntent: "BUY_TO_OPEN" | "BUY_TO_CLOSE" | "SELL_TO_OPEN" | "SELL_TO_CLOSE";
+}
+
+/**
+ * An OSI option symbol (TSLA261002C00305000) as the contract it names — or
+ * null when it is not one. The ticket builds its leg from THIS, so the order
+ * can never drift from the row the trader selected (§XCIII). PURE.
+ */
+export function parseOsi(osi: string): Omit<WebullOptionLeg, "positionIntent"> | null {
+  const m = /^([A-Z][A-Z0-9.]{0,5})\s*(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/.exec(osi.trim().toUpperCase());
+  if (!m) return null;
+  const [, underlying, yy, mm, dd, cp, strike8] = m;
+  const month = Number(mm), day = Number(dd);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const strike = Number(strike8) / 1000;
+  if (!(strike > 0)) return null;
+  return { underlying, expiry: `20${yy}-${mm}-${dd}`, strike, right: cp === "C" ? "CALL" : "PUT" };
+}
+
+/** One single-leg option order in Webull's own field names (samples/trade/trade_client_v3.py, "normal option order"). */
+export interface WebullOptionOrder {
+  readonly client_order_id: string;
+  readonly combo_type: "NORMAL";
+  readonly order_type: "MARKET" | "LIMIT";
+  readonly limit_price?: string;
+  readonly quantity: string;
+  readonly option_strategy: "SINGLE";
+  readonly side: "BUY" | "SELL";
+  readonly time_in_force: "DAY" | "GTC";
+  readonly entrust_type: "QTY";
+  readonly position_intent: WebullOptionLeg["positionIntent"];
+  readonly legs: readonly [{
+    readonly side: "BUY" | "SELL";
+    readonly quantity: string;
+    readonly symbol: string;
+    readonly strike_price: string;
+    readonly option_expire_date: string;
+    readonly instrument_type: "OPTION";
+    readonly option_type: "CALL" | "PUT";
+    readonly market: "US";
+  }];
 }
 
 /** One stock order in Webull's own field names (samples/trade/trade_client_v3.py). */
@@ -67,7 +119,7 @@ export interface WebullStockOrder {
 }
 
 export type MapResult =
-  | { readonly ok: true; readonly order: WebullStockOrder }
+  | { readonly ok: true; readonly order: WebullStockOrder | WebullOptionOrder }
   | { readonly ok: false; readonly reason: string };
 
 /** Webull's sample mints `uuid4().hex`; accept that family and nothing looser. */
@@ -78,6 +130,61 @@ function price(value: number | undefined): string | null {
   if (value === undefined || !Number.isFinite(value) || value <= 0) return null;
   // Webull takes prices as strings. Trim float noise without inventing digits.
   return String(Number(value.toPrecision(12)));
+}
+
+/**
+ * A single-leg US option order (Garden 18 §LXXVIII–§XCIII). Every field the
+ * contract needs comes from the selected OSI identity; the side must agree with
+ * the opening/closing intent; quantity is whole contracts. PURE.
+ */
+export function mapToWebullOptionOrder(intent: WebullOrderIntent): MapResult {
+  if (!intent.decisionId?.trim()) return { ok: false, reason: "No Decision_ID: an order must express a decision." };
+  if (!isDecisionId(intent.decisionId)) return { ok: false, reason: "Malformed Decision_ID: WM did not mint this identity, so the order cannot claim it." };
+  if (!CLIENT_ORDER_ID.test(intent.clientOrderId)) {
+    return { ok: false, reason: "The client order id is missing or malformed; it is the only thing that makes this order reconcilable." };
+  }
+  if (intent.assetClass !== "option" || !intent.option) return { ok: false, reason: "No option contract was named; an option order is refused rather than approximated." };
+  const o = intent.option;
+  if (!SYMBOL.test(o.underlying) || !/^\d{4}-\d{2}-\d{2}$/.test(o.expiry) || !(o.strike > 0)) {
+    return { ok: false, reason: "The option contract is incomplete (underlying, expiry and strike are all required)." };
+  }
+  const buying = o.positionIntent.startsWith("BUY");
+  if ((intent.side === "buy") !== buying) {
+    return { ok: false, reason: `Side ${intent.side.toUpperCase()} contradicts ${o.positionIntent.replace(/_/g, " ")}.` };
+  }
+  if (!Number.isInteger(intent.qty) || intent.qty <= 0) return { ok: false, reason: "Quantity must be a whole number of contracts above zero." };
+  const tif = intent.tif ?? "day";
+  if (tif !== "day" && tif !== "gtc") return { ok: false, reason: "Option orders here are DAY or GTC." };
+  const limit = price(intent.limitPx);
+  if (intent.type === "limit" && !limit) return { ok: false, reason: "A limit order needs a limit premium above zero." };
+  if (intent.type !== "limit" && intent.type !== "market") return { ok: false, reason: "Option orders here are LIMIT or MARKET." };
+  if (intent.type === "market" && limit) return { ok: false, reason: "A market order carries no limit price." };
+  const side = buying ? "BUY" : "SELL";
+  return {
+    ok: true,
+    order: {
+      client_order_id: intent.clientOrderId,
+      combo_type: "NORMAL",
+      order_type: intent.type === "limit" ? "LIMIT" : "MARKET",
+      ...(limit ? { limit_price: limit } : {}),
+      quantity: String(intent.qty),
+      option_strategy: "SINGLE",
+      side,
+      time_in_force: tif === "gtc" ? "GTC" : "DAY",
+      entrust_type: "QTY",
+      position_intent: o.positionIntent,
+      legs: [{
+        side,
+        quantity: String(intent.qty),
+        symbol: o.underlying,
+        strike_price: String(Number(o.strike.toPrecision(12))),
+        option_expire_date: o.expiry,
+        instrument_type: "OPTION",
+        option_type: o.right,
+        market: "US",
+      }],
+    },
+  };
 }
 
 export function mapToWebullStockOrder(intent: WebullOrderIntent): MapResult {
@@ -343,7 +450,7 @@ export async function previewWebullOrder(
   config: WebullOrderConfig,
   intent: WebullOrderIntent,
 ): Promise<WebullPreviewResult> {
-  const mapped = mapToWebullStockOrder(intent);
+  const mapped = intent.assetClass === "option" ? mapToWebullOptionOrder(intent) : mapToWebullStockOrder(intent);
   if (!mapped.ok) return { state: "REFUSED_LOCAL", reason: mapped.reason };
   const t = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ORDER_PREVIEW, {
     body: { account_id: intent.accountId, new_orders: [mapped.order] },
@@ -517,7 +624,7 @@ export async function submitWebullOrderOnce(
   const t = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ORDER_PLACE, {
     body: { account_id: intent.accountId, new_orders: [mapped.order] },
     // add_custom_headers_from_order: category = <market>_<instrument_type>.
-    extraHeaders: { category: `${mapped.order.market}_${mapped.order.instrument_type}` },
+    extraHeaders: { category: "instrument_type" in mapped.order ? `${mapped.order.market}_${mapped.order.instrument_type}` : "US_OPTION" },
   });
 
   if (t.kind === "NO_ANSWER" || t.status >= 500 || t.status === 408 || t.status === 429) {

@@ -67,7 +67,9 @@ describe("webullPreviewScope — only US equities get a preview", () => {
     // defect, and a scan that trips on its own history gets deleted.
     const code = stripComments(route);
     expect(code).toContain("webullPreviewScope(symbolIn)");
-    expect(code).toContain("assetClass: scope.orderAssetClass,");
+    // Garden 18 §XCIII (2026-10-01): an option is the one other class, and only
+    // with its parsed OSI contract; every other intent still takes the scope's class.
+    expect(code).toContain('assetClass: contract ? "option" : scope.orderAssetClass,');
     expect(code).not.toMatch(/assetClass:\s*"equity"/);
   });
 });
