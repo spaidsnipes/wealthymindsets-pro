@@ -23,6 +23,10 @@ export interface FopExpiration {
   readonly type: string | null;
   readonly settlement: string | null;
   readonly tickSizes: readonly TickTier[];
+  /** $ per point of option premium: tastytrade's notional-value ÷ display-factor (MNQ 0.02 / 0.01 = 2). Null when not stated. */
+  readonly multiplier: number | null;
+  /** When the option stops trading (tastytrade's own instant), or null. */
+  readonly stopsTradingAt: string | null;
   readonly strikes: readonly FopStrike[];
 }
 export interface FuturesOptionChain { readonly futures: readonly FutureContract[]; readonly expirations: readonly FopExpiration[] }
@@ -55,7 +59,9 @@ export function readFuturesOptionChain(data: unknown): FuturesOptionChain {
         const value = num(o.value);
         return value != null && value > 0 ? [{ value, threshold: num(o.threshold) }] : [];
       });
-      expirations.push({ parent, optionRoot: str(e["option-root-symbol"]), expiration, dte: num(e["days-to-expiration"]), type: str(e["expiration-type"]), settlement: str(e["settlement-type"]), tickSizes, strikes });
+      const nv = num(e["notional-value"]), df = num(e["display-factor"]);
+      const multiplier = nv != null && df != null && df > 0 ? Number((nv / df).toPrecision(10)) : null;
+      expirations.push({ parent, optionRoot: str(e["option-root-symbol"]), expiration, dte: num(e["days-to-expiration"]), type: str(e["expiration-type"]), settlement: str(e["settlement-type"]), tickSizes, multiplier, stopsTradingAt: str(e["stops-trading-at"]), strikes });
     }
   }
   expirations.sort((a, b) => (a.dte ?? 1e9) - (b.dte ?? 1e9) || a.parent.localeCompare(b.parent));
