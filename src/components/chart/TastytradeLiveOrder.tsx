@@ -27,6 +27,8 @@ import { isTerminal, type TtOrderView, type WmOrderState } from "@/lib/broker/ta
 import { checkOrder } from "@/lib/execution/guardrails";
 import { useGuardrails } from "@/lib/execution/useGuardrails";
 
+import { tastytradeEntryFields, type TastytradeEntryType } from "@/lib/broker/tastytradeEntryFields";
+
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
 const RED = "#e0786b";
@@ -38,8 +40,8 @@ export interface TastytradeIntent {
   readonly action: "Buy to Open" | "Sell to Close" | "Sell to Open" | "Buy to Close";
   readonly qty: number;
   readonly limitPx: number | null;
-  /** §LXXVIII: a resting STOP (broker-native protection) instead of a limit. */
-  readonly orderType?: "Limit" | "Stop";
+  /** Entry type; defaults to Limit for existing option/protection callers. */
+  readonly orderType?: TastytradeEntryType;
   readonly stopPx?: number | null;
   readonly tif?: "Day" | "GTC";
   /** Words for the summary line ("1 /MNQZ6 · micro Nasdaq Dec 26"). */
@@ -111,22 +113,23 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
   const accountBlocks = futures && account && account.futuresApproved !== true
     ? `Account …${account.tail} is not futures-enabled at tastytrade. Choose a futures-eligible account.`
     : null;
-  const isStop = intent?.orderType === "Stop";
-  const priceOk = isStop ? (intent?.stopPx != null && intent.stopPx > 0) : (intent?.limitPx != null && intent.limitPx > 0);
+  const entryType = intent?.orderType ?? "Limit";
+  const entryFields = intent ? tastytradeEntryFields(entryType, intent.limitPx, intent.stopPx ?? null) : null;
+  const priceOk = entryFields != null;
   // §CXVII: the trader's own commitments, asked before the button can arm.
   const guardrails = useGuardrails();
   const guard = intent ? checkOrder(guardrails, intent.instrumentType === "Equity" ? { kind: "EQUITY", qty: intent.qty }
     : intent.instrumentType === "Equity Option" ? { kind: "EQUITY_OPTION", qty: intent.qty, limitPx: intent.limitPx }
     : { kind: intent.instrumentType === "Future" ? "FUTURE" : "FUTURE_OPTION", qty: intent.qty }) : { ok: true as const };
-  const canArm = !!intent && !!account && !accountBlocks && priceOk && guard.ok && intent.qty > 0 && !busy && !(order && !isTerminal(order.state));
+  const canArm = !!intent && !!account && !accountBlocks && priceOk && guard.ok && Number.isFinite(intent.qty) && intent.qty > 0 && !busy && !(order && !isTerminal(order.state));
 
   const summary = useMemo(() => {
     if (!intent) return null;
-    return `LIVE · TASTYTRADE · …${account?.tail ?? "?"} · ${intent.action.toUpperCase()} ${intent.qty} ${intent.describe} · ${isStop ? `STOP ${intent.stopPx ?? "—"}` : `LIMIT ${intent.limitPx ?? "—"}`} · ${intent.instrumentType === "Cryptocurrency" || intent.tif === "GTC" ? "GTC" : "DAY"}`;
+    return `LIVE · TASTYTRADE · …${account?.tail ?? "?"} · ${intent.action.toUpperCase()} ${intent.qty} ${intent.describe} · ${entryType === "Market" ? "MARKET · fill price unknown" : entryType === "Stop" ? `STOP ${intent.stopPx ?? "—"}` : entryType === "Stop Limit" ? `STOP ${intent.stopPx ?? "—"} · LIMIT ${intent.limitPx ?? "—"}` : `LIMIT ${intent.limitPx ?? "—"}`} · ${intent.instrumentType === "Cryptocurrency" || intent.tif === "GTC" ? "GTC" : "DAY"}`;
   }, [intent, account]);
 
   async function send() {
-    if (!intent || !armed || !canArm || accountIndex == null) return;
+    if (!intent || !entryFields || !armed || !canArm || accountIndex == null) return;
     const decisionId = ensureDecision();
     if (!decisionId) { setAnswer({ state: "REFUSED_LOCAL", reason: "No decision to express — this order needs one." }); return; }
     keyRef.current ??= `wmo_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
@@ -139,7 +142,7 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
           instrumentType: intent.instrumentType,
           ...(intent.instrumentType === "Equity Option" ? { optionOsi: intent.symbol } : { symbol: intent.symbol }),
           action: intent.action, qty: intent.qty,
-          ...(isStop ? { type: "Stop", stopPx: intent.stopPx } : { type: "Limit", limitPx: intent.limitPx }),
+          ...entryFields,
           ...(intent.tif ? { tif: intent.tif } : {}),
           decisionId, clientOrderId: keyRef.current, accountIndex, confirmLive: true,
         }),
@@ -203,7 +206,7 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
       </div>
       <p data-testid="tt-capital-moment" style={{ marginTop: 6, fontVariantNumeric: "tabular-nums", color: "#ede6d3" }}>{summary}</p>
       {accountBlocks ? <p role="status" style={{ color: GOLD }}>{accountBlocks}</p> : null}
-      {!priceOk ? <p role="status" style={{ color: GOLD }}>{isStop ? "Set a stop trigger to send." : "Set a limit price to send."}</p> : null}
+      {!priceOk ? <p role="status" style={{ color: GOLD }}>{entryType === "Stop Limit" ? "Set a positive stop trigger and limit price to send." : entryType === "Stop" ? "Set a positive stop trigger to send." : "Set a positive limit price to send."}</p> : null}
       {!guard.ok ? <p role="status" data-testid="tt-guardrail" style={{ color: GOLD }}>{guard.reason}</p> : null}
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
         <label style={{ display: "flex", gap: 4, alignItems: "center", color: armed ? RED : MUTED }}>
@@ -228,7 +231,7 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
           ) : null}
         </div>
       ) : null}
-      <p style={{ marginTop: 4, color: MUTED }}>Real money. A limit is a ceiling, not a guaranteed fill.</p>
+      <p style={{ marginTop: 4, color: MUTED }}>Real money. Market and stop orders have no guaranteed fill price; limit orders have no guaranteed fill.</p>
     </section>
   );
 }

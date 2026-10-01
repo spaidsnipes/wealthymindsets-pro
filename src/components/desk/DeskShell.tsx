@@ -38,7 +38,7 @@ import {
   type DeskLink,
 } from "@/lib/desk/desks";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
-import { CLEAN_VIEW_ID, chartPropsForView, pendingDeskReadings, compileDeskBarReadings } from "@/lib/desk/deskView";
+import { CLEAN_VIEW_ID, chartPropsForView, pendingDeskReadings, compileDeskBarReadings, compileDeskProfileFusion } from "@/lib/desk/deskView";
 import { SAVED_LAYOUTS_STORAGE_KEY, loadSavedLayouts, type SavedLayout } from "@/lib/workspace/savedLayouts";
 import { CHART_TF_SHIPPED, TF_IDS } from "@/lib/timeframes";
 
@@ -50,13 +50,25 @@ function DeskMarketScreen({ symbol, timeframe, setTimeframe, view }: {
 }) {
   type Bars = Parameters<NonNullable<React.ComponentProps<typeof MainChart>["onBarsReady"]>>[0];
   const [bars, setBars] = useState<Bars>([]);
-  const onBarsReady = useCallback((next: Bars) => setBars(next.map(b => ({ ...b }))), []);
-  const { tpo, weather } = useMemo(() => compileDeskBarReadings(symbol, bars.map(b => ({ time: Number(b.time), high: b.high, low: b.low, volume: b.volume }))), [symbol, bars]);
+  const onBarsReady = useCallback((next: Bars) => setBars(previous => {
+    // Repeated delivery is not new evidence. Preserve memo identity unless an
+    // admitted OHLCV value (including an interior revision) actually changes.
+    if (previous.length === next.length && previous.every((b, i) => {
+      const n = next[i];
+      return b.time === n.time && b.open === n.open && b.high === n.high && b.low === n.low && b.close === n.close && b.volume === n.volume;
+    })) return previous;
+    return next.map(b => ({ ...b }));
+  }), []);
+  const [drawn, setDrawn] = useState<Parameters<NonNullable<React.ComponentProps<typeof MainChart>["onVpLevels"]>>[0]>({});
+  const onVpLevels = useCallback((next: typeof drawn) => setDrawn(next), []);
+  const compiled = useMemo(() => compileDeskBarReadings(symbol, bars, timeframe), [symbol, bars, timeframe]);
+  const { tpo, weather, ...readings } = compiled;
+  const profileFusion = useMemo(() => compileDeskProfileFusion(compiled, view?.switches ?? null, drawn), [compiled, view?.switches, drawn]);
   const pending = pendingDeskReadings(view?.switches ?? null);
   return <>
     <MainChart symbol={symbol} timeframe={timeframe} setTimeframe={setTimeframe}
       {...(view !== undefined ? chartPropsForView(view) : { footprintType: "volume-profile" as const, footprintEnabled: false })}
-      onBarsReady={onBarsReady} tpoProfile={tpo} liquidityWeather={weather} />
+      onBarsReady={onBarsReady} onVpLevels={onVpLevels} tpoProfile={tpo} liquidityWeather={weather} profileFusion={profileFusion} {...readings} />
     {pending.length > 0 && <details data-testid="desk-view-unavailable" style={{ position: "absolute", left: 8, top: 48, zIndex: 25, maxWidth: 340, color: "#d8bd7a", background: "#17140e", borderRadius: 6, padding: "5px 8px", fontSize: 10 }}>
       <summary style={{ cursor: "pointer" }}>{pending.length} selected tools unavailable on this Desk screen</summary>
       <p style={{ margin: "6px 0" }}>These preferences are kept. Open the full market chart to use:</p>

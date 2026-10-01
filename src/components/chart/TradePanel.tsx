@@ -23,6 +23,8 @@
  * NOT linked (no OCO yet), and the panel says so.
  */
 
+import { tastytradeEntryFields, type TastytradeEntryType } from "@/lib/broker/tastytradeEntryFields";
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/TastytradeLiveOrder";
@@ -105,6 +107,10 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const [qty, setQty] = useState(1);
   // Crypto sizes in coin units; reset when the instrument kind changes.
   useEffect(() => { setQty(kind === "CRYPTO" ? 0.001 : 1); }, [kind]);
+  const [entryType, setEntryType] = useState<TastytradeEntryType>("Limit");
+  const [entryTrigger, setEntryTrigger] = useState("");
+  useEffect(() => { setEntryTrigger(""); }, [symbol]);
+  const effectiveEntryType = kind === "FUTURE" || kind === "STOCK" ? entryType : "Limit";
   const [limit, setLimit] = useState("");
   const [stop, setStop] = useState("");
   const [target, setTarget] = useState("");
@@ -119,7 +125,10 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     if (contract && touch != null && seeded.current !== key) { seeded.current = key; setLimit(touch.toFixed(dp)); }
   }, [contract, side, q?.ask, q?.bid, dp]);
 
-  const limitNum = Number(limit) > 0 ? Number(limit) : null;
+  const limitNum = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : null;
+  const triggerNum = Number.isFinite(Number(entryTrigger)) && Number(entryTrigger) > 0 ? Number(entryTrigger) : null;
+  const entryFields = tastytradeEntryFields(effectiveEntryType, limitNum, triggerNum);
+  const referenceEntry = effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null;
   const nudge = (dir: 1 | -1) => { if (limitNum == null || tick == null) return; setLimit((Math.round((limitNum + dir * tick) / tick) * tick).toFixed(dp)); };
   const setTo = (v: number | null | undefined) => { if (v == null) return; setLimit((tick ? Math.round(v / tick) * tick : v).toFixed(dp)); };
 
@@ -131,10 +140,10 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const stopNum = Number(stop) > 0 ? Number(stop) : null;
   const targetNum = Number(target) > 0 ? Number(target) : null;
   const perUnit = pointValue ?? 1;
-  const riskUsd = limitNum != null && stopNum != null ? Math.abs(limitNum - stopNum) * perUnit * qty : null;
-  const rewardUsd = limitNum != null && targetNum != null ? Math.abs(targetNum - limitNum) * perUnit * qty : null;
-  const stopWrongSide = limitNum != null && stopNum != null && (side === "BUY" ? stopNum >= limitNum : stopNum <= limitNum);
-  const notional = limitNum != null ? limitNum * perUnit * qty : null;
+  const riskUsd = referenceEntry != null && stopNum != null ? Math.abs(referenceEntry - stopNum) * perUnit * qty : null;
+  const rewardUsd = referenceEntry != null && targetNum != null ? Math.abs(targetNum - referenceEntry) * perUnit * qty : null;
+  const stopWrongSide = referenceEntry != null && stopNum != null && (side === "BUY" ? stopNum >= referenceEntry : stopNum <= referenceEntry);
+  const notional = referenceEntry != null ? referenceEntry * perUnit * qty : null;
 
   const decisionRef = useRef<string | null>(null);
   useEffect(() => { decisionRef.current = bornDecision?.decisionId ?? null; }, [bornDecision]);
@@ -148,7 +157,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   }
 
   async function dryRun() {
-    if (!contract || !instrumentType || limitNum == null || busy) return;
+    if (!contract || !instrumentType || !entryFields || busy) return;
     setBusy(true);
     try {
       const decisionId = ensureDecision();
@@ -156,7 +165,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
       const r = await fetch("/api/broker/tastytrade/order-dry-run", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ instrumentType, symbol: contract.symbol, action, qty, type: "Limit", limitPx: limitNum, decisionId }),
+        body: JSON.stringify({ instrumentType, symbol: contract.symbol, action, qty, ...entryFields, decisionId }),
       });
       const j = await r.json().catch(() => null);
       if (j?.state === "DRY_RUN_OK") {
@@ -239,6 +248,17 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
               style={{ width: 64, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
           </div>
 
+          {(kind === "FUTURE" || kind === "STOCK") ? <label style={{ color: MUTED }}>Entry order type
+            <select aria-label="Entry order type" value={entryType} onChange={e => { setEntryType(e.target.value as TastytradeEntryType); setAnswer(null); }} style={{ marginLeft: 8, background: "#0b0a08", color: INK }}>
+              {(["Market", "Limit", "Stop", "Stop Limit"] as const).map(type => <option key={type} value={type}>{type}</option>)}
+            </select>
+          </label> : null}
+          {effectiveEntryType === "Market" ? <p style={{ color: MUTED }}>Market entry: fill price and entry risk are unknown until execution.</p> : null}
+          {(effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit") ? <label style={{ color: MUTED }}>Entry stop trigger
+            <input aria-label="Entry stop trigger" inputMode="decimal" value={entryTrigger} onChange={e => setEntryTrigger(e.target.value)} style={{ marginLeft: 8, width: 110, background: "#0b0a08", color: INK }} />
+            {effectiveEntryType === "Stop" ? " · fill price is not guaranteed" : " · activates the limit order"}
+          </label> : null}
+          {(effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit") ? <>
           {/* Limit */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <span style={{ color: MUTED, width: 64 }}>Limit</span>
@@ -250,6 +270,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <button type="button" onClick={() => setTo(q?.bid != null && q?.ask != null ? (q.bid + q.ask) / 2 : null)} style={btn(false)}>MID</button>
             <button type="button" onClick={() => setTo(q?.ask)} style={btn(false)}>ASK</button>
           </div>
+
+          </> : null}
 
           {/* Risk on the ticket */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
@@ -265,7 +287,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           <div data-testid="trade-economics" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, ...MONO }}>
             {kind === "FUTURE" ? <><span style={{ color: MUTED }}>Point value</span><span>{pointValue != null ? `$${pointValue}/pt · tick ${tick} = $${econ.status === "PRICED" ? econ.tickValue : "—"}` : "not on file"}</span></> : null}
             <span style={{ color: MUTED }}>{kind === "FUTURE" ? "Notional" : "Cost"}</span><span>{notional != null ? `$${notional.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}</span>
-            <span style={{ color: MUTED }}>Risk at stop</span><span style={{ color: riskUsd != null ? RED : MUTED }}>{stopWrongSide ? "stop is on the wrong side" : riskUsd != null ? `−$${riskUsd.toFixed(2)}` : "set a stop"}</span>
+            <span style={{ color: MUTED }}>Planned risk at stop</span><span style={{ color: riskUsd != null ? RED : MUTED }}>{stopWrongSide ? "stop is on the wrong side" : riskUsd != null ? `−$${riskUsd.toFixed(2)}` : referenceEntry == null ? "entry fill unknown" : "set a stop"}</span>
             <span style={{ color: MUTED }}>Reward at target</span><span style={{ color: rewardUsd != null ? GREEN : MUTED }}>{rewardUsd != null ? `+$${rewardUsd.toFixed(2)}${riskUsd ? ` · ${(rewardUsd / riskUsd).toFixed(2)}R` : ""}` : "—"}</span>
           </div>
           <p data-testid="trade-protection" style={{ color: MUTED, fontSize: 11 }}>
@@ -273,7 +295,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           </p>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button type="button" data-testid="trade-dry-run" disabled={!contract || limitNum == null || busy} onClick={() => void dryRun()} style={{ ...btn(true), opacity: !contract || limitNum == null ? 0.5 : 1 }}>
+            <button type="button" data-testid="trade-dry-run" disabled={!contract || !entryFields || busy} onClick={() => void dryRun()} style={{ ...btn(true), opacity: !contract || !entryFields ? 0.5 : 1 }}>
               {busy ? "Asking tastytrade…" : "Dry run on tastytrade"}
             </button>
             <span style={{ color: MUTED, fontSize: 11 }}>Validates against your real account; places nothing.</span>
@@ -281,7 +303,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           {answer ? <p role="status" style={{ color: /accepted/.test(answer) ? GREEN : GOLD }}>{answer}</p> : null}
 
           <TastytradeLiveOrder
-            intent={contract && instrumentType ? { instrumentType, symbol: contract.symbol, action, qty, limitPx: limitNum, describe: `${qty} ${contract.symbol}` } : null}
+            intent={contract && instrumentType ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: `${qty} ${contract.symbol}` } : null}
             ensureDecision={ensureDecision}
           />
 

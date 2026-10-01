@@ -9,6 +9,7 @@ import {
   proofSelectReceipt, type ProofSelectKind,
 } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
+import { listenForWatchlist } from "@/lib/os/watchlistDoor";
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { repairChartPreferences } from "@/lib/chartPreferenceRepair";
 import { AnimatePresence } from "framer-motion";
@@ -3179,6 +3180,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     watchlistSheetTriggerRef.current = trigger;
     setWatchlistOpen(true);
   }, []);
+  useEffect(() => listenForWatchlist(() => openWatchlist(null)), [openWatchlist]);
+  const requestedWatchlist = optionSearchParams.get("watchlist");
+  useEffect(() => {
+    if (requestedWatchlist === "open") openWatchlist(null);
+  }, [requestedWatchlist, openWatchlist]);
 
   // Drawing and capture are contextual tools at every width. Their canonical
   // components live in drawers instead of permanently framing MARKET with two

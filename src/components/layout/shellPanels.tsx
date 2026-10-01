@@ -25,6 +25,9 @@
  * repairing — a second owner of one fact — one file wider.
  */
 
+import { readLivingMarket, writeLivingMarket, listenForLivingMarket, prefersReducedMotion, type LivingMarket } from "@/lib/chart/livingMarket";
+import { requestWatchlist } from "@/lib/os/watchlistDoor";
+import { requestEquipment } from "@/lib/workspace/equipmentChannel";
 import { ChartStyleSettingsTab } from "@/components/settings/ChartStyleSettingsTab";
 import { SavedLayoutsDoor } from "@/components/os/SavedLayoutsDoor";
 import { ExecutionGuardrailsTab } from "@/components/settings/ExecutionGuardrailsTab";
@@ -408,7 +411,19 @@ export function SettingsPanel({
   onClose: () => void;
   fallbackTriggerRef: React.RefObject<HTMLButtonElement | null>;
 }) {
-  const [tab,       setTab]       = useState<"display"|"chart"|"views"|"trading"|"execution"|"account">("display");
+  const [tab,       setTab]       = useState<"display"|"chart"|"views"|"intelligence"|"execution"|"watchlist"|"connections"|"accessibility"|"account">("display");
+  const router = useRouter();
+  const [marketMotion, setMarketMotion] = useState<LivingMarket>("LIVE");
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    setMarketMotion(readLivingMarket());
+    setReducedMotion(prefersReducedMotion());
+    const stop = listenForLivingMarket(setMarketMotion);
+    const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    const syncReduced = () => setReducedMotion(prefersReducedMotion());
+    media?.addEventListener?.("change", syncReduced);
+    return () => { stop(); media?.removeEventListener?.("change", syncReduced); };
+  }, []);
   const [darkMode,  setDarkMode]  = useState(true);
   const [soundOn,   setSoundOn]   = useState(true);
   const [showPnl,   setShowPnl]   = useState(true);
@@ -473,12 +488,15 @@ export function SettingsPanel({
   );
 
   const TABS = [
-    { id:"display" as const, label:"Display", icon:Monitor },
+    { id:"display" as const, label:"Appearance", icon:Monitor },
     { id:"chart" as const, label:"Chart", icon:BarChart2 },
     { id:"views" as const, label:"My Views", icon:Search },
-    { id:"trading" as const, label:"Trading", icon:BarChart2 },
+    { id:"intelligence" as const, label:"Market Intelligence", icon:BarChart2 },
     { id:"execution" as const, label:"Execution", icon:Shield },
-    { id:"account" as const, label:"Account", icon:Shield },
+    { id:"watchlist" as const, label:"Watchlist", icon:Search },
+    { id:"connections" as const, label:"Connections", icon:Shield },
+    { id:"accessibility" as const, label:"Accessibility", icon:Monitor },
+    { id:"account" as const, label:"Account / Privacy", icon:Shield },
   ];
 
   const onTabKeyDown = (
@@ -504,7 +522,7 @@ export function SettingsPanel({
       titleId="wm-settings-title"
       descriptionId="wm-settings-description"
       title="Settings"
-      description="Display, trading, alert, and account preferences"
+      description="Appearance, market controls, execution, accessibility and account preferences"
       closeLabel="Close settings"
       width={420}
       onClose={onClose}
@@ -547,7 +565,7 @@ export function SettingsPanel({
         </div>
 
         {/* Tabs */}
-        <div role="tablist" aria-label="Settings sections" className="flex shrink-0 border-b border-wm-border">
+        <div role="tablist" aria-label="Settings sections" className="flex shrink-0 flex-wrap border-b border-wm-border">
           {TABS.map(t => (
             <button key={t.id} type="button" role="tab"
               id={`wm-settings-tab-${t.id}`}
@@ -557,7 +575,7 @@ export function SettingsPanel({
               onClick={() => setTab(t.id)}
               onKeyDown={event => onTabKeyDown(event, t.id)}
               className={clsx(
-                "flex min-h-11 flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] font-semibold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-wm-gold",
+                "flex min-h-11 basis-1/3 flex-col items-center justify-center gap-1 py-2 text-[10px] font-semibold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-wm-gold",
                 tab === t.id ? "text-wm-blue border-b-2 border-wm-blue" : "text-wm-text-muted hover:text-wm-text"
               )}>
               <t.icon size={13} aria-hidden="true" />
@@ -619,8 +637,9 @@ export function SettingsPanel({
             </div>
           )}
 
-          {tab === "trading" && (
-            <div role="tabpanel" id="wm-settings-panel-trading" aria-labelledby="wm-settings-tab-trading">
+          {tab === "intelligence" && (
+            <div role="tabpanel" id="wm-settings-panel-intelligence" aria-labelledby="wm-settings-tab-intelligence">
+              <button type="button" onClick={() => { onClose(); if (window.location.pathname === INSTRUMENT_VIEW_ROUTE) requestEquipment("chart-tools"); else router.push(INSTRUMENT_VIEW_ROUTE); }} className="my-2 min-h-11 rounded border border-wm-border px-3 text-xs">Open market tools</button>
               <Row label="Default Symbol" sub="Symbol loaded when opening Charts — type any ticker">
                 <>
                   <input
@@ -653,6 +672,30 @@ export function SettingsPanel({
           )}
 
 
+          {tab === "connections" && (
+            <div role="tabpanel" id="wm-settings-panel-connections" aria-labelledby="wm-settings-tab-connections">
+              <Row label="Brokers and data rails" sub="Support, entitlement, quote health and execution are measured separately.">
+                <button type="button" onClick={() => { onClose(); requestBrokerConnect(); }} className="min-h-11 rounded border border-wm-border px-3 text-xs">Manage connections</button>
+              </Row>
+            </div>
+          )}
+          {tab === "watchlist" && (
+            <div role="tabpanel" id="wm-settings-panel-watchlist" aria-labelledby="wm-settings-tab-watchlist">
+              <Row label="Named watchlists" sub="Manage markets and lists in the chart's Watchlist panel.">
+                <button type="button" onClick={() => { onClose(); if (window.location.pathname === INSTRUMENT_VIEW_ROUTE) requestWatchlist(); else router.push(`${INSTRUMENT_VIEW_ROUTE}?watchlist=open`); }} className="min-h-11 rounded border border-wm-border px-3 text-xs">{typeof window !== "undefined" && window.location.pathname === INSTRUMENT_VIEW_ROUTE ? "Manage Watchlist" : "Open market home"}</button>
+              </Row>
+            </div>
+          )}
+          {tab === "accessibility" && (
+            <div role="tabpanel" id="wm-settings-panel-accessibility" aria-labelledby="wm-settings-tab-accessibility">
+              <Row label="Living market motion" sub="STILL settles the same market objects. Quotes and evidence stay live; open charts update immediately.">
+                <select aria-label="Living market motion" value={marketMotion} onChange={event => { const mode = event.target.value === "STILL" ? "STILL" : "LIVE"; setMarketMotion(mode); writeLivingMarket(mode); }} className="min-h-11 rounded border border-wm-border bg-wm-surface px-2 text-xs">
+                  <option value="LIVE">LIVE</option><option value="STILL">STILL</option>
+                </select>
+              </Row>
+              <p className="py-3 text-xs text-wm-text-muted">{reducedMotion ? "Your operating system requests reduced motion; charts respect STILL regardless of the LIVE preference." : "Charts also respect your operating system's reduced motion preference."}</p>
+            </div>
+          )}
           {tab === "account" && (
             <div role="tabpanel" id="wm-settings-panel-account" aria-labelledby="wm-settings-tab-account">
               <Row label="Subscription" sub="WealthyMindsets PRO">
@@ -685,11 +728,10 @@ export function SettingsPanel({
                   Export
                 </button>
               </Row>
-              <Row label="Clear Cache" sub="Reset stored chart data and preferences">
+              <Row label="Clear Cache" sub="Remove cached watchlist prices; keep preferences and journal history">
                 <button
                   onClick={() => {
-                    const keep = ["wm-profile","wm-profile-avatar","wm-profile-bg","wm-radio-liked","wm_journal_entries","wm_paper_state","wm_quick_syms"];
-                    Object.keys(localStorage).forEach(k => { if (!keep.includes(k)) localStorage.removeItem(k); });
+                    localStorage.removeItem("wm-watchlist-prices");
                     window.location.reload();
                   }}
                   className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border border-wm-border px-2.5 py-1.5 text-xs text-wm-red/70 transition-colors hover:text-wm-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold">

@@ -383,7 +383,7 @@ import { DEFAULT_STACK_PREFS, orderStack, stackWidth, type ProfileStackPrefs } f
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectMtfAncestry, type MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import { wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
-import { livingMarketReceipt, motionAllowed, prefersReducedMotion, readLivingMarket, writeLivingMarket, type LivingMarket } from "@/lib/chart/livingMarket";
+import { livingMarketReceipt, motionAllowed, prefersReducedMotion, readLivingMarket, writeLivingMarket, listenForLivingMarket, type LivingMarket } from "@/lib/chart/livingMarket";
 import {
   arrowOutline,
   contradictionGlyph,
@@ -2167,6 +2167,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // Garden 16 §7 · LIVING MARKET — LIVE / STILL, one presentation state. STILL
   // settles every self-driven motion on the SAME objects; reduced motion too.
   const [livingMarket, setLivingMarket] = useState<LivingMarket>(() => readLivingMarket());
+  useEffect(() => listenForLivingMarket(setLivingMarket), []);
   const motionOnRef = useRef(true);
   // DUAL ANATOMY mode (Appearance; persisted). OFF · MARKET · FOUNDER · FUSION.
   const anatomyModeRef = useRef<"OFF" | "MARKET" | "FOUNDER" | "FUSION">("MARKET");
