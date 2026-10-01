@@ -26,6 +26,33 @@ export type LiveBarUpdate =
   | { status: "ACCEPTED"; bar: LegacyOhlcvTuple; lastEventAt: number }
   | { status: "LATE_EVENT_IGNORED"; bar: LegacyOhlcvTuple; lastEventAt: number };
 
+const DAY_SEC = 86_400;
+const WEEK_SEC = 7 * DAY_SEC;
+const MONTH_SEC = 30 * DAY_SEC;
+
+/**
+ * THE START OF THE BAR A PRINT BELONGS TO — calendar-true for weeks and months.
+ *
+ * `floor(t / interval)` is right for clocks that divide the day. It is wrong
+ * for a week: the Unix epoch fell on a THURSDAY, so 7-day floors open every
+ * "week" on Thursday — measured on serving MNQ1! 1W, 2026-10-01: a fresh
+ * one-print weekly candle "opened Oct 1" beside tastytrade's real week that
+ * opened Monday Sep 28. And a 30-day floor is no month at all. Weeks open
+ * Monday 00:00 UTC (the provider's week) and months on the 1st, 00:00 UTC.
+ */
+export function liveBarStartSec(tSec: number, intervalSec: number): number {
+  if (intervalSec === WEEK_SEC) {
+    const day = Math.floor(tSec / DAY_SEC);
+    // Epoch day 0 was a Thursday; (day + 3) % 7 is days since Monday.
+    return (day - ((day + 3) % 7)) * DAY_SEC;
+  }
+  if (intervalSec === MONTH_SEC) {
+    const d = new Date(tSec * 1000);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000;
+  }
+  return Math.floor(tSec / intervalSec) * intervalSec;
+}
+
 /**
  * Applies an arrival to the forward-only render bar.
  *
@@ -50,7 +77,7 @@ export function applyTickToLiveBar(
     return { status: "LATE_EVENT_IGNORED", bar: current, lastEventAt };
   }
 
-  const barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
+  const barTime = liveBarStartSec(tick.time / 1000, intervalSec);
   if (!current || barTime > current.time) {
     return {
       status: "ACCEPTED",

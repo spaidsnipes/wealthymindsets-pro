@@ -88,3 +88,22 @@ describe("applyTickToClock — fail closed when the registry has no clock", () =
     expect(() => applyTickToClock(null, null, { price: 1, size: 1, time: Number.NaN }, null)).toThrow();
   });
 });
+
+describe("liveBarStartSec — calendar-true weeks and months", () => {
+  it("a week opens Monday 00:00 UTC, never on the epoch's Thursday", async () => {
+    const { liveBarStartSec } = await import("./liveBarPolicy");
+    // Thu 2026-10-01 06:00Z belongs to the week of Mon 2026-09-28 (tastytrade's weekly candle).
+    const thu = Date.UTC(2026, 9, 1, 6) / 1000;
+    expect(liveBarStartSec(thu, 7 * 86_400)).toBe(Date.UTC(2026, 8, 28) / 1000);
+    // Sunday evening still belongs to the week that started the Monday before.
+    expect(liveBarStartSec(Date.UTC(2026, 9, 4, 23) / 1000, 7 * 86_400)).toBe(Date.UTC(2026, 8, 28) / 1000);
+    expect(liveBarStartSec(Date.UTC(2026, 9, 5, 0) / 1000, 7 * 86_400)).toBe(Date.UTC(2026, 9, 5) / 1000);
+  });
+
+  it("a month opens on the 1st; clocks that divide the day still floor", async () => {
+    const { liveBarStartSec } = await import("./liveBarPolicy");
+    expect(liveBarStartSec(Date.UTC(2026, 9, 17, 12) / 1000, 30 * 86_400)).toBe(Date.UTC(2026, 9, 1) / 1000);
+    expect(liveBarStartSec(Date.UTC(2026, 9, 1, 6, 7, 30) / 1000, 300)).toBe(Date.UTC(2026, 9, 1, 6, 5) / 1000);
+    expect(liveBarStartSec(Date.UTC(2026, 9, 1, 6, 7, 30) / 1000, 86_400)).toBe(Date.UTC(2026, 9, 1) / 1000);
+  });
+});
