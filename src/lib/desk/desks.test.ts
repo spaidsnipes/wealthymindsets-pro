@@ -67,3 +67,15 @@ describe("Garden 18 §LV–§LVIII — linked screens follow one market", () => 
     expect(cycleLink(cycleLink(cycleLink(d, 1), 1), 1).screens[1]?.link).toBeUndefined();
   });
 });
+
+describe("Garden 18 §LVI — each screen keeps its own View through save and reload", () => {
+  it("setScreenView sets and clears; a linked market change keeps the screen's View", async () => {
+    const { setScreenView, setLinkedSymbol, readDesk, cycleLink } = await import("./desks");
+    let d: import("./desks").Desk = { name: "V", layout: 2, screens: [{ symbol: "TSLA", timeframe: "5m" }, { symbol: "NQ1!", timeframe: "5m" }] };
+    d = setScreenView(cycleLink(d, 0), 0, "l1abc");
+    d = setLinkedSymbol(d, 0, "AAPL");
+    expect(d.screens[0]).toEqual({ symbol: "AAPL", timeframe: "5m", link: "A", view: "l1abc" });
+    expect(readDesk(JSON.parse(JSON.stringify(d)))?.screens[0]?.view).toBe("l1abc");
+    expect(setScreenView(d, 0, undefined).screens[0]?.view).toBeUndefined();
+  });
+});

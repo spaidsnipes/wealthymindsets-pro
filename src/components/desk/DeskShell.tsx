@@ -29,6 +29,7 @@ import {
   screensFor,
   setScreen,
   setLinkedSymbol,
+  setScreenView,
   cycleLink,
   swapScreens,
   upsertDesk,
@@ -37,6 +38,8 @@ import {
   type DeskLink,
 } from "@/lib/desk/desks";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+import { CLEAN_VIEW_ID, chartPropsForSwitches } from "@/lib/desk/deskView";
+import { SAVED_LAYOUTS_STORAGE_KEY, loadSavedLayouts, type SavedLayout } from "@/lib/workspace/savedLayouts";
 import { CHART_TF_SHIPPED, TF_IDS } from "@/lib/timeframes";
 
 const GOLD = "#C9A55C";
@@ -52,10 +55,13 @@ const btn = (on = false): React.CSSProperties => ({
 
 const LINK_INK: Readonly<Record<DeskLink, string>> = { A: "#C9A55C", B: "#7fd1a8" };
 
-function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLink, onSymbol, onTimeframe, onMaximize }: {
+function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLink, onSymbol, onTimeframe, onMaximize, view, views, onView }: {
   focused: boolean;
   link?: DeskLink;
   onLink: () => void;
+  view?: string;
+  views: readonly { id: string; name: string }[];
+  onView: (id: string | undefined) => void;
   index: number; symbol: string; timeframe: string; maximized: boolean;
   onSymbol: (s: string) => void; onTimeframe: (t: string) => void; onMaximize: () => void;
 }) {
@@ -76,6 +82,13 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLi
       <select aria-label={`Screen ${index + 1} timeframe`} value={timeframe} onChange={e => onTimeframe(e.target.value)}
         style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: "3px 4px" }}>
         {tfs.map(t => <option key={t} value={t}>{t}</option>)}
+      </select>
+      {/* §LVI: each screen wears its own View; the market data is shared. */}
+      <select aria-label={`Screen ${index + 1} view`} data-testid={`desk-view-${index + 1}`} value={view ?? ""} onChange={e => onView(e.target.value || undefined)}
+        style={{ maxWidth: 130, background: "#0b0a08", border: `1px solid ${view ? GOLD : LINE}`, color: view ? GOLD : INK, padding: "3px 4px" }}>
+        <option value="">Chart defaults</option>
+        <option value={CLEAN_VIEW_ID}>Clean</option>
+        {views.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
       </select>
       {/* §LV–§LVIII: screens in the same link group follow one market. */}
       <button type="button" data-testid={`desk-link-${index + 1}`} data-link={link ?? "NONE"} onClick={onLink}
@@ -110,6 +123,15 @@ export function DeskShell() {
   const [hydrated, setHydrated] = useState(false);
   // The screen a Watchlist tap loads into (§XIV): click a screen to focus it.
   const [focused, setFocused] = useState(0);
+  // §LVI: the trader's saved Views, offered per screen (read from their one owner).
+  const [savedViews, setSavedViews] = useState<readonly SavedLayout[]>([]);
+  useEffect(() => {
+    const load = () => { try { setSavedViews(loadSavedLayouts(window.localStorage)); } catch { setSavedViews([]); } };
+    load();
+    const onStorage = (e: StorageEvent) => { if (e.key === SAVED_LAYOUTS_STORAGE_KEY) load(); };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
   const [watchlistOpen, setWatchlistOpen] = useState(false);
   const [dropTarget, setDropTarget] = useState<number | null>(null);
   // A Watchlist tap moves the room's active symbol; on the desk that lands in
@@ -234,6 +256,9 @@ export function DeskShell() {
                 index={i} symbol={s.symbol} timeframe={s.timeframe} maximized={maximized === i} focused={focused === i}
                 link={s.link}
                 onLink={() => setWorking(w => cycleLink(w, i))}
+                view={s.view}
+                views={savedViews}
+                onView={id => setWorking(w => setScreenView(w, i, id))}
                 onSymbol={v => setWorking(w => setLinkedSymbol(w, i, v))}
                 onTimeframe={v => setWorking(w => setScreen(w, i, { timeframe: v }))}
                 onMaximize={() => setMaximized(m => (m === i ? null : i))}
@@ -247,6 +272,7 @@ export function DeskShell() {
                   setTimeframe={(t: string) => setWorking(w => setScreen(w, i, { timeframe: t }))}
                   footprintType="volume-profile"
                   footprintEnabled={false}
+                  {...(s.view ? chartPropsForSwitches(s.view === CLEAN_VIEW_ID ? null : savedViews.find(v => v.id === s.view)?.switches ?? null) : {})}
                 />
               </div>
             </section>

@@ -17,7 +17,7 @@ export type DeskLayout = 1 | 2 | 3 | 4;
 /** Garden 18 §LV–§LVIII: screens in the same link group follow one market. */
 export type DeskLink = "A" | "B";
 export const DESK_LINKS: readonly DeskLink[] = ["A", "B"];
-export interface DeskScreen { readonly symbol: string; readonly timeframe: TFId; readonly link?: DeskLink }
+export interface DeskScreen { readonly symbol: string; readonly timeframe: TFId; readonly link?: DeskLink; /** §LVI: the saved View (My Views id, or "clean") this screen wears. */ readonly view?: string }
 export interface Desk { readonly name: string; readonly layout: DeskLayout; readonly screens: readonly DeskScreen[] }
 
 export const DESKS_STORAGE_KEY = "wm_desks_v1";
@@ -64,11 +64,12 @@ export function readDesk(raw: unknown): Desk | null {
   if (!name || !isDeskLayout(r.layout) || !Array.isArray(r.screens)) return null;
   const screens: DeskScreen[] = [];
   for (const s of r.screens.slice(0, MAX_SCREENS)) {
-    const o = (s ?? {}) as { symbol?: unknown; timeframe?: unknown; link?: unknown };
+    const o = (s ?? {}) as { symbol?: unknown; timeframe?: unknown; link?: unknown; view?: unknown };
     const symbol = normalizeMarketSurfaceSymbol(typeof o.symbol === "string" ? o.symbol : null);
     const timeframe = normalizeMarketSurfaceTimeframe(typeof o.timeframe === "string" ? o.timeframe : null);
     const link = DESK_LINKS.includes(o.link as DeskLink) ? (o.link as DeskLink) : undefined;
-    if (symbol && timeframe) screens.push(link ? { symbol, timeframe, link } : { symbol, timeframe });
+    const view = typeof o.view === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(o.view) ? o.view : undefined;
+    if (symbol && timeframe) screens.push({ symbol, timeframe, ...(link ? { link } : {}), ...(view ? { view } : {}) });
   }
   return screens.length ? { name, layout: r.layout, screens } : null;
 }
@@ -111,7 +112,18 @@ export function setScreen(desk: Desk, index: number, patch: { symbol?: string; t
   if (!cur) return desk;
   const symbol = patch.symbol !== undefined ? normalizeMarketSurfaceSymbol(patch.symbol) ?? cur.symbol : cur.symbol;
   const timeframe = patch.timeframe !== undefined ? normalizeMarketSurfaceTimeframe(patch.timeframe) ?? cur.timeframe : cur.timeframe;
-  screens[index] = cur.link ? { symbol, timeframe, link: cur.link } : { symbol, timeframe };
+  screens[index] = { ...cur, symbol, timeframe };
+  return { ...desk, screens };
+}
+
+/** §LVI: wear a View on one screen (undefined = the chart's own defaults). */
+export function setScreenView(desk: Desk, index: number, view: string | undefined): Desk {
+  const screens = [...screensFor({ ...desk, layout: MAX_SCREENS as DeskLayout }).slice(0, Math.max(desk.screens.length, desk.layout))];
+  const cur = screens[index];
+  if (!cur) return desk;
+  const { view: _old, ...rest } = cur;
+  void _old;
+  screens[index] = view ? { ...rest, view } : rest;
   return { ...desk, screens };
 }
 
@@ -135,7 +147,9 @@ export function cycleLink(desk: Desk, index: number): Desk {
   const cur = screens[index];
   if (!cur) return desk;
   const next: DeskLink | undefined = cur.link === undefined ? "A" : cur.link === "A" ? "B" : undefined;
-  screens[index] = next ? { ...cur, link: next } : { symbol: cur.symbol, timeframe: cur.timeframe };
+  const { link: _l, ...rest } = cur;
+  void _l;
+  screens[index] = next ? { ...rest, link: next } : rest;
   return { ...desk, screens };
 }
 
