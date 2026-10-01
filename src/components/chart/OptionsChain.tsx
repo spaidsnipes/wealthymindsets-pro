@@ -20,7 +20,8 @@ import {
 } from "@/lib/optionContractResponse";
 import { optionContractObservationTiming, optionsReceiptAge, readOptionsResponse, optionsReadFailure, UNREVIEWED_RECEIPT, type OptionContractObservationTiming, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
 import type { IdentifiedOptionSpot } from "@/lib/optionsSpotIdentity";
-import { compactOcc, overlayLiveQuote, tastyStreamerMap } from "@/lib/broker/tastyOptionOverlay";
+import { overlayLiveQuote } from "@/lib/broker/tastyOptionOverlay";
+import { streamerForOcc, useTastyOptionStreamers } from "@/lib/broker/tastyOptionStreamers";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import {
   classifyOptionSpot,
@@ -299,19 +300,10 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
   // One tastytrade chain read per symbol pairs each OCC contract with its own
   // streamer symbol; only the contracts near the money subscribe, on the ONE
   // shared DXLink socket.
-  const [ttMap, setTtMap] = useState<Map<string, string> | null>(null);
-  useEffect(() => {
-    let live = true;
-    setTtMap(null);
-    fetch(`/api/broker/tastytrade/chain?symbol=${encodeURIComponent(symbol)}`, { cache: "no-store" })
-      .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (live && j?.state === "OK") setTtMap(tastyStreamerMap(j.data)); })
-      .catch(() => {});
-    return () => { live = false; };
-  }, [symbol]);
+  const ttMap = useTastyOptionStreamers(symbol);
   const atmIndex = chain.findIndex(r => r.itm === "atm");
   const nearRows = atmIndex >= 0 ? chain.slice(Math.max(0, atmIndex - 12), atmIndex + 13) : chain.slice(0, 25);
-  const streamerOf = (c: OptionContract | undefined) => (c && ttMap ? ttMap.get(compactOcc(c.symbol)) ?? null : null);
+  const streamerOf = (c: OptionContract | undefined) => streamerForOcc(ttMap, c?.symbol);
   const ttStreamers = React.useMemo(
     () => nearRows.flatMap(r => [streamerOf(r.call), streamerOf(r.put)]).filter((x): x is string => !!x),
     // eslint-disable-next-line react-hooks/exhaustive-deps

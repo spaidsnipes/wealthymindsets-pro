@@ -7,8 +7,9 @@
  * One WM ticket, the broker adapter second (§LXXIV): the contract is the
  * selected OSI identity (the route parses it; nothing here re-types strike,
  * expiry or right), the decision is the one the expression already carries,
- * and the answer is Webull's own preview. A preview is NOT an order — placing
- * is not enabled from here (§CXXIV), and the panel says so.
+ * and the answer is the broker's own preview / dry run. A preview is NOT an
+ * order: the live send (WebullLiveOrder / TastytradeLiveOrder) appears only
+ * after the broker accepts it, and only an armed press sends.
  */
 
 import React, { useEffect, useState } from "react";
@@ -57,15 +58,24 @@ function dryRunWords(result: unknown): string {
   return `tastytrade accepted the dry run${parts.length ? ` · ${parts.join(" · ")}` : ""} — nothing was placed.`;
 }
 
-export function WebullOptionPreflight({ osi, decisionId, referenceAsk }: {
+export function WebullOptionPreflight({ osi, decisionId, referenceAsk, referenceIsLive = false }: {
   readonly osi: string;
   /** The decision this expression belongs to; null until it is recorded. */
   readonly decisionId: string | null;
   readonly referenceAsk: number | null;
+  /** True when referenceAsk is tastytrade's live ask, not the indicative reference. */
+  readonly referenceIsLive?: boolean;
 }) {
   const [intent, setIntent] = useState<(typeof INTENTS)[number]["v"]>("BUY_TO_OPEN");
   const [qty, setQty] = useState(1);
   const [limit, setLimit] = useState<string>(referenceAsk != null ? referenceAsk.toFixed(2) : "");
+  // The starting limit follows the reference until the trader types their own
+  // price — so a live ask that arrives after mount replaces a stale one, and
+  // the trader's own number is never overwritten.
+  const limitTouched = React.useRef(false);
+  useEffect(() => {
+    if (!limitTouched.current && referenceAsk != null) setLimit(referenceAsk.toFixed(2));
+  }, [referenceAsk]);
   const [accountIndex, setAccountIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState<Answer | null>(null);
@@ -150,7 +160,7 @@ export function WebullOptionPreflight({ osi, decisionId, referenceAsk }: {
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-wm-text-muted">Limit premium</span>
-          <input inputMode="decimal" value={limit} onChange={e => setLimit(e.target.value)} className="rounded border border-wm-border bg-wm-dark px-1 py-1" aria-describedby="limit-note" />
+          <input inputMode="decimal" value={limit} onChange={e => { limitTouched.current = true; setLimit(e.target.value); }} className="rounded border border-wm-border bg-wm-dark px-1 py-1" aria-describedby="limit-note" />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-wm-text-muted">Account</span>
@@ -161,7 +171,7 @@ export function WebullOptionPreflight({ osi, decisionId, referenceAsk }: {
           </select>
         </label>
       </div>
-      <p id="limit-note" className="mt-1 text-wm-text-muted">Limit starts at the reference ask (a stale reference is not an executable quote — set your own price).</p>
+      <p id="limit-note" className="mt-1 text-wm-text-muted">{referenceIsLive ? "Limit starts at tastytrade's live ask and follows it until you type your own price." : "Limit starts at the reference ask (a stale reference is not an executable quote — set your own price)."}</p>
       <button
         type="button"
         data-testid="webull-preflight"

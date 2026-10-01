@@ -16,6 +16,9 @@ import { continueOrMint, type DecisionId, type DecisionIdentity } from "@/lib/tr
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordExpressionIntent } from "@/lib/traderMemory/recordExpressionIntent";
 import { OptionDecisionReceipt } from "./OptionDecisionReceipt";
+import { readContractQuote } from "@/lib/broker/tastyContractQuote";
+import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
+import { streamerForOcc, useTastyOptionStreamers } from "@/lib/broker/tastyOptionStreamers";
 
 /** An expression under review, never a position or an executable quote. */
 export function OptionExpressionIntent({ ownerId, underlying, contract, source, fidelity, providerPath, rightsPolicyId, bornDecision, onIdentity, onClear }: {
@@ -74,9 +77,21 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
   // honest answer before this browser has stated what time it is, and the
   // reason the clock is not read during render (that was a live #418
   // hydration defect in this repo once already).
+  // §LXI EXECUTION REALITY — this exact contract's live quote from tastytrade's
+  // stream (the one shared socket), when tastytrade prices it. The Alpaca
+  // reference below keeps its own label; the live block says where it is from.
+  const ttMap = useTastyOptionStreamers(underlying);
+  const streamer = streamerForOcc(ttMap, contract.symbol);
+  const tt = useTastyQuotes(streamer ? [streamer] : []);
+  const liveQ = streamer ? tt.quotes.get(streamer) : undefined;
+  const [liveClock, setLiveClock] = useState(() => Date.now());
+  useEffect(() => { const t = window.setInterval(() => setLiveClock(Date.now()), 1000); return () => window.clearInterval(t); }, []);
+  const liveRead = readContractQuote(liveQ, tt.stream, liveClock);
+  const isLive = liveRead.state === "LIVE" || liveRead.state === "ONE-SIDED";
+
   const stance = selectQuoteStance({
-    bid: contract.bid ?? null,
-    ask: contract.ask ?? null,
+    bid: isLive ? liveQ?.bid ?? null : contract.bid ?? null,
+    ask: isLive ? liveQ?.ask ?? null : contract.ask ?? null,
     // No modeled premium is offered here. This surface reviews an OBSERVED
     // chain; inventing a MODELED number where the provider printed nothing
     // would manufacture certainty at exactly the moment the trader is deciding.
@@ -147,6 +162,27 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
       <button type="button" onClick={onClear} disabled={busy} className="underline">Clear expression</button>
     </div>
     <p className="mt-1 break-all font-mono text-wm-text-muted">{contract.symbol}</p>
+    {streamer ? (
+      <div data-testid="execution-reality" data-quote-state={liveRead.state} className="mt-2 rounded border border-wm-border p-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-semibold uppercase tracking-wider text-[10px]" style={{ color: liveRead.state === "LIVE" ? "#7fd1a8" : "#C9A55C" }}>
+            Execution reality · tastytrade {liveRead.state === "LIVE" ? "live" : liveRead.state.toLowerCase()}
+          </span>
+          <span className="text-wm-text-muted text-[10px]">quote age {liveRead.ageMs == null ? "—" : liveRead.ageMs < 1000 ? "<1s" : `${Math.round(liveRead.ageMs / 1000)}s`}</span>
+        </div>
+        <dl className="mt-1 grid grid-cols-4 gap-x-3 gap-y-1 font-mono">
+          <div><dt className="text-wm-text-muted">Bid</dt><dd>{formatOptionNumber(liveQ?.bid ?? undefined, 2)}{liveQ?.bidSize ? ` ×${liveQ.bidSize}` : ""}</dd></div>
+          <div><dt className="text-wm-text-muted">Ask</dt><dd>{formatOptionNumber(liveQ?.ask ?? undefined, 2)}{liveQ?.askSize ? ` ×${liveQ.askSize}` : ""}</dd></div>
+          <div><dt className="text-wm-text-muted">Mark</dt><dd>{formatOptionNumber(liveRead.mark ?? undefined, 2)}</dd></div>
+          <div><dt className="text-wm-text-muted">Last</dt><dd>{formatOptionNumber(liveQ?.last ?? undefined, 2)}</dd></div>
+          <div><dt className="text-wm-text-muted">Spread $</dt><dd>{formatOptionNumber(liveRead.spread ?? undefined, 2)}</dd></div>
+          <div><dt className="text-wm-text-muted">Spread %</dt><dd>{formatOptionNumber(liveRead.spreadPct ?? undefined, 1)}</dd></div>
+          <div><dt className="text-wm-text-muted">Δ</dt><dd>{formatOptionNumber(liveQ?.delta ?? undefined, 2)}</dd></div>
+          <div><dt className="text-wm-text-muted">IV</dt><dd>{liveQ?.iv != null ? `${(liveQ.iv * 100).toFixed(1)}%` : "—"}</dd></div>
+        </dl>
+        <p className="mt-1 text-wm-text-muted">Mark is the midpoint — not a guaranteed fill. A limit is the worst price you accept, not the price you will get.</p>
+      </div>
+    ) : null}
     <p className="mt-2">Reference bid {formatOptionNumber(contract.bid, 2)} · ask {formatOptionNumber(contract.ask, 2)} · last {formatOptionNumber(contract.last, 2)}</p>
     {/* The attached object's three pre-trade judgements. Every one of them
         states its own UNKNOWN rather than going quiet, because a missing row
@@ -154,7 +190,7 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
         means. No colour carries a meaning a word does not also carry. */}
     <dl className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-3" aria-label="Contract stance">
       <div>
-        <dt className="text-wm-text-muted">Sell-now reference</dt>
+        <dt className="text-wm-text-muted">Sell-now reference{isLive ? " · tastytrade live" : ""}</dt>
         <dd>
           {stance.premium === null
             ? <span className="text-wm-gold">UNKNOWN · no sourced quote</span>
@@ -213,6 +249,6 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
     {decisionId && !busy && <OptionDecisionReceipt key={`${ownerId}:${decisionId}`} decisionId={decisionId} ownerId={ownerId} />}
     {/* Garden 18 §XC–§XCIII: broker eligibility → account → preflight, on the
         SAME decision this recorded expression belongs to. */}
-    <WebullOptionPreflight osi={contract.symbol} decisionId={decisionId || null} referenceAsk={contract.ask ?? null} />
+    <WebullOptionPreflight osi={contract.symbol} decisionId={decisionId || null} referenceAsk={isLive && liveQ?.ask != null ? liveQ.ask : contract.ask ?? null} referenceIsLive={isLive && liveQ?.ask != null} />
   </section>;
 }
