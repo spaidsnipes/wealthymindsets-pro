@@ -6633,8 +6633,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // position) were each hard-coded at H - 114 and printed over each
       // other on serving NQ1! 5m (2026-09-28). The first keeps the row; each
       // later one steps up a row.
-      let silenceRowY = H - 114;
-      const takeSilenceRow = (): number => { const y = silenceRowY; silenceRowY -= 14; return y; };
+      // SHORT PANES (Garden 18 §XXXI, measured on serving /desk 4-up 2026-10-01:
+      // a ~290px screen put H - 114 mid-candles and every later line stepped up
+      // into them). Under 420px the stack starts just above the time axis — over
+      // the volume bars, not the candles — and steps tighter. The words stay:
+      // every active sense still names its state (§XXVIII).
+      const shortPane = H < 420;
+      let silenceRowY = shortPane ? H - 40 : H - 114;
+      const takeSilenceRow = (): number => { const y = silenceRowY; silenceRowY -= shortPane ? 11 : 14; return y; };
       // THE ROOM'S LEFT RAIL COVERS THE GLASS (serving TSLA 15m, 2026-09-30:
       // with Workspace open, the Review camera's anatomy card and every
       // bottom-left silence line sat under the 264px rail, which overlays the
