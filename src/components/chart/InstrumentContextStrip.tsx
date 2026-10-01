@@ -21,8 +21,11 @@ import { instrumentContextStrip } from "@/lib/charts/instrumentContextStrip";
 const GOLD = "#C9A55C";
 
 export function InstrumentContextStrip({
-  symbol, assetClass, activeTab, onTab, onRoom, onIndicators, indicatorCount, onPanel, openPanel = null, onWatchlist, watchlistOpen = false,
+  symbol, assetClass, activeTab, onTab, onRoom, onIndicators, indicatorCount, onPanel, openPanel = null, onWatchlist, watchlistOpen = false, onTrade, tradeOpen = false,
 }: {
+  /** Garden 18 §LXVII: ONE verb. The panel reads what is on the chart. */
+  readonly onTrade?: () => void;
+  readonly tradeOpen?: boolean;
   readonly symbol: string;
   readonly assetClass: CanonicalAssetClass;
   readonly activeTab: CategoryTab;
@@ -78,6 +81,22 @@ export function InstrumentContextStrip({
         );
       })}
       <span style={{ flex: 1 }} />
+      {onTrade ? (
+        <button
+          type="button"
+          data-testid="context-trade"
+          onClick={onTrade}
+          aria-pressed={tradeOpen}
+          aria-label={`Trade ${symbol}`}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, minHeight: 26, padding: "0 14px", borderRadius: 3, marginRight: 6,
+            border: `1px solid ${GOLD}`, background: tradeOpen ? "rgba(201,165,92,.28)" : "rgba(201,165,92,.14)", color: GOLD,
+            cursor: "pointer", font: "800 10.5px/1 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".14em", textTransform: "uppercase",
+          }}
+        >
+          Trade
+        </button>
+      ) : null}
       <Link
         href="/desk"
         data-testid="context-desk"

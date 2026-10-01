@@ -164,9 +164,10 @@ describe("chart panels — a mounted panel must have a door", () => {
   });
 
   it("opens the paper account from broker controls without implying live execution", () => {
-    expect(CODE).toMatch(/\{\s*tradeOpen\s*&&/);
+    // Garden 18 §LXVII: TRADE is the live panel; paper has its own door.
+    expect(CODE).toMatch(/\{\s*paperOpen\s*&&/);
     expect(CODE).toContain("<AlpacaTradingPanel");
-    expect(CODE).toMatch(/onOpenPaperAccount=\{\(\) => \{\s*setBrokerOpen\(false\);\s*setTradeOpen\(true\);/);
+    expect(CODE).toMatch(/onOpenPaperAccount=\{\(\) => \{\s*setBrokerOpen\(false\);\s*setPaperOpen\(true\);/);
     expect(CODE).toContain('initialTab="positions"');
   });
 

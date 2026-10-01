@@ -27,6 +27,7 @@ import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FOOTPRINT_TYPES, FootprintControls } from "./FootprintControls";
 import { announceFootprintPrefs, subscribeFootprintPrefsRequests } from "@/lib/workspace/footprintPrefs";
 import { ToolFinder } from "./ToolFinder";
+import { TradePanel } from "./TradePanel";
 import { ProfilesMenu } from "./ProfilesMenu";
 import { ProfilePresetBar } from "./ProfilePresetBar";
 import { RiskReceiptBar } from "./RiskReceiptBar";
@@ -641,6 +642,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     return () => window.removeEventListener(BROKER_CONNECT_EVENT, knock);
   }, [openBrokerConnect]);
   const [tradeOpen,       setTradeOpen]       = useState(false);
+  // The Alpaca paper ticket, still one tap away from the Trade panel.
+  const [paperOpen,       setPaperOpen]       = useState(false);
   const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract; source: OptionChainSource; fidelity: OptionChainFidelity; providerPath: string | null; rightsPolicyId: string | null } | null>(null);
   const clearOptionSelection = useCallback(() => setOptionSelection(null), []);
   const [pineBuilderOpen, setPineBuilderOpen] = useState(false);
@@ -5498,6 +5501,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               openPanel={futuresOptionsOpen ? "FUTURES_OPTIONS" : null}
               onWatchlist={(trigger) => (watchlistOpen ? setWatchlistOpen(false) : openWatchlist(trigger))}
               watchlistOpen={watchlistOpen}
+              onTrade={() => setTradeOpen(v => !v)}
+              tradeOpen={tradeOpen}
             />
           )}
           {futuresOptionsOpen && assetClass === "futures" && (
@@ -6666,7 +6671,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           fallbackTriggerRef={brokerFallbackTriggerRef}
           onOpenPaperAccount={() => {
             setBrokerOpen(false);
-            setTradeOpen(true);
+            setPaperOpen(true);
           }}
         />
       )}
@@ -6681,9 +6686,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         )}
       </AnimatePresence>
       <AnimatePresence>
-        {tradeOpen && (
+        {paperOpen && (
           <AlpacaTradingPanel
-            onClose={() => setTradeOpen(false)}
+            onClose={() => setPaperOpen(false)}
             defaultSymbol={symbol}
             initialTab="positions"
             fallbackTriggerRef={toolsTriggerRef}
@@ -6691,6 +6696,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           />
         )}
       </AnimatePresence>
+
+      {/* Garden 18 §LXVII — TRADE: one verb, floating over the market. */}
+      {tradeOpen && (
+        <TradePanel
+          symbol={symbol}
+          price={chartBars.length ? chartBars[chartBars.length - 1].close : null}
+          bornDecision={currentSceneDecision}
+          onIdentity={(identity) => setSceneDecision((current) => adoptSceneDecision(current, { ...decisionScope, identity }))}
+          onOpenOptions={() => { setTradeOpen(false); if (assetClass === "futures") setFuturesOptionsOpen(true); else setActiveTab("Options"); }}
+          onOpenPaper={() => { setTradeOpen(false); setPaperOpen(true); }}
+          onClose={() => setTradeOpen(false)}
+        />
+      )}
 
       {/* Pine Script Builder */}
       <AnimatePresence>
