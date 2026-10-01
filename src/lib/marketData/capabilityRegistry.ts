@@ -85,7 +85,7 @@ export type FidelityClass = "OBSERVED" | "DERIVED" | "PROXY" | "UNAVAILABLE";
  * state — so `tsc` could not see the two halves disagree. A Sentinel drives
  * the real elector against this union instead.
  */
-export type RuntimeTapeSource = "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | "moomoo" | "webull" | null;
+export type RuntimeTapeSource = "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | "moomoo" | "webull" | "tastytrade" | null;
 export const UNKNOWN_RIGHTS_POLICY_ID = "wm.rights.unknown.v1" as const;
 
 export interface MarketDataCapability {
@@ -482,6 +482,11 @@ const TAPE_SOURCE_PATHS: Partial<Record<Exclude<RuntimeTapeSource, null>, {
   alpaca: { providerPath: "alpaca-external-relay", assetClass: "equity" },
   moomoo: { providerPath: "moomoo-opend-bridge", assetClass: "equity" },
   webull: { providerPath: "webull-openapi-ticks", assetClass: "equity" },
+  // 2026-10-01: the futures tape. Without this row hasVerifiedAggressorTape
+  // ("tastytrade") was false and MainChart dropped every exchange-signed CME
+  // print before footprint, delta, big trades and imbalance (serving /desk NQ:
+  // "ORDER FLOW · WAITING FOR SIDED PRINTS").
+  tastytrade: { providerPath: "tastytrade-dxlink", assetClass: "futures" },
 };
 
 /**
