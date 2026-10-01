@@ -236,3 +236,12 @@ describe("chart deep-link continuity", () => {
     expect(dashboard).toMatch(/if \(!requested\) \{\s*seededUrlTimeframe\.current = null;/);
   });
 });
+
+describe("a specific futures month deep-links as itself", () => {
+  it("/MNQH7 survives the URL guard; a bare slash does not", async () => {
+    const { normalizeMarketSurfaceSymbol } = await import("@/lib/routing/marketSurfaceQuery");
+    expect(normalizeMarketSurfaceSymbol("/mnqh7")).toBe("/MNQH7");
+    expect(normalizeMarketSurfaceSymbol("/")).toBeNull();
+    expect(normalizeMarketSurfaceSymbol("//ES")).toBeNull();
+  });
+});

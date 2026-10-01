@@ -1,7 +1,8 @@
 import { normalizeTFId, type TFId } from "@/lib/timeframes";
 
 // A leading ^ is an index (^SPX, ^N225) — search offers it, so a deep link must open it (Garden 17 master order §LVIII, 2026-09-29).
-const MARKET_SYMBOL_PATTERN = /^\^?[A-Za-z0-9][A-Za-z0-9.\-!/=]{0,14}$/;
+// A leading "/" is a specific futures month (/MNQH7) — the brokers' own notation.
+const MARKET_SYMBOL_PATTERN = /^[\^/]?[A-Za-z0-9][A-Za-z0-9.\-!/=]{0,14}$/;
 
 /**
  * A market-surface query value may seed canonical state, but it may never
