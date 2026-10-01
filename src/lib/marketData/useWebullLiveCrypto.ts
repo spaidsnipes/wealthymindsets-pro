@@ -14,6 +14,7 @@
  * price / bid / ask and Webull's timestamp, and stores nothing (GP12 §21).
  */
 
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { useEffect, useState } from "react";
 
 import { decodeWebullFrame } from "@/lib/marketData/webullQuotePayload";
@@ -36,6 +37,9 @@ export interface WebullLiveReading {
 
 /** The Webull crypto symbol for a chart symbol, or null. USD quote only: BTCUSD / BTC-USD / BTC/USD → "BTCUSD". PURE. */
 export function webullCryptoSymbolForChart(symbol: string): string | null {
+  // Spot FX (EURUSD, GBPUSD, XAUUSD) also ends in USD — it is not a coin, and
+  // Webull answers it INVALID_SYMBOL (serving, 2026-10-01). Ask the classifier.
+  if (classifySymbol(symbol) !== "CRYPTO") return null;
   const s = symbol.toUpperCase().replace(/[-/\s]/g, "");
   return /^[A-Z0-9]{2,10}USD$/.test(s) ? s : null;
 }
