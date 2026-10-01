@@ -297,3 +297,19 @@ export async function getTastytradeLiveOrders(accountNumber: string): Promise<un
   return (r?.data?.items ?? []) as unknown[];
 }
 
+/**
+ * LIVE ORDER — real money. Called ONLY by the owner- and authority-gated
+ * /api/broker/tastytrade/order-submit route, after the human pressed the armed
+ * button and tastytrade's own dry run passed in the same request.
+ */
+export async function submitTastytradeOrder(accountNumber: string, order: unknown): Promise<unknown> {
+  const r = await ttPost<any>(`/accounts/${encodeURIComponent(accountNumber)}/orders`, order);
+  return r?.data ?? r;
+}
+
+/** Request cancellation of one working order; tastytrade answers with the order in its new state. */
+export async function cancelTastytradeOrder(accountNumber: string, orderId: string): Promise<unknown> {
+  const r = await ttRequest<any>("DELETE", `/accounts/${encodeURIComponent(accountNumber)}/orders/${encodeURIComponent(orderId)}`);
+  return r?.data ?? r;
+}
+

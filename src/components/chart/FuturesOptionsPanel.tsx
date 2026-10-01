@@ -14,7 +14,9 @@
  * press when none exists), never a second thesis.
  */
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+
+import { TastytradeLiveOrder } from "@/components/chart/TastytradeLiveOrder";
 
 import { readContractQuote, type ContractQuoteReading } from "@/lib/broker/tastyContractQuote";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
@@ -126,17 +128,43 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
     if (snapped != null) { setLimit(String(snapped)); setSeeded(pick.symbol); }
   }, [pick, seeded, pickRead.mark, exp]);
 
+  // The ONE decision every order from this panel expresses: the chart's, or one
+  // born on this explicit press (continueOrMint) — never a second thesis.
+  const decisionRef = useRef<string | null>(null);
+  useEffect(() => { decisionRef.current = bornDecision?.decisionId ?? null; }, [bornDecision]);
+  function ensureDecision(): string | null {
+    if (decisionRef.current) return decisionRef.current;
+    const born = continueOrMint(bornDecision, { cause: "EXPLICIT_INTENT", deviceId: bornDecision?.bornOnDeviceId ?? thisDeviceId(), nowMs: Date.now(), nonce: crypto.randomUUID() });
+    if (!born.ok) { setAnswer(born.reason); return null; }
+    if (!bornDecision) onIdentity(born.identity);
+    decisionRef.current = born.identity.decisionId;
+    return born.identity.decisionId;
+  }
+
+  // ── TRADE THE FUTURE ITSELF (the parent contract, e.g. /MNQZ6) ──
+  const [futAction, setFutAction] = useState<"Buy to Open" | "Sell to Open" | "Buy to Close" | "Sell to Close">("Buy to Open");
+  const [futQty, setFutQty] = useState(1);
+  const [futLimit, setFutLimit] = useState("");
+  const parentQ = parentStreamer ? live.quotes.get(parentStreamer) : undefined;
+  // Seeded once per contract + side from the live touch (ask to buy, bid to sell); the trader's own price is never overwritten.
+  const [futSeeded, setFutSeeded] = useState<string | null>(null);
+  useEffect(() => {
+    const key = `${parent}|${futAction.startsWith("Buy") ? "B" : "S"}`;
+    if (futSeeded === key) return;
+    const touch = futAction.startsWith("Buy") ? parentQ?.ask : parentQ?.bid;
+    if (touch != null) { setFutLimit(String(touch)); setFutSeeded(key); }
+  }, [parent, futAction, parentQ?.ask, parentQ?.bid, futSeeded]);
+
   async function dryRun() {
     if (!pick || busy) return;
     setBusy(true);
     try {
-      const born = continueOrMint(bornDecision, { cause: "EXPLICIT_INTENT", deviceId: bornDecision?.bornOnDeviceId ?? thisDeviceId(), nowMs: Date.now(), nonce: crypto.randomUUID() });
-      if (!born.ok) { setAnswer(born.reason); return; }
-      if (!bornDecision) onIdentity(born.identity);
+      const decisionId = ensureDecision();
+      if (!decisionId) return;
       const r = await fetch("/api/broker/tastytrade/order-dry-run", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ instrumentType: "Future Option", symbol: pick.symbol, action, qty, type: "Limit", limitPx: Number(limit), decisionId: born.identity.decisionId }),
+        body: JSON.stringify({ instrumentType: "Future Option", symbol: pick.symbol, action, qty, type: "Limit", limitPx: Number(limit), decisionId }),
       });
       const j = await r.json().catch(() => null);
       if (j?.state === "DRY_RUN_OK") {
@@ -194,6 +222,23 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
             {live.stream === "LIVE" ? "● tastytrade live" : live.stream === "CONNECTING" ? "Connecting to tastytrade's stream…" : live.reason ?? live.stream.replace(/_/g, " ").toLowerCase()}
             {parentStreamer ? ` · ${parent} ${parentRead.mark != null ? `${px(live.quotes.get(parentStreamer)?.bid)} × ${px(live.quotes.get(parentStreamer)?.ask)}` : parentRead.state.toLowerCase()}` : ""}
           </p>
+          <details data-testid="trade-the-future" style={{ marginTop: 8, border: "1px solid #3a3326", borderRadius: 4, padding: "6px 8px" }}>
+            <summary style={{ cursor: "pointer", color: GOLD, letterSpacing: ".06em" }}>Trade the future · {parent}</summary>
+            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.6fr 1fr", gap: 6, marginTop: 6 }}>
+              <select aria-label="Future order action" value={futAction} onChange={e => setFutAction(e.target.value as typeof futAction)} style={{ background: "#0b0a08", border: "1px solid #3a3326", padding: 4 }}>
+                <option>Buy to Open</option><option>Sell to Open</option><option>Buy to Close</option><option>Sell to Close</option>
+              </select>
+              <input type="number" min={1} step={1} value={futQty} onChange={e => setFutQty(Math.max(1, Math.floor(Number(e.target.value) || 1)))} aria-label="Future contracts" style={{ background: "#0b0a08", border: "1px solid #3a3326", padding: 4 }} />
+              <input inputMode="decimal" value={futLimit} onChange={e => setFutLimit(e.target.value)} placeholder="Limit" aria-label="Future limit price" style={{ background: "#0b0a08", border: "1px solid #3a3326", padding: 4 }} />
+            </div>
+            <p style={{ marginTop: 4, color: MUTED, fontVariantNumeric: "tabular-nums" }}>
+              Live touch {px(parentQ?.bid)} × {px(parentQ?.ask)} · limit starts at the {futAction.startsWith("Buy") ? "ask" : "bid"}
+            </p>
+            <TastytradeLiveOrder
+              intent={parent ? { instrumentType: "Future", symbol: parent, action: futAction, qty: futQty, limitPx: Number(futLimit) > 0 ? Number(futLimit) : null, describe: `${parent} future` } : null}
+              ensureDecision={ensureDecision}
+            />
+          </details>
           <table style={{ width: "100%", marginTop: 6, borderCollapse: "collapse" }}>
             <thead><tr style={{ color: MUTED }}><th style={{ textAlign: "left" }}>Call bid × ask</th><th>Strike</th><th style={{ textAlign: "right" }}>Put bid × ask</th></tr></thead>
             <tbody>
@@ -260,6 +305,10 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
               </button>
               {answer ? <p role="status" style={{ marginTop: 6, color: answer.includes("accepted") ? "#7fd1a8" : GOLD }}>{answer}</p> : null}
               <p style={{ marginTop: 4, color: "#8a8271" }}>A dry run validates the order against your account and places nothing.</p>
+              <TastytradeLiveOrder
+                intent={{ instrumentType: "Future Option", symbol: pick.symbol, action, qty, limitPx: Number(limit) > 0 ? Number(limit) : null, describe: `${pick.right} ${pick.strike} on ${exp?.parent ?? ""} · exp ${exp?.expiration ?? ""}` }}
+                ensureDecision={ensureDecision}
+              />
             </div>
           ) : null}
         </>
