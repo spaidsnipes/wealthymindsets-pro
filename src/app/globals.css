@@ -1389,3 +1389,15 @@ input[type=range]::-webkit-slider-runnable-track {
 @media (max-width: 900px) {
   .wm-instrument-context-strip { display: none !important; }
 }
+
+/* Garden 18 §LXXIX / §XXXIX — OPTIONS IS A SIDECAR. On desktop the decision
+   band that mounts with the Options view took ~220px of height: the candles
+   shrank to a strip and the chain's contract rows got ~20px (serving TSLA 5m,
+   2026-10-01). The band stays — one decision surface — capped to its headline
+   row; its columns scroll inside it. Desktop only; phone/tablet unchanged. */
+@media (min-width: 901px) {
+  .wm-chart-dashboard[data-options-open="true"] [data-presentation="band"] {
+    max-height: 96px !important;
+    overflow-y: auto !important;
+  }
+}

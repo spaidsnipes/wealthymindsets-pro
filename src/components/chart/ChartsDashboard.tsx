@@ -4557,6 +4557,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   return (
     <div
       className={`wm-chart-dashboard${theme === "neon" ? " wm-neon" : ""}`}
+      // Garden 18 §LXXIX: the desktop stylesheet caps the decision band while
+      // the Options sidecar is open, so the chart and the chain keep their height.
+      data-options-open={optionsOpen ? "true" : undefined}
       // B-701 receipt. See useCanvasBand above. The count is what the band
       // PERMITS, not what this room renders — measured, /charts renders one
       // zoom (the decision spine) at every width above the rail cliff, so a
