@@ -24,6 +24,7 @@ describe("instrument context strip", () => {
       for (const e of instrumentContextStrip(cls, "X")) {
         if (e.kind === "TAB") expect(tabs.has(e.tab), `${cls} → ${e.label}`).toBe(true);
         if (e.kind === "DISABLED") expect(e.reason.length).toBeGreaterThan(20);
+        if (e.kind === "PANEL") expect(e.panel).toBe("FUTURES_OPTIONS");
       }
     }
   });

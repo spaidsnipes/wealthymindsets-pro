@@ -237,3 +237,41 @@ export async function getTastytradeCapabilities(): Promise<TastytradeCapabilitie
   }
   return base;
 }
+
+/* ── Garden 18 §LXIX–§XCV: the calls a trading OS needs, from tastytrade's
+   documented endpoints. Server-side only; owner-gated at every route. ───── */
+
+/** Authenticated POST. Server-side only. */
+export async function ttPost<T = unknown>(path: string, body: unknown): Promise<T> {
+  return ttRequest<T>("POST", path, body);
+}
+
+/** One account's positions (tastytrade /accounts/{n}/positions). */
+export async function getTastytradePositions(accountNumber: string): Promise<unknown[]> {
+  const j = await ttGet<{ data?: { items?: unknown[] } }>(`/accounts/${encodeURIComponent(accountNumber)}/positions`);
+  return j?.data?.items ?? [];
+}
+
+/** A dry run: tastytrade validates the order against the real account and places NOTHING. */
+export async function dryRunTastytradeOrder(accountNumber: string, order: unknown): Promise<unknown> {
+  const j = await ttPost<{ data?: unknown }>(`/accounts/${encodeURIComponent(accountNumber)}/orders/dry-run`, order);
+  return j?.data ?? j;
+}
+
+/** Equity option chain, nested by expiration (tastytrade /option-chains/{symbol}/nested). */
+export async function getTastytradeOptionChain(symbol: string): Promise<unknown> {
+  const j = await ttGet<{ data?: unknown }>(`/option-chains/${encodeURIComponent(symbol)}/nested`);
+  return j?.data ?? j;
+}
+
+/** The specific futures contracts of a product (e.g. MNQ → /MNQZ6, /MNQH7 …). */
+export async function getTastytradeFutures(productCode: string): Promise<unknown[]> {
+  const j = await ttGet<{ data?: { items?: unknown[] } }>(`/instruments/futures?product-code[]=${encodeURIComponent(productCode)}`);
+  return j?.data?.items ?? [];
+}
+
+/** Futures-option chain, nested (tastytrade /futures-option-chains/{product}/nested). */
+export async function getTastytradeFuturesOptionChain(productCode: string): Promise<unknown> {
+  const j = await ttGet<{ data?: unknown }>(`/futures-option-chains/${encodeURIComponent(productCode)}/nested`);
+  return j?.data ?? j;
+}

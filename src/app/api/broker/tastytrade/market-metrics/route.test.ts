@@ -18,7 +18,8 @@ import { GET } from "./route";
 describe("tastytrade market metrics truth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.requireAuth.mockResolvedValue({ ok: true });
+    mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "owner-1" } });
+    vi.stubEnv("WEBULL_OWNER_USER_ID", "owner-1");
     mocks.tastytradeConfigStatus.mockReturnValue({ configured: true });
     mocks.ttGet.mockResolvedValue({ data: { items: [{ symbol: "TSLA" }] } });
   });

@@ -22,7 +22,9 @@ import type { CanonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
 export type ContextEntry =
   | { readonly id: string; readonly label: string; readonly kind: "TAB"; readonly tab: CategoryTab }
   | { readonly id: string; readonly label: string; readonly kind: "ROOM"; readonly href: string }
-  | { readonly id: string; readonly label: string; readonly kind: "DISABLED"; readonly reason: string };
+  | { readonly id: string; readonly label: string; readonly kind: "DISABLED"; readonly reason: string }
+  /** A sidecar over the live chart that tells its own connection truth. */
+  | { readonly id: string; readonly label: string; readonly kind: "PANEL"; readonly panel: "FUTURES_OPTIONS" };
 
 export const NO_FUTURES_OPTIONS_CHAIN =
   "No futures-options chain is connected: Webull's futures data needs its CME/CBOT/COMEX/NYMEX OpenAPI package and tastytrade is not connected.";
@@ -50,7 +52,9 @@ export function instrumentContextStrip(cls: CanonicalAssetClass, symbol: string)
     case "futures":
       return [
         overview,
-        { id: "futures-options", label: "Futures Options", kind: "DISABLED", reason: NO_FUTURES_OPTIONS_CHAIN },
+        // tastytrade's futures-option chain (Garden 18 §LXXXI): the panel itself
+        // says when the connection is not there — never a dead button.
+        { id: "futures-options", label: "Futures Options", kind: "PANEL", panel: "FUTURES_OPTIONS" },
         { id: "contract", label: "Contract", kind: "TAB", tab: "Profile" },
         news(symbol),
       ];

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTastytradeAccounts, tastytradeConfigStatus } from "@/lib/tastytrade";
 import { requireAuth } from "@/lib/requireAuth";
+import { brokerOwnerRefusal, tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
 
 // Server-only. Returns the authenticated customer's tastytrade accounts
 // (account numbers + metadata). No tokens/secrets. (Company Bible §30/§32.)
@@ -8,6 +9,9 @@ import { requireAuth } from "@/lib/requireAuth";
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+  // Garden 16 §35 / Garden 18 §LXXIII: the Founder's broker truth is the owner's alone.
+  const owner = tastytradeOwnerGate(auth.user.sub, process.env);
+  if (!owner.allowed) return NextResponse.json(brokerOwnerRefusal(owner), { status: 403, headers: { "Cache-Control": "no-store" } });
   const cfg = tastytradeConfigStatus();
   if (!cfg.configured) {
     // Monday Test 2 truth: name the exact missing var(s). Status stays 200 so

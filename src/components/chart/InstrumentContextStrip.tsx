@@ -20,7 +20,7 @@ import { instrumentContextStrip } from "@/lib/charts/instrumentContextStrip";
 const GOLD = "#C9A55C";
 
 export function InstrumentContextStrip({
-  symbol, assetClass, activeTab, onTab, onRoom, onIndicators, indicatorCount,
+  symbol, assetClass, activeTab, onTab, onRoom, onIndicators, indicatorCount, onPanel, openPanel = null,
 }: {
   readonly symbol: string;
   readonly assetClass: CanonicalAssetClass;
@@ -29,6 +29,8 @@ export function InstrumentContextStrip({
   readonly onRoom: (href: string) => void;
   readonly onIndicators: () => void;
   readonly indicatorCount: number;
+  readonly onPanel: (panel: "FUTURES_OPTIONS") => void;
+  readonly openPanel?: "FUTURES_OPTIONS" | null;
 }) {
   const entries = instrumentContextStrip(assetClass, symbol);
   return (
@@ -42,7 +44,7 @@ export function InstrumentContextStrip({
       }}
     >
       {entries.map(e => {
-        const current = e.kind === "TAB" && e.tab === activeTab;
+        const current = (e.kind === "TAB" && e.tab === activeTab) || (e.kind === "PANEL" && e.panel === openPanel);
         const disabled = e.kind === "DISABLED";
         return (
           <button
@@ -56,6 +58,7 @@ export function InstrumentContextStrip({
             onClick={() => {
               if (e.kind === "TAB") onTab(e.tab);
               else if (e.kind === "ROOM") onRoom(e.href);
+              else if (e.kind === "PANEL") onPanel(e.panel);
             }}
             style={{
               minHeight: 26, padding: "0 10px", borderRadius: 3, whiteSpace: "nowrap",

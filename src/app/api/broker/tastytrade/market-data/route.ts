@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ttGet, tastytradeConfigStatus } from "@/lib/tastytrade";
 import { requireAuth } from "@/lib/requireAuth";
+import { brokerOwnerRefusal, tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
 import {
   TASTYTRADE_INSTRUMENT_TYPES,
   compileByTypeOutcome,
@@ -29,6 +30,9 @@ import {
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+  // Garden 16 §35 / Garden 18 §LXXIII: the Founder's broker truth is the owner's alone.
+  const owner = tastytradeOwnerGate(auth.user.sub, process.env);
+  if (!owner.allowed) return NextResponse.json(brokerOwnerRefusal(owner), { status: 403, headers: { "Cache-Control": "no-store" } });
 
   const params = req.nextUrl.searchParams;
   const groups: SymbolGroups = {};

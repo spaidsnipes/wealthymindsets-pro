@@ -356,6 +356,7 @@ import { useBookLiquidityLifecycle } from "@/lib/marketData/useBookLiquidityLife
 import { useWebullLiveCrypto } from "@/lib/marketData/useWebullLiveCrypto";
 import { DiscoveryUnusualStates } from "@/components/scanner/DiscoveryUnusualStates";
 import { InstrumentContextStrip } from "./InstrumentContextStrip";
+import { FuturesOptionsPanel } from "./FuturesOptionsPanel";
 import { BOARD_STOCK_SYMBOLS } from "@/lib/marketData/sp500Board";
 import { selectAuctionState } from "@/lib/marketData/viewModels/selectAuctionState";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
@@ -790,6 +791,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [chartEquipmentOpen, setChartEquipmentOpen] = useState(false);
   // Garden 18 §IX: the context strip's Indicators button asks ChartToolbar to open its own picker.
   const [indicatorsRequest, setIndicatorsRequest] = useState(0);
+  // Garden 18 §LXXXI: the futures-options sidecar, opened from the context strip.
+  const [futuresOptionsOpen, setFuturesOptionsOpen] = useState(false);
 
   // ── WM VP indicators (draw ON chart canvas) ─────────────────
   const [fixedVPActive,   setFixedVPActive]   = useState<boolean>(() => lsGet("wm_fixedVP", false) as boolean);
@@ -5434,6 +5437,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 setIndicatorsRequest(n => n + 1);
               }}
               indicatorCount={activeInds.size}
+              onPanel={() => setFuturesOptionsOpen(v => !v)}
+              openPanel={futuresOptionsOpen ? "FUTURES_OPTIONS" : null}
+            />
+          )}
+          {futuresOptionsOpen && assetClass === "futures" && (
+            <FuturesOptionsPanel
+              chartSymbol={symbol}
+              price={chartBars.length ? chartBars[chartBars.length - 1].close : null}
+              bornDecision={currentSceneDecision}
+              onIdentity={(identity) => setSceneDecision((current) => adoptSceneDecision(current, { ...decisionScope, identity }))}
+              onClose={() => setFuturesOptionsOpen(false)}
             />
           )}
           {(activeTab === "Chart" || activeTab === "Options") && <ChartToolbar

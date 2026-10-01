@@ -16,7 +16,8 @@ const request = () => new NextRequest("http://localhost/api/broker/tastytrade/st
 describe("GET /api/broker/tastytrade/status", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.requireAuth.mockResolvedValue({ ok: true });
+    mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "owner-1" } });
+    vi.stubEnv("WEBULL_OWNER_USER_ID", "owner-1");
     mocks.getTastytradeCapabilities.mockResolvedValue({ configured: true, connected: true, quotes: true, realTime: null });
   });
 
