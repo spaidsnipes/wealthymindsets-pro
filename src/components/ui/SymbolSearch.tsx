@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { CURATED_SYMBOLS } from "@/lib/marketData/curatedSymbolCatalog";
 import { useInstrumentSearch } from "@/hooks/useInstrumentSearch";
-import { instrumentSearchSelection } from "@/lib/marketData/instrumentSearch";
+import { instrumentSearchSelection, instrumentSearchDestination, type InstrumentSearchHit } from "@/lib/marketData/instrumentSearch";
 
 /**
  * The shortlist is NOT declared here any more. It is owned by
@@ -30,18 +31,23 @@ interface Props {
 }
 
 export function SymbolSearch({ value, onChange, placeholder = "Search symbol…", className = "" }: Props) {
+  const router = useRouter();
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const { results, searching, failure: liveFailure } = useInstrumentSearch(query);
-  const allResults = query.trim() ? results : LOCAL_SYMBOLS.slice(0, 8);
+  const allResults: readonly InstrumentSearchHit[] = query.trim() ? results : LOCAL_SYMBOLS.slice(0, 8);
   useEffect(() => { setQuery(value); }, [value]);
   const handleInput = (q: string) => { setQuery(q); setOpen(true); };
 
   const pick = (sym: string) => {
-    setQuery(sym);
+    const hit = allResults.find(r => r.sym === sym) ?? { sym, label: sym, cat: "Unknown" };
+    const destination = instrumentSearchDestination(hit);
+    if (!destination) return;
+    setQuery(destination.symbol);
     setOpen(false);
-    onChange(sym);
+    onChange(destination.symbol);
+    if (hit.futureOption) router.push(destination.href);
   };
 
   // Close on outside click

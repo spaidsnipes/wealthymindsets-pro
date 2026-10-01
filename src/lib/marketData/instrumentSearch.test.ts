@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchInstrumentSearch, mergeInstrumentSearch, instrumentSearchSelection, matchCanonicalInstruments } from "./instrumentSearch";
+import { fetchInstrumentSearch, mergeInstrumentSearch, instrumentSearchSelection, instrumentSearchDestination, matchCanonicalInstruments } from "./instrumentSearch";
 import { matchCuratedSymbols } from "./curatedSymbolCatalog";
 import { toYahooSymbol, fromYahooSearchSymbol } from "../yahooSymbol";
 import { instrumentEconomics } from "./contractEconomics";
@@ -88,4 +88,12 @@ describe("request cancellation and truth", () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({error:"Unavailable"}, {status:503})));
     await expect(fetchInstrumentSearch("Tesla", new AbortController().signal)).rejects.toThrow("Unavailable");
   });
+});
+
+it("futures-option selection opens parent OHLC and exact option ticket, never raw option OHLC",()=>{
+  const hit={sym:"./MNQZ6MN2CV6261014C31000",label:"MNQ call",cat:"Future Option",futureOption:{parent:"/MNQZ6",expiration:"2026-10-14",strike:31000,right:"CALL" as const}};
+  const dest=instrumentSearchDestination(hit)!;
+  expect(dest.symbol).toBe("/MNQZ6");
+  expect(new URL(dest.href,"https://wm.test").searchParams.get("futuresOption")).toBe(hit.sym);
+  expect(instrumentSearchDestination({sym:hit.sym,label:"unverified",cat:"Future Option"})).toBeNull();
 });

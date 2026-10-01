@@ -41,7 +41,7 @@ import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInstrumentSearch } from "@/hooks/useInstrumentSearch";
-import { instrumentSearchSelection } from "@/lib/marketData/instrumentSearch";
+import { instrumentSearchSelection, instrumentSearchDestination } from "@/lib/marketData/instrumentSearch";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { requestBrokerConnect } from "@/lib/broker/brokerConnectDoor";
 
@@ -73,9 +73,9 @@ const CAT_COLOR: Record<string,string> = {
 };
 
 /** The palette's category filter (Founder, 2026-09-28: "it used to also say crypto forex futures stocks"). */
-const SEARCH_CATEGORIES = ["All", "Stock", "ETF", "Index", "Futures", "Forex", "Crypto"] as const;
+const SEARCH_CATEGORIES = ["All", "Stock", "ETF", "Index", "Futures", "Future Option", "Forex", "Crypto"] as const;
 type SearchCategoryFilter = (typeof SEARCH_CATEGORIES)[number];
-const CATEGORY_LABEL: Record<SearchCategoryFilter, string> = { All: "All", Stock: "Stocks", ETF: "ETFs", Index: "Indices", Futures: "Futures", Forex: "Forex", Crypto: "Crypto" };
+const CATEGORY_LABEL: Record<SearchCategoryFilter, string> = { All: "All", Stock: "Stocks", ETF: "ETFs", Index: "Indices", Futures: "Futures", "Future Option": "Futures options", Forex: "Forex", Crypto: "Crypto" };
 
 const DEFAULT_QUICK = ["NQ1!","ES1!","BTC","AAPL","NVDA","TSLA","SPY","GC1!"];
 
@@ -123,10 +123,13 @@ export function SearchPanel({
   const allResults = category === "All" ? unfiltered : unfiltered.filter(r => r.cat === category);
 
   const pick = useCallback((sym: string) => {
-    setActiveSymbol(sym.toUpperCase());
-    router.push(INSTRUMENT_VIEW_ROUTE);
+    const hit = allResults.find(r => r.sym === sym) ?? { sym, label: sym, cat: "Unknown" };
+    const destination = instrumentSearchDestination(hit);
+    if (!destination) return;
+    setActiveSymbol(destination.symbol.toUpperCase());
+    router.push(hit.futureOption ? destination.href : INSTRUMENT_VIEW_ROUTE);
     onClose();
-  }, [setActiveSymbol, router, onClose]);
+  }, [allResults, setActiveSymbol, router, onClose]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {

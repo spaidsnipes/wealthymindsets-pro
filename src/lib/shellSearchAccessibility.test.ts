@@ -59,10 +59,10 @@ describe("global symbol search accessibility", () => {
     expect(layout).toContain('localStorage.setItem("wm_quick_syms"');
     // 2026-09-28: the provider search is the all-asset route (was Finnhub, stocks-only, rate-limited).
     expect(layout).toContain("useInstrumentSearch(query)");
-    expect(layout).toContain("setActiveSymbol(sym.toUpperCase())");
+    expect(layout).toContain("setActiveSymbol(destination.symbol.toUpperCase())");
     // Asserts the NAVIGATION, not the string. Picking a symbol is a NAMED
     // destination, so it must derive from INSTRUMENT_VIEW_ROUTE — pinning the
     // literal here is what let six files each keep their own copy of it.
-    expect(layout).toContain("router.push(INSTRUMENT_VIEW_ROUTE)");
+    expect(layout).toContain("router.push(hit.futureOption ? destination.href : INSTRUMENT_VIEW_ROUTE)");
   });
 });

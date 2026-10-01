@@ -12,12 +12,13 @@ import {
   getTastytradeCryptocurrencies,
   getTastytradeFutureProducts,
   getTastytradeFutures,
+  getTastytradeFuturesOptionChain,
   searchTastytradeSymbols,
   tastytradeConfigStatus,
 } from "@/lib/tastytrade";
 
 import type { InstrumentSearchHit } from "./instrumentSearch";
-import { matchFutureProducts, tastyCryptoHits, tastyFutureContractHits, tastySymbolHits, webullInstrumentHits } from "./brokerInstrumentSearch";
+import { futuresOptionQuery, tastyFutureOptionHits, matchFutureProducts, tastyCryptoHits, tastyFutureContractHits, tastySymbolHits, webullInstrumentHits } from "./brokerInstrumentSearch";
 
 const CATALOGUE_TTL_MS = 60 * 60_000;
 let productsCache: { at: number; p: Promise<unknown[]> } | null = null;
@@ -44,8 +45,14 @@ async function tastytradeHits(q: string): Promise<InstrumentSearchHit[]> {
     settle(cached("products").then(list => matchFutureProducts(list, q))),
     settle(cached("crypto").then(list => tastyCryptoHits(list, q))),
   ]);
+  const optionQuery = futuresOptionQuery(q);
+  const optionHits = optionQuery ? await settle(cached("products").then(async list => {
+    const found = matchFutureProducts(list, optionQuery.root, 1)[0];
+    if (!found || found.code !== optionQuery.root) return [];
+    return tastyFutureOptionHits(await getTastytradeFuturesOptionChain(found.code), q);
+  })) : [];
   const months = await Promise.all(products.map(p => settle(getTastytradeFutures(p.code).then(f => tastyFutureContractHits(f, p)))));
-  return [...months.flat(), ...symbols, ...crypto];
+  return [...optionHits, ...months.flat(), ...symbols, ...crypto];
 }
 
 async function webullHits(q: string): Promise<InstrumentSearchHit[]> {

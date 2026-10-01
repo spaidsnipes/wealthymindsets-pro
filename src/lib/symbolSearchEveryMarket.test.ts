@@ -29,7 +29,7 @@ describe("every market is searchable (Founder, 2026-09-28)", () => {
     const owner = readFileSync("src/lib/marketData/instrumentSearch.ts", "utf8");
     expect(owner).toContain("/api/symbol-search?q=");
     expect(P).not.toContain("/api/finnhub?q=");
-    expect(P).toContain('const SEARCH_CATEGORIES = ["All", "Stock", "ETF", "Index", "Futures", "Forex", "Crypto"] as const;');
+    expect(P).toContain('const SEARCH_CATEGORIES = ["All", "Stock", "ETF", "Index", "Futures", "Future Option", "Forex", "Crypto"] as const;');
     // Failed discovery retains the honest built-in list, with an explicit note.
     expect(P).toContain("Live search unavailable");
     const R = readFileSync("src/app/api/symbol-search/route.ts", "utf8");

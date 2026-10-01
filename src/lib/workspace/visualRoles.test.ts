@@ -2,12 +2,19 @@ import { describe, expect, it } from "vitest";
 
 import { selectAttentionGovernor, ATTENTION_FLOOR } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectSemanticDensity } from "@/lib/marketData/viewModels/selectSemanticDensity";
-import { autoCompose, nextRole, parseVisualRoles, rolesByLayer } from "./visualRoles";
+import { autoCompose, nextRole, parseVisualRoles, rolesByLayer, clarityRoleOpacity } from "./visualRoles";
 import { parseSavedLayouts, saveLayout, serializeSavedLayouts } from "./savedLayouts";
 
 const gov = (roles = {}) => selectAttentionGovernor({ density: selectSemanticDensity(null), questionQuiet: 1, regimeLight: null, stackPrefs: undefined as never, fusedParents: [], feedState: "LIVE" as never, selection: null, posture: undefined as never, roles });
 
 describe("Garden 18 §XXXVII — visual roles are semantic, and only representation", () => {
+  it("Clarity supports independent roles while protecting the candle price floor", () => {
+    expect(clarityRoleOpacity("SUPPORTING")).toBe(1);
+    expect(clarityRoleOpacity("PRIMARY")).toBe(1);
+    expect(clarityRoleOpacity("AMBIENT")).toBe(0.95);
+    expect(clarityRoleOpacity("LATENT")).toBe(0.9);
+    expect(rolesByLayer({ CLARITY_CANDLE: "LATENT" })).toEqual({});
+  });
   it("no role is the canon alpha; PRIMARY reads; AMBIENT and LATENT recede above the floor", () => {
     const base = gov().alpha("tpo");
     expect(gov(rolesByLayer({ TPO_PROFILE: "SUPPORTING" })).alpha("tpo")).toBe(base);

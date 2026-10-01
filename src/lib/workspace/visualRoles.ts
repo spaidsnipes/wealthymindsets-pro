@@ -23,6 +23,9 @@ export const VISUAL_ROLES_EVENT = "wm-visual-roles";
 
 /** Which painting layers each tool owns (the governor's keys). */
 export const ROLE_LAYERS: Readonly<Partial<Record<ProfileId, readonly AttentionLayerKey[]>>> = {
+  // Clarity is price, not environment. Its own renderer consumes the role
+  // with a protected ink floor rather than environmental attenuation.
+  CLARITY_CANDLE: [],
   ABSORPTION: ["absorption"],
   EXHAUSTION: ["exhaustion"],
   VALUE_CANDLE: ["valueCandle"],
@@ -50,6 +53,10 @@ export const ROLE_LAYERS: Readonly<Partial<Record<ProfileId, readonly AttentionL
   BRICK_WALLS: ["brickWalls"],
   MEMORY_GHOST: ["memoryGhost"],
 };
+
+export function clarityRoleOpacity(role: VisualRole | undefined): number {
+  return role === "LATENT" ? 0.9 : role === "AMBIENT" ? 0.95 : 1;
+}
 
 /** The governor's view: role per painting layer. */
 export function rolesByLayer(roles: VisualRoles): Partial<Record<AttentionLayerKey, VisualRole>> {

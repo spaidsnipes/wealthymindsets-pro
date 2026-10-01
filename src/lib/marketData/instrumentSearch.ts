@@ -1,8 +1,9 @@
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { rankSymbolHits, normalizeSymbolToken } from "./symbolSearchRank";
 import { FX_CURRENCY_CODES } from "./canonicalIdentity";
 import { matchCuratedSymbols } from "./curatedSymbolCatalog";
 
-export type InstrumentSearchHit = { sym: string; label: string; cat: string; exchange?: string; aliases?: readonly string[] };
+export type InstrumentSearchHit = { sym: string; label: string; cat: string; exchange?: string; aliases?: readonly string[]; futureOption?: { parent: string; expiration: string; strike: number; right: "CALL" | "PUT" } };
 
 // Currency identity comes from the canonical owner; human names come from
 // the platform's currency display names, not a second hardcoded pair universe.
@@ -42,6 +43,16 @@ export function instrumentSearchSelection(query: string, hits: readonly Instrume
   // Raw text has a separate, explicit "Open as entered" action in both UIs.
   // Enter cannot mistake an unanswered human name for a canonical ticker.
   return query.trim() ? hits[0]?.sym ?? null : null;
+}
+
+/** A futures option opens its parent market plus the exact chain ticket, never OHLC for its wire symbol. */
+export function instrumentSearchDestination(hit: InstrumentSearchHit): { symbol: string; href: string } | null {
+  if (hit.sym.startsWith("./") && !hit.futureOption) return null;
+  if (hit.futureOption) {
+    const p = new URLSearchParams({ symbol: hit.futureOption.parent, futuresOption: hit.sym });
+    return { symbol: hit.futureOption.parent, href: `${INSTRUMENT_VIEW_ROUTE}?${p}` };
+  }
+  return { symbol: hit.sym, href: INSTRUMENT_VIEW_ROUTE };
 }
 
 /** Cancellation also gates delivery when a transport ignores AbortSignal. */

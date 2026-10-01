@@ -1,3 +1,5 @@
+import { parseFuturesNotation } from "@/lib/marketData/futuresNotation";
+
 /**
  * TASTYTRADE'S NESTED FUTURES-OPTION CHAIN, READ BY ITS OWN SPEC
  * (developer.tastytrade.com/openapi/instruments.json,
@@ -70,13 +72,7 @@ export function readFuturesOptionChain(data: unknown): FuturesOptionChain {
 
 /** The futures product behind a chart symbol: NQ1! → NQ, /MNQZ6 → MNQ, ES1! → ES. Null when it is not a future. */
 export function futuresProductFor(chartSymbol: string): string | null {
-  const s = chartSymbol.trim().toUpperCase();
-  const cont = /^\/?([A-Z0-9]{1,4}?)1!$/.exec(s);
-  if (cont) return cont[1];
-  const spec = /^\/([A-Z0-9]{1,4})[FGHJKMNQUVXZ]\d{1,2}$/.exec(s);
-  if (spec) return spec[1];
-  const root = /^\/([A-Z0-9]{1,4})$/.exec(s);
-  return root ? root[1] : null;
+  return parseFuturesNotation(chartSymbol)?.root ?? null;
 }
 
 /** The strikes nearest a reference price (the chain is long; the trader starts at the money). */

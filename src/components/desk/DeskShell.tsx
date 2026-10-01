@@ -11,7 +11,7 @@
  */
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { MainChart } from "@/components/chart/MainChart";
 import { WatchlistPanel } from "@/components/chart/WatchlistPanel";
@@ -38,9 +38,33 @@ import {
   type DeskLink,
 } from "@/lib/desk/desks";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
-import { CLEAN_VIEW_ID, chartPropsForSwitches } from "@/lib/desk/deskView";
+import { CLEAN_VIEW_ID, chartPropsForView, pendingDeskReadings, compileDeskBarReadings } from "@/lib/desk/deskView";
 import { SAVED_LAYOUTS_STORAGE_KEY, loadSavedLayouts, type SavedLayout } from "@/lib/workspace/savedLayouts";
 import { CHART_TF_SHIPPED, TF_IDS } from "@/lib/timeframes";
+
+
+// The chart already owns these bars and provider subscriptions. This adaptor
+// feeds the same pure owners /charts uses, never a second market fetch.
+function DeskMarketScreen({ symbol, timeframe, setTimeframe, view }: {
+  symbol: string; timeframe: string; setTimeframe: (tf: string) => void; view?: SavedLayout | null;
+}) {
+  type Bars = Parameters<NonNullable<React.ComponentProps<typeof MainChart>["onBarsReady"]>>[0];
+  const [bars, setBars] = useState<Bars>([]);
+  const onBarsReady = useCallback((next: Bars) => setBars(next.map(b => ({ ...b }))), []);
+  const { tpo, weather } = useMemo(() => compileDeskBarReadings(symbol, bars.map(b => ({ time: Number(b.time), high: b.high, low: b.low, volume: b.volume }))), [symbol, bars]);
+  const pending = pendingDeskReadings(view?.switches ?? null);
+  return <>
+    <MainChart symbol={symbol} timeframe={timeframe} setTimeframe={setTimeframe}
+      {...(view !== undefined ? chartPropsForView(view) : { footprintType: "volume-profile" as const, footprintEnabled: false })}
+      onBarsReady={onBarsReady} tpoProfile={tpo} liquidityWeather={weather} />
+    {pending.length > 0 && <details data-testid="desk-view-unavailable" style={{ position: "absolute", left: 8, top: 48, zIndex: 25, maxWidth: 340, color: "#d8bd7a", background: "#17140e", borderRadius: 6, padding: "5px 8px", fontSize: 10 }}>
+      <summary style={{ cursor: "pointer" }}>{pending.length} selected tools unavailable on this Desk screen</summary>
+      <p style={{ margin: "6px 0" }}>These preferences are kept. Open the full market chart to use:</p>
+      <p style={{ margin: "6px 0", textTransform: "capitalize" }}>{pending.map(id => id.replaceAll("_", " ").toLowerCase()).join(" · ")}</p>
+      <Link href={`${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`} style={{ color: "#ead9ad", textDecoration: "underline" }}>Open full market chart</Link>
+    </details>}
+  </>;
+}
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -265,14 +289,12 @@ export function DeskShell() {
               />
               {/* MainChart's root is `flex: 1` — it fills a flex column, as /charts hosts it. */}
               <div style={{ flex: 1, minHeight: 0, position: "relative", display: "flex", flexDirection: "column" }}>
-                <MainChart
+                <DeskMarketScreen
                   key={`${s.symbol}|${s.timeframe}`}
                   symbol={s.symbol}
                   timeframe={s.timeframe}
                   setTimeframe={(t: string) => setWorking(w => setScreen(w, i, { timeframe: t }))}
-                  footprintType="volume-profile"
-                  footprintEnabled={false}
-                  {...(s.view ? chartPropsForSwitches(s.view === CLEAN_VIEW_ID ? null : savedViews.find(v => v.id === s.view)?.switches ?? null) : {})}
+                  view={s.view ? s.view === CLEAN_VIEW_ID ? null : savedViews.find(v => v.id === s.view) ?? null : undefined}
                 />
               </div>
             </section>

@@ -11,6 +11,7 @@
 import { futuresProductFor } from "@/lib/broker/tastytradeFuturesChain";
 import { resolveTastyContract, resolveTastyFrontMonth, type TastyFrontMonth } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { parseFuturesNotation } from "@/lib/marketData/futuresNotation";
 
 const cache = new Map<string, Promise<TastyFrontMonth | null>>();
 
@@ -34,7 +35,7 @@ export function tastyFrontMonthFor(chartSymbol: string): Promise<TastyFrontMonth
   if (!product) return Promise.resolve(null);
   // A specific month (/MNQH7) charts THAT contract; a continuous symbol
   // (MNQ1!) charts tastytrade's active month.
-  const exact = /^\/[A-Z0-9]{1,4}[FGHJKMNQUVXZ]\d{1,2}$/.test(chartSymbol.trim().toUpperCase()) ? chartSymbol.trim().toUpperCase() : null;
+  const exact = parseFuturesNotation(chartSymbol)?.exactSymbol ?? null;
   const key = exact ?? product;
   let p = cache.get(key);
   if (!p) {

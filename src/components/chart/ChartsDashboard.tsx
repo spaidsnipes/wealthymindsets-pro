@@ -8,6 +8,7 @@ import {
   currentProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue,
   proofSelectReceipt, type ProofSelectKind,
 } from "@/lib/chart/proofScene";
+import { useSearchParams } from "next/navigation";
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { repairChartPreferences } from "@/lib/chartPreferenceRepair";
 import { AnimatePresence } from "framer-motion";
@@ -800,6 +801,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [indicatorsRequest, setIndicatorsRequest] = useState(0);
   // Garden 18 §LXXXI: the futures-options sidecar, opened from the context strip.
   const [futuresOptionsOpen, setFuturesOptionsOpen] = useState(false);
+  const optionSearchParams = useSearchParams();
+  const searchedFutureOption = optionSearchParams.get("futuresOption");
+  useEffect(() => {
+    if (searchedFutureOption?.startsWith("./")) setFuturesOptionsOpen(true);
+  }, [searchedFutureOption]);
 
   // ── WM VP indicators (draw ON chart canvas) ─────────────────
   const [fixedVPActive,   setFixedVPActive]   = useState<boolean>(() => lsGet("wm_fixedVP", false) as boolean);
@@ -5509,6 +5515,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           )}
           {futuresOptionsOpen && assetClass === "futures" && (
             <FuturesOptionsPanel
+              initialOptionSymbol={searchedFutureOption}
               chartSymbol={symbol}
               price={chartBars.length ? chartBars[chartBars.length - 1].close : null}
               bornDecision={currentSceneDecision}

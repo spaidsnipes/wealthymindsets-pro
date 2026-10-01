@@ -36,6 +36,7 @@
  * Salmonation's price under the word "Sui" is a wrong number that looks right.
  */
 
+import { FUTURES_YAHOO_NOTATIONS } from "@/lib/marketData/futuresNotation";
 import { cryptoBaseTicker, FX_CURRENCY_CODES } from "@/lib/marketData/canonicalIdentity";
 
 // FX pairs Yahoo quotes as "<PAIR>=X", from the identity owner's ONE currency
@@ -52,37 +53,7 @@ const FX_PAIR_X = new RegExp(`^(${FX_YAHOO})(${FX_YAHOO})=X$`);
  * derived answer would be wrong.
  */
 export const YF_MAP: Record<string, string> = {
-  // Futures
-  "NQ1!":  "NQ=F",   "MNQ1!": "MNQ=F",
-  "ES1!":  "ES=F",   "MES1!": "MES=F",
-  "YM1!":  "YM=F",   "MYM1!": "MYM=F",
-  "RTY1!": "RTY=F",  "M2K1!": "M2K=F",
-  "GC1!":  "GC=F",   "MGC1!": "MGC=F",
-  "SI1!":  "SI=F",
-  "CL1!":  "CL=F",   "MCL1!": "MCL=F",
-  "NG1!":  "NG=F",
-  "HG1!":  "HG=F",
-  "ZB1!":  "ZB=F",
-  "ZN1!":  "ZN=F",
-  "ZF1!":  "ZF=F",
-  "ZT1!":  "ZT=F",
-  "ZC1!":  "ZC=F",
-  "ZW1!":  "ZW=F",
-  "ZS1!":  "ZS=F",
-  "LE1!":  "LE=F",
-  /**
-   * Offered by the pickers, and named by the spot-metal refusal below as the
-   * lawful alternative ("Open PL1! for Platinum futures"), but absent from this
-   * table — so they reached Yahoo verbatim as "PL1!" and 404'd. MEASURED
-   * 2026-09-25: Yahoo lists each `=F` below as instrumentType FUTURE on the
-   * named exchange (PL/PA NY Mercantile; 6E/6J/6B CME). Same contract, Yahoo's
-   * name — an identity, like every other row here.
-   */
-  "PL1!":  "PL=F",
-  "PA1!":  "PA=F",
-  "6E1!":  "6E=F",
-  "6J1!":  "6J=F",
-  "6B1!":  "6B=F",
+  ...FUTURES_YAHOO_NOTATIONS,
   /**
    * "VX1!" → "^VIX" WAS HERE, and it is GONE (GP12 §26, 2026-09-25). VX1! is
    * VIX FUTURES (CFE); ^VIX is the CASH index — Yahoo's own meta calls it

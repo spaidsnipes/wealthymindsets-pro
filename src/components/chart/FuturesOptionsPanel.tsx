@@ -74,8 +74,9 @@ const chip = (on: boolean): React.CSSProperties => ({
   font: "700 10.5px/1 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".06em",
 });
 
-export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdentity, onClose }: {
+export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, price, bornDecision, onIdentity, onClose }: {
   readonly chartSymbol: string;
+  readonly initialOptionSymbol?: string | null;
   readonly price: number | null;
   readonly bornDecision: DecisionIdentity | null;
   readonly onIdentity: (identity: DecisionIdentity) => void;
@@ -149,6 +150,19 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
 
   const expirations = useMemo(() => (chain?.expirations ?? []).filter(e => e.parent === parent), [chain, parent]);
   useEffect(() => { setExpiry(expirations[0]?.expiration ?? ""); setPick(null); }, [expirations]);
+  const searchSelectionApplied = useRef<string | null>(null);
+  useEffect(() => {
+    if (!chain || !initialOptionSymbol || searchSelectionApplied.current === initialOptionSymbol) return;
+    for (const e of chain.expirations) for (const row of e.strikes) {
+      const right = row.call === initialOptionSymbol ? "CALL" : row.put === initialOptionSymbol ? "PUT" : null;
+      if (!right) continue;
+      if (parent !== e.parent) { setParent(e.parent); return; }
+      if (expiry !== e.expiration) { setExpiry(e.expiration); return; }
+      setPick({ symbol: initialOptionSymbol, streamer: right === "CALL" ? row.callStreamer : row.putStreamer, strike: row.strike, right });
+      searchSelectionApplied.current = initialOptionSymbol;
+      return;
+    }
+  }, [chain, parent, expiry, initialOptionSymbol]);
   const exp = expirations.find(e => e.expiration === expiry) ?? null;
   const parents = useMemo(() => [...new Set((chain?.expirations ?? []).map(e => e.parent))], [chain]);
   const parentStreamer = chain?.futures.find(f => f.symbol === parent)?.streamer ?? null;

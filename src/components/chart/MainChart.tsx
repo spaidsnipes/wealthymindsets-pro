@@ -31,6 +31,7 @@ import {
 } from "@/lib/chart/liquidityGlassGeometry";
 import { axisPriceFormatFor, displayPrecisionFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
+import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
@@ -267,7 +268,7 @@ import { DATA_WINDOW_W, placeDataWindow } from "@/lib/chart/dataWindowPlacement"
 import { formatVolume } from "@/lib/chart/formatVolume";
 import { absorptionShelfRows, shelfRowCount } from "@/lib/chart/absorptionShelfRows";
 import { clarityBodyAlpha, readClarity, truthGaps, wickWords } from "@/lib/chart/clarityCandle";
-import { VISUAL_ROLES_EVENT, readStoredRoles, rolesByLayer } from "@/lib/workspace/visualRoles";
+import { VISUAL_ROLES_EVENT, readStoredRoles, rolesByLayer, clarityRoleOpacity, type VisualRoles } from "@/lib/workspace/visualRoles";
 import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
@@ -583,7 +584,7 @@ import {
   VP_VALUE_AREA_DEFAULT,
   migrateVolumeProfilePalette,
 } from "@/lib/chart/marketFieldMaterial";
-import { PROFILE_INK_AT_REST, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength, resolveProfileInk } from "@/lib/chart/profileFamilyInk";
+import { PROFILE_INK_AT_REST, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength, resolveProfileInk, type ProfileStrength } from "@/lib/chart/profileFamilyInk";
 // The legend headline steps past an open Workspace/Tools door (see openDoorEdge.ts).
 import { ClearOfOpenDoor } from "@/components/os/ClearOfOpenDoor";
 import { doorInsetFor, openDoorEdge } from "@/lib/os/openDoorEdge";
@@ -1158,6 +1159,9 @@ interface Props {
    */
   setTimeframe?:   (t: string) => void;
   footprintType:   FootprintType;
+  /** Per-screen preferences override global defaults without writing storage. */
+  visualRoles?: VisualRoles;
+  profileStrength?: ProfileStrength;
   candleType?:     CandleType;
   pineOutput?:     PineOutput | null;
   pineCode?:       string;
@@ -1875,6 +1879,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   regimeLighting = null,
   regimeLightingOnChart = false,
   bigTradesOverlay = false,
+  visualRoles,
+  profileStrength,
   paperTradesVisible = true,
   onRequestFullscreen,
   showFidelityChrome = true,
@@ -2290,12 +2296,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   debtTagRef.current = debtTagOnChart;
   // Garden 18 §XXXVII: the trader's visual roles, per painting layer.
   const rolesByLayerRef = useRef<ReturnType<typeof rolesByLayer>>({});
+  const clarityRoleOpacityRef = useRef(1);
   useEffect(() => {
-    const load = () => { rolesByLayerRef.current = rolesByLayer(readStoredRoles()); };
+    const load = () => { const roles = visualRoles ?? readStoredRoles(); rolesByLayerRef.current = rolesByLayer(roles); clarityRoleOpacityRef.current = clarityRoleOpacity(roles.CLARITY_CANDLE); };
     load();
     window.addEventListener(VISUAL_ROLES_EVENT, load);
     return () => window.removeEventListener(VISUAL_ROLES_EVENT, load);
-  }, []);
+  }, [visualRoles]);
   const exhaustionOnRef = useRef(true);
   exhaustionOnRef.current = exhaustionOnChart;
   const clarityOnRef = useRef(false);
@@ -3046,14 +3053,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           poc: poc ?? VP_DEFAULT_TRIPLETS.poc, vah: vah ?? VP_DEFAULT_TRIPLETS.vah,
           val: val ?? VP_DEFAULT_TRIPLETS.val,
         };
-        profileInkRef.current = resolveProfileInk(vpColorsRef.current, parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)));
+        profileInkRef.current = resolveProfileInk(vpColorsRef.current, profileStrength ?? parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)));
       } catch {}
       setRangeVer(v => v + 1);
     };
     load();
     window.addEventListener("wm-vp-colors", load);
     return () => window.removeEventListener("wm-vp-colors", load);
-  }, []);
+  }, [profileStrength]);
 
   const { liveBar, ticker, recentTicks, tapeSource, source, connected, quoteRefusal, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
   // Canon "CLOSED IS NOT DELAYED" — closure outranks the provider verdict, so
@@ -6908,14 +6915,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       ctx.rect(0, 0, plotRight, pane0Bottom);
       ctx.clip();
 
+      const restoreNativeAfterClarityLoss = () => {
+        if (!clarityHidRef.current) return;
+        try {
+          srs.applyOptions({
+            upColor: chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
+            downColor: chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+            borderUpColor: chartSettings?.borderUp ?? chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
+            borderDownColor: chartSettings?.borderDown ?? chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+            wickUpColor: chartSettings?.wickUp ?? chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
+            wickDownColor: chartSettings?.wickDown ?? chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+          });
+          clarityHidRef.current = false;
+        } catch { /* series rebuilding; retain flag so the next frame retries */ }
+      };
       // ── F05A CLARITY CANDLE — the candle species (WM_NewMockup_72). Gold
       // ink; the body's fill strength IS body efficiency (decided range ÷
       // range); the dominant rejection wick is the bright one; real gaps get
       // the canon's square; the forming candle glows. Painted under every
       // reading so the inventions still sit on the candles, never under them.
+      ctx.save();
+      ctx.globalAlpha *= clarityRoleOpacityRef.current;
       try {
         const ds = canvas.dataset;
-        if (!clarityOnRef.current) ds.clarityCandle = "OFF";
+        if (!clarityOnRef.current) { ds.clarityCandle = "OFF"; restoreNativeAfterClarityLoss(); }
         else {
           const bsC = barsRef.current ?? [];
           const tsC = chart.timeScale();
@@ -7030,13 +7053,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           }
           ds.clarityCallout = calloutFor;
           ds.clarityCandle = `DRAWN:${drawnC}bars:${gapsC}gaps:${openC}open`;
+          if (drawnC === 0) restoreNativeAfterClarityLoss();
           // The species painted: now (and only now) the library's ink steps aside.
           if (drawnC > 0 && !clarityHidRef.current) {
             const clear = "rgba(0,0,0,0)";
             try { srs.applyOptions({ upColor: clear, downColor: clear, borderUpColor: clear, borderDownColor: clear, wickUpColor: clear, wickDownColor: clear }); clarityHidRef.current = true; } catch { /* next frame */ }
           }
         }
-      } catch (err) { layerFault("CLARITY_CANDLE", err); }
+      } catch (err) { restoreNativeAfterClarityLoss(); layerFault("CLARITY_CANDLE", err); }
+      finally { ctx.restore(); }
 
 
       /* ══ ATTENTION GOVERNOR — one owner decides how loud each layer is ══
@@ -10607,47 +10632,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         const srcBars = barsRef.current;
         const ts = chart.timeScale();
 
-        // ── THE WINDOW FOLLOWS THE EYE ─────────────────────────────────
-        // Observed live on /charts (2026-09-17): this was pinned at the
-        // trailing 30 bars. The number of bars ON SCREEN is not pinned at
-        // anything — at the default zoom the chart draws several hundred,
-        // so a 30-bar field collapsed into a sliver at the right edge,
-        // underneath the volume profile, where it could not be read at any
-        // zoom step. The layer was live, correct, and invisible.
-        //
-        // A fixed bar count cannot be right, because the question the field
-        // answers — "was the effort in FRONT OF ME paid for?" — is asked
-        // about whatever the trader is looking at. So the window is the
-        // VISIBLE range. It is not `slice(-N)`: a trader who has scrolled
-        // back into history must get the field over the bars actually in
-        // front of them, not over the live edge they cannot see.
-        //
-        // The selector normalises effort and displacement against whatever
-        // window it is handed, so a moving window stays self-scaling — the
-        // tallest column is always the biggest effort IN VIEW, which is the
-        // only claim the drawing ever makes.
-        const vis = ts.getVisibleLogicalRange();
-        let from = 0;
-        let to = srcBars.length;
-        if (vis) {
-          const lo = Math.floor(vis.from);
-          const hi = Math.ceil(vis.to) + 1;
-          if (Number.isFinite(lo) && Number.isFinite(hi) && hi > lo) {
-            from = Math.max(0, Math.min(srcBars.length, lo));
-            to = Math.max(from, Math.min(srcBars.length, hi));
-          }
-        }
-        // Upper bound is a drawing constraint, not a market one: past a few
-        // hundred columns the strata are thinner than a pixel and the field
-        // stops being readable as shape. When the cap bites we keep the
-        // RIGHT-hand end of the view, because the newest bars in view are
-        // the ones a decision is being made about — and the dashed edge
-        // below declares exactly where the covered span starts, so a capped
-        // window is visible as a capped window rather than passing for the
-        // whole view.
-        const MAX_COLUMNS = 240;
-        const windowCapped = to - from > MAX_COLUMNS;
-        if (windowCapped) from = to - MAX_COLUMNS;
+        // UI-06 canon: measure the newest 30 admitted bars in the visible
+        // window. Historical scrolling follows that window, not the live edge.
+        // Keep their actual coordinates: never stretch a small sample across
+        // the pane. The scope receipt below declares the bounded analysis.
+        const { from, to, windowCapped } = absorptionAnalysisWindow(
+          srcBars.length, ts.getVisibleLogicalRange(),
+        );
         // No floor is enforced here. A window too small to measure flows
         // into the selector, comes back UNMEASURED, and lands in the refusal
         // branch below — which is the correct render, and one fewer place
@@ -10867,7 +10858,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               return 28;
             })();
             const plotBottom = Math.max(20, H - axisH);
-            const winTxt = `${pts.length} BARS IN VIEW`;
+            const winTxt = `${pts.length} BAR ANALYSIS · LATEST IN VIEW`;
             ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
             const winW = ctx.measureText(winTxt).width;
             const desktopWindowChrome = W >= 960;
@@ -11448,7 +11439,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   if (absorbingDrawn) { ctx.fillStyle = "rgba(232,184,92,1)"; ctx.fillText("━ ABSORBING", tx + 168, ty); }
                   ctx.restore();
                 }
-                ds.absorptionTerrain = `BARS:${terr.length}|ABSORBING:${absorbingDrawn}`;
+                ds.absorptionTerrain = `BARS:${terr.length}|WINDOW:LATEST_VISIBLE_30|ABSORBING:${absorbingDrawn}`;
               } else {
                 ds.absorptionTerrain = anatomy.basis === "UNMEASURED" ? "UNMEASURED" : "TOO_FEW_BARS";
               }

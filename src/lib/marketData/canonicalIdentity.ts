@@ -19,6 +19,7 @@
  */
 
 import { normalizeTFId } from "../timeframes";
+import { parseFuturesNotation } from "./futuresNotation";
 
 export type CanonicalAssetClass = "crypto" | "equity" | "etf" | "futures" | "forex" | "options";
 /**
@@ -583,7 +584,7 @@ export function forexPairCodes(symbol: string): readonly [string, string] | null
 export function canonicalAssetClass(symbol: string): CanonicalAssetClass {
   const upper = symbol.trim().toUpperCase();
   if (!upper) return "equity";
-  if (upper.endsWith("1!") || upper.includes("=F")) return "futures";
+  if (parseFuturesNotation(upper) || upper.endsWith("1!") || upper.includes("=F")) return "futures";
   // A specific contract month (/MNQH7, /BTCZ6) is a future — before crypto,
   // so /BTCZ6 is never read as a coin, and before the "/" forex rule.
   if (/^\/[A-Z0-9]{1,4}[FGHJKMNQUVXZ]\d{1,2}$/.test(upper)) return "futures";

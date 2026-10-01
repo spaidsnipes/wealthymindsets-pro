@@ -260,7 +260,10 @@ describe("one palette, one loader, one resolution", () => {
     expect(loader.length).toBeGreaterThan(400);
     expect(loader).toMatch(/localStorage\.getItem\("wm_vp_poc"\)/);
     // Garden 18 §XXXIV: the trader's profile strength rides the same load.
-    expect(loader).toContain("profileInkRef.current = resolveProfileInk(vpColorsRef.current, parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)));");
+    expect(loader).toContain("profileInkRef.current = resolveProfileInk(vpColorsRef.current, profileStrength ?? parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)));");
+    // Scoped Desk strength must flow through this same owner and update when
+    // the selected View changes; storage remains the ordinary chart fallback.
+    expect(CODE).toMatch(/removeEventListener\("wm-vp-colors", load\);\s*\}, \[profileStrength\]\);/);
     // Resolved AFTER the palette is assigned, so the family never lags a frame
     // behind the gear.
     expect(loader.indexOf("profileInkRef.current = resolveProfileInk(")).toBeGreaterThan(
@@ -281,7 +284,7 @@ describe("one palette, one loader, one resolution", () => {
   it("each paint pass reads the resolved ink once, from the ref", () => {
     // The rAF overlay and the drawings canvas (Fixed Range) are the two passes.
     expect((CODE.match(/const pk = profileInkRef\.current;/g) ?? []).length).toBe(2);
-    expect(CODE).toMatch(/import \{ PROFILE_INK_AT_REST, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength, resolveProfileInk \} from "@\/lib\/chart\/profileFamilyInk";/);
+    expect(CODE).toMatch(/import \{ PROFILE_INK_AT_REST, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength, resolveProfileInk, type ProfileStrength \} from "@\/lib\/chart\/profileFamilyInk";/);
     expect(CODE).toMatch(/const profileInkRef = useRef\(PROFILE_INK_AT_REST\);/);
   });
 });

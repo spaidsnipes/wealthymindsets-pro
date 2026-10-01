@@ -19,6 +19,9 @@
  */
 
 import type { InstrumentSearchHit } from "./instrumentSearch";
+import { parseFuturesNotation } from "./futuresNotation";
+import { reconcileSearchCategory } from "./searchResultCategory";
+import { readFuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
 
 type Row = Record<string, unknown>;
 const rows = (v: unknown): Row[] => (Array.isArray(v) ? v.filter((x): x is Row => !!x && typeof x === "object") : []);
@@ -46,14 +49,14 @@ export function tastySymbolHits(items: unknown): InstrumentSearchHit[] {
     const sym = str(o.symbol);
     if (!sym || sym.startsWith(".")) return [];
     const type = (str(o["instrument-type"]) ?? "").toLowerCase();
-    const cat = type.includes("etf") || o["is-etf"] === true ? "ETF" : type.includes("index") ? "Index" : type.includes("crypto") ? "Crypto" : "Stock";
-    return [{ sym: sym.toUpperCase(), label: str(o.description, o["short-description"]) ?? sym, cat, exchange: str(o["listed-market"]) ?? "tastytrade" }];
+    const opinion = type.includes("future") ? "Futures" : type.includes("etf") || o["is-etf"] === true ? "ETF" : type.includes("index") ? "Index" : type.includes("crypto") ? "Crypto" : "Stock";
+    return [{ sym: sym.toUpperCase(), label: str(o.description, o["short-description"]) ?? sym, cat: reconcileSearchCategory(sym, opinion), exchange: str(o["listed-market"]) ?? "tastytrade" }];
   });
 }
 
 /** Futures products whose code or name matches what was typed, closest first. */
 export function matchFutureProducts(products: unknown, query: string, limit = 3): { code: string; description: string }[] {
-  const q = query.trim().toUpperCase().replace(/^\//, "").replace(/1!$/, "");
+  const q = parseFuturesNotation(query)?.root ?? query.trim().toUpperCase().replace(/^\//, "").replace(/1!$/, "");
   if (!q) return [];
   const scored = rows(products).flatMap(o => {
     const code = str(o.code)?.toUpperCase();
@@ -115,4 +118,38 @@ export function webullInstrumentHits(payload: unknown, cat: "Stock" | "Futures" 
     const out = cat === "Futures" && !sym.startsWith("/") ? `/${sym}` : sym;
     return [{ sym: cat === "Crypto" ? out.replace(/[-/]/g, "") : out, label: name, cat: isEtf ? "ETF" : cat, exchange: str(o.exchange_code, o.exchange) ?? "Webull" }];
   });
+}
+
+/** Explicit options queries only; generic MNQ still discovers future months. */
+export function futuresOptionQuery(query: string): { root: string; exact: string | null; right: "CALL" | "PUT" | null; strike: number | null } | null {
+  const q = query.trim().toUpperCase();
+  const exact = /^\.\/([A-Z0-9]{1,4}[FGHJKMNQUVXZ]\d{1,2})/.exec(q);
+  if (exact) {
+    const root = parseFuturesNotation(`/${exact[1]}`)?.root;
+    return root ? { root, exact: q, right: null, strike: null } : null;
+  }
+  const words = /^([/A-Z0-9!=]{1,12})\s+(OPTIONS?|CALLS?|PUTS?)(?:\s+(\d+(?:\.\d+)?))?$/.exec(q);
+  if (!words) return null;
+  const root = parseFuturesNotation(words[1])?.root ?? words[1].replace(/^\//, "");
+  return { root, exact: null, right: words[2].startsWith("CALL") ? "CALL" : words[2].startsWith("PUT") ? "PUT" : null, strike: words[3] ? Number(words[3]) : null };
+}
+
+/** Broker-supplied option symbols and exact parent identities; never manufacture a wire symbol. */
+export function tastyFutureOptionHits(data: unknown, query: string, limit = 40): InstrumentSearchHit[] {
+  const requested = futuresOptionQuery(query);
+  if (!requested) return [];
+  const chain = readFuturesOptionChain(data);
+  const hits: InstrumentSearchHit[] = [];
+  for (const expiration of chain.expirations) {
+    if (expiration.dte != null && expiration.dte < 0) continue;
+    if (parseFuturesNotation(expiration.parent)?.root !== requested.root) continue;
+    for (const row of expiration.strikes) for (const right of ["CALL", "PUT"] as const) {
+      const sym = right === "CALL" ? row.call : row.put;
+      if (!sym || requested.right && requested.right !== right || requested.strike != null && requested.strike !== row.strike) continue;
+      if (requested.exact && sym.trim().toUpperCase() !== requested.exact) continue;
+      hits.push({ sym, label: `${expiration.parent} · ${expiration.expiration} · ${row.strike} ${right}`, cat: "Future Option", exchange: "tastytrade", aliases: [query], futureOption: { parent: expiration.parent, expiration: expiration.expiration, strike: row.strike, right } });
+      if (hits.length >= limit) return hits;
+    }
+  }
+  return hits;
 }

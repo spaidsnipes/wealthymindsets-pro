@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { contractMonthWords, matchFutureProducts, tastyCryptoHits, tastyFutureContractHits, tastySymbolHits, webullInstrumentHits } from "./brokerInstrumentSearch";
+import { futuresOptionQuery, tastyFutureOptionHits, contractMonthWords, matchFutureProducts, tastyCryptoHits, tastyFutureContractHits, tastySymbolHits, webullInstrumentHits } from "./brokerInstrumentSearch";
 
 describe("broker instrument search — what each broker actually answers", () => {
   it("typing MNQ finds the MNQ product before NQ-ish names", () => {
@@ -46,5 +46,21 @@ describe("broker instrument search — what each broker actually answers", () =>
     expect(webullInstrumentHits({ data: [{ symbol: "MNQZ6", name: "Micro Nasdaq Dec26" }] }, "Futures")[0]!.sym).toBe("/MNQZ6");
     expect(webullInstrumentHits([{ symbol: "TSLA", name: "Tesla" }], "Stock")[0]!.label).toBe("Tesla");
     expect(webullInstrumentHits({ nothing: true }, "Stock")).toEqual([]);
+  });
+});
+
+describe("explicit futures options discovery", () => {
+  const wire="./MNQZ6MN2CV6261014C31000";
+  const chain={futures:[],"option-chains":[{"underlying-symbol":"/MNQZ6",expirations:[{"expiration-date":"2026-10-14","days-to-expiration":13,strikes:[{"strike-price":"31000",call:wire,put:"./MNQZ6MN2CV6261014P31000"}]}]}]};
+  it("MNQ options lazily names real symbols and exact parent; MNQ alone stays a futures search",()=>{
+    expect(futuresOptionQuery("MNQ")).toBeNull();
+    expect(futuresOptionQuery("MNQ options")?.root).toBe("MNQ");
+    expect(tastyFutureOptionHits(chain,"MNQ options")[0]).toMatchObject({sym:wire,cat:"Future Option",futureOption:{parent:"/MNQZ6",expiration:"2026-10-14",strike:31000,right:"CALL"}});
+  });
+  it("exact broker symbol and human call/put strike return only that actual contract",()=>{
+    expect(tastyFutureOptionHits(chain,wire).map(h=>h.sym)).toEqual([wire]);
+    expect(tastyFutureOptionHits(chain,"MNQ calls 31000").map(h=>h.sym)).toEqual([wire]);
+    expect(tastyFutureOptionHits(chain,"ES options")).toEqual([]);
+    expect(tastyFutureOptionHits(chain,"MNQ calls 99999")).toEqual([]);
   });
 });
