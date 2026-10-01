@@ -20,6 +20,8 @@ import {
 } from "@/lib/optionContractResponse";
 import { optionContractObservationTiming, optionsReceiptAge, readOptionsResponse, optionsReadFailure, UNREVIEWED_RECEIPT, type OptionContractObservationTiming, type OptionsReadFailure, type OptionsSourceReceipt } from "@/lib/optionsChainRead";
 import type { IdentifiedOptionSpot } from "@/lib/optionsSpotIdentity";
+import { compactOcc, overlayLiveQuote, tastyStreamerMap } from "@/lib/broker/tastyOptionOverlay";
+import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import {
   classifyOptionSpot,
   classifyStrikeCell,
@@ -45,6 +47,9 @@ interface OptionRow {
   pIV:      Quoted;  pDelta: Quoted;  pGamma: Quoted;
   pTheta:   Quoted;  pVega:  Quoted;  pOI:    Quoted;  pVol: Quoted;
   itm:      "call" | "put" | "atm" | "unknown";
+  /** True when tastytrade's live stream priced this side (Garden 18 §L). */
+  liveC?:   boolean;
+  liveP?:   boolean;
 }
 
 // The normalized route returns contracts grouped by expiration date YYYY-MM-DD.
@@ -290,6 +295,43 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
     setChain([]);
   }, [expiry, allContracts, priceKey, dataSource, receivedSymbol, symbol]);
 
+  // ── LIVE PRICES (Garden 18 §L–§LIV): tastytrade's stream over the inventory ──
+  // One tastytrade chain read per symbol pairs each OCC contract with its own
+  // streamer symbol; only the contracts near the money subscribe, on the ONE
+  // shared DXLink socket.
+  const [ttMap, setTtMap] = useState<Map<string, string> | null>(null);
+  useEffect(() => {
+    let live = true;
+    setTtMap(null);
+    fetch(`/api/broker/tastytrade/chain?symbol=${encodeURIComponent(symbol)}`, { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (live && j?.state === "OK") setTtMap(tastyStreamerMap(j.data)); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [symbol]);
+  const atmIndex = chain.findIndex(r => r.itm === "atm");
+  const nearRows = atmIndex >= 0 ? chain.slice(Math.max(0, atmIndex - 12), atmIndex + 13) : chain.slice(0, 25);
+  const streamerOf = (c: OptionContract | undefined) => (c && ttMap ? ttMap.get(compactOcc(c.symbol)) ?? null : null);
+  const ttStreamers = React.useMemo(
+    () => nearRows.flatMap(r => [streamerOf(r.call), streamerOf(r.put)]).filter((x): x is string => !!x),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chain, ttMap, atmIndex],
+  );
+  const tt = useTastyQuotes(ttStreamers);
+  const displayChain: OptionRow[] = chain.map(row => {
+    const sc = streamerOf(row.call);
+    const sp = streamerOf(row.put);
+    const c = overlayLiveQuote({ bid: row.cBid, ask: row.cAsk, last: row.cLast, impliedVolatility: row.cIV, delta: row.cDelta, gamma: row.cGamma, theta: row.cTheta, vega: row.cVega, openInterest: row.cOI, volume: row.cVol }, sc ? tt.quotes.get(sc) : undefined);
+    const p = overlayLiveQuote({ bid: row.pBid, ask: row.pAsk, last: row.pLast, impliedVolatility: row.pIV, delta: row.pDelta, gamma: row.pGamma, theta: row.pTheta, vega: row.pVega, openInterest: row.pOI, volume: row.pVol }, sp ? tt.quotes.get(sp) : undefined);
+    return {
+      ...row,
+      cBid: c.fields.bid, cAsk: c.fields.ask, cLast: c.fields.last, cIV: c.fields.impliedVolatility, cDelta: c.fields.delta, cGamma: c.fields.gamma, cTheta: c.fields.theta, cVega: c.fields.vega, cOI: c.fields.openInterest, cVol: c.fields.volume,
+      pBid: p.fields.bid, pAsk: p.fields.ask, pLast: p.fields.last, pIV: p.fields.impliedVolatility, pDelta: p.fields.delta, pGamma: p.fields.gamma, pTheta: p.fields.theta, pVega: p.fields.vega, pOI: p.fields.openInterest, pVol: p.fields.volume,
+      liveC: c.live, liveP: p.live,
+    };
+  });
+  const liveCount = displayChain.reduce((n, r) => n + (r.liveC ? 1 : 0) + (r.liveP ? 1 : 0), 0);
+
   const atm = chain.find(r => r.itm === "atm");
   // The screen reads the owner, not the `: 0` sentinel. The numeric sentinel is
   // left feeding the fetch-gating control flow it already feeds.
@@ -481,6 +523,13 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
         <table className="w-full min-w-max text-[10px] border-collapse">
           <caption className="caption-top border-b border-wm-border px-3 py-2 text-left text-[10px] text-wm-text-muted">
             IV and Greek fields have no field-level provider timestamp. Quote and trade reference age does not date them.
+            <span data-testid="options-live-quotes" data-live-count={liveCount} data-stream={tt.stream} className="block mt-1" style={{ color: liveCount > 0 ? "#7fd1a8" : undefined }}>
+              {liveCount > 0
+                ? `● ${liveCount} contracts priced live by tastytrade (bid/ask/IV/Greeks · marked ●); the rest show the Alpaca indicative reference.`
+                : tt.stream === "CONNECTING" || (ttMap && tt.stream === "LIVE") ? "Connecting live tastytrade prices for the contracts near the money…"
+                : tt.stream === "NOT_OWNER" || tt.stream === "NOT_CONNECTED" ? "Live tastytrade prices are not available here; showing the Alpaca indicative reference."
+                : ttMap === null ? "Showing the Alpaca indicative reference; checking for live tastytrade prices…" : "Showing the Alpaca indicative reference."}
+            </span>
           </caption>
           <thead className="sticky top-0 bg-wm-dark z-10">
             <tr className="border-b border-wm-border">
@@ -518,7 +567,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
             </tr>
           </thead>
           <tbody>
-            {chain.map(row => {
+            {displayChain.map(row => {
               const isATM  = row.itm === "atm";
               const callITM= row.itm === "call";
               const putITM = row.itm === "put";
@@ -551,7 +600,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
                       <td className="px-2 py-1.5 font-mono text-wm-text-dim">{formatOptionCount(row.cVol)}</td>
                     </>}
                     <td className="px-2 py-1.5 font-mono text-wm-gold">{formatOptionPercent(row.cIV)}</td>
-                    <td className={clsx("px-2 py-1.5 font-mono font-semibold", callITM ? "text-wm-green" : "text-wm-text-muted")}>{formatOptionNumber(row.cBid, 2)}</td>
+                    <td className={clsx("px-2 py-1.5 font-mono font-semibold", callITM ? "text-wm-green" : "text-wm-text-muted")}>{row.liveC ? <span title="tastytrade live" style={{ color: "#7fd1a8" }}>● </span> : null}{formatOptionNumber(row.cBid, 2)}</td>
                     <td className={clsx("px-2 py-1.5 font-mono font-semibold", callITM ? "text-wm-green" : "text-wm-text-muted")}>{formatOptionNumber(row.cAsk, 2)}</td>
                   </>}
                   <td className={clsx("px-3 py-1.5 text-center font-mono font-bold",
@@ -565,7 +614,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
                       const put = row.put;
                       return <button type="button" disabled={!cell.actionable} title={cell.reason} className={clsx("min-h-11 rounded border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2", cell.actionable ? "border-wm-red/40 text-wm-red" : "border-wm-border text-wm-text-dim")} aria-label={`${cell.text}${put ? ` ${put.symbol}` : ` at the ${row.strike} strike`}. ${cell.reason}`} onClick={put ? e => { e.stopPropagation(); reviewContract(put); } : undefined}>{cell.text}</button>;
                     })()}</td>}
-                    <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pBid, 2)}</td>
+                    <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{row.liveP ? <span title="tastytrade live" style={{ color: "#7fd1a8" }}>● </span> : null}{formatOptionNumber(row.pBid, 2)}</td>
                     <td className={clsx("px-2 py-1.5 font-mono text-right font-semibold", putITM ? "text-wm-red" : "text-wm-text-muted")}>{formatOptionNumber(row.pAsk, 2)}</td>
                     <td className="px-2 py-1.5 font-mono text-right text-wm-gold">{formatOptionPercent(row.pIV)}</td>
                     {showGreeks ? <>
