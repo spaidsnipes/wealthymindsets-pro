@@ -25,6 +25,7 @@
  * repairing — a second owner of one fact — one file wider.
  */
 
+import { ExecutionGuardrailsTab } from "@/components/settings/ExecutionGuardrailsTab";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { CHART_TF_SHIPPED, normalizeTFId } from "@/lib/timeframes";
 import { writeAppSettings } from "@/lib/settings/appSettingsStore";
@@ -402,7 +403,7 @@ export function SettingsPanel({
   onClose: () => void;
   fallbackTriggerRef: React.RefObject<HTMLButtonElement | null>;
 }) {
-  const [tab,       setTab]       = useState<"display"|"trading"|"account">("display");
+  const [tab,       setTab]       = useState<"display"|"trading"|"execution"|"account">("display");
   const [darkMode,  setDarkMode]  = useState(true);
   const [soundOn,   setSoundOn]   = useState(true);
   const [showPnl,   setShowPnl]   = useState(true);
@@ -469,6 +470,7 @@ export function SettingsPanel({
   const TABS = [
     { id:"display" as const, label:"Display", icon:Monitor },
     { id:"trading" as const, label:"Trading", icon:BarChart2 },
+    { id:"execution" as const, label:"Execution", icon:Shield },
     { id:"account" as const, label:"Account", icon:Shield },
   ];
 
@@ -589,6 +591,12 @@ export function SettingsPanel({
                   <option value="large">Large</option>
                 </select>
               </Row>
+            </div>
+          )}
+
+          {tab === "execution" && (
+            <div role="tabpanel" id="wm-settings-panel-execution" aria-labelledby="wm-settings-tab-execution">
+              <ExecutionGuardrailsTab />
             </div>
           )}
 

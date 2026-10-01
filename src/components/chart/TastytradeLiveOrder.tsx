@@ -24,6 +24,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { isTerminal, type TtOrderView, type WmOrderState } from "@/lib/broker/tastytradeOrderState";
+import { checkOrder } from "@/lib/execution/guardrails";
+import { useGuardrails } from "@/lib/execution/useGuardrails";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -106,7 +108,12 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
     ? `Account …${account.tail} is not futures-enabled at tastytrade. Choose a futures-eligible account.`
     : null;
   const priceOk = intent?.limitPx != null && intent.limitPx > 0;
-  const canArm = !!intent && !!account && !accountBlocks && priceOk && intent.qty > 0 && !busy && !(order && !isTerminal(order.state));
+  // §CXVII: the trader's own commitments, asked before the button can arm.
+  const guardrails = useGuardrails();
+  const guard = intent ? checkOrder(guardrails, intent.instrumentType === "Equity" ? { kind: "EQUITY", qty: intent.qty }
+    : intent.instrumentType === "Equity Option" ? { kind: "EQUITY_OPTION", qty: intent.qty, limitPx: intent.limitPx }
+    : { kind: intent.instrumentType === "Future" ? "FUTURE" : "FUTURE_OPTION", qty: intent.qty }) : { ok: true as const };
+  const canArm = !!intent && !!account && !accountBlocks && priceOk && guard.ok && intent.qty > 0 && !busy && !(order && !isTerminal(order.state));
 
   const summary = useMemo(() => {
     if (!intent) return null;
@@ -190,6 +197,7 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
       <p data-testid="tt-capital-moment" style={{ marginTop: 6, fontVariantNumeric: "tabular-nums", color: "#ede6d3" }}>{summary}</p>
       {accountBlocks ? <p role="status" style={{ color: GOLD }}>{accountBlocks}</p> : null}
       {!priceOk ? <p role="status" style={{ color: GOLD }}>Set a limit price to send.</p> : null}
+      {!guard.ok ? <p role="status" data-testid="tt-guardrail" style={{ color: GOLD }}>{guard.reason}</p> : null}
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
         <label style={{ display: "flex", gap: 4, alignItems: "center", color: armed ? RED : MUTED }}>
           <input type="checkbox" data-testid="tt-arm" checked={armed} disabled={!canArm} onChange={e => setArmed(e.target.checked)} />

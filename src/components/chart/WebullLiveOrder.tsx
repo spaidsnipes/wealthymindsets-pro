@@ -15,6 +15,9 @@
 
 import React, { useEffect, useRef, useState } from "react";
 
+import { checkOrder } from "@/lib/execution/guardrails";
+import { useGuardrails } from "@/lib/execution/useGuardrails";
+
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
 const RED = "#e0786b";
@@ -69,7 +72,9 @@ export function WebullLiveOrder({ intent, accountIndex, accountLabel, decisionId
   const buying = intent.positionIntent.startsWith("BUY");
   const priceOk = intent.limitPx != null && intent.limitPx > 0;
   const working = lookup?.state === "FOUND" && !TERMINAL.has(lookup.status);
-  const canArm = priceOk && intent.qty > 0 && !busy && !working;
+  // §CXVII: the trader's own commitments, asked before the button can arm.
+  const guard = checkOrder(useGuardrails(), { kind: "EQUITY_OPTION", qty: intent.qty, limitPx: intent.limitPx });
+  const canArm = priceOk && guard.ok && intent.qty > 0 && !busy && !working;
 
   async function send() {
     if (!armed || !canArm) return;
@@ -116,6 +121,7 @@ export function WebullLiveOrder({ intent, accountIndex, accountLabel, decisionId
         <span style={{ color: RED, fontWeight: 700 }}>LIVE</span> · WEBULL · {accountLabel} · {intent.positionIntent.replace(/_/g, " ")} {intent.qty} {intent.osi} · LIMIT {intent.limitPx ?? "—"} · DAY
       </p>
       {!priceOk ? <p role="status" style={{ color: GOLD }}>Set a limit premium to send.</p> : null}
+      {!guard.ok ? <p role="status" data-testid="wb-guardrail" style={{ color: GOLD }}>{guard.reason}</p> : null}
       <div className="mt-1 flex items-center gap-2">
         <label className="flex items-center gap-1" style={{ color: armed ? RED : MUTED }}>
           <input type="checkbox" data-testid="wb-arm" checked={armed} disabled={!canArm} onChange={e => setArmed(e.target.checked)} />
