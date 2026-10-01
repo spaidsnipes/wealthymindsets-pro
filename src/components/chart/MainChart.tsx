@@ -15435,6 +15435,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }
               void strikesSorted;
+              // The masonry is a body on the glass: every word painted after it
+              // (structure caption, gap words, MTF tags) steps clear of the
+              // bricks (serving SPY 1h, 2026-10-01: "STRUCTURE · LOWER LOWS"
+              // sat on the 785 wall's top courses).
+              for (const r of masonryRects) floatingChips.push(r);
               // Wall names and off-camera walls: placed through the keep-out
               // owner after the field is painted (labels confirm; they never sit
               // on a candle).
