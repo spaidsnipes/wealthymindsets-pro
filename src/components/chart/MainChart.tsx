@@ -54,7 +54,7 @@ import { chartHeaderChangeFact, type HeaderChangeKind } from "@/lib/marketData/c
 import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/deriveLastBarClose";
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
 import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
-import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
+import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { tastyCandleFromTime, tastyCandlePeriod, tastyCandleSymbol, tastyCandlesToBars } from "@/lib/marketData/adapters/tastytradeCandles";
@@ -1061,9 +1061,13 @@ async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number,
  * the waterfall then falls through to the next door with its own provenance.
  */
 async function fetchTastyCandles(sym: string, tf: string, count: number, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
-  if (classifySymbol(sym) !== "FUTURES" || !tastyCandlePeriod(tf)) return null;
+  // Everything tastytrade carries — futures (metals, energy, grains, FX
+  // futures …), stocks/ETFs and listed crypto — at every size it streams,
+  // seconds included. Anything it does not list answers null; the next door serves.
+  if (!tastyCandlePeriod(tf)) return null;
   try {
-    const contract = await tastyFrontMonthFor(sym);
+    const streamer = await tastyCandleStreamerFor(sym);
+    const contract = streamer ? { streamer } : null;
     if (!contract || signal?.aborted) return null;
     const candleSymbol = tastyCandleSymbol(contract.streamer, tf);
     const fromTime = tastyCandleFromTime(tf, count, Date.now());

@@ -107,9 +107,9 @@ export const PROVIDER_EVIDENCE = {
 
 const TF_LIST: Timeframe[] = [
   // ── Seconds (2026-10-01): served ONLY where a route carries them — today
-  //    tastytrade's own contract candles for futures ({=5s}/{=15s} proven on the
-  //    owner's socket). Every other instrument reads "No bar route" for these
-  //    rungs through canonAvailabilityFor; nothing here claims a vendor has them.
+  //    tastytrade's own candles: futures, stocks/ETFs and the USD coins it lists
+  //    ({=5s}/{=15s} proven on the owner's socket). Spot FX, USDT pairs and the
+  //    rest read "No bar route" for these rungs through canonAvailabilityFor.
   { id: "5s",  label: "5s",  candleIntervalSec: 5,   defaultRangeSec: 30 * MIN,
     source: "route",  maxRangeSec: null, minBarsForState: 120 },
   { id: "15s", label: "15s", candleIntervalSec: 15,  defaultRangeSec: 2 * HOUR,
@@ -401,6 +401,8 @@ export function timeframeSpokenName(id: TFId): string {
     return spokenBars(n, unit);
   }
   if (sec % 3600 === 0) return spokenBars(sec / 3600, "hour");
+  // Seconds clocks are said in seconds — "5 seconds bars", never "0.083 minutes".
+  if (sec % 60 !== 0) return spokenBars(sec, "second");
   return spokenBars(sec / 60, "minute");
 }
 

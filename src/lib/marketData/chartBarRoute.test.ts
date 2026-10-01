@@ -20,12 +20,16 @@ const ladderFor = (sym: string) => CANON_LADDER.map(r => canonAvailabilityFor(r,
 const table = (sym: string) =>
   ladderFor(sym).map(r => `${r.id}:${r.availability === "NATIVE_PROVIDER" ? "N" : r.availability === "DERIVED_CANONICAL" ? "D" : "U"}`).join(" ");
 const TAIL = "TICK:U 1s:U 5s:U 10s:U 15s:U 30s:U ";
+// Stocks and the USD coins tastytrade lists: its own 5s / 15s / 30s candles
+// (2026-10-01, Founder: "extend it through all stocks … btc").
+const TASTY_SECONDS = "TICK:U 1s:U 5s:N 10s:U 15s:N 30s:N ";
 
 describe("canonAvailabilityFor — the ladder for the instrument actually on the glass", () => {
   it("TSLA: every servable rung is native — Alpaca publishes each bucket", () => {
-    expect(table("TSLA")).toBe(TAIL +
+    expect(table("TSLA")).toBe(TASTY_SECONDS +
       "1m:N 2m:N 3m:N 5m:N 10m:N 15m:N 20m:U 30m:N 1h:N 2h:N 4h:N 1D:N 1W:N 1M:N 1Q:U 6M:U 1Y:U");
     for (const id of ["3m", "10m", "2h", "4h"]) expect(chartBarRouteFor(id, "TSLA")).toMatchObject({ vendor: "Alpaca", mode: "NATIVE", exact: true });
+    expect(chartBarRouteFor("15s", "TSLA")).toMatchObject({ vendor: "tastytrade", mode: "NATIVE", exact: true, served: "15-second candles" });
   });
 
   it("ES1!: tastytrade's own contract candles — every size it serves is native, seconds included (2026-10-01)", () => {
@@ -54,7 +58,7 @@ describe("canonAvailabilityFor — the ladder for the instrument actually on the
 
   it("BTCUSD: Alpaca is asked for BTCUSD/USD, which is not a pair — so Yahoo rebuilds 3m / 10m / 2h / 4h", () => {
     expect(alpacaCryptoPairResolves("BTCUSD")).toBe(false);
-    expect(table("BTCUSD")).toBe(TAIL +
+    expect(table("BTCUSD")).toBe(TASTY_SECONDS +
       "1m:N 2m:N 3m:D 5m:N 10m:D 15m:N 20m:U 30m:N 1h:N 2h:D 4h:D 1D:N 1W:N 1M:N 1Q:U 6M:U 1Y:U");
     expect(chartBarRouteFor("2h", "BTCUSD")).toMatchObject({ vendor: "Yahoo", mode: "RECONSTRUCTED" });
     expect(chartBarRouteFor("1m", "BTCUSD")?.vendor).toBe("Coinbase");

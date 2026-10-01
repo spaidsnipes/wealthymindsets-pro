@@ -76,6 +76,7 @@ import { EXCHANGE_LABEL, parseExchangeSymbol, type Exchange } from "@/lib/exchan
 import { resolveYahooSymbol } from "@/lib/yahooSymbol";
 import { resolveYahooTimeframe } from "@/lib/yahooTimeframes";
 import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
+import { tastyCryptoStreamer } from "@/lib/broker/tastyFrontMonth";
 import {
   canonRungSpokenName, getTimeframe, isTFId, timeframePendingFounderDecision,
   type CanonRung, type TFId,
@@ -220,6 +221,19 @@ export function chartBarRouteFor(timeframe: string, symbol: string): ChartBarRou
   if (classifySymbol(sym) === "FUTURES") {
     const sec = tastyCandleSeconds(tf);
     if (sec != null) return route(tf, "tastytrade", "NATIVE", tf === "1M" ? { n: 1, unit: "month" } : fromSeconds(sec), null);
+  }
+  // 0c. Stocks/ETFs and the coins tastytrade lists, at the SECONDS sizes no
+  //     public door publishes: tastytrade's own candles (MainChart
+  //     fetchTastyCandles → tastyCandleStreamerFor). Minute sizes and up keep
+  //     the doors below on the ladder — the chart still asks tastytrade first
+  //     for the owner and the vendor log names whoever actually served.
+  //     Spot FX is not a tastytrade market; it keeps the doors below.
+  {
+    const cls = classifySymbol(sym);
+    const sec = tastyCandleSeconds(tf);
+    if (sec != null && sec < 60 && (cls === "EQUITY" || (cls === "CRYPTO" && tastyCryptoStreamer(sym) != null))) {
+      return route(tf, "tastytrade", "NATIVE", fromSeconds(sec), null);
+    }
   }
 
   // 2. Alpaca.

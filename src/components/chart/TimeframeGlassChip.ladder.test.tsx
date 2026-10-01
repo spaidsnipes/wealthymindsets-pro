@@ -65,7 +65,7 @@ describe("TimeframeLadder — every canon rung, honest about each", () => {
         expect(el!.props["aria-label"]).toBe(canonRungSpokenName(r));
       }
     }
-    expect(tree.filter(e => e.type === "button")).toHaveLength(13);
+    expect(tree.filter(e => e.type === "button")).toHaveLength(16);
   });
 
   it("every unavailable rung states its reason in visible words, not only a tooltip", () => {
@@ -77,8 +77,8 @@ describe("TimeframeLadder — every canon rung, honest about each", () => {
     // One line per distinct reason, naming its rungs — the tape rungs read it once.
     expect(visible.split("Needs a certified trade tape").length - 1).toBe(1);
     expect(visible).toContain("TICK · 1s · 10s</span>: Needs a certified trade tape — none on this path.");
-    // The seconds clocks are real chart ids now; no route serves them for an equity.
-    expect(visible).toContain("5s · 15s · 30s");
+    // The seconds clocks are tastytrade's own candles for a stock (2026-10-01).
+    expect(visible).not.toContain("5s · 15s · 30s");
   });
 
   it("marks the current timeframe — and only it — with aria-current", () => {
@@ -94,7 +94,7 @@ describe("TimeframeLadder — every canon rung, honest about each", () => {
     for (const b of buttons) (b.props.onClick as () => void)();
     const expected = TSLA_LADDER.flatMap(r => (r.availability === "UNAVAILABLE" ? [] : [r.chartTf]));
     expect(onChoose.mock.calls.map(c => c[0])).toEqual(expected);
-    expect(expected).toEqual(["1m", "2m", "3m", "5m", "10m", "15m", "30m", "1h", "2h", "4h", "1D", "1W", "1M"]);
+    expect(expected).toEqual(["5s", "15s", "30s", "1m", "2m", "3m", "5m", "10m", "15m", "30m", "1h", "2h", "4h", "1D", "1W", "1M"]);
   });
 
   it("a DERIVED rung, when one exists, says 'derived' aloud and on the glass", () => {
@@ -172,7 +172,7 @@ describe("the ladder answers for the symbol on the glass (Garden 16 §26)", () =
     expect(b.props["aria-current"]).toBe("true");
     for (const sym of ["TSLA", "BTC"]) {
       const buttons = elements(TimeframeLadder({ timeframe: "15m", symbol: sym, onChoose: () => {} })).filter(e => e.type === "button");
-      expect(buttons, sym).toHaveLength(13);
+      expect(buttons, sym).toHaveLength(16);
       expect(buttons.every(e => e.props["data-availability"] === "NATIVE_PROVIDER"), sym).toBe(true);
     }
   });

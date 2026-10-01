@@ -12,6 +12,7 @@ import { futuresProductFor } from "@/lib/broker/tastytradeFuturesChain";
 import { resolveTastyContract, resolveTastyFrontMonth, type TastyFrontMonth } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { parseFuturesNotation } from "@/lib/marketData/futuresNotation";
+import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 
 const cache = new Map<string, Promise<TastyFrontMonth | null>>();
 
@@ -27,6 +28,42 @@ export function tastyLiveContractFor(chartSymbol: string): Promise<(TastyFrontMo
   if (cls === "FUTURES") return tastyFrontMonthFor(chartSymbol).then(c => (c ? { ...c, equity: false } : null));
   const sym = chartSymbol.trim().toUpperCase();
   if (cls === "EQUITY" && /^[A-Z]{1,5}(\.[A-Z])?$/.test(sym)) return Promise.resolve({ symbol: sym, streamer: sym, equity: true });
+  return Promise.resolve(null);
+}
+
+/** Coins tastytrade lists against USD (its crypto venue streams `COIN/USD:CXTALP`). */
+export const TASTY_CRYPTO_COINS: ReadonlySet<string> = new Set(["BTC", "ETH", "LTC", "BCH", "SOL", "DOGE", "AVAX", "LINK", "UNI", "AAVE", "DOT", "ADA", "XLM"]);
+
+/**
+ * WHICH TASTYTRADE STREAM DRAWS THIS CHART'S CANDLES — every market tastytrade
+ * carries, one answer (Garden 18 §LXXXIII "Tasty is sensor"):
+ *   futures (index, metals, energy, grains, FX futures, any listed product)
+ *     → the contract (continuous = active month, a specific month = itself)
+ *   stocks / ETFs → the ticker itself
+ *   crypto tastytrade lists → the USD pair (BTC → BTC/USD:CXTALP)
+ * Spot FX and anything tastytrade does not list → null: the next door serves,
+ * with its own provenance on the glass.
+ */
+/**
+ * The tastytrade crypto stream for a chart symbol — bare or USD-quoted coins
+ * only (BTC, BTCUSD, BTC-USD, BTC/USD). A USDT/USDC pair is a different
+ * market and is never answered with USD bars. PURE.
+ */
+export function tastyCryptoStreamer(chartSymbol: string): string | null {
+  const sym = chartSymbol.trim().toUpperCase();
+  if (sym.includes(":") || /USD[TC]$/.test(sym)) return null;
+  const base = cryptoBaseTicker(sym);
+  if (!base || !TASTY_CRYPTO_COINS.has(base)) return null;
+  const quote = sym.slice(base.length).replace(/^[-/]/, "");
+  return quote === "" || quote === "USD" ? `${base}/USD:CXTALP` : null;
+}
+
+export function tastyCandleStreamerFor(chartSymbol: string): Promise<string | null> {
+  const cls = classifySymbol(chartSymbol);
+  if (cls === "FUTURES") return tastyFrontMonthFor(chartSymbol).then(c => c?.streamer ?? null);
+  const sym = chartSymbol.trim().toUpperCase();
+  if (cls === "EQUITY" && /^[A-Z]{1,5}(\.[A-Z])?$/.test(sym)) return Promise.resolve(sym);
+  if (cls === "CRYPTO") return Promise.resolve(tastyCryptoStreamer(sym));
   return Promise.resolve(null);
 }
 
