@@ -151,8 +151,16 @@ describe("the session clock is the registry's, and a non-clock id gets none", ()
     return { ...sessionWindowFor(symbol, "5m", ext), barMinutes: oldBarMinutes(tf) };
   };
 
+  it("the seconds clocks profile as their true fraction of a minute, never as one minute", () => {
+    expect(sessionWindowFor("ES1!", "5s", false).barMinutes).toBeCloseTo(5 / 60);
+    expect(sessionWindowFor("ES1!", "15s", false).barMinutes).toBe(0.25);
+    expect(sessionWindowFor("ES1!", "30s", false).barMinutes).toBe(0.5);
+  });
+
   it("every TFId, and the legacy D/W/M, profile exactly as they did", () => {
-    const ids = [...TF_IDS, "D", "W", "M"];
+    // The seconds clocks (2026-10-01) did not exist for the oracle; it would
+    // have called them one-minute bars. They are pinned positively below.
+    const ids = [...TF_IDS.filter(tf => !/^\d+s$/.test(tf)), "D", "W", "M"];
     for (const sym of ["AAPL", "/ES", "ZW1!", "LE1!", "EURUSD=X", "BTC-USD"]) {
       for (const tf of ids) {
         for (const ext of [false, true]) {
@@ -172,7 +180,7 @@ describe("the session clock is the registry's, and a non-clock id gets none", ()
   });
 
   it("× THE TICK THAT READ AS A MINUTE: a non-clock id has no minutes", () => {
-    for (const tf of ["1t", "100T", "TICK", "15s", "20m", "7m", "3Y", "", "banana"]) {
+    for (const tf of ["1t", "100T", "TICK", "10s", "20m", "7m", "3Y", "", "banana"]) {
       expect(barMinutesOf(tf), `"${tf}"`).toBeNull();
     }
   });
@@ -186,7 +194,7 @@ describe("the session clock is the registry's, and a non-clock id gets none", ()
   it("refuses to profile a non-clock id rather than inventing its span — by a NAMED result, never a throw", () => {
     // It used to THROW, and sessionWindowFor is called from render bodies
     // (MainChart, the room's state detail): one stray id took the chart down.
-    for (const [sym, tf] of [["AAPL", "100T"], ["BTC-USD", "15s"], ["AAPL", "3Y"], ["ES1!", "TICK"], ["AAPL", ""]] as const) {
+    for (const [sym, tf] of [["AAPL", "100T"], ["BTC-USD", "10s"], ["AAPL", "3Y"], ["ES1!", "TICK"], ["AAPL", ""]] as const) {
       for (const ext of [false, true]) {
         let w: ReturnType<typeof sessionWindowFor> | undefined;
         expect(() => { w = sessionWindowFor(sym, tf, ext); }, `${sym} ${tf}`).not.toThrow();
@@ -201,7 +209,7 @@ describe("the session clock is the registry's, and a non-clock id gets none", ()
   });
 
   it("a NO_CLOCK window keys no bar to any session, so every consumer draws nothing", () => {
-    const w = sessionWindowFor("AAPL", "15s", false);
+    const w = sessionWindowFor("AAPL", "10s", false);
     const bars = [1_758_900_600, 1_758_900_660, 1_758_904_200].map(time => ({ time }));
     for (const b of bars) expect(sessionKeyOf(b.time, w)).toBeNull();
     expect(selectSessionWindowBars(bars, w)).toEqual([]);

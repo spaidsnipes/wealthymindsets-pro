@@ -5,6 +5,7 @@ import {
   CANON_LADDER, CANON_LADDER_GROUPS, CHART_TF_SHIPPED, TF_IDS, canonRungSpokenName, getTimeframe,
   isTFId, liveBarBucketSec, timeframeSpokenName, type CanonRung,
 } from "./timeframes";
+import type { TFId } from "./timeframes";
 import { resolveYahooTimeframe } from "./yahooTimeframes";
 import { EXCHANGE_TIMEFRAME_SECONDS } from "./marketData/exchangeTimeframes";
 import { ALPACA_TF_MAP } from "./marketData/alpacaBarRoute";
@@ -100,7 +101,7 @@ describe("the availability table — what the chart's bar path can do with each 
   it("is exactly this table", () => {
     const table = CANON_LADDER.map(r => `${r.id}:${r.availability === "NATIVE_PROVIDER" ? "N" : r.availability === "DERIVED_CANONICAL" ? "D" : "U"}`);
     expect(table.join(" ")).toBe(
-      "TICK:U 1s:U 5s:U 10s:U 15s:U 30s:U " +
+      "TICK:U 1s:U 5s:N 10s:U 15s:N 30s:N " +
       "1m:N 2m:N 3m:N 5m:N 10m:N 15m:N 20m:U 30m:N " +
       "1h:N 2h:N 4h:N " +
       "1D:N 1W:N 1M:N 1Q:U 6M:U 1Y:U",
@@ -109,7 +110,9 @@ describe("the availability table — what the chart's bar path can do with each 
 
   it("every NATIVE rung maps, on /api/alpaca, to a bucket of EXACTLY its size", () => {
     const alpaca = alpacaTfMap();
-    const natives = CANON_LADDER.filter(r => r.availability === "NATIVE_PROVIDER");
+    // The seconds rungs are ROUTE-served (tastytrade, futures) — Alpaca is not
+    // their route, and the per-symbol walk says so (see the seconds test below).
+    const natives = CANON_LADDER.filter(r => r.availability === "NATIVE_PROVIDER" && getTimeframe(r.chartTf).source !== "route");
     expect(natives.length).toBe(13);
     for (const r of natives) {
       if (r.availability === "UNAVAILABLE") throw new Error("unreachable");
@@ -137,10 +140,25 @@ describe("the availability table — what the chart's bar path can do with each 
     expect(CANON_LADDER.filter(r => r.availability === "DERIVED_CANONICAL")).toEqual([]);
   });
 
-  it("TICK and every seconds rung: no certified trade tape on this path — and no route serves them", () => {
+  it("5s / 15s / 30s: re-measured 2026-10-01 — route-served by tastytrade for futures, by no generic vendor", () => {
+    // The receipt: Candle snapshots {=5s} / {=15s} on the owner's DXLink socket
+    // (adapters/tastytradeCandles.ts). They are chart ids now, sourced "route".
     const alpaca = alpacaTfMap();
     const fh = finnhubResKeys();
-    for (const id of ["TICK", "1s", "5s", "10s", "15s", "30s"]) {
+    for (const id of ["5s", "15s", "30s"]) {
+      expect(isTFId(id), id).toBe(true);
+      expect(getTimeframe(id as TFId).source, id).toBe("route");
+      expect(alpaca[id], id).toBeUndefined();
+      expect(fh).not.toContain(id);
+      expect(resolveYahooTimeframe(id)).toBeNull();
+      expect(Object.keys(EXCHANGE_TIMEFRAME_SECONDS)).not.toContain(id);
+    }
+  });
+
+  it("TICK, 1s and 10s: no certified trade tape on this path — and no route serves them", () => {
+    const alpaca = alpacaTfMap();
+    const fh = finnhubResKeys();
+    for (const id of ["TICK", "1s", "10s"]) {
       const r = avail(id);
       expect(r.availability, id).toBe("UNAVAILABLE");
       if (r.availability !== "UNAVAILABLE") continue;
@@ -243,9 +261,15 @@ describe("liveBarBucketSec — the live forming bar's clock, fail closed", () =>
   };
   const oldClock = (tf: string) => OLD[tf] ?? 60;
 
-  it("answers every one of the 19 TFIds exactly as the hook's old table did", () => {
-    expect(TF_IDS).toHaveLength(19);
-    for (const id of TF_IDS) expect(liveBarBucketSec(id), id).toBe(oldClock(id));
+  it("answers every one of the 19 original TFIds exactly as the hook's old table did", () => {
+    expect(TF_IDS).toHaveLength(22);
+    const original = TF_IDS.filter(id => !/^\d+s$/.test(id));
+    expect(original).toHaveLength(19);
+    for (const id of original) expect(liveBarBucketSec(id), id).toBe(oldClock(id));
+    // The seconds clocks (2026-10-01) are their own size, never the old ?? 60.
+    expect(liveBarBucketSec("5s")).toBe(5);
+    expect(liveBarBucketSec("15s")).toBe(15);
+    expect(liveBarBucketSec("30s")).toBe(30);
   });
 
   it("is the registry's own candle for every id outside the six pending a decision", () => {
@@ -256,7 +280,7 @@ describe("liveBarBucketSec — the live forming bar's clock, fail closed", () =>
   });
 
   it("answers null — no clock, no forming bar — for the retired 1t/5t/30t and every non-clock id", () => {
-    for (const raw of ["1t", "5t", "30t", "100T", "TICK", "15s", "1s", "20m", "1Q", "3Y", "D", "", "banana"]) {
+    for (const raw of ["1t", "5t", "30t", "100T", "TICK", "10s", "1s", "20m", "1Q", "3Y", "D", "", "banana"]) {
       expect(liveBarBucketSec(raw), `"${raw}"`).toBeNull();
     }
   });

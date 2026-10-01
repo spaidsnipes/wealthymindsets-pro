@@ -122,7 +122,7 @@ describe("chart deep-link continuity", () => {
   it("normalizes legacy timeframe aliases and rejects unsupported input", () => {
     expect(normalizeMarketSurfaceTimeframe("15m")).toBe("15m");
     expect(normalizeMarketSurfaceTimeframe("1d")).toBe("1D");
-    for (const bad of ["", "1s", "30s", "7m", "banana"]) {
+    for (const bad of ["", "1s", "10s", "7m", "banana"]) {
       expect(normalizeMarketSurfaceTimeframe(bad)).toBeNull();
     }
   });
@@ -204,7 +204,7 @@ describe("chart deep-link continuity", () => {
       // silently loses state. Both directions use the same normalizers.
       expect(marketSurfaceUrlWriteback("?symbol=NVDA", "<script>", "banana")).toBeNull();
       expect(marketSurfaceUrlWriteback("?symbol=NVDA", null, undefined)).toBeNull();
-      expect(marketSurfaceUrlWriteback("?symbol=NVDA", "AMD", "30s")).toBe("?symbol=AMD");
+      expect(marketSurfaceUrlWriteback("?symbol=NVDA", "AMD", "10s")).toBe("?symbol=AMD");
     });
 
     it("preserves params this surface does not own", () => {

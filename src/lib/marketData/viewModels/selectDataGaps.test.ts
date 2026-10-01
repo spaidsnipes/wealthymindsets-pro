@@ -183,7 +183,7 @@ describe("selectDataGaps — the market clock names the session the bars could n
 
   it("a NO_CLOCK session window is not a market clock: the reader says it has no session identity", () => {
     const bars = span(et(24, 9, 30), et(24, 15, 55), 5, [et(24, 11, 0)]);
-    const vm = selectDataGaps({ bars, identities: unknownIds(bars), continuous: false, sessionClock: sessionWindowFor("AAPL", "15s", false) });
+    const vm = selectDataGaps({ bars, identities: unknownIds(bars), continuous: false, sessionClock: sessionWindowFor("AAPL", "10s", false) });
     expect(vm.reason).toBe("NO_SESSION_IDENTITY");
     expect(vm.sessionSource).toBeNull();
   });

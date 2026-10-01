@@ -75,12 +75,13 @@ import { classifySymbol, equityVendorSkipNoun } from "@/lib/marketData/symbolAss
 import { EXCHANGE_LABEL, parseExchangeSymbol, type Exchange } from "@/lib/exchanges";
 import { resolveYahooSymbol } from "@/lib/yahooSymbol";
 import { resolveYahooTimeframe } from "@/lib/yahooTimeframes";
+import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
 import {
   canonRungSpokenName, getTimeframe, isTFId, timeframePendingFounderDecision,
   type CanonRung, type TFId,
 } from "@/lib/timeframes";
 
-type BucketUnit = "minute" | "hour" | "day" | "week" | "month";
+type BucketUnit = "second" | "minute" | "hour" | "day" | "week" | "month";
 
 /** A bar size as a count of a calendar-honest unit (a month is not 30 days). */
 export interface BarBucket {
@@ -111,6 +112,7 @@ function normalize(b: BarBucket): BarBucket {
 }
 
 function fromSeconds(sec: number): BarBucket {
+  if (sec < 60 || sec % 60 !== 0) return { n: sec, unit: "second" };
   if (sec % 604_800 === 0) return { n: sec / 604_800, unit: "week" };
   if (sec % 86_400 === 0) return { n: sec / 86_400, unit: "day" };
   return normalize({ n: sec / 60, unit: "minute" });
@@ -140,7 +142,7 @@ function fromYahoo(interval: string): BarBucket | null {
 
 export function bucketWords(b: BarBucket): string {
   const { n, unit } = b;
-  if (n === 1) return ({ minute: "1-minute", hour: "hourly", day: "daily", week: "weekly", month: "monthly" } as const)[unit];
+  if (n === 1) return ({ second: "1-second", minute: "1-minute", hour: "hourly", day: "daily", week: "weekly", month: "monthly" } as const)[unit];
   if (unit === "month") {
     if (n === 3) return "quarterly";
     if (n === 6) return "half-year";
@@ -210,6 +212,14 @@ export function chartBarRouteFor(timeframe: string, symbol: string): ChartBarRou
   if (venue) {
     const r = resolveExchangeTimeframe(venue, tf);
     if (r.status === "SUPPORTED") return route(tf, EXCHANGE_LABEL[venue], "NATIVE", fromSeconds(r.seconds), null);
+  }
+
+  // 0b. Futures: tastytrade's own contract candles (MainChart fetchTastyCandles,
+  //     asked before every generic vendor). The owner's DXLink session serves
+  //     each of these sizes natively — receipts in adapters/tastytradeCandles.ts.
+  if (classifySymbol(sym) === "FUTURES") {
+    const sec = tastyCandleSeconds(tf);
+    if (sec != null) return route(tf, "tastytrade", "NATIVE", tf === "1M" ? { n: 1, unit: "month" } : fromSeconds(sec), null);
   }
 
   // 2. Alpaca.
@@ -312,7 +322,7 @@ export function servedTimeframeFor(timeframe: string, symbol: string): string {
   if (!r || r.exact) return timeframe;
   const { n, unit } = r.bucket;
   const id = n === 1
-    ? ({ month: "1M", week: "1W", day: "1D", hour: "1h", minute: "1m" } as const)[unit]
-    : unit === "minute" ? `${n}m` : unit === "hour" ? `${n}h` : null;
+    ? ({ month: "1M", week: "1W", day: "1D", hour: "1h", minute: "1m", second: null } as const)[unit]
+    : unit === "minute" ? `${n}m` : unit === "hour" ? `${n}h` : unit === "second" ? `${n}s` : null;
   return id && isTFId(id) ? id : timeframe;
 }

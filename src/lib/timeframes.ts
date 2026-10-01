@@ -33,11 +33,20 @@
  */
 
 export type TFId =
+  | "5s" | "15s" | "30s"
   | "1m" | "2m" | "3m" | "5m" | "10m" | "15m" | "30m" | "45m"
   | "1h" | "2h" | "4h"
   | "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "2Y" | "5Y";
 
-export type TFSource = "native" | "aggregated" | "unsupported";
+/**
+ * native      — the generic vendor (Yahoo, PROVIDER_EVIDENCE) serves it.
+ * aggregated  — rebuilt from a finer native interval.
+ * route       — served ONLY where a per-symbol bar route carries it
+ *               (chartBarRouteFor decides, per instrument); the generic vendor
+ *               is never asked, so it has no fetch plan here.
+ * unsupported — nothing serves it.
+ */
+export type TFSource = "native" | "aggregated" | "route" | "unsupported";
 
 export interface Timeframe {
   id: TFId;
@@ -97,6 +106,17 @@ export const PROVIDER_EVIDENCE = {
 } as const;
 
 const TF_LIST: Timeframe[] = [
+  // ── Seconds (2026-10-01): served ONLY where a route carries them — today
+  //    tastytrade's own contract candles for futures ({=5s}/{=15s} proven on the
+  //    owner's socket). Every other instrument reads "No bar route" for these
+  //    rungs through canonAvailabilityFor; nothing here claims a vendor has them.
+  { id: "5s",  label: "5s",  candleIntervalSec: 5,   defaultRangeSec: 30 * MIN,
+    source: "route",  maxRangeSec: null, minBarsForState: 120 },
+  { id: "15s", label: "15s", candleIntervalSec: 15,  defaultRangeSec: 2 * HOUR,
+    source: "route", maxRangeSec: null, minBarsForState: 120 },
+  { id: "30s", label: "30s", candleIntervalSec: 30,  defaultRangeSec: 4 * HOUR,
+    source: "route", maxRangeSec: null, minBarsForState: 120 },
+
   // ── Native intraday ────────────────────────────────────────────────────────
   { id: "1m",  label: "1m",  candleIntervalSec: 1 * MIN,  defaultRangeSec: 1 * DAY,
     source: "native", providerInterval: "1m",  maxRangeSec: 8 * DAY,   minBarsForState: 120 },
@@ -205,6 +225,9 @@ export function resolveFetchPlan(id: TFId, requestedRangeSec?: number): FetchPla
   if (tf.source === "unsupported") {
     throw new Error(`Timeframe ${id} is unsupported: ${tf.unsupportedReason ?? "no provider support"}`);
   }
+  if (tf.source === "route") {
+    throw new Error(`Timeframe ${id} is served only by its per-symbol bar route (chartBarRouteFor), never the generic vendor.`);
+  }
 
   const base = tf.source === "aggregated" ? getTimeframe(tf.aggregatedFrom!) : tf;
   const factor = tf.aggregationFactor ?? 1;
@@ -292,6 +315,7 @@ export function hasEnoughBarsForState(id: TFId, barCount: number): boolean {
 
 /** Full canonical ordering — intraday first, then daily and longer. */
 export const CHART_TF_ORDER: readonly TFId[] = Object.freeze([
+  "5s", "15s", "30s",
   "1m", "2m", "3m", "5m", "10m", "15m", "30m", "45m", "1h", "2h", "4h",
   "1D", "1W", "1M", "3M", "6M", "1Y", "2Y", "5Y",
 ]);
@@ -499,10 +523,10 @@ const native = (id: CanonRungId & TFId, group: CanonRungGroup, n: number, unit: 
 export const CANON_LADDER: readonly CanonRung[] = Object.freeze([
   off("TICK", "TICK_SECONDS", null, "tick",   NO_TAPE),
   off("1s",   "TICK_SECONDS", 1,    "second", NO_TAPE),
-  off("5s",   "TICK_SECONDS", 5,    "second", NO_TAPE),
+  native("5s",  "TICK_SECONDS", 5,  "second"),
   off("10s",  "TICK_SECONDS", 10,   "second", NO_TAPE),
-  off("15s",  "TICK_SECONDS", 15,   "second", NO_TAPE),
-  off("30s",  "TICK_SECONDS", 30,   "second", NO_TAPE),
+  native("15s", "TICK_SECONDS", 15, "second"),
+  native("30s", "TICK_SECONDS", 30, "second"),
 
   native("1m",  "MINUTES", 1,  "minute"),
   native("2m",  "MINUTES", 2,  "minute"),

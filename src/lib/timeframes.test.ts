@@ -8,8 +8,9 @@ import {
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 describe("canonical timeframe set", () => {
-  it("covers all 19 required intervals from 1m through 5Y", () => {
+  it("covers the 19 required intervals from 1m through 5Y, plus the three route-served seconds clocks", () => {
     const required: TFId[] = [
+      "5s","15s","30s",
       "1m","2m","3m","5m","10m","15m","30m","45m","1h","2h","4h",
       "1D","1W","1M","3M","6M","1Y","2Y","5Y",
     ];
@@ -51,6 +52,15 @@ describe("provider support is measured, not assumed", () => {
     for (const tf of TIMEFRAMES.filter(t => t.source === "native")) {
       expect(tf.providerInterval).toBeDefined();
       expect(PROVIDER_EVIDENCE.validIntervals).toContain(tf.providerInterval!);
+    }
+  });
+
+  it("seconds are ROUTE-served: no generic vendor plan, and only the per-symbol route may serve them", () => {
+    const route = TIMEFRAMES.filter(t => t.source === "route").map(t => t.id);
+    expect(route.sort()).toEqual(["15s", "30s", "5s"]);
+    for (const id of route) {
+      expect(getTimeframe(id).providerInterval).toBeUndefined();
+      expect(() => resolveFetchPlan(id)).toThrow(/per-symbol bar route/);
     }
   });
 

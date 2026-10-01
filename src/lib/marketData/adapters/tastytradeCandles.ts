@@ -15,6 +15,9 @@
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 const PERIODS: Readonly<Record<string, { readonly period: string; readonly seconds: number }>> = {
+  "5s": { period: "5s", seconds: 5 },
+  "15s": { period: "15s", seconds: 15 },
+  "30s": { period: "30s", seconds: 30 },
   "1m": { period: "m", seconds: 60 },
   "2m": { period: "2m", seconds: 120 },
   "3m": { period: "3m", seconds: 180 },
@@ -33,6 +36,11 @@ const PERIODS: Readonly<Record<string, { readonly period: string; readonly secon
 /** dxFeed's period for a chart timeframe, or null when tastytrade is not asked for it. */
 export function tastyCandlePeriod(tf: string): string | null {
   return PERIODS[tf]?.period ?? null;
+}
+
+/** The bar size tastytrade serves for a chart timeframe, in seconds (a month counts as 30.4 days). */
+export function tastyCandleSeconds(tf: string): number | null {
+  return PERIODS[tf]?.seconds ?? null;
 }
 
 /** `/ESZ26:XCME{=5m}` — the contract's own streamer symbol with the period attribute. */

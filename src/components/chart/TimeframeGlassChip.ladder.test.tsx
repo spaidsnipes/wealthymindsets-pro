@@ -16,6 +16,10 @@ import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TimeframeGlassChip, TimeframeLadder, TIMEFRAME_LADDER_ID } from "./TimeframeGlassChip";
 import { CANON_LADDER, canonRungSpokenName, type CanonRung } from "@/lib/timeframes";
+import { canonAvailabilityFor } from "@/lib/marketData/chartBarRoute";
+
+// The ladder these tests render is TSLA's: the glass never reads CANON_LADDER raw.
+const TSLA_LADDER = CANON_LADDER.map(r => canonAvailabilityFor(r, "TSLA"));
 
 /** Every element in a rendered tree, props and all — enough to press a button without a DOM. */
 function elements(node: unknown, out: React.ReactElement<Record<string, unknown>>[] = []) {
@@ -49,7 +53,7 @@ describe("TimeframeLadder — every canon rung, honest about each", () => {
 
   it("a NATIVE rung is a real button; an UNAVAILABLE rung is NOT a button", () => {
     const tree = elements(TimeframeLadder({ timeframe: "15m", symbol: "TSLA", onChoose: () => {} }));
-    for (const r of CANON_LADDER) {
+    for (const r of TSLA_LADDER) {
       const el = tree.find(e => e.props["data-availability"] && textOf(e).startsWith(r.id) && textOf(e).replace(/,.*$/, "") === r.id);
       expect(el, r.id).toBeDefined();
       if (r.availability === "UNAVAILABLE") {
@@ -66,13 +70,15 @@ describe("TimeframeLadder — every canon rung, honest about each", () => {
 
   it("every unavailable rung states its reason in visible words, not only a tooltip", () => {
     const visible = html.replace(/title="[^"]*"/g, "");
-    for (const r of CANON_LADDER) {
+    for (const r of TSLA_LADDER) {
       if (r.availability !== "UNAVAILABLE") continue;
       expect(visible, `${r.id}'s reason is only in a title`).toContain(r.reason);
     }
-    // One line per distinct reason, naming its rungs — the six tape rungs read it once.
+    // One line per distinct reason, naming its rungs — the tape rungs read it once.
     expect(visible.split("Needs a certified trade tape").length - 1).toBe(1);
-    expect(visible).toContain("TICK · 1s · 5s · 10s · 15s · 30s</span>: Needs a certified trade tape — none on this path.");
+    expect(visible).toContain("TICK · 1s · 10s</span>: Needs a certified trade tape — none on this path.");
+    // The seconds clocks are real chart ids now; no route serves them for an equity.
+    expect(visible).toContain("5s · 15s · 30s");
   });
 
   it("marks the current timeframe — and only it — with aria-current", () => {
@@ -86,7 +92,7 @@ describe("TimeframeLadder — every canon rung, honest about each", () => {
     const tree = elements(TimeframeLadder({ timeframe: "15m", symbol: "TSLA", onChoose }));
     const buttons = tree.filter(e => e.type === "button");
     for (const b of buttons) (b.props.onClick as () => void)();
-    const expected = CANON_LADDER.flatMap(r => (r.availability === "UNAVAILABLE" ? [] : [r.chartTf]));
+    const expected = TSLA_LADDER.flatMap(r => (r.availability === "UNAVAILABLE" ? [] : [r.chartTf]));
     expect(onChoose.mock.calls.map(c => c[0])).toEqual(expected);
     expect(expected).toEqual(["1m", "2m", "3m", "5m", "10m", "15m", "30m", "1h", "2h", "4h", "1D", "1W", "1M"]);
   });
@@ -151,9 +157,16 @@ describe("the ladder answers for the symbol on the glass (Garden 16 §26)", () =
       .filter(e => e.type === "button" && e.props["data-availability"] === "DERIVED_CANONICAL")
       .map(e => textOf(e).replace(/derived$/, ""));
 
-  it("ES1!: 3m / 10m / 2h / 4h wear 'derived' on the glass and aloud; TSLA and BTC wear it nowhere", () => {
-    expect(derivedIds("ES1!")).toEqual(["3m", "10m", "2h", "4h"]);
-    const tree = elements(TimeframeLadder({ timeframe: "4h", symbol: "ES1!", onChoose: () => {} }));
+  it("BTCUSD: 3m / 10m / 2h / 4h wear 'derived' on the glass and aloud; TSLA, BTC and ES1! wear it nowhere", () => {
+    expect(derivedIds("BTCUSD")).toEqual(["3m", "10m", "2h", "4h"]);
+    // ES1! is served by tastytrade's own candles at every size since 2026-10-01:
+    // 16 servable rungs (5s/15s/30s included), every one native.
+    const es = elements(TimeframeLadder({ timeframe: "15m", symbol: "ES1!", onChoose: () => {} })).filter(e => e.type === "button");
+    expect(es.length).toBeGreaterThan(15);
+    expect(es).toHaveLength(16);
+    expect(es.every(e => e.props["data-availability"] === "NATIVE_PROVIDER")).toBe(true);
+    expect(derivedIds("ES1!")).toEqual([]);
+    const tree = elements(TimeframeLadder({ timeframe: "4h", symbol: "BTCUSD", onChoose: () => {} }));
     const b = tree.find(e => e.type === "button" && textOf(e).startsWith("4h"))!;
     expect(b.props["aria-label"]).toBe("4 hours bars, derived from finer bars");
     expect(b.props["aria-current"]).toBe("true");

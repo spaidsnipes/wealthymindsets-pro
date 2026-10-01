@@ -28,12 +28,14 @@ describe("canonAvailabilityFor — the ladder for the instrument actually on the
     for (const id of ["3m", "10m", "2h", "4h"]) expect(chartBarRouteFor(id, "TSLA")).toMatchObject({ vendor: "Alpaca", mode: "NATIVE", exact: true });
   });
 
-  it("ES1!: 3m / 10m / 2h / 4h are DERIVED — Yahoo rebuilds them, Alpaca is never asked for futures", () => {
-    expect(table("ES1!")).toBe(TAIL +
-      "1m:N 2m:N 3m:D 5m:N 10m:D 15m:N 20m:U 30m:N 1h:N 2h:D 4h:D 1D:N 1W:N 1M:N 1Q:U 6M:U 1Y:U");
-    expect(chartBarRouteFor("4h", "ES1!")).toMatchObject({ vendor: "Yahoo", mode: "RECONSTRUCTED", served: "4-hour candles rebuilt from hourly bars" });
-    expect(chartBarRouteFor("3m", "ES1!")?.served).toBe("3-minute candles rebuilt from 1-minute bars");
-    expect(chartBarRouteFor("10m", "ES1!")?.served).toBe("10-minute candles rebuilt from 5-minute bars");
+  it("ES1!: tastytrade's own contract candles — every size it serves is native, seconds included (2026-10-01)", () => {
+    // MainChart's door 0 for futures. Measured on the owner's DXLink socket;
+    // a guest's chart falls through to Yahoo, whose 3m/10m/2h/4h are rebuilt.
+    expect(table("ES1!")).toBe("TICK:U 1s:U 5s:N 10s:U 15s:N 30s:N " +
+      "1m:N 2m:N 3m:N 5m:N 10m:N 15m:N 20m:U 30m:N 1h:N 2h:N 4h:N 1D:N 1W:N 1M:N 1Q:U 6M:U 1Y:U");
+    expect(chartBarRouteFor("4h", "ES1!")).toMatchObject({ vendor: "tastytrade", mode: "NATIVE", exact: true, served: "4-hour candles" });
+    expect(chartBarRouteFor("5s", "ES1!")).toMatchObject({ vendor: "tastytrade", mode: "NATIVE", exact: true, served: "5-second candles" });
+    expect(chartBarRouteFor("1M", "ES1!")).toMatchObject({ vendor: "tastytrade", exact: true, served: "monthly candles" });
     // NQ1! and GC1! take the same door.
     for (const sym of ["NQ1!", "GC1!"]) expect(table(sym), sym).toBe(table("ES1!"));
   });
@@ -52,7 +54,8 @@ describe("canonAvailabilityFor — the ladder for the instrument actually on the
 
   it("BTCUSD: Alpaca is asked for BTCUSD/USD, which is not a pair — so Yahoo rebuilds 3m / 10m / 2h / 4h", () => {
     expect(alpacaCryptoPairResolves("BTCUSD")).toBe(false);
-    expect(table("BTCUSD")).toBe(table("ES1!"));
+    expect(table("BTCUSD")).toBe(TAIL +
+      "1m:N 2m:N 3m:D 5m:N 10m:D 15m:N 20m:U 30m:N 1h:N 2h:D 4h:D 1D:N 1W:N 1M:N 1Q:U 6M:U 1Y:U");
     expect(chartBarRouteFor("2h", "BTCUSD")).toMatchObject({ vendor: "Yahoo", mode: "RECONSTRUCTED" });
     expect(chartBarRouteFor("1m", "BTCUSD")?.vendor).toBe("Coinbase");
     // Finnhub REST (door 3) is not asked for crypto, so Yahoo answers 30m / 1D
@@ -102,7 +105,7 @@ describe("canonAvailabilityFor — the ladder for the instrument actually on the
     for (const sym of ["ES1!", "GC1!", "BTC.COINBASE"]) {
       for (const tf of TF_IDS) expect(chartBarRouteFor(tf, sym)?.vendor, `${sym} ${tf}`).not.toBe("Finnhub");
     }
-    expect(chartBarRouteFor("30m", "ES1!")?.vendor).toBe("Yahoo");
+    expect(chartBarRouteFor("30m", "ES1!")?.vendor).toBe("tastytrade");
     // The door itself, asked directly: the route 404s when toFinnhubSym is
     // null, and MainChart never asks it for futures. (Yahoo answers both rows
     // first today, so only the door can show the refusal.)
@@ -151,7 +154,7 @@ describe("the model walks the real route tables, not a copy", () => {
       const r = chartBarRouteFor(tf, "TSLA");
       if (r?.vendor !== "Alpaca") continue;
       const want = ALPACA_TF_MAP[tf].timeframe;
-      const unit = { minute: "Min", hour: "Hour", day: "Day", week: "Week", month: "Month" }[r.bucket.unit];
+      const unit = { second: "Sec", minute: "Min", hour: "Hour", day: "Day", week: "Week", month: "Month" }[r.bucket.unit];
       expect(`${r.bucket.n}${unit}`, tf).toBe(want);
     }
   });
