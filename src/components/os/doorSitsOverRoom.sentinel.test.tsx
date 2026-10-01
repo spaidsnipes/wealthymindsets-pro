@@ -70,7 +70,8 @@ describe("the room is sealed beneath an open door (D toggle, Vol label, ASK row)
   it("the door itself is the pinned overlay the room is sealed beneath", () => {
     // If the sheet stopped being a positioned layer with a z-index, sealing
     // the room would put the room OVER the door instead.
-    expect(OS).toMatch(/position: "absolute" as const,\s*left: 0,\s*top: 0,\s*bottom: 0,\s*zIndex: 40,/);
+    // Garden 18 §XIII: a floating panel inset from the room's edges, never a full-height drawer.
+    expect(OS).toMatch(/position: "absolute" as const,\s*left: 8,\s*top: 8,\s*zIndex: 40,/);
     expect(OS).toMatch(/<nav\s+ref=\{doorRef\}\s+className="wm-os-rail"/);
   });
 

@@ -2089,16 +2089,25 @@ export function WMOperatingSystem({
                property it sets, so a pinned phone sheet still wins here. */
             ...(equipmentMode
               ? {
+                  // Garden 18 §XIII–§XIV: a FLOATING instrument, not a drawer —
+                  // inset from the room's edges, as tall as its content (never
+                  // the whole pane), rounded and lifted, so the market stays
+                  // visible around it. Still opaque over price (two readings in
+                  // the same pixels is the thing the overlay must never do).
                   position: "absolute" as const,
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
+                  left: 8,
+                  top: 8,
                   zIndex: 40,
+                  background: FIELD,
+                  maxHeight: "calc(100% - 16px)",
+                  overflowY: "auto" as const,
+                  borderRadius: 10,
+                  border: "1px solid #c9a55c48",
+                  boxShadow: "0 18px 48px #0000008c",
                   // The EQUIPMENT width, not the rooms width — see the
                   // constant's doc for the measured three-line hint this ends.
                   width: OS_EQUIPMENT_RAIL_WIDTH_PX,
                   flex: "none" as const,
-                  background: FIELD,
                 }
               : {
                   position: "sticky" as const,
