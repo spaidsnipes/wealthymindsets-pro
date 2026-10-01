@@ -138,8 +138,16 @@ async function ttRequest<T = unknown>(
     try {
       const j = await res.json();
       detail = j?.error?.message || j?.["error"]?.message || "";
+      // A preflight failure names its actual checks under `error.errors` —
+      // the trader needs THOSE ("insufficient buying power", "market closed"),
+      // not the headline.
+      const subs = Array.isArray(j?.error?.errors) ? (j.error.errors as { message?: unknown; code?: unknown }[]) : [];
+      const why = subs.map(e => (typeof e?.message === "string" ? e.message : typeof e?.code === "string" ? e.code : "")).filter(Boolean);
+      if (why.length) detail = `${detail ? `${detail} — ` : ""}${why.join("; ")}`;
     } catch { /* ignore */ }
-    throw new Error(`tastytrade ${method} ${path} failed (HTTP ${res.status})${detail ? `: ${detail}` : ""}`);
+    // The account number rides in the path; only its last four ever reach a screen.
+    const shownPath = path.replace(/\/accounts\/([A-Za-z0-9]+)/, (_m, acct: string) => `/accounts/…${acct.slice(-4)}`);
+    throw new Error(`tastytrade ${method} ${shownPath} failed (HTTP ${res.status})${detail ? `: ${detail}` : ""}`);
   }
   return res.json() as Promise<T>;
 }
