@@ -4,7 +4,9 @@ import { authorizeExecution } from "@/lib/authority/executionAuthority";
 import { brokerOwnerRefusal, tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
 import { TT_ACTIONS, TT_INSTRUMENT_TYPES, osiToTastytrade, toTastytradeOrder } from "@/lib/broker/tastytradeOrder";
 import { readTastytradeOrder } from "@/lib/broker/tastytradeOrderState";
+import { orderDecisionKv, putOrderDecision } from "@/lib/broker/orderDecisionLedger";
 import { requireAuth } from "@/lib/requireAuth";
+import { webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
 import {
   dryRunTastytradeOrder,
   getTastytradeAccounts,
@@ -88,6 +90,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ state: "NOT_SENT", reason: `Could not read the account before sending: ${e instanceof Error ? e.message : "unknown"}` }, { headers: NO_STORE });
   }
 
+  // §XC: the order → Decision_ID link the Journal groups broker truth by.
+  // Best effort — a journal link never blocks or alters the order itself.
+  const recordDecision = async () => {
+    try {
+      const kv = orderDecisionKv(await webullWorkerEnv());
+      if (!kv) return;
+      await putOrderDecision(kv, {
+        broker: "tastytrade", clientOrderId, decisionId: typeof input.decisionId === "string" ? input.decisionId : "",
+        instrumentType, symbol, action, qty, limitPx: typeof input.limitPx === "number" ? input.limitPx : null,
+        accountTail: tail, sentAtMs: Date.now(),
+      });
+    } catch { /* the journal link is not the order */ }
+  };
+
   try {
     const dry = (await dryRunTastytradeOrder(accountNumber, mapped.order)) as { errors?: unknown[] } | null;
     if (Array.isArray(dry?.errors) && dry.errors.length) return NextResponse.json({ state: "DRY_RUN_FAILED", result: dry, account: tail }, { status: 422, headers: NO_STORE });
@@ -98,10 +114,14 @@ export async function POST(req: NextRequest) {
   try {
     const placed = (await submitTastytradeOrder(accountNumber, mapped.order)) as { order?: unknown; warnings?: unknown[] } | null;
     const order = readTastytradeOrder(placed?.order);
+    await recordDecision();
     return NextResponse.json({ state: order ? "ACKNOWLEDGED" : "UNKNOWN", order, warnings: placed?.warnings ?? [], account: tail, sent: mapped.order }, { headers: NO_STORE });
   } catch (e) {
     // A thrown submit is NOT proof nothing was placed: the client reconciles by
-    // external-identifier through /orders before allowing another send.
+    // external-identifier through /orders before allowing another send. The
+    // decision link is written anyway, so the journal can claim the order if
+    // tastytrade did take it.
+    await recordDecision();
     return NextResponse.json({ state: "UNKNOWN", reason: e instanceof Error ? e.message : "unknown", reconcileBy: clientOrderId, account: tail }, { headers: NO_STORE });
   }
 }

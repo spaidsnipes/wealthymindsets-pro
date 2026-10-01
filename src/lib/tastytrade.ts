@@ -313,3 +313,14 @@ export async function cancelTastytradeOrder(accountNumber: string, orderId: stri
   return r?.data ?? r;
 }
 
+
+/**
+ * The account's TRADE transactions since a date (YYYY-MM-DD) — the broker's own
+ * record of fills: symbol, action, quantity, price, fees, executed-at, order-id.
+ * Read only; the Journal's machine facts come from here, never browser memory.
+ */
+export async function getTastytradeTradeTransactions(accountNumber: string, startDate: string): Promise<unknown[]> {
+  const q = `type=Trade&start-date=${encodeURIComponent(startDate)}&per-page=250`;
+  const r = await ttGet<any>(`/accounts/${encodeURIComponent(accountNumber)}/transactions?${q}`);
+  return (r?.data?.items ?? []) as unknown[];
+}

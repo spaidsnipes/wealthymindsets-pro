@@ -13,6 +13,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
+import { BrokerTruthToday } from "@/components/journal/BrokerTruthToday";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
@@ -2416,6 +2417,9 @@ Trade the system, trust the process, winners every day 🚀`,
           onSelect={(bucket) => setFilterProcessOutcome(bucket ?? "all")}
         />
       )}
+
+      {/* Garden 18 §XC — the day's machine facts, read from the broker. */}
+      {mainTab === "journal" && <BrokerTruthToday />}
 
       {/* Mirror — retrospective behavioral patterns from the journal.
           Renders NOTHING when no patterns detected (silence-is-a-feature).
