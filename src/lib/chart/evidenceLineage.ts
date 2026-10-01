@@ -15,7 +15,7 @@
 export type EvidenceFamilyId = "MOMENTUM" | "AUCTION" | "PARTICIPATION" | "LIQUIDITY" | "VOLATILITY" | "STRUCTURE" | "DERIVATIVES";
 
 export const EVIDENCE_FAMILY: Readonly<Record<EvidenceFamilyId, { readonly label: string; readonly from: string }>> = {
-  MOMENTUM:      { label: "Momentum",      from: "closes — the same price, re-asked" },
+  MOMENTUM:      { label: "Momentum",      from: "price bars — the same candles, re-asked" },
   AUCTION:       { label: "Auction",       from: "where volume and time accepted price" },
   PARTICIPATION: { label: "Participation", from: "who traded, and how hard" },
   LIQUIDITY:     { label: "Liquidity",     from: "resting orders in the book" },
@@ -46,7 +46,8 @@ const TOOL_FAMILY: Readonly<Record<string, EvidenceFamilyId>> = {
   LIVING_PROFILE: "AUCTION", TPO_PROFILE: "AUCTION", STRUCTURE_PROFILE: "AUCTION", PROFILE_DNA: "AUCTION",
   VALUE_MIGRATION: "AUCTION", PROFILE_MEMORY: "AUCTION", PROFILE_FUSION: "AUCTION", COMPOSITE_PROFILE: "AUCTION",
   VISIBLE_RANGE_PROFILE: "AUCTION", ANCHORED_RANGE: "AUCTION",
-  CLARITY_CANDLE: "PARTICIPATION", ABSORPTION: "PARTICIPATION", EXHAUSTION: "PARTICIPATION",
+  // Clarity reads the bar alone (body efficiency, wick intent) — price-derived.
+  CLARITY_CANDLE: "MOMENTUM", ABSORPTION: "PARTICIPATION", EXHAUSTION: "PARTICIPATION",
   ANATOMY_CARDS: "PARTICIPATION", IMBALANCE_STACK: "PARTICIPATION", DELTA_DIVERGENCE: "PARTICIPATION",
   EFFORT_MARK: "PARTICIPATION", DELTA_LEVELS: "PARTICIPATION",
   LIQUIDITY_WEATHER: "LIQUIDITY", LIQUIDITY_LIFECYCLE: "LIQUIDITY", BRICK_WALLS: "LIQUIDITY",

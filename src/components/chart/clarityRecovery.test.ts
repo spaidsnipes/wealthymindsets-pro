@@ -26,4 +26,11 @@ describe("Clarity price sovereignty after a successful paint", () => {
     expect(source).toContain("if (drawnC === 0) restoreNativeAfterClarityLoss();");
     expect(source).toContain('catch (err) { restoreNativeAfterClarityLoss(); layerFault("CLARITY_CANDLE", err); }');
   });
+  it("re-applying the trader's candle colours clears the hidden flag, so Clarity re-hides them (2026-10-01)", () => {
+    const at = source.indexOf("// Update candle colors — skip for types that manage their own colors");
+    const block = source.slice(at, source.indexOf("candleType === \"hollow\"", at));
+    expect(at).toBeGreaterThan(-1);
+    expect(block).toContain("candleRef.current.applyOptions({");
+    expect(block).toContain("clarityHidRef.current = false;");
+  });
 });

@@ -6311,6 +6311,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             wickUpColor: chartSettings.wickUp ?? chartSettings.candleUp,
             wickDownColor: chartSettings.wickDown ?? chartSettings.candleDown ?? CANDLE_DOWN_DEFAULT,
           });
+          // The native ink is back on the series: if Clarity had hidden it,
+          // say so, so the Clarity layer hides it again on its next frame
+          // (serving TSLA 2026-10-01: green/red bodies showed through gold).
+          clarityHidRef.current = false;
         } catch {}
       } else if (candleRef.current && chartSettings.candleUp && candleType === "hollow") {
         // For hollow candles: only update wicks and border, keep body as background color

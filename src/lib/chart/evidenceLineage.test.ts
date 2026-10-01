@@ -32,6 +32,8 @@ describe("H-301 Evidence Lineage — do not count correlated readings twice (pla
     expect(evidenceFamilyOfIndicator("Bollinger Bands", "Trend")).toBe("VOLATILITY");
     expect(evidenceFamilyOfIndicator("VWAP", "Volume")).toBe("AUCTION");
     expect(evidenceFamilyOfIndicator("OBV", "Momentum")).toBe("PARTICIPATION");
+    // Clarity Candle reads the bar alone — it shares the price bars with RSI.
+    expect(evidenceFamilyOfTool("CLARITY_CANDLE")).toBe("MOMENTUM");
   });
 
   it("every Tools switch is either an evidence family or a named lens — none silently dropped", () => {
