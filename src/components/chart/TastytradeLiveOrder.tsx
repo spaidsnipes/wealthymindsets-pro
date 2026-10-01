@@ -32,7 +32,7 @@ const MUTED = "#8a8271";
 const RED = "#e0786b";
 
 export interface TastytradeIntent {
-  readonly instrumentType: "Equity" | "Equity Option" | "Future" | "Future Option";
+  readonly instrumentType: "Equity" | "Equity Option" | "Future" | "Future Option" | "Cryptocurrency";
   /** tastytrade's own order symbol (`/MNQZ6`, `./ESZ6 EW3V6  261016C7900`), or an OSI for equity options. */
   readonly symbol: string;
   readonly action: "Buy to Open" | "Sell to Close" | "Sell to Open" | "Buy to Close";

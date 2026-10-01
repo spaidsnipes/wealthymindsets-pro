@@ -10,7 +10,10 @@
  *            tick nudges, point and tick value from the contract's economics.
  *   STOCK    shares on tastytrade, same grammar.
  *   OPTION / FUTURES OPTION  → the Options family (chain, shortlist, ticket).
- *   CRYPTO   honestly not wired in this ticket yet.
+ *   CRYPTO   spot, the exact pair (BTC → BTC/USD) at tastytrade, sized in coin
+ *            units; tastytrade's dry run says whether the account may trade it.
+ *            If the quote stream does not answer, the limit seeds from the
+ *            chart's last price and the touch reads "—".
  *   FX       "NO CONNECTED SPOT-FX EXECUTION RAIL" — never a silent 6E swap.
  *
  * Execution is the existing firewall: tastytrade's dry run first, then the
@@ -25,7 +28,7 @@ import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/T
 import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
-import { canonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
+import { canonicalAssetClass, cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 
@@ -77,6 +80,11 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
       });
     } else if (kind === "STOCK") {
       setContract({ symbol: symbol.toUpperCase(), streamer: symbol.toUpperCase() });
+    } else if (kind === "CRYPTO") {
+      // §LXXII: the exact expression — spot, priced in USD, at tastytrade.
+      const base = cryptoBaseTicker(symbol);
+      if (base) setContract({ symbol: `${base}/USD`, streamer: `${base}/USD:CXTALP` });
+      else setContractWhy("This coin has no USD pair WM can name exactly.");
     }
     return () => { live = false; };
   }, [symbol, kind]);
@@ -91,6 +99,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [closing, setClosing] = useState(false);
   const [qty, setQty] = useState(1);
+  // Crypto sizes in coin units; reset when the instrument kind changes.
+  useEffect(() => { setQty(kind === "CRYPTO" ? 0.001 : 1); }, [kind]);
   const [limit, setLimit] = useState("");
   const [stop, setStop] = useState("");
   const [target, setTarget] = useState("");
@@ -110,7 +120,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const setTo = (v: number | null | undefined) => { if (v == null) return; setLimit((tick ? Math.round(v / tick) * tick : v).toFixed(dp)); };
 
   const action: TastytradeIntent["action"] = side === "BUY" ? (closing ? "Buy to Close" : "Buy to Open") : (closing ? "Sell to Close" : "Sell to Open");
-  const instrumentType: TastytradeIntent["instrumentType"] | null = kind === "FUTURE" ? "Future" : kind === "STOCK" ? "Equity" : null;
+  const instrumentType: TastytradeIntent["instrumentType"] | null = kind === "FUTURE" ? "Future" : kind === "STOCK" ? "Equity" : kind === "CRYPTO" ? "Cryptocurrency" : null;
+  const fractional = kind === "CRYPTO";
 
   // Risk on the ticket (§LXXVII): $ at the stop, $ at the target, R.
   const stopNum = Number(stop) > 0 ? Number(stop) : null;
@@ -162,7 +173,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     minHeight: 30, padding: "0 10px", borderRadius: 6, border: `1px solid ${on ? color : LINE}`,
     background: on ? `${color}22` : "transparent", color: on ? color : INK, fontSize: 12, fontWeight: 600, cursor: "pointer",
   });
-  const sizes = kind === "STOCK" ? [1, 10, 50, 100] : [1, 2, 3, 5];
+  const sizes = kind === "STOCK" ? [1, 10, 50, 100] : kind === "CRYPTO" ? [0.001, 0.01, 0.1, 1] : [1, 2, 3, 5];
+  // Crypto seeds its limit from the chart's last price when no quote has been heard.
+  useEffect(() => { if (kind === "CRYPTO" && !limit && price != null && price > 0) setLimit(price.toFixed(2)); }, [kind, price, limit]);
 
   return (
     <section
@@ -190,10 +203,6 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           <p style={{ color: MUTED }}>Options trade from the Options family — chain, shortlist and ticket with live quotes.</p>
           <button type="button" onClick={onOpenOptions} style={{ ...btn(true), marginTop: 8 }}>Open Options</button>
         </div>
-      ) : kind === "CRYPTO" ? (
-        <p data-testid="trade-crypto-truth" style={{ padding: 12, color: GOLD }}>
-          Crypto orders are not wired into this ticket yet. tastytrade lists crypto pairs and Webull crypto streams live, but no crypto order path has been proven here — so none is offered.
-        </p>
       ) : (
         <div style={{ padding: 12, display: "grid", gap: 10 }}>
           {/* Live touch */}
@@ -215,9 +224,10 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
 
           {/* Size */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: MUTED, width: 64 }}>{kind === "FUTURE" ? "Contracts" : "Shares"}</span>
+            <span style={{ color: MUTED, width: 64 }}>{kind === "FUTURE" ? "Contracts" : kind === "CRYPTO" ? (contract?.symbol.split("/")[0] ?? "Coins") : "Shares"}</span>
             {sizes.map(n => <button key={n} type="button" data-testid={`trade-size-${n}`} aria-pressed={qty === n} onClick={() => setQty(n)} style={btn(qty === n)}>{n}</button>)}
-            <input type="number" min={1} step={1} value={qty} aria-label="Quantity" onChange={e => setQty(Math.max(1, Math.floor(Number(e.target.value) || 1)))}
+            <input type="number" min={fractional ? 0.00000001 : 1} step={fractional ? "any" : 1} value={qty} aria-label="Quantity"
+              onChange={e => { const v = Number(e.target.value); setQty(fractional ? (v > 0 ? v : 0.001) : Math.max(1, Math.floor(v || 1))); }}
               style={{ width: 64, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
           </div>
 
