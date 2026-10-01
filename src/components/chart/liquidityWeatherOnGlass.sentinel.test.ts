@@ -229,9 +229,10 @@ describe("the heat lens reads as a tide without inventing another market fact", 
 describe("F08B — the field exists only INSIDE the lens, behind the candles", () => {
   it("the field meets the glass through the lens ellipse, the candle cut-out and the chip cut-out", () => {
     // Pin extended 2026-09-25 (serving 14:48): the lens also passes BEHIND
-    // chips already placed (value band, SWING labels).
+    // chips already placed (value band, SWING labels). Extended 2026-10-01
+    // (Garden 18 §L): and behind the newest candles' clear zone.
     expect(CHART).toMatch(
-      /mainCtx\.ellipse\(weatherLens\.cx, weatherLens\.cy, weatherLens\.rx, weatherLens\.ry, 0, 0, Math\.PI \* 2\);\s*mainCtx\.clip\(\);\s*if \(weatherLensCut\) mainCtx\.clip\(weatherLensCut, "evenodd"\);\s*if \(weatherLensChipCut\) mainCtx\.clip\(weatherLensChipCut, "evenodd"\);\s*mainCtx\.setTransform\(1, 0, 0, 1, 0, 0\);/,
+      /mainCtx\.ellipse\(weatherLens\.cx, weatherLens\.cy, weatherLens\.rx, weatherLens\.ry, 0, 0, Math\.PI \* 2\);\s*mainCtx\.clip\(\);\s*if \(weatherLensCut\) mainCtx\.clip\(weatherLensCut, "evenodd"\);\s*if \(weatherLensChipCut\) mainCtx\.clip\(weatherLensChipCut, "evenodd"\);\s*if \(weatherLensClearCut\) mainCtx\.clip\(weatherLensClearCut, "evenodd"\);\s*mainCtx\.setTransform\(1, 0, 0, 1, 0, 0\);/,
     );
   });
 

@@ -19351,6 +19351,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         let weatherLensCut: Path2D | null = null;
         /** Chips already on the glass that the lens passes BEHIND (value band, SWING labels, …). */
         let weatherLensChipCut: Path2D | null = null;
+        /** §L: the newest candles' clear zone — its own path, so even-odd with chips can never reopen it. */
+        let weatherLensClearCut: Path2D | null = null;
         /** The measured region while the lens is still GATHERING — where its one line of words attaches. */
         let weatherGathering: { region: { x0: number; y0: number; x1: number; y1: number }; words: string } | null = null;
         /** The field's composite alpha as actually painted (0 = no field) — the readout's VEIL. */
@@ -19466,6 +19468,32 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // SPY 1h: the loupe veiled the 775 wall). Its own clip path, like a chip,
           // so a wall over a candle never cancels the candle's cut under even-odd.
           for (const wr of pressureWallHitRef.current) chipCut.rect(wr.x, wr.y, wr.w, wr.h);
+          // GARDEN 18 §XLIX/§L — PRICE SOVEREIGNTY over the loupe. The lens
+          // magnifies the newest window, so it sits where the forming candle
+          // lives. The founder shape stays (round, brass, in place); a CLEAR
+          // ZONE around the newest three candles — bodies, wicks and the live
+          // price — is cut out of the tint, the field and the ring, exactly as
+          // the lens already yields to chips. The face is never under the storm.
+          let clearZone = "NONE";
+          if (lensBars.length > 0) {
+            const lastIdx = lensBars.length - 1;
+            const xLast = tsW.timeToCoordinate(lensBars[lastIdx].time as never);
+            if (xLast != null && +xLast >= Lc.cx - Lc.rx - bsp && +xLast <= Lc.cx + Lc.rx + bsp) {
+              let hi = -Infinity, lo = Infinity;
+              for (let k = Math.max(0, lastIdx - 2); k <= lastIdx; k++) { hi = Math.max(hi, lensBars[k].high); lo = Math.min(lo, lensBars[k].low); }
+              const yHi = srs.priceToCoordinate(hi), yLo = srs.priceToCoordinate(lo);
+              if (yHi != null && yLo != null) {
+                const x0 = +xLast - bsp * 2.6;
+                const y0 = Math.min(+yHi, +yLo) - 10, y1 = Math.max(+yHi, +yLo) + 10;
+                const cc = new Path2D();
+                cc.rect(0, 0, W, H);
+                cc.rect(x0, y0, Math.max(0, weatherPlotRight - x0), y1 - y0);
+                weatherLensClearCut = cc;
+                clearZone = `${Math.round(x0)},${Math.round(y0)},${Math.round(weatherPlotRight - x0)}x${Math.round(y1 - y0)}`;
+              }
+            }
+          }
+          ds.liquidityWeatherClearZone = clearZone;
           weatherLensChipCut = chipCut;
           ds.liquidityWeatherChipsYielded = String(chipsYielded);
           // THE LENS'S GLASS — a faint slate tint darkening toward the rim,
@@ -19477,6 +19505,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ctx.globalAlpha = att.alpha("weather");
           ctx.clip(cut, "evenodd");
           ctx.clip(chipCut, "evenodd");
+          if (weatherLensClearCut) ctx.clip(weatherLensClearCut, "evenodd");
           ctx.beginPath();
           ctx.ellipse(Lg.cx, Lg.cy, Lg.rx, Lg.ry, 0, 0, Math.PI * 2);
           ctx.clip();
@@ -19740,6 +19769,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             mainCtx.clip();
             if (weatherLensCut) mainCtx.clip(weatherLensCut, "evenodd");
             if (weatherLensChipCut) mainCtx.clip(weatherLensChipCut, "evenodd");
+            if (weatherLensClearCut) mainCtx.clip(weatherLensClearCut, "evenodd");
             mainCtx.imageSmoothingEnabled = true;
             mainCtx.imageSmoothingQuality = "high";
             /* CANDLE CLEAR ZONE (master order §XIX/§XXXI: weather belongs behind,
@@ -19797,6 +19827,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             mainCtx.clip();
             if (weatherLensCut) mainCtx.clip(weatherLensCut, "evenodd");
             if (weatherLensChipCut) mainCtx.clip(weatherLensChipCut, "evenodd");
+            if (weatherLensClearCut) mainCtx.clip(weatherLensClearCut, "evenodd");
             mainCtx.setTransform(1, 0, 0, 1, 0, 0);
             mainCtx.globalAlpha = glassAlpha;
             mainCtx.drawImage(hc, 0, 0);
@@ -19854,6 +19885,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.save();
             if (weatherLensCut) ctx.clip(weatherLensCut, "evenodd");
             if (weatherLensChipCut) ctx.clip(weatherLensChipCut, "evenodd");
+            if (weatherLensClearCut) ctx.clip(weatherLensClearCut, "evenodd");
             ctx.save();
             ctx.beginPath();
             ctx.ellipse(L.cx, L.cy, L.rx, L.ry, 0, 0, Math.PI * 2);
