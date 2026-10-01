@@ -115,6 +115,7 @@ export const PROVIDER_REQUIREMENTS: readonly ProviderRequirement[] = [
     label: "Tastytrade",
     lane: "broker",
     required: ["TASTYTRADE_CLIENT_ID", "TASTYTRADE_CLIENT_SECRET", "TASTYTRADE_REFRESH_TOKEN"],
+    aliases: { TASTYTRADE_REFRESH_TOKEN: ["TASTY_TRADE_REFRESH_TOKEN"] },
     recommended: ["TASTYTRADE_ENV"],
     note: "Needs the OAuth client pair AND a refresh token; the client pair alone cannot mint a session.",
   },

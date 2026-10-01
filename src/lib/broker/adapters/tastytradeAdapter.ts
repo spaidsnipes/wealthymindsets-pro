@@ -75,7 +75,7 @@ export const tastytradeAdapter: BrokerAdapter = {
       assetClasses: [],
       orderTypes: [],
       supportsPaper: false,
-      supportsLive: hasNonEmptyEnv("TASTYTRADE_CLIENT_ID") && hasNonEmptyEnv("TASTYTRADE_CLIENT_SECRET") && hasNonEmptyEnv("TASTYTRADE_REFRESH_TOKEN"),
+      supportsLive: hasNonEmptyEnv("TASTYTRADE_CLIENT_ID") && hasNonEmptyEnv("TASTYTRADE_CLIENT_SECRET") && (hasNonEmptyEnv("TASTYTRADE_REFRESH_TOKEN") || hasNonEmptyEnv("TASTY_TRADE_REFRESH_TOKEN")),
       supportsBracketOrders: false,
       supportsShort: false,
       notes: [

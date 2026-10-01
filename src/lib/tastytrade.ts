@@ -31,7 +31,8 @@ function creds() {
   return {
     clientId: process.env.TASTYTRADE_CLIENT_ID || "",
     clientSecret: process.env.TASTYTRADE_CLIENT_SECRET || "",
-    refreshToken: process.env.TASTYTRADE_REFRESH_TOKEN || "",
+    // The Founder stored it in Cloudflare as TASTY_TRADE_REFRESH_TOKEN; both names are read.
+    refreshToken: process.env.TASTYTRADE_REFRESH_TOKEN || process.env.TASTY_TRADE_REFRESH_TOKEN || "",
   };
 }
 
