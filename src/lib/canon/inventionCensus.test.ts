@@ -50,3 +50,19 @@ describe("Garden 18 §CV — ZERO GHOSTS: every invention has an identity, an ow
     for (const e of INVENTION_CENSUS) if (e.status === "NOT_BUILT" || e.status === "PARTIAL") expect(e.gap, e.id).toBeTruthy();
   });
 });
+
+describe("Tools search reaches context-only inventions (§XXVI)", () => {
+  it("'causal' finds F04A with how to reach it", async () => {
+    const { searchCensusPlaces, censusPlaceWords } = await import("./inventionCensus");
+    const hit = searchCensusPlaces("causal").find(e => e.id === "F04A");
+    expect(hit).toBeDefined();
+    expect(censusPlaceWords(hit!)).toMatch(/Big Trades/);
+  });
+  it("'lineage' finds H-301 on the WAIT rail; switches and unbuilt ideas are not listed here", async () => {
+    const { searchCensusPlaces } = await import("./inventionCensus");
+    expect(searchCensusPlaces("lineage").map(e => e.id)).toEqual(["H-301"]);
+    expect(searchCensusPlaces("breathing")).toEqual([]);
+    expect(searchCensusPlaces("memory ghost")).toEqual([]);
+    expect(searchCensusPlaces("   ")).toEqual([]);
+  });
+});

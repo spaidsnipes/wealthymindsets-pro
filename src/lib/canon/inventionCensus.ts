@@ -174,3 +174,25 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
   { id: "F25", name: "Vault continuity", family: "F25 Vault", status: "INTERNAL", owner: "src/components/chart/NectarVaultChip.tsx", surface: { kind: "NONE" }, plate: null },
   { id: "F26", name: "Chaos Gym", family: "F26 internal", status: "INTERNAL", owner: null, surface: { kind: "NONE" }, plate: null },
 ];
+
+/**
+ * WHERE IS IT? — Garden 18 §XXVI ("if we built it, show me where it is").
+ * Tools search reaches every switch; this reaches the built inventions that
+ * live in CONTEXT (a rail, a selected print, a room) so typing "causal",
+ * "lineage" or "fidelity" in Tools answers with the way to reach it. PURE.
+ */
+export function searchCensusPlaces(query: string): readonly CensusEntry[] {
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  return INVENTION_CENSUS.filter(e => {
+    if (e.status !== "BUILT" && e.status !== "PARTIAL") return false;
+    if (e.surface.kind !== "CONTEXT" && e.surface.kind !== "ROUTE") return false;
+    const hay = `${e.id} ${e.name} ${e.family}`.toLowerCase();
+    return words.every(w => hay.includes(w));
+  });
+}
+
+/** The words that tell a trader how to reach a CONTEXT / ROUTE invention. */
+export function censusPlaceWords(e: CensusEntry): string {
+  return e.surface.kind === "CONTEXT" ? e.surface.how : e.surface.kind === "ROUTE" ? `Open ${e.surface.href}` : "";
+}

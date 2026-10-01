@@ -18,6 +18,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ROLE_LAYERS, VISUAL_ROLES_EVENT, autoCompose, nextRole, readStoredRoles, writeStoredRoles, type VisualRole, type VisualRoles } from "@/lib/workspace/visualRoles";
 
 import { PROFILE_FAMILY, selectProfileMenu, type ProfileId, type ProfileMenuInput } from "@/lib/marketData/viewModels/selectProfileMenu";
+import { censusPlaceWords, searchCensusPlaces } from "@/lib/canon/inventionCensus";
 import { FAMILY_WORD, LIBRARY_CATEGORIES, LIBRARY_CATEGORY, searchToolRows, searchTools } from "@/lib/workspace/toolSearch";
 
 /** A chart instrument outside the reading catalogue (footprint modes, Big Trades). */
@@ -50,6 +51,7 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
   const on = vm.entries.filter(e => e.active);
   const instHits = useMemo(() => searchToolRows(instruments, q), [instruments, q]);
   const instOn = instruments.filter(i => i.active);
+  const places = useMemo(() => searchCensusPlaces(q), [q]);
   // §XXXVII roles: one store, read here and by the chart's governor.
   const [roles, setRoles] = useState<VisualRoles>({});
   useEffect(() => {
@@ -90,7 +92,20 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
               </button>
             </li>
           ))}
-          {hits.length === 0 && instHits.length === 0 ? (
+          {places.map(e => (
+            <li key={e.id} data-testid={`tool-finder-place-${e.id}`} className="rounded px-2 py-1.5" style={{ border: "1px dashed rgba(212,175,55,0.35)" }}>
+              <span className="flex items-center gap-2">
+                <span className="text-[12.5px] font-semibold" style={{ color: PEARL }}>{e.name}</span>
+                <span className="ml-auto text-[9.5px] uppercase tracking-[0.12em]" style={{ color: MUTED }}>{e.status === "PARTIAL" ? "partly built" : "in context"}</span>
+              </span>
+              {e.surface.kind === "ROUTE" ? (
+                <a href={e.surface.href} className="block text-[11px] leading-snug underline" style={{ color: GOLD }}>{censusPlaceWords(e)}</a>
+              ) : (
+                <span className="block text-[11px] leading-snug" style={{ color: GOLD }}>Where: {censusPlaceWords(e)}</span>
+              )}
+            </li>
+          ))}
+          {hits.length === 0 && instHits.length === 0 && places.length === 0 ? (
             <li className="px-1 text-[11px]" style={{ color: MUTED }}>No tool by that name. Try a word it does — “delta”, “profile”, “walls”.</li>
           ) : hits.map(e => (
             <li key={e.id}>
