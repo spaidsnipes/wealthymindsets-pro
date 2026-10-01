@@ -129,7 +129,10 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
         const c = readFuturesOptionChain(j.data);
         if (!c.expirations.length) { setEdge(`tastytrade lists no option expirations for ${product}.`); return; }
         setChain(c);
-        setParent(c.futures.find(f => f.activeMonth)?.symbol ?? c.expirations[0].parent);
+        // The month on the chart leads (/MNQH7); a continuous chart opens on the active month.
+        const charted = chartSymbol.trim().toUpperCase();
+        const chartedParent = c.expirations.some(e => e.parent === charted) ? charted : null;
+        setParent(chartedParent ?? c.futures.find(f => f.activeMonth)?.symbol ?? c.expirations[0].parent);
       })
       .catch(() => { if (live) setEdge("The chain request did not return."); });
     fetch("/api/broker/tastytrade/positions", { cache: "no-store" })
