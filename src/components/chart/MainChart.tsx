@@ -54,6 +54,7 @@ import { chartHeaderChangeFact, type HeaderChangeKind } from "@/lib/marketData/c
 import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/deriveLastBarClose";
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
 import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
+import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
@@ -22935,6 +22936,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           bar hid the note and the glass read blank). */}
       {barRefusal && (candles.length === 0 || (!barRefusal.served && candles.length < 3)) && (
         <BarHistoryRefusalNote vm={barRefusal} />
+      )}
+      {isQuoteSampleSeries(candles) && (
+        <div data-testid="quote-sample-note" role="status"
+          style={{ position: "absolute", left: "50%", top: 64, transform: "translateX(-50%)", maxWidth: 460, padding: "8px 14px",
+                   borderRadius: 8, border: "1px solid rgba(240,180,41,0.35)", background: "rgba(16,17,24,0.9)",
+                   color: "#C9CDDD", fontSize: 12, lineHeight: 1.45, pointerEvents: "none", zIndex: 6, textAlign: "center" }}>
+          {quoteSampleSentence(timeframe)}
+        </div>
       )}
 
       {/* ── OHLCV strip ─────────────────────────────────── */}
