@@ -28,3 +28,11 @@ describe("Webull order history as Journal fills (when executions is not served)"
     expect(fills[0]).toMatchObject({ id: "order:o9", clientOrderId: "c9", action: "Buy", quantity: 1, price: 3.4, feesReported: false });
   });
 });
+
+describe("Webull option fills name their contract", () => {
+  it("reads the leg's expiry, strike and right", async () => {
+    const { readWebullOrderHistoryFills } = await import("./webullFills");
+    const [f] = readWebullOrderHistoryFills([{ order_id: "o1", symbol: "TSLA", side: "BUY", filled_quantity: 1, filled_price: 0.26, legs: [{ strike_price: "355", option_type: "CALL", option_expire_date: "2026-10-02" }] }]);
+    expect(f?.symbol).toBe("TSLA 2026-10-02 355C");
+  });
+});

@@ -82,8 +82,14 @@ export function readWebullOrderHistoryFills(payload: unknown): WbFill[] {
     const price = n(o.filled_price);
     if (!id || !(qty && qty > 0) || price == null || seen.has(id)) continue;
     const side = (s(o.side) ?? "").toUpperCase();
+    // An option order names its contract in its leg: "TSLA 2026-10-02 355C".
+    const leg = (Array.isArray(o.legs) ? o.legs[0] : null) as Record<string, unknown> | null;
+    const strike = leg ? n(leg.strike_price) : null;
+    const right = leg ? (s(leg.option_type) ?? "").toUpperCase() : "";
+    const expiry = leg ? s(leg.option_expire_date) : null;
+    const contract = strike != null && expiry && (right === "CALL" || right === "PUT") ? `${s(o.symbol) ?? s(leg?.symbol) ?? ""} ${expiry} ${strike}${right[0]}`.trim() : null;
     seen.set(id, {
-      id: `order:${id}`, orderId: id, clientOrderId: s(o.client_order_id), symbol: s(o.symbol),
+      id: `order:${id}`, orderId: id, clientOrderId: s(o.client_order_id), symbol: contract ?? s(o.symbol),
       instrumentType: s(o.instrument_type), action: side ? side[0] + side.slice(1).toLowerCase() : null,
       quantity: qty, price, value: null, fees: 0, feesReported: false,
       executedAt: isoTime(o.filled_time ?? o.filled_time_at ?? o.place_time),
