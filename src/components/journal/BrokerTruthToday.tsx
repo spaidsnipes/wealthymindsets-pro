@@ -12,6 +12,7 @@
  * behalf.
  */
 
+import { REVIEW_DIMENSIONS, REVIEW_QUESTION, cycleMark, readStoryReviews, reviewSummary, writeStoryReview, type StoryReview } from "@/lib/journal/storyReview";
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -25,6 +26,49 @@ interface FeedFill { id: string; orderId: string | null; symbol: string | null; 
 interface FeedAccount { tail: string; broker: string; state: string; reason?: string; orders: FeedOrder[]; fills: FeedFill[] }
 
 interface Story { key: string; broker: string; decisionId: string | null; accountTail: string; orders: FeedOrder[]; fills: FeedFill[] }
+
+/** §XCI — the trader's half of one story: eight marks and their own words. */
+function StoryReviewRow({ storyKey }: { storyKey: string }) {
+  const [all, setAll] = useState<Readonly<Record<string, StoryReview>>>({});
+  const [open, setOpen] = useState(false);
+  useEffect(() => { setAll(readStoryReviews()); }, []);
+  const r: StoryReview = all[storyKey] ?? { marks: {}, lesson: "", repeat: "", updatedAt: 0 };
+  const save = (next: StoryReview) => setAll(writeStoryReview(storyKey, { ...next, updatedAt: Date.now() }));
+  return (
+    <div data-testid="story-review" style={{ marginTop: 8, borderTop: `1px dashed ${LINE}`, paddingTop: 6 }}>
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        style={{ background: "none", border: "none", color: GOLD, fontSize: 11, cursor: "pointer", padding: 0 }}>
+        {open ? "▾" : "▸"} Review · {reviewSummary(all[storyKey])}
+      </button>
+      {open ? (
+        <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {REVIEW_DIMENSIONS.map(d => {
+              const m = r.marks[d];
+              return (
+                <button key={d} type="button" data-testid={`review-${d}`} data-mark={m ?? "OPEN"} title={REVIEW_QUESTION[d]}
+                  onClick={() => save({ ...r, marks: { ...r.marks, [d]: cycleMark(m) } })}
+                  style={{ fontSize: 10, letterSpacing: 0.8, padding: "3px 7px", borderRadius: 999, cursor: "pointer", background: "transparent",
+                    border: `1px solid ${m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : LINE}`, color: m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : MUTED }}>
+                  {m === "HELD" ? "✓ " : m === "BROKE" ? "✗ " : ""}{d}
+                </button>
+              );
+            })}
+          </div>
+          <label style={{ fontSize: 11, color: MUTED }}>The lesson, in my words
+            <textarea value={r.lesson} onChange={e => save({ ...r, lesson: e.target.value })} rows={2}
+              style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />
+          </label>
+          <label style={{ fontSize: 11, color: MUTED }}>What I would repeat
+            <textarea value={r.repeat} onChange={e => save({ ...r, repeat: e.target.value })} rows={2}
+              style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />
+          </label>
+          <p style={{ fontSize: 10.5, color: MUTED, margin: 0 }}>Kept on this device. The broker&apos;s facts above are never edited by a review.</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 const money = (v: number) => `${v < 0 ? "−" : ""}$${Math.abs(v).toFixed(2)}`;
 const time = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—");
@@ -135,6 +179,7 @@ export function BrokerTruthToday() {
                     )}
                   </ul>
                 ) : st.orders.length ? <p style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>No fill yet.</p> : null}
+                <StoryReviewRow storyKey={st.decisionId ?? st.key} />
               </article>
             );
           })}
