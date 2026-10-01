@@ -59,9 +59,11 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
   { id: "H-801", name: "Expected Envelope + Analogue Surprise", family: "F03 Memory", status: "BUILT", owner: `${VM}selectExpectedEnvelope.ts`, surface: sw("EXPECTED_ENVELOPE"), plate: "WM_NewMockup_120_F03_Expected_Envelope_Surprise" },
 
   // ── F04 CAUSAL LADDER ──────────────────────────────────────────────────
-  { id: "F04A", name: "Causal marks on the event (Force → Response, Unpaid Evidence Debt)", family: "F04 Causal Ladder", status: "PARTIAL",
-    owner: `${VM}selectPrintResponse.ts`, surface: ctx("switch on Big Trades, then select a print"), plate: "WM_NewMockup_70_F04A_Causal_Marks · WM_NewMockup_119_F06_Force_Response_Same_Print",
-    gap: "drawn only for a selected print; no Consequence / Unresolved rungs in Inspect" },
+  // Glass 2026-10-01 (MNQ 1m): FORCE (AGGRESSIVE SELL) → UNPAID EVIDENCE DEBT
+  // 0/3…2/3 → RESPONSE (FADED · REVERSED, with 11 · against 14); Inspect carries
+  // OUTCOME UNKNOWN until the response bars close. Marks ONE selected event by design.
+  { id: "F04A", name: "Causal marks on the event (Force → Response, Unpaid Evidence Debt)", family: "F04 Causal Ladder", status: "BUILT",
+    owner: `${VM}selectPrintResponse.ts`, surface: ctx("switch on Big Trades, then select a print"), plate: "WM_NewMockup_70_F04A_Causal_Marks · WM_NewMockup_119_F06_Force_Response_Same_Print" },
 
   // ── F05 CLARITY ────────────────────────────────────────────────────────
   { id: "F05A", name: "Clarity Candle (default language)", family: "F05 Clarity", status: "BUILT", owner: "src/lib/chart/clarityCandle.ts", surface: sw("CLARITY_CANDLE"), plate: "WM_NewMockup_72_F05A_Clarity_Default_Language" },
