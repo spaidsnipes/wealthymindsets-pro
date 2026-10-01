@@ -151,7 +151,7 @@ export const CERTIFICATE_FRESH_MS = 20 * 60_000;
 export function webullCapabilityCertificate(
   keeper: WebullKeeperView | null | undefined,
   nowMs: number,
-  opts: { readonly ownerNamed: boolean; readonly liveOrdersEnabled: boolean },
+  opts: { readonly ownerNamed: boolean; readonly livePathWired: boolean },
 ): CertificateRow[] {
   const age = keeper ? nowMs - keeper.atMs : Infinity;
   const fresh = age >= 0 && age <= CERTIFICATE_FRESH_MS;
@@ -217,9 +217,9 @@ export function webullCapabilityCertificate(
     { capability: "DEPTH", status: "NOT ENTITLED", evidence: "Depth (TotalView) is its own OpenAPI package; none is attached." },
     {
       capability: "TRADING",
-      status: opts.liveOrdersEnabled ? "PARTIAL" : "NOT AUTHORIZED",
-      evidence: opts.liveOrdersEnabled
-        ? "Live orders are switched on for this deployment; no WM order has been proven end to end."
+      status: opts.livePathWired ? "PARTIAL" : "NOT AUTHORIZED",
+      evidence: opts.livePathWired
+        ? "Live orders are wired behind the armed Send LIVE button (owner, live approval, Webull preview, place once); no WM order has been proven end to end."
         : "Live orders are off: placing a real order needs the owner's explicit live-test order.",
     },
     {
@@ -229,7 +229,7 @@ export function webullCapabilityCertificate(
         ? `Open orders read across ${rec.accounts} account${rec.accounts === 1 ? "" : "s"}${rec.state === "PARTIAL" ? "; one or more accounts did not answer" : ""}.`
         : "Open orders not read.",
     },
-    { capability: "CANCEL/MODIFY", status: opts.liveOrdersEnabled ? "NOT PROVED" : "NOT AUTHORIZED", evidence: "No WM order exists to cancel or modify." },
+    { capability: "CANCEL/MODIFY", status: opts.livePathWired ? "NOT PROVED" : "NOT AUTHORIZED", evidence: opts.livePathWired ? "Cancel is wired; no WM order has been cancelled yet." : "No WM order exists to cancel or modify." },
     { capability: "POSITION STATE", status: "NOT PROVED", evidence: "The positions read exists but the keeper does not exercise it." },
     { capability: "ACCOUNT STATE", status: brokerOk ? "PARTIAL" : "NOT PROVED", evidence: brokerOk ? "Accounts are listed; balances are not read by the keeper." : "Accounts not listed." },
     {

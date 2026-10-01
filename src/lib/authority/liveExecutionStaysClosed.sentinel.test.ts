@@ -21,9 +21,12 @@
  *      the retired `/api/tradovate` prefix comes back (a catch-all included);
  *   B. any server file names an `*.alpaca.markets` host other than the paper
  *      trading host and the market-data hosts — i.e. a live trading base;
- *   C. `submitWebullOrderOnce` gains a non-test caller;
- *   D. any non-test source sets `liveOrdersEnabled` to anything but `false`
- *      (dot, quoted or bracketed key; `false || x` is not `false`);
+ *   C. `submitWebullOrderOnce` gains a caller other than THE ONE DOOR
+ *      (/api/broker/webull/order-submit, opened 2026-10-01 on the Founder's
+ *      instruction, behind the owner gate and executionAuthority);
+ *   D. any non-test source other than the one door sets `liveOrdersEnabled`
+ *      to anything but `false` (dot, quoted or bracketed key; `false || x` is
+ *      not `false`), or the door opens it before authority and preview;
  *   E. the Webull place/cancel endpoints are named anywhere but their contract
  *      entry and the one place path: `ORDER_PLACE` / `ORDER_CANCEL` and the
  *      `/trading/orders/place|cancel` paths. C watches one function name; E
@@ -84,6 +87,14 @@ function alpacaHostsIn(text: string): string[] {
 const SUBMIT = /\bsubmitWebullOrderOnce\b/g;
 const SUBMIT_OWNER = "lib/broker/adapters/webullOrders.ts";
 const SUBMIT_DECLARATION = /export async function submitWebullOrderOnce\(/;
+/**
+ * 2026-10-01 — THE ONE DOOR. The Founder instructed live execution be built
+ * ("I should be able to trade my TSLA options on Webull … from the WM Pro OS").
+ * The law narrows rather than ends: exactly ONE route may reach the place path
+ * and open the gate, and only behind executionAuthority with the human's
+ * explicit, per-request live approval. A second caller is still a second door.
+ */
+const THE_ONE_DOOR = "app/api/broker/webull/order-submit/route.ts";
 
 // ── D. liveOrdersEnabled ─────────────────────────────────────────────────────
 /**
@@ -114,11 +125,12 @@ function setsLiveFlag(text: string): boolean {
 const ORDER_ENDPOINT = /\bORDER_(?:PLACE|CANCEL)\b|\/trading\/orders\/(?:place|cancel)\b/g;
 const CONTRACT_OWNER = "lib/marketData/webullSdkContract.ts";
 /** Where each mention is allowed, and how many: the contract declares both keys
- *  and both paths once; the place path reads ORDER_PLACE once. Nothing reads
- *  ORDER_CANCEL — no live cancel is wired. */
+ *  and both paths once; the order module reads ORDER_PLACE once (the place
+ *  path) and, since 2026-10-01, ORDER_CANCEL once (cancelWebullOrder — exit
+ *  easier than entry). No other file names either endpoint. */
 const ORDER_ENDPOINT_ALLOWED: Readonly<Record<string, readonly string[]>> = {
   [CONTRACT_OWNER]: ["/trading/orders/cancel", "/trading/orders/place", "ORDER_CANCEL", "ORDER_PLACE"],
-  [SUBMIT_OWNER]: ["ORDER_PLACE"],
+  [SUBMIT_OWNER]: ["ORDER_CANCEL", "ORDER_PLACE"],
 };
 
 function orderEndpointMentions(text: string): string[] {
@@ -239,16 +251,28 @@ describe("live execution stays closed", () => {
     expect(hits, "a non-paper Alpaca trading base is in server code — live brokerage is fail-closed").toEqual([]);
   });
 
-  it("C: submitWebullOrderOnce has no non-test caller", () => {
-    const refs = SOURCES.flatMap((f) => [...f.text.matchAll(SUBMIT)].map(() => f.file));
-    // Exactly one: its own declaration. Any second mention is a caller, an
-    // alias or a re-export — each one a road to the place path.
-    expect(refs, "submitWebullOrderOnce gained a non-test reference — the live place path now has a caller").toEqual([SUBMIT_OWNER]);
+  it("C: submitWebullOrderOnce has exactly ONE non-test caller — the order-submit route — behind the human's live approval", () => {
+    const refs = SOURCES.flatMap((f) => [...f.text.matchAll(SUBMIT)].map(() => f.file)).sort();
+    // Its own declaration, plus the one door's import and call. Any other
+    // mention is a second caller, an alias or a re-export.
+    expect(refs, "submitWebullOrderOnce gained a reference outside the one door").toEqual([THE_ONE_DOOR, THE_ONE_DOOR, SUBMIT_OWNER].sort());
+    const door = SOURCES.find((f) => f.file === THE_ONE_DOOR)!.text;
+    expect(door).toMatch(/const owner = webullOwnerGate\(auth\.user\.sub, process\.env\);/);
+    expect(door).toMatch(/humanApproval: input\.confirmLive === true \? \{ approved: true, approvedBy: auth\.user\.sub \} : null/);
+    expect(door).toMatch(/if \(!authority\.authorized\) return/);
+    expect(door).toMatch(/durableWebullOrderLedger\(env\)/);
   });
 
-  it("D: no non-test source sets liveOrdersEnabled to anything but false", () => {
+  it("D: liveOrdersEnabled is opened in ONE place — the one door — and only after the authority check", () => {
     const hits = SOURCES.filter((f) => setsLiveFlag(f.text)).map((f) => f.file);
-    expect(hits, "liveOrdersEnabled is opened in source — only the Founder's explicit live-test instruction may do that").toEqual([]);
+    expect(hits, "liveOrdersEnabled is opened outside the one door").toEqual([THE_ONE_DOOR]);
+    const door = SOURCES.find((f) => f.file === THE_ONE_DOOR)!.text;
+    const authorityAt = door.indexOf("if (!authority.authorized) return");
+    const previewAt = door.indexOf("await previewWebullOrder(");
+    const openAt = door.search(LIVE_FLAG_WRITE);
+    expect(authorityAt).toBeGreaterThan(0);
+    expect(previewAt).toBeGreaterThan(authorityAt);
+    expect(openAt, "the gate opens before the authority check or Webull's preview").toBeGreaterThan(previewAt);
   });
 
   it("E: the Webull place and cancel endpoints are named only by their contract and the one place path", () => {

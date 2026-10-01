@@ -25,15 +25,18 @@ import { isDecisionId } from "@/lib/traderMemory/decisionIdentity";
  * ── THE GATE ─────────────────────────────────────────────────────────────────
  *
  * Nothing here sends a real order unless the caller passes
- * `liveOrdersEnabled: true`. That flag is not a UI toggle; it is the Founder's
- * explicit "RUN THE LIVE TEST NOW" (GP12 §40, §88), and until it is given every
- * place attempt is REFUSED_GATE and never touches the network. Preview is
- * non-money (Webull validates and prices the order without placing it) and is
- * not gated.
+ * `liveOrdersEnabled: true`. That flag is not a UI toggle. On 2026-10-01 the
+ * Founder instructed that live execution be built ("I should be able to trade
+ * my TSLA options on Webull … from the WM Pro OS"); the only caller,
+ * /api/broker/webull/order-submit, sets it from the human's explicit, armed
+ * per-order confirmation in that very request — after the owner gate and
+ * executionAuthority — and never otherwise. Without it every place attempt is
+ * REFUSED_GATE and never touches the network. Preview is non-money (Webull
+ * validates and prices the order without placing it) and is not gated.
  *
- * Scope: US equities/ETFs, regular session (`support_trading_session: CORE`,
- * as the SDK's own v3 sample sends). Anything else is refused by name rather
- * than approximated.
+ * Scope: US equities/ETFs (regular session, `support_trading_session: CORE`,
+ * as the SDK's v3 sample sends) and single-leg US equity options named by
+ * their OSI contract. Anything else is refused by name rather than approximated.
  */
 
 import { randomUUID } from "crypto";
@@ -597,7 +600,9 @@ export async function submitWebullOrderOnce(
   if (!config.liveOrdersEnabled) {
     return result("REFUSED_GATE", "Live Webull orders are not enabled. They open only on the Founder's explicit live-test instruction.", false);
   }
-  const mapped = mapToWebullStockOrder(intent);
+  // Garden 18 §XCIII: an option places through the same once-only path, mapped
+  // from its OSI contract (the category header below already reads US_OPTION).
+  const mapped = intent.assetClass === "option" ? mapToWebullOptionOrder(intent) : mapToWebullStockOrder(intent);
   if (!mapped.ok) return result("REFUSED_LOCAL", mapped.reason, false);
 
   // ── Has this client id been seen before? Then Webull may already hold it. ──
@@ -642,6 +647,34 @@ export async function submitWebullOrderOnce(
     (t.payload as Record<string, unknown> | null)?.order_id);
   await record("ACKNOWLEDGED", "Webull acknowledged the place request.", brokerOrderId);
   return result("ACKNOWLEDGED", "Webull acknowledged the order. Fills arrive through the order record, not this answer.", true, brokerOrderId);
+}
+
+// ── cancel (§LXXIX: exit easier than entry) ──────────────────────────────────
+
+export type WebullCancelResult =
+  | { readonly state: "CANCEL_REQUESTED"; readonly payload: unknown }
+  | { readonly state: "REJECTED"; readonly status: number; readonly reason: string }
+  /** The cancel may or may not have reached Webull: read the order before acting again. */
+  | { readonly state: "NO_ANSWER"; readonly reason: string };
+
+/**
+ * Ask Webull to cancel one order by its client id (cancel_order_request.py,
+ * v3 POST, account_id + client_order_id). A cancel REQUEST is not a canceled
+ * order: the order record's own status says when it is done.
+ */
+export async function cancelWebullOrder(
+  fetchImpl: typeof fetch,
+  config: WebullOrderConfig,
+  accountId: string,
+  clientOrderId: string,
+): Promise<WebullCancelResult> {
+  if (!CLIENT_ORDER_ID.test(clientOrderId)) return { state: "REJECTED", status: 0, reason: "Malformed client order id." };
+  const t = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ORDER_CANCEL, {
+    body: { account_id: accountId, client_order_id: clientOrderId },
+  });
+  if (t.kind === "NO_ANSWER") return { state: "NO_ANSWER", reason: t.reason };
+  if (t.status >= 200 && t.status < 300) return { state: "CANCEL_REQUESTED", payload: t.payload };
+  return { state: "REJECTED", status: t.status, reason: providerWords(t.payload) || `HTTP ${t.status}` };
 }
 
 // ── reconciliation (GP12 §38) ────────────────────────────────────────────────

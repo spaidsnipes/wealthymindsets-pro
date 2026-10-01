@@ -41,7 +41,7 @@ describe("mapToWebullOptionOrder", () => {
   });
 });
 
-describe("preview sends the option leg; submit stays equity-only", () => {
+describe("preview sends the option leg; submit places it once, only through the open gate", () => {
   it("preview posts the leg to Webull's v3 order preview", async () => {
     const bodies: unknown[] = [];
     const f = vi.fn(async (_u: RequestInfo | URL, init?: RequestInit) => { bodies.push(JSON.parse(String(init?.body))); return new Response(JSON.stringify({ ok: 1 }), { status: 200 }); });
@@ -51,10 +51,32 @@ describe("preview sends the option leg; submit stays equity-only", () => {
     expect((bodies[0] as { new_orders: { legs: { option_type: string }[] }[] }).new_orders[0].legs[0].option_type).toBe("CALL");
   });
 
-  it("submit refuses an option before anything is sent (live option placing is not authorized)", async () => {
+  it("with the gate closed, an option is refused before anything is sent", async () => {
     const f = vi.fn();
-    const r = await submitWebullOrderOnce(f as unknown as typeof fetch, { appKey: "k", appSecret: "s", accessToken: null, liveOrdersEnabled: true, now: () => new Date(0), nonce: () => "n" } as never, inMemoryOrderLedger(), intent);
-    expect(r.sent).toBe(false);
+    const r = await submitWebullOrderOnce(f as unknown as typeof fetch, { appKey: "k", appSecret: "s", accessToken: null, liveOrdersEnabled: false, now: () => new Date(0), nonce: () => "n" } as never, inMemoryOrderLedger(), intent);
+    expect(r).toMatchObject({ outcome: "REFUSED_GATE", sent: false });
     expect(f).not.toHaveBeenCalled();
+  });
+
+  it("with the gate open (Founder, 2026-10-01), the option leg is placed ONCE on v3 /trading/orders/place as US_OPTION", async () => {
+    const bodies: unknown[] = [];
+    const headers: Headers[] = [];
+    const f = vi.fn(async (_u: RequestInfo | URL, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      headers.push(new Headers(init?.headers));
+      return new Response(JSON.stringify({ client_order_id: intent.clientOrderId, order_id: "WB-77" }), { status: 200 });
+    });
+    const ledger = inMemoryOrderLedger();
+    const r = await submitWebullOrderOnce(f as unknown as typeof fetch, { appKey: "k", appSecret: "s", accessToken: null, liveOrdersEnabled: true, now: () => new Date(0), nonce: () => "n" } as never, ledger, intent);
+    expect(r).toMatchObject({ outcome: "ACKNOWLEDGED", sent: true, brokerOrderId: "WB-77" });
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(new URL(String(f.mock.calls[0][0])).pathname).toBe("/trading/orders/place");
+    expect(headers[0].get("category")).toBe("US_OPTION");
+    expect((bodies[0] as { new_orders: { position_intent: string; legs: { symbol: string; option_type: string }[] }[] }).new_orders[0])
+      .toMatchObject({ position_intent: "BUY_TO_OPEN", legs: [{ symbol: "TSLA", option_type: "CALL" }] });
+    // The same key again is ALREADY_PLACED from the ledger — never a second order.
+    const again = await submitWebullOrderOnce(f as unknown as typeof fetch, { appKey: "k", appSecret: "s", accessToken: null, liveOrdersEnabled: true, now: () => new Date(0), nonce: () => "n" } as never, ledger, intent);
+    expect(again).toMatchObject({ outcome: "ALREADY_PLACED", sent: false });
+    expect(f).toHaveBeenCalledTimes(1);
   });
 });

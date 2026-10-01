@@ -13,6 +13,9 @@
 
 import React, { useEffect, useState } from "react";
 
+import { TastytradeLiveOrder } from "@/components/chart/TastytradeLiveOrder";
+import { WebullLiveOrder } from "@/components/chart/WebullLiveOrder";
+
 type Answer = {
   readonly state?: string;
   readonly reason?: string;
@@ -173,7 +176,21 @@ export function WebullOptionPreflight({ osi, decisionId, referenceAsk }: {
           {state === "PREVIEWED" ? previewWords(answer?.payload) : state === "DRY_RUN_OK" ? dryRunWords((answer as { result?: unknown } | null)?.result) : `${state.replace(/_/g, " ")}${answer?.reason ? ` · ${answer.reason}` : answer?.note ? ` · ${answer.note}` : ""}`}
         </p>
       ) : null}
-      <p className="mt-1 text-wm-text-muted">A preview is not an order. Placing an option order is not enabled from WM Pro yet.</p>
+      {state === "PREVIEWED" && route === "WEBULL" && decisionId ? (
+        <WebullLiveOrder
+          intent={{ osi, positionIntent: intent, qty, limitPx: Number(limit) > 0 ? Number(limit) : null }}
+          accountIndex={accountIndex}
+          accountLabel={(() => { const a = answer?.accounts?.find(x => x.index === accountIndex); return a ? `${a.accountType ?? "Account"} · …${a.tail}` : `account #${accountIndex + 1}`; })()}
+          decisionId={decisionId}
+        />
+      ) : null}
+      {state === "DRY_RUN_OK" && route === "TASTYTRADE" && decisionId ? (
+        <TastytradeLiveOrder
+          intent={{ instrumentType: "Equity Option", symbol: osi, action: intent === "BUY_TO_OPEN" ? "Buy to Open" : "Sell to Close", qty, limitPx: Number(limit) > 0 ? Number(limit) : null, describe: osi }}
+          ensureDecision={() => decisionId}
+        />
+      ) : null}
+      <p className="mt-1 text-wm-text-muted">A preview is not an order. A live order is sent only by the armed button that appears once the broker accepts the preview.</p>
     </section>
   );
 }

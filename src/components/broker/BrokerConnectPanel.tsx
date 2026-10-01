@@ -1010,14 +1010,16 @@ function ManagedConnectionStatus({
                   proved separately from the keeper's record. ownerNamed is TRUE
                   here by construction: this record reached the panel through
                   the owner gate, which refuses everyone when no owner is named.
-                  liveOrdersEnabled is FALSE by construction: no route turns
-                  Webull live orders on (liveExecutionStaysClosed sentinel).
+                  livePathWired is TRUE since 2026-10-01: exactly one route,
+                  /api/broker/webull/order-submit, places — behind the owner gate,
+                  executionAuthority and Webull's preview (liveExecutionStaysClosed
+                  sentinel pins the one door). Wired is not proven: PARTIAL.
                 */}
                 {broker.id === "webull" && receipt.sessionKeeper && (
                   <table className="mt-2 w-full text-[9px] leading-snug" data-webull-certificate>
                     <caption className="text-left text-[9px] font-black uppercase tracking-wider text-wm-text-muted">Capability certificate · each proved separately</caption>
                     <tbody>
-                      {webullCapabilityCertificate(receipt.sessionKeeper, Date.now(), { ownerNamed: true, liveOrdersEnabled: false }).map(row => (
+                      {webullCapabilityCertificate(receipt.sessionKeeper, Date.now(), { ownerNamed: true, livePathWired: true }).map(row => (
                         <tr key={row.capability} data-webull-capability={row.capability} data-webull-capability-status={row.status}>
                           <th scope="row" className="pr-2 text-left align-top font-bold" style={{ color: "#C8C0AE", whiteSpace: "nowrap" }}>{row.capability}</th>
                           <td className="pr-2 align-top font-black" style={{ whiteSpace: "nowrap", color: row.status === "PROVED" ? "#C8C0AE" : row.status === "PARTIAL" ? "#f4c86b" : "#9aa1b8" }}>{row.status}</td>

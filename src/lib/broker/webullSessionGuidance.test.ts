@@ -89,7 +89,7 @@ describe("Garden 16 §34 — each Webull capability is proved separately", () =>
   const status = (rows: ReturnType<typeof webullCapabilityCertificate>) => Object.fromEntries(rows.map(r => [r.capability, r.status]));
 
   it("the measured production record: no blanket green", () => {
-    const s = status(webullCapabilityCertificate(keeper, 1_000_000 + 60_000, { ownerNamed: false, liveOrdersEnabled: false }));
+    const s = status(webullCapabilityCertificate(keeper, 1_000_000 + 60_000, { ownerNamed: false, livePathWired: false }));
     expect(s).toMatchObject({
       AUTH: "PROVED", OWNER: "NOT CONFIGURED", ACCOUNT: "PROVED", "MARKET DATA": "PARTIAL", ENTITLEMENT: "NOT ENTITLED",
       STOCKS: "NOT ENTITLED", OPTIONS: "NOT ENTITLED", FUTURES: "NOT PROVED", DEPTH: "NOT ENTITLED",
@@ -99,12 +99,12 @@ describe("Garden 16 §34 — each Webull capability is proved separately", () =>
   });
 
   it("a stale record demotes what it proved", () => {
-    const s = status(webullCapabilityCertificate(keeper, 1_000_000 + 3_600_000, { ownerNamed: true, liveOrdersEnabled: false }));
+    const s = status(webullCapabilityCertificate(keeper, 1_000_000 + 3_600_000, { ownerNamed: true, livePathWired: false }));
     expect(s).toMatchObject({ AUTH: "PARTIAL", ACCOUNT: "PARTIAL", FRESHNESS: "PARTIAL", RECONNECT: "NOT PROVED", OWNER: "PROVED" });
   });
 
   it("no record proves nothing", () => {
-    expect(webullCapabilityCertificate(null, 0, { ownerNamed: true, liveOrdersEnabled: false }).every(r => r.status === "NOT PROVED")).toBe(true);
+    expect(webullCapabilityCertificate(null, 0, { ownerNamed: true, livePathWired: false }).every(r => r.status === "NOT PROVED")).toBe(true);
   });
 });
 
@@ -112,7 +112,7 @@ describe("FUTURES on the certificate is Webull's measured answer on ES", () => {
   const base: WebullKeeperView = { outcome: "TOKEN_NOT_REQUIRED", note: "n", atMs: 0, authMode: "TOKENLESS" };
   const row = (futures?: string) => webullCapabilityCertificate(
     { ...base, capabilities: { verdict: "V", stocks: "x", crypto: "y", ...(futures ? { futures } : {}), atMs: 0 } },
-    60_000, { ownerNamed: true, liveOrdersEnabled: false },
+    60_000, { ownerNamed: true, livePathWired: false },
   ).find(r => r.capability === "FUTURES")!;
   it("not asked yet → NOT PROVED", () => expect(row().status).toBe("NOT PROVED"));
   it("refused by package → NOT ENTITLED", () => expect(row("FUTURES_SNAPSHOT/legacy-sha1:DENIED_ENTITLEMENT(MARKET_DATA_NOT_SUBSCRIBED)").status).toBe("NOT ENTITLED"));
