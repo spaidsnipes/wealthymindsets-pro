@@ -3055,7 +3055,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     return () => window.removeEventListener("wm-vp-colors", load);
   }, []);
 
-  const { liveBar, ticker, recentTicks, tapeSource, source, connected, quoteRefusal } = useWebSocket({ symbol, timeframe });
+  const { liveBar, ticker, recentTicks, tapeSource, source, connected, quoteRefusal, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
   // Canon "CLOSED IS NOT DELAYED" — closure outranks the provider verdict, so
   // the chart chrome cannot claim an active session on a closed one (§8).
   // `null` until mount and on every weekday: provider labelling is unchanged.
@@ -23214,7 +23214,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // atom 4 → SHIFT-R atom 3-5 uniformity). Truth stays in
             // resolveChartSurfaceBadge (the H-Bkt 1/8 guard); the
             // primitive only renders it.
-            const b = resolveChartSurfaceBadge(source, connected, candles.length > 0, sessionOpen);
+            // §LXXXII: graded by the live lane's own last observation, the
+            // same evidence the room's header uses — never "unverified" for a
+            // feed that spoke a second ago, never LIVE for one that went quiet.
+            const observedFresh = lastObservedAtMs != null && Date.now() - lastObservedAtMs < 15_000;
+            const b = resolveChartSurfaceBadge(source, connected, candles.length > 0, sessionOpen,
+              connected && lastObservedAtMs != null ? { present: true, fresh: observedFresh } : undefined);
             const capabilityReport = selectPerCapabilityFidelity({
               source, connected, hasCandles: candles.length > 0, sessionOpen,
             });

@@ -1,5 +1,6 @@
 "use client";
 
+import { WATCH_LIVE_FRESH_MS, useTastyWatchQuotes } from "@/lib/broker/useTastyWatchQuotes";
 import React, { useEffect, useState, useRef } from "react";
 import { TrendingUp, TrendingDown, Pencil, X, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -68,6 +69,8 @@ interface TickerState {
   up:    boolean;
   live:  boolean;
   src?:  string;
+  /** The live lane's observation is inside its freshness budget (§LXXXIX). */
+  fresh?: boolean;
   /**
    * Set when a provider ANSWERED and WM declined to certify the answer.
    * Distinct from `live: false` with no refusal, which is "no answer yet".
@@ -323,7 +326,7 @@ function TickerItem({ item, onClick, active }: {
   onClick: () => void;
   active: boolean;
 }) {
-  const { sym, price, chg, pct, chgObserved, up, live, src } = item;
+  const { sym, price, chg, pct, chgObserved, up, live, src, fresh } = item;
   const dp = price > 10_000 ? 0 : price > 100 ? 2 : price > 1 ? 4 : 6;
   // Provenance: name the feed each quote came from so a value that differs from
   // the chart header or watchlist is explainable, not a silent contradiction.
@@ -332,7 +335,7 @@ function TickerItem({ item, onClick, active }: {
   // on every weekday, so provider labelling is untouched the rest of the time.
   const sessionOpen = useProvenSessionClosure(sym);
   const blocker = tapeQuoteBlocker(sym);
-  const quoteObservation = {present: Boolean(src) && Number.isFinite(price) && price > 0};
+  const quoteObservation = {present: Boolean(src) && Number.isFinite(price) && price > 0, ...(fresh ? { fresh: true } : {})};
   const badge = priceSourceBadge(src ?? "unavailable", live, sessionOpen, quoteObservation);
   // SHIFT-U continuation — per-capability tooltip enrichment: bars +
   // quotes lit from the ticker's own source; other slots silent.
@@ -637,6 +640,8 @@ export function TickerTape() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestedTapeKey]);
 
+  const tapeSymsForLive = pathname === INSTRUMENT_VIEW_ROUTE ? chartPulseSymbols : customSyms;
+  const liveTape = useTastyWatchQuotes(tapeSymsForLive);
   const handleClick = (sym: string) => {
     setActiveSymbol(sym);
     if (pathname !== INSTRUMENT_VIEW_ROUTE) {
@@ -652,8 +657,17 @@ export function TickerTape() {
   // happens; this is what makes the number it prints correct. Safe against
   // hydration mismatch because `quotes` is empty on the server and on the
   // first client render, so no age is computed until after mount.
-  const visibleTickers = (pathname === INSTRUMENT_VIEW_ROUTE ? chartPulseSymbols : customSyms)
-    .map(sym => rowFor(sym, quotes, refusals, Date.now()));
+  const nowMs = Date.now();
+  const visibleTickers = tapeSymsForLive
+    .map(sym => {
+      const row = rowFor(sym, quotes, refusals, nowMs);
+      // §LXXXIX: the chart's live lane, when fresh, is the tape's truth too.
+      const lv = liveTape.get(sym.toUpperCase());
+      if (!lv || nowMs - lv.at >= WATCH_LIVE_FRESH_MS) return row;
+      const ref = row.price > 0 && row.chgObserved ? row.price - row.chg : null;
+      const chg = ref ? lv.price - ref : row.chg;
+      return { ...row, price: lv.price, src: "tastytrade", live: true, fresh: true, chg, pct: ref ? (chg / ref) * 100 : row.pct, up: ref ? chg >= 0 : row.up };
+    });
 
   /* Charts keeps one stable pulse; other routes retain the seamless loop. */
   const renderedTickers: TickerState[] = pathname === INSTRUMENT_VIEW_ROUTE
