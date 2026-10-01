@@ -11,7 +11,8 @@
  */
 
 import React from "react";
-import { BarChart2, List as ListIcon } from "lucide-react";
+import Link from "next/link";
+import { BarChart2, LayoutGrid, List as ListIcon } from "lucide-react";
 
 import type { CategoryTab } from "@/lib/charts/categoryTabsFor";
 import type { CanonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
@@ -77,6 +78,19 @@ export function InstrumentContextStrip({
         );
       })}
       <span style={{ flex: 1 }} />
+      <Link
+        href="/desk"
+        data-testid="context-desk"
+        aria-label="Desk — several trade screens"
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6, minHeight: 26, padding: "0 10px", borderRadius: 3, marginRight: 6, textDecoration: "none",
+          border: "1px solid rgba(196,165,116,.42)", background: "rgba(196,165,116,.06)", color: "rgba(237,230,211,.85)",
+          font: "700 10.5px/1 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".1em", textTransform: "uppercase",
+        }}
+      >
+        <LayoutGrid size={12} aria-hidden />
+        Desk
+      </Link>
       {onWatchlist ? (
         <button
           type="button"
