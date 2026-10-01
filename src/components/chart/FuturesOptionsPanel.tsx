@@ -321,6 +321,12 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
             ))}
           </nav>
 
+          {/* The charted month has no options in tastytrade's chain: say which month these settle into. */}
+          {/^\/[A-Z0-9]{1,4}[FGHJKMNQUVXZ]\d{1,2}$/.test(chartSymbol.trim().toUpperCase()) && !parents.includes(chartSymbol.trim().toUpperCase()) && parent ? (
+            <div data-testid="fop-other-month" role="status" style={{ padding: "6px 14px", fontSize: 11.5, color: GOLD, borderBottom: `1px solid ${LINE}` }}>
+              tastytrade lists no options on {chartSymbol.trim().toUpperCase()} yet. These settle into {parent}.
+            </div>
+          ) : null}
           {/* ── EXPIRY FACTS + CONTROLS ── */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "8px 14px", borderBottom: `1px solid ${LINE}` }}>
             <span data-testid="fop-ivx" style={MONO}>
