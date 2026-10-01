@@ -14,7 +14,10 @@ import { normalizeMarketSurfaceSymbol, normalizeMarketSurfaceTimeframe } from "@
 import type { TFId } from "@/lib/timeframes";
 
 export type DeskLayout = 1 | 2 | 3 | 4;
-export interface DeskScreen { readonly symbol: string; readonly timeframe: TFId }
+/** Garden 18 §LV–§LVIII: screens in the same link group follow one market. */
+export type DeskLink = "A" | "B";
+export const DESK_LINKS: readonly DeskLink[] = ["A", "B"];
+export interface DeskScreen { readonly symbol: string; readonly timeframe: TFId; readonly link?: DeskLink }
 export interface Desk { readonly name: string; readonly layout: DeskLayout; readonly screens: readonly DeskScreen[] }
 
 export const DESKS_STORAGE_KEY = "wm_desks_v1";
@@ -61,10 +64,11 @@ export function readDesk(raw: unknown): Desk | null {
   if (!name || !isDeskLayout(r.layout) || !Array.isArray(r.screens)) return null;
   const screens: DeskScreen[] = [];
   for (const s of r.screens.slice(0, MAX_SCREENS)) {
-    const o = (s ?? {}) as { symbol?: unknown; timeframe?: unknown };
+    const o = (s ?? {}) as { symbol?: unknown; timeframe?: unknown; link?: unknown };
     const symbol = normalizeMarketSurfaceSymbol(typeof o.symbol === "string" ? o.symbol : null);
     const timeframe = normalizeMarketSurfaceTimeframe(typeof o.timeframe === "string" ? o.timeframe : null);
-    if (symbol && timeframe) screens.push({ symbol, timeframe });
+    const link = DESK_LINKS.includes(o.link as DeskLink) ? (o.link as DeskLink) : undefined;
+    if (symbol && timeframe) screens.push(link ? { symbol, timeframe, link } : { symbol, timeframe });
   }
   return screens.length ? { name, layout: r.layout, screens } : null;
 }
@@ -107,7 +111,31 @@ export function setScreen(desk: Desk, index: number, patch: { symbol?: string; t
   if (!cur) return desk;
   const symbol = patch.symbol !== undefined ? normalizeMarketSurfaceSymbol(patch.symbol) ?? cur.symbol : cur.symbol;
   const timeframe = patch.timeframe !== undefined ? normalizeMarketSurfaceTimeframe(patch.timeframe) ?? cur.timeframe : cur.timeframe;
-  screens[index] = { symbol, timeframe };
+  screens[index] = cur.link ? { symbol, timeframe, link: cur.link } : { symbol, timeframe };
+  return { ...desk, screens };
+}
+
+/**
+ * A market chosen on one screen — and on every screen linked to it. An
+ * unlinked screen changes alone. Timeframes are never linked: a 1m and a 1h
+ * screen on the same market is the point of linking.
+ */
+export function setLinkedSymbol(desk: Desk, index: number, symbol: string): Desk {
+  const sym = normalizeMarketSurfaceSymbol(symbol);
+  if (!sym) return desk;
+  const screens = [...screensFor({ ...desk, layout: MAX_SCREENS as DeskLayout }).slice(0, Math.max(desk.screens.length, desk.layout))];
+  const link = screens[index]?.link;
+  if (!screens[index]) return desk;
+  return { ...desk, screens: screens.map((s, i) => (i === index || (link && s.link === link) ? { ...s, symbol: sym } : s)) };
+}
+
+/** Cycle a screen's link: none → A → B → none. */
+export function cycleLink(desk: Desk, index: number): Desk {
+  const screens = [...screensFor({ ...desk, layout: MAX_SCREENS as DeskLayout }).slice(0, Math.max(desk.screens.length, desk.layout))];
+  const cur = screens[index];
+  if (!cur) return desk;
+  const next: DeskLink | undefined = cur.link === undefined ? "A" : cur.link === "A" ? "B" : undefined;
+  screens[index] = next ? { ...cur, link: next } : { symbol: cur.symbol, timeframe: cur.timeframe };
   return { ...desk, screens };
 }
 

@@ -50,3 +50,20 @@ describe("desks: one OS, several cameras, preferences only", () => {
     expect(d.layout).toBe(4);
   });
 });
+
+describe("Garden 18 §LV–§LVIII — linked screens follow one market", () => {
+  it("a market on a linked screen moves every screen in its group; others stay; timeframes never link", async () => {
+    const { cycleLink, setLinkedSymbol, readDesk } = await import("./desks");
+    let d: import("./desks").Desk = { name: "T", layout: 4, screens: [
+      { symbol: "TSLA", timeframe: "1m" }, { symbol: "NQ1!", timeframe: "5m" },
+      { symbol: "SPY", timeframe: "1h" }, { symbol: "BTC", timeframe: "5m" },
+    ] };
+    d = cycleLink(cycleLink(d, 0), 2); // screens 1 and 3 → link A
+    const out = setLinkedSymbol(d, 0, "aapl");
+    expect(out.screens.map(s => s.symbol)).toEqual(["AAPL", "NQ1!", "AAPL", "BTC"]);
+    expect(out.screens.map(s => s.timeframe)).toEqual(["1m", "5m", "1h", "5m"]);
+    expect(setLinkedSymbol(d, 1, "ES1!").screens.map(s => s.symbol)).toEqual(["TSLA", "ES1!", "SPY", "BTC"]);
+    expect(readDesk(JSON.parse(JSON.stringify(out)))?.screens[2]?.link).toBe("A");
+    expect(cycleLink(cycleLink(cycleLink(d, 1), 1), 1).screens[1]?.link).toBeUndefined();
+  });
+});

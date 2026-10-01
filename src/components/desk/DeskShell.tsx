@@ -28,10 +28,13 @@ import {
   DESK_SYMBOL_DRAG_TYPE,
   screensFor,
   setScreen,
+  setLinkedSymbol,
+  cycleLink,
   swapScreens,
   upsertDesk,
   type Desk,
   type DeskLayout,
+  type DeskLink,
 } from "@/lib/desk/desks";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { CHART_TF_SHIPPED, TF_IDS } from "@/lib/timeframes";
@@ -47,8 +50,12 @@ const btn = (on = false): React.CSSProperties => ({
   color: on ? GOLD : INK, font: "700 10.5px/1 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".08em", textTransform: "uppercase",
 });
 
-function ScreenHeader({ index, symbol, timeframe, maximized, focused, onSymbol, onTimeframe, onMaximize }: {
+const LINK_INK: Readonly<Record<DeskLink, string>> = { A: "#C9A55C", B: "#7fd1a8" };
+
+function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLink, onSymbol, onTimeframe, onMaximize }: {
   focused: boolean;
+  link?: DeskLink;
+  onLink: () => void;
   index: number; symbol: string; timeframe: string; maximized: boolean;
   onSymbol: (s: string) => void; onTimeframe: (t: string) => void; onMaximize: () => void;
 }) {
@@ -70,6 +77,13 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, onSymbol, 
         style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: "3px 4px" }}>
         {tfs.map(t => <option key={t} value={t}>{t}</option>)}
       </select>
+      {/* §LV–§LVIII: screens in the same link group follow one market. */}
+      <button type="button" data-testid={`desk-link-${index + 1}`} data-link={link ?? "NONE"} onClick={onLink}
+        aria-label={link ? `Screen ${index + 1} is in link ${link}. Press to change.` : `Screen ${index + 1} is not linked. Press to link.`}
+        title="Link: screens in the same group follow one market (timeframes stay their own)"
+        style={{ ...btn(!!link), color: link ? LINK_INK[link] : MUTED, borderColor: link ? LINK_INK[link] : LINE, minWidth: 30 }}>
+        {link ? `⛓ ${link}` : "⛓"}
+      </button>
       <span style={{ flex: 1 }} />
       <Link href={`${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`} style={{ ...btn(), display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
         Open room
@@ -99,7 +113,7 @@ export function DeskShell() {
     if (seenSymbol.current === null) { seenSymbol.current = activeSymbol; return; }
     if (activeSymbol === seenSymbol.current) return;
     seenSymbol.current = activeSymbol;
-    setWorking(w => setScreen(w, focused, { symbol: activeSymbol }));
+    setWorking(w => setLinkedSymbol(w, focused, activeSymbol));
   }, [activeSymbol, focused]);
 
   // Restore PREFERENCES; every screen re-asks the market for truth on mount.
@@ -203,14 +217,16 @@ export function DeskShell() {
                 setDropTarget(null);
                 const sym = e.dataTransfer.getData(DESK_SYMBOL_DRAG_TYPE);
                 const from = e.dataTransfer.getData(DESK_SCREEN_DRAG_TYPE);
-                if (sym) { setWorking(w => setScreen(w, i, { symbol: sym })); setFocused(i); }
+                if (sym) { setWorking(w => setLinkedSymbol(w, i, sym)); setFocused(i); }
                 else if (from !== "") setWorking(w => swapScreens(w, Number(from), i));
               }}
               style={{ gridArea: grid.areas[slot], minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", borderRadius: 4, overflow: "hidden",
                 border: `1px solid ${dropTarget === i ? "rgba(127,209,168,.9)" : focused === i ? "rgba(201,165,92,.75)" : LINE}` }}>
               <ScreenHeader
                 index={i} symbol={s.symbol} timeframe={s.timeframe} maximized={maximized === i} focused={focused === i}
-                onSymbol={v => setWorking(w => setScreen(w, i, { symbol: v }))}
+                link={s.link}
+                onLink={() => setWorking(w => cycleLink(w, i))}
+                onSymbol={v => setWorking(w => setLinkedSymbol(w, i, v))}
                 onTimeframe={v => setWorking(w => setScreen(w, i, { timeframe: v }))}
                 onMaximize={() => setMaximized(m => (m === i ? null : i))}
               />
