@@ -44,7 +44,14 @@ function kindOf(symbol: string): Kind {
   return c === "futures" ? "FUTURE" : c === "crypto" ? "CRYPTO" : c === "forex" ? "FX" : c === "options" ? "OPTION" : "STOCK";
 }
 
-const decimals = (tick: number | null) => (tick == null ? 2 : Math.max(0, Math.min(6, Math.ceil(-Math.log10(tick) - 1e-9))));
+/** The tick's own decimal places (0.25 → 2, 0.01 → 2, 0.5 → 1, 1 → 0). */
+export const decimals = (tick: number | null): number => {
+  if (tick == null || !(tick > 0)) return 2;
+  const t = String(Number(tick.toPrecision(8)));
+  const e = /e-(\d+)$/.exec(t);
+  if (e) return Math.min(8, Number(e[1]));
+  return t.includes(".") ? Math.min(8, t.split(".")[1]!.length) : 0;
+};
 
 export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOptions, onOpenPaper, onClose }: {
   readonly symbol: string;
