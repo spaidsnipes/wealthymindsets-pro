@@ -355,7 +355,9 @@ describe("9 · every species wears its organism glyph (Garden 11 recognition tes
     const expectGlyph = (block: string, name: string, kind: string) =>
       expect(block, `${name} paints no ${kind} glyph`).toMatch(new RegExp(`paintOrganismGlyph\\("${kind}"`));
     expectGlyph(LIVING, "Living", "LIVING");
-    expectGlyph(LIVING, "DNA (in Living's block)", "DNA");
+    // DNA's painter is shared by the Living block and DNA-alone (Garden 18 §V).
+    expect(LIVING, "Living's block calls the DNA painter").toContain("paintProfileDnaAt(");
+    expect(CHART, "the DNA painter paints the DNA glyph").toMatch(/const paintProfileDnaAt = [\s\S]{0,4000}paintOrganismGlyph\("DNA"/);
     expectGlyph(COMPOSITE, "Composite", "COMPOSITE");
     expectGlyph(VRP, "Visible Range", "VRP");
     expectGlyph(FUSED, "the fused object", "FUSION");

@@ -56,7 +56,9 @@ describe("Profile DNA on the glass (Sentinel)", () => {
   it("sits in the lane's own gutter and projects only owner-published prices", () => {
     // The profile's gutter is now beside its auction BODY (P110), 6px left
     // of the body's widest reach — never through the body's middle.
-    expect(BLOCK).toContain("rightEdge - bodyW - 6");
+    expect(chartSrc).toContain("paintProfileDnaAt(Math.round(rightEdge - bodyW - 6) + 0.5);");
+    // Alone (Garden 18 §V) it stands in the Living lane, by the same painter.
+    expect(chartSrc).toContain("paintProfileDnaAt(Math.round(laneD.right - 14) + 0.5)");
     for (const field of ["dna.lo", "dna.hi", "dna.val", "dna.vah", "dna.poc", "dna.massCentrePrice"]) {
       expect(BLOCK, `${field} is not projected`).toContain(field);
     }

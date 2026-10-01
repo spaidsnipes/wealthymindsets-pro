@@ -16802,6 +16802,85 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
            BAND, not two hairlines. POC gets brass — house hardware, not a
            market direction. HVN/LVN dots overlay as annotation on top.
         ═══════════════════════════════════════════════════════════════════ */
+        /*
+          P-110 #5 · PROFILE DNA — drawn AS GEOMETRY in the profile's own
+          lane, 6px left of it, so nothing covers price:
+            spine    profile low → high, 1px ivory; DASHED when the profile
+                 is candle-estimated, which is how its uncertainty shows
+            bracket  VAL → VAH, 3px — its length against the spine IS the
+                 value width, readable without a number
+            notch    6px brass at the POC
+            diamond  hollow, at the mass-centre price — the gap between
+                 notch and diamond is the skew
+          A THIN_SAMPLE is its range alone, faint: a range is a fact, a
+          shape from too few rows is not. Every number lives in Inspect.
+          ONE painter, two places: 6px left of the Living body when it is
+          drawn, or standing alone in the Living lane — Garden 18 §V: shared
+          truth, independent manifestation (DNA alone used to draw only a
+          sentence). Never a card. Returns whether it drew.
+        */
+        const paintProfileDnaAt = (sx: number): boolean => {
+              const dna = profileDnaRef.current;
+              const dnaOn = layerOnRef.current.profileDna && att.paints("profileDna");
+              const spineOwned = dnaOn && dna != null && (dna.measured || dna.reason === "THIN_SAMPLE");
+              const yLo = spineOwned && dna.lo != null ? srs.priceToCoordinate(dna.lo) : null;
+              const yHi = spineOwned && dna.hi != null ? srs.priceToCoordinate(dna.hi) : null;
+              if (dna && spineOwned && yLo != null && yHi != null) {
+                // Beside the auction BODY, not through it: the spine stands 6px
+                // left of the body's widest reach (it used to sit at the old
+                // lane edge, which now cuts through the middle of the body).
+                ctx.save();
+                ctx.lineCap = "butt";
+                ctx.strokeStyle = dna.measured ? pk.rgba("VALUE", 0.45) : pk.rgba("VALUE", 0.25);
+                ctx.lineWidth = 1;
+                ctx.setLineDash(dna.estimated ? [2, 2] : []);
+                ctx.beginPath(); ctx.moveTo(sx, +yHi); ctx.lineTo(sx, +yLo); ctx.stroke();
+                ctx.setLineDash([]);
+                ds.profileDnaSpine = `${Math.round(+yLo)}-${Math.round(+yHi)}`;
+                // ⑤ DNA (a helix) — the organism glyph at the head of the spine.
+                paintOrganismGlyph("DNA", sx, Math.min(+yHi, +yLo) - 14, pk.rgba("VALUE", 0.9), floatingChips);
+                let yMass: number | null = null;
+                if (dna.measured) {
+                  const yVal = dna.val != null ? srs.priceToCoordinate(dna.val) : null;
+                  const yVah = dna.vah != null ? srs.priceToCoordinate(dna.vah) : null;
+                  if (yVal != null && yVah != null) {
+                    // A fingerprint, not a beacon: beside the P110 body the 0.85
+                    // ivory bracket read as the loudest bar on the glass
+                    // (serving, NQ1! 5m). Same 3px length-is-value-width
+                    // geometry, quieter than the profile it describes.
+                    ctx.strokeStyle = pk.rgba("VALUE", 0.5); ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(sx, +yVah); ctx.lineTo(sx, +yVal); ctx.stroke();
+                  }
+                  const yPoc = dna.poc != null ? srs.priceToCoordinate(dna.poc) : null;
+                  if (yPoc != null) {
+                    const yn = Math.round(+yPoc);
+                    ctx.strokeStyle = pk.rgba("POC", 1); ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(sx - 3, yn); ctx.lineTo(sx + 3, yn); ctx.stroke();
+                  }
+                  const ym = dna.massCentrePrice != null ? srs.priceToCoordinate(dna.massCentrePrice) : null;
+                  if (ym != null) {
+                    yMass = +ym;
+                    // Hollow: the bracket stays visible through it, and no dark
+                    // fill lands on the candles beside the lane.
+                    ctx.strokeStyle = "rgba(233,196,106,0.95)"; ctx.lineWidth = 1.25;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, yMass - 4); ctx.lineTo(sx + 4, yMass); ctx.lineTo(sx, yMass + 4); ctx.lineTo(sx - 4, yMass);
+                    ctx.closePath(); ctx.stroke();
+                  }
+                }
+                ctx.restore();
+                if (yMass != null) ds.profileDnaDiamond = String(Math.round(yMass));
+                else delete ds.profileDnaDiamond;
+                if (dna.measured) ds.profileDnaShape = dna.shape ?? "";
+                else delete ds.profileDnaShape;
+                return true;
+              } else {
+                delete ds.profileDnaSpine;
+                delete ds.profileDnaDiamond;
+                delete ds.profileDnaShape;
+                return false;
+              }
+        };
         {
           const lp = livingProfileRef.current;
           const on = layerOnRef.current.livingProfile && att.paints("livingProfile");
@@ -17321,82 +17400,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             else delete ds.livingProfileUntraded;
             ds.livingProfileFidelity = lp.estimated ? "CANDLE_ESTIMATED" : "TRADE_BASED";
 
-            /*
-              P-110 #5 · PROFILE DNA — drawn AS GEOMETRY in the profile's own
-              lane, 6px left of it, so nothing covers price:
-                spine    profile low → high, 1px ivory; DASHED when the profile
-                         is candle-estimated, which is how its uncertainty shows
-                bracket  VAL → VAH, 3px — its length against the spine IS the
-                         value width, readable without a number
-                notch    6px brass at the POC
-                diamond  hollow, at the mass-centre price — the gap between
-                         notch and diamond is the skew
-              A THIN_SAMPLE is its range alone, faint: a range is a fact, a
-              shape from too few rows is not. Every number lives in Inspect.
-              Only ever drawn with the Living Profile: DNA of an unseen profile
-              is a card, and a card is not the invention.
-            */
+            // P-110 #5 · Profile DNA beside the body (geometry: paintProfileDnaAt).
             {
               const dna = profileDnaRef.current;
               const dnaOn = layerOnRef.current.profileDna && att.paints("profileDna");
               ds.profileDna = dnaOn ? (dna ? dna.reason : "NO_READING") : att.offWord(layerOnRef.current.profileDna);
-              const spineOwned = dnaOn && dna != null && (dna.measured || dna.reason === "THIN_SAMPLE");
-              const yLo = spineOwned && dna.lo != null ? srs.priceToCoordinate(dna.lo) : null;
-              const yHi = spineOwned && dna.hi != null ? srs.priceToCoordinate(dna.hi) : null;
-              if (dna && spineOwned && yLo != null && yHi != null) {
-                // Beside the auction BODY, not through it: the spine stands 6px
-                // left of the body's widest reach (it used to sit at the old
-                // lane edge, which now cuts through the middle of the body).
-                const sx = Math.round(rightEdge - bodyW - 6) + 0.5;
-                ctx.save();
-                ctx.lineCap = "butt";
-                ctx.strokeStyle = dna.measured ? pk.rgba("VALUE", 0.45) : pk.rgba("VALUE", 0.25);
-                ctx.lineWidth = 1;
-                ctx.setLineDash(dna.estimated ? [2, 2] : []);
-                ctx.beginPath(); ctx.moveTo(sx, +yHi); ctx.lineTo(sx, +yLo); ctx.stroke();
-                ctx.setLineDash([]);
-                ds.profileDnaSpine = `${Math.round(+yLo)}-${Math.round(+yHi)}`;
-                // ⑤ DNA (a helix) — the organism glyph at the head of the spine.
-                paintOrganismGlyph("DNA", sx, Math.min(+yHi, +yLo) - 14, pk.rgba("VALUE", 0.9), floatingChips);
-                let yMass: number | null = null;
-                if (dna.measured) {
-                  const yVal = dna.val != null ? srs.priceToCoordinate(dna.val) : null;
-                  const yVah = dna.vah != null ? srs.priceToCoordinate(dna.vah) : null;
-                  if (yVal != null && yVah != null) {
-                    // A fingerprint, not a beacon: beside the P110 body the 0.85
-                    // ivory bracket read as the loudest bar on the glass
-                    // (serving, NQ1! 5m). Same 3px length-is-value-width
-                    // geometry, quieter than the profile it describes.
-                    ctx.strokeStyle = pk.rgba("VALUE", 0.5); ctx.lineWidth = 3;
-                    ctx.beginPath(); ctx.moveTo(sx, +yVah); ctx.lineTo(sx, +yVal); ctx.stroke();
-                  }
-                  const yPoc = dna.poc != null ? srs.priceToCoordinate(dna.poc) : null;
-                  if (yPoc != null) {
-                    const yn = Math.round(+yPoc);
-                    ctx.strokeStyle = pk.rgba("POC", 1); ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.moveTo(sx - 3, yn); ctx.lineTo(sx + 3, yn); ctx.stroke();
-                  }
-                  const ym = dna.massCentrePrice != null ? srs.priceToCoordinate(dna.massCentrePrice) : null;
-                  if (ym != null) {
-                    yMass = +ym;
-                    // Hollow: the bracket stays visible through it, and no dark
-                    // fill lands on the candles beside the lane.
-                    ctx.strokeStyle = "rgba(233,196,106,0.95)"; ctx.lineWidth = 1.25;
-                    ctx.beginPath();
-                    ctx.moveTo(sx, yMass - 4); ctx.lineTo(sx + 4, yMass); ctx.lineTo(sx, yMass + 4); ctx.lineTo(sx - 4, yMass);
-                    ctx.closePath(); ctx.stroke();
-                  }
-                }
-                ctx.restore();
-                if (yMass != null) ds.profileDnaDiamond = String(Math.round(yMass));
-                else delete ds.profileDnaDiamond;
-                if (dna.measured) ds.profileDnaShape = dna.shape ?? "";
-                else delete ds.profileDnaShape;
-              } else {
-                delete ds.profileDnaSpine;
-                delete ds.profileDnaDiamond;
-                delete ds.profileDnaShape;
-              }
+              paintProfileDnaAt(Math.round(rightEdge - bodyW - 6) + 0.5);
             }
             if (lp.nodesWithheld) ds.livingProfileNodesWithheld = lp.nodesWithheld;
             else delete ds.livingProfileNodesWithheld;
@@ -17406,11 +17415,21 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.livingProfileLaneRight;
             delete ds.livingProfileFidelity;
             delete ds.livingProfileNodesWithheld;
-            // DNA describes the profile on the glass; with none drawn, it says so.
-            ds.profileDna = layerOnRef.current.profileDna ? "LIVING_PROFILE_NOT_DRAWN" : "OFF";
-            delete ds.profileDnaShape;
-            delete ds.profileDnaSpine;
-            delete ds.profileDnaDiamond;
+            // DNA ON BY ITSELF: its own geometry stands in the Living lane (the
+            // profile it reads is measured whether or not its body is shown).
+            const dnaAloneOn = layerOnRef.current.profileDna && att.paints("profileDna") && !on;
+            const dnaAlone = dnaAloneOn ? profileDnaRef.current : null;
+            if (dnaAlone && (dnaAlone.measured || dnaAlone.reason === "THIN_SAMPLE")) {
+              ds.profileDna = `${dnaAlone.reason}:ALONE`;
+              const laneD = stackPlan.lanes.LIVING ?? soloLane(W);
+              if (!paintProfileDnaAt(Math.round(laneD.right - 14) + 0.5)) ds.profileDna = "LIVING_PROFILE_NOT_DRAWN";
+            } else {
+              // With nothing measured, it says so.
+              ds.profileDna = layerOnRef.current.profileDna ? "LIVING_PROFILE_NOT_DRAWN" : "OFF";
+              delete ds.profileDnaShape;
+              delete ds.profileDnaSpine;
+              delete ds.profileDnaDiamond;
+            }
             delete ds.livingProfileBars;
             delete ds.livingProfileMarks;
             delete ds.livingProfileUntraded;
@@ -17436,10 +17455,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               floatingChips.push({ x: silenceX, y: rowL - 7, w: ctx.measureText(quietL).width, h: 14 });
               ctx.restore();
             }
-            if (layerOnRef.current.profileDna) {
+            if (layerOnRef.current.profileDna && !String(ds.profileDna ?? "").endsWith(":ALONE")) {
               const quiet = livingOnMute
                 ? "PROFILE DNA · ACTIVE · READS THE LIVING PROFILE, WHICH CANNOT DRAW HERE"
-                : "PROFILE DNA · ACTIVE · READS THE LIVING PROFILE — TURN LIVING PROFILE ON";
+                : "PROFILE DNA · ACTIVE · NO PROFILE MEASURED ON THIS CAMERA";
               ctx.save();
               ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
               ctx.fillStyle = "rgba(200,192,174,0.85)";
