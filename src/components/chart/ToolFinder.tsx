@@ -16,14 +16,18 @@
 import React, { useMemo, useState } from "react";
 
 import { PROFILE_FAMILY, selectProfileMenu, type ProfileId, type ProfileMenuInput } from "@/lib/marketData/viewModels/selectProfileMenu";
-import { FAMILY_WORD, searchTools } from "@/lib/workspace/toolSearch";
+import { FAMILY_WORD, searchToolRows, searchTools } from "@/lib/workspace/toolSearch";
+
+/** A chart instrument outside the reading catalogue (footprint modes, Big Trades). */
+export interface FinderInstrument { readonly id: string; readonly label: string; readonly what: string; readonly active: boolean; readonly aliases?: readonly string[]; readonly familyWord: string; readonly onToggle: () => void }
 
 const GOLD = "#d4af37";
 const PEARL = "#E8EAF2";
 const MUTED = "#8B8FA8";
 const AMBER = "#F0B429";
 
-export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal }: {
+export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal, instruments = [] }: {
+  instruments?: readonly FinderInstrument[];
   barsPresent: boolean;
   printsPresent: boolean;
   observedAggressorFlow: boolean;
@@ -35,6 +39,8 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
   const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, speciesRefusal });
   const hits = useMemo(() => searchTools(vm.entries, q, id => PROFILE_FAMILY[id]), [vm.entries, q]);
   const on = vm.entries.filter(e => e.active);
+  const instHits = useMemo(() => searchToolRows(instruments, q), [instruments, q]);
+  const instOn = instruments.filter(i => i.active);
 
   return (
     <section data-testid="tool-finder" aria-label="Find a tool" className="rounded-lg border border-wm-border bg-wm-surface/95 p-2 mb-2">
@@ -52,7 +58,21 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
 
       {q.trim() ? (
         <ul data-testid="tool-finder-results" className="mt-1.5 flex flex-col gap-1" aria-label="Matching tools">
-          {hits.length === 0 ? (
+          {instHits.map(i => (
+            <li key={i.id}>
+              <button type="button" role="switch" aria-checked={i.active} data-testid={`tool-finder-${i.id}`} onClick={i.onToggle}
+                className="w-full rounded px-2 py-1.5 text-left hover:bg-white/5"
+                style={{ border: `1px solid ${i.active ? GOLD : "rgba(255,255,255,0.06)"}` }}>
+                <span className="flex items-center gap-2">
+                  <span aria-hidden className="inline-block h-2 w-2 rounded-full" style={{ background: i.active ? GOLD : "transparent", border: `1px solid ${i.active ? GOLD : MUTED}` }} />
+                  <span className="text-[12.5px] font-semibold" style={{ color: i.active ? GOLD : PEARL }}>{i.label}</span>
+                  <span className="ml-auto text-[9.5px] uppercase tracking-[0.12em]" style={{ color: MUTED }}>{i.familyWord}</span>
+                </span>
+                <span className="block pl-4 text-[11px] leading-snug" style={{ color: MUTED }}>{i.what}</span>
+              </button>
+            </li>
+          ))}
+          {hits.length === 0 && instHits.length === 0 ? (
             <li className="px-1 text-[11px]" style={{ color: MUTED }}>No tool by that name. Try a word it does — “delta”, “profile”, “walls”.</li>
           ) : hits.map(e => (
             <li key={e.id}>
@@ -82,7 +102,15 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
 
       <div data-testid="active-tools-strip" className="mt-2 flex flex-wrap items-center gap-1" aria-label="Active on the chart">
         <span className="mr-1 text-[9.5px] font-bold uppercase tracking-[0.14em]" style={{ color: MUTED }}>Active</span>
-        {on.length === 0 ? (
+        {instOn.map(i => (
+          <span key={i.id} data-testid={`active-tool-${i.id}`} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"
+            style={{ border: "1px solid rgba(212,175,55,0.55)", color: PEARL }} title={i.what}>
+            {i.label}
+            <button type="button" aria-label={`Turn off ${i.label}`} data-testid={`active-tool-off-${i.id}`} onClick={i.onToggle}
+              className="ml-0.5 leading-none hover:text-white" style={{ color: MUTED }}>×</button>
+          </span>
+        ))}
+        {on.length === 0 && instOn.length === 0 ? (
           <span className="text-[11px]" style={{ color: MUTED }}>Clean — just the market.</span>
         ) : on.map(e => (
           <span key={e.id} data-testid={`active-tool-${e.id}`} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"

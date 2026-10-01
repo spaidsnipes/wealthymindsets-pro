@@ -24,7 +24,7 @@ import { PnLStatsPanel } from "./PnLStatsPanel";
 import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import { BROKER_CONNECT_EVENT, BROKER_CONNECT_PARAM, BROKER_CONNECT_VALUE } from "@/lib/broker/brokerConnectDoor";
 import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
-import { FootprintControls } from "./FootprintControls";
+import { FOOTPRINT_TYPES, FootprintControls } from "./FootprintControls";
 import { ToolFinder } from "./ToolFinder";
 import { ProfilesMenu } from "./ProfilesMenu";
 import { ProfilePresetBar } from "./ProfilePresetBar";
@@ -649,7 +649,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // the active order-flow tool instead of replacing it. `bigTradesOverlay` tracks
   // whether the overlay is currently toggled on (only meaningful while simul ON).
   const [bigTradesSimul,   setBigTradesSimul]   = useState<boolean>(
-    () => typeof window !== "undefined" && localStorage.getItem("wm_bigtrades_simul") === "1"
+    // Garden 18 §XXI: Big Trades is its own sense — an overlay beside any
+    // footprint mode unless the trader chose exclusive mode ("0").
+    () => typeof window === "undefined" || localStorage.getItem("wm_bigtrades_simul") !== "0"
   );
   const [bigTradesOverlay, setBigTradesOverlay] = useState<boolean>(false);
   const [candleType,      setCandleType]      = useState<CandleType>(() => lsGet("wm_candleType", "candles") as CandleType);
@@ -3455,6 +3457,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       speciesRefusal={profileSpeciesRefusalVM}
       active={profileMenuActive}
       onToggle={onProfileMenuToggle}
+      instruments={FOOTPRINT_TYPES.map(t => ({
+        id: `FP_${t.id}`,
+        label: t.id === "big-trades" ? "Big Trades" : `Footprint · ${t.label}`,
+        what: t.desc,
+        familyWord: "Order flow",
+        aliases: t.id === "big-trades" ? ["big", "prints", "whale"] : ["footprint", t.id.replace("-", " ")],
+        active: t.id === "big-trades"
+          ? (bigTradesSimul ? bigTradesOverlay : footprintEnabled && footprintType === "big-trades")
+          : footprintEnabled && footprintType === t.id,
+        onToggle: () => onFootprintChange(t.id),
+      }))}
     />
   );
   useEffect(() => { publishToolsSlot("tool-finder", toolFinderNode); });

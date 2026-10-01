@@ -44,6 +44,26 @@ function norm(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9/ ]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
+/** Any searchable tool row — a catalogue entry or a chart instrument outside it (footprint, Big Trades). */
+export interface ToolRow { readonly id: string; readonly label: string; readonly what: string; readonly aliases?: readonly string[]; readonly familyWord?: string }
+
+/** Same ranking as `searchTools`, over plain rows. */
+export function searchToolRows<T extends ToolRow>(rowsIn: readonly T[], query: string): T[] {
+  const q = norm(query);
+  if (!q) return [];
+  const words = q.split(" ");
+  const scored: { e: T; s: number; i: number }[] = [];
+  rowsIn.forEach((e, i) => {
+    const label = norm(e.label);
+    const aliases = (e.aliases ?? []).map(norm);
+    const hay = [label, ...aliases, norm(e.what), norm(e.familyWord ?? "")].join(" | ");
+    if (!words.every(w => hay.includes(w))) return;
+    const s = label.startsWith(q) ? 0 : label.includes(q) ? 1 : aliases.some(a => a.startsWith(q)) ? 2 : aliases.some(a => a.includes(q)) ? 3 : 4;
+    scored.push({ e, s, i });
+  });
+  return scored.sort((a, b) => a.s - b.s || a.i - b.i).map(x => x.e);
+}
+
 /**
  * Entries matching every typed word, best first: a label that starts with the
  * query, then a label containing it, then an alias, then the one-line job.
