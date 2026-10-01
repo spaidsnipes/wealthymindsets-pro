@@ -68,3 +68,13 @@ describe("Garden 18 §XXIX — every tool has one place in the library", () => {
     for (const id of Object.keys(PROFILE_FAMILY)) expect(LIBRARY_CATEGORIES).toContain(LIBRARY_CATEGORY[id as keyof typeof LIBRARY_CATEGORY]);
   });
 });
+
+import { rolesByLayer as rbl } from "./visualRoles";
+describe("rolesByLayer with a lead", () => {
+  it("every other composable sense reads SUPPORTING when one is PRIMARY", () => {
+    const out = rbl({ ABSORPTION: "PRIMARY" });
+    expect(out.absorption).toBe("PRIMARY");
+    expect(out.tpo).toBe("SUPPORTING");
+  });
+  it("no lead, no filler", () => { expect(rbl({ TPO_PROFILE: "AMBIENT" }).absorption).toBeUndefined(); });
+});

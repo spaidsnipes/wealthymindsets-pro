@@ -425,3 +425,12 @@ describe("attention governor × semantic permission (H-501)", () => {
     expect(selectAttentionGovernor(input({ density: selectSemanticDensity("NEAR") })).candlesDim).toBe(1);
   });
 });
+
+describe("a PRIMARY sense leads the senses beside it (Garden 18 §XXXVII)", () => {
+  it("TPO at SUPPORTING steps back while Absorption is PRIMARY; with no lead it does not", () => {
+    const led = selectAttentionGovernor(input({ roles: { absorption: "PRIMARY", tpo: "SUPPORTING" } }));
+    const flat = selectAttentionGovernor(input({ roles: { tpo: "SUPPORTING" } }));
+    expect(led.alpha("tpo")).toBeLessThan(flat.alpha("tpo"));
+    expect(led.alpha("absorption")).toBeGreaterThanOrEqual(0.92 * 0.999);
+  });
+});

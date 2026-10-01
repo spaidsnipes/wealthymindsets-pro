@@ -62,6 +62,11 @@ export function clarityRoleOpacity(role: VisualRole | undefined): number {
 /** The governor's view: role per painting layer. */
 export function rolesByLayer(roles: VisualRoles): Partial<Record<AttentionLayerKey, VisualRole>> {
   const out: Partial<Record<AttentionLayerKey, VisualRole>> = {};
+  // While one sense leads, every other composable sense without a role of
+  // its own is SUPPORTING — so the governor can step it back behind the lead.
+  if (Object.values(roles).includes("PRIMARY")) {
+    for (const layers of Object.values(ROLE_LAYERS)) for (const layer of layers ?? []) out[layer] = "SUPPORTING";
+  }
   for (const [id, role] of Object.entries(roles) as [ProfileId, VisualRole][]) {
     for (const layer of ROLE_LAYERS[id] ?? []) out[layer] = role;
   }

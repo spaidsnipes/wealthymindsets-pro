@@ -91,6 +91,9 @@ export interface LayerAttention {
 /** How far SUPPORTING and MEMORY layers step back while the room waits. */
 export const POSTURE_QUIET = 0.72;
 
+/** What every other context layer keeps while one sense is PRIMARY. */
+export const PRIMARY_LEADS_OTHERS = 0.72;
+
 export const TIER_CEILING: Readonly<Record<AttentionTier, number>> = {
   SELECTED: 1,
   LIVE: 1,
@@ -306,6 +309,7 @@ export function selectAttentionGovernor(
     return spec.tier;
   };
 
+  const hasPrimary = Object.values(input.roles ?? {}).includes("PRIMARY");
   const alpha = (key: AttentionLayerKey, opts?: AttentionAlphaOpts): number => {
     const spec: LayerAttention = LAYER_ATTENTION[key];
     const tier = tierOf(key, opts);
@@ -335,6 +339,13 @@ export function selectAttentionGovernor(
       if (role === "PRIMARY") a = Math.max(a, 0.92 * staleDim);
       else if (role === "AMBIENT") a = Math.max(ATTENTION_FLOOR, a * 0.55);
       else if (role === "LATENT") a = Math.max(ATTENTION_FLOOR, a * 0.28);
+      // A LEAD IS RELATIVE (serving BTC 15m, §CII: Absorption set PRIMARY
+      // read the same as SUPPORTING — its floor was already met). While one
+      // sense leads, the senses beside it step back; an unroled LIVE layer (the
+      // live market itself) never does.
+      if (hasPrimary && (role === "SUPPORTING" || (role === undefined && (spec.tier === "SUPPORTING" || spec.tier === "MEMORY")))) {
+        a = Math.max(ATTENTION_FLOOR, a * PRIMARY_LEADS_OTHERS);
+      }
     }
     // The receipt records what the layer was actually given, when it asked —
     // a layer painted before the Question Lens was not quieted by it.
