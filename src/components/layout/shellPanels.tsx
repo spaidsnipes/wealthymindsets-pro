@@ -25,6 +25,8 @@
  * repairing — a second owner of one fact — one file wider.
  */
 
+import { ChartStyleSettingsTab } from "@/components/settings/ChartStyleSettingsTab";
+import { SavedLayoutsDoor } from "@/components/os/SavedLayoutsDoor";
 import { ExecutionGuardrailsTab } from "@/components/settings/ExecutionGuardrailsTab";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { CHART_TF_SHIPPED, normalizeTFId } from "@/lib/timeframes";
@@ -403,7 +405,7 @@ export function SettingsPanel({
   onClose: () => void;
   fallbackTriggerRef: React.RefObject<HTMLButtonElement | null>;
 }) {
-  const [tab,       setTab]       = useState<"display"|"trading"|"execution"|"account">("display");
+  const [tab,       setTab]       = useState<"display"|"chart"|"views"|"trading"|"execution"|"account">("display");
   const [darkMode,  setDarkMode]  = useState(true);
   const [soundOn,   setSoundOn]   = useState(true);
   const [showPnl,   setShowPnl]   = useState(true);
@@ -469,6 +471,8 @@ export function SettingsPanel({
 
   const TABS = [
     { id:"display" as const, label:"Display", icon:Monitor },
+    { id:"chart" as const, label:"Chart", icon:BarChart2 },
+    { id:"views" as const, label:"My Views", icon:Search },
     { id:"trading" as const, label:"Trading", icon:BarChart2 },
     { id:"execution" as const, label:"Execution", icon:Shield },
     { id:"account" as const, label:"Account", icon:Shield },
@@ -591,6 +595,18 @@ export function SettingsPanel({
                   <option value="large">Large</option>
                 </select>
               </Row>
+            </div>
+          )}
+
+          {tab === "chart" && (
+            <div role="tabpanel" id="wm-settings-panel-chart" aria-labelledby="wm-settings-tab-chart">
+              <ChartStyleSettingsTab />
+            </div>
+          )}
+
+          {tab === "views" && (
+            <div role="tabpanel" id="wm-settings-panel-views" aria-labelledby="wm-settings-tab-views" className="py-2">
+              <SavedLayoutsDoor ink={{ gold: "#C9A55C", rule: "rgba(139,106,41,0.35)", pearl: "#ede6d3", muted: "#8a8271", hint: "#6f6858", warn: "#e0786b" }} />
             </div>
           )}
 
