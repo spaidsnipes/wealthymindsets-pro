@@ -166,7 +166,8 @@ export function DeskShell() {
                 onTimeframe={v => setWorking(w => setScreen(w, i, { timeframe: v }))}
                 onMaximize={() => setMaximized(m => (m === i ? null : i))}
               />
-              <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+              {/* MainChart's root is `flex: 1` — it fills a flex column, as /charts hosts it. */}
+              <div style={{ flex: 1, minHeight: 0, position: "relative", display: "flex", flexDirection: "column" }}>
                 <MainChart
                   key={`${s.symbol}|${s.timeframe}`}
                   symbol={s.symbol}
