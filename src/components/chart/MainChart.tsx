@@ -26,7 +26,7 @@ import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketD
 import { selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { nearestFreeLabelY } from "@/lib/chart/labelSlot";
 import {
-  PHASE_WORD, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
+  PHASE_WORD, PHASE_MEANING, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
   wordOnTopArc, type WeatherLens,
 } from "@/lib/chart/liquidityGlassGeometry";
 import { axisPriceFormatFor, displayPrecisionFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
@@ -20428,7 +20428,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }, 0, rightL)) cutL.rect(r.x, r.y, r.w, r.h);
             let painted = 0, ticks = 0, births = 0;
             const spans: string[] = [];
-            const words: { text: string; x: number; y: number; alpha: number }[] = [];
+            const words: { text: string; meaning?: string; x: number; y: number; alpha: number }[] = [];
             let tagAt: { xEnd: number; top: number; bottom: number; weight: number } | null = null;
             // THE PANE, NOT THE HEADER (serving BTC-USD 5m desktop, 2026-09-26
             // 04:04 CDT: a pool at the top of the pane ran its rungs through
@@ -20682,7 +20682,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   ctx.setLineDash([]);
                 }
                 ticks++;
-                if (!said.has(tk.stage)) { said.add(tk.stage); words.push({ text: PHASE_WORD[tk.stage], x: xs + 2, y: top - 8, alpha: age }); }
+                if (!said.has(tk.stage)) { said.add(tk.stage); words.push({ text: PHASE_WORD[tk.stage], meaning: PHASE_MEANING[tk.stage], x: xs + 2, y: top - 8, alpha: age }); }
               }
               if (bornOnCamera) births++;
               if (span.consumed || span.pulled) {
@@ -20729,18 +20729,33 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ctx.beginPath();
             ctx.rect(0, paneTopL, W, Math.max(0, paneBotL - paneTopL));
             ctx.clip();
-            ctx.font = "600 7px ui-sans-serif, system-ui, sans-serif";
+            // §XLIII / plate F08A: the stage word in readable gold caps (it was
+            // 7px), its one-line meaning beside it in quieter ivory.
+            const WORD_FONT = "700 10px ui-sans-serif, system-ui, sans-serif";
+            const MEANING_FONT = "italic 500 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = WORD_FONT;
             ctx.textAlign = "left";
             ctx.textBaseline = "alphabetic";
             const placedWords: { x: number; y: number; w: number; h: number }[] = [];
             let wordsSaid = 0;
             for (const wd of att.speaks("liquidityLifecycle") ? words : []) {
-              const r = { x: wd.x, y: wd.y - 7, w: ctx.measureText(wd.text).width, h: 8 };
+              ctx.font = WORD_FONT;
+              const wordW = ctx.measureText(wd.text).width;
+              ctx.font = MEANING_FONT;
+              const meaningW = wd.meaning ? ctx.measureText(` · ${wd.meaning}`).width : 0;
+              ctx.font = WORD_FONT;
+              const r = { x: wd.x, y: wd.y - 10, w: wordW + meaningW, h: 12 };
               if (r.x + r.w > rightL || r.y < HEADER_FLOOR_Y) continue;
               const hit = (o: { x: number; y: number; w: number; h: number }) => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y;
               if (placedWords.some(hit) || floatingChips.some(hit) || rowBodiesAt(r.y, r.y + r.h).some(hit)) continue;
-              ctx.fillStyle = `rgba(${INK},${0.85 * wd.alpha})`;
+              ctx.fillStyle = `rgba(${INK},${Math.max(0.8, 0.98 * wd.alpha).toFixed(3)})`;
               ctx.fillText(wd.text, wd.x, wd.y);
+              if (wd.meaning) {
+                ctx.font = MEANING_FONT;
+                ctx.fillStyle = `rgba(237,230,211,${Math.max(0.6, 0.8 * wd.alpha).toFixed(3)})`;
+                ctx.fillText(` · ${wd.meaning}`, wd.x + wordW, wd.y);
+                ctx.font = WORD_FONT;
+              }
               placedWords.push(r);
               wordsSaid++;
             }

@@ -44,6 +44,21 @@ export const PHASE_WORD: Readonly<Record<LifecycleStage, string>> = {
   PULLED: "PULLED",
 };
 
+/**
+ * Each stage's one-line meaning, as plate F08A prints it under the stage word
+ * ("PERSIST — resting liquidity, book builds"). Garden 18 §XLVI: learning
+ * without lecture — the word names it, the line says what it means.
+ */
+export const PHASE_MEANING: Readonly<Record<LifecycleStage, string>> = {
+  APPEARED: "liquidity appears",
+  GREW: "size builds",
+  PERSISTED: "resting liquidity holds",
+  TOUCHED: "price tests it",
+  REFILLED: "liquidity replenishes",
+  CONSUMED: "traded away",
+  PULLED: "left the book",
+};
+
 export interface PoolPhase {
   /** Form of the ladder from `fromTime` to `toTime` (null = the pool's end). */
   readonly rungs: number;

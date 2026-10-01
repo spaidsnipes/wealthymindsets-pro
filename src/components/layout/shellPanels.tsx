@@ -29,6 +29,7 @@ import { readLivingMarket, writeLivingMarket, listenForLivingMarket, prefersRedu
 import { requestWatchlist } from "@/lib/os/watchlistDoor";
 import { requestEquipment } from "@/lib/workspace/equipmentChannel";
 import { ChartStyleSettingsTab } from "@/components/settings/ChartStyleSettingsTab";
+import { InventionCensusView } from "@/components/settings/InventionCensusView";
 import { SavedLayoutsDoor } from "@/components/os/SavedLayoutsDoor";
 import { ExecutionGuardrailsTab } from "@/components/settings/ExecutionGuardrailsTab";
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -640,6 +641,7 @@ export function SettingsPanel({
           {tab === "intelligence" && (
             <div role="tabpanel" id="wm-settings-panel-intelligence" aria-labelledby="wm-settings-tab-intelligence">
               <button type="button" onClick={() => { onClose(); if (window.location.pathname === INSTRUMENT_VIEW_ROUTE) requestEquipment("chart-tools"); else router.push(INSTRUMENT_VIEW_ROUTE); }} className="my-2 min-h-11 rounded border border-wm-border px-3 text-xs">Open market tools</button>
+              <InventionCensusView />
               <Row label="Default Symbol" sub="Symbol loaded when opening Charts — type any ticker">
                 <>
                   <input
