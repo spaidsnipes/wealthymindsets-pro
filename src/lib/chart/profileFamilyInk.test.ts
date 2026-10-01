@@ -209,3 +209,17 @@ describe("the resolver is pure", () => {
     expect(Object.isFrozen(PROFILE_INK_DEFAULTS)).toBe(true);
   });
 });
+
+describe("Garden 18 §XXXV — profile strength keeps the hierarchy", async () => {
+  const { resolveProfileInk, strengthAlpha } = await import("./profileFamilyInk");
+  it("CANON is the Founder's ink exactly", () => {
+    expect(resolveProfileInk(null, "CANON").rgba("VALUE", 0.22)).toBe(resolveProfileInk(null).rgba("VALUE", 0.22));
+  });
+  it("STRONG lifts faint fills most, near-solid rules least, zero stays zero", () => {
+    expect(strengthAlpha(0.08, 2)).toBeCloseTo(0.154, 3);
+    expect(strengthAlpha(0.95, 2)).toBeGreaterThan(0.99);
+    expect(strengthAlpha(0, 2)).toBe(0);
+    expect(strengthAlpha(0.3, 0.7)).toBeLessThan(0.3);
+    expect(strengthAlpha(0.2, 2)).toBeLessThan(strengthAlpha(0.5, 2));
+  });
+});

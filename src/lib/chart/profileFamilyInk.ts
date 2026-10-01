@@ -194,7 +194,7 @@ const choice = (c: Rgb | null | undefined, atRest: Rgb): Rgb | null =>
  *
  * `null` / `{}` is the untouched palette and yields the defaults exactly.
  */
-export function resolveProfileInk(palette?: ProfilePalette | null): ProfileInk {
+export function resolveProfileInk(palette?: ProfilePalette | null, strength: ProfileStrength = "CANON"): ProfileInk {
   const picked: Partial<Record<ProfileInkRole, Rgb>> = {};
   const poc = choice(palette?.poc, VP_POC_AT_REST);
   const vah = choice(palette?.vah, VP_VALUE_AREA_AT_REST);
@@ -213,7 +213,8 @@ export function resolveProfileInk(palette?: ProfilePalette | null): ProfileInk {
     rgbText[r] = `${ink[0]},${ink[1]},${ink[2]}`;
   }
 
-  const rgba = (r: ProfileInkRole, alpha: number) => `rgba(${rgbText[r]},${alpha})`;
+  const k = PROFILE_STRENGTH_EXPONENT[strength] ?? 1;
+  const rgba = (r: ProfileInkRole, alpha: number) => `rgba(${rgbText[r]},${k === 1 ? alpha : strengthAlpha(alpha, k)})`;
   return Object.freeze({
     role: Object.freeze(role),
     chosen: Object.freeze(chosen),
@@ -222,6 +223,30 @@ export function resolveProfileInk(palette?: ProfilePalette | null): ProfileInk {
     chosenOr: (r: ProfileInkRole, alpha: number, identity: string) => (chosen[r] ? rgba(r, alpha) : identity),
     rgb: (r: ProfileInkRole) => rgbText[r],
   });
+}
+
+/**
+ * PROFILE STRENGTH — Garden 18 §XXXIV–§XXXVII. One trader setting for the
+ * whole profile family, applied where every profile's ink is resolved, so no
+ * species can be left faded while its siblings got brighter.
+ *
+ * It is not a multiplier: alpha' = 1 − (1 − alpha)^k. A faint fill moves the
+ * most and a near-solid POC rule barely moves, so the hierarchy (POC over
+ * edges over value over wash) survives every setting. CANON is k = 1 —
+ * byte-identical to the Founder's ink. Zero stays zero (an absent row is
+ * never painted in).
+ */
+export type ProfileStrength = "SUBTLE" | "CANON" | "STANDARD" | "STRONG";
+export const PROFILE_STRENGTHS: readonly ProfileStrength[] = ["SUBTLE", "CANON", "STANDARD", "STRONG"];
+export const PROFILE_STRENGTH_EXPONENT: Readonly<Record<ProfileStrength, number>> = { SUBTLE: 0.7, CANON: 1, STANDARD: 1.4, STRONG: 2 };
+export const PROFILE_STRENGTH_STORAGE_KEY = "wm_profile_strength";
+export function strengthAlpha(alpha: number, k: number): number {
+  if (!(alpha > 0)) return 0;
+  const a = Math.min(1, alpha);
+  return Math.round((1 - Math.pow(1 - a, k)) * 1000) / 1000;
+}
+export function parseProfileStrength(raw: string | null | undefined): ProfileStrength {
+  return PROFILE_STRENGTHS.includes(raw as ProfileStrength) ? (raw as ProfileStrength) : "CANON";
 }
 
 /** The untouched palette's inks — the glass as it painted before this owner. */

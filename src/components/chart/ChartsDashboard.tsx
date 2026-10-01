@@ -3440,6 +3440,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     />
   );
   useEffect(() => { publishToolsSlot("w-structure", wStructureNode); publishToolsSlot("w-memory", wMemoryNode); });
+  // Garden 18 §XXVI–§XXVIII: the head of the Tools door — find any tool by
+  // name, and see every reading that is on the chart right now.
+  const toolFinderNode = (
+    <ToolFinder
+      barsPresent={chartBars.length > 0}
+      printsPresent={chartOrderFlowReadings.printsPresent}
+      observedAggressorFlow={chartFlowSnap.hasFlow}
+      speciesRefusal={profileSpeciesRefusalVM}
+      active={profileMenuActive}
+      onToggle={onProfileMenuToggle}
+    />
+  );
+  useEffect(() => { publishToolsSlot("tool-finder", toolFinderNode); });
 
   /*
     TOOLS › MARKET OBJECT PASSPORT — the objects ON the candles, as a picker.
@@ -5553,15 +5566,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 and the same switch state, so they cannot disagree about what
                 this tape can draw.
               */}
-              {/* Garden 18 §XXVI–§XXVIII: find any tool by name; see what is on. */}
-              <ToolFinder
-                barsPresent={chartBars.length > 0}
-                printsPresent={chartOrderFlowReadings.printsPresent}
-                observedAggressorFlow={chartFlowSnap.hasFlow}
-                speciesRefusal={profileSpeciesRefusalVM}
-                active={profileMenuActive}
-                onToggle={onProfileMenuToggle}
-              />
               <ChartArrangementBar
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}

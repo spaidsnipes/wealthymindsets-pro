@@ -5,6 +5,7 @@
  * lane can move and dim, never overlap another.
  */
 import React from "react";
+import { PROFILE_STRENGTHS, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength, type ProfileStrength } from "@/lib/chart/profileFamilyInk";
 import type { StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 import {
   STACK_LABEL, STACK_SPECIES, FUSABLE_SPECIES, cycleOpacity, cycleWidth, isLocked, setFusion, stackWidth, moveSpecies, orderStack, stackOpacity, toggleLock, type ProfileStackPrefs,
@@ -14,8 +15,35 @@ export function StackArrangeBar({ prefs, onChange, fusionNote }: { prefs: Profil
   const order = orderStack(STACK_SPECIES, prefs);
   const [pick, setPick] = React.useState<StackSpecies[]>([]);
   const fused = prefs.fusion && prefs.fusion.length === 2 ? prefs.fusion : null;
+  // Garden 18 §XXXIV: one strength for the whole profile family; the chart
+  // re-resolves its ink on the same event the VP palette uses.
+  const [strength, setStrength] = React.useState<ProfileStrength>(() => {
+    try { return parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)); } catch { return "CANON"; }
+  });
+  const chooseStrength = (v: ProfileStrength) => {
+    setStrength(v);
+    try { localStorage.setItem(PROFILE_STRENGTH_STORAGE_KEY, v); } catch { /* this visit only */ }
+    try { window.dispatchEvent(new Event("wm-vp-colors")); } catch { /* no window */ }
+  };
   return (
     <div data-testid="stack-arrange-bar" className="mt-2 rounded-lg border border-wm-border px-3 py-2">
+      <div data-testid="profile-strength" className="mb-2 flex flex-wrap items-center gap-1">
+        <span className="mr-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-wm-text-dim">Profile strength</span>
+        {PROFILE_STRENGTHS.map(v => (
+          <button key={v} type="button" aria-pressed={strength === v} data-testid={`profile-strength-${v}`}
+            onClick={() => chooseStrength(v)}
+            className="min-h-7 rounded border px-2 text-[10px] font-semibold"
+            style={{ borderColor: strength === v ? "rgba(212,175,55,0.8)" : undefined, color: strength === v ? "#d4af37" : undefined }}>
+            {v === "CANON" ? "Canon" : v[0] + v.slice(1).toLowerCase()}
+          </button>
+        ))}
+        {strength !== "CANON" ? (
+          <button type="button" data-testid="profile-strength-reset" onClick={() => chooseStrength("CANON")}
+            className="ml-auto min-h-7 rounded px-2 text-[10px] text-wm-text-dim underline-offset-2 hover:underline">
+            Reset to Founder Canon
+          </button>
+        ) : null}
+      </div>
       <div className="pb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-wm-text-dim">
         Arrange the stack · nearest the price axis first
       </div>

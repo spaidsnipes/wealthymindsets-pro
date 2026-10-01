@@ -582,7 +582,7 @@ import {
   VP_VALUE_AREA_DEFAULT,
   migrateVolumeProfilePalette,
 } from "@/lib/chart/marketFieldMaterial";
-import { PROFILE_INK_AT_REST, resolveProfileInk } from "@/lib/chart/profileFamilyInk";
+import { PROFILE_INK_AT_REST, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength, resolveProfileInk } from "@/lib/chart/profileFamilyInk";
 // The legend headline steps past an open Workspace/Tools door (see openDoorEdge.ts).
 import { ClearOfOpenDoor } from "@/components/os/ClearOfOpenDoor";
 import { doorInsetFor, openDoorEdge } from "@/lib/os/openDoorEdge";
@@ -3032,7 +3032,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           poc: poc ?? VP_DEFAULT_TRIPLETS.poc, vah: vah ?? VP_DEFAULT_TRIPLETS.vah,
           val: val ?? VP_DEFAULT_TRIPLETS.val,
         };
-        profileInkRef.current = resolveProfileInk(vpColorsRef.current);
+        profileInkRef.current = resolveProfileInk(vpColorsRef.current, parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)));
       } catch {}
       setRangeVer(v => v + 1);
     };

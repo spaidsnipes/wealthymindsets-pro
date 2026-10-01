@@ -40,6 +40,7 @@
  * antique gold #c4a574 for BRAND AND RULES ONLY. Risk wears independent amber.
  */
 
+import { ToolsSlot } from "@/components/chart/orderFlowToolsSlot";
 import * as React from "react";
 // ── 2026-09-18: A ROOM MAY NOT REBOOT THE MACHINE ─────────────────────────
 //
@@ -2283,7 +2284,11 @@ export function WMOperatingSystem({
               second house, rebuilt inside the first. */}
           {equipmentMode ? (
             scenePanel === "tools" ? (
-              <RoomWorkspaceRail activeHref={activeHref} kind="lens" heading="Tools" presentation="tile" />
+              <>
+                {/* Garden 18 §XXVI: find any tool by name, before any family door. */}
+                <div style={{ padding: "8px 10px 0" }}><ToolsSlot slot="tool-finder" /></div>
+                <RoomWorkspaceRail activeHref={activeHref} kind="lens" heading="Tools" presentation="tile" />
+              </>
             ) : null
           ) : (
             <>
