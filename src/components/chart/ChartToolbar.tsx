@@ -660,6 +660,9 @@ interface ChartToolbarProps {
   onEquipmentClose?:   () => void;
 }
 
+/** Catalog shelf of each indicator, by name — read by H-301 Evidence Lineage. */
+export const INDICATOR_CATEGORY: Readonly<Record<string, string>> = Object.fromEntries(INDICATORS.map(i => [i.name, i.cat]));
+
 // Pin high-priority categories first so they're always visible without scrolling
 const ALL_IND_CATS = Array.from(new Set(INDICATORS.map(i => i.cat)));
 const PINNED = ["Order Flow", "Volume", "Trend", "Momentum"];

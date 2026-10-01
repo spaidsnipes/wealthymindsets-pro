@@ -46,6 +46,7 @@
  */
 
 import type { WebullLiveReading } from "@/lib/marketData/useWebullLiveCrypto";
+import type { EvidenceLineageVM } from "@/lib/chart/evidenceLineage";
 import * as React from "react";
 import type { QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
 import type { AbsorptionRailRead } from "@/lib/marketData/selectAbsorptionAnatomy";
@@ -270,6 +271,8 @@ export interface DecisionSpineBandProps {
    * the chart's crypto symbol — the lane Webull answers today. Absent → absent card.
    */
   readonly webullLive?: WebullLiveReading | null;
+  /** H-301 · Evidence Lineage — what is on, grouped into independent families. Absent → absent card. */
+  readonly evidenceLineage?: EvidenceLineageVM | null;
   /** F06A · buy/sell by price from the heard tape (selectTapeFootprint), with its "since". */
   readonly tapeFootprint?: TapeFootprintVM | null;
   /**
@@ -1612,6 +1615,8 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
 
       {rail && props.webullLive && !replayEngaged ? <WebullLiveCard reading={props.webullLive} /> : null}
 
+      {rail && props.evidenceLineage ? <EvidenceLineageCard vm={props.evidenceLineage} /> : null}
+
       {/* F06A · ORDER FLOW CONTEXT — beneath the plaque, at rest, ONLY with a
           lawful reading. The tape's aggressor split (not F06A's book "stacks",
           which no owner here publishes), with its provenance printed. Absent
@@ -1926,5 +1931,39 @@ function WebullLiveCard({ reading }: { readonly reading: WebullLiveReading }): R
         </>
       )}
     </div>
+  );
+}
+
+
+/**
+ * H-301 · EVIDENCE LINEAGE (plate 118) — "7 observations / 3 independent
+ * families · DO NOT COUNT 7". Each family names what its readings are
+ * computed FROM, so the trader sees why they move together.
+ */
+function EvidenceLineageCard({ vm }: { readonly vm: EvidenceLineageVM }): React.ReactElement {
+  return (
+    <section
+      data-testid="spine-evidence-lineage"
+      aria-label={`Evidence lineage: ${vm.summary}.${vm.warning ? ` ${vm.warning} — readings in one family are one piece of evidence.` : ""}`}
+      style={{ display: "flex", flexDirection: "column", gap: 6, margin: "0 2px 10px", padding: "9px 11px 9px", border: "1px solid rgba(196,165,116,0.24)", borderRadius: 2 }}
+    >
+      <span style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em", textAlign: "center" }}>Evidence lineage</span>
+      <span style={{ fontSize: 11, lineHeight: "15px", color: "#c8c0ae", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{vm.summary}</span>
+      {vm.warning ? (
+        <span data-testid="spine-evidence-warning" style={{ ...PLAQUE_STAMP, color: "#ff9696", fontWeight: 800, textAlign: "center", border: "1px solid rgba(255,150,150,0.45)", borderRadius: 2, padding: "3px 6px" }}>
+          ⚠ {vm.warning}
+        </span>
+      ) : null}
+      {vm.families.map((f, i) => (
+        <span key={f.id} data-evidence-family={f.id} style={{ display: "flex", flexDirection: "column", gap: 1, borderTop: "1px solid rgba(196,165,116,0.14)", paddingTop: 5 }}>
+          <span style={{ fontSize: 11, lineHeight: "15px", fontWeight: 800, color: "#ede6d3", letterSpacing: "0.06em" }}>({i + 1}) {f.label.toUpperCase()} family</span>
+          <span style={{ fontSize: 11, lineHeight: "15px", color: "#c8c0ae" }}>{f.members.join(", ")}</span>
+          <span style={{ fontSize: 10, lineHeight: "14px", color: "#8a8271", fontStyle: "italic" }}>from {f.from}</span>
+        </span>
+      ))}
+      <span style={{ ...PLAQUE_STAMP, fontSize: 10, textAlign: "center", borderTop: "1px solid rgba(196,165,116,0.14)", paddingTop: 5 }}>
+        {vm.families.length} {vm.families.length === 1 ? "family" : "families"} · independent
+      </span>
+    </section>
   );
 }

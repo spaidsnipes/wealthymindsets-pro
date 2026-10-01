@@ -15,7 +15,8 @@ import { repairChartPreferences } from "@/lib/chartPreferenceRepair";
 import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
-import { ChartToolbar } from "./ChartToolbar";
+import { ChartToolbar, INDICATOR_CATEGORY } from "./ChartToolbar";
+import { compileEvidenceLineage } from "@/lib/chart/evidenceLineage";
 import { MainChart, type VpDrawnLevels } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
 import { IndicatorSettingsModal } from "./IndicatorSettingsModal";
@@ -4570,10 +4571,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       onToggleRaw={() => setRawOn(v => !v)}
     />
   ) : null;
+  // H-301 Evidence Lineage: the indicators and Tools switches that are ON,
+  // grouped by what each is computed from (plate 118, "do not count 7").
+  const evidenceLineage = compileEvidenceLineage({
+    indicators: [...activeInds].map(name => ({ name, cat: INDICATOR_CATEGORY[name] ?? null })),
+    tools: arrangementMenu.entries.filter(e => e.active).map(e => ({ id: e.id, label: e.label })),
+  });
   const decisionSpineProps = {
     // Webull's own real-time frames for a USD crypto symbol (measured working
     // 2026-09-27; stocks/futures refused by package, so not asked here).
     webullLive,
+    evidenceLineage,
     decisionId: currentSceneDecision?.decisionId ?? null,
     decisionIdAbsence: sceneDecisionAbsence,
     // NOW — the moment the decision is being made in. Composed, never

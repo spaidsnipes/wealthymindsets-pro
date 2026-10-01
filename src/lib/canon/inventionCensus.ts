@@ -120,8 +120,8 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
   { id: "F11.STRUCTURE", name: "Market Structure", family: "F11 Object Passport", status: "BUILT", owner: `${VM}selectMarketStructure.ts`, surface: sw("MARKET_STRUCTURE"), plate: null },
 
   // ── F12 EVIDENCE LINEAGE ───────────────────────────────────────────────
-  { id: "H-301", name: "Evidence Lineage (do not count 7 correlated readings as 7)", family: "F12 Indicator Graduation", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" },
-    plate: "WM_NewMockup_118_F12_Evidence_Lineage_Do_Not_Count_7", gap: "no lineage/dedupe owner for indicator evidence" },
+  { id: "H-301", name: "Evidence Lineage (do not count 7 correlated readings as 7)", family: "F12 Indicator Graduation", status: "BUILT", owner: "src/lib/chart/evidenceLineage.ts", surface: ctx("the WAIT rail beside the chart, once indicators or senses are on"),
+    plate: "WM_NewMockup_118_F12_Evidence_Lineage_Do_Not_Count_7" },
 
   // ── F13 SEMANTIC ZOOM / QUESTIONS ──────────────────────────────────────
   { id: "H-501", name: "Semantic Zoom (FAR · MID · NEAR)", family: "F13 Semantic Zoom", status: "BUILT", owner: `${VM}selectSemanticDensity.ts`, surface: ctx("the chart's zoom itself"), plate: "WM_NewMockup_128_F13_Semantic_Zoom_Micro" },
