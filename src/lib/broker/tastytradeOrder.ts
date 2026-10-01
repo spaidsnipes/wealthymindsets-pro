@@ -31,7 +31,7 @@ export interface TtOrderIntent {
 }
 
 export interface TtOrder {
-  readonly "time-in-force": "Day";
+  readonly "time-in-force": "Day" | "GTC";
   readonly "order-type": "Limit" | "Market";
   readonly price?: string;
   readonly "price-effect"?: "Debit" | "Credit";
@@ -83,7 +83,9 @@ export function toTastytradeOrder(i: TtOrderIntent): TtMapResult {
   return {
     ok: true,
     order: {
-      "time-in-force": "Day",
+      // tastytrade refuses Day on crypto limits ("time in force value is not
+      // supported for cryptocurrency trades", dry run 2026-10-01): crypto is GTC.
+      "time-in-force": i.instrumentType === "Cryptocurrency" ? "GTC" : "Day",
       "order-type": i.type,
       ...(i.type === "Limit" ? { price: String(Number(i.limitPx!.toPrecision(12))), "price-effect": buying ? "Debit" as const : "Credit" as const } : {}),
       source: "wm-pro",

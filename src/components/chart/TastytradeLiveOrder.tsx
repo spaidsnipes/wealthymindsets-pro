@@ -117,7 +117,7 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
 
   const summary = useMemo(() => {
     if (!intent) return null;
-    return `LIVE · TASTYTRADE · …${account?.tail ?? "?"} · ${intent.action.toUpperCase()} ${intent.qty} ${intent.describe} · LIMIT ${intent.limitPx ?? "—"} · DAY`;
+    return `LIVE · TASTYTRADE · …${account?.tail ?? "?"} · ${intent.action.toUpperCase()} ${intent.qty} ${intent.describe} · LIMIT ${intent.limitPx ?? "—"} · ${intent.instrumentType === "Cryptocurrency" ? "GTC" : "DAY"}`;
   }, [intent, account]);
 
   async function send() {
