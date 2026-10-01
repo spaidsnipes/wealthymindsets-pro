@@ -350,11 +350,24 @@ async function signedCall(
 export async function webullInstrumentGet(
   fetchImpl: typeof fetch,
   config: WebullOrderConfig,
-  path: string,
+  endpoint: "STOCK_PROFILES" | "INSTRUMENT_FUTURES_CONTRACTS" | "INSTRUMENT_CRYPTO_PROFILES",
   query: Readonly<Record<string, string>>,
 ): Promise<{ readonly ok: boolean; readonly payload: unknown; readonly reason?: string }> {
-  if (!/^\/trading\/instruments\/[a-z/-]+\/list$/.test(path)) return { ok: false, payload: null, reason: "Not an instrument read." };
-  const t = await signedCall(fetchImpl, config, { path, apiVersion: "v3", needsMarketData: false, sdkSource: "webull/data/request (instrument list)" }, { query });
+  const t = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT[endpoint], { query });
+  if (t.kind === "NO_ANSWER") return { ok: false, payload: null, reason: t.reason };
+  return t.status >= 200 && t.status < 300 ? { ok: true, payload: t.payload } : { ok: false, payload: t.payload, reason: `HTTP ${t.status} ${providerWords(t.payload)}` };
+}
+
+/** One account's executions since `startDate` (YYYY-MM-DD), read-only (`/trading/orders/executions/list`). */
+export async function listWebullExecutions(
+  fetchImpl: typeof fetch,
+  config: WebullOrderConfig,
+  accountId: string,
+  startDate: string,
+): Promise<{ readonly ok: boolean; readonly payload: unknown; readonly reason?: string }> {
+  const t = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ORDER_EXECUTIONS, {
+    query: { account_id: accountId, start_date: startDate, end_date: new Date().toISOString().slice(0, 10) },
+  });
   if (t.kind === "NO_ANSWER") return { ok: false, payload: null, reason: t.reason };
   return t.status >= 200 && t.status < 300 ? { ok: true, payload: t.payload } : { ok: false, payload: t.payload, reason: `HTTP ${t.status} ${providerWords(t.payload)}` };
 }

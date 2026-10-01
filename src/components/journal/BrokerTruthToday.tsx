@@ -21,10 +21,10 @@ const INK = "#ede6d3";
 const LINE = "rgba(139,106,41,0.25)";
 
 interface FeedOrder { id: string; state: string; status: string; symbol: string | null; action: string | null; quantity: number | null; filled: number | null; price: string | null; externalId: string | null; decisionId: string | null; sentFromWm: boolean }
-interface FeedFill { id: string; orderId: string | null; symbol: string | null; action: string | null; quantity: number | null; price: number | null; value: number | null; fees: number; executedAt: string | null }
+interface FeedFill { id: string; orderId: string | null; symbol: string | null; action: string | null; quantity: number | null; price: number | null; value: number | null; fees: number; executedAt: string | null; feesReported?: boolean; decisionId?: string | null }
 interface FeedAccount { tail: string; broker: string; state: string; reason?: string; orders: FeedOrder[]; fills: FeedFill[] }
 
-interface Story { key: string; decisionId: string | null; accountTail: string; orders: FeedOrder[]; fills: FeedFill[] }
+interface Story { key: string; broker: string; decisionId: string | null; accountTail: string; orders: FeedOrder[]; fills: FeedFill[] }
 
 const money = (v: number) => `${v < 0 ? "−" : ""}$${Math.abs(v).toFixed(2)}`;
 const time = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—");
@@ -52,16 +52,18 @@ export function BrokerTruthToday() {
       const byDecision = new Map<string, Story>();
       const orderToStory = new Map<string, Story>();
       for (const o of a.orders) {
-        const key = `${a.tail}|${o.decisionId ?? "outside"}`;
-        const st = byDecision.get(key) ?? { key, decisionId: o.decisionId, accountTail: a.tail, orders: [], fills: [] };
+        const key = `${a.broker}|${a.tail}|${o.decisionId ?? "outside"}`;
+        const st = byDecision.get(key) ?? { key, broker: a.broker, decisionId: o.decisionId, accountTail: a.tail, orders: [], fills: [] };
         st.orders.push(o);
         byDecision.set(key, st);
         orderToStory.set(o.id, st);
       }
       for (const f of a.fills) {
+        // A Webull fill carries its own decision (looked up by its client order id).
         const st = (f.orderId && orderToStory.get(f.orderId)) || (() => {
-          const key = `${a.tail}|outside`;
-          const s = byDecision.get(key) ?? { key, decisionId: null, accountTail: a.tail, orders: [], fills: [] };
+          const d = f.decisionId ?? null;
+          const key = `${a.broker}|${a.tail}|${d ?? "outside"}`;
+          const s = byDecision.get(key) ?? { key, broker: a.broker, decisionId: d, accountTail: a.tail, orders: [], fills: [] };
           byDecision.set(key, s);
           return s;
         })();
@@ -80,17 +82,17 @@ export function BrokerTruthToday() {
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
         <h2 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, fontWeight: 400 }}>Broker truth · last 7 days</h2>
         <span style={{ color: MUTED, fontSize: 11 }}>
-          Read from tastytrade{feed?.asOf ? ` · as of ${time(feed.asOf)}` : ""} — orders and fills as the broker states them, never this browser&apos;s memory.
+          Read from your brokers{feed?.asOf ? ` · as of ${time(feed.asOf)}` : ""} — orders and fills as the broker states them, never this browser&apos;s memory.
         </span>
       </div>
       {!feed ? (
-        <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>Asking tastytrade for today&apos;s orders and fills…</p>
+        <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>Asking your brokers for this week&apos;s orders and fills…</p>
       ) : feed.state === "NOT_CONFIGURED" ? (
         <p style={{ color: GOLD, fontSize: 12, marginTop: 8 }}>tastytrade is not connected on this deployment, so there are no broker facts to show.</p>
       ) : feed.state !== "OK" ? (
-        <p style={{ color: GOLD, fontSize: 12, marginTop: 8 }}>tastytrade did not answer ({feed.reason ?? feed.state}). Your journal entries below are unaffected; this section retries every 30 seconds.</p>
+        <p style={{ color: GOLD, fontSize: 12, marginTop: 8 }}>The brokers did not answer ({feed.reason ?? feed.state}). Your journal entries below are unaffected; this section retries every 30 seconds.</p>
       ) : stories.length === 0 ? (
-        <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>No orders or fills at tastytrade in the last 7 days. Completed decision stories will appear here as the broker records them.</p>
+        <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>No orders or fills at tastytrade or Webull in the last 7 days. Completed decision stories will appear here as the broker records them.</p>
       ) : (
         <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
           {stories.map(st => {
@@ -102,7 +104,7 @@ export function BrokerTruthToday() {
                   <strong style={{ color: st.decisionId ? GOLD : MUTED, fontSize: 12 }}>
                     {st.decisionId ? `Decision ${st.decisionId}` : "Placed outside WM"}
                   </strong>
-                  <span style={{ color: MUTED, fontSize: 11 }}>tastytrade · …{st.accountTail}</span>
+                  <span style={{ color: MUTED, fontSize: 11 }}>{st.broker === "webull" ? "Webull" : "tastytrade"} · …{st.accountTail}</span>
                   {st.decisionId ? (
                     <Link href={`/journal?decisions=${encodeURIComponent(st.decisionId)}`} style={{ color: GOLD, fontSize: 11, marginLeft: "auto" }}>Open this decision&apos;s journal →</Link>
                   ) : null}
@@ -123,10 +125,14 @@ export function BrokerTruthToday() {
                     {st.fills.map(f => (
                       <li key={f.id}>
                         <span style={{ color: "#7fd1a8" }}>FILL</span> · {time(f.executedAt)} · {f.action} {f.quantity} {f.symbol} @ {f.price}
-                        <span style={{ color: MUTED }}> · fees {money(f.fees)}</span>
+                        <span style={{ color: MUTED }}> · {f.feesReported === false ? "fees not reported" : `fees ${money(f.fees)}`}</span>
                       </li>
                     ))}
-                    <li style={{ color: MUTED }}>Net cash {money(cash)} · fees {money(fees)} — as tastytrade states it; P/L on open positions is not claimed here.</li>
+                    {st.broker === "webull" ? (
+                      <li style={{ color: MUTED }}>Prices and quantities as Webull states them; Webull&apos;s executions carry no fees or cash, so none are claimed here.</li>
+                    ) : (
+                      <li style={{ color: MUTED }}>Net cash {money(cash)} · fees {money(fees)} — as tastytrade states it; P/L on open positions is not claimed here.</li>
+                    )}
                   </ul>
                 ) : st.orders.length ? <p style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>No fill yet.</p> : null}
               </article>

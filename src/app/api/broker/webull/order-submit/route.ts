@@ -12,6 +12,7 @@ import {
 } from "@/lib/broker/adapters/webullOrders";
 import { webullOwnerGate, webullOwnerRefusal } from "@/lib/broker/webullOwner";
 import { webullPreviewScope } from "@/lib/broker/webullPreviewScope";
+import { orderDecisionKv, putOrderDecision } from "@/lib/broker/orderDecisionLedger";
 import { requireAuth } from "@/lib/requireAuth";
 import { resolveWebullSessionToken, webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
 
@@ -107,5 +108,17 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const result = await submitWebullOrderOnce(fetch, { ...orderCfg, liveOrdersEnabled: true }, ledger, intent);
+  // §XC: the order → Decision_ID link the Journal groups Webull fills by.
+  // Written after the order has its answer; never alters or blocks it.
+  if (result.sent || result.outcome === "SUBMISSION_UNKNOWN") {
+    try {
+      const kv = orderDecisionKv(await webullWorkerEnv());
+      if (kv) await putOrderDecision(kv, {
+        broker: "webull", clientOrderId: result.clientOrderId ?? intent.clientOrderId, decisionId: intent.decisionId,
+        instrumentType: intent.assetClass ?? "equity", symbol: (contract ? osiIn : symbolIn) ?? "", action: String(positionIntent ?? side), qty,
+        limitPx: intent.limitPx ?? null, accountTail: tail, sentAtMs: Date.now(),
+      });
+    } catch { /* the journal link is not the order */ }
+  }
   return NextResponse.json({ state: result.outcome, reason: result.note, clientOrderId: result.clientOrderId, brokerOrderId: result.brokerOrderId, sent: result.sent, account: tail }, { headers: NO_STORE });
 }

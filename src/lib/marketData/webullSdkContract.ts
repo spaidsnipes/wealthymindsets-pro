@@ -353,6 +353,26 @@ export const WEBULL_SDK_CONTRACT = {
     needsMarketData: false,
     sdkSource: "webull/trade/request/v2/get_account_balance_request.py",
   },
+  /** Garden 18 §XC: an account's fills, for the Journal (read-only). */
+  ORDER_EXECUTIONS: {
+    path: "/trading/orders/executions/list",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/trade/request/v2/get_order_executions_request_v2.py",
+  },
+  /** Symbol search lookups (exact symbols per category; Webull has no free-text search). */
+  INSTRUMENT_FUTURES_CONTRACTS: {
+    path: "/trading/instruments/futures/contracts/list",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/data/request/get_futures_instruments_request.py",
+  },
+  INSTRUMENT_CRYPTO_PROFILES: {
+    path: "/trading/instruments/crypto/profiles/list",
+    apiVersion: "v3",
+    needsMarketData: false,
+    sdkSource: "webull/data/request/get_crypto_instruments_request_v2.py",
+  },
 } as const satisfies Readonly<Record<string, WebullEndpointContract>>;
 
 export type WebullEndpointName = keyof typeof WEBULL_SDK_CONTRACT;

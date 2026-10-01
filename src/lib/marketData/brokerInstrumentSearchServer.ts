@@ -56,12 +56,12 @@ async function webullHits(q: string): Promise<InstrumentSearchHit[]> {
   const session = await resolveWebullSessionToken(fetch, { appKey: cfg.appKey, appSecret: cfg.appSecret, apiHost: cfg.apiHost }, webullSessionStore(await webullWorkerEnv()));
   if (session.awaiting2fa || (!session.accessToken && !session.tokenless)) return [];
   const c = { appKey: cfg.appKey, appSecret: cfg.appSecret, apiHost: cfg.apiHost, accessToken: session.accessToken, timeoutMs: 2000 };
-  const ask = (path: string, query: Record<string, string>, cat: "Stock" | "Futures" | "Crypto") =>
-    settle(webullInstrumentGet(fetch, c, path, query).then(r => (r.ok ? webullInstrumentHits(r.payload, cat) : [])));
+  const ask = (endpoint: "STOCK_PROFILES" | "INSTRUMENT_FUTURES_CONTRACTS" | "INSTRUMENT_CRYPTO_PROFILES", query: Record<string, string>, cat: "Stock" | "Futures" | "Crypto") =>
+    settle(webullInstrumentGet(fetch, c, endpoint, query).then(r => (r.ok ? webullInstrumentHits(r.payload, cat) : [])));
   const [stocks, futures, crypto] = await Promise.all([
-    ask("/trading/instruments/stocks/profiles/list", { symbols: sym, category: "US_STOCK" }, "Stock"),
-    ask("/trading/instruments/futures/contracts/list", { code: sym.replace(/1!$/, ""), category: "US_FUTURES" }, "Futures"),
-    ask("/trading/instruments/crypto/profiles/list", { symbols: sym.replace(/USD$/, ""), category: "US_CRYPTO" }, "Crypto"),
+    ask("STOCK_PROFILES", { symbols: sym, category: "US_STOCK" }, "Stock"),
+    ask("INSTRUMENT_FUTURES_CONTRACTS", { code: sym.replace(/1!$/, ""), category: "US_FUTURES" }, "Futures"),
+    ask("INSTRUMENT_CRYPTO_PROFILES", { symbols: sym.replace(/USD$/, ""), category: "US_CRYPTO" }, "Crypto"),
   ]);
   return [...futures, ...stocks, ...crypto];
 }
