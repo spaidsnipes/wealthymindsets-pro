@@ -153,7 +153,7 @@ export function priceSourceBadge(
   const L = CANONICAL_FIDELITY_LABELS;
   // Session closure does not manufacture a last observation. Keep unknown
   // providers unresolved before applying the closed-market presentation rule.
-  const unresolved = !["polygon", "coinbase", "binance", "alpaca", "finnhub", "yahoo", "moomoo", "longbridge", "webull"].includes(source);
+  const unresolved = !["polygon", "coinbase", "binance", "alpaca", "finnhub", "yahoo", "moomoo", "longbridge", "webull", "tastytrade"].includes(source);
   if (unresolved || observation?.present !== true) {
     return {
       label: L.STALE_PIPELINE, // legacy internal fallback; availability governs rendering
@@ -187,7 +187,7 @@ export function priceSourceBadge(
   }
   // A transport flag or a provider name is not a freshness receipt.
   // Observed-but-ungraded prices remain usable without a LIVE certificate.
-  if (["polygon", "coinbase", "binance", "alpaca"].includes(source)
+  if (["polygon", "coinbase", "binance", "alpaca", "tastytrade"].includes(source)
       && (!connected || observation?.fresh !== true)) {
     return {
       label: L.ACTIVE_DEGRADED,
@@ -208,6 +208,10 @@ export function priceSourceBadge(
       };
     case "polygon":
       return { label: L.LIVE_CERTIFIED_QUOTE, title: "Real-time trade stream", live: true, provenance: "polygon", unresolved: false };
+    case "tastytrade":
+      // dxFeed's /realtime stream via the owner's tastytrade account, and only
+      // once the gate above has seen a connected, fresh print.
+      return { label: L.LIVE_CERTIFIED_QUOTE, title: "Real-time futures stream", live: true, provenance: "tastytrade", unresolved: false };
     case "binance":
       return { label: L.LIVE_CERTIFIED_QUOTE, title: "Real-time crypto stream", live: true, provenance: "binance", unresolved: false };
     case "coinbase":

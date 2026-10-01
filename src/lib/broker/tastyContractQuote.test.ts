@@ -57,7 +57,7 @@ describe("tastytrade contract quotes over DXLink", () => {
 
   it("a Trade or Greeks event never erases a known quote", () => {
     let q = applyContractEvent(emptyContractQuote(SYM), decodeCompactFeedData(["Quote", ["Quote", SYM, 1, 2, 1, 1]])[0], 1);
-    q = applyContractEvent(q, decodeCompactFeedData(["Trade", ["Trade", SYM, 1.5, 300, 2]])[0], 2);
+    q = applyContractEvent(q, decodeCompactFeedData(["Trade", ["Trade", SYM, 1.5, 300, 2, 1759300000000]])[0], 2);
     q = applyContractEvent(q, decodeCompactFeedData(["Greeks", ["Greeks", SYM, "NaN", "NaN", 0.5, "NaN", "NaN", "NaN", "NaN"]])[0], 3);
     expect(q).toMatchObject({ bid: 1, ask: 2, last: 1.5, dayVolume: 300, delta: 0.5, iv: null });
   });

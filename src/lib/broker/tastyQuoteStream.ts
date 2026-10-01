@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 import {
+  type ContractEvent,
   applyContractEvent,
   buildContractFeedSetupFrame,
   buildContractSubscriptionFrame,
@@ -38,6 +39,8 @@ interface Snapshot {
 }
 
 const refs = new Map<string, number>();
+/** Per-event listeners (the chart's tick lane), beside the last-value store. */
+const eventListeners = new Set<{ readonly symbols: ReadonlySet<string>; readonly onEvent: (e: ContractEvent, receivedAtMs: number) => void }>();
 let quotes = new Map<string, ContractQuoteState>();
 let snapshot: Snapshot = { stream: "IDLE", reason: null, quotes, version: 0 };
 const listeners = new Set<() => void>();
@@ -129,6 +132,7 @@ async function connect() {
         for (const e of decodeCompactFeedData(m.data)) {
           if (!refs.has(e.symbol)) continue;
           quotes.set(e.symbol, applyContractEvent(quotes.get(e.symbol) ?? emptyContractQuote(e.symbol), e, now));
+          for (const l of eventListeners) if (l.symbols.has(e.symbol)) l.onEvent(e, now);
         }
         quotes = new Map(quotes);
         emitSoon();
@@ -170,6 +174,28 @@ function subscribe(symbols: readonly string[]): () => void {
         emit({ stream: "IDLE", reason: null });
       }, 5_000);
     }
+  };
+}
+
+/**
+ * Every event for these streamer symbols, as it arrives, on the SAME socket the
+ * panels use — a second consumer never opens a second stream. `onState` hears
+ * the stream's own state so a lane can say when it is not live.
+ */
+export function subscribeTastyEvents(
+  streamerSymbols: readonly string[],
+  onEvent: (e: ContractEvent, receivedAtMs: number) => void,
+  onState?: (stream: StreamState, reason: string | null) => void,
+): () => void {
+  const entry = { symbols: new Set(streamerSymbols), onEvent };
+  eventListeners.add(entry);
+  const stateListener = onState ? () => onState(snapshot.stream, snapshot.reason) : null;
+  if (stateListener) { listeners.add(stateListener); stateListener(); }
+  const release = subscribe(streamerSymbols);
+  return () => {
+    eventListeners.delete(entry);
+    if (stateListener) listeners.delete(stateListener);
+    release();
   };
 }
 

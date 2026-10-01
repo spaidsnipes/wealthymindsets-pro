@@ -19,7 +19,7 @@ import { DXLINK_FEED_CHANNEL, type DxlinkFrame } from "@/lib/marketData/dxlinkPr
 /** Field order IS the COMPACT decoder's contract — one owner per event type. */
 export const CONTRACT_EVENT_FIELDS = {
   Quote: ["eventType", "eventSymbol", "bidPrice", "askPrice", "bidSize", "askSize"],
-  Trade: ["eventType", "eventSymbol", "price", "dayVolume", "size"],
+  Trade: ["eventType", "eventSymbol", "price", "dayVolume", "size", "time"],
   Greeks: ["eventType", "eventSymbol", "price", "volatility", "delta", "gamma", "theta", "rho", "vega"],
   Summary: ["eventType", "eventSymbol", "openInterest", "dayOpenPrice", "dayHighPrice", "dayLowPrice", "prevDayClosePrice"],
 } as const;

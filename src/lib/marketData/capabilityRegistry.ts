@@ -16,6 +16,7 @@ export type MarketProviderPath =
   | "moomoo-opend-bridge"
   | "longbridge-openapi-bridge"
   | "webull-openapi-ticks"
+  | "tastytrade-dxlink"
   | "yahoo-rest"
   | "finnhub-rest"
   | "kraken-dom-client-ws"
@@ -318,6 +319,23 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     fallbackSemantics: "EXPLICIT",
     rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "src/app/api/market-data/longbridge/ticks/route.ts + adapters/longbridgeTicks.ts; direction is retained as lineage and never promoted to aggressor side",
+  }),
+  capability({
+    providerPath: "tastytrade-dxlink",
+    assetClass: "futures",
+    eventType: "trade",
+    availability: "PARTIAL",
+    collectionScope: "BROKER_SESSION",
+    fidelityClass: "OBSERVED",
+    timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
+    sequenceSupported: false,
+    // dxFeed's Trade event carries no aggressor side; tastytradeFuturesTicks
+    // stamps NONE and the hook routes these prints through the UNSIGNED door.
+    aggressorMethod: "NONE",
+    sessionCoverage: "The owner's tastytrade DXLink session (dxFeed /realtime); one socket per tab, owner-gated quote token; Trade events aggregated at 0.25s, so per-print volume is not complete",
+    fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
+    evidence: "src/lib/broker/tastyQuoteStream.ts + adapters/tastytradeFuturesTicks.ts, consumed by hooks/useWebSocket.ts; live CME contract quotes proven on wealthymindsetspro.com/charts?symbol=ES1! 2026-10-01",
   }),
   capability({
     providerPath: "webull-openapi-ticks",

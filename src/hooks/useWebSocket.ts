@@ -36,6 +36,9 @@ import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketDa
 import { OBSERVED_LANE_HEDGE_MS, selectObservedProviderFallback } from "@/lib/marketData/selectObservedProviderFallback";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { subscribeTastyEvents } from "@/lib/broker/tastyQuoteStream";
+import { futuresProductFor } from "@/lib/broker/tastytradeFuturesChain";
+import { resolveTastyFrontMonth, tastyTradeToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { coinbaseProduct } from "@/lib/marketData/coinbaseProduct";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
@@ -178,7 +181,7 @@ export interface MarketState {
   recentTicks: Tick[];
   orderBook:   { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
   connected:   boolean;
-  source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "coinbase" | "binance" | "moomoo" | "longbridge" | "webull" | "unavailable";
+  source:      "polygon" | "finnhub" | "yahoo" | "alpaca" | "coinbase" | "binance" | "moomoo" | "longbridge" | "webull" | "tastytrade" | "unavailable";
   /** Aggressor tape feed — set only by trade WebSockets, never downgraded by REST quotes. */
   tapeSource:  ProviderTapeSource | null;
   /* OBSERVED PROVIDER DELAY, IN MILLISECONDS — how far behind the print's own
@@ -1245,6 +1248,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   const cleanupFns = useRef<Array<() => void>>([]);
 
   const tapeSourceRef = useRef<MarketState["tapeSource"]>(null);
+  // When tastytrade's live futures lane last delivered a print (epoch ms). While
+  // it is fresh, the delayed REST quote may not overwrite the price it moved.
+  const tastyLiveAtRef = useRef<number | null>(null);
 
   /* Hot-path home for MarketState.lastObservedAtMs. processTick runs per print
      and must not setState, so the accept sites write here and the RAF flush
@@ -1385,7 +1391,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
   /* Price/volume observation path. It advances the visible bar and ticker but
      intentionally never enters recentTicks, tapeSource, Delta, CVD, or DOM. */
-  const processUnsignedObservation = useCallback((event: CanonicalMarketEvent, source: "longbridge" | "webull") => {
+  const processUnsignedObservation = useCallback((event: CanonicalMarketEvent, source: "longbridge" | "webull" | "tastytrade") => {
     const price = event.price;
     const size = event.size;
     const time = event.timestampProvider ?? event.timestampReceived;
@@ -1635,6 +1641,35 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     }
     const binanceCleanup = cryptoCleanup;
 
+    // ── FUTURES: tastytrade's live CME prints (Garden 18 §XLV) ──
+    // Webull futures data is not subscribed; tastytrade streams the real
+    // contract. A continuous chart symbol is fed by tastytrade's active-month
+    // contract, named on every event. Prints are UNSIGNED (dxFeed Trade carries
+    // no aggressor), so they move price and the forming bar, never the signed
+    // tape. Owner-gated upstream: for anyone else the lane stays silent and the
+    // REST lane below keeps its own honest label.
+    tastyLiveAtRef.current = null;
+    let tastyCleanup: (() => void) | null = null;
+    const tastyProduct = classifySymbol(symbol) === "FUTURES" ? futuresProductFor(symbol) : null;
+    if (tastyProduct) {
+      fetch(`/api/broker/tastytrade/chain?futures=${encodeURIComponent(tastyProduct)}`, { cache: "no-store" })
+        .then(r => (r.ok ? r.json() : null))
+        .then(j => {
+          if (disposed || j?.state !== "OK") return;
+          const contract = resolveTastyFrontMonth(j.data);
+          if (!contract) return;
+          let index = 0;
+          tastyCleanup = subscribeTastyEvents([contract.streamer], (e, receivedAtMs) => {
+            if (disposed) return;
+            const event = tastyTradeToMarketEvent(e, symbol, contract, receivedAtMs, index++);
+            if (!event) return;
+            tastyLiveAtRef.current = receivedAtMs;
+            processUnsignedObservation(event, "tastytrade");
+          });
+        })
+        .catch(() => { /* the REST lane remains the honest fallback */ });
+    }
+
     // ── STOCKS/ETFs: Finnhub WS (skip for futures + crypto) ──
     const fhWsSym = symbol.toUpperCase();
     const finhCleanup = (!isFuture && !isCrypto && finnhubKey)
@@ -1697,6 +1732,13 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           return;
         }
         const q = answer;
+        // A live tastytrade print outranks a delayed REST snapshot: keep only
+        // its reference close (for day change) and leave price/source alone.
+        if (tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000) {
+          if (q.hasReferenceClose && Number.isFinite(q.change)) prevCloseRef.current = q.price - q.change;
+          setState(prev2 => ({ ...prev2, quoteRefusal: null }));
+          return;
+        }
         const realPrice = q.price;
         const prevPrice = priceRef.current;
         priceRef.current = realPrice;
@@ -1848,6 +1890,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
     return () => {
       disposed = true;
+      tastyCleanup?.();
+      tastyLiveAtRef.current = null;
       moomooAbort?.abort();
       if (moomooTimer) clearTimeout(moomooTimer);
       if (cryptoFallbackTimer) clearTimeout(cryptoFallbackTimer);
