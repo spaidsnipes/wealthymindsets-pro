@@ -34,8 +34,12 @@ export function useTastyWatchQuotes(symbols: readonly string[]): ReadonlyMap<str
     const out = new Map<string, WatchLive>();
     for (const [sym, st] of streamerOf) {
       const q = snap.quotes.get(st);
-      if (!q || q.quoteAt == null) continue;
-      const price = q.bid != null && q.ask != null ? (q.bid + q.ask) / 2 : q.last;
+      if (!q) continue;
+      // The LAST TRADE, as the chart prints it; the bid/ask midpoint only
+      // when no trade has been heard (one number for one symbol, §LXXXIX).
+      if (q.last != null && q.last > 0 && q.tradeAt != null) { out.set(sym, { price: q.last, at: Math.max(q.tradeAt, q.quoteAt ?? 0) }); continue; }
+      if (q.quoteAt == null) continue;
+      const price = q.bid != null && q.ask != null ? (q.bid + q.ask) / 2 : null;
       if (price != null && price > 0) out.set(sym, { price, at: q.quoteAt });
     }
     return out;
