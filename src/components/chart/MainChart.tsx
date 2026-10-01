@@ -3259,6 +3259,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // live socket uses (a print heard both ways folds once). Bounded: the
   // ladder's 400-bar window, at most 40 pages. The receipt says what came.
   const tapeBackfillRef = useRef<string>("NONE");
+  /** tastytrade's TimeAndSale history answers at most ~this many prints (measured 2026-10-01). */
+  const TASTY_PRINT_HISTORY_CAP = 990;
   // FUTURES (2026-10-01): tastytrade's own print history fills the same window
   // through the same fold. Each print keeps the exchange's (time, sequence)
   // identity, so a print heard live and again here folds once.
@@ -3298,9 +3300,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       }
       const nextOldest = tickAccRef.current.size ? Math.min(...tickAccRef.current.keys()) : NaN;
       if (Number.isFinite(nextOldest)) tickAccStartedAtRef.current = Math.min(tickAccStartedAtRef.current ?? nextOldest, nextOldest);
-      const times = hist.events.map(e => e.values.time).filter((t): t is number => t != null && t > 0);
+      // Real prints only: the snapshot's END marker is a NaN-priced row stamped
+      // with the requested fromTime, and is not a print.
+      const real = hist.events.filter(e => e.values.price != null && e.values.price > 0);
+      const times = real.map(e => e.values.time).filter((t): t is number => t != null && t > 0);
+      // MEASURED 2026-10-01: tastytrade answers at most ~1,000 prints of history
+      // (NQ 6h asked → the last ~6 minutes) and sets no SNIP flag. A snapshot that
+      // hit that cap is the newest slice, not the window asked for.
+      const capped = real.length >= TASTY_PRINT_HISTORY_CAP;
       const hhmm = (t: number) => new Date(t).toISOString().slice(11, 16);
-      tapeBackfillRef.current = `TASTYTRADE_TIMEANDSALE:${folded}prints:of ${hist.events.length}:snapshot ${times.length ? `${hhmm(Math.min(...times))}-${hhmm(Math.max(...times))}` : "—"}Z:asked ${hhmm(sinceMs)}Z:from ${reached ? hhmm(Math.max(reached, sinceMs)) : "—"}Z:${hist.complete ? "WINDOW" : "PARTIAL"}`;
+      tapeBackfillRef.current = `TASTYTRADE_TIMEANDSALE:${folded}prints:of ${hist.events.length}:snapshot ${times.length ? `${hhmm(Math.min(...times))}-${hhmm(Math.max(...times))}` : "—"}Z:asked ${hhmm(sinceMs)}Z:from ${reached ? hhmm(Math.max(reached, sinceMs)) : "—"}Z:${hist.complete && !capped ? "WINDOW" : capped ? "PARTIAL:PROVIDER_CAP" : "PARTIAL"}`;
       flowLadderPublisherRef.current?.changed();
       onTapeFootprintRef.current?.(selectTapeFootprint(tickAccRef.current, tickAccStartedAtRef.current));
     }).catch(() => { if (!ctrl.signal.aborted) tapeBackfillRef.current = "REFUSED:TRANSPORT"; });
