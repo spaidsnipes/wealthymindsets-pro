@@ -41,7 +41,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const accounts = await getTastytradeAccounts();
-    const index = Number.isInteger(input.accountIndex) ? (input.accountIndex as number) : 0;
+    // A futures or futures-option order with no chosen account goes to the first
+    // futures-approved account — never one tastytrade will refuse for futures.
+    const futuresOrder = instrumentType === "Future" || instrumentType === "Future Option";
+    const futuresDefault = accounts.findIndex(a => a.isFuturesApproved === true);
+    const index = Number.isInteger(input.accountIndex) ? (input.accountIndex as number) : futuresOrder && futuresDefault >= 0 ? futuresDefault : 0;
     const choices = accounts.map((a, i) => ({ index: i, accountType: a.accountType ?? null, tail: a.accountNumber.slice(-4), futuresApproved: a.isFuturesApproved ?? null }));
     const account = accounts[index];
     if (!account) return NextResponse.json({ state: "NO_SUCH_ACCOUNT", accounts: choices }, { headers: { "Cache-Control": "no-store" } });
