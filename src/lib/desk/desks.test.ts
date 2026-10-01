@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MORNING_DESK, deleteDesk, gridFor, readDesks, renameDesk, screensFor, setScreen, upsertDesk } from "./desks";
+import { MORNING_DESK, deleteDesk, gridFor, readDesks, renameDesk, screensFor, setScreen, swapScreens, upsertDesk } from "./desks";
 
 describe("desks: one OS, several cameras, preferences only", () => {
   it("defaults to the Founder's Morning Desk: TSLA · NQ · BTC · SPY, 4-up", () => {
@@ -41,5 +41,12 @@ describe("desks: one OS, several cameras, preferences only", () => {
     expect(d.screens[1]).toEqual({ symbol: "MNQ1!", timeframe: "15s" });
     expect(setScreen(MORNING_DESK, 0, { symbol: "<bad>" }).screens[0].symbol).toBe("TSLA");
     expect(setScreen(MORNING_DESK, 9, { symbol: "AAPL" })).toBe(MORNING_DESK);
+  });
+
+  it("swap exchanges two screens' markets and timeframes, nothing else", () => {
+    const d = swapScreens(MORNING_DESK, 0, 3);
+    expect(d.screens.map(s => s.symbol)).toEqual(["SPY", "NQ1!", "BTC", "TSLA"]);
+    expect(swapScreens(MORNING_DESK, 1, 1)).toBe(MORNING_DESK);
+    expect(d.layout).toBe(4);
   });
 });

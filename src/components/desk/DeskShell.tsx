@@ -14,6 +14,8 @@ import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { MainChart } from "@/components/chart/MainChart";
+import { WatchlistPanel } from "@/components/chart/WatchlistPanel";
+import { useActiveSymbol } from "@/contexts/SymbolContext";
 import {
   ACTIVE_DESK_STORAGE_KEY,
   DESKS_STORAGE_KEY,
@@ -22,8 +24,11 @@ import {
   gridFor,
   readDesks,
   renameDesk,
+  DESK_SCREEN_DRAG_TYPE,
+  DESK_SYMBOL_DRAG_TYPE,
   screensFor,
   setScreen,
+  swapScreens,
   upsertDesk,
   type Desk,
   type DeskLayout,
@@ -42,7 +47,8 @@ const btn = (on = false): React.CSSProperties => ({
   color: on ? GOLD : INK, font: "700 10.5px/1 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".08em", textTransform: "uppercase",
 });
 
-function ScreenHeader({ index, symbol, timeframe, maximized, onSymbol, onTimeframe, onMaximize }: {
+function ScreenHeader({ index, symbol, timeframe, maximized, focused, onSymbol, onTimeframe, onMaximize }: {
+  focused: boolean;
   index: number; symbol: string; timeframe: string; maximized: boolean;
   onSymbol: (s: string) => void; onTimeframe: (t: string) => void; onMaximize: () => void;
 }) {
@@ -50,8 +56,12 @@ function ScreenHeader({ index, symbol, timeframe, maximized, onSymbol, onTimefra
   useEffect(() => setDraft(symbol), [symbol]);
   const tfs = useMemo(() => [...new Set([...CHART_TF_SHIPPED, timeframe])].filter(t => (TF_IDS as readonly string[]).includes(t)), [timeframe]);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 6px", borderBottom: `1px solid ${LINE}`, background: "rgba(10,9,7,.92)" }}>
-      <span style={{ color: MUTED, font: "700 10px/1 ui-sans-serif", letterSpacing: ".1em" }}>SCREEN {index + 1}</span>
+    <div
+      draggable
+      onDragStart={e => { e.dataTransfer.setData(DESK_SCREEN_DRAG_TYPE, String(index)); e.dataTransfer.effectAllowed = "move"; }}
+      title="Drag onto another screen to swap"
+      style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 6px", borderBottom: `1px solid ${LINE}`, background: "rgba(10,9,7,.92)", cursor: "grab" }}>
+      <span style={{ color: focused ? GOLD : MUTED, font: "700 10px/1 ui-sans-serif", letterSpacing: ".1em" }}>{focused ? "● " : ""}SCREEN {index + 1}</span>
       <form onSubmit={e => { e.preventDefault(); onSymbol(draft); }} style={{ display: "flex" }}>
         <input aria-label={`Screen ${index + 1} market`} value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => draft !== symbol && onSymbol(draft)}
           style={{ width: 92, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: "3px 6px", font: "700 12px/1 ui-monospace, monospace" }} />
@@ -76,6 +86,21 @@ export function DeskShell() {
   const [maximized, setMaximized] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  // The screen a Watchlist tap loads into (§XIV): click a screen to focus it.
+  const [focused, setFocused] = useState(0);
+  const [watchlistOpen, setWatchlistOpen] = useState(false);
+  const [dropTarget, setDropTarget] = useState<number | null>(null);
+  // A Watchlist tap moves the room's active symbol; on the desk that lands in
+  // the focused screen. The value present at mount is ignored — it is the
+  // last market of another room, not a choice made here.
+  const { activeSymbol } = useActiveSymbol();
+  const seenSymbol = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (seenSymbol.current === null) { seenSymbol.current = activeSymbol; return; }
+    if (activeSymbol === seenSymbol.current) return;
+    seenSymbol.current = activeSymbol;
+    setWorking(w => setScreen(w, focused, { symbol: activeSymbol }));
+  }, [activeSymbol, focused]);
 
   // Restore PREFERENCES; every screen re-asks the market for truth on mount.
   useEffect(() => {
@@ -146,6 +171,8 @@ export function DeskShell() {
             {n === 1 ? "1 screen" : `${n}-up`}
           </button>
         ))}
+        <button type="button" aria-pressed={watchlistOpen} onClick={() => setWatchlistOpen(v => !v)} style={btn(watchlistOpen)}>Watchlist</button>
+        <span style={{ color: MUTED, fontSize: 11 }}>Tap or drag a market into a screen · drag a screen&apos;s header onto another to swap</span>
         <span style={{ flex: 1 }} />
         {dirty ? <span style={{ color: GOLD, fontSize: 11 }}>Unsaved changes</span> : null}
         <button type="button" data-testid="desk-save" onClick={save} style={btn(dirty)}>Save</button>
@@ -154,14 +181,35 @@ export function DeskShell() {
         <button type="button" onClick={remove} style={btn()}>Delete</button>
       </div>
       {notice ? <p role="status" style={{ margin: 0, padding: "4px 12px", color: MUTED, fontSize: 11 }}>{notice} Markets are re-read live on every open; a desk saves only layout, markets and timeframes.</p> : null}
-      <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: grid.columns, gridTemplateRows: grid.rows, gap: 4, padding: 4 }}>
+      <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+      {watchlistOpen ? (
+        <aside data-testid="desk-watchlist" aria-label="Watchlist" style={{ width: 280, flexShrink: 0, borderRight: `1px solid ${LINE}`, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <WatchlistPanel open onToggle={() => setWatchlistOpen(false)} variant="sheet" />
+        </aside>
+      ) : null}
+      <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "grid", gridTemplateColumns: grid.columns, gridTemplateRows: grid.rows, gap: 4, padding: 4 }}>
         {shown.map((i, slot) => {
           const s = screens[i];
           return (
-            <section key={`${i}`} data-testid={`desk-screen-${i + 1}`} data-symbol={s.symbol} data-timeframe={s.timeframe} aria-label={`Screen ${i + 1}: ${s.symbol} ${s.timeframe}`}
-              style={{ gridArea: grid.areas[slot], minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", border: `1px solid ${LINE}`, borderRadius: 4, overflow: "hidden" }}>
+            <section key={`${i}`} data-testid={`desk-screen-${i + 1}`} data-symbol={s.symbol} data-timeframe={s.timeframe} data-focused={focused === i} aria-label={`Screen ${i + 1}: ${s.symbol} ${s.timeframe}`}
+              onMouseDownCapture={() => setFocused(i)}
+              onDragOver={e => {
+                const types = [...e.dataTransfer.types];
+                if (types.includes(DESK_SYMBOL_DRAG_TYPE) || types.includes(DESK_SCREEN_DRAG_TYPE)) { e.preventDefault(); setDropTarget(i); }
+              }}
+              onDragLeave={() => setDropTarget(t => (t === i ? null : t))}
+              onDrop={e => {
+                e.preventDefault();
+                setDropTarget(null);
+                const sym = e.dataTransfer.getData(DESK_SYMBOL_DRAG_TYPE);
+                const from = e.dataTransfer.getData(DESK_SCREEN_DRAG_TYPE);
+                if (sym) { setWorking(w => setScreen(w, i, { symbol: sym })); setFocused(i); }
+                else if (from !== "") setWorking(w => swapScreens(w, Number(from), i));
+              }}
+              style={{ gridArea: grid.areas[slot], minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", borderRadius: 4, overflow: "hidden",
+                border: `1px solid ${dropTarget === i ? "rgba(127,209,168,.9)" : focused === i ? "rgba(201,165,92,.75)" : LINE}` }}>
               <ScreenHeader
-                index={i} symbol={s.symbol} timeframe={s.timeframe} maximized={maximized === i}
+                index={i} symbol={s.symbol} timeframe={s.timeframe} maximized={maximized === i} focused={focused === i}
                 onSymbol={v => setWorking(w => setScreen(w, i, { symbol: v }))}
                 onTimeframe={v => setWorking(w => setScreen(w, i, { timeframe: v }))}
                 onMaximize={() => setMaximized(m => (m === i ? null : i))}
@@ -180,6 +228,7 @@ export function DeskShell() {
             </section>
           );
         })}
+      </div>
       </div>
     </div>
   );

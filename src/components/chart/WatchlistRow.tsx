@@ -1,5 +1,6 @@
 "use client";
 
+import { DESK_SYMBOL_DRAG_TYPE } from "@/lib/desk/desks";
 import * as React from "react";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { provenSessionClosure } from "@/lib/marketData/canonicalIdentity";
@@ -122,6 +123,10 @@ export function WatchlistRow({
     <div
       onClick={onSelect}
       onContextMenu={onContextMenu}
+      // Garden 18 §XIV: a market can be dragged onto a Desk screen. The payload
+      // is the market's own symbol; the desk validates it like a deep link.
+      draggable
+      onDragStart={e => { e.dataTransfer.setData(DESK_SYMBOL_DRAG_TYPE, sym); e.dataTransfer.setData("text/plain", sym); e.dataTransfer.effectAllowed = "copy"; }}
       style={{
         display: "flex", flexDirection: "column",
         padding: "5px 8px", cursor: "pointer",

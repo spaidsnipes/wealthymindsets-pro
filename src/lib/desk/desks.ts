@@ -110,3 +110,15 @@ export function setScreen(desk: Desk, index: number, patch: { symbol?: string; t
   screens[index] = { symbol, timeframe };
   return { ...desk, screens };
 }
+
+/** Drag payloads the desk accepts: a market (from the Watchlist) or a screen (to swap). */
+export const DESK_SYMBOL_DRAG_TYPE = "application/x-wm-symbol";
+export const DESK_SCREEN_DRAG_TYPE = "application/x-wm-desk-screen";
+
+/** Swap two screens' markets and timeframes (§XV "swap"). */
+export function swapScreens(desk: Desk, a: number, b: number): Desk {
+  const screens = [...screensFor({ ...desk, layout: Math.max(desk.layout, desk.screens.length, a + 1, b + 1) as DeskLayout })];
+  if (a === b || !screens[a] || !screens[b]) return desk;
+  [screens[a], screens[b]] = [screens[b], screens[a]];
+  return { ...desk, screens };
+}
