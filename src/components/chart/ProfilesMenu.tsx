@@ -98,7 +98,7 @@ export function ProfilesMenu({
   speciesRefusal?: ProfileMenuInput["speciesRefusal"];
 }) {
   const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, families, only, speciesRefusal });
-  const menuName = testId === "order-flow-tools-menu" ? "WM Order Flow Camera" : "Profiles menu";
+  const menuName = testId === "order-flow-tools-menu" ? "Order flow tools" : "Profiles menu";
   const manifestationNotes = vm.entries.filter(e => e.active && stateDetail?.[e.id])
     .map(e => `${e.label}: ${stateDetail![e.id]}`).join(". ");
 
@@ -160,7 +160,7 @@ export function ProfilesMenu({
 
           <div className="flex items-center justify-between gap-3 px-1 pb-2">
             <div className="text-[9px] uppercase tracking-[0.16em] text-wm-text-dim">
-              {testId === "order-flow-tools-menu" ? "WM Order Flow Camera" : heading}
+              {testId === "order-flow-tools-menu" ? "Order flow tools" : heading}
             </div>
             {/* CAPABILITY TRUTH, NOT A FRACTION (Garden 17 master order §VI,
                 2026-09-29): "5/9 READY" read as "WM Pro built five of nine".

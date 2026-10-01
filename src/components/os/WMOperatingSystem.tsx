@@ -585,7 +585,7 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
               letterSpacing: 1.4,
             }}
           >
-            Cameras — {CAMERA_PROMISE}
+            Views — {CAMERA_PROMISE}
           </div>
         ) : null}
         <button

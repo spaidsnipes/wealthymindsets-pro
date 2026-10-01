@@ -314,3 +314,21 @@ describe("the legacy My stack slot migrates with nothing lost", () => {
     expect(loadSavedLayouts(null)).toEqual([]);
   });
 });
+
+describe("Garden 18 §XIX — duplicate view", () => {
+  it("copies the switches under the next free name, right after the source, leaving it intact", async () => {
+    const { duplicateLayout } = await import("./savedLayouts");
+    const list = [
+      { id: "a", name: "My Order Flow", switches: { ABSORPTION: true } },
+      { id: "b", name: "Clean tape", switches: { ABSORPTION: false } },
+    ];
+    const r = duplicateLayout(list, "a", () => "copy1");
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.list.map(l => l.name)).toEqual(["My Order Flow", "My Order Flow 2", "Clean tape"]);
+    expect(r.layout.switches).toEqual({ ABSORPTION: true });
+    expect(r.list[0]).toBe(list[0]);
+    const again = duplicateLayout(r.list, "a", () => "copy2");
+    expect(again.ok && again.layout.name).toBe("My Order Flow 3");
+  });
+});

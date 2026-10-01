@@ -47,6 +47,7 @@ export type ProfileId =
   | "ABSORPTION"
   | "IMBALANCE_STACK"
   | "VALUE_CANDLE"
+  | "CLARITY_CANDLE"
   | "DELTA_DIVERGENCE"
   | "LIQUIDITY_WEATHER"
   | "EFFORT_MARK"
@@ -152,6 +153,8 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   DELTA_VP: "PROFILE",
   // Where each bar's own volume concentrated — an order-flow tool on the candle.
   VALUE_CANDLE: "ORDER_FLOW",
+  // F05A: a candle species — bars alone; lives beside the Value Candle.
+  CLARITY_CANDLE: "ORDER_FLOW",
   LIVING_PROFILE: "PROFILE",
   TPO_PROFILE: "PROFILE",
   STRUCTURE_PROFILE: "PROFILE",
@@ -363,6 +366,17 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectValueCandle.ts",
     levels: ["Centre of gravity", "Value high", "Value low"],
+  },
+  {
+    // F05A "Clarity is the default language of the room" (WM_NewMockup_72):
+    // gold-ink candles whose body strength IS body efficiency, the dominant
+    // wick named, open gaps marked. Bars alone — no tape needed.
+    id: "CLARITY_CANDLE",
+    label: "Clarity Candle",
+    what: "how much of each candle's range was decision — strong bodies solid, indecision hollow",
+    gesture: "TOGGLE",
+    owner: "src/lib/chart/clarityCandle.ts",
+    levels: ["Truth gap"],
   },
   {
     id: "DELTA_DIVERGENCE",

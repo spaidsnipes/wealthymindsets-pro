@@ -25,6 +25,7 @@ import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import { BROKER_CONNECT_EVENT, BROKER_CONNECT_PARAM, BROKER_CONNECT_VALUE } from "@/lib/broker/brokerConnectDoor";
 import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FootprintControls } from "./FootprintControls";
+import { ToolFinder } from "./ToolFinder";
 import { ProfilesMenu } from "./ProfilesMenu";
 import { ProfilePresetBar } from "./ProfilePresetBar";
 import { RiskReceiptBar } from "./RiskReceiptBar";
@@ -863,6 +864,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   */
   const [imbalanceStackOn, setImbalanceStackOn] = useState<boolean>(() => lsGet("wm_ofImbalanceStack", true) as boolean);
   const [valueCandleOn, setValueCandleOn] = useState<boolean>(() => lsGet("wm_ofValueCandle", true) as boolean);
+  // F05A Clarity Candle — off by default; the trader turns the candle species on.
+  const [clarityCandleOn, setClarityCandleOn] = useState<boolean>(() => lsGet("wm_ofClarityCandle", false) as boolean);
   const [deltaDivergenceOn, setDeltaDivergenceOn] = useState<boolean>(() => lsGet("wm_ofDeltaDivergence", true) as boolean);
   const [liquidityWeatherOn, setLiquidityWeatherOn] = useState<boolean>(() => lsGet("wm_ofLiquidityWeather", true) as boolean);
   const [effortMarkOn, setEffortMarkOn] = useState<boolean>(() => lsGet("wm_ofEffortMark", true) as boolean);
@@ -1138,6 +1141,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_absorptionAnatomy",   absorptionAnatomy);
   usePersistOnChange("wm_ofImbalanceStack",    imbalanceStackOn);
   usePersistOnChange("wm_ofValueCandle",       valueCandleOn);
+  usePersistOnChange("wm_ofClarityCandle",     clarityCandleOn);
   usePersistOnChange("wm_ofDeltaDivergence",   deltaDivergenceOn);
   usePersistOnChange("wm_ofLiquidityWeather",  liquidityWeatherOn);
   usePersistOnChange("wm_ofEffortMark",        effortMarkOn);
@@ -3213,6 +3217,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   // The four order-flow readings that now draw on the axis.
                   IMBALANCE_STACK: imbalanceStackOn,
                   VALUE_CANDLE: valueCandleOn,
+                  CLARITY_CANDLE: clarityCandleOn,
                   DELTA_DIVERGENCE: deltaDivergenceOn,
                   LIQUIDITY_WEATHER: liquidityWeatherOn,
                   EFFORT_MARK: effortMarkOn,
@@ -3246,6 +3251,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "ABSORPTION") setAbsorptionAnatomy(v => !v);
                   else if (id === "IMBALANCE_STACK") setImbalanceStackOn(v => !v);
                   else if (id === "VALUE_CANDLE") setValueCandleOn(v => !v);
+                  else if (id === "CLARITY_CANDLE") setClarityCandleOn(v => !v);
                   else if (id === "DELTA_DIVERGENCE") setDeltaDivergenceOn(v => !v);
                   else if (id === "LIQUIDITY_WEATHER") setLiquidityWeatherOn(v => !v);
                   else if (id === "EFFORT_MARK") setEffortMarkOn(v => !v);
@@ -3485,6 +3491,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.ABSORPTION !== undefined) setAbsorptionAnatomy(s.ABSORPTION);
       if (s.IMBALANCE_STACK !== undefined) setImbalanceStackOn(s.IMBALANCE_STACK);
       if (s.VALUE_CANDLE !== undefined) setValueCandleOn(s.VALUE_CANDLE);
+      if (s.CLARITY_CANDLE !== undefined) setClarityCandleOn(s.CLARITY_CANDLE);
       if (s.DELTA_DIVERGENCE !== undefined) setDeltaDivergenceOn(s.DELTA_DIVERGENCE);
       if (s.LIQUIDITY_WEATHER !== undefined) setLiquidityWeatherOn(s.LIQUIDITY_WEATHER);
       if (s.EFFORT_MARK !== undefined) setEffortMarkOn(s.EFFORT_MARK);
@@ -3539,6 +3546,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       ANCHORED_RANGE: drawingTool === "anchored-vp",
       IMBALANCE_STACK: imbalanceStackOn,
       VALUE_CANDLE: valueCandleOn,
+      CLARITY_CANDLE: clarityCandleOn,
       DELTA_DIVERGENCE: deltaDivergenceOn,
       LIQUIDITY_WEATHER: liquidityWeatherOn,
       EFFORT_MARK: effortMarkOn,
@@ -5545,6 +5553,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 and the same switch state, so they cannot disagree about what
                 this tape can draw.
               */}
+              {/* Garden 18 §XXVI–§XXVIII: find any tool by name; see what is on. */}
+              <ToolFinder
+                barsPresent={chartBars.length > 0}
+                printsPresent={chartOrderFlowReadings.printsPresent}
+                observedAggressorFlow={chartFlowSnap.hasFlow}
+                speciesRefusal={profileSpeciesRefusalVM}
+                active={profileMenuActive}
+                onToggle={onProfileMenuToggle}
+              />
               <ChartArrangementBar
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}
@@ -6373,6 +6390,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       */
                       imbalanceStackOnChart={imbalanceStackOn}
                       valueCandleOnChart={valueCandleOn}
+                      clarityCandleOnChart={clarityCandleOn}
                       deltaDivergenceOnChart={deltaDivergenceOn}
                       liquidityWeatherOnChart={liquidityWeatherOn}
                       effortMarkOnChart={effortMarkOn}

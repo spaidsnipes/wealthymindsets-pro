@@ -196,6 +196,32 @@ export function renameLayout(list: readonly SavedLayout[], id: string, rawName: 
   return { ok: true, list: next, layout };
 }
 
+/**
+ * Garden 18 §XIX DUPLICATE VIEW — "MY ORDER FLOW → MY ORDER FLOW + TPO"
+ * without touching the original. The copy lands right after its source under
+ * the first free "<name> 2", "<name> 3" … that fits the name limit.
+ */
+export function duplicateLayout(list: readonly SavedLayout[], id: string, newId: () => string): SaveLayoutResult {
+  const at = list.findIndex((l) => l.id === id);
+  if (at < 0) return { ok: false, message: "That view is no longer saved" };
+  if (list.length >= MAX_SAVED_LAYOUTS) return { ok: false, message: `${MAX_SAVED_LAYOUTS} views saved — delete one first` };
+  const src = list[at];
+  const taken = new Set(list.map((l) => layoutNameKey(l.name)));
+  let name = "";
+  for (let n = 2; n < 100; n++) {
+    const suffix = ` ${n}`;
+    const candidate = `${src.name.slice(0, MAX_LAYOUT_NAME_LENGTH - suffix.length).trimEnd()}${suffix}`;
+    if (!taken.has(layoutNameKey(candidate))) { name = candidate; break; }
+  }
+  if (!name) return { ok: false, message: "No free name for the copy — rename one first" };
+  const ids = new Set(list.map((l) => l.id));
+  let copyId = newId();
+  for (let i = 0; ids.has(copyId) || !isLayoutId(copyId); i++) copyId = `layout-${i}-${list.length}`;
+  const layout: SavedLayout = { id: copyId, name, switches: { ...src.switches } };
+  const next = [...list.slice(0, at + 1), layout, ...list.slice(at + 1)];
+  return { ok: true, list: next, layout, replaced: false };
+}
+
 export function deleteLayout(list: readonly SavedLayout[], id: string): readonly SavedLayout[] {
   return list.filter((l) => l.id !== id);
 }

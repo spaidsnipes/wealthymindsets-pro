@@ -45,6 +45,7 @@ import {
 } from "@/lib/workspace/equipmentChannel";
 import {
   deleteLayout,
+  duplicateLayout,
   layoutOnCount,
   loadSavedLayouts,
   MAX_LAYOUT_NAME_LENGTH,
@@ -251,7 +252,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
           padding: "4px 4px 0",
         }}
       >
-        Saved layouts
+        My Views
       </div>
 
       {/* COMPOUND CAMERA (Garden 16 §13–§15): ONE MARKET, ONE CAMERA, MANY
@@ -265,8 +266,8 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
           <div data-testid="compound-camera" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "0 4px" }}>
             <div data-testid="compound-camera-in-force" style={{ fontSize: 10, color: inForce.length > 1 ? ink.gold : ink.hint, letterSpacing: 0.4 }}>
               {inForce.length === 0
-                ? "Camera · your own composition"
-                : `Camera · ${inForce.map(id => ARRANGEMENT_SPECS.find(a => a.id === id)?.label.toUpperCase()).join(" + ")}`}
+                ? "View · your own composition"
+                : `View · ${inForce.map(id => ARRANGEMENT_SPECS.find(a => a.id === id)?.label.toUpperCase()).join(" + ")}`}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {composable.map(a => {
@@ -293,7 +294,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
             </div>
             {/* CAMERA LOADOUTS (§59) — named compositions, same door. */}
             <div data-testid="camera-loadouts" style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", marginTop: 2 }}>
-              <span style={{ fontSize: 9, letterSpacing: 1.2, textTransform: "uppercase", color: ink.muted }}>Loadouts</span>
+              <span style={{ fontSize: 9, letterSpacing: 1.2, textTransform: "uppercase", color: ink.muted }}>Starter views</span>
               {CAMERA_LOADOUTS.map(l => {
                 const on = savedArrangementInForce(loadoutSwitches(capture, l.id), capture);
                 return (
@@ -340,17 +341,17 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
             <span aria-hidden>↩ </span>Your arrangement
           </span>
           <span style={{ display: "block", fontSize: 10.5, lineHeight: 1.45, color: ink.hint }}>
-            {layoutOnCount({ switches: own as SavedLayout["switches"] })} readings — as it was before the camera
+            {layoutOnCount({ switches: own as SavedLayout["switches"] })} readings — as it was before the View
           </span>
         </button>
       ) : null}
 
       {layouts.length === 0 ? (
         <p data-testid="saved-layouts-empty" style={{ margin: 0, padding: "0 4px", fontSize: 10.5, lineHeight: 1.45, color: ink.hint }}>
-          None saved yet. Arrange the chart, then save it here by name.
+          No My Views yet. Turn on the tools you want, then save them here by name.
         </p>
       ) : (
-        <ul aria-label="Saved layouts" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+        <ul aria-label="My Views" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
           {layouts.map((layout, index) => {
             const inForce = savedArrangementInForce(layout.switches, capture);
             const on = layoutOnCount(layout);
@@ -401,7 +402,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                       else rowButtons.current.delete(`apply:${layout.id}`);
                     }}
                     data-testid="saved-layout-apply"
-                    aria-label={`Apply layout ${layout.name}`}
+                    aria-label={`Open View ${layout.name}`}
                     aria-describedby={`${idBase}-hint-${layout.id}`}
                     aria-current={inForce ? "true" : undefined}
                     disabled={!chartAnswering}
@@ -464,6 +465,25 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                     </button>
                     <button
                       type="button"
+                      data-testid="saved-layout-duplicate"
+                      aria-label={`Duplicate view ${layout.name}`}
+                      title="Duplicate — experiment on a copy"
+                      onClick={() => {
+                        setArmedDeleteId(null);
+                        const result = duplicateLayout(layouts, layout.id, newLayoutId);
+                        if (!result.ok) { setStatus({ tone: "warn", text: result.message }); return; }
+                        commit(result.list, `Duplicated as “${result.layout.name}”`);
+                        setNaming(false);
+                        setInputError(null);
+                        setRenamingId(result.layout.id);
+                        setRenameDraft(result.layout.name);
+                      }}
+                      style={rowButtonStyle}
+                    >
+                      <span aria-hidden>⧉</span>
+                    </button>
+                    <button
+                      type="button"
                       data-testid="saved-layout-delete"
                       data-armed={armed ? "true" : undefined}
                       aria-label={armed ? `Confirm delete layout ${layout.name}` : `Delete layout ${layout.name}`}
@@ -492,10 +512,10 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
         <div style={{ display: "flex", gap: 4 }}>
           <input
             autoFocus
-            aria-label="Layout name"
+            aria-label="View name"
             aria-invalid={inputError ? true : undefined}
             aria-describedby={inputError ? errorId : undefined}
-            placeholder="Name this layout"
+            placeholder="Name this View"
             maxLength={MAX_LAYOUT_NAME_LENGTH + 8}
             value={draft}
             onChange={(e) => {
@@ -550,7 +570,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
             padding: "0 10px",
           }}
         >
-          <span aria-hidden>＋ </span>Save current layout
+          <span aria-hidden>＋ </span>Save as My View
         </button>
       )}
 

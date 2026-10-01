@@ -258,7 +258,9 @@ export const ARRANGEMENT_SPECS: readonly ArrangementSpec[] = ARRANGEMENTS;
  * Tools › Chart tools arrangement panel) calls this; none appends the word
  * itself, so the grammar cannot drift between the two doors.
  */
-export const CAMERA_WORD = "camera";
+// Garden 18 §XV: saved market compositions are VIEWS. "Camera" is reserved
+// for the actual Semantic Camera (FAR / MID / NEAR / SELECT / INSPECT).
+export const CAMERA_WORD = "view";
 
 export function arrangementCameraLabel(id: ArrangementId): string {
   const spec = ARRANGEMENTS.find(a => a.id === id);

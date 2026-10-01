@@ -266,6 +266,7 @@ import { fmtSessionDate, isSessionTimeframe } from "@/lib/chart/sessionDateLabel
 import { DATA_WINDOW_W, placeDataWindow } from "@/lib/chart/dataWindowPlacement";
 import { formatVolume } from "@/lib/chart/formatVolume";
 import { absorptionShelfRows, shelfRowCount } from "@/lib/chart/absorptionShelfRows";
+import { clarityBodyAlpha, readClarity, truthGaps } from "@/lib/chart/clarityCandle";
 import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
@@ -1358,6 +1359,8 @@ interface Props {
   */
   imbalanceStackOnChart?: boolean;
   valueCandleOnChart?: boolean;
+  /** F05A Clarity Candle — the candle species itself (see lib/chart/clarityCandle). */
+  clarityCandleOnChart?: boolean;
   deltaDivergenceOnChart?: boolean;
   liquidityWeatherOnChart?: boolean;
   effortMarkOnChart?: boolean;
@@ -1796,6 +1799,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // would be a second surprise dressed as a fix. The switch is the new thing.
   imbalanceStackOnChart = true,
   valueCandleOnChart = true,
+  clarityCandleOnChart = false,
   deltaDivergenceOnChart = true,
   liquidityWeatherOnChart = true,
   effortMarkOnChart = true,
@@ -2280,6 +2284,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   permissionRef.current = permissionOnChart;
   const debtTagRef = useRef<typeof debtTagOnChart>(null);
   debtTagRef.current = debtTagOnChart;
+  const clarityOnRef = useRef(false);
+  clarityOnRef.current = clarityCandleOnChart && candleType === "candles";
   const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false, derivativesPressure: false, brickWalls: false });
   useEffect(() => {
     layerOnRef.current = {
@@ -6294,6 +6300,33 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     } catch {}
   }, [chartSettings, candleType, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // F05A: while Clarity Candles are on, the library's candles keep the price
+  // scale, crosshair and last-price line but stop painting ink — the Clarity
+  // layer paints the candle. Off restores the trader's own colours.
+  const clarityHidRef = useRef(false);
+  useEffect(() => {
+    const s = candleRef.current;
+    if (!s || !ready) return;
+    const on = clarityCandleOnChart && candleType === "candles";
+    try {
+      if (on) {
+        const clear = "rgba(0,0,0,0)";
+        s.applyOptions({ upColor: clear, downColor: clear, borderUpColor: clear, borderDownColor: clear, wickUpColor: clear, wickDownColor: clear });
+        clarityHidRef.current = true;
+      } else if (clarityHidRef.current) {
+        s.applyOptions({
+          upColor: chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
+          downColor: chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+          borderUpColor: chartSettings?.borderUp ?? chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
+          borderDownColor: chartSettings?.borderDown ?? chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+          wickUpColor: chartSettings?.wickUp ?? chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
+          wickDownColor: chartSettings?.wickDown ?? chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+        });
+        clarityHidRef.current = false;
+      }
+    } catch { /* series mid-rebuild; the next run repaints */ }
+  }, [clarityCandleOnChart, candleType, ready, chartSettings]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ── Footprint helper: real price-level bid/ask data ─────────
    * Uses only captured aggressor-side executed trades. Historical
    * OHLCV bars cannot truthfully reconstruct bid/ask-at-price.
@@ -6859,6 +6892,88 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       ctx.beginPath();
       ctx.rect(0, 0, plotRight, pane0Bottom);
       ctx.clip();
+
+      // ── F05A CLARITY CANDLE — the candle species (WM_NewMockup_72). Gold
+      // ink; the body's fill strength IS body efficiency (decided range ÷
+      // range); the dominant rejection wick is the bright one; real gaps get
+      // the canon's square; the forming candle glows. Painted under every
+      // reading so the inventions still sit on the candles, never under them.
+      try {
+        const ds = canvas.dataset;
+        if (!clarityOnRef.current) ds.clarityCandle = "OFF";
+        else {
+          const bsC = barsRef.current ?? [];
+          const tsC = chart.timeScale();
+          const bodyW = Math.max(1, Math.min(Math.round(bsp * 0.72), Math.floor(bsp) - 1));
+          const GOLD_C = "212,175,55", BRONZE_C = "150,110,40";
+          let drawnC = 0, firstVisible = -1;
+          for (let i = bsC.length - 1; i >= 0; i--) {
+            const b = bsC[i];
+            if (!b) continue;
+            const xr = tsC.timeToCoordinate(b.time as never);
+            if (xr == null) { if (drawnC > 0) break; continue; }
+            const x = Math.round(+xr) + 0.5;
+            if (x < -bsp) break;
+            if (x > plotRight + bsp) continue;
+            const yO = srs.priceToCoordinate(b.open), yC = srs.priceToCoordinate(b.close);
+            const yH = srs.priceToCoordinate(b.high), yL = srs.priceToCoordinate(b.low);
+            if (yO == null || yC == null || yH == null || yL == null) continue;
+            const read = readClarity(b);
+            const ink = read.rising ? GOLD_C : BRONZE_C;
+            const top = Math.min(+yO, +yC), bot = Math.max(+yO, +yC);
+            // Wicks: muted, the dominant rejection bright and heavier.
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = `rgba(${GOLD_C},0.55)`;
+            ctx.beginPath(); ctx.moveTo(x, +yH); ctx.lineTo(x, top); ctx.moveTo(x, bot); ctx.lineTo(x, +yL); ctx.stroke();
+            if (read.wick !== "BALANCED") {
+              ctx.lineWidth = Math.max(1.5, Math.min(2.5, bsp * 0.18));
+              ctx.strokeStyle = "rgba(246,214,122,0.98)";
+              ctx.beginPath();
+              if (read.wick === "UPPER_REJECTION") { ctx.moveTo(x, +yH); ctx.lineTo(x, top); }
+              else { ctx.moveTo(x, bot); ctx.lineTo(x, +yL); }
+              ctx.stroke();
+            }
+            // Body: fill strength = efficiency; a crisp rim always.
+            const h = Math.max(1, bot - top);
+            const bx = Math.round(x - bodyW / 2);
+            const forming = i === bsC.length - 1;
+            if (forming) { ctx.save(); ctx.shadowColor = "rgba(255,180,60,0.85)"; ctx.shadowBlur = 14; }
+            ctx.fillStyle = `rgba(${ink},${clarityBodyAlpha(read.efficiency).toFixed(3)})`;
+            ctx.fillRect(bx, top, bodyW, h);
+            if (forming) ctx.restore();
+            if (bodyW >= 3) {
+              ctx.lineWidth = 1;
+              ctx.strokeStyle = forming ? "rgba(255,196,90,1)" : `rgba(${read.rising ? "232,198,104" : "190,146,63"},0.95)`;
+              ctx.strokeRect(bx + 0.5, top + 0.5, bodyW - 1, Math.max(0, h - 1));
+            }
+            drawnC++; firstVisible = i;
+          }
+          // Truth gaps among the visible bars (plus one bar of context).
+          let gapsC = 0, openC = 0;
+          if (firstVisible >= 0) {
+            const from = Math.max(0, firstVisible - 1);
+            for (const g of truthGaps(bsC.slice(from))) {
+              const xr = tsC.timeToCoordinate(g.time as never);
+              const yA = srs.priceToCoordinate(g.high), yB = srs.priceToCoordinate(g.low);
+              if (xr == null || yA == null || yB == null) continue;
+              const xg = +xr, yMid = (+yA + +yB) / 2;
+              const xEnd = g.filledAt != null ? tsC.timeToCoordinate(g.filledAt as never) : null;
+              const x1 = xEnd != null ? +xEnd : plotRight;
+              ctx.fillStyle = `rgba(${GOLD_C},${g.filledAt == null ? 0.10 : 0.05})`;
+              ctx.fillRect(xg, Math.min(+yA, +yB), Math.max(0, x1 - xg), Math.max(1, Math.abs(+yB - +yA)));
+              const sq = 8;
+              const sy = g.direction === "UP" ? Math.max(+yA, +yB) + 6 : Math.min(+yA, +yB) - 6 - sq;
+              ctx.lineWidth = 1;
+              ctx.strokeStyle = g.filledAt == null ? "rgba(232,198,104,0.95)" : "rgba(232,198,104,0.45)";
+              ctx.strokeRect(Math.round(xg - sq / 2) + 0.5, Math.round(sy) + 0.5, sq, sq);
+              gapsC++; if (g.filledAt == null) openC++;
+              void yMid;
+            }
+          }
+          ds.clarityCandle = `DRAWN:${drawnC}bars:${gapsC}gaps:${openC}open`;
+        }
+      } catch (err) { layerFault("CLARITY_CANDLE", err); }
+
 
       /* ══ ATTENTION GOVERNOR — one owner decides how loud each layer is ══
          `selectAttentionGovernor` composes the frame's depth, the regime

@@ -134,7 +134,7 @@ export function ChartArrangementBar({
           <div className="px-2 pt-1 pb-2 text-[10px] font-bold tracking-widest text-wm-muted">
             {/* Garden 16 §14 camera grammar — the same words the Workspace
                 hand prints, from the same owner. */}
-            WORKSPACE CAMERAS — {CAMERA_PROMISE.toUpperCase()}
+            VIEWS — {CAMERA_PROMISE.toUpperCase()}
           </div>
 
           {/* THE DECLARATION, WHERE THE CHIP USED TO PUT IT. This is the only

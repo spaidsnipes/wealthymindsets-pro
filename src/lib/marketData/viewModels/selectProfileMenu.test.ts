@@ -24,6 +24,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "ABSORPTION",
   "IMBALANCE_STACK",
   "VALUE_CANDLE",
+  // F05A. Body efficiency from OHLC — bars only.
+  "CLARITY_CANDLE",
   "DELTA_DIVERGENCE",
   "LIQUIDITY_WEATHER",
   // H-701. Needs bars and nothing else: it weighs a bar against the bars

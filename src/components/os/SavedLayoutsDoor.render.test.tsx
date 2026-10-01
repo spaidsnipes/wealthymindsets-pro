@@ -39,9 +39,9 @@ describe("Saved layouts — first frame", () => {
     announceArrangementCapture(capture({ SESSION: true }));
     const html = render();
     expect(html).toContain('data-testid="saved-layouts"');
-    expect(html).toContain(">Saved layouts<");
+    expect(html).toContain(">My Views<");
     expect(html).toContain('data-testid="saved-layouts-empty"');
-    expect(html).toContain("None saved yet. Arrange the chart, then save it here by name.");
+    expect(html).toContain("No My Views yet. Turn on the tools you want, then save them here by name.");
     // The one way in: a labelled button, enabled because a chart is answering.
     expect(html).toMatch(/<button[^>]*data-testid="saved-layouts-new"[^>]*aria-label="Save the chart&#x27;s current arrangement as a named layout"/);
     expect(html).not.toMatch(/data-testid="saved-layouts-new"[^>]*disabled/);
@@ -54,7 +54,7 @@ describe("Saved layouts — first frame", () => {
     });
     expect(html).not.toContain('data-testid="saved-layouts-empty"');
     expect(html).toContain('data-saved-layout="my-stack"');
-    expect(html).toContain('aria-label="Apply layout My stack"');
+    expect(html).toContain('aria-label="Open View My stack"');
     expect(html).toContain("2 readings on");
   });
 
@@ -66,9 +66,9 @@ describe("Saved layouts — first frame", () => {
         { id: "close", name: "Close", switches: { FIXED_RANGE: true, SESSION: true } },
       ]),
     });
-    expect(html).toContain('<ul aria-label="Saved layouts"');
+    expect(html).toContain('<ul aria-label="My Views"');
     for (const name of ["Open drive", "Close"]) {
-      expect(html).toContain(`aria-label="Apply layout ${name}"`);
+      expect(html).toContain(`aria-label="Open View ${name}"`);
       expect(html).toContain(`aria-label="Rename layout ${name}"`);
       expect(html).toContain(`aria-label="Delete layout ${name}"`);
     }
@@ -89,8 +89,8 @@ describe("Saved layouts — first frame", () => {
     expect(both).toContain('data-saved-layout-in-force="true"');
     // Same <button> carries the name and aria-current (and, since 2026-09-25,
     // aria-describedby pointing at its hint line) — attribute order not pinned.
-    expect(both).toMatch(/<button[^>]*aria-label="Apply layout Both profiles"[^>]*aria-current="true"/);
-    expect(both).toMatch(/<button[^>]*aria-label="Apply layout Both profiles"[^>]*aria-describedby="[^"]*-hint-/);
+    expect(both).toMatch(/<button[^>]*aria-label="Open View Both profiles"[^>]*aria-current="true"/);
+    expect(both).toMatch(/<button[^>]*aria-label="Open View Both profiles"[^>]*aria-describedby="[^"]*-hint-/);
     expect(both).toContain("The chart is arranged this way now");
     // "Open drive" names SESSION only, which matches, so it is honestly in force too.
     const open = html.slice(html.indexOf('data-saved-layout="open"'), html.indexOf('data-saved-layout="both"'));

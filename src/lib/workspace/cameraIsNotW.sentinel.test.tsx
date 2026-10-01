@@ -62,18 +62,18 @@ describe("CAMERA — the Workspace desks say they are cameras", () => {
       expect(door, `/charts lost the ${spec.id} desk door`).toBeDefined();
       expect(door!.label).toBe(arrangementCameraLabel(spec.id));
       // The canon desk word LEADS (the glass tour presses /^Order Flow/ etc.)
-      // and the camera word FOLLOWS — "Order Flow camera", never "Camera 2".
+      // and the camera word FOLLOWS — "Order Flow view", never "View 2".
       expect(door!.label.startsWith(spec.label)).toBe(true);
-      expect(door!.label).toMatch(/ camera$/);
+      expect(door!.label).toMatch(/ view$/);
     }
   });
 
   it("the camera grammar reads as the Founder wrote it", () => {
     expect(ARRANGEMENT_SPECS.map((s) => arrangementCameraLabel(s.id))).toEqual([
-      "Clean camera",
-      "Order Flow camera",
-      "Regime camera",
-      "Review camera",
+      "Clean view",
+      "Order Flow view",
+      "Regime view",
+      "Review view",
     ]);
   });
 
@@ -90,7 +90,7 @@ describe("CAMERA — the Workspace desks say they are cameras", () => {
     for (const spec of ARRANGEMENT_SPECS) {
       expect(html).toContain(`>${arrangementCameraLabel(spec.id)}<`);
     }
-    expect(html).toContain(`WORKSPACE CAMERAS — ${CAMERA_PROMISE.toUpperCase()}`);
+    expect(html).toContain(`VIEWS — ${CAMERA_PROMISE.toUpperCase()}`);
   });
 
   it("the Workspace hand captions its cameras once, above the first desk", () => {
@@ -99,7 +99,7 @@ describe("CAMERA — the Workspace desks say they are cameras", () => {
     );
     expect(os).toMatch(/const camerasAt = firstArrangementIndex\(equipment\);/);
     expect(os).toMatch(
-      /\{index === camerasAt \? \(\s*<div\s+data-testid="os-camera-caption"[\s\S]{0,400}?Cameras — \{CAMERA_PROMISE\}/,
+      /\{index === camerasAt \? \(\s*<div\s+data-testid="os-camera-caption"[\s\S]{0,400}?Views — \{CAMERA_PROMISE\}/,
     );
   });
 });
