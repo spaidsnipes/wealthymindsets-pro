@@ -20878,6 +20878,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
             ctx.restore();
             ds.liquidityLifecyclePainted = `${painted}/${lc.pools.length}`;
+            // NO SILENT NOTHING (§VIII · §CV): ON with every pool off this
+            // camera (serving MNQ 1m: 0/6 painted — five consumed before the
+            // view began, one off-price) left an empty glass. Say so.
+            if (painted === 0) {
+              const why = lc.pools.length === 0 ? "NO POOL MEASURED"
+                : skipL.tail > 0 && skipL.price === 0 && skipL.time === 0 ? `${lc.pools.length} POOLS ENDED BEFORE THIS CAMERA`
+                : `${lc.pools.length} POOLS OUTSIDE THIS CAMERA`;
+              const quietL = `LIQUIDITY LIFECYCLE · ACTIVE · NO POOL IN VIEW — ${why} · SCROLL BACK OR ZOOM OUT`;
+              ctx.save();
+              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.fillStyle = "rgba(237,230,211,0.8)";
+              ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              const rowQ = takeSilenceRow();
+              ctx.fillText(quietL, silenceX, rowQ);
+              floatingChips.push({ x: silenceX, y: rowQ - 7, w: ctx.measureText(quietL).width, h: 14 });
+              ctx.restore();
+              ds.liquidityLifecycleSilence = "NO_POOL_IN_VIEW";
+            } else delete ds.liquidityLifecycleSilence;
             ds.liquidityLifecycleTicks = `${ticks}/${wordsSaid}`;
             // How many painted pools were BORN on camera (a birth bracket) —
             // the rest fade in from the edge, and their spans read "<x0-x1".

@@ -156,7 +156,13 @@ describe("F08A — each pool is a glowing LADDER bounded in time by its lifecycl
 describe("no caption on the glass — the honesty is a receipt and one compact tag", () => {
   it("prints no LIQUIDITY LIFECYCLE caption line and keeps no caption-row owner", () => {
     expect(CHART).not.toContain("liquidityCaptionLine");
-    expect(CHART).not.toContain("LIQUIDITY LIFECYCLE ·");
+    // Garden 18 §VIII (no silent nothing) outranks this for the EMPTY glass
+    // only: the layer's name may print once, in the silence row, and only
+    // when not one pool painted on this camera — never beside drawn pools.
+    const named = [...CHART.matchAll(/LIQUIDITY LIFECYCLE ·/g)];
+    expect(named.length).toBe(1);
+    const at = named[0].index ?? 0;
+    expect(CHART.lastIndexOf("if (painted === 0) {", at)).toBeGreaterThan(at - 600);
     expect(block).not.toMatch(/floatingChips\.push\(\{ x: 8, y: cy - 11/);
   });
 
