@@ -3298,7 +3298,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       }
       const nextOldest = tickAccRef.current.size ? Math.min(...tickAccRef.current.keys()) : NaN;
       if (Number.isFinite(nextOldest)) tickAccStartedAtRef.current = Math.min(tickAccStartedAtRef.current ?? nextOldest, nextOldest);
-      tapeBackfillRef.current = `TASTYTRADE_TIMEANDSALE:${folded}prints:from ${reached ? new Date(Math.max(reached, sinceMs)).toISOString().slice(11, 16) : "—"}Z:${hist.complete ? "WINDOW" : "PARTIAL"}`;
+      const times = hist.events.map(e => e.values.time).filter((t): t is number => t != null && t > 0);
+      const hhmm = (t: number) => new Date(t).toISOString().slice(11, 16);
+      tapeBackfillRef.current = `TASTYTRADE_TIMEANDSALE:${folded}prints:of ${hist.events.length}:snapshot ${times.length ? `${hhmm(Math.min(...times))}-${hhmm(Math.max(...times))}` : "—"}Z:asked ${hhmm(sinceMs)}Z:from ${reached ? hhmm(Math.max(reached, sinceMs)) : "—"}Z:${hist.complete ? "WINDOW" : "PARTIAL"}`;
       flowLadderPublisherRef.current?.changed();
       onTapeFootprintRef.current?.(selectTapeFootprint(tickAccRef.current, tickAccStartedAtRef.current));
     }).catch(() => { if (!ctrl.signal.aborted) tapeBackfillRef.current = "REFUSED:TRANSPORT"; });

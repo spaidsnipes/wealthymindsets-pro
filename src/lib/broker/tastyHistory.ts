@@ -27,7 +27,7 @@ const num = (v: unknown): number | null => {
 
 export interface TastyPrintHistory {
   readonly events: readonly ContractEvent[];
-  /** True when tastytrade closed the snapshot itself (SNAPSHOT_END); false on timeout or cap. */
+  /** True only when tastytrade closed an UNTRIMMED snapshot; false on snip, timeout or cap. */
   readonly complete: boolean;
 }
 
@@ -49,6 +49,7 @@ export async function fetchTastyTimeAndSales(
   return new Promise(resolve => {
     const events: ContractEvent[] = [];
     let done = false;
+    let snipped = false;
     const ws = new WebSocket(tok!.dxlinkUrl!);
     const finish = (complete: boolean) => {
       if (done) return;
@@ -86,7 +87,11 @@ export async function fetchTastyTimeAndSales(
                 text: { aggressorSide: typeof flat[j + 7] === "string" ? (flat[j + 7] as string) : null },
               });
             }
-            if (isSnapshotEnd(flags)) { finish(true); return; }
+            // SNAPSHOT_SNIP (0x10): tastytrade trimmed the history (measured:
+            // ~1,000 prints, so ~2 minutes of NQ at the open). That is a
+            // PARTIAL window, never a complete one.
+            if (flags != null && (flags & 0x10) !== 0) snipped = true;
+            if (isSnapshotEnd(flags)) { finish(!snipped); return; }
             if (events.length >= maxEvents) { finish(false); return; }
           }
         }
