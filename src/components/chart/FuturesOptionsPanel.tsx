@@ -48,6 +48,22 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
   const [positions, setPositions] = useState<string | null>(null);
+  // §LXXV reconciliation: today's orders at tastytrade, re-read from the broker while the panel is open.
+  const [orders, setOrders] = useState<{ tail: string; id: string; state: string; symbol: string | null; action: string | null; quantity: number | null; filled: number | null; price: string | null }[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    const pull = () => fetch("/api/broker/tastytrade/orders", { cache: "no-store" })
+      .then(r => r.json().catch(() => null))
+      .then(j => {
+        if (!live || j?.state !== "OK") return;
+        setOrders((j.accounts as { tail: string; orders: { id: string; state: string; symbol: string | null; action: string | null; quantity: number | null; filled: number | null; price: string | null }[] }[])
+          .flatMap(a => a.orders.map(o => ({ tail: a.tail, ...o }))));
+      })
+      .catch(() => {});
+    void pull();
+    const t = setInterval(pull, 10_000);
+    return () => { live = false; clearInterval(t); };
+  }, []);
 
   useEffect(() => {
     if (!product) { setEdge(`${chartSymbol} is not a futures market.`); return; }
@@ -148,6 +164,15 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
         <button type="button" onClick={onClose} aria-label="Close futures options" style={{ color: "#C8C0AE" }}>✕</button>
       </div>
       {positions ? <p style={{ marginTop: 4, color: "#8a8271" }}>{positions}</p> : null}
+      {orders ? (
+        <div data-testid="fop-orders" style={{ marginTop: 4, color: MUTED }}>
+          {orders.length === 0 ? "No tastytrade orders today." : orders.slice(0, 4).map(o => (
+            <div key={`${o.tail}-${o.id}`} style={{ color: o.state === "WORKING" || o.state === "PARTIALLY FILLED" ? GOLD : MUTED, fontVariantNumeric: "tabular-nums" }}>
+              …{o.tail} · {o.state.replace(/_/g, " ")} · {o.action} {o.filled != null && o.quantity != null ? `${o.filled}/${o.quantity}` : o.quantity ?? ""} {o.symbol} {o.price ? `@ ${o.price}` : ""}
+            </div>
+          ))}
+        </div>
+      ) : null}
       {edge ? <p role="status" style={{ marginTop: 10, color: GOLD }}>{edge}</p> : !chain ? <p role="status" style={{ marginTop: 10, color: "#8a8271" }}>Reading tastytrade's chain…</p> : (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>

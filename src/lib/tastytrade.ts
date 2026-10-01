@@ -290,3 +290,10 @@ export async function getTastytradeQuoteToken(): Promise<{ token: string; dxlink
   if (!token || !dxlinkUrl) throw new Error("quote token response had no token/dxlink-url");
   return { token, dxlinkUrl, level: typeof d?.level === "string" ? d.level : null };
 }
+
+/** The account's working and recently-closed orders (tastytrade: today's orders). */
+export async function getTastytradeLiveOrders(accountNumber: string): Promise<unknown[]> {
+  const r = await ttGet<any>(`/accounts/${encodeURIComponent(accountNumber)}/orders/live`);
+  return (r?.data?.items ?? []) as unknown[];
+}
+

@@ -22,6 +22,8 @@ describe("tastytrade order JSON (Garden 18 §LXXIV–§XCV)", () => {
   it("a specific futures contract and a futures option pass; a continuous symbol never routes", () => {
     expect(toTastytradeOrder({ ...base, instrumentType: "Future", symbol: "/MNQZ6", limitPx: 21000 }).ok).toBe(true);
     expect(toTastytradeOrder({ ...base, instrumentType: "Future Option", symbol: "./MNQZ6 MQZ6 261016C21000", limitPx: 120 }).ok).toBe(true);
+    // The live chain pads the root: two spaces before the date (read 2026-10-01).
+    expect(toTastytradeOrder({ ...base, instrumentType: "Future Option", symbol: "./ESH7 EWZ6  261231C4750", limitPx: 12.5 }).ok).toBe(true);
     const cont = toTastytradeOrder({ ...base, instrumentType: "Future", symbol: "/MNQ", limitPx: 21000 });
     expect(cont).toMatchObject({ ok: false, reason: expect.stringMatching(/continuous symbol is never routed/) });
     expect(toTastytradeOrder({ ...base, instrumentType: "Future", symbol: "NQ1!" }).ok).toBe(false);
