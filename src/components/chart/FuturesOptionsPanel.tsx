@@ -258,6 +258,17 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
   const streamWords = live.stream === "LIVE" || parentOnly.stream === "LIVE" ? "LIVE" : live.stream === "CONNECTING" ? "CONNECTING" : (live.reason ?? live.stream.replace(/_/g, " "));
   const [c1, c2] = COLS[columns];
   const priceRowIndex = center == null ? -1 : rows.findIndex(r => r.strike > center);
+  // Open (and re-open per expiry) centred on the price line, like the broker screen.
+  const chainRef = useRef<HTMLDivElement | null>(null);
+  const priceRowRef = useRef<HTMLTableRowElement | null>(null);
+  const centredFor = useRef<string | null>(null);
+  useEffect(() => {
+    const key = `${parent}|${expiry}|${strikeCount}`;
+    if (centredFor.current === key || !priceRowRef.current || !chainRef.current) return;
+    const box = chainRef.current, row = priceRowRef.current;
+    box.scrollTop = Math.max(0, row.offsetTop - box.clientHeight / 2);
+    centredFor.current = key;
+  });
 
   // ── render ───────────────────────────────────────────────────────────────
   const cellBtn = (on: boolean, tone: "bid" | "ask", disabled: boolean): React.CSSProperties => ({
@@ -327,7 +338,7 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
 
           {/* ── THE CHAIN ── */}
           {/* The chain keeps at least ~8 rows on glass even with the ticket open. */}
-          <div style={{ flex: 1, minHeight: 230, overflowY: "auto", scrollbarColor: "rgba(201,165,92,.35) transparent" }}>
+          <div ref={chainRef} style={{ flex: 1, minHeight: 230, overflowY: "auto", scrollbarColor: "rgba(201,165,92,.35) transparent" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", ...MONO }}>
               <thead style={{ position: "sticky", top: 0, background: "#0d0b08", zIndex: 1 }}>
                 <tr style={{ color: MUTED, fontSize: 10.5, letterSpacing: ".06em" }}>
@@ -347,7 +358,7 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
                   const callP: Pick | null = s.call ? { symbol: s.call, streamer: s.callStreamer, strike: s.strike, right: "CALL" } : null;
                   const putP: Pick | null = s.put ? { symbol: s.put, streamer: s.putStreamer, strike: s.strike, right: "PUT" } : null;
                   const priceRow = i === priceRowIndex && center != null ? (
-                    <tr key={`px-${s.strike}`} aria-hidden>
+                    <tr key={`px-${s.strike}`} aria-hidden ref={priceRowRef}>
                       <td colSpan={9} style={{ padding: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 10px" }}>
                           <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${GOLD})` }} />
