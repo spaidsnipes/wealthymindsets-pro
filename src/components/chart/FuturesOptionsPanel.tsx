@@ -16,11 +16,18 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 
-import { futuresProductFor, readFuturesOptionChain, strikesNear, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
+import { readContractQuote, type ContractQuoteReading } from "@/lib/broker/tastyContractQuote";
+import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
+import { futuresProductFor, readFuturesOptionChain, snapToTick, strikesNear, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 
 const GOLD = "#C9A55C";
+const MUTED = "#8a8271";
+
+const px = (n: number | null | undefined, d = 2) => (n == null ? "—" : n.toFixed(d));
+const age = (ms: number | null) => (ms == null ? "—" : ms < 1000 ? "<1s" : ms < 60_000 ? `${Math.round(ms / 1000)}s` : `${Math.round(ms / 60_000)}m`);
+const stateColor = (r: ContractQuoteReading) => (r.state === "LIVE" ? "#7fd1a8" : GOLD);
 
 export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdentity, onClose }: {
   readonly chartSymbol: string;
@@ -34,7 +41,7 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
   const [edge, setEdge] = useState<string | null>(null);
   const [parent, setParent] = useState<string>("");
   const [expiry, setExpiry] = useState<string>("");
-  const [pick, setPick] = useState<{ symbol: string; strike: number; right: "CALL" | "PUT" } | null>(null);
+  const [pick, setPick] = useState<{ symbol: string; streamer: string | null; strike: number; right: "CALL" | "PUT" } | null>(null);
   const [action, setAction] = useState<"Buy to Open" | "Sell to Close">("Buy to Open");
   const [qty, setQty] = useState(1);
   const [limit, setLimit] = useState("");
@@ -77,6 +84,31 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
   const exp = expirations.find(e => e.expiration === expiry) ?? null;
   const rows = useMemo(() => strikesNear(exp?.strikes ?? [], price, 14), [exp, price]);
   const parents = useMemo(() => [...new Set((chain?.expirations ?? []).map(e => e.parent))], [chain]);
+  const parentStreamer = chain?.futures.find(f => f.symbol === parent)?.streamer ?? null;
+
+  // §LI–§LIII: the visible contracts and their parent future, on the ONE shared stream.
+  const streamers = useMemo(() => {
+    const xs = rows.flatMap(r => [r.callStreamer, r.putStreamer]).filter((x): x is string => !!x);
+    if (parentStreamer) xs.push(parentStreamer);
+    if (pick?.streamer) xs.push(pick.streamer);
+    return xs;
+  }, [rows, parentStreamer, pick]);
+  const live = useTastyQuotes(streamers);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const read = (sym: string | null) => readContractQuote(sym ? live.quotes.get(sym) : undefined, live.stream, now);
+  const parentRead = read(parentStreamer);
+  const pickQ = pick?.streamer ? live.quotes.get(pick.streamer) : undefined;
+  const pickRead = read(pick?.streamer ?? null);
+
+  // The limit starts at the live mark, snapped to tastytrade's own increment —
+  // once per selection, so the trader's own price is never overwritten.
+  const [seeded, setSeeded] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pick || seeded === pick.symbol || pickRead.mark == null) return;
+    const snapped = snapToTick(exp?.tickSizes ?? [], pickRead.mark);
+    if (snapped != null) { setLimit(String(snapped)); setSeeded(pick.symbol); }
+  }, [pick, seeded, pickRead.mark, exp]);
 
   async function dryRun() {
     if (!pick || busy) return;
@@ -109,7 +141,7 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
     <aside
       aria-label={`${product ?? chartSymbol} futures options`}
       data-testid="futures-options-panel"
-      style={{ position: "fixed", top: 108, right: 12, bottom: 12, width: "min(420px, calc(100vw - 24px))", zIndex: 60, overflowY: "auto", background: "rgba(10,9,7,0.97)", border: "1px solid rgba(201,165,92,0.45)", borderRadius: 6, padding: 12, color: "#ede6d3", fontSize: 12 }}
+      style={{ position: "fixed", top: 108, right: 12, bottom: 12, width: "min(480px, calc(100vw - 24px))", zIndex: 60, overflowY: "auto", background: "rgba(10,9,7,0.97)", border: "1px solid rgba(201,165,92,0.45)", borderRadius: 6, padding: 12, color: "#ede6d3", fontSize: 12 }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <strong style={{ letterSpacing: ".1em", textTransform: "uppercase", color: GOLD }}>{product ?? chartSymbol} Futures Options · tastytrade</strong>
@@ -132,19 +164,28 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
               </select>
             </label>
           </div>
-          {exp ? <p style={{ marginTop: 6, color: "#8a8271" }}>Option root {exp.optionRoot ?? "—"} · on {exp.parent} · strikes near {price != null ? price.toFixed(2) : "—"}</p> : null}
+          {exp ? <p style={{ marginTop: 6, color: MUTED }}>Option root {exp.optionRoot ?? "—"} · on {exp.parent} · strikes near {price != null ? price.toFixed(2) : "—"}</p> : null}
+          <p data-testid="fop-stream" data-stream={live.stream} style={{ marginTop: 4, color: live.stream === "LIVE" ? "#7fd1a8" : GOLD, fontVariantNumeric: "tabular-nums" }}>
+            {live.stream === "LIVE" ? "● tastytrade live" : live.stream === "CONNECTING" ? "Connecting to tastytrade's stream…" : live.reason ?? live.stream.replace(/_/g, " ").toLowerCase()}
+            {parentStreamer ? ` · ${parent} ${parentRead.mark != null ? `${px(live.quotes.get(parentStreamer)?.bid)} × ${px(live.quotes.get(parentStreamer)?.ask)}` : parentRead.state.toLowerCase()}` : ""}
+          </p>
           <table style={{ width: "100%", marginTop: 6, borderCollapse: "collapse" }}>
-            <thead><tr style={{ color: "#8a8271" }}><th style={{ textAlign: "left" }}>Call</th><th>Strike</th><th style={{ textAlign: "right" }}>Put</th></tr></thead>
+            <thead><tr style={{ color: MUTED }}><th style={{ textAlign: "left" }}>Call bid × ask</th><th>Strike</th><th style={{ textAlign: "right" }}>Put bid × ask</th></tr></thead>
             <tbody>
               {rows.map(s => (
                 <tr key={s.strike} style={{ borderTop: "1px solid #2a251c" }}>
                   {(["CALL", "PUT"] as const).map((right, i) => {
                     const sym = right === "CALL" ? s.call : s.put;
+                    const streamer = right === "CALL" ? s.callStreamer : s.putStreamer;
                     const on = pick?.symbol === sym;
+                    const q = streamer ? live.quotes.get(streamer) : undefined;
+                    const r = read(streamer);
                     const cell = (
-                      <button type="button" disabled={!sym} aria-pressed={on} onClick={() => sym && setPick({ symbol: sym, strike: s.strike, right })}
-                        style={{ padding: "3px 8px", border: `1px solid ${on ? GOLD : "#3a3326"}`, color: on ? GOLD : "#C8C0AE", borderRadius: 3 }}>
-                        {right === "CALL" ? "Call" : "Put"}
+                      <button type="button" disabled={!sym} aria-pressed={on} aria-label={`${right} ${s.strike}`} data-quote-state={r.state}
+                        onClick={() => { if (sym) { setPick({ symbol: sym, streamer, strike: s.strike, right }); setAnswer(null); } }}
+                        title={r.state}
+                        style={{ minWidth: 112, padding: "3px 6px", border: `1px solid ${on ? GOLD : "#3a3326"}`, color: on ? GOLD : "#C8C0AE", borderRadius: 3, fontVariantNumeric: "tabular-nums" }}>
+                        {q?.quoteAt != null ? `${px(q.bid)} × ${px(q.ask)}` : <span style={{ color: MUTED, fontSize: 10 }}>{r.state === "WAITING FOR QUOTE" ? "waiting…" : r.state.toLowerCase()}</span>}
                       </button>
                     );
                     return i === 0
@@ -158,7 +199,29 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
           {pick ? (
             <div style={{ marginTop: 10, borderTop: "1px solid #3a3326", paddingTop: 8 }}>
               <div style={{ color: GOLD }}>{pick.symbol}</div>
-              <div style={{ color: "#8a8271" }}>{pick.right} {pick.strike} on {exp?.parent} · expires {exp?.expiration} · {exp?.settlement ?? ""}</div>
+              <div style={{ color: MUTED }}>{pick.right} {pick.strike} on {exp?.parent} · expires {exp?.expiration} · {exp?.settlement ?? ""}</div>
+              <div data-testid="fop-reality" data-quote-state={pickRead.state} style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "4px 8px", marginTop: 6, fontVariantNumeric: "tabular-nums" }}>
+                {([
+                  ["Bid", `${px(pickQ?.bid)}${pickQ?.bidSize ? ` ×${pickQ.bidSize}` : ""}`],
+                  ["Ask", `${px(pickQ?.ask)}${pickQ?.askSize ? ` ×${pickQ.askSize}` : ""}`],
+                  ["Mark", px(pickRead.mark)],
+                  ["Last", px(pickQ?.last)],
+                  ["Spread", pickRead.spread != null ? `${px(pickRead.spread)} · ${px(pickRead.spreadPct, 1)}%` : "—"],
+                  ["Quote age", age(pickRead.ageMs)],
+                  ["Delta", px(pickQ?.delta, 3)],
+                  ["IV", pickQ?.iv != null ? `${(pickQ.iv * 100).toFixed(1)}%` : "—"],
+                  ["Gamma", px(pickQ?.gamma, 4)],
+                  ["Theta", px(pickQ?.theta, 3)],
+                  ["Vega", px(pickQ?.vega, 3)],
+                  ["Vol · OI", `${pickQ?.dayVolume ?? "—"} · ${pickQ?.openInterest ?? "—"}`],
+                ] as const).map(([k, v]) => (
+                  <div key={k}><div style={{ color: MUTED, fontSize: 10 }}>{k}</div><div>{v}</div></div>
+                ))}
+              </div>
+              <p style={{ marginTop: 4, color: stateColor(pickRead) }}>
+                {pickRead.state === "LIVE" ? "Live quote" : pickRead.state === "ONE-SIDED" ? "One-sided market — no mark" : pickRead.state === "WAITING FOR QUOTE" ? "Contract discovered · waiting for its first quote" : pickRead.state === "NOT CONNECTED" ? "tastytrade's stream is not connected" : pickRead.state === "STREAM DEGRADED" ? (live.reason ?? "Stream degraded — reconnecting") : "Quote is stale"}
+                {" · "}<span style={{ color: MUTED }}>Mark is the midpoint, not a guaranteed fill.</span>
+              </p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 6 }}>
                 <select value={action} onChange={e => setAction(e.target.value as typeof action)} style={{ background: "#0b0a08", border: "1px solid #3a3326", padding: 4 }}>
                   <option>Buy to Open</option><option>Sell to Close</option>

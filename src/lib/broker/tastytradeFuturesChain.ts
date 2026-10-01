@@ -10,8 +10,11 @@
  * continuous chart symbol), its option root, settlement and expiry. PURE.
  */
 
-export interface FutureContract { readonly symbol: string; readonly expiration: string | null; readonly dte: number | null; readonly activeMonth: boolean }
-export interface FopStrike { readonly strike: number; readonly call: string | null; readonly put: string | null }
+export interface FutureContract { readonly symbol: string; readonly streamer: string | null; readonly expiration: string | null; readonly dte: number | null; readonly activeMonth: boolean }
+/** `call`/`put` are order symbols; `callStreamer`/`putStreamer` are DXLink's — both tastytrade's own, never assembled. */
+export interface FopStrike { readonly strike: number; readonly call: string | null; readonly put: string | null; readonly callStreamer: string | null; readonly putStreamer: string | null }
+/** tastytrade's price increments: `value` applies below `threshold` (absent on the last tier). */
+export interface TickTier { readonly value: number; readonly threshold: number | null }
 export interface FopExpiration {
   readonly parent: string;
   readonly optionRoot: string | null;
@@ -19,6 +22,7 @@ export interface FopExpiration {
   readonly dte: number | null;
   readonly type: string | null;
   readonly settlement: string | null;
+  readonly tickSizes: readonly TickTier[];
   readonly strikes: readonly FopStrike[];
 }
 export interface FuturesOptionChain { readonly futures: readonly FutureContract[]; readonly expirations: readonly FopExpiration[] }
@@ -31,7 +35,7 @@ export function readFuturesOptionChain(data: unknown): FuturesOptionChain {
   const futures: FutureContract[] = (d.futures ?? []).flatMap(f => {
     const o = f as Record<string, unknown>;
     const symbol = str(o.symbol);
-    return symbol ? [{ symbol, expiration: str(o["expiration-date"]), dte: num(o["days-to-expiration"]), activeMonth: o["active-month"] === true }] : [];
+    return symbol ? [{ symbol, streamer: str(o["streamer-symbol"]), expiration: str(o["expiration-date"]), dte: num(o["days-to-expiration"]), activeMonth: o["active-month"] === true }] : [];
   }).sort((a, b) => (a.dte ?? 1e9) - (b.dte ?? 1e9));
   const expirations: FopExpiration[] = [];
   for (const ch of d["option-chains"] ?? []) {
@@ -44,9 +48,14 @@ export function readFuturesOptionChain(data: unknown): FuturesOptionChain {
       const strikes: FopStrike[] = ((e.strikes as unknown[] | undefined) ?? []).flatMap(s => {
         const k = s as Record<string, unknown>;
         const strike = num(k["strike-price"]);
-        return strike != null ? [{ strike, call: str(k.call), put: str(k.put) }] : [];
+        return strike != null ? [{ strike, call: str(k.call), put: str(k.put), callStreamer: str(k["call-streamer-symbol"]), putStreamer: str(k["put-streamer-symbol"]) }] : [];
       }).sort((a, b) => a.strike - b.strike);
-      expirations.push({ parent, optionRoot: str(e["option-root-symbol"]), expiration, dte: num(e["days-to-expiration"]), type: str(e["expiration-type"]), settlement: str(e["settlement-type"]), strikes });
+      const tickSizes: TickTier[] = ((e["tick-sizes"] as unknown[] | undefined) ?? []).flatMap(t => {
+        const o = t as Record<string, unknown>;
+        const value = num(o.value);
+        return value != null && value > 0 ? [{ value, threshold: num(o.threshold) }] : [];
+      });
+      expirations.push({ parent, optionRoot: str(e["option-root-symbol"]), expiration, dte: num(e["days-to-expiration"]), type: str(e["expiration-type"]), settlement: str(e["settlement-type"]), tickSizes, strikes });
     }
   }
   expirations.sort((a, b) => (a.dte ?? 1e9) - (b.dte ?? 1e9) || a.parent.localeCompare(b.parent));
@@ -71,4 +80,18 @@ export function strikesNear(strikes: readonly FopStrike[], price: number | null,
   while (i < strikes.length - 1 && strikes[i].strike < price) i++;
   const from = Math.max(0, Math.min(strikes.length - n, i - Math.floor(n / 2)));
   return strikes.slice(from, from + n);
+}
+
+/** The increment tastytrade accepts at this price (first tier whose threshold is above it). Null when unknown. */
+export function tickFor(tiers: readonly TickTier[], price: number): number | null {
+  for (const t of tiers) if (t.threshold == null || price < t.threshold) return t.value;
+  return tiers.length ? tiers[tiers.length - 1].value : null;
+}
+
+/** A price snapped to the nearest lawful increment, or null when no increment is known. */
+export function snapToTick(tiers: readonly TickTier[], price: number): number | null {
+  const tick = tickFor(tiers, price);
+  if (tick == null || !Number.isFinite(price)) return null;
+  const snapped = Math.round(price / tick) * tick;
+  return Number(snapped.toFixed(6));
 }

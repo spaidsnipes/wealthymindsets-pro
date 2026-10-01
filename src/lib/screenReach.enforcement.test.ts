@@ -445,32 +445,14 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "AWAITING_SURFACE",
     note: "Learning Genome selector with no panel calling it.",
   },
-  "src/lib/marketData/dxlinkProtocol.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "The DXLink frames WM Pro sends to tastytrade's real-time socket, and the "
-      + "15-second bars it mints from the Trade events that come back. What a "
-      + "human loses by it having no screen is, today, NOTHING THAT A SCREEN "
-      + "COULD GIVE THEM: the socket cannot be opened at all until "
-      + "TASTYTRADE_REFRESH_TOKEN exists in the host runtime secrets, which is "
-      + "Founder-only work, and a surface built ahead of it would render the "
-      + "same absence the /api/broker/tastytrade/market-data route already "
-      + "reports in words. AWAITING_SURFACE is legitimate here only because "
-      + "nothing else in this repo builds bars from a live tastytrade stream — "
-      + "checked, not assumed: the only other file naming DXLink is "
-      + "lib/tastytrade.ts, which probes /api-quote-tokens for reachability and "
-      + "never opens a socket. Its first consumer will be the Durable Object "
-      + "relay that holds the outbound WebSocket and feeds "
-      + "observingSinceMs/observingUntilMs across the ~15-minute Cloudflare "
-      + "eviction seam; delete this entry then.",
-  },
   "src/lib/marketData/tapeRelayGeneration.ts": {
     reason: "AWAITING_SURFACE",
     note:
       "The relay's bookkeeping of its own connection: one generation per "
       + "unbroken stretch of upstream watching, so bars are never aggregated "
       + "across a reconnect seam and the generation number becomes the bar's "
-      + "truthEpoch. It shares ONE first consumer with dxlinkProtocol.ts — the "
+      + "truthEpoch. (dxlinkProtocol.ts, its former ledger twin, is now reached by "
+      + "the Futures Options panel through tastyQuoteStream.ts, 2026-10-01.) Its first consumer is the "
       + "Durable Object relay — and that is stated here rather than left to be "
       + "discovered, because two ledger entries awaiting the same surface is "
       + "the BACKEND_GREEN_FRONTEND_DARK shape starting, and a third would mean "

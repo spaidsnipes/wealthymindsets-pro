@@ -276,3 +276,17 @@ export async function getTastytradeFuturesOptionChain(productCode: string): Prom
   const j = await ttGet<{ data?: unknown }>(`/futures-option-chains/${encodeURIComponent(productCode)}/nested`);
   return j?.data ?? j;
 }
+
+/**
+ * The DXLink quote token (`GET /api-quote-tokens`): a 24h market-data token,
+ * NOT an OAuth secret — tastytrade issues it for the client to open the stream
+ * itself. Returned only through an owner-gated route.
+ */
+export async function getTastytradeQuoteToken(): Promise<{ token: string; dxlinkUrl: string; level: string | null }> {
+  const r = await ttGet<any>("/api-quote-tokens");
+  const d = r?.data ?? r;
+  const token = typeof d?.token === "string" ? d.token : "";
+  const dxlinkUrl = typeof d?.["dxlink-url"] === "string" ? d["dxlink-url"] : "";
+  if (!token || !dxlinkUrl) throw new Error("quote token response had no token/dxlink-url");
+  return { token, dxlinkUrl, level: typeof d?.level === "string" ? d.level : null };
+}
