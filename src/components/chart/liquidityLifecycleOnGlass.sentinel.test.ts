@@ -270,9 +270,12 @@ describe("GP12 §64 — crowded glass: the near pools speak, the rest are memory
     expect(block).toContain("const memoryA = shownA * Math.min(1, TIER_CEILING.MEMORY / TIER_CEILING[att.tierOf(\"liquidityLifecycle\")]);");
   });
 
-  it("a pool born before the camera draws only the last fifth of the pane before now — unless selected", () => {
+  it("a pool born before the camera draws only the last fifth of the pane before its END — unless selected", () => {
     expect(block).toContain("const OFFCAM_TAIL = 0.2;");
-    expect(block).toContain('const x0 = !bornOnCamera && role !== "SELECTED" ? Math.max(xBirth, xLive - OFFCAM_TAIL * rightL) : xBirth;');
+    // Measured from its end (consume cap, or now while it stands): measured
+    // from now, a pool consumed earlier drew nothing (MNQ 1m, 2026-10-01).
+    expect(block).toContain('const x0 = !bornOnCamera && role !== "SELECTED" ? Math.max(xBirth, xEnd - OFFCAM_TAIL * rightL) : xBirth;');
+    expect(block).not.toContain("xLive - OFFCAM_TAIL");
   });
 
   it("the selected pool paints at the governor's selected strength", () => {

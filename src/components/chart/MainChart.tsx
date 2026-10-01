@@ -20549,7 +20549,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const xEnd = Math.min(rightL, span.endTime != null ? xStop + spacingL / 2 : xStop);
               // Born before the camera and not selected: only the last fifth
               // of the pane before now, not a ladder across the whole camera.
-              const x0 = !bornOnCamera && role !== "SELECTED" ? Math.max(xBirth, xLive - OFFCAM_TAIL * rightL) : xBirth;
+              // The tail is measured back from where the pool ENDS — its consume
+              // cap, or now while it stands. Measured from now, a pool born off
+              // camera and consumed before the last fifth had xEnd ≤ x0 and drew
+              // nothing (serving MNQ 1m, 2026-10-01: six consumed pools, 0/6
+              // painted, the switch ON over an empty glass).
+              const x0 = !bornOnCamera && role !== "SELECTED" ? Math.max(xBirth, xEnd - OFFCAM_TAIL * rightL) : xBirth;
               if (xEnd <= x0) continue;
               if (role === "MEMORY") {
                 // MEMORY — a short stub at the pool's own right end, fading in.
