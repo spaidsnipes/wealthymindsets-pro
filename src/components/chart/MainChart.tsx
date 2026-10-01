@@ -18697,10 +18697,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               const xr = ts.timeToCoordinate(l.formedAt as any);
               const x0 = xr == null ? 0 : Math.max(0, Math.round(+xr));
               if (x0 >= endX) continue;
-              const fade = Math.max(0.3, 0.9 - (l.sessionsAgo - 1) * 0.15);
+              // VISIBILITY FLOOR (Garden 18 §XXXVI, serving TSLA 15m: an S-5
+              // shelf read at ~0.15 — tier 0.5 × age 0.3 — invisible with
+              // Memory the only sense on). Age still fades, never below 0.5.
+              const fade = Math.max(0.5, 0.95 - (l.sessionsAgo - 1) * 0.11);
               const isPoc = l.kind === "POC";
               const edge = l.kind === "VAH" ? "EDGE_HIGH" : "EDGE_LOW";
-              ctx.strokeStyle = isPoc ? pk.rgba("POC", fade) : pk.rgba(edge, fade * 0.6);
+              ctx.strokeStyle = isPoc ? pk.rgba("POC", fade) : pk.rgba(edge, fade * 0.75);
               ctx.lineWidth = isPoc ? 1.25 : 1;
               ctx.setLineDash(isPoc ? (l.naked ? [] : [8, 3]) : [2, 4]);
               ctx.beginPath();
@@ -18754,9 +18757,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               floatingChips.push({ x: spotM.rect.x, y: spotM.rect.y, w, h: 14 });
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotM, 0.80)})`;
               ctx.fillRect(spotM.rect.x, spotM.rect.y, w, 14);
-              ctx.fillStyle = isPoc ? pk.rgba("POC", Math.max(0.6, fade)) : pk.rgba(edge, Math.max(0.55, fade));
+              ctx.fillStyle = isPoc ? pk.rgba("POC", Math.max(0.85, fade)) : pk.rgba(edge, Math.max(0.8, fade));
               ctx.textAlign = "left";
+              // The words read even while the layer is quiet: a backed chip
+              // over its own line, never below 0.85 on the glass.
+              const gaM = ctx.globalAlpha;
+              ctx.globalAlpha = Math.max(gaM, 0.85);
               ctx.fillText(text, spotM.rect.x + 4, y);
+              ctx.globalAlpha = gaM;
             }
             ctx.restore();
             ds.profileMemoryWithheld = String(memWithheld);
