@@ -19,6 +19,7 @@ import {
   TrendingUp,
   User,
   Users,
+  Archive,
   Zap,
 } from "lucide-react";
 
@@ -259,6 +260,8 @@ export const WM_DESTINATIONS: readonly WmDestination[] = [
   // the way the /education verdict was. Promoted on the same static-first-paint
   // evidence as its siblings, carrying the same limit.
   { href: "/backtesting", label: "Backtest", icon: FlaskConical, group: "TOOL", tier: 2, frame: "os" },
+  // Garden 18 §XCII: SAVED heat — the organ the fourth Market Home seat waited for.
+  { href: "/research-heat", label: "Research Heat Archive", icon: Archive, group: "TOOL", tier: 2, frame: "os" },
   // The page at /ai-bot is titled "Market Intelligence · Observed market data
   // only · no generated signals" and runs the canonical Market Canvas — it does
   // not operate a bot or emit signals. A rail must not promise one.
@@ -408,6 +411,8 @@ export const MARKET_HOME_ROOM_HREFS: readonly string[] = [
   "/journal",
   "/backtesting",
   "/scanner",
+  // The organ exists (2026-10-01): saved heat, read beside the market now.
+  "/research-heat",
 ];
 
 export function marketHomeRooms(): readonly WmDestination[] {

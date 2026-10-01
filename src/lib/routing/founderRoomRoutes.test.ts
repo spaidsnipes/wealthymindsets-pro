@@ -85,6 +85,8 @@ describe("FOUNDER_ROOM_ROUTES — the Asset-10 family registry", () => {
       "/proof-lane",
       "/copy-trading",
       "/backtesting",
+      // 2026-10-01: the Research Heat Archive — SAVED heat (Garden 18 §XCII).
+      "/research-heat",
       "/ai-bot",
       "/lounge",
       "/tv",

@@ -132,7 +132,7 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
   // ── F14 DISCOVERY / HEAT · CONTRADICTION ───────────────────────────────
   { id: "H-401", name: "Contradiction not averaged", family: "F14 / H-401", status: "BUILT", owner: `${VM}selectContradiction.ts`, surface: sw("CONTRADICTION"), plate: "WM_NewMockup_124_F14_Contradiction_Not_Averaged" },
   { id: "F14.HEAT", name: "Heat lens — lands on the same camera", family: "F14 Discovery / Heat", status: "BUILT", owner: `${VM}selectHeatLens.ts`, surface: route("/scanner/map"), plate: "WM_NewMockup_126_F14_Heat_Lands_Same_Camera · ATH_Blueprint_P-601_Heat_Lens_Stack" },
-  { id: "F14.ARCHIVE", name: "Research Heat Archive (saved / historical heat)", family: "Rooms", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "room named by §XCII; no organ" },
+  { id: "F14.ARCHIVE", name: "Research Heat Archive (saved / historical heat)", family: "Rooms", status: "BUILT", owner: "src/lib/research/heatArchive.ts", surface: route("/research-heat"), plate: null },
 
   // ── F15 REGIME ─────────────────────────────────────────────────────────
   { id: "H-901", name: "Regime State Lighting", family: "F15 Regime", status: "BUILT", owner: `${VM}selectRegimeLighting.ts`, surface: sw("REGIME_LIGHTING"), plate: "WM_NewMockup_92_F15A_Regime_State_Lighting" },

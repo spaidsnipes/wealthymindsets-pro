@@ -27,18 +27,23 @@ describe("the HOME Rooms doorway changes the human job without restoring the mal
    * Room" taxonomy wording.
    */
   it("contains ONLY the bolt-on's changed trade jobs that exist, in its order", () => {
-    // Research Heat Archive (SAVED/HISTORICAL heat) has no organ yet. The live
-    // /heatmaps board that sat in its seat is retired — see the next test.
+    // Research Heat Archive (SAVED/HISTORICAL heat) took its seat 2026-10-01
+    // once its organ existed (lib/research/heatArchive). The live /heatmaps
+    // board that once sat there stays retired — see the next test.
     expect(MARKET_HOME_ROOM_HREFS).toEqual([
       "/journal",
       "/backtesting",
       "/scanner",
+      "/research-heat",
     ]);
   });
 
   it("ROOMS BUTTON ≠ HEATMAPS ROOM: no live heat board sits in the Rooms door", () => {
     expect(MARKET_HOME_ROOM_HREFS).not.toContain("/heatmaps");
-    expect(marketHomeRooms().some((room) => /heat/i.test(room.label) || /heat/i.test(room.href))).toBe(false);
+    // The ONLY heat in the Rooms door is the ARCHIVE of saved heat — never a live board.
+    const heatRooms = marketHomeRooms().filter((room) => /heat/i.test(room.label) || /heat/i.test(room.href));
+    expect(heatRooms.map((r) => r.href)).toEqual(["/research-heat"]);
+    expect(heatRooms[0].label).toMatch(/Archive/);
     expect(WM_DESTINATIONS.some((d) => d.href === "/heatmaps")).toBe(false);
   });
 

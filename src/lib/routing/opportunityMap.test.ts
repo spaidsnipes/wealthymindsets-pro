@@ -37,7 +37,8 @@ const code = (rel: string) =>
 describe("× THE HEATMAPS ROOM: retired from every door", () => {
   it("is not a destination, not a Rooms tenant, not a House tenant, not a phone door", () => {
     expect(WM_DESTINATIONS.some((d) => d.href === RETIRED_HEATMAPS_ROOM_ROUTE)).toBe(false);
-    expect(WM_DESTINATIONS.some((d) => /heat/i.test(d.label))).toBe(false);
+    // Only the Research Heat Archive (SAVED heat) may wear the word — no live board.
+    expect(WM_DESTINATIONS.filter((d) => /heat/i.test(d.label)).map((d) => d.href)).toEqual(["/research-heat"]);
     expect(MARKET_HOME_ROOM_HREFS).not.toContain(RETIRED_HEATMAPS_ROOM_ROUTE);
     expect(HOUSE_DOOR_HREFS).not.toContain(RETIRED_HEATMAPS_ROOM_ROUTE);
     expect(PHONE_SLOT_HREFS).not.toContain(RETIRED_HEATMAPS_ROOM_ROUTE);

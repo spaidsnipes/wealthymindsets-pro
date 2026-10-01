@@ -5,6 +5,7 @@ import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { selectHeatmapFeedObservation } from "@/lib/os/selectHeatmapFeedObservation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { HEATMAP_TF_ORDER } from "@/lib/timeframes";
 import { QualityBadge } from "@/components/ui/DataHealth";
@@ -13,6 +14,7 @@ import { readObservedChange, summarizeObservedChange } from "@/lib/heatmapAggreg
 import { WM } from "@/lib/design/wmTokens";
 import { heatCellCameraHref } from "@/lib/routing/opportunityMap";
 import { ScannerDeckViewSwitch } from "@/components/scanner/ScannerDeckViewSwitch";
+import { saveHeatSnapshot } from "@/lib/research/heatArchive";
 
 /**
  * ── WHY THIS IS NO LONGER A ROOM ────────────────────────────────────────────
@@ -715,6 +717,13 @@ export default function OpportunityMapPage() {
   const [hovered,    setHovered]    = useState<{ industry: Industry; x: number; y: number } | null>(null);
   const [search,     setSearch]     = useState("");
   const { pcts, loading: heatLoading, receivedAt, observedAt, qualityState, fidelityReason, retainedSnapshot } = useLivePct(activeTF);
+  // Research Heat Archive (§XCII): the trader keeps THIS moment's heat.
+  const [savedHeat, setSavedHeat] = useState<"IDLE" | "SAVED" | "FAILED">("IDLE");
+  useEffect(() => { setSavedHeat("IDLE"); }, [activeTF, activeView]);
+  const saveHeat = () => {
+    const snap = saveHeatSnapshot({ observedAt, period: activeTF, universe: activeView, quality: retainedSnapshot ? "RETAINED" : qualityState, note: "", pcts });
+    setSavedHeat(snap ? "SAVED" : "FAILED");
+  };
 
   /**
    * THIS BOARD PAINTS THE WHOLE INDEX. IT HAD TO SAY WHEN IT LOOKED.
@@ -843,6 +852,17 @@ export default function OpportunityMapPage() {
           <QualityBadge
             state={qualityState}
           />
+          {Object.keys(pcts).length > 0 ? (
+            savedHeat === "SAVED" ? (
+              <Link href="/research-heat" data-testid="heat-saved" style={{ fontSize: 11, color: WM.gold.hero, fontWeight: 700, whiteSpace: "nowrap" }}>Saved — open the Archive →</Link>
+            ) : (
+              <button type="button" data-testid="heat-save" onClick={saveHeat}
+                title="Keep this moment's heat in the Research Heat Archive (this browser)"
+                style={{ minHeight: 28, padding: "0 10px", borderRadius: 6, border: `1px solid ${WM.border.strong}`, background: "transparent", color: WM.gold.hero, fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                {savedHeat === "FAILED" ? "Could not save — browser storage refused" : "Save this heat"}
+              </button>
+            )
+          ) : null}
           <span
             style={{
               fontSize: 10,
