@@ -3919,6 +3919,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           // via the same announced `activeId` as every other desk — no
           // rail-side memory, same one writer.
           arrangementDeskRef.current("CLEAN");
+          // The footprint and Big Trades are senses too (Garden 18 §XXI):
+          // "just the market" puts them down as well, through their own setters.
+          setFootprintEnabled(false);
+          setBigTradesOverlay(false);
         } else if (req.equipmentId === "chart-tools") {
           // THE FOURTH DIRECT INSTRUMENT — THE REST OF THE DEMOLISHED STRIP.
           //
