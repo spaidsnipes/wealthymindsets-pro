@@ -36,6 +36,22 @@ export function resolveTastyFrontMonth(futures: unknown): TastyFrontMonth | null
   return pick ? { symbol: pick.symbol, streamer: pick.streamer } : null;
 }
 
+/**
+ * A SPECIFIC month the trader chose (/MNQH7), never silently swapped for the
+ * active month: the exact contract, or null when tastytrade does not list it.
+ */
+export function resolveTastyContract(futures: unknown, exactSymbol: string): TastyFrontMonth | null {
+  if (!Array.isArray(futures)) return null;
+  const want = exactSymbol.trim().toUpperCase();
+  for (const f of futures) {
+    const o = (f ?? {}) as Record<string, unknown>;
+    if (typeof o.symbol !== "string" || o.symbol.toUpperCase() !== want) continue;
+    const streamer = typeof o["streamer-symbol"] === "string" ? (o["streamer-symbol"] as string) : "";
+    return streamer ? { symbol: o.symbol, streamer } : null;
+  }
+  return null;
+}
+
 export function tastyTradeToMarketEvent(
   e: ContractEvent,
   appSymbol: string,

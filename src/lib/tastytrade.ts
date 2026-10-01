@@ -271,6 +271,24 @@ export async function getTastytradeFutures(productCode: string): Promise<unknown
   return j?.data?.items ?? [];
 }
 
+/** tastytrade symbol search (`GET /symbols/search/{q}`): equities, ETFs, indices. */
+export async function searchTastytradeSymbols(q: string): Promise<unknown[]> {
+  const j = await ttGet<{ data?: { items?: unknown[] } }>(`/symbols/search/${encodeURIComponent(q)}`);
+  return j?.data?.items ?? [];
+}
+
+/** Every futures product tastytrade lists (code + description). */
+export async function getTastytradeFutureProducts(): Promise<unknown[]> {
+  const j = await ttGet<{ data?: { items?: unknown[] } }>(`/instruments/future-products`);
+  return j?.data?.items ?? [];
+}
+
+/** Every cryptocurrency pair tastytrade lists. */
+export async function getTastytradeCryptocurrencies(): Promise<unknown[]> {
+  const j = await ttGet<{ data?: { items?: unknown[] } }>(`/instruments/cryptocurrencies`);
+  return j?.data?.items ?? [];
+}
+
 /** Futures-option chain, nested (tastytrade /futures-option-chains/{product}/nested). */
 export async function getTastytradeFuturesOptionChain(productCode: string): Promise<unknown> {
   const j = await ttGet<{ data?: unknown }>(`/futures-option-chains/${encodeURIComponent(productCode)}/nested`);

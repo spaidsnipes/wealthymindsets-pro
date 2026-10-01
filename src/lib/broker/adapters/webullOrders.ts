@@ -342,6 +342,23 @@ async function signedCall(
   }
 }
 
+/**
+ * A signed read-only GET against one of Webull's instrument endpoints (the
+ * SDK's `/trading/instruments/...` family, v3). Used by symbol search; never
+ * by an order path.
+ */
+export async function webullInstrumentGet(
+  fetchImpl: typeof fetch,
+  config: WebullOrderConfig,
+  path: string,
+  query: Readonly<Record<string, string>>,
+): Promise<{ readonly ok: boolean; readonly payload: unknown; readonly reason?: string }> {
+  if (!/^\/trading\/instruments\/[a-z/-]+\/list$/.test(path)) return { ok: false, payload: null, reason: "Not an instrument read." };
+  const t = await signedCall(fetchImpl, config, { path, apiVersion: "v3", needsMarketData: false, sdkSource: "webull/data/request (instrument list)" }, { query });
+  if (t.kind === "NO_ANSWER") return { ok: false, payload: null, reason: t.reason };
+  return t.status >= 200 && t.status < 300 ? { ok: true, payload: t.payload } : { ok: false, payload: t.payload, reason: `HTTP ${t.status} ${providerWords(t.payload)}` };
+}
+
 function providerWords(payload: unknown): string {
   if (!payload || typeof payload !== "object") return typeof payload === "string" ? payload.slice(0, 200) : "";
   const p = payload as Record<string, unknown>;

@@ -28,6 +28,10 @@ import {
 } from "@/lib/marketData/searchResultCategory";
 import { matchCanonicalInstruments, mergeInstrumentSearch } from "@/lib/marketData/instrumentSearch";
 import { fromYahooSearchSymbol } from "@/lib/yahooSymbol";
+import { brokerInstrumentSearch } from "@/lib/marketData/brokerInstrumentSearchServer";
+import { tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
+import { webullOwnerGate } from "@/lib/broker/webullOwner";
+import { requireAuth } from "@/lib/requireAuth";
 
 /**
  * Asked of the vendor vs. returned to the caller. These are different numbers
@@ -112,7 +116,18 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") ?? "").trim();
   if (!q) return NextResponse.json({ results: [] });
-  const canonicalMatches = matchCanonicalInstruments(q, RESULT_LIMIT);
+  // Garden 18: the brokers' own instruments — every listed futures month,
+  // tastytrade's symbol search, Webull's exact symbols — for the owner of
+  // those connections. Anyone else gets the public search unchanged.
+  const auth = await requireAuth(request);
+  const brokerHits = auth.ok
+    ? await brokerInstrumentSearch(q, {
+        tastytrade: tastytradeOwnerGate(auth.user.sub, process.env).allowed,
+        webull: webullOwnerGate(auth.user.sub, process.env).allowed,
+      }).catch(() => [])
+    : [];
+  // Broker identities lead; the one ranking owner (mergeInstrumentSearch below) orders everything.
+  const canonicalMatches = [...brokerHits, ...matchCanonicalInstruments(q, RESULT_LIMIT)];
 
   if (POLYGON_KEY) {
     try {
@@ -134,10 +149,10 @@ export async function GET(request: Request) {
           cat: reconcileSearchCategory(r.ticker, polygonCategory(r.market, r.type)),
           exchange: r.primary_exchange ?? r.market ?? "",
         }));
-        const results = mergeInstrumentSearch(q, canonicalMatches, hits, RESULT_LIMIT);
+        const results = mergeInstrumentSearch(q, canonicalMatches, hits, brokerHits.length ? RESULT_LIMIT + 20 : RESULT_LIMIT);
         // One vendor's empty answer does not exhaust the market universe.
         // In particular, futures discovery must still reach Yahoo.
-        if (hits.length > 0) return NextResponse.json({ results, vendor: "polygon" });
+        if (hits.length > 0) return NextResponse.json({ results, vendor: "polygon", brokers: brokerHits.length });
       }
       // Polygon answered with an error (bad/expired/over-quota key). Fall
       // through: the trader's question is still answerable.
@@ -151,7 +166,7 @@ export async function GET(request: Request) {
     // already relevance-ish, but two vendors feeding one dropdown must not
     // order it by two different rules — that is how the same query starts
     // looking like two different products depending on which key is set.
-    const results = mergeInstrumentSearch(q, canonicalMatches, await yahooSearch(q), RESULT_LIMIT);
+    const results = mergeInstrumentSearch(q, canonicalMatches, await yahooSearch(q), brokerHits.length ? RESULT_LIMIT + 20 : RESULT_LIMIT);
     return NextResponse.json({
       results,
       vendor: "yahoo",

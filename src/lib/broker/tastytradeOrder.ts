@@ -47,9 +47,11 @@ const FORMAT: Readonly<Record<TtInstrumentType, RegExp>> = {
   "Equity Option": /^[A-Z0-9 ]{6}\d{6}[CP]\d{8}$/,
   // A SPECIFIC contract: product, month code, 1–2 digit year — never a continuous "/ES" or "NQ1!".
   Future: /^\/[A-Z0-9]{1,4}[FGHJKMNQUVXZ]\d{1,2}$/,
-  // tastytrade pads the option root, so a real chain symbol carries TWO spaces
-  // before the date (`./ESH7 EWZ6  261231C4750`, read from the live chain 2026-10-01).
-  "Future Option": /^\.\/[A-Z0-9]{1,4}[FGHJKMNQUVXZ]\d{1,2} [A-Z0-9]{1,6} +\d{6}[CP]\d+(\.\d+)?$/,
+  // Fixed-width fields: the future padded to 5, the option root padded to 6.
+  // A short future carries spaces (`./ESH7 EWZ6  261231C4750`); a 5-character
+  // one carries none (`./MNQZ6MN2CV6261014C31000`) — both read from the live
+  // chain 2026-10-01. Requiring the space refused every MNQ option.
+  "Future Option": /^\.\/[A-Z0-9]{1,4}[FGHJKMNQUVXZ]\d{1,2} *[A-Z0-9]{1,6} *\d{6}[CP]\d+(\.\d+)?$/,
   Cryptocurrency: /^[A-Z]{2,6}\/USD$/,
 };
 

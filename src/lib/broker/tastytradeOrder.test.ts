@@ -24,6 +24,9 @@ describe("tastytrade order JSON (Garden 18 §LXXIV–§XCV)", () => {
     expect(toTastytradeOrder({ ...base, instrumentType: "Future Option", symbol: "./MNQZ6 MQZ6 261016C21000", limitPx: 120 }).ok).toBe(true);
     // The live chain pads the root: two spaces before the date (read 2026-10-01).
     expect(toTastytradeOrder({ ...base, instrumentType: "Future Option", symbol: "./ESH7 EWZ6  261231C4750", limitPx: 12.5 }).ok).toBe(true);
+    // MNQ: a 5-character future fills its slot, so the live chain symbol has no padding space.
+    expect(toTastytradeOrder({ ...base, instrumentType: "Future Option", symbol: "./MNQZ6MN2CV6261014C31000", limitPx: 12.5 }).ok).toBe(true);
+    expect(toTastytradeOrder({ ...base, instrumentType: "Future Option", symbol: "MNQZ6 C31000", limitPx: 12.5 }).ok).toBe(false);
     const cont = toTastytradeOrder({ ...base, instrumentType: "Future", symbol: "/MNQ", limitPx: 21000 });
     expect(cont).toMatchObject({ ok: false, reason: expect.stringMatching(/continuous symbol is never routed/) });
     expect(toTastytradeOrder({ ...base, instrumentType: "Future", symbol: "NQ1!" }).ok).toBe(false);
