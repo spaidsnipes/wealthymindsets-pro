@@ -584,6 +584,9 @@ export function canonicalAssetClass(symbol: string): CanonicalAssetClass {
   const upper = symbol.trim().toUpperCase();
   if (!upper) return "equity";
   if (upper.endsWith("1!") || upper.includes("=F")) return "futures";
+  // A specific contract month (/MNQH7, /BTCZ6) is a future — before crypto,
+  // so /BTCZ6 is never read as a coin, and before the "/" forex rule.
+  if (/^\/[A-Z0-9]{1,4}[FGHJKMNQUVXZ]\d{1,2}$/.test(upper)) return "futures";
   // Crypto is tested BEFORE forex on purpose: "BTC/USD" contains a slash but
   // is not a currency pair, and calling it forex would hand it the weekday
   // session rules of a market that never closes.

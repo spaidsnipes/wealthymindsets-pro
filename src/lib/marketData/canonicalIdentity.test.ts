@@ -477,3 +477,13 @@ describe("canonicalMarketStateIdentity — contract test", () => {
     });
   });
 });
+
+describe("a specific futures month is a future", () => {
+  it("/MNQH7 and /BTCZ6 are futures, not forex or crypto", async () => {
+    const { canonicalAssetClass } = await import("./canonicalIdentity");
+    expect(canonicalAssetClass("/MNQH7")).toBe("futures");
+    expect(canonicalAssetClass("/BTCZ6")).toBe("futures");
+    expect(canonicalAssetClass("BTC/USD")).toBe("crypto");
+    expect(canonicalAssetClass("EUR/USD")).toBe("forex");
+  });
+});
