@@ -223,8 +223,12 @@ function g06Body(kind: keyof typeof G06_BODY_SRC): HTMLImageElement | null {
  * name, 2026-09-29). `lensRight` is the Question Lens column's right edge
  * when that column is active.
  */
-function tpoColumnGeometry(W: number, lensRight: number | null): { leftEdge: number; colMax: number } {
-  return { leftEdge: lensRight ?? 84, colMax: Math.min(140, Math.round(W * 0.14)) };
+function tpoColumnGeometry(W: number, lensRight: number | null, doorRight = 0): { leftEdge: number; colMax: number } {
+  // An open door (Tools · Workspace, floating over the room's left side) is
+  // not a place to draw: the column stands just right of it (serving BTC 15m,
+  // 2026-10-01: TPO switched on from Tools drew underneath Tools — only its
+  // POC/VAH/VAL chips showed). The chart itself never moves.
+  return { leftEdge: Math.max(lensRight ?? 84, doorRight > 0 ? doorRight + 12 : 0), colMax: Math.min(140, Math.round(W * 0.14)) };
 }
 const BASIS_CAPTION_X =
   PANE_TOP_LEFT_INSET + DATA_WINDOW_TOGGLE_PX + PANE_TOP_LEFT_INSET;
@@ -6959,6 +6963,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const bodyW = Math.max(1, Math.min(Math.round(bsp * 0.72), Math.floor(bsp) - 1));
           const GOLD_C = "212,175,55", BRONZE_C = "150,110,40";
           let drawnC = 0, firstVisible = -1;
+          const candlesC: { x: number; y: number; w: number; h: number }[] = [];
           for (let i = bsC.length - 1; i >= 0; i--) {
             const b = bsC[i];
             if (!b) continue;
@@ -6999,6 +7004,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.strokeRect(bx + 0.5, top + 0.5, bodyW - 1, Math.max(0, h - 1));
             }
             drawnC++; firstVisible = i;
+            candlesC.push({ x: bx - 2, y: Math.min(+yH, top) - 2, w: bodyW + 4, h: Math.max(+yL, bot) - Math.min(+yH, top) + 4 });
           }
           // Truth gaps among the visible bars (plus one bar of context).
           let gapsC = 0, openC = 0;
@@ -7045,12 +7051,29 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ["WICK INTENT", wickWords(rd.wick)],
                 ["TRUTH GAP", gapHere ? (gapHere.filledAt != null ? "Filled" : "Open") : "None"],
               ];
+              const bw = 168, bh = 16 + lines.length * 26;
+              // WHERE IT STANDS: beside its candle, on no candle and no chip
+              // (serving BTC 15m beside plate 72: the readout sat on the
+              // newest bodies and under the TPO VAH chip). Hover keeps the
+              // nearest in-bounds spot; at rest, with no clear spot, it is quiet.
+              const yHighH = srs.priceToCoordinate(hb.high);
+              const yTopH = yHighH == null ? +yLowH : +yHighH;
+              const inPane = (r: { x: number; y: number; w: number; h: number }) => r.x >= 4 && r.x + r.w <= plotRight - 4 && r.y >= HEADER_FLOOR_Y && r.y + r.h <= pane0Bottom - 4;
+              const hits = (r: { x: number; y: number; w: number; h: number }) => [...candlesC, ...forceChips].some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y);
+              const spotsC = [
+                { x: +xh + 14, y: +yLowH + 10 }, { x: +xh - 14 - bw, y: +yLowH + 10 },
+                { x: +xh + 14, y: yTopH - 10 - bh }, { x: +xh - 14 - bw, y: yTopH - 10 - bh },
+                { x: +xh - 14 - bw, y: +yLowH + 60 }, { x: +xh - 14 - bw, y: yTopH - 60 - bh },
+                { x: +xh - 60 - bw, y: +yLowH + 10 }, { x: +xh - 60 - bw, y: yTopH - 10 - bh },
+              ].map(p => ({ x: Math.round(p.x), y: Math.round(p.y), w: bw, h: bh })).filter(inPane);
+              const clearSpot = spotsC.find(r => !hits(r));
+              const spotC = clearSpot ?? (pinned ? null : spotsC[0] ?? null);
+              if (!spotC) { calloutFor = "PINNED_WITHHELD"; }
+              else {
+              forceChips.push({ ...spotC });
               ctx.save();
               ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
-              const bw = 168, bh = 16 + lines.length * 26;
-              let bx = +xh + 14, by = +yLowH + 10;
-              if (bx + bw > plotRight - 4) bx = +xh - 14 - bw;
-              if (by + bh > pane0Bottom - 4) by = Math.max(HEADER_FLOOR_Y, pane0Bottom - 4 - bh);
+              const bx = spotC.x, by = spotC.y;
               ctx.fillStyle = "rgba(14,12,8,0.94)";
               ctx.strokeStyle = "rgba(212,175,55,0.75)";
               ctx.lineWidth = 1;
@@ -7067,7 +7090,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
               });
               ctx.restore();
-              calloutFor = `${pinned ? "PINNED" : "HOVER"}:${hb.time}`;
+              calloutFor = `${pinned ? "PINNED" : "HOVER"}:${hb.time}${clearSpot ? "" : ":ON_CANDLES"}`;
+              }
             }
           }
           ds.clarityCallout = calloutFor;
@@ -15836,7 +15860,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                     // "ZERO-GAMMA FRONT"), so while TPO paints its column is
                     // reserved here the same way a candle is.
                     const tpoCol = layerOnRef.current.tpo && att.paints("tpo")
-                      ? (() => { const g = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null); return [{ x: g.leftEdge - 8, y: -1e6, w: g.colMax + 16, h: 2e6 }]; })()
+                      ? (() => { const g = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null, railOcclusionX); return [{ x: g.leftEdge - 8, y: -1e6, w: g.colMax + 16, h: 2e6 }]; })()
                       : [];
                     let fx = 8, fy = y - 6, clear = false;
                     spotF: for (const by of [y - 6, y + 15]) {
@@ -17942,7 +17966,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // opaque box (left-3, 64px wide → x 12–76) still hid the first
             // letters of two rows — measured by its box, not its word
             // (serving, NQ1! 5m desktop, 2026-09-25). 76 + 8.
-            const { leftEdge, colMax } = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null);
+            const { leftEdge, colMax } = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null, railOcclusionX);
             // COLLISION GOVERNOR · TPO YIELDS TO RESERVED CHROME. The price
             // legend (a transparent DOM band, PRICE_LEGEND_OVERLAY_H) and any
             // floating chip already placed in the column (the BASIS caption)

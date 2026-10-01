@@ -10,6 +10,11 @@ describe("Clarity Candle reads itself at rest", () => {
   it("with no hover the readout pins to the newest CLOSED bar", () => {
     expect(MC).toContain("const pinned = hoverI < 0;");
     expect(MC).toContain("const hi = pinned ? bsC.length - 2 : hoverI;");
-    expect(MC).toContain('calloutFor = `${pinned ? "PINNED" : "HOVER"}:${hb.time}`;');
+    expect(MC).toContain('calloutFor = `${pinned ? "PINNED" : "HOVER"}:${hb.time}${clearSpot ? "" : ":ON_CANDLES"}`;');
+  });
+  it("stands on no candle and no chip; at rest with no clear spot it is quiet; later chips step around it", () => {
+    expect(MC).toContain("const hits = (r: { x: number; y: number; w: number; h: number }) => [...candlesC, ...forceChips].some(");
+    expect(MC).toContain("const spotC = clearSpot ?? (pinned ? null : spotsC[0] ?? null);");
+    expect(MC).toContain("forceChips.push({ ...spotC });");
   });
 });

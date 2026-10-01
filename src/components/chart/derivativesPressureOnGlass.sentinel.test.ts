@@ -172,6 +172,6 @@ describe("the zero-gamma name keeps out of the TPO column (serving ETH 15m, 2026
   it("reserves the column from the ONE geometry owner while TPO paints", () => {
     expect(block).toContain('const tpoCol = layerOnRef.current.tpo && att.paints("tpo")');
     expect(block).toContain("if (![...candlesF, ...tpoCol, ...forceChips, ...floatingChips].some(");
-    expect(MC).toContain("const { leftEdge, colMax } = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null);");
+    expect(MC).toContain("const { leftEdge, colMax } = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null, railOcclusionX);");
   });
 });
