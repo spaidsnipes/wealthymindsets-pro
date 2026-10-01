@@ -20405,6 +20405,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             delete ds.liquidityLifecycleClipped;
             delete ds.liquidityLifecycleBirths;
             delete ds.liquidityLifecycleShown;
+            delete ds.liquidityLifecycleSkipped;
             delete ds.liquidityLifecycleMemory;
             delete ds.liquidityLifecycleTicks;
             delete ds.liquidityLifecycleSpans;
@@ -20525,22 +20526,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             } else {
               delete ds.liquidityDepthTint;
             }
+            // Why a pool drew nothing, counted — an ON switch over an empty
+            // glass must say which rule silenced it (§CV zero ghosts).
+            const skipL = { span: 0, price: 0, time: 0, tail: 0 };
             for (let pi = 0; pi < lc.pools.length; pi++) {
               const pool = lc.pools[pi];
               const role = rolesL[pi];
               const span = poolSpan(pool.events);
-              if (!span) continue;
+              if (!span) { skipL.span++; continue; }
               const yT = srs.priceToCoordinate(pool.high), yB = srs.priceToCoordinate(pool.low);
-              if (yT == null || yB == null) continue;
+              if (yT == null || yB == null) { skipL.price++; continue; }
               const top = Math.min(+yT, +yB), h = Math.max(1, Math.abs(+yB - +yT));
               // A pool whose band (with its glow) reaches past the pane is
               // counted; one wholly above the header floor draws nothing.
               if (top - 10 < paneTopL) clippedTop++;
               if (top + h + 10 > paneBotL) clippedBot++;
-              if (top + h < paneTopL || top > paneBotL) continue;
+              if (top + h < paneTopL || top > paneBotL) { skipL.price++; continue; }
               const xStart = xOf(span.startTime);
               const xStop = span.endTime != null ? xOf(span.endTime) : xLive;
-              if (xStart == null || xStop == null) continue;
+              if (xStart == null || xStop == null) { skipL.time++; continue; }
               // From the APPEARED bar's slot (or the camera's edge, when its
               // history runs off to the left) to the CONSUMED bar's slot or
               // the live bar.
@@ -20555,12 +20559,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // nothing (serving MNQ 1m, 2026-10-01: six consumed pools, 0/6
               // painted, the switch ON over an empty glass).
               const x0 = !bornOnCamera && role !== "SELECTED" ? Math.max(xBirth, xEnd - OFFCAM_TAIL * rightL) : xBirth;
-              if (xEnd <= x0) continue;
+              if (xEnd <= x0) { skipL.tail++; continue; }
               if (role === "MEMORY") {
                 // MEMORY — a short stub at the pool's own right end, fading in.
                 const stub = Math.min(48, spacingL * 6);
                 const sx0 = Math.max(x0, xEnd - stub);
-                if (xEnd - sx0 < 2) continue;
+                if (xEnd - sx0 < 2) { skipL.tail++; continue; }
                 const stubRungs = span.phases.length > 0 ? span.phases[span.phases.length - 1].rungs : 2;
                 const stubQuiet = pool.events.length ? barsSince(pool.events[pool.events.length - 1].time) : 0;
                 const stubInk = ladderInk({ rungs: stubRungs, consumed: span.consumed || span.pulled, barsQuiet: stubQuiet, weight: pool.volume / maxVolL });
@@ -20817,6 +20821,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // the rest are memory stubs.
             ds.liquidityLifecycleShown = `${shownL}/${lc.pools.length}`;
             ds.liquidityLifecycleMemory = String(memoryL);
+            ds.liquidityLifecycleSkipped = `SPAN:${skipL.span}|PRICE:${skipL.price}|TIME:${skipL.time}|TAIL:${skipL.tail}`;
             ds.liquidityLifecycleClipped = [clippedTop ? `TOP:${clippedTop}` : "", clippedBot ? `BOTTOM:${clippedBot}` : ""].filter(Boolean).join("|") || "NONE";
             if (spans.length > 0) ds.liquidityLifecycleSpans = spans.join(";");
             else delete ds.liquidityLifecycleSpans;
@@ -20827,6 +20832,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           delete ds.liquidityLifecycleClipped;
           delete ds.liquidityLifecycleBirths;
           delete ds.liquidityLifecycleShown;
+          delete ds.liquidityLifecycleSkipped;
           delete ds.liquidityLifecycleMemory;
           delete ds.liquidityLifecycleTicks;
           delete ds.liquidityLifecycleSpans;

@@ -202,7 +202,8 @@ describe("the lifecycle stays in the pane and behind the chips — serving BTC-U
   });
 
   it("a pool wholly above the header floor draws nothing, and the receipt counts the clipped", () => {
-    expect(block).toContain("if (top + h < paneTopL || top > paneBotL) continue;");
+    expect(block).toContain("if (top + h < paneTopL || top > paneBotL) { skipL.price++; continue; }");
+    expect(block).toContain("ds.liquidityLifecycleSkipped = `SPAN:${skipL.span}|PRICE:${skipL.price}|TIME:${skipL.time}|TAIL:${skipL.tail}`;");
     expect(block).toContain("if (top - 10 < paneTopL) clippedTop++;");
     expect(block).toMatch(/ds\.liquidityLifecycleClipped = \[clippedTop \? `TOP:\$\{clippedTop\}` : ""/);
     // The OFF branch speaks through the governor since H-501 (0865484c).
