@@ -266,7 +266,7 @@ import { fmtSessionDate, isSessionTimeframe } from "@/lib/chart/sessionDateLabel
 import { DATA_WINDOW_W, placeDataWindow } from "@/lib/chart/dataWindowPlacement";
 import { formatVolume } from "@/lib/chart/formatVolume";
 import { absorptionShelfRows, shelfRowCount } from "@/lib/chart/absorptionShelfRows";
-import { clarityBodyAlpha, readClarity, truthGaps } from "@/lib/chart/clarityCandle";
+import { clarityBodyAlpha, readClarity, truthGaps, wickWords } from "@/lib/chart/clarityCandle";
 import { VISUAL_ROLES_EVENT, readStoredRoles, rolesByLayer } from "@/lib/workspace/visualRoles";
 import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
@@ -6985,6 +6985,50 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               void yMid;
             }
           }
+          // F05A callout (WM_NewMockup_72): the hovered candle's own reading —
+          // BODY EFFICIENCY · WICK INTENT · TRUTH GAP — words on demand only.
+          const hp = crosshairPointRef.current;
+          let calloutFor = "NONE";
+          if (hp && drawnC > 0) {
+            const tHover = tsC.coordinateToTime(hp.x);
+            const hi = tHover == null ? -1 : bsC.findIndex(b => b && +b.time === +(tHover as number));
+            const hb = hi >= 0 ? bsC[hi] : null;
+            const xh = hb ? tsC.timeToCoordinate(hb.time as never) : null;
+            const yLowH = hb ? srs.priceToCoordinate(hb.low) : null;
+            if (hb && xh != null && yLowH != null) {
+              const rd = readClarity(hb);
+              const gapHere = truthGaps(bsC.slice(Math.max(0, hi - 1))).find(g => g.time === hb.time);
+              const lines: [string, string][] = [
+                ["BODY EFFICIENCY", rd.efficiency == null ? "—" : `${Math.round(rd.efficiency * 100)}%`],
+                ["WICK INTENT", wickWords(rd.wick)],
+                ["TRUTH GAP", gapHere ? (gapHere.filledAt != null ? "Filled" : "Open") : "None"],
+              ];
+              ctx.save();
+              ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
+              const bw = 168, bh = 16 + lines.length * 26;
+              let bx = +xh + 14, by = +yLowH + 10;
+              if (bx + bw > plotRight - 4) bx = +xh - 14 - bw;
+              if (by + bh > pane0Bottom - 4) by = Math.max(HEADER_FLOOR_Y, pane0Bottom - 4 - bh);
+              ctx.fillStyle = "rgba(14,12,8,0.94)";
+              ctx.strokeStyle = "rgba(212,175,55,0.75)";
+              ctx.lineWidth = 1;
+              ctx.beginPath(); ctx.roundRect(bx + 0.5, by + 0.5, bw, bh, 5); ctx.fill(); ctx.stroke();
+              // the leader to the candle it reads
+              ctx.beginPath(); ctx.moveTo(+xh, +yLowH + 2); ctx.lineTo(bx < +xh ? bx + bw : bx, by + 12); ctx.stroke();
+              lines.forEach(([k, v], i) => {
+                const ly = by + 14 + i * 26;
+                ctx.fillStyle = "rgba(212,175,55,0.95)"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+                ctx.fillText(k, bx + 10, ly);
+                ctx.fillStyle = "rgba(237,230,211,0.95)";
+                ctx.font = "500 11px ui-sans-serif, system-ui, sans-serif";
+                ctx.fillText(v, bx + 10, ly + 12);
+                ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
+              });
+              ctx.restore();
+              calloutFor = String(hb.time);
+            }
+          }
+          ds.clarityCallout = calloutFor;
           ds.clarityCandle = `DRAWN:${drawnC}bars:${gapsC}gaps:${openC}open`;
           // The species painted: now (and only now) the library's ink steps aside.
           if (drawnC > 0 && !clarityHidRef.current) {
