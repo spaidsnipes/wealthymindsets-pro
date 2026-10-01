@@ -256,3 +256,42 @@ export function shortlistJobLabel(job: ShortlistJob): string {
     case "MORE_TIME": return "MORE TIME";
   }
 }
+
+/**
+ * Garden 18 §LVII — WHY each job fits and WHAT it costs, in words. Never
+ * "best", "winner", "safe" or "guaranteed": each job buys one thing with
+ * another, and the trader chooses.
+ */
+export function shortlistJobWords(job: ShortlistJob): { readonly fits: string; readonly tradeoff: string } {
+  switch (job) {
+    case "FAST":
+      return { fits: "Most responsive: nearest expiry, closest to the money — the most movement per dollar if the move comes soon.", tradeoff: "Decays fastest; being right a day late can still lose." };
+    case "BALANCED":
+      return { fits: "Room to breathe: a middle horizon near the money.", tradeoff: "Less responsive than FAST, more premium than it; slower decay." };
+    case "MORE_TIME":
+      return { fits: "Buys patience: the furthest expiry carried, near the money.", tradeoff: "Most premium at risk and least responsive per dollar; decays slowest." };
+  }
+}
+
+/**
+ * §LXIII CHEAP FOR A REASON — the plain reasons a contract's premium is low or
+ * its fill uncertain, from observed fields only. Empty when nothing is known
+ * to be wrong; a missing field never becomes a flag. PURE.
+ */
+export function cheapForAReason(input: {
+  readonly delta: number | null;
+  readonly bid: number | null;
+  readonly ask: number | null;
+  readonly hoursToExpiry: number | null;
+}): readonly string[] {
+  const out: string[] = [];
+  const d = input.delta == null ? null : Math.abs(input.delta);
+  if (d != null && d < 0.25) out.push(`LOW DELTA (${d.toFixed(2)}) — the contract barely follows the underlying`);
+  if (input.bid != null && input.ask != null && input.ask > 0) {
+    const mid = (input.bid + input.ask) / 2;
+    const pct = mid > 0 ? ((input.ask - input.bid) / mid) * 100 : null;
+    if (pct != null && pct > 10) out.push(`WIDE SPREAD (${pct.toFixed(0)}% of mid) — entering and exiting costs real money`);
+  }
+  if (input.hoursToExpiry != null && input.hoursToExpiry >= 0 && input.hoursToExpiry < 48) out.push(`LITTLE TIME (${Math.round(input.hoursToExpiry)}h) — decay is steepest now`);
+  return out;
+}

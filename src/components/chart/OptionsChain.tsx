@@ -22,6 +22,7 @@ import { optionContractObservationTiming, optionsReceiptAge, readOptionsResponse
 import type { IdentifiedOptionSpot } from "@/lib/optionsSpotIdentity";
 import { overlayLiveQuote } from "@/lib/broker/tastyOptionOverlay";
 import { streamerForOcc, useTastyOptionStreamers } from "@/lib/broker/tastyOptionStreamers";
+import { OptionShortlist } from "./OptionShortlist";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import {
   classifyOptionSpot,
@@ -526,6 +527,8 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
             <div className="text-[11px] text-wm-text-dim mt-1">{error?.recovery ?? "Refresh to check options availability."} WealthyMindsets will not fabricate contracts.</div>
           </div>
         ) : (
+        <div>
+        <OptionShortlist chain={allContracts} spot={spotPrice > 0 ? spotPrice : null} ttMap={ttMap} onReview={reviewContract} />
         <table className="w-full min-w-max text-[10px] border-collapse">
           <caption className="caption-top border-b border-wm-border px-3 py-2 text-left text-[10px] text-wm-text-muted">
             IV and Greek fields have no field-level provider timestamp. Quote and trade reference age does not date them.
@@ -638,6 +641,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
             })}
           </tbody>
         </table>
+        </div>
         )}
       </div>
 
