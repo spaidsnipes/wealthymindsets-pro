@@ -22930,7 +22930,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       {/* THE RECEIPT, WHERE THE CANDLES ARE NOT. Gated on an empty canvas AND
           a settled cascade: a chart still asking has nothing to report, and a
           chart with bars explains itself. */}
-      {barRefusal && candles.length === 0 && (
+      {/* A history that NO source served stays explained even after the live
+          quote forms a bar or two (spot EURUSD at 15s, 2026-10-01: one live
+          bar hid the note and the glass read blank). */}
+      {barRefusal && (candles.length === 0 || (!barRefusal.served && candles.length < 3)) && (
         <BarHistoryRefusalNote vm={barRefusal} />
       )}
 
