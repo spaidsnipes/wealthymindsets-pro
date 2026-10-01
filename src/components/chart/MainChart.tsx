@@ -11295,6 +11295,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.textAlign = "left";
                 ctx.textBaseline = "middle";
                 ctx.fillText(shelfWords, chipX, chipY + chipH / 2 + 0.5);
+                // §XLVI learning without lecture: one quiet line, the meaning.
+                if (!shelfSelected && att.speaks("absorption")) {
+                  ctx.font = "italic 500 9px ui-sans-serif, system-ui, sans-serif";
+                  ctx.fillStyle = "rgba(237,230,211,0.72)";
+                  ctx.fillText("Force is hitting. Price is holding.", chipX, chipY + chipH + 6);
+                }
                 ctx.restore();
                 if (shelfSelected) shelfNumbersShown = true;
                 else shelfNamesShown++;
