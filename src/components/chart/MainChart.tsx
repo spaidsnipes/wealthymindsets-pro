@@ -54,6 +54,8 @@ import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/der
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
 import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
 import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
+import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
+import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { tastyCandleFromTime, tastyCandlePeriod, tastyCandleSymbol, tastyCandlesToBars } from "@/lib/marketData/adapters/tastytradeCandles";
 import {
   DELTA_LEVEL_CAP_DEFAULT,
@@ -3257,7 +3259,53 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // live socket uses (a print heard both ways folds once). Bounded: the
   // ladder's 400-bar window, at most 40 pages. The receipt says what came.
   const tapeBackfillRef = useRef<string>("NONE");
+  // FUTURES (2026-10-01): tastytrade's own print history fills the same window
+  // through the same fold. Each print keeps the exchange's (time, sequence)
+  // identity, so a print heard live and again here folds once.
   useEffect(() => {
+    if (tapeSource !== "tastytrade") return;
+    const ctrl = new AbortController();
+    const intervalSec = getIntervalSec(timeframe);
+    const sinceMs = Date.now() - Math.min(400 * intervalSec, 6 * 3600) * 1000;
+    tapeBackfillRef.current = "LOADING:TASTYTRADE";
+    void tastyFrontMonthFor(canonicalSym).then(async contract => {
+      if (!contract || ctrl.signal.aborted) { if (!ctrl.signal.aborted) tapeBackfillRef.current = "REFUSED:NO_CONTRACT"; return; }
+      const hist = await fetchTastyTimeAndSales(contract.streamer, sinceMs, { signal: ctrl.signal });
+      if (ctrl.signal.aborted) return;
+      if (!hist) { tapeBackfillRef.current = "REFUSED:TRANSPORT"; return; }
+      const receivedAt = Date.now();
+      let folded = 0;
+      let reached: number | null = null;
+      // Folded in slices that yield to the frame: a busy session's history can
+      // be tens of thousands of prints, and one synchronous fold would be a
+      // long task over the live chart (§XLI).
+      const SLICE = 4000;
+      for (let i = 0; i < hist.events.length; i += SLICE) {
+        if (ctrl.signal.aborted) return;
+        for (const e of hist.events.slice(i, i + SLICE)) {
+          const ev = tastyTimeAndSaleToMarketEvent(e, canonicalSym, contract, receivedAt, 0);
+          if (!ev || (ev.aggressorSide !== "BUY" && ev.aggressorSide !== "SELL") || ev.timestampProvider == null) continue;
+          reached = reached == null ? ev.timestampProvider : Math.min(reached, ev.timestampProvider);
+          const tick: Tick = { price: ev.price!, size: ev.size!, side: ev.aggressorSide === "BUY" ? "buy" : "sell", time: ev.timestampProvider, trade: true, marketEvent: ev };
+          if (foldPrintRef.current(tick, false)) folded++;
+        }
+        await new Promise(r => setTimeout(r, 0));
+      }
+      while (tickAccRef.current.size > 400) {
+        const oldest = Math.min(...tickAccRef.current.keys());
+        tickAccRef.current.delete(oldest);
+        bigTradePrintAccRef.current.delete(oldest);
+      }
+      const nextOldest = tickAccRef.current.size ? Math.min(...tickAccRef.current.keys()) : NaN;
+      if (Number.isFinite(nextOldest)) tickAccStartedAtRef.current = Math.min(tickAccStartedAtRef.current ?? nextOldest, nextOldest);
+      tapeBackfillRef.current = `TASTYTRADE_TIMEANDSALE:${folded}prints:from ${reached ? new Date(Math.max(reached, sinceMs)).toISOString().slice(11, 16) : "—"}Z:${hist.complete ? "WINDOW" : "PARTIAL"}`;
+      flowLadderPublisherRef.current?.changed();
+      onTapeFootprintRef.current?.(selectTapeFootprint(tickAccRef.current, tickAccStartedAtRef.current));
+    }).catch(() => { if (!ctrl.signal.aborted) tapeBackfillRef.current = "REFUSED:TRANSPORT"; });
+    return () => ctrl.abort();
+  }, [tapeSource, canonicalSym, timeframe]);
+  useEffect(() => {
+    if (tapeSource === "tastytrade") return;
     tapeBackfillRef.current = "NONE";
     if (tapeSource !== "coinbase") return;
     const product = coinbaseProductFor(canonicalSym);

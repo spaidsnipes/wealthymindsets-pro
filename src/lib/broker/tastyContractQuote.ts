@@ -24,7 +24,9 @@ export const CONTRACT_EVENT_FIELDS = {
   Summary: ["eventType", "eventSymbol", "openInterest", "dayOpenPrice", "dayHighPrice", "dayLowPrice", "prevDayClosePrice"],
   // Every print, with the exchange-reported aggressor (BUY / SELL / UNDEFINED).
   // Proven on the owner's live socket 2026-10-01: `/ESZ26:XCME` 7766 × 1 BUY at 7765.75 / 7766.
-  TimeAndSale: ["eventType", "eventSymbol", "time", "price", "size", "aggressorSide", "bidPrice", "askPrice"],
+  // `sequence` makes (time, sequence) the print's identity, so a print heard
+  // live and again in a history snapshot folds once.
+  TimeAndSale: ["eventType", "eventSymbol", "time", "sequence", "price", "size", "aggressorSide", "bidPrice", "askPrice"],
   // History bars by snapshot (see adapters/tastytradeCandles.ts for the receipts).
   Candle: ["eventType", "eventSymbol", "eventFlags", "time", "open", "high", "low", "close", "volume"],
 } as const;

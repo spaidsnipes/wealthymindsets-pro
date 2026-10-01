@@ -101,7 +101,12 @@ export function tastyTimeAndSaleToMarketEvent(
   return {
     schemaVersion: MARKET_EVENT_SCHEMA_VERSION,
     normalizationVersion: "tastytrade-dxlink-timeandsale.v1",
-    eventId: `tastytrade:${contract.streamer}:${providerTime ?? receivedAtMs}:${price}:${size}:${raw ?? "-"}:${index}`,
+    // (time, sequence) is the exchange print's own identity: live and history
+    // spell the same id, so the ONE fold dedupes them. Without a sequence the
+    // id falls back to this connection's arrival order.
+    eventId: providerTime != null && e.values.sequence != null
+      ? `tastytrade:${contract.streamer}:${providerTime}:${e.values.sequence}`
+      : `tastytrade:${contract.streamer}:${providerTime ?? receivedAtMs}:${price}:${size}:${raw ?? "-"}:${index}`,
     symbol: appSymbol,
     normalizedSymbol: appSymbol.toUpperCase(),
     assetClass: "futures",
