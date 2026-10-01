@@ -164,6 +164,7 @@ export const LAYER_ATTENTION = {
   mtfAncestry: { tier: "SUPPORTING", depth: null, light: null },
   // Garden 15 §2: the derivatives pressure world — an environment under price.
   derivativesPressure: { tier: "SUPPORTING", depth: null, light: null },
+  brickWalls: { tier: "SUPPORTING", depth: null, light: null },
   // H-901's own fixtures, measured from the bars on camera: context drawn
   // about the regime reading, lit by its breaker.
   regimeMagnets: { tier: "SUPPORTING", depth: null, light: "MAGNET_FIXTURES" },

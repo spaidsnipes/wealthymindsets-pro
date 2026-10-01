@@ -910,6 +910,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [mtfAncestryOn, setMtfAncestryOn] = useState<boolean>(() => lsGet("wm_ofMtfAncestry", false) as boolean);
   // Garden 15 §2 / Garden 16 §20 — Derivatives Pressure on the one chart. OFF by default.
   const [derivativesPressureOn, setDerivativesPressureOn] = useState<boolean>(() => lsGet("wm_ofDerivativesPressure", false) as boolean);
+  // Garden 18 §XXII–§XXIV: BRICK WALLS is its own lens on the same pressure
+  // owner. First load inherits what the trader saw (walls showed with the
+  // pressure layer), so nothing appears or vanishes on upgrade.
+  const [brickWallsOn, setBrickWallsOn] = useState<boolean>(() => lsGet("wm_ofBrickWalls", lsGet("wm_ofDerivativesPressure", false) as boolean) as boolean);
+  /** The pressure evidence is read while EITHER lens wants it. */
+  const pressureEvidenceOn = derivativesPressureOn || brickWallsOn;
   // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
   const [scaffoldingDepth, setScaffoldingDepth] = useState<ScaffoldingDepth | "OFF">(() => {
     const v = lsGet("wm_ofScaffolding", "OFF") as string;
@@ -1158,6 +1164,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofLiquidityLifecycle", liquidityLifecycleOn);
   usePersistOnChange("wm_ofMtfAncestry",      mtfAncestryOn);
   usePersistOnChange("wm_ofDerivativesPressure", derivativesPressureOn);
+  usePersistOnChange("wm_ofBrickWalls", brickWallsOn);
 
   // ── Bar replay ──────────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -1856,9 +1863,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fires on the layer switch only
   }, [liquidityWeatherOn]);
   useEffect(() => {
-    if (!derivativesPressureOn) actOnChartSelection({ type: "clear", kinds: ["PRESSURE_WALL", "PRESSURE_FRONT"] });
+    if (!derivativesPressureOn) actOnChartSelection({ type: "clear", kinds: ["PRESSURE_FRONT"] });
+    if (!brickWallsOn) actOnChartSelection({ type: "clear", kinds: ["PRESSURE_WALL"] });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fires on the layer switch only
-  }, [derivativesPressureOn]);
+  }, [derivativesPressureOn, brickWallsOn]);
   useEffect(() => {
     if (!memoryGhostOn) actOnChartSelection({ type: "clear", kinds: ["MEMORY_GHOST"] });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fires on the layer switch only
@@ -2403,13 +2411,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => {
     // BTC / ETH read Deribit's public options (Cboe lists no crypto options);
     // listed underlyings read Cboe delayed. Anything else has no chain.
-    const deribit = derivativesPressureOn ? deribitCurrencyFor(symbol) : null;
-    const cboe = derivativesPressureOn && !deribit ? cboeSymbolFor(symbol) : null;
+    const deribit = pressureEvidenceOn ? deribitCurrencyFor(symbol) : null;
+    const cboe = pressureEvidenceOn && !deribit ? cboeSymbolFor(symbol) : null;
     const route = deribit
       ? `/api/market-data/deribit/options?symbol=${encodeURIComponent(symbol)}`
       : `/api/market-data/cboe/options?symbol=${encodeURIComponent(symbol)}`;
     if (!deribit && (!cboe || classifySymbol(symbol) === "CRYPTO" || classifySymbol(symbol) === "FOREX" || classifySymbol(symbol) === "FUTURES")) {
-      setDerivativesReceipt(derivativesPressureOn ? { symbol, receipt: null, edge: "UNSUPPORTED" } : null);
+      setDerivativesReceipt(pressureEvidenceOn ? { symbol, receipt: null, edge: "UNSUPPORTED" } : null);
       return;
     }
     let alive = true;
@@ -2450,9 +2458,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     load();
     const t = window.setInterval(load, 120_000);
     return () => { alive = false; window.clearInterval(t); };
-  }, [derivativesPressureOn, symbol]);
+  }, [pressureEvidenceOn, symbol]);
   const derivativesPressureVM = React.useMemo<DerivativesPressureVM | null>(() => {
-    if (!derivativesPressureOn || !derivativesReceipt || derivativesReceipt.symbol !== symbol) return null;
+    if (!pressureEvidenceOn || !derivativesReceipt || derivativesReceipt.symbol !== symbol) return null;
     if (!derivativesReceipt.receipt) {
       return { drawn: false, version: 1, underlying: symbol, reason: "NO_CHAIN", contracts: 0, receipt: `PRESSURE:SILENT:${derivativesReceipt.edge ?? "NO_CHAIN"}` };
     }
@@ -3227,6 +3235,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   MARKET_STRUCTURE: marketStructureOn,
                   MTF_ANCESTRY: mtfAncestryOn,
                   DERIVATIVES_PRESSURE: derivativesPressureOn,
+                  BRICK_WALLS: brickWallsOn,
   };
   const onProfileMenuToggle = (id: ProfileId) => {
                   if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
@@ -3258,6 +3267,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "LIQUIDITY_LIFECYCLE") setLiquidityLifecycleOn(v => !v);
                   else if (id === "MTF_ANCESTRY") setMtfAncestryOn(v => !v);
                   else if (id === "DERIVATIVES_PRESSURE") setDerivativesPressureOn(v => !v);
+                  else if (id === "BRICK_WALLS") setBrickWallsOn(v => !v);
                   else if (id === "SCAFFOLDING") {
                     setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
                   }
@@ -3328,6 +3338,36 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             {m === "OFF" ? "Off" : m === "MARKET" ? "Market" : m === "FOUNDER" ? "Founder" : "Fusion"}
           </button>
         ))}
+      </div>
+      {/* BRICK WALLS (Garden 18 §XXII–§XXV) — a lens on the ONE pressure owner.
+          ON shows the masonry; OFF clears it from the glass without touching
+          the pressure evidence, the wall lifecycle or any other lens. */}
+      <div data-testid="brick-walls-lens" className="flex flex-wrap items-center gap-1 px-1">
+        <span className="mr-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-wm-text-dim">Brick walls</span>
+        {([true, false] as const).map(v => (
+          <button
+            key={String(v)}
+            type="button"
+            data-testid={`brick-walls-${v ? "on" : "off"}`}
+            aria-pressed={brickWallsOn === v}
+            onClick={() => setBrickWallsOn(v)}
+            className="rounded-full px-2 py-0.5 text-[10px]"
+            style={{ border: `1px solid ${brickWallsOn === v ? "rgba(212,175,55,0.8)" : "rgba(139,106,41,0.35)"}`, color: brickWallsOn === v ? "#d4af37" : "#C8C0AE" }}
+          >
+            {v ? "On" : "Off"}
+          </button>
+        ))}
+        <span data-testid="brick-walls-state" className="ml-1 text-[9px] uppercase tracking-[0.12em]" style={{ color: "#8a8271" }}>
+          {!brickWallsOn
+            ? "Off"
+            : !derivativesPressureVM
+              ? "Active · reading options positioning"
+              : !derivativesPressureVM.drawn
+                ? derivativesPressureVM.reason === "NO_CHAIN" ? "Unavailable on this feed" : `Active · ${derivativesPressureVM.reason.replace(/_/g, " ").toLowerCase()}`
+                : derivativesPressureVM.walls.length === 0
+                  ? "Active · no current wall event"
+                  : `Active · ${derivativesPressureVM.walls.length} wall${derivativesPressureVM.walls.length === 1 ? "" : "s"}`}
+        </span>
       </div>
       <div className="px-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-wm-text-dim">
         On each candle · footprint
@@ -3466,6 +3506,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.LIQUIDITY_LIFECYCLE !== undefined) setLiquidityLifecycleOn(s.LIQUIDITY_LIFECYCLE);
       if (s.MTF_ANCESTRY !== undefined) setMtfAncestryOn(s.MTF_ANCESTRY);
       if (s.DERIVATIVES_PRESSURE !== undefined) setDerivativesPressureOn(s.DERIVATIVES_PRESSURE);
+      if (s.BRICK_WALLS !== undefined) setBrickWallsOn(s.BRICK_WALLS);
       if (s.SCAFFOLDING !== undefined) setScaffoldingDepth(d => (s.SCAFFOLDING ? (d === "OFF" ? "FOUNDATION" : d) : "OFF"));
     },
     [],
@@ -3520,6 +3561,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       MARKET_STRUCTURE: marketStructureOn,
       MTF_ANCESTRY: mtfAncestryOn,
       DERIVATIVES_PRESSURE: derivativesPressureOn,
+                  BRICK_WALLS: brickWallsOn,
     },
   });
 
@@ -6279,6 +6321,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       liquidityLifecycleOnChart={liquidityLifecycleOn}
                       mtfAncestryOnChart={mtfAncestryOn}
                       derivativesPressureOnChart={derivativesPressureOn}
+                      brickWallsOnChart={brickWallsOn}
                       roomPosture={chartCanvasVM.oneStory?.decision?.value === "WAIT" || chartCanvasVM.oneStory?.decision?.value === "NO TRADE" ? "QUIET" : null}
                       derivativesPressure={derivativesPressureVM}
                       onSemanticDepth={setSemanticDepth}

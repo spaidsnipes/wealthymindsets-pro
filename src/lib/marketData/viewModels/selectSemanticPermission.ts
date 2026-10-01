@@ -102,6 +102,7 @@ export const SEMANTIC_PERMISSION = {
   // Garden 16 §32: FAR carries major pressure geography (field, front, walls);
   // MID keeps it; NEAR hands the glass to candles/tape — QUIET: field + front, no words.
   derivativesPressure: [S, S, Q],
+  brickWalls: [S, S, Q],
 
   // ── Zones + profile + market objects: MID speaks ─────────────────────────
   marketZones: [X, S, Q],        // unselected zones are wordless outlines already

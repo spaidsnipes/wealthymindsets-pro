@@ -1397,6 +1397,8 @@ interface Props {
   mtfAncestryOnChart?: boolean;
   /** Garden 15 §2 — Derivatives Pressure on this chart, and the room's ONE compilation of it. */
   derivativesPressureOnChart?: boolean;
+  /** Garden 18 §XXII: the Brick Walls lens — the masonry alone, independent of the pressure field. */
+  brickWallsOnChart?: boolean;
   /** Garden 16 §15 — the room's posture from the one compiled decision ("QUIET" = WAIT / NO TRADE). */
   roomPosture?: "QUIET" | null;
   derivativesPressure?: DerivativesPressureVM | null;
@@ -1801,6 +1803,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   liquidityLifecycleOnChart = false,
   mtfAncestryOnChart = false,
   derivativesPressureOnChart = false,
+  brickWallsOnChart = false,
   roomPosture = null,
   derivativesPressure = null,
   onSelectPressureWall,
@@ -2242,7 +2245,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   permissionRef.current = permissionOnChart;
   const debtTagRef = useRef<typeof debtTagOnChart>(null);
   debtTagRef.current = debtTagOnChart;
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false, derivativesPressure: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false, derivativesPressure: false, brickWalls: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -2271,8 +2274,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       liquidityLifecycle: liquidityLifecycleOnChart,
       mtfAncestry: mtfAncestryOnChart,
       derivativesPressure: derivativesPressureOnChart,
+      brickWalls: brickWallsOnChart,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart, riskOnPriceOnChart, liquidityLifecycleOnChart, mtfAncestryOnChart, derivativesPressureOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart, riskOnPriceOnChart, liquidityLifecycleOnChart, mtfAncestryOnChart, derivativesPressureOnChart, brickWallsOnChart]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -2329,7 +2333,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // under the header and read OFF_CAMERA).
       let wallTop = false, wallBottom = false;
       const dpCam = derivativesPressureRef.current;
-      if (layerOnRef.current?.derivativesPressure === true && dpCam && dpCam.drawn) {
+      if ((layerOnRef.current?.derivativesPressure === true || layerOnRef.current?.brickWalls === true) && dpCam && dpCam.drawn) {
         const last = slice[slice.length - 1]?.close;
         if (Number.isFinite(last) && last > 0) {
           const near = dpCam.walls.map(w => w.strike).filter(k => Math.abs(k - last) / last <= WALL_CAMERA_REACH);
@@ -14903,8 +14907,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         ctx.save();
         try {
           const dp = derivativesPressureRef.current;
-          if (layerOnRef.current.derivativesPressure === true && att.paints("derivativesPressure") && srs && dp) {
-            ds.derivativesPressure = dp.receipt;
+          // Garden 18 §XXII: two switches on ONE pressure owner — the field
+          // (Derivatives Pressure) and the masonry (Brick Walls). Either asks
+          // for the evidence; each paints only its own manifestation.
+          const fieldOn = layerOnRef.current.derivativesPressure === true && att.paints("derivativesPressure");
+          const wallsOn = layerOnRef.current.brickWalls === true && att.paints("brickWalls");
+          // The masonry asks the ONE permission table for itself (H-501).
+          const wallsSpeak = wallsOn && att.speaks("brickWalls");
+          if ((fieldOn || wallsOn) && srs && dp) {
+            ds.derivativesPressure = fieldOn ? dp.receipt : "FIELD_OFF";
+            ds.brickWalls = !wallsOn ? "OFF" : !dp.drawn ? `ON:SILENT:${dp.reason}` : dp.walls.length ? `ON:${dp.walls.length}` : "ON:NO_CURRENT_WALL_EVENT";
             const dpSpeaks = att.speaks("derivativesPressure");
             const tsD = chart.timeScale();
             let axisWD = 60;
@@ -14993,7 +15005,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 outside.rect(clearZone.x, clearZone.y, clearZone.w, clearZone.h);
                 ctx.clip(outside, "evenodd");
               }
-              paintFieldBase(fieldRole);
+              if (fieldOn) paintFieldBase(fieldRole);
               /* CLIMATE AS MATERIAL (Garden 16 reconstruction §26: "climate,
                  fields, corridors … pressure geography"). Each band's texture
                  is bound to the same net exposure k that tints it:
@@ -15006,7 +15018,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // Under stress the field keeps its fill and drops its grain (receipt below).
               const fieldTextured = !paintStressRef.current;
               ds.derivativesPressureTexture = fieldTextured ? "ON" : "SHED_UNDER_STRESS";
-              for (let i = 0; fieldTextured && i < geo.length - 1; i++) {
+              for (let i = 0; fieldOn && fieldTextured && i < geo.length - 1; i++) {
                 const ga = geo[i], gb = geo[i + 1];
                 const ya = yOfD(ga.price), yb = yOfD(gb.price);
                 if (ya == null || yb == null) continue;
@@ -15064,16 +15076,16 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
               ctx.lineWidth = 1;
               ctx.restore(); // the field outside the clear zone
-              if (clearZone) {
+              if (clearZone && fieldOn) {
                 ctx.save();
                 ctx.beginPath(); ctx.rect(clearZone.x, clearZone.y, clearZone.w, clearZone.h); ctx.clip();
                 paintFieldBase(0.3 * fieldRole);
                 ctx.restore();
               }
-              painted.push(`FIELD:${geo.length}`);
+              if (fieldOn) painted.push(`FIELD:${geo.length}`);
 
               // ── POCKETS (acceleration corridors) ────────────────────────
-              for (const pk of dp.pockets) {
+              for (const pk of fieldOn ? dp.pockets : []) {
                 const y = yOfD(pk.strike);
                 if (y == null || y < HEADER_FLOOR_Y || y > paneBotD) continue;
                 const hh = 6 + 10 * Math.min(1, pk.share / 0.1);
@@ -15103,7 +15115,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const y1 = yOfD(dp.spot), y2 = yOfD(dp.spot * 1.0125);
                 return y1 != null && y2 != null ? Math.abs(y1 - y2) : 12;
               })();
-              for (const w of dp.walls) {
+              for (const w of wallsOn ? dp.walls : []) {
                 const yc = yOfD(w.strike);
                 if (yc == null) continue;
                 if (yc < HEADER_FLOOR_Y + 6 || yc > paneBotD - 6) {
@@ -15419,7 +15431,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.restore();
                 masonryRects.push({ x: x0, y: top - 2, w: len + 2, h: wallH + 4 });
                 const seenW = wallTestSpanWords(dp.testSpanSec);
-                if (dpSpeaks) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${w.life}${w.tests ? ` ×${w.tests}` : ""}${seenW ? ` · ${seenW}` : ""}`, x: x0, y: top + wallH / 2 });
+                if (wallsSpeak) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${w.life}${w.tests ? ` ×${w.tests}` : ""}${seenW ? ` · ${seenW}` : ""}`, x: x0, y: top + wallH / 2 });
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }
               void strikesSorted;
@@ -15464,7 +15476,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.clip();
 
               // ── ZERO-GAMMA FRONT ────────────────────────────────────────
-              if (dp.zeroGamma != null) {
+              if (fieldOn && dp.zeroGamma != null) {
                 const y = yOfD(dp.zeroGamma);
                 if (y != null && y >= HEADER_FLOOR_Y && y <= paneBotD) {
                   const above = dp.geography.find(g => g.price > dp.zeroGamma! * 1.004);
@@ -15526,7 +15538,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               }
 
               // ── EXPECTED MOVE at the live edge ─────────────────────────
-              if (dp.envelope) {
+              if (fieldOn && dp.envelope) {
                 const last = barsD[barsD.length - 1];
                 const xl = last ? tsD.timeToCoordinate(last.time as never) : null;
                 const yU = yOfD(dp.spot + dp.envelope.session), yL = yOfD(dp.spot - dp.envelope.session);
@@ -15548,7 +15560,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               // ── CLIMATE (global) — one line, the environment's name ────
               if (dpSpeaks) {
                 const srcW = positioningSourceWords(dp.source);
-                const word = `DERIVATIVES PRESSURE · ${dp.climate.replace("_", " ")} · ${srcW.name} · ${srcW.oi} · INFERRED${dp.walls.length === 0 ? " · NO CURRENT WALL EVENT" : ""}`;
+                const word = fieldOn
+                  ? `DERIVATIVES PRESSURE · ${dp.climate.replace("_", " ")} · ${srcW.name} · ${srcW.oi} · INFERRED${dp.walls.length === 0 ? " · NO CURRENT WALL EVENT" : ""}`
+                  : `BRICK WALLS · ACTIVE · ${dp.walls.length === 0 ? "NO CURRENT WALL EVENT" : `${dp.walls.length} WALL${dp.walls.length === 1 ? "" : "S"}`} · ${srcW.name} · INFERRED`;
                 ctx.save();
                 ctx.globalAlpha = att.textAlpha("derivativesPressure");
                 ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
@@ -15571,11 +15585,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.restore();
               }
             } else if (dpSpeaks) {
+              const lensName = fieldOn ? "DERIVATIVES PRESSURE" : "BRICK WALLS";
               const words = dp.reason === "NO_CHAIN"
-                ? `DERIVATIVES PRESSURE · no option positioning for ${symbol} (${dp.receipt.replace("PRESSURE:SILENT:", "")})`
+                ? `${lensName} · no option positioning for ${symbol} (${dp.receipt.replace("PRESSURE:SILENT:", "")})`
                 : dp.reason === "AFTER_REPLAY_CLOCK"
-                  ? "DERIVATIVES PRESSURE · withheld in replay — this positioning was published after the replay clock"
-                  : `DERIVATIVES PRESSURE · ${dp.reason.replace(/_/g, " ").toLowerCase()} (${dp.contracts} contracts)`;
+                  ? `${lensName} · withheld in replay — this positioning was published after the replay clock`
+                  : `${lensName} · ${dp.reason.replace(/_/g, " ").toLowerCase()} (${dp.contracts} contracts)`;
               ctx.save();
               ctx.globalAlpha = att.textAlpha("derivativesPressure");
               ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
@@ -15594,6 +15609,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             ds.pressureWallHitAt = pressureWallHitRef.current.map(r => `${r.strike}@${Math.round(r.x + r.w / 2)},${Math.round(r.y + r.h / 2)}`).join("|") || "NONE";
           } else {
             ds.derivativesPressure = att.offWord(layerOnRef.current.derivativesPressure === true);
+            ds.brickWalls = wallsOn ? "ON:WAITING_FOR_EVIDENCE" : "OFF";
           }
           delete ds.derivativesPressureFault;
         } catch (err) {

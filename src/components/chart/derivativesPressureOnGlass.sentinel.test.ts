@@ -20,7 +20,11 @@ const block = (() => {
 describe("the pressure world on the glass", () => {
   it("paints only the room's ONE compilation, through the governor", () => {
     expect(block.length).toBeGreaterThan(0);
-    expect(block).toContain('layerOnRef.current.derivativesPressure === true && att.paints("derivativesPressure")');
+    // Garden 18 §XXII (2026-10-01): two lenses on one owner — the field and the masonry.
+    expect(block).toContain('const fieldOn = layerOnRef.current.derivativesPressure === true && att.paints("derivativesPressure");');
+    expect(block).toContain('const wallsOn = layerOnRef.current.brickWalls === true && att.paints("brickWalls");');
+    expect(block).toContain('if ((fieldOn || wallsOn) && srs && dp) {');
+    expect(block).toContain("for (const w of wallsOn ? dp.walls : []) {");
     expect(block).not.toMatch(/selectDerivativesPressure\(/);
     // Tests are observed only inside the positioning's relevance window — the
     // same window on every timeframe (TSLA 1D once counted a year of bars).
@@ -74,7 +78,9 @@ describe("a wall is an object: click → one selection → Inspect explains", ()
   it("the selection is the ONE reducer's PRESSURE_WALL kind; the room scopes it to its chart", () => {
     expect(SEL).toContain('readonly kind: "PRESSURE_WALL";');
     expect(CD).toContain('selection: { kind: "PRESSURE_WALL", symbol, timeframe, strike }');
-    expect(CD).toContain('actOnChartSelection({ type: "clear", kinds: ["PRESSURE_WALL", "PRESSURE_FRONT"] })');
+    // Garden 18: each lens releases its own object kind when switched off.
+    expect(CD).toContain('if (!derivativesPressureOn) actOnChartSelection({ type: "clear", kinds: ["PRESSURE_FRONT"] });');
+    expect(CD).toContain('if (!brickWallsOn) actOnChartSelection({ type: "clear", kinds: ["PRESSURE_WALL"] });');
   });
   it("Inspect answers what / where / evidence / class / fidelity / life / contradiction / lineage", () => {
     for (const w of ["What ·", "Where ·", "Evidence ·", "Class ·", "Fidelity ·", "Life ·", "Contradiction ·", "Lineage ·"]) expect(IT).toContain(w);
@@ -108,14 +114,14 @@ describe("no lookahead in replay (Garden 16 §46, serving c216f713)", () => {
   });
 
   it("the glass says why it is silent", () => {
-    expect(block).toContain('"DERIVATIVES PRESSURE · withheld in replay — this positioning was published after the replay clock"');
+    expect(block).toContain('`${lensName} · withheld in replay — this positioning was published after the replay clock`');
   });
 });
 
 describe("the camera holds the walls it is showing (Garden 16 reconstruction §11)", () => {
   it("with the pressure world on, the nearest wall above/below (≤ WALL_CAMERA_REACH of price) joins the price range", () => {
     expect(MC).toContain("const WALL_CAMERA_REACH = 0.04;");
-    expect(MC).toContain("if (layerOnRef.current?.derivativesPressure === true && dpCam && dpCam.drawn) {");
+    expect(MC).toContain("if ((layerOnRef.current?.derivativesPressure === true || layerOnRef.current?.brickWalls === true) && dpCam && dpCam.drawn) {");
     expect(MC).toContain("const near = dpCam.walls.map(w => w.strike).filter(k => Math.abs(k - last) / last <= WALL_CAMERA_REACH);");
     expect(MC).toContain("return { priceRange: { minValue: lo - span * (wallBottom ? 0.3 : 0.06), maxValue: hi + span * (wallTop ? 0.34 : 0.06) } };");
   });

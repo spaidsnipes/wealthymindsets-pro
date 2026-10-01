@@ -68,6 +68,7 @@ const ALL_IDS: readonly ProfileId[] = [
   "MTF_ANCESTRY",
   // Garden 15 §2: Derivatives Pressure — Cboe delayed OI, not bars.
   "DERIVATIVES_PRESSURE",
+  "BRICK_WALLS",
 ];
 
 /** The rows that require provider-stated aggressor side. */

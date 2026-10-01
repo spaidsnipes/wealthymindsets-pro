@@ -72,7 +72,8 @@ export type ProfileId =
   | "LIQUIDITY_LIFECYCLE"
   | "MARKET_STRUCTURE"
   | "MTF_ANCESTRY"
-  | "DERIVATIVES_PRESSURE";
+  | "DERIVATIVES_PRESSURE"
+  | "BRICK_WALLS";
 
 /**
  * READY — it can draw now.
@@ -183,6 +184,7 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   MTF_ANCESTRY: "READING",
   // Garden 15 §2 / Garden 16 §20: a Market Sense read on the SAME camera.
   DERIVATIVES_PRESSURE: "READING",
+  BRICK_WALLS: "READING",
 };
 
 export interface ProfileMenuEntry {
@@ -727,7 +729,21 @@ const CATALOGUE: readonly ProfileSpec[] = [
     what: "where dealer hedging is expected to damp or amplify moves — pressure field, zero-gamma front, brick walls with observed tests, and the IV expected move (Cboe delayed; BTC / ETH from Deribit public — INFERRED)",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectDerivativesPressure.ts",
-    levels: ["Pressure climate", "Zero-gamma front", "Pressure walls", "Acceleration pockets", "Expected move"],
+    levels: ["Pressure climate", "Zero-gamma front", "Acceleration pockets", "Expected move"],
+  },
+  {
+    id: "BRICK_WALLS",
+    label: "Brick Walls",
+    /*
+      Garden 18 §XXII–§XXV: the Brick Pressure Wall as its own lens on the ONE
+      pressure owner (selectDerivativesPressure). ON shows the masonry — bricks,
+      courses, cracks at observed tests, breach, scar; OFF clears it from the
+      glass without touching the evidence, the wall lifecycle or any other lens.
+    */
+    what: "dealer-defended strikes as masonry walls at their price — bricks, cracks at each observed test, breach and scar (Cboe delayed; BTC / ETH from Deribit public — INFERRED)",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectDerivativesPressure.ts",
+    levels: ["Pressure walls"],
   },
 ];
 
