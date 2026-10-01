@@ -298,7 +298,7 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
       {edge ? <p role="status" style={{ margin: 14, color: GOLD }}>{edge}</p> : !chain ? <p role="status" style={{ margin: 14, color: MUTED }}>Reading tastytrade&apos;s chain…</p> : (
         <>
           {/* ── EXPIRATION RAIL ── */}
-          <nav aria-label="Expirations" style={{ display: "flex", gap: 6, overflowX: "auto", padding: "8px 14px", borderBottom: `1px solid ${LINE}`, scrollbarWidth: "thin" }}>
+          <nav aria-label="Expirations" style={{ display: "flex", gap: 6, overflowX: "auto", padding: "8px 14px", borderBottom: `1px solid ${LINE}`, scrollbarWidth: "thin", scrollbarColor: "rgba(201,165,92,.35) transparent", flexShrink: 0 }}>
             {expirations.slice(0, 24).map(e => (
               <button key={e.expiration} type="button" aria-pressed={e.expiration === expiry} onClick={() => { setExpiry(e.expiration); setPick(null); }} style={{ ...chip(e.expiration === expiry), minHeight: 34, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
                 <span>{shortDate(e.expiration)}</span>
@@ -326,7 +326,8 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
           </div>
 
           {/* ── THE CHAIN ── */}
-          <div style={{ flex: 1, minHeight: 120, overflowY: "auto" }}>
+          {/* The chain keeps at least ~8 rows on glass even with the ticket open. */}
+          <div style={{ flex: 1, minHeight: 230, overflowY: "auto", scrollbarColor: "rgba(201,165,92,.35) transparent" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", ...MONO }}>
               <thead style={{ position: "sticky", top: 0, background: "#0d0b08", zIndex: 1 }}>
                 <tr style={{ color: MUTED, fontSize: 10.5, letterSpacing: ".06em" }}>
@@ -400,7 +401,7 @@ export function FuturesOptionsPanel({ chartSymbol, price, bornDecision, onIdenti
 
           {/* ── THE TICKET ── */}
           {pick ? (
-            <section aria-label="Order ticket" style={{ borderTop: `1px solid rgba(201,165,92,.4)`, background: "rgba(10,9,7,.98)", padding: "10px 14px", maxHeight: "52%", overflowY: "auto" }}>
+            <section aria-label="Order ticket" style={{ borderTop: `1px solid rgba(201,165,92,.4)`, background: "rgba(10,9,7,.98)", padding: "8px 14px", flexShrink: 1, minHeight: 0, maxHeight: "46%", overflowY: "auto", scrollbarColor: "rgba(201,165,92,.35) transparent" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <strong style={{ color: side === "BUY" ? GREEN : RED, letterSpacing: ".08em" }}>{action.toUpperCase()}</strong>
                 <strong style={MONO}>{qty} · {product} {grp(pick.strike, pick.strike % 1 ? 2 : 0)} {pick.right}</strong>
