@@ -262,7 +262,10 @@ const REGIME_LIGHTING_RECEIPTS = [
 /** F15A's state light, as an ambient wash (olive BALANCE, amber TRANSITION, oxblood WAIT). */
 const REGIME_FIELD_RGB = { BALANCE: "128,150,72", TRANSITION: "214,150,50", WAIT: "170,62,50" } as const;
 /** The field's brightest point, at the live edge — it tints the glass, never the candles (cut out). */
-const REGIME_FIELD_PEAK = 0.07;
+// Garden 18 §XXXV (2026-10-01): at 0.07 × the governor's 0.43 the field
+// peaked near 3% and the trader could not see the regime light at all
+// (plate 92 lights the room). Candles stay cut out of it.
+const REGIME_FIELD_PEAK = 0.2;
 import { dataWindowBarScope } from "@/lib/chart/dataWindowBarScope";
 import { fmtSessionDate, isSessionTimeframe } from "@/lib/chart/sessionDateLabel";
 import { DATA_WINDOW_W, placeDataWindow } from "@/lib/chart/dataWindowPlacement";
@@ -14476,7 +14479,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             if (regimeLight.field && att.paints("regimeField")) {
               const rgb = REGIME_FIELD_RGB[regimeLight.field];
               const xEdge = Math.min(plotRight, xLiveR ?? plotRight);
-              const reach = plotRight * 0.45;
+              const reach = plotRight * 0.6;
               const aF = att.alpha("regimeField");
               const grad = ctx.createLinearGradient(xEdge - reach, 0, xEdge, 0);
               grad.addColorStop(0, `rgba(${rgb},0)`);
