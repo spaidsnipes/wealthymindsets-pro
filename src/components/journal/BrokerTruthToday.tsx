@@ -27,7 +27,7 @@ interface FeedAccount { tail: string; broker: string; state: string; reason?: st
 interface Story { key: string; decisionId: string | null; accountTail: string; orders: FeedOrder[]; fills: FeedFill[] }
 
 const money = (v: number) => `${v < 0 ? "−" : ""}$${Math.abs(v).toFixed(2)}`;
-const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—");
+const time = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—");
 
 export function BrokerTruthToday() {
   const [feed, setFeed] = useState<{ state: string; reason?: string; accounts: FeedAccount[]; asOf?: string; decisionLinks?: string } | null>(null);
@@ -35,7 +35,10 @@ export function BrokerTruthToday() {
 
   useEffect(() => {
     let live = true;
-    const pull = () => fetch("/api/broker/journal-feed", { cache: "no-store" })
+    // Seven days of fills (a story from yesterday is still today's lesson);
+    // working orders are tastytrade's current-day list.
+    const since = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+    const pull = () => fetch(`/api/broker/journal-feed?since=${since}`, { cache: "no-store" })
       .then(async r => { const j = await r.json().catch(() => null); if (live) { setStatus(r.status); setFeed(j); } })
       .catch(() => { if (live) setFeed({ state: "NO_ANSWER", accounts: [] }); });
     void pull();
@@ -75,7 +78,7 @@ export function BrokerTruthToday() {
   return (
     <section data-testid="broker-truth-today" aria-label="Broker truth today" style={{ padding: "12px 16px", borderBottom: `1px solid ${LINE}`, color: INK }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-        <h2 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, fontWeight: 400 }}>Broker truth · today</h2>
+        <h2 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, fontWeight: 400 }}>Broker truth · last 7 days</h2>
         <span style={{ color: MUTED, fontSize: 11 }}>
           Read from tastytrade{feed?.asOf ? ` · as of ${time(feed.asOf)}` : ""} — orders and fills as the broker states them, never this browser&apos;s memory.
         </span>
@@ -87,7 +90,7 @@ export function BrokerTruthToday() {
       ) : feed.state !== "OK" ? (
         <p style={{ color: GOLD, fontSize: 12, marginTop: 8 }}>tastytrade did not answer ({feed.reason ?? feed.state}). Your journal entries below are unaffected; this section retries every 30 seconds.</p>
       ) : stories.length === 0 ? (
-        <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>No orders or fills at tastytrade today. Completed decision stories will appear here as the broker records them.</p>
+        <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>No orders or fills at tastytrade in the last 7 days. Completed decision stories will appear here as the broker records them.</p>
       ) : (
         <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
           {stories.map(st => {
