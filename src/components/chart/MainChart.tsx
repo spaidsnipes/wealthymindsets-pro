@@ -7021,13 +7021,18 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               void yMid;
             }
           }
-          // F05A callout (WM_NewMockup_72): the hovered candle's own reading —
-          // BODY EFFICIENCY · WICK INTENT · TRUTH GAP — words on demand only.
+          // F05A callout (WM_NewMockup_72): a candle's own reading —
+          // BODY EFFICIENCY · WICK INTENT · TRUTH GAP. The plate shows it AT
+          // REST on the glass (serving TSLA 15m beside plate 72, 2026-10-01:
+          // hover-only left the Founder unable to tell what Clarity is). The
+          // hovered candle wins; with no hover it reads the newest CLOSED bar.
           const hp = crosshairPointRef.current;
           let calloutFor = "NONE";
-          if (hp && drawnC > 0) {
-            const tHover = tsC.coordinateToTime(hp.x);
-            const hi = tHover == null ? -1 : bsC.findIndex(b => b && +b.time === +(tHover as number));
+          if (drawnC > 0) {
+            const tHover = hp ? tsC.coordinateToTime(hp.x) : null;
+            const hoverI = tHover == null ? -1 : bsC.findIndex(b => b && +b.time === +(tHover as number));
+            const pinned = hoverI < 0;
+            const hi = pinned ? bsC.length - 2 : hoverI;
             const hb = hi >= 0 ? bsC[hi] : null;
             const xh = hb ? tsC.timeToCoordinate(hb.time as never) : null;
             const yLowH = hb ? srs.priceToCoordinate(hb.low) : null;
@@ -7061,7 +7066,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
               });
               ctx.restore();
-              calloutFor = String(hb.time);
+              calloutFor = `${pinned ? "PINNED" : "HOVER"}:${hb.time}`;
             }
           }
           ds.clarityCallout = calloutFor;
