@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 import {
+  TAPE_EVENT_TYPE,
   type ContractEvent,
   applyContractEvent,
   buildContractFeedSetupFrame,
@@ -39,6 +40,8 @@ interface Snapshot {
 }
 
 const refs = new Map<string, number>();
+/** Symbols whose every print (TimeAndSale) is also wanted — the chart's tape lane. */
+const tapeRefs = new Map<string, number>();
 /** Per-event listeners (the chart's tick lane), beside the last-value store. */
 const eventListeners = new Set<{ readonly symbols: ReadonlySet<string>; readonly onEvent: (e: ContractEvent, receivedAtMs: number) => void }>();
 let quotes = new Map<string, ContractQuoteState>();
@@ -124,6 +127,7 @@ async function connect() {
           feedOpen = true;
           retries = 0;
           send(buildContractSubscriptionFrame([...refs.keys()], [], true));
+          if (tapeRefs.size) send(buildContractSubscriptionFrame([...tapeRefs.keys()], [], false, [TAPE_EVENT_TYPE]));
           emit({ stream: "LIVE", reason: null });
         }
         return;
@@ -147,7 +151,10 @@ async function connect() {
   };
 }
 
-function subscribe(symbols: readonly string[]): () => void {
+function subscribe(symbols: readonly string[], tape = false): () => void {
+  const tapeAdded: string[] = [];
+  if (tape) for (const s of symbols) { const n = tapeRefs.get(s) ?? 0; tapeRefs.set(s, n + 1); if (n === 0) tapeAdded.push(s); }
+  if (tapeAdded.length && feedOpen) send(buildContractSubscriptionFrame(tapeAdded, [], false, [TAPE_EVENT_TYPE]));
   const added: string[] = [];
   for (const s of symbols) {
     const n = refs.get(s) ?? 0;
@@ -158,6 +165,11 @@ function subscribe(symbols: readonly string[]): () => void {
   if (added.length && feedOpen) send(buildContractSubscriptionFrame(added));
   if (!ws && !retryTimer) void connect();
   return () => {
+    if (tape) {
+      const tapeRemoved: string[] = [];
+      for (const s of symbols) { const n = (tapeRefs.get(s) ?? 1) - 1; if (n <= 0) { tapeRefs.delete(s); tapeRemoved.push(s); } else tapeRefs.set(s, n); }
+      if (tapeRemoved.length && feedOpen) send(buildContractSubscriptionFrame([], tapeRemoved, false, [TAPE_EVENT_TYPE]));
+    }
     const removed: string[] = [];
     for (const s of symbols) {
       const n = (refs.get(s) ?? 1) - 1;
@@ -186,12 +198,13 @@ export function subscribeTastyEvents(
   streamerSymbols: readonly string[],
   onEvent: (e: ContractEvent, receivedAtMs: number) => void,
   onState?: (stream: StreamState, reason: string | null) => void,
+  tape = false,
 ): () => void {
   const entry = { symbols: new Set(streamerSymbols), onEvent };
   eventListeners.add(entry);
   const stateListener = onState ? () => onState(snapshot.stream, snapshot.reason) : null;
   if (stateListener) { listeners.add(stateListener); stateListener(); }
-  const release = subscribe(streamerSymbols);
+  const release = subscribe(streamerSymbols, tape);
   return () => {
     eventListeners.delete(entry);
     if (stateListener) listeners.delete(stateListener);

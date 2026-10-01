@@ -6,9 +6,13 @@
  * symbol (ES1!) is fed by tastytrade's own active-month contract, named in the
  * event's contractId so the provenance never pretends the print was "ES1!".
  *
- * dxFeed's Trade event carries no aggressor side: these events are UNSIGNED
- * (aggressorMethod NONE) and move price and the forming bar only — never the
- * signed tape. PURE.
+ * Two event shapes, two doors:
+ *   TimeAndSale — every print with the EXCHANGE-REPORTED aggressor (BUY/SELL),
+ *     proven on the owner's socket 2026-10-01. Signed prints feed the tape
+ *     (footprint, delta, big trades); an UNDEFINED side stays unsigned.
+ *   Trade — a last-trade snapshot with no side: UNSIGNED fallback only, for a
+ *     product whose prints are not streamed.
+ * PURE.
  */
 
 import type { ContractEvent } from "@/lib/broker/tastyContractQuote";
@@ -73,5 +77,58 @@ export function tastyTradeToMarketEvent(
     // Retention, redistribution and training stay unreviewed: fail closed.
     rightsPolicyId: UNKNOWN_RIGHTS_POLICY_ID,
     rawLineageRef: `tastytrade:${contract.streamer}`,
+  };
+}
+
+/** One print off tastytrade's TimeAndSale stream, signed only when the exchange said so. */
+export function tastyTimeAndSaleToMarketEvent(
+  e: ContractEvent,
+  appSymbol: string,
+  contract: TastyFrontMonth,
+  receivedAtMs: number,
+  index: number,
+): CanonicalMarketEvent | null {
+  if (e.type !== "TimeAndSale" || e.symbol !== contract.streamer) return null;
+  const price = e.values.price;
+  const size = e.values.size;
+  if (!(price != null && price > 0) || !(size != null && size > 0)) return null;
+  const t = e.values.time;
+  const providerTime = t != null && t > 0 && t <= receivedAtMs + 5_000 ? t : undefined;
+  const raw = e.text.aggressorSide;
+  const side = raw === "BUY" ? "BUY" : raw === "SELL" ? "SELL" : "UNKNOWN";
+  const bid = e.values.bidPrice;
+  const ask = e.values.askPrice;
+  return {
+    schemaVersion: MARKET_EVENT_SCHEMA_VERSION,
+    normalizationVersion: "tastytrade-dxlink-timeandsale.v1",
+    eventId: `tastytrade:${contract.streamer}:${providerTime ?? receivedAtMs}:${price}:${size}:${raw ?? "-"}:${index}`,
+    symbol: appSymbol,
+    normalizedSymbol: appSymbol.toUpperCase(),
+    assetClass: "futures",
+    contractId: contract.symbol,
+    exchange: contract.streamer.split(":")[1],
+    providerClass: "BROKER",
+    providerPath: "tastytrade-dxlink",
+    eventType: "TRADE",
+    timestampExchange: providerTime,
+    timestampProvider: providerTime,
+    timestampReceived: receivedAtMs,
+    timestampProcessed: receivedAtMs,
+    availableAt: receivedAtMs,
+    sequenceState: "UNAVAILABLE",
+    price,
+    size,
+    volume: size,
+    ...(bid != null && bid > 0 ? { bid } : {}),
+    ...(ask != null && ask > 0 ? { ask } : {}),
+    aggressorSide: side,
+    aggressorMethod: side === "UNKNOWN" ? "NONE" : "PROVIDER",
+    ...(side === "UNKNOWN" ? {} : { aggressorConfidence: 1 }),
+    sourceClass: "PRIMARY",
+    dataMode: "LIVE",
+    fidelityClass: "OBSERVED",
+    // Retention, redistribution and training stay unreviewed: fail closed.
+    rightsPolicyId: UNKNOWN_RIGHTS_POLICY_ID,
+    rawLineageRef: `tastytrade:${contract.streamer}:TimeAndSale`,
   };
 }

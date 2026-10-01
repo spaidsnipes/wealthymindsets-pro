@@ -37,7 +37,10 @@ describe("aggressorTapeReason", () => {
   it("separates 'not carried at all' from 'not right now'", () => {
     // Collapsing these is the "try again later" lie in one direction and
     // "give up on a sleeping feed" in the other.
-    expect(aggressorTapeReason("NQ1!", false)?.kind).toBe("NOT_CARRIED");
+    // 2026-10-01: futures ARE carried now — tastytrade's TimeAndSale prints
+    // carry the exchange's aggressor side (registry: tastytrade-dxlink). A
+    // missing NQ tape is "not right now", never "not carried".
+    expect(aggressorTapeReason("NQ1!", false)?.kind).toBe("NOT_FLOWING");
     expect(aggressorTapeReason("EURUSD=X", false)?.kind).toBe("NOT_CARRIED");
     expect(aggressorTapeReason("BTC-USD", false)?.kind).toBe("NOT_FLOWING");
   });
@@ -51,8 +54,8 @@ describe("aggressorTapeReason", () => {
   });
 
   it("tells a NOT_CARRIED trader that waiting will not help", () => {
-    const sentence = aggressorTapeReason("NQ1!", false)!.sentence;
-    expect(sentence).toContain("NQ1!");
+    const sentence = aggressorTapeReason("EURUSD=X", false)!.sentence;
+    expect(sentence).toContain("EURUSD=X");
     expect(sentence.toLowerCase()).toContain("waiting will not change it");
   });
 

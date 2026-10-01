@@ -22,10 +22,17 @@ export const CONTRACT_EVENT_FIELDS = {
   Trade: ["eventType", "eventSymbol", "price", "dayVolume", "size", "time"],
   Greeks: ["eventType", "eventSymbol", "price", "volatility", "delta", "gamma", "theta", "rho", "vega"],
   Summary: ["eventType", "eventSymbol", "openInterest", "dayOpenPrice", "dayHighPrice", "dayLowPrice", "prevDayClosePrice"],
+  // Every print, with the exchange-reported aggressor (BUY / SELL / UNDEFINED).
+  // Proven on the owner's live socket 2026-10-01: `/ESZ26:XCME` 7766 × 1 BUY at 7765.75 / 7766.
+  TimeAndSale: ["eventType", "eventSymbol", "time", "price", "size", "aggressorSide", "bidPrice", "askPrice"],
 } as const;
 
 export type ContractEventType = keyof typeof CONTRACT_EVENT_FIELDS;
-export const CONTRACT_EVENT_TYPES = Object.keys(CONTRACT_EVENT_FIELDS) as ContractEventType[];
+/** What a quoted contract subscribes to. The print tape is opt-in per symbol (TAPE_EVENT_TYPE). */
+export const CONTRACT_EVENT_TYPES: ContractEventType[] = ["Quote", "Trade", "Greeks", "Summary"];
+export const TAPE_EVENT_TYPE: ContractEventType = "TimeAndSale";
+/** Fields carried as text, never coerced to numbers. */
+const TEXT_FIELDS: ReadonlySet<string> = new Set(["aggressorSide"]);
 
 export function buildContractFeedSetupFrame(): DxlinkFrame {
   return {
@@ -33,14 +40,14 @@ export function buildContractFeedSetupFrame(): DxlinkFrame {
     channel: DXLINK_FEED_CHANNEL,
     acceptAggregationPeriod: 0.25,
     acceptDataFormat: "COMPACT",
-    acceptEventFields: Object.fromEntries(CONTRACT_EVENT_TYPES.map(t => [t, [...CONTRACT_EVENT_FIELDS[t]]])),
+    acceptEventFields: Object.fromEntries((Object.keys(CONTRACT_EVENT_FIELDS) as ContractEventType[]).map(t => [t, [...CONTRACT_EVENT_FIELDS[t]]])),
   };
 }
 
-/** Add and/or remove streamer symbols for every contract event type, in one frame. */
-export function buildContractSubscriptionFrame(add: readonly string[], remove: readonly string[] = [], reset = false): DxlinkFrame {
+/** Add and/or remove streamer symbols for the given event types (default: the quote set), in one frame. */
+export function buildContractSubscriptionFrame(add: readonly string[], remove: readonly string[] = [], reset = false, types: readonly ContractEventType[] = CONTRACT_EVENT_TYPES): DxlinkFrame {
   const clean = (xs: readonly string[]) => Array.from(new Set(xs.map(s => s.trim()).filter(Boolean)));
-  const rows = (xs: readonly string[]) => clean(xs).flatMap(symbol => CONTRACT_EVENT_TYPES.map(type => ({ type, symbol })));
+  const rows = (xs: readonly string[]) => clean(xs).flatMap(symbol => types.map(type => ({ type, symbol })));
   const frame: Record<string, unknown> = { type: "FEED_SUBSCRIPTION", channel: DXLINK_FEED_CHANNEL };
   if (reset) frame.reset = true;
   if (add.length) frame.add = rows(add);
@@ -52,6 +59,7 @@ export interface ContractEvent {
   readonly type: ContractEventType;
   readonly symbol: string;
   readonly values: Readonly<Record<string, number | null>>;
+  readonly text: Readonly<Record<string, string | null>>;
 }
 
 const toNum = (v: unknown): number | null => {
@@ -75,8 +83,13 @@ export function decodeCompactFeedData(data: unknown): ContractEvent[] {
       const symbol = flat[j + 1];
       if (typeof symbol !== "string") continue;
       const values: Record<string, number | null> = {};
-      for (let k = 2; k < fields.length; k++) values[fields[k]] = toNum(flat[j + k]);
-      out.push({ type: type as ContractEventType, symbol, values });
+      const text: Record<string, string | null> = {};
+      for (let k = 2; k < fields.length; k++) {
+        const f = fields[k];
+        if (TEXT_FIELDS.has(f)) text[f] = typeof flat[j + k] === "string" ? (flat[j + k] as string) : null;
+        else values[f] = toNum(flat[j + k]);
+      }
+      out.push({ type: type as ContractEventType, symbol, values, text });
     }
   }
   return out;
@@ -123,6 +136,8 @@ export function applyContractEvent(prev: ContractQuoteState, e: ContractEvent, n
       return { ...prev, iv: keep(v.volatility, prev.iv), delta: keep(v.delta, prev.delta), gamma: keep(v.gamma, prev.gamma), theta: keep(v.theta, prev.theta), vega: keep(v.vega, prev.vega), greeksAt: nowMs };
     case "Summary":
       return { ...prev, openInterest: keep(v.openInterest, prev.openInterest), prevClose: keep(v.prevDayClosePrice, prev.prevClose) };
+    case "TimeAndSale":
+      return { ...prev, last: keep(v.price, prev.last), tradeAt: nowMs };
   }
 }
 

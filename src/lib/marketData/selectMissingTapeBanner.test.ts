@@ -55,9 +55,10 @@ describe("selectMissingTapeBanner — it adds no sixth voice", () => {
   });
 
   it("distinguishes NOT_CARRIED from UNRECOGNISED, as the reason owner does", () => {
-    const futures = selectMissingTapeBanner({ symbol: "NQ1!", hasSignedTape: false, blockedReadings: READINGS })!;
+    // Spot forex carries no signed tape; futures do since tastytrade TimeAndSale (2026-10-01).
+    const forex = selectMissingTapeBanner({ symbol: "EURUSD=X", hasSignedTape: false, blockedReadings: READINGS })!;
     const junk = selectMissingTapeBanner({ symbol: "ZZZZ_NOT_A_SYMBOL", hasSignedTape: false, blockedReadings: READINGS })!;
-    expect(futures.kind).toBe("NOT_CARRIED");
+    expect(forex.kind).toBe("NOT_CARRIED");
     expect(junk.kind).toBe("UNRECOGNISED");
   });
 });

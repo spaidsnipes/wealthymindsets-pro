@@ -38,7 +38,7 @@ import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { subscribeTastyEvents } from "@/lib/broker/tastyQuoteStream";
 import { futuresProductFor } from "@/lib/broker/tastytradeFuturesChain";
-import { resolveTastyFrontMonth, tastyTradeToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
+import { resolveTastyFrontMonth, tastyTimeAndSaleToMarketEvent, tastyTradeToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { coinbaseProduct } from "@/lib/marketData/coinbaseProduct";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
@@ -1644,10 +1644,11 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // ── FUTURES: tastytrade's live CME prints (Garden 18 §XLV) ──
     // Webull futures data is not subscribed; tastytrade streams the real
     // contract. A continuous chart symbol is fed by tastytrade's active-month
-    // contract, named on every event. Prints are UNSIGNED (dxFeed Trade carries
-    // no aggressor), so they move price and the forming bar, never the signed
-    // tape. Owner-gated upstream: for anyone else the lane stays silent and the
-    // REST lane below keeps its own honest label.
+    // contract, named on every event. TimeAndSale prints carry the EXCHANGE's
+    // aggressor side and become the signed tape (footprint, delta, big trades);
+    // an UNDEFINED side, or the side-less Trade snapshot used only while no
+    // prints flow, goes through the UNSIGNED door. Owner-gated upstream: for
+    // anyone else the lane stays silent and the REST lane keeps its own label.
     tastyLiveAtRef.current = null;
     let tastyCleanup: (() => void) | null = null;
     const tastyProduct = classifySymbol(symbol) === "FUTURES" ? futuresProductFor(symbol) : null;
@@ -1659,13 +1660,39 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           const contract = resolveTastyFrontMonth(j.data);
           if (!contract) return;
           let index = 0;
+          let lastPrintAt = 0;
           tastyCleanup = subscribeTastyEvents([contract.streamer], (e, receivedAtMs) => {
             if (disposed) return;
+            if (e.type === "TimeAndSale") {
+              const print = tastyTimeAndSaleToMarketEvent(e, symbol, contract, receivedAtMs, index++);
+              if (!print) return;
+              lastPrintAt = receivedAtMs;
+              tastyLiveAtRef.current = receivedAtMs;
+              if (print.aggressorSide !== "BUY" && print.aggressorSide !== "SELL") {
+                processUnsignedObservation(print, "tastytrade");
+                return;
+              }
+              ingestSessionNectarEvent(print);
+              tapeSourceRef.current = "tastytrade";
+              processTick({
+                price: print.price!,
+                size: print.size!,
+                side: print.aggressorSide === "BUY" ? "buy" : "sell",
+                time: print.timestampProvider ?? receivedAtMs,
+                trade: true,
+                marketEvent: print,
+              }, true);
+              setState(previous => previous.tapeSource === "tastytrade" ? previous : { ...previous, tapeSource: "tastytrade" });
+              return;
+            }
+            // The side-less snapshot only speaks while no prints are flowing,
+            // so one trade is never counted twice.
+            if (receivedAtMs - lastPrintAt < 5_000) return;
             const event = tastyTradeToMarketEvent(e, symbol, contract, receivedAtMs, index++);
             if (!event) return;
             tastyLiveAtRef.current = receivedAtMs;
             processUnsignedObservation(event, "tastytrade");
-          });
+          }, undefined, true);
         })
         .catch(() => { /* the REST lane remains the honest fallback */ });
     }

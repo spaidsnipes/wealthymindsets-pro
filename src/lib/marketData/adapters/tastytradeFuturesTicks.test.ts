@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { decodeCompactFeedData } from "@/lib/broker/tastyContractQuote";
-import { resolveTastyFrontMonth, tastyTradeToMarketEvent } from "./tastytradeFuturesTicks";
+import { resolveTastyFrontMonth, tastyTimeAndSaleToMarketEvent, tastyTradeToMarketEvent } from "./tastytradeFuturesTicks";
 
 // Shape read from the live /instruments/futures?product-code=ES answer, 2026-10-01.
 const FUTURES = [
@@ -36,5 +36,18 @@ describe("tastytrade futures prints", () => {
     expect(tastyTradeToMarketEvent(zero, "ES1!", c, 1, 0)).toBeNull();
     const [ahead] = decodeCompactFeedData(["Trade", ["Trade", "/ESZ26:XCME", 7747, 1, 1, 9_000_000]]);
     expect(tastyTradeToMarketEvent(ahead, "ES1!", c, 1_000, 0)?.timestampProvider).toBeUndefined();
+  });
+
+  it("a TimeAndSale print carries the EXCHANGE's aggressor side, bid and ask", () => {
+    const c = { symbol: "/ESZ6", streamer: "/ESZ26:XCME" };
+    // Verbatim shape from the owner's live socket, 2026-10-01.
+    const [e] = decodeCompactFeedData(["TimeAndSale", ["TimeAndSale", "/ESZ26:XCME", 1790834578430, 7766, 1, "BUY", 7765.75, 7766]]);
+    const ev = tastyTimeAndSaleToMarketEvent(e, "ES1!", c, 1790834578600, 0)!;
+    expect(ev).toMatchObject({ price: 7766, size: 1, aggressorSide: "BUY", aggressorMethod: "PROVIDER", aggressorConfidence: 1, bid: 7765.75, ask: 7766, timestampProvider: 1790834578430, contractId: "/ESZ6" });
+    const [u] = decodeCompactFeedData(["TimeAndSale", ["TimeAndSale", "/ESZ26:XCME", 1790834578430, 7766, 2, "UNDEFINED", "NaN", "NaN"]]);
+    const unsigned = tastyTimeAndSaleToMarketEvent(u, "ES1!", c, 1790834578600, 1)!;
+    expect(unsigned).toMatchObject({ aggressorSide: "UNKNOWN", aggressorMethod: "NONE" });
+    expect(unsigned.bid).toBeUndefined();
+    expect(unsigned.aggressorConfidence).toBeUndefined();
   });
 });

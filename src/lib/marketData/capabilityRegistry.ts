@@ -329,10 +329,11 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
     fidelityClass: "OBSERVED",
     timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
     sequenceSupported: false,
-    // dxFeed's Trade event carries no aggressor side; tastytradeFuturesTicks
-    // stamps NONE and the hook routes these prints through the UNSIGNED door.
-    aggressorMethod: "NONE",
-    sessionCoverage: "The owner's tastytrade DXLink session (dxFeed /realtime); one socket per tab, owner-gated quote token; Trade events aggregated at 0.25s, so per-print volume is not complete",
+    // TimeAndSale carries the exchange-reported aggressor (BUY/SELL), stamped
+    // PROVIDER with confidence 1; UNDEFINED prints and the side-less Trade
+    // fallback stay NONE and take the UNSIGNED door.
+    aggressorMethod: "PROVIDER",
+    sessionCoverage: "The owner's tastytrade DXLink session (dxFeed /realtime): every TimeAndSale print with exchange aggressor side, bid and ask; one socket per tab, owner-gated quote token",
     fallbackSemantics: "EXPLICIT",
     rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
     evidence: "src/lib/broker/tastyQuoteStream.ts + adapters/tastytradeFuturesTicks.ts, consumed by hooks/useWebSocket.ts; live CME contract quotes proven on wealthymindsetspro.com/charts?symbol=ES1! 2026-10-01",
