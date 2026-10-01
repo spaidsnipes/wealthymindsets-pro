@@ -12,6 +12,7 @@
  * A role is stored per tool (ProfileId) and saved inside a My View.
  */
 import type { AttentionLayerKey } from "@/lib/marketData/viewModels/selectAttentionGovernor";
+import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { PROFILE_FAMILY, type ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
 
 export type VisualRole = "PRIMARY" | "SUPPORTING" | "AMBIENT" | "LATENT";
@@ -100,11 +101,24 @@ export function autoCompose(activeIds: readonly ProfileId[]): VisualRoles {
   return out;
 }
 
+/**
+ * A proof scene holds its roles for the page only (serving BTC 15m,
+ * 2026-10-01: setting Absorption = PRIMARY inside `scene=clean` rewrote the
+ * trader's own wm_visual_roles). A clean scene starts from Founder Canon ({}).
+ */
+let sceneRoles: VisualRoles | null = null;
+
 export function readStoredRoles(): VisualRoles {
+  if (proofSceneHoldsWrites()) return sceneRoles ?? (currentProofScene().clean ? {} : readSavedRoles());
+  return readSavedRoles();
+}
+
+function readSavedRoles(): VisualRoles {
   try { return parseVisualRoles(localStorage.getItem(VISUAL_ROLES_STORAGE_KEY)); } catch { return {}; }
 }
 
 export function writeStoredRoles(roles: VisualRoles): void {
-  try { localStorage.setItem(VISUAL_ROLES_STORAGE_KEY, JSON.stringify(roles)); } catch { /* this visit only */ }
+  if (proofSceneHoldsWrites()) sceneRoles = parseVisualRoles(roles);
+  else try { localStorage.setItem(VISUAL_ROLES_STORAGE_KEY, JSON.stringify(roles)); } catch { /* this visit only */ }
   try { window.dispatchEvent(new Event(VISUAL_ROLES_EVENT)); } catch { /* no window */ }
 }
