@@ -124,7 +124,7 @@ describe("3 · THE DOOR asks and is told; it never reaches a switch", () => {
 
   it("saves through the list owner, never a hand-rolled localStorage key", () => {
     // Garden 18 §XVII: the View also carries its style, read from its owners.
-    expect(DOOR).toMatch(/saveLayout\(layouts, draft, capture, newLayoutId, \{ roles: readStoredRoles\(\), profileStrength: readStoredProfileStrength\(\) \}\)/);
+    expect(DOOR).toMatch(/saveLayout\(layouts, draft, capture, newLayoutId, \{ roles: readStoredRoles\(\), profileStrength: readStoredProfileStrength\(\), footprint: announcedFootprintPrefs\(\) \}\)/);
     expect(DOOR).toMatch(/storeSavedLayouts\(store, next\)/);
     expect(DOOR).not.toMatch(/localStorage\.setItem/);
   });

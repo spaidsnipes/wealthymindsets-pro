@@ -57,6 +57,7 @@ import {
 } from "@/lib/workspace/savedLayouts";
 import { readStoredProfileStrength, writeStoredProfileStrength } from "@/lib/chart/profileStrengthStore";
 import { readStoredRoles, writeStoredRoles } from "@/lib/workspace/visualRoles";
+import { announcedFootprintPrefs, requestFootprintPrefs } from "@/lib/workspace/footprintPrefs";
 import { ARRANGEMENT_SPECS, CAMERA_LOADOUTS, camerasInForce, composeCamera, loadoutSwitches, savedArrangementInForce, type ArrangementId } from "@/lib/marketData/viewModels/selectChartArrangement";
 
 /** The frame's own ink, handed in so the door paints in the hand it sits in. */
@@ -87,6 +88,7 @@ function pageStorage(): Pick<Storage, "getItem" | "setItem"> | null {
 function applyLayoutStyle(layout: SavedLayout): void {
   writeStoredRoles(layout.roles ?? {});
   if (layout.profileStrength) writeStoredProfileStrength(layout.profileStrength);
+  if (layout.footprint) requestFootprintPrefs(layout.footprint);
 }
 
 function newLayoutId(): string {
@@ -166,7 +168,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
       return;
     }
     // The style half of the View (§XVII): roles and profile strength as they are now.
-    const result = saveLayout(layouts, draft, capture, newLayoutId, { roles: readStoredRoles(), profileStrength: readStoredProfileStrength() });
+    const result = saveLayout(layouts, draft, capture, newLayoutId, { roles: readStoredRoles(), profileStrength: readStoredProfileStrength(), footprint: announcedFootprintPrefs() });
     if (!result.ok) {
       setInputError(result.message);
       return;

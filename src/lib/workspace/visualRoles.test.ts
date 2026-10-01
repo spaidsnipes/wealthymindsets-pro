@@ -43,3 +43,13 @@ describe("Garden 18 §XXXVII — visual roles are semantic, and only representat
     expect(back?.[0]?.profileStrength).toBe("STRONG");
   });
 });
+
+describe("a My View keeps its footprint mode and Big Trades", () => {
+  it("round-trips, and a malformed footprint is dropped, not guessed", () => {
+    const r = saveLayout([], "Tape + Big", { ABSORPTION: true }, () => "v2", { footprint: { enabled: true, mode: "delta", bigTrades: true } });
+    if (!r.ok) throw new Error(r.message);
+    expect(parseSavedLayouts(serializeSavedLayouts(r.list))?.[0]?.footprint).toEqual({ enabled: true, mode: "delta", bigTrades: true });
+    const bad = saveLayout([], "Bad", { ABSORPTION: true }, () => "v3", { footprint: { enabled: true, mode: "rainbow" as never, bigTrades: true } });
+    expect(bad.ok && bad.layout.footprint).toBeFalsy();
+  });
+});

@@ -25,6 +25,7 @@ import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import { BROKER_CONNECT_EVENT, BROKER_CONNECT_PARAM, BROKER_CONNECT_VALUE } from "@/lib/broker/brokerConnectDoor";
 import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
 import { FOOTPRINT_TYPES, FootprintControls } from "./FootprintControls";
+import { announceFootprintPrefs, subscribeFootprintPrefsRequests } from "@/lib/workspace/footprintPrefs";
 import { ToolFinder } from "./ToolFinder";
 import { ProfilesMenu } from "./ProfilesMenu";
 import { ProfilePresetBar } from "./ProfilePresetBar";
@@ -1125,6 +1126,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_indSettings",  indSettings);
   usePersistOnChange("wm_footprint",    footprintType);
   usePersistOnChange("wm_fp_enabled",   footprintEnabled);
+  // Garden 18 §XVII: the footprint half of a View — announced for saving,
+  // restored through the room's own setters when a View asks.
+  useEffect(() => {
+    announceFootprintPrefs({ enabled: footprintEnabled, mode: footprintType, bigTrades: bigTradesSimul ? bigTradesOverlay : footprintEnabled && footprintType === "big-trades" });
+  }, [footprintEnabled, footprintType, bigTradesSimul, bigTradesOverlay]);
+  useEffect(() => () => announceFootprintPrefs(null), []);
+  useEffect(() => subscribeFootprintPrefsRequests(p => {
+    setFootprintEnabled(p.enabled);
+    setFootprintType(p.mode);
+    if (bigTradesSimul) setBigTradesOverlay(p.bigTrades);
+  }), [bigTradesSimul]);
   // Sync Big Trades Simultaneous Mode when toggled from the gear popover.
   useEffect(() => {
     const onSimul = (e: Event) => {

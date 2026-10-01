@@ -36,6 +36,7 @@ import { selectProfileMenu, type ProfileId } from "@/lib/marketData/viewModels/s
 import { MY_STACK_STORAGE_KEY, parseMyStack } from "@/lib/marketData/viewModels/myProfileStack";
 import { PROFILE_STRENGTHS, type ProfileStrength } from "@/lib/chart/profileFamilyInk";
 import { parseVisualRoles, type VisualRoles } from "@/lib/workspace/visualRoles";
+import { parseFootprintPrefs, type FootprintPrefs } from "@/lib/workspace/footprintPrefs";
 
 export const SAVED_LAYOUTS_STORAGE_KEY = "wm_workspaceLayouts";
 /** Re-exported so the door names the legacy slot from its one owner. */
@@ -57,14 +58,18 @@ export interface SavedLayout {
   /** Garden 18 §XVII: HOW I WANT TO SEE — visual roles and profile strength. Preferences, never market state. */
   readonly roles?: VisualRoles;
   readonly profileStrength?: ProfileStrength;
+  /** The footprint mode and Big Trades as the View was saved. */
+  readonly footprint?: FootprintPrefs;
 }
 
 /** The style half of a View, as saved with it. */
-export interface LayoutStyle { readonly roles?: VisualRoles; readonly profileStrength?: ProfileStrength }
+export interface LayoutStyle { readonly roles?: VisualRoles; readonly profileStrength?: ProfileStrength; readonly footprint?: FootprintPrefs | null }
 
-function cleanStyle(raw: { roles?: unknown; profileStrength?: unknown }): LayoutStyle {
+function cleanStyle(raw: { roles?: unknown; profileStrength?: unknown; footprint?: unknown }): { roles?: VisualRoles; profileStrength?: ProfileStrength; footprint?: FootprintPrefs } {
   const roles = parseVisualRoles(raw.roles ?? null);
-  const out: { roles?: VisualRoles; profileStrength?: ProfileStrength } = {};
+  const out: { roles?: VisualRoles; profileStrength?: ProfileStrength; footprint?: FootprintPrefs } = {};
+  const fp = parseFootprintPrefs(raw.footprint);
+  if (fp) out.footprint = fp;
   if (Object.keys(roles).length) out.roles = roles;
   if (typeof raw.profileStrength === "string" && PROFILE_STRENGTHS.includes(raw.profileStrength as ProfileStrength)) out.profileStrength = raw.profileStrength as ProfileStrength;
   return out;
@@ -285,7 +290,7 @@ export function parseSavedLayouts(raw: string | null): readonly SavedLayout[] | 
   for (const entry of layouts) {
     if (out.length >= MAX_SAVED_LAYOUTS) break;
     if (!entry || typeof entry !== "object") continue;
-    const { id, name, switches, roles, profileStrength } = entry as { id?: unknown; name?: unknown; switches?: unknown; roles?: unknown; profileStrength?: unknown };
+    const { id, name, switches, roles, profileStrength, footprint } = entry as { id?: unknown; name?: unknown; switches?: unknown; roles?: unknown; profileStrength?: unknown; footprint?: unknown };
     if (!isLayoutId(id) || typeof name !== "string") continue;
     const check = checkLayoutName(name);
     if (!check.ok) continue;
@@ -295,7 +300,7 @@ export function parseSavedLayouts(raw: string | null): readonly SavedLayout[] | 
     if (Object.keys(clean).length === 0) continue;
     ids.add(id);
     names.add(key);
-    out.push({ id, name: check.name, switches: clean, ...cleanStyle({ roles, profileStrength }) });
+    out.push({ id, name: check.name, switches: clean, ...cleanStyle({ roles, profileStrength, footprint }) });
   }
   return out;
 }
