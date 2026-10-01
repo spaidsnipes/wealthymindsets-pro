@@ -4115,6 +4115,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       try { cs.applyOptions({ priceFormat: axisPriceFormatFor(displayPrecisionFor(symbol, data), symbol) }); } catch { /* series type without a price scale */ }
       chartRef.current  = chart;
       candleRef.current = cs;
+      // A new series paints its own ink; the Clarity layer re-hides it after it paints.
+      clarityHidRef.current = false;
       markersPluginRef.current = null; // fresh series → re-attach markers plugin on next update
       volRef.current    = vs;
       barsRef.current   = data;
@@ -6323,11 +6325,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
     if (!s || !ready) return;
     const on = clarityCandleOnChart && candleType === "candles";
     try {
-      if (on) {
-        const clear = "rgba(0,0,0,0)";
-        s.applyOptions({ upColor: clear, downColor: clear, borderUpColor: clear, borderDownColor: clear, wickUpColor: clear, wickDownColor: clear });
-        clarityHidRef.current = true;
-      } else if (clarityHidRef.current) {
+      // Hiding happens in the paint loop, only AFTER the Clarity layer has
+      // painted (§XLIX: the face is never blank because a layer did not run).
+      if (on) return;
+      if (clarityHidRef.current) {
         s.applyOptions({
           upColor: chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
           downColor: chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
@@ -6985,6 +6986,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
           }
           ds.clarityCandle = `DRAWN:${drawnC}bars:${gapsC}gaps:${openC}open`;
+          // The species painted: now (and only now) the library's ink steps aside.
+          if (drawnC > 0 && !clarityHidRef.current) {
+            const clear = "rgba(0,0,0,0)";
+            try { srs.applyOptions({ upColor: clear, downColor: clear, borderUpColor: clear, borderDownColor: clear, wickUpColor: clear, wickDownColor: clear }); clarityHidRef.current = true; } catch { /* next frame */ }
+          }
         }
       } catch (err) { layerFault("CLARITY_CANDLE", err); }
 
