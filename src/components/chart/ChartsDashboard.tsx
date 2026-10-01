@@ -5439,6 +5439,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               indicatorCount={activeInds.size}
               onPanel={() => setFuturesOptionsOpen(v => !v)}
               openPanel={futuresOptionsOpen ? "FUTURES_OPTIONS" : null}
+              onWatchlist={(trigger) => (watchlistOpen ? setWatchlistOpen(false) : openWatchlist(trigger))}
+              watchlistOpen={watchlistOpen}
             />
           )}
           {futuresOptionsOpen && assetClass === "futures" && (

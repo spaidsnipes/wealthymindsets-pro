@@ -11,7 +11,7 @@
  */
 
 import React from "react";
-import { BarChart2 } from "lucide-react";
+import { BarChart2, List as ListIcon } from "lucide-react";
 
 import type { CategoryTab } from "@/lib/charts/categoryTabsFor";
 import type { CanonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
@@ -20,7 +20,7 @@ import { instrumentContextStrip } from "@/lib/charts/instrumentContextStrip";
 const GOLD = "#C9A55C";
 
 export function InstrumentContextStrip({
-  symbol, assetClass, activeTab, onTab, onRoom, onIndicators, indicatorCount, onPanel, openPanel = null,
+  symbol, assetClass, activeTab, onTab, onRoom, onIndicators, indicatorCount, onPanel, openPanel = null, onWatchlist, watchlistOpen = false,
 }: {
   readonly symbol: string;
   readonly assetClass: CanonicalAssetClass;
@@ -31,6 +31,9 @@ export function InstrumentContextStrip({
   readonly indicatorCount: number;
   readonly onPanel: (panel: "FUTURES_OPTIONS") => void;
   readonly openPanel?: "FUTURES_OPTIONS" | null;
+  /** Garden 18 §XI: the Watchlist door, beside the instrument — not buried in Tools. */
+  readonly onWatchlist?: (trigger: HTMLButtonElement) => void;
+  readonly watchlistOpen?: boolean;
 }) {
   const entries = instrumentContextStrip(assetClass, symbol);
   return (
@@ -74,6 +77,24 @@ export function InstrumentContextStrip({
         );
       })}
       <span style={{ flex: 1 }} />
+      {onWatchlist ? (
+        <button
+          type="button"
+          data-testid="context-watchlist"
+          onClick={e => onWatchlist(e.currentTarget)}
+          aria-pressed={watchlistOpen}
+          aria-label="Watchlist"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, minHeight: 26, padding: "0 10px", borderRadius: 3, marginRight: 6,
+            border: `1px solid ${watchlistOpen ? "rgba(201,165,92,.75)" : "rgba(196,165,116,.42)"}`,
+            background: watchlistOpen ? "rgba(201,165,92,.14)" : "rgba(196,165,116,.06)", color: watchlistOpen ? GOLD : "rgba(237,230,211,.85)",
+            cursor: "pointer", font: "700 10.5px/1 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".1em", textTransform: "uppercase",
+          }}
+        >
+          <ListIcon size={12} aria-hidden />
+          Watchlist
+        </button>
+      ) : null}
       <button
         type="button"
         data-testid="context-indicators"
