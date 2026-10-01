@@ -53,3 +53,11 @@ describe("a My View keeps its footprint mode and Big Trades", () => {
     expect(bad.ok && bad.layout.footprint).toBeFalsy();
   });
 });
+
+describe("Garden 18 §XXIX — every tool has one place in the library", () => {
+  it("each catalogue id is categorised (the Record type enforces totality; this proves the values are the order's)", async () => {
+    const { LIBRARY_CATEGORY, LIBRARY_CATEGORIES } = await import("./toolSearch");
+    const { PROFILE_FAMILY } = await import("@/lib/marketData/viewModels/selectProfileMenu");
+    for (const id of Object.keys(PROFILE_FAMILY)) expect(LIBRARY_CATEGORIES).toContain(LIBRARY_CATEGORY[id as keyof typeof LIBRARY_CATEGORY]);
+  });
+});

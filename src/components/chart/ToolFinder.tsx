@@ -18,7 +18,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ROLE_LAYERS, VISUAL_ROLES_EVENT, autoCompose, nextRole, readStoredRoles, writeStoredRoles, type VisualRole, type VisualRoles } from "@/lib/workspace/visualRoles";
 
 import { PROFILE_FAMILY, selectProfileMenu, type ProfileId, type ProfileMenuInput } from "@/lib/marketData/viewModels/selectProfileMenu";
-import { FAMILY_WORD, searchToolRows, searchTools } from "@/lib/workspace/toolSearch";
+import { FAMILY_WORD, LIBRARY_CATEGORIES, LIBRARY_CATEGORY, searchToolRows, searchTools } from "@/lib/workspace/toolSearch";
 
 /** A chart instrument outside the reading catalogue (footprint modes, Big Trades). */
 export interface FinderInstrument { readonly id: string; readonly label: string; readonly what: string; readonly active: boolean; readonly aliases?: readonly string[]; readonly familyWord: string; readonly onToggle: () => void }
@@ -44,6 +44,7 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
   speciesRefusal?: ProfileMenuInput["speciesRefusal"];
 }) {
   const [q, setQ] = useState("");
+  const [browse, setBrowse] = useState(false);
   const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, speciesRefusal });
   const hits = useMemo(() => searchTools(vm.entries, q, id => PROFILE_FAMILY[id]), [vm.entries, q]);
   const on = vm.entries.filter(e => e.active);
@@ -115,6 +116,44 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {!q.trim() ? (
+        <button type="button" data-testid="tool-library-toggle" aria-expanded={browse} onClick={() => setBrowse(b => !b)}
+          className="mt-1.5 text-[11px]" style={{ color: GOLD, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          {browse ? "▾" : "▸"} Browse all tools by family
+        </button>
+      ) : null}
+      {browse && !q.trim() ? (
+        <div data-testid="tool-library" className="mt-1.5 flex flex-col gap-2">
+          {LIBRARY_CATEGORIES.map(cat => {
+            const rows = vm.entries.filter(e => LIBRARY_CATEGORY[e.id] === cat);
+            const extra = cat === "ORDER FLOW" ? instruments : [];
+            if (!rows.length && !extra.length) return null;
+            return (
+              <div key={cat}>
+                <div className="text-[9.5px] font-bold uppercase tracking-[0.14em]" style={{ color: MUTED }}>{cat}</div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {rows.map(e => (
+                    <button key={e.id} type="button" role="switch" aria-checked={e.active} title={e.availability === "READY" ? e.what : e.availabilityNote}
+                      data-testid={`tool-library-${e.id}`} onClick={() => onToggle(e.id)}
+                      className="rounded-full px-2 py-0.5 text-[11px]"
+                      style={{ border: `1px solid ${e.active ? GOLD : "rgba(255,255,255,0.12)"}`, color: e.active ? GOLD : e.availability === "READY" ? PEARL : AMBER, background: e.active ? "rgba(212,175,55,0.1)" : "transparent" }}>
+                      {e.label}
+                    </button>
+                  ))}
+                  {extra.map(i => (
+                    <button key={i.id} type="button" role="switch" aria-checked={i.active} title={i.what} onClick={i.onToggle}
+                      className="rounded-full px-2 py-0.5 text-[11px]"
+                      style={{ border: `1px solid ${i.active ? GOLD : "rgba(255,255,255,0.12)"}`, color: i.active ? GOLD : PEARL, background: i.active ? "rgba(212,175,55,0.1)" : "transparent" }}>
+                      {i.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : null}
 
       <div data-testid="active-tools-strip" className="mt-2 flex flex-wrap items-center gap-1" aria-label="Active on the chart">
