@@ -689,14 +689,17 @@ const MAIN_CHANGE_CLASS: Record<HeaderChangeKind, (d: 1 | 0 | -1 | null) => stri
 // treated as 1m — a source of the same silent-substitution class the
 // server maps had. Now throws so the caller (or an upstream guard) has to
 // decide explicitly.
-function getIntervalSec(tf: string): number {
+export function getIntervalSec(tf: string): number {
   const m: Record<string, number> = {
+    // Route-served seconds clocks (registry, 2026-10-01). getIntervalSecCoversRegistry
+    // pins that every TFId resolves here, so this table cannot trail the registry again.
+    "5s":  5,    "15s": 15,   "30s": 30,
     "1m":  60,   "2m":  120,  "3m":  180,  "5m":  300,
-    "10m": 600,  "15m": 900,  "30m": 1800,
+    "10m": 600,  "15m": 900,  "30m": 1800, "45m": 2700,
     "1h":  3600, "2h":  7200, "4h":  14400,
     "1D":  86400, "1W": 604800, "1M": 2592000,
     "3M":  7776000, "6M": 15552000, "1Y": 31536000,
-    "5Y": 157680000,
+    "2Y": 63072000, "5Y": 157680000,
     // "3Y" left 2026-09-26: not a TFId (normalizeTFId("3Y") is null), so no
     // mount of this chart could send it. Unreachable keys are how a second
     // vocabulary survives the registry that was meant to end it.
