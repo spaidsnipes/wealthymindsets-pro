@@ -32,7 +32,9 @@ export async function POST(req: NextRequest) {
   const mapped = toTastytradeOrder({
     instrumentType, action, symbol,
     qty: typeof input.qty === "number" ? input.qty : 0,
-    type: input.type === "Market" ? "Market" : "Limit",
+    type: input.type === "Market" || input.type === "Stop" || input.type === "Stop Limit" ? input.type : "Limit",
+    stopPx: typeof input.stopPx === "number" ? input.stopPx : undefined,
+    tif: input.tif === "GTC" ? "GTC" : "Day",
     limitPx: typeof input.limitPx === "number" ? input.limitPx : undefined,
     decisionId: typeof input.decisionId === "string" ? input.decisionId : "",
     clientOrderId: randomUUID().replace(/-/g, ""),

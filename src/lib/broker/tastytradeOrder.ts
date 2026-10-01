@@ -22,8 +22,12 @@ export interface TtOrderIntent {
   readonly symbol: string;
   readonly action: TtAction;
   readonly qty: number;
-  readonly type: "Limit" | "Market";
+  readonly type: "Limit" | "Market" | "Stop" | "Stop Limit";
   readonly limitPx?: number;
+  /** The trigger for Stop / Stop Limit (Garden 18 §LXXVIII: a broker-native stop). */
+  readonly stopPx?: number;
+  /** GTC for resting protection; Day otherwise. Crypto is always GTC. */
+  readonly tif?: "Day" | "GTC";
   /** The Decision_ID this order expresses — required, no orphan orders. */
   readonly decisionId: string;
   /** Idempotency key (tastytrade external-identifier). */
@@ -32,8 +36,9 @@ export interface TtOrderIntent {
 
 export interface TtOrder {
   readonly "time-in-force": "Day" | "GTC";
-  readonly "order-type": "Limit" | "Market";
+  readonly "order-type": "Limit" | "Market" | "Stop" | "Stop Limit";
   readonly price?: string;
+  readonly "stop-trigger"?: string;
   readonly "price-effect"?: "Debit" | "Credit";
   readonly source: "wm-pro";
   readonly "external-identifier": string;
@@ -77,17 +82,23 @@ export function toTastytradeOrder(i: TtOrderIntent): TtMapResult {
   if (!(i.qty > 0) || (wholeOnly && !Number.isInteger(i.qty))) {
     return { ok: false, reason: wholeOnly ? "Quantity must be a whole number above zero." : "Quantity must be above zero." };
   }
-  if (i.type === "Limit" && !(typeof i.limitPx === "number" && i.limitPx > 0)) return { ok: false, reason: "A limit order needs a limit price above zero." };
-  if (i.type === "Market" && i.limitPx !== undefined) return { ok: false, reason: "A market order carries no limit price." };
+  const priced = i.type === "Limit" || i.type === "Stop Limit";
+  const stopped = i.type === "Stop" || i.type === "Stop Limit";
+  if (priced && !(typeof i.limitPx === "number" && i.limitPx > 0)) return { ok: false, reason: `A ${i.type.toLowerCase()} order needs a limit price above zero.` };
+  if (!priced && i.limitPx !== undefined) return { ok: false, reason: `A ${i.type.toLowerCase()} order carries no limit price.` };
+  if (stopped && !(typeof i.stopPx === "number" && i.stopPx > 0)) return { ok: false, reason: `A ${i.type.toLowerCase()} order needs a stop trigger above zero.` };
+  if (!stopped && i.stopPx !== undefined) return { ok: false, reason: "Only a stop order carries a stop trigger." };
+  if (stopped && i.instrumentType === "Cryptocurrency") return { ok: false, reason: "Stop orders are not offered for crypto here." };
   const buying = i.action.startsWith("Buy");
   return {
     ok: true,
     order: {
       // tastytrade refuses Day on crypto limits ("time in force value is not
       // supported for cryptocurrency trades", dry run 2026-10-01): crypto is GTC.
-      "time-in-force": i.instrumentType === "Cryptocurrency" ? "GTC" : "Day",
+      "time-in-force": i.instrumentType === "Cryptocurrency" ? "GTC" : i.tif === "GTC" ? "GTC" : "Day",
       "order-type": i.type,
-      ...(i.type === "Limit" ? { price: String(Number(i.limitPx!.toPrecision(12))), "price-effect": buying ? "Debit" as const : "Credit" as const } : {}),
+      ...(priced ? { price: String(Number(i.limitPx!.toPrecision(12))), "price-effect": buying ? "Debit" as const : "Credit" as const } : {}),
+      ...(stopped ? { "stop-trigger": String(Number(i.stopPx!.toPrecision(12))) } : {}),
       source: "wm-pro",
       "external-identifier": i.clientOrderId,
       legs: [{ "instrument-type": i.instrumentType, symbol: i.symbol, quantity: i.qty, action: i.action }],

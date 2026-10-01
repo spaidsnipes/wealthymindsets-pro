@@ -18,8 +18,9 @@
  *
  * Execution is the existing firewall: tastytrade's dry run first, then the
  * armed Send LIVE (`TastytradeLiveOrder`) — the human presses it, nothing else.
- * Protection is stated, not faked: this ticket sends ONE limit order; a stop
- * and target typed here size the risk on screen but are NOT sent.
+ * Protection is real and stated: after the entry, a broker-native Stop and a
+ * target Limit (both GTC, both closing) can each be armed and sent; they are
+ * NOT linked (no OCO yet), and the panel says so.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -261,7 +262,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <span style={{ color: MUTED }}>Reward at target</span><span style={{ color: rewardUsd != null ? GREEN : MUTED }}>{rewardUsd != null ? `+$${rewardUsd.toFixed(2)}${riskUsd ? ` · ${(rewardUsd / riskUsd).toFixed(2)}R` : ""}` : "—"}</span>
           </div>
           <p data-testid="trade-protection" style={{ color: MUTED, fontSize: 11 }}>
-            Protection: this ticket sends ONE limit order. The stop and target above size the risk on screen; they are <strong style={{ color: GOLD }}>not sent</strong> as broker orders (no bracket is wired here yet).
+            Protection is sent separately below, once you hold the position: a <strong style={{ color: GOLD }}>broker-native stop</strong> (a resting Stop at tastytrade, GTC) and a target (a resting Limit, GTC). They are <strong style={{ color: GOLD }}>not linked</strong> (no OCO yet) — if one fills, cancel the other.
           </p>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -276,6 +277,28 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             intent={contract && instrumentType ? { instrumentType, symbol: contract.symbol, action, qty, limitPx: limitNum, describe: `${qty} ${contract.symbol}` } : null}
             ensureDecision={ensureDecision}
           />
+
+          {/* §LXXVIII — PROTECTION, broker-native, each armed and pressed by the human. */}
+          {kind !== "CRYPTO" && contract && instrumentType ? (
+            <details data-testid="trade-protect" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px" }}>
+              <summary style={{ cursor: "pointer", color: GOLD, fontWeight: 600 }}>Protect the position — stop & target at the broker</summary>
+              <p style={{ color: MUTED, fontSize: 11, marginTop: 6 }}>
+                These CLOSE {qty} {contract.symbol} {side === "BUY" ? "long" : "short"}. Send them after the entry fills.
+              </p>
+              {stopNum != null && !stopWrongSide ? (
+                <TastytradeLiveOrder
+                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: null, orderType: "Stop", stopPx: stopNum, tif: "GTC", describe: `${qty} ${contract.symbol} protective stop` }}
+                  ensureDecision={ensureDecision}
+                />
+              ) : <p style={{ color: GOLD, fontSize: 11 }}>{stopWrongSide ? "The stop is on the wrong side of the entry." : "Type a stop above to send it as a resting Stop."}</p>}
+              {targetNum != null ? (
+                <TastytradeLiveOrder
+                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: targetNum, tif: "GTC", describe: `${qty} ${contract.symbol} target` }}
+                  ensureDecision={ensureDecision}
+                />
+              ) : <p style={{ color: MUTED, fontSize: 11 }}>Type a target above to send it as a resting Limit.</p>}
+            </details>
+          ) : null}
         </div>
       )}
 

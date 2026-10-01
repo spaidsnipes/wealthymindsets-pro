@@ -38,6 +38,10 @@ export interface TastytradeIntent {
   readonly action: "Buy to Open" | "Sell to Close" | "Sell to Open" | "Buy to Close";
   readonly qty: number;
   readonly limitPx: number | null;
+  /** §LXXVIII: a resting STOP (broker-native protection) instead of a limit. */
+  readonly orderType?: "Limit" | "Stop";
+  readonly stopPx?: number | null;
+  readonly tif?: "Day" | "GTC";
   /** Words for the summary line ("1 /MNQZ6 · micro Nasdaq Dec 26"). */
   readonly describe: string;
 }
@@ -83,7 +87,7 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
   }, [accounts, accountIndex, futures]);
 
   // Any change to WHAT would be sent disarms and forgets the key: a new order, a new key.
-  const fingerprint = intent ? `${intent.instrumentType}|${intent.symbol}|${intent.action}|${intent.qty}|${intent.limitPx}|${accountIndex}` : "";
+  const fingerprint = intent ? `${intent.instrumentType}|${intent.symbol}|${intent.action}|${intent.qty}|${intent.limitPx}|${intent.orderType ?? "Limit"}|${intent.stopPx ?? ""}|${intent.tif ?? ""}|${accountIndex}` : "";
   useEffect(() => { setArmed(false); keyRef.current = null; setAnswer(null); }, [fingerprint]);
 
   // Read the order back from tastytrade until it reaches a terminal state.
@@ -107,7 +111,8 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
   const accountBlocks = futures && account && account.futuresApproved !== true
     ? `Account …${account.tail} is not futures-enabled at tastytrade. Choose a futures-eligible account.`
     : null;
-  const priceOk = intent?.limitPx != null && intent.limitPx > 0;
+  const isStop = intent?.orderType === "Stop";
+  const priceOk = isStop ? (intent?.stopPx != null && intent.stopPx > 0) : (intent?.limitPx != null && intent.limitPx > 0);
   // §CXVII: the trader's own commitments, asked before the button can arm.
   const guardrails = useGuardrails();
   const guard = intent ? checkOrder(guardrails, intent.instrumentType === "Equity" ? { kind: "EQUITY", qty: intent.qty }
@@ -117,7 +122,7 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
 
   const summary = useMemo(() => {
     if (!intent) return null;
-    return `LIVE · TASTYTRADE · …${account?.tail ?? "?"} · ${intent.action.toUpperCase()} ${intent.qty} ${intent.describe} · LIMIT ${intent.limitPx ?? "—"} · ${intent.instrumentType === "Cryptocurrency" ? "GTC" : "DAY"}`;
+    return `LIVE · TASTYTRADE · …${account?.tail ?? "?"} · ${intent.action.toUpperCase()} ${intent.qty} ${intent.describe} · ${isStop ? `STOP ${intent.stopPx ?? "—"}` : `LIMIT ${intent.limitPx ?? "—"}`} · ${intent.instrumentType === "Cryptocurrency" || intent.tif === "GTC" ? "GTC" : "DAY"}`;
   }, [intent, account]);
 
   async function send() {
@@ -133,7 +138,9 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
         body: JSON.stringify({
           instrumentType: intent.instrumentType,
           ...(intent.instrumentType === "Equity Option" ? { optionOsi: intent.symbol } : { symbol: intent.symbol }),
-          action: intent.action, qty: intent.qty, type: "Limit", limitPx: intent.limitPx,
+          action: intent.action, qty: intent.qty,
+          ...(isStop ? { type: "Stop", stopPx: intent.stopPx } : { type: "Limit", limitPx: intent.limitPx }),
+          ...(intent.tif ? { tif: intent.tif } : {}),
           decisionId, clientOrderId: keyRef.current, accountIndex, confirmLive: true,
         }),
       });
@@ -196,7 +203,7 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
       </div>
       <p data-testid="tt-capital-moment" style={{ marginTop: 6, fontVariantNumeric: "tabular-nums", color: "#ede6d3" }}>{summary}</p>
       {accountBlocks ? <p role="status" style={{ color: GOLD }}>{accountBlocks}</p> : null}
-      {!priceOk ? <p role="status" style={{ color: GOLD }}>Set a limit price to send.</p> : null}
+      {!priceOk ? <p role="status" style={{ color: GOLD }}>{isStop ? "Set a stop trigger to send." : "Set a limit price to send."}</p> : null}
       {!guard.ok ? <p role="status" data-testid="tt-guardrail" style={{ color: GOLD }}>{guard.reason}</p> : null}
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
         <label style={{ display: "flex", gap: 4, alignItems: "center", color: armed ? RED : MUTED }}>

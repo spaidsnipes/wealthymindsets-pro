@@ -30,6 +30,13 @@ describe("tastytrade order JSON (Garden 18 §LXXIV–§XCV)", () => {
     // Crypto limits are GTC at tastytrade; everything else stays Day.
     const c = toTastytradeOrder({ ...base, instrumentType: "Cryptocurrency", symbol: "BTC/USD", qty: 0.001, limitPx: 80000 });
     expect(c.ok && c.order["time-in-force"]).toBe("GTC");
+    // §LXXVIII broker-native stop: a Stop carries a trigger and no price; GTC when asked.
+    const st = toTastytradeOrder({ ...base, instrumentType: "Future", symbol: "/MNQZ6", action: "Sell to Close", type: "Stop", stopPx: 30614.5, limitPx: undefined, tif: "GTC" });
+    expect(st.ok && st.order).toMatchObject({ "order-type": "Stop", "stop-trigger": "30614.5", "time-in-force": "GTC" });
+    expect(st.ok && "price" in st.order).toBe(false);
+    expect(toTastytradeOrder({ ...base, instrumentType: "Future", symbol: "/MNQZ6", type: "Stop", limitPx: undefined }).ok).toBe(false);
+    const sl = toTastytradeOrder({ ...base, instrumentType: "Future", symbol: "/MNQZ6", type: "Stop Limit", stopPx: 30614.5, limitPx: 30610 });
+    expect(sl.ok && sl.order).toMatchObject({ "order-type": "Stop Limit", "stop-trigger": "30614.5", price: "30610" });
     const cont = toTastytradeOrder({ ...base, instrumentType: "Future", symbol: "/MNQ", limitPx: 21000 });
     expect(cont).toMatchObject({ ok: false, reason: expect.stringMatching(/continuous symbol is never routed/) });
     expect(toTastytradeOrder({ ...base, instrumentType: "Future", symbol: "NQ1!" }).ok).toBe(false);
