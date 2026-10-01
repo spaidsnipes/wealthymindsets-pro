@@ -195,7 +195,11 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
       data-testid="trade-panel"
       aria-label={`Trade ${symbol}`}
       style={{
-        position: "fixed", right: 24, bottom: 64, zIndex: 60, width: "min(400px, calc(100vw - 24px))", maxHeight: "72vh", overflowY: "auto",
+        // §XIV: a market instrument never covers the forming candle, the live
+        // price or a stop/target on price — all at the chart's right edge
+        // (serving MNQ 1m, 2026-10-01: the panel at right:24 hid the forming
+        // bar). It stands at the chart's lower LEFT, over settled history.
+        position: "fixed", left: 24, bottom: 64, zIndex: 60, width: "min(400px, calc(100vw - 24px))", maxHeight: "72vh", overflowY: "auto",
         background: "#0d0b08", border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 18px 48px rgba(0,0,0,0.6)", color: INK, fontSize: 12,
       }}
     >
