@@ -52,6 +52,9 @@ import clsx from "clsx";
 import { chartHeaderChangeFact, type HeaderChangeKind } from "@/lib/marketData/chartHeaderChangeFact";
 import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/deriveLastBarClose";
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
+import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
+import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
+import { tastyCandleFromTime, tastyCandlePeriod, tastyCandleSymbol, tastyCandlesToBars } from "@/lib/marketData/adapters/tastytradeCandles";
 import {
   DELTA_LEVEL_CAP_DEFAULT,
   DELTA_LEVEL_CAP_EVENT,
@@ -1038,6 +1041,33 @@ async function fetchFinnhubCandlesDirect(sym: string, tf: string, count: number,
     return batch;
   } catch {
     if (!signal?.aborted) note(log, { vendor: "Finnhub REST", outcome: "REFUSED", edge: null });
+    return null;
+  }
+}
+
+/**
+ * DOOR 0 FOR FUTURES — tastytrade's own contract bars over the shared DXLink
+ * socket (adapters/tastytradeCandles.ts): real-time history that meets the
+ * live forming bar with no delayed-vendor hole. Answers null for a guest, a
+ * timeframe tastytrade is not asked for, or a snapshot that does not finish;
+ * the waterfall then falls through to the next door with its own provenance.
+ */
+async function fetchTastyCandles(sym: string, tf: string, count: number, signal?: AbortSignal, log?: VendorAttempt[]): Promise<CanonicalCandleBatch | null> {
+  if (classifySymbol(sym) !== "FUTURES" || !tastyCandlePeriod(tf)) return null;
+  try {
+    const contract = await tastyFrontMonthFor(sym);
+    if (!contract || signal?.aborted) return null;
+    const candleSymbol = tastyCandleSymbol(contract.streamer, tf);
+    const fromTime = tastyCandleFromTime(tf, count, Date.now());
+    if (!candleSymbol || fromTime == null) return null;
+    const rows = await requestTastyCandles(candleSymbol, contract.streamer, fromTime);
+    if (signal?.aborted) return null;
+    const candles = rows ? tastyCandlesToBars(rows, count) : [];
+    if (!rows) { note(log, { vendor: "tastytrade", outcome: "REFUSED", edge: null }); return null; }
+    note(log, { vendor: "tastytrade", outcome: candles.length ? "SERVED" : "EMPTY" });
+    return candles.length ? { candles, identities: [] } : null;
+  } catch {
+    if (!signal?.aborted) note(log, { vendor: "tastytrade", outcome: "REFUSED", edge: null });
     return null;
   }
 }
@@ -3556,17 +3586,19 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // THE RECEIPT BOOK. Each helper writes what its door actually said; this
       // function does not interpret any of it. See compileBarHistoryRefusal.
       const vendorLog: VendorAttempt[] = [];
-      const alpacaData   = exchangeData ? null : await fetchAlpacaCandles(symbol, timeframe, barCount, myAbortSignal, vendorLog);
-      const fhDirectData = (exchangeData || alpacaData) ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount, myAbortSignal, vendorLog);
-      const yahooData    = (exchangeData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount, extendedHours, myAbortSignal, vendorLog);
-      const finnhubData  = (exchangeData || alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount, myAbortSignal, vendorLog);
-      const polyData     = (exchangeData || alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount, myAbortSignal);
-      const canonicalBatch = exchangeData ?? alpacaData ?? fhDirectData ?? yahooData ?? finnhubData;
+      const tastyData    = exchangeData ? null : await fetchTastyCandles(symbol, timeframe, barCount, myAbortSignal, vendorLog);
+      const alpacaData   = (exchangeData || tastyData) ? null : await fetchAlpacaCandles(symbol, timeframe, barCount, myAbortSignal, vendorLog);
+      const fhDirectData = (exchangeData || tastyData || alpacaData) ? null : await fetchFinnhubCandlesDirect(symbol, timeframe, barCount, myAbortSignal, vendorLog);
+      const yahooData    = (exchangeData || tastyData || alpacaData || fhDirectData) ? null : await fetchYahooCandles(symbol, timeframe, barCount, extendedHours, myAbortSignal, vendorLog);
+      const finnhubData  = (exchangeData || tastyData || alpacaData || fhDirectData || yahooData) ? null : await fetchFinnhubCandles(symbol, timeframe, barCount, myAbortSignal, vendorLog);
+      const polyData     = (exchangeData || tastyData || alpacaData || fhDirectData || yahooData || finnhubData) ? null : await fetchPolygonOHLCV(symbol, timeframe, barCount, myAbortSignal);
+      const canonicalBatch = exchangeData ?? tastyData ?? alpacaData ?? fhDirectData ?? yahooData ?? finnhubData;
       const realData = canonicalBatch?.candles ?? polyData;
       const fetchedBarIdentities = canonicalBatch?.identities ?? [];
       // Provenance: record which provider ACTUALLY supplied these candles.
       const srcName =
         exchangeData ? (exParsed?.exchange?.toUpperCase() || "EXCHANGE") :
+        tastyData    ? "TASTYTRADE" :
         alpacaData   ? "ALPACA"  :
         fhDirectData ? "FINNHUB" :
         yahooData    ? "YAHOO"   :

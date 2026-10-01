@@ -31,6 +31,7 @@ import {
   buildKeepaliveFrame,
   buildSetupFrame,
 } from "@/lib/marketData/dxlinkProtocol";
+import { isSnapshotEnd, type TastyCandleRow } from "@/lib/marketData/adapters/tastytradeCandles";
 
 interface Snapshot {
   readonly stream: StreamState;
@@ -45,6 +46,8 @@ const tapeRefs = new Map<string, number>();
 /** Per-event listeners (the chart's tick lane), beside the last-value store. */
 const eventListeners = new Set<{ readonly symbols: ReadonlySet<string>; readonly onEvent: (e: ContractEvent, receivedAtMs: number) => void }>();
 let quotes = new Map<string, ContractQuoteState>();
+/** One-shot candle snapshots in flight, keyed by the candle symbol dxFeed echoes. */
+const candleRequests = new Map<string, { readonly fromTime: number; readonly rows: TastyCandleRow[]; readonly done: (rows: TastyCandleRow[] | null) => void }>();
 let snapshot: Snapshot = { stream: "IDLE", reason: null, quotes, version: 0 };
 const listeners = new Set<() => void>();
 let ws: WebSocket | null = null;
@@ -128,12 +131,20 @@ async function connect() {
           retries = 0;
           send(buildContractSubscriptionFrame([...refs.keys()], [], true));
           if (tapeRefs.size) send(buildContractSubscriptionFrame([...tapeRefs.keys()], [], false, [TAPE_EVENT_TYPE]));
+          for (const [symbol, r] of candleRequests) send(candleFrame("add", symbol, r.fromTime));
           emit({ stream: "LIVE", reason: null });
         }
         return;
       case "FEED_DATA": {
         const now = Date.now();
         for (const e of decodeCompactFeedData(m.data)) {
+          if (e.type === "Candle") {
+            const req = candleRequests.get(e.symbol);
+            if (!req) continue;
+            req.rows.push(e.values);
+            if (isSnapshotEnd(e.values.eventFlags)) req.done(req.rows);
+            continue;
+          }
           if (!refs.has(e.symbol)) continue;
           quotes.set(e.symbol, applyContractEvent(quotes.get(e.symbol) ?? emptyContractQuote(e.symbol), e, now));
           for (const l of eventListeners) if (l.symbols.has(e.symbol)) l.onEvent(e, now);
@@ -210,6 +221,39 @@ export function subscribeTastyEvents(
     if (stateListener) listeners.delete(stateListener);
     release();
   };
+}
+
+function candleFrame(op: "add" | "remove", symbol: string, fromTime: number) {
+  return { type: "FEED_SUBSCRIPTION", channel: DXLINK_FEED_CHANNEL, [op]: [op === "add" ? { type: "Candle", symbol, fromTime } : { type: "Candle", symbol }] };
+}
+
+/**
+ * The contract's own bar history since `fromTime`, as one snapshot on the SHARED
+ * socket. `keepAlive` (the contract's streamer symbol) holds the socket open for
+ * the request. Resolves at dxFeed's SNAPSHOT_END, or null on timeout / when the
+ * stream cannot open (not the owner, not connected) — the caller falls through.
+ */
+export function requestTastyCandles(candleSymbol: string, keepAlive: string, fromTime: number, timeoutMs = 8_000): Promise<TastyCandleRow[] | null> {
+  return new Promise(resolve => {
+    if (candleRequests.has(candleSymbol)) { resolve(null); return; }
+    let settled = false;
+    const release = subscribe([keepAlive]);
+    const finish = (rows: TastyCandleRow[] | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      clearInterval(watch);
+      candleRequests.delete(candleSymbol);
+      if (feedOpen) send(candleFrame("remove", candleSymbol, fromTime));
+      release();
+      resolve(rows);
+    };
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    // A stream that will never open (guest, not configured) answers at once.
+    const watch = setInterval(() => { if (snapshot.stream === "NOT_OWNER" || snapshot.stream === "NOT_CONNECTED") finish(null); }, 200);
+    candleRequests.set(candleSymbol, { fromTime, rows: [], done: finish });
+    if (feedOpen) send(candleFrame("add", candleSymbol, fromTime));
+  });
 }
 
 const getSnapshot = () => snapshot;

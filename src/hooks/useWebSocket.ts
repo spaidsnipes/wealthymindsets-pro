@@ -37,8 +37,8 @@ import { OBSERVED_LANE_HEDGE_MS, selectObservedProviderFallback } from "@/lib/ma
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { subscribeTastyEvents } from "@/lib/broker/tastyQuoteStream";
-import { futuresProductFor } from "@/lib/broker/tastytradeFuturesChain";
-import { resolveTastyFrontMonth, tastyTimeAndSaleToMarketEvent, tastyTradeToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
+import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
+import { tastyTimeAndSaleToMarketEvent, tastyTradeToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { coinbaseProduct } from "@/lib/marketData/coinbaseProduct";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
@@ -1651,14 +1651,10 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // anyone else the lane stays silent and the REST lane keeps its own label.
     tastyLiveAtRef.current = null;
     let tastyCleanup: (() => void) | null = null;
-    const tastyProduct = classifySymbol(symbol) === "FUTURES" ? futuresProductFor(symbol) : null;
-    if (tastyProduct) {
-      fetch(`/api/broker/tastytrade/chain?futures=${encodeURIComponent(tastyProduct)}`, { cache: "no-store" })
-        .then(r => (r.ok ? r.json() : null))
-        .then(j => {
-          if (disposed || j?.state !== "OK") return;
-          const contract = resolveTastyFrontMonth(j.data);
-          if (!contract) return;
+    {
+      tastyFrontMonthFor(symbol)
+        .then(contract => {
+          if (disposed || !contract) return;
           let index = 0;
           let lastPrintAt = 0;
           tastyCleanup = subscribeTastyEvents([contract.streamer], (e, receivedAtMs) => {

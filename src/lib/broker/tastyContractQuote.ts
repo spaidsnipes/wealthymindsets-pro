@@ -25,6 +25,8 @@ export const CONTRACT_EVENT_FIELDS = {
   // Every print, with the exchange-reported aggressor (BUY / SELL / UNDEFINED).
   // Proven on the owner's live socket 2026-10-01: `/ESZ26:XCME` 7766 × 1 BUY at 7765.75 / 7766.
   TimeAndSale: ["eventType", "eventSymbol", "time", "price", "size", "aggressorSide", "bidPrice", "askPrice"],
+  // History bars by snapshot (see adapters/tastytradeCandles.ts for the receipts).
+  Candle: ["eventType", "eventSymbol", "eventFlags", "time", "open", "high", "low", "close", "volume"],
 } as const;
 
 export type ContractEventType = keyof typeof CONTRACT_EVENT_FIELDS;
@@ -138,6 +140,8 @@ export function applyContractEvent(prev: ContractQuoteState, e: ContractEvent, n
       return { ...prev, openInterest: keep(v.openInterest, prev.openInterest), prevClose: keep(v.prevDayClosePrice, prev.prevClose) };
     case "TimeAndSale":
       return { ...prev, last: keep(v.price, prev.last), tradeAt: nowMs };
+    case "Candle":
+      return prev;
   }
 }
 

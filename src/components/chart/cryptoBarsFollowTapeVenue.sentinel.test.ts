@@ -23,6 +23,12 @@ describe("crypto bars follow the tape's venue", () => {
     const block = code.slice(at, at + 400);
     expect(block).toContain("parseExchangeSymbol(symbol) ? null : coinbaseProduct(symbol)");
     expect(block).toContain('exchange: "coinbase" as const');
-    expect(code.indexOf("const tapeCoinbase =")).toBeLessThan(code.indexOf("const alpacaData   = exchangeData ? null"));
+    // 2026-10-01: tastytrade's futures door (door 0) also comes after the venue owner.
+    const tasty = code.indexOf("const tastyData    = exchangeData ? null");
+    const alpaca = code.indexOf("const alpacaData   = (exchangeData || tastyData) ? null");
+    expect(tasty).toBeGreaterThan(0);
+    expect(alpaca).toBeGreaterThan(0);
+    expect(code.indexOf("const tapeCoinbase =")).toBeLessThan(tasty);
+    expect(tasty).toBeLessThan(alpaca);
   });
 });
