@@ -9,7 +9,7 @@ import { requireAuth } from "@/lib/requireAuth";
 import { webullOwnerGate } from "@/lib/broker/webullOwner";
 import { webullBrokerConfigFromEnv } from "@/lib/broker/adapters/webullBrokerConnection";
 import { listWebullAccounts, listWebullExecutions } from "@/lib/broker/adapters/webullOrders";
-import { readWebullExecutions } from "@/lib/broker/webullFills";
+import { readWebullExecutions, readWebullOrderHistoryFills } from "@/lib/broker/webullFills";
 import { resolveWebullSessionToken, webullSessionStore } from "@/lib/marketData/webullSessionStore";
 import { getTastytradeAccounts, getTastytradeLiveOrders, getTastytradeTradeTransactions, tastytradeConfigStatus } from "@/lib/tastytrade";
 
@@ -85,7 +85,7 @@ async function webullJournalAccounts(startDate: string, kv: ReturnType<typeof or
       const r = await listWebullExecutions(fetch, c, a.accountId, startDate);
       if (!r.ok) { out.push({ tail, broker: "webull", state: "UNREADABLE", reason: r.reason, orders: [], fills: [] }); continue; }
       const fills = [];
-      for (const f of readWebullExecutions(r.payload)) {
+      for (const f of r.source === "ORDER_HISTORY" ? readWebullOrderHistoryFills(r.payload) : readWebullExecutions(r.payload)) {
         const link = kv && f.clientOrderId ? await getOrderDecision(kv, "webull", f.clientOrderId).catch(() => null) : null;
         fills.push({ ...f, decisionId: link?.decisionId ?? null, sentFromWm: !!link });
       }

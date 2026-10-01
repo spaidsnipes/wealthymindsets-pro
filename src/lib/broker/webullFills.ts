@@ -60,3 +60,34 @@ export function readWebullExecutions(payload: unknown): WbFill[] {
   for (const r of list) { const f = readWebullExecution(r); if (f && !seen.has(f.id)) seen.set(f.id, f); }
   return [...seen.values()].sort((a, b) => (a.executedAt ?? "").localeCompare(b.executedAt ?? ""));
 }
+
+/**
+ * ORDER HISTORY → fills, for hosts that do not serve executions: one fill per
+ * order that filled, at Webull's own filled price and time. Groups
+ * (`{ orders: [...] }`) and bare orders are both read; nothing unfilled is
+ * reported as a fill.
+ */
+export function readWebullOrderHistoryFills(payload: unknown): WbFill[] {
+  const top = Array.isArray(payload) ? payload : Array.isArray((payload as { data?: unknown })?.data) ? (payload as { data: unknown[] }).data : [];
+  const orders: Record<string, unknown>[] = [];
+  for (const g of top) {
+    const o = (g ?? {}) as Record<string, unknown>;
+    if (Array.isArray(o.orders)) for (const d of o.orders) orders.push({ client_order_id: o.client_order_id, ...((d ?? {}) as Record<string, unknown>) });
+    else orders.push(o);
+  }
+  const seen = new Map<string, WbFill>();
+  for (const o of orders) {
+    const id = s(o.order_id) ?? (o.order_id != null ? String(o.order_id) : null);
+    const qty = n(o.filled_quantity);
+    const price = n(o.filled_price);
+    if (!id || !(qty && qty > 0) || price == null || seen.has(id)) continue;
+    const side = (s(o.side) ?? "").toUpperCase();
+    seen.set(id, {
+      id: `order:${id}`, orderId: id, clientOrderId: s(o.client_order_id), symbol: s(o.symbol),
+      instrumentType: s(o.instrument_type), action: side ? side[0] + side.slice(1).toLowerCase() : null,
+      quantity: qty, price, value: null, fees: 0, feesReported: false,
+      executedAt: isoTime(o.filled_time ?? o.filled_time_at ?? o.place_time),
+    });
+  }
+  return [...seen.values()].sort((a, b) => (a.executedAt ?? "").localeCompare(b.executedAt ?? ""));
+}

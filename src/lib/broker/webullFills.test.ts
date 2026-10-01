@@ -16,3 +16,15 @@ describe("Webull executions as Journal fills", () => {
     expect(fills[0]!.clientOrderId).toBe("c1");
   });
 });
+
+describe("Webull order history as Journal fills (when executions is not served)", () => {
+  it("one fill per filled order, groups or bare, never an unfilled one", async () => {
+    const { readWebullOrderHistoryFills } = await import("./webullFills");
+    const fills = readWebullOrderHistoryFills([
+      { client_order_id: "c9", orders: [{ order_id: "o9", symbol: "TSLA", side: "BUY", filled_quantity: "1", filled_price: "3.40", filled_time: 1790870000000 }] },
+      { order_id: "o10", symbol: "TSLA", side: "SELL", filled_quantity: "0", filled_price: null },
+    ]);
+    expect(fills).toHaveLength(1);
+    expect(fills[0]).toMatchObject({ id: "order:o9", clientOrderId: "c9", action: "Buy", quantity: 1, price: 3.4, feesReported: false });
+  });
+});

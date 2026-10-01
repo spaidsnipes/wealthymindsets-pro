@@ -360,6 +360,13 @@ export const WEBULL_SDK_CONTRACT = {
     needsMarketData: false,
     sdkSource: "webull/trade/request/v2/get_order_executions_request_v2.py",
   },
+  /** Fallback for the Journal when executions/list is not served (HTTP 404 on this host, 2026-10-01). */
+  ORDER_HISTORY: {
+    path: "/trading/orders/historical-orders/list",
+    apiVersion: "v2",
+    needsMarketData: false,
+    sdkSource: "webull/trade/request/v3/get_order_history_request.py",
+  },
   /** Symbol search lookups (exact symbols per category; Webull has no free-text search). */
   INSTRUMENT_FUTURES_CONTRACTS: {
     path: "/trading/instruments/futures/contracts/list",

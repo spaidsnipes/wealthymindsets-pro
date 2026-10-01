@@ -364,12 +364,21 @@ export async function listWebullExecutions(
   config: WebullOrderConfig,
   accountId: string,
   startDate: string,
-): Promise<{ readonly ok: boolean; readonly payload: unknown; readonly reason?: string }> {
+): Promise<{ readonly ok: boolean; readonly payload: unknown; readonly reason?: string; readonly source?: "ORDER_HISTORY" }> {
   const t = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ORDER_EXECUTIONS, {
     query: { account_id: accountId, start_date: startDate, end_date: new Date().toISOString().slice(0, 10) },
   });
   if (t.kind === "NO_ANSWER") return { ok: false, payload: null, reason: t.reason };
-  return t.status >= 200 && t.status < 300 ? { ok: true, payload: t.payload } : { ok: false, payload: t.payload, reason: `HTTP ${t.status} ${providerWords(t.payload)}` };
+  if (t.status >= 200 && t.status < 300) return { ok: true, payload: t.payload };
+  // Not served on this host (HTTP 404, 2026-10-01): the order history carries each order's fill.
+  if (t.status === 404) {
+    const h = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ORDER_HISTORY, {
+      query: { account_id: accountId, start_date: startDate, end_date: new Date().toISOString().slice(0, 10), page_size: "100" },
+    });
+    if (h.kind === "NO_ANSWER") return { ok: false, payload: null, reason: h.reason };
+    return h.status >= 200 && h.status < 300 ? { ok: true, payload: h.payload, source: "ORDER_HISTORY" } : { ok: false, payload: h.payload, reason: `HTTP ${h.status} ${providerWords(h.payload)}` };
+  }
+  return { ok: false, payload: t.payload, reason: `HTTP ${t.status} ${providerWords(t.payload)}` };
 }
 
 function providerWords(payload: unknown): string {
