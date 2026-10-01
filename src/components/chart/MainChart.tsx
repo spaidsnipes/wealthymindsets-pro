@@ -593,6 +593,7 @@ import { PROFILE_INK_AT_REST, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength
 import { ClearOfOpenDoor } from "@/components/os/ClearOfOpenDoor";
 import { doorInsetFor, openDoorEdge } from "@/lib/os/openDoorEdge";
 import { clipOutChips } from "@/lib/chart/clipOutChips";
+import { barSlotAt } from "@/lib/chart/barSlotAt";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
 // NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
@@ -20435,7 +20436,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             try { const s = tsLc.options().barSpacing; if (Number.isFinite(s) && s > 0) spacingL = s; } catch { /* keep default */ }
             const bsL = barsRef.current ?? [];
             const barsSince = (t: number) => { let n = 0; for (let i = bsL.length - 1; i >= 0 && Number(bsL[i].time) > t; i--) n++; return n; };
-            const xOf = (t: number) => { const x = tsLc.timeToCoordinate(t as never); return x == null ? null : +x; };
+            // A pool's moments are placed on the bar slot they fall in: a time
+            // inside a bar has no coordinate of its own (barSlotAt).
+            const slotTimesL = bsL.map(b => Number(b.time));
+            const xOf = (t: number) => {
+              const slot = barSlotAt(slotTimesL, t);
+              if (slot == null) return null;
+              const x = tsLc.timeToCoordinate(slot as never);
+              return x == null ? null : +x;
+            };
             // THE LIVE EDGE: the newest bar's slot. A standing pool runs to here.
             const lastBarL = bsL.length > 0 ? bsL[bsL.length - 1] : null;
             const xLastBar = lastBarL ? xOf(Number(lastBarL.time)) : null;
