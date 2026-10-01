@@ -111,3 +111,29 @@ describe("H-801 · the analogue fan — prior sessions' paths from the open, lai
     expect(fan.steps[5]).toMatchObject({ p10: 103, p90: 105 });
   });
 });
+
+describe("the defined session clock (24/5 feeds with no overnight gap)", () => {
+  it("a gapless feed is one session by gaps, but splits by the session key it is given", () => {
+    const step = 300;
+    const t0 = 1_700_000_000 - (1_700_000_000 % 86_400);
+    const bars = Array.from({ length: 4 * 288 }, (_, i) => {
+      const day = Math.floor(i / 288), k = i % 288;
+      const open = 100 + day + k * 0.01;
+      return { time: t0 + i * step, open, high: open + 0.5, low: open - 0.5, close: open + 0.01 };
+    });
+    expect(selectExpectedEnvelope(bars).reason).toBe("TOO_FEW_SESSIONS");
+    const byDay = (sec: number) => String(Math.floor((sec - t0) / 86_400));
+    const vm = selectExpectedEnvelope(bars, byDay);
+    expect(vm.drawn).toBe(true);
+    expect(vm.sessions).toBe(3);
+    expect(vm.sessionStart).toBe(t0 + 3 * 86_400);
+    expect(vm.fan!.nowK).toBe(287);
+  });
+
+  it("bars the key places in no session are left out", () => {
+    const t0 = 1_700_006_400;
+    const bars = Array.from({ length: 40 }, (_, i) => ({ time: t0 + i * 300, open: 10, high: 11, low: 9, close: 10 }));
+    const vm = selectExpectedEnvelope(bars, sec => ((sec - t0) / 300) % 10 < 8 ? String(Math.floor((sec - t0) / 3000)) : null);
+    expect(vm.sessions).toBe(3);
+  });
+});

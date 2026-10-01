@@ -115,11 +115,32 @@ const median = (xs: number[]) => {
   return s.length ? s[Math.floor(s.length / 2)] : 0;
 };
 
-export function selectExpectedEnvelope(input: readonly EnvelopeBar[] | null | undefined): ExpectedEnvelopeVM {
-  const bars = [...(input ?? [])]
+/**
+ * `sessionKey` — the DEFINED session clock (sessionWindow.sessionKeyOf) for a
+ * sessioned market. Without it sessions are found by gaps, and a feed that
+ * fills the overnight (TSLA's 24/5 prints, serving 2026-10-01: one "session"
+ * of 1,123 five-minute bars, the whole fan above the pane) has none. With it,
+ * each published session is one sample and bars outside every session are
+ * left out. Crypto passes nothing: no clock is invented for a 24/7 venue.
+ */
+export function selectExpectedEnvelope(
+  input: readonly EnvelopeBar[] | null | undefined,
+  sessionKey?: (sec: number) => string | null,
+): ExpectedEnvelopeVM {
+  const sorted = [...(input ?? [])]
     .filter(b => [b.time, b.open, b.high, b.low, b.close].every(Number.isFinite))
     .sort((a, b) => a.time - b.time);
-  const idx = sessionsByGap(bars.map(b => b.time));
+  const keys = sessionKey ? sorted.map(b => sessionKey(b.time)) : null;
+  const bars = keys ? sorted.filter((_, i) => keys[i] != null) : sorted;
+  let idx: number[];
+  if (keys) {
+    const kept = keys.filter((k): k is string => k != null);
+    idx = [];
+    let n = 0;
+    kept.forEach((k, i) => { if (i > 0 && k !== kept[i - 1]) n++; idx.push(n); });
+  } else {
+    idx = sessionsByGap(bars.map(b => b.time));
+  }
   const groups = new Map<number, EnvelopeBar[]>();
   bars.forEach((b, i) => { const g = groups.get(idx[i]) ?? []; g.push(b); groups.set(idx[i], g); });
   const ordered = [...groups.keys()].sort((a, b) => a - b).map(k => groups.get(k)!);

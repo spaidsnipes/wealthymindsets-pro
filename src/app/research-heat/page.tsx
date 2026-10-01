@@ -171,6 +171,11 @@ export default function ResearchHeatArchivePage() {
                   <div style={{ fontSize: 10, letterSpacing: 1.2, color: WM.text.muted, fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>
                     Moved most since · {snap.period} reading then → now ({now.quality.toLowerCase()}, observed {when(now.observedAt)})
                   </div>
+                  {shifts.every(r => Math.abs(r.delta) < 0.005) ? (
+                    <div data-testid="heat-unchanged" style={{ fontSize: 12.5, color: WM.text.body }}>
+                      Nothing has moved since this was saved — the source is still reporting the same observation.
+                    </div>
+                  ) : (
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>
                     <tbody>
                       {shifts.map(r => (
@@ -184,6 +189,7 @@ export default function ResearchHeatArchivePage() {
                       ))}
                     </tbody>
                   </table>
+                  )}
                 </div>
               ) : (
                 <button type="button" data-testid="heat-compare-now" onClick={compare} disabled={nowState === "LOADING"}

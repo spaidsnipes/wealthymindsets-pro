@@ -23,7 +23,7 @@ import { DataVersionGuard } from "@/lib/chartContext";
 import { shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketData/tapeCvd";
-import { selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
+import { selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { nearestFreeLabelY } from "@/lib/chart/labelSlot";
 import {
   PHASE_WORD, PHASE_MEANING, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
@@ -14959,7 +14959,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         delete ds.expectedEnvelopeClipped;
         if (layerOnRef.current.expectedEnvelope === true && att.paints("expectedEnvelope") && srs) {
           const barsE = (barsRef.current ?? []).map(b => ({ time: Number(b.time), open: b.open, high: b.high, low: b.low, close: b.close }));
-          const env = selectExpectedEnvelope(barsE);
+          // The DEFINED session clock for sessioned markets (equity RTH/ETH,
+          // Globex, FX day); none for 24/7 venues or daily-and-longer charts.
+          const winE = sessionWindowFor(symbol, timeframe, !!extendedHours);
+          const keyE = winE.kind === "CONTINUOUS_ET_DAY" || winE.kind === "DAILY_WINDOW" || winE.kind === "NO_CLOCK"
+            ? undefined
+            : (sec: number) => sessionKeyOf(sec, winE);
+          const env = selectExpectedEnvelope(barsE, keyE);
           ds.expectedEnvelope = env.drawn
             ? `UP:${env.up!.matchedBy}/${env.sessions}${env.up!.outside ? "!" : ""}|DN:${env.down!.matchedBy}/${env.sessions}${env.down!.outside ? "!" : ""}`
             : env.reason;
