@@ -24,3 +24,10 @@ describe("the profile-slice ticket stands away from the Living lane", () => {
     expect(SRC).toContain('const wallClass = sel.wall === "LEFT" ? "top-2 left-2" : "top-16 right-[76px]";');
   });
 });
+
+describe("§40 · a print's Inspect stands on the LEFT wall — prints are born at the live edge (2026-10-01)", () => {
+  it("cluster, delta-zone and single-print cards read from the left", () => {
+    expect(SRC).toContain('const PRINT_WALL = "left-2";');
+    expect((SRC.match(/absolute top-16 \$\{PRINT_WALL\}/g) ?? []).length).toBe(3);
+  });
+});

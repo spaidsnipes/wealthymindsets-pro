@@ -960,6 +960,11 @@ export function ChartInspectTicket({
 
   if (selectedPrint) {
     const p = selectedPrint;
+    // §40 · INSPECT STANDS ON THE WALL AWAY FROM THE OBJECT — for a print too
+    // (serving MNQ 1m, 2026-10-01: a cluster at the live edge opened its card on
+    // the RIGHT wall, over the forming candle and the very print it described).
+    // Prints are born at the live edge, so their cards read from the LEFT wall.
+    const PRINT_WALL = "left-2";
     const stamped = p.aggressorMethod === "PROVIDER" || p.aggressorMethod === "MAKER_SIDE_INVERTED";
     const inferred = p.aggressorMethod === "TICK_RULE" || p.aggressorMethod === "QUOTE_TEST";
     // H-701B · the size relation, as a count among what this chart retained.
@@ -982,7 +987,7 @@ export function ChartInspectTicket({
         sessionRank: p.sessionRank ? { pct: m.pct, prints: p.sessionRank.prints } : null,
       });
       return (
-        <section className="absolute top-16 right-[76px] z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+        <section className={`absolute top-16 ${PRINT_WALL} z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md`}
           data-testid="chart-inspect-ticket" data-inspect-print={p.printKey} data-inspect-cluster={c.n}
           aria-label={`Inspect selected big-trade cluster for ${p.symbol}`}>
           <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
@@ -1041,7 +1046,7 @@ export function ChartInspectTicket({
       // "executed", no "at", no execution identity (bubbleClaim.ts).
       const net = p.ask - p.bid;
       return (
-        <section className="absolute top-16 right-[76px] z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+        <section className={`absolute top-16 ${PRINT_WALL} z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md`}
           data-testid="chart-inspect-ticket" data-inspect-delta-zone={p.printKey}
           aria-label={`Inspect selected delta zone for ${p.symbol}`}>
           <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
@@ -1062,7 +1067,7 @@ export function ChartInspectTicket({
       );
     }
     return (
-      <section className="absolute top-16 right-[76px] z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+      <section className={`absolute top-16 ${PRINT_WALL} z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md`}
         data-testid="chart-inspect-ticket" data-inspect-print={p.printKey}
         aria-label={`Inspect selected print for ${p.symbol}`}>
         <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
