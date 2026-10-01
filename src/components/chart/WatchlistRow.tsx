@@ -86,6 +86,8 @@ export interface WatchlistRowProps {
   readonly changeObserved: boolean;
   readonly changeWindow: ChangeWindow;
   readonly src?: string;
+  /** The price is a live observation inside its freshness budget (the chart's own lane). */
+  readonly fresh?: boolean;
   /** SF-D01 — a provider answered and WM declined it. `price` is 0. */
   readonly refusal?: string;
   readonly isActive: boolean;
@@ -99,7 +101,7 @@ export interface WatchlistRowProps {
 }
 
 export function WatchlistRow({
-  sym, fullName, price, changePct, changeObserved, changeWindow, src, refusal,
+  sym, fullName, price, changePct, changeObserved, changeWindow, src, fresh, refusal,
   isActive, up, dirColor, dp, sessionNow, onSelect, onContextMenu,
 }: WatchlistRowProps): React.ReactElement {
   const priced = price > 0 || !!refusal;
@@ -109,7 +111,7 @@ export function WatchlistRow({
   // tooltip each derived closure separately, the tooltip silently kept the
   // pre-closure verdict. One row, one fact — so one variable.
   const sessionOpen = sessionNow ? provenSessionClosure(sym, sessionNow) : null;
-  const observation = { present: Number.isFinite(price) && price > 0 };
+  const observation = { present: Number.isFinite(price) && price > 0, ...(fresh ? { fresh: true } : {}) };
   const badge = priceSourceBadge(src ?? "unavailable", price > 0, sessionOpen, observation);
   const capabilityReport = selectPerCapabilityFidelity({
     source: src ?? "unavailable",

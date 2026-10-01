@@ -5297,6 +5297,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               description="Your watchlist, on this device. Tap a symbol to load it on the chart."
               closeLabel="Close watchlist"
               width={320}
+              // Garden 18 §XIII: the market stays visible beside the list — no veil, no blur.
+              backdrop="clear"
               onClose={() => setWatchlistOpen(false)}
               fallbackTriggerRef={watchlistSheetTriggerRef}
             >

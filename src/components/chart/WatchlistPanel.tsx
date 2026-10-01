@@ -59,6 +59,7 @@ import { selectQuoteChange } from "@/lib/quoteChange";
 import { readSymbolList } from "@/lib/marketData/storedSymbolList";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { coerceChangeWindow, type ChangeWindow } from "@/lib/marketData/changeWindow";
+import { WATCH_LIVE_FRESH_MS, useTastyWatchQuotes } from "@/lib/broker/useTastyWatchQuotes";
 
 interface FinnhubQuote {
   price: number; change: number; changePct: number; changeObserved: boolean; changeWindow: ChangeWindow; src: string;
@@ -601,6 +602,10 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
       default:        return rows;   // "manual" preserves the user's own ordering
     }
   }, [items, search, viewFilter, sortMode]);
+  // §LIV light quotes for the rows on the list; a 2s clock grades their freshness.
+  const liveQuotes = useTastyWatchQuotes(React.useMemo(() => items.map(i => i.sym), [items]));
+  const [nowTick, setNowTick] = React.useState(() => Date.now());
+  React.useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 2000); return () => clearInterval(t); }, []);
 
   const addSymbol = (explicit?: string) => {
     const sym = (explicit ?? addInput).trim().toUpperCase();
@@ -925,7 +930,17 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
 
             {/* Symbol rows */}
             <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
-              {filtered.map(item => {
+              {filtered.map(rawItem => {
+                // §LXXXIX: the chart's live lane, when it is speaking, is the row's truth too.
+                const lv = liveQuotes.get(rawItem.sym.toUpperCase());
+                const liveFresh = !!lv && nowTick - lv.at < WATCH_LIVE_FRESH_MS;
+                const refClose = rawItem.price > 0 && rawItem.changeObserved ? rawItem.price / (1 + rawItem.changePct / 100) : null;
+                const item = liveFresh && lv ? {
+                  ...rawItem,
+                  price: lv.price,
+                  src: "tastytrade",
+                  ...(refClose ? { change: lv.price - refClose, changePct: ((lv.price - refClose) / refClose) * 100 } : {}),
+                } : rawItem;
                 const up = item.changeObserved && item.change >= 0;
                 // With no observed change there is no direction to assert. Red
                 // here would be a fabricated decline, green a fabricated rally.
@@ -945,6 +960,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                     changeObserved={item.changeObserved}
                     changeWindow={item.changeWindow}
                     src={item.src}
+                    fresh={liveFresh}
                     refusal={item.refusal}
                     isActive={isActive}
                     up={up}
