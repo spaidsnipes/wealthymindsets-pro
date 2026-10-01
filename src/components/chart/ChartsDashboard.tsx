@@ -355,6 +355,7 @@ import { bookBucketStep, placeBookEventsOnBars } from "@/lib/marketData/bookLiqu
 import { useBookLiquidityLifecycle } from "@/lib/marketData/useBookLiquidityLifecycle";
 import { useWebullLiveCrypto } from "@/lib/marketData/useWebullLiveCrypto";
 import { DiscoveryUnusualStates } from "@/components/scanner/DiscoveryUnusualStates";
+import { InstrumentContextStrip } from "./InstrumentContextStrip";
 import { BOARD_STOCK_SYMBOLS } from "@/lib/marketData/sp500Board";
 import { selectAuctionState } from "@/lib/marketData/viewModels/selectAuctionState";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
@@ -787,6 +788,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * toolbar owned privately could not be reached by it.
    */
   const [chartEquipmentOpen, setChartEquipmentOpen] = useState(false);
+  // Garden 18 §IX: the context strip's Indicators button asks ChartToolbar to open its own picker.
+  const [indicatorsRequest, setIndicatorsRequest] = useState(0);
 
   // ── WM VP indicators (draw ON chart canvas) ─────────────────
   const [fixedVPActive,   setFixedVPActive]   = useState<boolean>(() => lsGet("wm_fixedVP", false) as boolean);
@@ -5371,6 +5374,23 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               on Financials / Valuation / Corporate Actions / etc. Mount them only
               when the actual chart is showing so a trader on Financials never
               clicks 1M and gets nothing. */}
+          {/* Garden 18 §VIII/§IX — the instrument's context and the chart-level
+              Indicators control, back on the glass above the market. */}
+          {!gridView && (
+            <InstrumentContextStrip
+              symbol={symbol}
+              assetClass={assetClass}
+              activeTab={activeTab}
+              onTab={(tab) => setActiveTab(tab)}
+              onRoom={(href) => window.location.assign(href)}
+              onIndicators={() => {
+                if (activeTab !== "Chart" && activeTab !== "Options") setActiveTab("Chart");
+                setChartEquipmentOpen(true);
+                setIndicatorsRequest(n => n + 1);
+              }}
+              indicatorCount={activeInds.size}
+            />
+          )}
           {(activeTab === "Chart" || activeTab === "Options") && <ChartToolbar
             leadingSlot={
               <div className="wm-chart-toolbar-asset-class">
@@ -5431,6 +5451,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             */
             equipmentOpen={chartEquipmentOpen}
             onEquipmentClose={() => setChartEquipmentOpen(false)}
+            indicatorsRequest={indicatorsRequest}
             /*
               THE PROFILES MENU — one door in front of every profile this repo
               owns (Founder: "there should also have a profiles drop down for

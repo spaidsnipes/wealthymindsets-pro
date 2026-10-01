@@ -1381,3 +1381,11 @@ input[type=range]::-webkit-slider-runnable-track {
     flex-basis: 100%;
   }
 }
+
+/* Garden 18 §VIII instrument context strip — DESKTOP ONLY. Phone/tablet are
+   phase-gated: the Founder approves that pass separately, so below the
+   desktop rail breakpoint the strip does not render and those layouts are
+   exactly as they were. */
+@media (max-width: 900px) {
+  .wm-instrument-context-strip { display: none !important; }
+}

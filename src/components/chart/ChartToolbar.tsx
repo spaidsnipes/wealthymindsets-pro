@@ -655,6 +655,8 @@ interface ChartToolbarProps {
    * through the dashboard to reach its new home.
    */
   equipmentOpen?:      boolean;
+  /** Garden 18 §IX: a count that, when it changes, opens THIS toolbar's own Indicators picker (the strip's Indicators button asks; the picker stays one owner). */
+  indicatorsRequest?:  number;
   onEquipmentClose?:   () => void;
 }
 
@@ -714,13 +716,14 @@ export function ChartToolbar({
   onInstrumentProfile, instrumentProfileActive,
   onReplay, replayActive, onCompare, compareActive,
   onToggleStudyTools, studyToolsOpen, onViews, viewsOpen, activeViewLabel, profilesSlot,
-  equipmentOpen, onEquipmentClose,
+  equipmentOpen, onEquipmentClose, indicatorsRequest = 0,
   chartLayout = "1", onLayoutChange,
 }: ChartToolbarProps) {
   const [symbolSearch,   setSymbolSearch]  = useState("");
   const [symbolOpen,     setSymbolOpen]    = useState(false);
   const [symCat,         setSymCat]        = useState("All");
   const [indicatorOpen,  setIndicatorOpen] = useState(false);
+  useEffect(() => { if (indicatorsRequest > 0) setIndicatorOpen(true); }, [indicatorsRequest]);
   const [advancedOpen,   setAdvancedOpen]  = useState(false);
   const [extendedHoursLocal, setExtendedHoursLocal] = useState(false);
   // Controlled by the room when it passes its saved value; local otherwise.

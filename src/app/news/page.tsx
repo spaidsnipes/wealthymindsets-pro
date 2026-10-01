@@ -682,6 +682,11 @@ export default function NewsPage() {
   const [sourceFilter, setSourceFilter] = useState("All Sources");
   const [tagFilter,    setTagFilter]    = useState("All");
   const [search,       setSearch]       = useState("");
+  // Garden 18 §VIII: the chart's NEWS / RESEARCH entry lands here scoped to its instrument (?q=SYMBOL).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setSearch(q);
+  }, []);
   const [liveMode,     setLiveMode]     = useState(true);
   const [loading,      setLoading]      = useState(true);
   const [expandedId,   setExpandedId]   = useState<number | null>(null);
