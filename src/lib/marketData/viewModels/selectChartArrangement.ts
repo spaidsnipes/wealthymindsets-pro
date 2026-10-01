@@ -198,6 +198,8 @@ const ARRANGEMENTS: readonly ArrangementSpec[] = [
     // armed with the readings they measure, so choosing ORDER FLOW shows them.
     arms: [
       "ABSORPTION",
+      // Split from the shelf (Garden 18 §XXI); the Order Flow view keeps both.
+      "EXHAUSTION",
       "ANATOMY_CARDS",
       "QUESTION_LENS",
       "IMBALANCE_STACK",

@@ -237,10 +237,10 @@ describe("the declaration is printable chrome, not a debug string", () => {
     expect(out.activeId).toBe("ORDER_FLOW");
     expect(
       out.declaration,
-      "the chart declares ORDER FLOW on a tape that can draw only four of its " +
-        "seven readings, with no indication that three are mute. That is the " +
+      "the chart declares ORDER FLOW on a tape that can draw only five of its " +
+        "eight readings (Exhaustion split from the shelf), with no indication that three are mute. That is the " +
         "beautiful lie this compiler exists to prevent.",
-    ).toMatch(/4 OF 7 DRAWING/);
+    ).toMatch(/5 OF 8 DRAWING/);
   });
 
   it("stays clean when the desk is fully deliverable", () => {

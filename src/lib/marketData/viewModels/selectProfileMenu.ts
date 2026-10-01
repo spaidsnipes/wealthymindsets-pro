@@ -45,6 +45,7 @@ export type ProfileId =
   | "SESSION"
   | "DELTA_VP"
   | "ABSORPTION"
+  | "EXHAUSTION"
   | "IMBALANCE_STACK"
   | "VALUE_CANDLE"
   | "CLARITY_CANDLE"
@@ -167,6 +168,8 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   VISIBLE_RANGE_PROFILE: "PROFILE",
   ANCHORED_RANGE: "PROFILE",
   ABSORPTION: "ORDER_FLOW",
+  // Garden 18 §XXI: its own sense — no longer drawn by the shelf switch.
+  EXHAUSTION: "ORDER_FLOW",
   ANATOMY_CARDS: "ORDER_FLOW",
   IMBALANCE_STACK: "ORDER_FLOW",
   DELTA_DIVERGENCE: "ORDER_FLOW",
@@ -326,11 +329,19 @@ const CATALOGUE: readonly ProfileSpec[] = [
   },
   {
     id: "ABSORPTION",
-    label: "Absorption vs Exhaustion",
-    what: "effort against displacement: absorption zones and exhaustion marks, pinned at price",
+    label: "Absorption Shelf",
+    what: "force is hitting, price is holding — the shelf where heavy effort met no displacement",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/selectAbsorptionAnatomy.ts",
-    levels: ["Zone high", "Zone low", "Exhaustion extreme"],
+    levels: ["Zone high", "Zone low"],
+  },
+  {
+    id: "EXHAUSTION",
+    label: "Exhaustion",
+    what: "push weakening — effort faded as price extended, then failed to follow through",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/selectAbsorptionAnatomy.ts",
+    levels: ["Exhaustion extreme"],
   },
 
   /*

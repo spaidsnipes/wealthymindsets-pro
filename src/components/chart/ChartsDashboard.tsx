@@ -844,6 +844,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * it painting. What changed is only which way it points before anyone asks.
    */
   const [absorptionAnatomy, setAbsorptionAnatomy] = useState<boolean>(() => lsGet("wm_absorptionAnatomy", true) as boolean);
+  // Garden 18 §XXI: Exhaustion is its own switch (it rode the shelf's until now).
+  const [exhaustionOn, setExhaustionOn] = useState<boolean>(() => lsGet("wm_exhaustion", lsGet("wm_absorptionAnatomy", true)) as boolean);
 
   /*
     ── THE FOUR ORDER-FLOW LAYERS THE TRADER MAY QUIET ───────────────────────
@@ -1139,6 +1141,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_fixedVP",      fixedVPActive);
   usePersistOnChange("wm_sessionVP",    sessionVPChart);
   usePersistOnChange("wm_absorptionAnatomy",   absorptionAnatomy);
+  usePersistOnChange("wm_exhaustion",          exhaustionOn);
   usePersistOnChange("wm_ofImbalanceStack",    imbalanceStackOn);
   usePersistOnChange("wm_ofValueCandle",       valueCandleOn);
   usePersistOnChange("wm_ofClarityCandle",     clarityCandleOn);
@@ -3210,6 +3213,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   FIXED_RANGE: fixedVPActive,
                   SESSION: sessionVPChart,
                   ABSORPTION: absorptionAnatomy,
+                  EXHAUSTION: exhaustionOn,
                   // Delta + VP is ARMED, not drawn — it is active exactly when
                   // its drawing tool is the one the cursor is holding.
                   DELTA_VP: drawingTool === "delta-vp",
@@ -3249,6 +3253,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
                   else if (id === "SESSION") setSessionVPChart(v => !v);
                   else if (id === "ABSORPTION") setAbsorptionAnatomy(v => !v);
+                  else if (id === "EXHAUSTION") setExhaustionOn(v => !v);
                   else if (id === "IMBALANCE_STACK") setImbalanceStackOn(v => !v);
                   else if (id === "VALUE_CANDLE") setValueCandleOn(v => !v);
                   else if (id === "CLARITY_CANDLE") setClarityCandleOn(v => !v);
@@ -3502,6 +3507,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.FIXED_RANGE !== undefined) setFixedVPActive(s.FIXED_RANGE);
       if (s.SESSION !== undefined) setSessionVPChart(s.SESSION);
       if (s.ABSORPTION !== undefined) setAbsorptionAnatomy(s.ABSORPTION);
+      if (s.EXHAUSTION !== undefined) setExhaustionOn(s.EXHAUSTION);
       if (s.IMBALANCE_STACK !== undefined) setImbalanceStackOn(s.IMBALANCE_STACK);
       if (s.VALUE_CANDLE !== undefined) setValueCandleOn(s.VALUE_CANDLE);
       if (s.CLARITY_CANDLE !== undefined) setClarityCandleOn(s.CLARITY_CANDLE);
@@ -3555,6 +3561,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       FIXED_RANGE: fixedVPActive,
       SESSION: sessionVPChart,
       ABSORPTION: absorptionAnatomy,
+      EXHAUSTION: exhaustionOn,
       DELTA_VP: drawingTool === "delta-vp",
       ANCHORED_RANGE: drawingTool === "anchored-vp",
       IMBALANCE_STACK: imbalanceStackOn,
@@ -5574,6 +5581,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   FIXED_RANGE: fixedVPActive,
                   SESSION: sessionVPChart,
                   ABSORPTION: absorptionAnatomy,
+                  EXHAUSTION: exhaustionOn,
                   DELTA_VP: drawingTool === "delta-vp",
                   ANCHORED_RANGE: drawingTool === "anchored-vp",
                   IMBALANCE_STACK: imbalanceStackOn,
@@ -6261,6 +6269,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       fixedVPActive={fixedVPActive}
                       sessionVPActive={sessionVPChart}
                       absorptionAnatomyActive={absorptionAnatomy}
+                      exhaustionOnChart={exhaustionOn}
                       /*
                         THE STACK GOES ON THE PRICE, NOT ONLY IN THE DRAWER.
 

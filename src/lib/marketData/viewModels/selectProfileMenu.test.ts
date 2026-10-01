@@ -22,6 +22,8 @@ const ALL_IDS: readonly ProfileId[] = [
   "SESSION",
   "DELTA_VP",
   "ABSORPTION",
+  // Garden 18 §XXI. Same effort series as the shelf — bars only.
+  "EXHAUSTION",
   "IMBALANCE_STACK",
   "VALUE_CANDLE",
   // F05A. Body efficiency from OHLC — bars only.

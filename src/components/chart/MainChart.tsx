@@ -1248,6 +1248,8 @@ interface Props {
    * ABSORPTION ZONE band directly in price/time space. See the draw block.
    */
   absorptionAnatomyActive?: boolean;
+  /** Garden 18 §XXI: Exhaustion marks are their own sense, not part of the shelf switch. */
+  exhaustionOnChart?: boolean;
   /**
    * STACKED IMBALANCE, AT ITS PRICE.
    *
@@ -1786,6 +1788,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
   fixedVPActive = false, sessionVPActive = false,
   absorptionAnatomyActive = false,
+  exhaustionOnChart = true,
   imbalanceStack = null,
   valueCandle = null,
   valueCandleBars = null,
@@ -2284,6 +2287,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   permissionRef.current = permissionOnChart;
   const debtTagRef = useRef<typeof debtTagOnChart>(null);
   debtTagRef.current = debtTagOnChart;
+  const exhaustionOnRef = useRef(true);
+  exhaustionOnRef.current = exhaustionOnChart;
   const clarityOnRef = useRef(false);
   clarityOnRef.current = clarityCandleOnChart && candleType === "candles";
   const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false, derivativesPressure: false, brickWalls: false });
@@ -10623,7 +10628,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         }
         return anatomyFrame;
       };
-      try { if (!absorptionAnatomyActive) {
+      // The anatomy ENGINE runs for any sense that reads it (§V shared truth,
+      // independent manifestations): shelf, exhaustion, cards, lens, scaffolding.
+      const anatomyEngineOn = absorptionAnatomyActive || exhaustionOnRef.current || layerOnRef.current.anatomyCards === true
+        || layerOnRef.current.questionLens === true || scaffoldingDepthRef.current !== "OFF";
+      try { if (!anatomyEngineOn) {
         const ds = canvas.dataset;
         if (absorptionReadKeyRef.current !== "OFF") { absorptionReadKeyRef.current = "OFF"; onAbsorptionReadRef.current?.(null); }
         ds.absorption = "OFF";
@@ -10635,7 +10644,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         for (const k of ANATOMY_BLOCK_RECEIPTS) delete ds[k];
         ds.questionLens = "OFF";
       } } catch (err) { layerFault("ABSORPTION_OFF", err); }
-      try { if (absorptionAnatomyActive) {
+      try { if (anatomyEngineOn) {
         try {
           const ts = chart.timeScale();
           const { anatomy, windowCapped } = anatomyInView();
@@ -10682,6 +10691,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           // H-501 · measured, but the depth withholds the layer's paint: the
           // receipt names that (SILENT:<depth>) instead of claiming DRAWN.
           if (!att.permission.paints("absorption")) ds.absorption = att.offWord(true);
+          // The engine runs for another sense; the shelf itself is switched off.
+          if (!absorptionAnatomyActive) { ds.absorption = "OFF"; ds.absorptionZones = "0"; }
 
           if (anatomy.measured && pts.length >= 2) {
             ctx.save();
@@ -10695,6 +10706,10 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // instrument cannot paint the whole pane.
             const halfMax = Math.min(72, H * 0.14);
 
+            // Garden 18 §XXIII: the SHELF (effort field, zones, terrain, basis)
+            // is drawn only when Absorption Shelf is on. The engine above runs
+            // for any anatomy sense; each sense draws only itself.
+            if (absorptionAnatomyActive) {
             // ── EFFORT (PRESSURE): layered strata, widest/faintest outside.
             // "Height = aggression intensity."
             //
@@ -11411,6 +11426,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.fillText(basisTxt, bx + 6, by + 7.5);
             }
 
+            } // end Absorption Shelf
+
             /* ── EXHAUSTION ANATOMY — the plate's right half ────────────────
                Same effort series as the absorption zones above (one owner,
                two readings). For every push whose effort faded as it extended
@@ -11418,7 +11435,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                ring on each bar that failed to continue, and the plate's four
                metrics on a chip. Crimson is the plate's own exhaustion colour;
                the mark is a fact about the push, never a forecast. */
-            {
+            if (!exhaustionOnRef.current) { ds.exhaustion = "OFF"; delete ds.exhaustionEffortResult; delete ds.exhaustionWords; delete ds.exhaustionChipsYielded; }
+            else {
               const ex = selectExhaustion(anatomy);
               ds.exhaustion = ex.reason === "MEASURED" ? String(ex.marks.length) : ex.reason;
               // What each mark actually put on the glass, for the receipt below.

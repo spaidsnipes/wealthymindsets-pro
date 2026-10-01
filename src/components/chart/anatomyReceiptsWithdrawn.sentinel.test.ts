@@ -20,7 +20,7 @@ const SRC = readFileSync(path.join(process.cwd(), "src/components/chart/MainChar
 
 function anatomyBlock(): string {
   // G7 (2026-09-29): the block may sit inside its layer-isolation wrapper (`try { if (…) {`).
-  const i = SRC.indexOf("if (absorptionAnatomyActive) {\n        try {");
+  const i = SRC.indexOf("if (anatomyEngineOn) {\n        try {");
   expect(i).toBeGreaterThan(-1);
   let d = 0;
   for (let k = SRC.indexOf("{", i); k < SRC.length; k++) {
@@ -55,7 +55,7 @@ describe("anatomy receipts are withdrawn when the block stops", () => {
   });
 
   it("the OFF branch runs the list and states the lens is off", () => {
-    const off = SRC.slice(SRC.indexOf("if (!absorptionAnatomyActive) {"), SRC.indexOf("if (absorptionAnatomyActive) {"));
+    const off = SRC.slice(SRC.indexOf("if (!anatomyEngineOn) {"), SRC.indexOf("if (anatomyEngineOn) {"));
     expect(off).toContain("for (const k of ANATOMY_BLOCK_RECEIPTS) delete ds[k];");
     expect(off).toContain('ds.questionLens = "OFF";');
   });
