@@ -1358,16 +1358,26 @@ export function ChartToolbar({
                         onClick={() => toggleIndicator(ind.name)}
                         className="flex items-center gap-2.5 px-3 py-2 hover:bg-wm-surface/60 cursor-pointer transition-colors group border-b border-wm-border/20"
                       >
-                        {/* toggle switch */}
-                        <div className={clsx(
-                          "w-8 h-4 rounded-full transition-all shrink-0 relative border",
-                          on ? "bg-wm-green/30 border-wm-green/60" : "bg-wm-surface border-wm-border"
-                        )}>
-                          <div className={clsx(
+                        {/* toggle switch — a real switch (Garden 18 §49 / §XI): it was a
+                            decorative div, unreachable by keyboard and nameless to a
+                            screen reader (found on the glass, 2026-10-01). */}
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={on}
+                          aria-label={ind.name}
+                          data-indicator-switch={ind.name}
+                          onClick={(e) => { e.stopPropagation(); toggleIndicator(ind.name); }}
+                          className={clsx(
+                            "w-8 h-4 rounded-full transition-all shrink-0 relative border",
+                            on ? "bg-wm-green/30 border-wm-green/60" : "bg-wm-surface border-wm-border"
+                          )}
+                        >
+                          <span aria-hidden className={clsx(
                             "absolute top-0.5 w-3 h-3 rounded-full transition-all",
                             on ? "left-[18px] bg-wm-green" : "left-0.5 bg-wm-text-dim"
                           )} />
-                        </div>
+                        </button>
 
                         {/* text */}
                         <div className="flex-1 min-w-0">
