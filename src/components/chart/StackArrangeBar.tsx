@@ -5,7 +5,8 @@
  * lane can move and dim, never overlap another.
  */
 import React from "react";
-import { PROFILE_STRENGTHS, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength, type ProfileStrength } from "@/lib/chart/profileFamilyInk";
+import { PROFILE_STRENGTHS, type ProfileStrength } from "@/lib/chart/profileFamilyInk";
+import { readStoredProfileStrength, writeStoredProfileStrength } from "@/lib/chart/profileStrengthStore";
 import type { StackSpecies } from "@/lib/marketData/viewModels/profileStackPlan";
 import {
   STACK_LABEL, STACK_SPECIES, FUSABLE_SPECIES, cycleOpacity, cycleWidth, isLocked, setFusion, stackWidth, moveSpecies, orderStack, stackOpacity, toggleLock, type ProfileStackPrefs,
@@ -17,13 +18,16 @@ export function StackArrangeBar({ prefs, onChange, fusionNote }: { prefs: Profil
   const fused = prefs.fusion && prefs.fusion.length === 2 ? prefs.fusion : null;
   // Garden 18 §XXXIV: one strength for the whole profile family; the chart
   // re-resolves its ink on the same event the VP palette uses.
-  const [strength, setStrength] = React.useState<ProfileStrength>(() => {
-    try { return parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)); } catch { return "CANON"; }
-  });
+  const [strength, setStrength] = React.useState<ProfileStrength>(() => readStoredProfileStrength());
+  // A View restoring its strength announces it on the same event.
+  React.useEffect(() => {
+    const sync = () => setStrength(readStoredProfileStrength());
+    window.addEventListener("wm-vp-colors", sync);
+    return () => window.removeEventListener("wm-vp-colors", sync);
+  }, []);
   const chooseStrength = (v: ProfileStrength) => {
     setStrength(v);
-    try { localStorage.setItem(PROFILE_STRENGTH_STORAGE_KEY, v); } catch { /* this visit only */ }
-    try { window.dispatchEvent(new Event("wm-vp-colors")); } catch { /* no window */ }
+    writeStoredProfileStrength(v);
   };
   return (
     <div data-testid="stack-arrange-bar" className="mt-2 rounded-lg border border-wm-border px-3 py-2">

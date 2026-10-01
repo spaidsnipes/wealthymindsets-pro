@@ -55,6 +55,8 @@ import {
   storeSavedLayouts,
   type SavedLayout,
 } from "@/lib/workspace/savedLayouts";
+import { readStoredProfileStrength, writeStoredProfileStrength } from "@/lib/chart/profileStrengthStore";
+import { readStoredRoles, writeStoredRoles } from "@/lib/workspace/visualRoles";
 import { ARRANGEMENT_SPECS, CAMERA_LOADOUTS, camerasInForce, composeCamera, loadoutSwitches, savedArrangementInForce, type ArrangementId } from "@/lib/marketData/viewModels/selectChartArrangement";
 
 /** The frame's own ink, handed in so the door paints in the hand it sits in. */
@@ -79,6 +81,12 @@ function pageStorage(): Pick<Storage, "getItem" | "setItem"> | null {
   } catch {
     return null; // storage blocked
   }
+}
+
+/** Restore a View's style: its roles (or none) and its profile strength (when it saved one). */
+function applyLayoutStyle(layout: SavedLayout): void {
+  writeStoredRoles(layout.roles ?? {});
+  if (layout.profileStrength) writeStoredProfileStrength(layout.profileStrength);
 }
 
 function newLayoutId(): string {
@@ -157,7 +165,8 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
       setInputError("The chart has not reported its arrangement yet");
       return;
     }
-    const result = saveLayout(layouts, draft, capture, newLayoutId);
+    // The style half of the View (§XVII): roles and profile strength as they are now.
+    const result = saveLayout(layouts, draft, capture, newLayoutId, { roles: readStoredRoles(), profileStrength: readStoredProfileStrength() });
     if (!result.ok) {
       setInputError(result.message);
       return;
@@ -410,6 +419,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                     onClick={() => {
                       setArmedDeleteId(null);
                       requestSavedLayout({ layoutId: layout.id, switches: layout.switches });
+                      applyLayoutStyle(layout);
                     }}
                     style={{
                       flex: "1 1 auto",

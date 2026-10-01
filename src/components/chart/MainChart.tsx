@@ -267,6 +267,7 @@ import { DATA_WINDOW_W, placeDataWindow } from "@/lib/chart/dataWindowPlacement"
 import { formatVolume } from "@/lib/chart/formatVolume";
 import { absorptionShelfRows, shelfRowCount } from "@/lib/chart/absorptionShelfRows";
 import { clarityBodyAlpha, readClarity, truthGaps } from "@/lib/chart/clarityCandle";
+import { VISUAL_ROLES_EVENT, readStoredRoles, rolesByLayer } from "@/lib/workspace/visualRoles";
 import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
@@ -2287,6 +2288,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   permissionRef.current = permissionOnChart;
   const debtTagRef = useRef<typeof debtTagOnChart>(null);
   debtTagRef.current = debtTagOnChart;
+  // Garden 18 §XXXVII: the trader's visual roles, per painting layer.
+  const rolesByLayerRef = useRef<ReturnType<typeof rolesByLayer>>({});
+  useEffect(() => {
+    const load = () => { rolesByLayerRef.current = rolesByLayer(readStoredRoles()); };
+    load();
+    window.addEventListener(VISUAL_ROLES_EVENT, load);
+    return () => window.removeEventListener(VISUAL_ROLES_EVENT, load);
+  }, []);
   const exhaustionOnRef = useRef(true);
   exhaustionOnRef.current = exhaustionOnChart;
   const clarityOnRef = useRef(false);
@@ -7048,6 +7057,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
         feedState: feedStateRef.current,
         selection: attSelection,
         posture: roomPostureRef.current,
+        roles: rolesByLayerRef.current,
       });
       canvas.dataset.attentionSelection = att.selectionReceipt;
       // ACTIVATION SPOTLIGHT (master order §LXIV: "manifestation gets a brief

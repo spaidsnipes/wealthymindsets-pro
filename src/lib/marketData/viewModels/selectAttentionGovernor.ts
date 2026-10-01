@@ -187,6 +187,8 @@ export const LAYER_ATTENTION = {
 export type AttentionLayerKey = keyof typeof LAYER_ATTENTION;
 
 export interface AttentionGovernorInput {
+  /** Garden 18 §XXXVII: the trader's visual role per layer (absent = SUPPORTING, the canon alpha). */
+  readonly roles?: Readonly<Partial<Record<string, "PRIMARY" | "SUPPORTING" | "AMBIENT" | "LATENT">>>;
   /** The frame's one depth owner. UNMEASURED leaves every depth multiplier at 1. */
   readonly density: SemanticDensityVM;
   /** Question Lens quiet: 1 = no lens, < 1 while a question is asked. */
@@ -327,6 +329,12 @@ export function selectAttentionGovernor(
       // A QUIET layer (H-501 permission) is never louder than QUIET_CEILING.
       const quietCap = permission.of(key, opts) === "QUIET" ? QUIET_CEILING : 1;
       a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[spec.tier], quietCap, depth * quiet * light * lane) * recede * staleDim * postureDim);
+      // The trader's role (§XXXVII): PRIMARY reads at a floor of 0.92 even at a
+      // dimming depth; AMBIENT and LATENT recede; never below the floor.
+      const role = input.roles?.[key];
+      if (role === "PRIMARY") a = Math.max(a, 0.92 * staleDim);
+      else if (role === "AMBIENT") a = Math.max(ATTENTION_FLOOR, a * 0.55);
+      else if (role === "LATENT") a = Math.max(ATTENTION_FLOOR, a * 0.28);
     }
     // The receipt records what the layer was actually given, when it asked —
     // a layer painted before the Question Lens was not quieted by it.

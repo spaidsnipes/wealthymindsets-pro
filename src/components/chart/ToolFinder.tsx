@@ -13,7 +13,9 @@
  * so a tool can never read ON here and OFF behind its family door.
  */
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+
+import { ROLE_LAYERS, VISUAL_ROLES_EVENT, autoCompose, nextRole, readStoredRoles, writeStoredRoles, type VisualRole, type VisualRoles } from "@/lib/workspace/visualRoles";
 
 import { PROFILE_FAMILY, selectProfileMenu, type ProfileId, type ProfileMenuInput } from "@/lib/marketData/viewModels/selectProfileMenu";
 import { FAMILY_WORD, searchToolRows, searchTools } from "@/lib/workspace/toolSearch";
@@ -25,6 +27,12 @@ const GOLD = "#d4af37";
 const PEARL = "#E8EAF2";
 const MUTED = "#8B8FA8";
 const AMBER = "#F0B429";
+const ROLE_STYLE: Readonly<Record<VisualRole, React.CSSProperties>> = {
+  PRIMARY: { background: GOLD, color: "#14110a" },
+  SUPPORTING: { border: "1px solid rgba(212,175,55,0.6)", color: GOLD },
+  AMBIENT: { border: "1px solid rgba(139,143,168,0.6)", color: MUTED },
+  LATENT: { border: "1px dashed rgba(139,143,168,0.5)", color: MUTED, opacity: 0.8 },
+};
 
 export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal, instruments = [] }: {
   instruments?: readonly FinderInstrument[];
@@ -41,6 +49,15 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
   const on = vm.entries.filter(e => e.active);
   const instHits = useMemo(() => searchToolRows(instruments, q), [instruments, q]);
   const instOn = instruments.filter(i => i.active);
+  // §XXXVII roles: one store, read here and by the chart's governor.
+  const [roles, setRoles] = useState<VisualRoles>({});
+  useEffect(() => {
+    const load = () => setRoles(readStoredRoles());
+    load();
+    window.addEventListener(VISUAL_ROLES_EVENT, load);
+    return () => window.removeEventListener(VISUAL_ROLES_EVENT, load);
+  }, []);
+  const setRole = (id: ProfileId, role: VisualRole) => writeStoredRoles({ ...roles, [id]: role });
 
   return (
     <section data-testid="tool-finder" aria-label="Find a tool" className="rounded-lg border border-wm-border bg-wm-surface/95 p-2 mb-2">
@@ -102,6 +119,13 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
 
       <div data-testid="active-tools-strip" className="mt-2 flex flex-wrap items-center gap-1" aria-label="Active on the chart">
         <span className="mr-1 text-[9.5px] font-bold uppercase tracking-[0.14em]" style={{ color: MUTED }}>Active</span>
+        {on.some(e => ROLE_LAYERS[e.id]) ? (
+          <button type="button" data-testid="auto-compose" title="Give one sense the lead and quiet the context — nothing is switched off"
+            onClick={() => writeStoredRoles(autoCompose(on.map(e => e.id)))}
+            className="ml-auto order-last rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ color: GOLD, border: "1px solid rgba(212,175,55,0.45)" }}>
+            Auto compose
+          </button>
+        ) : null}
         {instOn.map(i => (
           <span key={i.id} data-testid={`active-tool-${i.id}`} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"
             style={{ border: "1px solid rgba(212,175,55,0.55)", color: PEARL }} title={i.what}>
@@ -117,6 +141,16 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
             style={{ border: `1px solid ${e.availability === "READY" ? "rgba(212,175,55,0.55)" : "rgba(240,180,41,0.55)"}`, color: e.availability === "READY" ? PEARL : AMBER }}
             title={e.availability === "READY" ? e.what : e.availabilityNote}>
             {e.label}
+            {ROLE_LAYERS[e.id] ? (
+              <button type="button" data-testid={`role-${e.id}`} data-role={roles[e.id] ?? "SUPPORTING"}
+                aria-label={`${e.label} visual role: ${(roles[e.id] ?? "SUPPORTING").toLowerCase()}. Press to change.`}
+                title="Primary · Supporting · Ambient · Latent"
+                onClick={() => setRole(e.id, nextRole(roles[e.id]))}
+                className="rounded px-1 text-[9px] font-bold leading-[14px]"
+                style={ROLE_STYLE[roles[e.id] ?? "SUPPORTING"]}>
+                {(roles[e.id] ?? "SUPPORTING")[0]}
+              </button>
+            ) : null}
             <button type="button" aria-label={`Turn off ${e.label}`} data-testid={`active-tool-off-${e.id}`} onClick={() => onToggle(e.id)}
               className="ml-0.5 leading-none hover:text-white" style={{ color: MUTED }}>×</button>
           </span>
