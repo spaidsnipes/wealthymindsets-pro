@@ -14,6 +14,21 @@ import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 
 const cache = new Map<string, Promise<TastyFrontMonth | null>>();
 
+/**
+ * Garden 18 §LXXXI/§LXXXIII — LIVE SOURCE ELECTION for the price lane: a
+ * future resolves to its contract (above); a US stock or ETF streams under its
+ * own ticker on tastytrade's consolidated feed. Anything else: null (the other
+ * lanes keep their own honest labels). `equity` tells the lane that these
+ * prints carry no exchange aggressor and must take the unsigned door.
+ */
+export function tastyLiveContractFor(chartSymbol: string): Promise<(TastyFrontMonth & { readonly equity: boolean }) | null> {
+  const cls = classifySymbol(chartSymbol);
+  if (cls === "FUTURES") return tastyFrontMonthFor(chartSymbol).then(c => (c ? { ...c, equity: false } : null));
+  const sym = chartSymbol.trim().toUpperCase();
+  if (cls === "EQUITY" && /^[A-Z]{1,5}(\.[A-Z])?$/.test(sym)) return Promise.resolve({ symbol: sym, streamer: sym, equity: true });
+  return Promise.resolve(null);
+}
+
 export function tastyFrontMonthFor(chartSymbol: string): Promise<TastyFrontMonth | null> {
   const product = classifySymbol(chartSymbol) === "FUTURES" ? futuresProductFor(chartSymbol) : null;
   if (!product) return Promise.resolve(null);

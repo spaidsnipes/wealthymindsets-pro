@@ -37,7 +37,7 @@ import { OBSERVED_LANE_HEDGE_MS, selectObservedProviderFallback } from "@/lib/ma
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { subscribeTastyEvents } from "@/lib/broker/tastyQuoteStream";
-import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
+import { tastyLiveContractFor } from "@/lib/broker/tastyFrontMonth";
 import { tastyTimeAndSaleToMarketEvent, tastyTradeToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { coinbaseProduct } from "@/lib/marketData/coinbaseProduct";
@@ -1652,7 +1652,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     tastyLiveAtRef.current = null;
     let tastyCleanup: (() => void) | null = null;
     {
-      tastyFrontMonthFor(symbol)
+      tastyLiveContractFor(symbol)
         .then(contract => {
           if (disposed || !contract) return;
           let index = 0;
@@ -1664,7 +1664,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               if (!print) return;
               lastPrintAt = receivedAtMs;
               tastyLiveAtRef.current = receivedAtMs;
-              if (print.aggressorSide !== "BUY" && print.aggressorSide !== "SELL") {
+              // A stock's consolidated print states no exchange aggressor:
+              // price, bars and volume only — never the signed tape.
+              if (contract.equity || (print.aggressorSide !== "BUY" && print.aggressorSide !== "SELL")) {
                 processUnsignedObservation(print, "tastytrade");
                 return;
               }
@@ -1699,9 +1701,11 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       ? joinTape(
           `finnhub:${fhWsSym}`,
           (onTick, onStatus) => tryFinnhub(fhWsSym, finnhubKey, onTick, onStatus),
-          processTick,
+          // §LXXXI: while tastytrade's live lane speaks, this lane stands down
+          // (one price, never two streams summed into one bar).
+          (tick, isReal) => { if (tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000) return; processTick(tick, isReal); },
           (ok) => {
-            if (ok) {
+            if (ok && !(tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000)) {
               hasRealDataRef.current = true;
               tapeSourceRef.current = "finnhub";
               setState(p => ({ ...p, source: "finnhub", tapeSource: "finnhub", connected: true }));
@@ -1890,6 +1894,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             // Delta/CVD/footprint/tape never see a fake "sell" coerced from
             // UNKNOWN.
             if (tick.marketEvent?.aggressorSide === "UNKNOWN") return;
+            // §LXXXI: one venue's prints (IEX) yield to the live consolidated lane.
+            if (tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000) return;
             tapeSourceRef.current = "alpaca";
             processTick(tick, isReal);
             // A transport-open callback is not market data. Elect Alpaca only

@@ -211,7 +211,7 @@ export function priceSourceBadge(
     case "tastytrade":
       // dxFeed's /realtime stream via the owner's tastytrade account, and only
       // once the gate above has seen a connected, fresh print.
-      return { label: L.LIVE_CERTIFIED_QUOTE, title: "Real-time futures stream", live: true, provenance: "tastytrade", unresolved: false };
+      return { label: L.LIVE_CERTIFIED_QUOTE, title: "Real-time consolidated stream", live: true, provenance: "tastytrade", unresolved: false };
     case "binance":
       return { label: L.LIVE_CERTIFIED_QUOTE, title: "Real-time crypto stream", live: true, provenance: "binance", unresolved: false };
     case "coinbase":
