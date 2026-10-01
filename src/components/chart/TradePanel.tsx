@@ -29,6 +29,7 @@ import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/T
 import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
+import { useGuardrails } from "@/lib/execution/useGuardrails";
 import { canonicalAssetClass, cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
@@ -67,6 +68,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   readonly onClose: () => void;
 }) {
   const kind = kindOf(symbol);
+  // §LXXX: the trader's master switch, visible before any order is built.
+  const liveArmed = useGuardrails().liveArmed;
   const [contract, setContract] = useState<{ symbol: string; streamer: string } | null>(null);
   const [contractWhy, setContractWhy] = useState<string | null>(null);
 
@@ -192,6 +195,10 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         <span data-testid="trade-kind" style={{ fontSize: 10, letterSpacing: 1.2, color: GOLD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 6px" }}>{kind === "FUTURE" ? "FUTURE" : kind}</span>
         <span style={{ fontWeight: 600 }}>{contract?.symbol ?? symbol}</span>
         {kind === "FUTURE" && contract && contract.symbol !== symbol.toUpperCase() ? <span style={{ color: MUTED }}>· {symbol} → this contract</span> : null}
+        <span data-testid="trade-live-arm" title={liveArmed ? "Live orders can be armed (Settings › Execution)" : "Live trading is disarmed in Settings › Execution — nothing can be sent"}
+          style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", border: `1px solid ${liveArmed ? RED : LINE}`, color: liveArmed ? RED : MUTED }}>
+          {liveArmed ? "LIVE ARMED" : "LIVE DISARMED"}
+        </span>
         <button type="button" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
       </header>
 
