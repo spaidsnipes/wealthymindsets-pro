@@ -9,4 +9,8 @@ describe("Expected Envelope is computed once per bar state, not per frame (2026-
     expect(CHART).toContain("if (envChanged) onExpectedEnvelopeRef.current?.(env);");
     expect(CHART.match(/selectExpectedEnvelope\(/g)?.length).toBe(1);
   });
+  it("Memory Ghost too", () => {
+    expect(CHART).toContain("if (ghostChanged) ghostCacheRef.current = { key: ghostKey, ghost: selectMemoryGhost(ghostBars) };");
+    expect(CHART).toContain("if (ghostChanged) onMemoryGhostRef.current?.(ghost);");
+  });
 });

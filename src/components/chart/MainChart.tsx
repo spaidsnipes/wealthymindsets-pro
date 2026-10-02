@@ -2016,6 +2016,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const barsRef       = useRef<LegacyOhlcvTuple[]>([]);
   /** Expected Envelope, read once per bar state (not per frame). */
   const envCacheRef = useRef<{ key: string; env: ExpectedEnvelopeVM } | null>(null);
+  /** Memory Ghost, read once per bar state (not per frame). */
+  const ghostCacheRef = useRef<{ key: string; ghost: ReturnType<typeof selectMemoryGhost> } | null>(null);
   // BAR REPLAY (M9 repair 2). `barsRef` is what the CAMERA shows — the replay
   // window while replay drives it, the live bars otherwise — because every
   // overlay in the draw loop reads it, and every one of them must describe the
@@ -14852,9 +14854,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (layerOnRef.current.memoryGhost === true && att.paints("memoryGhost") && srs) {
           const ghostBars = (barsRef.current ?? []).map(b => ({ time: Number(b.time), close: Number(b.close), open: Number(b.open), high: Number(b.high), low: Number(b.low) }));
           ds.memoryGhostBars = String(ghostBars.length);
-          const ghost = selectMemoryGhost(ghostBars);
+          // Once per bar state, not per frame (same measurement as the envelope).
+          const lastG = ghostBars[ghostBars.length - 1];
+          const ghostKey = `${symbol}|${timeframe}|${ghostBars.length}|${lastG?.time ?? 0}|${lastG?.close ?? 0}|${lastG?.high ?? 0}|${lastG?.low ?? 0}`;
+          const ghostChanged = ghostCacheRef.current?.key !== ghostKey;
+          if (ghostChanged) ghostCacheRef.current = { key: ghostKey, ghost: selectMemoryGhost(ghostBars) };
+          const ghost = ghostCacheRef.current!.ghost;
           ds.memoryGhost = ghost.drawn ? `DRAWN:${ghost.fit!.toFixed(2)}` : ghost.reason;
-          onMemoryGhostRef.current?.(ghost);
+          if (ghostChanged) onMemoryGhostRef.current?.(ghost);
           const tsG = chart.timeScale();
           ctx.save();
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
