@@ -344,7 +344,8 @@ export interface PlaqueFlowContextVM {
 
 const FLOW_BASIS: Readonly<Record<AggressorProvenance, string>> = Object.freeze({
   PROVIDER: "VENUE-STAMPED SIDES",
-  INFERRED: "TICK-RULE SIDES · INFERRED",
+  // INFERRED covers the quote test and the tick rule (stocks, 2026-10-02).
+  INFERRED: "QUOTE / TICK-RULE SIDES · INFERRED",
   MIXED: "MIXED SIDE METHODS",
   UNDISCLOSED: "SIDE METHOD UNDISCLOSED",
 });

@@ -1143,7 +1143,7 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
   });
 
   it("F06A: order-flow context sits beneath the plaque at rest — only with a reading, provenance printed", () => {
-    const flow = { buyPct: 72, sellPct: 28, provenance: "INFERRED" as const, basis: "TICK-RULE SIDES · INFERRED" };
+    const flow = { buyPct: 72, sellPct: 28, provenance: "INFERRED" as const, basis: "QUOTE / TICK-RULE SIDES · INFERRED" };
     const { rest } = split(railHtml({ flowContext: flow }));
     const plaqueAt = rest.indexOf('data-testid="spine-wait-plaque"');
     const flowAt = rest.indexOf('data-testid="spine-flow-context"');
@@ -1154,7 +1154,7 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
     expect(rest).toContain("width:72%");
     // PRINTED, not only spoken: the visible line itself carries the method
     // (the owner's contract — a tick-rule guess may not wear venue chrome).
-    expect(rest).toContain(">TICK-RULE SIDES · INFERRED<");
+    expect(rest).toContain(">QUOTE / TICK-RULE SIDES · INFERRED<");
     // F06A's BOOK words are not this reading's words.
     expect(rest).not.toMatch(/STACK/i);
     // No reading → no panel; a replay camera → withheld like the clock.
@@ -1190,7 +1190,7 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
      the lines that gate cannot see (the aria-hidden flow panel, the integrity
      chip its fixture does not render) — a floor held, not merely unprobed. */
   it("every line the plaque pass added reads at the 11px floor, in a line box taller than the glyphs", () => {
-    const flow = { buyPct: 72, sellPct: 28, provenance: "INFERRED" as const, basis: "TICK-RULE SIDES · INFERRED" };
+    const flow = { buyPct: 72, sellPct: 28, provenance: "INFERRED" as const, basis: "QUOTE / TICK-RULE SIDES · INFERRED" };
     const html = railHtml({ flowContext: flow });
     for (const id of ["spine-plaque-stamp", "spine-plaque-asof", "go-interlock", "spine-fold-integrity", "spine-flow-basis"]) {
       const at = html.indexOf(`data-testid="${id}"`);
