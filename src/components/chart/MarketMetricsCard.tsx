@@ -18,7 +18,7 @@ function FuturesContracts({ symbol }: { readonly symbol: string }) {
   useEffect(() => {
     if (!product) return;
     let alive = true;
-    fetch(`/api/broker/tastytrade/chain?futures=${encodeURIComponent(product)}`, { cache: "no-store" })
+    fetch(`/api/broker/tastytrade/chain?futuresOptions=${encodeURIComponent(product)}`, { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
       .then(j => { if (alive) setList(j?.state === "OK" ? readFuturesOptionChain(j.data).futures : []); })
       .catch(() => { if (alive) setList([]); });
