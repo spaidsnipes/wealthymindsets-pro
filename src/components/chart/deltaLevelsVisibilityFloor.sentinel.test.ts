@@ -26,4 +26,9 @@ describe("Delta Levels is a lane you can see (serving NQ1! 1m, 2026-10-01)", () 
     expect(block).toMatch(/r\.side === "BUY" \? centerX \+ len : centerX - len/);
     expect(block).not.toMatch(/r\.side\s*===\s*"BUY"\s*\?\s*"(#|rgba)/);
   });
+  it("never shares x with the Delta Divergence lane, whose marks are floored too", () => {
+    expect(block).toContain("(layerOnRef.current.divergence ? 64 + 86 + 16 : 64) + laneMax");
+    expect(CHART).toContain('ctx.globalAlpha = Math.max(DIVERGENCE_ALPHA_FLOOR, att.alpha("divergence"));');
+    expect(CHART).toContain("const DIVERGENCE_ALPHA_FLOOR = 0.8;");
+  });
 });

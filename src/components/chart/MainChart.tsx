@@ -156,6 +156,8 @@ const WALL_CAMERA_REACH = 0.04;
 const HEADER_LIVE_FRESH_MS = 120_000;
 /** Delta Levels never paints below this — a lane nobody can see is not a reading on glass. */
 const DELTA_LEVELS_ALPHA_FLOOR = 0.8;
+/** Delta Divergence pivot marks never paint below this. */
+const DIVERGENCE_ALPHA_FLOOR = 0.8;
 /** The share of the camera's span the candles keep when a wall joins it (§XIV). */
 const WALL_CAMERA_CANDLE_SHARE = 0.45;
 
@@ -14140,9 +14142,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const laneL = lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT + 8 : 64;
             const laneR = laneL + 86;
 
-            ctx.save(); ctx.globalAlpha = att.alpha("divergence");
-            ctx.strokeStyle = "rgba(237,230,211,0.55)";
-            ctx.lineWidth = 1;
+            // VISIBILITY FLOOR (serving NQ1!/ES1! 1m, 2026-10-01 21:25 CDT):
+            // 1px marks at 0.55 under the governor read as nothing beside
+            // candles. Pivot marks and connector are 2px and floored.
+            ctx.save(); ctx.globalAlpha = Math.max(DIVERGENCE_ALPHA_FLOOR, att.alpha("divergence"));
+            ctx.strokeStyle = "rgba(237,230,211,0.9)";
+            ctx.lineWidth = 2;
             // Two marks, one per compared pivot, each at its own price.
             ctx.beginPath();
             ctx.moveTo(laneL, yPrior); ctx.lineTo(laneL + 22, yPrior);
@@ -14154,8 +14159,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // ONLY thing its horizontal extent means — the lane is 86px wide on
             // every symbol and every timeframe, which is exactly how a reader
             // can tell it is not a time axis.
-            ctx.setLineDash(glass.diverged ? [4, 3] : []);
-            ctx.strokeStyle = "rgba(212,175,55,0.65)";
+            ctx.setLineDash(glass.diverged ? [5, 3] : []);
+            ctx.strokeStyle = "rgba(212,175,55,0.95)";
             ctx.beginPath();
             ctx.moveTo(laneL + 22, yPrior);
             ctx.lineTo(laneR - 22, yRecent);
@@ -14458,7 +14463,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             } catch { /* unknown → right edge */ }
             const rightCenter = dlPlotRight - laneMax - 10;
             const centerX = dlNewestX != null && dlNewestX > rightCenter - laneMax - 12
-              ? 64 + laneMax // clear of the left price-line countdown chip
+              // clear of the countdown chip, and of the Delta Divergence lane
+              // (64..150) when that sense is on — two lanes never share x.
+              ? (layerOnRef.current.divergence ? 64 + 86 + 16 : 64) + laneMax
               : rightCenter;
             ds.deltaLevelsLane = centerX === rightCenter ? "RIGHT_EDGE" : "LEFT_EDGE";
             const ys: number[] = [];
