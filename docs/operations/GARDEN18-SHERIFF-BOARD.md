@@ -127,3 +127,4 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | Desk 4-up after floors | 🟢 | 2.8 / 5.0 / 5.1 / 9.2 ms per screen, 0 long tasks in 20 s, 0 faults |
 | Trade panel per class | 🟢 | Stock TSLA (shares, bid/ask live), Crypto BTC/USD (0.001–1 BTC steps, tastytrade live), Futures chain ticket — dry run first everywhere; live send untouched (Founder permission) |
 | Canon 72 Clarity beside ES1! 15m | 🟢 | readout card pinned at the newest closed bar (79% / Balanced / None), backed + gold-ruled as the plate |
+| Stock tape: invalid prints unsigned | 🟢 | `79b604f` TimeAndSale requests validTick (DXLink FEED_CONFIG confirmed live on /NQZ26); a print marked invalid is never signed by inference. Futures regression check after deploy: NQ1! 1m Stack DRAWN, Delta Levels DRAWN, 32 bubbles, 1,035 venue-stamped sided prints |
