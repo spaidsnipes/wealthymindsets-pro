@@ -39,6 +39,7 @@ import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { subscribeTastyEvents } from "@/lib/broker/tastyQuoteStream";
 import { tastyLiveContractFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
+import { inferEquityAggressor } from "@/lib/marketData/adapters/tastytradeEquityInference";
 import { tastyTimeAndSaleToMarketEvent, tastyTradeToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { coinbaseProduct } from "@/lib/marketData/coinbaseProduct";
@@ -1678,6 +1679,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           if (disposed || !contract) return;
           let index = 0;
           let lastPrintAt = 0;
+          let lastEquityPrice: number | null = null;
           tastyCleanup = subscribeTastyEvents([contract.streamer], (e, receivedAtMs) => {
             if (disposed) return;
             if (e.type === "TimeAndSale") {
@@ -1685,9 +1687,30 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               if (!print) return;
               lastPrintAt = receivedAtMs;
               tastyLiveAtRef.current = receivedAtMs;
-              // A stock's consolidated print states no exchange aggressor:
-              // price, bars and volume only — never the signed tape.
-              if (contract.equity || (print.aggressorSide !== "BUY" && print.aggressorSide !== "SELL")) {
+              // A stock's consolidated print states no exchange aggressor. Its
+              // side is INFERRED (Lee–Ready, tastytradeEquityInference.ts) and
+              // stamped as such, so every reading says "inferred"; a print no
+              // rule can sign stays on the unsigned door (2026-10-01).
+              if (contract.equity) {
+                const inferred = inferEquityAggressor(print, lastEquityPrice);
+                lastEquityPrice = print.price ?? lastEquityPrice;
+                if (inferred.aggressorSide !== "BUY" && inferred.aggressorSide !== "SELL") {
+                  processUnsignedObservation(print, "tastytrade");
+                  return;
+                }
+                tapeSourceRef.current = "tastytrade-equity";
+                processTick({
+                  price: inferred.price!,
+                  size: inferred.size!,
+                  side: inferred.aggressorSide === "BUY" ? "buy" : "sell",
+                  time: inferred.timestampProvider ?? receivedAtMs,
+                  trade: true,
+                  marketEvent: inferred,
+                }, true);
+                setState(previous => previous.tapeSource === "tastytrade-equity" ? previous : { ...previous, tapeSource: "tastytrade-equity" });
+                return;
+              }
+              if (print.aggressorSide !== "BUY" && print.aggressorSide !== "SELL") {
                 processUnsignedObservation(print, "tastytrade");
                 return;
               }
@@ -1850,7 +1873,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           // label. Keep the independently observed REST quote provenance.
           source: tape === "moomoo" || tape === "webull"
             ? (q.observedAt != null ? (q.source as MarketState["source"]) : prev2.source)
-            : tape ?? (q.observedAt != null ? (q.source as MarketState["source"]) : prev2.source),
+            : (tape === "tastytrade-equity" ? "tastytrade" : tape) ?? (q.observedAt != null ? (q.source as MarketState["source"]) : prev2.source),
           tapeSource: tape,
           connected: tape != null || q.observedAt != null,
           // A certified answer clears the previous round's refusal. Leaving it

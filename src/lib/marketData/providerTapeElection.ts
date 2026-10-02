@@ -6,7 +6,8 @@ export type ProviderTapeSource =
   | "binance"
   | "moomoo"
   | "webull"
-  | "tastytrade";
+  | "tastytrade"
+  | "tastytrade-equity";
 
 /**
  * Deterministic tape ownership for the two bounded provider reads.

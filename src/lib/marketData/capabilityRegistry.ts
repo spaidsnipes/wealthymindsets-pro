@@ -85,7 +85,7 @@ export type FidelityClass = "OBSERVED" | "DERIVED" | "PROXY" | "UNAVAILABLE";
  * state — so `tsc` could not see the two halves disagree. A Sentinel drives
  * the real elector against this union instead.
  */
-export type RuntimeTapeSource = "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | "moomoo" | "webull" | "tastytrade" | null;
+export type RuntimeTapeSource = "polygon" | "finnhub" | "alpaca" | "coinbase" | "binance" | "moomoo" | "webull" | "tastytrade" | "tastytrade-equity" | null;
 export const UNKNOWN_RIGHTS_POLICY_ID = "wm.rights.unknown.v1" as const;
 
 export interface MarketDataCapability {
@@ -97,7 +97,7 @@ export interface MarketDataCapability {
   fidelityClass: FidelityClass;
   timestampFields: readonly TimestampField[];
   sequenceSupported: boolean;
-  aggressorMethod: "PROVIDER" | "MAKER_SIDE_INVERTED" | "TICK_RULE" | "NONE";
+  aggressorMethod: "PROVIDER" | "MAKER_SIDE_INVERTED" | "TICK_RULE" | "QUOTE_TEST" | "NONE";
   sessionCoverage: string;
   fallbackSemantics: "NONE" | "EXPLICIT" | "SILENT_LEGACY";
   /** @deprecated Use `rights.raw` via `canDoAction(cap, "raw")`. Kept for v1 consumers. */
@@ -322,6 +322,25 @@ export const MARKET_DATA_CAPABILITIES: readonly MarketDataCapability[] = [
   }),
   capability({
     providerPath: "tastytrade-dxlink",
+    assetClass: "equity",
+    eventType: "trade",
+    availability: "PARTIAL",
+    collectionScope: "BROKER_SESSION",
+    fidelityClass: "OBSERVED",
+    timestampFields: ["PROVIDER", "RECEIVED", "PROCESSED"],
+    sequenceSupported: false,
+    // A consolidated stock print states no exchange aggressor. Sides are
+    // INFERRED per print (Lee–Ready): QUOTE_TEST against the NBBO the print
+    // carries, TICK_RULE between the quotes, UNKNOWN on a zero tick — each
+    // print stamps its own method and a confidence below 1.
+    aggressorMethod: "QUOTE_TEST",
+    sessionCoverage: "The owner's tastytrade DXLink session (dxFeed /realtime consolidated US equity tape, incl. extended hours): every TimeAndSale print with the NBBO at print time; aggressor INFERRED, never exchange-reported",
+    fallbackSemantics: "EXPLICIT",
+    rights: PUBLIC_DISPLAY_ONLY_RIGHTS,
+    evidence: "src/lib/marketData/adapters/tastytradeEquityInference.ts, consumed by hooks/useWebSocket.ts tastytrade lane (contract.equity)",
+  }),
+  capability({
+    providerPath: "tastytrade-dxlink",
     assetClass: "futures",
     eventType: "trade",
     availability: "PARTIAL",
@@ -487,6 +506,9 @@ const TAPE_SOURCE_PATHS: Partial<Record<Exclude<RuntimeTapeSource, null>, {
   // print before footprint, delta, big trades and imbalance (serving /desk NQ:
   // "ORDER FLOW · WAITING FOR SIDED PRINTS").
   tastytrade: { providerPath: "tastytrade-dxlink", assetClass: "futures" },
+  // 2026-10-01: US stocks/ETFs on the same consolidated tape, sides INFERRED
+  // (Lee–Ready: quote test, tick-rule fallback — adapters/tastytradeEquityInference.ts).
+  "tastytrade-equity": { providerPath: "tastytrade-dxlink", assetClass: "equity" },
 };
 
 /**
