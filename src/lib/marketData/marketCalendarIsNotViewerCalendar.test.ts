@@ -113,3 +113,13 @@ describe("× A MARKET'S CALENDAR IS NOT THE VIEWER'S CALENDAR", () => {
     });
   });
 });
+
+import { provenSessionClosure as psc2 } from "./canonicalIdentity";
+describe("US cash indices close with the regular session (SPX, 2026-10-02)", () => {
+  it("weekday night and pre-open are proven closed; the session is not claimed", () => {
+    expect(psc2("SPX", new Date("2026-10-02T05:30:00Z"))).toBe(false); // 01:30 ET Fri
+    expect(psc2("NDX", new Date("2026-10-01T21:00:00Z"))).toBe(false); // 17:00 ET Thu
+    expect(psc2("SPX", new Date("2026-10-01T15:00:00Z"))).toBeNull();  // 11:00 ET Thu
+    expect(psc2("SPY", new Date("2026-10-02T05:30:00Z"))).toBeNull();  // an ETF trades overnight
+  });
+});

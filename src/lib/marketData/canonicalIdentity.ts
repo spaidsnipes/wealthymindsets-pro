@@ -671,6 +671,8 @@ export function canonicalAssetClass(symbol: string): CanonicalAssetClass {
  * Holidays are still unseen: a holiday stays `null`, never a guess.
  */
 const MIN = (h: number, m = 0) => h * 60 + m;
+/** US cash indices: an index LEVEL exists in the regular session only. */
+const US_CASH_INDICES: ReadonlySet<string> = new Set(["SPX", "NDX", "DJI", "RUT", "IXIC", "^GSPC", "^NDX", "^DJI", "^RUT", "^IXIC"]);
 
 export function provenSessionClosure(symbol: string, at: Date): false | null {
   const cls = canonicalAssetClass(symbol);
@@ -679,6 +681,15 @@ export function provenSessionClosure(symbol: string, at: Date): false | null {
   if (clock === null) return null;
   const { weekday: day, minuteOfDay: m } = clock;
   if (day === 6) return false;
+  // US CASH INDICES are calculated in the regular session only (serving SPX
+  // 5m, 2026-10-02 01:30 CDT: "117 BARS BEHIND" in warning orange about an
+  // index that stopped at 16:00). No overnight venue trades an index level,
+  // so outside 09:30–16:15 ET on a weekday it is PROVEN closed.
+  if (US_CASH_INDICES.has(symbol.trim().toUpperCase())) {
+    if (day === 0) return false;
+    if (m < MIN(9, 30) || m >= MIN(16, 15)) return false;
+    return null;
+  }
   if (cls === "equity" || cls === "etf" || cls === "options") {
     if (day === 0 && m < MIN(20)) return false;
     if (day === 5 && m >= MIN(20)) return false;
