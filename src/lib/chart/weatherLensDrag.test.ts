@@ -29,3 +29,21 @@ describe("grabbed weather aperture", () => {
     expect(weatherLensBarSpan(30, 100, 0, 400)).toEqual({ from: 0, to: 0 });
   });
 });
+
+import { isInsideWeatherLens, LENS_DRAG_SLOP } from "./weatherLensDrag";
+import { readFileSync as rf } from "node:fs";
+describe("the glass itself can be taken and moved anywhere along the candles (Founder, 2026-10-02)", () => {
+  const lens = { cx: 500, cy: 300, rx: 120, ry: 120 };
+  it("inside the glass is grabbable; outside is not", () => {
+    expect(isInsideWeatherLens(500, 300, lens)).toBe(true);
+    expect(isInsideWeatherLens(600, 300, lens)).toBe(true);
+    expect(isInsideWeatherLens(700, 300, lens)).toBe(false);
+    expect(LENS_DRAG_SLOP).toBe(5);
+  });
+  it("a press inside waits for movement, so a still press stays a candle click", () => {
+    const c = rf("src/components/chart/MainChart.tsx", "utf8");
+    expect(c).toContain("if (isInsideWeatherLens(px, py, hit)) {");
+    expect(c).toContain("if (Math.hypot(e.clientX - pending.x0, e.clientY - pending.y0) <= LENS_DRAG_SLOP) return;");
+    expect(c).toContain("weatherGrabRef.current = { pointer: e.pointerId, dx: pending.dx, dy: pending.dy, rx: pending.rx, ry: pending.ry };");
+  });
+});

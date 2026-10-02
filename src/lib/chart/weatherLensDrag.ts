@@ -36,3 +36,15 @@ export function weatherInspectReading<T>(
 ): T {
   return enabled && sample?.symbol === symbol && sample.timeframe === timeframe ? sample.vm : live;
 }
+
+/**
+ * Inside the glass (Founder, 2026-10-02: "dragged up and down along the
+ * candles … like putting a magnifying glass wherever you want"). A press here
+ * becomes a lens drag only after it MOVES (LENS_DRAG_SLOP px); a still press
+ * stays the candle click it always was.
+ */
+export const LENS_DRAG_SLOP = 5;
+export function isInsideWeatherLens(x: number, y: number, lens: { cx: number; cy: number; rx: number; ry: number }) {
+  if (lens.rx <= 0 || lens.ry <= 0) return false;
+  return Math.hypot((x - lens.cx) / lens.rx, (y - lens.cy) / lens.ry) < 1;
+}

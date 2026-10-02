@@ -326,7 +326,7 @@ import { heatRampColor, selectHeatLens } from "@/lib/marketData/viewModels/selec
 import { HEAT_SMOKE_LAYER_WEIGHT } from "@/lib/marketData/viewModels/selectHeatLens";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { HEAVY_RATIO, selectLiquidityWeatherFromBars } from "@/lib/marketData/viewModels/selectLiquidityWeather";
-import { constrainWeatherLens, weatherLensBarSpan, isWeatherLensBezel } from "@/lib/chart/weatherLensDrag";
+import { constrainWeatherLens, weatherLensBarSpan, isWeatherLensBezel, isInsideWeatherLens, LENS_DRAG_SLOP } from "@/lib/chart/weatherLensDrag";
 import type { EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
 import type { DeltaLevelsGlass } from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import type { LivingProfileGlass } from "@/lib/marketData/viewModels/selectLivingProfileGlass";
@@ -6104,12 +6104,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const host = containerRef.current;
     if (!host) return;
     let nativePointer: number | null = null;
+    // A press INSIDE the glass waits: still → the candle click it always was;
+    // moved past LENS_DRAG_SLOP → the lens follows the hand, up/down/along.
+    let pending: { pointer: number; x0: number; y0: number; dx: number; dy: number; rx: number; ry: number } | null = null;
     const down = (e: PointerEvent) => {
       if (!e.isPrimary || e.button !== 0 || drawingToolRef.current !== "cursor" || window.innerWidth < 1024) return;
       if ((e.target as Element)?.closest?.("[data-weather-lens-control]")) return;
       const hit = weatherLensHitRef.current;
       const rect = host.getBoundingClientRect();
-      if (!hit || !isWeatherLensBezel(e.clientX - rect.left, e.clientY - rect.top, hit)) return;
+      if (!hit) return;
+      const px = e.clientX - rect.left, py = e.clientY - rect.top;
+      if (!isWeatherLensBezel(px, py, hit)) {
+        if (isInsideWeatherLens(px, py, hit)) {
+          // Hold the chart's own pan (compat mouse events) without taking the
+          // pointer: React's click selection still sees this press.
+          e.preventDefault();
+          pending = { pointer: e.pointerId, x0: e.clientX, y0: e.clientY, dx: px - hit.cx, dy: py - hit.cy, rx: hit.rx, ry: hit.ry };
+        }
+        return;
+      }
       e.preventDefault(); e.stopImmediatePropagation();
       nativePointer = e.pointerId;
       weatherGrabRef.current = { pointer: e.pointerId, dx: e.clientX - rect.left - hit.cx, dy: e.clientY - rect.top - hit.cy, rx: hit.rx, ry: hit.ry };
@@ -6117,6 +6130,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       host.style.cursor = "grabbing";
     };
     const move = (e: PointerEvent) => {
+      if (pending && pending.pointer === e.pointerId && !weatherGrabRef.current) {
+        if (Math.hypot(e.clientX - pending.x0, e.clientY - pending.y0) <= LENS_DRAG_SLOP) return;
+        nativePointer = e.pointerId;
+        weatherGrabRef.current = { pointer: e.pointerId, dx: pending.dx, dy: pending.dy, rx: pending.rx, ry: pending.ry };
+        pending = null;
+        try { host.setPointerCapture(e.pointerId); } catch { /* released */ }
+        host.style.cursor = "grabbing";
+      }
+      if (!weatherGrabRef.current) {
+        // Hover says the glass can be taken.
+        const hit = weatherLensHitRef.current;
+        if (hit && !nativePointer && e.buttons === 0) {
+          const r = host.getBoundingClientRect();
+          const inside = isInsideWeatherLens(e.clientX - r.left, e.clientY - r.top, hit) || isWeatherLensBezel(e.clientX - r.left, e.clientY - r.top, hit);
+          if (inside && host.style.cursor !== "grab") host.style.cursor = "grab";
+          else if (!inside && host.style.cursor === "grab") host.style.cursor = "";
+        }
+      }
       const grab = weatherGrabRef.current;
       if (!grab || nativePointer !== e.pointerId) return;
       e.preventDefault(); e.stopImmediatePropagation();
@@ -6133,6 +6164,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       setWeatherDetached(true);
     };
     const up = (e: PointerEvent) => {
+      if (pending && pending.pointer === e.pointerId) pending = null;
       if (nativePointer !== e.pointerId) return;
       e.stopImmediatePropagation();
       nativePointer = null;
