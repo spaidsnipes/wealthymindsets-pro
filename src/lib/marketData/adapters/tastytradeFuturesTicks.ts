@@ -59,7 +59,10 @@ export function tastyTradeToMarketEvent(
   receivedAtMs: number,
   index: number,
 ): CanonicalMarketEvent | null {
-  if (e.type !== "Trade" || e.symbol !== contract.streamer) return null;
+  // TradeETH is the extended-hours last (2026-10-01: after 16:00 ET the
+  // masthead dated a stock's feed at 15:59:59 while it traded to 20:00). An
+  // older snapshot arriving later is refused by the bar clock (LATE_EVENT).
+  if ((e.type !== "Trade" && e.type !== "TradeETH") || e.symbol !== contract.streamer) return null;
   const price = e.values.price;
   const size = e.values.size;
   if (!(price != null && price > 0) || !(size != null && size > 0)) return null;
