@@ -1283,6 +1283,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   const cleanupFns = useRef<Array<() => void>>([]);
 
   const tapeSourceRef = useRef<MarketState["tapeSource"]>(null);
+  // When the owner's tastytrade consolidated stock tape last delivered a print.
+  // While it is current, an unsided provider poll (Webull ticks) neither names
+  // the price source nor builds bars: serving TSLA 2026-10-02 08:05 ET read
+  // ACTIVE DEGRADED (Webull's grade) over live 15s tastytrade candles, and the
+  // second feed added its prints to the same bars.
+  const tastyEquityLastAtRef = useRef(0);
   // When tastytrade's live futures lane last delivered a print (epoch ms). While
   // it is fresh, the delayed REST quote may not overwrite the price it moved.
   const tastyLiveAtRef = useRef<number | null>(null);
@@ -1442,6 +1448,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   /* Price/volume observation path. It advances the visible bar and ticker but
      intentionally never enters recentTicks, tapeSource, Delta, CVD, or DOM. */
   const processUnsignedObservation = useCallback((event: CanonicalMarketEvent, source: "longbridge" | "webull" | "tastytrade") => {
+    if (source !== "tastytrade" && Date.now() - tastyEquityLastAtRef.current < 15_000) return;
     const price = event.price;
     const size = event.size;
     const time = event.timestampProvider ?? event.timestampReceived;
@@ -1723,6 +1730,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               if (contract.equity) {
                 const rc = equityTapeReceipt(symbol);
                 rc.prints++;
+                tastyEquityLastAtRef.current = Date.now();
                 // validTick=false is dxFeed's EXTENDED-HOURS marker (form-T
                 // trades do not update the regular-session last) — measured
                 // premarket 2026-10-02: 765 of 771 NVDA prints. They are real
@@ -1750,7 +1758,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
                   trade: true,
                   marketEvent: inferred,
                 }, true);
-                setState(previous => previous.tapeSource === "tastytrade-equity" ? previous : { ...previous, tapeSource: "tastytrade-equity" });
+                setState(previous => previous.tapeSource === "tastytrade-equity" && previous.source === "tastytrade" ? previous : { ...previous, tapeSource: "tastytrade-equity", source: "tastytrade", connected: true });
                 return;
               }
               if (print.aggressorSide !== "BUY" && print.aggressorSide !== "SELL") {
