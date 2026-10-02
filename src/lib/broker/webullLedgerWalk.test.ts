@@ -104,4 +104,15 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
     const quiet = await walkWebullHistory("ACC", fakeWebull([], 99, 99).page, { today: TODAY, ...NOOP, startYearsBack: 2, maxYears: 1 });
     expect(quiet).toMatchObject({ stoppedBecause: "YEAR_DONE", lastYearEmpty: true, orders: [] });
   });
+
+  it("probeOnly asks once; onlyMonth reads one month with no probe", async () => {
+    const f = fakeWebull([grp("aa", "2026-09-10T14:00:00Z"), grp("bb", "2026-08-10T14:00:00Z")], 99, 99);
+    const probe = await walkWebullHistory("ACC", f.page, { today: TODAY, ...NOOP, maxYears: 1, probeOnly: true });
+    expect(probe).toMatchObject({ lastYearEmpty: false, orders: [], pages: 1 });
+    const g = fakeWebull([grp("aa", "2026-09-10T14:00:00Z"), grp("bb", "2026-08-10T14:00:00Z")], 99, 99);
+    const m1 = await walkWebullHistory("ACC", g.page, { today: TODAY, ...NOOP, maxYears: 1, onlyMonth: 1 });
+    expect(g.calls[0]).toBe("2026-08-03..2026-09-03|-");
+    expect(m1.orders.map(o => o.orderId)).toEqual(["o-bb"]);
+    expect(m1.askedBackTo).toBe("2026-08-03");
+  });
 });

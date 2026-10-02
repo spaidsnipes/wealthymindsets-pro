@@ -56,6 +56,10 @@ export async function walkWebullHistory(
      * years across requests so no single request runs for minutes.
      */
     readonly startYearsBack?: number; readonly maxYears?: number;
+    /** Ask only whether the year has orders (one call); read nothing. */
+    readonly probeOnly?: boolean;
+    /** Read only this month of the year (0 = newest), skipping the probe — one bounded request per month. */
+    readonly onlyMonth?: number;
     readonly sleep?: (ms: number) => Promise<void>; readonly gapMs?: number; readonly backoffMs?: readonly number[];
     /**
      * Finished months are history: a month that ended more than a week ago is
@@ -136,17 +140,20 @@ export async function walkWebullHistory(
       const start = new Date(end); start.setUTCFullYear(start.getUTCFullYear() - 1);
       const s = ymd(start) < floor ? floor : ymd(start);
       askedBackTo = s;
-      const probe = await ask(s, ymd(end), null);
-      lastYearEmpty = rowsOf(probe).length === 0;
+      const probe = opts.onlyMonth != null ? [] : await ask(s, ymd(end), null);
+      lastYearEmpty = opts.onlyMonth == null && rowsOf(probe).length === 0;
+      if (opts.probeOnly) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty };
       if (lastYearEmpty) {
         quiet++;
       } else {
         quiet = 0;
         // The year has orders: read it month by month, newest first.
         let mEnd = new Date(end);
-        while (ymd(mEnd) > s) {
+        for (let mi = 0; ymd(mEnd) > s; mi++) {
           const mStart = new Date(mEnd); mStart.setUTCMonth(mStart.getUTCMonth() - 1);
           const ms = ymd(mStart) < s ? s : ymd(mStart);
+          if (opts.onlyMonth != null && mi !== opts.onlyMonth) { mEnd = mStart; continue; }
+          askedBackTo = ms;
           const key = `${CACHE_PREFIX}${accountId}:${ms}:${ymd(mEnd)}`;
           const settled = Date.parse(ymd(mEnd)) < opts.today.getTime() - 7 * 86_400_000;
           const hit = settled && opts.cache ? await opts.cache.get(key).catch(() => null) : null;

@@ -55,12 +55,18 @@ export async function GET(request: Request): Promise<Response> {
   if (!Number.isInteger(index) || !a || !Number.isInteger(yearsBack) || yearsBack < 0 || yearsBack > 15) {
     return NextResponse.json({ state: "BAD_REQUEST", reason: "account (index) and yearsBack (0–15) are required." }, { status: 400, headers: NO_STORE });
   }
+  // One month per request (0 = newest month of that year), or ?probe=1 for "does this year have orders?".
+  const monthRaw = url.searchParams.get("month");
+  const monthIdx = monthRaw == null ? undefined : Number(monthRaw);
+  if (monthIdx !== undefined && (!Number.isInteger(monthIdx) || monthIdx < 0 || monthIdx > 11)) {
+    return NextResponse.json({ state: "BAD_REQUEST", reason: "month must be 0–11." }, { status: 400, headers: NO_STORE });
+  }
   const today = new Date();
   // Finished months come from KV (Webull's raw rows, kept on first read); ?fresh=1 asks Webull for everything.
   const kv = url.searchParams.get("fresh") === "1" ? null : orderDecisionKv(await webullWorkerEnv());
   const cache = kv ? { get: (k: string) => kv.get(k), put: (k: string, v: string) => kv.put(k, v) } : undefined;
   const w = await walkWebullHistory(a.accountId, (s, e, cursor) => listWebullOrderHistoryPage(fetch, c, a.accountId, s, e, cursor),
-    { today, cache, startYearsBack: yearsBack, maxYears: 1, quietYears: 99 });
+    { today, cache, startYearsBack: yearsBack, maxYears: 1, quietYears: 99, probeOnly: url.searchParams.get("probe") === "1", onlyMonth: monthIdx });
   const tail = a.accountId.slice(-4);
   return NextResponse.json({
     state: "OK",
@@ -68,6 +74,7 @@ export async function GET(request: Request): Promise<Response> {
     truth: "ACTUAL BROKER RESULT · Webull order history, raw orders",
     account: { index, tail, accountType: a.accountType },
     yearsBack,
+    month: monthIdx ?? null,
     askedBackTo: w.askedBackTo,
     yearEmpty: w.lastYearEmpty,
     stoppedBecause: w.stoppedBecause,

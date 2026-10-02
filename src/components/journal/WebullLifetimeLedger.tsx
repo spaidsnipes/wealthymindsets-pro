@@ -26,7 +26,7 @@ const UP = "#7fd1a8";
 const DOWN = "#e0786b";
 
 interface AccountRow { tail: string; accountType: string | null; orders: number; filled: number; askedBackTo: string; stoppedBecause: string; reason: string | null }
-interface LedgerAnswer { state: string; reason?: string; asOf?: string; truth?: string; accounts?: AccountRow[]; orderCount?: number; summary?: LedgerSummary; episodes?: Episode[] }
+interface LedgerAnswer { partial?: boolean; state: string; reason?: string; asOf?: string; truth?: string; accounts?: AccountRow[]; orderCount?: number; summary?: LedgerSummary; episodes?: Episode[] }
 
 const usd = (v: number | null | undefined, sign = true) => v == null ? "—" : `${sign && v > 0 ? "+" : v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const pct = (v: number | null | undefined) => v == null ? "—" : `${(v * 100).toFixed(1)}%`;
@@ -154,24 +154,35 @@ export function WebullLifetimeLedger() {
       if (list.state !== "OK" || !list.accounts) { if (alive) setData({ state: list.state, reason: list.reason }); return; }
       const all: LedgerOrder[] = [];
       const rows: AccountRow[] = [];
+      const publish = (final: boolean) => {
+        if (!alive) return;
+        const episodes = reconstructEpisodes(all, Date.now());
+        setData({ state: "OK", asOf: new Date().toISOString(), truth: "ACTUAL BROKER RESULT · episodes RECONSTRUCTED from Webull order history", accounts: [...rows], orderCount: all.length, summary: summarizeLedger(episodes), episodes, partial: !final });
+      };
       for (const acct of list.accounts) {
-        let quiet = 0, k = 0, askedBackTo = "", stopped = "QUIET_YEARS", reason: string | null = null, n = 0;
-        while (quiet < 2 && k <= 15) {
-          if (alive) setProgress(`Reading ·${acct.tail} ${acct.accountType ?? ""} — ${k === 0 ? "the last 12 months" : `${k}–${k + 1} years back`}…`);
-          const step = await get<StepAnswer>(`?account=${acct.index}&yearsBack=${k}`);
-          if (step.state !== "OK") { stopped = "REFUSED"; reason = step.reason ?? step.state; break; }
-          all.push(...(step.orders ?? []));
-          n += step.orders?.length ?? 0;
-          askedBackTo = step.askedBackTo ?? askedBackTo;
-          if (step.stoppedBecause === "REFUSED" || step.stoppedBecause === "PAGE_BUDGET") { stopped = step.stoppedBecause; reason = step.reason ?? null; break; }
-          quiet = step.yearEmpty ? quiet + 1 : 0;
-          k++;
+        const row: AccountRow = { tail: acct.tail, accountType: acct.accountType, orders: 0, filled: 0, askedBackTo: "", stoppedBecause: "QUIET_YEARS", reason: null };
+        rows.push(row);
+        let quiet = 0;
+        outer: for (let k = 0; quiet < 2 && k <= 15; k++) {
+          const probe = await get<StepAnswer>(`?account=${acct.index}&yearsBack=${k}&probe=1`);
+          if (probe.state !== "OK" || probe.stoppedBecause === "REFUSED") { row.stoppedBecause = "REFUSED"; row.reason = probe.reason ?? probe.state; break; }
+          row.askedBackTo = probe.askedBackTo ?? row.askedBackTo;
+          if (probe.yearEmpty) { quiet++; continue; }
+          quiet = 0;
+          for (let m = 0; m < 12; m++) {
+            if (alive) setProgress(`Reading ·${acct.tail} ${acct.accountType ?? ""} — ${k === 0 ? "this year" : `${k} year${k > 1 ? "s" : ""} back`}, month ${m + 1} of 12…`);
+            const step = await get<StepAnswer>(`?account=${acct.index}&yearsBack=${k}&month=${m}`);
+            if (step.state !== "OK") { row.stoppedBecause = "REFUSED"; row.reason = step.reason ?? step.state; break outer; }
+            all.push(...(step.orders ?? []));
+            row.orders += step.orders?.length ?? 0;
+            row.filled += (step.orders ?? []).filter(o => o.status === "FILLED").length;
+            row.askedBackTo = step.askedBackTo ?? row.askedBackTo;
+            if (step.stoppedBecause === "REFUSED" || step.stoppedBecause === "PAGE_BUDGET") { row.stoppedBecause = step.stoppedBecause; row.reason = step.reason ?? null; break outer; }
+            publish(false);
+          }
         }
-        const mine = all.filter(o => o.accountId === acct.tail);
-        rows.push({ tail: acct.tail, accountType: acct.accountType, orders: n, filled: mine.filter(o => o.status === "FILLED").length, askedBackTo, stoppedBecause: stopped, reason });
       }
-      const episodes = reconstructEpisodes(all, Date.now());
-      if (alive) setData({ state: "OK", asOf: new Date().toISOString(), truth: "ACTUAL BROKER RESULT · episodes RECONSTRUCTED from Webull order history", accounts: rows, orderCount: all.length, summary: summarizeLedger(episodes), episodes });
+      publish(true);
     })()
       .catch(e => { if (alive) setData({ state: "CONNECTION_FAILED", reason: e instanceof Error ? e.message : "unknown" }); })
       .finally(() => { if (alive) { setLoading(false); setProgress(null); } });
@@ -201,6 +212,9 @@ export function WebullLifetimeLedger() {
         : data.state !== "OK" ? <p data-testid="ledger-refusal" style={{ color: MUTED, fontSize: 12 }}>Webull history not readable: {data.state}{data.reason ? ` — ${data.reason}` : ""}. Nothing is shown in its place.</p>
         : s ? (
         <>
+          {data.partial ? (
+            <p data-testid="ledger-partial" role="status" style={{ margin: 0, fontSize: 12, color: GOLD }}>STILL READING — the figures below grow as each month arrives.</p>
+          ) : null}
           {(data.accounts ?? []).some(a => a.stoppedBecause === "REFUSED" || a.stoppedBecause === "PAGE_BUDGET") ? (
             <p data-testid="ledger-incomplete" role="status" style={{ margin: 0, fontSize: 12, color: "#f0b429", border: "1px solid rgba(240,180,41,0.45)", borderRadius: 6, padding: "6px 10px" }}>
               INCOMPLETE — Webull stopped answering before the whole history was read (see the account lines below). Every figure on this page covers only the orders that were read. Refresh in a minute to read the rest.
