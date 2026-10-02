@@ -27,7 +27,10 @@ export interface YahooTimeframePlan {
 
 
 const PLANS: Record<string, YahooTimeframePlan> = {
-  "1m":  { interval: "1m",  range: "1d",   multiplier: 1,  sourceMode: "native" },
+  // 5d, not 1d: with includePrePost a 1d window is TODAY only, and before the
+  // cash open a cash index has none (serving SPX 1m 2026-10-02 06:00 ET: 0
+  // bars → NO BAR HISTORY while 3m, 5d of 1m, drew). The bar limit trims.
+  "1m":  { interval: "1m",  range: "5d",   multiplier: 1,  sourceMode: "native" },
   "2m":  { interval: "2m",  range: "5d",   multiplier: 1,  sourceMode: "native" },
   "3m":  { interval: "1m",  range: "5d",   multiplier: 3,  baseSeconds: 60,   sourceMode: "reconstructed" },
   "5m":  { interval: "5m",  range: "5d",   multiplier: 1,  sourceMode: "native" },

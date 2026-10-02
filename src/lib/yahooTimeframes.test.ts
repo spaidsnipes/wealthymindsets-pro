@@ -65,3 +65,9 @@ describe("Yahoo timeframe truth", () => {
     ]);
   });
 });
+
+describe("1m reaches back past an empty today (SPX premarket, 2026-10-02)", () => {
+  it("asks for five days of 1m, not one", () => {
+    expect(resolveYahooTimeframe("1m")).toMatchObject({ interval: "1m", range: "5d", multiplier: 1 });
+  });
+});
