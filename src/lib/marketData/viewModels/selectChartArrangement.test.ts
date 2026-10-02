@@ -240,7 +240,8 @@ describe("the declaration is printable chrome, not a debug string", () => {
       "the chart declares ORDER FLOW on a tape that can draw only five of its " +
         "eight readings (Exhaustion split from the shelf), with no indication that three are mute. That is the " +
         "beautiful lie this compiler exists to prevent.",
-    ).toMatch(/5 OF 8 DRAWING/);
+    // Nine since Flow Current got its own switch (2026-10-01); it needs sided tape, so five draw.
+    ).toMatch(/5 OF 9 DRAWING/);
   });
 
   it("stays clean when the desk is fully deliverable", () => {

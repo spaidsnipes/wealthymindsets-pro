@@ -203,6 +203,8 @@ const ARRANGEMENTS: readonly ArrangementSpec[] = [
       "ANATOMY_CARDS",
       "QUESTION_LENS",
       "IMBALANCE_STACK",
+      // F06A: who is pressing, on each bar (its own switch since 2026-10-01).
+      "FLOW_CURRENT",
       "VALUE_CANDLE",
       "DELTA_DIVERGENCE",
       "LIQUIDITY_WEATHER",
