@@ -43,3 +43,18 @@ START `16fab112` (serving at 17:32 CDT).
 
 Faintness pass (each sense alone, ES/BTC): Memory Ghost `46a9540` (filled silver-blue, 0.55 floor), Market Structure `5486bde` (swing path), Composite `3b90044` (strata floor), Profile Memory `e39a80b`, Flow Current switch `0f4f6a8`/`b8903cf`.
 Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6–3.4 ms, 0 long tasks, heap flat.
+
+## Night shift (21:15 → 03:00 CDT) — faint senses + phone/iPad
+
+| Item | State | Evidence |
+|---|---|---|
+| Delta Levels visible | 🟢 | `9d6871b` floor (3–8px rungs, 56px lane, backing, "← SELL · Δ LEVELS · BUY →"); `8ce7f60`/`d03944b`/`5539462` lane never on newest candles, never shares x with Divergence — NQ1!/ES1! 1m rungs=5–6 LEFT_EDGE |
+| Delta Divergence visible | 🟢 | `5539462` 2px marks, 0.8 floor; tag "△ FOLLOWED · 1.9σ" CLEAR on ES1! |
+| Imbalance Stack | 🟢 | `71cac70` label below header chrome; `fde2d8a` band 8% / 1.5px edges / slabs 0.32+; measures within ~20 s of live tape (NO_STACK honest) |
+| Bare futures root | 🟢 | `2f28218` `/charts?symbol=NQ` (a stock ticker by rule) offers "Open NQ1! →"; click proved → certified live NQ1! |
+| Phone /charts header | 🟢 | `8967372` price never wraps, band clips <640; `f89afbe` evidence chip "● 12 symbols" between EFFORT and INSPECT |
+| Phone /scanner | 🟢 | `858f81e` actions on own row (0 clipped); headline "N signals · M live" |
+| Phone /desk | 🟢 | `858f81e`/`a48e06c` screens stack 1 column (480px/80vh), header wraps, no New window |
+| iPad /desk 4-up | 🟢 | `22efbae` weather loupe YIELDED_SMALL_PANE in quarters (was burying candles) |
+| Phone/iPad audit | 🟢 | 390px: /charts /scanner /news /journal /desk /command-deck /rooms 0 clipped; 834px: /charts /desk 0 clipped (ticker marquee by design) |
+| Visual roles PRIMARY | 🟢 | measured on ES1!: lead 1, others 0.72 |
