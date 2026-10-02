@@ -65,3 +65,8 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | Weather loupe / Lifecycle | 🟢 | BTC 5m loupe DRAWN, 2 pools APPEARED at live edge |
 | Crypto Derivatives tab | 🟢 | `7ec7fd8` BTC/ETH open Deribit view-only chain (13 expiries, ATM row, bid/ask/mark/IV/OI, "not tradeable in WM"); other coins disabled with reason |
 | Guest entry /login /signup /reset (390px) | 🟢 | audit-phone: 0 offenders, 0 evicted, 0 under-44px taps |
+| Forex door | 🟢 | `c58a3b5` EURUSD footer "live volume: 6E1! →" (GBPUSD→6B1!, USDJPY→6J1! inverse); click proved → 6E1! LIVE — CERTIFIED with volume + lifecycle pools |
+| Order flow on open (futures) | 🟢 | `75fc249` ring seeded with tastytrade's last 15 min of signed TimeAndSale — GC1! 1m at night: Stack/Divergence/Delta Levels DRAWN at 10 s (236 sided prints) |
+| Scalper / swing timeframes | 🟢 | NQ1! 5s LIVE; AAPL 1D + ES1! 1D LIVE; TSLA 15s / SPY 1W after hours read STALE (honest: overnight never proven closed) |
+| Console errors | 🟢 | 0 across TSLA / NQ1! / EURUSD / BTC navigations |
+| OPEN (Founder words) | ⚪ | US equities overnight: masthead says STALE PIPELINE (canon word) — a gentler "OVERNIGHT · THIN" would be new vocabulary; masthead last-print ignores TradeETH (asOf reads 15:59:59 not 19:59:59) |
