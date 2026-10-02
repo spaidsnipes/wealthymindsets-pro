@@ -122,3 +122,5 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | iPad loupe | 🟡 BUILT | `6269638` loupe can be taken from 768 px (was 1024), "Return lens to live" shows from 768 px; touch guard keeps the chart's pan off the glass. Touch proof needs a real iPad |
 | News / Research door | 🟢 | `b6d6224` matches the instrument's names (TSLA → Tesla, NQ1! → Nasdaq, BTC-USD → Bitcoin, ticker as whole word only); empty state says "No headline in the last 120 names TSLA (tesla) right now." `bb08bcf` double-escaped entities decoded (0 left on page) |
 | Scanner headline | 🟢 | "30 signals · 30 live" = footer "30 LIVE · 0 DELAYED" |
+| News companion follows the instrument | 🟢 | `963a196` /news?q=TSLA → Chart Companion TSLA; ?q=Fed leaves the room's symbol alone |
+| Workspace views | 🟢 | Order Flow view arms Absorption, Stack, Value Candle, Divergence, weather loupe, Flow Current in one click (ES1!) |
