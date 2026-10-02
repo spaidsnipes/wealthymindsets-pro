@@ -42,7 +42,7 @@ import {
   type VendorAttempt,
 } from "@/lib/marketData/compileBarHistoryRefusal";
 import BarHistoryRefusalNote from "@/components/chart/BarHistoryRefusalNote";
-import { futuresFormHint } from "@/lib/marketData/futuresFormHint";
+import { cfdDoorFor, futuresFormHint } from "@/lib/marketData/futuresFormHint";
 import { fxFuturesDoor } from "@/lib/chart/fxFuturesDoor";
 import { TimeframeGlassChip, TIMEFRAME_FOOTER_H, TIMEFRAME_CHIP_BOTTOM_PX } from "@/components/chart/TimeframeGlassChip";
 import { chartVolumeFooterFact } from "@/lib/chart/chartVolumeFooterFact";
@@ -23271,7 +23271,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           quote forms a bar or two (spot EURUSD at 15s, 2026-10-01: one live
           bar hid the note and the glass read blank). */}
       {barRefusal && (candles.length === 0 || (!barRefusal.served && candles.length < 3)) && (
-        <BarHistoryRefusalNote vm={barRefusal} futuresHint={futuresFormHint(symbol)} />
+        <BarHistoryRefusalNote vm={barRefusal} futuresHint={futuresFormHint(symbol)} cfdDoor={cfdDoorFor(symbol)} />
       )}
       {isQuoteSampleSeries(candles) && (
         <div data-testid="quote-sample-note" role="status"

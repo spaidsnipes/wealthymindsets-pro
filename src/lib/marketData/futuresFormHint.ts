@@ -28,3 +28,22 @@ export function futuresFormHint(chartSymbol: string): string | null {
   const cont = `${sym}1!`;
   return CONTINUOUS.has(cont) ? cont : null;
 }
+
+/**
+ * CFD NAMES → THE MARKET WM CAN OPEN (serving 2026-10-02 00:55 CDT: US30,
+ * US500, US100, UKOIL are offered by search and chart nothing). Never a
+ * substitute (searchResultCategory.test: "a near-neighbour presented as the
+ * instrument asked for is a worse defect than a blank chart") — a DOOR that
+ * names the different market it opens.
+ */
+const CFD_DOORS: Readonly<Record<string, { readonly symbol: string; readonly words: string }>> = {
+  US30: { symbol: "DJI", words: "US30 is a CFD WM has no source for. The Dow cash index is a different market:" },
+  US500: { symbol: "SPX", words: "US500 is a CFD WM has no source for. The S&P 500 cash index is a different market:" },
+  US100: { symbol: "NDX", words: "US100 is a CFD WM has no source for. The Nasdaq-100 cash index is a different market:" },
+  USOIL: { symbol: "CL1!", words: "USOIL is a CFD WM has no live source for. WTI crude futures are a different market:" },
+  UKOIL: { symbol: "BZ1!", words: "UKOIL is a CFD WM has no source for. Brent crude futures are a different market:" },
+};
+
+export function cfdDoorFor(chartSymbol: string): { readonly symbol: string; readonly words: string } | null {
+  return CFD_DOORS[(chartSymbol ?? "").trim().toUpperCase()] ?? null;
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { futuresFormHint } from "./futuresFormHint";
+import { cfdDoorFor, futuresFormHint } from "./futuresFormHint";
 
 describe("an empty chart on a bare futures root points at the contract", () => {
   it("offers the catalogued continuous contract", () => {
@@ -24,5 +24,13 @@ describe("an empty chart on a bare futures root points at the contract", () => {
     expect(note).toContain("pointerEvents: \"auto\"");
     const chart = readFileSync("src/components/chart/MainChart.tsx", "utf8");
     expect(chart).toContain("futuresHint={futuresFormHint(symbol)}");
+  });
+  it("CFD names get a named door to a different market, never a substitute", () => {
+    expect(cfdDoorFor("US30")).toMatchObject({ symbol: "DJI" });
+    expect(cfdDoorFor("ukoil")).toMatchObject({ symbol: "BZ1!" });
+    expect(cfdDoorFor("US500")?.words).toMatch(/different market/);
+    expect(cfdDoorFor("SPX")).toBeNull();
+    const chart = readFileSync("src/components/chart/MainChart.tsx", "utf8");
+    expect(chart).toContain("cfdDoor={cfdDoorFor(symbol)}");
   });
 });
