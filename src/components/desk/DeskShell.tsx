@@ -147,7 +147,7 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLi
       {/* §LV: a second monitor — this screen's market and timeframe in its own
           window (a full /charts room), named per screen so a second press
           brings the same window forward instead of opening another. */}
-      <button type="button" data-testid={`desk-window-${index + 1}`} title="Open this market in a new window (drag it to another monitor)"
+      <button type="button" className="wm-desk-new-window" data-testid={`desk-window-${index + 1}`} title="Open this market in a new window (drag it to another monitor)"
         onClick={() => window.open(`${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`, `wm-screen-${index + 1}`, "popup,width=1280,height=820")}
         style={btn()}>
         New window

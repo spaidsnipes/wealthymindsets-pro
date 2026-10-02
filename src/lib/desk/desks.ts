@@ -65,7 +65,7 @@ export function phoneGridFor(count: number): { readonly columns: string; readonl
   const n = Math.max(1, Math.floor(count));
   return {
     columns: "1fr",
-    rows: `repeat(${n}, minmax(360px, 70vh))`,
+    rows: `repeat(${n}, minmax(480px, 80vh))`,
     areas: Array.from({ length: n }, (_, i) => `${i + 1} / 1 / ${i + 2} / 2`),
   };
 }

@@ -86,7 +86,8 @@ describe("phone desk stacks its screens (serving /desk at 390px, 2026-10-01)", (
   it("one column, one row per screen, each readable", () => {
     const g = phoneGridFor2(4);
     expect(g.columns).toBe("1fr");
-    expect(g.rows).toBe("repeat(4, minmax(360px, 70vh))");
+    expect(g.rows).toBe("repeat(4, minmax(480px, 80vh))");
+    expect(readFileSync2("src/app/globals.css", "utf8")).toMatch(/@media \(max-width: 639px\)\s*\{\s*\.wm-desk-new-window\s*\{\s*display: none !important;/);
     expect(g.areas).toEqual(["1 / 1 / 2 / 2", "2 / 1 / 3 / 2", "3 / 1 / 4 / 2", "4 / 1 / 5 / 2"]);
   });
   it("the shell uses it below 640 and the screen header wraps", () => {

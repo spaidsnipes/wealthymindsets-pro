@@ -1281,6 +1281,11 @@ input[type=range]::-webkit-slider-runnable-track {
    right edge. Their full receipts and disclosure behavior remain unchanged;
    only the persistent card chrome is retired. Phones keep the existing
    two-row arrangement so neither control can cover the other. */
+/* A second monitor is not a phone's job (serving /desk at 390px, 2026-10-01). */
+@media (max-width: 639px) {
+  .wm-desk-new-window { display: none !important; }
+}
+
 /* PHONE + TABLET (serving TSLA at 390px, 2026-10-01): at top 8 / right 8 the
    retained-evidence chip printed over the price legend. Below 1024 it sits in
    the free gap of the EFFORT · INSPECT row (64–88px), centred. */
