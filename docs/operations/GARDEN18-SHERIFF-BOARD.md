@@ -113,3 +113,4 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | BTC-USD | 2 | Composite / Profile Memory: 24/7 feed has no completed session (⚪ Founder crypto session split) |
 | TSLA (overnight) | 5 | no stock prints yet; `bc377f0` infers sides once they flow — note now says so (`9721207`) |
 | EURUSD | 7 | spot FX has no tape — note now points at 6E1! (`9721207`); composite/memory have no volume |
+| Loupe back to live (double-click inside / Escape) | 🟡 BUILT, glass proof pending | `37f958a`; sentinel-tested. 01:45 CDT the Chrome window went to the background and stopped delivering mouse presses to the page (moves only — measured with a window-capture log), so the interactive proof waits for the window to be frontmost |
