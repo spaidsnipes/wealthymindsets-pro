@@ -364,6 +364,7 @@ import { DiscoveryUnusualStates } from "@/components/scanner/DiscoveryUnusualSta
 import { InstrumentContextStrip } from "./InstrumentContextStrip";
 import { FuturesOptionsPanel } from "./FuturesOptionsPanel";
 import { DeribitChainPanel } from "./DeribitChainPanel";
+import { MarketMetricsCard } from "./MarketMetricsCard";
 import { BOARD_STOCK_SYMBOLS } from "@/lib/marketData/sp500Board";
 import { selectAuctionState } from "@/lib/marketData/viewModels/selectAuctionState";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
@@ -6907,7 +6908,11 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
   useEffect(() => {
     let cancelled = false;
     const map = FMP_PATHS[tab];
-    if (!map) { setLoading(false); setHasData(false); return; }
+    // Company fundamentals apply to stocks only: a coin, a future or a pair
+    // never asks the fundamentals provider (2026-10-01: BTC Market Info read
+    // "FUNDAMENTALS PROVIDER — NOT CONFIGURED" about a question it never had).
+    const ac = canonicalAssetClass(symbol);
+    if (!map || (ac !== "equity" && ac !== "etf")) { setLoading(false); setHasData(false); setProviderEdge(null); return; }
     setLoading(true); setHasData(false); setD({}); setProviderEdge(null);
     let capturedEdge: { edge: string; missing: readonly string[] } | null = null;
     const keys = Object.keys(map);
@@ -7082,6 +7087,7 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
 
   return (
     <div style={{ flex:1, overflow:"auto", background:"transparent", padding:16 }}>
+      {tab === "Profile" || tab === "Valuation" ? <MarketMetricsCard symbol={symbol} /> : null}
       {loading ? (
         <div style={{ color:"#6B7094", fontSize:13, padding:"24px 4px" }}>Loading {tab.toLowerCase()} data…</div>
       ) : (body && hasData) ? body : providerEdge ? (
@@ -7106,15 +7112,12 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
             be loaded. This panel shows real data only — it will never fabricate placeholder
             figures.
           </p>
-          <div style={{ fontSize:11, color:"#8896BE", lineHeight:1.6 }}>
-            Missing host secret{providerEdge.missing.length === 1 ? "" : "s"}:
-            {" "}
-            {providerEdge.missing.map((m, i) => (
-              <code key={m} style={{ background:"#0b0b0d", border:"1px solid #333", padding:"1px 6px", borderRadius:3, marginRight:4, color:"#f4c86b" }}>{m}{i < providerEdge.missing.length - 1 ? "" : ""}</code>
-            ))}
-          </div>
-          <div style={{ fontSize:11, color:"#6B7094", lineHeight:1.6, marginTop:8 }}>
-            Set it in Cloudflare Worker environment variables and this panel will populate real data.
+          {/* The host secret's NAME stays in the diagnostic hover, not the
+              guest's copy (connectivity contract: provider plumbing belongs
+              in protected provenance, not public chrome). */}
+          <div style={{ fontSize:11, color:"#8896BE", lineHeight:1.6 }}
+            title={`Host configuration missing: ${providerEdge.missing.join(", ")}`}>
+            Company fundamentals are not connected yet. Market metrics above are live from tastytrade.
           </div>
         </div>
       ) : (

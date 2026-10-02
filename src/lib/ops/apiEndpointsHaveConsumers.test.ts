@@ -216,13 +216,6 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "paths with different authority — this one holds the SERVICE ROLE key — and the app uses " +
       "the other one. Task #53.",
   },
-  "/api/broker/tastytrade/market-metrics": {
-    cls: "DARK",
-    evidence:
-      "FOUND BY THIS GUARD on its first honest run, immediately after comment-stripping was " +
-      "added. Returns tastytrade IV / volatility metrics; referenced only by its own test and a " +
-      "path list inside a tastytradeAdapter doc comment. Task #47.",
-  },
 };
 
 const routes = apiRoutePaths();
@@ -321,7 +314,9 @@ describe("every API endpoint has something that actually calls it", () => {
     const every = Object.values(NO_IN_APP_CALLER);
     const dark = Object.entries(NO_IN_APP_CALLER).filter(([, e]) => e.cls === "DARK");
 
-    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(12);
+    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(11);
+    // 12 -> 11 on 2026-10-01: /api/broker/tastytrade/market-metrics PAID —
+    // MarketMetricsCard reads it on the Market Info / Contract / Valuation views.
     // 13 -> 12 on 2026-09-26: /api/tradovate RETIRED, not wired. It forwarded
     // any signed-in caller's method, payload and bearer token to
     // live.tradovateapi.com/v1/<caller-chosen endpoint> with no owner gate, no
