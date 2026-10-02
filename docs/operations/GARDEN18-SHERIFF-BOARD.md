@@ -116,3 +116,4 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | Loupe back to live (double-click inside / Escape) | 🟡 BUILT, glass proof pending | `37f958a`; sentinel-tested. 01:45 CDT the Chrome window went to the background and stopped delivering mouse presses to the page (moves only — measured with a window-capture log), so the interactive proof waits for the window to be frontmost |
 | Crypto Market Info | 🟢 | `15d7bcd` Coinbase public 24h stats + Deribit DVOL — BTC: last 85,985, +2.27%, H 86,885 / L 83,107, range 4.55%, 7,709 BTC 24h, 178,728 BTC 30d, DVOL 35.9% (was an empty equities-only card) |
 | Deribit chain at 390px | 🟢 | panel 12–374px, 0 clipped |
+| FX Market Info | 🟢 | `716f79c` USDJPY: USD / JPY, pip 0.01, centres in business hours now "Sydney · Tokyo" (07:00Z), central volume none, "Open 6J1! →" (inverse noted) |
