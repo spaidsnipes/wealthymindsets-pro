@@ -78,4 +78,20 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
     expect(waits.slice(0, 2)).toEqual([100, 200]);
     expect(waits).toContain(7);
   });
+
+  it("finished months are kept and read back; the current month is always asked live", async () => {
+    const all = [grp("aa", "2026-10-01T14:00:00Z"), grp("dd", "2026-07-08T14:00:00Z")];
+    const store = new Map<string, string>();
+    const cache = { get: async (k: string) => store.get(k) ?? null, put: async (k: string, v: string) => { store.set(k, v); } };
+    const first = fakeWebull(all, 99, 99);
+    const w1 = await walkWebullHistory("ACC", first.page, { today: TODAY, ...NOOP, cache });
+    expect(w1.cachedMonths).toBe(0);
+    expect(store.size).toBeGreaterThan(0);
+    expect([...store.keys()].some(k => k.includes("2026-09-03:2026-10-03"))).toBe(false);   // current month never kept
+    const second = fakeWebull(all, 99, 99);
+    const w2 = await walkWebullHistory("ACC", second.page, { today: TODAY, ...NOOP, cache });
+    expect(w2.orders.map(o => o.orderId).sort()).toEqual(["o-aa", "o-dd"]);
+    expect(w2.cachedMonths).toBeGreaterThan(0);
+    expect(second.calls.length).toBeLessThan(first.calls.length);
+  });
 });

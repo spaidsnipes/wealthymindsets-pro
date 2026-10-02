@@ -163,6 +163,11 @@ export function WebullLifetimeLedger() {
         : data.state !== "OK" ? <p data-testid="ledger-refusal" style={{ color: MUTED, fontSize: 12 }}>Webull history not readable: {data.state}{data.reason ? ` — ${data.reason}` : ""}. Nothing is shown in its place.</p>
         : s ? (
         <>
+          {(data.accounts ?? []).some(a => a.stoppedBecause === "REFUSED" || a.stoppedBecause === "PAGE_BUDGET") ? (
+            <p data-testid="ledger-incomplete" role="status" style={{ margin: 0, fontSize: 12, color: "#f0b429", border: "1px solid rgba(240,180,41,0.45)", borderRadius: 6, padding: "6px 10px" }}>
+              INCOMPLETE — Webull stopped answering before the whole history was read (see the account lines below). Every figure on this page covers only the orders that were read. Refresh in a minute to read the rest.
+            </p>
+          ) : null}
           <div style={{ fontSize: 11, color: MUTED, lineHeight: 1.6 }}>
             {(data.accounts ?? []).map(a => (
               <div key={a.tail}>·{a.tail} {a.accountType ?? ""}: {a.orders} orders ({a.filled} filled) · asked back to {a.askedBackTo} · {a.stoppedBecause === "QUIET_YEARS" ? "history quiet before that" : a.stoppedBecause}{a.reason ? ` — ${a.reason}` : ""}</div>

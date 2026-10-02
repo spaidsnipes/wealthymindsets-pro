@@ -30,11 +30,15 @@ export interface AccountWalk {
   readonly askedBackTo: string;
   readonly stoppedBecause: "QUIET_YEARS" | "FLOOR" | "REFUSED" | "PAGE_BUDGET";
   readonly reason: string | null;
+  /** Finished months read from the cache instead of Webull. */
+  readonly cachedMonths: number;
 }
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
 /** Rows at which a window is halved rather than trusted (see readWindow). */
 export const SPLIT_AT = 30;
+/** Cache key prefix; bump the version if the raw-row shape kept here changes. */
+export const CACHE_PREFIX = "wbledger:v1:";
 const rowsOf = (p: unknown): unknown[] => Array.isArray(p) ? p : Array.isArray((p as { data?: unknown })?.data) ? (p as { data: unknown[] }).data : [];
 
 class Stop extends Error { constructor(readonly why: AccountWalk["stoppedBecause"], readonly detail: string) { super(detail); } }
@@ -45,14 +49,20 @@ export async function walkWebullHistory(
   opts: {
     readonly today: Date; readonly floor?: string; readonly quietYears?: number; readonly pageBudget?: number;
     readonly sleep?: (ms: number) => Promise<void>; readonly gapMs?: number; readonly backoffMs?: readonly number[];
+    /**
+     * Finished months are history: a month that ended more than a week ago is
+     * kept as Webull's own raw rows and read from here next time. The current
+     * month is always asked live.
+     */
+    readonly cache?: { get(key: string): Promise<string | null>; put(key: string, value: string): Promise<void> };
   },
 ): Promise<AccountWalk> {
   const floor = opts.floor ?? "2014-01-01";
   const quietNeeded = opts.quietYears ?? 2;
   const budget = opts.pageBudget ?? 400;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
-  const gap = opts.gapMs ?? 800;
-  const backoff = opts.backoffMs ?? [2_000, 4_000, 8_000, 15_000];
+  const gap = opts.gapMs ?? 1_100;
+  const backoff = opts.backoffMs ?? [3_000, 6_000, 12_000, 20_000, 30_000, 45_000];
   const orders: LedgerOrder[] = [];
   const seen = new Set<string>();
   let windows = 0, pages = 0;
@@ -69,7 +79,10 @@ export async function walkWebullHistory(
     if (!r.ok) throw new Stop("REFUSED", r.reason ?? "Webull refused the history request.");
     return r.payload;
   };
+  let collect: unknown[] | null = null;
+  let cachedMonths = 0;
   const take = (payload: unknown) => {
+    if (collect) collect.push(...rowsOf(payload));
     let added = 0;
     for (const o of readWebullHistory(payload, accountId)) if (!seen.has(o.orderId)) { seen.add(o.orderId); orders.push(o); added++; }
     return added;
@@ -123,18 +136,30 @@ export async function walkWebullHistory(
         while (ymd(mEnd) > s) {
           const mStart = new Date(mEnd); mStart.setUTCMonth(mStart.getUTCMonth() - 1);
           const ms = ymd(mStart) < s ? s : ymd(mStart);
-          await readWindow(ms, ymd(mEnd));
+          const key = `${CACHE_PREFIX}${accountId}:${ms}:${ymd(mEnd)}`;
+          const settled = Date.parse(ymd(mEnd)) < opts.today.getTime() - 7 * 86_400_000;
+          const hit = settled && opts.cache ? await opts.cache.get(key).catch(() => null) : null;
+          if (hit) {
+            take(JSON.parse(hit));
+            cachedMonths++;
+          } else {
+            collect = [];
+            await readWindow(ms, ymd(mEnd));
+            const rows = collect;
+            collect = null;
+            if (settled && opts.cache) await opts.cache.put(key, JSON.stringify(rows)).catch(() => {});
+          }
           mEnd = mStart;
         }
         // Anything the probe saw that the months somehow did not (never expected) still counts.
         take(probe);
       }
-      if (s <= floor) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "FLOOR", reason: null };
-      if (quiet >= quietNeeded) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "QUIET_YEARS", reason: null };
+      if (s <= floor) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "FLOOR", reason: null, cachedMonths };
+      if (quiet >= quietNeeded) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "QUIET_YEARS", reason: null, cachedMonths };
       end = new Date(start);
     }
   } catch (e) {
-    if (e instanceof Stop) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: e.why, reason: e.detail };
+    if (e instanceof Stop) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: e.why, reason: e.detail, cachedMonths };
     throw e;
   }
 }

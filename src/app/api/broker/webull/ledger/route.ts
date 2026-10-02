@@ -7,6 +7,7 @@ import { walkWebullHistory } from "@/lib/broker/webullLedgerWalk";
 import { webullOwnerGate, webullOwnerRefusal } from "@/lib/broker/webullOwner";
 import { requireAuth } from "@/lib/requireAuth";
 import { resolveWebullSessionToken, webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
+import { orderDecisionKv } from "@/lib/broker/orderDecisionLedger";
 
 export const dynamic = "force-dynamic";
 
@@ -38,11 +39,14 @@ export async function GET(request: Request): Promise<Response> {
   if (accounts.state !== "OK") return NextResponse.json({ state: "ACCOUNTS_UNAVAILABLE", reason: accounts.reason }, { headers: NO_STORE });
 
   const today = new Date();
+  // Finished months come from KV (Webull's raw rows, kept on first read); ?fresh=1 asks Webull for everything.
+  const kv = new URL(request.url).searchParams.get("fresh") === "1" ? null : orderDecisionKv(await webullWorkerEnv());
+  const cache = kv ? { get: (k: string) => kv.get(k), put: (k: string, v: string) => kv.put(k, v) } : undefined;
   const walks = [];
   for (const [i, a] of accounts.accounts.entries()) {
     // Webull answers HTTP 429 to back-to-back history reads; accounts are spaced like pages.
     if (i > 0) await new Promise(r => setTimeout(r, 1_100));
-    const w = await walkWebullHistory(a.accountId, (s, e, cursor) => listWebullOrderHistoryPage(fetch, c, a.accountId, s, e, cursor), { today });
+    const w = await walkWebullHistory(a.accountId, (s, e, cursor) => listWebullOrderHistoryPage(fetch, c, a.accountId, s, e, cursor), { today, cache });
     walks.push({ ...w, accountType: a.accountType });
   }
   const orders = dedupeOrders(walks.flatMap(w => w.orders));
@@ -56,7 +60,7 @@ export async function GET(request: Request): Promise<Response> {
     accounts: walks.map(w => ({
       tail: w.accountId.slice(-4), accountType: w.accountType, orders: w.orders.length,
       filled: w.orders.filter(o => o.status === "FILLED").length,
-      windows: w.windows, pages: w.pages, askedBackTo: w.askedBackTo, stoppedBecause: w.stoppedBecause, reason: w.reason,
+      windows: w.windows, pages: w.pages, cachedMonths: w.cachedMonths, askedBackTo: w.askedBackTo, stoppedBecause: w.stoppedBecause, reason: w.reason,
     })),
     orderCount: orders.length,
     summary,
