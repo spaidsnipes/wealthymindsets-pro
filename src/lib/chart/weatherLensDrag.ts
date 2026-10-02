@@ -1,10 +1,18 @@
-/** Representation only: a grabbed aperture never changes candle coordinates. */
+/**
+ * Representation only: a grabbed aperture never changes candle coordinates.
+ * A HAND-PLACED loupe may overhang the pane by up to two-thirds of its radius
+ * (Founder, 2026-10-02: "dragged up and down along the candle sticks … like
+ * putting a magnifying glass wherever you want"). Held whole, a 192 px loupe on
+ * a 480 px pane could never centre on candles in the lower half. Its centre
+ * always stays on the glass, so it never leaves the market it reads.
+ */
+export const LENS_HAND_OVERHANG = 2 / 3;
 export function constrainWeatherLens(
   x: number, y: number, rx: number, ry: number,
   width: number, bottom: number, top: number,
 ): { x: number; y: number } {
-  const mx = Math.min(rx + 20, width / 2);
-  const my = Math.min(ry + 24, Math.max(0, bottom - top) / 2);
+  const mx = Math.min(rx * (1 - LENS_HAND_OVERHANG) + 12, width / 2);
+  const my = Math.min(ry * (1 - LENS_HAND_OVERHANG) + 12, Math.max(0, bottom - top) / 2);
   return {
     x: Math.max(mx, Math.min(width - mx, x)),
     y: Math.max(top + my, Math.min(bottom - my, y)),

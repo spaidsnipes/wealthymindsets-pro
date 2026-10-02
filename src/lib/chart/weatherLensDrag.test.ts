@@ -18,9 +18,15 @@ describe("grabbed weather aperture", () => {
     expect(isWeatherLensBezel(200, 120, lens)).toBe(true);
     expect(isWeatherLensBezel(340, 200, lens)).toBe(false);
   });
-  it("keeps the entire bezel away from axes and header", () => {
-    expect(constrainWeatherLens(-80, 900, 100, 80, 800, 500, 40)).toEqual({ x: 120, y: 396 });
-    expect(constrainWeatherLens(900, -40, 100, 80, 800, 500, 40)).toEqual({ x: 680, y: 144 });
+  it("a hand-placed loupe may overhang by 2/3 of its radius; its centre stays on the glass (2026-10-02)", () => {
+    const a = constrainWeatherLens(-80, 900, 100, 80, 800, 500, 40);
+    expect(a.x).toBeCloseTo(100 / 3 + 12, 6);
+    expect(a.y).toBeCloseTo(500 - (80 / 3 + 12), 6);
+    const b = constrainWeatherLens(900, -40, 100, 80, 800, 500, 40);
+    expect(b.x).toBeCloseTo(800 - (100 / 3 + 12), 6);
+    expect(b.y).toBeCloseTo(40 + 80 / 3 + 12, 6);
+    // Inside the glass it follows the hand exactly.
+    expect(constrainWeatherLens(400, 300, 100, 80, 800, 500, 40)).toEqual({ x: 400, y: 300 });
   });
   it("selects only retained candles instead of borrowing the newest window", () => {
     expect(weatherLensBarSpan(30, 100, 10, 400)).toEqual({ from: 20, to: 41 });
