@@ -14759,7 +14759,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           if (ghost.drawn) {
             // The owner's ceiling is the ghost's brightness, in every form;
             // the attention governor (MEMORY) may only lower it.
-            ctx.globalAlpha = Math.min(ghost.opacity, att.alpha("memoryGhost"));
+            // VISIBILITY FLOOR (Garden 18 §XXXVI, cross-market run ES 5m
+            // 2026-10-01: Memory Ghost alone read as a dashed box and a caption —
+            // the plate's 0.18 ceiling × the governor left the candles near
+            // zero). The ghost now reads at no less than 0.55; age and the
+            // governor may lower it only above that floor.
+            ctx.globalAlpha = Math.max(0.55, Math.min(ghost.opacity, att.alpha("memoryGhost")));
             // Below this slot width a hollow ghost body cannot be told from its
             // neighbours or from the live body it sits on, so the path speaks.
             const GHOST_CANDLE_MIN_SPACING = 8;
@@ -14862,6 +14867,11 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                 const cxg = Math.round(+x) + 0.5;
                 const top = Math.min(+yo, +yc), hB = Math.max(1, Math.abs(+yc - +yo));
                 ctx.beginPath(); ctx.moveTo(cxg, +yh); ctx.lineTo(cxg, top); ctx.moveTo(cxg, top + hB); ctx.lineTo(cxg, +yl); ctx.stroke();
+                // A soft silver-blue body (plate 68's filled ghost) — a material
+                // no live candle, Clarity brass or profile wears — under its
+                // dashed outline. The live bodies are clipped out above.
+                ctx.fillStyle = c.close >= c.open ? "rgba(168,196,232,0.30)" : "rgba(120,140,178,0.30)";
+                ctx.fillRect(Math.round(cxg - bw / 2), Math.round(top), bw, Math.max(1, Math.round(hB)));
                 ctx.strokeRect(Math.round(cxg - bw / 2) + 0.5, Math.round(top) + 0.5, bw, Math.max(1, Math.round(hB)));
                 ghostHits.push({ x: cxg - bw / 2 - 2, y: Math.min(+yh, +yl) - 2, w: bw + 4, h: Math.abs(+yl - +yh) + 4 });
                 drawnCandles++;

@@ -93,7 +93,8 @@ describe("every painting layer has an attention tier", () => {
       expect(LAYER_ATTENTION[k as keyof typeof LAYER_ATTENTION].tier, k).toBe("MEMORY");
       expect(ASKED_KEYS, `${k} does not ask the governor`).toContain(k);
     }
-    expect(CHART).toMatch(/ctx\.globalAlpha = Math\.min\(ghost\.opacity, att\.alpha\("memoryGhost"\)\);/);
+    // Governor and ceiling still shape it, above the §XXXVI floor (2026-10-01).
+    expect(CHART).toMatch(/ctx\.globalAlpha = Math\.max\(0\.55, Math\.min\(ghost\.opacity, att\.alpha\("memoryGhost"\)\)\);/);
     // The session ghosts restore Living's own alpha when they finish.
     const g = CHART.indexOf('ctx.globalAlpha = att.alpha("sessionGhosts");');
     expect(g).toBeGreaterThan(-1);

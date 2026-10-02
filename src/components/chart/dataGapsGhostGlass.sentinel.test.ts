@@ -84,7 +84,9 @@ describe("memory ghost candles", () => {
     expect(label).toBeGreaterThan(-1);
     const alphas = b.slice(0, label).match(/globalAlpha = [^;]+;/g) ?? [];
     expect(alphas.length).toBeGreaterThan(0);
-    for (const a of alphas) expect(a).toBe('globalAlpha = Math.min(ghost.opacity, att.alpha("memoryGhost"));');
+    // Garden 18 §XXXVI (2026-10-01): a visibility floor of 0.55 under the
+    // owner's ceiling and the governor — the ghost alone read near zero.
+    for (const a of alphas) expect(a).toBe('globalAlpha = Math.max(0.55, Math.min(ghost.opacity, att.alpha("memoryGhost")));');
     expect(b).not.toMatch(/ghost\.opacity \*/);
   });
 
@@ -94,14 +96,16 @@ describe("memory ghost candles", () => {
     expect(c).not.toMatch(/\+x \+ off|const off =|spacing \/ 2/);
   });
 
-  it("stays under the market: live bodies are clipped out first, and the ghost is outline only", () => {
+  it("stays under the market: live bodies are clipped out first, and the ghost is a filled silver-blue body under its dashed outline", () => {
     const c = candleForm();
     const clip = c.indexOf('ctx.clip("evenodd");');
     const firstInk = c.indexOf("ctx.strokeRect(");
     expect(clip).toBeGreaterThan(-1);
     expect(firstInk).toBeGreaterThan(clip);
     expect(c).toMatch(/ctx\.rect\(\+x - bsp \* 0\.46, Math\.min\(\+lo, \+lc\) - 1, bsp \* 0\.92, Math\.abs\(\+lc - \+lo\) \+ 2\);/);
-    expect(c).not.toMatch(/fillRect|ctx\.fill\(/);
+    // Plate 68's filled ghost (2026-10-01): a silver-blue body under the dashed
+    // outline — still only where the live candle is not (clipped above).
+    expect(c).toContain('ctx.fillStyle = c.close >= c.open ? "rgba(168,196,232,0.30)" : "rgba(120,140,178,0.30)";');
   });
 
   it("falls back to the path where a hollow body cannot be read", () => {
