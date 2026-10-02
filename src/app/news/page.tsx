@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ import { clsx } from "clsx";
 import { selectHeadlineLean, type HeadlineLean } from "@/lib/experience/selectHeadlineLean";
 import { HeadlineLeanBand } from "@/components/experience/HeadlineLeanBand";
 import { ChartCompanion } from "@/components/experience/ChartCompanion";
+import { headlineNames, newsTermsFor } from "@/lib/news/newsTermsFor";
 import { isPersonalAdviceColumn } from "@/lib/news/marketRelevance";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -734,6 +735,7 @@ export default function NewsPage() {
 
   // §XCIII: personal-advice columns are set aside by default — counted, one tap back.
   const setAside = news.filter(n => isPersonalAdviceColumn(n)).length;
+  const searchTerms = useMemo(() => newsTermsFor(search), [search]);
   const filtered = news.filter(n => {
     if (!showSetAside && isPersonalAdviceColumn(n)) return false;
     if (sourceFilter !== "All Sources" && !sourceMatches(n.source, sourceFilter)) return false;
@@ -746,9 +748,13 @@ export default function NewsPage() {
     if (tagFilter === "Crypto"     && !["BTC","ETH","SOL","Crypto"].some(t => n.tags.includes(t) || n.sym === t)) return false;
     if (tagFilter === "Earnings"   && !n.tags.includes("Earnings"))   return false;
     if (tagFilter === "Whales"     && !n.tags.includes("Whale"))      return false;
+    // The instrument's NAMES, not just the typed text (2026-10-02: ?q=TSLA
+    // matched no "Tesla" headline; NQ1! matched nothing). Free text still
+    // matches as typed.
     if (search && !n.title.toLowerCase().includes(search.toLowerCase()) &&
         !n.sym.toLowerCase().includes(search.toLowerCase()) &&
-        !n.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))) return false;
+        !n.tags.some(t => t.toLowerCase().includes(search.toLowerCase())) &&
+        !headlineNames(searchTerms, n.title, n.sym, n.tags)) return false;
     return true;
   });
 
@@ -1097,7 +1103,11 @@ export default function NewsPage() {
         {!loading && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Filter size={32} className="text-wm-text-dim mb-3" />
-            <p className="text-sm text-wm-text-muted">No news matches your filters.</p>
+            <p className="text-sm text-wm-text-muted">
+              {search
+                ? `No headline in the last ${news.length} names ${search}${searchTerms.words.length ? ` (${searchTerms.words.slice(0, 2).join(", ")})` : ""} right now.`
+                : "No news matches your filters."}
+            </p>
             <button
               onClick={() => { setTagFilter("All"); setSourceFilter("All Sources"); setSearch(""); }}
               className="mt-3 text-xs text-wm-blue hover:underline"
