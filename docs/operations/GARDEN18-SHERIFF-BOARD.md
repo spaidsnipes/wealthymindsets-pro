@@ -119,3 +119,4 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | FX Market Info | 🟢 | `716f79c` USDJPY: USD / JPY, pip 0.01, centres in business hours now "Sydney · Tokyo" (07:00Z), central volume none, "Open 6J1! →" (inverse noted) |
 | iPad portrait /charts | 🟢 | `418bb75` decision band = one-row strip in portrait too: NQ1! at 834×1108 → market pane 655 px, band 233 px (was ~295 / 481; chart ~210 px visible). /charts at 834 wide: 0 clipped, price legend one line |
 | CI | 🟢 | GitHub "Sentinels" success on every completed run tonight (newer pushes cancel older runs by concurrency); head 7150f57 success |
+| iPad loupe | 🟡 BUILT | `6269638` loupe can be taken from 768 px (was 1024), "Return lens to live" shows from 768 px; touch guard keeps the chart's pan off the glass. Touch proof needs a real iPad |
