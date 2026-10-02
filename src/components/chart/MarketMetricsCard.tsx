@@ -7,7 +7,39 @@
  */
 import React, { useEffect, useState } from "react";
 
+import { futuresProductFor, readFuturesOptionChain, type FutureContract } from "@/lib/broker/tastytradeFuturesChain";
 import { metricsSymbolFor, readMarketMetrics, type MetricRow } from "@/lib/marketData/tastyMarketMetrics";
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+
+/** A future's listed contracts, tastytrade's own (Contract view, 2026-10-01). */
+function FuturesContracts({ symbol }: { readonly symbol: string }) {
+  const product = classifySymbol(symbol) === "FUTURES" ? futuresProductFor(symbol) : null;
+  const [list, setList] = useState<readonly FutureContract[] | null>(null);
+  useEffect(() => {
+    if (!product) return;
+    let alive = true;
+    fetch(`/api/broker/tastytrade/chain?futures=${encodeURIComponent(product)}`, { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive) setList(j ? readFuturesOptionChain(j).futures : []); })
+      .catch(() => { if (alive) setList([]); });
+    return () => { alive = false; };
+  }, [product]);
+  if (!product || !list || list.length === 0) return null;
+  const sorted = [...list].sort((a, b) => (a.dte ?? 1e9) - (b.dte ?? 1e9)).slice(0, 6);
+  return (
+    <div data-testid="futures-contracts" style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 10, color: "#6B7094", marginBottom: 6 }}>Listed contracts · tastytrade</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 10 }}>
+        {sorted.map(f => (
+          <div key={f.symbol} style={{ background: "#0f121b", border: `1px solid ${f.activeMonth ? "rgba(201,165,92,.6)" : "#1E2030"}`, borderRadius: 6, padding: "8px 10px" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{f.symbol}{f.activeMonth ? <span style={{ fontSize: 10, color: "#C9A55C" }}> · active</span> : null}</div>
+            <div style={{ fontSize: 10, color: "#8896BE", fontVariantNumeric: "tabular-nums" }}>expires {f.expiration ?? "—"}{f.dte != null ? ` · ${f.dte}d` : ""}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function MarketMetricsCard({ symbol }: { readonly symbol: string }) {
   const q = metricsSymbolFor(symbol);
@@ -57,6 +89,7 @@ export function MarketMetricsCard({ symbol }: { readonly symbol: string }) {
           ))}
         </div>
       )}
+      <FuturesContracts symbol={symbol} />
     </section>
   );
 }
