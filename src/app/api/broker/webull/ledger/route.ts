@@ -85,7 +85,7 @@ export async function GET(request: Request): Promise<Response> {
   const today = new Date();
   // Finished months come from KV (Webull's raw rows, kept on first read); ?fresh=1 asks Webull for everything.
   const kv = url.searchParams.get("fresh") === "1" ? null : orderDecisionKv(await webullWorkerEnv());
-  const cache = kv ? { get: (k: string) => kv.get(k), put: (k: string, v: string) => kv.put(k, v) } : undefined;
+  const cache = kv ? { get: (k: string) => kv.get(k), put: (k: string, v: string, ttl?: number) => kv.put(k, v, ttl ? { expirationTtl: Math.max(60, ttl) } : undefined) } : undefined;
   const w = await walkWebullHistory(a.accountId, (s, e, cursor) => listWebullOrderHistoryPage(fetch, c, a.accountId, s, e, cursor),
     { today, cache, startYearsBack: yearsBack, maxYears: 1, quietYears: 99, probeOnly: url.searchParams.get("probe") === "1", onlyMonth: monthIdx,
       // ?from=m: read on from month m for ~20 s (kept months are free), then say where to continue.

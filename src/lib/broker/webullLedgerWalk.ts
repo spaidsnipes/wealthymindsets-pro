@@ -74,7 +74,7 @@ export async function walkWebullHistory(
      * kept as Webull's own raw rows and read from here next time. The current
      * month is always asked live.
      */
-    readonly cache?: { get(key: string): Promise<string | null>; put(key: string, value: string): Promise<void> };
+    readonly cache?: { get(key: string): Promise<string | null>; put(key: string, value: string, ttlSec?: number): Promise<void> };
   },
 ): Promise<AccountWalk> {
   const floor = opts.floor ?? "2014-01-01";
@@ -149,7 +149,13 @@ export async function walkWebullHistory(
       const s = ymd(start) < floor ? floor : ymd(start);
       askedBackTo = s;
       const resumable = opts.fromMonth != null;
-      const probe = opts.onlyMonth != null || resumable ? [] : await ask(s, ymd(end), null);
+      // A year's "any orders?" answer is kept a day (ten minutes for the current year).
+      const probeKey = `${CACHE_PREFIX}probe:${accountId}:${s}:${ymd(end)}`;
+      const probeHit = opts.onlyMonth == null && !resumable && opts.cache ? await opts.cache.get(probeKey).catch(() => null) : null;
+      const probe = opts.onlyMonth != null || resumable ? [] : probeHit != null ? (probeHit === "1" ? [{}] : []) : await ask(s, ymd(end), null);
+      if (probeHit == null && opts.onlyMonth == null && !resumable && opts.cache) {
+        await opts.cache.put(probeKey, rowsOf(probe).length ? "1" : "0", ymd(end) > ymd(opts.today) ? 600 : 86_400).catch(() => {});
+      }
       lastYearEmpty = opts.onlyMonth == null && !resumable && rowsOf(probe).length === 0;
       if (opts.probeOnly) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty };
       if (lastYearEmpty) {
@@ -173,7 +179,8 @@ export async function walkWebullHistory(
             : [[ms, ymd(mEnd), false]];
           for (const [ps, pe, keep] of parts) {
             const key = `${CACHE_PREFIX}${accountId}:${ps}:${pe}`;
-            const hit = keep && opts.cache ? await opts.cache.get(key).catch(() => null) : null;
+            // The live week is kept only ten minutes, so a re-open is quick but never stale for long.
+            const hit = opts.cache ? await opts.cache.get(keep ? key : `${key}:live`).catch(() => null) : null;
             if (hit) {
               take(JSON.parse(hit));
               cachedMonths++;
@@ -182,7 +189,7 @@ export async function walkWebullHistory(
               await readWindow(ps, pe);
               const rows = collect;
               collect = null;
-              if (keep && opts.cache) await opts.cache.put(key, JSON.stringify(rows)).catch(() => {});
+              if (opts.cache) await opts.cache.put(keep ? key : `${key}:live`, JSON.stringify(rows), keep ? undefined : 600).catch(() => {});
             }
           }
           mEnd = mStart;
