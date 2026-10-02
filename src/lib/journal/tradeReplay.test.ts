@@ -36,5 +36,7 @@ describe("trade replay — the contract's own bars, no look-ahead", () => {
     ];
     const x = excursions(bars, { openedAt: new Date(t0 * 1000 + 10_000).toISOString(), closedAt: new Date((t0 + 150) * 1000).toISOString(), avgEntry: 0.18, avgExit: 0.21, direction: "LONG", multiplier: 100 })!;
     expect(x).toMatchObject({ mfe: 8, mae: -3, realised: 3, capture: 0.37, barsHeld: 3 });
+    const loss = excursions(bars, { openedAt: new Date(t0 * 1000 + 10_000).toISOString(), closedAt: new Date((t0 + 150) * 1000).toISOString(), avgEntry: 0.18, avgExit: 0.16, direction: "LONG", multiplier: 100 })!;
+    expect(loss).toMatchObject({ realised: -2, capture: null });
   });
 });

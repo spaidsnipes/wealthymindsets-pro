@@ -81,3 +81,27 @@ export function ledgerTimeline(episodes: readonly Episode[]): { windows: WindowS
   });
   return { windows, months };
 }
+
+/**
+ * WHAT CHANGED (Garden 18 v2 §41) — month-to-month shifts in HOW the trader
+ * traded, only between months that both carry at least MIN_WINDOW trades, and
+ * only past a size that is not noise. Each change names the two months and
+ * both values, so it opens its own evidence. Describes behaviour; never
+ * claims a cause or calls it improvement.
+ */
+export interface Change { readonly month: string; readonly from: string; readonly measure: string; readonly before: string; readonly after: string }
+
+export function whatChanged(months: readonly MonthBehaviour[]): Change[] {
+  const big = months.filter(m => m.trades >= MIN_WINDOW);
+  const out: Change[] = [];
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  const usd = (v: number) => `${v < 0 ? "−" : ""}$${Math.abs(v).toFixed(2)}`;
+  for (let i = 1; i < big.length; i++) {
+    const a = big[i - 1], b = big[i];
+    if (Math.abs(b.bracketShare - a.bracketShare) >= 0.25) out.push({ month: b.month, from: a.month, measure: "Entries with a bracket attached", before: pct(a.bracketShare), after: pct(b.bracketShare) });
+    if (Math.abs(b.pastSecondShare - a.pastSecondShare) >= 0.25) out.push({ month: b.month, from: a.month, measure: "Days that went past a second trade", before: pct(a.pastSecondShare), after: pct(b.pastSecondShare) });
+    if (a.tradesPerDay > 0 && Math.abs(b.tradesPerDay - a.tradesPerDay) / a.tradesPerDay >= 0.5) out.push({ month: b.month, from: a.month, measure: "Trades per trading day", before: String(a.tradesPerDay), after: String(b.tradesPerDay) });
+    if (a.avgLoss != null && b.avgLoss != null && Math.abs(b.avgLoss - a.avgLoss) / Math.abs(a.avgLoss) >= 0.4) out.push({ month: b.month, from: a.month, measure: "Average losing trade", before: usd(a.avgLoss), after: usd(b.avgLoss) });
+  }
+  return out;
+}

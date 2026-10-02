@@ -64,7 +64,7 @@ export interface Excursions {
   readonly mae: number;
   /** Realised move per contract, in dollars. */
   readonly realised: number;
-  /** realised ÷ mfe, when there was a favourable move at all. */
+  /** realised ÷ mfe — only for a trade that realised a gain (a loss has nothing captured). */
   readonly capture: number | null;
   readonly barsHeld: number;
 }
@@ -85,5 +85,5 @@ export function excursions(bars: readonly LegacyOhlcvTuple[], e: Pick<Episode, "
   const worst = dir === 1 ? lo - e.avgEntry : e.avgEntry - hi;
   const realised = dir * (e.avgExit - e.avgEntry);
   const r2 = (x: number) => Math.round(x * m * 100) / 100;
-  return { mfe: r2(Math.max(0, best)), mae: r2(Math.min(0, worst)), realised: r2(realised), capture: best > 0 ? Math.round((realised / best) * 100) / 100 : null, barsHeld: held.length };
+  return { mfe: r2(Math.max(0, best)), mae: r2(Math.min(0, worst)), realised: r2(realised), capture: best > 0 && realised > 0 ? Math.round((realised / best) * 100) / 100 : null, barsHeld: held.length };
 }

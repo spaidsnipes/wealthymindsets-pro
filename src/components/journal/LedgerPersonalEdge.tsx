@@ -15,7 +15,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { computeLedgerEdge, MIN_SAMPLE } from "@/lib/broker/ledgerEdge";
 import { processOutcome } from "@/lib/broker/processOutcome";
 import { PROFILE_RULES, replayDailyRules } from "@/lib/broker/dailyRules";
-import { ledgerTimeline, MIN_WINDOW } from "@/lib/broker/ledgerTimeline";
+import { ledgerTimeline, MIN_WINDOW, whatChanged } from "@/lib/broker/ledgerTimeline";
 import { lessonHref, studyNext } from "@/lib/journal/studyRoute";
 import type { Episode } from "@/lib/broker/webullLedger";
 import { readStoryReviews, type StoryReview } from "@/lib/journal/storyReview";
@@ -47,6 +47,7 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
   const rules = useMemo(() => replayDailyRules(episodes, oneR), [episodes, oneR]);
   const timeline = useMemo(() => ledgerTimeline(episodes), [episodes]);
   const study = useMemo(() => studyNext(edge), [edge]);
+  const changes = useMemo(() => whatChanged(timeline.months), [timeline]);
   const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(0)}%`);
   const money = (v: number | null) => (v == null ? "—" : usd(v));
   if (edge.universe === 0) return null;
@@ -130,6 +131,15 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
             </tr>
           ))}</tbody>
         </table>
+        <div data-testid="edge-what-changed" style={{ margin: "12px 0 0" }}>
+          <div style={{ fontSize: 11, color: GOLD, letterSpacing: 1, marginBottom: 4 }}>WHAT CHANGED · BETWEEN MONTHS WITH {MIN_WINDOW}+ TRADES</div>
+          {changes.length === 0 ? <p style={{ fontSize: 11, color: MUTED, margin: 0 }}>No large month-to-month shift in how you traded yet.</p> : (
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: INK, display: "grid", gap: 2 }}>
+              {changes.map(c => <li key={`${c.month}-${c.measure}`}>{c.measure}: <b>{c.before}</b> in {c.from} → <b>{c.after}</b> in {c.month}</li>)}
+            </ul>
+          )}
+          <p style={{ fontSize: 10, color: MUTED, margin: "4px 0 0" }}>A change in how you traded, not a verdict on it — the month rows below are the evidence.</p>
+        </div>
         <div style={{ fontSize: 11, color: GOLD, letterSpacing: 1, margin: "12px 0 4px" }}>MONTH BY MONTH · HOW YOU TRADED</div>
         <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
           <thead><tr style={{ color: MUTED, textAlign: "right" }}><th style={{ textAlign: "left", fontWeight: 500 }}>Month</th><th style={{ fontWeight: 500 }}>Trades</th><th style={{ fontWeight: 500 }}>Days</th><th style={{ fontWeight: 500 }}>Per day</th><th style={{ fontWeight: 500 }}>Days past 2nd trade</th><th style={{ fontWeight: 500 }}>Bracket at entry</th><th style={{ fontWeight: 500 }}>Win</th><th style={{ fontWeight: 500 }}>Avg win</th><th style={{ fontWeight: 500 }}>Avg loss</th><th style={{ fontWeight: 500 }}>Per trade</th></tr></thead>
