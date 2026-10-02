@@ -21950,7 +21950,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // hour old — while the newest bar beside it closed 355.64). A live quote
   // the lane has not refreshed for HEADER_LIVE_FRESH_MS yields to the bar
   // close, which the compiler labels LAST BAR CLOSE.
-  const headerLiveFresh = lastObservedAtMs != null && Date.now() - lastObservedAtMs < HEADER_LIVE_FRESH_MS;
+  // …but a QUIET quote that is still NEWER than the newest bar is the latest
+  // truth, not a stale one (serving TSLA 5m overnight, 2026-10-02 00:18 CDT:
+  // the header read 356.36 LAST BAR CLOSE beside NOW 355.56 from the newer
+  // overnight print forming the next bar). Only a quote OLDER than the bars
+  // yields.
+  const newestBarOpenMs = candles.length ? Number(candles[candles.length - 1].time) * 1000 : null;
+  const headerLiveFresh = lastObservedAtMs != null && (
+    Date.now() - lastObservedAtMs < HEADER_LIVE_FRESH_MS
+    || (newestBarOpenMs != null && Number.isFinite(newestBarOpenMs) && lastObservedAtMs >= newestBarOpenMs)
+  );
   const headerPriceFact = chartHeaderPriceFact(
     // BAR REPLAY: the live quote is withheld while the camera walks history, so
     // this cell speaks the replayed bar's close under the compiler's own
