@@ -11,7 +11,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { isCoreTeam } from "@/lib/coreTeam";
-import { isPublicAuthPath, selectAuthenticatedRouteState } from "@/lib/authRoutes";
+import { isPublicAuthPath, safeNextPath, selectAuthenticatedRouteState, signInPathFor } from "@/lib/authRoutes";
 import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import { clearPaperState } from "@/lib/paperTrade";
@@ -133,7 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (routeState === "CHECKING_SESSION") return;
     const isPublic = isPublicAuthPath(pathname);
     if (routeState === "SIGN_IN_REQUIRED") {
-      router.replace("/login");
+      // Carry the room along so sign-in returns the human to it.
+      router.replace(signInPathFor(pathname, typeof window === "undefined" ? "" : window.location.search));
       return;
     }
     // Completeness must use the same rule the server uses in /api/auth/login:
@@ -146,9 +147,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (user && isPublic) {
-      // A signed-in human sitting on /login has named no destination. Same
-      // arrival class as the bare domain, so the same owner decides.
-      router.replace(FOUNDER_LANDING_ROUTE);
+      // A signed-in human on /login goes back to the room they asked for
+      // (?next=), else — having named no destination — to the landing owner.
+      const next = typeof window === "undefined" ? null : safeNextPath(new URLSearchParams(window.location.search).get("next"));
+      router.replace(next ?? FOUNDER_LANDING_ROUTE);
     }
   }, [user, loading, pathname, router]);
 

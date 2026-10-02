@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { safeNextPath, signInPathFor } from "./authRoutes";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -91,5 +92,21 @@ describe("public auth routes are reachable by thumb", () => {
       (r) => fs.readFileSync(pageFor(r), "utf8").match(/<(?:Link|a)\s[^>]*>/g) ?? [],
     );
     expect(found.length).toBeGreaterThan(0);
+  });
+});
+
+
+describe("destination survives the sign-in door (2026-10-02 Lounge/Academy entry)", () => {
+  it("carries a protected room into /login?next=", () => {
+    expect(signInPathFor("/lounge")).toBe("/login?next=%2Flounge");
+    expect(signInPathFor("/education", "?lesson=3")).toBe("/login?next=%2Feducation%3Flesson%3D3");
+    expect(signInPathFor("/")).toBe("/login");
+  });
+  it("honours only safe same-origin paths", () => {
+    expect(safeNextPath("/lounge")).toBe("/lounge");
+    expect(safeNextPath("/education?x=1#top")).toBe("/education?x=1#top");
+    for (const bad of [null, "", "//evil.example", "https://evil.example", "/\\evil.example", "lounge", "/login", "/signup?x=1", "/", "/x\u0000"]) {
+      expect(safeNextPath(bad as string | null)).toBeNull();
+    }
   });
 });

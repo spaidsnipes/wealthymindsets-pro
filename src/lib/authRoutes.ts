@@ -41,3 +41,28 @@ export function selectAuthenticatedRouteState(
 
   return "READY";
 }
+
+/**
+ * Where a human was headed before the sign-in door, if it is safe to send
+ * them back there.
+ *
+ * Reported 2026-10-02: normal users could not reach /lounge or /education.
+ * The guard sent them to /login with no memory of the room, and after sign-in
+ * every arrival landed on the founder landing route instead. A destination is
+ * honoured only when it is a same-origin path (one leading slash, no scheme,
+ * no protocol-relative or backslash tricks) and not itself an auth door.
+ */
+export function safeNextPath(raw: string | null | undefined): string | null {
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > 512) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return null;
+  if (/[\u0000-\u001f]/.test(raw)) return null;
+  const path = raw.split(/[?#]/)[0];
+  if (path === "/" || isPublicAuthPath(path)) return null;
+  return raw;
+}
+
+/** The sign-in door for a protected path, carrying the destination along. */
+export function signInPathFor(pathname: string, search = ""): string {
+  const next = safeNextPath(`${pathname}${search}`);
+  return next ? `/login?next=${encodeURIComponent(next)}` : "/login";
+}
