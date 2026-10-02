@@ -179,3 +179,23 @@ export function liveBarIsStale(lastBarTime: number, updateTime: number, interval
   if (!Number.isFinite(lastBarTime) || !Number.isFinite(updateTime) || !(intervalSec > 0)) return false;
   return updateTime < lastBarTime - intervalSec + 1;
 }
+
+/**
+ * A REAL PRINT THAT ARRIVED A FEW MS OUT OF ORDER (2026-10-02): the
+ * consolidated stock tape interleaves venues, so prints inside one bar are not
+ * strictly time-ordered. The bar rule above refuses them (an older print must
+ * not overwrite the close) — correct for the close, wrong for the market: the
+ * print traded. Inside the CURRENT bar it widens high / low and adds volume,
+ * and the close and the clock stay as they were. A print from an earlier bar
+ * changes nothing. PURE.
+ */
+export function absorbOutOfOrderPrint(
+  current: LegacyOhlcvTuple | null,
+  tick: LiveBarTick,
+  intervalSec: number | null,
+): LegacyOhlcvTuple | null {
+  if (!current || intervalSec == null || !(intervalSec > 0)) return null;
+  if (!Number.isFinite(tick.time) || !(tick.price > 0) || !(tick.size >= 0)) return null;
+  if (liveBarStartSec(tick.time / 1000, intervalSec) !== current.time) return null;
+  return { ...current, high: Math.max(current.high, tick.price), low: Math.min(current.low, tick.price), volume: current.volume + tick.size };
+}

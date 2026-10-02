@@ -119,3 +119,15 @@ describe("a stale live bar is dropped, not folded (TSLA premarket, 2026-10-02)",
     expect(liveBarIsStale(last, last + 60, 60)).toBe(false);
   });
 });
+
+import { absorbOutOfOrderPrint } from "./liveBarPolicy";
+describe("a real print a few ms out of order inside the bar still counts (2026-10-02)", () => {
+  const current = { time: 120, open: 104, high: 106, low: 103, close: 106, volume: 4 };
+  it("widens high/low and volume, keeps the close", () => {
+    expect(absorbOutOfOrderPrint(current, { price: 102, size: 2, time: 124_000 }, 60)).toEqual({ ...current, low: 102, volume: 6 });
+  });
+  it("a print from an earlier bar, or with no clock, changes nothing", () => {
+    expect(absorbOutOfOrderPrint(current, { price: 99, size: 1, time: 61_900 }, 60)).toBeNull();
+    expect(absorbOutOfOrderPrint(current, { price: 99, size: 1, time: 124_000 }, null)).toBeNull();
+  });
+});

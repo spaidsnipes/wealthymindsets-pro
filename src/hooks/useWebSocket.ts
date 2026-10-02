@@ -24,7 +24,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
-import { applyTickToClock } from "@/lib/marketData/liveBarPolicy";
+import { absorbOutOfOrderPrint, applyTickToClock } from "@/lib/marketData/liveBarPolicy";
 import { liveBarBucketSec } from "@/lib/timeframes";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
@@ -1393,7 +1393,20 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     if (!Number.isFinite(tick.price) || tick.price <= 0) return;
 
     const barUpdate = applyTickToClock(barRef.current, lastBarEventAtRef.current, tick, getIntervalSec());
-    if (barUpdate.status === "LATE_EVENT_IGNORED") return;
+    if (barUpdate.status === "LATE_EVENT_IGNORED") {
+      // A REAL print a few ms out of order inside the current bar still traded:
+      // it reaches the tape and widens the bar, never moving the close or the
+      // clock (consolidated stock tape, 2026-10-02: NVDA printed 363 times in
+      // 35 s premarket and the chart kept 1).
+      const widened = isReal && tick.trade === true ? absorbOutOfOrderPrint(barRef.current, tick, getIntervalSec()) : null;
+      if (!widened) return;
+      barRef.current = widened;
+      tickBuf.current.push(tick);
+      boundTickBuffer(tickBuf.current, droppedRef.current);
+      noteArrival(performance.now());
+      scheduleFlush();
+      return;
+    }
 
     priceRef.current = tick.price;
     tickBuf.current.push(tick);
