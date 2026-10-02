@@ -60,7 +60,7 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
   );
 
   return (
-    <section data-testid="ledger-personal-edge" aria-label="Personal edge from the broker ledger" style={{ display: "grid", gap: 10 }}>
+    <section data-testid="ledger-personal-edge" aria-label="Personal edge from the broker ledger" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 10 }}>
       <div style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
         <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>PERSONAL EDGE · WHAT YOUR FILLS SHOW</div>
         <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>
@@ -68,9 +68,9 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
           Each group is compared with that. Groups under {MIN_SAMPLE} trades are marked INSUFFICIENT EVIDENCE and are not a pattern.
           A difference here is a correlation across your trades — it does not say why.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(330px,1fr))", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(330px,100%),1fr))", gap: 10 }}>
           {edge.dimensions.map(d => (
-            <div key={d.id} data-testid={`edge-${d.id}`} style={{ border: `1px solid ${LINE}`, borderRadius: 6, padding: 8 }}>
+            <div key={d.id} data-testid={`edge-${d.id}`} style={{ border: `1px solid ${LINE}`, borderRadius: 6, padding: 8, overflowX: "auto" }}>
               <div style={{ fontSize: 12, color: INK, fontWeight: 600 }}>{d.title}</div>
               <div style={{ fontSize: 10, color: MUTED, marginBottom: 4 }}>{d.question}</div>
               <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
@@ -113,7 +113,7 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
         )}
       </div>
 
-      <div data-testid="edge-timeline" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
+      <div data-testid="edge-timeline" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, overflowX: "auto" }}>
         <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>OVER TIME · RECENT WINDOWS BESIDE THE WHOLE RECORD</div>
         <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>
           Your latest trades next to your lifetime, so old months inform without defining you. A window smaller than its size is marked — it is not yet proof of change.

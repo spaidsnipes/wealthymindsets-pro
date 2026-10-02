@@ -33,6 +33,15 @@ const DOWN = "#e0786b";
 interface AccountRow { tail: string; accountType: string | null; orders: number; filled: number; askedBackTo: string; stoppedBecause: string; reason: string | null }
 interface LedgerAnswer { partial?: boolean; state: string; reason?: string; asOf?: string; truth?: string; accounts?: AccountRow[]; orderCount?: number; summary?: LedgerSummary; episodes?: Episode[] }
 
+/** Episode rows: six columns on desktop; on a phone the price/hold columns step aside (they stay in the expanded detail). */
+const LEDGER_CSS = `
+.wm-ledger-row { grid-template-columns: minmax(0,1.4fr) minmax(0,1.6fr) 70px 70px 90px 90px; }
+@media (max-width: 640px) {
+  .wm-ledger-row { grid-template-columns: minmax(0,1fr) minmax(0,1.3fr) 80px; }
+  .wm-ledger-wide { display: none; }
+}
+`;
+
 const usd = (v: number | null | undefined, sign = true) => v == null ? "—" : `${sign && v > 0 ? "+" : v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const pct = (v: number | null | undefined) => v == null ? "—" : `${(v * 100).toFixed(1)}%`;
 const tone = (v: number | null | undefined) => v == null || v === 0 ? INK : v > 0 ? UP : DOWN;
@@ -83,7 +92,7 @@ function EquityCurve({ points }: { points: LedgerSummary["equity"] }) {
 
 function BucketTable({ title, rows, keyLabel }: { title: string; rows: LedgerSummary["byMonth"]; keyLabel: string }) {
   return (
-    <div style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
+    <div style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, overflowX: "auto" }}>
       <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD, marginBottom: 6 }}>{title}</div>
       <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
         <thead><tr style={{ color: MUTED, textAlign: "right" }}><th style={{ textAlign: "left", fontWeight: 500 }}>{keyLabel}</th><th style={{ fontWeight: 500 }}>Trades</th><th style={{ fontWeight: 500 }}>Win</th><th style={{ fontWeight: 500 }}>Fees</th><th style={{ fontWeight: 500 }}>Net</th></tr></thead>
@@ -103,12 +112,12 @@ function EpisodeRow({ e, all, conds, tags }: { e: Episode; all: readonly Episode
   return (
     <div data-testid="ledger-episode" data-label={e.label} style={{ borderTop: `1px solid ${LINE}`, padding: "6px 0" }}>
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
-        style={{ all: "unset", cursor: "pointer", display: "grid", gridTemplateColumns: "minmax(150px,1.4fr) minmax(170px,1.6fr) 70px 70px 90px 90px", gap: 8, width: "100%", fontSize: 12, color: INK, fontVariantNumeric: "tabular-nums", alignItems: "baseline" }}>
+        className="wm-ledger-row" style={{ all: "unset", cursor: "pointer", display: "grid", gap: 8, width: "100%", fontSize: 12, color: INK, fontVariantNumeric: "tabular-nums", alignItems: "baseline" }}>
         <span style={{ color: MUTED }}>{open ? "▾" : "▸"} {day(e.openedAt)}</span>
         <span>{e.instrumentKey} <span style={{ color: MUTED, fontSize: 10 }}>{e.direction} ×{e.maxQuantity} · ·{e.accountId}</span></span>
-        <span style={{ textAlign: "right" }}>{e.avgEntry.toFixed(2)}</span>
-        <span style={{ textAlign: "right" }}>{e.avgExit == null ? "—" : e.avgExit.toFixed(2)}</span>
-        <span style={{ textAlign: "right", color: MUTED }}>{hold(e.holdMs)}</span>
+        <span className="wm-ledger-wide" style={{ textAlign: "right" }}>{e.avgEntry.toFixed(2)}</span>
+        <span className="wm-ledger-wide" style={{ textAlign: "right" }}>{e.avgExit == null ? "—" : e.avgExit.toFixed(2)}</span>
+        <span className="wm-ledger-wide" style={{ textAlign: "right", color: MUTED }}>{hold(e.holdMs)}</span>
         <span style={{ textAlign: "right", color: e.label === "RECONSTRUCTED" ? tone(e.net) : MUTED }}>{e.label === "RECONSTRUCTED" ? usd(e.net) : e.label}</span>
       </button>
       {open ? (
@@ -232,7 +241,8 @@ export function WebullLifetimeLedger() {
   const symbols = useMemo(() => [...new Set((data?.episodes ?? []).map(e => e.symbol))].sort(), [data]);
 
   return (
-    <section data-testid="webull-lifetime-ledger" aria-label="Webull lifetime ledger" style={{ padding: "14px 16px", display: "grid", gap: 12, overflow: "auto", flex: 1, minHeight: 0 }}>
+    <section data-testid="webull-lifetime-ledger" aria-label="Webull lifetime ledger" style={{ padding: "14px 16px", display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 12, overflow: "auto", flex: 1, minHeight: 0 }}>
+      <style>{LEDGER_CSS}</style>
       <header style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 10 }}>
         <h2 style={{ margin: 0, fontSize: 15, letterSpacing: 1.5, color: GOLD }}>WEBULL LIFETIME LEDGER</h2>
         <span style={{ fontSize: 11, color: MUTED }}>{data?.truth ?? "Outcome P&L from Webull's own order records"}</span>
@@ -284,7 +294,7 @@ export function WebullLifetimeLedger() {
             <EquityCurve points={s.equity} />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(300px,100%),1fr))", gap: 10 }}>
             <BucketTable title="BY MONTH" keyLabel="Month" rows={s.byMonth} />
             <BucketTable title="BY UNDERLYING" keyLabel="Symbol" rows={s.bySymbol} />
             <BucketTable title="BY ACCOUNT" keyLabel="Account" rows={s.byAccount.map(b => ({ ...b, key: `·${b.key}` }))} />
@@ -300,8 +310,8 @@ export function WebullLifetimeLedger() {
                   style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, cursor: "pointer", background: filter === k ? "rgba(201,165,92,0.15)" : "transparent", border: `1px solid ${filter === k ? GOLD : LINE}`, color: filter === k ? GOLD : MUTED }}>{k}</button>
               ))}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(150px,1.4fr) minmax(170px,1.6fr) 70px 70px 90px 90px", gap: 8, fontSize: 10, color: MUTED, letterSpacing: 0.8 }}>
-              <span>OPENED</span><span>INSTRUMENT</span><span style={{ textAlign: "right" }}>AVG IN</span><span style={{ textAlign: "right" }}>AVG OUT</span><span style={{ textAlign: "right" }}>HELD</span><span style={{ textAlign: "right" }}>NET</span>
+            <div className="wm-ledger-row" style={{ display: "grid", gap: 8, fontSize: 10, color: MUTED, letterSpacing: 0.8 }}>
+              <span>OPENED</span><span>INSTRUMENT</span><span className="wm-ledger-wide" style={{ textAlign: "right" }}>AVG IN</span><span className="wm-ledger-wide" style={{ textAlign: "right" }}>AVG OUT</span><span className="wm-ledger-wide" style={{ textAlign: "right" }}>HELD</span><span style={{ textAlign: "right" }}>NET</span>
             </div>
             {episodes.slice(0, shown).map(e => <EpisodeRow key={e.id} e={e} all={data.episodes ?? []} conds={conds} tags={tagMap.get(e.id) ?? []} />)}
             {episodes.length > shown ? <button type="button" onClick={() => setShown(n => n + 100)} style={{ marginTop: 6, fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>Show more ({episodes.length - shown} left)</button> : null}
