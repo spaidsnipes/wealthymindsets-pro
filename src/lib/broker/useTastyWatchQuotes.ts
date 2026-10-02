@@ -18,6 +18,9 @@ export interface WatchLive { readonly price: number; readonly at: number }
 /** Fresher than this is LIVE; older is left to the row's own source. */
 export const WATCH_LIVE_FRESH_MS = 15_000;
 
+/** How much older than the live quote a last trade may be and still be the row's price. */
+export const TRADE_STALE_BESIDE_QUOTE_MS = 120_000;
+
 export function useTastyWatchQuotes(symbols: readonly string[]): ReadonlyMap<string, WatchLive> {
   const key = useMemo(() => [...new Set(symbols.map(s => s.toUpperCase()))].sort().join(","), [symbols]);
   const [streamerOf, setStreamerOf] = useState<ReadonlyMap<string, string>>(new Map());
@@ -37,7 +40,13 @@ export function useTastyWatchQuotes(symbols: readonly string[]): ReadonlyMap<str
       if (!q) continue;
       // The LAST TRADE, as the chart prints it; the bid/ask midpoint only
       // when no trade has been heard (one number for one symbol, §LXXXIX).
-      if (q.last != null && q.last > 0 && q.tradeAt != null) { out.set(sym, { price: q.last, at: Math.max(q.tradeAt, q.quoteAt ?? 0) }); continue; }
+      // A last trade is the row's price only while it is current beside the
+      // quote (serving TSLA after hours, 2026-10-01: the regular-session last
+      // 354.12, stamped with the fresh QUOTE's time, read as live while the
+      // chart printed 355.70). A trade older than the quote by more than
+      // TRADE_STALE_BESIDE_QUOTE_MS yields to the live midpoint.
+      const tradeCurrent = q.tradeAt != null && (q.quoteAt == null || q.quoteAt - q.tradeAt <= TRADE_STALE_BESIDE_QUOTE_MS);
+      if (q.last != null && q.last > 0 && q.tradeAt != null && tradeCurrent) { out.set(sym, { price: q.last, at: Math.max(q.tradeAt, q.quoteAt ?? 0) }); continue; }
       if (q.quoteAt == null) continue;
       const price = q.bid != null && q.ask != null ? (q.bid + q.ask) / 2 : null;
       if (price != null && price > 0) out.set(sym, { price, at: q.quoteAt });

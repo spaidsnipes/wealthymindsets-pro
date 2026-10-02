@@ -30,6 +30,13 @@ type ShellModalDrawerProps = {
    * press outside the panel closes it, and focus stays trapped inside.
    */
   backdrop?: "veil" | "clear";
+  /**
+   * "edge" (default): the full-height drawer at the right edge. "float":
+   * Garden 18 §XIII–§XIV on Market Home — an inset, rounded panel at the
+   * LEFT, as tall as its content, so the live edge (forming candle, price
+   * axis, last price) stays visible beside it. Still modal.
+   */
+  placement?: "edge" | "float";
   children: React.ReactNode;
 };
 
@@ -63,8 +70,10 @@ function ShellModalDrawerContent({
   headerActions,
   footer,
   backdrop = "veil",
+  placement = "edge",
   children,
 }: ShellModalDrawerProps) {
+  const float = placement === "float";
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const onKeyDown = useShellModalFocus({
@@ -79,9 +88,10 @@ function ShellModalDrawerContent({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[200] flex items-start justify-end"
+      className={float ? "fixed inset-0 z-[200] flex items-start justify-start" : "fixed inset-0 z-[200] flex items-start justify-end"}
       style={SHELL_DRAWER_BACKDROP[backdrop]}
       data-backdrop={backdrop}
+      data-placement={placement}
       onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}
     >
       <motion.div
@@ -91,12 +101,16 @@ function ShellModalDrawerContent({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description && descriptionId ? descriptionId : undefined}
-        initial={{ x: width }}
-        animate={{ x: 0 }}
-        exit={{ x: width }}
+        initial={float ? { opacity: 0, y: -6 } : { x: width }}
+        animate={float ? { opacity: 1, y: 0 } : { x: 0 }}
+        exit={float ? { opacity: 0, y: -6 } : { x: width }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="relative flex h-full min-w-0 max-w-[100vw] flex-col overflow-hidden border-l border-wm-border bg-wm-dark shadow-2xl"
-        style={{ width: `min(${width}px, 100vw)`, paddingBottom: "env(safe-area-inset-bottom)" }}
+        className={float
+          ? "relative flex min-w-0 max-w-[100vw] flex-col overflow-hidden rounded-xl border border-wm-border bg-wm-dark shadow-2xl"
+          : "relative flex h-full min-w-0 max-w-[100vw] flex-col overflow-hidden border-l border-wm-border bg-wm-dark shadow-2xl"}
+        style={float
+          ? { width: `min(${width}px, calc(100vw - 24px))`, margin: "112px 0 0 12px", maxHeight: "calc(100vh - 136px)" }
+          : { width: `min(${width}px, 100vw)`, paddingBottom: "env(safe-area-inset-bottom)" }}
         onKeyDown={onKeyDown}
         onMouseDown={event => event.stopPropagation()}
       >

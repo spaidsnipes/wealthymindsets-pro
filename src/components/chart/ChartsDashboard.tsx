@@ -5319,6 +5319,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               width={320}
               // Garden 18 §XIII: the market stays visible beside the list — no veil, no blur.
               backdrop="clear"
+              // §XIV: floating at the left, clear of the price axis and the live edge.
+              placement="float"
               onClose={() => setWatchlistOpen(false)}
               fallbackTriggerRef={watchlistSheetTriggerRef}
             >
