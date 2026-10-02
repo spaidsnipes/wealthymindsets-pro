@@ -12,7 +12,11 @@ export interface TimeframeDoor { readonly timeframe: string; readonly words: str
 
 export function historyTimeframeDoor(symbol: string, timeframe: string | null | undefined): TimeframeDoor | null {
   if (!/^\d+s$/i.test((timeframe ?? "").trim())) return null;
-  if (classifySymbol(symbol) !== "FOREX") return null;
+  const cls = classifySymbol(symbol);
+  // A cash index is computed, not traded, and its history comes from one
+  // minute up (serving SPX 5s, 2026-10-02 06:55 ET: four vendors, no bars).
+  if (cls === "INDEX") return { timeframe: "1m", words: "Cash index history starts at one minute — no source keeps seconds bars for a computed index." };
+  if (cls !== "FOREX") return null;
   // 1m spot FX is quote samples (no high/low published at that size — the
   // chart's own 1m note says so), so the door opens the first REAL candles.
   return { timeframe: "5m", words: "No forex source keeps seconds bars; spot FX candles with a real high and low start at 5m." };
