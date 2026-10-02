@@ -65,7 +65,7 @@ function audit(b: string): string[] {
   if (/"NO_ROOM"/.test(b)) out.push("(1) a column-room receipt is back — the value candle has no column");
 
   // ── (2) ON THE BAR IT MEASURED, at that bar's x.
-  need("selectValueCandleGlassPlan(valueCandleRef.current, valueCandleBarsRef.current", "(2) the glass plan is not read");
+  need("selectValueCandleGlassPlan(valueCandleRef.current, vcBarsAll", "(2) the glass plan is not read");
   need("for (const c of vcPlan.candles)", "(2) the plan's candles are not what is drawn");
   need("const bar = barAt.get(c.time);", "(2) the glass is not matched to the bar it measured");
   need(/if \(!bar\) continue;/, "(2) a value candle may be drawn on a bar the chart does not hold");
@@ -115,7 +115,15 @@ describe("the reading reaches the chart", () => {
     // The engine itself must never appear here — only the glass compilers,
     // which take already-computed VMs. The per-bar split is the room's too.
     expect(CHART).not.toMatch(/\bselectValueCandle\s*\(/);
-    expect(CHART).not.toMatch(/\bselectValueCandleBars\s*\(/);
+    // ONE narrow exception (2026-10-01, cross-market run BTC 1m): the room's
+    // tick ring holds a few minutes, the chart's print store holds the whole
+    // backfill. Closed bars the ring does not cover are read ONCE from the
+    // store (cache keyed on each bar's print count) and merged under the
+    // ring's readings — never a per-frame recompute of the tape.
+    const calls = CHART.match(/\bselectValueCandleBars\s*\(/g) ?? [];
+    expect(calls.length).toBe(1);
+    expect(CHART).toContain("if (cache.get(t)?.n === prints.length) continue;");
+    expect(CHART).toContain("return mergeValueCandleBars(ring, extra);");
   });
 
   it("the overlay reads it through a ref, not through its dependency array", () => {

@@ -602,6 +602,8 @@ import { ClearOfOpenDoor } from "@/components/os/ClearOfOpenDoor";
 import { doorInsetFor, openDoorEdge } from "@/lib/os/openDoorEdge";
 import { clipOutChips } from "@/lib/chart/clipOutChips";
 import { barSlotAt } from "@/lib/chart/barSlotAt";
+import { selectValueCandleBars, type ValueCandleBar } from "@/lib/marketData/viewModels/selectValueCandle";
+import { mergeValueCandleBars } from "@/lib/marketData/viewModels/mergeValueCandleBars";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
 // NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
@@ -3110,6 +3112,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // beside (not inside) the footprint accumulator so two prints at one price
   // remain two bubbles with two timestamps and two canonical event ids.
   const bigTradePrintAccRef = useRef<Map<number, BigTradeTick[]>>(new Map());
+  /** Value Candle readings for closed bars, read once from the print store (per symbol|interval). */
+  const vcStoreCacheRef = useRef<{ key: string; bars: Map<number, { n: number; bar: ValueCandleBar | null }> }>({ key: "", bars: new Map() });
   const processedTicksRef = useRef<Set<string>>(new Set());
   // WM Session Tape Stats — running counters WM has observed for the current
   // symbol since tape collection began. Purely from real tick.trade events.
@@ -13496,7 +13500,30 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
       try {
         const glass = selectValueCandleGlass(valueCandleRef.current);
-        const vcPlan = selectValueCandleGlassPlan(valueCandleRef.current, valueCandleBarsRef.current, { priceDp: pxDp });
+        // Every closed bar the print store can read (backfill included),
+        // computed once per bar and cached; the live ring keeps the newest.
+        const vcBarsAll = (() => {
+          const ring = valueCandleBarsRef.current;
+          if (!ring || ring.reason !== "PER_BAR") return ring;
+          const iv = getIntervalSec(timeframe);
+          const key = `${symbol}|${iv}`;
+          if (vcStoreCacheRef.current.key !== key) vcStoreCacheRef.current = { key, bars: new Map() };
+          const cache = vcStoreCacheRef.current.bars;
+          const times = [...bigTradePrintAccRef.current.keys()].sort((a, b) => a - b);
+          const newestHeld = times.length ? times[times.length - 1] : -Infinity;
+          for (const t of times) {
+            if (t >= newestHeld - iv) continue; // the forming bar and its neighbour stay the ring's
+            const prints = bigTradePrintAccRef.current.get(t) ?? [];
+            // Re-read only when the bar gained prints (the backfill lands after load).
+            if (cache.get(t)?.n === prints.length) continue;
+            const one = selectValueCandleBars(prints.map(p => ({ time: p.timeMs, price: p.price, size: p.bid + p.ask })), iv);
+            const b = one.reason === "PER_BAR" ? one.bars.find(x => x.time === t) : undefined;
+            cache.set(t, { n: prints.length, bar: b ?? null });
+          }
+          const extra = [...cache.values()].map(c => c.bar).filter((b): b is NonNullable<typeof b> => b != null);
+          return mergeValueCandleBars(ring, extra);
+        })();
+        const vcPlan = selectValueCandleGlassPlan(valueCandleRef.current, vcBarsAll, { priceDp: pxDp });
         const ds = canvas.dataset;
         // Published in every state, including the silent ones. An absent
         // attribute means this build has no value-candle layer; UNMEASURED
