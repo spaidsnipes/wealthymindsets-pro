@@ -33,6 +33,17 @@ export interface FopExpiration {
 }
 export interface FuturesOptionChain { readonly futures: readonly FutureContract[]; readonly expirations: readonly FopExpiration[] }
 
+/**
+ * The expiration a chain should OPEN on: the first one still trading
+ * (serving ES1! 2026-10-01 23:50 CDT: the panel opened on that day's 0DTE an
+ * hour after it stopped — IVx 119.5% over dead quotes). Its own
+ * `stopsTradingAt` decides; unknown is treated as still trading. PURE.
+ */
+export function firstLiveExpiration<T extends { readonly stopsTradingAt: string | null }>(expirations: readonly T[], nowMs: number): T | null {
+  const live = expirations.find(e => { const t = e.stopsTradingAt ? Date.parse(e.stopsTradingAt) : NaN; return !Number.isFinite(t) || t > nowMs; });
+  return live ?? expirations[0] ?? null;
+}
+
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v : null);
 const num = (v: unknown) => { const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN; return Number.isFinite(n) ? n : null; };
 

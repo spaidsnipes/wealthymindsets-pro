@@ -24,7 +24,7 @@ import { TastytradeLiveOrder } from "@/components/chart/TastytradeLiveOrder";
 import { expectedMove, readFopTicket } from "@/lib/broker/fopTicket";
 import { readContractQuote, type ContractQuoteState } from "@/lib/broker/tastyContractQuote";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
-import { futuresProductFor, readEquityOptionChain, readFuturesOptionChain, snapToTick, strikesNear, tickFor, type FopExpiration, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
+import { firstLiveExpiration, futuresProductFor, readEquityOptionChain, readFuturesOptionChain, snapToTick, strikesNear, tickFor, type FopExpiration, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 
@@ -160,7 +160,7 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
   }, [product, chartSymbol, equity]);
 
   const expirations = useMemo(() => (chain?.expirations ?? []).filter(e => e.parent === parent), [chain, parent]);
-  useEffect(() => { setExpiry(expirations[0]?.expiration ?? ""); setPick(null); }, [expirations]);
+  useEffect(() => { setExpiry(firstLiveExpiration(expirations, Date.now())?.expiration ?? ""); setPick(null); }, [expirations]);
   const searchSelectionApplied = useRef<string | null>(null);
   useEffect(() => {
     if (!chain || !initialOptionSymbol || searchSelectionApplied.current === initialOptionSymbol) return;
