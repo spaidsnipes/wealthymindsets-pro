@@ -11,7 +11,7 @@ describe("Delta Levels is a lane you can see (serving NQ1! 1m, 2026-10-01)", () 
     expect(block).toContain('Math.max(DELTA_LEVELS_ALPHA_FLOOR, att.alpha("deltaLevels"))');
   });
   it("rungs are thick and long enough to read, over a backing strip, with the lane named", () => {
-    expect(block).toContain("const laneMax = 56;");
+    expect(block).toContain("const laneMax = dlNarrow ? 32 : 56;");
     expect(block).toMatch(/const rungPx = Math\.max\(3, Math\.min\(8,/);
     expect(block).toContain("ctx.lineWidth = rungPx;");
     expect(block).toContain('ctx.fillStyle = "rgba(10,11,16,0.55)";');
@@ -30,5 +30,10 @@ describe("Delta Levels is a lane you can see (serving NQ1! 1m, 2026-10-01)", () 
     expect(block).toContain("(layerOnRef.current.divergence ? 64 + 86 + 16 : 64) + laneMax");
     expect(CHART).toContain('ctx.globalAlpha = Math.max(DIVERGENCE_ALPHA_FLOOR, att.alpha("divergence"));');
     expect(CHART).toContain("const DIVERGENCE_ALPHA_FLOOR = 0.8;");
+  });
+  it("on a narrow pane the lane shortens, the caption yields to words already placed, and later words avoid the lane", () => {
+    expect(block).toContain("const laneMax = dlNarrow ? 32 : 56;");
+    expect(block).toContain('ds.deltaLevelsCaption = capClear ? "SHOWN" : dlNarrow ? "NARROW" : "YIELDED";');
+    expect(block).toContain("floatingChips.push({ x: centerX - laneMax - 4, y: top, w: laneMax * 2 + 8, h: bot - top });");
   });
 });

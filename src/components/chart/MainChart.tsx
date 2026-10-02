@@ -14539,7 +14539,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // thick as the level spacing allows (3..8px), a longer lane, a
             // backing strip so it reads over candles, and its name on top.
             ctx.save(); ctx.globalAlpha = Math.max(DELTA_LEVELS_ALPHA_FLOOR, att.alpha("deltaLevels"));
-            const laneMax = 56;
+            // NARROW PANE (phone / desk quarter, 2026-10-02): a shorter lane,
+            // and the caption only where it clears the words already placed.
+            const dlNarrow = W < 640;
+            const laneMax = dlNarrow ? 32 : 56;
             // PLACEMENT (same serving read): `W - 96` sat ON the newest
             // candles and ran the caption under the price axis. The lane hugs
             // the plot's right edge, and steps to the left edge of the plot
@@ -14579,7 +14582,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
               ctx.textAlign = "center"; ctx.textBaseline = "top";
               ctx.fillStyle = "rgba(237,230,211,0.9)";
-              ctx.fillText("\u2190 SELL \u00b7 \u0394 LEVELS \u00b7 BUY \u2192", centerX, top + 3);
+              const dlCaption = "\u2190 SELL \u00b7 \u0394 LEVELS \u00b7 BUY \u2192";
+              const capW = ctx.measureText(dlCaption).width + 6;
+              const capRect = { x: centerX - capW / 2, y: top + 1, w: capW, h: 12 };
+              const capClear = !dlNarrow && !floatingChips.some(r => capRect.x < r.x + r.w && capRect.x + capRect.w > r.x && capRect.y < r.y + r.h && capRect.y + capRect.h > r.y);
+              if (capClear) ctx.fillText(dlCaption, centerX, top + 3);
+              ds.deltaLevelsCaption = capClear ? "SHOWN" : dlNarrow ? "NARROW" : "YIELDED";
+              // The lane is on the glass now: later words step around it.
+              floatingChips.push({ x: centerX - laneMax - 4, y: top, w: laneMax * 2 + 8, h: bot - top });
             }
             let drawnRungs = 0;
             for (const r of dl.rungs) {
