@@ -17,6 +17,11 @@ describe("Delta Levels is a lane you can see (serving NQ1! 1m, 2026-10-01)", () 
     expect(block).toContain('ctx.fillStyle = "rgba(10,11,16,0.55)";');
     expect(block).toContain("\\u0394 LEVELS");
   });
+  it("the lane never stands on the newest candles or under the axis", () => {
+    expect(block).not.toContain("const centerX = W - 96;");
+    expect(block).toContain("const rightCenter = dlPlotRight - laneMax - 10;");
+    expect(block).toContain('ds.deltaLevelsLane = centerX === rightCenter ? "RIGHT_EDGE" : "LEFT_EDGE";');
+  });
   it("sides are still told apart by direction, never by hue", () => {
     expect(block).toMatch(/r\.side === "BUY" \? centerX \+ len : centerX - len/);
     expect(block).not.toMatch(/r\.side\s*===\s*"BUY"\s*\?\s*"(#|rgba)/);

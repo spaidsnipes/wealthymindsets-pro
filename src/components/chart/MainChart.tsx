@@ -14439,8 +14439,28 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // thick as the level spacing allows (3..8px), a longer lane, a
             // backing strip so it reads over candles, and its name on top.
             ctx.save(); ctx.globalAlpha = Math.max(DELTA_LEVELS_ALPHA_FLOOR, att.alpha("deltaLevels"));
-            const centerX = W - 96; // Fixed chrome, outside the candle body area.
             const laneMax = 56;
+            // PLACEMENT (same serving read): `W - 96` sat ON the newest
+            // candles and ran the caption under the price axis. The lane hugs
+            // the plot's right edge, and steps to the left edge of the plot
+            // whenever the newest bars would sit under it — never on candles.
+            const dlAxisW = (() => {
+              try { const w = chart.priceScale("right").width(); if (Number.isFinite(w) && w > 0) return Math.ceil(w); } catch { /* fallback */ }
+              return 90;
+            })();
+            const dlPlotRight = Math.max(8, W - dlAxisW);
+            let dlNewestX: number | null = null;
+            try {
+              const bl = barsRef.current || [];
+              const nb = bl[bl.length - 1];
+              const xr = nb ? chart.timeScale().timeToCoordinate(nb.time as any) : null;
+              if (xr != null && Number.isFinite(+xr)) dlNewestX = +xr;
+            } catch { /* unknown → right edge */ }
+            const rightCenter = dlPlotRight - laneMax - 10;
+            const centerX = dlNewestX != null && dlNewestX > rightCenter - laneMax - 12
+              ? 12 + laneMax
+              : rightCenter;
+            ds.deltaLevelsLane = centerX === rightCenter ? "RIGHT_EDGE" : "LEFT_EDGE";
             const ys: number[] = [];
             for (const r of dl.rungs) {
               const yr = srs.priceToCoordinate(r.price);
