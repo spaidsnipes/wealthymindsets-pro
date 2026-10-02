@@ -12,6 +12,37 @@ import { metricsSymbolFor, readMarketMetrics, type MetricRow } from "@/lib/marke
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { coinbaseProductFor } from "@/lib/marketData/coinbaseTradeBackfill";
 import { readCoinbaseStats } from "@/lib/marketData/cryptoMarketInfo";
+import { readFxMarketInfo } from "@/lib/marketData/fxMarketInfo";
+import { fxFuturesDoor } from "@/lib/chart/fxFuturesDoor";
+
+/** A spot pair's own facts (pip, centres open now) and its CME future door (2026-10-02). */
+function FxMarketInfo({ symbol }: { readonly symbol: string }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t); }, []);
+  const rows = readFxMarketInfo(symbol, now);
+  if (rows.length === 0) return null;
+  const door = fxFuturesDoor(symbol);
+  return (
+    <section data-testid="fx-market-info" aria-label={`${symbol} market info`}
+      style={{ background: "#141824", border: "1px solid #1E2030", borderRadius: 8, padding: 16, marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0", marginBottom: 10 }}>Market info — {symbol.toUpperCase()}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 10 }}>
+        {rows.map(r => (
+          <div key={r.label} style={{ background: "#0f121b", border: "1px solid #1E2030", borderRadius: 6, padding: "8px 10px" }}>
+            <div style={{ fontSize: 10, color: "#6B7094", marginBottom: 2 }}>{r.label}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{r.value}{r.note ? <span style={{ fontSize: 10, color: "#8896BE", fontWeight: 400 }}> · {r.note}</span> : null}</div>
+          </div>
+        ))}
+      </div>
+      {door ? (
+        <p style={{ fontSize: 12, color: "#B0B8D0", margin: "12px 0 0" }}>
+          Live traded volume and sides: {door.futures} ({door.note}) — a different market.{" "}
+          <a href={`?symbol=${encodeURIComponent(door.futures)}`} style={{ color: "#C9A55C" }}>Open {door.futures} →</a>
+        </p>
+      ) : null}
+    </section>
+  );
+}
 import { deribitCurrencyFor, dvolFrom } from "@/lib/marketData/deribitOptions";
 
 /** A coin's day from Coinbase's public stats, plus Deribit DVOL for BTC / ETH (2026-10-02). */
@@ -116,7 +147,10 @@ export function MarketMetricsCard({ symbol }: { readonly symbol: string }) {
     return () => { alive = false; };
   }, [q]);
 
-  if (!q) return classifySymbol(symbol) === "CRYPTO" ? <CryptoMarketInfo symbol={symbol} /> : null;
+  if (!q) {
+    const cls = classifySymbol(symbol);
+    return cls === "CRYPTO" ? <CryptoMarketInfo symbol={symbol} /> : cls === "FOREX" ? <FxMarketInfo symbol={symbol} /> : null;
+  }
   return (
     <section data-testid="market-metrics-card" aria-label={`${symbol} market metrics`}
       style={{ background: "#141824", border: "1px solid #1E2030", borderRadius: 8, padding: 16, marginBottom: 16 }}>
