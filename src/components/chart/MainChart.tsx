@@ -158,6 +158,8 @@ const HEADER_LIVE_FRESH_MS = 120_000;
 const DELTA_LEVELS_ALPHA_FLOOR = 0.8;
 /** Delta Divergence pivot marks never paint below this. */
 const DIVERGENCE_ALPHA_FLOOR = 0.8;
+/** Imbalance Stack band, edges and slabs never paint below this. */
+const STACK_ALPHA_FLOOR = 0.8;
 /** The share of the camera's span the candles keep when a wall joins it (§XIV). */
 const WALL_CAMERA_CANDLE_SHARE = 0.45;
 
@@ -1793,7 +1795,7 @@ function paintStackCell(ctx: CanvasRenderingContext2D, a: { x0: number; x1: numb
   // dominance — a small horizontal histogram on price, not equal boxes. The
   // slab stays inside the formation span (stackSlab).
   const { x, w } = stackSlab(a, weight);
-  ctx.fillStyle = `rgba(212,175,55,${(0.16 + 0.5 * weight).toFixed(3)})`;
+  ctx.fillStyle = `rgba(212,175,55,${(0.32 + 0.55 * weight).toFixed(3)})`;
   ctx.fillRect(x, y - h / 2 + 0.5, w, h - 1);
   // Canon FL-06 ② draws each imbalance as a HATCHED block at its row. The
   // hatch is clipped to the slab, so it never reaches a bar outside the span.
@@ -13889,7 +13891,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const yHi = Math.min(+yHiR, +yLoR);
             const yLo = Math.max(+yHiR, +yLoR);
 
-            ctx.save(); ctx.globalAlpha = att.alpha("stack");
+            // VISIBILITY FLOOR (serving ES1! 1m, 21:28 CDT): a 3.5% band with
+            // 1px dotted edges under the governor read as nothing at all.
+            ctx.save(); ctx.globalAlpha = Math.max(STACK_ALPHA_FLOOR, att.alpha("stack"));
 
             // A band one tick tall is a line, and a line drawn as a 1px-high
             // rectangle disappears at some device pixel ratios. Floor the drawn
@@ -13899,7 +13903,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             const anchor = placement.kind === "ON_BARS" ? placement : null;
             const anchored = anchor != null;
             const bandX0 = anchor?.x1 ?? 0;
-            ctx.fillStyle = anchored ? "rgba(212,175,55,0.035)" : "rgba(212,175,55,0.07)";
+            ctx.fillStyle = anchored ? "rgba(212,175,55,0.08)" : "rgba(212,175,55,0.12)";
             ctx.fillRect(bandX0, yHi, plotRight - bandX0, bandH);
 
             const DASH: Record<typeof glass.edgeStyle, number[]> = {
@@ -13908,8 +13912,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               DOTTED: [1, 3],
             };
             ctx.setLineDash(DASH[glass.edgeStyle]);
-            ctx.strokeStyle = "rgba(212,175,55,0.70)";
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = "rgba(212,175,55,0.9)";
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(bandX0, yHi + 0.5); ctx.lineTo(plotRight, yHi + 0.5);
             ctx.moveTo(bandX0, yLo - 0.5); ctx.lineTo(plotRight, yLo - 0.5);

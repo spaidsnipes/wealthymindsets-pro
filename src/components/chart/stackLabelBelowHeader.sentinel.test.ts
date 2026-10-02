@@ -8,4 +8,9 @@ describe("the Imbalance Stack label stays below the header chrome (serving ES1! 
     expect(CHART).toContain("const stackChipSlotsBelowHeader = stackChipSlotsAll.filter(y => y >= HEADER_FLOOR_Y);");
     expect(CHART).toContain("const stackChipSlots = stackChipSlotsBelowHeader.length > 0 ? stackChipSlotsBelowHeader : stackChipSlotsAll;");
   });
+  it("the stack is floored: band, edges and slabs are visible", () => {
+    expect(CHART).toContain('ctx.globalAlpha = Math.max(STACK_ALPHA_FLOOR, att.alpha("stack"));');
+    expect(CHART).toContain('ctx.fillStyle = anchored ? "rgba(212,175,55,0.08)" : "rgba(212,175,55,0.12)";');
+    expect(CHART).toContain("(0.32 + 0.55 * weight).toFixed(3)");
+  });
 });
