@@ -57,7 +57,7 @@ function EquityCurve({ points }: { points: LedgerSummary["equity"] }) {
   const h = hover != null ? points[hover] : null;
   return (
     <div style={{ position: "relative" }}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label="Cumulative net P&L by closed trade"
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height={H} role="img" aria-label="Cumulative net P&L by closed trade"
         onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); const i = Math.round(((e.clientX - r.left) / r.width * W - P) / (W - 2 * P) * (points.length - 1)); setHover(Math.max(0, Math.min(points.length - 1, i))); }}
         onMouseLeave={() => setHover(null)} style={{ display: "block" }}>
         <line x1={P} x2={W - P} y1={y(0)} y2={y(0)} stroke={LINE} strokeWidth={1} />
