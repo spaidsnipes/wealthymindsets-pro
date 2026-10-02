@@ -14,6 +14,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { computeLedgerEdge, MIN_SAMPLE } from "@/lib/broker/ledgerEdge";
 import { processOutcome } from "@/lib/broker/processOutcome";
 import { PROFILE_RULES, replayDailyRules } from "@/lib/broker/dailyRules";
+import { ledgerTimeline, MIN_WINDOW } from "@/lib/broker/ledgerTimeline";
 import type { Episode } from "@/lib/broker/webullLedger";
 import { readStoryReviews, type StoryReview } from "@/lib/journal/storyReview";
 
@@ -42,6 +43,9 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
   useEffect(() => { try { setOneR(Number(localStorage.getItem("wm_ledger_one_r") ?? 0) || 0); } catch { /* none */ } }, []);
   const saveR = (v: number) => { setOneR(v); try { localStorage.setItem("wm_ledger_one_r", String(v)); } catch { /* this visit only */ } };
   const rules = useMemo(() => replayDailyRules(episodes, oneR), [episodes, oneR]);
+  const timeline = useMemo(() => ledgerTimeline(episodes), [episodes]);
+  const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(0)}%`);
+  const money = (v: number | null) => (v == null ? "—" : usd(v));
   if (edge.universe === 0) return null;
 
   const Cell = ({ title, c, note }: { title: string; c: { n: number; net: number }; note: string }) => (
@@ -84,6 +88,37 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
             </div>
           ))}
         </div>
+      </div>
+
+      <div data-testid="edge-timeline" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
+        <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>OVER TIME · RECENT WINDOWS BESIDE THE WHOLE RECORD</div>
+        <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>
+          Your latest trades next to your lifetime, so old months inform without defining you. A window smaller than its size is marked — it is not yet proof of change.
+        </p>
+        <table style={{ width: "100%", maxWidth: 760, fontSize: 12, borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
+          <thead><tr style={{ color: MUTED, textAlign: "right" }}><th style={{ textAlign: "left", fontWeight: 500 }}>Window</th><th style={{ fontWeight: 500 }}>Trades</th><th style={{ fontWeight: 500 }}>Win</th><th style={{ fontWeight: 500 }}>Per trade</th><th style={{ fontWeight: 500 }}>Avg win</th><th style={{ fontWeight: 500 }}>Avg loss</th><th style={{ fontWeight: 500 }}>Net</th></tr></thead>
+          <tbody>{timeline.windows.map(w => (
+            <tr key={w.label} style={{ borderTop: `1px solid ${LINE}`, textAlign: "right", color: w.enough ? INK : MUTED }}>
+              <td style={{ textAlign: "left", padding: "2px 0" }}>{w.label}{w.enough ? "" : ` · only ${w.n}`}</td>
+              <td>{w.n}</td><td>{pct(w.winRate)}</td>
+              <td style={{ color: w.enough && w.expectancy != null ? tone(w.expectancy) : undefined }}>{money(w.expectancy)}</td>
+              <td>{money(w.avgWin)}</td><td>{money(w.avgLoss)}</td>
+              <td style={{ color: w.enough ? tone(w.net) : undefined }}>{usd(w.net)}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+        <div style={{ fontSize: 11, color: GOLD, letterSpacing: 1, margin: "12px 0 4px" }}>MONTH BY MONTH · HOW YOU TRADED</div>
+        <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", fontVariantNumeric: "tabular-nums" }}>
+          <thead><tr style={{ color: MUTED, textAlign: "right" }}><th style={{ textAlign: "left", fontWeight: 500 }}>Month</th><th style={{ fontWeight: 500 }}>Trades</th><th style={{ fontWeight: 500 }}>Days</th><th style={{ fontWeight: 500 }}>Per day</th><th style={{ fontWeight: 500 }}>Days past 2nd trade</th><th style={{ fontWeight: 500 }}>Bracket at entry</th><th style={{ fontWeight: 500 }}>Win</th><th style={{ fontWeight: 500 }}>Avg win</th><th style={{ fontWeight: 500 }}>Avg loss</th><th style={{ fontWeight: 500 }}>Per trade</th></tr></thead>
+          <tbody>{timeline.months.map(m => (
+            <tr key={m.month} style={{ borderTop: `1px solid ${LINE}`, textAlign: "right", color: m.trades >= MIN_WINDOW ? INK : MUTED }}>
+              <td style={{ textAlign: "left", padding: "2px 0" }}>{m.month}</td>
+              <td>{m.trades}</td><td>{m.days}</td><td>{m.tradesPerDay}</td><td>{pct(m.pastSecondShare)}</td><td>{pct(m.bracketShare)}</td>
+              <td>{pct(m.winRate)}</td><td>{money(m.avgWin)}</td><td>{money(m.avgLoss)}</td>
+              <td style={{ color: tone(m.expectancy) }}>{usd(m.expectancy)}</td>
+            </tr>
+          ))}</tbody>
+        </table>
       </div>
 
       <div data-testid="edge-daily-attempts" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
