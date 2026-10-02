@@ -14,7 +14,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 
-import type { Episode, LedgerSummary } from "@/lib/broker/webullLedger";
+import { reconstructEpisodes, summarizeLedger, type Episode, type LedgerOrder, type LedgerSummary } from "@/lib/broker/webullLedger";
 import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 
 const GOLD = "#C9A55C";
@@ -108,6 +108,7 @@ function EpisodeRow({ e }: { e: Episode }) {
       {open ? (
         <div style={{ margin: "6px 0 2px 16px", fontSize: 11, color: MUTED }}>
           <div style={{ marginBottom: 4 }}>
+            <a href={`/charts?symbol=${encodeURIComponent(e.symbol)}&tf=1m`} data-testid="ledger-open-chart" style={{ color: GOLD, marginRight: 8 }}>Open {e.symbol} chart →</a>
             <span style={{ color: GOLD }}>{e.label}</span> · gross {usd(e.gross)} · fees {usd(e.fees, false)} · net <span style={{ color: tone(e.net) }}>{usd(e.net)}</span> · ×{e.multiplier} per contract{e.note ? ` · ${e.note}` : ""}
           </div>
           {[...e.entries.map(f => ({ ...f, role: "ENTRY" })), ...e.exits.map(f => ({ ...f, role: "EXIT" }))].sort((a, b) => a.at.localeCompare(b.at)).map(f => (
@@ -129,19 +130,51 @@ function EpisodeRow({ e }: { e: Episode }) {
   );
 }
 
+interface StepAnswer { state: string; reason?: string; asOf?: string; yearEmpty?: boolean; askedBackTo?: string; stoppedBecause?: string; pages?: number; cachedMonths?: number; orders?: LedgerOrder[] }
+
 export function WebullLifetimeLedger() {
   const [data, setData] = useState<LedgerAnswer | null>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("ALL");
   const [shown, setShown] = useState(50);
 
+  /**
+   * One account-year per request, newest first, until two years in a row are
+   * empty (or Webull refuses). Episodes and P&L are rebuilt here from the raw
+   * orders by the same pure owner the server would use.
+   */
   const load = () => {
+    let alive = true;
     setLoading(true);
-    fetch("/api/broker/webull/ledger", { cache: "no-store" })
-      .then(r => r.json())
-      .then(j => setData(j))
-      .catch(e => setData({ state: "CONNECTION_FAILED", reason: e instanceof Error ? e.message : "unknown" }))
-      .finally(() => setLoading(false));
+    (async () => {
+      const get = async <T,>(q: string): Promise<T> => (await fetch(`/api/broker/webull/ledger${q}`, { cache: "no-store" })).json() as Promise<T>;
+      const list = await get<{ state: string; reason?: string; accounts?: { index: number; tail: string; accountType: string | null }[] }>("");
+      if (list.state !== "OK" || !list.accounts) { if (alive) setData({ state: list.state, reason: list.reason }); return; }
+      const all: LedgerOrder[] = [];
+      const rows: AccountRow[] = [];
+      for (const acct of list.accounts) {
+        let quiet = 0, k = 0, askedBackTo = "", stopped = "QUIET_YEARS", reason: string | null = null, n = 0;
+        while (quiet < 2 && k <= 15) {
+          if (alive) setProgress(`Reading ·${acct.tail} ${acct.accountType ?? ""} — ${k === 0 ? "the last 12 months" : `${k}–${k + 1} years back`}…`);
+          const step = await get<StepAnswer>(`?account=${acct.index}&yearsBack=${k}`);
+          if (step.state !== "OK") { stopped = "REFUSED"; reason = step.reason ?? step.state; break; }
+          all.push(...(step.orders ?? []));
+          n += step.orders?.length ?? 0;
+          askedBackTo = step.askedBackTo ?? askedBackTo;
+          if (step.stoppedBecause === "REFUSED" || step.stoppedBecause === "PAGE_BUDGET") { stopped = step.stoppedBecause; reason = step.reason ?? null; break; }
+          quiet = step.yearEmpty ? quiet + 1 : 0;
+          k++;
+        }
+        const mine = all.filter(o => o.accountId === acct.tail);
+        rows.push({ tail: acct.tail, accountType: acct.accountType, orders: n, filled: mine.filter(o => o.status === "FILLED").length, askedBackTo, stoppedBecause: stopped, reason });
+      }
+      const episodes = reconstructEpisodes(all, Date.now());
+      if (alive) setData({ state: "OK", asOf: new Date().toISOString(), truth: "ACTUAL BROKER RESULT · episodes RECONSTRUCTED from Webull order history", accounts: rows, orderCount: all.length, summary: summarizeLedger(episodes), episodes });
+    })()
+      .catch(e => { if (alive) setData({ state: "CONNECTION_FAILED", reason: e instanceof Error ? e.message : "unknown" }); })
+      .finally(() => { if (alive) { setLoading(false); setProgress(null); } });
+    return () => { alive = false; };
   };
   useEffect(load, []);
 
@@ -159,10 +192,11 @@ export function WebullLifetimeLedger() {
         <span style={{ fontSize: 11, color: MUTED }}>{data?.truth ?? "Outcome P&L from Webull's own order records"}</span>
         <span style={{ flex: 1 }} />
         {data?.asOf ? <span style={{ fontSize: 10, color: MUTED }}>as of {day(data.asOf)}</span> : null}
-        <button type="button" onClick={load} disabled={loading} style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>{loading ? "Reading Webull…" : "Refresh"}</button>
+        <button type="button" onClick={() => { load(); }} disabled={loading} style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>{loading ? "Reading Webull…" : "Refresh"}</button>
       </header>
 
-      {!data ? <p style={{ color: MUTED, fontSize: 12 }}>Reading every order Webull's history returns — this walks each account year by year and can take a moment.</p>
+      {progress ? <p data-testid="ledger-progress" role="status" style={{ color: MUTED, fontSize: 12, margin: 0 }}>{progress} Finished months are kept after the first read, so later visits are quick.</p> : null}
+      {!data ? <p style={{ color: MUTED, fontSize: 12 }}>Reading every order Webull's history returns — each account, a year at a time.</p>
         : data.state !== "OK" ? <p data-testid="ledger-refusal" style={{ color: MUTED, fontSize: 12 }}>Webull history not readable: {data.state}{data.reason ? ` — ${data.reason}` : ""}. Nothing is shown in its place.</p>
         : s ? (
         <>
@@ -191,7 +225,8 @@ export function WebullLifetimeLedger() {
           </div>
           {s.unsettled ? (
             <p data-testid="ledger-unsettled" style={{ fontSize: 11, color: MUTED, margin: 0 }}>
-              <span style={{ color: GOLD }}>UNSETTLED · {s.unsettled}</span> positions are still open in the order history after their expiry ({usd(s.unsettledCost, false)} paid in). Webull's order history does not say whether they expired, were exercised or closed elsewhere, so they are not in realised P&L.
+              <span style={{ color: GOLD }}>UNSETTLED · {s.unsettled}</span> positions are still open in the order history after their expiry ({usd(s.unsettledCost, false)} paid into the long ones). Webull's order history does not say whether they expired, were exercised or closed elsewhere, so they are not in realised P&L.
+              {" "}{s.unsettledShort ? `${s.unsettledShort} of them are shorts — a sell with no matching buy in what Webull returned. ` : ""}If every long one expired worthless, realised net would be <span style={{ color: tone(s.net - s.unsettledCost) }}>{usd(s.net - s.unsettledCost)}</span> — <span style={{ color: GOLD }}>ESTIMATED</span>, a bound, not a broker figure.
             </p>
           ) : null}
 

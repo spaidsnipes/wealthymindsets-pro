@@ -267,7 +267,10 @@ export interface LedgerSummary {
   readonly closed: number;
   readonly open: number;
   readonly unsettled: number;
+  /** Premium paid into LONG options still open past expiry — the most they could have lost. */
   readonly unsettledCost: number;
+  /** SHORT positions open past expiry: a sell with no matching buy in the history (a gap, not a strategy, unless the trader sells options). */
+  readonly unsettledShort: number;
   readonly wins: number;
   readonly losses: number;
   readonly scratches: number;
@@ -316,7 +319,8 @@ export function summarizeLedger(episodes: readonly Episode[]): LedgerSummary {
     closed: closed.length,
     open: episodes.filter(e => e.label === "OPEN").length,
     unsettled: unsettled.length,
-    unsettledCost: cents(sum(unsettled, e => e.entryCost)),
+    unsettledCost: cents(sum(unsettled.filter(e => e.direction === "LONG"), e => e.entryCost)),
+    unsettledShort: unsettled.filter(e => e.direction === "SHORT").length,
     wins: wins.length,
     losses: losses.length,
     scratches: closed.length - wins.length - losses.length,

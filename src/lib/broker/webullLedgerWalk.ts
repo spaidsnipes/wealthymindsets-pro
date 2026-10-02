@@ -28,10 +28,12 @@ export interface AccountWalk {
   readonly pages: number;
   /** The earliest date asked about — the walk's own floor, not the account's opening. */
   readonly askedBackTo: string;
-  readonly stoppedBecause: "QUIET_YEARS" | "FLOOR" | "REFUSED" | "PAGE_BUDGET";
+  readonly stoppedBecause: "QUIET_YEARS" | "FLOOR" | "REFUSED" | "PAGE_BUDGET" | "YEAR_DONE";
   readonly reason: string | null;
   /** Finished months read from the cache instead of Webull. */
   readonly cachedMonths: number;
+  /** Whether the last year asked about held no orders at all (its probe came back empty). */
+  readonly lastYearEmpty: boolean;
 }
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -48,6 +50,12 @@ export async function walkWebullHistory(
   page: HistoryPage,
   opts: {
     readonly today: Date; readonly floor?: string; readonly quietYears?: number; readonly pageBudget?: number;
+    /**
+     * Read one stretch of years per call: start `startYearsBack` years before
+     * today and stop after `maxYears` (YEAR_DONE). A caller steps through the
+     * years across requests so no single request runs for minutes.
+     */
+    readonly startYearsBack?: number; readonly maxYears?: number;
     readonly sleep?: (ms: number) => Promise<void>; readonly gapMs?: number; readonly backoffMs?: readonly number[];
     /**
      * Finished months are history: a month that ended more than a week ago is
@@ -118,7 +126,9 @@ export async function walkWebullHistory(
 
   // end_date is exclusive: the first year ends tomorrow; each next year ends on
   // the previous start (a one-day overlap the order-id dedupe absorbs).
-  let end = new Date(Date.UTC(opts.today.getUTCFullYear(), opts.today.getUTCMonth(), opts.today.getUTCDate() + 1));
+  let end = new Date(Date.UTC(opts.today.getUTCFullYear() - (opts.startYearsBack ?? 0), opts.today.getUTCMonth(), opts.today.getUTCDate() + 1));
+  let yearsDone = 0;
+  let lastYearEmpty = false;
   let askedBackTo = ymd(end);
   let quiet = 0;
   try {
@@ -127,7 +137,8 @@ export async function walkWebullHistory(
       const s = ymd(start) < floor ? floor : ymd(start);
       askedBackTo = s;
       const probe = await ask(s, ymd(end), null);
-      if (rowsOf(probe).length === 0) {
+      lastYearEmpty = rowsOf(probe).length === 0;
+      if (lastYearEmpty) {
         quiet++;
       } else {
         quiet = 0;
@@ -154,12 +165,14 @@ export async function walkWebullHistory(
         // Anything the probe saw that the months somehow did not (never expected) still counts.
         take(probe);
       }
-      if (s <= floor) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "FLOOR", reason: null, cachedMonths };
-      if (quiet >= quietNeeded) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "QUIET_YEARS", reason: null, cachedMonths };
+      yearsDone++;
+      if (s <= floor) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "FLOOR", reason: null, cachedMonths, lastYearEmpty };
+      if (opts.maxYears != null && yearsDone >= opts.maxYears) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty };
+      if (quiet >= quietNeeded) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "QUIET_YEARS", reason: null, cachedMonths, lastYearEmpty };
       end = new Date(start);
     }
   } catch (e) {
-    if (e instanceof Stop) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: e.why, reason: e.detail, cachedMonths };
+    if (e instanceof Stop) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: e.why, reason: e.detail, cachedMonths, lastYearEmpty };
     throw e;
   }
 }

@@ -94,4 +94,14 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
     expect(w2.cachedMonths).toBeGreaterThan(0);
     expect(second.calls.length).toBeLessThan(first.calls.length);
   });
+
+  it("one year per call: startYearsBack + maxYears, YEAR_DONE, and whether that year was empty", async () => {
+    const { page, calls } = fakeWebull([grp("aa", "2025-02-03T14:00:00Z")], 99, 99);
+    const w = await walkWebullHistory("ACC", page, { today: TODAY, ...NOOP, startYearsBack: 1, maxYears: 1 });
+    expect(calls[0]).toBe("2024-10-03..2025-10-03|-");
+    expect(w).toMatchObject({ stoppedBecause: "YEAR_DONE", lastYearEmpty: false });
+    expect(w.orders.map(o => o.orderId)).toEqual(["o-aa"]);
+    const quiet = await walkWebullHistory("ACC", fakeWebull([], 99, 99).page, { today: TODAY, ...NOOP, startYearsBack: 2, maxYears: 1 });
+    expect(quiet).toMatchObject({ stoppedBecause: "YEAR_DONE", lastYearEmpty: true, orders: [] });
+  });
 });
