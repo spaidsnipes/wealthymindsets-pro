@@ -2014,6 +2014,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // without tearing down & rebuilding the whole pane on each tick.
   const oscLiveRef    = useRef<Array<{ series: any; recompute: (bs: LegacyOhlcvTuple[]) => { value: number; color?: string } | null }>>([]);
   const barsRef       = useRef<LegacyOhlcvTuple[]>([]);
+  /** Expected Envelope, read once per bar state (not per frame). */
+  const envCacheRef = useRef<{ key: string; env: ExpectedEnvelopeVM } | null>(null);
   // BAR REPLAY (M9 repair 2). `barsRef` is what the CAMERA shows — the replay
   // window while replay drives it, the live bars otherwise — because every
   // overlay in the draw loop reads it, and every one of them must describe the
@@ -15145,11 +15147,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const keyE = winE.kind === "CONTINUOUS_ET_DAY" || winE.kind === "DAILY_WINDOW" || winE.kind === "NO_CLOCK"
             ? undefined
             : (sec: number) => sessionKeyOf(sec, winE);
-          const env = selectExpectedEnvelope(barsE, keyE);
+          // PERFORMANCE (serving ES1! 5m, 2026-10-01 23:25 CDT): the analogue
+          // envelope was recomputed on EVERY frame — 22 ms of a 26 ms paint
+          // with this sense alone. It changes only when the bars do, so it is
+          // read once per bar state and handed upward only when it changed.
+          const lastE = barsE[barsE.length - 1];
+          const envKey = `${symbol}|${timeframe}|${extendedHours ? 1 : 0}|${barsE.length}|${lastE?.time ?? 0}|${lastE?.close ?? 0}|${lastE?.high ?? 0}|${lastE?.low ?? 0}`;
+          const envChanged = envCacheRef.current?.key !== envKey;
+          if (envChanged) envCacheRef.current = { key: envKey, env: selectExpectedEnvelope(barsE, keyE) };
+          const env = envCacheRef.current!.env;
           ds.expectedEnvelope = env.drawn
             ? `UP:${env.up!.matchedBy}/${env.sessions}${env.up!.outside ? "!" : ""}|DN:${env.down!.matchedBy}/${env.sessions}${env.down!.outside ? "!" : ""}`
             : env.reason;
-          onExpectedEnvelopeRef.current?.(env);
+          if (envChanged) onExpectedEnvelopeRef.current?.(env);
           ctx.save();
           // SUPPORTING: context drawn about the present sits under it (≤ 0.85)
           // and recedes with everything else while Inspect reads a selection.
