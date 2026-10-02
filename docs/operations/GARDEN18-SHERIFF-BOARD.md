@@ -124,3 +124,6 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | Scanner headline | 🟢 | "30 signals · 30 live" = footer "30 LIVE · 0 DELAYED" |
 | News companion follows the instrument | 🟢 | `963a196` /news?q=TSLA → Chart Companion TSLA; ?q=Fed leaves the room's symbol alone |
 | Workspace views | 🟢 | Order Flow view arms Absorption, Stack, Value Candle, Divergence, weather loupe, Flow Current in one click (ES1!) |
+| Desk 4-up after floors | 🟢 | 2.8 / 5.0 / 5.1 / 9.2 ms per screen, 0 long tasks in 20 s, 0 faults |
+| Trade panel per class | 🟢 | Stock TSLA (shares, bid/ask live), Crypto BTC/USD (0.001–1 BTC steps, tastytrade live), Futures chain ticket — dry run first everywhere; live send untouched (Founder permission) |
+| Canon 72 Clarity beside ES1! 15m | 🟢 | readout card pinned at the newest closed bar (79% / Balanced / None), backed + gold-ruled as the plate |
