@@ -15,10 +15,10 @@ START `16fab112` (serving at 17:32 CDT).
 | Custom composition §CII | 🟢 | Shelf → +TPO → +Clarity → roles → Clean → "Absorption + Auction" restores, same canvas, no remount |
 | Visual roles PRIMARY | 🟢 code / 🟡 glass | `22763f3` lead steps others to 0.72 (unit-tested); glass contrast not re-measured |
 | Proof scenes hold composition | 🟢 | `2c04e64` roles/strength no longer leak into Founder keys |
-| Profiles 1–11 silhouette | 🟢 9 / ⚪ 2 | Living, Structure (honest "too short"), DNA alone `7632196`, Session, VR, Fixed, Composite (TSLA), TPO, Memory floor `e39a80b`; Fusion needs ≥2 (by nature); Bid/Ask Split honest "captured live only" |
+| Profiles 1–11 silhouette | 🟢 9 / ⚪ 2 | Living, Structure (honest "too short"), DNA alone `7632196`, Session, VR, Fixed, Composite (TSLA), TPO, Memory floor `e39a80b`; Fusion needs ≥2 (by nature); Bid/Ask Split honest "captured live only" (top-left placement is FL-06 law, sentinel-pinned) |
 | Liquidity Lifecycle | 🟢 | `1e3ff41` MNQ: TAIL:5 → "NO POOL IN VIEW" silence row; `2b35a5f` bar-slot placement |
 | No-drawer: Trade / Options / Watchlist | 🟢 | `c8f6da6`, `8396161`, `4b4f573` float left, live edge clear |
-| No-drawer: Tools / Workspace | 🟡 | float over room (no reflow, axis unchanged) but full-height opaque 222px |
+| No-drawer: Tools / Workspace | 🟢 | float over room (no reflow, axis unchanged); `db7c77d` capped at 72% of the room — ES 5m h=507, TPO + lower-left market visible |
 | Options family unification (§LX) | 🟢 | `0b0812c` TSLA opens same chain as MNQ: IVx 65.7%, ±11.11, $100/pt, Δ/Θ, price line |
 | One truth: watchlist / tape / scanner (§LXXXIX) | 🟢 | `4b4f573` + `30ff972` TradeETH: tape TSLA 356.14 = desk; scanner 30 LIVE · 0 DELAYED `d811f04` |
 | Desk live equities (§LXXXI) | 🟢 | `b5fbaff` desk passes wm_extHours — 4/4 screens LIVE |
@@ -33,9 +33,12 @@ START `16fab112` (serving at 17:32 CDT).
 |---|---|---|---|
 | TSLA, AAPL, NVDA (equity) | 18/19 incl. Absorption zones (AAPL 4, NVDA 1), Effort ORDINARY, Brick Walls, Derivatives Pressure (Cboe) | sided-tape senses after hours ("waiting for sided prints") | `e6276ee` absorption robust line; `61bf0aa` effort subject; `1c220c4` header never stale beside newer bar |
 | SPY (ETF) | all bar/volume senses | as equity | `d811f04` scanner LIVE rows |
-| NQ, ES, GC, CL (futures, tastytrade live) | 20+ incl. Value Candle, Flow Current LIVE, Delta Divergence (ES) | Derivatives Pressure / Brick Walls UNSUPPORTED (no futures-option OI source wired — ⚪ OPEN) | `1375f16` held wall never crushes candles (NDX) |
+| NQ1!, ES1!, GC1!, CL1! (futures, tastytrade live, CERTIFIED QUOTE) | 20+ incl. Value Candle, Flow Current LIVE, Delta Divergence, Delta Levels, Session VP 321 rows, Regime BALANCE, Derivatives Pressure (tastytrade futures-option OI) | Absorption on CL "measured, no zones"; Delta Levels on CL "no measured grid" | `1375f16` NDX wall; `4954518` futures Derivatives Pressure; `2f28218` bare `NQ` (a stock ticker by rule) offers NQ1! on the empty chart |
 | NDX (index) | all bar senses | — | wall-camera squash fixed |
 | EURUSD, GBPJPY (spot FX) | Clarity, TPO, Memory Ghost, Expected Envelope, Structure, Visible Range | volume senses: "no central volume" | `9eff8b6` silence lines fold (max 3 + summary) |
+| SPX (index), QQQ (ETF) — 20:55 | all 11 asked senses DRAWN, 0 layer faults, 6.6 / 16.3 ms | — | — |
+| SOL (crypto) — 20:56 | Value Candle GLASS_PER_BAR, Flow Current, Derivatives Pressure, TPO, Clarity | Expected Envelope too few sessions; Memory Ghost no analogue | — |
+| EURGBP (spot FX) — 20:57 | Clarity, TPO, Structure, Memory Ghost, Visible Range, Envelope | Absorption UNMEASURED, Living/Composite/Session VP: no traded volume in spot FX | — |
 | BTC, ETH (crypto) | all; Big Trades bubbles + cluster callout, Value Candle per bar (`15f73d6` GLASS_PER_BAR:81) | Composite / Profile Memory on crypto ⚪ (session split decision) | — |
 
 Faintness pass (each sense alone, ES/BTC): Memory Ghost `46a9540` (filled silver-blue, 0.55 floor), Market Structure `5486bde` (swing path), Composite `3b90044` (strata floor), Profile Memory `e39a80b`, Flow Current switch `0f4f6a8`/`b8903cf`.
