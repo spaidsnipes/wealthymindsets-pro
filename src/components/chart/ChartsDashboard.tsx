@@ -382,6 +382,7 @@ import {
   selectLivingProfile,
 } from "@/lib/marketData/viewModels/selectLivingProfile";
 import type { AnatomyBarInput } from "@/lib/marketData/selectAbsorptionAnatomy";
+import { useTastyFuturesPositioning } from "@/lib/broker/useTastyFuturesPositioning";
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
 
@@ -2459,7 +2460,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // underlyings; the ONE owner compiles it with this chart's own bars (wall
   // tests are observed price response) and the canvas only paints.
   const [derivativesReceipt, setDerivativesReceipt] = useState<{ symbol: string; receipt: CboeOptionsReceipt | null; edge: string | null } | null>(null);
+  // FUTURES read tastytrade's futures-option chain (cross-market run
+  // 2026-10-01: NQ / ES / GC / CL were UNSUPPORTED — Cboe lists no futures
+  // options, Deribit is crypto only). Same receipt, same owner.
+  const futuresPressureOn = pressureEvidenceOn && classifySymbol(symbol) === "FUTURES";
+  const futuresPositioning = useTastyFuturesPositioning(symbol, futuresPressureOn, chartBars.length ? chartBars[chartBars.length - 1].close : null);
   useEffect(() => {
+    if (!futuresPressureOn) return;
+    setDerivativesReceipt({ symbol, receipt: futuresPositioning?.receipt ?? null, edge: futuresPositioning?.edge ?? "LOADING" });
+  }, [futuresPressureOn, futuresPositioning, symbol]);
+  useEffect(() => {
+    if (futuresPressureOn) return; // the futures branch above owns this market
     // BTC / ETH read Deribit's public options (Cboe lists no crypto options);
     // listed underlyings read Cboe delayed. Anything else has no chain.
     const deribit = pressureEvidenceOn ? deribitCurrencyFor(symbol) : null;
@@ -2509,7 +2520,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     load();
     const t = window.setInterval(load, 120_000);
     return () => { alive = false; window.clearInterval(t); };
-  }, [pressureEvidenceOn, symbol]);
+  }, [pressureEvidenceOn, symbol, futuresPressureOn]);
   const derivativesPressureVM = React.useMemo<DerivativesPressureVM | null>(() => {
     if (!pressureEvidenceOn || !derivativesReceipt || derivativesReceipt.symbol !== symbol) return null;
     if (!derivativesReceipt.receipt) {

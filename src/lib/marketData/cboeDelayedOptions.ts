@@ -35,13 +35,17 @@ export interface CboeOptionRow {
 }
 
 /** Who published the positioning. The Cboe lane is DELAYED with prior-session OI; Deribit is a public snapshot with current OI. */
-export type OptionsPositioningSource = typeof CBOE_OPTIONS_SOURCE | "DERIBIT_PUBLIC";
+export type OptionsPositioningSource = typeof CBOE_OPTIONS_SOURCE | "DERIBIT_PUBLIC" | "TASTYTRADE_LIVE";
 
 /** The words every surface prints for a positioning source — one owner, never retyped. */
 export function positioningSourceWords(source: OptionsPositioningSource): { readonly name: string; readonly oi: string } {
   return source === "DERIBIT_PUBLIC"
     ? { name: "Deribit public", oi: "OI current" }
-    : { name: "Cboe delayed", oi: "OI prior session" };
+    : source === "TASTYTRADE_LIVE"
+      // Futures options (2026-10-01): open interest is the exchange's
+      // settlement figure, published once a session.
+      ? { name: "tastytrade futures options", oi: "OI prior session" }
+      : { name: "Cboe delayed", oi: "OI prior session" };
 }
 
 export interface CboeOptionsReceipt {

@@ -247,7 +247,7 @@ export function selectDerivativesPressure(
     if (row.strike < spot * (1 - SWEEP * 1.5) || row.strike > spot * (1 + SWEEP * 1.5)) continue;
     const sigma = row.iv != null && row.iv > 0.01 ? row.iv : iv30;
     if (!sigma) continue;
-    prepared.push({ row, sign: row.type === "call" ? 1 : -1, sigma, T: yearsTo(row.expiration, nowMs), mult: receipt.source === "DERIBIT_PUBLIC" ? 1 : 100 });
+    prepared.push({ row, sign: row.type === "call" ? 1 : -1, sigma, T: yearsTo(row.expiration, nowMs), mult: receipt.source === "DERIBIT_PUBLIC" || receipt.source === "TASTYTRADE_LIVE" ? 1 : 100 });
   }
   if (prepared.length < MIN_ROWS) return refuse("TOO_FEW_CONTRACTS", prepared.length);
 
