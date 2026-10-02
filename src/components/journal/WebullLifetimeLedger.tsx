@@ -235,6 +235,16 @@ export function WebullLifetimeLedger() {
     const all = [...(data?.episodes ?? [])].sort((a, b) => b.openedAt.localeCompare(a.openedAt));
     return filter === "ALL" ? all : all.filter(e => e.symbol === filter || e.label === filter);
   }, [data, filter]);
+  // Webull's own positions today: lets an UNSETTLED line say whether any of them is still held.
+  const [held, setHeld] = useState<{ state: string; count: number; accounts: number; at: string } | null>(null);
+  useEffect(() => {
+    if (!data || data.state !== "OK" || data.partial) return;
+    let alive = true;
+    fetch("/api/broker/webull/positions", { cache: "no-store" }).then(r => r.json())
+      .then(j => { if (alive && j && typeof j.state === "string") setHeld({ state: j.state, count: Array.isArray(j.positions) ? j.positions.length : 0, accounts: Number(j.accountsQueried) || 0, at: String(j.checkedAt ?? "") }); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [data]);
   const conds = useMemo(() => episodeConditions(data?.episodes ?? []), [data]);
   const tagMap = useMemo(() => behaviourTags(data?.episodes ?? []), [data]);
   const s = data?.summary;
@@ -285,7 +295,10 @@ export function WebullLifetimeLedger() {
           {s.unsettled ? (
             <p data-testid="ledger-unsettled" style={{ fontSize: 11, color: MUTED, margin: 0 }}>
               <span style={{ color: GOLD }}>UNSETTLED · {s.unsettled}</span> positions are still open in the order history after their expiry ({usd(s.unsettledCost, false)} paid into the long ones). Webull's order history does not say whether they expired, were exercised or closed elsewhere, so they are not in realised P&L.
-              {" "}{s.unsettledShort ? `${s.unsettledShort} of them are shorts — a sell with no matching buy in what Webull returned. ` : ""}If every long one expired worthless, realised net would be <span style={{ color: tone(s.net - s.unsettledCost) }}>{usd(s.net - s.unsettledCost)}</span> — <span style={{ color: GOLD }}>ESTIMATED</span>, a bound, not a broker figure.
+              {" "}{held && (held.state === "NO_POSITIONS" || held.state === "OK") ? (
+                <span data-testid="ledger-unsettled-held">Webull's positions now ({held.accounts} accounts, {day(held.at)}): {held.count === 0 ? "nothing is held — none of these is still open." : `${held.count} held; any of these not among them is no longer open.`}{" "}</span>
+              ) : null}
+              {s.unsettledShort ? `${s.unsettledShort} of them are shorts — a sell with no matching buy in what Webull returned. ` : ""}If every long one expired worthless, realised net would be <span style={{ color: tone(s.net - s.unsettledCost) }}>{usd(s.net - s.unsettledCost)}</span> — <span style={{ color: GOLD }}>ESTIMATED</span>, a bound, not a broker figure.
             </p>
           ) : null}
 
