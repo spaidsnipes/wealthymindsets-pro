@@ -18,6 +18,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { reconstructEpisodes, summarizeLedger, type Episode, type LedgerOrder, type LedgerSummary } from "@/lib/broker/webullLedger";
 import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { LedgerPersonalEdge } from "@/components/journal/LedgerPersonalEdge";
+import { TradeReplay } from "@/components/journal/TradeReplay";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -124,6 +125,8 @@ function EpisodeRow({ e }: { e: Episode }) {
               <span style={{ opacity: 0.6 }}>Webull order {f.orderId}</span>
             </div>
           ))}
+          {/* §34/§80: Journal → Replay — this trade on its own contract's bars, no look-ahead. */}
+          <TradeReplay e={e} />
           {/* §61: the trader's half of this trade — eight process marks and their own words, beside the broker's facts, never editing them. */}
           <StoryReviewRow storyKey={`webull-episode:${e.id}`} />
         </div>
