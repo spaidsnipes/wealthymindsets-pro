@@ -63,3 +63,11 @@ describe("a finger inside the glass belongs to the glass on a tablet", () => {
     expect(c).toContain("if (weatherGrabRef.current || pending || isInsideWeatherLens(x, y, hit) || isWeatherLensBezel(x, y, hit)) e.stopImmediatePropagation();");
   });
 });
+
+describe("the glass goes back to live on a double-click inside it or Escape", () => {
+  it("both doors exist and only act on a hand-placed lens", () => {
+    const c = rf("src/components/chart/MainChart.tsx", "utf8");
+    expect(c).toContain('host.addEventListener("dblclick", dbl, true);');
+    expect(c).toContain('if (e.key !== "Escape" || !weatherApertureRef.current) return;');
+  });
+});

@@ -6206,6 +6206,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const x = t.clientX - rect.left, y = t.clientY - rect.top;
       if (weatherGrabRef.current || pending || isInsideWeatherLens(x, y, hit) || isWeatherLensBezel(x, y, hit)) e.stopImmediatePropagation();
     };
+    // Put the glass back on the live bars: double-click inside it, or Escape.
+    const toLive = () => { weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); };
+    const dbl = (e: MouseEvent) => {
+      const hit = weatherLensHitRef.current;
+      if (!hit || !weatherApertureRef.current) return;
+      const rect = host.getBoundingClientRect();
+      if (!isInsideWeatherLens(e.clientX - rect.left, e.clientY - rect.top, hit)) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      toLive();
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || !weatherApertureRef.current) return;
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) return;
+      toLive();
+    };
+    host.addEventListener("dblclick", dbl, true);
+    window.addEventListener("keydown", esc);
     host.addEventListener("touchstart", touchGuard, { capture: true, passive: true });
     host.addEventListener("touchmove", touchGuard, { capture: true, passive: true });
     host.addEventListener("pointerdown", down, true);
@@ -6214,6 +6232,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     window.addEventListener("pointercancel", up, true);
     host.addEventListener("lostpointercapture", up, true);
     return () => {
+      host.removeEventListener("dblclick", dbl, true);
+      window.removeEventListener("keydown", esc);
       host.removeEventListener("touchstart", touchGuard, true);
       host.removeEventListener("touchmove", touchGuard, true);
       host.removeEventListener("pointerdown", down, true);
