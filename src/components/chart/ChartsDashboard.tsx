@@ -7124,6 +7124,10 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
             Company fundamentals are not connected yet. Market metrics above are live from tastytrade.
           </div>
         </div>
+      ) : tab === "Profile" && ["crypto", "forex", "futures"].includes(canonicalAssetClass(symbol)) ? (
+        // Market Info / Contract for a coin, pair or future: its own card
+        // above says what this market IS; "switch to an equity" would not.
+        null
       ) : (
         <div style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:8, padding:"20px 18px", maxWidth:560 }}>
           <div style={{ fontSize:13, fontWeight:700, color:"#E2E8F0", marginBottom:6 }}>No {tab.toLowerCase()} data for {base}</div>
