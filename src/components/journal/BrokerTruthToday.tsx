@@ -28,7 +28,7 @@ interface FeedAccount { tail: string; broker: string; state: string; reason?: st
 interface Story { key: string; broker: string; decisionId: string | null; accountTail: string; orders: FeedOrder[]; fills: FeedFill[] }
 
 /** §XCI — the trader's half of one story: eight marks and their own words. */
-function StoryReviewRow({ storyKey }: { storyKey: string }) {
+export function StoryReviewRow({ storyKey }: { storyKey: string }) {
   const [all, setAll] = useState<Readonly<Record<string, StoryReview>>>({});
   const [open, setOpen] = useState(false);
   useEffect(() => { setAll(readStoryReviews()); }, []);

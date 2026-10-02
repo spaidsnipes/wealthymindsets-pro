@@ -15,6 +15,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import type { Episode, LedgerSummary } from "@/lib/broker/webullLedger";
+import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -120,6 +121,8 @@ function EpisodeRow({ e }: { e: Episode }) {
               <span style={{ opacity: 0.6 }}>Webull order {f.orderId}</span>
             </div>
           ))}
+          {/* §61: the trader's half of this trade — eight process marks and their own words, beside the broker's facts, never editing them. */}
+          <StoryReviewRow storyKey={`webull-episode:${e.id}`} />
         </div>
       ) : null}
     </div>
