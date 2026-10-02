@@ -97,3 +97,4 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | ETH-USD 5m | 8.5 ms | none | 15 |
 | EURUSD 15m | 6.6 ms | none | 7 (volume senses honestly silent; 6E1! door) |
 | Equity chain default expiry | 🟢 | `5228408` SPY at night opens Oct 2 · 1d, IVx 17.1%, ±5.31 (was expired Oct 1, IVx 64%) |
+| Search hits that chart nothing | 🟢 | `e828c4b` US30/US500/US100/USOIL/UKOIL (catalogued CFDs, disclosed gap) now say "a CFD WM has no source for" and offer DJI / SPX / NDX / CL1! / BZ1! as a named different market — never substituted. Proved US30 → "Open DJI →", USOIL → "Open CL1! →". Search sweep: bitcoin, gold, euro, nasdaq, oil, s&p, dow, silver, yen, ethereum, solana, vix, 10-year (ZN1! LIVE), natural gas (NG1! LIVE), russell all land on chartable markets |
