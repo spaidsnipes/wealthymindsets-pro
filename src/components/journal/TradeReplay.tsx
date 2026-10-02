@@ -8,7 +8,7 @@
  * steps a bar at a time. Read only.
  */
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
 import type { Episode } from "@/lib/broker/webullLedger";
@@ -35,6 +35,16 @@ export function TradeReplay({ e }: { readonly e: Episode }) {
   const [load, setLoad] = useState<Load>({ state: "IDLE" });
   const [cursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(false);
+  // Drawn at its real pixel width so labels are never stretched.
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const [boxW, setBoxW] = useState(760);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setBoxW(Math.max(320, Math.round(el.clientWidth - 16))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [load.state]);
   const tooOld = Date.now() - w.from > MAX_AGE_DAYS * 86_400_000;
 
   // dxFeed echoes a 1-minute candle as `{=m}`; the request key must be that same
@@ -76,7 +86,7 @@ export function TradeReplay({ e }: { readonly e: Episode }) {
 
   const { bars } = load;
   const frame = replayFrame(bars, markers, cursor);
-  const W = 760, H = 190, P = 10, AX = 46;
+  const W = boxW, H = 190, P = 10, AX = 46;
   const lo = Math.min(...bars.map(b => b.low), ...markers.map(m => m.price));
   const hi = Math.max(...bars.map(b => b.high), ...markers.map(m => m.price));
   const x = (i: number) => P + ((i + 0.5) / bars.length) * (W - P - AX);
@@ -86,7 +96,7 @@ export function TradeReplay({ e }: { readonly e: Episode }) {
   const at = bars[Math.min(cursor, bars.length - 1)];
 
   return (
-    <div data-testid="trade-replay" style={{ margin: "8px 0", border: `1px solid ${LINE}`, borderRadius: 6, padding: 8 }}>
+    <div data-testid="trade-replay" ref={boxRef} style={{ margin: "8px 0", border: `1px solid ${LINE}`, borderRadius: 6, padding: 8 }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "baseline", fontSize: 11 }}>
         <span style={{ color: GOLD, letterSpacing: 1 }}>REPLAY</span>
         <span style={{ color: INK }}>{e.instrumentKey} · 1-minute · tastytrade</span>
@@ -96,7 +106,7 @@ export function TradeReplay({ e }: { readonly e: Episode }) {
           {new Date(at.time * 1000).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} · close {at.close.toFixed(2)}
         </span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height={H} role="img" aria-label={`Replay of ${e.instrumentKey}`} style={{ display: "block" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={`Replay of ${e.instrumentKey}`} style={{ display: "block" }}>
         {[hi, (hi + lo) / 2, lo].map(v => (
           <g key={v}>
             <line x1={P} x2={W - AX} y1={y(v)} y2={y(v)} stroke={LINE} strokeWidth={1} vectorEffect="non-scaling-stroke" />
