@@ -22,4 +22,11 @@ describe("the decision band at desktop 768–1023 (landscape)", () => {
   it("the phone rule is unchanged", () => {
     expect(SRC).toContain("@media (max-width: 767px) {");
   });
+  it("portrait tablets get the same one-row strip (iPad, 2026-10-02)", () => {
+    const at = SRC.indexOf("@media (min-width: 768px) and (max-width: 1023px) and (orientation: portrait)");
+    expect(at).toBeGreaterThan(0);
+    const block = SRC.slice(at, at + 600);
+    expect(block).toContain("flex-wrap: nowrap !important;");
+    expect(block).toContain("max-height: 220px;");
+  });
 });

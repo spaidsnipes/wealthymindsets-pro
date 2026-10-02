@@ -1422,6 +1422,24 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             overflow-y: auto;
           }
         }
+        /* PORTRAIT TABLETS (iPad 834×1112, serving 2026-10-02 02:15 CDT): the
+           band wrapped into ~480 px of rows under a ~210 px chart. Same
+           one-row strip as landscape, so the market keeps the room. */
+        @media (min-width: 768px) and (max-width: 1023px) and (orientation: portrait) {
+          .wm-decision-spine {
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: thin;
+          }
+          .wm-decision-spine > div {
+            flex: 0 0 220px !important;
+            min-width: 220px !important;
+            max-width: 220px !important;
+            max-height: 220px;
+            overflow-y: auto;
+          }
+        }
         .wm-decision-spine details > summary::-webkit-details-marker { display: none; }
         .wm-spine-fold-chevron {
           transition: transform 120ms ease;
