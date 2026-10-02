@@ -14458,7 +14458,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             } catch { /* unknown → right edge */ }
             const rightCenter = dlPlotRight - laneMax - 10;
             const centerX = dlNewestX != null && dlNewestX > rightCenter - laneMax - 12
-              ? 12 + laneMax
+              ? 64 + laneMax // clear of the left price-line countdown chip
               : rightCenter;
             ds.deltaLevelsLane = centerX === rightCenter ? "RIGHT_EDGE" : "LEFT_EDGE";
             const ys: number[] = [];
