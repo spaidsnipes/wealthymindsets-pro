@@ -17,6 +17,7 @@ import { processOutcome } from "@/lib/broker/processOutcome";
 import { PROFILE_RULES, replayDailyRules } from "@/lib/broker/dailyRules";
 import { ledgerTimeline, MIN_WINDOW, whatChanged } from "@/lib/broker/ledgerTimeline";
 import { lessonHref, studyNext } from "@/lib/journal/studyRoute";
+import { ProcessDays } from "@/components/journal/ProcessDays";
 import type { Episode } from "@/lib/broker/webullLedger";
 import { readStoryReviews, type StoryReview } from "@/lib/journal/storyReview";
 
@@ -182,6 +183,8 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
           {edge.daily.thirdPlusDays} of {edge.daily.days} trading days had a third or later trade — {edge.daily.thirdPlusTrades} trades beyond the second, netting <span style={{ color: tone(edge.daily.thirdPlusNet) }}>{usd(edge.daily.thirdPlusNet)}</span>.
         </p>
       </div>
+
+      <ProcessDays episodes={episodes} />
 
       <div data-testid="edge-process-outcome" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
         <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>PROCESS × OUTCOME · FROM YOUR OWN REVIEWS</div>

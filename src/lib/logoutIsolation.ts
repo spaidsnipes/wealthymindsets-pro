@@ -40,6 +40,7 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm_journal_entries",   // journal entries (owner-specific)
   "wm_ledger_one_r",      // the trader's stated 1R for the Broker Ledger rule replay
   "wm_ledger_tag_amendments_v1", // the trader's confirmations / corrections of inferred behaviour tags
+  "wm_process_days_v1",   // the trader's own Process-Before-P&L day grades
   "wm_edu_progress",      // education module completion / notes
   "wm_api_keys",          // user-supplied NewsAPI / X bearer credentials
   "wm_creator_waitlist",  // creator waitlist email, handle and tier
