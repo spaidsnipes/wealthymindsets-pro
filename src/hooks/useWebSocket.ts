@@ -1722,9 +1722,11 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               if (contract.equity) {
                 const rc = equityTapeReceipt(symbol);
                 rc.prints++;
-                // A print the feed itself marks invalid is price evidence at
-                // most — never signed by inference.
-                if (e.values.validTick === 0) { rc.invalid++; processUnsignedObservation(print, "tastytrade"); return; }
+                // validTick=false is dxFeed's EXTENDED-HOURS marker (form-T
+                // trades do not update the regular-session last) — measured
+                // premarket 2026-10-02: 765 of 771 NVDA prints. They are real
+                // trades, so they are signed like any other; only counted.
+                if (e.values.validTick === 0) rc.invalid++;
                 const inferred = inferEquityAggressor(print, lastEquityPrice);
                 lastEquityPrice = print.price ?? lastEquityPrice;
                 if (inferred.aggressorSide !== "BUY" && inferred.aggressorSide !== "SELL") {

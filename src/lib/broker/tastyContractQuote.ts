@@ -29,8 +29,8 @@ export const CONTRACT_EVENT_FIELDS = {
   // Proven on the owner's live socket 2026-10-01: `/ESZ26:XCME` 7766 × 1 BUY at 7765.75 / 7766.
   // `sequence` makes (time, sequence) the print's identity, so a print heard
   // live and again in a history snapshot folds once.
-  // validTick (2026-10-02): a print the feed marks invalid (late / out of
-  // sequence) is never signed by inference on the stock tape.
+  // validTick (2026-10-02): dxFeed's regular-session marker — false on
+  // extended-hours (form-T) trades. Read as a receipt only.
   TimeAndSale: ["eventType", "eventSymbol", "time", "sequence", "price", "size", "aggressorSide", "bidPrice", "askPrice", "validTick"],
   // History bars by snapshot (see adapters/tastytradeCandles.ts for the receipts).
   Candle: ["eventType", "eventSymbol", "eventFlags", "time", "open", "high", "low", "close", "volume"],
