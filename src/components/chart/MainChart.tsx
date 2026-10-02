@@ -166,6 +166,8 @@ const VALUE_MIGRATION_ALPHA_FLOOR = 0.7;
 /** Weather loupe: the live-bar corridor (newest N bars) where the storm thins, and how much. */
 const STORM_CLEAR_BARS = 4;
 const STORM_CLEAR_THIN = 0.5;
+/** The loupe can be taken by hand from this width up (iPad portrait 768+; below, the loupe yields to a small pane). */
+const LENS_DRAG_MIN_WIDTH = 768;
 /** The share of the camera's span the candles keep when a wall joins it (§XIV). */
 const WALL_CAMERA_CANDLE_SHARE = 0.45;
 
@@ -6110,7 +6112,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     let replaying = false;
     const down = (e: PointerEvent) => {
       if (replaying) return;
-      if (!e.isPrimary || e.button !== 0 || drawingToolRef.current !== "cursor" || window.innerWidth < 1024) return;
+      if (!e.isPrimary || e.button !== 0 || drawingToolRef.current !== "cursor" || window.innerWidth < LENS_DRAG_MIN_WIDTH) return;
       if ((e.target as Element)?.closest?.("[data-weather-lens-control]")) return;
       const hit = weatherLensHitRef.current;
       const rect = host.getBoundingClientRect();
@@ -6198,7 +6200,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // TABLET: the chart pans from TOUCH events, which pointer handling does not
     // stop. A finger inside the glass belongs to the glass (iPad landscape).
     const touchGuard = (e: TouchEvent) => {
-      if (window.innerWidth < 1024 || drawingToolRef.current !== "cursor") return;
+      if (window.innerWidth < LENS_DRAG_MIN_WIDTH || drawingToolRef.current !== "cursor") return;
       const hit = weatherLensHitRef.current;
       const t = e.touches[0] ?? e.changedTouches[0];
       if (!hit || !t) return;
@@ -24489,7 +24491,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (logical != null && price != null) { weatherApertureRef.current = { logical: +logical, price: +price, rx: hit.rx, ry: hit.ry }; setWeatherDetached(true); }
               }}
             >DRAG LENS</button>
-            {weatherDetached && <button type="button" className="hidden lg:block" data-weather-lens-control="live" data-testid="weather-lens-live" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); }} style={{ position: "absolute", right: 76, bottom: 42, zIndex: 22, color: "#d8cfb8", background: "#17140e", border: "1px solid #9e8245", borderRadius: 10, fontSize: 10, padding: "4px 9px" }}>Return lens to live</button>}
+            {weatherDetached && <button type="button" className="hidden md:block" data-weather-lens-control="live" data-testid="weather-lens-live" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); }} style={{ position: "absolute", right: 76, bottom: 42, zIndex: 22, color: "#d8cfb8", background: "#17140e", border: "1px solid #9e8245", borderRadius: 10, fontSize: 10, padding: "4px 9px" }}>Return lens to live</button>}
           </>
         )}
         <canvas

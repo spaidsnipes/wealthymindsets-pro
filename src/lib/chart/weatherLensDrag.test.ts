@@ -71,3 +71,11 @@ describe("the glass goes back to live on a double-click inside it or Escape", ()
     expect(c).toContain('if (e.key !== "Escape" || !weatherApertureRef.current) return;');
   });
 });
+
+describe("the glass can be taken on an iPad in portrait", () => {
+  it("drag gate is 768 px", () => {
+    const c = rf("src/components/chart/MainChart.tsx", "utf8");
+    expect(c).toContain("const LENS_DRAG_MIN_WIDTH = 768;");
+    expect(c).not.toContain("window.innerWidth < 1024) return;");
+  });
+});
