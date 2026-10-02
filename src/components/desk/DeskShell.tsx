@@ -73,7 +73,7 @@ function DeskMarketScreen({ symbol, timeframe, setTimeframe, view }: {
     try { const v = localStorage.getItem("wm_extHours"); return v ? JSON.parse(v) !== false : true; } catch { return true; }
   }, []);
   return <>
-    <MainChart symbol={symbol} timeframe={timeframe} setTimeframe={setTimeframe} extendedHours={extendedHours}
+    <MainChart showEvidenceVault={false} symbol={symbol} timeframe={timeframe} setTimeframe={setTimeframe} extendedHours={extendedHours}
       {...(view !== undefined ? chartPropsForView(view) : { footprintType: "volume-profile" as const, footprintEnabled: false })}
       onBarsReady={onBarsReady} onVpLevels={onVpLevels} tpoProfile={tpo} liquidityWeather={weather} profileFusion={profileFusion} {...readings} />
     {pending.length > 0 && <details data-testid="desk-view-unavailable" style={{ position: "absolute", left: 8, top: 48, zIndex: 25, maxWidth: 340, color: "#d8bd7a", background: "#17140e", borderRadius: 6, padding: "5px 8px", fontSize: 10 }}>

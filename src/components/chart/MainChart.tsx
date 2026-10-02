@@ -1545,6 +1545,12 @@ interface Props {
   // visible writer; standalone charts keep the badge by default.
   showFidelityChrome?: boolean;
   /**
+   * The retained-evidence chip lists THIS BROWSER's saved summaries — the same
+   * list on every chart. A Desk shows it once in its own chrome, not once per
+   * screen (serving /desk 4-up, 2026-10-01: four identical chips over candles).
+   */
+  showEvidenceVault?: boolean;
+  /**
    * One canonical market-standing sentence supplied by the room. On desktop
    * it joins the existing OHLC horizon; at narrower widths CSS returns it to
    * the former chart overlay position without mounting a second reader.
@@ -1813,7 +1819,7 @@ function paintStackCell(ctx: CanvasRenderingContext2D, a: { x0: number; x1: numb
   ctx.strokeRect(x + 0.5, y - h / 2 + 0.5, Math.max(0, w - 1), h - 1);
 }
 
-export function MainChart({ symbol, timeframe, setTimeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
+export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTimeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
   drawingTool = "cursor", drawingStyle = DEFAULT_DRAWING_STYLE, magnetActive = false, lockDrawings = false,
   onCreatePriceAlert,
   onDrawingComplete,
@@ -24207,7 +24213,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
         {/* Retained evidence stays reachable without laying a persistent data
             strip across price action. The disclosure opens only on intent. */}
-        <NectarVaultChip activeSymbol={normalizeSym(symbol)} />
+        {showEvidenceVault ? <NectarVaultChip activeSymbol={normalizeSym(symbol)} /> : null}
 
         {/* ── Big-Trade comic speech-bubble tooltip (🫧 hover) ─────── */}
         {bubbleTip && (() => {

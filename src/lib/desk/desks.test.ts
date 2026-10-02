@@ -97,3 +97,12 @@ describe("phone desk stacks its screens (serving /desk at 390px, 2026-10-01)", (
     expect(shell).toContain('display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6');
   });
 });
+
+describe("one evidence chip per desk, not per screen (2026-10-01)", () => {
+  it("desk screens mount MainChart without the vault chip", () => {
+    const shell = readFileSync2("src/components/desk/DeskShell.tsx", "utf8");
+    expect(shell).toContain("<MainChart showEvidenceVault={false}");
+    const chart = readFileSync2("src/components/chart/MainChart.tsx", "utf8");
+    expect(chart).toContain("{showEvidenceVault ? <NectarVaultChip activeSymbol={normalizeSym(symbol)} /> : null}");
+  });
+});
