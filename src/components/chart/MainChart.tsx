@@ -163,6 +163,9 @@ const DIVERGENCE_ALPHA_FLOOR = 0.8;
 const STACK_ALPHA_FLOOR = 0.8;
 /** Value Migration steps never paint below this (memory tier, still a reading). */
 const VALUE_MIGRATION_ALPHA_FLOOR = 0.7;
+/** Weather loupe: the live-bar corridor (newest N bars) where the storm thins, and how much. */
+const STORM_CLEAR_BARS = 4;
+const STORM_CLEAR_THIN = 0.5;
 /** The share of the camera's span the candles keep when a wall joins it (§XIV). */
 const WALL_CAMERA_CANDLE_SHARE = 0.45;
 
@@ -20096,12 +20099,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             /* CANDLE CLEAR ZONE (master order §XIX/§XXXI: weather belongs behind,
                around and between price — "not on top of the live bar"). Serving
                ETH-USD 15m compound: the brightest smoke sat right behind the
-               newest candles. Through the newest 12 bars' own price corridor the
-               storm thins to 35%; everywhere else in the lens it keeps its body. */
+               newest candles. Through the newest bars' own price corridor the
+               storm thins; everywhere else in the lens it keeps its body.
+               Canon|Glass, plate 79 beside serving BTC 5m (2026-10-02 00:55
+               CDT): a 12-bar corridor on a trending market spanned 212 px — most
+               of the loupe — and at 35% the field read as dark slate beside the
+               plate's living weather. The corridor is the newest 4 bars (the
+               live bar and its neighbours) and thins to 50%. */
             let stormClear: { x: number; y: number; w: number; h: number } | null = null;
             try {
               const barsSC = barsRef.current ?? [];
-              const nSC = Math.min(12, barsSC.length);
+              const nSC = Math.min(STORM_CLEAR_BARS, barsSC.length);
               if (nSC > 0) {
                 let lo = Infinity, hi = -Infinity;
                 for (let i = barsSC.length - nSC; i < barsSC.length; i++) { lo = Math.min(lo, barsSC[i].low); hi = Math.max(hi, barsSC[i].high); }
@@ -20126,7 +20134,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               mainCtx.restore();
               mainCtx.save();
               mainCtx.beginPath(); mainCtx.rect(stormClear.x, stormClear.y, stormClear.w, stormClear.h); mainCtx.clip();
-              mainCtx.globalAlpha = stormA * 0.35;
+              mainCtx.globalAlpha = stormA * STORM_CLEAR_THIN;
               mainCtx.drawImage(cache!.canvas, L.cx - L.rx, L.cy - L.ry, 2 * L.rx, 2 * L.ry);
               mainCtx.restore();
             } else {
