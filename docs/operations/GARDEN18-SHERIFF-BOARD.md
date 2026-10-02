@@ -104,3 +104,12 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | Phone guest-default pane | 🟢 | `3cd41b4` Delta Levels joins keep-out: caption NARROW/YIELDED instead of overprinting Effort words; lane 32 px on narrow panes |
 | Index options (SPX) | 🟢 | SPX Options → SPXW chain, Oct 2 · 1d, IVx 19.8%, ±59.83, $100/pt |
 | Cash index after hours | 🟢 | `6a5e238` SPX/NDX/DJI/RUT/IXIC proven closed outside 09:30–16:15 ET: "SESSION CLOSED — LAST VERIFIED · MARKET CLOSED · LAST BAR OPENED 03:35 PM" (was "117 BARS BEHIND" in warning orange). ETFs keep the overnight rule |
+
+## Tools census 01:35 CDT (42 tools each)
+
+| Market | Not ready | Why |
+|---|---|---|
+| ES1! | 0 | — |
+| BTC-USD | 2 | Composite / Profile Memory: 24/7 feed has no completed session (⚪ Founder crypto session split) |
+| TSLA (overnight) | 5 | no stock prints yet; `bc377f0` infers sides once they flow — note now says so (`9721207`) |
+| EURUSD | 7 | spot FX has no tape — note now points at 6E1! (`9721207`); composite/memory have no volume |
