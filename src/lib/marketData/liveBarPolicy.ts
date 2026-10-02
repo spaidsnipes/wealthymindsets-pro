@@ -167,3 +167,15 @@ export function shouldFoldChartLiveBar(
 ): boolean {
   return outsideRegularHours || updateTime <= lastBarTime;
 }
+
+/**
+ * Is a live update from an EARLIER interval than the newest drawn candle?
+ * Then it is stale (a snapshot of an older trade) and must be dropped — never
+ * folded into the forming candle, where it would paint a wick the market never
+ * printed (serving TSLA 1m, 2026-10-02). A bar inside the newest candle's own
+ * interval, or later, is not stale.
+ */
+export function liveBarIsStale(lastBarTime: number, updateTime: number, intervalSec: number): boolean {
+  if (!Number.isFinite(lastBarTime) || !Number.isFinite(updateTime) || !(intervalSec > 0)) return false;
+  return updateTime < lastBarTime - intervalSec + 1;
+}

@@ -107,3 +107,15 @@ describe("liveBarStartSec — calendar-true weeks and months", () => {
     expect(liveBarStartSec(Date.UTC(2026, 9, 1, 6, 7, 30) / 1000, 86_400)).toBe(Date.UTC(2026, 9, 1) / 1000);
   });
 });
+
+import { liveBarIsStale } from "./liveBarPolicy";
+describe("a stale live bar is dropped, not folded (TSLA premarket, 2026-10-02)", () => {
+  it("earlier interval → stale; same interval or later → not", () => {
+    const last = 1_790_928_960; // newest candle open (s)
+    expect(liveBarIsStale(last, last - 4 * 3600, 60)).toBe(true);   // yesterday's close snapshot
+    expect(liveBarIsStale(last, last - 60, 60)).toBe(true);         // the previous minute
+    expect(liveBarIsStale(last, last - 30, 60)).toBe(false);        // provider stamp inside the interval
+    expect(liveBarIsStale(last, last, 60)).toBe(false);
+    expect(liveBarIsStale(last, last + 60, 60)).toBe(false);
+  });
+});

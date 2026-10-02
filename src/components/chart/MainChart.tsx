@@ -20,7 +20,7 @@ import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorC
 import { parseExchangeSymbol } from "@/lib/exchanges";
 import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { DataVersionGuard } from "@/lib/chartContext";
-import { shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
+import { liveBarIsStale, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketData/tapeCvd";
 import { selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "@/lib/marketData/sessionWindow";
@@ -4430,6 +4430,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // "is this instant inside 9:30–16:00 ET?" test (not a bar-span overlap).
     const outsideRTH = !extendedHours && intervalSec < 86400 &&
       isEquitySymbol(symbol) && !isRegularSession(t, 60);
+    // A STALE live bar is dropped, never folded (serving TSLA 1m premarket,
+    // 2026-10-02 04:16 ET: the previous session's last trade, 354.12, arrived
+    // as a snapshot and was folded into the forming 357.9 candle — a 3.9-point
+    // wick tastytrade's own candles do not have). Folding is for a forming
+    // bar stamped AHEAD inside the same interval, not for a price from an
+    // earlier interval than the newest candle.
+    if (lastBar && !outsideRTH && liveBarIsStale(lastBar.time, t, intervalSec)) return;
     if (lastBar && shouldFoldChartLiveBar(lastBar.time, t, outsideRTH)) {
       t = lastBar.time; // update the current forming candle in place
       bar = {
