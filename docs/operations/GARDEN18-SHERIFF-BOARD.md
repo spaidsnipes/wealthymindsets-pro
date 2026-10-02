@@ -96,3 +96,4 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | NDX 15m | 8.1 ms | none | 15 |
 | ETH-USD 5m | 8.5 ms | none | 15 |
 | EURUSD 15m | 6.6 ms | none | 7 (volume senses honestly silent; 6E1! door) |
+| Equity chain default expiry | 🟢 | `5228408` SPY at night opens Oct 2 · 1d, IVx 17.1%, ±5.31 (was expired Oct 1, IVx 64%) |

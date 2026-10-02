@@ -37,7 +37,7 @@ export interface FuturesOptionChain { readonly futures: readonly FutureContract[
  * The expiration a chain should OPEN on: the first one still trading
  * (serving ES1! 2026-10-01 23:50 CDT: the panel opened on that day's 0DTE an
  * hour after it stopped — IVx 119.5% over dead quotes). Its own
- * `stopsTradingAt` decides; unknown is treated as still trading. PURE.
+ * `stopsTradingAt` decides, else the date's US close; neither known = trading. PURE.
  */
 export function firstLiveExpiration<T extends { readonly stopsTradingAt: string | null; readonly expiration?: string }>(expirations: readonly T[], nowMs: number): T | null {
   // Equity chains carry no instant (serving SPY 2026-10-02 00:38 CDT opened on
