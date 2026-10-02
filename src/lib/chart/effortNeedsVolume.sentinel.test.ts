@@ -35,7 +35,7 @@ describe("effort readers read the volume gate", () => {
     expect(mc).toContain("volume: effortIsReal && Number.isFinite(b.volume) ? b.volume : 0,");
     const cd = read("src/components/chart/ChartsDashboard.tsx");
     expect(cd).toContain("volume: volumeIsReal ? b.volume : null, open: b.open, close: b.close,");
-    expect(cd).toContain("volume: volumeIsReal ? inspectBar.v : null, open: inspectBar.o");
+    expect(cd).toContain("volume: volumeIsReal ? effortSubjectBar.v : null, open: effortSubjectBar.o");
   });
 
   it("the volume footer starts clear of the W badge and a silence reads as a refusal", () => {

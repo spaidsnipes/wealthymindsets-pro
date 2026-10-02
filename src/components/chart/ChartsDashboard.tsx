@@ -2076,6 +2076,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     return { o: last.open, h: last.high, l: last.low, c: last.close, v: last.volume, time: last.time };
   }, [cursorBar, chartBars]);
   const inspectFollowingLiveBar = cursorBar === null && inspectBar !== null;
+  /**
+   * EFFORT'S SUBJECT (cross-market run, 2026-10-01: Effort Mark read UNREAD on
+   * TSLA, NQ, ES, GC, CL, EURUSD — every market). Following the live edge, the
+   * subject was the FORMING bar, which effort can never grade (its count is
+   * still arriving), so the panel and the mark always refused. With no cursor
+   * the subject is the newest CLOSED bar; the cursor still wins.
+   */
+  const effortSubjectBar = React.useMemo(() => {
+    if (cursorBar) return cursorBar;
+    if (chartBars.length < 2) return inspectBar;
+    const b = chartBars[chartBars.length - 2];
+    return { o: b.open, h: b.high, l: b.low, c: b.close, v: b.volume, time: b.time };
+  }, [cursorBar, chartBars, inspectBar]);
 
   /**
    * FL-06 object ④ — Effort vs Result, weighed against the bars BEFORE it.
@@ -2100,10 +2113,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [effortOpen, setEffortOpen] = useState(false);
 
   const effortPriorBars = React.useMemo(() => {
-    if (!inspectBar) return [];
-    // Identified by bar-open time, not by object identity: `inspectBar` is
+    if (!effortSubjectBar) return [];
+    // Identified by bar-open time, not by object identity: `effortSubjectBar` is
     // rebuilt as a fresh object on every cursor move, so `indexOf` would miss.
-    const at = chartBars.findIndex(b => b.time === inspectBar.time);
+    const at = chartBars.findIndex(b => b.time === effortSubjectBar.time);
     const end = at >= 0 ? at : chartBars.length;
     // No volume evidence, no effort claim (Garden 16 §27, volumeTruth.ts): a
     // spot FX or placeholder-volume feed hands NO volume (null = unmeasured),
@@ -2111,7 +2124,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     return chartBars.slice(0, end).map(b => ({
       volume: volumeIsReal ? b.volume : null, open: b.open, close: b.close,
     }));
-  }, [chartBars, volumeIsReal, inspectBar]);
+  }, [chartBars, volumeIsReal, effortSubjectBar]);
 
   /**
    * IS THE SUBJECT STILL BEING BUILT?
@@ -2140,10 +2153,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * resolves on its own, over a verdict about a partial count.
    */
   const effortSubjectIsForming = React.useMemo(() => {
-    if (!inspectBar || chartBars.length === 0) return false;
+    if (!effortSubjectBar || chartBars.length === 0) return false;
     const newest = chartBars[chartBars.length - 1];
-    return newest.time === inspectBar.time;
-  }, [inspectBar, chartBars]);
+    return newest.time === effortSubjectBar.time;
+  }, [effortSubjectBar, chartBars]);
 
   /**
    * F05 CLARITY — the selected bar's own anatomy for the Inspect ticket.
@@ -2165,11 +2178,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
 
   const effortVsResultVM = React.useMemo(
     () => selectEffortVsResult({
-      bar: inspectBar ? { volume: volumeIsReal ? inspectBar.v : null, open: inspectBar.o, close: inspectBar.c } : null,
+      bar: effortSubjectBar ? { volume: volumeIsReal ? effortSubjectBar.v : null, open: effortSubjectBar.o, close: effortSubjectBar.c } : null,
       priorBars: effortPriorBars,
       subjectIsForming: effortSubjectIsForming,
     }),
-    [inspectBar, effortPriorBars, effortSubjectIsForming, volumeIsReal],
+    [effortSubjectBar, effortPriorBars, effortSubjectIsForming, volumeIsReal],
   );
 
   /**
@@ -2186,12 +2199,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const effortMarkVerdict = React.useMemo(
     () => selectEffortMark(
       effortVsResultVM,
-      inspectBar
-        ? { time: inspectBar.time, open: inspectBar.o, close: inspectBar.c,
-            high: inspectBar.h, low: inspectBar.l }
+      effortSubjectBar
+        ? { time: effortSubjectBar.time, open: effortSubjectBar.o, close: effortSubjectBar.c,
+            high: effortSubjectBar.h, low: effortSubjectBar.l }
         : null,
     ),
-    [effortVsResultVM, inspectBar],
+    [effortVsResultVM, effortSubjectBar],
   );
 
   /**

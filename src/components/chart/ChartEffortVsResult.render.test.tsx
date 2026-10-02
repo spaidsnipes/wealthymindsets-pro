@@ -395,7 +395,7 @@ describe("the callout is rendered by the charts room, not merely imported", () =
       "'unfinished' must mean the LAST bar held — a bar is proven finished by " +
         "the existence of a later bar, so grading earlier bars stays unaffected",
     ).toMatch(
-      /const newest = chartBars\[chartBars\.length\s*-\s*1\];\s*return newest\.time === inspectBar\.time;/,
+      /const newest = chartBars\[chartBars\.length\s*-\s*1\];\s*return newest\.time === effortSubjectBar\.time;/,
     );
 
     /*

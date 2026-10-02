@@ -67,7 +67,10 @@ describe("the reading reaches the chart", () => {
     const at = ROOM.indexOf("const effortMarkVerdict");
     expect(at).toBeGreaterThan(-1);
     const call = ROOM.slice(at, at + 700);
-    expect(call).toMatch(/inspectBar/);
+    // effortSubjectBar: the cursor's bar, else the newest CLOSED bar — the SAME
+    // subject the Effort panel reads (cross-market run 2026-10-01: following
+    // the forming bar, both refused on every market).
+    expect(call).toMatch(/effortSubjectBar/);
     expect(call).not.toMatch(/cursorBar|chartBars\[/);
   });
 
