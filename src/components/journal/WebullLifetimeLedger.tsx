@@ -17,6 +17,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { reconstructEpisodes, summarizeLedger, type Episode, type LedgerOrder, type LedgerSummary } from "@/lib/broker/webullLedger";
 import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
+import { LedgerPersonalEdge } from "@/components/journal/LedgerPersonalEdge";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -267,6 +268,8 @@ export function WebullLifetimeLedger() {
             <BucketTable title="BY UNDERLYING" keyLabel="Symbol" rows={s.bySymbol} />
             <BucketTable title="BY ACCOUNT" keyLabel="Account" rows={s.byAccount.map(b => ({ ...b, key: `·${b.key}` }))} />
           </div>
+
+          {!data.partial ? <LedgerPersonalEdge episodes={data.episodes ?? []} /> : null}
 
           <div style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginBottom: 6 }}>
