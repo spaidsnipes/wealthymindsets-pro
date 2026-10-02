@@ -12,7 +12,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
 import type { Episode } from "@/lib/broker/webullLedger";
-import { tastyCandlesToBars } from "@/lib/marketData/adapters/tastytradeCandles";
+import { tastyCandleSymbol, tastyCandlesToBars } from "@/lib/marketData/adapters/tastytradeCandles";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { barsInWindow, optionStreamerFor, replayFrame, replayMarkers, replayWindow } from "@/lib/journal/tradeReplay";
 
@@ -37,10 +37,13 @@ export function TradeReplay({ e }: { readonly e: Episode }) {
   const [playing, setPlaying] = useState(false);
   const tooOld = Date.now() - w.from > MAX_AGE_DAYS * 86_400_000;
 
+  // dxFeed echoes a 1-minute candle as `{=m}`; the request key must be that same
+  // spelling (tastyCandleSymbol), or every reply misses it (measured 2026-10-02:
+  // 287 bars of .TSLA261002C385 arrived under `{=m}` while `{=1m}` waited).
   const start = () => {
     if (!streamer) { setLoad({ state: "NONE", why: "This instrument has no streamer symbol WM can name." }); return; }
     setLoad({ state: "LOADING" });
-    requestTastyCandles(`${streamer}{=1m}`, streamer, w.from, 20_000).then(rows => {
+    requestTastyCandles(tastyCandleSymbol(streamer, "1m") ?? `${streamer}{=m}`, streamer, w.from, 20_000).then(rows => {
       if (!rows) { setLoad({ state: "NONE", why: "tastytrade did not answer for this contract (the stream is owner-only and must be connected)." }); return; }
       const bars = barsInWindow(tastyCandlesToBars(rows, 100_000), w);
       if (!bars.length) { setLoad({ state: "NONE", why: "tastytrade returned no 1-minute bars for this contract in this window." }); return; }
