@@ -12,6 +12,7 @@
  * Read only. Nothing on this page sends, changes or cancels an order.
  */
 
+import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { reconstructEpisodes, summarizeLedger, type Episode, type LedgerOrder, type LedgerSummary } from "@/lib/broker/webullLedger";
@@ -108,7 +109,7 @@ function EpisodeRow({ e }: { e: Episode }) {
       {open ? (
         <div style={{ margin: "6px 0 2px 16px", fontSize: 11, color: MUTED }}>
           <div style={{ marginBottom: 4 }}>
-            <a href={`/charts?symbol=${encodeURIComponent(e.symbol)}&tf=1m`} data-testid="ledger-open-chart" style={{ color: GOLD, marginRight: 8 }}>Open {e.symbol} chart →</a>
+            <Link href={`/charts?symbol=${encodeURIComponent(e.symbol)}&tf=1m`} data-testid="ledger-open-chart" style={{ color: GOLD, marginRight: 8 }}>Open {e.symbol} chart →</Link>
             <span style={{ color: GOLD }}>{e.label}</span> · gross {usd(e.gross)} · fees {usd(e.fees, false)} · net <span style={{ color: tone(e.net) }}>{usd(e.net)}</span> · ×{e.multiplier} per contract{e.note ? ` · ${e.note}` : ""}
           </div>
           {[...e.entries.map(f => ({ ...f, role: "ENTRY" })), ...e.exits.map(f => ({ ...f, role: "EXIT" }))].sort((a, b) => a.at.localeCompare(b.at)).map(f => (
