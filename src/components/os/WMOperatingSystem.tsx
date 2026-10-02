@@ -2099,7 +2099,10 @@ export function WMOperatingSystem({
                   top: 8,
                   zIndex: 40,
                   background: FIELD,
-                  maxHeight: "calc(100% - 16px)",
+                  // §XIII on glass (2026-10-01): as tall as the room it read as a
+                  // drawer. It floats over at most ~70% of the room; the list
+                  // scrolls inside and the market's lower left stays in view.
+                  maxHeight: "min(calc(100% - 16px), 72%)",
                   overflowY: "auto" as const,
                   borderRadius: 10,
                   border: "1px solid #c9a55c48",
