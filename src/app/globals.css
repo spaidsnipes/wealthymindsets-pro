@@ -724,11 +724,12 @@
     position: relative;
   }
 
+  /* Serving at 390px, 2026-10-01: overflow:hidden cut the search box and
+     Filters off the right edge. The actions take their own row instead. */
   .wm-scanner-header {
     gap: 6px !important;
-    padding-left: 8px !important;
-    padding-right: 8px !important;
-    overflow: hidden;
+    padding: 4px 8px !important;
+    flex-wrap: wrap;
   }
 
   .wm-scanner-stats {
@@ -745,6 +746,8 @@
   .wm-scanner-actions {
     gap: 5px !important;
     min-width: 0;
+    flex-basis: 100%;
+    margin-left: 0 !important;
   }
 
   .wm-scanner-search {

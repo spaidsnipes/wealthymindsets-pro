@@ -21,7 +21,7 @@ import {
   DESKS_STORAGE_KEY,
   MORNING_DESK,
   deleteDesk,
-  gridFor,
+  gridFor, phoneGridFor,
   readDesks,
   renameDesk,
   DESK_SCREEN_DRAG_TYPE,
@@ -116,7 +116,7 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLi
       draggable
       onDragStart={e => { e.dataTransfer.setData(DESK_SCREEN_DRAG_TYPE, String(index)); e.dataTransfer.effectAllowed = "move"; }}
       title="Drag onto another screen to swap"
-      style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 6px", borderBottom: `1px solid ${LINE}`, background: "rgba(10,9,7,.92)", cursor: "grab" }}>
+      style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, padding: "4px 6px", borderBottom: `1px solid ${LINE}`, background: "rgba(10,9,7,.92)", cursor: "grab" }}>
       <span style={{ color: focused ? GOLD : MUTED, font: "700 10px/1 ui-sans-serif", letterSpacing: ".1em" }}>{focused ? "● " : ""}SCREEN {index + 1}</span>
       <form onSubmit={e => { e.preventDefault(); onSymbol(draft); }} style={{ display: "flex" }}>
         <input aria-label={`Screen ${index + 1} market`} value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => draft !== symbol && onSymbol(draft)}
@@ -208,11 +208,21 @@ export function DeskShell() {
     try { localStorage.setItem(DESKS_STORAGE_KEY, JSON.stringify(next)); localStorage.setItem(ACTIVE_DESK_STORAGE_KEY, active); } catch { /* private mode */ }
   };
 
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    let mq: MediaQueryList | null = null;
+    try { mq = window.matchMedia("(max-width: 639px)"); } catch { return; }
+    const on = () => setPhone(!!mq?.matches);
+    on();
+    mq.addEventListener?.("change", on);
+    return () => mq?.removeEventListener?.("change", on);
+  }, []);
+
   const saved = desks.find(d => d.name === activeName);
   const dirty = !!saved && JSON.stringify(saved) !== JSON.stringify(working);
   const screens = screensFor(working);
-  const grid = maximized != null ? gridFor(1) : gridFor(working.layout);
   const shown = maximized != null ? [maximized] : screens.map((_, i) => i);
+  const grid = phone ? phoneGridFor(shown.length) : maximized != null ? gridFor(1) : gridFor(working.layout);
 
   const open = (name: string) => {
     const d = desks.find(x => x.name === name);
@@ -274,7 +284,7 @@ export function DeskShell() {
           <WatchlistPanel open onToggle={() => setWatchlistOpen(false)} variant="sheet" />
         </aside>
       ) : null}
-      <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "grid", gridTemplateColumns: grid.columns, gridTemplateRows: grid.rows, gap: 4, padding: 4 }}>
+      <div data-desk-phone={phone ? "STACKED" : undefined} style={{ flex: 1, minWidth: 0, minHeight: 0, display: "grid", gridTemplateColumns: grid.columns, gridTemplateRows: grid.rows, gap: 4, padding: 4, overflowY: phone ? "auto" : undefined }}>
         {shown.map((i, slot) => {
           const s = screens[i];
           return (

@@ -79,3 +79,20 @@ describe("Garden 18 §LVI — each screen keeps its own View through save and re
     expect(setScreenView(d, 0, undefined).screens[0]?.view).toBeUndefined();
   });
 });
+
+import { phoneGridFor as phoneGridFor2 } from "./desks";
+import { readFileSync as readFileSync2 } from "node:fs";
+describe("phone desk stacks its screens (serving /desk at 390px, 2026-10-01)", () => {
+  it("one column, one row per screen, each readable", () => {
+    const g = phoneGridFor2(4);
+    expect(g.columns).toBe("1fr");
+    expect(g.rows).toBe("repeat(4, minmax(360px, 70vh))");
+    expect(g.areas).toEqual(["1 / 1 / 2 / 2", "2 / 1 / 3 / 2", "3 / 1 / 4 / 2", "4 / 1 / 5 / 2"]);
+  });
+  it("the shell uses it below 640 and the screen header wraps", () => {
+    const shell = readFileSync2("src/components/desk/DeskShell.tsx", "utf8");
+    expect(shell).toContain('window.matchMedia("(max-width: 639px)")');
+    expect(shell).toContain("const grid = phone ? phoneGridFor(shown.length)");
+    expect(shell).toContain('display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6');
+  });
+});

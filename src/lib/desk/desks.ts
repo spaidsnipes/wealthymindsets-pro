@@ -56,6 +56,20 @@ export function gridFor(layout: DeskLayout): { readonly columns: string; readonl
   }
 }
 
+/**
+ * PHONE DESK (serving /desk at 390px, 2026-10-01): a 2×2 grid gave each
+ * screen ~190px and clipped its header controls. Below 640 the same screens
+ * stack in one scrolling column, each tall enough to read a chart. PURE.
+ */
+export function phoneGridFor(count: number): { readonly columns: string; readonly rows: string; readonly areas: readonly string[] } {
+  const n = Math.max(1, Math.floor(count));
+  return {
+    columns: "1fr",
+    rows: `repeat(${n}, minmax(360px, 70vh))`,
+    areas: Array.from({ length: n }, (_, i) => `${i + 1} / 1 / ${i + 2} / 2`),
+  };
+}
+
 /** One stored desk, or null when it cannot be trusted as one. */
 export function readDesk(raw: unknown): Desk | null {
   if (!raw || typeof raw !== "object") return null;

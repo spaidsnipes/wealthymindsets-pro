@@ -818,7 +818,11 @@ export default function ScannerPage() {
             <span className="w-2 h-2 rounded-full bg-wm-gold"/>
             {/* An unrated row is a row, not a signal. It is counted apart so
                 the headline number never absorbs rows nothing was read for. */}
-            <span className="text-wm-text-muted">{filtered.length - unratedCount} delayed-quote signals</span>
+            {/* 2026-10-01: rows now stream live from tastytrade; the headline says
+                how many, instead of calling every row delayed. */}
+            <span className="text-wm-text-muted">{liveCount > 0
+              ? `${filtered.length - unratedCount} signals · ${liveCount} live`
+              : `${filtered.length - unratedCount} delayed-quote signals`}</span>
           </div>
           <span className="wm-scanner-breadth text-[10px] text-wm-green font-bold">{bullCount}▲</span>
           <span className="wm-scanner-breadth text-[10px] text-wm-red font-bold">{bearCount}▼</span>
