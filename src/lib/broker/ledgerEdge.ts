@@ -86,6 +86,36 @@ const ORDERS: Readonly<Record<string, readonly string[]>> = {
   weekday: ["Mon", "Tue", "Wed", "Thu", "Fri"],
 };
 
+export interface EpisodeConditions { readonly time: string; readonly attempt: string; readonly hold: string; readonly dte: string; readonly right: string }
+
+/** The broker-established conditions of every closed episode, by episode id (§82 comparable episodes). */
+export function episodeConditions(episodes: readonly Episode[]): Map<string, EpisodeConditions> {
+  const closed = episodes.filter(e => e.label === "RECONSTRUCTED" && e.net != null).sort((a, b) => a.openedAt.localeCompare(b.openedAt));
+  const perDay = new Map<string, number>();
+  const out = new Map<string, EpisodeConditions>();
+  for (const e of closed) {
+    const p = nyParts(e.openedAt);
+    const a = (perDay.get(p.ymd) ?? 0) + 1;
+    perDay.set(p.ymd, a);
+    out.set(e.id, { time: timeBin(p.minutes), attempt: a >= 4 ? "4th+ trade of the day" : ORDERS.attempt[a - 1], hold: holdBin(e.holdMs ?? 0), dte: dteBin(e, p.ymd), right: rightOf(e) });
+  }
+  return out;
+}
+
+export interface Comparables { readonly n: number; readonly wins: number; readonly net: number; readonly expectancy: number | null; readonly evidence: EvidenceState; readonly conditions: EpisodeConditions }
+
+/** Other closed trades sharing this one's entry window, attempt number, DTE bucket and call/put (not hold — that is the outcome side). */
+export function comparablesFor(id: string, episodes: readonly Episode[], conds = episodeConditions(episodes)): Comparables | null {
+  const c = conds.get(id);
+  if (!c) return null;
+  const peers = episodes.filter(e => e.id !== id && e.label === "RECONSTRUCTED" && e.net != null).filter(e => {
+    const o = conds.get(e.id);
+    return o && o.time === c.time && o.attempt === c.attempt && o.dte === c.dte && o.right === c.right;
+  });
+  const net = peers.reduce((s, e) => s + e.net!, 0);
+  return { n: peers.length, wins: peers.filter(e => e.net! > 0).length, net: cents(net), expectancy: peers.length ? cents(net / peers.length) : null, evidence: peers.length >= MIN_SAMPLE ? "SUPPORTED" : "INSUFFICIENT EVIDENCE", conditions: c };
+}
+
 export function computeLedgerEdge(episodes: readonly Episode[]): LedgerEdge {
   const closed = episodes.filter(e => e.label === "RECONSTRUCTED" && e.net != null).sort((a, b) => a.openedAt.localeCompare(b.openedAt));
   const n = closed.length;

@@ -19,6 +19,7 @@ import { reconstructEpisodes, summarizeLedger, type Episode, type LedgerOrder, t
 import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { LedgerPersonalEdge } from "@/components/journal/LedgerPersonalEdge";
 import { TradeReplay } from "@/components/journal/TradeReplay";
+import { comparablesFor, episodeConditions, type EpisodeConditions } from "@/lib/broker/ledgerEdge";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -95,7 +96,7 @@ function BucketTable({ title, rows, keyLabel }: { title: string; rows: LedgerSum
   );
 }
 
-function EpisodeRow({ e }: { e: Episode }) {
+function EpisodeRow({ e, all, conds }: { e: Episode; all: readonly Episode[]; conds: Map<string, EpisodeConditions> }) {
   const [open, setOpen] = useState(false);
   return (
     <div data-testid="ledger-episode" data-label={e.label} style={{ borderTop: `1px solid ${LINE}`, padding: "6px 0" }}>
@@ -125,6 +126,17 @@ function EpisodeRow({ e }: { e: Episode }) {
               <span style={{ opacity: 0.6 }}>Webull order {f.orderId}</span>
             </div>
           ))}
+          {(() => {
+            // §82: comparable episodes — same entry window, attempt number, DTE and call/put. Counts derived, never faked.
+            const c = comparablesFor(e.id, all, conds);
+            if (!c) return null;
+            return (
+              <div data-testid="ledger-comparables" style={{ margin: "6px 0", fontSize: 11, color: MUTED }}>
+                <span style={{ color: GOLD }}>COMPARABLE TRADES</span> · {c.conditions.time} · {c.conditions.attempt} · {c.conditions.dte} · {c.conditions.right}:{" "}
+                {c.n === 0 ? "none yet." : <>{c.n} others, {c.wins} won, net <span style={{ color: tone(c.net) }}>{usd(c.net)}</span>{c.expectancy != null ? <> ({usd(c.expectancy)} per trade)</> : null}{c.evidence !== "SUPPORTED" ? " — INSUFFICIENT EVIDENCE for a pattern" : ""}.</>}
+              </div>
+            );
+          })()}
           {/* §34/§80: Journal → Replay — this trade on its own contract's bars, no look-ahead. */}
           <TradeReplay e={e} />
           {/* §61: the trader's half of this trade — eight process marks and their own words, beside the broker's facts, never editing them. */}
@@ -211,6 +223,7 @@ export function WebullLifetimeLedger() {
     const all = [...(data?.episodes ?? [])].sort((a, b) => b.openedAt.localeCompare(a.openedAt));
     return filter === "ALL" ? all : all.filter(e => e.symbol === filter || e.label === filter);
   }, [data, filter]);
+  const conds = useMemo(() => episodeConditions(data?.episodes ?? []), [data]);
   const s = data?.summary;
   const symbols = useMemo(() => [...new Set((data?.episodes ?? []).map(e => e.symbol))].sort(), [data]);
 
@@ -286,7 +299,7 @@ export function WebullLifetimeLedger() {
             <div style={{ display: "grid", gridTemplateColumns: "minmax(150px,1.4fr) minmax(170px,1.6fr) 70px 70px 90px 90px", gap: 8, fontSize: 10, color: MUTED, letterSpacing: 0.8 }}>
               <span>OPENED</span><span>INSTRUMENT</span><span style={{ textAlign: "right" }}>AVG IN</span><span style={{ textAlign: "right" }}>AVG OUT</span><span style={{ textAlign: "right" }}>HELD</span><span style={{ textAlign: "right" }}>NET</span>
             </div>
-            {episodes.slice(0, shown).map(e => <EpisodeRow key={e.id} e={e} />)}
+            {episodes.slice(0, shown).map(e => <EpisodeRow key={e.id} e={e} all={data.episodes ?? []} conds={conds} />)}
             {episodes.length > shown ? <button type="button" onClick={() => setShown(n => n + 100)} style={{ marginTop: 6, fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>Show more ({episodes.length - shown} left)</button> : null}
           </div>
         </>

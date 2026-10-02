@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MIN_SAMPLE, computeLedgerEdge } from "./ledgerEdge";
+import { MIN_SAMPLE, comparablesFor, computeLedgerEdge } from "./ledgerEdge";
 import { reconstructEpisodes, readWebullHistory } from "./webullLedger";
 
 const NOW = Date.parse("2026-10-02T20:00:00Z");
@@ -43,5 +43,17 @@ describe("Personal Edge from the broker ledger — sample sizes first, no causes
     expect(t).toMatchObject({ key: "09:30–10:00 ET", n: MIN_SAMPLE, evidence: "SUPPORTED" });
     const few = computeLedgerEdge(reconstructEpisodes(readWebullHistory(trip("2026-09-01T13:35:00Z", 30, 1, 1.1), "A"), NOW));
     expect(few.dimensions[0].buckets[0].evidence).toBe("INSUFFICIENT EVIDENCE");
+  });
+
+  it("comparables: other trades with the same entry window, attempt, DTE and call/put", () => {
+    seq = 0;
+    const raw = [
+      ...trip("2026-09-29T13:31:00Z", 30, 1.0, 1.2),   // 09:31 ET 1st 0DTE call +20
+      ...trip("2026-09-30T13:35:00Z", 30, 1.0, 0.9),   // 09:35 ET 1st 0DTE call −10 (comparable)
+      ...trip("2026-09-30T14:10:00Z", 30, 1.0, 0.5),   // 10:10 ET 2nd — not comparable
+    ];
+    const eps = reconstructEpisodes(readWebullHistory(raw, "A"), NOW);
+    const c = comparablesFor(eps[0].id, eps)!;
+    expect(c).toMatchObject({ n: 1, wins: 0, net: -10, evidence: "INSUFFICIENT EVIDENCE", conditions: { time: "09:30–10:00 ET", attempt: "1st trade of the day", dte: "0DTE", right: "Calls" } });
   });
 });
