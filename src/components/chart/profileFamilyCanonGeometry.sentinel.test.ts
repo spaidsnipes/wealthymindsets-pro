@@ -206,7 +206,7 @@ describe("3 · the P-110 body: solid, in the family's ink, with rules across the
 
   it("Composite and Visible Range speak the family's ink (bone / gold), not a steel of their own", () => {
     expect(COMPOSITE).not.toMatch(/rgba\((184,190,196|160,166,172),/);
-    expect(COMPOSITE).toContain('pk.rgba("VALUE", +((0.34 + 0.34 * age) * band).toFixed(2))');
+    expect(COMPOSITE).toContain('pk.rgba("VALUE", +((0.5 + 0.32 * age) * band).toFixed(2))');
   });
 });
 

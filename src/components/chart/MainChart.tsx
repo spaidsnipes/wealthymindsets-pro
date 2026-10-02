@@ -17610,11 +17610,14 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
                   const segW = w * (v / total);
                   const age = nS > 1 ? k / (nS - 1) : 1;
                   const band = k % 2 === 1 ? 0.72 : 1;
+                  // Visibility floor (faintness pass, ES 5m 2026-10-01: the
+                  // sediment read as a dim grey smear): value strata ≥ 0.5,
+                  // tails ≥ 0.3 — the oldest still lighter than the newest.
                   ctx.fillStyle = r.isPoc
-                    ? pk.rgba("POC", +((0.62 + 0.3 * age) * band).toFixed(2))
+                    ? pk.rgba("POC", +((0.7 + 0.28 * age) * band).toFixed(2))
                     : r.insideValueArea
-                      ? pk.rgba("VALUE", +((0.34 + 0.34 * age) * band).toFixed(2))
-                      : pk.rgbaAs("TAIL", "VALUE", +((0.16 + 0.2 * age) * band).toFixed(2));
+                      ? pk.rgba("VALUE", +((0.5 + 0.32 * age) * band).toFixed(2))
+                      : pk.rgbaAs("TAIL", "VALUE", +((0.3 + 0.24 * age) * band).toFixed(2));
                   ctx.fillRect(xs - segW, y, segW, hRow);
                   if (segW >= 3 && xs < right) {
                     ctx.fillStyle = "rgba(11,10,8,0.55)";
