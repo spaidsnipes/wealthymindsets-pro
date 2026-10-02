@@ -286,11 +286,15 @@ export function fitWeatherLens(region: ScreenBox, plot: ScreenBox): WeatherLens 
  */
 export const LENS_MIN_BARS = 6;
 export const LENS_MIN_REGION_W = 48;
+/** Below this plot size the loupe yields — it would cover the pane. */
+export const LENS_MIN_PANE_W = 520;
+export const LENS_MIN_PANE_H = 300;
 
 export type WeatherLensGate =
   | { readonly kind: "DRAW" }
   | { readonly kind: "YIELDED_NEAR"; readonly state: "YIELDED_NEAR" }
   | { readonly kind: "OFF_CAMERA"; readonly state: "OFF_CAMERA" }
+  | { readonly kind: "YIELDED_SMALL_PANE"; readonly state: "YIELDED_SMALL_PANE" }
   | { readonly kind: "GATHERING"; readonly state: `GATHERING:${number}`; readonly bars: number; readonly words: string };
 
 export function weatherLensGate(g: {
@@ -301,8 +305,17 @@ export function weatherLensGate(g: {
   readonly regionWidth: number | null;
   /** First → last print, ms. */
   readonly spanMs: number;
+  /** The price pane's plot size, px. Omitted = not measured (no yield). */
+  readonly paneWidth?: number | null;
+  readonly paneHeight?: number | null;
 }): WeatherLensGate {
   if (g.depth === "NEAR") return { kind: "YIELDED_NEAR", state: "YIELDED_NEAR" };
+  // A loupe is ~4/5 of its pane by plate law. In a desk quarter or a phone
+  // pane that buries every candle (serving /desk 4-up at iPad width,
+  // 2026-10-01), so the loupe yields there; maximize the screen to read it.
+  if ((g.paneWidth != null && g.paneWidth < LENS_MIN_PANE_W) || (g.paneHeight != null && g.paneHeight < LENS_MIN_PANE_H)) {
+    return { kind: "YIELDED_SMALL_PANE", state: "YIELDED_SMALL_PANE" };
+  }
   if (g.regionWidth == null || !Number.isFinite(g.regionWidth)) return { kind: "OFF_CAMERA", state: "OFF_CAMERA" };
   const bars = Math.max(0, Math.floor(Number.isFinite(g.spanBars) ? g.spanBars : 0));
   if (bars < LENS_MIN_BARS || g.regionWidth < LENS_MIN_REGION_W) {

@@ -230,3 +230,16 @@ describe("the candle cut-out keeps candles IN FRONT of liquidity paint", () => {
     expect(r.length).toBe(3);
   });
 });
+
+import { weatherLensGate as gate2 } from "./liquidityGlassGeometry";
+describe("the loupe yields in a small pane (desk quarter / phone, 2026-10-01)", () => {
+  const base = { depth: "MID", spanBars: 20, regionWidth: 200, spanMs: 600_000 };
+  it("draws in a full pane", () => {
+    expect(gate2({ ...base, paneWidth: 1200, paneHeight: 500 }).kind).toBe("DRAW");
+    expect(gate2(base).kind).toBe("DRAW");
+  });
+  it("yields when the plot is too narrow or too short", () => {
+    expect(gate2({ ...base, paneWidth: 400, paneHeight: 500 }).kind).toBe("YIELDED_SMALL_PANE");
+    expect(gate2({ ...base, paneWidth: 1200, paneHeight: 240 }).kind).toBe("YIELDED_SMALL_PANE");
+  });
+});

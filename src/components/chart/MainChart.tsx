@@ -19688,6 +19688,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               spanBars: ia < 0 || ib < 0 ? 0 : ib - ia + 1,
               regionWidth: region ? region.x1 - region.x0 : null,
               spanMs: wnd.toTime - wnd.fromTime,
+              paneWidth: weatherPlotRight,
+              paneHeight: pane0Bottom - HEADER_FLOOR_Y,
             });
             if (gate.kind !== "DRAW") {
               weatherLensWhy = gate.state;
