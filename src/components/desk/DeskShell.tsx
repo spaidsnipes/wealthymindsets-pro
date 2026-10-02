@@ -65,8 +65,15 @@ function DeskMarketScreen({ symbol, timeframe, setTimeframe, view }: {
   const { tpo, weather, ...readings } = compiled;
   const profileFusion = useMemo(() => compileDeskProfileFusion(compiled, view?.switches ?? null, drawn), [compiled, view?.switches, drawn]);
   const pending = pendingDeskReadings(view?.switches ?? null);
+  // §LXXXI: the desk reads the SAME session preference /charts does
+  // (wm_extHours, default ON). Unset, MainChart fell to RTH and every equity
+  // screen went "STALE PIPELINE · 52 BARS BEHIND" after the close while
+  // /charts printed the live extended-hours price (serving TSLA, 2026-10-01).
+  const extendedHours = useMemo(() => {
+    try { const v = localStorage.getItem("wm_extHours"); return v ? JSON.parse(v) !== false : true; } catch { return true; }
+  }, []);
   return <>
-    <MainChart symbol={symbol} timeframe={timeframe} setTimeframe={setTimeframe}
+    <MainChart symbol={symbol} timeframe={timeframe} setTimeframe={setTimeframe} extendedHours={extendedHours}
       {...(view !== undefined ? chartPropsForView(view) : { footprintType: "volume-profile" as const, footprintEnabled: false })}
       onBarsReady={onBarsReady} onVpLevels={onVpLevels} tpoProfile={tpo} liquidityWeather={weather} profileFusion={profileFusion} {...readings} />
     {pending.length > 0 && <details data-testid="desk-view-unavailable" style={{ position: "absolute", left: 8, top: 48, zIndex: 25, maxWidth: 340, color: "#d8bd7a", background: "#17140e", borderRadius: 6, padding: "5px 8px", fontSize: 10 }}>
