@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { BrokerTruthToday } from "@/components/journal/BrokerTruthToday";
+import { WebullLifetimeLedger } from "@/components/journal/WebullLifetimeLedger";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
@@ -1041,7 +1042,9 @@ function JournalPageInner() {
   // Diagnostic chip is always visible; full panel is a click away.
   const [showGenomePanel, setShowGenomePanel] = useState(false);
   const [lightbox,  setLightbox]  = useState<string | null>(null);
-  const [mainTab,   setMainTab]   = useState<"journal"|"coach"|"songs">("journal");
+  const [mainTab,   setMainTab]   = useState<"journal"|"ledger"|"coach"|"songs">("journal");
+  // ?tab=ledger opens the Broker Ledger (read after mount — no hydration fork).
+  useEffect(() => { if (new URLSearchParams(window.location.search).get("tab") === "ledger") setMainTab("ledger"); }, []);
 
   // Local strategy lyric-template state (no AI service is called).
   const [songPrompt,   setSongPrompt]   = useState("");
@@ -1638,6 +1641,8 @@ Trade the system, trust the process, winners every day 🚀`,
         <div className="wm-journal-tabs flex gap-1">
           {([
             { id:"journal" as const, label:"Journal",           icon:FileText },
+            // Garden 18 v2 §29/§36: lifetime outcome P&L from the broker's own records.
+            { id:"ledger"  as const, label:"Broker Ledger",     icon:BarChart2 },
             // Label matches what the panel actually is: deterministic aggregation over
             // journal evidence, no AI service call. Canon §AI AUTHORITY CREEP — do not
             // let a tab promise an engine that does not run.
@@ -2192,6 +2197,7 @@ Trade the system, trust the process, winners every day 🚀`,
       )}
 
       {/* ── AI Coach tab ─────────────────────────────────────── */}
+      {mainTab === "ledger" && <WebullLifetimeLedger />}
       {mainTab === "coach" && (
         <div className="flex-1 overflow-y-auto">
           <StrategyCoach entries={entries} />

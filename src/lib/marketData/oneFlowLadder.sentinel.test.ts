@@ -288,6 +288,10 @@ const TAPE_FOLDS: Readonly<Record<string, { owner: string; why: string }>> = {
     owner: "paper pending net position",
     why: "ORDER side (the trader's own buy/sell), not tape aggressor side",
   },
+  "src/lib/broker/webullLedger.ts": {
+    owner: "Webull lifetime ledger — the trader's broker position walked fill by fill into episodes",
+    why: "ORDER side (the trader's own Webull fills), not tape aggressor side",
+  },
 };
 
 /** Files that re-sum sides someone else already folded. Reading, not folding. */

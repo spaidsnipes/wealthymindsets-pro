@@ -381,6 +381,26 @@ export async function listWebullExecutions(
   return { ok: false, payload: t.payload, reason: `HTTP ${t.status} ${providerWords(t.payload)}` };
 }
 
+/**
+ * One page of an account's order history between two dates (YYYY-MM-DD),
+ * read-only. `cursor` is the last client order id of the previous page —
+ * Webull's own pagination key for this endpoint.
+ */
+export async function listWebullOrderHistoryPage(
+  fetchImpl: typeof fetch,
+  config: WebullOrderConfig,
+  accountId: string,
+  startDate: string,
+  endDate: string,
+  cursor: string | null,
+): Promise<{ readonly ok: boolean; readonly payload: unknown; readonly reason?: string }> {
+  const query: Record<string, string> = { account_id: accountId, start_date: startDate, end_date: endDate, page_size: "100" };
+  if (cursor) query.last_client_order_id = cursor;
+  const t = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ORDER_HISTORY, { query });
+  if (t.kind === "NO_ANSWER") return { ok: false, payload: null, reason: t.reason };
+  return t.status >= 200 && t.status < 300 ? { ok: true, payload: t.payload } : { ok: false, payload: t.payload, reason: `HTTP ${t.status} ${providerWords(t.payload)}` };
+}
+
 function providerWords(payload: unknown): string {
   if (!payload || typeof payload !== "object") return typeof payload === "string" ? payload.slice(0, 200) : "";
   const p = payload as Record<string, unknown>;
