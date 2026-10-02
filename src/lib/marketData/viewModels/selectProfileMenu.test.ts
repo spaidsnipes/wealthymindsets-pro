@@ -25,6 +25,8 @@ const ALL_IDS: readonly ProfileId[] = [
   // Garden 18 §XXI. Same effort series as the shelf — bars only.
   "EXHAUSTION",
   "IMBALANCE_STACK",
+  // F06A Flow Current — a current on each bar from sided prints (its own switch since 2026-10-01).
+  "FLOW_CURRENT",
   "VALUE_CANDLE",
   // F05A. Body efficiency from OHLC — bars only.
   "CLARITY_CANDLE",
@@ -78,6 +80,7 @@ const ALL_IDS: readonly ProfileId[] = [
 /** The rows that require provider-stated aggressor side. */
 const SIDED: readonly ProfileId[] = [
   "DELTA_VP",
+  "FLOW_CURRENT",
   "IMBALANCE_STACK",
   "VALUE_CANDLE",
   "DELTA_DIVERGENCE",

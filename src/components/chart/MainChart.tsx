@@ -1379,6 +1379,8 @@ interface Props {
   */
   imbalanceStackOnChart?: boolean;
   valueCandleOnChart?: boolean;
+  /** F06A Flow Current — its own switch (default on, as it always painted). */
+  flowCurrentOnChart?: boolean;
   /** F05A Clarity Candle — the candle species itself (see lib/chart/clarityCandle). */
   clarityCandleOnChart?: boolean;
   deltaDivergenceOnChart?: boolean;
@@ -1820,6 +1822,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   // would be a second surprise dressed as a fix. The switch is the new thing.
   imbalanceStackOnChart = true,
   valueCandleOnChart = true,
+  flowCurrentOnChart = true,
   clarityCandleOnChart = false,
   deltaDivergenceOnChart = true,
   liquidityWeatherOnChart = true,
@@ -2321,6 +2324,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
   exhaustionOnRef.current = exhaustionOnChart;
   const clarityOnRef = useRef(false);
   clarityOnRef.current = clarityCandleOnChart && candleType === "candles";
+  const flowCurrentOnRef = useRef(flowCurrentOnChart);
+  useEffect(() => { flowCurrentOnRef.current = flowCurrentOnChart; }, [flowCurrentOnChart]);
   const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false, derivativesPressure: false, brickWalls: false });
   useEffect(() => {
     layerOnRef.current = {
@@ -10271,8 +10276,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       try {
         const accF = tickAccRef.current;
         canvas.dataset.tapeBackfill = tapeBackfillRef.current;
-        if (!att.paints("flowCurrent")) {
-          canvas.dataset.flowCurrent = att.offWord(true);
+        if (!flowCurrentOnRef.current || !att.paints("flowCurrent")) {
+          canvas.dataset.flowCurrent = att.offWord(flowCurrentOnRef.current);
         } else if (!srs || accF.size === 0) {
           canvas.dataset.flowCurrent = "NO_SIDED_TAPE";
         } else {

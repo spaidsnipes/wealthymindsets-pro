@@ -10,6 +10,7 @@ import type { ProfileFamily, ProfileId, ProfileMenuEntry } from "@/lib/marketDat
 
 /** The words traders actually type for a tool, where they differ from its label. */
 export const TOOL_ALIASES: Readonly<Partial<Record<ProfileId, readonly string[]>>> = {
+  FLOW_CURRENT: ["flow", "aggression", "who is pressing", "net buying", "net selling"],
   ABSORPTION: ["absorption shelf", "shelf", "exhaustion"],
   TPO_PROFILE: ["tpo", "auction distribution", "market profile", "letters"],
   VALUE_CANDLE: ["candle", "value"],
@@ -49,7 +50,7 @@ export const LIBRARY_CATEGORIES = ["ORDER FLOW", "LIQUIDITY", "PROFILE / AUCTION
 export type LibraryCategory = (typeof LIBRARY_CATEGORIES)[number];
 export const LIBRARY_CATEGORY: Readonly<Record<ProfileId, LibraryCategory>> = {
   ABSORPTION: "ORDER FLOW", EXHAUSTION: "ORDER FLOW", IMBALANCE_STACK: "ORDER FLOW", DELTA_DIVERGENCE: "ORDER FLOW",
-  EFFORT_MARK: "ORDER FLOW", DELTA_LEVELS: "ORDER FLOW", DELTA_VP: "ORDER FLOW",
+  EFFORT_MARK: "ORDER FLOW", DELTA_LEVELS: "ORDER FLOW", DELTA_VP: "ORDER FLOW", FLOW_CURRENT: "ORDER FLOW",
   LIQUIDITY_WEATHER: "LIQUIDITY", LIQUIDITY_LIFECYCLE: "LIQUIDITY", BRICK_WALLS: "LIQUIDITY",
   FIXED_RANGE: "PROFILE / AUCTION", SESSION: "PROFILE / AUCTION", LIVING_PROFILE: "PROFILE / AUCTION", TPO_PROFILE: "PROFILE / AUCTION",
   STRUCTURE_PROFILE: "PROFILE / AUCTION", PROFILE_DNA: "PROFILE / AUCTION", VALUE_MIGRATION: "PROFILE / AUCTION",

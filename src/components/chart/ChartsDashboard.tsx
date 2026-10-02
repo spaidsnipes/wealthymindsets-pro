@@ -880,6 +880,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   */
   const [imbalanceStackOn, setImbalanceStackOn] = useState<boolean>(() => lsGet("wm_ofImbalanceStack", true) as boolean);
   const [valueCandleOn, setValueCandleOn] = useState<boolean>(() => lsGet("wm_ofValueCandle", true) as boolean);
+  // F06A Flow Current — a sense with its own switch (it painted unswitched; §XXI/§CIII).
+  const [flowCurrentOn, setFlowCurrentOn] = useState<boolean>(() => lsGet("wm_ofFlowCurrent", true) as boolean);
   // F05A Clarity Candle — off by default; the trader turns the candle species on.
   const [clarityCandleOn, setClarityCandleOn] = useState<boolean>(() => lsGet("wm_ofClarityCandle", false) as boolean);
   const [deltaDivergenceOn, setDeltaDivergenceOn] = useState<boolean>(() => lsGet("wm_ofDeltaDivergence", true) as boolean);
@@ -1169,6 +1171,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_exhaustion",          exhaustionOn);
   usePersistOnChange("wm_ofImbalanceStack",    imbalanceStackOn);
   usePersistOnChange("wm_ofValueCandle",       valueCandleOn);
+  usePersistOnChange("wm_ofFlowCurrent",       flowCurrentOn);
   usePersistOnChange("wm_ofClarityCandle",     clarityCandleOn);
   usePersistOnChange("wm_ofDeltaDivergence",   deltaDivergenceOn);
   usePersistOnChange("wm_ofLiquidityWeather",  liquidityWeatherOn);
@@ -3251,6 +3254,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   // The four order-flow readings that now draw on the axis.
                   IMBALANCE_STACK: imbalanceStackOn,
                   VALUE_CANDLE: valueCandleOn,
+                  FLOW_CURRENT: flowCurrentOn,
                   CLARITY_CANDLE: clarityCandleOn,
                   DELTA_DIVERGENCE: deltaDivergenceOn,
                   LIQUIDITY_WEATHER: liquidityWeatherOn,
@@ -3286,6 +3290,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "EXHAUSTION") setExhaustionOn(v => !v);
                   else if (id === "IMBALANCE_STACK") setImbalanceStackOn(v => !v);
                   else if (id === "VALUE_CANDLE") setValueCandleOn(v => !v);
+                  else if (id === "FLOW_CURRENT") setFlowCurrentOn(v => !v);
                   else if (id === "CLARITY_CANDLE") setClarityCandleOn(v => !v);
                   else if (id === "DELTA_DIVERGENCE") setDeltaDivergenceOn(v => !v);
                   else if (id === "LIQUIDITY_WEATHER") setLiquidityWeatherOn(v => !v);
@@ -3551,6 +3556,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.EXHAUSTION !== undefined) setExhaustionOn(s.EXHAUSTION);
       if (s.IMBALANCE_STACK !== undefined) setImbalanceStackOn(s.IMBALANCE_STACK);
       if (s.VALUE_CANDLE !== undefined) setValueCandleOn(s.VALUE_CANDLE);
+      if (s.FLOW_CURRENT !== undefined) setFlowCurrentOn(s.FLOW_CURRENT);
       if (s.CLARITY_CANDLE !== undefined) setClarityCandleOn(s.CLARITY_CANDLE);
       if (s.DELTA_DIVERGENCE !== undefined) setDeltaDivergenceOn(s.DELTA_DIVERGENCE);
       if (s.LIQUIDITY_WEATHER !== undefined) setLiquidityWeatherOn(s.LIQUIDITY_WEATHER);
@@ -3607,6 +3613,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       ANCHORED_RANGE: drawingTool === "anchored-vp",
       IMBALANCE_STACK: imbalanceStackOn,
       VALUE_CANDLE: valueCandleOn,
+      FLOW_CURRENT: flowCurrentOn,
       CLARITY_CANDLE: clarityCandleOn,
       DELTA_DIVERGENCE: deltaDivergenceOn,
       LIQUIDITY_WEATHER: liquidityWeatherOn,
@@ -5646,6 +5653,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   ANCHORED_RANGE: drawingTool === "anchored-vp",
                   IMBALANCE_STACK: imbalanceStackOn,
                   VALUE_CANDLE: valueCandleOn,
+                  FLOW_CURRENT: flowCurrentOn,
                   DELTA_DIVERGENCE: deltaDivergenceOn,
                   LIQUIDITY_WEATHER: liquidityWeatherOn,
                   EFFORT_MARK: effortMarkOn,
@@ -6463,6 +6471,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       */
                       imbalanceStackOnChart={imbalanceStackOn}
                       valueCandleOnChart={valueCandleOn}
+                      flowCurrentOnChart={flowCurrentOn}
                       clarityCandleOnChart={clarityCandleOn}
                       deltaDivergenceOnChart={deltaDivergenceOn}
                       liquidityWeatherOnChart={liquidityWeatherOn}

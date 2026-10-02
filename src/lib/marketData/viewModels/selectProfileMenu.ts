@@ -48,6 +48,7 @@ export type ProfileId =
   | "EXHAUSTION"
   | "IMBALANCE_STACK"
   | "VALUE_CANDLE"
+  | "FLOW_CURRENT"
   | "CLARITY_CANDLE"
   | "DELTA_DIVERGENCE"
   | "LIQUIDITY_WEATHER"
@@ -154,6 +155,7 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   DELTA_VP: "PROFILE",
   // Where each bar's own volume concentrated — an order-flow tool on the candle.
   VALUE_CANDLE: "ORDER_FLOW",
+  FLOW_CURRENT: "ORDER_FLOW",
   // F05A: a candle species — bars alone; lives beside the Value Candle.
   CLARITY_CANDLE: "ORDER_FLOW",
   LIVING_PROFILE: "PROFILE",
@@ -369,6 +371,18 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectStackedImbalance.ts",
     levels: ["Stack high", "Stack low", "Rung prices"],
+  },
+  {
+    // F06A "Order flow lives on price": every bar with real sided prints
+    // carries a current — up for net buying, down for net selling, length =
+    // how one-sided. It painted on every chart with tape and had NO switch
+    // (serving BTC 1m clean scene, 2026-10-01) — now a sense like any other.
+    id: "FLOW_CURRENT",
+    label: "Flow Current",
+    what: "who is pressing — a current on each bar, up for net buying, down for net selling",
+    gesture: "TOGGLE",
+    owner: "src/components/chart/MainChart.tsx",
+    levels: ["Net aggression per bar"],
   },
   {
     id: "VALUE_CANDLE",
@@ -785,6 +799,7 @@ const GESTURE_NOTE: Readonly<Record<ProfileGesture, string>> = {
  */
 const NEEDS_SIDED_TAPE: ReadonlySet<ProfileId> = new Set<ProfileId>([
   "DELTA_VP",
+  "FLOW_CURRENT",
   "IMBALANCE_STACK",
   "VALUE_CANDLE",
   "DELTA_DIVERGENCE",

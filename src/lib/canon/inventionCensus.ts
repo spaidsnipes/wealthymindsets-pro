@@ -83,6 +83,7 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
   { id: "F06.DIV", name: "Delta Divergence", family: "F06 Order Flow", status: "BUILT", owner: `${VM}selectDeltaDivergence.ts`, surface: sw("DELTA_DIVERGENCE"), plate: null },
   { id: "F06.EFFORT", name: "Effort → Response (Effort Mark)", family: "F06 Order Flow", status: "BUILT", owner: "src/lib/marketData/effortMarkGeometry.ts", surface: sw("EFFORT_MARK"), plate: null },
   { id: "F06.DLEVELS", name: "Delta Levels", family: "F06 Order Flow", status: "BUILT", owner: `${VM}selectDeltaLevels.ts`, surface: sw("DELTA_LEVELS"), plate: null },
+  { id: "F06A.FLOW", name: "Flow Current (order flow on price)", family: "F06 Order Flow", status: "BUILT", owner: "src/components/chart/MainChart.tsx", surface: sw("FLOW_CURRENT"), plate: "WM_NewMockup_74_F06A_OrderFlow_On_Price" },
   { id: "F06.VALUE_CANDLE", name: "Value Candle", family: "F06 Order Flow", status: "BUILT", owner: `${VM}selectValueCandle.ts`, surface: sw("VALUE_CANDLE"), plate: null },
   { id: "F06.ANATOMY", name: "Anatomy Cards (absorption / exhaustion metrics)", family: "F06 Order Flow", status: "BUILT", owner: `${VM}selectAnatomyCards.ts`, surface: sw("ANATOMY_CARDS"), plate: "WM_Transformation_UI_19_Absorption_Anatomy_Alternate" },
   { id: "F06.BIDASK_PROFILE", name: "Bid/Ask Split Profile (#11)", family: "P-110 Profiles", status: "BUILT", owner: `${VM}selectProfileMenu.ts`, surface: sw("DELTA_VP"), plate: "WM_A_P110_LIVING_PROFILE_STACK" },

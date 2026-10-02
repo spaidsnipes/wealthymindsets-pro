@@ -14,7 +14,8 @@ const block = at > 0 ? MC.slice(at, MC.indexOf("CANDLE TIMER — countdown pinne
 describe("flow current", () => {
   it("exists and asks the permission table", () => {
     expect(block.length).toBeGreaterThan(0);
-    expect(block).toContain('if (!att.paints("flowCurrent")) {');
+    // Its own switch first (Garden 18 §XXI: it painted unswitched), then the permission table.
+    expect(block).toContain('if (!flowCurrentOnRef.current || !att.paints("flowCurrent")) {');
     expect(permissionAt("flowCurrent", "FAR")).toBe("QUIET");
     expect(block, "FAR changes the representation (pooled buckets), not the visibility").toContain("QUIET:POOLED");
   });
