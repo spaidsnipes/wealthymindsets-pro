@@ -28,8 +28,11 @@ const BODY = "#C9CDDD";
 
 export default function BarHistoryRefusalNote({
   vm,
+  futuresHint = null,
 }: {
   readonly vm: BarHistoryRefusalVM;
+  /** A catalogued continuous contract for a bare futures root ("NQ" → "NQ1!"). */
+  readonly futuresHint?: string | null;
 }) {
   // A served chart explains nothing — the bars are the explanation.
   if (vm.served) return null;
@@ -88,6 +91,33 @@ export default function BarHistoryRefusalNote({
             </li>
           ))}
         </ul>
+      )}
+      {futuresHint && (
+        <button
+          type="button"
+          data-testid="bar-history-futures-hint"
+          onClick={() => {
+            try {
+              const u = new URL(window.location.href);
+              u.searchParams.set("symbol", futuresHint);
+              window.location.assign(u.toString());
+            } catch { /* no window */ }
+          }}
+          style={{
+            marginTop: 12,
+            padding: "6px 12px",
+            borderRadius: 6,
+            border: "1px solid rgba(240,180,41,0.55)",
+            background: "rgba(240,180,41,0.10)",
+            color: QUIET,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            pointerEvents: "auto",
+          }}
+        >
+          Looking for the futures contract? Open {futuresHint} →
+        </button>
       )}
     </div>
   );
