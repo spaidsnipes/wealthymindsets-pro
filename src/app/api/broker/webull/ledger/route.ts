@@ -39,7 +39,9 @@ export async function GET(request: Request): Promise<Response> {
 
   const today = new Date();
   const walks = [];
-  for (const a of accounts.accounts) {
+  for (const [i, a] of accounts.accounts.entries()) {
+    // Webull answers HTTP 429 to back-to-back history reads; accounts are spaced like pages.
+    if (i > 0) await new Promise(r => setTimeout(r, 1_100));
     const w = await walkWebullHistory(a.accountId, (s, e, cursor) => listWebullOrderHistoryPage(fetch, c, a.accountId, s, e, cursor), { today });
     walks.push({ ...w, accountType: a.accountType });
   }

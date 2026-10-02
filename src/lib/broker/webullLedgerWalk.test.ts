@@ -17,7 +17,7 @@ describe("walkWebullHistory — every page, every year, until the history goes q
         return { ok: true, payload: [] };
       }
       return { ok: true, payload: [] };
-    }, { today: new Date("2026-10-02T15:00:00Z") });
+    }, { today: new Date("2026-10-02T15:00:00Z"), sleep: async () => {} });
     expect(walk.orders.map(o => o.orderId)).toEqual(["o-z9", "o-m5", "o-a1"]);
     expect(calls[0]).toBe("2025-10-03..2026-10-03|-");
     expect(calls[1]).toBe("2025-10-03..2026-10-03|m5");
@@ -26,7 +26,21 @@ describe("walkWebullHistory — every page, every year, until the history goes q
   });
 
   it("a refusal stops the walk and says so, keeping what it already read", async () => {
-    const walk = await walkWebullHistory("ACC", async () => ({ ok: false, payload: null, reason: "HTTP 401" }), { today: new Date("2026-10-02T15:00:00Z") });
+    const walk = await walkWebullHistory("ACC", async () => ({ ok: false, payload: null, reason: "HTTP 401" }), { today: new Date("2026-10-02T15:00:00Z"), sleep: async () => {} });
     expect(walk).toMatchObject({ stoppedBecause: "REFUSED", reason: "HTTP 401", orders: [] });
+  });
+
+  it("Webull's HTTP 429 is waited out with backoff, and pages are spaced", async () => {
+    const waits: number[] = [];
+    let n = 0;
+    const walk = await walkWebullHistory("ACC", async (start, _end, cursor) => {
+      n++;
+      if (n <= 2) return { ok: false, payload: null, reason: "HTTP 429 TOO_MANY_REQUESTS" };
+      return start.startsWith("2025-10") && !cursor ? { ok: true, payload: [grp("k1", "2026-09-30T14:00:00Z")] } : { ok: true, payload: [] };
+    }, { today: new Date("2026-10-02T15:00:00Z"), sleep: async ms => { waits.push(ms); }, gapMs: 7, backoffMs: [100, 200, 300] });
+    expect(walk.orders).toHaveLength(1);
+    expect(waits.slice(0, 2)).toEqual([100, 200]);
+    expect(waits).toContain(7);
+    expect(walk.stoppedBecause).toBe("QUIET_YEARS");
   });
 });

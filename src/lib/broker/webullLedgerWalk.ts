@@ -29,8 +29,23 @@ const ymd = (d: Date) => d.toISOString().slice(0, 10);
 export async function walkWebullHistory(
   accountId: string,
   page: HistoryPage,
-  opts: { readonly today: Date; readonly floor?: string; readonly quietYears?: number; readonly pageBudget?: number },
+  opts: {
+    readonly today: Date; readonly floor?: string; readonly quietYears?: number; readonly pageBudget?: number;
+    /** Wait between pages, and the backoff schedule for Webull's HTTP 429 (measured on the first live walk, 2026-10-02). */
+    readonly sleep?: (ms: number) => Promise<void>; readonly gapMs?: number; readonly backoffMs?: readonly number[];
+  },
 ): Promise<AccountWalk> {
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
+  const gap = opts.gapMs ?? 1_100;
+  const backoff = opts.backoffMs ?? [2_000, 4_000, 8_000, 15_000];
+  const ask = async (s: string, e: string, cursor: string | null) => {
+    let r = await page(s, e, cursor);
+    for (let i = 0; !r.ok && /\b429\b|TOO_MANY/i.test(r.reason ?? "") && i < backoff.length; i++) {
+      await sleep(backoff[i]);
+      r = await page(s, e, cursor);
+    }
+    return r;
+  };
   const floor = opts.floor ?? "2014-01-01";
   const quietNeeded = opts.quietYears ?? 2;
   const budget = opts.pageBudget ?? 60;
@@ -51,8 +66,9 @@ export async function walkWebullHistory(
     let found = 0;
     while (true) {
       if (pages >= budget) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "PAGE_BUDGET", reason: `Stopped after ${budget} pages.` };
+      if (pages > 0) await sleep(gap);
       pages++;
-      const r = await page(s, ymd(end), cursor);
+      const r = await ask(s, ymd(end), cursor);
       if (!r.ok) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "REFUSED", reason: r.reason ?? "Webull refused the history request." };
       const rows = readWebullHistory(r.payload, accountId);
       let added = 0;
