@@ -14019,8 +14019,13 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             // keeps the first one rather than leaving the band without them.
             const stackChipHit = (y: number) => floatingChips.some(r =>
               chipX < r.x + r.w + 4 && chipX + chipW + 4 > r.x && y < r.y + r.h + 1 && y + chipH + 1 > r.y);
-            const stackChipSlots = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6]
+            // Below the header chrome first (serving ES1! 1m, 21:28 CDT: the
+            // label printed under INSPECT); the header band only when no
+            // other slot exists, because the disclosure must print.
+            const stackChipSlotsAll = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6]
               .filter(y => y >= 2 && y + chipH <= H - 2);
+            const stackChipSlotsBelowHeader = stackChipSlotsAll.filter(y => y >= HEADER_FLOOR_Y);
+            const stackChipSlots = stackChipSlotsBelowHeader.length > 0 ? stackChipSlotsBelowHeader : stackChipSlotsAll;
             let chipY = stackChipSlots.find(y => !stackChipHit(y)) ?? stackChipSlots[0] ?? Math.min(H - chipH - 2, yLo + 2);
             // KEEP-OUT. Of the chip-free slots, the first that also clears
             // every candle body under it wins. When only slots on bodies are
