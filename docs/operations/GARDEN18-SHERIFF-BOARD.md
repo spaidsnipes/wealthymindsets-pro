@@ -79,3 +79,6 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | Deribit panel symbol switch | 🟢 | `98c9655` closes for coins Deribit does not list (stayed open BTC→SOL); ETH chain proved (ATM 2,740) |
 | Rooms | 🟢 | /journal broker fills (TSLA options, fees named), /backtesting HISTORICAL BARS VERIFIED, /research-heat archive — rooms keep the doors rail + phase strip by design (equipment rail is /charts only) |
 | Market Info / Contract / Valuation / Financials | 🟢 | `5c5daa7`…`ac61b18` tastytrade market metrics card (TSLA IVx 48.5%, IV rank 21.6%, beta 1.84, cap $1.47T, P/E 372, next earnings 2026-10-28; /ES IVx 16.0%; /NQ IVx 22.3%) + futures contract list (/NQZ6 active · 78d … /NQH8); coins/futures/pairs never ask the fundamentals provider; host-secret names moved to hover. Company fundamentals (FMP) still need the Founder's FMP_KEY ⚪ |
+| Spot metals door | 🟢 | `501d3a2` XAUUSD empty chart → "Open GC1! →" (XAGUSD → SI1!) |
+| Strip tab vs chain sidecar | 🟢 | `2b9aad7` a view that replaces the chart closes the chain (it covered Market Info) |
+| Phone panels (390px) | 🟢 | Trade + Watchlist 0 clipped (watchlist rows LIVE — CERTIFIED); desk 4 × 480px screens, 306px charts, 0 clipped |
