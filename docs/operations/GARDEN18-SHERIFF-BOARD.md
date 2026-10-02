@@ -114,3 +114,5 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | TSLA (overnight) | 5 | no stock prints yet; `bc377f0` infers sides once they flow — note now says so (`9721207`) |
 | EURUSD | 7 | spot FX has no tape — note now points at 6E1! (`9721207`); composite/memory have no volume |
 | Loupe back to live (double-click inside / Escape) | 🟡 BUILT, glass proof pending | `37f958a`; sentinel-tested. 01:45 CDT the Chrome window went to the background and stopped delivering mouse presses to the page (moves only — measured with a window-capture log), so the interactive proof waits for the window to be frontmost |
+| Crypto Market Info | 🟢 | `15d7bcd` Coinbase public 24h stats + Deribit DVOL — BTC: last 85,985, +2.27%, H 86,885 / L 83,107, range 4.55%, 7,709 BTC 24h, 178,728 BTC 30d, DVOL 35.9% (was an empty equities-only card) |
+| Deribit chain at 390px | 🟢 | panel 12–374px, 0 clipped |
