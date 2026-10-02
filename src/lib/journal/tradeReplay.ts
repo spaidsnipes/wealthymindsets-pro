@@ -56,3 +56,34 @@ export function replayFrame(bars: readonly LegacyOhlcvTuple[], markers: readonly
   const until = visible.length ? (visible[visible.length - 1].time + barSec) * 1000 : -Infinity;
   return { visible, markers: markers.filter(m => m.at < until), until };
 }
+
+export interface Excursions {
+  /** Best open profit while held, per contract (or share), in dollars. */
+  readonly mfe: number;
+  /** Worst open loss while held, per contract (or share), in dollars (≤ 0). */
+  readonly mae: number;
+  /** Realised move per contract, in dollars. */
+  readonly realised: number;
+  /** realised ÷ mfe, when there was a favourable move at all. */
+  readonly capture: number | null;
+  readonly barsHeld: number;
+}
+
+/**
+ * MFE / MAE / capture (Garden 18 v2 §36), MEASURED from the contract's own bars
+ * between entry and exit — bar extremes, so intrabar order is not claimed.
+ */
+export function excursions(bars: readonly LegacyOhlcvTuple[], e: Pick<Episode, "openedAt" | "closedAt" | "avgEntry" | "avgExit" | "direction" | "multiplier">): Excursions | null {
+  if (!e.closedAt || e.avgExit == null) return null;
+  const from = Math.floor(Date.parse(e.openedAt) / 60_000) * 60, to = Date.parse(e.closedAt) / 1000;
+  const held = bars.filter(b => b.time >= from && b.time <= to);
+  if (!held.length) return null;
+  const hi = Math.max(...held.map(b => b.high)), lo = Math.min(...held.map(b => b.low));
+  const dir = e.direction === "LONG" ? 1 : -1;
+  const m = e.multiplier;
+  const best = dir === 1 ? hi - e.avgEntry : e.avgEntry - lo;
+  const worst = dir === 1 ? lo - e.avgEntry : e.avgEntry - hi;
+  const realised = dir * (e.avgExit - e.avgEntry);
+  const r2 = (x: number) => Math.round(x * m * 100) / 100;
+  return { mfe: r2(Math.max(0, best)), mae: r2(Math.min(0, worst)), realised: r2(realised), capture: best > 0 ? Math.round((realised / best) * 100) / 100 : null, barsHeld: held.length };
+}

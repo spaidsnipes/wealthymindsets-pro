@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barsInWindow, optionStreamerFor, replayFrame, replayMarkers, replayWindow } from "./tradeReplay";
+import { barsInWindow, excursions, optionStreamerFor, replayFrame, replayMarkers, replayWindow } from "./tradeReplay";
 
 describe("trade replay — the contract's own bars, no look-ahead", () => {
   it("names the dxFeed streamer symbol of the traded contract", () => {
@@ -24,5 +24,17 @@ describe("trade replay — the contract's own bars, no look-ahead", () => {
     expect(replayFrame(bars, m, 9).markers.map(x => x.role)).toEqual(["ENTRY", "EXIT"]);
     const w = replayWindow(ep);
     expect(barsInWindow(bars, w)).toHaveLength(10);
+  });
+
+  it("MFE / MAE / capture from the bars while held, per contract", () => {
+    const t0 = Date.parse("2026-10-01T13:30:00Z") / 1000;
+    const bars = [
+      { time: t0, open: 0.18, high: 0.20, low: 0.17, close: 0.19, volume: 1 },
+      { time: t0 + 60, open: 0.19, high: 0.26, low: 0.15, close: 0.22, volume: 1 },
+      { time: t0 + 120, open: 0.22, high: 0.23, low: 0.20, close: 0.21, volume: 1 },
+      { time: t0 + 600, open: 0.5, high: 0.9, low: 0.5, close: 0.9, volume: 1 },   // after the exit: never counted
+    ];
+    const x = excursions(bars, { openedAt: new Date(t0 * 1000 + 10_000).toISOString(), closedAt: new Date((t0 + 150) * 1000).toISOString(), avgEntry: 0.18, avgExit: 0.21, direction: "LONG", multiplier: 100 })!;
+    expect(x).toMatchObject({ mfe: 8, mae: -3, realised: 3, capture: 0.37, barsHeld: 3 });
   });
 });

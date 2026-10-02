@@ -14,7 +14,7 @@ import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
 import type { Episode } from "@/lib/broker/webullLedger";
 import { tastyCandleSymbol, tastyCandlesToBars } from "@/lib/marketData/adapters/tastytradeCandles";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
-import { barsInWindow, optionStreamerFor, replayFrame, replayMarkers, replayWindow } from "@/lib/journal/tradeReplay";
+import { barsInWindow, excursions, optionStreamerFor, replayFrame, replayMarkers, replayWindow } from "@/lib/journal/tradeReplay";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -86,6 +86,8 @@ export function TradeReplay({ e }: { readonly e: Episode }) {
 
   const { bars } = load;
   const frame = replayFrame(bars, markers, cursor);
+  const exc = excursions(bars, e);
+  const money = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}$${Math.abs(v).toFixed(2)}`;
   const W = boxW, H = 190, P = 10, AX = 46;
   const lo = Math.min(...bars.map(b => b.low), ...markers.map(m => m.price));
   const hi = Math.max(...bars.map(b => b.high), ...markers.map(m => m.price));
@@ -135,6 +137,12 @@ export function TradeReplay({ e }: { readonly e: Episode }) {
         })}
         <line x1={x(cursor) + bw} x2={x(cursor) + bw} y1={P} y2={H - P} stroke={GOLD} strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
       </svg>
+      {exc ? (
+        <p data-testid="trade-replay-excursions" style={{ fontSize: 11, color: MUTED, margin: "4px 0 0" }}>
+          <span style={{ color: GOLD }}>MEASURED</span> from these bars while held ({exc.barsHeld} min), per contract: best open profit (MFE) <span style={{ color: INK }}>{money(exc.mfe)}</span> · worst open loss (MAE) <span style={{ color: INK }}>{money(exc.mae)}</span> · realised <span style={{ color: INK }}>{money(exc.realised)}</span>
+          {exc.capture != null ? <> · captured <span style={{ color: INK }}>{Math.round(exc.capture * 100)}%</span> of the best move</> : null}. Bar extremes — the order inside a minute is not claimed.
+        </p>
+      ) : null}
       <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
         <button type="button" aria-label="Back one bar" onClick={() => { setPlaying(false); setCursor(c => Math.max(0, c - 1)); }} style={btn}>◀</button>
         <button type="button" data-testid="trade-replay-play" onClick={() => setPlaying(p => !p)} style={btn}>{playing ? "Pause" : "Play"}</button>
