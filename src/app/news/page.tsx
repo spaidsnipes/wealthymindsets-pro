@@ -16,6 +16,7 @@ import { clsx } from "clsx";
 import { selectHeadlineLean, type HeadlineLean } from "@/lib/experience/selectHeadlineLean";
 import { HeadlineLeanBand } from "@/components/experience/HeadlineLeanBand";
 import { ChartCompanion } from "@/components/experience/ChartCompanion";
+import { isPersonalAdviceColumn } from "@/lib/news/marketRelevance";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface NewsItem {
@@ -679,6 +680,7 @@ export default function NewsPage() {
 
   const [showKeys,     setShowKeys]     = useState(false);
   const [news,         setNews]         = useState<NewsItem[]>([]);
+  const [showSetAside, setShowSetAside] = useState(false);
   const [sourceFilter, setSourceFilter] = useState("All Sources");
   const [tagFilter,    setTagFilter]    = useState("All");
   const [search,       setSearch]       = useState("");
@@ -730,7 +732,10 @@ export default function NewsPage() {
     SOURCES.filter(c => c === "All Sources" || news.some(n => sourceMatches(n.source, c)))
   );
 
+  // §XCIII: personal-advice columns are set aside by default — counted, one tap back.
+  const setAside = news.filter(n => isPersonalAdviceColumn(n)).length;
   const filtered = news.filter(n => {
+    if (!showSetAside && isPersonalAdviceColumn(n)) return false;
     if (sourceFilter !== "All Sources" && !sourceMatches(n.source, sourceFilter)) return false;
     if (tagFilter === "Breaking"   && !n.breaking)                    return false;
     if (tagFilter === "High Impact"&& n.impact !== "high")            return false;
@@ -928,6 +933,12 @@ export default function NewsPage() {
             ))}
           </div>
         )}
+        {!loading && setAside > 0 ? (
+          <button type="button" data-testid="news-set-aside" onClick={() => setShowSetAside(v => !v)}
+            className="mx-3 my-1 self-start rounded border border-wm-border px-2 py-0.5 text-[10px] text-wm-text-dim hover:text-wm-text">
+            {showSetAside ? `Hide ${setAside} personal-finance column${setAside === 1 ? "" : "s"}` : `${setAside} personal-finance column${setAside === 1 ? "" : "s"} set aside — not market news · show`}
+          </button>
+        ) : null}
         <AnimatePresence initial={false}>
           {!loading && filtered.map((item, idx) => {
             /*
