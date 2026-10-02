@@ -6777,7 +6777,25 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
       // every active sense still names its state (§XXVIII).
       const shortPane = H < 420;
       let silenceRowY = shortPane ? H - 40 : H - 114;
-      const takeSilenceRow = (): number => { const y = silenceRowY; silenceRowY -= shortPane ? 11 : 14; return y; };
+      // A WALL OF WORDS IS NOT THE FACE (serving EURUSD 5m, 2026-10-01: ten
+      // "… · UNAVAILABLE ON THIS FEED" lines stacked over the candles). The
+      // first SILENCE_ROWS_SHOWN lines print on a soft backing; every later one
+      // folds into ONE summary line at the end of the frame — each sense still
+      // names its state in Tools › Active (§VIII), the glass stays the market's.
+      const SILENCE_ROWS_SHOWN = shortPane ? 2 : 3;
+      let silenceTaken = 0, silenceFolded = 0;
+      const silenceStep = shortPane ? 11 : 14;
+      const takeSilenceRow = (): number => {
+        if (silenceTaken >= SILENCE_ROWS_SHOWN) { silenceFolded++; return -1000; }
+        silenceTaken++;
+        const y = silenceRowY; silenceRowY -= silenceStep;
+        // A soft backing so the words never print bare over candle bodies.
+        const prevFill = ctx.fillStyle;
+        ctx.fillStyle = "rgba(7,9,15,0.62)";
+        ctx.fillRect(Math.max(0, silenceX - 4), y - 7, Math.min(W * 0.62, 760), 14);
+        ctx.fillStyle = prevFill;
+        return y;
+      };
       // THE ROOM'S LEFT RAIL COVERS THE GLASS (serving TSLA 15m, 2026-09-30:
       // with Workspace open, the Review camera's anatomy card and every
       // bottom-left silence line sat under the 264px rail, which overlays the
@@ -21242,6 +21260,22 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.orderFlowQuiet = `W:${waiting.length}|N:${noEvent.length}`;
         } else delete ds.orderFlowQuiet;
       } catch (err) { layerFault("ORDER_FLOW_QUIET", err); }
+
+      // The folded silences, as one line (see takeSilenceRow).
+      try { if (silenceFolded > 0) {
+        const y = silenceRowY;
+        const words = `+${silenceFolded} MORE SENSE${silenceFolded === 1 ? "" : "S"} SILENT HERE — TOOLS › ACTIVE SAYS WHY`;
+        ctx.save();
+        ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+        ctx.fillStyle = "rgba(7,9,15,0.62)";
+        ctx.fillRect(Math.max(0, silenceX - 4), y - 7, Math.min(W * 0.62, 760), 14);
+        ctx.fillStyle = "rgba(200,192,174,0.85)";
+        ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        ctx.fillText(words, silenceX, y);
+        floatingChips.push({ x: silenceX, y: y - 7, w: ctx.measureText(words).width, h: 14 });
+        ctx.restore();
+        canvas.dataset.silenceFolded = String(silenceFolded);
+      } else delete canvas.dataset.silenceFolded; } catch (err) { layerFault("SILENCE_FOLD", err); }
 
       /* ══ H-101 · THE DEBT TAG LIVES ON THE EVENT ═══════════════════════════
          Sheet H-101 ("EVIDENCE DEBT — WAIT IS A FINISHED ORGANISM") hangs a
