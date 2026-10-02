@@ -51,6 +51,8 @@ import {
 } from "@/lib/scanner/scannerMetricFacts";
 
 import { classifyScan, type AlertStrength, type Signal } from "@/lib/scannerSignalEvidence";
+import { WATCH_LIVE_FRESH_MS, useTastyWatchQuotes } from "@/lib/broker/useTastyWatchQuotes";
+import { scannerLiveQuote } from "@/lib/scanner/scannerLiveQuote";
 import { selectQuoteChange, type QuoteChangeAbsence } from "@/lib/quoteChange";
 import {
   scannerPriceFact,
@@ -761,6 +763,12 @@ export default function ScannerPage() {
       return sortDir === "desc" ? bv - av : av - bv;
     });
 
+  // §LIV light quotes: the tastytrade watch lane for the first 40 rows on screen.
+  const liveRows = useTastyWatchQuotes(React.useMemo(() => filtered.slice(0, 40).map(r => r.symbol), [filtered]));
+  const [nowTick, setNowTick] = React.useState(() => Date.now());
+  React.useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 2000); return () => clearInterval(t); }, []);
+  const liveCount = filtered.reduce((n, r) => n + (scannerLiveQuote(r, liveRows.get(r.symbol.toUpperCase()), nowTick, WATCH_LIVE_FRESH_MS) ? 1 : 0), 0);
+
   const failedRsiIdentities = filtered
     .flatMap(row => row.rsiFailure ? [row.rsiFailure.identity] : [])
     .sort(compareScannerRsiIdentity);
@@ -964,7 +972,16 @@ export default function ScannerPage() {
                 <span className="text-xs">No signals match current filters</span>
               </div>
             )}
-            {filtered.map((r, idx) => {
+            {filtered.map((r0, idx) => {
+              // §LIV/§LXXXI: the live lane, when it speaks for this row, is its truth.
+              const lv = scannerLiveQuote(r0, liveRows.get(r0.symbol.toUpperCase()), nowTick, WATCH_LIVE_FRESH_MS);
+              const r = lv ? {
+                ...r0,
+                quoteQuality: "LIVE" as const,
+                changePct: lv.changePct,
+                priceFact: { ...r0.priceFact, text: lv.priceText, reason: lv.title },
+                changePctFact: lv.changeText ? { ...r0.changePctFact, text: lv.changeText, reason: lv.title } : r0.changePctFact,
+              } : r0;
               const meta = r.signal ? SIGNAL_META[r.signal] : null;
               const up   = r.changePct != null && r.changePct >= 0;
               const isSel = selected?.id === r.id;
@@ -997,13 +1014,15 @@ export default function ScannerPage() {
                     <span
                       className={clsx(
                         "mt-0.5 inline-flex rounded border px-1 py-px text-[8px] font-black tracking-wide",
-                        r.quoteQuality === "DELAYED"
+                        r.quoteQuality === "LIVE"
+                          ? "border-wm-green/50 text-wm-green"
+                          : r.quoteQuality === "DELAYED"
                           ? "border-wm-gold/40 text-wm-gold"
                           : r.quoteQuality === "STALE"
                             ? "border-wm-red/40 text-wm-red"
                             : "border-wm-border text-wm-text-muted",
                       )}
-                      title={`${scannerQuoteTruth({ receivedAt: r.quoteReceivedAt, reusedPrevious: r.quoteQuality === "STALE" }).title} Received ${new Date(r.quoteReceivedAt).toLocaleTimeString()}.`}
+                      title={lv ? lv.title : `${scannerQuoteTruth({ receivedAt: r.quoteReceivedAt, reusedPrevious: r.quoteQuality === "STALE" }).title} Received ${new Date(r.quoteReceivedAt).toLocaleTimeString()}.`}
                     >
                       {r.quoteQuality}
                     </span>
@@ -1258,7 +1277,7 @@ export default function ScannerPage() {
         <span>·</span>
         <span>{filtered.length}/{results.length} results</span>
         <span>·</span>
-        <span className="text-wm-gold">QUOTE STATE: DELAYED</span>
+        <span className="text-wm-gold">{liveCount > 0 ? `QUOTE STATE: ${liveCount} LIVE · ${Math.max(0, filtered.length - liveCount)} DELAYED` : "QUOTE STATE: DELAYED"}</span>
         <span>·</span>
         {/* The scan's own denominator. Silent when nothing was refused — a
             "0 not certified" chip on every clean round is noise, and noise is

@@ -1,4 +1,5 @@
-export type ScannerQuoteQuality = "DELAYED" | "STALE" | "UNAVAILABLE";
+/** LIVE is set only by the page from the watch lane (scannerLiveQuote), never by a scan round. */
+export type ScannerQuoteQuality = "LIVE" | "DELAYED" | "STALE" | "UNAVAILABLE";
 
 export interface ScannerQuoteTruth {
   quality: ScannerQuoteQuality;
