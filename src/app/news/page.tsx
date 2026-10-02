@@ -17,6 +17,7 @@ import { selectHeadlineLean, type HeadlineLean } from "@/lib/experience/selectHe
 import { HeadlineLeanBand } from "@/components/experience/HeadlineLeanBand";
 import { ChartCompanion } from "@/components/experience/ChartCompanion";
 import { headlineNames, newsTermsFor } from "@/lib/news/newsTermsFor";
+import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
 import { isPersonalAdviceColumn } from "@/lib/news/marketRelevance";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -685,17 +686,23 @@ export default function NewsPage() {
   const [sourceFilter, setSourceFilter] = useState("All Sources");
   const [tagFilter,    setTagFilter]    = useState("All");
   const [search,       setSearch]       = useState("");
-  // Garden 18 §VIII: the chart's NEWS / RESEARCH entry lands here scoped to its instrument (?q=SYMBOL).
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get("q");
-    if (q) setSearch(q);
-  }, []);
   const [liveMode,     setLiveMode]     = useState(true);
   const [loading,      setLoading]      = useState(true);
   const [expandedId,   setExpandedId]   = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
   const { setActiveSymbol } = useActiveSymbol();
+  // Garden 18 §VIII: the chart's NEWS / RESEARCH entry lands here scoped to its instrument (?q=SYMBOL).
+  // A catalogued instrument also becomes the room's symbol, so the Chart
+  // Companion beside the feed reads the same market (2026-10-02: ?q=TSLA
+  // showed NQ1! in the companion). Free text ("Fed") never moves the symbol.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (!q) return;
+    setSearch(q);
+    const up = q.trim().toUpperCase();
+    if (matchCuratedSymbols(up, 1)[0]?.sym.toUpperCase() === up) setActiveSymbol(up);
+  }, [setActiveSymbol]);
   const goToChart = useCallback((sym: string) => {
     if (!sym || sym === "MARKET") return;
     setActiveSymbol(sym);
