@@ -71,12 +71,12 @@ import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
  * print, readable on the glass as `window.__wmEquityTape[SYMBOL]` (the house
  * proof channel reads receipts, never guesses). Counts only.
  */
-type EquityTapeCounts = { prints: number; invalid: number; unsigned: number; signed: number; late: number; absorbed: number };
+type EquityTapeCounts = { prints: number; invalid: number; unsigned: number; signed: number; late: number; absorbed: number; buyVol: number; sellVol: number };
 function equityTapeReceipt(symbol: string): EquityTapeCounts {
   const w = (typeof window !== "undefined" ? window : null) as (Window & { __wmEquityTape?: Record<string, EquityTapeCounts> }) | null;
   const book = w ? (w.__wmEquityTape ??= {}) : {};
   const k = symbol.toUpperCase();
-  return (book[k] ??= { prints: 0, invalid: 0, unsigned: 0, signed: 0, late: 0, absorbed: 0 });
+  return (book[k] ??= { prints: 0, invalid: 0, unsigned: 0, signed: 0, late: 0, absorbed: 0, buyVol: 0, sellVol: 0 });
 }
 
 export interface Tick {
@@ -1735,6 +1735,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
                   return;
                 }
                 rc.signed++;
+                if (inferred.aggressorSide === "BUY") rc.buyVol += inferred.size ?? 0; else rc.sellVol += inferred.size ?? 0;
                 tapeSourceRef.current = "tastytrade-equity";
                 processTick({
                   price: inferred.price!,
