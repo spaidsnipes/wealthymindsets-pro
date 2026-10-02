@@ -9,12 +9,14 @@
  * cause is named — fills cannot establish them.
  */
 
+import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { computeLedgerEdge, MIN_SAMPLE } from "@/lib/broker/ledgerEdge";
 import { processOutcome } from "@/lib/broker/processOutcome";
 import { PROFILE_RULES, replayDailyRules } from "@/lib/broker/dailyRules";
 import { ledgerTimeline, MIN_WINDOW } from "@/lib/broker/ledgerTimeline";
+import { lessonHref, studyNext } from "@/lib/journal/studyRoute";
 import type { Episode } from "@/lib/broker/webullLedger";
 import { readStoryReviews, type StoryReview } from "@/lib/journal/storyReview";
 
@@ -44,6 +46,7 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
   const saveR = (v: number) => { setOneR(v); try { localStorage.setItem("wm_ledger_one_r", String(v)); } catch { /* this visit only */ } };
   const rules = useMemo(() => replayDailyRules(episodes, oneR), [episodes, oneR]);
   const timeline = useMemo(() => ledgerTimeline(episodes), [episodes]);
+  const study = useMemo(() => studyNext(edge), [edge]);
   const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(0)}%`);
   const money = (v: number | null) => (v == null ? "—" : usd(v));
   if (edge.universe === 0) return null;
@@ -88,6 +91,26 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
             </div>
           ))}
         </div>
+      </div>
+
+      <div data-testid="edge-study-next" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
+        <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>STUDY NEXT · WHERE YOUR OWN EVIDENCE IS HEAVIEST</div>
+        <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>
+          Only groups with at least {MIN_SAMPLE} trades that cost you more than your average, heaviest first. Each points to the Academy lesson nearest the capability involved — a pointer from evidence, not a diagnosis of why.
+        </p>
+        {study.length === 0 ? <p style={{ fontSize: 12, color: MUTED, margin: 0 }}>No supported group costs more than your average yet.</p> : (
+          <ol style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6, fontSize: 12, color: INK }}>
+            {study.map(x => (
+              <li key={`${x.dimension}-${x.bucket.key}`}>
+                <b>{x.dimension}: {x.bucket.key}</b> — {x.bucket.n} trades, {usd(x.bucket.expectancy)} per trade (<span style={{ color: tone(x.bucket.vsOverall) }}>{usd(x.bucket.vsOverall)}</span> vs your average), {usd(x.bucket.net)} in all.
+                <div style={{ fontSize: 11, color: MUTED }}>
+                  Capability: {x.capability}.{" "}
+                  {x.lesson ? <Link href={lessonHref(x.lesson.id)} style={{ color: GOLD }}>Study “{x.lesson.title}” →</Link> : <span>The Academy has no lesson for this yet.</span>}
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
 
       <div data-testid="edge-timeline" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
