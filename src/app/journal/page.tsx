@@ -1669,7 +1669,10 @@ Trade the system, trust the process, winners every day 🚀`,
         {/* flex-wrap so the WR/PnL/Session-R/Week-Edge/GENOME/TREND/MISREAD
             chip stack reflows on narrow viewports (390px mobile) instead
             of overflowing the header. Canon §Cross-device Continuity. */}
-        <div className="wm-journal-chips flex items-center gap-2 flex-wrap">
+        {/* The chip stack totals MANUAL journal entries; on the Broker Ledger tab it
+            read "WR UNKNOWN · no trades taken" above 975 broker trades (2026-10-02),
+            so it steps aside there — the ledger carries its own totals. */}
+        <div className="wm-journal-chips flex items-center gap-2 flex-wrap" style={mainTab === "ledger" ? { display: "none" } : undefined}>
           {/* H1: absence is not zero. A journal of nothing but M0 no-trade days
               has no win rate — printing "0% WR" would read as a column of
               losses to a trader who correctly took none. §9: unknown is quiet. */}
