@@ -84,3 +84,15 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | Phone panels (390px) | 🟢 | Trade + Watchlist 0 clipped (watchlist rows LIVE — CERTIFIED); desk 4 × 480px screens, 306px charts, 0 clipped |
 | Header one truth (overnight) | 🟢 / ⚪ | `fd32474` a quiet quote NEWER than the newest bar keeps the header. Observed open item: overnight equity candles keep forming from tastytrade Candle events while the live lane's last observation stays at 19:59:58 ET — masthead freshness does not yet read candle updates |
 | BTC order flow (Coinbase tape) | 🟢 | 1m: Delta Levels + Absorption DRAWN, Effort ORDINARY, Stack/Divergence honest NO_STACK/NO_SWING, paint 3.8 ms |
+
+## Regression matrix 00:30 CDT (all 23 senses, after floors + perf)
+
+| Market | Paint mean | Layer faults | Senses DRAWN |
+|---|---|---|---|
+| TSLA 5m | 10.4 ms | none | 16 |
+| SPY 5m | 11.0 ms | none | 15 |
+| GC1! 5m | 9.6 ms | none | 17 |
+| ES1! 5m | 10.4 ms | none | — |
+| NDX 15m | 8.1 ms | none | 15 |
+| ETH-USD 5m | 8.5 ms | none | 15 |
+| EURUSD 15m | 6.6 ms | none | 7 (volume senses honestly silent; 6E1! door) |
