@@ -154,6 +154,8 @@ const CROSSHAIR_LINE_STYLE = { solid: 0, dotted: 1, dashed: 2 } as const;
 const WALL_CAMERA_REACH = 0.04;
 /** How long a live quote may go unrefreshed before the header speaks the bar close. */
 const HEADER_LIVE_FRESH_MS = 120_000;
+/** Delta Levels never paints below this — a lane nobody can see is not a reading on glass. */
+const DELTA_LEVELS_ALPHA_FLOOR = 0.8;
 /** The share of the camera's span the candles keep when a wall joins it (§XIV). */
 const WALL_CAMERA_CANDLE_SHARE = 0.45;
 
@@ -14431,17 +14433,41 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           ds.deltaLevels = on ? (dl ? dl.reason : "NO_READING") : att.offWord(layerOnRef.current.deltaLevels);
 
           if (on && dl?.drawn) {
-            ctx.save(); ctx.globalAlpha = att.alpha("deltaLevels");
+            // VISIBILITY FLOOR (serving NQ1! 1m, 2026-10-01 21:15 CDT): DRAWN
+            // read as three 2px grey dashes beside the live bar — a sense
+            // nobody could see. The lane now has a floor of its own: rungs as
+            // thick as the level spacing allows (3..8px), a longer lane, a
+            // backing strip so it reads over candles, and its name on top.
+            ctx.save(); ctx.globalAlpha = Math.max(DELTA_LEVELS_ALPHA_FLOOR, att.alpha("deltaLevels"));
             const centerX = W - 96; // Fixed chrome, outside the candle body area.
-            const laneMax = 40;
+            const laneMax = 56;
+            const ys: number[] = [];
+            for (const r of dl.rungs) {
+              const yr = srs.priceToCoordinate(r.price);
+              if (yr != null) ys.push(+yr);
+            }
+            ys.sort((a, b) => a - b);
+            let gap = Infinity;
+            for (let i = 1; i < ys.length; i++) { const g = ys[i]! - ys[i - 1]!; if (g > 0.5 && g < gap) gap = g; }
+            const rungPx = Math.max(3, Math.min(8, Number.isFinite(gap) ? Math.floor(gap * 0.7) : 4));
+            if (ys.length) {
+              const top = Math.max(8, ys[0]! - 18), bot = Math.min(H - 8, ys[ys.length - 1]! + 8);
+              ctx.fillStyle = "rgba(10,11,16,0.55)";
+              ctx.fillRect(centerX - laneMax - 4, top, laneMax * 2 + 8, bot - top);
+              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.textAlign = "center"; ctx.textBaseline = "top";
+              ctx.fillStyle = "rgba(237,230,211,0.9)";
+              ctx.fillText("\u2190 SELL \u00b7 \u0394 LEVELS \u00b7 BUY \u2192", centerX, top + 3);
+            }
             let drawnRungs = 0;
             for (const r of dl.rungs) {
               const yr = srs.priceToCoordinate(r.price);
               if (yr == null) continue;
               const y = Math.round(+yr) + 0.5;
-              const len = Math.max(2, Math.round(r.weight * laneMax));
-              ctx.strokeStyle = "rgba(237,230,211,0.75)";
-              ctx.lineWidth = 2;
+              const len = Math.max(4, Math.round(r.weight * laneMax));
+              ctx.strokeStyle = "rgba(237,230,211,0.92)";
+              ctx.lineWidth = rungPx;
+              ctx.lineCap = "butt";
               ctx.beginPath();
               ctx.moveTo(centerX, y);
               ctx.lineTo(r.side === "BUY" ? centerX + len : centerX - len, y);
@@ -14450,7 +14476,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }
             // Hairline centre so the trader can see the axis the lanes grow
             // from, even when only one side has rungs on screen.
-            ctx.strokeStyle = "rgba(139,106,41,0.35)";
+            ctx.strokeStyle = "rgba(214,178,94,0.7)";
             ctx.lineWidth = 1;
             ctx.setLineDash([2, 3]);
             ctx.beginPath();
