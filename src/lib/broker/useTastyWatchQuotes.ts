@@ -45,7 +45,10 @@ export function useTastyWatchQuotes(symbols: readonly string[]): ReadonlyMap<str
       // 354.12, stamped with the fresh QUOTE's time, read as live while the
       // chart printed 355.70). A trade older than the quote by more than
       // TRADE_STALE_BESIDE_QUOTE_MS yields to the live midpoint.
-      const tradeCurrent = q.tradeAt != null && (q.quoteAt == null || q.quoteAt - q.tradeAt <= TRADE_STALE_BESIDE_QUOTE_MS);
+      // By the exchange's own trade time when it said (a snapshot is HEARD now
+      // but may have TRADED hours ago), else by when it was heard.
+      const tradeClock = q.tradeTime ?? q.tradeAt;
+      const tradeCurrent = tradeClock != null && (q.quoteAt == null || q.quoteAt - tradeClock <= TRADE_STALE_BESIDE_QUOTE_MS);
       if (q.last != null && q.last > 0 && q.tradeAt != null && tradeCurrent) { out.set(sym, { price: q.last, at: Math.max(q.tradeAt, q.quoteAt ?? 0) }); continue; }
       if (q.quoteAt == null) continue;
       const price = q.bid != null && q.ask != null ? (q.bid + q.ask) / 2 : null;

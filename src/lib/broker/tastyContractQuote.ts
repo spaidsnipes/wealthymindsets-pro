@@ -20,6 +20,9 @@ import { DXLINK_FEED_CHANNEL, type DxlinkFrame } from "@/lib/marketData/dxlinkPr
 export const CONTRACT_EVENT_FIELDS = {
   Quote: ["eventType", "eventSymbol", "bidPrice", "askPrice", "bidSize", "askSize"],
   Trade: ["eventType", "eventSymbol", "price", "dayVolume", "size", "time"],
+  // Extended-hours trades (dxFeed TradeETH) — the after-hours last the chart
+  // prints; without it the watch lane held the regular close (§LXXXIX).
+  TradeETH: ["eventType", "eventSymbol", "price", "dayVolume", "size", "time"],
   Greeks: ["eventType", "eventSymbol", "price", "volatility", "delta", "gamma", "theta", "rho", "vega"],
   Summary: ["eventType", "eventSymbol", "openInterest", "dayOpenPrice", "dayHighPrice", "dayLowPrice", "prevDayClosePrice"],
   // Every print, with the exchange-reported aggressor (BUY / SELL / UNDEFINED).
@@ -33,7 +36,7 @@ export const CONTRACT_EVENT_FIELDS = {
 
 export type ContractEventType = keyof typeof CONTRACT_EVENT_FIELDS;
 /** What a quoted contract subscribes to. The print tape is opt-in per symbol (TAPE_EVENT_TYPE). */
-export const CONTRACT_EVENT_TYPES: ContractEventType[] = ["Quote", "Trade", "Greeks", "Summary"];
+export const CONTRACT_EVENT_TYPES: ContractEventType[] = ["Quote", "Trade", "TradeETH", "Greeks", "Summary"];
 export const TAPE_EVENT_TYPE: ContractEventType = "TimeAndSale";
 /** Fields carried as text, never coerced to numbers. */
 const TEXT_FIELDS: ReadonlySet<string> = new Set(["aggressorSide"]);
@@ -117,6 +120,8 @@ export interface ContractQuoteState {
   /** When WM Pro received the last Quote for this symbol (epoch ms). */
   readonly quoteAt: number | null;
   readonly tradeAt: number | null;
+  /** The exchange's own time of the trade `last` came from (epoch ms), when it said. */
+  readonly tradeTime?: number | null;
   readonly greeksAt: number | null;
 }
 
@@ -135,7 +140,13 @@ export function applyContractEvent(prev: ContractQuoteState, e: ContractEvent, n
       return { ...prev, bid: side(v.bidPrice), ask: side(v.askPrice), bidSize: v.bidSize ?? null, askSize: v.askSize ?? null, quoteAt: nowMs };
     }
     case "Trade":
-      return { ...prev, last: keep(v.price, prev.last), dayVolume: keep(v.dayVolume, prev.dayVolume), tradeAt: nowMs };
+    case "TradeETH": {
+      // The NEWER trade is the last, by the exchange's own clock: a regular-
+      // session snapshot never overwrites a later extended-hours print.
+      const t = v.time != null && v.time > 0 ? v.time : null;
+      if (t != null && prev.tradeTime != null && t < prev.tradeTime) return { ...prev, dayVolume: e.type === "Trade" ? keep(v.dayVolume, prev.dayVolume) : prev.dayVolume };
+      return { ...prev, last: keep(v.price, prev.last), dayVolume: e.type === "Trade" ? keep(v.dayVolume, prev.dayVolume) : prev.dayVolume, tradeAt: nowMs, tradeTime: t ?? prev.tradeTime ?? null };
+    }
     case "Greeks":
       return { ...prev, iv: keep(v.volatility, prev.iv), delta: keep(v.delta, prev.delta), gamma: keep(v.gamma, prev.gamma), theta: keep(v.theta, prev.theta), vega: keep(v.vega, prev.vega), greeksAt: nowMs };
     case "Summary":

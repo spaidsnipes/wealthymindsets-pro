@@ -21,8 +21,9 @@ describe("tastytrade contract quotes over DXLink", () => {
 
   it("subscribes every event type per symbol, dedupes, and can remove", () => {
     const f = buildContractSubscriptionFrame([SYM, ` ${SYM} `, ""], ["/ESZ26:XCME"]);
-    expect((f.add as unknown[]).length).toBe(4);
-    expect((f.remove as unknown[]).length).toBe(4);
+    // Quote · Trade · TradeETH · Greeks · Summary (TradeETH 2026-10-01, §LXXXIX).
+    expect((f.add as unknown[]).length).toBe(5);
+    expect((f.remove as unknown[]).length).toBe(5);
     expect(f.reset).toBeUndefined();
   });
 
@@ -60,5 +61,22 @@ describe("tastytrade contract quotes over DXLink", () => {
     q = applyContractEvent(q, decodeCompactFeedData(["Trade", ["Trade", SYM, 1.5, 300, 2, 1759300000000]])[0], 2);
     q = applyContractEvent(q, decodeCompactFeedData(["Greeks", ["Greeks", SYM, "NaN", "NaN", 0.5, "NaN", "NaN", "NaN", "NaN"]])[0], 3);
     expect(q).toMatchObject({ bid: 1, ask: 2, last: 1.5, dayVolume: 300, delta: 0.5, iv: null });
+  });
+});
+
+describe("the newer trade is the last (TradeETH, §LXXXIX)", () => {
+  it("a regular-session snapshot never overwrites a later extended-hours print", () => {
+    let q = emptyContractQuote("TSLA");
+    q = applyContractEvent(q, { type: "TradeETH", symbol: "TSLA", values: { price: 355.7, time: 2_000_000 } } as never, 10);
+    q = applyContractEvent(q, { type: "Trade", symbol: "TSLA", values: { price: 354.12, dayVolume: 9, time: 1_000_000 } } as never, 20);
+    expect(q.last).toBe(355.7);
+    expect(q.tradeTime).toBe(2_000_000);
+    expect(q.dayVolume).toBe(9);
+  });
+  it("a later print replaces the last", () => {
+    let q = emptyContractQuote("TSLA");
+    q = applyContractEvent(q, { type: "Trade", symbol: "TSLA", values: { price: 354.12, time: 1_000_000 } } as never, 10);
+    q = applyContractEvent(q, { type: "TradeETH", symbol: "TSLA", values: { price: 356.15, time: 3_000_000 } } as never, 20);
+    expect(q.last).toBe(356.15);
   });
 });

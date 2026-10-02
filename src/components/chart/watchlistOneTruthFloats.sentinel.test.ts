@@ -5,7 +5,8 @@ const DASH = readFileSync("src/components/chart/ChartsDashboard.tsx", "utf8");
 // Serving TSLA after hours, 2026-10-01: watchlist 354.12 beside chart 355.70.
 describe("watchlist: one truth, floating", () => {
   it("a last trade older than the live quote yields to the midpoint", () => {
-    expect(HOOK).toContain("q.quoteAt - q.tradeAt <= TRADE_STALE_BESIDE_QUOTE_MS");
+    expect(HOOK).toContain("q.quoteAt - tradeClock <= TRADE_STALE_BESIDE_QUOTE_MS");
+    expect(HOOK).toContain("const tradeClock = q.tradeTime ?? q.tradeAt;");
   });
   it("the sheet floats at the left, clear of the price axis", () => {
     const at = DASH.indexOf('id="chart-watchlist-sheet"');
