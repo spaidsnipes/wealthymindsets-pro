@@ -19866,7 +19866,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
         const dragHandle = weatherDragHandleRef.current;
         if (dragHandle) {
-          dragHandle.style.display = on && weatherLens && window.innerWidth >= 1024 ? "block" : "none";
+          // Shown wherever the glass can be dragged (iPad portrait 834 could drag
+          // it with no affordance saying so — the handle began at 1024).
+          dragHandle.style.display = on && weatherLens && window.innerWidth >= LENS_DRAG_MIN_WIDTH ? "block" : "none";
           if (weatherLens) {
             dragHandle.style.left = `${Math.max(0, Math.min(weatherPlotRight - 108, weatherLens.cx - 54))}px`;
             dragHandle.style.top = `${Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - 28, weatherLens.cy + weatherLens.ry + 18))}px`;
