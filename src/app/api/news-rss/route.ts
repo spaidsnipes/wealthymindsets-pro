@@ -57,7 +57,7 @@ export type NormalizedNewsItem = {
 };
 
 /* ── Tiny dependency-free RSS/Atom parser ─────────────────────────────── */
-function decode(s: string): string {
+function decode(s: string, pass = 0): string {
   // ORDER MATTERS. Google-News RSS descriptions arrive with HTML-ESCAPED markup
   // (e.g. "&lt;a href=...&gt;Title&lt;/a&gt;"). If we strip tags first, those
   // escaped tags are still entities — they only turn into "<a href=...>" AFTER
@@ -76,6 +76,10 @@ function decode(s: string): string {
   t = t.replace(/<[^>]+>/g, " ");
   // &amp; decoded last so we never re-introduce a live entity mid-pipeline.
   t = t.replace(/&amp;/g, "&");
+  // DOUBLE-ESCAPED feeds ("&amp;nbsp;" → "&nbsp;" after the pass above;
+  // serving /news 2026-10-02: "Nasdaq 100 &nbsp;&nbsp; Reuters"). One more
+  // bounded pass, never more.
+  if (pass === 0 && /&(nbsp|quot|apos|lt|gt|#\d+|#x[0-9a-fA-F]+);/.test(t)) return decode(t, 1);
   return t.replace(/\s+/g, " ").trim();
 }
 
