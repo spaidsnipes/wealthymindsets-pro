@@ -5561,7 +5561,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               tradeOpen={tradeOpen}
             />
           )}
-          {futuresOptionsOpen && assetClass === "crypto" && (
+          {futuresOptionsOpen && assetClass === "crypto" && deribitCurrencyFor(symbol) && (
             <DeribitChainPanel chartSymbol={symbol} onClose={() => setFuturesOptionsOpen(false)} />
           )}
           {futuresOptionsOpen && (assetClass === "futures" || assetClass === "equity" || assetClass === "etf") && (
