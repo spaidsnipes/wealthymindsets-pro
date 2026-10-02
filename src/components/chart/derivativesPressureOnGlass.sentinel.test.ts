@@ -175,3 +175,10 @@ describe("the zero-gamma name keeps out of the TPO column (serving ETH 15m, 2026
     expect(MC).toContain("const { leftEdge, colMax } = tpoColumnGeometry(W, lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : null, railOcclusionX);");
   });
 });
+
+describe("a held wall never crushes the candles (§XIV, NDX 5m 2026-10-01)", () => {
+  it("joins the camera only while the candles keep their share", () => {
+    expect(MC).toContain("const WALL_CAMERA_CANDLE_SHARE = 0.45;");
+    expect(MC).toContain("if (above != null && fits(above, lo)) { hi = above; wallTop = true; }");
+  });
+});

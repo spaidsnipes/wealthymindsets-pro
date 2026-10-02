@@ -151,6 +151,8 @@ const LIQUIDITY_SWEEP_LOOKBACK = 4;
 const CROSSHAIR_LINE_STYLE = { solid: 0, dotted: 1, dashed: 2 } as const;
 /** How far from the last close a pressure wall may pull the price camera to hold it (share of price). */
 const WALL_CAMERA_REACH = 0.04;
+/** The share of the camera's span the candles keep when a wall joins it (§XIV). */
+const WALL_CAMERA_CANDLE_SHARE = 0.45;
 
 /**
  * THE PRICE LEGEND'S RESERVED HEADROOM, WITH ONE OWNER.
@@ -2420,8 +2422,15 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const near = dpCam.walls.map(w => w.strike).filter(k => Math.abs(k - last) / last <= WALL_CAMERA_REACH);
           const above = near.filter(k => k > hi).sort((a, b) => a - b)[0];
           const below = near.filter(k => k < lo).sort((a, b) => b - a)[0];
-          if (above != null) { hi = above; wallTop = true; }
-          if (below != null) { lo = below; wallBottom = true; }
+          // PRICE SOVEREIGNTY (Garden 18 §XIV, cross-market run NDX 5m: a wall
+          // 2% below price pulled the scale 1,200 points down and crushed the
+          // candles into the top quarter). A wall joins the camera only while
+          // the candles keep WALL_CAMERA_CANDLE_SHARE of the span; a farther
+          // wall stays named by its off-camera edge marker.
+          const candleSpan = hi - lo;
+          const fits = (nh: number, nl: number) => candleSpan > 0 && candleSpan / (nh - nl) >= WALL_CAMERA_CANDLE_SHARE;
+          if (above != null && fits(above, lo)) { hi = above; wallTop = true; }
+          if (below != null && fits(hi, below)) { lo = below; wallBottom = true; }
           // A wall INSIDE the range but at its very edge sits under the header
           // (serving TSLA 1h: 385 at the top of the candles' range read
           // OFF_CAMERA) — it earns the same headroom.
