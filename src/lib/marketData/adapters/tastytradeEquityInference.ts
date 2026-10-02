@@ -17,14 +17,17 @@
  * Every inferred print is stamped with ITS OWN method (QUOTE_TEST / TICK_RULE)
  * and a confidence below 1, so every reading built on it is disclosed as
  * INFERRED by the weakest-link provenance (selectAggressorFlow), never as the
- * exchange's word. A print the exchange already signed is returned unchanged.
+ * exchange's word — including a side the consolidated feed itself carries.
  *
  * PURE.
  */
 import type { CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
 
 export function inferEquityAggressor(print: CanonicalMarketEvent, priorPrice: number | null): CanonicalMarketEvent {
-  if (print.aggressorSide === "BUY" || print.aggressorSide === "SELL") return print;
+  // A side the CONSOLIDATED stock tape carries is not an exchange's word
+  // (serving TSLA premarket 2026-10-02 04:04 ET: prints arrived BUY/SELL and the
+  // rail read "VENUE-STAMPED SIDES"). It is re-derived here and labelled
+  // INFERRED, never passed through as PROVIDER.
   const price = print.price;
   if (price == null || !(price > 0)) return print;
   const bid = print.bid != null && print.bid > 0 ? print.bid : null;

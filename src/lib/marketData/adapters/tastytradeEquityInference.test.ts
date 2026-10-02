@@ -21,8 +21,10 @@ describe("Lee–Ready on the consolidated equity tape (2026-10-01)", () => {
     const q = inferEquityAggressor(p(10.02, 10.0, 10.02), null);
     expect(aggressorProvenanceOf(q.aggressorMethod)).toBe("INFERRED");
     expect(q.aggressorConfidence).toBeLessThan(1);
-    const signed = p(10.0, 10.0, 10.02, "BUY");
-    expect(inferEquityAggressor(signed, 9)).toBe(signed);
+    // A side the consolidated feed carries is re-derived and labelled inferred.
+    const stated = inferEquityAggressor(p(10.0, 10.0, 10.02, "BUY"), 9);
+    expect(stated).toMatchObject({ aggressorSide: "SELL", aggressorMethod: "QUOTE_TEST" });
+    expect(aggressorProvenanceOf(stated.aggressorMethod)).toBe("INFERRED");
   });
 });
 
