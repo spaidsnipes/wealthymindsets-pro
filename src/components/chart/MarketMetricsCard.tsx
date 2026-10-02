@@ -20,7 +20,7 @@ function FuturesContracts({ symbol }: { readonly symbol: string }) {
     let alive = true;
     fetch(`/api/broker/tastytrade/chain?futures=${encodeURIComponent(product)}`, { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (alive) setList(j ? readFuturesOptionChain(j).futures : []); })
+      .then(j => { if (alive) setList(j?.state === "OK" ? readFuturesOptionChain(j.data).futures : []); })
       .catch(() => { if (alive) setList([]); });
     return () => { alive = false; };
   }, [product]);

@@ -7087,7 +7087,7 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
 
   return (
     <div style={{ flex:1, overflow:"auto", background:"transparent", padding:16 }}>
-      {tab === "Profile" || tab === "Valuation" ? <MarketMetricsCard symbol={symbol} /> : null}
+      {tab === "Profile" || tab === "Valuation" || tab === "Financials" ? <MarketMetricsCard symbol={symbol} /> : null}
       {loading ? (
         <div style={{ color:"#6B7094", fontSize:13, padding:"24px 4px" }}>Loading {tab.toLowerCase()} data…</div>
       ) : (body && hasData) ? body : providerEdge ? (

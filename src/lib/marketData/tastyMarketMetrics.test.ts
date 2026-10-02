@@ -23,7 +23,7 @@ describe("tastytrade market metrics on Market Info (2026-10-01)", () => {
   });
   it("the fundamentals panel shows the card and keeps host secrets out of guest copy", () => {
     const d = readFileSync("src/components/chart/ChartsDashboard.tsx", "utf8");
-    expect(d).toContain('{tab === "Profile" || tab === "Valuation" ? <MarketMetricsCard symbol={symbol} /> : null}');
+    expect(d).toContain('{tab === "Profile" || tab === "Valuation" || tab === "Financials" ? <MarketMetricsCard symbol={symbol} /> : null}');
     expect(d).not.toContain("Set it in Cloudflare Worker environment variables");
     expect(d).toContain('if (!map || (ac !== "equity" && ac !== "etf"))');
   });
