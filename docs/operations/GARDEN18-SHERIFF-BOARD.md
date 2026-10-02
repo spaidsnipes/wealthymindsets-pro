@@ -169,3 +169,9 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | Ledger on a phone | PROVED | `58693e6` 390 frame: ledger 734px → 350px, no uncontained overflow; episode rows drop price/hold columns <640px |
 | Journal Broker Truth fees | PROVED | `4e2b2e9` Webull order-history fills carry itemised fees + contract value: 45 fills, 0 "fees not reported" (was all) |
 | Journal header chips | FIXED | `2ed4009` manual-entry chips ("WR UNKNOWN · no trades taken") step aside on the Broker Ledger tab |
+| What Changed (§41) | PROVED | `1d688fc` month-to-month behaviour shifts between months with 20+ trades, both values named (glass: bracket at entry 0% → 78% 2026-02→03; trades/day 2.8 → 10.7 2026-05→06) — "a change in how you traded, not a verdict" |
+| MFE / MAE / capture (§36) | PROVED | `9ca7329`/`1d688fc` measured from the contract's bars while held (glass 385C: MFE +$5, MAE −$15, realised −$14 per contract); capture only on a realised gain |
+| Positions cross-check | PROVED | `ff96a4a` UNSETTLED line: "Webull's positions now (3 accounts): nothing is held — none of these is still open" |
+| Process Before P&L days (§54) | BUILT | `bb928f1` each trading day: Webull net beside the trader's five 0–2 grades; A/B/C/FAILURE bands; red-A / green-failure matrix; grades neutral in colour |
+| Ledger re-open speed | PROVED | `8a14a7f` year probes kept a day, live week kept 10 min, accounts 10 min: re-open 80 s → 10 s, same totals |
+| Tag prescriptions (§48) | BUILT | each INFERRED tag carries the profile rule / prescription it meets (re-entry after a loss → "a loss creates zero permission"); process reminder, no feeling named |

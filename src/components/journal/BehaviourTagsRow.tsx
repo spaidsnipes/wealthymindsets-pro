@@ -56,6 +56,7 @@ export function BehaviourTagsRow({ episodeId, tags }: { readonly episodeId: stri
                 <button type="button" onClick={() => { setEditing(t.id); setDraft(""); }} style={btn}>Correct</button>
               </span>
             )}
+            <div style={{ fontSize: 10, color: MUTED }}>{t.rule}</div>
             {history.length > 1 ? <div style={{ fontSize: 10, color: MUTED }}>Lineage: {history.map(h => `${new Date(h.at).toLocaleDateString()} ${h.verdict}${h.correction ? ` “${h.correction}”` : ""}`).join(" → ")}</div> : null}
           </div>
         );

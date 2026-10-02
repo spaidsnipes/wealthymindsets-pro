@@ -12,7 +12,11 @@ import type { Episode } from "@/lib/broker/webullLedger";
 
 export type TagId = "THIRD_PLUS_ATTEMPT" | "RAPID_REENTRY" | "NO_BRACKET_AT_ENTRY" | "ABOVE_USUAL_SIZE";
 
-export interface BehaviourTag { readonly id: TagId; readonly label: string; readonly evidence: string; readonly truth: "INFERRED" }
+export interface BehaviourTag {
+  readonly id: TagId; readonly label: string; readonly evidence: string; readonly truth: "INFERRED";
+  /** The profile rule / §48 prescription this behaviour meets — a process reminder, never a diagnosis of feeling. */
+  readonly rule: string;
+}
 
 const nyDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
@@ -32,15 +36,16 @@ export function behaviourTags(episodes: readonly Episode[]): Map<string, Behavio
     const d = nyDay(e.openedAt);
     const n = (perDay.get(d) ?? 0) + 1;
     perDay.set(d, n);
-    if (n >= 3) tags.push({ id: "THIRD_PLUS_ATTEMPT", label: `Trade ${n} of the day`, evidence: `${n - 1} trades were already opened on ${d} (New York).`, truth: "INFERRED" });
+    if (n >= 3) tags.push({ id: "THIRD_PLUS_ATTEMPT", label: `Trade ${n} of the day`, evidence: `${n - 1} trades were already opened on ${d} (New York).`, truth: "INFERRED", rule: "Profile rule: a second attempt only after fresh authorization — no third." });
     const prev = lastExit.get(`${e.accountId}|${e.instrumentKey}`);
     if (prev?.closedAt) {
       const gap = Date.parse(e.openedAt) - Date.parse(prev.closedAt);
-      if (gap >= 0 && gap <= RAPID_REENTRY_MS) tags.push({ id: "RAPID_REENTRY", label: "Re-entered the same contract within 5 min", evidence: `Previous ${e.instrumentKey} trade exited ${hhmm(prev.closedAt)}; this one opened ${hhmm(e.openedAt)} (${Math.round(gap / 1000)} s later).`, truth: "INFERRED" });
+      if (gap >= 0 && gap <= RAPID_REENTRY_MS) tags.push({ id: "RAPID_REENTRY", label: "Re-entered the same contract within 5 min", evidence: `Previous ${e.instrumentKey} trade exited ${hhmm(prev.closedAt)}${prev.net != null ? ` (${prev.net >= 0 ? "+" : "−"}$${Math.abs(prev.net).toFixed(2)})` : ""}; this one opened ${hhmm(e.openedAt)} (${Math.round(gap / 1000)} s later).`, truth: "INFERRED",
+        rule: prev.net != null && prev.net < 0 ? "Prescription: a loss creates zero permission — return to regime and re-authorize before the next entry." : "Prescription: a win does not lower standards — same size, same checklist, fresh authorization." });
     }
     lastExit.set(`${e.accountId}|${e.instrumentKey}`, e);
-    if (e.entries[0] && e.entries[0].comboType !== "MASTER") tags.push({ id: "NO_BRACKET_AT_ENTRY", label: "No bracket at entry", evidence: `Entry order type ${e.entries[0].orderType ?? "?"}, combo ${e.entries[0].comboType ?? "none"} — no stop/target attached in the same order.`, truth: "INFERRED" });
-    if (median > 0 && e.maxQuantity >= median * 2) tags.push({ id: "ABOVE_USUAL_SIZE", label: `Size ${e.maxQuantity}× (usual ${median}×)`, evidence: `Largest position in this trade was ${e.maxQuantity}; the median across all trades is ${median}.`, truth: "INFERRED" });
+    if (e.entries[0] && e.entries[0].comboType !== "MASTER") tags.push({ id: "NO_BRACKET_AT_ENTRY", label: "No bracket at entry", evidence: `Entry order type ${e.entries[0].orderType ?? "?"}, combo ${e.entries[0].comboType ?? "none"} — no stop/target attached in the same order.`, truth: "INFERRED", rule: "Profile rule: protection is defined before entry." });
+    if (median > 0 && e.maxQuantity >= median * 2) tags.push({ id: "ABOVE_USUAL_SIZE", label: `Size ${e.maxQuantity}× (usual ${median}×)`, evidence: `Largest position in this trade was ${e.maxQuantity}; the median across all trades is ${median}.`, truth: "INFERRED", rule: "Prescription: same size after a win or a loss — size changes only by plan." });
     out.set(e.id, tags);
   }
   return out;

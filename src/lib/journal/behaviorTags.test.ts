@@ -19,7 +19,8 @@ describe("behaviour tags — only what fills establish, each INFERRED with evide
     expect(t.get("b")!.map(x => x.id)).toEqual(["RAPID_REENTRY", "NO_BRACKET_AT_ENTRY"]);
     expect(t.get("c")!.map(x => x.id)).toEqual(["THIRD_PLUS_ATTEMPT", "NO_BRACKET_AT_ENTRY", "ABOVE_USUAL_SIZE"]);
     expect(t.get("b")![0].evidence).toMatch(/120 s later/);
-    expect(t.get("c")!.every(x => x.truth === "INFERRED")).toBe(true);
+    expect(t.get("c")!.every(x => x.truth === "INFERRED" && x.rule.length > 0)).toBe(true);
+    expect(t.get("b")![0].rule).toMatch(/win does not lower standards/);
   });
 
   it("amendments are append-only lineage; the latest is the current reading, the original stays", () => {
