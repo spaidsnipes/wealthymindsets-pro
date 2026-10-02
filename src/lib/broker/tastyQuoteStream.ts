@@ -142,6 +142,8 @@ async function connect() {
             const req = candleRequests.get(e.symbol);
             if (!req) continue;
             req.rows.push(e.values);
+            // Receipt for the proof channel: rows received per candle request.
+            try { const w = window as unknown as { __wmCandleReceipt?: Record<string, number> }; (w.__wmCandleReceipt ??= {})[e.symbol] = req.rows.length; } catch { /* no window */ }
             if (isSnapshotEnd(e.values.eventFlags)) req.done(req.rows);
             continue;
           }
@@ -248,7 +250,9 @@ export function requestTastyCandles(candleSymbol: string, keepAlive: string, fro
       release();
       resolve(rows);
     };
-    const timer = setTimeout(() => finish(null), timeoutMs);
+    // No SNAPSHOT_END inside the budget: what did arrive is still the contract's
+    // own bars (an option's candle snapshot was measured never closing, 2026-10-02).
+    const timer = setTimeout(() => { const got = candleRequests.get(candleSymbol)?.rows ?? []; finish(got.length ? got : null); }, timeoutMs);
     // A stream that will never open (guest, not configured) answers at once.
     const watch = setInterval(() => { if (snapshot.stream === "NOT_OWNER" || snapshot.stream === "NOT_CONNECTED") finish(null); }, 200);
     candleRequests.set(candleSymbol, { fromTime, rows: [], done: finish });
