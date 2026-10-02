@@ -13,6 +13,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { computeLedgerEdge, MIN_SAMPLE } from "@/lib/broker/ledgerEdge";
 import { processOutcome } from "@/lib/broker/processOutcome";
+import { PROFILE_RULES, replayDailyRules } from "@/lib/broker/dailyRules";
 import type { Episode } from "@/lib/broker/webullLedger";
 import { readStoryReviews, type StoryReview } from "@/lib/journal/storyReview";
 
@@ -36,6 +37,11 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
     return () => { window.removeEventListener("focus", read); window.clearInterval(t); };
   }, []);
   const po = useMemo(() => processOutcome(episodes, reviews), [episodes, reviews]);
+  // 1R is the trader's own statement (no broker record holds it); kept on this device.
+  const [oneR, setOneR] = useState<number>(0);
+  useEffect(() => { try { setOneR(Number(localStorage.getItem("wm_ledger_one_r") ?? 0) || 0); } catch { /* none */ } }, []);
+  const saveR = (v: number) => { setOneR(v); try { localStorage.setItem("wm_ledger_one_r", String(v)); } catch { /* this visit only */ } };
+  const rules = useMemo(() => replayDailyRules(episodes, oneR), [episodes, oneR]);
   if (edge.universe === 0) return null;
 
   const Cell = ({ title, c, note }: { title: string; c: { n: number; net: number }; note: string }) => (
@@ -83,10 +89,26 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
       <div data-testid="edge-daily-attempts" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
         <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>DAILY ATTEMPTS · YOUR PROFILE RULE: “SECOND ATTEMPT ONLY AFTER FRESH AUTHORIZATION — NO THIRD”</div>
         <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>
-          CURRENT STRATEGY REPLAY — today's profile rule applied to past days. When this rule took effect is not recorded, so this is not a judgement of how you traded then.
+          CURRENT STRATEGY REPLAY — today's profile rules (v1, recorded 2026-10-02) applied to past days. When this rule took effect is not recorded, so this is not a judgement of how you traded then.
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, fontSize: 12, color: INK, fontVariantNumeric: "tabular-nums" }}>
           {edge.daily.byCount.map(r => <span key={r.key}>{r.key}: <b>{r.days}</b> days · <span style={{ color: tone(r.net) }}>{usd(r.net)}</span></span>)}
+        </div>
+        <div style={{ marginTop: 10, borderTop: `1px dashed ${LINE}`, paddingTop: 8 }}>
+          <label style={{ fontSize: 11, color: MUTED }}>
+            Your 1R in dollars (it is not in any broker record) ·{" "}
+            <input type="number" min={1} step={1} value={oneR || ""} placeholder="e.g. 50" onChange={ev => saveR(Number(ev.target.value) || 0)}
+              data-testid="edge-one-r" aria-label="One R in dollars"
+              style={{ width: 80, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: "2px 6px", borderRadius: 4 }} />
+          </label>
+          {rules ? (
+            <p data-testid="edge-daily-rules" style={{ fontSize: 12, color: INK, margin: "6px 0 0" }}>
+              Daily stop {PROFILE_RULES.dailyStopR}R ({usd(PROFILE_RULES.dailyStopR * rules.oneR)}): reached on {rules.stopDays} of {rules.days} days; {rules.afterStopTrades} trades were opened after it, netting <span style={{ color: tone(rules.afterStopNet) }}>{usd(rules.afterStopNet)}</span>.
+              {" "}Shutdown +{PROFILE_RULES.shutdownR}R ({usd(PROFILE_RULES.shutdownR * rules.oneR)}): reached on {rules.shutdownDays} days; {rules.afterShutdownTrades} trades opened after it, netting <span style={{ color: tone(rules.afterShutdownNet) }}>{usd(rules.afterShutdownNet)}</span>.
+            </p>
+          ) : (
+            <p style={{ fontSize: 11, color: MUTED, margin: "6px 0 0" }}>State your 1R to replay the {PROFILE_RULES.dailyStopR}R daily stop and +{PROFILE_RULES.shutdownR}R shutdown over these days.</p>
+          )}
         </div>
         <p style={{ fontSize: 12, color: INK, margin: "8px 0 0" }}>
           {edge.daily.thirdPlusDays} of {edge.daily.days} trading days had a third or later trade — {edge.daily.thirdPlusTrades} trades beyond the second, netting <span style={{ color: tone(edge.daily.thirdPlusNet) }}>{usd(edge.daily.thirdPlusNet)}</span>.

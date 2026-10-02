@@ -129,7 +129,7 @@ export function TradeReplay({ e }: { readonly e: Episode }) {
           return (
             <g key={`${m.role}-${m.at}`}>
               <path d={buy ? `M${cx},${cy + 2} l-6,10 h12 z` : `M${cx},${cy - 2} l-6,-10 h12 z`} fill={buy ? UP : DOWN} stroke="#0b0a08" strokeWidth={1} />
-              <text x={cx + 8} y={buy ? cy + 12 : cy - 6} fontSize={10} fill={INK}>{m.role} {m.side} {m.quantity} @ {m.price.toFixed(2)}</text>
+              <text x={cx + 8} y={buy ? cy + 12 : cy - 6} fontSize={10} fill={INK} stroke="#0b0a08" strokeWidth={3} paintOrder="stroke" style={{ fontWeight: 600 }}>{m.role} {m.side} {m.quantity} @ {m.price.toFixed(2)}</text>
             </g>
           );
         })}
