@@ -9314,6 +9314,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // the price axis ("NO BAR · 3 inte…", serving BTC 1m 2026-09-26).
           let plotW = W;
           try { plotW = chart.timeScale().width(); } catch { /* keep W */ }
+          // A hole wholly off camera says nothing here (serving TSLA 1m
+          // premarket, 2026-10-02: three overnight holes left of the camera
+          // clamped their words into a stack at the left edge).
+          if (+x1 < 0 || +x0 > plotW) { wordsWithheld++; continue; }
           const clampX = (x: number) => Math.max(tw / 2 + 4, Math.min(plotW - tw / 2 - 4, x));
           const mid = (+x0 + +x1) / 2;
           const hits = (q: { x: number; y: number; w: number; h: number }) => (r: { x: number; y: number; w: number; h: number }) =>
