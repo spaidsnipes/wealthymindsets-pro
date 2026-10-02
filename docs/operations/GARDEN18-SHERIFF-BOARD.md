@@ -13,7 +13,7 @@ START `16fab112` (serving at 17:32 CDT).
 | Absorption Shelf atomic (§XXIII) | 🟢 | BTC 15m: shelf alone = effort mass only; Lineage 1 family |
 | TPO atomic (§XXV) | 🟢 | `617e170` column stands right of open Tools door |
 | Custom composition §CII | 🟢 | Shelf → +TPO → +Clarity → roles → Clean → "Absorption + Auction" restores, same canvas, no remount |
-| Visual roles PRIMARY | 🟢 code / 🟡 glass | `22763f3` lead steps others to 0.72 (unit-tested); glass contrast not re-measured |
+| Visual roles PRIMARY | 🟢 | ES1! 21:08 CDT: Absorption → PRIMARY in Tools › Active: absorption 1, Living/TPO 0.72, Structure 0.6→0.43 (swing path + HL still read); Founder's wm_visual_roles untouched |
 | Proof scenes hold composition | 🟢 | `2c04e64` roles/strength no longer leak into Founder keys |
 | Profiles 1–11 silhouette | 🟢 9 / ⚪ 2 | Living, Structure (honest "too short"), DNA alone `7632196`, Session, VR, Fixed, Composite (TSLA), TPO, Memory floor `e39a80b`; Fusion needs ≥2 (by nature); Bid/Ask Split honest "captured live only" (top-left placement is FL-06 law, sentinel-pinned) |
 | Liquidity Lifecycle | 🟢 | `1e3ff41` MNQ: TAIL:5 → "NO POOL IN VIEW" silence row; `2b35a5f` bar-slot placement |
