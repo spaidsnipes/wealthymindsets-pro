@@ -23,20 +23,39 @@
  */
 import type { CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
 
-export function inferEquityAggressor(print: CanonicalMarketEvent, priorPrice: number | null): CanonicalMarketEvent {
+export function inferEquityAggressor(
+  print: CanonicalMarketEvent,
+  priorPrice: number | null,
+  priorSide: "BUY" | "SELL" | null = null,
+): CanonicalMarketEvent {
   // A side the CONSOLIDATED stock tape carries is not an exchange's word
   // (serving TSLA premarket 2026-10-02 04:04 ET: prints arrived BUY/SELL and the
   // rail read "VENUE-STAMPED SIDES"). It is re-derived here and labelled
   // INFERRED, never passed through as PROVIDER.
+  //
+  // LEE–READY BY THE MIDPOINT (serving NVDA premarket 04:50 ET: sub-penny
+  // prints INSIDE the spread — 232.898 in 232.80 / 232.90 — were left unsigned
+  // by an at-the-quote test, 801 of 852): above the midpoint is a buy, below a
+  // sell; exactly at the midpoint the tick rule decides, and a repeated price
+  // keeps the previous side (zero tick).
   const price = print.price;
   if (price == null || !(price > 0)) return print;
   const bid = print.bid != null && print.bid > 0 ? print.bid : null;
   const ask = print.ask != null && print.ask > 0 ? print.ask : null;
   const quoted = bid != null && ask != null && ask >= bid;
-  if (quoted && price >= ask!) return { ...print, assetClass: "equity", aggressorSide: "BUY", aggressorMethod: "QUOTE_TEST", aggressorConfidence: 0.7 };
-  if (quoted && price <= bid!) return { ...print, assetClass: "equity", aggressorSide: "SELL", aggressorMethod: "QUOTE_TEST", aggressorConfidence: 0.7 };
-  if (priorPrice != null && priorPrice > 0 && price !== priorPrice) {
-    return { ...print, assetClass: "equity", aggressorSide: price > priorPrice ? "BUY" : "SELL", aggressorMethod: "TICK_RULE", aggressorConfidence: 0.5 };
+  const tag = (side: "BUY" | "SELL" | "UNKNOWN", method: "QUOTE_TEST" | "TICK_RULE" | "NONE", conf?: number): CanonicalMarketEvent =>
+    side === "UNKNOWN"
+      ? { ...print, assetClass: "equity", aggressorSide: "UNKNOWN", aggressorMethod: "NONE", aggressorConfidence: undefined }
+      : { ...print, assetClass: "equity", aggressorSide: side, aggressorMethod: method, aggressorConfidence: conf };
+  if (quoted) {
+    const mid = (bid! + ask!) / 2;
+    if (price > mid) return tag("BUY", "QUOTE_TEST", price >= ask! ? 0.7 : 0.6);
+    if (price < mid) return tag("SELL", "QUOTE_TEST", price <= bid! ? 0.7 : 0.6);
   }
-  return { ...print, assetClass: "equity", aggressorSide: "UNKNOWN", aggressorMethod: "NONE" };
+  if (priorPrice != null && priorPrice > 0) {
+    if (price > priorPrice) return tag("BUY", "TICK_RULE", 0.5);
+    if (price < priorPrice) return tag("SELL", "TICK_RULE", 0.5);
+    if (priorSide) return tag(priorSide, "TICK_RULE", 0.4);
+  }
+  return tag("UNKNOWN", "NONE");
 }

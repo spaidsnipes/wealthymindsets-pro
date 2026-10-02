@@ -71,12 +71,12 @@ import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
  * print, readable on the glass as `window.__wmEquityTape[SYMBOL]` (the house
  * proof channel reads receipts, never guesses). Counts only.
  */
-type EquityTapeCounts = { prints: number; invalid: number; unsigned: number; signed: number; late: number; absorbed: number; buyVol: number; sellVol: number };
+type EquityTapeCounts = { prints: number; invalid: number; unsigned: number; signed: number; late: number; absorbed: number };
 function equityTapeReceipt(symbol: string): EquityTapeCounts {
   const w = (typeof window !== "undefined" ? window : null) as (Window & { __wmEquityTape?: Record<string, EquityTapeCounts> }) | null;
   const book = w ? (w.__wmEquityTape ??= {}) : {};
   const k = symbol.toUpperCase();
-  return (book[k] ??= { prints: 0, invalid: 0, unsigned: 0, signed: 0, late: 0, absorbed: 0, buyVol: 0, sellVol: 0 });
+  return (book[k] ??= { prints: 0, invalid: 0, unsigned: 0, signed: 0, late: 0, absorbed: 0 });
 }
 
 export interface Tick {
@@ -1708,6 +1708,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           let index = 0;
           let lastPrintAt = 0;
           let lastEquityPrice: number | null = null;
+          let lastEquitySide: "BUY" | "SELL" | null = null;
           tastyCleanup = subscribeTastyEvents([contract.streamer], (e, receivedAtMs) => {
             if (disposed) return;
             if (e.type === "TimeAndSale") {
@@ -1727,15 +1728,15 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
                 // premarket 2026-10-02: 765 of 771 NVDA prints. They are real
                 // trades, so they are signed like any other; only counted.
                 if (e.values.validTick === 0) rc.invalid++;
-                const inferred = inferEquityAggressor(print, lastEquityPrice);
+                const inferred = inferEquityAggressor(print, lastEquityPrice, lastEquitySide);
                 lastEquityPrice = print.price ?? lastEquityPrice;
+                if (inferred.aggressorSide === "BUY" || inferred.aggressorSide === "SELL") lastEquitySide = inferred.aggressorSide;
                 if (inferred.aggressorSide !== "BUY" && inferred.aggressorSide !== "SELL") {
                   rc.unsigned++;
                   processUnsignedObservation(print, "tastytrade");
                   return;
                 }
                 rc.signed++;
-                if (inferred.aggressorSide === "BUY") rc.buyVol += inferred.size ?? 0; else rc.sellVol += inferred.size ?? 0;
                 tapeSourceRef.current = "tastytrade-equity";
                 processTick({
                   price: inferred.price!,

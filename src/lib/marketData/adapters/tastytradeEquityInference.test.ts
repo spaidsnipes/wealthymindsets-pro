@@ -11,9 +11,13 @@ describe("Lee–Ready on the consolidated equity tape (2026-10-01)", () => {
     expect(inferEquityAggressor(p(10.02, 10.0, 10.02), 10.05)).toMatchObject({ aggressorSide: "BUY", aggressorMethod: "QUOTE_TEST", assetClass: "equity" });
     expect(inferEquityAggressor(p(9.99, 10.0, 10.02), 9.9)).toMatchObject({ aggressorSide: "SELL", aggressorMethod: "QUOTE_TEST" });
   });
-  it("tick rule inside the spread, unknown on a zero tick", () => {
+  it("midpoint inside the spread; tick rule at the midpoint; a zero tick keeps the prior side", () => {
+    // Shape from the live NVDA premarket tape, 2026-10-02: 232.898 in 232.80 / 232.90.
+    expect(inferEquityAggressor(p(232.898, 232.8, 232.9), null)).toMatchObject({ aggressorSide: "BUY", aggressorMethod: "QUOTE_TEST" });
+    expect(inferEquityAggressor(p(232.81, 232.8, 232.9), null)).toMatchObject({ aggressorSide: "SELL", aggressorMethod: "QUOTE_TEST" });
     expect(inferEquityAggressor(p(10.01, 10.0, 10.02), 10.0)).toMatchObject({ aggressorSide: "BUY", aggressorMethod: "TICK_RULE" });
     expect(inferEquityAggressor(p(10.01, 10.0, 10.02), 10.015)).toMatchObject({ aggressorSide: "SELL", aggressorMethod: "TICK_RULE" });
+    expect(inferEquityAggressor(p(10.01, 10.0, 10.02), 10.01, "SELL")).toMatchObject({ aggressorSide: "SELL", aggressorMethod: "TICK_RULE" });
     expect(inferEquityAggressor(p(10.01, 10.0, 10.02), 10.01)).toMatchObject({ aggressorSide: "UNKNOWN", aggressorMethod: "NONE" });
     expect(inferEquityAggressor(p(10.01), null)).toMatchObject({ aggressorSide: "UNKNOWN" });
   });
@@ -42,7 +46,7 @@ describe("the equity tape is reviewed as INFERRED", () => {
   });
   it("the live lane infers equity sides and keeps the price source tastytrade", () => {
     const src = readFileSync("src/hooks/useWebSocket.ts", "utf8");
-    expect(src).toContain("const inferred = inferEquityAggressor(print, lastEquityPrice);");
+    expect(src).toContain("const inferred = inferEquityAggressor(print, lastEquityPrice, lastEquitySide);");
     expect(src).toContain('tapeSourceRef.current = "tastytrade-equity";');
     expect(src).toContain('(tape === "tastytrade-equity" ? "tastytrade" : tape)');
   });
