@@ -389,3 +389,19 @@ describe("selectAbsorptionAnatomy — H-701A: the holding edge comes from SIGNED
     expect(vm.zones[0]!.travelTo).toBe(100.3);
   });
 });
+
+describe("one outlier bar no longer makes a zone impossible (cross-market run, 2026-10-01)", () => {
+  it("two heavy, flat bars form a zone beside a 10× spike", () => {
+    // 28 ordinary bars (vol 1000, body 0.6), one spike (vol 10000, body 2),
+    // then two heavy bars (vol 2000 = 2× median) that barely moved (body 0.1).
+    const specs = [
+      ...Array.from({ length: 27 }, () => ({ open: 100, close: 100.6, high: 100.8, low: 99.9, volume: 1_000, askVol: null, bidVol: null })),
+      { open: 100, close: 102, high: 102.2, low: 99.9, volume: 10_000, askVol: null, bidVol: null },
+      { open: 101, close: 101.1, high: 101.4, low: 100.8, volume: 2_000, askVol: null, bidVol: null },
+      { open: 101.1, close: 101.0, high: 101.3, low: 100.7, volume: 2_000, askVol: null, bidVol: null },
+    ];
+    const vm = selectAbsorptionAnatomy(specs.map((s, i) => ({ time: i + 1, ...s })), { windowBars: 30 });
+    expect(vm.zones.length).toBe(1);
+    expect(vm.zones[0].barCount).toBe(2);
+  });
+});

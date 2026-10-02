@@ -223,6 +223,10 @@ export interface AbsorptionAnatomyOptions {
   readonly displacementThreshold?: number;
   /** TIME EXTENSION gate — a zone must hold at least this many bars. */
   readonly minZoneBars?: number;
+  /** Robust high-effort line: × the window's median effort (see DEFAULTS). */
+  readonly effortMedianMultiple?: number;
+  /** Robust weak-displacement line: × the window's median body (see DEFAULTS). */
+  readonly displacementMedianMultiple?: number;
 }
 
 /**
@@ -235,6 +239,18 @@ export const ABSORPTION_ANATOMY_DEFAULTS = {
   effortThreshold: 0.6,
   displacementThreshold: 0.35,
   minZoneBars: 2,
+  /**
+   * ROBUST QUALIFICATION (Garden 18 cross-market run, 2026-10-01: zones = 0
+   * on TSLA, NQ, ES, GC, CL, BTC, ETH, SPY — every window). Normalised to the
+   * window's single heaviest bar, one outlier put every other bar under the
+   * 0.6 line, so no two-bar run could ever form. A bar ALSO counts as high
+   * effort at ≥ effortMedianMultiple × the window's median effort, and as
+   * weak displacement at ≤ displacementMedianMultiple × the median body —
+   * plate UI_06's "elevated aggressive volume · minimal price progress
+   * despite effort", measured against the window's ordinary bar.
+   */
+  effortMedianMultiple: 1.5,
+  displacementMedianMultiple: 0.6,
 } as const;
 const DEFAULTS = ABSORPTION_ANATOMY_DEFAULTS;
 
@@ -285,6 +301,8 @@ export function selectAbsorptionAnatomy(
   const effortThreshold = options.effortThreshold ?? DEFAULTS.effortThreshold;
   const displacementThreshold = options.displacementThreshold ?? DEFAULTS.displacementThreshold;
   const minZoneBars = options.minZoneBars ?? DEFAULTS.minZoneBars;
+  const effortMedianMultiple = options.effortMedianMultiple ?? DEFAULTS.effortMedianMultiple;
+  const displacementMedianMultiple = options.displacementMedianMultiple ?? DEFAULTS.displacementMedianMultiple;
 
   const usable = (input ?? []).filter(
     bar =>
@@ -332,6 +350,13 @@ export function selectAbsorptionAnatomy(
 
   const maxEffort = raw.reduce((m, r) => (r.effort > m ? r.effort : m), 0);
   const maxDisplacement = raw.reduce((m, r) => (r.displacement > m ? r.displacement : m), 0);
+  const median = (xs: number[]) => { const v = xs.filter(x => x > 0).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : 0; };
+  const medianEffort = median(raw.map(r => r.effort));
+  const medianDisplacement = median(raw.map(r => r.displacement));
+  const highEffort = (effort: number, effortNorm: number) =>
+    effortNorm >= effortThreshold || (medianEffort > 0 && effort >= effortMedianMultiple * medianEffort);
+  const weakDisplacement = (displacement: number, displacementNorm: number) =>
+    displacementNorm <= displacementThreshold || (medianDisplacement > 0 && displacement <= displacementMedianMultiple * medianDisplacement);
 
   // Pass 2 — normalise over the window and apply the two-sided qualification.
   //
@@ -355,7 +380,7 @@ export function selectAbsorptionAnatomy(
       delta: useDelta ? r.delta : null,
       displacement: r.displacement,
       displacementNorm,
-      absorbing: effortNorm >= effortThreshold && displacementNorm <= displacementThreshold,
+      absorbing: highEffort(r.effort, effortNorm) && weakDisplacement(r.displacement, displacementNorm),
     };
   });
 
@@ -406,7 +431,7 @@ export function selectAbsorptionAnatomy(
   const totalEffort = raw.reduce((s, r) => s + r.effort, 0);
   const effortConcentration = totalEffort > 0 ? maxEffort / totalEffort : null;
   const effortQualifyingBars = bars.reduce(
-    (n, b) => (b.effortNorm >= effortThreshold ? n + 1 : n),
+    (n, b) => (highEffort(b.effort, b.effortNorm) ? n + 1 : n),
     0,
   );
   const zoneQualificationPossible = effortQualifyingBars >= minZoneBars;
