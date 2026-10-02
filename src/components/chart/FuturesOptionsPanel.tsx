@@ -309,7 +309,10 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
     <aside
       aria-label={`${product} ${equity ? "options" : "futures options"}`}
       data-testid="futures-options-panel"
-      style={{ position: "fixed", top: 108, right: 12, bottom: 12, width: "min(860px, calc(100vw - 24px))", zIndex: 60, display: "flex", flexDirection: "column",
+      // §XIV: never over the live edge — the forming candle, the price line
+      // and the newest bars stay beside the chain (serving TSLA/MNQ 15m,
+      // 2026-10-01: an 860px sheet anchored right hid all three).
+      style={{ position: "fixed", top: 108, left: 12, bottom: 12, width: "min(860px, calc(100vw - 24px))", zIndex: 60, display: "flex", flexDirection: "column",
         background: PANEL, border: "1px solid rgba(201,165,92,.42)", borderRadius: 8, boxShadow: "0 24px 64px rgba(0,0,0,.55), inset 0 1px 0 rgba(201,165,92,.12)", color: INK, fontSize: 12, overflow: "hidden" }}
     >
       {/* ── HEADER: the parent future, live ── */}

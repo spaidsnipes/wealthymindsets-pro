@@ -8,3 +8,10 @@ describe("Trade panel never covers the live edge (§XIV)", () => {
     expect(SRC).not.toContain("right: 24, bottom: 64");
   });
 });
+
+describe("the options chain never covers the live edge (§XIV)", () => {
+  it("stands at the left", () => {
+    const OPT = readFileSync("src/components/chart/FuturesOptionsPanel.tsx", "utf8");
+    expect(OPT).toContain('style={{ position: "fixed", top: 108, left: 12, bottom: 12,');
+  });
+});
