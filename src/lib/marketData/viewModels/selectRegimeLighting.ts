@@ -62,7 +62,7 @@ import type { RegimeVerdict } from "./selectRegime";
 
 export const REGIME_LIGHTING_VERSION = 2;
 /** How far a dimmed fixture drops. A dimmer, never an off switch. */
-export const DIMMED_ALPHA = 0.3;
+export const DIMMED_ALPHA = 0.45;
 export const HANDOVER_ALPHA = 0.5;
 /** No breaker on: the regime's own fixtures are unpowered, never blazing. */
 export const PILOT_ALPHA = DIMMED_ALPHA;

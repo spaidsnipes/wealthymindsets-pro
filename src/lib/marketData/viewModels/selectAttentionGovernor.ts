@@ -89,7 +89,7 @@ export interface LayerAttention {
 }
 
 /** How far SUPPORTING and MEMORY layers step back while the room waits. */
-export const POSTURE_QUIET = 0.72;
+export const POSTURE_QUIET = 0.88;
 
 /** What every other context layer keeps while one sense is PRIMARY. */
 export const PRIMARY_LEADS_OTHERS = 0.72;
