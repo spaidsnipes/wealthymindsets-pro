@@ -30,12 +30,17 @@ export default function BarHistoryRefusalNote({
   vm,
   futuresHint = null,
   cfdDoor = null,
+  timeframeDoor = null,
+  onTimeframe,
 }: {
   readonly vm: BarHistoryRefusalVM;
   /** A catalogued continuous contract for a bare futures root ("NQ" → "NQ1!"). */
   readonly futuresHint?: string | null;
   /** A CFD name's nearest market WM can open, named as a different market. */
   readonly cfdDoor?: { readonly symbol: string; readonly words: string } | null;
+  /** The shortest timeframe that has history, when this one has none by nature (spot FX seconds). */
+  readonly timeframeDoor?: { readonly timeframe: string; readonly words: string } | null;
+  readonly onTimeframe?: (tf: string) => void;
 }) {
   // A served chart explains nothing — the bars are the explanation.
   if (vm.served) return null;
@@ -111,6 +116,26 @@ export default function BarHistoryRefusalNote({
             style={{ marginLeft: 4, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(240,180,41,0.55)", background: "rgba(240,180,41,0.10)", color: QUIET, fontSize: 12, fontWeight: 600, cursor: "pointer", pointerEvents: "auto" }}
           >
             Open {cfdDoor.symbol} →
+          </button>
+        </div>
+      )}
+      {timeframeDoor && (
+        <div style={{ marginTop: 12, color: BODY, fontSize: 12, lineHeight: 1.5 }}>
+          {timeframeDoor.words}{" "}
+          <button
+            type="button"
+            data-testid="bar-history-timeframe-door"
+            onClick={() => {
+              if (onTimeframe) { onTimeframe(timeframeDoor.timeframe); return; }
+              try {
+                const u = new URL(window.location.href);
+                u.searchParams.set("tf", timeframeDoor.timeframe);
+                window.location.assign(u.toString());
+              } catch { /* no window */ }
+            }}
+            style={{ marginLeft: 4, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(240,180,41,0.55)", background: "rgba(240,180,41,0.10)", color: QUIET, fontSize: 12, fontWeight: 600, cursor: "pointer", pointerEvents: "auto" }}
+          >
+            Open {timeframeDoor.timeframe} →
           </button>
         </div>
       )}
