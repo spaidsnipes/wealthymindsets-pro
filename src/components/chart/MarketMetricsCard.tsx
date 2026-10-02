@@ -10,6 +10,59 @@ import React, { useEffect, useState } from "react";
 import { futuresProductFor, readFuturesOptionChain, type FutureContract } from "@/lib/broker/tastytradeFuturesChain";
 import { metricsSymbolFor, readMarketMetrics, type MetricRow } from "@/lib/marketData/tastyMarketMetrics";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { coinbaseProductFor } from "@/lib/marketData/coinbaseTradeBackfill";
+import { readCoinbaseStats } from "@/lib/marketData/cryptoMarketInfo";
+import { deribitCurrencyFor, dvolFrom } from "@/lib/marketData/deribitOptions";
+
+/** A coin's day from Coinbase's public stats, plus Deribit DVOL for BTC / ETH (2026-10-02). */
+function CryptoMarketInfo({ symbol }: { readonly symbol: string }) {
+  const product = coinbaseProductFor(symbol);
+  const [rows, setRows] = useState<MetricRow[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!product) return;
+    let alive = true;
+    setRows(null); setFailed(false);
+    const cur = deribitCurrencyFor(symbol);
+    const now = Date.now();
+    const dvolP = cur
+      ? fetch(`https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=${cur}&start_timestamp=${now - 3 * 3_600_000}&end_timestamp=${now}&resolution=3600`, { cache: "no-store" })
+          .then(r => (r.ok ? r.json() : null)).then(dvolFrom).catch(() => null)
+      : Promise.resolve(null);
+    Promise.all([fetch(`https://api.exchange.coinbase.com/products/${product}/stats`, { cache: "no-store" }).then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))))), dvolP])
+      .then(([stats, dvol]) => { if (alive) setRows(readCoinbaseStats(stats, product.split("-")[0], dvol)); })
+      .catch(() => { if (alive) setFailed(true); });
+    return () => { alive = false; };
+  }, [product, symbol]);
+  if (!product) return null;
+  return (
+    <section data-testid="crypto-market-info" aria-label={`${symbol} market info`}
+      style={{ background: "#141824", border: "1px solid #1E2030", borderRadius: 8, padding: 16, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0" }}>Market info — {product}</div>
+        <div style={{ fontSize: 10, color: "#6B7094" }}>Coinbase public 24h stats{deribitCurrencyFor(symbol) ? " · Deribit DVOL" : ""}</div>
+      </div>
+      {failed ? (
+        <p style={{ fontSize: 12, color: "#8896BE", margin: 0 }}>Coinbase did not answer for {product} — nothing is shown in its place.</p>
+      ) : rows == null ? (
+        <p style={{ fontSize: 12, color: "#6B7094", margin: 0 }}>Reading Coinbase…</p>
+      ) : rows.length === 0 ? (
+        <p style={{ fontSize: 12, color: "#8896BE", margin: 0 }}>Coinbase publishes no stats for {product}.</p>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 10 }}>
+          {rows.map(r => (
+            <div key={r.label} style={{ background: "#0f121b", border: "1px solid #1E2030", borderRadius: 6, padding: "8px 10px" }}>
+              <div style={{ fontSize: 10, color: "#6B7094", marginBottom: 2 }}>{r.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0", fontVariantNumeric: "tabular-nums" }}>
+                {r.value}{r.note ? <span style={{ fontSize: 10, color: "#8896BE", fontWeight: 400 }}> · {r.note}</span> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 /** A future's listed contracts, tastytrade's own (Contract view, 2026-10-01). */
 function FuturesContracts({ symbol }: { readonly symbol: string }) {
@@ -63,7 +116,7 @@ export function MarketMetricsCard({ symbol }: { readonly symbol: string }) {
     return () => { alive = false; };
   }, [q]);
 
-  if (!q) return null;
+  if (!q) return classifySymbol(symbol) === "CRYPTO" ? <CryptoMarketInfo symbol={symbol} /> : null;
   return (
     <section data-testid="market-metrics-card" aria-label={`${symbol} market metrics`}
       style={{ background: "#141824", border: "1px solid #1E2030", borderRadius: 8, padding: 16, marginBottom: 16 }}>
