@@ -8,6 +8,8 @@ describe("an empty chart on a bare futures root points at the contract", () => {
     expect(futuresFormHint("es")).toBe("ES1!");
     expect(futuresFormHint("GC")).toBe("GC1!");
     expect(futuresFormHint("CL")).toBe("CL1!");
+    expect(futuresFormHint("XAUUSD")).toBe("GC1!");
+    expect(futuresFormHint("XAG/USD")).toBe("SI1!");
   });
   it("never guesses for stocks, indices, crypto, or a symbol already in futures form", () => {
     expect(futuresFormHint("AAPL")).toBeNull();

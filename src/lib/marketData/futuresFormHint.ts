@@ -12,11 +12,17 @@
  */
 import { CURATED_SYMBOLS } from "@/lib/marketData/curatedSymbolCatalog";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { spotMetalFutures } from "@/lib/yahooSymbol";
 
 const CONTINUOUS = new Set(CURATED_SYMBOLS.map(s => s.sym).filter(s => /^[A-Z0-9]{1,4}1!$/.test(s)));
 
 export function futuresFormHint(chartSymbol: string): string | null {
   const sym = chartSymbol.trim().toUpperCase();
+  // Spot metals have no connected source; their refusal already names the
+  // future in words (yahooSymbol.ts) — the door makes it one click. A door,
+  // never a substitute: the future opens under its own name.
+  const metal = spotMetalFutures(sym);
+  if (metal) return metal.futures;
   if (!/^[A-Z0-9]{1,4}$/.test(sym)) return null;
   if (classifySymbol(sym) === "FUTURES") return null;
   const cont = `${sym}1!`;
