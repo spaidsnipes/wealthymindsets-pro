@@ -26,3 +26,17 @@ START `16fab112` (serving at 17:32 CDT).
 | Rooms | 🟢 Journal (broker fills), Backtest, Research Heat; 🟡 Scanner/News polish |
 | Crypto session split | ⚪ FOUNDER | Composite / Profile Memory / Value Migration silent on crypto (sessionsByGap); Session VP uses ET day; Expected Envelope passes no crypto clock |
 | Execution live send | ⚪ | Live order code blocked by classifier — Founder permission rule (memory 2026-10-01) |
+
+## Cross-market run (19:45 → 20:40 CDT, live data) — every sense ON, MID camera, clean proof scene
+
+| Market (class) | Draws | Honest refusals | Fixed this run |
+|---|---|---|---|
+| TSLA, AAPL, NVDA (equity) | 18/19 incl. Absorption zones (AAPL 4, NVDA 1), Effort ORDINARY, Brick Walls, Derivatives Pressure (Cboe) | sided-tape senses after hours ("waiting for sided prints") | `e6276ee` absorption robust line; `61bf0aa` effort subject; `1c220c4` header never stale beside newer bar |
+| SPY (ETF) | all bar/volume senses | as equity | `d811f04` scanner LIVE rows |
+| NQ, ES, GC, CL (futures, tastytrade live) | 20+ incl. Value Candle, Flow Current LIVE, Delta Divergence (ES) | Derivatives Pressure / Brick Walls UNSUPPORTED (no futures-option OI source wired — ⚪ OPEN) | `1375f16` held wall never crushes candles (NDX) |
+| NDX (index) | all bar senses | — | wall-camera squash fixed |
+| EURUSD, GBPJPY (spot FX) | Clarity, TPO, Memory Ghost, Expected Envelope, Structure, Visible Range | volume senses: "no central volume" | `9eff8b6` silence lines fold (max 3 + summary) |
+| BTC, ETH (crypto) | all; Big Trades bubbles + cluster callout, Value Candle per bar (`15f73d6` GLASS_PER_BAR:81) | Composite / Profile Memory on crypto ⚪ (session split decision) | — |
+
+Faintness pass (each sense alone, ES/BTC): Memory Ghost `46a9540` (filled silver-blue, 0.55 floor), Market Structure `5486bde` (swing path), Composite `3b90044` (strata floor), Profile Memory `e39a80b`, Flow Current switch `0f4f6a8`/`b8903cf`.
+Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6–3.4 ms, 0 long tasks, heap flat.
