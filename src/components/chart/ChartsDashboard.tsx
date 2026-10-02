@@ -5546,7 +5546,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               symbol={symbol}
               assetClass={assetClass}
               activeTab={activeTab}
-              onTab={(tab) => setActiveTab(tab)}
+              // A tab that REPLACES the chart (Contract, Market Info,
+              // Financials) closes the chain sidecar that rides over the chart;
+              // Overview keeps it (2026-10-01: the chain covered Market Info).
+              onTab={(tab) => { setActiveTab(tab); if (tab !== "Chart") setFuturesOptionsOpen(false); }}
               onRoom={(href) => window.location.assign(href)}
               onIndicators={() => {
                 if (activeTab !== "Chart" && activeTab !== "Options") setActiveTab("Chart");
