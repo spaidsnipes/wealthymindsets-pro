@@ -23408,8 +23408,12 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           alignItems: "safe center",
           zIndex: 20, pointerEvents: "none", background: "transparent",
         }}
-        className="flex items-center gap-4 px-3"
+        className="flex items-center gap-4 px-3 max-sm:overflow-hidden"
       >
+        {/* PHONE (serving TSLA at 390px, 2026-10-01 21:45 CDT): the price
+            group wrapped to four lines inside this 28px band and printed over
+            the day-bias row beneath it. Below 640 the band is one line and
+            clips at its edge; the price group never wraps at any width. */}
         {/* ── THE PANE SAYS WHAT IT IS ────────────────────────────────────
             LOOKED AT, NOT INFERRED. 2026-09-21, canon frame F24 beside a
             1440x900 shot of this room. F24's legend opens with
@@ -23469,7 +23473,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             the lowest-priority group, line-clamped with its full sentence in
             its title and spoken label — is the one that folds. Below 1280 the
             groups cannot all fit whole, and wrapping stays the lawful answer. */}
-        <div className="flex items-baseline gap-2 xl:shrink-0 xl:whitespace-nowrap" data-legend-group="price">
+        <div className="flex items-baseline gap-2 shrink-0 whitespace-nowrap" data-legend-group="price">
           {(() => {
             /* The headline price has THREE possible answers and used to render
                only one. Measured 2026-09-07 on /charts?symbol=NQ1!: this span

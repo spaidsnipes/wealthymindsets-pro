@@ -249,7 +249,7 @@ describe("the market field has ONE material owner", () => {
     // exactly once in MainChart, so this reads the legend or nothing.
     const src = CODE(MAIN_CHART);
     const strip = src.match(
-      /style=\{\{([\s\S]{0,400}?)\}\}\s*className="flex items-center gap-4 px-3"/,
+      /style=\{\{([\s\S]{0,400}?)\}\}\s*className="flex items-center gap-4 px-3(?: max-sm:overflow-hidden)?"/,
     );
     expect(
       strip,

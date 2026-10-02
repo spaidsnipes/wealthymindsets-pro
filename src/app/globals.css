@@ -1278,6 +1278,18 @@ input[type=range]::-webkit-slider-runnable-track {
    right edge. Their full receipts and disclosure behavior remain unchanged;
    only the persistent card chrome is retired. Phones keep the existing
    two-row arrangement so neither control can cover the other. */
+/* PHONE + TABLET (serving TSLA at 390px, 2026-10-01): at top 8 / right 8 the
+   retained-evidence chip printed over the price legend. Below 1024 it sits in
+   the free gap of the EFFORT · INSPECT row (64–88px), centred. */
+@media (max-width: 1023px) {
+  .wm-nectar-vault-chip {
+    top: 64px !important;
+    right: auto !important;
+    left: 50% !important;
+    transform: translateX(-50%);
+  }
+}
+
 @media (min-width: 1024px) {
   /* The two optional bar readers remain one press from the candle they inspect,
      but on a desktop they are chart-edge labels, not two more floating cards.
