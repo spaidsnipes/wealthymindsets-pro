@@ -20,6 +20,8 @@ import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { LedgerPersonalEdge } from "@/components/journal/LedgerPersonalEdge";
 import { TradeReplay } from "@/components/journal/TradeReplay";
 import { comparablesFor, episodeConditions, type EpisodeConditions } from "@/lib/broker/ledgerEdge";
+import { BehaviourTagsRow } from "@/components/journal/BehaviourTagsRow";
+import { behaviourTags, type BehaviourTag } from "@/lib/journal/behaviorTags";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -96,7 +98,7 @@ function BucketTable({ title, rows, keyLabel }: { title: string; rows: LedgerSum
   );
 }
 
-function EpisodeRow({ e, all, conds }: { e: Episode; all: readonly Episode[]; conds: Map<string, EpisodeConditions> }) {
+function EpisodeRow({ e, all, conds, tags }: { e: Episode; all: readonly Episode[]; conds: Map<string, EpisodeConditions>; tags: readonly BehaviourTag[] }) {
   const [open, setOpen] = useState(false);
   return (
     <div data-testid="ledger-episode" data-label={e.label} style={{ borderTop: `1px solid ${LINE}`, padding: "6px 0" }}>
@@ -126,6 +128,7 @@ function EpisodeRow({ e, all, conds }: { e: Episode; all: readonly Episode[]; co
               <span style={{ opacity: 0.6 }}>Webull order {f.orderId}</span>
             </div>
           ))}
+          <BehaviourTagsRow episodeId={e.id} tags={tags} />
           {(() => {
             // §82: comparable episodes — same entry window, attempt number, DTE and call/put. Counts derived, never faked.
             const c = comparablesFor(e.id, all, conds);
@@ -224,6 +227,7 @@ export function WebullLifetimeLedger() {
     return filter === "ALL" ? all : all.filter(e => e.symbol === filter || e.label === filter);
   }, [data, filter]);
   const conds = useMemo(() => episodeConditions(data?.episodes ?? []), [data]);
+  const tagMap = useMemo(() => behaviourTags(data?.episodes ?? []), [data]);
   const s = data?.summary;
   const symbols = useMemo(() => [...new Set((data?.episodes ?? []).map(e => e.symbol))].sort(), [data]);
 
@@ -299,7 +303,7 @@ export function WebullLifetimeLedger() {
             <div style={{ display: "grid", gridTemplateColumns: "minmax(150px,1.4fr) minmax(170px,1.6fr) 70px 70px 90px 90px", gap: 8, fontSize: 10, color: MUTED, letterSpacing: 0.8 }}>
               <span>OPENED</span><span>INSTRUMENT</span><span style={{ textAlign: "right" }}>AVG IN</span><span style={{ textAlign: "right" }}>AVG OUT</span><span style={{ textAlign: "right" }}>HELD</span><span style={{ textAlign: "right" }}>NET</span>
             </div>
-            {episodes.slice(0, shown).map(e => <EpisodeRow key={e.id} e={e} all={data.episodes ?? []} conds={conds} />)}
+            {episodes.slice(0, shown).map(e => <EpisodeRow key={e.id} e={e} all={data.episodes ?? []} conds={conds} tags={tagMap.get(e.id) ?? []} />)}
             {episodes.length > shown ? <button type="button" onClick={() => setShown(n => n + 100)} style={{ marginTop: 6, fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>Show more ({episodes.length - shown} left)</button> : null}
           </div>
         </>
