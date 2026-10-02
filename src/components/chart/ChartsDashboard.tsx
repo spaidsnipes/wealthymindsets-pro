@@ -3510,6 +3510,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // name, and see every reading that is on the chart right now.
   const toolFinderNode = (
     <ToolFinder
+      symbol={symbol}
       barsPresent={chartBars.length > 0}
       printsPresent={chartOrderFlowReadings.printsPresent}
       observedAggressorFlow={chartFlowSnap.hasFlow}

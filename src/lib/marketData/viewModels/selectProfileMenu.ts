@@ -37,6 +37,9 @@
  * Nothing here selects anything or touches React. It maps facts to a list.
  */
 
+import { fxFuturesDoor } from "@/lib/chart/fxFuturesDoor";
+import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+
 export const PROFILE_MENU_VERSION = 1;
 
 /** Each id is one real invention with one real owner module. */
@@ -229,6 +232,12 @@ export interface ProfileMenuInput {
   readonly observedAggressorFlow: boolean;
   /** Which profiles the trader currently has switched on. */
   readonly active: Readonly<Partial<Record<ProfileId, boolean>>>;
+  /**
+   * The chart's symbol, so a NEEDS_SIDED_TAPE note can say what is true for
+   * THIS market (2026-10-02): spot FX has no exchange tape at all (its CME
+   * future does); a stock's sides are inferred once its prints flow.
+   */
+  readonly symbol?: string;
   /** Only these families' rows (one door each). Omitted → the whole catalogue. */
   readonly families?: readonly ProfileFamily[];
   /** Only these rows, in catalogue order (a door that installs a named few, e.g. the W's Structure wing). */
@@ -843,8 +852,13 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
         "no per-trade prints have reached this chart yet — aggressor side is not required";
     } else if (NEEDS_SIDED_TAPE.has(spec.id) && !input.observedAggressorFlow) {
       availability = "NEEDS_SIDED_TAPE";
-      availabilityNote =
-        "this tape has not stated an aggressor side — the split cannot be drawn from volume alone";
+      const door = input.symbol ? fxFuturesDoor(input.symbol) : null;
+      const cls = input.symbol ? classifySymbol(input.symbol) : null;
+      availabilityNote = door
+        ? `spot FX has no exchange tape — ${door.futures} (${door.note}) streams one with sides`
+        : cls === "EQUITY"
+          ? "no stock prints have reached this chart yet — sides are inferred (quote test, tick rule) once they flow"
+          : "this tape has not stated an aggressor side — the split cannot be drawn from volume alone";
     } else if (input.speciesRefusal?.[spec.id]) {
       availability = "REFUSED_BY_DATA";
       availabilityNote = input.speciesRefusal[spec.id]!;

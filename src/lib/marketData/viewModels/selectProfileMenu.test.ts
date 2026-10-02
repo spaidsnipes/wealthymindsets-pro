@@ -550,3 +550,13 @@ describe("a species whose own selector refused is not READY", () => {
     expect(profileSpeciesRefusals({ session: { reason: "NO_BUCKETS" } })).toEqual({});
   });
 });
+
+describe("the 'needs sided tape' note says what is true for this market (2026-10-02)", () => {
+  const base = { barsPresent: true, printsPresent: true, observedAggressorFlow: false, active: {} } as const;
+  const note = (symbol?: string) => selectProfileMenu({ ...base, symbol }).entries.find(e => e.id === "IMBALANCE_STACK")?.availabilityNote ?? "";
+  it("spot FX points at its CME future; a stock says sides are inferred once prints flow", () => {
+    expect(note("EURUSD")).toMatch(/spot FX has no exchange tape — 6E1!/);
+    expect(note("TSLA")).toMatch(/inferred \(quote test, tick rule\)/);
+    expect(note()).toMatch(/has not stated an aggressor side/);
+  });
+});

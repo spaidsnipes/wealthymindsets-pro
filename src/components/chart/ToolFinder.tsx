@@ -35,8 +35,9 @@ const ROLE_STYLE: Readonly<Record<VisualRole, React.CSSProperties>> = {
   LATENT: { border: "1px dashed rgba(139,143,168,0.5)", color: MUTED, opacity: 0.8 },
 };
 
-export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal, instruments = [] }: {
+export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal, instruments = [], symbol }: {
   instruments?: readonly FinderInstrument[];
+  symbol?: string;
   barsPresent: boolean;
   printsPresent: boolean;
   observedAggressorFlow: boolean;
@@ -46,7 +47,7 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
 }) {
   const [q, setQ] = useState("");
   const [browse, setBrowse] = useState(false);
-  const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, speciesRefusal });
+  const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, speciesRefusal, symbol });
   const hits = useMemo(() => searchTools(vm.entries, q, id => PROFILE_FAMILY[id]), [vm.entries, q]);
   const on = vm.entries.filter(e => e.active);
   const instHits = useMemo(() => searchToolRows(instruments, q), [instruments, q]);
