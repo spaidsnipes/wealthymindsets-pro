@@ -149,7 +149,19 @@ export function WebullLifetimeLedger() {
     let alive = true;
     setLoading(true);
     (async () => {
-      const get = async <T,>(q: string): Promise<T> => (await fetch(`/api/broker/webull/ledger${q}`, { cache: "no-store" })).json() as Promise<T>;
+      const once = async <T,>(q: string): Promise<T> => (await fetch(`/api/broker/webull/ledger${q}`, { cache: "no-store" })).json() as Promise<T>;
+      // Webull's rate limit is shared by every read: a step refused for TOO_MANY is waited out and asked again.
+      const get = async <T extends { state: string; reason?: string; stoppedBecause?: string },>(q: string): Promise<T> => {
+        let r = await once<T>(q);
+        for (const wait of [15_000, 30_000, 45_000]) {
+          const limited = /TOO_MANY|429/i.test(`${r.state} ${r.reason ?? ""}`);
+          if (!limited) break;
+          if (alive) setProgress(`Webull asked us to slow down — waiting ${wait / 1000}s…`);
+          await new Promise(res => setTimeout(res, wait));
+          r = await once<T>(q);
+        }
+        return r;
+      };
       const list = await get<{ state: string; reason?: string; accounts?: { index: number; tail: string; accountType: string | null }[] }>("");
       if (list.state !== "OK" || !list.accounts) { if (alive) setData({ state: list.state, reason: list.reason }); return; }
       const all: LedgerOrder[] = [];
