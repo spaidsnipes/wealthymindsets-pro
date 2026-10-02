@@ -6916,7 +6916,9 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
     // never asks the fundamentals provider (2026-10-01: BTC Market Info read
     // "FUNDAMENTALS PROVIDER — NOT CONFIGURED" about a question it never had).
     const ac = canonicalAssetClass(symbol);
-    if (!map || (ac !== "equity" && ac !== "etf")) { setLoading(false); setHasData(false); setProviderEdge(null); return; }
+    // A cash index (SPX, VIX) is computed, not a company (serving SPX
+    // Financials 2026-10-02: "financials for SPX cannot be loaded").
+    if (!map || (ac !== "equity" && ac !== "etf") || classifySymbol(symbol) === "INDEX") { setLoading(false); setHasData(false); setProviderEdge(null); return; }
     setLoading(true); setHasData(false); setD({}); setProviderEdge(null);
     let capturedEdge: { edge: string; missing: readonly string[] } | null = null;
     const keys = Object.keys(map);
@@ -7124,6 +7126,11 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
             Company fundamentals are not connected yet. Market metrics above are live from tastytrade.
           </div>
         </div>
+      ) : classifySymbol(symbol) === "INDEX" ? (
+        <p data-testid="fundamentals-index-note" style={{ fontSize:12, color:"#8896BE", lineHeight:1.6, margin:0, maxWidth:560 }}>
+          {base} is a cash index — computed from its members, not a company — so it has no
+          income, ratios or shareholders.{tab === "Profile" || tab === "Valuation" || tab === "Financials" ? " Its market metrics above are its reading." : ""}
+        </p>
       ) : tab === "Profile" && ["crypto", "forex", "futures"].includes(canonicalAssetClass(symbol)) ? (
         // Market Info / Contract for a coin, pair or future: its own card
         // above says what this market IS; "switch to an equity" would not.

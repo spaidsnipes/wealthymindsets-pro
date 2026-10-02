@@ -25,6 +25,6 @@ describe("tastytrade market metrics on Market Info (2026-10-01)", () => {
     const d = readFileSync("src/components/chart/ChartsDashboard.tsx", "utf8");
     expect(d).toContain('{tab === "Profile" || tab === "Valuation" || tab === "Financials" ? <MarketMetricsCard symbol={symbol} /> : null}');
     expect(d).not.toContain("Set it in Cloudflare Worker environment variables");
-    expect(d).toContain('if (!map || (ac !== "equity" && ac !== "etf"))');
+    expect(d).toContain('if (!map || (ac !== "equity" && ac !== "etf") || classifySymbol(symbol) === "INDEX")');
   });
 });
