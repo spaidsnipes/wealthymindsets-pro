@@ -55,11 +55,17 @@ export default function BarHistoryRefusalNote({
       data-bhr-asked={vm.askedCount}
       data-bhr-attempts={vm.attemptCount}
       style={{
+        // Centred between 16px gutters, not from left:50% — that capped the
+        // note at HALF the pane (phone 390: a 193px column, 514px tall).
         position: "absolute",
-        left: "50%",
+        left: 16,
+        right: 16,
+        marginLeft: "auto",
+        marginRight: "auto",
         top: "50%",
-        transform: "translate(-50%, -50%)",
+        transform: "translateY(-50%)",
         maxWidth: 520,
+        width: "fit-content",
         padding: "18px 22px",
         borderRadius: 10,
         border: "1px solid rgba(240,180,41,0.35)",
