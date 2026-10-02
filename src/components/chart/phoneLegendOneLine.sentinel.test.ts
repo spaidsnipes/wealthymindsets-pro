@@ -12,4 +12,10 @@ describe("phone chart header never overprints itself (serving TSLA at 390px, 202
   it("the evidence chip leaves the legend row below 1024", () => {
     expect(CSS).toMatch(/@media \(max-width: 1023px\)\s*\{\s*\.wm-nectar-vault-chip\s*\{[\s\S]*?top: 64px !important;/);
   });
+  it("on a phone the chip keeps count + noun and sits right of EFFORT", () => {
+    expect(CSS).toMatch(/@media \(max-width: 639px\)\s*\{\s*\.wm-nectar-vault-chip__label \{ display: none; \}/);
+    expect(CSS).toMatch(/@media \(max-width: 639px\)\s*\{\s*\.wm-nectar-vault-chip\s*\{\s*left: 92px !important;/);
+    const chip = readFileSync("src/components/chart/NectarVaultChip.tsx", "utf8");
+    expect(chip).toContain('{symbols.length === 1 ? "symbol" : "symbols"}');
+  });
 });

@@ -1285,6 +1285,13 @@ input[type=range]::-webkit-slider-runnable-track {
 @media (max-width: 639px) {
   .wm-desk-new-window { display: none !important; }
 }
+/* Phone chart: the evidence chip keeps its count AND noun ("● 12 symbols")
+   and drops only the "Evidence saved" words, seated right of EFFORT so it
+   never covers INSPECT (serving NQ1! at 390px, 2026-10-01). Desktop and
+   tablet keep the full sentence. */
+@media (max-width: 639px) {
+  .wm-nectar-vault-chip__label { display: none; }
+}
 
 /* PHONE + TABLET (serving TSLA at 390px, 2026-10-01): at top 8 / right 8 the
    retained-evidence chip printed over the price legend. Below 1024 it sits in
@@ -1295,6 +1302,12 @@ input[type=range]::-webkit-slider-runnable-track {
     right: auto !important;
     left: 50% !important;
     transform: translateX(-50%);
+  }
+}
+@media (max-width: 639px) {
+  .wm-nectar-vault-chip {
+    left: 92px !important;
+    transform: none;
   }
 }
 

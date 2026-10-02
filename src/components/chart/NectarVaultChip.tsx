@@ -110,7 +110,7 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
           the qualifier travels WITH the reading. Different nouns cannot be
           mistaken for one another; bare integers can.
         */}
-        <span>Evidence saved</span>
+        <span className="wm-nectar-vault-chip__label">Evidence saved</span>
         <span style={{ color: "#62697d" }}>
           · {symbols.length} {symbols.length === 1 ? "symbol" : "symbols"}
         </span>
