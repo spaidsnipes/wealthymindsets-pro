@@ -43,6 +43,7 @@ import {
 } from "@/lib/marketData/compileBarHistoryRefusal";
 import BarHistoryRefusalNote from "@/components/chart/BarHistoryRefusalNote";
 import { futuresFormHint } from "@/lib/marketData/futuresFormHint";
+import { fxFuturesDoor } from "@/lib/chart/fxFuturesDoor";
 import { TimeframeGlassChip, TIMEFRAME_FOOTER_H, TIMEFRAME_CHIP_BOTTOM_PX } from "@/components/chart/TimeframeGlassChip";
 import { chartVolumeFooterFact } from "@/lib/chart/chartVolumeFooterFact";
 import clsx from "clsx";
@@ -23335,6 +23336,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           dataWindowBarScope(last.time as number, timeframe, true, nowMs).volume.title,
           volumeTruth,
         );
+        const fxDoor = fact.state !== "OBSERVED" ? fxFuturesDoor(symbol) : null;
         return (
           <div
             className={clsx(
@@ -23361,6 +23363,24 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             }}
           >
             {fact.text}
+            {fxDoor ? (
+              <button
+                type="button"
+                data-testid="fx-futures-door"
+                title={`Spot FX has no central volume. ${fxDoor.futures} is the ${fxDoor.note} — a different market, streamed live with traded volume.`}
+                onClick={() => {
+                  try {
+                    const u = new URL(window.location.href);
+                    u.searchParams.set("symbol", fxDoor.futures);
+                    window.location.assign(u.toString());
+                  } catch { /* no window */ }
+                }}
+                style={{ marginLeft: 8, pointerEvents: "auto", background: "transparent", border: "1px solid rgba(201,165,92,.45)",
+                  color: "#C9A55C", borderRadius: 4, padding: "1px 6px", cursor: "pointer", font: "inherit" }}
+              >
+                live volume: {fxDoor.futures} →
+              </button>
+            ) : null}
           </div>
         );
       })()}
