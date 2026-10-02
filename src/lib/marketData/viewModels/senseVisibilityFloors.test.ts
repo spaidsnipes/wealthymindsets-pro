@@ -17,4 +17,11 @@ describe("senses stay visible while the room waits", () => {
     expect(DIMMED_ALPHA).toBeGreaterThanOrEqual(0.45);
     expect(DIMMED_ALPHA).toBeLessThan(HANDOVER_ALPHA);
   });
+  it("Value Migration's steps are floored and its value edges inked", async () => {
+    const { readFileSync } = await import("node:fs");
+    const chart = readFileSync("src/components/chart/MainChart.tsx", "utf8");
+    expect(chart).toContain("const VALUE_MIGRATION_ALPHA_FLOOR = 0.7;");
+    expect(chart).toContain('ctx.globalAlpha = Math.max(VALUE_MIGRATION_ALPHA_FLOOR, att.alpha("valueMigration"));');
+    expect(chart).toContain('stepLine("vah", pk.rgba("EDGE_HIGH", 0.72), 1.25, [3, 3]);');
+  });
 });

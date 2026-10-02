@@ -160,6 +160,8 @@ const DELTA_LEVELS_ALPHA_FLOOR = 0.8;
 const DIVERGENCE_ALPHA_FLOOR = 0.8;
 /** Imbalance Stack band, edges and slabs never paint below this. */
 const STACK_ALPHA_FLOOR = 0.8;
+/** Value Migration steps never paint below this (memory tier, still a reading). */
+const VALUE_MIGRATION_ALPHA_FLOOR = 0.7;
 /** The share of the camera's span the candles keep when a wall joins it (§XIV). */
 const WALL_CAMERA_CANDLE_SHARE = 0.45;
 
@@ -18987,7 +18989,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
           const on = layerOnRef.current.valueMigration && att.paints("valueMigration");
           ds.valueMigration = on ? (vm ? vm.reason : "NO_READING") : att.offWord(layerOnRef.current.valueMigration);
           if (on && vm?.drawn) {
-            ctx.save(); ctx.globalAlpha = att.alpha("valueMigration");
+            // VISIBILITY FLOOR (serving ES1! 15m, 2026-10-01 22:18 CDT): MEMORY
+            // tier under WAIT (0.44) × 0.38 edge ink read as nothing at all.
+            ctx.save(); ctx.globalAlpha = Math.max(VALUE_MIGRATION_ALPHA_FLOOR, att.alpha("valueMigration"));
             const ts = chart.timeScale();
             const stepLine = (key: "poc" | "vah" | "val", ink: string, width: number, dash: number[]) => {
               ctx.strokeStyle = ink;
@@ -19019,8 +19023,8 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
             };
             // The steps run across the candles they developed with: behind them.
             ctx.save(); clipProfileToCandles("VALUE_MIGRATION");
-            stepLine("vah", pk.rgba("EDGE_HIGH", 0.38), 1, [2, 3]);
-            stepLine("val", pk.rgba("EDGE_LOW", 0.38), 1, [2, 3]);
+            stepLine("vah", pk.rgba("EDGE_HIGH", 0.72), 1.25, [3, 3]);
+            stepLine("val", pk.rgba("EDGE_LOW", 0.72), 1.25, [3, 3]);
             const drawn = stepLine("poc", pk.rgba("POC", 0.85), 1.5, []);
             ctx.restore(); // releases the steps' candle cut-out
 
