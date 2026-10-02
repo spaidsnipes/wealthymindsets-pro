@@ -12,4 +12,9 @@ describe("a chain opens on an expiry that still trades (2026-10-01)", () => {
     expect(firstLiveExpiration([{ e: "a", stopsTradingAt: "2026-10-01T20:00:00Z" }], now)?.e).toBe("a");
     expect(firstLiveExpiration([], now)).toBeNull();
   });
+  it("an equity chain (no instant) uses the date's close", () => {
+    const ex = [{ e: "a", expiration: "2026-10-01", stopsTradingAt: null }, { e: "b", expiration: "2026-10-02", stopsTradingAt: null }];
+    expect(firstLiveExpiration(ex, now)?.e).toBe("b");
+    expect(firstLiveExpiration(ex, Date.parse("2026-10-01T19:00:00Z"))?.e).toBe("a");
+  });
 });

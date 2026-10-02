@@ -39,8 +39,16 @@ export interface FuturesOptionChain { readonly futures: readonly FutureContract[
  * hour after it stopped — IVx 119.5% over dead quotes). Its own
  * `stopsTradingAt` decides; unknown is treated as still trading. PURE.
  */
-export function firstLiveExpiration<T extends { readonly stopsTradingAt: string | null }>(expirations: readonly T[], nowMs: number): T | null {
-  const live = expirations.find(e => { const t = e.stopsTradingAt ? Date.parse(e.stopsTradingAt) : NaN; return !Number.isFinite(t) || t > nowMs; });
+export function firstLiveExpiration<T extends { readonly stopsTradingAt: string | null; readonly expiration?: string }>(expirations: readonly T[], nowMs: number): T | null {
+  // Equity chains carry no instant (serving SPY 2026-10-02 00:38 CDT opened on
+  // the expired Oct 1): the date's US close stands in — 21:00Z, the later of
+  // 16:00 EDT/EST, so a still-trading expiry is never skipped.
+  const endOf = (e: T) => {
+    const t = e.stopsTradingAt ? Date.parse(e.stopsTradingAt) : NaN;
+    if (Number.isFinite(t)) return t;
+    return e.expiration ? Date.parse(`${e.expiration}T21:00:00Z`) : NaN;
+  };
+  const live = expirations.find(e => { const t = endOf(e); return !Number.isFinite(t) || t > nowMs; });
   return live ?? expirations[0] ?? null;
 }
 
