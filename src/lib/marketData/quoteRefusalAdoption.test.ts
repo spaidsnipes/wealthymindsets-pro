@@ -316,8 +316,8 @@ describe("chart quote — a refused price is retracted, not relabelled", () => {
     // while the replay camera walks history, because a live quote over a
     // replayed candle is the Companion Camera Law's forbidden confusion. Only
     // comment lines may sit between the call and that arm.
-    expect(compileSite, "the live arm must be the quote this header received (withheld only while replaying)")
-      .toMatch(/chartHeaderPriceFact\(\s*(?:\/\/[^\n]*\n\s*)*replayCameraOn \? null : ticker\.price,/);
+    expect(compileSite, "the live arm must be the quote this header received (withheld while replaying, or when the live lane has gone quiet — 2026-10-01)")
+      .toMatch(/chartHeaderPriceFact\(\s*(?:\/\/[^\n]*\n\s*)*replayCameraOn \|\| !headerLiveFresh \? null : ticker\.price,/);
     expect(compileSite, "the fallback arm must be a PROVABLY closed bar, not a running value")
       .toMatch(/deriveLastBarClose\(candles,/);
 

@@ -151,6 +151,8 @@ const LIQUIDITY_SWEEP_LOOKBACK = 4;
 const CROSSHAIR_LINE_STYLE = { solid: 0, dotted: 1, dashed: 2 } as const;
 /** How far from the last close a pressure wall may pull the price camera to hold it (share of price). */
 const WALL_CAMERA_REACH = 0.04;
+/** How long a live quote may go unrefreshed before the header speaks the bar close. */
+const HEADER_LIVE_FRESH_MS = 120_000;
 /** The share of the camera's span the candles keep when a wall joins it (§XIV). */
 const WALL_CAMERA_CANDLE_SHARE = 0.45;
 
@@ -21823,11 +21825,17 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
    * below has always rendered `29800.00` ungrouped, so the header now agrees
    * with the scale it sits on instead of with itself.
    */
+  // ONE TRUTH IN ONE ROW (cross-market run, TSLA 5m after the session,
+  // 2026-10-01: the header read 354.12 — a regular-session REST quote half an
+  // hour old — while the newest bar beside it closed 355.64). A live quote
+  // the lane has not refreshed for HEADER_LIVE_FRESH_MS yields to the bar
+  // close, which the compiler labels LAST BAR CLOSE.
+  const headerLiveFresh = lastObservedAtMs != null && Date.now() - lastObservedAtMs < HEADER_LIVE_FRESH_MS;
   const headerPriceFact = chartHeaderPriceFact(
     // BAR REPLAY: the live quote is withheld while the camera walks history, so
     // this cell speaks the replayed bar's close under the compiler's own
     // BAR CLOSE label instead of printing today's price over last week's bars.
-    replayCameraOn ? null : ticker.price,
+    replayCameraOn || !headerLiveFresh ? null : ticker.price,
     deriveLastBarClose(candles, servedTimeframeFor(timeframe, symbol), Date.now()),
     candleSource !== "",
     dp,
@@ -21854,7 +21862,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
   const headerChangeFact = chartHeaderChangeFact(
     // Today's session change is a live-quote fact too; replay reads bar-over-bar.
-    hasProviderChange && !replayCameraOn ? { chg: change, pct: ticker.changePct as number } : null,
+    hasProviderChange && !replayCameraOn && headerLiveFresh ? { chg: change, pct: ticker.changePct as number } : null,
     deriveBarOverBarChange(candles, servedTimeframeFor(timeframe, symbol), Date.now()),
     dp,
     // Same fact, same source, as the fidelity chip below: `candleSource` is ""

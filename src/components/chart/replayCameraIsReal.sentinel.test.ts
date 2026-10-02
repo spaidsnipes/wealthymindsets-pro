@@ -166,8 +166,8 @@ describe.runIf(REPLAY_DRIVES_THE_CAMERA)("THE GLASS — the window is painted, l
   });
 
   it("no live clock, live quote or live P&L is painted on the replayed glass", () => {
-    expect(MAIN, "headline price").toContain("replayCameraOn ? null : ticker.price,");
-    expect(MAIN, "headline change").toContain("hasProviderChange && !replayCameraOn ? { chg: change, pct: ticker.changePct as number } : null,");
+    expect(MAIN, "headline price").toContain("replayCameraOn || !headerLiveFresh ? null : ticker.price,");
+    expect(MAIN, "headline change").toContain("hasProviderChange && !replayCameraOn && headerLiveFresh ? { chg: change, pct: ticker.changePct as number } : null,");
     expect(MAIN, "on-canvas countdown").toContain("candleTimerRef.current = chartSettings?.candleTimer !== false && !replayCameraOn;");
     expect(MAIN, "countdown pill").toContain('chartSettings?.candleTimer === false || replayCameraOn || barCountdown.kind === "MARKET_CLOSED" ? "hidden" : ""');
     expect(MAIN, "paper-trade live P&L lines").toContain("if (!series || !paperTradesVisible || replayCameraOn) return;");
