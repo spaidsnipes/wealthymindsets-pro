@@ -40,14 +40,15 @@ describe("tastytrade futures prints", () => {
 
   it("a TimeAndSale print carries the EXCHANGE's aggressor side, bid and ask", () => {
     const c = { symbol: "/ESZ6", streamer: "/ESZ26:XCME" };
-    // Verbatim shape from the owner's live socket, 2026-10-01.
-    const [e] = decodeCompactFeedData(["TimeAndSale", ["TimeAndSale", "/ESZ26:XCME", 1790834578430, 1122904, 7766, 1, "BUY", 7765.75, 7766]]);
+    // Shape from the owner's live socket, 2026-10-01 (+ validTick, 2026-10-02).
+    const [e] = decodeCompactFeedData(["TimeAndSale", ["TimeAndSale", "/ESZ26:XCME", 1790834578430, 1122904, 7766, 1, "BUY", 7765.75, 7766, true]]);
     const ev = tastyTimeAndSaleToMarketEvent(e, "ES1!", c, 1790834578600, 0)!;
     expect(ev).toMatchObject({ price: 7766, size: 1, aggressorSide: "BUY", aggressorMethod: "PROVIDER", aggressorConfidence: 1, bid: 7765.75, ask: 7766, timestampProvider: 1790834578430, contractId: "/ESZ6" });
     // The exchange print's own identity — the same id whether heard live or from history.
     expect(ev.eventId).toBe("tastytrade:/ESZ26:XCME:1790834578430:1122904");
     expect(tastyTimeAndSaleToMarketEvent(e, "ES1!", c, 999_999_999_999_999, 42)!.eventId).toBe(ev.eventId);
-    const [u] = decodeCompactFeedData(["TimeAndSale", ["TimeAndSale", "/ESZ26:XCME", 1790834578430, 1122905, 7766, 2, "UNDEFINED", "NaN", "NaN"]]);
+    const [u] = decodeCompactFeedData(["TimeAndSale", ["TimeAndSale", "/ESZ26:XCME", 1790834578430, 1122905, 7766, 2, "UNDEFINED", "NaN", "NaN", true]]);
+    expect(e.values.validTick).toBe(1);
     const unsigned = tastyTimeAndSaleToMarketEvent(u, "ES1!", c, 1790834578600, 1)!;
     expect(unsigned).toMatchObject({ aggressorSide: "UNKNOWN", aggressorMethod: "NONE" });
     expect(unsigned.bid).toBeUndefined();

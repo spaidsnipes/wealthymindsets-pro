@@ -1692,6 +1692,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               // stamped as such, so every reading says "inferred"; a print no
               // rule can sign stays on the unsigned door (2026-10-01).
               if (contract.equity) {
+                // A print the feed itself marks invalid is price evidence at
+                // most — never signed by inference.
+                if (e.values.validTick === 0) { processUnsignedObservation(print, "tastytrade"); return; }
                 const inferred = inferEquityAggressor(print, lastEquityPrice);
                 lastEquityPrice = print.price ?? lastEquityPrice;
                 if (inferred.aggressorSide !== "BUY" && inferred.aggressorSide !== "SELL") {

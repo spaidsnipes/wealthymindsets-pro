@@ -29,7 +29,9 @@ export const CONTRACT_EVENT_FIELDS = {
   // Proven on the owner's live socket 2026-10-01: `/ESZ26:XCME` 7766 × 1 BUY at 7765.75 / 7766.
   // `sequence` makes (time, sequence) the print's identity, so a print heard
   // live and again in a history snapshot folds once.
-  TimeAndSale: ["eventType", "eventSymbol", "time", "sequence", "price", "size", "aggressorSide", "bidPrice", "askPrice"],
+  // validTick (2026-10-02): a print the feed marks invalid (late / out of
+  // sequence) is never signed by inference on the stock tape.
+  TimeAndSale: ["eventType", "eventSymbol", "time", "sequence", "price", "size", "aggressorSide", "bidPrice", "askPrice", "validTick"],
   // History bars by snapshot (see adapters/tastytradeCandles.ts for the receipts).
   Candle: ["eventType", "eventSymbol", "eventFlags", "time", "open", "high", "low", "close", "volume"],
 } as const;
@@ -70,6 +72,7 @@ export interface ContractEvent {
 }
 
 const toNum = (v: unknown): number | null => {
+  if (typeof v === "boolean") return v ? 1 : 0;
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
   return Number.isFinite(n) ? n : null;
 };
