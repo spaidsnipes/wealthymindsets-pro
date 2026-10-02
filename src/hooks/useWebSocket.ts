@@ -38,6 +38,7 @@ import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { subscribeTastyEvents } from "@/lib/broker/tastyQuoteStream";
 import { tastyLiveContractFor } from "@/lib/broker/tastyFrontMonth";
+import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent, tastyTradeToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { coinbaseProduct } from "@/lib/marketData/coinbaseProduct";
@@ -118,6 +119,26 @@ export function retainRecentTicks(
   limit: number = RECENT_TICK_RETENTION,
 ): Tick[] {
   return [...incoming, ...previous].slice(0, limit);
+}
+
+/**
+ * PURE. History seeds the ring BEHIND what was already heard live: the ring
+ * is newest-first, so older prints go after it, newest-first themselves, and
+ * a print already in the ring (same time · price · size · side) is not
+ * repeated. Bounded by the same retention ceiling.
+ */
+export function seedRecentTicks(
+  current: readonly Tick[],
+  history: readonly Tick[],
+  limit: number = RECENT_TICK_RETENTION,
+): Tick[] {
+  const key = (t: Tick) => `${t.time}|${t.price}|${t.size}|${t.side}`;
+  const seen = new Set(current.map(key));
+  const oldestLive = current.length ? Math.min(...current.map(t => t.time)) : Infinity;
+  const older = history
+    .filter(t => t.time <= oldestLive && !seen.has(key(t)))
+    .sort((a, b) => b.time - a.time);
+  return [...current, ...older].slice(0, limit);
 }
 
 /**
@@ -1691,6 +1712,32 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             tastyLiveAtRef.current = receivedAtMs;
             processUnsignedObservation(event, "tastytrade");
           }, undefined, true);
+          // SEED THE ORDER-FLOW RING (serving NQ1!/ES1! 1m, 2026-10-01 22:55
+          // CDT): Imbalance Stack, Delta Divergence and Delta Levels read
+          // `recentTicks`, which starts empty — a guest opening a futures chart
+          // waited minutes for a reading the exchange already had. tastytrade's
+          // own recent TimeAndSale (exchange aggressor side) fills the ring
+          // ONCE, older than every live print; day volume and bars are not
+          // touched (the candles already carry them).
+          if (!contract.equity) {
+            void fetchTastyTimeAndSales(contract.streamer, Date.now() - 15 * 60_000).then(hist => {
+              if (disposed || !hist) return;
+              const seeded: Tick[] = [];
+              const receivedAt = Date.now();
+              for (const e of hist.events) {
+                const ev = tastyTimeAndSaleToMarketEvent(e, symbol, contract, receivedAt, 0);
+                if (!ev || (ev.aggressorSide !== "BUY" && ev.aggressorSide !== "SELL") || ev.timestampProvider == null) continue;
+                seeded.push({ price: ev.price!, size: ev.size!, side: ev.aggressorSide === "BUY" ? "buy" : "sell", time: ev.timestampProvider, trade: true, marketEvent: ev });
+              }
+              if (seeded.length === 0) return;
+              if (tapeSourceRef.current == null) tapeSourceRef.current = "tastytrade";
+              setState(prev => ({
+                ...prev,
+                recentTicks: seedRecentTicks(prev.recentTicks, seeded),
+                tapeSource: prev.tapeSource ?? "tastytrade",
+              }));
+            }).catch(() => { /* live prints still fill the ring */ });
+          }
         })
         .catch(() => { /* the REST lane remains the honest fallback */ });
     }
