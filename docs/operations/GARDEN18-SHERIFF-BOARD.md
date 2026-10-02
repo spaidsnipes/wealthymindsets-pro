@@ -73,3 +73,4 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | After-hours clock | 🟢 | `62770c4` live lane reads TradeETH — SPY masthead asOf 19:59:46 ET (was 15:59:59) |
 | Desk evidence chips | 🟢 | `bcca482` desk screens 0 chips (were 4 identical over candles); /charts keeps it |
 | NOT_BUILT inventions | ⚪ FOUNDER PLATES | Order Flow Compression, Market Breathing, TED, §AB set: registry names/defines families (Breathing = ATR / realized vol / compression / expansion) but no plate exists in the canon folder — not built under LIVING-PIXEL LAW |
+| Stock order flow (Lee–Ready inferred) | 🟡 BUILT, not seen | `bc377f0` tastytrade equity prints get QUOTE_TEST / TICK_RULE sides (confidence < 1, disclosed INFERRED), tape source `tastytrade-equity` reviewed in the registry. Overnight 23:12 CDT: TSLA quote live (355.81/355.95) but 0 TimeAndSale prints — proof waits for premarket (04:00 ET) |
