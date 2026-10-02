@@ -58,3 +58,10 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | iPad /desk 4-up | 🟢 | `22efbae` weather loupe YIELDED_SMALL_PANE in quarters (was burying candles) |
 | Phone/iPad audit | 🟢 | 390px: /charts /scanner /news /journal /desk /command-deck /rooms 0 clipped; 834px: /charts /desk 0 clipped (ticker marquee by design) |
 | Visual roles PRIMARY | 🟢 | measured on ES1!: lead 1, others 0.72 |
+| Senses under WAIT | 🟢 | `bfb6a80` posture 0.72→0.88 (supporting 0.61→0.75), dimmed regime fixture 0.3→0.45 — ES1! channel/magnets/structure read |
+| Value Migration | 🟢 | `52f3d82` floor 0.7, value edges 0.72 @1.25px — POC staircase + dotted VAH/VAL visible ES1! 15m |
+| Envelope / MTF Ancestry / Contradiction | 🟢 | NQ1! 5m: fan IN_VIEW 67, 4H band + D PDH shelf, contradiction honest NOT_ENOUGH |
+| Brick Walls / TPO / Fusion / Session VP | 🟢 | ES1! 15m all DRAWN, wall "7750 · BROKEN ×3" |
+| Weather loupe / Lifecycle | 🟢 | BTC 5m loupe DRAWN, 2 pools APPEARED at live edge |
+| Crypto Derivatives tab | 🟢 | `7ec7fd8` BTC/ETH open Deribit view-only chain (13 expiries, ATM row, bid/ask/mark/IV/OI, "not tradeable in WM"); other coins disabled with reason |
+| Guest entry /login /signup /reset (390px) | 🟢 | audit-phone: 0 offenders, 0 evicted, 0 under-44px taps |
