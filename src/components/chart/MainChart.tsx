@@ -6195,12 +6195,27 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (host.hasPointerCapture(e.pointerId)) host.releasePointerCapture(e.pointerId);
       host.style.cursor = "";
     };
+    // TABLET: the chart pans from TOUCH events, which pointer handling does not
+    // stop. A finger inside the glass belongs to the glass (iPad landscape).
+    const touchGuard = (e: TouchEvent) => {
+      if (window.innerWidth < 1024 || drawingToolRef.current !== "cursor") return;
+      const hit = weatherLensHitRef.current;
+      const t = e.touches[0] ?? e.changedTouches[0];
+      if (!hit || !t) return;
+      const rect = host.getBoundingClientRect();
+      const x = t.clientX - rect.left, y = t.clientY - rect.top;
+      if (weatherGrabRef.current || pending || isInsideWeatherLens(x, y, hit) || isWeatherLensBezel(x, y, hit)) e.stopImmediatePropagation();
+    };
+    host.addEventListener("touchstart", touchGuard, { capture: true, passive: true });
+    host.addEventListener("touchmove", touchGuard, { capture: true, passive: true });
     host.addEventListener("pointerdown", down, true);
     window.addEventListener("pointermove", move, true);
     window.addEventListener("pointerup", up, true);
     window.addEventListener("pointercancel", up, true);
     host.addEventListener("lostpointercapture", up, true);
     return () => {
+      host.removeEventListener("touchstart", touchGuard, true);
+      host.removeEventListener("touchmove", touchGuard, true);
       host.removeEventListener("pointerdown", down, true);
       window.removeEventListener("pointermove", move, true);
       window.removeEventListener("pointerup", up, true);

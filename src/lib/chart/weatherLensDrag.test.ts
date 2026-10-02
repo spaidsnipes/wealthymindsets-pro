@@ -55,3 +55,11 @@ describe("the glass itself can be taken and moved anywhere along the candles (Fo
     expect(c).toContain("weatherGrabRef.current = { pointer: e.pointerId, dx: pending.dx, dy: pending.dy, rx: pending.rx, ry: pending.ry };");
   });
 });
+
+describe("a finger inside the glass belongs to the glass on a tablet", () => {
+  it("touches inside the lens never reach the chart's pan", () => {
+    const c = rf("src/components/chart/MainChart.tsx", "utf8");
+    expect(c).toContain('host.addEventListener("touchstart", touchGuard, { capture: true, passive: true });');
+    expect(c).toContain("if (weatherGrabRef.current || pending || isInsideWeatherLens(x, y, hit) || isWeatherLensBezel(x, y, hit)) e.stopImmediatePropagation();");
+  });
+});
