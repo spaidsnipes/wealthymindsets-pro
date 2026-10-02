@@ -1546,8 +1546,8 @@ interface Props {
   showFidelityChrome?: boolean;
   /**
    * The retained-evidence chip lists THIS BROWSER's saved summaries — the same
-   * list on every chart. A Desk shows it once in its own chrome, not once per
-   * screen (serving /desk 4-up, 2026-10-01: four identical chips over candles).
+   * list on every chart. Desk screens leave it off (serving /desk 4-up,
+   * 2026-10-01: four identical chips over candles); /charts keeps it.
    */
   showEvidenceVault?: boolean;
   /**
