@@ -19271,9 +19271,38 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               ctx.restore();
             }
 
+            // THE SWING PATH (faintness pass, ES 5m 2026-10-01: structure alone
+            // read as tiny grey letters — the structure itself was never drawn).
+            // A zig-zag through the swings in time order, behind the candles:
+            // gold where the swing rose, copper where it fell (never a market red/green).
+            if (marks.length >= 2) {
+              const seq = [...marks].sort((a, b) => a.x - b.x);
+              const vrP = tsS.getVisibleLogicalRange();
+              const cutP = new Path2D();
+              cutP.rect(0, 0, W, H);
+              for (const r of candleCutOutRects(barsRef.current ?? [], {
+                visible: vrP ? { from: +vrP.from, to: +vrP.to } : null,
+                barSpacing: bsp,
+                timeToX: t => { const xk = tsS.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+              }, seq[0].x - bsp, seq[seq.length - 1].x + bsp)) cutP.rect(r.x, r.y, r.w, r.h);
+              ctx.save();
+              ctx.clip(cutP, "evenodd");
+              ctx.lineWidth = 1.6;
+              ctx.lineJoin = "round";
+              for (let i = 1; i < seq.length; i++) {
+                const a = seq[i - 1], b = seq[i];
+                const rising = b.price >= a.price;
+                ctx.strokeStyle = rising ? "rgba(214,178,94,0.78)" : "rgba(176,128,104,0.8)";
+                ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+              }
+              ctx.restore();
+              ds.marketStructurePath = String(seq.length - 1);
+            } else delete ds.marketStructurePath;
+
             // THE SWINGS — a chevron pointing at each swing's price.
             for (const m of marks) {
-              const s = m.isLast ? 6 : 4.5;
+              const s = m.isLast ? 7 : 5.5;
               const dir = m.kind === "HIGH" ? -1 : 1;
               const tipY = m.y + dir * 3;
               ctx.beginPath();
@@ -19288,7 +19317,7 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
 
             // THE LETTERS — beyond the chevron, clear of every candle body on
             // their row; a letter that cannot sit by its own swing is dropped.
-            ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = "800 10px ui-sans-serif, system-ui, sans-serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             for (const m of marks) {
@@ -19302,7 +19331,9 @@ export function MainChart({ symbol, timeframe, setTimeframe, footprintType, foot
               if (spot.mode === "BLOCKED" || Math.abs(spot.rect.x - pref.x) > 10) continue;
               recordKeepOut(keepOutLedger, spot);
               floatingChips.push({ x: spot.rect.x, y: spot.rect.y, w: tw, h: th });
-              ctx.fillStyle = m.isLast ? INK : INK_SOFT;
+              // HH/HL read gold, LH/LL copper — direction at a glance (§XLVI).
+              const up = /^H[HL]$/.test(m.label) ? m.label === "HH" || m.label === "HL" : null;
+              ctx.fillStyle = up === true ? "rgba(232,198,104,1)" : up === false || m.label === "LH" || m.label === "LL" ? "rgba(206,150,122,1)" : (m.isLast ? INK : INK_SOFT);
               ctx.fillText(m.label, spot.rect.x + tw / 2, spot.rect.y + th / 2 + 0.5);
               lettered++;
             }
