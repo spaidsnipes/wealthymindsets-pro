@@ -33,6 +33,8 @@ export interface AccountWalk {
 }
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
+/** Rows at which a window is halved rather than trusted (see readWindow). */
+export const SPLIT_AT = 30;
 const rowsOf = (p: unknown): unknown[] => Array.isArray(p) ? p : Array.isArray((p as { data?: unknown })?.data) ? (p as { data: unknown[] }).data : [];
 
 class Stop extends Error { constructor(readonly why: AccountWalk["stoppedBecause"], readonly detail: string) { super(detail); } }
@@ -47,9 +49,9 @@ export async function walkWebullHistory(
 ): Promise<AccountWalk> {
   const floor = opts.floor ?? "2014-01-01";
   const quietNeeded = opts.quietYears ?? 2;
-  const budget = opts.pageBudget ?? 120;
+  const budget = opts.pageBudget ?? 400;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
-  const gap = opts.gapMs ?? 1_100;
+  const gap = opts.gapMs ?? 800;
   const backoff = opts.backoffMs ?? [2_000, 4_000, 8_000, 15_000];
   const orders: LedgerOrder[] = [];
   const seen = new Set<string>();
@@ -72,10 +74,24 @@ export async function walkWebullHistory(
     for (const o of readWebullHistory(payload, accountId)) if (!seen.has(o.orderId)) { seen.add(o.orderId); orders.push(o); added++; }
     return added;
   };
-  /** Every page of one window, paged by the last client order id. */
-  const readWindow = async (s: string, e: string, first?: unknown) => {
+  /**
+   * Every order of one window. A window that answers with SPLIT_AT or more
+   * rows is not trusted to be whole — Webull truncated 115- and 178-row
+   * answers, and its cursor did not recover the rest (cash 2026-01: the 01-12
+   * 14:33 buy came back only from a one-day window) — so it is halved and each
+   * half read again, down to one day. A one-day window is read with the cursor.
+   */
+  const readWindow = async (s: string, e: string): Promise<void> => {
     windows++;
-    let payload = first ?? await ask(s, e, null);
+    let payload = await ask(s, e, null);
+    const days = Math.round((Date.parse(e) - Date.parse(s)) / 86_400_000);
+    if (rowsOf(payload).length >= SPLIT_AT && days > 1) {
+      const mid = ymd(new Date(Date.parse(s) + Math.floor(days / 2) * 86_400_000));
+      await readWindow(mid, e);
+      await readWindow(s, mid);
+      take(payload);
+      return;
+    }
     let cursor: string | null = null;
     while (true) {
       const added = take(payload);

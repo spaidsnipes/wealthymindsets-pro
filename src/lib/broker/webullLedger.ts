@@ -140,6 +140,8 @@ export interface EpisodeFill {
   readonly fees: number;
   readonly orderType: string | null;
   readonly comboType: string | null;
+  /** True when Webull stated no fill time and the order's PLACEMENT time stands in (older 2025 orders). */
+  readonly atIsPlacement: boolean;
 }
 
 export interface Episode {
@@ -178,13 +180,15 @@ export function reconstructEpisodes(orders: readonly LedgerOrder[], nowMs: numbe
   const fills = dedupeOrders(orders).filter(o => o.status === "FILLED" || (o.filledQuantity > 0 && o.filledPrice != null));
   const byKey = new Map<string, LedgerOrder[]>();
   for (const o of fills) {
-    if (!(o.filledQuantity > 0) || o.filledPrice == null || !o.filledAt) continue;
+    // Older orders (cash 2025-01..05, 145 fills) carry no fill time; placement stands in, flagged.
+    if (!(o.filledQuantity > 0) || o.filledPrice == null || !(o.filledAt ?? o.placedAt)) continue;
     const k = `${o.accountId}|${o.instrumentKey}`;
     (byKey.get(k) ?? byKey.set(k, []).get(k)!).push(o);
   }
   const out: Episode[] = [];
   for (const list of byKey.values()) {
-    list.sort((a, b) => a.filledAt!.localeCompare(b.filledAt!));
+    const at = (o: LedgerOrder) => (o.filledAt ?? o.placedAt)!;
+    list.sort((a, b) => at(a).localeCompare(at(b)));
     let pos = 0;
     let cur: { first: LedgerOrder; entries: EpisodeFill[]; exits: EpisodeFill[]; max: number; dir: 1 | -1 } | null = null;
     const close = (closedAt: string | null) => {
@@ -203,12 +207,12 @@ export function reconstructEpisodes(orders: readonly LedgerOrder[], nowMs: numbe
         const c = cur!;
         const sameWay = Math.sign(pos) === signed || pos === 0;
         const take = sameWay ? qty : Math.min(qty, Math.abs(pos));
-        const fill: EpisodeFill = { orderId: o.orderId, side: o.side, quantity: take, price: o.filledPrice!, at: o.filledAt!, fees: cents(feePer * take), orderType: o.orderType, comboType: o.comboType };
+        const fill: EpisodeFill = { orderId: o.orderId, side: o.side, quantity: take, price: o.filledPrice!, at: at(o), fees: cents(feePer * take), orderType: o.orderType, comboType: o.comboType, atIsPlacement: !o.filledAt };
         if (sameWay) c.entries.push(fill); else c.exits.push(fill);
         pos += signed * take;
         c.max = Math.max(c.max, Math.abs(pos));
         qty -= take;
-        if (pos === 0) close(o.filledAt);
+        if (pos === 0) close(at(o));
       }
     }
     if (cur) close(null);

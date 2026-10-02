@@ -70,4 +70,12 @@ describe("Webull lifetime ledger — raw → episodes → outcome P&L", () => {
     expect(s).toMatchObject({ closed: 3, wins: 1, losses: 2, net: 1, expectancy: 0.33, profitFactor: 1.25, maxDrawdown: 4 });
     expect(s.byMonth.map(b => [b.key, b.net])).toEqual([["2026-06", 2], ["2026-07", -1]]);
   });
+
+  it("a filled order with no fill time keeps its trade, dated by placement and flagged", () => {
+    const raw = [order({ id: "1", side: "BUY", qty: 1, price: 2, at: "2025-02-03T15:00:00Z" }), order({ id: "2", side: "SELL", qty: 1, price: 3, at: "2025-02-03T15:05:00Z" })];
+    for (const g of raw) delete (g.orders[0] as Record<string, unknown>).filled_time_at;
+    const [e] = reconstructEpisodes(readWebullHistory(raw, "ACC1"), NOW);
+    expect(e).toMatchObject({ label: "RECONSTRUCTED", gross: 1 });
+    expect(e.entries[0]).toMatchObject({ at: "2025-02-03T15:00:00.000Z", atIsPlacement: true });
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { walkWebullHistory, type HistoryPage } from "./webullLedgerWalk";
+import { SPLIT_AT, walkWebullHistory, type HistoryPage } from "./webullLedgerWalk";
 
 const grp = (id: string, at: string) => ({
   client_order_id: id, combo_type: "NORMAL",
@@ -38,6 +38,22 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
     expect(calls).toContain("2026-09-03..2026-10-03|cc");       // paged by the last client order id
     expect(walk.stoppedBecause).toBe("QUIET_YEARS");
     expect(walk.askedBackTo).toBe("2023-10-03");
+  });
+
+  it("a crowded month is halved down to days until every order is read (cash 2026-01, measured)", async () => {
+    // 45 orders across January; any multi-day window answers only its first SPLIT_AT rows.
+    const all = Array.from({ length: 45 }, (_, i) => grp(`id${String(i).padStart(3, "0")}`, `2026-01-${String(5 + (i % 20)).padStart(2, "0")}T14:${String(i % 60).padStart(2, "0")}:00Z`));
+    const calls: string[] = [];
+    const page: HistoryPage = async (start, end, cursor) => {
+      calls.push(`${start}..${end}`);
+      const inWin = all.filter(g => g.orders[0].place_time_at.slice(0, 10) >= start && g.orders[0].place_time_at.slice(0, 10) < end)
+        .sort((a, b) => b.client_order_id.localeCompare(a.client_order_id));
+      const oneDay = Date.parse(end) - Date.parse(start) <= 86_400_000;
+      if (cursor) return { ok: true, payload: [] };   // the cursor recovers nothing, as measured
+      return { ok: true, payload: oneDay ? inWin : inWin.slice(0, SPLIT_AT) };
+    };
+    const walk = await walkWebullHistory("ACC", page, { today: TODAY, ...NOOP });
+    expect(walk.orders).toHaveLength(45);
   });
 
   it("a quiet year costs one probe, and two quiet years end the walk", async () => {

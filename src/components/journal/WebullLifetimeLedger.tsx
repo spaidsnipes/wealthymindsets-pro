@@ -112,7 +112,7 @@ function EpisodeRow({ e }: { e: Episode }) {
           {[...e.entries.map(f => ({ ...f, role: "ENTRY" })), ...e.exits.map(f => ({ ...f, role: "EXIT" }))].sort((a, b) => a.at.localeCompare(b.at)).map(f => (
             <div key={`${f.orderId}-${f.role}-${f.at}`} style={{ display: "flex", gap: 10, fontVariantNumeric: "tabular-nums" }}>
               <span style={{ width: 44, color: f.role === "ENTRY" ? INK : GOLD }}>{f.role}</span>
-              <span style={{ width: 150 }}>{day(f.at)}</span>
+              <span style={{ width: 150 }} title={f.atIsPlacement ? "Webull stated no fill time for this order; its placement time stands in." : undefined}>{day(f.at)}{f.atIsPlacement ? " · placed" : ""}</span>
               <span style={{ width: 40 }}>{f.side}</span>
               <span style={{ width: 60 }}>{f.quantity} @ {f.price.toFixed(2)}</span>
               <span style={{ width: 90 }}>{f.orderType ?? ""}{f.comboType && f.comboType !== "NORMAL" ? ` · ${f.comboType}` : ""}</span>
