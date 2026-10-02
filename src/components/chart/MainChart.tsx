@@ -6106,8 +6106,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     let nativePointer: number | null = null;
     // A press INSIDE the glass waits: still → the candle click it always was;
     // moved past LENS_DRAG_SLOP → the lens follows the hand, up/down/along.
-    let pending: { pointer: number; x0: number; y0: number; dx: number; dy: number; rx: number; ry: number } | null = null;
+    let pending: { pointer: number; x0: number; y0: number; dx: number; dy: number; rx: number; ry: number; target: EventTarget | null; init: PointerEventInit } | null = null;
+    let replaying = false;
     const down = (e: PointerEvent) => {
+      if (replaying) return;
       if (!e.isPrimary || e.button !== 0 || drawingToolRef.current !== "cursor" || window.innerWidth < 1024) return;
       if ((e.target as Element)?.closest?.("[data-weather-lens-control]")) return;
       const hit = weatherLensHitRef.current;
@@ -6116,10 +6118,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const px = e.clientX - rect.left, py = e.clientY - rect.top;
       if (!isWeatherLensBezel(px, py, hit)) {
         if (isInsideWeatherLens(px, py, hit)) {
-          // Hold the chart's own pan (compat mouse events) without taking the
-          // pointer: React's click selection still sees this press.
-          e.preventDefault();
-          pending = { pointer: e.pointerId, x0: e.clientX, y0: e.clientY, dx: px - hit.cx, dy: py - hit.cy, rx: hit.rx, ry: hit.ry };
+          // THE GLASS OWNS THE PRESS (serving BTC 5m, 2026-10-02 01:00 CDT: a
+          // shared press also reached the price-drag handler and rescaled the
+          // axis, sliding the candles out from under the glass). A press that
+          // never moves is replayed to the chart on release, so a candle
+          // click inside the lens still selects that candle.
+          e.preventDefault(); e.stopImmediatePropagation();
+          pending = {
+            pointer: e.pointerId, x0: e.clientX, y0: e.clientY, dx: px - hit.cx, dy: py - hit.cy, rx: hit.rx, ry: hit.ry,
+            target: e.target,
+            init: { bubbles: true, cancelable: true, composed: true, pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: true, button: 0, buttons: 1, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY },
+          };
         }
         return;
       }
@@ -6164,7 +6173,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       setWeatherDetached(true);
     };
     const up = (e: PointerEvent) => {
-      if (pending && pending.pointer === e.pointerId) pending = null;
+      if (replaying) return;
+      if (pending && pending.pointer === e.pointerId) {
+        // Never moved: give the chart the click it would have had.
+        const p = pending; pending = null;
+        if (e.type === "pointerup" && p.target) {
+          replaying = true;
+          try {
+            p.target.dispatchEvent(new PointerEvent("pointerdown", p.init));
+            p.target.dispatchEvent(new PointerEvent("pointerup", { ...p.init, buttons: 0, clientX: e.clientX, clientY: e.clientY }));
+          } catch { /* no PointerEvent constructor */ }
+          replaying = false;
+        }
+        e.stopImmediatePropagation();
+        return;
+      }
       if (nativePointer !== e.pointerId) return;
       e.stopImmediatePropagation();
       nativePointer = null;

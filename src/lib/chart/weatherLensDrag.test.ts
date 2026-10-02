@@ -43,6 +43,8 @@ describe("the glass itself can be taken and moved anywhere along the candles (Fo
   it("a press inside waits for movement, so a still press stays a candle click", () => {
     const c = rf("src/components/chart/MainChart.tsx", "utf8");
     expect(c).toContain("if (isInsideWeatherLens(px, py, hit)) {");
+    expect(c).toContain("e.preventDefault(); e.stopImmediatePropagation();\n          pending = {");
+    expect(c).toContain('p.target.dispatchEvent(new PointerEvent("pointerdown", p.init));');
     expect(c).toContain("if (Math.hypot(e.clientX - pending.x0, e.clientY - pending.y0) <= LENS_DRAG_SLOP) return;");
     expect(c).toContain("weatherGrabRef.current = { pointer: e.pointerId, dx: pending.dx, dy: pending.dy, rx: pending.rx, ry: pending.ry };");
   });
