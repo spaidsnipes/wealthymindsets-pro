@@ -2100,9 +2100,7 @@ export function WMOperatingSystem({
                   zIndex: 40,
                   background: FIELD,
                   // §XIII on glass (2026-10-01): as tall as the room it read as a
-                  // drawer. It floats over at most ~70% of the room; the list
-                  // scrolls inside and the market's lower left stays in view.
-                  maxHeight: "min(calc(100% - 16px), 72%)",
+                  // drawer. Its height cap lives with the box rule below (one owner).
                   overflowY: "auto" as const,
                   borderRadius: 10,
                   border: "1px solid #c9a55c48",
@@ -2149,7 +2147,8 @@ export function WMOperatingSystem({
                696px region and still crossed into the footer. The cap has to
                mean the whole box or it is 28px of the same bug. */
             boxSizing: "border-box",
-            maxHeight: "100%",
+            // Equipment floats at ≤ ~72% of the room (§XIII); rooms keep the full column.
+            maxHeight: equipmentMode ? "min(calc(100% - 16px), 72%)" : "100%",
             overflowY: "auto",
             overscrollBehavior: "contain",
             borderRight: `1px solid ${RULE}`,

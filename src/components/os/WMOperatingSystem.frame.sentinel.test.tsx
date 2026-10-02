@@ -163,7 +163,7 @@ describe("OS frame · the desktop room must not clip itself", () => {
      * wrong unit is not a weak fix, it is an absent one.
      */
     const rail = styleOf(OS, "wm-os-rail");
-    expect(rail).toMatch(/maxHeight:\s*"100%"/);
+    expect(rail).toMatch(/maxHeight:\s*equipmentMode \? "min\(calc\(100% - 16px\), 72%\)" : "100%"/);
     expect(rail).not.toMatch(/maxHeight:\s*"100vh"/);
   });
 
