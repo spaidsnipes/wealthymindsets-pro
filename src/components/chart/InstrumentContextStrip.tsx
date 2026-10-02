@@ -17,6 +17,7 @@ import { BarChart2, LayoutGrid, List as ListIcon } from "lucide-react";
 import type { CategoryTab } from "@/lib/charts/categoryTabsFor";
 import type { CanonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
 import { instrumentContextStrip } from "@/lib/charts/instrumentContextStrip";
+import type { OptionsPanel } from "@/lib/charts/instrumentContextStrip";
 
 const GOLD = "#C9A55C";
 
@@ -33,8 +34,8 @@ export function InstrumentContextStrip({
   readonly onRoom: (href: string) => void;
   readonly onIndicators: () => void;
   readonly indicatorCount: number;
-  readonly onPanel: (panel: "FUTURES_OPTIONS") => void;
-  readonly openPanel?: "FUTURES_OPTIONS" | null;
+  readonly onPanel: (panel: OptionsPanel) => void;
+  readonly openPanel?: OptionsPanel | null;
   /** Garden 18 §XI: the Watchlist door, beside the instrument — not buried in Tools. */
   readonly onWatchlist?: (trigger: HTMLButtonElement) => void;
   readonly watchlistOpen?: boolean;

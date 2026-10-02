@@ -5520,14 +5520,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               }}
               indicatorCount={activeInds.size}
               onPanel={() => setFuturesOptionsOpen(v => !v)}
-              openPanel={futuresOptionsOpen ? "FUTURES_OPTIONS" : null}
+              openPanel={futuresOptionsOpen ? (assetClass === "futures" ? "FUTURES_OPTIONS" : "OPTIONS") : null}
               onWatchlist={(trigger) => (watchlistOpen ? setWatchlistOpen(false) : openWatchlist(trigger))}
               watchlistOpen={watchlistOpen}
               onTrade={() => setTradeOpen(v => !v)}
               tradeOpen={tradeOpen}
             />
           )}
-          {futuresOptionsOpen && assetClass === "futures" && (
+          {futuresOptionsOpen && (assetClass === "futures" || assetClass === "equity" || assetClass === "etf") && (
             <FuturesOptionsPanel
               initialOptionSymbol={searchedFutureOption}
               chartSymbol={symbol}
@@ -5535,6 +5535,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               bornDecision={currentSceneDecision}
               onIdentity={(identity) => setSceneDecision((current) => adoptSceneDecision(current, { ...decisionScope, identity }))}
               onClose={() => setFuturesOptionsOpen(false)}
+              onExpression={() => { setFuturesOptionsOpen(false); setActiveTab("Options"); }}
             />
           )}
           {(activeTab === "Chart" || activeTab === "Options") && <ChartToolbar
@@ -6727,7 +6728,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           price={chartBars.length ? chartBars[chartBars.length - 1].close : null}
           bornDecision={currentSceneDecision}
           onIdentity={(identity) => setSceneDecision((current) => adoptSceneDecision(current, { ...decisionScope, identity }))}
-          onOpenOptions={() => { setTradeOpen(false); if (assetClass === "futures") setFuturesOptionsOpen(true); else setActiveTab("Options"); }}
+          onOpenOptions={() => { setTradeOpen(false); if (assetClass === "futures" || assetClass === "equity" || assetClass === "etf") setFuturesOptionsOpen(true); else setActiveTab("Options"); }}
           onOpenPaper={() => { setTradeOpen(false); setPaperOpen(true); }}
           onClose={() => setTradeOpen(false)}
         />

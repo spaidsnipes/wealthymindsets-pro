@@ -24,7 +24,8 @@ describe("instrument context strip", () => {
       for (const e of instrumentContextStrip(cls, "X")) {
         if (e.kind === "TAB") expect(tabs.has(e.tab), `${cls} → ${e.label}`).toBe(true);
         if (e.kind === "DISABLED") expect(e.reason.length).toBeGreaterThan(20);
-        if (e.kind === "PANEL") expect(e.panel).toBe("FUTURES_OPTIONS");
+        // Garden 18 §LX: one chain instrument — FUTURES_OPTIONS on a future, OPTIONS on a stock/ETF.
+        if (e.kind === "PANEL") expect(e.panel).toBe(cls === "futures" ? "FUTURES_OPTIONS" : "OPTIONS");
       }
     }
   });

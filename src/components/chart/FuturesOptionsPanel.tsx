@@ -24,7 +24,7 @@ import { TastytradeLiveOrder } from "@/components/chart/TastytradeLiveOrder";
 import { expectedMove, readFopTicket } from "@/lib/broker/fopTicket";
 import { readContractQuote, type ContractQuoteState } from "@/lib/broker/tastyContractQuote";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
-import { futuresProductFor, readFuturesOptionChain, snapToTick, strikesNear, tickFor, type FopExpiration, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
+import { futuresProductFor, readEquityOptionChain, readFuturesOptionChain, snapToTick, strikesNear, tickFor, type FopExpiration, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 
@@ -74,15 +74,24 @@ const chip = (on: boolean): React.CSSProperties => ({
   font: "700 10.5px/1 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".06em",
 });
 
-export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, price, bornDecision, onIdentity, onClose }: {
+export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, price, bornDecision, onIdentity, onClose, onExpression }: {
   readonly chartSymbol: string;
   readonly initialOptionSymbol?: string | null;
   readonly price: number | null;
   readonly bornDecision: DecisionIdentity | null;
   readonly onIdentity: (identity: DecisionIdentity) => void;
   readonly onClose: () => void;
+  /** Equity only: the Expression / Contract Lens flow (§LXI–§LXIV), one door away. */
+  readonly onExpression?: () => void;
 }) {
-  const product = futuresProductFor(chartSymbol);
+  // Garden 18 §LX: ONE options experience. A future reads its futures-option
+  // chain; anything else reads the equity chain into the SAME shape (the
+  // underlying stands where the parent future stands). Different economics —
+  // the expiry's multiplier, the order's instrument type — one interaction.
+  const futuresProduct = futuresProductFor(chartSymbol);
+  const equity = futuresProduct == null;
+  const product = futuresProduct ?? chartSymbol.trim().toUpperCase();
+  const optionType = equity ? "Equity Option" : "Future Option";
   const [chain, setChain] = useState<FuturesOptionChain | null>(null);
   const [edge, setEdge] = useState<string | null>(null);
   const [parent, setParent] = useState("");
@@ -117,17 +126,17 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
   }, []);
 
   useEffect(() => {
-    if (!product) { setEdge(`${chartSymbol} is not a futures market.`); return; }
+    if (!product) { setEdge(`${chartSymbol} has no option chain to read.`); return; }
     let live = true;
     setChain(null); setEdge(null); setPick(null); setAnswer(null);
-    fetch(`/api/broker/tastytrade/chain?futuresOptions=${encodeURIComponent(product)}`, { cache: "no-store" })
+    fetch(equity ? `/api/broker/tastytrade/chain?symbol=${encodeURIComponent(product)}` : `/api/broker/tastytrade/chain?futuresOptions=${encodeURIComponent(product)}`, { cache: "no-store" })
       .then(async r => ({ status: r.status, j: await r.json().catch(() => null) }))
       .then(({ status, j }) => {
         if (!live) return;
         if (status === 403) { setEdge(j?.error ?? "These broker accounts belong to their owner only."); return; }
         if (j?.state === "NOT_CONFIGURED") { setEdge("tastytrade is not connected on this deployment yet."); return; }
         if (j?.state !== "OK") { setEdge(`tastytrade answered: ${j?.reason ?? j?.state ?? `HTTP ${status}`}`); return; }
-        const c = readFuturesOptionChain(j.data);
+        const c = equity ? readEquityOptionChain(j.data) : readFuturesOptionChain(j.data);
         if (!c.expirations.length) { setEdge(`tastytrade lists no option expirations for ${product}.`); return; }
         setChain(c);
         // The month on the chart leads (/MNQH7); a continuous chart opens on the active month.
@@ -141,12 +150,14 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
       .then(j => {
         if (!live || j?.state !== "OK") return;
         const all = (j.accounts as { positions?: { symbol?: string }[] }[]).flatMap(a => a.positions ?? []);
-        const mine = all.filter(p => typeof p.symbol === "string" && (p.symbol.startsWith(`/${product}`) || p.symbol.startsWith(`./${product}`)));
+        const mine = all.filter(p => typeof p.symbol === "string" && (equity
+          ? p.symbol === product || p.symbol.startsWith(`${product} `)
+          : p.symbol.startsWith(`/${product}`) || p.symbol.startsWith(`./${product}`)));
         setPositions(`${mine.length} ${product} position${mine.length === 1 ? "" : "s"} · ${all.length} in all`);
       })
       .catch(() => {});
     return () => { live = false; };
-  }, [product, chartSymbol]);
+  }, [product, chartSymbol, equity]);
 
   const expirations = useMemo(() => (chain?.expirations ?? []).filter(e => e.parent === parent), [chain, parent]);
   useEffect(() => { setExpiry(expirations[0]?.expiration ?? ""); setPick(null); }, [expirations]);
@@ -242,7 +253,7 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
       const r = await fetch("/api/broker/tastytrade/order-dry-run", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ instrumentType: "Future Option", symbol: pick.symbol, action, qty, type: "Limit", limitPx: limitNum, decisionId }),
+        body: JSON.stringify({ instrumentType: optionType, symbol: pick.symbol, action, qty, type: "Limit", limitPx: limitNum, decisionId }),
       });
       const j = await r.json().catch(() => null);
       if (j?.state === "DRY_RUN_OK") {
@@ -296,7 +307,7 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
 
   return (
     <aside
-      aria-label={`${product ?? chartSymbol} futures options`}
+      aria-label={`${product} ${equity ? "options" : "futures options"}`}
       data-testid="futures-options-panel"
       style={{ position: "fixed", top: 108, right: 12, bottom: 12, width: "min(860px, calc(100vw - 24px))", zIndex: 60, display: "flex", flexDirection: "column",
         background: PANEL, border: "1px solid rgba(201,165,92,.42)", borderRadius: 8, boxShadow: "0 24px 64px rgba(0,0,0,.55), inset 0 1px 0 rgba(201,165,92,.12)", color: INK, fontSize: 12, overflow: "hidden" }}
@@ -304,10 +315,10 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
       {/* ── HEADER: the parent future, live ── */}
       <header style={{ padding: "12px 14px 10px", borderBottom: `1px solid ${LINE}`, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
         <div>
-          <div style={{ color: GOLD, letterSpacing: ".14em", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase" }}>{product ?? chartSymbol} Futures Options</div>
+          <div style={{ color: GOLD, letterSpacing: ".14em", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase" }}>{product} {equity ? "Options" : "Futures Options"}</div>
           <div style={{ color: MUTED, fontSize: 10.5 }}>tastytrade · {positions ?? "reading positions…"}</div>
         </div>
-        {chain ? (
+        {chain && !equity ? (
           <select aria-label="Parent future" value={parent} onChange={e => setParent(e.target.value)}
             style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: "5px 8px", borderRadius: 3, fontWeight: 700 }}>
             {parents.map(p => <option key={p} value={p}>{p}{chain.futures.find(f => f.symbol === p)?.activeMonth ? " · active" : ""}</option>)}
@@ -320,7 +331,12 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
           <span style={{ color: streamWords === "LIVE" ? GREEN : GOLD, fontSize: 10.5, fontWeight: 700 }}>● {streamWords}</span>
         </div>
         <span style={{ flex: 1 }} />
-        <button type="button" onClick={onClose} aria-label="Close futures options" style={{ color: "#C8C0AE", fontSize: 16, padding: "0 4px" }}>✕</button>
+        {equity && onExpression ? (
+          <button type="button" data-testid="options-expression-door" onClick={onExpression}
+            title="Trade the underlying, express it with the option — Contract Lens and Intent Shortlist"
+            style={{ ...chip(false), minHeight: 24 }}>Expression · Contract Lens</button>
+        ) : null}
+        <button type="button" onClick={onClose} aria-label={equity ? "Close options" : "Close futures options"} style={{ color: "#C8C0AE", fontSize: 16, padding: "0 4px" }}>✕</button>
       </header>
 
       {edge ? <p role="status" style={{ margin: 14, color: GOLD }}>{edge}</p> : !chain ? <p role="status" style={{ margin: 14, color: MUTED }}>Reading tastytrade&apos;s chain…</p> : (
@@ -495,7 +511,7 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
               </div>
               {answer ? <p role="status" style={{ marginTop: 6, color: answer.includes("accepted") ? GREEN : GOLD }}>{answer}</p> : null}
               <TastytradeLiveOrder
-                intent={{ instrumentType: "Future Option", symbol: pick.symbol, action, qty, limitPx: limitNum, describe: `${product} ${pick.strike} ${pick.right} · ${exp ? shortDate(exp.expiration) : ""} on ${exp?.parent ?? ""}` }}
+                intent={{ instrumentType: optionType, symbol: pick.symbol, action, qty, limitPx: limitNum, describe: `${product} ${pick.strike} ${pick.right} · ${exp ? shortDate(exp.expiration) : ""} on ${exp?.parent ?? ""}` }}
                 ensureDecision={ensureDecision}
               />
             </section>
@@ -512,7 +528,7 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
                 ))}
               </div>
             ) : null}
-            <details data-testid="trade-the-future">
+            {equity ? null : <details data-testid="trade-the-future">
               <summary style={{ cursor: "pointer", color: GOLD, letterSpacing: ".06em" }}>Trade the future · {parent}</summary>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
                 <select aria-label="Future order action" value={futAction} onChange={e => setFutAction(e.target.value as typeof futAction)} style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4 }}>
@@ -526,7 +542,7 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
                 intent={parent ? { instrumentType: "Future", symbol: parent, action: futAction, qty: futQty, limitPx: Number(futLimit) > 0 ? Number(futLimit) : null, describe: `${parent} future` } : null}
                 ensureDecision={ensureDecision}
               />
-            </details>
+            </details>}
           </footer>
         </>
       )}

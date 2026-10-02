@@ -24,7 +24,9 @@ export type ContextEntry =
   | { readonly id: string; readonly label: string; readonly kind: "ROOM"; readonly href: string }
   | { readonly id: string; readonly label: string; readonly kind: "DISABLED"; readonly reason: string }
   /** A sidecar over the live chart that tells its own connection truth. */
-  | { readonly id: string; readonly label: string; readonly kind: "PANEL"; readonly panel: "FUTURES_OPTIONS" };
+  | { readonly id: string; readonly label: string; readonly kind: "PANEL"; readonly panel: OptionsPanel };
+/** Garden 18 §LX: equity options and futures options open ONE chain instrument. */
+export type OptionsPanel = "OPTIONS" | "FUTURES_OPTIONS";
 
 export const NO_FUTURES_OPTIONS_CHAIN =
   "No futures-options chain is connected: Webull's futures data needs its CME/CBOT/COMEX/NYMEX OpenAPI package and tastytrade is not connected.";
@@ -45,7 +47,9 @@ export function instrumentContextStrip(cls: CanonicalAssetClass, symbol: string)
     case "etf":
       return [
         overview,
-        { id: "options", label: "Options", kind: "TAB", tab: "Options" },
+        // Garden 18 §LX: the same chain sidecar futures options use, over the
+        // live chart (the Expression / Contract Lens flow is one door inside).
+        { id: "options", label: "Options", kind: "PANEL", panel: "OPTIONS" },
         { id: "financials", label: "Financials", kind: "TAB", tab: "Financials" },
         news(symbol),
       ];

@@ -70,6 +70,45 @@ export function readFuturesOptionChain(data: unknown): FuturesOptionChain {
   return { futures, expirations };
 }
 
+/**
+ * TASTYTRADE'S NESTED EQUITY-OPTION CHAIN (`/option-chains/{sym}/nested`),
+ * read into the SAME shape as the futures-option chain so equity options and
+ * futures options are one experience (Garden 18 §LX): the underlying stands
+ * where the parent future stands (its own streamer symbol), every expiration's
+ * multiplier is the chain's shares-per-contract, and the chain's tick tiers
+ * apply to every expiration. Different economics, one interaction. PURE.
+ */
+export function readEquityOptionChain(data: unknown): FuturesOptionChain {
+  const items = ((data ?? {}) as { items?: unknown[] }).items ?? [];
+  const futures: FutureContract[] = [];
+  const expirations: FopExpiration[] = [];
+  for (const it of items) {
+    const c = it as Record<string, unknown>;
+    const underlying = str(c["underlying-symbol"]);
+    if (!underlying) continue;
+    if (!futures.some(f => f.symbol === underlying)) futures.push({ symbol: underlying, streamer: underlying, expiration: null, dte: null, activeMonth: true });
+    const shares = num(c["shares-per-contract"]);
+    const tickSizes: TickTier[] = ((c["tick-sizes"] as unknown[] | undefined) ?? []).flatMap(t => {
+      const o = t as Record<string, unknown>;
+      const value = num(o.value);
+      return value != null && value > 0 ? [{ value, threshold: num(o.threshold) }] : [];
+    });
+    for (const ex of (c.expirations as unknown[] | undefined) ?? []) {
+      const e = ex as Record<string, unknown>;
+      const expiration = str(e["expiration-date"]);
+      if (!expiration) continue;
+      const strikes: FopStrike[] = ((e.strikes as unknown[] | undefined) ?? []).flatMap(s => {
+        const k = s as Record<string, unknown>;
+        const strike = num(k["strike-price"]);
+        return strike != null ? [{ strike, call: str(k.call), put: str(k.put), callStreamer: str(k["call-streamer-symbol"]), putStreamer: str(k["put-streamer-symbol"]) }] : [];
+      }).sort((a, b) => a.strike - b.strike);
+      expirations.push({ parent: underlying, optionRoot: str(c["root-symbol"]), expiration, dte: num(e["days-to-expiration"]), type: str(e["expiration-type"]), settlement: str(e["settlement-type"]), tickSizes, multiplier: shares != null && shares > 0 ? shares : null, stopsTradingAt: null, strikes });
+    }
+  }
+  expirations.sort((a, b) => (a.dte ?? 1e9) - (b.dte ?? 1e9) || a.parent.localeCompare(b.parent));
+  return { futures, expirations };
+}
+
 /** The futures product behind a chart symbol: NQ1! → NQ, /MNQZ6 → MNQ, ES1! → ES. Null when it is not a future. */
 export function futuresProductFor(chartSymbol: string): string | null {
   return parseFuturesNotation(chartSymbol)?.root ?? null;

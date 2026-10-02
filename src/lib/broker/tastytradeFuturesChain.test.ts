@@ -63,3 +63,31 @@ describe("tastytrade futures-option chain", () => {
     expect(near.map(s => s.strike)).toEqual([24900, 24950, 25000, 25050, 25100, 25150]);
   });
 });
+
+import { readEquityOptionChain } from "./tastytradeFuturesChain";
+describe("readEquityOptionChain — one shape for equity and futures options (Garden 18 §LX)", () => {
+  const data = { items: [{ "underlying-symbol": "TSLA", "root-symbol": "TSLA", "shares-per-contract": 100,
+    "tick-sizes": [{ threshold: "3.0", value: "0.01" }, { value: "0.05" }],
+    expirations: [
+      { "expiration-type": "Regular", "expiration-date": "2026-10-16", "days-to-expiration": 15, "settlement-type": "PM",
+        strikes: [{ "strike-price": "360.0", call: "TSLA  261016C00360000", "call-streamer-symbol": ".TSLA261016C360", put: "TSLA  261016P00360000", "put-streamer-symbol": ".TSLA261016P360" },
+                  { "strike-price": "350.0", call: "TSLA  261016C00350000", "call-streamer-symbol": ".TSLA261016C350", put: null }] },
+      { "expiration-type": "Weekly", "expiration-date": "2026-10-02", "days-to-expiration": 1, "settlement-type": "PM", strikes: [] },
+    ] }] };
+  it("the underlying stands where the parent future stands, streaming as itself", () => {
+    const c = readEquityOptionChain(data);
+    expect(c.futures).toEqual([{ symbol: "TSLA", streamer: "TSLA", expiration: null, dte: null, activeMonth: true }]);
+  });
+  it("expirations sort by DTE, carry shares-per-contract as the multiplier and the chain's tick tiers", () => {
+    const c = readEquityOptionChain(data);
+    expect(c.expirations.map(e => e.expiration)).toEqual(["2026-10-02", "2026-10-16"]);
+    const e = c.expirations[1];
+    expect(e.parent).toBe("TSLA");
+    expect(e.multiplier).toBe(100);
+    expect(e.tickSizes).toEqual([{ value: 0.01, threshold: 3 }, { value: 0.05, threshold: null }]);
+    expect(e.strikes.map(s => s.strike)).toEqual([350, 360]);
+    expect(e.strikes[1].callStreamer).toBe(".TSLA261016C360");
+    expect(e.strikes[0].put).toBeNull();
+  });
+  it("nothing in, nothing out", () => { expect(readEquityOptionChain(null)).toEqual({ futures: [], expirations: [] }); });
+});
