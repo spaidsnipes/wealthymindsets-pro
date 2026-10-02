@@ -18,6 +18,7 @@
 
 import type { CategoryTab } from "@/lib/charts/categoryTabsFor";
 import type { CanonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
+import { deribitCurrencyFor } from "@/lib/marketData/deribitOptions";
 
 export type ContextEntry =
   | { readonly id: string; readonly label: string; readonly kind: "TAB"; readonly tab: CategoryTab }
@@ -26,12 +27,12 @@ export type ContextEntry =
   /** A sidecar over the live chart that tells its own connection truth. */
   | { readonly id: string; readonly label: string; readonly kind: "PANEL"; readonly panel: OptionsPanel };
 /** Garden 18 §LX: equity options and futures options open ONE chain instrument. */
-export type OptionsPanel = "OPTIONS" | "FUTURES_OPTIONS";
+export type OptionsPanel = "OPTIONS" | "FUTURES_OPTIONS" | "CRYPTO_OPTIONS";
 
 export const NO_FUTURES_OPTIONS_CHAIN =
   "No futures-options chain is connected: Webull's futures data needs its CME/CBOT/COMEX/NYMEX OpenAPI package and tastytrade is not connected.";
 export const NO_CRYPTO_DERIVATIVES_CHAIN =
-  "No tradeable crypto-derivatives chain is connected. Deribit's public options feed is read for Market Sense (Derivatives Pressure) only.";
+  "No crypto option chain for this coin: Deribit, the public options book WM reads, lists options on BTC and ETH only.";
 
 const news = (symbol: string): ContextEntry => ({
   id: "news",
@@ -65,7 +66,11 @@ export function instrumentContextStrip(cls: CanonicalAssetClass, symbol: string)
     case "crypto":
       return [
         overview,
-        { id: "derivatives", label: "Derivatives", kind: "DISABLED", reason: NO_CRYPTO_DERIVATIVES_CHAIN },
+        // 2026-10-01: BTC / ETH open Deribit's public chain, VIEW ONLY (the
+        // panel says so on its face); other coins name why there is none.
+        deribitCurrencyFor(symbol)
+          ? { id: "derivatives", label: "Derivatives", kind: "PANEL", panel: "CRYPTO_OPTIONS" }
+          : { id: "derivatives", label: "Derivatives", kind: "DISABLED", reason: NO_CRYPTO_DERIVATIVES_CHAIN },
         { id: "market-info", label: "Market Info", kind: "TAB", tab: "Profile" },
         news(symbol),
       ];

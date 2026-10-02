@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DERIBIT_OPTIONS_SOURCE, deribitCurrencyFor, dvolFrom, normalizeDeribitOptions } from "@/lib/marketData/deribitOptions";
+import { normalizeDeribitChain } from "@/lib/marketData/deribitChain";
 import { requireAuth } from "@/lib/requireAuth";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,22 @@ export async function GET(request: Request) {
   }
   const opts = { cache: "no-store" as const, signal: AbortSignal.timeout(15_000), headers: { Accept: "application/json" } };
   const now = Date.now();
+  // `view=chain` — the same public book summary as a VIEW-ONLY option chain
+  // for the crypto Derivatives panel (Garden 18 §LX, 2026-10-01). No order
+  // path is built on it.
+  if (new URL(request.url).searchParams.get("view") === "chain") {
+    let r: Response;
+    try { r = await fetch(`${BASE}/get_book_summary_by_currency?currency=${currency}&kind=option`, opts); } catch {
+      return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "TRANSPORT", error: "Deribit public API unreachable" }, { status: 504 });
+    }
+    if (r.status === 429) return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "RATE_LIMITED", error: "Deribit rate-limited the book summary" }, { status: 429 });
+    if (!r.ok) return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "PROVIDER ERROR", error: `Deribit HTTP ${r.status}` }, { status: 502 });
+    let b: unknown;
+    try { b = await r.json(); } catch {
+      return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "INVALID RESPONSE", error: "Deribit response did not decode" }, { status: 502 });
+    }
+    return NextResponse.json(normalizeDeribitChain(b, currency, now), { headers: { "Cache-Control": "no-store" } });
+  }
   let res: Response;
   let dvol: number | null = null;
   try {

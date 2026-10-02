@@ -363,6 +363,7 @@ import { useWebullLiveCrypto } from "@/lib/marketData/useWebullLiveCrypto";
 import { DiscoveryUnusualStates } from "@/components/scanner/DiscoveryUnusualStates";
 import { InstrumentContextStrip } from "./InstrumentContextStrip";
 import { FuturesOptionsPanel } from "./FuturesOptionsPanel";
+import { DeribitChainPanel } from "./DeribitChainPanel";
 import { BOARD_STOCK_SYMBOLS } from "@/lib/marketData/sp500Board";
 import { selectAuctionState } from "@/lib/marketData/viewModels/selectAuctionState";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
@@ -5553,12 +5554,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               }}
               indicatorCount={activeInds.size}
               onPanel={() => setFuturesOptionsOpen(v => !v)}
-              openPanel={futuresOptionsOpen ? (assetClass === "futures" ? "FUTURES_OPTIONS" : "OPTIONS") : null}
+              openPanel={futuresOptionsOpen ? (assetClass === "futures" ? "FUTURES_OPTIONS" : assetClass === "crypto" ? "CRYPTO_OPTIONS" : "OPTIONS") : null}
               onWatchlist={(trigger) => (watchlistOpen ? setWatchlistOpen(false) : openWatchlist(trigger))}
               watchlistOpen={watchlistOpen}
               onTrade={() => setTradeOpen(v => !v)}
               tradeOpen={tradeOpen}
             />
+          )}
+          {futuresOptionsOpen && assetClass === "crypto" && (
+            <DeribitChainPanel chartSymbol={symbol} onClose={() => setFuturesOptionsOpen(false)} />
           )}
           {futuresOptionsOpen && (assetClass === "futures" || assetClass === "equity" || assetClass === "etf") && (
             <FuturesOptionsPanel

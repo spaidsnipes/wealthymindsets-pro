@@ -25,9 +25,15 @@ describe("instrument context strip", () => {
         if (e.kind === "TAB") expect(tabs.has(e.tab), `${cls} → ${e.label}`).toBe(true);
         if (e.kind === "DISABLED") expect(e.reason.length).toBeGreaterThan(20);
         // Garden 18 §LX: one chain instrument — FUTURES_OPTIONS on a future, OPTIONS on a stock/ETF.
-        if (e.kind === "PANEL") expect(e.panel).toBe(cls === "futures" ? "FUTURES_OPTIONS" : "OPTIONS");
+        if (e.kind === "PANEL") expect(e.panel).toBe(cls === "futures" ? "FUTURES_OPTIONS" : cls === "crypto" ? "CRYPTO_OPTIONS" : "OPTIONS");
       }
     }
+  });
+
+  it("BTC and ETH open Deribit's view-only chain; other coins say why not (2026-10-01)", () => {
+    expect(instrumentContextStrip("crypto", "BTC-USD").find(e => e.id === "derivatives")).toMatchObject({ kind: "PANEL", panel: "CRYPTO_OPTIONS" });
+    expect(instrumentContextStrip("crypto", "ETH-USD").find(e => e.id === "derivatives")).toMatchObject({ kind: "PANEL", panel: "CRYPTO_OPTIONS" });
+    expect(instrumentContextStrip("crypto", "SOL-USD").find(e => e.id === "derivatives")).toMatchObject({ kind: "DISABLED" });
   });
 
   it("News / Research lands on the News room scoped to the instrument", () => {
