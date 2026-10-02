@@ -83,7 +83,7 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
       <div data-testid="edge-daily-attempts" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
         <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>DAILY ATTEMPTS · YOUR PROFILE RULE: “SECOND ATTEMPT ONLY AFTER FRESH AUTHORIZATION — NO THIRD”</div>
         <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>
-          CURRENT STRATEGY REPLAY — today's profile rule applied to past days. When this rule took effect is not recorded, so this is not a judgement of how you traded then (§31).
+          CURRENT STRATEGY REPLAY — today's profile rule applied to past days. When this rule took effect is not recorded, so this is not a judgement of how you traded then.
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, fontSize: 12, color: INK, fontVariantNumeric: "tabular-nums" }}>
           {edge.daily.byCount.map(r => <span key={r.key}>{r.key}: <b>{r.days}</b> days · <span style={{ color: tone(r.net) }}>{usd(r.net)}</span></span>)}

@@ -34,6 +34,8 @@ export interface AccountWalk {
   readonly cachedMonths: number;
   /** Whether the last year asked about held no orders at all (its probe came back empty). */
   readonly lastYearEmpty: boolean;
+  /** With `fromMonth`: the month to continue from, or null when the year is done. */
+  readonly nextMonth?: number | null;
 }
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -60,6 +62,12 @@ export async function walkWebullHistory(
     readonly probeOnly?: boolean;
     /** Read only this month of the year (0 = newest), skipping the probe — one bounded request per month. */
     readonly onlyMonth?: number;
+    /**
+     * Resumable: read months `fromMonth`..11 of the year (skipping the probe),
+     * stopping after the first month that ends past `deadlineAt` (ms). The
+     * answer's `nextMonth` says where to continue, or null when the year is done.
+     */
+    readonly fromMonth?: number; readonly deadlineAt?: number;
     readonly sleep?: (ms: number) => Promise<void>; readonly gapMs?: number; readonly backoffMs?: readonly number[];
     /**
      * Finished months are history: a month that ended more than a week ago is
@@ -140,8 +148,9 @@ export async function walkWebullHistory(
       const start = new Date(end); start.setUTCFullYear(start.getUTCFullYear() - 1);
       const s = ymd(start) < floor ? floor : ymd(start);
       askedBackTo = s;
-      const probe = opts.onlyMonth != null ? [] : await ask(s, ymd(end), null);
-      lastYearEmpty = opts.onlyMonth == null && rowsOf(probe).length === 0;
+      const resumable = opts.fromMonth != null;
+      const probe = opts.onlyMonth != null || resumable ? [] : await ask(s, ymd(end), null);
+      lastYearEmpty = opts.onlyMonth == null && !resumable && rowsOf(probe).length === 0;
       if (opts.probeOnly) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty };
       if (lastYearEmpty) {
         quiet++;
@@ -153,22 +162,35 @@ export async function walkWebullHistory(
           const mStart = new Date(mEnd); mStart.setUTCMonth(mStart.getUTCMonth() - 1);
           const ms = ymd(mStart) < s ? s : ymd(mStart);
           if (opts.onlyMonth != null && mi !== opts.onlyMonth) { mEnd = mStart; continue; }
+          if (resumable && mi < opts.fromMonth!) { mEnd = mStart; continue; }
           askedBackTo = ms;
-          const key = `${CACHE_PREFIX}${accountId}:${ms}:${ymd(mEnd)}`;
-          const settled = Date.parse(ymd(mEnd)) < opts.today.getTime() - 7 * 86_400_000;
-          const hit = settled && opts.cache ? await opts.cache.get(key).catch(() => null) : null;
-          if (hit) {
-            take(JSON.parse(hit));
-            cachedMonths++;
-          } else {
-            collect = [];
-            await readWindow(ms, ymd(mEnd));
-            const rows = collect;
-            collect = null;
-            if (settled && opts.cache) await opts.cache.put(key, JSON.stringify(rows)).catch(() => {});
+          // Anything that ended more than a week ago is history and may be kept;
+          // the most recent week is always asked live. A month straddling that
+          // edge is read as two windows (kept part + live part).
+          const edge = ymd(new Date(opts.today.getTime() - 7 * 86_400_000));
+          const parts: [string, string, boolean][] = ymd(mEnd) <= edge ? [[ms, ymd(mEnd), true]]
+            : ms < edge ? [[ms, edge, true], [edge, ymd(mEnd), false]]
+            : [[ms, ymd(mEnd), false]];
+          for (const [ps, pe, keep] of parts) {
+            const key = `${CACHE_PREFIX}${accountId}:${ps}:${pe}`;
+            const hit = keep && opts.cache ? await opts.cache.get(key).catch(() => null) : null;
+            if (hit) {
+              take(JSON.parse(hit));
+              cachedMonths++;
+            } else {
+              collect = [];
+              await readWindow(ps, pe);
+              const rows = collect;
+              collect = null;
+              if (keep && opts.cache) await opts.cache.put(key, JSON.stringify(rows)).catch(() => {});
+            }
           }
           mEnd = mStart;
+          if (resumable && opts.deadlineAt != null && Date.now() > opts.deadlineAt && ymd(mEnd) > s) {
+            return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty: false, nextMonth: mi + 1 };
+          }
         }
+        if (resumable) return { accountId, orders, windows, pages, askedBackTo, stoppedBecause: "YEAR_DONE", reason: null, cachedMonths, lastYearEmpty: false, nextMonth: null };
         // Anything the probe saw that the months somehow did not (never expected) still counts.
         take(probe);
       }

@@ -132,7 +132,7 @@ function EpisodeRow({ e }: { e: Episode }) {
   );
 }
 
-interface StepAnswer { state: string; reason?: string; asOf?: string; yearEmpty?: boolean; askedBackTo?: string; stoppedBecause?: string; pages?: number; cachedMonths?: number; orders?: LedgerOrder[] }
+interface StepAnswer { nextMonth?: number | null; state: string; reason?: string; asOf?: string; yearEmpty?: boolean; askedBackTo?: string; stoppedBecause?: string; pages?: number; cachedMonths?: number; orders?: LedgerOrder[] }
 
 export function WebullLifetimeLedger() {
   const [data, setData] = useState<LedgerAnswer | null>(null);
@@ -182,9 +182,9 @@ export function WebullLifetimeLedger() {
           row.askedBackTo = probe.askedBackTo ?? row.askedBackTo;
           if (probe.yearEmpty) { quiet++; continue; }
           quiet = 0;
-          for (let m = 0; m < 12; m++) {
-            if (alive) setProgress(`Reading ·${acct.tail} ${acct.accountType ?? ""} — ${k === 0 ? "this year" : `${k} year${k > 1 ? "s" : ""} back`}, month ${m + 1} of 12…`);
-            const step = await get<StepAnswer>(`?account=${acct.index}&yearsBack=${k}&month=${m}`);
+          for (let m: number | null = 0; m != null;) {
+            if (alive) setProgress(`Reading ·${acct.tail} ${acct.accountType ?? ""} — ${k === 0 ? "this year" : `${k} year${k > 1 ? "s" : ""} back`}, from month ${m + 1} of 12…`);
+            const step: StepAnswer = await get<StepAnswer>(`?account=${acct.index}&yearsBack=${k}&from=${m}`);
             if (step.state !== "OK") { row.stoppedBecause = "REFUSED"; row.reason = step.reason ?? step.state; break outer; }
             all.push(...(step.orders ?? []));
             row.orders += step.orders?.length ?? 0;
@@ -192,6 +192,7 @@ export function WebullLifetimeLedger() {
             row.askedBackTo = step.askedBackTo ?? row.askedBackTo;
             if (step.stoppedBecause === "REFUSED" || step.stoppedBecause === "PAGE_BUDGET") { row.stoppedBecause = step.stoppedBecause; row.reason = step.reason ?? null; break outer; }
             publish(false);
+            m = step.nextMonth ?? null;
           }
         }
       }

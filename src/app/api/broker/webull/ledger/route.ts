@@ -67,12 +67,19 @@ export async function GET(request: Request): Promise<Response> {
   if (monthIdx !== undefined && (!Number.isInteger(monthIdx) || monthIdx < 0 || monthIdx > 11)) {
     return NextResponse.json({ state: "BAD_REQUEST", reason: "month must be 0–11." }, { status: 400, headers: NO_STORE });
   }
+  const fromRaw = url.searchParams.get("from");
+  const fromIdx = fromRaw == null ? undefined : Number(fromRaw);
+  if (fromIdx !== undefined && (!Number.isInteger(fromIdx) || fromIdx < 0 || fromIdx > 11)) {
+    return NextResponse.json({ state: "BAD_REQUEST", reason: "from must be 0–11." }, { status: 400, headers: NO_STORE });
+  }
   const today = new Date();
   // Finished months come from KV (Webull's raw rows, kept on first read); ?fresh=1 asks Webull for everything.
   const kv = url.searchParams.get("fresh") === "1" ? null : orderDecisionKv(await webullWorkerEnv());
   const cache = kv ? { get: (k: string) => kv.get(k), put: (k: string, v: string) => kv.put(k, v) } : undefined;
   const w = await walkWebullHistory(a.accountId, (s, e, cursor) => listWebullOrderHistoryPage(fetch, c, a.accountId, s, e, cursor),
-    { today, cache, startYearsBack: yearsBack, maxYears: 1, quietYears: 99, probeOnly: url.searchParams.get("probe") === "1", onlyMonth: monthIdx });
+    { today, cache, startYearsBack: yearsBack, maxYears: 1, quietYears: 99, probeOnly: url.searchParams.get("probe") === "1", onlyMonth: monthIdx,
+      // ?from=m: read on from month m for ~20 s (kept months are free), then say where to continue.
+      fromMonth: fromIdx, deadlineAt: fromIdx != null ? Date.now() + 20_000 : undefined });
   const tail = a.accountId.slice(-4);
   return NextResponse.json({
     state: "OK",
@@ -81,6 +88,7 @@ export async function GET(request: Request): Promise<Response> {
     account: { index, tail, accountType: a.accountType },
     yearsBack,
     month: monthIdx ?? null,
+    nextMonth: w.nextMonth ?? null,
     askedBackTo: w.askedBackTo,
     yearEmpty: w.lastYearEmpty,
     stoppedBecause: w.stoppedBecause,

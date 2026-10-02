@@ -34,8 +34,9 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
     const walk = await walkWebullHistory("ACC", page, { today: TODAY, ...NOOP });
     expect(walk.orders.map(o => o.orderId).sort()).toEqual(["o-aa", "o-bb", "o-cc", "o-dd", "o-ee", "o-ff"]);
     expect(calls[0]).toBe("2025-10-03..2026-10-03|-");          // the year probe
-    expect(calls[1]).toBe("2026-09-03..2026-10-03|-");          // then its newest month
-    expect(calls).toContain("2026-09-03..2026-10-03|cc");       // paged by the last client order id
+    expect(calls[1]).toBe("2026-09-03..2026-09-25|-");          // the newest month, up to the week-old edge (keepable)
+    expect(calls).toContain("2026-09-25..2026-10-03|-");        // and its most recent week, always live
+    expect(calls.some(c => !c.endsWith("|-"))).toBe(true);      // paged by the last client order id
     expect(walk.stoppedBecause).toBe("QUIET_YEARS");
     expect(walk.askedBackTo).toBe("2023-10-03");
   });
@@ -114,5 +115,15 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
     expect(g.calls[0]).toBe("2026-08-03..2026-09-03|-");
     expect(m1.orders.map(o => o.orderId)).toEqual(["o-bb"]);
     expect(m1.askedBackTo).toBe("2026-08-03");
+  });
+
+  it("resumable: fromMonth reads on from there, and a passed deadline returns where to continue", async () => {
+    const all = [grp("aa", "2026-09-10T14:00:00Z"), grp("bb", "2026-08-10T14:00:00Z"), grp("cc", "2026-03-10T14:00:00Z")];
+    const done = await walkWebullHistory("ACC", fakeWebull(all, 99, 99).page, { today: TODAY, ...NOOP, maxYears: 1, fromMonth: 0 });
+    expect(done.nextMonth).toBeNull();
+    expect(done.orders.map(o => o.orderId).sort()).toEqual(["o-aa", "o-bb", "o-cc"]);
+    const cut = await walkWebullHistory("ACC", fakeWebull(all, 99, 99).page, { today: TODAY, ...NOOP, maxYears: 1, fromMonth: 1, deadlineAt: 0 });
+    expect(cut.nextMonth).toBe(2);
+    expect(cut.orders.map(o => o.orderId)).toEqual(["o-bb"]);
   });
 });
