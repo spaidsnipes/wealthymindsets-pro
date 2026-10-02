@@ -1737,6 +1737,10 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
                   return;
                 }
                 rc.signed++;
+                // The session's coverage hears the print too, carrying its own
+                // INFERRED method (the pill read "WM NECTAR · UNAVAILABLE"
+                // beside a session tape counting trades, 2026-10-02).
+                ingestSessionNectarEvent(inferred);
                 tapeSourceRef.current = "tastytrade-equity";
                 processTick({
                   price: inferred.price!,
