@@ -34,14 +34,24 @@ export async function GET(request: Request): Promise<Response> {
     return NextResponse.json({ state: session.awaiting2fa ? "AWAITING_2FA" : "NO_SESSION", reason: session.note }, { headers: NO_STORE });
   }
   const c = { appKey: cfg.appKey, appSecret: cfg.appSecret, apiHost: cfg.apiHost, accessToken: session.accessToken, timeoutMs: 20_000 };
-  // Every step re-lists the accounts, so this call meets Webull's rate limit too (measured 429 here, 2026-10-02).
-  let accounts = await listWebullAccounts(fetch, c);
-  for (const wait of [3_000, 6_000, 12_000]) {
-    if (accounts.state !== "REJECTED" || accounts.status !== 429) break;
-    await new Promise(r => setTimeout(r, wait));
-    accounts = await listWebullAccounts(fetch, c);
+  // The account list is asked once per 10 minutes (kept in KV): every step
+  // re-listing it met Webull's rate limit (measured 429 here, 2026-10-02).
+  const kvEnv = orderDecisionKv(await webullWorkerEnv());
+  type Acct = { accountId: string; accountType: string | null };
+  let list: Acct[] | null = null;
+  try { const hit = kvEnv ? await kvEnv.get("wbledger:accounts") : null; if (hit) list = JSON.parse(hit) as Acct[]; } catch { list = null; }
+  if (!list) {
+    let accounts = await listWebullAccounts(fetch, c);
+    for (const wait of [3_000, 6_000, 12_000]) {
+      if (accounts.state !== "REJECTED" || accounts.status !== 429) break;
+      await new Promise(r => setTimeout(r, wait));
+      accounts = await listWebullAccounts(fetch, c);
+    }
+    if (accounts.state !== "OK") return NextResponse.json({ state: "ACCOUNTS_UNAVAILABLE", reason: accounts.reason }, { headers: NO_STORE });
+    list = accounts.accounts.map(a => ({ accountId: a.accountId, accountType: a.accountType }));
+    if (kvEnv) await kvEnv.put("wbledger:accounts", JSON.stringify(list), { expirationTtl: 600 }).catch(() => {});
   }
-  if (accounts.state !== "OK") return NextResponse.json({ state: "ACCOUNTS_UNAVAILABLE", reason: accounts.reason }, { headers: NO_STORE });
+  const accounts = { accounts: list };
 
   const url = new URL(request.url);
   const idxRaw = url.searchParams.get("account");
