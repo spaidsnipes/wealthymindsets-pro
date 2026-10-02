@@ -66,6 +66,19 @@ import { resolveQuoteDayChange } from "@/lib/marketData/resolveQuoteDayChange";
 import { tapeProtocolChannel } from "@/lib/marketData/tapeProtocol";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 
+/**
+ * EQUITY TAPE RECEIPT (2026-10-02) — what the stock tape lane did with each
+ * print, readable on the glass as `window.__wmEquityTape[SYMBOL]` (the house
+ * proof channel reads receipts, never guesses). Counts only.
+ */
+type EquityTapeCounts = { prints: number; invalid: number; unsigned: number; signed: number; late: number; absorbed: number };
+function equityTapeReceipt(symbol: string): EquityTapeCounts {
+  const w = (typeof window !== "undefined" ? window : null) as (Window & { __wmEquityTape?: Record<string, EquityTapeCounts> }) | null;
+  const book = w ? (w.__wmEquityTape ??= {}) : {};
+  const k = symbol.toUpperCase();
+  return (book[k] ??= { prints: 0, invalid: 0, unsigned: 0, signed: 0, late: 0, absorbed: 0 });
+}
+
 export interface Tick {
   price: number;
   size:  number;
@@ -1394,12 +1407,14 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
     const barUpdate = applyTickToClock(barRef.current, lastBarEventAtRef.current, tick, getIntervalSec());
     if (barUpdate.status === "LATE_EVENT_IGNORED") {
+      if (tick.marketEvent?.assetClass === "equity") equityTapeReceipt(tick.marketEvent.symbol).late++;
       // A REAL print a few ms out of order inside the current bar still traded:
       // it reaches the tape and widens the bar, never moving the close or the
       // clock (consolidated stock tape, 2026-10-02: NVDA printed 363 times in
       // 35 s premarket and the chart kept 1).
       const widened = isReal && tick.trade === true ? absorbOutOfOrderPrint(barRef.current, tick, getIntervalSec()) : null;
       if (!widened) return;
+      if (tick.marketEvent?.assetClass === "equity") equityTapeReceipt(tick.marketEvent.symbol).absorbed++;
       barRef.current = widened;
       tickBuf.current.push(tick);
       boundTickBuffer(tickBuf.current, droppedRef.current);
@@ -1705,15 +1720,19 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               // stamped as such, so every reading says "inferred"; a print no
               // rule can sign stays on the unsigned door (2026-10-01).
               if (contract.equity) {
+                const rc = equityTapeReceipt(symbol);
+                rc.prints++;
                 // A print the feed itself marks invalid is price evidence at
                 // most — never signed by inference.
-                if (e.values.validTick === 0) { processUnsignedObservation(print, "tastytrade"); return; }
+                if (e.values.validTick === 0) { rc.invalid++; processUnsignedObservation(print, "tastytrade"); return; }
                 const inferred = inferEquityAggressor(print, lastEquityPrice);
                 lastEquityPrice = print.price ?? lastEquityPrice;
                 if (inferred.aggressorSide !== "BUY" && inferred.aggressorSide !== "SELL") {
+                  rc.unsigned++;
                   processUnsignedObservation(print, "tastytrade");
                   return;
                 }
+                rc.signed++;
                 tapeSourceRef.current = "tastytrade-equity";
                 processTick({
                   price: inferred.price!,
