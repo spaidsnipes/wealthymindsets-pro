@@ -29,6 +29,16 @@ describe("Webull order history as Journal fills (when executions is not served)"
   });
 });
 
+describe("Webull order history states its fees", () => {
+  it("itemised fees and the contract value come through; no fees array stays 'not reported'", async () => {
+    const { readWebullOrderHistoryFills } = await import("./webullFills");
+    const [f] = readWebullOrderHistoryFills([{ order_id: "o2", symbol: "TSLA", side: "SELL", filled_quantity: "1", filled_price: "0.92",
+      legs: [{ strike_price: "407.5", option_type: "CALL", option_expire_date: "2026-06-10", option_contract_multiplier: "100" }],
+      fees: [{ type: "REGULATORY_FEE", actual_value: "0.02" }, { type: "CLEARING_FEE", actual_value: "0.03" }, { type: "SEC_FEE", actual_value: "0.01" }, { type: "FINRA_FEE", actual_value: "0.01" }] }]);
+    expect(f).toMatchObject({ feesReported: true, fees: 0.07, value: 92 });
+  });
+});
+
 describe("Webull option fills name their contract", () => {
   it("reads the leg's expiry, strike and right", async () => {
     const { readWebullOrderHistoryFills } = await import("./webullFills");

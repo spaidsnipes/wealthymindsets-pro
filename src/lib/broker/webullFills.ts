@@ -9,7 +9,8 @@ import type { TtFill } from "./tastytradeFills";
 
 export interface WbFill extends TtFill {
   readonly clientOrderId: string | null;
-  readonly feesReported: false;
+  /** Executions state no fees (false); an order-history order states them itemised (true). */
+  readonly feesReported: boolean;
 }
 
 const n = (v: unknown): number | null => {
@@ -91,7 +92,13 @@ export function readWebullOrderHistoryFills(payload: unknown): WbFill[] {
     seen.set(id, {
       id: `order:${id}`, orderId: id, clientOrderId: s(o.client_order_id), symbol: contract ?? s(o.symbol),
       instrumentType: s(o.instrument_type), action: side ? side[0] + side.slice(1).toLowerCase() : null,
-      quantity: qty, price, value: null, fees: 0, feesReported: false,
+      quantity: qty, price,
+      // Order history states the contract multiplier and itemised fees
+      // (REGULATORY / CLEARING / SEC / FINRA actual_value) — the Journal read
+      // "fees not reported" over fees Webull had stated (2026-10-02).
+      value: Math.round(qty * price * (leg ? (n(leg.option_contract_multiplier) ?? 100) : 1) * 100) / 100,
+      fees: Array.isArray(o.fees) ? Math.round((o.fees as Record<string, unknown>[]).reduce((t, f) => t + (n(f?.actual_value) ?? n(f?.receivable_value) ?? 0), 0) * 100) / 100 : 0,
+      feesReported: Array.isArray(o.fees),
       executedAt: isoTime(o.filled_time ?? o.filled_time_at ?? o.place_time),
     });
   }
