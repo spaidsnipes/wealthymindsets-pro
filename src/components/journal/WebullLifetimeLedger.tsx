@@ -254,6 +254,7 @@ export function WebullLifetimeLedger() {
   // Webull's own positions today: lets an UNSETTLED line say whether any of them is still held.
   const [held, setHeld] = useState<{ state: string; count: number; accounts: number; at: string } | null>(null);
   const [brokerDay, setBrokerDay] = useState<number | null>(null);
+  const [brokerAsked, setBrokerAsked] = useState(false);
   useEffect(() => {
     if (!data || data.state !== "OK" || data.partial) return;
     let alive = true;
@@ -262,8 +263,8 @@ export function WebullLifetimeLedger() {
       .catch(() => {});
     // §36/§86: Webull's own day P&L, to reconcile today's ledger net against.
     fetch("/api/broker/webull/balance", { cache: "no-store" }).then(r => r.json())
-      .then(j => { if (alive) setBrokerDay(typeof j?.dayPnl === "number" ? j.dayPnl : null); })
-      .catch(() => {});
+      .then(j => { if (alive) { setBrokerDay(typeof j?.dayPnl === "number" ? j.dayPnl : null); setBrokerAsked(true); } })
+      .catch(() => { if (alive) setBrokerAsked(true); });
     return () => { alive = false; };
   }, [data]);
   const s = data?.summary;
@@ -310,7 +311,9 @@ export function WebullLifetimeLedger() {
               <div key={a.tail}>·{a.tail} {a.accountType ?? ""}: {a.orders} orders ({a.filled} filled) · asked back to {a.askedBackTo} · {a.stoppedBecause === "QUIET_YEARS" ? "history quiet before that" : a.stoppedBecause}{a.reason ? ` — ${a.reason}` : ""}</div>
             ))}
             {(() => {
-              const rc = reconcileDay(data.episodes ?? [], brokerDay, held && (held.state === "NO_POSITIONS" || held.state === "OK") ? held.count : null);
+              // Only once the history is whole and Webull has answered — never a premature "did not state".
+              if (data.partial || !brokerAsked || !held) return null;
+              const rc = reconcileDay(data.episodes ?? [], brokerDay, held.state === "NO_POSITIONS" || held.state === "OK" ? held.count : null);
               if (rc.brokerDayPnl == null && rc.ledgerToday === 0) return null;
               return (
                 <div data-testid="ledger-reconcile" data-state={rc.state} style={{ color: INK }}>
