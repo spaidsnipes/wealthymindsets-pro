@@ -21,6 +21,7 @@ import { LedgerPersonalEdge } from "@/components/journal/LedgerPersonalEdge";
 import { TradeReplay } from "@/components/journal/TradeReplay";
 import { comparablesFor, episodeConditions, type EpisodeConditions } from "@/lib/broker/ledgerEdge";
 import { BehaviourTagsRow } from "@/components/journal/BehaviourTagsRow";
+import { EpisodeModelPicker } from "@/components/journal/EpisodeModelPicker";
 import { behaviourTags, type BehaviourTag } from "@/lib/journal/behaviorTags";
 
 const GOLD = "#C9A55C";
@@ -137,6 +138,7 @@ function EpisodeRow({ e, all, conds, tags }: { e: Episode; all: readonly Episode
               <span style={{ opacity: 0.6 }}>Webull order {f.orderId}</span>
             </div>
           ))}
+          <EpisodeModelPicker episodeId={e.id} />
           <BehaviourTagsRow episodeId={e.id} tags={tags} />
           {(() => {
             // §82: comparable episodes — same entry window, attempt number, DTE and call/put. Counts derived, never faked.

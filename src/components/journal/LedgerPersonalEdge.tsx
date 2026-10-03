@@ -18,6 +18,7 @@ import { PROFILE_RULES, replayDailyRules } from "@/lib/broker/dailyRules";
 import { ledgerTimeline, MIN_WINDOW, whatChanged } from "@/lib/broker/ledgerTimeline";
 import { lessonHref, studyNext } from "@/lib/journal/studyRoute";
 import { ProcessDays } from "@/components/journal/ProcessDays";
+import { EPISODE_MODELS_KEY, MODEL_LABEL, parseModels, resultsByModel, type ModelMark } from "@/lib/journal/episodeModel";
 import type { Episode } from "@/lib/broker/webullLedger";
 import { readStoryReviews, type StoryReview } from "@/lib/journal/storyReview";
 
@@ -33,14 +34,16 @@ const tone = (v: number) => (v > 0 ? UP : v < 0 ? DOWN : INK);
 export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly Episode[] }) {
   const edge = useMemo(() => computeLedgerEdge(episodes), [episodes]);
   const [reviews, setReviews] = useState<Readonly<Record<string, StoryReview>>>({});
+  const [models, setModels] = useState<Record<string, ModelMark>>({});
   useEffect(() => {
-    const read = () => setReviews(readStoryReviews());
+    const read = () => { setReviews(readStoryReviews()); try { setModels(parseModels(localStorage.getItem(EPISODE_MODELS_KEY))); } catch { /* none */ } };
     read();
     window.addEventListener("focus", read);
     const t = window.setInterval(read, 5_000);
     return () => { window.removeEventListener("focus", read); window.clearInterval(t); };
   }, []);
   const po = useMemo(() => processOutcome(episodes, reviews), [episodes, reviews]);
+  const byModel = useMemo(() => resultsByModel(episodes, models), [episodes, models]);
   // 1R is the trader's own statement (no broker record holds it); kept on this device.
   const [oneR, setOneR] = useState<number>(0);
   useEffect(() => { try { setOneR(Number(localStorage.getItem("wm_ledger_one_r") ?? 0) || 0); } catch { /* none */ } }, []);
@@ -182,6 +185,23 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
         <p style={{ fontSize: 12, color: INK, margin: "8px 0 0" }}>
           {edge.daily.thirdPlusDays} of {edge.daily.days} trading days had a third or later trade — {edge.daily.thirdPlusTrades} trades beyond the second, netting <span style={{ color: tone(edge.daily.thirdPlusNet) }}>{usd(edge.daily.thirdPlusNet)}</span>.
         </p>
+      </div>
+
+      <div data-testid="edge-by-model" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
+        <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>BY MODEL · FROM YOUR OWN MARKS</div>
+        <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>Mark a trade&apos;s model in its detail below; only marked trades count here ({byModel.marked} marked). An M0 mark on a filled trade means a trade where the model said wait.</p>
+        {byModel.rows.length === 0 ? <p style={{ fontSize: 12, color: MUTED, margin: 0 }}>No trade marked yet.</p> : (
+          <table style={{ fontSize: 12, borderCollapse: "collapse", fontVariantNumeric: "tabular-nums", minWidth: 360 }}>
+            <tbody>{byModel.rows.map(r => (
+              <tr key={r.model} style={{ borderTop: `1px solid ${LINE}`, color: r.n >= MIN_SAMPLE ? INK : MUTED }}>
+                <td style={{ padding: "2px 12px 2px 0" }}>{MODEL_LABEL[r.model]}</td><td style={{ textAlign: "right", paddingRight: 12 }}>{r.n}</td>
+                <td style={{ textAlign: "right", paddingRight: 12 }}>{Math.round((r.wins / r.n) * 100)}%</td>
+                <td style={{ textAlign: "right", color: tone(r.expectancy) }}>{usd(r.expectancy)}/trade</td>
+                <td style={{ paddingLeft: 12 }}>{r.n < MIN_SAMPLE ? "INSUFFICIENT EVIDENCE" : ""}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
       </div>
 
       <ProcessDays episodes={episodes} />
