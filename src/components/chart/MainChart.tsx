@@ -19385,11 +19385,33 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // the trader chose it, so it paints at full strength (MOCK 4).
               ctx.globalAlpha = att.alpha("marketZones", { selectedItem: selected });
               if (!selected) {
-                ctx.strokeStyle = invalid ? "rgba(150,150,160,0.30)" : "rgba(201,165,92,0.30)";
+                if (invalid) {
+                  // A dead object: the grey dashed outline only.
+                  ctx.strokeStyle = "rgba(150,150,160,0.30)";
+                  ctx.lineWidth = 1;
+                  ctx.setLineDash([3, 4]);
+                  ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, zEnd - x0, Math.round(h));
+                  ctx.setLineDash([]);
+                  continue;
+                }
+                // PLATE 84 · THE OBJECT LIVES ON THE CHART. At rest a live zone
+                // was a 0.30 dashed outline that barely read (serving BTC 15m
+                // 2026-10-03); the plate draws a lit band with the passport
+                // mark at its centre. A soft band + solid hairline + the mark —
+                // still quieter than the selected zone (0.24 fill, 0.9 rim).
+                ctx.fillStyle = "rgba(201,165,92,0.08)";
+                ctx.fillRect(x0, top, zEnd - x0, h);
+                ctx.strokeStyle = "rgba(201,165,92,0.55)";
                 ctx.lineWidth = 1;
-                ctx.setLineDash([3, 4]);
                 ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, zEnd - x0, Math.round(h));
-                ctx.setLineDash([]);
+                if (h >= 14 && zEnd - x0 >= 48) {
+                  // The passport mark: a small brass card with a ring — drawn
+                  // strokes, no words (the callout carries the words on select).
+                  const gx = Math.round(x0 + (zEnd - x0) / 2) - 5, gy = Math.round(top + h / 2) - 6;
+                  ctx.strokeStyle = "rgba(233,196,106,0.75)";
+                  ctx.strokeRect(gx + 0.5, gy + 0.5, 10, 12);
+                  ctx.beginPath(); ctx.arc(gx + 5.5, gy + 6.5, 2.6, 0, Math.PI * 2); ctx.stroke();
+                }
                 continue;
               }
               // SELECTED
