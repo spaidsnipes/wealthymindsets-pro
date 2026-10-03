@@ -20617,7 +20617,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               { k: "RESPONSE", v: gauge.response == null ? "— not measured" : `${gauge.response.toFixed(2)}×`, fill: null, needle: gauge.response == null || !(gauge.response > 0) ? null : needleOf(gauge.response) },
               { k: "VEIL", v: weatherVeil > 0 ? `${weatherVeil.toFixed(2)} / ${heat.maxOpacity.toFixed(2)}` : "none", fill: weatherVeil > 0 ? weatherVeil / heat.maxOpacity : null, needle: null },
             ];
-            const rw = 164, rh = 6 + 4 * 11 + 4;
+            // §16 (v2, plate 79): the readout is read under pressure — 11 px
+            // labels, mono values, 16 px rows, gauges wide enough to see.
+            const RO_ROW = 16, RO_VAL_X = 100, RO_BAR = 46;
+            const rw = 208, rh = 8 + 4 * RO_ROW + 6;
             const inPlot = (r: { x: number; y: number; w: number; h: number }) =>
               r.x >= keepOutMinX() && r.x + r.w <= weatherPlotRight - 4 && r.y >= HEADER_FLOOR_Y + 2 && r.y + r.h <= pane0Bottom - 2;
             const slots = [
@@ -20661,32 +20664,34 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.fillRect(R.x, R.y, R.w, R.h);
               ctx.strokeStyle = "rgba(201,165,92,0.55)";
               ctx.strokeRect(R.x + 0.5, R.y + 0.5, R.w - 1, R.h - 1);
-              ctx.font = `600 9px ${MARKET_SANS}`;
               ctx.textBaseline = "middle";
               ctx.textAlign = "left";
-              const rowY = (i: number) => R.y + 6 + i * 11 + 5;
-              ctx.fillStyle = "rgba(237,230,211,0.70)";
-              ctx.fillText(titleYields ? "WEATHER LENS" : "LENS STATUS", R.x + 6, rowY(0));
-              ctx.fillStyle = "rgba(201,165,92,0.95)";
-              ctx.fillText(`● ${glass.stage}`, R.x + 72, rowY(0));
+              const rowY = (i: number) => Math.round(R.y + 8 + i * RO_ROW + RO_ROW / 2 - 2);
+              ctx.font = marketFont("OBJECT_NAME", 11);
+              ctx.fillStyle = "rgba(237,230,211,0.85)";
+              ctx.fillText(titleYields ? "WEATHER LENS" : "LENS STATUS", R.x + 8, rowY(0));
+              ctx.fillStyle = "rgba(212,175,55,1)";
+              ctx.fillText(`● ${glass.stage}`, R.x + RO_VAL_X, rowY(0));
               readRows.forEach((row, i) => {
                 const y = rowY(i + 1);
-                ctx.fillStyle = "rgba(237,230,211,0.70)";
-                ctx.fillText(row.k, R.x + 6, y);
-                ctx.fillStyle = "rgba(237,230,211,0.95)";
-                ctx.fillText(row.v, R.x + 72, y);
+                ctx.font = marketFont("OBJECT_NAME", 10);
+                ctx.fillStyle = "rgba(237,230,211,0.78)";
+                ctx.fillText(row.k, R.x + 8, y);
+                ctx.font = marketFont("MICRO_NUMBER", 11);
+                ctx.fillStyle = "rgba(237,230,211,1)";
+                ctx.fillText(row.v, R.x + RO_VAL_X, y);
                 if (row.fill == null && row.needle == null) return;
-                const bx = R.x + R.w - 6 - 34;
-                ctx.fillStyle = "rgba(237,230,211,0.12)";
-                ctx.fillRect(bx, y - 2, 34, 4);
+                const bx = R.x + R.w - 8 - RO_BAR;
+                ctx.fillStyle = "rgba(237,230,211,0.14)";
+                ctx.fillRect(bx, y - 3, RO_BAR, 6);
                 if (row.fill != null) {
-                  ctx.fillStyle = "rgba(201,165,92,0.85)";
-                  ctx.fillRect(bx, y - 2, 34 * Math.max(0, Math.min(1, row.fill)), 4);
+                  ctx.fillStyle = "rgba(201,165,92,0.9)";
+                  ctx.fillRect(bx, y - 3, RO_BAR * Math.max(0, Math.min(1, row.fill)), 6);
                 } else if (row.needle != null) {
-                  ctx.fillStyle = "rgba(237,230,211,0.35)";
-                  ctx.fillRect(bx + 16.5, y - 3, 1, 6);
-                  ctx.fillStyle = "rgba(237,230,211,0.95)";
-                  ctx.fillRect(bx + 34 * row.needle - 1, y - 4, 2, 8);
+                  ctx.fillStyle = "rgba(237,230,211,0.4)";
+                  ctx.fillRect(bx + RO_BAR / 2 - 0.5, y - 4, 1, 8);
+                  ctx.fillStyle = "rgba(237,230,211,1)";
+                  ctx.fillRect(bx + RO_BAR * row.needle - 1, y - 5, 2, 10);
                 }
               });
               floatingChips.push({ x: R.x, y: R.y, w: R.w, h: R.h });
