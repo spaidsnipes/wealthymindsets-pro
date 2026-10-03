@@ -19988,6 +19988,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             dragHandle.style.left = `${Math.max(0, Math.min(weatherPlotRight - 108, weatherLens.cx - 54))}px`;
             dragHandle.style.top = `${Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - 28, weatherLens.cy + weatherLens.ry + 18))}px`;
             dragHandle.textContent = aperture ? "DRAG · CANDLE EST." : "DRAG LENS";
+            // The handle is a DOM chip over the glass: the readout and later
+            // chips step around it (serving BTC 1m: it sat on "LENS STATUS").
+            if (dragHandle.style.display === "block") {
+              floatingChips.push({ x: parseFloat(dragHandle.style.left) - 2, y: parseFloat(dragHandle.style.top) - 2, w: 112, h: 26 });
+            }
           }
         }
         ds.weatherLensSample = aperture ? "SELECTED_CANDLES_ESTIMATE_NO_TAPE_NO_BOOK" : "LIVE_OWNER_WINDOW";
@@ -20754,7 +20759,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const big = largeQuiet != null;
             const RO_ROW = big ? 16 : 11, RO_VAL_X = big ? 100 : 74, RO_BAR = big ? 46 : 34;
             const RO_LABEL_PX = big ? 10 : 9, RO_VALUE_PX = big ? 11 : 9, RO_TITLE_PX = big ? 11 : 9;
-            const slots = big ? largeSlots : slotsFor(164, 6 + 4 * 11 + 4);
+            const slots = big ? largeSlots : slotsFor(178, 6 + 4 * 11 + 4);
             const quiet = big ? largeQuiet : quietIn(slots);
             const spot = quiet
               ? { mode: quiet === slots[0] ? "CLEAR" as const : "MOVED" as const, rect: quiet, onCandles: false, displaced: quiet !== slots[0] }
@@ -20801,17 +20806,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillStyle = "rgba(237,230,211,1)";
                 ctx.fillText(row.v, R.x + RO_VAL_X, y);
                 if (row.fill == null && row.needle == null) return;
-                const bx = R.x + R.w - 8 - RO_BAR;
+                // The gauge starts after its value ends — "0.22 / 0.30" ran
+                // under the VEIL bar in the compact card. No room → no gauge.
+                const valEnd = R.x + RO_VAL_X + ctx.measureText(row.v).width + 6;
+                const bx = Math.max(R.x + R.w - 8 - RO_BAR, valEnd);
+                const barW = R.x + R.w - 8 - bx;
+                if (barW < 12) return;
                 ctx.fillStyle = "rgba(237,230,211,0.14)";
-                ctx.fillRect(bx, y - 3, RO_BAR, 6);
+                ctx.fillRect(bx, y - 3, barW, 6);
                 if (row.fill != null) {
                   ctx.fillStyle = "rgba(201,165,92,0.9)";
-                  ctx.fillRect(bx, y - 3, RO_BAR * Math.max(0, Math.min(1, row.fill)), 6);
+                  ctx.fillRect(bx, y - 3, barW * Math.max(0, Math.min(1, row.fill)), 6);
                 } else if (row.needle != null) {
                   ctx.fillStyle = "rgba(237,230,211,0.4)";
-                  ctx.fillRect(bx + RO_BAR / 2 - 0.5, y - 4, 1, 8);
+                  ctx.fillRect(bx + barW / 2 - 0.5, y - 4, 1, 8);
                   ctx.fillStyle = "rgba(237,230,211,1)";
-                  ctx.fillRect(bx + RO_BAR * row.needle - 1, y - 5, 2, 10);
+                  ctx.fillRect(bx + barW * row.needle - 1, y - 5, 2, 10);
                 }
               });
               floatingChips.push({ x: R.x, y: R.y, w: R.w, h: R.h });
