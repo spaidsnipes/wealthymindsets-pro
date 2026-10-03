@@ -150,6 +150,9 @@ const coinbaseTuples = (r: unknown): LegacyOhlcvTuple[] =>
  * venueTailFill.ts): closed intervals only, one bar per instant, replaced
  * never summed. `null` = no tail was read (it failed, or not this venue).
  */
+/** The last tail read that succeeded, per coin:interval (this isolate only). */
+const lastGoodTail = new Map<string, { atMs: number; tuples: LegacyOhlcvTuple[] }>();
+
 /** Backoff before each retry of a 429-refused tail read. */
 const TAIL_RETRY_MS = [250, 700] as const;
 
@@ -193,8 +196,20 @@ async function getCandlePage(ex: Ex, coin: string, tf: ExchangeTimeframe, sec: n
     getCandles(ex, coin, tf, sec, bars),
     getCoinbaseTail(coin, sec),
   ]);
-  if (tail.tuples === null) return { tuples: history, tailFilled: null, tailRead: tail.read };
-  const merged = mergeVenueTail({ history, tail: tail.tuples, intervalSec: sec, nowSec: Math.floor(Date.now() / 1000) });
+  const key = `${coin}:${sec}`;
+  if (tail.tuples !== null) lastGoodTail.set(key, { atMs: Date.now(), tuples: tail.tuples });
+  else {
+    // A CLOSED interval never changes, so a refused read may reuse the last
+    // good tail this isolate holds — only while it is younger than the tail
+    // window, and labelled as such. mergeVenueTail still takes closed only.
+    const held = lastGoodTail.get(key);
+    if (!held || Date.now() - held.atMs > VENUE_TAIL_INTERVALS * sec * 1000) {
+      return { tuples: history, tailFilled: null, tailRead: tail.read };
+    }
+    const reused = mergeVenueTail({ history, tail: held.tuples, intervalSec: sec, nowSec: Math.floor(Date.now() / 1000) });
+    return { tuples: reused.bars.slice(-bars), tailFilled: reused.filled, tailRead: `${tail.read}|HELD_${Math.round((Date.now() - held.atMs) / 1000)}s` };
+  }
+  const merged = mergeVenueTail({ history, tail: tail.tuples as LegacyOhlcvTuple[], intervalSec: sec, nowSec: Math.floor(Date.now() / 1000) });
   return { tuples: merged.bars.slice(-bars), tailFilled: merged.filled, tailRead: tail.read };
 }
 
