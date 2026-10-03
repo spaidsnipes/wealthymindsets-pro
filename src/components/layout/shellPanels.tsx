@@ -406,14 +406,24 @@ function SignOutButton({ onClose }: { onClose: () => void }) {
 }
 
 /* ── Settings Panel ──────────────────────────────────────── */
+export type SettingsTabId = "display"|"chart"|"views"|"intelligence"|"execution"|"watchlist"|"connections"|"accessibility"|"account";
+export const SETTINGS_TAB_IDS: readonly SettingsTabId[] = ["display","chart","views","intelligence","execution","watchlist","connections","accessibility","account"];
+/** Any surface can open Settings at a tab without a page load: dispatch this event (detail: { tab }). */
+export const OPEN_SETTINGS_EVENT = "wm:open-settings";
+export function openSettings(tab?: SettingsTabId): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: { tab } }));
+}
+
 export function SettingsPanel({
   onClose,
   fallbackTriggerRef,
+  initialTab,
 }: {
   onClose: () => void;
   fallbackTriggerRef: React.RefObject<HTMLButtonElement | null>;
+  initialTab?: SettingsTabId;
 }) {
-  const [tab,       setTab]       = useState<"display"|"chart"|"views"|"intelligence"|"execution"|"watchlist"|"connections"|"accessibility"|"account">("display");
+  const [tab,       setTab]       = useState<SettingsTabId>(initialTab ?? "display");
   const router = useRouter();
   const [marketMotion, setMarketMotion] = useState<LivingMarket>("LIVE");
   const [reducedMotion, setReducedMotion] = useState(false);

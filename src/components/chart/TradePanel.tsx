@@ -23,6 +23,7 @@
  * NOT linked (no OCO yet), and the panel says so.
  */
 
+import { openSettings } from "@/components/layout/shellPanels";
 import { tastytradeEntryFields, type TastytradeEntryType } from "@/lib/broker/tastytradeEntryFields";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -208,10 +209,11 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         <span data-testid="trade-kind" style={{ fontSize: 10, letterSpacing: 1.2, color: GOLD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 6px" }}>{kind === "FUTURE" ? "FUTURE" : kind}</span>
         <span style={{ fontWeight: 600 }}>{contract?.symbol ?? symbol}</span>
         {kind === "FUTURE" && contract && contract.symbol !== symbol.toUpperCase() ? <span style={{ color: MUTED }}>· {symbol} → this contract</span> : null}
-        <span data-testid="trade-live-arm" title={liveArmed ? "Live orders can be armed (Settings › Execution)" : "Live trading is disarmed in Settings › Execution — nothing can be sent"}
-          style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", border: `1px solid ${liveArmed ? RED : LINE}`, color: liveArmed ? RED : MUTED }}>
+        <button type="button" data-testid="trade-live-arm" onClick={() => openSettings("execution")}
+          title={liveArmed ? "Live orders can be armed — open Settings › Execution" : "Live trading is disarmed — open Settings › Execution; nothing can be sent until it is armed there"}
+          style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", border: `1px solid ${liveArmed ? RED : LINE}`, color: liveArmed ? RED : MUTED, background: "none", cursor: "pointer" }}>
           {liveArmed ? "LIVE ARMED" : "LIVE DISARMED"}
-        </span>
+        </button>
         <button type="button" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
       </header>
 

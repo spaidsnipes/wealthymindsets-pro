@@ -11,6 +11,9 @@ import {
   SearchPanel,
   NotificationsPanel,
   SettingsPanel,
+  SETTINGS_TAB_IDS,
+  OPEN_SETTINGS_EVENT,
+  type SettingsTabId,
   initialUnreadNotificationCount,
 } from "@/components/layout/shellPanels";
 import { HeaderPnL } from "@/components/layout/HeaderPnL";
@@ -132,6 +135,7 @@ export function ShellAccessChrome({ showPoints = true, compact = false }: ShellA
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [notifsOpen, setNotifsOpen] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [settingsTab, setSettingsTab] = React.useState<SettingsTabId | undefined>(undefined);
   const [profileOpen, setProfileOpen] = React.useState(false);
 
   const searchTriggerRef = React.useRef<HTMLButtonElement | null>(null);
@@ -165,14 +169,29 @@ export function ShellAccessChrome({ showPoints = true, compact = false }: ShellA
 
   // A link (or the /settings alias) can ask for the Settings drawer with
   // ?settings=open; the param is consumed so a reload does not reopen it.
+  // ?settings=open or ?settings=<tab id> (e.g. execution, connections).
   React.useEffect(() => {
     try {
       const url = new URL(window.location.href);
-      if (url.searchParams.get("settings") !== "open") return;
+      const want = url.searchParams.get("settings");
+      if (!want) return;
+      setSettingsTab((SETTINGS_TAB_IDS as readonly string[]).includes(want) ? (want as SettingsTabId) : undefined);
       open("settings");
       url.searchParams.delete("settings");
       window.history.replaceState(window.history.state, "", url.pathname + (url.search || "") + url.hash);
     } catch { /* no URL access: nothing to open */ }
+  }, [open]);
+
+  // In-app links (e.g. the Trade panel's LIVE ARMED / DISARMED chip) open
+  // Settings at a tab without leaving the page.
+  React.useEffect(() => {
+    const onOpen = (e: Event) => {
+      const t = (e as CustomEvent<{ tab?: SettingsTabId }>).detail?.tab;
+      setSettingsTab(t && (SETTINGS_TAB_IDS as readonly string[]).includes(t) ? t : undefined);
+      open("settings");
+    };
+    window.addEventListener(OPEN_SETTINGS_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_SETTINGS_EVENT, onOpen);
   }, [open]);
 
   // ⌘K / Ctrl-K. The July shell owned this shortcut, so it did nothing in an
@@ -421,7 +440,7 @@ export function ShellAccessChrome({ showPoints = true, compact = false }: ShellA
         <NotificationsPanel onClose={() => setNotifsOpen(false)} fallbackTriggerRef={notificationsTriggerRef} />
       )}
       {settingsOpen && (
-        <SettingsPanel onClose={() => setSettingsOpen(false)} fallbackTriggerRef={settingsTriggerRef} />
+        <SettingsPanel key={settingsTab ?? "default"} initialTab={settingsTab} onClose={() => setSettingsOpen(false)} fallbackTriggerRef={settingsTriggerRef} />
       )}
     </div>
   );
