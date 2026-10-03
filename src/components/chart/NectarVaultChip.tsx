@@ -232,7 +232,7 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
               <span
                 data-evidence-tape-source={tapeSource}
                 style={{
-                  fontWeight: 700, fontSize: 8.5, letterSpacing: 0.2,
+                  fontWeight: 700, fontSize: 9, letterSpacing: 0.2,
                   color: tapeSource === "unavailable" ? "#62697d" : "#8B92AC",
                   opacity: tapeSource === "unavailable" ? 0.75 : 1,
                 }}

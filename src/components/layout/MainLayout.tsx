@@ -564,7 +564,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     <span
                       data-testid="rail-legacy-chip"
                       style={{
-                        fontSize: 7, letterSpacing: "0.12em", color: "#6F7490",
+                        fontSize: 9, letterSpacing: "0.12em", color: "#6F7490",
                         border: "1px solid rgba(111,116,144,0.45)", borderRadius: 3,
                         padding: "0px 3px", marginTop: 1,
                       }}
@@ -590,7 +590,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 style={{
                   margin: "8px 6px 4px", padding: "8px 6px",
                   borderTop: "1px solid #1E2030",
-                  color: "#8B8FA8", fontSize: 8, lineHeight: 1.5,
+                  color: "#8B8FA8", fontSize: 9, lineHeight: 1.5,
                   textAlign: "center", letterSpacing: "0.01em",
                 }}
               >
@@ -702,7 +702,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                                     withheld-while-capital-is-live section), so the deck's
                                     door must SAY the word here as well as on the rail. */}
                                 {authority === "legacy" && (
-                                  <span data-testid="drawer-legacy-chip" style={{ marginLeft: 6, fontSize: 7, letterSpacing: "0.12em", color: "#6F7490", border: "1px solid rgba(111,116,144,0.45)", borderRadius: 3, padding: "0px 3px", verticalAlign: "middle" }}>LEGACY</span>
+                                  <span data-testid="drawer-legacy-chip" style={{ marginLeft: 6, fontSize: 9, letterSpacing: "0.12em", color: "#6F7490", border: "1px solid rgba(111,116,144,0.45)", borderRadius: 3, padding: "0px 3px", verticalAlign: "middle" }}>LEGACY</span>
                                 )}
                               </span>
                             </Link>

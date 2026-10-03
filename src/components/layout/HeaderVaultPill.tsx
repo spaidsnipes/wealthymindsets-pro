@@ -88,7 +88,7 @@ export function HeaderVaultPill() {
             borderRadius: 999,
             border: "1px solid rgba(192,90,74,0.5)",
             color: "#c05a4a",
-            fontSize: 8, fontWeight: 900, letterSpacing: 0.4,
+            fontSize: 9, fontWeight: 900, letterSpacing: 0.4,
           }}
         >
           ! {gapCount}

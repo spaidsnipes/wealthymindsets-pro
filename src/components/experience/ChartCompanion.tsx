@@ -296,7 +296,7 @@ function MiniPriceBook({
           x={BOOK_W - 2}
           y={y(v) + 3}
           textAnchor="end"
-          style={{ fontSize: 7.5, fill: "#8a8271", fontVariantNumeric: "tabular-nums" }}
+          style={{ fontSize: 9, fill: "#8a8271", fontVariantNumeric: "tabular-nums" }}
         >
           {v.toFixed(2)}
         </text>
@@ -309,7 +309,7 @@ function MiniPriceBook({
           x={x(i)}
           y={BOOK_PLOT_H + 10}
           textAnchor={k === 0 ? "start" : k === timeTicks.length - 1 ? "end" : "middle"}
-          style={{ fontSize: 7.5, fill: "#655f52", fontVariantNumeric: "tabular-nums" }}
+          style={{ fontSize: 9, fill: "#655f52", fontVariantNumeric: "tabular-nums" }}
         >
           {bookTimeLabel(points[i]!.t)}
         </text>
@@ -542,7 +542,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
           <span
             title={vm.sessionDetail}
             style={{
-              color: "#c9a55c", fontSize: 8, fontWeight: 500,
+              color: "#c9a55c", fontSize: 9, fontWeight: 500,
               letterSpacing: 0.3, padding: "1px 4px", borderRadius: 3,
               border: "1px solid rgba(201,165,92,0.32)",
               background: "rgba(201,165,92,0.06)",
@@ -601,7 +601,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
             {" "}
             ({vm.change.pct >= 0 ? "+" : ""}{vm.change.pct.toFixed(2)}%)
           </span>
-          <span style={{ fontSize: 8, color: "#655f52", letterSpacing: 0.3 }}>
+          <span style={{ fontSize: 9, color: "#655f52", letterSpacing: 0.3 }}>
             last {vm.change.timeframe} bar
           </span>
         </div>
@@ -630,7 +630,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
               : vm.regime.reason ?? "No compiled market state to read a regime from."
           }
           style={{
-            fontSize: 8, letterSpacing: 0.4, textTransform: "uppercase",
+            fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase",
             padding: "2px 5px", borderRadius: 3, whiteSpace: "nowrap",
             border: "1px solid rgba(201,165,92,0.28)",
             background: "rgba(201,165,92,0.05)",
@@ -684,7 +684,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
         <div data-testid="chart-companion-tape">
           <div
             style={{
-              fontSize: 8, letterSpacing: 0.5, textTransform: "uppercase",
+              fontSize: 9, letterSpacing: 0.5, textTransform: "uppercase",
               color: "#8a8271", marginBottom: 2,
             }}
           >
@@ -769,7 +769,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
       <div
         data-testid="chart-companion-status"
         className="flex items-center gap-1.5"
-        style={{ fontSize: 8.5, color: "#655f52", letterSpacing: 0.4 }}
+        style={{ fontSize: 9, color: "#655f52", letterSpacing: 0.4 }}
       >
         <span
           aria-hidden="true"
@@ -784,7 +784,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
         </span>
       </div>
 
-      <p style={{ fontSize: 8.5, lineHeight: 1.5, color: "#655f52", margin: 0 }}>
+      <p style={{ fontSize: 9, lineHeight: 1.5, color: "#655f52", margin: 0 }}>
         Same decision camera as the chart — this panel reads the state the
         chart compiled. It decides nothing and mints no Decision ID.
       </p>

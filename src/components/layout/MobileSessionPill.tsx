@@ -205,7 +205,7 @@ export function MobileSessionPill(): React.ReactElement | null {
           color: "#c9a55c",
           fontWeight: 500,
           letterSpacing: 0.3,
-          fontSize: 8,
+          fontSize: 9,
           padding: "1px 4px",
           borderRadius: 3,
           border: "1px solid rgba(201,165,92,0.32)",
