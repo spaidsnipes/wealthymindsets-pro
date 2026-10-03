@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
@@ -656,6 +657,23 @@ function ProfilePageInner() {
             </p>
           )}
 
+          {/* The same sign-in, two connections (2026-10-03): the broker record
+              this profile does not compute (it counts Journal entries and Paper
+              trades only), and the WOW World Passport this account already is. */}
+          <div data-testid="profile-connections" className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            <Link href="/journal?tab=ledger" prefetch={false} data-testid="profile-broker-record"
+              className="rounded-lg border border-wm-border px-3 py-1.5 text-wm-text hover:border-wm-gold/60"
+              title="Your Webull order history, rebuilt into trades with fees — broker truth, not counted in the stats above">
+              Broker record (Webull) → Journal · Broker Ledger
+            </Link>
+            <button type="button" data-testid="profile-wow-passport"
+              onClick={() => { window.open("/api/passport/to-wow?to=/passport", "_blank", "noopener"); }}
+              className="rounded-lg border border-wm-border px-3 py-1.5 text-wm-text hover:border-wm-gold/60"
+              title="This account is your WM World Passport — the same sign-in opens WOW World">
+              WOW World Passport ↗
+            </button>
+          </div>
+
           {/* Circle of Excellence — Top 8 */}
           <div className="mt-5">
             <div className="flex items-center gap-2 mb-2.5">
@@ -932,7 +950,7 @@ function ProfilePageInner() {
                 <div className="flex flex-col items-center justify-center h-40 gap-3 text-wm-text-muted">
                   <BarChart2 size={32} className="opacity-20" />
                   <div className="text-sm">No trades yet</div>
-                  <div className="text-xs text-wm-text-dim text-center max-w-xs">Your closed trades from the Journal and Paper Trading will appear here automatically.</div>
+                  <div className="text-xs text-wm-text-dim text-center max-w-xs">Your closed trades from the Journal and Paper Trading will appear here automatically. Your Webull history is in <Link href="/journal?tab=ledger" prefetch={false} className="underline text-wm-text">Journal → Broker Ledger</Link>.</div>
                 </div>
               ) : recentTrades.map((t, i) => (
                 <div key={i} className="glass rounded-xl p-3 flex items-center gap-4 hover:border-wm-border/80 transition-all">
