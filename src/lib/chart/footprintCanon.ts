@@ -128,8 +128,8 @@ export interface CellText {
   readonly px: number;
 }
 
-/** Smallest cell font the grid will print. */
-export const CELL_MIN_PX = 8;
+/** Smallest cell font the grid will print — the market's number floor (§15: drop, never shrink to illegible). */
+export const CELL_MIN_PX = 9;
 
 /**
  * What a Bid × Ask cell may print, given the room it has. "bid × ask" (M46),

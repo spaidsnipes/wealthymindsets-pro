@@ -58,6 +58,7 @@ import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/der
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
 import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
 import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
+import { crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
@@ -7530,22 +7531,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Cell numbers are drawn pure white with a dark halo so they stay legible
       // on any tint. The font never exceeds the row (9–12px, 8px when a cell is
       // tight — footprintCanon's CELL_MIN_PX) so rows never overprint.
-      const cellFs = (rH: number) => Math.max(9, Math.min(12, Math.floor(rH * 0.6)));
+      // §15/§16 · one typography owner: 9…12 px mono, never below the floor.
+      const cellFs = (rH: number) => footprintCellPx(rH);
       const cellNum = (txt: string, px: number, py: number, align: CanvasTextAlign, fs: number, color = "#ffffff") => {
         // Leave zero-volume rows BLANK like a pro footprint (TradingView/Bookmap).
         // On crypto, sub-0.005 BTC rows format to "0.00"; painting them turned the
         // whole profile into a wall of "0.00" that read as broken.
         if (txt === "0" || txt === "0.00" || txt === "0.0") return;
-        ctx.font = `700 ${fs}px 'JetBrains Mono',monospace`;
-        ctx.textAlign = align; ctx.textBaseline = "middle";
-        ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
-        ctx.fillStyle = color;
-        ctx.fillText(txt, px, py);
-        ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+        // CRISP (§15): the cell already carries its own dark fill, so the
+        // digits get a tight outline on a whole pixel — the old 3px shadowBlur
+        // halo is what made small footprint numbers read as smudge.
+        ctx.font = marketFont("FOOTPRINT_NUMBER", fs);
+        crispText(ctx, txt, px, py, { fill: color, outline: true, align });
       };
       // The width a cell number will take, in the font cellNum paints it in.
       const measureCell = (txt: string, px: number) => {
-        ctx.font = `700 ${px}px 'JetBrains Mono',monospace`;
+        ctx.font = marketFont("FOOTPRINT_NUMBER", px);
         return ctx.measureText(txt).width;
       };
       const chipHits = (r: { x: number; y: number; w: number; h: number }) =>
@@ -7662,15 +7663,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const bd = fpNumbers ? barTapeDelta(getBarSubProfile(c)) : null;
             if (bd) {
               const text = signedFlowText(bd.delta, fmtV);
-              ctx.font = "700 10px 'JetBrains Mono',monospace";
+              ctx.font = marketFont("MICRO_NUMBER", 10.5);
               const tw = ctx.measureText(text).width + 4;
               const rect = { x: cx - tw / 2, y: yH - 17, w: tw, h: 14 };
               if (rect.y >= HEADER_FLOOR_Y && !chipHits(rect)) {
-                ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
-                ctx.fillStyle = `rgba(${bd.delta >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},0.95)`;
-                ctx.fillText(text, cx, rect.y + rect.h / 2);
-                ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
+                crispText(ctx, text, cx, rect.y + rect.h / 2, { fill: `rgba(${bd.delta >= 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell},0.98)`, outline: true });
                 forceChips.push(rect);
                 deltaText++;
               }
