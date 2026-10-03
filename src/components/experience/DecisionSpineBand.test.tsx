@@ -820,6 +820,14 @@ describe("DecisionSpineBand — WAIT declares whether it is finished (canon 064/
     expect(html).not.toContain("No action required");
   });
 
+  it("names the whole beside the part: payable now / everything blocking (plate 133)", () => {
+    const html = render({ presentation: "rail", oneStory: waiting({ missingPayable: 3 }), decisionWhy: decisionWhy({ blockerCount: 6 }) });
+    expect(html).toContain("3 TO RESOLVE");
+    expect(html).toMatch(/data-testid="spine-wait-blocking-whole"[^>]*>\s*\/ 6 BLOCKING/);
+    const same = render({ presentation: "rail", oneStory: waiting({ missingPayable: 3 }), decisionWhy: decisionWhy({ blockerCount: 3 }) });
+    expect(same).not.toContain("spine-wait-blocking-whole");
+  });
+
   it("does not dress a venue blockage as a finished wait", () => {
     const html = render({ presentation: "rail", oneStory: waiting({ venueBlocked: 3 }) });
     expect(html).toContain('data-standing="VENUE_BLOCKED"');

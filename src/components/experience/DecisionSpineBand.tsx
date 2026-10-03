@@ -1563,6 +1563,19 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
                 {waitStanding.headline}
               </span>
             ) : null}
+            {/* ONE COUNT BESIDE ANOTHER, NAMED (plate 133). Serving BTC 5m
+                2026-10-03 printed "3 TO RESOLVE" on this plaque and "6
+                blockers" on the canvas pill — both true (payable now ⊂
+                everything holding the verdict), read as a contradiction. The
+                whole is named beside its part, from the same compiled WHY. */}
+            {waitStanding && props.decisionWhy && props.decisionWhy.blockerCount > waitStanding.payable ? (
+              <span
+                data-testid="spine-wait-blocking-whole"
+                title={`${waitStanding.payable} of the ${props.decisionWhy.blockerCount} things holding this WAIT can be paid now; the rest resolve when their inputs do, or need another feed.`}
+              >
+                {" "}/ {props.decisionWhy.blockerCount} BLOCKING
+              </span>
+            ) : null}
             {waitStanding ? <span aria-hidden="true"> · </span> : null}
             <span
               style={{ color: NOW_TOKEN_TONE[props.now.established ? "established" : "unestablished"].color }}
