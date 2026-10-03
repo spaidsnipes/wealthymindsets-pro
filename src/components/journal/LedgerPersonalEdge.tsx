@@ -55,8 +55,8 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
   const timeline = useMemo(() => ledgerTimeline(episodes), [episodes]);
   const patterns = useMemo(() => patternEvidence(episodes, behaviourTags(episodes)), [episodes]);
   const study = useMemo(() => studyNext(edge, 3, patterns), [edge, patterns]);
-  const story = useMemo(() => developmentTimeline({ months: timeline.months, windows: timeline.windows, changes, patterns, edge }), [timeline, changes, patterns, edge]);
   const changes = useMemo(() => whatChanged(timeline.months), [timeline]);
+  const story = useMemo(() => developmentTimeline({ months: timeline.months, windows: timeline.windows, changes, patterns, edge }), [timeline, changes, patterns, edge]);
   const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(0)}%`);
   const money = (v: number | null) => (v == null ? "—" : usd(v));
   if (edge.universe === 0) return null;
