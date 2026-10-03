@@ -163,6 +163,18 @@ export function ShellAccessChrome({ showPoints = true, compact = false }: ShellA
     setProfileOpen(which === "profile");
   }, []);
 
+  // A link (or the /settings alias) can ask for the Settings drawer with
+  // ?settings=open; the param is consumed so a reload does not reopen it.
+  React.useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("settings") !== "open") return;
+      open("settings");
+      url.searchParams.delete("settings");
+      window.history.replaceState(window.history.state, "", url.pathname + (url.search || "") + url.hash);
+    } catch { /* no URL access: nothing to open */ }
+  }, [open]);
+
   // ⌘K / Ctrl-K. The July shell owned this shortcut, so it did nothing in an
   // OS room — the keystroke was swallowed by a listener whose state only the
   // other branch rendered.

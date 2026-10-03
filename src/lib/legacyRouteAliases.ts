@@ -51,6 +51,10 @@ export const LEGACY_ROUTE_ALIASES: Readonly<Record<string, string>> = {
   // The signup door is a mode of /login; the page stub shipped the whole app
   // shell before a client redirect (G12, 2026-09-29).
   "/signup": "/login?mode=signup",
+  // Typed by hand (measured 2026-10-03: a Founder tab sat on a /backtest 404).
+  "/backtest": "/backtesting",
+  // Settings is a drawer, not a page; a typed /settings opens it over Charts.
+  "/settings": "/charts?settings=open",
 };
 
 /**
