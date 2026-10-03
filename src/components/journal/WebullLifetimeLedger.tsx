@@ -23,6 +23,7 @@ import { comparablesFor, episodeConditions, type EpisodeConditions } from "@/lib
 import { BehaviourTagsRow } from "@/components/journal/BehaviourTagsRow";
 import { EpisodeModelPicker } from "@/components/journal/EpisodeModelPicker";
 import { behaviourTags, type BehaviourTag } from "@/lib/journal/behaviorTags";
+import { ledgerCsv } from "@/lib/broker/ledgerCsv";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -260,6 +261,18 @@ export function WebullLifetimeLedger() {
         <span style={{ fontSize: 11, color: MUTED }}>{data?.truth ?? "Outcome P&L from Webull's own order records"}</span>
         <span style={{ flex: 1 }} />
         {data?.asOf ? <span style={{ fontSize: 10, color: MUTED }}>as of {day(data.asOf)}</span> : null}
+        {data?.state === "OK" && !data.partial && data.episodes?.length ? (
+          <button type="button" data-testid="ledger-export" onClick={() => {
+            // §69 export: built here, on this click; nothing leaves the browser but the file.
+            const blob = new Blob([ledgerCsv(data.episodes ?? [])], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `webull-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1_000);
+          }} style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>Export CSV</button>
+        ) : null}
         <button type="button" onClick={() => { load(); }} disabled={loading} style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>{loading ? "Reading Webull…" : "Refresh"}</button>
       </header>
 
