@@ -1,5 +1,6 @@
 "use client";
 
+import { openSettings } from "@/components/layout/shellPanels";
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
 import { weatherInspectReading as selectWeatherInspectReading } from "@/lib/chart/weatherLensDrag";
 import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsStore";
@@ -490,7 +491,9 @@ function VPColorGear() {
             style={{ position: "fixed", top: coords.top, right: coords.right }}
             className="z-[60] w-56 rounded-lg border border-wm-border bg-wm-surface p-3 shadow-2xl flex flex-col gap-3">
             <div className="text-[11px] font-bold text-wm-text">Volume Profile bars</div>
-            <div className="text-[10px] text-wm-text-dim -mt-1">The shelf ink colors only these VP bars — candle colors live in Settings.</div>
+            <div className="text-[10px] text-wm-text-dim -mt-1">The shelf ink colors only these VP bars — candle colors live in{" "}
+              <button type="button" data-testid="vp-shelf-open-chart-settings" onClick={() => { setOpen(false); openSettings("chart"); }}
+                className="font-bold text-wm-blue underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">Settings › Chart</button>.</div>
             <SchemePresets onApply={(up, dn) => applyVp(up, dn)} />
             <div className="h-px bg-wm-border" />
             {/* One shelf ink. A VP row is volume at a price with no aggressor
