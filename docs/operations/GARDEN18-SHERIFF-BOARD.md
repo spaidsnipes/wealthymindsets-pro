@@ -255,3 +255,11 @@ Verdict: the seams hold; the OPEN/PARTIAL steps wait on the Founder's own marks 
 | §16 weather readout | 🟢 | 11 px labels / mono values / 16 px rows when a clear slot exists, compact card otherwise (never on candles); ratios ≥ 10× whole ("303×" not "302.60×") |
 | §14 LIVE → STILL → LIVE | 🟢 SEEN | motion switch toggled STILL and back on BTC; storm receipt `LIVE|…` resumes |
 | Lens window vs camera | 🟡 note | at 70–120 bars the lens reads OFF_CAMERA (its measured tape window starts left of the view); draws from ~134 bars. Honest, but a trader zoomed in sees no loupe — candidate: fit the newest part of the window |
+| §26/§86 capability ledger | 🟢 BUILT | Settings › Connections › "What each rail is for": provider × capability with state + owning file (test: every claim's file exists, no execution row LIVE). Webull measured 2026-10-03 07:02Z: entitlement FULLY_OPEN (snapshot + ticks 200), broker CONNECTED (3 accts) — the old "403" note is superseded |
+| §29/§36 tastytrade Lifetime Ledger | 🟢 PROVED | `/api/broker/tastytrade/ledger` (owner, read-only, paged — the one-page read stopped at 250 rows). Journal › Broker Ledger: ·5019 one closed MNQ FOP put net −$21.42 (fees $2.42) ACTUAL BROKER RESULT; ·6649 no trades; 0.9 s |
+| §45 imbalance run words | 🟢 PROVED | BTC 1m NEAR: ≥5.8× ≥6.2× ≥20× ≥1k× (was ≥713:100, ≥21k:1, ≥87551:100) |
+| §40 bar Inspect ticket | 🟢 PROVED | `select=bar` BTC 5m: ticket on the left wall, newest candles clear; repeated UNREAD reason → "Same reason as above." |
+| Big Trades persistence | 🟢 PROVED | `wm_bigtrades_on`: survives reload (SILENT:FAR after reload, not OFF); clean proof scene switches it off, `fp:big-trades` on |
+| §15 Big Trades discs | 🟢 | peak r 34 → 42 (area law), inscription floor 9 px |
+| §15 Delta bubbles | 🟢 PROVED | write signed delta (−1.3, +0.58) not price; tape dots inside bubbles yield: `DOTS:94|YIELDED_TO_CELLS:82` (was 176) |
+| Stacked Imbalance vs plate 74 | ⚪ FOUNDER | engine = one window ladder graded on a held-out response window (often NO_STACK on BTC); footprint runs = per-bar diagonals; plate 74 draws per-leg stepped bid/ask zones — which definition is canon? |
