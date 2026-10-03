@@ -155,3 +155,35 @@ export function patternState(p: PatternEvidence): PatternState {
   if (p.recentShare >= p.earlierShare) return "RECURRENCE";
   return "MONITORING";
 }
+
+// ── success test (§64/§82): did it change after the trader started on it? ──────
+
+export const WORKING_ON_KEY = "wm_pattern_working_on_v1";
+
+export interface SinceStart { readonly since: string; readonly tradesSince: number; readonly withSince: number; readonly shareSince: number | null; readonly shareBefore: number | null; readonly expectancySince: number | null; readonly enough: boolean }
+
+/** Trades opened on/after `since` vs before: how often the pattern appeared, and the per-trade result since. Needs 10 trades since to call it a test. */
+export function sinceStart(episodes: readonly Episode[], tags: Map<string, BehaviourTag[]>, id: TagId, since: string): SinceStart {
+  const closed = episodes.filter(e => e.label === "RECONSTRUCTED" && e.net != null && tags.has(e.id));
+  const has = (e: Episode) => (tags.get(e.id) ?? []).some(t => t.id === id);
+  const after = closed.filter(e => e.openedAt.slice(0, 10) >= since), before = closed.filter(e => e.openedAt.slice(0, 10) < since);
+  const withA = after.filter(has);
+  return {
+    since,
+    tradesSince: after.length,
+    withSince: withA.length,
+    shareSince: after.length ? withA.length / after.length : null,
+    shareBefore: before.length ? before.filter(has).length / before.length : null,
+    expectancySince: after.length ? Math.round((after.reduce((s, e) => s + e.net!, 0) / after.length) * 100) / 100 : null,
+    enough: after.length >= 10,
+  };
+}
+
+export function parseWorkingOn(raw: string | null): Partial<Record<TagId, string>> {
+  try {
+    const v = raw ? JSON.parse(raw) : {};
+    const out: Partial<Record<TagId, string>> = {};
+    for (const id of ["THIRD_PLUS_ATTEMPT", "RAPID_REENTRY", "NO_BRACKET_AT_ENTRY", "ABOVE_USUAL_SIZE"] as TagId[]) if (typeof v?.[id] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v[id])) out[id] = v[id];
+    return out;
+  } catch { return {}; }
+}

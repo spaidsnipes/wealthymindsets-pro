@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendAmendment, behaviourTags, latestAmendment, parseAmendments, patternEvidence, patternState } from "./behaviorTags";
+import { appendAmendment, behaviourTags, latestAmendment, parseAmendments, parseWorkingOn, patternEvidence, patternState, sinceStart } from "./behaviorTags";
 import type { Episode } from "@/lib/broker/webullLedger";
 
 const ep = (id: string, key: string, open: string, close: string, qty = 1, combo = "NORMAL") => ({
@@ -53,5 +53,16 @@ describe("behaviour tags — only what fills establish, each INFERRED with evide
     expect(patternState(p(131, 0.08, 0.14))).toBe("IMPROVING");
     expect(patternState(p(184, 0.21, 0.19))).toBe("RECURRENCE");
     expect(patternState(p(566, 0.6, 0.67))).toBe("MONITORING");
+  });
+
+  it("success test since the trader started: share since vs before, and needs 10 trades to count", () => {
+    const eps = [
+      { ...ep("a", "TSLA 2026-10-01 390C", "2026-09-01T13:31:00Z", "2026-09-01T13:33:00Z", 1, "NORMAL"), net: -5 },
+      { ...ep("b", "TSLA 2026-10-01 391C", "2026-09-02T13:31:00Z", "2026-09-02T13:33:00Z", 1, "NORMAL"), net: -5 },
+      { ...ep("c", "TSLA 2026-10-01 392C", "2026-09-20T13:31:00Z", "2026-09-20T13:33:00Z", 1, "MASTER"), net: 8 },
+    ] as unknown as Episode[];
+    const s = sinceStart(eps, behaviourTags(eps), "NO_BRACKET_AT_ENTRY", "2026-09-15");
+    expect(s).toMatchObject({ tradesSince: 1, withSince: 0, shareSince: 0, shareBefore: 1, expectancySince: 8, enough: false });
+    expect(parseWorkingOn(JSON.stringify({ RAPID_REENTRY: "2026-10-02", BOGUS: "2026-01-01", ABOVE_USUAL_SIZE: "nope" }))).toEqual({ RAPID_REENTRY: "2026-10-02" });
   });
 });

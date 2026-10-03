@@ -20,7 +20,7 @@ import { lessonHref, studyNext, type StudyItem } from "@/lib/journal/studyRoute"
 import { ProcessDays } from "@/components/journal/ProcessDays";
 import { ExcursionStudy } from "@/components/journal/ExcursionStudy";
 import { developmentTimeline } from "@/lib/journal/developmentTimeline";
-import { behaviourTags, PATTERN_MIN, patternEvidence, patternState } from "@/lib/journal/behaviorTags";
+import { behaviourTags, PATTERN_MIN, patternEvidence, patternState, parseWorkingOn, sinceStart, WORKING_ON_KEY, type TagId } from "@/lib/journal/behaviorTags";
 import { EPISODE_MODELS_KEY, MODEL_LABEL, parseModels, resultsByModel, type ModelMark } from "@/lib/journal/episodeModel";
 import type { Episode } from "@/lib/broker/webullLedger";
 import { readStoryReviews, type StoryReview } from "@/lib/journal/storyReview";
@@ -58,7 +58,17 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
   const saveEffective = (v: string) => { setEffectiveFrom(v); try { if (v) localStorage.setItem("wm_profile_rules_effective", v); else localStorage.removeItem("wm_profile_rules_effective"); } catch { /* this visit only */ } };
   const versioned = useMemo(() => (effectiveFrom ? versionedRuleReplay(episodes, effectiveFrom, oneR || null) : null), [episodes, effectiveFrom, oneR]);
   const timeline = useMemo(() => ledgerTimeline(episodes), [episodes]);
-  const patterns = useMemo(() => patternEvidence(episodes, behaviourTags(episodes)), [episodes]);
+  const tagsAll = useMemo(() => behaviourTags(episodes), [episodes]);
+  const patterns = useMemo(() => patternEvidence(episodes, tagsAll), [episodes, tagsAll]);
+  // §64/§82 success test: the day the trader started working on a pattern, kept on this device.
+  const [workingOn, setWorkingOn] = useState<Partial<Record<TagId, string>>>({});
+  useEffect(() => { try { setWorkingOn(parseWorkingOn(localStorage.getItem(WORKING_ON_KEY))); } catch { /* none */ } }, []);
+  const setWork = (id: TagId, on: boolean) => {
+    const next = { ...workingOn };
+    if (on) next[id] = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); else delete next[id];
+    setWorkingOn(next);
+    try { localStorage.setItem(WORKING_ON_KEY, JSON.stringify(next)); } catch { /* this visit only */ }
+  };
   const study = useMemo(() => studyNext(edge, 3, patterns), [edge, patterns]);
   const changes = useMemo(() => whatChanged(timeline.months), [timeline]);
   const story = useMemo(() => developmentTimeline({ months: timeline.months, windows: timeline.windows, changes, patterns, edge }), [timeline, changes, patterns, edge]);
@@ -126,8 +136,8 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
         <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>
           Behaviours the broker record shows, each with how often, the result per trade beside trades without it, the losing cases that support it and the winning cases that contradict it, and whether it is rarer lately. Under {PATTERN_MIN} cases it is not yet a pattern.
         </p>
-        <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", fontVariantNumeric: "tabular-nums", minWidth: 640 }}>
-          <thead><tr style={{ color: MUTED, textAlign: "right" }}><th style={{ textAlign: "left", fontWeight: 500 }}>Behaviour</th><th style={{ fontWeight: 500 }}>Trades</th><th style={{ fontWeight: 500 }}>Per trade</th><th style={{ fontWeight: 500 }}>Without it</th><th style={{ fontWeight: 500 }}>Losers / winners</th><th style={{ fontWeight: 500 }}>Last 100 vs before</th><th style={{ fontWeight: 500 }}>Seen</th><th style={{ fontWeight: 500 }}>State</th></tr></thead>
+        <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", fontVariantNumeric: "tabular-nums", minWidth: 860 }}>
+          <thead><tr style={{ color: MUTED, textAlign: "right" }}><th style={{ textAlign: "left", fontWeight: 500 }}>Behaviour</th><th style={{ fontWeight: 500 }}>Trades</th><th style={{ fontWeight: 500 }}>Per trade</th><th style={{ fontWeight: 500 }}>Without it</th><th style={{ fontWeight: 500 }}>Losers / winners</th><th style={{ fontWeight: 500 }}>Last 100 vs before</th><th style={{ fontWeight: 500 }}>Seen</th><th style={{ fontWeight: 500 }}>State</th><th style={{ fontWeight: 500, textAlign: "left" }}>Working on it</th></tr></thead>
           <tbody>{patterns.map(p => (
             <tr key={p.id} data-evidence={p.evidence} style={{ borderTop: `1px solid ${LINE}`, textAlign: "right", color: p.evidence === "SUPPORTED" ? INK : MUTED }}>
               <td style={{ textAlign: "left", padding: "3px 0" }}>{p.label}{p.evidence === "SUPPORTED" ? "" : " · INSUFFICIENT EVIDENCE"}</td>
@@ -138,6 +148,22 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
               <td>{p.recentShare == null ? "—" : `${Math.round(p.recentShare * 100)}%`} vs {p.earlierShare == null ? "—" : `${Math.round(p.earlierShare * 100)}%`}</td>
               <td style={{ whiteSpace: "nowrap" }}>{p.firstSeen.slice(0, 10)} → {p.lastSeen.slice(0, 10)}</td>
               <td style={{ whiteSpace: "nowrap" }} title="From the record alone; DIAGNOSED / REHEARSED need your own work">{patternState(p)}</td>
+              <td style={{ textAlign: "left", paddingLeft: 8 }} data-testid={`working-on-${p.id}`}>
+                {workingOn[p.id] ? (() => {
+                  const t = sinceStart(episodes, tagsAll, p.id, workingOn[p.id]!);
+                  return (
+                    <span>
+                      since {t.since}: {t.withSince} of {t.tradesSince} trades
+                      {t.shareSince != null ? ` (${Math.round(t.shareSince * 100)}% vs ${t.shareBefore == null ? "—" : `${Math.round(t.shareBefore * 100)}%`} before)` : ""}
+                      {t.expectancySince != null ? `, ${usd(t.expectancySince)}/trade` : ""}
+                      {t.enough ? "" : " · needs 10 trades since to count"}{" "}
+                      <button type="button" onClick={() => setWork(p.id, false)} style={{ background: "none", border: "none", padding: 0, color: GOLD, fontSize: 10, cursor: "pointer", textDecoration: "underline" }}>stop</button>
+                    </span>
+                  );
+                })() : (
+                  <button type="button" onClick={() => setWork(p.id, true)} style={{ fontSize: 10, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 4, padding: "0 6px", cursor: "pointer" }}>Work on this from today</button>
+                )}
+              </td>
             </tr>
           ))}</tbody>
         </table>

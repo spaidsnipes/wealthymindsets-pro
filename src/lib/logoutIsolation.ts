@@ -46,6 +46,7 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm_ledger_clinic_v1",  // the trader's Diagnostic Clinic notes per broker episode
   "wm_rule_card_hidden_day", // the day the trader hid the rail's "Today · your rules" card
   "wm_profile_rules_effective", // the date the trader says profile rules v1 took effect
+  "wm_pattern_working_on_v1", // the days the trader started working on each fill pattern
   "wm_edu_progress",      // education module completion / notes
   "wm_api_keys",          // user-supplied NewsAPI / X bearer credentials
   "wm_creator_waitlist",  // creator waitlist email, handle and tier
