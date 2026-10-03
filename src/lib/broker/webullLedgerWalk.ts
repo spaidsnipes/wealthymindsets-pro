@@ -42,7 +42,7 @@ const ymd = (d: Date) => d.toISOString().slice(0, 10);
 /** Rows at which a window is halved rather than trusted (see readWindow). */
 export const SPLIT_AT = 30;
 /** Cache key prefix; bump the version if the raw-row shape kept here changes. */
-export const CACHE_PREFIX = "wbledger:v1:";
+export const CACHE_PREFIX = "wbledger:v2:";
 const rowsOf = (p: unknown): unknown[] => Array.isArray(p) ? p : Array.isArray((p as { data?: unknown })?.data) ? (p as { data: unknown[] }).data : [];
 
 class Stop extends Error { constructor(readonly why: AccountWalk["stoppedBecause"], readonly detail: string) { super(detail); } }
@@ -138,14 +138,22 @@ export async function walkWebullHistory(
 
   // end_date is exclusive: the first year ends tomorrow; each next year ends on
   // the previous start (a one-day overlap the order-id dedupe absorbs).
-  let end = new Date(Date.UTC(opts.today.getUTCFullYear() - (opts.startYearsBack ?? 0), opts.today.getUTCMonth(), opts.today.getUTCDate() + 1));
+  // CALENDAR-ALIGNED: year k back is calendar year (this year − k) — Jan 1 to
+  // the next Jan 1 (this year: Jan 1 to tomorrow) — and months are calendar
+  // months, so every finished window keeps the same key forever. Windows
+  // measured back from "today" shifted every UTC midnight and re-read the
+  // whole history (measured 2026-10-03 00:05Z: one cash year took 67 s).
+  const k0 = opts.startYearsBack ?? 0;
+  const thisYear = opts.today.getUTCFullYear();
+  const tomorrow = new Date(Date.UTC(thisYear, opts.today.getUTCMonth(), opts.today.getUTCDate() + 1));
+  let end = k0 === 0 ? tomorrow : new Date(Date.UTC(thisYear - k0 + 1, 0, 1));
   let yearsDone = 0;
   let lastYearEmpty = false;
   let askedBackTo = ymd(end);
   let quiet = 0;
   try {
     while (true) {
-      const start = new Date(end); start.setUTCFullYear(start.getUTCFullYear() - 1);
+      const start = end.getTime() === tomorrow.getTime() ? new Date(Date.UTC(thisYear, 0, 1)) : new Date(Date.UTC(end.getUTCFullYear() - 1, 0, 1));
       const s = ymd(start) < floor ? floor : ymd(start);
       askedBackTo = s;
       const resumable = opts.fromMonth != null;
@@ -165,7 +173,9 @@ export async function walkWebullHistory(
         // The year has orders: read it month by month, newest first.
         let mEnd = new Date(end);
         for (let mi = 0; ymd(mEnd) > s; mi++) {
-          const mStart = new Date(mEnd); mStart.setUTCMonth(mStart.getUTCMonth() - 1);
+          // The calendar month that ends at mEnd (mEnd on the 1st → the month before).
+          const last = new Date(mEnd.getTime() - 1);
+          const mStart = new Date(Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), 1));
           const ms = ymd(mStart) < s ? s : ymd(mStart);
           if (opts.onlyMonth != null && mi !== opts.onlyMonth) { mEnd = mStart; continue; }
           if (resumable && mi < opts.fromMonth!) { mEnd = mStart; continue; }

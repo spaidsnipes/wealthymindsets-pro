@@ -33,12 +33,13 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
     const { page, calls } = fakeWebull(all, 2, 2);
     const walk = await walkWebullHistory("ACC", page, { today: TODAY, ...NOOP });
     expect(walk.orders.map(o => o.orderId).sort()).toEqual(["o-aa", "o-bb", "o-cc", "o-dd", "o-ee", "o-ff"]);
-    expect(calls[0]).toBe("2025-10-03..2026-10-03|-");          // the year probe
-    expect(calls[1]).toBe("2026-09-03..2026-09-25|-");          // the newest month, up to the week-old edge (keepable)
-    expect(calls).toContain("2026-09-25..2026-10-03|-");        // and its most recent week, always live
+    expect(calls[0]).toBe("2026-01-01..2026-10-03|-");          // the calendar-year probe (this year: to tomorrow)
+    expect(calls[1]).toBe("2026-10-01..2026-10-03|-");          // this calendar month, inside the live week
+    expect(calls).toContain("2026-09-01..2026-09-25|-");        // last month up to the week-old edge (keepable)
+    expect(calls).toContain("2026-09-25..2026-10-01|-");        // and its part inside the live week
     expect(calls.some(c => !c.endsWith("|-"))).toBe(true);      // paged by the last client order id
     expect(walk.stoppedBecause).toBe("QUIET_YEARS");
-    expect(walk.askedBackTo).toBe("2023-10-03");
+    expect(walk.askedBackTo).toBe("2024-01-01");
   });
 
   it("a crowded month is halved down to days until every order is read (cash 2026-01, measured)", async () => {
@@ -60,7 +61,7 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
   it("a quiet year costs one probe, and two quiet years end the walk", async () => {
     const { page, calls } = fakeWebull([]);
     const walk = await walkWebullHistory("ACC", page, { today: TODAY, ...NOOP });
-    expect(calls).toEqual(["2025-10-03..2026-10-03|-", "2024-10-03..2025-10-03|-"]);
+    expect(calls).toEqual(["2026-01-01..2026-10-03|-", "2025-01-01..2026-01-01|-"]);
     expect(walk).toMatchObject({ stoppedBecause: "QUIET_YEARS", orders: [] });
   });
 
@@ -88,7 +89,7 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
     const w1 = await walkWebullHistory("ACC", first.page, { today: TODAY, ...NOOP, cache });
     expect(w1.cachedMonths).toBe(0);
     expect(store.size).toBeGreaterThan(0);
-    expect([...store.keys()].some(k => k.includes("2026-09-03:2026-10-03"))).toBe(false);   // current month never kept
+    expect([...store.keys()].some(k => k.includes("2026-10-01:2026-10-03") && !k.endsWith(":live"))).toBe(false);   // the live week is never kept as history
     const second = fakeWebull(all, 99, 99);
     const w2 = await walkWebullHistory("ACC", second.page, { today: TODAY, ...NOOP, cache });
     expect(w2.orders.map(o => o.orderId).sort()).toEqual(["o-aa", "o-dd"]);
@@ -99,7 +100,7 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
   it("one year per call: startYearsBack + maxYears, YEAR_DONE, and whether that year was empty", async () => {
     const { page, calls } = fakeWebull([grp("aa", "2025-02-03T14:00:00Z")], 99, 99);
     const w = await walkWebullHistory("ACC", page, { today: TODAY, ...NOOP, startYearsBack: 1, maxYears: 1 });
-    expect(calls[0]).toBe("2024-10-03..2025-10-03|-");
+    expect(calls[0]).toBe("2025-01-01..2026-01-01|-");
     expect(w).toMatchObject({ stoppedBecause: "YEAR_DONE", lastYearEmpty: false });
     expect(w.orders.map(o => o.orderId)).toEqual(["o-aa"]);
     const quiet = await walkWebullHistory("ACC", fakeWebull([], 99, 99).page, { today: TODAY, ...NOOP, startYearsBack: 2, maxYears: 1 });
@@ -111,10 +112,10 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
     const probe = await walkWebullHistory("ACC", f.page, { today: TODAY, ...NOOP, maxYears: 1, probeOnly: true });
     expect(probe).toMatchObject({ lastYearEmpty: false, orders: [], pages: 1 });
     const g = fakeWebull([grp("aa", "2026-09-10T14:00:00Z"), grp("bb", "2026-08-10T14:00:00Z")], 99, 99);
-    const m1 = await walkWebullHistory("ACC", g.page, { today: TODAY, ...NOOP, maxYears: 1, onlyMonth: 1 });
-    expect(g.calls[0]).toBe("2026-08-03..2026-09-03|-");
+    const m1 = await walkWebullHistory("ACC", g.page, { today: TODAY, ...NOOP, maxYears: 1, onlyMonth: 2 });
+    expect(g.calls[0]).toBe("2026-08-01..2026-09-01|-");
     expect(m1.orders.map(o => o.orderId)).toEqual(["o-bb"]);
-    expect(m1.askedBackTo).toBe("2026-08-03");
+    expect(m1.askedBackTo).toBe("2026-08-01");
   });
 
   it("resumable: fromMonth reads on from there, and a passed deadline returns where to continue", async () => {
@@ -122,8 +123,8 @@ describe("walkWebullHistory — a year is a probe, months are read, pages are fo
     const done = await walkWebullHistory("ACC", fakeWebull(all, 99, 99).page, { today: TODAY, ...NOOP, maxYears: 1, fromMonth: 0 });
     expect(done.nextMonth).toBeNull();
     expect(done.orders.map(o => o.orderId).sort()).toEqual(["o-aa", "o-bb", "o-cc"]);
-    const cut = await walkWebullHistory("ACC", fakeWebull(all, 99, 99).page, { today: TODAY, ...NOOP, maxYears: 1, fromMonth: 1, deadlineAt: 0 });
-    expect(cut.nextMonth).toBe(2);
+    const cut = await walkWebullHistory("ACC", fakeWebull(all, 99, 99).page, { today: TODAY, ...NOOP, maxYears: 1, fromMonth: 2, deadlineAt: 0 });
+    expect(cut.nextMonth).toBe(3);
     expect(cut.orders.map(o => o.orderId)).toEqual(["o-bb"]);
   });
 });
