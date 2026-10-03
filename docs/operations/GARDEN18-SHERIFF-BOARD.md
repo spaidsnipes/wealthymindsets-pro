@@ -195,3 +195,34 @@ Journal → Broker Ledger is the P0-G/H/I/J/K/L organ on real Webull history: 2,
 | Prescribe → Rehearse (§64) | PROVED | `a1e468b` Study Next item → episodes narrowed to exactly its trades (glass: "≥2× size" → 131 trades, newest first, TSLA 390C ×3 / ×2 …) with replay / review / clinic on each |
 | Strategy versioning (§31) | PROVED | `6abf6d7` the trader states when profile rules v1 took effect; days since = AS-TRADED, earlier = CURRENT STRATEGY REPLAY, never merged (glass, test date 2026-07-01 then cleared: as-traded 32 of 40 days past a 2nd trade, 168 trades −$334.18; replay before 98 of 198 days, 398 trades −$904.39) |
 | Success test (§64/§82) | PROVED | `cf09ef2` "Work on this from today" per fill pattern → since-vs-before share and per-trade result from the trader's own fills, needs 10 trades since (glass, test start 2026-09-01 then cleared: ≥2× size 8 of 97 trades, 8% vs 14% before, −$1.66/trade). Owner keys verified to survive reload |
+
+### §83 Random historical trade test — run on glass 2026-10-02 22:20 ET (random pick among the latest 40 closed)
+Episode: TSLA 2026-09-30 370C LONG ×1 ·OS5B, 2026-09-29 08:47 → 08:51 CDT, −$2.12 net.
+
+| # | Step | Result |
+|---|---|---|
+| 1 | open episode | PASS |
+| 2 | prove broker fills | PASS — ENTRY BUY 1 @ 0.32 MARKET (Webull order E0GC5RUG…), EXIT SELL 1 @ 0.30 STOP_LOSS (KSIMS09I…); exit order matches Webull's own connector record field for field (filled 0.30 at 13:51:55Z) |
+| 3 | chronology | PASS — fill times, 4 min hold |
+| 4 | provenance | PASS — Webull order ids, RECONSTRUCTED label, fees itemised ($0.05 + $0.07) |
+| 5 | historical market | PASS — the contract's own dxFeed 1-minute bars (52 in window) |
+| 6 | no look-ahead | PASS — opens on 08:46 (bar before entry), 0 fill markers; both markers appear only once the cursor passes them |
+| 7 | historical strategy version | PARTIAL — versioning built (`6abf6d7`); effective date not yet stated by the Founder → labelled CURRENT STRATEGY REPLAY |
+| 8 | current strategy compared separately | PASS — AS-TRADED vs REPLAY never merged |
+| 9 | classify Model | OPEN — the Founder's mark (M0/1/2) is empty; WM does not guess it |
+| 10 | authorization | OPEN — needs the Founder's review marks (READ / DECISION) |
+| 11 | strategy vs execution | PARTIAL — separate review dimensions exist, unmarked |
+| 12 | risk | PARTIAL — MAE −$2.00/contract measured; stop exit visible as a STOP_LOSS order |
+| 13 | management | PARTIAL — MFE +$2.00, realised −$2.00, capture n/a on a loss |
+| 14 | economic result | PASS — gross −$2.00, fees $0.12, net −$2.12 |
+| 15 | simulations distinct | PASS — replay / ESTIMATED / ACTUAL BROKER RESULT labelled apart |
+| 16 | behavioural evidence | PASS — INFERRED: "Trade 5 of the day", "No bracket at entry", each with evidence + the rule it meets |
+| 17 | no unsupported psychology | PASS — no emotion or motive named |
+| 18 | comparable episodes | PASS — 11 others, 2 won, −$24.39, INSUFFICIENT EVIDENCE |
+| 19 | Personal Edge | PASS — groups, patterns, timeline |
+| 20 | Academy routing | PASS — Study Next → real lessons; Rehearse filter |
+| 21 | launch Replay | PASS |
+| 22 | identity through seams | PASS — review, tags, model, clinic, replay all keyed by the one episode id |
+| 23 | measure later change | PASS — success test per pattern (`cf09ef2`) |
+
+Verdict: the seams hold; the OPEN/PARTIAL steps wait on the Founder's own marks (model, authorization, review, rule effective date), which WM correctly refuses to invent.
