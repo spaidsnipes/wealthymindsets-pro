@@ -30,6 +30,7 @@ import { requestWatchlist } from "@/lib/os/watchlistDoor";
 import { requestEquipment } from "@/lib/workspace/equipmentChannel";
 import { ChartStyleSettingsTab } from "@/components/settings/ChartStyleSettingsTab";
 import { InventionCensusView } from "@/components/settings/InventionCensusView";
+import { CapabilityLedgerView } from "@/components/settings/CapabilityLedgerView";
 import { SavedLayoutsDoor } from "@/components/os/SavedLayoutsDoor";
 import { ExecutionGuardrailsTab } from "@/components/settings/ExecutionGuardrailsTab";
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -679,6 +680,7 @@ export function SettingsPanel({
               <Row label="Brokers and data rails" sub="Support, entitlement, quote health and execution are measured separately.">
                 <button type="button" onClick={() => { onClose(); requestBrokerConnect(); }} className="min-h-11 rounded border border-wm-border px-3 text-xs">Manage connections</button>
               </Row>
+              <CapabilityLedgerView />
             </div>
           )}
           {tab === "watchlist" && (
