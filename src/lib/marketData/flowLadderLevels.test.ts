@@ -10,15 +10,18 @@ describe("readLadderLevels — plate 75 local footprint", () => {
     expect(r.levels.map(l => l.price)).toEqual([101, 100, 99]);
     expect(r.levels.map(l => l.delta)).toEqual([30, -3, 3]);
     expect(r.levels.filter(l => l.poc).map(l => l.price)).toEqual([101]);
-    expect(r.hidden).toBe(0);
+    expect(r.bandWidth).toBeNull();
   });
-  it("keeps the window nearest the POC and counts what it hid", () => {
-    const entries: [number, number, number][] = Array.from({ length: 20 }, (_, i) => [i, 1, 1]);
-    entries[3] = [3, 50, 50];
+  it("groups a fine row into equal bands across the whole bar, sums kept", () => {
+    const entries: [number, number, number][] = Array.from({ length: 21 }, (_, i) => [100 + i, 1, 2]);
     const r = readLadderLevels(row(entries), 5)!;
-    expect(r.levels).toHaveLength(5);
-    expect(r.levels.some(l => l.poc && l.price === 3)).toBe(true);
-    expect(r.hidden).toBe(15);
+    expect(r.levels.length).toBeLessThanOrEqual(5);
+    expect(r.grouped).toBe(21);
+    expect(r.bandWidth).toBe(4);
+    expect(r.levels[0].price).toBeGreaterThan(r.levels[r.levels.length - 1].price);
+    expect(r.levels.reduce((a, l) => a + l.bid, 0)).toBe(21);
+    expect(r.levels.reduce((a, l) => a + l.ask, 0)).toBe(42);
+    expect(r.levels.filter(l => l.poc)).toHaveLength(1);
   });
   it("is null for an empty or volume-less row", () => {
     expect(readLadderLevels(null)).toBeNull();

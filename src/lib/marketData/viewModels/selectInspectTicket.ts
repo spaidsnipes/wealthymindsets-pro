@@ -165,7 +165,7 @@ export interface InspectTicketVM {
    * Plate 75 · LOCAL FOOTPRINT (SELECTED BAR): this bar's row of the one flow
    * ladder, level by level. Present exactly when the door is (`canRead`).
    */
-  readonly localFootprint: { readonly levels: readonly FlowLadderLevelRow[]; readonly hidden: number } | null;
+  readonly localFootprint: { readonly levels: readonly FlowLadderLevelRow[]; readonly grouped: number; readonly bandWidth: number | null } | null;
   /**
    * Plate 75 · TIME & SALES: the held prints inside this bar, newest first,
    * as the venue sent them (no fold, no inference). Null when none are held.

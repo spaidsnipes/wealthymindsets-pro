@@ -2076,11 +2076,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * table is a second owner of bar duration, and the two would eventually
    * disagree about what a "15m" bar is on a venue that closes early. */
   const chartBarSpanMs = React.useMemo(() => {
+    // The SMALLEST gap among the newest bars, not the last gap: one missing
+    // minute (08:09 → forming 08:11, serving BTC 1m 2026-10-03) made the last
+    // gap 120 s and the Inspect ticket counted two minutes of prints as one bar.
     if (chartBars.length < 2) return null;
-    const a = chartBars[chartBars.length - 2].time;
-    const b = chartBars[chartBars.length - 1].time;
-    const span = (b - a) * 1000;
-    return Number.isFinite(span) && span > 0 ? span : null;
+    let span = Infinity;
+    for (let i = Math.max(1, chartBars.length - 20); i < chartBars.length; i++) {
+      const g = (chartBars[i].time - chartBars[i - 1].time) * 1000;
+      if (Number.isFinite(g) && g > 0 && g < span) span = g;
+    }
+    return Number.isFinite(span) ? span : null;
   }, [chartBars]);
 
   /* When the cursor is nowhere — which is ALWAYS, for a touch user — the

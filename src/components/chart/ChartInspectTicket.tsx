@@ -1515,8 +1515,10 @@ export function ChartInspectTicket({
               ))}
             </tbody>
           </table>
-          {vm.localFootprint.hidden > 0 ? (
-            <div className="text-[10px] text-wm-muted">{vm.localFootprint.hidden} more levels — the nearest to the POC are shown</div>
+          {vm.localFootprint.bandWidth !== null ? (
+            <div className="text-[10px] text-wm-muted">
+              {vm.localFootprint.grouped} traded levels grouped into bands {tapePrice(vm.localFootprint.bandWidth)} wide · price = band low
+            </div>
           ) : null}
         </div>
       ) : null}

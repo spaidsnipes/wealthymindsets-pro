@@ -82,13 +82,15 @@ export interface FlowLadderLevelRow {
 
 /**
  * The row's levels, highest price first — read off the row, never off the
- * tape. More levels than `max` keeps the `max` nearest the POC (the plate's
- * ladder is a window around where the bar traded most), and says so.
+ * tape. A row with more levels than `max` is grouped into `max` equal price
+ * bands across the bar's whole traded range (plate 75's ladder spans the bar;
+ * a window around the POC showed $6 of a $60 BTC bar). Grouping only adds the
+ * row's own levels together; `bandWidth` says how wide each band is.
  */
 export function readLadderLevels(
   row: FlowLadderBar | null | undefined,
   max = 9,
-): { readonly levels: readonly FlowLadderLevelRow[]; readonly hidden: number } | null {
+): { readonly levels: readonly FlowLadderLevelRow[]; readonly grouped: number; readonly bandWidth: number | null } | null {
   if (!row) return null;
   const all: { price: number; bid: number; ask: number }[] = [];
   for (const [price, v] of row) {
@@ -99,17 +101,27 @@ export function readLadderLevels(
     all.push({ price, bid, ask });
   }
   if (!all.length) return null;
-  all.sort((a, b) => b.price - a.price);
-  let pocIdx = 0;
-  for (let i = 1; i < all.length; i++) {
-    if (all[i].bid + all[i].ask > all[pocIdx].bid + all[pocIdx].ask) pocIdx = i;
-  }
   const keep = Math.max(1, Math.floor(max));
-  let lo = 0;
-  if (all.length > keep) lo = Math.min(Math.max(0, pocIdx - Math.floor(keep / 2)), all.length - keep);
-  const hi = Math.min(all.length, lo + keep);
-  const levels = all.slice(lo, hi).map((l, i) => ({ ...l, delta: l.ask - l.bid, poc: lo + i === pocIdx }));
-  return { levels, hidden: all.length - levels.length };
+  let rows = all;
+  let bandWidth: number | null = null;
+  if (all.length > keep) {
+    let lo = Infinity, hi = -Infinity;
+    for (const l of all) { if (l.price < lo) lo = l.price; if (l.price > hi) hi = l.price; }
+    bandWidth = (hi - lo) / keep;
+    const bands = Array.from({ length: keep }, (_, i) => ({ price: lo + i * (bandWidth as number), bid: 0, ask: 0, n: 0 }));
+    for (const l of all) {
+      const i = Math.min(keep - 1, Math.floor((l.price - lo) / (bandWidth as number)));
+      bands[i].bid += l.bid; bands[i].ask += l.ask; bands[i].n += 1;
+    }
+    rows = bands.filter(b => b.n > 0).map(({ price, bid, ask }) => ({ price, bid, ask }));
+  }
+  rows = [...rows].sort((a, b) => b.price - a.price);
+  let pocIdx = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].bid + rows[i].ask > rows[pocIdx].bid + rows[pocIdx].ask) pocIdx = i;
+  }
+  const levels = rows.map((l, i) => ({ ...l, delta: l.ask - l.bid, poc: i === pocIdx }));
+  return { levels, grouped: all.length, bandWidth };
 }
 
 /** The fastest the ladder is handed to the room: at most ~4× a second. */
