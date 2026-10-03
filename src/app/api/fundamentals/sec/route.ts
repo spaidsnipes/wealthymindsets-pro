@@ -23,14 +23,15 @@ const HEADERS = { "User-Agent": SEC_USER_AGENT, Accept: "application/json" };
 const MEM = new Map<string, { at: number; body: unknown }>();
 const TTL_MS = 12 * 3600_000;
 
+let lastStatus: string | null = null;
 async function getJson(url: string): Promise<unknown | null> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 8_000);
   try {
     const res = await fetch(url, { headers: HEADERS, signal: ctl.signal, redirect: "error" });
-    if (!res.ok) return null;
+    if (!res.ok) { lastStatus = `HTTP ${res.status}`; return null; }
     return await res.json();
-  } catch { return null; } finally { clearTimeout(t); }
+  } catch (e) { lastStatus = e instanceof Error ? e.name : "fetch failed"; return null; } finally { clearTimeout(t); }
 }
 
 type Concept = { units?: Record<string, SecFactRow[]> };
@@ -55,7 +56,7 @@ export async function GET(request: Request): Promise<Response> {
   try { cik = kv ? await kv.get(`sec:cik:${secTicker}`) : null; } catch { cik = null; }
   if (!cik) {
     const map = await getJson("https://www.sec.gov/files/company_tickers.json") as Record<string, { cik_str: number; ticker: string }> | null;
-    if (!map) return NextResponse.json({ state: "SEC_UNAVAILABLE", source: "SEC EDGAR" }, { status: 502 });
+    if (!map) return NextResponse.json({ state: "SEC_UNAVAILABLE", source: "SEC EDGAR", upstream: lastStatus }, { status: 502 });
     const hit = Object.values(map).find(v => v.ticker === secTicker);
     if (!hit) return NextResponse.json({ state: "NOT_LISTED", symbol, source: "SEC EDGAR" });
     cik = cikPad(hit.cik_str);
