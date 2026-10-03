@@ -150,16 +150,30 @@ const coinbaseTuples = (r: unknown): LegacyOhlcvTuple[] =>
  * venueTailFill.ts): closed intervals only, one bar per instant, replaced
  * never summed. `null` = no tail was read (it failed, or not this venue).
  */
+/** Backoff before each retry of a 429-refused tail read. */
+const TAIL_RETRY_MS = [250, 700] as const;
+
 async function getCoinbaseTail(coin: string, sec: number): Promise<{ tuples: LegacyOhlcvTuple[] | null; read: string }> {
   const endSec = Math.floor(Date.now() / 1000);
   const startSec = endSec - VENUE_TAIL_INTERVALS * sec;
   const iso = (t: number) => new Date(t * 1000).toISOString();
   try {
-    const res = await fetch(`https://api.exchange.coinbase.com/products/${pair("coinbase", coin)}/candles?granularity=${sec}&start=${encodeURIComponent(iso(startSec))}&end=${encodeURIComponent(iso(endSec))}`, { headers: UA, cache: "no-store" });
-    if (!res.ok) return { tuples: null, read: `HTTP_${res.status}` };
+    // Coinbase answers the shared Worker egress 429 about one read in three
+    // (measured 2026-10-03: OK, OK, HTTP_429). A 429 loses the newest closed
+    // minutes, so it is retried twice with a short backoff before giving up.
+    const url = `https://api.exchange.coinbase.com/products/${pair("coinbase", coin)}/candles?granularity=${sec}&start=${encodeURIComponent(iso(startSec))}&end=${encodeURIComponent(iso(endSec))}`;
+    let res = await fetch(url, { headers: UA, cache: "no-store" });
+    let tries = 1;
+    for (const waitMs of TAIL_RETRY_MS) {
+      if (res.status !== 429) break;
+      await new Promise(r => setTimeout(r, waitMs));
+      res = await fetch(url, { headers: UA, cache: "no-store" });
+      tries += 1;
+    }
+    if (!res.ok) return { tuples: null, read: `HTTP_${res.status}${tries > 1 ? `×${tries}` : ""}` };
     const r = await res.json();
     if (!Array.isArray(r)) return { tuples: null, read: `NOT_ARRAY:${String((r as { message?: unknown })?.message ?? "").slice(0, 60)}` };
-    return { tuples: coinbaseTuples(r), read: "OK" };
+    return { tuples: coinbaseTuples(r), read: tries > 1 ? `OK_AFTER_${tries}` : "OK" };
   } catch (e) {
     return { tuples: null, read: `THREW:${e instanceof Error ? e.message.slice(0, 60) : "unknown"}` };
   }
