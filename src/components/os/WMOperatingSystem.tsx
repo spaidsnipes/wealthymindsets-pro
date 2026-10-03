@@ -342,7 +342,7 @@ function RailLink({
           style={{
             marginLeft: 7,
             padding: "1px 5px",
-            fontSize: 8,
+            fontSize: 9,
             letterSpacing: 0.8,
             color: "#6f6857",
             border: "1px solid rgba(111,104,87,0.5)",

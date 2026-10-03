@@ -3534,7 +3534,7 @@ function Stat({ label, value, tone, title }: { label: string; value: string; ton
                        "#ede6d3";
   return (
     <div style={{ padding: "8px 10px", borderRadius: 6, background: "rgba(19,19,23,0.5)" }} title={title}>
-      <div style={{ fontSize: 8, letterSpacing: 0.4, textTransform: "uppercase", color: "#8a8271", fontWeight: 700 }}>
+      <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#8a8271", fontWeight: 700 }}>
         {label}
       </div>
       <div style={{ fontSize: 16, fontWeight: 700, color, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>

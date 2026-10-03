@@ -42,7 +42,7 @@ export interface WmWordmarkProps {
  * belongs to instead of being re-derived by a divisor at each use.
  */
 const SIZE = {
-  compact: { mark: 14, word: 13, sub: 8,  spacing: 8,  wordTrack: "0.19em", subTrack: "0.34em" },
+  compact: { mark: 14, word: 13, sub: 9,  spacing: 8,  wordTrack: "0.19em", subTrack: "0.30em" },
   regular: { mark: 22, word: 20, sub: 10, spacing: 10, wordTrack: "0.21em", subTrack: "0.36em" },
   hero:    { mark: 34, word: 32, sub: 11, spacing: 12, wordTrack: "0.23em", subTrack: "0.38em" },
 } as const;

@@ -18,10 +18,19 @@ const FILES = [
   "src/components/layout/HeaderVaultPill.tsx",
   "src/components/layout/MainLayout.tsx",
   "src/components/layout/MobileSessionPill.tsx",
+  "src/components/os/WMOperatingSystem.tsx",
+  "src/app/command-deck/page.tsx",
 ];
 const TINY = /fontSize:\s*([0-8](?:\.\d+)?)\s*[,}\s]|text-\[([0-8](?:\.\d+)?)px\]/g;
 
 describe("DOM type floor on the trading shell", () => {
+  it("the wordmark's sizes are at or above the floor", () => {
+    const src = readFileSync(path.join(process.cwd(), "src/components/brand/WmWordmark.tsx"), "utf8");
+    const sizes = [...src.matchAll(/\b(?:word|sub):\s*(\d+(?:\.\d+)?)/g)].map(m => Number(m[1]));
+    expect(sizes.length).toBeGreaterThanOrEqual(6);
+    expect(sizes.filter(n => n < 9)).toEqual([]);
+  });
+
   it("no inline font under 9px", () => {
     let scannedSizes = 0;
     const offenders: string[] = [];
