@@ -20614,16 +20614,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const needleOf = (r: number) => 0.5 + Math.max(-0.5, Math.min(0.5, Math.log(r) / (2 * Math.log(HEAVY_RATIO))));
             const readRows: { k: string; v: string; fill: number | null; needle: number | null }[] = [
               { k: "PERSISTENCE", v: gauge.persistence == null ? "— not measured" : gauge.persistence.toFixed(2), fill: gauge.persistence, needle: null },
-              { k: "RESPONSE", v: gauge.response == null ? "— not measured" : `${gauge.response.toFixed(2)}×`, fill: null, needle: gauge.response == null || !(gauge.response > 0) ? null : needleOf(gauge.response) },
+              // ≥ 10× reads as a whole number — "303×", not "302.60×" (§45 trader-readable).
+              { k: "RESPONSE", v: gauge.response == null ? "— not measured" : `${gauge.response >= 10 ? Math.round(gauge.response) : gauge.response.toFixed(2)}×`, fill: null, needle: gauge.response == null || !(gauge.response > 0) ? null : needleOf(gauge.response) },
               { k: "VEIL", v: weatherVeil > 0 ? `${weatherVeil.toFixed(2)} / ${heat.maxOpacity.toFixed(2)}` : "none", fill: weatherVeil > 0 ? weatherVeil / heat.maxOpacity : null, needle: null },
             ];
             // §16 (v2, plate 79): the readout is read under pressure — 11 px
             // labels, mono values, 16 px rows, gauges wide enough to see.
-            const RO_ROW = 16, RO_VAL_X = 100, RO_BAR = 46;
-            const rw = 208, rh = 8 + 4 * RO_ROW + 6;
+            // …but never at price's expense (§XLIX): the large readout is used
+            // only where it stands clear of the candles; otherwise the compact
+            // card (the size that fits a small loupe's neighbourhood).
             const inPlot = (r: { x: number; y: number; w: number; h: number }) =>
               r.x >= keepOutMinX() && r.x + r.w <= weatherPlotRight - 4 && r.y >= HEADER_FLOOR_Y + 2 && r.y + r.h <= pane0Bottom - 2;
-            const slots = [
+            const chipHit = (r: { x: number; y: number; w: number; h: number }) =>
+              floatingChips.some(c => r.x < c.x + c.w && r.x + r.w > c.x && r.y < c.y + c.h && r.y + r.h > c.y);
+            const bodyHit = (r: { x: number; y: number; w: number; h: number }) =>
+              rowBodiesAt(r.y, r.y + r.h).some(b => r.x < b.x + b.w && r.x + r.w > b.x);
+            const slotsFor = (rw: number, rh: number) => [
               { x: L.cx - L.rx - 14 - rw, y: L.cy - rh / 2, w: rw, h: rh },
               { x: L.cx - L.rx * 0.7 - rw, y: L.cy + L.ry * 0.7 + 8, w: rw, h: rh },
               { x: L.cx - L.rx * 0.7 - rw, y: L.cy - L.ry * 0.7 - 8 - rh, w: rw, h: rh },
@@ -20631,11 +20637,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               { x: L.cx - rw / 2, y: L.cy + L.ry + 20, w: rw, h: rh },
               { x: L.cx - rw / 2, y: L.cy - L.ry - 24 - rh, w: rw, h: rh },
             ].filter(inPlot);
-            const chipHit = (r: { x: number; y: number; w: number; h: number }) =>
-              floatingChips.some(c => r.x < c.x + c.w && r.x + r.w > c.x && r.y < c.y + c.h && r.y + r.h > c.y);
-            const bodyHit = (r: { x: number; y: number; w: number; h: number }) =>
-              rowBodiesAt(r.y, r.y + r.h).some(b => r.x < b.x + b.w && r.x + r.w > b.x);
-            const quiet = slots.find(r => !chipHit(r) && !bodyHit(r) && rectHits(r, keepOut()) === 0);
+            const quietIn = (sl: { x: number; y: number; w: number; h: number }[]) => sl.find(r => !chipHit(r) && !bodyHit(r) && rectHits(r, keepOut()) === 0);
+            const largeSlots = slotsFor(208, 8 + 4 * 16 + 6);
+            const largeQuiet = quietIn(largeSlots);
+            const big = largeQuiet != null;
+            const RO_ROW = big ? 16 : 11, RO_VAL_X = big ? 100 : 74, RO_BAR = big ? 46 : 34;
+            const RO_LABEL_PX = big ? 10 : 9, RO_VALUE_PX = big ? 11 : 9, RO_TITLE_PX = big ? 11 : 9;
+            const slots = big ? largeSlots : slotsFor(164, 6 + 4 * 11 + 4);
+            const quiet = big ? largeQuiet : quietIn(slots);
             const spot = quiet
               ? { mode: quiet === slots[0] ? "CLEAR" as const : "MOVED" as const, rect: quiet, onCandles: false, displaced: quiet !== slots[0] }
               : slots.length > 0
@@ -20666,18 +20675,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.strokeRect(R.x + 0.5, R.y + 0.5, R.w - 1, R.h - 1);
               ctx.textBaseline = "middle";
               ctx.textAlign = "left";
-              const rowY = (i: number) => Math.round(R.y + 8 + i * RO_ROW + RO_ROW / 2 - 2);
-              ctx.font = marketFont("OBJECT_NAME", 11);
+              const rowY = (i: number) => Math.round(R.y + (big ? 8 : 6) + i * RO_ROW + RO_ROW / 2 - (big ? 2 : 0));
+              ctx.font = marketFont("OBJECT_NAME", RO_TITLE_PX);
               ctx.fillStyle = "rgba(237,230,211,0.85)";
               ctx.fillText(titleYields ? "WEATHER LENS" : "LENS STATUS", R.x + 8, rowY(0));
               ctx.fillStyle = "rgba(212,175,55,1)";
               ctx.fillText(`● ${glass.stage}`, R.x + RO_VAL_X, rowY(0));
               readRows.forEach((row, i) => {
                 const y = rowY(i + 1);
-                ctx.font = marketFont("OBJECT_NAME", 10);
+                ctx.font = marketFont("OBJECT_NAME", RO_LABEL_PX);
                 ctx.fillStyle = "rgba(237,230,211,0.78)";
                 ctx.fillText(row.k, R.x + 8, y);
-                ctx.font = marketFont("MICRO_NUMBER", 11);
+                ctx.font = marketFont("MICRO_NUMBER", RO_VALUE_PX);
                 ctx.fillStyle = "rgba(237,230,211,1)";
                 ctx.fillText(row.v, R.x + RO_VAL_X, y);
                 if (row.fill == null && row.needle == null) return;
