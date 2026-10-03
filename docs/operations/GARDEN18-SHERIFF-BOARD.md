@@ -243,3 +243,15 @@ Verdict: the seams hold; the OPEN/PARTIAL steps wait on the Founder's own marks 
 | F15 Market Breathing | 🟡 PARTIAL | `3fddfb59` rail card: ATR vs own median, percentile, phase, bars in state, realized σ, cycles. Glass SPY 5m after close: COMPRESSED · LEVEL 0.24×. On-canvas grammar needs a Founder plate. |
 | F10 TED + §AB Response Matrix | 🟡 PARTIAL | `d5916d8e` rail card: volume concentration (62% in busiest fifth, SPY), last-bar density; effort × response cells (INITIATIVE 14 / QUIET 34). TED definition is WM's reading of the name — Founder to confirm. |
 | Order Flow Compression, Process Gravity, Perception Graduation, Comparative Reality, Market Twin, Decay Physics, Structural/Event time | ⚪ | Registry gives names only; Order Flow Compression is on the registry's hard-plate list ("forbidden prose/card substitute") — not built as a card. |
+
+## v2 shift — 2026-10-03 night (BTC, crypto live; CDT)
+
+| Item (v2 §) | State | Receipt |
+|---|---|---|
+| §16 typography owner | 🟢 BUILT | `lib/chart/marketType.ts` roles (FOOTPRINT_NUMBER, MICRO_NUMBER, OBJECT_NAME, WHY_LABEL, WARNING, FIDELITY) in the loaded families (Inter, JetBrains Mono); 72 hand-typed system-font labels migrated; nothing under 9 px; sentinel `marketTypographyOnGlass` |
+| §15 footprint digits | 🟢 PROVED | BTC 1m NEAR 22 bars, Bid × Ask: 97 cells, digits crisp (outline on whole pixel, no shadowBlur halo), floor 9 px |
+| §8/§15 one truth per pixel | 🟢 PROVED | NEAR tape dots yield over footprint cells: `nearTape=DOTS:65|YIELDED_TO_CELLS:111` (largest print per bar + selection keep Inspect's handle) |
+| §19 Liquidity Weather lens | 🟢 PROVED (vs plate 79) | Governor filed weather MICRO while the permission table lets it speak at MID only → painted at 0.43, lens interior 5–8% slate. Now MID weight 0.72: interior 50–56% coverage, storm visible behind cut-out candles (ERRATIC / THINNING states) |
+| §16 weather readout | 🟢 | 11 px labels / mono values / 16 px rows when a clear slot exists, compact card otherwise (never on candles); ratios ≥ 10× whole ("303×" not "302.60×") |
+| §14 LIVE → STILL → LIVE | 🟢 SEEN | motion switch toggled STILL and back on BTC; storm receipt `LIVE|…` resumes |
+| Lens window vs camera | 🟡 note | at 70–120 bars the lens reads OFF_CAMERA (its measured tape window starts left of the view); draws from ~134 bars. Honest, but a trader zoomed in sees no loupe — candidate: fit the newest part of the window |
