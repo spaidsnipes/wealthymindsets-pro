@@ -19385,9 +19385,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // the trader chose it, so it paints at full strength (MOCK 4).
               ctx.globalAlpha = att.alpha("marketZones", { selectedItem: selected });
               if (!selected) {
-                if (invalid) {
-                  // A dead object: the grey dashed outline only.
-                  ctx.strokeStyle = "rgba(150,150,160,0.30)";
+                // NEAR is tape + candle anatomy (H-501): a live zone at rest
+                // keeps the quiet dashed outline there; the band and the mark
+                // are MID / FAR material (serving BTC 1m NEAR 2026-10-03: two
+                // bands laid brass under every footprint cell and tape dot).
+                if (invalid || ds.semanticZoom === "NEAR") {
+                  // A dead object (grey) or any zone at NEAR (brass): the dashed outline only.
+                  ctx.strokeStyle = invalid ? "rgba(150,150,160,0.30)" : "rgba(201,165,92,0.30)";
                   ctx.lineWidth = 1;
                   ctx.setLineDash([3, 4]);
                   ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, zEnd - x0, Math.round(h));
