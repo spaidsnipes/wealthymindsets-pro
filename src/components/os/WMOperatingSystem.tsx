@@ -291,6 +291,30 @@ const SERIF = "Georgia, 'Times New Roman', serif";
  * its own location. `quiet` changes the RESTING weight only; it cannot reach
  * the active state.
  */
+/**
+ * THE DOOR TO WOW WORLD OS (2026-10-02). Not a WM destination — another
+ * product the same Passport opens — so it sits under the Community list,
+ * set apart by a rule, and opens in its own tab (WM stays where it was).
+ * The bridge signs the trader in on the other side (lib/passport/wowBridge).
+ */
+function WowWorldDoor(): React.ReactElement {
+  return (
+    <button
+      type="button"
+      data-testid="os-wow-world-door"
+      onClick={() => { window.open("/api/passport/to-wow", "_blank", "noopener"); }}
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, width: "calc(100% - 20px)",
+        margin: "10px 10px 4px", padding: "10px 12px", background: "transparent", cursor: "pointer", textAlign: "left",
+        border: `1px solid ${RULE}`, borderRadius: 2,
+      }}
+    >
+      <span style={{ ...EYEBROW, color: GOLD }}>WOW World ↗</span>
+      <span style={{ fontSize: 11, color: MUTED, lineHeight: "15px" }}>Your Passport opens it — same sign-in, its own tab.</span>
+    </button>
+  );
+}
+
 function RailLink({
   href,
   label,
@@ -2339,6 +2363,7 @@ export function WMOperatingSystem({
               {(equipmentMode ? HOUSE_DOOR : OS_COMMUNITY).map((d) => (
                 <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
               ))}
+              <WowWorldDoor />
             </>
           )}
 

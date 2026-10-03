@@ -146,6 +146,12 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "An HTTP wrapper around a function nobody calls over HTTP is a second door to the same " +
       "room, kept authenticated and rate-limited at a cost nobody is paying for. Task #48.",
   },
+  "/api/passport/from-wow": {
+    cls: "CROSS_PRODUCT",
+    evidence:
+      "Accepts only a form POST whose Origin is WOW_ORIGIN (lib/passport/wowBridge). Its caller is " +
+      "WOW World OS public/app.js enter('wm_pro') in spaidsnipes/wow-world-os — another product's repo.",
+  },
   "/api/passport/handoff": {
     cls: "CROSS_PRODUCT",
     evidence:
@@ -335,7 +341,9 @@ describe("every API endpoint has something that actually calls it", () => {
     // real-time host it turned out we had never contacted.
     expect(every.filter((e) => e.cls === "OPERATOR_DIAGNOSTIC").length).toBe(5);
     expect(every.filter((e) => e.cls === "EXTERNAL_TOOLING").length).toBe(1);
-    expect(every.filter((e) => e.cls === "CROSS_PRODUCT").length).toBe(1);
+    // 1 -> 2 on 2026-10-02: /api/passport/from-wow, WOW World's door into WM
+    // with the same Passport, registered at birth.
+    expect(every.filter((e) => e.cls === "CROSS_PRODUCT").length).toBe(2);
 
     // Every DARK entry must point at the ticket that owns paying it down.
     for (const [path, entry] of dark) {
