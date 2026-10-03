@@ -36,7 +36,8 @@ const DOWN = "#e0786b";
 interface AccountRow { tail: string; accountType: string | null; orders: number; filled: number; askedBackTo: string; stoppedBecause: string; reason: string | null }
 interface LedgerAnswer { partial?: boolean; state: string; reason?: string; asOf?: string; truth?: string; accounts?: AccountRow[]; orderCount?: number; summary?: LedgerSummary; episodes?: Episode[] }
 
-/** Episode rows: six columns on desktop; on a phone the price/hold columns step aside (they stay in the expanded detail). */
+/** Episode rows: six columns on desktop; on a phone the price/hold columns step aside (they stay in the expanded detail).
+ *  The row button must not use `all: unset` inline — it outranks this class and wipes the columns. */
 const LEDGER_CSS = `
 .wm-ledger-row { grid-template-columns: minmax(0,1.4fr) minmax(0,1.6fr) 70px 70px 90px 90px; }
 @media (max-width: 640px) {
@@ -115,7 +116,7 @@ function EpisodeRow({ e, all, conds, tags }: { e: Episode; all: readonly Episode
   return (
     <div data-testid="ledger-episode" data-label={e.label} style={{ borderTop: `1px solid ${LINE}`, padding: "6px 0" }}>
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
-        className="wm-ledger-row" style={{ all: "unset", cursor: "pointer", display: "grid", gap: 8, width: "100%", fontSize: 12, color: INK, fontVariantNumeric: "tabular-nums", alignItems: "baseline" }}>
+        className="wm-ledger-row" style={{ background: "none", border: "none", padding: 0, margin: 0, font: "inherit", textAlign: "left", cursor: "pointer", display: "grid", gap: 8, width: "100%", fontSize: 12, color: INK, fontVariantNumeric: "tabular-nums", alignItems: "baseline" }}>
         <span style={{ color: MUTED }}>{open ? "▾" : "▸"} {day(e.openedAt)}</span>
         <span>{e.instrumentKey} <span style={{ color: MUTED, fontSize: 10 }}>{e.direction} ×{e.maxQuantity} · ·{e.accountId}</span></span>
         <span className="wm-ledger-wide" style={{ textAlign: "right" }}>{e.avgEntry.toFixed(2)}</span>
