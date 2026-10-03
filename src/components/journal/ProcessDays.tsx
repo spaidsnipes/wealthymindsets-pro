@@ -11,6 +11,8 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import type { Episode } from "@/lib/broker/webullLedger";
 import { gradeDay, parseProcessDays, PROCESS_CATEGORIES, PROCESS_DAYS_KEY, processVsPnl, tradingDays, type ProcessCategory, type ProcessScores } from "@/lib/journal/processDay";
+import { behaviourTags } from "@/lib/journal/behaviorTags";
+import { dayEvidence, loopProgress, parseRestoration, RESTORATION_KEY, RESTORATION_STEPS, type RestorationDay, type RestorationStep } from "@/lib/journal/restorationLoop";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -35,6 +37,24 @@ export function ProcessDays({ episodes }: { readonly episodes: readonly Episode[
     });
   };
   const matrix = processVsPnl(days, scores);
+  // §47/§52: the Restoration Loop for a red day, beside that day's facts.
+  const [restore, setRestore] = useState<Record<string, RestorationDay>>({});
+  const [openDay, setOpenDay] = useState<string | null>(null);
+  useEffect(() => { try { setRestore(parseRestoration(localStorage.getItem(RESTORATION_KEY))); } catch { /* none */ } }, []);
+  const tagsByDay = useMemo(() => {
+    const tags = behaviourTags(episodes);
+    const nyDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
+    const m = new Map<string, ReturnType<typeof behaviourTags> extends Map<string, infer T> ? T[] : never>();
+    for (const e of episodes) { const t = tags.get(e.id); if (!t) continue; const d = nyDay(e.openedAt); (m.get(d) ?? m.set(d, []).get(d)!).push(t); }
+    return m;
+  }, [episodes]);
+  const writeStep = (day: string, step: RestorationStep, text: string) => {
+    setRestore(prev => {
+      const next = { ...prev, [day]: { notes: { ...(prev[day]?.notes ?? {}), [step]: text.slice(0, 600) }, updatedAt: Date.now() } };
+      try { localStorage.setItem(RESTORATION_KEY, JSON.stringify(next)); } catch { /* this visit only */ }
+      return next;
+    });
+  };
   if (!days.length) return null;
 
   return (
@@ -52,7 +72,7 @@ export function ProcessDays({ episodes }: { readonly episodes: readonly Episode[
           <tr style={{ color: MUTED, textAlign: "left" }}>
             <th style={{ fontWeight: 500 }}>Day</th><th style={{ fontWeight: 500, textAlign: "right" }}>Trades</th><th style={{ fontWeight: 500, textAlign: "right" }}>Webull net</th>
             {PROCESS_CATEGORIES.map(c => <th key={c.id} style={{ fontWeight: 500, textAlign: "center" }} title={c.label}>{c.label.split(" ")[0]}</th>)}
-            <th style={{ fontWeight: 500 }}>Process</th>
+            <th style={{ fontWeight: 500 }}>Process</th><th />
           </tr>
         </thead>
         <tbody>
@@ -60,7 +80,8 @@ export function ProcessDays({ episodes }: { readonly episodes: readonly Episode[
             const s = scores[d.day] ?? {};
             const g = gradeDay(s);
             return (
-              <tr key={d.day} data-day={d.day} style={{ borderTop: `1px solid ${LINE}`, color: INK }}>
+              <React.Fragment key={d.day}>
+              <tr data-day={d.day} style={{ borderTop: `1px solid ${LINE}`, color: INK }}>
                 <td style={{ padding: "3px 0" }}>{d.day}</td>
                 <td style={{ textAlign: "right" }}>{d.trades}</td>
                 <td style={{ textAlign: "right", color: d.net > 0 ? UP : d.net < 0 ? DOWN : INK }}>{usd(d.net)}</td>
@@ -73,7 +94,38 @@ export function ProcessDays({ episodes }: { readonly episodes: readonly Episode[
                   </td>
                 ))}
                 <td style={{ color: g ? INK : MUTED, whiteSpace: "nowrap" }}>{g ? `${g.total} · ${g.grade}` : "not graded"}</td>
+                <td>
+                  {d.net < 0 ? (
+                    <button type="button" data-testid="restore-open" aria-expanded={openDay === d.day} onClick={() => setOpenDay(o => (o === d.day ? null : d.day))}
+                      style={{ fontSize: 10, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 4, padding: "0 6px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                      Restore {(() => { const pr = loopProgress(restore[d.day]); return pr.done ? `${pr.done}/${pr.total}` : ""; })()}
+                    </button>
+                  ) : null}
+                </td>
               </tr>
+              {openDay === d.day ? (
+                <tr key={`${d.day}-restore`}>
+                  <td colSpan={PROCESS_CATEGORIES.length + 5} style={{ padding: "6px 0 10px" }}>
+                    <div data-testid="restoration-loop" style={{ border: `1px dashed ${LINE}`, borderRadius: 6, padding: 8, display: "grid", gap: 6 }}>
+                      <div style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>RECOVERY ROOM · ATH RESTORATION LOOP · {d.day}</div>
+                      <div style={{ fontSize: 11, color: MUTED }}>
+                        The day in facts: {d.trades} trades, Webull net {usd(d.net)}, fees {usd(-d.fees)}.
+                        {dayEvidence(tagsByDay.get(d.day) ?? []).map(x => ` ${x.label}: ${x.count}.`).join("")}
+                        {" "}A loss is data, not a verdict on you.
+                      </div>
+                      {RESTORATION_STEPS.map(st => (
+                        <label key={st.id} style={{ fontSize: 11, color: MUTED, display: "grid", gap: 2 }}>
+                          <span><b style={{ color: INK }}>{st.label}</b> — {st.prompt}</span>
+                          <textarea rows={1} value={restore[d.day]?.notes[st.id] ?? ""} onChange={ev => writeStep(d.day, st.id, ev.target.value)}
+                            style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 4, borderRadius: 4, resize: "vertical" }} />
+                        </label>
+                      ))}
+                      <div style={{ fontSize: 10, color: MUTED }}>{loopProgress(restore[d.day]).complete ? "Loop walked — repeat it the next time the pattern shows up." : "Walk it in order; your words stay on this device."}</div>
+                    </div>
+                  </td>
+                </tr>
+              ) : null}
+              </React.Fragment>
             );
           })}
         </tbody>
