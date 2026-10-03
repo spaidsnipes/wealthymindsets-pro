@@ -84,6 +84,9 @@ export function tapeSize(v: number): string {
   if (!Number.isFinite(a)) return "—";
   if (a === 0) return "0";
   if (a >= 1) return formatBubbleVolume(a);
+  // Below 0.0001 (satoshi-scale crypto prints) the fixed form is 10 digits
+  // wide and clipped the ticket's Δ column; 2 significant digits in e-form.
+  if (a < 0.0001) return a.toExponential(1).replace("e-", "e−");
   const decimals = Math.min(8, Math.max(2, 1 - Math.floor(Math.log10(a))));
   return a.toFixed(decimals).replace(/0+$/, "").replace(/\.$/, "");
 }
@@ -91,7 +94,8 @@ export function tapeSize(v: number): string {
 function tapeClock(ms: number): string {
   const d = new Date(ms);
   const p = (n: number, w = 2) => String(n).padStart(w, "0");
-  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}`;
+  // mm:ss.mmm — the ticket's header already names the bar's hour.
+  return `${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}`;
 }
 
 import { anatomyReadingDrawn, type AnatomyInspectVM, type AnatomyTarget } from "@/lib/marketData/viewModels/anatomySelection";
@@ -1492,7 +1496,7 @@ export function ChartInspectTicket({
       */}
       {vm.localFootprint ? (
         <div data-testid="chart-inspect-local-footprint" className="mt-1.5 border-t border-wm-border pt-1">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">Local footprint · this bar</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">Local footprint · this bar · <span style={{ color: "#E9C46A" }}>POC lit</span></div>
           <table className="mt-0.5 w-full text-[10.5px] tabular-nums" style={{ fontFamily: TAPE_MONO }}>
             <thead>
               <tr className="text-[10px] text-wm-muted">
@@ -1505,7 +1509,7 @@ export function ChartInspectTicket({
             <tbody>
               {vm.localFootprint.levels.map(l => (
                 <tr key={l.price} style={l.poc ? { background: "rgba(212,175,55,0.14)" } : undefined}>
-                  <td className="text-left" style={{ color: l.poc ? "#E9C46A" : "#C8C0AE" }}>{tapePrice(l.price)}{l.poc ? " POC" : ""}</td>
+                  <td className="text-left" style={{ color: l.poc ? "#E9C46A" : "#C8C0AE" }}>{tapePrice(l.price)}</td>
                   <td className="text-right" style={{ color: "#E07A7A" }}>{tapeSize(l.bid)}</td>
                   <td className="text-right" style={{ color: "#6FCF97" }}>{tapeSize(l.ask)}</td>
                   <td className="text-right" style={{ color: l.delta > 0 ? "#6FCF97" : l.delta < 0 ? "#E07A7A" : "#C8C0AE" }}>
@@ -1525,7 +1529,7 @@ export function ChartInspectTicket({
       {vm.barTape ? (
         <div data-testid="chart-inspect-bar-tape" className="mt-1.5 border-t border-wm-border pt-1">
           <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">
-            Time &amp; sales · {vm.barTape.rows.length} of {vm.barTape.total} held in this bar
+            Time &amp; sales · {vm.barTape.rows.length} of {vm.barTape.total} held in this bar · A ask / B bid
           </div>
           <table className="mt-0.5 w-full text-[10.5px] tabular-nums" style={{ fontFamily: TAPE_MONO }}>
             <tbody>
@@ -1537,7 +1541,7 @@ export function ChartInspectTicket({
                     {tapeSize(t.size)}
                   </td>
                   <td className="text-right text-[10px]" style={{ color: t.side === "ASK" ? "#6FCF97" : t.side === "BID" ? "#E07A7A" : "#8A8370" }}>
-                    {t.side ?? "unsigned"}
+                    {t.side === "ASK" ? "A" : t.side === "BID" ? "B" : "?"}
                   </td>
                 </tr>
               ))}
