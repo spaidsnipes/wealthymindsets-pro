@@ -11,6 +11,7 @@ import {
   type CopyTradingProviderInput,
   type CopyTradingRequirementState,
 } from "@/lib/broker/copyTradingGate";
+import { openSettings } from "@/components/layout/shellPanels";
 
 /**
  * A GATE THAT CANNOT REPORT ITS OWN STATE IS A SIGN, NOT A GATE.
@@ -285,6 +286,11 @@ export default function CopyTradingPage() {
           <p className="mx-auto mt-3 max-w-xl" style={{ fontSize: 11, color: WM.text.muted, lineHeight: 1.6 }}>
             The state above is read from <code>/api/broker/status</code>, whose rows are enumerated from the registered broker adapters. It is a measurement, not a notice.
           </p>
+          <button type="button" data-testid="copy-trading-open-connections"
+            onClick={() => openSettings("connections")}
+            className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-wm-gold/40 bg-wm-gold/10 px-4 text-sm font-bold text-wm-gold hover:bg-wm-gold/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
+            Open Settings › Connections
+          </button>
         </section>
       </div>
     </div>

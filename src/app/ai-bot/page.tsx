@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
 import { Activity, AlertTriangle, Bot, ChevronRight, Database, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -173,6 +174,13 @@ export default function AIBotPage() {
             Observed market data only · no generated signals
           </p>
         </div>
+        {activeSymbol && (
+          <Link href={`/charts?symbol=${encodeURIComponent(activeSymbol)}`} data-testid="ai-bot-open-chart"
+            className="inline-flex min-h-11 items-center text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+            style={{ color: WM.gold.hero }}>
+            Open {activeSymbol} on the chart →
+          </Link>
+        )}
         <div
           className="ml-auto"
           style={{
