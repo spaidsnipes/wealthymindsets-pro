@@ -81,6 +81,7 @@ import { MarketHonestyPlaque } from "@/components/experience/MarketHonestyPlaque
 import { selectFoldEscalation } from "@/lib/marketData/viewModels/selectFoldEscalation";
 import { selectWaitPlaque, type PlaqueFlowContextVM } from "@/lib/marketData/viewModels/selectWaitPlaque";
 import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
+import type { TodayRuleState } from "@/lib/journal/todayRuleState";
 
 /**
  * The NOW cell's TEMPORAL evidence — whether this market is trading at all.
@@ -256,6 +257,14 @@ export interface DecisionSpineBandProps {
    * for the same reason the asOf clock is: it is a LIVE reading.
    */
   readonly flowContext?: PlaqueFlowContextVM | null;
+  /**
+   * Garden 18 v2 §70 · PERSONAL EDGE RETURNED TO THE MARKET — today's broker
+   * trades against the profile's rules (second attempt / no third, −2R / +3R
+   * when a 1R is stated). Compact, dismissible, rail-only, withheld during
+   * replay; null draws nothing (no trades today = nothing to say).
+   */
+  readonly ruleState?: TodayRuleState | null;
+  readonly onDismissRuleState?: () => void;
   /**
    * UI-04 · the Question Lens's column BESIDE the market: the active question,
    * its evidence debt (or WHAT CHANGED ledger) and the effort/displacement
@@ -1700,6 +1709,34 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
           </span>
         </div>
       ) : null}
+
+      {rail && props.ruleState && !replayEngaged ? (() => {
+        const rs = props.ruleState!;
+        const money = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}$${Math.abs(v).toFixed(2)}`;
+        const attempt = rs.attemptState === "NEXT IS THE SECOND" ? "Next is your second — fresh authorization first"
+          : rs.attemptState === "NEXT WOULD BE A THIRD" ? "Next would be a third — profile rule: no third"
+          : "Past your second — profile rule: no third";
+        const rLine = rs.oneR == null ? "State your 1R in Journal → Broker Ledger to see the −2R stop / +3R shutdown"
+          : `−2R stop (${money(-2 * rs.oneR)}): ${rs.stop === "REACHED" ? "reached" : "clear"} · +3R shutdown (${money(3 * rs.oneR)}): ${rs.shutdown === "REACHED" ? "reached" : "clear"}`;
+        const summary = `${rs.trades} trade${rs.trades === 1 ? "" : "s"} today · realised ${money(rs.net)}${rs.lastNet != null ? ` · last ${money(rs.lastNet)}` : ""}${rs.open ? ` · ${rs.open} open` : ""}`;
+        return (
+          <div data-testid="spine-rule-state" data-attempt-state={rs.attemptState}
+            aria-label={`Today, your rules. ${summary}. ${attempt}. ${rLine}.`}
+            style={{ display: "flex", flexDirection: "column", gap: 4, margin: "0 2px 10px", padding: "8px 11px", border: "1px solid rgba(196,165,116,0.24)", borderRadius: 2 }}>
+            <span aria-hidden="true" style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em", textAlign: "center" }}>Today · your rules</span>
+            <span aria-hidden="true" style={{ ...PLAQUE_STAMP, color: "#ede6d3", textAlign: "center" }}>{summary}</span>
+            <span aria-hidden="true" style={{ ...PLAQUE_STAMP, color: rs.attemptState === "NEXT IS THE SECOND" ? "#ede6d3" : "#c4a574", textAlign: "center" }}>{attempt}</span>
+            <span aria-hidden="true" style={{ ...PLAQUE_STAMP, textAlign: "center" }}>{rLine}</span>
+            <span style={{ ...PLAQUE_STAMP, display: "flex", justifyContent: "space-between", gap: 6 }}>
+              <span aria-hidden="true">Webull fills · today (New York)</span>
+              {props.onDismissRuleState ? (
+                <button type="button" onClick={props.onDismissRuleState} aria-label="Hide today's rule card"
+                  style={{ ...PLAQUE_STAMP, background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline" }}>Hide today</button>
+              ) : null}
+            </span>
+          </div>
+        );
+      })() : null}
 
       {/* F06A · FOOTPRINT — buy against sell by price, from the tape heard since
           it began (never called "session" over a partial one). Buy grows left

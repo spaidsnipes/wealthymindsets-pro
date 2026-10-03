@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { webullBrokerConfigFromEnv } from "@/lib/broker/adapters/webullBrokerConnection";
 import { listWebullAccounts, listWebullOrderHistoryPage } from "@/lib/broker/adapters/webullOrders";
 import { walkWebullHistory } from "@/lib/broker/webullLedgerWalk";
+import { readWebullHistory, type LedgerOrder } from "@/lib/broker/webullLedger";
 import { webullOwnerGate, webullOwnerRefusal } from "@/lib/broker/webullOwner";
 import { requireAuth } from "@/lib/requireAuth";
 import { resolveWebullSessionToken, webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
@@ -54,6 +55,36 @@ export async function GET(request: Request): Promise<Response> {
   const accounts = { accounts: list };
 
   const url = new URL(request.url);
+
+  // TODAY (Garden 18 v2 §70): every account's orders for today's New York date
+  // — a one-day window, which Webull answers whole — kept 60 s so the market
+  // room's rule card never asks Webull more than once a minute.
+  if (url.searchParams.get("today") === "1") {
+    const ny = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const next = new Date(Date.parse(`${ny}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+    const key = `wbledger:v2:today:${ny}`;
+    try { const hit = kvEnv ? await kvEnv.get(key) : null; if (hit) return NextResponse.json({ state: "OK", day: ny, cached: true, orders: JSON.parse(hit) }, { headers: NO_STORE }); } catch { /* read live */ }
+    const orders: LedgerOrder[] = [];
+    for (const [i, a] of accounts.accounts.entries()) {
+      if (i > 0) await new Promise(r => setTimeout(r, 1_100));
+      let cursor: string | null = null;
+      for (let pg = 0; pg < 5; pg++) {
+        const r = await listWebullOrderHistoryPage(fetch, c, a.accountId, ny, next, cursor);
+        if (!r.ok) return NextResponse.json({ state: "REFUSED", reason: r.reason ?? "Webull refused today's history." }, { headers: NO_STORE });
+        const rows = Array.isArray(r.payload) ? r.payload : [];
+        const got = readWebullHistory(r.payload, a.accountId.slice(-4));
+        const before = orders.length;
+        for (const o of got) if (!orders.some(x => x.orderId === o.orderId)) orders.push(o);
+        const last = rows.length ? (rows[rows.length - 1] as Record<string, unknown>)?.client_order_id : null;
+        if (orders.length === before || typeof last !== "string" || last === cursor) break;
+        cursor = last;
+        await new Promise(r2 => setTimeout(r2, 1_100));
+      }
+    }
+    if (kvEnv) await kvEnv.put(key, JSON.stringify(orders), { expirationTtl: 60 }).catch(() => {});
+    return NextResponse.json({ state: "OK", day: ny, cached: false, orders }, { headers: NO_STORE });
+  }
+
   const idxRaw = url.searchParams.get("account");
   // Step 1 — no account named: the accounts, so the page can step through them.
   if (idxRaw == null) {

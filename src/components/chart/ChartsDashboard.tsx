@@ -283,6 +283,7 @@ import { selectPriceEvidence } from "@/lib/marketData/formatSpinePrice";
 // Asset 07 (Evidence Debt / Question Mode) canon: dedicated
 // question-mode surface exposing the decisionWhy compilation.
 import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
+import { useTodayRuleState } from "@/hooks/useTodayRuleState";
 import DecisionSpineBand from "@/components/experience/DecisionSpineBand";
 import { birthOnPermissionCrossing } from "@/lib/traderMemory/permissionBirth";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
@@ -4560,6 +4561,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const webullLive = useWebullLiveCrypto(symbol);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+  // Garden 18 v2 §70 — today's broker trades against the profile's rules, on the rail.
+  const todayRules = useTodayRuleState();
   if (!mounted) {
     return (
       // SSR/hydration placeholder — must match the transparent room the
@@ -4636,6 +4639,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // and only while the tape belongs to this symbol (`tickerOwner`, the guard
     // the quote uses below). The band withholds it under a replay camera.
     flowContext: selectPlaqueFlowContext(chartFlowSnap, { symbolOwnsTape: tickerOwner === symbol }),
+    ruleState: todayRules.state,
+    onDismissRuleState: todayRules.dismiss,
     // UI-04: the lens's question and evidence debt stand beside the market.
     questionLens: questionLensOn ? railLens : null,
     lensChooser: lensRailMounted ? lensChooser : null,
