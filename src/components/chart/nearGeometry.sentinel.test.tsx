@@ -255,7 +255,8 @@ describe("receipts say what reached the glass and are withdrawn off NEAR", () =>
     const listed = new Set([...(listM as RegExpMatchArray)[1].matchAll(/"([A-Za-z]+)"/g)].map(m => m[1]));
     expect([...written].filter(k => !listed.has(k))).toEqual([]);
     expect(b).toContain('dsN.nearTapeForm = "ON_BARS";');
-    expect(b).toContain('dsN.nearTape = heldInView === 0 ? "NO_TAPE" : `DOTS:${dotsN}`;');
+    // §8/§15 v2: dots over footprint cells yield, and the receipt counts them.
+    expect(b).toContain('dsN.nearTape = heldInView === 0 ? "NO_TAPE" : `DOTS:${dotsN}${yieldedN ? `|YIELDED_TO_CELLS:${yieldedN}` : ""}`;');
     // Counts only after the paint that earns them.
     expect(b.indexOf("dsN.nearTape =")).toBeGreaterThan(b.indexOf("dotsN++;"));
   });

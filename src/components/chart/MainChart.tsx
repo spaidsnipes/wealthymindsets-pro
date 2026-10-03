@@ -9160,7 +9160,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const selKeyN = selectedPrintRef.current?.printKey ?? null;
           const inksN = flowColorsRef.current;
           const rMax = Math.max(3, Math.min(7, bsp * 0.12));
+          // §8/§15 (v2): a print dot over a footprint cell is the SAME truth
+          // twice in the same pixels — the cell's number already carries it.
+          // Over cells the dots yield (counted), except the selected print and
+          // each bar's largest print, which keep Inspect's handle.
+          let yieldedN = 0;
           for (const { c, cx, dots } of nearBars) {
+            const largestN = dots.reduce((m, d) => (d.size > m ? d.size : m), 0);
             for (const d of dots) {
               const yd = srs.priceToCoordinate(d.price);
               if (yd == null) continue;
@@ -9171,6 +9177,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // A dot over a footprint cell column lets the row's numbers read
               // through (M46 owns the rows); the side stays in its outline.
               const onCell = fpCells.some(q => xd >= q.x && xd <= q.x + q.w && +yd >= q.y && +yd <= q.y + q.h);
+              if (onCell && d.size < largestN && !(selKeyN != null && d.printKey === selKeyN)) { yieldedN++; continue; }
               const fillA = onCell ? 0.5 : 0.92;
               ctx.beginPath(); ctx.arc(xd, +yd, r, 0, Math.PI * 2);
               if (ink === "SOLID") {
@@ -9225,7 +9232,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // when nothing of its kind did.
           const dsN = canvas.dataset;
           dsN.nearTapeForm = "ON_BARS";
-          dsN.nearTape = heldInView === 0 ? "NO_TAPE" : `DOTS:${dotsN}`;
+          dsN.nearTape = heldInView === 0 ? "NO_TAPE" : `DOTS:${dotsN}${yieldedN ? `|YIELDED_TO_CELLS:${yieldedN}` : ""}`;
           if (heldInView > 0) { dsN.nearTapeHeld = String(heldInView); dsN.nearTapeSides = sidesN; }
           else { delete dsN.nearTapeHeld; delete dsN.nearTapeSides; }
           if (pathPts > 1) dsN.nearTapePath = String(pathPts); else delete dsN.nearTapePath;
