@@ -28,6 +28,8 @@ export function useTodayRuleState(): { state: TodayRuleState | null; dismiss: ()
         if (!r.ok) { if (alive) setState(null); return; }
         const j = await r.json() as { state?: string; day?: string; orders?: LedgerOrder[] };
         if (!alive) return;
+        // A refusal (e.g. Webull's rate limit) keeps the last good reading rather than blinking the card away.
+        if (j.state === "REFUSED") return;
         if (j.state !== "OK" || !Array.isArray(j.orders)) { setState(null); return; }
         let oneR: number | null = null;
         try { oneR = Number(localStorage.getItem("wm_ledger_one_r") ?? 0) || null; } catch { /* none */ }

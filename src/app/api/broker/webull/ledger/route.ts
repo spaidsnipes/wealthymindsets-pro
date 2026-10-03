@@ -69,7 +69,12 @@ export async function GET(request: Request): Promise<Response> {
       if (i > 0) await new Promise(r => setTimeout(r, 1_100));
       let cursor: string | null = null;
       for (let pg = 0; pg < 5; pg++) {
-        const r = await listWebullOrderHistoryPage(fetch, c, a.accountId, ny, next, cursor);
+        let r = await listWebullOrderHistoryPage(fetch, c, a.accountId, ny, next, cursor);
+        for (const wait of [3_000, 6_000, 12_000]) {
+          if (r.ok || !/\b429\b|TOO_MANY/i.test(r.reason ?? "")) break;
+          await new Promise(res => setTimeout(res, wait));
+          r = await listWebullOrderHistoryPage(fetch, c, a.accountId, ny, next, cursor);
+        }
         if (!r.ok) return NextResponse.json({ state: "REFUSED", reason: r.reason ?? "Webull refused today's history." }, { headers: NO_STORE });
         const rows = Array.isArray(r.payload) ? r.payload : [];
         const got = readWebullHistory(r.payload, a.accountId.slice(-4));
