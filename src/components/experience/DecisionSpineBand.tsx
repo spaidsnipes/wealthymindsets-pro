@@ -45,6 +45,7 @@
  * the difference.
  */
 
+import Link from "next/link";
 import type { WebullLiveReading } from "@/lib/marketData/useWebullLiveCrypto";
 import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import type { EvidenceLineageVM } from "@/lib/chart/evidenceLineage";
@@ -1772,7 +1773,9 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             <span aria-hidden="true" style={{ ...PLAQUE_STAMP, color: rs.attemptState === "NEXT IS THE SECOND" ? "#ede6d3" : "#c4a574", textAlign: "center" }}>{attempt}</span>
             <span aria-hidden="true" style={{ ...PLAQUE_STAMP, textAlign: "center" }}>{rLine}</span>
             <span style={{ ...PLAQUE_STAMP, display: "flex", justifyContent: "space-between", gap: 6 }}>
-              <span aria-hidden="true">Webull fills · today (New York)</span>
+              <Link href="/journal?tab=ledger" prefetch={false} data-testid="spine-rule-state-journal"
+                aria-label="Open today's trades in Journal, Broker Ledger"
+                style={{ ...PLAQUE_STAMP, color: "#c4a574", textDecoration: "underline" }}>Webull fills · today — open in Journal →</Link>
               {props.onDismissRuleState ? (
                 <button type="button" onClick={props.onDismissRuleState} aria-label="Hide today's rule card"
                   style={{ ...PLAQUE_STAMP, background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline" }}>Hide today</button>
