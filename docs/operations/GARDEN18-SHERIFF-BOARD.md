@@ -226,3 +226,5 @@ Episode: TSLA 2026-09-30 370C LONG ×1 ·OS5B, 2026-09-29 08:47 → 08:51 CDT, �
 | 23 | measure later change | PASS — success test per pattern (`cf09ef2`) |
 
 Verdict: the seams hold; the OPEN/PARTIAL steps wait on the Founder's own marks (model, authorization, review, rule effective date), which WM correctly refuses to invent.
+| §70 on the band (phone / narrow) | BUILT | `f7b00e7` the same reading as one compact "Today · your rules" cell on the band presentation; render tests: rail card once, band cell once, nothing with no reading or during replay. Live phone glass PENDING — a /charts frame inside the background automation tab stalls the renderer; needs a foreground phone check |
+| Ledger jump bar | BUILT | `726cc00` sticky Summary · Personal Edge · Your days · Episodes (instant scroll verified; smooth scroll does not animate in a background tab) |
