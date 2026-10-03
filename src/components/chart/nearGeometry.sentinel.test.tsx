@@ -63,6 +63,9 @@ describe("NEAR paints no tape list box", () => {
     const b = near();
     const texts = [...b.matchAll(/ctx\.fillText\(([^,]+),/g)].map(m => m[1]);
     expect(texts).toEqual(["legendN", "p.word"]);
+    // Plate 128 (2026-10-03): the two important-print callouts are the third
+    // allowed text — halo text through crispText, never a backed card.
+    expect(b).toContain("crispText(ctx, l, at.x + 7,");
     // Code, not the history comment that names what was removed.
     expect(CHART).not.toContain("TAPE · LAST");
     // No backing card of any kind: the block fills dots and a hatch clip, never a rectangle.

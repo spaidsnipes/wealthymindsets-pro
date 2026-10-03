@@ -198,7 +198,7 @@ const PRICE_LEGEND_OVERLAY_H = 28;
 /** Every receipt the NEAR geometry block writes — withdrawn together off NEAR. */
 /** The largest held prints per bar the NEAR tape owner keeps (the paint shows as many as the slot has room for). */
 const NEAR_TAPE_MAX_DOTS = 12;
-const NEAR_GLASS_RECEIPTS = ["nearTapeForm", "nearTape", "nearTapeHeld", "nearTapeSides", "nearTapePath", "nearTapeTop", "nearAnatomy", "nearHatch", "nearHatchYieldedToValueCandle", "nearAnatomyWords"] as const;
+const NEAR_GLASS_RECEIPTS = ["nearCallouts", "nearTapeForm", "nearTape", "nearTapeHeld", "nearTapeSides", "nearTapePath", "nearTapeTop", "nearAnatomy", "nearHatch", "nearHatchYieldedToValueCandle", "nearAnatomyWords"] as const;
 const PANE_TOP_LEFT_INSET = 8;
 /** First free pixel below the price legend, for anything else in that corner. */
 const BELOW_PRICE_LEGEND = PRICE_LEGEND_OVERLAY_H + PANE_TOP_LEFT_INSET;
@@ -9167,6 +9167,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // Over cells the dots yield (counted), except the selected print and
           // each bar's largest print, which keep Inspect's handle.
           let yieldedN = 0;
+          /** Every dot that reached the glass, for the plate-128 callouts below. */
+          const drawnDotsN: { x: number; y: number; r: number; d: NearTapeDot; bar: number }[] = [];
           for (const { c, cx, dots } of nearBars) {
             const largestN = dots.reduce((m, d) => (d.size > m ? d.size : m), 0);
             for (const d of dots) {
@@ -9200,7 +9202,57 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
               nearTapeHitsRef.current.push({ x: xd, y: +yd, r: Math.max(r, 4), barTime: Number(c.time), dot: d });
               dotsN++;
+              drawnDotsN.push({ x: xd, y: +yd, r, d, bar: Number(c.time) });
               if (!topDot || d.size > topDot.size) topDot = { x: xd, y: +yd, size: d.size };
+            }
+          }
+
+          // ── IMPORTANT PRINTS, AT REST (plate 128 "Micro Zoom · Pressure
+          //    Anatomy", 2026-10-03): the two largest prints in view, each a
+          //    boxed callout on a leader — time · price · size @ side — placed
+          //    by the NEAR keep-out placer (never on a candle; no room → none).
+          //    Sides the tape inferred say so.
+          let calloutsN = 0;
+          {
+            // Linear top-two (no per-frame sort of prints): the largest dot, then
+            // the largest on a different bar.
+            let first: (typeof drawnDotsN)[number] | null = null;
+            for (const p of drawnDotsN) if (!first || p.d.size > first.d.size) first = p;
+            let second: (typeof drawnDotsN)[number] | null = null;
+            for (const p of drawnDotsN) if (first && p.bar !== first.bar && (!second || p.d.size > second.d.size)) second = p;
+            const picks = [first, second].filter((p): p is (typeof drawnDotsN)[number] => p != null);
+            const sz = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v >= 10 ? `${Math.round(v)}` : v >= 1 ? v.toFixed(2) : v.toPrecision(2));
+            for (const p of picks) {
+              const inferredSide = p.d.fidelity !== "OBSERVED";
+              const lines = [
+                "IMPORTANT PRINT",
+                `${new Date(p.d.timeMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · ${p.d.price.toFixed(pxDp)}`,
+                `${sz(p.d.size)} @ ${p.d.buy ? "ASK" : "BID"}${inferredSide ? " · inferred" : ""}`,
+              ];
+              ctx.font = marketFont("MICRO_NUMBER", 10);
+              const tw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 14;
+              const bh = 3 * 13 + 8;
+              const off = 22;
+              const at = placeNear([
+                { x: p.x - off - tw, y: p.y - off - bh, w: tw, h: bh },
+                { x: p.x + off, y: p.y - off - bh, w: tw, h: bh },
+                { x: p.x - off - tw, y: p.y + off, w: tw, h: bh },
+                { x: p.x + off, y: p.y + off, w: tw, h: bh },
+              ]);
+              if (!at) continue;
+              const ax = Math.max(at.x, Math.min(at.x + at.w, p.x)), ay = p.y < at.y ? at.y : at.y + at.h;
+              // Halo text on a leader — NEAR keeps no backing card (its law);
+              // the plate's box is read as the callout's place, not a panel.
+              ctx.save();
+              ctx.strokeStyle = "rgba(232,198,104,0.85)"; ctx.lineWidth = 1;
+              ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ax, ay); ctx.stroke();
+              lines.forEach((l, i) => {
+                ctx.font = i === 0 ? marketFont("OBJECT_NAME", 10) : marketFont("MICRO_NUMBER", 10);
+                crispText(ctx, l, at.x + 7, at.y + 4 + 13 * i + 6.5, { fill: i === 0 ? "rgba(212,175,55,1)" : "rgba(237,230,211,0.98)", outline: true, align: "left" });
+              });
+              ctx.restore();
+              forceChips.push(at);
+              calloutsN++;
             }
           }
 
@@ -9237,6 +9289,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // when nothing of its kind did.
           const dsN = canvas.dataset;
           dsN.nearTapeForm = "ON_BARS";
+          if (calloutsN > 0) dsN.nearCallouts = String(calloutsN); else delete dsN.nearCallouts;
           dsN.nearTape = heldInView === 0 ? "NO_TAPE" : `DOTS:${dotsN}${yieldedN ? `|YIELDED_TO_CELLS:${yieldedN}` : ""}`;
           if (heldInView > 0) { dsN.nearTapeHeld = String(heldInView); dsN.nearTapeSides = sidesN; }
           else { delete dsN.nearTapeHeld; delete dsN.nearTapeSides; }
