@@ -7857,17 +7857,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.fill();
           ctx.beginPath();
           ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 0.6), Math.max(0.1, Ry - 0.6), 0, 0, Math.PI * 2);
+          // The rim says the SIDE (v2 §15, serving BTC 1m NEAR 2026-10-03:
+          // 42 near-white rings over clear cores read as identical noise).
+          // White is the hover / selection ink only.
           ctx.lineWidth = isHover ? 2.6 : 1.7;
-          ctx.strokeStyle = `rgba(255,255,255,${isHover ? 0.98 : 0.82})`;
+          ctx.strokeStyle = isHover || selB ? "rgba(255,255,255,0.98)" : `rgba(${core},0.9)`;
           ctx.stroke();
-          if (b.r >= 7) {
+          const lbl = signedFlowText(b.ask - b.bid, fmtV);
+          const fontPx = Math.max(9, Math.min(13, Rx * 0.48));
+          ctx.font = marketFont("MICRO_NUMBER", fontPx);
+          // The number prints only INSIDE the bubble it belongs to — a 9 px
+          // label spilling past a 7 px ring read as loose digits on candles.
+          if (ctx.measureText(lbl).width <= 2 * Rx - 2) {
             ctx.globalAlpha = att.textAlpha("bubbles", { selectedItem: selB });
             // v2 §15 (2026-10-03): the bubble writes what it CLAIMS — its signed
             // delta — not its price (the axis already says where it is). Serving
             // BTC 1m NEAR: 61 bubbles each printing "84590.75". 9 px floor.
-            const lbl = signedFlowText(b.ask - b.bid, fmtV);
-            const fontPx = Math.max(9, Math.min(13, Rx * 0.48));
-            ctx.font = marketFont("MICRO_NUMBER", fontPx);
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.lineWidth = Math.max(2, fontPx * 0.22);
             ctx.strokeStyle = "rgba(0,0,0,0.88)";
