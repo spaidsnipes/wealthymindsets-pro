@@ -25118,7 +25118,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             aria-pressed={livingMarket === "STILL"}
             aria-label={`Living market: ${livingMarket}. Press to ${livingMarket === "LIVE" ? "hold every invention still" : "let it live"}.`}
             onClick={() => setLivingMarket(m => (m === "LIVE" ? "STILL" : "LIVE"))}
-            title={livingMarket === "LIVE" ? "LIVE — inventions move with their own evidence. Press for STILL: the same objects, settled for study." : "STILL — the same inventions, settled. Press for LIVE."}
+            title={livingMarket === "LIVE"
+              ? `${sessionOpen === false ? "MOTION (market closed — nothing here is live data)" : "LIVE"} — inventions move with their own evidence. Press for STILL: the same objects, settled for study.`
+              : "STILL — the same inventions, settled. Press for LIVE."}
             style={{
               height: 22, padding: "0 6px", borderRadius: 4, fontSize: 9, fontWeight: 800, cursor: "pointer",
               display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap",
@@ -25126,7 +25128,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               border: `1px solid ${livingMarket === "STILL" ? "rgba(201,165,92,0.7)" : "#263050"}`,
               color: livingMarket === "STILL" ? "#E8C878" : "#8896BE",
             }}>
-            {livingMarket === "LIVE" ? "● LIVE" : "❚❚ STILL"}
+            {/* §8: a closed session is never called LIVE — the switch is motion,
+                not data (serving TSLA 5m Saturday: "● LIVE" beside MARKET CLOSED). */}
+            {livingMarket === "LIVE" ? (sessionOpen === false ? "● MOTION" : "● LIVE") : "❚❚ STILL"}
           </button>
         </div>
 
