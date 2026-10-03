@@ -18,6 +18,7 @@ import { PROFILE_RULES, replayDailyRules } from "@/lib/broker/dailyRules";
 import { ledgerTimeline, MIN_WINDOW, whatChanged } from "@/lib/broker/ledgerTimeline";
 import { lessonHref, studyNext } from "@/lib/journal/studyRoute";
 import { ProcessDays } from "@/components/journal/ProcessDays";
+import { ExcursionStudy } from "@/components/journal/ExcursionStudy";
 import { behaviourTags, PATTERN_MIN, patternEvidence } from "@/lib/journal/behaviorTags";
 import { EPISODE_MODELS_KEY, MODEL_LABEL, parseModels, resultsByModel, type ModelMark } from "@/lib/journal/episodeModel";
 import type { Episode } from "@/lib/broker/webullLedger";
@@ -140,6 +141,8 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
           </ol>
         )}
       </div>
+
+      <ExcursionStudy episodes={episodes} />
 
       <div data-testid="edge-timeline" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, overflowX: "auto" }}>
         <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>OVER TIME · RECENT WINDOWS BESIDE THE WHOLE RECORD</div>

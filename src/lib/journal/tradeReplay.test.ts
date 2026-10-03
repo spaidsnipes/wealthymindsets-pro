@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barsInWindow, excursions, optionStreamerFor, replayFrame, replayMarkers, replayWindow } from "./tradeReplay";
+import { barsInWindow, excursions, optionStreamerFor, replayFrame, replayMarkers, replayWindow, summarizeExcursions } from "./tradeReplay";
 
 describe("trade replay — the contract's own bars, no look-ahead", () => {
   it("names the dxFeed streamer symbol of the traded contract", () => {
@@ -38,5 +38,14 @@ describe("trade replay — the contract's own bars, no look-ahead", () => {
     expect(x).toMatchObject({ mfe: 8, mae: -3, realised: 3, capture: 0.37, barsHeld: 3 });
     const loss = excursions(bars, { openedAt: new Date(t0 * 1000 + 10_000).toISOString(), closedAt: new Date((t0 + 150) * 1000).toISOString(), avgEntry: 0.18, avgExit: 0.16, direction: "LONG", multiplier: 100 })!;
     expect(loss).toMatchObject({ realised: -2, capture: null });
+  });
+
+  it("excursion summary: averages, capture over winners, losers that were green first", () => {
+    const s = summarizeExcursions([
+      { mfe: 8, mae: -3, realised: 3, capture: 0.38, barsHeld: 3 },
+      { mfe: 5, mae: -15, realised: -14, capture: null, barsHeld: 63 },
+      { mfe: 0, mae: -6, realised: -6, capture: null, barsHeld: 2 },
+    ]);
+    expect(s).toEqual({ measured: 3, avgMfe: 4.33, avgMae: -8, avgCaptureWinners: 0.38, losers: 2, losersGreenFirst: 1 });
   });
 });

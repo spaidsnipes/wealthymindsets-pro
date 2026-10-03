@@ -87,3 +87,30 @@ export function excursions(bars: readonly LegacyOhlcvTuple[], e: Pick<Episode, "
   const r2 = (x: number) => Math.round(x * m * 100) / 100;
   return { mfe: r2(Math.max(0, best)), mae: r2(Math.min(0, worst)), realised: r2(realised), capture: best > 0 && realised > 0 ? Math.round((realised / best) * 100) / 100 : null, barsHeld: held.length };
 }
+
+export interface ExcursionSummary {
+  readonly measured: number;
+  readonly avgMfe: number | null;
+  readonly avgMae: number | null;
+  /** Mean capture over winners only. */
+  readonly avgCaptureWinners: number | null;
+  readonly losers: number;
+  /** Losers whose contract traded above (long) / below (short) the entry while held. */
+  readonly losersGreenFirst: number;
+}
+
+/** Aggregate MEASURED excursions; only trades with bars count. */
+export function summarizeExcursions(rows: readonly Excursions[]): ExcursionSummary {
+  const n = rows.length;
+  const mean = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : null);
+  const winners = rows.filter(r => r.realised > 0 && r.capture != null);
+  const losers = rows.filter(r => r.realised < 0);
+  return {
+    measured: n,
+    avgMfe: mean(rows.map(r => r.mfe)),
+    avgMae: mean(rows.map(r => r.mae)),
+    avgCaptureWinners: mean(winners.map(r => r.capture!)),
+    losers: losers.length,
+    losersGreenFirst: losers.filter(r => r.mfe > 0).length,
+  };
+}
