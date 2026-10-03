@@ -25,6 +25,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { isTerminal, type TtOrderView, type WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { checkOrder } from "@/lib/execution/guardrails";
+import { openSettings } from "@/components/layout/shellPanels";
 import { useGuardrails } from "@/lib/execution/useGuardrails";
 
 import { tastytradeEntryFields, type TastytradeEntryType } from "@/lib/broker/tastytradeEntryFields";
@@ -207,7 +208,7 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
       <p data-testid="tt-capital-moment" style={{ marginTop: 6, fontVariantNumeric: "tabular-nums", color: "#ede6d3" }}>{summary}</p>
       {accountBlocks ? <p role="status" style={{ color: GOLD }}>{accountBlocks}</p> : null}
       {!priceOk ? <p role="status" style={{ color: GOLD }}>{entryType === "Stop Limit" ? "Set a positive stop trigger and limit price to send." : entryType === "Stop" ? "Set a positive stop trigger to send." : "Set a positive limit price to send."}</p> : null}
-      {!guard.ok ? <p role="status" data-testid="tt-guardrail" style={{ color: GOLD }}>{guard.reason}</p> : null}
+      {!guard.ok ? <p role="status" data-testid="tt-guardrail" style={{ color: GOLD }}>{guard.reason}{" "}<button type="button" data-testid="tt-guardrail-open-settings" onClick={() => openSettings("execution")} style={{ color: GOLD, textDecoration: "underline", background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit" }}>Open Settings › Execution</button></p> : null}
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
         <label style={{ display: "flex", gap: 4, alignItems: "center", color: armed ? RED : MUTED }}>
           <input type="checkbox" data-testid="tt-arm" checked={armed} disabled={!canArm} onChange={e => setArmed(e.target.checked)} />

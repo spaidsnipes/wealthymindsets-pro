@@ -16,6 +16,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import { checkOrder } from "@/lib/execution/guardrails";
+import { openSettings } from "@/components/layout/shellPanels";
 import { useGuardrails } from "@/lib/execution/useGuardrails";
 
 const GOLD = "#C9A55C";
@@ -121,7 +122,7 @@ export function WebullLiveOrder({ intent, accountIndex, accountLabel, decisionId
         <span style={{ color: RED, fontWeight: 700 }}>LIVE</span> · WEBULL · {accountLabel} · {intent.positionIntent.replace(/_/g, " ")} {intent.qty} {intent.osi} · LIMIT {intent.limitPx ?? "—"} · DAY
       </p>
       {!priceOk ? <p role="status" style={{ color: GOLD }}>Set a limit premium to send.</p> : null}
-      {!guard.ok ? <p role="status" data-testid="wb-guardrail" style={{ color: GOLD }}>{guard.reason}</p> : null}
+      {!guard.ok ? <p role="status" data-testid="wb-guardrail" style={{ color: GOLD }}>{guard.reason}{" "}<button type="button" data-testid="wb-guardrail-open-settings" onClick={() => openSettings("execution")} style={{ color: GOLD, textDecoration: "underline", background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit" }}>Open Settings › Execution</button></p> : null}
       <div className="mt-1 flex items-center gap-2">
         <label className="flex items-center gap-1" style={{ color: armed ? RED : MUTED }}>
           <input type="checkbox" data-testid="wb-arm" checked={armed} disabled={!canArm} onChange={e => setArmed(e.target.checked)} />
