@@ -196,7 +196,7 @@ export default function LivingProfileView({ vm, symbol, timeframe }: LivingProfi
                   >
                     <span
                       style={{
-                        fontSize: 8.5,
+                        fontSize: 9,
                         color: b.isPoc ? GOLD : MUTED,
                         minWidth: 58,
                         textAlign: "right",
@@ -216,7 +216,7 @@ export default function LivingProfileView({ vm, symbol, timeframe }: LivingProfi
                     </div>
                     <span
                       style={{
-                        fontSize: 8,
+                        fontSize: 9,
                         letterSpacing: "0.08em",
                         color: b.isPoc ? GOLD : MUTED,
                         minWidth: 34,

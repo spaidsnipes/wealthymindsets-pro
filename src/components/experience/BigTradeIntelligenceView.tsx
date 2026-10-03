@@ -250,7 +250,7 @@ export default function BigTradeIntelligenceView({
                     <th
                       key={h}
                       style={{
-                        fontSize: 8.5,
+                        fontSize: 9,
                         letterSpacing: "0.1em",
                         color: MUTED,
                         fontWeight: 400,

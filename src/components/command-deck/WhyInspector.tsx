@@ -378,7 +378,7 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ padding: "6px 10px", borderRadius: 4, background: WM.surface.mid }}>
-      <div style={{ fontSize: 8, letterSpacing: 0.4, textTransform: "uppercase", color: WM.text.muted, fontWeight: 700 }}>
+      <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: WM.text.muted, fontWeight: 700 }}>
         {label}
       </div>
       <div style={{ fontSize: 12, fontWeight: 600, color: WM.text.hero, marginTop: 2 }}>

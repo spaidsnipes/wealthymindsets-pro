@@ -24346,7 +24346,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           >
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
               <span style={{ color: "#F0B429", fontSize: 10, fontWeight: 900, letterSpacing: "0.12em" }}>WAIT</span>
-              <span style={{ color: "#8E856E", fontSize: 8, fontWeight: 750 }}>{selectedMarketObjectTarget.object.fidelityAtBirth}</span>
+              <span style={{ color: "#8E856E", fontSize: 9, fontWeight: 750 }}>{selectedMarketObjectTarget.object.fidelityAtBirth}</span>
             </div>
             <div style={{ marginTop: 3, color: "#F7F1DF", fontSize: 11, fontWeight: 820 }}>
               {selectedMarketObjectWait.headline}
@@ -24849,7 +24849,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 <button title="Color" onClick={() => setDrawPopover(p => (p === "color" ? null : "color"))}
                   style={{ ...btn(drawPopover === "color"), padding: "0 6px", gap: 4 }}>
                   <span style={{ width: 13, height: 13, borderRadius: "50%", background: d.style.color, border: "1px solid rgba(255,255,255,0.5)" }} />
-                  <span style={{ fontSize: 8, opacity: 0.7 }}>▼</span>
+                  <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
                 </button>
                 {drawPopover === "color" && (
                   <div style={{ position: "absolute", top: 28, left: 0, zIndex: 140, padding: 8, borderRadius: 8, width: 172,
@@ -24876,7 +24876,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 <button title="Line width" onClick={() => setDrawPopover(p => (p === "width" ? null : "width"))}
                   style={{ ...btn(drawPopover === "width"), padding: "0 6px", gap: 4 }}>
                   <span style={{ display: "inline-block", width: 14, height: Math.max(1, Math.round(d.style.width)), background: "currentColor", borderRadius: 2 }} />
-                  <span style={{ fontSize: 8, opacity: 0.7 }}>▼</span>
+                  <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
                 </button>
                 {drawPopover === "width" && (
                   <div style={{ position: "absolute", top: 28, left: 0, zIndex: 140, padding: 5, borderRadius: 8, display: "flex", gap: 4,
@@ -24896,7 +24896,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 <button title="Line style" onClick={() => setDrawPopover(p => (p === "dash" ? null : "dash"))}
                   style={{ ...btn(drawPopover === "dash"), padding: "0 6px", gap: 4 }}>
                   {d.style.dash === "dashed" ? "- -" : d.style.dash === "dotted" ? "···" : "──"}
-                  <span style={{ fontSize: 8, opacity: 0.7 }}>▼</span>
+                  <span style={{ fontSize: 9, opacity: 0.7 }}>▼</span>
                 </button>
                 {drawPopover === "dash" && (
                   <div style={{ position: "absolute", top: 28, left: 0, zIndex: 140, padding: 5, borderRadius: 8, display: "flex", gap: 4,
@@ -25200,7 +25200,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             </div>
             {/* The scope line, not a hover. A panel whose scope is reachable
                 only by hovering is a panel that competes with the header. */}
-            <div style={{ fontSize: 8.5, fontWeight: 600, color: scope.historical ? "#F0B429" : "#62697d", marginBottom: 5, whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 9, fontWeight: 600, color: scope.historical ? "#F0B429" : "#62697d", marginBottom: 5, whiteSpace: "nowrap" }}>
               {scope.subheading}
             </div>
             {[

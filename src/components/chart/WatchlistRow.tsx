@@ -186,7 +186,7 @@ export function WatchlistRow({
                 >
                   <span>{up ? "+" : ""}{changePct.toFixed(2)}%</span>
                   {changeWindowSuffix(changeWindow) && (
-                    <span style={{ fontSize: 8, color: "#6B7194", fontWeight: 600, letterSpacing: 0.2 }}>
+                    <span style={{ fontSize: 9, color: "#6B7194", fontWeight: 600, letterSpacing: 0.2 }}>
                       {changeWindowSuffix(changeWindow)}
                     </span>
                   )}

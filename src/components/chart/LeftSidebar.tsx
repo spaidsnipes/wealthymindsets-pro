@@ -544,7 +544,7 @@ export default function LeftSidebar({
         />
         {screenRec && (
           <div style={{
-            marginTop: 2, fontSize: 8, fontWeight: 700, color: REC,
+            marginTop: 2, fontSize: 9, fontWeight: 700, color: REC,
             display: "flex", alignItems: "center", gap: 3,
           }}>
             <span className="wm-rec-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: REC, display: "inline-block" }} />

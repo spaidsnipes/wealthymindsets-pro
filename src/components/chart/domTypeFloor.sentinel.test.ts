@@ -20,6 +20,13 @@ const FILES = [
   "src/components/layout/MobileSessionPill.tsx",
   "src/components/os/WMOperatingSystem.tsx",
   "src/app/command-deck/page.tsx",
+  "src/app/scanner/map/page.tsx",
+  "src/components/command-deck/WhyInspector.tsx",
+  "src/components/experience/BigTradeIntelligenceView.tsx",
+  "src/components/experience/LivingProfileView.tsx",
+  "src/components/chart/WatchlistRow.tsx",
+  "src/components/chart/LeftSidebar.tsx",
+  "src/components/marketData/ProviderWireStrip.tsx",
 ];
 const TINY = /fontSize:\s*([0-8](?:\.\d+)?)\s*[,}\s]|text-\[([0-8](?:\.\d+)?)px\]/g;
 
