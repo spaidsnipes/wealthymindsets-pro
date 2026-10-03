@@ -14,7 +14,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { computeLedgerEdge, MIN_SAMPLE } from "@/lib/broker/ledgerEdge";
 import { processOutcome } from "@/lib/broker/processOutcome";
-import { PROFILE_RULES, replayDailyRules } from "@/lib/broker/dailyRules";
+import { PROFILE_RULES, replayDailyRules, versionedRuleReplay } from "@/lib/broker/dailyRules";
 import { ledgerTimeline, MIN_WINDOW, whatChanged } from "@/lib/broker/ledgerTimeline";
 import { lessonHref, studyNext, type StudyItem } from "@/lib/journal/studyRoute";
 import { ProcessDays } from "@/components/journal/ProcessDays";
@@ -52,6 +52,11 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
   useEffect(() => { try { setOneR(Number(localStorage.getItem("wm_ledger_one_r") ?? 0) || 0); } catch { /* none */ } }, []);
   const saveR = (v: number) => { setOneR(v); try { localStorage.setItem("wm_ledger_one_r", String(v)); } catch { /* this visit only */ } };
   const rules = useMemo(() => replayDailyRules(episodes, oneR), [episodes, oneR]);
+  // §31: the day the trader says profile rules v1 took effect; kept on this device.
+  const [effectiveFrom, setEffectiveFrom] = useState<string>("");
+  useEffect(() => { try { setEffectiveFrom(localStorage.getItem("wm_profile_rules_effective") ?? ""); } catch { /* none */ } }, []);
+  const saveEffective = (v: string) => { setEffectiveFrom(v); try { if (v) localStorage.setItem("wm_profile_rules_effective", v); else localStorage.removeItem("wm_profile_rules_effective"); } catch { /* this visit only */ } };
+  const versioned = useMemo(() => (effectiveFrom ? versionedRuleReplay(episodes, effectiveFrom, oneR || null) : null), [episodes, effectiveFrom, oneR]);
   const timeline = useMemo(() => ledgerTimeline(episodes), [episodes]);
   const patterns = useMemo(() => patternEvidence(episodes, behaviourTags(episodes)), [episodes]);
   const study = useMemo(() => studyNext(edge, 3, patterns), [edge, patterns]);
@@ -208,6 +213,20 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, fontSize: 12, color: INK, fontVariantNumeric: "tabular-nums" }}>
           {edge.daily.byCount.map(r => <span key={r.key}>{r.key}: <b>{r.days}</b> days · <span style={{ color: tone(r.net) }}>{usd(r.net)}</span></span>)}
+        </div>
+        <div data-testid="edge-rule-version" style={{ marginTop: 10, borderTop: `1px dashed ${LINE}`, paddingTop: 8 }}>
+          <label style={{ fontSize: 11, color: MUTED }}>
+            Profile rules v1 took effect on{" "}
+            <input type="date" value={effectiveFrom} onChange={ev => saveEffective(ev.target.value)} aria-label="Date the profile rules took effect"
+              style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: "1px 6px", borderRadius: 4 }} />
+            {" "}(your statement — not in any broker record)
+          </label>
+          {versioned ? (
+            <div style={{ fontSize: 12, color: INK, marginTop: 6, display: "grid", gap: 2 }}>
+              <div><b style={{ color: GOLD }}>AS-TRADED</b> since {versioned.effectiveFrom}: {versioned.asTraded.thirdPlusDays} of {versioned.asTraded.days} days went past a second trade — {versioned.asTraded.thirdPlusTrades} trades, <span style={{ color: tone(versioned.asTraded.thirdPlusNet) }}>{usd(versioned.asTraded.thirdPlusNet)}</span>{versioned.asTraded.afterStopTrades != null ? <>; {versioned.asTraded.afterStopTrades} trades opened after the −2R stop, <span style={{ color: tone(versioned.asTraded.afterStopNet ?? 0) }}>{usd(versioned.asTraded.afterStopNet ?? 0)}</span></> : null}.</div>
+              <div style={{ color: MUTED }}><b>CURRENT STRATEGY REPLAY</b> before it: {versioned.replayBefore.thirdPlusDays} of {versioned.replayBefore.days} days past a second trade — {versioned.replayBefore.thirdPlusTrades} trades, {usd(versioned.replayBefore.thirdPlusNet)}. Not graded as-traded: the rule did not exist yet.</div>
+            </div>
+          ) : <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 0" }}>Without a date, every day below is a CURRENT STRATEGY REPLAY.</p>}
         </div>
         <div style={{ marginTop: 10, borderTop: `1px dashed ${LINE}`, paddingTop: 8 }}>
           <label style={{ fontSize: 11, color: MUTED }}>

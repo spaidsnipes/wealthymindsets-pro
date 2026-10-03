@@ -58,3 +58,39 @@ export function replayDailyRules(episodes: readonly Episode[], oneR: number): Da
   }
   return { oneR, days: byDay.size, stopDays, afterStopTrades, afterStopNet: cents(afterStopNet), shutdownDays, afterShutdownTrades, afterShutdownNet: cents(afterShutdownNet) };
 }
+
+/**
+ * STRATEGY VERSIONING (§31): split the replay at the day the trader says the
+ * profile rules took effect. Days on/after it are graded AS-TRADED against the
+ * rules then in force; days before stay CURRENT STRATEGY REPLAY. Never merged.
+ */
+export interface VersionedReplay {
+  readonly effectiveFrom: string;
+  readonly asTraded: { readonly days: number; readonly thirdPlusDays: number; readonly thirdPlusTrades: number; readonly thirdPlusNet: number; readonly afterStopTrades: number | null; readonly afterStopNet: number | null };
+  readonly replayBefore: { readonly days: number; readonly thirdPlusDays: number; readonly thirdPlusTrades: number; readonly thirdPlusNet: number };
+}
+
+export function versionedRuleReplay(episodes: readonly Episode[], effectiveFrom: string, oneR: number | null): VersionedReplay | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) return null;
+  const closed = episodes.filter(e => e.label === "RECONSTRUCTED" && e.net != null && e.closedAt);
+  const byDay = new Map<string, Episode[]>();
+  for (const e of closed) { const d = nyDay(e.openedAt); (byDay.get(d) ?? byDay.set(d, []).get(d)!).push(e); }
+  const tally = (pred: (d: string) => boolean) => {
+    let days = 0, thirdPlusDays = 0, thirdPlusTrades = 0, thirdPlusNet = 0;
+    for (const [d, list] of byDay) {
+      if (!pred(d)) continue;
+      days++;
+      const sorted = [...list].sort((a, b) => a.openedAt.localeCompare(b.openedAt));
+      if (sorted.length >= 3) { thirdPlusDays++; for (const e of sorted.slice(2)) { thirdPlusTrades++; thirdPlusNet += e.net!; } }
+    }
+    return { days, thirdPlusDays, thirdPlusTrades, thirdPlusNet: cents(thirdPlusNet) };
+  };
+  const after = tally(d => d >= effectiveFrom);
+  const before = tally(d => d < effectiveFrom);
+  const stop = oneR && oneR > 0 ? replayDailyRules(closed.filter(e => nyDay(e.openedAt) >= effectiveFrom), oneR) : null;
+  return {
+    effectiveFrom,
+    asTraded: { ...after, afterStopTrades: stop ? stop.afterStopTrades : null, afterStopNet: stop ? stop.afterStopNet : null },
+    replayBefore: before,
+  };
+}

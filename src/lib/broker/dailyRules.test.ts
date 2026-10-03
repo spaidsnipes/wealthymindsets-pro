@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { replayDailyRules } from "./dailyRules";
+import { replayDailyRules, versionedRuleReplay } from "./dailyRules";
 import type { Episode } from "./webullLedger";
 
 const ep = (id: string, open: string, close: string, net: number) => ({ id, label: "RECONSTRUCTED", net, openedAt: open, closedAt: close } as unknown as Episode);
@@ -20,5 +20,14 @@ describe("daily stop / shutdown replay — trades opened after the day was alrea
   });
   it("no stated 1R, no replay", () => {
     expect(replayDailyRules([], 0)).toBeNull();
+  });
+
+  it("versioned: days on/after the effective date are AS-TRADED, earlier days stay replay — never merged", () => {
+    const day = (d: string, n: number, net: number) => Array.from({ length: n }, (_, i) => ep(`${d}${i}`, `${d}T14:${String(10 + i).padStart(2, "0")}:00Z`, `${d}T14:${String(10 + i).padStart(2, "0")}:30Z`, net));
+    const eps = [...day("2026-09-01", 4, -5), ...day("2026-09-10", 3, -2), ...day("2026-09-11", 1, 9)];
+    const v = versionedRuleReplay(eps, "2026-09-10", null)!;
+    expect(v.replayBefore).toEqual({ days: 1, thirdPlusDays: 1, thirdPlusTrades: 2, thirdPlusNet: -10 });
+    expect(v.asTraded).toMatchObject({ days: 2, thirdPlusDays: 1, thirdPlusTrades: 1, thirdPlusNet: -2, afterStopTrades: null });
+    expect(versionedRuleReplay(eps, "not a date", null)).toBeNull();
   });
 });
