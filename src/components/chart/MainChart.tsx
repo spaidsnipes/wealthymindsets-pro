@@ -58,7 +58,7 @@ import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/der
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
 import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
 import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
-import { crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
+import { MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
@@ -6853,7 +6853,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (layerOnRef.current.questionLens === true) canvas.dataset.questionLensForm = "SHOW_RAW:none";
         else delete canvas.dataset.questionLensForm;
         const stamp = "RAW · every reading hidden · candles and volume only";
-        ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+        ctx.font = `700 10px ${MARKET_SANS}`;
         const sw = ctx.measureText(stamp).width + 16;
         ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(12, 100, sw, 20);
         ctx.strokeStyle = "rgba(201,165,92,0.6)"; ctx.lineWidth = 1; ctx.strokeRect(12.5, 100.5, sw - 1, 19);
@@ -7234,7 +7234,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               else {
               forceChips.push({ ...spotC });
               ctx.save();
-              ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = `600 10px ${MARKET_SANS}`;
               const bx = spotC.x, by = spotC.y;
               ctx.fillStyle = "rgba(14,12,8,0.94)";
               ctx.strokeStyle = "rgba(212,175,55,0.75)";
@@ -7247,9 +7247,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillStyle = "rgba(212,175,55,0.95)"; ctx.textAlign = "left"; ctx.textBaseline = "top";
                 ctx.fillText(k, bx + 10, ly);
                 ctx.fillStyle = "rgba(237,230,211,0.95)";
-                ctx.font = "500 11px ui-sans-serif, system-ui, sans-serif";
+                ctx.font = `500 11px ${MARKET_SANS}`;
                 ctx.fillText(v, bx + 10, ly + 12);
-                ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
+                ctx.font = `600 10px ${MARKET_SANS}`;
               });
               ctx.restore();
               calloutFor = `${pinned ? "PINNED" : "HOVER"}:${hb.time}${clearSpot ? "" : ":ON_CANDLES"}`;
@@ -7449,7 +7449,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // above it is the header band or off the canvas, and the most
               // important name would be the one that vanished. x is kept
               // inside the plot; each name is an obstacle for later chips.
-              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+              ctx.font = `700 10px ${MARKET_SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
               let named = 0;
               for (const n of env.named) {
                 const xn = chart.timeScale().timeToCoordinate(n.time as never), yn = srs.priceToCoordinate(n.price);
@@ -8007,7 +8007,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // steps off its neighbours' cells instead of printing through them.
         // A word with no clear slot is not printed — its bracket still says
         // a run is there, and Inspect carries the rest.
-        ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+        ctx.font = marketFont("OBJECT_NAME");
         ctx.textBaseline = "middle";
         for (const w of words) {
           // MID keeps the tint and edge marks; the run's words wait for NEAR (H-501).
@@ -8578,7 +8578,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               cluster: bigClusterOf.has(b.spawnKey) ? { n: bigClusterOf.get(b.spawnKey)!.members.length, total: Math.abs(b.value) } : null,
             });
             if (words) {
-              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = `700 10px ${MARKET_SANS}`;
               const cw = Math.ceil(Math.max(...words.lines.map(l => ctx.measureText(l).width))) + 16;
               const chh = 8 + words.lines.length * 13;
               const tsC = chart.timeScale();
@@ -8618,7 +8618,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
                 ctx.textAlign = "left"; ctx.textBaseline = "middle";
                 words.lines.forEach((l, k) => {
-                  ctx.font = k === 1 ? "600 10px ui-sans-serif, system-ui, sans-serif" : "700 10px ui-sans-serif, system-ui, sans-serif";
+                  ctx.font = k === 1 ? `600 10px ${MARKET_SANS}` : `700 10px ${MARKET_SANS}`;
                   ctx.fillStyle = k === 1 ? "rgba(237,230,211,0.95)" : "rgba(240,200,110,1)";
                   ctx.fillText(l, r.x + 8, r.y + 10.5 + k * 13);
                 });
@@ -8774,7 +8774,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const basisD = weakestAggressorProvenance(sawP, sawI, sawU);
           const chipD = aggressorProvenanceNote(basisD)?.chip;
           const tagD = `Δ${chipD ? ` · ${chipD}` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}`;
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = marketFont("OBJECT_NAME");
           const tagW = ctx.measureText(tagD).width + 4, tagY = yD - 20;
           const tagX = [6, plotRight - tagW - 6].find(x => !hitD(x, tagY, tagW, 12));
           // The row does not print without its tag: the tag is what says how
@@ -8872,7 +8872,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // FORCE caption near the pane top, and a buy print near the
             // bottom pushed FORCE over the time axis.
             const plate = (lines: string[], x: number, y: number, gold: boolean) => {
-              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              ctx.font = `700 10px ${MARKET_SANS}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
               const tw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 12, th = 6 + lines.length * 13;
               const tx = Math.max(4, Math.min(Math.min(W - 100, plotRight - 4) - tw, x));
               const hiY = Math.max(96, pane0Bottom - th - 4);
@@ -8888,7 +8888,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               forceChips.push({ x: tx, y: ty, w: tw, h: th });
               lines.forEach((l, i) => {
                 ctx.fillStyle = i === 0 && gold ? "rgba(232,184,92,1)" : "rgba(237,230,211,0.92)";
-                ctx.font = i === 0 ? "700 10px ui-sans-serif, system-ui, sans-serif" : "600 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.font = i === 0 ? `700 10px ${MARKET_SANS}` : marketFont("FIDELITY");
                 ctx.fillText(l, tx + 6, ty + 9.5 + i * 13);
               });
               return { x: tx, y: ty, w: tw, h: th };
@@ -9129,7 +9129,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const legendN = tapeDotLegend(sawInferredN, sawUnknownN);
           let sidesN: string = "OBSERVED";
           if (legendN && maxSize > 0) {
-            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("OBJECT_NAME");
             const lw = ctx.measureText(legendN).width + 6, lh = 13;
             const yHiN = srs.priceToCoordinate(lastBar.high), yLoN = srs.priceToCoordinate(lastBar.low);
             const ax = (liveN?.cx ?? plotRight - 40) - halfW - 10 - lw;
@@ -9202,7 +9202,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const wb = wordsT != null ? nearBars.find(b => Number(b.c.time) === wordsT) : undefined;
           let wordsN = 0;
           if (wb) {
-            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "right";
+            ctx.font = marketFont("OBJECT_NAME"); ctx.textBaseline = "middle"; ctx.textAlign = "right";
             const bodyEdge = wb.cx - halfW - 2;
             for (const p of nearCandleAnatomyParts(wb.c)) {
               const yw = srs.priceToCoordinate(p.price);
@@ -9288,7 +9288,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const liveXg = lastGapBar ? chart.timeScale().timeToCoordinate(lastGapBar.time as never) : null;
         const liveColLeft = liveXg == null ? Infinity : +liveXg - Math.max(12, bsp * 1.5);
         ctx.save();
-        ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+        ctx.font = marketFont("FIDELITY"); ctx.textAlign = "center"; ctx.textBaseline = "bottom";
         for (const g of att.paints("dataGaps") ? dg.gaps : []) {
           const x0 = chart.timeScale().timeToCoordinate(g.fromTime as never), x1 = chart.timeScale().timeToCoordinate(g.toTime as never);
           const y0 = srs.priceToCoordinate(g.fromClose), y1 = srs.priceToCoordinate(g.toOpen);
@@ -9925,7 +9925,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // estimated), so its level NAME says so ("POC EST") — short, and
           // placed by the same pair placer clear of every candle.
           const nameTxt = profileLevelTag(tag, snap.quality);
-          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = marketFont("FIDELITY");
           const nameW = Math.ceil(ctx.measureText(nameTxt).width) + 6;
           ctx.font = LEVEL_CHIP_FONT;
           const chipTxt = vpPrice(p);
@@ -9963,7 +9963,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.beginPath(); ctx.moveTo(cr.x + cr.w, cr.y + cr.h / 2); ctx.lineTo(vpChipRight, midY); ctx.stroke();
             ctx.setLineDash([]);
           }
-          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = marketFont("FIDELITY");
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
           ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.9)";
           ctx.strokeText(nameTxt, nameRect.x + 3, nameRect.y + nameRect.h / 2 + 0.5);
@@ -10591,7 +10591,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const mx = x + side * (arm + 11);
               ctx.beginPath(); ctx.moveTo(mx - 5, yc); ctx.lineTo(mx, yc - 4); ctx.lineTo(mx + 5, yc); ctx.lineTo(mx, yc + 4); ctx.closePath(); ctx.fill();
               // Words on the brackets (the plate's names, the owner's numbers).
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("FIDELITY");
               ctx.textBaseline = "middle";
               // `tx` is the tag's near edge; on the left side it grows leftward.
               const tag = (txt: string, txNear: number, ty: number) => {
@@ -11064,7 +11064,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             })();
             const plotBottom = Math.max(20, H - axisH);
             const winTxt = `${pts.length} BAR ANALYSIS · LATEST IN VIEW`;
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("FIDELITY");
             const winW = ctx.measureText(winTxt).width;
             const desktopWindowChrome = W >= 960;
             if (!absorbPaints) {
@@ -11414,7 +11414,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ? "ABSORPTION SHELF"
                 : `ABSORPTION SHELF · ${zone.holdingEdge === "LOW" ? "SELL" : "BUY"} SIDE${zone.holdingBasis === "INFERRED" ? " · INFERRED" : ""}`;
               const shelfWords = desktopShelfInstrument && !shelfSelected ? shelfName : chip;
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("FIDELITY");
               const cw2 = ctx.measureText(shelfWords).width;
               const chipH = 14;
               const chipW = cw2 + 12;
@@ -11493,7 +11493,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillText(shelfWords, chipX, chipY + chipH / 2 + 0.5);
                 // §XLVI learning without lecture: one quiet line, the meaning.
                 if (!shelfSelected && att.speaks("absorption")) {
-                  ctx.font = "italic 500 9px ui-sans-serif, system-ui, sans-serif";
+                  ctx.font = marketFont("WHY_LABEL");
                   ctx.fillStyle = "rgba(237,230,211,0.72)";
                   ctx.fillText("Force is hitting. Price is holding.", chipX, chipY + chipH + 6);
                 }
@@ -11634,7 +11634,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (att.speaks("absorption")) {
                   ctx.save();
                   ctx.globalAlpha = att.textAlpha("absorption");
-                  ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                  ctx.font = marketFont("OBJECT_NAME");
                   ctx.textAlign = "left";
                   ctx.textBaseline = "bottom";
                   ctx.fillStyle = "rgba(230,226,216,0.9)";
@@ -11652,7 +11652,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
             // ── BASIS. Compact, always visible, never a vendor name.
             const basisTxt = BASIS_LABEL[anatomy.basis];
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("FIDELITY");
             const bwTxt = ctx.measureText(basisTxt).width;
             // `by` CLEARS THE PRICE LEGEND. See PRICE_LEGEND_OVERLAY_H: this
             // caption held `by = 8` from before the legend moved into the pane,
@@ -11865,7 +11865,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // EFFORT, never AGG: the ratio is unsigned effort (volume or
                 // |ask − bid|), second half of the push over the first.
                 const chipTxt = `EXHAUSTION · EFFORT 2ND÷1ST ${pct(m.aggressionLevel)} · EXT ${m.extension.toFixed(1)}× · FT ${m.followThrough ?? "—"}/3 · ET ${pct(m.energyTransfer)}`;
-                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.font = marketFont("OBJECT_NAME");
                 const cw = ctx.measureText(chipTxt).width + 12;
                 const cx = Math.max(4, Math.min(x - cw / 2, W - 96 - cw));
                 // The Question Lens strip owns y≈100–152 while it is on; a chip
@@ -12239,9 +12239,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   while (u.length > 4 && ctx.measureText(u + "…").width > refuseW - 28) u = u.slice(0, -1);
                   return u + "…";
                 };
-                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(201,165,92,0.9)";
+                ctx.font = marketFont("OBJECT_NAME"); ctx.fillStyle = "rgba(201,165,92,0.9)";
                 ctx.fillText(fit(`ASKED · ${lens.choice} · NOT ASKABLE ON THIS CAMERA · NOTHING QUIETED`), bx + 14, by + 14);
-                ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(237,230,211,0.95)";
+                ctx.font = `600 12px ${MARKET_SANS}`; ctx.fillStyle = "rgba(237,230,211,0.95)";
                 ctx.fillText(fit(lens.refusal.charAt(0).toUpperCase() + lens.refusal.slice(1)), bx + 14, by + 31);
                 ctx.restore();
                 // Nothing to ask it of → nothing on price; the strip IS the named silence.
@@ -12320,7 +12320,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     const tagCol = lens.kind === "EXHAUSTION" ? "rgba(226,92,92,1)" : "rgba(226,92,92,0.95)";
                     const tagWord = lens.kind === "EXHAUSTION" ? "EXHAUSTION ZONE" : lens.kind === "CONTINUATION" ? "THE LEG" : lens.kind === "TRAP" ? "BROKEN SWING" : lens.kind === "HOLD" ? "LEVEL ASKED" : "ABSORPTION ZONE";
                     const tag = lens.bandLow === lens.bandHigh ? `${tagWord} · ${lens.bandLow.toFixed(pxDp)}` : `${tagWord} · ${lens.bandLow.toFixed(pxDp)}–${lens.bandHigh.toFixed(pxDp)}`;
-                    ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+                    ctx.font = `700 10px ${MARKET_SANS}`;
                     const tw = ctx.measureText(tag).width + 16;
                     // The PLOT's right edge, not the container's: the price
                     // axis is painted over the overlay (see the absorption chip).
@@ -12561,7 +12561,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // THE WORDS — the plate's leader words, then the named silences.
                   let calloutPainted = false;
                   const placeLensWord = (word: string, ax: number, ay: number, above: boolean, ink: string, level: boolean, muted: boolean) => {
-                    ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                    ctx.font = marketFont("OBJECT_NAME");
                     const ww = Math.ceil(ctx.measureText(word).width) + 10, wh = 15;
                     const clampY = (yy: number) => Math.min(Math.max(yy, HEADER_FLOOR_Y + 2), pane0Bottom - wh - 2);
                     const clampX = (xx: number) => Math.min(Math.max(xx, keepOutMinX()), plotRL - ww);
@@ -12632,14 +12632,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.strokeStyle = lens.openDebt > 0 ? "rgba(226,92,92,0.6)" : "rgba(201,165,92,0.6)"; ctx.lineWidth = 1;
                   ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 33);
                   ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                  ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif"; ctx.fillStyle = "rgba(247,241,223,1)";
+                  ctx.font = `700 11px ${MARKET_SANS}`; ctx.fillStyle = "rgba(247,241,223,1)";
                   let q = `“${lens.question}”`;
                   while (q.length > 6 && ctx.measureText(q).width > bw - 16) q = q.slice(0, -2);
                   if (q !== `“${lens.question}”`) q = q.slice(0, -1) + "…";
                   ctx.fillText(q, bx + 8, by + 11);
                   const rows = lens.debt.length;
                   const paid = lens.ledger === "CHANGES" ? lens.debt.filter(d => d.paid).length : rows - lens.openDebt;
-                  ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                  ctx.font = marketFont("OBJECT_NAME");
                   ctx.fillStyle = lens.openDebt > 0 ? "rgba(255,150,150,1)" : "rgba(201,165,92,1)";
                   ctx.fillText(`${paid}/${rows} ${lens.ledger === "CHANGES" ? "MOVED" : "PAID"} · ${lens.posture ?? ""}`, bx + 8, by + 25);
                 }
@@ -12659,7 +12659,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   for (const cx of [bx + c1, bx + c1 + c2]) { ctx.beginPath(); ctx.moveTo(cx + 0.5, by + 8); ctx.lineTo(cx + 0.5, by + bh - 8); ctx.stroke(); }
                   ctx.textAlign = "left"; ctx.textBaseline = "middle";
                   const cell = (x: number, w: number, head: string, body: string, bodyPx: number, bodyColor: string) => {
-                    ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                    ctx.font = marketFont("OBJECT_NAME");
                     ctx.fillStyle = "rgba(201,165,92,0.9)";
                     ctx.fillText(head, x + 14, by + 15);
                     ctx.font = `600 ${bodyPx}px ui-sans-serif, system-ui, sans-serif`;
@@ -12696,22 +12696,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   });
                   ctx.lineWidth = 1;
                   ctx.textAlign = "center";
-                  ctx.font = "800 13px ui-sans-serif, system-ui, sans-serif";
+                  ctx.font = `800 13px ${MARKET_SANS}`;
                   ctx.fillStyle = "rgba(247,241,223,1)";
                   ctx.fillText(lens.ledger === "CHANGES" ? `${lens.debt.filter(d => d.paid).length}/${rows}` : `${rows - lens.openDebt}/${rows}`, rcx, rcy);
                   ctx.textAlign = "left";
-                  ctx.font = "800 12px ui-sans-serif, system-ui, sans-serif";
+                  ctx.font = `800 12px ${MARKET_SANS}`;
                   ctx.fillStyle = "rgba(247,241,223,1)";
                   ctx.fillText(lens.ledger === "CHANGES" ? "WHAT CHANGED" : "EVIDENCE DEBT", lx + 70, top + 22);
-                  ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+                  ctx.font = `700 10px ${MARKET_SANS}`;
                   ctx.fillStyle = lens.openDebt > 0 ? "rgba(255,150,150,1)" : "rgba(201,165,92,1)";
                   ctx.fillText(lens.ledger === "CHANGES" ? `${lens.debt.filter(d => d.paid).length} OF ${rows} MOVED · NOTHING OWED` : lens.openDebt > 0 ? `${lens.openDebt} OPEN ITEM${lens.openDebt > 1 ? "S" : ""} · THIS QUESTION` : "PAID · THIS QUESTION", lx + 70, top + 40);
                   let ly = top + 76;
                   for (const d of lens.debt) {
-                    ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                    ctx.font = marketFont("OBJECT_NAME");
                     ctx.fillStyle = d.paid ? "rgba(201,165,92,1)" : lens.ledger === "CHANGES" ? "rgba(200,192,174,0.75)" : "rgba(255,150,150,1)";
                     ctx.fillText(`${lens.ledger === "CHANGES" ? (d.paid ? "CHANGED" : "SAME") : d.paid ? "PAID" : "MISSING"} · ${d.label}`, lx + 12, ly);
-                    ctx.font = "500 8.5px ui-sans-serif, system-ui, sans-serif";
+                    ctx.font = `500 9px ${MARKET_SANS}`;
                     ctx.fillStyle = "rgba(200,192,174,0.85)";
                     let ev = d.evidence;
                     while (ev.length > 4 && ctx.measureText(ev).width > colW - 24) ev = ev.slice(0, -2);
@@ -12721,12 +12721,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   }
                   ctx.strokeStyle = "rgba(201,165,92,0.25)";
                   ctx.beginPath(); ctx.moveTo(lx + 10, ly - 6.5); ctx.lineTo(lx + colW - 10, ly - 6.5); ctx.stroke();
-                  ctx.font = "800 10px ui-sans-serif, system-ui, sans-serif";
+                  ctx.font = `800 10px ${MARKET_SANS}`;
                   ctx.fillStyle = lens.openDebt > 0 ? "rgba(255,150,150,1)" : "rgba(201,165,92,1)";
                   ctx.fillText(lens.posture ?? "", lx + 12, ly + 6);
                   if (lens.nextQuestion) {
                     ctx.fillStyle = "rgba(200,192,174,0.85)";
-                    ctx.font = "500 8.5px ui-sans-serif, system-ui, sans-serif";
+                    ctx.font = `500 9px ${MARKET_SANS}`;
                     ctx.fillText(`NEXT QUESTION → ${lens.nextQuestion}`, lx + 12, ly + 20);
                   }
                   // MOCK 3 · AGGRESSION vs DISPLACEMENT — who is in control.
@@ -12739,7 +12739,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     floatingChips.push({ x: lx, y: cy, w: colW, h: cwh });
                     ctx.strokeStyle = "rgba(201,165,92,0.55)";
                     ctx.strokeRect(lx + 0.5, cy + 0.5, colW - 1, cwh - 1);
-                    ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+                    ctx.font = marketFont("WARNING");
                     ctx.fillStyle = "rgba(237,230,211,0.95)";
                     // The owner's word: AGGRESSION only on a delta basis, else EFFORT.
                     ctx.fillText(`${c.effortWord} vs DISPLACEMENT · WHO IS IN CONTROL?`, lx + 12, cy + 13);
@@ -12749,16 +12749,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       ["DISPLACEMENT", c.displacement, "rgba(120,160,220,1)", "what price did about it"],
                     ] as const).forEach(([lab, v, col, sub], i) => {
                       const x = lx + 12 + i * (half + 12);
-                      ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+                      ctx.font = marketFont("WARNING");
                       ctx.fillStyle = col;
                       ctx.fillText(lab, x, cy + 31);
-                      ctx.font = "800 17px ui-sans-serif, system-ui, sans-serif";
+                      ctx.font = `800 17px ${MARKET_SANS}`;
                       ctx.fillText(`${Math.round(v * 100)}%`, x, cy + 49);
-                      ctx.font = "500 8px ui-sans-serif, system-ui, sans-serif";
+                      ctx.font = `500 9px ${MARKET_SANS}`;
                       ctx.fillStyle = "rgba(200,192,174,0.8)";
                       ctx.fillText(sub, x + 44, cy + 50);
                     });
-                    ctx.font = "800 10px ui-sans-serif, system-ui, sans-serif";
+                    ctx.font = `800 10px ${MARKET_SANS}`;
                     ctx.fillStyle = c.verdict === "EFFORT ABSORBED" ? "rgba(120,160,220,1)" : "rgba(226,92,92,1)";
                     ctx.fillText(`VERDICT: ${c.verdict}`, lx + 12, cy + 76);
                   }
@@ -13349,7 +13349,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (att.paints("absorption")) {
               ctx.save();
               const txt = BASIS_LABEL.UNMEASURED;
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("FIDELITY");
               const tw2 = ctx.measureText(txt).width;
               const desktopBasisChrome = W >= 960;
               // THE BASIS SLOT, NOT THE LEGEND (serving EURUSD 15m, 2026-09-30:
@@ -13414,7 +13414,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const txt = scaffoldPainted == null
             ? (absorptionAnatomyActive ? "SCAFFOLDING · READS EFFORT — NOT MEASURED ON THIS FEED" : "SCAFFOLDING · READS EFFORT — SWITCH ON ABSORPTION")
             : `SCAFFOLDING · ${scaffoldPainted.split(":")[1] === "TOO_FEW_BARS" ? "TOO FEW BARS ON SCREEN" : "EFFORT NOT MEASURED"}`;
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = marketFont("OBJECT_NAME");
           const tw = ctx.measureText(txt).width;
           // Clear of an open room rail (it overlays the chart's left column).
           const sx = Math.max(12, railOcclusionX + 12);
@@ -13552,7 +13552,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
             }
             // The plate's own words, small, under the feet.
-            ctx.font = "700 8px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = `700 9px ${MARKET_SANS}`;
             ctx.textAlign = "center";
             ctx.fillStyle = gold ? "rgba(240,200,110,0.95)" : "rgba(230,110,110,0.95)";
             ctx.fillText(gold ? "ABSORBING · POWER RETAINED" : "EXHAUSTING · POWER LEAKED", cx, top + FH + 6);
@@ -13567,7 +13567,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (absorptionAnatomyActive && mode !== "OFF" && bodyAnchors.length === 0) {
           const quiet = "FOUNDER ANATOMY · ACTIVE · NO CURRENT ABSORPTION / EXHAUSTION EVENT";
           ctx.save();
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
           const rowY = takeSilenceRow();
@@ -13793,7 +13793,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             : vcHits.find(r => hp.x >= r.x && hp.x <= r.x + r.w && hp.y >= r.y && hp.y <= r.y + r.h) ?? null;
           if (hit && vcSpeaks) {
             ctx.save();
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("FIDELITY");
             const lines = hit.c.lines;
             const lw = Math.max(...lines.map(t => ctx.measureText(t).width)) + 12;
             const lh = 4 + 11 * lines.length;
@@ -13852,7 +13852,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // nothing and letting the trader wonder whether it broke.
           ctx.save();
           ctx.globalAlpha = att.textAlpha("valueCandle");
-          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = marketFont("FIDELITY");
           const txt = "VALUE CANDLE · tape required";
           const tw = ctx.measureText(txt).width + 12;
           const th = 14;
@@ -14071,7 +14071,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               for (const l of glass.levels) if (l.multipleLabel != null && (!lead || l.weight > lead.weight)) lead = l;
               const lyR = lead ? srs.priceToCoordinate(lead.price) : null;
               if (lead && lead.multipleLabel && lyR != null) {
-                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.font = marketFont("OBJECT_NAME");
                 const tagW = ctx.measureText(lead.multipleLabel).width + 4;
                 const tagH = 12;
                 const slab = stackSlab(anchor, lead.weight);
@@ -14126,7 +14126,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // levels, and — when the venue did not assert the aggressor side —
             // the disclosure that every number here is downstream of a tick
             // rule. A drawer can put that in fine print. A chart cannot.
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("FIDELITY");
             const lw = ctx.measureText(glass.label).width;
             const chipH = 14;
             const chipW = lw + 12;
@@ -14307,7 +14307,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // disclosure are revealed only while the trader points at the mark
             // (the lane or its tag). Still no bar is claimed: the engine
             // indexes pivots by segment, so everything stays in the lane.
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("FIDELITY");
             ctx.textAlign = "left";
             ctx.textBaseline = "middle";
             const topY = Math.min(yPrior, yRecent);
@@ -14451,7 +14451,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (on && glass.reason === "UNMEASURED") {
           const quiet = aperture ? "WEATHER LENS · SELECTED CANDLES UNMEASURED — NO TRADED VOLUME / TOO FEW BARS" : "LIQUIDITY WEATHER · UNAVAILABLE ON CURRENT FEED";
           ctx.save();
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
           const rowY = takeSilenceRow();
@@ -14525,7 +14525,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.arc(x, y + out * 16, 2.5, 0, Math.PI * 2);
               ctx.stroke();
 
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("FIDELITY");
               ctx.textAlign = "center";
               ctx.textBaseline = m.side === "ABOVE" ? "bottom" : "top";
               ctx.fillText(m.label, x, y + out * 21);
@@ -14610,7 +14610,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const top = Math.max(8, ys[0]! - 18), bot = Math.min(H - 8, ys[ys.length - 1]! + 8);
               ctx.fillStyle = "rgba(10,11,16,0.55)";
               ctx.fillRect(centerX - laneMax - 4, top, laneMax * 2 + 8, bot - top);
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("FIDELITY");
               ctx.textAlign = "center"; ctx.textBaseline = "top";
               ctx.fillStyle = "rgba(237,230,211,0.9)";
               const dlCaption = "\u2190 SELL \u00b7 \u0394 LEVELS \u00b7 BUY \u2192";
@@ -14784,7 +14784,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const nameAt = (text: string, y: number, color: string, key: "regimeChannel" | "regimeMagnets") => {
               if (!att.speaks(key)) return;
               if (xA == null || y < HEADER_FLOOR_Y || y > pane0Bottom - 6 || wordsTaken.some(t => Math.abs(t - y) < 11)) return;
-              ctx.font = "700 8px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = `700 9px ${MARKET_SANS}`;
               const w = ctx.measureText(text).width + 4;
               const x0 = Math.max(xA, keepOutMinX()) + 4;
               const pref = { x: x0, y: y - 5, w, h: 10 };
@@ -14878,7 +14878,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (!att.paints("regimeLighting")) {
             ds.regimeLightingMark = att.offWord(true);
           } else if (regimeLight.title) {
-            ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("WARNING");
             const tw = Math.ceil(ctx.measureText(regimeLight.title).width) + 22, th = 16;
             const yT = HEADER_FLOOR_Y + 4;
             const prefT = { x: Math.round(plotRight / 2 - tw / 2), y: yT, w: tw, h: th };
@@ -14910,7 +14910,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           } else if (newestR && xLiveR != null) {
             const yP = yOfR(Number(newestR.close));
             if (yP != null && yP >= HEADER_FLOOR_Y && yP <= pane0Bottom - 10) {
-              ctx.font = "800 8px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = `800 9px ${MARKET_SANS}`;
               const R = 6;
               const word = "UNRESOLVED";
               const cw = Math.ceil(R * 2 + 6 + ctx.measureText(word).width + 8), chh = 18;
@@ -14979,7 +14979,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const tsG = chart.timeScale();
           ctx.save();
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = marketFont("OBJECT_NAME");
           if (ghost.drawn) {
             // The owner's ceiling is the ghost's brightness, in every form;
             // the attention governor (MEMORY) may only lower it.
@@ -15182,7 +15182,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (bracket && (clipTop || clipBot) && att.speaks("memoryGhost")) {
               ctx.save();
               ctx.globalAlpha = att.textAlpha("memoryGhost");
-              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("OBJECT_NAME");
               ctx.textAlign = "center";
               const cx = Math.min(plotRight - 70, Math.max(70, (bracket.x0 + bracket.x1) / 2));
               // Placed like the caption: through the keep-out owner, strictly —
@@ -15285,7 +15285,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // SUPPORTING: context drawn about the present sits under it (≤ 0.85)
           // and recedes with everything else while Inspect reads a selection.
           ctx.globalAlpha = att.textAlpha("expectedEnvelope");
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = marketFont("OBJECT_NAME");
           ctx.textBaseline = "middle";
           const fan = env.drawn ? env.fan : null;
           let refusal: string | null = env.drawn
@@ -15403,7 +15403,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // THE CAPTION — the sample, in the plate's small boxed words, at
               // the fan's right end; below the header band, clear of candles.
               const capT = `analogue envelope n=${nNow} · prior sessions, same bar from the open`;
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("FIDELITY");
               const capW = ctx.measureText(capT).width + 12, capH = 16;
               const endC = inView[inView.length - 1];
               const capX = Math.min(plotRightE - 6, endC.x) - capW;
@@ -15433,7 +15433,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const xEv = tsE.timeToCoordinate(sp.time as never), yEv = srs.priceToCoordinate(sp.price);
                 if (xEv != null && yEv != null) {
                   const flagT = `MARKET SURPRISE · ${sp.matchedBy} of ${sp.n} went this far`;
-                  ctx.font = "800 9px ui-sans-serif, system-ui, sans-serif";
+                  ctx.font = marketFont("WARNING");
                   const fw = ctx.measureText(flagT).width + 14, fh = 18;
                   const clampY = (y: number) => Math.max(HEADER_FLOOR_Y + 2, Math.min(H * 0.78 - fh, y));
                   const off = sp.side === "ABOVE" ? -30 - fh / 2 : 30 - fh / 2;
@@ -15480,7 +15480,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
           }
           if (refusal) {
-            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("OBJECT_NAME");
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left";
             ctx.fillText(refusal, 12, H - 86);
@@ -16060,7 +16060,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.save();
               if (dpSpeaks) {
                 ctx.globalAlpha = att.textAlpha("derivativesPressure");
-                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.font = marketFont("OBJECT_NAME");
                 const chip = (word: string, pref: { x: number; y: number }, alts: { x: number; y: number }[]) => {
                   const ww = ctx.measureText(word).width + 10;
                   const spotW = placeClearOfKeepOut({ ...pref, w: ww, h: 14 }, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + 14)], { minX: keepOutMinX(), blockers: [...floatingChips, ...masonryRects], strict: true, alternates: alts.map(a => ({ ...a, w: ww, h: 14 })) });
@@ -16118,7 +16118,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ctx.fill();
                   }
                   if (dpSpeaks) {
-                    ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                    ctx.font = marketFont("OBJECT_NAME");
                     ctx.textAlign = "left";
                     ctx.textBaseline = "bottom";
                     // The front's name sits on the front line, never on a
@@ -16183,7 +16183,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   : `BRICK WALLS · ACTIVE · ${dp.walls.length === 0 ? "NO CURRENT WALL EVENT" : `${dp.walls.length} WALL${dp.walls.length === 1 ? "" : "S"}`} · ${srcW.name} · INFERRED`;
                 ctx.save();
                 ctx.globalAlpha = att.textAlpha("derivativesPressure");
-                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.font = marketFont("OBJECT_NAME");
                 const ww = ctx.measureText(word).width + 14;
                 const spot = placeClearOfKeepOut({ x: 10, y: HEADER_FLOOR_Y + 4, w: ww, h: 16 }, [...keepOut(), ...rowBodiesAt(HEADER_FLOOR_Y + 4, HEADER_FLOOR_Y + 20)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [{ x: 10, y: HEADER_FLOOR_Y + 24, w: ww, h: 16 }] });
                 if (spot.mode !== "BLOCKED") {
@@ -16211,7 +16211,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   : `${lensName} · ${dp.reason.replace(/_/g, " ").toLowerCase()} (${dp.contracts} contracts)`;
               ctx.save();
               ctx.globalAlpha = att.textAlpha("derivativesPressure");
-              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("OBJECT_NAME");
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left";
               ctx.textBaseline = "middle";
@@ -16342,7 +16342,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.lineWidth = 1;
             ctx.strokeRect(tx + 0.5, tyy + 0.5, TAG_W - 1, TAG_H - 1);
             ctx.fillStyle = ink;
-            ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = `700 11px ${MARKET_SANS}`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(label, tx + TAG_W / 2, tyy + TAG_H / 2 + 0.5);
@@ -16351,7 +16351,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           };
           const nameIn = (text: string, x0: number, x1: number, yMid: number, ink: string) => {
             if (!mtfSpeaks) return;
-            ctx.font = "italic 600 10px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("WHY_LABEL");
             const w = ctx.measureText(text).width;
             if (x1 - x0 < w + 16) return;
             // A band's name never prints over words already on the glass
@@ -16457,7 +16457,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const offTop = y != null && y < HEADER_FLOOR_Y, offBot = y != null && y > paneBotM;
             if (y != null && (offTop || offBot) && mtfSpeaks) {
               const word = `D ${sh.level} ${sh.price.toFixed(displayPrecisionFor(symbol, barsM))} ${offTop ? "▲" : "▼"}`;
-              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = `700 10px ${MARKET_SANS}`;
               const ww = ctx.measureText(word).width + 12, wh = 16;
               const wx = plotRightM - ww - 6, wy = offTop ? HEADER_FLOOR_Y + 4 : paneBotM - wh - 4;
               ctx.fillStyle = "rgba(30,24,8,0.9)";
@@ -16479,7 +16479,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.setLineDash([7, 5]);
               ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(x1, y + 0.5); ctx.stroke();
               ctx.setLineDash([]);
-              ctx.font = "italic 600 10px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("WHY_LABEL");
               ctx.fillStyle = "rgba(232,184,64,0.95)";
               ctx.textAlign = "center";
               ctx.textBaseline = "top";
@@ -16525,7 +16525,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               : `MTF · ${silences.join(" · ")}`;
             ctx.save();
             ctx.globalAlpha = att.textAlpha("mtfAncestry");
-            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("OBJECT_NAME");
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left";
             ctx.textBaseline = "middle";
@@ -17029,7 +17029,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         type WordsAt = { x: number; y: number; right?: boolean };
         const quietWords = (text: string, pref: WordsAt, ink: string, alternates: WordsAt[] = []) => {
           ctx.save();
-          ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = marketFont("FIDELITY");
           const w = Math.ceil(ctx.measureText(text).width) + 8;
           const h = 14;
           const clampX = (a: WordsAt) => Math.max(keepOutMinX(), Math.min(a.right ? a.x - w : a.x, plotRight - w - LEVEL_CHIP_EDGE_GAP));
@@ -17359,7 +17359,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 }
               }
               ctx.restore(); // releases the ghosts' candle cut-out
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+              ctx.font = marketFont("FIDELITY"); ctx.textAlign = "center"; ctx.textBaseline = "top";
               ctx.fillStyle = "rgba(214,210,200,0.6)";
               for (const n of ghostNames) ctx.fillText(n.text, n.x, n.y);
               ctx.globalAlpha = livingAlpha;
@@ -17721,7 +17721,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 : rL === "NO_READING" || rL === "UNMEASURED" ? "LIVING PROFILE · WAITING FOR BARS"
                 : `LIVING PROFILE · NO CURRENT EVENT · ${rL.replace(/_/g, " ")}`;
               ctx.save();
-              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("OBJECT_NAME");
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
               const rowL = takeSilenceRow();
@@ -17734,7 +17734,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ? "PROFILE DNA · ACTIVE · READS THE LIVING PROFILE, WHICH CANNOT DRAW HERE"
                 : "PROFILE DNA · ACTIVE · NO PROFILE MEASURED ON THIS CAMERA";
               ctx.save();
-              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("OBJECT_NAME");
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
               const rowY = takeSilenceRow();
@@ -17909,7 +17909,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 : "WAITING FOR BARS";
               const quiet = `COMPOSITE PROFILE · ${why}`;
               ctx.save();
-              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("OBJECT_NAME");
               ctx.fillStyle = "rgba(200,192,174,0.85)";
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
               const rowY = takeSilenceRow();
@@ -18612,7 +18612,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (legDrawn) paintOrganismGlyph("STRUCTURE", x0 + 10, top - 16, pk.rgba("ANCHOR", 0.95), floatingChips);
 
             // Name the anchor where it is, so the profile says what it is.
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("FIDELITY");
             ctx.textAlign = "left";
             ctx.textBaseline = "bottom";
             const kind = sp.anchor.kind === "HIGH" ? "SWING HIGH" : "SWING LOW";
@@ -18673,7 +18673,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (rowIfBlocked && spotP.mode === "BLOCKED") {
                 const rowSt = takeSilenceRow();
                 ctx.save();
-                ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+                ctx.font = marketFont("OBJECT_NAME");
                 ctx.fillStyle = "rgba(200,192,174,0.85)";
                 ctx.textAlign = "left"; ctx.textBaseline = "middle";
                 ctx.fillText(text, silenceX, rowSt);
@@ -18758,7 +18758,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   : sp === "TPO" ? pk.rgbaAs("VALUE", "ANCHOR", a)
                     : pk.rgba("ANCHOR", a);
             let painted = 0;
-            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("OBJECT_NAME");
             ctx.textBaseline = "middle";
             // The knots and threads cross the candle field: behind the candles
             // (the family's one cut-out). Their ×N words print after, clear of them.
@@ -18873,7 +18873,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               : String(mem?.reason ?? "NO READING").replace(/_/g, " ");
             const quiet = `PROFILE MEMORY · ACTIVE · ${why}`;
             ctx.save();
-            ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("OBJECT_NAME");
             ctx.fillStyle = "rgba(200,192,174,0.85)";
             ctx.textAlign = "left"; ctx.textBaseline = "middle";
             const rowY = takeSilenceRow();
@@ -18887,7 +18887,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let drawn = 0;
             let naked = 0;
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("FIDELITY");
             ctx.textBaseline = "middle";
             const labelYs: number[] = [];
             let memChipsWithheld = 0;
@@ -19175,7 +19175,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (lx != null && ly != null && vm.latestPocTravel != null) {
               const t = vm.latestPocTravel;
               const text = `dPOC ${last.poc.toFixed(pxDp)} · ${t >= 0 ? "+" : ""}${t.toFixed(pxDp)} THIS SESSION · EST`;
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("FIDELITY");
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const x = Math.max(4, Math.round(+lx) - w - 6);
               const y = Math.round(+ly) - 12;
@@ -19350,9 +19350,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // side, range and measured state.
               const l1 = "SELECTED ZONE";
               const l2 = `${z.side} · ${z.object.priceLow.toFixed(pxDp)} – ${z.object.priceHigh.toFixed(pxDp)} · ${z.lifecycle.state}`;
-              ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = `700 11px ${MARKET_SANS}`;
               const w1 = ctx.measureText(l1).width;
-              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = `700 10px ${MARKET_SANS}`;
               const w2 = ctx.measureText(l2).width + 14;
               const w = Math.ceil(Math.max(w1 + 20, w2 + 8));
               const bh2 = 36;
@@ -19402,10 +19402,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.strokeStyle = gold;
               ctx.strokeRect(cx + 0.5, by + 0.5, w - 1, bh2 - 1);
               ctx.textAlign = "center"; ctx.textBaseline = "middle";
-              ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = `700 11px ${MARKET_SANS}`;
               ctx.fillStyle = invalid ? "rgba(220,220,228,1)" : "rgba(240,180,41,1)";
               ctx.fillText(l1, cx + w / 2, by + 11);
-              ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = `700 10px ${MARKET_SANS}`;
               // Cream, not green/red: the side is the WORD (house rule — these
               // layers never tell sides apart by hue; see the glass sentinels).
               ctx.fillStyle = invalid ? "rgba(220,220,228,0.9)" : "rgba(237,230,211,0.95)";
@@ -19554,7 +19554,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
             // THE LETTERS — beyond the chevron, clear of every candle body on
             // their row; a letter that cannot sit by its own swing is dropped.
-            ctx.font = "800 10px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = `800 10px ${MARKET_SANS}`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             for (const m of marks) {
@@ -19581,7 +19581,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const named: { x: number; y: number; w: number; h: number }[] = [];
             for (const m of lastMarks) {
               const t = `${m.kind === "HIGH" ? "SWING HIGH" : "SWING LOW"} ${m.price.toFixed(pxDp)}`;
-              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("OBJECT_NAME");
               const tw = ctx.measureText(t).width + 10, th = 14;
               const y = m.kind === "HIGH" ? m.y - th - 2 : m.y + 2;
               const pref = { x: plotRightS - 6 - tw, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotS - th, y)), w: tw, h: th };
@@ -19613,10 +19613,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Auction verdict beneath the bias — the same plate.
               const av = auctionVerdictRef.current;
               const lines: { t: string; f: string; c: string }[] = [
-                { t: word, f: "800 9px ui-sans-serif, system-ui, sans-serif", c: INK },
-                { t: lag, f: "600 8.5px ui-sans-serif, system-ui, sans-serif", c: "rgba(160,152,134,0.9)" },
+                { t: word, f: marketFont("WARNING"), c: INK },
+                { t: lag, f: `600 8.5px ${MARKET_SANS}`, c: "rgba(160,152,134,0.9)" },
               ];
-              if (av && av !== "UNKNOWN") lines.push({ t: `AUCTION · ${av}`, f: "700 9px ui-sans-serif, system-ui, sans-serif", c: "rgba(201,165,92,0.9)" });
+              if (av && av !== "UNKNOWN") lines.push({ t: `AUCTION · ${av}`, f: marketFont("OBJECT_NAME"), c: "rgba(201,165,92,0.9)" });
               let tw = 0;
               for (const l of lines) { ctx.font = l.f; tw = Math.max(tw, ctx.measureText(l.t).width); }
               tw += 10;
@@ -19698,7 +19698,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
           if (zoom.tag && att.paints("zoomPlate")) {
             ctx.save();
-            ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = marketFont("FIDELITY");
             ctx.textAlign = "right";
             ctx.textBaseline = "top";
             // Brass on the tag itself — it is HOUSE HARDWARE, not a market
@@ -20592,7 +20592,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.restore();
             });
             if (titleBox && !titleYields) floatingChips.push(titleBox);
-            ctx.font = "600 7px ui-sans-serif, system-ui, sans-serif";
+            ctx.font = `600 9px ${MARKET_SANS}`;
             ctx.textBaseline = "top";
             const heldAt = ringPoint(L, SCALE_HEAVY_T, LENS_BEZEL_W + 6), movedAt = ringPoint(L, SCALE_THIN_T, LENS_BEZEL_W + 6);
             ctx.textAlign = "right";
@@ -20654,7 +20654,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.fillRect(R.x, R.y, R.w, R.h);
               ctx.strokeStyle = "rgba(201,165,92,0.55)";
               ctx.strokeRect(R.x + 0.5, R.y + 0.5, R.w - 1, R.h - 1);
-              ctx.font = "600 8px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = `600 9px ${MARKET_SANS}`;
               ctx.textBaseline = "middle";
               ctx.textAlign = "left";
               const rowY = (i: number) => R.y + 6 + i * 11 + 5;
@@ -20718,7 +20718,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (gw) {
               ctx.save();
               ctx.globalAlpha = att.alpha("weather");
-              ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("FIDELITY");
               ctx.textAlign = "left";
               ctx.textBaseline = "top";
               const tw = ctx.measureText(gw.words).width;
@@ -21142,8 +21142,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.clip();
             // §XLIII / plate F08A: the stage word in readable gold caps (it was
             // 7px), its one-line meaning beside it in quieter ivory.
-            const WORD_FONT = "700 10px ui-sans-serif, system-ui, sans-serif";
-            const MEANING_FONT = "italic 500 9px ui-sans-serif, system-ui, sans-serif";
+            const WORD_FONT = `700 10px ${MARKET_SANS}`;
+            const MEANING_FONT = marketFont("WHY_LABEL");
             ctx.font = WORD_FONT;
             ctx.textAlign = "left";
             ctx.textBaseline = "alphabetic";
@@ -21206,7 +21206,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 : `${lc.pools.length} POOLS OUTSIDE THIS CAMERA`;
               const quietL = `LIQUIDITY LIFECYCLE · ACTIVE · NO POOL IN VIEW — ${why} · SCROLL BACK OR ZOOM OUT`;
               ctx.save();
-              ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+              ctx.font = marketFont("OBJECT_NAME");
               ctx.fillStyle = "rgba(237,230,211,0.8)";
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
               const rowQ = takeSilenceRow();
@@ -21546,7 +21546,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (parts.length) {
           const quiet = `ORDER FLOW · ${parts.join(" · ")}`;
           ctx.save();
-          ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = marketFont("OBJECT_NAME");
           ctx.fillStyle = "rgba(200,192,174,0.85)";
           ctx.textAlign = "left"; ctx.textBaseline = "middle";
           const rowY = takeSilenceRow();
@@ -21562,7 +21562,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const y = silenceRowY;
         const words = `+${silenceFolded} MORE SENSE${silenceFolded === 1 ? "" : "S"} SILENT HERE — TOOLS › ACTIVE SAYS WHY`;
         ctx.save();
-        ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+        ctx.font = marketFont("OBJECT_NAME");
         ctx.fillStyle = "rgba(7,9,15,0.62)";
         ctx.fillRect(Math.max(0, silenceX - 4), y - 7, Math.min(W * 0.62, 760), 14);
         ctx.fillStyle = "rgba(200,192,174,0.85)";
@@ -21732,7 +21732,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             livingBodyLeft,
           });
           ctx.save();
-          ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = `700 10px ${MARKET_SANS}`;
           for (const wd of wordsP) {
             const yc = srs.priceToCoordinate(wd.price);
             if (yc == null || +yc < HEADER_FLOOR_Y || +yc > pane0Bottom) { placedP.push({ kind: wd.kind, price: wd.price, mode: "OFF_CAMERA" }); continue; }
@@ -21809,7 +21809,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // Date AND time: on 1D/1W a bare clock time can name a different day.
           const text = tapeCvdCaption(cvd, sec => fmtAxisTime(sec));
           ctx.save();
-          ctx.font = "700 9.5px ui-sans-serif, system-ui, sans-serif";
+          ctx.font = `700 9.5px ${MARKET_SANS}`;
           ctx.textAlign = "left"; ctx.textBaseline = "top";
           ctx.fillStyle = cvd.refused ? "rgba(240,180,41,0.9)" : "rgba(200,192,174,0.85)";
           ctx.fillText(text, 8, top + 4);
