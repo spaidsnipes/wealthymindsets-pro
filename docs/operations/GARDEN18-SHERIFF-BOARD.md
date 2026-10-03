@@ -235,3 +235,11 @@ Verdict: the seams hold; the OPEN/PARTIAL steps wait on the Founder's own marks 
 - Prod `872fc49` = main head; Sentinels green.
 - Founder-browser personal keys (1R, effective date, working-on, hidden-day, models, process days, clinic, restoration, amendments): all empty — no test values left behind.
 - §70 band cell at phone width: **STILL OPEN.** The automation window was resized to 390×844, but Chrome reports it `visibilityState: hidden` / `innerWidth 0`, so the renderer does not paint and no screenshot is possible. Render tests cover the cell; the glass proof needs a foreground phone or window.
+
+### 2026-10-02 22:20–22:45 CDT — FMP gap closed, three registry readings built
+| Item | State | Receipt |
+|---|---|---|
+| Company fundamentals without an FMP key | 🟢 | `7a372be0` `/api/fundamentals/sec` (SEC EDGAR, keyless, KV 12 h) → Profile / Financials / Corporate Actions. `fa82ece` Workers threw TypeError on `redirect:"error"` → `manual` (FMP route had the same latent bug). Glass: AAPL Financials as filed, Q4 FY25 $102.47B † DERIVED (= Apple's reported figure), TSLA Q4 2025 derived $24.90B. FMP remains optional and wins if configured. Valuation/Shareholders/ETFs still FMP-only (Valuation covered by tastytrade metrics). |
+| F15 Market Breathing | 🟡 PARTIAL | `3fddfb59` rail card: ATR vs own median, percentile, phase, bars in state, realized σ, cycles. Glass SPY 5m after close: COMPRESSED · LEVEL 0.24×. On-canvas grammar needs a Founder plate. |
+| F10 TED + §AB Response Matrix | 🟡 PARTIAL | `d5916d8e` rail card: volume concentration (62% in busiest fifth, SPY), last-bar density; effort × response cells (INITIATIVE 14 / QUIET 34). TED definition is WM's reading of the name — Founder to confirm. |
+| Order Flow Compression, Process Gravity, Perception Graduation, Comparative Reality, Market Twin, Decay Physics, Structural/Event time | ⚪ | Registry gives names only; Order Flow Compression is on the registry's hard-plate list ("forbidden prose/card substitute") — not built as a card. |
