@@ -4,6 +4,19 @@ One live board for Garden 18. Vocabulary: 🟢 PROVED (serving glass) · 🟡 RE
 Proof channel: Claude-in-Chrome tab, proof scenes (`?scene=clean&on=…`), Canon|Glass station `public/canon/glass.html`.
 START `16fab112` (serving at 17:32 CDT).
 
+## ⚪ FOUNDER RULINGS PENDING (collected 2026-10-03)
+
+| # | Question | Why it is yours |
+|---|---|---|
+| 1 | **Stacked Imbalance** — engine window ladder vs per-bar diagonals vs plate 74's per-leg stepped zones: which is canon? | definition of an invention |
+| 2 | **Plate 133 vs H-101/F05A** — at rest, does the rail show the six gates under the stance (133) or one calm WAIT plaque with gates in the fold (H-101)? | two plates disagree; a sentinel pins H-101 |
+| 3 | **Drawn plan → right-of-way** — may a drawn Long/Short (entry + stop) pay the Available R node? Today it is named in Risk but never feeds the verdict | changes when WAIT can turn |
+| 4 | **Decision sealing store (plate 127)** — where sealed decisions live (Supabase table vs this browser) | storage / account data |
+| 5 | **P-110 "Classic VP · all loaded bars"** — keep (H-601, unnumbered) or demolish (P-110 "remove all legacy profile variants")? | two canons disagree |
+| 6 | **Plate 134** — select + record an option expression on your own account (the chain's contract buttons are Buy/Sell-side; recording writes the shared decision record) | your account, your hand |
+| 7 | **Plate 122 MANAGE** — needs an open position to build and prove against | no position exists |
+| 8 | Live-order modify/replace, bracket/OCO — still blocked pending your permission rule | execution |
+
 ## §CIX status (this shift)
 
 | Item | State | Evidence |
@@ -289,3 +302,4 @@ Verdict: the seams hold; the OPEN/PARTIAL steps wait on the Founder's own marks 
 | §16 weather readout collisions | 🟢 FIXED | DOM "DRAG LENS" chip sat on LENS STATUS; VEIL "0.22 / 0.30" ran under its own gauge. The handle is now an obstacle the readout steps around; gauges start after their value (none if <12 px); compact card 164→178 px (bc485bf2) |
 | §CV zero ghosts · depth-silenced layers | 🟢 PROVED | Liquidity Weather on at FAR drew nothing and only the receipt said SILENT:FAR. Zoom plate now prints "SILENT HERE · Liquidity Weather — zoom in" for any switched-on layer the depth silences (receipt `semanticSilencedOn`) (53cfb311) |
 | Loupe back to live | 🟡 still pending | wheel zoom / drag presses not delivered to the background window this session |
+| §8 closed session never LIVE | 🟢 PROVED | motion switch read "● LIVE" beside MARKET CLOSED; now "● MOTION" when the session is proven closed (937b7d63). Desk 4-up: TSLA / NQ1! / SPY MOTION, BTC LIVE; /charts TSLA and /command-deck TSLA carry no LIVE claim |
