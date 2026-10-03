@@ -47,8 +47,10 @@ function handProduct(
   const op = (sp: StackSpecies) => stackOpacity(sp, i.stackPrefs);
   const fade = (sp: StackSpecies) => ((i.fusedParents ?? []).includes(sp) ? 0.25 : 1);
   switch (key) {
-    case "valueCandle": case "stack": case "divergence": case "weather": case "effort": case "deltaLevels":
+    case "valueCandle": case "stack": case "divergence": case "effort": case "deltaLevels":
       return d.micro * q;
+    // Weather speaks at MID only (permission table) — its depth weight is MID's.
+    case "weather": return d.mid * q;
     case "livingProfile": return m * d.mid * q * op("LIVING") * fade("LIVING");
     case "sessionGhosts": return m * d.mid * q * op("LIVING") * fade("LIVING"); // drawn inside Living's alpha
     case "compositeProfile": return m * d.macro * q * op("COMPOSITE") * fade("COMPOSITE");

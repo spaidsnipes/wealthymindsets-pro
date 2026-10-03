@@ -137,7 +137,10 @@ export const LAYER_ATTENTION = {
   valueCandle: { tier: "LIVE", depth: "MICRO", light: null },
   stack: { tier: "LIVE", depth: "MICRO", light: null },
   divergence: { tier: "LIVE", depth: "MICRO", light: null },
-  weather: { tier: "LIVE", depth: "MICRO", light: null },
+  // MID, not MICRO (2026-10-03): the permission table lets weather speak at
+  // MID only (FAR and NEAR are SILENT), so a MICRO depth weight dimmed it at
+  // the one depth it may appear — the lens read as dark slate (plate 79).
+  weather: { tier: "LIVE", depth: "MID", light: null },
   effort: { tier: "LIVE", depth: "MICRO", light: null },
   deltaLevels: { tier: "LIVE", depth: "MICRO", light: null },
   footprint: { tier: "LIVE", depth: null, light: null },
