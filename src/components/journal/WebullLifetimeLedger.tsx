@@ -26,6 +26,7 @@ import { EpisodeModelPicker } from "@/components/journal/EpisodeModelPicker";
 import { DiagnosticClinic } from "@/components/journal/DiagnosticClinic";
 import { behaviourTags, type BehaviourTag } from "@/lib/journal/behaviorTags";
 import { ledgerCsv } from "@/lib/broker/ledgerCsv";
+import { reconcileDay } from "@/lib/broker/reconcile";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -252,11 +253,16 @@ export function WebullLifetimeLedger() {
   }, [data, filter, rehearse, conds, tagMap]);
   // Webull's own positions today: lets an UNSETTLED line say whether any of them is still held.
   const [held, setHeld] = useState<{ state: string; count: number; accounts: number; at: string } | null>(null);
+  const [brokerDay, setBrokerDay] = useState<number | null>(null);
   useEffect(() => {
     if (!data || data.state !== "OK" || data.partial) return;
     let alive = true;
     fetch("/api/broker/webull/positions", { cache: "no-store" }).then(r => r.json())
       .then(j => { if (alive && j && typeof j.state === "string") setHeld({ state: j.state, count: Array.isArray(j.positions) ? j.positions.length : 0, accounts: Number(j.accountsQueried) || 0, at: String(j.checkedAt ?? "") }); })
+      .catch(() => {});
+    // §36/§86: Webull's own day P&L, to reconcile today's ledger net against.
+    fetch("/api/broker/webull/balance", { cache: "no-store" }).then(r => r.json())
+      .then(j => { if (alive) setBrokerDay(typeof j?.dayPnl === "number" ? j.dayPnl : null); })
       .catch(() => {});
     return () => { alive = false; };
   }, [data]);
@@ -303,6 +309,15 @@ export function WebullLifetimeLedger() {
             {(data.accounts ?? []).map(a => (
               <div key={a.tail}>·{a.tail} {a.accountType ?? ""}: {a.orders} orders ({a.filled} filled) · asked back to {a.askedBackTo} · {a.stoppedBecause === "QUIET_YEARS" ? "history quiet before that" : a.stoppedBecause}{a.reason ? ` — ${a.reason}` : ""}</div>
             ))}
+            {(() => {
+              const rc = reconcileDay(data.episodes ?? [], brokerDay, held && (held.state === "NO_POSITIONS" || held.state === "OK") ? held.count : null);
+              if (rc.brokerDayPnl == null && rc.ledgerToday === 0) return null;
+              return (
+                <div data-testid="ledger-reconcile" data-state={rc.state} style={{ color: INK }}>
+                  <span style={{ color: GOLD }}>TODAY vs WEBULL</span> · ledger {usd(rc.ledgerToday)} · Webull&apos;s own day P&amp;L {rc.brokerDayPnl == null ? "—" : usd(rc.brokerDayPnl)} — <b>{rc.state}</b>{rc.difference != null && rc.state === "MISMATCH" ? ` (${usd(rc.difference)})` : ""}. <span style={{ color: MUTED }}>{rc.why}</span>
+                </div>
+              );
+            })()}
             <div>First fill Webull returned: {day(s.firstFillAt)} · last: {day(s.lastFillAt)}. Earlier trading, if any, was not returned by Webull's order history and is not shown.</div>
           </div>
 
