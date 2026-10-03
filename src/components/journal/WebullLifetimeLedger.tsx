@@ -306,7 +306,15 @@ export function WebullLifetimeLedger() {
             <div>First fill Webull returned: {day(s.firstFillAt)} · last: {day(s.lastFillAt)}. Earlier trading, if any, was not returned by Webull's order history and is not shown.</div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 8 }}>
+          {!data.partial ? (
+            <nav aria-label="Ledger sections" data-testid="ledger-jump" style={{ position: "sticky", top: 0, zIndex: 2, display: "flex", flexWrap: "wrap", gap: 6, padding: "4px 0", background: "rgba(11,10,8,0.92)" }}>
+              {([["Summary", "ledger-summary"], ["Personal Edge", "ledger-personal-edge"], ["Your days", "process-days"], ["Episodes", "ledger-episodes"]] as const).map(([label, id]) => (
+                <button key={id} type="button" onClick={() => document.querySelector(`[data-testid="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                  style={{ fontSize: 10, letterSpacing: 0.8, padding: "2px 10px", borderRadius: 999, cursor: "pointer", background: "transparent", border: `1px solid ${LINE}`, color: GOLD }}>{label}</button>
+              ))}
+            </nav>
+          ) : null}
+          <div data-testid="ledger-summary" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 8, scrollMarginTop: 40 }}>
             <Tile label="Net P&L · realised" value={usd(s.net)} color={tone(s.net)} note={`${s.closed} closed trades`} />
             <Tile label="Gross" value={usd(s.gross)} color={tone(s.gross)} />
             <Tile label="Fees paid" value={usd(s.fees, false)} note="Webull itemised" />
@@ -343,7 +351,7 @@ export function WebullLifetimeLedger() {
             setTimeout(() => document.querySelector('[data-testid="ledger-episodes"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
           }} /> : null}
 
-          <div data-testid="ledger-episodes" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, scrollMarginTop: 12 }}>
+          <div data-testid="ledger-episodes" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, scrollMarginTop: 40 }}>
             {rehearse ? (
               <div data-testid="ledger-rehearse" role="status" style={{ marginBottom: 8, padding: "6px 10px", border: `1px solid ${GOLD}`, borderRadius: 6, fontSize: 12, color: INK }}>
                 <b style={{ color: GOLD }}>REHEARSE</b> · {rehearse.dimension}: {rehearse.bucket.key} — {episodes.length} of your trades, newest first. Open one, replay it on its own bars (recent ones), mark what held and what broke, and write the replacement in its Clinic.{" "}

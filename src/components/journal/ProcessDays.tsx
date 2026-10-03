@@ -58,7 +58,7 @@ export function ProcessDays({ episodes }: { readonly episodes: readonly Episode[
   if (!days.length) return null;
 
   return (
-    <section data-testid="process-days" aria-label="Process before P&L" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, overflowX: "auto" }}>
+    <section data-testid="process-days" aria-label="Process before P&L" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, overflowX: "auto", scrollMarginTop: 40 }}>
       <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>PROCESS BEFORE P&amp;L · GRADE YOUR DAYS</div>
       <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>
         Five categories, 0–2 each, set by you. 8–10 A PROCESS DAY · 6–7 B · 4–5 C · 0–3 PROCESS FAILURE / REVIEW. The P&amp;L beside it is Webull&apos;s.
