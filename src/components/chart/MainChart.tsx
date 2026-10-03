@@ -9217,6 +9217,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           //    boxed callout on a leader — time · price · size @ side — placed
           //    by the NEAR keep-out placer (never on a candle; no room → none).
           //    Sides the tape inferred say so.
+          /** How far a print's callout may stand from the print (plate 128 leaders are short). */
+          const CALLOUT_REACH_PX = 160;
           let calloutsN = 0;
           {
             // Linear top-two (no per-frame sort of prints): the largest dot, then
@@ -9245,6 +9247,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 { x: p.x + off, y: p.y + off, w: tw, h: bh },
               ]);
               if (!at) continue;
+              // A callout belongs BESIDE its print. The placer slides along the
+              // row until clear, which on serving BTC 1m drew a ~600 px leader
+              // across the session; past CALLOUT_REACH_PX the print is not named.
+              const gapX = Math.max(at.x - p.x, 0, p.x - (at.x + at.w));
+              const gapY = Math.max(at.y - p.y, 0, p.y - (at.y + at.h));
+              if (Math.hypot(gapX, gapY) > CALLOUT_REACH_PX) continue;
               const ax = Math.max(at.x, Math.min(at.x + at.w, p.x)), ay = p.y < at.y ? at.y : at.y + at.h;
               // Halo text on a leader — NEAR keeps no backing card (its law);
               // the plate's box is read as the callout's place, not a panel.
