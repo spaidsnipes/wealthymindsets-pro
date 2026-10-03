@@ -115,7 +115,7 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
   // ── F10 TIME ───────────────────────────────────────────────────────────
   { id: "F10", name: "MTF Ancestry (higher-timeframe objects on this camera)", family: "F10 Time", status: "BUILT", owner: `${VM}selectMtfAncestry.ts`, surface: sw("MTF_ANCESTRY"), plate: null },
   { id: "F10.REPLAY", name: "Replay (no-hindsight walk)", family: "F19 Replay", status: "BUILT", owner: "src/lib/chart/replayWindow.ts", surface: ctx("Workspace › Replay"), plate: null },
-  { id: "F10.TED", name: "Temporal Evidence Density · Structural/Event/Adaptive time", family: "F10 Time", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "registry names them; no owner" },
+  { id: "F10.TED", name: "Temporal Evidence Density · Structural/Event/Adaptive time", family: "F10 Time", status: "PARTIAL", owner: "src/lib/chart/effortEvidence.ts", surface: ctx("Evidence density (TED) line in the WAIT rail"), plate: null, gap: "TED reads volume concentration across clock time (WM's reading of the name — Founder to confirm); Structural / Event / Adaptive time not built" },
 
   // ── F11 OBJECTS / PASSPORT ─────────────────────────────────────────────
   { id: "F11A", name: "Market Object on chart", family: "F11 Object Passport", status: "BUILT", owner: `${VM}selectStructureZoneObjects.ts`, surface: ctx("Tools › Market object passport"), plate: "WM_NewMockup_84_F11A_Object_On_Chart · WM_NewMockup_137_Object_Kinds_Shared_Passport_Slots" },
@@ -166,7 +166,7 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
 
   // ── NAMED CROSS-SURFACE INVENTIONS (registry §AB) — not yet built ───────
   { id: "AB.TWIN", name: "Market Twin · State Graph", family: "Registry §AB", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "named; no owner" },
-  { id: "AB.MATRIX", name: "Response Matrix", family: "Registry §AB", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "named; no owner" },
+  { id: "AB.MATRIX", name: "Response Matrix", family: "Registry §AB", status: "PARTIAL", owner: "src/lib/chart/effortEvidence.ts", surface: ctx("Response matrix card in the WAIT rail (effort × response cells per bar)"), plate: null, gap: "rail reading built to the registry line 'observed response vs contextual expected response'; on-canvas grammar waits for a Founder plate" },
   { id: "AB.PERCEPTION", name: "Perception Graduation", family: "Registry §AB", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "named; no owner" },
   { id: "AB.COMPARATIVE", name: "Comparative Reality Mode", family: "Registry §AB", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "named; no owner" },
   { id: "AB.GRAVITY", name: "Process Gravity Field", family: "Registry §AB", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "named; no owner" },

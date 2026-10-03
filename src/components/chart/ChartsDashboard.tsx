@@ -18,6 +18,7 @@ import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
 import { ChartToolbar, INDICATOR_CATEGORY } from "./ChartToolbar";
 import { compileEvidenceLineage } from "@/lib/chart/evidenceLineage";
 import { readMarketBreathing } from "@/lib/chart/marketBreathing";
+import { readResponseMatrix, readTemporalEvidenceDensity } from "@/lib/chart/effortEvidence";
 import { MainChart, type VpDrawnLevels } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
 import { IndicatorSettingsModal } from "./IndicatorSettingsModal";
@@ -1289,6 +1290,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // F15 · MARKET BREATHING — compression / expansion of the camera's CLOSED
   // bars (the newest bar may still be forming, so it is left out).
   const marketBreathing = React.useMemo(() => readMarketBreathing(chartBars.slice(0, -1)), [chartBars]);
+  // TED + Response Matrix read REAL traded volume only (volumeBars zeroes a
+  // feed whose volume is not a count), closed bars only.
+  const evidenceDensity = React.useMemo(() => readTemporalEvidenceDensity(volumeBars.slice(0, -1)), [volumeBars]);
+  const responseMatrix = React.useMemo(() => readResponseMatrix(volumeBars.slice(0, -1)), [volumeBars]);
   // Read by `startReplay` through a ref, so the callback stays stable for the
   // equipment subscription that holds it and still freezes TODAY's bars.
   const replaySourceRef = useRef({ bars: liveChartBars, identities: liveChartBarIdentities, scope: replayScopeKey });
@@ -4625,6 +4630,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     webullLive,
     evidenceLineage,
     breathing: marketBreathing,
+    evidenceDensity,
+    responseMatrix,
     decisionId: currentSceneDecision?.decisionId ?? null,
     decisionIdAbsence: sceneDecisionAbsence,
     // NOW — the moment the decision is being made in. Composed, never

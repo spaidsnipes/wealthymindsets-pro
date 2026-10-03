@@ -48,6 +48,7 @@
 import type { WebullLiveReading } from "@/lib/marketData/useWebullLiveCrypto";
 import type { EvidenceLineageVM } from "@/lib/chart/evidenceLineage";
 import { breathingSentence, type MarketBreathing } from "@/lib/chart/marketBreathing";
+import type { ResponseMatrix, TemporalEvidenceDensity } from "@/lib/chart/effortEvidence";
 import * as React from "react";
 import type { QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
 import type { AbsorptionRailRead } from "@/lib/marketData/selectAbsorptionAnatomy";
@@ -285,6 +286,10 @@ export interface DecisionSpineBandProps {
   readonly evidenceLineage?: EvidenceLineageVM | null;
   /** F15 Market Breathing over the camera's closed bars; null = too few bars. */
   readonly breathing?: MarketBreathing | null;
+  /** TED over real traded volume; null = no volume or too few bars. */
+  readonly evidenceDensity?: TemporalEvidenceDensity | null;
+  /** Effort × response cells over real traded volume. */
+  readonly responseMatrix?: ResponseMatrix | null;
   /** F06A · buy/sell by price from the heard tape (selectTapeFootprint), with its "since". */
   readonly tapeFootprint?: TapeFootprintVM | null;
   /**
@@ -1647,6 +1652,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
 
       {rail && props.evidenceLineage ? <EvidenceLineageCard vm={props.evidenceLineage} /> : null}
       {rail && props.breathing ? <BreathingCard b={props.breathing} /> : null}
+      {rail && (props.evidenceDensity || props.responseMatrix) ? <EffortEvidenceCard ted={props.evidenceDensity ?? null} matrix={props.responseMatrix ?? null} /> : null}
 
       {/* F06A · ORDER FLOW CONTEXT — beneath the plaque, at rest, ONLY with a
           lawful reading. The tape's aggressor split (not F06A's book "stacks",
@@ -2013,6 +2019,50 @@ function WebullLiveCard({ reading }: { readonly reading: WebullLiveReading }): R
  * families · DO NOT COUNT 7". Each family names what its readings are
  * computed FROM, so the trader sees why they move together.
  */
+const CELL_WORDS: Readonly<Record<string, string>> = {
+  ABSORBED: "big effort, small move",
+  INITIATIVE: "big effort, big move",
+  VACUUM: "small effort, big move",
+  QUIET: "small effort, small move",
+  ORDINARY: "near normal on both",
+};
+
+function EffortEvidenceCard({ ted, matrix }: { readonly ted: TemporalEvidenceDensity | null; readonly matrix: ResponseMatrix | null }): React.ReactElement {
+  const row: React.CSSProperties = { fontSize: 11, lineHeight: "15px", color: "#c8c0ae", textAlign: "center", fontVariantNumeric: "tabular-nums" };
+  return (
+    <section
+      data-testid="spine-effort-evidence"
+      data-response-cell={matrix?.newest ?? ""}
+      style={{ display: "flex", flexDirection: "column", gap: 4, margin: "0 2px 10px", padding: "9px 11px 9px", border: "1px solid rgba(196,165,116,0.24)", borderRadius: 2 }}
+    >
+      {matrix ? (
+        <>
+          <span style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em", textAlign: "center" }}>Response matrix</span>
+          <span data-testid="spine-response-newest" style={{ fontSize: 13, lineHeight: "17px", fontWeight: 800, color: "#ede6d3", textAlign: "center", letterSpacing: "0.06em" }}>
+            Last bar: {matrix.newest}
+          </span>
+          <span style={row}>{CELL_WORDS[matrix.newest]} — effort {matrix.newestEffort.toFixed(2)}×, move {matrix.newestResponse.toFixed(2)}× normal</span>
+          <span style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, marginTop: 2 }}>
+            {(["ABSORBED", "INITIATIVE", "QUIET", "VACUUM"] as const).map(c => (
+              <span key={c} data-response-count={c} style={{ fontSize: 10, lineHeight: "14px", color: c === matrix.newest ? "#ede6d3" : "#8a8271", border: "1px solid rgba(196,165,116,0.14)", borderRadius: 2, padding: "2px 4px", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
+                {c} {matrix.counts[c]}
+              </span>
+            ))}
+          </span>
+        </>
+      ) : null}
+      {ted ? (
+        <span data-testid="spine-ted" style={{ display: "flex", flexDirection: "column", gap: 2, borderTop: matrix ? "1px solid rgba(196,165,116,0.14)" : undefined, paddingTop: matrix ? 5 : 0 }}>
+          <span style={{ ...LABEL, fontSize: 10, lineHeight: "14px", letterSpacing: "0.12em", textAlign: "center" }}>Evidence density (TED)</span>
+          <span style={row}>{Math.round(ted.topFifthShare * 100)}% of the volume sits in the busiest fifth of {ted.sample} bars</span>
+          <span style={row}>last bar {ted.newestDensity.toFixed(2)}× a normal bar · {ted.thinBars} thin bar{ted.thinBars === 1 ? "" : "s"}</span>
+        </span>
+      ) : null}
+      <span style={{ fontSize: 10, lineHeight: "14px", color: "#8a8271", fontStyle: "italic", textAlign: "center" }}>from traded volume and range of closed bars — describes each bar, not a signal</span>
+    </section>
+  );
+}
+
 function BreathingCard({ b }: { readonly b: MarketBreathing }): React.ReactElement {
   return (
     <section

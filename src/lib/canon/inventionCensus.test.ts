@@ -62,7 +62,8 @@ describe("Tools search reaches context-only inventions (§XXVI)", () => {
     const { searchCensusPlaces } = await import("./inventionCensus");
     expect(searchCensusPlaces("lineage").map(e => e.id)).toEqual(["H-301"]);
     expect(searchCensusPlaces("breathing").map(e => e.id)).toEqual(["F15.BREATHING"]);
-    expect(searchCensusPlaces("response matrix")).toEqual([]);
+    expect(searchCensusPlaces("response matrix").map(e => e.id)).toEqual(["AB.MATRIX"]);
+    expect(searchCensusPlaces("process gravity")).toEqual([]);
     expect(searchCensusPlaces("memory ghost")).toEqual([]);
     expect(searchCensusPlaces("   ")).toEqual([]);
   });
