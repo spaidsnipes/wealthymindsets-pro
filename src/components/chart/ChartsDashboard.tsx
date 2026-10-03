@@ -366,6 +366,7 @@ import { InstrumentContextStrip } from "./InstrumentContextStrip";
 import { FuturesOptionsPanel } from "./FuturesOptionsPanel";
 import { DeribitChainPanel } from "./DeribitChainPanel";
 import { MarketMetricsCard } from "./MarketMetricsCard";
+import { SecFundamentalsCard } from "./SecFundamentalsCard";
 import { BOARD_STOCK_SYMBOLS } from "@/lib/marketData/sp500Board";
 import { selectAuctionState } from "@/lib/marketData/viewModels/selectAuctionState";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
@@ -7095,11 +7096,18 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
   }
 
   const body = loading ? null : renderTab();
+  const secAc = canonicalAssetClass(symbol);
+  const secOwnsTab = (tab === "Profile" || tab === "Financials" || tab === "Corporate Actions")
+    && (secAc === "equity" || secAc === "etf") && classifySymbol(symbol) !== "INDEX";
 
   return (
     <div style={{ flex:1, overflow:"auto", background:"transparent", padding:16 }}>
       {tab === "Profile" || tab === "Valuation" || tab === "Financials" ? <MarketMetricsCard symbol={symbol} /> : null}
-      {loading ? (
+      {secOwnsTab && !(body && hasData) ? (
+        // Company filings straight from SEC EDGAR (keyless) — these three
+        // views no longer wait on a paid fundamentals key (2026-10-02).
+        <SecFundamentalsCard symbol={symbol} tab={tab} />
+      ) : loading ? (
         <div style={{ color:"#6B7094", fontSize:13, padding:"24px 4px" }}>Loading {tab.toLowerCase()} data…</div>
       ) : (body && hasData) ? body : providerEdge ? (
         // Truth-in-name: FMP responded 503 with the NOT CONFIGURED
