@@ -140,7 +140,7 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
   // ── F15 REGIME ─────────────────────────────────────────────────────────
   { id: "H-901", name: "Regime State Lighting", family: "F15 Regime", status: "BUILT", owner: `${VM}selectRegimeLighting.ts`, surface: sw("REGIME_LIGHTING"), plate: "WM_NewMockup_92_F15A_Regime_State_Lighting" },
   { id: "F15.PRESSURE", name: "Derivatives Pressure world", family: "F15 Regime", status: "BUILT", owner: `${VM}selectDerivativesPressure.ts`, surface: sw("DERIVATIVES_PRESSURE"), plate: null },
-  { id: "F15.BREATHING", name: "Market Breathing", family: "F15 Regime", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "registry names it; no owner" },
+  { id: "F15.BREATHING", name: "Market Breathing", family: "F15 Regime", status: "PARTIAL", owner: "src/lib/chart/marketBreathing.ts", surface: ctx("Market breathing card in the WAIT rail beside the chart"), plate: null, gap: "rail reading built to the registry's Volatility/Breathing definition (ATR, realized vol, compression, expansion); its on-canvas grammar waits for a Founder plate" },
 
   // ── F16 DECISION / WAIT / EVIDENCE DEBT ────────────────────────────────
   { id: "H-101", name: "Evidence Debt / WAIT as a finished state", family: "F16 Decision", status: "BUILT", owner: `${VM}selectWaitPlaque.ts`, surface: ctx("the WAIT rail beside the chart"),

@@ -17,6 +17,7 @@ import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Ac
 import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
 import { ChartToolbar, INDICATOR_CATEGORY } from "./ChartToolbar";
 import { compileEvidenceLineage } from "@/lib/chart/evidenceLineage";
+import { readMarketBreathing } from "@/lib/chart/marketBreathing";
 import { MainChart, type VpDrawnLevels } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
 import { IndicatorSettingsModal } from "./IndicatorSettingsModal";
@@ -1285,6 +1286,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    */
   const volumeIsReal = React.useMemo(() => volumeTruthFor(symbol, chartBars).real, [symbol, chartBars]);
   const volumeBars = React.useMemo(() => volumeBearingBars(symbol, chartBars), [symbol, chartBars]);
+  // F15 · MARKET BREATHING — compression / expansion of the camera's CLOSED
+  // bars (the newest bar may still be forming, so it is left out).
+  const marketBreathing = React.useMemo(() => readMarketBreathing(chartBars.slice(0, -1)), [chartBars]);
   // Read by `startReplay` through a ref, so the callback stays stable for the
   // equipment subscription that holds it and still freezes TODAY's bars.
   const replaySourceRef = useRef({ bars: liveChartBars, identities: liveChartBarIdentities, scope: replayScopeKey });
@@ -4620,6 +4624,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // 2026-09-27; stocks/futures refused by package, so not asked here).
     webullLive,
     evidenceLineage,
+    breathing: marketBreathing,
     decisionId: currentSceneDecision?.decisionId ?? null,
     decisionIdAbsence: sceneDecisionAbsence,
     // NOW — the moment the decision is being made in. Composed, never

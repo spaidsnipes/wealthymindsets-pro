@@ -47,6 +47,7 @@
 
 import type { WebullLiveReading } from "@/lib/marketData/useWebullLiveCrypto";
 import type { EvidenceLineageVM } from "@/lib/chart/evidenceLineage";
+import { breathingSentence, type MarketBreathing } from "@/lib/chart/marketBreathing";
 import * as React from "react";
 import type { QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
 import type { AbsorptionRailRead } from "@/lib/marketData/selectAbsorptionAnatomy";
@@ -282,6 +283,8 @@ export interface DecisionSpineBandProps {
   readonly webullLive?: WebullLiveReading | null;
   /** H-301 · Evidence Lineage — what is on, grouped into independent families. Absent → absent card. */
   readonly evidenceLineage?: EvidenceLineageVM | null;
+  /** F15 Market Breathing over the camera's closed bars; null = too few bars. */
+  readonly breathing?: MarketBreathing | null;
   /** F06A · buy/sell by price from the heard tape (selectTapeFootprint), with its "since". */
   readonly tapeFootprint?: TapeFootprintVM | null;
   /**
@@ -1643,6 +1646,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
       {rail && props.webullLive && !replayEngaged ? <WebullLiveCard reading={props.webullLive} /> : null}
 
       {rail && props.evidenceLineage ? <EvidenceLineageCard vm={props.evidenceLineage} /> : null}
+      {rail && props.breathing ? <BreathingCard b={props.breathing} /> : null}
 
       {/* F06A · ORDER FLOW CONTEXT — beneath the plaque, at rest, ONLY with a
           lawful reading. The tape's aggressor split (not F06A's book "stacks",
@@ -2009,6 +2013,27 @@ function WebullLiveCard({ reading }: { readonly reading: WebullLiveReading }): R
  * families · DO NOT COUNT 7". Each family names what its readings are
  * computed FROM, so the trader sees why they move together.
  */
+function BreathingCard({ b }: { readonly b: MarketBreathing }): React.ReactElement {
+  return (
+    <section
+      data-testid="spine-market-breathing"
+      data-breath-state={b.state}
+      aria-label={`Market breathing. ${breathingSentence(b)}`}
+      style={{ display: "flex", flexDirection: "column", gap: 4, margin: "0 2px 10px", padding: "9px 11px 9px", border: "1px solid rgba(196,165,116,0.24)", borderRadius: 2 }}
+    >
+      <span style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em", textAlign: "center" }}>Market breathing</span>
+      <span style={{ fontSize: 13, lineHeight: "17px", fontWeight: 800, color: "#ede6d3", textAlign: "center", letterSpacing: "0.06em" }}>{b.state} · {b.phase}</span>
+      <span style={{ fontSize: 11, lineHeight: "15px", color: "#c8c0ae", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
+        ATR {b.atrRatio.toFixed(2)}× normal · {b.atrPercentile}th pct · {b.barsInState} bar{b.barsInState === 1 ? "" : "s"} in state
+      </span>
+      <span style={{ fontSize: 11, lineHeight: "15px", color: "#c8c0ae", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>
+        Realized σ {b.realizedVolPct.toFixed(2)}% per bar · {b.cycles} squeeze→release cycle{b.cycles === 1 ? "" : "s"} in {b.sample} bars
+      </span>
+      <span style={{ fontSize: 10, lineHeight: "14px", color: "#8a8271", fontStyle: "italic", textAlign: "center" }}>from range and dispersion of closed bars — describes, does not forecast</span>
+    </section>
+  );
+}
+
 function EvidenceLineageCard({ vm }: { readonly vm: EvidenceLineageVM }): React.ReactElement {
   return (
     <section

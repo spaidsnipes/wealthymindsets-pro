@@ -58,10 +58,11 @@ describe("Tools search reaches context-only inventions (§XXVI)", () => {
     expect(hit).toBeDefined();
     expect(censusPlaceWords(hit!)).toMatch(/Big Trades/);
   });
-  it("'lineage' finds H-301 on the WAIT rail; switches and unbuilt ideas are not listed here", async () => {
+  it("'lineage' finds H-301 and 'breathing' F15 on the WAIT rail; switches and unbuilt ideas are not listed here", async () => {
     const { searchCensusPlaces } = await import("./inventionCensus");
     expect(searchCensusPlaces("lineage").map(e => e.id)).toEqual(["H-301"]);
-    expect(searchCensusPlaces("breathing")).toEqual([]);
+    expect(searchCensusPlaces("breathing").map(e => e.id)).toEqual(["F15.BREATHING"]);
+    expect(searchCensusPlaces("response matrix")).toEqual([]);
     expect(searchCensusPlaces("memory ghost")).toEqual([]);
     expect(searchCensusPlaces("   ")).toEqual([]);
   });
