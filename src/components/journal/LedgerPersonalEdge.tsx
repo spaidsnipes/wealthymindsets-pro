@@ -19,6 +19,7 @@ import { ledgerTimeline, MIN_WINDOW, whatChanged } from "@/lib/broker/ledgerTime
 import { lessonHref, studyNext } from "@/lib/journal/studyRoute";
 import { ProcessDays } from "@/components/journal/ProcessDays";
 import { ExcursionStudy } from "@/components/journal/ExcursionStudy";
+import { developmentTimeline } from "@/lib/journal/developmentTimeline";
 import { behaviourTags, PATTERN_MIN, patternEvidence } from "@/lib/journal/behaviorTags";
 import { EPISODE_MODELS_KEY, MODEL_LABEL, parseModels, resultsByModel, type ModelMark } from "@/lib/journal/episodeModel";
 import type { Episode } from "@/lib/broker/webullLedger";
@@ -54,6 +55,7 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
   const timeline = useMemo(() => ledgerTimeline(episodes), [episodes]);
   const patterns = useMemo(() => patternEvidence(episodes, behaviourTags(episodes)), [episodes]);
   const study = useMemo(() => studyNext(edge, 3, patterns), [edge, patterns]);
+  const story = useMemo(() => developmentTimeline({ months: timeline.months, windows: timeline.windows, changes, patterns, edge }), [timeline, changes, patterns, edge]);
   const changes = useMemo(() => whatChanged(timeline.months), [timeline]);
   const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(0)}%`);
   const money = (v: number | null) => (v == null ? "—" : usd(v));
@@ -69,6 +71,19 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
 
   return (
     <section data-testid="ledger-personal-edge" aria-label="Personal edge from the broker ledger" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 10 }}>
+      <div data-testid="edge-development-timeline" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
+        <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>DEVELOPMENT TIMELINE · FROM YOUR OWN RECORD</div>
+        <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>Every line is a number from the sections below — not motivation, not a verdict. Your history informs; it does not define you.</p>
+        <div style={{ display: "grid", gap: 8 }}>
+          {story.map(c => (
+            <div key={c.id}>
+              <div style={{ fontSize: 12, color: INK, fontWeight: 600 }}>{c.title}</div>
+              <ul style={{ margin: "2px 0 0", paddingLeft: 18, fontSize: 11, color: MUTED, display: "grid", gap: 1 }}>{c.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
         <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>PERSONAL EDGE · WHAT YOUR FILLS SHOW</div>
         <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>
