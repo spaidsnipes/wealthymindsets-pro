@@ -3756,7 +3756,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     from the owner's state, never from the intent.
   */
   const proofSelectKind: ProofSelectKind | null = typeof window === "undefined" ? null : currentProofScene().select;
-  const proofSelectDoneRef = useRef(false);
+  // Applied once per proof URL (not per page load): a same-route push to a
+  // new `select=`/`r=` — how a verifier repaints a backgrounded window — is a
+  // new question and gets its own application. Holds the URL it was applied for.
+  const proofSelectUrl = typeof window === "undefined" ? "" : window.location.search;
+  const proofSelectDoneRef = useRef<string | null>(null);
   const [proofSelectSettled, setProofSelectSettled] = useState(false);
   const proofSelectBigTradeRef = useRef<(() => boolean) | null>(null);
   /** This render's attempt: true once applied (fresh closure every render). */
@@ -3782,7 +3786,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     return proofSelectBigTradeRef.current?.() ?? false;
   };
   useEffect(() => {
-    if (!proofSelectKind || !deskBarsReady || proofSelectDoneRef.current) return;
+    if (!proofSelectKind || !deskBarsReady || proofSelectDoneRef.current === proofSelectUrl) return;
+    setProofSelectSettled(false);
     const kind = proofSelectKind;
     const root = document.documentElement.dataset;
     root.proofSelect = proofSelectReceipt(kind, "PENDING");
@@ -3794,18 +3799,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       const waited = Date.now() - started;
       if (waited < settleMs) return;
       if (proofSelectAttemptRef.current(kind)) {
-        proofSelectDoneRef.current = true;
+        proofSelectDoneRef.current = proofSelectUrl;
         setProofSelectSettled(true);
         window.clearInterval(timer);
       } else if (waited > giveUpMs) {
-        proofSelectDoneRef.current = true;
+        proofSelectDoneRef.current = proofSelectUrl;
         setProofSelectSettled(true);
         root.proofSelect = proofSelectReceipt(kind, "NONE_AVAILABLE");
         window.clearInterval(timer);
       }
     }, 250);
     return () => window.clearInterval(timer);
-  }, [proofSelectKind, deskBarsReady]);
+  }, [proofSelectKind, deskBarsReady, proofSelectUrl]);
   const proofSelectHeld: string | null = (() => {
     switch (proofSelectKind) {
       case "zone":

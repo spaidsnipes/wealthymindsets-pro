@@ -4,7 +4,8 @@
  *
  * The Founder's verifier can open a URL and take a screenshot, never click.
  * `select=zone|level|bar|bigtrade` (proofScene.ts) opens Inspect on one thing,
- * ONCE per page load, through `actOnChartSelection` — never a second selection
+ * ONCE per proof URL (a same-route push to a new query is a new question —
+ * how a backgrounded window is repainted, 2026-10-03), through `actOnChartSelection` — never a second selection
  * path — and, because a proof scene holds writes, the remembered selection in
  * session storage is neither read into nor written by it.
  *
@@ -46,10 +47,10 @@ describe("select= opens Inspect through the one selection owner", () => {
     expect(ROOM).toMatch(/onSelectBigTrade=\{print => actOnChartSelection\(\{ type: "select", selection: \{ kind: "PRINT", print \} \}\)\}/);
   });
 
-  it("applies ONCE per page load, after the bars exist", () => {
-    expect(attempt).toContain("if (!proofSelectKind || !deskBarsReady || proofSelectDoneRef.current) return;");
-    expect(attempt).toContain("}, [proofSelectKind, deskBarsReady]);");
-    expect(attempt.match(/proofSelectDoneRef\.current = true;/g) ?? []).toHaveLength(2);
+  it("applies ONCE per proof URL, after the bars exist", () => {
+    expect(attempt).toContain("if (!proofSelectKind || !deskBarsReady || proofSelectDoneRef.current === proofSelectUrl) return;");
+    expect(attempt).toContain("}, [proofSelectKind, deskBarsReady, proofSelectUrl]);");
+    expect(attempt.match(/proofSelectDoneRef\.current = proofSelectUrl;/g) ?? []).toHaveLength(2);
     // No storage of any kind in the proof path.
     expect(attempt).not.toMatch(/localStorage|sessionStorage/);
   });
