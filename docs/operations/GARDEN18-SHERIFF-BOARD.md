@@ -230,3 +230,8 @@ Verdict: the seams hold; the OPEN/PARTIAL steps wait on the Founder's own marks 
 | Ledger jump bar | BUILT | `726cc00` sticky Summary · Personal Edge · Your days · Episodes (instant scroll verified; smooth scroll does not animate in a background tab) |
 | Reconciliation with Webull's own number (§36/§86) | PROVED | `6dc42a3` today's ledger net vs Webull's stated day P&L (balance endpoint), only when nothing is held: glass "ledger −$14.11 · Webull's own day P&L −$14.11 — RECONCILED"; with positions held it says NOT COMPARABLE; Webull exposes no lifetime realised figure to reconcile against |
 | UNSETTLED estimated at expiry (§36/§37) | PROVED | `2fbff86` on click, each unsettled option read against its underlying's daily close on the expiry date: glass — all 23 OUT OF THE MONEY (e.g. LYFT 2026-01-16 35C, close 18.33), long premium −$660.17 almost certainly lost → all-in ≈ −$3,498.52 ESTIMATED; realised stays −$2,838.35 (broker figure) |
+
+### 22:05 CDT — shift close check
+- Prod `872fc49` = main head; Sentinels green.
+- Founder-browser personal keys (1R, effective date, working-on, hidden-day, models, process days, clinic, restoration, amendments): all empty — no test values left behind.
+- §70 band cell at phone width: **STILL OPEN.** The automation window was resized to 390×844, but Chrome reports it `visibilityState: hidden` / `innerWidth 0`, so the renderer does not paint and no screenshot is possible. Render tests cover the cell; the glass proof needs a foreground phone or window.
