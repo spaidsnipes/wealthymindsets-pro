@@ -27,6 +27,7 @@ import { DiagnosticClinic } from "@/components/journal/DiagnosticClinic";
 import { behaviourTags, type BehaviourTag } from "@/lib/journal/behaviorTags";
 import { ledgerCsv } from "@/lib/broker/ledgerCsv";
 import { reconcileDay } from "@/lib/broker/reconcile";
+import { UnsettledEstimate } from "@/components/journal/UnsettledEstimate";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -343,7 +344,7 @@ export function WebullLifetimeLedger() {
             <Tile label="Max drawdown" value={usd(-s.maxDrawdown)} color={s.maxDrawdown ? DOWN : INK} note="peak → trough, closed trades" />
             <Tile label="Largest win / loss" value={`${usd(s.largestWin)} / ${usd(s.largestLoss)}`} />
           </div>
-          {s.unsettled ? (
+          {s.unsettled ? (<>
             <p data-testid="ledger-unsettled" style={{ fontSize: 11, color: MUTED, margin: 0 }}>
               <span style={{ color: GOLD }}>UNSETTLED · {s.unsettled}</span> positions are still open in the order history after their expiry ({usd(s.unsettledCost, false)} paid into the long ones). Webull's order history does not say whether they expired, were exercised or closed elsewhere, so they are not in realised P&L.
               {" "}{held && (held.state === "NO_POSITIONS" || held.state === "OK") ? (
@@ -351,6 +352,8 @@ export function WebullLifetimeLedger() {
               ) : null}
               {s.unsettledShort ? `${s.unsettledShort} of them are shorts — a sell with no matching buy in what Webull returned. ` : ""}If every long one expired worthless, realised net would be <span style={{ color: tone(s.net - s.unsettledCost) }}>{usd(s.net - s.unsettledCost)}</span> — <span style={{ color: GOLD }}>ESTIMATED</span>, a bound, not a broker figure.
             </p>
+            <UnsettledEstimate episodes={data.episodes ?? []} />
+          </>
           ) : null}
 
           <div style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
