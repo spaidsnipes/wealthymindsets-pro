@@ -155,7 +155,7 @@ export function RealmGateway({ currentKey = "wm-pro", className }: RealmGatewayP
               {disabled && (
                 <span
                   style={{
-                    fontSize: 8,
+                    fontSize: 9,
                     letterSpacing: 0.4,
                     textTransform: "uppercase",
                     color: "#55503f",

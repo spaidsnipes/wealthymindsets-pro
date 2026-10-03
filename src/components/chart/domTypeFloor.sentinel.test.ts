@@ -27,6 +27,7 @@ const FILES = [
   "src/components/chart/WatchlistRow.tsx",
   "src/components/chart/LeftSidebar.tsx",
   "src/components/marketData/ProviderWireStrip.tsx",
+  "src/components/brand/RealmGateway.tsx",
 ];
 const TINY = /fontSize:\s*([0-8](?:\.\d+)?)\s*[,}\s]|text-\[([0-8](?:\.\d+)?)px\]/g;
 
