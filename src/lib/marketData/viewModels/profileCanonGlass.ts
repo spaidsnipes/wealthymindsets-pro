@@ -62,8 +62,11 @@ export const LIVING_BODY_CANON = Object.freeze({
   rimWidth: 1.4,
   rimGlow: 8,
   /** Row seams, so the mass still reads as rows (P-110's striations). */
-  seamAlpha: 0.22,
-  seamMinRowPx: 5,
+  seamAlpha: 0.34,
+  /** Minimum ridge pitch: thinner rows are ridged every Nth row. */
+  seamMinRowPx: 3,
+  /** The lit lip under each seam — what makes the ridge read luminous. */
+  ridgeLipAlpha: 0.18,
   /** VAH / VAL rules across the plot; the POC rule (dashed) across the plot. */
   edgeRuleAlpha: 0.78,
   pocRuleAlpha: 0.72,

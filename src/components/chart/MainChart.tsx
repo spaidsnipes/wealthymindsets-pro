@@ -17590,11 +17590,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
               // Row seams — P-110's striations — only where a row is tall
               // enough that a 1px seam reads as a seam and not as a gap.
-              if (rowH >= C.seamMinRowPx) {
+              // P-110's ridges: a dark seam with a lit lip under it. Thin rows
+              // are ridged every Nth row so the ridge pitch never drops under
+              // seamMinRowPx (a 1px-pitch seam would just darken the mass).
+              if (rowH > 0 && silhouette.length > 1) {
+                const seamStep = Math.max(1, Math.ceil(C.seamMinRowPx / rowH));
                 ctx.save();
                 ctx.clip(bodyPath);
-                ctx.fillStyle = `rgba(11,10,8,${C.seamAlpha})`;
-                for (const q of silhouette) ctx.fillRect(q.x - 2, Math.round(q.y - rowH / 2), rightEdge - q.x + 4, 1);
+                for (let si = 0; si < silhouette.length; si += seamStep) {
+                  const q = silhouette[si];
+                  const sy = Math.round(q.y - rowH / 2);
+                  const sw = rightEdge - q.x + 4;
+                  ctx.fillStyle = `rgba(11,10,8,${C.seamAlpha})`;
+                  ctx.fillRect(q.x - 2, sy, sw, 1);
+                  ctx.fillStyle = `rgba(255,236,170,${C.ridgeLipAlpha})`;
+                  ctx.fillRect(q.x - 2, sy + 1, sw, 1);
+                }
                 ctx.restore();
               }
               ctx.globalAlpha = alphaBeforeFill;
