@@ -18,6 +18,7 @@ import { PROFILE_RULES, replayDailyRules } from "@/lib/broker/dailyRules";
 import { ledgerTimeline, MIN_WINDOW, whatChanged } from "@/lib/broker/ledgerTimeline";
 import { lessonHref, studyNext } from "@/lib/journal/studyRoute";
 import { ProcessDays } from "@/components/journal/ProcessDays";
+import { behaviourTags, PATTERN_MIN, patternEvidence } from "@/lib/journal/behaviorTags";
 import { EPISODE_MODELS_KEY, MODEL_LABEL, parseModels, resultsByModel, type ModelMark } from "@/lib/journal/episodeModel";
 import type { Episode } from "@/lib/broker/webullLedger";
 import { readStoryReviews, type StoryReview } from "@/lib/journal/storyReview";
@@ -51,6 +52,7 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
   const rules = useMemo(() => replayDailyRules(episodes, oneR), [episodes, oneR]);
   const timeline = useMemo(() => ledgerTimeline(episodes), [episodes]);
   const study = useMemo(() => studyNext(edge), [edge]);
+  const patterns = useMemo(() => patternEvidence(episodes, behaviourTags(episodes)), [episodes]);
   const changes = useMemo(() => whatChanged(timeline.months), [timeline]);
   const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(0)}%`);
   const money = (v: number | null) => (v == null ? "—" : usd(v));
@@ -96,6 +98,27 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
             </div>
           ))}
         </div>
+      </div>
+
+      <div data-testid="edge-patterns" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, overflowX: "auto" }}>
+        <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>PATTERNS FROM YOUR FILLS · WITH THE EVIDENCE FOR AND AGAINST</div>
+        <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>
+          Behaviours the broker record shows, each with how often, the result per trade beside trades without it, the losing cases that support it and the winning cases that contradict it, and whether it is rarer lately. Under {PATTERN_MIN} cases it is not yet a pattern.
+        </p>
+        <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", fontVariantNumeric: "tabular-nums", minWidth: 640 }}>
+          <thead><tr style={{ color: MUTED, textAlign: "right" }}><th style={{ textAlign: "left", fontWeight: 500 }}>Behaviour</th><th style={{ fontWeight: 500 }}>Trades</th><th style={{ fontWeight: 500 }}>Per trade</th><th style={{ fontWeight: 500 }}>Without it</th><th style={{ fontWeight: 500 }}>Losers / winners</th><th style={{ fontWeight: 500 }}>Last 100 vs before</th><th style={{ fontWeight: 500 }}>Seen</th></tr></thead>
+          <tbody>{patterns.map(p => (
+            <tr key={p.id} data-evidence={p.evidence} style={{ borderTop: `1px solid ${LINE}`, textAlign: "right", color: p.evidence === "SUPPORTED" ? INK : MUTED }}>
+              <td style={{ textAlign: "left", padding: "3px 0" }}>{p.label}{p.evidence === "SUPPORTED" ? "" : " · INSUFFICIENT EVIDENCE"}</td>
+              <td>{p.n}</td>
+              <td style={{ color: tone(p.expectancy) }}>{usd(p.expectancy)}</td>
+              <td>{p.withoutExpectancy == null ? "—" : usd(p.withoutExpectancy)}</td>
+              <td>{p.supporting} / {p.contradicting}</td>
+              <td>{p.recentShare == null ? "—" : `${Math.round(p.recentShare * 100)}%`} vs {p.earlierShare == null ? "—" : `${Math.round(p.earlierShare * 100)}%`}</td>
+              <td style={{ whiteSpace: "nowrap" }}>{p.firstSeen.slice(0, 10)} → {p.lastSeen.slice(0, 10)}</td>
+            </tr>
+          ))}</tbody>
+        </table>
       </div>
 
       <div data-testid="edge-study-next" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>

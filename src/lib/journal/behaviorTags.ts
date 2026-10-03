@@ -81,3 +81,59 @@ export function latestAmendment(list: readonly Amendment[], episodeId: string, t
   for (let i = list.length - 1; i >= 0; i--) if (list[i].episodeId === episodeId && list[i].tag === tag) return list[i];
   return null;
 }
+
+// ── pattern evidence (§39/§40) ────────────────────────────────────────────────
+
+export interface PatternEvidence {
+  readonly id: TagId;
+  readonly label: string;
+  /** Trades carrying the tag. */
+  readonly n: number;
+  readonly expectancy: number;
+  /** Per-trade result of trades WITHOUT the tag — the comparison, same universe. */
+  readonly withoutExpectancy: number | null;
+  /** Losing trades with the tag (supporting) and winning ones (contradicting). */
+  readonly supporting: number;
+  readonly contradicting: number;
+  readonly firstSeen: string;
+  readonly lastSeen: string;
+  /** Share of trades carrying it: the latest 100 trades vs everything before them. */
+  readonly recentShare: number | null;
+  readonly earlierShare: number | null;
+  readonly evidence: "SUPPORTED" | "INSUFFICIENT EVIDENCE";
+}
+
+export const PATTERN_MIN = 20;
+
+const PATTERN_LABEL: Readonly<Record<TagId, string>> = {
+  THIRD_PLUS_ATTEMPT: "Trades beyond the second of the day",
+  RAPID_REENTRY: "Re-entering the same contract within 5 min",
+  NO_BRACKET_AT_ENTRY: "Entering without a bracket",
+  ABOVE_USUAL_SIZE: "Size at least twice the usual",
+};
+
+export function patternEvidence(episodes: readonly Episode[], tags: Map<string, BehaviourTag[]>): PatternEvidence[] {
+  const closed = episodes.filter(e => e.label === "RECONSTRUCTED" && e.net != null && tags.has(e.id)).sort((a, b) => a.openedAt.localeCompare(b.openedAt));
+  const recentStart = Math.max(0, closed.length - 100);
+  const ids: TagId[] = ["THIRD_PLUS_ATTEMPT", "RAPID_REENTRY", "NO_BRACKET_AT_ENTRY", "ABOVE_USUAL_SIZE"];
+  const out: PatternEvidence[] = [];
+  for (const id of ids) {
+    const has = (e: Episode) => (tags.get(e.id) ?? []).some(t => t.id === id);
+    const withT = closed.filter(has), without = closed.filter(e => !has(e));
+    if (!withT.length) continue;
+    const sum = (xs: Episode[]) => xs.reduce((s, e) => s + e.net!, 0);
+    const recent = closed.slice(recentStart), earlier = closed.slice(0, recentStart);
+    out.push({
+      id, label: PATTERN_LABEL[id], n: withT.length,
+      expectancy: Math.round((sum(withT) / withT.length) * 100) / 100,
+      withoutExpectancy: without.length ? Math.round((sum(without) / without.length) * 100) / 100 : null,
+      supporting: withT.filter(e => e.net! < 0).length,
+      contradicting: withT.filter(e => e.net! > 0).length,
+      firstSeen: withT[0].openedAt, lastSeen: withT[withT.length - 1].openedAt,
+      recentShare: recent.length ? recent.filter(has).length / recent.length : null,
+      earlierShare: earlier.length ? earlier.filter(has).length / earlier.length : null,
+      evidence: withT.length >= PATTERN_MIN ? "SUPPORTED" : "INSUFFICIENT EVIDENCE",
+    });
+  }
+  return out;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendAmendment, behaviourTags, latestAmendment, parseAmendments } from "./behaviorTags";
+import { appendAmendment, behaviourTags, latestAmendment, parseAmendments, patternEvidence } from "./behaviorTags";
 import type { Episode } from "@/lib/broker/webullLedger";
 
 const ep = (id: string, key: string, open: string, close: string, qty = 1, combo = "NORMAL") => ({
@@ -32,5 +32,17 @@ describe("behaviour tags — only what fills establish, each INFERRED with evide
     expect(list[0]).toMatchObject({ verdict: "CORRECTED", correction: "planned scale-in", original });
     expect(parseAmendments(JSON.stringify(list))).toHaveLength(2);
     expect(parseAmendments("not json")).toEqual([]);
+  });
+
+  it("pattern evidence: count, result vs without, supporting/contradicting, recency, evidence gate", () => {
+    const eps = [
+      { ...ep("a", "TSLA 2026-10-01 390C", "2026-10-01T13:31:00Z", "2026-10-01T13:33:00Z", 1, "MASTER"), net: 10 },
+      { ...ep("b", "TSLA 2026-10-01 390C", "2026-10-01T13:35:00Z", "2026-10-01T13:40:00Z"), net: -20 },
+      { ...ep("c", "TSLA 2026-10-01 395C", "2026-10-01T14:30:00Z", "2026-10-01T14:40:00Z", 3), net: 6 },
+    ] as unknown as Episode[];
+    const p = patternEvidence(eps, behaviourTags(eps));
+    const nb = p.find(x => x.id === "NO_BRACKET_AT_ENTRY")!;
+    expect(nb).toMatchObject({ n: 2, expectancy: -7, withoutExpectancy: 10, supporting: 1, contradicting: 1, evidence: "INSUFFICIENT EVIDENCE" });
+    expect(nb.firstSeen).toBe("2026-10-01T13:35:00Z");
   });
 });
