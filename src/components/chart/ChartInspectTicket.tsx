@@ -131,7 +131,7 @@ function zonedClock(timeZone: string | null | undefined) {
 }
 const READ_COLOR = "#E8EAF2";
 
-function Row({ row }: { row: TicketRow }) {
+function Row({ row, sameReasonAsAbove = false }: { row: TicketRow; sameReasonAsAbove?: boolean }) {
   const read = row.state === "READ";
   return (
     <div className="pt-1" data-inspect-row={row.id} data-inspect-state={row.state}>
@@ -152,7 +152,8 @@ function Row({ row }: { row: TicketRow }) {
       */}
       {!read && row.absence && (
         <div className="pt-0.5 text-[10px] leading-snug" style={{ color: UNREAD_COLOR }}>
-          {row.absence}
+          {/* §16: one reason said once — a second UNREAD for the same reason points up. */}
+          {sameReasonAsAbove ? "Same reason as above." : row.absence}
         </div>
       )}
     </div>
@@ -1139,7 +1140,10 @@ export function ChartInspectTicket({
       /* `right-[76px]` clears the price scale; `top-16` clears the chart's own
          top chrome; `max-h` + `overflow-y-auto` is what stops a fully-refused
          ticket from having its last sentences cut off by the pane floor. */
-      className="absolute top-16 right-[76px] z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-border bg-wm-surface/95 p-2 shadow-2xl backdrop-blur-md"
+      // §40 (2026-10-03): the bar under inspection is almost always a recent
+      // one at the live edge — the ticket reads it from the LEFT wall, like the
+      // print and profile-slice tickets, so it never covers the candles it reads.
+      className="absolute top-16 left-2 z-[75] w-[228px] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-border bg-wm-surface/95 p-2 shadow-2xl backdrop-blur-md"
       data-testid="chart-inspect-ticket"
       // Published so an outside probe can compare the ticket's own verdict
       // against the switches and the tape, without parsing a human sentence.
@@ -1178,8 +1182,8 @@ export function ChartInspectTicket({
       )}
 
       <div className="mt-1.5 border-t border-wm-border pt-1">
-        {vm.rows.map(row => (
-          <Row key={row.id} row={row} />
+        {vm.rows.map((row, i) => (
+          <Row key={row.id} row={row} sameReasonAsAbove={i > 0 && row.state !== "READ" && vm.rows[i - 1].state !== "READ" && !!row.absence && row.absence === vm.rows[i - 1].absence} />
         ))}
       </div>
 
