@@ -350,9 +350,11 @@ export interface PlacedInscriptionLine extends InscriptionLine {
  * smaller disc already fits).
  */
 export function bigTradeInscriptionLines(r: number, sizeText: string, timeText: string, priceText: string, members = 1): InscriptionLine[][] {
-  const sizePx = Math.max(9, Math.min(15, Math.round(r * 0.42)));
-  const subs = r >= 30 ? [9, 8] : [8];
-  const sizes = [...new Set([sizePx, Math.max(8, sizePx - 2)])];
+  // §16 floor (v2): nothing inside a disc prints under 9 px — a line that
+  // cannot fit at 9 is dropped (fewer lines), never shrunk to illegible.
+  const sizePx = Math.max(9, Math.min(16, Math.round(r * 0.42)));
+  const subs = r >= 36 ? [10, 9] : [9];
+  const sizes = [...new Set([sizePx, Math.max(9, sizePx - 2)])];
   // F07B · a CLUSTER disc writes its TOTAL with "×n" and its anchor's price.
   // No time line: n prints have n times, and one of them written alone would
   // read as the cluster's time — the members' clocks live in Inspect.

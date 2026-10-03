@@ -197,7 +197,11 @@ describe("F07A: the inscription lives INSIDE the disc", () => {
     expect(fitBubbleInscription(BIG_TRADE_MAX_R, lines(BIG_TRADE_MAX_R), inter).map(l => l.text)).toEqual(["0.25", "02:16:06 PM", "↑ 84000.00"]);
     // A shorter price (a stock, an FX pair) earns its line on a smaller disc.
     expect(fitBubbleInscription(26, bigTradeInscriptionLines(26, "2.3k", "10:24:37", "↓ 247.19"), inter).map(l => l.text)).toContain("↓ 247.19");
-    expect(fitBubbleInscription(12, lines(12), inter).map(l => l.text)).toEqual(["0.25"]);
+    // §16 floor (v2): a 12 px disc would need 8 px type — it stays a mark;
+    // at 14 px the size line fits at the 9 px floor.
+    expect(fitBubbleInscription(12, lines(12), inter)).toEqual([]);
+    expect(fitBubbleInscription(14, lines(14), inter).map(l => l.text)).toEqual(["0.25"]);
+    for (let r = 4; r <= BIG_TRADE_MAX_R; r++) for (const l of fitBubbleInscription(r, lines(r), inter)) expect(l.px).toBeGreaterThanOrEqual(9);
     expect(fitBubbleInscription(5, lines(5), inter)).toEqual([]);
   });
 

@@ -138,7 +138,11 @@ export const DELTA_BUBBLE_MAX_R = 25;
  * lines (footprintCanon.test.ts measures it); smaller prints keep the same
  * area law (r ∝ √share) and simply carry fewer lines.
  */
-export const BIG_TRADE_MAX_R = 34;
+// 2026-10-03 (v2 §15/§16, plate 76 beside serving BTC 1m): 34 → 42. At 34
+// every near-peak cluster read the same size and its sub-lines fell to 8 px;
+// at 42 the strongest print stands out by AREA (plate: 3.1M ≪ 12.4M) and the
+// inscription keeps the 9 px floor.
+export const BIG_TRADE_MAX_R = 42;
 
 export interface BubbleRadiusOpts {
   /** Radius the PEAK value paints at. */
