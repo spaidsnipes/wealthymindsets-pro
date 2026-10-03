@@ -175,3 +175,7 @@ Performance: all-senses TSLA 17.3 ms mean; BTC 1m 7 senses 4.4 ms; Desk 4-up 1.6
 | Process Before P&L days (§54) | BUILT | `bb928f1` each trading day: Webull net beside the trader's five 0–2 grades; A/B/C/FAILURE bands; red-A / green-failure matrix; grades neutral in colour |
 | Ledger re-open speed | PROVED | `8a14a7f` year probes kept a day, live week kept 10 min, accounts 10 min: re-open 80 s → 10 s, same totals |
 | Tag prescriptions (§48) | BUILT | each INFERRED tag carries the profile rule / prescription it meets (re-entry after a loss → "a loss creates zero permission"); process reminder, no feeling named |
+| Model 0/1/2 marks (§32) | BUILT | `368b053` trader marks each broker episode M0/M1/M2 (fills cannot say); results by model from marked trades only, INSUFFICIENT EVIDENCE under 20 |
+| Calendar-aligned cache keys | PROVED | `e8b5500` windows measured back from today re-keyed at UTC midnight (19:05 CDT re-read everything, one cash year 67 s); now calendar years/months (`wbledger:v2:`); third independent full read identical: 2,903 orders, 975 closed, net −$2,838.35 |
+| Ledger CSV export (§69) | BUILT | `00c4ac9` one row per episode with Webull order ids and truth label, built in the browser on the trader's click |
+| OPEN — Personal Edge live return on /charts (§70) | OPEN | a rule-state chip beside the decision rail needs a placement pass under the keep-out / rail geometry law; not rushed |
