@@ -198,6 +198,18 @@ const PRICE_LEGEND_OVERLAY_H = 28;
 /** Every receipt the NEAR geometry block writes — withdrawn together off NEAR. */
 /** The largest held prints per bar the NEAR tape owner keeps (the paint shows as many as the slot has room for). */
 const NEAR_TAPE_MAX_DOTS = 12;
+/** Depth-silenced roles → the trader's layer switch → the name a trader knows. */
+const SILENCED_LAYER_NAMES: readonly (readonly [role: string, flag: string, name: string])[] = [
+  ["weather", "weather", "Liquidity Weather"],
+  ["profileDna", "profileDna", "Profile DNA"],
+  ["compositeProfile", "compositeProfile", "Composite"],
+  ["tpo", "tpo", "TPO"],
+  ["structureProfile", "structureProfile", "Structure Profile"],
+  ["profileFusion", "profileFusion", "Profile Fusion"],
+  ["profileMemory", "profileMemory", "Profile Memory"],
+  ["visibleRangeProfile", "visibleRangeProfile", "Visible Range"],
+  ["valueMigration", "valueMigration", "Value Migration"],
+];
 const NEAR_GLASS_RECEIPTS = ["nearCallouts", "nearTapeForm", "nearTape", "nearTapeHeld", "nearTapeSides", "nearTapePath", "nearTapeTop", "nearAnatomy", "nearHatch", "nearHatchYieldedToValueCandle", "nearAnatomyWords"] as const;
 const PANE_TOP_LEFT_INSET = 8;
 /** First free pixel below the price legend, for anything else in that corner. */
@@ -19839,6 +19851,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               MID / NEAR sees which identity every layer is bound to.
             */
             if (short) lines.push({ t: `DECISION_ID ${short}`, c: "rgba(194,184,146,0.8)" });
+            // ZERO GHOSTS: a layer the trader switched ON that this depth
+            // silences is NAMED here (serving BTC 1m FAR: Liquidity Weather on,
+            // nothing drawn, only the receipt said SILENT:FAR). Read from the
+            // permission receipt the frame publishes (one frame behind).
+            {
+              const perm = canvas.dataset.semanticPermission ?? "";
+              const silent = new Set(((perm.split("SILENT=")[1] ?? "") + "," + (canvas.dataset.semanticWithheld ?? "")).split(",").map(t => t.trim()).filter(Boolean));
+              const on = layerOnRef.current as Record<string, boolean | undefined>;
+              const named = SILENCED_LAYER_NAMES.filter(([role, flag]) => silent.has(role) && on[flag] === true).map(([, , name]) => name);
+              if (named.length) {
+                const list = named.length > 2 ? `${named.slice(0, 2).join(", ")} +${named.length - 2}` : named.join(", ");
+                lines.push({ t: `SILENT HERE · ${list} — ${zoom.tag === "NEAR" ? "zoom out" : "zoom in"}`, c: "rgba(232,198,104,0.9)" });
+                ds.semanticSilencedOn = named.join("|");
+              } else delete ds.semanticSilencedOn;
+            }
             const pw = Math.max(ctx.measureText(zoom.tag).width, ...lines.map(l => ctx.measureText(l.t).width)) + 12;
             // The plate ENDS ABOVE the INSPECT chip's row (DOM, top 64): at a
             // 12px pitch the fourth line (DECISION_ID) printed under the
