@@ -19795,6 +19795,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         let weatherLensClearCut: Path2D | null = null;
         /** The measured region while the lens is still GATHERING — where its one line of words attaches. */
         let weatherGathering: { region: { x0: number; y0: number; x1: number; y1: number }; words: string } | null = null;
+        /** §CV: the measured window when the camera does not show it — named on the glass, never silent. */
+        let weatherOffCamera: { x0: number; y0: number; x1: number; y1: number } | null = null;
         /** The field's composite alpha as actually painted (0 = no field) — the readout's VEIL. */
         let weatherVeil = 0;
         let weatherLensWhy: string = on ? "UNMEASURED" : att.offWord(layerOnRef.current.weather);
@@ -19851,6 +19853,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 { x0: LENS_BEZEL_W + 2, y0: HEADER_FLOOR_Y + 16 + LENS_BEZEL_W, x1: weatherPlotRight - LENS_BEZEL_W - 2, y1: pane0Bottom - 16 - LENS_BEZEL_W },
               );
               weatherLensWhy = weatherLens ? "DRAWN" : "OFF_CAMERA";
+              if (!weatherLens) weatherOffCamera = region;
             }
           }
         }
@@ -20763,6 +20766,43 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ds.liquidityWeatherGathering = gSpot.mode;
             } else {
               delete ds.liquidityWeatherGathering;
+            }
+            // OFF CAMERA — the weather was measured, but its window lies outside
+            // this view (zoomed in past it). One quiet line on the side it lies,
+            // so a switched-on sense never reads as an empty glass (§CV).
+            const oc = on && glass.drawn && weatherLensWhy === "OFF_CAMERA" ? weatherOffCamera : null;
+            if (oc) {
+              const left = oc.x1 < 0, right = oc.x0 > weatherPlotRight;
+              const up = Math.max(oc.y0, oc.y1) < HEADER_FLOOR_Y;
+              const words = left ? "◀ WEATHER LENS · its window is left of this view — zoom out"
+                : right ? "WEATHER LENS · its window is right of this view ▶"
+                : up ? "▲ WEATHER LENS · its window is above this view"
+                : "▼ WEATHER LENS · its window is below this view";
+              ctx.save();
+              ctx.globalAlpha = att.alpha("weather");
+              ctx.font = marketFont("FIDELITY");
+              ctx.textAlign = "left";
+              ctx.textBaseline = "top";
+              const tw = ctx.measureText(words).width;
+              const yMid = Math.round((HEADER_FLOOR_Y + pane0Bottom) / 2);
+              const pref = left || (!right && !up)
+                ? { x: keepOutMinX() + 6, y: up ? HEADER_FLOOR_Y + 4 : left ? yMid : pane0Bottom - 16, w: tw, h: 11 }
+                : { x: weatherPlotRight - 6 - tw, y: up ? HEADER_FLOOR_Y + 4 : yMid, w: tw, h: 11 };
+              const ocSpot = placeClearOfKeepOut(pref, keepOut(), {
+                minX: keepOutMinX(),
+                blockers: [...floatingChips, ...rowBodiesAt(pref.y, pref.y + pref.h)],
+                alternates: [{ ...pref, y: pref.y - 18 }, { ...pref, y: pref.y + 18 }],
+              });
+              recordKeepOut(keepOutLedger, ocSpot);
+              if (ocSpot.mode !== "BLOCKED") {
+                ctx.fillStyle = "rgba(237,230,211,0.75)";
+                ctx.fillText(words, ocSpot.rect.x, ocSpot.rect.y);
+                floatingChips.push({ ...ocSpot.rect });
+              }
+              ctx.restore();
+              ds.liquidityWeatherOffCamera = `${left ? "LEFT" : right ? "RIGHT" : up ? "ABOVE" : "BELOW"}:${ocSpot.mode}`;
+            } else {
+              delete ds.liquidityWeatherOffCamera;
             }
           }
         }
