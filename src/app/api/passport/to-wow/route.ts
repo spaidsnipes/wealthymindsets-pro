@@ -10,9 +10,10 @@ export const dynamic = "force-dynamic";
 /**
  * WM PRO → WOW WORLD with the same Passport (see lib/passport/wowBridge).
  *
- * For the signed-in WM user only: asks Supabase for a one-time sign-in link
- * for THAT user (admin generate_link — nothing is emailed) whose landing is
- * WOW's /passport/callback, and sends the browser there. Signed out, or with
+ * For the signed-in WM user only: asks Supabase for a one-time sign-in token
+ * for THAT user (admin generate_link — nothing is emailed) and sends the
+ * browser to WOW's /passport/callback with the token hash in the fragment;
+ * WOW redeems it with Supabase. Signed out, or with
  * the identity backend not configured, the door still opens — WOW asks for
  * the Passport itself.
  */
@@ -35,11 +36,16 @@ export async function GET(request: Request): Promise<Response> {
       cache: "no-store",
       redirect: "manual",
     });
-    const j = (await res.json().catch(() => null)) as { action_link?: string; properties?: { action_link?: string } } | null;
-    const link = j?.properties?.action_link ?? j?.action_link;
-    // Only ever forward to the project's own verify endpoint.
-    if (!res.ok || !link || !link.startsWith(`${url}/auth/v1/verify`)) return plain;
-    const out = NextResponse.redirect(link, { status: 303 });
+    const j = (await res.json().catch(() => null)) as { hashed_token?: string; properties?: { hashed_token?: string } } | null;
+    const hash = j?.properties?.hashed_token ?? j?.hashed_token;
+    if (!res.ok || !hash || !/^[A-Za-z0-9_-]{16,200}$/.test(hash)) return plain;
+    // WOW redeems the one-time hash with the issuer itself (POST /auth/v1/verify)
+    // — no dependence on the issuer's redirect allowlist (measured 2026-10-03:
+    // the Site URL fallback is the retired Vercel host). The hash rides in the
+    // FRAGMENT, which no server ever receives.
+    const landing = new URL(wowCallbackUrl(next));
+    landing.hash = new URLSearchParams({ token_hash: hash, type: "magiclink" }).toString();
+    const out = NextResponse.redirect(landing.toString(), { status: 303 });
     out.headers.set("Cache-Control", "no-store");
     out.headers.set("Referrer-Policy", "no-referrer");
     return out;
