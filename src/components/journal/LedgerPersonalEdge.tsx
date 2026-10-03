@@ -263,11 +263,11 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
           </label>
           {rules ? (
             <p data-testid="edge-daily-rules" style={{ fontSize: 12, color: INK, margin: "6px 0 0" }}>
-              Daily stop {PROFILE_RULES.dailyStopR}R ({usd(PROFILE_RULES.dailyStopR * rules.oneR)}): reached on {rules.stopDays} of {rules.days} days; {rules.afterStopTrades} trades were opened after it, netting <span style={{ color: tone(rules.afterStopNet) }}>{usd(rules.afterStopNet)}</span>.
-              {" "}Shutdown +{PROFILE_RULES.shutdownR}R ({usd(PROFILE_RULES.shutdownR * rules.oneR)}): reached on {rules.shutdownDays} days; {rules.afterShutdownTrades} trades opened after it, netting <span style={{ color: tone(rules.afterShutdownNet) }}>{usd(rules.afterShutdownNet)}</span>.
+              Daily stop −{Math.abs(PROFILE_RULES.dailyStopR)}R ({usd(PROFILE_RULES.dailyStopR * rules.oneR)}): reached on {rules.stopDays} of {rules.days} days; {rules.afterStopTrades} {rules.afterStopTrades === 1 ? "trade was" : "trades were"} opened after it, netting <span style={{ color: tone(rules.afterStopNet) }}>{usd(rules.afterStopNet)}</span>.
+              {" "}Shutdown +{PROFILE_RULES.shutdownR}R ({usd(PROFILE_RULES.shutdownR * rules.oneR)}): reached on {rules.shutdownDays} days; {rules.afterShutdownTrades} {rules.afterShutdownTrades === 1 ? "trade" : "trades"} opened after it, netting <span style={{ color: tone(rules.afterShutdownNet) }}>{usd(rules.afterShutdownNet)}</span>.
             </p>
           ) : (
-            <p style={{ fontSize: 11, color: MUTED, margin: "6px 0 0" }}>State your 1R to replay the {PROFILE_RULES.dailyStopR}R daily stop and +{PROFILE_RULES.shutdownR}R shutdown over these days.</p>
+            <p style={{ fontSize: 11, color: MUTED, margin: "6px 0 0" }}>State your 1R to replay the −{Math.abs(PROFILE_RULES.dailyStopR)}R daily stop and +{PROFILE_RULES.shutdownR}R shutdown over these days.</p>
           )}
         </div>
         <p style={{ fontSize: 12, color: INK, margin: "8px 0 0" }}>
