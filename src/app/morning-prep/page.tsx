@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { DREAMBOARD_URL } from "@/lib/canonicalUrl";
@@ -295,6 +297,15 @@ const STARTER_CHECKLIST = [
   "Execution focus chosen (setup type / entry rules)",
   "Hydration + focus reset (5 min breathwork)",
 ];
+
+// Checklist items whose work happens in another room carry a door to that
+// room. Matched on the canon starter text only — a trader's own custom item
+// is never guessed at.
+const PREP_ITEM_DOORS: Record<string, { href: string; label: string }> = {
+  "Key levels prepared (support / resistance / VWAP / POC)": { href: FOUNDER_LANDING_ROUTE, label: "Chart" },
+  "News / catalysts reviewed": { href: "/news", label: "News" },
+  "Mental state honest — logged mood": { href: "/journal", label: "Journal" },
+};
 
 const GROWTH_PRACTICES = {
   spiritual: ["Prayer", "Bible", "Worship", "Reflection", "Gratitude"],
@@ -711,9 +722,12 @@ export default function MorningPrepPage() {
                 )}
 
                 <div className="space-y-1.5">
-                  {e.checklist.map(i => (
-                    <button key={i.id} onClick={() => toggleItem(e.id, i.id)}
-                      className="flex items-center gap-2.5 w-full text-left group">
+                  {e.checklist.map(i => {
+                    const door = PREP_ITEM_DOORS[i.text];
+                    return (
+                    <div key={i.id} className="flex items-center gap-2">
+                    <button onClick={() => toggleItem(e.id, i.id)}
+                      className="flex items-center gap-2.5 flex-1 min-w-0 text-left group">
                       {i.done
                         ? <CheckCircle2 size={17} style={{ color: "#ede6d3" }} className="shrink-0" />
                         : <Circle size={17} style={{ color: "#4A5070" }} className="shrink-0" />}
@@ -722,7 +736,17 @@ export default function MorningPrepPage() {
                         {i.text}
                       </span>
                     </button>
-                  ))}
+                    {door && (
+                      <Link href={door.href} data-testid="morning-prep-item-door"
+                        aria-label={`Open ${door.label} for: ${i.text}`}
+                        className="shrink-0 inline-flex min-h-8 items-center px-2 text-[11px] font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+                        style={{ color: "#c9a55c" }}>
+                        {door.label} →
+                      </Link>
+                    )}
+                    </div>
+                    );
+                  })}
                 </div>
               </motion.div>
             );

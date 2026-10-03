@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { Play, Square, RotateCcw, TrendingUp, TrendingDown, BarChart2, Download, ChevronDown, BookOpen, ChevronRight, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
@@ -251,6 +252,18 @@ export default function BacktestingPage() {
   const [tradeTab,  setTradeTab]  = useState<"all"|"wins"|"losses">("all");
   const [mainTab,   setMainTab]   = useState<"backtest"|"walkforward">("backtest");
   const [error,     setError]     = useState<string | null>(null);
+
+  // Inbound connection: other rooms (Scanner, Charts, Morning Prep) hand a
+  // symbol over as ?symbol=…&tf=… — read once on mount, never re-imposed.
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const s = q.get("symbol")?.trim().toUpperCase();
+      if (s && /^[A-Z0-9.!:^=-]{1,24}$/.test(s)) setSymbol(s);
+      const t = q.get("tf");
+      if (t && (CHART_TF_SHIPPED as readonly string[]).includes(t)) setTf(t);
+    } catch { /* no URL — keep defaults */ }
+  }, []);
 
   const run = useCallback(async () => {
     setRunning(true);
@@ -542,6 +555,10 @@ export default function BacktestingPage() {
                   <span><span className="text-wm-text-muted font-mono">{result.meta.barCount.toLocaleString()}</span> bars</span>
                   <span><span className="text-wm-text-muted font-mono">{result.meta.fromDate}</span> → <span className="text-wm-text-muted font-mono">{result.meta.toDate}</span></span>
                   <span>{symbol} · {tf} · {strategy.label}</span>
+                  <Link href={`/charts?symbol=${encodeURIComponent(symbol)}`} data-testid="backtest-open-chart"
+                    className="ml-auto inline-flex min-h-8 items-center font-bold text-wm-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
+                    Open {symbol} on the chart →
+                  </Link>
                   {result.meta.rangeNote && (
                     <span className="flex items-center gap-1 text-wm-gold w-full mt-0.5">
                       <AlertTriangle size={10} /> {result.meta.rangeNote}

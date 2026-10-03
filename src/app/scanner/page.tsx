@@ -3,6 +3,7 @@
 // it at two render sites with `as number` casts; the sentence is now emitted by
 // `classifyScan` from the same branch that computes the grade, so the page only
 // renders `r.disclosure`. Re-adding this import would re-open the cast door.
+import Link from "next/link";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 
 /**
@@ -1237,6 +1238,10 @@ export default function ScannerPage() {
                     className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-wm-blue/15 text-wm-blue border border-wm-blue/40 hover:bg-wm-blue/25 transition-all">
                     <BarChart2 size={12}/> Open Chart
                   </button>
+                  <Link href={`/backtesting?symbol=${encodeURIComponent(selected.symbol)}`} data-testid="scanner-backtest-symbol"
+                    className="w-full flex min-h-9 items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
+                    Backtest {selected.symbol} →
+                  </Link>
                   {/* No second "Command Deck" door here (2026-09-24): the
                       button above opens the ONE market camera; the deck was a
                       second market beside it. Scanner discovers, the chart
