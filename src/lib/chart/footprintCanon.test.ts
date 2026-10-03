@@ -116,7 +116,7 @@ describe("imbalance: the stacked-imbalance owner's 3:1 and weight floor", () => 
     expect(MIN_STACK_LEVELS).toBe(3);
     expect(runs).toHaveLength(1);
     expect(runs[0]).toMatchObject({ from: 0, to: 2, side: "buy" });
-    expect(imbalanceRunWord(runs[0])).toBe("≥310:100");
+    expect(imbalanceRunWord(runs[0])).toBe("≥3.1×"); // v2 §45: a multiple, not "≥310:100"
   });
 
   it("a run where every row is one-sided says so, never a 300:100 it did not measure", () => {
@@ -279,5 +279,17 @@ describe("F07A response path: real closed bars only", () => {
     expect(memoBigTradeResponsePath("k", print, bars, null)).toBe(a);
     expect(memoBigTradeResponsePath("k", print, bars, 1000 + 5 * 60)).toBeNull();
     expect(memoBigTradeResponsePath("k", print, [...bars], null)).toEqual(a);
+  });
+});
+
+describe("imbalance run words are trader-readable (v2 §45)", () => {
+  it("multiples, capped, one-sided in words — never N:100", async () => {
+    const { imbalanceRunWord } = await import("./footprintCanon");
+    const run = (weakestPct: number | null) => ({ from: 0, to: 2, side: "buy" as const, weakestPct });
+    expect(imbalanceRunWord(run(320))).toBe("≥3.2×");
+    expect(imbalanceRunWord(run(87551))).toBe("≥876×");
+    expect(imbalanceRunWord(run(2_100_000))).toBe("≥1k×");
+    expect(imbalanceRunWord(run(null))).toBe("one-sided");
+    for (const p of [320, 713, 87551, 2_100_000]) expect(imbalanceRunWord(run(p))).not.toMatch(/:100|:1$/);
   });
 });

@@ -66,7 +66,7 @@
 
 import { describeBubbleClaim, formatBubbleExact } from "@/lib/bubbleClaim";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
-import { formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
+import { formatImbalanceMultiple, formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
 import {
   IMBALANCE_RATIO_PCT,
   MIN_LEVEL_SHARE,
@@ -253,9 +253,16 @@ export function imbalanceRuns(reads: readonly ImbalanceRowRead[], minRun: number
   return out;
 }
 
-/** The one ratio word a run prints, in formatImbalanceRatio's words. */
+/**
+ * The one ratio word a run prints ON THE GLASS (v2 §45, trader-readable): the
+ * run's weakest lean as a multiple — "≥3.2×", "≥876×", capped "≥1k×" — never
+ * "≥87551:100" (serving BTC 1m NEAR, 2026-10-03). One-sided runs say so.
+ */
 export function imbalanceRunWord(run: ImbalanceRun): string {
-  return run.weakestPct == null ? formatImbalanceRatio(IMBALANCE_RATIO_PCT, true) : `≥${formatImbalanceRatio(run.weakestPct)}`;
+  if (run.weakestPct == null) return "one-sided";
+  const m = formatImbalanceMultiple(run.weakestPct);
+  if (m == null) return formatImbalanceRatio(run.weakestPct);
+  return m === "×1k+" ? "≥1k×" : `≥${m.slice(1)}×`;
 }
 
 /* ═══ AGG / PASSIVE PROXY ══════════════════════════════════════════════════ */
