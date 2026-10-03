@@ -198,7 +198,7 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
                   minWidth: 44,
                   minHeight: 44,
                   padding: "8px",
-                  fontSize: 8,
+                  fontSize: 9,
                   letterSpacing: 0.3,
                   textTransform: "uppercase",
                   fontFamily: "Georgia, 'Times New Roman', serif",
@@ -242,13 +242,13 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
 
               {/* Probability labels */}
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ fontSize: 8, color: "#00A86B", fontWeight: 700 }}>BULL {d.bullP.toFixed(0)}%</span>
-                <span style={{ fontSize: 8, color: "#CC1414", fontWeight: 700 }}>BEAR {d.bearP.toFixed(0)}%</span>
-                <span style={{ fontSize: 8, color: WM.text.muted, fontWeight: 700 }}>SIDE {d.sideP.toFixed(0)}%</span>
+                <span style={{ fontSize: 9, color: "#00A86B", fontWeight: 700 }}>BULL {d.bullP.toFixed(0)}%</span>
+                <span style={{ fontSize: 9, color: "#CC1414", fontWeight: 700 }}>BEAR {d.bearP.toFixed(0)}%</span>
+                <span style={{ fontSize: 9, color: WM.text.muted, fontWeight: 700 }}>SIDE {d.sideP.toFixed(0)}%</span>
               </div>
 
               {/* 3x3 Transition matrix mini */}
-              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 1fr 1fr", gap: 2, fontSize: 7, fontFamily: "monospace" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 1fr 1fr", gap: 2, fontSize: 9, fontFamily: "monospace" }}>
                 <div style={{ color: WM.text.muted }} />
                 {["→BULL","→BEAR","→SIDE"].map(h => (
                   <div key={h} style={{ color: WM.text.muted, textAlign: "center" }}>{h}</div>
@@ -272,9 +272,9 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
 
               {/* Bottom: edge + trend */}
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                <span style={{ fontSize: 8, color: WM.gold.mark, fontWeight: 700 }}>EDGE {d.edge.toFixed(1)}%</span>
-                <span style={{ fontSize: 8, color: WM.text.muted }}>TREND {d.trend}</span>
-                <span style={{ fontSize: 8, color: WM.text.body }}>{tf}</span>
+                <span style={{ fontSize: 9, color: WM.gold.mark, fontWeight: 700 }}>EDGE {d.edge.toFixed(1)}%</span>
+                <span style={{ fontSize: 9, color: WM.text.muted }}>TREND {d.trend}</span>
+                <span style={{ fontSize: 9, color: WM.text.body }}>{tf}</span>
               </div>
               </> : <div
                 role="status"
@@ -329,7 +329,7 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 11, fontWeight: 900, color: WM.text.hero }}>{sym}</span>
         <span style={{ fontSize: 9, color: WM.text.muted }}>{currentPrice ? `$${currentPrice.toFixed(2)}` : "Price not yet observed"}</span>
-        <span style={{ marginLeft: "auto", fontSize: 8, color: WM.gold.mark, fontWeight: 700 }}>POC</span>
+        <span style={{ marginLeft: "auto", fontSize: 9, color: WM.gold.mark, fontWeight: 700 }}>POC</span>
       </div>
 
       {/* VP bars from top (high) to bottom (low) */}
@@ -353,7 +353,7 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
                          : "rgba(0,212,170,0.55)";
           return (
             <div key={revI} style={{ display: "flex", alignItems: "center", gap: 4, height: 10 }}>
-              <span style={{ width: 44, fontSize: 6.5, color: isPOC ? WM.gold.mark : WM.text.muted, textAlign: "right", flexShrink: 0, fontFamily: "monospace" }}>
+              <span style={{ width: 58, fontSize: 9, color: isPOC ? WM.gold.mark : WM.text.muted, textAlign: "right", flexShrink: 0, fontFamily: "monospace" }}>
                 {price.toFixed(2)}
               </span>
               <div style={{ flex: 1, height: 7, background: "rgba(255,255,255,0.03)", borderRadius: 1, overflow: "hidden", position: "relative" }}>
@@ -368,7 +368,7 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
                     quieter one. Two weights of one metal, not two metals. */}
                 {isCur && <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 1.5, background: WM.gold.hero }} />}
               </div>
-              <span style={{ width: 22, fontSize: 6, color: WM.text.muted, textAlign: "right", flexShrink: 0 }}>
+              <span style={{ width: 30, fontSize: 9, color: WM.text.muted, textAlign: "right", flexShrink: 0 }}>
                 {vol >= 1_000_000 ? `${(vol/1_000_000).toFixed(1)}m` : vol >= 1_000 ? `${(vol/1_000).toFixed(0)}k` : vol.toFixed(0)}
               </span>
             </div>
@@ -378,7 +378,7 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
       </div>
 
       {/* Value Area */}
-      <div style={{ display: "flex", gap: 8, marginTop: 6, paddingTop: 5, borderTop: "1px solid rgba(255,255,255,0.05)", fontSize: 7, color: WM.text.muted }}>
+      <div style={{ display: "flex", gap: 8, marginTop: 6, paddingTop: 5, borderTop: "1px solid rgba(255,255,255,0.05)", fontSize: 9, color: WM.text.muted }}>
         <span>Bar-derived profile</span>
         <span>Observed OHLCV</span>
         <span>Not tick-at-price</span>
@@ -410,7 +410,7 @@ function VPHeatmap({ tf }: { tf: string }) {
     <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, height: "100%", overflowY: "auto" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
         <span style={{ fontSize: 11, fontWeight: 900, color: WM.gold.mark, letterSpacing: 1 }}>VOLUME PROFILE HEATMAP</span>
-        <div style={{ display: "flex", gap: 8, fontSize: 8, color: WM.text.muted }}>
+        <div style={{ display: "flex", gap: 8, fontSize: 9, color: WM.text.muted }}>
           <span style={{ color: WM.gold.mark }}>▬ POC</span>
           <span style={{ color: "#FF4D6A" }}>■ Above</span>
           <span style={{ color: "#00D4AA" }}>■ Below</span>
