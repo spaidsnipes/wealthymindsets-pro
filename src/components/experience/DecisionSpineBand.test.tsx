@@ -831,7 +831,8 @@ describe("DecisionSpineBand — WAIT declares whether it is finished (canon 064/
   it("plate 96: a drawn bracketed plan is named in Risk, never as Available R", () => {
     const plan = { version: 1, drawn: true, reason: "BRACKETED", plans: 1, side: "LONG", entry: 100, stop: 98, target: 104, riskPerUnit: 2, riskPct: null, rewardPerUnit: 4, rr: 2, live: null, entryAt: null, stopAt: null, targetAt: null, state: null, refusals: [] } as const;
     const html = render({ availableR: null, drawnPlan: plan as never });
-    expect(html).toContain("Drawn LONG plan on price: entry 100 · stop 98 · risk 2.00/unit · target 2.00R");
+    expect(render({ availableR: null, drawnPlan: { ...plan, entry: 84742.35689581465 } as never })).toContain("entry 84,742.36");
+    expect(html).toContain("Drawn LONG plan on price: entry 100.00 · stop 98.00 · risk 2.00/unit · target 2.00R");
     expect(html).toContain("not an input to right-of-way");
     expect(html).toContain("Available R UNKNOWN");
     const none = render({ availableR: null, drawnPlan: { ...plan, reason: "NO_STOP_ON_DRAWING" } as never });

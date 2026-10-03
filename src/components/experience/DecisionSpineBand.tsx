@@ -662,6 +662,12 @@ const NOW_TOKEN_TONE: Record<"established" | "unestablished", React.CSSPropertie
  * so a naive `toFixed` would throw and a naive `?? 0` would fabricate a flat
  * risk-to-reward. Both are refused here.
  */
+/** A drawn level at traded precision — the chart's chip says 84,742.36, so must this. */
+function planPx(p: number | null): string {
+  if (p === null || !Number.isFinite(p)) return "—";
+  return p.toLocaleString("en-US", { minimumFractionDigits: Math.abs(p) >= 1 ? 2 : 0, maximumFractionDigits: Math.abs(p) >= 1 ? 2 : 6 });
+}
+
 function rText(v: number | "UNKNOWN" | undefined): string {
   if (v === undefined || v === "UNKNOWN") return "UNKNOWN";
   return `${v.toFixed(2)}R`;
@@ -818,7 +824,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const drawnPlan = props.drawnPlan && props.drawnPlan.drawn && props.drawnPlan.reason === "BRACKETED"
     && props.drawnPlan.entry !== null && props.drawnPlan.stop !== null ? props.drawnPlan : null;
   const availableRDetail = !availableR && drawnPlan
-    ? `Drawn ${drawnPlan.side ?? ""} plan on price: entry ${drawnPlan.entry} · stop ${drawnPlan.stop}`
+    ? `Drawn ${drawnPlan.side ?? ""} plan on price: entry ${planPx(drawnPlan.entry)} · stop ${planPx(drawnPlan.stop)}`
       + (drawnPlan.riskPerUnit !== null ? ` · risk ${drawnPlan.riskPerUnit.toFixed(2)}/unit` : "")
       + (drawnPlan.rr !== null ? ` · target ${drawnPlan.rr.toFixed(2)}R` : "")
       + ". It is your plan on the chart — not an input to right-of-way, so Available R stays UNKNOWN."
