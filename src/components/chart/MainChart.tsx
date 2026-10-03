@@ -8434,7 +8434,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         });
 
         // The inscription's own font, so what is measured is what is painted.
-        const inscriptionFont = (px: number, weight: 600 | 700) => `${weight} ${px}px Inter, ui-sans-serif, system-ui, sans-serif`;
+        const inscriptionFont = (px: number, weight: 600 | 700) => `${weight} ${px}px ${MARKET_SANS}`;
         const measureInscription = (text: string, px: number, weight: 600 | 700) => {
           ctx.font = inscriptionFont(px, weight);
           return ctx.measureText(text).width;
@@ -12065,7 +12065,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.globalAlpha = att.textAlpha("anatomyCards");
                 const cw = 292, ch = 188, gap = 12;
                 const top = Math.max(200, H - 190 - ch);
-                const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
+                const font = (w: number, px: number) => `${w} ${px}px ${MARKET_SANS}`;
                 // The Question Lens owns the left column (strip, debt, control);
                 // the cards step right of it rather than printing over it.
                 let cardsLeft = layerOnRef.current.questionLens === true ? 322 : 12;
@@ -12727,7 +12727,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ctx.font = marketFont("OBJECT_NAME");
                     ctx.fillStyle = "rgba(201,165,92,0.9)";
                     ctx.fillText(head, x + 14, by + 15);
-                    ctx.font = `600 ${bodyPx}px ui-sans-serif, system-ui, sans-serif`;
+                    ctx.font = `600 ${bodyPx}px ${MARKET_SANS}`;
                     let t = body;
                     while (t.length > 4 && ctx.measureText(t).width > w - 24) t = t.slice(0, -2);
                     if (t !== body) t = t.slice(0, -1) + "…";
@@ -12880,7 +12880,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const DIM = "rgba(200,192,174,0.8)";
                 const HAIR = "rgba(201,165,92,0.6)";
                 const panel = (a: number) => `rgba(11,10,8,${a})`;
-                const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
+                const font = (w: number, px: number) => `${w} ${px}px ${MARKET_SANS}`;
                 const clip = (t: string, max: number) => {
                   if (ctx.measureText(t).width <= max) return t;
                   let u = t;
@@ -16666,7 +16666,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.save();
             ctx.globalAlpha = att.textAlpha("contradiction");
             ctx.textBaseline = "middle";
-            const font = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
+            const font = (w: number, px: number) => `${w} ${px}px ${MARKET_SANS}`;
             let placed = "CHIP";
             if (cv.state === "UNRESOLVED" && cv.bandLow != null && cv.bandHigh != null && lastC) {
               const tsC = chart.timeScale();
@@ -21415,7 +21415,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const rv = selectRiskOnPrice(plansR, bsR, bsR.length ? bsR[bsR.length - 1].close : null);
           onRiskOnPriceRef.current?.(rv);
           ds.riskOnPrice = rv.drawn ? `${rv.side}:${rv.state}` : rv.reason;
-          const fontR = (w: number, px: number) => `${w} ${px}px ui-sans-serif, system-ui, sans-serif`;
+          const fontR = (w: number, px: number) => `${w} ${px}px ${MARKET_SANS}`;
           let axisWR = 60;
           try { axisWR = chart.priceScale("right").width(); } catch { /* keep default */ }
           const plotRightR = Math.max(8, W - axisWR);
@@ -22389,7 +22389,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
     };
     const chip = (txt: string, x: number, y: number, colr: string) => {
-      ctx.setLineDash([]); ctx.font = "600 10px ui-sans-serif, system-ui";
+      ctx.setLineDash([]); ctx.font = `600 10px ${MARKET_SANS}`;
       const w = ctx.measureText(txt).width + 8;
       ctx.fillStyle = "rgba(10,12,20,0.85)"; roundRect(x, y - 13, w, 15, 3); ctx.fill();
       ctx.fillStyle = colr; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(txt, x + 4, y - 5);
@@ -22662,7 +22662,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.strokeStyle = col + "66"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
             ctx.beginPath(); ctx.moveTo(midX, ry); ctx.lineTo(midX, ry + rh); ctx.stroke(); ctx.setLineDash([]);
             chip(dvpSplitChip(coverage, side, dvp.totalDelta), rx + 2, ry - 3, col);
-            ctx.font = "9px ui-sans-serif"; ctx.textBaseline = "top";
+            ctx.font = `9px ${MARKET_SANS}`; ctx.textBaseline = "top";
             ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 2; ctx.fillStyle = "#8B95A5"; ctx.textAlign = "center";
             if (leftW  > DVP_MIN_CAPTION_W) ctx.fillText("DELTA",  (rx + midX) / 2, ry + 2);
             if (rightW > DVP_MIN_CAPTION_W) ctx.fillText("VOLUME", (midX + rx + rw) / 2, ry + 2);
@@ -22722,7 +22722,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       else if (t === "gann-box" || t === "gann-square" || t === "gann-square-fixed") { if (A && B) { const x0 = Math.min(A.x, B.x), y0 = Math.min(A.y, B.y), w = Math.abs(B.x - A.x), h = Math.abs(B.y - A.y); ctx.strokeRect(x0, y0, w, h); ctx.save(); ctx.globalAlpha = 0.45; [0.25, 0.5, 0.75].forEach(f => { seg({ x: x0 + w * f, y: y0 }, { x: x0 + w * f, y: y0 + h }); seg({ x: x0, y: y0 + h * f }, { x: x0 + w, y: y0 + h * f }); }); ctx.globalAlpha = 0.7; seg({ x: x0, y: y0 }, { x: x0 + w, y: y0 + h }); seg({ x: x0, y: y0 + h }, { x: x0 + w, y: y0 }); ctx.restore(); } }
       else if (t === "gann-fan") { if (A && B) { const w = B.x - A.x, h = B.y - A.y; ([[1, 1], [1, 2], [1, 3], [1, 4], [2, 1], [3, 1], [4, 1]] as number[][]).forEach(([p, q], i) => { ctx.save(); if (!(p === 1 && q === 1)) ctx.globalAlpha = 0.6; seg(A, rayToEdge(A, w, h * (q / p))); ctx.restore(); }); } }
       // ── PATTERNS / ELLIOTT (labeled polyline) ──
-      else if (PATTERN_LABELS[t]) { const labels = PATTERN_LABELS[t]; ctx.beginPath(); let started = false; P.forEach(q => { if (!q) return; if (!started) { ctx.moveTo(q.x, q.y); started = true; } else ctx.lineTo(q.x, q.y); }); ctx.stroke(); if (t === "head-shoulders" && P[2] && P[4]) { ctx.save(); ctx.globalAlpha = 0.7; ctx.setLineDash([5, 4]); seg(P[2]!, P[4]!); ctx.restore(); } P.forEach((q, i) => { if (!q) return; const lb = labels[i]; if (lb) { ctx.fillStyle = col; ctx.font = "700 11px ui-sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText(lb, q.x, q.y - 6); } ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(q.x, q.y, 3, 0, Math.PI * 2); ctx.fill(); }); }
+      else if (PATTERN_LABELS[t]) { const labels = PATTERN_LABELS[t]; ctx.beginPath(); let started = false; P.forEach(q => { if (!q) return; if (!started) { ctx.moveTo(q.x, q.y); started = true; } else ctx.lineTo(q.x, q.y); }); ctx.stroke(); if (t === "head-shoulders" && P[2] && P[4]) { ctx.save(); ctx.globalAlpha = 0.7; ctx.setLineDash([5, 4]); seg(P[2]!, P[4]!); ctx.restore(); } P.forEach((q, i) => { if (!q) return; const lb = labels[i]; if (lb) { ctx.fillStyle = col; ctx.font = `700 11px ${MARKET_SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText(lb, q.x, q.y - 6); } ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(q.x, q.y, 3, 0, Math.PI * 2); ctx.fill(); }); }
       // ── CYCLES ──
       else if (t === "cyclic-lines" || t === "time-cycles") { if (A && B) { const step = Math.abs(B.x - A.x) || 12; const startX = Math.min(A.x, B.x); ctx.setLineDash([4, 3]); for (let k = 0; k < 400; k++) { const xx = startX + step * k; if (xx > W) break; if (xx >= 0) seg({ x: xx, y: 0 }, { x: xx, y: H }); } } }
       else if (t === "sine-line") { if (A && B) { const wav = Math.abs(B.x - A.x) || 40, amp = Math.abs(B.y - A.y) || 20; ctx.beginPath(); let first = true; for (let x = 0; x <= W; x += 3) { const y = A.y + amp * Math.sin((x - A.x) / wav * Math.PI * 2); if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y); } ctx.stroke(); } }
@@ -22734,9 +22734,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // ── FREEHAND / POLYLINE ──
       else if (t === "brush" || t === "highlighter" || t === "polyline" || t === "path") { const Q = P.filter(Boolean) as Pt[]; if (t === "highlighter") { ctx.globalAlpha = 0.35; ctx.lineWidth = Math.max(8, s.width); } if (Q.length >= 2) { ctx.beginPath(); Q.forEach((q, i) => i === 0 ? ctx.moveTo(q.x, q.y) : ctx.lineTo(q.x, q.y)); ctx.stroke(); } else if (Q.length === 1) { ctx.beginPath(); ctx.arc(Q[0].x, Q[0].y, 2, 0, Math.PI * 2); ctx.fill(); } }
       // ── TEXT & MARKERS ──
-      else if (t === "text") { if (A) { ctx.setLineDash([]); ctx.fillStyle = col; ctx.font = "600 14px ui-sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText(d.text || "Text", A.x, A.y); } }
-      else if (t === "note" || t === "comment" || t === "price-note" || t === "signpost") { if (A) { ctx.setLineDash([]); const txt = d.text || (t === "price-note" ? d.pts[0].price.toFixed(dec) : t.charAt(0).toUpperCase() + t.slice(1)); const icon = t === "comment" ? "💬 " : t === "note" ? "📝 " : t === "signpost" ? "🪧 " : "🏷 "; ctx.font = "600 12px ui-sans-serif"; const w = ctx.measureText(icon + txt).width + 14, h = 20; ctx.fillStyle = "rgba(15,18,28,0.92)"; ctx.strokeStyle = col; roundRect(A.x, A.y, w, h, 4); ctx.fill(); ctx.stroke(); ctx.fillStyle = col; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(icon + txt, A.x + 6, A.y + h / 2); } }
-      else if (t === "callout") { if (A) { const q2 = B || A; ctx.setLineDash([]); seg(A, q2); const txt = d.text || "Callout"; ctx.font = "600 12px ui-sans-serif"; const w = ctx.measureText(txt).width + 16; ctx.fillStyle = "rgba(15,18,28,0.92)"; ctx.strokeStyle = col; roundRect(q2.x, q2.y - 11, w, 22, 4); ctx.fill(); ctx.stroke(); ctx.fillStyle = col; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(txt, q2.x + 8, q2.y); } }
+      else if (t === "text") { if (A) { ctx.setLineDash([]); ctx.fillStyle = col; ctx.font = `600 14px ${MARKET_SANS}`; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText(d.text || "Text", A.x, A.y); } }
+      else if (t === "note" || t === "comment" || t === "price-note" || t === "signpost") { if (A) { ctx.setLineDash([]); const txt = d.text || (t === "price-note" ? d.pts[0].price.toFixed(dec) : t.charAt(0).toUpperCase() + t.slice(1)); const icon = t === "comment" ? "💬 " : t === "note" ? "📝 " : t === "signpost" ? "🪧 " : "🏷 "; ctx.font = `600 12px ${MARKET_SANS}`; const w = ctx.measureText(icon + txt).width + 14, h = 20; ctx.fillStyle = "rgba(15,18,28,0.92)"; ctx.strokeStyle = col; roundRect(A.x, A.y, w, h, 4); ctx.fill(); ctx.stroke(); ctx.fillStyle = col; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(icon + txt, A.x + 6, A.y + h / 2); } }
+      else if (t === "callout") { if (A) { const q2 = B || A; ctx.setLineDash([]); seg(A, q2); const txt = d.text || "Callout"; ctx.font = `600 12px ${MARKET_SANS}`; const w = ctx.measureText(txt).width + 16; ctx.fillStyle = "rgba(15,18,28,0.92)"; ctx.strokeStyle = col; roundRect(q2.x, q2.y - 11, w, 22, 4); ctx.fill(); ctx.stroke(); ctx.fillStyle = col; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(txt, q2.x + 8, q2.y); } }
       else if (t === "pin" || t === "flag") { if (A) { ctx.font = "18px serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillText(t === "pin" ? "📍" : "🚩", A.x, A.y); } }
       else if (t === "price-label") { if (A) { ctx.setLineDash([]); const txt = (d.text ? d.text + " " : "") + d.pts[0].price.toFixed(dec); ctx.font = "700 11px monospace"; const w = ctx.measureText(txt).width + 12; ctx.fillStyle = col; roundRect(A.x, A.y - 9, w, 18, 3); ctx.fill(); ctx.fillStyle = "#0A0C14"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(txt, A.x + 6, A.y); } }
       else if (t === "arrow-up") { if (A) { ctx.setLineDash([]); ctx.fillStyle = "#00C076"; ctx.beginPath(); ctx.moveTo(A.x, A.y - 12); ctx.lineTo(A.x - 7, A.y); ctx.lineTo(A.x + 7, A.y); ctx.closePath(); ctx.fill(); } }
