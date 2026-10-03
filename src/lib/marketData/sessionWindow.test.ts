@@ -12,7 +12,7 @@ describe("each market gets its own session definition, named", () => {
     expect(sessionWindowFor("AAPL", "5m", true).label).toBe("SESSION · ETH 04:00–20:00 ET");
     expect(sessionWindowFor("/ES", "5m", false).kind).toBe("GLOBEX_DAY");
     expect(sessionWindowFor("EURUSD=X", "5m", false).kind).toBe("FX_DAY");
-    expect(sessionWindowFor("BTC-USD", "1m", false).label).toMatch(/continuous market, no venue session/);
+    expect(sessionWindowFor("BTC-USD", "1m", false).label).toMatch(/^DAY · 00:00 UTC/);
     expect(sessionWindowFor("BTC-USD", "1D", false)).toMatchObject({ kind: "DAILY_WINDOW", windowBars: 5 });
   });
 
@@ -60,11 +60,14 @@ describe("each market gets its own session definition, named", () => {
     expect(selectSessionWindowBars(bars, rth).map(b => b.time)).toEqual(yesterday);
   });
 
-  it("a continuous market uses the ET calendar day, and says it is the chart's day", () => {
+  it("crypto's day is the UTC day (Founder ruling 2026-10-02), and the label says so", () => {
     const w = sessionWindowFor("BTC-USD", "1m", false);
-    expect(sessionKeyOf(et(13, 23, 59), w)).toBe("2026-01-13");
-    expect(sessionKeyOf(et(14, 0, 0), w)).toBe("2026-01-14");
-    expect(w.label).toMatch(/^DAY · ET MIDNIGHT/);
+    expect(w.kind).toBe("CRYPTO_UTC_DAY");
+    // January: 00:00 UTC = 19:00 ET.
+    expect(sessionKeyOf(et(13, 18, 59), w)).toBe("2026-01-13");
+    expect(sessionKeyOf(et(13, 19, 0), w)).toBe("2026-01-14");
+    expect(sessionKeyOf(et(13, 23, 59), w)).toBe("2026-01-14");
+    expect(w.label).toMatch(/^DAY · 00:00 UTC/);
   });
 
   it("daily-or-longer is a named window of the latest bars", () => {

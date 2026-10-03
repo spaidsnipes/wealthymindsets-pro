@@ -71,6 +71,7 @@ const none = (reason: Exclude<CompositeReason, "DRAWN">): CompositeProfileVM => 
 
 export function selectCompositeProfile(
   input: readonly LegacyOhlcvTuple[] | null | undefined,
+  dayKey?: (sec: number) => string,
 ): CompositeProfileVM {
   const bars = (input ?? [])
     .filter(b => Number.isFinite(b.time) && Number.isFinite(b.high) && Number.isFinite(b.low) && b.high >= b.low)
@@ -78,7 +79,7 @@ export function selectCompositeProfile(
     .sort((a, b) => a.time - b.time);
   if (bars.length === 0) return none("NO_BARS");
 
-  const sessionOf = sessionsByGap(bars.map(b => b.time));
+  const sessionOf = sessionsByGap(bars.map(b => b.time), dayKey);
   const current = sessionOf[sessionOf.length - 1];
   if (current === 0) return none("NO_COMPLETED_SESSION");
 

@@ -103,17 +103,19 @@ describe("only COMPLETE higher-timeframe bars count", () => {
     expect(completeHtfBars(eth, "D", TSLA_ETH, M15, 1)[0].high).toBe(150);
   });
 
-  it("crypto 24/7: the day is the ET calendar day, whole only from ET midnight", () => {
+  it("crypto 24/7: the day is the UTC day, whole only from 00:00 UTC", () => {
     const mk = (from: number, n: number): MtfBar[] =>
       Array.from({ length: n }, (_, k) => ({ time: from + k * M15, open: 50, high: 51 + (k % 7), low: 49, close: 50, volume: 5 }));
-    const fromMidnight = mk(et(12, 0, 0), 96 + 8); // the 12th whole, then 2h of the 13th
+    const utc = (day: number, hh: number, mm = 0) => Date.UTC(2026, 0, day, hh, mm) / 1000;
+    const fromMidnight = mk(utc(12, 0, 0), 96 + 8); // the 12th whole (UTC), then 2h of the 13th
     expect(completeHtfBars(fromMidnight, "D", BTC, M15, 3).map(d => d.key)).toEqual(["2026-01-12"]);
     expect(completeHtfBars(fromMidnight, "D", BTC, M15, 1)[0].bars).toBe(96);
-    const fromAfternoon = mk(et(12, 13, 15), 60);
+    const fromAfternoon = mk(utc(12, 13, 15), 60);
     expect(completeHtfBars(fromAfternoon, "D", BTC, M15, 3)).toHaveLength(0);
-    // 4H is clock-aligned on the ET day: 12:00–16:00 is truncated (history
-    // began 13:15); 00:00–04:00 is closed by the 04:00 bar; 04:00–08:00 forms.
-    expect(completeHtfBars(fromAfternoon, "4H", BTC, M15, 9).map(b => b.firstTime)).toEqual([et(13, 0, 0), et(12, 20, 0), et(12, 16, 0)]);
+    // 4H is clock-aligned on the UTC day: 12:00–16:00 is truncated (history
+    // began 13:15); 16:00–20:00, 20:00–24:00 and 00:00–04:00 are closed by the
+    // 04:00 bar; 04:00–08:00 forms.
+    expect(completeHtfBars(fromAfternoon, "4H", BTC, M15, 9).map(b => b.firstTime)).toEqual([utc(13, 0, 0), utc(12, 20, 0), utc(12, 16, 0)]);
   });
 });
 

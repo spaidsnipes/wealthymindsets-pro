@@ -166,7 +166,7 @@ import type {
 } from "@/lib/marketData/canonicalBar";
 import { buildInspectChain } from "@/lib/marketData/inspectChain";
 import { selectObjectLineage, selectZoneLineage } from "@/lib/marketData/viewModels/selectZoneLineage";
-import { selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
+import { continuousDayKeyFor, selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { memoryLevelKindOf, selectMemoryMarketObjects } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
 import { selectLivingBiography } from "@/lib/marketData/viewModels/selectLivingBiography";
 import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStanding";
@@ -1817,8 +1817,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         time: typeof b.time === "number" ? b.time : Number(b.time),
         open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
       })),
+      // Crypto's day is 00:00 UTC (no gap in a 24/7 feed marks it).
+      continuousDayKeyFor(symbol),
     ),
-    [volumeBars],
+    [volumeBars, symbol],
   );
 
   /** P-110 #4 — prior sessions' FINAL migration value, carried forward. */
@@ -2332,8 +2334,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         time: typeof b.time === "number" ? b.time : Number(b.time),
         open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
       })),
+      // Crypto's day is 00:00 UTC (no gap in a 24/7 feed marks it).
+      continuousDayKeyFor(symbol),
     ),
-    [volumeBars],
+    [volumeBars, symbol],
   );
   // What each profile species' own selector refused, so the Profiles door
   // says "DATA REFUSES · <why>" instead of READY over an empty lane.

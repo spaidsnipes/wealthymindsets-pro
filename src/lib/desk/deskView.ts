@@ -20,7 +20,7 @@ import selectProfileMemory from "@/lib/marketData/viewModels/selectProfileMemory
 import selectCompositeProfile from "@/lib/marketData/viewModels/selectCompositeProfile";
 import selectProfileFusion, { type FusionSourceLevel } from "@/lib/marketData/viewModels/selectProfileFusion";
 import { selectLiquidityLifecycle } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
-import { selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
+import { continuousDayKeyFor, selectSessionWindowBars, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { volumeBearingBars } from "@/lib/chart/volumeTruth";
 
@@ -104,9 +104,9 @@ export function compileDeskBarReadings(symbol: string, bars: readonly LegacyOhlc
   const living = selectLivingProfile(buildLivingProfileSnapshot(null, selectSessionWindowBars([...volumeBars], sessionWindowFor(symbol, timeframe, false))));
   const livingProfileGlass = selectLivingProfileGlass(living);
   const profileDna = living.measured ? selectProfileDna({ curve: living.curve, poc: living.poc, vah: living.vah, val: living.val, bars: bars.length, estimated: living.quality !== "trade-based", rowStep: living.tickSize }) : selectProfileDna(null);
-  const valueMigration = selectValueMigration(volumeBars);
+  const valueMigration = selectValueMigration(volumeBars, continuousDayKeyFor(symbol));
   const profileMemory = selectProfileMemory(valueMigration, bars);
-  const compositeProfile = selectCompositeProfile(volumeBars);
+  const compositeProfile = selectCompositeProfile(volumeBars, continuousDayKeyFor(symbol));
   return {
     tpo, weather: selectLiquidityWeatherFromBars(volumeBars),
     livingProfileGlass, marketStructureGlass: selectMarketStructureGlass(structure),

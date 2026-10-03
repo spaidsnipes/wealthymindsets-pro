@@ -84,6 +84,7 @@ const empty = (reason: Exclude<ValueMigrationReason, "DRAWN">): ValueMigrationVM
 
 export function selectValueMigration(
   input: readonly LegacyOhlcvTuple[] | null | undefined,
+  dayKey?: (sec: number) => string,
 ): ValueMigrationVM {
   const bars = (input ?? [])
     .filter(b => Number.isFinite(b.time) && Number.isFinite(b.high) && Number.isFinite(b.low) && b.high >= b.low)
@@ -115,7 +116,7 @@ export function selectValueMigration(
   const priceAt = (i: number) => +((base + i * tick).toFixed(10));
 
   // RULE 3 — the ONE session splitter the profile family shares.
-  const sessionOf = sessionsByGap(bars.map(b => b.time));
+  const sessionOf = sessionsByGap(bars.map(b => b.time), dayKey);
 
   const points: ValueMigrationPoint[] = [];
   let vol = new Float64Array(n);

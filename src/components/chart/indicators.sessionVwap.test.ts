@@ -63,11 +63,10 @@ describe("sessionVwap — equities reset at the RTH open", () => {
 });
 
 describe("sessionVwap — a 24/7 market resets at the owner's day boundary", () => {
-  it("crypto resets where sessionKeyOf changes day, not mid-day", () => {
+  it("crypto resets at 00:00 UTC (20:00 ET in September), not mid-day", () => {
     const win = sessionWindowFor("BTCUSD", "15m", false);
-    expect(win.kind).toBe("CONTINUOUS_ET_DAY");
-    // 23:30 and 23:45 ET on the 21st, then 00:00 and 00:15 ET on the 22nd.
-    const bars = [bar(et(21, 23, 30), 100, 10), bar(et(21, 23, 45), 110, 30), bar(et(22, 0, 0), 200, 5), bar(et(22, 0, 15), 210, 5)];
+    expect(win.kind).toBe("CRYPTO_UTC_DAY");
+    const bars = [bar(et(21, 19, 30), 100, 10), bar(et(21, 19, 45), 110, 30), bar(et(21, 20, 0), 200, 5), bar(et(21, 20, 15), 210, 5)];
     expect(sessionKeyOf(bars[1].time, win)).not.toBe(sessionKeyOf(bars[2].time, win));
     const out = sessionVwap(bars, win)!;
     expect(out.vwap[1]).toBeCloseTo(refVwap(bars.slice(0, 2)), 10);
@@ -76,9 +75,9 @@ describe("sessionVwap — a 24/7 market resets at the owner's day boundary", () 
     expect(out.breakAfter).toEqual([false, true, false, false]);
   });
 
-  it("does NOT reset inside one owner day (a 20:00 ET / 00:00 UTC bar continues)", () => {
+  it("does NOT reset at ET midnight — inside one UTC day", () => {
     const win = sessionWindowFor("BTCUSD", "15m", false);
-    const bars = [bar(et(21, 19, 45), 100, 10), bar(et(21, 20, 0), 200, 10)];
+    const bars = [bar(et(21, 23, 45), 100, 10), bar(et(22, 0, 0), 200, 10)];
     expect(sessionKeyOf(bars[0].time, win)).toBe(sessionKeyOf(bars[1].time, win));
     expect(sessionVwap(bars, win)!.vwap[1]).toBeCloseTo(150, 10);
   });

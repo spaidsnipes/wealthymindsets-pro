@@ -23,7 +23,7 @@ import { DataVersionGuard } from "@/lib/chartContext";
 import { liveBarIsStale, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketData/tapeCvd";
-import { selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "@/lib/marketData/sessionWindow";
+import { continuousDayKeyFor, selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { nearestFreeLabelY } from "@/lib/chart/labelSlot";
 import {
   PHASE_WORD, PHASE_MEANING, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
@@ -17312,7 +17312,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // tape of a finished session is gone; the receipt says so).
             if (layerOnRef.current.profileMemory && att.paints("sessionGhosts")) {
               const ghostSrc = barsRef.current ?? [];
-              if (ghostCache?.source !== ghostSrc) ghostCache = { source: ghostSrc, vm: selectSessionGhostProfiles(ghostSrc) };
+              if (ghostCache?.source !== ghostSrc) ghostCache = { source: ghostSrc, vm: selectSessionGhostProfiles(ghostSrc, undefined, continuousDayKeyFor(symbol)) };
               const gvm = ghostCache.vm;
               // Memory sits below the present: the ghosts take the governor's
               // MEMORY alpha, not the Living lane's they are drawn inside.

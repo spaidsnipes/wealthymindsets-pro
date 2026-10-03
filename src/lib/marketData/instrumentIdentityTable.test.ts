@@ -69,8 +69,8 @@ const TABLE: readonly Row[] = [
   { sym: "XAUUSD",  canonical: "forex",   klass: "FOREX",   yahoo: "REFUSED:GC1!", finnhub: null, session: "FX_DAY" },
   // Crypto — continuous; Finnhub's free crypto tier is Binance's USDT book, a
   // quote-currency substitution the route discloses on every response.
-  { sym: "BTC-USD", canonical: "crypto",  klass: "CRYPTO",  yahoo: "BTC-USD",  finnhub: "BINANCE:BTCUSDT", session: "CONTINUOUS_ET_DAY" },
-  { sym: "ETH-USD", canonical: "crypto",  klass: "CRYPTO",  yahoo: "ETH-USD",  finnhub: "BINANCE:ETHUSDT", session: "CONTINUOUS_ET_DAY" },
+  { sym: "BTC-USD", canonical: "crypto",  klass: "CRYPTO",  yahoo: "BTC-USD",  finnhub: "BINANCE:BTCUSDT", session: "CRYPTO_UTC_DAY" },
+  { sym: "ETH-USD", canonical: "crypto",  klass: "CRYPTO",  yahoo: "ETH-USD",  finnhub: "BINANCE:ETHUSDT", session: "CRYPTO_UTC_DAY" },
 ];
 
 function yahooAnswer(sym: string): string {

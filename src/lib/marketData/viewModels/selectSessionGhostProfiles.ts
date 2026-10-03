@@ -52,12 +52,13 @@ const none = (reason: Exclude<SessionGhostReason, "DRAWN">): SessionGhostVM => (
 export function selectSessionGhostProfiles(
   bars: readonly LegacyOhlcvTuple[] | null | undefined,
   maxSessions = MAX_GHOST_SESSIONS,
+  dayKey?: (sec: number) => string,
 ): SessionGhostVM {
   const sorted = [...(bars ?? [])]
     .filter(b => Number.isFinite(b.time) && Number.isFinite(b.high) && Number.isFinite(b.low) && b.high >= b.low)
     .sort((a, b) => a.time - b.time);
   if (sorted.length === 0) return none("NO_BARS");
-  const sessionOf = sessionsByGap(sorted.map(b => b.time));
+  const sessionOf = sessionsByGap(sorted.map(b => b.time), dayKey);
   const current = sessionOf[sessionOf.length - 1];
   if (current === 0) return none("NO_PRIOR_SESSION");
 

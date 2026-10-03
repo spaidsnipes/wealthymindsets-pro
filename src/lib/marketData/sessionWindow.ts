@@ -55,6 +55,7 @@ export type SessionWindowKind =
   | "CME_LIVESTOCK_DAY"
   | "FX_DAY"
   | "CONTINUOUS_ET_DAY"
+  | "CRYPTO_UTC_DAY"
   | "DAILY_WINDOW"
   | "NO_CLOCK";
 
@@ -183,6 +184,9 @@ export function sessionWindowFor(symbol: string, timeframe: string, extendedHour
     return { kind: "GLOBEX_DAY", label: "SESSION · GLOBEX 18:00–17:00 ET", windowBars: null, barMinutes };
   }
   if (cls === "FOREX") return { kind: "FX_DAY", label: "SESSION · FX DAY · 17:00 ET ROLL", windowBars: null, barMinutes };
+  // Crypto never closes; its day is the industry's UTC day — 00:00 UTC, the
+  // daily-candle boundary every major venue uses (Founder ruling 2026-10-02).
+  if (cls === "CRYPTO") return { kind: "CRYPTO_UTC_DAY", label: "DAY · 00:00 UTC · crypto trades around the clock", windowBars: null, barMinutes };
   return { kind: "CONTINUOUS_ET_DAY", label: "DAY · ET MIDNIGHT · continuous market, no venue session", windowBars: null, barMinutes };
 }
 
@@ -238,6 +242,8 @@ export function sessionKeyOf(sec: number, win: SessionWindow): string | null {
     }
     case "CONTINUOUS_ET_DAY":
       return etParts(sec).date;
+    case "CRYPTO_UTC_DAY":
+      return new Date(sec * 1000).toISOString().slice(0, 10);
     case "DAILY_WINDOW":
     case "NO_CLOCK":
       return null;
@@ -269,8 +275,9 @@ export function selectSessionWindowBars<B extends { readonly time: number | stri
  * `sessionKeyOf` says. `startSec` / `endSec` are the bucket's CLOCK edges,
  * not the first / last bar's.
  *
- * Crypto and other continuous markets are bucketed on the same ET clock (the
- * owner's CONTINUOUS_ET_DAY), not UTC — named, not hidden.
+ * Continuous markets other than crypto are bucketed on the ET clock (the
+ * owner's CONTINUOUS_ET_DAY); crypto's day is 00:00 UTC (CRYPTO_UTC_DAY) and
+ * its buckets split there because the session key does.
  */
 export interface ClockBucket {
   readonly key: string;
@@ -282,8 +289,20 @@ export function clockBucketOf(sec: number, win: SessionWindow, spanMinutes: numb
   if (!(spanMinutes > 0)) return null;
   const session = sessionKeyOf(sec, win);
   if (session == null) return null;
-  const p = etParts(sec);
+  // Crypto's buckets are aligned on its own UTC day (4H = 00:00, 04:00 … UTC).
+  const p = win.kind === "CRYPTO_UTC_DAY"
+    ? { date: new Date(sec * 1000).toISOString().slice(0, 10), minute: Math.floor((((sec % 86400) + 86400) % 86400) / 60) }
+    : etParts(sec);
   const idx = Math.floor(p.minute / spanMinutes);
   const startSec = sec - (p.minute - idx * spanMinutes) * 60 - (((sec % 60) + 60) % 60);
   return { key: `${session}|${p.date}|${spanMinutes}:${idx}`, startSec, endSec: startSec + spanMinutes * 60 };
+}
+
+/**
+ * The day boundary a 24/7 market's profile family should split on, or
+ * undefined where gaps in the bars already mark sessions. Only crypto has
+ * one today: 00:00 UTC.
+ */
+export function continuousDayKeyFor(symbol: string): ((sec: number) => string) | undefined {
+  return classifySymbol(symbol) === "CRYPTO" ? (sec: number) => new Date(sec * 1000).toISOString().slice(0, 10) : undefined;
 }
