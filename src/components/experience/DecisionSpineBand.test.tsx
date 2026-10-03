@@ -1296,3 +1296,21 @@ describe("F06A · the rail's footprint from the heard tape", () => {
     expect(code).toContain("if (now - footprintPublishRef.current.at > 2000) {");
   });
 });
+
+describe("§70 · today's rule state on the spine — rail card and band cell", () => {
+  const rs = { trades: 2, open: 0, net: -105, lastNet: -45, attemptState: "NEXT WOULD BE A THIRD" as const, stop: "REACHED" as const, shutdown: "CLEAR" as const, oneR: 50 };
+  it("rail: one card, the attempt state and the stated-1R lines; band: one compact cell", () => {
+    const railHtml = render({ presentation: "rail", ruleState: rs });
+    expect(railHtml.match(/data-testid="spine-rule-state"/g)).toHaveLength(1);
+    expect(railHtml).toContain("Next would be a third");
+    expect(railHtml).toContain("−2R stop (−$100.00): reached");
+    const bandHtml = render({ presentation: "band", ruleState: rs });
+    expect(bandHtml.match(/data-testid="spine-rule-state-band"/g)).toHaveLength(1);
+    expect(bandHtml).not.toContain('data-testid="spine-rule-state"');
+  });
+  it("no reading, or a replay camera, draws nothing", () => {
+    expect(render({ presentation: "rail", ruleState: null })).not.toContain("spine-rule-state");
+    expect(render({ presentation: "rail", ruleState: rs, replayEngaged: true })).not.toContain("spine-rule-state");
+    expect(render({ presentation: "band", ruleState: rs, replayEngaged: true })).not.toContain("spine-rule-state-band");
+  });
+});

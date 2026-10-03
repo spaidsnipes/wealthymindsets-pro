@@ -1802,6 +1802,20 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         </div>
       )}
 
+      {/* §70 on the band (phone / narrow / Options): the same "Today · your
+          rules" reading as the rail card, one compact cell. */}
+      {!rail && props.ruleState && !replayEngaged ? (
+        <div style={cellStyle} data-testid="spine-rule-state-band" data-attempt-state={props.ruleState.attemptState}>
+          <span style={LABEL}>Today · your rules</span>
+          <span style={VALUE}>
+            {props.ruleState.trades} trade{props.ruleState.trades === 1 ? "" : "s"} · {props.ruleState.net > 0 ? "+" : props.ruleState.net < 0 ? "−" : ""}${Math.abs(props.ruleState.net).toFixed(2)}
+          </span>
+          <span style={MUTED}>
+            {props.ruleState.attemptState === "NEXT IS THE SECOND" ? "Next is your second — fresh authorization" : props.ruleState.attemptState === "NEXT WOULD BE A THIRD" ? "Next would be a third — no third" : "Past your second — no third"}
+          </span>
+        </div>
+      ) : null}
+
       {/* THE HONESTY CHIP, RESTORED TO THE SPINE.
           WM_NewMockup_64_F24_Surface_One_Canvas names six things in this rail —
           DECISION_ID, STATE, MARKET, RISK, WHY, and the honesty chip — and the
