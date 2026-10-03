@@ -14,4 +14,11 @@ describe("Personal Edge → Academy — only supported, only negative, only real
     const s = studyNext(edge);
     expect(s.map(x => [x.bucket.key, x.lesson?.id ?? null])).toEqual([["1 h – 1 day", "clc-6"], ["1st trade of the day", "clc-5"], ["3–7 DTE", null]]);
   });
+
+  it("supported fill patterns that cost more than trades without them join, by total drag", () => {
+    const edge = { universe: 500, overallExpectancy: -3, daily: {} as never, dimensions: [] } as unknown as LedgerEdge;
+    const pat = (id: string, n: number, expectancy: number, withoutExpectancy: number) => ({ id, label: id, n, expectancy, withoutExpectancy, supporting: n - 1, contradicting: 1, firstSeen: "", lastSeen: "", recentShare: null, earlierShare: null, evidence: n >= 20 ? "SUPPORTED" : "INSUFFICIENT EVIDENCE" }) as never;
+    const s = studyNext(edge, 3, [pat("ABOVE_USUAL_SIZE", 131, -9.64, -1.87), pat("THIRD_PLUS_ATTEMPT", 566, -2.19, -3.91), pat("RAPID_REENTRY", 10, -9, -2)]);
+    expect(s.map(x => [x.bucket.key, x.lesson?.id])).toEqual([["ABOVE_USUAL_SIZE", "clc-5"]]);
+  });
 });

@@ -51,8 +51,8 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
   const saveR = (v: number) => { setOneR(v); try { localStorage.setItem("wm_ledger_one_r", String(v)); } catch { /* this visit only */ } };
   const rules = useMemo(() => replayDailyRules(episodes, oneR), [episodes, oneR]);
   const timeline = useMemo(() => ledgerTimeline(episodes), [episodes]);
-  const study = useMemo(() => studyNext(edge), [edge]);
   const patterns = useMemo(() => patternEvidence(episodes, behaviourTags(episodes)), [episodes]);
+  const study = useMemo(() => studyNext(edge, 3, patterns), [edge, patterns]);
   const changes = useMemo(() => whatChanged(timeline.months), [timeline]);
   const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(0)}%`);
   const money = (v: number | null) => (v == null ? "—" : usd(v));
@@ -130,7 +130,7 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
           <ol style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6, fontSize: 12, color: INK }}>
             {study.map(x => (
               <li key={`${x.dimension}-${x.bucket.key}`}>
-                <b>{x.dimension}: {x.bucket.key}</b> — {x.bucket.n} trades, {usd(x.bucket.expectancy)} per trade (<span style={{ color: tone(x.bucket.vsOverall) }}>{usd(x.bucket.vsOverall)}</span> vs your average), {usd(x.bucket.net)} in all.
+                <b>{x.dimension}: {x.bucket.key}</b> — {x.bucket.n} trades, {usd(x.bucket.expectancy)} per trade (<span style={{ color: tone(x.bucket.vsOverall) }}>{usd(x.bucket.vsOverall)}</span> {x.dimension === "Pattern from your fills" ? "vs trades without it" : "vs your average"}), {usd(x.bucket.net)} in all.
                 <div style={{ fontSize: 11, color: MUTED }}>
                   Capability: {x.capability}.{" "}
                   {x.lesson ? <Link href={lessonHref(x.lesson.id)} style={{ color: GOLD }}>Study “{x.lesson.title}” →</Link> : <span>The Academy has no lesson for this yet.</span>}
