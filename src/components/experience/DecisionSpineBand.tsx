@@ -46,6 +46,7 @@
  */
 
 import type { WebullLiveReading } from "@/lib/marketData/useWebullLiveCrypto";
+import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
 import type { EvidenceLineageVM } from "@/lib/chart/evidenceLineage";
 import { breathingSentence, type MarketBreathing } from "@/lib/chart/marketBreathing";
 import type { ResponseMatrix, TemporalEvidenceDensity } from "@/lib/chart/effortEvidence";
@@ -207,6 +208,13 @@ export interface DecisionSpineBandProps {
   readonly market: SpineMarketEvidence;
   readonly oneStory: OneStoryVM | null;
   readonly availableR: AvailableRVM | null;
+  /**
+   * Plate 96 · the position the trader DREW on price (Risk on Price), when one
+   * is bracketed. Optional; it never feeds right-of-way or Available R — it
+   * only stops the Risk cell from saying "no surface declares" an entry and a
+   * stop while one is drawn on the chart beside it (serving BTC 15m 2026-10-03).
+   */
+  readonly drawnPlan?: RiskOnPriceVM | null;
   readonly decisionWhy: DecisionWhyVM | null;
   /** Human label for the attached expression, or null when the answer is WAIT. */
   readonly expression: string | null;
@@ -807,7 +815,14 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
     market.barsSettled,
     { last: market.quoteLast, source: market.quoteSource },
   );
-  const availableRDetail = selectAvailableRDetail(availableR);
+  const drawnPlan = props.drawnPlan && props.drawnPlan.drawn && props.drawnPlan.reason === "BRACKETED"
+    && props.drawnPlan.entry !== null && props.drawnPlan.stop !== null ? props.drawnPlan : null;
+  const availableRDetail = !availableR && drawnPlan
+    ? `Drawn ${drawnPlan.side ?? ""} plan on price: entry ${drawnPlan.entry} · stop ${drawnPlan.stop}`
+      + (drawnPlan.riskPerUnit !== null ? ` · risk ${drawnPlan.riskPerUnit.toFixed(2)}/unit` : "")
+      + (drawnPlan.rr !== null ? ` · target ${drawnPlan.rr.toFixed(2)}R` : "")
+      + ". It is your plan on the chart — not an input to right-of-way, so Available R stays UNKNOWN."
+    : selectAvailableRDetail(availableR);
   // NEXT is compiled, not echoed. Both the reading and the ledger it was
   // computed from come from the SAME producer the verdict came from
   // (`selectOneStory` → `computeRightOfWay`), so this introduces no second

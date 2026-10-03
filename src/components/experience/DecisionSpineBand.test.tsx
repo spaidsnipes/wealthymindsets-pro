@@ -828,6 +828,16 @@ describe("DecisionSpineBand — WAIT declares whether it is finished (canon 064/
     expect(same).not.toContain("spine-wait-blocking-whole");
   });
 
+  it("plate 96: a drawn bracketed plan is named in Risk, never as Available R", () => {
+    const plan = { version: 1, drawn: true, reason: "BRACKETED", plans: 1, side: "LONG", entry: 100, stop: 98, target: 104, riskPerUnit: 2, riskPct: null, rewardPerUnit: 4, rr: 2, live: null, entryAt: null, stopAt: null, targetAt: null, state: null, refusals: [] } as const;
+    const html = render({ availableR: null, drawnPlan: plan as never });
+    expect(html).toContain("Drawn LONG plan on price: entry 100 · stop 98 · risk 2.00/unit · target 2.00R");
+    expect(html).toContain("not an input to right-of-way");
+    expect(html).toContain("Available R UNKNOWN");
+    const none = render({ availableR: null, drawnPlan: { ...plan, reason: "NO_STOP_ON_DRAWING" } as never });
+    expect(none).toContain("No surface in this build declares them");
+  });
+
   it("does not dress a venue blockage as a finished wait", () => {
     const html = render({ presentation: "rail", oneStory: waiting({ venueBlocked: 3 }) });
     expect(html).toContain('data-standing="VENUE_BLOCKED"');

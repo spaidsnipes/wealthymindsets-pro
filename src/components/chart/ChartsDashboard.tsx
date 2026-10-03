@@ -4642,6 +4642,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     tools: arrangementMenu.entries.filter(e => e.active).map(e => ({ id: e.id, label: e.label })),
   });
   const decisionSpineProps = {
+    drawnPlan: riskPlan,
     // Webull's own real-time frames for a USD crypto symbol (measured working
     // 2026-09-27; stocks/futures refused by package, so not asked here).
     webullLive,
