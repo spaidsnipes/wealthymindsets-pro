@@ -19,7 +19,8 @@ import { reconstructEpisodes, summarizeLedger, type Episode, type LedgerOrder, t
 import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { LedgerPersonalEdge } from "@/components/journal/LedgerPersonalEdge";
 import { TradeReplay } from "@/components/journal/TradeReplay";
-import { comparablesFor, episodeConditions, type EpisodeConditions } from "@/lib/broker/ledgerEdge";
+import { comparablesFor, episodeBucket, episodeConditions, type EpisodeConditions } from "@/lib/broker/ledgerEdge";
+import type { StudyItem } from "@/lib/journal/studyRoute";
 import { BehaviourTagsRow } from "@/components/journal/BehaviourTagsRow";
 import { EpisodeModelPicker } from "@/components/journal/EpisodeModelPicker";
 import { DiagnosticClinic } from "@/components/journal/DiagnosticClinic";
@@ -237,10 +238,18 @@ export function WebullLifetimeLedger() {
   };
   useEffect(load, []);
 
+  // §64 PRESCRIBE → REHEARSE: a Study Next item narrows the episode list to exactly its trades.
+  const [rehearse, setRehearse] = useState<StudyItem | null>(null);
+  const conds = useMemo(() => episodeConditions(data?.episodes ?? []), [data]);
+  const tagMap = useMemo(() => behaviourTags(data?.episodes ?? []), [data]);
   const episodes = useMemo(() => {
     const all = [...(data?.episodes ?? [])].sort((a, b) => b.openedAt.localeCompare(a.openedAt));
+    if (rehearse) {
+      const m = rehearse.match;
+      return all.filter(e => e.label === "RECONSTRUCTED" && (m.kind === "tag" ? (tagMap.get(e.id) ?? []).some(t => t.id === m.tagId) : episodeBucket(m.dimId, e, conds) === m.key));
+    }
     return filter === "ALL" ? all : all.filter(e => e.symbol === filter || e.label === filter);
-  }, [data, filter]);
+  }, [data, filter, rehearse, conds, tagMap]);
   // Webull's own positions today: lets an UNSETTLED line say whether any of them is still held.
   const [held, setHeld] = useState<{ state: string; count: number; accounts: number; at: string } | null>(null);
   useEffect(() => {
@@ -251,8 +260,6 @@ export function WebullLifetimeLedger() {
       .catch(() => {});
     return () => { alive = false; };
   }, [data]);
-  const conds = useMemo(() => episodeConditions(data?.episodes ?? []), [data]);
-  const tagMap = useMemo(() => behaviourTags(data?.episodes ?? []), [data]);
   const s = data?.summary;
   const symbols = useMemo(() => [...new Set((data?.episodes ?? []).map(e => e.symbol))].sort(), [data]);
 
@@ -331,13 +338,22 @@ export function WebullLifetimeLedger() {
             <BucketTable title="BY ACCOUNT" keyLabel="Account" rows={s.byAccount.map(b => ({ ...b, key: `·${b.key}` }))} />
           </div>
 
-          {!data.partial ? <LedgerPersonalEdge episodes={data.episodes ?? []} /> : null}
+          {!data.partial ? <LedgerPersonalEdge episodes={data.episodes ?? []} onRehearse={item => {
+            setRehearse(item); setShown(50);
+            setTimeout(() => document.querySelector('[data-testid="ledger-episodes"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+          }} /> : null}
 
-          <div style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
+          <div data-testid="ledger-episodes" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10, scrollMarginTop: 12 }}>
+            {rehearse ? (
+              <div data-testid="ledger-rehearse" role="status" style={{ marginBottom: 8, padding: "6px 10px", border: `1px solid ${GOLD}`, borderRadius: 6, fontSize: 12, color: INK }}>
+                <b style={{ color: GOLD }}>REHEARSE</b> · {rehearse.dimension}: {rehearse.bucket.key} — {episodes.length} of your trades, newest first. Open one, replay it on its own bars (recent ones), mark what held and what broke, and write the replacement in its Clinic.{" "}
+                <button type="button" onClick={() => setRehearse(null)} style={{ background: "none", border: "none", padding: 0, color: GOLD, fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>Clear</button>
+              </div>
+            ) : null}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginBottom: 6 }}>
               <span style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>EPISODES · {episodes.length}</span>
               {["ALL", ...symbols, "UNSETTLED", "OPEN"].map(k => (
-                <button key={k} type="button" onClick={() => { setFilter(k); setShown(50); }} aria-pressed={filter === k}
+                <button key={k} type="button" onClick={() => { setRehearse(null); setFilter(k); setShown(50); }} aria-pressed={filter === k}
                   style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, cursor: "pointer", background: filter === k ? "rgba(201,165,92,0.15)" : "transparent", border: `1px solid ${filter === k ? GOLD : LINE}`, color: filter === k ? GOLD : MUTED }}>{k}</button>
               ))}
             </div>

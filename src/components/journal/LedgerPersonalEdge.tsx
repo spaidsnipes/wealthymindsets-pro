@@ -16,7 +16,7 @@ import { computeLedgerEdge, MIN_SAMPLE } from "@/lib/broker/ledgerEdge";
 import { processOutcome } from "@/lib/broker/processOutcome";
 import { PROFILE_RULES, replayDailyRules } from "@/lib/broker/dailyRules";
 import { ledgerTimeline, MIN_WINDOW, whatChanged } from "@/lib/broker/ledgerTimeline";
-import { lessonHref, studyNext } from "@/lib/journal/studyRoute";
+import { lessonHref, studyNext, type StudyItem } from "@/lib/journal/studyRoute";
 import { ProcessDays } from "@/components/journal/ProcessDays";
 import { ExcursionStudy } from "@/components/journal/ExcursionStudy";
 import { developmentTimeline } from "@/lib/journal/developmentTimeline";
@@ -34,7 +34,7 @@ const DOWN = "#e0786b";
 const usd = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const tone = (v: number) => (v > 0 ? UP : v < 0 ? DOWN : INK);
 
-export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly Episode[] }) {
+export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes: readonly Episode[]; readonly onRehearse?: (item: StudyItem) => void }) {
   const edge = useMemo(() => computeLedgerEdge(episodes), [episodes]);
   const [reviews, setReviews] = useState<Readonly<Record<string, StoryReview>>>({});
   const [models, setModels] = useState<Record<string, ModelMark>>({});
@@ -151,6 +151,7 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
                 <div style={{ fontSize: 11, color: MUTED }}>
                   Capability: {x.capability}.{" "}
                   {x.lesson ? <Link href={lessonHref(x.lesson.id)} style={{ color: GOLD }}>Study “{x.lesson.title}” →</Link> : <span>The Academy has no lesson for this yet.</span>}
+                  {onRehearse ? <>{" · "}<button type="button" data-testid="study-rehearse" onClick={() => onRehearse(x)} style={{ background: "none", border: "none", padding: 0, color: GOLD, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Rehearse on your own {x.bucket.n} trades →</button></> : null}
                 </div>
               </li>
             ))}

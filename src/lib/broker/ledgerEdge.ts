@@ -116,6 +116,23 @@ export function comparablesFor(id: string, episodes: readonly Episode[], conds =
   return { n: peers.length, wins: peers.filter(e => e.net! > 0).length, net: cents(net), expectancy: peers.length ? cents(net / peers.length) : null, evidence: peers.length >= MIN_SAMPLE ? "SUPPORTED" : "INSUFFICIENT EVIDENCE", conditions: c };
 }
 
+/** The bucket key one episode falls in for a dimension — the same keys computeLedgerEdge groups by (§64 rehearse filter). */
+export function episodeBucket(dimId: string, e: Episode, conds: Map<string, EpisodeConditions>): string | null {
+  const c = conds.get(e.id);
+  if (!c) return null;
+  switch (dimId) {
+    case "time": return c.time;
+    case "attempt": return c.attempt;
+    case "hold": return c.hold;
+    case "dte": return c.dte;
+    case "right": return c.right;
+    case "entryType": return (e.entries[0]?.orderType ?? "UNKNOWN").replace("_", " ");
+    case "bracket": return e.entries[0]?.comboType === "MASTER" ? "Bracket attached" : "No bracket at entry";
+    case "weekday": return nyParts(e.openedAt).weekday;
+    default: return null;
+  }
+}
+
 export function computeLedgerEdge(episodes: readonly Episode[]): LedgerEdge {
   const closed = episodes.filter(e => e.label === "RECONSTRUCTED" && e.net != null).sort((a, b) => a.openedAt.localeCompare(b.openedAt));
   const n = closed.length;

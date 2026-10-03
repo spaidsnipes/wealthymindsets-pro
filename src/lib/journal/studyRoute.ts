@@ -11,7 +11,11 @@
 import type { EdgeBucket, LedgerEdge } from "@/lib/broker/ledgerEdge";
 import type { PatternEvidence } from "./behaviorTags";
 
+export type StudyMatch = { readonly kind: "dim"; readonly dimId: string; readonly key: string } | { readonly kind: "tag"; readonly tagId: PatternEvidence["id"] };
+
 export interface StudyItem {
+  /** Which trades this item is about — the rehearse filter (§64). */
+  readonly match: StudyMatch;
   readonly dimension: string;
   readonly bucket: EdgeBucket;
   readonly capability: string;
@@ -44,7 +48,7 @@ export function studyNext(edge: LedgerEdge, limit = 3, patterns: readonly Patter
     if (p.evidence !== "SUPPORTED" || p.withoutExpectancy == null || p.expectancy >= p.withoutExpectancy || p.expectancy >= 0) continue;
     const r = PATTERN_ROUTES[p.id];
     const gap = Math.round((p.expectancy - p.withoutExpectancy) * 100) / 100;
-    candidates.push({ dimension: "Pattern from your fills", capability: r.capability, lesson: r.lesson,
+    candidates.push({ match: { kind: "tag", tagId: p.id }, dimension: "Pattern from your fills", capability: r.capability, lesson: r.lesson,
       bucket: { key: p.label, n: p.n, wins: p.contradicting, losses: p.supporting, net: Math.round(p.expectancy * p.n * 100) / 100, expectancy: p.expectancy, winRate: p.contradicting / p.n, vsOverall: gap, evidence: "SUPPORTED" } });
   }
   for (const d of edge.dimensions) {
@@ -52,7 +56,7 @@ export function studyNext(edge: LedgerEdge, limit = 3, patterns: readonly Patter
     if (!route) continue;
     for (const b of d.buckets) {
       if (b.evidence !== "SUPPORTED" || b.vsOverall >= 0 || b.expectancy >= 0) continue;
-      candidates.push({ dimension: d.title, bucket: b, capability: route.capability, lesson: route.lesson });
+      candidates.push({ match: { kind: "dim", dimId: d.id, key: b.key }, dimension: d.title, bucket: b, capability: route.capability, lesson: route.lesson });
     }
   }
   // Worst total drag first: per-trade gap × how often it happens.
