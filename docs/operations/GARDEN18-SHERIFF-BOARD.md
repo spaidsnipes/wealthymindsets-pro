@@ -263,3 +263,5 @@ Verdict: the seams hold; the OPEN/PARTIAL steps wait on the Founder's own marks 
 | §15 Big Trades discs | 🟢 | peak r 34 → 42 (area law), inscription floor 9 px |
 | §15 Delta bubbles | 🟢 PROVED | write signed delta (−1.3, +0.58) not price; tape dots inside bubbles yield: `DOTS:94|YIELDED_TO_CELLS:82` (was 176) |
 | Stacked Imbalance vs plate 74 | ⚪ FOUNDER | engine = one window ladder graded on a held-out response window (often NO_STACK on BTC); footprint runs = per-bar diagonals; plate 74 draws per-leg stepped bid/ask zones — which definition is canon? |
+| §12 plate 128 important prints | 🟢 PROVED | NEAR: the two largest prints (on different bars) get a leader + "IMPORTANT PRINT / time · price / size @ ASK" callout placed clear of candles (no backing box); receipt `nearCallouts` |
+| §22 plate 121 Living body material | 🟢 PROVED | smooth slab → P-110 ridges: dark seam + lit lip, pitch ≥ 3 px (thin rows ridged every Nth row); BTC 5m proof scene fa106ec9 |

@@ -69,6 +69,49 @@ export function readLadderBar(row: FlowLadderBar | null | undefined): FlowLadder
   return { buy, sell, delta: buy - sell, levels };
 }
 
+/** One price level of a bar's row, as plate 75's LOCAL FOOTPRINT prints it. */
+export interface FlowLadderLevelRow {
+  readonly price: number;
+  readonly bid: number;
+  readonly ask: number;
+  /** ask − bid at this level. */
+  readonly delta: number;
+  /** The level carrying the most volume in the row (the bar's own POC). */
+  readonly poc: boolean;
+}
+
+/**
+ * The row's levels, highest price first — read off the row, never off the
+ * tape. More levels than `max` keeps the `max` nearest the POC (the plate's
+ * ladder is a window around where the bar traded most), and says so.
+ */
+export function readLadderLevels(
+  row: FlowLadderBar | null | undefined,
+  max = 9,
+): { readonly levels: readonly FlowLadderLevelRow[]; readonly hidden: number } | null {
+  if (!row) return null;
+  const all: { price: number; bid: number; ask: number }[] = [];
+  for (const [price, v] of row) {
+    if (!Number.isFinite(price)) continue;
+    const ask = Number.isFinite(v.ask) && v.ask > 0 ? v.ask : 0;
+    const bid = Number.isFinite(v.bid) && v.bid > 0 ? v.bid : 0;
+    if (ask + bid <= 0) continue;
+    all.push({ price, bid, ask });
+  }
+  if (!all.length) return null;
+  all.sort((a, b) => b.price - a.price);
+  let pocIdx = 0;
+  for (let i = 1; i < all.length; i++) {
+    if (all[i].bid + all[i].ask > all[pocIdx].bid + all[pocIdx].ask) pocIdx = i;
+  }
+  const keep = Math.max(1, Math.floor(max));
+  let lo = 0;
+  if (all.length > keep) lo = Math.min(Math.max(0, pocIdx - Math.floor(keep / 2)), all.length - keep);
+  const hi = Math.min(all.length, lo + keep);
+  const levels = all.slice(lo, hi).map((l, i) => ({ ...l, delta: l.ask - l.bid, poc: lo + i === pocIdx }));
+  return { levels, hidden: all.length - levels.length };
+}
+
 /** The fastest the ladder is handed to the room: at most ~4× a second. */
 export const FLOW_LADDER_PUBLISH_MS = 250;
 

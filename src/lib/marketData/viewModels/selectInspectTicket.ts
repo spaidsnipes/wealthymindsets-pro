@@ -91,7 +91,7 @@
  */
 
 import type { CanonicalBarIdentity } from "@/lib/marketData/canonicalBar";
-import { readLadderBar, type FlowLadderBar } from "@/lib/marketData/flowLadder";
+import { readLadderBar, readLadderLevels, type FlowLadderBar, type FlowLadderLevelRow } from "@/lib/marketData/flowLadder";
 import { buildInspectChain } from "@/lib/marketData/inspectChain";
 import { ALL_MARKET_FIDELITIES } from "@/lib/marketData/marketFidelityAlgebra";
 
@@ -161,6 +161,16 @@ export interface InspectTicketVM {
   readonly footprintDoorAvailable: boolean;
   /** Why the door is or is not offered. Never empty. */
   readonly footprintDoorNote: string;
+  /**
+   * Plate 75 · LOCAL FOOTPRINT (SELECTED BAR): this bar's row of the one flow
+   * ladder, level by level. Present exactly when the door is (`canRead`).
+   */
+  readonly localFootprint: { readonly levels: readonly FlowLadderLevelRow[]; readonly hidden: number } | null;
+  /**
+   * Plate 75 · TIME & SALES: the held prints inside this bar, newest first,
+   * as the venue sent them (no fold, no inference). Null when none are held.
+   */
+  readonly barTape: { readonly rows: readonly InspectTapeRow[]; readonly total: number } | null;
   /** The bar's canonical identity, as one line — or why there is none. */
   readonly lineage: InspectLineage;
   /** BAR → OBJECT → DECISION through this bar — or why the chain cannot start. */
@@ -192,6 +202,17 @@ export interface InspectChainInput {
   /** The DECISION_ID born on this camera, if any. */
   readonly decisionId?: string | null;
 }
+
+export interface InspectTapeRow {
+  readonly timeMs: number;
+  readonly price: number;
+  readonly size: number;
+  /** ASK = buyer crossed, BID = seller crossed, null = the venue did not say. */
+  readonly side: "ASK" | "BID" | null;
+}
+
+/** How many of the bar's own prints the ticket lists (plate 75 shows ten). */
+export const BAR_TAPE_ROWS = 10;
 
 export interface InspectPrint {
   readonly price?: number | null;
@@ -542,6 +563,22 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
   /* ── THE DOOR ──────────────────────────────────────────────────────────── */
 
   const footprintDoorAvailable = canRead;
+  const localFootprint = canRead ? readLadderLevels(input.ladderBar) : null;
+  const tapeHeld = inWindow.filter(p => isFiniteNumber(p.price));
+  const barTape = tapeHeld.length
+    ? {
+        total: tapeHeld.length,
+        rows: [...tapeHeld]
+          .sort((a, b) => (b.timeMs as number) - (a.timeMs as number))
+          .slice(0, BAR_TAPE_ROWS)
+          .map(p => ({
+            timeMs: p.timeMs as number,
+            price: p.price as number,
+            size: p.size as number,
+            side: p.side === "buy" ? ("ASK" as const) : p.side === "sell" ? ("BID" as const) : null,
+          })),
+      }
+    : null;
   const footprintDoorNote = footprintDoorAvailable
     ? "The full footprint can divide this bar by price level, because the tape " +
       "this room holds reaches it and states sides."
@@ -576,6 +613,8 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
     reachNote,
     footprintDoorAvailable,
     footprintDoorNote,
+    localFootprint,
+    barTape,
     lineage,
     chain,
     method: `${OWNER} v${INSPECT_TICKET_VERSION}`,

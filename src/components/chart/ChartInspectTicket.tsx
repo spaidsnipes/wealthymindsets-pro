@@ -67,6 +67,15 @@ import type { FusedProfileObject } from "@/lib/marketData/viewModels/fuseProfile
 import { describeAggressorMethod, formatBubbleExact, formatBubblePrice, formatBubbleVolume } from "@/lib/bubbleClaim";
 import { Ban, BadgeCheck, Check, CircleDashed, Clock, Crosshair, Fingerprint, Gauge, Hourglass, IdCard, Lock, Shield, ShieldCheck, Target, TrendingDown, X } from "lucide-react";
 import { WM, wmToneColor } from "@/lib/design/wmTokens";
+import { MARKET_MONO } from "@/lib/chart/marketType";
+
+const TAPE_MONO = MARKET_MONO;
+/** HH:MM:SS.mmm in the viewer's clock — the plate's tick-by-tick stamp. */
+function tapeClock(ms: number): string {
+  const d = new Date(ms);
+  const p = (n: number, w = 2) => String(n).padStart(w, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}`;
+}
 
 import { anatomyReadingDrawn, type AnatomyInspectVM, type AnatomyTarget } from "@/lib/marketData/viewModels/anatomySelection";
 import type { SelectedAnatomy } from "@/lib/marketData/viewModels/chartSelection";
@@ -1458,6 +1467,66 @@ export function ChartInspectTicket({
         the reason it is not offered is printed in its place, which is the more
         useful of the two things the space can hold.
       */}
+      {/*
+        PLATE 75 · RAW TAPE / FOOTPRINT INSPECT — the bar's own evidence in the
+        ticket, not behind a door: its row of the one flow ladder level by level
+        (the POC level lit), and the prints this room holds inside the bar,
+        newest first, exactly as the venue sent them.
+      */}
+      {vm.localFootprint ? (
+        <div data-testid="chart-inspect-local-footprint" className="mt-1.5 border-t border-wm-border pt-1">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">Local footprint · this bar</div>
+          <table className="mt-0.5 w-full text-[10.5px] tabular-nums" style={{ fontFamily: TAPE_MONO }}>
+            <thead>
+              <tr className="text-[10px] text-wm-muted">
+                <th className="text-left font-normal">Price</th>
+                <th className="text-right font-normal">Bid</th>
+                <th className="text-right font-normal">Ask</th>
+                <th className="text-right font-normal">Δ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vm.localFootprint.levels.map(l => (
+                <tr key={l.price} style={l.poc ? { background: "rgba(212,175,55,0.14)" } : undefined}>
+                  <td className="text-left" style={{ color: l.poc ? "#E9C46A" : "#C8C0AE" }}>{formatBubblePrice(l.price)}{l.poc ? " POC" : ""}</td>
+                  <td className="text-right" style={{ color: "#E07A7A" }}>{formatBubbleVolume(l.bid)}</td>
+                  <td className="text-right" style={{ color: "#6FCF97" }}>{formatBubbleVolume(l.ask)}</td>
+                  <td className="text-right" style={{ color: l.delta > 0 ? "#6FCF97" : l.delta < 0 ? "#E07A7A" : "#C8C0AE" }}>
+                    {l.delta > 0 ? "+" : l.delta < 0 ? "−" : ""}{formatBubbleVolume(Math.abs(l.delta))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {vm.localFootprint.hidden > 0 ? (
+            <div className="text-[10px] text-wm-muted">{vm.localFootprint.hidden} more levels — the nearest to the POC are shown</div>
+          ) : null}
+        </div>
+      ) : null}
+      {vm.barTape ? (
+        <div data-testid="chart-inspect-bar-tape" className="mt-1.5 border-t border-wm-border pt-1">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-wm-gold">
+            Time &amp; sales · {vm.barTape.rows.length} of {vm.barTape.total} held in this bar
+          </div>
+          <table className="mt-0.5 w-full text-[10.5px] tabular-nums" style={{ fontFamily: TAPE_MONO }}>
+            <tbody>
+              {vm.barTape.rows.map((t, i) => (
+                <tr key={`${t.timeMs}-${i}`}>
+                  <td className="text-left text-wm-muted">{tapeClock(t.timeMs)}</td>
+                  <td className="text-right" style={{ color: "#C8C0AE" }}>{formatBubblePrice(t.price)}</td>
+                  <td className="text-right" style={{ color: t.side === "ASK" ? "#6FCF97" : t.side === "BID" ? "#E07A7A" : "#C8C0AE" }}>
+                    {formatBubbleVolume(t.size)}
+                  </td>
+                  <td className="text-right text-[10px]" style={{ color: t.side === "ASK" ? "#6FCF97" : t.side === "BID" ? "#E07A7A" : "#8A8370" }}>
+                    {t.side ?? "unsigned"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
       {vm.footprintDoorAvailable ? (
         <button
           onClick={onOpenFootprint}

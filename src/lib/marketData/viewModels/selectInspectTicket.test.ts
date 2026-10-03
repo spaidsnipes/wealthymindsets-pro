@@ -436,3 +436,22 @@ describe("the plate's illustrative figures never appear as output", () => {
     }
   });
 });
+
+describe("plate 75 — local footprint and time & sales in the ticket", () => {
+  it("the local footprint is the ladder row's levels, offered exactly with the door", () => {
+    const vm = base({ ladderBar: new Map([[100, { bid: 40, ask: 100 }], [100.5, { bid: 20, ask: 0 }]]) });
+    expect(vm.footprintDoorAvailable).toBe(true);
+    expect(vm.localFootprint!.levels.map(l => [l.price, l.delta, l.poc])).toEqual([[100.5, -20, false], [100, 60, true]]);
+    const none = base({ ladderBar: null });
+    expect(none.localFootprint).toBeNull();
+  });
+  it("time & sales lists the bar's own held prints, newest first, sides as sent", () => {
+    const vm = base({ prints: [...coveringTape(), print({ side: undefined, timeMs: BAR_OPEN_MS + 9 }), print({ timeMs: BAR_OPEN_MS - 5 })] });
+    expect(vm.barTape!.total).toBe(5);
+    expect(vm.barTape!.rows.map(r => r.side)).toEqual([null, "BID", "BID", "ASK", "ASK"]);
+    expect(vm.barTape!.rows[0].timeMs).toBe(BAR_OPEN_MS + 9);
+  });
+  it("no held prints in the bar → no time & sales", () => {
+    expect(base({ prints: [print({ timeMs: BAR_OPEN_MS - 5 })] }).barTape).toBeNull();
+  });
+});
