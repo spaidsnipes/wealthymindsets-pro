@@ -345,6 +345,28 @@ export async function cancelTastytradeOrder(accountNumber: string, orderId: stri
  * record of fills: symbol, action, quantity, price, fees, executed-at, order-id.
  * Read only; the Journal's machine facts come from here, never browser memory.
  */
+/**
+ * EVERY trade transaction since `startDate`, page by page (250 a page). The
+ * one-page read below silently stopped at 250 rows — the truncation trap that
+ * once made the Webull ledger wrong. Stops at the last page, an empty page, or
+ * `maxPages` (reported, never hidden).
+ */
+export async function getTastytradeTradeHistory(accountNumber: string, startDate: string, maxPages = 40): Promise<{ items: unknown[]; pages: number; truncated: boolean }> {
+  const items: unknown[] = [];
+  let page = 0, totalPages = 1;
+  while (page < totalPages && page < maxPages) {
+    const q = `type=Trade&start-date=${encodeURIComponent(startDate)}&per-page=250&page-offset=${page}`;
+    const r = await ttGet<any>(`/accounts/${encodeURIComponent(accountNumber)}/transactions?${q}`);
+    const got = (r?.data?.items ?? []) as unknown[];
+    items.push(...got);
+    const tp = Number(r?.pagination?.["total-pages"]);
+    totalPages = Number.isFinite(tp) && tp > 0 ? tp : got.length === 250 ? page + 2 : page + 1;
+    page++;
+    if (got.length === 0) break;
+  }
+  return { items, pages: page, truncated: page < totalPages };
+}
+
 export async function getTastytradeTradeTransactions(accountNumber: string, startDate: string): Promise<unknown[]> {
   const q = `type=Trade&start-date=${encodeURIComponent(startDate)}&per-page=250`;
   const r = await ttGet<any>(`/accounts/${encodeURIComponent(accountNumber)}/transactions?${q}`);

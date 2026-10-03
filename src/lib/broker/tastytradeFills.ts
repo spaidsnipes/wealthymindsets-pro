@@ -16,6 +16,8 @@ export interface TtFill {
   /** Net cash effect as tastytrade states it (value + value-effect). */
   readonly value: number | null;
   readonly fees: number;
+  /** tastytrade's own after-fee cash effect ("net-value", signed by net-value-effect), when sent. */
+  readonly netValue?: number | null;
   readonly executedAt: string | null;
 }
 
@@ -42,6 +44,7 @@ export function readTastytradeFill(raw: unknown): TtFill | null {
     price: n(o.price),
     value: value == null ? null : effect === "Debit" ? -Math.abs(value) : Math.abs(value),
     fees: fee("commission") + fee("clearing-fees") + fee("regulatory-fees") + fee("proprietary-index-option-fees"),
+    netValue: (() => { const nv = n(o["net-value"]); if (nv == null) return null; return s(o["net-value-effect"]) === "Debit" ? -Math.abs(nv) : Math.abs(nv); })(),
     executedAt: s(o["executed-at"]),
   };
 }

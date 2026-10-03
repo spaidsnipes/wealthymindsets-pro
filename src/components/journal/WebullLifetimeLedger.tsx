@@ -1,4 +1,5 @@
 "use client";
+import { TastytradeLedger } from "@/components/journal/TastytradeLedger";
 
 /**
  * WEBULL LIFETIME LEDGER — Garden 18 v2 §29/§30/§36 in the Journal room.
@@ -394,6 +395,7 @@ export function WebullLifetimeLedger() {
           </div>
         </>
       ) : null}
+      <TastytradeLedger />
     </section>
   );
 }

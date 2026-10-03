@@ -66,8 +66,8 @@ export const CAPABILITY_LEDGER: readonly CapabilityRow[] = [
   { provider: T, capability: "MODIFY", state: "NOT_BUILT", owner: null, note: "cancel and re-enter until replace is built" },
   { provider: T, capability: "PROTECTION", state: "PARTIAL", owner: "src/lib/broker/tastytradeEntryFields.ts", note: "broker-native Stop / Stop Limit; bracket / OCO not built" },
   { provider: T, capability: "POSITIONS", state: "LIVE", owner: "src/app/api/broker/tastytrade/positions/route.ts", note: "accounts masked to last 4" },
-  { provider: T, capability: "FILLS_HISTORY", state: "LIVE", owner: "src/lib/broker/tastytradeFills.ts", note: "fills into Journal" },
-  { provider: T, capability: "PNL", state: "NOT_BUILT", owner: null, note: "the Lifetime Ledger reads Webull today" },
+  { provider: T, capability: "FILLS_HISTORY", state: "LIVE", owner: "src/lib/broker/tastytradeFills.ts", note: "fills into Journal; full history read page by page (no 250-row cut)" },
+  { provider: T, capability: "PNL", state: "LIVE", owner: "src/lib/broker/tastytradeLedger.ts", note: "round trips from tastytrade's own transactions (its cash, its fees) — Journal › Broker Ledger" },
 
   // ── Webull ────────────────────────────────────────────────────────────
   // Measured on serving 2026-10-03 07:02Z from the owner's session:
