@@ -9219,7 +9219,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           //    Sides the tape inferred say so.
           /** How far a print's callout may stand from the print (plate 128 leaders are short). */
           const CALLOUT_REACH_PX = 160;
-          let calloutsN = 0;
+          let calloutsN = 0, calloutsFar = 0;
           {
             // Linear top-two (no per-frame sort of prints): the largest dot, then
             // the largest on a different bar.
@@ -9252,7 +9252,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // across the session; past CALLOUT_REACH_PX the print is not named.
               const gapX = Math.max(at.x - p.x, 0, p.x - (at.x + at.w));
               const gapY = Math.max(at.y - p.y, 0, p.y - (at.y + at.h));
-              if (Math.hypot(gapX, gapY) > CALLOUT_REACH_PX) continue;
+              if (Math.hypot(gapX, gapY) > CALLOUT_REACH_PX) { calloutsFar++; continue; }
               const ax = Math.max(at.x, Math.min(at.x + at.w, p.x)), ay = p.y < at.y ? at.y : at.y + at.h;
               // Halo text on a leader — NEAR keeps no backing card (its law);
               // the plate's box is read as the callout's place, not a panel.
@@ -9302,7 +9302,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // when nothing of its kind did.
           const dsN = canvas.dataset;
           dsN.nearTapeForm = "ON_BARS";
-          if (calloutsN > 0) dsN.nearCallouts = String(calloutsN); else delete dsN.nearCallouts;
+          if (calloutsN > 0 || calloutsFar > 0) dsN.nearCallouts = calloutsFar > 0 ? `${calloutsN}|WITHHELD_REACH:${calloutsFar}` : String(calloutsN); else delete dsN.nearCallouts;
           dsN.nearTape = heldInView === 0 ? "NO_TAPE" : `DOTS:${dotsN}${yieldedN ? `|YIELDED_TO_CELLS:${yieldedN}` : ""}`;
           if (heldInView > 0) { dsN.nearTapeHeld = String(heldInView); dsN.nearTapeSides = sidesN; }
           else { delete dsN.nearTapeHeld; delete dsN.nearTapeSides; }
