@@ -55,7 +55,9 @@ export type ProofSelectKind = (typeof PROOF_SELECT_KINDS)[number];
 
 /** Layer switches a clean scene turns off (booleans), plus the non-boolean scaffolding depth. */
 const CLEAN_BOOLEAN_PREFIX = "wm_of";
-const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP", "wm_fixedVP"] as const;
+// wm_bigtrades_on (2026-10-03): the Big Trades overlay is persisted now, so a
+// clean scene must switch it off too — or the trader's own overlay leaks in.
+const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP", "wm_fixedVP", "wm_bigtrades_on"] as const;
 const SCAFFOLDING_KEY = "wm_ofScaffolding";
 /** What the trader asked of the Question Lens (ChartsDashboard's own key). */
 const QUESTION_CHOICE_KEY = "wm_questionChoice";
@@ -95,6 +97,8 @@ export function parseProofScene(search: string): ProofScene {
     if (/^fp:/i.test(token)) {
       overrides.wm_fp_enabled = true;
       overrides.wm_footprint = token.slice(3);
+      // Big Trades is its own overlay beside any mode — fp:big-trades turns it on.
+      if (token.slice(3) === "big-trades") overrides.wm_bigtrades_on = true;
     } else if (/^scaff:/i.test(token)) {
       overrides[SCAFFOLDING_KEY] = token.slice(6).toUpperCase();
     } else if (/^ask:/i.test(token)) {
