@@ -109,7 +109,7 @@ export function ProcessDays({ episodes }: { readonly episodes: readonly Episode[
                     <div data-testid="restoration-loop" style={{ border: `1px dashed ${LINE}`, borderRadius: 6, padding: 8, display: "grid", gap: 6 }}>
                       <div style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>RECOVERY ROOM · ATH RESTORATION LOOP · {d.day}</div>
                       <div style={{ fontSize: 11, color: MUTED }}>
-                        The day in facts: {d.trades} trades, Webull net {usd(d.net)}, fees {usd(-d.fees)}.
+                        The day in facts: {d.trades} {d.trades === 1 ? "trade" : "trades"}, Webull net {usd(d.net)}, fees paid ${d.fees.toFixed(2)}.
                         {dayEvidence(tagsByDay.get(d.day) ?? []).map(x => ` ${x.label}: ${x.count}.`).join("")}
                         {" "}A loss is data, not a verdict on you.
                       </div>
