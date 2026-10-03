@@ -129,7 +129,9 @@ describe("every other price named on the glass quotes the same precision", () =>
     const at = CHART.indexOf("const pxDp = displayPrecisionFor(symbol, barsRef.current ?? []);");
     expect(at).toBeGreaterThan(-1);
     expect(CHART.indexOf("const pxDp =", at + 1)).toBe(-1);
-    expect(at).toBeLessThan(CHART.indexOf("const lbl = p.toFixed(pxDp);"));
+    // The delta bubble writes its signed delta now (v2 §15); the first price it
+    // named was the bubble's — the big-trade inscription still names prices.
+    expect(at).toBeLessThan(CHART.indexOf("const lbl = signedFlowText(b.ask - b.bid, fmtV);"));
     expect(CHART).not.toContain("const lbl = p >= 100 ? p.toFixed(2)");
   });
 

@@ -7862,10 +7862,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.stroke();
           if (b.r >= 7) {
             ctx.globalAlpha = att.textAlpha("bubbles", { selectedItem: selB });
-            const p = b.anchorPrice;
-            const lbl = p.toFixed(pxDp);
-            const fontPx = Math.max(8, Math.min(13, Rx * 0.48));
-            ctx.font = `bold ${fontPx}px Inter, monospace`;
+            // v2 §15 (2026-10-03): the bubble writes what it CLAIMS — its signed
+            // delta — not its price (the axis already says where it is). Serving
+            // BTC 1m NEAR: 61 bubbles each printing "84590.75". 9 px floor.
+            const lbl = signedFlowText(b.ask - b.bid, fmtV);
+            const fontPx = Math.max(9, Math.min(13, Rx * 0.48));
+            ctx.font = marketFont("MICRO_NUMBER", fontPx);
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.lineWidth = Math.max(2, fontPx * 0.22);
             ctx.strokeStyle = "rgba(0,0,0,0.88)";
