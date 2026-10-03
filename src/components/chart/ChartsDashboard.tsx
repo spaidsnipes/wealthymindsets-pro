@@ -667,7 +667,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // footprint mode unless the trader chose exclusive mode ("0").
     () => typeof window === "undefined" || localStorage.getItem("wm_bigtrades_simul") !== "0"
   );
-  const [bigTradesOverlay, setBigTradesOverlay] = useState<boolean>(false);
+  // Persisted (2026-10-03): it started false on every load, so a Big Trades
+  // the trader switched on vanished at the next reload (serving BTC 1m).
+  const [bigTradesOverlay, setBigTradesOverlay] = useState<boolean>(() => lsGet("wm_bigtrades_on", false) as boolean);
   const [candleType,      setCandleType]      = useState<CandleType>(() => lsGet("wm_candleType", "candles") as CandleType);
   const symbol    = activeSymbol;
   const setSymbol = setActiveSymbol;
@@ -1146,6 +1148,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_indSettings",  indSettings);
   usePersistOnChange("wm_footprint",    footprintType);
   usePersistOnChange("wm_fp_enabled",   footprintEnabled);
+  usePersistOnChange("wm_bigtrades_on", bigTradesOverlay);
   // Garden 18 §XVII: the footprint half of a View — announced for saving,
   // restored through the room's own setters when a View asks.
   useEffect(() => {
