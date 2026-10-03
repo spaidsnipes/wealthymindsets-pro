@@ -28,7 +28,7 @@ async function getJson(url: string): Promise<unknown | null> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 8_000);
   try {
-    const res = await fetch(url, { headers: HEADERS, signal: ctl.signal, redirect: "error" });
+    const res = await fetch(url, { headers: HEADERS, signal: ctl.signal, redirect: "manual" });
     if (!res.ok) { lastStatus = `HTTP ${res.status}`; return null; }
     return await res.json();
   } catch (e) { lastStatus = e instanceof Error ? e.name : "fetch failed"; return null; } finally { clearTimeout(t); }

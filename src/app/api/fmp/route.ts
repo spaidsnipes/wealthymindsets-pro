@@ -69,7 +69,7 @@ export async function GET(request: Request) {
     // Race as well as abort so an uncooperative transport cannot hold the route.
     const result = await Promise.race([
       (async () => {
-        const res = await fetch(url, { cache: "no-store", redirect: "error", signal: controller.signal });
+        const res = await fetch(url, { cache: "no-store", redirect: "manual", signal: controller.signal });
         return { ok: res.ok, status: res.status, data: res.ok ? await res.json() : null };
       })(),
       new Promise<never>((_, reject) => {

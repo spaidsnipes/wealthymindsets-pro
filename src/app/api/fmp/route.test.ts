@@ -15,7 +15,7 @@ describe("FMP proxy full-response deadline",()=>{
   const url=new URL(fetch.mock.calls[0][0]);
   expect(url.origin).toBe("https://financialmodelingprep.com");expect(url.searchParams.get("period")).toBe("quarter");
   expect(url.searchParams.get("limit")).toBe("5");expect(url.searchParams.getAll("apikey")).toEqual(["synthetic-test-key"]);
-  expect(fetch.mock.calls[0][1].redirect).toBe("error");
+  expect(fetch.mock.calls[0][1].redirect).toBe("manual");
  });
  it("rejects injected outer limit parameters",async()=>{
   const fetch=vi.fn();vi.stubGlobal("fetch",fetch);const {GET}=await import("./route");
