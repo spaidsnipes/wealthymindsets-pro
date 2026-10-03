@@ -9178,7 +9178,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const rgb = d.buy ? inksN.btBuy : inksN.btSell;
               // A dot over a footprint cell column lets the row's numbers read
               // through (M46 owns the rows); the side stays in its outline.
-              const onCell = fpCells.some(q => xd >= q.x && xd <= q.x + q.w && +yd >= q.y && +yd <= q.y + q.h);
+              const onCell = fpCells.some(q => xd >= q.x && xd <= q.x + q.w && +yd >= q.y && +yd <= q.y + q.h)
+                // …and inside a delta bubble (Delta mode): the bubble already
+                // carries that zone's prints as its signed delta (2026-10-03).
+                || deltaBubblesRef.current.some(bb => (xd - bb.x) ** 2 + (+yd - bb.y) ** 2 <= (bb.r + 2) ** 2);
               if (onCell && d.size < largestN && !(selKeyN != null && d.printKey === selKeyN)) { yieldedN++; continue; }
               const fillA = onCell ? 0.5 : 0.92;
               ctx.beginPath(); ctx.arc(xd, +yd, r, 0, Math.PI * 2);
