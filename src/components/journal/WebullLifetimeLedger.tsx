@@ -22,6 +22,7 @@ import { TradeReplay } from "@/components/journal/TradeReplay";
 import { comparablesFor, episodeConditions, type EpisodeConditions } from "@/lib/broker/ledgerEdge";
 import { BehaviourTagsRow } from "@/components/journal/BehaviourTagsRow";
 import { EpisodeModelPicker } from "@/components/journal/EpisodeModelPicker";
+import { DiagnosticClinic } from "@/components/journal/DiagnosticClinic";
 import { behaviourTags, type BehaviourTag } from "@/lib/journal/behaviorTags";
 import { ledgerCsv } from "@/lib/broker/ledgerCsv";
 
@@ -154,6 +155,7 @@ function EpisodeRow({ e, all, conds, tags }: { e: Episode; all: readonly Episode
           })()}
           {/* §34/§80: Journal → Replay — this trade on its own contract's bars, no look-ahead. */}
           <TradeReplay e={e} />
+          <DiagnosticClinic episodeId={e.id} />
           {/* §61: the trader's half of this trade — eight process marks and their own words, beside the broker's facts, never editing them. */}
           <StoryReviewRow storyKey={`webull-episode:${e.id}`} />
         </div>

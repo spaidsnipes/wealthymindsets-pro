@@ -44,7 +44,7 @@ const OWNER_SCOPED_KEYS = new Set<string>([
   "wm-radio-liked",
   "wm_songs", "wm_watchlists", "wm_quick_syms",
   "wm_scanner_starred", "wm_scanner_alerted",
-  "wm_journal_entries", "wm_ledger_one_r", "wm_ledger_tag_amendments_v1", "wm_process_days_v1", "wm_ledger_models_v1", "wm_restoration_days_v1", "wm_edu_progress",
+  "wm_journal_entries", "wm_ledger_one_r", "wm_ledger_tag_amendments_v1", "wm_process_days_v1", "wm_ledger_models_v1", "wm_restoration_days_v1", "wm_ledger_clinic_v1", "wm_edu_progress",
   "wm_api_keys", "wm_creator_waitlist",
 ]);
 
