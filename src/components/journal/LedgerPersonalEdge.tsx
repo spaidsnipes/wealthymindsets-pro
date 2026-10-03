@@ -20,7 +20,7 @@ import { lessonHref, studyNext } from "@/lib/journal/studyRoute";
 import { ProcessDays } from "@/components/journal/ProcessDays";
 import { ExcursionStudy } from "@/components/journal/ExcursionStudy";
 import { developmentTimeline } from "@/lib/journal/developmentTimeline";
-import { behaviourTags, PATTERN_MIN, patternEvidence } from "@/lib/journal/behaviorTags";
+import { behaviourTags, PATTERN_MIN, patternEvidence, patternState } from "@/lib/journal/behaviorTags";
 import { EPISODE_MODELS_KEY, MODEL_LABEL, parseModels, resultsByModel, type ModelMark } from "@/lib/journal/episodeModel";
 import type { Episode } from "@/lib/broker/webullLedger";
 import { readStoryReviews, type StoryReview } from "@/lib/journal/storyReview";
@@ -122,7 +122,7 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
           Behaviours the broker record shows, each with how often, the result per trade beside trades without it, the losing cases that support it and the winning cases that contradict it, and whether it is rarer lately. Under {PATTERN_MIN} cases it is not yet a pattern.
         </p>
         <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", fontVariantNumeric: "tabular-nums", minWidth: 640 }}>
-          <thead><tr style={{ color: MUTED, textAlign: "right" }}><th style={{ textAlign: "left", fontWeight: 500 }}>Behaviour</th><th style={{ fontWeight: 500 }}>Trades</th><th style={{ fontWeight: 500 }}>Per trade</th><th style={{ fontWeight: 500 }}>Without it</th><th style={{ fontWeight: 500 }}>Losers / winners</th><th style={{ fontWeight: 500 }}>Last 100 vs before</th><th style={{ fontWeight: 500 }}>Seen</th></tr></thead>
+          <thead><tr style={{ color: MUTED, textAlign: "right" }}><th style={{ textAlign: "left", fontWeight: 500 }}>Behaviour</th><th style={{ fontWeight: 500 }}>Trades</th><th style={{ fontWeight: 500 }}>Per trade</th><th style={{ fontWeight: 500 }}>Without it</th><th style={{ fontWeight: 500 }}>Losers / winners</th><th style={{ fontWeight: 500 }}>Last 100 vs before</th><th style={{ fontWeight: 500 }}>Seen</th><th style={{ fontWeight: 500 }}>State</th></tr></thead>
           <tbody>{patterns.map(p => (
             <tr key={p.id} data-evidence={p.evidence} style={{ borderTop: `1px solid ${LINE}`, textAlign: "right", color: p.evidence === "SUPPORTED" ? INK : MUTED }}>
               <td style={{ textAlign: "left", padding: "3px 0" }}>{p.label}{p.evidence === "SUPPORTED" ? "" : " · INSUFFICIENT EVIDENCE"}</td>
@@ -132,6 +132,7 @@ export function LedgerPersonalEdge({ episodes }: { readonly episodes: readonly E
               <td>{p.supporting} / {p.contradicting}</td>
               <td>{p.recentShare == null ? "—" : `${Math.round(p.recentShare * 100)}%`} vs {p.earlierShare == null ? "—" : `${Math.round(p.earlierShare * 100)}%`}</td>
               <td style={{ whiteSpace: "nowrap" }}>{p.firstSeen.slice(0, 10)} → {p.lastSeen.slice(0, 10)}</td>
+              <td style={{ whiteSpace: "nowrap" }} title="From the record alone; DIAGNOSED / REHEARSED need your own work">{patternState(p)}</td>
             </tr>
           ))}</tbody>
         </table>

@@ -137,3 +137,21 @@ export function patternEvidence(episodes: readonly Episode[], tags: Map<string, 
   }
   return out;
 }
+
+/**
+ * Where a pattern stands in its life (§40), from the record alone:
+ * FIRST OBSERVED (< 3) → REPEATED (< PATTERN_MIN) → then, once supported,
+ * IMPROVING (last 100 trades carry it ≤ ¾ as often as before), RECURRENCE (as
+ * often or more), or MONITORING (in between). DIAGNOSED / REHEARSED need the
+ * trader's own work and are not claimed here.
+ */
+export type PatternState = "FIRST OBSERVED" | "REPEATED" | "IMPROVING" | "RECURRENCE" | "MONITORING";
+
+export function patternState(p: PatternEvidence): PatternState {
+  if (p.n < 3) return "FIRST OBSERVED";
+  if (p.evidence !== "SUPPORTED") return "REPEATED";
+  if (p.recentShare == null || p.earlierShare == null || p.earlierShare === 0) return "MONITORING";
+  if (p.recentShare <= p.earlierShare * 0.75) return "IMPROVING";
+  if (p.recentShare >= p.earlierShare) return "RECURRENCE";
+  return "MONITORING";
+}

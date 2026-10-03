@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendAmendment, behaviourTags, latestAmendment, parseAmendments, patternEvidence } from "./behaviorTags";
+import { appendAmendment, behaviourTags, latestAmendment, parseAmendments, patternEvidence, patternState } from "./behaviorTags";
 import type { Episode } from "@/lib/broker/webullLedger";
 
 const ep = (id: string, key: string, open: string, close: string, qty = 1, combo = "NORMAL") => ({
@@ -44,5 +44,14 @@ describe("behaviour tags — only what fills establish, each INFERRED with evide
     const nb = p.find(x => x.id === "NO_BRACKET_AT_ENTRY")!;
     expect(nb).toMatchObject({ n: 2, expectancy: -7, withoutExpectancy: 10, supporting: 1, contradicting: 1, evidence: "INSUFFICIENT EVIDENCE" });
     expect(nb.firstSeen).toBe("2026-10-01T13:35:00Z");
+  });
+
+  it("pattern life state from the record alone", () => {
+    const p = (n: number, recentShare: number | null, earlierShare: number | null) => ({ id: "RAPID_REENTRY", label: "", n, expectancy: -1, withoutExpectancy: 0, supporting: 0, contradicting: 0, firstSeen: "", lastSeen: "", recentShare, earlierShare, evidence: n >= 20 ? "SUPPORTED" : "INSUFFICIENT EVIDENCE" }) as Parameters<typeof patternState>[0];
+    expect(patternState(p(2, null, null))).toBe("FIRST OBSERVED");
+    expect(patternState(p(10, 0.1, 0.1))).toBe("REPEATED");
+    expect(patternState(p(131, 0.08, 0.14))).toBe("IMPROVING");
+    expect(patternState(p(184, 0.21, 0.19))).toBe("RECURRENCE");
+    expect(patternState(p(566, 0.6, 0.67))).toBe("MONITORING");
   });
 });
