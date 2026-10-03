@@ -150,15 +150,18 @@ const coinbaseTuples = (r: unknown): LegacyOhlcvTuple[] =>
  * venueTailFill.ts): closed intervals only, one bar per instant, replaced
  * never summed. `null` = no tail was read (it failed, or not this venue).
  */
-async function getCoinbaseTail(coin: string, sec: number): Promise<LegacyOhlcvTuple[] | null> {
+async function getCoinbaseTail(coin: string, sec: number): Promise<{ tuples: LegacyOhlcvTuple[] | null; read: string }> {
   const endSec = Math.floor(Date.now() / 1000);
   const startSec = endSec - VENUE_TAIL_INTERVALS * sec;
   const iso = (t: number) => new Date(t * 1000).toISOString();
   try {
-    const r = await j(`https://api.exchange.coinbase.com/products/${pair("coinbase", coin)}/candles?granularity=${sec}&start=${encodeURIComponent(iso(startSec))}&end=${encodeURIComponent(iso(endSec))}`);
-    return Array.isArray(r) ? coinbaseTuples(r) : null;
-  } catch {
-    return null;
+    const res = await fetch(`https://api.exchange.coinbase.com/products/${pair("coinbase", coin)}/candles?granularity=${sec}&start=${encodeURIComponent(iso(startSec))}&end=${encodeURIComponent(iso(endSec))}`, { headers: UA, cache: "no-store" });
+    if (!res.ok) return { tuples: null, read: `HTTP_${res.status}` };
+    const r = await res.json();
+    if (!Array.isArray(r)) return { tuples: null, read: `NOT_ARRAY:${String((r as { message?: unknown })?.message ?? "").slice(0, 60)}` };
+    return { tuples: coinbaseTuples(r), read: "OK" };
+  } catch (e) {
+    return { tuples: null, read: `THREW:${e instanceof Error ? e.message.slice(0, 60) : "unknown"}` };
   }
 }
 
@@ -166,17 +169,19 @@ interface VenueCandlePage {
   readonly tuples: LegacyOhlcvTuple[];
   /** Closed intervals the tail read supplied that the history page lacked; null = no tail read. */
   readonly tailFilled: number | null;
+  /** How the tail read went: OK, HTTP_<status>, NOT_ARRAY:<msg>, THREW:<msg>, or null (not read). */
+  readonly tailRead: string | null;
 }
 
 async function getCandlePage(ex: Ex, coin: string, tf: ExchangeTimeframe, sec: number, bars: number): Promise<VenueCandlePage> {
-  if (ex !== "coinbase") return { tuples: await getCandles(ex, coin, tf, sec, bars), tailFilled: null };
+  if (ex !== "coinbase") return { tuples: await getCandles(ex, coin, tf, sec, bars), tailFilled: null, tailRead: null };
   const [history, tail] = await Promise.all([
     getCandles(ex, coin, tf, sec, bars),
     getCoinbaseTail(coin, sec),
   ]);
-  if (tail === null) return { tuples: history, tailFilled: null };
-  const merged = mergeVenueTail({ history, tail, intervalSec: sec, nowSec: Math.floor(Date.now() / 1000) });
-  return { tuples: merged.bars.slice(-bars), tailFilled: merged.filled };
+  if (tail.tuples === null) return { tuples: history, tailFilled: null, tailRead: tail.read };
+  const merged = mergeVenueTail({ history, tail: tail.tuples, intervalSec: sec, nowSec: Math.floor(Date.now() / 1000) });
+  return { tuples: merged.bars.slice(-bars), tailFilled: merged.filled, tailRead: tail.read };
 }
 
 async function getCandles(ex: Ex, coin: string, tf: ExchangeTimeframe, sec: number, bars: number): Promise<LegacyOhlcvTuple[]> {
@@ -301,6 +306,7 @@ export async function GET(req: Request) {
         // its lagging history page did not hold (venueTailFill.ts); null =
         // no tail was read. The chart publishes it as `dataGapsTailFilled`.
         tailFilled: page.tailFilled,
+        tailRead: page.tailRead,
         refusedBars: ingress.refusals.length,
         refusals: ingress.refusals,
       });
