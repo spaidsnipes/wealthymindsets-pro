@@ -70,6 +70,23 @@ import { WM, wmToneColor } from "@/lib/design/wmTokens";
 import { MARKET_MONO } from "@/lib/chart/marketType";
 
 const TAPE_MONO = MARKET_MONO;
+/**
+ * Ladder / tape numbers at the precision they were traded. The bubble
+ * formatters round BTC to whole dollars and sizes to 4 places, which printed
+ * two different levels as "84,825" and a 0.00002 print as "0.0000".
+ */
+export function tapePrice(p: number): string {
+  if (!Number.isFinite(p)) return "—";
+  return p.toLocaleString("en-US", { maximumFractionDigits: Math.abs(p) >= 1 ? 2 : 6 });
+}
+export function tapeSize(v: number): string {
+  const a = Math.abs(v);
+  if (!Number.isFinite(a)) return "—";
+  if (a === 0) return "0";
+  if (a >= 1) return formatBubbleVolume(a);
+  const decimals = Math.min(8, Math.max(2, 1 - Math.floor(Math.log10(a))));
+  return a.toFixed(decimals).replace(/0+$/, "").replace(/\.$/, "");
+}
 /** HH:MM:SS.mmm in the viewer's clock — the plate's tick-by-tick stamp. */
 function tapeClock(ms: number): string {
   const d = new Date(ms);
@@ -1488,11 +1505,11 @@ export function ChartInspectTicket({
             <tbody>
               {vm.localFootprint.levels.map(l => (
                 <tr key={l.price} style={l.poc ? { background: "rgba(212,175,55,0.14)" } : undefined}>
-                  <td className="text-left" style={{ color: l.poc ? "#E9C46A" : "#C8C0AE" }}>{formatBubblePrice(l.price)}{l.poc ? " POC" : ""}</td>
-                  <td className="text-right" style={{ color: "#E07A7A" }}>{formatBubbleVolume(l.bid)}</td>
-                  <td className="text-right" style={{ color: "#6FCF97" }}>{formatBubbleVolume(l.ask)}</td>
+                  <td className="text-left" style={{ color: l.poc ? "#E9C46A" : "#C8C0AE" }}>{tapePrice(l.price)}{l.poc ? " POC" : ""}</td>
+                  <td className="text-right" style={{ color: "#E07A7A" }}>{tapeSize(l.bid)}</td>
+                  <td className="text-right" style={{ color: "#6FCF97" }}>{tapeSize(l.ask)}</td>
                   <td className="text-right" style={{ color: l.delta > 0 ? "#6FCF97" : l.delta < 0 ? "#E07A7A" : "#C8C0AE" }}>
-                    {l.delta > 0 ? "+" : l.delta < 0 ? "−" : ""}{formatBubbleVolume(Math.abs(l.delta))}
+                    {l.delta > 0 ? "+" : l.delta < 0 ? "−" : ""}{tapeSize(Math.abs(l.delta))}
                   </td>
                 </tr>
               ))}
@@ -1513,9 +1530,9 @@ export function ChartInspectTicket({
               {vm.barTape.rows.map((t, i) => (
                 <tr key={`${t.timeMs}-${i}`}>
                   <td className="text-left text-wm-muted">{tapeClock(t.timeMs)}</td>
-                  <td className="text-right" style={{ color: "#C8C0AE" }}>{formatBubblePrice(t.price)}</td>
+                  <td className="text-right" style={{ color: "#C8C0AE" }}>{tapePrice(t.price)}</td>
                   <td className="text-right" style={{ color: t.side === "ASK" ? "#6FCF97" : t.side === "BID" ? "#E07A7A" : "#C8C0AE" }}>
-                    {formatBubbleVolume(t.size)}
+                    {tapeSize(t.size)}
                   </td>
                   <td className="text-right text-[10px]" style={{ color: t.side === "ASK" ? "#6FCF97" : t.side === "BID" ? "#E07A7A" : "#8A8370" }}>
                     {t.side ?? "unsigned"}

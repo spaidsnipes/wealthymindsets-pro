@@ -25,3 +25,15 @@ describe("readLadderLevels — plate 75 local footprint", () => {
     expect(readLadderLevels(row([[1, 0, 0]]))).toBeNull();
   });
 });
+
+import { tapePrice, tapeSize } from "@/components/chart/ChartInspectTicket";
+describe("plate 75 numbers keep traded precision", () => {
+  it("prices keep cents; tiny sizes keep their significant digits", () => {
+    expect(tapePrice(84825.4)).toBe("84,825.4");
+    expect(tapePrice(84825)).toBe("84,825");
+    expect(tapeSize(0.000021)).toBe("0.000021");
+    expect(tapeSize(0.0236)).toBe("0.024");
+    expect(tapeSize(0)).toBe("0");
+    expect(tapeSize(1234)).not.toMatch(/^0\./);
+  });
+});
