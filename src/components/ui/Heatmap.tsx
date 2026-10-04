@@ -85,7 +85,7 @@ function colorFor(
 ): { background: string; text: string; opacity: number } {
   if (value === "UNKNOWN") {
     // Empty obsidian cell with a dim ? glyph
-    return { background: "var(--wm-ob-2, #131317)", text: "var(--wm-text-3, #55503f)", opacity: 0.55 };
+    return { background: "var(--wm-ob-2, #131317)", text: "var(--wm-text-2,#8a8271)", opacity: 0.55 };
   }
   const opacity = confidence === "HIGH" ? 1 : confidence === "MEDIUM" ? 0.85 : 0.65;
 
@@ -146,15 +146,15 @@ function LegendChip({ label, unit }: { label: string; unit?: string }) {
             aria-hidden="true"
           />
         ))}
-        <span className="ml-2 text-[color:var(--wm-text-3,#55503f)]">low → high</span>
+        <span className="ml-2 text-[color:var(--wm-text-2,#8a8271)]">low → high</span>
       </div>
       <div className="ml-4 flex items-center gap-1">
         <span
           className="w-3 h-3 border border-[color:var(--wm-gold-hair,#6d5220)] flex items-center justify-center text-[9px]"
-          style={{ background: "var(--wm-ob-2, #131317)", color: "var(--wm-text-3, #55503f)" }}
+          style={{ background: "var(--wm-ob-2, #131317)", color: "var(--wm-text-2,#8a8271)" }}
           aria-hidden="true"
         >?</span>
-        <span className="text-[color:var(--wm-text-3,#55503f)]">unknown</span>
+        <span className="text-[color:var(--wm-text-2,#8a8271)]">unknown</span>
       </div>
     </div>
   );

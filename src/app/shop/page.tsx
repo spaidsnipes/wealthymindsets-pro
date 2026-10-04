@@ -183,8 +183,8 @@ export default function ShopPage() {
     <div className="wm-shop-light flex flex-col h-full overflow-hidden" style={{ background: "radial-gradient(120% 100% at 50% 0%, #f6f1e6 0%, #ece4d3 55%, #dccfb6 100%)" }}>
       <style>{`
         .wm-shop-light .text-wm-text { color: #241f14; }
-        .wm-shop-light .text-wm-text-muted { color: #6b6152; }
-        .wm-shop-light .text-wm-text-dim { color: #9a8f7a; }
+        .wm-shop-light .text-wm-text-muted { color: #5f5545; }
+        .wm-shop-light .text-wm-text-dim { color: #6b6152; }
         .wm-shop-light .text-wm-black { color: #241f14; }
         .wm-shop-light .bg-wm-dark { background: rgba(255,255,255,0.6); }
         .wm-shop-light .border-wm-border { border-color: rgba(0,0,0,0.10); }

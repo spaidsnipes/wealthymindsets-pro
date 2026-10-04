@@ -747,7 +747,7 @@ export default function MorningPrepPage() {
                         ? <CheckCircle2 size={17} style={{ color: "#ede6d3" }} className="shrink-0" />
                         : <Circle size={17} style={{ color: "#8b8fa8" }} className="shrink-0" />}
                       <span className="text-sm transition-colors"
-                        style={{ color: i.done ? "#5B6270" : "#C0C8D8", textDecoration: i.done ? "line-through" : "none" }}>
+                        style={{ color: i.done ? "#8b8fa8" : "#C0C8D8", textDecoration: i.done ? "line-through" : "none" }}>
                         {i.text}
                       </span>
                     </button>

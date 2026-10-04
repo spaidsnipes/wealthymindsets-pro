@@ -95,7 +95,7 @@ export function Ribbon({
                     ? "var(--wm-gold-hero, #d4af37)"
                     : "var(--wm-gold-hair, #6d5220)",
                   color: dim
-                    ? "var(--wm-text-3, #55503f)"
+                    ? "var(--wm-text-2,#8a8271)"
                     : active
                     ? "var(--wm-gold-hero, #d4af37)"
                     : "var(--wm-gold-mark, #c9a55c)",
@@ -126,7 +126,7 @@ export function Ribbon({
               {(active && typeof c.durationMs === "number" && c.durationMs > 0) || (typeof c.evidenceCount === "number" && c.evidenceCount > 0) ? (
                 <div
                   className="text-[9px] tracking-[0.12em] leading-tight mt-0.5"
-                  style={{ color: "var(--wm-text-3, #55503f)" }}
+                  style={{ color: "var(--wm-text-2,#8a8271)" }}
                 >
                   {active && typeof c.durationMs === "number" && c.durationMs > 0 && (
                     <span>{formatChapterDuration(c.durationMs)} in</span>

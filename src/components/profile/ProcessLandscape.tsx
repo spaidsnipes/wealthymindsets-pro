@@ -213,7 +213,7 @@ export function ProcessLandscape({
              : vm.resolution === "PARTIAL"  ? "Partial coverage"
                                             : "Unknown"}
           </Pill>
-          <span className="text-[10px] text-[color:var(--wm-text-3,#55503f)] tracking-[0.14em] uppercase">
+          <span className="text-[10px] text-[color:var(--wm-text-2,#8a8271)] tracking-[0.14em] uppercase">
             {vm.totalDecisions} decisions · min sample {vm.sampleThreshold}
           </span>
         </div>
@@ -237,7 +237,7 @@ export function ProcessLandscape({
       />
 
       {onDrilldown && (
-        <div className="mt-3 text-[10px] text-[color:var(--wm-text-3,#55503f)] tracking-[0.14em] uppercase">
+        <div className="mt-3 text-[10px] text-[color:var(--wm-text-2,#8a8271)] tracking-[0.14em] uppercase">
           click any cell → open the actual decisions that produced this pattern
         </div>
       )}

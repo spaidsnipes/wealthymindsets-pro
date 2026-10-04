@@ -37,7 +37,7 @@ const STATE_STYLES: Record<PillState, { border: string; text: string; glyph: str
   confirmed: { border: "rgba(92,184,92,0.4)",  text: "#5cb85c", glyph: "◇" },
   warning:   { border: "rgba(201,165,92,0.5)", text: "#c9a55c", glyph: "◐" },
   danger:    { border: "rgba(192,90,74,0.5)",  text: "#c05a4a", glyph: "!" },
-  unknown:   { border: "rgba(85,80,63,0.5)",   text: "#55503f", glyph: "?" },
+  unknown:   { border: "rgba(85,80,63,0.5)",   text: "#8a8271", glyph: "?" },
   neutral:   { border: "var(--wm-gold-line, #8b6a29)", text: "var(--wm-gold-mark, #c9a55c)", glyph: "•" },
 };
 

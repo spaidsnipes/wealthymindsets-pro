@@ -266,7 +266,7 @@ export function StockInfoPanel({ symbol }: Props) {
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
           <span style={{ fontSize: 9, color: "#8b8fa8" }}>Prev Close</span>
           <span
-            style={{ fontSize: 9, color: prev.state === "OBSERVED" ? "#8B8FA8" : "#5A6080", fontFamily: "monospace" }}
+            style={{ fontSize: 9, color: prev.state === "OBSERVED" ? "#8B8FA8" : "#8b8fa8", fontFamily: "monospace" }}
             title={prev.reason}
             aria-label={`Prev close: ${prev.text}. ${prev.reason}`}
           >{prev.text}</span>
@@ -295,7 +295,7 @@ export function StockInfoPanel({ symbol }: Props) {
               <span style={{ fontSize: 10, color: "#8B8FA8" }}>{k}</span>
               <span style={{
                 fontSize: f.state === "OBSERVED" ? 10 : 9,
-                color: f.state === "OBSERVED" ? "#E2E8F0" : "#6B7290",
+                color: f.state === "OBSERVED" ? "#E2E8F0" : "#8b8fa8",
                 fontFamily: "monospace",
               }}>{f.text}</span>
             </div>

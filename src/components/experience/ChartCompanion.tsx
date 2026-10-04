@@ -309,7 +309,7 @@ function MiniPriceBook({
           x={x(i)}
           y={BOOK_PLOT_H + 10}
           textAnchor={k === 0 ? "start" : k === timeTicks.length - 1 ? "end" : "middle"}
-          style={{ fontSize: 9, fill: "#655f52", fontVariantNumeric: "tabular-nums" }}
+          style={{ fontSize: 9, fill: "#8a8271", fontVariantNumeric: "tabular-nums" }}
         >
           {bookTimeLabel(points[i]!.t)}
         </text>
@@ -634,7 +634,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
             padding: "2px 5px", borderRadius: 3, whiteSpace: "nowrap",
             border: "1px solid rgba(201,165,92,0.28)",
             background: "rgba(201,165,92,0.05)",
-            color: vm.regime.resolved ? "#ede6d3" : "#655f52",
+            color: vm.regime.resolved ? "#ede6d3" : "#8a8271",
           }}
         >
           Regime: {vm.regime.resolved ? vm.regime.value : "Unresolved"}

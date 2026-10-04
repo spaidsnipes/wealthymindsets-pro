@@ -703,7 +703,7 @@ function PublishModal({ symbol, captureRef, onClose }: {
           width: "100%", aspectRatio: "16 / 10", background: "#06070B", borderRadius: 10,
           border: "1px solid #1E2030", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          {status === "loading" && <Loader2 size={26} className="wm-spin" color="#4A5070" />}
+          {status === "loading" && <Loader2 size={26} className="wm-spin" color="#8b8fa8" />}
           {status === "error" && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#8896BE", fontSize: 12 }}>
               <AlertTriangle size={22} color="#FF8C00" /> Could not capture the chart.
@@ -842,7 +842,7 @@ function MediaModal({ kind, symbol, onClose }: {
           overflow: "hidden", position: "relative",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          {phase === "init" && <Loader2 size={26} className="wm-spin" color="#4A5070" />}
+          {phase === "init" && <Loader2 size={26} className="wm-spin" color="#8b8fa8" />}
           {phase === "denied" && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#8896BE", fontSize: 12, padding: 16, textAlign: "center" }}>
               <AlertTriangle size={22} color="#FF8C00" />

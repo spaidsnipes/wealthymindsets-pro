@@ -402,7 +402,7 @@ export function HeroTruth({
               // OBSERVED_AGE renders in the usual muted gold; UNVERIFIED
               // renders dimmer so a trader can visually tell "we don't
               // know the true age" from "here it is".
-              color: priceChronology.state === "OBSERVED_AGE" ? "#8a8271" : "#55503f",
+              color: priceChronology.state === "OBSERVED_AGE" ? "#8a8271" : "#8a8271",
               letterSpacing: 0.3,
               textTransform: "uppercase",
               fontStyle: priceChronology.state === "OBSERVED_AGE" ? "normal" : "italic",

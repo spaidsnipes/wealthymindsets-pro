@@ -743,7 +743,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                           style={{ padding: "6px 10px", borderRadius: 5, border: "none",
                             cursor: newListName.trim() ? "pointer" : "not-allowed",
                             fontSize: 12, fontWeight: 800,
-                            color: newListName.trim() ? "#0B0E1A" : "#4A5070",
+                            color: newListName.trim() ? "#0B0E1A" : "#8b8fa8",
                             background: newListName.trim() ? "#00D4AA" : "#1E2030" }}>Add</button>
                       </div>
                     ) : (
@@ -845,7 +845,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                 aria-label="Change row sort order"
                 style={{ background: "none", border: "none", cursor: "pointer", fontSize: isSheet ? 15 : 11,
                   display: "flex", ...tap,
-                  color: sortMode === "manual" ? "#4A5070" : "#FF8C00" }}>
+                  color: sortMode === "manual" ? "#8b8fa8" : "#FF8C00" }}>
                 {sortMode === "chgDesc" ? "↓" : sortMode === "chgAsc" ? "↑" : sortMode === "symAsc" ? "A–Z" : "⇅"}
               </button>
             </div>
@@ -917,7 +917,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
             {/* Search */}
             <div style={{ padding: "5px 8px", borderBottom: "1px solid #1E2030", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 5, background: "#131520", border: "1px solid #1E2030", borderRadius: 5, padding: "3px 7px" }}>
-                <Search size={10} color="#4A5070" />
+                <Search size={10} color="#8b8fa8" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}

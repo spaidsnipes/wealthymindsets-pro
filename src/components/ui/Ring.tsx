@@ -133,7 +133,7 @@ export function Ring({
         {children ??
           (!isFull ? (
             <span
-              className="text-[color:var(--wm-text-3,#55503f)] font-serif text-4xl"
+              className="text-[color:var(--wm-text-2,#8a8271)] font-serif text-4xl"
               aria-hidden="true"
             >
               ?

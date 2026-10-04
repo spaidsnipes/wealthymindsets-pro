@@ -315,7 +315,7 @@ export function PineEditor({ value, onChange, errors = [], height = 400 }: Props
 
       {/* Pine Script CSS */}
       <style jsx global>{`
-        .pine-comment     { color: #6A737D; font-style: italic; }
+        .pine-comment     { color: #8b8fa8; font-style: italic; }
         .pine-string      { color: #F0B429; }
         .pine-keyword     { color: #FF79C6; font-weight: 600; }
         .pine-ta          { color: #4FA3E0; }

@@ -572,7 +572,7 @@ export function DrawingToolsPanel({
                         onMouseEnter={e => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLElement).style.color = "#E2E8F0"; } }}
                         onMouseLeave={e => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#C0C8D8"; } }}
                       >
-                        <span style={{ fontSize: 12, width: 20, textAlign: "center", color: isActive ? group.color : "#5A6788", fontFamily: "monospace", flexShrink: 0 }}>
+                        <span style={{ fontSize: 12, width: 20, textAlign: "center", color: isActive ? group.color : "#8b8fa8", fontFamily: "monospace", flexShrink: 0 }}>
                           {tool.icon}
                         </span>
                         <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tool.label}</span>

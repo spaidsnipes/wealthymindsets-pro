@@ -127,7 +127,7 @@ function Metric({
         style={{
           fontSize: 18,
           fontWeight: 700,
-          color: unknown ? "#55503f" : "#ede6d3",
+          color: unknown ? "#8a8271" : "#ede6d3",
           marginTop: 4,
           fontFamily: "system-ui, -apple-system, sans-serif",
         }}

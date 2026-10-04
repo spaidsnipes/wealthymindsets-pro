@@ -347,7 +347,7 @@ function RailLink({
         fontSize: quiet ? 11 : 12,
         letterSpacing: 0.3,
         textDecoration: "none",
-        color: active ? PEARL : quiet ? "#6f6857" : MUTED,
+        color: active ? PEARL : quiet ? "#8a8271" : MUTED,
         fontWeight: active ? 600 : 400,
         background: active ? "rgba(196,165,116,0.07)" : "transparent",
         minHeight: quiet ? 30 : 36,

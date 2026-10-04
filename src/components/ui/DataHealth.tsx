@@ -35,7 +35,7 @@ const QUALITY_STYLES: Record<PublicQualityState, { text: string; border: string;
   PARTIAL:     { text: "#c9a55c", border: "rgba(201,165,92,0.5)", glyph: "◑", label: "Partial" },
   PROXY:       { text: "#8a8271", border: "rgba(139,106,41,0.5)", glyph: "≈", label: "Proxy" },
   REPLAY:      { text: "#8a8271", border: "rgba(139,106,41,0.5)", glyph: "⟲", label: "Replay" },
-  UNAVAILABLE: { text: "#55503f", border: "rgba(85,80,63,0.5)",   glyph: "—", label: "Unavailable" },
+  UNAVAILABLE: { text: "#8a8271", border: "rgba(85,80,63,0.5)",   glyph: "—", label: "Unavailable" },
 };
 
 export interface QualityBadgeProps {
@@ -75,7 +75,7 @@ export function QualityBadge({ state, freshnessMs, label, compact = false, class
       <span aria-hidden="true">{s.glyph}</span>
       {!compact && <span>{displayLabel}</span>}
       {freshText && !compact && (
-        <span className="text-[color:var(--wm-text-3,#55503f)] ml-0.5">· {freshText}</span>
+        <span className="text-[color:var(--wm-text-2,#8a8271)] ml-0.5">· {freshText}</span>
       )}
     </span>
   );
@@ -98,13 +98,13 @@ export type PersistenceAckState =
   | "UNKNOWN";
 
 const PERSIST_STYLES: Record<PersistenceAckState, { text: string; border: string; glyph: string; label: string; countPrefix: string }> = {
-  NOT_REQUESTED:  { text: "#55503f", border: "rgba(85,80,63,0.5)",   glyph: "—", label: "Not requested",  countPrefix: "—" },
+  NOT_REQUESTED:  { text: "#8a8271", border: "rgba(85,80,63,0.5)",   glyph: "—", label: "Not requested",  countPrefix: "—" },
   PENDING:        { text: "#c9a55c", border: "rgba(201,165,92,0.5)", glyph: "◐", label: "Pending",        countPrefix: "Pending" },
   ACKNOWLEDGED:   { text: "#5cb85c", border: "rgba(92,184,92,0.4)",  glyph: "◇", label: "Saved",          countPrefix: "Saved" },
   PARTIAL:        { text: "#c9a55c", border: "rgba(201,165,92,0.5)", glyph: "◑", label: "Partial save",   countPrefix: "Saved" },
   FAILED:         { text: "#c05a4a", border: "rgba(192,90,74,0.5)",  glyph: "!", label: "Save failed",    countPrefix: "Failed" },
   OFFLINE_QUEUED: { text: "#c9a55c", border: "rgba(201,165,92,0.5)", glyph: "⌛", label: "Queued offline", countPrefix: "Queued" },
-  UNKNOWN:        { text: "#55503f", border: "rgba(85,80,63,0.5)",   glyph: "?", label: "Unknown",        countPrefix: "Local" },
+  UNKNOWN:        { text: "#8a8271", border: "rgba(85,80,63,0.5)",   glyph: "?", label: "Unknown",        countPrefix: "Local" },
 };
 
 export interface PersistenceBadgeProps {
@@ -199,9 +199,9 @@ const NECTAR_STYLES: Record<NectarStatus, { text: string; border: string; glyph:
   NO_EVENTS_YET:      { text: "#8a8271", border: "rgba(139,106,41,0.5)", glyph: "⌛", label: "Warming up" },
   PAUSED:             { text: "#c9a55c", border: "rgba(201,165,92,0.5)", glyph: "‖", label: "Paused" },
   DISCONNECTED:       { text: "#c05a4a", border: "rgba(192,90,74,0.5)",  glyph: "×", label: "Disconnected" },
-  NO_ELIGIBLE_SOURCE: { text: "#55503f", border: "rgba(85,80,63,0.5)",   glyph: "—", label: "No source" },
-  RIGHTS_BLOCKED:     { text: "#55503f", border: "rgba(85,80,63,0.5)",   glyph: "▲", label: "Rights blocked" },
-  UNKNOWN:            { text: "#55503f", border: "rgba(85,80,63,0.5)",   glyph: "?", label: "Unknown" },
+  NO_ELIGIBLE_SOURCE: { text: "#8a8271", border: "rgba(85,80,63,0.5)",   glyph: "—", label: "No source" },
+  RIGHTS_BLOCKED:     { text: "#8a8271", border: "rgba(85,80,63,0.5)",   glyph: "▲", label: "Rights blocked" },
+  UNKNOWN:            { text: "#8a8271", border: "rgba(85,80,63,0.5)",   glyph: "?", label: "Unknown" },
 };
 
 export interface NectarHeartbeatProps {
@@ -265,7 +265,7 @@ export function NectarHeartbeat(props: NectarHeartbeatProps) {
       <span aria-hidden="true">{s.glyph}</span>
       <span>Nectar</span>
       <span className="text-[color:var(--wm-text-1,#ede6d3)]">{s.label}</span>
-      {ageText && <span className="text-[color:var(--wm-text-3,#55503f)]">· {ageText}</span>}
+      {ageText && <span className="text-[color:var(--wm-text-2,#8a8271)]">· {ageText}</span>}
     </span>
   );
 }

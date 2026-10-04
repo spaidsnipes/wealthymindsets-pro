@@ -863,7 +863,7 @@ export function SmartMoneyPanel({
               </span>
               <span
                 className="text-[10px] font-bold tabular-nums"
-                style={{ color: deltaVal > 0 ? "#00D4AA" : deltaVal < 0 ? "#F6465D" : "#4A5070" }}
+                style={{ color: deltaVal > 0 ? "#00D4AA" : deltaVal < 0 ? "#F6465D" : "#8b8fa8" }}
               >
                 Δ {fmtDelta(deltaVal)}
               </span>

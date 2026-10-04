@@ -321,7 +321,7 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
 
               <div style={{
                 width:78, textAlign:"center", fontFamily:"monospace", fontSize:13, fontWeight: isAtPrice ? 800 : 600,
-                color: isAtPrice ? "#F0B429" : "#6A72A0",
+                color: isAtPrice ? "#F0B429" : "#8b8fa8",
                 background: isAtPrice ? "rgba(240,180,41,0.08)" : "transparent",
                 position:"relative", zIndex:2,
               }}>

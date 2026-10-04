@@ -200,13 +200,13 @@
   letter-spacing: .04em;
   white-space: nowrap;
 }
-.wm-chart-market-standing-label { color: #5a6486; font-size: 9px; letter-spacing: .08em; }
+.wm-chart-market-standing-label { color: #8b8fa8; font-size: 9px; letter-spacing: .08em; }
 .wm-chart-market-standing [data-standing-direction="BULL"] { color: #00d4aa; }
 .wm-chart-market-standing [data-standing-direction="BEAR"] { color: #ff4d6a; }
 .wm-chart-market-standing [data-standing-direction="SIDE"] { color: #f0b429; }
 .wm-chart-market-standing [data-standing-change="UP"] { color: #00d4aa; }
 .wm-chart-market-standing [data-standing-change="DOWN"] { color: #ff4d6a; }
-.wm-chart-market-standing [data-standing-regime="UNRESOLVED"] { color: #5a6486; }
+.wm-chart-market-standing [data-standing-regime="UNRESOLVED"] { color: #8b8fa8; }
 
 @media (min-width: 1280px) {
   .wm-chart-toolbar-asset-class { display: flex; }

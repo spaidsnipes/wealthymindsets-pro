@@ -165,7 +165,7 @@ export function OneStoryStrip({ vm }: OneStoryStripProps): React.ReactElement {
                 style={{
                   fontSize: 11,
                   lineHeight: 1.4,
-                  color: unresolved ? "#6f6a5e" : "#8a8271",
+                  color: unresolved ? "#8a8271" : "#8a8271",
                   fontVariantNumeric: "tabular-nums",
                 }}
               >

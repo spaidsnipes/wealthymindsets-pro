@@ -731,7 +731,7 @@ function ProcessOutcomeStrip({
                 </span>
                 <span style={{ fontSize: 9, color: "#8a8271" }}>· {pct}%</span>
               </div>
-              <div style={{ fontSize: 9, letterSpacing: 0.28, textTransform: "uppercase", color: dim ? "#55503f" : "#c0b8a0", marginTop: 2 }}>
+              <div style={{ fontSize: 9, letterSpacing: 0.28, textTransform: "uppercase", color: dim ? "#8a8271" : "#c0b8a0", marginTop: 2 }}>
                 {r.label}
               </div>
               <div style={{ fontSize: 9, color: "#8a8271", marginTop: 1, fontStyle: "italic" }}>

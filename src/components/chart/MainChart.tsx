@@ -25696,7 +25696,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             </div>
             {/* The scope line, not a hover. A panel whose scope is reachable
                 only by hovering is a panel that competes with the header. */}
-            <div style={{ fontSize: 9, fontWeight: 600, color: scope.historical ? "#F0B429" : "#62697d", marginBottom: 5, whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 9, fontWeight: 600, color: scope.historical ? "#F0B429" : "#8b8fa8", marginBottom: 5, whiteSpace: "nowrap" }}>
               {scope.subheading}
             </div>
             {[

@@ -169,7 +169,7 @@ export function WatchlistRow({
           {priced ? (
             <>
               <div
-                style={{ fontSize: 11, color: refusal ? "#4A5070" : dirColor, fontFamily: "monospace", fontWeight: 600 }}
+                style={{ fontSize: 11, color: refusal ? "#8b8fa8" : dirColor, fontFamily: "monospace", fontWeight: 600 }}
                 title={refusal ? `${sym}: not certified — ${refusal}\n\nA provider answered and WM declined the answer. This is a refusal, not a delay.` : undefined}
               >
                 {refusal ? "—" : price.toFixed(dp)}

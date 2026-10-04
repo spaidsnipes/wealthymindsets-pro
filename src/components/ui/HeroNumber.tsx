@@ -69,7 +69,7 @@ export function HeroNumber({
           <span
             className={[
               numSize,
-              "font-serif tabular-nums leading-none text-[color:var(--wm-text-3,#55503f)]",
+              "font-serif tabular-nums leading-none text-[color:var(--wm-text-2,#8a8271)]",
             ].join(" ")}
             aria-hidden="true"
           >
