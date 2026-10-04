@@ -18,8 +18,13 @@
  * PURE. DETERMINISTIC. NO RANDOMNESS AT RUNTIME.
  */
 
-/** The storm body's ceiling inside the lens (F08B; candles are cut out of it, so it cannot bury them). */
-export const STORM_BODY_MAX_ALPHA = 0.86;
+/**
+ * The storm body's ceiling inside the lens (F08B; candles are cut out of it,
+ * so it cannot bury them). 0.86 → 0.5 on 2026-10-04: candles are cut out, the
+ * Smart Money marks are not — measured on serving NQ 5m, the absorption shelf
+ * and the exhaustion mark on the newest bars read as smoke under the lens.
+ */
+export const STORM_BODY_MAX_ALPHA = 0.5;
 /** How far the measured hue is pushed from grey inside the storm (F08B plate depth). */
 export const STORM_SATURATION = 1.45;
 /** Light in the smoke's lanes (d = 0) as a share of the measured colour; cores reach 1.5×. */
