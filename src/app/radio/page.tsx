@@ -6,7 +6,7 @@ import {
   Search, ChevronRight, Users, Star,
   TrendingUp, Flame, Plus, Signal,
   CheckCircle, X, Upload,
-  Heart, Headphones, Volume2, VolumeX,
+  Heart, Headphones,
 } from "lucide-react";
 /* Uploaded tracks go through /api/radio (2026-10-03): the browser bundle has
    no public Supabase connection, so the old client calls never ran. */
@@ -464,8 +464,10 @@ function EpisodeCard({ ep, artIndex, active, playing, onPlay }: {
   );
 }
 
-function ArtistCard({ artist, artIndex }: { artist: Artist; artIndex: number }) {
-  const [following, setFollowing] = useState(false);
+// Follow / Fans retired 2026-10-04: these are Archive.org credits, not WM
+// accounts — "Following ✓" saved nothing and "Fans" was always "—". The card
+// now opens the artist's own tracks in Music, which is real.
+function ArtistCard({ artist, artIndex, onOpen }: { artist: Artist; artIndex: number; onOpen: () => void }) {
   return (
     <motion.div whileHover={{ y:-4 }} className="relative rounded-2xl border border-wm-border/50 bg-wm-card/60 hover:border-wm-border hover:bg-wm-surface/40 transition-all overflow-hidden">
       {/* Cover header with genre texture */}
@@ -499,122 +501,19 @@ function ArtistCard({ artist, artIndex }: { artist: Artist; artIndex: number }) 
               <div className="text-[12px] font-black text-wm-text">{artist.tracks}</div>
               <div className="text-[8px] text-wm-text-dim uppercase tracking-wide">Tracks</div>
             </div>
-            <div className="text-center">
-              <div className="text-[12px] font-black text-wm-text">{artist.followers}</div>
-              <div className="text-[8px] text-wm-text-dim uppercase tracking-wide">Fans</div>
-            </div>
           </div>
           <button
-            onClick={() => setFollowing(f => !f)}
+            type="button"
+            onClick={onOpen}
+            aria-label={`Play tracks by ${artist.name}`}
             className="px-4 py-1.5 rounded-xl text-[10px] font-black transition-all hover:scale-105"
-            style={following
-              ? { background: "rgba(0,212,170,0.15)", color: "#00D4AA", border: "1px solid rgba(0,212,170,0.4)" }
-              : { background: "linear-gradient(135deg,#E8B923,#059669)", color: "#0b0a06" }
-            }
+            style={{ background: "linear-gradient(135deg,#E8B923,#059669)", color: "#0b0a06" }}
           >
-            {following ? "Following ✓" : "Follow"}
+            Play tracks
           </button>
         </div>
       </div>
     </motion.div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════
-   MINI PLAYER (persistent at bottom of radio page)
-══════════════════════════════════════════════════════════════ */
-interface NowPlaying {
-  title: string;
-  artist: string;
-  duration: number;
-  color: string;
-  type: "track" | "station" | "episode";
-}
-
-function RadioPlayer({ now, playing, onToggle, progress, onSeek, volume, onVolume }:{
-  now: NowPlaying | null;
-  playing: boolean;
-  onToggle: () => void;
-  progress: number;
-  onSeek: (p: number) => void;
-  volume: number;
-  onVolume: (v: number) => void;
-}) {
-  const [muted, setMuted] = useState(false);
-  if (!now) return null;
-  const pct = now.type === "station" ? 0 : (progress / now.duration) * 100;
-
-  return (
-    <div className="fixed bottom-14 left-0 right-0 z-50 mx-4 mb-2 rounded-2xl border border-wm-border"
-      style={{ background: "rgba(13,14,20,0.97)", backdropFilter:"blur(20px)", boxShadow:`0 -4px 40px ${now.color}22` }}>
-      <div className="flex items-center gap-4 px-5 py-3">
-        {/* Art — spinning vinyl */}
-        <div className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center ${playing ? "animate-[spin_3.4s_linear_infinite]" : ""}`}
-          style={{ background:"repeating-radial-gradient(circle, #141310 0 1.5px, #08080c 1.5px 3.5px)", border:"1px solid rgba(232,185,35,0.4)", boxShadow:"0 3px 12px rgba(0,0,0,0.5)" }}>
-          <div className="rounded-full flex items-center justify-center" style={{ width:15, height:15, background:"linear-gradient(135deg,#E8B923,#c98a12)" }}>
-            {now.type === "station" ? <Radio size={8} style={{ color:"#0b0a06" }} /> :
-             now.type === "episode" ? <Mic size={8} style={{ color:"#0b0a06" }} /> :
-             <Music2 size={8} style={{ color:"#0b0a06" }} />}
-          </div>
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            {playing && now.type === "station" && (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full"
-                style={{ background:"rgba(255,77,106,0.2)", border:"1px solid rgba(255,77,106,0.4)" }}>
-                <div className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
-                <span style={{ fontSize:7, fontWeight:800, color:"#FF4D6A", letterSpacing:1 }}>LIVE</span>
-              </div>
-            )}
-            <span className="text-[12px] font-bold text-wm-text truncate">{now.title}</span>
-          </div>
-          <span className="text-[10px] text-wm-text-muted">{now.artist}</span>
-        </div>
-
-        {/* Progress (for tracks/episodes) */}
-        {now.type !== "station" && (
-          <div className="flex-1 min-w-0 hidden sm:flex items-center gap-2">
-            <span className="text-[9px] font-mono text-wm-text-dim shrink-0">{fmt(progress)}</span>
-            <div className="flex-1 h-1 rounded-full bg-wm-muted relative cursor-pointer"
-              onClick={e => {
-                const r = e.currentTarget.getBoundingClientRect();
-                onSeek(Math.floor(((e.clientX - r.left) / r.width) * now.duration));
-              }}>
-              <div className="h-full rounded-full" style={{ width:`${pct}%`, background:"linear-gradient(90deg,#E8B923,#059669)" }} />
-            </div>
-            <span className="text-[9px] font-mono text-wm-text-dim shrink-0">{fmt(now.duration)}</span>
-          </div>
-        )}
-        {now.type === "station" && (
-          <div className="flex-1 min-w-0 hidden sm:flex items-center justify-center gap-1">
-            <LiveWave color={now.color} />
-            <span style={{ fontSize:10, color:now.color, fontWeight:700, marginLeft:6 }}>STREAMING LIVE</span>
-          </div>
-        )}
-
-        {/* Controls */}
-        <div className="flex items-center gap-3 shrink-0">
-          <button onClick={onToggle}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-105"
-            style={{ background:`linear-gradient(135deg, ${now.color}, ${now.color}88)` }}>
-            {playing ? <Pause size={14} className="text-black" /> : <Play size={14} className="text-black ml-0.5" />}
-          </button>
-        </div>
-
-        {/* Volume */}
-        <div className="hidden sm:flex items-center gap-2 shrink-0 w-28">
-          <button onClick={() => setMuted(m=>!m)} className="text-wm-text-dim hover:text-wm-text transition-colors">
-            {muted ? <VolumeX size={13}/> : <Volume2 size={13}/>}
-          </button>
-          <input type="range" min={0} max={1} step={0.01}
-            value={muted ? 0 : volume}
-            onChange={e => { onVolume(+e.target.value); setMuted(false); }}
-            className="flex-1" style={{ accentColor:now.color }} />
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -909,6 +808,7 @@ export default function RadioPage() {
 
   // Merged track list for display
   const allTracks = [...TRACKS, ...userTracks];
+  const openArtist = (name: string) => { setGenreFilter("All"); setSearch(name); setTab("music"); };
 
   // Genres for music tab
   const allGenres = ["All", ...Array.from(new Set(allTracks.map(t => t.genre)))];
@@ -1267,7 +1167,7 @@ export default function RadioPage() {
                 <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">WM Team</span>
               </div>
               <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-                {ARTISTS.filter(a => a.wm_team).map((a, index) => <ArtistCard key={a.id} artist={a} artIndex={index} />)}
+                {ARTISTS.filter(a => a.wm_team).map((a, index) => <ArtistCard key={a.id} artist={a} artIndex={index} onOpen={() => openArtist(a.name)} />)}
               </div>
             </div>}
             <div>
@@ -1276,7 +1176,7 @@ export default function RadioPage() {
                 <span className="text-[11px] font-black text-wm-text uppercase tracking-widest">Community Artists</span>
               </div>
               <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-                {ARTISTS.filter(a => !a.wm_team).map((a, index) => <ArtistCard key={a.id} artist={a} artIndex={index + 3} />)}
+                {ARTISTS.filter(a => !a.wm_team).map((a, index) => <ArtistCard key={a.id} artist={a} artIndex={index + 3} onOpen={() => openArtist(a.name)} />)}
               </div>
             </div>
           </div>

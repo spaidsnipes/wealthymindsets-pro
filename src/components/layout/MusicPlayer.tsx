@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
-  Heart, ListMusic, Radio, Music2, Mic,
+  ListMusic, Radio, Music2, Mic,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRadio } from "@/contexts/RadioContext";
@@ -16,7 +16,6 @@ function fmt(s: number) {
 export function MusicPlayer() {
   const { nowPlaying, playing, progress, volume, toggle, seek, setVolume, stop } = useRadio();
   const [muted, setMuted]       = useState(false);
-  const [liked, setLiked]       = useState(false);
   const [prevVol, setPrevVol]   = useState(0.7);
 
   if (!nowPlaying) return <div style={{ height: 52, flexShrink: 0 }} className="wm-music-player border-t border-wm-border bg-wm-dark" />;
@@ -67,21 +66,18 @@ export function MusicPlayer() {
           </div>
         </div>
 
-        <button onClick={() => setLiked(l => !l)} className="shrink-0 transition-colors">
-          <Heart size={13} className={liked ? "text-wm-red fill-wm-red" : "text-wm-text-dim hover:text-wm-red"} />
-        </button>
       </div>
 
       {/* Controls */}
       <div className="flex-1 flex flex-col items-center gap-1 min-w-0">
         <div className="flex items-center gap-3">
           {!isLive && (
-            <button onClick={() => seek(Math.max(0, progress - 15))} title="Back 15s" className="text-wm-text-muted hover:text-wm-text transition-colors">
+            <button onClick={() => seek(Math.max(0, progress - 15))} title="Back 15s" aria-label="Back 15 seconds" className="text-wm-text-muted hover:text-wm-text transition-colors">
               <SkipBack size={15} />
             </button>
           )}
           <button onClick={toggle}
-            title={playing ? "Pause" : "Play"}
+            title={playing ? "Pause" : "Play"} aria-label={playing ? "Pause" : "Play"}
             className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-105"
             style={{ background: `linear-gradient(135deg, ${nowPlaying.color}, ${nowPlaying.color}88)` }}
           >
@@ -91,7 +87,7 @@ export function MusicPlayer() {
             }
           </button>
           {!isLive && (
-            <button onClick={() => seek(Math.min(duration, progress + 15))} title="Forward 15s" className="text-wm-text-muted hover:text-wm-text transition-colors">
+            <button onClick={() => seek(Math.min(duration, progress + 15))} title="Forward 15s" aria-label="Forward 15 seconds" className="text-wm-text-muted hover:text-wm-text transition-colors">
               <SkipForward size={15} />
             </button>
           )}
@@ -109,6 +105,16 @@ export function MusicPlayer() {
             <span className="text-[9px] font-mono text-wm-text-dim w-6 text-right shrink-0">{fmt(progress)}</span>
             <div
               className="flex-1 h-1 rounded-full bg-wm-muted relative cursor-pointer group"
+              role="slider" tabIndex={0} aria-label="Seek"
+              aria-valuemin={0} aria-valuemax={Math.floor(duration)} aria-valuenow={Math.floor(progress)}
+              aria-valuetext={`${fmt(progress)} of ${fmt(duration)}`}
+              onKeyDown={e => {
+                // Keyboard reach (2026-10-04): arrows ±5 s, Home / End.
+                const step = e.key === "ArrowRight" || e.key === "ArrowUp" ? 5 : e.key === "ArrowLeft" || e.key === "ArrowDown" ? -5 : 0;
+                if (step) { e.preventDefault(); seek(Math.max(0, Math.min(duration, Math.floor(progress) + step))); }
+                else if (e.key === "Home") { e.preventDefault(); seek(0); }
+                else if (e.key === "End") { e.preventDefault(); seek(duration); }
+              }}
               onClick={e => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 seek(Math.floor(((e.clientX - rect.left) / rect.width) * duration));
@@ -127,7 +133,7 @@ export function MusicPlayer() {
 
       {/* Volume + stop */}
       <div className="flex items-center gap-2 w-36 shrink-0 justify-end">
-        <button onClick={toggleMute} className="text-wm-text-muted hover:text-wm-text transition-colors">
+        <button onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"} aria-pressed={muted} className="text-wm-text-muted hover:text-wm-text transition-colors">
           {muted || volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
         </button>
         <div className="w-20">
@@ -135,11 +141,12 @@ export function MusicPlayer() {
             type="range" min={0} max={1} step={0.01}
             value={muted ? 0 : volume}
             onChange={e => { setVolume(+e.target.value); setMuted(false); }}
+            aria-label="Volume"
             className="w-full"
             style={{ accentColor: nowPlaying.color }}
           />
         </div>
-        <button onClick={stop} className="text-wm-text-dim hover:text-wm-red transition-colors text-[10px] font-bold px-1">✕</button>
+        <button onClick={stop} aria-label="Stop and close player" className="text-wm-text-dim hover:text-wm-red transition-colors text-[10px] font-bold px-1">✕</button>
       </div>
     </div>
   );
