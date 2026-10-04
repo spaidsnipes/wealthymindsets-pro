@@ -189,16 +189,49 @@ export interface SemanticPermissionVM {
   readonly receipt: string | null;
 }
 
+/**
+ * THE NARROW-GLASS BUDGET (2026-10-04). Founder, on the 390 phone: fix the
+ * chart's density. Measured on BTC-USD 5m at 390: Living's VAH / POC / VAL
+ * chips, "ABSORBING" + "ABSORPTION 5.98 STRONG", the Effort caption, the
+ * Order Flow and Structure captions, the WAIT tag and the zone names all
+ * printed words into the same ~300px of plot. Every one is correct alone; a
+ * phone cannot carry all of them at once.
+ *
+ * The grammar for "less" already exists: QUIET is a layer's geometry without
+ * its words. So the budget is one rule over this table, not a second table:
+ * on a plot narrower than NARROW_GLASS_MAX_PX, every SPEAK becomes QUIET
+ * except the layers below — price and its chrome, the Living profile's level
+ * names (the primary reading), the trader's own risk and questions, data
+ * gaps, the WAIT tag and the depth word. The SELECTED item still speaks at
+ * every width (tap a zone, an absorption, a bubble — its words come back),
+ * and nothing that paints is removed: SILENT stays SILENT, the rest keeps its
+ * shape. The desk (wider than the budget) is unchanged.
+ */
+export const NARROW_GLASS_MAX_PX = 600;
+export const NARROW_GLASS_KEEPS_WORDS: ReadonlySet<DepthLayer> = new Set<DepthLayer>([
+  "candles", "farEnvelope", "zoomPlate", "regimeLighting",
+  "livingProfile",
+  "riskOnPrice", "questionLens", "candleTimer", "dataGaps", "debtTag",
+  "formingCandle",
+]);
+
 export function permissionAt(layer: DepthLayer, depth: SemanticZoomState | null | undefined): Permission {
   if (depth !== "FAR" && depth !== "MID" && depth !== "NEAR") return DEPTH_FORMS.has(layer) ? "SILENT" : "SPEAK";
   return SEMANTIC_PERMISSION[layer][COLUMN[depth]];
 }
 
-export function selectSemanticPermission(depth: SemanticZoomState | null | undefined): SemanticPermissionVM {
+export function selectSemanticPermission(
+  depth: SemanticZoomState | null | undefined,
+  glass: { readonly narrow?: boolean } = {},
+): SemanticPermissionVM {
   const d: SemanticZoomState = depth ?? "UNMEASURED";
   const measured = d === "FAR" || d === "MID" || d === "NEAR";
-  const of = (layer: DepthLayer, opts?: PermissionOpts): Permission =>
-    opts?.selectedItem ? "SPEAK" : permissionAt(layer, d);
+  const narrow = glass.narrow === true;
+  const of = (layer: DepthLayer, opts?: PermissionOpts): Permission => {
+    if (opts?.selectedItem) return "SPEAK";
+    const p = permissionAt(layer, d);
+    return narrow && p === "SPEAK" && !NARROW_GLASS_KEEPS_WORDS.has(layer) ? "QUIET" : p;
+  };
   const silent = measured ? DEPTH_LAYERS.filter(k => permissionAt(k, d) === "SILENT") : [];
   const candles = permissionAt("candles", d);
   return {
@@ -209,7 +242,7 @@ export function selectSemanticPermission(depth: SemanticZoomState | null | undef
     speaks: (layer, opts) => of(layer, opts) === "SPEAK",
     candlesDim: candles === "SPEAK" ? 1 : FAR_CANDLES_DIM,
     silent,
-    receipt: measured ? `${d}|SILENT=${silent.join(",")}` : null,
+    receipt: measured ? `${d}|SILENT=${silent.join(",")}${narrow ? "|NARROW" : ""}` : null,
   };
 }
 

@@ -599,7 +599,7 @@ import type {
 } from "@/lib/marketData/canonicalBar";
 import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
 import { marketClockReceipt, noteSeries, notePaint, resetMarketClock } from "@/lib/chart/marketClockProbe";
-import { QUIET_CEILING } from "@/lib/marketData/viewModels/selectSemanticPermission";
+import { QUIET_CEILING, NARROW_GLASS_MAX_PX } from "@/lib/marketData/viewModels/selectSemanticPermission";
 import { wallContact } from "@/lib/marketData/viewModels/wallContact";
 import { coinbaseProductFor, fetchCoinbaseTradeHistory } from "@/lib/marketData/coinbaseTradeBackfill";
 import { ANATOMY_MODE_EVENT, ANATOMY_MODE_KEY } from "@/lib/chart/anatomyMode";
@@ -7375,6 +7375,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       let att = selectAttentionGovernor({
         density: semanticDensity,
         questionQuiet: 1,
+        // The phone's word budget (selectSemanticPermission, NARROW_GLASS_MAX_PX).
+        narrowGlass: plotRight < NARROW_GLASS_MAX_PX,
         regimeLight: layerOnRef.current.regimeLighting === true ? regimeLightingRef.current : null,
         stackPrefs: stackPrefsRef.current,
         // The fused object's parents step back — the trader's Pick · Fuse pair,

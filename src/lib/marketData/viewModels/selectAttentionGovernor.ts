@@ -199,6 +199,8 @@ export interface AttentionGovernorInput {
   readonly density: SemanticDensityVM;
   /** Question Lens quiet: 1 = no lens, < 1 while a question is asked. */
   readonly questionQuiet: number;
+  /** The plot is narrower than NARROW_GLASS_MAX_PX (a phone): the narrow-glass word budget applies. */
+  readonly narrowGlass?: boolean;
   /**
    * Garden 16 emergency order §15 — WAIT IS A MARKET POSTURE. "QUIET" when the
    * one compiled decision grants no authorization (WAIT / NO TRADE): the
@@ -288,7 +290,7 @@ export function selectAttentionGovernor(
   asked: Map<AttentionLayerKey, { tier: AttentionTier; alpha: number }> = new Map(),
   withheld: Set<DepthLayer> = new Set(),
 ): AttentionGovernorVM {
-  const permission = selectSemanticPermission(input.density.depth);
+  const permission = selectSemanticPermission(input.density.depth, { narrow: input.narrowGlass === true });
   const quiet = Math.min(1, Math.max(0, fin(input.questionQuiet, 1)));
   const magnets = fin(input.regimeLight?.magnets ?? 1, 1);
   const trend = fin(input.regimeLight?.trend ?? 1, 1);
