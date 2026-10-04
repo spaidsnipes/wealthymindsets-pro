@@ -7860,15 +7860,32 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.ellipse(b.x, b.y, Rx + 4, Ry + 4, 0, 0, Math.PI * 2);
           ctx.fillStyle = `rgba(${core},0.10)`;
           ctx.fill();
-          const g = ctx.createRadialGradient(b.x, b.y, Rx * 0.2, b.x, b.y, Rx);
-          g.addColorStop(0, `rgba(${core},0.04)`);
-          g.addColorStop(0.72, `rgba(${core},0.08)`);
-          g.addColorStop(0.93, `rgba(${core},0.26)`);
-          g.addColorStop(1, `rgba(255,255,255,0.32)`);
+          // ATH GLASS (Founder 2026-10-03: "make sure you see the opacity").
+          // The core was 4–8 % — a clear disc read as an empty ring over the
+          // candles. Now a lit, side-tinted orb: visible body, darker rim,
+          // light from above-left; the candle still reads through it.
+          const g = ctx.createRadialGradient(b.x - Rx * 0.28, b.y - Ry * 0.32, Rx * 0.05, b.x, b.y, Rx);
+          g.addColorStop(0, `rgba(${core},0.34)`);
+          g.addColorStop(0.62, `rgba(${core},0.18)`);
+          g.addColorStop(0.92, `rgba(${core},0.30)`);
+          g.addColorStop(1, `rgba(${core},0.45)`);
+          ctx.save();
+          ctx.shadowColor = `rgba(${core},0.45)`;
+          ctx.shadowBlur = Math.max(6, Rx * 0.6);
           ctx.beginPath();
           ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
           ctx.fillStyle = g;
           ctx.fill();
+          ctx.restore();
+          if (Rx > 6) {
+            ctx.save();
+            ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx - 1, Ry - 1, 0, 0, Math.PI * 2); ctx.clip();
+            const spec = ctx.createRadialGradient(b.x - Rx * 0.36, b.y - Ry * 0.42, 0, b.x - Rx * 0.36, b.y - Ry * 0.42, Rx * 0.6);
+            spec.addColorStop(0, "rgba(255,255,255,0.32)");
+            spec.addColorStop(1, "rgba(255,255,255,0)");
+            ctx.fillStyle = spec; ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+          }
           ctx.beginPath();
           ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 0.6), Math.max(0.1, Ry - 0.6), 0, 0, Math.PI * 2);
           // The rim says the SIDE (v2 §15, serving BTC 1m NEAR 2026-10-03:
