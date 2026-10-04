@@ -14510,6 +14510,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const STACK_ROWS = 12;
           let runsDrawn = 0, barsRead = 0;
           let newest: { x: number; yTop: number; yBot: number; buy: boolean; word: string } | null = null;
+          // AN EVENT, NOT A TEXTURE (measured 2026-10-04, BTC 1m: 38 stacks on 98
+          // bars read as a pattern on every candle). Only the STACK_BUDGET
+          // strongest on the camera draw — deepest first (rows), then the
+          // highest weakest-ratio. The rest stay in the receipt, not the glass.
+          const STACK_BUDGET = 10;
+          const found: { c: LegacyOhlcvTuple; rawX: number; binW: number; run: ReturnType<typeof imbalanceRuns>[number]; score: number }[] = [];
           const slotW = Math.max(3, Math.min(18, Math.floor(bsp * 0.82)));
           ctx.save();
           ctx.beginPath(); ctx.rect(0, 0, plotRight, pane0Bottom); ctx.clip();
@@ -14520,8 +14526,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (rows.length === 0 || !rows.some(r => r.total > 0)) continue;
             barsRead++;
             const binW = (c.high - c.low) / STACK_ROWS;
-            const runs = imbalanceRuns(readImbalanceRows(rows));
-            for (const run of runs) {
+            for (const run of imbalanceRuns(readImbalanceRows(rows))) {
+              const depth = run.to - run.from + 1;
+              found.push({ c, rawX: +rawX, binW, run, score: depth * 1000 + Math.min(999, run.weakestPct == null ? 300 : run.weakestPct / 10) });
+            }
+          }
+          const chosen = new Set(found.slice().sort((a, b) => b.score - a.score).slice(0, STACK_BUDGET));
+          for (const f of found) {
+            if (!chosen.has(f)) continue;
+            const { c, rawX, binW, run } = f;
+            {
               const pLo = c.low + run.from * binW, pHi = c.low + (run.to + 1) * binW;
               const yA = srs.priceToCoordinate(pHi), yB = srs.priceToCoordinate(pLo);
               if (yA == null || yB == null) continue;
