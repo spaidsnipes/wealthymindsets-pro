@@ -2392,7 +2392,7 @@ Trade the system, trust the process, winners every day 🚀`,
                     </div>
                     <div className="text-sm font-bold text-wm-text">No songs yet</div>
                     <div className="text-xs text-wm-text-muted max-w-xs">
-                      Generate your first AI strategy song. Pick a topic like "smart money" or "order flow" and a style — the AI writes full lyrics inspired by your trading journey.
+                      Pick a topic like "smart money" or "order flow" and a style — WM builds lyrics from its templates, woven with any lines you add. Nothing is sent to an AI service.
                     </div>
                   </div>
                 ) : (
