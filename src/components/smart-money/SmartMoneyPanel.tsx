@@ -1267,7 +1267,15 @@ export function SmartMoneyPanel({
       <div>
         {SECTIONS.map(sec => {
           const open = openSections.has(sec.key);
-          const sectionSignals = signals.slice(sec.from, sec.to);
+          const allSectionSignals = signals.slice(sec.from, sec.to);
+          // Founder 2026-10-03: "make sure we don't have just labels". A
+          // section used to list every N/A row at full weight — 13 of ~22
+          // rows were "N/A — needs …". Measured signals lead; what this feed
+          // cannot measure folds into ONE named line that opens to each row
+          // and its reason. Nothing hidden, nothing invented.
+          const isUnmeasured = (x: typeof allSectionSignals[number]) => x.strength === "neutral" && x.bullish === null && /^N\/A\b/.test(x.value);
+          const sectionSignals = allSectionSignals.filter(x => !isUnmeasured(x));
+          const unmeasured = allSectionSignals.filter(isUnmeasured);
           const strongCount = sectionSignals.filter(s => s.strength === "strong").length;
 
           return (
@@ -1278,6 +1286,7 @@ export function SmartMoneyPanel({
               >
                 {open ? <ChevronDown size={11} className="text-wm-text-dim mr-1.5" /> : <ChevronRight size={11} className="text-wm-text-dim mr-1.5" />}
                 <span className="text-[10px] font-semibold text-wm-text-muted flex-1 text-left">{sec.label}</span>
+                <span className="text-[9px] text-wm-text-dim mr-1.5 tabular-nums">{sectionSignals.length}/{allSectionSignals.length} measured</span>
                 {strongCount > 0 && (
                   <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-wm-green/15 text-wm-green border border-wm-green/25">
                     {strongCount} strong
@@ -1322,6 +1331,21 @@ export function SmartMoneyPanel({
                       </div>
                     </div>
                   ))}
+                  {unmeasured.length > 0 && (
+                    <details className="px-3 py-1 group/um" data-testid="smart-money-unmeasured">
+                      <summary className="cursor-pointer list-none text-[9px] text-wm-text-dim hover:text-wm-text-muted flex items-center gap-1">
+                        <ChevronRight size={9} className="transition-transform group-open/um:rotate-90" />
+                        Not measured on this feed · {unmeasured.length}
+                      </summary>
+                      <ul className="mt-1 space-y-1 pl-3">
+                        {unmeasured.map((sig, i) => (
+                          <li key={i} className="text-[9px] leading-snug text-wm-text-dim">
+                            <span className="text-wm-text-muted">{sig.name}</span> — {sig.value.replace(/^N\/A\s*[—-]\s*/, "")}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </div>
               )}
             </div>
