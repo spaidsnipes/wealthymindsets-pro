@@ -16321,7 +16321,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const inPane = (y: number) => Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotD - 16, y));
                   chip(ww.word, { x: ww.x - wW - 6, y: inPane(ww.y - 7) }, [{ x: ww.x - wW - 6, y: inPane(ww.y + 12) }, { x: ww.x - wW - 6, y: inPane(ww.y - 26) }]);
                 }
-                offCamera.forEach((word, i) => {
+                // ONE CHIP PER DIRECTION (serving BTC 5m, 2026-10-04): three
+                // off-camera walls stacked three chips deep and, pushed off the
+                // axis by the weather lens, sat on the newest candles. Several
+                // walls the same way read as one line with every strike named.
+                const offLines: string[] = [];
+                for (const dir of ["▲", "▼"] as const) {
+                  const same = offCamera.filter(w => w.startsWith(dir));
+                  if (same.length === 1) offLines.push(same[0]);
+                  else if (same.length > 1) {
+                    const strikes = same.map(w => w.replace(/^. WALL /, "").replace(/ · .*$/, ""));
+                    offLines.push(`${dir} ${same.length} WALLS ${dir === "▲" ? "ABOVE" : "BELOW"} · ${strikes.join(" · ")}`);
+                  }
+                }
+                offLines.forEach((word, i) => {
                   const wW = ctx.measureText(word).width + 10;
                   const up = word.startsWith("▲");
                   const y = up ? HEADER_FLOOR_Y + 26 + i * 18 : paneBotD - 22 - i * 18;
