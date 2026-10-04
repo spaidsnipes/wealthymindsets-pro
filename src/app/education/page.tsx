@@ -5,6 +5,7 @@
  * Notes save browser-locally with exact readback. Quizzes shuffle questions on every retake.
  */
 
+import { catalogueMinutes, formatHoursMinutes } from "@/lib/academy/catalogueMinutes";
 import { shufflePick } from "@/lib/shufflePick";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
 import React, { useEffect, useRef, useState } from "react";
@@ -607,6 +608,7 @@ export default function EducationPage() {
   });
   const { total, verifiedCompleted: completed, priorPracticeMarks, verifiedPercent: pct } = progress;
   const contentAvailable = ACADEMY_LESSON_CONTENT_STATUS === "AVAILABLE";
+  const catalogueTotal = catalogueMinutes(mods.map(m => m.duration));
 
   // SCENE_FRAGMENTATION cure: an opaque root `bg-wm-black` paints the
   // sanctuary's gradient, grain and vignette out, so the room reads as a
@@ -823,13 +825,14 @@ export default function EducationPage() {
             <VideoPlayer lesson={activeLesson.lesson} color={activeLesson.color} onClose={() => setActiveLesson(null)} onComplete={markLessonComplete}/>
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-6 text-wm-text-muted">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 px-3 sm:px-0">
                 {[
                   { label:"Verified Lessons", value:completed, color:"#00D4AA", icon:<CheckCircle2 size={18}/> },
                   { label:"Modules",      value:`${mods.filter(m => !m.locked && !(contentAvailable && m.completed)).length} active`, color:"#4FA3E0", icon:<BookOpen size={18}/> },
-                  { label:"Total Time",   value:"40h+", color:"#F0B429", icon:<Clock size={18}/> },
+                  // Summed from the catalogue, not typed; "planned" until lesson content ships.
+                  { label: contentAvailable ? "Total Time" : "Planned Time", value: catalogueTotal != null ? formatHoursMinutes(catalogueTotal) : "—", color:"#F0B429", icon:<Clock size={18}/> },
                 ].map(({label,value,color,icon})=>(
-                  <div key={label} className="flex flex-col items-center gap-2 p-5 rounded-2xl border border-wm-border bg-wm-surface/30 min-w-[120px]">
+                  <div key={label} className="flex flex-col items-center gap-2 p-3 sm:p-5 rounded-2xl border border-wm-border bg-wm-surface/30 min-w-0 sm:min-w-[120px]">
                     <div style={{ color }}>{icon}</div>
                     <div className="text-xl font-black" style={{ color }}>{value}</div>
                     <div className="text-[10px] text-wm-text-muted text-center">{label}</div>
