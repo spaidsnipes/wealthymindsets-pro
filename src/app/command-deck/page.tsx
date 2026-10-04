@@ -17,6 +17,7 @@ import {
 } from "@/lib/marketData/canonicalIdentity";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import {
+  useFeedEvaluationClock,
   useProvenSessionClosure,
   useSessionClockDate,
 } from "@/lib/marketData/useProvenSessionClosure";
@@ -170,6 +171,9 @@ import { selectOrderFlowStanding } from "@/lib/marketData/viewModels/selectOrder
 import { provenTapeWireBlock } from "@/lib/marketData/provenTapeWireBlock";
 import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
 import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
+import { resolveChartSurfaceBadge } from "@/lib/priceSource";
+import { quoteFreshness } from "@/lib/os/osChrome";
+import { readCanvasHonesty } from "@/lib/marketData/readCanvasHonesty";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -589,6 +593,30 @@ function CommandDeckInner() {
     },
   });
 
+  // THE PLAQUE, FED (2026-10-04). It was mounted with reading={null} and so
+  // read UNMEASURED whatever the market did — the shape DecisionSpineBand's
+  // gate names HARD-CODED WAIT. The same three owners /charts uses grade the
+  // deck's own transport and candles; no second grader is written here.
+  const deckQuoteClockMs = useFeedEvaluationClock();
+  const deckHonesty = React.useMemo(() => {
+    const src = wsFeed.source === "unavailable" ? null : wsFeed.source;
+    const badge = resolveChartSurfaceBadge(
+      wsFeed.source, wsFeed.connected, (deckCandles?.length ?? 0) > 0, sessionOpen,
+      {
+        present: Number.isFinite(wsFeed.ticker.price) && wsFeed.ticker.price > 0,
+        fresh: quoteFreshness(src, wsFeed.lastObservedAtMs, deckQuoteClockMs),
+      },
+      deckCandles != null,
+    );
+    return readCanvasHonesty({
+      badge,
+      capturedAtMs: state?.capturedAt ?? null,
+      observedAtMs: wsFeed.lastObservedAtMs,
+      // The deck places nothing: no adapter owns its price.
+      execution: { adapterOwnsCanvasPrice: false },
+    });
+  }, [wsFeed.source, wsFeed.connected, wsFeed.ticker.price, wsFeed.lastObservedAtMs, deckCandles, sessionOpen, deckQuoteClockMs, state?.capturedAt]);
+
   const expressionDirection = expressionDirectionFromCanonical(state?.direction);
   const expressionOwner = user?.id ?? "signed-out";
   const selectedExpression = expressionScopeIsCurrent(optionSelection, {
@@ -921,7 +949,7 @@ function CommandDeckInner() {
               keep saying nothing at all — and an unmeasured canvas that says
               nothing looks exactly like a certified one. When the resolver
               starts composing, it passes a reading in and the word changes. */}
-          <MarketHonestyPlaque reading={null} />
+          <MarketHonestyPlaque reading={deckHonesty} />
           {/* The gate rail from mockup 133. No `answers` prop, deliberately:
               the deck has not put a single gate question to a decision, and
               six UNASKED rungs would be a finding nobody made. It renders the
