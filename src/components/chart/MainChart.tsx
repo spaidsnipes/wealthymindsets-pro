@@ -11071,6 +11071,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Chips that float with price and were painted this frame; later chrome
       // steps around them instead of printing through them.
       const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];
+      // Smart Money marks drawn this frame that the weather lens must stand
+      // BEHIND (2026-10-04): stacked-imbalance bars register here; absorption
+      // shelves and exhaustion marks are read from anatomyHitsRef.
+      const smartMoneyMarks: { x: number; y: number; w: number; h: number }[] = [];
       // DUAL ANATOMY (Garden 16 §17–§20): the canonical absorption / exhaustion
       // EVENTS this frame drew, collected where their owners paint them. The
       // Founder body (G06) is a manifestation of exactly these — never of a
@@ -14634,6 +14638,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const r0 = Math.round(Math.min(+ra, +rb)), r1 = Math.round(Math.max(+ra, +rb));
                 ctx.fillStyle = ink(0.9);
                 ctx.fillRect(x0, r0, barW, Math.max(1, r1 - r0 - 1));
+                smartMoneyMarks.push({ x: x0, y: r0, w: barW, h: Math.max(1, r1 - r0 - 1) });
               }
               // The run's own bracket on its outer edge — one stack, not loose rows.
               ctx.strokeStyle = ink(0.95); ctx.lineWidth = 1;
@@ -20437,6 +20442,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // SPY 1h: the loupe veiled the 775 wall). Its own clip path, like a chip,
           // so a wall over a candle never cancels the candle's cut under even-odd.
           for (const wr of pressureWallHitRef.current) chipCut.rect(wr.x, wr.y, wr.w, wr.h);
+          // THE SMART MONEY MARKS STAND IN FRONT TOO (2026-10-04, Founder: the
+          // tools must read on the chart). The lens magnifies the newest window
+          // — exactly where absorption shelves, exhaustion marks and stacks are
+          // drawn — and its storm veiled them. Each is cut out like a wall.
+          for (const a of anatomyHitsRef.current) for (const r of a.rects) chipCut.rect(r.x, r.y, r.w, r.h);
+          for (const r of smartMoneyMarks) chipCut.rect(r.x, r.y, r.w, r.h);
           // GARDEN 18 §XLIX/§L — PRICE SOVEREIGNTY over the loupe. The lens
           // magnifies the newest window, so it sits where the forming candle
           // lives. The founder shape stays (round, brass, in place); a CLEAR
