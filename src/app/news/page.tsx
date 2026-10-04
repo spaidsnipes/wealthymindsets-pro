@@ -189,6 +189,17 @@ async function fetchFinnhubNews(onFirst?: (items: NewsItem[]) => void): Promise<
   }
 }
 
+/* One publisher, one name: Finnhub writes "SeekingAlpha" where the curated
+   button (and the RSS feed) say "Seeking Alpha", so the button never showed
+   the wire's stories (measured 2026-10-03: 9 hidden). */
+const SOURCE_ALIASES: Record<string, string> = {
+  SeekingAlpha: "Seeking Alpha",
+  "Seekingalpha": "Seeking Alpha",
+  Marketwatch: "MarketWatch",
+  "Wall Street Journal": "WSJ",
+};
+const canonicalSource = (s: string) => SOURCE_ALIASES[s.trim()] ?? s.trim();
+
 function buildNewsItems(arrs: FinnhubRaw[][]): NewsItem[] {
     // Merge Finnhub + RSS, dedupe by id (fall back to url/headline).
     const seen = new Set<string>();
@@ -216,8 +227,8 @@ function buildNewsItems(arrs: FinnhubRaw[][]): NewsItem[] {
       const summary = item.summary || item.headline;
       return {
         id:         item.id || i,
-        source:     item.source || "News",
-        sourceIcon: getSourceIcon(item.source || ""),
+        source:     canonicalSource(item.source || "News"),
+        sourceIcon: getSourceIcon(canonicalSource(item.source || "")),
         time:       timeStr,
         title:      item.headline,
         summary,
