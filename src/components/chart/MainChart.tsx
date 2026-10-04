@@ -19869,7 +19869,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     }
                     if (ty != null) break;
                   }
-                  if (ty != null && tw < zEnd - x0) {
+                  // A short zone's name may run past its right edge; the slot
+                  // check above already keeps it off every other chip.
+                  if (ty != null) {
                     ctx.save();
                     ctx.fillStyle = "rgba(233,196,106,0.92)";
                     ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
