@@ -3253,13 +3253,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (!narrowViewport) return;
     const pane = marketPaneRef.current;
     if (!pane) return;
-    let frame = 0;
+    // Synchronous on purpose: ResizeObserver already delivers after layout,
+    // and a rAF here never fires in a tab opened in the background — the
+    // pane then sat at the CSS fallback (measured: 542px instead of 625).
     const measure = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const top = Math.max(0, Math.round(pane.getBoundingClientRect().top + window.scrollY));
-        pane.style.setProperty("--wm-chart-fit-top", `${top}px`);
-      });
+      const top = Math.max(0, Math.round(pane.getBoundingClientRect().top + window.scrollY));
+      if (pane.style.getPropertyValue("--wm-chart-fit-top") !== `${top}px`) pane.style.setProperty("--wm-chart-fit-top", `${top}px`);
     };
     measure();
     // Everything above the pane can change height (masthead wrap, the WHY
@@ -3272,7 +3271,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     window.addEventListener("resize", measure);
     window.addEventListener("orientationchange", measure);
     return () => {
-      cancelAnimationFrame(frame);
       ro.disconnect();
       window.removeEventListener("resize", measure);
       window.removeEventListener("orientationchange", measure);
