@@ -142,6 +142,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ results });
     }
 
+    /* ── News (general or per-category) ─────────────────────── *
+     * Carries no symbol, so it must answer BEFORE the symbol guard. It sat
+     * after it and was unreachable: /news asked four times per load and got
+     * "Symbol not supported by Finnhub" 404s (measured on serving 2026-10-03). */
+    if (type === "news") {
+      const category = searchParams.get("category") ?? "general";
+      if (!["general", "forex", "crypto", "merger"].includes(category)) {
+        return NextResponse.json({ error: "Unknown news category" }, { status: 400 });
+      }
+      const url  = `${BASE}/news?category=${encodeURIComponent(category)}&token=${getFinnhubKey()}`;
+      const json = await fhFetch(url, 60_000) as any;
+      return NextResponse.json({ items: Array.isArray(json) ? json : [] });
+    }
+
     const fhSym = toFinnhubSym(rawSym);
     if (!fhSym) {
       return NextResponse.json({ error: "Symbol not supported by Finnhub — use Yahoo proxy" }, { status: 404 });
@@ -262,14 +276,6 @@ export async function GET(request: Request) {
         refusedBars: ingress.refusals.length,
         refusals: ingress.refusals,
       });
-    }
-
-    /* ── News (general or per-category) ─────────────────────── */
-    if (type === "news") {
-      const category = searchParams.get("category") ?? "general";
-      const url  = `${BASE}/news?category=${encodeURIComponent(category)}&token=${getFinnhubKey()}`;
-      const json = await fhFetch(url, 60_000) as any;
-      return NextResponse.json({ items: Array.isArray(json) ? json : [] });
     }
 
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });

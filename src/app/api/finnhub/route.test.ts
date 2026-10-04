@@ -155,3 +155,24 @@ describe("GET /api/finnhub — honest upstream failure classification", () => {
     expect(String(body.error).toUpperCase()).not.toContain("ENTITLEMENT");
   });
 });
+
+describe("GET /api/finnhub?type=news — reachable without a symbol", () => {
+  it("asks Finnhub /news for the category and returns its items", async () => {
+    const asked: string[] = [];
+    globalThis.fetch = (async (input: string) => {
+      asked.push(String(input));
+      return new Response(JSON.stringify([{ id: 1, headline: "h" }]), { status: 200 });
+    }) as unknown as typeof fetch;
+    const { GET } = await loadRoute();
+    const res = await GET(new Request("http://localhost/api/finnhub?type=news&category=crypto"));
+    expect(res.status).toBe(200);
+    expect((await res.json()).items).toHaveLength(1);
+    expect(asked[0]).toContain("/news?category=crypto");
+  });
+
+  it("refuses a category Finnhub does not define", async () => {
+    const { GET } = await loadRoute();
+    const res = await GET(new Request("http://localhost/api/finnhub?type=news&category=everything"));
+    expect(res.status).toBe(400);
+  });
+});
