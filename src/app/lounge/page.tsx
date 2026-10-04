@@ -823,7 +823,7 @@ export default function LoungePage() {
       toast.success(`Unfollowed ${handle}`);
     } else {
       setFollows(f => new Set([...f, handle]));
-      toast.success(`Following ${handle}! 🔔`);
+      toast.success(`Following ${handle}`);
     }
   };
 
