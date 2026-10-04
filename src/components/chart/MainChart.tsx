@@ -7301,8 +7301,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // the newest candles. Clarity alone keeps plate 72's card at rest;
               // with 3+ other layers on, the resting reading is one line beside
               // its candle and the full card opens on hover.
-              const othersOn = Object.entries(layerOnRef.current as unknown as Record<string, unknown>)
+              // Switches alone undercount: absorption anatomy and the footprint /
+              // big-trade modes live outside layerOnRef (live NQ open 2026-10-04:
+              // stacks + flow + absorption + big trades read as "2"). The last
+              // frame's DRAWN receipts say what is actually painting.
+              const switchedOn = Object.entries(layerOnRef.current as unknown as Record<string, unknown>)
                 .filter(([k, v]) => v === true && !/clarity/i.test(k)).length;
+              const paintingNow = Object.entries(canvas.dataset)
+                .filter(([k, v]) => !/clarity/i.test(k) && typeof v === "string" && v.startsWith("DRAWN")).length;
+              const othersOn = Math.max(switchedOn, paintingNow);
               const compact = pinned && othersOn >= 3;
               const bw = compact ? 0 : 168, bh = compact ? 0 : 16 + lines.length * 26;
               if (compact) {
