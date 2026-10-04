@@ -11965,10 +11965,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.textAlign = "left";
                   ctx.textBaseline = "bottom";
                   ctx.fillStyle = "rgba(230,226,216,0.9)";
-                  const tx = Math.max(8, terr[0].x + 4);
-                  const ty = Math.max(HEADER_FLOOR_Y + 12, mid[0] - outer[0] - 6);
-                  ctx.fillText("EFFORT — the mass around price", tx, ty);
-                  if (absorbingDrawn) { ctx.fillStyle = "rgba(232,184,92,1)"; ctx.fillText("━ ABSORBING", tx + 168, ty); }
+                  // THROUGH THE CHIP LEDGER (2026-10-04, measured NQ 5m: this
+                  // caption printed through the ABSORPTION SHELF chip and the
+                  // WAIT stamp on the newest bars). Above the ridge, else below
+                  // it, else further up; no free slot → the ridge speaks alone.
+                  const words = absorbingDrawn ? "EFFORT — the mass around price  ━ ABSORBING" : "EFFORT — the mass around price";
+                  const tw = ctx.measureText(words).width;
+                  const tx = Math.max(8, Math.min(plotRight - tw - 4, terr[0].x + 4));
+                  const tops = [mid[0] - outer[0] - 6, mid[0] + outer[0] + 18, mid[0] - outer[0] - 22];
+                  const free = (ty: number) => ty - 12 >= HEADER_FLOOR_Y && ty <= pane0Bottom - 2
+                    && !floatingChips.some(r => tx < r.x + r.w + 2 && tx + tw + 2 > r.x && ty - 12 < r.y + r.h && ty > r.y);
+                  const ty = tops.find(free);
+                  if (ty != null) {
+                    ctx.fillText("EFFORT — the mass around price", tx, ty);
+                    if (absorbingDrawn) { ctx.fillStyle = "rgba(232,184,92,1)"; ctx.fillText("━ ABSORBING", tx + ctx.measureText("EFFORT — the mass around price  ").width, ty); }
+                    floatingChips.push({ x: tx, y: ty - 12, w: tw, h: 13 });
+                    ds.absorptionTerrainWords = "PLACED";
+                  } else ds.absorptionTerrainWords = "HELD";
                   ctx.restore();
                 }
                 ds.absorptionTerrain = `BARS:${terr.length}|WINDOW:LATEST_VISIBLE_30|ABSORBING:${absorbingDrawn}`;
