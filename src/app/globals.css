@@ -1419,6 +1419,21 @@ input[type=range]::-webkit-slider-runnable-track {
    phase-gated: the Founder approves that pass separately, so below the
    desktop rail breakpoint the strip does not render and those layouts are
    exactly as they were. */
+/* Scanner on a tablet: the eleven fixed columns summed to 836px, so at iPad
+   portrait (834) the 1fr SIGNAL column was crushed to zero width and the
+   header ran to x=848 (measured on serving 2026-10-03). Between the phone
+   layout and the desk, Sector and the change meter step out and Signal keeps
+   a floor. */
+@media (min-width: 640px) and (max-width: 1199px) {
+  .wm-scanner-row {
+    grid-template-columns: 36px 80px minmax(120px, 1fr) 90px 90px 80px 140px 60px 60px !important;
+  }
+  .wm-scanner-row > :nth-child(9),
+  .wm-scanner-row > :nth-child(10) {
+    display: none !important;
+  }
+}
+
 @media (max-width: 900px) {
   .wm-instrument-context-strip { display: none !important; }
   /* The Journal header scrolls sideways at EVERY width below the desk
