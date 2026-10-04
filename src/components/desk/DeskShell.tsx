@@ -231,27 +231,34 @@ export function DeskShell() {
     try { localStorage.setItem(ACTIVE_DESK_STORAGE_KEY, d.name); } catch { /* private mode */ }
   };
   const save = () => { persist(upsertDesk(desks, working), working.name); setNotice(`Saved ${working.name}.`); };
-  const saveAs = () => {
-    const name = window.prompt("Name this desk", `${working.name} copy`)?.trim();
-    if (!name) return;
-    const desk = { ...working, name };
-    setWorking(desk);
-    persist(upsertDesk(desks, desk), name);
-    setNotice(`Saved ${name}.`);
-  };
-  const rename = () => {
-    const name = window.prompt("Rename desk", working.name)?.trim();
-    if (!name || name === working.name) return;
-    const next = renameDesk(desks, working.name, name);
-    if (!next) { setNotice(`A desk named ${name} already exists.`); return; }
-    setWorking({ ...working, name });
-    persist(next, name);
-  };
-  const remove = () => {
-    if (!window.confirm(`Delete ${working.name}? The markets are not affected — only this saved layout.`)) return;
-    const next = deleteDesk(desks, working.name);
-    persist(next, next[0].name);
-    setWorking(next[0]);
+  // IN-ROOM ASKS (2026-10-04): Save as / Rename / Delete used the browser's
+  // own prompt() and confirm() — grey system boxes that freeze the page and,
+  // on a phone, sit outside the room entirely. Now a sheet in the Desk's ink.
+  const [ask, setAsk] = useState<null | { kind: "saveAs" | "rename" | "delete"; value: string }>(null);
+  const saveAs = () => setAsk({ kind: "saveAs", value: `${working.name} copy` });
+  const rename = () => setAsk({ kind: "rename", value: working.name });
+  const remove = () => setAsk({ kind: "delete", value: "" });
+  const commitAsk = () => {
+    if (!ask) return;
+    const name = ask.value.trim();
+    if (ask.kind === "saveAs") {
+      if (!name) return;
+      const desk = { ...working, name };
+      setWorking(desk);
+      persist(upsertDesk(desks, desk), name);
+      setNotice(`Saved ${name}.`);
+    } else if (ask.kind === "rename") {
+      if (!name || name === working.name) { setAsk(null); return; }
+      const next = renameDesk(desks, working.name, name);
+      if (!next) { setNotice(`A desk named ${name} already exists.`); return; }
+      setWorking({ ...working, name });
+      persist(next, name);
+    } else {
+      const next = deleteDesk(desks, working.name);
+      persist(next, next[0].name);
+      setWorking(next[0]);
+    }
+    setAsk(null);
   };
 
   return (
@@ -277,6 +284,24 @@ export function DeskShell() {
         <button type="button" onClick={rename} style={btn()}>Rename</button>
         <button type="button" onClick={remove} style={btn()}>Delete</button>
       </div>
+      {ask ? (
+        <div role="dialog" aria-label={ask.kind === "delete" ? "Delete desk" : ask.kind === "rename" ? "Rename desk" : "Save desk as"} data-testid="desk-ask"
+          style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: `1px solid ${LINE}`, background: "#0b0a08" }}>
+          {ask.kind === "delete" ? (
+            <span style={{ fontSize: 12, color: INK }}>Delete <strong style={{ color: GOLD }}>{working.name}</strong>? Only this saved layout goes — the markets are not affected.</span>
+          ) : (
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: MUTED }}>
+              {ask.kind === "rename" ? "Rename desk" : "Name this desk"}
+              <input autoFocus value={ask.value} maxLength={60}
+                onChange={e => setAsk({ ...ask, value: e.target.value })}
+                onKeyDown={e => { if (e.key === "Enter") commitAsk(); if (e.key === "Escape") setAsk(null); }}
+                style={{ minHeight: 36, minWidth: 200, background: "#07060a", border: `1px solid ${LINE}`, color: INK, padding: "4px 8px", borderRadius: 6 }} />
+            </label>
+          )}
+          <button type="button" onClick={commitAsk} style={btn(true)}>{ask.kind === "delete" ? "Delete" : "Save"}</button>
+          <button type="button" onClick={() => setAsk(null)} style={btn()}>Cancel</button>
+        </div>
+      ) : null}
       {notice ? <p role="status" style={{ margin: 0, padding: "4px 12px", color: MUTED, fontSize: 11 }}>{notice} Markets are re-read live on every open; a desk saves only layout, markets and timeframes.</p> : null}
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
       {watchlistOpen ? (
