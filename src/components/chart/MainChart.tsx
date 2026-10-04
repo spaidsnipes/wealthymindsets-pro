@@ -1839,6 +1839,11 @@ function paintStackCell(ctx: CanvasRenderingContext2D, a: { x0: number; x1: numb
   ctx.strokeRect(x + 0.5, y - h / 2 + 0.5, Math.max(0, w - 1), h - 1);
 }
 
+/** The candle pane's top margin: room under the phone's top chrome band. */
+function candleTopMargin(paneWidthPx: number): number {
+  return paneWidthPx > 0 && paneWidthPx < 640 ? 0.22 : 0.06;
+}
+
 export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTimeframe, footprintType, footprintEnabled = true, candleType = "candles", pineOutput, pineCode, onBarsReady,
   drawingTool = "cursor", drawingStyle = DEFAULT_DRAWING_STYLE, magnetActive = false, lockDrawings = false,
   onCreatePriceAlert,
@@ -3645,7 +3650,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // volume band (which lives in the bottom 18% on its own 'vol' scale).
           // Previously bottom:0.25 left a 7% dead gap and compressed candles into
           // the top two-thirds — making them look small/low-quality vs TV/Moomoo.
-          scaleMargins: { top: 0.06, bottom: 0.18 },
+          // PHONE (2026-10-04): the live-tape strip and the Effort / Inspect
+          // chips cover the top ~90 px of a ~330 px pane; at 6 % the newest
+          // price — and the Big Trade disc on it — painted underneath them.
+          scaleMargins: { top: candleTopMargin(el.clientWidth), bottom: 0.18 },
           autoScale:    true,
         },
         timeScale: {
@@ -5836,7 +5844,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // volume overlay at the bottom) — no need to shrink the candle scale for
     // oscillators. Keep a small bottom margin so volume bars don't touch wicks.
     try {
-      chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.06, bottom: 0.18 } });
+      chart.priceScale("right").applyOptions({ scaleMargins: { top: candleTopMargin(containerRef.current?.clientWidth ?? 1000), bottom: 0.18 } });
     } catch {}
     // Make the candle pane dominant and oscillator panes compact. v5 stretch
     // factors are RELATIVE weights (resolution-independent), unlike setHeight
