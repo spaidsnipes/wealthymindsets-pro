@@ -21271,9 +21271,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const spot = quiet
               ? { mode: quiet === slots[0] ? "CLEAR" as const : "MOVED" as const, rect: quiet, onCandles: false, displaced: quiet !== slots[0] }
               : slots.length > 0
-                ? placeClearOfKeepOut(slots[0], keepOut(), { minX: keepOutMinX(), blockers: floatingChips, alternates: slots.slice(1) })
+                ? placeClearOfKeepOut(slots[0], keepOut(), { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: slots.slice(1) })
                 : null;
-            if (spot) {
+            // STRICT (2026-10-04, full Smart Money stack on the Founder's
+            // Chrome: the card landed on the VAH chip by the WAIT stamp). No
+            // clear slot → the card waits; the lens draws and Tools names it.
+            if (spot && spot.mode !== "BLOCKED") {
               recordKeepOut(keepOutLedger, spot);
               const R = spot.rect;
               // The leader: from the plate's nearest edge to the ring.
