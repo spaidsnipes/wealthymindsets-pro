@@ -712,6 +712,9 @@
     min-height: max(220px, calc(100svh - var(--wm-chart-fit-top, 150px))) !important;
   }
   .wm-chart-market-pane[data-market-primary="true"] div { min-height: 0; }
+  /* WAIT is the tag on the glass and WHY is the spine's first card, one
+     swipe below; on a 390px-tall screen their 44px row is the market's. */
+  .wm-chart-orientation-strip { display: none !important; }
 
   .wm-chart-dashboard [role="status"][aria-live="polite"] {
     top: 8px !important;

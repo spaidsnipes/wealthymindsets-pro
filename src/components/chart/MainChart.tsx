@@ -599,7 +599,7 @@ import type {
 } from "@/lib/marketData/canonicalBar";
 import { alignCanonicalBarIdentities } from "@/lib/marketData/alignCanonicalBarIdentities";
 import { marketClockReceipt, noteSeries, notePaint, resetMarketClock } from "@/lib/chart/marketClockProbe";
-import { QUIET_CEILING, NARROW_GLASS_MAX_PX } from "@/lib/marketData/viewModels/selectSemanticPermission";
+import { QUIET_CEILING, NARROW_GLASS_MAX_PX, NARROW_GLASS_MIN_PLOT_H } from "@/lib/marketData/viewModels/selectSemanticPermission";
 import { wallContact } from "@/lib/marketData/viewModels/wallContact";
 import { coinbaseProductFor, fetchCoinbaseTradeHistory } from "@/lib/marketData/coinbaseTradeBackfill";
 import { ANATOMY_MODE_EVENT, ANATOMY_MODE_KEY } from "@/lib/chart/anatomyMode";
@@ -6959,7 +6959,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // "ORDER FLOW · ACTIVE · NO CURRENT EVENT…" and "FOUNDER ANATOMY ·
         // ACTIVE…" stacked over the candles of a 330px plot. Every sense still
         // names its state — in the one summary line, and in Tools › Active.
-        if (plotRight < NARROW_GLASS_MAX_PX) { silenceFolded++; return -1000; }
+        if (narrowGlass) { silenceFolded++; return -1000; }
         if (silenceTaken >= SILENCE_ROWS_SHOWN) { silenceFolded++; return -1000; }
         silenceTaken++;
         const y = silenceRowY; silenceRowY -= silenceStep;
@@ -7145,6 +7145,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       ctx.beginPath();
       ctx.rect(0, 0, plotRight, pane0Bottom);
       ctx.clip();
+      // THE PHONE'S WORD BUDGET, decided once per frame (selectSemanticPermission):
+      // a plot narrower than NARROW_GLASS_MAX_PX, or shorter than
+      // NARROW_GLASS_MIN_PLOT_H (a phone on its side: ~700 wide, ~200 tall).
+      const narrowGlass = plotRight < NARROW_GLASS_MAX_PX || pane0Bottom < NARROW_GLASS_MIN_PLOT_H;
 
       const restoreNativeAfterClarityLoss = () => {
         if (!clarityHidRef.current) return;
@@ -7381,7 +7385,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         density: semanticDensity,
         questionQuiet: 1,
         // The phone's word budget (selectSemanticPermission, NARROW_GLASS_MAX_PX).
-        narrowGlass: plotRight < NARROW_GLASS_MAX_PX,
+        narrowGlass,
         regimeLight: layerOnRef.current.regimeLighting === true ? regimeLightingRef.current : null,
         stackPrefs: stackPrefsRef.current,
         // The fused object's parents step back — the trader's Pick · Fuse pair,
@@ -11317,7 +11321,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const desktopWindowChrome = W >= 960;
             if (!absorbPaints) {
               // Withheld with the field it counts.
-            } else if (plotRight < NARROW_GLASS_MAX_PX) {
+            } else if (narrowGlass) {
               // The phone's word budget: the window count is provenance, and
               // on a narrow plot it sat on the newest candles' feet.
             } else if (desktopWindowChrome) {
@@ -21795,7 +21799,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
               ctx.restore();
             }
-          } else if (!plansR.length && plotRight < NARROW_GLASS_MAX_PX) {
+          } else if (!plansR.length && narrowGlass) {
             // On a phone the empty state is an instruction ("Draw › Long /
             // Short Position…") across the bottom of a 330px plot — the
             // narrow-glass word budget keeps the trader's tools speaking about
@@ -21962,7 +21966,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // The folded silences, as one line (see takeSilenceRow).
       try { if (silenceFolded > 0) {
         const y = silenceRowY;
-        const words = plotRight < NARROW_GLASS_MAX_PX
+        const words = narrowGlass
           ? `${silenceFolded} SENSE${silenceFolded === 1 ? "" : "S"} SILENT — TOOLS › ACTIVE`
           : `+${silenceFolded} MORE SENSE${silenceFolded === 1 ? "" : "S"} SILENT HERE — TOOLS › ACTIVE SAYS WHY`;
         ctx.save();

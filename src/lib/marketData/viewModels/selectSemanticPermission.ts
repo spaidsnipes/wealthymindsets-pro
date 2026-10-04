@@ -208,6 +208,8 @@ export interface SemanticPermissionVM {
  * shape. The desk (wider than the budget) is unchanged.
  */
 export const NARROW_GLASS_MAX_PX = 600;
+/** A plot shorter than this is narrow glass too — a phone on its side. */
+export const NARROW_GLASS_MIN_PLOT_H = 360;
 export const NARROW_GLASS_KEEPS_WORDS: ReadonlySet<DepthLayer> = new Set<DepthLayer>([
   "candles", "farEnvelope", "zoomPlate", "regimeLighting",
   "livingProfile",
