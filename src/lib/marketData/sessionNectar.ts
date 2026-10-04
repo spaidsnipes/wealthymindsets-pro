@@ -248,11 +248,16 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
       // interrupt the live chart or claim that anything was retained.
     }
   };
+  // The signed-out door (/login, /signup, password reset) has no WM session:
+  // the server ledger answers 401 there, which printed two red console
+  // errors on the first page every visitor sees (2026-10-04).
+  const atSignedOutDoor = () => /^\/(login|signup|register|forgot-password|reset-password)(\/|$)/.test(window.location.pathname);
   const persistRemote = () => {
     if (remotePersistTimer) {
       clearTimeout(remotePersistTimer);
       remotePersistTimer = null;
     }
+    if (atSignedOutDoor()) return;
     try {
       void fetch("/api/market-memory/coverage", {
         method: "POST",
@@ -266,7 +271,9 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
       // server ledger; the UI must never claim durable state from this attempt.
     }
   };
+  let remoteHydrated = false;
   sessionNectarCollector.subscribe(() => {
+    if (!remoteHydrated && !atSignedOutDoor()) hydrateRemote();
     if (!persistTimer) persistTimer = setTimeout(persist, 2_000);
     if (!remotePersistTimer) remotePersistTimer = setTimeout(persistRemote, 15_000);
   });
@@ -275,6 +282,10 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
   // Hydrate durable operational coverage after the authenticated WM session is
   // available. If live events arrive first, restoreCoverageSummaries merges
   // maxima without downgrading the active channel.
+  // Hydrate once, from the first room that has a session: at load when the
+  // page is a room, else on the first live event after the door.
+  function hydrateRemote() {
+  remoteHydrated = true;
   void fetch("/api/market-memory/coverage", {
     credentials: "same-origin",
     cache: "no-store",
@@ -289,6 +300,8 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
   }).catch(() => {
     // Offline/degraded mode continues with the bounded local summary.
   });
+  }
+  if (!atSignedOutDoor()) hydrateRemote();
 }
 
 export function ingestSessionNectarEvent(event: CanonicalMarketEvent): SessionNectarIngestResult {
