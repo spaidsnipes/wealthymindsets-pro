@@ -701,6 +701,18 @@
     height: 28px !important;
   }
 
+  /* THE MARKET FITS THE SHORT EDGE TOO (2026-10-04). Measured at 844x390:
+     the candle field was 30px tall — the OS masthead and room header kept
+     their rows (this block's header rule names the retired shell class) and
+     the decision spine took the rest. Same fit as portrait: the pane runs to
+     the bottom of the screen (220px floor), the spine below the fold. */
+  .wm-chart-market-pane[data-market-primary="true"] {
+    flex: 0 0 auto !important;
+    height: max(220px, calc(100svh - var(--wm-chart-fit-top, 150px))) !important;
+    min-height: max(220px, calc(100svh - var(--wm-chart-fit-top, 150px))) !important;
+  }
+  .wm-chart-market-pane[data-market-primary="true"] div { min-height: 0; }
+
   .wm-chart-dashboard [role="status"][aria-live="polite"] {
     top: 8px !important;
     width: max-content;
