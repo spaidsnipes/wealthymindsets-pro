@@ -193,6 +193,10 @@ interface LedgerEntry {
  * below, not typed from memory.
  */
 const LEDGER: Readonly<Record<string, LedgerEntry>> = {
+  "src/lib/supabase.ts": {
+    reason: "SUPERSEDED",
+    note: "The browser Supabase client. Measured 2026-10-03: production's bundle carries no public Supabase connection, so its last screens (/lounge, /radio) never loaded a record. Both now read and write through /api/lounge and /api/radio, where WM's session names the author. Kept (with src/lib/supabase.test.ts) for a deployment that deliberately ships the public key AFTER the lounge/radio RLS debt is paid; nothing a trader sees depends on it. Locks: src/lib/loungeRuntimeTruth.test.ts (the lounge never imports it) and src/app/api/radio/route.test.ts.",
+  },
   "src/lib/athos/canonicalRoster.ts": {
     reason: "OPS_TOOLING",
     note: "Team roster for operations docs. Not a trader surface.",

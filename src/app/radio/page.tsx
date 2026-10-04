@@ -8,7 +8,18 @@ import {
   CheckCircle, X, Upload,
   Heart, Headphones, Volume2, VolumeX,
 } from "lucide-react";
-import { supabase, getSupabase } from "@/lib/supabase";
+/* Uploaded tracks go through /api/radio (2026-10-03): the browser bundle has
+   no public Supabase connection, so the old client calls never ran. */
+async function radioApi<T = Record<string, unknown>>(body?: unknown): Promise<{ status: number; data: (T & { state?: string; error?: string }) | null }> {
+  try {
+    const res = await fetch("/api/radio", body
+      ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" }
+      : { cache: "no-store" });
+    return { status: res.status, data: await res.json().catch(() => null) };
+  } catch {
+    return { status: 0, data: null };
+  }
+}
 import { useAuth } from "@/contexts/AuthContext";
 import { WM } from "@/lib/design/wmTokens";
 import { useRadio } from "@/contexts/RadioContext";
@@ -665,35 +676,25 @@ function UploadModal({ onClose, onAdd, uploader }: {
           color: "#00D4AA", liked: false, verified: false, new: true,
         };
         finalUrl = url;
-        // Still save metadata to Supabase
-        await supabase.from("radio_tracks").insert({
-          title: trackData.title, artist: trackData.artist, genre, duration: trackData.duration,
-          storage_path: "", public_url: url, uploader,
-        });
+        // Recorded server-side; the uploader is the signed-in trader.
+        const saved = await radioApi({ op: "url", title: trackData.title, artist: trackData.artist, genre, duration: trackData.duration, url });
+        if (saved.status !== 200) throw new Error(saved.data?.error ?? "Could not save the track");
       } else {
         if (!file) { setError("Please select a file"); setUploading(false); return; }
 
-        // Upload directly browser → Supabase Storage (avoids the serverless request-body size limit)
-        const ext  = file.name.split(".").pop() ?? "mp3";
-        const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        // The server mints a one-time signed URL; the file goes browser →
+        // storage directly (never through the Worker), then the server records it.
+        const ext  = (file.name.split(".").pop() ?? "mp3").toLowerCase();
+        const sign = await radioApi<{ path?: string; uploadUrl?: string }>({ op: "sign", ext });
+        if (sign.status !== 200 || !sign.data?.path || !sign.data.uploadUrl) throw new Error(sign.data?.error ?? "Upload is not available");
+        const put = await fetch(sign.data.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "audio/mpeg", "x-upsert": "false" }, body: file });
+        if (!put.ok) throw new Error(`Upload failed (HTTP ${put.status})`);
 
-        const { error: uploadErr } = await supabase.storage
-          .from("radio")
-          .upload(path, file, { contentType: file.type || "audio/mpeg", upsert: false });
-
-        if (uploadErr) throw new Error(uploadErr.message);
-
-        const { data: urlData } = supabase.storage.from("radio").getPublicUrl(path);
-        finalUrl = urlData.publicUrl;
-
-        // Save metadata to database
-        const { data: dbTrack, error: dbErr } = await supabase
-          .from("radio_tracks")
-          .insert({ title: title.trim(), artist: artist.trim(), genre, duration, storage_path: path, public_url: finalUrl, uploader })
-          .select()
-          .single();
-
-        if (dbErr) throw new Error(dbErr.message);
+        const saved = await radioApi<{ track?: { id: number; title: string; artist: string; genre: string; duration: number | null; public_url: string } }>(
+          { op: "file", path: sign.data.path, title: title.trim(), artist: artist.trim(), genre, duration });
+        if (saved.status !== 200 || !saved.data?.track) throw new Error(saved.data?.error ?? "Could not save the track");
+        const dbTrack = saved.data.track;
+        finalUrl = dbTrack.public_url;
 
         trackData = {
           id: dbTrack.id,
@@ -883,10 +884,9 @@ export default function RadioPage() {
     // A runtime without Supabase has no uploaded tracks to list — that is
     // the whole consequence. Going through the throwing proxy here took the
     // ENTIRE room down with a raw runtime error instead.
-    const client = getSupabase();
-    if (!client) return;
-    client.from("radio_tracks").select("*").order("created_at", { ascending: false })
-      .then(({ data }) => {
+    void radioApi<{ tracks?: Array<{ id: number; title: string; artist: string; genre: string; duration: number | null; plays?: number; public_url: string }> }>()
+      .then(({ data: body }) => {
+        const data = body?.tracks;
         if (!data) return;
         const tracks: Track[] = data.map(r => ({
           id: r.id, title: r.title, artist: r.artist,
