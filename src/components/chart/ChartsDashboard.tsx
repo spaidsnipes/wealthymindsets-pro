@@ -3238,6 +3238,47 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // identity across desktop, tablet and phone.
   const narrowViewport = useNarrowViewport();
 
+  // THE MARKET FITS THE SCREEN, IT IS NOT A SLICE OF THE PAGE (2026-10-04).
+  // Founder, on phone + iPad: "the charts pop up halfway across the screen —
+  // making the chart smaller isn't the same as fitting it". Measured 390x844:
+  // the pane started at y 302 and held a fixed 460px floor, so the candles had
+  // half the glass and the page scrolled under them. The pane now reaches
+  // exactly the bottom of the first screen: this publishes where it starts
+  // (`--wm-chart-fit-top`, document coordinates) and globals.css sizes it to
+  // `100svh - top`. The decision spine keeps every pixel — it begins below
+  // the fold instead of under the trader's thumb. Narrow viewports only; the
+  // desktop room is already a fixed-height column.
+  const marketPaneRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!narrowViewport) return;
+    const pane = marketPaneRef.current;
+    if (!pane) return;
+    let frame = 0;
+    const measure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const top = Math.max(0, Math.round(pane.getBoundingClientRect().top + window.scrollY));
+        pane.style.setProperty("--wm-chart-fit-top", `${top}px`);
+      });
+    };
+    measure();
+    // Everything above the pane can change height (masthead wrap, the WHY
+    // strip, the instrument row) — re-measure when any of it does.
+    const ro = new ResizeObserver(measure);
+    const room = pane.closest(".wm-chart-dashboard");
+    const masthead = document.querySelector(".wm-os-masthead");
+    if (masthead) ro.observe(masthead);
+    if (room) for (const el of Array.from(room.children)) if (el !== pane && !el.contains(pane)) ro.observe(el);
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+    };
+  }, [narrowViewport]);
+
   // B-701 band. The CSS above owns the COLLAPSE; this owns the RECEIPT — the
   // band and its permitted zoom count are published on the room's root element
   // so a live measurement on the running app can name which band it observed
@@ -6325,6 +6366,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                  question asked elsewhere (the 42/58 split above), so it gets NO
                  floor there — a floor on a pane that is meant to be secondary
                  would squeeze the reading it exists to support. */
+              ref={marketPaneRef}
               className="wm-chart-market-pane"
               data-market-primary={isMicrostructureTab(activeTab) ? "false" : "true"}
               style={{ flex: isMicrostructureTab(activeTab) ? "0 0 42%" : 1, order: isMicrostructureTab(activeTab) ? -1 : 0, borderBottom: isMicrostructureTab(activeTab) ? "1px solid rgba(183, 138, 52, 0.28)" : undefined, overflow:"hidden", minHeight:0, display: (activeTab === "Chart" || activeTab === "Options" || isMicrostructureTab(activeTab)) ? "flex" : "none" }}>

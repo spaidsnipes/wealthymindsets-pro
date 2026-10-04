@@ -2729,6 +2729,16 @@ export function WMOperatingSystem({
              nothing here may hide behind a scroll. */
           .wm-os-masthead { flex-wrap: wrap !important; row-gap: 8px !important; }
           .wm-os-masthead-center { flex-basis: 100% !important; order: 1; }
+          /* THE PHONE MASTHEAD STANDS IN THREE ROWS, NOT FOUR (2026-10-04).
+             Measured at 390 on /charts: 178px, four rows — the Workspace/
+             Tools pair (220) and the utilities (122) missed sharing a row by
+             4px inside the 18px side padding, and the EMPTY centre slot still
+             took a full-basis line of its own (+8px gap). 12px sides let the
+             pair and the utilities share a row; an empty centre takes no
+             line. A room with a mode bar keeps its full-width row. Every
+             chip the chart rows down by these pixels. */
+          .wm-os-masthead { padding-left: 12px !important; padding-right: 12px !important; column-gap: 10px !important; }
+          .wm-os-masthead-center:empty { display: none !important; }
           /* The pinned bar is out of flow. Reserve its exact height from the
              same constant it is drawn from, or the provenance line ends up
              underneath the navigation and nothing anywhere reports it. */

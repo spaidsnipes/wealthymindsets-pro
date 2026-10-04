@@ -574,6 +574,35 @@
   .wm-chart-market-pane[data-market-primary="true"] {
     min-height: min(60svh, 460px) !important;
   }
+
+  /* WAIT AND WHY SHARE ONE ROW (2026-10-04). The verdict chip (40px wide)
+     had a full-width row to itself above the full-width WHY button: 80px of
+     strip for one word and one sentence, measured at 390. Side by side the
+     strip is one 44px touch row; the WHY sentence ellipsises inside its
+     button (the whole sentence is one tap away, in the sheet it opens). */
+  .wm-chart-orientation-strip { flex-wrap: nowrap !important; align-items: center !important; }
+  .wm-chart-orientation-context { width: auto; flex: 0 0 auto; }
+  .wm-chart-orientation-actions { width: auto; flex: 1 1 0; min-width: 0; }
+  .wm-chart-orientation-action { overflow: hidden; }
+  .wm-chart-orientation-action > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* THE MARKET FITS THE SCREEN — phones and tablets, portrait (2026-10-04).
+   Founder: "the charts pop up halfway across the screen; making the chart
+   smaller isn't the same as fitting the charts to phone and tablet size."
+   Measured before: 390x844 pane at y 302, 460px tall (half the glass);
+   834x1194 pane at y 173, 705px. The floor above was a slice of a scrolling
+   page. Now the pane runs from where it starts to the bottom of the first
+   screen: `--wm-chart-fit-top` is published by ChartsDashboard (document
+   coordinates, re-measured whenever anything above it changes height).
+   360px is the floor for a very short window; `svh` so the collapsing URL bar
+   never resizes the market under the trader's hand. Landscape phones
+   (max-height 520) keep their own command-state rules below.
+   Later in the sheet than the 639px floor, so it wins where both apply. */
+@media (max-width: 1023px) and (min-height: 521px) {
+  .wm-chart-market-pane[data-market-primary="true"] {
+    min-height: max(360px, calc(100svh - var(--wm-chart-fit-top, 300px))) !important;
+  }
 }
 
 /* Phones in landscape are a distinct command state, not a compressed desktop.
