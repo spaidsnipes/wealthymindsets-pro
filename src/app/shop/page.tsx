@@ -253,20 +253,21 @@ export default function ShopPage() {
         </div>
       </div>
 
-      {/* Hero banner */}
-      <div className="mx-4 mt-4 rounded-3xl p-7 border border-wm-gold/20 shrink-0 flex items-center justify-between gap-8 overflow-hidden relative"
+      {/* Hero banner — compact on a phone: at 390 it left the product grid a
+          241 px scroll window on an 844 screen (measured 2026-10-03). */}
+      <div className="mx-4 mt-3 sm:mt-4 rounded-3xl p-4 sm:p-7 border border-wm-gold/20 shrink-0 flex items-center justify-between gap-8 overflow-hidden relative"
         style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,225,190,0.76))", boxShadow: "0 14px 42px rgba(116,82,18,0.13)" }}>
         <div className="absolute -right-12 -top-24 w-80 h-80 rounded-full opacity-20" style={{ background: "repeating-radial-gradient(circle,#E8B923 0 1px,transparent 1px 10px)" }} />
         <div className="relative z-10">
           <div className="text-xs font-semibold text-wm-gold uppercase tracking-[0.24em] mb-1">Cultural Excellence Marketplace</div>
-          <h2 className="text-3xl font-black text-wm-text mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>Build wealth. Own culture.</h2>
-          <p className="text-sm text-wm-text-muted mb-4 max-w-xl">Books, original art, creator music, premium grooming, trading tools, and limited WM collections—curated for the community.</p>
+          <h2 className="text-xl sm:text-3xl font-black text-wm-text mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>Build wealth. Own culture.</h2>
+          <p className="hidden sm:block text-sm text-wm-text-muted mb-4 max-w-xl">Books, original art, creator music, premium grooming, trading tools, and limited WM collections—curated for the community.</p>
           <div className="flex items-center gap-3">
             <button onClick={() => setCat("Books")}
               className="px-4 py-2 rounded-lg bg-wm-gold text-wm-black text-sm font-bold hover:opacity-90 transition-colors">
               Explore the collection
             </button>
-            <span className="text-xs text-wm-text-muted">Independent creators · WM exclusives</span>
+            <span className="hidden sm:inline text-xs text-wm-text-muted">Independent creators · WM exclusives</span>
           </div>
         </div>
         <div className="hidden lg:grid grid-cols-2 gap-2 relative z-10">
