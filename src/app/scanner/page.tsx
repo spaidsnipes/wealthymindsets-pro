@@ -36,6 +36,7 @@ import {
   classifyReportedFundamental,
   absentFundamental,
   preferKnownFundamental,
+  secMarketCapFundamental,
   type FundamentalFigure,
 } from "@/lib/scanner/scannerFundamental";
 import { scannerQuoteTruth, type ScannerQuoteQuality } from "@/lib/scannerQuoteTruth";
@@ -244,6 +245,30 @@ async function fetchFmpProfiles(): Promise<FmpProfileRound> {
   fmpProfileCache = round;
   fmpProfileCacheTs = Date.now();
   return round;
+}
+
+/* SEC EDGAR shares outstanding, for a market cap WM can compute when the
+   fundamentals provider is not configured (2026-10-03: /api/fmp answered 503
+   NOT CONFIGURED on every scan). Loaded once per page session, one symbol at a
+   time — the route fans out to ~9 SEC calls and SEC asks for ≤10/s; it caches
+   each company for 12 h for everyone. A symbol SEC does not list (ETFs) stays
+   absent. */
+const secShares = new Map<string, { shares: number; asOf: string | null } | null>();
+let secSharesStarted = false;
+async function loadSecShares(): Promise<boolean> {
+  if (secSharesStarted) return false;
+  secSharesStarted = true;
+  for (const sym of SCANNER_STOCKS) {
+    try {
+      const res = await fetch(`/api/fundamentals/sec?symbol=${encodeURIComponent(sym)}`);
+      const j = res.ok ? await res.json() : null;
+      const sh = j?.shares?.shares;
+      secShares.set(sym, typeof sh === "number" && sh > 0 ? { shares: sh, asOf: typeof j.shares.asOf === "string" ? j.shares.asOf : null } : null);
+    } catch {
+      secShares.set(sym, null);
+    }
+  }
+  return true;
 }
 
 // Cache RSI per symbol — recomputed every 5 min. The failure cache (canonical
@@ -528,7 +553,11 @@ function buildResults(
          provider route's own NOT CONFIGURED diagnosis outranks "not retrieved
          in this scan", because it is permanent — no later scan will fill it. */
       float:     preferKnownFundamental(prf?.float  ?? absentFundamental("Float", sym, profiles.notConfigured),      old?.float),
-      mktcap:    preferKnownFundamental(prf?.mktcap ?? absentFundamental("Market cap", sym, profiles.notConfigured), old?.mktcap),
+      mktcap:    preferKnownFundamental(
+        prf?.mktcap
+          ?? secMarketCapFundamental(secShares.get(sym)?.shares, secShares.get(sym)?.asOf, price, sym)
+          ?? absentFundamental("Market cap", sym, profiles.notConfigured),
+        old?.mktcap),
       time:      Date.now(),
       starred:   starredSet.has(sym) ?? old?.starred ?? false,
       alerted:   alertedSet.has(sym) ?? old?.alerted ?? false,
@@ -656,6 +685,20 @@ export default function ScannerPage() {
       setResults(prev => buildResults(round.quotes, profiles, prev));
       setLastRefresh(Date.now());
       setLoading(false);
+      // No fundamentals provider → read SEC share counts once, then fill only
+      // the market-cap cell on the CURRENT rows (rebuilding from this round's
+      // quotes ~40 s later would put older prices back over newer ones).
+      if (profiles.notConfigured) {
+        void loadSecShares().then(loaded => {
+          if (!loaded) return;
+          setResults(prev => prev.map(r => {
+            if (r.mktcap.state === "MEASURED") return r;
+            const sec = secShares.get(r.symbol);
+            const cap = secMarketCapFundamental(sec?.shares, sec?.asOf, r.price, r.symbol);
+            return cap ? { ...r, mktcap: cap } : r;
+          }));
+        });
+      }
     } catch {
       setLoading(false);
     }

@@ -166,3 +166,25 @@ export function preferKnownFundamental(
   }
   return fresh;
 }
+
+/**
+ * Market cap WM can compute without a fundamentals key (2026-10-03): the
+ * shares outstanding the company itself reported to the SEC (EDGAR dei,
+ * dated) × the price WM is showing on the row. A WM calculation from two
+ * named sources — and the reason says so, with the filing date — never a
+ * provider figure. Null when either input is missing.
+ */
+export function secMarketCapFundamental(
+  shares: number | null | undefined,
+  sharesAsOf: string | null | undefined,
+  price: number | null | undefined,
+  symbol: string,
+): FundamentalFigure | null {
+  if (!(typeof shares === "number" && shares > 0 && Number.isFinite(shares))) return null;
+  if (!(typeof price === "number" && price > 0 && Number.isFinite(price))) return null;
+  return {
+    text: abbreviateMagnitude(shares * price),
+    state: "MEASURED",
+    reason: `Market cap for ${symbol} = shares outstanding the company reported to the SEC${sharesAsOf ? ` (as of ${sharesAsOf})` : ""} × the price on this row. A WM calculation from SEC EDGAR + the quote, not a provider figure; share count changes only when the company files again.`,
+  };
+}
