@@ -4163,13 +4163,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // higher timeframes → tighter.
       try {
         const tfSec = getIntervalSec(timeframe);
-        const bs =
+        let bs =
           tfSec <= 60    ? 11 :   // ≤1m
           tfSec <= 300   ? 10 :   // ≤5m
           tfSec <= 900   ? 9  :   // ≤15m
           tfSec <= 3600  ? 8  :   // ≤1h
           tfSec <= 14400 ? 7  :   // ≤4h
                            6;     // daily+
+        // A PHONE OPENS AT MID, NOT NEAR (2026-10-04). At 11px a 330px plot holds
+        // 28 bars — under NEAR_MAX (30), the tape-anatomy depth: micro-delta rows,
+        // tape dots, print callouts (one clipped off the left edge, measured at
+        // 390). 8px opens ~40 bars, the depth the desk opens at, where the
+        // Smart Money tools speak in their budgeted form. Pinch still zooms in.
+        if (el.clientWidth > 0 && el.clientWidth < 600) bs = Math.min(bs, 8);
         chart.timeScale().applyOptions({ barSpacing: bs, rightOffset: 5 });
         // Renko / Range bars carry SYNTHETIC, evenly-spaced timestamps (a brick is a
         // price move, not a clock tick). scrollToRealTime() anchors to the wall-clock
