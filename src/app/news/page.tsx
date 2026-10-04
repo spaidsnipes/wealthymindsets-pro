@@ -854,8 +854,11 @@ export default function NewsPage() {
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: 999, background: "#5cb85c" }} className="animate-pulse" />
-            LIVE · Sentiment
+            {/* Was an unconditional pulsing "LIVE · Sentiment": the wires poll
+                every 2 min only with AUTO-REFRESH on, and the lean is a headline
+                word tally, not a sentiment model (2026-10-04). */}
+            <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: 999, background: liveMode ? "#5cb85c" : "#8a8271" }} className={liveMode ? "animate-pulse" : undefined} />
+            {liveMode ? "Refreshing · every 2 min" : "Headline word lean"}
           </div>
         </div>
 

@@ -23,6 +23,9 @@ export function MusicPlayer() {
 
   const duration = nowPlaying.duration;
   const isLive   = duration <= 0;
+  // A station with no stream URL is selected, not live (2026-10-04: every
+  // station's stream is unset, and the bar still pulsed "● LIVE" over silence).
+  const streaming = isLive && Boolean(nowPlaying.url) && playing;
   const pct      = isLive ? 0 : Math.min(100, (progress / duration) * 100);
 
   const TypeIcon = nowPlaying.type === "station" ? Radio
@@ -59,7 +62,7 @@ export function MusicPlayer() {
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-bold text-wm-text truncate">{nowPlaying.title}</div>
           <div className="text-[10px] text-wm-text-muted truncate flex items-center gap-1">
-            {isLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />}
+            {streaming && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />}
             {nowPlaying.artist}
           </div>
         </div>
@@ -97,7 +100,9 @@ export function MusicPlayer() {
         {/* Progress bar */}
         {isLive ? (
           <div className="flex items-center gap-2 w-full max-w-md">
-            <span className="text-[9px] font-mono text-red-400 tracking-widest">● LIVE</span>
+            {streaming
+              ? <span className="text-[9px] font-mono text-red-400 tracking-widest">● LIVE</span>
+              : <span className="text-[9px] font-mono text-wm-text-dim tracking-widest">{nowPlaying.url ? "PAUSED" : "STREAM NOT CONNECTED"}</span>}
           </div>
         ) : (
           <div className="flex items-center gap-2 w-full max-w-md">

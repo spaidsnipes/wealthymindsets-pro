@@ -283,7 +283,9 @@ export default function BacktestingPage() {
       if (bars.length < 50) {
         throw new Error(`Only ${bars.length} bars returned for ${symbol} @ ${tf}. Try a higher timeframe or a different symbol.`);
       }
-      const r = runRealBacktest(bars, symbol, strategy.id, strategy.label);
+      // The chosen Date Range is the window traded; earlier bars only warm up.
+      const fromTime = bars[bars.length - 1].time - dateRange.days * 86_400;
+      const r = runRealBacktest(bars, symbol, strategy.id, strategy.label, fromTime);
       // Note when Yahoo's intraday window couldn't cover the requested range.
       const approxDaysCovered = (bars[bars.length - 1].time - bars[0].time) / 86_400;
       if (approxDaysCovered < dateRange.days * 0.6) {

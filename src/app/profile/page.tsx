@@ -8,7 +8,7 @@ import { traderPerformanceStats } from "@/lib/profile/traderPerformanceStats";
 import { describeLegacyFuturesMoney } from "@/lib/journal/computePnl";
 import { hydrateJournalEntries } from "@/lib/journal/hydrateJournalEntries";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Zap, Play, Heart, Share2, BarChart2, Save, CheckCircle, Coins, Rocket, ExternalLink, Plus, GraduationCap } from "lucide-react";
+import { Settings, Edit3, Music, TrendingUp, Users, Star, Shield, Play, Heart, Share2, BarChart2, Save, CheckCircle, Coins, Rocket, ExternalLink, Plus, GraduationCap } from "lucide-react";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
 import { useWMS, WMS_CONTRACT } from "@/contexts/WMSContext";
@@ -576,8 +576,10 @@ function ProfilePageInner() {
               ) : (
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl font-black text-wm-text">{profile.name}</h1>
-                  {/* Blue verified check */}
-                  <span title="Verified"><Shield size={14} className="text-wm-blue" /></span>
+                  {/* A verified mark only where something verified it (2026-10-04: it
+                      rendered for every account while the Lounge records the same
+                      trader as unverified). The core-team check below is real. */}
+                  {isCoreTeam(profile.handle, profile.email) ? <span title="Verified — WealthyMindsets core team"><Shield size={14} className="text-wm-blue" /></span> : null}
                   {/* Crown W badge for core team */}
                   {isCoreTeam(profile.handle, profile.email) ? (
                     <span title="WealthyMindsets Core Team — Unlimited Access" className="flex items-center gap-1">
@@ -590,9 +592,6 @@ function ProfilePageInner() {
                       </svg>
                     </span>
                   ) : null}
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-gold/20 text-wm-gold border border-wm-gold/30 flex items-center gap-1">
-                    <Zap size={9} className="fill-wm-gold" /> PRO
-                  </span>
                 </div>
               )}
               {!editMode && <div className="text-sm text-wm-text-muted">{profile.handle}{profile.email ? ` · ${profile.email}` : ""}</div>}

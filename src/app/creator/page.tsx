@@ -64,7 +64,7 @@ const TIERS: Tier[] = [
     border: "rgba(79,163,224,0.5)",
     bg:    "rgba(79,163,224,0.06)",
     icon:  <Zap size={18} />,
-    badge: "POPULAR",
+    badge: "PROPOSED", // was POPULAR: no tier has members yet (2026-10-04)
     description: "Serious creators who want higher commissions, co-branded content, and direct promotion.",
     commission:  "Proposed: 25% recurring",
     features: [

@@ -321,7 +321,7 @@ export function NotificationsPanel({
       titleId="wm-notifications-title"
       descriptionId="wm-notifications-description"
       title="Notifications"
-      description="Market alerts, strategy coaching, reminders"
+      description="Nothing creates a notification yet"
       closeLabel="Close notifications"
       width={380}
       onClose={onClose}
@@ -336,13 +336,13 @@ export function NotificationsPanel({
           Mark all read
         </button>
       ) : undefined}
-      footer={<p className="text-center text-[10px] text-wm-text-dim">Alerts are generated from your strategy win rate and market data</p>}
+      footer={<p className="text-center text-[10px] text-wm-text-dim">No alert source is connected yet — nothing will appear here until one is.</p>}
     >
       <div className="h-full">
         {notifs.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-wm-text-muted">
             <Bell size={32} className="opacity-20" aria-hidden="true" />
-            <span className="text-sm">All caught up!</span>
+            <span className="text-sm">No notifications</span>
           </div>
         )}
         {notifs.map(n => (
@@ -603,10 +603,10 @@ export function SettingsPanel({
               <Row label="Dark Mode" sub="App pages · the market room is always dark">
                 <Toggle label="Dark Mode" on={darkMode} set={setDarkMode} />
               </Row>
-              <Row label="Show P&L in header" sub="Display live profit/loss in the top bar">
+              <Row label="Show P&L in header" sub="Realized paper-trading P&L in the top bar">
                 <Toggle label="Show P&L in header" on={showPnl} set={setShowPnl} />
               </Row>
-              <Row label="Sound Effects" sub="Tick sounds, alert chimes, order fills">
+              <Row label="Sound Effects" sub="The chart's Big Trades bubble sound">
                 <Toggle label="Sound Effects" on={soundOn} set={setSoundOn} />
               </Row>
               <Row label="Chart Theme" sub="Candle color scheme">
@@ -726,7 +726,7 @@ export function SettingsPanel({
               </Row>
               {/* Garden 16 §46: the "Two-Factor Auth" switch changed nothing —
                   a security control that does not secure is withdrawn. */}
-              <Row label="Export All Data" sub="Download journal, trades, settings as JSON">
+              <Row label="Export All Data" sub="Download journal, paper trades and profile as JSON">
                 <button
                   onClick={() => {
                     const data = {

@@ -95,9 +95,9 @@ const PRODUCTS = [
   },
   {
     id: 14, name: "WM Beat Pack Vol. 1", price: 19, category: "Music",
-    desc: "20 royalty-free beats for creators — trap, lo-fi, and soul. Instant download.",
+    desc: "20 royalty-free beats for creators — trap, lo-fi, and soul. Digital delivery planned.",
     colors: ["#8B5CF6", "#4FA3E0"], emoji: "💿", accent: "#8B5CF6",
-    details: ["20 beats, WAV + MP3", "Royalty-free", "Trap · lo-fi · soul", "Instant download"],
+    details: ["20 beats, WAV + MP3", "Royalty-free", "Trap · lo-fi · soul", "Digital delivery planned"],
   },
 ];
 

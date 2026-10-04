@@ -172,6 +172,12 @@ function signalAt(strategyId: string, bars: LegacyOhlcvTuple[], i: number, ind: 
 /* ── Engine ─────────────────────────────────────────────────── */
 export function runRealBacktest(
   bars: LegacyOhlcvTuple[], symbol: string, strategyId: string, strategyLabel: string,
+  /**
+   * Trade only from this bar time (epoch s) on (2026-10-04: the Date Range
+   * buttons changed nothing — every returned bar was tested). Bars before it
+   * still feed the indicators, so a short window is not a cold start.
+   */
+  fromTime?: number,
 ): BTResult {
   const START = 100_000;
   const RISK  = 0.01;       // 1% of equity risked per trade
@@ -183,8 +189,13 @@ export function runRealBacktest(
   const ind = { emaF, emaS, atr: atrA };
 
   const trades: BTTrade[] = [];
-  const equityCurve: { t: number; v: number }[] = [{ t: bars[0]?.time ?? 0, v: START }];
-  let equity = START, tId = 0, i = 25;
+  let startIdx = 25;
+  if (fromTime != null && Number.isFinite(fromTime)) {
+    const k = bars.findIndex(b => b.time >= fromTime);
+    if (k > startIdx) startIdx = k;
+  }
+  const equityCurve: { t: number; v: number }[] = [{ t: bars[startIdx]?.time ?? bars[0]?.time ?? 0, v: START }];
+  let equity = START, tId = 0, i = startIdx;
 
   while (i < bars.length - 1) {
     const sig = signalAt(strategyId, bars, i, ind);
@@ -268,8 +279,8 @@ export function runRealBacktest(
     avgBarsHeld:    trades.length ? +(trades.reduce((s, t) => s + t.bars, 0) / trades.length).toFixed(1) : 0,
     equity:         equityCurve,
     meta: {
-      barCount: bars.length,
-      fromDate: bars.length ? new Date(bars[0].time * 1000).toLocaleDateString() : "—",
+      barCount: Math.max(0, bars.length - (fromTime != null ? startIdx : 0)),
+      fromDate: bars.length ? new Date(bars[fromTime != null ? Math.min(startIdx, bars.length - 1) : 0].time * 1000).toLocaleDateString() : "—",
       toDate:   bars.length ? new Date(bars[bars.length - 1].time * 1000).toLocaleDateString() : "—",
     },
   };

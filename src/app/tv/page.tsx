@@ -546,12 +546,12 @@ const BRAIN_DRILLS: Drill[] = [
 /* ── Brain Fitness activity types — what the community does together ── */
 type BFActivity = { id: string; icon: React.ReactNode; title: string; blurb: string; color: string; status: string };
 const BRAIN_ACTIVITIES: BFActivity[] = [
-  { id:"learn",      icon:<GraduationCap size={16}/>, title:"Learn Together",   color:"#00D4AA", status:"Live sessions",       blurb:"Guided group lessons on mindset, risk & the inner game of trading." },
+  { id:"learn",      icon:<GraduationCap size={16}/>, title:"Learn Together",   color:"#00D4AA", status:"When a host goes live", blurb:"Guided group lessons on mindset, risk & the inner game of trading." },
   { id:"books",      icon:<BookOpen size={16}/>,      title:"Book Discussions", color:"#4FA3E0", status:"Pick shared in room", blurb:"Read the classics together — one chapter, one conversation at a time." },
   { id:"games",      icon:<Gamepad2 size={16}/>,      title:"Brain Games",      color:"#F0B429", status:"Play now ↓",          blurb:"Memory, focus & pattern drills — play solo or together in a session." },
-  { id:"challenges", icon:<Trophy size={16}/>,        title:"Challenges",       color:"#8B5CF6", status:"Launch week",         blurb:"Weekly discipline & focus challenges with honest, private progress." },
-  { id:"workshops",  icon:<Target size={16}/>,        title:"Workshops",        color:"#FF4D6A", status:"Scheduled",           blurb:"Deep-dive live workshops with hosts and guest practitioners." },
-  { id:"study",      icon:<Timer size={16}/>,         title:"Study Sessions",   color:"#06B6D4", status:"Scheduled",           blurb:"Focused co-working rooms — show up, lock in, and grow with others." },
+  { id:"challenges", icon:<Trophy size={16}/>,        title:"Challenges",       color:"#8B5CF6", status:"Planned",             blurb:"Weekly discipline & focus challenges with honest, private progress." },
+  { id:"workshops",  icon:<Target size={16}/>,        title:"Workshops",        color:"#FF4D6A", status:"Planned",             blurb:"Deep-dive live workshops with hosts and guest practitioners." },
+  { id:"study",      icon:<Timer size={16}/>,         title:"Study Sessions",   color:"#06B6D4", status:"Planned",             blurb:"Focused co-working rooms — show up, lock in, and grow with others." },
   { id:"replays",    icon:<Play size={16}/>,          title:"Replays",          color:"#94A3B8", status:"After first live",    blurb:"Catch sessions you missed once recordings are available." },
 ];
 
@@ -580,6 +580,9 @@ function useEventClock(iso: string) {
     });
     const tick = () => {
       const ms = target - Date.now();
+      // Over an hour past its start the session is history, not "soon"
+      // (2026-10-04: the Jul 29 kickoff read "Starting soon" into October).
+      if (ms <= -3_600_000) { setState({ when, countdown: "ENDED" }); return; }
       if (ms <= 0) { setState({ when, countdown: "Starting soon" }); return; }
       const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000);
       setState({ when, countdown: d > 0 ? `in ${d}d ${h}h` : h > 0 ? `in ${h}h ${m}m` : `in ${m}m` });
@@ -757,15 +760,17 @@ function BrainFitnessChannel() {
           }} />
           <div className="relative">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-wm-text-muted mb-1">
-              <Calendar size={12} className="text-wm-green" /> Next Live Session
+              <Calendar size={12} className="text-wm-green" /> {clock.countdown === "ENDED" ? "Live sessions" : "Next Live Session"}
             </div>
-            <h3 className="text-lg font-black text-wm-text">Mindset & Focus — Community Kickoff</h3>
+            <h3 className="text-lg font-black text-wm-text">{clock.countdown === "ENDED" ? "No session is scheduled yet" : "Mindset & Focus — Community Kickoff"}</h3>
             <p className="text-[12px] text-wm-text-muted mt-1 max-w-xl">
               A live guided session: set intentions, learn the inner game, discuss, and play a group brain round together.
             </p>
             <div className="flex items-center gap-3 mt-3 text-[12px]">
-              <span className="font-bold text-wm-text">{clock.when || "Loading time…"}</span>
-              {clock.countdown && <span className="px-2 py-0.5 rounded-full text-[10px] font-black text-wm-green" style={{ background:"#00D4AA1E", border:"1px solid #00D4AA44" }}>{clock.countdown}</span>}
+              {clock.countdown === "ENDED"
+                ? <span className="text-wm-text-muted">The kickoff ran {clock.when}. The next one appears here when a host schedules it.</span>
+                : <span className="font-bold text-wm-text">{clock.when || "Loading time…"}</span>}
+              {clock.countdown && clock.countdown !== "ENDED" && <span className="px-2 py-0.5 rounded-full text-[10px] font-black text-wm-green" style={{ background:"#00D4AA1E", border:"1px solid #00D4AA44" }}>{clock.countdown}</span>}
             </div>
 
             <div className="flex flex-wrap items-center gap-2 mt-4">
@@ -779,11 +784,11 @@ function BrainFitnessChannel() {
                 style={{ background:"#8B5CF622", color:"#A78BFA", border:"1px solid #8B5CF655" }}>
                 <Eye size={13} /> Join Live Room
               </button>
-              <a href={bfCalendarUrl()} target="_blank" rel="noopener noreferrer"
+              {clock.countdown !== "ENDED" && <a href={bfCalendarUrl()} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-[12px] font-bold px-4 py-2 rounded-xl transition-colors text-wm-text-muted"
                 style={{ background:"#151823", border:"1px solid #242838" }}>
                 <Bell size={13} /> Add to calendar
-              </a>
+              </a>}
             </div>
             <p className="text-[10px] text-wm-text-dim mt-2">The room goes live only when a host starts it — no simulated attendance.</p>
           </div>

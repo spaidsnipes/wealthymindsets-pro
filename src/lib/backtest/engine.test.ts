@@ -174,3 +174,21 @@ describe("runRealBacktest — supports all 4 named strategies without throw", ()
     expect(() => runRealBacktest(mkFlatBars(100), "TEST", id, id)).not.toThrow();
   });
 });
+
+describe("runRealBacktest — the Date Range is the window traded (2026-10-04)", () => {
+  it("fromTime moves the first tradable bar and the reported window; earlier bars only warm up", () => {
+    const bars = mkFlatBars(300);
+    const from = bars[200].time;
+    const r = runRealBacktest(bars, "TEST", "unknown", "Unknown", from);
+    expect(r.meta.barCount).toBe(100);
+    expect(r.meta.fromDate).toBe(new Date(from * 1000).toLocaleDateString());
+    expect(r.equity[0].t).toBe(from);
+  });
+  it("a window older than the history behaves as the whole history", () => {
+    const bars = mkFlatBars(120);
+    const whole = runRealBacktest(bars, "TEST", "unknown", "Unknown");
+    const early = runRealBacktest(bars, "TEST", "unknown", "Unknown", bars[0].time - 86_400 * 365);
+    expect(early.equity[0].t).toBe(bars[25].time);
+    expect(whole.meta.barCount).toBe(120);
+  });
+});
