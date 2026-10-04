@@ -4323,7 +4323,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // throws (tainted canvas, OOM, detached node) the user has to know it
       // failed rather than go hunting for a PNG that was never written.
       console.error("[chart snapshot] capture failed:", err);
-      alert(`Chart snapshot failed: ${err instanceof Error ? err.message : String(err)}`);
+      // In the room, not a browser box that freezes the page (2026-10-04).
+      const { toast } = await import("react-hot-toast");
+      toast.error("Chart snapshot failed — nothing was saved. Try again, or use your device's screenshot.");
     } finally {
       setSnapping(false);
     }
