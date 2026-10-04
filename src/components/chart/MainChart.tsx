@@ -10729,6 +10729,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             canvas.dataset.flowCurrent = "NO_SIDED_BARS_IN_VIEW";
           } else {
             const peak = Math.max(...rows.map(r => r.buy + r.sell));
+            // WHERE FLOW LEANED, NOT EVERY BAR (2026-10-04, Founder: the Smart
+            // Money tools must read ATH on the glass; measured BTC 1m: a streak
+            // bundle on ~every candle — a forest of arrows, the candles lost
+            // under it). Speaking, a bar's current draws only when its net
+            // aggression is in the camera's top 40% AND it is ≥ 20% one-sided.
+            const netsSorted = rows.map(r => Math.abs(r.buy - r.sell)).sort((p, q) => p - q);
+            const leanFloor = netsSorted[Math.floor(netsSorted.length * 0.6)] ?? 0;
+            let flowShown = 0;
             const inks = flowColorsRef.current;
             const tt = motionOnRef.current ? performance.now() / 1000 : 0;
             ctx.save();
@@ -10739,6 +10747,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const net = r.buy - r.sell;
               const up = net >= 0;
               const onesided = Math.abs(net) / total;
+              if (flowSpeaks && (Math.abs(net) < leanFloor || onesided < 0.2)) continue;
+              flowShown++;
               // STREAKS STAY LINES (serving TSLA 15m, 2026-09-30): six haloed
               // streaks inside one 9px bar merged into a soft green / red blob
               // over the forming candle. The count is capped so each streak
@@ -10780,7 +10790,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
             }
             ctx.restore();
-            canvas.dataset.flowCurrent = `${flowSpeaks ? "BARS" : `QUIET:POOLED${k}`}:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}`;
+            canvas.dataset.flowCurrent = `${flowSpeaks ? "BARS" : `QUIET:POOLED${k}`}:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}|SHOWN:${flowShown}`;
           }
         }
       } catch (err) { layerFault("FLOW_CURRENT", err); }
