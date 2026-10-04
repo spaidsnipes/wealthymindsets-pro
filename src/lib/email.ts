@@ -321,13 +321,18 @@ function featureList(items: { icon: string; title: string; desc: string }[]): st
    EMAIL TEMPLATES
 ───────────────────────────────────────────────────────────── */
 
+/** A name typed at signup is text, never markup (2026-10-04, guest audit). */
+function escapeHtml(v: string): string {
+  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 export function buildWelcomeEmail(firstName: string, email: string): { html: string; text: string } {
   // G12: the welcome CTA lands where every other entry lands (founderLanding).
   const dashboardUrl = `${APP_URL}${FOUNDER_LANDING_ROUTE}`;
 
   const html = emailShell(`
     ${h2("Welcome to your Operating System")}
-    ${h1(`You're in, ${firstName || "Trader"}.`)}
+    ${h1(`You're in, ${escapeHtml((firstName || "Trader").slice(0, 60))}.`)}
     ${p("Your WealthyMindsets Pro account is live. WM Pro is a trading operating system — market intelligence, order flow, decision memory, and longitudinal edge — with honest UNKNOWN, STALE, and INSUFFICIENT states. Never a beautiful lie.")}
 
     ${btn("Open My Command Deck →", dashboardUrl, C.gold)}

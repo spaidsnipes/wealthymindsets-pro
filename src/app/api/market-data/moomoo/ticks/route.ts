@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { operatorOnly } from "@/lib/operatorOnly";
 import { readMoomooTicks } from "@/lib/marketData/adapters/moomooTicksClient";
 import { WIRE_PROOF_SYMBOL } from "@/lib/marketData/wireProofScope";
 
@@ -21,6 +22,8 @@ const SYMBOL_PATTERN = /^[A-Z][A-Z0-9.-]{0,14}$/;
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // The operator's own bridge / credentials, like Webull's lane (guest audit 2026-10-04).
+  { const refusal = operatorOnly(auth.user.sub); if (refusal) return refusal; }
 
   // NO DEFAULT. This route used to read `... || "TSLA"`, so a caller that
   // asked about nothing received a confident receipt about a US equity it

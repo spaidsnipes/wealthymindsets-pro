@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { operatorOnly } from "@/lib/operatorOnly";
 import { readLongbridgeTicks } from "@/lib/marketData/adapters/longbridgeTicks";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,8 @@ const SYMBOL_PATTERN = /^[A-Z0-9][A-Z0-9.-]{0,14}$/;
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // The operator's own bridge / credentials, like Webull's lane (guest audit 2026-10-04).
+  { const refusal = operatorOnly(auth.user.sub); if (refusal) return refusal; }
   // NO DEFAULT — see the moomoo tick route for the measured substitution.
   const requested = request.nextUrl.searchParams.get("symbol");
   const symbol = (requested ?? "").trim().toUpperCase();

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveSupabaseServiceKey, SERVICE_KEY_VARS } from "@/lib/supabaseConfigStatus";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireAuth } from "@/lib/requireAuth";
+import { operatorOnly } from "@/lib/operatorOnly";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 // SHIFT-K K-Bkt 3 (Noah): Supabase admin client is LAZY (getSupabaseAdmin).
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
   // SERVICE_ROLE_KEY to a public bucket — arbitrary-file upload for anyone.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  { const refusal = operatorOnly(auth.user.sub); if (refusal) return refusal; }
   // WM-SEC-P0-07: cap uploads per user to blunt a storage-DoS attempt.
   const rl = checkRateLimit(`upload-track:${auth.user.sub}`, { max: 20, windowMs: 60_000 });
   if (!rl.ok) return rl.response;

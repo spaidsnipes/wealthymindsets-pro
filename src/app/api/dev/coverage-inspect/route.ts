@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveSupabaseServiceKey, SERVICE_KEY_VARS } from "@/lib/supabaseConfigStatus";
 import { requireAuth } from "@/lib/requireAuth";
+import { operatorOnly } from "@/lib/operatorOnly";
 
 /**
  * Founder-only diagnostic: list ALL rows in wm_market_coverage_checkpoints
@@ -21,6 +22,7 @@ import { requireAuth } from "@/lib/requireAuth";
 export async function GET(request: Request) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  { const refusal = operatorOnly(auth.user.sub); if (refusal) return refusal; }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = resolveSupabaseServiceKey(process.env);

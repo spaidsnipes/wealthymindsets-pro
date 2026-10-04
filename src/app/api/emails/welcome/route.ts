@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sendWelcomeEmail } from "@/lib/email";
 import { requireAuth } from "@/lib/requireAuth";
+import { operatorOnly } from "@/lib/operatorOnly";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: Request) {
@@ -9,6 +10,7 @@ export async function POST(req: Request) {
   // this HTTP endpoint — grep confirmed zero internal HTTP callers.
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+  { const refusal = operatorOnly(auth.user.sub); if (refusal) return refusal; }
   // WM-SEC-P0-07: tight cap on this endpoint — a signed-in user does not
   // legitimately send >5 welcome emails per minute. Prevents Resend quota
   // burn + email-spam abuse of our sender reputation.

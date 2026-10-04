@@ -19,6 +19,7 @@
 import type { NextRequest } from "next/server";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
 import { requireAuth } from "@/lib/requireAuth";
+import { operatorOnly } from "@/lib/operatorOnly";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,8 @@ export async function GET(request: NextRequest) {
   // keys for ANY caller, signed in or not. A WM session is required.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // The operator's own bridge / credentials, like Webull's lane (guest audit 2026-10-04).
+  { const refusal = operatorOnly(auth.user.sub); if (refusal) return refusal; }
   const sym = (new URL(request.url).searchParams.get("sym") ?? "").toUpperCase();
   if (!sym) return new Response("sym required", { status: 400 });
   if (!ALPACA_KEY || !ALPACA_SECRET) return new Response("Alpaca keys not set", { status: 503 });

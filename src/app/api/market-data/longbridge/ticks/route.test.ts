@@ -14,7 +14,9 @@ import { GET } from "./route";
 describe("GET /api/market-data/longbridge/ticks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.requireAuth.mockResolvedValue({ ok: true });
+    // The operator (the bridge is theirs — operatorOnly, 2026-10-04).
+    mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "op-1" } });
+    vi.stubEnv("TASTYTRADE_OWNER_USER_ID", "op-1");
     mocks.readLongbridgeTicks.mockResolvedValue({
       status: { label: "RECEIVING", detail: "2 executed prints normalized", receiving: true, eventCount: 2 },
       events: [{ eventType: "TRADE", normalizedSymbol: "TSLA" }],

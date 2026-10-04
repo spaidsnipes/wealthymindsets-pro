@@ -16,6 +16,7 @@
 
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { operatorOnly } from "@/lib/operatorOnly";
 
 // In-memory store — replace with DB for persistence across deploys
 const trackStore = new Map<string, { url: string; title?: string; artist?: string; addedAt: number }>();
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
   // WM-SEC-P0-06: was unauthenticated write to shared track store.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  { const refusal = operatorOnly(auth.user.sub); if (refusal) return refusal; }
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
