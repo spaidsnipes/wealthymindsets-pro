@@ -156,6 +156,9 @@ export function monitorPriceFact(
 }
 
 /** Was `connected ? \`${market.latency} ms\` : "—"` beside a tile saying "Unavailable". */
+/** A round trip longer than this is not a link latency (2026-10-04). */
+export const MAX_LINK_LATENCY_MS = 60_000;
+
 export function monitorLatencyFact(
   state: MonitorLinkState,
   latencyMs: unknown,
@@ -170,6 +173,17 @@ export function monitorLatencyFact(
   // is the mount value and the symbol-change reset. Admitting it here would have
   // printed "0 ms" — the most flattering possible latency — at the exact moment
   // WM knew the least.
+  // A "latency" longer than a minute is not a link's round trip — it is the
+  // age of the last quote (serving /ai-bot, weekend 2026-10-04: "115449644 ms",
+  // i.e. Friday's close). It is said as what it is, never as a latency.
+  if (state === "OBSERVED" && finite(latencyMs) && latencyMs >= MAX_LINK_LATENCY_MS) {
+    return {
+      text: "No live link",
+      state,
+      measured: false,
+      reason: `The newest ${symbol} quote is ${Math.round(latencyMs / 60_000)} min old, so there is no live round trip to time — the market is closed or the feed is resting.`,
+    };
+  }
   if (state === "OBSERVED" && finite(latencyMs) && latencyMs > 0) {
     return {
       text: `${Math.round(latencyMs)} ms`,

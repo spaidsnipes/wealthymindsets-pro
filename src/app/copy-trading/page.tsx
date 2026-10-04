@@ -207,12 +207,14 @@ export default function CopyTradingPage() {
         </div>
 
         <div className="mt-5 grid gap-5 md:grid-cols-2">
-          <section className="rounded-3xl border border-wm-red/25 bg-wm-red/5 p-6">
-            <div className="flex items-center gap-2 font-black text-wm-red">
-              <AlertTriangle size={17} /> Fictional traders removed
+          {/* Was a red "Fictional traders removed" alarm (2026-10-04): change-log
+              history a guest never lived through. Same rule, said as the policy. */}
+          <section className="rounded-3xl border border-wm-border bg-wm-surface/30 p-6">
+            <div className="flex items-center gap-2 font-black text-wm-text">
+              <AlertTriangle size={17} className="text-wm-gold" /> Only verified traders, ever
             </div>
             <p className="mt-3 text-sm leading-7 text-wm-text-muted">
-              WealthyMindsets no longer displays invented traders, win rates, returns, follower counts, risk ratings, or simulated copy allocations.
+              No trader is listed until their performance is read from a connected broker. WealthyMindsets shows no invented traders, win rates, returns, follower counts, risk ratings, or simulated copy allocations.
             </p>
           </section>
 
