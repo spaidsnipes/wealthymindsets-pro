@@ -883,7 +883,9 @@ export default function ScannerPage() {
             </span>
           )}
         </div>
-        <div className="wm-scanner-presets flex items-center gap-1 ml-2 overflow-x-auto" style={{ scrollbarWidth:"none" }}>
+        {/* flex-1 + a floor: at iPad portrait (834) this scroller had shrunk to 0 px
+            wide, so every preset was invisible (measured 2026-10-03). */}
+        <div className="wm-scanner-presets flex flex-1 min-w-[120px] items-center gap-1 ml-2 overflow-x-auto" style={{ scrollbarWidth:"none" }}>
           {PRESETS.map(p => (
             <button key={p.id} onClick={() => applyPreset(p.id)}
               className={clsx("whitespace-nowrap px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all",
