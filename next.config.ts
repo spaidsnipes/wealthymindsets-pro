@@ -35,6 +35,26 @@ const nextConfig: NextConfig = {
   },
   turbopack: {},
   /**
+   * BASELINE SECURITY HEADERS (2026-10-04): production sent none. These three
+   * cannot break a page: HSTS for this host only (no includeSubDomains — other
+   * hosts are not this file's to bind), nosniff (blocks only scripts/styles
+   * served with the wrong type), and a referrer policy that stops full URLs
+   * (which can carry symbols and query state) leaving the origin. Framing and
+   * Permissions-Policy are deliberately NOT set: WM is iframed by its own
+   * Canon|Glass station and may be by WOW World, and the TV studio needs
+   * camera / microphone — those need the embedders named first.
+   */
+  async headers() {
+    return [{
+      source: "/:path*",
+      headers: [
+        { key: "Strict-Transport-Security", value: "max-age=31536000" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      ],
+    }];
+  },
+  /**
    * NO `cloudflare:sockets` EXTERNAL HERE — deliberately, and this note exists
    * so nobody re-adds one.
    *
