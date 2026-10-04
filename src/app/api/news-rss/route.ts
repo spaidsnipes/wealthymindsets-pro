@@ -126,10 +126,10 @@ async function fetchFeed(feed: Feed): Promise<NormalizedNewsItem[]> {
       cache: "no-store",
       // Follow redirects (MarketWatch/CoinDesk/WatcherGuru 301/308).
       redirect: "follow",
-      // 6 s, not 9: a feed that has not answered by then is skipped — the
-      // whole response used to wait out the slowest publisher (measured
-      // 2026-10-03: ~9 s per /news load).
-      signal: AbortSignal.timeout(6000),
+      // 9 s stays: tried 6 s on 2026-10-03 and two publishers (≈20 stories)
+      // vanished — they answer between 6 and 9 s. The 3-min memo below is what
+      // removes the wait for everyone after the first read.
+      signal: AbortSignal.timeout(9000),
     });
     if (!res.ok) return [];
     const xml = await res.text();
