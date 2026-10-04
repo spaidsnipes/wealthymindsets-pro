@@ -9,6 +9,7 @@ import {
   type EnvPresence,
 } from "../../../../lib/broker/providerReadiness";
 import { supabaseConfigStatus } from "@/lib/supabaseConfigStatus";
+import { tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
 
 export const dynamic = "force-dynamic";
 
@@ -56,9 +57,28 @@ export async function GET(request: Request) {
   // NAMES only — never a value, on either side of the pairing.
   const nearMisses = detectUnaccountedEnvNameNearMisses(env);
 
+  // Guest audit 2026-10-04: every signed-in trader read this deployment's own
+  // env-var inventory, near-miss names and missing-secret lists. Those are the
+  // operator's; anyone else gets each provider's status and nothing more.
+  if (!tastytradeOwnerGate(auth.user.sub, process.env).allowed) {
+    return NextResponse.json(
+      {
+        surface: "broker-readiness",
+        audience: "GUEST",
+        summary: readinessSummary(providers),
+        providers: providers.map((p) => ({ ...p, missing: [], missingRecommended: [], note: "" })),
+        envPresence: [],
+        nearMisses: [],
+        note: "Platform connection status. Setup detail is shown to the operator only.",
+      },
+      { status: 200, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   return NextResponse.json(
     {
       surface: "broker-readiness",
+      audience: "OWNER",
       summary: readinessSummary(providers),
       providers,
       envPresence,

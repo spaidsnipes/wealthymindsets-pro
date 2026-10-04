@@ -25,6 +25,8 @@ import type { EnvNameNearMiss, ProviderReadiness, ReadinessStatus } from "./prov
 /** Shape of the JSON returned by GET /api/broker/readiness. */
 export interface ReadinessPayload {
   readonly surface?: string;
+  /** GUEST = a non-operator; the receipt carries status only (guest audit 2026-10-04). */
+  readonly audience?: "OWNER" | "GUEST";
   readonly summary?: string;
   readonly providers?: readonly ProviderReadiness[];
   readonly envPresence?: readonly { readonly name: string; readonly present: boolean }[];

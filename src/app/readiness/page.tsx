@@ -46,7 +46,8 @@ import { WM } from "@/lib/design/wmTokens";
 type LoadState =
   | { phase: "loading" }
   | { phase: "error"; message: string }
-  | { phase: "ready"; wireboard: ReadinessWireboard };
+  | { phase: "ready"; wireboard: ReadinessWireboard }
+  | { phase: "guest" };
 
 /**
  * The certification board is loaded and rendered SEPARATELY from the readiness
@@ -128,6 +129,7 @@ export default function ReadinessPage() {
           readJsonReceipt<ReadinessPayload>(fetch, "/api/broker/readiness", controller.signal),
           readWebullLanes(fetch, controller.signal),
         ]);
+        if (payload.audience === "GUEST") { if (!cancelled) setState({ phase: "guest" }); return; }
         const measurements = webullWireboardMeasurements(webullLanes);
         const probed = Object.values(WEBULL_LANE_PROVIDERS);
         if (!cancelled) setState({ phase: "ready", wireboard: selectReadinessWireboard(payload, measurements, probed) });
@@ -212,6 +214,17 @@ export default function ReadinessPage() {
               className="mt-4 min-h-11 rounded-lg border border-rose-300/40 px-4 py-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300">
               Retry connection check
             </button>
+          </div>
+        )}
+
+        {state.phase === "guest" && (
+          <div role="status" data-testid="readiness-guest" className="rounded-xl border border-[#f0b429]/15 bg-black/60 px-5 py-6 text-sm leading-relaxed text-neutral-300">
+            <p className="font-semibold text-neutral-100">Your charts already run on WM&apos;s market data.</p>
+            <p className="mt-2 text-neutral-400">
+              This board is where the platform operator checks WM&apos;s own data feeds. To link a brokerage
+              account of your own, use <span className="text-emerald-300">Connect or review brokers</span> above.
+              To practise without one, the <Link href="/paper" className="text-[#f0b429] underline-offset-2 hover:underline">Paper room →</Link> is open to you.
+            </p>
           </div>
         )}
 

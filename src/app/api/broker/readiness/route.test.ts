@@ -13,6 +13,7 @@ describe("GET /api/broker/readiness", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "u1" } });
+    vi.stubEnv("TASTYTRADE_OWNER_USER_ID", "u1");
   });
 
   it("requires a WM session before revealing the config surface", async () => {
@@ -51,5 +52,21 @@ describe("GET /api/broker/readiness", () => {
       expect(p).not.toHaveProperty("secret");
     }
     expect(Object.keys(body.accountService).sort()).toEqual(["configured", "missing"]);
+  });
+
+  it("a signed-in trader who is not the operator gets status only — no env names, no missing lists", async () => {
+    mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "guest-7" } });
+    const response = await GET(new Request("http://localhost/api/broker/readiness"));
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.audience).toBe("GUEST");
+    expect(body.envPresence).toEqual([]);
+    expect(body.nearMisses).toEqual([]);
+    expect(body).not.toHaveProperty("accountService");
+    for (const p of body.providers) {
+      expect(p.missing).toEqual([]);
+      expect(p.missingRecommended).toEqual([]);
+      expect(typeof p.status).toBe("string");
+    }
   });
 });
