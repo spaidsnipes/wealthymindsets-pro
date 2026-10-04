@@ -1020,7 +1020,15 @@ export default function ScannerPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
-            {filtered.length === 0 && (
+            {/* The first read takes several seconds; "no signals match" before
+                any quote arrived was a verdict on nothing (2026-10-04). */}
+            {filtered.length === 0 && loading && results.length === 0 && (
+              <div role="status" className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-2">
+                <RefreshCw size={20} className="opacity-50 animate-spin"/>
+                <span className="text-xs">Reading the market — first scan takes a few seconds…</span>
+              </div>
+            )}
+            {filtered.length === 0 && !(loading && results.length === 0) && (
               <div className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-2">
                 <AlertCircle size={24} className="opacity-30"/>
                 <span className="text-xs">No signals match current filters</span>
