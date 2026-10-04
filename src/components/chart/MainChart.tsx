@@ -280,7 +280,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
 
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
 const ANATOMY_BLOCK_RECEIPTS = [
-  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTerrain", "absorptionTravel", "absorptionWall", "absorptionWords", "absorptionZones",
+  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTerrain", "absorptionTravel", "absorptionWall", "absorptionWords", "absorptionTerrainWords", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded", "exhaustionEffortResult", "exhaustionWords",
   "questionCallout", "questionChoice", "questionLensForm", "questionLensHome", "questionLensTag", "questionBandYielded",
