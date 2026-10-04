@@ -583,12 +583,12 @@ export function DrawingToolsPanel({
               </div>
             ))}
             {groups.length === 0 && (
-              <div style={{ color: "#5A6788", fontSize: 11, padding: "8px 2px" }}>No tools match “{query}”.</div>
+              <div style={{ color: "#8b8fa8", fontSize: 11, padding: "8px 2px" }}>No tools match “{query}”.</div>
             )}
           </div>
 
           {/* Footer hint */}
-          <div style={{ marginTop: 6, paddingTop: 8, borderTop: "1px solid #1E2030", fontSize: 9.5, color: "#5A6788", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 6, paddingTop: 8, borderTop: "1px solid #1E2030", fontSize: 9.5, color: "#8b8fa8", lineHeight: 1.5 }}>
             Click to place each point · drag for 2-point tools · double-click to finish a polyline/path ·
             pick <span style={{ color: "#8B8FA8" }}>Select</span> then click a drawing to edit or drag it.
           </div>

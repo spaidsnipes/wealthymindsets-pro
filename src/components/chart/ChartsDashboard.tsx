@@ -6062,7 +6062,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   style={{ background:"rgba(139,92,246,0.12)", color:"#8B5CF6", borderColor:"rgba(139,92,246,0.4)" }}
                 >
                   ƒ {pineOutput.shortTitle || pineOutput.title || "Custom Script"}
-                  <span style={{ marginLeft:4, color:"#4A5070" }}
+                  <span style={{ marginLeft:4, color:"#8b8fa8" }}
                     onClick={e => { e.stopPropagation(); setPineOutput(null); setPineCode(""); }}>×</span>
                 </button>
               )}
@@ -7077,7 +7077,7 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
 
   const Card = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <div style={{ background:"#141824", border:"1px solid #1E2030", borderRadius:6, padding:"10px 12px" }}>
-      <div style={{ fontSize:10, color:"#6B7094", marginBottom:2 }}>{label}</div>
+      <div style={{ fontSize:10, color:"#8b8fa8", marginBottom:2 }}>{label}</div>
       <div style={{ fontSize:13, fontWeight:600, color:"#E2E8F0" }}>{value}</div>
     </div>
   );
@@ -7139,7 +7139,7 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
         <div style={{ overflowX:"auto" }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
             <thead>
-              <tr style={{ background:"#0F1119", color:"#6B7094" }}>
+              <tr style={{ background:"#0F1119", color:"#8b8fa8" }}>
                 {["Metric", ...cols.map(c => c.date ?? c.period)].map((h, i) => (
                   <th key={i} style={{ padding:"8px 12px", textAlign:"left", borderBottom:"1px solid #1E2030", fontWeight:500 }}>{h}</th>
                 ))}
@@ -7174,7 +7174,7 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
               <span style={{ background:"rgba(79,163,224,0.15)", color:"#4FA3E0", padding:"2px 8px", borderRadius:4, fontSize:10, fontWeight:600, minWidth:90, textAlign:"center" }}>{a.type}</span>
               <span style={{ color:"#B0B8D0", fontSize:12, minWidth:90 }}>{a.date}</span>
               <span style={{ color:"#E2E8F0", fontSize:12, flex:1 }}>{a.amount}</span>
-              <span style={{ color:"#6B7094", fontSize:11 }}>{a.status}</span>
+              <span style={{ color:"#8b8fa8", fontSize:11 }}>{a.status}</span>
             </div>
           ))}
         </div>
@@ -7228,7 +7228,7 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
         // views no longer wait on a paid fundamentals key (2026-10-02).
         <SecFundamentalsCard symbol={symbol} tab={tab} />
       ) : loading ? (
-        <div style={{ color:"#6B7094", fontSize:13, padding:"24px 4px" }}>Loading {tab.toLowerCase()} data…</div>
+        <div style={{ color:"#8b8fa8", fontSize:13, padding:"24px 4px" }}>Loading {tab.toLowerCase()} data…</div>
       ) : (body && hasData) ? body : providerEdge ? (
         // Truth-in-name: FMP responded 503 with the NOT CONFIGURED
         // contract — name the exact missing env var so a founder can

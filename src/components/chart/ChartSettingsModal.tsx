@@ -134,7 +134,7 @@ function ColorSwatch({ value, onChange, label }: { value: string; onChange: (v: 
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
       <span style={{ fontSize: 12, color: "#8896BE" }}>{label}</span>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 11, color: "#4A5580", fontFamily: "monospace" }}>{value}</span>
+        <span style={{ fontSize: 11, color: "#8b8fa8", fontFamily: "monospace" }}>{value}</span>
         <input
           type="color"
           value={value}
@@ -302,7 +302,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <div style={{ background: "#141824", border: "1px solid #263050", borderRadius: 8, padding: "14px 16px", marginBottom: 12 }}>
                     <div style={{ fontSize: 18, fontWeight: 700, color: "#E2E8FF", marginBottom: 4 }}>{symbol}</div>
                     <div style={{ fontSize: 13, color: "#8896BE", marginBottom: 10 }}>{info.name}</div>
-                    <div style={{ fontSize: 11, color: "#4A5580", lineHeight: 1.6 }}>{info.description}</div>
+                    <div style={{ fontSize: 11, color: "#8b8fa8", lineHeight: 1.6 }}>{info.description}</div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {[
@@ -322,23 +322,23 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
               {/* CHART TAB */}
               {tab === "chart" && (
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Background</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Background</div>
                   <ColorSwatch value={s.background} onChange={v => set({ background: v })} label="Background color" />
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Grid</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Grid</div>
                   <Toggle value={s.gridVisible} onChange={v => set({ gridVisible: v })} label="Show gridlines" />
                   {s.gridVisible && <ColorSwatch value={s.gridColor} onChange={v => set({ gridColor: v })} label="Grid color" />}
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Candle Timer</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Candle Timer</div>
                   <Toggle value={s.candleTimer} onChange={v => set({ candleTimer: v })} label="Show candlestick timer" />
                   <p style={{ fontSize: 11, color: "#8896BE", margin: "4px 0 0", lineHeight: 1.5 }}>
                     Live countdown to the current candle&apos;s close, pinned to the price line on the left edge. Flashes red in the final 5 seconds.
                   </p>
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Crosshair</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Crosshair</div>
                   <Toggle value={s.crosshairVisible} onChange={v => set({ crosshairVisible: v })} label="Show crosshair" />
                   {s.crosshairVisible && (
                     <>
@@ -362,13 +362,13 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   )}
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Scales</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Scales</div>
                   <Toggle value={s.priceScaleVisible} onChange={v => set({ priceScaleVisible: v })} label="Show price scale" />
                   <Toggle value={s.timeScaleVisible} onChange={v => set({ timeScaleVisible: v })} label="Show time scale" />
 
                   {/* ── Timezone + clock format ───────────────────────────── */}
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Time Zone &amp; Clock</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Time Zone &amp; Clock</div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
                     <span style={{ fontSize: 12, color: "#8896BE" }}>Time zone</span>
                     <select
@@ -419,7 +419,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   )}
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Candle Colors</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Candle Colors</div>
                   <ColorSwatch value={s.candleUp}   onChange={v => set({ candleUp: v })}   label="Bull candle body" />
                   <ColorSwatch value={s.candleDown} onChange={v => set({ candleDown: v })} label="Bear candle body" />
                   <ColorSwatch value={s.wickUp}     onChange={v => set({ wickUp: v })}     label="Bull wick" />
@@ -428,7 +428,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <ColorSwatch value={s.borderDown} onChange={v => set({ borderDown: v })} label="Bear border" />
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#4A5580", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Order Flow Colors</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Order Flow Colors</div>
                   <ColorSwatch value={s.bigTradeBuy ?? FLOW_COLOR_DEFAULTS.bigTradeBuy}   onChange={v => set({ bigTradeBuy: v })}   label="Big trade · buy" />
                   <ColorSwatch value={s.bigTradeSell ?? FLOW_COLOR_DEFAULTS.bigTradeSell} onChange={v => set({ bigTradeSell: v })} label="Big trade · sell" />
                   <ColorSwatch value={s.deltaBuy ?? FLOW_COLOR_DEFAULTS.deltaBuy}         onChange={v => set({ deltaBuy: v })}       label="Delta bubble · net buy" />

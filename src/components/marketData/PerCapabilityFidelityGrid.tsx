@@ -74,7 +74,7 @@ export function PerCapabilityFidelityGrid({
               <li
                 key={cap}
                 className="flex items-center gap-2 text-[10px]"
-                style={{ color: "#5D6478" }}
+                style={{ color: "#8b8fa8" }}
               >
                 <span className="min-w-[128px] font-mono">{displayName}</span>
                 <span className="italic">— not evaluated</span>

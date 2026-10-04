@@ -601,7 +601,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
             {" "}
             ({vm.change.pct >= 0 ? "+" : ""}{vm.change.pct.toFixed(2)}%)
           </span>
-          <span style={{ fontSize: 9, color: "#655f52", letterSpacing: 0.3 }}>
+          <span style={{ fontSize: 9, color: "#8a8271", letterSpacing: 0.3 }}>
             last {vm.change.timeframe} bar
           </span>
         </div>
@@ -673,7 +673,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
           */
           null
         ) : (
-          <p style={{ fontSize: 9, lineHeight: 1.5, color: "#655f52", margin: 0 }}>
+          <p style={{ fontSize: 9, lineHeight: 1.5, color: "#8a8271", margin: 0 }}>
             {vm.book.reason}
           </p>
         )}
@@ -769,7 +769,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
       <div
         data-testid="chart-companion-status"
         className="flex items-center gap-1.5"
-        style={{ fontSize: 9, color: "#655f52", letterSpacing: 0.4 }}
+        style={{ fontSize: 9, color: "#8a8271", letterSpacing: 0.4 }}
       >
         <span
           aria-hidden="true"
@@ -784,7 +784,7 @@ export function ChartCompanion({ symbol: explicitSymbol }: { symbol?: string } =
         </span>
       </div>
 
-      <p style={{ fontSize: 9, lineHeight: 1.5, color: "#655f52", margin: 0 }}>
+      <p style={{ fontSize: 9, lineHeight: 1.5, color: "#8a8271", margin: 0 }}>
         Same decision camera as the chart — this panel reads the state the
         chart compiled. It decides nothing and mints no Decision ID.
       </p>

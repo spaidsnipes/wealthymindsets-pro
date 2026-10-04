@@ -36,7 +36,7 @@ const VERDICT_STYLES: Record<ReadinessVerdict, { color: string; glyph: string; l
   READY:         { color: "#ede6d3", glyph: "●", label: "Ready" },
   MOSTLY_READY:  { color: "#c9a55c", glyph: "◐", label: "Mostly ready" },
   NOT_READY:     { color: "#c05a4a", glyph: "!", label: "Not ready" },
-  UNKNOWN:       { color: "#55503f", glyph: "?", label: "Unknown" },
+  UNKNOWN:       { color: "#8a8271", glyph: "?", label: "Unknown" },
 };
 
 /**
@@ -48,8 +48,8 @@ const ITEM_STYLES: Record<ItemVerdict, { color: string; glyph: string; label: st
   DONE:      { color: "#ede6d3", glyph: "✓", label: "Done" },
   PARTIAL:   { color: "#c9a55c", glyph: "◐", label: "Partial" },
   NOT_DONE:  { color: "#8a8271", glyph: "○", label: "Not done" },
-  SKIPPED:   { color: "#55503f", glyph: "—", label: "Skipped" },
-  UNKNOWN:   { color: "#55503f", glyph: "?", label: "Unknown" },
+  SKIPPED:   { color: "#8a8271", glyph: "—", label: "Skipped" },
+  UNKNOWN:   { color: "#8a8271", glyph: "?", label: "Unknown" },
 };
 
 export interface OpeningBellPanelProps {
@@ -182,7 +182,7 @@ export function OpeningBellPanel({ vm, onItemClick, className }: OpeningBellPane
                     <span style={{ flex: 1, fontSize: 12 }}>
                       {item.label}
                       {!item.required && (
-                        <span style={{ fontSize: 9, color: "#55503f", marginLeft: 6, letterSpacing: 0.2 }}>
+                        <span style={{ fontSize: 9, color: "#8a8271", marginLeft: 6, letterSpacing: 0.2 }}>
                           (optional)
                         </span>
                       )}

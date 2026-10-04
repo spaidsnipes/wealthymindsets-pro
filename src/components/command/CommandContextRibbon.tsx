@@ -194,7 +194,7 @@ export function ContextRibbonTile({ label, value, detail, tone }: ContextRibbonT
           style={{
             fontSize: 9,
             letterSpacing: 0.2,
-            color: "#6f6a5a",
+            color: "#8a8271",
             lineHeight: 1.2,
             marginTop: 2,
             overflow: "hidden",

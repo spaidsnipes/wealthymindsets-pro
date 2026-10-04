@@ -36,7 +36,7 @@ export function PersonalEdgePanel({ vm, onBucketClick, className }: PersonalEdge
         <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
           Personal Edge
         </span>
-        <span style={{ fontSize: 10, color: "#55503f" }}>·</span>
+        <span style={{ fontSize: 10, color: "#8a8271" }}>·</span>
         <span
           style={{
             fontSize: 9,

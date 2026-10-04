@@ -565,7 +565,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     <span
                       data-testid="rail-legacy-chip"
                       style={{
-                        fontSize: 9, letterSpacing: "0.12em", color: "#6F7490",
+                        fontSize: 9, letterSpacing: "0.12em", color: "#8b8fa8",
                         border: "1px solid rgba(111,116,144,0.45)", borderRadius: 3,
                         padding: "0px 3px", marginTop: 1,
                       }}
@@ -615,7 +615,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     Rendered only when there is a clause — ALL_DEVICES returns
                     null, and a shell that narrates the happy path is noise. */}
                 {reach !== null && reach.shellClause !== null && (
-                  <span style={{ display: "block", marginTop: 4, color: "#6F7490" }}>
+                  <span style={{ display: "block", marginTop: 4, color: "#8b8fa8" }}>
                     {reach.shellClause}
                   </span>
                 )}
@@ -703,7 +703,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                                     withheld-while-capital-is-live section), so the deck's
                                     door must SAY the word here as well as on the rail. */}
                                 {authority === "legacy" && (
-                                  <span data-testid="drawer-legacy-chip" style={{ marginLeft: 6, fontSize: 9, letterSpacing: "0.12em", color: "#6F7490", border: "1px solid rgba(111,116,144,0.45)", borderRadius: 3, padding: "0px 3px", verticalAlign: "middle" }}>LEGACY</span>
+                                  <span data-testid="drawer-legacy-chip" style={{ marginLeft: 6, fontSize: 9, letterSpacing: "0.12em", color: "#8b8fa8", border: "1px solid rgba(111,116,144,0.45)", borderRadius: 3, padding: "0px 3px", verticalAlign: "middle" }}>LEGACY</span>
                                 )}
                               </span>
                             </Link>

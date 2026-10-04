@@ -58,7 +58,7 @@ const INDICATOR_STYLES: Record<DecisionChainNode["indicator"], { color: string; 
   OK:      { color: "#5cb85c", glyph: "●", label: "OK" },
   WATCH:   { color: "#c9a55c", glyph: "◐", label: "Watch" },
   WARN:    { color: "#c05a4a", glyph: "!", label: "Warn" },
-  UNKNOWN: { color: "#55503f", glyph: "?", label: "Unknown" },
+  UNKNOWN: { color: "#8a8271", glyph: "?", label: "Unknown" },
 };
 
 export function DecisionChainPanel({
@@ -102,7 +102,7 @@ export function DecisionChainPanel({
           >
             Decision chain
           </span>
-          <span style={{ fontSize: 9, color: "#55503f" }}>·</span>
+          <span style={{ fontSize: 9, color: "#8a8271" }}>·</span>
           <span
             style={{
               fontSize: 11,
@@ -127,7 +127,7 @@ export function DecisionChainPanel({
         <div
           style={{
             fontSize: 11,
-            color: "#55503f",
+            color: "#8a8271",
             marginTop: 6,
             letterSpacing: 0.2,
             display: "flex",
@@ -145,7 +145,7 @@ export function DecisionChainPanel({
             <span style={{ color: "#c05a4a" }}>!</span> {summary.warn} warn
           </span>
           <span>
-            <span style={{ color: "#55503f" }}>?</span> {summary.unknown} unknown
+            <span style={{ color: "#8a8271" }}>?</span> {summary.unknown} unknown
           </span>
         </div>
       </div>

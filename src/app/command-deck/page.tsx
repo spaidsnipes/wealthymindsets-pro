@@ -2906,7 +2906,7 @@ function CommandDeckInner() {
                     >
                       <span style={{ fontFamily: "Georgia, serif", fontSize: 14, color: "#c9a55c", minWidth: 18 }}>{row.n}</span>
                       <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 12, color: "#c0b8a0", letterSpacing: 0.2 }}>{row.label}</span>
-                      <span style={{ marginLeft: "auto", fontSize: 9, color: "#55503f", letterSpacing: 0.4, textTransform: "uppercase" }}>waiting</span>
+                      <span style={{ marginLeft: "auto", fontSize: 9, color: "#8a8271", letterSpacing: 0.4, textTransform: "uppercase" }}>waiting</span>
                     </div>
                   ))}
                 </div>
@@ -3096,7 +3096,7 @@ function CommandDeckInner() {
                 <div style={{ fontSize: 11, color: "#8a8271", lineHeight: 1.5, marginTop: 6 }}>
                   {permission.reason}
                 </div>
-                <div style={{ fontSize: 10, color: "#55503f", marginTop: 8, letterSpacing: 0.3 }}>
+                <div style={{ fontSize: 10, color: "#8a8271", marginTop: 8, letterSpacing: 0.3 }}>
                   {permission.engagedRules.length}/{permission.ruleCount} engaged · phase: {phase.toLowerCase()}
                 </div>
                 {/* Per-rule breakdown — 'informs, never gates'. If any
@@ -3368,7 +3368,7 @@ function CommandDeckInner() {
                   fontSize: 10,
                   letterSpacing: 0.3,
                   textTransform: "uppercase",
-                  color: "#55503f",
+                  color: "#8a8271",
                 }}
               >
                 Regime → Direction → Location → Auction → Aggression → CLC → Available R → Permission → Management

@@ -156,7 +156,7 @@ function Card({ sym, tf }: { sym: string; tf: string }) {
         </span>
       </div>
       {/* OHLC line */}
-      <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 9, color: "#6A7290", fontFamily: "monospace", flexWrap: "wrap", flexShrink: 0 }}>
+      <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 9, color: "#8b8fa8", fontFamily: "monospace", flexWrap: "wrap", flexShrink: 0 }}>
         <span>O <span style={{ color: "#A0AEC0" }}>{fmt(last?.open ?? 0)}</span></span>
         <span>H <span style={{ color: "#A0AEC0" }}>{fmt(last?.high ?? 0)}</span></span>
         <span>L <span style={{ color: "#A0AEC0" }}>{fmt(last?.low ?? 0)}</span></span>
@@ -166,9 +166,9 @@ function Card({ sym, tf }: { sym: string; tf: string }) {
       {/* Mini chart */}
       <div style={{ flex: 1, marginTop: 6, minHeight: 0 }}>
         {data.loading
-          ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5070", fontSize: 11 }}>Loading…</div>
+          ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#8b8fa8", fontSize: 11 }}>Loading…</div>
           : cs.length < 2
-            ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#4A5070", fontSize: 11 }}>No data</div>
+            ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#8b8fa8", fontSize: 11 }}>No data</div>
             : <MiniChart candles={cs} />}
       </div>
     </div>
@@ -182,7 +182,7 @@ export function WatchlistGrid({ refreshKey = 0, timeframe = "1D" }: { refreshKey
   return (
     <div style={{ flex: 1, overflowY: "auto", background: "#080910", padding: 12 }}>
       {symbols.length === 0 ? (
-        <div style={{ color: "#4A5070", fontSize: 13, textAlign: "center", marginTop: 40 }}>
+        <div style={{ color: "#8b8fa8", fontSize: 13, textAlign: "center", marginTop: 40 }}>
           No symbols in this watchlist. Add some from the list panel.
         </div>
       ) : (

@@ -51,7 +51,7 @@ function BidAskBar({ bids, asks }: {
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
         <span style={{ fontSize: 11, color: "#00C076" }}>Bid {bidPct}%</span>
         <span style={{ fontSize: 11, color: "#FF4D67" }}>Ask {askPct}%</span>
-        <span style={{ fontSize: 11, color: "#4A5070", cursor: "pointer" }}>🗑</span>
+        <span style={{ fontSize: 11, color: "#8b8fa8", cursor: "pointer" }}>🗑</span>
       </div>
 
       {/* Progress bar */}
@@ -93,8 +93,8 @@ function TickRow({ tick }: { tick: { price: number; size: number; side: "buy" | 
       fontFamily: "monospace",
       color: "#8B8FA8",
     }}>
-      <span style={{ color: "#4A5070", width: 52, flexShrink: 0 }}>{timeStr}</span>
-      <span style={{ color: "#4A5070", width: 10 }}>×</span>
+      <span style={{ color: "#8b8fa8", width: 52, flexShrink: 0 }}>{timeStr}</span>
+      <span style={{ color: "#8b8fa8", width: 10 }}>×</span>
       <span style={{ color: "#E2E8F0", flex: 1 }}>{tick.price.toFixed(3)}</span>
       <span style={{ color: "#8B8FA8", width: 20 }}>{tick.size}</span>
       <span style={{ color: isBuy ? "#00C076" : "#FF4D67" }}>{isBuy ? "↑" : "↓"}</span>
@@ -264,7 +264,7 @@ export function StockInfoPanel({ symbol }: Props) {
 
         {/* Prev close */}
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-          <span style={{ fontSize: 9, color: "#4A5070" }}>Prev Close</span>
+          <span style={{ fontSize: 9, color: "#8b8fa8" }}>Prev Close</span>
           <span
             style={{ fontSize: 9, color: prev.state === "OBSERVED" ? "#8B8FA8" : "#5A6080", fontFamily: "monospace" }}
             title={prev.reason}
@@ -304,7 +304,7 @@ export function StockInfoPanel({ symbol }: Props) {
 
         {/* Vendor-agnostic data status indicator. */}
         <div style={{ marginTop: 6, overflow: "hidden", height: 16 }}>
-          <span style={{ fontSize: 9, color: "#4A5070", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 9, color: "#8b8fa8", whiteSpace: "nowrap" }}>
             {realOHLC ? "MARKET DATA AVAILABLE" : "MARKET DATA LOADING…"}
           </span>
         </div>
@@ -386,7 +386,7 @@ export function StockInfoPanel({ symbol }: Props) {
                   Net flow: UNKNOWN
                 </span>
               )}
-              <span style={{ fontSize: 9, color: "#4A5070" }}>Unit</span>
+              <span style={{ fontSize: 9, color: "#8b8fa8" }}>Unit</span>
             </div>
           </div>
         </>
@@ -428,12 +428,12 @@ export function StockInfoPanel({ symbol }: Props) {
               </div>
             </>
           )}
-          {!realOHLC && <span style={{ fontSize: 11, color: "#4A5070" }}>Loading analysis...</span>}
+          {!realOHLC && <span style={{ fontSize: 11, color: "#8b8fa8" }}>Loading analysis...</span>}
         </div>
       )}
       {(activeTab === "Comments" || activeTab === "News") && (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 6 }}>
-          <span style={{ fontSize: 11, color: "#4A5070" }}>{activeTab}</span>
+          <span style={{ fontSize: 11, color: "#8b8fa8" }}>{activeTab}</span>
           <span style={{ fontSize: 9, color: "#2A2D3E" }}>Connect to community in Lounge tab</span>
         </div>
       )}

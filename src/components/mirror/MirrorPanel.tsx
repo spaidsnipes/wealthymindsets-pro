@@ -33,7 +33,7 @@ import type { MirrorVM, MirrorPattern, EvidenceClass } from "@/lib/traderMemory/
 const DIRECTION_STYLES: Record<MirrorPattern["direction"], { color: string; glyph: string; label: string }> = {
   STRENGTH: { color: "#8a8271", glyph: "◇", label: "Strength" },
   WATCH:    { color: "#c9a55c", glyph: "◐", label: "Watch" },
-  NEUTRAL:  { color: "#55503f", glyph: "○", label: "Neutral" },
+  NEUTRAL:  { color: "#8a8271", glyph: "○", label: "Neutral" },
 };
 
 const EVIDENCE_LABEL: Record<EvidenceClass, string> = {
@@ -96,7 +96,7 @@ export function MirrorPanel({ vm, onDrill, className, unabridged = false }: Mirr
         <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
           Mirror
         </span>
-        <span style={{ fontSize: 10, color: "#55503f" }}>·</span>
+        <span style={{ fontSize: 10, color: "#8a8271" }}>·</span>
         <span style={{ fontSize: 10, color: "#8a8271", letterSpacing: 0.3 }}>
           {vm.patterns.length} pattern{vm.patterns.length === 1 ? "" : "s"} from {vm.totalDecisions} decision{vm.totalDecisions === 1 ? "" : "s"}
         </span>
@@ -147,7 +147,7 @@ export function MirrorPanel({ vm, onDrill, className, unabridged = false }: Mirr
                   >
                     {s.label}
                   </span>
-                  <span style={{ fontSize: 9, color: "#55503f" }}>·</span>
+                  <span style={{ fontSize: 9, color: "#8a8271" }}>·</span>
                   <span
                     style={{
                       fontSize: 9,
@@ -167,7 +167,7 @@ export function MirrorPanel({ vm, onDrill, className, unabridged = false }: Mirr
                   <div style={{ fontSize: 10, color: "#8a8271", lineHeight: 1.5, marginTop: 6, fontStyle: "italic" }}>
                     {p.evidence.slice(0, evidenceCap).join(" · ")}
                     {p.evidence.length > evidenceCap && (
-                      <span data-mirror-evidence-withheld={p.id} style={{ color: "#55503f" }}>
+                      <span data-mirror-evidence-withheld={p.id} style={{ color: "#8a8271" }}>
                         {" · "}
                         {p.evidence.length - evidenceCap} more not shown here
                       </span>
@@ -181,7 +181,7 @@ export function MirrorPanel({ vm, onDrill, className, unabridged = false }: Mirr
       </div>
 
       {vm.reason && (
-        <div style={{ fontSize: 10, color: "#55503f", marginTop: 8, letterSpacing: 0.2, fontStyle: "italic" }}>
+        <div style={{ fontSize: 10, color: "#8a8271", marginTop: 8, letterSpacing: 0.2, fontStyle: "italic" }}>
           {vm.reason}
         </div>
       )}

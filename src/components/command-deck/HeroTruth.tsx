@@ -34,8 +34,8 @@ const QUALITY_STYLES: Record<
   PARTIAL:     { color: "#c9a55c", glyph: "◐", label: "Partial",      halo: "rgba(201,165,92,0.10)" },
   PROXY:       { color: "#8a8271", glyph: "≈", label: "Proxy",        halo: "rgba(139,106,41,0.15)" },
   REPLAY:      { color: "#8a8271", glyph: "⟲", label: "Replay",       halo: "rgba(139,106,41,0.15)" },
-  UNAVAILABLE: { color: "#55503f", glyph: "—", label: "Unavailable",  halo: "rgba(85,80,63,0.15)" },
-  UNKNOWN:     { color: "#55503f", glyph: "?", label: "Not yet observed", halo: "rgba(85,80,63,0.15)" },
+  UNAVAILABLE: { color: "#8a8271", glyph: "—", label: "Unavailable",  halo: "rgba(85,80,63,0.15)" },
+  UNKNOWN:     { color: "#8a8271", glyph: "?", label: "Not yet observed", halo: "rgba(85,80,63,0.15)" },
 };
 
 export interface HeroTruthProps {
@@ -222,7 +222,7 @@ export function HeroTruth({
             <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>
               Command Deck
             </span>
-            <span style={{ fontSize: 10, color: "#55503f" }}>·</span>
+            <span style={{ fontSize: 10, color: "#8a8271" }}>·</span>
             <span style={{ fontSize: 10, letterSpacing: 0.3, textTransform: "uppercase", color: "#8a8271" }}>
               hero truth
             </span>
@@ -359,7 +359,7 @@ export function HeroTruth({
               // SPY, not a hero glyph competing with the chart.
               fontSize: isRoomDensity ? "clamp(18px, 3vw, 24px)" : "clamp(40px, 12vw, 60px)",
               fontWeight: 400,
-              color: "#55503f",
+              color: "#8a8271",
               lineHeight: 1.02,
               fontFamily: "Georgia, 'Times New Roman', serif",
             }}
@@ -423,7 +423,7 @@ export function HeroTruth({
             that contradicted the scene panel below it. There is deliberately
             no `?? state?.session` fallback — that fallback is the defect. */}
         <span>
-          <span style={{ color: "#55503f" }}>session</span>{" "}
+          <span style={{ color: "#8a8271" }}>session</span>{" "}
           <span style={{ color: "#ede6d3" }} title={sessionPresented?.detail}>
             {sessionPresented?.value ?? "unknown"}
           </span>
@@ -440,7 +440,7 @@ export function HeroTruth({
             source) is now complete on this strip, with the raw provider path
             list one hover deeper. */}
         <span>
-          <span style={{ color: "#55503f" }}>source</span>{" "}
+          <span style={{ color: "#8a8271" }}>source</span>{" "}
           <span
             data-testid="hero-source-vendor"
             style={{ color: sourceDisclosure.label === "unknown" ? "#c9a55c" : "#ede6d3" }}
@@ -450,7 +450,7 @@ export function HeroTruth({
           </span>
         </span>
         <span>
-          <span style={{ color: "#55503f" }}>coverage</span>{" "}
+          <span style={{ color: "#8a8271" }}>coverage</span>{" "}
           <span style={{ color: "#ede6d3" }}>
             {state ? `${state.coverage.length} channel${state.coverage.length === 1 ? "" : "s"}` : "unknown"}
           </span>
@@ -503,7 +503,7 @@ export function HeroTruth({
             <>
               {standings && standings.MEASURED.length > 0 && (
                 <span>
-                  <span style={{ color: "#55503f" }}>measured</span>{" "}
+                  <span style={{ color: "#8a8271" }}>measured</span>{" "}
                   <span
                     data-testid="hero-measured-dimensions"
                     style={{ color: "#c9a55c" }}
@@ -514,7 +514,7 @@ export function HeroTruth({
                 </span>
               )}
               <span>
-                <span style={{ color: "#55503f" }}>unknowns</span>{" "}
+                <span style={{ color: "#8a8271" }}>unknowns</span>{" "}
                 <span
                   data-testid="hero-unknown-dimensions"
                   style={{ color: "#c9a55c" }}
@@ -536,7 +536,7 @@ export function HeroTruth({
         })()}
         {state?.contradictions && state.contradictions.length > 0 && (
           <span>
-            <span style={{ color: "#55503f" }}>contradictions</span>{" "}
+            <span style={{ color: "#8a8271" }}>contradictions</span>{" "}
             <span style={{ color: "#c05a4a" }}>{state.contradictions.length}</span>
           </span>
         )}

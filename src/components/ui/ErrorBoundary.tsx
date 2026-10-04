@@ -57,7 +57,7 @@ export class ErrorBoundary extends React.Component<
             }}>Back to the chart</button>
           </div>
           {this.state.error ? (
-            <details style={{ marginTop: 6, fontSize: 10, color: "#62697d", maxWidth: 360 }}>
+            <details style={{ marginTop: 6, fontSize: 10, color: "#8b8fa8", maxWidth: 360 }}>
               <summary style={{ cursor: "pointer" }}>Details</summary>
               <div style={{ marginTop: 4, fontFamily: "ui-monospace, monospace", wordBreak: "break-word" }}>{this.state.error}</div>
             </details>
@@ -76,7 +76,7 @@ export function SafePanel({ children, name }: { children: React.ReactNode; name?
       fallback={
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "center",
-          height: "100%", minHeight: 60, fontSize: 11, color: "#4A5070",
+          height: "100%", minHeight: 60, fontSize: 11, color: "#8b8fa8",
         }}>
           {name ?? "Panel"} unavailable
         </div>

@@ -3593,8 +3593,8 @@ export default function PaperTradingPage() {
                         stale row printing "+4.39%" no longer relies on a red
                         hue that already means "down". */}
                     {closeOnly != null ? (
-                      <div className="text-[9px] font-bold text-wm-text-dim" title="The session is closed: this is the last close, not a live trade. Paper fills wait for a live observation.">
-                        LAST CLOSE · NOT ACTIONABLE
+                      <div className="text-[9px] font-bold text-wm-text-dim whitespace-nowrap" title="Session closed: this is the last close, not a live trade. Not actionable — paper fills wait for a live observation.">
+                        LAST CLOSE
                       </div>
                     ) : (
                     <div className={clsx("text-[9px] font-bold", rowTruth.degraded?"text-wm-red":"text-wm-gold")}>

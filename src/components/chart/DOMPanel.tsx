@@ -254,7 +254,7 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
     <div className="wm-chart-dom border-l border-wm-border flex flex-col shrink-0" style={{ width:230, background:"#0A0B10", fontSize:13 }}>
       {/* Header */}
       <div className="flex items-center gap-2 px-2.5 shrink-0" style={{ height:38, borderBottom:"1px solid rgba(30,32,48,0.8)" }}>
-        <span style={{ fontSize:12, fontWeight:800, color:"#5A6080", letterSpacing:1.2, textTransform:"uppercase" }}>DOM</span>
+        <span style={{ fontSize:12, fontWeight:800, color:"#8b8fa8", letterSpacing:1.2, textTransform:"uppercase" }}>DOM</span>
         {crypto && (
           <span style={{ fontSize:10, fontWeight:700, color: realConnected ? "#00C076" : "#F0B429", marginLeft:2 }}>
             {realConnected ? "● LIVE" : "○ REST"}
@@ -286,7 +286,7 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
       {/* Column headers */}
       <div className="flex shrink-0" style={{ height:24, borderBottom:"1px solid rgba(30,32,48,0.6)" }}>
         <div style={{ flex:1, textAlign:"right", paddingRight:6, fontSize:11, fontWeight:700, color:"rgba(255,77,103,0.75)", display:"flex", alignItems:"center", justifyContent:"flex-end" }}>ASK</div>
-        <div style={{ width:78, textAlign:"center", fontSize:11, fontWeight:700, color:"#5A6080", display:"flex", alignItems:"center", justifyContent:"center" }}>PRICE</div>
+        <div style={{ width:78, textAlign:"center", fontSize:11, fontWeight:700, color:"#8b8fa8", display:"flex", alignItems:"center", justifyContent:"center" }}>PRICE</div>
         <div style={{ flex:1, textAlign:"left", paddingLeft:6, fontSize:11, fontWeight:700, color:"rgba(0,192,118,0.75)", display:"flex", alignItems:"center" }}>BID</div>
       </div>
 

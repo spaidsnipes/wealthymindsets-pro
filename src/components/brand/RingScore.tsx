@@ -75,7 +75,7 @@ export function RingScore({
                 fontFamily: "Georgia, 'Times New Roman', serif",
                 fontSize: Math.round(size * 0.34),
                 fontWeight: 400,
-                color: "#55503f",
+                color: "#8a8271",
                 lineHeight: 1,
               }}
               aria-hidden="true"

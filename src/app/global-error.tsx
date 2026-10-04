@@ -34,7 +34,7 @@ export default function GlobalError({
               Back to the chart
             </button>
           </div>
-          {error.digest ? <p style={{ marginTop: 22, fontSize: 11, color: "#62697d", fontFamily: "ui-monospace, monospace" }}>ref {error.digest}</p> : null}
+          {error.digest ? <p style={{ marginTop: 22, fontSize: 11, color: "#8b8fa8", fontFamily: "ui-monospace, monospace" }}>ref {error.digest}</p> : null}
         </main>
       </body>
     </html>

@@ -188,7 +188,7 @@ export function ActiveQuestionBar({
             >
               {noise.value}
             </span>
-            <span style={{ fontSize: 10, color: "#6f6a5e", minWidth: 0 }}>
+            <span style={{ fontSize: 10, color: "#8a8271", minWidth: 0 }}>
               {noise.detail}
             </span>
           </div>

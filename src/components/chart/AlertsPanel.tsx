@@ -60,7 +60,7 @@ function AlertToast({ toasts, onDismiss }: { toasts: ToastMsg[]; onDismiss: (id:
           >
             <Bell size={14} color="#2F80ED" />
             <span style={{ fontSize: 12, color: "#E2E8FF", flex: 1 }}>{t.text}</span>
-            <button aria-label="Dismiss alert" onClick={() => onDismiss(t.id)} style={{ color: "#4A5580", background: "none", border: "none", cursor: "pointer" }}>
+            <button aria-label="Dismiss alert" onClick={() => onDismiss(t.id)} style={{ color: "#8b8fa8", background: "none", border: "none", cursor: "pointer" }}>
               <X size={12} />
             </button>
           </motion.div>
@@ -271,7 +271,7 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
                 <div style={{ padding: 24, textAlign: "center" }}>
                   <BellOff size={24} color="#4A5580" style={{ margin: "0 auto 8px" }} />
                   <div style={{ fontSize: 12, color: "#8896BE" }}>No alerts set</div>
-                  <div style={{ fontSize: 10, color: "#4A5580", marginTop: 4 }}>Create an alert above to get notified</div>
+                  <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4 }}>Create an alert above to get notified</div>
                 </div>
               ) : alerts.map(alert => {
                 const up = alert.type === "above" || alert.type === "pct-up";
@@ -314,7 +314,7 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
                         removeAlert(alert.id);
                       }}
                       aria-label={`Delete ${alert.symbol} alert (requires confirmation)`}
-                      style={{ color: "#4A5580", background: "none", border: "none", cursor: "pointer", minWidth: 32, minHeight: 32, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                      style={{ color: "#8b8fa8", background: "none", border: "none", cursor: "pointer", minWidth: 32, minHeight: 32, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                     >
                       <X size={14} aria-hidden="true" />
                     </button>
@@ -325,7 +325,7 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
 
             {/* Footer */}
             <div style={{ padding: "8px 14px", borderTop: "1px solid #263050", flexShrink: 0 }}>
-              <span style={{ fontSize: 10, color: "#4A5580" }}>
+              <span style={{ fontSize: 10, color: "#8b8fa8" }}>
                 {alerts.filter(a => !a.triggered).length} active · {alerts.filter(a => a.triggered).length} triggered
               </span>
             </div>

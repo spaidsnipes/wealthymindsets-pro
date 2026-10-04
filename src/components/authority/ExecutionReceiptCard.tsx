@@ -75,7 +75,7 @@ export function ExecutionReceiptCard({
           "text-[12px]",
           className ?? "",
         ].join(" ")}
-        style={{ borderColor: "rgba(85,80,63,0.5)", color: "#55503f" }}
+        style={{ borderColor: "rgba(85,80,63,0.5)", color: "#8a8271" }}
         {...rest}
       >
         No execution receipt to show.

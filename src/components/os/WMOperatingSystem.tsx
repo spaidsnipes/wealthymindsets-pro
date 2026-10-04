@@ -368,7 +368,7 @@ function RailLink({
             padding: "1px 5px",
             fontSize: 9,
             letterSpacing: 0.8,
-            color: "#6f6857",
+            color: "#8a8271",
             border: "1px solid rgba(111,104,87,0.5)",
             borderRadius: 3,
             verticalAlign: "middle",
@@ -1016,7 +1016,7 @@ function StateReadout({
       >
         {value}
       </span>
-      <span style={{ fontSize: 10, color: "#6f6a5e", minWidth: 0, ...(stacked ? { lineHeight: 1.3 } : null) }}>
+      <span style={{ fontSize: 10, color: "#8a8271", minWidth: 0, ...(stacked ? { lineHeight: 1.3 } : null) }}>
         {detail}
       </span>
     </div>

@@ -475,7 +475,7 @@ function ProfilePageInner() {
               </select>
             </div>
             <div>
-              <label className="text-[10px] text-[#7C3AED] uppercase tracking-wider font-bold block mb-1">AI Bot Name</label>
+              <label className="text-[10px] text-[#a78bfa] uppercase tracking-wider font-bold block mb-1">AI Bot Name</label>
               <input value={editProfile.botName} onChange={e => setEditProfile(p => ({ ...p, botName: e.target.value }))}
                 placeholder="e.g. SpaidBot" maxLength={24}
                 className="w-full bg-wm-surface border border-[#7C3AED]/30 rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-[#7C3AED]/60" />
@@ -623,7 +623,7 @@ function ProfilePageInner() {
               <textarea value={editProfile.bio} onChange={e => setEditProfile(p => ({ ...p, bio: e.target.value }))}
                 rows={3} className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text-muted outline-none focus:border-wm-green/50 resize-none" />
               <div className="flex items-center gap-2 bg-wm-surface border border-[#7C3AED]/30 rounded-lg px-3 py-2">
-                <span className="text-[10px] text-[#7C3AED] font-bold uppercase tracking-wider whitespace-nowrap">AI Bot Name</span>
+                <span className="text-[10px] text-[#a78bfa] font-bold uppercase tracking-wider whitespace-nowrap">AI Bot Name</span>
                 <input
                   value={editProfile.botName ?? "SpaidBot"}
                   onChange={e => setEditProfile(p => ({ ...p, botName: e.target.value }))}
@@ -1071,7 +1071,7 @@ function ProfilePageInner() {
                     </div>
                     <div>
                       <div className="text-sm font-black text-wm-text">Wealthy Mindsets Activity Points</div>
-                      <div className="text-[10px] text-[#7C3AED] font-bold">Local app points · not cryptocurrency</div>
+                      <div className="text-[10px] text-[#a78bfa] font-bold">Local app points · not cryptocurrency</div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -1104,7 +1104,7 @@ function ProfilePageInner() {
                           <button onClick={() => { void navigator.clipboard.writeText(WMS_CONTRACT.address).then(() => toast.success("Copied!"), () => toast.error("Couldn't copy")); }}
                             aria-label="Copy creator coin contract address"
                             title="Copy creator coin contract address"
-                            className="text-[#7C3AED] hover:text-[#00D4AA] transition-colors"><ExternalLink size={9}/></button>
+                            className="text-[#a78bfa] hover:text-[#00D4AA] transition-colors"><ExternalLink size={9}/></button>
                         </div>
                       </div>
                       {[
@@ -1121,7 +1121,7 @@ function ProfilePageInner() {
                     </div>
                     <div className="flex gap-2">
                       <a href={WMS_CONTRACT.blockscout} target="_blank" rel="noopener noreferrer"
-                        className="flex-1 text-center py-1.5 rounded-lg bg-[#7C3AED]/20 border border-[#7C3AED]/30 text-[9px] text-[#7C3AED] font-bold hover:bg-[#7C3AED]/30 transition-all">
+                        className="flex-1 text-center py-1.5 rounded-lg bg-[#7C3AED]/20 border border-[#7C3AED]/30 text-[9px] text-[#a78bfa] font-bold hover:bg-[#7C3AED]/30 transition-all">
                         Blockscout ↗
                       </a>
                       <a href={WMS_CONTRACT.basescan} target="_blank" rel="noopener noreferrer"
@@ -1142,7 +1142,7 @@ function ProfilePageInner() {
                     {recentEarnings.slice(0, 8).map((e, i) => (
                       <div key={i} className="flex justify-between items-center text-[10px]">
                         <span className="text-wm-text-muted">{e.reason}</span>
-                        <span className="font-black text-[#7C3AED] font-mono">+{e.amount} pts</span>
+                        <span className="font-black text-[#a78bfa] font-mono">+{e.amount} pts</span>
                       </div>
                     ))}
                   </div>

@@ -73,14 +73,14 @@ export function SecFundamentalsCard({ symbol, tab }: { readonly symbol: string; 
   if (failed || body?.state === "SEC_UNAVAILABLE") {
     return <p data-testid="sec-fundamentals-unavailable" style={{ fontSize: 12, color: "#8896BE" }}>SEC EDGAR did not answer just now — company filings for {symbol.toUpperCase()} will load on the next visit.</p>;
   }
-  if (!body) return <div style={{ color: "#6B7094", fontSize: 13, padding: "12px 4px" }}>Reading {symbol.toUpperCase()}&apos;s SEC filings…</div>;
+  if (!body) return <div style={{ color: "#8b8fa8", fontSize: 13, padding: "12px 4px" }}>Reading {symbol.toUpperCase()}&apos;s SEC filings…</div>;
   if (body.state === "NOT_LISTED") {
     return <p data-testid="sec-fundamentals-not-listed" style={{ fontSize: 12, color: "#8896BE", maxWidth: 560 }}>{symbol.toUpperCase()} does not file with the SEC under this ticker (funds, foreign listings and some ETFs do not), so there are no filed company figures to show.</p>;
   }
   if (body.state !== "OK") return null;
 
   const source = (
-    <div style={{ fontSize: 10, color: "#6B7094", marginTop: 10 }}>
+    <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 10 }}>
       Source: SEC EDGAR — the company&apos;s own filings (CIK {body.cik}). Read {body.readAt ? new Date(body.readAt).toLocaleString() : "—"}.
     </div>
   );
@@ -101,11 +101,11 @@ export function SecFundamentalsCard({ symbol, tab }: { readonly symbol: string; 
       <section data-testid="sec-fundamentals-profile" style={BOX}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0", marginBottom: 10 }}>Company — {p?.name ?? symbol.toUpperCase()}</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(190px,100%),1fr))", gap: 10 }}>
-          {rows.map(([l, v]) => <div key={l} style={CELL}><div style={{ fontSize: 10, color: "#6B7094", marginBottom: 2 }}>{l}</div><div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{v}</div></div>)}
+          {rows.map(([l, v]) => <div key={l} style={CELL}><div style={{ fontSize: 10, color: "#8b8fa8", marginBottom: 2 }}>{l}</div><div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{v}</div></div>)}
         </div>
         {body.filings?.length ? (
           <div style={{ marginTop: 14 }}>
-            <div style={{ fontSize: 11, color: "#6B7094", marginBottom: 6 }}>Recent filings</div>
+            <div style={{ fontSize: 11, color: "#8b8fa8", marginBottom: 6 }}>Recent filings</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {body.filings.map(f => <a key={f.url} href={f.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#C9A55C", textDecoration: "none", border: "1px solid #1E2030", borderRadius: 4, padding: "2px 8px" }}>{f.form} · {f.filed}</a>)}
             </div>
@@ -135,7 +135,7 @@ export function SecFundamentalsCard({ symbol, tab }: { readonly symbol: string; 
       <section data-testid="sec-fundamentals-valuation" style={BOX}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0", marginBottom: 10 }}>Valuation — computed from filings × price</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(190px,100%),1fr))", gap: 10 }}>
-          {rows.map(([l, val]) => <div key={l} style={CELL}><div style={{ fontSize: 10, color: "#6B7094", marginBottom: 2 }}>{l}</div><div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{val}</div></div>)}
+          {rows.map(([l, val]) => <div key={l} style={CELL}><div style={{ fontSize: 10, color: "#8b8fa8", marginBottom: 2 }}>{l}</div><div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{val}</div></div>)}
         </div>
         <div style={{ fontSize: 11, color: "#8896BE", marginTop: 8 }}>
           WM calculation: shares outstanding{body.shares ? ` (cover page, ${body.shares.asOf})` : ""} × price {quote ? `$${quote.price.toFixed(2)}` : quoteRefused ? `— (quote refused: ${quoteRefused})` : "— (no quote yet)"}
@@ -162,7 +162,7 @@ export function SecFundamentalsCard({ symbol, tab }: { readonly symbol: string; 
         <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0", marginBottom: 10 }}>Quarterly results — as filed</div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-            <thead><tr style={{ color: "#6B7094" }}>
+            <thead><tr style={{ color: "#8b8fa8" }}>
               <th style={{ textAlign: "left", padding: "6px 10px", borderBottom: "1px solid #1E2030", fontWeight: 500 }}>Quarter ended</th>
               {qs.map(q => <th key={q.end} style={{ textAlign: "right", padding: "6px 10px", borderBottom: "1px solid #1E2030", fontWeight: 500, whiteSpace: "nowrap" }}>{q.end}</th>)}
             </tr></thead>
@@ -193,11 +193,11 @@ export function SecFundamentalsCard({ symbol, tab }: { readonly symbol: string; 
         ) : <p style={{ fontSize: 12, color: "#8896BE", margin: 0 }}>No dividend declared in {symbol.toUpperCase()}&apos;s quarterly filings.</p>}
         {filings.length ? (
           <div style={{ marginTop: 14 }}>
-            <div style={{ fontSize: 11, color: "#6B7094", marginBottom: 6 }}>Material events (8-K)</div>
+            <div style={{ fontSize: 11, color: "#8b8fa8", marginBottom: 6 }}>Material events (8-K)</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{filings.map(f => <a key={f.url} href={f.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#C9A55C", textDecoration: "none", border: "1px solid #1E2030", borderRadius: 4, padding: "2px 8px" }}>8-K · {f.filed}</a>)}</div>
           </div>
         ) : null}
-        <div style={{ fontSize: 10, color: "#6B7094", marginTop: 8 }}>Stock splits are not in a standard filed field; they are not shown rather than guessed.</div>
+        <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 8 }}>Stock splits are not in a standard filed field; they are not shown rather than guessed.</div>
         {source}
       </section>
     );

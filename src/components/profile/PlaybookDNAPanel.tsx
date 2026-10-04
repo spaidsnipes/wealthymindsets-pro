@@ -32,7 +32,7 @@ import type { PlaybookDNAVM, PlaybookDNAEntry, PlaybookMaturity } from "@/lib/tr
  * pre-verbal channel is how a grade becomes a promise.
  */
 const MATURITY_STYLES: Record<PlaybookMaturity, { color: string; label: string; glyph: string }> = {
-  EMBRYONIC:       { color: "#55503f", label: "Embryonic",       glyph: "○" },
+  EMBRYONIC:       { color: "#8a8271", label: "Embryonic",       glyph: "○" },
   MATURING:        { color: "#8a8271", label: "Maturing",        glyph: "◐" },
   ESTABLISHED:     { color: "#c9a55c", label: "Established",     glyph: "●" },
   HIGH_CONFIDENCE: { color: "#ede6d3", label: "High confidence", glyph: "◈" },

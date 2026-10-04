@@ -151,7 +151,7 @@ export function WatchlistRow({
             {sym}
           </div>
           <div style={{
-            fontSize: 9, color: "#4A5070", marginTop: 1,
+            fontSize: 9, color: "#8b8fa8", marginTop: 1,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {fullName}
@@ -186,7 +186,7 @@ export function WatchlistRow({
                 >
                   <span>{up ? "+" : ""}{changePct.toFixed(2)}%</span>
                   {changeWindowSuffix(changeWindow) && (
-                    <span style={{ fontSize: 9, color: "#6B7194", fontWeight: 600, letterSpacing: 0.2 }}>
+                    <span style={{ fontSize: 9, color: "#8b8fa8", fontWeight: 600, letterSpacing: 0.2 }}>
                       {changeWindowSuffix(changeWindow)}
                     </span>
                   )}
@@ -197,7 +197,7 @@ export function WatchlistRow({
                 // quote outright the row has no price either, and saying
                 // otherwise gives a designed refusal a transient state's
                 // vocabulary.
-                <div style={{ fontSize: 9, color: "#4A5070", fontFamily: "monospace" }}
+                <div style={{ fontSize: 9, color: "#8b8fa8", fontFamily: "monospace" }}
                   title={refusal
                     ? `${sym}: not certified — ${refusal}`
                     : `${sym}: this feed returned a price but no session change.`}>
@@ -206,7 +206,7 @@ export function WatchlistRow({
               )}
             </>
           ) : (
-            <div style={{ fontSize: 9, color: "#4A5070", fontFamily: "monospace" }}>quote pending</div>
+            <div style={{ fontSize: 9, color: "#8b8fa8", fontFamily: "monospace" }}>quote pending</div>
           )}
         </div>
       </div>

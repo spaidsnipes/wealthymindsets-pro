@@ -49,9 +49,9 @@ export function WMSBar() {
         onClick={() => setShowEarn(s => !s)}
         className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#7C3AED]/15 border border-[#7C3AED]/30 hover:bg-[#7C3AED]/25 transition-all group"
       >
-        <Coins size={11} className="text-[#7C3AED]"/>
+        <Coins size={11} className="text-[#a78bfa]"/>
         <span className="text-[11px] font-black text-wm-text font-mono">
-          {wmsBalance.toLocaleString()} <span className="text-[#7C3AED]">WM pts</span>
+          {wmsBalance.toLocaleString()} <span className="text-[#a78bfa]">WM pts</span>
         </span>
       </button>
 
@@ -66,7 +66,7 @@ export function WMSBar() {
             style={{ boxShadow: "0 0 30px rgba(124,58,237,0.2)" }}
           >
             <div className="text-[10px] font-black text-wm-text mb-2 flex items-center gap-1.5">
-              <Coins size={11} className="text-[#7C3AED]"/> Local WM Activity Points
+              <Coins size={11} className="text-[#a78bfa]"/> Local WM Activity Points
             </div>
             <div className="text-[9px] text-wm-text-dim mb-3">
               Stored in this browser for app gamification only. Not money, a token balance, or convertible cryptocurrency.
@@ -78,7 +78,7 @@ export function WMSBar() {
             ].map(({ action, reward }) => (
               <div key={action} className="flex justify-between text-[9px] py-1 border-b border-wm-border/30 last:border-0">
                 <span className="text-wm-text-muted">{action}</span>
-                <span className="font-black text-[#7C3AED]">{reward}</span>
+                <span className="font-black text-[#a78bfa]">{reward}</span>
               </div>
             ))}
           </motion.div>

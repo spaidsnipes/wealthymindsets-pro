@@ -29,7 +29,7 @@ function FxMarketInfo({ symbol }: { readonly symbol: string }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 10 }}>
         {rows.map(r => (
           <div key={r.label} style={{ background: "#0f121b", border: "1px solid #1E2030", borderRadius: 6, padding: "8px 10px" }}>
-            <div style={{ fontSize: 10, color: "#6B7094", marginBottom: 2 }}>{r.label}</div>
+            <div style={{ fontSize: 10, color: "#8b8fa8", marginBottom: 2 }}>{r.label}</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{r.value}{r.note ? <span style={{ fontSize: 10, color: "#8896BE", fontWeight: 400 }}> · {r.note}</span> : null}</div>
           </div>
         ))}
@@ -71,19 +71,19 @@ function CryptoMarketInfo({ symbol }: { readonly symbol: string }) {
       style={{ background: "#141824", border: "1px solid #1E2030", borderRadius: 8, padding: 16, marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0" }}>Market info — {product}</div>
-        <div style={{ fontSize: 10, color: "#6B7094" }}>Coinbase public 24h stats{deribitCurrencyFor(symbol) ? " · Deribit DVOL" : ""}</div>
+        <div style={{ fontSize: 10, color: "#8b8fa8" }}>Coinbase public 24h stats{deribitCurrencyFor(symbol) ? " · Deribit DVOL" : ""}</div>
       </div>
       {failed ? (
         <p style={{ fontSize: 12, color: "#8896BE", margin: 0 }}>Coinbase did not answer for {product} — nothing is shown in its place.</p>
       ) : rows == null ? (
-        <p style={{ fontSize: 12, color: "#6B7094", margin: 0 }}>Reading Coinbase…</p>
+        <p style={{ fontSize: 12, color: "#8b8fa8", margin: 0 }}>Reading Coinbase…</p>
       ) : rows.length === 0 ? (
         <p style={{ fontSize: 12, color: "#8896BE", margin: 0 }}>Coinbase publishes no stats for {product}.</p>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 10 }}>
           {rows.map(r => (
             <div key={r.label} style={{ background: "#0f121b", border: "1px solid #1E2030", borderRadius: 6, padding: "8px 10px" }}>
-              <div style={{ fontSize: 10, color: "#6B7094", marginBottom: 2 }}>{r.label}</div>
+              <div style={{ fontSize: 10, color: "#8b8fa8", marginBottom: 2 }}>{r.label}</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0", fontVariantNumeric: "tabular-nums" }}>
                 {r.value}{r.note ? <span style={{ fontSize: 10, color: "#8896BE", fontWeight: 400 }}> · {r.note}</span> : null}
               </div>
@@ -112,7 +112,7 @@ function FuturesContracts({ symbol }: { readonly symbol: string }) {
   const sorted = [...list].sort((a, b) => (a.dte ?? 1e9) - (b.dte ?? 1e9)).slice(0, 6);
   return (
     <div data-testid="futures-contracts" style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 10, color: "#6B7094", marginBottom: 6 }}>Listed contracts · tastytrade</div>
+      <div style={{ fontSize: 10, color: "#8b8fa8", marginBottom: 6 }}>Listed contracts · tastytrade</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 10 }}>
         {sorted.map(f => (
           <div key={f.symbol} style={{ background: "#0f121b", border: `1px solid ${f.activeMonth ? "rgba(201,165,92,.6)" : "#1E2030"}`, borderRadius: 6, padding: "8px 10px" }}>
@@ -156,19 +156,19 @@ export function MarketMetricsCard({ symbol }: { readonly symbol: string }) {
       style={{ background: "#141824", border: "1px solid #1E2030", borderRadius: 8, padding: 16, marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0" }}>Market metrics — {q}</div>
-        <div style={{ fontSize: 10, color: "#6B7094" }}>tastytrade{asOf ? ` · updated ${asOf.slice(0, 16).replace("T", " ")}Z` : ""}</div>
+        <div style={{ fontSize: 10, color: "#8b8fa8" }}>tastytrade{asOf ? ` · updated ${asOf.slice(0, 16).replace("T", " ")}Z` : ""}</div>
       </div>
       {failed ? (
         <p style={{ fontSize: 12, color: "#8896BE", margin: 0 }}>tastytrade did not answer for {q} — nothing is shown in its place.</p>
       ) : rows == null ? (
-        <p style={{ fontSize: 12, color: "#6B7094", margin: 0 }}>Reading tastytrade market metrics…</p>
+        <p style={{ fontSize: 12, color: "#8b8fa8", margin: 0 }}>Reading tastytrade market metrics…</p>
       ) : rows.length === 0 ? (
         <p style={{ fontSize: 12, color: "#8896BE", margin: 0 }}>tastytrade publishes no market metrics for {q}.</p>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 10 }}>
           {rows.map(r => (
             <div key={r.label} style={{ background: "#0f121b", border: "1px solid #1E2030", borderRadius: 6, padding: "8px 10px" }}>
-              <div style={{ fontSize: 10, color: "#6B7094", marginBottom: 2 }}>{r.label}</div>
+              <div style={{ fontSize: 10, color: "#8b8fa8", marginBottom: 2 }}>{r.label}</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0", fontVariantNumeric: "tabular-nums" }}>
                 {r.value}{r.note ? <span style={{ fontSize: 10, color: "#8896BE", fontWeight: 400 }}> · {r.note}</span> : null}
               </div>

@@ -182,7 +182,7 @@ export function AssetClassSwitcher({ symbol, onSelect }: { symbol: string; onSel
                 onMouseLeave={e => { if (s.sym !== symbol) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
               >
                 <span style={{ fontSize: 13, fontWeight: 800, color: s.sym === symbol ? "#00D4AA" : "#E2E8F0" }}>{s.sym}</span>
-                <span style={{ fontSize: 11, color: "#6A7290" }}>{s.name}</span>
+                <span style={{ fontSize: 11, color: "#8b8fa8" }}>{s.name}</span>
               </button>
             ))}
           </div>

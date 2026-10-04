@@ -159,7 +159,7 @@ export function RealmGateway({ currentKey = "wm-pro", className }: RealmGatewayP
                     fontSize: 9,
                     letterSpacing: 0.4,
                     textTransform: "uppercase",
-                    color: "#55503f",
+                    color: "#8a8271",
                     marginTop: 2,
                   }}
                 >

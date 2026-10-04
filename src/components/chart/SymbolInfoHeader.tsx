@@ -39,7 +39,7 @@ function getSessionStatus(): { label: string; color: string } {
   if (etTime >= 9.5 && etTime < 16)   return { label: "REGULAR",    color: "#00C076" };
   if (etTime >= 4 && etTime < 9.5)    return { label: "PRE-MARKET", color: "#F5A623" };
   if (etTime >= 16 && etTime < 20)    return { label: "AFTER-HOURS",color: "#8B5CF6" };
-  return { label: "CLOSED", color: "#4A5580" };
+  return { label: "CLOSED", color: "#8b8fa8" };
 }
 
 interface Props {
@@ -79,7 +79,7 @@ export function SymbolInfoHeader({ symbol, timeframe, currentPrice, dayHigh, day
     }}>
       {/* Exchange + session */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, color: "#4A5580", background: "#141824", border: "1px solid #263050", borderRadius: 3, padding: "2px 5px", letterSpacing: "0.06em" }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: "#8b8fa8", background: "#141824", border: "1px solid #263050", borderRadius: 3, padding: "2px 5px", letterSpacing: "0.06em" }}>
           {info.exchange}
         </span>
         <span style={{ fontSize: 9, fontWeight: 700, color: session.color, background: `${session.color}18`, border: `1px solid ${session.color}40`, borderRadius: 3, padding: "2px 5px", letterSpacing: "0.04em" }}>
@@ -99,7 +99,7 @@ export function SymbolInfoHeader({ symbol, timeframe, currentPrice, dayHigh, day
       <div style={{ width: 1, height: 14, background: "#263050" }} />
 
       {/* Tick value */}
-      <span style={{ fontSize: 10, color: "#4A5580", whiteSpace: "nowrap", flexShrink: 0 }}>
+      <span style={{ fontSize: 10, color: "#8b8fa8", whiteSpace: "nowrap", flexShrink: 0 }}>
         Tick: <span style={{ color: "#8896BE" }}>{info.tickValue}</span>
       </span>
 
@@ -148,7 +148,7 @@ export function SymbolInfoHeader({ symbol, timeframe, currentPrice, dayHigh, day
             aria-label={CHANGE_UNAVAILABLE_TITLE}
           >{CHANGE_UNAVAILABLE_GLYPH}</span>
         )}
-        <span style={{ fontSize: 10, color: "#4A5580" }}>{info.sessionNote}</span>
+        <span style={{ fontSize: 10, color: "#8b8fa8" }}>{info.sessionNote}</span>
       </div>
     </div>
   );

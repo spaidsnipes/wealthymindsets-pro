@@ -25707,7 +25707,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               { cell: scope.volume, value: dataWindow.v, color: "#8896BE", fmt: volumeTruth.real ? formatVolume : () => volumeTruth.short },
             ].map(row => (
               <div key={row.cell.label} title={row.cell.title} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
-                <span style={{ fontSize: 10, color: "#4A5580", fontFamily: "monospace" }}>{row.cell.label}</span>
+                <span style={{ fontSize: 10, color: "#8b8fa8", fontFamily: "monospace" }}>{row.cell.label}</span>
                 <span style={{ fontSize: 10, color: row.color, fontFamily: "monospace" }}>
                   {row.fmt ? row.fmt(row.value) : row.value.toFixed(dp)}
                 </span>
@@ -25772,7 +25772,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             onMouseLeave={() => setCtxMenu(null)}
           >
             <div style={{ padding: "5px 10px 4px", borderBottom: "1px solid #263050" }}>
-              <span style={{ fontSize: 10, color: "#4A5580" }}>
+              <span style={{ fontSize: 10, color: "#8b8fa8" }}>
                 Price: <span style={{ color: "#F5A623", fontFamily: "monospace" }}>{ctxMenu.price}</span>
               </span>
             </div>

@@ -111,7 +111,7 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
           mistaken for one another; bare integers can.
         */}
         <span className="wm-nectar-vault-chip__label">Evidence saved</span>
-        <span style={{ color: "#62697d" }}>
+        <span style={{ color: "#8b8fa8" }}>
           · {symbols.length} {symbols.length === 1 ? "symbol" : "symbols"}
         </span>
       </summary>

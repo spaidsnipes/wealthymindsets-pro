@@ -714,7 +714,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                             color: name === activeList ? "#00D4AA" : "#cdd6e8",
                             background: name === activeList ? "rgba(0,212,170,0.1)" : "transparent",
                           }}
-                        >{name} <span style={{ color: "#6A7290", fontWeight: 500 }}>({(lists[name]||[]).length})</span></button>
+                        >{name} <span style={{ color: "#8b8fa8", fontWeight: 500 }}>({(lists[name]||[]).length})</span></button>
                         {Object.keys(lists).length > 1 && (
                           <button
                             onClick={() => deleteList(name)}
@@ -784,7 +784,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                 </button>
                 <button onClick={createList} title="Create new watchlist"
                   aria-label="Create new watchlist"
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "#4A5070", fontSize: isSheet ? 18 : 13, display: "flex", ...tap }}>⊞</button>
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#8b8fa8", fontSize: isSheet ? 18 : 13, display: "flex", ...tap }}>⊞</button>
                 <button
                   onClick={() => setShowAdd(v => !v)}
                   aria-label="Add symbol to this watchlist"
@@ -856,9 +856,9 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
               padding: "0 8px", height: 22,
               borderBottom: "1px solid #1E2030", flexShrink: 0,
             }}>
-              <span style={{ flex: 1, fontSize: 9, color: "#4A5070", textTransform: "uppercase" }}>Symbol</span>
-              <span style={{ width: 64, textAlign: "right", fontSize: 9, color: "#4A5070", textTransform: "uppercase" }}>Price</span>
-              <span style={{ width: 48, textAlign: "right", fontSize: 9, color: "#4A5070", textTransform: "uppercase" }}>% Chg</span>
+              <span style={{ flex: 1, fontSize: 9, color: "#8b8fa8", textTransform: "uppercase" }}>Symbol</span>
+              <span style={{ width: 64, textAlign: "right", fontSize: 9, color: "#8b8fa8", textTransform: "uppercase" }}>Price</span>
+              <span style={{ width: 48, textAlign: "right", fontSize: 9, color: "#8b8fa8", textTransform: "uppercase" }}>% Chg</span>
             </div>
 
             {/* Add symbol */}
@@ -904,7 +904,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                             onMouseLeave={e => (e.currentTarget.style.background = "none")}
                           >
                             <span style={{ color: "#E2E8F0", fontSize: 11, fontWeight: 700 }}>{r.sym}</span>
-                            <span style={{ color: "#6B7280", fontSize: 9, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{r.label}</span>
+                            <span style={{ color: "#8b8fa8", fontSize: 9, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{r.label}</span>
                           </button>
                         ))}
                       </div>
@@ -925,7 +925,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                   style={{ flex: 1, background: "none", border: "none", color: "#E2E8F0", fontSize: 11, outline: "none" }}
                 />
                 {search && (
-                  <button aria-label="Clear search" onClick={() => setSearch("")} style={{ color: "#4A5070", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                  <button aria-label="Clear search" onClick={() => setSearch("")} style={{ color: "#8b8fa8", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                     <X size={10} />
                   </button>
                 )}
@@ -1029,7 +1029,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
 
             {/* Footer */}
             <div style={{ borderTop: "1px solid #1E2030", padding: "4px 10px", flexShrink: 0 }}>
-              <span style={{ fontSize: 9, color: "#4A5070" }}>
+              <span style={{ fontSize: 9, color: "#8b8fa8" }}>
                 {filtered.filter(i => i.price > 0).length}/{filtered.length} verified quotes
               </span>
             </div>

@@ -694,7 +694,7 @@ function ProcessOutcomeStrip({
             clear filter ×
           </button>
         )}
-        <span style={{ fontSize: 10, color: "#55503f", fontStyle: "italic", marginLeft: "auto" }}>
+        <span style={{ fontSize: 10, color: "#8a8271", fontStyle: "italic", marginLeft: "auto" }}>
           P&amp;L never grades process
         </span>
       </div>
@@ -734,7 +734,7 @@ function ProcessOutcomeStrip({
               <div style={{ fontSize: 9, letterSpacing: 0.28, textTransform: "uppercase", color: dim ? "#55503f" : "#c0b8a0", marginTop: 2 }}>
                 {r.label}
               </div>
-              <div style={{ fontSize: 9, color: "#55503f", marginTop: 1, fontStyle: "italic" }}>
+              <div style={{ fontSize: 9, color: "#8a8271", marginTop: 1, fontStyle: "italic" }}>
                 {r.desc}
               </div>
             </Tile>
@@ -2244,7 +2244,7 @@ Trade the system, trust the process, winners every day 🚀`,
               <div>
                 <div className="text-xs font-black text-wm-text">Strategy Lyric Templates</div>
                 <div className="text-[9px] text-wm-text-dim">Generated locally from fixed templates — no AI service is called.</div>
-                <div className="text-[9px] text-[#7C3AED] font-bold">+100 WM$ per song generated</div>
+                <div className="text-[9px] text-[#a78bfa] font-bold">+100 WM$ per song generated</div>
               </div>
             </div>
 
@@ -2256,7 +2256,7 @@ Trade the system, trust the process, winners every day 🚀`,
                   <button key={t} onClick={() => setSongTopic(t)}
                     className={clsx("px-2 py-1.5 rounded-lg text-[9px] font-bold border transition-all text-left",
                       songTopic === t
-                        ? "bg-[#7C3AED]/20 text-[#7C3AED] border-[#7C3AED]/40"
+                        ? "bg-[#7C3AED]/20 text-[#a78bfa] border-[#7C3AED]/40"
                         : "text-wm-text-muted border-wm-border hover:text-wm-text hover:border-[#7C3AED]/30")}>
                     {t}
                   </button>
@@ -2418,7 +2418,7 @@ Trade the system, trust the process, winners every day 🚀`,
                           <div className="text-xs font-bold text-wm-text truncate">{song.title}</div>
                           <div className="text-[9px] text-wm-text-dim">{song.style} · {new Date(song.ts).toLocaleDateString()}</div>
                         </div>
-                        <Play size={13} className="text-wm-text-dim group-hover:text-[#7C3AED] transition-colors shrink-0"/>
+                        <Play size={13} className="text-wm-text-dim group-hover:text-[#a78bfa] transition-colors shrink-0"/>
                       </button>
                     ))}
                   </div>

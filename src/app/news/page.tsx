@@ -337,14 +337,14 @@ function FeedLeanTally({ news }: { news: NewsItem[] }) {
             <span style={{ color: "#ede6d3" }}>{n}</span> {word}
           </span>
         ))}
-        <span className="text-[10px]" style={{ color: "#5d5747" }}>
+        <span className="text-[10px]" style={{ color: "#8a8271" }}>
           of {news.length} headlines
         </span>
       </div>
 
       <span
         className="ml-auto text-[9px] italic"
-        style={{ color: "#5d5747" }}
+        style={{ color: "#8a8271" }}
         title="The word lists include 'lead', 'clear', 'top', 'signal' and 'narrow', all of which appear innocently in headlines."
       >
         keyword tally over the headline text — not a prediction

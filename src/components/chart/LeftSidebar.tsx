@@ -416,7 +416,7 @@ export default function LeftSidebar({
         <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
           <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
           {disabledReason && (
-            <span style={{ fontSize: 10, color: "#6B7391", whiteSpace: "normal", lineHeight: 1.3 }}>
+            <span style={{ fontSize: 10, color: "#8b8fa8", whiteSpace: "normal", lineHeight: 1.3 }}>
               {disabledReason}
             </span>
           )}
@@ -736,7 +736,7 @@ function PublishModal({ symbol, captureRef, onClose }: {
             <Download size={15} /> Save PNG
           </button>
         </div>
-        <p style={{ margin: 0, fontSize: 11, color: "#5A6180", lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 11, color: "#8b8fa8", lineHeight: 1.5 }}>
           Captures the current chart into a branded idea card you can share to Discord / X / the WM Lounge, copy to clipboard, or save.
         </p>
       </div>
@@ -918,7 +918,7 @@ function MediaModal({ kind, symbol, onClose }: {
           )}
         </div>
 
-        <p style={{ margin: 0, fontSize: 11, color: "#5A6180", lineHeight: 1.5, textAlign: "center" }}>
+        <p style={{ margin: 0, fontSize: 11, color: "#8b8fa8", lineHeight: 1.5, textAlign: "center" }}>
           {isVideo
             ? "Record a talking-head video explaining your trade idea, then save the .webm to share."
             : "Record a quick voice note on your market thesis, then save the .webm audio."}

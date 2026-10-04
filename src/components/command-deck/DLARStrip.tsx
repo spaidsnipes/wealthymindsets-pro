@@ -52,7 +52,7 @@ function chipStateForDim(dim: MarketStateDimension): { value: string; color: str
   if (dim.resolution === "PARTIAL") {
     return { value: dim.value ?? "partial", color: "#c9a55c", glyph: "◐" };
   }
-  return { value: "unknown", color: "#55503f", glyph: "?" };
+  return { value: "unknown", color: "#8a8271", glyph: "?" };
 }
 
 export interface DLARStripProps {

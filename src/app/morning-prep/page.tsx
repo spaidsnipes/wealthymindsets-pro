@@ -669,7 +669,7 @@ export default function MorningPrepPage() {
         </section>
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <Coffee size={40} style={{ color: "#4A5070" }} className="mb-4" />
+            <Coffee size={40} style={{ color: "#8b8fa8" }} className="mb-4" />
             <p className="text-base font-semibold text-white mb-1">Start your first morning routine</p>
             <p className="text-sm mb-5" style={{ color: "#8B8FA8" }}>
               Record one honest morning. Dreamboard will help you see the distance you have travelled—not punish a missed day.
@@ -697,7 +697,7 @@ export default function MorningPrepPage() {
                   <button
                     onClick={() => deleteEntry(e.id)}
                     aria-label={`Delete ${fmtDate(e.date)} morning prep (requires confirmation)`}
-                    style={{ color: "#6B7280", minWidth: 44, minHeight: 44 }}
+                    style={{ color: "#8b8fa8", minWidth: 44, minHeight: 44 }}
                     className="inline-flex items-center justify-center rounded hover:text-red-400 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
                   ><Trash2 size={16} aria-hidden="true" /></button>
                 </div>
@@ -745,7 +745,7 @@ export default function MorningPrepPage() {
                       className="flex items-center gap-2.5 flex-1 min-w-0 text-left group">
                       {i.done
                         ? <CheckCircle2 size={17} style={{ color: "#ede6d3" }} className="shrink-0" />
-                        : <Circle size={17} style={{ color: "#4A5070" }} className="shrink-0" />}
+                        : <Circle size={17} style={{ color: "#8b8fa8" }} className="shrink-0" />}
                       <span className="text-sm transition-colors"
                         style={{ color: i.done ? "#5B6270" : "#C0C8D8", textDecoration: i.done ? "line-through" : "none" }}>
                         {i.text}
@@ -836,7 +836,7 @@ function ComposeModal({ onClose, onSave }: { onClose: () => void; onSave: (e: Pr
 
         {/* Mood */}
         <div className="mb-4">
-          <label className="text-[10px] uppercase tracking-widest font-bold block mb-2" style={{ color: "#6B7280" }}>How do you feel?</label>
+          <label className="text-[10px] uppercase tracking-widest font-bold block mb-2" style={{ color: "#8b8fa8" }}>How do you feel?</label>
           <div className="flex gap-1.5 flex-wrap">
             {MOODS.map(m => (
               <button key={m} onClick={() => setMood(m)}
@@ -851,7 +851,7 @@ function ComposeModal({ onClose, onSave }: { onClose: () => void; onSave: (e: Pr
 
         {/* Routine */}
         <div className="mb-4">
-          <label className="text-[10px] uppercase tracking-widest font-bold block mb-2" style={{ color: "#6B7280" }}>Routine & intentions</label>
+          <label className="text-[10px] uppercase tracking-widest font-bold block mb-2" style={{ color: "#8b8fa8" }}>Routine & intentions</label>
           <textarea value={routine} onChange={e => setRoutine(e.target.value)} rows={4}
             placeholder="My primary intention today is…  Key levels I'm watching…  How I want to show up…"
             className="w-full rounded-xl px-3 py-2.5 text-sm text-white outline-none resize-none"
@@ -860,13 +860,13 @@ function ComposeModal({ onClose, onSave }: { onClose: () => void; onSave: (e: Pr
 
         {/* Checklist */}
         <div className="mb-4">
-          <label className="text-[10px] uppercase tracking-widest font-bold block mb-2" style={{ color: "#6B7280" }}>Prep checklist</label>
+          <label className="text-[10px] uppercase tracking-widest font-bold block mb-2" style={{ color: "#8b8fa8" }}>Prep checklist</label>
           <div className="space-y-1.5 mb-2">
             {items.map(i => (
               <div key={i.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "#161A24" }}>
-                <Check size={13} style={{ color: "#4A5070" }} />
+                <Check size={13} style={{ color: "#8b8fa8" }} />
                 <span className="flex-1 text-sm" style={{ color: "#C0C8D8" }}>{i.text}</span>
-                <button aria-label={`Remove ${i.text} from checklist`} onClick={() => removeItem(i.id)} style={{ color: "#6B7280" }}><X size={13} /></button>
+                <button aria-label={`Remove ${i.text} from checklist`} onClick={() => removeItem(i.id)} style={{ color: "#8b8fa8" }}><X size={13} /></button>
               </div>
             ))}
           </div>

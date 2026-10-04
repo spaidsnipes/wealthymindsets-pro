@@ -224,7 +224,7 @@ export function ATHOSInterventionPanel({
             >
               {style.label}
             </span>
-            <span style={{ fontSize: 9, color: "#55503f" }}>·</span>
+            <span style={{ fontSize: 9, color: "#8a8271" }}>·</span>
             <span
               style={{
                 fontSize: 9,
@@ -270,7 +270,7 @@ export function ATHOSInterventionPanel({
                 </button>
               ))}
               {primary.evidenceIds.length > 4 && (
-                <span style={{ fontSize: 9, color: "#55503f", alignSelf: "center" }}>
+                <span style={{ fontSize: 9, color: "#8a8271", alignSelf: "center" }}>
                   +{primary.evidenceIds.length - 4} more
                 </span>
               )}
@@ -285,7 +285,7 @@ export function ATHOSInterventionPanel({
             style={{
               background: "transparent",
               border: "none",
-              color: "#55503f",
+              color: "#8a8271",
               cursor: "pointer",
               padding: 4,
               lineHeight: 1,

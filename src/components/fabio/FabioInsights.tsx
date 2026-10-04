@@ -56,7 +56,7 @@ function InsightCard({ ins, compact }: { ins: FabioInsight; compact?: boolean })
         >
           {ins.category}
         </span>
-        <span style={{ fontSize: 9, color: "#4A5070", marginLeft: "auto" }}>{ins.source}</span>
+        <span style={{ fontSize: 9, color: "#8b8fa8", marginLeft: "auto" }}>{ins.source}</span>
       </div>
       <div style={{ fontSize: compact ? 11.5 : 12.5, fontWeight: 700, color: "#E2E8F0", marginBottom: 3, lineHeight: 1.25 }}>
         {ins.title}
@@ -137,7 +137,7 @@ export function FabioInsights({
       <Lightbulb size={13} style={{ color: "#F0B429" }} />
       <span style={{ fontSize: 11.5, fontWeight: 900, color: "#E2E8F0", letterSpacing: 0.3 }}>{title}</span>
       {symbol && (
-        <span style={{ fontSize: 9, color: "#4A5070", fontWeight: 700 }}>· {symbol.toUpperCase()}</span>
+        <span style={{ fontSize: 9, color: "#8b8fa8", fontWeight: 700 }}>· {symbol.toUpperCase()}</span>
       )}
     </div>
   );
@@ -156,7 +156,7 @@ export function FabioInsights({
           {/* While the library is placeholder content, "context-aware" overclaims:
               ranking varies by surface/symbol, but the notes themselves are a
               static curated set, identical every day. Say which one it is. */}
-          <span style={{ fontSize: 9, color: "#4A5070" }}>
+          <span style={{ fontSize: 9, color: "#8b8fa8" }}>
             {FABIO_CONTENT_IS_PLACEHOLDER ? "curated notes" : "context-aware"}
           </span>
         </div>
@@ -194,7 +194,7 @@ export function FabioInsights({
         {insights.map(ins => (
           <InsightCard key={ins.id} ins={ins} />
         ))}
-        <div style={{ fontSize: 9, color: "#3A3F58", textAlign: "center", marginTop: 4 }}>
+        <div style={{ fontSize: 9, color: "#8b8fa8", textAlign: "center", marginTop: 4 }}>
           Insights adapt to symbol, regime &amp; active indicators.
         </div>
       </div>

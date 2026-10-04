@@ -534,7 +534,7 @@ export function DeckMarketChart({
                 refresh cadence. Saying so costs one clause and stops the
                 budget from posing as a derived number. */}
             {freshness.budgetIsAssumed && (
-              <span style={{ color: "#55503f" }}>· cadence assumed</span>
+              <span style={{ color: "#8a8271" }}>· cadence assumed</span>
             )}
             {/* The candles on screen are real; the last attempt to CONFIRM
                 them was not. Both halves of that are true at once and the

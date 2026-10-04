@@ -89,7 +89,7 @@ export function RoomAuthorityNotice({ href }: RoomAuthorityNoticeProps): React.R
         style={{
           fontSize: 9,
           letterSpacing: "0.14em",
-          color: "#6F7490",
+          color: "#8b8fa8",
           border: "1px solid rgba(111,116,144,0.45)",
           borderRadius: 3,
           padding: "1px 5px",
