@@ -43,6 +43,31 @@ type ChatMsg = { id: string; author: string; color: string; body: string; ts: nu
 
 const SEED: Record<string, ChatMsg[]> = {};
 
+/* "STUDIO READY" was a fixed word. Measured 2026-10-03: /api/livekit answered
+   503 NOT CONFIGURED (LIVEKIT_URL missing) — nobody could go live — while four
+   places here said READY. The word now comes from the readiness owner
+   (/api/broker/readiness → livekit), asked once per page. */
+type StudioState = "CHECKING" | "READY" | "NOT_CONNECTED";
+let studioAsk: Promise<StudioState> | null = null;
+function askStudio(): Promise<StudioState> {
+  if (!studioAsk) {
+    studioAsk = fetch("/api/broker/readiness", { cache: "no-store" })
+      .then(r => r.json())
+      .then((j: { providers?: { provider?: string; status?: string }[] }) => {
+        const lk = j.providers?.find(p => p.provider === "livekit");
+        return lk?.status === "READY" || lk?.status === "CONFIGURED" ? "READY" : "NOT_CONNECTED";
+      })
+      .catch(() => "NOT_CONNECTED" as const);
+  }
+  return studioAsk;
+}
+function useStudioState(): StudioState {
+  const [st, setSt] = useState<StudioState>("CHECKING");
+  useEffect(() => { let on = true; void askStudio().then(v => { if (on) setSt(v); }); return () => { on = false; }; }, []);
+  return st;
+}
+const studioWord = (st: StudioState) => (st === "READY" ? "READY" : st === "CHECKING" ? "CHECKING" : "NOT CONNECTED");
+
 /* ── WM TV Home — cinematic broadcast-lounge landing.
    The actual Live Room stays STUDIO READY until a host starts it. */
 type Show = {
@@ -72,6 +97,7 @@ function motifBg(color: string, motif: Show["motif"]): string {
 }
 
 function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpenPodcast: () => void }) {
+  const studio = useStudioState();
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
       {/* ── LIVE ON AIR hero ─────────────────────────────── */}
@@ -97,7 +123,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
               style={{ background: "linear-gradient(135deg,#E8B923,#c98a12)" }}
               animate={{ boxShadow: ["0 0 20px rgba(232,185,35,0.4)", "0 0 42px rgba(232,185,35,0.72)", "0 0 20px rgba(232,185,35,0.4)"] }}
               transition={{ duration: 2, repeat: Infinity }}>
-              <span className="text-[15px] font-black tracking-[0.2em] text-black">STUDIO READY</span>
+              <span className="text-[15px] font-black tracking-[0.2em] text-black">STUDIO {studioWord(studio)}</span>
             </motion.div>
           </div>
 
@@ -215,6 +241,7 @@ export default function WMTVPage() {
   // This room carries no market feed. See /lounge for the measurement and
   // why silence must be declared rather than inferred.
   usePublishOsStanding({ surface: "WM TV", feed: FEEDLESS_SURFACE });
+  const studio = useStudioState();
 
   const [activeId, setActiveId] = useState<string>("wmtv-home");
   const activeStage = STAGE_CHANNELS.find(c => c.id === activeId) || null;
@@ -234,7 +261,7 @@ export default function WMTVPage() {
           <div className="min-w-0">
             <p className="text-xs font-black text-wm-text truncate">Wealthy Mindsets TV</p>
             <p className="text-[9px] text-wm-text-muted flex items-center gap-1">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-wm-green" /> STUDIO READY · Channel Guide
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${studio === "READY" ? "bg-wm-green" : "bg-wm-text-dim"}`} /> STUDIO {studioWord(studio)} · Channel Guide
             </p>
           </div>
         </div>
@@ -264,7 +291,7 @@ export default function WMTVPage() {
             >
               {c.kind === "live" ? <Radio size={13} className="text-wm-red shrink-0" /> : <Podcast size={13} className="text-wm-purple shrink-0" />}
               <span className="text-xs font-bold truncate">{c.name}</span>
-              {c.kind === "live" && <span className="ml-auto text-[8px] font-black text-wm-green">READY</span>}
+              {c.kind === "live" && <span className={`ml-auto text-[8px] font-black ${studio === "READY" ? "text-wm-green" : "text-wm-text-dim"}`}>{studioWord(studio)}</span>}
             </button>
           ))}
 
@@ -315,6 +342,7 @@ export default function WMTVPage() {
    this runs through the shared LiveRoom component + /api/livekit token server,
    so streams reach every other person in the same room across the internet. */
 function LiveStage({ channel }: { channel: StageChannel }) {
+  const studio = useStudioState();
   const { user } = useAuth();
   const userName = user?.displayName || user?.handle || user?.email?.split("@")[0] || "Guest";
   const [role, setRole] = useState<"host" | "viewer" | null>(null);
@@ -375,7 +403,7 @@ function LiveStage({ channel }: { channel: StageChannel }) {
                 transition={{ duration: 2.6, repeat: Infinity }}
               >
                 <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#059669" }} />
-                <span className="text-[10px] font-black tracking-widest" style={{ color: "#E8B923" }}>STUDIO · READY</span>
+                <span className="text-[10px] font-black tracking-widest" style={{ color: "#E8B923" }}>STUDIO · {studioWord(studio)}</span>
               </motion.div>
               <motion.div
                 className="w-16 h-16 rounded-2xl mb-4 flex items-center justify-center"
