@@ -1702,7 +1702,7 @@ Trade the system, trust the process, winners every day 🚀`,
           {tradeRecords.length > 0 ? (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-green/15 text-wm-green border border-wm-green/30">{winRate}% WR</span>
           ) : (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-surface text-wm-text-dim border border-wm-border">WR UNKNOWN · no trades taken</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-surface text-wm-text-dim border border-wm-border">WR UNKNOWN · no journal entries</span>
           )}
           {/* §9: red is money actually lost. A total WM could not compute is
               not a loss, so it is never painted as one.
@@ -1724,7 +1724,7 @@ Trade the system, trust the process, winners every day 🚀`,
               copy of "is the list empty", so it cannot drift from the sum it
               describes. */}
           {recordedTotal.counted === 0 && recordedTotal.unreadable === 0 ? (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-wm-surface text-wm-text-dim border-wm-border">NO P&amp;L TO TOTAL · no trades recorded</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-wm-surface text-wm-text-dim border-wm-border">NO P&amp;L TO TOTAL · no journal entries</span>
           ) : recordedTotal.total === null ? (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-wm-surface text-wm-text-dim border-wm-border">P&amp;L UNKNOWN</span>
           ) : (
