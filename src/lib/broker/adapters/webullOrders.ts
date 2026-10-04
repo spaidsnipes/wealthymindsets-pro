@@ -365,15 +365,19 @@ export async function listWebullExecutions(
   accountId: string,
   startDate: string,
 ): Promise<{ readonly ok: boolean; readonly payload: unknown; readonly reason?: string; readonly source?: "ORDER_HISTORY" }> {
+  // Webull's end_date is EXCLUSIVE (ledger work, 2026-10-02): asking up to
+  // "today" left today's fills out until the UTC date rolled over at 7 PM CDT.
+  // Tomorrow's UTC date always includes every fill made so far.
+  const endDate = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
   const t = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ORDER_EXECUTIONS, {
-    query: { account_id: accountId, start_date: startDate, end_date: new Date().toISOString().slice(0, 10) },
+    query: { account_id: accountId, start_date: startDate, end_date: endDate },
   });
   if (t.kind === "NO_ANSWER") return { ok: false, payload: null, reason: t.reason };
   if (t.status >= 200 && t.status < 300) return { ok: true, payload: t.payload };
   // Not served on this host (HTTP 404, 2026-10-01): the order history carries each order's fill.
   if (t.status === 404) {
     const h = await signedCall(fetchImpl, config, WEBULL_SDK_CONTRACT.ORDER_HISTORY, {
-      query: { account_id: accountId, start_date: startDate, end_date: new Date().toISOString().slice(0, 10), page_size: "100" },
+      query: { account_id: accountId, start_date: startDate, end_date: endDate, page_size: "100" },
     });
     if (h.kind === "NO_ANSWER") return { ok: false, payload: null, reason: h.reason };
     return h.status >= 200 && h.status < 300 ? { ok: true, payload: h.payload, source: "ORDER_HISTORY" } : { ok: false, payload: h.payload, reason: `HTTP ${h.status} ${providerWords(h.payload)}` };
