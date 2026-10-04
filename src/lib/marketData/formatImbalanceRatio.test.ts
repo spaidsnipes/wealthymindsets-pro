@@ -28,7 +28,6 @@ import { selectAggressorFlow, type AggressorTick } from "./selectAggressorFlow";
 const REPO_ROOT = resolve(__dirname, "..", "..", "..");
 const SRC = join(REPO_ROOT, "src");
 const PANEL = "src/components/smart-money/SmartMoneyPanel.tsx";
-const STRIP = "src/components/chart/OrderFlowCockpitStrip.tsx";
 
 /** Rules must judge CODE, not the prose that explains the defect by name. */
 function stripComments(src: string): string {
@@ -97,7 +96,6 @@ describe("selectAggressorFlow → formatImbalanceRatio — the seam holds end to
 
 describe("§24 / H21 — ONE OWNER for the aggressor rule and its display", () => {
   const panel = stripComments(readFileSync(join(SRC, "components/smart-money/SmartMoneyPanel.tsx"), "utf8"));
-  const strip = stripComments(readFileSync(join(SRC, "components/chart/OrderFlowCockpitStrip.tsx"), "utf8"));
 
   it("SmartMoneyPanel consumes the canonical selector instead of its own copy", () => {
     expect(panel, `${PANEL} must call the canonical owner`).toMatch(
@@ -113,9 +111,10 @@ describe("§24 / H21 — ONE OWNER for the aggressor rule and its display", () =
   });
 
   it("no surface paints the raw ratio — both speak through the display owner", () => {
+    // OrderFlowCockpitStrip was the second surface here; it was deleted
+    // 2026-10-04 (a retired duplicate of this panel's order-flow story).
     for (const [rel, code] of [
       [PANEL, panel],
-      [STRIP, strip],
     ] as const) {
       expect(code, `${rel} must import the one display rule`).toMatch(
         /formatImbalanceRatio\s*\(/,
@@ -130,7 +129,7 @@ describe("§24 / H21 — ONE OWNER for the aggressor rule and its display", () =
   it("the display rule is an importable module, not a private function", () => {
     // A rule a second surface cannot import is not an owner. This is the whole
     // reason both traps reached SmartMoneyPanel.
-    expect(strip, `${STRIP} still declares a private formatImbalanceRatio`).not.toMatch(
+    expect(panel, `${PANEL} declares a private formatImbalanceRatio`).not.toMatch(
       /function\s+formatImbalanceRatio/,
     );
     const owner = readFileSync(join(SRC, "lib/marketData/formatImbalanceRatio.ts"), "utf8");

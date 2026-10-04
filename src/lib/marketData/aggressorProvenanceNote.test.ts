@@ -38,8 +38,9 @@ import type { AggressorProvenance } from "./selectAggressorFlow";
 const OWNER_IMPORT = 'from "@/lib/marketData/aggressorProvenanceNote"';
 
 /** Surfaces that render an aggressor figure to a trader. */
+// (OrderFlowCockpitStrip.tsx was the first entry here; deleted 2026-10-04 as
+// a retired duplicate of SmartMoneyPanel's order-flow story.)
 const DISCLOSING_SURFACES = [
-  "src/components/chart/OrderFlowCockpitStrip.tsx",
   "src/components/smart-money/SmartMoneyPanel.tsx",
 ] as const;
 

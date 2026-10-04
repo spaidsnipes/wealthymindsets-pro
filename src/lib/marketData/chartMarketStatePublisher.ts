@@ -347,10 +347,10 @@ export function createChartMarketStatePublication(
   ].join(":");
 
   // Real from-USE fix: seal an orderFlow dimension from the very same
-  // per-trade ticks that the OrderFlowCockpitStrip renders. Without this
-  // the Passport ORDER FLOW node always read "UNRESOLVED — No verified
-  // evidence supplied at snapshot time." while the strip one row above
-  // showed live aggressor volumes. The pure derivation self-degrades to
+  // per-trade ticks the order-flow surfaces render (first measured against
+  // the since-deleted OrderFlowCockpitStrip). Without this the Passport ORDER
+  // FLOW node always read "UNRESOLVED — No verified evidence supplied at
+  // snapshot time." while the room showed live aggressor volumes. The pure derivation self-degrades to
   // UNKNOWN on thin tape so nothing gets fabricated.
   const latestTickAtMs = input.recentTicks.reduce(
     (mx, t) => (Number.isFinite(t.time) && t.time > 0 ? Math.max(mx, t.time) : mx),

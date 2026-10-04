@@ -163,9 +163,10 @@ describe("/charts permanent frame is room chrome, not opaque slabs", () => {
     // TimeframeSelector.tsx left this sweep 2026-09-26 because the file left
     // the repo (see the FRAME note above). TimeframeGlassChip.tsx took its
     // seat: it is the timeframe control that actually paints on the glass.
+    // OrderFlowCockpitStrip.tsx left 2026-10-04 the same way — deleted, a
+    // retired duplicate of SmartMoneyPanel that no route rendered.
     for (const file of [
       "ChartToolbar.tsx",
-      "OrderFlowCockpitStrip.tsx",
       "TimeframeGlassChip.tsx",
     ]) {
       const src = CODE(`components/chart/${file}`);

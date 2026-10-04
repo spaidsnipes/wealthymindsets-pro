@@ -56,8 +56,6 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import {
   CASH_INDEX_DISPLAY_NAMES,
   US_INDEX_BAR_INSTRUMENTS,
@@ -65,37 +63,16 @@ import {
   labelMisnamesInstrument,
 } from "./canonicalIdentity";
 
-const BOTTOM_INDEX_BAR = resolve(__dirname, "../../components/chart/BottomIndexBar.tsx");
-
-/** The ban and its positive control share this element name — they cannot drift. */
-const TICKER_ELEMENT = "IndexTicker";
-const INLINED_LABEL_PATTERN = new RegExp(`<${TICKER_ELEMENT}\\s+label="[^"]*"`, "g");
-/** Same anchor, bound form: the shape the corrected component must still have. */
-const BOUND_LABEL_PATTERN = new RegExp(`<${TICKER_ELEMENT}\\b[^>]*label=\\{`);
+// BottomIndexBar.tsx — the component these pairs were written for — was
+// deleted 2026-10-04: a retired duplicate index ticker that no route rendered.
+// Its file-read checks left with it. The canonical pairs and the label rule
+// stay: any index bar that comes back must render from them.
 
 describe("these checks are not vacuous", () => {
-  it("the declared path still exists and still holds the bar", () => {
-    expect(existsSync(BOTTOM_INDEX_BAR), `${BOTTOM_INDEX_BAR} is gone — every file-read assertion below is aimed at nothing`).toBe(true);
-    expect(readFileSync(BOTTOM_INDEX_BAR, "utf8")).toContain(TICKER_ELEMENT);
-  });
-
   it("the declared lists are non-empty — measured 3 bar pairs, 10 cash-index names", () => {
     // Floors, not freezes: either list emptying turns every check below green.
     expect(US_INDEX_BAR_INSTRUMENTS.length, "no bar instruments — the pair checks iterate over nothing").toBeGreaterThan(2);
     expect(CASH_INDEX_DISPLAY_NAMES.length, "no cash-index names — labelMisnamesInstrument can never fire").toBeGreaterThan(5);
-  });
-
-  it("POSITIVE CONTROL: the ban's own element is still what the bar renders", () => {
-    // The re-inlining ban is keyed to `<IndexTicker label="..."`. Prove the
-    // element and the prop still exist in the shipped component, bound from
-    // canon rather than typed — otherwise the ban has no subject and would
-    // pass forever after a rename.
-    const src = readFileSync(BOTTOM_INDEX_BAR, "utf8");
-    expect(
-      BOUND_LABEL_PATTERN.test(src),
-      `BottomIndexBar no longer renders <${TICKER_ELEMENT} ... label={...}> — the ` +
-        "re-inlining ban below is keyed to an element that is no longer there",
-    ).toBe(true);
   });
 
   it("POSITIVE CONTROL: the rule still fires on the pairing it was written for", () => {
@@ -171,20 +148,3 @@ describe("the shipped bottom-bar pairs are self-consistent", () => {
   });
 });
 
-describe("single owner: the component cannot re-inline a label", () => {
-  it("BottomIndexBar renders from the canonical pairs", () => {
-    const src = readFileSync(BOTTOM_INDEX_BAR, "utf8");
-    expect(src).toContain("US_INDEX_BAR_INSTRUMENTS");
-  });
-
-  it("BottomIndexBar hardcodes no IndexTicker label", () => {
-    // The original defect was a literal: <IndexTicker label="S&P 500" ... />.
-    // Banning the LITERAL, not just the wrong string, is what makes this
-    // durable: re-inlining any name reopens the drift between the symbol and
-    // what it is called, and the next wrong name would be invisible again.
-    const src = readFileSync(BOTTOM_INDEX_BAR, "utf8");
-    const inlined = src.match(INLINED_LABEL_PATTERN) ?? [];
-
-    expect(inlined).toEqual([]);
-  });
-});

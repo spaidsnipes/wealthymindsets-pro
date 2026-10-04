@@ -566,8 +566,8 @@ export function SmartMoneyPanel({
   const sellPct  = 100 - buyPct;
   const deltaVal = flow.cvd;                                   // REAL net delta (unrounded)
   // How the aggressor SIDES behind buyPct/sellPct/deltaVal were established.
-  // Owned by @/lib/marketData/aggressorProvenanceNote so this panel and
-  // OrderFlowCockpitStrip make the identical disclosure in identical words.
+  // Owned by @/lib/marketData/aggressorProvenanceNote so every surface that
+  // shows aggressor sides makes the identical disclosure in identical words.
   const provenanceNote = aggressorProvenanceNote(flow.provenance);
   const domSide: "buyers" | "sellers" | "even" | "none" =
     !flow.hasFlow ? "none"

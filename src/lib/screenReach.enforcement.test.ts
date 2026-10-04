@@ -280,10 +280,6 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
     reason: "DEAD_CONSUMER",
     note: "Reached only by components/authority/ExecutionReceiptCard.tsx, which no route renders.",
   },
-  "src/lib/chart/indexBarFacts.ts": {
-    reason: "DEAD_CONSUMER",
-    note: "Reached only by components/chart/BottomIndexBar.tsx, which no route renders.",
-  },
   // NOT DEAD_CONSUMER. Corrected 2026-09-15, hours after being filed as one.
   //
   // Filing it as DEAD_CONSUMER was accurate about the graph and wrong about the
@@ -728,23 +724,25 @@ const KNOWN_ORPHAN_COMPONENTS: readonly string[] = [
   // RETIRED in 1677698 ("remove decorative decision chrome"). Locked by
   // src/lib/responsiveShell.test.ts: `expect(deck).not.toContain(...)`.
   "src/components/brand/CinematicAtmosphere.tsx",
-  // RETIRED in aa54175 ("Retire duplicate charts index ticker") — a SECOND
-  // index ticker on a room that already had one. Locked by
-  // src/lib/experience/chartsMarketFirst.test.ts, which flipped from asserting
-  // the mount was PRESENT to asserting it is ABSENT. Re-mounting restores the
-  // duplication. A DEFAULT IS A CLAIM, and so is a second one of anything.
-  "src/components/chart/BottomIndexBar.tsx",
+  // (BottomIndexBar.tsx was here, RETIRED in aa54175 ("Retire duplicate charts
+  // index ticker") — a SECOND index ticker on a room that already had one.
+  // DELETED 2026-10-04 with its private lib/chart/indexBarFacts.ts: a retired
+  // duplicate is settled by removal.
+  // src/lib/experience/chartsMarketFirst.test.ts still asserts the mount is
+  // ABSENT. This list is a BIDIRECTIONAL CEILING, so the entry
+  // is removed rather than left as a stale excuse.)
   // (ConnectedStoryRibbon.tsx was here as a BORN ORPHAN — one commit,
   // 543f3f4, and nothing ever imported it. DELETED 2026-09-19: the mount was
   // never taken, so the debt was settled the other way. This list is a
   // BIDIRECTIONAL CEILING, so the entry is removed rather than left as a
   // stale excuse.)
-  // RETIRED in 777665d ("Keep order flow behind Smart Money"). Locked by
-  // src/lib/experience/chartsMarketFirst.test.ts and
-  // src/lib/experience/chartsRoomChrome.test.ts, which additionally pin
-  // SmartMoneyPanel to exactly ONE occurrence — so the order-flow story has
-  // one owner on this room and cannot be told twice.
-  "src/components/chart/OrderFlowCockpitStrip.tsx",
+  // (OrderFlowCockpitStrip.tsx was here, RETIRED in 777665d ("Keep order flow
+  // behind Smart Money") so the order-flow story has one owner on this room.
+  // DELETED 2026-10-04: a retired duplicate of SmartMoneyPanel. The display
+  // and provenance rules it once held privately already live in
+  // formatImbalanceRatio.ts / aggressorProvenanceNote.ts.
+  // src/lib/experience/chartsMarketFirst.test.ts still asserts the mount is
+  // ABSENT. Entry removed — BIDIRECTIONAL CEILING.)
   // (TimeframeSelector.tsx was here as a BORN ORPHAN — six commits of its own
   // upkeep, and `git log -S"TimeframeSelector" -- src/app src/components`
   // returned only its creation: A FILE'S OWN HISTORY IS NOT ITS MOUNT'S
