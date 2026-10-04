@@ -1,16 +1,19 @@
 /**
- * /api/spaidbot — AI assistant powered by Google Gemini 2.0 Flash
- * Free tier: 15 req/min, no credit card required.
+ * /api/spaidbot — AI assistant powered by Google Gemini (Flash).
+ * The model is chosen from Google's own list for this key (see
+ * @/lib/ai/geminiModel) — a typed "gemini-2.0-flash" was retired and took
+ * every SpaidBot reply down with it (measured 2026-10-03).
  */
 
 import { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { formatChartContextNote, type ChartContextInput } from "@/lib/marketData/formatChartContextNote";
+import { forgetGeminiModel, resolveGeminiModel } from "@/lib/ai/geminiModel";
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
-const MODEL      = "gemini-2.0-flash";
-const BASE_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse&key=${GEMINI_KEY}`;
+const streamUrl  = (model: string) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${GEMINI_KEY}`;
 
 const SYSTEM_PROMPT = `You are SpaidBot, the AI trading co-pilot for WealthyMindsets Pro — a professional trading platform built by traders for traders.
 
@@ -103,15 +106,31 @@ export async function POST(req: NextRequest) {
       }],
     }));
 
-    const geminiRes = await fetch(BASE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents,
-        generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
-      }),
+    const payload = JSON.stringify({
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents,
+      generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
     });
+    const ask = async () => {
+      const model = await resolveGeminiModel(GEMINI_KEY);
+      if (!model) return null;
+      return fetch(streamUrl(model), { method: "POST", headers: { "Content-Type": "application/json" }, body: payload });
+    };
+    let geminiRes = await ask();
+    // A model retired since we chose it: choose again, once.
+    if (geminiRes && !geminiRes.ok) {
+      const said = await geminiRes.clone().text().catch(() => "");
+      if (geminiRes.status === 404 || /no longer available|is not found|not supported/i.test(said)) {
+        forgetGeminiModel();
+        geminiRes = await ask();
+      }
+    }
+    if (!geminiRes) {
+      return new Response(
+        `data: ${JSON.stringify({ error: "No usable Gemini model is available for this key." })}\n\ndata: [DONE]\n\n`,
+        { headers: { "Content-Type": "text/event-stream" } }
+      );
+    }
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
