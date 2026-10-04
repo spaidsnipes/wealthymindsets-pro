@@ -19836,6 +19836,31 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.strokeRect(gx + 0.5, gy + 0.5, 10, 12);
                   ctx.beginPath(); ctx.arc(gx + 5.5, gy + 6.5, 2.6, 0, Math.PI * 2); ctx.stroke();
                 }
+                // A NAMED OBJECT, NOT AN EMPTY BOX (2026-10-04, Founder: "vague
+                // boxes"; measured BTC 1m: two brass outlines with a tiny mark
+                // and no words). The zone says what it is and what has happened
+                // to it — side, lifecycle state, tests — by WORD (canon: state
+                // is told by form and word, never a market hue). Where zones
+                // speak, on a clear spot of the chip ledger, else silent.
+                if (att.speaks("marketZones")) {
+                  const n = z.lifecycle.touches.length;
+                  const words = `${z.side} ZONE · ${z.lifecycle.state}${n > 0 ? ` · ${n} TEST${n === 1 ? "" : "S"}` : ""}`;
+                  ctx.font = marketFont("OBJECT_NAME");
+                  const tw = ctx.measureText(words).width;
+                  const tx = Math.max(4, Math.min(zEnd - tw - 4, x0 + 4));
+                  const tys = h >= 16 ? [Math.round(top) + 11] : [Math.round(top) - 4, Math.round(top + h) + 12];
+                  const ty = tys.find(y => y - 10 >= HEADER_FLOOR_Y && y <= pane0Bottom - 2
+                    && !floatingChips.some(r => tx < r.x + r.w && tx + tw > r.x && y - 10 < r.y + r.h && y > r.y));
+                  if (ty != null && tw < zEnd - x0) {
+                    ctx.save();
+                    ctx.fillStyle = "rgba(233,196,106,0.92)";
+                    ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+                    ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+                    ctx.fillText(words, tx, ty);
+                    ctx.restore();
+                    floatingChips.push({ x: tx, y: ty - 11, w: tw, h: 12 });
+                  }
+                }
                 continue;
               }
               // SELECTED
