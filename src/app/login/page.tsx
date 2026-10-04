@@ -63,7 +63,7 @@ function LoginPage() {
   const searchParams = useSearchParams();
 
   const [mode,       setMode]       = useState<Mode>(
-    searchParams.get("mode") === "signup" ? "signup" : "login"
+    searchParams.get("mode") === "signup" ? "signup" : searchParams.get("mode") === "forgot" ? "forgot" : "login"
   );
   const [email,      setEmail]      = useState("");
   const [password,   setPassword]   = useState("");

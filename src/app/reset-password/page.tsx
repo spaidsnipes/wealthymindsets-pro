@@ -9,11 +9,14 @@ export default function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  // Read once the hash has been looked at — before that, nothing is known.
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     const hash = new URLSearchParams(window.location.hash.slice(1));
     setAccessToken(hash.get("access_token") ?? "");
     if (hash.get("error_description")) setMessage(hash.get("error_description") ?? "");
+    setChecked(true);
     if (window.location.hash) {
       window.history.replaceState(
         null,
@@ -57,6 +60,14 @@ export default function ResetPasswordPage() {
         <p className="text-xs uppercase tracking-[0.28em] text-[#E8B923]">WealthyMindsets Pro</p>
         <h1 className="mt-3 text-3xl font-semibold">Choose a new password</h1>
         <p className="mt-2 text-sm text-white/55">Use at least 8 characters and keep it unique to this account.</p>
+        {/* Arrived without a recovery link (2026-10-04): the form used to wait
+            for two typed passwords before saying the link was missing. */}
+        {checked && !accessToken ? (
+          <div role="status" className="mt-7 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/70">
+            {message || "This page opens from the reset link in your email, and this visit carried none — it may have expired or been opened in another browser."}
+            <Link href="/login?mode=forgot" className="mt-3 flex min-h-11 items-center font-semibold text-[#E8B923] hover:underline">Send me a new reset link →</Link>
+          </div>
+        ) : (
         <form onSubmit={submit} className="mt-7 space-y-4">
           <label className="block space-y-2 text-sm text-white/70">
             <span>New password</span>
@@ -87,6 +98,7 @@ export default function ResetPasswordPage() {
             {saving ? "Updating…" : "Update password"}
           </button>
         </form>
+        )}
         {message && <p className="mt-4 text-sm text-white/70" role="status">{message}</p>}
         {/* MEASURED 105.5x20 at 375px on production 2026-09-08 — under the 44px
             floor, on the password-recovery path, where it is the only way back.
