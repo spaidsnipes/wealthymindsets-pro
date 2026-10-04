@@ -24999,7 +24999,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
         {/* ── Scale buttons — bottom-right, above the time axis so they
              no longer clutter / overlap the price action at top ─── */}
-        <div style={{
+        <div className="wm-chart-scale-row" style={{
           position:"absolute", right: 64, bottom: 30, display:"flex", flexDirection:"row", gap: 4, zIndex: 50, alignItems:"center",
           padding: "3px 4px", borderRadius: 6,
           background: "rgba(8,12,20,0.55)", backdropFilter: "blur(3px)",

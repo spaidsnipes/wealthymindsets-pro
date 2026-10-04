@@ -527,6 +527,14 @@
     min-height: 44px;
   }
 
+  /* …and at 44 px it rises to y=47 above the pane floor, into the scale row
+     (R · A · % · L · opacity · MOTION, pinned bottom 30). Measured at 390 on
+     serving 2026-10-03: the chip sat on the L toggle and half the opacity
+     control. The row steps up clear of the chip; canon keeps the chip. */
+  .wm-chart-scale-row {
+    bottom: 52px !important;
+  }
+
   /* THE FULL LADDER UNDER THE STRIP (2026-09-26). Its servable rungs are
      `.wm-chart-timeframe` buttons and inherit the touch target above. The
      unavailable ones are not controls and owe no touch target; they take the
