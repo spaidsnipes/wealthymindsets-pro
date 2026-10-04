@@ -214,7 +214,9 @@ function MarkovHeatmap({ tf, pcts }: { tf: string; pcts: Record<string, number> 
                 Market →
               </button>
               {/* Top row */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, minHeight: 44, paddingRight: 52 }}>
+              {/* The Market → door is ~80 px wide; a 52 px reserve let it sit on the
+                  regime chip and its word (serving 1568, 2026-10-04). */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, minHeight: 44, paddingRight: 92 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: ms.color, flexShrink: 0 }} />
                 <span style={{ fontSize: 11, fontWeight: 900, color: WM.text.hero }}>{ms.sym}</span>
                 <span style={{ fontSize: 9, color: WM.text.muted, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ms.label}</span>

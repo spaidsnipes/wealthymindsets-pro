@@ -32,7 +32,8 @@ describe("Heat Map Markov Deck handoff accessibility", () => {
   });
 
   it("reserves responsive card space without obscuring truth state", () => {
-    expect(page).toContain("minHeight: 44, paddingRight: 52");
+    // 52 let the ~80 px Market → door cover the regime chip on serving (2026-10-04).
+    expect(page).toContain("minHeight: 44, paddingRight: 92");
     expect(page).toContain('textOverflow: "ellipsis"');
     expect(page).toContain('whiteSpace: "nowrap"');
     expect(page).toContain("flexShrink: 0");
