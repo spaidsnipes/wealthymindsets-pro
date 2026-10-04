@@ -14485,6 +14485,92 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("STACKED_IMBALANCE", err); /* chart may be mid-transition; safe to skip this frame */ }
 
+      /* ══ STACKED IMBALANCE, BAR BY BAR (2026-10-04) ═══════════════════════
+         Founder: "the stacked imbalances i cant see". Measured on serving
+         BTC 5m with 54 bars of sided tape (77,935 prints): imbalanceStack =
+         NO_STACK on every camera. The window-wide ladder above reads only the
+         ~2,000 newest ticks on a one-cent grid, where three adjacent leaning
+         cents almost never exist — while each bar's own footprint (the same
+         sided prints, 120 sub-levels) already carries the stacks.
+         Canon F06A / FL_06: a stack is a column of side-inked bars at the
+         stacked prices along the move, labelled with its ratio. So every
+         visible bar with tape is read at STACK_ROWS price rows by the SAME
+         owner rules the footprint uses — readImbalanceRows (3:1, weight
+         floor) and imbalanceRuns (≥ MIN_STACK_LEVELS adjacent rows one way)
+         — and each run is drawn on its own bar at its own prices: a hatched
+         band in the dominant side's ink, the side's edge drawn solid (buy
+         right, sell left). One ratio word, for the newest stack, where the
+         depth lets the layer speak. Nothing is drawn for a bar without tape.
+      ══════════════════════════════════════════════════════════════════════ */
+      try {
+        const ds = canvas.dataset;
+        const onBars = layerOnRef.current.stack && att.paints("stack");
+        if (!onBars) delete ds.imbalanceStackBars;
+        else {
+          const STACK_ROWS = 12;
+          let runsDrawn = 0, barsRead = 0;
+          let newest: { x: number; yTop: number; yBot: number; buy: boolean; word: string } | null = null;
+          const slotW = Math.max(3, Math.min(18, Math.floor(bsp * 0.82)));
+          ctx.save();
+          ctx.beginPath(); ctx.rect(0, 0, plotRight, pane0Bottom); ctx.clip();
+          for (const c of visibleBars) {
+            const rawX = chart.timeScale().timeToCoordinate(c.time as never);
+            if (rawX == null || rawX < -slotW || rawX > plotRight + slotW) continue;
+            const rows = getBarFootprint(c, STACK_ROWS);
+            if (rows.length === 0 || !rows.some(r => r.total > 0)) continue;
+            barsRead++;
+            const binW = (c.high - c.low) / STACK_ROWS;
+            const runs = imbalanceRuns(readImbalanceRows(rows));
+            for (const run of runs) {
+              const pLo = c.low + run.from * binW, pHi = c.low + (run.to + 1) * binW;
+              const yA = srs.priceToCoordinate(pHi), yB = srs.priceToCoordinate(pLo);
+              if (yA == null || yB == null) continue;
+              const yTop = Math.round(Math.min(+yA, +yB)), yBot = Math.round(Math.max(+yA, +yB));
+              const h = Math.max(3, yBot - yTop);
+              const buy = run.side === "buy";
+              const ink = buy ? buyRgba : sellRgba;
+              const x0 = Math.round(+rawX - slotW / 2);
+              ctx.globalAlpha = att.alpha("stack");
+              ctx.fillStyle = ink(0.2);
+              ctx.fillRect(x0, yTop, slotW, h);
+              // The hatch — FL_06's mark for an imbalance band.
+              ctx.save();
+              ctx.beginPath(); ctx.rect(x0, yTop, slotW, h); ctx.clip();
+              ctx.strokeStyle = ink(0.55); ctx.lineWidth = 1;
+              ctx.beginPath();
+              for (let d = -h; d < slotW + h; d += 4) { ctx.moveTo(x0 + d, yBot); ctx.lineTo(x0 + d + h, yTop); }
+              ctx.stroke();
+              ctx.restore();
+              // The dominant side's edge, solid — who leaned.
+              ctx.fillStyle = ink(0.95);
+              ctx.fillRect(buy ? x0 + slotW - 2 : x0, yTop, 2, h);
+              runsDrawn++;
+              newest = { x: x0, yTop, yBot, buy, word: `${buy ? "BUY" : "SELL"} STACK ${imbalanceRunWord(run)}` };
+            }
+          }
+          ctx.restore();
+          // One word on the glass, for the newest stack, where the layer speaks.
+          if (newest && att.speaks("stack")) {
+            ctx.save();
+            ctx.font = marketFont("OBJECT_NAME");
+            const w = ctx.measureText(newest.word).width;
+            const tx = Math.max(2, Math.min(plotRight - w - 4, newest.buy ? newest.x + slotW + 4 : newest.x - w - 4));
+            const ty = Math.max(HEADER_FLOOR_Y + 6, Math.min(pane0Bottom - 6, (newest.yTop + newest.yBot) / 2));
+            const hit = floatingChips.some(r => tx < r.x + r.w && tx + w > r.x && ty - 6 < r.y + r.h && ty + 6 > r.y);
+            if (!hit) {
+              ctx.globalAlpha = att.textAlpha("stack");
+              ctx.fillStyle = (newest.buy ? buyRgba : sellRgba)(1);
+              ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+              ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              ctx.fillText(newest.word, tx, ty);
+              floatingChips.push({ x: tx, y: ty - 7, w, h: 14 });
+            }
+            ctx.restore();
+          }
+          ds.imbalanceStackBars = `RUNS:${runsDrawn}|BARS:${barsRead}`;
+        }
+      } catch (err) { layerFault("STACKED_IMBALANCE_BARS", err); }
+
       /* ══════════════════════════════════════════════════════════════════════
          DELTA DIVERGENCE — THE TWO PRICES IT COMPARED, AT THOSE PRICES.
 

@@ -26,7 +26,9 @@ export function senseEventStates(r: Receipts): Record<string, string> {
   else if (Number.isFinite(zones)) out.ABSORPTION = zones > 0 ? `${SENSE_ON_CAMERA} · ${zones} ZONE${zones === 1 ? "" : "S"}` : SENSE_NO_EVENT;
 
   const stack = r.imbalanceStack;
-  if (stack === "DRAWN") out.IMBALANCE_STACK = SENSE_ON_CAMERA;
+  // Per-bar stacks (2026-10-04) are on the glass even when the window ladder is not.
+  const barRuns = Number(/RUNS:(\d+)/.exec(r.imbalanceStackBars ?? "")?.[1] ?? 0);
+  if (stack === "DRAWN" || barRuns > 0) out.IMBALANCE_STACK = barRuns > 0 && stack !== "DRAWN" ? `${SENSE_ON_CAMERA} · ${barRuns} STACK${barRuns === 1 ? "" : "S"}` : SENSE_ON_CAMERA;
   else if (stack === "NO_STACK") out.IMBALANCE_STACK = SENSE_NO_EVENT;
   else if (stack === "UNMEASURED") out.IMBALANCE_STACK = SENSE_UNAVAILABLE;
 

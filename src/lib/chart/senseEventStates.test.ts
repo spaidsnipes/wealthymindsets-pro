@@ -36,3 +36,11 @@ describe("exhaustion and anatomy events have words (2026-10-04)", () => {
     expect(senseEventStates({ exhaustion: "2", dualAnatomy: "MARKET|EVENTS:3|BODIES:3" })).toMatchObject({ EXHAUSTION: `${SENSE_ON_CAMERA} · 2`, ANATOMY_CARDS: SENSE_ON_CAMERA });
   });
 });
+
+describe("per-bar stacked imbalances count as on camera (2026-10-04)", () => {
+  it("reads RUNS from imbalanceStackBars", async () => {
+    const { senseEventStates, SENSE_ON_CAMERA, SENSE_NO_EVENT } = await import("./senseEventStates");
+    expect(senseEventStates({ imbalanceStack: "NO_STACK", imbalanceStackBars: "RUNS:4|BARS:54" }).IMBALANCE_STACK).toBe(`${SENSE_ON_CAMERA} · 4 STACKS`);
+    expect(senseEventStates({ imbalanceStack: "NO_STACK", imbalanceStackBars: "RUNS:0|BARS:54" }).IMBALANCE_STACK).toBe(SENSE_NO_EVENT);
+  });
+});
