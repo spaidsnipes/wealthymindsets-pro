@@ -3266,11 +3266,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // effect runs (measured: a stale top 217 vs 231 at 390, so the pane ran
     // 14px past the glass). The body's size changes whenever anything in the
     // flow does, whichever node it is, so observe the body itself.
+    // The body alone was not enough (measured again: 217 vs 231 at 390 —
+    // the room scrolls inside a container, so the body never changes size).
+    // Observe every box that stands before the pane in the flow, and keep a
+    // cheap recheck for nodes that remount after this effect: one rect read
+    // every 750ms, writing only when the top actually moved.
     const ro = new ResizeObserver(measure);
     ro.observe(document.body);
+    for (let el: Element | null = pane; el && el !== document.body; el = el.parentElement) {
+      for (let sib = el.previousElementSibling; sib; sib = sib.previousElementSibling) ro.observe(sib);
+    }
+    const recheck = window.setInterval(measure, 750);
     window.addEventListener("resize", measure);
     window.addEventListener("orientationchange", measure);
     return () => {
+      window.clearInterval(recheck);
       ro.disconnect();
       window.removeEventListener("resize", measure);
       window.removeEventListener("orientationchange", measure);
