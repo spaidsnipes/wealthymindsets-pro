@@ -7,7 +7,8 @@
  */
 import React, { useEffect, useState } from "react";
 
-import type { TtLedgerSummary, TtRoundTrip } from "@/lib/broker/tastytradeLedger";
+import Link from "next/link";
+import { ttChartSymbol, type TtLedgerSummary, type TtRoundTrip } from "@/lib/broker/tastytradeLedger";
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3", LINE = "rgba(139,106,41,0.25)", UP = "#7fd1a8", DOWN = "#e0786b";
 const money = (v: number) => `${v < 0 ? "−" : v > 0 ? "+" : ""}$${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -69,7 +70,14 @@ export function TastytradeLedger() {
                 {a.trips.slice(0, 60).map((t, i) => (
                   <tr key={`${t.symbol}-${t.openedAt}-${i}`} style={{ borderTop: `1px solid ${LINE}` }}>
                     <td style={{ padding: "3px 0", color: MUTED }}>{t.truth === "OPEN" ? "open" : day(t.closedAt)}</td>
-                    <td style={{ color: INK }}>{t.symbol}</td>
+                    <td style={{ color: INK }}>
+                      {t.symbol}
+                      {ttChartSymbol(t) && (
+                        <Link href={`/charts?symbol=${encodeURIComponent(ttChartSymbol(t)!)}`} data-testid="tt-ledger-open-chart"
+                          aria-label={`Open ${ttChartSymbol(t)} chart`}
+                          style={{ color: GOLD, marginLeft: 8, fontSize: 11, fontWeight: 700 }}>chart →</Link>
+                      )}
+                    </td>
                     <td style={{ color: MUTED }}>{t.direction}</td>
                     <td style={{ textAlign: "right" }}>{t.maxQty}</td>
                     <td style={{ textAlign: "right", color: MUTED }}>{money(-t.fees)}</td>

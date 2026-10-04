@@ -104,3 +104,27 @@ export function summarizeTtLedger(trips: readonly TtRoundTrip[]): TtLedgerSummar
     byInstrumentType: [...types].map(([type, v]) => ({ type, ...v })).sort((a, b) => b.trades - a.trades),
   };
 }
+
+/**
+ * The chart a round trip opens on, or null when the camera cannot honestly
+ * show its instrument. Equities and futures open as themselves ("/ESZ6" is a
+ * symbol /charts resolves); an option opens its UNDERLYING — the stock for an
+ * equity option, the futures contract named inside a futures option's symbol
+ * ("./MNQZ6MN5CU6260930P30675" → "/MNQZ6"). The row still names the contract.
+ * Anything unrecognised gets no door rather than a guessed one.
+ */
+export function ttChartSymbol(t: Pick<TtRoundTrip, "symbol" | "instrumentType">): string | null {
+  const type = (t.instrumentType ?? "").toLowerCase();
+  const sym = t.symbol.trim().toUpperCase();
+  if (!sym) return null;
+  if (type === "equity" || type === "future") return sym;
+  if (type === "equity option") {
+    const root = sym.split(/\s+/)[0] ?? "";
+    return /^[A-Z.]{1,6}$/.test(root) ? root : null;
+  }
+  if (type === "future option") {
+    const m = /^\.\/([A-Z0-9]{1,4}?[FGHJKMNQUVXZ]\d)/.exec(sym);
+    return m ? `/${m[1]}` : null;
+  }
+  return null;
+}
