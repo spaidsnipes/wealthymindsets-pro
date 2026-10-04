@@ -37,7 +37,7 @@ const TONE_CLASS: Record<RTone, string> = {
   GAIN: "text-emerald-300",
   LOSS: "text-rose-300",
   FLAT: "text-neutral-200",
-  NONE: "text-neutral-500",
+  NONE: "text-neutral-400",
 };
 function toneClass(tone: RTone): string {
   return TONE_CLASS[tone];
@@ -175,7 +175,7 @@ export default function ProofLanePage() {
           <Link href="/education" className="inline-flex min-h-11 items-center text-xs font-semibold uppercase tracking-widest text-amber-400/80 hover:text-amber-300">
             ← Academy
           </Link>
-          <span className="text-neutral-700">/</span>
+          <span className="text-neutral-400">/</span>
           <h1 className="text-base font-semibold tracking-tight">Challenge Lab</h1>
           <span className="ml-auto inline-flex min-h-8 items-center rounded-full border border-amber-500/30 bg-amber-950/25 px-3 text-[9px] font-mono uppercase tracking-widest text-amber-300">
             {PACE_TRUTH_LABEL}
@@ -210,7 +210,7 @@ export default function ProofLanePage() {
               <li key={stage.id} className="flex min-h-[190px] flex-col rounded-xl border border-neutral-800 bg-black/40 p-4">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs text-amber-300">0{stage.step}</span>
-                  <span className="max-w-[75%] truncate text-[9px] font-mono uppercase tracking-wider text-neutral-600" title={stage.truth}>
+                  <span className="max-w-[75%] truncate text-[9px] font-mono uppercase tracking-wider text-neutral-400" title={stage.truth}>
                     {stage.truth.replaceAll("_", " ")}
                   </span>
                 </div>
@@ -226,7 +226,7 @@ export default function ProofLanePage() {
             ))}
           </ol>
 
-          <p className="mt-4 text-xs text-neutral-500">
+          <p className="mt-4 text-xs text-neutral-400">
             Academy boundaries: <span data-boundary={CHALLENGE_ENROLLMENT_BOUNDARY} className="text-amber-300">enrollment not connected</span> · <span data-boundary={CHALLENGE_EXECUTION_BOUNDARY} className="text-rose-300">live execution excluded</span>. Previewing this path creates no enrollment or payment. Academy provides browser-local education and paper rehearsal only; it cannot authorize live execution.
           </p>
         </section>
@@ -237,7 +237,7 @@ export default function ProofLanePage() {
           </h2>
           <div className="overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-950/60">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-widest text-neutral-500 bg-black/40">
+              <thead className="text-left text-xs uppercase tracking-widest text-neutral-400 bg-black/40">
                 <tr>
                   <th className="px-3 py-2 font-medium">Horizon</th>
                   <th className="px-3 py-2 font-medium">Sessions</th>
@@ -255,7 +255,7 @@ export default function ProofLanePage() {
                       <td className="px-3 py-2 text-neutral-300">{Math.round(row.sessions)}</td>
                       <td className="px-3 py-2 font-mono text-amber-300">{fmtPct(row.weeklyRate)}</td>
                       <td className="px-3 py-2 font-mono text-amber-300">{fmtPct(row.sessionRate)}</td>
-                      <td className="px-3 py-2 text-right text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+                      <td className="px-3 py-2 text-right text-[10px] font-mono uppercase tracking-widest text-neutral-400">
                         THEORETICAL
                       </td>
                     </tr>
@@ -264,7 +264,7 @@ export default function ProofLanePage() {
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-neutral-500">
+          <p className="mt-3 text-xs text-neutral-400">
             21 sessions/month, 4.345 weeks/month. Compound (geometric), not additive. Numbers are mathematics — not forecasts, not permission to trade.
           </p>
         </section>
@@ -275,7 +275,7 @@ export default function ProofLanePage() {
           </h2>
           <div className="grid sm:grid-cols-3 gap-4 mb-4">
             <label className="block">
-              <span className="block text-[10px] uppercase tracking-widest text-neutral-500 mb-1">Horizon</span>
+              <span className="block text-[10px] uppercase tracking-widest text-neutral-400 mb-1">Horizon</span>
               <select
                 value={selectedHorizon}
                 onChange={(e) => {
@@ -293,7 +293,7 @@ export default function ProofLanePage() {
               </select>
             </label>
             <label className="block">
-              <span className="block text-[10px] uppercase tracking-widest text-neutral-500 mb-1">
+              <span className="block text-[10px] uppercase tracking-widest text-neutral-400 mb-1">
                 Session # (0 = start, {selectedHorizon * SESSIONS_PER_MONTH} = target)
               </span>
               <input
@@ -309,7 +309,7 @@ export default function ProofLanePage() {
               />
             </label>
             <label className="block">
-              <span className="block text-[10px] uppercase tracking-widest text-neutral-500 mb-1">Manual scenario balance ($)</span>
+              <span className="block text-[10px] uppercase tracking-widest text-neutral-400 mb-1">Manual scenario balance ($)</span>
               <input
                 type="number"
                 min={0}
@@ -324,13 +324,13 @@ export default function ProofLanePage() {
 
           <div className="grid sm:grid-cols-3 gap-3 mb-4">
             <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-widest text-neutral-500">Theoretical</div>
+              <div className="text-[10px] uppercase tracking-widest text-neutral-400">Theoretical</div>
               <div className="mt-1 font-mono text-lg text-neutral-100">
                 {fmtUsd(status.theoreticalBalance)}
               </div>
             </div>
             <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-widest text-neutral-500">Manual Scenario</div>
+              <div className="text-[10px] uppercase tracking-widest text-neutral-400">Manual Scenario</div>
               <div className="mt-1 font-mono text-lg text-neutral-100">{fmtUsd(status.actualBalance)}</div>
             </div>
             {/*
@@ -385,10 +385,10 @@ export default function ProofLanePage() {
           >
             {status.humanMessage}
           </p>
-          <p className="mt-2 text-xs text-neutral-500">
+          <p className="mt-2 text-xs text-neutral-400">
             Behind pace changes the timeline, not the setup standard. Ahead of pace does not lower the setup standard. No-trade can still be the best decision.
           </p>
-          <p id="scenario-balance-boundary" className="mt-2 text-xs text-neutral-500">
+          <p id="scenario-balance-boundary" className="mt-2 text-xs text-neutral-400">
             Manual scenario input only · not connected to a brokerage account, Paper balance, Journal balance, or live execution.
           </p>
         </section>
@@ -405,7 +405,7 @@ export default function ProofLanePage() {
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-neutral-500">
+          <p className="mt-3 text-xs text-neutral-400">
             Middle-of-range guessing is not M2. Any missing chain link → M0. No green-day count creates permission to trade.
           </p>
         </section>
@@ -461,13 +461,13 @@ export default function ProofLanePage() {
             </div>
             <div className="grid sm:grid-cols-4 gap-3">
               <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-widest text-neutral-500">R-Tagged</div>
+                <div className="text-[10px] uppercase tracking-widest text-neutral-400">R-Tagged</div>
                 <div className="mt-1 font-mono text-lg text-neutral-100">
                   {measured.rTaggedEntries} / {measured.totalEntries}
                 </div>
               </div>
               <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-widest text-neutral-500">Expectancy</div>
+                <div className="text-[10px] uppercase tracking-widest text-neutral-400">Expectancy</div>
                 <div
                   className={`mt-1 font-mono text-lg ${toneClass(expectancyCell.tone)}`}
                   title={expectancyCell.reason}
@@ -477,7 +477,7 @@ export default function ProofLanePage() {
                 </div>
               </div>
               <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-widest text-neutral-500">Cumulative R</div>
+                <div className="text-[10px] uppercase tracking-widest text-neutral-400">Cumulative R</div>
                 <div
                   className={`mt-1 font-mono text-lg ${toneClass(cumulativeFact.tone)}`}
                   title={cumulativeFact.reason}
@@ -487,7 +487,7 @@ export default function ProofLanePage() {
                 </div>
               </div>
               <div className="rounded-lg border border-neutral-800 bg-black/40 px-3 py-2">
-                <div className="text-[10px] uppercase tracking-widest text-neutral-500">Max Drawdown</div>
+                <div className="text-[10px] uppercase tracking-widest text-neutral-400">Max Drawdown</div>
                 <div
                   className={`mt-1 font-mono text-lg ${toneClass(drawdownFact.tone)}`}
                   title={drawdownFact.reason}
@@ -540,21 +540,21 @@ export default function ProofLanePage() {
                 Rules Adhered: {measured.rulesAdheredPct != null ? (
                   <span className="text-neutral-100 font-mono">{(measured.rulesAdheredPct * 100).toFixed(0)}%</span>
                 ) : (
-                  <span className="text-neutral-500">— (no graded process yet)</span>
+                  <span className="text-neutral-400">— (no graded process yet)</span>
                 )}
               </div>
               <div className="text-neutral-400">
                 Capture % (canon §7): {measured.avgCaptureRatio != null ? (
                   <>
                     <span className="text-neutral-100 font-mono">{(measured.avgCaptureRatio * 100).toFixed(0)}%</span>
-                    <span className="text-neutral-500"> · n={measured.captureSampleSize}</span>
+                    <span className="text-neutral-400"> · n={measured.captureSampleSize}</span>
                   </>
                 ) : (
-                  <span className="text-neutral-500">— (no MFE recorded yet)</span>
+                  <span className="text-neutral-400">— (no MFE recorded yet)</span>
                 )}
               </div>
             </div>
-            <p className="mt-3 text-xs text-neutral-500">
+            <p className="mt-3 text-xs text-neutral-400">
               MEASURED JOURNAL reads only browser-local entries with Planned R defined pre-entry per canon §4. Entries without R are counted but excluded from expectancy — never fabricated. Capture % requires both realized R and max-favorable R per canon §7. Journal entries are not brokerage-certified live-execution receipts.
             </p>
             <Link href="/journal" data-testid="proof-lane-open-journal"

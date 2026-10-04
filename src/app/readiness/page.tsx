@@ -189,7 +189,7 @@ export default function ReadinessPage() {
                 </Link>
               </div>
             </div>
-            <details className="mt-5 max-w-3xl rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] leading-relaxed text-neutral-500">
+            <details className="mt-5 max-w-3xl rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] leading-relaxed text-neutral-400">
               <summary className="cursor-pointer font-semibold text-neutral-300">How connection status works</summary>
               <p className="mt-2">
                 Credentials present means WM Pro may attempt a connection. It does not mean connected or live.
@@ -234,21 +234,21 @@ export default function ReadinessPage() {
               <div className="rounded-xl border border-[#f0b429]/20 bg-gradient-to-br from-[#f0b429]/10 to-black/50 px-4 py-4">
                 <div className="text-[10px] uppercase tracking-[0.2em] text-[#f0b429]/75">Providers configured</div>
                 <div className="mt-2 font-mono text-2xl text-neutral-50">{state.wireboard.summary}</div>
-                <div className="mt-1 text-[10px] text-neutral-500">Presence allows an attempt. It is not a live receipt.</div>
+                <div className="mt-1 text-[10px] text-neutral-400">Presence allows an attempt. It is not a live receipt.</div>
               </div>
               <div className="rounded-xl border border-emerald-500/15 bg-gradient-to-br from-emerald-500/[0.07] to-black/50 px-4 py-4">
                 <div className="text-[10px] uppercase tracking-[0.2em] text-emerald-300/70">Required names present</div>
                 <div className="mt-2 font-mono text-2xl text-neutral-50">
                   {state.wireboard.envPresentCount}/{state.wireboard.envTotalCount}
                 </div>
-                <div className="mt-1 text-[10px] text-neutral-500">Values stay sealed in approved runtime stores.</div>
+                <div className="mt-1 text-[10px] text-neutral-400">Values stay sealed in approved runtime stores.</div>
               </div>
               <div className={`rounded-xl border px-4 py-4 ${state.wireboard.accountService.blockerClass === "SETUP PRESENT" ? "border-emerald-500/15 bg-gradient-to-br from-emerald-500/[0.07] to-black/50" : "border-rose-500/20 bg-gradient-to-br from-rose-500/[0.08] to-black/50"}`}>
                 <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-400">Account service</div>
                 <div className={`mt-2 font-mono text-sm font-semibold ${state.wireboard.accountService.blockerClass === "SETUP PRESENT" ? "text-emerald-300" : "text-rose-300"}`}>
                   {state.wireboard.accountService.blockerClass}
                 </div>
-                <div className="mt-2 text-[10px] leading-relaxed text-neutral-500">{state.wireboard.accountService.detail}</div>
+                <div className="mt-2 text-[10px] leading-relaxed text-neutral-400">{state.wireboard.accountService.detail}</div>
               </div>
             </div>
 
@@ -281,11 +281,11 @@ export default function ReadinessPage() {
                           host has <span className="text-amber-300">{miss.found}</span>
                         </span>
                       </div>
-                      <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-500">{miss.detail}</p>
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-400">{miss.detail}</p>
                     </li>
                   ))}
                 </ul>
-                <p className="mt-3 text-[10px] leading-relaxed text-neutral-500">
+                <p className="mt-3 text-[10px] leading-relaxed text-neutral-400">
                   Names only — no secret value is read or shown on either side of a pairing. A matching name
                   does not prove the value behind it is valid; that still needs a live probe.
                 </p>
@@ -329,7 +329,7 @@ export default function ReadinessPage() {
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold text-neutral-100">{row.label}</span>
-                          <span className="rounded border border-white/5 bg-black/40 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-neutral-500">
+                          <span className="rounded border border-white/5 bg-black/40 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-neutral-400">
                             {row.lane}
                           </span>
                         </div>
@@ -382,7 +382,7 @@ export default function ReadinessPage() {
                           )}
                           <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-200">{row.live.nextAction}</p>
                           <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-400">{row.live.note}</p>
-                          <p className="mt-1 font-mono text-[9px] text-neutral-600">provider state {row.live.state}</p>
+                          <p className="mt-1 font-mono text-[9px] text-neutral-400">provider state {row.live.state}</p>
                         </div>
                       )}
                       <p className="mt-3 text-xs leading-relaxed text-neutral-300">
@@ -418,7 +418,7 @@ export default function ReadinessPage() {
                           ))}
                         </ul>
                       )}
-                      <details className="mt-3 border-t border-white/5 pt-2 text-[11px] leading-relaxed text-neutral-500">
+                      <details className="mt-3 border-t border-white/5 pt-2 text-[11px] leading-relaxed text-neutral-400">
                         <summary className="cursor-pointer font-semibold text-neutral-400">Technical receipt</summary>
                         <p className="mt-2">{row.blockerDetail}</p>
                         {row.note ? <p className="mt-2">{row.note}</p> : null}
@@ -451,7 +451,7 @@ export default function ReadinessPage() {
               </h2>
 
               {cert.phase === "loading" && (
-                <p className="mt-2 text-[11px] text-neutral-500">Reading the certification receipt…</p>
+                <p className="mt-2 text-[11px] text-neutral-400">Reading the certification receipt…</p>
               )}
 
               {cert.phase === "error" && (
@@ -490,7 +490,7 @@ export default function ReadinessPage() {
                               at {row.joint}
                             </span>
                           )}
-                          <span className="ml-auto font-mono text-[10px] text-neutral-500">
+                          <span className="ml-auto font-mono text-[10px] text-neutral-400">
                             {/*
                               Spelled out rather than rendered as "0/12". A bare
                               fraction reads as a failing grade; the words carry
@@ -501,7 +501,7 @@ export default function ReadinessPage() {
                           </span>
                         </div>
                         <p className="mt-2 text-[11px] leading-relaxed text-neutral-400">{row.detail}</p>
-                        <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-neutral-600">
+                        <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-neutral-400">
                           Owner: {row.owner === "NOBODY" ? "no direct action" : row.owner.toLowerCase()}
                         </p>
                       </li>
@@ -511,7 +511,7 @@ export default function ReadinessPage() {
               )}
             </section>
 
-            <p className="mt-7 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-[11px] leading-relaxed text-neutral-500">
+            <p className="mt-7 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-[11px] leading-relaxed text-neutral-400">
               This wireboard is observability, not a second source of authority. Presence of a key never
               certifies a live connection. A row shows SETUP PRESENT or NOT CONFIGURED when presence is all
               this page has — and says NOT MEASURED out loud so a quiet row is never mistaken for a passing

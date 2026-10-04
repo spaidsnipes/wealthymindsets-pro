@@ -775,7 +775,7 @@ export default function EducationPage() {
                     aria-disabled={mod.locked}
                     aria-label={`${mod.title}, ${mod.level}, ${done} of ${mod.lessons.length} lessons verified${mod.locked ? ", preview locked; unlock rules not connected" : ""}`}
                     className={clsx("w-full flex items-center gap-2 px-3 py-3 transition-colors text-left",
-                      mod.locked ? "opacity-50 cursor-not-allowed" : "hover:bg-wm-surface/40")}>
+                      mod.locked ? "opacity-70 cursor-not-allowed" : "hover:bg-wm-surface/40")}>
                     <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background:mod.color }}/>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">

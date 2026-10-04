@@ -236,7 +236,7 @@ function FillPriceAgeNote({ trade }: { trade: Trade }) {
   if (ageMs == null) {
     return (
       <span
-        className="block text-[9px] text-wm-text-muted/70 not-italic"
+        className="block text-[9px] text-wm-text-muted not-italic"
         title="This trade was booked without recording when its quote was observed, so the age of the fill price is unknown. Unknown is not zero."
       >
         quote age not recorded
@@ -249,7 +249,7 @@ function FillPriceAgeNote({ trade }: { trade: Trade }) {
     : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
   return (
     <span
-      className={clsx("block text-[9px]", seconds >= 60 ? undefined : "text-wm-text-muted/70")}
+      className={clsx("block text-[9px]", seconds >= 60 ? undefined : "text-wm-text-muted")}
       style={seconds >= 60 ? WATCH_TEXT : undefined}
       title={describeFillPriceAge(trade) ?? undefined}
     >
