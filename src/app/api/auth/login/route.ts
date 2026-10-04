@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { edgeAllows, tooManyRequests, clientIp, AUTH_LOGIN_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import {
   verifyPassword, signJWT, setAuthCookie, verifyJWT, getAuthToken,
   userStore, useSupabase, supabaseSignIn,
@@ -45,6 +47,15 @@ function alertIfNewDevice(req: Request, res: NextResponse, email?: string) {
 export async function POST(req: Request) {
   const { email, password } = await req.json().catch(() => ({})) as Record<string, string>;
   if (!email || !password) return NextResponse.json({ error: "Email and password required" }, { status: 400 });
+  // Brute-force / lockout guard (2026-10-04) — see AUTH_LOGIN_LIMITER_BINDING.
+  {
+    const ip = clientIp(req), who = String(email).trim().toLowerCase();
+    const byIp = checkRateLimit(`login-ip:${ip}`, { max: 30, windowMs: 600_000 });
+    if (!byIp.ok) return tooManyRequests();
+    const byAddr = checkRateLimit(`login-addr:${who}`, { max: 10, windowMs: 600_000 });
+    if (!byAddr.ok) return tooManyRequests();
+    if (!(await edgeAllows([`ip:${ip}`, `addr:${who}`], AUTH_LOGIN_LIMITER_BINDING))) return tooManyRequests();
+  }
 
   /* ── Supabase path ── */
   if (useSupabase()) {

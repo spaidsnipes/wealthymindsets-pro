@@ -14,6 +14,11 @@
 export const AUTH_MAIL_LIMITER_BINDING = "AUTH_MAIL_LIMITER";
 /** SpaidBot spends the operator's Gemini quota: 10 / signed-in user / min. */
 export const SPAIDBOT_LIMITER_BINDING = "SPAIDBOT_LIMITER";
+/** Sign-in attempts: 10 / min per client IP and per address. The Worker calls
+ *  Supabase from Cloudflare's IPs, so Supabase's own per-IP limit sees every
+ *  user as one caller — without this, one attacker could brute-force a password
+ *  or exhaust that shared limit and lock everyone out. */
+export const AUTH_LOGIN_LIMITER_BINDING = "AUTH_LOGIN_LIMITER";
 /** Lounge posts / comments and Radio writes: 10 / signed-in user / min (anti-flood). */
 export const COMMUNITY_WRITE_LIMITER_BINDING = "COMMUNITY_WRITE_LIMITER";
 
@@ -45,6 +50,11 @@ export async function edgeAllows(keys: readonly string[], binding = AUTH_MAIL_LI
     }
   }
   return true;
+}
+
+/** The caller's IP as Cloudflare saw it ("unknown" off the edge). */
+export function clientIp(req: Request): string {
+  return req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 }
 
 export function tooManyRequests(): Response {

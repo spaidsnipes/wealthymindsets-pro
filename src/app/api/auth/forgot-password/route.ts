@@ -18,9 +18,9 @@ export async function POST(req: Request) {
   {
     const ip = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
     const byIp = checkRateLimit(`auth-mail-ip:${ip}`, { max: 20, windowMs: 600_000 });
-    if (!byIp.ok) return byIp.response;
+    if (!byIp.ok) return tooManyRequests();
     const who = String(email ?? "").trim().toLowerCase();
-    if (who) { const byAddr = checkRateLimit(`auth-mail-addr:${who}`, { max: 5, windowMs: 600_000 }); if (!byAddr.ok) return byAddr.response; }
+    if (who) { const byAddr = checkRateLimit(`auth-mail-addr:${who}`, { max: 5, windowMs: 600_000 }); if (!byAddr.ok) return tooManyRequests(); }
     // The ceiling that holds across isolates (Workers Rate Limiting binding).
     if (!(await edgeAllows(who ? [`ip:${ip}`, `addr:${who}`] : [`ip:${ip}`]))) return tooManyRequests();
   }

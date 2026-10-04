@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { edgeAllows, tooManyRequests, clientIp } from "@/lib/edgeRateLimit";
 import {
   hashPassword, signJWT, setAuthCookie, userStore, useSupabase, supabaseSignUp,
 } from "@/lib/auth";
@@ -12,6 +14,13 @@ export async function POST(req: Request) {
   const { email, password, firstName } = await req.json().catch(() => ({})) as Record<string, string>;
   if (!email || !password) return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
   if (password.length < 8) return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+  // Signup sends a confirmation email to any address typed (2026-10-04).
+  {
+    const ip = clientIp(req);
+    const byIp = checkRateLimit(`signup-ip:${ip}`, { max: 10, windowMs: 600_000 });
+    if (!byIp.ok) return tooManyRequests();
+    if (!(await edgeAllows([`signup-ip:${ip}`, `addr:${String(email).trim().toLowerCase()}`]))) return tooManyRequests();
+  }
 
   /* ── Supabase path ── */
   if (useSupabase()) {
