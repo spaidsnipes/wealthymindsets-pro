@@ -5004,6 +5004,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             }}
           >
             {whyOpen ? "▾ Why" : "▸ Why"}
+            {/* Closed, the trigger was a wide frame around one word (phone,
+                2026-10-04). It now carries the verdict's own one-line reason;
+                the tap still opens the full explanation. */}
+            {!whyOpen && chartCanvasVM.decisionWhy?.headline ? (
+              <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 500, color: "#a89c80", marginLeft: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-block", maxWidth: "calc(100% - 52px)", verticalAlign: "bottom" }}>
+                · {chartCanvasVM.decisionWhy.headline}
+              </span>
+            ) : null}
           </button>
         )}
         {/* Secondary utilities share one fallback door on views where the
