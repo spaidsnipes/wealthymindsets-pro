@@ -308,7 +308,22 @@ export async function getTastytradeFuturesOptionChain(productCode: string): Prom
  * NOT an OAuth secret — tastytrade issues it for the client to open the stream
  * itself. Returned only through an owner-gated route.
  */
+// tastytrade's quote token lives 24 h; one chart load asked for it 4 times
+// (2026-10-03), each a round trip to tastytrade. Held 20 min per isolate.
+const QUOTE_TOKEN_TTL_MS = 20 * 60_000;
+let quoteTokenMemo: { at: number; value: { token: string; dxlinkUrl: string; level: string | null } } | null = null;
+let quoteTokenInFlight: Promise<{ token: string; dxlinkUrl: string; level: string | null }> | null = null;
+
 export async function getTastytradeQuoteToken(): Promise<{ token: string; dxlinkUrl: string; level: string | null }> {
+  if (quoteTokenMemo && Date.now() - quoteTokenMemo.at < QUOTE_TOKEN_TTL_MS) return quoteTokenMemo.value;
+  if (quoteTokenInFlight) return quoteTokenInFlight;
+  quoteTokenInFlight = fetchTastytradeQuoteToken()
+    .then(value => { quoteTokenMemo = { at: Date.now(), value }; return value; })
+    .finally(() => { quoteTokenInFlight = null; });
+  return quoteTokenInFlight;
+}
+
+async function fetchTastytradeQuoteToken(): Promise<{ token: string; dxlinkUrl: string; level: string | null }> {
   const r = await ttGet<any>("/api-quote-tokens");
   const d = r?.data ?? r;
   const token = typeof d?.token === "string" ? d.token : "";

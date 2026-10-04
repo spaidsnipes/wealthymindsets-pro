@@ -14,6 +14,7 @@
  * stream keeps its one owner (tastyQuoteStream).
  */
 
+import { fetchQuoteToken } from "./tastyQuoteTokenClient";
 import type { ContractEvent } from "@/lib/broker/tastyContractQuote";
 import { isSnapshotEnd } from "@/lib/marketData/adapters/tastytradeCandles";
 
@@ -38,9 +39,9 @@ export async function fetchTastyTimeAndSales(
 ): Promise<TastyPrintHistory | null> {
   let tok: { state?: string; token?: string; dxlinkUrl?: string } | null = null;
   try {
-    const r = await fetch("/api/broker/tastytrade/quote-token", { cache: "no-store", signal: opts.signal });
-    if (!r.ok) return null;
-    tok = await r.json();
+    const a = await fetchQuoteToken(opts.signal);
+    if (a.status !== 200) return null;
+    tok = a.body;
   } catch { return null; }
   if (tok?.state !== "OK" || !tok.token || !tok.dxlinkUrl) return null;
   const token = tok.token;

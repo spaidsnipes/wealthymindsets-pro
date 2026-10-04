@@ -11,6 +11,7 @@
  * State is a plain store read through useSyncExternalStore.
  */
 
+import { fetchQuoteToken, forgetQuoteToken } from "./tastyQuoteTokenClient";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 import {
@@ -98,9 +99,9 @@ async function connect() {
   let tok: { state?: string; token?: string; dxlinkUrl?: string; reason?: string; error?: string } | null = null;
   let status = 0;
   try {
-    const r = await fetch("/api/broker/tastytrade/quote-token", { cache: "no-store" });
-    status = r.status;
-    tok = await r.json().catch(() => null);
+    const a = await fetchQuoteToken();
+    status = a.status;
+    tok = a.body;
   } catch { /* network */ }
   if (status === 403) { emit({ stream: "NOT_OWNER", reason: tok?.error ?? "tastytrade market data belongs to its owner only." }); return; }
   if (tok?.state === "NOT_CONFIGURED") { emit({ stream: "NOT_CONNECTED", reason: "tastytrade is not connected on this deployment." }); return; }
@@ -112,7 +113,8 @@ async function connect() {
   const token = tok.token;
   sock.onopen = () => send(buildSetupFrame());
   sock.onerror = () => { /* onclose follows */ };
-  sock.onclose = () => { if (ws === sock) scheduleRetry("tastytrade stream closed; reconnecting."); };
+  // A close may mean the token was refused: the reconnect asks for a fresh one.
+  sock.onclose = () => { if (ws === sock) { forgetQuoteToken(); scheduleRetry("tastytrade stream closed; reconnecting."); } };
   sock.onmessage = ev => {
     let m: { type?: string; channel?: number; state?: string; data?: unknown; error?: string; message?: string };
     try { m = JSON.parse(String(ev.data)); } catch { return; }
