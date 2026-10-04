@@ -126,7 +126,10 @@ async function fetchFeed(feed: Feed): Promise<NormalizedNewsItem[]> {
       cache: "no-store",
       // Follow redirects (MarketWatch/CoinDesk/WatcherGuru 301/308).
       redirect: "follow",
-      signal: AbortSignal.timeout(9000),
+      // 6 s, not 9: a feed that has not answered by then is skipped — the
+      // whole response used to wait out the slowest publisher (measured
+      // 2026-10-03: ~9 s per /news load).
+      signal: AbortSignal.timeout(6000),
     });
     if (!res.ok) return [];
     const xml = await res.text();
@@ -182,12 +185,25 @@ async function fetchXTimeline(bearer: string): Promise<NormalizedNewsItem[]> {
   } catch { return []; }
 }
 
+// The PUBLIC publisher feeds are the same for every trader, so one read is
+// held 3 min per isolate; a visit inside that window answers at once. Feeds
+// behind a trader's OWN key are never shared and are read every time.
+const PUBLIC_TTL_MS = 3 * 60_000;
+let publicMemo: { at: number; items: NormalizedNewsItem[] } | null = null;
+
+async function publicFeeds(): Promise<NormalizedNewsItem[]> {
+  if (publicMemo && Date.now() - publicMemo.at < PUBLIC_TTL_MS) return publicMemo.items;
+  const items = (await Promise.all(FEEDS.map(fetchFeed))).flat();
+  if (items.length) publicMemo = { at: Date.now(), items };
+  return items;
+}
+
 export async function GET(request: Request) {
   const newsApiKey = request.headers.get("x-newsapi-key")?.trim();
   const xBearer    = request.headers.get("x-x-bearer")?.trim();
 
   const all = await Promise.all([
-    ...FEEDS.map(fetchFeed),
+    publicFeeds(),
     newsApiKey ? fetchNewsAPI(newsApiKey) : Promise.resolve([]),
     xBearer    ? fetchXTimeline(xBearer)  : Promise.resolve([]),
   ]);
