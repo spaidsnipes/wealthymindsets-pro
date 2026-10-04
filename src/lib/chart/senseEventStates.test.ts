@@ -44,3 +44,10 @@ describe("per-bar stacked imbalances count as on camera (2026-10-04)", () => {
     expect(senseEventStates({ imbalanceStack: "NO_STACK", imbalanceStackBars: "RUNS:0|BARS:54" }).IMBALANCE_STACK).toBe(SENSE_NO_EVENT);
   });
 });
+
+describe("an ordinary effort mark is no event (2026-10-04)", () => {
+  it("ORDINARY:<why> reads NO CURRENT EVENT", async () => {
+    const { senseEventStates, SENSE_NO_EVENT } = await import("./senseEventStates");
+    expect(senseEventStates({ effortMark: "ORDINARY:UNREMARKABLE" }).EFFORT_MARK).toBe(SENSE_NO_EVENT);
+  });
+});

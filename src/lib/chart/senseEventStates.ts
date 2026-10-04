@@ -55,7 +55,8 @@ export function senseEventStates(r: Receipts): Record<string, string> {
 
   const effort = r.effortMark;
   if (effort === "DRAWN") out.EFFORT_MARK = SENSE_ON_CAMERA;
-  else if (effort === "UNREAD") out.EFFORT_MARK = SENSE_NO_EVENT;
+  // ORDINARY:<why> = the mark read the bar and found nothing remarkable (2026-10-04).
+  else if (effort === "UNREAD" || (effort ?? "").startsWith("ORDINARY")) out.EFFORT_MARK = SENSE_NO_EVENT;
   // A renderer fault overrides an older successful receipt from the same
   // frame. Fault text identifies the layer; it never proves missing entitlement.
   const faultOwners: Record<string, string> = {
