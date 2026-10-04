@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, BellOff, X, Plus, ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { wmConfirm } from "@/components/ui/wmConfirm";
 
 export interface PriceAlert {
   id: string;
@@ -301,7 +302,7 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
                       </div>
                     </div>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         // Alerts are real trading signals the trader set with
                         // intent; deleting one silently could miss a setup.
                         // Confirm with the specific alert being removed.
@@ -309,7 +310,7 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
                                    : alert.type === "below" ? `Price crosses below ${alert.price}`
                                    : alert.type === "pct-up" ? `+${alert.pct ?? "?"}% move up`
                                    : `-${alert.pct ?? "?"}% move down`;
-                        if (!window.confirm(`Delete alert for ${alert.symbol}?\n\n${desc}\n\nYou will no longer be notified when this triggers.`)) return;
+                        if (!(await wmConfirm(`Delete alert for ${alert.symbol}?\n\n${desc}\n\nYou will no longer be notified when this triggers.`))) return;
                         removeAlert(alert.id);
                       }}
                       aria-label={`Delete ${alert.symbol} alert (requires confirmation)`}

@@ -19,6 +19,7 @@ import {
 import { HeaderPnL } from "@/components/layout/HeaderPnL";
 import { WMSBar } from "@/components/wms/WMSBar";
 import { useWMSAvailable } from "@/contexts/WMSContext";
+import { wmConfirm } from "@/components/ui/wmConfirm";
 
 /**
  * WHAT A TRADER MUST BE ABLE TO REACH FROM ANY ROOM.
@@ -418,7 +419,7 @@ export function ShellAccessChrome({ showPoints = true, compact = false }: ShellA
                   style={{ ...MENU_ITEM, fontSize: 11, color: WM.text.muted }}
                   onClick={async () => {
                     // Named consequence before an irreversible, multi-device act.
-                    if (!window.confirm("Log out of WealthyMindsets Pro on ALL devices? Every other signed-in device will be signed out at its next check.")) return;
+                    if (!(await wmConfirm("Log out of WealthyMindsets Pro on ALL devices? Every other signed-in device will be signed out at its next check."))) return;
                     setProfileOpen(false);
                     await signOutAllDevices();
                   }}

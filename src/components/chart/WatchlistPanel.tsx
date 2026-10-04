@@ -58,6 +58,7 @@ import { readSymbolList } from "@/lib/marketData/storedSymbolList";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { coerceChangeWindow, type ChangeWindow } from "@/lib/marketData/changeWindow";
 import { WATCH_LIVE_FRESH_MS, useTastyWatchQuotes } from "@/lib/broker/useTastyWatchQuotes";
+import { wmConfirm } from "@/components/ui/wmConfirm";
 
 interface FinnhubQuote {
   price: number; change: number; changePct: number; changeObserved: boolean; changeWindow: ChangeWindow; src: string;
@@ -419,7 +420,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
     reader.readAsText(file);
     e.target.value = "";
   };
-  const deleteList = (name: string) => {
+  const deleteList = async (name: string) => {
     // A watchlist is a curated symbol set — often built over months. The
     // trigger is a 6px × icon next to the tab label with a real mis-click
     // radius. Confirm with the exact count about to be lost.
@@ -427,7 +428,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
     const summary = count > 0
       ? `"${name}" contains ${count} symbol${count === 1 ? "" : "s"}. This cannot be undone.`
       : `"${name}" is empty.`;
-    if (!window.confirm(`Delete watchlist "${name}"?\n\n${summary}`)) return;
+    if (!(await wmConfirm(`Delete watchlist "${name}"?\n\n${summary}`))) return;
     setLists(prev => {
       if (Object.keys(prev).length <= 1) return prev; // keep at least one
       const next = { ...prev }; delete next[name];

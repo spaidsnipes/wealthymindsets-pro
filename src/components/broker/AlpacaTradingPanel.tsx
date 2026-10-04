@@ -22,6 +22,7 @@ import {
 import { selectExitPermission } from "@/lib/exitPermission";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
+import { wmConfirm } from "@/components/ui/wmConfirm";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface AlpacaAccount {
@@ -949,14 +950,14 @@ export function AlpacaTradingPanel({
                       </div>
                       {isOpen && (
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             // cancelOrder calls the Alpaca API to cancel an
                             // open order. Alpaca defaults to paper, but real
                             // accounts can be connected — treat every cancel
                             // as potentially real financial state.
                             const side = (ord.side ?? "").toUpperCase();
                             const desc = `${side} ${ord.qty} ${ord.symbol}${ord.limit_price ? ` @ ${fmt$(ord.limit_price)}` : " (market)"}`;
-                            if (!window.confirm(`Cancel this open order?\n\n${desc}\n\nThe order will not execute.`)) return;
+                            if (!(await wmConfirm(`Cancel this open order?\n\n${desc}\n\nThe order will not execute.`))) return;
                             cancelOrder(ord.id);
                           }}
                           aria-label={`Cancel ${ord.side ?? ""} ${ord.qty} ${ord.symbol} order (requires confirmation)`}

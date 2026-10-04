@@ -32,6 +32,7 @@ import {
   streakIsWorthShowing,
 } from "@/components/experience/DisciplineStreakChip";
 import type { EdgeEntry } from "@/lib/proofLane/selectSessionEdge";
+import { wmConfirm } from "@/components/ui/wmConfirm";
 import {
   readMorningPrepEntries,
   writeMorningPrepEntries,
@@ -398,7 +399,7 @@ export default function MorningPrepPage() {
       ...e, checklist: e.checklist.map(i => i.id === itemId ? { ...i, done: !i.done } : i),
     }));
   };
-  const deleteEntry = (id: string) => {
+  const deleteEntry = async (id: string) => {
     // Morning-prep entries are the durable record of a morning's practice —
     // browser-local, no server tier, no undo. Require explicit confirmation
     // naming the specific morning about to be lost.
@@ -406,7 +407,7 @@ export default function MorningPrepPage() {
     if (!entry) return;
     const done = entry.checklist.filter(i => i.done).length;
     const summary = `${fmtDate(entry.date)} — ${done} practice${done === 1 ? "" : "s"} marked`;
-    if (!window.confirm(`Delete this morning's prep?\n\n${summary}\n\nThis cannot be undone.`)) return;
+    if (!(await wmConfirm(`Delete this morning's prep?\n\n${summary}\n\nThis cannot be undone.`))) return;
     persist(entries.filter(e => e.id !== id));
   };
 

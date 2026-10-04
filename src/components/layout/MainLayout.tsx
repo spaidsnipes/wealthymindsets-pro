@@ -35,6 +35,7 @@ import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { selectNavEmphasis } from "@/lib/experience/selectNavEmphasis";
 import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+import { wmConfirm } from "@/components/ui/wmConfirm";
 
 /**
  * The shell PANELS — search, notifications, settings, sign-out — are no longer
@@ -493,7 +494,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     </button>
                     <button
                       onClick={async () => {
-                        if (!window.confirm("Log out of WealthyMindsets Pro on ALL devices? Every other signed-in device will be signed out at its next check.")) return;
+                        if (!(await wmConfirm("Log out of WealthyMindsets Pro on ALL devices? Every other signed-in device will be signed out at its next check."))) return;
                         setProfileOpen(false);
                         await signOutAllDevices();
                       }}

@@ -21,6 +21,7 @@ import { PineEditor } from "./PineEditor";
 import { interpretPine, validatePine } from "@/lib/pine/interpreter";
 import type { PineOutput } from "@/lib/pine/types";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import { wmConfirm } from "@/components/ui/wmConfirm";
 
 /* ── Starter templates ─────────────────────────────────────── */
 const TEMPLATES: { name: string; desc: string; category: string; code: string }[] = [
@@ -289,13 +290,13 @@ export function CustomIndicatorBuilder({ onClose, bars, onAddToChart, activeCode
     saveSaved(next);
   };
 
-  const deleteScript = (id: string) => {
+  const deleteScript = async (id: string) => {
     // Custom Pine scripts can represent hours of iterative work — no
     // server backup, no undo. Require confirmation naming the script.
     const s = saved.find(x => x.id === id);
     if (!s) return;
     const lines = s.code.split("\n").length;
-    if (!window.confirm(`Delete Pine script "${s.name}"?\n\n${lines} line${lines === 1 ? "" : "s"} of code. This cannot be undone.`)) return;
+    if (!(await wmConfirm(`Delete Pine script "${s.name}"?\n\n${lines} line${lines === 1 ? "" : "s"} of code. This cannot be undone.`))) return;
     const next = saved.filter(x => x.id !== id);
     setSaved(next);
     saveSaved(next);

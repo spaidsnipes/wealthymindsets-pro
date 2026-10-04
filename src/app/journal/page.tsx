@@ -120,6 +120,7 @@ import {
 import type { JournalRecordCoverage } from "@/lib/journal/journalRecordShape";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { wmConfirm } from "@/components/ui/wmConfirm";
 
 /* ── Emoji palette ───────────────────────────────────────── */
 const EMOJIS = [
@@ -2663,13 +2664,13 @@ Trade the system, trust the process, winners every day 🚀`,
                     <Star size={16} className={selected.starred ? "text-wm-gold fill-wm-gold" : "text-wm-text-muted"} aria-hidden="true" />
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       // Journal entries are the durable record of a real trade.
                       // Deletion is irreversible (no server tier + no undo). The
                       // trash icon sits right next to Star with a 22px hit box —
                       // require an explicit confirmation naming what will be lost.
                       const label = `${selected.date} · ${selected.symbol} ${selected.side.toUpperCase()} (${fmtPnl(selected.pnl)})`;
-                      if (!window.confirm(`Permanently delete this journal entry?\n\n${label}\n\nThis cannot be undone.`)) return;
+                      if (!(await wmConfirm(`Permanently delete this journal entry?\n\n${label}\n\nThis cannot be undone.`))) return;
                       setEntries(e => e.filter(x => x.id !== selected.id));
                       setSelected(null);
                     }}

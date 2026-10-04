@@ -8,6 +8,7 @@ import {
   ChevronDown, Pen,
 } from "lucide-react";
 import type { DrawingTool, DrawingStyle, DashStyle } from "@/types/chart";
+import { wmConfirm } from "@/components/ui/wmConfirm";
 import {
   DEFAULT_DRAWING_STYLE,
   isStyleCapableTool,
@@ -475,12 +476,12 @@ export function DrawingToolsPanel({
         {visible ? <Eye size={11} /> : <EyeOff size={11} />}
       </button>
       <button
-        onClick={() => {
+        onClick={async () => {
           // Clear-all wipes every drawing the trader placed this session —
           // trendlines, annotations, measurements, everything. There is no
           // undo. Two ChartsDashboard call sites both wire this direct;
           // gating the confirmation here means both inherit it.
-          if (!window.confirm("Clear all drawings on this chart?\n\nEvery trendline, level, annotation, and measurement you placed will be removed. This cannot be undone.")) return;
+          if (!(await wmConfirm("Clear all drawings on this chart?\n\nEvery trendline, level, annotation, and measurement you placed will be removed. This cannot be undone."))) return;
           onClearAll();
         }}
         title="Clear all drawings"

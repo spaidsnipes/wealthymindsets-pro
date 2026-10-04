@@ -123,6 +123,7 @@ import { readSceneDecision, writeSceneDecision } from "@/lib/traderMemory/decisi
 import { useAuth } from "@/contexts/AuthContext";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { recordDecisionIntent } from "@/lib/traderMemory/recordDecisionIntent";
+import { wmConfirm } from "@/components/ui/wmConfirm";
 import { validateTicketLevels, purposeOrderType, purposeSentence, purposeTradeoff,
          TICKET_PURPOSES, type OrderPurpose, type TicketLevelIssue } from "@/lib/orderPurpose";
 
@@ -2384,7 +2385,7 @@ export default function PaperTradingPage() {
     }
   };
 
-  const resetAccount = () => {
+  const resetAccount = async () => {
     // Reset is an overwrite. It must never replace bytes WM cannot read UNTIL
     // the trader has been handed those bytes — at which point discarding them
     // stops being data loss and becomes their decision to make.
@@ -2410,7 +2411,7 @@ export default function PaperTradingPage() {
       : parts.length > 0
         ? `This will permanently delete ${parts.join(" and ")} plus your cash balance and equity curve. This cannot be undone.`
         : "This will reset cash to $100,000 and clear the equity curve.";
-    if (!window.confirm(`Reset paper trading?\n\n${summary}\n\nContinue?`)) return;
+    if (!(await wmConfirm(`Reset paper trading?\n\n${summary}\n\nContinue?`))) return;
     const fresh: PaperState = {
       revision: paperRevisionRef.current,
       cash: STARTING_CASH,

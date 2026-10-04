@@ -33,6 +33,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { selectLoungeDiscovery } from "@/lib/loungeDiscovery";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { wmConfirm } from "@/components/ui/wmConfirm";
 
 /* ══════════════════════════════════════════════════════════════
    TYPES
@@ -237,7 +238,7 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
     // be undone. Require explicit confirmation naming the specific
     // post (first ~60 chars of content) about to be removed.
     const preview = post.content.length > 60 ? `${post.content.slice(0, 60)}…` : post.content;
-    if (!window.confirm(`Delete this Lounge post?\n\n"${preview}"\n\nOther traders may have seen it. This cannot be undone.`)) return;
+    if (!(await wmConfirm(`Delete this Lounge post?\n\n"${preview}"\n\nOther traders may have seen it. This cannot be undone.`))) return;
     const r = await loungeApi({ body: { op: "delete", postId: post.id } });
     if (r.status !== 200) { toast.error(r.data?.error ?? "Delete failed"); return; }
     onDelete?.(post.id);
