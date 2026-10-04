@@ -1012,7 +1012,7 @@ export default function ScannerPage() {
               {l:"Chg%",k:"changePct"},{l:"Vol×",k:"volRatio"},{l:"RSI",k:"rsi"},
               {l:"Str",k:"strength"},{l:"Sector",k:null},{l:"Chart",k:null},{l:"",k:null},
             ].map(({l,k},i) => (
-              <div role="button" tabIndex={0} onKeyDown={keyActivates} key={i} className={clsx("px-2 py-1.5 text-[9px] font-bold text-wm-text-dim uppercase tracking-wider flex items-center gap-0.5",
+              <div role={k ? "button" : undefined} tabIndex={k ? 0 : undefined} onKeyDown={k ? keyActivates : undefined} aria-sort={k && sortKey === k ? (sortDir === "asc" ? "ascending" : "descending") : undefined} key={i} className={clsx("px-2 py-1.5 text-[9px] font-bold text-wm-text-dim uppercase tracking-wider flex items-center gap-0.5",
                 k && "cursor-pointer hover:text-wm-text select-none")}
                 onClick={() => k && sortToggle(k as SortKey)}>
                 {l}{k && <SortIcon k={k as SortKey}/>}
