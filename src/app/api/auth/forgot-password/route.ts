@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { useSupabase, supabaseResetPassword } from "@/lib/auth";
 import { CANONICAL_URL as CONFIGURED_URL } from "@/lib/canonicalUrl";
 import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
@@ -11,6 +12,15 @@ import { classifyPasswordRecovery, type RecoveryObservation } from "@/lib/passwo
 export async function POST(req: Request) {
   const { email } = await req.json().catch(() => ({})) as Record<string, string>;
   if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
+  // Anyone can trigger these mails (guest audit 2026-10-04): per address and
+  // per IP. In-memory per isolate — it blunts a loop, it is not a firewall.
+  {
+    const ip = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const byIp = checkRateLimit(`auth-mail-ip:${ip}`, { max: 20, windowMs: 600_000 });
+    if (!byIp.ok) return byIp.response;
+    const who = String(email ?? "").trim().toLowerCase();
+    if (who) { const byAddr = checkRateLimit(`auth-mail-addr:${who}`, { max: 5, windowMs: 600_000 }); if (!byAddr.ok) return byAddr.response; }
+  }
 
   if (useSupabase()) {
     // Observe, then classify. This route decides nothing itself: the rule that
