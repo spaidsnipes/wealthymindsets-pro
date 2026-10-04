@@ -7845,6 +7845,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
         const hoverIdD = bubbleHoverRef.current;
         let deltaDrawn = 0;
+        let deltaQuiet = 0;
         for (const b of deltaBubblesRef.current) {
           const buy = b.side === "buy";
           const core = buy ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
@@ -7854,8 +7855,27 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const Rx = Math.max(0.1, b.r * wob);
           const Ry = Math.max(0.1, b.r / wob);
           const selB = selectedBubbleKey != null && b.spawnKey === selectedBubbleKey;
+          // HIERARCHY (Founder 2026-10-04: "make the bubbles look more wow"):
+          // serving BTC 5m MID drew 206 equally-lit orbs — the heavy zones
+          // drowned in their own crowd. A zone under 12 % of the frame's peak
+          // is still drawn (it is real), as a quiet bead: no halo, no glow,
+          // no number. The zones that matter keep the light.
+          const quiet = !isHover && !selB && deltaFramePeak > 0 && Math.abs(b.value) / deltaFramePeak < 0.12;
           ctx.save();
           ctx.globalAlpha = att.alpha("bubbles", { selectedItem: selB });
+          if (quiet) {
+            ctx.globalAlpha *= 0.55;
+            ctx.beginPath();
+            ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${core},0.22)`;
+            ctx.fill();
+            ctx.lineWidth = 1.2;
+            ctx.strokeStyle = `rgba(${core},0.75)`;
+            ctx.stroke();
+            ctx.restore();
+            if (b.x + Rx >= 0 && b.x - Rx <= plotRight) { fpTrailBars.add(b.anchorBarTime); deltaDrawn++; deltaQuiet++; }
+            continue;
+          }
           ctx.beginPath();
           ctx.ellipse(b.x, b.y, Rx + 4, Ry + 4, 0, 0, Math.PI * 2);
           ctx.fillStyle = `rgba(${core},0.10)`;
@@ -7923,6 +7943,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
         fpRings += deltaDrawn;
         canvas.dataset.deltaBubblesDrawn = String(deltaDrawn);
+        canvas.dataset.deltaBubblesQuiet = String(deltaQuiet);
       } else if (deltaBubblesRef.current.length) {
         deltaBubblesRef.current = [];
         deltaBubbleSpawnRef.current = new Set();

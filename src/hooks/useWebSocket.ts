@@ -43,6 +43,7 @@ import { inferEquityAggressor } from "@/lib/marketData/adapters/tastytradeEquity
 import { tastyTimeAndSaleToMarketEvent, tastyTradeToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
 import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { coinbaseProduct } from "@/lib/marketData/coinbaseProduct";
+import { coinbaseProductFor, fetchCoinbaseTradeHistory } from "@/lib/marketData/coinbaseTradeBackfill";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 import { coalesceQuoteRequest } from "@/lib/marketData/quoteRequestCoalescer";
 import { InFlightRounds } from "@/lib/marketData/inFlightRounds";
@@ -1673,6 +1674,28 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           }
         },
       );
+      // SEED THE ORDER-FLOW RING (serving BTC-USD 5m, 2026-10-04 00:10 CDT):
+      // the chart's footprint filled from Coinbase's public trade history
+      // (40,000 prints) while the Value Candle beside it read TAPE_REQUIRED —
+      // it reads `recentTicks`, which held only the seconds since load. The
+      // same exchange history (exchange aggressor side) fills the ring ONCE,
+      // older than every live print — the futures seed below, for crypto.
+      const seedProduct = coinbaseProductFor(symbol);
+      if (seedProduct) {
+        void fetchCoinbaseTradeHistory(seedProduct, symbol, { sinceMs: Date.now() - 15 * 60_000, maxPages: 3 })
+          .then(({ ticks }) => {
+            if (disposed || ticks.length === 0) return;
+            // A Binance fallback tape is another venue — never seeded with Coinbase prints.
+            if (tapeSourceRef.current != null && tapeSourceRef.current !== "coinbase") return;
+            tapeSourceRef.current = "coinbase";
+            setState(prev => prev.tapeSource != null && prev.tapeSource !== "coinbase" ? prev : {
+              ...prev,
+              recentTicks: seedRecentTicks(prev.recentTicks, ticks),
+              tapeSource: "coinbase",
+            });
+          })
+          .catch(() => { /* live prints still fill the ring */ });
+      }
       // If Coinbase hasn't connected within 4s, spin up Binance.US too.
       cryptoFallbackTimer = setTimeout(() => {
         cryptoFallbackTimer = null;
