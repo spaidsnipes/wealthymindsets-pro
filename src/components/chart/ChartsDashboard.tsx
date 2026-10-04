@@ -7130,7 +7130,7 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
 
   const body = loading ? null : renderTab();
   const secAc = canonicalAssetClass(symbol);
-  const secOwnsTab = (tab === "Profile" || tab === "Financials" || tab === "Corporate Actions")
+  const secOwnsTab = (tab === "Profile" || tab === "Valuation" || tab === "Financials" || tab === "Corporate Actions")
     && (secAc === "equity" || secAc === "etf") && classifySymbol(symbol) !== "INDEX";
 
   return (

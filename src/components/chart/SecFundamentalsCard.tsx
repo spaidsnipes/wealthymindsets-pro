@@ -9,6 +9,8 @@
 import React, { useEffect, useState } from "react";
 
 import type { SecQuarter } from "@/lib/fundamentals/secEdgar";
+import { secValuation } from "@/lib/fundamentals/secValuation";
+import { yahooQuoteObserved, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 
 interface SecBody {
   readonly state: string;
@@ -39,6 +41,25 @@ const fye = (mmdd: string | null | undefined) => (mmdd && /^\d{4}$/.test(mmdd) ?
 export function SecFundamentalsCard({ symbol, tab }: { readonly symbol: string; readonly tab: string }) {
   const [body, setBody] = useState<SecBody | null>(null);
   const [failed, setFailed] = useState(false);
+  // The price the Valuation view divides by — the same quote route the room reads.
+  const [quote, setQuote] = useState<{ price: number; ts: number | null } | null>(null);
+  // SF-D01: a refused quote (e.g. a day close presented as live) never prices
+  // the valuation, and the refusal's own words are shown instead.
+  const [quoteRefused, setQuoteRefused] = useState<string | null>(null);
+  useEffect(() => {
+    if (tab !== "Valuation") return;
+    let off = false;
+    fetch(`/api/yahoo?sym=${encodeURIComponent(symbol.toUpperCase())}&type=quote`, { cache: "no-store" })
+      .then(r => r.json() as Promise<{ price?: number; ts?: number }>)
+      .then(j => {
+        if (off) return;
+        if (!yahooQuoteObserved(j)) { setQuote(null); setQuoteRefused(yahooQuoteRefusal(j) ?? "The quote was refused."); return; }
+        setQuoteRefused(null);
+        if (typeof j.price === "number" && j.price > 0) setQuote({ price: j.price, ts: typeof j.ts === "number" ? j.ts : null });
+      })
+      .catch(() => {});
+    return () => { off = true; };
+  }, [symbol, tab]);
   useEffect(() => {
     let off = false;
     setBody(null); setFailed(false);
@@ -90,6 +111,36 @@ export function SecFundamentalsCard({ symbol, tab }: { readonly symbol: string; 
             </div>
           </div>
         ) : null}
+        {source}
+      </section>
+    );
+  }
+
+  if (tab === "Valuation") {
+    const v = secValuation(body.quarters ?? [], body.shares?.shares, quote?.price, body.dividends ?? []);
+    const pct = (x: number | null) => (x == null ? "—" : `${(x * 100).toFixed(1)}%`);
+    const mult = (x: number | null) => (x == null ? "—" : `${x.toFixed(1)}×`);
+    const rows: [string, string][] = [
+      ["Market cap", fmtUsdBig(v.marketCap)],
+      ["P/E (market cap ÷ TTM net income)", v.ttmNetIncome != null && v.ttmNetIncome <= 0 ? "n/a — trailing loss" : mult(v.pe)],
+      ["P/S (market cap ÷ TTM revenue)", mult(v.ps)],
+      ["TTM revenue", fmtUsdBig(v.ttmRevenue)],
+      ["TTM net income", fmtUsdBig(v.ttmNetIncome)],
+      ["Gross margin (TTM)", pct(v.grossMargin)],
+      ["Operating margin (TTM)", pct(v.operatingMargin)],
+      ["Net margin (TTM)", pct(v.netMargin)],
+      ["Dividend yield (last 4 declared)", pct(v.dividendYield)],
+    ];
+    return (
+      <section data-testid="sec-fundamentals-valuation" style={BOX}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0", marginBottom: 10 }}>Valuation — computed from filings × price</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(190px,100%),1fr))", gap: 10 }}>
+          {rows.map(([l, val]) => <div key={l} style={CELL}><div style={{ fontSize: 10, color: "#6B7094", marginBottom: 2 }}>{l}</div><div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{val}</div></div>)}
+        </div>
+        <div style={{ fontSize: 11, color: "#8896BE", marginTop: 8 }}>
+          WM calculation: shares outstanding{body.shares ? ` (cover page, ${body.shares.asOf})` : ""} × price {quote ? `$${quote.price.toFixed(2)}` : quoteRefused ? `— (quote refused: ${quoteRefused})` : "— (no quote yet)"}
+          {v.ttmQuarters.length ? `; trailing twelve months = quarters ended ${v.ttmQuarters.join(", ")}` : "; fewer than four filed quarters, so no trailing figures"}. Not a provider estimate.
+        </div>
         {source}
       </section>
     );
