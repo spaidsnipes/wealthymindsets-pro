@@ -17179,7 +17179,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           order: stackOrder,
           // P110: the Living body's reach (~28% of the plot, ≤360px), scaled
           // by the trader's width step. The plan owns the room it takes.
-          livingBodyTarget: Math.min(Math.round(plotRight * 0.28 * stackWidth("LIVING", stackPrefsRef.current)), 360),
+          // Narrow glass (2026-10-04): 28% of a 330px phone plot was ~92px of
+          // body over the newest nine candles — the profile read as a wall on
+          // the market. 18% keeps the shape and gives the candles their edge.
+          livingBodyTarget: Math.min(Math.round(plotRight * (narrowGlass ? 0.18 : 0.28) * stackWidth("LIVING", stackPrefsRef.current)), 360),
         });
         if (stackOrder.length > 0) {
           ds.profileStackLeft = String(stackPlan.stackLeft);
