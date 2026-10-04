@@ -123,6 +123,11 @@ export async function POST(req: NextRequest) {
       if (geminiRes.status === 404 || /no longer available|is not found|not supported/i.test(said)) {
         forgetGeminiModel();
         geminiRes = await ask();
+      } else if (geminiRes.status === 503 || /high demand|overloaded/i.test(said)) {
+        // Google's own "high demand" spikes are short (measured 2026-10-03:
+        // the next ask a few seconds later answered). One pause, one retry.
+        await new Promise(r => setTimeout(r, 1_500));
+        geminiRes = await ask();
       }
     }
     if (!geminiRes) {
