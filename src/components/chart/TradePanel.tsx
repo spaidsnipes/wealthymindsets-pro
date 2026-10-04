@@ -353,7 +353,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             Express it with an option →
           </button>
         ) : null}
-        <button type="button" onClick={onOpenPaper} style={{ background: "none", border: "none", color: MUTED, fontSize: 11, textDecoration: "underline", cursor: "pointer" }}>Paper trading (Alpaca)</button>
+        <button type="button" onClick={onOpenPaper} style={{ background: "none", border: "none", color: MUTED, fontSize: 11, textDecoration: "underline", cursor: "pointer" }}>Alpaca paper account</button>
       </footer>
     </section>
   );
