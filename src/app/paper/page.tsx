@@ -2742,6 +2742,16 @@ export default function PaperTradingPage() {
           * store does not vary with the scene, and a note that appeared only
           * when a position was open would teach that a quiet screen means
           * cross-device parity. */}
+        {/* 2026-10-04 (Founder: "no vague lines"): the reach + progress notes
+            stood as a five-line wall of small type above the book. Same words,
+            one line on top — the boundary is still stated, never silent —
+            and the detail one tap away. */}
+        <details className="group">
+          <summary className="cursor-pointer list-none text-[11px] leading-relaxed text-wm-text-muted">
+            {paperReach.shellClause ?? paperReach.deviceNote}{" "}
+            <span className="text-wm-text-dim underline-offset-2 group-open:hidden hover:underline">Why</span>
+          </summary>
+          <div className="mt-1.5 space-y-2">
         <p role="note" className="text-[10px] leading-relaxed text-wm-text-dim">
           {paperReach.deviceNote}
         </p>
@@ -2784,6 +2794,8 @@ export default function PaperTradingPage() {
             )}
           </div>
         )}
+          </div>
+        </details>
 
         {/* §24 D — records the store refused on read.
           * Renders ONLY when something was actually rejected, so it can never

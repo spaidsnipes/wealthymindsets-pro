@@ -45,6 +45,17 @@ import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
  *
  * DISPLAY ONLY — takes already-compiled evidence, decides nothing.
  */
+/** The reading in a trader's words; the enum stays on data-quality (2026-10-04). */
+const QUALITY_WORDS: Record<string, string> = {
+  LIVE: "live",
+  DELAYED: "delayed",
+  STALE: "quiet — no fresh prints reached this page yet",
+  PARTIAL: "partly connected",
+  PROXY: "read through a proxy feed",
+  REPLAY: "replay",
+  UNAVAILABLE: "not connected on this page",
+};
+
 export default function OpeningBellEvidence({
   evidence,
   dataQuality,
@@ -89,8 +100,8 @@ export default function OpeningBellEvidence({
 
       {/* Observed, so it may be stated. A reading, never a grade. */}
       {dataQuality != null && (
-        <div style={{ fontSize: 11, color: "#c0b8a0", marginTop: 8, lineHeight: 1.5 }}>
-          Market data health right now: <span style={{ color: "#ede6d3" }}>{dataQuality}</span>.
+        <div data-quality={dataQuality} style={{ fontSize: 11, color: "#c0b8a0", marginTop: 8, lineHeight: 1.5 }}>
+          Market data right now: <span style={{ color: "#ede6d3" }}>{QUALITY_WORDS[dataQuality] ?? String(dataQuality).toLowerCase()}</span>.
         </div>
       )}
 
