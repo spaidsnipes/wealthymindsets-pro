@@ -3,6 +3,7 @@
 // it at two render sites with `as number` casts; the sentence is now emitted by
 // `classifyScan` from the same branch that computes the grade, so the page only
 // renders `r.disclosure`. Re-adding this import would re-open the cast door.
+import { readActiveWatchlist, toggleOnActiveWatchlist } from "@/lib/watchlist/activeWatchlist";
 import Link from "next/link";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 
@@ -13,7 +14,7 @@ import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Search, SlidersHorizontal, RefreshCw, TrendingUp, TrendingDown,
-  Zap, AlertCircle, Bell, Star, BarChart2, Activity,
+  Zap, AlertCircle, Star, ListPlus, ListChecks, BarChart2, Activity,
   Filter, ChevronDown, ChevronUp, Pause, Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -432,7 +433,8 @@ function buildResults(
   let alertedSet = new Set<string>();
   try {
     starredSet = new Set(JSON.parse(localStorage.getItem("wm_scanner_starred") || "[]") as string[]);
-    alertedSet = new Set(JSON.parse(localStorage.getItem("wm_scanner_alerted") || "[]") as string[]);
+    // "alerted" = on the trader's active watchlist — the same list /charts reads.
+    alertedSet = new Set(readActiveWatchlist(localStorage).symbols);
   } catch {}
   return SYMS.map(([sym, name], i) => {
     const q   = quotes.get(sym);
@@ -714,12 +716,14 @@ export default function ScannerPage() {
     });
   };
   const toggleAlert = (id: string) => {
-    setResults(p => {
-      const next = p.map(r => r.id === id ? { ...r, alerted: !r.alerted } : r);
-      const alerted = new Set(next.filter(r => r.alerted).map(r => r.symbol));
-      try { localStorage.setItem("wm_scanner_alerted", JSON.stringify([...alerted])); } catch {}
-      return next;
-    });
+    // Was a private "alerted" flag nothing ever read — "Alert ON" with no
+    // alert behind it. Now it adds to the watchlist the chart trades from.
+    const row = results.find(r => r.id === id) ?? (selected?.id === id ? selected : null);
+    if (!row) return;
+    let on = row.alerted;
+    try { on = toggleOnActiveWatchlist(localStorage, row.symbol); } catch {}
+    setResults(p => p.map(r => r.symbol === row.symbol ? { ...r, alerted: on } : r));
+    setSelected(sel => sel && sel.symbol === row.symbol ? { ...sel, alerted: on } : sel);
   };
   const toggleSig   = (s: Signal) => setActiveSignals(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
   const toggleSec   = (s: string) => setSelSectors(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
@@ -1144,10 +1148,10 @@ export default function ScannerPage() {
                   <div className="px-1"><ChangeMeter changePct={r.changePct} fact={r.changePctFact}/></div>
                   <div className="flex items-center justify-center gap-1">
                     <button onClick={e=>{e.stopPropagation();toggleAlert(r.id)}}
-                      aria-label={`${r.alerted ? "Disable" : "Enable"} alert for ${r.symbol}`}
-                      title={`${r.alerted ? "Disable" : "Enable"} alert for ${r.symbol}`}
+                      aria-label={`${r.alerted ? "Remove" : "Add"} ${r.symbol} ${r.alerted ? "from" : "to"} your watchlist`}
+                      title={`${r.alerted ? "Remove" : "Add"} ${r.symbol} ${r.alerted ? "from" : "to"} your watchlist`}
                       className={clsx("p-1 rounded transition-colors",r.alerted?"text-wm-gold":"text-wm-text-dim hover:text-wm-gold")}>
-                      <Bell size={11} className={r.alerted?"fill-wm-gold":""}/>
+                      {r.alerted ? <ListChecks size={11}/> : <ListPlus size={11}/>}
                     </button>
                     <button onClick={e=>{e.stopPropagation();setActiveSymbol(r.symbol);router.push(`/charts?symbol=${encodeURIComponent(r.symbol)}`);}}
                       aria-label={`Open ${r.symbol} chart`}
@@ -1232,7 +1236,7 @@ export default function ScannerPage() {
                   <button onClick={()=>toggleAlert(selected.id)}
                     className={clsx("w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-all",
                       selected.alerted ? "bg-wm-gold/15 text-wm-gold border-wm-gold/40" : "bg-wm-surface border-wm-border text-wm-text-muted hover:text-wm-gold hover:border-wm-gold/40")}>
-                    <Bell size={12}/> {selected.alerted?"Alert ON":"Set Alert"}
+                    {selected.alerted ? <><ListChecks size={12}/> On your watchlist</> : <><ListPlus size={12}/> Add to watchlist</>}
                   </button>
                   <button onClick={()=>{setActiveSymbol(selected.symbol);router.push(`/charts?symbol=${encodeURIComponent(selected.symbol)}`);}}
                     className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-wm-blue/15 text-wm-blue border border-wm-blue/40 hover:bg-wm-blue/25 transition-all">

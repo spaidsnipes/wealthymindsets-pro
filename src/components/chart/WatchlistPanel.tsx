@@ -1,5 +1,6 @@
 "use client";
 
+import { DEFAULT_WATCHLIST_SYMBOLS } from "@/lib/watchlist/activeWatchlist";
 import React, { useState, useEffect, useRef } from "react";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { fetchExchangeQuoteBody } from "@/lib/marketData/exchangeQuoteRounds";
@@ -15,11 +16,8 @@ import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 /** The watchlist's poll cadence — and the interval its visibility handler tops up. */
 const WATCHLIST_POLL_INTERVAL_MS = 10_000;
 
-const DEFAULT_SYMBOLS = [
-  "ES1!", "NQ1!", "RTY1!", "YM1!", "SPY", "QQQ",
-  "AAPL", "TSLA", "NVDA", "AMZN", "MSFT", "META",
-  "GC1!", "CL1!", "BTC", "ETH",
-];
+// One seed for every room that writes this list (Scanner adds to it too).
+const DEFAULT_SYMBOLS = [...DEFAULT_WATCHLIST_SYMBOLS];
 
 // Fallback seed prices — Yahoo REST snapshot updates these at load
 // Updated Jun 17 2026 from Yahoo Finance proxy

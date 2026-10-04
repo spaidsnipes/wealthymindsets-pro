@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Heart, MessageCircle, Share2, Bookmark, Music, Video,
@@ -172,7 +173,7 @@ function CommentsPanel({ postId, myHandle, myName, myAvatar, myColor }:
           </button>
         </div>
       ) : (
-        <p className="text-[10px] text-wm-text-dim">Sign in to comment.</p>
+        <p className="text-[10px] text-wm-text-dim"><Link href="/login" className="font-bold text-wm-blue hover:underline">Sign in</Link> to comment.</p>
       )}
     </motion.div>
   );
