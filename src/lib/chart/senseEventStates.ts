@@ -53,6 +53,13 @@ export function senseEventStates(r: Receipts): Record<string, string> {
   const anat = /EVENTS:(\d+)/.exec(r.dualAnatomy ?? "");
   if (anat) out.ANATOMY_CARDS = Number(anat[1]) > 0 ? SENSE_ON_CAMERA : SENSE_NO_EVENT;
 
+  // Clarity + Flow Current had no word, so the drawer read "ACTIVE ·
+  // AVAILABLE" while both were painting (Founder's Chrome, 2026-10-04).
+  if ((r.clarityCandle ?? "").startsWith("DRAWN")) out.CLARITY_CANDLE = SENSE_ON_CAMERA;
+  const flowShown = /SHOWN:(\d+)/.exec(r.flowCurrent ?? "");
+  if (flowShown) out.FLOW_CURRENT = Number(flowShown[1]) > 0 ? `${SENSE_ON_CAMERA} · ${flowShown[1]} BARS` : SENSE_NO_EVENT;
+  else if (r.flowCurrent === "NO_SIDED_TAPE" || r.flowCurrent === "NO_SIDED_BARS_IN_VIEW") out.FLOW_CURRENT = SENSE_UNAVAILABLE;
+
   const effort = r.effortMark;
   if (effort === "DRAWN") out.EFFORT_MARK = SENSE_ON_CAMERA;
   // ORDINARY:<why> = the mark read the bar and found nothing remarkable (2026-10-04).

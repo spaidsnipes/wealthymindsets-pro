@@ -51,3 +51,13 @@ describe("an ordinary effort mark is no event (2026-10-04)", () => {
     expect(senseEventStates({ effortMark: "ORDINARY:UNREMARKABLE" }).EFFORT_MARK).toBe(SENSE_NO_EVENT);
   });
 });
+
+describe("clarity and flow current have words (2026-10-04)", () => {
+  it("reads their receipts", async () => {
+    const { senseEventStates, SENSE_ON_CAMERA, SENSE_NO_EVENT, SENSE_UNAVAILABLE } = await import("./senseEventStates");
+    expect(senseEventStates({ clarityCandle: "DRAWN:138bars:2gaps:1open" }).CLARITY_CANDLE).toBe(SENSE_ON_CAMERA);
+    expect(senseEventStates({ flowCurrent: "BARS:138|LIVE|SHOWN:52" }).FLOW_CURRENT).toBe(`${SENSE_ON_CAMERA} · 52 BARS`);
+    expect(senseEventStates({ flowCurrent: "BARS:10|LIVE|SHOWN:0" }).FLOW_CURRENT).toBe(SENSE_NO_EVENT);
+    expect(senseEventStates({ flowCurrent: "NO_SIDED_TAPE" }).FLOW_CURRENT).toBe(SENSE_UNAVAILABLE);
+  });
+});
