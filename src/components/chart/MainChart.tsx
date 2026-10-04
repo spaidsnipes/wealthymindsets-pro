@@ -11312,6 +11312,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const desktopWindowChrome = W >= 960;
             if (!absorbPaints) {
               // Withheld with the field it counts.
+            } else if (plotRight < NARROW_GLASS_MAX_PX) {
+              // The phone's word budget: the window count is provenance, and
+              // on a narrow plot it sat on the newest candles' feet.
             } else if (desktopWindowChrome) {
               // The count is provenance for the field, not a price event and
               // not another card. FL-06 keeps such chart facts quiet at the
@@ -14308,10 +14311,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // keep-out owner strictly — right of its slab, else left of the
             // span, else just above/below the band — and when every spot sits
             // on a candle or another chip the tag is HELD, never overprinted.
+            // QUIET (the phone's word budget, or a depth that withholds words):
+            // the band and its cells stay; the tag and the sentence do not.
+            // With no number on the glass there is nothing for the SIDES
+            // INFERRED disclosure to qualify, so it leaves with them.
+            const stackSpeaks = att.speaks("stack");
             let stackTag = "NONE";
             if (anchor) {
               let lead: (typeof glass.levels)[number] | null = null;
               for (const l of glass.levels) if (l.multipleLabel != null && (!lead || l.weight > lead.weight)) lead = l;
+              if (!stackSpeaks) { lead = null; stackTag = "QUIET"; }
               const lyR = lead ? srs.priceToCoordinate(lead.price) : null;
               if (lead && lead.multipleLabel && lyR != null) {
                 ctx.font = marketFont("OBJECT_NAME");
@@ -14369,64 +14378,68 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // levels, and — when the venue did not assert the aggressor side —
             // the disclosure that every number here is downstream of a tick
             // rule. A drawer can put that in fine print. A chart cannot.
-            ctx.font = marketFont("FIDELITY");
-            const lw = ctx.measureText(glass.label).width;
-            const chipH = 14;
-            const chipW = lw + 12;
-            const chipX = anchored ? Math.max(2, Math.min(plotRight - chipW - 2, bandX0 - chipW / 2)) : 2;
-            // Above the band by preference, then below it, then stepped further
-            // out; never off the plot. The chip sits at the formation bar, often
-            // the live edge where tickets and absorption/exhaustion chips
-            // gather, so it steps around the chips already on the glass and
-            // registers its own for the chrome painted after it. Its words carry
-            // the SIDES INFERRED disclosure, so when every slot is taken it
-            // keeps the first one rather than leaving the band without them.
-            const stackChipHit = (y: number) => floatingChips.some(r =>
-              chipX < r.x + r.w + 4 && chipX + chipW + 4 > r.x && y < r.y + r.h + 1 && y + chipH + 1 > r.y);
-            // Below the header chrome first (serving ES1! 1m, 21:28 CDT: the
-            // label printed under INSPECT); the header band only when no
-            // other slot exists, because the disclosure must print.
-            const stackChipSlotsAll = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6]
-              .filter(y => y >= 2 && y + chipH <= H - 2);
-            const stackChipSlotsBelowHeader = stackChipSlotsAll.filter(y => y >= HEADER_FLOOR_Y);
-            const stackChipSlots = stackChipSlotsBelowHeader.length > 0 ? stackChipSlotsBelowHeader : stackChipSlotsAll;
-            let chipY = stackChipSlots.find(y => !stackChipHit(y)) ?? stackChipSlots[0] ?? Math.min(H - chipH - 2, yLo + 2);
-            // KEEP-OUT. Of the chip-free slots, the first that also clears
-            // every candle body under it wins. When only slots on bodies are
-            // free the chip-free pick stands — the disclosure must print —
-            // and a backed chip lets its backing yield.
-            const stackSlotRects = stackChipSlots.map(y => ({ x: chipX, y, w: chipW, h: chipH }));
-            const stackSpot = stackSlotRects.length > 0
-              ? pickSlotClearOfKeepOut(
-                  stackSlotRects,
-                  [...keepOut(), ...rowBodiesAt(Math.min(...stackChipSlots), Math.max(...stackChipSlots) + chipH)],
-                  s => stackChipHit(s.y),
-                )
-              : null;
-            if (stackSpot) { chipY = stackSpot.rect.y; recordKeepOut(keepOutLedger, stackSpot); }
-            ds.imbalanceStackLabel = stackSpot ? `${stackSpot.mode}${stackSpot.onCandles ? ":YIELDED" : ""}` : "CHIPS_FULL";
-            floatingChips.push({ x: chipX, y: chipY, w: chipW, h: chipH });
-            if (W >= 960) {
-              // FL-06 carries on-price words as direct annotation, not a card:
-              // on desktop the label loses its backed gold box (as the shelf's
-              // did) and keeps a shadow for legibility. Narrow keeps the box.
-              ctx.save();
-              ctx.fillStyle = "#d4af37";
-              ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
-              ctx.textAlign = "left";
-              ctx.textBaseline = "middle";
-              ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);
-              ctx.restore();
+            if (!stackSpeaks) {
+              ds.imbalanceStackLabel = "QUIET";
             } else {
-              ctx.fillStyle = `rgba(14,12,8,${stackSpot ? keepOutBackingAlpha(stackSpot, 0.92) : 0.92})`;
-              ctx.fillRect(chipX, chipY, chipW, chipH);
-              ctx.strokeStyle = "rgba(212,175,55,0.65)";
-              ctx.lineWidth = 1;
-              ctx.strokeRect(chipX + 0.5, chipY + 0.5, chipW - 1, chipH - 1);
-              ctx.fillStyle = "#d4af37";
-              ctx.textAlign = "left";
-              ctx.textBaseline = "middle";
-              ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);
+              ctx.font = marketFont("FIDELITY");
+              const lw = ctx.measureText(glass.label).width;
+              const chipH = 14;
+              const chipW = lw + 12;
+              const chipX = anchored ? Math.max(2, Math.min(plotRight - chipW - 2, bandX0 - chipW / 2)) : 2;
+              // Above the band by preference, then below it, then stepped further
+              // out; never off the plot. The chip sits at the formation bar, often
+              // the live edge where tickets and absorption/exhaustion chips
+              // gather, so it steps around the chips already on the glass and
+              // registers its own for the chrome painted after it. Its words carry
+              // the SIDES INFERRED disclosure, so when every slot is taken it
+              // keeps the first one rather than leaving the band without them.
+              const stackChipHit = (y: number) => floatingChips.some(r =>
+                chipX < r.x + r.w + 4 && chipX + chipW + 4 > r.x && y < r.y + r.h + 1 && y + chipH + 1 > r.y);
+              // Below the header chrome first (serving ES1! 1m, 21:28 CDT: the
+              // label printed under INSPECT); the header band only when no
+              // other slot exists, because the disclosure must print.
+              const stackChipSlotsAll = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6]
+                .filter(y => y >= 2 && y + chipH <= H - 2);
+              const stackChipSlotsBelowHeader = stackChipSlotsAll.filter(y => y >= HEADER_FLOOR_Y);
+              const stackChipSlots = stackChipSlotsBelowHeader.length > 0 ? stackChipSlotsBelowHeader : stackChipSlotsAll;
+              let chipY = stackChipSlots.find(y => !stackChipHit(y)) ?? stackChipSlots[0] ?? Math.min(H - chipH - 2, yLo + 2);
+              // KEEP-OUT. Of the chip-free slots, the first that also clears
+              // every candle body under it wins. When only slots on bodies are
+              // free the chip-free pick stands — the disclosure must print —
+              // and a backed chip lets its backing yield.
+              const stackSlotRects = stackChipSlots.map(y => ({ x: chipX, y, w: chipW, h: chipH }));
+              const stackSpot = stackSlotRects.length > 0
+                ? pickSlotClearOfKeepOut(
+                    stackSlotRects,
+                    [...keepOut(), ...rowBodiesAt(Math.min(...stackChipSlots), Math.max(...stackChipSlots) + chipH)],
+                    s => stackChipHit(s.y),
+                  )
+                : null;
+              if (stackSpot) { chipY = stackSpot.rect.y; recordKeepOut(keepOutLedger, stackSpot); }
+              ds.imbalanceStackLabel = stackSpot ? `${stackSpot.mode}${stackSpot.onCandles ? ":YIELDED" : ""}` : "CHIPS_FULL";
+              floatingChips.push({ x: chipX, y: chipY, w: chipW, h: chipH });
+              if (W >= 960) {
+                // FL-06 carries on-price words as direct annotation, not a card:
+                // on desktop the label loses its backed gold box (as the shelf's
+                // did) and keeps a shadow for legibility. Narrow keeps the box.
+                ctx.save();
+                ctx.fillStyle = "#d4af37";
+                ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);
+                ctx.restore();
+              } else {
+                ctx.fillStyle = `rgba(14,12,8,${stackSpot ? keepOutBackingAlpha(stackSpot, 0.92) : 0.92})`;
+                ctx.fillRect(chipX, chipY, chipW, chipH);
+                ctx.strokeStyle = "rgba(212,175,55,0.65)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(chipX + 0.5, chipY + 0.5, chipW - 1, chipH - 1);
+                ctx.fillStyle = "#d4af37";
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+                ctx.fillText(glass.label, chipX + 6, chipY + chipH / 2 + 0.5);
+              }
             }
 
             ctx.restore();
@@ -21771,6 +21784,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
               ctx.restore();
             }
+          } else if (!plansR.length && plotRight < NARROW_GLASS_MAX_PX) {
+            // On a phone the empty state is an instruction ("Draw › Long /
+            // Short Position…") across the bottom of a 330px plot — the
+            // narrow-glass word budget keeps the trader's tools speaking about
+            // a position they DREW, not about one they did not (2026-10-04).
+            ds.riskOnPriceSilence = "NO_POSITION_NARROW";
           } else {
             // THE SILENCE IS NAMED (2026-09-25): with the layer on and nothing
             // bracketed, the glass says why — including when no position is
