@@ -854,6 +854,7 @@ export default function NewsPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
+            aria-label="Search news and symbols"
             placeholder="Search news, symbols..."
             className="bg-transparent text-[11px] text-wm-text outline-none w-full min-w-0 placeholder-wm-text-dim"
           />

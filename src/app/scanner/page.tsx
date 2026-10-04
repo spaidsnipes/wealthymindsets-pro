@@ -896,7 +896,7 @@ export default function ScannerPage() {
         <div className="wm-scanner-actions ml-auto flex items-center gap-2">
           <div className="wm-scanner-search flex items-center gap-1.5 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
             <Search size={11} className="text-wm-text-muted"/>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Symbol..."
+            <input value={search} onChange={e => setSearch(e.target.value)} aria-label="Filter scanner by symbol" placeholder="Symbol..."
               className="bg-transparent text-xs text-wm-text outline-none w-24 placeholder-wm-text-dim"/>
           </div>
           <button onClick={() => setFilterOpen(v => !v)}

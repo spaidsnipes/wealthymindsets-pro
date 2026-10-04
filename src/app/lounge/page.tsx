@@ -1002,6 +1002,7 @@ export default function LoungePage() {
             <div className="flex items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
               <Search size={11} className="text-wm-text-muted"/>
               <input value={search} onChange={e => setSearch(e.target.value)}
+                aria-label="Search posts"
                 placeholder="Search posts…"
                 className="w-32 bg-transparent text-xs text-wm-text outline-none placeholder-wm-text-dim"/>
             </div>

@@ -75,6 +75,7 @@ export function SymbolSearch({ value, onChange, placeholder = "Search symbol…"
             if (e.key === "Escape") setOpen(false);
           }}
           placeholder={placeholder}
+          aria-label={placeholder || "Search symbol"}
           className="flex-1 bg-transparent text-xs text-wm-text outline-none font-mono placeholder-wm-text-dim"
           autoComplete="off"
         />

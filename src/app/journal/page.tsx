@@ -2060,7 +2060,7 @@ Trade the system, trust the process, winners every day 🚀`,
         <div className="wm-journal-tools ml-auto flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
             <Search size={11} className="text-wm-text-muted" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search journal..."
+            <input value={search} onChange={e => setSearch(e.target.value)} aria-label="Search journal" placeholder="Search journal..."
               className="bg-transparent text-xs text-wm-text outline-none w-32 placeholder-wm-text-dim" />
           </div>
           {(["all","win","loss","be"] as const).map(r => (
