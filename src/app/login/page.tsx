@@ -45,7 +45,7 @@ import { WM } from "@/lib/design/wmTokens";
 const FEATURES = [
   { icon: TrendingUp, text: "Professional order flow charts" },
   { icon: Zap,        text: "Live market data with source-aware tools" },
-  { icon: Shield,     text: "Order flow and volume analysis" },
+  { icon: Shield,     text: "Every read shows its evidence — or says UNKNOWN" },
 ];
 
 export default function LoginPageWrapper() {
