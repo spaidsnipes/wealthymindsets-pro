@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { edgeAllows, tooManyRequests, COMMUNITY_WRITE_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { resolveSupabaseServiceKey, SERVICE_KEY_VARS } from "@/lib/supabaseConfigStatus";
 import { requireAuth } from "@/lib/requireAuth";
 
@@ -45,6 +47,10 @@ export async function POST(request: Request) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   const passport = auth.user;
+  // Each POST inserts a row; unlimited, one account could bloat the table (2026-10-04).
+  const rl = checkRateLimit(`growth-rings:${passport.sub}`, { max: 10, windowMs: 60_000 });
+  if (!rl.ok) return tooManyRequests();
+  if (!(await edgeAllows([`rings:${passport.sub}`], COMMUNITY_WRITE_LIMITER_BINDING))) return tooManyRequests();
   const config = databaseConfig();
   if (!config) {
     // Monday Test 2 truth: name the exact missing Supabase config.
