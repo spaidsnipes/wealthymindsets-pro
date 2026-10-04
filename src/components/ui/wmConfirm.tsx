@@ -23,10 +23,21 @@ export interface WmConfirmOptions {
 
 function ConfirmSheet({ message, confirmLabel, onDone }: { message: string; confirmLabel: string; onDone: (yes: boolean) => void }) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [question, ...rest] = message.split(/\n\s*\n/);
   useEffect(() => {
     cancelRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); onDone(false); } };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); onDone(false); return; }
+      // A modal keeps Tab inside itself: the two answers, round and round.
+      if (e.key === "Tab") {
+        const btns = Array.from(dialogRef.current?.querySelectorAll("button") ?? []);
+        if (!btns.length) return;
+        const i = btns.indexOf(document.activeElement as HTMLButtonElement);
+        e.preventDefault();
+        btns[(i + (e.shiftKey ? -1 : 1) + btns.length) % btns.length]?.focus();
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onDone]);
@@ -36,6 +47,7 @@ function ConfirmSheet({ message, confirmLabel, onDone }: { message: string; conf
       style={{ position: "fixed", inset: 0, zIndex: 2147483000, background: "rgba(3,3,5,0.72)", display: "grid", placeItems: "center", padding: 16 }}
     >
       <div
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="wm-confirm-q"
