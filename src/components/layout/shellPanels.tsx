@@ -712,7 +712,10 @@ export function SettingsPanel({
           )}
           {tab === "account" && (
             <div role="tabpanel" id="wm-settings-panel-account" aria-labelledby="wm-settings-tab-account">
-              <Row label="Subscription" sub="WealthyMindsets PRO">
+              {/* Was "Subscription · WealthyMindsets PRO" for every account — hard-coded;
+                  no billing exists (2026-10-04). Access is what is true; pricing is
+                  the Founder's to publish. */}
+              <Row label="Access" sub="WealthyMindsets Pro · every room is open · no paid plan is connected">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-wm-gold/20 text-wm-gold border border-wm-gold/40">PRO</span>
               </Row>
               <Row label="Market Data" sub="Status varies by source, symbol, and freshness">
