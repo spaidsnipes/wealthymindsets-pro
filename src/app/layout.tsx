@@ -15,7 +15,8 @@ import { WM_BRAND } from "@/lib/brand/brandCanon";
    trading operating system — market intelligence, decision memory,
    process stewardship, longitudinal learning — not a dashboard. */
 export const metadata: Metadata = {
-  title:       "WealthyMindsets Pro — Trading Operating System",
+  // Each room names itself through this template: "Scanner · WealthyMindsets Pro".
+  title:       { default: "WealthyMindsets Pro — Trading Operating System", template: "%s · WealthyMindsets Pro" },
   description: "A trading operating system for serious traders. Market intelligence, order flow, volume profile, decision memory, and longitudinal edge — with truthful UNKNOWN, MISSING, STALE, and INSUFFICIENT states.",
   keywords:    ["trading operating system", "order flow", "volume profile", "market intelligence", "decision memory", "trader development", "footprint chart", "trade journal"],
   authors:     [{ name: WM_BRAND.legalEntity }],
