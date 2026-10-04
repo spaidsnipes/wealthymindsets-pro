@@ -3447,7 +3447,7 @@ export default function PaperTradingPage() {
                         <FillPriceAgeNote trade={t} />
                       </span>
                       {t.pnl !== undefined ? (
-                        <span className="flex items-center gap-2">
+                        <span className="flex flex-col items-start leading-tight">
                           <span className={clsx("text-xs font-black font-mono", t.pnl>=0?"text-wm-green":"text-wm-red")}>
                             {t.pnl>=0?"+":""}{fmt2(t.pnl)}
                           </span>
