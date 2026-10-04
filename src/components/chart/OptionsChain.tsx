@@ -615,7 +615,7 @@ export function OptionsChain({ symbol, spot, onClose, onSelectStrike, onSelectCo
                   <td className={clsx("px-3 py-1.5 text-center font-mono font-bold",
                     isATM ? "text-wm-gold bg-wm-gold/08" : "text-wm-text bg-wm-surface/20")}>
                     {row.strike.toLocaleString()}
-                    {isATM && <span className="ml-1 text-[8px] text-wm-gold">ATM</span>}
+                    {isATM && <span className="ml-1 text-[9px] text-wm-gold">ATM</span>}
                   </td>
                   {tab !== "calls" && <>
                     {onSelectContract && <td className="px-2 py-1.5">{(() => {

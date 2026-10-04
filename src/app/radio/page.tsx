@@ -276,7 +276,7 @@ function StationCard({ station, active, onPlay, artIndex }: {
           <div className="absolute top-3.5 left-3.5 flex items-center gap-1 px-2 py-1 rounded-full z-10"
             style={{ background: "rgba(255,77,106,0.22)", border: "1px solid rgba(255,77,106,0.55)" }}>
             <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            <span style={{ fontSize: 8, fontWeight: 800, color: "#FF4D6A", letterSpacing: 1 }}>LIVE</span>
+            <span style={{ fontSize: 9, fontWeight: 800, color: "#FF4D6A", letterSpacing: 1 }}>LIVE</span>
           </div>
         )}
 
@@ -366,7 +366,7 @@ function TrackRow({ track, idx, active, playing, onPlay, liked, onToggleLike }: 
         <div className="flex items-center gap-1.5">
           <span className={clsx("text-[13px] font-bold truncate", active ? "text-wm-green" : "text-wm-text")}>{track.title}</span>
           {track.new && (
-            <span className="shrink-0 text-[8px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(0,200,118,0.15)", color: "#00C876" }}>NEW</span>
+            <span className="shrink-0 text-[9px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(0,200,118,0.15)", color: "#00C876" }}>NEW</span>
           )}
           {track.verified && <CheckCircle size={10} className="shrink-0 text-wm-green" />}
         </div>
@@ -454,7 +454,7 @@ function EpisodeCard({ ep, artIndex, active, playing, onPlay }: {
 
           <div className="flex flex-wrap gap-1 mt-2">
             {ep.tags.map(t => (
-              <span key={t} className="text-[8px] px-1.5 py-0.5 rounded-full"
+              <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-full"
                 style={{ background: `${ep.color}15`, color: ep.color }}>{t}</span>
             ))}
           </div>
@@ -475,7 +475,7 @@ function ArtistCard({ artist, artIndex, onOpen }: { artist: Artist; artIndex: nu
         <div className="pointer-events-none absolute inset-0 opacity-[0.12]" style={{ background: `repeating-radial-gradient(circle at 82% 40%, ${artist.color} 0 1px, transparent 1px 7px)` }} />
         <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to top, rgba(11,12,18,0.9), transparent 70%)" }} />
         {artist.wm_team && (
-          <span className="absolute top-2 right-2 text-[8px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "rgba(0,212,170,0.2)", color: "#00D4AA", border: "1px solid rgba(0,212,170,0.4)" }}>WM TEAM</span>
+          <span className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "rgba(0,212,170,0.2)", color: "#00D4AA", border: "1px solid rgba(0,212,170,0.4)" }}>WM TEAM</span>
         )}
       </div>
       {/* Body — avatar overlaps cover */}
@@ -501,7 +501,7 @@ function ArtistCard({ artist, artIndex, onOpen }: { artist: Artist; artIndex: nu
           <div className="flex items-center gap-3">
             <div className="text-center">
               <div className="text-[12px] font-black text-wm-text">{artist.tracks}</div>
-              <div className="text-[8px] text-wm-text-dim uppercase tracking-wide">Tracks</div>
+              <div className="text-[9px] text-wm-text-dim uppercase tracking-wide">Tracks</div>
             </div>
           </div>
           <button

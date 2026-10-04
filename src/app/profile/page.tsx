@@ -1087,7 +1087,7 @@ function ProfilePageInner() {
                     { l: "On-chain",       v: "Not connected" },
                   ].map(({ l, v }) => (
                     <div key={l} className="bg-wm-surface/50 rounded-lg p-2 text-center">
-                      <div className="text-[8px] text-wm-text-dim uppercase tracking-wider">{l}</div>
+                      <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">{l}</div>
                       <div className="text-[10px] font-bold text-wm-text mt-0.5">{v}</div>
                     </div>
                   ))}
@@ -1176,7 +1176,7 @@ function ProfilePageInner() {
                       { l: "Launched",     v: new Date(creatorCoin.deployedAt).toLocaleDateString() },
                     ].map(({ l, v }) => (
                       <div key={l} className="bg-wm-surface/50 rounded-lg p-2 text-center">
-                        <div className="text-[8px] text-wm-text-dim uppercase tracking-wider">{l}</div>
+                        <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">{l}</div>
                         <div className="text-[10px] font-bold text-wm-text mt-0.5">{v}</div>
                       </div>
                     ))}

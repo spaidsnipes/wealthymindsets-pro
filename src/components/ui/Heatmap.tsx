@@ -150,7 +150,7 @@ function LegendChip({ label, unit }: { label: string; unit?: string }) {
       </div>
       <div className="ml-4 flex items-center gap-1">
         <span
-          className="w-3 h-3 border border-[color:var(--wm-gold-hair,#6d5220)] flex items-center justify-center text-[8px]"
+          className="w-3 h-3 border border-[color:var(--wm-gold-hair,#6d5220)] flex items-center justify-center text-[9px]"
           style={{ background: "var(--wm-ob-2, #131317)", color: "var(--wm-text-3, #55503f)" }}
           aria-hidden="true"
         >?</span>

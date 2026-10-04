@@ -296,7 +296,7 @@ function ImageUpload({ images, onChange }: { images: string[]; onChange(imgs: st
             <img src={src} alt="" className="w-16 h-16 object-cover rounded-lg border border-wm-border" />
             <button
               onClick={() => onChange(images.filter((_, j) => j !== i))}
-              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-wm-red text-white text-[8px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-wm-red text-white text-[9px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
             >✕</button>
           </div>
         ))}

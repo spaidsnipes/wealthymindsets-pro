@@ -881,7 +881,7 @@ function OrderTicket({
       </div>
       <div className="mb-3 rounded-lg border border-wm-border/50 bg-wm-surface/20 px-2.5 py-2" role="status" aria-live="polite">
         <div className={clsx("text-[9px] font-black", readiness.actionable ? "text-wm-gold" : "text-wm-red")}>{readiness.label}</div>
-        <div className="mt-0.5 text-[8px] leading-relaxed text-wm-text-dim">
+        <div className="mt-0.5 text-[9px] leading-relaxed text-wm-text-dim">
           {/* AGE IS NOT HAND-ROLLED HERE. This line sits directly above BUY / SELL,
               so it is the last thing the trader reads before committing — and it
               was the least careful age sentence in the product:
@@ -1220,7 +1220,7 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin, compilation }: {
               className="rounded-lg border p-2 text-center"
               style={{ borderColor: tier.color + "40", background: tier.color + "10" }}>
               <div className="text-base mb-0.5">{tier.icon}</div>
-              <div className="text-[8px] font-bold" style={{ color: tier.color }}>{tier.label}</div>
+              <div className="text-[9px] font-bold" style={{ color: tier.color }}>{tier.label}</div>
             </div>
           ))}
         </div>
@@ -1300,7 +1300,7 @@ function Leaderboard({ myPct, myPnl, myTrades, myWin, compilation }: {
                   {entry.name}
                 </div>
                 {badge && (
-                  <div className="text-[8px] font-bold" style={{ color: badge.color }}>
+                  <div className="text-[9px] font-bold" style={{ color: badge.color }}>
                     {badge.label}
                   </div>
                 )}
@@ -1640,7 +1640,7 @@ function OptionsChain({
             <span className="font-mono font-bold text-wm-text"
               title={`Sell-now mark (modelled bid). Model mid is $${fmt2(g.price)}.`}>
               {markBid == null ? "—" : `$${fmt2(markBid)}`}
-              <span className="ml-1 font-sans text-[8px] font-black tracking-wide text-wm-text-dim">
+              <span className="ml-1 font-sans text-[9px] font-black tracking-wide text-wm-text-dim">
                 MODELED
               </span>
             </span>
@@ -1697,7 +1697,7 @@ function SignalBot({
         <div className="flex items-center gap-1.5 text-xs font-black text-wm-text">
           <Zap size={13} className="text-wm-blue"/> Signal Bot
         </div>
-        <span className={clsx("text-[8px] font-black px-1.5 py-0.5 rounded", running?"bg-wm-green/20 text-wm-green":"bg-wm-text-dim/10 text-wm-text-dim")}>
+        <span className={clsx("text-[9px] font-black px-1.5 py-0.5 rounded", running?"bg-wm-green/20 text-wm-green":"bg-wm-text-dim/10 text-wm-text-dim")}>
           {running?"● RUNNING":"○ IDLE"}
         </span>
       </div>
@@ -1723,7 +1723,7 @@ function SignalBot({
           running?"bg-wm-red text-white":readiness.actionable?"bg-wm-blue text-white hover:opacity-90":"cursor-not-allowed bg-wm-surface text-wm-text-dim")}>
         {running?"■ Stop Bot":readiness.actionable?"▶ Start Bot":"WAIT FOR VERIFIED QUOTE"}
       </button>
-      <p className="mt-1 text-[8px] font-bold text-wm-text-dim">{readiness.label}</p>
+      <p className="mt-1 text-[9px] font-bold text-wm-text-dim">{readiness.label}</p>
       <div className="mt-2 max-h-32 overflow-y-auto space-y-1" style={{ scrollbarWidth:"none" }}>
         {log.length===0 ? (
           <div className="text-[9px] text-wm-text-dim text-center py-2">Signals will appear here.</div>
@@ -1735,7 +1735,7 @@ function SignalBot({
           </div>
         ))}
       </div>
-      <p className="text-[8px] text-wm-text-dim mt-2 leading-relaxed">
+      <p className="text-[9px] text-wm-text-dim mt-2 leading-relaxed">
         ⚠ Paper simulation only. The bot places <span className="font-bold">simulated</span> orders in this account — it never trades real money.
       </p>
       <input type="hidden" data-bot-active={running?"1":"0"} readOnly/>
@@ -3084,7 +3084,7 @@ export default function PaperTradingPage() {
                   a partner ad. Motion that reports no event is theatre. */}
               <div className="flex items-center gap-1 mt-2 justify-center">
                 <span className="w-1 h-1 rounded-full bg-[#00C853]"/>
-                <span className="text-[8px] text-[#00C853] font-bold">EXTERNAL SITE</span>
+                <span className="text-[9px] text-[#00C853] font-bold">EXTERNAL SITE</span>
               </div>
             </div>
           </div>
@@ -3550,14 +3550,14 @@ export default function PaperTradingPage() {
             <span>Market Prices</span>
             <span
               className={clsx(
-                "ml-auto text-[8px] font-semibold",
+                "ml-auto text-[9px] font-semibold",
                 quotePanelTruth.degradedCount > 0 ? "text-wm-red" : "text-wm-gold",
               )}
             >
               {paperQuotePanelChipText(quotePanelTruth)}
             </span>
           </div>
-          <div className="px-3 pb-1.5 pt-1 text-[8px] leading-tight text-wm-text-dim border-b border-wm-border/40">
+          <div className="px-3 pb-1.5 pt-1 text-[9px] leading-tight text-wm-text-dim border-b border-wm-border/40">
             {quotePanelTruth.reason}
           </div>
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"none" }}>
@@ -3581,7 +3581,7 @@ export default function PaperTradingPage() {
                 <div key={sym} className="flex items-center justify-between px-2.5 py-1.5 border-b border-wm-border/20 hover:bg-wm-surface/30 transition-colors">
                   <div>
                     <div className="text-[10px] font-bold text-wm-text">{sym}</div>
-                    <div className="text-[8px] text-wm-text-dim truncate" style={{ maxWidth:70 }}>{info.name}</div>
+                    <div className="text-[9px] text-wm-text-dim truncate" style={{ maxWidth:70 }}>{info.name}</div>
                   </div>
                   <div className="text-right">
                     <div className={clsx("text-[10px] font-mono font-bold", closeOnly != null ? "text-wm-text-dim" : "text-wm-text")}>
@@ -3593,11 +3593,11 @@ export default function PaperTradingPage() {
                         stale row printing "+4.39%" no longer relies on a red
                         hue that already means "down". */}
                     {closeOnly != null ? (
-                      <div className="text-[8px] font-bold text-wm-text-dim" title="The session is closed: this is the last close, not a live trade. Paper fills wait for a live observation.">
+                      <div className="text-[9px] font-bold text-wm-text-dim" title="The session is closed: this is the last close, not a live trade. Paper fills wait for a live observation.">
                         LAST CLOSE · NOT ACTIONABLE
                       </div>
                     ) : (
-                    <div className={clsx("text-[8px] font-bold", rowTruth.degraded?"text-wm-red":"text-wm-gold")}>
+                    <div className={clsx("text-[9px] font-bold", rowTruth.degraded?"text-wm-red":"text-wm-gold")}>
                       {rowTruth.text}
                     </div>
                     )}

@@ -179,7 +179,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
                 <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to top, rgba(11,12,18,0.85), transparent 60%)" }} />
                 <div className="absolute top-2.5 left-2.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full"
                   style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.2)" }}>
-                  <span className="text-[8px] font-black tracking-wider text-white">CONCEPT</span>
+                  <span className="text-[9px] font-black tracking-wider text-white">CONCEPT</span>
                 </div>
                 <div className="absolute right-3 bottom-3 w-9 h-9 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300"
                   style={{ background: s.color, color: "#0b0a06", boxShadow: `0 6px 16px ${s.color}88` }}>
@@ -276,7 +276,7 @@ export default function WMTVPage() {
           >
             <Sparkles size={13} className="shrink-0" style={{ color: "#E8B923" }} />
             <span className="text-xs font-bold truncate">Featured</span>
-            <span className="ml-auto text-[8px] font-black" style={{ color: "#E8B923" }}>HOME</span>
+            <span className="ml-auto text-[9px] font-black" style={{ color: "#E8B923" }}>HOME</span>
           </button>
 
           {/* Live / Voice */}
@@ -291,7 +291,7 @@ export default function WMTVPage() {
             >
               {c.kind === "live" ? <Radio size={13} className="text-wm-red shrink-0" /> : <Podcast size={13} className="text-wm-purple shrink-0" />}
               <span className="text-xs font-bold truncate">{c.name}</span>
-              {c.kind === "live" && <span className={`ml-auto text-[8px] font-black ${studio === "READY" ? "text-wm-green" : "text-wm-text-dim"}`}>{studioWord(studio)}</span>}
+              {c.kind === "live" && <span className={`ml-auto text-[9px] font-black ${studio === "READY" ? "text-wm-green" : "text-wm-text-dim"}`}>{studioWord(studio)}</span>}
             </button>
           ))}
 
@@ -305,7 +305,7 @@ export default function WMTVPage() {
           >
             <Brain size={13} className="text-wm-green shrink-0" />
             <span className="text-xs font-bold truncate">Brain Fitness</span>
-            <span className="ml-auto text-[8px] font-black text-wm-green">NEW</span>
+            <span className="ml-auto text-[9px] font-black text-wm-green">NEW</span>
           </button>
 
           {/* Text */}

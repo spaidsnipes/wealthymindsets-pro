@@ -244,7 +244,7 @@ export function WMSessionVP({ symbol, timeframe, candles, dataVersion = 0, provi
           </div>
 
           <span
-            className="text-[8px] px-1.5 py-0.5 rounded font-bold border bg-wm-surface border-wm-border text-wm-text-dim"
+            className="text-[9px] px-1.5 py-0.5 rounded font-bold border bg-wm-surface border-wm-border text-wm-text-dim"
             title={hasRealTape ? "Real executed trades are being added live" : "Historical profile uses reported OHLCV total volume"}>
             {hasRealTape ? "LIVE TAPE +" : "OHLCV"}
           </span>
@@ -278,7 +278,7 @@ export function WMSessionVP({ symbol, timeframe, candles, dataVersion = 0, provi
       <div className="flex items-center px-2 border-b border-wm-border/60 shrink-0" style={{ height: 20 }}>
         <span className="text-[9px] font-black text-wm-purple w-14">VOLUME</span>
         <div className="flex-1 text-center text-[9px] text-wm-text-muted">PRICE</div>
-        <span className="text-[8px] text-wm-text-dim">{layerLabel}</span>
+        <span className="text-[9px] text-wm-text-dim">{layerLabel}</span>
       </div>
 
       {/* Rows */}

@@ -373,7 +373,7 @@ function ScriptCard({
           <div className="flex items-center gap-1.5 flex-wrap">
             <h3 className="text-xs font-bold text-wm-text truncate">{script.title}</h3>
             {script.featured && (
-              <span className="px-1 py-0.5 rounded text-[8px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30">
+              <span className="px-1 py-0.5 rounded text-[9px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30">
                 FEATURED
               </span>
             )}

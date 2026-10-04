@@ -1076,7 +1076,7 @@ export default function ScannerPage() {
                     <div className="text-[9px] text-wm-text-dim truncate">{r.name}</div>
                     <span
                       className={clsx(
-                        "mt-0.5 inline-flex rounded border px-1 py-px text-[8px] font-black tracking-wide",
+                        "mt-0.5 inline-flex rounded border px-1 py-px text-[9px] font-black tracking-wide",
                         r.quoteQuality === "LIVE"
                           ? "border-wm-green/50 text-wm-green"
                           : r.quoteQuality === "DELAYED"

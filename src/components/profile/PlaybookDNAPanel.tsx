@@ -145,7 +145,7 @@ export function PlaybookDNAPanel({ vm, onPlaybookClick }: { vm: PlaybookDNAVM; o
 function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{ padding: "6px 8px", background: "rgba(11,11,13,0.4)", borderRadius: 4 }}>
-      <div style={{ fontSize: 8, letterSpacing: 0.32, textTransform: "uppercase", color: "#8a8271", fontWeight: 700 }}>
+      <div style={{ fontSize: 9, letterSpacing: 0.32, textTransform: "uppercase", color: "#8a8271", fontWeight: 700 }}>
         {label}
       </div>
       <div style={{ fontSize: 13, fontWeight: 700, color: color ?? "#ede6d3", marginTop: 2 }}>

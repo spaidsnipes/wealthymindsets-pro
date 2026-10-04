@@ -329,7 +329,7 @@ export default function ShopPage() {
               <div className="p-3">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <h3 className="text-sm font-bold text-wm-text leading-tight">{product.name}</h3>
-                  <span className="text-[8px] font-black uppercase text-wm-gold">Concept</span>
+                  <span className="text-[9px] font-black uppercase text-wm-gold">Concept</span>
                 </div>
                 <p className="text-[11px] text-wm-text-muted leading-relaxed mb-2">{product.desc}</p>
                 <div className="mb-3 flex items-center gap-1 text-[10px] text-wm-text-dim">

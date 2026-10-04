@@ -356,7 +356,7 @@ function RoomInner({ roomName, isHost, onLeave, userName }: {
                 <Check size={10} />
               </button>
             ) : (
-              <span className="text-[8px] text-wm-text-dim">Room full</span>
+              <span className="text-[9px] text-wm-text-dim">Room full</span>
             )}
             <button aria-label={`Deny ${req.name} video request`} onClick={() => denyRequest(req.identity)}
               className="p-1 rounded-md bg-wm-red/20 text-wm-red hover:bg-wm-red/30 transition-all">
@@ -539,9 +539,9 @@ export default function LiveRoom({ roomName, roomLabel, color, userName, isHost,
             room. */}
         <span className="w-2 h-2 rounded-full" style={{ background: color }} />
         <span className="text-xs font-black text-wm-text">{roomLabel}</span>
-        <span className="text-[8px] px-1.5 py-0.5 rounded font-bold text-wm-red bg-wm-red/15 border border-wm-red/30">LIVE</span>
+        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold text-wm-red bg-wm-red/15 border border-wm-red/30">LIVE</span>
         {isHost && (
-          <span className="text-[8px] px-1.5 py-0.5 rounded font-bold text-wm-gold bg-wm-gold/15 border border-wm-gold/30">HOST</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold text-wm-gold bg-wm-gold/15 border border-wm-gold/30">HOST</span>
         )}
         <div className="ml-auto flex items-center gap-1.5">
           {/* Share is available as soon as the room exists so a host can invite

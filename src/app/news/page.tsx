@@ -541,7 +541,7 @@ function LiveNewsPlayer() {
                       </div>
                       <div className="p-1.5">
                         <p className="text-[9px] font-semibold text-wm-text leading-tight line-clamp-2">{v.title}</p>
-                        <p className="text-[8px] text-wm-text-dim mt-0.5">{new Date(v.published).toLocaleDateString()}</p>
+                        <p className="text-[9px] text-wm-text-dim mt-0.5">{new Date(v.published).toLocaleDateString()}</p>
                       </div>
                     </button>
                   ))}
@@ -582,10 +582,10 @@ function LiveNewsPlayer() {
                     activeIdx === i ? "bg-wm-surface" : "hover:bg-wm-surface/50"
                   )}>
                   <span className="text-xl">{s.icon}</span>
-                  <span className="text-[8px] font-bold text-wm-text text-center leading-tight px-1">{s.label}</span>
+                  <span className="text-[9px] font-bold text-wm-text text-center leading-tight px-1">{s.label}</span>
                   {!loadingIds && (
                     <span className={clsx(
-                      "text-[7px] font-bold px-1 py-0.5 rounded",
+                      "text-[9px] font-bold px-1 py-0.5 rounded",
                       live ? "bg-wm-red/20 text-wm-red" : "text-wm-text-dim"
                     )}>
                       {live ? "● LIVE" : "offline"}
@@ -940,7 +940,7 @@ export default function NewsPage() {
                 <span className="w-1 h-1 rounded-full bg-wm-green" />
               )}
               {!hasArticles && keyUnlockable && (
-                <span className="text-[8px]" title="Connect API key">🔑</span>
+                <span className="text-[9px]" title="Connect API key">🔑</span>
               )}
             </button>
           );

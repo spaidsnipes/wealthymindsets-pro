@@ -781,7 +781,7 @@ export function SmartMoneyPanel({
           <p className="text-[9px] text-wm-text-dim leading-relaxed">{missingTape.sentence}</p>
           {missingTape.blockedCount > 0 && (
             <div className="mt-1.5 pt-1.5 border-t border-wm-border">
-              <div className="text-[8px] font-semibold tracking-wide text-wm-text-dim mb-1">
+              <div className="text-[9px] font-semibold tracking-wide text-wm-text-dim mb-1">
                 {missingTape.blockedCount} READING{missingTape.blockedCount === 1 ? "" : "S"} BELOW
                 CANNOT BE TAKEN
               </div>
@@ -789,7 +789,7 @@ export function SmartMoneyPanel({
                 {missingTape.blockedReadings.map((name) => (
                   <span
                     key={name}
-                    className="text-[8px] px-1.5 py-0.5 rounded text-wm-text-dim"
+                    className="text-[9px] px-1.5 py-0.5 rounded text-wm-text-dim"
                     style={{ background: "rgba(255,255,255,0.04)" }}
                   >
                     {name}
@@ -839,13 +839,13 @@ export function SmartMoneyPanel({
                 className="flex items-center justify-start pl-1 transition-all duration-500"
                 style={{ width: `${buyPct}%`, background: "rgba(0,212,170,0.35)" }}
               >
-                {buyPct >= 22 && <span className="text-[8px] font-black text-wm-green">{buyPct}%</span>}
+                {buyPct >= 22 && <span className="text-[9px] font-black text-wm-green">{buyPct}%</span>}
               </div>
               <div
                 className="flex items-center justify-end pr-1 transition-all duration-500"
                 style={{ width: `${sellPct}%`, background: "rgba(246,70,93,0.35)" }}
               >
-                {sellPct >= 22 && <span className="text-[8px] font-black text-wm-red">{sellPct}%</span>}
+                {sellPct >= 22 && <span className="text-[9px] font-black text-wm-red">{sellPct}%</span>}
               </div>
             </div>
             <div className="flex items-center justify-between mt-1 text-[9px]">
@@ -887,7 +887,7 @@ export function SmartMoneyPanel({
               </div>
             )}
 
-            <div className="mt-2 text-[8px] text-wm-text-dim">Pressure describes observed tape only. It does not resolve location, risk, or permission to trade.</div>
+            <div className="mt-2 text-[9px] text-wm-text-dim">Pressure describes observed tape only. It does not resolve location, risk, or permission to trade.</div>
           </>
         ) : (
           /* The WHY is stated once, in the banner at the top of this drawer.
@@ -1002,7 +1002,7 @@ export function SmartMoneyPanel({
         <div className="mb-2">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-semibold text-wm-text">Levels shown</span>
-            <span className="text-[8px] text-wm-text-dim">max ranked price levels per bar</span>
+            <span className="text-[9px] text-wm-text-dim">max ranked price levels per bar</span>
           </div>
           <div role="group" aria-label="Delta bubble levels shown" className="grid grid-cols-4 gap-1">
             {DELTA_LEVEL_CAP_CHOICES.map((n, idx, arr) => {
@@ -1065,7 +1065,7 @@ export function SmartMoneyPanel({
                 </div>
               );
             })}
-            <div className="text-[8px] text-wm-text-dim mt-1 leading-tight">
+            <div className="text-[9px] text-wm-text-dim mt-1 leading-tight">
               Green = buyers dominate that level · red = sellers. Bigger bubble = more lopsided. Net buy−sell size per level, live from the tape.
               {/* The row label is the level's LOW EDGE on the tape's measured
                   price grid. When a level groups more than one tick it covers

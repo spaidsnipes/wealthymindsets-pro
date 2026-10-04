@@ -663,7 +663,7 @@ function WebullSigningCanary({ onObservation }: { onObservation?: (observation: 
                     {receipt.newestObservedAt ? ` · ${new Date(receipt.newestObservedAt).toLocaleTimeString()}` : ""}
                   </p>
                 )}
-                <p className="mt-1 text-[8px] uppercase tracking-wider text-wm-text-dim">
+                <p className="mt-1 text-[9px] uppercase tracking-wider text-wm-text-dim">
                   {receipt.fidelity} · one receipt, not a live-stream claim
                 </p>
               </div>
@@ -1217,7 +1217,7 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
             <CapabilityLadderStatus broker={broker} />
             <div className="rounded-xl border border-wm-border bg-wm-surface/60 px-3 py-2.5">
               <div className="text-[11px] font-black" style={{ color: broker.color }}>{broker.runtimeConnection.label}</div>
-              <p className="mt-1 text-[8px] font-bold uppercase tracking-wider text-wm-text-dim/70">How this wire is meant to work — not a measurement</p>
+              <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-wm-text-dim/70">How this wire is meant to work — not a measurement</p>
               <p className="mt-1 text-[9px] leading-relaxed text-wm-text-dim">{broker.runtimeConnection.note}</p>
             </div>
             <div className="grid grid-cols-2 gap-1.5">

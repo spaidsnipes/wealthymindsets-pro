@@ -228,7 +228,7 @@ export function ProfilesMenu({
                     />
                     {entry.organism != null && (
                       <span
-                        className="flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border text-[8px] font-bold"
+                        className="flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold"
                         style={{ borderColor: "rgba(201,165,92,0.55)", color: "#d4af37" }}
                         title={`P-110 organism ${entry.organism}`}
                         data-testid={`profile-organism-${entry.id}`}
@@ -243,7 +243,7 @@ export function ProfilesMenu({
                       {entry.label}
                     </span>
                     {entry.gesture === "DRAW" && (
-                      <span className="shrink-0 rounded border border-wm-border px-1 text-[7px] uppercase tracking-wider text-wm-text-dim">
+                      <span className="shrink-0 rounded border border-wm-border px-1 text-[9px] uppercase tracking-wider text-wm-text-dim">
                         Box
                       </span>
                     )}
@@ -255,13 +255,13 @@ export function ProfilesMenu({
                         truncates ("REA…" read as nothing). The levels list is
                         detail — it yields, and stays whole in the tooltip. */}
                     <span
-                      className="shrink-0 whitespace-nowrap text-[8px] font-semibold uppercase tracking-[0.08em]"
+                      className="shrink-0 whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.08em]"
                       style={{ color: AVAILABILITY_DOT[entry.availability] }}
                       data-testid={`profile-note-${entry.id}`}
                     >
                       {stateLabel}
                     </span>
-                    <span className="min-w-0 truncate text-right text-[8px] uppercase tracking-[0.08em] text-wm-text-dim">
+                    <span className="min-w-0 truncate text-right text-[9px] uppercase tracking-[0.08em] text-wm-text-dim">
                       {entry.levels.join(" · ")}
                     </span>
                   </div>
