@@ -8,6 +8,7 @@
 import React, { useEffect, useState } from "react";
 
 import Link from "next/link";
+import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 import { ttChartSymbol, type TtLedgerSummary, type TtRoundTrip } from "@/lib/broker/tastytradeLedger";
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3", LINE = "rgba(139,106,41,0.25)", UP = "#7fd1a8", DOWN = "#e0786b";
@@ -24,10 +25,11 @@ export function TastytradeLedger() {
     let alive = true;
     fetch("/api/broker/tastytrade/ledger", { cache: "no-store" })
       .then(async r => {
-        const j = await r.json().catch(() => null) as { state?: string; accounts?: AccountRead[]; reason?: string } | null;
+        const j = await r.json().catch(() => null) as { state?: string; accounts?: AccountRead[]; reason?: string; error?: string; code?: string } | null;
         if (!alive) return;
-        if (r.status === 403) { setState("REFUSED"); setReason("Owner only."); return; }
-        if (!j || j.state !== "OK") { setState("FAILED"); setReason(j?.reason ?? j?.state ?? `HTTP ${r.status}`); return; }
+        // guest audit 2026-10-04: the owner gate's refusal means "not connected for you", not a failure.
+        if (isOwnerRefusal(j, r.status)) { setState("REFUSED"); return; }
+        if (!j || j.state !== "OK") { setState("FAILED"); setReason(j?.reason ?? j?.error ?? j?.state ?? `HTTP ${r.status}`); return; }
         setAccounts(j.accounts ?? []); setState("OK");
       })
       .catch(e => { if (alive) { setState("FAILED"); setReason(String(e)); } });
@@ -41,7 +43,8 @@ export function TastytradeLedger() {
         <div style={{ fontSize: 11, color: MUTED }}>Round trips from tastytrade's own trade transactions — its cash and fees · ACTUAL BROKER RESULT</div>
       </div>
       {state === "LOADING" ? <div style={{ fontSize: 12, color: MUTED, marginTop: 8 }}>Reading tastytrade's history…</div> : null}
-      {state === "REFUSED" || state === "FAILED" ? <div style={{ fontSize: 12, color: DOWN, marginTop: 8 }}>{state === "REFUSED" ? "tastytrade history is owner-only." : `tastytrade history could not be read: ${reason}`}</div> : null}
+      {state === "REFUSED" ? <div data-testid="tastytrade-ledger-not-connected" style={{ fontSize: 12, color: MUTED, marginTop: 8 }}>No tastytrade account is connected to yours.</div> : null}
+      {state === "FAILED" ? <div style={{ fontSize: 12, color: DOWN, marginTop: 8 }}>{`tastytrade history could not be read: ${reason}`}</div> : null}
       {state === "OK" && accounts.length === 0 ? <div style={{ fontSize: 12, color: MUTED, marginTop: 8 }}>No tastytrade accounts.</div> : null}
       {accounts.map(a => (
         <div key={a.tail} data-testid={`tt-ledger-${a.tail}`} style={{ marginTop: 10 }}>

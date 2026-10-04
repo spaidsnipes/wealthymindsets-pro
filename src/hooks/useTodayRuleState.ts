@@ -21,10 +21,13 @@ export function useTodayRuleState(): { state: TodayRuleState | null; dismiss: ()
   useEffect(() => { try { setHidden(localStorage.getItem(RULE_CARD_HIDDEN_KEY)); } catch { /* none */ } }, []);
   useEffect(() => {
     let alive = true;
+    let t: number | undefined;
     const pull = async () => {
       if (document.visibilityState === "hidden") return;
       try {
         const r = await fetch("/api/broker/webull/ledger?today=1", { cache: "no-store" });
+        // guest audit 2026-10-04: a 403 is the owner gate — this user has no broker here; stop asking every minute.
+        if (r.status === 403) { window.clearInterval(t); if (alive) setState(null); return; }
         if (!r.ok) { if (alive) setState(null); return; }
         const j = await r.json() as { state?: string; day?: string; orders?: LedgerOrder[] };
         if (!alive) return;
@@ -38,7 +41,7 @@ export function useTodayRuleState(): { state: TodayRuleState | null; dismiss: ()
       } catch { if (alive) setState(null); }
     };
     void pull();
-    const t = window.setInterval(() => { void pull(); }, 60_000);
+    t = window.setInterval(() => { void pull(); }, 60_000);
     return () => { alive = false; window.clearInterval(t); };
   }, []);
   const dismiss = useCallback(() => {

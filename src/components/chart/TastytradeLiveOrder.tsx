@@ -26,6 +26,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isTerminal, type TtOrderView, type WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { checkOrder } from "@/lib/execution/guardrails";
 import { openSettings } from "@/components/layout/shellPanels";
+import { isOwnerRefusal, plainBrokerAnswer, TASTYTRADE_NOT_AVAILABLE } from "@/lib/broker/ownerRefusal";
 import { useGuardrails } from "@/lib/execution/useGuardrails";
 
 import { tastytradeEntryFields, type TastytradeEntryType } from "@/lib/broker/tastytradeEntryFields";
@@ -64,6 +65,8 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState<{ state: string; reason?: string } | null>(null);
   const [order, setOrder] = useState<TtOrderView | null>(null);
+  // guest audit 2026-10-04: the owner gate refused the account list — say so once, show no empty dropdown or send button.
+  const [notYours, setNotYours] = useState(false);
   const keyRef = useRef<string | null>(null);
 
   const futures = intent ? FUTURES_TYPES.has(intent.instrumentType) : false;
@@ -71,8 +74,9 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
   useEffect(() => {
     let live = true;
     fetch("/api/broker/tastytrade/accounts", { cache: "no-store" })
-      .then(r => r.json().catch(() => null))
-      .then(j => {
+      .then(async r => ({ status: r.status, j: await r.json().catch(() => null) }))
+      .then(({ status, j }) => {
+        if (live && isOwnerRefusal(j, status)) { setNotYours(true); return; }
         if (!live || !Array.isArray(j?.accounts)) return;
         setAccounts((j.accounts as { accountNumber: string; accountType?: string; isFuturesApproved?: boolean }[]).map((a, index) => ({
           index, tail: a.accountNumber.slice(-4), accountType: a.accountType ?? null, futuresApproved: a.isFuturesApproved ?? null,
@@ -149,7 +153,8 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
         }),
       });
       const j = await r.json().catch(() => null);
-      setAnswer({ state: j?.state ?? `HTTP ${r.status}`, reason: j?.reason ?? (Array.isArray(j?.result?.errors) ? j.result.errors.map((e: { message?: string }) => e.message).join("; ") : undefined) });
+      if (isOwnerRefusal(j, r.status)) { setNotYours(true); return; }
+      setAnswer({ state: j?.state ?? `HTTP ${r.status}`, reason: j?.reason ?? j?.error ?? (Array.isArray(j?.result?.errors) ? j.result.errors.map((e: { message?: string }) => e.message).join("; ") : undefined) });
       if (j?.order) setOrder(j.order);
       if (j?.state === "UNKNOWN") reconcile();
     } catch {
@@ -182,13 +187,21 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
       const r = await fetch(`/api/broker/tastytrade/orders?accountIndex=${accountIndex}&id=${encodeURIComponent(order.id)}`, { method: "DELETE" });
       const j = await r.json().catch(() => null);
       if (j?.order) setOrder(j.order);
-      else setAnswer({ state: j?.state ?? `HTTP ${r.status}`, reason: j?.reason });
+      else if (isOwnerRefusal(j, r.status)) setNotYours(true);
+      else setAnswer({ state: j?.state ?? `HTTP ${r.status}`, reason: j?.reason ?? j?.error });
     } finally {
       setBusy(false);
     }
   }
 
   if (!intent) return null;
+  if (notYours) {
+    return (
+      <section data-testid="tt-live-order" data-state="NOT_AVAILABLE" aria-label="Live order on tastytrade" style={{ marginTop: 10, border: "1px solid #3a3326", borderRadius: 4, padding: 8 }}>
+        <p role="status" style={{ color: MUTED }}>{TASTYTRADE_NOT_AVAILABLE}</p>
+      </section>
+    );
+  }
   const working = order && !isTerminal(order.state);
   const stateColor = (s: WmOrderState) => (s === "FILLED" ? "#7fd1a8" : s === "REJECTED" || s === "UNKNOWN" ? RED : GOLD);
 
@@ -219,7 +232,7 @@ export function TastytradeLiveOrder({ intent, ensureDecision }: {
           {busy ? "Sending to tastytrade…" : "Send LIVE order"}
         </button>
       </div>
-      {answer ? <p role="status" style={{ marginTop: 6, color: answer.state === "ACKNOWLEDGED" || answer.state === "RECONCILED" ? "#7fd1a8" : GOLD }}>{answer.state.replace(/_/g, " ")}{answer.reason ? ` · ${answer.reason}` : ""}</p> : null}
+      {answer ? <p role="status" data-state={answer.state} style={{ marginTop: 6, color: answer.state === "ACKNOWLEDGED" || answer.state === "RECONCILED" ? "#7fd1a8" : GOLD }}>{/^HTTP /.test(answer.state) ? `tastytrade did not answer clearly (${answer.state.slice(5)}).` : plainBrokerAnswer(answer.state)}{answer.reason ? ` · ${answer.reason}` : ""}</p> : null}
       {order ? (
         <div data-testid="tt-order-state" data-state={order.state} style={{ marginTop: 6, fontVariantNumeric: "tabular-nums" }}>
           <span style={{ color: stateColor(order.state) }}>{order.state.replace(/_/g, " ")}</span>

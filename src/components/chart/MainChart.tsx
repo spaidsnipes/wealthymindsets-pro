@@ -8577,10 +8577,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (tier !== "BASE") {
             // The crown: a soft gold aura and a second, finer bezel.
             ctx.save();
-            const aura = ctx.createRadialGradient(b.x, b.y, Rx * 0.9, b.x, b.y, Rx * (tier === "WHALE" ? 1.9 : 1.55));
-            aura.addColorStop(0, "rgba(232,184,92,0.28)");
+            // Serving BTC 5m (2026-10-04): a 1.9× aura on a big disc hazed the
+            // newest candles gold. The aura hugs the disc; the ticks say WHALE.
+            const auraK = tier === "WHALE" ? 1.45 : 1.3;
+            const aura = ctx.createRadialGradient(b.x, b.y, Rx * 0.95, b.x, b.y, Rx * auraK);
+            aura.addColorStop(0, "rgba(232,184,92,0.24)");
             aura.addColorStop(1, "rgba(232,184,92,0)");
-            ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx * (tier === "WHALE" ? 1.9 : 1.55), Ry * (tier === "WHALE" ? 1.9 : 1.55), 0, 0, Math.PI * 2);
+            ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx * auraK, Ry * auraK, 0, 0, Math.PI * 2);
             ctx.fillStyle = aura; ctx.fill();
             ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx + 4, Ry + 4, 0, 0, Math.PI * 2);
             ctx.lineWidth = 0.9; ctx.strokeStyle = "rgba(240,200,110,0.75)"; ctx.stroke();
@@ -8604,7 +8607,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const g = ctx.createRadialGradient(b.x - Rx * 0.3, b.y - Ry * 0.35, Rx * 0.05, b.x, b.y, Rx);
           g.addColorStop(0, `rgba(${core},0.42)`);
           g.addColorStop(0.6, `rgba(${core},0.20)`);
-          g.addColorStop(1, "rgba(12,10,6,0.55)");
+          g.addColorStop(1, "rgba(12,10,6,0.38)");
           ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
           ctx.fillStyle = g; ctx.fill();
           ctx.restore();
@@ -10309,7 +10312,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (canvasRef.current) canvasRef.current.dataset.vpSessionWindow = sessionWin.kind;
           // Session VP: distinct translucent identity (0.6×) so it never merges
           // with the solid Fixed VP into one slab (founder: "cannot distinguish").
-          attempts.push({ profile: "SESSION", ...drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, 0.6, "SESSION") });
+          // ALONE it has nothing to merge with (2026-10-04 serving BTC 5m: the
+          // lone session shelf read at 0.18–0.33 alpha, a faint brown smear).
+          attempts.push({ profile: "SESSION", ...drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, bothVP ? 0.6 : 0.95, "SESSION") });
         } else if (canvasRef.current) {
           delete canvasRef.current.dataset.vpSessionWindow;
         }

@@ -1,5 +1,6 @@
 "use client";
 import { TastytradeLedger } from "@/components/journal/TastytradeLedger";
+import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 
 /**
  * WEBULL LIFETIME LEDGER — Garden 18 v2 §29/§30/§36 in the Journal room.
@@ -38,6 +39,8 @@ const UP = "#7fd1a8";
 const DOWN = "#e0786b";
 
 interface AccountRow { tail: string; accountType: string | null; orders: number; filled: number; askedBackTo: string; stoppedBecause: string; reason: string | null }
+/** guest audit 2026-10-04: client-only state for the owner gate's refusal. */
+const NOT_CONNECTED = "NOT_CONNECTED";
 interface LedgerAnswer { partial?: boolean; state: string; reason?: string; asOf?: string; truth?: string; accounts?: AccountRow[]; orderCount?: number; summary?: LedgerSummary; episodes?: Episode[] }
 
 /** Episode rows: six columns on desktop; on a phone the price/hold columns step aside (they stay in the expanded detail).
@@ -200,8 +203,10 @@ export function WebullLifetimeLedger() {
         }
         return r;
       };
-      const list = await get<{ state: string; reason?: string; accounts?: { index: number; tail: string; accountType: string | null }[] }>("");
-      if (list.state !== "OK" || !list.accounts) { if (alive) setData({ state: list.state, reason: list.reason }); return; }
+      const list = await get<{ state: string; reason?: string; error?: string; code?: string; accounts?: { index: number; tail: string; accountType: string | null }[] }>("");
+      // guest audit 2026-10-04: the owner gate's 403 carries a code and no state — that is "no broker connected", not a blank reason.
+      if (isOwnerRefusal(list)) { if (alive) setData({ state: NOT_CONNECTED }); return; }
+      if (list.state !== "OK" || !list.accounts) { if (alive) setData({ state: list.state ?? "UNREADABLE", reason: list.reason ?? list.error }); return; }
       const all: LedgerOrder[] = [];
       const rows: AccountRow[] = [];
       // Each publish rebuilds every episode and re-renders every derived view
@@ -306,6 +311,7 @@ export function WebullLifetimeLedger() {
 
       {progress ? <p data-testid="ledger-progress" role="status" style={{ color: MUTED, fontSize: 12, margin: 0 }}>{progress} Finished months are kept after the first read, so later visits are quick.</p> : null}
       {!data ? <p style={{ color: MUTED, fontSize: 12 }}>Reading every order Webull's history returns — each account, a year at a time.</p>
+        : data.state === NOT_CONNECTED ? <p data-testid="ledger-not-connected" style={{ color: MUTED, fontSize: 12 }}>No broker is connected to your account — your journal entries and Paper fills are your record.</p>
         : data.state !== "OK" ? <p data-testid="ledger-refusal" style={{ color: MUTED, fontSize: 12 }}>Webull history not readable: {data.state}{data.reason ? ` — ${data.reason}` : ""}. Nothing is shown in its place.</p>
         : s ? (
         <>

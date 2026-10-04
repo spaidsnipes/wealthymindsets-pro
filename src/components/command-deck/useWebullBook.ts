@@ -7,6 +7,7 @@
  * imports this and never fetches itself (commandDeckOneOrganism.sentinel).
  */
 import * as React from "react";
+import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 import type { WebullBalanceRead, WebullPositionsRead, WebullStatusRead } from "./brokerBookRows";
 
 /** The deck reads the owner's Webull book when it mounts, then every minute (brokerBookRows.ts). */
@@ -16,6 +17,7 @@ export function useWebullBook(): { status: WebullStatusRead | null; positions: W
   const [balance, setBalance] = React.useState<WebullBalanceRead | null>(null);
   React.useEffect(() => {
     let alive = true;
+    let t: number | undefined;
     const read = async (url: string) => {
       try {
         const r = await fetch(url, { cache: "no-store" });
@@ -28,6 +30,14 @@ export function useWebullBook(): { status: WebullStatusRead | null; positions: W
       const s = await read("/api/broker/webull/status");
       if (!alive) return;
       if (s) setStatus(s);
+      // guest audit 2026-10-04: the owner gate refused — this user has no broker
+      // here. The other reads would be refused the same way; stop polling.
+      if (s && isOwnerRefusal(s.body, s.httpStatus)) {
+        setPositions(s);
+        setBalance(s);
+        window.clearInterval(t);
+        return;
+      }
       await new Promise((r) => window.setTimeout(r, 2_000));
       if (!alive) return;
       const p = await read("/api/broker/webull/positions");
@@ -40,7 +50,7 @@ export function useWebullBook(): { status: WebullStatusRead | null; positions: W
       if (bal) setBalance(bal);
     };
     void load();
-    const t = window.setInterval(load, 120_000); // Webull rate-limits the positions read (serving 2026-09-27): every two minutes.
+    t = window.setInterval(load, 120_000); // Webull rate-limits the positions read (serving 2026-09-27): every two minutes.
     return () => { alive = false; window.clearInterval(t); };
   }, []);
   return { status, positions, balance };

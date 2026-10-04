@@ -15,6 +15,8 @@
  * Execution stays separately gated; nothing here can place or change an order.
  */
 
+import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
+
 export interface BookRowVM {
   readonly key: string;
   readonly label: string;
@@ -58,9 +60,17 @@ export interface WebullPositionsRead {
   } | null;
 }
 
+/**
+ * guest audit 2026-10-04: the owner gate's 403 is a signed-in user with no
+ * broker of their own — a calm "not connected", never a code or a refusal tone.
+ */
+const notConnectedRow = (key: string, label: string, detail: string): BookRowVM => ({ key, label, state: "NOT CONNECTED", detail, tone: "quiet" });
+export const NO_BROKER_DETAIL = "No broker connected to your account — the Paper room is where you can practice.";
+
 export function brokerRowFromRead(read: WebullStatusRead | null): BookRowVM | null {
   if (!read) return null;
   const b = read.body;
+  if (isOwnerRefusal(b, read.httpStatus)) return notConnectedRow("broker", "Broker", NO_BROKER_DETAIL);
   if (read.httpStatus === 200 && b?.connected) {
     const types = b.accountTypes?.length ? ` (${b.accountTypes.join(", ")})` : "";
     return {
@@ -85,6 +95,7 @@ export function bookSymbolKey(symbol: string): string {
 export function positionRowFromRead(read: WebullPositionsRead | null, symbol: string): BookRowVM | null {
   if (!read) return null;
   const b = read.body;
+  if (isOwnerRefusal(b, read.httpStatus)) return notConnectedRow("position", "Position", "No broker position to show — no broker is connected to your account.");
   if (read.httpStatus !== 200 || !b) {
     return { key: "position", label: "Position", state: "UNOBSERVED", detail: `The Webull position read was refused (${b?.code ?? `HTTP ${read.httpStatus}`}) — flat is never assumed.`, tone: "refused" };
   }
@@ -131,6 +142,7 @@ const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits
 export function accountRowFromRead(read: WebullBalanceRead | null): BookRowVM | null {
   if (!read) return null;
   const b = read.body;
+  if (isOwnerRefusal(b, read.httpStatus)) return notConnectedRow("account", "Account", "No broker balance to show — no broker is connected to your account.");
   if (read.httpStatus !== 200 || !b || !b.state) {
     return { key: "account", label: "Account", state: "UNOBSERVED", detail: `The Webull balance read was refused (HTTP ${read.httpStatus}) — no balance is assumed.`, tone: "refused" };
   }
@@ -163,6 +175,7 @@ const ageWords = (ms: number) => ms < 90_000 ? `${Math.max(1, Math.round(ms / 10
  * Open lists lag (GP12 §33) — the detail says so.
  */
 export function ordersRowFromStatus(read: WebullStatusRead | null, nowMs: number = Date.now()): BookRowVM | null {
+  if (read && isOwnerRefusal(read.body, read.httpStatus)) return notConnectedRow("orders", "Orders", "No broker orders to show — no broker is connected to your account.");
   const rec = read?.body?.sessionKeeper?.reconciliation;
   if (!read || !rec) return null;
   const age = nowMs - rec.atMs;

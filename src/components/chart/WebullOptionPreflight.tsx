@@ -16,11 +16,14 @@ import React, { useEffect, useState } from "react";
 
 import { TastytradeLiveOrder } from "@/components/chart/TastytradeLiveOrder";
 import { WebullLiveOrder } from "@/components/chart/WebullLiveOrder";
+import { isOwnerRefusal, plainBrokerAnswer } from "@/lib/broker/ownerRefusal";
 
 type Answer = {
   readonly state?: string;
   readonly reason?: string;
   readonly note?: string;
+  readonly error?: string;
+  readonly code?: string;
   readonly payload?: unknown;
   readonly accounts?: readonly { index: number; accountType: string | null; tail: string }[];
   readonly accountIndex?: number;
@@ -86,10 +89,10 @@ export function WebullOptionPreflight({ osi, decisionId, referenceAsk, reference
     let live = true;
     fetch("/api/broker/tastytrade/status", { cache: "no-store" })
       .then(r => r.json().catch(() => null))
-      .then((j: { capabilities?: { connected?: boolean; accounts?: number; note?: string }; connected?: boolean; accounts?: number; note?: string; error?: string } | null) => {
+      .then((j: { capabilities?: { connected?: boolean; accounts?: number; note?: string }; connected?: boolean; accounts?: number; note?: string; error?: string; code?: string } | null) => {
         if (!live) return;
         const c = j?.capabilities ?? j;
-        setTt({ connected: Boolean(c?.connected) && (c?.accounts ?? 0) > 0, note: c?.note || j?.error || "" });
+        setTt({ connected: Boolean(c?.connected) && (c?.accounts ?? 0) > 0, note: isOwnerRefusal(j) ? "Not available on your account." : c?.note || j?.error || "" });
       })
       .catch(() => { if (live) setTt({ connected: false, note: "Status did not answer." }); });
     return () => { live = false; };
@@ -112,7 +115,10 @@ export function WebullOptionPreflight({ osi, decisionId, referenceAsk, reference
             body: JSON.stringify({ instrumentType: "Equity Option", optionOsi: osi, action: intent === "BUY_TO_OPEN" ? "Buy to Open" : "Sell to Close", qty, type: "Limit", limitPx: Number(limit), decisionId, accountIndex }),
           });
       const j = (await r.json().catch(() => null)) as Answer | null;
-      setAnswer(j ?? { state: `HTTP ${r.status}` });
+      // guest audit 2026-10-04: the owner gate's 403 has no state — it must still answer, in plain words.
+      if (isOwnerRefusal(j, r.status)) setAnswer({ state: "NOT_AVAILABLE" });
+      else if (!j?.state) setAnswer({ state: "NO_ANSWER", reason: j?.error ?? `The broker answered ${r.status} with no reading.` });
+      else setAnswer(j);
       if (j && typeof j.accountIndex === "number") setAccountIndex(j.accountIndex);
     } catch {
       setAnswer({ state: "NO_ANSWER", reason: "The preflight request did not return." });
@@ -122,7 +128,7 @@ export function WebullOptionPreflight({ osi, decisionId, referenceAsk, reference
   }
 
   const state = answer?.state ?? null;
-  const tone = state === "PREVIEWED" ? "text-wm-green" : state ? "text-wm-gold" : "text-wm-text-muted";
+  const tone = state === "PREVIEWED" ? "text-wm-green" : state && state !== "NOT_AVAILABLE" ? "text-wm-gold" : "text-wm-text-muted";
   return (
     <section aria-label="Broker preflight" data-testid="webull-option-preflight" className="mt-3 rounded border border-wm-border p-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -183,7 +189,7 @@ export function WebullOptionPreflight({ osi, decisionId, referenceAsk, reference
       </button>
       {state ? (
         <p data-testid="webull-preflight-answer" data-state={state} className={`mt-2 ${tone}`} role="status">
-          {state === "PREVIEWED" ? previewWords(answer?.payload) : state === "DRY_RUN_OK" ? dryRunWords((answer as { result?: unknown } | null)?.result) : `${state.replace(/_/g, " ")}${answer?.reason ? ` · ${answer.reason}` : answer?.note ? ` · ${answer.note}` : ""}`}
+          {state === "PREVIEWED" ? previewWords(answer?.payload) : state === "DRY_RUN_OK" ? dryRunWords((answer as { result?: unknown } | null)?.result) : state === "NOT_AVAILABLE" ? "Not available on your account." : `${plainBrokerAnswer(state)}${answer?.reason ? ` · ${answer.reason}` : answer?.note ? ` · ${answer.note}` : ""}`}
         </p>
       ) : null}
       {state === "PREVIEWED" && route === "WEBULL" && decisionId ? (

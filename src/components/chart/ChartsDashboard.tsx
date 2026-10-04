@@ -3434,9 +3434,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             onClick={() => { writeAnatomyMode(m); setAnatomyMode(m); }}
             className="rounded-full px-2 py-0.5 text-[10px]"
             style={{ border: `1px solid ${anatomyMode === m ? "rgba(212,175,55,0.8)" : "rgba(139,106,41,0.35)"}`, color: anatomyMode === m ? "#d4af37" : "#C8C0AE" }}
-            title={m === "OFF" ? "No anatomy manifestation" : m === "MARKET" ? "The mechanics alone — shelves, marks, fuel" : m === "FOUNDER" ? "The Founder body on each absorption / exhaustion event (G06)" : "Body and mechanics tied to the same event"}
+            title={m === "OFF" ? "No anatomy manifestation" : m === "MARKET" ? "The mechanics alone — shelves, marks, fuel" : m === "FOUNDER" ? "The signature body on each absorption / exhaustion event" : "Body and mechanics tied to the same event"}
           >
-            {m === "OFF" ? "Off" : m === "MARKET" ? "Market" : m === "FOUNDER" ? "Founder" : "Fusion"}
+            {m === "OFF" ? "Off" : m === "MARKET" ? "Market" : m === "FOUNDER" ? "Signature" : "Fusion"}
           </button>
         ))}
       </div>

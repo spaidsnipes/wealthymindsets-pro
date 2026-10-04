@@ -30,6 +30,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/TastytradeLiveOrder";
 import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
+import { isOwnerRefusal, plainBrokerAnswer, TASTYTRADE_NOT_AVAILABLE } from "@/lib/broker/ownerRefusal";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
 import { useGuardrails } from "@/lib/execution/useGuardrails";
@@ -37,6 +38,11 @@ import { canonicalAssetClass, cryptoBaseTicker } from "@/lib/marketData/canonica
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 
+/** guest audit 2026-10-04: quote-stream states in plain words (the enum stays in data-state). */
+const STREAM_WORDS: Readonly<Record<string, string>> = {
+  IDLE: "quotes idle", CONNECTING: "connecting", DEGRADED: "reconnecting",
+  NOT_OWNER: "live quotes not on your account", NOT_CONNECTED: "quotes not connected",
+};
 const GOLD = "#C9A55C";
 const INK = "#ede6d3";
 const MUTED = "#8a8271";
@@ -173,8 +179,12 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         const bp = j.result?.["buying-power-effect"];
         const fee = j.result?.["fee-calculation"];
         setAnswer(`tastytrade accepted the dry run${bp?.["change-in-buying-power"] ? ` · buying power ${bp["change-in-buying-power-effect"] === "Debit" ? "−" : "+"}${bp["change-in-buying-power"]}` : ""}${fee?.["total-fees"] ? ` · fees ${fee["total-fees"]}` : ""} — nothing was placed.`);
+      } else if (isOwnerRefusal(j, r.status)) {
+        // guest audit 2026-10-04: the owner gate's 403 is "not on your account", not "HTTP 403".
+        setAnswer(TASTYTRADE_NOT_AVAILABLE);
       } else {
-        setAnswer(`${(j?.state ?? `HTTP ${r.status}`).replace(/_/g, " ")}${j?.reason ? ` · ${j.reason}` : ""}`);
+        const why = j?.reason ?? j?.error;
+        setAnswer(`${j?.state ? plainBrokerAnswer(j.state) : `The dry run did not go through (${r.status}).`}${why ? ` · ${why}` : ""}`);
       }
     } catch {
       setAnswer("The dry run did not return.");
@@ -232,7 +242,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, ...MONO }}>
             <span style={{ color: MUTED }}>bid</span><strong>{q?.bid != null ? q.bid.toFixed(dp) : "—"}</strong>
             <span style={{ color: MUTED }}>ask</span><strong>{q?.ask != null ? q.ask.toFixed(dp) : "—"}</strong>
-            <span style={{ marginLeft: "auto", color: snap.stream === "LIVE" ? GREEN : GOLD }}>● {snap.stream === "LIVE" ? "LIVE · tastytrade" : snap.stream.replace(/_/g, " ").toLowerCase()}</span>
+            <span data-state={snap.stream} style={{ marginLeft: "auto", color: snap.stream === "LIVE" ? GREEN : GOLD }}>● {snap.stream === "LIVE" ? "LIVE · tastytrade" : STREAM_WORDS[snap.stream] ?? snap.stream.replace(/_/g, " ").toLowerCase()}</span>
           </div>
           {contractWhy ? <p style={{ color: GOLD }}>{contractWhy}</p> : null}
 

@@ -26,7 +26,7 @@ describe("Session profile is framed by its session (Sentinel)", () => {
 
   it("only the Session column asks for a frame", () => {
     expect(at).toBeGreaterThan(-1);
-    expect(CHART).toContain('drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, 0.6, "SESSION")');
+    expect(CHART).toContain('drawWMVP(sessionBars, "#8B5CF6", "WM Session VP", 0, bothVP ? 1 : 0, nVPCols, bothVP ? 0.6 : 0.95, "SESSION")');
     expect(CHART).toContain('drawWMVP(allBars, "#F0B429", "WM Fixed VP", 0, 0, nVPCols)');
   });
 

@@ -22,6 +22,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { TastytradeLiveOrder } from "@/components/chart/TastytradeLiveOrder";
 
 import { expectedMove, readFopTicket } from "@/lib/broker/fopTicket";
+import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 import { readContractQuote, type ContractQuoteState } from "@/lib/broker/tastyContractQuote";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import { firstLiveExpiration, futuresProductFor, readEquityOptionChain, readFuturesOptionChain, snapToTick, strikesNear, tickFor, type FopExpiration, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
@@ -133,7 +134,9 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
       .then(async r => ({ status: r.status, j: await r.json().catch(() => null) }))
       .then(({ status, j }) => {
         if (!live) return;
-        if (status === 403) { setEdge(j?.error ?? "These broker accounts belong to their owner only."); return; }
+        // guest audit 2026-10-04: the owner gate's sentence ("belong to another user") is not for a guest's eyes.
+        if (isOwnerRefusal(j, status)) { setEdge("Option chains need a broker connection that isn't available on your account yet."); return; }
+        if (status === 403) { setEdge(j?.error ?? "Option chains aren't available on your account."); return; }
         if (j?.state === "NOT_CONFIGURED") { setEdge("tastytrade is not connected on this deployment yet."); return; }
         if (j?.state !== "OK") { setEdge(`tastytrade answered: ${j?.reason ?? j?.state ?? `HTTP ${status}`}`); return; }
         const c = equity ? readEquityOptionChain(j.data) : readFuturesOptionChain(j.data);

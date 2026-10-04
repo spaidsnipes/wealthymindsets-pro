@@ -37,7 +37,7 @@ export function ChartStyleSettingsTab() {
           ))}
         </div>
         {strength !== "CANON" ? (
-          <button type="button" onClick={() => writeStoredProfileStrength("CANON")} className="mt-2 text-[11px] text-wm-gold underline-offset-2 hover:underline">Reset to Founder Canon</button>
+          <button type="button" onClick={() => writeStoredProfileStrength("CANON")} className="mt-2 text-[11px] text-wm-gold underline-offset-2 hover:underline">Reset to WM default</button>
         ) : null}
       </section>
       <section>
@@ -46,7 +46,7 @@ export function ChartStyleSettingsTab() {
           {roleCount === 0 ? "Every sense paints at its canon strength (no roles set)." : `${roleCount} sense${roleCount === 1 ? "" : "s"} carry a role (Primary / Supporting / Ambient / Latent). Set them from Tools › Active.`}
         </div>
         {roleCount > 0 ? (
-          <button type="button" onClick={() => writeStoredRoles({})} className="mt-2 min-h-8 rounded border border-wm-border px-3 text-[11px] font-semibold text-wm-text">Reset roles to Founder Canon</button>
+          <button type="button" onClick={() => writeStoredRoles({})} className="mt-2 min-h-8 rounded border border-wm-border px-3 text-[11px] font-semibold text-wm-text">Reset roles to WM default</button>
         ) : null}
       </section>
     </div>

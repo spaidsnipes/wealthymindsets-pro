@@ -54,7 +54,7 @@ export function TradeReplay({ e }: { readonly e: Episode }) {
     if (!streamer) { setLoad({ state: "NONE", why: "This instrument has no streamer symbol WM can name." }); return; }
     setLoad({ state: "LOADING" });
     requestTastyCandles(tastyCandleSymbol(streamer, "1m") ?? `${streamer}{=m}`, streamer, w.from, 20_000).then(rows => {
-      if (!rows) { setLoad({ state: "NONE", why: "tastytrade did not answer for this contract (the stream is owner-only and must be connected)." }); return; }
+      if (!rows) { setLoad({ state: "NONE", why: "tastytrade did not answer for this contract — replay needs a connected tastytrade account." }); return; }
       const bars = barsInWindow(tastyCandlesToBars(rows, 100_000), w);
       if (!bars.length) { setLoad({ state: "NONE", why: "tastytrade returned no 1-minute bars for this contract in this window." }); return; }
       setLoad({ state: "OK", bars });

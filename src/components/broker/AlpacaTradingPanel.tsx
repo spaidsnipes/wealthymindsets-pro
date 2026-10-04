@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, TrendingUp, RefreshCw, Loader2, CheckCircle2,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/positionTruth";
 import { selectExitPermission } from "@/lib/exitPermission";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
+import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface AlpacaAccount {
@@ -121,6 +123,9 @@ export function AlpacaTradingPanel({
   const [orders,    setOrders]    = useState<Order[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [acctError, setAcctError] = useState("");
+  // guest audit 2026-10-04: an owner-only refusal is not an error to fix — it
+  // is "not connected for you"; never show server-secret instructions here.
+  const [acctRefused, setAcctRefused] = useState(false);
   // A failed load is NOT an empty book. These distinguish "you hold nothing"
   // from "we could not find out what you hold".
   const [positionsLoad, setPositionsLoad] = useState<"pending" | "ok" | "failed">("pending");
@@ -223,7 +228,12 @@ export function AlpacaTradingPanel({
       if (!active) return;
       const data = await res.json();
       if (!active) return;
-      if (data?.error) { setAcctError(data.error); setLoading(false); return; }
+      if (data?.error) {
+        setAcctRefused(isOwnerRefusal(data, res.status));
+        setAcctError(data.error);
+        setLoading(false);
+        return;
+      }
       // A non-ok response whose body simply lacks an `error` field would
       // otherwise be cast straight to AlpacaAccount and rendered as an
       // account made of undefined numbers.
@@ -238,6 +248,7 @@ export function AlpacaTradingPanel({
         return;
       }
       setAccount(data as AlpacaAccount);
+      setAcctRefused(false);
       setAcctError("");
     } catch (e) {
       if (active) setAcctError(String(e));
@@ -480,11 +491,17 @@ export function AlpacaTradingPanel({
       }
     >
         <div role="status" className="border-b border-wm-border px-4 py-2 text-[11px] text-wm-text-muted">
-          {loading ? "Checking paper account…" : acctError ? "PAPER ACCOUNT UNVERIFIED — inspect positions separately." : account ? "PAPER ACCOUNT OBSERVED — positions and orders have separate status below." : "PAPER ACCOUNT UNVERIFIED"}
+          {loading ? "Checking paper account…" : acctRefused ? "Paper account not connected" : acctError ? "PAPER ACCOUNT UNVERIFIED — inspect positions separately." : account ? "PAPER ACCOUNT OBSERVED — positions and orders have separate status below." : "PAPER ACCOUNT UNVERIFIED"}
         </div>
 
         {/* ── Account error (actionable) ── */}
-        {acctError && (
+        {acctError && acctRefused && (
+          <div role="status" data-broker-refusal="owner-only" className="mx-4 mt-3 px-3 py-2 rounded-lg border border-wm-border text-[11px] text-wm-text-muted">
+            Broker paper trading isn&apos;t connected for your account.{" "}
+            <Link href="/paper" className="font-semibold text-wm-text underline underline-offset-2">Practice in the Paper room →</Link>
+          </div>
+        )}
+        {acctError && !acctRefused && (
           <div className="mx-4 mt-3 px-3 py-2 rounded-lg text-[11px] text-wm-red flex items-start gap-2"
             style={{ background: "rgba(255,77,106,0.08)", border: "1px solid rgba(255,77,106,0.2)" }}>
             <AlertCircle size={12} className="shrink-0 mt-0.5" />

@@ -8,7 +8,15 @@ describe("the deck's broker book rows say what was read", () => {
   });
   it("CONNECTED names the account count and types; a refusal names its code", () => {
     expect(brokerRowFromRead({ httpStatus: 200, body: { connected: true, accountCount: 3, accountTypes: ["CASH", "MARGIN"] } })).toMatchObject({ state: "CONNECTED", detail: expect.stringContaining("3 accounts (CASH, MARGIN)") });
-    expect(brokerRowFromRead({ httpStatus: 403, body: { code: "BROKER_OWNER_NOT_CONFIGURED" } })).toMatchObject({ state: "REFUSED", detail: expect.stringContaining("BROKER_OWNER_NOT_CONFIGURED") });
+    expect(brokerRowFromRead({ httpStatus: 403, body: { code: "SOME_OTHER_REFUSAL" } })).toMatchObject({ state: "REFUSED", detail: expect.stringContaining("SOME_OTHER_REFUSAL") });
+  });
+  it("guest audit 2026-10-04: the owner gate's 403 reads as no broker connected — no enum, no refusal tone", () => {
+    for (const code of ["BROKER_OWNER_NOT_CONFIGURED", "BROKER_ACCOUNT_NOT_AUTHORIZED"]) {
+      const row = brokerRowFromRead({ httpStatus: 403, body: { code, error: "These broker accounts belong to another user." } });
+      expect(row).toMatchObject({ state: "NOT CONNECTED", tone: "quiet", detail: expect.stringContaining("No broker connected") });
+      expect(row?.detail).not.toMatch(/BROKER_|another user/);
+      expect(positionRowFromRead({ httpStatus: 403, body: { code } }, "TSLA")?.detail).not.toMatch(/BROKER_/);
+    }
   });
   it("FLAT only when the read succeeded and held nothing for this symbol; a failed read is never flat", () => {
     expect(positionRowFromRead({ httpStatus: 200, body: { state: "NO_POSITIONS", accountsQueried: 3, positions: [] } }, "tsla")).toMatchObject({ state: "FLAT" });
