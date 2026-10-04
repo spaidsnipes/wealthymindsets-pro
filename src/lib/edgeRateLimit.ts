@@ -14,6 +14,8 @@
 export const AUTH_MAIL_LIMITER_BINDING = "AUTH_MAIL_LIMITER";
 /** SpaidBot spends the operator's Gemini quota: 10 / signed-in user / min. */
 export const SPAIDBOT_LIMITER_BINDING = "SPAIDBOT_LIMITER";
+/** Lounge posts / comments and Radio writes: 10 / signed-in user / min (anti-flood). */
+export const COMMUNITY_WRITE_LIMITER_BINDING = "COMMUNITY_WRITE_LIMITER";
 
 interface RateLimitBinding { limit(opts: { key: string }): Promise<{ success: boolean }> }
 

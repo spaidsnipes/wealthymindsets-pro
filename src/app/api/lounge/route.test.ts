@@ -31,6 +31,16 @@ describe("/api/lounge — the server holds the rules", () => {
     expect(url).toContain("user_handle=eq.dave");
   });
 
+  it("refuses the 11th post in a minute (anti-flood) but never limits likes", async () => {
+    globalThis.fetch = (async (_u: string, init?: RequestInit) => new Response(JSON.stringify([{ id: 9, ...(init?.body ? JSON.parse(String(init.body)) : {}) }]), { status: 201 })) as unknown as typeof fetch;
+    const { POST } = await load();
+    const codes: number[] = [];
+    for (let i = 0; i < 11; i++) codes.push((await POST(post({ op: "post", content: `n${i}` }))).status);
+    expect(codes.slice(0, 10).every(c => c === 200)).toBe(true);
+    expect(codes[10]).toBe(429);
+    expect((await POST(post({ op: "like", postId: 9 }))).status).not.toBe(429);
+  });
+
   it("names a missing store and missing tables instead of an empty feed", async () => {
     vi.stubEnv("TEST_SERVICE_KEY", "");
     let { GET } = await load();

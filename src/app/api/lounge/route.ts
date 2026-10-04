@@ -16,6 +16,8 @@
  */
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { edgeAllows, tooManyRequests, COMMUNITY_WRITE_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { resolveSupabaseServiceKey } from "@/lib/supabaseConfigStatus";
 
 export const dynamic = "force-dynamic";
@@ -116,6 +118,13 @@ export async function POST(request: Request): Promise<Response> {
   const id = "postId" in body ? Number(body.postId) : NaN;
   const needsId = body.op === "comment" || body.op === "like" || body.op === "unlike" || body.op === "delete";
   if (needsId && !(Number.isInteger(id) && id > 0)) return NextResponse.json({ error: "Bad post id" }, { status: 400 });
+  // Anti-flood (2026-10-04): any signed-in account could post or comment
+  // without limit. Likes / follows stay free — they are idempotent toggles.
+  if (body.op === "post" || body.op === "comment") {
+    const rl = checkRateLimit(`lounge-write:${auth.user.sub}`, { max: 10, windowMs: 60_000 });
+    if (!rl.ok) return rl.response;
+    if (!(await edgeAllows([`lounge:${auth.user.sub}`], COMMUNITY_WRITE_LIMITER_BINDING))) return tooManyRequests();
+  }
   try {
     const rest = store();
     const h = encodeURIComponent(me.handle);

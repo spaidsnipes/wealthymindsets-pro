@@ -13,6 +13,8 @@
  */
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { edgeAllows, tooManyRequests, COMMUNITY_WRITE_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { resolveSupabaseServiceKey } from "@/lib/supabaseConfigStatus";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +76,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!auth.ok) return auth.response;
   const uploader = (auth.user.handle ?? auth.user.email?.split("@")[0] ?? "").trim();
   if (!uploader) return NextResponse.json({ error: "Your account has no handle." }, { status: 400 });
+  // Anti-flood (2026-10-04): Radio writes had no limit.
+  const rl = checkRateLimit(`radio-write:${auth.user.sub}`, { max: 10, windowMs: 60_000 });
+  if (!rl.ok) return rl.response;
+  if (!(await edgeAllows([`radio:${auth.user.sub}`], COMMUNITY_WRITE_LIMITER_BINDING))) return tooManyRequests();
   const b = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   if (!b) return NextResponse.json({ error: "Bad request" }, { status: 400 });
   try {
