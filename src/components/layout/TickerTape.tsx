@@ -1,6 +1,7 @@
 "use client";
 
 import { WATCH_LIVE_FRESH_MS, useTastyWatchQuotes } from "@/lib/broker/useTastyWatchQuotes";
+import { useCoinbaseLivePrices } from "@/hooks/useWebSocket";
 import React, { useEffect, useState, useRef } from "react";
 import { TrendingUp, TrendingDown, Pencil, X, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -642,6 +643,7 @@ export function TickerTape() {
 
   const tapeSymsForLive = pathname === INSTRUMENT_VIEW_ROUTE ? chartPulseSymbols : customSyms;
   const liveTape = useTastyWatchQuotes(tapeSymsForLive);
+  const liveCrypto = useCoinbaseLivePrices(tapeSymsForLive);
   const handleClick = (sym: string) => {
     setActiveSymbol(sym);
     if (pathname !== INSTRUMENT_VIEW_ROUTE) {
@@ -662,11 +664,16 @@ export function TickerTape() {
     .map(sym => {
       const row = rowFor(sym, quotes, refusals, nowMs);
       // §LXXXIX: the chart's live lane, when fresh, is the tape's truth too.
-      const lv = liveTape.get(sym.toUpperCase());
-      if (!lv || nowMs - lv.at >= WATCH_LIVE_FRESH_MS) return row;
+      const tt = liveTape.get(sym.toUpperCase());
+      const cb = liveCrypto.get(sym.toUpperCase());
+      // The streamed Coinbase print speaks for a crypto row the same way
+      // tastytrade's lane speaks for the rest (2026-10-04).
+      const lv = tt && nowMs - tt.at < WATCH_LIVE_FRESH_MS ? { ...tt, src: "tastytrade" as const }
+        : cb && nowMs - cb.at < WATCH_LIVE_FRESH_MS ? { ...cb, src: "coinbase" as const } : null;
+      if (!lv) return row;
       const ref = row.price > 0 && row.chgObserved ? row.price - row.chg : null;
       const chg = ref ? lv.price - ref : row.chg;
-      return { ...row, price: lv.price, src: "tastytrade", live: true, fresh: true, chg, pct: ref ? (chg / ref) * 100 : row.pct, up: ref ? chg >= 0 : row.up };
+      return { ...row, price: lv.price, src: lv.src, live: true, fresh: true, chg, pct: ref ? (chg / ref) * 100 : row.pct, up: ref ? chg >= 0 : row.up };
     });
 
   /* Charts keeps one stable pulse; other routes retain the seamless loop. */

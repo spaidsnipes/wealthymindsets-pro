@@ -1042,6 +1042,42 @@ function joinTape(
 
 export { coinbaseProduct };
 
+/** A crypto symbol's last streamed Coinbase print: its price and exchange time. */
+export interface CoinbaseLive { readonly price: number; readonly at: number }
+
+/**
+ * LIVE CRYPTO FOR ANY SURFACE (2026-10-04). The header ticker graded BTC / ETH
+ * ACTIVE DEGRADED from a REST poll while the chart beside it streamed the same
+ * product. This joins the SAME shared tape hubs (one socket per symbol across
+ * every consumer and tab) and reports each symbol's last print, at most once a
+ * second. Symbols Coinbase does not list are ignored.
+ */
+export function useCoinbaseLivePrices(symbols: readonly string[]): ReadonlyMap<string, CoinbaseLive> {
+  const key = useMemo(
+    () => [...new Set(symbols.map(s => s.toUpperCase()).filter(s => coinbaseProduct(s)))].sort().join(","),
+    [symbols],
+  );
+  const [live, setLive] = useState<ReadonlyMap<string, CoinbaseLive>>(new Map());
+  useEffect(() => {
+    if (!key) return;
+    const latest = new Map<string, CoinbaseLive>();
+    let dirty = false;
+    const releases = key.split(",").map(sym => joinTape(
+      `coinbase:${sym}`,
+      (onTick, onStatus) => tryCoinbase(sym, onTick, onStatus),
+      (t, isReal) => {
+        if (!isReal || !(t.price > 0)) return;
+        latest.set(sym, { price: t.price, at: Number.isFinite(t.time) ? Math.min(t.time, Date.now()) : Date.now() });
+        dirty = true;
+      },
+      () => { /* liveness is judged by the print's time, not the socket flag */ },
+    ));
+    const flush = setInterval(() => { if (dirty) { dirty = false; setLive(new Map(latest)); } }, 1000);
+    return () => { clearInterval(flush); for (const r of releases) r?.(); };
+  }, [key]);
+  return live;
+}
+
 function tryCoinbase(
   symbol:   string,
   onTick:   (t: Tick, isReal: boolean) => void,
