@@ -2351,7 +2351,16 @@ Trade the system, trust the process, winners every day 🚀`,
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => { navigator.clipboard.writeText(song.lyrics.replace(/\*\*/g, "").replace(/\[.*?\]/g, s => s)); }}
+                        onClick={e => {
+                          // It copied silently — no sign it worked or failed (2026-10-04).
+                          const btn = e.currentTarget;
+                          const mark = (word: string, color: string) => {
+                            btn.title = word; btn.setAttribute("aria-label", word); btn.style.color = color;
+                            window.setTimeout(() => { btn.title = "Copy lyrics"; btn.setAttribute("aria-label", "Copy lyrics"); btn.style.color = ""; }, 1600);
+                          };
+                          navigator.clipboard.writeText(song.lyrics.replace(/\*\*/g, "")).then(() => mark("Lyrics copied", "#5cb85c"), () => mark("Couldn't copy", "#e0786b"));
+                        }}
+                        aria-label="Copy lyrics"
                         className="p-1.5 rounded-lg hover:bg-wm-surface text-wm-text-dim hover:text-wm-text transition-colors" title="Copy lyrics">
                         <Copy size={13}/>
                       </button>
