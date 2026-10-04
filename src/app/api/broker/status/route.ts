@@ -103,12 +103,12 @@ function deriveCertReports(implemented: boolean, envConfigured: boolean, connect
  * row here disagreed with `/api/broker/{id}/status`, the Founder would
  * have two answers to one question.
  */
-async function brokerReport(adapter: { readonly id: BrokerId; health(): BrokerHealthLike }, nowMs: number): Promise<ProviderReport> {
+async function brokerReport(adapter: { readonly id: BrokerId; health(): BrokerHealthLike }, nowMs: number, userId: string | null): Promise<ProviderReport> {
   const h = adapter.health();
   // The same observation /api/broker/certification reads (one owner): a
   // broker with a durable, fresh record reports what was OBSERVED, not
   // health()'s never-probing `connected: false`.
-  const observed = h.implemented ? await observedCertification(adapter.id, nowMs) : null;
+  const observed = h.implemented ? await observedCertification(adapter.id, nowMs, { userId }) : null;
   const reports = observed ? observed.reports : deriveCertReports(h.implemented, h.envConfigured, h.connected);
   const cert = computeCertificationLevel(adapter.id, reports);
   return {
@@ -153,11 +153,11 @@ export interface BrokerStatusResponse {
   readonly envConfiguredCount: number;
 }
 
-async function buildBrokerStatus(nowMs: number): Promise<BrokerStatusResponse> {
+async function buildBrokerStatus(nowMs: number, userId: string | null = null): Promise<BrokerStatusResponse> {
   // Every registered adapter, in the registry's own stable order, then the
   // non-adapter AI row. No broker name is typed in this file.
   const providers: readonly ProviderReport[] = [
-    ...(await Promise.all(listAdapters().map(a => brokerReport(a, nowMs)))),
+    ...(await Promise.all(listAdapters().map(a => brokerReport(a, nowMs, userId)))),
     geminiReport(),
   ];
   return {
@@ -175,7 +175,7 @@ export async function GET(request: Request): Promise<Response> {
   // logged-in local session still receives the report.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
-  const body = await buildBrokerStatus(Date.now());
+  const body = await buildBrokerStatus(Date.now(), auth.user.sub);
   return NextResponse.json(body, {
     status: 200,
     headers: { "Cache-Control": "no-store" },

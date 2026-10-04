@@ -69,7 +69,7 @@ function deriveReports(implemented: boolean, envConfigured: boolean, connected: 
   return [{ stage: "auth", status: "PENDING", note: "Adapter present; live cert harness has not run." }];
 }
 
-async function buildBrokerCertification(nowMs: number): Promise<BrokerCertificationResponse> {
+async function buildBrokerCertification(nowMs: number, userId: string | null = null): Promise<BrokerCertificationResponse> {
   const brokers = await Promise.all(listAdapters().map(async (adapter) => {
     const id = adapter.id;
     const h = adapter.health();
@@ -78,7 +78,7 @@ async function buildBrokerCertification(nowMs: number): Promise<BrokerCertificat
     const connected = h?.connected ?? false;
     // A broker with a durable observation is certified FROM it (G3/G4,
     // 2026-09-29: Webull read 0/12 while its reads were proven live).
-    const observed = implemented ? await observedCertification(id, nowMs) : null;
+    const observed = implemented ? await observedCertification(id, nowMs, { userId }) : null;
     const reports = observed ? observed.reports : deriveReports(implemented, envConfigured, connected);
     const result = computeCertificationLevel(id, reports);
     return {
@@ -107,7 +107,7 @@ export async function GET(request: Request): Promise<Response> {
   // and /api/broker/readiness). Presence-only, no secret VALUE ever shipped.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
-  const body = await buildBrokerCertification(Date.now());
+  const body = await buildBrokerCertification(Date.now(), auth.user.sub);
   return NextResponse.json(body, {
     status: 200,
     headers: { "Cache-Control": "no-store" },
