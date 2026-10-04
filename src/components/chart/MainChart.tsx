@@ -11571,6 +11571,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     for (let jx = r.sx + spacing; jx < r.x + r.w - 1; jx += spacing) if (jx > r.x + 1) ctx.fillRect(Math.round(jx) - 0.5, r.y, 1, r.h);
                   }
                   ctx.restore();
+                  // F06A READS AS BARS EVEN INSIDE A SPIKE (2026-10-04, Founder's
+                  // Chrome, BTC 1m): with every candle body and wick cut out, a
+                  // shelf built inside a dense run kept only slivers — an empty
+                  // box. A light uncut wash in the shelf's ink (candles read
+                  // through 0.12) and a side-ink lit edge on every course make
+                  // the stack visible across the candles, as the plate draws it.
+                  ctx.fillStyle = `rgba(${rowInk},${shelfSelected ? 0.16 : 0.12})`;
+                  for (const r of rowRects) ctx.fillRect(r.x, r.y, r.w, r.h);
+                  ctx.fillStyle = `rgba(${rowInk},${shelfSelected ? 0.95 : 0.75})`;
+                  for (const r of rowRects) ctx.fillRect(r.x, r.y, r.w, 1);
                 } else {
                   ctx.fillStyle = desktopShelfInstrument
                     ? `rgba(210,214,219,${shelfFillA})`
