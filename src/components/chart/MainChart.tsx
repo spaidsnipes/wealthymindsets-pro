@@ -7296,7 +7296,38 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ["WICK INTENT", wickWords(rd.wick)],
                 ["TRUTH GAP", gapHere ? (gapHere.filledAt != null ? "Filled" : "Open") : "None"],
               ];
-              const bw = 168, bh = 16 + lines.length * 26;
+              // AT REST AMONG MANY (2026-10-04, Founder's Chrome with the full
+              // Smart Money stack on): the plate's card sat over the loupe and
+              // the newest candles. Clarity alone keeps plate 72's card at rest;
+              // with 3+ other layers on, the resting reading is one line beside
+              // its candle and the full card opens on hover.
+              const othersOn = Object.entries(layerOnRef.current as unknown as Record<string, unknown>)
+                .filter(([k, v]) => v === true && !/clarity/i.test(k)).length;
+              const compact = pinned && othersOn >= 3;
+              const bw = compact ? 0 : 168, bh = compact ? 0 : 16 + lines.length * 26;
+              if (compact) {
+                const gapWord = gapHere ? (gapHere.filledAt != null ? "GAP FILLED" : "GAP OPEN") : "NO GAP";
+                const line = `EFF ${rd.efficiency == null ? "—" : `${Math.round(rd.efficiency * 100)}%`} · ${wickWords(rd.wick).toUpperCase()} · ${gapWord}`;
+                ctx.save();
+                ctx.font = marketFont("OBJECT_NAME");
+                const lw = ctx.measureText(line).width;
+                const yHighC = srs.priceToCoordinate(hb.high);
+                const cands = [
+                  { x: +xh + 10, y: +yLowH + 8 }, { x: +xh - 10 - lw, y: +yLowH + 8 },
+                  { x: +xh + 10, y: (yHighC == null ? +yLowH : +yHighC) - 20 }, { x: +xh - 10 - lw, y: (yHighC == null ? +yLowH : +yHighC) - 20 },
+                ].map(p => ({ x: Math.round(p.x), y: Math.round(p.y), w: lw, h: 12 }))
+                  .filter(r => r.x >= 4 && r.x + r.w <= plotRight - 4 && r.y >= HEADER_FLOOR_Y && r.y + r.h <= pane0Bottom - 4);
+                const spot = cands.find(r => ![...candlesC, ...forceChips].some(o => r.x < o.x + o.w && r.x + r.w > o.x && r.y < o.y + o.h && r.y + r.h > o.y));
+                if (spot) {
+                  ctx.fillStyle = "rgba(232,198,104,0.95)";
+                  ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+                  ctx.textAlign = "left"; ctx.textBaseline = "top";
+                  ctx.fillText(line, spot.x, spot.y);
+                  forceChips.push({ ...spot });
+                  calloutFor = `PINNED_COMPACT:${hb.time}`;
+                } else calloutFor = "PINNED_WITHHELD";
+                ctx.restore();
+              } else {
               // WHERE IT STANDS: beside its candle, on no candle and no chip
               // (serving BTC 15m beside plate 72: the readout sat on the
               // newest bodies and under the TPO VAH chip). Hover keeps the
@@ -7336,6 +7367,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               });
               ctx.restore();
               calloutFor = `${pinned ? "PINNED" : "HOVER"}:${hb.time}${clearSpot ? "" : ":ON_CANDLES"}`;
+              }
               }
             }
           }
