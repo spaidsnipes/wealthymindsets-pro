@@ -484,9 +484,11 @@ describe("responsive P0 command surfaces", () => {
     expect(lounge).toContain('data-lounge-runtime="not-configured"');
     expect(lounge).toContain("Lounge is not configured on this runtime");
     expect(lounge).toContain("No community records were requested");
-    expect(lounge).toContain("NEXT_PUBLIC_SUPABASE_URL");
-    expect(lounge).toContain("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)");
-    expect(lounge.indexOf('if (!loungeClient) {')).toBeLessThan(lounge.indexOf('aria-label="Open community tools"'));
+    // 2026-10-03: the lounge reads through /api/lounge, so the unavailable
+    // canvas names the SERVER's answer (not configured / no tables / no
+    // answer) rather than browser env names it no longer reads.
+    expect(lounge).toContain("Lounge has no community store yet");
+    expect(lounge.indexOf('if (storeState !== "OK" && storeState !== "LOADING") {')).toBeLessThan(lounge.indexOf('aria-label="Open community tools"'));
   });
 
   it("makes configured Lounge filters and rooms progressive disclosure instead of a fixed rail", () => {

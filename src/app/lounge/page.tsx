@@ -13,7 +13,20 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
-import { getSupabase, supabase } from "@/lib/supabase";
+/* The lounge goes through /api/lounge: WM's session names the author and the
+   server holds the rules (2026-10-03). The browser bundle carries no public
+   Supabase connection, so a client-side query here never ran. */
+type LoungeStoreState = "LOADING" | "OK" | "NOT_CONFIGURED" | "TABLE_MISSING" | "UPSTREAM";
+async function loungeApi<T = Record<string, unknown>>(init?: { body?: unknown; query?: string }): Promise<{ status: number; data: (T & { state?: string; error?: string }) | null }> {
+  try {
+    const res = await fetch(`/api/lounge${init?.query ?? ""}`, init?.body
+      ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(init.body), cache: "no-store" }
+      : { cache: "no-store" });
+    return { status: res.status, data: await res.json().catch(() => null) };
+  } catch {
+    return { status: 0, data: null };
+  }
+}
 import dynamic from "next/dynamic";
 const LiveRoom = dynamic(() => import("@/components/lounge/LiveRoom"), { ssr: false });
 import { useAuth } from "@/contexts/AuthContext";
@@ -129,19 +142,16 @@ function CommentsPanel({ postId, myHandle, myName, myAvatar, myColor }:
   const [sending, setSending]   = useState(false);
 
   useEffect(() => {
-    supabase.from("lounge_comments")
-      .select("*").eq("post_id", postId).order("created_at")
-      .then(({ data }) => setComments((data ?? []) as Comment[]));
+    void loungeApi<{ comments?: Comment[] }>({ query: `?comments=${postId}` })
+      .then(({ data }) => setComments((data?.comments ?? []) as Comment[]));
   }, [postId]);
 
   const submit = async () => {
     if (!body.trim() || !myHandle) return;
     setSending(true);
-    const { data, error } = await supabase.from("lounge_comments").insert({
-      post_id: postId, user_handle: myHandle, user_name: myName,
-      user_avatar: myAvatar, user_color: myColor, body: body.trim(),
-    }).select().single();
-    if (!error && data) setComments(c => [...c, data as Comment]);
+    const { status, data } = await loungeApi<{ comment?: Comment }>({ body: { op: "comment", postId, body: body.trim() } });
+    if (status === 200 && data?.comment) setComments(c => [...c, data.comment as Comment]);
+    else toast.error(data?.error ?? "Comment failed — try again");
     setBody("");
     setSending(false);
   };
@@ -204,11 +214,12 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
   const toggleLike = async () => {
     if (!myHandle) { toast.error("Sign in to like posts"); return; }
     if (liked) {
-      await supabase.from("lounge_likes").delete()
-        .eq("post_id", post.id).eq("user_handle", myHandle);
+      const r = await loungeApi({ body: { op: "unlike", postId: post.id } });
+      if (r.status !== 200) { toast.error(r.data?.error ?? "Could not remove the like"); return; }
       setLiked(false); setLikeCount(c => c - 1);
     } else {
-      await supabase.from("lounge_likes").insert({ post_id: post.id, user_handle: myHandle });
+      const r = await loungeApi({ body: { op: "like", postId: post.id } });
+      if (r.status !== 200) { toast.error(r.data?.error ?? "Could not like the post"); return; }
       setLiked(true); setLikeCount(c => c + 1);
     }
   };
@@ -227,7 +238,8 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
     // post (first ~60 chars of content) about to be removed.
     const preview = post.content.length > 60 ? `${post.content.slice(0, 60)}…` : post.content;
     if (!window.confirm(`Delete this Lounge post?\n\n"${preview}"\n\nOther traders may have seen it. This cannot be undone.`)) return;
-    await supabase.from("lounge_posts").delete().eq("id", post.id);
+    const r = await loungeApi({ body: { op: "delete", postId: post.id } });
+    if (r.status !== 200) { toast.error(r.data?.error ?? "Delete failed"); return; }
     onDelete?.(post.id);
     toast.success("Post deleted");
   };
@@ -385,22 +397,12 @@ function CreatePostModal({ onClose, onPost, user }:
       ? { sym, dir, entry, target, stop, rr, status:"open" }
       : null;
 
-    const { data, error } = await supabase.from("lounge_posts").insert({
-      user_handle:   user.handle,
-      user_name:     user.name,
-      user_avatar:   user.avatar,
-      user_color:    user.color,
-      user_tier:     user.tier,
-      user_verified: user.verified,
-      user_ceo:      user.ceo,
-      content:       text.trim(),
-      type:          postType,
-      trade_card:    trade_card ?? null,
-      tags,
-    }).select().single();
+    // Author, tier and marks are set by the server from the session — never
+    // sent from here (they used to be, and the browser could claim "CEO").
+    const { status, data } = await loungeApi<{ post?: Post }>({ body: { op: "post", content: text.trim(), type: postType, trade_card: trade_card ?? null, tags } });
 
-    if (error) { toast.error("Post failed — try again"); setSubmitting(false); return; }
-    const newPost: Post = { ...(data as Post), like_count: 0, comment_count: 0, liked_by_me: false };
+    if (status !== 200 || !data?.post) { toast.error(data?.error ?? "Post failed — try again"); setSubmitting(false); return; }
+    const newPost: Post = { ...(data.post as Post), like_count: 0, comment_count: 0, liked_by_me: false };
     onPost(newPost);
     onClose();
     toast.success("Post published! 🚀");
@@ -732,7 +734,6 @@ export default function LoungePage() {
   usePublishOsStanding({ surface: "Lounge", feed: FEEDLESS_SURFACE });
 
   const { user } = useAuth();
-  const loungeClient = getSupabase();
   const [feedTab,       setFeedTab]       = useState<FeedTab>("for-you");
   const [search,        setSearch]        = useState("");
   const [posts,         setPosts]         = useState<Post[]>([]);
@@ -763,85 +764,42 @@ export default function LoungePage() {
   const myVerified = false;
   const myCeo     = false;
 
-  /* ── Load posts + like counts ── */
-  const loadPosts = useCallback(async () => {
-    if (!loungeClient) {
-      setLoading(false);
-      return;
+  /* ── Load posts, counts and follows — one server read ── */
+  const [storeState, setStoreState] = useState<LoungeStoreState>("LOADING");
+  const loadPosts = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true);
+    const { status, data } = await loungeApi<{ posts?: Post[]; following?: string[] }>();
+    if (status === 200 && data?.state === "OK") {
+      setPosts((data.posts ?? []) as Post[]);
+      setFollows(new Set(data.following ?? []));
+      setStoreState("OK");
+    } else {
+      const st = data?.state;
+      setStoreState(st === "NOT_CONFIGURED" || st === "TABLE_MISSING" ? st : "UPSTREAM");
     }
-    setLoading(true);
-    const { data: rawPosts } = await loungeClient
-      .from("lounge_posts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(60);
-
-    if (!rawPosts) { setLoading(false); return; }
-
-    // Fetch like counts and whether current user liked each post
-    const ids = rawPosts.map(p => p.id);
-    const { data: likesData } = await loungeClient
-      .from("lounge_likes").select("post_id, user_handle").in("post_id", ids);
-    const { data: commentsData } = await loungeClient
-      .from("lounge_comments").select("post_id").in("post_id", ids);
-
-    const likeMap: Record<number, number> = {};
-    const likedSet: Set<number> = new Set();
-    const commentMap: Record<number, number> = {};
-
-    (likesData ?? []).forEach(l => {
-      likeMap[l.post_id] = (likeMap[l.post_id] ?? 0) + 1;
-      if (l.user_handle === myHandle) likedSet.add(l.post_id);
-    });
-    (commentsData ?? []).forEach(c => {
-      commentMap[c.post_id] = (commentMap[c.post_id] ?? 0) + 1;
-    });
-
-    setPosts(rawPosts.map(p => ({
-      ...p,
-      like_count:    likeMap[p.id]    ?? 0,
-      comment_count: commentMap[p.id] ?? 0,
-      liked_by_me:   likedSet.has(p.id),
-    })));
     setLoading(false);
-  }, [loungeClient, myHandle]);
+  }, []);
 
-  useEffect(() => { loadPosts(); }, [loadPosts]);
+  useEffect(() => { void loadPosts(); }, [loadPosts]);
 
-  /* ── Realtime: new posts stream in ── */
+  /* ── New posts: a quiet re-read every 30 s while the room is visible
+     (the old realtime channel needed the browser Supabase client). ── */
   useEffect(() => {
-    if (!loungeClient) return;
-    const channel = loungeClient
-      .channel("lounge_realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "lounge_posts" }, payload => {
-        const newPost = { ...(payload.new as Post), like_count: 0, comment_count: 0, liked_by_me: false };
-        setPosts(prev => {
-          // Don't duplicate if we already have it (from optimistic add)
-          if (prev.some(p => p.id === newPost.id)) return prev;
-          return [newPost, ...prev];
-        });
-      })
-      .subscribe();
-    return () => { loungeClient.removeChannel(channel); };
-  }, [loungeClient]);
+    if (storeState !== "OK") return;
+    const t = setInterval(() => { if (!document.hidden) void loadPosts(true); }, 30_000);
+    return () => clearInterval(t);
+  }, [storeState, loadPosts]);
 
   /* ── Follow / unfollow ── */
-  useEffect(() => {
-    if (!myHandle || !loungeClient) return;
-    loungeClient.from("lounge_follows").select("following_handle").eq("follower_handle", myHandle)
-      .then(({ data }) => setFollows(new Set((data ?? []).map(r => r.following_handle))));
-  }, [loungeClient, myHandle]);
-
   const toggleFollow = async (handle: string) => {
-    if (!loungeClient) return;
     if (!myHandle) { toast.error("Sign in to follow"); return; }
-    if (follows.has(handle)) {
-      await loungeClient.from("lounge_follows").delete()
-        .eq("follower_handle", myHandle).eq("following_handle", handle);
+    const op = follows.has(handle) ? "unfollow" : "follow";
+    const r = await loungeApi({ body: { op, handle } });
+    if (r.status !== 200) { toast.error(r.data?.error ?? "Could not update follow"); return; }
+    if (op === "unfollow") {
       setFollows(f => { const n = new Set(f); n.delete(handle); return n; });
       toast.success(`Unfollowed ${handle}`);
     } else {
-      await loungeClient.from("lounge_follows").insert({ follower_handle: myHandle, following_handle: handle });
       setFollows(f => new Set([...f, handle]));
       toast.success(`Following ${handle}! 🔔`);
     }
@@ -873,7 +831,7 @@ export default function LoungePage() {
     { id:"explore"   as FeedTab, label:"Explore",   icon:<Globe size={12}/> },
   ];
 
-  if (!loungeClient) {
+  if (storeState !== "OK" && storeState !== "LOADING") {
     return (
       // Was a <main>. MainLayout already wraps this route in
       // <main className="wm-app-surface">, so this was a second one and
@@ -890,18 +848,23 @@ export default function LoungePage() {
           className="w-full max-w-xl rounded-2xl border border-wm-border bg-wm-dark p-6 text-center shadow-2xl"
         >
           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-wm-gold">Community connection</p>
-          <h1 className="mt-3 text-xl font-black text-wm-text">Lounge is not configured on this runtime</h1>
+          <h1 className="mt-3 text-xl font-black text-wm-text">
+            {storeState === "NOT_CONFIGURED" ? "Lounge is not configured on this runtime"
+              : storeState === "TABLE_MISSING" ? "Lounge has no community store yet"
+              : "Lounge could not be reached"}
+          </h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-wm-text-muted">
-            No community records were requested, and no empty feed is being inferred. This host needs its public
-            Supabase connection before Lounge can load safely.
+            No community records were requested, and no empty feed is being inferred.{" "}
+            {storeState === "NOT_CONFIGURED" ? "The server holds no community store connection on this host."
+              : storeState === "TABLE_MISSING" ? "The community tables (lounge_posts, lounge_likes, lounge_comments, lounge_follows) do not exist in the store."
+              : "The community store did not answer; nothing is shown in its place."}
           </p>
-          <div className="mt-5 rounded-xl border border-wm-border/70 bg-wm-black/60 px-4 py-3 text-left">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-wm-text-dim">Required runtime names</p>
-            <code className="mt-2 block break-words text-xs text-wm-text-muted">NEXT_PUBLIC_SUPABASE_URL</code>
-            <code className="mt-1 block break-words text-xs text-wm-text-muted">
-              NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)
-            </code>
-          </div>
+          {storeState === "UPSTREAM" && (
+            <button type="button" onClick={() => { setStoreState("LOADING"); void loadPosts(); }}
+              className="mt-5 inline-flex min-h-11 items-center rounded-xl border border-wm-border px-4 text-sm font-bold text-wm-text hover:text-wm-gold">
+              Try again
+            </button>
+          )}
         </section>
       </div>
     );

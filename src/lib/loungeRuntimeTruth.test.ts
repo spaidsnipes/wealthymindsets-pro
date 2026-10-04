@@ -5,11 +5,20 @@ import { describe, expect, it } from "vitest";
 const lounge = readFileSync(resolve(__dirname, "../app/lounge/page.tsx"), "utf8");
 
 describe("Lounge runtime truth", () => {
-  it("checks the nullable client before every page-level query and subscription", () => {
-    expect(lounge).toContain('import { getSupabase, supabase } from "@/lib/supabase"');
-    expect(lounge).toContain("const loungeClient = getSupabase()");
-    expect(lounge).toContain("if (!loungeClient)");
-    expect(lounge).toContain("loungeClient.removeChannel(channel)");
+  // Re-pinned 2026-10-03: the browser bundle carried no public Supabase
+  // connection, so the old client-side lounge never loaded for anyone. Every
+  // read and write now goes through /api/lounge, where the session names the
+  // author; the page never talks to the store itself.
+  it("reads and writes only through the server lounge route", () => {
+    expect(lounge).toContain("fetch(`/api/lounge${init?.query ?? \"\"}`");
+    expect(lounge).not.toMatch(/from "@\/lib\/supabase"/);
+    expect(lounge).not.toMatch(/\.from\("lounge_/);
+    expect(lounge).toContain('if (storeState !== "OK" && storeState !== "LOADING")');
+  });
+
+  it("never sends author identity or marks from the browser", () => {
+    const compose = lounge.slice(lounge.indexOf('op: "post"') - 200, lounge.indexOf('op: "post"') + 200);
+    expect(compose).not.toMatch(/user_ceo|user_tier|user_verified|user_handle/);
   });
 
   it("does not pretend missing configuration is an empty community", () => {
