@@ -29,26 +29,18 @@ export default function ResetPasswordPage() {
     if (password.length < 8) return setMessage("Password must be at least 8 characters.");
     if (password !== confirm) return setMessage("Passwords do not match.");
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey =
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseKey) return setMessage("Password recovery is not configured.");
-
     setSaving(true);
     setMessage("");
     try {
-      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: supabaseKey,
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ password }),
+      // Server-side (2026-10-03): the browser bundle carries no account-service
+      // settings, so the old in-browser call always said "not configured".
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken, password }),
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body?.message ?? body?.msg ?? "Unable to update password.");
+      if (!response.ok) throw new Error(body?.error ?? "Unable to update password.");
       setMessage("Password updated. You can now sign in.");
       setPassword("");
       setConfirm("");
