@@ -27,7 +27,7 @@ import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketD
 import { continuousDayKeyFor, selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { nearestFreeLabelY } from "@/lib/chart/labelSlot";
 import {
-  PHASE_WORD, PHASE_MEANING, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
+  PHASE_WORD, PHASE_MEANING, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, lensRadiusCapFor, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
   wordOnTopArc, type WeatherLens,
 } from "@/lib/chart/liquidityGlassGeometry";
 import { axisPriceFormatFor, displayPrecisionFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
@@ -11726,6 +11726,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 s => hit(s.y),
               );
               if (chipSpot == null) { absorbChipsHidden++; continue; }
+              // QUIET (the phone's word budget): the shelf paints, its words
+              // wait — the same path as a shelf with no free slot. Selecting
+              // the shelf brings them back (the selected item always speaks).
+              if (!shelfSelected && !att.speaks("absorption")) { absorbChipsHidden++; continue; }
               recordKeepOut(keepOutLedger, chipSpot);
               const chipY = chipSpot.rect.y;
               absorbChipRects.push({ x: chipX, y: chipY, w: chipW, h: chipH });
@@ -20170,6 +20174,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // Room above for the ring's title and below for HELD / MOVED.
                 // …and room for the whole brass bezel (F08B: the loupe is always whole on the glass).
                 { x0: LENS_BEZEL_W + 2, y0: HEADER_FLOOR_Y + 16 + LENS_BEZEL_W, x1: weatherPlotRight - LENS_BEZEL_W - 2, y1: pane0Bottom - 16 - LENS_BEZEL_W },
+                // A tablet's loupe stands on part of the glass, not across it.
+                { maxRadius: lensRadiusCapFor(weatherPlotRight) },
               );
               weatherLensWhy = weatherLens ? "DRAWN" : "OFF_CAMERA";
               if (!weatherLens) weatherOffCamera = region;

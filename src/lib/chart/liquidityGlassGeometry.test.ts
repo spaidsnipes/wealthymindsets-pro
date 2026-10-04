@@ -243,3 +243,16 @@ describe("the loupe yields in a small pane (desk quarter / phone, 2026-10-01)", 
     expect(gate2({ ...base, paneWidth: 1200, paneHeight: 240 }).kind).toBe("YIELDED_SMALL_PANE");
   });
 });
+
+describe("the tablet loupe stands on part of the glass (2026-10-04)", () => {
+  it("caps the radius below the tablet width and leaves the desk alone", async () => {
+    const { fitWeatherLens, lensRadiusCapFor, LENS_TABLET_RADIUS_SHARE } = await import("./liquidityGlassGeometry");
+    const ipad = { x0: 0, y0: 0, x1: 760, y1: 990 };
+    const region = { x0: 100, y0: 200, x1: 700, y1: 800 };
+    const capped = fitWeatherLens(region, ipad, { maxRadius: lensRadiusCapFor(760) })!;
+    expect(Math.max(capped.rx, capped.ry)).toBeLessThanOrEqual(760 * LENS_TABLET_RADIUS_SHARE + 0.5);
+    const uncapped = fitWeatherLens(region, ipad)!;
+    expect(Math.max(uncapped.rx, uncapped.ry)).toBeGreaterThan(300);
+    expect(lensRadiusCapFor(1400)).toBeUndefined();
+  });
+});

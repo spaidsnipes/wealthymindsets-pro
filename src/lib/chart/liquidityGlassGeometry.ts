@@ -221,7 +221,25 @@ export function lensDistance(lens: WeatherLens, x: number, y: number): number {
  * what it describes. Null when the region is not on the plot at all (scrolled
  * into history): a lens over nothing measured would be a decoration.
  */
-export function fitWeatherLens(region: ScreenBox, plot: ScreenBox): WeatherLens | null {
+/**
+ * THE TABLET LOUPE (2026-10-04). Founder, on iPad: "the charts pop up halfway
+ * across the screen". The loupe's cap is half the plot — by plate law about
+ * four-fifths of a DESK pane — and on a portrait iPad (plot ~760 wide) that
+ * is a 760px brass circle across the whole market. Below LENS_TABLET_MAX_PANE_W
+ * the radius is capped at LENS_TABLET_RADIUS_SHARE of the plot width instead:
+ * the same loupe, magnifying the same window, standing on part of the glass.
+ * Phones (< LENS_MIN_PANE_W) still yield entirely; the desk is unchanged.
+ */
+export const LENS_TABLET_MAX_PANE_W = 900;
+export const LENS_TABLET_RADIUS_SHARE = 0.22;
+
+export function lensRadiusCapFor(plotWidth: number): number | undefined {
+  return Number.isFinite(plotWidth) && plotWidth < LENS_TABLET_MAX_PANE_W
+    ? Math.max(LENS_MIN_RX, plotWidth * LENS_TABLET_RADIUS_SHARE)
+    : undefined;
+}
+
+export function fitWeatherLens(region: ScreenBox, plot: ScreenBox, opts: { readonly maxRadius?: number } = {}): WeatherLens | null {
   const vals = [region.x0, region.x1, region.y0, region.y1, plot.x0, plot.x1, plot.y0, plot.y1];
   if (!vals.every(Number.isFinite)) return null;
   if (!(plot.x1 > plot.x0) || !(plot.y1 > plot.y0)) return null;
@@ -236,7 +254,8 @@ export function fitWeatherLens(region: ScreenBox, plot: ScreenBox): WeatherLens 
   // encloses the region's half-diagonal, capped by the pane; only a window
   // wider than the pane can hold stretches it, to at most LENS_MAX_ASPECT.
   const halfDiag = Math.hypot((bx1 - bx0) / 2, (by1 - by0) / 2);
-  const rCap = Math.min((plot.x1 - plot.x0) / 2, (plot.y1 - plot.y0) / 2);
+  const rCap = Math.min((plot.x1 - plot.x0) / 2, (plot.y1 - plot.y0) / 2,
+    opts.maxRadius != null && Number.isFinite(opts.maxRadius) ? Math.max(LENS_MIN_RX, opts.maxRadius) : Infinity);
   const r = Math.min(rCap, Math.max(LENS_MIN_RX, halfDiag + LENS_PAD));
   let rx = r;
   const ry = r;
