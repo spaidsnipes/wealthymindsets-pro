@@ -142,7 +142,10 @@ function readApiKeys(): ApiKeys {
   catch { return {}; }
 }
 
-async function fetchFinnhubNews(): Promise<NewsItem[]> {
+// The publisher RSS read takes ~9 s on the Worker (measured 2026-10-03) and
+// the page used to wait for it before showing anything. The wires answer in
+// well under a second, so they paint first and RSS merges in when it lands.
+async function fetchFinnhubNews(onFirst?: (items: NewsItem[]) => void): Promise<NewsItem[]> {
   try {
     const keys = readApiKeys();
     const rssHeaders: Record<string, string> = {};
@@ -152,32 +155,45 @@ async function fetchFinnhubNews(): Promise<NewsItem[]> {
     // other categories (crypto, forex, merger) brings in CoinDesk, MarketWatch,
     // SEC-style filings and more, so the source filter actually has data to show.
     const cats = ["general", "crypto", "forex", "merger"];
-    const [finnhubArrs, rssRaw] = await Promise.all([
-      Promise.all(
+    const finnhubP = Promise.all(
         cats.map(c =>
           fetch(`/api/finnhub?type=news&category=${encodeURIComponent(c)}`, { cache: "no-store" })
             .then(r => (r.ok ? r.json() : { items: [] }))
             .then((j: { items?: FinnhubRaw[] }) => j.items ?? [])
             .catch(() => [])
         )
-      ),
-      // Real publisher RSS feeds (WSJ, MarketWatch, CNBC, CoinDesk, Seeking
+      );
+    // Real publisher RSS feeds (WSJ, MarketWatch, CNBC, CoinDesk, Seeking
       // Alpha, Benzinga, WatcherGuru, SEC, Reuters, Bloomberg) so every curated
       // source button actually loads live content, not just the Finnhub wires.
-      fetch(`/api/news-rss`, { cache: "no-store", headers: rssHeaders })
+    const rssP = fetch(`/api/news-rss`, { cache: "no-store", headers: rssHeaders })
         .then(r => (r.ok ? r.json() : { items: [] }))
         .then((j: { items?: { id: string; source: string; headline: string; summary: string; url: string; datetime: number }[] }) =>
           (j.items ?? []).map(it => ({
             id: it.id, datetime: it.datetime, headline: it.headline,
             summary: it.summary, source: it.source, related: "", category: "", image: "", url: it.url,
           }) as unknown as FinnhubRaw))
-        .catch(() => [] as FinnhubRaw[]),
-    ]);
+        .catch(() => [] as FinnhubRaw[]);
 
+    const finnhubArrs = await finnhubP;
+    if (onFirst) {
+      const first = buildNewsItems(finnhubArrs as FinnhubRaw[][]);
+      if (first.length) onFirst(first);
+    }
+    const rssRaw = await rssP;
+    const all = buildNewsItems([...(finnhubArrs as FinnhubRaw[][]), rssRaw]);
+    if (all.length === 0) throw new Error("News feed failed");
+    return all;
+  } catch {
+    return [];
+  }
+}
+
+function buildNewsItems(arrs: FinnhubRaw[][]): NewsItem[] {
     // Merge Finnhub + RSS, dedupe by id (fall back to url/headline).
     const seen = new Set<string>();
     const raw: FinnhubRaw[] = [];
-    for (const arr of [...(finnhubArrs as FinnhubRaw[][]), rssRaw]) {
+    for (const arr of arrs) {
       for (const item of arr) {
         const key = String(item.id || item.url || item.headline);
         if (seen.has(key)) continue;
@@ -185,7 +201,6 @@ async function fetchFinnhubNews(): Promise<NewsItem[]> {
         raw.push(item);
       }
     }
-    if (raw.length === 0) throw new Error("News feed failed");
     raw.sort((a, b) => b.datetime - a.datetime);
 
     const now = Date.now();
@@ -221,9 +236,6 @@ async function fetchFinnhubNews(): Promise<NewsItem[]> {
         lean:       selectHeadlineLean(`${item.headline} ${summary}`),
       };
     }).sort((a, b) => a.ageMs - b.ageMs);
-  } catch {
-    return [];
-  }
 }
 
 /*
@@ -711,7 +723,7 @@ export default function NewsPage() {
 
   /* Fetch real news from Finnhub on mount + every 2 minutes */
   const loadNews = useCallback(async () => {
-    const real = await fetchFinnhubNews();
+    const real = await fetchFinnhubNews(first => { setNews(first); setLoading(false); });
     if (real.length > 0) {
       setNews(real);
       setLoading(false);
