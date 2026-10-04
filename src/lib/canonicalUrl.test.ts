@@ -20,7 +20,7 @@ describe("canonicalUrl — single host-of-record, zero Vercel", () => {
     expect(CANONICAL_HOST).not.toMatch(/vercel\.app/);
   });
   it("DreamBoard URL carries no Vercel default", () => {
-    expect(DREAMBOARD_URL).not.toMatch(/vercel\.app/);
+    expect(DREAMBOARD_URL ?? "").not.toMatch(/vercel\.app/);
   });
 });
 

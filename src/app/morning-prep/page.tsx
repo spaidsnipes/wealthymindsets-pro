@@ -577,7 +577,8 @@ export default function MorningPrepPage() {
             >
               <Plus size={13} /> New Prep
             </button>
-            <a
+            {DREAMBOARD_URL ? (
+              <a
               href={`${DREAMBOARD_URL}/?view=growth-rings`}
               target="_blank"
               rel="noreferrer"
@@ -594,6 +595,15 @@ export default function MorningPrepPage() {
             >
               Growth Rings ↗
             </a>
+            ) : (
+              // Dreamboard has no live host in this build — say so rather than
+              // link back into WM (the old fallback did exactly that).
+              <span data-testid="growth-rings-offline" title="Dreamboard is not reachable from this build yet (no host configured)."
+                className="inline-flex min-h-11 items-center justify-center"
+                style={{ gap: 6, padding: "7px 12px", borderRadius: 8, border: "1px dashed rgba(139,106,41,0.35)", color: "#8a8271", fontSize: 10, letterSpacing: 0.32, textTransform: "uppercase", fontWeight: 800 }}>
+                Growth Rings · Dreamboard offline
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -638,7 +648,11 @@ export default function MorningPrepPage() {
               <h2 className="text-lg font-black text-white mt-1">How are you growing?</h2>
               <p className="text-sm mt-1" style={{ color: "#AAB2C5" }}>Keep a private record of one faithful practice. This is a long view, never a streak score.</p>
             </div>
-            <a href={`${DREAMBOARD_URL}/?view=growth-rings`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold" style={{ color: "#F0B429" }}>Open the wall ↗</a>
+            {DREAMBOARD_URL ? (
+              <a href={`${DREAMBOARD_URL}/?view=growth-rings`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold" style={{ color: "#F0B429" }}>Open the wall ↗</a>
+            ) : (
+              <span className="inline-flex min-h-11 items-center justify-center text-sm font-bold" style={{ color: "#8a8271" }} title="Dreamboard is not reachable from this build yet (no host configured).">Dreamboard offline</span>
+            )}
           </div>
           <div className="flex flex-wrap gap-2 mb-3">
             {(Object.keys(GROWTH_PRACTICES) as GrowthCategory[]).map(category => <button key={category} onClick={() => { setGrowthCategory(category); setGrowthPractice(GROWTH_PRACTICES[category][0]); }} className="inline-flex min-h-11 items-center justify-center rounded-full px-3 py-1.5 text-xs font-bold capitalize focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold" style={{ background: growthCategory === category ? "#00D4AA" : "rgba(255,255,255,0.06)", color: growthCategory === category ? "#06110F" : "#D8DDEA", border: "1px solid rgba(255,255,255,0.11)" }}>{category}</button>)}

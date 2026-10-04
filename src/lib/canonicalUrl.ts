@@ -114,10 +114,16 @@ export function isNonCanonicalPlatformHost(
 }
 
 /**
- * Dreamboard (Above The Hill) external app URL. Env-driven — set
- * NEXT_PUBLIC_DREAMBOARD_URL to Dreamboard's Cloudflare host. Intentionally has
- * NO Vercel default: the codebase must carry zero Vercel coupling. When unset,
- * callers fall back to the WM canonical origin rather than a dead Vercel link.
+ * Dreamboard (Above The Hill) external app URL, or NULL when this build was
+ * given none. Env-driven — set NEXT_PUBLIC_DREAMBOARD_URL to Dreamboard's
+ * Cloudflare host. Intentionally has NO Vercel default (zero Vercel coupling).
+ *
+ * It used to fall back to WM's own origin "rather than a dead Vercel link".
+ * Measured on serving 2026-10-03, that turned Morning Prep's "Growth Rings ↗"
+ * and the Realm Gateway's DREAMBOARD tile into links to wealthymindsetspro.com
+ * itself — a door that opens the room you are standing in. Dreamboard has no
+ * live host today (its Vercel project answers 402), so callers now get null
+ * and say so instead of pretending.
  */
-export const DREAMBOARD_URL =
-  (process.env.NEXT_PUBLIC_DREAMBOARD_URL || CANONICAL_URL).replace(/\/+$/, "");
+export const DREAMBOARD_URL: string | null =
+  process.env.NEXT_PUBLIC_DREAMBOARD_URL ? process.env.NEXT_PUBLIC_DREAMBOARD_URL.replace(/\/+$/, "") : null;

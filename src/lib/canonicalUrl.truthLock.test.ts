@@ -73,9 +73,11 @@ describe("canonicalUrl — resolution order + trailing-slash guard (supplement)"
     expect(mod.DREAMBOARD_URL).toBe("https://dreamboard.example");
   });
 
-  it("Dreamboard falls back to CANONICAL_URL when env unset (never a dead Vercel link)", async () => {
+  // Re-pinned 2026-10-03: the old fallback to CANONICAL_URL made every
+  // Dreamboard door open WM itself. Unset is now an honest null.
+  it("Dreamboard is null when env unset — never WM's own origin, never Vercel", async () => {
     const mod = await freshImport();
-    expect(mod.DREAMBOARD_URL).toBe(mod.CANONICAL_URL);
+    expect(mod.DREAMBOARD_URL).toBeNull();
   });
 
   it("WORKERS_DEV_FALLBACK is distinct from the default (never used as host of record)", async () => {

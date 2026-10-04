@@ -32,7 +32,8 @@ interface Realm {
 
 const REALMS: readonly Realm[] = [
   { key: "wm-pro",       label: "WM PRO",      tagline: "Trade · Track · Transform", href: FOUNDER_LANDING_ROUTE, glyph: "◇", active: true },
-  { key: "dreamboard",   label: "DREAMBOARD",  tagline: "Plan · Create · Manifest",   href: `${DREAMBOARD_URL}/`, external: true, glyph: "★" },
+  // No host → no door (it used to open WM itself); shown like the other realms not yet open.
+  { key: "dreamboard",   label: "DREAMBOARD",  tagline: "Plan · Create · Manifest",   href: DREAMBOARD_URL ? `${DREAMBOARD_URL}/` : undefined, external: true, glyph: "★" },
   { key: "powertribes",  label: "POWERTRIBES", tagline: "Lead · Build · Scale",        glyph: "✦" },
   { key: "marketplace",  label: "MARKETPLACE", tagline: "Merch · Books · Lifestyle",   href: "/shop", glyph: "◈" },
   { key: "games",        label: "GAMES",       tagline: "Play · Compete · Conquer",    glyph: "⬢" },
