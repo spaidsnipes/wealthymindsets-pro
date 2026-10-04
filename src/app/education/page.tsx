@@ -124,6 +124,26 @@ function getBank(title: string): QQ[] {
 
 
 
+/**
+ * KEY IDEAS — the lesson's reading, from the bank's own authored answers.
+ * Until 2026-10-04 a lesson opened onto "Video lesson coming soon" and then a
+ * quiz: nothing to learn from before being tested. Each question already
+ * carries its correct answer and an `explain` written for it; ranked by how
+ * many of the lesson title's words they share, the closest four lead.
+ */
+const KEY_IDEA_STOP = new Set(["what","the","and","with","explained","deep","dive","your","for","from","into","how","why","trading","market","strategies","method","mastery","rule"]);
+function keyIdeasFor(title: string, n = 4): { idea: string; explain: string }[] {
+  const words = title.toLowerCase().match(/[a-z]{3,}/g)?.filter(w => !KEY_IDEA_STOP.has(w)) ?? [];
+  return getBank(title)
+    .map((qq, i) => {
+      const text = `${qq.q} ${qq.explain} ${qq.choices[qq.correct]}`.toLowerCase();
+      return { qq, i, score: words.reduce((sc, w) => sc + (text.includes(w) ? 1 : 0), 0) };
+    })
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .slice(0, n)
+    .map(({ qq }) => ({ idea: qq.choices[qq.correct], explain: qq.explain }));
+}
+
 /* ── Modules ─────────────────────────────────────────────── */
 const MODULES: Module[] = [
   { id:1, title:"Order Flow Foundations",              duration:"4h 20m", level:"Beginner",     locked:false, completed:false, color:"#00D4AA",
@@ -499,6 +519,21 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
 
         {/* Notes + Quiz CTA */}
         <div className="px-4 py-4 space-y-4">
+          <div data-testid="lesson-key-ideas" className="p-3 rounded-xl border border-wm-border bg-wm-surface/20">
+            <div className="text-[10px] font-black uppercase tracking-wider mb-2.5" style={{ color }}>Key ideas</div>
+            <ol className="space-y-2.5">
+              {keyIdeasFor(lesson.title).map((k, i) => (
+                <li key={i} className="flex gap-2.5">
+                  <span className="text-[10px] font-black mt-0.5 shrink-0 w-4 text-right" style={{ color }}>{i + 1}</span>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-wm-text leading-snug">{k.idea}</div>
+                    <div className="text-[11px] text-wm-text-muted leading-relaxed mt-0.5">{k.explain}</div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+
           <div className="p-3 rounded-xl border border-wm-border bg-wm-surface/20">
             <div className="text-[10px] font-black text-wm-text-muted uppercase tracking-wider mb-2 flex items-center gap-1">
               <FileText size={10}/> Your Notes
@@ -514,7 +549,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
               <div>
                 <div className="text-xs font-bold text-wm-text mb-0.5">Test Your Knowledge</div>
                 <div className="text-[10px] text-wm-text-muted mb-2">
-                  10 MCQ questions · Different questions every retake · Pass at 70%+
+                  10 questions · reshuffled every retake · Pass at 70%+
                 </div>
                 <button onClick={() => setShowQuiz(true)}
                   className="inline-flex min-h-11 items-center gap-1.5 px-3 rounded-lg text-[10px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30 hover:bg-wm-gold/25 transition-all">
@@ -841,7 +876,7 @@ export default function EducationPage() {
               </div>
               <div className="text-center">
                 <div className="font-semibold text-sm mb-1">Select a lesson to begin</div>
-                <div className="text-xs">Browser-local notes confirm after readback · 10-question quiz per lesson · Retake with different questions</div>
+                <div className="text-xs">Browser-local notes confirm after readback · 10-question quiz per lesson · Retake reshuffled</div>
               </div>
               {/* Progress ring */}
               <div className="relative w-20 h-20">

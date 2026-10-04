@@ -4,7 +4,7 @@ import { shufflePick } from "./shufflePick";
 /**
  * Academy knowledge-check selection.
  *
- * The page promises "Different questions every retake". The old draw used
+ * The page promised "Different questions every retake" (2026-10-04: each bank holds 10, so a retake is the same ten reshuffled — the copy now says so). The old draw used
  * `sort(() => Math.random() - 0.5)`, whose comparator is inconsistent, so
  * elements stayed near their original positions and `slice(0, 10)` returned
  * the same early questions while the bank's tail was effectively unreachable.
