@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { edgeAllows, tooManyMailRequests } from "@/lib/edgeRateLimit";
+import { edgeAllows, tooManyRequests } from "@/lib/edgeRateLimit";
 import { useSupabase, supabaseResetPassword } from "@/lib/auth";
 import { CANONICAL_URL as CONFIGURED_URL } from "@/lib/canonicalUrl";
 import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const who = String(email ?? "").trim().toLowerCase();
     if (who) { const byAddr = checkRateLimit(`auth-mail-addr:${who}`, { max: 5, windowMs: 600_000 }); if (!byAddr.ok) return byAddr.response; }
     // The ceiling that holds across isolates (Workers Rate Limiting binding).
-    if (!(await edgeAllows(who ? [`ip:${ip}`, `addr:${who}`] : [`ip:${ip}`]))) return tooManyMailRequests();
+    if (!(await edgeAllows(who ? [`ip:${ip}`, `addr:${who}`] : [`ip:${ip}`]))) return tooManyRequests();
   }
 
   if (useSupabase()) {

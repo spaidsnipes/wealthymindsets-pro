@@ -8,6 +8,7 @@
 import { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { edgeAllows, tooManyRequests, SPAIDBOT_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { formatChartContextNote, type ChartContextInput } from "@/lib/marketData/formatChartContextNote";
 import { forgetGeminiModel, resolveGeminiModel } from "@/lib/ai/geminiModel";
 
@@ -74,6 +75,8 @@ export async function POST(req: NextRequest) {
   // 10 requests per minute per user leaves headroom for concurrent tabs.
   const rl = checkRateLimit(`spaidbot:${auth.user.sub}`, { max: 10, windowMs: 60_000 });
   if (!rl.ok) return rl.response;
+  // The in-memory count is per isolate; this one holds across them (2026-10-04).
+  if (!(await edgeAllows([`user:${auth.user.sub}`], SPAIDBOT_LIMITER_BINDING))) return tooManyRequests();
   if (!GEMINI_KEY) {
     return new Response(
       `data: ${JSON.stringify({ error: "GEMINI_API_KEY not set." })}\n\ndata: [DONE]\n\n`,

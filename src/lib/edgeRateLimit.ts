@@ -12,6 +12,8 @@
  * ceiling, never a working route.
  */
 export const AUTH_MAIL_LIMITER_BINDING = "AUTH_MAIL_LIMITER";
+/** SpaidBot spends the operator's Gemini quota: 10 / signed-in user / min. */
+export const SPAIDBOT_LIMITER_BINDING = "SPAIDBOT_LIMITER";
 
 interface RateLimitBinding { limit(opts: { key: string }): Promise<{ success: boolean }> }
 
@@ -43,7 +45,7 @@ export async function edgeAllows(keys: readonly string[], binding = AUTH_MAIL_LI
   return true;
 }
 
-export function tooManyMailRequests(): Response {
+export function tooManyRequests(): Response {
   return new Response(JSON.stringify({ error: "Too many requests. Wait a minute and try again." }), {
     status: 429,
     headers: { "Content-Type": "application/json", "Retry-After": "60" },
