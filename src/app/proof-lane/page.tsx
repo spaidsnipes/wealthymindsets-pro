@@ -557,6 +557,10 @@ export default function ProofLanePage() {
             <p className="mt-3 text-xs text-neutral-500">
               MEASURED JOURNAL reads only browser-local entries with Planned R defined pre-entry per canon §4. Entries without R are counted but excluded from expectancy — never fabricated. Capture % requires both realized R and max-favorable R per canon §7. Journal entries are not brokerage-certified live-execution receipts.
             </p>
+            <Link href="/journal" data-testid="proof-lane-open-journal"
+              className="mt-2 inline-flex min-h-11 items-center text-xs font-bold text-amber-300 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400">
+              Open the {measured.totalEntries} Journal record{measured.totalEntries === 1 ? "" : "s"} behind this →
+            </Link>
           </section>
         )}
 
@@ -567,6 +571,12 @@ export default function ProofLanePage() {
           <p className="text-sm text-neutral-200">
             The measured overlay activates when the first R-tagged Journal record is available. Objective is not "make $1M fast" — it is a trustworthy process dataset. Live-execution status remains unknown without authoritative brokerage evidence. Five sessions of faithful classification and execution, not five green days.
           </p>
+          {!(measured && measured.rTaggedEntries > 0) && (
+            <Link href="/journal" data-testid="proof-lane-journal-tag-r"
+              className="mt-2 inline-flex min-h-11 items-center text-xs font-bold text-amber-300 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400">
+              Log a trade with Planned R in the Journal →
+            </Link>
+          )}
         </section>
       </div>
     </div>
