@@ -253,6 +253,7 @@ describe("the tablet loupe stands on part of the glass (2026-10-04)", () => {
     expect(Math.max(capped.rx, capped.ry)).toBeLessThanOrEqual(760 * LENS_TABLET_RADIUS_SHARE + 0.5);
     const uncapped = fitWeatherLens(region, ipad)!;
     expect(Math.max(uncapped.rx, uncapped.ry)).toBeGreaterThan(300);
-    expect(lensRadiusCapFor(1400)).toBeUndefined();
+    // The desk is capped too (2026-10-04): the loupe stands beside the Smart Money marks.
+    expect(lensRadiusCapFor(1400)).toBeCloseTo(1400 * 0.17, 5);
   });
 });

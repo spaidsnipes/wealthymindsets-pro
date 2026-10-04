@@ -233,10 +233,20 @@ export function lensDistance(lens: WeatherLens, x: number, y: number): number {
 export const LENS_TABLET_MAX_PANE_W = 900;
 export const LENS_TABLET_RADIUS_SHARE = 0.22;
 
+/**
+ * THE DESK LOUPE TOO (2026-10-04, Founder: every Smart Money tool must read on
+ * the chart). Measured on serving NQ 5m: the plate-sized loupe (~4/5 of the
+ * pane) sat on the newest bars — exactly where absorption shelves,
+ * exhaustion marks and stacks are drawn — and its field veiled them. The desk
+ * loupe is capped at LENS_DESK_RADIUS_SHARE of the plot: the same lens on the
+ * same window, beside the marks rather than over them. A deliberate departure
+ * from plate F08B's size, recorded on the board for the Founder.
+ */
+export const LENS_DESK_RADIUS_SHARE = 0.17;
+
 export function lensRadiusCapFor(plotWidth: number): number | undefined {
-  return Number.isFinite(plotWidth) && plotWidth < LENS_TABLET_MAX_PANE_W
-    ? Math.max(LENS_MIN_RX, plotWidth * LENS_TABLET_RADIUS_SHARE)
-    : undefined;
+  if (!Number.isFinite(plotWidth) || plotWidth <= 0) return undefined;
+  return Math.max(LENS_MIN_RX, plotWidth * (plotWidth < LENS_TABLET_MAX_PANE_W ? LENS_TABLET_RADIUS_SHARE : LENS_DESK_RADIUS_SHARE));
 }
 
 export function fitWeatherLens(region: ScreenBox, plot: ScreenBox, opts: { readonly maxRadius?: number } = {}): WeatherLens | null {
