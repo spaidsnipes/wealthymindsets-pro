@@ -10,6 +10,7 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { HEATMAP_TF_ORDER } from "@/lib/timeframes";
 import { QualityBadge } from "@/components/ui/DataHealth";
 import type { ContextDataState } from "@/lib/marketData/contextDataTruth";
+import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { readObservedChange, summarizeObservedChange } from "@/lib/heatmapAggregateTruth";
 import { WM } from "@/lib/design/wmTokens";
 import { heatCellCameraHref } from "@/lib/routing/opportunityMap";
@@ -736,6 +737,12 @@ export default function OpportunityMapPage() {
   const [hovered,    setHovered]    = useState<{ industry: Industry; x: number; y: number } | null>(null);
   const [search,     setSearch]     = useState("");
   const { pcts, loading: heatLoading, receivedAt, observedAt, qualityState, fidelityReason, retainedSnapshot } = useLivePct(activeTF);
+  // CLOSED IS NOT DELAYED (2026-10-04, weekend serving: "? UNKNOWN" beside a
+  // full board). With the US session proven closed, a 1-day board that holds
+  // rows is the last session's final figures — historical, not unknown.
+  const usSessionOpen = useProvenSessionClosure("SPY");
+  const shownQuality: ContextDataState =
+    usSessionOpen === false && qualityState === "UNKNOWN" && Object.keys(pcts).length > 0 ? "HISTORICAL" : qualityState;
   // Research Heat Archive (§XCII): the trader keeps THIS moment's heat.
   const [savedHeat, setSavedHeat] = useState<"IDLE" | "SAVED" | "FAILED">("IDLE");
   useEffect(() => { setSavedHeat("IDLE"); }, [activeTF, activeView]);
@@ -869,7 +876,7 @@ export default function OpportunityMapPage() {
             market-observation freshness. */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <QualityBadge
-            state={qualityState}
+            state={shownQuality}
           />
           {Object.keys(pcts).length > 0 ? (
             savedHeat === "SAVED" ? (
