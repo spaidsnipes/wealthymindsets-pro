@@ -61,7 +61,14 @@ export function normalizeCoinbaseRestTrades(rows: unknown, productId: string, ap
 export async function fetchCoinbaseTradeHistory(
   productId: string,
   appSymbol: string,
-  opts: { readonly sinceMs: number; readonly maxPages?: number; readonly paceMs?: number; readonly fetchImpl?: typeof fetch; readonly signal?: AbortSignal },
+  opts: {
+    readonly sinceMs: number; readonly maxPages?: number; readonly paceMs?: number; readonly fetchImpl?: typeof fetch; readonly signal?: AbortSignal;
+    /**
+     * Each page's in-window prints as it lands, newest page first (2026-10-04:
+     * the footprint sat empty on every older bar until all 40 pages were in).
+     */
+    readonly onPage?: (ticks: readonly Tick[]) => void;
+  },
 ): Promise<{ ticks: Tick[]; pages: number; reachedMs: number | null; complete: boolean }> {
   const f = opts.fetchImpl ?? fetch;
   const maxPages = opts.maxPages ?? 40;
@@ -80,6 +87,7 @@ export async function fetchCoinbaseTradeHistory(
     pages++;
     if (ticks.length === 0) break;
     for (const t of ticks) all.push(t);
+    opts.onPage?.(ticks.filter(t => t.time >= opts.sinceMs));
     reached = Math.min(...ticks.map(t => t.time));
     if (reached <= opts.sinceMs) break;
     after = res.headers.get("cb-after");

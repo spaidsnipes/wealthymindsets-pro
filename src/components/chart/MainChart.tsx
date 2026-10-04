@@ -3432,10 +3432,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const intervalSec = getIntervalSec(timeframe);
     const sinceMs = Date.now() - Math.min(400 * intervalSec, 6 * 3600) * 1000;
     tapeBackfillRef.current = `LOADING:${product}`;
-    void fetchCoinbaseTradeHistory(product, canonicalSym, { sinceMs, maxPages: 40, signal: ctrl.signal })
+    // Folded PAGE BY PAGE (2026-10-04): the newest page paints its bars at
+    // once and the trail fills backward, instead of every older bar waiting
+    // for all 40 pages. The one fold dedupes by eventId, so nothing counts twice.
+    let folded = 0;
+    const onPage = (page: readonly Tick[]) => {
+      if (ctrl.signal.aborted) return;
+      for (const t of page) if (foldPrintRef.current(t, false)) folded++;
+      flowLadderPublisherRef.current?.changed();
+    };
+    void fetchCoinbaseTradeHistory(product, canonicalSym, { sinceMs, maxPages: 40, signal: ctrl.signal, onPage })
       .then(({ ticks, pages, reachedMs, complete }) => {
         if (ctrl.signal.aborted) return;
-        let folded = 0;
         for (const t of ticks) if (foldPrintRef.current(t, false)) folded++;
         while (tickAccRef.current.size > 400) {
           const oldest = Math.min(...tickAccRef.current.keys());
