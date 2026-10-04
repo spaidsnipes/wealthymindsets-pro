@@ -1440,6 +1440,14 @@ input[type=range]::-webkit-slider-runnable-track {
   .wm-scanner-row > :nth-child(10) {
     display: none !important;
   }
+  /* The header wraps here as it does on a phone: with the presets given room
+     (they had collapsed to 0 px) the actions ran to x=925 on an 834 screen. */
+  .wm-scanner-header {
+    flex-wrap: wrap;
+    row-gap: 4px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
 }
 
 @media (max-width: 900px) {
