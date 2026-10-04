@@ -318,7 +318,7 @@ export default function BacktestingPage() {
 
       {/* Header — WM atmosphere */}
       <div
-        className="flex items-center gap-3 px-4 shrink-0"
+        className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-1 shrink-0"
         style={{
           minHeight: 44,
           borderBottom: "1px solid rgba(139,106,41,0.15)",

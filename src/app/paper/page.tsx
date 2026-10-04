@@ -3135,7 +3135,7 @@ export default function PaperTradingPage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-wm-border shrink-0">
+          <div className="flex overflow-x-auto border-b border-wm-border shrink-0" style={{ scrollbarWidth: "none" }}>
             {([
               ["positions",bookRecoveryRequired ? "Positions · UNKNOWN" : `Positions (${updatedPositions.length})`],
               ["orders",bookRecoveryRequired ? "Orders · UNKNOWN" : `Orders (${pendingOrders.length} pending)`],
@@ -3143,13 +3143,13 @@ export default function PaperTradingPage() {
               ["trades",bookRecoveryRequired ? "Blotter · UNKNOWN" : `Blotter (${trades.length})`],
             ] as [string,string][]).map(([t,l])=>(
               <button key={t} onClick={()=>setTab(t as any)}
-                className={clsx("px-4 py-2 text-xs font-bold border-b-2 transition-all",
+                className={clsx("shrink-0 whitespace-nowrap px-4 py-2 text-xs font-bold border-b-2 transition-all",
                   tab===t ? "border-wm-green text-wm-green" : "border-transparent text-wm-text-muted hover:text-wm-text")}>
                 {l}
               </button>
             ))}
             <button onClick={()=>setTab("leaderboard")}
-              className={clsx("px-4 py-2 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5",
+              className={clsx("shrink-0 whitespace-nowrap px-4 py-2 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5",
                 tab==="leaderboard" ? "border-[#FFD700] text-[#FFD700]" : "border-transparent text-wm-text-muted hover:text-[#FFD700]")}>
               <Trophy size={11}/> Leaderboard
             </button>
