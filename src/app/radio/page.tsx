@@ -1136,7 +1136,7 @@ export default function RadioPage() {
               {STATIONS.map((s, index) => (
                 <StationCard key={s.id} station={s}
                   artIndex={index}
-                  active={activeStation === s.name}
+                  active={activeStation === s.name && playing}
                   onPlay={() => activeStation === s.name ? togglePlay() : playStation(s.id)}
                 />
               ))}
@@ -1248,7 +1248,7 @@ export default function RadioPage() {
                 .filter(e => !search || e.title.toLowerCase().includes(search.toLowerCase()) || e.host.toLowerCase().includes(search.toLowerCase()))
                 .map((ep, index) => (
                   <EpisodeCard key={ep.id} ep={ep} artIndex={index}
-                    active={activeEpTitle === ep.title}
+                    active={activeEpTitle === ep.title && playing}
                     playing={playing}
                     onPlay={() => activeEpTitle === ep.title ? togglePlay() : playEpisode(ep.id)}
                   />
