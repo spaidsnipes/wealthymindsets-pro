@@ -204,8 +204,17 @@ export function WebullLifetimeLedger() {
       if (list.state !== "OK" || !list.accounts) { if (alive) setData({ state: list.state, reason: list.reason }); return; }
       const all: LedgerOrder[] = [];
       const rows: AccountRow[] = [];
+      // Each publish rebuilds every episode and re-renders every derived view
+      // (behaviour tags, clinic, edge…). Publishing after EVERY month chunk
+      // meant ~20 full rebuilds of 975 trades — measured 2026-10-03 the tab's
+      // renderer stopped answering for 45 s mid-read. Interim views now land
+      // at most every 2 s; the final one always lands.
+      let lastPublish = 0;
       const publish = (final: boolean) => {
         if (!alive) return;
+        const now = Date.now();
+        if (!final && lastPublish && now - lastPublish < 2_000) return;
+        lastPublish = now;
         const episodes = reconstructEpisodes(all, Date.now());
         setData({ state: "OK", asOf: new Date().toISOString(), truth: "ACTUAL BROKER RESULT · episodes RECONSTRUCTED from Webull order history", accounts: [...rows], orderCount: all.length, summary: summarizeLedger(episodes), episodes, partial: !final });
       };
