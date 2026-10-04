@@ -90,7 +90,7 @@ function mergeSnapshots<T extends { decisionId: string }>(
   const ids = new Set(primary.map((s) => s.decisionId));
   return [...primary, ...secondary.filter((s) => !ids.has(s.decisionId))];
 }
-const PROFILE_CREATOR_SHEET = "/images/community/wm-radio-creator-grid-v1.png";
+const PROFILE_CREATOR_SHEET = "/images/community/wm-radio-creator-grid-v1.jpg";
 const PROFILE_CREATOR_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
 function profileCreatorArt(index: number): React.CSSProperties {
   return {

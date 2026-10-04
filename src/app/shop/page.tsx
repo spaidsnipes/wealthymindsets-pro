@@ -102,7 +102,7 @@ const PRODUCTS = [
 ];
 
 const CATEGORIES = ["All", "Books", "Art", "Music", "Beauty", "Apparel", "Accessories", "Lifestyle"];
-const PRODUCT_ART_SHEET = "/images/community/wm-shop-product-grid-v1.png";
+const PRODUCT_ART_SHEET = "/images/community/wm-shop-product-grid-v1.jpg";
 const PRODUCT_ART_POSITIONS = ["0% 0%", "33.333% 0%", "66.666% 0%", "100% 0%", "0% 100%", "33.333% 100%", "66.666% 100%", "100% 100%"];
 
 function productArt(id: number): React.CSSProperties | null {

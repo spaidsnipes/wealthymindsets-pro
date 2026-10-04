@@ -46,7 +46,7 @@ interface Station {
   tags:     string[];
 }
 
-const CREATOR_ART_SHEET = "/images/community/wm-radio-creator-grid-v1.png";
+const CREATOR_ART_SHEET = "/images/community/wm-radio-creator-grid-v1.jpg";
 const CREATOR_ART_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
 
 function creatorArt(index: number): React.CSSProperties {

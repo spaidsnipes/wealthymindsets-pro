@@ -576,7 +576,7 @@ const LOUNGE_IDENTITY = {
 
    Guarded by `× THE IMPOSSIBLE INSTRUCTION` in ./circleOfExcellenceClaim.test.ts. */
 const LOUNGE_TOP8: { name: string; color: string; avatar: string }[] = [];
-const LOUNGE_CREATOR_SHEET = "/images/community/wm-radio-creator-grid-v1.png";
+const LOUNGE_CREATOR_SHEET = "/images/community/wm-radio-creator-grid-v1.jpg";
 const LOUNGE_CREATOR_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
 function loungeCreatorArt(index: number): React.CSSProperties {
   return {

@@ -84,8 +84,8 @@ const SHOWS: Show[] = [
   { id:"chart-chill",  title:"Chart & Chill",          host:"Host TBD", genre:"Lo-Fi",        color:"#00D4AA", status:"upcoming", motif:"vinyl", opens:"live"    },
 ];
 
-const TV_HERO_ART = "/images/community/wm-tv-host-studio-v1.png";
-const CREATOR_GRID_ART = "/images/community/wm-radio-creator-grid-v1.png";
+const TV_HERO_ART = "/images/community/wm-tv-host-studio-v1.jpg";
+const CREATOR_GRID_ART = "/images/community/wm-radio-creator-grid-v1.jpg";
 const SHOW_ART_POSITIONS = ["0% 0%", "50% 0%", "100% 0%", "0% 100%", "50% 100%", "100% 100%"];
 
 function motifBg(color: string, motif: Show["motif"]): string {
