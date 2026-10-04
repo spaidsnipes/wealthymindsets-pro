@@ -1,5 +1,6 @@
 "use client";
 
+import { arrivalRipple, bigTradeTier, percentileFromSorted, sortedSessionSizes } from "@/lib/chart/bigTradeTier";
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
 
 /**
@@ -3151,6 +3152,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // beside (not inside) the footprint accumulator so two prints at one price
   // remain two bubbles with two timestamps and two canonical event ids.
   const bigTradePrintAccRef = useRef<Map<number, BigTradeTick[]>>(new Map());
+  const sessionSizesRef = useRef<{ count: number; sorted: number[] }>({ count: -1, sorted: [] });
   /** Value Candle readings for closed bars, read once from the print store (per symbol|interval). */
   const vcStoreCacheRef = useRef<{ key: string; bars: Map<number, { n: number; bar: ValueCandleBar | null }> }>({ key: "", bars: new Map() });
   const processedTicksRef = useRef<Set<string>>(new Set());
@@ -8514,23 +8516,77 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.save();
           if (formingCut) { ctx.clip(formingCut, "evenodd"); discsYieldedToForming++; }
           ctx.globalAlpha = att.alpha("bigTrades", { selectedItem: selB });
-          // Luminous gold body: a lit glass disc, brighter at the rim.
+          // ATH GLASS (Founder 2026-10-03, "make the bubbles look more wow
+          // ath"): one print = one lit glass sphere set in a gold bezel. The
+          // SIDE fills the glass (it used to be a 1 px ring at 0.6 — buy and
+          // sell read the same at a glance); the SESSION PERCENTILE earns the
+          // bezel its crown (bigTradeTier — never on thin evidence); the
+          // ripple speaks only while the print is ARRIVING and never in STILL.
+          // Sorted once per change in the session's print count, then a binary search per disc.
+          const acc = bigTradePrintAccRef.current;
+          let printCount = 0; for (const v of acc.values()) printCount += v.length;
+          if (sessionSizesRef.current.count !== printCount) sessionSizesRef.current = { count: printCount, sorted: sortedSessionSizes(acc.values()) };
+          const tier = bigTradeTier(percentileFromSorted(sessionSizesRef.current.sorted, Math.abs(b.value)));
+          const ripple = arrivalRipple(nowMs, b.born, arriving, motionOnRef.current);
+          if (ripple != null) {
+            ctx.save();
+            const rr = 1 + ripple * 0.9;
+            ctx.globalAlpha *= (1 - ripple) * 0.55;
+            ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx * rr, Ry * rr, 0, 0, Math.PI * 2);
+            ctx.lineWidth = 1.5; ctx.strokeStyle = `rgba(${core},1)`; ctx.stroke();
+            ctx.restore();
+          }
+          if (tier !== "BASE") {
+            // The crown: a soft gold aura and a second, finer bezel.
+            ctx.save();
+            const aura = ctx.createRadialGradient(b.x, b.y, Rx * 0.9, b.x, b.y, Rx * (tier === "WHALE" ? 1.9 : 1.55));
+            aura.addColorStop(0, "rgba(232,184,92,0.28)");
+            aura.addColorStop(1, "rgba(232,184,92,0)");
+            ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx * (tier === "WHALE" ? 1.9 : 1.55), Ry * (tier === "WHALE" ? 1.9 : 1.55), 0, 0, Math.PI * 2);
+            ctx.fillStyle = aura; ctx.fill();
+            ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx + 4, Ry + 4, 0, 0, Math.PI * 2);
+            ctx.lineWidth = 0.9; ctx.strokeStyle = "rgba(240,200,110,0.75)"; ctx.stroke();
+            if (tier === "WHALE") {
+              // Four compass ticks: the top 1% of the session, said in geometry.
+              ctx.lineWidth = 1.6; ctx.strokeStyle = "rgba(255,226,160,0.95)";
+              for (let q = 0; q < 4; q++) {
+                const a = q * Math.PI / 2 - Math.PI / 2;
+                ctx.beginPath();
+                ctx.moveTo(b.x + Math.cos(a) * (Rx + 6), b.y + Math.sin(a) * (Ry + 6));
+                ctx.lineTo(b.x + Math.cos(a) * (Rx + 11), b.y + Math.sin(a) * (Ry + 11));
+                ctx.stroke();
+              }
+            }
+            ctx.restore();
+          }
+          // The glass: aggressor-side body, darker at the rim, lit from above-left.
           ctx.save();
-          ctx.shadowColor = "rgba(232,184,92,0.8)";
-          ctx.shadowBlur = Math.max(8, b.r * 0.7);
-          const g = ctx.createRadialGradient(b.x - Rx * 0.25, b.y - Ry * 0.3, Rx * 0.1, b.x, b.y, Rx);
-          g.addColorStop(0, "rgba(255,226,160,0.30)");
-          g.addColorStop(0.65, "rgba(232,184,92,0.16)");
-          g.addColorStop(1, "rgba(232,184,92,0.42)");
+          ctx.shadowColor = `rgba(${core},0.55)`;
+          ctx.shadowBlur = Math.max(10, b.r * 0.8);
+          const g = ctx.createRadialGradient(b.x - Rx * 0.3, b.y - Ry * 0.35, Rx * 0.05, b.x, b.y, Rx);
+          g.addColorStop(0, `rgba(${core},0.42)`);
+          g.addColorStop(0.6, `rgba(${core},0.20)`);
+          g.addColorStop(1, "rgba(12,10,6,0.55)");
           ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
           ctx.fillStyle = g; ctx.fill();
           ctx.restore();
+          // Specular crescent — what makes it read as an object, not a ring.
+          if (Rx > 7) {
+            ctx.save();
+            ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx - 1.5, Ry - 1.5, 0, 0, Math.PI * 2); ctx.clip();
+            const spec = ctx.createRadialGradient(b.x - Rx * 0.38, b.y - Ry * 0.45, 0, b.x - Rx * 0.38, b.y - Ry * 0.45, Rx * 0.62);
+            spec.addColorStop(0, "rgba(255,248,230,0.38)");
+            spec.addColorStop(1, "rgba(255,248,230,0)");
+            ctx.fillStyle = spec; ctx.fillRect(b.x - Rx, b.y - Ry, Rx * 2, Ry * 2);
+            ctx.restore();
+          }
+          // Gold bezel + the side's own inner ring.
           ctx.beginPath(); ctx.ellipse(b.x, b.y, Rx, Ry, 0, 0, Math.PI * 2);
-          ctx.lineWidth = isHover ? 2.4 : 1.6;
-          ctx.strokeStyle = `rgba(240,200,110,${isHover ? 1 : 0.92})`;
+          ctx.lineWidth = isHover ? 2.6 : 1.8;
+          ctx.strokeStyle = `rgba(240,200,110,${isHover ? 1 : 0.95})`;
           ctx.stroke();
           ctx.beginPath(); ctx.ellipse(b.x, b.y, Math.max(0.1, Rx - 2.6), Math.max(0.1, Ry - 2.6), 0, 0, Math.PI * 2);
-          ctx.lineWidth = 1; ctx.strokeStyle = `rgba(${core},0.6)`; ctx.stroke();
+          ctx.lineWidth = 1.4; ctx.strokeStyle = `rgba(${core},0.95)`; ctx.stroke();
 
           // F07A: SIZE / TIME / ↑PRICE inside the disc — only the lines the
           // circle's chord can hold at their height; else fewer, else none.
