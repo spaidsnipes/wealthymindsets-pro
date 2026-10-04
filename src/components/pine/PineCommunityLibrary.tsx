@@ -335,6 +335,7 @@ const CATS = ["All", "Featured", "Smart Money", "Order Flow", "Trend", "Momentum
 const SORTS = ["Featured", "A–Z"];
 
 /* ── Script card component ──────────────────────────────── */
+const PINE_SAVED_KEY = "wm-pine-saved";
 function ScriptCard({
   script, onImport, onFork, onPreview,
 }: {
@@ -343,7 +344,20 @@ function ScriptCard({
   onFork:    (s: CommunityScript) => void;
   onPreview: (s: CommunityScript) => void;
 }) {
-  const [starred, setStarred] = useState(false);
+  // "Saved" used to be component state — it said Saved and forgot on the next
+  // render of the drawer (2026-10-04). It now keeps the promise on this device.
+  const [starred, setStarred] = useState(() => {
+    try { return (JSON.parse(localStorage.getItem(PINE_SAVED_KEY) || "[]") as string[]).includes(String(script.id)); } catch { return false; }
+  });
+  const toggleSaved = () => setStarred(prev => {
+    const next = !prev;
+    try {
+      const ids = new Set(JSON.parse(localStorage.getItem(PINE_SAVED_KEY) || "[]") as string[]);
+      if (next) ids.add(String(script.id)); else ids.delete(String(script.id));
+      localStorage.setItem(PINE_SAVED_KEY, JSON.stringify([...ids]));
+    } catch { /* storage refused: the star still answers this visit */ }
+    return next;
+  });
 
   return (
     <div className="glass rounded-xl p-4 hover:border-wm-border/80 transition-all group flex flex-col gap-3">
@@ -391,7 +405,9 @@ function ScriptCard({
       {/* Stats + actions */}
       <div className="flex items-center gap-2 pt-1 border-t border-wm-border/50">
         <button
-          onClick={() => setStarred(s => !s)}
+          onClick={toggleSaved}
+          aria-pressed={starred}
+          title={starred ? "Saved on this device" : "Save on this device"}
           className={clsx("flex items-center gap-1 text-[10px] transition-colors", starred ? "text-wm-gold" : "text-wm-text-dim hover:text-wm-gold")}
         >
           <Star size={11} className={starred ? "fill-wm-gold" : ""} />
@@ -407,6 +423,7 @@ function ScriptCard({
           </button>
           <button
             onClick={() => onFork(script)}
+            aria-label={`Fork ${script.title}`}
             className="px-2 py-1 rounded bg-wm-surface border border-wm-border text-[10px] text-wm-text-muted hover:text-wm-text transition-colors"
           >
             <GitFork size={10} />
