@@ -18,6 +18,7 @@
 
 import type { NextRequest } from "next/server";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
+import { requireAuth } from "@/lib/requireAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,10 @@ export const maxDuration = 300; // bounded host execution; EventSource reconnect
 const { key: ALPACA_KEY, secret: ALPACA_SECRET } = resolveAlpacaLiveCredentials();
 
 export async function GET(request: NextRequest) {
+  // Guest audit 2026-10-04: this opened a socket on the deployment's Alpaca
+  // keys for ANY caller, signed in or not. A WM session is required.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const sym = (new URL(request.url).searchParams.get("sym") ?? "").toUpperCase();
   if (!sym) return new Response("sym required", { status: 400 });
   if (!ALPACA_KEY || !ALPACA_SECRET) return new Response("Alpaca keys not set", { status: 503 });

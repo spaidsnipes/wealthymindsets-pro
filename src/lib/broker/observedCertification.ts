@@ -14,6 +14,7 @@ import { webullWorkerEnv } from "../marketData/webullSessionStore";
 import { getTastytradeAccounts, getTastytradeCapabilities, getTastytradePositions, getTastytradeQuoteToken, ttGet } from "../tastytrade";
 import { planMarketDataByTypeQuery } from "../marketData/tastytradeByType";
 import { tastytradeOwnerGate } from "./brokerOwner";
+import { webullOwnerGate } from "./webullOwner";
 
 export interface ObservedCertification {
   readonly reports: CertStageReport[];
@@ -29,7 +30,11 @@ export interface ObserverContext {
 type Observer = (nowMs: number, ctx: ObserverContext) => Promise<ObservedCertification | null>;
 
 const OBSERVERS: Partial<Record<BrokerId, Observer>> = {
-  webull: async (nowMs) => {
+  // Guest audit 2026-10-04: this observer ignored WHO asked, so every
+  // signed-in trader read "Your broker is connected — webull READ_ONLY" from
+  // the Founder's keeper. Owner only, like tastytrade below.
+  webull: async (nowMs, ctx) => {
+    if (!ctx.userId || !webullOwnerGate(ctx.userId, process.env).allowed) return null;
     const record = await readWebullKeeperRecord(await webullWorkerEnv()).catch(() => null);
     return { reports: webullStagesFromKeeper(record, nowMs), connected: webullConnectedFromKeeper(record, nowMs) };
   },

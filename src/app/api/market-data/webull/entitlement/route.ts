@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { webullOwnerGate, webullOwnerRefusal } from "@/lib/broker/webullOwner";
 import { webullDataConfigFromEnv } from "@/lib/marketData/adapters/webullMarketData";
 import { probeWebullEntitlement } from "@/lib/marketData/webullEntitlementProbe";
 import { webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
@@ -22,6 +23,9 @@ const SYMBOL_PATTERN = /^[A-Z][A-Z0-9.-]{0,14}$/;
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // The probe climbs the OWNER's Webull key and session — owner only (guest audit 2026-10-04).
+  const gate = webullOwnerGate(auth.user.sub, process.env);
+  if (!gate.allowed) return NextResponse.json(webullOwnerRefusal(gate), { status: 403, headers: { "Cache-Control": "no-store" } });
 
   const requested = (request.nextUrl.searchParams.get("symbol") ?? "TSLA").trim().toUpperCase();
   if (!SYMBOL_PATTERN.test(requested)) {
