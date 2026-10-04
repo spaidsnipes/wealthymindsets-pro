@@ -3298,7 +3298,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // Observe every box that stands before the pane in the flow, and keep a
     // cheap recheck for nodes that remount after this effect: one rect read
     // every 750ms, writing only when the top actually moved.
-    const ro = new ResizeObserver(measure);
+    // The write resizes the body this observer watches; writing INSIDE the
+    // delivery raised "ResizeObserver loop completed with undelivered
+    // notifications" on every phone load. A 0ms timeout (not rAF — see above)
+    // moves the write out of the delivery.
+    const ro = new ResizeObserver(() => { window.setTimeout(measure, 0); });
     ro.observe(document.body);
     for (let el: Element | null = pane; el && el !== document.body; el = el.parentElement) {
       for (let sib = el.previousElementSibling; sib; sib = sib.previousElementSibling) ro.observe(sib);
