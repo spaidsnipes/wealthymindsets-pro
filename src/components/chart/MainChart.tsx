@@ -8156,22 +8156,42 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const rad = deltaBubbleRadius(r.volume, apPeak);
           const core = r.side === "buy" ? flowColorsRef.current.btBuy : flowColorsRef.current.btSell;
           ctx.globalAlpha = att.alpha("bubbles");
+          // ATH GLASS + HIERARCHY (2026-10-04, serving BTC 5m): clear 10 % cores
+          // stacked into a tangle of rings with prices printed over each other.
+          // Now the delta bubbles' standard — a lit, side-tinted body; zones
+          // under 12 % of the frame's peak are quiet beads; the price prints
+          // only where it fits inside its own ring.
+          const apQuiet = apPeak > 0 && r.volume / apPeak < 0.12;
+          if (apQuiet) ctx.globalAlpha *= 0.55;
+          const apGlass = ctx.createRadialGradient(r.x - rad * 0.3, r.y - rad * 0.34, rad * 0.05, r.x, r.y, rad);
+          apGlass.addColorStop(0, `rgba(${core},${apQuiet ? 0.22 : 0.36})`);
+          apGlass.addColorStop(0.65, `rgba(${core},${apQuiet ? 0.12 : 0.18})`);
+          apGlass.addColorStop(1, `rgba(${core},${apQuiet ? 0.2 : 0.4})`);
           ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${core},0.10)`; ctx.fill();
+          ctx.fillStyle = apGlass; ctx.fill();
           ctx.setLineDash(r.dashed ? [3, 2] : []);
-          ctx.lineWidth = 1.6; ctx.strokeStyle = `rgba(${core},0.95)`; ctx.stroke();
+          ctx.lineWidth = apQuiet ? 1.1 : 1.6; ctx.strokeStyle = `rgba(${core},0.95)`; ctx.stroke();
           ctx.setLineDash([]);
-          ctx.beginPath(); ctx.arc(r.x, r.y, Math.max(0.1, rad - 1.6), 0, Math.PI * 2);
-          ctx.lineWidth = 0.8; ctx.strokeStyle = "rgba(255,255,255,0.55)"; ctx.stroke();
-          if (rad >= 7) {
-            ctx.globalAlpha = att.textAlpha("bubbles");
+          if (!apQuiet && rad > 6) {
+            ctx.save();
+            ctx.beginPath(); ctx.arc(r.x, r.y, rad - 1, 0, Math.PI * 2); ctx.clip();
+            const apSpec = ctx.createRadialGradient(r.x - rad * 0.36, r.y - rad * 0.42, 0, r.x - rad * 0.36, r.y - rad * 0.42, rad * 0.6);
+            apSpec.addColorStop(0, "rgba(255,255,255,0.3)");
+            apSpec.addColorStop(1, "rgba(255,255,255,0)");
+            ctx.fillStyle = apSpec; ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+          }
+          if (!apQuiet && rad >= 7) {
             const fontPx = Math.max(8, Math.min(12, rad * 0.46));
             ctx.font = `bold ${fontPx}px Inter, monospace`;
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.lineWidth = Math.max(2, fontPx * 0.22); ctx.strokeStyle = "rgba(0,0,0,0.88)";
             const lbl = r.price.toFixed(pxDp);
-            ctx.strokeText(lbl, r.x, r.y);
-            ctx.fillStyle = "rgba(255,255,255,0.99)"; ctx.fillText(lbl, r.x, r.y);
+            if (ctx.measureText(lbl).width <= 2 * rad - 2) {
+              ctx.globalAlpha = att.textAlpha("bubbles");
+              ctx.textAlign = "center"; ctx.textBaseline = "middle";
+              ctx.lineWidth = Math.max(2, fontPx * 0.22); ctx.strokeStyle = "rgba(0,0,0,0.88)";
+              ctx.strokeText(lbl, r.x, r.y);
+              ctx.fillStyle = "rgba(255,255,255,0.99)"; ctx.fillText(lbl, r.x, r.y);
+            }
           }
           forceChips.push({ x: r.x - rad - 2, y: r.y - rad - 2, w: 2 * rad + 4, h: 2 * rad + 4 });
           fpTrailBars.add(r.bar);
