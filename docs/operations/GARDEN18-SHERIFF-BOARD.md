@@ -303,3 +303,18 @@ Verdict: the seams hold; the OPEN/PARTIAL steps wait on the Founder's own marks 
 | §CV zero ghosts · depth-silenced layers | 🟢 PROVED | Liquidity Weather on at FAR drew nothing and only the receipt said SILENT:FAR. Zoom plate now prints "SILENT HERE · Liquidity Weather — zoom in" for any switched-on layer the depth silences (receipt `semanticSilencedOn`) (53cfb311) |
 | Loupe back to live | 🟡 still pending | wheel zoom / drag presses not delivered to the background window this session |
 | §8 closed session never LIVE | 🟢 PROVED | motion switch read "● LIVE" beside MARKET CLOSED; now "● MOTION" when the session is proven closed (937b7d63). Desk 4-up: TSLA / NQ1! / SPY MOTION, BTC LIVE; /charts TSLA and /command-deck TSLA carry no LIVE claim |
+
+### Connection pass — 2026-10-03 evening (CDT), "everything just needs to be connected"
+| Seam | State | Receipt |
+|---|---|---|
+| Scanner → Backtest → Chart | 🟢 PROVED | `b643c8c4`/`231a34ad` Backtest reads `?symbol=&tf=`; glass: Scanner SPY → "Backtest SPY →" → Backtest with SPY selected; AAPL 15m backtest run → "Open AAPL on the chart →" → /charts AAPL (now carries tf) |
+| Morning Prep items → Chart / News / Journal | BUILT | `b643c8c4` canon checklist items carry their room's door; no prep entry in this browser and none created to test |
+| Copy Trading "connect a broker" | 🟢 PROVED | `53d5f360` was a dead end; button opens Settings on Connections (aria-selected) |
+| Market Intelligence → Chart | 🟢 PROVED | `53d5f360` "Open /MNQZ6 on the chart →" → /charts /MNQZ6 |
+| VP shelf → Settings › Chart | BUILT | `842d09e4` gear only shows while a profile draws |
+| tastytrade ledger → Chart | 🟢 PROVED (route) | `47bac20b` equity/future as itself, option on underlying, futures option on the contract it names (`./MNQZ6…P30675` → /MNQZ6, renders candles) |
+| Paper → Journal | 🟢 PROVED (receiver) | `681efd63` closing fill → `/journal?new=1&symbol&side&size`; glass: form opened SPY · SHORT · 2, params consumed, closed unsaved. Blotter empty — no paper trade placed to test |
+| Scanner "Set Alert" | 🟢 FIXED + PROVED | `cbe65923` was a flag nothing read ("Alert ON" with no alert). Now Add to watchlist on the list /charts trades from (`lib/watchlist/activeWatchlist`); glass: QBTS added in Scanner → shown in /charts watchlist; storage restored after |
+| Journal local day | 🟢 FIXED | `8527380b` 19:24 CDT the New Trade form read 2026-10-04 (UTC). Entries, Journal "today" (shutdown R) and unreviewed-closes now use the local day |
+| Broker truth · last 7 days | 🟢 FIXED | `e7fcb324` Webull end_date is exclusive; the 7-day read ended at UTC today, so today's fills were missing until 7 PM CDT |
+| Vercel | 🟢 code clean | auth emails already send `redirect_to` = canonical host; Supabase Site URL still the retired Vercel host → Founder must sign in to Supabase (tab left open on URL Configuration) |
