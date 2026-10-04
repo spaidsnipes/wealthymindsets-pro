@@ -337,11 +337,26 @@ export default function WMTVPage() {
 }
 
 /* ── Live Room / Podcast Stage — REAL multi-user broadcast (LiveKit SFU) ──
-   Anyone can "Go Live" as host (camera + mic + screen share) or "Watch" as a
-   viewer. Viewers can raise a hand to join video; the host approves. All of
+   A WM host can "Go Live" (camera + mic + screen share); everyone can "Watch"
+   as a viewer (hosts: the owner or LIVEKIT_HOST_USER_IDS — 2026-10-04). Viewers can raise a hand to join video; the host approves. All of
    this runs through the shared LiveRoom component + /api/livekit token server,
    so streams reach every other person in the same room across the internet. */
+/** Is the signed-in user a WM host? null while asking. Only hosts publish (2026-10-04). */
+function useLiveHost(): boolean | null {
+  const [host, setHost] = useState<boolean | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/livekit/host", { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : { host: false }))
+      .then(j => { if (live) setHost(j?.host === true); })
+      .catch(() => { if (live) setHost(false); });
+    return () => { live = false; };
+  }, []);
+  return host;
+}
+
 function LiveStage({ channel }: { channel: StageChannel }) {
+  const isWmHost = useLiveHost();
   const studio = useStudioState();
   const { user } = useAuth();
   const userName = user?.displayName || user?.handle || user?.email?.split("@")[0] || "Guest";
@@ -422,13 +437,13 @@ function LiveStage({ channel }: { channel: StageChannel }) {
                   : "Open the mic to the community, or join to listen. Raise a hand to jump on the stage."}
               </p>
               <div className="flex items-center gap-3">
-                <motion.button
+                {isWmHost && <motion.button
                   onClick={() => setRole("host")} whileTap={{ scale: 0.95 }} whileHover={{ scale: 1.03 }}
                   className="flex items-center gap-2 px-6 h-11 rounded-xl text-black text-xs font-black"
                   style={{ background: "linear-gradient(135deg, #E8B923 0%, #059669 100%)", boxShadow: "0 8px 24px rgba(232,185,35,0.30)" }}
                 >
                   <Video size={15} /> Join Stream
-                </motion.button>
+                </motion.button>}
                 <motion.button
                   onClick={() => setRole("viewer")} whileTap={{ scale: 0.95 }} whileHover={{ scale: 1.03 }}
                   className="flex items-center gap-2 px-6 h-11 rounded-xl text-wm-text text-xs font-black"
@@ -709,6 +724,7 @@ function BrainFitnessChannel() {
   const { user } = useAuth();
   const userName = user?.displayName || user?.handle || user?.email?.split("@")[0] || "Guest";
   const [live, setLive] = useState<null | "host" | "viewer">(null);
+  const isWmHost = useLiveHost();
   const clock = useEventClock(BF_EVENT_ISO);
 
   // ── Live session view (reuses the same LiveKit room infra as the rest of WM TV) ──
@@ -774,11 +790,11 @@ function BrainFitnessChannel() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 mt-4">
-              <button onClick={() => setLive("host")}
+              {isWmHost && <button onClick={() => setLive("host")}
                 className="flex items-center gap-1.5 text-[12px] font-black px-4 py-2 rounded-xl text-white transition-transform hover:scale-[1.03]"
                 style={{ background:"linear-gradient(135deg,#00D4AA,#059669)" }}>
                 <Radio size={13} /> Go Live (Host)
-              </button>
+              </button>}
               <button onClick={() => setLive("viewer")}
                 className="flex items-center gap-1.5 text-[12px] font-black px-4 py-2 rounded-xl transition-colors"
                 style={{ background:"#8B5CF622", color:"#A78BFA", border:"1px solid #8B5CF655" }}>
