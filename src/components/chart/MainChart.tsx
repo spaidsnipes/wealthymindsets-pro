@@ -23821,6 +23821,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }}
           >
             {fact.text}
+            {/* A crypto bar's volume is in COINS: "Vol 0.0003" read as a broken
+                number until it said which coin (2026-10-04). */}
+            {fact.state === "OBSERVED" && classifySymbol(symbol) === "CRYPTO" ? ` ${symbol.toUpperCase().replace(/[-/]?(USDT|USDC|USD)$/, "")}` : null}
             {fxDoor ? (
               <button
                 type="button"

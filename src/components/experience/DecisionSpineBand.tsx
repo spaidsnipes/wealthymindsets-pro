@@ -2040,6 +2040,17 @@ function WebullLiveCard({ reading }: { readonly reading: WebullLiveReading }): R
             <span style={{ ...PLAQUE_STAMP, color: "#8a8271", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>{fmt(reading.bid)}</span>
             <span style={{ ...PLAQUE_STAMP, color: "#8a8271", letterSpacing: "0.1em" }}>Ask</span>
             <span style={{ ...PLAQUE_STAMP, color: "#8a8271", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>{fmt(reading.ask)}</span>
+            {/* Webull's crypto book is a retail spread (~2 % on BTC, 2026-10-04),
+                so its price sits off the exchange tape on the chart. Saying the
+                width is what makes the gap legible instead of alarming. */}
+            {reading.bid != null && reading.ask != null && reading.bid > 0 && reading.ask > reading.bid && (
+              <>
+                <span style={{ ...PLAQUE_STAMP, color: "#8a8271", letterSpacing: "0.1em" }}>Spread</span>
+                <span data-webull-spread style={{ ...PLAQUE_STAMP, color: "#8a8271", fontVariantNumeric: "tabular-nums", textAlign: "right" }}>
+                  {(((reading.ask - reading.bid) / ((reading.ask + reading.bid) / 2)) * 100).toFixed(2)}%
+                </span>
+              </>
+            )}
           </span>
           <span aria-hidden="true" style={{ ...PLAQUE_STAMP, color: "#8a8271", textAlign: "center", letterSpacing: "0.08em" }}>
             Webull time {t} · {reading.framesPerMin}/min
