@@ -15,7 +15,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { repairChartPreferences } from "@/lib/chartPreferenceRepair";
 import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
-import { SmartMoneyPanel } from "@/components/smart-money/SmartMoneyPanel";
+
 import { ChartToolbar, INDICATOR_CATEGORY } from "./ChartToolbar";
 import { compileEvidenceLineage } from "@/lib/chart/evidenceLineage";
 import { readMarketBreathing } from "@/lib/chart/marketBreathing";
@@ -27,9 +27,9 @@ import { AssetClassSwitcher } from "./AssetClassSwitcher";
 import { isConfigurable, type IndicatorSettings, type IndicatorParams } from "./indicatorConfig";
 import { DOMPanel } from "./DOMPanel";
 import { PnLStatsPanel } from "./PnLStatsPanel";
-import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
+
 import { BROKER_CONNECT_EVENT, BROKER_CONNECT_PARAM, BROKER_CONNECT_VALUE } from "@/lib/broker/brokerConnectDoor";
-import { AlpacaTradingPanel } from "@/components/broker/AlpacaTradingPanel";
+
 import { FOOTPRINT_TYPES, FootprintControls } from "./FootprintControls";
 import { announceFootprintPrefs, subscribeFootprintPrefsRequests } from "@/lib/workspace/footprintPrefs";
 import { ToolFinder } from "./ToolFinder";
@@ -61,7 +61,7 @@ import {
   type ArrangementId,
 } from "@/lib/marketData/viewModels/selectChartArrangement";
 import { SchemePresets } from "./SchemePresets";
-import { OptionsChain } from "./OptionsChain";
+
 import { OptionExpressionIntent } from "./OptionExpressionIntent";
 import {
   OPTION_CHAIN_FIDELITY,
@@ -72,7 +72,7 @@ import {
 } from "@/lib/optionContractResponse";
 import type { OptionContractObservationTiming } from "@/lib/optionsChainRead";
 import { FearGreedWidget } from "./FearGreedWidget";
-import { CustomIndicatorBuilder } from "@/components/pine/CustomIndicatorBuilder";
+
 import { PineCommunityLibrary } from "@/components/pine/PineCommunityLibrary";
 import { DrawingToolsPanel, DEFAULT_DRAWING_STYLE, type DrawingStyle } from "./DrawingToolsPanel";
 import { LeftDrawingSidebar } from "./LeftDrawingSidebar";
@@ -366,7 +366,7 @@ import { useBookLiquidityLifecycle } from "@/lib/marketData/useBookLiquidityLife
 import { useWebullLiveCrypto } from "@/lib/marketData/useWebullLiveCrypto";
 import { DiscoveryUnusualStates } from "@/components/scanner/DiscoveryUnusualStates";
 import { InstrumentContextStrip } from "./InstrumentContextStrip";
-import { FuturesOptionsPanel } from "./FuturesOptionsPanel";
+
 import { DeribitChainPanel } from "./DeribitChainPanel";
 import { MarketMetricsCard } from "./MarketMetricsCard";
 import { SecFundamentalsCard } from "./SecFundamentalsCard";
@@ -390,6 +390,18 @@ import {
 } from "@/lib/marketData/viewModels/selectLivingProfile";
 import type { AnatomyBarInput } from "@/lib/marketData/selectAbsorptionAnatomy";
 import { useTastyFuturesPositioning } from "@/lib/broker/useTastyFuturesPositioning";
+import dynamic from "next/dynamic";
+// ON-DEMAND PANELS LOAD ON DEMAND (2026-10-04): each mounts only when its
+// door opens, yet all six (~7,500 lines) shipped in /charts' first load —
+// about 1 MB compressed for a guest on a phone. Same components, fetched when
+// first opened.
+const OptionsChain = dynamic(() => import("./OptionsChain").then(m => m.OptionsChain), { ssr: false });
+const CustomIndicatorBuilder = dynamic(() => import("@/components/pine/CustomIndicatorBuilder").then(m => m.CustomIndicatorBuilder), { ssr: false });
+const AlpacaTradingPanel = dynamic(() => import("@/components/broker/AlpacaTradingPanel").then(m => m.AlpacaTradingPanel), { ssr: false });
+const BrokerConnectPanel = dynamic(() => import("@/components/broker/BrokerConnectPanel").then(m => m.BrokerConnectPanel), { ssr: false });
+const FuturesOptionsPanel = dynamic(() => import("./FuturesOptionsPanel").then(m => m.FuturesOptionsPanel), { ssr: false });
+const SmartMoneyPanel = dynamic(() => import("@/components/smart-money/SmartMoneyPanel").then(m => m.SmartMoneyPanel), { ssr: false });
+
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
 
