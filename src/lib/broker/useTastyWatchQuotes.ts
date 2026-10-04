@@ -21,6 +21,22 @@ export const WATCH_LIVE_FRESH_MS = 15_000;
 /** How much older than the live quote a last trade may be and still be the row's price. */
 export const TRADE_STALE_BESIDE_QUOTE_MS = 120_000;
 
+/** Wider than this, a book has no price in its middle — it is not a quote. */
+export const MAX_MIDPOINT_SPREAD = 0.01;
+
+/**
+ * The bid/ask midpoint, only when the book is tight enough to mean a price.
+ * Serving /scanner 2026-10-04 (weekend): GLD bid 380.50 / ask 420.00 — a
+ * stale off-hours book — printed LIVE $400.25 +4.56 % while the ETF last
+ * traded 380.69. A spread wider than MAX_MIDPOINT_SPREAD of the mid is not a
+ * price; the row keeps its own source.
+ */
+export function saneMidpoint(bid: number | null | undefined, ask: number | null | undefined): number | null {
+  if (bid == null || ask == null || !(bid > 0) || !(ask >= bid)) return null;
+  const mid = (bid + ask) / 2;
+  return (ask - bid) / mid <= MAX_MIDPOINT_SPREAD ? mid : null;
+}
+
 export function useTastyWatchQuotes(symbols: readonly string[]): ReadonlyMap<string, WatchLive> {
   const key = useMemo(() => [...new Set(symbols.map(s => s.toUpperCase()))].sort().join(","), [symbols]);
   const [streamerOf, setStreamerOf] = useState<ReadonlyMap<string, string>>(new Map());
@@ -51,8 +67,8 @@ export function useTastyWatchQuotes(symbols: readonly string[]): ReadonlyMap<str
       const tradeCurrent = tradeClock != null && (q.quoteAt == null || q.quoteAt - tradeClock <= TRADE_STALE_BESIDE_QUOTE_MS);
       if (q.last != null && q.last > 0 && q.tradeAt != null && tradeCurrent) { out.set(sym, { price: q.last, at: Math.max(q.tradeAt, q.quoteAt ?? 0) }); continue; }
       if (q.quoteAt == null) continue;
-      const price = q.bid != null && q.ask != null ? (q.bid + q.ask) / 2 : null;
-      if (price != null && price > 0) out.set(sym, { price, at: q.quoteAt });
+      const price = saneMidpoint(q.bid, q.ask);
+      if (price != null) out.set(sym, { price, at: q.quoteAt });
     }
     return out;
   }, [snap, streamerOf]);
