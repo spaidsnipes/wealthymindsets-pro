@@ -229,11 +229,11 @@ export default function ShopPage() {
               className="bg-transparent text-xs text-wm-text outline-none w-28 sm:w-32 min-w-0 placeholder-wm-text-dim" />
             {search && <button onClick={() => setSearch("")} className="text-wm-text-dim hover:text-wm-text"><X size={11}/></button>}
           </div>
-          {/* Category filters */}
-          <div className="flex gap-1">
+          {/* Category filters — scroll sideways on a phone rather than run off it. */}
+          <div className="flex max-w-full gap-1 overflow-x-auto">
             {CATEGORIES.map(c => (
               <button key={c} onClick={() => setCat(c)}
-                className={clsx("px-3 py-1 rounded text-xs font-medium transition-all",
+                className={clsx("shrink-0 px-3 py-1 rounded text-xs font-medium transition-all",
                   cat === c ? "bg-wm-gold/20 text-wm-gold border border-wm-gold/40" : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface")}>
                 {c}
               </button>
