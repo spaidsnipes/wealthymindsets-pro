@@ -486,7 +486,7 @@ function ArtistCard({ artist, artIndex, onOpen }: { artist: Artist; artIndex: nu
           </div>
           <div className="flex-1 min-w-0 pb-1">
             <div className="flex items-center gap-1.5">
-              <span className="text-[13px] font-black text-wm-text truncate">{artist.name}</span>
+              <span className="text-[13px] font-black text-wm-text leading-tight line-clamp-2 break-words" title={artist.name}>{artist.name}</span>
               {artist.verified && <CheckCircle size={11} className="shrink-0 text-wm-green" />}
             </div>
             <div className="text-[10px]" style={{ color: artist.color }}>{artist.genre}</div>
