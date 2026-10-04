@@ -14699,13 +14699,34 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
           ctx.restore();
           // One word on the glass, for the newest stack, where the layer speaks.
+          delete ds.imbalanceStackWord;
           if (newest && att.speaks("stack")) {
             ctx.save();
             ctx.font = marketFont("OBJECT_NAME");
             const w = ctx.measureText(newest.word).width;
-            const tx = Math.max(2, Math.min(plotRight - w - 4, newest.buy ? newest.x + 18 : newest.x - w - 6));
-            const ty = Math.max(HEADER_FLOOR_Y + 6, Math.min(pane0Bottom - 6, (newest.yTop + newest.yBot) / 2));
-            const hit = floatingChips.some(r => tx < r.x + r.w && tx + w > r.x && ty - 6 < r.y + r.h && ty + 6 > r.y);
+            // Placed like the anchored stack tag: clear of candle bodies, the
+            // other Smart Money marks and every chip (live open 2026-10-04,
+            // Founder's Chrome: on the forming spike bar this word sat on the
+            // body, the flow arrows and the last-price line).
+            const midY = Math.max(HEADER_FLOOR_Y + 6, Math.min(pane0Bottom - 6, (newest.yTop + newest.yBot) / 2));
+            const wordH = 14;
+            const fit = (r: { x: number; y: number; w: number; h: number }) =>
+              r.x >= 2 && r.x + r.w <= plotRight - 6 && r.y >= HEADER_FLOOR_Y && r.y + r.h <= pane0Bottom;
+            const wordPref = { x: newest.buy ? newest.x + 18 : newest.x - w - 6, y: midY - wordH / 2, w, h: wordH };
+            const wordAlts = [
+              { x: newest.buy ? newest.x - w - 10 : newest.x + 22, y: midY - wordH / 2, w, h: wordH },
+              { x: newest.x - w / 2, y: newest.yTop - wordH - 3, w, h: wordH },
+              { x: newest.x - w / 2, y: newest.yBot + 3, w, h: wordH },
+            ].filter(fit);
+            const wordRows = [wordPref, ...wordAlts];
+            const wordSpot = placeClearOfKeepOut(
+              wordPref,
+              [...keepOut(), ...rowBodiesAt(Math.min(...wordRows.map(r => r.y)), Math.max(...wordRows.map(r => r.y + r.h)))],
+              { minX: Math.max(2, newest.x - 160), blockers: [...floatingChips, ...smartMoneyMarks], strict: true, alternates: wordAlts },
+            );
+            const tx = wordSpot.rect.x, ty = wordSpot.rect.y + wordH / 2;
+            const hit = wordSpot.mode === "BLOCKED" || !fit(wordSpot.rect);
+            ds.imbalanceStackWord = hit ? "HELD" : wordSpot.mode;
             if (!hit) {
               ctx.globalAlpha = att.textAlpha("stack");
               ctx.fillStyle = (newest.buy ? buyRgba : sellRgba)(1);
