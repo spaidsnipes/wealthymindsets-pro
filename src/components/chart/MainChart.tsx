@@ -19847,10 +19847,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const words = `${z.side} ZONE · ${z.lifecycle.state}${n > 0 ? ` · ${n} TEST${n === 1 ? "" : "S"}` : ""}`;
                   ctx.font = marketFont("OBJECT_NAME");
                   const tw = ctx.measureText(words).width;
-                  const tx = Math.max(4, Math.min(zEnd - tw - 4, x0 + 4));
-                  const tys = h >= 16 ? [Math.round(top) + 11] : [Math.round(top) - 4, Math.round(top + h) + 12];
-                  const ty = tys.find(y => y - 10 >= HEADER_FLOOR_Y && y <= pane0Bottom - 2
-                    && !floatingChips.some(r => tx < r.x + r.w && tx + tw > r.x && y - 10 < r.y + r.h && y > r.y));
+                  // Slots: inside top, inside bottom, just below, just above —
+                  // each at the zone's left edge, then its right edge.
+                  const ys = [
+                    ...(h >= 16 ? [Math.round(top) + 11, Math.round(top + h) - 3] : []),
+                    Math.round(top + h) + 12, Math.round(top) - 4,
+                  ];
+                  const xs = [Math.max(4, x0 + 4), Math.max(4, zEnd - tw - 4)];
+                  let tx = xs[0]!, ty: number | undefined;
+                  for (const y of ys) {
+                    for (const x of xs) {
+                      const ok = y - 10 >= HEADER_FLOOR_Y && y <= pane0Bottom - 2 && x + tw <= plotRight - 2
+                        && !floatingChips.some(r => x < r.x + r.w && x + tw > r.x && y - 10 < r.y + r.h && y > r.y);
+                      if (ok) { tx = x; ty = y; break; }
+                    }
+                    if (ty != null) break;
+                  }
                   if (ty != null && tw < zEnd - x0) {
                     ctx.save();
                     ctx.fillStyle = "rgba(233,196,106,0.92)";
