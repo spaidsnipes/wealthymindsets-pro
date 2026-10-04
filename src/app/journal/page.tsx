@@ -3005,12 +3005,15 @@ Trade the system, trust the process, winners every day 🚀`,
               {/* Mood */}
               <div className="flex items-center gap-1.5 mb-4">
                 <span className="text-[10px] text-wm-text-dim mr-1">Mood:</span>
+                {/* A read-out of the saved mood, not a control — these were five
+                    buttons with hover states and no handler (2026-10-04). The
+                    mood is set in the entry form. */}
                 {MOODS.map(m => (
-                  <button key={m.val}
-                    className={clsx("text-sm px-2 py-0.5 rounded-full transition-all border",
-                      selected.mood === m.val ? "bg-wm-surface border-wm-border" : "border-transparent opacity-40 hover:opacity-70")}
+                  <span key={m.val} aria-hidden={selected.mood !== m.val}
+                    className={clsx("text-sm px-2 py-0.5 rounded-full border",
+                      selected.mood === m.val ? "bg-wm-surface border-wm-border" : "border-transparent opacity-40")}
                     title={m.label}>{m.emoji}
-                  </button>
+                  </span>
                 ))}
                 <span className="text-[10px] text-wm-text-dim ml-1">{MOODS.find(m => m.val === selected.mood)?.label}</span>
               </div>
