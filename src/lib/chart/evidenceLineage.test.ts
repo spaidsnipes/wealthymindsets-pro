@@ -44,3 +44,17 @@ describe("H-301 Evidence Lineage — do not count correlated readings twice (pla
     }
   });
 });
+
+describe("a switch with nothing on the glass is waiting, not an observation (2026-10-04)", () => {
+  it("names quiet tools and does not count them", async () => {
+    const { compileEvidenceLineage } = await import("./evidenceLineage");
+    const vm = compileEvidenceLineage({ indicators: [], tools: [
+      { id: "VALUE_CANDLE", label: "WM Value Candle" },
+      { id: "ABSORPTION", label: "Absorption Shelf", quiet: true },
+      { id: "EXHAUSTION", label: "Exhaustion", quiet: true },
+    ] })!;
+    expect(vm.observations).toBe(1);
+    expect(vm.waiting).toEqual(["Absorption Shelf", "Exhaustion"]);
+    expect(vm.families.flatMap(f => f.members)).toEqual(["WM Value Candle"]);
+  });
+});

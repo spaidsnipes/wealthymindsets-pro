@@ -18,6 +18,7 @@ import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Ac
 
 import { ChartToolbar, INDICATOR_CATEGORY } from "./ChartToolbar";
 import { compileEvidenceLineage } from "@/lib/chart/evidenceLineage";
+import { senseIsQuiet } from "@/lib/chart/senseEventStates";
 import { readMarketBreathing } from "@/lib/chart/marketBreathing";
 import { readResponseMatrix, readTemporalEvidenceDensity } from "@/lib/chart/effortEvidence";
 import { MainChart, type VpDrawnLevels } from "./MainChart";
@@ -4713,7 +4714,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // grouped by what each is computed from (plate 118, "do not count 7").
   const evidenceLineage = compileEvidenceLineage({
     indicators: [...activeInds].map(name => ({ name, cat: INDICATOR_CATEGORY[name] ?? null })),
-    tools: arrangementMenu.entries.filter(e => e.active).map(e => ({ id: e.id, label: e.label })),
+    // A switch whose glass receipt says nothing is on this camera is named as
+    // waiting, not counted as an observation (senseEvents = the chart's receipts).
+    tools: arrangementMenu.entries.filter(e => e.active).map(e => ({ id: e.id, label: e.label, quiet: senseIsQuiet(senseEvents[e.id]) })),
   });
   const decisionSpineProps = {
     drawnPlan: riskPlan,

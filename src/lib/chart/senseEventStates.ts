@@ -43,6 +43,14 @@ export function senseEventStates(r: Receipts): Record<string, string> {
   if (wx === "DRAWN") out.LIQUIDITY_WEATHER = SENSE_ON_CAMERA;
   else if (wx === "UNMEASURED") out.LIQUIDITY_WEATHER = SENSE_UNAVAILABLE;
 
+  // Exhaustion and the founder anatomy events had no word (2026-10-04): the
+  // Evidence Lineage rail counted them as observations while the glass held
+  // nothing. `exhaustion` is the count drawn; `dualAnatomy` carries EVENTS:n.
+  const ex = Number(r.exhaustion ?? NaN);
+  if (Number.isFinite(ex)) out.EXHAUSTION = ex > 0 ? `${SENSE_ON_CAMERA} · ${ex}` : SENSE_NO_EVENT;
+  const anat = /EVENTS:(\d+)/.exec(r.dualAnatomy ?? "");
+  if (anat) out.ANATOMY_CARDS = Number(anat[1]) > 0 ? SENSE_ON_CAMERA : SENSE_NO_EVENT;
+
   const effort = r.effortMark;
   if (effort === "DRAWN") out.EFFORT_MARK = SENSE_ON_CAMERA;
   else if (effort === "UNREAD") out.EFFORT_MARK = SENSE_NO_EVENT;

@@ -28,3 +28,11 @@ describe("no silent nothing — receipts become human states", () => {
     expect(senseIsQuiet("NOT ENTITLED")).toBe(true);
   });
 });
+
+describe("exhaustion and anatomy events have words (2026-10-04)", () => {
+  it("reads the counts the chart publishes", async () => {
+    const { senseEventStates, SENSE_NO_EVENT, SENSE_ON_CAMERA } = await import("./senseEventStates");
+    expect(senseEventStates({ exhaustion: "0", dualAnatomy: "MARKET|EVENTS:0|BODIES:0" })).toMatchObject({ EXHAUSTION: SENSE_NO_EVENT, ANATOMY_CARDS: SENSE_NO_EVENT });
+    expect(senseEventStates({ exhaustion: "2", dualAnatomy: "MARKET|EVENTS:3|BODIES:3" })).toMatchObject({ EXHAUSTION: `${SENSE_ON_CAMERA} · 2`, ANATOMY_CARDS: SENSE_ON_CAMERA });
+  });
+});

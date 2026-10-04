@@ -59,8 +59,14 @@ const TOOL_FAMILY: Readonly<Record<string, EvidenceFamilyId>> = {
 export interface EvidenceInput {
   /** Active indicators, with the catalog category each is filed under. */
   readonly indicators: ReadonlyArray<{ readonly name: string; readonly cat: string | null }>;
-  /** Active Tools switches, by id, with the label the trader sees. */
-  readonly tools: ReadonlyArray<{ readonly id: string; readonly label: string }>;
+  /**
+   * Active Tools switches, by id, with the label the trader sees. `quiet`:
+   * the switch is on but the chart's own receipt says nothing of it is on
+   * this camera (NO CURRENT EVENT / unavailable) — 2026-10-04, Founder: tools
+   * "pop up with a description in the right panel and nothing on the chart".
+   * A quiet tool is not an observation; it is listed as waiting.
+   */
+  readonly tools: ReadonlyArray<{ readonly id: string; readonly label: string; readonly quiet?: boolean }>;
 }
 
 export interface EvidenceFamilyGroup {
@@ -78,6 +84,8 @@ export interface EvidenceLineageVM {
   /** "DO NOT COUNT 7" — present only when observations outnumber independent families. */
   readonly warning: string | null;
   readonly summary: string;
+  /** Switched on, nothing of them on this camera — named, never counted. */
+  readonly waiting: readonly string[];
 }
 
 export function evidenceFamilyOfIndicator(name: string, cat: string | null): EvidenceFamilyId | null {
@@ -101,8 +109,12 @@ export function compileEvidenceLineage(input: EvidenceInput): EvidenceLineageVM 
     byFam.set(fam, list);
   };
   for (const i of input.indicators) add(evidenceFamilyOfIndicator(i.name, i.cat), i.name);
-  for (const t of input.tools) add(evidenceFamilyOfTool(t.id), t.label);
-  if (byFam.size === 0) return null;
+  const waiting: string[] = [];
+  for (const t of input.tools) {
+    if (t.quiet && evidenceFamilyOfTool(t.id)) { if (!waiting.includes(t.label)) waiting.push(t.label); continue; }
+    add(evidenceFamilyOfTool(t.id), t.label);
+  }
+  if (byFam.size === 0 && waiting.length === 0) return null;
   const families = ORDER.filter(f => byFam.has(f)).map(f => ({ id: f, label: EVIDENCE_FAMILY[f].label, from: EVIDENCE_FAMILY[f].from, members: byFam.get(f)! }));
   const observations = families.reduce((n, f) => n + f.members.length, 0);
   const correlated = families.reduce((n, f) => n + (f.members.length > 1 ? f.members.length : 0), 0);
@@ -113,5 +125,6 @@ export function compileEvidenceLineage(input: EvidenceInput): EvidenceLineageVM 
     correlated,
     warning: observations > k ? `DO NOT COUNT ${observations}` : null,
     summary: `${observations} observation${observations === 1 ? "" : "s"} / ${k} independent famil${k === 1 ? "y" : "ies"}`,
+    waiting,
   };
 }

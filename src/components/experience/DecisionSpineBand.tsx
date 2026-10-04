@@ -2153,6 +2153,13 @@ function EvidenceLineageCard({ vm }: { readonly vm: EvidenceLineageVM }): React.
           <span style={{ fontSize: 10, lineHeight: "14px", color: "#8a8271", fontStyle: "italic" }}>from {f.from}</span>
         </span>
       ))}
+      {vm.waiting && vm.waiting.length > 0 ? (
+        <span data-testid="spine-evidence-waiting" style={{ display: "flex", flexDirection: "column", gap: 1, borderTop: "1px solid rgba(196,165,116,0.14)", paddingTop: 5 }}>
+          <span style={{ fontSize: 10, lineHeight: "14px", fontWeight: 800, color: "#8a8271", letterSpacing: "0.08em" }}>ON — NOTHING ON THIS CAMERA</span>
+          <span style={{ fontSize: 11, lineHeight: "15px", color: "#8a8271" }}>{vm.waiting.join(", ")}</span>
+          <span style={{ fontSize: 10, lineHeight: "14px", color: "#62697d", fontStyle: "italic" }}>not counted — they appear on the glass when their event happens</span>
+        </span>
+      ) : null}
       <span style={{ ...PLAQUE_STAMP, fontSize: 10, textAlign: "center", borderTop: "1px solid rgba(196,165,116,0.14)", paddingTop: 5 }}>
         {vm.families.length} {vm.families.length === 1 ? "family" : "families"} · independent
       </span>
