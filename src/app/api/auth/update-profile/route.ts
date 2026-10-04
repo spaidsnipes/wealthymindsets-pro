@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { edgeAllows, tooManyRequests, COMMUNITY_WRITE_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { signJWT, setAuthCookie, useSupabase, supabaseUpdateUserMetadata, supabaseHandleTaken, canonicalHandle } from "@/lib/auth";
 import { requireAuth } from "@/lib/requireAuth";
 
@@ -6,6 +8,12 @@ export async function POST(req: Request) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
   const payload = auth.user;
+  // A handle change pages the admin user list (up to 20 × 1000) to prove the
+  // handle is free — unlimited, one account could hammer the auth admin API
+  // (2026-10-04).
+  const rl = checkRateLimit(`update-profile:${payload.sub}`, { max: 10, windowMs: 60_000 });
+  if (!rl.ok) return tooManyRequests();
+  if (!(await edgeAllows([`profile:${payload.sub}`], COMMUNITY_WRITE_LIMITER_BINDING))) return tooManyRequests();
 
   const updates = await req.json().catch(() => ({})) as Record<string, string | boolean>;
 
