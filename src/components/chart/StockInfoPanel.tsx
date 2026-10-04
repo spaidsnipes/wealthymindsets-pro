@@ -5,6 +5,7 @@ import { CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE } from "@/lib/marketD
 import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
+import { readActiveWatchlist, toggleOnActiveWatchlist } from "@/lib/watchlist/activeWatchlist";
 import {
   priceSessionFact,
   volumeSessionFact,
@@ -12,7 +13,7 @@ import {
   type SessionFact,
 } from "@/lib/chart/stockInfoSessionFacts";
 import React, { useState, useRef, useEffect } from "react";
-import { Heart, Bell, ChevronDown } from "lucide-react";
+import { Heart, ChevronDown } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
 
@@ -113,7 +114,13 @@ export function StockInfoPanel({ symbol }: Props) {
   const { ticker, recentTicks, orderBook, quoteRefusal } = useWebSocket({ symbol, timeframe: "1m" });
   const [activeTab, setActiveTab] = useState<TabType>("Quotes");
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>("Ticks");
+  // The heart was component state and the bell had no handler (2026-10-04).
+  // The heart now means what a trader expects — this symbol is on the active
+  // watchlist, the same list the Watchlist panel and Scanner write.
   const [favorited, setFavorited] = useState(false);
+  useEffect(() => {
+    try { setFavorited(readActiveWatchlist(localStorage).symbols.includes(symbol.toUpperCase())); } catch { setFavorited(false); }
+  }, [symbol, setFavorited]);
   const ticksRef = useRef<HTMLDivElement>(null);
   // Real OHLC from Finnhub/Yahoo
   const [realOHLC, setRealOHLC] = useState<{
@@ -200,13 +207,14 @@ export function StockInfoPanel({ symbol }: Props) {
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             <button
-              onClick={() => setFavorited(v => !v)}
+              type="button"
+              onClick={() => { try { setFavorited(toggleOnActiveWatchlist(localStorage, symbol)); } catch { /* storage refused */ } }}
+              aria-pressed={favorited}
+              aria-label={favorited ? `Remove ${symbol} from watchlist` : `Add ${symbol} to watchlist`}
+              title={favorited ? "On your watchlist" : "Add to watchlist"}
               style={{ background: "none", border: "none", cursor: "pointer", color: favorited ? "#FF8C00" : "#4A5070" }}
             >
               <Heart size={13} fill={favorited ? "#FF8C00" : "none"} />
-            </button>
-            <button style={{ background: "none", border: "none", cursor: "pointer", color: "#4A5070" }}>
-              <Bell size={13} />
             </button>
           </div>
         </div>
