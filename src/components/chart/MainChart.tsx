@@ -7187,6 +7187,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const GOLD_C = "212,175,55", BRONZE_C = "150,110,40";
           let drawnC = 0, firstVisible = -1;
           const candlesC: { x: number; y: number; w: number; h: number }[] = [];
+          const notableC: { x: number; y: number; upper: boolean; strength: number }[] = [];
           for (let i = bsC.length - 1; i >= 0; i--) {
             const b = bsC[i];
             if (!b) continue;
@@ -7228,7 +7229,28 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             drawnC++; firstVisible = i;
             candlesC.push({ x: bx - 2, y: Math.min(+yH, top) - 2, w: bodyW + 4, h: Math.max(+yL, bot) - Math.min(+yH, top) + 4 });
+            if (read.wick !== "BALANCED" && !forming) {
+              const range = b.high - b.low;
+              const wickLen = read.wick === "UPPER_REJECTION" ? b.high - Math.max(b.open, b.close) : Math.min(b.open, b.close) - b.low;
+              notableC.push({ x, y: read.wick === "UPPER_REJECTION" ? +yH : +yL, upper: read.wick === "UPPER_REJECTION", strength: range > 0 ? wickLen / range : 0 });
+            }
           }
+          // F05A's hollow squares (WM_NewMockup_72, 2026-10-04): the plate marks
+          // the bars whose wick REFUSED price — a square just beyond the
+          // rejecting end, above a high or below a low. Only the strongest
+          // NOTABLE_C on the camera, so the squares point, never pattern.
+          const NOTABLE_C = 6;
+          let notableDrawn = 0;
+          for (const n of notableC.sort((p, q) => q.strength - p.strength).slice(0, NOTABLE_C)) {
+            const sq = Math.max(6, Math.min(10, Math.round(bsp * 0.8)));
+            const sy = n.upper ? n.y - 6 - sq : n.y + 6;
+            if (sy < HEADER_FLOOR_Y || sy + sq > pane0Bottom) continue;
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "rgba(232,198,104,0.9)";
+            ctx.strokeRect(Math.round(n.x - sq / 2) + 0.5, Math.round(sy) + 0.5, sq, sq);
+            notableDrawn++;
+          }
+          ds.clarityNotable = String(notableDrawn);
           // Truth gaps among the visible bars (plus one bar of context).
           let gapsC = 0, openC = 0;
           if (firstVisible >= 0) {
@@ -7690,6 +7712,30 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const x = cx - halfW;
           const maxTot = Math.max(1e-12, ...levels.map(l => l.total));
           const pocIdx = levels.reduce((mi, l, i, a) => l.total > a[mi].total ? i : mi, 0);
+
+          // MID IS CLUSTERS, NOT CELLS (canon semantic zoom: far = compressed
+          // geometry, mid = clusters, near = bid×ask; 2026-10-04). Measured on
+          // serving BTC 1m: a dark base + a buy / sell tint on every traded row
+          // of every candle — the candles read as pink / teal texture. Without
+          // numbers (MID, or a phone's quiet glass) each bar carries only where
+          // its volume clustered: its POC row as one slim gold bar across the
+          // candle, the dominant side's tip on that bar's edge. The real
+          // candle stays untouched. NEAR keeps the full bid × ask grid.
+          if (!fpNumbers) {
+            const lvP = levels[pocIdx];
+            if (lvP && lvP.total > 0) {
+              const pocY = Math.round(yH + pocIdx * rowH);
+              const pocH = Math.max(2, Math.min(5, Math.round(rowH) - 1));
+              const midY = pocY + Math.round((rowH - pocH) / 2);
+              ctx.fillStyle = "rgba(240,190,70,0.85)";
+              ctx.fillRect(x - 1, midY, colW + 2, pocH);
+              const askDomP = lvP.ask >= lvP.bid;
+              ctx.fillStyle = askDomP ? buyRgba(0.95) : sellRgba(0.95);
+              ctx.fillRect(askDomP ? x + colW - 1 : x - 1, midY, 2, pocH);
+              forceChips.push({ x: x - 1, y: midY, w: colW + 2, h: pocH });
+            }
+            return;
+          }
 
           levels.forEach((lv, li) => {
             if (!(lv.total > 0)) return;

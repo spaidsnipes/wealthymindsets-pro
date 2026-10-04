@@ -907,11 +907,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [valueCandleOn, setValueCandleOn] = useState<boolean>(() => lsGet("wm_ofValueCandle", true) as boolean);
   // F06A Flow Current — a sense with its own switch (it painted unswitched; §XXI/§CIII).
   const [flowCurrentOn, setFlowCurrentOn] = useState<boolean>(() => lsGet("wm_ofFlowCurrent", true) as boolean);
-  // F05A Clarity Candle — off by default. Tried ON (2026-10-04) and measured on
-  // serving BTC 1m: the species repaints EVERY bar gold/bronze, and the canon
-  // (F05A) says candles stay red/green at rest — clarity speaks on the live
-  // bar, the notable bars and the hovered one. Default-on waits for that form.
-  const [clarityCandleOn, setClarityCandleOn] = useState<boolean>(() => lsGet("wm_ofClarityCandle", false) as boolean);
+  // F05A Clarity Candle — ON by default (2026-10-04). Plate 72 is titled
+  // "Clarity is the default language of the room": the gold / bronze species
+  // IS the plate's candle (re-read beside the plate after a mistaken revert),
+  // with the live bar's glow, the hollow squares on refusing wicks and the
+  // bar's reading. A trader's stored choice still wins.
+  const [clarityCandleOn, setClarityCandleOn] = useState<boolean>(() => lsGet("wm_ofClarityCandle", true) as boolean);
   const [deltaDivergenceOn, setDeltaDivergenceOn] = useState<boolean>(() => lsGet("wm_ofDeltaDivergence", true) as boolean);
   const [liquidityWeatherOn, setLiquidityWeatherOn] = useState<boolean>(() => lsGet("wm_ofLiquidityWeather", true) as boolean);
   const [effortMarkOn, setEffortMarkOn] = useState<boolean>(() => lsGet("wm_ofEffortMark", true) as boolean);
