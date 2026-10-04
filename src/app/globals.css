@@ -722,6 +722,13 @@
   /* WAIT is the tag on the glass and WHY is the spine's first card, one
      swipe below; on a 390px-tall screen their 44px row is the market's. */
   .wm-chart-orientation-strip { display: none !important; }
+  /* The chart's own top band on the short edge: the live-tape chip keeps its
+     dot and delta (as on a portrait phone) and the vault chip — memory, not
+     market — leaves a 245px-tall glass; it is one tap away in the instrument
+     profile and the Nectar room. */
+  .wm-live-session-chip > span:nth-child(2),
+  .wm-live-session-chip svg { display: none !important; }
+  .wm-nectar-vault-chip { display: none !important; }
 
   .wm-chart-dashboard [role="status"][aria-live="polite"] {
     top: 8px !important;
