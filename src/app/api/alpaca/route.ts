@@ -13,6 +13,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
 import type { ChangeWindow } from "@/lib/marketData/changeWindow";
 import { classifySymbol, equityVendorSkipNoun } from "@/lib/marketData/symbolAssetClass";
@@ -148,6 +149,10 @@ function usableReference(value: unknown, price: number): value is number {
 }
 
 export async function GET(request: Request) {
+  // Guest audit 2026-10-04: this route spent the operator's data-provider key
+  // for anyone on the internet. A WM session is required.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const rawSym = (searchParams.get("sym") ?? "").toUpperCase();
   const type   = searchParams.get("type") ?? "quote";

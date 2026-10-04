@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// The route requires a WM session since 2026-10-04 (guest audit); these tests
+// exercise the provider logic behind that gate.
+vi.mock("@/lib/requireAuth", () => ({ requireAuth: async () => ({ ok: true, user: { sub: "u1", email: "u1@example.test" } }) }));
 beforeEach(()=>{vi.resetModules();vi.stubEnv("FMP_KEY","synthetic-test-key");});
 afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs();vi.useRealTimers();});
 const request=()=>new Request("http://localhost/api/fmp?path=/v3/options/TSLA");

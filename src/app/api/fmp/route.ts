@@ -10,6 +10,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 
 // Accept EITHER env name so a key provisioned as FMP_KEY *or*
 // NEXT_PUBLIC_FMP_KEY both work (a name mismatch was silently 503-ing Options +
@@ -22,6 +23,10 @@ const FMP_BASE = "https://financialmodelingprep.com";
 const CACHE = new Map<string, { data: unknown; ts: number }>();
 
 export async function GET(request: Request) {
+  // Guest audit 2026-10-04: this route spent the operator's data-provider key
+  // for anyone on the internet. A WM session is required.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const path = searchParams.get("path") ?? "";
   const limit = searchParams.get("limit");

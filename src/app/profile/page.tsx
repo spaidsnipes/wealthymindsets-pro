@@ -329,11 +329,10 @@ function ProfilePageInner() {
     if (!editProfile.name.trim()) { toast.error("Please enter your name."); return; }
     if (!editProfile.handle.trim()) { toast.error("Please enter a handle."); return; }
     const saved = { ...editProfile, handle: editProfile.handle.startsWith("@") ? editProfile.handle : `@${editProfile.handle}` };
-    setProfile(saved);
-    setEditProfile(saved);
-    try { localStorage.setItem("wm-profile", JSON.stringify(saved)); } catch {}
-    // Persist to auth JWT cookie
-    await saveToAuth({
+    // Persist to the account FIRST (2026-10-04): the server may refuse — a
+    // handle that belongs to another trader — and "Profile saved!" over a
+    // refusal is a lie the trader would build on.
+    const result = await saveToAuth({
       displayName:     saved.name,
       handle:          saved.handle,
       bio:             saved.bio,
@@ -343,6 +342,10 @@ function ProfilePageInner() {
       bgColor:         bgColor,
       profileComplete: true,
     });
+    if (result?.error) { toast.error(result.error); return; }
+    setProfile(saved);
+    setEditProfile(saved);
+    try { localStorage.setItem("wm-profile", JSON.stringify(saved)); } catch {}
     setEditMode(false);
     setSetupMode(false);
     toast.success("Profile saved!", { icon: "✅" });

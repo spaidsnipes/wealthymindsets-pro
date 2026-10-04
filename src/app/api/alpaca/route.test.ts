@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// The route requires a WM session since 2026-10-04 (guest audit); these tests
+// exercise the provider logic behind that gate.
+vi.mock("@/lib/requireAuth", () => ({ requireAuth: async () => ({ ok: true, user: { sub: "u1", email: "u1@example.test" } }) }));
+
 /**
  * These tests pin two Monday Test 2 guarantees for the Alpaca data route:
  *  1. Crypto is a KEYLESS endpoint — equity credentials must NOT be attached,

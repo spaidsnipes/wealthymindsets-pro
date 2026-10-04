@@ -341,6 +341,46 @@ export async function supabaseUpdateUserMetadata(
   } catch { return false; }
 }
 
+/**
+ * Is this handle already someone else's? (2026-10-04, guest audit.)
+ *
+ * The Lounge and Radio name authors by HANDLE, and /api/auth/update-profile
+ * accepted any handle — so a guest could take the Founder's, post as him and
+ * delete his posts. A handle is taken when another account's metadata carries
+ * it, or when Lounge posts / Radio tracks already carry it (a released handle's
+ * history is not up for capture). Compared without "@" and case.
+ * Returns null when the check could not run — callers must refuse then.
+ */
+export function canonicalHandle(h: string): string {
+  return h.trim().replace(/^@+/, "").toLowerCase();
+}
+export async function supabaseHandleTaken(handle: string, userId: string): Promise<boolean | null> {
+  const key = SB_SERVICE_KEY();
+  const base = SB_URL();
+  if (!key || !base) return null;
+  const want = canonicalHandle(handle);
+  const headers = { apikey: key, Authorization: `Bearer ${key}` };
+  try {
+    for (let page = 1; page <= 20; page++) {
+      const res = await fetch(`${base}/auth/v1/admin/users?page=${page}&per_page=1000`, { headers, cache: "no-store" });
+      if (!res.ok) return null;
+      const body = await res.json() as { users?: Array<{ id: string; user_metadata?: { handle?: unknown } }> };
+      const users = body.users ?? [];
+      if (users.some(u => u.id !== userId && typeof u.user_metadata?.handle === "string" && canonicalHandle(u.user_metadata.handle) === want)) return true;
+      if (users.length < 1000) break;
+    }
+    for (const [table, col] of [["lounge_posts", "user_handle"], ["radio_tracks", "uploader"]] as const) {
+      const variants = [want, `@${want}`].map(v => `${col}.ilike.${encodeURIComponent(v)}`).join(",");
+      const res = await fetch(`${base}/rest/v1/${table}?select=${col}&or=(${variants})&limit=1`, { headers, cache: "no-store" });
+      if (res.status === 404) continue; // table not present on this store
+      if (!res.ok) return null;
+      const rows = await res.json() as unknown[];
+      if (Array.isArray(rows) && rows.length > 0) return true;
+    }
+    return false;
+  } catch { return null; }
+}
+
 /* ── Session revocation ("log out all devices") ──────────────
    JWTs here are stateless: once issued they're valid until their 30-day exp,
    with no server-side session table to delete. To revoke every device we keep

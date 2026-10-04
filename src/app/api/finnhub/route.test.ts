@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// The route requires a WM session since 2026-10-04 (guest audit); these tests
+// exercise the provider logic behind that gate.
+vi.mock("@/lib/requireAuth", () => ({ requireAuth: async () => ({ ok: true, user: { sub: "u1", email: "u1@example.test" } }) }));
+
 /**
  * Monday Test 2: a rejected Finnhub token must surface as the ACTUAL edge
  * (401 AUTH BLOCKED) with the provider's real status preserved — never a

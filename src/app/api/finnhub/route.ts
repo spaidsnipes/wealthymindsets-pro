@@ -9,6 +9,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 import { toFinnhubSym } from "@/lib/finnhubSymbol";
 import { FH_NATIVE_RES, FINNHUB_API_BASE, finnhubCandleUrl } from "@/lib/marketData/finnhubBarRoute";
 import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
@@ -121,6 +122,10 @@ async function fhFetch(url: string, ttlMs = 5_000): Promise<unknown> {
 }
 
 export async function GET(request: Request) {
+  // Guest audit 2026-10-04: this route spent the operator's data-provider key
+  // for anyone on the internet. A WM session is required.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const rawSym = (searchParams.get("sym") ?? "").toUpperCase();
   const type   = searchParams.get("type") ?? "quote";
