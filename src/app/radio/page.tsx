@@ -27,6 +27,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { keyActivates } from "@/lib/a11y/keyActivates";
 
 /* ══════════════════════════════════════════════════════════════
    TYPES
@@ -242,7 +243,7 @@ function StationCard({ station, active, onPlay, artIndex }: {
   // Per-bar heights (px) for the equalizer waveform — varied for an organic look.
   const bars = [12, 22, 30, 17, 34, 25, 14, 28, 20, 32, 18, 26, 15, 23];
   return (
-    <motion.div
+    <motion.div role="button" tabIndex={0} onKeyDown={keyActivates}
       whileHover={{ y: -4, boxShadow: `0 14px 36px ${c}33` }}
       onClick={onPlay}
       className="wm-station-card relative rounded-2xl border cursor-pointer overflow-hidden group"
@@ -343,7 +344,7 @@ function TrackRow({ track, idx, active, playing, onPlay, liked, onToggleLike }: 
   onToggleLike: () => void;
 }) {
   return (
-    <div
+    <div role="button" tabIndex={0} onKeyDown={keyActivates}
       onClick={onPlay}
       className={clsx(
         "group relative flex items-center gap-3 p-2.5 rounded-2xl border cursor-pointer transition-all overflow-hidden",
@@ -404,7 +405,7 @@ function EpisodeCard({ ep, artIndex, active, playing, onPlay }: {
   onPlay: () => void;
 }) {
   return (
-    <div
+    <div role="button" tabIndex={0} onKeyDown={keyActivates}
       onClick={onPlay}
       className={clsx(
         "group relative p-4 rounded-2xl border cursor-pointer transition-all overflow-hidden",

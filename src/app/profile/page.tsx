@@ -48,6 +48,7 @@ import {
   type TradeDateFact,
   type TradeRowFact,
 } from "@/lib/profile/tradeRowFacts";
+import { keyActivates } from "@/lib/a11y/keyActivates";
 
 
 interface ProfileData {
@@ -422,7 +423,7 @@ function ProfilePageInner() {
 
           {/* Avatar upload */}
           <div className="flex justify-center">
-            <div className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
+            <div role="button" tabIndex={0} onKeyDown={keyActivates} className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
               <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-black text-3xl text-wm-black border-4 border-wm-border overflow-hidden"
                 style={{ background: avatarUrl ? undefined : "linear-gradient(135deg, #00D4AA, #4FA3E0)" }}>
                 {avatarUrl
@@ -540,7 +541,7 @@ function ProfilePageInner() {
         <div className="px-6 pt-0 pb-4 border-b border-wm-border">
           <div className="flex items-end gap-4 -mt-8 mb-4">
             {/* Avatar — clickable to change */}
-            <div className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
+            <div role="button" tabIndex={0} onKeyDown={keyActivates} className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
               <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-black text-3xl text-wm-black border-4 border-wm-black shadow-xl overflow-hidden"
                 style={{ background: avatarUrl ? undefined : "linear-gradient(135deg, #00D4AA, #4FA3E0)" }}>
                 {avatarUrl

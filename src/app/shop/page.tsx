@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { keyActivates } from "@/lib/a11y/keyActivates";
 
 const PRODUCTS = [
   {
@@ -289,7 +290,7 @@ export default function ShopPage() {
           ).flatMap((product, i, arr) => {
             const showHdr = cat === "All" && !search && (i === 0 || arr[i - 1].category !== product.category);
             const card = (
-            <motion.div key={product.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+            <motion.div role="button" tabIndex={0} onKeyDown={keyActivates} key={product.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
               className="glass rounded-xl overflow-hidden hover:border-wm-border/80 transition-all group cursor-pointer"
               onClick={() => setDetail(product)}>
               <div className="relative h-52 flex items-center justify-center"

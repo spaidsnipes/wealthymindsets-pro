@@ -19,6 +19,7 @@ import { ChartCompanion } from "@/components/experience/ChartCompanion";
 import { headlineNames, newsTermsFor } from "@/lib/news/newsTermsFor";
 import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
 import { isPersonalAdviceColumn } from "@/lib/news/marketRelevance";
+import { keyActivates } from "@/lib/a11y/keyActivates";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface NewsItem {
@@ -1011,7 +1012,7 @@ export default function NewsPage() {
                 exit={{ opacity: 0, y: 12 }}
                 transition={{ duration: 0.18, delay: idx * 0.02 }}
               >
-                <div
+                <div role="button" tabIndex={0} onKeyDown={keyActivates}
                   className="glass rounded-xl p-4 hover:border-wm-border/80 transition-all cursor-pointer group relative overflow-hidden"
                   style={{ borderLeft: "3px solid rgba(237,230,211,0.18)" }}
                   onClick={() => setExpandedId(id => id === item.id ? null : item.id)}

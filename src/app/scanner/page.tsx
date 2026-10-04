@@ -62,6 +62,7 @@ import {
   type ScannerPriceFact,
   type ScannerPriceTone,
 } from "@/lib/scanner/scannerPriceFact";
+import { keyActivates } from "@/lib/a11y/keyActivates";
 
 /** The ONLY thing the price cell's colour may be derived from. */
 const SCANNER_PRICE_TONE: Record<ScannerPriceTone, string> = {
@@ -1011,7 +1012,7 @@ export default function ScannerPage() {
               {l:"Chg%",k:"changePct"},{l:"Vol×",k:"volRatio"},{l:"RSI",k:"rsi"},
               {l:"Str",k:"strength"},{l:"Sector",k:null},{l:"Chart",k:null},{l:"",k:null},
             ].map(({l,k},i) => (
-              <div key={i} className={clsx("px-2 py-1.5 text-[9px] font-bold text-wm-text-dim uppercase tracking-wider flex items-center gap-0.5",
+              <div role="button" tabIndex={0} onKeyDown={keyActivates} key={i} className={clsx("px-2 py-1.5 text-[9px] font-bold text-wm-text-dim uppercase tracking-wider flex items-center gap-0.5",
                 k && "cursor-pointer hover:text-wm-text select-none")}
                 onClick={() => k && sortToggle(k as SortKey)}>
                 {l}{k && <SortIcon k={k as SortKey}/>}
@@ -1054,7 +1055,7 @@ export default function ScannerPage() {
               const rsiUpdated = updatedRsiKeys.has(rsiIdentityKey);
               const rsiIdentitySelected = selectedRsiIdentityKey === rsiIdentityKey;
               return (
-                <motion.div key={r.id}
+                <motion.div role="button" tabIndex={0} onKeyDown={keyActivates} key={r.id}
                   initial={{ opacity:0,x:-8 }} animate={{ opacity:1,x:0 }} transition={{ delay:idx*0.015,duration:0.2 }}
                   onClick={() => setSelected(isSel ? null : r)}
                   className={clsx("wm-scanner-row grid border-b border-wm-border/30 cursor-pointer transition-colors items-center",
