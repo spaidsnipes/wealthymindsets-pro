@@ -323,13 +323,28 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
   const pocIdx = vols.indexOf(maxVol);
   const currentPrice = usable.at(-1)?.close ?? 0;
   const currentIdx = Math.max(0, Math.min(levels - 1, Math.floor((currentPrice - low) / step)));
+  // Bin i spans [low + i·step, low + (i+1)·step]; its label is its midpoint.
+  // (Until 2026-10-04 the label was `high - i·step` — mirrored: SPY's top row
+  // printed 759.66 beside the bin nearest the high, 772.65 at the bottom.)
+  const binMid = (i: number) => low + (i + 0.5) * step;
+  // Value area: 70 % of the profile's volume, grown out from the POC one bin
+  // at a time toward the heavier neighbour — the standard construction.
+  const totalVol = vols.reduce((a, v) => a + v, 0);
+  let vaLo = pocIdx, vaHi = pocIdx, vaVol = maxVol;
+  while (totalVol > 0 && vaVol < totalVol * 0.7 && (vaLo > 0 || vaHi < levels - 1)) {
+    const down = vaLo > 0 ? vols[vaLo - 1] : -1;
+    const up = vaHi < levels - 1 ? vols[vaHi + 1] : -1;
+    if (up >= down) { vaHi++; vaVol += up; } else { vaLo--; vaVol += down; }
+  }
+  const vah = low + (vaHi + 1) * step, val = low + vaLo * step;
+  const where = currentPrice > vah ? "above value" : currentPrice < val ? "below value" : "inside value";
 
   return (
     <div style={{ background: WM.surface.deep, border: `1px solid ${WM.border.hair}`, borderRadius: 8, padding: "10px 12px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 11, fontWeight: 900, color: WM.text.hero }}>{sym}</span>
         <span style={{ fontSize: 9, color: WM.text.muted }}>{currentPrice ? `$${currentPrice.toFixed(2)}` : "Price not yet observed"}</span>
-        <span style={{ marginLeft: "auto", fontSize: 9, color: WM.gold.mark, fontWeight: 700 }}>POC</span>
+        {usable.length > 0 && <span style={{ marginLeft: "auto", fontSize: 9, color: WM.gold.mark, fontWeight: 700, fontFamily: "monospace" }}>POC {binMid(pocIdx).toFixed(2)}</span>}
       </div>
 
       {/* VP bars from top (high) to bottom (low) */}
@@ -342,7 +357,7 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
         {!loading && usable.length > 0 &&
         Array.from({ length: levels }, (_, i) => {
           const revI    = levels - 1 - i;
-          const price   = high - revI * step;
+          const price   = binMid(revI);
           const vol     = vols[revI];
           const widthPct= (vol / maxVol) * 100;
           const isPOC   = revI === pocIdx;
@@ -377,12 +392,14 @@ function VolumeProfileBar({ sym, candles, loading }: { sym: string; candles: VPC
         }
       </div>
 
-      {/* Value Area */}
-      <div style={{ display: "flex", gap: 8, marginTop: 6, paddingTop: 5, borderTop: "1px solid rgba(255,255,255,0.05)", fontSize: 9, color: WM.text.muted }}>
-        <span>Bar-derived profile</span>
-        <span>Observed OHLCV</span>
-        <span>Not tick-at-price</span>
-      </div>
+      {/* Value Area — the card's own reading. The bar-derived caveat is said
+          once, in the panel header, not twelve times. */}
+      {usable.length > 0 && (
+        <div data-testid="vp-value-area" style={{ display: "flex", gap: 8, marginTop: 6, paddingTop: 5, borderTop: "1px solid rgba(255,255,255,0.05)", fontSize: 9, color: WM.text.muted, fontFamily: "monospace" }}>
+          <span>VA {val.toFixed(2)} – {vah.toFixed(2)}</span>
+          <span style={{ marginLeft: "auto", color: where === "inside value" ? WM.text.muted : WM.gold.mark }}>{where}</span>
+        </div>
+      )}
     </div>
   );
 }
