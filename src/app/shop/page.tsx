@@ -221,11 +221,12 @@ export default function ShopPage() {
         >
           Concept catalog · checkout not connected
         </span>
-        <div className="ml-auto flex items-center gap-3">
+        {/* Wraps on a phone: at 390 the search box ran 7px past the edge (measured 2026-10-03). */}
+        <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-3">
           {/* Search */}
-          <div className="flex items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products…"
-              className="bg-transparent text-xs text-wm-text outline-none w-32 placeholder-wm-text-dim" />
+          <div className="flex min-w-0 items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products…" aria-label="Search products"
+              className="bg-transparent text-xs text-wm-text outline-none w-28 sm:w-32 min-w-0 placeholder-wm-text-dim" />
             {search && <button onClick={() => setSearch("")} className="text-wm-text-dim hover:text-wm-text"><X size={11}/></button>}
           </div>
           {/* Category filters */}
