@@ -194,7 +194,11 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
             </div>
             <div className="px-3 py-2 border-t border-wm-border/60 flex items-center gap-1.5 shrink-0">
               {["💛", "🔥", "📈", "🙌🏾", "🎧", "👑"].map(e => (
-                <button key={e} className="w-7 h-7 rounded-lg text-[13px] flex items-center justify-center hover:scale-110 transition-transform" style={{ background: "rgba(255,255,255,0.05)" }}>{e}</button>
+                // No room is live, so there is nothing to react to: these were
+                // buttons with no handler at all (found by the dead-button
+                // sweep, 2026-10-03). Disabled, and they say why.
+                <button key={e} type="button" disabled aria-label={`React ${e} — opens when a host starts a verified room`} title="Reactions open when a host starts a verified room"
+                  className="w-7 h-7 rounded-lg text-[13px] flex items-center justify-center opacity-40 cursor-not-allowed" style={{ background: "rgba(255,255,255,0.05)" }}>{e}</button>
               ))}
             </div>
           </div>
