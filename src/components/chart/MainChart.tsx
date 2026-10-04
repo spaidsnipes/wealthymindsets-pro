@@ -10753,9 +10753,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const net = r.buy - r.sell;
               const up = net >= 0;
               const onesided = Math.abs(net) / total;
-              // Bar by bar (not pooled) — speaking, or quiet on a phone's narrow
-              // glass (measured: 25 / 25 bars streaked at 390) — only leaning bars draw.
-              if (k === 1 && (Math.abs(net) < leanFloor || onesided < 0.2)) continue;
+              // Every form — speaking, quiet on a phone's narrow glass, or pooled
+              // (measured: 25 / 25 bars, then 18 / 18 pooled buckets streaked at
+              // 390) — only where flow leaned draws.
+              if (Math.abs(net) < leanFloor || onesided < 0.2) continue;
               flowShown++;
               // STREAKS STAY LINES (serving TSLA 15m, 2026-09-30): six haloed
               // streaks inside one 9px bar merged into a soft green / red blob
