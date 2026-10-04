@@ -8,6 +8,7 @@ import { RadioProvider } from "@/contexts/RadioContext";
 import { Toaster } from "react-hot-toast";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { CANONICAL_URL } from "@/lib/canonicalUrl";
 import { WM_BRAND } from "@/lib/brand/brandCanon";
 
 /* ── PWA + SEO metadata ─────────────────────────────────────
@@ -15,6 +16,8 @@ import { WM_BRAND } from "@/lib/brand/brandCanon";
    trading operating system — market intelligence, decision memory,
    process stewardship, longitudinal learning — not a dashboard. */
 export const metadata: Metadata = {
+  // Absolute URLs for share images resolve against the one canonical host.
+  metadataBase: new URL(CANONICAL_URL),
   // Each room names itself through this template: "Scanner · WealthyMindsets Pro".
   title:       { default: "WealthyMindsets Pro — Trading Operating System", template: "%s · WealthyMindsets Pro" },
   description: "A trading operating system for serious traders. Market intelligence, order flow, volume profile, decision memory, and longitudinal edge — with truthful UNKNOWN, MISSING, STALE, and INSUFFICIENT states.",
@@ -46,6 +49,13 @@ export const metadata: Metadata = {
     description: "Market intelligence, order flow, decision memory, and longitudinal edge — with honest UNKNOWN, STALE, and INSUFFICIENT states. Never a beautiful lie.",
     type:        "website",
     siteName:    "WealthyMindsets Pro",
+    // A shared link previewed as bare text (2026-10-04). The master crest —
+    // the same art the login hero carries.
+    images:      [{ url: "/brand/wm-master-crest.jpeg", width: 784, height: 1168, alt: "WEALTHY MINDSETS — Stay Sharp. Stay a Student." }],
+  },
+  twitter: {
+    card:        "summary",
+    images:      ["/brand/wm-master-crest.jpeg"],
   },
 };
 
