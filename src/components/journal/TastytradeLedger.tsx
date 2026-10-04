@@ -61,7 +61,10 @@ export function TastytradeLedger() {
             </div>
           ) : null}
           {a.trips && a.trips.length ? (
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
+            // The table scrolls inside its card on a phone (measured 2026-10-03 at
+            // 390: 428px table in a 292px card, overflowing visibly).
+            <div style={{ overflowX: "auto", marginTop: 8 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
               <thead><tr style={{ color: MUTED, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>
                 <th style={{ textAlign: "left", padding: "3px 0" }}>Closed</th><th style={{ textAlign: "left" }}>Instrument</th><th style={{ textAlign: "left" }}>Side</th>
                 <th style={{ textAlign: "right" }}>Max qty</th><th style={{ textAlign: "right" }}>Fees</th><th style={{ textAlign: "right" }}>Net</th>
@@ -70,12 +73,12 @@ export function TastytradeLedger() {
                 {a.trips.slice(0, 60).map((t, i) => (
                   <tr key={`${t.symbol}-${t.openedAt}-${i}`} style={{ borderTop: `1px solid ${LINE}` }}>
                     <td style={{ padding: "3px 0", color: MUTED }}>{t.truth === "OPEN" ? "open" : day(t.closedAt)}</td>
-                    <td style={{ color: INK }}>
+                    <td style={{ color: INK, wordBreak: "break-all", minWidth: 96 }}>
                       {t.symbol}
                       {ttChartSymbol(t) && (
                         <Link href={`/charts?symbol=${encodeURIComponent(ttChartSymbol(t)!)}`} data-testid="tt-ledger-open-chart"
                           aria-label={`Open ${ttChartSymbol(t)} chart`}
-                          style={{ color: GOLD, marginLeft: 8, fontSize: 11, fontWeight: 700 }}>chart →</Link>
+                          style={{ color: GOLD, display: "block", fontSize: 11, fontWeight: 700, minHeight: 24 }}>chart →</Link>
                       )}
                     </td>
                     <td style={{ color: MUTED }}>{t.direction}</td>
@@ -86,6 +89,7 @@ export function TastytradeLedger() {
                 ))}
               </tbody>
             </table>
+            </div>
           ) : a.state === "READ" ? <div style={{ fontSize: 12, color: MUTED, marginTop: 6 }}>No trades on this account in the history read.</div> : null}
         </div>
       ))}
