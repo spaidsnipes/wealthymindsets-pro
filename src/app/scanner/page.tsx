@@ -1234,16 +1234,16 @@ export default function ScannerPage() {
                 ))}
                 <div className="space-y-2 pt-1">
                   <button onClick={()=>toggleAlert(selected.id)}
-                    className={clsx("w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-all",
+                    className={clsx("w-full flex min-h-11 items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-all",
                       selected.alerted ? "bg-wm-gold/15 text-wm-gold border-wm-gold/40" : "bg-wm-surface border-wm-border text-wm-text-muted hover:text-wm-gold hover:border-wm-gold/40")}>
                     {selected.alerted ? <><ListChecks size={12}/> On your watchlist</> : <><ListPlus size={12}/> Add to watchlist</>}
                   </button>
                   <button onClick={()=>{setActiveSymbol(selected.symbol);router.push(`/charts?symbol=${encodeURIComponent(selected.symbol)}`);}}
-                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-wm-blue/15 text-wm-blue border border-wm-blue/40 hover:bg-wm-blue/25 transition-all">
+                    className="w-full flex min-h-11 items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-wm-blue/15 text-wm-blue border border-wm-blue/40 hover:bg-wm-blue/25 transition-all">
                     <BarChart2 size={12}/> Open Chart
                   </button>
                   <Link href={`/backtesting?symbol=${encodeURIComponent(selected.symbol)}`} data-testid="scanner-backtest-symbol"
-                    className="w-full flex min-h-9 items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
+                    className="w-full flex min-h-11 items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
                     Backtest {selected.symbol} →
                   </Link>
                   {/* No second "Command Deck" door here (2026-09-24): the
