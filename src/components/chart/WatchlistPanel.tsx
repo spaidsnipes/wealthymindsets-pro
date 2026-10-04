@@ -58,6 +58,7 @@ import { readSymbolList } from "@/lib/marketData/storedSymbolList";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { coerceChangeWindow, type ChangeWindow } from "@/lib/marketData/changeWindow";
 import { WATCH_LIVE_FRESH_MS, useTastyWatchQuotes } from "@/lib/broker/useTastyWatchQuotes";
+import { useCoinbaseLivePrices } from "@/hooks/useWebSocket";
 import { wmConfirm } from "@/components/ui/wmConfirm";
 
 interface FinnhubQuote {
@@ -602,7 +603,11 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
     }
   }, [items, search, viewFilter, sortMode]);
   // §LIV light quotes for the rows on the list; a 2s clock grades their freshness.
-  const liveQuotes = useTastyWatchQuotes(React.useMemo(() => items.map(i => i.sym), [items]));
+  const watchSyms = React.useMemo(() => items.map(i => i.sym), [items]);
+  const liveQuotes = useTastyWatchQuotes(watchSyms);
+  // Crypto rows stream from the same shared Coinbase hubs as the chart and the
+  // ticker (2026-10-04) — one live truth per symbol across the room.
+  const liveCrypto = useCoinbaseLivePrices(watchSyms);
   const [nowTick, setNowTick] = React.useState(() => Date.now());
   React.useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 2000); return () => clearInterval(t); }, []);
 
@@ -931,13 +936,16 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
             <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
               {filtered.map(rawItem => {
                 // §LXXXIX: the chart's live lane, when it is speaking, is the row's truth too.
-                const lv = liveQuotes.get(rawItem.sym.toUpperCase());
+                const tt = liveQuotes.get(rawItem.sym.toUpperCase());
+                const cb = liveCrypto.get(rawItem.sym.toUpperCase());
+                const lv = tt && nowTick - tt.at < WATCH_LIVE_FRESH_MS ? tt : cb;
+                const lvSrc = lv === tt ? "tastytrade" : "coinbase";
                 const liveFresh = !!lv && nowTick - lv.at < WATCH_LIVE_FRESH_MS;
                 const refClose = rawItem.price > 0 && rawItem.changeObserved ? rawItem.price / (1 + rawItem.changePct / 100) : null;
                 const item = liveFresh && lv ? {
                   ...rawItem,
                   price: lv.price,
-                  src: "tastytrade",
+                  src: lvSrc,
                   ...(refClose ? { change: lv.price - refClose, changePct: ((lv.price - refClose) / refClose) * 100 } : {}),
                 } : rawItem;
                 const up = item.changeObserved && item.change >= 0;
