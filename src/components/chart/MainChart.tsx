@@ -11792,8 +11792,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const shelfWords = desktopShelfInstrument && !shelfSelected ? shelfName : chip;
               ctx.font = marketFont("FIDELITY");
               const cw2 = ctx.measureText(shelfWords).width;
-              const chipH = 14;
-              const chipW = cw2 + 12;
+              const nameH = 14;
+              // The desktop annotation carries a second line ("Force is
+              // hitting. Price is holding.") under the name. It was painted but
+              // never counted: nothing stepped off it, and it ran through the
+              // shelf's own courses and the next chip (live NQ open, 2026-10-04).
+              const meaningLine = desktopShelfInstrument && !shelfSelected && att.speaks("absorption");
+              let meaningW = 0;
+              if (meaningLine) {
+                ctx.font = marketFont("WHY_LABEL");
+                meaningW = ctx.measureText("Force is hitting. Price is holding.").width;
+                ctx.font = marketFont("FIDELITY");
+              }
+              const chipH = nameH + (meaningLine ? 14 : 0);
+              const chipW = Math.max(cw2, meaningW) + 12;
               // Clamp BOTH edges. The left was already held off the frame; the
               // right was not, and once the window started following the eye
               // the zones moved out to the live edge, where the chip ran past
@@ -11833,7 +11845,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // still selects it and Inspect reads it.
               const hit = (y: number) => [...absorbChipRects, ...floatingChips].some(r =>
                 chipX < r.x + r.w + 4 && chipX + chipW + 4 > r.x && y < r.y + r.h + 1 && y + chipH + 1 > r.y);
-              const slots = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6];
+              // Below the header band (OHLC line, the "Evidence saved" chip):
+              // a slot above HEADER_FLOOR_Y is not a slot (live NQ open: the
+              // name printed under the chip).
+              const slots = [yHi - chipH - 2, yLo + 2, yHi - 2 * chipH - 4, yLo + chipH + 4, yHi - 3 * chipH - 6]
+                .filter(y => y >= HEADER_FLOOR_Y && y + chipH <= pane0Bottom);
               // The narrow chip's backing is opaque, so it also steps off the
               // newest candle bodies; when only a slot on a body is free it
               // keeps that slot and its backing yields. The desktop annotation
@@ -11842,7 +11858,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // a shelf formed back in history hangs its chip over the older
               // candles that made it.
               const slotRects = slots.map(y => ({ x: chipX, y: Math.max(2, y), w: chipW, h: chipH }));
-              const chipSpot = pickSlotClearOfKeepOut(
+              const chipSpot = slotRects.length === 0 ? null : pickSlotClearOfKeepOut(
                 slotRects,
                 desktopShelfInstrument ? [] : [
                   ...keepOut(),
@@ -11869,13 +11885,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.shadowColor = "rgba(0,0,0,0.95)";
                 ctx.shadowBlur = 3;
                 ctx.textAlign = "left";
-                ctx.textBaseline = "middle";
+                // Two rows when the meaning line rides along: chipH is then the
+                // whole box, so the name sits on the box's midline from above.
+                ctx.textBaseline = meaningLine ? "bottom" : "middle";
                 ctx.fillText(shelfWords, chipX, chipY + chipH / 2 + 0.5);
+                ctx.textBaseline = "middle";
                 // §XLVI learning without lecture: one quiet line, the meaning.
-                if (!shelfSelected && att.speaks("absorption")) {
+                if (meaningLine) {
                   ctx.font = marketFont("WHY_LABEL");
                   ctx.fillStyle = "rgba(237,230,211,0.72)";
-                  ctx.fillText("Force is hitting. Price is holding.", chipX, chipY + chipH + 6);
+                  ctx.fillText("Force is hitting. Price is holding.", chipX, chipY + nameH + 6);
                 }
                 ctx.restore();
                 if (shelfSelected) shelfNumbersShown = true;
