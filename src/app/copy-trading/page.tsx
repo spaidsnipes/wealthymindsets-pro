@@ -279,10 +279,24 @@ export default function CopyTradingPage() {
 
         <section className="mt-5 rounded-3xl border border-wm-border bg-wm-card/80 p-7 text-center">
           <Link2 size={28} className="mx-auto text-wm-gold" />
-          <h2 className="mt-3 text-lg font-black">Connect a real supported broker first</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-wm-text-dim">
-            This feature will remain unavailable until its statistics and executions can come directly from verified broker records.
-          </p>
+          {/* Said from the gate, not from a fixed sentence: with a broker already
+              certified READ_ONLY this read "Connect a real supported broker
+              first" beside a checklist showing it connected (2026-10-03). */}
+          {state.kind === "ok" && state.gate.bestLevel !== "NONE" ? (
+            <>
+              <h2 className="mt-3 text-lg font-black">Your broker is connected — read only</h2>
+              <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-wm-text-dim">
+                {state.gate.bestBroker} is certified {state.gate.bestLevel}. Copy trading stays off until order acknowledgements and fills are certified and a follower authorization exists.
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="mt-3 text-lg font-black">Connect a real supported broker first</h2>
+              <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-wm-text-dim">
+                This feature will remain unavailable until its statistics and executions can come directly from verified broker records.
+              </p>
+            </>
+          )}
           <p className="mx-auto mt-3 max-w-xl" style={{ fontSize: 11, color: WM.text.muted, lineHeight: 1.6 }}>
             The state above is read from <code>/api/broker/status</code>, whose rows are enumerated from the registered broker adapters. It is a measurement, not a notice.
           </p>
