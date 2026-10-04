@@ -555,7 +555,7 @@ export default function BacktestingPage() {
                   <span><span className="text-wm-text-muted font-mono">{result.meta.barCount.toLocaleString()}</span> bars</span>
                   <span><span className="text-wm-text-muted font-mono">{result.meta.fromDate}</span> → <span className="text-wm-text-muted font-mono">{result.meta.toDate}</span></span>
                   <span>{symbol} · {tf} · {strategy.label}</span>
-                  <Link href={`/charts?symbol=${encodeURIComponent(symbol)}`} data-testid="backtest-open-chart"
+                  <Link href={`/charts?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(tf)}`} data-testid="backtest-open-chart"
                     className="ml-auto inline-flex min-h-8 items-center font-bold text-wm-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
                     Open {symbol} on the chart →
                   </Link>

@@ -6,7 +6,7 @@
 import { chromium } from "playwright";
 import fs from "fs";
 
-const URL = process.env.WM_URL || "https://wealthymindsets-pro.vercel.app/charts";
+const URL = process.env.WM_URL || "https://wealthymindsetspro.com/charts";
 const OUT = process.env.WM_OUT || "/private/tmp/claude-501/-Users-dspaidnoosleep/25c6b90b-9b87-40e1-bb72-458d9eda1f47/scratchpad";
 fs.mkdirSync(OUT, { recursive: true });
 
