@@ -606,6 +606,12 @@ function useLivePrices() {
     Object.fromEntries(Object.keys(UNIVERSE).map(sym => [sym, initialPaperQuoteReadiness()]))
   );
   const [prevCloses, setPrevCloses] = useState<Record<string,number>>({});
+  /* DISPLAY-ONLY last close (2026-10-04). On a closed session the quote
+   * route answers futures with a day/meta close and a deliberately UNKNOWN
+   * observation — it is not a live trade, so readiness stays UNKNOWN and no
+   * fill can ever use it. The rail used to print "—" beside a chart that
+   * showed NQ's real close; this keeps that close, labelled as a close. */
+  const [lastCloses, setLastCloses] = useState<Record<string,number>>({});
 
   // Refresh real anchors from the same quote API the chart uses.
   useEffect(() => {
@@ -613,6 +619,7 @@ function useLivePrices() {
     const refresh = async () => {
       const snap: Record<string,number> = {};
       const pc:   Record<string,number> = {};
+      const lc:   Record<string,number> = {};
       const nextReadiness = { ...readinessRef.current };
       await Promise.all(Object.keys(UNIVERSE).map(async sym => {
         try {
@@ -623,6 +630,7 @@ function useLivePrices() {
             Date.now(),
           );
           nextReadiness[sym] = readiness;
+          if (readiness.price == null && typeof j?.price === "number" && Number.isFinite(j.price) && j.price > 0) lc[sym] = j.price;
           if (alive && readiness.price != null) {
             snap[sym] = readiness.price;
             if (readiness.actionable && j?.prevClose > 0) pc[sym] = j.prevClose;
@@ -639,6 +647,7 @@ function useLivePrices() {
       readinessRef.current = nextReadiness;
       setQuoteReadiness(nextReadiness);
       if (Object.keys(pc).length) setPrevCloses(prev => ({ ...prev, ...pc }));
+      if (Object.keys(lc).length) setLastCloses(prev => ({ ...prev, ...lc }));
       if (Object.keys(snap).length) {
         setPrices(prev => ({ ...prev, ...snap }));
       }
@@ -648,7 +657,7 @@ function useLivePrices() {
     return () => { alive = false; clearInterval(iv); };
   }, []);
 
-  return { prices, prevCloses, quoteReadiness };
+  return { prices, prevCloses, quoteReadiness, lastCloses };
 }
 
 /* ── Equity sparkline ────────────────────────────────────── */
@@ -1778,7 +1787,7 @@ const PAPER_GOVERNED_ELEMENTS: readonly SurfaceElement[] = [
 export default function PaperTradingPage() {
   const { activeSymbol } = useActiveSymbol();
   const { earnWMS } = useWMS();
-  const { prices, prevCloses, quoteReadiness } = useLivePrices();
+  const { prices, prevCloses, quoteReadiness, lastCloses } = useLivePrices();
   // Start from deterministic defaults so server and client render identically,
   // then hydrate persisted state in a post-mount effect (avoids React #418).
   const [cash,      setCash]      = useState(STARTING_CASH);
@@ -3567,6 +3576,7 @@ export default function PaperTradingPage() {
               const ref  = prevCloses[sym];
               const chg  = px != null && ref != null && ref > 0 ? ((px - ref)/ref)*100 : null;
               const rowTruth = paperQuoteRowTruth(readiness, chg);
+              const closeOnly = px == null ? lastCloses[sym] ?? null : null;
               return (
                 <div key={sym} className="flex items-center justify-between px-2.5 py-1.5 border-b border-wm-border/20 hover:bg-wm-surface/30 transition-colors">
                   <div>
@@ -3574,17 +3584,23 @@ export default function PaperTradingPage() {
                     <div className="text-[8px] text-wm-text-dim truncate" style={{ maxWidth:70 }}>{info.name}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[10px] font-mono font-bold text-wm-text">
-                      {px == null ? "—" : px>=1000 ? px.toLocaleString("en-US",{maximumFractionDigits:0}) : fmt2(px)}
+                    <div className={clsx("text-[10px] font-mono font-bold", closeOnly != null ? "text-wm-text-dim" : "text-wm-text")}>
+                      {closeOnly != null ? (closeOnly>=1000 ? closeOnly.toLocaleString("en-US",{maximumFractionDigits:2}) : fmt2(closeOnly)) : px == null ? "—" : px>=1000 ? px.toLocaleString("en-US",{maximumFractionDigits:0}) : fmt2(px)}
                     </div>
                     {/* Colour MAY support this verdict; it may never replace
                         it. `paperQuoteRowTruth` keeps the status WORD on the
                         line whenever the row cannot authorize an action, so a
                         stale row printing "+4.39%" no longer relies on a red
                         hue that already means "down". */}
+                    {closeOnly != null ? (
+                      <div className="text-[8px] font-bold text-wm-text-dim" title="The session is closed: this is the last close, not a live trade. Paper fills wait for a live observation.">
+                        LAST CLOSE · NOT ACTIONABLE
+                      </div>
+                    ) : (
                     <div className={clsx("text-[8px] font-bold", rowTruth.degraded?"text-wm-red":"text-wm-gold")}>
                       {rowTruth.text}
                     </div>
+                    )}
                   </div>
                 </div>
               );
