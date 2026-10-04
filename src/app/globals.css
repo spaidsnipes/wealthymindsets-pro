@@ -585,6 +585,13 @@
   .wm-chart-orientation-actions { width: auto; flex: 1 1 0; min-width: 0; }
   .wm-chart-orientation-action { overflow: hidden; }
   .wm-chart-orientation-action > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+  /* THE LIVE TAPE CHIP ON A PHONE (2026-10-04): it spanned 374 of 390px — a
+     bar across the top of the market. The live dot and the delta stay; the
+     source words and the sparkline leave the glass (every fact is still in
+     the chip's accessible name). */
+  .wm-live-session-chip > span:nth-child(2),
+  .wm-live-session-chip svg { display: none !important; }
 }
 
 /* THE MARKET FITS THE SCREEN — phones and tablets, portrait (2026-10-04).
