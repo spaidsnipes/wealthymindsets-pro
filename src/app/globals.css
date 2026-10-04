@@ -1421,6 +1421,14 @@ input[type=range]::-webkit-slider-runnable-track {
    exactly as they were. */
 @media (max-width: 900px) {
   .wm-instrument-context-strip { display: none !important; }
+  /* The Journal header scrolls sideways at EVERY width below the desk
+     recomposition, not only below 640: at iPad portrait (834) it neither
+     wrapped nor scrolled, and its toolbar ran to x=1745, clipped (measured on
+     serving 2026-10-03). */
+  .wm-journal-header {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
 }
 
 /* Garden 18 §LXXIX / §XXXIX — OPTIONS IS A SIDECAR. On desktop the decision
