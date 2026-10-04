@@ -480,11 +480,13 @@ function ArtistCard({ artist, artIndex, onOpen }: { artist: Artist; artIndex: nu
       </div>
       {/* Body — avatar overlaps cover */}
       <div className="px-4 pb-4">
-        <div className="flex items-end gap-3" style={{ marginTop: -28 }}>
+        {/* Above the cover (it painted over the avatar and a wrapped name), and
+            stacked on phones so a two-line name never rises under the photo. */}
+        <div className="relative z-10 flex flex-col items-start gap-2 sm:flex-row sm:items-end sm:gap-3" style={{ marginTop: -28 }}>
           <div className="rounded-2xl p-[2px] shrink-0" style={{ background: `linear-gradient(135deg, ${artist.color}, ${artist.color}55)`, boxShadow: `0 0 14px ${artist.color}55` }}>
             <div className="w-14 h-14 rounded-2xl" style={{ ...creatorArt(artIndex), border: "2px solid #0D0E14" }} />
           </div>
-          <div className="flex-1 min-w-0 pb-1">
+          <div className="w-full sm:flex-1 min-w-0 pb-1">
             <div className="flex items-center gap-1.5">
               <span className="text-[13px] font-black text-wm-text leading-tight line-clamp-2 break-words" title={artist.name}>{artist.name}</span>
               {artist.verified && <CheckCircle size={11} className="shrink-0 text-wm-green" />}
