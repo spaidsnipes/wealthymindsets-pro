@@ -608,7 +608,7 @@ function ProfilePageInner() {
                   <Save size={12} /> Save
                 </button>
               ) : (
-                <button onClick={() => { navigator.clipboard?.writeText(window.location.href); toast.success("Link copied!"); }}
+                <button onClick={() => { void navigator.clipboard?.writeText(window.location.href).then(() => toast.success("Link copied!"), () => toast.error("Couldn't copy the link")); }}
                   aria-label="Copy profile link"
                   title="Copy profile link"
                   className="p-1.5 rounded-lg bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text transition-colors">
@@ -1101,7 +1101,7 @@ function ProfilePageInner() {
                         <span className="text-[9px] text-wm-text-dim">Contract</span>
                         <div className="flex items-center gap-1">
                           <span className="text-[9px] font-mono text-wm-text">{WMS_CONTRACT.address.slice(0,8)}…{WMS_CONTRACT.address.slice(-6)}</span>
-                          <button onClick={() => { navigator.clipboard.writeText(WMS_CONTRACT.address); toast.success("Copied!"); }}
+                          <button onClick={() => { void navigator.clipboard.writeText(WMS_CONTRACT.address).then(() => toast.success("Copied!"), () => toast.error("Couldn't copy")); }}
                             aria-label="Copy creator coin contract address"
                             title="Copy creator coin contract address"
                             className="text-[#7C3AED] hover:text-[#00D4AA] transition-colors"><ExternalLink size={9}/></button>

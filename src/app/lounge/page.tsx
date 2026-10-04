@@ -227,8 +227,8 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
 
   const sharePost = () => {
     const url = `${window.location.origin}/lounge?post=${post.id}`;
-    navigator.clipboard.writeText(url).catch(() => {});
-    toast.success("Link copied!");
+    // Toast only on the clipboard's answer (it used to say copied either way).
+    navigator.clipboard.writeText(url).then(() => toast.success("Link copied!"), () => toast.error("Couldn't copy — your browser blocked the clipboard"));
   };
 
   const deletePost = async () => {
@@ -247,7 +247,8 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
 
   return (
     <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} whileHover={{ y:-2 }}
-      className="glass rounded-xl p-4 hover:border-wm-gold/40 transition-all">
+      id={`post-${post.id}`} data-lounge-post={post.id}
+      className="glass rounded-xl p-4 hover:border-wm-gold/40 transition-all scroll-mt-24">
       <div className="flex items-start gap-3">
         <Avatar src={post.user_avatar} name={post.user_name} color={post.user_color} ceo={post.user_ceo} />
 
@@ -782,6 +783,26 @@ export default function LoungePage() {
   }, []);
 
   useEffect(() => { void loadPosts(); }, [loadPosts]);
+
+  // A shared post link (…/lounge?post=<id>) used to open the Lounge and stop
+  // there — nothing read the parameter (2026-10-04). Once posts are in, show
+  // the For You feed (every post), bring that post into view and ring it.
+  const sharedPostShown = useRef(false);
+  useEffect(() => {
+    if (sharedPostShown.current || storeState !== "OK") return;
+    const want = new URLSearchParams(window.location.search).get("post");
+    if (!want) return;
+    sharedPostShown.current = true;
+    if (!posts.some(p => String(p.id) === want)) { toast.error("That post is no longer in the Lounge"); return; }
+    setFeedTab("for-you");
+    window.setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-lounge-post="${CSS.escape(want)}"]`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.style.boxShadow = "0 0 0 2px rgba(201,165,92,0.85)";
+      window.setTimeout(() => { el.style.boxShadow = ""; }, 2600);
+    }, 250);
+  }, [storeState, posts]);
 
   /* ── New posts: a quiet re-read every 30 s while the room is visible
      (the old realtime channel needed the browser Supabase client). ── */
