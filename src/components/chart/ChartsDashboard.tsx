@@ -3256,8 +3256,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // Synchronous on purpose: ResizeObserver already delivers after layout,
     // and a rAF here never fires in a tab opened in the background — the
     // pane then sat at the CSS fallback (measured: 542px instead of 625).
+    // The room scrolls inside <main>, not the document: add the scroller's
+    // own offset, or reading the spine below would move the "top" and resize
+    // the market under the trader's thumb mid-scroll.
+    let scroller: HTMLElement | null = null;
+    for (let el = pane.parentElement; el; el = el.parentElement) {
+      const oy = getComputedStyle(el).overflowY;
+      if (oy === "auto" || oy === "scroll") { scroller = el; break; }
+    }
     const measure = () => {
-      const top = Math.max(0, Math.round(pane.getBoundingClientRect().top + window.scrollY));
+      const top = Math.max(0, Math.round(pane.getBoundingClientRect().top + (scroller?.scrollTop ?? 0) + window.scrollY));
       if (pane.style.getPropertyValue("--wm-chart-fit-top") !== `${top}px`) pane.style.setProperty("--wm-chart-fit-top", `${top}px`);
     };
     measure();

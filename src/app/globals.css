@@ -600,7 +600,14 @@
    (max-height 520) keep their own command-state rules below.
    Later in the sheet than the 639px floor, so it wins where both apply. */
 @media (max-width: 1023px) and (min-height: 521px) {
+  /* A DEFINITE height, not a floor. With only a min-height the pane's height
+     came from its content — the chart library's table, which sizes itself
+     from the pane: a loop that settled 13px past the glass at 390 (pane 626
+     against a 613 fit). flex-basis auto + height gives the chart one box to
+     fit, at every width in this band. */
   .wm-chart-market-pane[data-market-primary="true"] {
+    flex: 0 0 auto !important;
+    height: max(360px, calc(100svh - var(--wm-chart-fit-top, 300px))) !important;
     min-height: max(360px, calc(100svh - var(--wm-chart-fit-top, 300px))) !important;
   }
   /* THE RATCHET. Every flex wrapper between the pane and the chart library's
