@@ -52,6 +52,9 @@ interface StatusBody {
   readonly providers?: readonly CopyTradingProviderInput[];
 }
 
+/** The certification level in a trader's words (2026-10-04). */
+const CERT_WORDS: Record<string, string> = { NONE: "not certified", READ_ONLY: "read-only", WRITE_PAPER: "paper-order", WRITE_LIVE: "live-order" };
+
 export default function CopyTradingPage() {
   // This room carries no market feed. See /lounge for the measurement and
   // why silence must be declared rather than inferred.
@@ -199,7 +202,7 @@ export default function CopyTradingPage() {
               {state.gate.bestBroker !== null && (
                 <>
                   {" "}Furthest-certified broker: <strong style={{ color: WM.text.body }}>{state.gate.bestBroker}</strong>{" "}
-                  at <strong style={{ color: WM.text.body }}>{state.gate.bestLevel}</strong>.
+                  at <strong data-level={state.gate.bestLevel} style={{ color: WM.text.body }}>{CERT_WORDS[state.gate.bestLevel] ?? state.gate.bestLevel}</strong>.
                 </>
               )}
             </p>
@@ -288,7 +291,7 @@ export default function CopyTradingPage() {
             <>
               <h2 className="mt-3 text-lg font-black">Your broker is connected — read only</h2>
               <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-wm-text-dim">
-                {state.gate.bestBroker} is certified {state.gate.bestLevel}. Copy trading stays off until order acknowledgements and fills are certified and a follower authorization exists.
+                {state.gate.bestBroker} is certified {CERT_WORDS[state.gate.bestLevel] ?? state.gate.bestLevel}. Copy trading stays off until order acknowledgements and fills are certified and a follower authorization exists.
               </p>
             </>
           ) : (

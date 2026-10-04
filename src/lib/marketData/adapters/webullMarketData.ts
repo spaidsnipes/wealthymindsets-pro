@@ -433,7 +433,7 @@ export async function fetchWebullTickSnapshot(
     return unavailable("CLOCK_INVALID", `Webull Data API returned a provider timestamp ${Math.abs(tickAgeMs)} ms in the future; the print was not exposed as current.`);
   }
   if (tickAgeMs > maxTickAgeMs) {
-    return unavailable("STALE", `Webull Data API returned symbol-matched prints, but the newest provider timestamp was ${tickAgeMs} ms old; stale prints were not exposed as current.`);
+    return unavailable("STALE", `Webull Data API returned symbol-matched prints, but the newest provider timestamp was ${tickAgeMs >= 3_600_000 ? `${(tickAgeMs / 3_600_000).toFixed(1)} h` : tickAgeMs >= 60_000 ? `${Math.round(tickAgeMs / 60_000)} min` : `${tickAgeMs} ms`} old; stale prints were not exposed as current.`);
   }
   return {
     source: "webull",

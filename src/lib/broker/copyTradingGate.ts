@@ -98,9 +98,10 @@ const LEVEL_RANK: Record<CertLevel, number> = {
 /** Label for a level, for evidence strings. TOTAL for the same reason. */
 const LEVEL_LABEL: Record<CertLevel, string> = {
   NONE: "not certified",
-  READ_ONLY: "READ_ONLY",
-  WRITE_PAPER: "WRITE_PAPER",
-  WRITE_LIVE: "WRITE_LIVE",
+  // Trader words, not enum names (2026-10-04); the enum stays in the data.
+  READ_ONLY: "read-only",
+  WRITE_PAPER: "paper-order",
+  WRITE_LIVE: "live-order",
 };
 
 function rank(level: CertLevel): number {
@@ -137,7 +138,7 @@ export function selectCopyTradingGate(
         ? "No broker adapter is registered, so there is nothing to read a history from."
         : best >= rank("READ_ONLY")
           ? `${who} is certified ${LEVEL_LABEL[bestLevel]} — account state reads have passed.`
-          : `${who} has not cleared READ_ONLY certification, so account state has never been read.`,
+          : `${who} has not cleared ${LEVEL_LABEL.READ_ONLY} certification, so account state has never been read.`,
     },
     {
       id: "authorization",
@@ -157,7 +158,7 @@ export function selectCopyTradingGate(
         ? "No broker adapter is registered, so no acknowledgement has ever been observed."
         : best >= rank("WRITE_PAPER")
           ? `${who} has cleared submit, acknowledgement, fill and cancel stages.`
-          : `${who} has not cleared WRITE_PAPER certification — no acknowledgement or fill lifecycle has been observed.`,
+          : `${who} has not cleared ${LEVEL_LABEL.WRITE_PAPER} certification — no acknowledgement or fill lifecycle has been observed.`,
     },
     {
       id: "failureReporting",
@@ -167,7 +168,7 @@ export function selectCopyTradingGate(
         ? "No broker adapter is registered, so no reconnect or journal receipt has ever been observed."
         : best >= rank("WRITE_LIVE")
           ? `${who} has cleared reconnect/reconcile, auth refresh and journal receipt.`
-          : `${who} has not cleared WRITE_LIVE certification — reconnect, auth refresh and journal receipt are unobserved.`,
+          : `${who} has not cleared ${LEVEL_LABEL.WRITE_LIVE} certification — reconnect, auth refresh and journal receipt are unobserved.`,
     },
   ];
 

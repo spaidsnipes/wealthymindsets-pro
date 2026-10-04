@@ -227,7 +227,7 @@ export default function ProofLanePage() {
           </ol>
 
           <p className="mt-4 text-xs text-neutral-500">
-            Academy boundaries: <span className="font-mono text-amber-300">{CHALLENGE_ENROLLMENT_BOUNDARY}</span> · <span className="font-mono text-rose-300">{CHALLENGE_EXECUTION_BOUNDARY}</span>. Previewing this path creates no enrollment or payment. Academy provides browser-local education and paper rehearsal only; it cannot authorize live execution.
+            Academy boundaries: <span data-boundary={CHALLENGE_ENROLLMENT_BOUNDARY} className="text-amber-300">enrollment not connected</span> · <span data-boundary={CHALLENGE_EXECUTION_BOUNDARY} className="text-rose-300">live execution excluded</span>. Previewing this path creates no enrollment or payment. Academy provides browser-local education and paper rehearsal only; it cannot authorize live execution.
           </p>
         </section>
 
@@ -361,7 +361,7 @@ export default function ProofLanePage() {
             >
               <div className="text-[10px] uppercase tracking-widest text-neutral-400">Pace Status</div>
               <div className="mt-1 font-mono text-lg">
-                {status.status}{" "}
+                <span data-pace={status.status}>{status.status === "ON_PACE" ? "On pace" : status.status === "AHEAD" ? "Ahead" : status.status === "BEHIND" ? "Behind" : String(status.status).replace(/_/g, " ").toLowerCase()}</span>{" "}
                 <span className="text-xs text-neutral-400">
                   ({status.differenceRatio >= 0 ? "+" : ""}
                   {fmtPct(status.differenceRatio)})

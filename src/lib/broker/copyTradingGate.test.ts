@@ -74,7 +74,7 @@ describe("× AN UNMEASURED NO IS STILL AN UNMEASURED CLAIM", () => {
     const hist = g.requirements.find(r => r.id === "brokerHistory");
     expect(hist?.state).toBe("MET");
     expect(hist?.evidence).toContain("alpaca");
-    expect(hist?.evidence).toContain("READ_ONLY");
+    expect(hist?.evidence).toContain("read-only"); // the level, in trader words (2026-10-04)
   });
 
   it("× THE ASSUMED HEADLINE: the headline reports the count it measured", () => {
