@@ -329,6 +329,14 @@ function LoginPage() {
               The previous orange gradient "W" tile + generic sans copy
               read like a legacy dashboard, not the trading OS identity. */}
           <div className="mb-8 lg:hidden">
+            {/* The crest the desktop hero carries. Phone is the primary device
+                (2026-10-04): the first screen a guest sees on it read as a
+                plain text form. Same art, a calm size. */}
+            <img
+              src="/brand/wm-master-crest.jpeg"
+              alt="WEALTHY MINDSETS — Stay Sharp. Stay a Student."
+              style={{ height: 132, width: "auto", display: "block", marginBottom: 14, borderRadius: 6 }}
+            />
             <WmWordmark size="compact" subtitle="TRADING OPERATING SYSTEM" />
           </div>
 
@@ -524,7 +532,10 @@ function LoginPage() {
                 style={{ background: WM.surface.deep, border: `1px solid ${WM.border.hair}` }}>
                 <CheckCircle size={12} className="shrink-0" style={{ color: WM.gold.mark }} />
                 <span className="text-[10px]" style={{ color: WM.text.muted }}>
-                  Secured with PBKDF2-SHA512 encryption · 30-day sessions
+                  {/* Was "Secured with PBKDF2-SHA512 encryption": on the live host sign-in
+                      is Supabase Auth (PBKDF2 is the local, no-Supabase path only),
+                      and a password hash is not encryption (2026-10-04). */}
+                  Passwords checked by Supabase Auth — WM never stores yours · 30-day sessions
                 </span>
               </div>
             </motion.div>
