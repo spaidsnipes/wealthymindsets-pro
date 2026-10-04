@@ -6955,6 +6955,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       let silenceTaken = 0, silenceFolded = 0;
       const silenceStep = shortPane ? 11 : 14;
       const takeSilenceRow = (): number => {
+        // THE PHONE FOLDS THEM ALL (2026-10-04, narrow-glass word budget):
+        // "ORDER FLOW · ACTIVE · NO CURRENT EVENT…" and "FOUNDER ANATOMY ·
+        // ACTIVE…" stacked over the candles of a 330px plot. Every sense still
+        // names its state — in the one summary line, and in Tools › Active.
+        if (plotRight < NARROW_GLASS_MAX_PX) { silenceFolded++; return -1000; }
         if (silenceTaken >= SILENCE_ROWS_SHOWN) { silenceFolded++; return -1000; }
         silenceTaken++;
         const y = silenceRowY; silenceRowY -= silenceStep;
@@ -21951,7 +21956,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // The folded silences, as one line (see takeSilenceRow).
       try { if (silenceFolded > 0) {
         const y = silenceRowY;
-        const words = `+${silenceFolded} MORE SENSE${silenceFolded === 1 ? "" : "S"} SILENT HERE — TOOLS › ACTIVE SAYS WHY`;
+        const words = plotRight < NARROW_GLASS_MAX_PX
+          ? `${silenceFolded} SENSE${silenceFolded === 1 ? "" : "S"} SILENT — TOOLS › ACTIVE`
+          : `+${silenceFolded} MORE SENSE${silenceFolded === 1 ? "" : "S"} SILENT HERE — TOOLS › ACTIVE SAYS WHY`;
         ctx.save();
         ctx.font = marketFont("OBJECT_NAME");
         ctx.fillStyle = "rgba(7,9,15,0.62)";
