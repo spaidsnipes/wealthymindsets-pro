@@ -603,6 +603,14 @@
   .wm-chart-market-pane[data-market-primary="true"] {
     min-height: max(360px, calc(100svh - var(--wm-chart-fit-top, 300px))) !important;
   }
+  /* THE RATCHET. Every flex wrapper between the pane and the chart library's
+     own table had min-height:auto, so none could shrink below the table — and
+     the library only shrinks the table when its box shrinks. Measured at 390:
+     the table kept a 590px size from an earlier, taller fit and held the pane
+     13px past the glass forever. A flex item may be smaller than its content
+     here; the chart re-fits itself to whatever box it is given. Inline
+     minimums (touch targets) still win over this rule. */
+  .wm-chart-market-pane[data-market-primary="true"] div { min-height: 0; }
 }
 
 /* Phones in landscape are a distinct command state, not a compressed desktop.
