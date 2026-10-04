@@ -69,6 +69,16 @@
    * falls back to an isolate-local store on purpose: an unprovisioned namespace
    * must cost durability, not availability.
    */
+  /**
+   * AUTH_MAIL_LIMITER — forgot-password + resend-confirmation send real email
+   * for anyone who asks. The in-memory limiter counts per isolate; this counts
+   * per Cloudflare location across isolates. 5 per key per minute (keys are
+   * `ip:` and `addr:`). See src/lib/edgeRateLimit.ts.
+   */
+  "ratelimits": [
+    { "name": "AUTH_MAIL_LIMITER", "namespace_id": "1004", "simple": { "limit": 5, "period": 60 } }
+  ],
+
   "kv_namespaces": [
     {
       "binding": "WEBULL_SESSION",
