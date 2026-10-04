@@ -14633,21 +14633,27 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (yA == null || yB == null) continue;
               const yTop = Math.round(Math.min(+yA, +yB)), yBot = Math.round(Math.max(+yA, +yB));
               const buy = run.side === "buy";
-              const ink = buy ? buyRgba : sellRgba;
+              // F06A's bright pair, not the footprint's cell inks (2026-10-04,
+              // Founder's Chrome: navy / purple rungs vanished on the black).
+              const rgbS = buy ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
+              const ink = (a: number | string) => `rgba(${rgbS},${a})`;
               // BESIDE the body, never over it (first glass: drawn across the
               // slot, the stacks merged with the candle and the value-candle
               // glass into one blob). F06A: a column of short horizontal bars
               // at the stacked rows, on the side that leaned — buyers right,
               // sellers left.
-              const barW = Math.max(3, Math.min(14, Math.round(bsp * 0.55)));
+              const barW = Math.max(5, Math.min(16, Math.round(bsp * 0.8)));
               const x0 = buy ? Math.round(+rawX + halfW + 1) : Math.round(+rawX - halfW - 1 - barW);
               ctx.globalAlpha = att.alpha("stack");
               for (let k = run.from; k <= run.to; k++) {
                 const ra = srs.priceToCoordinate(c.low + (k + 1) * binW), rb = srs.priceToCoordinate(c.low + k * binW);
                 if (ra == null || rb == null) continue;
                 const r0 = Math.round(Math.min(+ra, +rb)), r1 = Math.round(Math.max(+ra, +rb));
-                ctx.fillStyle = ink(0.9);
-                ctx.fillRect(x0, r0, barW, Math.max(1, r1 - r0 - 1));
+                ctx.save();
+                ctx.shadowColor = ink(0.7); ctx.shadowBlur = 6;
+                ctx.fillStyle = ink(0.95);
+                ctx.fillRect(x0, r0, barW, Math.max(2, r1 - r0 - 1));
+                ctx.restore();
                 smartMoneyMarks.push({ x: x0, y: r0, w: barW, h: Math.max(1, r1 - r0 - 1) });
               }
               // The run's own bracket on its outer edge — one stack, not loose rows.
