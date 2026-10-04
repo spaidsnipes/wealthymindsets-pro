@@ -57,3 +57,4 @@ public/*-sample.html
 # gate measuring a file that is no longer deployed — the exact defect that
 # test's docblock was written to repair. It stays tracked deliberately.
 !public/founder-room-sample.html
+guest-walk-out/

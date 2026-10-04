@@ -12,6 +12,7 @@
     "build:standalone": "WM_BUILD_SHA=$(git rev-parse HEAD) WM_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) NEXT_OUTPUT=standalone next build",
     "start": "next start",
     "audit:phone": "node scripts/audit-phone-parity.mjs",
+    "audit:guest": "node scripts/guest-walk.mjs",
     "prove:vp-pixels": "node scripts/prove-vp-pixels.mjs",
     "prove:bubble-pixels": "node scripts/prove-bubble-pixels.mjs",
     "prove:passport-pixels": "node scripts/prove-passport-pixels.mjs",
