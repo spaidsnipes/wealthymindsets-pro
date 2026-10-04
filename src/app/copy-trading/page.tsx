@@ -289,7 +289,7 @@ export default function CopyTradingPage() {
               first" beside a checklist showing it connected (2026-10-03). */}
           {state.kind === "ok" && state.gate.bestLevel !== "NONE" ? (
             <>
-              <h2 className="mt-3 text-lg font-black">Your broker is connected — read only</h2>
+              <h2 className="mt-3 text-lg font-black">Your broker is connected — copying is not certified yet</h2>
               <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-wm-text-dim">
                 {state.gate.bestBroker} is certified {CERT_WORDS[state.gate.bestLevel] ?? state.gate.bestLevel}. Copy trading stays off until order acknowledgements and fills are certified and a follower authorization exists.
               </p>

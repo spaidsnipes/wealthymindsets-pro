@@ -833,6 +833,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => {
     if (searchedFutureOption?.startsWith("./")) setFuturesOptionsOpen(true);
   }, [searchedFutureOption]);
+  // Symbol search picks, THEN navigates to the bare room route — which wiped
+  // the `?symbol=&tf=` the writeback above had just written (measured
+  // 2026-10-04: after a search the URL read `/charts`, so a refresh or a
+  // shared link lost the symbol). Re-assert the camera whenever the query
+  // changes under it; the seed's equal-value early return keeps this loopless.
+  const urlQuery = optionSearchParams.toString();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const next = marketSurfaceUrlWriteback(window.location.search, symbol, timeframe);
+    if (next === null) return;
+    try {
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${next}`);
+    } catch { /* sandboxed frame / history quota: URL stays as it was */ }
+  }, [urlQuery, symbol, timeframe]);
 
   // ── WM VP indicators (draw ON chart canvas) ─────────────────
   const [fixedVPActive,   setFixedVPActive]   = useState<boolean>(() => lsGet("wm_fixedVP", false) as boolean);
