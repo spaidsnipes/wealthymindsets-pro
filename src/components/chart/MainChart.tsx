@@ -22182,7 +22182,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (waitWords.test(r)) waiting.push(name);
           else if (quietWords.test(r)) noEvent.push(name);
         };
-        sort(lo2.stack, "IMBALANCE STACK", ds.imbalanceStack, /^UNMEASURED/, /^NO_STACK/);
+        // Per-bar stacks on the glass are an event, whatever the window ladder says (2026-10-04).
+        const stackBarRuns = Number(/RUNS:(\d+)/.exec(ds.imbalanceStackBars ?? "")?.[1] ?? 0);
+        sort(lo2.stack && stackBarRuns === 0, "IMBALANCE STACK", ds.imbalanceStack, /^UNMEASURED/, /^NO_STACK/);
         sort(lo2.divergence, "DELTA DIVERGENCE", ds.deltaDivergence, /^UNMEASURED/, /^(NO_SWING|NONE)/);
         sort(lo2.effort, "EFFORT MARK", ds.effortMark, /^UNMEASURED/, /^(UNREAD|NO_READING)/);
         sort(lo2.deltaLevels, "DELTA LEVELS", ds.deltaLevels, /^(UNMEASURED|NO_TAPE|NO_PRINTS)/, /^(NO_|NONE)/);
