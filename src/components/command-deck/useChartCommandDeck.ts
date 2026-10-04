@@ -33,6 +33,7 @@
  * surface may hold.
  */
 
+import { localDayKey } from "@/lib/journal/localDayKey";
 import * as React from "react";
 
 import type { CanonicalMarketState } from "@/lib/marketData/canonicalMarketState";
@@ -165,7 +166,7 @@ export function useChartCommandDeck(input: ChartCommandDeckInput): ChartCommandD
   const decisionRecords = useDecisionMemoryRecords(ownerId);
 
   const unreviewedCloses = React.useMemo(
-    () => selectUnreviewedCloses(journalEntries, new Date(nowMs).toISOString().slice(0, 10)),
+    () => selectUnreviewedCloses(journalEntries, localDayKey(new Date(nowMs))),
     [journalEntries, nowMs],
   );
 

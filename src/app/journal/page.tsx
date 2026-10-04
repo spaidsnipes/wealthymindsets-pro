@@ -9,6 +9,7 @@
  * • Full entry detail with attachments viewer
  */
 
+import { localDayKey } from "@/lib/journal/localDayKey";
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -1080,7 +1081,7 @@ function JournalPageInner() {
 
   // New-entry form
   const emptyForm = (): Partial<JournalEntry> => ({
-    date: new Date().toISOString().slice(0, 10),
+    date: localDayKey(),
     symbol: "", side: "long", entry: 0, exit: 0, size: 1,
     pnl: 0, pct: 0, tags: [], notes: "", mood: "neutral",
     result: "be", processQuality: "UNRESOLVED", processOutcome: "UNRESOLVED",
@@ -1144,7 +1145,7 @@ function JournalPageInner() {
   // cumulative R + shutdown state at a glance so a live-session
   // journal review immediately tells him "session open" / "hard stop
   // reached" / "+3R baseline objective — stewardship decision".
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = localDayKey();
   const todayEntries = entries.filter(e => e.date === todayIso);
   const todayRs = todayEntries
     .map(e => e.realizedR)

@@ -1,4 +1,5 @@
 "use client";
+import { localDayKey } from "@/lib/journal/localDayKey";
 import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -444,7 +445,7 @@ function CommandDeckInner() {
   // subscription. It does not seal a decision, write to the store, or claim the
   // store is reachable — it answers the question from the evidence that exists.
   const unreviewedCloses = React.useMemo(
-    () => selectUnreviewedCloses(journalEntries, new Date(nowMs).toISOString().slice(0, 10)),
+    () => selectUnreviewedCloses(journalEntries, localDayKey(new Date(nowMs))),
     [journalEntries, nowMs],
   );
   const personalEdgeVm = React.useMemo(
