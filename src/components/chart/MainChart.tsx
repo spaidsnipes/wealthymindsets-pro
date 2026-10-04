@@ -11110,6 +11110,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Chips that float with price and were painted this frame; later chrome
       // steps around them instead of printing through them.
       const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];
+      // Big-trade discs carry their size / time / price INSIDE (F07A), and
+      // they were painted earlier this frame. Words placed later step off
+      // them (live NQ open 2026-10-04: "SUPPORT · BROKEN · 11 LVL" printed
+      // across a ×24 cluster's numbers).
+      for (const b of bigTradeFrameRef.current.discs) {
+        if (!Number.isFinite(b.x) || !Number.isFinite(b.y) || !(b.r > 0)) continue;
+        floatingChips.push({ x: b.x - b.r, y: b.y - b.r, w: 2 * b.r, h: 2 * b.r });
+      }
       // Smart Money marks drawn this frame that the weather lens must stand
       // BEHIND (2026-10-04): stacked-imbalance bars register here; absorption
       // shelves and exhaustion marks are read from anatomyHitsRef.
