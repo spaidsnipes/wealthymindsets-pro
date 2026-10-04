@@ -3263,12 +3263,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     };
     measure();
     // Everything above the pane can change height (masthead wrap, the WHY
-    // strip, the instrument row) — re-measure when any of it does.
+    // strip, the instrument row) — and those nodes can REMOUNT after this
+    // effect runs (measured: a stale top 217 vs 231 at 390, so the pane ran
+    // 14px past the glass). The body's size changes whenever anything in the
+    // flow does, whichever node it is, so observe the body itself.
     const ro = new ResizeObserver(measure);
-    const room = pane.closest(".wm-chart-dashboard");
-    const masthead = document.querySelector(".wm-os-masthead");
-    if (masthead) ro.observe(masthead);
-    if (room) for (const el of Array.from(room.children)) if (el !== pane && !el.contains(pane)) ro.observe(el);
+    ro.observe(document.body);
     window.addEventListener("resize", measure);
     window.addEventListener("orientationchange", measure);
     return () => {
