@@ -974,8 +974,10 @@ export default function LoungePage() {
 
       {/* ── Main feed ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 border-b border-wm-border shrink-0" style={{height:44}}>
-          <div className="flex min-w-0 items-center gap-0.5">
+        {/* Wraps on a phone: at 390 the feed tabs ran under the search box and the
+            Post button (tabs group 74 px wide, tabs to x=339 — measured 2026-10-03). */}
+        <div className="flex flex-wrap items-center justify-between gap-y-1 px-4 py-0.5 border-b border-wm-border shrink-0" style={{minHeight:44}}>
+          <div className="flex min-w-0 max-w-full items-center gap-0.5 overflow-x-auto" style={{scrollbarWidth:"none"}}>
             <button
               onClick={() => setShowCommunityTools(true)}
               aria-label="Open community tools"
@@ -988,7 +990,7 @@ export default function LoungePage() {
             {TAB_LABELS.map(t => (
               <button key={t.id} onClick={() => setFeedTab(t.id)}
                 className={clsx(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                  "flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
                   feedTab === t.id
                     ? "bg-wm-surface text-wm-text border border-wm-border"
                     : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface/50")}>
@@ -996,7 +998,7 @@ export default function LoungePage() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
             <div className="flex items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
               <Search size={11} className="text-wm-text-muted"/>
               <input value={search} onChange={e => setSearch(e.target.value)}
