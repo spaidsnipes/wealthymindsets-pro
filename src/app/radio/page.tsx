@@ -381,7 +381,7 @@ function TrackRow({ track, idx, active, playing, onPlay, liked, onToggleLike }: 
       <span className="hidden sm:block text-[10px] font-mono text-wm-text-dim shrink-0">{fmt(track.duration)}</span>
 
       {/* Like */}
-      <button onClick={e => { e.stopPropagation(); onToggleLike(); }} className="p-1.5 shrink-0 transition-colors">
+      <button type="button" onClick={e => { e.stopPropagation(); onToggleLike(); }} aria-label={`${liked ? "Unlike" : "Like"} ${track.title}`} aria-pressed={liked} className="p-1.5 shrink-0 transition-colors">
         <Heart size={13} className={liked ? "text-red-500 fill-red-500" : "text-wm-text-dim hover:text-red-500"} />
       </button>
 
@@ -1046,7 +1046,9 @@ export default function RadioPage() {
                     </div>
                     {/* play button — bottom-right, like the mockup */}
                     <button
+                      type="button"
                       onClick={() => activeStation === "WM Radio" ? togglePlay() : playStation("wm-main")}
+                      aria-label={activeStation === "WM Radio" && playing ? "Pause WM Radio" : "Play WM Radio"}
                       className="absolute bottom-0 right-0 rounded-full flex items-center justify-center transition-transform hover:scale-110"
                       style={{ width: 52, height: 52, background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 6px 20px rgba(232,185,35,0.5)" }}>
                       {activeStation === "WM Radio" && playing ? <Pause size={20} style={{ color: "#0b0a06" }} /> : <Play size={20} className="ml-0.5" style={{ color: "#0b0a06" }} />}

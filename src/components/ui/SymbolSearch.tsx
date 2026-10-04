@@ -80,7 +80,7 @@ export function SymbolSearch({ value, onChange, placeholder = "Search symbol…"
         />
         {searching && <div className="w-3 h-3 rounded-full border-2 border-wm-blue border-t-transparent animate-spin shrink-0" />}
         {query && !searching && (
-          <button onClick={() => { setQuery(""); onChange(""); }} className="text-wm-text-dim hover:text-wm-text">
+          <button type="button" aria-label="Clear symbol" title="Clear symbol" onClick={() => { setQuery(""); onChange(""); }} className="text-wm-text-dim hover:text-wm-text">
             <X size={11} />
           </button>
         )}

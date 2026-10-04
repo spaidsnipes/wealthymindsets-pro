@@ -227,7 +227,7 @@ export default function ShopPage() {
           <div className="flex min-w-0 items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products…" aria-label="Search products"
               className="bg-transparent text-xs text-wm-text outline-none w-28 sm:w-32 min-w-0 placeholder-wm-text-dim" />
-            {search && <button onClick={() => setSearch("")} className="text-wm-text-dim hover:text-wm-text"><X size={11}/></button>}
+            {search && <button type="button" aria-label="Clear search" onClick={() => setSearch("")} className="text-wm-text-dim hover:text-wm-text"><X size={11}/></button>}
           </div>
           {/* Category filters — scroll sideways on a phone rather than run off it. */}
           <div className="flex max-w-full gap-1 overflow-x-auto">
@@ -299,7 +299,9 @@ export default function ShopPage() {
 
                 <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full text-[10px] font-black bg-[#E8B923] text-[#241f14] shadow">Planned ${product.price}</div>
 
-                <button onClick={e => { e.stopPropagation(); toggleWishlist(product.id); }}
+                <button type="button" onClick={e => { e.stopPropagation(); toggleWishlist(product.id); }}
+                  aria-label={`${wishlist.includes(product.id) ? "Remove" : "Save"} ${product.name} ${wishlist.includes(product.id) ? "from" : "to"} wishlist`}
+                  aria-pressed={wishlist.includes(product.id)}
                   className="absolute top-2 right-2 p-1.5 rounded-full bg-wm-surface/80 hover:bg-wm-surface transition-colors">
                   <Heart size={13} className={wishlist.includes(product.id) ? "text-wm-red fill-wm-red" : "text-wm-text-muted"} />
                 </button>
