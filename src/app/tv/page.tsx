@@ -532,7 +532,7 @@ function ChatChannel({ channel }: { channel: TextChannel }) {
             placeholder={`Message #${channel.name}`}
             className="flex-1 bg-transparent text-xs text-wm-text placeholder:text-wm-text-muted outline-none"
           />
-          <button onClick={send} className="text-wm-blue hover:opacity-80 disabled:opacity-40 active:scale-90 transition-all" disabled={!draft.trim()}>
+          <button aria-label="Send message" onClick={send} className="text-wm-blue hover:opacity-80 disabled:opacity-40 active:scale-90 transition-all" disabled={!draft.trim()}>
             <Send size={15} />
           </button>
         </div>

@@ -831,7 +831,7 @@ function ComposeModal({ onClose, onSave }: { onClose: () => void; onSave: (e: Pr
           <h3 className="text-base font-black text-white flex items-center gap-2">
             <Sun size={17} style={{ color: "#F0B429" }} /> New Morning Prep
           </h3>
-          <button onClick={onClose} style={{ color: "#8B8FA8" }}><X size={18} /></button>
+          <button aria-label="Close" onClick={onClose} style={{ color: "#8B8FA8" }}><X size={18} /></button>
         </div>
 
         {/* Mood */}
@@ -866,7 +866,7 @@ function ComposeModal({ onClose, onSave }: { onClose: () => void; onSave: (e: Pr
               <div key={i.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5" style={{ background: "#161A24" }}>
                 <Check size={13} style={{ color: "#4A5070" }} />
                 <span className="flex-1 text-sm" style={{ color: "#C0C8D8" }}>{i.text}</span>
-                <button onClick={() => removeItem(i.id)} style={{ color: "#6B7280" }}><X size={13} /></button>
+                <button aria-label={`Remove ${i.text} from checklist`} onClick={() => removeItem(i.id)} style={{ color: "#6B7280" }}><X size={13} /></button>
               </div>
             ))}
           </div>
@@ -876,7 +876,7 @@ function ComposeModal({ onClose, onSave }: { onClose: () => void; onSave: (e: Pr
               placeholder="Add a checklist item…"
               className="flex-1 rounded-lg px-3 py-2 text-sm text-white outline-none"
               style={{ background: "#161A24", border: "1px solid #1E2030" }} />
-            <button onClick={addItem} className="px-3 rounded-lg text-sm font-bold"
+            <button aria-label="Add checklist item" onClick={addItem} className="px-3 rounded-lg text-sm font-bold"
               style={{ background: "rgba(0,212,170,0.15)", border: "1px solid rgba(0,212,170,0.35)", color: "#00D4AA" }}>
               <Plus size={15} />
             </button>
@@ -888,7 +888,7 @@ function ComposeModal({ onClose, onSave }: { onClose: () => void; onSave: (e: Pr
           {photo ? (
             <div className="relative rounded-xl overflow-hidden" style={{ border: "1px solid #1E2030" }}>
               <img src={photo} alt="Prep" className="w-full max-h-48 object-cover" />
-              <button onClick={() => setPhoto(null)}
+              <button aria-label="Remove photo" onClick={() => setPhoto(null)}
                 className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center"
                 style={{ background: "rgba(0,0,0,0.6)" }}><X size={13} className="text-white" /></button>
             </div>

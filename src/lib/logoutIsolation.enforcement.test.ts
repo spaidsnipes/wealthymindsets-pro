@@ -41,7 +41,7 @@ const SRC_ROOT = resolve(__dirname, "..");
 /** Keys enumerated in logoutIsolation.ts OWNER_SCOPED_KEYS. */
 const OWNER_SCOPED_KEYS = new Set<string>([
   "wm-profile", "wm-profile-avatar", "wm-profile-bg",
-  "wm-radio-liked",
+  "wm-radio-liked", "wm-shop-wishlist", "wm-pine-saved",
   "wm_songs", "wm_watchlists", "wm_quick_syms",
   "wm_scanner_starred", "wm_scanner_alerted",
   "wm_journal_entries", "wm_ledger_one_r", "wm_ledger_tag_amendments_v1", "wm_process_days_v1", "wm_ledger_models_v1", "wm_restoration_days_v1", "wm_ledger_clinic_v1", "wm_rule_card_hidden_day", "wm_profile_rules_effective", "wm_pattern_working_on_v1", "wm_edu_progress",

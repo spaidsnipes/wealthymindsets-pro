@@ -95,7 +95,7 @@ export function IndicatorSettingsModal({
               className="p-1.5 rounded text-wm-text-dim hover:text-wm-text hover:bg-wm-surface transition-colors">
               <RotateCcw size={13} />
             </button>
-            <button onClick={onClose} className="p-1.5 rounded text-wm-text-dim hover:text-wm-text hover:bg-wm-surface transition-colors">
+            <button aria-label="Close" onClick={onClose} className="p-1.5 rounded text-wm-text-dim hover:text-wm-text hover:bg-wm-surface transition-colors">
               <X size={14} />
             </button>
           </div>

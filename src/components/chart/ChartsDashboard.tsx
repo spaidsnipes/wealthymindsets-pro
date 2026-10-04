@@ -6083,7 +6083,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                               </button>
 
                               {/* Delete */}
-                              <button
+                              <button aria-label={`Delete ${strat.name} strategy`}
                                 onClick={(e) => { e.stopPropagation(); setStrategies(prev => prev.filter(s => s.id !== strat.id)); if (activeStrategy === strat.id) setActiveStrategy(null); }}
                                 className="p-0.5 rounded text-wm-text-dim hover:text-wm-red transition-colors"
                               >

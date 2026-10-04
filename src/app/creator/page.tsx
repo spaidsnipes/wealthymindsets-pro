@@ -481,7 +481,7 @@ export default function CreatorPage() {
                   <div className="text-sm font-black text-wm-text capitalize">Save {waitlistTier} interest</div>
                   <div className="text-[10px] text-wm-text-dim mt-0.5">Saved locally only — this does not submit to WM</div>
                 </div>
-                <button onClick={() => setWaitlistOpen(false)} className="text-wm-text-dim hover:text-wm-text">
+                <button aria-label="Close" onClick={() => setWaitlistOpen(false)} className="text-wm-text-dim hover:text-wm-text">
                   <X size={16}/>
                 </button>
               </div>

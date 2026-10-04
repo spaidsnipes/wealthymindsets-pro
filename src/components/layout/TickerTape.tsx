@@ -727,7 +727,7 @@ export function TickerTape() {
           >
             <div className="flex items-center justify-between px-3 py-2 border-b border-wm-border shrink-0">
               <span className="text-[11px] font-black text-wm-text">Tape Symbols</span>
-              <button onClick={() => setEditOpen(false)}>
+              <button aria-label="Close tape symbols editor" onClick={() => setEditOpen(false)}>
                 <X size={12} className="text-wm-text-muted hover:text-wm-text" />
               </button>
             </div>
@@ -737,7 +737,7 @@ export function TickerTape() {
               {customSyms.map(sym => (
                 <div key={sym} className="flex items-center justify-between px-3 py-1.5 hover:bg-wm-surface/50 group">
                   <span className="text-[11px] font-bold text-wm-text">{sym}</span>
-                  <button
+                  <button aria-label={`Remove ${sym} from tape`}
                     onClick={() => setCustomSyms(prev => withoutTapeSymbol(prev, sym))}
                     className="opacity-0 group-hover:opacity-100 transition-opacity text-wm-text-muted hover:text-wm-red"
                   >
@@ -760,7 +760,7 @@ export function TickerTape() {
                   list="tape-syms-list"
                   className="flex-1 bg-transparent text-[11px] text-wm-text outline-none placeholder-wm-text-dim"
                 />
-                <button
+                <button aria-label="Add symbol to tape"
                   onClick={() => { handleAddSym(addInput); setAddInput(""); }}
                   className="text-wm-green hover:text-wm-text transition-colors"
                 >

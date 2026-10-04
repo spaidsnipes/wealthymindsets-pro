@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ShoppingCart, Heart, Info, X, Plus, Minus } from "lucide-react";
 import { clsx } from "clsx";
 import { motion, AnimatePresence } from "framer-motion";
@@ -126,7 +126,19 @@ export default function ShopPage() {
   const [cat,        setCat]        = useState("All");
   const [search,     setSearch]     = useState("");
   const [cartItems,  setCartItems]  = useState<CartItem[]>([]);
+  // The wishlist said "Added to wishlist" and forgot on reload (2026-10-04);
+  // it now keeps the promise on this device.
   const [wishlist,   setWishlist]   = useState<number[]>([]);
+  const wishlistLoaded = useRef(false);
+  useEffect(() => {
+    try { const v = JSON.parse(localStorage.getItem("wm-shop-wishlist") || "[]"); if (Array.isArray(v)) setWishlist(v.filter((x): x is number => typeof x === "number")); } catch { /* unreadable: start empty */ }
+  }, []);
+  useEffect(() => {
+    // The mount pass still holds [] (the load above lands next render) —
+    // writing it would erase the saved list.
+    if (!wishlistLoaded.current) { wishlistLoaded.current = true; return; }
+    try { localStorage.setItem("wm-shop-wishlist", JSON.stringify(wishlist)); } catch { /* storage refused */ }
+  }, [wishlist]);
   const [cartOpen,   setCartOpen]   = useState(false);
   const [detail,     setDetail]     = useState<typeof PRODUCTS[0] | null>(null);
 
@@ -355,7 +367,7 @@ export default function ShopPage() {
                   <span className="font-black text-wm-text text-sm">Your Cart</span>
                   {cartCount > 0 && <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-wm-gold/20 text-wm-gold">{cartCount} items</span>}
                 </div>
-                <button onClick={() => setCartOpen(false)}
+                <button aria-label="Close cart" onClick={() => setCartOpen(false)}
                   className="p-1.5 rounded-lg hover:bg-wm-surface text-wm-text-muted hover:text-wm-text transition-colors">
                   <X size={14} />
                 </button>
@@ -381,17 +393,17 @@ export default function ShopPage() {
                             <div className="text-xs text-wm-gold font-mono">${product.price}</div>
                           </div>
                           <div className="flex items-center gap-1">
-                            <button onClick={() => changeQty(item.id, -1)}
+                            <button aria-label={`Decrease ${product.name} quantity`} onClick={() => changeQty(item.id, -1)}
                               className="w-6 h-6 rounded border border-wm-border text-wm-text-muted hover:text-wm-text flex items-center justify-center">
                               <Minus size={10} />
                             </button>
                             <span className="w-6 text-center text-xs font-bold text-wm-text">{item.qty}</span>
-                            <button onClick={() => changeQty(item.id, 1)}
+                            <button aria-label={`Increase ${product.name} quantity`} onClick={() => changeQty(item.id, 1)}
                               className="w-6 h-6 rounded border border-wm-border text-wm-text-muted hover:text-wm-text flex items-center justify-center">
                               <Plus size={10} />
                             </button>
                           </div>
-                          <button onClick={() => removeFromCart(item.id)}
+                          <button aria-label={`Remove ${product.name} from cart`} onClick={() => removeFromCart(item.id)}
                             className="text-wm-text-dim hover:text-wm-red transition-colors ml-1">
                             <X size={12} />
                           </button>
@@ -436,7 +448,7 @@ export default function ShopPage() {
               <div className="relative h-52 flex items-center justify-center"
                 style={{ background: "linear-gradient(135deg, #0D1117, #1C2128)" }}>
                 <span className="text-8xl">{detail.emoji}</span>
-                <button onClick={() => setDetail(null)}
+                <button aria-label="Close product details" onClick={() => setDetail(null)}
                   className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
                   <X size={14} className="text-white" />
                 </button>
@@ -467,7 +479,7 @@ export default function ShopPage() {
                     style={{ background: `linear-gradient(135deg, ${detail.accent}, ${detail.accent}bb)` }}>
                     Add to Cart
                   </button>
-                  <button onClick={() => toggleWishlist(detail.id)}
+                  <button aria-label="Add to wishlist" aria-pressed={wishlist.includes(detail.id)} onClick={() => toggleWishlist(detail.id)}
                     className={clsx("w-12 rounded-xl border transition-all flex items-center justify-center",
                       wishlist.includes(detail.id) ? "bg-wm-red/15 border-wm-red/40 text-wm-red" : "border-wm-border text-wm-text-muted hover:text-wm-red")}>
                     <Heart size={16} className={wishlist.includes(detail.id) ? "fill-wm-red" : ""} />

@@ -60,7 +60,7 @@ function AlertToast({ toasts, onDismiss }: { toasts: ToastMsg[]; onDismiss: (id:
           >
             <Bell size={14} color="#2F80ED" />
             <span style={{ fontSize: 12, color: "#E2E8FF", flex: 1 }}>{t.text}</span>
-            <button onClick={() => onDismiss(t.id)} style={{ color: "#4A5580", background: "none", border: "none", cursor: "pointer" }}>
+            <button aria-label="Dismiss alert" onClick={() => onDismiss(t.id)} style={{ color: "#4A5580", background: "none", border: "none", cursor: "pointer" }}>
               <X size={12} />
             </button>
           </motion.div>
@@ -187,7 +187,7 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
                 <span style={{ fontSize: 13, fontWeight: 700, color: "#E2E8FF" }}>Price Alerts</span>
                 <span style={{ fontSize: 10, color: "#8896BE" }}>{symbol}</span>
               </div>
-              <button onClick={onClose} style={{ color: "#8896BE", background: "none", border: "none", cursor: "pointer" }}>
+              <button aria-label="Close price alerts" onClick={onClose} style={{ color: "#8896BE", background: "none", border: "none", cursor: "pointer" }}>
                 <X size={15} />
               </button>
             </div>

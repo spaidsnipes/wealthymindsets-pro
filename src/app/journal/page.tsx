@@ -343,7 +343,7 @@ function VoiceMemoRow({ recorder }: { recorder: ReturnType<typeof useVoiceRecord
           </button>
           <WaveformBars n={18} color="#8B5CF6" />
           <span className="text-[10px] text-wm-text-dim font-mono">{fmtSec(memo.sec || sec)}</span>
-          <button onClick={reset} className="text-wm-text-dim hover:text-wm-red ml-1">
+          <button aria-label="Discard voice memo" onClick={reset} className="text-wm-text-dim hover:text-wm-red ml-1">
             <X size={11} />
           </button>
         </div>
@@ -386,7 +386,7 @@ function NotesEditor({
         />
         <div className="absolute bottom-2 left-2 flex items-center gap-1">
           <div className="relative">
-            <button
+            <button aria-label="Insert emoji" aria-expanded={showEmoji}
               type="button"
               onClick={() => setShowEmoji(v => !v)}
               className="p-1 rounded hover:bg-wm-surface text-wm-text-dim hover:text-wm-gold transition-colors"
@@ -2355,7 +2355,7 @@ Trade the system, trust the process, winners every day 🚀`,
                         className="p-1.5 rounded-lg hover:bg-wm-surface text-wm-text-dim hover:text-wm-text transition-colors" title="Copy lyrics">
                         <Copy size={13}/>
                       </button>
-                      <button onClick={() => setActiveSong(null)}
+                      <button aria-label="Close lyrics" onClick={() => setActiveSong(null)}
                         className="p-1.5 rounded-lg hover:bg-wm-surface text-wm-text-dim hover:text-wm-text transition-colors">
                         <X size={13}/>
                       </button>
@@ -3110,7 +3110,7 @@ Trade the system, trust the process, winners every day 🚀`,
             <motion.div initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-bold text-wm-text">Log New Trade</h2>
-                <button onClick={() => { setNewMode(false); voiceRec.reset(); }}><X size={14} className="text-wm-text-muted hover:text-wm-text" /></button>
+                <button aria-label="Cancel new trade" onClick={() => { setNewMode(false); voiceRec.reset(); }}><X size={14} className="text-wm-text-muted hover:text-wm-text" /></button>
               </div>
 
               <div className="grid grid-cols-2 gap-3 mb-4">
@@ -3533,7 +3533,7 @@ Trade the system, trust the process, winners every day 🚀`,
             onClick={() => setLightbox(null)}
           >
             <img src={lightbox} alt="" className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl shadow-2xl" />
-            <button onClick={() => setLightbox(null)}
+            <button aria-label="Close image preview" onClick={() => setLightbox(null)}
               className="absolute top-4 right-4 p-2 rounded-full bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text transition-colors">
               <X size={16} />
             </button>

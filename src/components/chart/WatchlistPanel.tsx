@@ -925,7 +925,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                   style={{ flex: 1, background: "none", border: "none", color: "#E2E8F0", fontSize: 11, outline: "none" }}
                 />
                 {search && (
-                  <button onClick={() => setSearch("")} style={{ color: "#4A5070", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                  <button aria-label="Clear search" onClick={() => setSearch("")} style={{ color: "#4A5070", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                     <X size={10} />
                   </button>
                 )}

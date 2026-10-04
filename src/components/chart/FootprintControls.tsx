@@ -366,7 +366,7 @@ function OrderFlowHelp({ label, desc }: { label: string; desc: string }) {
         <div className="w-full rounded-lg border border-wm-border bg-wm-surface shadow-2xl p-3 text-left cursor-default">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[13px] font-bold text-wm-green">{label}</span>
-            <button onClick={() => setOpen(false)} className="text-wm-text-dim hover:text-wm-text"><X size={13} /></button>
+            <button aria-label="Close" onClick={() => setOpen(false)} className="text-wm-text-dim hover:text-wm-text"><X size={13} /></button>
           </div>
           <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
             {sections.map(([h, body]) => (
@@ -441,7 +441,7 @@ function OrderFlowColorGear({ toolId, label = "Order Flow" }: { toolId: Footprin
         <div className="w-full rounded-lg border border-wm-border bg-wm-surface shadow-2xl p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-bold text-wm-green">{label} — Colours</span>
-            <button onClick={() => setOpen(false)} className="text-wm-text-dim hover:text-wm-text"><X size={12} /></button>
+            <button aria-label="Close" onClick={() => setOpen(false)} className="text-wm-text-dim hover:text-wm-text"><X size={12} /></button>
           </div>
           {/* Agg/Passive 4-way legend — moved off the chart and into the settings
               panel with beginner-friendly descriptions. `buy` = aggressive-buy /

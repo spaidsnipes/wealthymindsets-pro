@@ -32,6 +32,8 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm-profile-avatar",    // avatar data URL
   "wm-profile-bg",        // profile background color
   "wm-radio-liked",       // liked radio tracks
+  "wm-shop-wishlist",     // shop wishlist (2026-10-04)
+  "wm-pine-saved",        // saved Pine library scripts (2026-10-04)
   "wm_songs",             // user-uploaded music tracks
   "wm_watchlists",        // user watchlist collections
   "wm_quick_syms",        // SearchPanel quick-access symbols

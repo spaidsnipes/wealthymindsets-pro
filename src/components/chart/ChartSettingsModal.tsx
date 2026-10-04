@@ -268,7 +268,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   {symbol}
                 </span>
               </div>
-              <button onClick={onClose} style={{ color: "#8896BE", background: "none", border: "none", cursor: "pointer" }}>
+              <button aria-label="Close chart settings" onClick={onClose} style={{ color: "#8896BE", background: "none", border: "none", cursor: "pointer" }}>
                 <X size={16} />
               </button>
             </div>

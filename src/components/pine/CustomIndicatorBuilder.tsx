@@ -367,7 +367,7 @@ export function CustomIndicatorBuilder({ onClose, bars, onAddToChart, activeCode
                 placeholder="Script name..."
               />
             )}
-            <button onClick={onClose}>
+            <button aria-label="Close" onClick={onClose}>
               <X size={16} className="text-wm-text-muted hover:text-wm-text transition-colors" />
             </button>
           </div>

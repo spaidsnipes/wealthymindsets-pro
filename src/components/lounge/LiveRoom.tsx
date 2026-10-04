@@ -351,14 +351,14 @@ function RoomInner({ roomName, isHost, onLeave, userName }: {
               <span className="font-bold">{req.name}</span> wants to join video
             </span>
             {activeSpeakerCount < MAX_SPEAKERS ? (
-              <button onClick={() => approveRequest(req.identity)}
+              <button aria-label={`Approve ${req.name} video request`} onClick={() => approveRequest(req.identity)}
                 className="p-1 rounded-md bg-wm-green/20 text-wm-green hover:bg-wm-green/30 transition-all">
                 <Check size={10} />
               </button>
             ) : (
               <span className="text-[8px] text-wm-text-dim">Room full</span>
             )}
-            <button onClick={() => denyRequest(req.identity)}
+            <button aria-label={`Deny ${req.name} video request`} onClick={() => denyRequest(req.identity)}
               className="p-1 rounded-md bg-wm-red/20 text-wm-red hover:bg-wm-red/30 transition-all">
               <X size={10} />
             </button>

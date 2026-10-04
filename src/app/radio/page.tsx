@@ -627,7 +627,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
             <h2 className="text-[15px] font-black text-white">Upload Track</h2>
             <p className="text-[10px] text-wm-text-dim mt-0.5">Add music to WM Radio</p>
           </div>
-          <button onClick={onClose} className="text-wm-text-dim hover:text-wm-text p-1"><X size={16}/></button>
+          <button aria-label="Close" onClick={onClose} className="text-wm-text-dim hover:text-wm-text p-1"><X size={16}/></button>
         </div>
 
         <div className="p-5 space-y-4">
@@ -1112,7 +1112,7 @@ export default function RadioPage() {
               <div className="hidden sm:flex items-center gap-[2px]" style={{ height: 30 }}>
                 {Array.from({ length: 34 }).map((_, i) => { const h = Math.min(100, 20 + Math.abs(Math.sin(i * 0.6)) * 80); return <div key={i} style={{ width: 3, height: `${h}%`, borderRadius: 2, background: "rgba(232,185,35,0.6)" }} />; })}
               </div>
-              <button onClick={() => playStation("wm-main")} className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center transition-transform hover:scale-110"
+              <button aria-label="Play WM Radio" onClick={() => playStation("wm-main")} className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center transition-transform hover:scale-110"
                 style={{ background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 4px 14px rgba(232,185,35,0.4)" }}>
                 <Play size={16} className="text-black ml-0.5" />
               </button>

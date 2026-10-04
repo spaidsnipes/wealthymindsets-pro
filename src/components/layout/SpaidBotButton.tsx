@@ -225,7 +225,7 @@ export function SpadeBotButton() {
                 className="p-1.5 rounded-lg text-wm-text-dim hover:text-wm-text hover:bg-wm-surface transition-all">
                 {expanded ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}
               </button>
-              <button onClick={() => setOpen(false)}
+              <button aria-label="Close chat" onClick={() => setOpen(false)}
                 className="p-1.5 rounded-lg text-wm-text-dim hover:text-wm-text hover:bg-wm-surface transition-all">
                 <X size={13}/>
               </button>
@@ -309,13 +309,13 @@ export function SpadeBotButton() {
                 onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = "#1E2030"; }}
               />
               {streaming ? (
-                <button onClick={stopStreaming}
+                <button aria-label="Stop response" onClick={stopStreaming}
                   className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
                   style={{ background: "rgba(255,77,106,0.2)", color: "#FF4D6A", border: "1px solid rgba(255,77,106,0.3)" }}>
                   <X size={13}/>
                 </button>
               ) : (
-                <button onClick={() => send(input)} disabled={!input.trim()}
+                <button aria-label="Send message" onClick={() => send(input)} disabled={!input.trim()}
                   className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40"
                   style={{ background: "linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
                   <Send size={13} className="text-white"/>

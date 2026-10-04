@@ -449,7 +449,7 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
               <div className="text-[10px] text-wm-text-dim">{api.label}</div>
             </div>
           </div>
-          <button onClick={onClose} className="text-wm-text-dim hover:text-white p-1"><X size={15}/></button>
+          <button aria-label="Close" onClick={onClose} className="text-wm-text-dim hover:text-white p-1"><X size={15}/></button>
         </div>
 
         <div className="p-5 space-y-4">

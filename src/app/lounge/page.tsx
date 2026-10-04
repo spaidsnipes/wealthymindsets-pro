@@ -178,7 +178,7 @@ function CommentsPanel({ postId, myHandle, myName, myAvatar, myColor }:
             className="flex-1 bg-wm-surface border border-wm-border rounded-lg px-3 py-1.5 text-xs text-wm-text outline-none focus:border-wm-blue/50"
             onKeyDown={e => { if (e.key === "Enter") submit(); }}
           />
-          <button disabled={sending || !body.trim()} onClick={submit}
+          <button aria-label="Send comment" disabled={sending || !body.trim()} onClick={submit}
             className="w-7 h-7 rounded-lg bg-wm-blue/20 text-wm-blue flex items-center justify-center hover:bg-wm-blue/30 disabled:opacity-40">
             <Send size={12} />
           </button>
@@ -339,11 +339,11 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
               className="flex items-center gap-1.5 text-xs text-wm-text-muted hover:text-wm-blue transition-colors">
               <MessageCircle size={14}/>{post.comment_count}
             </button>
-            <button onClick={sharePost}
+            <button aria-label="Copy link to post" onClick={sharePost}
               className="flex items-center gap-1.5 text-xs text-wm-text-muted hover:text-wm-green transition-colors">
               <Share2 size={14}/>
             </button>
-            <button onClick={() => toggleBookmark(String(post.id))}
+            <button aria-label="Bookmark post" aria-pressed={bookmarked.has(String(post.id))} onClick={() => toggleBookmark(String(post.id))}
               className={clsx("ml-auto transition-colors", bookmarked.has(String(post.id)) ? "text-wm-gold" : "text-wm-text-muted hover:text-wm-gold")}>
               <Bookmark size={14} className={bookmarked.has(String(post.id)) ? "fill-wm-gold" : ""}/>
             </button>
@@ -430,7 +430,7 @@ function CreatePostModal({ onClose, onPost, user }:
               ))}
             </div>
           </div>
-          <button onClick={onClose} className="text-wm-text-muted hover:text-wm-text"><X size={16}/></button>
+          <button aria-label="Close" onClick={onClose} className="text-wm-text-muted hover:text-wm-text"><X size={16}/></button>
         </div>
 
         <div className="flex gap-3">
@@ -442,7 +442,7 @@ function CreatePostModal({ onClose, onPost, user }:
             {attachment && (
               <div className="relative mt-2 rounded-xl overflow-hidden border border-wm-border">
                 <img src={attachment} className="w-full h-40 object-cover" alt="Attachment"/>
-                <button onClick={()=>setAttachment(null)}
+                <button aria-label="Remove attachment" onClick={()=>setAttachment(null)}
                   className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center">
                   <X size={12} className="text-white"/>
                 </button>
@@ -500,11 +500,11 @@ function CreatePostModal({ onClose, onPost, user }:
 
         <div className="flex items-center justify-between mt-4 pt-3 border-t border-wm-border">
           <div className="flex items-center gap-1">
-            <button onClick={()=>fileRef.current?.click()}
+            <button aria-label="Attach image" onClick={()=>fileRef.current?.click()}
               className="w-8 h-8 rounded-lg hover:bg-wm-surface flex items-center justify-center text-wm-text-muted hover:text-wm-text transition-colors">
               <Image size={15}/>
             </button>
-            <button onClick={()=>setShowEmoji(s=>!s)}
+            <button aria-label="Insert emoji" aria-expanded={showEmoji} onClick={()=>setShowEmoji(s=>!s)}
               className="w-8 h-8 rounded-lg hover:bg-wm-surface flex items-center justify-center text-wm-text-muted hover:text-wm-text transition-colors">
               <Smile size={15}/>
             </button>

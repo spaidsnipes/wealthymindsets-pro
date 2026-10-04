@@ -1080,7 +1080,7 @@ export function ChartToolbar({
                 style={{ caretColor: "#4FA3E0" }}
               />
               {symbolSearch ? (
-                <button onClick={e => { e.stopPropagation(); setSymbolSearch(""); setSymbolOpen(false); }}>
+                <button aria-label="Clear symbol search" onClick={e => { e.stopPropagation(); setSymbolSearch(""); setSymbolOpen(false); }}>
                   <X size={10} className="text-wm-text-muted hover:text-wm-red transition-colors" />
                 </button>
               ) : (
@@ -1278,7 +1278,7 @@ export function ChartToolbar({
                       )}>
                       <Star size={10} /> Favorites
                     </button>
-                    <button onClick={() => setIndicatorOpen(false)}>
+                    <button aria-label="Close indicators" onClick={() => setIndicatorOpen(false)}>
                       <X size={13} className="text-wm-text-muted hover:text-wm-text" />
                     </button>
                   </div>
@@ -1306,7 +1306,7 @@ export function ChartToolbar({
                       style={{ caretColor: "#00D4AA" }}
                     />
                     {indSearch && (
-                      <button onClick={() => setIndSearch("")}>
+                      <button aria-label="Clear indicator search" onClick={() => setIndSearch("")}>
                         <X size={10} className="text-wm-text-muted hover:text-wm-text" />
                       </button>
                     )}
@@ -1421,7 +1421,7 @@ export function ChartToolbar({
                         )}
 
                         {/* favorite star */}
-                        <button
+                        <button aria-label={`Favorite ${ind.name}`} aria-pressed={fav}
                           onClick={e => toggleFavorite(e, ind.name)}
                           className={clsx("shrink-0 transition-colors", fav ? "text-wm-gold" : "text-wm-text-dim hover:text-wm-gold")}
                         >
