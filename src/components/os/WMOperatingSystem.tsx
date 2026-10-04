@@ -1609,7 +1609,14 @@ export function WMOperatingSystem({
   // Compiled ONCE. The rail and the provenance bar both read this array; two
   // independently-typed copies of one reading is how a screen ends up
   // disagreeing with itself.
-  const standingConditions = compileStandingConditions({
+  // A room that has SPOKEN (named itself) without compiling a decision — the
+  // Scanner, Paper, News — carries no ledger and asks no permission. Two
+  // italic UNKNOWNs over such a room (serving phone /scanner 2026-10-04) are
+  // the standing-condition spelling of the false alarm compileProvenanceSegments
+  // already silences for SOURCE. Before any room speaks they still read
+  // UNKNOWN, so a trading surface never blinks blank on its way in.
+  const decisionlessRoom = surface !== null && openEvidenceItems === null && !rightOfWayResolved;
+  const standingConditions = decisionlessRoom ? [] : compileStandingConditions({
     openEvidenceItems,
     rightOfWay,
     rightOfWayResolved,
@@ -2371,7 +2378,7 @@ export function WMOperatingSystem({
               decision spine remains visible beside every overlay, so adding
               EVIDENCE DEBT and RIGHT OF WAY beneath Rooms, Community,
               Workspace or Tools creates a second owner of the same truth. */}
-          {equipmentMode ? null : (
+          {equipmentMode ? null : (standingConditions.length > 0 &&
             <div
               data-testid="os-rail-state"
               style={{
