@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { RoomServiceClient } from "livekit-server-sdk";
 import { requireAuth } from "@/lib/requireAuth";
+import { isLiveHost, LIVE_HOST_REFUSAL } from "@/lib/livekit/liveHost";
 import { resolveProviderEnv } from "@/lib/broker/resolveProviderEnv";
 
 /**
@@ -15,6 +16,8 @@ export async function POST(request: Request) {
   // WM-SEC-P0-06: was unauthenticated. Grants publish rights server-side.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // Only a host may grant the floor (2026-10-04: any signed-in user could).
+  if (!isLiveHost(auth.user.sub, process.env)) return NextResponse.json({ error: LIVE_HOST_REFUSAL }, { status: 403 });
   const { room, identity } = await request.json() as { room: string; identity: string };
   if (!room || !identity) return NextResponse.json({ error: "room and identity required" }, { status: 400 });
 

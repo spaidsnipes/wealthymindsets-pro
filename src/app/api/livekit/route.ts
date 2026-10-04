@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AccessToken } from "livekit-server-sdk";
 import { requireAuth } from "@/lib/requireAuth";
+import { isLiveHost, LIVE_HOST_REFUSAL } from "@/lib/livekit/liveHost";
 import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
 
 /**
@@ -25,7 +26,10 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const room = searchParams.get("room");
-  const name = searchParams.get("name") || "Guest";
+  // The identity is the SESSION's, never a URL field (2026-10-04: any guest
+  // could join under any name, the Founder's included). The display name is
+  // the account's own handle.
+  const name = (auth.user.handle ?? auth.user.email?.split("@")[0] ?? "Trader").trim() || "Trader";
 
   if (!room) return NextResponse.json({ error: "room is required" }, { status: 400 });
 
@@ -58,10 +62,14 @@ export async function GET(request: Request) {
   }
 
   const role = searchParams.get("role") ?? "viewer"; // "host" | "viewer"
+  if (role === "host" && !isLiveHost(auth.user.sub, process.env)) {
+    return NextResponse.json({ error: LIVE_HOST_REFUSAL }, { status: 403 });
+  }
   const canPublish = role === "host";
 
   const token = new AccessToken(apiKey.value, apiSecret.value, {
-    identity: name,
+    identity: `wm:${auth.user.sub}`,
+    name,
     ttl: "4h",
     metadata: JSON.stringify({ role }),
   });
