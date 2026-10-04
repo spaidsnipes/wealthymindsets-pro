@@ -725,7 +725,7 @@ const VP_DEFAULT_TRIPLETS: VPTriplets = {
  */
 const MAIN_CHANGE_CLASS: Record<HeaderChangeKind, (d: 1 | 0 | -1 | null) => string> = {
   SESSION_CHANGE: (d) => (d === 1 ? "text-wm-green" : d === -1 ? "text-wm-red" : "text-wm-text-dim"),
-  BAR_OVER_BAR:   (d) => (d === 1 ? "text-wm-green-dim" : d === -1 ? "text-wm-red-dim" : "text-wm-text-dim"),
+  BAR_OVER_BAR:   (d) => (d === 1 ? "text-wm-green-dim" : d === -1 ? "text-wm-red/85" : "text-wm-text-dim"),
   NONE:           () => "text-wm-text-dim",
   /* AWAITING never reaches a DOM node — the cell is not rendered at all. This
      entry exists so the compiler, not a live page, is what notices if a future
