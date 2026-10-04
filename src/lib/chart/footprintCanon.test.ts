@@ -293,3 +293,14 @@ describe("imbalance run words are trader-readable (v2 §45)", () => {
     for (const p of [320, 713, 87551, 2_100_000]) expect(imbalanceRunWord(run(p))).not.toMatch(/:100|:1$/);
   });
 });
+
+describe("the phone's word budget waits for the trader to ask (2026-10-04)", () => {
+  it("no unasked DOMINANT callout on narrow glass; selected and hovered still speak", async () => {
+    const { pickBigTradeCallout } = await import("./footprintCanon");
+    const b = [{ key: "a", magnitude: 10, onCamera: true }, { key: "b", magnitude: 30, onCamera: true }];
+    expect(pickBigTradeCallout(b, { depth: "MID", selectedKey: null, hoveredKey: null, quiet: true }).reason).toBe("NARROW_QUIET");
+    expect(pickBigTradeCallout(b, { depth: "MID", selectedKey: "a", hoveredKey: null, quiet: true }).reason).toBe("SELECTED");
+    expect(pickBigTradeCallout(b, { depth: "MID", selectedKey: null, hoveredKey: "b", quiet: true }).reason).toBe("HOVERED");
+    expect(pickBigTradeCallout(b, { depth: "MID", selectedKey: null, hoveredKey: null }).reason).toBe("DOMINANT");
+  });
+});

@@ -8747,8 +8747,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             bigDiscs.map(b => ({ key: b.spawnKey, magnitude: Math.abs(b.value), onCamera: b.x >= 0 && b.x <= plotRight && b.y >= 0 && b.y <= pane0Bottom, b })),
             { depth: calloutDepth, selectedKey: selDiscKey, hoveredKey },
           );
-          calloutReceipt = `NONE:${pick.reason}`;
-          if (pick.target) {
+          // The phone's word budget: the unasked DOMINANT callout waits (as at
+          // NEAR); a selected or hovered print still gets its card.
+          const calloutWaits = narrowGlass && pick.reason === "DOMINANT";
+          calloutReceipt = calloutWaits ? "NONE:NARROW_QUIET" : `NONE:${pick.reason}`;
+          if (pick.target && !calloutWaits) {
             const b = pick.target.b;
             const rank = sessionSizePercentile(Math.abs(b.value), bigTradePrintAccRef.current.values());
             const words = bigTradeCalloutLines({

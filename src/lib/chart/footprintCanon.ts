@@ -413,7 +413,7 @@ export function fitBubbleInscription(
 }
 
 export type BigTradeCalloutReason = "SELECTED" | "HOVERED" | "DOMINANT";
-export type BigTradeCalloutSilence = "FAR" | "NEAR_QUIET" | "NO_PRINT";
+export type BigTradeCalloutSilence = "FAR" | "NEAR_QUIET" | "NARROW_QUIET" | "NO_PRINT";
 
 export interface CalloutCandidate {
   readonly key: string;
@@ -430,13 +430,20 @@ export interface CalloutCandidate {
  */
 export function pickBigTradeCallout<T extends CalloutCandidate>(
   bubbles: readonly T[],
-  opts: { readonly depth: string; readonly selectedKey: string | null; readonly hoveredKey: string | null },
+  opts: {
+    readonly depth: string;
+    readonly selectedKey: string | null;
+    readonly hoveredKey: string | null;
+    /** The phone's word budget (2026-10-04): the unasked DOMINANT callout waits, as at NEAR. */
+    readonly quiet?: boolean;
+  },
 ): { readonly target: T; readonly reason: BigTradeCalloutReason } | { readonly target: null; readonly reason: BigTradeCalloutSilence } {
   const seen = bubbles.filter(b => b.onCamera && b.magnitude > 0);
   const sel = opts.selectedKey != null ? seen.find(b => b.key === opts.selectedKey) : undefined;
   if (sel) return { target: sel, reason: "SELECTED" };
   const hov = opts.hoveredKey != null ? seen.find(b => b.key === opts.hoveredKey) : undefined;
   if (hov) return { target: hov, reason: "HOVERED" };
+  if (opts.quiet) return { target: null, reason: "NARROW_QUIET" };
   if (opts.depth === "FAR") return { target: null, reason: "FAR" };
   if (opts.depth === "NEAR") return { target: null, reason: "NEAR_QUIET" };
   let best: T | null = null;
