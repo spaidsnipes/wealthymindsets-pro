@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
 interface State { hasError: boolean; error: string }
 
@@ -24,29 +25,43 @@ export class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
+      // WM voice, not a stack trace (2026-10-04): the raw message moved behind
+      // a disclosure, the orange retry became WM brass, and a way out exists
+      // when retrying the same room fails the same way.
       return (
-        <div style={{
+        <div role="alert" style={{
           display: "flex", flexDirection: "column", alignItems: "center",
-          justifyContent: "center", height: "100%", minHeight: 120,
-          background: "#0D0E14", color: "#8B8FA8", gap: 12, padding: 24,
+          justifyContent: "center", height: "100%", minHeight: 160,
+          background: "#0b0a08", color: "#a89c80", gap: 10, padding: 24, textAlign: "center",
         }}>
-          <div style={{ fontSize: 28 }}>⚠️</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0" }}>
-            Something went wrong
+          <div style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 18, color: "#ede6d3" }}>
+            This part of the room didn’t load.
           </div>
-          <div style={{ fontSize: 11, color: "#8B8FA8", textAlign: "center", maxWidth: 320 }}>
-            {this.state.error}
+          <div style={{ fontSize: 12, maxWidth: 340, lineHeight: 1.5 }}>
+            The rest of WM is still running. Nothing you saved was touched.
           </div>
-          <button
-            onClick={() => this.setState({ hasError: false, error: "" })}
-            style={{
-              marginTop: 8, padding: "6px 18px", borderRadius: 6, fontSize: 11,
-              fontWeight: 600, cursor: "pointer", background: "rgba(255,140,0,0.12)",
-              border: "1px solid rgba(255,140,0,0.4)", color: "#FF8C00",
-            }}
-          >
-            Retry
-          </button>
+          <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap", justifyContent: "center" }}>
+            <button
+              type="button"
+              onClick={() => this.setState({ hasError: false, error: "" })}
+              style={{
+                minHeight: 44, padding: "0 18px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                background: "rgba(201,165,92,0.12)", border: "1px solid rgba(201,165,92,0.5)", color: "#e8b923",
+              }}
+            >
+              Try again
+            </button>
+            <button type="button" onClick={() => window.location.assign(INSTRUMENT_VIEW_ROUTE)} style={{
+              minHeight: 44, padding: "0 18px", borderRadius: 8, fontSize: 12, cursor: "pointer", background: "transparent",
+              border: "1px solid rgba(255,255,255,0.12)", color: "#ede6d3",
+            }}>Back to the chart</button>
+          </div>
+          {this.state.error ? (
+            <details style={{ marginTop: 6, fontSize: 10, color: "#62697d", maxWidth: 360 }}>
+              <summary style={{ cursor: "pointer" }}>Details</summary>
+              <div style={{ marginTop: 4, fontFamily: "ui-monospace, monospace", wordBreak: "break-word" }}>{this.state.error}</div>
+            </details>
+          ) : null}
         </div>
       );
     }
