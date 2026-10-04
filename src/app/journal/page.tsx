@@ -1045,6 +1045,28 @@ function JournalPageInner() {
   const [mainTab,   setMainTab]   = useState<"journal"|"ledger"|"coach"|"songs">("journal");
   // ?tab=ledger opens the Broker Ledger (read after mount — no hydration fork).
   useEffect(() => { if (new URLSearchParams(window.location.search).get("tab") === "ledger") setMainTab("ledger"); }, []);
+  // ?new=1&symbol=…&side=long|short&size=… — another room (Paper's blotter)
+  // hands a trade over to be journaled. Only the facts it carries are filled;
+  // the trader still writes the review and saves. Read once after mount.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("new") !== "1") return;
+    const sym = (q.get("symbol") ?? "").trim().toUpperCase();
+    const side = q.get("side");
+    const size = Number(q.get("size"));
+    setForm(f => ({
+      ...f,
+      ...(/^[A-Z0-9.!/^=:-]{1,24}$/.test(sym) ? { symbol: sym } : {}),
+      ...(side === "long" || side === "short" ? { side } : {}),
+      ...(Number.isFinite(size) && size > 0 ? { size } : {}),
+    }));
+    setSelected(null);
+    setNewMode(true);
+    // Consume the hand-off so a reload does not open a second blank entry.
+    for (const k of ["new", "symbol", "side", "size"]) q.delete(k);
+    const rest = q.toString();
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
+  }, []);
 
   // Local strategy lyric-template state (no AI service is called).
   const [songPrompt,   setSongPrompt]   = useState("");

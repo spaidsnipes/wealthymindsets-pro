@@ -3447,8 +3447,17 @@ export default function PaperTradingPage() {
                         <FillPriceAgeNote trade={t} />
                       </span>
                       {t.pnl !== undefined ? (
-                        <span className={clsx("text-xs font-black font-mono", t.pnl>=0?"text-wm-green":"text-wm-red")}>
-                          {t.pnl>=0?"+":""}{fmt2(t.pnl)}
+                        <span className="flex items-center gap-2">
+                          <span className={clsx("text-xs font-black font-mono", t.pnl>=0?"text-wm-green":"text-wm-red")}>
+                            {t.pnl>=0?"+":""}{fmt2(t.pnl)}
+                          </span>
+                          {/* A closing fill hands the trade to the Journal: a sell
+                              closes a long, a buy closes a short. */}
+                          <Link href={`/journal?new=1&symbol=${encodeURIComponent(t.symbol)}&side=${t.side==="sell"?"long":"short"}&size=${t.qty}`}
+                            data-testid="paper-journal-trade" aria-label={`Journal this ${t.symbol} trade`}
+                            className="text-[10px] font-bold text-wm-gold hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
+                            Journal →
+                          </Link>
                         </span>
                       ) : <span className="text-[10px] text-wm-text-dim">Open</span>}
                     </div>
