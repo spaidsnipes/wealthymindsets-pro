@@ -14526,26 +14526,30 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const yA = srs.priceToCoordinate(pHi), yB = srs.priceToCoordinate(pLo);
               if (yA == null || yB == null) continue;
               const yTop = Math.round(Math.min(+yA, +yB)), yBot = Math.round(Math.max(+yA, +yB));
-              const h = Math.max(3, yBot - yTop);
               const buy = run.side === "buy";
               const ink = buy ? buyRgba : sellRgba;
-              const x0 = Math.round(+rawX - slotW / 2);
+              // BESIDE the body, never over it (first glass: drawn across the
+              // slot, the stacks merged with the candle and the value-candle
+              // glass into one blob). F06A: a column of short horizontal bars
+              // at the stacked rows, on the side that leaned — buyers right,
+              // sellers left.
+              const barW = Math.max(3, Math.min(14, Math.round(bsp * 0.55)));
+              const x0 = buy ? Math.round(+rawX + halfW + 1) : Math.round(+rawX - halfW - 1 - barW);
               ctx.globalAlpha = att.alpha("stack");
-              ctx.fillStyle = ink(0.2);
-              ctx.fillRect(x0, yTop, slotW, h);
-              // The hatch — FL_06's mark for an imbalance band.
-              ctx.save();
-              ctx.beginPath(); ctx.rect(x0, yTop, slotW, h); ctx.clip();
-              ctx.strokeStyle = ink(0.55); ctx.lineWidth = 1;
-              ctx.beginPath();
-              for (let d = -h; d < slotW + h; d += 4) { ctx.moveTo(x0 + d, yBot); ctx.lineTo(x0 + d + h, yTop); }
-              ctx.stroke();
-              ctx.restore();
-              // The dominant side's edge, solid — who leaned.
-              ctx.fillStyle = ink(0.95);
-              ctx.fillRect(buy ? x0 + slotW - 2 : x0, yTop, 2, h);
+              for (let k = run.from; k <= run.to; k++) {
+                const ra = srs.priceToCoordinate(c.low + (k + 1) * binW), rb = srs.priceToCoordinate(c.low + k * binW);
+                if (ra == null || rb == null) continue;
+                const r0 = Math.round(Math.min(+ra, +rb)), r1 = Math.round(Math.max(+ra, +rb));
+                ctx.fillStyle = ink(0.9);
+                ctx.fillRect(x0, r0, barW, Math.max(1, r1 - r0 - 1));
+              }
+              // The run's own bracket on its outer edge — one stack, not loose rows.
+              ctx.strokeStyle = ink(0.95); ctx.lineWidth = 1;
+              const bx = buy ? x0 + barW + 1.5 : x0 - 1.5;
+              ctx.beginPath(); ctx.moveTo(bx, yTop + 0.5); ctx.lineTo(bx, yBot - 0.5); ctx.stroke();
+              const x0Label = x0;
               runsDrawn++;
-              newest = { x: x0, yTop, yBot, buy, word: `${buy ? "BUY" : "SELL"} STACK ${imbalanceRunWord(run)}` };
+              newest = { x: x0Label, yTop, yBot, buy, word: `${buy ? "BUY" : "SELL"} STACK ${imbalanceRunWord(run)}` };
             }
           }
           ctx.restore();
@@ -14554,7 +14558,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.save();
             ctx.font = marketFont("OBJECT_NAME");
             const w = ctx.measureText(newest.word).width;
-            const tx = Math.max(2, Math.min(plotRight - w - 4, newest.buy ? newest.x + slotW + 4 : newest.x - w - 4));
+            const tx = Math.max(2, Math.min(plotRight - w - 4, newest.buy ? newest.x + 18 : newest.x - w - 6));
             const ty = Math.max(HEADER_FLOOR_Y + 6, Math.min(pane0Bottom - 6, (newest.yTop + newest.yBot) / 2));
             const hit = floatingChips.some(r => tx < r.x + r.w && tx + w > r.x && ty - 6 < r.y + r.h && ty + 6 > r.y);
             if (!hit) {
