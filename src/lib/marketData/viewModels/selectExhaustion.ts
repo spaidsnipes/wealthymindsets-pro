@@ -53,9 +53,15 @@
 import type { AbsorptionAnatomyVM, AnatomyBar, EffortBasis } from "@/lib/marketData/selectAbsorptionAnatomy";
 
 export const EXHAUSTION_VERSION = 1;
-export const MIN_PUSH_BARS = 4;
+// 2026-10-04 (Founder: exhaustion "nothing on the chart"; measured 0 marks on
+// every serving camera): a 4-close push travelling 3× the median range inside
+// a 30-bar window, AND fading effort, AND zero follow-through, was ~0.1 marks a
+// window. The STRUCTURE gates relax (3 closes, 2× range); the EVIDENCE gates —
+// effort fading below 75% and not one follow-through bar beyond the extreme —
+// do not. A push that faded and stopped is still the only thing marked.
+export const MIN_PUSH_BARS = 3;
 export const DECLINING_AT = 0.75;
-export const EXTENDED_AT = 3;
+export const EXTENDED_AT = 2;
 export const FT_BARS = 3;
 export const MAX_MARKS = 3;
 

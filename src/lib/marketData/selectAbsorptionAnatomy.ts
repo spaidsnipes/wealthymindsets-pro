@@ -421,9 +421,31 @@ export function selectAbsorptionAnatomy(
     run = [];
   };
 
+  // ONE BREATH IS NOT AN END (2026-10-04). Measured on serving BTC 5m with
+  // sided tape: the terrain flagged 5–6 absorbing bars on the camera and the
+  // zone count was 0 — every one was separated from the next by a single
+  // ordinary bar. Absorption is a wall that keeps holding; one bar that
+  // rested INSIDE the run's price range is the wall still standing, not a
+  // break. So a run may bridge exactly one such bar. It never counts toward
+  // `minZoneBars` (that is still absorbing bars only — a lone spike is still a
+  // sweep), and a gap bar that left the range seals the run as before.
+  let gap: AnatomyBar | null = null;
   for (const bar of bars) {
-    if (bar.absorbing) run.push(bar);
-    else sealRun();
+    if (bar.absorbing) {
+      if (gap) {
+        const lo = run.reduce((m, b) => Math.min(m, b.low), Infinity);
+        const hi = run.reduce((m, b) => Math.max(m, b.high), -Infinity);
+        const held = run.length > 0 && gap.low >= lo && gap.high <= hi;
+        if (!held) sealRun();
+        gap = null;
+      }
+      run.push(bar);
+    } else if (run.length > 0 && gap == null) {
+      gap = bar;
+    } else {
+      gap = null;
+      sealRun();
+    }
   }
   sealRun();
 

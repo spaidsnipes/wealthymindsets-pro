@@ -19,8 +19,11 @@ describe("initialChartRange", () => {
     expect(initialChartRange({ ...base, barCount: 2296 })).toBe("latest");
   });
 
-  it("preserves the complete one-minute RTH session", () => {
-    expect(initialChartRange({ ...base, intervalSec: 60, barCount: 389, barSpacing: 11 })).toBe("fit");
+  it("fits a one-minute session only while the camera stays under FAR depth (2026-10-04)", () => {
+    // A whole RTH session (389 bars) is FAR — the Smart Money tools are silent
+    // there by the permission table — so it opens on the newest bars instead.
+    expect(initialChartRange({ ...base, intervalSec: 60, barCount: 389, barSpacing: 11 })).toBe("latest");
+    expect(initialChartRange({ ...base, intervalSec: 60, barCount: 240, barSpacing: 11 })).toBe("fit");
   });
 
   it("does not fit several sessions of one-minute bars", () => {

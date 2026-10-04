@@ -143,7 +143,7 @@ describe("SELECTED EXHAUSTION", () => {
     expect(html).toContain("Up · 4 bars");
     expect(html).toContain("99.5 → 108.5");
     expect(html).toMatch(/Effort 2nd ÷ 1st.*26% · first half 95% · second half 25% of the window&#x27;s peak \(traded volume\)/);
-    expect(html).toContain("4.5× the window&#x27;s median bar range · extended at 3×");
+    expect(html).toContain("4.5× the window&#x27;s median bar range · extended at 2×");
     expect(html.match(/not beyond/g)?.length).toBe(3);
     expect(html).toContain("0/3 · LOST");
     expect(html).toContain("EXHAUSTED");

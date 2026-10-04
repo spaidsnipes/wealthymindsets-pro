@@ -405,3 +405,22 @@ describe("one outlier bar no longer makes a zone impossible (cross-market run, 2
     expect(vm.zones[0].barCount).toBe(2);
   });
 });
+
+describe("one breath is not an end — a run bridges one bar that held its range (2026-10-04)", () => {
+  // High-volume, tiny-body bars absorb; ordinary bars do not.
+  const absorb = (t: number) => ({ time: t, open: 100, high: 100.6, low: 99.4, close: 100.02, volume: 9_000 });
+  const quietInside = (t: number) => ({ time: t, open: 100, high: 100.3, low: 99.8, close: 100.25, volume: 800 });
+  const quietOutside = (t: number) => ({ time: t, open: 100, high: 103, low: 99.9, close: 102.8, volume: 800 });
+  const filler = (t: number) => ({ time: t, open: 100, high: 101, low: 99, close: 100.9, volume: 1_000 });
+
+  it("A · held · A is one zone of two absorbing bars", () => {
+    const vm = selectAbsorptionAnatomy(series([filler(1), filler(2), absorb(3), quietInside(4), absorb(5), filler(6), filler(7)]));
+    expect(vm.zones.length).toBe(1);
+    expect(vm.zones[0]!.barCount).toBe(2);
+  });
+
+  it("A · broke out · A is no zone — the wall did not hold", () => {
+    const vm = selectAbsorptionAnatomy(series([filler(1), filler(2), absorb(3), quietOutside(4), absorb(5), filler(6), filler(7)]));
+    expect(vm.zones.length).toBe(0);
+  });
+});

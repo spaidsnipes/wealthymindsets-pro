@@ -144,6 +144,10 @@ describe("the anatomy", () => {
 describe("a data gap is not a fade (measured on serving, BTC 1m, 2026-09-25)", () => {
   // The same geometry as fadingPush — extended, no follow-through — but the
   // feed reported no volume on some bars. A bar that moved price traded.
+  // The push under test is the UP push. Since pushes count from 3 closes
+  // (2026-10-04) the fixture's three falling follow-through bars are a DOWN
+  // push of their own, so "latest" is no longer this one — find it by side.
+  const upPush = (v: ReturnType<typeof selectExhaustion>) => v.pushes.find(p => p.direction === "UP")!;
   const withUnreported = (zeroAt: number[]) =>
     fadingPush([105, 104.5, 104]).map((bar, k) =>
       zeroAt.includes(k) ? { ...bar, effort: 0, effortNorm: 0 } : bar);
@@ -151,7 +155,7 @@ describe("a data gap is not a fade (measured on serving, BTC 1m, 2026-09-25)", (
   it("second-half volume unreported → not declining, not exhausted, and it says how many bars", () => {
     const v = selectExhaustion(vm(withUnreported([4, 5, 6])));
     expect(v.marks).toEqual([]);
-    const p = v.latestPush!;
+    const p = upPush(v);
     expect(p.aggressionLevel).toBeNull();
     expect(p.effortUnreportedBars).toBe(3);
     expect(p.energyTransfer).toBeNull();
@@ -164,8 +168,8 @@ describe("a data gap is not a fade (measured on serving, BTC 1m, 2026-09-25)", (
   it("every bar unreported (the serving case: 0% ÷ 0%) → never EXHAUSTED", () => {
     const v = selectExhaustion(vm(withUnreported([1, 2, 3, 4, 5, 6])));
     expect(v.marks).toEqual([]);
-    expect(v.latestPush!.aggressionLevel).toBeNull();
-    expect(v.latestPush!.effortUnreportedBars).toBe(6);
+    expect(upPush(v).aggressionLevel).toBeNull();
+    expect(upPush(v).effortUnreportedBars).toBe(6);
   });
 
   it("a fully reported push still exhausts exactly as before", () => {
