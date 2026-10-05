@@ -10902,30 +10902,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             ctx.restore();
             canvas.dataset.flowCurrent = `${flowSpeaks ? "BARS" : `QUIET:POOLED${k}`}:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}|SHOWN:${flowShown}`;
-            // Where the signed tape begins, said on the glass when bars on
-            // camera precede it (measured on NQ 5m, 2026-10-05: 1,000 backfilled
-            // prints covered 2 bars and the other 100+ carried nothing, silently).
+            // The boundary itself is drawn once per frame by the shared TAPE
+            // COVERAGE block (every tape sense reads the same buffer).
             const tapeStartsInView = firstSidedX != null && firstInViewX != null && firstSidedX - firstInViewX > bsp * 1.5;
-            if (tapeStartsInView && firstSidedTime != null && firstSidedX != null) {
-              const bx = firstSidedX - bsp * 0.6;
-              ctx.save();
-              ctx.strokeStyle = "rgba(200,192,174,0.45)";
-              ctx.setLineDash([3, 4]);
-              ctx.lineWidth = 1;
-              ctx.beginPath(); ctx.moveTo(bx, 28); ctx.lineTo(bx, H - 34); ctx.stroke();
-              ctx.setLineDash([]);
-              const when = new Date(firstSidedTime * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
-              const words = `SIGNED TAPE FROM ${when} — earlier bars carry none`;
-              ctx.font = marketFont("OBJECT_NAME");
-              ctx.textBaseline = "bottom";
-              const tw = ctx.measureText(words).width;
-              const tx = Math.max(6, Math.min(bx - tw - 6, W - tw - 6));
-              ctx.fillStyle = "rgba(11,10,8,0.82)";
-              ctx.fillRect(tx - 3, H - 50, tw + 6, 14);
-              ctx.fillStyle = "rgba(200,192,174,0.92)";
-              ctx.fillText(words, tx, H - 37);
-              ctx.restore();
-            }
             canvas.dataset.flowCurrentCoverage = firstSidedTime != null
               ? `FROM:${firstSidedTime}|BARS:${rows.length}|${tapeStartsInView ? "STARTS_IN_VIEW" : "COVERS_VIEW"}`
               : "NONE";
@@ -22399,6 +22378,61 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ds.orderFlowQuiet = `W:${waiting.length}|N:${noEvent.length}`;
         } else delete ds.orderFlowQuiet;
       } catch (err) { layerFault("ORDER_FLOW_QUIET", err); }
+
+      // ── TAPE COVERAGE (super order §4 full-chart law, 2026-10-05) ─────────
+      // Footprints, big-trade bubbles, delta and the flow current all read the
+      // same signed tape. Where that tape BEGINS on camera, the glass says so
+      // once — older bars carry no tape, which is not the same as "no flow".
+      // Measured on serving NQ 5m: a 1,000-print backfill covered 2 of 100+
+      // bars and every tape sense went silent on the rest without a word.
+      try {
+        const fpOn = (canvas.dataset.footprint ?? "OFF") !== "OFF";
+        const tapeSenseOn = fpOn || (flowCurrentOnRef.current && att.paints("flowCurrent"));
+        const accT = tickAccRef.current;
+        if (!tapeSenseOn || !srs || accT.size === 0) {
+          canvas.dataset.tapeCoverage = tapeSenseOn ? "NO_SIDED_TAPE" : "OFF";
+        } else {
+          const tsT = chart.timeScale();
+          let firstInView: number | null = null, firstSided: { t: number; x: number } | null = null, sidedBars = 0;
+          for (const b of barsRef.current.slice(-400)) {
+            const bx = tsT.timeToCoordinate(b.time as never);
+            if (bx == null || +bx < -bsp || +bx > W) continue;
+            if (firstInView == null) firstInView = +bx;
+            const lv = accT.get(Number(b.time));
+            if (!lv) continue;
+            let tot = 0;
+            for (const v of lv.values()) tot += v.ask + v.bid;
+            if (tot <= 0) continue;
+            sidedBars++;
+            if (!firstSided) firstSided = { t: Number(b.time), x: +bx };
+          }
+          const startsInView = firstSided != null && firstInView != null && firstSided.x - firstInView > bsp * 1.5;
+          if (startsInView && firstSided) {
+            const bx = firstSided.x - bsp * 0.6;
+            ctx.save();
+            ctx.strokeStyle = "rgba(200,192,174,0.45)";
+            ctx.setLineDash([3, 4]);
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(bx, 28); ctx.lineTo(bx, H - 34); ctx.stroke();
+            ctx.setLineDash([]);
+            const when = new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+            const words = `SIGNED TAPE FROM ${when} — earlier bars carry none`;
+            ctx.font = marketFont("OBJECT_NAME");
+            ctx.textBaseline = "bottom";
+            const tw = ctx.measureText(words).width;
+            const tx = Math.max(6, Math.min(bx - tw - 6, W - tw - 6));
+            ctx.fillStyle = "rgba(11,10,8,0.82)";
+            ctx.fillRect(tx - 3, H - 50, tw + 6, 14);
+            ctx.fillStyle = "rgba(200,192,174,0.92)";
+            ctx.fillText(words, tx, H - 37);
+            floatingChips.push({ x: tx - 3, y: H - 50, w: tw + 6, h: 14 });
+            ctx.restore();
+          }
+          canvas.dataset.tapeCoverage = firstSided
+            ? `FROM:${firstSided.t}|SIDED_BARS:${sidedBars}|${startsInView ? "STARTS_IN_VIEW" : "COVERS_VIEW"}`
+            : "NO_SIDED_BARS_IN_VIEW";
+        }
+      } catch (err) { layerFault("TAPE_COVERAGE", err); }
 
       // The folded silences, as one line (see takeSilenceRow).
       try { if (silenceFolded > 0) {
