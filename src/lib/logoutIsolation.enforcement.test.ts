@@ -53,7 +53,7 @@ const OWNER_SCOPED_KEYS = new Set<string>([
 ]);
 
 /** OWNER_SCOPED_PREFIXES from logoutIsolation.ts (matches by startsWith). */
-const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-", "wm_tv_chat_", "wm_draw:v1:", "wm:morning-prep:v2:"];
+const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-", "wm_tv_chat_", "wm_draw:v1:", "wm:morning-prep:v2:", "wm:decision-identity:", "wm:risk-receipt:"];
 
 /**
  * Keys cleared by a domain-specific `clearX()` invoked from
@@ -68,6 +68,8 @@ const DOMAIN_CLEARER_KEYS = new Set<string>([
   "wm_token_state",      // clearWMSState (WM points)
   "wm_session_v1",       // sessionSymbolStore
   "wm_last_symbol",      // sessionSymbolStore's last-observed key
+  "wm:session-symbol-store:v1",       // clearAllSessionSymbols (the store's own LS_KEY)
+  "wm:nectar:coverage-continuity:v1", // clearSessionNectarForSignOut (sessionNectar owns it, 2026-10-04)
 ]);
 
 /**
@@ -124,6 +126,18 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   "wm-watchlist-prices",      // ticker-tape price cache, not user data
   "wm-tape-symbols",          // ticker-tape customization, device-level
   "wm-install-dismissed",     // PWA install prompt state, device-level
+  // Seen by the CONSTANT-key walker (2026-10-04) — device chart prefs / one-shot UI flags:
+  "wm-sw-retirement-reload-v1", // one reload after the retired service worker — device, once
+  "wm:selectedObject:",       // the chart's selected object per symbol/tf — device UI state
+  "wm_anatomyMode",           // anatomy mode — device chart pref
+  "wm_livingMarket",          // LIVE / STILL motion — device chart pref
+  "wm_of",                    // the wm_of<Layer> switch family prefix — device chart prefs
+  "wm_ofStackPrefs",          // profile stack prefs — device chart pref
+  "wm_prefRepair",            // preference-repair stamp — device
+  "wm_profile_strength",      // profile ink strength — device chart pref
+  "wm_questionChoice",        // question lens choice — device chart pref
+  "wm_visual_roles",          // visual roles — device chart layout pref
+  "wm_workspaceLayouts",      // saved chart layouts — device layout pref, like wm_chartLayout
 ]);
 
 const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
@@ -147,6 +161,16 @@ function walk(dir: string, acc: string[] = []): string[] {
 // localStorage call keeps the classification honest.
 const STORAGE_CALL_PATTERN = /(?:local|session)Storage\.(?:setItem|getItem|removeItem)\(\s*["'](wm[-_][a-zA-Z0-9_.\-]{2,})["']/g;
 
+/**
+ * CONSTANT and TEMPLATE keys (2026-10-04, BACKFLOW audit): the call-site
+ * pattern above only sees a literal passed straight to setItem. Keys held in
+ * a constant (`const JOURNAL_STORAGE_KEY = "wm_journal_entries"`) or built
+ * from a template (`wm-notes-${id}`) were invisible, which is how the legacy
+ * journal, the live-trading guardrails and Pine scripts outlived sign-out.
+ * A template contributes its literal prefix, matched by startsWith.
+ */
+const CONST_KEY_PATTERN = /const\s+[A-Za-z_]*(?:KEY|Key|_PREFIX|Prefix)[A-Za-z_]*\s*(?::\s*string\s*)?=\s*["'`](wm[-_:][^"'`$]*)(\$\{)?/g;
+
 function collectWmKeys(): Map<string, string[]> {
   const found = new Map<string, string[]>();
   for (const path of walk(SRC_ROOT)) {
@@ -157,6 +181,13 @@ function collectWmKeys(): Map<string, string[]> {
     const code = body
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/\/\/[^\n]*/g, "");
+    let c: RegExpExecArray | null;
+    CONST_KEY_PATTERN.lastIndex = 0;
+    while ((c = CONST_KEY_PATTERN.exec(code)) !== null) {
+      const key = c[1];
+      if (!found.has(key)) found.set(key, []);
+      found.get(key)!.push(path);
+    }
     let m: RegExpExecArray | null;
     STORAGE_CALL_PATTERN.lastIndex = 0;
     while ((m = STORAGE_CALL_PATTERN.exec(code)) !== null) {
@@ -172,6 +203,9 @@ function isClassified(key: string): boolean {
   if (OWNER_SCOPED_KEYS.has(key)) return true;
   if (DOMAIN_CLEARER_KEYS.has(key)) return true;
   if (DEVICE_LEVEL_EXEMPT.has(key)) return true;
+  // A template key's literal prefix ("wm-notes-") is classified by any prefix
+  // entry it starts with, or that starts with it.
+  if ([...DEVICE_LEVEL_EXEMPT, ...DOMAIN_CLEARER_KEYS].some((d) => d.endsWith(":") || d.endsWith("_") ? key.startsWith(d) : false)) return true;
   if (OWNER_SCOPED_PREFIXES.some((p) => key.startsWith(p))) return true;
   return false;
 }
@@ -183,6 +217,16 @@ describe("logoutIsolation — every wm_ localStorage key must be classified", ()
     // localStorage/sessionStorage method — the exact call sites that write
     // owner-scoped state.
     expect(keys.size).toBeGreaterThan(0);
+  });
+
+  it("POSITIVE CONTROL: keys that exist only as constants are seen (2026-10-04)", () => {
+    const keys = collectWmKeys();
+    // Each of these is reachable ONLY through a const — the leak class the
+    // call-site pattern could not see.
+    for (const k of ["wm_execution_guardrails_v1", "wm-journal", "wm-pine-scripts", "wm_story_review_v1"]) {
+      expect(keys.has(k), `${k} should be found by the constant-key walker`).toBe(true);
+      expect(isClassified(k), `${k} must be classified`).toBe(true);
+    }
   });
 
   it("no unclassified wm_ key can leak across a logout", () => {
