@@ -6994,6 +6994,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         symbol={symbol}
         currentPrice={currentPrice}
         onAlertsChange={handleAlertsChange}
+        alerts={allAlerts}
       />
 
       {/* Chart Settings Modal */}

@@ -22,6 +22,8 @@ interface Props {
   symbol: string;
   currentPrice: number;
   onAlertsChange: (alerts: PriceAlert[]) => void;
+  /** The room's list (ONE owner). Alerts created on the chart arrive here. */
+  alerts?: PriceAlert[];
 }
 
 interface ToastMsg {
@@ -72,10 +74,23 @@ function AlertToast({ toasts, onDismiss }: { toasts: ToastMsg[]; onDismiss: (id:
 
 const ALERTS_KEY = "wm_price_alerts";
 
-export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChange }: Props) {
+export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChange, alerts: roomAlerts }: Props) {
   const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
     try { return JSON.parse(localStorage.getItem(ALERTS_KEY) ?? "[]"); } catch { return []; }
   });
+  // Adopt alerts the room ADDED (garden pass 2026-10-04, BACKFLOW): the panel
+  // kept its mount-time copy, so an alert set from the chart was erased the
+  // next time the panel wrote. Additions only — the room's list starts empty
+  // before the panel's first report, and deletions belong to this panel, so
+  // following the room wholesale would wipe saved alerts.
+  useEffect(() => {
+    if (!roomAlerts?.length) return;
+    setAlerts(prev => {
+      const have = new Set(prev.map(a => a.id));
+      const added = roomAlerts.filter(a => !have.has(a.id));
+      return added.length ? [...prev, ...added] : prev;
+    });
+  }, [roomAlerts]);
 
   // Persist alerts
   useEffect(() => {
