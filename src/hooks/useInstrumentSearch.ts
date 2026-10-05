@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { fetchInstrumentSearch, matchCanonicalInstruments, mergeInstrumentSearch, type InstrumentSearchHit } from "@/lib/marketData/instrumentSearch";
 
+const SEARCH_DOWN = "The worldwide search did not answer just now — try again in a moment.";
+
 /** One discovery request lifecycle for both chart and shell search. */
 export function useInstrumentSearch(query: string) {
   const asked = query.trim();
@@ -15,7 +17,9 @@ export function useInstrumentSearch(query: string) {
         const hits = await fetchInstrumentSearch(asked, controller.signal);
         if (hits !== null) setAnswer({ query: asked, hits, pending: false, failure: null });
       } catch (error) {
-        if (!controller.signal.aborted) setAnswer({ query: asked, hits: [], pending: false, failure: String(error) });
+        // A plain sentence for the trader (garden pass 2026-10-04: String(error)
+        // printed "Error: …POLYGON_KEY is unset…" and raw TypeErrors to guests).
+        if (!controller.signal.aborted) setAnswer({ query: asked, hits: [], pending: false, failure: SEARCH_DOWN });
       }
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };

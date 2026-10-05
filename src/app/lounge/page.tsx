@@ -34,6 +34,7 @@ import { selectLoungeDiscovery } from "@/lib/loungeDiscovery";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { wmConfirm } from "@/components/ui/wmConfirm";
+import { useDialogFrame } from "@/components/ui/DialogFrame";
 
 /* ══════════════════════════════════════════════════════════════
    TYPES
@@ -375,6 +376,7 @@ function CreatePostModal({ onClose, onPost, user }:
   { onClose:()=>void; onPost:(p:Post)=>void;
     user:{ handle:string; name:string; avatar:string; color:string; tier:string; verified:boolean; ceo:boolean } }) {
 
+  const dialog = useDialogFrame("Create post", onClose);
   const [text,       setText]       = useState("");
   const [postType,   setPostType]   = useState<"text"|"trade">("text");
   const [showEmoji,  setShowEmoji]  = useState(false);
@@ -416,8 +418,10 @@ function CreatePostModal({ onClose, onPost, user }:
     <motion.div className="fixed inset-0 z-[200] flex items-center justify-center"
       style={{background:"rgba(7,10,15,0.80)"}} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
       onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
-      <motion.div initial={{scale:0.92,y:16}} animate={{scale:1,y:0}} exit={{scale:0.92,y:16}}
-        className="w-[520px] rounded-2xl border border-wm-border bg-wm-dark p-5 shadow-2xl">
+      {/* A real dialog (Escape, focus kept inside and returned) that fits a
+          phone (garden pass 2026-10-04: a fixed 520px overflowed 390). */}
+      <motion.div {...dialog} initial={{scale:0.92,y:16}} animate={{scale:1,y:0}} exit={{scale:0.92,y:16}}
+        className="w-[min(520px,calc(100vw-24px))] max-h-[calc(100svh-24px)] overflow-y-auto rounded-2xl border border-wm-border bg-wm-dark p-5 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-black text-wm-text">Create Post</h3>

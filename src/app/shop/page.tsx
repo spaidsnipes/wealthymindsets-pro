@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { keyActivates } from "@/lib/a11y/keyActivates";
 
 const PRODUCTS = [
@@ -140,6 +141,8 @@ export default function ShopPage() {
     try { localStorage.setItem("wm-shop-wishlist", JSON.stringify(wishlist)); } catch { /* storage refused */ }
   }, [wishlist]);
   const [cartOpen,   setCartOpen]   = useState(false);
+  const cartPanelRef = useRef<HTMLDivElement>(null);
+  const detailPanelRef = useRef<HTMLDivElement>(null);
   const [detail,     setDetail]     = useState<typeof PRODUCTS[0] | null>(null);
 
   const products = PRODUCTS.filter(p =>
@@ -358,9 +361,11 @@ export default function ShopPage() {
             onClick={e => { if (e.target === e.currentTarget) setCartOpen(false); }}>
             <motion.div initial={{ x: 400 }} animate={{ x: 0 }} exit={{ x: 400 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              ref={cartPanelRef}
               className="h-full flex flex-col bg-wm-dark border-l border-wm-border shadow-2xl"
-              style={{ width: 380 }}
+              style={{ width: 380, maxWidth: "100vw" }}
               onClick={e => e.stopPropagation()}>
+              <DialogBehaviour targetRef={cartPanelRef} label="Your cart" onClose={() => setCartOpen(false)} />
               <div className="flex items-center justify-between px-5 py-4 border-b border-wm-border shrink-0">
                 <div className="flex items-center gap-2">
                   <ShoppingCart size={15} className="text-wm-gold" />
@@ -442,9 +447,11 @@ export default function ShopPage() {
             style={{ background: "rgba(0,0,0,0.75)" }}
             onClick={e => { if (e.target === e.currentTarget) setDetail(null); }}>
             <motion.div initial={{ scale: 0.92, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 16 }}
+              ref={detailPanelRef}
               className="bg-wm-dark border border-wm-border rounded-2xl shadow-2xl overflow-hidden"
-              style={{ width: 480 }}
+              style={{ width: 480, maxWidth: "calc(100vw - 24px)", maxHeight: "calc(100svh - 24px)", overflowY: "auto" }}
               onClick={e => e.stopPropagation()}>
+              <DialogBehaviour targetRef={detailPanelRef} label={detail.name ?? "Product"} onClose={() => setDetail(null)} />
               <div className="relative h-52 flex items-center justify-center"
                 style={{ background: "linear-gradient(135deg, #0D1117, #1C2128)" }}>
                 <span className="text-8xl">{detail.emoji}</span>

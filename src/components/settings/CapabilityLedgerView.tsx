@@ -20,13 +20,16 @@ export function CapabilityLedgerView() {
   // LIVE", "Execute ARMED BY YOU" — while those rails run on the operator's
   // accounts. The readiness receipt names the audience; a guest sees the same
   // map as what each broker supports once THEIR account is connected.
-  const [guest, setGuest] = useState(false);
+  // FAIL CLOSED (garden pass 2026-10-04): a failed readiness read left
+  // `guest` false and showed a guest the operator's "LIVE / ARMED BY YOU" map.
+  // The operator reading appears only when the server says OWNER.
+  const [guest, setGuest] = useState(true);
   useEffect(() => {
     let live = true;
     fetch("/api/broker/readiness", { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (live && j?.audience === "GUEST") setGuest(true); })
-      .catch(() => { /* the map stays as is */ });
+      .then(j => { if (live) setGuest(j?.audience !== "OWNER"); })
+      .catch(() => { /* stays the guest reading */ });
     return () => { live = false; };
   }, []);
   return (

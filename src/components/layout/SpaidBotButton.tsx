@@ -151,14 +151,16 @@ export function SpadeBotButton() {
 
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
-      const msg = String(err).includes("ANTHROPIC_API_KEY")
-        // Host-neutral remediation text. This used to name Vercel — a retired
-        // host — so the only in-product instruction for fixing a broken SpaidBot
-        // pointed the Founder at a dashboard that no longer runs this app.
-        // The variable NAME is the durable fact; where it is set is the current
-        // host's business, and naming a host here goes stale on every migration.
-        ? "SpaidBot needs an Anthropic API key. Set **ANTHROPIC_API_KEY** in the server environment for this deployment."
-        : String(err).replace("Error: ", "");
+      // Plain words for every trader (garden pass 2026-10-04): guests were shown
+      // "HTTP 502", "TypeFailed to fetch" and an instruction to set a server
+      // variable. The operator's remedy (ANTHROPIC_API_KEY on the host) lives in
+      // /readiness, not in a guest's chat.
+      const raw = String(err);
+      const msg = raw.includes("ANTHROPIC_API_KEY")
+        ? "SpaidBot is not switched on for this deployment yet."
+        : /429|rate|too many/i.test(raw)
+          ? "SpaidBot is busy — give it a minute and ask again."
+          : "SpaidBot could not answer just now — try again in a moment.";
       setMessages(prev => {
         const u = [...prev];
         u[u.length - 1] = { role: "assistant", content: `⚠️ ${msg}` };

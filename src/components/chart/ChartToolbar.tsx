@@ -801,7 +801,8 @@ export function ChartToolbar({
         results?: { sym: string; label: string; cat: string }[];
         error?: string;
       };
-      if (json.error) { setLiveSymbols([]); setLiveFailure(json.error); return; }
+      // The route's message names host config for operators; a trader gets a sentence (garden pass 2026-10-04).
+      if (json.error) { setLiveSymbols([]); setLiveFailure("It did not answer just now — try again in a moment."); return; }
       const results: SymbolEntry[] = (json.results ?? [])
         .slice(0, 50)
         .map((r) => ({ sym: r.sym, name: r.label, cat: r.cat }))
@@ -819,7 +820,7 @@ export function ChartToolbar({
       setLiveFailure(null);
     } catch (err) {
       setLiveSymbols([]);
-      setLiveFailure(`Worldwide search could not be reached (${String(err)}).`);
+      setLiveFailure("It could not be reached just now — try again in a moment.");
     }
     finally { setLiveSearching(false); }
   }, []);

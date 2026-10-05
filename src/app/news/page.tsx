@@ -723,6 +723,7 @@ export default function NewsPage() {
   const [search,       setSearch]       = useState("");
   const [liveMode,     setLiveMode]     = useState(true);
   const [loading,      setLoading]      = useState(true);
+  const [feedsDown,    setFeedsDown]    = useState(false);
   const [expandedId,   setExpandedId]   = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
@@ -749,8 +750,14 @@ export default function NewsPage() {
     const real = await fetchFinnhubNews(first => { setNews(first); setLoading(false); });
     if (real.length > 0) {
       setNews(real);
-      setLoading(false);
+      setFeedsDown(false);
+    } else {
+      // Every wire answered nothing (garden pass 2026-10-04: the skeletons
+      // pulsed forever and the empty state could never appear). Say so; the
+      // two-minute refresh keeps trying.
+      setFeedsDown(true);
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -1150,7 +1157,9 @@ export default function NewsPage() {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Filter size={32} className="text-wm-text-dim mb-3" />
             <p className="text-sm text-wm-text-muted">
-              {search
+              {feedsDown && news.length === 0
+                ? "The news wires did not answer just now. This room checks again every two minutes."
+                : search
                 ? `No headline in the last ${news.length} names ${search}${searchTerms.words.length ? ` (${searchTerms.words.slice(0, 2).join(", ")})` : ""} right now.`
                 : "No news matches your filters."}
             </p>
