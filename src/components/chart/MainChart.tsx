@@ -20485,7 +20485,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const wnd = glass.window;
           if (!wnd) weatherLensWhy = "UNTIMED";
           else {
-            const xa = lensBarX(wnd.fromTime), xb = lensBarX(wnd.toTime);
+            const xaRaw = lensBarX(wnd.fromTime), xb = lensBarX(wnd.toTime);
+            // The measured window often starts LEFT of a zoomed-in camera (70–120
+            // bars: OFF_CAMERA, no loupe — board "Lens window vs camera"). Its
+            // visible part is still real: clamp the left edge to the plot's
+            // left side, and say so in the receipt.
+            const xa = xaRaw ?? (xb != null && xb > 0 ? 0 : null);
+            if (xaRaw == null && xa != null) ds.liquidityWeatherClamped = "LEFT_EDGE"; else delete ds.liquidityWeatherClamped;
             const ya = srs.priceToCoordinate(wnd.high), yb = srs.priceToCoordinate(wnd.low);
             const region = xa == null || xb == null || ya == null || yb == null
               ? null
