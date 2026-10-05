@@ -257,7 +257,7 @@ export function AbsorptionAnatomyPanel({
             />
             <Reading
               label="Imbalance"
-              value={effortNotCarried ? "—" : `${Math.round(vm.imbalance * 100)}%`}
+              value={effortNotCarried || total === 0 ? "—" : `${Math.round(vm.imbalance * 100)}%`}
               note={
                 effortNotCarried
                   ? "no sides to weigh"

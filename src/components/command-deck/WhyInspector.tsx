@@ -345,7 +345,10 @@ export function WhyInspector({ target, state, dlar, clc, onClose, className }: W
                   <div key={`${c.channel}-${c.providerPath}`} style={{ fontSize: 10, color: WM.text.body, lineHeight: 1.5, display: "flex", gap: 6, alignItems: "baseline" }}>
                     <span style={{ color: silent ? WM.text.muted : WM.gold.mark, minWidth: 90 }}>{c.channel}</span>
                     <span style={{ flex: 1, color: WM.text.muted, fontSize: 9 }}>
-                      {silent ? "silent" : stale ? `stale (${Math.round((ageMs ?? 0) / 1000)}s)` : "live"}
+                      {/* "live" needs a last-event time to stand on; events
+                          with no recorded time are counted, not called live
+                          (painted-window pass 2026-10-05). */}
+                      {silent ? "silent" : ageMs == null ? "events seen · time not recorded" : stale ? `stale (${Math.round(ageMs / 1000)}s)` : "live"}
                       {gapped ? ` · ${c.gapCount} gap${c.gapCount === 1 ? "" : "s"}` : ""}
                     </span>
                     <span style={{ fontSize: 9, color: WM.text.muted }}>{c.observedEventCount} obs</span>
