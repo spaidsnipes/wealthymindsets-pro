@@ -12,6 +12,7 @@ import {
   getRecentTrades,
 } from "@/lib/api/kraken";
 import { buildObservedDom, deriveDomCenter, type DomLevel } from "@/lib/marketData/domTruth";
+import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 
 /* ── Crypto detection ──────────────────────────────────────── */
 const CRYPTO_SYMS = new Set([
@@ -60,6 +61,8 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
 
   // Finnhub WebSocket price feed (works for everything)
   const { liveBar, recentTicks, ticker } = useWebSocket({ symbol: sym, timeframe: "1m" });
+  // The connections board is the operator's; a guest is pointed at Paper.
+  const audience = useBrokerAudience();
   // Prefer the live ticker price, then the live bar; the hardcoded `base` seed
   // (e.g. TSLA 405) is only a pre-data placeholder and must never anchor the DOM.
   const livePrice = (ticker?.price && ticker.price > 0) ? ticker.price : (liveBar?.close ?? base);
@@ -245,9 +248,15 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
           <p style={{ fontSize: 10, margin: 0 }}>
             {symbol} has no observed bid-and-ask book. Quotes and trades are not displayed as depth.
           </p>
-          <Link href="/readiness" style={{ display: "inline-block", color: "#D8DCEA", fontSize: 10, fontWeight: 750, marginTop: 12, textDecoration: "none" }}>
-            Check connections →
-          </Link>
+          {audience === "OWNER" ? (
+            <Link href="/readiness" style={{ display: "inline-block", color: "#D8DCEA", fontSize: 10, fontWeight: 750, marginTop: 12, textDecoration: "none" }}>
+              Check connections →
+            </Link>
+          ) : (
+            <Link href="/paper" style={{ display: "inline-block", color: "#D8DCEA", fontSize: 10, fontWeight: 750, marginTop: 12, textDecoration: "none" }}>
+              Practise in Paper →
+            </Link>
+          )}
         </div>
       </aside>
     );
