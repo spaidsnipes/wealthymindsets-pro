@@ -16008,9 +16008,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
               // THE CAPTION — the sample, in the plate's small boxed words, at
               // the fan's right end; below the header band, clear of candles.
+              // Offscreen evidence is explained, never silently cut (super order
+              // §4): when most of the fan reaches past the camera, the caption says so.
+              const fanPastView = clippedTop + clippedBot > inView.length / 2;
               const capT = `analogue envelope n=${nNow} · prior sessions, same bar from the open`;
+              const capShown = fanPastView ? `${capT} · reaches past this view ↕` : capT;
               ctx.font = marketFont("FIDELITY");
-              const capW = ctx.measureText(capT).width + 12, capH = 16;
+              const capW = ctx.measureText(capShown).width + 12, capH = 16;
               const endC = inView[inView.length - 1];
               const capX = Math.min(plotRightE - 6, endC.x) - capW;
               const capAbove = { x: capX, y: Math.max(HEADER_FLOOR_Y + 2, Math.min(endC.y90, endC.y10) - capH - 6), w: capW, h: capH };
@@ -16028,7 +16032,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.strokeRect(spotCap.rect.x + 0.5, spotCap.rect.y + 0.5, capW - 1, capH - 1);
               ctx.fillStyle = "rgba(237,230,211,0.9)";
               ctx.textAlign = "left";
-              ctx.fillText(capT, spotCap.rect.x + 6, spotCap.rect.y + capH / 2 + 0.5);
+              ctx.fillText(capShown, spotCap.rect.x + 6, spotCap.rect.y + capH / 2 + 0.5);
               ds.expectedEnvelopeCaption = spotCap.mode;
 
               // MARKET SURPRISE — a flag on the live event, only when the
