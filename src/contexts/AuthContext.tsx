@@ -281,7 +281,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     const data = await res.json();
     if (!res.ok) return { error: data.error ?? "Update failed" };
-    setUser(prev => prev ? { ...prev, ...updates } : null);
+    // Keep the cached session in step with the account (garden pass
+    // 2026-10-04: an outage restored the pre-edit profile from the cache).
+    setUser(prev => {
+      const next = prev ? { ...prev, ...updates } : null;
+      if (next) writeCachedUser(next);
+      return next;
+    });
     return {};
   }, []);
 
