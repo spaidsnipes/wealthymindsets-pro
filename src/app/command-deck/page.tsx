@@ -1,5 +1,5 @@
 "use client";
-import { localDayKey } from "@/lib/journal/localDayKey";
+import { marketDayKey } from "@/lib/journal/localDayKey";
 import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -453,7 +453,7 @@ function CommandDeckInner() {
   // subscription. It does not seal a decision, write to the store, or claim the
   // store is reachable — it answers the question from the evidence that exists.
   const unreviewedCloses = React.useMemo(
-    () => selectUnreviewedCloses(journalEntries, localDayKey(new Date(nowMs))),
+    () => selectUnreviewedCloses(journalEntries, marketDayKey(new Date(nowMs))),
     [journalEntries, nowMs],
   );
   const personalEdgeVm = React.useMemo(
@@ -490,7 +490,7 @@ function CommandDeckInner() {
       phase,
       permissionInputs: {
         ownerId: user?.id ?? "",
-        sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
+        sessionIdentity: `session-${marketDayKey(new Date(nowMs))}`,
         rules: defaultFounderRules(),
         sessionDecisions,
       },
@@ -508,7 +508,7 @@ function CommandDeckInner() {
     };
     return selectATHOSIntervention({
       ownerId: user?.id ?? "",
-      sessionIdentity: `session-${new Date(nowMs).toISOString().slice(0, 10)}`,
+      sessionIdentity: `session-${marketDayKey(new Date(nowMs))}`,
       nowMs,
       moment: momentMap[phase],
       sessionDecisions,

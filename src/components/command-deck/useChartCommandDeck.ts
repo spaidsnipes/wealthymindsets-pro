@@ -33,7 +33,7 @@
  * surface may hold.
  */
 
-import { localDayKey } from "@/lib/journal/localDayKey";
+import { marketDayKey } from "@/lib/journal/localDayKey";
 import * as React from "react";
 
 import type { CanonicalMarketState } from "@/lib/marketData/canonicalMarketState";
@@ -132,7 +132,7 @@ export const PHASE_MOMENT: Readonly<Record<TradePhase, ATHOSMoment>> = {
 
 /** The session identity string every compiler on the deck page spells this way. */
 function sessionIdentityAt(nowMs: number): string {
-  return `session-${new Date(nowMs).toISOString().slice(0, 10)}`;
+  return `session-${marketDayKey(new Date(nowMs))}`;
 }
 
 export function useChartCommandDeck(input: ChartCommandDeckInput): ChartCommandDeck {
@@ -166,7 +166,7 @@ export function useChartCommandDeck(input: ChartCommandDeckInput): ChartCommandD
   const decisionRecords = useDecisionMemoryRecords(ownerId);
 
   const unreviewedCloses = React.useMemo(
-    () => selectUnreviewedCloses(journalEntries, localDayKey(new Date(nowMs))),
+    () => selectUnreviewedCloses(journalEntries, marketDayKey(new Date(nowMs))),
     [journalEntries, nowMs],
   );
 

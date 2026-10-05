@@ -33,6 +33,7 @@ import {
   selectMarketCanvas,
   type MarketCanvasVM,
 } from "./selectMarketCanvas";
+import { marketDayKey } from "@/lib/journal/localDayKey";
 
 export interface ComposeMarketCanvasInput {
   readonly state: CanonicalMarketState | null;
@@ -70,8 +71,10 @@ export interface ComposeMarketCanvasOutput {
   readonly decisionWhy: DecisionWhyVM;
 }
 
+// The New York market day (Founder ruling 2026-10-05, "use ET time"): one US
+// session, one identity — the UTC day split the US evening at 19:00/20:00 CT.
 function defaultSessionIdentity(nowMs: number): string {
-  return `session-${new Date(nowMs).toISOString().slice(0, 10)}`;
+  return `session-${marketDayKey(new Date(nowMs))}`;
 }
 
 /**
