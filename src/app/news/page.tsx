@@ -20,6 +20,7 @@ import { headlineNames, newsTermsFor } from "@/lib/news/newsTermsFor";
 import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
 import { isPersonalAdviceColumn } from "@/lib/news/marketRelevance";
 import { keyActivates } from "@/lib/a11y/keyActivates";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 
 /* ── Types ─────────────────────────────────────────────── */
 interface NewsItem {
@@ -620,6 +621,7 @@ function LiveNewsPlayer() {
    Reuters / etc.; an X (Twitter) Bearer token unlocks raw cashtag
    timelines. */
 function ApiKeysModal({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
+  const dlgRef = useRef<HTMLDivElement>(null);
   const [newsapi, setNewsapi] = useState("");
   const [xbearer, setXbearer] = useState("");
 
@@ -644,9 +646,11 @@ function ApiKeysModal({ open, onClose, onSaved }: { open: boolean; onClose: () =
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
+        ref={dlgRef}
         className="w-full max-w-md rounded-2xl border border-wm-border bg-wm-dark p-5 shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
+        <DialogBehaviour targetRef={dlgRef} label="Connect API keys" onClose={onClose} />
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-sm font-bold text-wm-text">Connect API Keys</h2>
           <button onClick={onClose} className="text-wm-text-dim hover:text-wm-text text-lg leading-none">×</button>

@@ -27,6 +27,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { keyActivates } from "@/lib/a11y/keyActivates";
 
 /* ══════════════════════════════════════════════════════════════
@@ -532,6 +533,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
   onAdd: (track: Track, url: string) => void;
   uploader: string;
 }) {
+  const dlgRef = useRef<HTMLDivElement>(null);
   const [mode, setMode]         = useState<"file"|"url">("file");
   const [title, setTitle]       = useState("");
   const [artist, setArtist]     = useState("");
@@ -619,9 +621,10 @@ function UploadModal({ onClose, onAdd, uploader }: {
       className="fixed inset-0 z-[300] flex items-center justify-center p-4"
       style={{ background:"rgba(0,0,0,0.7)", backdropFilter:"blur(8px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <motion.div initial={{ scale:0.92, y:20 }} animate={{ scale:1, y:0 }} exit={{ scale:0.92, y:20 }}
+      <motion.div ref={dlgRef} initial={{ scale:0.92, y:20 }} animate={{ scale:1, y:0 }} exit={{ scale:0.92, y:20 }}
         className="relative w-full max-w-md rounded-2xl overflow-hidden"
         style={{ background:"#0D1017", border:"1px solid rgba(255,255,255,0.08)" }}>
+        <DialogBehaviour targetRef={dlgRef} label="Upload a track" onClose={onClose} />
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-wm-border/50">

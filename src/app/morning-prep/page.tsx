@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
@@ -32,6 +32,7 @@ import {
   streakIsWorthShowing,
 } from "@/components/experience/DisciplineStreakChip";
 import type { EdgeEntry } from "@/lib/proofLane/selectSessionEdge";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { wmConfirm } from "@/components/ui/wmConfirm";
 import {
   readMorningPrepEntries,
@@ -791,6 +792,7 @@ export default function MorningPrepPage() {
    Compose modal
 ══════════════════════════════════════════════════════════════ */
 function ComposeModal({ onClose, onSave }: { onClose: () => void; onSave: (e: PrepEntry) => void }) {
+  const dlgRef = useRef<HTMLDivElement>(null);
   const [routine, setRoutine] = useState("");
   const [mood, setMood] = useState("🔥");
   const [items, setItems] = useState<ChecklistItem[]>(
@@ -824,9 +826,10 @@ function ComposeModal({ onClose, onSave }: { onClose: () => void; onSave: (e: Pr
     <motion.div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ background: "rgba(7,10,15,0.82)" }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <motion.div initial={{ scale: 0.92, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 16 }}
+      <motion.div ref={dlgRef} initial={{ scale: 0.92, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 16 }}
         className="w-[540px] max-w-full rounded-2xl p-5 shadow-2xl max-h-[88vh] overflow-y-auto"
         style={{ background: "#0D1117", border: "1px solid #1E2030" }}>
+        <DialogBehaviour targetRef={dlgRef} label="New morning prep" onClose={onClose} />
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-black text-white flex items-center gap-2">
             <Sun size={17} style={{ color: "#F0B429" }} /> New Morning Prep

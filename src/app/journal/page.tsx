@@ -119,6 +119,7 @@ import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { wmConfirm } from "@/components/ui/wmConfirm";
 import dynamic from "next/dynamic";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 
 // HOT_ROOM (garden pass 2026-10-04): the Ledger tab, the genome inspector and
 // the canvas panel render only on demand; they no longer ride the first download.
@@ -859,6 +860,7 @@ export default function JournalPage() {
 }
 
 function JournalPageInner() {
+  const lightboxRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   /*
@@ -3547,11 +3549,13 @@ Trade the system, trust the process, winners every day 🚀`,
       <AnimatePresence>
         {lightbox && (
           <motion.div
+            ref={lightboxRef}
             initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
             className="fixed inset-0 z-[300] flex items-center justify-center"
             style={{ background:"rgba(7,10,15,0.92)" }}
             onClick={() => setLightbox(null)}
           >
+            <DialogBehaviour targetRef={lightboxRef} label="Screenshot preview" onClose={() => setLightbox(null)} />
             <img src={lightbox} alt="" className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl shadow-2xl" />
             <button aria-label="Close image preview" onClick={() => setLightbox(null)}
               className="absolute top-4 right-4 p-2 rounded-full bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text transition-colors">

@@ -5,7 +5,7 @@
  * Basic / PRO / ELITE tiers with revenue sharing and tooling
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Rocket, Crown, Star, Zap, Users, DollarSign, BarChart2,
   CheckCircle2, Lock, ChevronRight, TrendingUp, Award,
@@ -16,6 +16,7 @@ import { clsx } from "clsx";
 import toast from "react-hot-toast";
 import { creatorProgramStats, type CreatorRosterRow } from "@/lib/creator/creatorProgramStats";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 
 /* ── Tier definitions ─────────────────────────────────────── */
@@ -135,6 +136,7 @@ const FAQ = [
 ];
 
 export default function CreatorPage() {
+  const waitlistRef = useRef<HTMLDivElement>(null);
   // This room carries no market feed. See /lounge for the measurement and
   // why silence must be declared rather than inferred.
   usePublishOsStanding({ surface: "Creator", feed: FEEDLESS_SURFACE });
@@ -478,10 +480,12 @@ export default function CreatorPage() {
             onClick={() => setWaitlistOpen(false)}
           >
             <motion.div
+              ref={waitlistRef}
               initial={{ scale:0.9, opacity:0 }} animate={{ scale:1, opacity:1 }} exit={{ scale:0.9, opacity:0 }}
               className="w-full max-w-sm rounded-2xl border border-wm-border p-6 bg-wm-dark"
               onClick={e => e.stopPropagation()}
             >
+              <DialogBehaviour targetRef={waitlistRef} label="Note your creator interest on this device" onClose={() => setWaitlistOpen(false)} />
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="text-sm font-black text-wm-text capitalize">Save {waitlistTier} interest</div>
