@@ -25878,7 +25878,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   setTextEdit({ idx: newIdx });
                 }
               }},
-              { label: "📋 Copy price", color: "#8896BE", action: () => { navigator.clipboard.writeText(String(ctxMenu.price)).catch(() => {}); }},
+              { label: "📋 Copy price", color: "#8896BE", action: () => { navigator.clipboard.writeText(String(ctxMenu.price)).catch(() => { void import("react-hot-toast").then(({ toast }) => toast.error(`Copy failed — the price is ${ctxMenu.price}.`)); }); }},
             ].map((item, i) => (
               <button
                 key={i}

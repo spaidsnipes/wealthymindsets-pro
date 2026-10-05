@@ -177,11 +177,15 @@ export function AlpacaTradingPanel({
   >(null);
   useEffect(() => {
     let alive = true;
-    fetch("/api/broker/tastytrade/status", { cache: "no-store" })
+    // Re-read every minute (garden pass 2026-10-04: one read at mount kept
+    // "Connected" green after the session dropped).
+    const read = () => fetch("/api/broker/tastytrade/status", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => { if (alive) setTtStatus(d); })
-      .catch(() => {});
-    return () => { alive = false; };
+      .catch(() => { if (alive) setTtStatus(prev => (prev ? { ...prev, connected: false, note: "Status check did not answer — reconnecting." } : prev)); });
+    void read();
+    const t = setInterval(read, 60_000);
+    return () => { alive = false; clearInterval(t); };
   }, []);
 
   // tastytrade REAL QUOTE for the symbol in the ticket, from the server route

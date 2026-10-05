@@ -254,7 +254,9 @@ function RoomInner({ roomName, isHost, onLeave, userName }: {
 
   /* ── Controls ── */
   const toggleMic = async () => {
-    try { await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled); } catch { /* ignore */ }
+    // The mic state on screen must match the room (garden pass 2026-10-04: a refusal was ignored).
+    try { await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled); }
+    catch (e) { setCamError(`Microphone did not ${isMicrophoneEnabled ? "mute" : "turn on"}: ${e instanceof Error ? e.message : "the browser refused"}.`); }
   };
   const toggleCamera = async () => {
     setCamError(null);

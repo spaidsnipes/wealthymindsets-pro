@@ -178,12 +178,6 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "the path in doc text only. This is the DATA-side twin of /api/broker/certification and " +
       "carries exactly the defect that one just had. Task #51.",
   },
-  "/api/market-data/moomoo/ticks": {
-    cls: "DARK",
-    evidence:
-      "The only occurrence outside src/app/api is scripts/.env-manifest.json, which LISTS routes " +
-      "against the env vars they need. A manifest is documentation, not a caller. Task #51.",
-  },
   "/api/market-memory/observations": {
     cls: "DARK",
     evidence:
@@ -257,8 +251,29 @@ const sources = sourceFiles(["app/api"]);
  * GREEN, because the typo still contains the route. `certifikation` failed it
  * correctly. A revive attempt on this guard must not append characters.
  */
+/**
+ * TEMPLATE CALLERS (garden pass 2026-10-04). A caller written as
+ * `` `/api/market-data/${provider}/ticks` `` reaches every provider's route,
+ * but a substring search sees none of them: /api/market-data/moomoo/ticks sat
+ * in the register as DARK while useWebSocket called it, and longbridge's route
+ * passed only because an evidence string happened to spell it out. Each
+ * `${…}` in an /api/ template literal matches exactly ONE path segment.
+ */
+const TEMPLATE_CALLS: { file: string; re: RegExp }[] = sources.flatMap((s) =>
+  [...s.text.matchAll(/`(\/api\/[^`\s]*\$\{[^`]*?)`/g)].map((m) => {
+    const body = m[1].split("?")[0];
+    const parts = body.split(/\$\{[^}]*\}/);
+    // A literal first segment is required: `/api/${SOURCE}?…` names a whole
+    // route by constant and must not stand in for every route there is.
+    if (parts.length < 2 || !/^\/api\/[^/$]+\//.test(parts[0])) return null;
+    return { file: s.file, re: new RegExp("^" + parts.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[^/]+") + "$") };
+  }).filter((x): x is { file: string; re: RegExp } => x !== null),
+);
+
 function calledBy(route: string): string[] {
-  return sources.filter((s) => s.text.includes(route)).map((s) => s.file);
+  const literal = sources.filter((s) => s.text.includes(route)).map((s) => s.file);
+  const templated = TEMPLATE_CALLS.filter((t) => t.re.test(route)).map((t) => t.file);
+  return [...new Set([...literal, ...templated])];
 }
 
 describe("every API endpoint has something that actually calls it", () => {
@@ -320,7 +335,10 @@ describe("every API endpoint has something that actually calls it", () => {
     const every = Object.values(NO_IN_APP_CALLER);
     const dark = Object.entries(NO_IN_APP_CALLER).filter(([, e]) => e.cls === "DARK");
 
-    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(11);
+    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(10);
+    // 11 -> 10 on 2026-10-04: /api/market-data/moomoo/ticks was never dark —
+    // useWebSocket calls it through `/api/market-data/${provider}/ticks`, which
+    // the guard could not read until template callers were matched.
     // 12 -> 11 on 2026-10-01: /api/broker/tastytrade/market-metrics PAID —
     // MarketMetricsCard reads it on the Market Info / Contract / Valuation views.
     // 13 -> 12 on 2026-09-26: /api/tradovate RETIRED, not wired. It forwarded

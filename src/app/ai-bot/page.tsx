@@ -208,7 +208,7 @@ export default function AIBotPage() {
       <div className="mx-auto grid w-full max-w-6xl gap-5 p-5 lg:grid-cols-[1.35fr_.65fr]">
         <section className="rounded-3xl border border-wm-border bg-wm-card/80 p-6">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-wm-gold">
-            <Activity size={14} /> Live market monitor
+            <Activity size={14} /> Market monitor
           </div>
 
           <div className="mt-6 rounded-2xl border border-wm-border bg-black/20 p-5">
