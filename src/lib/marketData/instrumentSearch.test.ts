@@ -119,3 +119,17 @@ describe("spot crypto answers its own ticker first (garden pass 2026-10-04)", ()
     expect(matchCanonicalInstruments("AAPL").some(h => h.cat === "Crypto")).toBe(false);
   });
 });
+
+describe("the route's real order: broker rows lead the merge (garden pass 2026-10-04)", () => {
+  it("a broker's /BTC future and a broker's SOL 'Stock' row cannot shadow the spot coin", () => {
+    const broker = [
+      { sym: "/BTC", label: "Bitcoin Futures", cat: "Futures", exchange: "XCME" },
+      { sym: "SOL", label: "Emeren", cat: "Stock", exchange: "NYSE" },
+    ];
+    const btc = mergeInstrumentSearch("BTC", [...broker, ...matchCanonicalInstruments("BTC")], []);
+    expect(btc[0]).toMatchObject({ sym: "BTC", cat: "Crypto" });
+    expect(btc.some(h => h.sym === "/BTC")).toBe(true);
+    const sol = mergeInstrumentSearch("SOL", [...broker, ...matchCanonicalInstruments("SOL")], []);
+    expect(sol[0]).toMatchObject({ sym: "SOL", cat: "Crypto" });
+  });
+});

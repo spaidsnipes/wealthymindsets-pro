@@ -1,6 +1,6 @@
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { rankSymbolHits, normalizeSymbolToken } from "./symbolSearchRank";
-import { cryptoBaseTicker } from "./canonicalIdentity";
+import { canonicalAssetClass, cryptoBaseTicker } from "./canonicalIdentity";
 import { FX_CURRENCY_CODES } from "./canonicalIdentity";
 import { matchCuratedSymbols } from "./curatedSymbolCatalog";
 
@@ -38,6 +38,16 @@ export function matchCanonicalInstruments(query: string, limit = 20): Instrument
   return mergeInstrumentSearch(query, [...spot, ...fx], matchCuratedSymbols(query, limit), limit);
 }
 
+/** Does this row's category agree with the class owner's verdict for its symbol? */
+function labelMatchesClass(hit: InstrumentSearchHit): boolean {
+  const c = canonicalAssetClass(hit.sym);
+  const cat = hit.cat.toLowerCase();
+  if (c === "crypto") return cat === "crypto";
+  if (c === "futures") return cat.startsWith("future");
+  if (c === "forex") return cat === "forex";
+  return true;
+}
+
 const CRYPTO_NAMES: Readonly<Record<string, string>> = {
   BTC: "Bitcoin", ETH: "Ethereum", SOL: "Solana", XRP: "XRP", DOGE: "Dogecoin", ADA: "Cardano",
   AVAX: "Avalanche", LINK: "Chainlink", LTC: "Litecoin", DOT: "Polkadot", BNB: "BNB", SHIB: "Shiba Inu",
@@ -48,9 +58,15 @@ const CRYPTO_NAMES: Readonly<Record<string, string>> = {
 export function mergeInstrumentSearch(query: string, local: readonly InstrumentSearchHit[], remote: readonly InstrumentSearchHit[], limit = 30): InstrumentSearchHit[] {
   const unique = new Map<string, InstrumentSearchHit>();
   for (const hit of [...local, ...remote]) {
-    const key = normalizeSymbolToken(hit.sym);
+    // A leading "/" is a futures ROOT (/BTC = CME Bitcoin futures): a different
+    // instrument from the spot coin BTC, so it never shares a key with it
+    // (garden pass 2026-10-04: the future swallowed spot Bitcoin in the dedupe).
+    const key = (hit.sym.trim().startsWith("/") ? "/" : "") + normalizeSymbolToken(hit.sym);
     const existing = unique.get(key);
     if (!existing) unique.set(key, hit);
+    // Same symbol, two labels ("SOL · Stock" from a broker list, "SOL · Crypto"):
+    // keep the row whose class is what the chart will actually open.
+    else if (!labelMatchesClass(existing) && labelMatchesClass(hit)) unique.set(key, { ...hit, exchange: hit.exchange ?? existing.exchange });
     else if (!existing.exchange && hit.exchange) unique.set(key, { ...existing, exchange: hit.exchange });
   }
   return rankSymbolHits(query, [...unique.values()], limit, { dropUnmatched: false });
