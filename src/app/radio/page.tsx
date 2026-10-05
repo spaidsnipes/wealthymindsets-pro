@@ -632,7 +632,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
             <h2 className="text-[15px] font-black text-white">Upload Track</h2>
             <p className="text-[10px] text-wm-text-dim mt-0.5">Add music to WM Radio</p>
           </div>
-          <button aria-label="Close" onClick={onClose} className="text-wm-text-dim hover:text-wm-text p-1"><X size={16}/></button>
+          <button aria-label="Close" onClick={onClose} className="wm-tap inline-flex items-center justify-center text-wm-text-dim hover:text-wm-text p-1"><X size={16}/></button>
         </div>
 
         <div className="p-5 space-y-4">

@@ -399,12 +399,12 @@ export default function ShopPage() {
                           </div>
                           <div className="flex items-center gap-1">
                             <button aria-label={`Decrease ${product.name} quantity`} onClick={() => changeQty(item.id, -1)}
-                              className="w-6 h-6 rounded border border-wm-border text-wm-text-muted hover:text-wm-text flex items-center justify-center">
+                              className="wm-tap w-6 h-6 rounded border border-wm-border text-wm-text-muted hover:text-wm-text flex items-center justify-center">
                               <Minus size={10} />
                             </button>
                             <span className="w-6 text-center text-xs font-bold text-wm-text">{item.qty}</span>
                             <button aria-label={`Increase ${product.name} quantity`} onClick={() => changeQty(item.id, 1)}
-                              className="w-6 h-6 rounded border border-wm-border text-wm-text-muted hover:text-wm-text flex items-center justify-center">
+                              className="wm-tap w-6 h-6 rounded border border-wm-border text-wm-text-muted hover:text-wm-text flex items-center justify-center">
                               <Plus size={10} />
                             </button>
                           </div>

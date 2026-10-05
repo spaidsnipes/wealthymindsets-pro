@@ -451,7 +451,7 @@ function CreatePostModal({ onClose, onPost, user }:
               ))}
             </div>
           </div>
-          <button aria-label="Close" onClick={onClose} className="text-wm-text-muted hover:text-wm-text"><X size={16}/></button>
+          <button aria-label="Close" onClick={onClose} className="wm-tap inline-flex items-center justify-center text-wm-text-muted hover:text-wm-text"><X size={16}/></button>
         </div>
 
         <div className="flex gap-3">

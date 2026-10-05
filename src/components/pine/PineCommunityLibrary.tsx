@@ -500,7 +500,7 @@ function CodePreviewModal({ script, onClose, onImport }: {
             >
               <Download size={10} /> Add to Chart
             </button>
-            <button aria-label="Close" onClick={onClose} className="text-wm-text-dim hover:text-wm-text">
+            <button aria-label="Close" onClick={onClose} className="wm-tap inline-flex items-center justify-center text-wm-text-dim hover:text-wm-text">
               <X size={16} />
             </button>
           </div>
@@ -587,7 +587,7 @@ export function PineCommunityLibrary({ onClose, onImport }: Props) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <button aria-label="Close" onClick={onClose} className="text-wm-text-dim hover:text-wm-text">
+            <button aria-label="Close" onClick={onClose} className="wm-tap inline-flex items-center justify-center text-wm-text-dim hover:text-wm-text">
               <X size={18} />
             </button>
           </div>
