@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
@@ -539,6 +540,13 @@ function LoginPage() {
                   Passwords checked by Supabase Auth — WM never stores yours · 30-day sessions
                 </span>
               </div>
+              {/* Readable before signing up (ATHOS order §9 / P0.4). */}
+              <nav aria-label="Before you join" className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px]">
+                <Link href="/pricing" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Pricing</Link>
+                <Link href="/legal/risk" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Risk disclosure</Link>
+                <Link href="/legal/market-data" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Market data</Link>
+                <Link href="/legal" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Policies</Link>
+              </nav>
             </motion.div>
           </AnimatePresence>
         </div>

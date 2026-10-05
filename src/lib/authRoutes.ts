@@ -1,5 +1,19 @@
 export const PUBLIC_AUTH_PATHS = ["/login", "/signup", "/reset-password"] as const;
 
+/**
+ * Public INFORMATION pages (Garden 18 ATHOS order §9 / P0.4, 2026-10-05): the
+ * prices and the risk / market-data disclosures a guest must be able to read
+ * BEFORE signing up. Readable signed out AND signed in — unlike the auth doors,
+ * a signed-in member is never bounced away from them.
+ */
+export const PUBLIC_INFO_PATHS = ["/pricing", "/legal"] as const;
+
+export function isPublicInfoPath(pathname: string): boolean {
+  return PUBLIC_INFO_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+}
+
 export type AuthenticatedRouteState =
   | "PUBLIC"
   | "CHECKING_SESSION"
@@ -31,6 +45,8 @@ export function selectAuthenticatedRouteState(
   loading: boolean,
 ): AuthenticatedRouteState {
   if (isPublicAuthPath(pathname)) return "PUBLIC";
+  if (isPublicInfoPath(pathname) && !user) return loading ? "CHECKING_SESSION" : "PUBLIC";
+  if (isPublicInfoPath(pathname)) return "READY";
   if (loading) return "CHECKING_SESSION";
   if (!user) return "SIGN_IN_REQUIRED";
 

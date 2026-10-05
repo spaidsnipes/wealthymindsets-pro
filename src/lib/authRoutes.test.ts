@@ -110,3 +110,18 @@ describe("destination survives the sign-in door (2026-10-02 Lounge/Academy entry
     }
   });
 });
+
+import { isPublicInfoPath, PUBLIC_INFO_PATHS } from "./authRoutes";
+
+describe("public information pages (ATHOS order §9 / P0.4)", () => {
+  it("pricing and the policy pages are readable signed out, and never bounce a signed-in member", () => {
+    expect(PUBLIC_INFO_PATHS).toEqual(["/pricing", "/legal"]);
+    for (const p of ["/pricing", "/legal", "/legal/risk", "/legal/market-data"]) {
+      expect(isPublicInfoPath(p)).toBe(true);
+      expect(selectAuthenticatedRouteState(p, null, false)).toBe("PUBLIC");
+      expect(selectAuthenticatedRouteState(p, { profileComplete: true }, false)).toBe("READY");
+    }
+    expect(isPublicInfoPath("/pricingx")).toBe(false);
+    expect(selectAuthenticatedRouteState("/charts", null, false)).toBe("SIGN_IN_REQUIRED");
+  });
+});

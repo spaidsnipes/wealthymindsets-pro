@@ -26,7 +26,7 @@ import { clsx } from "clsx";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { WMSBar } from "@/components/wms/WMSBar";
 import { HeaderPnL } from "@/components/layout/HeaderPnL";
-import { isPublicAuthPath } from "@/lib/authRoutes";
+import { isPublicAuthPath, isPublicInfoPath } from "@/lib/authRoutes";
 import { useCapitalObservation, useCapitalReach } from "@/lib/experience/useActiveScene";
 import { WMExperienceShell } from "@/components/experience/WMExperienceShell";
 import { isFounderRoomRoute } from "@/lib/routing/founderRoomRoutes";
@@ -257,7 +257,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }, [openSearch]);
 
   // Skip shell on auth pages — MUST be after all hooks to keep hook order stable
-  if (isPublicAuthPath(pathname)) {
+  if (isPublicAuthPath(pathname) || (isPublicInfoPath(pathname) && !user)) {
     return <>{children}</>;
   }
 
