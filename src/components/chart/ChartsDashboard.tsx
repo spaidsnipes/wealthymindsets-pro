@@ -378,6 +378,7 @@ import type { AnatomyBarInput } from "@/lib/marketData/selectAbsorptionAnatomy";
 import { useTastyFuturesPositioning } from "@/lib/broker/useTastyFuturesPositioning";
 import dynamic from "next/dynamic";
 import { keyActivates } from "@/lib/a11y/keyActivates";
+import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 // ON-DEMAND PANELS LOAD ON DEMAND (2026-10-04): each mounts only when its
 // door opens, yet all six (~7,500 lines) shipped in /charts' first load —
 // about 1 MB compressed for a guest on a phone. Same components, fetched when
@@ -419,6 +420,7 @@ export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance"
 // schemes plus full custom pickers.
 function VPColorGear() {
   const [open, setOpen] = useState(false);
+  useEscapeToClose(open, () => setOpen(false));
   const btnRef = useRef<HTMLButtonElement>(null);
   // Panel uses position:fixed anchored to the button, because the toolbar is an
   // overflow-x-auto scroll container — an absolutely-positioned dropdown would be

@@ -8,6 +8,7 @@ import {
   toYahooSymbol,
   type AssetClass,
 } from "@/lib/marketData/symbolAssetClass";
+import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 
 /* Asset classes → representative symbols. Picking one loads that symbol. */
 const ASSET_CLASSES: { id: string; label: string; icon: React.ReactNode; symbols: { sym: string; name: string }[] }[] = [
@@ -109,6 +110,7 @@ export function AssetClassSwitcher({ symbol, onSelect }: { symbol: string; onSel
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
 
   useEffect(() => { setTab(classOf(symbol)); }, [symbol]);
+  useEscapeToClose(open, () => setOpen(false));
   // Anchor the portal dropdown to the trigger with fixed coords so it escapes
   // the toolbar's overflow clipping (previously the symbol list was cut off).
   useEffect(() => {

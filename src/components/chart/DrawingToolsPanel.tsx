@@ -13,6 +13,7 @@ import {
   DEFAULT_DRAWING_STYLE,
   isStyleCapableTool,
 } from "@/types/chart";
+import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 
 export type { DrawingTool, DrawingStyle, DashStyle };
 export { DEFAULT_DRAWING_STYLE, isStyleCapableTool };
@@ -210,6 +211,7 @@ export const DRAWING_STYLE_POPOVER_WIDTH_PX = 220;
 
 export function DrawingStylePopover({ style, onChange, anchor, beside, onClose }: StylePopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
+  useEscapeToClose(true, onClose);
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (ref.current?.contains(e.target as Node)) return;
@@ -399,6 +401,7 @@ export function DrawingToolsPanel({
     }
   }, [showStyle]);
 
+  useEscapeToClose(open || showStyle, () => { setOpen(false); setShowStyle(false); });
   useEffect(() => {
     if (!open && !showStyle) return;
     const handler = (e: MouseEvent) => {

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import type { ChartLayout } from "./ChartLayoutManager";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
+import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 
 /* ── layout options (mirrors ChartLayoutManager, compact) ─────────────── */
 const LAYOUTS: { id: ChartLayout; label: string; cells: [number, number, number, number][] }[] = [
@@ -283,6 +284,7 @@ export default function LeftSidebar({
 
   const layoutBtnRef = useRef<HTMLDivElement>(null);
 
+  useEscapeToClose(layoutOpen, () => setLayoutOpen(false));
   /* close layout popover on outside click */
   useEffect(() => {
     if (!layoutOpen) return;

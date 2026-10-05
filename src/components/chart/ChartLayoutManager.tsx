@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutGrid } from "lucide-react";
+import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 
 export type ChartLayout = "1" | "2h" | "2v" | "4";
 
@@ -60,6 +61,7 @@ interface Props {
 
 export function ChartLayoutManager({ layout, onLayoutChange }: Props) {
   const [open, setOpen] = useState(false);
+  useEscapeToClose(open, () => setOpen(false));
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

@@ -57,6 +57,7 @@ import {
   withoutTapeSymbol,
 } from "@/lib/marketData/tapeSymbols";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
+import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 
 const TAPE_STORAGE_KEY = "wm-tape-symbols";
 
@@ -530,6 +531,7 @@ export function TickerTape() {
     try { localStorage.setItem(TAPE_STORAGE_KEY, JSON.stringify(customSyms)); } catch {}
   }, [customSyms, hydrated]);
 
+  useEscapeToClose(editOpen, () => setEditOpen(false));
   // Close edit panel on outside click
   useEffect(() => {
     const h = (e: MouseEvent) => {

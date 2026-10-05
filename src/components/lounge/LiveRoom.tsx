@@ -15,6 +15,7 @@ import "@livekit/components-styles";
 import { Track, RoomEvent } from "livekit-client";
 import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Users, Hand, Check, X, Eye, Maximize2, Minimize2, Share2, Copy, Mail, MessageSquare, Twitter, Instagram } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 
 /* ─── Data message types sent over LiveKit data channel ─── */
 type DataMsg =
@@ -33,6 +34,7 @@ const MAX_SPEAKERS = 4;
 ══════════════════════════════════════════════════════════════ */
 function ShareLiveMenu({ roomName, roomLabel, color }: { roomName: string; roomLabel: string; color: string }) {
   const [open, setOpen] = useState(false);
+  useEscapeToClose(open, () => setOpen(false));
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
   const shareUrl =

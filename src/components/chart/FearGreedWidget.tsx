@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 
 type Sentiment = "Extreme Fear" | "Fear" | "Neutral" | "Greed" | "Extreme Greed";
 
@@ -65,6 +66,7 @@ async function fetchFearGreed(): Promise<FGState | null> {
 export function FearGreedWidget() {
   const [state,   setState]   = useState<FGState | null>(null);
   const [open,    setOpen]    = useState(false);
+  useEscapeToClose(open, () => setOpen(false));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
