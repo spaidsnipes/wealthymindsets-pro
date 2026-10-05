@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { useSupabase } from "@/lib/auth";
 import { safePath, WOW_ORIGIN, wowCallbackUrl } from "@/lib/passport/wowBridge";
 import { requireAuth } from "@/lib/requireAuth";
+import { edgeAllows, COMMUNITY_WRITE_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { resolveSupabaseServiceKey } from "@/lib/supabaseConfigStatus";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,9 @@ export async function GET(request: Request): Promise<Response> {
 
   const auth = await requireAuth(request);
   if (!auth.ok || !useSupabase()) return plain;
+  // Each GET mints a magic link through the service-role admin API; bound it
+  // per user (garden pass 2026-10-04). Over the limit, the plain door still works.
+  if (!(await edgeAllows([`to-wow:${auth.user.sub}`], COMMUNITY_WRITE_LIMITER_BINDING))) return plain;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const service = resolveSupabaseServiceKey(process.env);
   if (!url || !service) return plain;
