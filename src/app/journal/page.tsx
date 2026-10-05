@@ -1060,16 +1060,21 @@ function JournalPageInner() {
     const sym = (q.get("symbol") ?? "").trim().toUpperCase();
     const side = q.get("side");
     const size = Number(q.get("size"));
+    // Backtesting hands over its run as notes + a tag (hallway audit 2026-10-04).
+    const notes = (q.get("notes") ?? "").slice(0, 2000);
+    const tag = (q.get("tag") ?? "").trim().slice(0, 32);
     setForm(f => ({
       ...f,
       ...(/^[A-Z0-9.!/^=:-]{1,24}$/.test(sym) ? { symbol: sym } : {}),
       ...(side === "long" || side === "short" ? { side } : {}),
       ...(Number.isFinite(size) && size > 0 ? { size } : {}),
+      ...(notes ? { notes } : {}),
+      ...(tag ? { tags: [...(f.tags ?? []), tag] } : {}),
     }));
     setSelected(null);
     setNewMode(true);
     // Consume the hand-off so a reload does not open a second blank entry.
-    for (const k of ["new", "symbol", "side", "size"]) q.delete(k);
+    for (const k of ["new", "symbol", "side", "size", "notes", "tag"]) q.delete(k);
     const rest = q.toString();
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
   }, []);

@@ -263,7 +263,8 @@ export default function BacktestingPage() {
     try {
       const q = new URLSearchParams(window.location.search);
       const s = q.get("symbol")?.trim().toUpperCase();
-      if (s && /^[A-Z0-9.!:^=-]{1,24}$/.test(s)) setSymbol(s);
+      // "/" allowed: BTC/USD and /MNQH7 are symbols the chart accepts too (hallway audit 2026-10-04).
+      if (s && /^[A-Z0-9.!:^=/-]{1,24}$/.test(s)) setSymbol(s);
       const t = q.get("tf");
       if (t && (CHART_TF_SHIPPED as readonly string[]).includes(t)) setTf(t);
     } catch { /* no URL — keep defaults */ }
@@ -311,8 +312,20 @@ export default function BacktestingPage() {
     : [];
 
   const handleSendToJournal = () => {
-    // Navigate to journal with a note (in production would pre-fill)
-    window.location.href = "/journal?prefill=walkforward";
+    // The hand-off carries what was actually run (hallway audit 2026-10-04:
+    // "?prefill=walkforward" was sent and no room read it — the journal opened
+    // blank). Journal reads ?new=1&symbol=&notes= and opens a pre-filled entry.
+    const strategyName = strategy.label;
+    const rangeName = dateRange.label;
+    const lines = [
+      `Walk-forward / backtest review — ${strategyName} on ${symbol} ${tf}${rangeName ? `, ${rangeName}` : ""}.`,
+      result
+        ? `Run: ${result.trades.length} trades · win rate ${result.winRate}% · profit factor ${result.profitFactor.toFixed(2)} · P&L ${result.totalPnl >= 0 ? "+" : "−"}$${Math.abs(result.totalPnl).toLocaleString()} (simulated).`
+        : "No run recorded on this visit — paste each window's in-sample / out-of-sample numbers.",
+      "Out-of-sample held up? What would invalidate it?",
+    ];
+    const q = new URLSearchParams({ new: "1", symbol, notes: lines.join("\n"), tag: "walk-forward" });
+    window.location.href = `/journal?${q.toString()}`;
   };
 
   // SCENE_FRAGMENTATION cure: an opaque root `bg-wm-black` paints the

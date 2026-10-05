@@ -51,6 +51,21 @@ const SymbolContext = createContext<SymbolCtx>({
  */
 export const DEEP_LINK_SYMBOL_ROUTES: readonly string[] = [INSTRUMENT_VIEW_ROUTE, "/command-deck"];
 
+/**
+ * "Switch this market to X" as a link that a room actually honours. On a room
+ * that reads ?symbol= (the market room, the Command Deck) only the symbol
+ * changes; anywhere else (e.g. /desk, which ignores the query) it opens the
+ * market room on X instead of reloading in place and dropping it (hallway
+ * audit, 2026-10-04).
+ */
+export function symbolDoorHref(currentHref: string, symbol: string): string {
+  const u = new URL(currentHref);
+  const reads = DEEP_LINK_SYMBOL_ROUTES.some(r => u.pathname === r || u.pathname.startsWith(`${r}/`));
+  if (!reads) { u.pathname = INSTRUMENT_VIEW_ROUTE; u.search = ""; }
+  u.searchParams.set("symbol", symbol);
+  return u.toString();
+}
+
 export function deepLinkSymbol(pathname: string, search: string): string | null {
   if (!DEEP_LINK_SYMBOL_ROUTES.some(r => pathname === r || pathname.startsWith(`${r}/`))) return null;
   return normalizeMarketSurfaceSymbol(new URLSearchParams(search).get("symbol"));

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { symbolDoorHref } from "@/contexts/SymbolContext";
 
 import type { BarHistoryRefusalVM } from "@/lib/marketData/compileBarHistoryRefusal";
 
@@ -114,9 +115,7 @@ export default function BarHistoryRefusalNote({
             data-testid="bar-history-cfd-door"
             onClick={() => {
               try {
-                const u = new URL(window.location.href);
-                u.searchParams.set("symbol", cfdDoor.symbol);
-                window.location.assign(u.toString());
+                window.location.assign(symbolDoorHref(window.location.href, cfdDoor.symbol));
               } catch { /* no window */ }
             }}
             style={{ marginLeft: 4, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(240,180,41,0.55)", background: "rgba(240,180,41,0.10)", color: QUIET, fontSize: 12, fontWeight: 600, cursor: "pointer", pointerEvents: "auto" }}
@@ -151,9 +150,7 @@ export default function BarHistoryRefusalNote({
           data-testid="bar-history-futures-hint"
           onClick={() => {
             try {
-              const u = new URL(window.location.href);
-              u.searchParams.set("symbol", futuresHint);
-              window.location.assign(u.toString());
+              window.location.assign(symbolDoorHref(window.location.href, futuresHint));
             } catch { /* no window */ }
           }}
           style={{

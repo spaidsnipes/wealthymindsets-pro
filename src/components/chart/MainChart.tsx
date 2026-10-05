@@ -1,6 +1,7 @@
 "use client";
 
 import { arrivalRipple, bigTradeTier, percentileFromSorted, sortedSessionSizes } from "@/lib/chart/bigTradeTier";
+import { symbolDoorHref } from "@/contexts/SymbolContext";
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
 
 /**
@@ -24286,9 +24287,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 title={`Spot FX has no central volume. ${fxDoor.futures} is the ${fxDoor.note} — a different market, streamed live with traded volume.`}
                 onClick={() => {
                   try {
-                    const u = new URL(window.location.href);
-                    u.searchParams.set("symbol", fxDoor.futures);
-                    window.location.assign(u.toString());
+                    window.location.assign(symbolDoorHref(window.location.href, fxDoor.futures));
                   } catch { /* no window */ }
                 }}
                 style={{ marginLeft: 8, pointerEvents: "auto", background: "transparent", border: "1px solid rgba(201,165,92,.45)",

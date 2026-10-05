@@ -848,12 +848,27 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // shared link lost the symbol). Re-assert the camera whenever the query
   // changes under it; the seed's equal-value early return keeps this loopless.
   const urlQuery = optionSearchParams.toString();
+  const urlSymbolRef = useRef<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
     // RACE (stress round 2, 2026-10-04): on the SECOND pick the write ran before
     // the bare route push committed, the push then wiped it, and the query was
     // already empty so nothing re-ran — the URL read `/charts` again. Re-assert
     // after the push has had time to land; each pass is a no-op once correct.
+    // A futures-option contract belongs to the market it was picked on: once
+    // the symbol moves, the old contract leaves the URL (hallway audit
+    // 2026-10-04: a reload opened the panel on the new underlying with the
+    // previous product's contract).
+    if (urlSymbolRef.current != null && urlSymbolRef.current !== symbol) {
+      try {
+        const u = new URL(window.location.href);
+        if (u.searchParams.has("futuresOption")) {
+          u.searchParams.delete("futuresOption");
+          window.history.replaceState(window.history.state, "", `${u.pathname}${u.search}${u.hash}`);
+        }
+      } catch { /* sandboxed frame */ }
+    }
+    urlSymbolRef.current = symbol;
     const assertUrl = () => {
       const next = marketSurfaceUrlWriteback(window.location.search, symbol, timeframe);
       if (next === null) return;
@@ -3351,7 +3366,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => listenForWatchlist(() => openWatchlist(null)), [openWatchlist]);
   const requestedWatchlist = optionSearchParams.get("watchlist");
   useEffect(() => {
-    if (requestedWatchlist === "open") openWatchlist(null);
+    if (requestedWatchlist !== "open") return;
+    openWatchlist(null);
+    // Consume it, like ?connect= (hallway audit 2026-10-04: it stayed in the
+    // address bar, so every reload or shared link reopened the sheet).
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.delete("watchlist");
+      window.history.replaceState(window.history.state, "", `${u.pathname}${u.search}${u.hash}`);
+    } catch { /* sandboxed frame */ }
   }, [requestedWatchlist, openWatchlist]);
 
   // Drawing and capture are contextual tools at every width. Their canonical

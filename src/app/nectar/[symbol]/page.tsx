@@ -61,7 +61,10 @@ export default function NectarSymbolDetailPage() {
   const router = useRouter();
   const params = useParams();
   const raw = Array.isArray(params?.symbol) ? params.symbol[0] : (params?.symbol as string | undefined);
-  const symbol = (raw ?? "").toUpperCase();
+  // Route segments arrive ENCODED (BTC/USD as "BTC%2FUSD", ^VIX as "%5EVIX"):
+  // decode once, or the lookup misses and "Open on chart" carries the
+  // corrupted string into the chart (garden pass 2026-10-04, hallway audit).
+  const symbol = (() => { try { return decodeURIComponent(raw ?? ""); } catch { return raw ?? ""; } })().toUpperCase();
 
   // SSR-safe mount gate — both stores hydrate from localStorage on
   // the client. SSR sees them empty, client sees them populated →
