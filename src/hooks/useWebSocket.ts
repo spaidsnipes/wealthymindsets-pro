@@ -1299,6 +1299,10 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
   // Hot path refs — no re-render on every tick
   const priceRef   = useRef(base);
+  // True only once priceRef holds an OBSERVED price (tick or quote), not the
+  // hard-coded seed — the tape relay's tick rule must not judge a first print
+  // against a months-old seed (garden pass 2026-10-04).
+  const priceObservedRef = useRef(false);
   const baseRef    = useRef(base);
   // Real prior-session close (from the quote), used for the day-change %. Without
   // this, change was computed against the hardcoded seed (e.g. TSLA 405 = a close
@@ -1467,6 +1471,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     }
 
     priceRef.current = tick.price;
+    priceObservedRef.current = true;
     tickBuf.current.push(tick);
     boundTickBuffer(tickBuf.current, droppedRef.current);
     noteArrival(performance.now());
@@ -1493,6 +1498,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const barUpdate = applyTickToClock(barRef.current, lastBarEventAtRef.current, { price, size, time }, getIntervalSec());
     if (barUpdate.status === "LATE_EVENT_IGNORED") return;
     priceRef.current = price;
+    priceObservedRef.current = true;
     barRef.current = barUpdate.bar;
     lastBarEventAtRef.current = barUpdate.lastEventAt;
     hasRealDataRef.current = true;
@@ -1529,6 +1535,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const b = getBasePrice(symbol);
     baseRef.current  = b;
     priceRef.current = b;
+    priceObservedRef.current = false;
     prevCloseRef.current = 0; // cleared on symbol change; repopulated by the next quote
     barRef.current   = null;
     lastBarEventAtRef.current = null;
@@ -1949,6 +1956,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         const realPrice = q.price;
         const prevPrice = priceRef.current;
         priceRef.current = realPrice;
+        priceObservedRef.current = true;
         bookRef.current  = buildBook();
         hasRealDataRef.current = true;
         // CRITICAL FIX: feed the real price through processTick so the LIVE BAR
@@ -2066,7 +2074,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     const alpacaRelayCleanup = (proxyBase && !isFuture && !isCrypto && typeof WebSocket !== "undefined")
       ? joinTape(
           `alpaca-relay:${symbol.toUpperCase()}`,
-          (onTick, onStatus) => tryAlpacaRelay(symbol, priceRef.current, proxyBase, onTick, onStatus),
+          (onTick, onStatus) => tryAlpacaRelay(symbol, priceObservedRef.current ? priceRef.current : 0, proxyBase, onTick, onStatus),
           (tick, isReal) => {
             // F2 (Cycle 10 P0): UNKNOWN aggressor observations are already
             // ingested to Nectar in fanTick (shared TapeHub, line ~493) — do
