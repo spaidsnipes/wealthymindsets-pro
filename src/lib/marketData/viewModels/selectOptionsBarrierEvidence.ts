@@ -110,6 +110,8 @@ export type OptionsBarrierEvidenceVM =
       readonly contributions: readonly GreekContribution[];
       /** Book totals per greek (shares), each reported separately. */
       readonly totals: { readonly gamma: number; readonly vannaPerVolPoint: number; readonly charmPerDay: number };
+      /** Days until the nearest expiry in scope: a time scenario beyond it is past an expiry, where the linear greeks do not hold. */
+      readonly minTauDays: number;
       /** Contracts used, and contracts excluded for a missing IV (never valued at zero). */
       readonly contracts: number;
       readonly excludedNoIv: number;
@@ -286,6 +288,7 @@ export function selectOptionsBarrierEvidence(
     rootKind: rootKind(roots),
     contributions,
     totals,
+    minTauDays: priced.reduce((m, p) => Math.min(m, p.tau * 365), Number.POSITIVE_INFINITY),
     contracts: priced.length,
     excludedNoIv,
     epistemic: { positioning: "OBSERVED", exposure: "INFERRED" },
@@ -304,6 +307,9 @@ export function scenarioHedge(vm: OptionsBarrierEvidenceVM, s: Partial<Scenario>
   if (!vm.drawn) return null;
   if (![s.dS, s.dVolPoints, s.dDays].every(v => typeof v === "number" && Number.isFinite(v))) return null;
   const scenario = s as Scenario;
+  // Linear greeks do not survive an expiry: elapsed time past the nearest
+  // expiry in scope is refused, not extrapolated (found on live SPY 0DTE).
+  if (Math.abs(scenario.dDays) > vm.minTauDays) return null;
   // `|| 0` folds −0 (a negative greek × a zero input) into 0, so no surface prints "−0".
   const fromGamma = vm.totals.gamma * scenario.dS || 0;
   const fromVanna = vm.totals.vannaPerVolPoint * scenario.dVolPoints || 0;

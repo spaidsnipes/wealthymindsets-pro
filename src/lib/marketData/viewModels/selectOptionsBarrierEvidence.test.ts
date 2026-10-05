@@ -112,6 +112,14 @@ describe("selectOptionsBarrierEvidence", () => {
     expect(scenarioHedge(vm, { dS: Number.NaN, dVolPoints: 0, dDays: 0 })).toBeNull();
   });
 
+  it("elapsed time past the nearest expiry in scope is refused, not extrapolated", () => {
+    const vm = selectOptionsBarrierEvidence(receipt([row({ expiration: "2026-10-05", openInterest: 5000 }), ...rows]), 100, NOW);
+    if (!vm.drawn) throw new Error("not drawn");
+    expect(vm.minTauDays).toBeLessThan(1); // a contract expires today
+    expect(scenarioHedge(vm, { dS: 1, dVolPoints: 0, dDays: 1 })).toBeNull();
+    expect(scenarioHedge(vm, { dS: 1, dVolPoints: 0, dDays: 0 })).not.toBeNull();
+  });
+
   it("no chain / no spot refuse with a named reason", () => {
     expect(selectOptionsBarrierEvidence(null, 100, NOW)).toMatchObject({ drawn: false, reason: "NO_CHAIN" });
     expect(selectOptionsBarrierEvidence(receipt(rows, { spot: null } as unknown as Partial<CboeOptionsReceipt>), null, NOW)).toMatchObject({ drawn: false, reason: "NO_SPOT" });

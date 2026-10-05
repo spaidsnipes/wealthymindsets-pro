@@ -799,7 +799,9 @@ function OptionsEvidenceBlock({ ev, px }: { ev: OptionsBarrierEvidenceVM | null;
     ws.length ? ws.map(w => `${px(w.strike)} (${w.openInterest.toLocaleString()} OI · ${(w.share * 100).toFixed(0)}%${w.volume != null ? ` · vol ${w.volume.toLocaleString()}` : ""})`).join(", ") : "none above 5% of side OI";
   const roots = ev.rootKind === "NONE" ? "none in ±20%" : ev.rootKind === "ONE" ? `one, at ${px(ev.zeroGammaRoots[0])}` : `${ev.zeroGammaRoots.length} crossings — ${ev.zeroGammaRoots.map(px).join(", ")} (no single "flip" level)`;
   const sh = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: 0 })} sh`;
-  const day = scenarioHedge(ev, { dS: ev.spot * 0.01, dVolPoints: 0, dDays: 1 });
+  // Price-only: a time scenario would cross today's expiries, where linear
+  // greeks do not hold — charm is shown above as a current rate instead.
+  const day = scenarioHedge(ev, { dS: ev.spot * 0.01, dVolPoints: 0, dDays: 0 });
   return (
     <div data-inspect-options-evidence={ev.receipt} className="mt-1 border-t border-wm-border pt-1">
       <div className="font-bold tracking-wide text-wm-gold">OPTIONS EVIDENCE · {ev.scope === "ALL" ? "all live expiries" : ev.scope} · {ev.contracts} contracts{ev.excludedNoIv ? ` · ${ev.excludedNoIv} without IV excluded` : ""}</div>
@@ -807,9 +809,9 @@ function OptionsEvidenceBlock({ ev, px }: { ev: OptionsBarrierEvidenceVM | null;
       <div>Put-OI concentration (OBSERVED) · {oi(ev.putWalls)}</div>
       <div className="text-wm-text-dim">Positioning only — a call wall is not resistance and a put wall is not support.</div>
       <div>Zero-gamma roots (INFERRED) · {roots}</div>
-      <div>Assumed-dealer delta per greek (INFERRED) · gamma {sh(ev.totals.gamma)} per $1 · vanna {sh(ev.totals.vannaPerVolPoint)} per vol point · charm {sh(ev.totals.charmPerDay)} per day elapsed</div>
+      <div>Assumed-dealer delta per greek (INFERRED) · gamma {sh(ev.totals.gamma)} per $1 · vanna {sh(ev.totals.vannaPerVolPoint)} per vol point · charm {sh(ev.totals.charmPerDay)} per day elapsed (a rate now{ev.minTauDays < 1 ? " — contracts expiring today make it non-linear" : ""})</div>
       {day && (
-        <div>Scenario +1% and one day, vol unchanged · from gamma {sh(day.fromGamma)} · from charm {sh(day.fromCharm)} · hedge {day.hedgeSide === "NONE" ? "none" : `${day.hedgeSide.toLowerCase()} ≈$${(Math.abs(day.hedgeNotional) / 1e6).toFixed(1)}M`} — a model of hedging pressure, not a direction call</div>
+        <div>Scenario +1% move, vol and time unchanged · from gamma {sh(day.fromGamma)} · hedge {day.hedgeSide === "NONE" ? "none" : `${day.hedgeSide.toLowerCase()} ≈$${(Math.abs(day.hedgeNotional) / 1e6).toFixed(1)}M`} — a model of hedging pressure, not a direction call</div>
       )}
     </div>
   );
