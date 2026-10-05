@@ -40,13 +40,13 @@ export function ExecutionGuardrailsTab() {
           {draft.liveArmed ? "ARMED" : "DISARMED"}
         </button>
       </Row>
-      <Row label="Max contracts per order" sub="Options, futures and futures options · empty = no ceiling">
+      <Row label="Max contracts per order" sub="Options, futures and futures options · required — empty blocks live contract orders">
         <input type="number" min={1} step={1} aria-label="Max contracts per order" value={num(draft.maxContractsPerOrder)} onChange={set("maxContractsPerOrder")} className={field} />
       </Row>
-      <Row label="Max shares per order" sub="Stocks and ETFs · empty = no ceiling">
+      <Row label="Max shares per order" sub="Stocks and ETFs · required — empty blocks live stock orders">
         <input type="number" min={1} step={1} aria-label="Max shares per order" value={num(draft.maxSharesPerOrder)} onChange={set("maxSharesPerOrder")} className={field} />
       </Row>
-      <Row label="Max option premium per order ($)" sub="Stock options: limit × contracts × 100 · futures are capped by contracts (their multiplier is not held yet)">
+      <Row label="Max option premium per order ($)" sub="Stock options: limit × contracts × 100 · required for live option orders · futures are capped by contracts (their multiplier is not held yet)">
         <input type="number" min={1} step={1} aria-label="Max option premium per order" value={num(draft.maxOptionPremiumPerOrder)} onChange={set("maxOptionPremiumPerOrder")} className={field} />
       </Row>
       <button type="button" data-testid="save-guardrails" onClick={() => { writeGuardrails(draft); setNote("Commitments saved on this device. Every live order button now obeys them."); }}

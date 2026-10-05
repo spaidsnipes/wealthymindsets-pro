@@ -9,6 +9,12 @@
  * Futures notional is deliberately NOT computed: it needs the contract's
  * multiplier, which WM does not hold for every product yet — futures and
  * futures options are capped by contract count. PURE (storage is passed in).
+ *
+ * SAFE BY DEFAULT (Garden 18 ATHOS order P0.3, 2026-10-05): the reviewed
+ * ticket showed LIVE ARMED with every ceiling blank. A trader who has never
+ * visited Settings › Execution is now DISARMED, and an order whose ceiling is
+ * unset is refused — "no ceiling" is no longer a way to send. Tightening only:
+ * nothing here can make an order easier to send.
  */
 
 export interface Guardrails {
@@ -24,7 +30,7 @@ export const GUARDRAILS_STORAGE_KEY = "wm_execution_guardrails_v1";
 export const GUARDRAILS_CHANGED_EVENT = "wm:guardrails-changed";
 
 export const DEFAULT_GUARDRAILS: Guardrails = {
-  liveArmed: true,
+  liveArmed: false,
   maxContractsPerOrder: null,
   maxSharesPerOrder: null,
   maxOptionPremiumPerOrder: null,
@@ -58,13 +64,17 @@ export type GuardVerdict = { readonly ok: true } | { readonly ok: false; readonl
 export function checkOrder(g: Guardrails, o: GuardedOrder): GuardVerdict {
   if (!g.liveArmed) return { ok: false, reason: "Live trading is disarmed in Settings › Execution. Arm it there when you are ready." };
   if (o.kind === "EQUITY") {
-    if (g.maxSharesPerOrder != null && o.qty > g.maxSharesPerOrder) return { ok: false, reason: `${o.qty} shares is above your ${g.maxSharesPerOrder}-share ceiling (Settings › Execution).` };
+    if (g.maxSharesPerOrder == null) return { ok: false, reason: "Set a maximum shares per order in Settings › Execution before a live stock order can be sent." };
+    if (o.qty > g.maxSharesPerOrder) return { ok: false, reason: `${o.qty} shares is above your ${g.maxSharesPerOrder}-share ceiling (Settings › Execution).` };
     return { ok: true };
   }
-  if (g.maxContractsPerOrder != null && o.qty > g.maxContractsPerOrder) {
+  if (g.maxContractsPerOrder == null) return { ok: false, reason: "Set a maximum contracts per order in Settings › Execution before a live contract order can be sent." };
+  if (o.qty > g.maxContractsPerOrder) {
     return { ok: false, reason: `${o.qty} contracts is above your ${g.maxContractsPerOrder}-contract ceiling (Settings › Execution).` };
   }
-  if (o.kind === "EQUITY_OPTION" && g.maxOptionPremiumPerOrder != null && o.limitPx != null) {
+  if (o.kind === "EQUITY_OPTION") {
+    if (g.maxOptionPremiumPerOrder == null) return { ok: false, reason: "Set a maximum option premium per order in Settings › Execution before a live option order can be sent." };
+    if (o.limitPx == null) return { ok: false, reason: "A live option order needs a limit price, so its premium can be held under your ceiling." };
     const premium = o.limitPx * o.qty * 100;
     if (premium > g.maxOptionPremiumPerOrder) return { ok: false, reason: `$${premium.toFixed(2)} of premium is above your $${g.maxOptionPremiumPerOrder} ceiling (Settings › Execution).` };
   }
