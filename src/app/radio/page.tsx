@@ -592,7 +592,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
         const sign = await radioApi<{ path?: string; uploadUrl?: string }>({ op: "sign", ext });
         if (sign.status !== 200 || !sign.data?.path || !sign.data.uploadUrl) throw new Error(sign.data?.error ?? "Upload is not available");
         const put = await fetch(sign.data.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "audio/mpeg", "x-upsert": "false" }, body: file });
-        if (!put.ok) throw new Error(`Upload failed (HTTP ${put.status})`);
+        if (!put.ok) throw new Error(put.status === 413 ? "That file is too large to upload." : "The upload did not go through — try again in a moment.");
 
         const saved = await radioApi<{ track?: { id: number; title: string; artist: string; genre: string; duration: number | null; public_url: string } }>(
           { op: "file", path: sign.data.path, title: title.trim(), artist: artist.trim(), genre, duration });
@@ -611,7 +611,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
 
       onAdd(trackData, finalUrl);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
+      setError(e instanceof Error && !(e instanceof TypeError) ? e.message : "The upload did not go through — try again in a moment.");
     }
     setUploading(false);
   };

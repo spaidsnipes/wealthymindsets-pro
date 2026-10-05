@@ -883,8 +883,10 @@ export default function LoungePage() {
           </h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-wm-text-muted">
             No community records were requested, and no empty feed is being inferred.{" "}
+            {/* Guest copy, not operator copy (garden pass 2026-10-05): the
+                table names live in the API's TABLE_MISSING receipt, not here. */}
             {storeState === "NOT_CONFIGURED" ? "The server holds no community store connection on this host."
-              : storeState === "TABLE_MISSING" ? "The community tables (lounge_posts, lounge_likes, lounge_comments, lounge_follows) do not exist in the store."
+              : storeState === "TABLE_MISSING" ? "The community is still being set up, so there are no posts to show yet."
               : "The community store did not answer; nothing is shown in its place."}
           </p>
           {storeState === "UPSTREAM" && (

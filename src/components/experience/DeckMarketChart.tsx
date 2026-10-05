@@ -540,8 +540,8 @@ export function DeckMarketChart({
                 them was not. Both halves of that are true at once and the
                 room says both rather than picking the flattering one. */}
             {state.refreshFailure && (
-              <span data-testid="deck-market-chart-refresh-failed" style={{ color: "#c05a4a" }}>
-                · refresh failed ({state.refreshFailure})
+              <span data-testid="deck-market-chart-refresh-failed" title={state.refreshFailure} style={{ color: "#c05a4a" }}>
+                · the last refresh did not answer
               </span>
             )}
           </span>
@@ -586,8 +586,11 @@ export function DeckMarketChart({
           data-testid="deck-market-chart-unavailable"
           style={{ height: MARKET_FIELD_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center",
                    color: "#c05a4a", fontSize: 11, letterSpacing: 0.3 }}
+          title={state.reason}
         >
-          Chart evidence unavailable — {state.reason}
+          {/* The wire's own reason ("HTTP 502", "TypeError: Failed to fetch")
+              stays on hover for the operator; the room reads a sentence. */}
+          Chart evidence unavailable — the market feed did not answer just now.
         </div>
       )}
 

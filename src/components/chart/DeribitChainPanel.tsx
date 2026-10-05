@@ -94,7 +94,7 @@ export function DeribitChainPanel({ chartSymbol, onClose }: { readonly chartSymb
       {!cur ? (
         <p style={{ padding: 12, color: MUTED }}>Deribit lists options on BTC and ETH only.</p>
       ) : error && !chain ? (
-        <p role="status" style={{ padding: 12, color: MUTED }}>Deribit did not answer: {error}</p>
+        <p role="status" title={error} style={{ padding: 12, color: MUTED }}>Deribit did not answer just now. The chain retries on its own.</p>
       ) : !chain ? (
         <p role="status" style={{ padding: 12, color: MUTED }}>Reading Deribit&apos;s public option book…</p>
       ) : (
