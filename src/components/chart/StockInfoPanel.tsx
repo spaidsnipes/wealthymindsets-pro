@@ -131,9 +131,16 @@ export function StockInfoPanel({ symbol }: Props) {
     open: number; high: number; low: number; prevClose: number; volume: number | null;
   } | null>(null);
 
+  // Did the session-facts request come back at all? Without it the status
+  // line read "LOADING…" forever after a refusal or a failed fetch
+  // (garden pass 2026-10-05, SILENT_ALARM).
+  const [quoteSettled, setQuoteSettled] = useState(false);
+
   // Fetch real OHLC at mount and on symbol change
   useEffect(() => {
     setRealOHLC(null);
+    setQuoteSettled(false);
+    let current = true;
     const up = symbol.toUpperCase();
     // Yahoo for everything — it includes pre/post-market (matches TradingView);
     // Finnhub free is regular-hours-only and goes stale outside RTH. Two class
@@ -145,6 +152,7 @@ export function StockInfoPanel({ symbol }: Props) {
       // session facts below. Ask the owner of the gate instead of trusting
       // the fallback. The OHLC fields keep their own ohlcObservation gate;
       // this only removes the refused price from the admission decision.
+      if (!current) return; // a late answer for the previous symbol
       if (yahooQuoteRefusal(j)) return;
       const observed = j?.ohlcObservation;
       if (j?.price > 0 && observed?.open && observed?.high && observed?.low && observed?.prevClose) setRealOHLC({
@@ -154,7 +162,8 @@ export function StockInfoPanel({ symbol }: Props) {
         prevClose: j.prevClose,
         volume:    typeof j.volume === "number" && Number.isFinite(j.volume) ? j.volume : null,
       });
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => { if (current) setQuoteSettled(true); });
+    return () => { current = false; };
   }, [symbol]);
 
   // §15 — net flow is the window aggressor sum, read from its one owner
@@ -305,7 +314,7 @@ export function StockInfoPanel({ symbol }: Props) {
         {/* Vendor-agnostic data status indicator. */}
         <div style={{ marginTop: 6, overflow: "hidden", height: 16 }}>
           <span style={{ fontSize: 9, color: "#8b8fa8", whiteSpace: "nowrap" }}>
-            {realOHLC ? "MARKET DATA AVAILABLE" : "MARKET DATA LOADING…"}
+            {realOHLC ? "MARKET DATA AVAILABLE" : quoteSettled ? "MARKET DATA NOT AVAILABLE RIGHT NOW" : "MARKET DATA LOADING…"}
           </span>
         </div>
       </div>

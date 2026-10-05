@@ -120,6 +120,7 @@ import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { wmConfirm } from "@/components/ui/wmConfirm";
 import dynamic from "next/dynamic";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
+import { keyActivates } from "@/lib/a11y/keyActivates";
 
 // HOT_ROOM (garden pass 2026-10-04): the Ledger tab, the genome inspector and
 // the canvas panel render only on demand; they no longer ride the first download.
@@ -2562,6 +2563,10 @@ Trade the system, trust the process, winners every day 🚀`,
               return (
                 <div key={e.id}
                   onClick={() => { setSelected(e); setNewMode(false); }}
+                  role="button"
+                  tabIndex={0}
+                  aria-current={selected?.id === e.id ? "true" : undefined}
+                  onKeyDown={keyActivates}
                   className={clsx(
                     "flex items-start gap-2 px-3 py-2.5 border-b border-wm-border/40 cursor-pointer transition-colors hover:bg-wm-surface/50",
                     selected?.id === e.id ? "bg-wm-surface" : ""

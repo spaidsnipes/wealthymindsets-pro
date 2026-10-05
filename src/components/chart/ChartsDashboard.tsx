@@ -377,6 +377,7 @@ import {
 import type { AnatomyBarInput } from "@/lib/marketData/selectAbsorptionAnatomy";
 import { useTastyFuturesPositioning } from "@/lib/broker/useTastyFuturesPositioning";
 import dynamic from "next/dynamic";
+import { keyActivates } from "@/lib/a11y/keyActivates";
 // ON-DEMAND PANELS LOAD ON DEMAND (2026-10-04): each mounts only when its
 // door opens, yet all six (~7,500 lines) shipped in /charts' first load —
 // about 1 MB compressed for a guest on a phone. Same components, fetched when
@@ -1434,6 +1435,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [compareInput,       setCompareInput]       = useState("");
   const [compareResults,     setCompareResults]     = useState<{sym:string;name:string}[]>([]);
   const [compareSearching,   setCompareSearching]   = useState(false);
+  // The query whose answer is on screen, so "no match" is said only about a
+  // search that actually came back empty (garden pass 2026-10-05: an empty
+  // answer drew nothing at all — the guest could not tell "no match" from
+  // "still looking").
+  const [compareSettledQ,    setCompareSettledQ]    = useState("");
 
   useEffect(() => {
     if (!compareInput || compareInput.length < 1) { setCompareResults([]); return; }
@@ -1448,7 +1454,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         })).filter((x: any) => x.sym);
         setCompareResults(list);
       } catch { setCompareResults([]); }
-      finally { setCompareSearching(false); }
+      finally { setCompareSearching(false); setCompareSettledQ(q); }
     }, 220);
     return () => clearTimeout(timer);
   }, [compareInput]);
@@ -6060,7 +6066,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         style={{ width: 160, background:"#131520", borderColor:"#FF8C00", color:"#E2E8F0" }}
                       />
                       {compareResults.length > 0 && (
-                        <div style={{
+                        <div role="listbox" aria-label="Compare search results" style={{
                           position:"absolute", top:"100%", left:0, zIndex:9999,
                           background:"#0D0E14", border:"1px solid #FF8C00", borderRadius:6,
                           minWidth:240, maxHeight:220, overflowY:"auto",
@@ -6070,6 +6076,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                             <div
                               key={r.sym}
                               onClick={() => { setCompareSymbol(r.sym); setCompareInput(r.sym); setCompareResults([]); setCompareOpen(false); }}
+                              role="option"
+                              aria-selected={false}
+                              tabIndex={0}
+                              onKeyDown={keyActivates}
                               style={{
                                 padding:"6px 10px", cursor:"pointer",
                                 display:"flex", justifyContent:"space-between", alignItems:"center",
@@ -6082,6 +6092,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                               <span style={{ fontSize:10, color:"#8B8FA8", marginLeft:8, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:140 }}>{r.name}</span>
                             </div>
                           ))}
+                        </div>
+                      )}
+                      {compareResults.length === 0 && !compareSearching && compareInput.trim() !== "" && compareSettledQ === compareInput.trim().toUpperCase() && (
+                        <div role="status" style={{
+                          position:"absolute", top:"100%", left:0, zIndex:9999, marginTop:2,
+                          background:"#0D0E14", border:"1px solid #1E2030", borderRadius:6,
+                          padding:"6px 10px", fontSize:11, color:"#8B8FA8", whiteSpace:"nowrap",
+                        }}>
+                          No market matches “{compareInput.trim()}”.
                         </div>
                       )}
                     </div>

@@ -142,25 +142,39 @@ function CommentsPanel({ postId, myHandle, myName, myAvatar, myColor }:
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody]         = useState("");
   const [sending, setSending]   = useState(false);
+  // "loading" | "ok" | "failed" — an empty thread and an unanswered request
+  // were the same blank space (garden pass 2026-10-05).
+  const [thread, setThread]     = useState<"loading" | "ok" | "failed">("loading");
 
   useEffect(() => {
+    setThread("loading");
     void loungeApi<{ comments?: Comment[] }>({ query: `?comments=${postId}` })
-      .then(({ data }) => setComments((data?.comments ?? []) as Comment[]));
+      .then(({ status, data }) => {
+        setComments((data?.comments ?? []) as Comment[]);
+        setThread(status === 200 ? "ok" : "failed");
+      })
+      .catch(() => setThread("failed"));
   }, [postId]);
 
   const submit = async () => {
     if (!body.trim() || !myHandle) return;
     setSending(true);
     const { status, data } = await loungeApi<{ comment?: Comment }>({ body: { op: "comment", postId, body: body.trim() } });
-    if (status === 200 && data?.comment) setComments(c => [...c, data.comment as Comment]);
+    // The draft is cleared only once the comment is posted; a failed send
+    // keeps what the guest typed.
+    if (status === 200 && data?.comment) { setComments(c => [...c, data.comment as Comment]); setBody(""); }
     else toast.error(data?.error ?? "Comment failed — try again");
-    setBody("");
     setSending(false);
   };
 
   return (
     <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:"auto" }} exit={{ opacity:0, height:0 }}
       className="mt-3 border-t border-wm-border/40 pt-3 space-y-2">
+      {comments.length === 0 && (
+        <p role="status" className="text-[10px] text-wm-text-dim">
+          {thread === "loading" ? "Loading comments…" : thread === "failed" ? "Comments did not load just now." : "No comments yet."}
+        </p>
+      )}
       {comments.map(c => (
         <div key={c.id} className="flex gap-2">
           <Avatar src={c.user_avatar} name={c.user_name} color={c.user_color} size={26} />
@@ -334,21 +348,21 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
 
           {/* Actions */}
           <div className="flex items-center gap-4 pt-2 border-t border-wm-border/40">
-            <button onClick={toggleLike}
-              className={clsx("flex items-center gap-1.5 text-xs transition-colors",
+            <button onClick={toggleLike} aria-label={`Like · ${likeCount}`} aria-pressed={liked}
+              className={clsx("flex min-h-11 items-center gap-1.5 text-xs transition-colors",
                 liked ? "text-wm-red" : "text-wm-text-muted hover:text-wm-red")}>
               <Heart size={14} className={liked ? "fill-wm-red" : ""}/>{likeCount}
             </button>
-            <button onClick={() => setCommenting(c => !c)}
-              className="flex items-center gap-1.5 text-xs text-wm-text-muted hover:text-wm-blue transition-colors">
+            <button onClick={() => setCommenting(c => !c)} aria-label={`Comments · ${post.comment_count}`} aria-expanded={commenting}
+              className="flex min-h-11 items-center gap-1.5 text-xs text-wm-text-muted hover:text-wm-blue transition-colors">
               <MessageCircle size={14}/>{post.comment_count}
             </button>
             <button aria-label="Copy link to post" onClick={sharePost}
-              className="flex items-center gap-1.5 text-xs text-wm-text-muted hover:text-wm-green transition-colors">
+              className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 text-xs text-wm-text-muted hover:text-wm-green transition-colors">
               <Share2 size={14}/>
             </button>
             <button aria-label="Bookmark post" aria-pressed={bookmarked.has(String(post.id))} onClick={() => toggleBookmark(String(post.id))}
-              className={clsx("ml-auto transition-colors", bookmarked.has(String(post.id)) ? "text-wm-gold" : "text-wm-text-muted hover:text-wm-gold")}>
+              className={clsx("ml-auto flex min-h-11 min-w-11 items-center justify-center transition-colors", bookmarked.has(String(post.id)) ? "text-wm-gold" : "text-wm-text-muted hover:text-wm-gold")}>
               <Bookmark size={14} className={bookmarked.has(String(post.id)) ? "fill-wm-gold" : ""}/>
             </button>
           </div>

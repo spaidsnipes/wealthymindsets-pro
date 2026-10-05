@@ -656,6 +656,10 @@ function UploadModal({ onClose, onAdd, uploader }: {
               onDragLeave={() => setDragging(false)}
               onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
               onClick={() => fileRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              aria-label="Choose an audio file to upload"
+              onKeyDown={keyActivates}
               className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-8 cursor-pointer transition-all"
               style={{ borderColor: dragging ? "#00D4AA" : "rgba(255,255,255,0.1)", background: dragging ? "rgba(0,212,170,0.05)" : "transparent" }}>
               <input ref={fileRef} type="file" accept="audio/*" className="hidden"
