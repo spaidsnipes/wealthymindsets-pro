@@ -352,7 +352,7 @@ interface QuoteData { price:number; change:number|null; changePct:number|null;
      that says "Percent change unavailable" — a restatement of the dash — and one
      that says which of four different things happened. */
   changeAbsence:QuoteChangeAbsence|null;
-  volume:number; avgVolume:number; rsi:number|null; rsiFailure:RsiFailure|null; receivedAt:number;
+  volume:number|null; avgVolume:number|null; rsi:number|null; rsiFailure:RsiFailure|null; receivedAt:number;
   /**
    * The PROVIDER'S observation epoch-ms, or null when the round resolved none.
    *
@@ -423,8 +423,13 @@ async function fetchScannerQuotes(consumer: YahooCandleConsumer, failures: RsiFa
           const changePct = resolved.observed ? +resolved.pct.toFixed(2) : null;
           /* The owner knows WHICH of four refusals it just made. Keep it. */
           const changeAbsence = resolved.observed ? null : resolved.absence;
-          const volume = Number(quoteJson?.volume ?? 0);
-          const avgVolume = Number(quoteJson?.avgVolume ?? 0);
+          // A missing volume is not "0 shares traded" (painted-window pass
+          // 2026-10-05): the quote route coerces absence to 0, so only a
+          // positive count is a measurement here; zero or missing is null.
+          const volRaw = Number(quoteJson?.volume);
+          const avgRaw = Number(quoteJson?.avgVolume);
+          const volume = Number.isFinite(volRaw) && volRaw > 0 ? volRaw : null;
+          const avgVolume = Number.isFinite(avgRaw) && avgRaw > 0 ? avgRaw : null;
           const receivedAt = Number(quoteJson?.ts);
           // Read from the discriminant, not from a truthiness check on the
           // field. An UNKNOWN observation structurally carries no `observedAt`

@@ -3080,12 +3080,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         chainVm?.headline ??
         "The chain has not compiled for this market yet — nothing is being claimed about permission.",
       counts: [
-        { testId: "equipment-count-chain-ok", label: `${tally?.ok ?? 0} clear` },
-        {
-          testId: "equipment-count-chain-attention",
-          label: `${(tally?.watch ?? 0) + (tally?.warn ?? 0)} need attention`,
-        },
-        { testId: "equipment-count-chain-unknown", label: `${tally?.unknown ?? 0} unresolved` },
+        // No compiled chain is no counts — "0 clear · 0 need attention" beside
+        // "nothing is being claimed" was a claim (painted-window pass 2026-10-05).
+        ...(tally ? [
+          { testId: "equipment-count-chain-ok", label: `${tally.ok} clear` },
+          {
+            testId: "equipment-count-chain-attention",
+            label: `${tally.watch + tally.warn} need attention`,
+          },
+          { testId: "equipment-count-chain-unknown", label: `${tally.unknown} unresolved` },
+        ] : [{ testId: "equipment-count-chain-uncompiled", label: "not compiled" }]),
       ],
       renderDepth: (unabridged: boolean) =>
         chainVm ? (
