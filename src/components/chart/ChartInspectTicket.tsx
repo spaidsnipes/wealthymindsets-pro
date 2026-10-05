@@ -115,7 +115,7 @@ import type { MarketObject } from "@/lib/marketData/marketObjectKinds";
 import type { LivingBiographyVM } from "@/lib/marketData/viewModels/selectLivingBiography";
 import type { ClarityAnatomyVM } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 import { memoryLevelKindOf } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
-import { scenarioHedge, type ConcentrationWall, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
+import { scenarioHedge, type ConcentrationWall, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
@@ -791,10 +791,21 @@ function ResponseCard({ pr }: { pr: PrintResponseVM | null | undefined }) {
  * positioning (OBSERVED), every zero-gamma root, and gamma / vanna / charm each
  * on its own with a stated scenario. Never a support/resistance or pin claim.
  */
-function OptionsEvidenceBlock({ ev, px }: { ev: OptionsBarrierEvidenceVM | null; px: (v: number) => string }) {
+function OptionsEvidenceBlock({ ev, px, onScope }: { ev: OptionsBarrierEvidenceVM | null; px: (v: number) => string; onScope?: (scope: ExpiryScope) => void }) {
   if (!ev) return null;
+  // Expiry scope is the reader's choice and is named in every receipt.
+  const scopes = onScope ? (
+    <span role="group" aria-label="Option expiries in scope" className="ml-1 inline-flex gap-1">
+      {(["ALL", "NEAREST", "0DTE"] as const).map(sc => (
+        <button key={sc} type="button" aria-pressed={ev.scope === sc} onClick={() => onScope(sc)}
+          className="rounded border px-1 text-[9px]" style={{ borderColor: ev.scope === sc ? "#c9a55c" : "#3a3328", color: ev.scope === sc ? "#e8b923" : "#a89c80" }}>
+          {sc === "ALL" ? "All" : sc === "NEAREST" ? "Nearest" : "0DTE"}
+        </button>
+      ))}
+    </span>
+  ) : null;
   if (!ev.drawn) {
-    return <div data-inspect-options-evidence={ev.receipt}>Options evidence · not compiled ({ev.reason.replace(/_/g, " ").toLowerCase()}, scope {ev.scope})</div>;
+    return <div data-inspect-options-evidence={ev.receipt}>Options evidence · not compiled ({ev.reason.replace(/_/g, " ").toLowerCase()}, scope {ev.scope}){scopes}</div>;
   }
   const oi = (ws: readonly ConcentrationWall[]) =>
     ws.length ? ws.map(w => `${px(w.strike)} (${w.openInterest.toLocaleString()} OI · ${(w.share * 100).toFixed(0)}%${w.volume != null ? ` · vol ${w.volume.toLocaleString()}` : ""})`).join(", ") : "none above 5% of side OI";
@@ -805,7 +816,7 @@ function OptionsEvidenceBlock({ ev, px }: { ev: OptionsBarrierEvidenceVM | null;
   const day = scenarioHedge(ev, { dS: ev.spot * 0.01, dVolPoints: 0, dDays: 0 });
   return (
     <div data-inspect-options-evidence={ev.receipt} className="mt-1 border-t border-wm-border pt-1">
-      <div className="font-bold tracking-wide text-wm-gold">OPTIONS EVIDENCE · {ev.scope === "ALL" ? "all live expiries" : ev.scope} · {ev.contracts} contracts{ev.excludedNoIv ? ` · ${ev.excludedNoIv} without IV excluded` : ""}</div>
+      <div className="font-bold tracking-wide text-wm-gold">OPTIONS EVIDENCE · {ev.scope === "ALL" ? "all live expiries" : ev.scope === "NEAREST" ? `nearest expiry ${ev.expiries[0] ?? ""}` : "expiring today"} · {ev.contracts} contracts{ev.excludedNoIv ? ` · ${ev.excludedNoIv} without IV excluded` : ""}{scopes}</div>
       <div>Call-OI concentration (OBSERVED) · {oi(ev.callWalls)}</div>
       <div>Put-OI concentration (OBSERVED) · {oi(ev.putWalls)}</div>
       <div className="text-wm-text-dim">Positioning only — a call wall is not resistance and a put wall is not support.</div>
@@ -892,7 +903,7 @@ export function ChartInspectTicket({
   /** T-210 · the ancestry the glass painted: 4H band · 1H node · D shelf, or each one's silence. */
   mtfAncestry?: MtfAncestryVM | null;
   /** Garden 15 §5 — the selected pressure wall (by strike) and the world it stands in. */
-  pressureWall?: { strike: number; vm: DerivativesPressureVM; evidence?: OptionsBarrierEvidenceVM | null } | null;
+  pressureWall?: { strike: number; vm: DerivativesPressureVM; evidence?: OptionsBarrierEvidenceVM | null; onScope?: (scope: ExpiryScope) => void } | null;
   /** Garden 15 §4 — the selected zero-gamma front: the derivatives environment itself. */
   pressureFront?: DerivativesPressureVM | null;
   /** F08B · the room's ONE weather reading, when the lens is selected. */
@@ -1418,7 +1429,7 @@ export function ChartInspectTicket({
             <div>Contradiction · {contra}</div>
             <div>Climate · {dp.climate.replace("_", " ")} at price ({dp.climateRatio.toFixed(2)}) · zero-gamma front {dp.zeroGamma != null ? mtfPx(dp.zeroGamma) : "none in ±20%"}</div>
             <div>Lineage · {positioningSourceWords(dp.source).name} OI + IV → selectDerivativesPressure v{dp.version} → this wall ({dp.contracts} contracts)</div>
-            <OptionsEvidenceBlock ev={pressureWall.evidence ?? null} px={mtfPx} />
+            <OptionsEvidenceBlock ev={pressureWall.evidence ?? null} px={mtfPx} onScope={pressureWall.onScope} />
           </div>
         );
       })()}
