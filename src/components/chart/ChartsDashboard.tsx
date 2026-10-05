@@ -379,6 +379,7 @@ import { useTastyFuturesPositioning } from "@/lib/broker/useTastyFuturesPosition
 import dynamic from "next/dynamic";
 import { keyActivates } from "@/lib/a11y/keyActivates";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
+import { selectOptionsBarrierEvidence, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 // ON-DEMAND PANELS LOAD ON DEMAND (2026-10-04): each mounts only when its
 // door opens, yet all six (~7,500 lines) shipped in /charts' first load —
 // about 1 MB compressed for a guest on a phone. Same components, fetched when
@@ -2647,6 +2648,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     const since = Date.now() / 1000 - WALL_TEST_WINDOW_DAYS * 86_400;
     return selectDerivativesPressure(derivativesReceipt.receipt, chartBars.filter(b => Number(b.time) >= since), Date.now());
   }, [derivativesPressureOn, derivativesReceipt, symbol, chartBars, cameraWalksHistory]);
+  // Garden 18 super order §5 — the Brick Wall / Market Sense options evidence
+  // (call/put OI concentration, every zero-gamma root, gamma/vanna/charm
+  // separately). Only while the pressure reading itself is drawn, so it obeys
+  // the same replay no-look-ahead gate above.
+  const optionsEvidenceVM = React.useMemo<OptionsBarrierEvidenceVM | null>(() => {
+    if (!derivativesPressureVM?.drawn || !derivativesReceipt?.receipt) return null;
+    return selectOptionsBarrierEvidence(derivativesReceipt.receipt, derivativesPressureVM.spot, Date.now(), "ALL");
+  }, [derivativesPressureVM, derivativesReceipt]);
   // T-210 — the ancestry the glass painted, for the MTF Inspect ticket; re-render only when the receipt changes.
   const [mtfAncestryVM, setMtfAncestryVM] = useState<MtfAncestryVM | null>(null);
   // Garden 16 §46 — the glass's measured depth, so the order-flow door can say
@@ -6769,7 +6778,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         memoryGhostFrozenAsOf={activeSelectedGhost?.asOf ?? null}
                         envelope={envelopeVM}
                         mtfAncestry={mtfAncestryOn ? mtfAncestryVM : null}
-                        pressureWall={activeSelectedWall && derivativesPressureVM ? { strike: activeSelectedWall.strike, vm: derivativesPressureVM } : null}
+                        pressureWall={activeSelectedWall && derivativesPressureVM ? { strike: activeSelectedWall.strike, vm: derivativesPressureVM, evidence: optionsEvidenceVM } : null}
                         pressureFront={activeSelectedFront && derivativesPressureVM ? derivativesPressureVM : null}
                         weatherLens={activeSelectedWeather ? weatherInspectReading : null}
                         priceDp={chartDisplayDp}
