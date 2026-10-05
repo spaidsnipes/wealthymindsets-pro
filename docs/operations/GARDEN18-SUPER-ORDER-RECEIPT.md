@@ -115,3 +115,91 @@ All three are **PROPOSED** (not canon) until the Founder's canon process approve
 
 ### Glass-proof limit (12:35–12:45 CDT)
 The canvas paint receipt for OI ticks (`data-options-oi-walls`) could not be read: the only signed-in WM tab is HIDDEN, and a hidden tab runs no chart paint loop (no receipts were written by ANY layer — 0 dataset keys — with the frame off-screen or on-screen-transparent, with or without a rAF shim). Status of the canvas manifestation: **PARTIAL** (source + selector live-data proof; serving-glass receipt needs a visible Founder tab: `/charts?symbol=SPY&tf=1h&scene=clean&on=BRICK_WALLS`, read `canvas.dataset.optionsOiWalls`).
+
+## §6 — Provider capability matrix (generated from `src/lib/broker/capabilityLedger.ts`, 2026-10-05)
+
+"Entitled" and "Proved" describe the **owner's** connected accounts only; no customer account is connected to any broker in WM today (per-user broker linking is not built). Capital certification (live submit → ack → fill → protection → exit on a funded account) is **BLOCKED** for every row pending a scoped Founder live-test authorization.
+
+#### tastytrade
+
+| Capability | Supported by WM | Wired (owner) | Entitled | Proved | Note |
+|---|---|---|---|---|---|
+| Quotes | yes | yes (`lib/broker/tastyQuoteStream.ts`) | owner account | measured on serving (owner session) | LIVE — DXLink: stocks, ETFs, options, futures, futures options, listed USD coins |
+| Bars / candles | yes | yes (`lib/marketData/adapters/tastytradeCandles.ts`) | owner account | measured on serving (owner session) | LIVE — 5 s … 1 M; stocks, futures, listed USD coins |
+| Live prints (tape) | yes | yes (`lib/marketData/adapters/tastytradeFuturesTicks.ts`) | — | — | PARTIAL — futures signed by the venue; stock sides INFERRED (Lee–Ready); history capped near 1,000 prints |
+| Book depth | yes | no | — | — | NOT_BUILT — no order book wired from tastytrade |
+| Options chain | yes | yes (`app/api/broker/tastytrade/chain/route.ts`) | owner account | measured on serving (owner session) | LIVE — expirations, strikes, live quotes |
+| Greeks | yes | yes (`lib/broker/tastyOptionStreamers.ts`) | owner account | measured on serving (owner session) | LIVE — DXLink Greeks events |
+| Futures options | yes | yes (`lib/broker/tastytradeFuturesChain.ts`) | owner account | measured on serving (owner session) | LIVE — e.g. MNQ, ES chains with Greeks |
+| Execute · stock / ETF | yes | yes (`app/api/broker/tastytrade/order-submit/route.ts`) | owner account, armed press | dry-run / preview only — capital certification BLOCKED | HUMAN_ARMED — dry run first; live only on your armed press |
+| Execute · equity option | yes | yes (`app/api/broker/tastytrade/order-submit/route.ts`) | owner account, armed press | dry-run / preview only — capital certification BLOCKED | HUMAN_ARMED — single leg; open / close intent required |
+| Execute · future | yes | yes (`app/api/broker/tastytrade/order-submit/route.ts`) | owner account, armed press | dry-run / preview only — capital certification BLOCKED | HUMAN_ARMED — specific contract; futures-approved account only |
+| Execute · futures option | yes | yes (`lib/broker/fopTicket.ts`) | owner account, armed press | dry-run / preview only — capital certification BLOCKED | HUMAN_ARMED — futures-approved account only |
+| Execute · crypto | yes | yes (`lib/broker/tastytradeOrder.ts`) | owner account, armed press | dry-run / preview only — capital certification BLOCKED | HUMAN_ARMED — GTC only (tastytrade's crypto rule) |
+| Cancel order | yes | yes (`app/api/broker/tastytrade/orders/route.ts`) | owner account | measured on serving (owner session) | LIVE — working orders |
+| Modify / replace order | yes | no | — | — | NOT_BUILT — cancel and re-enter until replace is built |
+| Protection (stop · bracket) | yes | yes (`lib/broker/tastytradeEntryFields.ts`) | — | — | PARTIAL — broker-native Stop / Stop Limit; bracket / OCO not built |
+| Positions / balance | yes | yes (`app/api/broker/tastytrade/positions/route.ts`) | owner account | measured on serving (owner session) | LIVE — accounts masked to last 4 |
+| Fills & order history | yes | yes (`lib/broker/tastytradeFills.ts`) | owner account | measured on serving (owner session) | LIVE — fills into Journal; full history read page by page (no 250-row cut) |
+| Realised P&L | yes | yes (`lib/broker/tastytradeLedger.ts`) | owner account | measured on serving (owner session) | LIVE — round trips from tastytrade's own transactions (its cash, its fees) — Journal › Broker Ledger |
+
+#### Webull
+
+| Capability | Supported by WM | Wired (owner) | Entitled | Proved | Note |
+|---|---|---|---|---|---|
+| Quotes | yes | yes (`lib/marketData/adapters/webullMarketData.ts`) | owner account | measured on serving (owner session) | LIVE — stock snapshots + crypto stream |
+| Bars / candles | yes | no | — | — | NOT_BUILT — chart bars come from tastytrade's candles; a Webull bar door is not built |
+| Live prints (tape) | yes | yes (`lib/marketData/adapters/webullTicksBrowser.ts`) | owner account | measured on serving (owner session) | LIVE — stock prints in session; Webull sends no aggressor side, so sides are inferred — tastytrade's tape outranks it when fresh |
+| Book depth | yes | no | — | — | NOT_BUILT — Webull's book is not wired into WM yet |
+| Options chain | yes | no | — | — | NOT_BUILT — options are read from tastytrade's chain |
+| Greeks | yes | no | — | — | NOT_BUILT — tastytrade supplies Greeks |
+| Futures options | no | no | — | — | UNSUPPORTED — not on this rail in WM |
+| Execute · stock / ETF | yes | yes (`app/api/broker/webull/order-submit/route.ts`) | owner account, armed press | dry-run / preview only — capital certification BLOCKED | HUMAN_ARMED — Webull preview must accept first; live only on your armed press |
+| Execute · equity option | yes | yes (`app/api/broker/webull/order-submit/route.ts`) | owner account, armed press | dry-run / preview only — capital certification BLOCKED | HUMAN_ARMED — single-leg OSI contract; open / close intent required |
+| Execute · future | yes | no | — | — | NOT_BUILT — futures orders route through tastytrade |
+| Execute · futures option | no | no | — | — | UNSUPPORTED — not on this rail in WM |
+| Execute · crypto | yes | no | — | — | NOT_BUILT — crypto orders route through tastytrade |
+| Cancel order | yes | yes (`app/api/broker/webull/orders/route.ts`) | owner account | measured on serving (owner session) | LIVE — working orders |
+| Modify / replace order | yes | no | — | — | NOT_BUILT — cancel and re-enter until replace is built |
+| Protection (stop · bracket) | yes | no | — | — | NOT_BUILT — no broker-native stop wired for Webull yet |
+| Positions / balance | yes | yes (`app/api/broker/webull/positions/route.ts`) | owner account | measured on serving (owner session) | LIVE — account numbers masked to last 4 |
+| Fills & order history | yes | yes (`lib/broker/webullLedger.ts`) | owner account | reconstructed from broker history | RECONSTRUCTED — Lifetime Ledger from order history (fees itemised); not observed by WM at the time |
+| Realised P&L | yes | yes (`lib/broker/webullLedger.ts`) | owner account | reconstructed from broker history | RECONSTRUCTED — realised P&L net of fees, reconciled with Webull's day P&L |
+#### Providers outside the ledger
+
+| Provider | State | Evidence / next action |
+|---|---|---|
+| NinjaTrader | **UNSUPPORTED (external link only)** | The broker card opens NinjaTrader's own site and says "Not wired in WM Pro". No adapter, no API credential, no account discovery. Next: an eligible user's sandbox REST/WebSocket credential + integration licensing (Founder); then the adapter inside the existing broker architecture. Plan: memory `wm-ninjatrader-plan-2026-10-04`. |
+| moomoo | **BLOCKED (host/locality)** | Read-only adapter + OpenD bridge exist; needs the Founder's OpenD running and logged in. |
+| Spot FX execution | **UNSUPPORTED** | Trade panel refuses before sending ("NO CONNECTED SPOT-FX EXECUTION RAIL"); currency futures are never swapped in. Charting FX is available; execution is not. |
+
+## P0-D — Proposed Passport → WM entitlement seam (PROPOSAL, nothing changed)
+
+1. **Source of truth stays WOW World OS** (`worker/billing.js`, D1 `entitlements`, signature-verified Stripe webhooks). WM Pro never takes payment and never grants access from a URL, local storage or a profile field.
+2. **New products, Founder-approved first:** `WM_ESSENTIALS` ($10), `WM_PASSPORT` ($20), `WM_PRO_AI` ($30, includes Passport) as Stripe Prices; webhook writes one `entitlements` row per product per `passport_id_ref`, same idempotent upsert as `WOW_CONNECT`.
+3. **WM reads, server-side only:** a WOW endpoint `GET /api/entitlement` authenticated by the existing Passport handoff trust (`/api/passport/*`), returning `{ product, status, current_period_end, livemode }`; WM caches it per account ≤ 5 min and enforces on every gated API route (not just UI).
+4. **Never gated:** risk state, working orders, protection, reconciliation and the path to manage/exit an open position; downgrade keeps records + export.
+5. **Proof plan:** test-mode purchase → second browser shows exactly the tier → forged/duplicate webhook creates nothing → direct API call refused for a lower tier → cancel-at-period-end flips at period end.
+Status: **DEFERRED WITH FOUNDER SCOPE DECISION** (Price IDs, products, existing-subscriber reconciliation).
+
+## Shift status (12:55 CDT)
+
+| Gate | Status |
+|---|---|
+| P0-A release identity | CLOSED (receipt above; stale-checkout contradiction resolved by measurement) |
+| P0-A deploy-version recovery | PARTIAL (tested; live proof on the next open-tab-across-deploy) |
+| P0-B live rooms (registry, authenticated sender, host-only approve) | CLOSED for the server gates (live 404s measured); room message rules tested |
+| P0-B guest account / A-vs-B isolation proof | BLOCKED (Founder creates the guest account) |
+| P0-C Radio content check | CLOSED in source + tests; bucket MIME/size policy BLOCKED (Supabase dashboard) |
+| P0-C auth/email journey | OPEN (needs controlled mailbox + guest account) |
+| P0-C text/SMS | UNSUPPORTED (truthfully absent) |
+| P0-D billing | DEFERRED WITH FOUNDER SCOPE DECISION |
+| P0-E capital | BLOCKED (permission rule + scoped authorization) |
+| P0-F legal / data rights | BLOCKED (Founder / counsel / licensing) |
+| §4 full-height Workspace/Tools + Close, Inspect Escape | PARTIAL (geometry measured on serving; screenshot needs visible glass) |
+| §4 activation-to-canvas ledger (every child) | OPEN — census of 78 consumer inventions exists (`inventionCensus.ts`); runtime columns need a visible signed-in tab (hidden tabs run no paint loop) |
+| §4 PROPOSED plates (Breathing, Response Matrix, TED, OI tick) | PROPOSED — awaiting Founder canon |
+| §5 options evidence (selector, Inspect, scope control, canvas ticks) | PARTIAL (fixture + live-data proof; canvas receipt needs visible glass) |
+| §5 futures mapping, big flows, net premium, carry, participant data | UNSUPPORTED / NOT ENTITLED (no lawful wired source) |
+| §6 NinjaTrader API | UNSUPPORTED (external link) — OPEN within Garden 18 |
+| §7 missing fees never zero (broker truth totals) | CLOSED in source |
