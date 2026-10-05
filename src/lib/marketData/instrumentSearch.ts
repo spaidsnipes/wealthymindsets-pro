@@ -1,5 +1,6 @@
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { rankSymbolHits, normalizeSymbolToken } from "./symbolSearchRank";
+import { cryptoBaseTicker } from "./canonicalIdentity";
 import { FX_CURRENCY_CODES } from "./canonicalIdentity";
 import { matchCuratedSymbols } from "./curatedSymbolCatalog";
 
@@ -24,8 +25,24 @@ export function matchCanonicalInstruments(query: string, limit = 20): Instrument
       fx.push({ sym, label, cat: "Forex", aliases });
     }
   }
-  return mergeInstrumentSearch(query, fx, matchCuratedSymbols(query, limit), limit);
+  // SPOT CRYPTO BY ITS OWN NAME (garden pass 2026-10-04). Typing "BTC" ranked
+  // /BTC, BTC1! and three contract months as exact matches and put spot
+  // Bitcoin 19th as "BTC/USD"; Enter opened the CME future. The bare base is
+  // the symbol the chart itself routes to spot crypto (canonicalAssetClass),
+  // so that row leads — and a same-ticker equity row ("SOL · Stock") that the
+  // chart would open as crypto anyway stops wearing the wrong label.
+  const coin = cryptoBaseTicker(query);
+  const spot: InstrumentSearchHit[] = coin && coin === query.trim().toUpperCase()
+    ? [{ sym: coin, label: `${CRYPTO_NAMES[coin] ?? coin} · spot crypto (USD)`, cat: "Crypto", aliases: [`${coin}-USD`, `${coin}/USD`] }]
+    : [];
+  return mergeInstrumentSearch(query, [...spot, ...fx], matchCuratedSymbols(query, limit), limit);
 }
+
+const CRYPTO_NAMES: Readonly<Record<string, string>> = {
+  BTC: "Bitcoin", ETH: "Ethereum", SOL: "Solana", XRP: "XRP", DOGE: "Dogecoin", ADA: "Cardano",
+  AVAX: "Avalanche", LINK: "Chainlink", LTC: "Litecoin", DOT: "Polkadot", BNB: "BNB", SHIB: "Shiba Inu",
+  PEPE: "Pepe", SUI: "Sui", TON: "Toncoin", TRX: "TRON", UNI: "Uniswap", NEAR: "NEAR", XLM: "Stellar",
+};
 
 /** Rank the whole answer, so a local substring cannot bury a remote exact ticker. */
 export function mergeInstrumentSearch(query: string, local: readonly InstrumentSearchHit[], remote: readonly InstrumentSearchHit[], limit = 30): InstrumentSearchHit[] {

@@ -97,3 +97,25 @@ it("futures-option selection opens parent OHLC and exact option ticket, never ra
   expect(new URL(dest.href,"https://wm.test").searchParams.get("futuresOption")).toBe(hit.sym);
   expect(instrumentSearchDestination({sym:hit.sym,label:"unverified",cat:"Future Option"})).toBeNull();
 });
+
+describe("spot crypto answers its own ticker first (garden pass 2026-10-04)", () => {
+  it("BTC / ETH / SOL lead with the spot coin the chart routes to, ahead of futures months", () => {
+    for (const [q, name] of [["BTC", "Bitcoin"], ["eth", "Ethereum"], ["SOL", "Solana"]] as const) {
+      const remote = [
+        { sym: `/${q.toUpperCase()}`, label: `${name} Futures`, cat: "Futures" },
+        { sym: `${q.toUpperCase()}1!`, label: `${name} · continuous`, cat: "Futures", aliases: [q.toUpperCase()] },
+        { sym: `${q.toUpperCase()}/USD`, label: name, cat: "Crypto" },
+      ];
+      const top = mergeInstrumentSearch(q, matchCanonicalInstruments(q), remote)[0];
+      expect(top.sym).toBe(q.toUpperCase());
+      expect(top.cat).toBe("Crypto");
+      expect(top.label).toContain(name);
+      expect(instrumentSearchDestination(top)?.symbol).toBe(q.toUpperCase());
+    }
+  });
+
+  it("a pair or a non-coin query is not rewritten into a spot row", () => {
+    expect(matchCanonicalInstruments("BTCUSD").some(h => h.sym === "BTC" && h.cat === "Crypto")).toBe(false);
+    expect(matchCanonicalInstruments("AAPL").some(h => h.cat === "Crypto")).toBe(false);
+  });
+});
