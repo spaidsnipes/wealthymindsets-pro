@@ -6,6 +6,7 @@ import {
   type AthosCapabilityMatrix,
 } from "../../../../../lib/marketData/canonicalCapabilityResolver";
 import { probeMarketDataFleet } from "@/lib/marketData/providerProbeFleet";
+import { operatorOnly } from "@/lib/operatorOnly";
 
 /**
  * ATHOS capability matrix — one canonical decision per market-data capability.
@@ -36,6 +37,12 @@ async function buildMatrix(): Promise<AthosCapabilityMatrix> {
 export async function GET(request: NextRequest): Promise<NextResponse<AthosCapabilityMatrix> | Response> {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // Each call probes the fleet with the OWNER's credentials (a Webull token
+  // refresh or mint, the moomoo / longbridge bridges, Alpaca, tastytrade), so
+  // it is the operator's tool, not every signed-in user's (security pass
+  // 2026-10-05). The only reader is the owner-only wire strip.
+  const denied = operatorOnly(auth.user.sub);
+  if (denied) return denied;
   return NextResponse.json(await buildMatrix(), {
     status: 200,
     headers: { "Cache-Control": "no-store" },

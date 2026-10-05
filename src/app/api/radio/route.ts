@@ -74,8 +74,10 @@ export async function GET(request: Request): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
-  const uploader = (auth.user.handle ?? auth.user.email?.split("@")[0] ?? "").trim();
-  if (!uploader) return NextResponse.json({ error: "Your account has no handle." }, { status: 400 });
+  // The account's own handle only — an email prefix is not a claimed name
+  // (security pass 2026-10-05; see the Lounge route).
+  const uploader = (auth.user.handle ?? "").trim();
+  if (!uploader) return NextResponse.json({ error: "Set a handle in your Profile to upload to Radio." }, { status: 400 });
   // Anti-flood (2026-10-04): Radio writes had no limit.
   const rl = checkRateLimit(`radio-write:${auth.user.sub}`, { max: 10, windowMs: 60_000 });
   if (!rl.ok) return rl.response;

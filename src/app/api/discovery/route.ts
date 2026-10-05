@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { toYahooSymbol } from "@/lib/marketData/symbolAssetClass";
 import { newestObservationMs, yahooMarketTimeToMs } from "@/lib/marketData/heatmapObservation";
 import { DISCOVERY_VERSION, measureStates, rankDiscovery, type DailyBar, type StateValues } from "@/lib/marketData/discoveryStates";
+import { requireAuth } from "@/lib/requireAuth";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
 const TTL_MS = 5 * 60_000;
@@ -55,10 +56,15 @@ async function measureOne(sym: string): Promise<{ values: StateValues; observedA
 }
 
 export async function GET(request: Request) {
+  // Signed-in only (security pass 2026-10-05): one anonymous request fanned out
+  // to 250 Yahoo fetches from our Worker IP, and a reordered list missed the
+  // cache — enough to get the IP throttled, which also starves /api/yahoo.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const syms = [...new Set((new URL(request.url).searchParams.get("syms") ?? "")
     .split(",").map(s => s.trim().toUpperCase()).filter(s => /^[A-Z0-9.\-=!^]{1,12}$/.test(s)))].slice(0, MAX_SYMS);
   if (syms.length === 0) return NextResponse.json({ error: "syms required" }, { status: 400 });
-  const key = syms.join(",");
+  const key = [...syms].sort().join(",");
   const hit = CACHE.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return NextResponse.json({ ...(hit.body as object), retained: true });
 

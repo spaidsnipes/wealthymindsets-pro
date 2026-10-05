@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ requireAuth: vi.fn() }));
 vi.mock("@/lib/requireAuth", () => ({ requireAuth: mocks.requireAuth }));
 import { GET } from "./route";
@@ -13,10 +13,20 @@ async function readFleet(): Promise<FleetSourceCertification> {
   return (await response.json()) as FleetSourceCertification;
 }
 
+afterEach(() => { vi.unstubAllEnvs(); });
+
 describe("/api/market-data/certification GET aggregate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.requireAuth.mockResolvedValue({ ok: true });
+    // The probe spends the owner's credentials, so it is the operator's tool.
+    vi.stubEnv("TASTYTRADE_OWNER_USER_ID", "owner-1");
+    mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "owner-1" } });
+  });
+
+  it("refuses a signed-in non-owner before any credential is spent (security pass 2026-10-05)", async () => {
+    mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "guest-9" } });
+    const response = await GET(new NextRequest("http://localhost/api/market-data/certification"));
+    expect(response.status).toBe(403);
   });
 
   it("rejects anonymous provider probes", async () => {

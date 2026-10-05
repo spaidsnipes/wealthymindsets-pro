@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DATA_CAPABILITIES } from "../../../../../lib/marketData/sourceCapabilityCertification";
 import type { AthosCapabilityMatrix } from "../../../../../lib/marketData/canonicalCapabilityResolver";
 
@@ -21,10 +21,14 @@ async function readMatrix(): Promise<AthosCapabilityMatrix> {
   return (await response.json()) as AthosCapabilityMatrix;
 }
 
+afterEach(() => { vi.unstubAllEnvs(); });
+
 describe("/api/athos/market-data/capabilities GET", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.requireAuth.mockResolvedValue({ ok: true });
+    // The probe spends the owner's credentials, so it is the operator's tool.
+    vi.stubEnv("TASTYTRADE_OWNER_USER_ID", "owner-1");
+    mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "owner-1" } });
     mocks.getTastytradeCapabilities.mockResolvedValue({
       configured: false,
       connected: false,
@@ -36,6 +40,12 @@ describe("/api/athos/market-data/capabilities GET", () => {
       sourceName: "tastytrade / dxFeed",
       note: "TASTYTRADE_REFRESH_TOKEN is missing.",
     });
+  });
+
+  it("refuses a signed-in non-owner before any credential is spent (security pass 2026-10-05)", async () => {
+    mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "guest-9" } });
+    const response = await GET(new NextRequest("http://localhost/api/athos/market-data/capabilities"));
+    expect(response.status).toBe(403);
   });
 
   it("rejects an unauthenticated request before any capability is exposed", async () => {

@@ -28,8 +28,13 @@ const MAX_COMMENT = 1000;
 
 type Me = { handle: string; name: string; avatar: string };
 
+// Authorship is the account's OWN handle, never the email's local part
+// (security pass 2026-10-05): signup issues no handle and the uniqueness check
+// lives in update-profile, so "founder@attacker.tld" with no handle became
+// author "founder" — posting as, and deleting the posts of, whoever owns that
+// handle. No handle → no community writes until one is set in Profile.
 function meFrom(user: { email: string; handle?: string; displayName?: string; avatar?: string }): Me | null {
-  const handle = (user.handle ?? user.email?.split("@")[0] ?? "").trim();
+  const handle = (user.handle ?? "").trim();
   if (!handle) return null;
   return { handle, name: (user.displayName ?? handle).trim() || handle, avatar: user.avatar ?? "" };
 }
@@ -112,7 +117,7 @@ export async function POST(request: Request): Promise<Response> {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
   const me = meFrom(auth.user);
-  if (!me) return NextResponse.json({ error: "Your account has no handle." }, { status: 400 });
+  if (!me) return NextResponse.json({ error: "Set a handle in your Profile to post in the Lounge." }, { status: 400 });
   const body = (await request.json().catch(() => null)) as Op | null;
   if (!body || typeof body !== "object") return NextResponse.json({ error: "Bad request" }, { status: 400 });
   const id = "postId" in body ? Number(body.postId) : NaN;

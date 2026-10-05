@@ -90,7 +90,19 @@ export async function POST(req: NextRequest) {
       context?: ChartContextInput;
     };
 
-    const { messages, context } = body;
+    const { context } = body;
+    // Input is capped (security pass 2026-10-05): only output tokens were, so a
+    // multi-MB history spent the whole model context on our key per request.
+    if (!Array.isArray(body.messages)) {
+      return new Response(JSON.stringify({ error: "messages must be a list." }), { status: 400, headers: { "Content-Type": "application/json" } });
+    }
+    const messages = body.messages
+      .filter(m => m && typeof m.content === "string")
+      .slice(-20)
+      .map(m => ({ role: m.role, content: m.content.slice(0, 4_000) }));
+    if (messages.length === 0) {
+      return new Response(JSON.stringify({ error: "Nothing to answer." }), { status: 400, headers: { "Content-Type": "application/json" } });
+    }
 
     // Built by an owner that refuses to print an unbacked percentage and
     // discloses the gap instead. Inline, this was `if (changePct !== undefined)`

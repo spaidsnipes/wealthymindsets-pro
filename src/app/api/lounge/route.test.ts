@@ -55,3 +55,21 @@ describe("/api/lounge — the server holds the rules", () => {
     expect((await res.json()).state).toBe("TABLE_MISSING");
   });
 });
+
+
+describe("authorship is the account's own handle, never its email prefix (security pass 2026-10-05)", () => {
+  beforeEach(() => { vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://sb.example"); vi.stubEnv("TEST_SERVICE_KEY", "svc"); });
+  afterEach(() => { vi.unstubAllEnvs(); globalThis.fetch = realFetch; });
+
+  it("an account with no handle cannot delete (or post) as the email's local part", async () => {
+    let touched = false;
+    globalThis.fetch = (async () => { touched = true; return new Response("[]", { status: 200 }); }) as unknown as typeof fetch;
+    const { POST } = await load();
+    const { requireAuth } = await import("@/lib/requireAuth");
+    (requireAuth as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: true, user: { sub: "attacker", email: "dave@attacker.tld" } });
+    const res = await POST(post({ op: "delete", postId: 7 }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Set a handle/);
+    expect(touched).toBe(false);
+  });
+});

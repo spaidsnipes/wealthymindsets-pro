@@ -29,7 +29,9 @@ export async function GET(request: Request) {
   // The identity is the SESSION's, never a URL field (2026-10-04: any guest
   // could join under any name, the Founder's included). The display name is
   // the account's own handle.
-  const name = (auth.user.handle ?? auth.user.email?.split("@")[0] ?? "Trader").trim() || "Trader";
+  // Never the email prefix: "founder@attacker.tld" would join displayed as
+  // "founder" (security pass 2026-10-05).
+  const name = (auth.user.handle ?? "").trim() || "Trader";
 
   if (!room) return NextResponse.json({ error: "room is required" }, { status: 400 });
 

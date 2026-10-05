@@ -114,7 +114,7 @@ async function yahooSearch(q: string): Promise<SearchHit[]> {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const q = (searchParams.get("q") ?? "").trim();
+  const q = (searchParams.get("q") ?? "").trim().slice(0, 40);
   if (!q) return NextResponse.json({ results: [] });
   // Garden 18: the brokers' own instruments — every listed futures month,
   // tastytrade's symbol search, Webull's exact symbols — for the owner of
@@ -129,7 +129,9 @@ export async function GET(request: Request) {
   // Broker identities lead; the one ranking owner (mergeInstrumentSearch below) orders everything.
   const canonicalMatches = [...brokerHits, ...matchCanonicalInstruments(q, RESULT_LIMIT)];
 
-  if (POLYGON_KEY) {
+  // The keyed vendor is spent for a signed-in session only (security pass
+  // 2026-10-05: any anonymous loop over random q burned POLYGON quota).
+  if (POLYGON_KEY && auth.ok) {
     try {
       // Search across all markets.
       //
