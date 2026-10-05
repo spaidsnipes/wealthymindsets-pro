@@ -40,13 +40,21 @@ describe("selectSessionEdge", () => {
     expect(r.reason).toMatch(/no decisions/i);
   });
 
-  it("groups by day-of-week × hour and identifies Thursday 14:00 UTC", () => {
+  it("groups by day-of-week × hour on the New York clock: 14:00Z in August is Thursday 10:00 ET", () => {
     const decisions = Array.from({ length: 3 }, (_, i) => makeDecision({ decisionId: `d${i}`, pnlR: 1 }));
     const r = selectSessionEdge({ ownerId: "owner-1", decisions, nowMs: THU_14, metric: "avg_realized_r" });
     expect(r.cells).toHaveLength(1);
     expect(r.cells[0].dayLabel).toBe("Thu");
-    expect(r.cells[0].hour).toBe(14);
+    expect(r.cells[0].hour).toBe(10);
+    expect(r.cells[0].hourLabel).toBe("10:00 ET");
     expect(r.cells[0].value).toBe(1);
+  });
+
+  it("a winter close (20:30Z = 15:30 EST) lands in the 15:00 ET hour", () => {
+    const close = new Date("2026-01-15T20:30:00Z").getTime();
+    const r = selectSessionEdge({ ownerId: "owner-1", decisions: [makeDecision({ decisionId: "c", ts: close })], nowMs: close, metric: "sample_count" });
+    expect(r.cells[0].hour).toBe(15);
+    expect(r.cells[0].dayLabel).toBe("Thu");
   });
 
   it("UNKNOWN when cell sample below threshold", () => {

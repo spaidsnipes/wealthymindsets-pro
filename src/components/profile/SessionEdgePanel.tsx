@@ -17,7 +17,7 @@ const METRIC_LABELS: Record<SessionEdgeMetric, { label: string; unit: string; sc
   process_adherence: { label: "Process",     unit: "/5", scheme: "monotone" },
 };
 
-const HOURS_TO_RENDER = Array.from({ length: 12 }, (_, i) => i + 8); // 8:00 – 19:00 UTC (market hours-ish)
+const HOURS_TO_RENDER = Array.from({ length: 17 }, (_, i) => i + 4); // 04:00 – 20:00 ET: pre-market through after-hours
 const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 function formatValue(metric: SessionEdgeMetric, v: number): string {
@@ -121,7 +121,7 @@ export function SessionEdgePanel({ vm, onMetricChange, onCellClick, className }:
           <table style={{ borderCollapse: "collapse", fontSize: 10, color: "#ede6d3", width: "100%" }}>
             <thead>
               <tr>
-                <th aria-hidden="true" style={{ padding: 4 }} />
+                <th scope="col" style={{ padding: 4, fontWeight: 700, color: "#8a8271", fontSize: 9 }}>ET</th>
                 {HOURS_TO_RENDER.map((h) => (
                   <th
                     key={h}

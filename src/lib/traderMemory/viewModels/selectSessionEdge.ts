@@ -13,6 +13,16 @@
 
 import type { DecisionMemorySnapshot } from "./selectProcessLandscape";
 
+const ET_DOW_HOUR = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "2-digit", hourCycle: "h23" });
+const DOW_INDEX: Readonly<Record<string, number>> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+/** Day-of-week (0 = Sun) and hour (0–23) on the New York clock. */
+function etDowHour(dt: Date): { dow: number; hour: number } {
+  const o: Record<string, string> = {};
+  for (const p of ET_DOW_HOUR.formatToParts(dt)) o[p.type] = p.value;
+  return { dow: DOW_INDEX[o.weekday] ?? 0, hour: Number(o.hour) % 24 };
+}
+
 export type SessionEdgeMetric =
   | "avg_realized_r"     // outcome
   | "win_rate"           // outcome
@@ -99,14 +109,16 @@ export function selectSessionEdge(input: SessionEdgeInput): SessionEdgeVM {
     };
   }
 
-  // Bucket by day-of-week × hour
+  // Bucket by day-of-week × hour in NEW YORK time, the market's own clock
+  // (garden pass 2026-10-05: it was UTC with unlabelled hours, so "best: Mon
+  // 14:00" meant 10:00 ET, and in winter the 15:00 ET close hour fell outside
+  // the rendered grid).
   type Bucket = { dow: number; hour: number; decisions: DecisionMemorySnapshot[] };
   const buckets = new Map<string, Bucket>();
   for (const d of scoped) {
     const dt = new Date(d.capturedAt);
     if (Number.isNaN(dt.getTime())) continue;
-    const dow = dt.getUTCDay();
-    const hour = dt.getUTCHours();
+    const { dow, hour } = etDowHour(dt);
     const key = `${dow}|${hour}`;
     const b = buckets.get(key) ?? { dow, hour, decisions: [] };
     b.decisions.push(d);
@@ -120,7 +132,7 @@ export function selectSessionEdge(input: SessionEdgeInput): SessionEdgeVM {
       dayOfWeek: b.dow,
       dayLabel: DAY_LABELS[b.dow] ?? String(b.dow),
       hour: b.hour,
-      hourLabel: `${b.hour.toString().padStart(2, "0")}:00`,
+      hourLabel: `${b.hour.toString().padStart(2, "0")}:00 ET`,
       sampleCount: agg.sample,
       value: agg.value,
       decisionIds: b.decisions.map((d) => d.decisionId),
