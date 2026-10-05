@@ -299,7 +299,9 @@ export default function BacktestingPage() {
       setProgress(100);
       setResult(r);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Backtest failed — could not load data.");
+      // The bar count sentence is ours and stays; a wire failure ("Data fetch
+      // failed (502)", "TypeError: Failed to fetch") reads as one plain line.
+      setError(e instanceof Error && e.message.startsWith("Only ") ? e.message : "The market history did not load just now, so nothing was tested. Try again in a moment.");
     } finally {
       setRunning(false);
     }

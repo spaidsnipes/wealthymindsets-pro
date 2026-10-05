@@ -10,6 +10,7 @@ import { classifySignInFailure } from "@/lib/signInErrorMessage";
 import { useSearchParams } from "next/navigation";
 import WmWordmark from "@/components/brand/WmWordmark";
 import { WM } from "@/lib/design/wmTokens";
+import { authFailureMessage, authLinkErrorMessage } from "@/lib/auth/authLinkError";
 
 /**
  * THE FRONT DOOR IS PART OF THE SANCTUARY.
@@ -85,7 +86,7 @@ function LoginPage() {
     const accessToken = fragment.get("access_token");
     const hashError = fragment.get("error_description");
     if (!accessToken) {
-      if (hashError) setError(decodeURIComponent(hashError.replace(/\+/g, " ")));
+      if (hashError) setError(authLinkErrorMessage(hashError));
       if (searchParams.get("auth_error") === "expired_confirmation") setError("That confirmation link has expired. Request a fresh email and try again.");
       if (searchParams.get("auth_error") === "invalid_confirmation") setError("That confirmation link is not valid. Request a fresh email and try again.");
       if (searchParams.get("confirmed") === "1") setSuccess("Your email is verified. Sign in to open your WOW World workspace.");
@@ -104,7 +105,7 @@ function LoginPage() {
       if (!response.ok) throw new Error(data.error || "Your email was verified, but the WOW World session could not be created.");
       window.location.assign(safeNextPath(searchParams.get("next")) ?? FOUNDER_LANDING_ROUTE); // G12: the one landing owner, not the quarantined deck
     }).catch(error => {
-      setError(error instanceof Error ? error.message : "Your verification could not be completed.");
+      setError(authFailureMessage(error, "Your verification could not be completed."));
       setSubmitting(false);
     });
   }, [searchParams]);
@@ -163,7 +164,7 @@ function LoginPage() {
         // your inbox" success message — the Founder-reported "sign-in email
         // fails" pattern was masked by this exact optimism.
         if (!res.ok) {
-          setError(data.error || `Password recovery failed (HTTP ${res.status}).`);
+          setError(data.error || "Password recovery did not go through just now. Try again in a moment.");
         } else {
           setSuccess("If that email is registered, you'll receive a password reset link shortly. Check your inbox.");
         }
@@ -190,7 +191,7 @@ function LoginPage() {
       if (!response.ok) throw new Error(data.error || "Your code could not be verified.");
       window.location.assign(safeNextPath(searchParams.get("next")) ?? FOUNDER_LANDING_ROUTE); // G12: the one landing owner, not the quarantined deck
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Your code could not be verified.");
+      setError(authFailureMessage(reason, "Your code could not be verified."));
       setSubmitting(false);
     }
   };

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { authFailureMessage, authLinkErrorMessage } from "@/lib/auth/authLinkError";
 
 export default function ResetPasswordPage() {
   const [accessToken, setAccessToken] = useState("");
@@ -15,7 +16,7 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     const hash = new URLSearchParams(window.location.hash.slice(1));
     setAccessToken(hash.get("access_token") ?? "");
-    if (hash.get("error_description")) setMessage(hash.get("error_description") ?? "");
+    if (hash.get("error_description")) setMessage(authLinkErrorMessage(hash.get("error_description")));
     setChecked(true);
     if (window.location.hash) {
       window.history.replaceState(
@@ -48,7 +49,7 @@ export default function ResetPasswordPage() {
       setPassword("");
       setConfirm("");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to update password.");
+      setMessage(authFailureMessage(error, "Unable to update password."));
     } finally {
       setSaving(false);
     }
