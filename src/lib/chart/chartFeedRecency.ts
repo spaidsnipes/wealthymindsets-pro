@@ -108,6 +108,10 @@ function fmtClock(seconds: number, timeZone?: string): string | null {
       minute: "2-digit",
       hour12: true,
       timeZone,
+      // The masthead speaks market time (ET); this clock speaks the viewer's
+      // zone. Each names its own, so "asOf 18:03 ET" beside "05:03 PM" is not
+      // read as an hour apart (garden pass 2026-10-04, TEMPORAL_SPLIT_BRAIN).
+      timeZoneName: "short",
     }).format(new Date(seconds * 1000));
   } catch {
     return null;

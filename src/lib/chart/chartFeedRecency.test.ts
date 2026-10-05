@@ -198,7 +198,7 @@ describe("a PROVEN-closed market is not a lagging feed", () => {
   it("the measured case reads MARKET CLOSED with the opening time kept, never N BARS BEHIND", () => {
     const s = chartFeedRecency(FRI_1600_ET_S, HOUR, FRI_2329_ET_MS, "America/New_York", true);
     expect(s.kind).toBe("MARKET_CLOSED");
-    expect(s.glyph).toBe("MARKET CLOSED · LAST BAR OPENED 04:00 PM");
+    expect(s.glyph).toBe("MARKET CLOSED · LAST BAR OPENED 04:00 PM EDT"); // the clock names its zone (2026-10-04)
     expect(s.glyph).not.toMatch(/BEHIND/);
     expect(s.barsBehind).toBe(0);
     expect(s.spoken).toContain("Market closed");
