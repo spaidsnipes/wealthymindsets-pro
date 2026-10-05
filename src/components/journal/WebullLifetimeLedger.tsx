@@ -290,8 +290,11 @@ export function WebullLifetimeLedger() {
     <section data-testid="webull-lifetime-ledger" aria-label="Webull lifetime ledger" style={{ padding: "14px 16px", display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 12, overflow: "auto", flex: 1, minHeight: 0 }}>
       <style>{LEDGER_CSS}</style>
       <header style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 10 }}>
-        <h2 style={{ margin: 0, fontSize: 15, letterSpacing: 1.5, color: GOLD }}>WEBULL LIFETIME LEDGER</h2>
-        <span style={{ fontSize: 11, color: MUTED }}>{data?.truth ?? "Outcome P&L from Webull's own order records"}</span>
+        {/* No broker on this account: a neutral header, no Webull branding and
+            no "Reading Webull…" refresh — the Webull rail is the owner's
+            (garden pass 2026-10-05). */}
+        <h2 style={{ margin: 0, fontSize: 15, letterSpacing: 1.5, color: GOLD }}>{data?.state === NOT_CONNECTED ? "BROKER LEDGER" : "WEBULL LIFETIME LEDGER"}</h2>
+        {data?.state === NOT_CONNECTED ? null : <span style={{ fontSize: 11, color: MUTED }}>{data?.truth ?? "Outcome P&L from Webull's own order records"}</span>}
         <span style={{ flex: 1 }} />
         {data?.asOf ? <span style={{ fontSize: 10, color: MUTED }}>as of {day(data.asOf)}</span> : null}
         {data?.state === "OK" && !data.partial && data.episodes?.length ? (
@@ -306,7 +309,7 @@ export function WebullLifetimeLedger() {
             setTimeout(() => URL.revokeObjectURL(url), 1_000);
           }} style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>Export CSV</button>
         ) : null}
-        <button type="button" onClick={() => { load(); }} disabled={loading} style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>{loading ? "Reading Webull…" : "Refresh"}</button>
+        {data?.state === NOT_CONNECTED ? null : <button type="button" onClick={() => { load(); }} disabled={loading} style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>{loading ? "Reading Webull…" : "Refresh"}</button>}
       </header>
 
       {progress ? <p data-testid="ledger-progress" role="status" style={{ color: MUTED, fontSize: 12, margin: 0 }}>{progress} Finished months are kept after the first read, so later visits are quick.</p> : null}

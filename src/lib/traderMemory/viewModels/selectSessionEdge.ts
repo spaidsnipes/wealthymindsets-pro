@@ -32,7 +32,7 @@ export type SessionEdgeMetric =
 export interface SessionEdgeCell {
   readonly dayOfWeek: number;      // 0..6 (Sun..Sat)
   readonly dayLabel: string;       // "Mon", "Tue", ...
-  readonly hour: number;           // 0..23 UTC
+  readonly hour: number;           // 0..23 on the New York clock
   readonly hourLabel: string;      // "09:00"
   readonly sampleCount: number;
   readonly value: number | "UNKNOWN";
