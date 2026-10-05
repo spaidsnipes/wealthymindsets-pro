@@ -290,3 +290,35 @@ Counts by class: BUILT 66 · NO_RENDERER 6 · PARTIAL 1 · PANEL_ONLY 2 · INTER
 | F02 | Hive / Nectar | **none — needs plate** | route `/nectar` | `src/app/nectar/page.tsx` | INTERNAL (organ, not a consumer surface) |  |
 | F25 | Vault continuity | **none — needs plate** | — | `src/components/chart/NectarVaultChip.tsx` | INTERNAL (organ, not a consumer surface) |  |
 | F26 | Chaos Gym | **none — needs plate** | — | `—` | INTERNAL (organ, not a consumer surface) |  |
+### §5 canvas manifestation — PROVED on serving glass (13:10 CDT)
+Founder's chart tab became visible (not focused); a transparent click-through 1440×900 frame loaded `/charts?symbol=SPY&tf=1h&scene=clean&on=BrickWalls` on serving `17c32dc`. Main canvas receipts 5 s after load: `optionsOiWalls = CALL_OI@785|CALL_OI@787|PUT_OI@725|PUT_OI@745`, `optionsEvidence = OPTEVID:ALL|CALLOI:785,787|PUTOI:725,745|ROOTS:ONE:1|N:3888|NOIV:0`, `brickWalls = ON:4`, pressure walls `774 BREAKING · 775 BORN · 785/787 BORN (OFF_CAMERA)`. Identical to the off-glass live-data run. Status: **CLOSED for the canvas receipt**; a captured screenshot beside the PROPOSED plate is still owed (the proof frame is transparent by design so the Founder's screen never changes).
+
+### §4 ledger — runtime columns MEASURED on serving glass (13:12–13:35 CDT, `17c32dc`)
+Method: Founder's chart tab visible; one transparent click-through 1440×900 frame per switch, `/charts?symbol=NQ1!&tf=5m&scene=clean&on=<token>`, main-canvas receipts diffed against a clean baseline (82 receipt keys) after 22 s. First-receipt time = first moment the canvas published receipts. Tape backfill on every load: tastytrade time-and-sales, ~1,000 prints (a few minutes of NQ). Nine switches loaded while the Founder had the tab hidden → **NOT MEASURED** (no paint loop), to be re-run.
+
+| Switch | First receipt | What the canvas states | Class |
+|---|---|---|---|
+| AnatomyCards | 4.6 s | `anatomyCards=AT_REST`, `absorptionZones=0` | NO QUALIFYING EVENT on this window (not a defect) |
+| BrickWalls | 6.0 s | `brickWalls=ON:4`; `optionsOiWalls=CALL_OI@31250\|CALL_OI@31300\|PUT_OI@31250\|PUT_OI@31275\|PUT_OI@31300` (NQ futures options, tastytrade); masonry + cracks painted | PROVED |
+| ClarityCandle | 4.6 s | `DRAWN:108bars:0gaps:0open`, 6 notable, callout pinned | PROVED (full history, not newest-only) |
+| CompositeProfile | 4.5 s | `DRAWN`, 94 rows, 5 sessions on screen, sediment geometry | PROVED |
+| Contradiction | 3.0 s | `NOT_ENOUGH:1/0`, chip | NO QUALIFYING EVENT (named) |
+| DeltaDivergence | 4.5 s | `DRAWN`, lean UP, tag clear | PROVED |
+| DeltaLevels | 4.5 s | `DRAWN`, 5 rungs, left edge | PROVED |
+| DerivativesPressure | 4.5 s | `DAMPING 0.85`, zero-gamma `NONE` in ±20 %, walls 31250 / 31275 BREAKING, field 161 bands, envelope ±314.23 | PROVED |
+| EffortMark | 4.5 s | `HIGH_EFFORT_WEAK_RESULT` below | PROVED |
+| ExpectedEnvelope | 3.1 s | fan 276 steps, 112 in view; clipped top 79 / bottom 83 of 112 | PROVED · **CLIPPED_OR_HIDDEN** (most of the fan is off-camera at this zoom) |
+| FlowCurrent | 4.5 s | `BARS:2\|LIVE\|SHOWN:0` | **COVERAGE_GAP** — signed tape covers ~2 bars (1,000-print backfill); historical bars have no tape to carry the invention |
+| MemoryGhost | 4.5 s | `DRAWN:0.94` over 4,943 bars; clipped top 11/20 | PROVED · partially CLIPPED |
+| MtfAncestry | 4.5 s | shelf PDH 31282.5 · 4H band · 1H node 31276.66 | PROVED |
+| ProfileDna | 4.5 s | `MEASURED:ALONE`, shape P | PROVED |
+| ProfileFusion | 4.5 s | `FEWER_THAN_TWO_SPECIES` | NO QUALIFYING EVENT (fusion needs two profiles — correct silence) |
+| ProfileMemory | 4.5 s | `DRAWN`, 4/15 shown, 11 withheld (budget), 5 sessions | PROVED (withholding counted on the glass) |
+| QuestionLens | 4.5 s | `ABSORPTION:4`, band + tags + effort columns, callout `NO_CONVINCING_DISPLACEMENT` | PROVED |
+| RegimeLighting | 4.5 s | `RANGE / COMPRESSION`, field + channel + magnets lit, 107 candles kept | PROVED |
+| RiskOnPrice | 3.1 s | `NO_POSITION_DRAWN` | NO QUALIFYING EVENT (no position) |
+| Scaffolding | 4.5 s | no layer receipt changed | NOT A VALID TEST — scaffolding takes `scaff:<DEPTH>`, not a boolean token; re-run |
+| StructureProfile | 3.1 s | `DRAWN`, form `RULE_SHORT_LEG` (8-bar leg too short for rows) | PROVED (named short-leg form) |
+| ImbalanceStack · LiquidityLifecycle · LiquidityWeather · LivingProfile · MarketStructure · TpoProfile · ValueCandle · ValueMigration · VisibleRangeProfile | — | tab hidden during these loads | **NOT MEASURED** — re-run on visible glass |
+
+Defects found by the sweep: **FlowCurrent COVERAGE_GAP** (tape depth, not renderer) and **ExpectedEnvelope / MemoryGhost clipping** at the default camera. "Paint skipped by budget" in receipts counts skipped FRAMES at the 33 ms governor cadence, not suppressed layers — not a truth suppression.
