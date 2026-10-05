@@ -6700,6 +6700,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       brickWallsOnChart={brickWallsOn}
                       roomPosture={chartCanvasVM.oneStory?.decision?.value === "WAIT" || chartCanvasVM.oneStory?.decision?.value === "NO TRADE" ? "QUIET" : null}
                       derivativesPressure={derivativesPressureVM}
+                      optionsEvidence={optionsEvidenceVM}
                       onSemanticDepth={setSemanticDepth}
                       onSenseEvents={setSenseEvents}
                       onSelectPressureWall={strike => actOnChartSelection({ type: "select", selection: { kind: "PRESSURE_WALL", symbol, timeframe, strike } })}

@@ -635,6 +635,7 @@ import { clipOutChips } from "@/lib/chart/clipOutChips";
 import { barSlotAt } from "@/lib/chart/barSlotAt";
 import { selectValueCandleBars, type ValueCandleBar } from "@/lib/marketData/viewModels/selectValueCandle";
 import { mergeValueCandleBars } from "@/lib/marketData/viewModels/mergeValueCandleBars";
+import type { OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
 // NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
@@ -1499,6 +1500,8 @@ interface Props {
   /** Garden 16 §15 — the room's posture from the one compiled decision ("QUIET" = WAIT / NO TRADE). */
   roomPosture?: "QUIET" | null;
   derivativesPressure?: DerivativesPressureVM | null;
+  /** Garden 18 super order §5 — call / put OPEN-INTEREST concentration walls (OBSERVED positioning), painted under Brick Walls as their own material. */
+  optionsEvidence?: OptionsBarrierEvidenceVM | null;
   /** A click on a pressure wall selects it (by strike) through the one selection owner. */
   onSelectPressureWall?: (strike: number) => void;
   /** A click on the zero-gamma front selects the derivatives environment. */
@@ -1917,6 +1920,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   brickWallsOnChart = false,
   roomPosture = null,
   derivativesPressure = null,
+  optionsEvidence = null,
   onSelectPressureWall,
   onSelectPressureFront,
   pressureFrontSelected = false,
@@ -2261,6 +2265,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   roomPostureRef.current = roomPosture;
   const derivativesPressureRef = useRef<DerivativesPressureVM | null>(null);
   derivativesPressureRef.current = derivativesPressure;
+  const optionsEvidenceRef = useRef<OptionsBarrierEvidenceVM | null>(null);
+  optionsEvidenceRef.current = optionsEvidence;
   // The wall rects painted this frame (what a click hits), and the selected strike.
   const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number }[]>([]);
   const selectedPressureWallStrikeRef = useRef<number | null>(null);
@@ -16748,6 +16754,43 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.beginPath(); ctx.moveTo(xs, yU); ctx.lineTo(xs, yL); ctx.stroke();
                   painted.push(`EM:${dp.envelope.session.toFixed(2)}`);
                 }
+              }
+
+              // ── OPEN-INTEREST CONCENTRATION WALLS (super order §5) ──────
+              // A different species from the pressure slabs above: OBSERVED
+              // positioning (where call / put open interest concentrates), not
+              // inferred dealer exposure. Own material — a short dashed tick
+              // at the price axis, teal for calls, rose for puts — so it can
+              // never be read as a defended wall, support or resistance.
+              const ev = optionsEvidenceRef.current;
+              if (wallsOn && ev && ev.drawn) {
+                const oiMarks: string[] = [];
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.textAlign = "right";
+                ctx.textBaseline = "bottom";
+                for (const w of [...ev.callWalls, ...ev.putWalls]) {
+                  const y = yOfD(w.strike);
+                  if (y == null) { oiMarks.push(`${w.type}@${w.strike}:OFF_CAMERA`); continue; }
+                  const call = w.type === "CALL_OI";
+                  const rgb = call ? "80,190,180" : "214,120,150";
+                  ctx.strokeStyle = `rgba(${rgb},${0.85 * baseA})`;
+                  ctx.lineWidth = 2;
+                  ctx.setLineDash([5, 3]);
+                  ctx.beginPath();
+                  ctx.moveTo(plotRightD - 56, y);
+                  ctx.lineTo(plotRightD, y);
+                  ctx.stroke();
+                  ctx.setLineDash([]);
+                  const label = `${call ? "CALL" : "PUT"} OI ${fmtD(w.strike)} · ${w.openInterest >= 1000 ? `${Math.round(w.openInterest / 1000)}k` : w.openInterest}`;
+                  ctx.fillStyle = `rgba(${rgb},${0.95 * baseA})`;
+                  ctx.fillText(label, plotRightD - 2, y - 2);
+                  oiMarks.push(`${w.type}@${w.strike}`);
+                }
+                ctx.textAlign = "left";
+                ds.optionsOiWalls = oiMarks.join("|") || "NONE";
+                ds.optionsEvidence = ev.receipt;
+              } else {
+                ds.optionsOiWalls = !wallsOn ? "OFF" : !ev ? "WAITING_FOR_EVIDENCE" : `SILENT:${ev.drawn ? "" : ev.reason}`;
               }
               ctx.restore();
 

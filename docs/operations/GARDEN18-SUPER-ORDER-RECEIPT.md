@@ -45,3 +45,32 @@ Outcomes use the order's vocabulary only: CLOSED (evidenced) · OPEN · BLOCKED 
 
 - Drafts exist (`docs/legal/TERMS-OF-SERVICE.DRAFT.md`, `PRIVACY-POLICY.DRAFT.md`); `/terms` and `/privacy` still 404. Publishing requires the actual business identity, contact and counsel. **BLOCKED (Founder / counsel).**
 - Cboe / OPRA / broker third-party-use rights: **BLOCKED (licensing)** for any external sale or publicity.
+
+## §4 — Full-height panels
+
+- Workspace / Tools equipment panel (`#wm-os-rail`, `WMOperatingSystem.tsx`) now opens at the **full available workspace height** (inset 8 px top and bottom, floating, rounded), with a visible Close at every width, superseding the §XIII ~72 % cap. `1089423`.
+- **Measured on serving `1089423`** (1440×900 frame inside the Founder's signed-in tab): Workspace and Tools each 805 px tall inside an 821 px workspace (87→892), Close visible, contents scroll. Before: ≤ 72 % (~590 px).
+- Status **PARTIAL** — geometry proved; the screenshot beside the governing plate still needs a visible Founder glass (hidden tabs cannot be captured). Chart tools (ShellModalDrawer) and Inspect unchanged; Inspect has no Escape handler — OPEN.
+
+## §5 — Brick Wall / Market Sense options evidence
+
+- Owner `src/lib/marketData/viewModels/selectOptionsBarrierEvidence.ts` (extends Derivatives Pressure; no vendor formula, brand or claim imported). `9c17906`, `1deab66`.
+- Adds: call-OI and put-OI concentration walls as separate OBSERVED species (volume beside OI, never added); every zero-gamma root (NONE / ONE / MANY); gamma, vanna, charm separately with stated units (shares per $1 / per vol point / per calendar day ELAPSED) and a dimensionally consistent combined scenario that refuses missing inputs **and refuses elapsed time past the nearest expiry**; expiry scope ALL / NEAREST / 0DTE in every receipt; no-IV contracts excluded and counted.
+- Fixture proof: partials verified against delta by finite difference (`selectOptionsBarrierEvidence.test.ts`, 14 tests).
+- **Live-data proof** (Cboe delayed chains, asOf 2026-10-05 17:16 UTC, run through the shipped module): SPY spot 774.15 — call-OI 785 / 787, put-OI 725 / 745, one root 771.01, 3,888 contracts, 0 without IV; SPX 7769.78 — call-OI 7000 / 8000, put-OI 6300 / 7000 / 8000, one root 7718.25, 10,056 contracts; QQQ 754.09 — call-OI 750 / 760 / 775, put-OI 700, one root 748.08. The run exposed the 0DTE charm-extrapolation flaw, fixed in `1deab66`.
+- Surfaces: Pressure Wall Inspect ("OPTIONS EVIDENCE" block); canvas OI concentration ticks under Brick Walls (receipt `data-options-oi-walls`).
+- OPEN: expiry-scope control on glass (selector supports it; UI fixed to ALL); SPX→ES / NDX→NQ futures mapping (item 9 — needs time-aligned basis; NOT built, mapping refused by absence); big-option-flow prints, net premium flow, carry/opening inventory (items 6–8 — no lawful source wired: UNSUPPORTED); participant-tagged data (NOT ENTITLED / licensing).
+
+### PROPOSED plate — "OI Concentration Tick" (awaiting Founder canon approval)
+
+| Facet | Contract |
+|---|---|
+| Silhouette / material | Short dashed tick (56 px) at the price axis, 2 px; teal `rgb(80,190,180)` = call OI, rose `rgb(214,120,150)` = put OI; label right-aligned above: `CALL OI 787 · 245k` |
+| Anchors | Strike price (y); no time extent — positioning is a snapshot at the chain's clock, not a history |
+| Coverage | Strikes within ±20 % of spot holding ≥ 5 % of that side's OI; top 3 per side |
+| Lifecycle | None claimed (OBSERVED snapshot); the pressure slab owns lifecycle (born / tested / broken) |
+| FAR / MID / NEAR | Same tick at every depth; off-camera strikes are listed `OFF_CAMERA` in the receipt, never pulled into view |
+| Selection / Inspect | Read through the Pressure Wall Inspect "OPTIONS EVIDENCE" block |
+| Roles | Supporting (never primary; never covers a candle body — axis-edge only) |
+| Absence / stale / proxy | Silent with a receipt reason (`WAITING_FOR_EVIDENCE` / `SILENT:<reason>`); chain clock shown in Inspect |
+| Forbidden substitutes | Calling it support / resistance / a pin; adding volume to OI; painting it as a slab |
