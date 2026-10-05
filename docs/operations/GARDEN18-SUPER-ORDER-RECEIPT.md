@@ -203,3 +203,90 @@ Status: **DEFERRED WITH FOUNDER SCOPE DECISION** (Price IDs, products, existing-
 | §5 futures mapping, big flows, net premium, carry, participant data | UNSUPPORTED / NOT ENTITLED (no lawful wired source) |
 | §6 NinjaTrader API | UNSUPPORTED (external link) — OPEN within Garden 18 |
 | §7 missing fees never zero (broker truth totals) | CLOSED in source |
+
+## §4 — Activation-to-canvas ledger (generated from `src/lib/canon/inventionCensus.ts`, 2026-10-05)
+
+Source columns are filled from the census (owner, control, plate, status, gap). **The runtime columns the order requires — eligible bars/objects, actual painted objects, first useful paint, camera / panel-close / off behaviour, Inspect identity, performance — are NOT MEASURED this shift**: the only signed-in WM tab was hidden, and a hidden tab runs no chart paint loop. Method for the next visible session: `/charts?symbol=<S>&tf=<TF>&scene=clean&on=<SWITCH_ID>` per switch, read the main canvas `dataset` receipts (e.g. `brickWalls`, `optionsOiWalls`, `derivativesPressurePainted`, `imbalanceStackBars`, `flowCurrent`, `dualAnatomy`, `semanticZoom`) after tape backfill (~30–40 s), then close the panel, pan/zoom, switch symbol/timeframe, save/restore the View, reload, and re-read. "No qualifying event" stays distinct from every defect class.
+
+Counts by class: BUILT 66 · NO_RENDERER 6 · PARTIAL 1 · PANEL_ONLY 2 · INTERNAL 3
+
+| ID | Invention | Governing plate | Control | Owner (renderer / selector) | Class | Gap |
+|---|---|---|---|---|---|---|
+| F01 | Truth owns the candle · Fidelity five (not a rainbow) | WM_NewMockup_64b_F01A_Truth_Owns_Candle | fidelity chip beside every price (chart, watchlist, tape, desk) | `src/components/marketData/CanonicalFidelityBadge.tsx` | BUILT (contextual surface) |  |
+| F01.CHART_INTEGRITY | Chart Integrity Inspector / honesty plaque | ATH_Blueprint_E-301_Fidelity_Logic | honesty plaque under the WAIT rail | `src/lib/marketData/selectPerCapabilityFidelity.ts` | BUILT (contextual surface) |  |
+| F03A | Memory Ghost | WM_NewMockup_68_F03A_Memory_Ghost | Tools switch `MEMORY_GHOST` | `src/lib/marketData/viewModels/selectMemoryGhost.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| H-801 | Expected Envelope + Analogue Surprise | WM_NewMockup_120_F03_Expected_Envelope_Surprise | Tools switch `EXPECTED_ENVELOPE` | `src/lib/marketData/viewModels/selectExpectedEnvelope.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F04A | Causal marks on the event (Force → Response, Unpaid Evidence Debt) | WM_NewMockup_70_F04A_Causal_Marks | switch on Big Trades, then select a print | `src/lib/marketData/viewModels/selectPrintResponse.ts` | BUILT (contextual surface) |  |
+| F05A | Clarity Candle (default language) | WM_NewMockup_72_F05A_Clarity_Default_Language | Tools switch `CLARITY_CANDLE` | `src/lib/chart/clarityCandle.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F05B | Candle Anatomy Inspect (Truth Range · Pressure Split · Battle Balance) | WM_NewMockup_73_F05B_Candle_Anatomy_Inspect | select a candle → Inspect | `src/lib/marketData/viewModels/selectClarityAnatomy.ts` | BUILT (contextual surface) |  |
+| F06A.BIDASK | Footprint · Bid × Ask | WM_NewMockup_74_F06A_OrderFlow_On_Price | Footprint mode `bid-ask` | `src/components/chart/FootprintControls.tsx` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06A.DELTA | Delta Bubbles | WM_NewMockup_74_F06A_OrderFlow_On_Price | Footprint mode `delta` | `src/components/chart/FootprintControls.tsx` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06A.IMB | Imbalance cells | WM_NewMockup_74_F06A_OrderFlow_On_Price | Footprint mode `imbalance` | `src/components/chart/FootprintControls.tsx` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06A.AGGPAS | Aggressive / Passive | **none — needs plate** | Footprint mode `aggressive-passive` | `src/components/chart/FootprintControls.tsx` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06A.VOL | Volume per candle | **none — needs plate** | Footprint mode `volume-profile` | `src/components/chart/FootprintControls.tsx` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06B | Raw Tape Inspect | WM_NewMockup_75_F06B_Raw_Tape_Inspect | select a print → Inspect | `src/components/chart/ChartInspectTicket.tsx` | BUILT (contextual surface) |  |
+| H-701.ABS | Absorption Shelf | WM_NewMockup_46_OrderFlow_Footprint_Absorption | Tools switch `ABSORPTION` | `src/lib/marketData/selectAbsorptionAnatomy.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| H-701.EXH | Exhaustion | WM_Transformation_UI_06_Absorption_Anatomy | Tools switch `EXHAUSTION` | `src/lib/marketData/viewModels/selectExhaustion.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06.STACK | Stacked Imbalance | **none — needs plate** | Tools switch `IMBALANCE_STACK` | `src/lib/marketData/viewModels/selectStackedImbalance.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06.DIV | Delta Divergence | **none — needs plate** | Tools switch `DELTA_DIVERGENCE` | `src/lib/marketData/viewModels/selectDeltaDivergence.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06.EFFORT | Effort → Response (Effort Mark) | **none — needs plate** | Tools switch `EFFORT_MARK` | `src/lib/marketData/effortMarkGeometry.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06.DLEVELS | Delta Levels | **none — needs plate** | Tools switch `DELTA_LEVELS` | `src/lib/marketData/viewModels/selectDeltaLevels.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06A.FLOW | Flow Current (order flow on price) | WM_NewMockup_74_F06A_OrderFlow_On_Price | Tools switch `FLOW_CURRENT` | `src/components/chart/MainChart.tsx` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06.VALUE_CANDLE | Value Candle | **none — needs plate** | Tools switch `VALUE_CANDLE` | `src/lib/marketData/viewModels/selectValueCandle.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06.ANATOMY | Anatomy Cards (absorption / exhaustion metrics) | WM_Transformation_UI_19_Absorption_Anatomy_Alternate | Tools switch `ANATOMY_CARDS` | `src/lib/marketData/viewModels/selectAnatomyCards.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06.BIDASK_PROFILE | Bid/Ask Split Profile (#11) | WM_A_P110_LIVING_PROFILE_STACK | Tools switch `DELTA_VP` | `src/lib/marketData/viewModels/selectProfileMenu.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F06.COMPRESSION | Order Flow Compression | **none — needs plate** | — | `—` | NO_RENDERER (no owner) | named in the registry; no owner |
+| F07A | Big Trades on the market | WM_NewMockup_76_F07A_BigTrades_On_Market | Footprint mode `big-trades` | `src/lib/bigTradeLevels.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F07B | Cluster → Response Inspect | WM_NewMockup_77_F07B_Cluster_Response_Inspect | select a Big Trades print → Inspect | `src/lib/marketData/viewModels/selectPrintResponse.ts` | BUILT (contextual surface) |  |
+| F08A | Liquidity Lifecycle | WM_NewMockup_78_F08A_Liquidity_Lifecycle | Tools switch `LIQUIDITY_LIFECYCLE` | `src/lib/marketData/viewModels/selectLiquidityLifecycle.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F08B | Liquidity Weather (lens) | WM_NewMockup_79_F08B_Weather_Lens | Tools switch `LIQUIDITY_WEATHER` | `src/lib/marketData/viewModels/selectLiquidityWeather.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F08.BRICK | Brick Walls | **none — needs plate** | Tools switch `BRICK_WALLS` | `src/lib/marketData/viewModels/selectProfileMenu.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| P110.1 | Living Profile | WM_A_P110_LIVING_PROFILE_STACK | Tools switch `LIVING_PROFILE` | `src/lib/marketData/viewModels/selectLivingProfile.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| P110.2 | Structure Profile | WM_A_P110_LIVING_PROFILE_STACK | Tools switch `STRUCTURE_PROFILE` | `src/lib/marketData/viewModels/selectStructureProfile.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| P110.3 | Profile Fusion | WM_A_P110_LIVING_PROFILE_STACK | Tools switch `PROFILE_FUSION` | `src/lib/marketData/viewModels/selectProfileFusion.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| P110.4 | Profile Memory | WM_A_P110_LIVING_PROFILE_STACK | Tools switch `PROFILE_MEMORY` | `src/lib/marketData/viewModels/selectProfileMemory.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| P110.5 | Profile DNA | WM_A_P110_LIVING_PROFILE_STACK | Tools switch `PROFILE_DNA` | `src/lib/marketData/viewModels/selectProfileDna.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| P110.6 | Session Profile | **none — needs plate** | Tools switch `SESSION` | `src/lib/marketData/viewModels/selectProfileMenu.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| P110.7 | Visible Range Profile | **none — needs plate** | Tools switch `VISIBLE_RANGE_PROFILE` | `src/lib/marketData/viewModels/selectVisibleRangeProfile.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| P110.8 | Fixed Range Profile | **none — needs plate** | Tools switch `ANCHORED_RANGE` | `src/lib/marketData/viewModels/selectProfileMenu.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| P110.9 | Composite Profile | **none — needs plate** | Tools switch `COMPOSITE_PROFILE` | `src/lib/marketData/viewModels/selectCompositeProfile.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| P110.10 | TPO / Auction Distribution | **none — needs plate** | Tools switch `TPO_PROFILE` | `src/lib/marketData/viewModels/selectTpoProfile.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| P110.CLASSIC | Classic VP · all loaded bars | **none — needs plate** | Tools switch `FIXED_RANGE` | `src/lib/marketData/viewModels/selectProfileMenu.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F09.MIGRATION | Value Migration (Living's auction movie) | **none — needs plate** | Tools switch `VALUE_MIGRATION` | `src/lib/marketData/viewModels/selectValueMigration.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F10 | MTF Ancestry (higher-timeframe objects on this camera) | **none — needs plate** | Tools switch `MTF_ANCESTRY` | `src/lib/marketData/viewModels/selectMtfAncestry.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F10.REPLAY | Replay (no-hindsight walk) | **none — needs plate** | Workspace › Replay | `src/lib/chart/replayWindow.ts` | BUILT (contextual surface) |  |
+| F10.TED | Temporal Evidence Density · Structural/Event/Adaptive time | **none — needs plate** | Evidence density (TED) line in the WAIT rail | `src/lib/chart/effortEvidence.ts` | PARTIAL | TED reads volume concentration across clock time (WM's reading of the name — Founder to confirm); Structural / Event / Adaptive time not built |
+| F11A | Market Object on chart | WM_NewMockup_84_F11A_Object_On_Chart | Tools › Market object passport | `src/lib/marketData/viewModels/selectStructureZoneObjects.ts` | BUILT (contextual surface) |  |
+| F11B | Object Passport | WM_NewMockup_85_F11B_Passport_Drawer | select an object → Passport | `src/lib/marketData/viewModels/selectMarketObjectPassport.ts` | BUILT (contextual surface) |  |
+| F11.STRUCTURE | Market Structure | **none — needs plate** | Tools switch `MARKET_STRUCTURE` | `src/lib/marketData/viewModels/selectMarketStructure.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| H-301 | Evidence Lineage (do not count 7 correlated readings as 7) | WM_NewMockup_118_F12_Evidence_Lineage_Do_Not_Count_7 | the WAIT rail beside the chart, once indicators or senses are on | `src/lib/chart/evidenceLineage.ts` | BUILT (contextual surface) |  |
+| H-501 | Semantic Zoom (FAR · MID · NEAR) | WM_NewMockup_128_F13_Semantic_Zoom_Micro | the chart's zoom itself | `src/lib/marketData/viewModels/selectSemanticDensity.ts` | BUILT (contextual surface) |  |
+| F13.LENS | Question Lens | WM_Transformation_UI_04_Question_Driven_Absorption_Canvas | Tools switch `QUESTION_LENS` | `src/lib/marketData/viewModels/selectQuestionLens.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F13.SCAFFOLD | Scaffolding (Foundation → Pro) | **none — needs plate** | Tools switch `SCAFFOLDING` | `src/lib/marketData/viewModels/scaffoldingGlass.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| S-501 | Attention Governor / Four-Chunk Budget | ATH_Blueprint_S-501_Four_Chunk_Attention_Budget | always on; visual roles in Tools › Active | `src/lib/marketData/viewModels/selectAttentionGovernor.ts` | BUILT (contextual surface) |  |
+| H-401 | Contradiction not averaged | WM_NewMockup_124_F14_Contradiction_Not_Averaged | Tools switch `CONTRADICTION` | `src/lib/marketData/viewModels/selectContradiction.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F14.HEAT | Heat lens — lands on the same camera | WM_NewMockup_126_F14_Heat_Lands_Same_Camera | route `/scanner/map` | `src/lib/marketData/viewModels/selectHeatLens.ts` | BUILT (contextual surface) |  |
+| F14.ARCHIVE | Research Heat Archive (saved / historical heat) | **none — needs plate** | route `/research-heat` | `src/lib/research/heatArchive.ts` | BUILT (contextual surface) |  |
+| H-901 | Regime State Lighting | WM_NewMockup_92_F15A_Regime_State_Lighting | Tools switch `REGIME_LIGHTING` | `src/lib/marketData/viewModels/selectRegimeLighting.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F15.PRESSURE | Derivatives Pressure world | **none — needs plate** | Tools switch `DERIVATIVES_PRESSURE` | `src/lib/marketData/viewModels/selectDerivativesPressure.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F15.BREATHING | Market Breathing | **none — needs plate** | Market breathing card in the WAIT rail beside the chart | `src/lib/chart/marketBreathing.ts` | PANEL_ONLY (canvas grammar needs a plate) | rail reading built to the registry's Volatility/Breathing definition (ATR, realized vol, compression, expansion); its on-canvas grammar waits for a Founder plate |
+| H-101 | Evidence Debt / WAIT as a finished state | WM_NewMockup_94_F16A_WAIT_Finished_State | the WAIT rail beside the chart | `src/lib/marketData/viewModels/selectWaitPlaque.ts` | BUILT (contextual surface) |  |
+| H-1001 | Risk on Price + Frozen Receipt | WM_NewMockup_96_F17A_Risk_On_Price | Tools switch `RISK_ON_PRICE` | `src/lib/marketData/viewModels/selectRiskOnPrice.ts` | BUILT — runtime coverage NOT MEASURED this shift |  |
+| F18 | TRADE — one verb (futures · stocks · crypto · options family) | **none — needs plate** | TRADE beside Desk / Watchlist | `src/components/chart/TradePanel.tsx` | BUILT (contextual surface) |  |
+| F18.EXPR | Underlying + Expression, same Decision_ID (Dual Truth) | WM_NewMockup_134_Underlying_Plus_Expression_Same_ID | Options / Futures Options | `src/components/chart/FuturesOptionsPanel.tsx` | BUILT (contextual surface) |  |
+| F20 | Journal / Review (broker truth + 8-part review) | WM_NewMockup_127_F20_Receipt_Frozen_asOf | route `/journal` | `src/components/journal/BrokerTruthToday.tsx` | BUILT (contextual surface) |  |
+| F20.EDGE | Personal Edge | **none — needs plate** | route `/journal` | `src/lib/traderMemory/viewModels/selectPersonalEdge.ts` | BUILT (contextual surface) |  |
+| F21 | Academy (same room) · Learning Genome | WM_NewMockup_105_F21B_Academy_Same_Room | route `/education` | `src/lib/learningGenome/selectSetupGrade.ts` | BUILT (contextual surface) |  |
+| F22 | Spaidbot — WHY over the same object | WM_NewMockup_106_F22A_Spaidbot_Same_Object | DECISION · RISK · WHY · NEXT | `src/components/experience/DecisionWhyPanel.tsx` | BUILT (contextual surface) |  |
+| F23 | Opening Bell posture | **none — needs plate** | route `/morning-prep` | `src/lib/traderMemory/viewModels/selectOpeningBell.ts` | BUILT (contextual surface) |  |
+| ROOM.BACKTEST | Backtest Lab | **none — needs plate** | route `/backtesting` | `src/app/backtesting/page.tsx` | BUILT (contextual surface) |  |
+| ROOM.SCANNER | Scanner Deck | **none — needs plate** | route `/scanner` | `src/app/scanner/page.tsx` | BUILT (contextual surface) |  |
+| AB.TWIN | Market Twin · State Graph | **none — needs plate** | — | `—` | NO_RENDERER (no owner) | named; no owner |
+| AB.MATRIX | Response Matrix | **none — needs plate** | Response matrix card in the WAIT rail (effort × response cells per bar) | `src/lib/chart/effortEvidence.ts` | PANEL_ONLY (canvas grammar needs a plate) | rail reading built to the registry line 'observed response vs contextual expected response'; on-canvas grammar waits for a Founder plate |
+| AB.PERCEPTION | Perception Graduation | **none — needs plate** | — | `—` | NO_RENDERER (no owner) | named; no owner |
+| AB.COMPARATIVE | Comparative Reality Mode | **none — needs plate** | — | `—` | NO_RENDERER (no owner) | named; no owner |
+| AB.GRAVITY | Process Gravity Field | **none — needs plate** | — | `—` | NO_RENDERER (no owner) | named; no owner |
+| AB.DECAY | Structural Memory + Decay Physics | **none — needs plate** | — | `—` | NO_RENDERER (no owner) | named; no owner |
+| F02 | Hive / Nectar | **none — needs plate** | route `/nectar` | `src/app/nectar/page.tsx` | INTERNAL (organ, not a consumer surface) |  |
+| F25 | Vault continuity | **none — needs plate** | — | `src/components/chart/NectarVaultChip.tsx` | INTERNAL (organ, not a consumer surface) |  |
+| F26 | Chaos Gym | **none — needs plate** | — | `—` | INTERNAL (organ, not a consumer surface) |  |
