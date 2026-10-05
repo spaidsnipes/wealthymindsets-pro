@@ -133,3 +133,14 @@ describe("the route's real order: broker rows lead the merge (garden pass 2026-1
     expect(sol[0]).toMatchObject({ sym: "SOL", cat: "Crypto" });
   });
 });
+
+describe("futures roots still lead their own letters (regression guard, 2026-10-04)", () => {
+  it("NQ and ES open the futures root, not the same-letter stock", () => {
+    for (const q of ["NQ", "ES"]) {
+      const broker = [{ sym: `/${q}`, label: `${q} futures`, cat: "Futures", exchange: "XCME" }];
+      const remote = [{ sym: q, label: "Some company", cat: "Stock", exchange: "NYSE" }];
+      const out = mergeInstrumentSearch(q, [...broker, ...matchCanonicalInstruments(q)], remote);
+      expect(out[0].sym).toBe(`/${q}`);
+    }
+  });
+});

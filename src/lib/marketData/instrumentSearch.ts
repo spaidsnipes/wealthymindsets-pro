@@ -61,7 +61,10 @@ export function mergeInstrumentSearch(query: string, local: readonly InstrumentS
     // A leading "/" is a futures ROOT (/BTC = CME Bitcoin futures): a different
     // instrument from the spot coin BTC, so it never shares a key with it
     // (garden pass 2026-10-04: the future swallowed spot Bitcoin in the dedupe).
-    const key = (hit.sym.trim().startsWith("/") ? "/" : "") + normalizeSymbolToken(hit.sym);
+    // ONLY when the bare root is a coin: "/NQ" and a stray "NQ" stock still
+    // share a key, so typing NQ keeps leading with Nasdaq futures.
+    const bare = hit.sym.trim().replace(/^\//, "").toUpperCase();
+    const key = (hit.sym.trim().startsWith("/") && cryptoBaseTicker(bare) === bare ? "/" : "") + normalizeSymbolToken(hit.sym);
     const existing = unique.get(key);
     if (!existing) unique.set(key, hit);
     // Same symbol, two labels ("SOL · Stock" from a broker list, "SOL · Crypto"):
