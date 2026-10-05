@@ -270,6 +270,11 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
   const totBid  = levels.filter(l => l.isBid).reduce((s,l) => s + l.bidSize, 0);
   const totAsk  = levels.filter(l => !l.isBid).reduce((s,l) => s + l.askSize, 0);
   const bidPct  = Math.round(totBid / Math.max(1, totBid + totAsk) * 100);
+  // Painted-window pass 2026-10-05: before any price or book is observed the
+  // header painted the hardcoded seed (BTC "65770.00", unlisted coins "100.00")
+  // and an empty book read "0% | 100%" — all asks. Unobserved reads "—".
+  const priceObserved = levels.length > 0 || (ticker?.price ?? 0) > 0 || Number.isFinite(liveBar?.close);
+  const bookObserved  = totBid + totAsk > 0;
 
   return (
     <div className="wm-chart-dom border-l border-wm-border flex flex-col shrink-0" style={{ width:230, background:"#0A0B10", fontSize:13 }}>
@@ -291,17 +296,17 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
           title={Number.isFinite(liveBar?.close) && Number.isFinite(liveBar?.open)
             ? undefined
             : "No bar observed for this interval, so no direction is shown."}>
-          {center.toFixed(dp)}
+          {priceObserved ? center.toFixed(dp) : "—"}
         </span>
       </div>
 
       {/* Bid/Ask ratio bar */}
       <div className="flex items-center gap-1.5 px-2.5 shrink-0" style={{ height:24, borderBottom:"1px solid rgba(30,32,48,0.5)" }}>
-        <span style={{ color:"#00C076", fontSize:11, fontWeight:700 }}>{bidPct}%</span>
-        <div style={{ flex:1, height:5, borderRadius:3, overflow:"hidden", background:"rgba(255,77,103,0.2)" }}>
-          <div style={{ height:"100%", borderRadius:3, background:"#00C076", width:`${bidPct}%`, transition:"width 0.4s" }} />
+        <span style={{ color: bookObserved ? "#00C076" : "#8A90A8", fontSize:11, fontWeight:700 }}>{bookObserved ? `${bidPct}%` : "—"}</span>
+        <div style={{ flex:1, height:5, borderRadius:3, overflow:"hidden", background: bookObserved ? "rgba(255,77,103,0.2)" : "rgba(138,144,168,0.15)" }}>
+          {bookObserved && <div style={{ height:"100%", borderRadius:3, background:"#00C076", width:`${bidPct}%`, transition:"width 0.4s" }} />}
         </div>
-        <span style={{ color:"#FF4D67", fontSize:11, fontWeight:700 }}>{100-bidPct}%</span>
+        <span style={{ color: bookObserved ? "#FF4D67" : "#8A90A8", fontSize:11, fontWeight:700 }}>{bookObserved ? `${100-bidPct}%` : "—"}</span>
       </div>
 
       {/* Column headers */}

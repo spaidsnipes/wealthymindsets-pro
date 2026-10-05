@@ -217,7 +217,8 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
             }}>
               <span style={{ fontSize: 10, color: "#8896BE" }}>Current price</span>
               <div style={{ fontSize: 18, fontWeight: 700, color: "#E2E8FF", fontFamily: "monospace", marginTop: 2 }}>
-                {livePrice.toFixed(dp)}
+                {/* No observed price is "—", not 0.0000 (painted-window pass 2026-10-05). */}
+                {livePrice > 0 ? livePrice.toFixed(dp) : "—"}
               </div>
             </div>
 
@@ -246,7 +247,7 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
                   type="number"
                   value={addPrice}
                   onChange={e => setAddPrice(e.target.value)}
-                  placeholder={`Price (current: ${livePrice.toFixed(dp)})`}
+                  placeholder={livePrice > 0 ? `Price (current: ${livePrice.toFixed(dp)})` : "Price"}
                   onKeyDown={e => { if (e.key === "Enter") addAlert(); }}
                   style={{
                     background: "#141824", border: "1px solid #263050", borderRadius: 5,

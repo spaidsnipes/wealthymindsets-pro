@@ -18,6 +18,15 @@ import { fetchBars, runRealBacktest, type BTTrade, type BTResult } from "@/lib/b
 import { CHART_TF_SHIPPED } from "@/lib/timeframes";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 
+/** The profit factor as words when it is undefined: the engine's 99 sentinel
+ *  ("only wins") and 0 ("no trades") are not measurements (painted-window
+ *  pass 2026-10-05). */
+function profitFactorText(r: { profitFactor: number; trades: readonly { pnl: number }[] }): string | null {
+  if (r.trades.length === 0) return null;
+  if (!r.trades.some(t => t.pnl < 0)) return "no losing trades";
+  return r.profitFactor.toFixed(2);
+}
+
 /* ── Types ──────────────────────────────────────────────── */
 type Trade = BTTrade;
 type BacktestResult = BTResult;
@@ -322,7 +331,7 @@ export default function BacktestingPage() {
     const lines = [
       `Walk-forward / backtest review — ${strategyName} on ${symbol} ${tf}${rangeName ? `, ${rangeName}` : ""}.`,
       result
-        ? `Run: ${result.trades.length} trades · win rate ${result.winRate}% · profit factor ${result.profitFactor.toFixed(2)} · P&L ${result.totalPnl >= 0 ? "+" : "−"}$${Math.abs(result.totalPnl).toLocaleString()} (simulated).`
+        ? `Run: ${result.trades.length} trades · win rate ${result.winRate}% · profit factor ${profitFactorText(result) ?? "—"} · P&L ${result.totalPnl >= 0 ? "+" : "−"}$${Math.abs(result.totalPnl).toLocaleString()} (simulated).`
         : "No run recorded on this visit — paste each window's in-sample / out-of-sample numbers.",
       "Out-of-sample held up? What would invalidate it?",
     ];
@@ -588,11 +597,17 @@ export default function BacktestingPage() {
                 </div>
 
                 {/* ── Key metrics ── */}
+                {result.trades.length === 0 && (
+                  <p data-testid="backtest-no-trades" className="mb-3 text-sm text-wm-text-muted">
+                    No trades in this window — the strategy never triggered, so there is no win rate, profit factor or drawdown to report.
+                  </p>
+                )}
+                {result.trades.length > 0 && (
                 <div className="grid grid-cols-4 gap-3 mb-5">
                   {[
                     { l:"Total P&L",     v: `${result.totalPnl >= 0 ? "+" : "−"}$${Math.abs(result.totalPnl).toLocaleString()}`, good: result.totalPnl >= 0 },
                     { l:"Win Rate",      v: `${result.winRate}%`, good: result.winRate >= 50 },
-                    { l:"Profit Factor", v: result.profitFactor.toFixed(2), good: result.profitFactor >= 1 },
+                    { l:"Profit Factor", v: profitFactorText(result) ?? "—", good: result.trades.some(t => t.pnl < 0) ? result.profitFactor >= 1 : null },
                     { l:"Sharpe Ratio",  v: result.sharpe.toFixed(2), good: result.sharpe >= 1 },
                     { l:"Total Trades",  v: `${result.totalTrades}`, good: true },
                     { l:"Max Drawdown",  v: `-${result.maxDrawdownPct}%`, good: result.maxDrawdownPct < 10 },
@@ -607,6 +622,7 @@ export default function BacktestingPage() {
                     </div>
                   ))}
                 </div>
+                )}
 
                 {/* ── Equity curve ── */}
                 <div className="glass rounded-xl p-4 mb-4">

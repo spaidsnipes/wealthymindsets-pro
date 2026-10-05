@@ -4341,6 +4341,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     symbol,
   };
 
+  // A new market starts with no price of its own: the alerts panel read the
+  // PREVIOUS symbol's price as this one's "Current price" (and could set an
+  // alert at it) until the first tick arrived (painted-window pass 2026-10-05).
+  useEffect(() => { setCurrentPrice(0); }, [symbol]);
+
   // Track day high/low from ticker
   useEffect(() => {
     if (ticker.price > 0) {

@@ -464,6 +464,10 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
   const avgLoss  = lossTotal.counted ? Math.abs((lossTotal.total ?? 0) / lossTotal.counted) : 0;
   const rr       = avgLoss > 0 ? avgWin / avgLoss : 0;
   const pf       = losses.length && avgLoss ? (avgWin * wins.length) / (avgLoss * losses.length) : 0;
+  // Painted-window pass 2026-10-05: with no recorded losing P&L (or no winning
+  // P&L) the ratio is undefined, not 0 — the tiles printed a red "0.0:1" and
+  // "0.00", the worst possible edge, for a record that has none to measure.
+  const ratiosKnown = winTotal.counted > 0 && lossTotal.counted > 0 && avgLoss > 0;
 
   /*
    * Per-setup breakdown — ONE OWNER, not a second inline copy.
@@ -491,12 +495,12 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
   else if (wr < 50) alerts.push({
     type: "warning",
     title: "Observed outcome distribution",
-    body: `${wins.length} wins and ${losses.length} losses are recorded (${wr.toFixed(0)}% wins). The sample's average win-to-loss ratio is ${rr.toFixed(1)}:1; fees, slippage, setup version, and out-of-sample stability still need separate review.`,
+    body: `${wins.length} wins and ${losses.length} losses are recorded (${wr.toFixed(0)}% wins). ${ratiosKnown ? `The sample's average win-to-loss ratio is ${rr.toFixed(1)}:1` : "The win-to-loss ratio is not measurable yet (no recorded P&L on one side)"}; fees, slippage, setup version, and out-of-sample stability still need separate review.`,
   });
   else alerts.push({
     type: "warning",
     title: "Observed outcome distribution",
-    body: `${wins.length} wins and ${losses.length} losses are recorded (${wr.toFixed(0)}% wins), with a ${rr.toFixed(1)}:1 average win-to-loss ratio and ${pf.toFixed(2)} sample profit factor. These are journal observations, not permission to increase risk.`,
+    body: `${wins.length} wins and ${losses.length} losses are recorded (${wr.toFixed(0)}% wins)${ratiosKnown ? `, with a ${rr.toFixed(1)}:1 average win-to-loss ratio and ${pf.toFixed(2)} sample profit factor` : "; the win-to-loss ratio and profit factor are not measurable yet (no recorded P&L on one side)"}. These are journal observations, not permission to increase risk.`,
   });
 
   if (worstMood && worstMood[1] >= 1) alerts.push({
@@ -537,8 +541,8 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
       <div className="grid grid-cols-4 gap-2">
         {[
           { l:"Win Rate",   v:`${wr.toFixed(0)}%`,         good: wr >= 50 },
-          { l:"Avg R:R",    v:`${rr.toFixed(1)}:1`,         good: rr >= 1.5 },
-          { l:"Profit Fac.",v:`${pf.toFixed(2)}`,           good: pf >= 1.5 },
+          { l:"Avg R:R",    v: ratiosKnown ? `${rr.toFixed(1)}:1` : "—", good: ratiosKnown ? rr >= 1.5 : null },
+          { l:"Profit Fac.",v: ratiosKnown ? `${pf.toFixed(2)}` : "—", good: ratiosKnown ? pf >= 1.5 : null },
           { l:"Total P&L",
             v: coachTotal.total === null
               ? "UNKNOWN"
@@ -548,7 +552,7 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
         ].map(m => (
           <div key={m.l} className="glass rounded-xl p-3 text-center">
             <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">{m.l}</div>
-            <div className={clsx("text-base font-black mt-1", m.good ? "text-wm-green" : "text-wm-red")}>{m.v}</div>
+            <div className={clsx("text-base font-black mt-1", m.good === null ? "text-wm-text-muted" : m.good ? "text-wm-green" : "text-wm-red")}>{m.v}</div>
           </div>
         ))}
       </div>
