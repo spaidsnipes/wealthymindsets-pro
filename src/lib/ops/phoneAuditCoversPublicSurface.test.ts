@@ -187,11 +187,14 @@ describe("ANTI-VACUITY: this gate is still comparing two real, populated lists",
       "src/app/signup/page.tsx no longer redirects to /login?mode=signup, so the AUDITED_BY_ALIAS " +
         "exemption is now waiving measurement of a surface that renders on its own",
     ).toContain(AUDITED_BY_ALIAS["/signup"]);
+    // 2026-10-04: the alias became a SERVER redirect (like its five siblings),
+    // which is a stricter "only redirects" than the client bounce it replaced.
     expect(
       page,
-      "src/app/signup/page.tsx is no longer a bare router.replace alias — re-examine the " +
+      "src/app/signup/page.tsx is no longer a bare redirect alias — re-examine the " +
         "exemption before trusting it",
-    ).toContain("router.replace");
+    ).toMatch(/router\.replace\(|\bredirect\(/);
+    expect(page, "the /signup alias grew markup — it is no longer only a redirect").not.toMatch(/<(form|input|div|button)\b/);
   });
 });
 

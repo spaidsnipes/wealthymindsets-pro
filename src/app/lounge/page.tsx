@@ -205,7 +205,9 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
     setBookmarked(prev => {
       const next = new Set(prev);
       next.has(postId) ? next.delete(postId) : next.add(postId);
-      try { localStorage.setItem("wm_lounge_bookmarks", JSON.stringify([...next])); } catch {}
+      // A refused write keeps the old set and says so (garden pass 2026-10-04).
+      try { localStorage.setItem("wm_lounge_bookmarks", JSON.stringify([...next])); }
+      catch { setTimeout(() => toast.error("This browser refused to save the bookmark."), 0); return prev; }
       return next;
     });
   };
@@ -602,7 +604,7 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
     } catch {}
   }, []);
   const theme = LOUNGE_IDENTITY;
-  const commitVibe = () => { setEditing(false); try { localStorage.setItem("wm_lounge_vibe", vibe.trim()); } catch {} };
+  const commitVibe = () => { setEditing(false); try { localStorage.setItem("wm_lounge_vibe", vibe.trim()); } catch { toast.error("Your vibe shows for this visit only — this browser refused to save it."); } };
 
   return (
     <div>

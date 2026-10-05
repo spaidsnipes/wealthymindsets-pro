@@ -39,7 +39,10 @@ type Ex = PublicCryptoExchange;
 
 /* Per-exchange trading-pair format for a coin */
 function pair(ex: Ex, coin: string): string {
-  const c = coin.toUpperCase();
+  // A caller may name the coin as its USD pair ("BTC-USD", "ETH/USD"); the
+  // venue's own pair is built from the BASE (garden pass 2026-10-04: AI Bot's
+  // BTC-USD became "BTC-USD-USD" and every quote 404'd).
+  const c = coin.toUpperCase().replace(/[-/]USDT?$/, "");
   switch (ex) {
     case "coinbase":  return `${c}-USD`;
     case "kraken":    return c === "BTC" ? "XBTUSD" : `${c}USD`;

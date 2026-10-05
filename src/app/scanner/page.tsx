@@ -1,4 +1,6 @@
 "use client";
+
+import toast from "react-hot-toast";
 // `strengthDisclosure` is deliberately NOT imported here. The page used to call
 // it at two render sites with `as number` casts; the sentence is now emitted by
 // `classifyScan` from the same branch that computes the grade, so the page only
@@ -765,7 +767,9 @@ export default function ScannerPage() {
     const row = results.find(r => r.id === id) ?? (selected?.id === id ? selected : null);
     if (!row) return;
     let on = row.alerted;
-    try { on = toggleOnActiveWatchlist(localStorage, row.symbol); } catch {}
+    // A refused write leaves the row as it was and says so (garden pass 2026-10-04).
+    try { on = toggleOnActiveWatchlist(localStorage, row.symbol); }
+    catch { toast.error(`Could not update your watchlist — this browser refused to save ${row.symbol}.`); return; }
     setResults(p => p.map(r => r.symbol === row.symbol ? { ...r, alerted: on } : r));
     setSelected(sel => sel && sel.symbol === row.symbol ? { ...sel, alerted: on } : sel);
   };
