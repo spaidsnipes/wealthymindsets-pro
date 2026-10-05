@@ -111,6 +111,8 @@ function validateCvdSpark(a: unknown): number[] {
 }
 
 let hydrated = false;
+/** When each restored slot was ORIGINALLY saved — its age survives re-saves. */
+const restoredSavedAt = new Map<string, number>();
 function hydrateFromStorage(): void {
   if (hydrated) return;
   hydrated = true;
@@ -142,6 +144,7 @@ function hydrateFromStorage(): void {
         ? rec.lastTradeAtMs
         : null;
       slots.set(key, { stats, horizon, cvdSpark, lastTradeAtMs });
+      restoredSavedAt.set(key, savedAt);
     }
   } catch { /* corrupt storage → start fresh, never throw during hydration */ }
 }
@@ -151,7 +154,15 @@ function serializeCurrent(nowSec: number): string {
   const entries = [...slots.entries()].slice(-LS_MAX_SLOTS);
   const payload: Record<string, SessionSymbolSlot & { savedAtSec: number }> = {};
   for (const [key, slot] of entries) {
-    payload[key] = { ...slot, savedAtSec: nowSec };
+    // The age of the DATA, not of the write (garden pass 2026-10-04: every
+    // flush re-stamped every slot "now", so counters restored days ago never
+    // reached the 7-day horizon that /nectar and the vault promise). A slot
+    // keeps the later of its newest print and its original save; only a new
+    // slot with no print yet is "now".
+    const lastPrintSec = slot.lastTradeAtMs ? Math.floor(slot.lastTradeAtMs / 1000) : null;
+    const restored = restoredSavedAt.get(key) ?? null;
+    const savedAtSec = lastPrintSec == null && restored == null ? nowSec : Math.min(nowSec, Math.max(lastPrintSec ?? 0, restored ?? 0));
+    payload[key] = { ...slot, savedAtSec };
   }
   return JSON.stringify(payload);
 }
@@ -382,6 +393,7 @@ export function clearAllSessionSymbols(): SessionSymbolClearAllResult {
     return { inMemoryRemoved: 0, persistence: "ACKNOWLEDGED" };
   }
   slots.clear();
+  restoredSavedAt.clear();
   invalidateKnownCache();
   emit();
   const persistence = flushAndAcknowledge(preClearKeys);
