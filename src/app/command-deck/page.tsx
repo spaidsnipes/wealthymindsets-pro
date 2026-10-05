@@ -174,6 +174,7 @@ import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 import { resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { quoteFreshness } from "@/lib/os/osChrome";
 import { readCanvasHonesty } from "@/lib/marketData/readCanvasHonesty";
+import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 
 /**
  * /command-deck — the composed Command Deck surface.
@@ -287,6 +288,9 @@ function CommandDeckInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  // Provider readiness is the broker owner's wireboard; a guest reading it saw
+  // the OWNER's Webull refusal as a red BLOCKED cell (garden pass 2026-10-05).
+  const brokerAudience = useBrokerAudience();
   const { activeSymbol, setActiveSymbol } = useActiveSymbol();
   const urlSymbol = searchParams?.get("symbol");
   const urlTf = searchParams?.get("tf");
@@ -2611,6 +2615,7 @@ function CommandDeckInner() {
                 deliberate tap away so auth/config failures remain inspectable
                 without turning the Command Deck into permanent infrastructure
                 chrome. */}
+            {brokerAudience === "OWNER" && (
             <details className="wm-cd-connection-diagnostics">
               <summary
                 style={{
@@ -2648,6 +2653,7 @@ function CommandDeckInner() {
                 }
               />
             </details>
+            )}
 
             {/* RAW context rail — SHOW FIRST, EXPLAIN SECOND, RAW THIRD
                 (Founder doctrine). The 6-tile purposeful state read

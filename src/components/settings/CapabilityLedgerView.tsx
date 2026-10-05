@@ -38,7 +38,7 @@ export function CapabilityLedgerView() {
       <div className="text-[11px] text-wm-text-dim mt-0.5">Market data, order flow, execution and history are separate claims. Orders always need your armed press.</div>
       {guest && (
         <div data-testid="capability-ledger-guest" className="mt-1.5 text-[11px] text-wm-text-muted">
-          What each broker supports in WM once <span className="text-wm-text">your own account</span> is connected — none of these rails is open on your account yet. Connect one above in Manage connections.
+          What each broker supports in WM once <span className="text-wm-text">your own account</span> is connected — none of these rails is open on your account yet. Linking your own broker account isn&apos;t available yet; the Paper room is open to you now.
         </div>
       )}
       <div className="mt-2 flex gap-1" role="tablist" aria-label="Provider">

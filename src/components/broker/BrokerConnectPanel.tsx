@@ -23,6 +23,7 @@ import { providerReportToStageEvidence } from "@/lib/broker/providerReportToStag
 import type { ProviderReport } from "@/app/api/broker/status/route";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { WEBULL_2FA_SWITCH_PATH, WEBULL_CODE_ENTRY_PATH, webullCapabilityCertificate, webullSessionGuidance, type WebullKeeperView } from "@/lib/broker/webullSessionGuidance";
+import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 
 type BrokerCategory = "broker" | "crypto" | "forex" | "prop";
 
@@ -1134,6 +1135,12 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
   onObservation?: (observation: SourcedObservation | null) => void;
 }) {
   const [showApiModal, setShowApiModal] = useState(false);
+  // The managed and runtime wires (status ladder, signing canary, realtime
+  // strip) are the broker OWNER's — a guest read the owner's refusals as
+  // "Connection not proven" / BLOCKED / raw stage names. Everyone else gets
+  // the plain card: the broker's own site (garden pass 2026-10-05).
+  const ownerView = useBrokerAudience() === "OWNER";
+  const ownersWire = !ownerView && Boolean(broker.managedConnection || broker.runtimeConnection);
 
   return (
     <>
@@ -1183,9 +1190,9 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
 
         {/* API-enabled brokers can be verified, but are not called connected until
             their provider has a real OAuth callback and token vault configured. */}
-        {broker.managedConnection ? (
+        {broker.managedConnection && ownerView ? (
           <ManagedConnectionStatus broker={broker} onObservation={onObservation} />
-        ) : broker.apiSupport ? (
+        ) : broker.apiSupport && !ownersWire ? (
           <div className="space-y-2">
             <button
               onClick={e => { e.stopPropagation(); setShowApiModal(true); }}
@@ -1208,7 +1215,7 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
               </a>
             </div>
           </div>
-        ) : broker.runtimeConnection ? (
+        ) : broker.runtimeConnection && ownerView ? (
           <div className="space-y-2">
             {/*
               The measured ladder leads. The static note below it stays, but
@@ -1241,7 +1248,9 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
                 connection is a link to its own site — WM reads nothing from
                 it. Said on the card so it cannot pass for a wired provider. */}
             <p data-testid="broker-not-wired" className="text-[9px] font-bold uppercase tracking-wider text-wm-text-dim">
-              Not wired in WM Pro — opens {broker.name}&apos;s own site; WM reads no data from it
+              {ownersWire
+                ? <>Connecting your own {broker.name} account isn&apos;t available yet — opens {broker.name}&apos;s own site</>
+                : <>Not wired in WM Pro — opens {broker.name}&apos;s own site; WM reads no data from it</>}
             </p>
             <a href={broker.signInUrl} target="_blank" rel="noopener noreferrer"
               className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-[12px] font-bold transition-all hover:brightness-110"
@@ -1294,6 +1303,7 @@ export function BrokerConnectPanel({
   // nothing (`evidenceless`), which `witnessedProviderWireView` enforces — this
   // supplies the evidence, never the verdict.
   const [panelObservation, setPanelObservation] = useState<SourcedObservation | null>(null);
+  const panelAudience = useBrokerAudience();
 
   useEffect(() => {
     setReceiptOrigin(window.location.origin);
@@ -1364,8 +1374,8 @@ export function BrokerConnectPanel({
         )}
 
         <div className="px-4 py-3 border-b border-wm-border shrink-0">
-          <ProviderWireStrip compact sourcedObservation={panelObservation} />
-          {receiptOrigin && (
+          {panelAudience === "OWNER" && <ProviderWireStrip compact sourcedObservation={panelObservation} />}
+          {panelAudience === "OWNER" && receiptOrigin && (
             <p className="mt-2 text-[9px] leading-snug text-wm-text-dim" data-provider-receipt-origin={receiptOrigin}>
               Verifying this runtime only · <span className="font-mono text-wm-text-muted">{receiptOrigin}</span>. Local and hosted receipts must each pass; one never proves the other.
             </p>

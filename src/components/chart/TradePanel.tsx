@@ -37,6 +37,7 @@ import { useGuardrails } from "@/lib/execution/useGuardrails";
 import { canonicalAssetClass, cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
+import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 
 /** guest audit 2026-10-04: quote-stream states in plain words (the enum stays in data-state). */
 const STREAM_WORDS: Readonly<Record<string, string>> = {
@@ -77,6 +78,10 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   readonly onClose: () => void;
 }) {
   const kind = kindOf(symbol);
+  // The broker rails behind this ticket are the OWNER's. A guest saw the full
+  // live ticket and the arm switch, then refusals after pressing; they get one
+  // sentence and Paper instead (garden pass 2026-10-05). null = still asking.
+  const audience = useBrokerAudience();
   // §LXXX: the trader's master switch, visible before any order is built.
   const liveArmed = useGuardrails().liveArmed;
   const [contract, setContract] = useState<{ symbol: string; streamer: string } | null>(null);
@@ -219,15 +224,22 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         <span data-testid="trade-kind" style={{ fontSize: 10, letterSpacing: 1.2, color: GOLD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 6px" }}>{kind === "FUTURE" ? "FUTURE" : kind}</span>
         <span style={{ fontWeight: 600 }}>{contract?.symbol ?? symbol}</span>
         {kind === "FUTURE" && contract && contract.symbol !== symbol.toUpperCase() ? <span style={{ color: MUTED }}>· {symbol} → this contract</span> : null}
-        <button type="button" data-testid="trade-live-arm" onClick={() => openSettings("execution")}
+        {audience === "OWNER" && <button type="button" data-testid="trade-live-arm" onClick={() => openSettings("execution")}
           title={liveArmed ? "Live orders can be armed — open Settings › Execution" : "Live trading is disarmed — open Settings › Execution; nothing can be sent until it is armed there"}
           style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", border: `1px solid ${liveArmed ? RED : LINE}`, color: liveArmed ? RED : MUTED, background: "none", cursor: "pointer" }}>
           {liveArmed ? "LIVE ARMED" : "LIVE DISARMED"}
-        </button>
+        </button>}
         <button type="button" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
       </header>
 
-      {kind === "FX" ? (
+      {audience !== "OWNER" ? (
+        <div data-testid="trade-guest" style={{ padding: 12 }}>
+          <p style={{ color: MUTED }}>
+            {audience === null ? "Checking which broker rails are open on your account…" : "Live broker orders aren't available on your account. Practise this exact trade in Paper — same chart, same levels, no money at risk."}
+          </p>
+          {audience === "GUEST" && <button type="button" onClick={onOpenPaper} style={{ ...btn(true), marginTop: 8 }}>Open Paper</button>}
+        </div>
+      ) : kind === "FX" ? (
         <p data-testid="trade-fx-truth" style={{ padding: 12, color: GOLD }}>
           NO CONNECTED SPOT-FX EXECUTION RAIL. Neither tastytrade nor Webull offers spot FX here, and WM never swaps in a currency future (6E) on its own. The chart, levels and risk still work.
         </p>

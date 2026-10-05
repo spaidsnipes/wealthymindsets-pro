@@ -73,7 +73,7 @@ export const CAPABILITY_LEDGER: readonly CapabilityRow[] = [
   // Measured on serving 2026-10-03 07:02Z from the owner's session:
   // entitlement FULLY_OPEN (accounts · profiles · snapshot · ticks all 200),
   // broker lane CONNECTED (3 accounts).
-  { provider: W, capability: "QUOTES", state: "LIVE", owner: "src/lib/marketData/adapters/webullMarketData.ts", note: "stock snapshots (entitlement FULLY_OPEN) + crypto stream (MQTT)" },
+  { provider: W, capability: "QUOTES", state: "LIVE", owner: "src/lib/marketData/adapters/webullMarketData.ts", note: "stock snapshots + crypto stream" },
   { provider: W, capability: "BARS", state: "NOT_BUILT", owner: null, note: "chart bars come from tastytrade's candles; a Webull bar door is not built" },
   { provider: W, capability: "LIVE_PRINTS", state: "LIVE", owner: "src/lib/marketData/adapters/webullTicksBrowser.ts", note: "stock prints in session; Webull sends no aggressor side, so sides are inferred — tastytrade's tape outranks it when fresh" },
   { provider: W, capability: "DEPTH", state: "NOT_BUILT", owner: null, note: "Webull's book is not wired into WM yet" },
@@ -88,7 +88,7 @@ export const CAPABILITY_LEDGER: readonly CapabilityRow[] = [
   { provider: W, capability: "CANCEL", state: "LIVE", owner: "src/app/api/broker/webull/orders/route.ts", note: "working orders" },
   { provider: W, capability: "MODIFY", state: "NOT_BUILT", owner: null, note: "cancel and re-enter until replace is built" },
   { provider: W, capability: "PROTECTION", state: "NOT_BUILT", owner: null, note: "no broker-native stop wired for Webull yet" },
-  { provider: W, capability: "POSITIONS", state: "LIVE", owner: "src/app/api/broker/webull/positions/route.ts", note: "3 accounts connected; numbers masked to last 4" },
+  { provider: W, capability: "POSITIONS", state: "LIVE", owner: "src/app/api/broker/webull/positions/route.ts", note: "account numbers masked to last 4" },
   { provider: W, capability: "FILLS_HISTORY", state: "RECONSTRUCTED", owner: "src/lib/broker/webullLedger.ts", note: "Lifetime Ledger from order history (fees itemised); not observed by WM at the time" },
   { provider: W, capability: "PNL", state: "RECONSTRUCTED", owner: "src/lib/broker/webullLedger.ts", note: "realised P&L net of fees, reconciled with Webull's day P&L" },
 ];

@@ -221,9 +221,9 @@ export default function ReadinessPage() {
           <div role="status" data-testid="readiness-guest" className="rounded-xl border border-[#f0b429]/15 bg-black/60 px-5 py-6 text-sm leading-relaxed text-neutral-300">
             <p className="font-semibold text-neutral-100">Your charts already run on WM&apos;s market data.</p>
             <p className="mt-2 text-neutral-400">
-              This board is where the platform operator checks WM&apos;s own data feeds. To link a brokerage
-              account of your own, use <span className="text-emerald-300">Connect or review brokers</span> above.
-              To practise without one, the <Link href="/paper" className="text-[#f0b429] underline-offset-2 hover:underline">Paper room →</Link> is open to you.
+              This board is where the platform operator checks WM&apos;s own data feeds. Linking a brokerage
+              account of your own isn&apos;t available yet.
+              To practise in the meantime, the <Link href="/paper" className="text-[#f0b429] underline-offset-2 hover:underline">Paper room →</Link> is open to you.
             </p>
           </div>
         )}
