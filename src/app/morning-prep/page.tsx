@@ -253,8 +253,14 @@ function coverageHealthToQuality(
 }
 
 function MorningPrepOpeningBell({ userId }: { userId: string }) {
-  // Deterministic derivation — no wall clock reads inside the selector.
-  const nowMs = React.useMemo(() => Date.now(), []);
+  // Deterministic derivation — no wall clock reads inside the selector. The
+  // clock is read here and re-read each minute, so a tab left open overnight
+  // does not keep answering for yesterday (garden pass 2026-10-05).
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
   // Real owner for the data-health item — the session's own channel coverage.
   const [coverageQuality, setCoverageQuality] = React.useState<MarketQualityState>(() =>
     coverageHealthToQuality(selectChannelCoverageHealth(getSessionNectarSnapshot().channels).verdict),

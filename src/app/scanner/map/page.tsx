@@ -75,6 +75,7 @@ import { saveHeatSnapshot } from "@/lib/research/heatArchive";
    DATA MODEL
 ═══════════════════════════════════════════════════════════ */
 import { SECTORS, type Industry } from "@/lib/marketData/sp500Board";
+import { dayAwareStamp } from "@/lib/time/dayAwareStamp";
 
 // Only the periods our /api/heatmap endpoint actually supports. Sourced from the
 // canonical timeframe module (WM-CHART-P0-01) — the heatmap already used the
@@ -939,7 +940,7 @@ export default function OpportunityMapPage() {
             <div>{fidelityReason}</div>
             {receivedAt && (
               <div style={{ marginTop: 4, color: WM.text.muted }}>
-                Received {new Date(receivedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · receipt time only
+                Received {dayAwareStamp(receivedAt)} · receipt time only
               </div>
             )}
           </div>

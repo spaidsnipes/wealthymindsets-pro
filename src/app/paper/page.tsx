@@ -126,6 +126,7 @@ import { recordDecisionIntent } from "@/lib/traderMemory/recordDecisionIntent";
 import { wmConfirm } from "@/components/ui/wmConfirm";
 import { validateTicketLevels, purposeOrderType, purposeSentence, purposeTradeoff,
          TICKET_PURPOSES, type OrderPurpose, type TicketLevelIssue } from "@/lib/orderPurpose";
+import { dayAwareStamp } from "@/lib/time/dayAwareStamp";
 
 /* ── Symbol universe with live-ish prices ────────────────── */
 const UNIVERSE: Record<string,{ name:string; base:number; tick:number }> = {
@@ -3459,7 +3460,7 @@ export default function PaperTradingPage() {
                       <span className="text-xs font-mono text-wm-text">{t.qty}</span>
                       <span className="text-xs font-mono text-wm-text">${fmt2(t.px)}</span>
                       <span className="text-[10px] text-wm-text-dim font-mono leading-tight">
-                        {new Date(t.ts).toLocaleTimeString()}
+                        {dayAwareStamp(t.ts, Date.now(), true)}
                         {/* The fill TIME is Date.now(); the PRICE behind it may be
                           * minutes old on a delayed feed. Disclose that gap here
                           * rather than let the timestamp imply an instant fill.

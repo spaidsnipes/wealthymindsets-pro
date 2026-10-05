@@ -23,10 +23,20 @@ import { keyActivates } from "@/lib/a11y/keyActivates";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 
 /* ── Types ─────────────────────────────────────────────── */
+/** "JUST NOW" / "12m ago" / "3h ago" / "2d ago", from the publish time and a live clock. */
+function ageLabel(publishedMs: number, nowMs: number): string {
+  const ageMs = nowMs - publishedMs;
+  const ageMin = Math.floor(ageMs / 60_000);
+  const ageHr = Math.floor(ageMs / 3_600_000);
+  return ageMin < 1 ? "JUST NOW" : ageMin < 60 ? `${ageMin}m ago` : ageHr < 24 ? `${ageHr}h ago` : `${Math.floor(ageMs / 86_400_000)}d ago`;
+}
+
 interface NewsItem {
   id:        number;
   time:      string;
   ageMs:     number;
+  /** When the wire published it (epoch ms) — the age is read from this at render. */
+  publishedMs: number;
   source:    string;
   sourceIcon:string;
   sym:       string;
@@ -240,6 +250,7 @@ function buildNewsItems(arrs: FinnhubRaw[][]): NewsItem[] {
         tags:       detectTags(item),
         breaking:   impact === "high" && ageMin < 30,
         ageMs,
+        publishedMs: item.datetime * 1000,
         // Read ONCE, from the text, and never touched again. In particular
         // `impact` is not folded in: the old scorer pushed a high-impact
         // headline further in whichever direction it already leaned, which
@@ -721,6 +732,14 @@ export default function NewsPage() {
 
   const [showKeys,     setShowKeys]     = useState(false);
   const [news,         setNews]         = useState<NewsItem[]>([]);
+  // The ages tick: they were written once at fetch, so with auto-refresh off
+  // (or a refresh that brought nothing) "JUST NOW" stayed forever (garden
+  // pass 2026-10-05, SPOILED_STOCK).
+  const [clockMs, setClockMs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setClockMs(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
   const [showSetAside, setShowSetAside] = useState(false);
   const [sourceFilter, setSourceFilter] = useState("All Sources");
   const [tagFilter,    setTagFilter]    = useState("All");
@@ -1061,7 +1080,7 @@ export default function NewsPage() {
                       {/* Meta row */}
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="text-[10px] font-semibold text-wm-text-muted">{item.source}</span>
-                        <span className="text-[10px] text-wm-text-dim">{item.time}</span>
+                        <span className="text-[10px] text-wm-text-dim">{ageLabel(item.publishedMs, clockMs)}</span>
                         <span className={clsx(
                           "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase",
                           item.impact === "high"   ? "bg-wm-red/20 text-wm-red" :

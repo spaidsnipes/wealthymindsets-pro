@@ -40,15 +40,25 @@ const UNAVAILABLE: TodayPrepSummary = {
   readState: "UNAVAILABLE",
 };
 
+// "Today" is the US market day (New York), on both sides of the comparison.
+// It was the UTC day: a Sydney trader's 08:00 prep landed on yesterday's UTC
+// date and the Opening Bell said there was none; a Los Angeles prep written at
+// 17:30 for tomorrow counted as today's (garden pass 2026-10-05).
+const ET_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" });
+
 function isoDate(ms: number): string {
-  const d = new Date(ms);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  return ET_DAY.format(new Date(ms));
+}
+
+function entryDay(date: string): string {
+  const ms = Date.parse(date);
+  return Number.isFinite(ms) ? isoDate(ms) : date.slice(0, 10);
 }
 
 function readToday(userId: string | null, todayIso: string): TodayPrepSummary {
   const result = readMorningPrepEntries(userId);
   if (result.state === "UNAVAILABLE") return UNAVAILABLE;
-  const today = result.entries.find((entry) => entry.date.slice(0, 10) === todayIso);
+  const today = result.entries.find((entry) => entryDay(entry.date) === todayIso);
   if (!today) return { ...UNAVAILABLE, readState: "ABSENT" };
   return {
     hasEntry: true,
