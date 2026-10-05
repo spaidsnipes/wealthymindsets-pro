@@ -407,13 +407,23 @@ export function StockInfoPanel({ symbol }: Props) {
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 10px" }}>
           {realOHLC && (
             <>
-              <div style={{ fontSize: 10, color: "#8B8FA8", marginBottom: 8 }}>Technical Levels</div>
+              {/* ONE pivot, and every level derived from it (painted-window pass
+                  2026-10-05): R1/S1 used (H+L)/2 while the Pivot row printed
+                  (H+L+C)/3, and "R2" was 2H−L. Standard floor pivots, said to be
+                  built from today's range so far. */}
+              <div style={{ fontSize: 10, color: "#8B8FA8", marginBottom: 8 }}>Floor pivots · today&apos;s range so far</div>
               {[
-                ["R2", +(2 * ((realOHLC.high + realOHLC.low) / 2) - realOHLC.low * 2 + realOHLC.high).toFixed(dp)],
-                ["R1", +(2 * ((realOHLC.high + realOHLC.low) / 2) - realOHLC.low).toFixed(dp)],
-                ["Pivot", +((realOHLC.high + realOHLC.low + realOHLC.prevClose) / 3).toFixed(dp)],
-                ["S1", +(2 * ((realOHLC.high + realOHLC.low) / 2) - realOHLC.high).toFixed(dp)],
-                ["S2", +((realOHLC.high + realOHLC.low) / 2 - (realOHLC.high - realOHLC.low)).toFixed(dp)],
+                ...(() => {
+                  const P = (realOHLC.high + realOHLC.low + realOHLC.prevClose) / 3;
+                  const R = realOHLC.high - realOHLC.low;
+                  return [
+                    ["R2", +(P + R).toFixed(dp)],
+                    ["R1", +(2 * P - realOHLC.low).toFixed(dp)],
+                    ["Pivot", +P.toFixed(dp)],
+                    ["S1", +(2 * P - realOHLC.high).toFixed(dp)],
+                    ["S2", +(P - R).toFixed(dp)],
+                  ] as const;
+                })(),
               ].map(([label, val]) => (
                 <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #1A1D2E" }}>
                   <span style={{ fontSize: 10, color: "#8B8FA8" }}>{label}</span>
@@ -422,16 +432,18 @@ export function StockInfoPanel({ symbol }: Props) {
               ))}
               <div style={{ marginTop: 10, fontSize: 10, color: "#8B8FA8" }}>Day Range</div>
               <div style={{ marginTop: 4, height: 6, background: "#1A1D2E", borderRadius: 3, position: "relative" }}>
+                {ticker.price > 0 && (<>
                 <div style={{
                   position: "absolute", top: 0, bottom: 0, borderRadius: 3,
-                  left: `${((ticker.price - realOHLC.low) / (realOHLC.high - realOHLC.low || 1)) * 100}%`,
+                  left: `${Math.min(100, Math.max(0, ((ticker.price - realOHLC.low) / (realOHLC.high - realOHLC.low || 1)) * 100))}%`,
                   width: 2, background: "#F0B429",
                 }} />
                 <div style={{
                   position: "absolute", top: 0, bottom: 0, left: 0, borderRadius: 3,
-                  width: `${((ticker.price - realOHLC.low) / (realOHLC.high - realOHLC.low || 1)) * 100}%`,
+                  width: `${Math.min(100, Math.max(0, ((ticker.price - realOHLC.low) / (realOHLC.high - realOHLC.low || 1)) * 100))}%`,
                   background: "rgba(79,163,224,0.35)",
                 }} />
+                </>)}
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
                 <span style={{ fontSize: 9, color: "#FF4D67", fontFamily: "monospace" }}>{realOHLC.low.toFixed(dp)}</span>
@@ -439,7 +451,7 @@ export function StockInfoPanel({ symbol }: Props) {
               </div>
             </>
           )}
-          {!realOHLC && <span style={{ fontSize: 11, color: "#8b8fa8" }}>Loading analysis...</span>}
+          {!realOHLC && <span style={{ fontSize: 11, color: "#8b8fa8" }}>{quoteSettled ? "Session facts for this market are not available right now, so no levels are drawn." : "Loading analysis..."}</span>}
         </div>
       )}
       {(activeTab === "Comments" || activeTab === "News") && (

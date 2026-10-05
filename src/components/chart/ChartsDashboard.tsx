@@ -7259,8 +7259,19 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
       const divs: any[] = d.div?.historical ?? [];
       const splits: any[] = d.split?.historical ?? [];
       const items = [
-        ...divs.slice(0, 6).map(x => ({ type:"Dividend", date:x.date, amount:`$${Number(x.dividend ?? x.adjDividend ?? 0).toFixed(2)}/share`, status:"Paid" })),
-        ...splits.slice(0, 6).map(x => ({ type:"Stock Split", date:x.date, amount:`${x.numerator}:${x.denominator}`, status:"Completed" })),
+        // No amount is "amount not reported", not $0.00; "Paid" only once the
+        // payment date has passed (painted-window pass 2026-10-05: every row,
+        // declared and future ones included, read Paid).
+        ...divs.slice(0, 6).map(x => {
+          const amt = Number(x.dividend ?? x.adjDividend);
+          const pay = typeof x.paymentDate === "string" && x.paymentDate ? Date.parse(x.paymentDate) : NaN;
+          return {
+            type:"Dividend", date:x.date,
+            amount: Number.isFinite(amt) && amt > 0 ? `$${amt.toFixed(2)}/share` : "amount not reported",
+            status: Number.isFinite(pay) ? (pay <= Date.now() ? "Paid" : "Scheduled") : "",
+          };
+        }),
+        ...splits.slice(0, 6).map(x => ({ type:"Stock Split", date:x.date, amount: x.numerator && x.denominator ? `${x.numerator}:${x.denominator}` : "ratio not reported", status: typeof x.date === "string" && Date.parse(x.date) <= Date.now() ? "Completed" : "" })),
       ].sort((a, b) => (a.date < b.date ? 1 : -1));
       if (!items.length) return null;
       return (
