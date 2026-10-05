@@ -3,6 +3,7 @@ import { RoomServiceClient } from "livekit-server-sdk";
 import { requireAuth } from "@/lib/requireAuth";
 import { isLiveHost, LIVE_HOST_REFUSAL } from "@/lib/livekit/liveHost";
 import { resolveProviderEnv } from "@/lib/broker/resolveProviderEnv";
+import { isRegisteredLiveRoom, isWmParticipantIdentity } from "@/lib/livekit/liveRooms";
 
 /**
  * Grants publish rights to one participant.
@@ -18,8 +19,13 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   // Only a host may grant the floor (2026-10-04: any signed-in user could).
   if (!isLiveHost(auth.user.sub, process.env)) return NextResponse.json({ error: LIVE_HOST_REFUSAL }, { status: 403 });
-  const { room, identity } = await request.json() as { room: string; identity: string };
+  const body = await request.json().catch(() => null) as { room?: unknown; identity?: unknown } | null;
+  const room = typeof body?.room === "string" ? body.room : "";
+  const identity = body?.identity;
   if (!room || !identity) return NextResponse.json({ error: "room and identity required" }, { status: 400 });
+  // A registered room and a WM-minted identity only (P0-B, 2026-10-05).
+  if (!isRegisteredLiveRoom(room)) return NextResponse.json({ error: "That room is not open." }, { status: 404 });
+  if (!isWmParticipantIdentity(identity)) return NextResponse.json({ error: "Unknown participant." }, { status: 400 });
 
   const apiKey    = resolveProviderEnv("LIVEKIT_API_KEY");
   const apiSecret = resolveProviderEnv("LIVEKIT_API_SECRET");
@@ -54,7 +60,9 @@ export async function POST(request: Request) {
       canPublishData: true,
     });
     return NextResponse.json({ ok: true });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+  } catch {
+    // Sanitized (P0-B): the SDK's error text named internals. The usual cause
+    // is a participant who has already left the room.
+    return NextResponse.json({ error: "That participant could not be approved — they may have left the room." }, { status: 409 });
   }
 }

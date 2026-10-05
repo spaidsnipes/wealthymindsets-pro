@@ -19,6 +19,8 @@ import { resolveSupabaseServiceKey } from "@/lib/supabaseConfigStatus";
 
 export const dynamic = "force-dynamic";
 
+/** Largest track WM Radio records (P0-C). */
+const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 const NO_STORE = { "Cache-Control": "no-store" };
 const BUCKET = "radio";
 const AUDIO_EXT = new Set(["mp3", "m4a", "aac", "wav", "ogg", "flac"]);
@@ -112,6 +114,17 @@ export async function POST(request: Request): Promise<Response> {
         if (!PATH_RE.test(p)) return NextResponse.json({ error: "Unknown upload path." }, { status: 400 });
         storage_path = p;
         public_url = `${c.url}/storage/v1/object/public/${BUCKET}/${p}`;
+        // What was actually STORED, not what the path's extension promised
+        // (P0-C, 2026-10-05): a signed URL accepts whatever Content-Type the
+        // browser sends, so an ".mp3" path could hold an HTML page served from
+        // the public bucket. Only an audio object within the size bound is
+        // ever recorded and listed.
+        const head = await fetch(public_url, { method: "HEAD", cache: "no-store" }).catch(() => null);
+        const type = (head?.headers.get("content-type") ?? "").toLowerCase().split(";")[0].trim();
+        const size = Number(head?.headers.get("content-length") ?? NaN);
+        if (!head?.ok) return NextResponse.json({ error: "The upload was not found — try uploading again." }, { status: 400 });
+        if (!(type.startsWith("audio/") || type === "application/ogg")) return NextResponse.json({ error: "That file is not audio, so it was not added." }, { status: 415 });
+        if (!(Number.isFinite(size) && size > 0 && size <= MAX_AUDIO_BYTES)) return NextResponse.json({ error: "Audio files up to 50 MB only." }, { status: 413 });
       }
       const [row] = await call<unknown[]>(c, `/rest/v1/radio_tracks`, { method: "POST", body: JSON.stringify({ ...m, storage_path, public_url, uploader }) });
       return NextResponse.json({ state: "OK", track: row }, { headers: NO_STORE });

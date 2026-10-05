@@ -3,6 +3,7 @@ import { AccessToken } from "livekit-server-sdk";
 import { requireAuth } from "@/lib/requireAuth";
 import { isLiveHost, LIVE_HOST_REFUSAL } from "@/lib/livekit/liveHost";
 import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
+import { isRegisteredLiveRoom } from "@/lib/livekit/liveRooms";
 
 /**
  * Mints a LiveKit room token AND names the wss host to dial.
@@ -34,6 +35,9 @@ export async function GET(request: Request) {
   const name = (auth.user.handle ?? "").trim() || "Trader";
 
   if (!room) return NextResponse.json({ error: "room is required" }, { status: 400 });
+  // Only rooms WM publishes (P0-B, 2026-10-05): any typed name used to mint a
+  // 4-hour token for a room no page offers.
+  if (!isRegisteredLiveRoom(room)) return NextResponse.json({ error: "That room is not open." }, { status: 404 });
 
   const apiKey    = resolveProviderEnv("LIVEKIT_API_KEY");
   const apiSecret = resolveProviderEnv("LIVEKIT_API_SECRET");

@@ -78,6 +78,9 @@ const DOMAIN_CLEARER_KEYS = new Set<string>([
  * block in logoutIsolation.ts plus common device prefs.
  */
 const DEVICE_LEVEL_EXEMPT = new Set<string>([
+  // Per-TAB (sessionStorage) timestamp of the last deploy-version recovery
+  // reload — a loop guard about this browser tab, holds no account data.
+  "wm-version-recovery-at",
   "wm_settings",              // theme / font size — device pref
   "wm_theme",                 // theme choice — device pref
   "wm_device",                // long-lived device fingerprint (2y cookie mirror)

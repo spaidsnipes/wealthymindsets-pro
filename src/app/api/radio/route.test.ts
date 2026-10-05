@@ -28,11 +28,32 @@ describe("/api/radio — uploads go through rules the server holds", () => {
 
   it("records only a path of the minted shape, with the session as uploader", async () => {
     let sent: Record<string, unknown> | null = null;
-    globalThis.fetch = (async (_u: string, init: RequestInit) => { sent = JSON.parse(String(init.body)); return new Response(JSON.stringify([{ id: 1, ...sent }]), { status: 201 }); }) as unknown as typeof fetch;
+    globalThis.fetch = (async (_u: string, init: RequestInit) => {
+      if (init?.method === "HEAD") return new Response(null, { status: 200, headers: { "content-type": "audio/mpeg", "content-length": "4096" } });
+      sent = JSON.parse(String(init.body)); return new Response(JSON.stringify([{ id: 1, ...sent }]), { status: 201 });
+    }) as unknown as typeof fetch;
     const { POST } = await load();
     expect((await POST(post({ op: "file", path: "../../etc/passwd", title: "t", artist: "a" }))).status).toBe(400);
     const res = await POST(post({ op: "file", path: "1759530000000-abc123.mp3", title: "Song", artist: "Me", uploader: "someone-else" }));
     expect(res.status).toBe(200);
     expect(sent).toMatchObject({ uploader: "dave", storage_path: "1759530000000-abc123.mp3", public_url: "https://sb.example/storage/v1/object/public/radio/1759530000000-abc123.mp3" });
+  });
+
+  it("never records a stored object that is not audio, or is too large (P0-C)", async () => {
+    let recorded = false;
+    const stub = (type: string, len: string) => (async (_u: string, init?: RequestInit) => {
+      if (init?.method === "HEAD") return new Response(null, { status: 200, headers: { "content-type": type, "content-length": len } });
+      recorded = true; return new Response("[]", { status: 201 });
+    }) as unknown as typeof fetch;
+    globalThis.fetch = stub("text/html", "900");
+    let { POST } = await load();
+    expect((await POST(post({ op: "file", path: "1759530000000-abc123.mp3", title: "t", artist: "a" }))).status).toBe(415);
+    globalThis.fetch = stub("image/svg+xml", "900");
+    ({ POST } = await load());
+    expect((await POST(post({ op: "file", path: "1759530000000-abc123.mp3", title: "t", artist: "a" }))).status).toBe(415);
+    globalThis.fetch = stub("audio/mpeg", String(60 * 1024 * 1024));
+    ({ POST } = await load());
+    expect((await POST(post({ op: "file", path: "1759530000000-abc123.mp3", title: "t", artist: "a" }))).status).toBe(413);
+    expect(recorded).toBe(false);
   });
 });

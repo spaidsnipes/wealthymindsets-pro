@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+
+import { recoverFromVersionSkew } from "@/lib/deployVersionRecovery";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
 /**
@@ -16,6 +19,11 @@ export default function GlobalError({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
+  useEffect(() => {
+    let storage: Storage | null = null;
+    try { storage = window.sessionStorage; } catch { storage = null; }
+    void recoverFromVersionSkew(error, { fetchImpl: fetch, storage, reload: () => window.location.reload() });
+  }, [error]);
   return (
     <html lang="en">
       <body style={{ margin: 0, minHeight: "100vh", background: "#050506", color: "#ede6d3", fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", display: "grid", placeItems: "center" }}>

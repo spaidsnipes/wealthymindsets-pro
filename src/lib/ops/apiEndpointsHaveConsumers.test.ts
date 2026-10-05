@@ -77,12 +77,6 @@ interface OrphanEntry {
  * accidentally-correct silence this codebase keeps mistaking for approval.
  */
 const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
-  "/api/build-identity": {
-    cls: "EXTERNAL_TOOLING",
-    evidence:
-      "scripts/verify-prod-parity.mjs fetches it — that is the entire purpose of the route, " +
-      "and an in-app caller would not make the deploy receipt any more true.",
-  },
   "/api/diagnostics/supabase": {
     cls: "OPERATOR_DIAGNOSTIC",
     evidence:
@@ -358,7 +352,10 @@ describe("every API endpoint has something that actually calls it", () => {
     // Webull's REST pull product, this one opens an MQTT socket to the
     // real-time host it turned out we had never contacted.
     expect(every.filter((e) => e.cls === "OPERATOR_DIAGNOSTIC").length).toBe(5);
-    expect(every.filter((e) => e.cls === "EXTERNAL_TOOLING").length).toBe(1);
+    // 1 -> 0 on 2026-10-05: /api/build-identity gained an in-app caller —
+    // deployVersionRecovery compares the serving build with the page's own
+    // after a room crash (P0-A). The external receipt script still uses it.
+    expect(every.filter((e) => e.cls === "EXTERNAL_TOOLING").length).toBe(0);
     // 1 -> 2 on 2026-10-02: /api/passport/from-wow, WOW World's door into WM
     // with the same Passport, registered at birth.
     expect(every.filter((e) => e.cls === "CROSS_PRODUCT").length).toBe(2);

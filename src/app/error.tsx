@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { recoverFromVersionSkew } from "@/lib/deployVersionRecovery";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 
 /**
@@ -21,6 +22,11 @@ export default function RoomError({
 }) {
   useEffect(() => {
     console.error(error);
+    // An old page meeting a freshly deployed build reloads once onto it
+    // instead of leaving the trader here (P0-A, 2026-10-05).
+    let storage: Storage | null = null;
+    try { storage = window.sessionStorage; } catch { storage = null; }
+    void recoverFromVersionSkew(error, { fetchImpl: fetch, storage, reload: () => window.location.reload() });
   }, [error]);
 
   return (
