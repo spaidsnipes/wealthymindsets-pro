@@ -259,7 +259,7 @@ export function PineEditor({ value, onChange, errors = [], height = 400 }: Props
         </div>
 
         {/* Actual textarea (transparent) */}
-        <textarea
+        <textarea aria-label="Pine script code"
           ref={textareaRef}
           value={value}
           onChange={handleChange}

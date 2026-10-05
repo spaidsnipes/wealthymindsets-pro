@@ -471,7 +471,7 @@ function ProfilePageInner() {
             </div>
             <div>
               <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Timezone</label>
-              <select value={editProfile.timezone} onChange={e => setEditProfile(p => ({ ...p, timezone: e.target.value }))}
+              <select aria-label="Timezone" value={editProfile.timezone} onChange={e => setEditProfile(p => ({ ...p, timezone: e.target.value }))}
                 className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-green/50">
                 {["America/New_York","America/Chicago","America/Los_Angeles","Europe/London","Asia/Tokyo","Australia/Sydney"].map(tz => (
                   <option key={tz} value={tz}>{tz}</option>
@@ -567,14 +567,14 @@ function ProfilePageInner() {
             <div className="mb-1 flex-1">
               {editMode ? (
                 <div className="space-y-2">
-                  <input value={editProfile.name} onChange={e => setEditProfile(p => ({ ...p, name: e.target.value }))}
+                  <input aria-label="Display name" value={editProfile.name} onChange={e => setEditProfile(p => ({ ...p, name: e.target.value }))}
                     className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-sm font-bold text-wm-text outline-none focus:border-wm-green/50 w-48" />
-                  <input value={editProfile.handle} onChange={e => setEditProfile(p => ({ ...p, handle: e.target.value }))}
+                  <input aria-label="Handle" value={editProfile.handle} onChange={e => setEditProfile(p => ({ ...p, handle: e.target.value }))}
                     className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text-muted outline-none focus:border-wm-green/50 w-48 block" />
                   <input value={editProfile.email} onChange={e => setEditProfile(p => ({ ...p, email: e.target.value }))}
                     placeholder="email" type="email"
                     className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none focus:border-wm-green/50 w-64 block" />
-                  <select value={editProfile.timezone} onChange={e => setEditProfile(p => ({ ...p, timezone: e.target.value }))}
+                  <select aria-label="Timezone" value={editProfile.timezone} onChange={e => setEditProfile(p => ({ ...p, timezone: e.target.value }))}
                     className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none focus:border-wm-green/50">
                     {["America/New_York","America/Chicago","America/Los_Angeles","Europe/London","Asia/Tokyo"].map(tz => (
                       <option key={tz} value={tz}>{tz}</option>
@@ -624,7 +624,7 @@ function ProfilePageInner() {
 
           {editMode ? (
             <div className="space-y-2 mb-4 max-w-lg">
-              <textarea value={editProfile.bio} onChange={e => setEditProfile(p => ({ ...p, bio: e.target.value }))}
+              <textarea aria-label="Bio" value={editProfile.bio} onChange={e => setEditProfile(p => ({ ...p, bio: e.target.value }))}
                 rows={3} className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text-muted outline-none focus:border-wm-green/50 resize-none" />
               <div className="flex items-center gap-2 bg-wm-surface border border-[#7C3AED]/30 rounded-lg px-3 py-2">
                 <span className="text-[10px] text-[#a78bfa] font-bold uppercase tracking-wider whitespace-nowrap">AI Bot Name</span>

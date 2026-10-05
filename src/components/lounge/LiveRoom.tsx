@@ -79,7 +79,7 @@ function ShareLiveMenu({ roomName, roomLabel, color }: { roomName: string; roomL
           <div className="absolute right-0 mt-1 w-52 rounded-lg border border-wm-border bg-wm-surface shadow-2xl p-2 z-[220]">
             <div className="text-[9px] font-black text-wm-text-muted uppercase tracking-widest mb-1.5 px-1">Share live link</div>
             <div className="flex items-center gap-1 mb-2 px-1">
-              <input readOnly value={shareUrl} className="flex-1 min-w-0 bg-wm-dark border border-wm-border rounded px-2 py-1 text-[10px] text-wm-text-dim truncate" />
+              <input aria-label="Share link" readOnly value={shareUrl} className="flex-1 min-w-0 bg-wm-dark border border-wm-border rounded px-2 py-1 text-[10px] text-wm-text-dim truncate" />
             </div>
             {targets.map(t => (
               <button key={t.label} onClick={() => { t.onClick(); if (t.label !== "Copy link") setOpen(false); }}

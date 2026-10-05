@@ -699,7 +699,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
           </div>
           <div>
             <label className="block text-[10px] font-semibold text-wm-text-dim uppercase tracking-wider mb-1">Genre</label>
-            <select value={genre} onChange={e => setGenre(e.target.value)}
+            <select aria-label="Genre" value={genre} onChange={e => setGenre(e.target.value)}
               className="w-full px-3 py-2 rounded-xl text-[12px] text-white outline-none"
               style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)" }}>
               {GENRES_LIST.map(g => <option key={g} value={g}>{g}</option>)}

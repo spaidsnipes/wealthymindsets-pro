@@ -371,7 +371,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Time Zone &amp; Clock</div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0" }}>
                     <span style={{ fontSize: 12, color: "#8896BE" }}>Time zone</span>
-                    <select
+                    <select aria-label="Time zone"
                       value={s.displayTimeZone}
                       onChange={e => set({ displayTimeZone: e.target.value })}
                       style={{

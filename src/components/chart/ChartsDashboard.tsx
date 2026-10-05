@@ -5987,7 +5987,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             </div>
 
             <div className="flex items-center gap-1 px-2 shrink-0">
-              <select
+              <select aria-label="Candle type"
                 value={candleType}
                 onChange={e => setCandleType(e.target.value as CandleType)}
                 className="h-6 rounded text-[12px] font-semibold border focus:outline-none px-1 cursor-pointer"

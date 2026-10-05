@@ -240,7 +240,7 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
                 {/* Pct input if pct mode */}
                 {(addType === "pct-up" || addType === "pct-down") && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input
+                    <input aria-label="Percent move"
                       type="number"
                       value={addPct}
                       onChange={e => setAddPct(e.target.value)}

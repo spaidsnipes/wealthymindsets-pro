@@ -600,7 +600,7 @@ export function PineCommunityLibrary({ onClose, onImport }: Props) {
               className="flex-1 bg-transparent text-xs text-wm-text outline-none placeholder-wm-text-dim"
               autoFocus
             />
-            <select
+            <select aria-label="Sort scripts"
               value={sort}
               onChange={e => setSort(e.target.value)}
               className="bg-transparent text-[10px] text-wm-text-muted outline-none border-l border-wm-border pl-2 ml-1"

@@ -3125,12 +3125,12 @@ Trade the system, trust the process, winners every day 🚀`,
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div>
                   <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">Symbol</label>
-                  <input value={form.symbol} onChange={e => setForm(f => ({ ...f, symbol: e.target.value.toUpperCase() }))}
+                  <input aria-label="Symbol" value={form.symbol} onChange={e => setForm(f => ({ ...f, symbol: e.target.value.toUpperCase() }))}
                     className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-green/50 font-bold" />
                 </div>
                 <div>
                   <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">Date</label>
-                  <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                  <input aria-label="Date" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
                     className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-green/50" />
                 </div>
                 <div>
@@ -3155,7 +3155,7 @@ Trade the system, trust the process, winners every day 🚀`,
                       trader who never touched the control believed they had
                       logged a CLC Long and the entry stored an empty setup.
                       The unset state must be visible (LIVING-PIXEL LAW). */}
-                  <select value={form.setup ?? ""} onChange={e => setForm(f => ({ ...f, setup: e.target.value }))}
+                  <select aria-label="Setup" value={form.setup ?? ""} onChange={e => setForm(f => ({ ...f, setup: e.target.value }))}
                     className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-xs text-wm-text outline-none focus:border-wm-green/50">
                     <option value="">— select setup —</option>
                     {SETUPS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -3183,7 +3183,7 @@ Trade the system, trust the process, winners every day 🚀`,
                   ]).map(({ k, l }) => (
                     <div key={k}>
                       <label className="text-[10px] text-wm-text-dim uppercase mb-1 block">{l}</label>
-                      <input type="number" value={form[k] || ""}
+                      <input aria-label={l} type="number" value={form[k] || ""}
                         onChange={e => setForm(f => ({ ...f, [k]: parseFloat(e.target.value) || 0 }))}
                         className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-green/50 font-mono" />
                     </div>

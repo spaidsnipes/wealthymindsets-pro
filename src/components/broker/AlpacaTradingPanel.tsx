@@ -672,7 +672,7 @@ export function AlpacaTradingPanel({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] font-bold text-wm-text-dim uppercase tracking-wider mb-1">Order Type</label>
-                  <select
+                  <select aria-label="Order type"
                     value={orderType}
                     onChange={e => setOrderType(e.target.value as OrderType)}
                     className="w-full px-2 py-2 rounded-lg text-[11px] font-semibold outline-none"
@@ -686,7 +686,7 @@ export function AlpacaTradingPanel({
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-wm-text-dim uppercase tracking-wider mb-1">Time in Force</label>
-                  <select
+                  <select aria-label="Time in force"
                     value={tif}
                     onChange={e => setTif(e.target.value as TimeInForce)}
                     className="w-full px-2 py-2 rounded-lg text-[11px] font-semibold outline-none"

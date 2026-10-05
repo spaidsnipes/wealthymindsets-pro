@@ -117,7 +117,7 @@ export function IndicatorSettingsModal({
             ) : numberFields.map(field => (
               <div key={field.key} className="flex items-center justify-between gap-3">
                 <label className="text-[12px] font-semibold text-wm-text-muted">{field.label}</label>
-                <input
+                <input aria-label={field.label}
                   type="number"
                   min={field.min} max={field.max} step={field.step}
                   value={(local[field.key] as number) ?? ""}
