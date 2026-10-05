@@ -15,13 +15,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
 import { BrokerTruthToday } from "@/components/journal/BrokerTruthToday";
-import { WebullLifetimeLedger } from "@/components/journal/WebullLifetimeLedger";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
 import { useMarketCanvasVM } from "@/lib/marketData/viewModels/useMarketCanvasVM";
 import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
-import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import CanvasSummaryPill from "@/components/experience/CanvasSummaryPill";
 import { useTodayPrep } from "@/lib/traderMemory/adapters/useTodayPrep";
 import { selectPrepEvidence } from "@/lib/experience/openingBellPrep";
@@ -68,7 +66,6 @@ import { prescribeDrill } from "@/lib/learningGenome/prescribeDrill";
 import { selectMisreadMap, classifyMisread, type MisreadEntry } from "@/lib/learningGenome/selectMisreadMap";
 import { selectSameDayDualSideGuard, type BiasSide } from "@/lib/learningGenome/selectSameDayDualSideGuard";
 import { genomeTrend } from "@/lib/learningGenome/genomeTrend";
-import { LearningGenomeInspector } from "@/components/learningGenome/LearningGenomeInspector";
 import { selectFocusStreak } from "@/lib/learningGenome/selectFocusStreak";
 import { selectSetupGrade, summarizeSetupGrades } from "@/lib/learningGenome/selectSetupGrade";
 import { selectDailyScore } from "@/lib/learningGenome/selectDailyScore";
@@ -121,6 +118,13 @@ import type { JournalRecordCoverage } from "@/lib/journal/journalRecordShape";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { wmConfirm } from "@/components/ui/wmConfirm";
+import dynamic from "next/dynamic";
+
+// HOT_ROOM (garden pass 2026-10-04): the Ledger tab, the genome inspector and
+// the canvas panel render only on demand; they no longer ride the first download.
+const WebullLifetimeLedger = dynamic(() => import("@/components/journal/WebullLifetimeLedger").then(m => m.WebullLifetimeLedger), { ssr: false });
+const MarketCanvasPanel = dynamic(() => import("@/components/experience/MarketCanvasPanel"), { ssr: false });
+const LearningGenomeInspector = dynamic(() => import("@/components/learningGenome/LearningGenomeInspector").then(m => m.LearningGenomeInspector), { ssr: false });
 
 /* ── Emoji palette ───────────────────────────────────────── */
 const EMOJIS = [
