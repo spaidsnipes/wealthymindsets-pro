@@ -540,9 +540,10 @@ export function selectJournalPricing(input: JournalPricingInput): JournalPricing
     // Names the missing field so the trader can act, and says what WM will NOT
     // do — because the alternative it is refusing (a silent 0.00R breakeven) is
     // exactly what a trader would otherwise assume had been saved correctly.
-    note: `This trade has no ${list}, so WM cannot price it. `
-      + "Recording it now would enter it in your journal as a breakeven at 0.00R "
-      + "and count it in your win rate, grades and daily R stop. "
+    // Said as a refusal, never as an outcome (ATHOS order 2026-10-05: the old
+    // "recording it now would enter it … as a breakeven" read as a promise).
+    note: `This trade has no ${list}, so WM cannot price it and will not save it. `
+      + "An unpriced trade is never recorded as a breakeven at 0.00R, so it cannot touch your win rate, grades or daily R stop. "
       + `Add the ${labels.length === 1 ? "missing value" : "missing values"} to save it.`,
   };
 }
