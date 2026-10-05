@@ -254,13 +254,16 @@ export function CanvasSummaryPill({
   }
   const tooltip = tooltipLines.join("\n");
 
-  const scroll = React.useCallback(() => {
+  // A plain handler, not a hook: this line runs AFTER the `return null` above,
+  // so a hook here changed the hook count whenever the pill went from silent to
+  // speaking — React's "rendered more hooks" crash (lint, garden pass 2026-10-04).
+  const scroll = () => {
     if (!scrollToSelector) return;
     const target = document.querySelector(scrollToSelector);
     if (target instanceof HTMLElement) {
       target.scrollIntoView({ block: "center", behavior: "smooth" });
     }
-  }, [scrollToSelector]);
+  };
 
   /* WITH THE WORD GONE, WHAT IS LEFT MUST STILL BE WORTH A PILL.
      The band is silent when no dimension has a standing, and `parts` is empty
