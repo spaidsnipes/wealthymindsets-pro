@@ -16781,7 +16781,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             } else if (dpSpeaks) {
               const lensName = fieldOn ? "DERIVATIVES PRESSURE" : "BRICK WALLS";
               const words = dp.reason === "NO_CHAIN"
-                ? `${lensName} · no option positioning for ${symbol} (${dp.receipt.replace("PRESSURE:SILENT:", "")})`
+                ? `${lensName} · no option positioning for ${symbol} (${dp.receipt.replace("PRESSURE:SILENT:", "").replace(/_/g, " ").toLowerCase()})`
                 : dp.reason === "AFTER_REPLAY_CLOCK"
                   ? `${lensName} · withheld in replay — this positioning was published after the replay clock`
                   : `${lensName} · ${dp.reason.replace(/_/g, " ").toLowerCase()} (${dp.contracts} contracts)`;

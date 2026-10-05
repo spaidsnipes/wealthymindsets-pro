@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { useLiveHost } from "@/lib/livekit/useLiveHost";
 
 // Real multi-user broadcast room (LiveKit SFU). ssr:false — it touches
 // browser media APIs and must never render on the server.
@@ -341,19 +342,7 @@ export default function WMTVPage() {
    as a viewer (hosts: the owner or LIVEKIT_HOST_USER_IDS — 2026-10-04). Viewers can raise a hand to join video; the host approves. All of
    this runs through the shared LiveRoom component + /api/livekit token server,
    so streams reach every other person in the same room across the internet. */
-/** Is the signed-in user a WM host? null while asking. Only hosts publish (2026-10-04). */
-function useLiveHost(): boolean | null {
-  const [host, setHost] = useState<boolean | null>(null);
-  useEffect(() => {
-    let live = true;
-    fetch("/api/livekit/host", { cache: "no-store" })
-      .then(r => (r.ok ? r.json() : { host: false }))
-      .then(j => { if (live) setHost(j?.host === true); })
-      .catch(() => { if (live) setHost(false); });
-    return () => { live = false; };
-  }, []);
-  return host;
-}
+/* Is the signed-in user a WM host? — the shared owner: @/lib/livekit/useLiveHost. */
 
 function LiveStage({ channel }: { channel: StageChannel }) {
   const isWmHost = useLiveHost();

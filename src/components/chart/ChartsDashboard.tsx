@@ -7343,13 +7343,13 @@ function FundamentalsTabPanel({ symbol, tab }: { symbol: string; tab: string }) 
               in protected provenance, not public chrome). */}
           <div style={{ fontSize:11, color:"#8896BE", lineHeight:1.6 }}
             title={`Host configuration missing: ${providerEdge.missing.join(", ")}`}>
-            Company fundamentals are not connected yet. Market metrics above are live from tastytrade.
+            Company fundamentals are not connected yet. Market metrics, where shown above, come from tastytrade.
           </div>
         </div>
       ) : classifySymbol(symbol) === "INDEX" ? (
         <p data-testid="fundamentals-index-note" style={{ fontSize:12, color:"#8896BE", lineHeight:1.6, margin:0, maxWidth:560 }}>
           {base} is a cash index — computed from its members, not a company — so it has no
-          income, ratios or shareholders.{tab === "Profile" || tab === "Valuation" || tab === "Financials" ? " Its market metrics above are its reading." : ""}
+          income, ratios or shareholders.{tab === "Profile" || tab === "Valuation" || tab === "Financials" ? " Its market metrics, where shown above, are its reading." : ""}
         </p>
       ) : tab === "Profile" && ["crypto", "forex", "futures"].includes(canonicalAssetClass(symbol)) ? (
         // Market Info / Contract for a coin, pair or future: its own card

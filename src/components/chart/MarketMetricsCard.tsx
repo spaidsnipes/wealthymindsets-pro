@@ -136,13 +136,20 @@ export function MarketMetricsCard({ symbol }: { readonly symbol: string }) {
   const [rows, setRows] = useState<MetricRow[] | null>(null);
   const [asOf, setAsOf] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [notMine, setNotMine] = useState(false);
 
   useEffect(() => {
     if (!q) return;
     let alive = true;
-    setRows(null); setFailed(false); setAsOf(null);
+    setRows(null); setFailed(false); setAsOf(null); setNotMine(false);
     fetch(`/api/broker/tastytrade/market-metrics?symbols=${encodeURIComponent(q)}`, { cache: "no-store" })
-      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(r => {
+        // Not the broker owner: these metrics come from the owner's tastytrade
+        // session, so for anyone else the card is not drawn at all — not
+        // "tastytrade did not answer" (garden pass 2026-10-05).
+        if (r.status === 401 || r.status === 403) { if (alive) setNotMine(true); return Promise.reject(new Error("not-mine")); }
+        return r.ok ? r.json() : Promise.reject(new Error(String(r.status)));
+      })
       .then(j => {
         if (!alive) return;
         const item = (j?.items ?? []).find((x: { symbol?: string }) => x?.symbol === q) ?? null;
@@ -153,6 +160,7 @@ export function MarketMetricsCard({ symbol }: { readonly symbol: string }) {
     return () => { alive = false; };
   }, [q]);
 
+  if (q && notMine) return null;
   if (!q) {
     const cls = classifySymbol(symbol);
     return cls === "CRYPTO" ? <CryptoMarketInfo symbol={symbol} /> : cls === "FOREX" ? <FxMarketInfo symbol={symbol} /> : null;

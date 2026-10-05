@@ -44,7 +44,7 @@ export function StackArrangeBar({ prefs, onChange, fusionNote }: { prefs: Profil
         {strength !== "CANON" ? (
           <button type="button" data-testid="profile-strength-reset" onClick={() => chooseStrength("CANON")}
             className="ml-auto min-h-7 rounded px-2 text-[10px] text-wm-text-dim underline-offset-2 hover:underline">
-            Reset to Founder Canon
+            Reset to Canon
           </button>
         ) : null}
       </div>

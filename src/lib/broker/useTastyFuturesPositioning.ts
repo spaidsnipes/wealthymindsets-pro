@@ -19,6 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import { futuresProductFor, readFuturesOptionChain, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import type { CboeOptionRow, CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
+import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 
 const STRIKE_REACH = 0.04;
 const MAX_DTE = 60;
@@ -58,6 +59,9 @@ export function useTastyFuturesPositioning(symbol: string, enabled: boolean, pri
       .then(async r => ({ status: r.status, j: await r.json().catch(() => null) }))
       .then(({ status, j }) => {
         if (!alive) return;
+        // A guest's owner refusal is "no broker on this account", not a
+        // CHAIN_403 fault code painted on their chart (garden pass 2026-10-05).
+        if (isOwnerRefusal(j, status)) { setEdge("NEEDS_A_CONNECTED_BROKER"); return; }
         if (j?.state !== "OK") { setEdge(j?.state === "NOT_CONFIGURED" ? "TASTYTRADE_NOT_CONNECTED" : `CHAIN_${status}`); return; }
         setChain(readFuturesOptionChain(j.data));
       })

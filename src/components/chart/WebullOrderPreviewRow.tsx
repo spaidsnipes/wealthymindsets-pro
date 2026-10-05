@@ -10,6 +10,7 @@
  */
 import React from "react";
 import { webullPreviewScope } from "@/lib/broker/webullPreviewScope";
+import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 
 type Answer =
   | { state: "PREVIEWED"; payload: unknown; accounts: Choice[]; accountIndex: number }
@@ -94,7 +95,13 @@ export function WebullOrderPreviewRow({
           accountIndex,
         }),
       });
-      setAnswer((await r.json()) as Answer);
+      const body = await r.json().catch(() => null);
+      // A guest's 403 carries a `code` and no `state`; reading `.state` off it
+      // threw at render and took the whole lens panel down (garden pass
+      // 2026-10-05). It is "not on your account", said once, plainly.
+      setAnswer(isOwnerRefusal(body, r.status) ? { state: "NOT_AUTHORIZED" } as Answer
+        : body && typeof body === "object" && typeof (body as { state?: unknown }).state === "string" ? body as Answer
+        : { state: "NO_ANSWER", reason: "" } as Answer);
     } catch (e) {
       setAnswer({ state: "NO_ANSWER", reason: e instanceof Error ? e.message : String(e) });
     } finally {
@@ -107,6 +114,7 @@ export function WebullOrderPreviewRow({
     !answer ? null
     : answer.state === "PREVIEWED" ? `Webull priced it — NOT placed · ${scalars((answer as { payload: unknown }).payload).join(" · ") || "no fields returned"}`
     : answer.state === "REJECTED" ? `Webull refused the preview: ${(answer as { reason: string }).reason}`
+    : answer.state === "NOT_AUTHORIZED" ? "Broker preview isn't available on your account."
     : `${answer.state.replace(/_/g, " ")}${"reason" in answer && answer.reason ? ` · ${answer.reason}` : ""}${"note" in answer && answer.note ? ` · ${answer.note}` : ""}${"error" in answer && answer.error ? ` · ${answer.error}` : ""}`;
 
   return (

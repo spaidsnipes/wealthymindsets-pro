@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
 import { listAdapters } from "../../../../lib/broker/adapters";
 import { computeCertificationLevel, type CertLevel, type CertStageReport } from "../../../../lib/broker/certification";
 import type { BrokerId } from "../../../../lib/broker/BrokerAdapter";
@@ -175,7 +176,14 @@ export async function GET(request: Request): Promise<Response> {
   // logged-in local session still receives the report.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
-  const body = await buildBrokerStatus(Date.now(), auth.user.sub);
+  const full = await buildBrokerStatus(Date.now(), auth.user.sub);
+  // Garden pass 2026-10-05 (the readiness route's guest rule, applied here
+  // too): an adapter's note names the operator's env vars ("MOOMOO_BRIDGE_URL
+  // / MOOMOO_BRIDGE_TOKEN are not set", "GEMINI_API_KEY is missing"). Anyone
+  // but the broker owner gets each provider's status flags and no setup words.
+  const body: BrokerStatusResponse = tastytradeOwnerGate(auth.user.sub, process.env).allowed
+    ? full
+    : { ...full, providers: full.providers.map(p => ({ ...p, note: "" })) };
   return NextResponse.json(body, {
     status: 200,
     headers: { "Cache-Control": "no-store" },

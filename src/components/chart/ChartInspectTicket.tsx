@@ -1332,7 +1332,7 @@ export function ChartInspectTicket({
               <div>Lineage · {positioningSourceWords(pressureFront.source).name} OI + IV → selectDerivativesPressure v{pressureFront.version} → geography sweep → this front</div>
             </>
           ) : (
-            <div>The derivatives reading went silent ({pressureFront.receipt.replace("PRESSURE:SILENT:", "")}) — no environment is guessed at.</div>
+            <div>The derivatives reading went silent ({pressureFront.receipt.replace("PRESSURE:SILENT:", "").replace(/_/g, " ").toLowerCase()}) — no environment is guessed at.</div>
           )}
         </div>
       )}
@@ -1344,7 +1344,7 @@ export function ChartInspectTicket({
           return (
             <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-pressure-wall="SILENT" style={{ color: "#C8C0AE" }}>
               <div className="font-bold tracking-wide text-wm-gold">PRESSURE WALL · NO LONGER COMPILED</div>
-              <div>The derivatives reading went silent ({dp.receipt.replace("PRESSURE:SILENT:", "")}) — the wall is not guessed at.</div>
+              <div>The derivatives reading went silent ({dp.receipt.replace("PRESSURE:SILENT:", "").replace(/_/g, " ").toLowerCase()}) — the wall is not guessed at.</div>
             </div>
           );
         }

@@ -35,6 +35,7 @@ import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { wmConfirm } from "@/components/ui/wmConfirm";
 import { useDialogFrame } from "@/components/ui/DialogFrame";
+import { useLiveHost } from "@/lib/livekit/useLiveHost";
 
 /* ══════════════════════════════════════════════════════════════
    TYPES
@@ -765,6 +766,9 @@ export default function LoungePage() {
   const [follows,       setFollows]       = useState<Set<string>>(new Set());
   const [activeRoom,    setActiveRoom]    = useState<string | null>(null);
   const [activeRoomIsHost, setActiveRoomIsHost] = useState(false);
+  // Only a WM host can publish; a guest is offered Watch, not a Go Live the
+  // token server refuses after the host pre-join screen (garden pass 2026-10-05).
+  const isLiveHost = useLiveHost();
   const [showCommunityTools, setShowCommunityTools] = useState(false);
 
   // Deep-link support: a shared live link (…/lounge?room=<name>) drops the visitor
@@ -983,11 +987,13 @@ export default function LoungePage() {
                     <div className="text-[11px] font-semibold text-wm-text group-hover:text-wm-green">{r.label}</div>
                     <div className="text-[9px] text-wm-text-dim mb-1">{r.desc}</div>
                     <div className="flex gap-1">
+                      {isLiveHost === true && (
                       <button
                         onClick={() => { setActiveRoomIsHost(true); setActiveRoom(r.name); }}
                         className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-wm-red/15 text-wm-red border border-wm-red/30 hover:bg-wm-red/25 transition-all">
                         🔴 Go Live
                       </button>
+                      )}
                       <button
                         onClick={() => { setActiveRoomIsHost(false); setActiveRoom(r.name); }}
                         className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-wm-surface text-wm-text-dim border border-wm-border/40 hover:text-wm-text transition-all">

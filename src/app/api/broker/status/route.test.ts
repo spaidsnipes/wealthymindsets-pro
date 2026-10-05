@@ -13,6 +13,23 @@ import { listAdapters } from "@/lib/broker/adapters";
 import { requireAuth } from "@/lib/requireAuth";
 import { NextResponse } from "next/server";
 
+// The per-provider notes are the OWNER's view; the stubbed session is the owner
+// here, and the guest view is pinned on its own below.
+process.env.TASTYTRADE_OWNER_USER_ID = "u1";
+
+describe("a signed-in guest gets status flags, never the operator's setup notes", () => {
+  it("strips every provider note for a non-owner", async () => {
+    (requireAuth as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: true, user: { sub: "guest-7" } });
+    delete process.env.GEMINI_API_KEY;
+    const res = await GET(new Request("http://localhost/api/broker/status"));
+    expect(res.status).toBe(200);
+    const body = await res.json() as BrokerStatusResponse;
+    expect(body.providers.length).toBeGreaterThan(0);
+    for (const p of body.providers) expect(p.note).toBe("");
+    expect(JSON.stringify(body)).not.toMatch(/GEMINI_API_KEY|_URL|_TOKEN|_SECRET/);
+  });
+});
+
 async function readBrokerStatus(): Promise<BrokerStatusResponse> {
   const response = await GET(new Request("http://localhost/api/broker/status"));
   expect(response.status).toBe(200);
