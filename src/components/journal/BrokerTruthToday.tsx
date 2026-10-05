@@ -145,6 +145,10 @@ export function BrokerTruthToday() {
           {stories.map(st => {
             const fees = st.fills.reduce((n, f) => n + f.fees, 0);
             const cash = st.fills.reduce((n, f) => n + (f.value ?? 0), 0);
+            // A partial sum is not the broker's figure (super order §7: missing
+            // fees remain unknown, never zero by convenience).
+            const feesKnown = st.fills.every(f => f.feesReported !== false);
+            const cashKnown = st.fills.every(f => f.value != null);
             return (
               <article key={st.key} data-decision={st.decisionId ?? "outside"} style={{ border: `1px solid ${LINE}`, borderRadius: 4, padding: 10 }}>
                 <header style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
@@ -178,7 +182,7 @@ export function BrokerTruthToday() {
                     {st.broker === "webull" ? (
                       <li style={{ color: MUTED }}>Prices and quantities as Webull states them; Webull&apos;s executions carry no fees or cash, so none are claimed here.</li>
                     ) : (
-                      <li style={{ color: MUTED }}>Net cash {money(cash)} · fees {money(fees)} — as tastytrade states it; P/L on open positions is not claimed here.</li>
+                      <li style={{ color: MUTED }}>Net cash {cashKnown ? money(cash) : "not stated for every fill"} · fees {feesKnown ? money(fees) : "not reported for every fill"} — as tastytrade states it; P/L on open positions is not claimed here.</li>
                     )}
                   </ul>
                 ) : st.orders.length ? <p style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>No fill yet.</p> : null}
