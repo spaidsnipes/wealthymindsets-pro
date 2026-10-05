@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Send, Zap, Minimize2, Maximize2,
@@ -58,13 +59,17 @@ export function SpadeBotButton() {
   const inputRef  = useRef<HTMLInputElement>(null);
   const abortRef  = useRef<AbortController | null>(null);
 
+  // The ACCOUNT's bot name wins; this device's copy only fills in when the
+  // account has none (garden pass 2026-10-04: a new device showed the default,
+  // and a name changed elsewhere never arrived).
+  const { user } = useAuth();
   useEffect(() => {
-    // Load profile name
+    if (user?.botName) { setBotName(user.botName); return; }
     try {
       const p = JSON.parse(localStorage.getItem("wm-profile") ?? "{}") as { botName?: string };
       if (p.botName) setBotName(p.botName);
     } catch {}
-  }, []);
+  }, [user?.botName]);
 
   /* ── Initial greeting on first open ── */
   useEffect(() => {

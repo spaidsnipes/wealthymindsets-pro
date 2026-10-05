@@ -180,14 +180,20 @@ function ProfilePageInner() {
   // by a stale /api/auth/me poll. On a brand-new device (no local profile yet)
   // we also RESTORE localStorage from the account and leave setup, so the saved
   // profile — including bot name + prefs — reappears instead of an empty form.
-  useEffect(() => {
-    if (!user) return;
+  /** The ACCOUNT's non-empty values — they win over this device's copy. */
+  const accountFields = React.useCallback((): Partial<ProfileData> => {
+    if (!user) return {};
     const fromAuth: Partial<ProfileData> = { email: user.email };
     if (user.displayName) fromAuth.name = user.displayName;
     if (user.handle)      fromAuth.handle = user.handle;
     if (user.bio)         fromAuth.bio = user.bio;
     if (user.botName)     fromAuth.botName = user.botName;
     if (user.timezone)    fromAuth.timezone = user.timezone;
+    return fromAuth;
+  }, [user]);
+  useEffect(() => {
+    if (!user) return;
+    const fromAuth = accountFields();
     setProfile(p => ({ ...p, ...fromAuth }));
     setEditProfile(p => ({ ...p, ...fromAuth }));
     if (user.avatar)  setAvatarUrl(user.avatar);
@@ -216,14 +222,18 @@ function ProfilePageInner() {
         setSetupMode(true);
       }
     } catch {}
-  }, [user]);
+  }, [user, accountFields]);
 
   // Load everything from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("wm-profile");
       if (saved) {
-        const p = JSON.parse(saved);
+        // This device's copy fills only what the ACCOUNT does not have
+        // (garden pass 2026-10-04, BACKFLOW: this ran after the account
+        // effect and replaced it, then Save pushed the stale copy back over
+        // changes made on another device).
+        const p = { ...JSON.parse(saved), ...accountFields() };
         setProfile(p);
         setEditProfile(p);
       } else {
@@ -232,9 +242,9 @@ function ProfilePageInner() {
         setEditProfile(EMPTY_PROFILE);
       }
       const savedBg = localStorage.getItem("wm-profile-bg");
-      if (savedBg) setBgColor(savedBg);
+      if (savedBg && !user?.bgColor) setBgColor(savedBg);
       const savedAvatar = localStorage.getItem("wm-profile-avatar");
-      if (savedAvatar) setAvatarUrl(savedAvatar);
+      if (savedAvatar && !user?.avatar) setAvatarUrl(savedAvatar);
 
       // Load liked radio tracks
       const liked = JSON.parse(localStorage.getItem("wm-radio-liked") ?? "[]") as LikedTrack[];
