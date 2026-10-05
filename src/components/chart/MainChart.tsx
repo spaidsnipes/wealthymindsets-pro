@@ -22387,7 +22387,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // bars and every tape sense went silent on the rest without a word.
       try {
         const fpOn = (canvas.dataset.footprint ?? "OFF") !== "OFF";
-        const tapeSenseOn = fpOn || (flowCurrentOnRef.current && att.paints("flowCurrent"));
+        // Every sense that reads the signed-tape buffer (measured on serving
+        // NQ 5m, 2026-10-05: Imbalance Stack 5 bars, Value Candle 4 bars —
+        // both tape-limited, both silent about it until this line).
+        const loT = layerOnRef.current;
+        const tapeSenseOn = fpOn
+          || (flowCurrentOnRef.current && att.paints("flowCurrent"))
+          || loT.stack === true
+          || loT.valueCandle === true;
         const accT = tickAccRef.current;
         if (!tapeSenseOn || !srs || accT.size === 0) {
           canvas.dataset.tapeCoverage = tapeSenseOn ? "NO_SIDED_TAPE" : "OFF";
