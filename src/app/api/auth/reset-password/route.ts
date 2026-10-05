@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { edgeAllows, tooManyRequests, clientIp, AUTH_LOGIN_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { resolveSupabaseServiceKey } from "@/lib/supabaseConfigStatus";
 
 /**
@@ -13,6 +14,9 @@ import { resolveSupabaseServiceKey } from "@/lib/supabaseConfigStatus";
  * change any other account. The password is never logged or echoed.
  */
 export async function POST(req: Request) {
+  // Garden-house pass 2026-10-04: every sibling auth door is rate-limited;
+  // this one was not (guessable codes / tokens tried without bound).
+  if (!(await edgeAllows([`reset:${clientIp(req)}`], AUTH_LOGIN_LIMITER_BINDING))) return tooManyRequests();
   const body = (await req.json().catch(() => null)) as { accessToken?: unknown; password?: unknown } | null;
   const accessToken = typeof body?.accessToken === "string" ? body.accessToken.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";

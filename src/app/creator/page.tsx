@@ -155,8 +155,14 @@ export default function CreatorPage() {
 
   const submitWaitlist = () => {
     if (!email.includes("@")) { toast.error("Enter a valid email"); return; }
+    // Write first, then say so (garden pass 2026-10-04: ✓ showed before a write that could throw).
+    try {
+      localStorage.setItem("wm_creator_waitlist", JSON.stringify({ email, handle, tier: waitlistTier, ts: Date.now() }));
+    } catch {
+      toast.error("This browser refused to save it — nothing was recorded.");
+      return;
+    }
     setSubmitted(true);
-    localStorage.setItem("wm_creator_waitlist", JSON.stringify({ email, handle, tier: waitlistTier, ts: Date.now() }));
     toast.success("Interest saved on this device.");
   };
 

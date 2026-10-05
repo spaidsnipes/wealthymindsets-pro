@@ -67,6 +67,15 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
   const [levels, setLevels] = useState<DomLevel[]>([]);
   const [trades, setTrades] = useState<{ price: number; size: number; side: "buy"|"sell"; time: string }[]>([]);
   const [realConnected, setRealConnected] = useState(false);
+  // LIVE also needs a RECENT book message: an open socket that has gone quiet
+  // is not live (15s of silence on a crypto book is a stalled feed).
+  const lastBookMsgRef = useRef(0);
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (lastBookMsgRef.current && Date.now() - lastBookMsgRef.current > 15_000) setRealConnected(false);
+    }, 5_000);
+    return () => clearInterval(t);
+  }, []);
   const priceRef  = useRef(livePrice);
   const wsRef     = useRef<WebSocket | null>(null);
   const bidsRef   = useRef<{ price: number; size: number }[]>([]);
@@ -116,6 +125,7 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
             }
           }
           setRealConnected(true);
+          lastBookMsgRef.current = Date.now();
           setLevels(buildRealDOM(bidsRef.current, asksRef.current, tick, dp));
           // Update center price from book
           if (bidsRef.current.length > 0 && asksRef.current.length > 0) {
@@ -165,7 +175,9 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
         bidsRef.current = book.bids;
         asksRef.current = book.asks;
         setLevels(buildRealDOM(book.bids, book.asks, tick, dp));
-        setRealConnected(true);
+        // A REST snapshot is not a live book (garden pass 2026-10-04: it lit
+        // "● LIVE", the very case "○ REST" exists for). Only the socket's
+        // own book messages may say LIVE.
       }
       const recentTrades = await getRecentTrades(sym);
       if (recentTrades.length > 0) {

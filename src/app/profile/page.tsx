@@ -359,7 +359,11 @@ function ProfilePageInner() {
       const url = ev.target?.result as string;
       setAvatarUrl(url);
       try { localStorage.setItem("wm-profile-avatar", url); } catch {}
-      saveToAuth({ avatar: url }).catch(() => {});
+      // The account's answer is read, not dropped (garden pass 2026-10-04):
+      // updateProfile resolves { error } instead of rejecting.
+      saveToAuth({ avatar: url })
+        .then(r => { if (r?.error) toast.error(`Photo shown here, but not saved to your account: ${r.error}`); })
+        .catch(() => toast.error("Photo shown here, but not saved to your account — try again."));
     };
     reader.readAsDataURL(file);
   };

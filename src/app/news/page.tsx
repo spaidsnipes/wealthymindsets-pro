@@ -410,6 +410,8 @@ function LiveNewsPlayer() {
   const [minimized,     setMinimized]     = useState(false);
   const [videoIds,      setVideoIds]      = useState<Record<string, string | null>>({});
   const [loadingIds,    setLoadingIds]    = useState(true);
+  // A failed check is UNKNOWN, not "offline" (garden pass 2026-10-04).
+  const [idsFailed,     setIdsFailed]     = useState(false);
   const [muted,         setMuted]         = useState(true);
   const [recentVideos,  setRecentVideos]  = useState<RecentVideo[]>([]);
   const [selectedRecent,setSelectedRecent]= useState<string | null>(null);
@@ -420,9 +422,11 @@ function LiveNewsPlayer() {
       setLoadingIds(true);
       try {
         const res  = await fetch(`/api/youtube-live?channels=${allChannels}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(String(res.status));
         const data = await res.json() as Record<string, string | null>;
         setVideoIds(data);
-      } catch { /* keep previous */ }
+        setIdsFailed(false);
+      } catch { setIdsFailed(true); /* keep previous answers; unknown ones say so */ }
       finally { setLoadingIds(false); }
     }
     fetchIds();
@@ -459,8 +463,15 @@ function LiveNewsPlayer() {
         below its content and overflows the parent instead.
       */}
       <div className="flex items-center gap-2 px-3 h-9 border-b border-wm-border shrink-0">
-        <span className="w-1.5 h-1.5 rounded-full bg-wm-red animate-pulse shrink-0" />
-        <span className="text-[10px] font-black text-wm-red uppercase tracking-wider shrink-0">LIVE NEWS</span>
+        {/* LIVE only when a channel is actually live now (garden pass
+            2026-10-04: a pulsing "LIVE NEWS" showed while loading, with every
+            channel offline, and when the check itself failed). */}
+        {Object.values(videoIds).some(Boolean) ? <>
+          <span className="w-1.5 h-1.5 rounded-full bg-wm-red animate-pulse shrink-0" />
+          <span className="text-[10px] font-black text-wm-red uppercase tracking-wider shrink-0">LIVE NEWS</span>
+        </> : (
+          <span className="text-[10px] font-black text-wm-text-muted uppercase tracking-wider shrink-0">{loadingIds ? "NEWS · CHECKING" : idsFailed ? "NEWS · STATUS UNKNOWN" : "NEWS · NONE LIVE"}</span>
+        )}
         <div className="flex gap-1 ml-2 min-w-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {LIVE_STREAMS.map((s, i) => (
             <button key={s.label} onClick={() => setActiveIdx(i)}
@@ -588,7 +599,7 @@ function LiveNewsPlayer() {
                       "text-[9px] font-bold px-1 py-0.5 rounded",
                       live ? "bg-wm-red/20 text-wm-red" : "text-wm-text-dim"
                     )}>
-                      {live ? "● LIVE" : "offline"}
+                      {live ? "● LIVE" : idsFailed && !(s.channelId in videoIds) ? "unknown" : "offline"}
                     </span>
                   )}
                 </button>

@@ -417,7 +417,8 @@ function LiveStage({ channel }: { channel: StageChannel }) {
                 animate={{ boxShadow: ["0 0 14px rgba(232,185,35,0.16)", "0 0 26px rgba(232,185,35,0.36)", "0 0 14px rgba(232,185,35,0.16)"] }}
                 transition={{ duration: 2.6, repeat: Infinity }}
               >
-                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#059669" }} />
+                {/* Green + pulse only when the studio is actually READY (garden pass 2026-10-04). */}
+                <span className={`w-2 h-2 rounded-full ${studio === "READY" ? "animate-pulse" : ""}`} style={{ background: studio === "READY" ? "#059669" : studio === "CHECKING" ? "#8a8271" : "#c05a4a" }} />
                 <span className="text-[10px] font-black tracking-widest" style={{ color: "#E8B923" }}>STUDIO · {studioWord(studio)}</span>
               </motion.div>
               <motion.div
@@ -493,6 +494,9 @@ function ChatChannel({ channel }: { channel: TextChannel }) {
         <div>
           <h2 className="text-sm font-black text-wm-text">{channel.name}</h2>
           <p className="text-[10px] text-wm-text-muted">{channel.topic}</p>
+          {/* PAINTED_WINDOW guard (garden pass 2026-10-04): these notes live in
+              this browser only; nobody else reads them. Say so. */}
+          <p className="text-[10px] text-wm-gold">Notes on this device only — not a shared chat yet.</p>
         </div>
       </div>
 

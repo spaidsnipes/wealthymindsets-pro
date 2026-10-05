@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 import { classifySymbol, unsupportedAssetClassReason } from "@/lib/marketData/symbolAssetClass";
 import { toFinnhubSym } from "@/lib/finnhubSymbol";
 import { resolveProviderEnv, acceptedEnvNames } from "@/lib/broker/resolveProviderEnv";
@@ -24,6 +25,10 @@ function getFinnhubKey(): string {
 }
 
 export async function GET(request: Request) {
+  // Garden-house pass 2026-10-04 (BROKEN_LOCK): this route was public and
+  // spent the operator's provider quota for anyone on the internet.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const symbol = (searchParams.get("symbol") ?? "AAPL").toUpperCase();
 

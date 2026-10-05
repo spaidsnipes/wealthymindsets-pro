@@ -4,6 +4,7 @@
  * Returns recent video IDs from the past N days.
  */
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 
 const CACHE = new Map<string, { videos: VideoItem[]; ts: number }>();
 const TTL = 15 * 60 * 1000; // 15 min
@@ -11,11 +12,15 @@ const TTL = 15 * 60 * 1000; // 15 min
 interface VideoItem { videoId: string; title: string; published: string; thumbnail: string; }
 
 export async function GET(request: Request) {
+  // Garden-house pass 2026-10-04 (BROKEN_LOCK): this route was public and
+  // spent the operator's provider quota for anyone on the internet.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const channelId = searchParams.get("channelId") ?? "";
   const days = parseInt(searchParams.get("days") ?? "5", 10);
 
-  if (!channelId) return NextResponse.json({ error: "No channelId" }, { status: 400 });
+  if (!/^UC[A-Za-z0-9_-]{22}$/.test(channelId)) return NextResponse.json({ error: "No valid channelId" }, { status: 400 });
 
   const hit = CACHE.get(channelId);
   if (hit && Date.now() - hit.ts < TTL) return NextResponse.json(hit.videos);

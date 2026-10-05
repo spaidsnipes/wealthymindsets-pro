@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 
 import { orderDecisionKv } from "@/lib/broker/orderDecisionLedger";
 import { webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
@@ -41,6 +42,10 @@ const rowsOf = (c: unknown): SecFactRow[] | null => {
 };
 
 export async function GET(request: Request): Promise<Response> {
+  // Garden-house pass 2026-10-04 (BROKEN_LOCK): this route was public and
+  // spent the operator's provider quota for anyone on the internet.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const symbol = (new URL(request.url).searchParams.get("symbol") ?? "").trim().toUpperCase();
   if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(symbol)) return NextResponse.json({ state: "INVALID_SYMBOL" }, { status: 400 });
 

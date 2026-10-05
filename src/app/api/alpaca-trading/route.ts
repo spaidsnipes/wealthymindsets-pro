@@ -95,7 +95,7 @@ export async function GET(request: Request) {
       const sym = searchParams.get("symbol")?.toUpperCase();
       if (!sym) return NextResponse.json({ error: "symbol required" }, { status: 400 });
       // Alpaca free tier: latest trade
-      const res = await fetch(`${DATA_BASE}/v2/stocks/${sym}/trades/latest`, {
+      const res = await fetch(`${DATA_BASE}/v2/stocks/${encodeURIComponent(sym)}/trades/latest`, {
         headers: authHeaders(), cache: "no-store",
       });
       if (!res.ok) { const t = await res.text(); return NextResponse.json({ error: t }, { status: res.status }); }

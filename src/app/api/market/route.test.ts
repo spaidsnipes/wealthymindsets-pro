@@ -23,6 +23,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stripComments } from "@/lib/sourceScan";
+const authMock = vi.hoisted(() => ({ requireAuth: vi.fn(async () => ({ ok: true, user: { sub: "u-1" } })) }));
+vi.mock("@/lib/requireAuth", () => ({ requireAuth: authMock.requireAuth }));
+
 import { GET } from "./route";
 
 const okQuote = { c: 100, o: 99, h: 101, l: 98, pc: 99 };
@@ -236,5 +239,18 @@ describe("the private copy is gone, not merely unused", () => {
     // that looks authoritative. The ask must come from the owner alone.
     expect(source).not.toContain("CRYPTO_SYMS");
     expect(source).toContain("toFinnhubSym");
+  });
+});
+
+describe("/api/market is not a public door to the operator's quota (garden pass 2026-10-04)", () => {
+  it("a signed-out caller is refused before any vendor call", async () => {
+    const { NextResponse } = await import("next/server");
+    authMock.requireAuth.mockResolvedValueOnce({ ok: false, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) } as never);
+    const f = vi.fn();
+    vi.stubGlobal("fetch", f);
+    const r = await GET(new Request("http://localhost/api/market?symbol=AAPL"));
+    expect(r.status).toBe(401);
+    expect(f).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });

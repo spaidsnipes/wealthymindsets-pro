@@ -171,8 +171,12 @@ function WalkForwardGuide({ onSendToJournal }: { onSendToJournal: () => void }) 
       {/* Walk-forward results template */}
       <div className="glass rounded-xl overflow-hidden mb-4">
         <div className="px-4 py-3 border-b border-wm-border">
-          <div className="text-xs font-bold text-wm-text">Walk-Forward Results Template</div>
-          <div className="text-[10px] text-wm-text-dim mt-0.5">Fill this in for each iteration — then send to Journal</div>
+          {/* FALSE_GREEN guard (garden pass 2026-10-04): these rows are a worked
+              example with made-up numbers; they rendered as if they were results. */}
+          <div className="text-xs font-bold text-wm-text flex items-center gap-2">Walk-Forward — Worked Example
+            <span className="text-[9px] font-black px-1.5 py-0.5 rounded border border-wm-gold/40 text-wm-gold">EXAMPLE · NOT YOUR RESULTS</span>
+          </div>
+          <div className="text-[10px] text-wm-text-dim mt-0.5">Illustrative numbers showing how to read a walk-forward: in-sample vs out-of-sample, and why the Mar–Oct window fails. Run your own windows, then send them to Journal.</div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">

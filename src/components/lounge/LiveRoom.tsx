@@ -34,26 +34,30 @@ const MAX_SPEAKERS = 4;
 function ShareLiveMenu({ roomName, roomLabel, color }: { roomName: string; roomLabel: string; color: string }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/lounge?room=${encodeURIComponent(roomName)}`
       : `/lounge?room=${encodeURIComponent(roomName)}`;
-  const shareText = `🔴 I'm live now in ${roomLabel} on WealthyMindsets — come watch & trade with me:`;
+  // The share menu works before anyone is live, so it invites rather than
+  // claims (garden pass 2026-10-04: "I'm live now" was sendable from an empty room).
+  const shareText = `Join me in ${roomLabel} on WealthyMindsets — come watch & trade with me:`;
 
   const copy = async () => {
-    try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch {}
+    try { await navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1800); }
+    catch { setCopyFailed(true); setTimeout(() => setCopyFailed(false), 2400); }
   };
   const nativeShare = async () => {
     // Web Share API opens the OS share sheet (Instagram, Messages, etc. on mobile).
     const nav = navigator as Navigator & { share?: (d: { title: string; text: string; url: string }) => Promise<void> };
-    if (nav.share) { try { await nav.share({ title: `${roomLabel} — Live`, text: shareText, url: shareUrl }); return; } catch {} }
+    if (nav.share) { try { await nav.share({ title: `${roomLabel} — WealthyMindsets`, text: shareText, url: shareUrl }); return; } catch {} }
     copy(); // fallback: copy so it can be pasted into Instagram/anywhere
   };
   const enc = encodeURIComponent;
   const targets: { icon: React.ReactNode; label: string; onClick: () => void }[] = [
-    { icon: <Copy size={13} />,          label: copied ? "Copied!" : "Copy link", onClick: copy },
+    { icon: <Copy size={13} />,          label: copied ? "Copied!" : copyFailed ? "Copy failed — use Share sheet" : "Copy link", onClick: copy },
     { icon: <MessageSquare size={13} />, label: "Text (SMS)",  onClick: () => window.open(`sms:?&body=${enc(shareText + " " + shareUrl)}`, "_blank") },
-    { icon: <Mail size={13} />,          label: "Email",       onClick: () => window.open(`mailto:?subject=${enc(roomLabel + " — Live on WealthyMindsets")}&body=${enc(shareText + "\n\n" + shareUrl)}`, "_blank") },
+    { icon: <Mail size={13} />,          label: "Email",       onClick: () => window.open(`mailto:?subject=${enc(roomLabel + " on WealthyMindsets")}&body=${enc(shareText + "\n\n" + shareUrl)}`, "_blank") },
     { icon: <Twitter size={13} />,       label: "X / Twitter", onClick: () => window.open(`https://twitter.com/intent/tweet?text=${enc(shareText)}&url=${enc(shareUrl)}`, "_blank", "noopener,noreferrer") },
     { icon: <Instagram size={13} />,     label: "Instagram",   onClick: nativeShare },
     { icon: <Users size={13} />,         label: "Share sheet", onClick: nativeShare },
@@ -539,7 +543,11 @@ export default function LiveRoom({ roomName, roomLabel, color, userName, isHost,
             room. */}
         <span className="w-2 h-2 rounded-full" style={{ background: color }} />
         <span className="text-xs font-black text-wm-text">{roomLabel}</span>
-        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold text-wm-red bg-wm-red/15 border border-wm-red/30">LIVE</span>
+        {/* LIVE only once this browser is connected to the room (garden pass
+            2026-10-04: the badge read LIVE over an empty pre-join screen). */}
+        {joined
+          ? <span className="text-[9px] px-1.5 py-0.5 rounded font-bold text-wm-red bg-wm-red/15 border border-wm-red/30">LIVE</span>
+          : <span className="text-[9px] px-1.5 py-0.5 rounded font-bold text-wm-text-dim border border-wm-border">ROOM</span>}
         {isHost && (
           <span className="text-[9px] px-1.5 py-0.5 rounded font-bold text-wm-gold bg-wm-gold/15 border border-wm-gold/30">HOST</span>
         )}

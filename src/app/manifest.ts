@@ -68,15 +68,8 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       { src: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
-    screenshots: [
-      {
-        src: "/screenshots/desktop.png",
-        sizes: "1280x720",
-        type: "image/png",
-        form_factor: "wide",
-        label: "WealthyMindsets Pro — Trading Dashboard",
-      },
-    ],
+    // screenshots: removed 2026-10-04 — it named /screenshots/desktop.png,
+    // which has never existed in public/ (an install sheet with a broken image).
     shortcuts: [
       {
         name: "Charts",

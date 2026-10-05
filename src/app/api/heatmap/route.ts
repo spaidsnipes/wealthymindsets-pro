@@ -14,6 +14,9 @@
  */
 
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
+
+const HEATMAP_MAX_SYMS = 600;
 import { toYahooSymbol } from "@/lib/marketData/symbolAssetClass";
 import { newestObservationMs, yahooMarketTimeToMs } from "@/lib/marketData/heatmapObservation";
 
@@ -175,12 +178,18 @@ function daysForPeriod(period: string): number {
 }
 
 export async function GET(request: Request) {
+  // Garden-house pass 2026-10-04 (BROKEN_LOCK): this route was public and
+  // spent the operator's provider quota for anyone on the internet.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const period    = (searchParams.get("period") ?? "1D").toUpperCase();
   const symsParam = searchParams.get("syms") ?? "";
   const syms      = symsParam.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
 
   if (syms.length === 0) return NextResponse.json({ error: "No symbols" }, { status: 400 });
+  // An unbounded list was an upstream amplifier (50-way parallel chunks per call).
+  if (syms.length > HEATMAP_MAX_SYMS) return NextResponse.json({ error: `At most ${HEATMAP_MAX_SYMS} symbols per request.` }, { status: 400 });
 
   // Cache 1D for 30s, historical for 3 minutes
   const ttl      = period === "1D" ? 30_000 : 180_000;

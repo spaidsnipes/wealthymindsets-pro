@@ -123,9 +123,14 @@ export function SpadeBotButton() {
           if (!line.startsWith("data: ")) continue;
           const payload = line.slice(6).trim();
           if (payload === "[DONE]") break;
-          try {
-            const { text: t, error } = JSON.parse(payload) as { text?: string; error?: string };
-            if (error) throw new Error(error);
+          // Only a malformed frame is skipped; a server ERROR frame must reach
+          // the ⚠️ path below (garden pass 2026-10-04: it was swallowed here,
+          // leaving an empty or cut-off answer with no word of why).
+          let frame: { text?: string; error?: string };
+          try { frame = JSON.parse(payload) as { text?: string; error?: string }; } catch { continue; }
+          const { text: t, error } = frame;
+          if (error) throw new Error(error);
+          {
             if (t) {
               full += t;
               setMessages(prev => {
@@ -135,7 +140,7 @@ export function SpadeBotButton() {
                 return u;
               });
             }
-          } catch {}
+          }
         }
       }
 

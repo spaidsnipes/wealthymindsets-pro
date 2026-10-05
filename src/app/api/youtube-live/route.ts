@@ -8,12 +8,15 @@
  */
 
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/requireAuth";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 const CACHE = new Map<string, { videoId: string | null; ts: number }>();
 const TTL = 5 * 60 * 1000; // 5 min
 
+/** A YouTube channel id: "UC" + 22 url-safe characters. Anything else never reaches a URL. */
+const CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/;
 async function getLiveVideoId(channelId: string): Promise<string | null> {
   const hit = CACHE.get(channelId);
   if (hit && Date.now() - hit.ts < TTL) return hit.videoId;
@@ -75,8 +78,12 @@ async function getLiveVideoId(channelId: string): Promise<string | null> {
 }
 
 export async function GET(request: Request) {
+  // Garden-house pass 2026-10-04 (BROKEN_LOCK): this route was public and
+  // spent the operator's provider quota for anyone on the internet.
+  const auth = await requireAuth(request);
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
-  const channelIds = (searchParams.get("channels") ?? "").split(",").map(s => s.trim()).filter(Boolean);
+  const channelIds = (searchParams.get("channels") ?? "").split(",").map(s => s.trim()).filter(s => CHANNEL_ID.test(s)).slice(0, 12);
 
   if (channelIds.length === 0) return NextResponse.json({ error: "No channels" }, { status: 400 });
 

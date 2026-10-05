@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { edgeAllows, tooManyRequests, clientIp, AUTH_LOGIN_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { setAuthCookie, signJWT, supabaseGetUser, supabaseVerifyEmail, useSupabase } from "@/lib/auth";
 import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
 import { classifyAuthBackendFault } from "@/lib/authBackendFault";
@@ -30,6 +31,9 @@ function issueSession(user: SupabaseUser) {
 }
 
 export async function POST(request: Request) {
+  // Garden-house pass 2026-10-04: every sibling auth door is rate-limited;
+  // this one was not (guessable codes / tokens tried without bound).
+  if (!(await edgeAllows([`confirm:${clientIp(request)}`], AUTH_LOGIN_LIMITER_BINDING))) return tooManyRequests();
   if (!useSupabase()) {
     // Monday Test 2 truth: name the exact missing Supabase config so an
     // operator can fix it (presence-only, no secret value read).
