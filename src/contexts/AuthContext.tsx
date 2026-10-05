@@ -17,6 +17,10 @@ import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import { clearPaperState } from "@/lib/paperTrade";
 import { clearWMSState } from "@/contexts/WMSContext";
 import { clearOwnerScopedLocalStorage, completeLocalSignOut } from "@/lib/logoutIsolation";
+import { clearSessionNectarForSignOut } from "@/lib/marketData/sessionNectar";
+import { forgetQuoteToken } from "@/lib/broker/tastyQuoteTokenClient";
+import { forgetTastyFrontMonths } from "@/lib/broker/tastyFrontMonth";
+import { forgetTastyOptionStreamers } from "@/lib/broker/tastyOptionStreamers";
 import { hydrateCachedUser, readCachedSession, type WMUser } from "@/lib/auth/cachedSession";
 
 // The account shape lives next to the only code that can PROVE a stored value
@@ -234,6 +238,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearPaperState,
         clearWMSState,
         clearOwnerScopedLocalStorage,
+        // In-memory owner state that outlives a client-side sign-out (garden pass 2026-10-04):
+        clearSessionNectarForSignOut,
+        forgetQuoteToken,
+        forgetTastyFrontMonths,
+        forgetTastyOptionStreamers,
         () => writeCachedUser(null),
         () => setUser(null),
         () => router.replace("/login"),
@@ -251,6 +260,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearPaperState,
         clearWMSState,
         clearOwnerScopedLocalStorage,
+        // In-memory owner state that outlives a client-side sign-out (garden pass 2026-10-04):
+        clearSessionNectarForSignOut,
+        forgetQuoteToken,
+        forgetTastyFrontMonths,
+        forgetTastyOptionStreamers,
         () => writeCachedUser(null),
         () => setUser(null),
         () => router.replace("/login"),

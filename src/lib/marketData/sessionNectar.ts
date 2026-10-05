@@ -72,6 +72,25 @@ export class SessionNectarCollector {
   // changes visible state (ingest / restoreCoverageSummaries).
   private cachedSnapshot: SessionNectarSnapshot | null = null;
 
+  /**
+   * SIGN-OUT (garden pass 2026-10-04, BACKFLOW): the collector lives on
+   * globalThis and sign-out is a client-side route change, so the previous
+   * account's coverage survived and was merged into the NEXT account's server
+   * ledger. Forget every channel and continuity mark.
+   */
+  resetForSignOut(): void {
+    this.channels.clear();
+    this.updatedAt = undefined;
+    this.unsupportedCapabilities = 0;
+    this.continuityRestored = false;
+    this.serverContinuityRestored = false;
+    this.cachedSnapshot = null;
+    // Deliberately SILENT: a listener here would fire the server hydrate while
+    // the old session cookie may still answer, reading the previous account's
+    // ledger straight back in. The room is leaving for /login; the next
+    // account's first live event re-arms the hydrate.
+  }
+
   constructor(
     private readonly startedAt = Date.now(),
     maxSeenEventIds = 50_000,
@@ -218,6 +237,15 @@ const sessionNectarRuntime = getOrCreateSessionNectarRuntime(
 const sessionNectarCollector = sessionNectarRuntime.collector;
 
 const COVERAGE_STORAGE_KEY = "wm:nectar:coverage-continuity:v1";
+/** Set once the server ledger was read for the signed-in account; re-armed at sign-out. */
+let remoteHydrated = false;
+
+/** Called from the sign-out flow: this module owns the coverage key, so it clears it. */
+export function clearSessionNectarForSignOut(): void {
+  sessionNectarCollector.resetForSignOut();
+  remoteHydrated = false;
+  try { if (typeof window !== "undefined") window.localStorage.removeItem(COVERAGE_STORAGE_KEY); } catch { /* storage refused */ }
+}
 if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized) {
   sessionNectarRuntime.continuityInitialized = true;
   try {
@@ -271,7 +299,6 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
       // server ledger; the UI must never claim durable state from this attempt.
     }
   };
-  let remoteHydrated = false;
   sessionNectarCollector.subscribe(() => {
     if (!remoteHydrated && !atSignedOutDoor()) hydrateRemote();
     if (!persistTimer) persistTimer = setTimeout(persist, 2_000);

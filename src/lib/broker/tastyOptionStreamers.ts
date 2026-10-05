@@ -24,9 +24,14 @@ export function tastyOptionStreamers(underlying: string): Promise<Map<string, st
       .then(j => (j?.state === "OK" ? tastyStreamerMap(j.data) : new Map<string, string>()))
       .catch(() => new Map<string, string>());
     cache.set(key, p);
+    // An empty answer (refused / failed) is retried on the next ask, not kept (garden pass 2026-10-04).
+    void p.then(m => { if (m.size === 0 && cache.get(key) === p) cache.delete(key); });
   }
   return p;
 }
+
+/** Sign-out: forget the previous account's streamer maps. */
+export function forgetTastyOptionStreamers(): void { cache.clear(); }
 
 /** The map for an underlying (null while it is being read). */
 export function useTastyOptionStreamers(underlying: string): Map<string, string> | null {

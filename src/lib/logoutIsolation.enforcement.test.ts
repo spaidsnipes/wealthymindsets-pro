@@ -46,10 +46,14 @@ const OWNER_SCOPED_KEYS = new Set<string>([
   "wm_scanner_starred", "wm_scanner_alerted",
   "wm_journal_entries", "wm_ledger_one_r", "wm_ledger_tag_amendments_v1", "wm_process_days_v1", "wm_ledger_models_v1", "wm_restoration_days_v1", "wm_ledger_clinic_v1", "wm_rule_card_hidden_day", "wm_profile_rules_effective", "wm_pattern_working_on_v1", "wm_edu_progress",
   "wm_api_keys", "wm_creator_waitlist",
+  // 2026-10-04 cross-user leak audit:
+  "wm-journal", "wm_execution_guardrails_v1", "wm_price_alerts", "wm_story_review_v1", "wm-pine-scripts",
+  "wm_research_heat_archive_v1", "wm_alpaca_disconnected", "wm_alpaca_proxy", "wm_lounge_bookmarks",
+  "wm_desks_v1", "wm_desk_active_v1",
 ]);
 
 /** OWNER_SCOPED_PREFIXES from logoutIsolation.ts (matches by startsWith). */
-const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-"];
+const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-", "wm_tv_chat_", "wm_draw:v1:", "wm:morning-prep:v2:"];
 
 /**
  * Keys cleared by a domain-specific `clearX()` invoked from
@@ -108,16 +112,12 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   "wm_bf_seq_best",           // best-perf record — device metric
   "wm_active_watchlist",      // last-selected watchlist name — device chart pref
   "wm_chart_watchlist_open",  // watchlist visibility — device chart layout pref
-  "wm_alpaca_proxy",          // proxy toggle — device pref
-  "wm_alpaca_disconnected",   // WS disconnect flag — device transient
   "wm_lounge_vibe",           // lounge theme — device pref
-  "wm_lounge_bookmarks",      // lounge nav bookmarks — device pref
   "wm_heatmap_",              // heatmap %/cache prefix — device cache
   "wm_morning_prep_",         // morning prep local index — device pref
   "wm_morning_prep_email",    // morning prep email seed — device pref
   "wm_morning_prep_founder",  // morning prep founder view — device pref
   "wm_morning_prep_guest",    // morning prep guest view — device pref
-  "wm_price_alerts",          // client-only price alerts — device (would move to owner scope when server-persisted)
   "wm_auth",                  // legacy cookie mirror (session cookie is authoritative + cleared by server)
   "WM_INTERNAL",              // constant / feature-flag namespace, not a storage key
   // Device-level keys explicitly listed in logoutIsolation.ts "NOT touched" block:

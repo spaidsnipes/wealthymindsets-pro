@@ -81,6 +81,12 @@ export function tastyFrontMonthFor(chartSymbol: string): Promise<TastyFrontMonth
       .then(j => (j?.state === "OK" ? (exact ? resolveTastyContract(j.data, exact) : resolveTastyFrontMonth(j.data)) : null))
       .catch(() => null);
     cache.set(key, p);
+    // A refusal or a failed read is not an answer to keep: the next ask
+    // retries (garden pass 2026-10-04 — a failure was cached for the tab's life).
+    void p.then(v => { if (v == null && cache.get(key) === p) cache.delete(key); });
   }
   return p;
 }
+
+/** Sign-out: the next account resolves its own contracts. */
+export function forgetTastyFrontMonths(): void { cache.clear(); }

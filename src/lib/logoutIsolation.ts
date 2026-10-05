@@ -52,6 +52,20 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm_edu_progress",      // education module completion / notes
   "wm_api_keys",          // user-supplied NewsAPI / X bearer credentials
   "wm_creator_waitlist",  // creator waitlist email, handle and tier
+  // Garden-house pass 2026-10-04 (BACKFLOW / cross-user leak audit): these
+  // survived sign-out and reached the next account on the same browser.
+  "wm-journal",           // LEGACY journal — read as a fallback and migrated into the NEXT account
+  "wm_execution_guardrails_v1", // live-trading arm state + per-order ceilings
+  "wm_price_alerts",      // the trader's alert levels (was filed as device)
+  "wm_story_review_v1",   // journal lessons in the trader's own words
+  "wm-pine-scripts",      // the trader's own indicator code
+  "wm_research_heat_archive_v1", // saved heat snapshots with the trader's notes
+  "wm_last_symbol",       // last market opened (sessionSymbolStore did not actually clear it)
+  "wm_alpaca_disconnected", // "your Alpaca account is disconnected" device flag
+  "wm_alpaca_proxy",      // tape relay override — a stored host labelled LIVE
+  "wm_lounge_bookmarks",  // the trader's saved lounge posts
+  "wm_desks_v1",          // named trade desks
+  "wm_desk_active_v1",    // the active desk
 ] as const;
 
 /**
@@ -73,6 +87,9 @@ const OWNER_SCOPED_PREFIXES: readonly string[] = [
   "wm-notes-",
   "wm:decision-identity:",
   "wm:risk-receipt:",
+  "wm_tv_chat_",          // TV channel notes the trader typed (2026-10-04)
+  "wm_draw:v1:",          // drawings, keyed by owner but never purged (2026-10-04)
+  "wm:morning-prep:v2:",  // morning prep, keyed by owner but never purged (2026-10-04)
 ] as const;
 
 /**
