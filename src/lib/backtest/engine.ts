@@ -68,8 +68,14 @@ export interface BTResult {
     fromDate:   string;
     toDate:     string;
     rangeNote?: string; // set when Yahoo couldn't cover the requested span
+    /** Declared fill and cost model (super order §7) — printed with every result. */
+    assumptions: string;
   };
 }
+
+/** The fill and cost model, said with every run (super order §7). */
+export const BACKTEST_ASSUMPTIONS =
+  "Signal on a bar's close, entry at the NEXT bar's open (no look-ahead). Stop and target fill at their price, or at the bar's open when it gapped beyond them; stop is checked before target inside a bar. No commissions, fees or slippage are modelled — real results will be lower. 1% risk per trade, one position at a time.";
 
 /* ── Data fetch (real bars) ─────────────────────────────────── */
 export async function fetchBars(symbol: string, tf: string): Promise<LegacyOhlcvTuple[]> {
@@ -214,12 +220,15 @@ export function runRealBacktest(
     let exit = entry, heldBars = 0, j = i + 1;
     for (; j < bars.length && heldBars < MAX_HOLD; j++, heldBars++) {
       const bj = bars[j];
+      // A bar that OPENS beyond the stop fills at its open, not at the stop
+      // (super order §7: declared fills — a gap through a stop is a worse fill,
+      // never the price the trader hoped for). Same for a target gapped over.
       if (side === "long") {
-        if (bj.low  <= stop)   { exit = stop;   break; }
-        if (bj.high >= target) { exit = target; break; }
+        if (bj.low  <= stop)   { exit = j > i + 1 && bj.open < stop ? bj.open : stop;     break; }
+        if (bj.high >= target) { exit = j > i + 1 && bj.open > target ? bj.open : target; break; }
       } else {
-        if (bj.high >= stop)   { exit = stop;   break; }
-        if (bj.low  <= target) { exit = target; break; }
+        if (bj.high >= stop)   { exit = j > i + 1 && bj.open > stop ? bj.open : stop;     break; }
+        if (bj.low  <= target) { exit = j > i + 1 && bj.open < target ? bj.open : target; break; }
       }
       exit = bj.close; // time-exit fallback = close of last held bar
     }
@@ -282,6 +291,7 @@ export function runRealBacktest(
       barCount: Math.max(0, bars.length - (fromTime != null ? startIdx : 0)),
       fromDate: bars.length ? new Date(bars[fromTime != null ? Math.min(startIdx, bars.length - 1) : 0].time * 1000).toLocaleDateString() : "—",
       toDate:   bars.length ? new Date(bars[bars.length - 1].time * 1000).toLocaleDateString() : "—",
+      assumptions: BACKTEST_ASSUMPTIONS,
     },
   };
 }

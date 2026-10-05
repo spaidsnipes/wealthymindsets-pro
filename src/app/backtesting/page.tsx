@@ -594,6 +594,9 @@ export default function BacktestingPage() {
                       <AlertTriangle size={10} /> {result.meta.rangeNote}
                     </span>
                   )}
+                  <span data-testid="backtest-assumptions" className="w-full mt-0.5 text-wm-text-dim">
+                    How this was simulated · {result.meta.assumptions}
+                  </span>
                 </div>
 
                 {/* ── Key metrics ── */}
