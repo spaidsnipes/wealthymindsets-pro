@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, BellOff, X, Plus, ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { wmConfirm } from "@/components/ui/wmConfirm";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 
 export interface PriceAlert {
   id: string;
@@ -75,6 +76,7 @@ function AlertToast({ toasts, onDismiss }: { toasts: ToastMsg[]; onDismiss: (id:
 const ALERTS_KEY = "wm_price_alerts";
 
 export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChange, alerts: roomAlerts }: Props) {
+  const dlgRef = useRef<HTMLDivElement>(null);
   const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
     try { return JSON.parse(localStorage.getItem(ALERTS_KEY) ?? "[]"); } catch { return []; }
   });
@@ -177,7 +179,7 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
 
       <AnimatePresence>
         {open && (
-          <motion.div
+          <motion.div ref={dlgRef}
             initial={{ x: 320, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 320, opacity: 0 }}
@@ -191,6 +193,7 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
               boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
             }}
           >
+            <DialogBehaviour targetRef={dlgRef} label="Price alerts" onClose={onClose} />
             {/* Header */}
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",

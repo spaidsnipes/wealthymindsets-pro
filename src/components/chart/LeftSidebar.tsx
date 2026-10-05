@@ -24,6 +24,7 @@ import {
   X, Download, Copy, Check, Square, Loader2, AlertTriangle,
 } from "lucide-react";
 import type { ChartLayout } from "./ChartLayoutManager";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 
 /* ── layout options (mirrors ChartLayoutManager, compact) ─────────────── */
 const LAYOUTS: { id: ChartLayout; label: string; cells: [number, number, number, number][] }[] = [
@@ -592,13 +593,14 @@ export default function LeftSidebar({
 function ModalShell({ title, icon, onClose, children, width = 520 }: {
   title: string; icon: React.ReactNode; onClose: () => void; children: React.ReactNode; width?: number;
 }) {
+  const dlgRef = useRef<HTMLDivElement>(null);
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}
       onMouseDown={onClose}
       style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.62)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }}
     >
-      <motion.div
+      <motion.div ref={dlgRef}
         initial={{ scale: 0.96, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 8 }} transition={{ duration: 0.16 }}
         onMouseDown={e => e.stopPropagation()}
         style={{
@@ -607,6 +609,7 @@ function ModalShell({ title, icon, onClose, children, width = 520 }: {
           boxShadow: "0 24px 70px rgba(0,0,0,0.7)",
         }}
       >
+        <DialogBehaviour targetRef={dlgRef} label={typeof title === "string" ? title : "Dialog"} onClose={onClose} />
         <div style={{
           display: "flex", alignItems: "center", gap: 9, padding: "13px 16px",
           borderBottom: "1px solid #1E2030",

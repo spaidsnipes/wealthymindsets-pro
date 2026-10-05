@@ -23,6 +23,7 @@ import { PineEditor } from "./PineEditor";
 import { interpretPine, validatePine } from "@/lib/pine/interpreter";
 import type { PineOutput } from "@/lib/pine/types";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { wmConfirm } from "@/components/ui/wmConfirm";
 
 /* ── Starter templates ─────────────────────────────────────── */
@@ -247,6 +248,7 @@ interface Props {
 }
 
 export function CustomIndicatorBuilder({ onClose, bars, onAddToChart, activeCode }: Props) {
+  const dlgRef = useRef<HTMLDivElement>(null);
   const [code,       setCode]       = useState(activeCode || TEMPLATES[0].code);
   const [output,     setOutput]     = useState<PineOutput | null>(null);
   const [errors,     setErrors]     = useState<{ line: number; msg: string }[]>([]);
@@ -330,10 +332,11 @@ export function CustomIndicatorBuilder({ onClose, bars, onAddToChart, activeCode
       className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
     >
-      <div
+      <div ref={dlgRef}
         className="relative w-full max-w-5xl bg-wm-dark border border-wm-border rounded-2xl shadow-2xl overflow-hidden flex flex-col"
         style={{ height: "90vh" }}
       >
+        <DialogBehaviour targetRef={dlgRef} label={"Custom indicator builder"} onClose={onClose} />
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-wm-border shrink-0">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-wm-blue to-wm-purple flex items-center justify-center">

@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X, Settings, Info, BarChart2 } from "lucide-react";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 
 import {
   CANDLE_DOWN_DEFAULT,
@@ -200,6 +201,7 @@ const TABS: { id: Tab; icon: React.ReactNode; label: string }[] = [
 ];
 
 export function ChartSettingsModal({ open, onClose, symbol, settings, onSettingsChange }: Props) {
+  const dlgRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>("chart");
   const dragControls = useDragControls();
   const s = settings;
@@ -221,6 +223,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
           />
 
           <motion.div
+            ref={dlgRef}
             id="chart-settings-modal"
             role="dialog"
             aria-modal="true"
@@ -252,6 +255,8 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
               boxShadow: "0 24px 64px rgba(0,0,0,0.7)",
             }}
           >
+            {/* It had the dialog ROLE but none of the behaviour (garden pass 2026-10-04). */}
+            <DialogBehaviour targetRef={dlgRef} label="Chart appearance" onClose={onClose} />
             {/* Header — drag handle (grab to move the panel anywhere) */}
             <div
               onPointerDown={(e) => dragControls.start(e)}

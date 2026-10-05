@@ -21,6 +21,7 @@ import {
 import { selectFirstBrokenJoint, type JointVerdict } from "@/lib/broker/selectFirstBrokenJoint";
 import { providerReportToStageEvidence } from "@/lib/broker/providerReportToStageEvidence";
 import type { ProviderReport } from "@/app/api/broker/status/route";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { WEBULL_2FA_SWITCH_PATH, WEBULL_CODE_ENTRY_PATH, webullCapabilityCertificate, webullSessionGuidance, type WebullKeeperView } from "@/lib/broker/webullSessionGuidance";
 
 type BrokerCategory = "broker" | "crypto" | "forex" | "prop";
@@ -370,6 +371,7 @@ interface AccountInfo {
  * sent to the validation endpoint at the creator's request and are not stored.
  */
 function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => void }) {
+  const dlgRef = useRef<HTMLDivElement>(null);
   const api = broker.apiSupport!;
   const [key,    setKey]    = useState("");
   const [secret, setSecret] = useState("");
@@ -432,10 +434,11 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
       className="fixed inset-0 z-[300] flex items-center justify-center p-4"
       style={{ background:"rgba(0,0,0,0.75)", backdropFilter:"blur(8px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <motion.div initial={{ scale:0.94, y:16 }} animate={{ scale:1, y:0 }} exit={{ scale:0.94 }}
+      <motion.div ref={dlgRef} initial={{ scale:0.94, y:16 }} animate={{ scale:1, y:0 }} exit={{ scale:0.94 }}
         className="w-full max-w-md rounded-2xl border border-wm-border overflow-hidden"
         style={{ background:"#0D1017" }}
         onClick={e => e.stopPropagation()}>
+        <DialogBehaviour targetRef={dlgRef} label={"Connect a broker"} onClose={onClose} />
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-wm-border/50">

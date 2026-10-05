@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
  * Browse, search, rate, fork, and import community-built indicators.
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Star, GitFork, BarChart2, TrendingUp, Zap, Eye,
@@ -15,6 +15,7 @@ import {
   Award, Flame, Clock, BookOpen,
 } from "lucide-react";
 import { clsx } from "clsx";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 
 /* ── Community script catalogue ─────────────────────────── */
 export interface CommunityScript {
@@ -457,6 +458,7 @@ function CodePreviewModal({ script, onClose, onImport }: {
   onClose:  () => void;
   onImport: (s: CommunityScript) => void;
 }) {
+  const dlgRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
   const copy = () => {
@@ -474,12 +476,13 @@ function CodePreviewModal({ script, onClose, onImport }: {
       exit={{ opacity: 0 }}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <motion.div
+      <motion.div ref={dlgRef}
         className="relative w-full max-w-2xl bg-wm-card border border-wm-border rounded-2xl shadow-2xl overflow-hidden"
         initial={{ scale: 0.95, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 20 }}
       >
+        <DialogBehaviour targetRef={dlgRef} label={"Script preview"} onClose={onClose} />
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-wm-border">
           <div>
@@ -521,6 +524,7 @@ interface Props {
 }
 
 export function PineCommunityLibrary({ onClose, onImport }: Props) {
+  const dlgRef = useRef<HTMLDivElement>(null);
   const [search,    setSearch]    = useState("");
   const [cat,       setCat]       = useState("All");
   const [sort,      setSort]      = useState("Featured");
@@ -561,13 +565,14 @@ export function PineCommunityLibrary({ onClose, onImport }: Props) {
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      <motion.div
+      <motion.div ref={dlgRef}
         className="relative w-full max-w-4xl bg-wm-card border border-wm-border rounded-2xl shadow-2xl overflow-hidden flex flex-col"
         style={{ height: "85vh" }}
         initial={{ scale: 0.95, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 20 }}
       >
+        <DialogBehaviour targetRef={dlgRef} label={"Pine community library"} onClose={onClose} />
         {/* ── Header ─────────────────────────────────────── */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-wm-border bg-wm-dark shrink-0">
           <div

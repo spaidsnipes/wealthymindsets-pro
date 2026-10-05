@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { X, RotateCcw } from "lucide-react";
 import {
@@ -8,6 +8,7 @@ import {
   type IndicatorParams, type IndicatorSettings, type TfGroup,
 } from "./indicatorConfig";
 import { SchemePresets } from "./SchemePresets";
+import { DialogBehaviour } from "@/components/ui/DialogFrame";
 
 type Tab = "inputs" | "style" | "visibility";
 
@@ -31,6 +32,7 @@ export function IndicatorSettingsModal({
   onChange: (name: string, params: IndicatorParams) => void;
   onClose: () => void;
 }) {
+  const dlgRef = useRef<HTMLDivElement>(null);
   const cfg = INDICATOR_CONFIG[name];
   const [local, setLocal] = useState<IndicatorParams>(() => resolveParams(name, settings));
   const [tab, setTab] = useState<Tab>("inputs");
@@ -78,12 +80,13 @@ export function IndicatorSettingsModal({
       style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <motion.div
+      <motion.div ref={dlgRef}
         initial={{ scale: 0.95, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95 }}
         className="w-full max-w-md rounded-2xl border border-wm-border overflow-hidden"
         style={{ background: "#0D1017" }}
         onClick={e => e.stopPropagation()}
       >
+        <DialogBehaviour targetRef={dlgRef} label={"Indicator settings"} onClose={onClose} />
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-wm-border/60">
           <div>
