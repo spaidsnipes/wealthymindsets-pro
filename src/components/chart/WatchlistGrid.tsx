@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { readSymbolList } from "@/lib/marketData/storedSymbolList";
+import { keyActivates } from "@/lib/a11y/keyActivates";
 // This grid declared its own six-field `Candle` until 2026-09-18. It was
 // byte-for-byte `LegacyOhlcvTuple`, so it speaks that name now. A rename, not a
 // migration: the cards still draw a past with no symbolId and no fidelity.
@@ -130,15 +131,21 @@ function Card({ sym, tf }: { sym: string; tf: string }) {
   const cs = data.candles;
   const last = cs[cs.length - 1];
   const prev = cs[cs.length - 2];
-  const price = last?.close ?? 0;
-  const chg = last && prev ? price - prev.close : 0;
-  const chgPct = prev?.close ? (chg / prev.close) * 100 : 0;
+  // No bar is no price: NaN reads as "—" (fmt), never a printed 0.00 that
+  // looks like a real quote (garden pass 2026-10-05, SPOILED_STOCK).
+  const price = last?.close ?? NaN;
+  const chg = last && prev ? price - prev.close : NaN;
+  const chgPct = prev?.close ? (chg / prev.close) * 100 : NaN;
   const up = chg >= 0;
-  const col = up ? GREEN : RED;
+  const col = !isFinite(chg) ? "#8b8fa8" : up ? GREEN : RED;
 
   return (
     <div
       onClick={() => setActiveSymbol(sym)}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${sym} on the chart`}
+      onKeyDown={keyActivates}
       style={{
         background: "#0D0E14", border: "1px solid #1E2030", borderRadius: 8,
         padding: 10, display: "flex", flexDirection: "column", cursor: "pointer",
@@ -152,14 +159,14 @@ function Card({ sym, tf }: { sym: string; tf: string }) {
         <span style={{ fontSize: 14, fontWeight: 800, color: "#E2E8F0" }}>{sym}</span>
         <span style={{ fontSize: 13, fontWeight: 700, color: col, fontFamily: "monospace" }}>{fmt(price)}</span>
         <span style={{ fontSize: 11, fontWeight: 700, color: col, fontFamily: "monospace" }}>
-          {up ? "+" : ""}{fmt(chg)} {up ? "+" : ""}{chgPct.toFixed(2)}%
+          {isFinite(chgPct) ? <>{up ? "+" : ""}{fmt(chg)} {up ? "+" : ""}{chgPct.toFixed(2)}%</> : "—"}
         </span>
       </div>
       {/* OHLC line */}
       <div style={{ display: "flex", gap: 8, marginTop: 4, fontSize: 9, color: "#8b8fa8", fontFamily: "monospace", flexWrap: "wrap", flexShrink: 0 }}>
-        <span>O <span style={{ color: "#A0AEC0" }}>{fmt(last?.open ?? 0)}</span></span>
-        <span>H <span style={{ color: "#A0AEC0" }}>{fmt(last?.high ?? 0)}</span></span>
-        <span>L <span style={{ color: "#A0AEC0" }}>{fmt(last?.low ?? 0)}</span></span>
+        <span>O <span style={{ color: "#A0AEC0" }}>{fmt(last?.open ?? NaN)}</span></span>
+        <span>H <span style={{ color: "#A0AEC0" }}>{fmt(last?.high ?? NaN)}</span></span>
+        <span>L <span style={{ color: "#A0AEC0" }}>{fmt(last?.low ?? NaN)}</span></span>
         <span>C <span style={{ color: "#A0AEC0" }}>{fmt(price)}</span></span>
         <span>Vol <span style={{ color: "#A0AEC0" }}>{fmtVol(last?.volume ?? 0)}</span></span>
       </div>

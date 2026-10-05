@@ -507,21 +507,27 @@ export default function LiveRoom({ roomName, roomLabel, color, userName, isHost,
       const res  = await fetch(
         `/api/livekit?room=${encodeURIComponent(roomName)}&name=${encodeURIComponent(userName || "Guest")}&role=${role}`
       );
-      const json = await res.json() as { token?: string; serverUrl?: string; error?: string };
-      if (json.error) throw new Error(json.error);
+      const json = await res.json().catch(() => ({})) as { token?: string; serverUrl?: string; error?: string };
+      // The guest reads a sentence, not the server's operator text: a 503
+      // names host variables (that is for the readiness receipt, not the
+      // lounge). Only the host refusal (403) is already written for people.
+      if (res.status === 401) throw new Error("Sign in to join this room.");
+      if (res.status === 503) throw new Error("Live rooms are not switched on for this deployment yet.");
+      if (res.status === 403 && json.error) throw new Error(json.error);
+      if (!res.ok || json.error) throw new Error("The room did not answer just now — try again in a moment.");
       // Refuse a partial success. A token without a host mints a valid identity
       // for a room that cannot be dialled: the UI would flip to "joined" and
       // then sit dark forever with nothing on screen saying why.
       if (!json.token || !json.serverUrl) {
         throw new Error(
-          "LiveKit did not return both a token and a server URL — the room host is not configured on this deployment.",
+          "Live rooms are not switched on for this deployment yet.",
         );
       }
       setToken(json.token);
       setServerUrl(json.serverUrl);
       setJoined(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to join");
+      setError(e instanceof Error && !(e instanceof TypeError) ? e.message : "The room did not answer just now — try again in a moment.");
     }
     setLoading(false);
   };

@@ -1546,3 +1546,13 @@ input[type=range]::-webkit-slider-runnable-track {
     overflow-y: auto !important;
   }
 }
+
+/* Masthead icon buttons (ShellAccessChrome) are 30px squares, too small for a
+   finger. On a touch screen they get the 44px minimum; min-* beats the inline
+   width/height, so mouse-driven desktop is unchanged. Garden pass 2026-10-05. */
+@media (pointer: coarse) {
+  .wm-shell-access button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

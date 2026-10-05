@@ -119,7 +119,12 @@ export function BrokerTruthToday() {
     return out.sort((x, y) => Number(!!y.decisionId) - Number(!!x.decisionId));
   }, [feed]);
 
-  if (status === 403) return null; // not the broker owner: this section has nothing that belongs to them
+  // Not the broker owner (403) or not signed in (401): this section has nothing
+  // that belongs to them, so it is not drawn at all — and it stays undrawn until
+  // the first answer says who is asking, so a guest never sees "Asking your
+  // brokers…" flash up over brokers that are not theirs.
+  if (status === 401 || status === 403) return null;
+  if (!feed) return null;
 
   return (
     <section data-testid="broker-truth-today" aria-label="Broker truth today" style={{ padding: "12px 16px", borderBottom: `1px solid ${LINE}`, color: INK }}>
@@ -129,12 +134,10 @@ export function BrokerTruthToday() {
           Read from your brokers{feed?.asOf ? ` · as of ${time(feed.asOf)}` : ""} — orders and fills as the broker states them, never this browser&apos;s memory.
         </span>
       </div>
-      {!feed ? (
-        <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>Asking your brokers for this week&apos;s orders and fills…</p>
-      ) : feed.state === "NOT_CONFIGURED" ? (
+      {feed.state === "NOT_CONFIGURED" ? (
         <p style={{ color: GOLD, fontSize: 12, marginTop: 8 }}>tastytrade is not connected on this deployment, so there are no broker facts to show.</p>
       ) : feed.state !== "OK" ? (
-        <p style={{ color: GOLD, fontSize: 12, marginTop: 8 }}>The brokers did not answer ({feed.reason ?? feed.state}). Your journal entries below are unaffected; this section retries every 30 seconds.</p>
+        <p title={feed.reason ?? feed.state} style={{ color: GOLD, fontSize: 12, marginTop: 8 }}>The brokers did not answer just now. Your journal entries below are unaffected; this section retries every 30 seconds.</p>
       ) : stories.length === 0 ? (
         <p style={{ color: MUTED, fontSize: 12, marginTop: 8 }}>No orders or fills at tastytrade or Webull in the last 7 days. Completed decision stories will appear here as the broker records them.</p>
       ) : (
