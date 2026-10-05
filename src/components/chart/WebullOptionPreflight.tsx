@@ -17,6 +17,7 @@ import React, { useEffect, useState } from "react";
 import { TastytradeLiveOrder } from "@/components/chart/TastytradeLiveOrder";
 import { WebullLiveOrder } from "@/components/chart/WebullLiveOrder";
 import { isOwnerRefusal, plainBrokerAnswer } from "@/lib/broker/ownerRefusal";
+import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 
 type Answer = {
   readonly state?: string;
@@ -69,6 +70,10 @@ export function WebullOptionPreflight({ osi, decisionId, referenceAsk, reference
   /** True when referenceAsk is tastytrade's live ask, not the indicative reference. */
   readonly referenceIsLive?: boolean;
 }) {
+  // Both preflight routes are the broker OWNER's; a guest was offered an
+  // eligible Webull preview and an account picker, refused only after the
+  // press (garden pass 2026-10-05).
+  const audience = useBrokerAudience();
   const [intent, setIntent] = useState<(typeof INTENTS)[number]["v"]>("BUY_TO_OPEN");
   const [qty, setQty] = useState(1);
   const [limit, setLimit] = useState<string>(referenceAsk != null ? referenceAsk.toFixed(2) : "");
@@ -125,6 +130,14 @@ export function WebullOptionPreflight({ osi, decisionId, referenceAsk, reference
     } finally {
       setBusy(false);
     }
+  }
+
+  if (audience !== "OWNER") {
+    return (
+      <section aria-label="Broker preflight" data-testid="webull-option-preflight" className="mt-3 rounded border border-wm-border p-2 text-[11px] text-wm-text-muted">
+        {audience === null ? "Checking which broker rails are open on your account…" : "Broker preflight isn't available on your account. The chain, Greeks and risk above still work."}
+      </section>
+    );
   }
 
   const state = answer?.state ?? null;

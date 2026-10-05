@@ -12,6 +12,7 @@ import {
   type CopyTradingRequirementState,
 } from "@/lib/broker/copyTradingGate";
 import { openSettings } from "@/components/layout/shellPanels";
+import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 
 /**
  * A GATE THAT CANNOT REPORT ITS OWN STATE IS A SIGN, NOT A GATE.
@@ -46,6 +47,7 @@ type LoadState =
   | { kind: "loading" }
   | { kind: "ok"; gate: CopyTradingGate }
   | { kind: "unauthorized" }
+  | { kind: "guest" }
   | { kind: "error"; detail: string };
 
 interface StatusBody {
@@ -91,15 +93,23 @@ export default function CopyTradingPage() {
     return () => { alive = false; };
   }, []);
 
+  // The broker certification read here is the broker OWNER's; graded for a
+  // guest, it read the platform's adapters as the guest's own unmet
+  // requirements (garden pass 2026-10-05).
+  const audience = useBrokerAudience();
+  const view: LoadState = audience === "GUEST" && state.kind === "ok" ? { kind: "guest" } : state;
+
   // The header verdict chip. Every branch states what it actually knows —
   // none of them assert a measured verdict from an unmeasured state.
   const verdict =
-    state.kind === "ok"
-      ? { text: state.gate.available ? "Requirements met" : "Requirements unmet", tone: state.gate.available ? REQ_TONE.MET : REQ_TONE.UNMET }
-      : state.kind === "loading"
+    view.kind === "ok"
+      ? { text: view.gate.available ? "Requirements met" : "Requirements unmet", tone: view.gate.available ? REQ_TONE.MET : REQ_TONE.UNMET }
+      : view.kind === "loading"
         ? { text: "Checking broker certification…", tone: REQ_TONE.UNMEASURED }
-        : state.kind === "unauthorized"
+        : view.kind === "unauthorized"
           ? { text: "Sign in to measure", tone: REQ_TONE.UNMEASURED }
+          : view.kind === "guest"
+          ? { text: "Needs your own broker", tone: REQ_TONE.UNMEASURED }
           : { text: "Could not measure", tone: REQ_TONE.UNMEASURED };
 
   return (
@@ -193,16 +203,16 @@ export default function CopyTradingPage() {
               {verdict.text}
             </span>
           </div>
-          {state.kind === "ok" && (
+          {view.kind === "ok" && (
             <p
               data-testid="copy-trading-headline"
               style={{ marginTop: 12, fontSize: 12, color: WM.text.muted, lineHeight: 1.6 }}
             >
-              {state.gate.headline}
-              {state.gate.bestBroker !== null && (
+              {view.gate.headline}
+              {view.gate.bestBroker !== null && (
                 <>
-                  {" "}Furthest-certified broker: <strong style={{ color: WM.text.body }}>{state.gate.bestBroker}</strong>{" "}
-                  at <strong data-level={state.gate.bestLevel} style={{ color: WM.text.body }}>{CERT_WORDS[state.gate.bestLevel] ?? state.gate.bestLevel}</strong>.
+                  {" "}Furthest-certified broker: <strong style={{ color: WM.text.body }}>{view.gate.bestBroker}</strong>{" "}
+                  at <strong data-level={view.gate.bestLevel} style={{ color: WM.text.body }}>{CERT_WORDS[view.gate.bestLevel] ?? view.gate.bestLevel}</strong>.
                 </>
               )}
             </p>
@@ -226,27 +236,33 @@ export default function CopyTradingPage() {
               <ShieldCheck size={17} /> Activation requirements
             </div>
 
-            {state.kind === "loading" && (
+            {view.kind === "loading" && (
               <p className="mt-3 text-sm leading-6 text-wm-text-muted">
                 Reading broker certification…
               </p>
             )}
 
-            {state.kind === "unauthorized" && (
+            {view.kind === "unauthorized" && (
               <p className="mt-3 text-sm leading-6 text-wm-text-muted">
                 Broker certification is only readable inside a signed-in WM session. These requirements are unknown right now — not failed.
               </p>
             )}
 
-            {state.kind === "error" && (
+            {view.kind === "guest" && (
               <p className="mt-3 text-sm leading-6 text-wm-text-muted">
-                WM could not read broker certification ({state.detail}). These requirements are unknown right now — not failed.
+                Copy trading reads performance from a broker connected to your own account. Linking your own broker isn&apos;t available yet, so there is nothing to measure for you — not a failure.
               </p>
             )}
 
-            {state.kind === "ok" && (
+            {view.kind === "error" && (
+              <p className="mt-3 text-sm leading-6 text-wm-text-muted">
+                WM could not read broker certification just now. These requirements are unknown right now — not failed.
+              </p>
+            )}
+
+            {view.kind === "ok" && (
               <ul className="mt-3 space-y-3" data-testid="copy-trading-requirements">
-                {state.gate.requirements.map(req => {
+                {view.gate.requirements.map(req => {
                   const tone = REQ_TONE[req.state];
                   return (
                     <li key={req.id} style={{ lineHeight: 1.5 }}>
@@ -287,11 +303,11 @@ export default function CopyTradingPage() {
           {/* Said from the gate, not from a fixed sentence: with a broker already
               certified READ_ONLY this read "Connect a real supported broker
               first" beside a checklist showing it connected (2026-10-03). */}
-          {state.kind === "ok" && state.gate.bestLevel !== "NONE" ? (
+          {view.kind === "ok" && view.gate.bestLevel !== "NONE" ? (
             <>
               <h2 className="mt-3 text-lg font-black">Your broker is connected — copying is not certified yet</h2>
               <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-wm-text-dim">
-                {state.gate.bestBroker} is certified {CERT_WORDS[state.gate.bestLevel] ?? state.gate.bestLevel}. Copy trading stays off until order acknowledgements and fills are certified and a follower authorization exists.
+                {view.gate.bestBroker} is certified {CERT_WORDS[view.gate.bestLevel] ?? view.gate.bestLevel}. Copy trading stays off until order acknowledgements and fills are certified and a follower authorization exists.
               </p>
             </>
           ) : (

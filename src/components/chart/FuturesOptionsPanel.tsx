@@ -113,17 +113,20 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
   // §LXXV: today's orders at tastytrade, re-read from the broker while open.
   useEffect(() => {
     let live = true;
+    let t: ReturnType<typeof setInterval> | undefined;
     const pull = () => fetch("/api/broker/tastytrade/orders", { cache: "no-store" })
-      .then(r => r.json().catch(() => null))
+      // Not the broker owner: the answer will not change, so stop asking
+      // every 10 s (garden pass 2026-10-05).
+      .then(r => { if (r.status === 401 || r.status === 403) { if (t) clearInterval(t); return null; } return r.json().catch(() => null); })
       .then(j => {
         if (!live || j?.state !== "OK") return;
         setOrders((j.accounts as { tail: string; orders: { id: string; state: string; symbol: string | null; action: string | null; quantity: number | null; filled: number | null; price: string | null }[] }[])
           .flatMap(a => a.orders.map(o => ({ tail: a.tail, ...o }))));
       })
       .catch(() => {});
+    t = setInterval(pull, 10_000);
     void pull();
-    const t = setInterval(pull, 10_000);
-    return () => { live = false; clearInterval(t); };
+    return () => { live = false; if (t) clearInterval(t); };
   }, []);
 
   useEffect(() => {
