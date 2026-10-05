@@ -6,6 +6,7 @@
  * Says where the numbers came from and when; says plainly when there are none.
  */
 import React, { useEffect, useState } from "react";
+import { symbolDoorHref } from "@/contexts/SymbolContext";
 
 import { futuresProductFor, readFuturesOptionChain, type FutureContract } from "@/lib/broker/tastytradeFuturesChain";
 import { metricsSymbolFor, readMarketMetrics, type MetricRow } from "@/lib/marketData/tastyMarketMetrics";
@@ -37,7 +38,12 @@ function FxMarketInfo({ symbol }: { readonly symbol: string }) {
       {door ? (
         <p style={{ fontSize: 12, color: "#B0B8D0", margin: "12px 0 0" }}>
           Live traded volume and sides: {door.futures} ({door.note}) — a different market.{" "}
-          <a href={`?symbol=${encodeURIComponent(door.futures)}`} style={{ color: "#C9A55C" }}>Open {door.futures} →</a>
+          <a
+            href={`?symbol=${encodeURIComponent(door.futures)}`}
+            // Keep the rest of the camera (tf, desk…) — a bare "?symbol=" replaced the whole query (hallway audit 2026-10-04).
+            onClick={e => { e.preventDefault(); window.location.assign(symbolDoorHref(window.location.href, door.futures)); }}
+            style={{ color: "#C9A55C" }}
+          >Open {door.futures} →</a>
         </p>
       ) : null}
     </section>

@@ -62,7 +62,10 @@ export function middleware(request: NextRequest) {
     // it is parsed, never pasted into the pathname.
     const target = new URL(aliasTarget, request.nextUrl.origin);
     url.pathname = target.pathname;
-    if (target.search) url.search = target.search;
+    // The target's own params win, the visitor's are KEPT (hallway audit
+    // 2026-10-04: "/signup?next=/lounge" lost `next`, so a guest invited to a
+    // room landed on the chart after signing up).
+    if (target.search) target.searchParams.forEach((v, k) => url.searchParams.set(k, v));
     return NextResponse.redirect(url, 308);
   }
 

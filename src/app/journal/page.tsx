@@ -1065,7 +1065,8 @@ function JournalPageInner() {
     const tag = (q.get("tag") ?? "").trim().slice(0, 32);
     setForm(f => ({
       ...f,
-      ...(/^[A-Z0-9.!/^=:-]{1,24}$/.test(sym) ? { symbol: sym } : {}),
+      // Option contracts carry spaces and run past 24 (TSLA  261002C00305000) — hallway audit 2026-10-04.
+      ...(/^[A-Z0-9.!/^=: -]{1,40}$/.test(sym) ? { symbol: sym } : {}),
       ...(side === "long" || side === "short" ? { side } : {}),
       ...(Number.isFinite(size) && size > 0 ? { size } : {}),
       ...(notes ? { notes } : {}),
