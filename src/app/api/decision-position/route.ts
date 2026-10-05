@@ -149,7 +149,12 @@ export async function GET(request: Request) {
 function isReconciliationWorker(request: Request): boolean {
   const secret = process.env.WM_RECONCILIATION_WORKER_SECRET;
   if (!secret) return false;
-  return request.headers.get("x-wm-reconciliation-worker") === secret;
+  // Length-independent compare (security pass 2026-10-05): `===` returns
+  // early at the first differing character.
+  const given = request.headers.get("x-wm-reconciliation-worker") ?? "";
+  let diff = given.length ^ secret.length;
+  for (let i = 0; i < secret.length; i++) diff |= (given.charCodeAt(i) || 0) ^ secret.charCodeAt(i);
+  return diff === 0;
 }
 
 export async function POST(request: Request) {

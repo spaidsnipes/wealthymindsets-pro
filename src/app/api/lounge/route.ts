@@ -118,13 +118,24 @@ export async function POST(request: Request): Promise<Response> {
   if (!auth.ok) return auth.response;
   const me = meFrom(auth.user);
   if (!me) return NextResponse.json({ error: "Set a handle in your Profile to post in the Lounge." }, { status: 400 });
-  const body = (await request.json().catch(() => null)) as Op | null;
+  // Body size cap (security pass 2026-10-05): one allowed post could carry
+  // megabytes of trade_card JSON into the shared store.
+  const raw = await request.text().catch(() => "");
+  if (raw.length > 16_000) return NextResponse.json({ error: "That is too large to post." }, { status: 413 });
+  let body: Op | null = null;
+  try { body = JSON.parse(raw) as Op; } catch { body = null; }
   if (!body || typeof body !== "object") return NextResponse.json({ error: "Bad request" }, { status: 400 });
   const id = "postId" in body ? Number(body.postId) : NaN;
   const needsId = body.op === "comment" || body.op === "like" || body.op === "unlike" || body.op === "delete";
   if (needsId && !(Number.isInteger(id) && id > 0)) return NextResponse.json({ error: "Bad post id" }, { status: 400 });
   // Anti-flood (2026-10-04): any signed-in account could post or comment
   // without limit. Likes / follows stay free — they are idempotent toggles.
+  // Toggles are idempotent but each still writes a row (follow takes any
+  // handle), so they get a generous ceiling of their own (2026-10-05).
+  if (body.op !== "post" && body.op !== "comment") {
+    const rl = checkRateLimit(`lounge-toggle:${auth.user.sub}`, { max: 120, windowMs: 60_000 });
+    if (!rl.ok) return rl.response;
+  }
   if (body.op === "post" || body.op === "comment") {
     const rl = checkRateLimit(`lounge-write:${auth.user.sub}`, { max: 10, windowMs: 60_000 });
     if (!rl.ok) return rl.response;

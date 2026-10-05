@@ -253,6 +253,9 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const ex   = (searchParams.get("ex") ?? "coinbase").toLowerCase() as Ex;
   const coin = (searchParams.get("coin") ?? "BTC").toUpperCase();
+  // The coin is interpolated into exchange URL PATHS; "X/../../…" rewrote
+  // them (security pass 2026-10-05). A ticker is letters and digits.
+  if (!/^[A-Z0-9]{1,12}$/.test(coin)) return NextResponse.json({ error: "Unknown coin" }, { status: 400 });
   const type = searchParams.get("type") ?? "quote";
   const tf   = searchParams.get("tf") ?? "15m";
   const requestedBars = parseInt(searchParams.get("bars") ?? "300", 10);
