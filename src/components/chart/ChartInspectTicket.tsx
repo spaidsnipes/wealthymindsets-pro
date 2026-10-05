@@ -116,6 +116,7 @@ import type { LivingBiographyVM } from "@/lib/marketData/viewModels/selectLiving
 import type { ClarityAnatomyVM } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 import { memoryLevelKindOf } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
 import { scenarioHedge, type ConcentrationWall, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
+import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
  *  the feed, not a problem the trader caused. */
@@ -918,6 +919,8 @@ export function ChartInspectTicket({
   // T-210 · MTF prices at the market's display decimals (the band's body is raw bar prices).
   const mtfPx = (v: number) => (priceDp != null ? v.toFixed(priceDp) : String(+v.toPrecision(8)));
   const clock = zonedClock(timeZone);
+  // Super order §4 (2026-10-05): Inspect closes on Escape like every other panel.
+  useEscapeToClose(open, () => onOpenChange(false));
   if (!open) {
     return (
       <button
