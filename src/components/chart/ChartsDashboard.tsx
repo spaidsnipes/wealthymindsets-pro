@@ -214,7 +214,6 @@ import { useSessionDecisions } from "@/lib/traderMemory/useSessionDecisions";
 import { useCanvasClock } from "@/lib/marketData/viewModels/canvasClock";
 import RoomEquipmentLayer from "@/components/experience/RoomEquipmentLayer";
 import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
-import MarketCanvasPanel from "@/components/experience/MarketCanvasPanel";
 import { useEquipmentJourney } from "@/lib/workspace/useEquipmentJourney";
 import {
   subscribeEquipment,
@@ -250,7 +249,6 @@ import { ARRANGEMENT_EQUIPMENT_ID } from "@/lib/workspace/roomEquipment";
 // THE COMMAND DECK, IN PLACE (Garden 16 §11, 2026-09-26). The region id is the
 // masthead control's `aria-controls` target — one owner, in the registry.
 import { COMMAND_DECK_REGION_ID } from "@/lib/workspace/roomEquipment";
-import CommandDeckSurface from "@/components/command-deck/CommandDeckSurface";
 import { useChartCommandDeck } from "@/components/command-deck/useChartCommandDeck";
 import type { TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
 // THE ONE DECISION-LIFECYCLE OWNER (Garden 16 §15/§32, 2026-09-27).
@@ -264,7 +262,6 @@ import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
 // Asset 14 (Market Object Passport) + Asset 16 (Chart Workspace Object
 // Passport) canon: passport lineage / owner / birth / touches /
 // invalidation must be integrated into the chart workspace.
-import MarketObjectPassportPanel from "@/components/experience/MarketObjectPassportPanel";
 import { selectMarketObjectPassport } from "@/lib/marketData/viewModels/selectMarketObjectPassport";
 import { useCanonicalMarketState } from "@/lib/marketData/useCanonicalMarketState";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
@@ -285,7 +282,6 @@ import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDi
 import { selectPriceEvidence } from "@/lib/marketData/formatSpinePrice";
 // Asset 07 (Evidence Debt / Question Mode) canon: dedicated
 // question-mode surface exposing the decisionWhy compilation.
-import DecisionWhyPanel from "@/components/experience/DecisionWhyPanel";
 import { useTodayRuleState } from "@/hooks/useTodayRuleState";
 import DecisionSpineBand from "@/components/experience/DecisionSpineBand";
 import { birthOnPermissionCrossing } from "@/lib/traderMemory/permissionBirth";
@@ -360,7 +356,6 @@ import { selectLiquidityLifecycle } from "@/lib/marketData/viewModels/selectLiqu
 import { bookBucketStep, placeBookEventsOnBars } from "@/lib/marketData/bookLiquidityLifecycle";
 import { useBookLiquidityLifecycle } from "@/lib/marketData/useBookLiquidityLifecycle";
 import { useWebullLiveCrypto } from "@/lib/marketData/useWebullLiveCrypto";
-import { DiscoveryUnusualStates } from "@/components/scanner/DiscoveryUnusualStates";
 import { InstrumentContextStrip } from "./InstrumentContextStrip";
 
 import { DeribitChainPanel } from "./DeribitChainPanel";
@@ -405,6 +400,12 @@ const LivingProfileView = dynamic(() => import("@/components/experience/LivingPr
 const GravityValueView = dynamic(() => import("@/components/experience/GravityValueView"), { ssr: false });
 const LiquidityWeatherView = dynamic(() => import("@/components/experience/LiquidityWeatherView"), { ssr: false });
 const PineCommunityLibrary = dynamic(() => import("@/components/pine/PineCommunityLibrary").then(m => m.PineCommunityLibrary), { ssr: false });
+// Equipment-drawer depths (renderDepth) and the Why drawer: opened on demand.
+const MarketCanvasPanel = dynamic(() => import("@/components/experience/MarketCanvasPanel"), { ssr: false });
+const CommandDeckSurface = dynamic(() => import("@/components/command-deck/CommandDeckSurface"), { ssr: false });
+const MarketObjectPassportPanel = dynamic(() => import("@/components/experience/MarketObjectPassportPanel"), { ssr: false });
+const DecisionWhyPanel = dynamic(() => import("@/components/experience/DecisionWhyPanel"), { ssr: false });
+const DiscoveryUnusualStates = dynamic(() => import("@/components/scanner/DiscoveryUnusualStates").then(m => m.DiscoveryUnusualStates), { ssr: false });
 
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
