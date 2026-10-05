@@ -74,7 +74,6 @@ import {
 import type { OptionContractObservationTiming } from "@/lib/optionsChainRead";
 import { FearGreedWidget } from "./FearGreedWidget";
 
-import { PineCommunityLibrary } from "@/components/pine/PineCommunityLibrary";
 import { DrawingToolsPanel, DEFAULT_DRAWING_STYLE, type DrawingStyle } from "./DrawingToolsPanel";
 import { LeftDrawingSidebar } from "./LeftDrawingSidebar";
 import { WatchlistPanel } from "./WatchlistPanel";
@@ -305,11 +304,7 @@ import {
   readSceneDecision,
   writeSceneDecision,
 } from "@/lib/traderMemory/decisionContinuity";
-import AbsorptionAnatomyView from "@/components/experience/AbsorptionAnatomyView";
-import ContinuationHealthView from "@/components/experience/ContinuationHealthView";
 import { selectContinuationHealth } from "@/lib/marketData/viewModels/selectContinuationHealth";
-import DivisionWorksheetView from "@/components/experience/DivisionWorksheetView";
-import FootprintWorksheetView from "@/components/experience/FootprintWorksheetView";
 import { selectDivisionWorksheet } from "@/lib/marketData/viewModels/selectDivisionWorksheet";
 import { selectFootprintWorksheet } from "@/lib/marketData/viewModels/selectFootprintWorksheet";
 import ChartInspectTicket from "@/components/chart/ChartInspectTicket";
@@ -378,13 +373,8 @@ import { selectStructureMarketObjects } from "@/lib/marketData/viewModels/select
 import { selectRegime } from "@/lib/marketData/viewModels/selectRegime";
 import { useCanonicalMarketStateHistory } from "@/lib/marketData/useCanonicalMarketState";
 import { selectAbsorptionAnatomyView } from "@/lib/marketData/viewModels/selectAbsorptionAnatomyView";
-import AggressionResponseView from "@/components/experience/AggressionResponseView";
 import { selectAggressionResponse } from "@/lib/marketData/viewModels/selectAggressionResponse";
-import BigTradeIntelligenceView from "@/components/experience/BigTradeIntelligenceView";
 import { selectBigTradeIntelligence } from "@/lib/marketData/viewModels/selectBigTradeIntelligence";
-import LivingProfileView from "@/components/experience/LivingProfileView";
-import GravityValueView from "@/components/experience/GravityValueView";
-import LiquidityWeatherView from "@/components/experience/LiquidityWeatherView";
 import {
   buildLivingProfileSnapshot,
   selectLivingProfile,
@@ -402,6 +392,19 @@ const AlpacaTradingPanel = dynamic(() => import("@/components/broker/AlpacaTradi
 const BrokerConnectPanel = dynamic(() => import("@/components/broker/BrokerConnectPanel").then(m => m.BrokerConnectPanel), { ssr: false });
 const FuturesOptionsPanel = dynamic(() => import("./FuturesOptionsPanel").then(m => m.FuturesOptionsPanel), { ssr: false });
 const SmartMoneyPanel = dynamic(() => import("@/components/smart-money/SmartMoneyPanel").then(m => m.SmartMoneyPanel), { ssr: false });
+// HOT_ROOM (garden pass 2026-10-04): the chart's tab views and the Pine
+// community library render only after a tab choice / an open toggle, but rode
+// in the room's first download. They load on demand now, like the panels above.
+const AbsorptionAnatomyView = dynamic(() => import("@/components/experience/AbsorptionAnatomyView"), { ssr: false });
+const ContinuationHealthView = dynamic(() => import("@/components/experience/ContinuationHealthView"), { ssr: false });
+const DivisionWorksheetView = dynamic(() => import("@/components/experience/DivisionWorksheetView"), { ssr: false });
+const FootprintWorksheetView = dynamic(() => import("@/components/experience/FootprintWorksheetView"), { ssr: false });
+const AggressionResponseView = dynamic(() => import("@/components/experience/AggressionResponseView"), { ssr: false });
+const BigTradeIntelligenceView = dynamic(() => import("@/components/experience/BigTradeIntelligenceView"), { ssr: false });
+const LivingProfileView = dynamic(() => import("@/components/experience/LivingProfileView"), { ssr: false });
+const GravityValueView = dynamic(() => import("@/components/experience/GravityValueView"), { ssr: false });
+const LiquidityWeatherView = dynamic(() => import("@/components/experience/LiquidityWeatherView"), { ssr: false });
+const PineCommunityLibrary = dynamic(() => import("@/components/pine/PineCommunityLibrary").then(m => m.PineCommunityLibrary), { ssr: false });
 
 
 export type FootprintType = "bid-ask" | "delta" | "volume-profile" | "imbalance" | "aggressive-passive" | "big-trades";
