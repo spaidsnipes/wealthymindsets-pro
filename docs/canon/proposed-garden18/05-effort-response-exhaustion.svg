@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><linearGradient id="ground" x2="0" y2="1"><stop stop-color="#18202a"/><stop offset=".42" stop-color="#0c1119"/><stop offset="1" stop-color="#080b10"/></linearGradient><linearGradient id="header" x2="1" y2="0"><stop stop-color="#25251f"/><stop offset=".45" stop-color="#121720"/><stop offset="1" stop-color="#0a0e14"/></linearGradient><linearGradient id="goldMetal" x2="0" y2="1"><stop stop-color="#ffe3a2"/><stop offset=".42" stop-color="#d7a94f"/><stop offset="1" stop-color="#79582b"/></linearGradient><radialGradient id="aura"><stop stop-color="#365346" stop-opacity=".28"/><stop offset="1" stop-color="#0b0d12" stop-opacity="0"/></radialGradient><filter id="soft"><feGaussianBlur stdDeviation="10"/></filter></defs>
+<rect width="1600" height="1000" fill="url(#ground)"/>
+<ellipse cx="1230" cy="250" rx="560" ry="370" fill="url(#aura)"/>
+<rect x="0" y="0" width="1600" height="108" rx="0" fill="url(#header)" stroke="none" stroke-width="1" opacity="1"/>
+<path d="M0 107H1600" stroke="url(#goldMetal)" stroke-width="2" opacity=".7"/>
+<path d="M0 111H1600" stroke="#d6c28f" stroke-width="1" opacity=".12"/>
+<text x="54" y="42" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="750" text-anchor="start" letter-spacing="2.2">ABOVE THE HILL  /  WM PRO</text>
+<text x="54" y="82" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="650" text-anchor="start" letter-spacing="0">Market Sense · force, response &amp; exhaustion</text>
+<text x="1545" y="43" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="end" letter-spacing="1.5">GARDEN 18  ·  PROPOSED</text>
+<text x="1545" y="79" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="550" text-anchor="end" letter-spacing="0">P-05  /  EXTENDS F04 + H-701A</text>
+<line x1="0" y1="108" x2="1600" y2="108" stroke="#4a4030" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<text x="54" y="143" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Read effort against displacement, then show activity fading. Exhaustion does not invent a defender.</text>
+<rect x="76" y="206" width="1353" height="388" rx="14" fill="#0a0e14" stroke="#3a3b37" stroke-width="1" opacity="1"/>
+<rect x="80" y="210" width="1345" height="380" rx="11" fill="#0c1118" stroke="#1d2930" stroke-width="1" opacity="1"/>
+<line x1="90" y1="220.0" x2="1415" y2="220.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="90" y1="310.0" x2="1415" y2="310.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="90" y1="400.0" x2="1415" y2="400.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="90" y1="490.0" x2="1415" y2="490.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="90" y1="580.0" x2="1415" y2="580.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="90.0" y1="220" x2="90.0" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="184.64285714285714" y1="220" x2="184.64285714285714" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="279.2857142857143" y1="220" x2="279.2857142857143" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="373.92857142857144" y1="220" x2="373.92857142857144" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="468.57142857142856" y1="220" x2="468.57142857142856" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="563.2142857142858" y1="220" x2="563.2142857142858" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="657.8571428571429" y1="220" x2="657.8571428571429" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="752.5" y1="220" x2="752.5" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="847.1428571428571" y1="220" x2="847.1428571428571" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="941.7857142857143" y1="220" x2="941.7857142857143" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1036.4285714285716" y1="220" x2="1036.4285714285716" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1131.0714285714287" y1="220" x2="1131.0714285714287" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1225.7142857142858" y1="220" x2="1225.7142857142858" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1320.357142857143" y1="220" x2="1320.357142857143" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1415.0" y1="220" x2="1415.0" y2="580" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="137.32142857142856" y1="212" x2="137.32142857142856" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="231.96428571428572" y1="212" x2="231.96428571428572" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="326.6071428571429" y1="212" x2="326.6071428571429" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="421.25" y1="212" x2="421.25" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="515.8928571428571" y1="212" x2="515.8928571428571" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="610.5357142857143" y1="212" x2="610.5357142857143" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="705.1785714285714" y1="212" x2="705.1785714285714" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="799.8214285714286" y1="212" x2="799.8214285714286" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="894.4642857142857" y1="212" x2="894.4642857142857" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="989.1071428571429" y1="212" x2="989.1071428571429" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1083.75" y1="212" x2="1083.75" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1178.392857142857" y1="212" x2="1178.392857142857" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1273.0357142857142" y1="212" x2="1273.0357142857142" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1367.6785714285713" y1="212" x2="1367.6785714285713" y2="218" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="160.5" y1="427.5833333333333" x2="160.5" y2="368.0" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="150.5" y="384.2" width="20" height="16.2" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="251.6" y1="411.33333333333337" x2="251.6" y2="362.5833333333333" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="241.6" y="384.2" width="20" height="5.4" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="342.7" y1="405.91666666666663" x2="342.7" y2="340.91666666666663" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="332.7" y="357.2" width="20" height="32.5" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="433.8" y1="378.83333333333337" x2="433.8" y2="324.6666666666667" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="423.8" y="340.9" width="20" height="16.3" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="524.8" y1="373.41666666666663" x2="524.8" y2="324.6666666666667" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="514.8" y="340.9" width="20" height="10.8" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="615.9" y1="368.0" x2="615.9" y2="303.0" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="605.9" y="319.2" width="20" height="32.5" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="707.0" y1="351.75" x2="707.0" y2="297.5833333333333" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="697.0" y="319.2" width="20" height="10.8" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="798.0" y1="346.33333333333337" x2="798.0" y2="286.75" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="788.0" y="308.4" width="20" height="21.7" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="889.1" y1="351.75" x2="889.1" y2="292.16666666666663" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="879.1" y="308.4" width="20" height="16.3" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="980.2" y1="340.91666666666663" x2="980.2" y2="292.16666666666663" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="970.2" y="313.8" width="20" height="10.8" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1071.2" y1="357.1666666666667" x2="1071.2" y2="297.5833333333333" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1061.2" y="313.8" width="20" height="21.7" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1162.3" y1="351.75" x2="1162.3" y2="313.8333333333333" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1152.3" y="330.1" width="20" height="5.4" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1253.4" y1="373.41666666666663" x2="1253.4" y2="313.8333333333333" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1243.4" y="330.1" width="20" height="21.7" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1344.5" y1="378.83333333333337" x2="1344.5" y2="330.08333333333337" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1334.5" y="351.8" width="20" height="5.4" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<rect x="860" y="295" width="410" height="119" rx="8" fill="#d4ad61" stroke="none" stroke-width="1" opacity="0.08"/>
+<line x1="860" y1="295" x2="1270" y2="295" stroke="#d4ad61" stroke-width="2" stroke-dasharray="8 6" opacity="1"/>
+<line x1="860" y1="414" x2="1270" y2="414" stroke="#d4ad61" stroke-width="2" stroke-dasharray="8 6" opacity="1"/>
+<text x="878" y="284" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">EFFORT ↑  /  DISPLACEMENT ↓</text>
+<text x="125" y="645" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0.8">OBSERVED EFFORT (TOP)   /   PRICE RESPONSE (BOTTOM)</text>
+<rect x="125" y="737.5" width="26" height="19.5" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="157" y="739.84" width="26" height="17.16" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="213" y="731.26" width="26" height="25.740000000000002" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="245" y="733.6" width="26" height="23.4" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="301" y="727.36" width="26" height="29.64" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="333" y="722.68" width="26" height="34.32" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="389" y="718.0" width="26" height="39.0" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="421" y="713.3199999999999" width="26" height="43.68000000000001" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="477" y="708.64" width="26" height="48.36" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="509" y="703.96" width="26" height="53.040000000000006" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="565" y="696.16" width="26" height="60.84" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="597" y="699.28" width="26" height="57.72" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="653" y="682.9" width="26" height="74.1" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="685" y="695.38" width="26" height="61.620000000000005" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="741" y="686.02" width="26" height="70.98" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="773" y="693.04" width="26" height="63.959999999999994" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="829" y="691.48" width="26" height="65.52" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="861" y="691.48" width="26" height="65.52" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="917" y="702.4" width="26" height="54.599999999999994" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="949" y="694.6" width="26" height="62.400000000000006" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<circle cx="931" cy="693.4" r="4" fill="#d4ad61"/>
+<rect x="1005" y="714.1" width="26" height="42.900000000000006" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="1037" y="700.06" width="26" height="56.94" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<circle cx="1019" cy="705.1" r="4" fill="#d4ad61"/>
+<rect x="1093" y="723.46" width="26" height="33.54" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="1125" y="710.98" width="26" height="46.019999999999996" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<circle cx="1107" cy="714.46" r="4" fill="#d4ad61"/>
+<rect x="1181" y="735.94" width="26" height="21.060000000000002" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="1213" y="724.24" width="26" height="32.76" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<circle cx="1195" cy="726.94" r="4" fill="#d4ad61"/>
+<rect x="1269" y="742.96" width="26" height="14.04" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.78"/>
+<rect x="1301" y="737.5" width="26" height="19.5" rx="4" fill="#38c6a3" stroke="none" stroke-width="1" opacity="0.78"/>
+<circle cx="1283" cy="733.96" r="4" fill="#d4ad61"/>
+<rect x="90" y="790" width="1325" height="60" rx="10" fill="#11151c" stroke="#343a43" stroke-width="1" opacity="1"/>
+<text x="115" y="827" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="1">READING</text>
+<text x="220" y="827" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="500" text-anchor="start" letter-spacing="0">Aggressive effort remains high while price progress fades; follow-through later weakens.</text>
+<text x="1278" y="827" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" text-anchor="end" letter-spacing="0">CANDIDATE · PARTIAL</text>
+<line x1="54" y1="888" x2="1546" y2="888" stroke="#37312a" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<text x="54" y="920" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0.7">ATH MARKET INSTRUMENTS  •  PRICE REMAINS SOVEREIGN  •  EVIDENCE STATE VISIBLE</text>
+<text x="54" y="950" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Aggressor-side prints observed for the selected window; no order-book defense claim is made.</text>
+<text x="54" y="970" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Exhaustion event is eligible only where the configured evidence floor and coverage exist.</text>
+</svg>

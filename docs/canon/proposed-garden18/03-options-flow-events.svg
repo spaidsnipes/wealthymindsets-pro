@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><linearGradient id="ground" x2="0" y2="1"><stop stop-color="#18202a"/><stop offset=".42" stop-color="#0c1119"/><stop offset="1" stop-color="#080b10"/></linearGradient><linearGradient id="header" x2="1" y2="0"><stop stop-color="#25251f"/><stop offset=".45" stop-color="#121720"/><stop offset="1" stop-color="#0a0e14"/></linearGradient><linearGradient id="goldMetal" x2="0" y2="1"><stop stop-color="#ffe3a2"/><stop offset=".42" stop-color="#d7a94f"/><stop offset="1" stop-color="#79582b"/></linearGradient><radialGradient id="aura"><stop stop-color="#365346" stop-opacity=".28"/><stop offset="1" stop-color="#0b0d12" stop-opacity="0"/></radialGradient><filter id="soft"><feGaussianBlur stdDeviation="10"/></filter></defs>
+<rect width="1600" height="1000" fill="url(#ground)"/>
+<ellipse cx="1230" cy="250" rx="560" ry="370" fill="url(#aura)"/>
+<rect x="0" y="0" width="1600" height="108" rx="0" fill="url(#header)" stroke="none" stroke-width="1" opacity="1"/>
+<path d="M0 107H1600" stroke="url(#goldMetal)" stroke-width="2" opacity=".7"/>
+<path d="M0 111H1600" stroke="#d6c28f" stroke-width="1" opacity=".12"/>
+<text x="54" y="42" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="750" text-anchor="start" letter-spacing="2.2">ABOVE THE HILL  /  WM PRO</text>
+<text x="54" y="82" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="650" text-anchor="start" letter-spacing="0">Options flow · large contracts on price</text>
+<text x="1545" y="43" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="end" letter-spacing="1.5">GARDEN 18  ·  PROPOSED</text>
+<text x="1545" y="79" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="550" text-anchor="end" letter-spacing="0">P-03  /  EXTENDS BIG TRADES + MARKET SENSE</text>
+<line x1="0" y1="108" x2="1600" y2="108" stroke="#4a4030" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<text x="54" y="143" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Show each qualifying option event at its underlying-time anchor; preserve contract identity and execution ambiguity.</text>
+<rect x="78" y="216" width="1353" height="538" rx="14" fill="#0a0e14" stroke="#3a3b37" stroke-width="1" opacity="1"/>
+<rect x="82" y="220" width="1345" height="530" rx="11" fill="#0c1118" stroke="#1d2930" stroke-width="1" opacity="1"/>
+<line x1="92" y1="230.0" x2="1417" y2="230.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="92" y1="332.0" x2="1417" y2="332.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="92" y1="434.0" x2="1417" y2="434.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="92" y1="536.0" x2="1417" y2="536.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="92" y1="638.0" x2="1417" y2="638.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="92" y1="740.0" x2="1417" y2="740.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="92.0" y1="230" x2="92.0" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="202.41666666666669" y1="230" x2="202.41666666666669" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="312.83333333333337" y1="230" x2="312.83333333333337" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="423.25" y1="230" x2="423.25" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="533.6666666666667" y1="230" x2="533.6666666666667" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="644.0833333333334" y1="230" x2="644.0833333333334" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="754.5" y1="230" x2="754.5" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="864.9166666666666" y1="230" x2="864.9166666666666" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="975.3333333333334" y1="230" x2="975.3333333333334" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1085.75" y1="230" x2="1085.75" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1196.1666666666667" y1="230" x2="1196.1666666666667" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1306.5833333333333" y1="230" x2="1306.5833333333333" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1417.0" y1="230" x2="1417.0" y2="740" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="147.20833333333334" y1="222" x2="147.20833333333334" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="257.625" y1="222" x2="257.625" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="368.0416666666667" y1="222" x2="368.0416666666667" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="478.4583333333333" y1="222" x2="478.4583333333333" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="588.875" y1="222" x2="588.875" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="699.2916666666666" y1="222" x2="699.2916666666666" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="809.7083333333334" y1="222" x2="809.7083333333334" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="920.125" y1="222" x2="920.125" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1030.5416666666665" y1="222" x2="1030.5416666666665" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1140.9583333333333" y1="222" x2="1140.9583333333333" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1251.375" y1="222" x2="1251.375" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1361.7916666666667" y1="222" x2="1361.7916666666667" y2="228" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="156.5" y1="660.8823529411765" x2="156.5" y2="586.4705882352941" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="147.0" y="606.8" width="19" height="33.8" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="235.6" y1="633.8235294117646" x2="235.6" y2="566.1764705882352" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="226.1" y="586.5" width="19" height="20.3" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="314.7" y1="620.2941176470588" x2="314.7" y2="572.9411764705883" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="305.2" y="586.5" width="19" height="20.3" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="393.7" y1="627.0588235294117" x2="393.7" y2="512.0588235294117" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="384.2" y="532.4" width="19" height="74.4" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="472.8" y1="579.7058823529412" x2="472.8" y2="512.0588235294117" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="463.3" y="532.4" width="19" height="20.3" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="551.8" y1="566.1764705882352" x2="551.8" y2="464.7058823529412" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="542.3" y="485.0" width="19" height="67.6" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="630.9" y1="512.0588235294117" x2="630.9" y2="430.88235294117646" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="621.4" y="451.2" width="19" height="33.8" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="710.0" y1="518.8235294117648" x2="710.0" y2="437.64705882352945" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="700.5" y="451.2" width="19" height="47.4" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="789.0" y1="518.8235294117648" x2="789.0" y2="457.94117647058823" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="779.5" y="478.2" width="19" height="20.3" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="868.1" y1="498.52941176470586" x2="868.1" y2="397.05882352941177" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="858.6" y="417.4" width="19" height="60.9" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="947.2" y1="437.64705882352945" x2="947.2" y2="370.0" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="937.7" y="390.3" width="19" height="27.1" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1026.2" y1="444.4117647058823" x2="1026.2" y2="376.7647058823529" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1016.7" y="390.3" width="19" height="33.8" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1105.3" y1="437.64705882352945" x2="1105.3" y2="329.4117647058823" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1095.8" y="349.7" width="19" height="74.4" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1184.3" y1="403.8235294117647" x2="1184.3" y2="329.4117647058823" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1174.8" y="349.7" width="19" height="27.1" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1263.4" y1="390.2941176470588" x2="1263.4" y2="309.11764705882354" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1253.9" y="336.2" width="19" height="40.6" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1342.5" y1="376.7647058823529" x2="1342.5" y2="309.11764705882354" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1333.0" y="336.2" width="19" height="20.3" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<circle cx="399" cy="450" r="34" fill="#38c6a3" opacity=".22" stroke="#38c6a3" stroke-width="3"/>
+<circle cx="399" cy="450" r="18.7" fill="none" stroke="#38c6a3" stroke-width="2"/>
+<text x="399" y="456" fill="#38c6a3" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="0">+</text>
+<rect x="365" y="490" width="128" height="28" rx="5" fill="#10141a" stroke="#38c6a3" stroke-width="1" opacity="1"/>
+<text x="377" y="509" fill="#38c6a3" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0">CALL BUY OPEN</text>
+<circle cx="594" cy="575" r="27" fill="#ed6874" opacity=".22" stroke="#ed6874" stroke-width="3"/>
+<circle cx="594" cy="575" r="14.9" fill="none" stroke="#ed6874" stroke-width="2"/>
+<text x="594" y="581" fill="#ed6874" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="0">−</text>
+<rect x="567" y="608" width="136" height="28" rx="5" fill="#10141a" stroke="#ed6874" stroke-width="1" opacity="1"/>
+<text x="579" y="627" fill="#ed6874" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0">PUT SELL CLOSE</text>
+<circle cx="834" cy="386" r="48" fill="#38c6a3" opacity=".22" stroke="#38c6a3" stroke-width="3"/>
+<circle cx="834" cy="386" r="26.4" fill="none" stroke="#38c6a3" stroke-width="2"/>
+<text x="834" y="392" fill="#38c6a3" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="0">?</text>
+<rect x="786" y="440" width="200" height="28" rx="5" fill="#10141a" stroke="#38c6a3" stroke-width="1" opacity="1"/>
+<text x="798" y="459" fill="#38c6a3" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0">CALL FLOW · MULTI-LEG?</text>
+<circle cx="1112" cy="490" r="38" fill="#ed6874" opacity=".22" stroke="#ed6874" stroke-width="3"/>
+<circle cx="1112" cy="490" r="20.9" fill="none" stroke="#ed6874" stroke-width="2"/>
+<text x="1112" y="496" fill="#ed6874" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="0">?</text>
+<rect x="1074" y="534" width="240" height="28" rx="5" fill="#10141a" stroke="#ed6874" stroke-width="1" opacity="1"/>
+<text x="1086" y="553" fill="#ed6874" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0">PUT BUY · CONDITION UNKNOWN</text>
+<rect x="92" y="775" width="1325" height="78" rx="12" fill="#11151c" stroke="#343a43" stroke-width="1" opacity="1"/>
+<text x="116" y="805" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">SELECTED FLOW</text>
+<text x="116" y="835" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="550" text-anchor="start" letter-spacing="0">SPX  0DTE  5400 C  ·  120 contracts  ·  $2.4M premium est.  ·  10:14:32 ET</text>
+<text x="1150" y="805" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">SIDE</text>
+<text x="1150" y="835" fill="#38c6a3" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="600" text-anchor="start" letter-spacing="0">ASK-NEAR · inferred</text>
+<line x1="54" y1="888" x2="1546" y2="888" stroke="#37312a" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<text x="54" y="920" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0.7">ATH MARKET INSTRUMENTS  •  PRICE REMAINS SOVEREIGN  •  EVIDENCE STATE VISIBLE</text>
+<text x="54" y="950" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Schematic values only. Live size, side, opening/closing and participant category require matching source fields.</text>
+<text x="54" y="970" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Deduplicate corrections and multi-leg events; never infer a person from similar prints.</text>
+</svg>

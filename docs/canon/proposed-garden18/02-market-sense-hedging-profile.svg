@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><linearGradient id="ground" x2="0" y2="1"><stop stop-color="#18202a"/><stop offset=".42" stop-color="#0c1119"/><stop offset="1" stop-color="#080b10"/></linearGradient><linearGradient id="header" x2="1" y2="0"><stop stop-color="#25251f"/><stop offset=".45" stop-color="#121720"/><stop offset="1" stop-color="#0a0e14"/></linearGradient><linearGradient id="goldMetal" x2="0" y2="1"><stop stop-color="#ffe3a2"/><stop offset=".42" stop-color="#d7a94f"/><stop offset="1" stop-color="#79582b"/></linearGradient><radialGradient id="aura"><stop stop-color="#365346" stop-opacity=".28"/><stop offset="1" stop-color="#0b0d12" stop-opacity="0"/></radialGradient><filter id="soft"><feGaussianBlur stdDeviation="10"/></filter></defs>
+<rect width="1600" height="1000" fill="url(#ground)"/>
+<ellipse cx="1230" cy="250" rx="560" ry="370" fill="url(#aura)"/>
+<rect x="0" y="0" width="1600" height="108" rx="0" fill="url(#header)" stroke="none" stroke-width="1" opacity="1"/>
+<path d="M0 107H1600" stroke="url(#goldMetal)" stroke-width="2" opacity=".7"/>
+<path d="M0 111H1600" stroke="#d6c28f" stroke-width="1" opacity=".12"/>
+<text x="54" y="42" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="750" text-anchor="start" letter-spacing="2.2">ABOVE THE HILL  /  WM PRO</text>
+<text x="54" y="82" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="650" text-anchor="start" letter-spacing="0">Market Sense · derivatives pressure profile</text>
+<text x="1545" y="43" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="end" letter-spacing="1.5">GARDEN 18  ·  PROPOSED</text>
+<text x="1545" y="79" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="550" text-anchor="end" letter-spacing="0">P-02  /  EXTENDS MARKET SENSE</text>
+<line x1="0" y1="108" x2="1600" y2="108" stroke="#4a4030" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<text x="54" y="143" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Keep options-derived context beside price. Separate observed inputs from modeled hedge scenarios.</text>
+<rect x="91" y="211" width="1363" height="448" rx="14" fill="#0a0e14" stroke="#3a3b37" stroke-width="1" opacity="1"/>
+<rect x="95" y="215" width="1355" height="440" rx="11" fill="#0c1118" stroke="#1d2930" stroke-width="1" opacity="1"/>
+<line x1="105" y1="225.0" x2="1440" y2="225.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="105" y1="309.0" x2="1440" y2="309.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="105" y1="393.0" x2="1440" y2="393.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="105" y1="477.0" x2="1440" y2="477.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="105" y1="561.0" x2="1440" y2="561.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="105" y1="645.0" x2="1440" y2="645.0" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="105.0" y1="225" x2="105.0" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="216.25" y1="225" x2="216.25" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="327.5" y1="225" x2="327.5" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="438.75" y1="225" x2="438.75" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="550.0" y1="225" x2="550.0" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="661.25" y1="225" x2="661.25" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="772.5" y1="225" x2="772.5" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="883.75" y1="225" x2="883.75" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="995.0" y1="225" x2="995.0" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1106.25" y1="225" x2="1106.25" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1217.5" y1="225" x2="1217.5" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1328.75" y1="225" x2="1328.75" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="1440.0" y1="225" x2="1440.0" y2="645" stroke="#252b34" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<line x1="160.625" y1="217" x2="160.625" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="271.875" y1="217" x2="271.875" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="383.125" y1="217" x2="383.125" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="494.375" y1="217" x2="494.375" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="605.625" y1="217" x2="605.625" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="716.875" y1="217" x2="716.875" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="828.125" y1="217" x2="828.125" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="939.375" y1="217" x2="939.375" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1050.625" y1="217" x2="1050.625" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1161.875" y1="217" x2="1161.875" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1273.125" y1="217" x2="1273.125" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="1384.375" y1="217" x2="1384.375" y2="223" stroke="#b39a61" stroke-width="1" stroke-dasharray="" opacity="0.5"/>
+<line x1="185.2" y1="563.5" x2="185.2" y2="501.83333333333337" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="176.7" y="526.5" width="17" height="18.5" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="275.5" y1="538.8333333333334" x2="275.5" y2="477.16666666666663" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="267.0" y="495.7" width="17" height="30.8" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="365.9" y1="526.5" x2="365.9" y2="483.33333333333337" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="357.4" y="495.7" width="17" height="12.3" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="456.2" y1="520.3333333333334" x2="456.2" y2="440.16666666666663" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="447.8" y="458.7" width="17" height="49.3" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="546.6" y1="483.33333333333337" x2="546.6" y2="421.66666666666663" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="538.1" y="434.0" width="17" height="24.7" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="637.0" y1="483.33333333333337" x2="637.0" y2="421.66666666666663" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="628.5" y="434.0" width="17" height="30.8" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="727.3" y1="483.33333333333337" x2="727.3" y2="434.0" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="718.8" y="446.3" width="17" height="18.5" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="817.7" y1="464.8333333333333" x2="817.7" y2="378.5" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="809.2" y="397.0" width="17" height="49.3" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="908.0" y1="421.66666666666663" x2="908.0" y2="347.6666666666667" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="899.5" y="372.3" width="17" height="24.7" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="998.4" y1="409.33333333333337" x2="998.4" y2="360.0" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="989.9" y="372.3" width="17" height="18.5" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1088.8" y1="409.33333333333337" x2="1088.8" y2="335.3333333333333" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1080.2" y="353.8" width="17" height="37.0" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1179.1" y1="384.6666666666667" x2="1179.1" y2="329.1666666666667" stroke="#ed6874" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1170.6" y="353.8" width="17" height="18.5" rx="2" fill="#ed6874" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1269.5" y1="390.8333333333333" x2="1269.5" y2="316.8333333333333" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1261.0" y="335.3" width="17" height="37.0" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<line x1="1359.8" y1="353.8333333333333" x2="1359.8" y2="292.1666666666667" stroke="#38c6a3" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="1351.3" y="304.5" width="17" height="30.8" rx="2" fill="#38c6a3" stroke="none" stroke-width="1" opacity="1"/>
+<rect x="123" y="313" width="1299" height="74" rx="8" fill="#78a9ff" stroke="none" stroke-width="1" opacity="0.11"/>
+<rect x="123" y="495" width="1299" height="67" rx="8" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.1"/>
+<line x1="123" y1="441" x2="1422" y2="441" stroke="#bd95fa" stroke-width="2" stroke-dasharray="10 7" opacity="1"/>
+<text x="135" y="304" fill="#78a9ff" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0">LONG-GAMMA REGION · modeled countertrend hedge tendency</text>
+<text x="135" y="585" fill="#ed6874" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0">SHORT-GAMMA REGION · modeled protrend hedge tendency</text>
+<rect x="1195" y="424" width="176" height="28" rx="5" fill="#10141a" stroke="#bd95fa" stroke-width="1" opacity="1"/>
+<text x="1207" y="443" fill="#bd95fa" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0">ZERO-GAMMA ESTIMATE</text>
+<text x="115" y="674" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="1">HEDGING PROFILE · SCENARIO CONTRIBUTION</text>
+<rect x="115" y="767" width="26" height="68" rx="4" fill="#78a9ff" stroke="none" stroke-width="1" opacity="0.68"/>
+<rect x="144" y="821" width="26" height="14" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.7"/>
+<line x1="154" y1="767" x2="154" y2="821" stroke="#bd95fa" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="177" y="784" width="26" height="51" rx="4" fill="#78a9ff" stroke="none" stroke-width="1" opacity="0.68"/>
+<rect x="206" y="819" width="26" height="16" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.7"/>
+<line x1="216" y1="784" x2="216" y2="819" stroke="#bd95fa" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="239" y="750" width="26" height="85" rx="4" fill="#78a9ff" stroke="none" stroke-width="1" opacity="0.68"/>
+<rect x="268" y="817" width="26" height="18" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.7"/>
+<line x1="278" y1="750" x2="278" y2="817" stroke="#bd95fa" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="301" y="790" width="26" height="45" rx="4" fill="#78a9ff" stroke="none" stroke-width="1" opacity="0.68"/>
+<rect x="330" y="815" width="26" height="20" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.7"/>
+<line x1="340" y1="790" x2="340" y2="815" stroke="#bd95fa" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="363" y="761" width="26" height="74" rx="4" fill="#78a9ff" stroke="none" stroke-width="1" opacity="0.68"/>
+<rect x="392" y="813" width="26" height="22" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.7"/>
+<line x1="402" y1="761" x2="402" y2="813" stroke="#bd95fa" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="425" y="742" width="26" height="93" rx="4" fill="#78a9ff" stroke="none" stroke-width="1" opacity="0.68"/>
+<rect x="454" y="811" width="26" height="24" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.7"/>
+<line x1="464" y1="742" x2="464" y2="811" stroke="#bd95fa" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="487" y="773" width="26" height="62" rx="4" fill="#78a9ff" stroke="none" stroke-width="1" opacity="0.68"/>
+<rect x="516" y="809" width="26" height="26" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.7"/>
+<line x1="526" y1="773" x2="526" y2="809" stroke="#bd95fa" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="549" y="758" width="26" height="77" rx="4" fill="#78a9ff" stroke="none" stroke-width="1" opacity="0.68"/>
+<rect x="578" y="807" width="26" height="28" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.7"/>
+<line x1="588" y1="758" x2="588" y2="807" stroke="#bd95fa" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="611" y="796" width="26" height="39" rx="4" fill="#78a9ff" stroke="none" stroke-width="1" opacity="0.68"/>
+<rect x="640" y="805" width="26" height="30" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.7"/>
+<line x1="650" y1="796" x2="650" y2="805" stroke="#bd95fa" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="673" y="781" width="26" height="54" rx="4" fill="#78a9ff" stroke="none" stroke-width="1" opacity="0.68"/>
+<rect x="702" y="803" width="26" height="32" rx="4" fill="#ed6874" stroke="none" stroke-width="1" opacity="0.7"/>
+<line x1="712" y1="781" x2="712" y2="803" stroke="#bd95fa" stroke-width="2" stroke-dasharray="" opacity="1"/>
+<rect x="860" y="690" width="580" height="145" rx="12" fill="#11151c" stroke="#343a43" stroke-width="1" opacity="1"/>
+<text x="888" y="722" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="1">INPUTS &amp; METHOD</text>
+<text x="888" y="752" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Gamma  ·  observed chain Greeks × OI assumption</text>
+<text x="888" y="780" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Vanna  ·  volatility sensitivity / PARTIAL</text>
+<text x="888" y="808" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">Charm  ·  time convention shown in Inspect</text>
+<text x="888" y="829" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="400" text-anchor="start" letter-spacing="0">No participant-tagged inventory in this example</text>
+<line x1="54" y1="888" x2="1546" y2="888" stroke="#37312a" stroke-width="1" stroke-dasharray="" opacity="1"/>
+<text x="54" y="920" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0.7">ATH MARKET INSTRUMENTS  •  PRICE REMAINS SOVEREIGN  •  EVIDENCE STATE VISIBLE</text>
+<text x="54" y="950" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Interpretation is conditional on inventory, expiry coverage and model sign convention.</text>
+<text x="54" y="970" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Never call a modeled profile measured dealer positions or a guaranteed market direction.</text>
+</svg>

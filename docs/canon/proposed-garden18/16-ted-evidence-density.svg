@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><linearGradient id="ground" x2="0" y2="1"><stop stop-color="#18202a"/><stop offset=".42" stop-color="#0c1119"/><stop offset="1" stop-color="#080b10"/></linearGradient><linearGradient id="header" x2="1" y2="0"><stop stop-color="#25251f"/><stop offset=".45" stop-color="#121720"/><stop offset="1" stop-color="#0a0e14"/></linearGradient><linearGradient id="goldMetal" x2="0" y2="1"><stop stop-color="#ffe3a2"/><stop offset=".42" stop-color="#d7a94f"/><stop offset="1" stop-color="#79582b"/></linearGradient></defs>
+<rect width="1600" height="1000" fill="url(#ground)"/>
+<rect x="0" y="0" width="1600" height="108" fill="url(#header)"/>
+<path d="M0 107H1600" stroke="url(#goldMetal)" stroke-width="2" opacity=".7"/>
+<text x="54" y="42" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="750" letter-spacing="2.2">ABOVE THE HILL  /  WM PRO</text>
+<text x="54" y="82" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="650">TED · temporal evidence density strip</text>
+<text x="1545" y="43" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="end" letter-spacing="1.5">GARDEN 18  ·  PROPOSED</text>
+<text x="1545" y="79" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="550" text-anchor="end">P-16  /  PARENT F10.TED · src/lib/chart/effortEvidence.ts</text>
+<text x="54" y="143" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="16">A 4px strip on the time axis: each bar shaded by evidence density across clock time. Gaps hatched, never interpolated.</text>
+<rect x="54" y="180" width="1492" height="560" rx="14" fill="#0a0e14" stroke="#3a3b37"/>
+<line x1="70" y1="230" x2="1330" y2="230" stroke="#1d242e" stroke-width="1"/>
+<line x1="70" y1="310" x2="1330" y2="310" stroke="#1d242e" stroke-width="1"/>
+<line x1="70" y1="390" x2="1330" y2="390" stroke="#1d242e" stroke-width="1"/>
+<line x1="70" y1="470" x2="1330" y2="470" stroke="#1d242e" stroke-width="1"/>
+<line x1="70" y1="550" x2="1330" y2="550" stroke="#1d242e" stroke-width="1"/>
+<line x1="70" y1="630" x2="1330" y2="630" stroke="#1d242e" stroke-width="1"/>
+<line x1="70" y1="710" x2="1330" y2="710" stroke="#1d242e" stroke-width="1"/>
+<line x1="1330" y1="196" x2="1330" y2="724" stroke="#2c3138"/>
+<text x="1342" y="234" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7790.00</text>
+<text x="1342" y="314" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7770.00</text>
+<text x="1342" y="394" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7750.00</text>
+<text x="1342" y="474" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7730.00</text>
+<text x="1342" y="554" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7710.00</text>
+<text x="1342" y="634" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7690.00</text>
+<text x="1342" y="714" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7670.00</text>
+<line x1="107.8" y1="457.8" x2="107.8" y2="498.5" stroke="#ef6a76" stroke-width="1.6"/><rect x="97.8" y="470.0" width="19.9" height="16.8" rx="1.5" fill="#ef6a76"/>
+<line x1="143.4" y1="461.2" x2="143.4" y2="494.5" stroke="#3ccf9c" stroke-width="1.6"/><rect x="133.4" y="470.3" width="19.9" height="16.5" rx="1.5" fill="#3ccf9c"/>
+<line x1="179.0" y1="465.2" x2="179.0" y2="477.2" stroke="#ef6a76" stroke-width="1.6"/><rect x="169.0" y="470.3" width="19.9" height="2.0" rx="1.5" fill="#ef6a76"/>
+<line x1="214.6" y1="463.4" x2="214.6" y2="479.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="204.6" y="469.3" width="19.9" height="2.2" rx="1.5" fill="#3ccf9c"/>
+<line x1="250.1" y1="445.8" x2="250.1" y2="479.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="240.2" y="450.5" width="19.9" height="18.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="285.7" y1="439.0" x2="285.7" y2="460.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="275.8" y="447.4" width="19.9" height="3.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="321.3" y1="437.3" x2="321.3" y2="458.1" stroke="#3ccf9c" stroke-width="1.6"/><rect x="311.4" y="441.8" width="19.9" height="5.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="356.9" y1="432.2" x2="356.9" y2="454.7" stroke="#ef6a76" stroke-width="1.6"/><rect x="346.9" y="441.8" width="19.9" height="3.5" rx="1.5" fill="#ef6a76"/>
+<line x1="392.5" y1="438.2" x2="392.5" y2="474.5" stroke="#ef6a76" stroke-width="1.6"/><rect x="382.5" y="445.3" width="19.9" height="18.6" rx="1.5" fill="#ef6a76"/>
+<line x1="428.1" y1="449.9" x2="428.1" y2="473.7" stroke="#3ccf9c" stroke-width="1.6"/><rect x="418.1" y="458.8" width="19.9" height="5.2" rx="1.5" fill="#3ccf9c"/>
+<line x1="463.7" y1="446.7" x2="463.7" y2="466.9" stroke="#3ccf9c" stroke-width="1.6"/><rect x="453.7" y="451.4" width="19.9" height="7.4" rx="1.5" fill="#3ccf9c"/>
+<line x1="499.3" y1="442.3" x2="499.3" y2="467.9" stroke="#ef6a76" stroke-width="1.6"/><rect x="489.3" y="451.4" width="19.9" height="8.6" rx="1.5" fill="#ef6a76"/>
+<line x1="534.9" y1="454.5" x2="534.9" y2="471.2" stroke="#ef6a76" stroke-width="1.6"/><rect x="524.9" y="460.1" width="19.9" height="5.6" rx="1.5" fill="#ef6a76"/>
+<line x1="570.4" y1="447.7" x2="570.4" y2="471.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="560.5" y="458.7" width="19.9" height="7.0" rx="1.5" fill="#3ccf9c"/>
+<line x1="606.0" y1="438.6" x2="606.0" y2="463.0" stroke="#3ccf9c" stroke-width="1.6"/><rect x="596.1" y="443.4" width="19.9" height="15.3" rx="1.5" fill="#3ccf9c"/>
+<line x1="641.6" y1="425.6" x2="641.6" y2="454.5" stroke="#3ccf9c" stroke-width="1.6"/><rect x="631.7" y="434.5" width="19.9" height="8.9" rx="1.5" fill="#3ccf9c"/>
+<line x1="677.2" y1="420.7" x2="677.2" y2="441.0" stroke="#3ccf9c" stroke-width="1.6"/><rect x="667.2" y="427.8" width="19.9" height="6.7" rx="1.5" fill="#3ccf9c"/>
+<line x1="712.8" y1="409.4" x2="712.8" y2="436.6" stroke="#3ccf9c" stroke-width="1.6"/><rect x="702.8" y="420.1" width="19.9" height="7.7" rx="1.5" fill="#3ccf9c"/>
+<line x1="748.4" y1="405.6" x2="748.4" y2="430.9" stroke="#3ccf9c" stroke-width="1.6"/><rect x="738.4" y="410.5" width="19.9" height="9.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="784.0" y1="399.4" x2="784.0" y2="424.8" stroke="#ef6a76" stroke-width="1.6"/><rect x="774.0" y="410.5" width="19.9" height="8.2" rx="1.5" fill="#ef6a76"/>
+<line x1="819.6" y1="406.8" x2="819.6" y2="429.6" stroke="#ef6a76" stroke-width="1.6"/><rect x="809.6" y="418.7" width="19.9" height="2.0" rx="1.5" fill="#ef6a76"/>
+<line x1="855.1" y1="415.1" x2="855.1" y2="450.6" stroke="#ef6a76" stroke-width="1.6"/><rect x="845.2" y="420.5" width="19.9" height="17.6" rx="1.5" fill="#ef6a76"/>
+<line x1="890.7" y1="413.0" x2="890.7" y2="442.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="880.8" y="420.6" width="19.9" height="17.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="926.3" y1="410.7" x2="926.3" y2="445.2" stroke="#ef6a76" stroke-width="1.6"/><rect x="916.4" y="420.6" width="19.9" height="12.3" rx="1.5" fill="#ef6a76"/>
+<line x1="961.9" y1="420.7" x2="961.9" y2="453.6" stroke="#ef6a76" stroke-width="1.6"/><rect x="951.9" y="432.9" width="19.9" height="12.1" rx="1.5" fill="#ef6a76"/>
+<line x1="997.5" y1="434.5" x2="997.5" y2="471.2" stroke="#ef6a76" stroke-width="1.6"/><rect x="987.5" y="444.9" width="19.9" height="19.3" rx="1.5" fill="#ef6a76"/>
+<line x1="1033.1" y1="457.0" x2="1033.1" y2="488.7" stroke="#ef6a76" stroke-width="1.6"/><rect x="1023.1" y="464.3" width="19.9" height="18.8" rx="1.5" fill="#ef6a76"/>
+<line x1="1068.7" y1="458.3" x2="1068.7" y2="488.7" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1058.7" y="466.3" width="19.9" height="16.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="1104.3" y1="454.1" x2="1104.3" y2="489.3" stroke="#ef6a76" stroke-width="1.6"/><rect x="1094.3" y="466.3" width="19.9" height="17.2" rx="1.5" fill="#ef6a76"/>
+<line x1="1139.9" y1="459.2" x2="1139.9" y2="488.9" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1129.9" y="467.7" width="19.9" height="15.7" rx="1.5" fill="#3ccf9c"/>
+<line x1="1175.4" y1="456.7" x2="1175.4" y2="475.6" stroke="#ef6a76" stroke-width="1.6"/><rect x="1165.5" y="467.7" width="19.9" height="2.0" rx="1.5" fill="#ef6a76"/>
+<line x1="1211.0" y1="454.6" x2="1211.0" y2="477.3" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1201.1" y="466.4" width="19.9" height="3.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="1246.6" y1="448.5" x2="1246.6" y2="477.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1236.7" y="460.1" width="19.9" height="6.2" rx="1.5" fill="#3ccf9c"/>
+<line x1="1282.2" y1="450.2" x2="1282.2" y2="483.3" stroke="#ef6a76" stroke-width="1.6"/><rect x="1272.2" y="460.1" width="19.9" height="15.6" rx="1.5" fill="#ef6a76"/>
+<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#5a5a55" stroke-width="2"/></pattern></defs>
+<rect x="90.5" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.15"/><rect x="126.1" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.29"/><rect x="161.7" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.53"/><rect x="197.3" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.77"/><rect x="232.9" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.95"/><rect x="268.4" y="706" width="34.6" height="8" fill="#d4ad61" opacity="1.00"/><rect x="304.0" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.91"/><rect x="339.6" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.71"/><rect x="375.2" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.46"/><rect x="410.8" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.23"/><rect x="446.4" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.17"/><rect x="482.0" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.34"/><rect x="517.6" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.59"/><rect x="552.6" y="706" width="35.6" height="8" fill="url(#hatch)"/><rect x="588.2" y="706" width="35.6" height="8" fill="url(#hatch)"/><rect x="624.3" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.99"/><rect x="659.9" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.87"/><rect x="695.5" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.65"/><rect x="731.1" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.39"/><rect x="766.7" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.19"/><rect x="802.3" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.20"/><rect x="837.9" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.41"/><rect x="873.4" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.66"/><rect x="909.0" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.88"/><rect x="944.6" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.99"/><rect x="980.2" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.97"/><rect x="1015.8" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.82"/><rect x="1051.4" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.58"/><rect x="1087.0" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.33"/><rect x="1122.6" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.16"/><rect x="1158.1" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.24"/><rect x="1193.7" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.47"/><rect x="1229.3" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.72"/><rect x="1264.9" y="706" width="34.6" height="8" fill="#d4ad61" opacity="0.92"/>
+<text x="70" y="736" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" text-anchor="start" letter-spacing="0">CLOCK TIME · density = volume concentration (Founder to confirm WM's reading of the name)</text>
+<text x="560.4411764705882" y="696" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1.1">DATA GAP</text>
+<rect x="1360" y="196" width="170" height="520" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="1382" y="228" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.4"></text>
+<text x="1374" y="230" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="750" text-anchor="start" letter-spacing="1.3">INSPECT · BAR</text>
+<text x="1374" y="258" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">density 0.82</text>
+<text x="1374" y="284" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">vol share of hour</text>
+<text x="1374" y="308" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">OBSERVED volume</text>
+<text x="1374" y="332" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">DERIVED density</text>
+<text x="1374" y="368" fill="#ef8f9a" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0">Structural / Event</text>
+<text x="1374" y="390" fill="#ef8f9a" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="650" text-anchor="start" letter-spacing="0">time: NOT BUILT</text>
+<rect x="54" y="760" width="700" height="130" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="76" y="792" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.4">SCOPE</text>
+<text x="76" y="824" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">every loaded bar · gaps hatched</text>
+<text x="76" y="850" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">same strip at FAR / MID / NEAR; NEAR adds value on hover</text>
+<text x="76" y="876" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">the time axis itself is never re-spaced (that is Structural/Event time)</text>
+<rect x="774" y="760" width="772" height="130" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="796" y="792" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.4">FORBIDDEN</text>
+<text x="796" y="824" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">re-spacing time (not built)</text>
+<text x="796" y="850" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">implying dense periods are 'important' without evidence</text>
+<text x="796" y="876" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">interpolating through a data gap</text>
+<path d="M54 905H1546" stroke="#4a4030"/>
+<text x="54" y="935" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.2">ATH MARKET INSTRUMENTS  ·  PRICE REMAINS SOVEREIGN  ·  EVIDENCE STATE VISIBLE  ·  PROPOSED UNTIL FOUNDER CANON ACCEPTANCE</text>
+<text x="54" y="962" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Schematic. Census: TED PARTIAL — rail line only; Structural / Event / Adaptive time not built.</text>
+<text x="54" y="984" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Acceptance unlocks the strip renderer; the name's definition needs Founder confirmation.</text>
+</svg>
