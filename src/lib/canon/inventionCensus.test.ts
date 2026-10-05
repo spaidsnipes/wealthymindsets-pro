@@ -68,3 +68,13 @@ describe("Tools search reaches context-only inventions (§XXVI)", () => {
     expect(searchCensusPlaces("   ")).toEqual([]);
   });
 });
+
+import { searchCensusPlaces as findPlaces } from "./inventionCensus";
+
+describe("Tools search finds SpaidBot by the words traders type (ATHOS order §8)", () => {
+  it("SpaidBot, SpadeBot, AI, chat and assistant all find F22", () => {
+    for (const q of ["SpaidBot", "spadebot", "AI", "chat", "assistant"]) {
+      expect(findPlaces(q).map(e => e.id), q).toContain("F22");
+    }
+  });
+});

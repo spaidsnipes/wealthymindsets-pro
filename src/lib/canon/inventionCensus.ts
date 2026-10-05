@@ -39,6 +39,8 @@ export interface CensusEntry {
   readonly plate: string | null;
   /** What is missing, when not BUILT. */
   readonly gap?: string;
+  /** Words a trader may search by that are not in the name (Tools search). */
+  readonly aliases?: readonly string[];
 }
 
 const sw = (id: ProfileId): CensusSurface => ({ kind: "SWITCH", id });
@@ -157,7 +159,9 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
   { id: "F20", name: "Journal / Review (broker truth + 8-part review)", family: "F20 Journal", status: "BUILT", owner: "src/components/journal/BrokerTruthToday.tsx", surface: route("/journal"), plate: "WM_NewMockup_127_F20_Receipt_Frozen_asOf" },
   { id: "F20.EDGE", name: "Personal Edge", family: "F20 Journal", status: "BUILT", owner: "src/lib/traderMemory/viewModels/selectPersonalEdge.ts", surface: route("/journal"), plate: null },
   { id: "F21", name: "Academy (same room) · Learning Genome", family: "F21 Learning Genome", status: "BUILT", owner: "src/lib/learningGenome/selectSetupGrade.ts", surface: route("/education"), plate: "WM_NewMockup_105_F21B_Academy_Same_Room" },
-  { id: "F22", name: "Spaidbot — WHY over the same object", family: "F22 Spaidbot", status: "BUILT", owner: "src/components/experience/DecisionWhyPanel.tsx", surface: ctx("DECISION · RISK · WHY · NEXT"), plate: "WM_NewMockup_106_F22A_Spaidbot_Same_Object · WM_NewMockup_125_WHY_Summary_Over_Same_Chart" },
+  { id: "F22", name: "Spaidbot — WHY over the same object", family: "F22 Spaidbot", status: "BUILT", owner: "src/components/experience/DecisionWhyPanel.tsx", surface: ctx("Ask SpaidBot from its chat button (analysis only — it cannot see accounts or place orders); its WHY reads in DECISION · RISK · WHY · NEXT"), plate: "WM_NewMockup_106_F22A_Spaidbot_Same_Object · WM_NewMockup_125_WHY_Summary_Over_Same_Chart",
+    // ATHOS order §8: Tools search found nothing for the words traders type.
+    aliases: ["spadebot", "spaid bot", "ai", "assistant", "chat", "ask", "bot"] },
   { id: "F23", name: "Opening Bell posture", family: "F23 Opening Bell", status: "BUILT", owner: "src/lib/traderMemory/viewModels/selectOpeningBell.ts", surface: route("/morning-prep"), plate: null },
 
   // ── ROOMS ──────────────────────────────────────────────────────────────
@@ -190,7 +194,7 @@ export function searchCensusPlaces(query: string): readonly CensusEntry[] {
   return INVENTION_CENSUS.filter(e => {
     if (e.status !== "BUILT" && e.status !== "PARTIAL") return false;
     if (e.surface.kind !== "CONTEXT" && e.surface.kind !== "ROUTE") return false;
-    const hay = `${e.id} ${e.name} ${e.family}`.toLowerCase();
+    const hay = `${e.id} ${e.name} ${e.family} ${(e.aliases ?? []).join(" ")}`.toLowerCase();
     return words.every(w => hay.includes(w));
   });
 }
