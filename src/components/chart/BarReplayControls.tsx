@@ -36,21 +36,27 @@ interface Props {
   onStepBack: () => void;
   onStepForward: () => void;
   onStop: () => void;
+  /** The chart's display zone (IANA); absent = the viewer's own, still named. */
+  timeZone?: string | null;
   onSpeedChange: (s: ReplaySpeed) => void;
 }
 
-function fmtTime(t: number): string {
+/** In the chart's own display zone, named — the axis and the replay clock
+ *  read the same instant the same way (garden pass 2026-10-05). */
+function fmtTime(t: number, timeZone?: string | null): string {
   if (!t) return "--";
   const d = new Date(t * 1000);
-  return d.toLocaleString("en-US", {
+  const opts: Intl.DateTimeFormatOptions = {
     month: "short", day: "numeric",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  });
+    hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short",
+  };
+  try { return d.toLocaleString("en-US", timeZone ? { ...opts, timeZone } : opts); }
+  catch { return d.toLocaleString("en-US", opts); }
 }
 
 export function BarReplayControls({
   active, playing, speed, position, total, currentTime, chartFollowsCursor,
-  onPlay, onPause, onStepBack, onStepForward, onStop, onSpeedChange,
+  onPlay, onPause, onStepBack, onStepForward, onStop, onSpeedChange, timeZone,
 }: Props) {
   if (!active) return null;
 
@@ -118,7 +124,7 @@ export function BarReplayControls({
 
       {/* Time display */}
       <div style={{ fontSize: 11, color: "#E2E8FF", fontFamily: "monospace", minWidth: 130, textAlign: "center" }}>
-        {fmtTime(currentTime)}
+        {fmtTime(currentTime, timeZone)}
       </div>
 
       {/* Progress */}

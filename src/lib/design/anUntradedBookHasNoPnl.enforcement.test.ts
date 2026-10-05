@@ -53,7 +53,7 @@ import { paperAccountStats, type PaperBookFacts } from "../paper/paperAccountSta
  * Everything above is still true. What this Sentinel then DID about it was to
  * regex the exact ternary that implemented the remedy:
  *
- *     expect(code).toMatch(/…"Day P&L"[\s\S]{0,120}bookNeverTraded\?"—"/)
+ *     expect(code).toMatch(/…"Total P&L"[\s\S]{0,120}bookNeverTraded\?"—"/)
  *
  * That pinned A DASH. And the dash was the wrong half of the fix.
  *
@@ -104,7 +104,7 @@ describe("H1: an untraded book has no P&L to report", () => {
     // WHAT IS WITHHELD IS THE CLAIM, NOT THE NUMBER. `0 >= 0` is true, so the
     // green was arithmetically earned and factually a lie — that is the defect
     // and it is dead. The zero itself is a measured fact and keeps rendering.
-    const d = cell(untraded, "Day P&L");
+    const d = cell(untraded, "Total P&L");
     expect(d.tone).not.toBe("WIN");
     expect(d.tone).toBe("NEUTRAL");
     expect(d.kind).toBe("MEASURED");
@@ -124,7 +124,7 @@ describe("H1: an untraded book has no P&L to report", () => {
     // A dash in a money column asserts the number is unavailable. It is not —
     // a sum over an empty set is zero and WM holds it. This is the assertion
     // the old regex made impossible.
-    for (const label of ["Day P&L", "Realized"]) {
+    for (const label of ["Total P&L", "Realized"]) {
       expect(cell(untraded, label).value).not.toBe("—");
       expect(cell(untraded, label).value).toContain("0.00");
     }
@@ -181,11 +181,11 @@ describe("H1: an untraded book has no P&L to report", () => {
     // keeps its figure. Flat is not a win, so the tint stays neutral — but the
     // REASON must not claim the book was never used.
     const flat = { ...untraded, neverTraded: false, winRatePct: 0, closedCount: 2 };
-    expect(cell(flat, "Day P&L").value).toBe("+$0.00");
-    expect(cell(flat, "Day P&L").reason).not.toMatch(/No trades have been placed/);
+    expect(cell(flat, "Total P&L").value).toBe("+$0.00");
+    expect(cell(flat, "Total P&L").reason).not.toMatch(/No trades have been placed/);
     // and a real result still earns its tint in both directions
-    expect(cell({ ...flat, dayPnl: 10 }, "Day P&L").tone).toBe("WIN");
-    expect(cell({ ...flat, dayPnl: -10 }, "Day P&L").tone).toBe("LOSS");
+    expect(cell({ ...flat, dayPnl: 10 }, "Total P&L").tone).toBe("WIN");
+    expect(cell({ ...flat, dayPnl: -10 }, "Total P&L").tone).toBe("LOSS");
   });
 
   it("OVER-CORRECTION: the existing honest degradations still win", () => {
@@ -193,8 +193,8 @@ describe("H1: an untraded book has no P&L to report", () => {
     // unreadable book must say UNKNOWN. Order matters, so it is asserted by
     // BEHAVIOUR: recovery wins even when the book has also never traded.
     const broken = { ...untraded, bookRecoveryRequired: true };
-    expect(cell(broken, "Day P&L").value).toBe("UNKNOWN");
-    expect(cell(broken, "Day P&L").kind).toBe("UNKNOWN");
+    expect(cell(broken, "Total P&L").value).toBe("UNKNOWN");
+    expect(cell(broken, "Total P&L").kind).toBe("UNKNOWN");
     expect(cell(broken, "Realized").value).toBe("UNKNOWN");
     expect(cell(broken, "Equity").value).toBe("UNKNOWN");
 

@@ -142,7 +142,7 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
             price: +t.price.toFixed(dp),
             size:  Math.round(t.qty * 1000) / 1000,
             side:  t.side === "buy" ? "buy" as const : "sell" as const,
-            time:  new Date(t.timestamp).toLocaleTimeString("en-US", { hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit" }),
+            time:  new Date(t.timestamp).toLocaleTimeString("en-US", { timeZone:"America/New_York", hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit" }),
           }));
           if (newTrades.length > 0) {
             setTrades(prev => [...newTrades, ...prev].slice(0, 25));
@@ -185,7 +185,7 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
           price: +t.price.toFixed(dp),
           size:  Math.round(t.volume * 1000) / 1000,
           side:  t.side,
-          time:  new Date(t.time).toLocaleTimeString("en-US", { hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit" }),
+          time:  new Date(t.time).toLocaleTimeString("en-US", { timeZone:"America/New_York", hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit" }),
         })));
       }
     })();
@@ -213,7 +213,7 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
       price: +t.price.toFixed(dp),
       size:  t.size,
       side:  t.side as "buy"|"sell",
-      time:  new Date(t.time).toLocaleTimeString("en-US", { hour12: false, hour:"2-digit", minute:"2-digit", second:"2-digit" }),
+      time:  new Date(t.time).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour12: false, hour:"2-digit", minute:"2-digit", second:"2-digit" }),
     }));
     setTrades(prev => [...newest, ...prev].slice(0, 25));
   }, [recentTicks, dp, crypto]);

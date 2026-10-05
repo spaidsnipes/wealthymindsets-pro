@@ -3128,7 +3128,7 @@ export default function PaperTradingPage() {
                     ? "+$0.00 · no trades placed, so there is no result to read into it"
                     : hasUnmarkedOptions
                     ? `${dayPnl>=0?"+":""}${fmt2(dayPnl)} known P&L · excludes ${unmarkedOptionCount} unmarked option${unmarkedOptionCount===1?"":"s"}`
-                    : `${dayPnl>=0?"+":""}${fmt2(dayPnl)} today (${((dayPnl/STARTING_CASH)*100).toFixed(2)}%)`}
+                    : `${dayPnl>=0?"+":""}${fmt2(dayPnl)} since the account opened (${((dayPnl/STARTING_CASH)*100).toFixed(2)}%)`}
                 </div>
                 {bookRecoveryRequired ? (
                   <div className="mt-1 text-[9px] font-bold text-wm-red" role="status" aria-live="polite">

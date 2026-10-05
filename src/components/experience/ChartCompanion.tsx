@@ -173,7 +173,9 @@ const PRICE_UP = "#3fb950";
 const PRICE_DOWN = "#d4553d";
 
 function bookTimeLabel(ms: number): string {
+  // ET, the same frame as this card's own "as of … ET" line.
   return new Date(ms).toLocaleTimeString("en-US", {
+    timeZone: "America/New_York",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,

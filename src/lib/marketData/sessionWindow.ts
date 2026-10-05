@@ -196,7 +196,8 @@ const ET = new Intl.DateTimeFormat("en-CA", {
   hour: "2-digit", minute: "2-digit", hourCycle: "h23",
 });
 
-function etParts(sec: number): { date: string; minute: number } {
+/** New-York calendar date (YYYY-MM-DD) + minute-of-day for unix seconds — one cached formatter. */
+export function etParts(sec: number): { date: string; minute: number } {
   const o: Record<string, string> = {};
   for (const p of ET.formatToParts(new Date(sec * 1000))) o[p.type] = p.value;
   return { date: `${o.year}-${o.month}-${o.day}`, minute: Number(o.hour) * 60 + Number(o.minute) };

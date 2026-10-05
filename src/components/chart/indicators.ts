@@ -29,7 +29,7 @@
  * not, and this docblock is not claiming otherwise.
  */
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
-import { sessionKeyOf, type SessionWindow } from "@/lib/marketData/sessionWindow";
+import { etParts, sessionKeyOf, type SessionWindow } from "@/lib/marketData/sessionWindow";
 
 /**
  * THE ONLY THREE FIELDS PIVOT DETECTION READS.
@@ -996,12 +996,15 @@ export function priorDayHighLow(bars: LegacyOhlcvTuple[]): { high: number[]; low
   // Returns prior day's high/low painted on current day bars
   const high: number[] = new Array(bars.length).fill(NaN);
   const low:  number[] = new Array(bars.length).fill(NaN);
-  // Group by calendar day
+  // Group by the NEW YORK calendar day (garden pass 2026-10-05,
+  // TEMPORAL_SPLIT_BRAIN): this read the VIEWER's local midnight, so a trader
+  // in Tokyo had "prior day" lines that stepped at 11:00 ET, mid-session.
   const days: { start: number; end: number; high: number; low: number }[] = [];
   let dayStart = 0;
+  const dateOf = bars.map(b => etParts(b.time).date);
   bars.forEach((b, i) => {
-    const date = new Date(b.time * 1000).toDateString();
-    const prevDate = i > 0 ? new Date(bars[i-1].time * 1000).toDateString() : date;
+    const date = dateOf[i];
+    const prevDate = i > 0 ? dateOf[i - 1] : date;
     if (date !== prevDate) {
       let dh = -Infinity, dl = Infinity;
       for (let j = dayStart; j < i; j++) { dh = Math.max(dh, bars[j].high); dl = Math.min(dl, bars[j].low); }
@@ -1027,10 +1030,11 @@ export function openingRangeBreakout(bars: LegacyOhlcvTuple[], minutes = 30): { 
   const low:  number[] = new Array(bars.length).fill(NaN);
   let orHigh = NaN, orLow = NaN, orDate = "";
   bars.forEach((b, i) => {
-    const d = new Date(b.time * 1000);
-    const date = d.toDateString();
-    const minInDay = d.getHours() * 60 + d.getMinutes();
-    const marketOpen = 9 * 60 + 30; // 9:30 AM
+    // 9:30 is the NEW YORK open. This read the viewer's own clock, so the
+    // Founder in Chicago got a range built from the 10:30 ET bars, and a
+    // trader in London from pre-market (garden pass 2026-10-05).
+    const { date, minute: minInDay } = etParts(b.time);
+    const marketOpen = 9 * 60 + 30; // 9:30 AM ET
     if (date !== orDate) { orHigh = NaN; orLow = NaN; orDate = date; }
     if (minInDay >= marketOpen && minInDay < marketOpen + minutes) {
       orHigh = isNaN(orHigh) ? b.high : Math.max(orHigh, b.high);

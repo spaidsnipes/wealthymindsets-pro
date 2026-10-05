@@ -6861,6 +6861,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   the on-chart Fixed VP. */}
 
               <BarReplayControls
+                timeZone={effChartSettings.displayTimeZone}
                 active={replayActive}
                 playing={replayPlaying}
                 speed={replaySpeed}

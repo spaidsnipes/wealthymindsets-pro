@@ -35,7 +35,7 @@ describe("removing a false tint must not also erase a true number", () => {
   it("THE OVER-CORRECTION: an untraded book still states its zero", () => {
     // WAS `bookNeverTraded ? "—" : …`. Day P&L is a SUM; the sum of no trades
     // is exactly $0.00 and that is a fact we hold. The dash said we did not.
-    const d = by(f(), "Day P&L");
+    const d = by(f(), "Total P&L");
     expect(d.kind).toBe("MEASURED");
     expect(d.value).toBe("+$0.00");
     expect(d.value).not.toBe("—");
@@ -44,14 +44,14 @@ describe("removing a false tint must not also erase a true number", () => {
 
   it("THE ORIGINAL DEFECT: that zero must NOT wear the win tint", () => {
     // `0 >= 0` is true, so the green was arithmetically earned and false.
-    expect(by(f(), "Day P&L").tone).toBe("NEUTRAL");
+    expect(by(f(), "Total P&L").tone).toBe("NEUTRAL");
     expect(by(f(), "Realized").tone).toBe("NEUTRAL");
   });
 
   it("A TRADED DAY THAT FINISHED FLAT IS A DIFFERENT FACT", () => {
     // Same figure, different meaning. The question was never "is it zero".
     const traded = f({ neverTraded: false, dayPnl: 0, realizedPnl: 0, winRatePct: 0, closedCount: 2 });
-    const d = by(traded, "Day P&L");
+    const d = by(traded, "Total P&L");
     expect(d.value).toBe("+$0.00");
     expect(d.kind).toBe("MEASURED");
     expect(d.reason).not.toContain("No trades have been placed");
@@ -60,15 +60,15 @@ describe("removing a false tint must not also erase a true number", () => {
   });
 
   it("a real result keeps its tint in both directions", () => {
-    expect(by(f({ neverTraded: false, dayPnl: 250 }), "Day P&L").tone).toBe("WIN");
-    expect(by(f({ neverTraded: false, dayPnl: -250 }), "Day P&L").tone).toBe("LOSS");
-    expect(by(f({ neverTraded: false, dayPnl: -250 }), "Day P&L").value).toBe("-$250.00");
+    expect(by(f({ neverTraded: false, dayPnl: 250 }), "Total P&L").tone).toBe("WIN");
+    expect(by(f({ neverTraded: false, dayPnl: -250 }), "Total P&L").tone).toBe("LOSS");
+    expect(by(f({ neverTraded: false, dayPnl: -250 }), "Total P&L").value).toBe("-$250.00");
   });
 
   it("A SUM AND A RATIO DO NOT FAIL THE SAME WAY ON AN EMPTY BOOK", () => {
     // The two sat side by side under one glyph. Only one may refuse.
     const facts = f();
-    expect(by(facts, "Day P&L").kind).toBe("MEASURED");
+    expect(by(facts, "Total P&L").kind).toBe("MEASURED");
     const wr = paperWinRateStat(facts);
     expect(wr.kind).toBe("UNDEFINED");
     expect(wr.value).not.toBe("0%");

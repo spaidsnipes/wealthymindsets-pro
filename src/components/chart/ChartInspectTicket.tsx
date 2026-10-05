@@ -1156,13 +1156,11 @@ export function ChartInspectTicket({
     );
   }
 
+  // The chart's own display zone, named — the browser's clock read 06:30
+  // under an axis showing 09:30 ET (garden pass 2026-10-05).
   const time =
     vm.barOpenMs !== null
-      ? new Date(vm.barOpenMs).toLocaleTimeString(undefined, {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        })
+      ? `${clock.tick(vm.barOpenMs).slice(0, 8)} ${clock.zone(Math.floor(vm.barOpenMs / 1000))}`
       : null;
 
   return (

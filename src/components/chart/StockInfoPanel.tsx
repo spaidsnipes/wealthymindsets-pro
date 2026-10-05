@@ -80,11 +80,12 @@ function BidAskBar({ bids, asks }: {
 
 /* ── Tick row ─────────────────────────────────────────────── */
 function TickRow({ tick }: { tick: { price: number; size: number; side: "buy" | "sell"; time: number } }) {
-  const d = new Date(tick.time);
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  const s = String(d.getSeconds()).padStart(2, "0");
-  const timeStr = `${h}:${m}:${s}`;
+  // Exchange time (New York), the same frame as the masthead and the plates —
+  // the viewer's own clock stamped the 09:30 prints "06:30" in Los Angeles
+  // and "14:30" in London (garden pass 2026-10-05, TEMPORAL_SPLIT_BRAIN).
+  const timeStr = new Date(tick.time).toLocaleTimeString("en-US", {
+    timeZone: "America/New_York", hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
   const isBuy = tick.side === "buy";
   return (
     <div style={{
@@ -373,6 +374,7 @@ export function StockInfoPanel({ symbol }: Props) {
           {/* Ticks feed */}
           <div
             ref={ticksRef}
+            title="Print times are New York (ET)"
             style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}
           >
             {recentTicks.slice(0, 20).map((tick, i) => (

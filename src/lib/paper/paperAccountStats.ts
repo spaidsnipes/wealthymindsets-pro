@@ -199,7 +199,11 @@ export function paperAccountStats(facts: PaperBookFacts): PaperStat[] {
    * `bookRecoveryRequired` still outranks it: unreadable STORAGE is a larger
    * failure than an unmarkable book and already has its own sentence.
    */
-  const dayPnlLabel = facts.hasUnmarkedOptions ? "Known P&L" : "Day P&L";
+  // "Total", not "Day" (garden pass 2026-10-05, FALSE_GREEN): the figure is
+  // every realised trade the book has ever closed plus today's open marks — it
+  // never resets at a session boundary, so "Day P&L" told a trader who made
+  // $800 on Monday that he was up $800 "today" on Wednesday.
+  const dayPnlLabel = facts.hasUnmarkedOptions ? "Known P&L" : "Total P&L";
 
   const dayPnlStat: PaperStat = facts.bookRecoveryRequired
     ? { label: dayPnlLabel, value: "UNKNOWN", kind: "UNKNOWN", tone: "ALERT", reason: UNREADABLE_BOOK_REASON }
@@ -212,7 +216,7 @@ export function paperAccountStats(facts: PaperBookFacts): PaperStat[] {
           reason:
             typeof facts.dayPnlUnknownReason === "string" && facts.dayPnlUnknownReason.length > 0
               ? facts.dayPnlUnknownReason
-              : "Day P&L is realised plus unrealised, and the unrealised leg could not be read — so the total is UNKNOWN. A sum with an unreadable term is not a sum worth zero.",
+              : "Total P&L is realised plus unrealised, and the unrealised leg could not be read — so the total is UNKNOWN. A sum with an unreadable term is not a sum worth zero.",
         }
       : resultStat(
           dayPnlLabel,
