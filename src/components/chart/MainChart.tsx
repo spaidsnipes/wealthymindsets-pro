@@ -25071,7 +25071,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 display: "flex", gap: 8, alignItems: "center",
               }}
             >
-              <span style={{ color: "#00C076", fontWeight: 850 }}>● LIVE TAPE</span>
+              {/* LIVE only while prints are arriving (garden pass 2026-10-04: the
+                  chip stayed green after the tape went quiet). A channel with no
+                  print for 60s, or already STALE, says QUIET — the counters stay. */}
+              {tradeChannel?.coverageState === "STALE" || (tradeChannel?.lastEventAt != null && Date.now() - tradeChannel.lastEventAt > 60_000)
+                ? <span style={{ color: "#8B92AC", fontWeight: 850 }}>○ TAPE QUIET</span>
+                : <span style={{ color: "#00C076", fontWeight: 850 }}>● LIVE TAPE</span>}
               <span>
                 <span style={{ color: "#8B92AC", fontWeight: 600 }}>WM NECTAR</span>
                 <span style={{ color: fidelityColor, fontWeight: 850, marginLeft: 6, letterSpacing: "0.02em" }}>· {fidelityLabel}</span>

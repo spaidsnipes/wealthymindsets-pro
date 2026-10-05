@@ -1,5 +1,7 @@
 "use client";
 
+import toast from "react-hot-toast";
+
 /**
  * Pine Script Community Library
  * Browse, search, rate, fork, and import community-built indicators.
@@ -355,7 +357,11 @@ function ScriptCard({
       const ids = new Set(JSON.parse(localStorage.getItem(PINE_SAVED_KEY) || "[]") as string[]);
       if (next) ids.add(String(script.id)); else ids.delete(String(script.id));
       localStorage.setItem(PINE_SAVED_KEY, JSON.stringify([...ids]));
-    } catch { /* storage refused: the star still answers this visit */ }
+    } catch {
+      // Refused: the star does not claim "Saved" (garden pass 2026-10-04).
+      toast.error("This browser refused to save that — nothing changed.");
+      return prev;
+    }
     return next;
   });
 
@@ -457,7 +463,7 @@ function CodePreviewModal({ script, onClose, onImport }: {
     navigator.clipboard.writeText(script.code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    }, () => toast.error("Copy failed — open the script and copy it by hand."));
   };
 
   return (

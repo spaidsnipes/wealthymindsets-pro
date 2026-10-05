@@ -1,5 +1,7 @@
 "use client";
 
+import toast from "react-hot-toast";
+
 /**
  * THE SHELL'S PANELS — search, notifications, settings — and the sign-out it
  * offers alongside them.
@@ -35,7 +37,7 @@ import { SavedLayoutsDoor } from "@/components/os/SavedLayoutsDoor";
 import { ExecutionGuardrailsTab } from "@/components/settings/ExecutionGuardrailsTab";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { CHART_TF_SHIPPED, normalizeTFId } from "@/lib/timeframes";
-import { writeAppSettings } from "@/lib/settings/appSettingsStore";
+import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsStore";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { BarChart2, Bell, Monitor, Search, Settings, Shield, Trash2, X } from "lucide-react";
@@ -548,6 +550,15 @@ export function SettingsPanel({
               // The one wm_settings writer: merged over what is stored (withdrawn
               // keys a reader may still hold are not rewritten), announced once.
               writeAppSettings({ darkMode, soundOn, showPnl, defaultTF, defSym, chartTheme, fontSize });
+              const patch: Record<string, unknown> = { darkMode, soundOn, showPnl, defaultTF, defSym, chartTheme, fontSize };
+              // Read back what was stored (garden pass 2026-10-04: a refused
+              // write closed the panel silently and the settings never applied).
+              const stored = readAppSettings();
+              if (Object.entries(patch).some(([k, v]) => stored[k] !== v)) {
+                toast.error("This browser refused to save your settings — they apply until you reload.");
+                return;
+              }
+              toast.success("Settings saved on this device.");
               onClose();
             }}
             className="min-h-11 w-full rounded-xl text-sm font-bold text-wm-black transition-all hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"

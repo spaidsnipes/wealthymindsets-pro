@@ -1,5 +1,7 @@
 "use client";
 
+import toast from "react-hot-toast";
+
 /**
  * Custom Indicator Builder
  * Full Pine Script v6 editor with:
@@ -231,8 +233,9 @@ const STORAGE_KEY = "wm-pine-scripts";
 function loadSaved(): SavedScript[] {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
 }
-function saveSaved(scripts: SavedScript[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(scripts)); } catch {}
+/** True when the browser kept it. A refused write must be said, never shown as saved (garden pass 2026-10-04). */
+function saveSaved(scripts: SavedScript[]): boolean {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(scripts)); return true; } catch { return false; }
 }
 
 /* ── Main component ─────────────────────────────────────────── */
@@ -286,8 +289,9 @@ export function CustomIndicatorBuilder({ onClose, bars, onAddToChart, activeCode
   const saveScript = () => {
     const newScript: SavedScript = { id: Date.now().toString(), name: scriptName, code, createdAt: Date.now() };
     const next = [newScript, ...saved.filter(s => s.name !== scriptName)];
+    if (!saveSaved(next)) { toast.error("This browser refused to save the script — copy it before you leave."); return; }
     setSaved(next);
-    saveSaved(next);
+    toast.success(`Saved "${scriptName}" on this device.`);
   };
 
   const deleteScript = async (id: string) => {
@@ -303,7 +307,10 @@ export function CustomIndicatorBuilder({ onClose, bars, onAddToChart, activeCode
   };
 
   const copyScript = () => {
-    navigator.clipboard.writeText(code).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+    navigator.clipboard.writeText(code).then(
+      () => { setCopied(true); setTimeout(() => setCopied(false), 2000); },
+      () => toast.error("Copy failed — select the code and copy it by hand."),
+    );
   };
 
   const addToChart = () => {

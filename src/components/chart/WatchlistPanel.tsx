@@ -1,5 +1,7 @@
 "use client";
 
+import toast from "react-hot-toast";
+
 import { DEFAULT_WATCHLIST_SYMBOLS } from "@/lib/watchlist/activeWatchlist";
 import React, { useState, useEffect, useRef } from "react";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
@@ -389,7 +391,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
       const a = document.createElement("a");
       a.href = url; a.download = "wm-watchlists.json"; a.click();
       URL.revokeObjectURL(url);
-    } catch {}
+    } catch { toast.error("Export failed — this browser would not create the file."); }
   };
   const importLists = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -414,9 +416,13 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
           if (Object.keys(cleaned).length) {
             setLists(prev => ({ ...prev, ...cleaned }));
             setActiveList(Object.keys(cleaned)[0]);
+            toast.success(`Imported ${Object.keys(cleaned).length} watchlist${Object.keys(cleaned).length === 1 ? "" : "s"}.`);
+            return;
           }
         }
-      } catch {}
+        // Garden pass 2026-10-04: a file with nothing usable said nothing at all.
+        toast.error("No watchlists found in that file — nothing was imported.");
+      } catch { toast.error("That file is not a watchlist export (not readable JSON) — nothing was imported."); }
     };
     reader.readAsText(file);
     e.target.value = "";

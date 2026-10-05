@@ -613,6 +613,11 @@ function usePersistOnChange(key: string, dep: unknown, value: unknown = dep) {
   }, [key, dep]);
 }
 
+/** Toasts load on demand here (the room keeps react-hot-toast out of its first bundle). */
+function notifyLazy(kind: "success" | "error", message: string): void {
+  void import("react-hot-toast").then(({ toast }) => { toast[kind](message); }).catch(() => {});
+}
+
 export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?: string | null } = {}) {
   const { activeSymbol, setActiveSymbol } = useActiveSymbol();
 
@@ -1037,7 +1042,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     };
     setAllAlerts(prev => {
       const next = [...prev, alert];
-      try { localStorage.setItem("wm_price_alerts", JSON.stringify(next)); } catch {}
+      // Garden pass 2026-10-04: a refused write lost the alert on reload, unannounced.
+      try { localStorage.setItem("wm_price_alerts", JSON.stringify(next)); }
+      catch { setTimeout(() => notifyLazy("error", "Alert set for this visit only — this browser refused to save it."), 0); }
       return next;
     });
   }, [symbol, currentPrice]);
@@ -6224,8 +6231,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                               const data = JSON.parse(ev.target?.result as string);
                               if (data.name && Array.isArray(data.indicators)) {
                                 setStrategies((prev: Strategy[]) => [...prev, { id: Date.now().toString(), name: data.name, indicators: data.indicators, alerts: data.alerts ?? [], color: data.color ?? "#4FA3E0" }]);
+                                notifyLazy("success", `Imported strategy "${data.name}".`);
+                              } else {
+                                notifyLazy("error", "That file is not a strategy export (needs a name and indicators) — nothing was imported.");
                               }
-                            } catch {}
+                            } catch { notifyLazy("error", "That file is not readable JSON — nothing was imported."); }
                           };
                           reader.readAsText(file);
                           e.target.value = "";
