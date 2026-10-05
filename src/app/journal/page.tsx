@@ -1574,7 +1574,8 @@ Trade the system, trust the process, winners every day 🚀`,
     const newSong = { id: Math.random().toString(36).slice(2), title, lyrics, style: songStyle, topic: songTopic, ts: Date.now() };
     setSongs(prev => {
       const next = [newSong, ...prev].slice(0, 20);
-      try { localStorage.setItem("wm_songs", JSON.stringify(next)); } catch {}
+      // Shown either way; a refused save is said (garden pass 2026-10-04).
+      try { localStorage.setItem("wm_songs", JSON.stringify(next)); } catch { setTimeout(() => { void import("react-hot-toast").then(({ toast }) => toast.error("This lyric shows for this visit only — the browser refused to save it.")); }, 0); }
       return next;
     });
     setActiveSong(newSong.id);

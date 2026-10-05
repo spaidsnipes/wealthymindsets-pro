@@ -208,7 +208,7 @@ export function StockInfoPanel({ symbol }: Props) {
           <div style={{ display: "flex", gap: 6 }}>
             <button
               type="button"
-              onClick={() => { try { setFavorited(toggleOnActiveWatchlist(localStorage, symbol)); } catch { /* storage refused */ } }}
+              onClick={() => { try { setFavorited(toggleOnActiveWatchlist(localStorage, symbol)); } catch { void import("react-hot-toast").then(({ toast }) => toast.error(`Could not update your watchlist — this browser refused to save ${symbol}.`)); } }}
               aria-pressed={favorited}
               aria-label={favorited ? `Remove ${symbol} from watchlist` : `Add ${symbol} to watchlist`}
               title={favorited ? "On your watchlist" : "Add to watchlist"}
