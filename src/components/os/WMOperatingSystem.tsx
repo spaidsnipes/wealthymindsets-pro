@@ -2129,6 +2129,12 @@ export function WMOperatingSystem({
                   left: 8,
                   top: 8,
                   zIndex: 40,
+                  bottom: 8,
+                  // Garden 18 super order §4 (Founder, 2026-10-05): Workspace and
+                  // Tools open at the FULL available workspace height (`bottom`),
+                  // matching the Chart tools panel — never a half-height first
+                  // state. Still a floating, inset instrument (8px from every
+                  // room edge, rounded, lifted), not a chart-crushing drawer.
                   background: FIELD,
                   // §XIII on glass (2026-10-01): as tall as the room it read as a
                   // drawer. Its height cap lives with the box rule below (one owner).
@@ -2178,8 +2184,9 @@ export function WMOperatingSystem({
                696px region and still crossed into the footer. The cap has to
                mean the whole box or it is 28px of the same bug. */
             boxSizing: "border-box",
-            // Equipment floats at ≤ ~72% of the room (§XIII); rooms keep the full column.
-            maxHeight: equipmentMode ? "min(calc(100% - 16px), 72%)" : "100%",
+            // Equipment floats inset at the room's full height (super order §4,
+            // superseding the §XIII ~72% cap); rooms keep the full column.
+            maxHeight: equipmentMode ? "calc(100% - 16px)" : "100%",
             overflowY: "auto",
             overscrollBehavior: "contain",
             borderRight: `1px solid ${RULE}`,
@@ -2192,7 +2199,11 @@ export function WMOperatingSystem({
               whole viewport INCLUDING that toggle — so without this control
               the trader who opened the navigation has no way to dismiss it and
               get back to the market. A door that only opens is a trap. */}
-          {!phoneDoorOnly ? null : (
+          {/* Super order §4 (2026-10-05): the floating EQUIPMENT panel carries
+              its own visible close at every width, like the Chart tools sheet —
+              the masthead plate still toggles it, but a panel that reads as a
+              sheet must close like one. */}
+          {!(phoneDoorOnly || equipmentMode) ? null : (
             <button
               type="button"
               className="wm-os-rail-close"
@@ -2210,7 +2221,7 @@ export function WMOperatingSystem({
                     : "Put the equipment down"
               }
               style={{
-                display: "none",
+                display: equipmentMode ? "flex" : "none",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,

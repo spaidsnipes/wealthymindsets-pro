@@ -163,7 +163,11 @@ describe("OS frame · the desktop room must not clip itself", () => {
      * wrong unit is not a weak fix, it is an absent one.
      */
     const rail = styleOf(OS, "wm-os-rail");
-    expect(rail).toMatch(/maxHeight:\s*equipmentMode \? "min\(calc\(100% - 16px\), 72%\)" : "100%"/);
+    // 2026-10-05 (Garden 18 super order §4, Founder): equipment opens at the
+    // FULL available workspace height — the ~72% cap read as a half-height
+    // panel beside the full-height Chart tools sheet. Inset 8px top and bottom.
+    expect(rail).toMatch(/maxHeight:\s*equipmentMode \? "calc\(100% - 16px\)" : "100%"/);
+    expect(rail).toMatch(/top: 8,\s*zIndex: 40,\s*bottom: 8,/);
     expect(rail).not.toMatch(/maxHeight:\s*"100vh"/);
   });
 

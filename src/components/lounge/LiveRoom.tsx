@@ -16,6 +16,7 @@ import { Track, RoomEvent } from "livekit-client";
 import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Users, Hand, Check, X, Eye, Maximize2, Minimize2, Share2, Copy, Mail, MessageSquare, Twitter, Instagram } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
+import { admitRoomMessage } from "@/lib/livekit/roomMessages";
 
 /* ─── Data message types sent over LiveKit data channel ─── */
 type DataMsg =
@@ -193,9 +194,12 @@ function RoomInner({ roomName, isHost, onLeave, userName }: {
   /* ── Listen for data messages ── */
   useEffect(() => {
     const decoder = new TextDecoder();
-    const handler = (payload: Uint8Array, participant: { identity: string } | undefined) => {
+    const handler = (payload: Uint8Array, participant: { identity: string; metadata?: string } | undefined) => {
       try {
-        const msg = JSON.parse(decoder.decode(payload)) as DataMsg;
+        // The authenticated sender decides what a message may do, not its
+        // payload (P0-B, 2026-10-05) — see admitRoomMessage.
+        const msg = admitRoomMessage(JSON.parse(decoder.decode(payload)), participant);
+        if (!msg) return;
         if (msg.type === "JOIN_REQUEST" && isHost) {
           setRequests(prev => prev.some(r => r.identity === msg.identity) ? prev : [...prev, { identity: msg.identity, name: msg.name }]);
         }
