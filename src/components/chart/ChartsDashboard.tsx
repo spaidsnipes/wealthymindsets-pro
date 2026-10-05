@@ -846,11 +846,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const urlQuery = optionSearchParams.toString();
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const next = marketSurfaceUrlWriteback(window.location.search, symbol, timeframe);
-    if (next === null) return;
-    try {
-      window.history.replaceState(window.history.state, "", `${window.location.pathname}${next}`);
-    } catch { /* sandboxed frame / history quota: URL stays as it was */ }
+    // RACE (stress round 2, 2026-10-04): on the SECOND pick the write ran before
+    // the bare route push committed, the push then wiped it, and the query was
+    // already empty so nothing re-ran — the URL read `/charts` again. Re-assert
+    // after the push has had time to land; each pass is a no-op once correct.
+    const assertUrl = () => {
+      const next = marketSurfaceUrlWriteback(window.location.search, symbol, timeframe);
+      if (next === null) return;
+      try {
+        window.history.replaceState(window.history.state, "", `${window.location.pathname}${next}`);
+      } catch { /* sandboxed frame / history quota: URL stays as it was */ }
+    };
+    assertUrl();
+    const timers = [250, 1000].map(ms => window.setTimeout(assertUrl, ms));
+    return () => timers.forEach(t => window.clearTimeout(t));
   }, [urlQuery, symbol, timeframe]);
 
   // ── WM VP indicators (draw ON chart canvas) ─────────────────
