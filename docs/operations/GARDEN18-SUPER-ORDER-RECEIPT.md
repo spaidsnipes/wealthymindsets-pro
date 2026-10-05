@@ -74,3 +74,44 @@ Outcomes use the order's vocabulary only: CLOSED (evidenced) · OPEN · BLOCKED 
 | Roles | Supporting (never primary; never covers a candle body — axis-edge only) |
 | Absence / stale / proxy | Silent with a receipt reason (`WAITING_FOR_EVIDENCE` / `SILENT:<reason>`); chain clock shown in Inspect |
 | Forbidden substitutes | Calling it support / resistance / a pin; adding volume to OI; painting it as a slab |
+
+## §4 — PROPOSED plates for children without a usable visual contract
+
+All three are **PROPOSED** (not canon) until the Founder's canon process approves them. Each names the existing owner it would paint; none introduces a new data source or brand.
+
+### PROPOSED — Market Breathing on canvas (`F15.BREATHING`, owner `src/lib/chart/marketBreathing.ts`)
+
+| Facet | Contract |
+|---|---|
+| Silhouette / material | A thin translucent band hugging the candle range (±1 ATR around each bar's mid), its **width** = the bar's ATR, its **tone** = state: cool slate (compressing), neutral (steady), warm amber (expanding). No fill over bodies — band edges only, 1 px, 35 % alpha |
+| Anchors | Every eligible bar after the ATR warm-up (named on the glass: "breathing warms up over N bars") |
+| Lifecycle | Compression run → release bar marked with a single short notch where expansion begins |
+| FAR / MID / NEAR | FAR: band only · MID: + release notches · NEAR: + per-bar ATR value on hover |
+| Selection / Inspect | Click a notch → Inspect shows ATR, realized vol, run length, the definition (OBSERVED from OHLC, DERIVED measure) |
+| Absence | Fewer bars than warm-up → silent row "breathing needs N bars" |
+| Forbidden | Painting candles; implying direction; calling compression a "squeeze signal" |
+
+### PROPOSED — Response Matrix on canvas (`AB.MATRIX`, owner `src/lib/chart/effortEvidence.ts`)
+
+| Facet | Contract |
+|---|---|
+| Silhouette / material | A 2×2 glyph (6 px cells) under each eligible bar's low: effort (high / low) × response (large / small move). The one lit cell names the bar's state; mismatch cells (high effort / small response, low effort / large response) are outlined in gold |
+| Anchors | Bars with signed effort (tape) — OHLC-only bars draw no glyph and the receipt says `NO_SIGNED_EFFORT` (estimate cannot impersonate tape) |
+| Lifecycle | None — per-bar observation |
+| FAR / MID / NEAR | FAR: only mismatch glyphs · MID: all glyphs · NEAR: + numbers on hover |
+| Selection / Inspect | Click → the observed effort, observed response, the contextual expected response and how it was derived |
+| Absence | `COVERAGE_GAP` for bars outside captured tape, stated with the captured range |
+| Forbidden | Ranking bars as buy/sell signals; inventing effort from price |
+
+### PROPOSED — Temporal Evidence Density (`F10.TED`, owner `src/lib/chart/effortEvidence.ts`)
+
+| Facet | Contract |
+|---|---|
+| Silhouette / material | A 4 px strip along the time axis; each bar's segment shaded by evidence density (volume concentration across clock time). Structural / Event / Adaptive time are NOT drawn until built — the strip says "clock time" |
+| Anchors | Every loaded bar; gaps in data are hatched, never interpolated |
+| FAR / MID / NEAR | Same strip at every depth; NEAR adds the density value on hover |
+| Selection / Inspect | Click → density definition (Founder to confirm WM's reading of the name, per census gap) |
+| Forbidden | Re-spacing the time axis (that is Structural/Event time, not built); implying the dense periods are "important" without evidence |
+
+### Glass-proof limit (12:35–12:45 CDT)
+The canvas paint receipt for OI ticks (`data-options-oi-walls`) could not be read: the only signed-in WM tab is HIDDEN, and a hidden tab runs no chart paint loop (no receipts were written by ANY layer — 0 dataset keys — with the frame off-screen or on-screen-transparent, with or without a rAF shim). Status of the canvas manifestation: **PARTIAL** (source + selector live-data proof; serving-glass receipt needs a visible Founder tab: `/charts?symbol=SPY&tf=1h&scene=clean&on=BRICK_WALLS`, read `canvas.dataset.optionsOiWalls`).
