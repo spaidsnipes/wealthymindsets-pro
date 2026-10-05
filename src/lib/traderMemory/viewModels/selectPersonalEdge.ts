@@ -37,6 +37,9 @@ export interface ContextBucket {
   readonly avgRealizedR: number | "UNKNOWN";
   readonly avgProcessAdherence: number | "UNKNOWN";
   readonly decisionIds: readonly string[];
+  /** Recency (super order §7): the oldest and newest decision in this context (epoch ms), so an edge built months ago never reads as current. */
+  readonly firstAt: number | null;
+  readonly lastAt: number | null;
 }
 
 export interface PersonalEdgeVM {
@@ -157,6 +160,10 @@ export function selectPersonalEdge(input: PersonalEdgeInput): PersonalEdgeVM {
       avgRealizedR,
       avgProcessAdherence: avgProcess,
       decisionIds: items.map((d) => d.decisionId),
+      ...(() => {
+        const times = items.map((d) => d.capturedAt).filter((t): t is number => typeof t === "number" && Number.isFinite(t));
+        return { firstAt: times.length ? Math.min(...times) : null, lastAt: times.length ? Math.max(...times) : null };
+      })(),
     });
   }
 

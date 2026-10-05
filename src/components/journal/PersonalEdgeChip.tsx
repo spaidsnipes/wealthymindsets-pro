@@ -102,12 +102,12 @@ export function PersonalEdgeChip({ vm, unabridged = false }: PersonalEdgeChipPro
       )}
       {strengths.map((b) => (
         <span key={`s:${b.label}`} style={{ color: "#5cb85c" }}>
-          ↑ {b.label} · {(b.avgRealizedR as number).toFixed(2)}R (n={b.sampleCount})
+          ↑ {b.label} · {(b.avgRealizedR as number).toFixed(2)}R (n={b.sampleCount}{b.lastAt != null ? ` · last ${new Date(b.lastAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : ""})
         </span>
       ))}
       {watches.map((b) => (
         <span key={`w:${b.label}`} style={{ color: "#c05a4a" }}>
-          ↓ {b.label} · {(b.avgRealizedR as number).toFixed(2)}R (n={b.sampleCount})
+          ↓ {b.label} · {(b.avgRealizedR as number).toFixed(2)}R (n={b.sampleCount}{b.lastAt != null ? ` · last ${new Date(b.lastAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : ""})
         </span>
       ))}
       {withheld > 0 && (
