@@ -204,7 +204,7 @@ export function IndicatorSettingsModal({
               {TF_GROUPS.map(g => (
                 <div key={g} className="flex items-center justify-between gap-3">
                   <label className="text-[12px] font-semibold text-wm-text-muted">{g}</label>
-                  <button onClick={() => toggleVis(g)}
+                  <button onClick={() => toggleVis(g)} type="button" role="switch" aria-checked={visOf(g)} aria-label={`Show on ${g}`}
                     className={`relative w-11 h-6 rounded-full transition-colors ${
                       visOf(g) ? "bg-wm-green/70" : "bg-wm-border"
                     }`}>
