@@ -18,8 +18,22 @@ export const LEARN_LESSON: Readonly<Record<LearnableSelection, { readonly lesson
 };
 
 export function learnHref(kind: LearnableSelection, fromPath: string): string {
-  const from = safeChartsReturn(fromPath) ?? INSTRUMENT_VIEW_ROUTE;
+  // From another room that carries a market (the Command Deck), return to the
+  // market room ON that market, not a bare route (hallway audit 2026-10-04).
+  const from = safeChartsReturn(fromPath) ?? chartsReturnFor(fromPath) ?? INSTRUMENT_VIEW_ROUTE;
   return `/education?lesson=${encodeURIComponent(LEARN_LESSON[kind].lessonId)}&from=${encodeURIComponent(from)}`;
+}
+
+/** The market room on the symbol / timeframe another room's query names, or null. */
+function chartsReturnFor(fromPath: string): string | null {
+  const query = fromPath.split("?", 2)[1];
+  if (!query) return null;
+  const q = new URLSearchParams(query);
+  const sym = (q.get("symbol") ?? "").trim().toUpperCase();
+  if (!/^[\^/]?[A-Z0-9][A-Z0-9.\-!/=]{0,14}$/.test(sym)) return null;
+  const tf = q.get("tf");
+  const out = new URLSearchParams({ symbol: sym, ...(tf && /^[0-9A-Za-z]{1,4}$/.test(tf) ? { tf } : {}) });
+  return safeChartsReturn(`${INSTRUMENT_VIEW_ROUTE}?${out.toString()}`);
 }
 
 /** Only a same-origin instrument-view path survives; anything else is refused (null). */

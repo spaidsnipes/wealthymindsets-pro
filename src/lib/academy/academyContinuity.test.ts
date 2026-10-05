@@ -14,3 +14,17 @@ describe("academy continuity — market → lesson → back to the same market",
     expect(safeChartsReturn("/journal")).toBeNull();
   });
 });
+
+describe("learn → return from another room keeps the market (hallway audit 2026-10-04)", () => {
+  it("a Command Deck visit returns to the market room on the same symbol and timeframe", () => {
+    const href = learnHref("ANATOMY", "/command-deck?symbol=NQ1!&tf=5m");
+    const from = new URL(href, "https://wm.test").searchParams.get("from");
+    expect(from).toBe("/charts?symbol=NQ1%21&tf=5m");
+    expect(safeChartsReturn(from)).toBe(from);
+  });
+  it("a symbol with a slash survives encoded; garbage does not", () => {
+    const from = new URL(learnHref("PRINT", "/command-deck?symbol=BTC/USD"), "https://wm.test").searchParams.get("from");
+    expect(from).toBe("/charts?symbol=BTC%2FUSD");
+    expect(new URL(learnHref("PRINT", "/command-deck?symbol=<script>"), "https://wm.test").searchParams.get("from")).toBe("/charts");
+  });
+});
