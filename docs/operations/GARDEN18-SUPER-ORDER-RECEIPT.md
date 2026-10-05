@@ -322,3 +322,31 @@ Method: Founder's chart tab visible; one transparent click-through 1440×900 fra
 | ImbalanceStack · LiquidityLifecycle · LiquidityWeather · LivingProfile · MarketStructure · TpoProfile · ValueCandle · ValueMigration · VisibleRangeProfile | — | tab hidden during these loads | **NOT MEASURED** — re-run on visible glass |
 
 Defects found by the sweep: **FlowCurrent COVERAGE_GAP** (tape depth, not renderer) and **ExpectedEnvelope / MemoryGhost clipping** at the default camera. "Paint skipped by budget" in receipts counts skipped FRAMES at the 33 ms governor cadence, not suppressed layers — not a truth suppression.
+
+## Afternoon additions (13:35–14:27 CDT)
+- **Shared TAPE COVERAGE boundary** `4fc0435`: every tape sense (footprints, big-trade bubbles, flow current) — where signed tape begins on camera the glass says `SIGNED TAPE FROM <time> — earlier bars carry none`, receipt `data-tape-coverage`. This answers the Oct 5 10:44 recording: newest-only bubbles are a tape-depth boundary (≈1,000 backfilled prints), now stated; not a renderer defect. Glass proof pending (watcher was cleared when the Founder navigated the tab).
+- **Expected Envelope** `982b138`: caption adds "reaches past this view ↕" when most of the fan is off-camera.
+- **Backtest** `7288c02`: stops/targets gapped through fill at the bar's open; every result prints its declared model (next-bar-open entry, no commissions/fees/slippage modelled).
+- **Personal Edge recency** `d840ea7`: contexts carry first/last decision dates; the edge chip prints "last <date>".
+- **Remaining glass rows** (9 switches + tape coverage + `scaff:MID` + envelope caption): NOT MEASURED — the tab was hidden 13:35–14:20, then the Founder took it (focused) at ~14:25; proofs are never run in a tab the Founder is using.
+
+## ATHOS 8-hour shift (18:06 → 02:06 CDT) — 30-switch census COMPLETE on serving glass
+Channel: the connected Chrome extension's own tab group (never the Founder's tab), visibility shim (document reported visible, animation frames on a 16 ms timer), `/charts?symbol=NQ1!&tf=5m&scene=clean&on=<token>`, canvas receipts diffed against a clean baseline, screenshots captured. Serving builds `05fe7b9` → `288fd7a`.
+
+| Switch (previously unmeasured or invalid) | Result | Class |
+|---|---|---|
+| ImbalanceStack | `RUNS:1–2 · BARS:5`, held stack drawn, tag 1-SIDED, tape boundary `STARTS_IN_VIEW` | PROVED · tape-limited, now disclosed (`288fd7a`) |
+| LiquidityLifecycle | 6 pools (TOUCHED / PERSISTED / CONSUMED), basis `CANDLE_ESTIMATED`, PULLED refused `DEPTH:no-book` | PROVED (estimate labelled; depth absence named) |
+| LiquidityWeather | drawn, storm LIVE, lens `PARTIAL`, stage THINNING | PROVED |
+| LivingProfile | drawn, TRADE_BASED, 50 bars, VAH + VAL, POC trail 19 | PROVED |
+| MarketStructure | drawn, 11 path segments, 12 pivots, labels 9/12, levels L 31325.50 / H 31385.25 | PROVED |
+| TpoProfile | drawn, 94 rows, 12 blocks | PROVED |
+| ValueCandle | `GLASS_PER_BAR:4`, tape boundary `STARTS_IN_VIEW` | PROVED · tape-limited, now disclosed |
+| ValueMigration | drawn, 20 sessions | PROVED |
+| VisibleRangeProfile | drawn, 86 rows over 151 bars, POC 31220 | PROVED |
+| FlowCurrent (retest) | boundary drawn "SIGNED TAPE FROM 03:20 PM CDT — earlier bars carry none", `tapeCoverage FROM … SIDED_BARS:5 STARTS_IN_VIEW` | PROVED (coverage disclosure) |
+| fp:big-trades (retest) | 23 individual-execution bubbles, 0 overlaps, boundary present | PROVED |
+| Scaffolding (`scaff:FOUNDATION` — the earlier `Scaffolding` and `scaff:MID` tokens were invalid) | `FOUNDATION:CLEAR`, card FULL docked, 2 swing marks, 0 candle hits | PROVED |
+| ExpectedEnvelope (retest) | fan 26/26 in-view columns above the camera → caption "reaches past this view" | PROVED (offscreen explained) |
+
+With the 21 rows measured earlier (13:12 CDT), every one of the 30 chart switches now has a serving-glass receipt; screenshots for the tape boundary, Living Profile, Visible Range and Scaffolding were captured from the extension tab.

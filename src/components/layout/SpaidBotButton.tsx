@@ -99,6 +99,16 @@ export function SpadeBotButton() {
 
     const controller = new AbortController();
     abortRef.current = controller;
+    // ATHOS order §8 (2026-10-05): a question sat on "Thinking…" with no
+    // result. A stream that says nothing for 45 s is ended and SAID to have
+    // timed out — a user's own stop stays silent, a timeout does not.
+    let timedOut = false;
+    let idle: ReturnType<typeof setTimeout> | undefined;
+    const armIdle = () => {
+      if (idle) clearTimeout(idle);
+      idle = setTimeout(() => { timedOut = true; controller.abort(); }, 45_000);
+    };
+    armIdle();
 
     try {
       const res = await fetch("/api/spaidbot", {
@@ -120,11 +130,18 @@ export function SpadeBotButton() {
       if (!reader) throw new Error("No stream");
       const decoder = new TextDecoder();
       let full = "";
+      // A frame can arrive split across network chunks; keep the unfinished
+      // tail until its newline arrives instead of dropping it.
+      let pending = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        for (const line of decoder.decode(value).split("\n")) {
+        armIdle();
+        pending += decoder.decode(value, { stream: true });
+        const lines = pending.split("\n");
+        pending = lines.pop() ?? "";
+        for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const payload = line.slice(6).trim();
           if (payload === "[DONE]") break;
@@ -149,24 +166,30 @@ export function SpadeBotButton() {
         }
       }
 
+      if (!full.trim()) throw new Error("EMPTY_ANSWER");
     } catch (err) {
-      if ((err as Error).name === "AbortError") return;
+      if ((err as Error).name === "AbortError" && !timedOut) return;
       // Plain words for every trader (garden pass 2026-10-04): guests were shown
       // "HTTP 502", "TypeFailed to fetch" and an instruction to set a server
       // variable. The operator's remedy (ANTHROPIC_API_KEY on the host) lives in
       // /readiness, not in a guest's chat.
       const raw = String(err);
-      const msg = raw.includes("ANTHROPIC_API_KEY")
+      const msg = /API_KEY|not set|not configured/i.test(raw)
         ? "SpaidBot is not switched on for this deployment yet."
-        : /429|rate|too many/i.test(raw)
-          ? "SpaidBot is busy — give it a minute and ask again."
-          : "SpaidBot could not answer just now — try again in a moment.";
+        : timedOut
+          ? "SpaidBot took too long to answer — nothing was decided; ask again in a moment."
+          : raw.includes("EMPTY_ANSWER")
+            ? "SpaidBot returned no answer — ask again, or rephrase the question."
+            : /429|rate|too many/i.test(raw)
+              ? "SpaidBot is busy — give it a minute and ask again."
+              : "SpaidBot could not answer just now — try again in a moment.";
       setMessages(prev => {
         const u = [...prev];
         u[u.length - 1] = { role: "assistant", content: `⚠️ ${msg}` };
         return u;
       });
     } finally {
+      if (idle) clearTimeout(idle);
       setStreaming(false);
       abortRef.current = null;
       if (!open) setUnread(true);
