@@ -22,6 +22,7 @@ import { forgetQuoteToken } from "@/lib/broker/tastyQuoteTokenClient";
 import { forgetTastyFrontMonths } from "@/lib/broker/tastyFrontMonth";
 import { forgetTastyOptionStreamers } from "@/lib/broker/tastyOptionStreamers";
 import { hydrateCachedUser, readCachedSession, type WMUser } from "@/lib/auth/cachedSession";
+import { authLinkForwardTarget } from "@/lib/auth/authLinkForward";
 
 // The account shape lives next to the only code that can PROVE a stored value
 // has it. Re-exported here because this is where the app has always imported
@@ -37,7 +38,7 @@ interface AuthState {
   signOut:    () => Promise<void>;
   signOutAllDevices: () => Promise<void>;
   updateProfile: (data: Partial<WMUser>) => Promise<{ error?: string }>;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<WMUser | null | undefined>;
 }
 
 const AuthContext = createContext<AuthState>({
@@ -48,12 +49,39 @@ const AuthContext = createContext<AuthState>({
   signOut: async () => {},
   signOutAllDevices: async () => {},
   updateProfile: async () => ({}),
-  refreshUser: async () => {},
+  refreshUser: async () => undefined,
 });
 
 export function useAuth() { return useContext(AuthContext); }
 
 const SESSION_KEY = "wm_session_v1";
+
+/**
+ * A phone on a weak signal can leave a request open for minutes. Every auth
+ * call gets a ceiling so the door never shows an endless spinner (sign-in lane
+ * 2026-10-06): the session check falls back to "not known", a sign-in attempt
+ * fails with a sentence the human can act on.
+ */
+const SESSION_CHECK_TIMEOUT_MS = 12_000;
+const AUTH_ACTION_TIMEOUT_MS = 25_000;
+const AUTH_TIMEOUT_MESSAGE = "The account service did not answer in time. Check your connection and try again.";
+const SESSION_NOT_KEPT_MESSAGE =
+  "Your password was accepted, but this browser did not keep the sign-in. Turn off private browsing or " +
+  "\"Block All Cookies\" for this site, then sign in again.";
+
+async function fetchWithTimeout(input: string, init: RequestInit, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isAbort(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
 
 async function readResponseJson(response: Response): Promise<Record<string, unknown>> {
   return response.json().catch(() => ({})) as Promise<Record<string, unknown>>;
@@ -84,15 +112,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
   const pathname = usePathname();
 
+  // An emailed link's fragment that arrived on the wrong page goes to the page
+  // that can read it — before the route guard's client redirect drops it.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const target = authLinkForwardTarget(window.location.pathname, window.location.hash);
+    if (target) window.location.replace(target);
+  }, []);
+
   // Restore from localStorage immediately on first render to prevent flash-to-login
   useEffect(() => {
     const cached = readCachedUser();
     if (cached) setUser(cached);
   }, []);
 
-  const refreshUser = useCallback(async () => {
+  // Resolves the account (signed in), null (the server said: no session), or
+  // undefined (could not tell — network, timeout, 5xx).
+  const refreshUser = useCallback(async (): Promise<WMUser | null | undefined> => {
     try {
-      const res  = await fetch("/api/auth/me", { credentials: "include" });
+      const res  = await fetchWithTimeout("/api/auth/me", { credentials: "include", cache: "no-store" }, SESSION_CHECK_TIMEOUT_MS);
       if (res.ok) {
         const data = await res.json();
         // Through the same reader as the cache. `{ ...raw }` trusted the
@@ -107,22 +145,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(u);
         writeCachedUser(u);
+        return u;
       } else if (res.status === 401 || res.status === 403) {
         // Only an explicit authentication rejection invalidates this cache.
         // A 429/5xx response does not prove that the session expired.
         writeCachedUser(null);
         setUser(null);
+        return null;
       } else {
         // Preserve the last account display during a service interruption,
         // matching network-error recovery below. Protected API routes still
         // verify the cookie and revocation state on every request.
         const cached = readCachedUser();
         if (cached) setUser(cached);
+        return undefined;
       }
     } catch {
-      // Network error — keep cached session alive
+      // Network error or timeout — keep cached session alive
       const cached = readCachedUser();
       if (cached) setUser(cached);
+      return undefined;
     } finally {
       setLoading(false);
     }
@@ -160,30 +202,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = useCallback(async (email: string, password: string) => {
     try {
-      const res = await fetch("/api/auth/signup", {
+      const res = await fetchWithTimeout("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
         credentials: "include",
-      });
+      }, AUTH_ACTION_TIMEOUT_MS);
       const data = await readResponseJson(res);
       if (!res.ok) return { error: typeof data.error === "string" ? data.error : "Signup failed" };
       if (data.verificationRequired === true) return { verificationRequired: true };
-      await refreshUser();
+      const account = await refreshUser();
+      if (account === null) return { error: SESSION_NOT_KEPT_MESSAGE };
       return {};
-    } catch {
+    } catch (error) {
+      if (isAbort(error)) return { error: AUTH_TIMEOUT_MESSAGE };
       return { error: "We could not reach the account service. Check your connection and try again." };
     }
   }, [refreshUser]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetchWithTimeout("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
         credentials: "include",
-      });
+      }, AUTH_ACTION_TIMEOUT_MS);
       const data = await readResponseJson(res);
       if (!res.ok) {
         // Carry the STATUS and the route's named `edge` through. Without them the
@@ -195,11 +239,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           edge: typeof data.edge === "string" ? data.edge : undefined,
         };
       }
-      await refreshUser();
+      // A 200 whose cookie the browser refused (private mode, "Block All
+      // Cookies", a cookie too large to keep) used to leave the human on the
+      // form with no message at all. Ask the server whether the session stuck.
+      const account = await refreshUser();
+      if (account === null) return { error: SESSION_NOT_KEPT_MESSAGE, status: 0, edge: "SESSION NOT KEPT" };
       return {};
-    } catch {
+    } catch (error) {
       return {
-        error: "We could not reach the account service. Check your connection and try again.",
+        error: isAbort(error) ? AUTH_TIMEOUT_MESSAGE : "We could not reach the account service. Check your connection and try again.",
         status: 0,
       };
     }
@@ -207,11 +255,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resendConfirmation = useCallback(async (email: string) => {
     try {
-      const res = await fetch("/api/auth/resend-confirmation", {
+      const res = await fetchWithTimeout("/api/auth/resend-confirmation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
+        body: JSON.stringify({ email: email.trim() }),
+      }, AUTH_ACTION_TIMEOUT_MS);
       const data = await readResponseJson(res);
       if (!res.ok) {
         return { error: typeof data.error === "string" ? data.error : "Confirmation email could not be requested" };
@@ -273,14 +321,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const updateProfile = useCallback(async (updates: Partial<WMUser>) => {
-    const res = await fetch("/api/auth/update-profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-      credentials: "include",
-    });
-    const data = await res.json();
-    if (!res.ok) return { error: data.error ?? "Update failed" };
+    // Never rejects (sign-in lane 2026-10-06): profile SETUP awaits this, and a
+    // thrown parse of a non-JSON error page left "Create My Profile" doing
+    // nothing at all — the one step between a new member and the app.
+    let res: Response;
+    let data: Record<string, unknown>;
+    try {
+      res = await fetchWithTimeout("/api/auth/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+        credentials: "include",
+      }, AUTH_ACTION_TIMEOUT_MS);
+      data = await readResponseJson(res);
+    } catch (error) {
+      return { error: isAbort(error) ? AUTH_TIMEOUT_MESSAGE : "We could not reach the account service. Check your connection and try again." };
+    }
+    if (!res.ok) {
+      return { error: typeof data.error === "string" ? data.error : `Your profile could not be saved (HTTP ${res.status}).` };
+    }
     // Keep the cached session in step with the account (garden pass
     // 2026-10-04: an outage restored the pre-edit profile from the cache).
     setUser(prev => {

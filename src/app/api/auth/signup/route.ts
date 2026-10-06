@@ -8,10 +8,15 @@ import { sendWelcomeEmail } from "@/lib/email";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
 import { supabaseConfigStatus, notConfiguredBody } from "@/lib/supabaseConfigStatus";
 import { classifyAuthBackendFault } from "@/lib/authBackendFault";
+import { interpretSignupResponse } from "@/lib/auth/signupResponse";
 import { randomBytes } from "crypto";
 
 export async function POST(req: Request) {
-  const { email, password, firstName } = await req.json().catch(() => ({})) as Record<string, string>;
+  const body = await req.json().catch(() => ({})) as Record<string, string>;
+  // A trailing space from a phone keyboard is not part of the address.
+  const email = typeof body.email === "string" ? body.email.trim() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+  const firstName = typeof body.firstName === "string" ? body.firstName : undefined;
   if (!email || !password) return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
   if (password.length < 8) return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
   // Signup sends a confirmation email to any address typed (2026-10-04).
@@ -29,9 +34,9 @@ export async function POST(req: Request) {
     // a one-off deployment back to a subdomain where the httpOnly WOW World
     // session does not exist. Preview URLs are for testing, never for a Passport.
     const redirectTo = `${CANONICAL_URL}/login?confirmed=1`;
-    let data;
+    let answered: Awaited<ReturnType<typeof supabaseSignUp>>;
     try {
-      data = await supabaseSignUp(email, password, redirectTo);
+      answered = await supabaseSignUp(email, password, redirectTo);
     } catch (e) {
       console.error("[signup] Supabase call threw — request never completed:", e);
       // The copy this replaces offered "the Supabase project may be paused" as
@@ -42,15 +47,19 @@ export async function POST(req: Request) {
       const fault = classifyAuthBackendFault("Sign-up", e);
       return NextResponse.json(fault.body, { status: fault.httpStatus });
     }
-    if (data.error) return NextResponse.json({ error: data.error.message ?? "Signup failed" }, { status: 400 });
-    const user = data.user;
-    if (!user?.id) return NextResponse.json({ error: "Signup service returned an invalid response" }, { status: 502 });
+    const outcome = interpretSignupResponse(answered.status, answered.data);
+    if (outcome.kind === "MALFORMED") return NextResponse.json({ error: "Signup service returned an invalid response" }, { status: 502 });
+    if (outcome.kind === "REJECTED") return NextResponse.json({ error: outcome.message }, { status: outcome.httpStatus });
+    if (outcome.kind === "ALREADY_REGISTERED") {
+      return NextResponse.json({ error: "An account with that email already exists. Try signing in instead — or use \"Forgot password?\"." }, { status: 409 });
+    }
     // Supabase may require email verification and omit a session. Do not create
     // an application session until the address has actually been verified.
-    if (!data.access_token && !data.session?.access_token) {
+    if (outcome.kind === "VERIFICATION_REQUIRED") {
       return NextResponse.json({ ok: true, verificationRequired: true });
     }
-    const jwt = signJWT({ sub: user.id, email: user.email, profileComplete: false });
+    const user = outcome.user;
+    const jwt = signJWT({ sub: user.id, email: user.email ?? email, profileComplete: false });
     const res = NextResponse.json({ ok: true });
     setAuthCookie(res.cookies, jwt);
     // Fire-and-forget welcome email — don't block response on email delivery.

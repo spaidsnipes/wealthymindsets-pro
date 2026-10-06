@@ -78,19 +78,38 @@ function LoginPage() {
   const [verificationCode, setVerificationCode] = useState("");
   const [resending, setResending] = useState(false);
   const confirmationHandled = useRef(false);
+  const messageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setError(""); setSuccess(""); }, [mode, email, password]);
+
+  // On a phone the keyboard covers the lower half of the form. A message that
+  // appears under it is a message nobody reads, so it is brought into view.
+  useEffect(() => {
+    if (!error && !success) return;
+    messageRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [error, success]);
 
   useEffect(() => {
     if (confirmationHandled.current || typeof window === "undefined") return;
     const fragment = new URLSearchParams(window.location.hash.slice(1));
+    // A RECOVERY token belongs to /reset-password (AuthContext forwards it);
+    // spending it here would sign the person in without the new password.
+    if (fragment.get("type") === "recovery") return;
     const accessToken = fragment.get("access_token");
-    const hashError = fragment.get("error_description");
+    // Supabase reports a failed link in the fragment (implicit flow) or in the
+    // query (PKCE flow). Both are only ever CLASSIFIED, never printed.
+    const hashError = fragment.get("error_description") ?? fragment.get("error_code")
+      ?? searchParams.get("error_description") ?? searchParams.get("error_code");
     if (!accessToken) {
+      const authError = searchParams.get("auth_error");
       if (hashError) setError(authLinkErrorMessage(hashError));
-      if (searchParams.get("auth_error") === "expired_confirmation") setError("That confirmation link has expired. Request a fresh email and try again.");
-      if (searchParams.get("auth_error") === "invalid_confirmation") setError("That confirmation link is not valid. Request a fresh email and try again.");
-      if (searchParams.get("confirmed") === "1") setSuccess("Your email is verified. Sign in to open your WOW World workspace.");
+      else if (authError === "expired_confirmation") setError("That confirmation link has expired. Request a fresh email and try again.");
+      else if (authError === "invalid_confirmation") setError("That confirmation link is not valid. Request a fresh email and try again.");
+      else if (authError === "service_unavailable") setError("Your link could not be checked because the account service did not answer. Open the link again in a minute — it may still be valid.");
+      else if (authError === "rate_limited") setError("Too many attempts from this connection. Wait a few minutes, then open the link again.");
+      // "Verified" only when the link did not also report a failure — the two
+      // used to show together ("expired" in red, "verified" in gold).
+      else if (searchParams.get("confirmed") === "1") setSuccess("Your email is verified. Sign in to open your WOW World workspace.");
       return;
     }
     confirmationHandled.current = true;
@@ -120,7 +139,7 @@ function LoginPage() {
       if (password !== confirm) { setError("Passwords don't match"); return; }
       if (password.length < 8)  { setError("Password must be at least 8 characters"); return; }
       setSubmitting(true);
-      const result = await signUp(email, password).finally(() => setSubmitting(false));
+      const result = await signUp(email.trim(), password).finally(() => setSubmitting(false));
       if (result.error) {
         // User already exists — suggest sign in
         if (result.error.toLowerCase().includes("already") || result.error.toLowerCase().includes("exists")) {
@@ -138,7 +157,7 @@ function LoginPage() {
 
     if (mode === "login") {
       setSubmitting(true);
-      const result = await signIn(email, password).finally(() => setSubmitting(false));
+      const result = await signIn(email.trim(), password).finally(() => setSubmitting(false));
       if (result.error) {
         const failure = classifySignInFailure({
           status: result.status ?? 0,
@@ -157,7 +176,7 @@ function LoginPage() {
         const res = await fetch("/api/auth/forgot-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email: email.trim() }),
         });
         const data = await res.json().catch(() => ({})) as { error?: string };
         // Truth surface: on a non-2xx (e.g. 503 NOT CONFIGURED naming missing
@@ -395,9 +414,11 @@ function LoginPage() {
                     <input
                       id="wm-login-email" name="email"
                       type="email" required autoComplete="email"
+                      inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                      enterKeyHint={mode === "forgot" ? "send" : "next"}
                       value={email} onChange={e => setEmail(e.target.value)}
                       placeholder="you@example.com"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl text-[13px] text-[#ede6d3] placeholder-[#55503f] outline-none transition-all"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl text-[16px] text-[#ede6d3] placeholder-[#55503f] outline-none transition-all"
                       style={{ background: WM.surface.mid, border: `1px solid ${WM.border.hair}` }}
                       onFocus={e => (e.currentTarget.style.borderColor = WM.border.strong)}
                       onBlur={e  => (e.currentTarget.style.borderColor = WM.border.hair)}
@@ -424,8 +445,10 @@ function LoginPage() {
                         type={showPw ? "text" : "password"} required
                         autoComplete={mode === "signup" ? "new-password" : "current-password"}
                         value={password} onChange={e => setPassword(e.target.value)}
+                        autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                        enterKeyHint={mode === "signup" ? "next" : "go"}
                         placeholder={mode === "signup" ? "At least 8 characters" : "Your password"}
-                        className="w-full pl-10 pr-10 py-3 rounded-xl text-[13px] text-[#ede6d3] placeholder-[#55503f] outline-none transition-all"
+                        className="w-full pl-10 pr-10 py-3 rounded-xl text-[16px] text-[#ede6d3] placeholder-[#55503f] outline-none transition-all"
                         style={{ background: WM.surface.mid, border: `1px solid ${WM.border.hair}` }}
                         onFocus={e => (e.currentTarget.style.borderColor = WM.border.strong)}
                         onBlur={e  => (e.currentTarget.style.borderColor = WM.border.hair)}
@@ -449,8 +472,9 @@ function LoginPage() {
                         id="wm-login-confirm" name="confirm-password"
                         type={showPw ? "text" : "password"} required autoComplete="new-password"
                         value={confirm} onChange={e => setConfirm(e.target.value)}
+                        autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="go"
                         placeholder="Repeat your password"
-                        className="w-full pl-10 pr-4 py-3 rounded-xl text-[13px] text-[#ede6d3] placeholder-[#55503f] outline-none transition-all"
+                        className="w-full pl-10 pr-4 py-3 rounded-xl text-[16px] text-[#ede6d3] placeholder-[#55503f] outline-none transition-all"
                         style={{ background: WM.surface.mid, border: `1px solid ${WM.border.hair}` }}
                         onFocus={e => (e.currentTarget.style.borderColor = WM.border.strong)}
                         onBlur={e  => (e.currentTarget.style.borderColor = WM.border.hair)}
@@ -459,12 +483,13 @@ function LoginPage() {
                   </div>
                 )}
 
+                <div ref={messageRef} className="scroll-mb-24">
                 {/* Error */}
                 {error && (
                   <div role="alert" aria-live="assertive" className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
                     style={{ background: "rgba(255,77,106,0.1)", border: "1px solid rgba(255,77,106,0.3)" }}>
                     <AlertCircle size={13} className="text-wm-red shrink-0" />
-                    <span className="text-[12px] text-wm-red">{error}</span>
+                    <span className="text-[13px] text-wm-red">{error}</span>
                   </div>
                 )}
 
@@ -476,6 +501,7 @@ function LoginPage() {
                     <span className="text-[12px]" style={{ color: WM.gold.mark }}>{success}</span>
                   </div>
                 )}
+                </div>
 
                 {verificationEmail && (
                   <div className="space-y-2 rounded-xl p-3" style={{ background: WM.surface.mid, border: `1px solid ${WM.border.line}` }}>
@@ -487,7 +513,7 @@ function LoginPage() {
                       value={verificationCode}
                       onChange={event => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
                       placeholder="6-digit code"
-                      className="w-full px-4 py-3 rounded-xl text-[15px] tracking-[0.35em] text-[#ede6d3] placeholder-[#55503f] outline-none"
+                      className="w-full px-4 py-3 rounded-xl text-[16px] tracking-[0.35em] text-[#ede6d3] placeholder-[#55503f] outline-none"
                       style={{ background: WM.surface.mid, border: `1px solid ${WM.border.hair}` }}
                     />
                     <button type="button" onClick={() => void verifyEmailCode()} disabled={submitting || !verificationCode.trim()} className="w-full py-2.5 rounded-xl text-[13px] font-black disabled:opacity-60" style={{ background: WM.halo.gold, border: `1px solid ${WM.border.strong}`, color: WM.gold.hero }}>

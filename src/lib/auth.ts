@@ -92,13 +92,46 @@ function fromB64url(s: string): string {
   return Buffer.from(s, "base64url").toString("utf8");
 }
 
-export function signJWT(payload: Omit<JWTPayload, "iat" | "exp">): string {
-  const now = Math.floor(Date.now() / 1000);
-  const full: JWTPayload = { ...payload, iat: now, exp: now + COOKIE_MAX_AGE };
+/**
+ * THE SESSION MUST FIT IN A COOKIE (2026-10-06, sign-in lane).
+ *
+ * Browsers silently DROP a Set-Cookie whose name+value exceeds ~4096 bytes.
+ * The profile avatar is stored as a `data:` URL (a phone photo is megabytes),
+ * and every sign-in copied it from user_metadata into this JWT. The login
+ * route then answered 200, the browser threw the cookie away, /api/auth/me
+ * answered 401, and the human sat on /login with no error — on EVERY device,
+ * forever, from the moment they uploaded a photo. During profile setup the
+ * same drop kept the old `profileComplete:false` cookie alive, so every reload
+ * sent them back to /profile?setup=1.
+ *
+ * So the cookie carries only what fits: an inline avatar never rides in it
+ * (/api/auth/me reads the avatar from the account instead), and if the token
+ * is still too large the longest optional field (bio) is dropped next.
+ */
+export const MAX_SESSION_TOKEN_BYTES = 3800;
+const MAX_COOKIE_AVATAR_CHARS = 512;
+
+function encodeJWT(full: JWTPayload): string {
   const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const body   = b64url(JSON.stringify(full));
   const sig    = createHmac("sha256", getJwtSecret()).update(`${header}.${body}`).digest("base64url");
   return `${header}.${body}.${sig}`;
+}
+
+export function signJWT(payload: Omit<JWTPayload, "iat" | "exp">): string {
+  const now = Math.floor(Date.now() / 1000);
+  const full: JWTPayload = { ...payload, iat: now, exp: now + COOKIE_MAX_AGE };
+  if (typeof full.avatar === "string" && (full.avatar.length > MAX_COOKIE_AVATAR_CHARS || full.avatar.startsWith("data:"))) {
+    delete full.avatar;
+  }
+  let token = encodeJWT(full);
+  for (const field of ["bio", "avatar", "bgColor"] as const) {
+    if (token.length <= MAX_SESSION_TOKEN_BYTES) break;
+    if (full[field] === undefined) continue;
+    delete full[field];
+    token = encodeJWT(full);
+  }
+  return token;
 }
 
 export function verifyJWT(token: string): JWTPayload | null {
@@ -201,7 +234,9 @@ export async function supabaseSignUp(email: string, password: string, redirectTo
     headers: { "Content-Type": "application/json", apikey: SB_KEY() },
     body: JSON.stringify({ email, password }),
   });
-  return supabaseJson(res, url);
+  // The STATUS travels with the body: GoTrue's signup answers are judged by
+  // interpretSignupResponse (@/lib/auth/signupResponse), and a 429 is a fact.
+  return { status: res.status, data: await supabaseJson(res, url) as unknown };
 }
 
 export async function supabaseResendSignup(email: string, redirectTo?: string) {
@@ -224,7 +259,12 @@ export async function supabaseResendSignup(email: string, redirectTo?: string) {
  * GoTrue's `msg` is free text that can carry the submitted address back out.
  */
 export async function supabaseResetPassword(email: string, redirectTo: string): Promise<number> {
-  const url = `${SB_URL()}/auth/v1/recover`;
+  // `redirect_to` MUST be a query parameter (sign-in lane 2026-10-06). GoTrue
+  // reads it from the header or the URL/form — never from a JSON body — so the
+  // body-only copy below was ignored and every recovery email linked to the
+  // dashboard "Site URL" instead of /reset-password. supabase-js sends it the
+  // same way. The body copy is kept for older GoTrue builds that read it there.
+  const url = `${SB_URL()}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: SB_KEY() },
@@ -295,9 +335,11 @@ export async function supabaseGetUser(accessToken: string) {
  * exchange on the server lets us immediately create WM Pro's httpOnly session
  * cookie and prevents a verified user from being stranded on a Supabase page.
  */
-export async function supabaseVerifyEmail(input: { email?: string; token?: string; tokenHash?: string }) {
+export type EmailOtpType = "email" | "signup" | "magiclink" | "invite" | "recovery" | "email_change";
+
+export async function supabaseVerifyEmail(input: { email?: string; token?: string; tokenHash?: string; type?: EmailOtpType }) {
   const body = input.tokenHash
-    ? { token_hash: input.tokenHash, type: "email" }
+    ? { token_hash: input.tokenHash, type: input.type ?? "email" }
     : { email: input.email, token: input.token, type: "email" };
   const url = `${SB_URL()}/auth/v1/verify`;
   const res = await fetch(url, {

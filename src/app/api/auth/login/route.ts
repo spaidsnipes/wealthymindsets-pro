@@ -45,7 +45,11 @@ function alertIfNewDevice(req: Request, res: NextResponse, email?: string) {
 }
 
 export async function POST(req: Request) {
-  const { email, password } = await req.json().catch(() => ({})) as Record<string, string>;
+  const body = await req.json().catch(() => ({})) as Record<string, string>;
+  // Phone keyboards and autofill add a trailing space or a capital first letter;
+  // neither is part of the address (sign-in lane 2026-10-06).
+  const email = typeof body.email === "string" ? body.email.trim() : "";
+  const password = typeof body.password === "string" ? body.password : "";
   if (!email || !password) return NextResponse.json({ error: "Email and password required" }, { status: 400 });
   // Brute-force / lockout guard (2026-10-04) — see AUTH_LOGIN_LIMITER_BINDING.
   {

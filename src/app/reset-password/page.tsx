@@ -15,7 +15,11 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const hash = new URLSearchParams(window.location.hash.slice(1));
-    setAccessToken(hash.get("access_token") ?? "");
+    // Only ever SET from the fragment, never cleared by its absence: the hash
+    // is stripped just below, and an effect that runs again (React dev double
+    // invoke, a remount) must not erase the token it already read.
+    const token = hash.get("access_token");
+    if (token) setAccessToken(token);
     if (hash.get("error_description")) setMessage(authLinkErrorMessage(hash.get("error_description")));
     setChecked(true);
     if (window.location.hash) {
@@ -75,10 +79,13 @@ export default function ResetPasswordPage() {
             <input
               type="password"
               autoComplete="new-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="New password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-[#E8B923]/60"
+              className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-base text-white outline-none focus:border-[#E8B923]/60"
             />
           </label>
           <label className="block space-y-2 text-sm text-white/70">
@@ -86,10 +93,13 @@ export default function ResetPasswordPage() {
             <input
               type="password"
               autoComplete="new-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="Confirm new password"
               value={confirm}
               onChange={(event) => setConfirm(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-[#E8B923]/60"
+              className="w-full rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-base text-white outline-none focus:border-[#E8B923]/60"
             />
           </label>
           <button
@@ -100,7 +110,10 @@ export default function ResetPasswordPage() {
           </button>
         </form>
         )}
-        {message && <p className="mt-4 text-sm text-white/70" role="status">{message}</p>}
+        {/* Inputs are text-base (16px): they inherited the label's 14px, and
+            iOS zooms the page into any field under 16px on focus. The message
+            prints once — the no-link box above already shows it. */}
+        {message && accessToken && <p className="mt-4 text-sm text-white/70" role="status">{message}</p>}
         {/* MEASURED 105.5x20 at 375px on production 2026-09-08 — under the 44px
             floor, on the password-recovery path, where it is the only way back.
             The TEXT stays `text-sm`; the TARGET is what grows. */}

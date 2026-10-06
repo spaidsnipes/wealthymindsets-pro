@@ -49,6 +49,7 @@ import {
   type TradeRowFact,
 } from "@/lib/profile/tradeRowFacts";
 import { keyActivates } from "@/lib/a11y/keyActivates";
+import { avatarDataUrlFromFile } from "@/lib/profile/avatarImage";
 
 
 interface ProfileData {
@@ -134,7 +135,8 @@ function ProfilePageInner() {
   const tab = parseProfileTab(searchParams.get("tab"));
   const [sessionMetric, setSessionMetric] = useState<SessionEdgeMetric>("avg_realized_r");
   const { wmsBalance, creatorCoin, totalEarned, recentEarnings, isDeployed } = useWMS();
-  const { user, updateProfile: saveToAuth } = useAuth();
+  const { user, updateProfile: saveToAuth, signOut } = useAuth();
+  const [savingProfile, setSavingProfile] = useState(false);
   const [editMode, setEditMode] = useState(false);
   // Setup/onboarding only for genuinely-new users. A saved profile in
   // localStorage is authoritative — we must NOT drop into the empty setup form
@@ -344,10 +346,14 @@ function ProfilePageInner() {
   const saveProfile = async () => {
     if (!editProfile.name.trim()) { toast.error("Please enter your name."); return; }
     if (!editProfile.handle.trim()) { toast.error("Please enter a handle."); return; }
-    const saved = { ...editProfile, handle: editProfile.handle.startsWith("@") ? editProfile.handle : `@${editProfile.handle}` };
+    // A phone keyboard adds trailing spaces; the handle rule allows none.
+    const handleText = editProfile.handle.trim();
+    const saved = { ...editProfile, name: editProfile.name.trim(), handle: handleText.startsWith("@") ? handleText : `@${handleText}` };
     // Persist to the account FIRST (2026-10-04): the server may refuse — a
     // handle that belongs to another trader — and "Profile saved!" over a
     // refusal is a lie the trader would build on.
+    if (savingProfile) return;
+    setSavingProfile(true);
     const result = await saveToAuth({
       displayName:     saved.name,
       handle:          saved.handle,
@@ -357,7 +363,7 @@ function ProfilePageInner() {
       timezone:        saved.timezone,
       bgColor:         bgColor,
       profileComplete: true,
-    });
+    }).finally(() => setSavingProfile(false));
     if (result?.error) { toast.error(result.error); return; }
     setProfile(saved);
     setEditProfile(saved);
@@ -370,9 +376,9 @@ function ProfilePageInner() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const url = ev.target?.result as string;
+    // Downscaled to a 256px JPEG first (sign-in lane 2026-10-06): the camera
+    // original made the session cookie too large to keep — see avatarImage.ts.
+    void avatarDataUrlFromFile(file).then(url => {
       setAvatarUrl(url);
       try { localStorage.setItem("wm-profile-avatar", url); } catch {}
       // The account's answer is read, not dropped (garden pass 2026-10-04):
@@ -380,8 +386,9 @@ function ProfilePageInner() {
       saveToAuth({ avatar: url })
         .then(r => { if (r?.error) toast.error(`Photo shown here, but not saved to your account: ${r.error}`); })
         .catch(() => toast.error("Photo shown here, but not saved to your account — try again."));
-    };
-    reader.readAsDataURL(file);
+    }).catch((reason: unknown) => {
+      toast.error(reason instanceof Error ? reason.message : "That photo could not be used.");
+    });
   };
 
   const changeBg = (c: string) => {
@@ -466,31 +473,33 @@ function ProfilePageInner() {
             <div>
               <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Display Name *</label>
               <input value={editProfile.name} onChange={e => setEditProfile(p => ({ ...p, name: e.target.value }))}
-                placeholder="e.g. John Trader" autoFocus
-                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50" />
+                placeholder="e.g. John Trader" autoComplete="name"
+                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-base sm:text-sm text-wm-text outline-none focus:border-wm-gold/50" />
             </div>
             <div>
               <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Handle *</label>
               <input value={editProfile.handle} onChange={e => setEditProfile(p => ({ ...p, handle: e.target.value }))}
-                placeholder="@yourhandle"
-                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50" />
+                placeholder="@yourhandle" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username"
+                aria-describedby="wm-setup-handle-rule"
+                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-base sm:text-sm text-wm-text outline-none focus:border-wm-gold/50" />
+              <p id="wm-setup-handle-rule" className="mt-1 text-[11px] text-wm-text-muted">3–30 letters, numbers, dots or underscores — no spaces.</p>
             </div>
             <div>
               <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Bio</label>
               <textarea value={editProfile.bio} onChange={e => setEditProfile(p => ({ ...p, bio: e.target.value }))}
                 placeholder="Tell the community about your trading style…" rows={3}
-                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50 resize-none" />
+                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-base sm:text-sm text-wm-text outline-none focus:border-wm-gold/50 resize-none" />
             </div>
             <div>
               <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Email</label>
               <input value={editProfile.email} onChange={e => setEditProfile(p => ({ ...p, email: e.target.value }))}
                 placeholder="you@example.com" type="email"
-                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50" />
+                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-base sm:text-sm text-wm-text outline-none focus:border-wm-gold/50" />
             </div>
             <div>
               <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Timezone</label>
               <select aria-label="Timezone" value={editProfile.timezone} onChange={e => setEditProfile(p => ({ ...p, timezone: e.target.value }))}
-                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50">
+                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-base sm:text-sm text-wm-text outline-none focus:border-wm-gold/50">
                 {["America/New_York","America/Chicago","America/Los_Angeles","Europe/London","Asia/Tokyo","Australia/Sydney"].map(tz => (
                   <option key={tz} value={tz}>{tz}</option>
                 ))}
@@ -500,13 +509,20 @@ function ProfilePageInner() {
               <label className="text-[10px] text-[#c9a55c] uppercase tracking-wider font-bold block mb-1">AI Bot Name</label>
               <input value={editProfile.botName} onChange={e => setEditProfile(p => ({ ...p, botName: e.target.value }))}
                 placeholder="e.g. SpaidBot" maxLength={24}
-                className="w-full bg-wm-surface border border-wm-gold/30 rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/60" />
+                className="w-full bg-wm-surface border border-wm-gold/30 rounded-lg px-3 py-2 text-base sm:text-sm text-wm-text outline-none focus:border-wm-gold/60" />
             </div>
           </div>
 
-          <button onClick={saveProfile}
-            className="w-full py-3 rounded-xl bg-wm-gold text-wm-black font-black text-sm hover:opacity-90 transition-all">
-            Create My Profile
+          <button onClick={saveProfile} disabled={savingProfile} aria-busy={savingProfile}
+            className="w-full py-3 rounded-xl bg-wm-gold text-wm-black font-black text-sm hover:opacity-90 transition-all disabled:opacity-60">
+            {savingProfile ? "Saving your profile…" : "Create My Profile"}
+          </button>
+          {/* The guard sends an unfinished account back here from every room,
+              so this screen must never be a dead end (sign-in lane 2026-10-06):
+              wrong account, or a save that keeps failing — there is a way out. */}
+          <button type="button" onClick={() => void signOut()}
+            className="w-full min-h-11 text-[13px] text-wm-text-muted hover:text-wm-text transition-colors">
+            Not you? Sign out
           </button>
         </div>
       </div>
