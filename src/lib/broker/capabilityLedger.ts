@@ -52,8 +52,8 @@ export const CAPABILITY_LEDGER: readonly CapabilityRow[] = [
   // ── tastytrade ────────────────────────────────────────────────────────
   { provider: T, capability: "QUOTES", state: "LIVE", owner: "src/lib/broker/tastyQuoteStream.ts", note: "DXLink: stocks, ETFs, options, futures, futures options, listed USD coins" },
   { provider: T, capability: "BARS", state: "LIVE", owner: "src/lib/marketData/adapters/tastytradeCandles.ts", note: "5 s … 1 M; stocks, futures, listed USD coins" },
-  { provider: T, capability: "LIVE_PRINTS", state: "PARTIAL", owner: "src/lib/marketData/adapters/tastytradeFuturesTicks.ts", note: "futures signed by the venue; stock sides INFERRED (Lee–Ready); history capped near 1,000 prints" },
-  { provider: T, capability: "DEPTH", state: "NOT_BUILT", owner: null, note: "no order book wired from tastytrade" },
+  { provider: T, capability: "LIVE_PRINTS", state: "PARTIAL", owner: "src/lib/marketData/adapters/tastytradeFuturesTicks.ts", note: "futures and option prints signed by the venue (Options Flow); stock sides INFERRED (Lee–Ready); print history capped near 1,000 per contract — the candles' own bid / ask volume carries signed flow for the whole bar history" },
+  { provider: T, capability: "DEPTH", state: "UNSUPPORTED", owner: null, note: "not served on this DXLink session — probe 2026-10-06 (/NQZ26): PriceLevel \"not available\", Order answered an internal error with no events" },
   { provider: T, capability: "OPTIONS_CHAIN", state: "LIVE", owner: "src/app/api/broker/tastytrade/chain/route.ts", note: "expirations, strikes, live quotes" },
   { provider: T, capability: "GREEKS", state: "LIVE", owner: "src/lib/broker/tastyOptionStreamers.ts", note: "DXLink Greeks events" },
   { provider: T, capability: "FUTURES_OPTIONS", state: "LIVE", owner: "src/lib/broker/tastytradeFuturesChain.ts", note: "e.g. MNQ, ES chains with Greeks" },

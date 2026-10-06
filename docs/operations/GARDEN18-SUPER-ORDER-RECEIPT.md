@@ -126,8 +126,8 @@ The canvas paint receipt for OI ticks (`data-options-oi-walls`) could not be rea
 |---|---|---|---|---|---|
 | Quotes | yes | yes (`lib/broker/tastyQuoteStream.ts`) | owner account | measured on serving (owner session) | LIVE — DXLink: stocks, ETFs, options, futures, futures options, listed USD coins |
 | Bars / candles | yes | yes (`lib/marketData/adapters/tastytradeCandles.ts`) | owner account | measured on serving (owner session) | LIVE — 5 s … 1 M; stocks, futures, listed USD coins |
-| Live prints (tape) | yes | yes (`lib/marketData/adapters/tastytradeFuturesTicks.ts`) | — | — | PARTIAL — futures signed by the venue; stock sides INFERRED (Lee–Ready); history capped near 1,000 prints |
-| Book depth | yes | no | — | — | NOT_BUILT — no order book wired from tastytrade |
+| Live prints (tape) | yes | yes (`lib/marketData/adapters/tastytradeFuturesTicks.ts`) | — | — | PARTIAL — futures and option prints signed by the venue (Options Flow); stock sides INFERRED (Lee–Ready); print history capped near 1,000 per contract — the candles' own bid / ask volume carries signed flow for the whole bar history |
+| Book depth | no | no | — | probe 2026-10-06 | UNSUPPORTED — not served on this DXLink session (PriceLevel "not available"; Order → internal error, no events) |
 | Options chain | yes | yes (`app/api/broker/tastytrade/chain/route.ts`) | owner account | measured on serving (owner session) | LIVE — expirations, strikes, live quotes |
 | Greeks | yes | yes (`lib/broker/tastyOptionStreamers.ts`) | owner account | measured on serving (owner session) | LIVE — DXLink Greeks events |
 | Futures options | yes | yes (`lib/broker/tastytradeFuturesChain.ts`) | owner account | measured on serving (owner session) | LIVE — e.g. MNQ, ES chains with Greeks |
