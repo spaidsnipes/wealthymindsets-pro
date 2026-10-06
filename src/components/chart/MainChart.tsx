@@ -2033,6 +2033,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // the selector's last verdict the overlay captions and receipts from.
   const tapeCvdSeriesRef = useRef<any>(null);
   const tapeCvdRef = useRef<TapeCvdResult | null>(null);
+  /** What the Tape CVD series last received, so a tick can update only its tail. */
+  const tapeCvdDataRef = useRef<Record<string, unknown>[] | null>(null);
+  const tapeCvdInkRef = useRef<string>("");
   // Whether the CVD series is currently shown (RAW hides it); a new series starts shown.
   const cvdVisibleRef = useRef(true);
   // Open paper-trade position lines (native IPriceLine on the candle series) +
@@ -3524,7 +3527,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const up = `rgb(${pair.buy.join(",")})`, dn = `rgb(${pair.sell.join(",")})`;
     try {
       s.applyOptions({ upColor: up, downColor: dn, borderUpColor: up, borderDownColor: dn, wickUpColor: up, wickDownColor: dn });
-      s.setData(r.points.map(p => {
+      const next = r.points.map(p => {
         const d: Record<string, unknown> = {
           time: p.time, open: p.from, close: p.to, high: Math.max(p.from, p.to), low: Math.min(p.from, p.to),
         };
@@ -3533,7 +3536,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           d.color = "rgba(0,0,0,0)"; d.borderColor = ink; d.wickColor = ink;
         }
         return d;
-      }));
+      });
+      // CANDLE SMOOTHNESS (2026-10-06): with the bars' own sides the series is
+      // thousands of steps, refilled up to 4×/s by the tape. When every step
+      // but the newest is unchanged (and at most one was added), only the tail
+      // is updated; anything else — a reload, a new symbol, an ink change —
+      // is a full setData as before.
+      const prevD = tapeCvdDataRef.current;
+      const same = (x: Record<string, unknown>, y: Record<string, unknown>) =>
+        x.time === y.time && x.open === y.open && x.close === y.close && x.color === y.color && x.borderColor === y.borderColor;
+      let tailOnly = !!prevD && prevD.length > 1 && next.length >= prevD.length && next.length - prevD.length <= 1
+        && tapeCvdInkRef.current === `${up}|${dn}`;
+      if (tailOnly) for (let i = 0; i < prevD!.length - 1; i++) { if (!same(prevD![i], next[i])) { tailOnly = false; break; } }
+      if (tailOnly) {
+        for (let i = prevD!.length - 1; i < next.length; i++) s.update(next[i]);
+      } else {
+        s.setData(next);
+      }
+      tapeCvdDataRef.current = next;
+      tapeCvdInkRef.current = `${up}|${dn}`;
     } catch { /* series removed mid-flush; the next build refills */ }
   };
   // `candles` too: the new timeframe's bars arrive after the switch commits, and
@@ -4968,7 +4989,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     indSeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
     indSeriesRef.current = [];
     oscLiveRef.current = [];
-    tapeCvdSeriesRef.current = null;
+    tapeCvdSeriesRef.current = null; tapeCvdDataRef.current = null;
     // Register a series for live tick updates: recompute pulls fresh values from
     // the current bars and returns the LAST point to update.
     const regLive = (series: any, recompute: (bs: LegacyOhlcvTuple[]) => { value: number; color?: string } | null) => {
@@ -5510,10 +5531,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const s = chart.addSeries(LW.CandlestickSeries, { priceLineVisible: false, lastValueVisible: true }, paneFor("tapecvd"));
         s.createPriceLine({ price: 0, color: "rgba(139,146,172,0.45)", lineWidth: 1, lineStyle: LW.LineStyle.Solid, axisLabelVisible: false });
         indSeriesRef.current.push(s);
-        tapeCvdSeriesRef.current = s;
+        tapeCvdSeriesRef.current = s; tapeCvdDataRef.current = null;
         cvdVisibleRef.current = true;
         fillTapeCvdRef.current();
-      } catch { tapeCvdSeriesRef.current = null; }
+      } catch { tapeCvdSeriesRef.current = null; tapeCvdDataRef.current = null; }
     }
 
     // ── Stop Run Alert (price breach then reversal) ───────────
@@ -5993,6 +6014,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // not leave the fill writing to (and the glass captioning) a removed pane.
       tapeCvdSeriesRef.current = null;
       tapeCvdRef.current = null;
+      tapeCvdDataRef.current = null;
       indSeriesRef.current = [];
     };
   }, [activeInds, indSettings, ready, cameraEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
