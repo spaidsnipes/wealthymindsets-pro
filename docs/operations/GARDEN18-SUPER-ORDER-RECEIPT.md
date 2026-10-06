@@ -504,4 +504,6 @@ GET 401: tastytrade positions / accounts / quote-token / chain / ledger, Webull 
 | Options Flow on gold (GC) | — | serving GC 5m: 897 prints, 39 of 40 exchange-stamped, "C4170 ×15 BUY ~$183k" (multiplier 100 ✓) |
 | Crypto chip's spoken label names the rolling 24-hour window | pending | selectRegimeBadge tests |
 
-**Last build 05:25 CDT; the order ran to 06:00.** Production at the receipt's commit; every build above passed the full gate (tsc + 15,460 tests) and was proved on serving glass in the extension tab (never the Founder's tab). Deploys were held while the Founder traded (21:00 → 01:23).
+| P0.2 "today" on every surface (premarket 05:28 CDT, serving, owner session) | `66831f9` | scanner: SPY **+0.20%**, QQQ +0.34%, TSLA +0.74%, AAPL +0.01% — "Live — tastytrade" (vendor had +0.85 / +1.19 / +2.90 / −0.23); ticker tape: SPY 776.37 **+1.54 (+0.20%)**, QQQ +0.35%, TSLA +0.83%; /desk charts SPY +0.20% LIVE → CLOSED on chart, desk, tape, scanner, watchlist lane |
+
+**Last build 05:25 CDT; proofs to 05:30; the order ran to 06:00.** Production at the receipt's commit; every build above passed the full gate (tsc + 15,460 tests) and was proved on serving glass in the extension tab (never the Founder's tab). Deploys were held while the Founder traded (21:00 → 01:23).
