@@ -426,3 +426,58 @@ Paint mean / longest ms (frames over budget): none 3.4/6.6 · Brick Walls 5.6/7.
 | §5 a11y sweep (owner session, serving): visible controls with no accessible name | — | /charts 45 · /settings 53 · /tv 42 · /radio 45 controls, and /command-deck /journal /desk /paper /scanner /news /education /lounge /profile — **0 unnamed** on every route; pointer-cursor elements not keyboard-reachable on /charts: 0 (only native `<summary>`) → **CLOSED** for names + keyboard reach (screen-reader walkthrough not run) |
 | Options Flow: dxFeed `type` + `spreadLeg` on every TimeAndSale (live + history) — CORRECTION replaces, CANCEL removes, spread leg = MULTI-LEG | `975b8fb` | owner-socket COMPACT probe: FEED_CONFIG accepts all 12 fields, rows `…, true, "NEW", false` aligned; serving NQ 1m after deploy: tape backfill 1,000 prints, Flow Current TAPE 9 + CANDLE_SIDES 191, Options Flow 1,059 heard, 0 layer faults. Known limit: the futures footprint tape does not un-fold a later CANCEL (rare; none seen in 1,482 overnight prints) |
 | Options Flow ranks by money (premium estimate, else price × size), not contract count; caption says "largest by premium" | pending | selector test: 10 lots @ 100 outrank 100 lots @ 0.05 |
+
+## P0.2 "today" on the exchange's day boundary (03:20 → 04:05 CDT)
+Found on serving SPY at 04:22 ET (premarket): "+6.76 (+0.88%) today" — measured from Friday's close; the REST vendor's change still spanned the session that had ended. tastytrade's Summary (dxFeed, dayId-rolled) held Monday's close 774.83.
+| Build | Commit | Proof |
+|---|---|---|
+| Chart: tastytrade Summary `prevDayClosePrice` is the reference close; REST cannot overwrite it | `168b1c8` | serving /charts SPY: 776.18 **+1.35 (+0.17%)** (= − 774.83) |
+| Tape / watchlist / scanner prefer the exchange's close, even while a row's live price is not fresh | `f006acf`, `571cdd9` | scanner test (vendor +0.85% → exchange +0.17%) |
+| A second consumer of an already-streamed symbol reads the stream's held Summary (dxFeed sends it once) | `3030ccb` | serving /desk after a poll: SPY **+1.60 (+0.21%)**, TSLA corrected +10.39 → +2.49 |
+| The reference close republishes the displayed change the moment it arrives | `1ced614` | pending Cloudflare build (one build record failed instantly, its twin stuck in progress; GitHub typecheck/sentinels/build passed) |
+
+## FINAL SHERIFF RECEIPT — ATHOS super finish-line order (shift 18:06 Oct 5 → 06:00 Oct 6 CDT)
+Vocabulary: CLOSED (evidenced) · OPEN · BLOCKED · UNSUPPORTED · NOT ENTITLED · PARTIAL · DEFERRED. Supersedes the 12:55 status table above.
+
+| Capability / gate | Verdict | Evidence / blocker |
+|---|---|---|
+| P0.1 release identity (SHA → build → domain → browser) | CLOSED | build-identity per deploy; old-tab skew proof `d73c167` |
+| P0.1 identity / impersonation (core-team badge by verified email only; handle checks) | CLOSED | `5b1df1d`, coreTeam.test |
+| P0.1 Lounge edit/delete author-only; LiveKit identity = session, publish host-only; approve host-gated | CLOSED (source, served candidate) | route reads + tests |
+| P0.1 uploads | CLOSED | `/api/upload-track` retired (404 serving); Radio = signed upload URL + served-type check |
+| P0.1 rate limits on broker read routes | CLOSED | `22de511` (240/min/user/route); order routes untouched (live-order rule) |
+| P0.1 constant-time secret compares | CLOSED | worker secret compare length-independent |
+| P0.1 Account A/B isolation attack test | BLOCKED | needs a second (test) account |
+| P0.2 truthful numbers — candle-side signed history labelled; empty book "—"; no `Math.random` in readings | CLOSED | `cf62ecd`, `1dddfc6`, `b34a2c6`, `d796a3d`; sweep |
+| P0.2 "today" change on the exchange's day boundary | CLOSED (chart + desk proved) / PARTIAL (instant republish pending deploy) | see section above |
+| P0.2 eligible-series coverage stated (tape boundary, flow coverage caption) | CLOSED | `288fd7a`, `e791a6a` |
+| P0.3 live orders start DISARMED; unset ceilings refuse | CLOSED (source) | `e2d7851` |
+| P0.3 live-order capital certification | BLOCKED | Founder permission rule |
+| P0.4 guest landing / pricing / legal pages public; guest door | CLOSED | `71f00a2`, `e93e666` |
+| P0.4 auth email journey (signup → inbox → confirm → reset) | BLOCKED | controlled mailbox + guest account |
+| P0.4 Terms / Privacy in effect | BLOCKED | legal entity facts (Founder / counsel) |
+| P0.5 billing (Stripe tiers, entitlement seam) | DEFERRED | Founder scope decision; Stripe test mode only; pricing page says "not on sale yet" |
+| P0.6 provider truth (capability ledger) | CLOSED | `6e15cea` (depth UNSUPPORTED on this DXLink session; prints/history named) |
+| P0.7 Supabase RLS | PARTIAL | locked tables 401 (anon); lounge/dreamboard unproven until a test account holds rows; radio bucket policy BLOCKED (dashboard) |
+| P0.8 LiveKit ON AIR from publishers | CLOSED | `52d3453` (8 rooms, 0 publishers → OFF AIR) |
+| §4 30-switch census on serving glass | CLOSED | census tables above |
+| §4 Workspace / Tools full height, own scroll, Escape, focus return | CLOSED | 689 px panels; focus-return `55fff49` |
+| §4 a11y names + keyboard reach (13 routes) | CLOSED | 0 unnamed controls |
+| §4 Research / Copy Trading / Proof Lane / Backtest truth | CLOSED | serving text |
+| §4 Decision → Journal → Review loop live | PARTIAL / BLOCKED | source-tested; live run needs a test account (no writes to the Founder's data) |
+| §5 PROPOSED plates 13–16 + 12 supplied | PROPOSED | Drive folder + repo; Founder canon acceptance |
+| §6 index → futures mapping (same-time basis) | CLOSED | `411cf45` live NQ |
+| §6 expiry scope on glass | CLOSED | NEAREST proof |
+| §6 Options Flow (big option prints) — futures, ES, stocks/ETFs/indexes | CLOSED | `ddb5efe` → `5511bbc`: exchange-stamped sides, corrections/cancels, spread legs, coverage caption, hover ticket, premium ranking, phone width |
+| §6 net premium flow / opening-closing / participant tags | UNSUPPORTED / NOT ENTITLED | no source field (open/close always "unknown") |
+| §6 carry | UNSUPPORTED | no lawful source wired |
+| §7 NinjaTrader API | BLOCKED | Tradovate API access (Founder) |
+| §7 tastytrade depth | UNSUPPORTED | probe: not served on this session |
+| §8 SpaidBot works or clearly fails; Tools search finds it | CLOSED | `3ae6023`, `029c480` |
+| §9 pricing page (Founder prices, no stacking) | CLOSED | `71f00a2` |
+| §11.4 symbol switch, no stale price | CLOSED | NQ → ES proof |
+| §11.5 sandbox execution journey | BLOCKED | sandbox / test broker environment |
+| §11.6 tier journeys | DEFERRED | billing |
+| §11.7 replay has no future data (pressure + Options Flow) | CLOSED | AFTER_REPLAY_CLOCK + flow guard `f6c4100` |
+| §11.8 old frontend chunk recovery | CLOSED | `d73c167` old-tab proof |
+| Candle smoothness (Founder, mid-shift) | CLOSED | countdown independent of chart `a48f2af`; Envelope 25 → 12 ms `96d68f1`; per-layer profile; deploys held while trading |
