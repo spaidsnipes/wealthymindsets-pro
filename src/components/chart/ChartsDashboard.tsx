@@ -17,24 +17,22 @@ import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
 
 import { ChartToolbar, INDICATOR_CATEGORY } from "./ChartToolbar";
+// Drawer-only panels load on open (dynamic chunks, warmed on idle) — see chartDrawers.
+import { TradePanel, DOMPanel, PnLStatsPanel, IndicatorSettingsModal } from "./chartDrawers";
 import { compileEvidenceLineage } from "@/lib/chart/evidenceLineage";
 import { senseIsQuiet } from "@/lib/chart/senseEventStates";
 import { readMarketBreathing } from "@/lib/chart/marketBreathing";
 import { readResponseMatrix, readTemporalEvidenceDensity } from "@/lib/chart/effortEvidence";
 import { MainChart, type VpDrawnLevels } from "./MainChart";
 import { WatchlistGrid } from "./WatchlistGrid";
-import { IndicatorSettingsModal } from "./IndicatorSettingsModal";
 import { AssetClassSwitcher } from "./AssetClassSwitcher";
 import { isConfigurable, type IndicatorSettings, type IndicatorParams } from "./indicatorConfig";
-import { DOMPanel } from "./DOMPanel";
-import { PnLStatsPanel } from "./PnLStatsPanel";
 
 import { BROKER_CONNECT_EVENT, BROKER_CONNECT_PARAM, BROKER_CONNECT_VALUE } from "@/lib/broker/brokerConnectDoor";
 
 import { FOOTPRINT_TYPES, FootprintControls } from "./FootprintControls";
 import { announceFootprintPrefs, subscribeFootprintPrefsRequests } from "@/lib/workspace/footprintPrefs";
 import { ToolFinder } from "./ToolFinder";
-import { TradePanel } from "./TradePanel";
 import { ProfilesMenu } from "./ProfilesMenu";
 import { ProfilePresetBar } from "./ProfilePresetBar";
 import { RiskReceiptBar } from "./RiskReceiptBar";

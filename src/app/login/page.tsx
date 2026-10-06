@@ -61,7 +61,7 @@ export default function LoginPageWrapper() {
 type Mode = "login" | "signup" | "forgot";
 
 function LoginPage() {
-  const { signIn, signUp, resendConfirmation, loading } = useAuth();
+  const { signIn, signUp, resendConfirmation, loading, user } = useAuth();
   const searchParams = useSearchParams();
 
   const [mode,       setMode]       = useState<Mode>(
@@ -234,7 +234,17 @@ function LoginPage() {
     setSuccess("If confirmation is still pending and resend is available, you'll receive a fresh email shortly. Check your inbox and spam folder.");
   };
 
-  if (loading) {
+  // PHONE LOAD SPEED (2026-10-06): the session check (/api/auth/me) is a full
+  // cellular round trip after hydration. A visitor with no cached session is
+  // signed out on this device — paint the form now so they can start typing,
+  // and hold only the submit until the check settles (a 401 landing after a
+  // sign-in must not clear the fresh session). A cached session keeps the
+  // spinner: the route guard is about to send that human onward.
+  const [cachedSessionAtMount] = useState(() => {
+    try { return typeof window !== "undefined" && !!window.localStorage.getItem("wm_session_v1"); }
+    catch { return false; }
+  });
+  if (loading && (user || cachedSessionAtMount)) {
     return (
       <div className="min-h-screen bg-wm-black flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: WM.gold.mark, borderTopColor: "transparent" }} />
@@ -269,9 +279,13 @@ function LoginPage() {
               the founder named for the full crest; kept to a calm hero size so
               WM Pro reads professional, never plastered. */}
           <div className="mb-12">
+            {/* lazy: this panel is display:none below lg, and a lazy image
+                that is never rendered is never fetched — phones no longer pay
+                204 KB for a crest they cannot see (2026-10-06). */}
             <img
               src="/brand/wm-master-crest.jpeg"
               alt="WEALTHY MINDSETS — Stay Sharp. Stay a Student."
+              loading="lazy"
               style={{ height: 300, width: "auto", display: "block" }}
             />
             <div
@@ -353,9 +367,14 @@ function LoginPage() {
             {/* The crest the desktop hero carries. Phone is the primary device
                 (2026-10-04): the first screen a guest sees on it read as a
                 plain text form. Same art, a calm size. */}
+            {/* The same art at the pixels it is drawn at (132 CSS px x 3 DPR =
+                396 device px): 34 KB instead of the 204 KB master on a
+                cellular first load (PHONE LOAD SPEED, 2026-10-06). */}
             <img
-              src="/brand/wm-master-crest.jpeg"
+              src="/brand/wm-master-crest-396.jpeg"
               alt="WEALTHY MINDSETS — Stay Sharp. Stay a Student."
+              width={266}
+              height={396}
               style={{ height: 132, width: "auto", display: "block", marginBottom: 14, borderRadius: 6 }}
             />
             <WmWordmark size="compact" subtitle="TRADING OPERATING SYSTEM" />
@@ -527,7 +546,7 @@ function LoginPage() {
                 )}
 
                 {/* Submit */}
-                <button type="submit" disabled={submitting} aria-busy={submitting}
+                <button type="submit" disabled={submitting || loading} aria-busy={submitting || loading}
                   className="w-full py-3.5 rounded-xl font-black text-[14px] transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60 mt-2"
                   style={{ background: `linear-gradient(135deg, ${WM.gold.hero}, ${WM.gold.line})`, color: WM.surface.deepest }}>
                   {submitting

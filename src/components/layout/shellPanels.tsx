@@ -61,17 +61,11 @@ import { requestBrokerConnect } from "@/lib/broker/brokerConnectDoor";
  * actually loads. See `curatedSymbolCatalog`.
  */
 
-const INITIAL_NOTIFS: Array<{ id:number; read:boolean; time:string; icon:string; title:string; body:string }> = [];
-
-/**
- * How many unread notifications a shell should badge before the panel has ever
- * been opened. The shells ASK rather than filtering the seed themselves — a
- * header that keeps its own copy of this count is a second owner of it, and
- * would go on reading zero on the day the seed stops being empty.
- */
-export function initialUnreadNotificationCount(): number {
-  return INITIAL_NOTIFS.filter((n) => !n.read).length;
-}
+/* The unread seed, its badge count, the Settings tab vocabulary and the
+   open-settings door live in `shellPanelDoors` (light, so a closed shell can
+   read them without loading every panel) and are re-exported from here. */
+import { INITIAL_NOTIFS, type SettingsTabId } from "@/components/layout/shellPanelDoors";
+export { initialUnreadNotificationCount, SETTINGS_TAB_IDS, OPEN_SETTINGS_EVENT, openSettings, type SettingsTabId } from "@/components/layout/shellPanelDoors";
 
 const CAT_COLOR: Record<string,string> = {
   Futures:"text-wm-gold",  Stock:"text-wm-blue",
@@ -408,13 +402,6 @@ function SignOutButton({ onClose }: { onClose: () => void }) {
 }
 
 /* ── Settings Panel ──────────────────────────────────────── */
-export type SettingsTabId = "display"|"chart"|"views"|"intelligence"|"execution"|"watchlist"|"connections"|"accessibility"|"account";
-export const SETTINGS_TAB_IDS: readonly SettingsTabId[] = ["display","chart","views","intelligence","execution","watchlist","connections","accessibility","account"];
-/** Any surface can open Settings at a tab without a page load: dispatch this event (detail: { tab }). */
-export const OPEN_SETTINGS_EVENT = "wm:open-settings";
-export function openSettings(tab?: SettingsTabId): void {
-  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT, { detail: { tab } }));
-}
 
 export function SettingsPanel({
   onClose,

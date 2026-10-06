@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 // Only what this file still DRAWS. The nav icons left with the nav arrays —
@@ -18,8 +19,13 @@ import WmWordmark from "@/components/brand/WmWordmark";
 import MobileSessionPill from "@/components/layout/MobileSessionPill";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
-import { TickerTape } from "@/components/layout/TickerTape";
-import { ShellCompanions } from "@/components/layout/ShellCompanions";
+/* PHONE LOAD SPEED (2026-10-06): the July shell's tape (and its live-quote
+   hooks) and the player/assistant companions draw only inside a signed-in
+   July room, yet rode the root layout chunk onto every public door. They are
+   split out and load when the July shell mounts; the tape's slot is a sized
+   flex cell, so nothing shifts while it arrives. */
+const TickerTape = dynamic(() => import("@/components/layout/TickerTape").then(m => m.TickerTape), { ssr: false });
+const ShellCompanions = dynamic(() => import("@/components/layout/ShellCompanions").then(m => m.ShellCompanions), { ssr: false });
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { clsx } from "clsx";
@@ -44,12 +50,17 @@ import { wmConfirm } from "@/components/ui/wmConfirm";
  * standing in /command-deck had no way to search, reach settings, or sign out.
  * They now live in `shellPanels` so BOTH shells mount the same ones.
  */
-import {
-  SearchPanel,
-  NotificationsPanel,
-  SettingsPanel,
-  initialUnreadNotificationCount,
-} from "@/components/layout/shellPanels";
+/* PHONE LOAD SPEED (2026-10-06): the panels are drawer-only, and their module
+   (search, notifications, the whole Settings tree) rode the root layout chunk
+   onto /login, /welcome and /pricing. They load on first open now, warmed on
+   idle by `warmShellPanels`; the badge count and settings vocabulary the
+   closed shell reads come from the light `shellPanelDoors`. */
+import type * as ShellPanels from "@/components/layout/shellPanels";
+const loadShellPanels = (): Promise<typeof ShellPanels> => import("@/components/layout/shellPanels");
+const SearchPanel = dynamic(() => loadShellPanels().then(m => m.SearchPanel), { ssr: false });
+const NotificationsPanel = dynamic(() => loadShellPanels().then(m => m.NotificationsPanel), { ssr: false });
+const SettingsPanel = dynamic(() => loadShellPanels().then(m => m.SettingsPanel), { ssr: false });
+import { initialUnreadNotificationCount, warmShellPanels } from "@/components/layout/shellPanelDoors";
 
 /* ── Nav items ──────────────────────────────────────────────
    THESE ARE NO LONGER TYPED HERE.
@@ -224,6 +235,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => { setMounted(true); }, []);
+  // Warm the drawer panels on idle once a signed-in shell is standing, so the
+  // first open of Search / Settings does not wait on a cellular round trip.
+  // Never on the public doors: that is the weight this split took off them.
+  React.useEffect(() => {
+    if (user && !isPublicAuthPath(pathname) && !isPublicInfoPath(pathname)) warmShellPanels();
+  }, [user, pathname]);
 
   // ── Global settings applier ─────────────────────────────────
   // Reads wm_settings and applies app-wide visual settings (light/dark

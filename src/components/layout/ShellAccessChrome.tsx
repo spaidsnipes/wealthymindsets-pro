@@ -7,15 +7,24 @@ import { Bell, Search, Settings, User } from "lucide-react";
 
 import { WM } from "@/lib/design/wmTokens";
 import { useAuth } from "@/contexts/AuthContext";
+/* PHONE LOAD SPEED (2026-10-06): the panels are drawer-only, and their module
+   (search, notifications, the whole Settings tree) rode the root layout chunk
+   onto /login, /welcome and /pricing. They load on first open now, warmed on
+   idle by `warmShellPanels`; the badge count and settings vocabulary the
+   closed shell reads come from the light `shellPanelDoors`. */
+import dynamic from "next/dynamic";
+import type * as ShellPanels from "@/components/layout/shellPanels";
+const loadShellPanels = (): Promise<typeof ShellPanels> => import("@/components/layout/shellPanels");
+const SearchPanel = dynamic(() => loadShellPanels().then(m => m.SearchPanel), { ssr: false });
+const NotificationsPanel = dynamic(() => loadShellPanels().then(m => m.NotificationsPanel), { ssr: false });
+const SettingsPanel = dynamic(() => loadShellPanels().then(m => m.SettingsPanel), { ssr: false });
 import {
-  SearchPanel,
-  NotificationsPanel,
-  SettingsPanel,
   SETTINGS_TAB_IDS,
   OPEN_SETTINGS_EVENT,
   type SettingsTabId,
   initialUnreadNotificationCount,
-} from "@/components/layout/shellPanels";
+  warmShellPanels,
+} from "@/components/layout/shellPanelDoors";
 import { HeaderPnL } from "@/components/layout/HeaderPnL";
 import { WMSBar } from "@/components/wms/WMSBar";
 import { useWMSAvailable } from "@/contexts/WMSContext";
@@ -167,6 +176,9 @@ export function ShellAccessChrome({ showPoints = true, compact = false }: ShellA
     setSettingsOpen(which === "settings");
     setProfileOpen(which === "profile");
   }, []);
+
+  // The drawer panels load on first open; warm them on idle so that open is instant.
+  React.useEffect(() => { warmShellPanels(); }, []);
 
   // A link (or the /settings alias) can ask for the Settings drawer with
   // ?settings=open; the param is consumed so a reload does not reopen it.
