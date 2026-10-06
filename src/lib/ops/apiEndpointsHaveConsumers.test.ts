@@ -202,14 +202,6 @@ const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
       "Zero references. /app/radio hardcodes its track URLs in a literal array (page.tsx:200) " +
       "instead of reading this store, so the store holds nothing anyone sees. Task #53.",
   },
-  "/api/upload-track": {
-    cls: "DARK",
-    evidence:
-      "Zero references. /app/radio's UploadModal writes DIRECTLY to Supabase storage from the " +
-      "browser (page.tsx:677-689) under the user's own auth, bypassing this route. Two upload " +
-      "paths with different authority — this one holds the SERVICE ROLE key — and the app uses " +
-      "the other one. Task #53.",
-  },
 };
 
 const routes = apiRoutePaths();
@@ -329,7 +321,12 @@ describe("every API endpoint has something that actually calls it", () => {
     const every = Object.values(NO_IN_APP_CALLER);
     const dark = Object.entries(NO_IN_APP_CALLER).filter(([, e]) => e.cls === "DARK");
 
-    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(10);
+    expect(dark.length, "DARK count changed — a debt was paid or a new one was taken on").toBe(9);
+    // 10 -> 9 on 2026-10-05 (ATHOS P0.1 uploads): /api/upload-track RETIRED.
+    // No caller; it wrote ANY file into the PUBLIC radio bucket with the
+    // service-role key, the extension and content-type taken from the client
+    // (an .html "track" would be served as a page), no size or media check.
+    // Radio uploads go through /api/radio's signed upload URL only.
     // 11 -> 10 on 2026-10-04: /api/market-data/moomoo/ticks was never dark —
     // useWebSocket calls it through `/api/market-data/${provider}/ticks`, which
     // the guard could not read until template callers were matched.
