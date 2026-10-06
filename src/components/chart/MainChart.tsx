@@ -9074,7 +9074,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // bars' own x above the volume band — never slabs over the volume.
           ctx.font = "600 9px 'JetBrains Mono', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
-          const rowsD: { t: number; x: number; dlt: number; text: string; w: number }[] = [];
+          const rowsD: { t: number; x: number; dlt: number; text: string; w: number; viaSides: boolean }[] = [];
           let stepD = 0;
           for (let i = 0; i < visibleBars.length; i++) {
             const c = visibleBars[i];
@@ -9082,14 +9082,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // The bar's delta from its ONE owner — the Bid × Ask column
             // reads the same function, so the two can never disagree.
             const bd = barTapeDelta(getBarSubProfile(c));
-            if (!bd) continue;
+            // A bar the held tape no longer reaches reads the provider's own
+            // bid / ask volume for the bar (2026-10-06) — the same per-bar
+            // quantity, named in the tag below.
+            const sidesD = bd ? null : candleSidedRef.current.get(Number(c.time)) ?? null;
+            if (!bd && !sidesD) continue;
             const xr = chart.timeScale().timeToCoordinate(c.time as never);
             // visibleBars carries two padding bars each side; a label off the
             // plot is not on the glass and is not counted.
             if (xr == null || +xr < 0 || +xr > plotRight) continue;
-            const dlt = bd.delta;
+            const dlt = bd ? bd.delta : sidesD!.buy - sidesD!.sell;
             const text = signedFlowText(dlt, fmtV);
-            rowsD.push({ t: Number(c.time), x: +xr, dlt, text, w: ctx.measureText(text).width });
+            rowsD.push({ t: Number(c.time), x: +xr, dlt, text, w: ctx.measureText(text).width, viaSides: !bd });
           }
           // A signed number needs its own width plus a gap. Where bars sit
           // closer than that (every phone at NEAR, an iPad above ~23 bars)
@@ -9134,7 +9138,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
           const basisD = weakestAggressorProvenance(sawP, sawI, sawU);
           const chipD = aggressorProvenanceNote(basisD)?.chip;
-          const tagD = `Δ${chipD ? ` · ${chipD}` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}`;
+          const sidesShown = pickD.filter(p => p.r.viaSides).length;
+          const tagD = `Δ${chipD ? ` · ${chipD}` : ""}${sidesShown ? ` · ${sidesShown === pickD.length ? "" : "older "}bars: provider bid / ask` : ""}${strideD > 1 ? ` · 1 IN ${strideD} BARS` : ""}`;
           ctx.font = marketFont("OBJECT_NAME");
           const tagW = ctx.measureText(tagD).width + 4, tagY = yD - 20;
           const tagX = [6, plotRight - tagW - 6].find(x => !hitD(x, tagY, tagW, 12));
@@ -9155,7 +9160,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.restore();
           if (printed > 0) {
             canvas.dataset.nearBarDeltaStride = String(strideD);
-            canvas.dataset.nearBarDeltaBasis = basisD;
+            canvas.dataset.nearBarDeltaBasis = sidesShown ? `${basisD}|BAR_SIDES:${sidesShown}` : basisD;
           } else {
             delete canvas.dataset.nearBarDeltaStride;
             delete canvas.dataset.nearBarDeltaBasis;

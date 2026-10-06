@@ -484,3 +484,10 @@ Vocabulary: CLOSED (evidenced) · OPEN · BLOCKED · UNSUPPORTED · NOT ENTITLED
 
 ### §11.1 guest denial — measured on serving, signed out (04:15 CDT)
 GET 401: tastytrade positions / accounts / quote-token / chain / ledger, Webull positions, Deribit option trades, Cboe options, LiveKit token + on-air, decision-position, Lounge, Radio. POST 401: SpaidBot, welcome email, tastytrade order-submit + order-dry-run, Lounge, decision-position. Public: `/api/build-identity` 200, `/welcome` + `/pricing` + `/legal/*` render signed out. → **CLOSED** for guest denial (the auth email journey stays BLOCKED on the controlled mailbox).
+
+### 04:15 → 04:30 CDT
+| Build | Commit | Proof |
+|---|---|---|
+| Crypto's change reads "24h", never "today" (rolling 24-hour venue figure); never "last session" | `02a187c` | serving BTC-USD: "DAY BIAS SIDE · +0.24% 24h" |
+| Tape CVD updates only its tail when every earlier step is unchanged (thousands of candle-side steps, refilled up to 4×/s) | `ac8bfb2` | serving NQ 1m: `BAR_SIDES:2065+TAPE`, 2,067 → 2,068 steps across a minute boundary, 0 faults |
+| Regression pass (Brick Walls + Flow Current + Envelope + Tape CVD) | — | ES: 0 faults, flow 6,120 heard / 40 stamped, CVD 4,979, Flow Current 150/152 from candle sides, paint 11.6 ms · AAPL: 0 faults, flow 19,929 heard, CVD 3,060, paint 15.3 ms · ETH: Deribit flow 1,000 heard, MIN 9, 40 stamped |
