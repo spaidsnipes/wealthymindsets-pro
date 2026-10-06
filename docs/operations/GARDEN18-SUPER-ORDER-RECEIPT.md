@@ -434,7 +434,7 @@ Found on serving SPY at 04:22 ET (premarket): "+6.76 (+0.88%) today" — measure
 | Chart: tastytrade Summary `prevDayClosePrice` is the reference close; REST cannot overwrite it | `168b1c8` | serving /charts SPY: 776.18 **+1.35 (+0.17%)** (= − 774.83) |
 | Tape / watchlist / scanner prefer the exchange's close, even while a row's live price is not fresh | `f006acf`, `571cdd9` | scanner test (vendor +0.85% → exchange +0.17%) |
 | A second consumer of an already-streamed symbol reads the stream's held Summary (dxFeed sends it once) | `3030ccb` | serving /desk after a poll: SPY **+1.60 (+0.21%)**, TSLA corrected +10.39 → +2.49 |
-| The reference close republishes the displayed change the moment it arrives | `1ced614` | pending Cloudflare build (one build record failed instantly, its twin stuck in progress; GitHub typecheck/sentinels/build passed) |
+| The reference close republishes the displayed change the moment it arrives | `1ced614` (served via `699fda9` after a stuck Cloudflare build) | serving /desk on first read: TSLA **+2.27 (+0.60%)** (vendor had +2.80%), NQ +76.00 (+0.24%) |
 
 ## FINAL SHERIFF RECEIPT — ATHOS super finish-line order (shift 18:06 Oct 5 → 06:00 Oct 6 CDT)
 Vocabulary: CLOSED (evidenced) · OPEN · BLOCKED · UNSUPPORTED · NOT ENTITLED · PARTIAL · DEFERRED. Supersedes the 12:55 status table above.
@@ -449,7 +449,7 @@ Vocabulary: CLOSED (evidenced) · OPEN · BLOCKED · UNSUPPORTED · NOT ENTITLED
 | P0.1 constant-time secret compares | CLOSED | worker secret compare length-independent |
 | P0.1 Account A/B isolation attack test | BLOCKED | needs a second (test) account |
 | P0.2 truthful numbers — candle-side signed history labelled; empty book "—"; no `Math.random` in readings | CLOSED | `cf62ecd`, `1dddfc6`, `b34a2c6`, `d796a3d`; sweep |
-| P0.2 "today" change on the exchange's day boundary | CLOSED (chart + desk proved) / PARTIAL (instant republish pending deploy) | see section above |
+| P0.2 "today" change on the exchange's day boundary | CLOSED | chart + desk + instant republish proved (section above) |
 | P0.2 eligible-series coverage stated (tape boundary, flow coverage caption) | CLOSED | `288fd7a`, `e791a6a` |
 | P0.3 live orders start DISARMED; unset ceilings refuse | CLOSED (source) | `e2d7851` |
 | P0.3 live-order capital certification | BLOCKED | Founder permission rule |
@@ -468,7 +468,7 @@ Vocabulary: CLOSED (evidenced) · OPEN · BLOCKED · UNSUPPORTED · NOT ENTITLED
 | §5 PROPOSED plates 13–16 + 12 supplied | PROPOSED | Drive folder + repo; Founder canon acceptance |
 | §6 index → futures mapping (same-time basis) | CLOSED | `411cf45` live NQ |
 | §6 expiry scope on glass | CLOSED | NEAREST proof |
-| §6 Options Flow (big option prints) — futures, ES, stocks/ETFs/indexes | CLOSED | `ddb5efe` → `5511bbc`: exchange-stamped sides, corrections/cancels, spread legs, coverage caption, hover ticket, premium ranking, phone width |
+| §6 Options Flow (big option prints) — futures, ES, stocks/ETFs/indexes, BTC/ETH (Deribit public, `f63e7d6`: 1,000 trades, 40 stamped, "P86000 ×90 BUY ~$407k") | CLOSED | `ddb5efe` → `5511bbc`: exchange-stamped sides, corrections/cancels, spread legs, coverage caption, hover ticket, premium ranking, phone width |
 | §6 net premium flow / opening-closing / participant tags | UNSUPPORTED / NOT ENTITLED | no source field (open/close always "unknown") |
 | §6 carry | UNSUPPORTED | no lawful source wired |
 | §7 NinjaTrader API | BLOCKED | Tradovate API access (Founder) |
@@ -481,3 +481,6 @@ Vocabulary: CLOSED (evidenced) · OPEN · BLOCKED · UNSUPPORTED · NOT ENTITLED
 | §11.7 replay has no future data (pressure + Options Flow) | CLOSED | AFTER_REPLAY_CLOCK + flow guard `f6c4100` |
 | §11.8 old frontend chunk recovery | CLOSED | `d73c167` old-tab proof |
 | Candle smoothness (Founder, mid-shift) | CLOSED | countdown independent of chart `a48f2af`; Envelope 25 → 12 ms `96d68f1`; per-layer profile; deploys held while trading |
+
+### §11.1 guest denial — measured on serving, signed out (04:15 CDT)
+GET 401: tastytrade positions / accounts / quote-token / chain / ledger, Webull positions, Deribit option trades, Cboe options, LiveKit token + on-air, decision-position, Lounge, Radio. POST 401: SpaidBot, welcome email, tastytrade order-submit + order-dry-run, Lounge, decision-position. Public: `/api/build-identity` 200, `/welcome` + `/pricing` + `/legal/*` render signed out. → **CLOSED** for guest denial (the auth email journey stays BLOCKED on the controlled mailbox).
