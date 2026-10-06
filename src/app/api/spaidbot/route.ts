@@ -11,6 +11,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { edgeAllows, tooManyRequests, SPAIDBOT_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { formatChartContextNote, type ChartContextInput } from "@/lib/marketData/formatChartContextNote";
 import { forgetGeminiModel, resolveGeminiModel } from "@/lib/ai/geminiModel";
+import { MODEL_DID_NOT_ANSWER, UpstreamTimeout, fetchWithFirstByteTimeout, linkedController, relayModelStream } from "@/lib/ai/upstreamBounds";
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
 const streamUrl  = (model: string) =>
@@ -72,11 +73,6 @@ Evidence citation (Garden 18 §8):
   chart line when there is one, and say it is recorded only when the trader records it in
   the Journal. Never invent a Decision_ID.`;
 
-type GeminiChunk = {
-  candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> };
-  }>;
-};
 
 export async function POST(req: NextRequest) {
   // WM-SEC-P0-06: was unauthenticated. Uses GEMINI_API_KEY — open quota abuse.
@@ -137,23 +133,37 @@ export async function POST(req: NextRequest) {
       contents,
       generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
     });
+    // Garden 18 §8 server bounds (2026-10-06): the upstream is aborted when the
+    // trader's request goes away, its headers must arrive within 30 s, and the
+    // relay below ends a stream silent for 45 s. No total cap — a healthy long
+    // answer is never cut.
+    let upstreamCtl = linkedController(req.signal);
     const ask = async () => {
       const model = await resolveGeminiModel(GEMINI_KEY);
       if (!model) return null;
-      return fetch(streamUrl(model), { method: "POST", headers: { "Content-Type": "application/json" }, body: payload });
+      upstreamCtl = linkedController(req.signal);
+      return fetchWithFirstByteTimeout(fetch, streamUrl(model), { method: "POST", headers: { "Content-Type": "application/json" }, body: payload }, upstreamCtl);
     };
-    let geminiRes = await ask();
+    let geminiRes: Response | null;
+    try {
+      geminiRes = await ask();
+    } catch (err) {
+      if (err instanceof UpstreamTimeout) {
+        return new Response(JSON.stringify({ error: `${MODEL_DID_NOT_ANSWER}.` }), { status: 504, headers: { "Content-Type": "application/json" } });
+      }
+      throw err;
+    }
     // A model retired since we chose it: choose again, once.
     if (geminiRes && !geminiRes.ok) {
       const said = await geminiRes.clone().text().catch(() => "");
       if (geminiRes.status === 404 || /no longer available|is not found|not supported/i.test(said)) {
         forgetGeminiModel();
-        geminiRes = await ask();
+        geminiRes = await ask().catch(e => { if (e instanceof UpstreamTimeout) return null; throw e; });
       } else if (geminiRes.status === 503 || /high demand|overloaded/i.test(said)) {
         // Google's own "high demand" spikes are short (measured 2026-10-03:
         // the next ask a few seconds later answered). One pause, one retry.
         await new Promise(r => setTimeout(r, 1_500));
-        geminiRes = await ask();
+        geminiRes = await ask().catch(e => { if (e instanceof UpstreamTimeout) return null; throw e; });
       }
     }
     if (!geminiRes) {
@@ -173,43 +183,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const encoder = new TextEncoder();
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          const reader  = geminiRes.body!.getReader();
-          const decoder = new TextDecoder();
-          let buf = "";
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buf += decoder.decode(value, { stream: true });
-
-            const lines = buf.split("\n");
-            buf = lines.pop() ?? "";
-
-            for (const line of lines) {
-              const t = line.trim();
-              if (!t || t === "data: [DONE]") continue;
-              if (!t.startsWith("data: ")) continue;
-              try {
-                const chunk = JSON.parse(t.slice(6)) as GeminiChunk;
-                const text  = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (text) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
-              } catch {}
-            }
-          }
-
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        } catch (err) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        }
-      },
-    });
+    const readable = relayModelStream(geminiRes, upstreamCtl);
 
     return new Response(readable, {
       headers: {

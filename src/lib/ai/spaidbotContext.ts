@@ -32,6 +32,7 @@ export const SPAIDBOT_IDLE_TIMEOUT_MS = 45_000;
 export function spaidbotFailureMessage(raw: string, timedOut: boolean): string {
   if (/API_KEY|not set|not configured/i.test(raw)) return "SpaidBot is not switched on for this deployment yet.";
   if (timedOut) return `SpaidBot took too long to answer (no reply for ${SPAIDBOT_IDLE_TIMEOUT_MS / 1000}s) — nothing was decided; ask again in a moment.`;
+  if (/model did not answer|model stopped answering/i.test(raw)) return "SpaidBot's model did not answer in time — nothing was decided; ask again in a moment.";
   if (raw.includes("EMPTY_ANSWER")) return "SpaidBot returned no answer — ask again, or rephrase the question.";
   if (/429|rate|too many/i.test(raw)) return "SpaidBot is busy — give it a minute and ask again.";
   return "SpaidBot could not answer just now — try again in a moment.";
