@@ -1333,6 +1333,13 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // When tastytrade's live futures lane last delivered a print (epoch ms). While
   // it is fresh, the delayed REST quote may not overwrite the price it moved.
   const tastyLiveAtRef = useRef<number | null>(null);
+  /* THE EXCHANGE'S DAY BOUNDARY OWNS "TODAY" (2026-10-06, serving SPY 04:22 ET
+     premarket: "+6.76 (+0.88%) today" measured from Friday's close — the REST
+     vendor's change still spanned the session that had just ended). When the
+     owner's tastytrade stream carries this symbol, its Summary
+     prevDayClosePrice (dxFeed dayId-rolled: Monday's 774.83) is the reference
+     close, and a REST quote may no longer overwrite it. */
+  const tastyRefCloseRef = useRef(false);
 
   /* Hot-path home for MarketState.lastObservedAtMs. processTick runs per print
      and must not setState, so the accept sites write here and the RAF flush
@@ -1537,6 +1544,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     priceRef.current = b;
     priceObservedRef.current = false;
     prevCloseRef.current = 0; // cleared on symbol change; repopulated by the next quote
+    tastyRefCloseRef.current = false;
     barRef.current   = null;
     lastBarEventAtRef.current = null;
     bookRef.current  = buildBook();
@@ -1844,6 +1852,13 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               setState(previous => previous.tapeSource === "tastytrade" ? previous : { ...previous, tapeSource: "tastytrade" });
               return;
             }
+            if (e.type === "Summary") {
+              const pc = e.values.prevDayClosePrice;
+              // The exchange's own prior-day close: a real reference, or none.
+              const hasReferenceClose = pc != null && Number.isFinite(pc) && pc > 0;
+              if (hasReferenceClose) { prevCloseRef.current = pc; tastyRefCloseRef.current = true; }
+              return;
+            }
             // The side-less snapshot only speaks while no prints are flowing,
             // so one trade is never counted twice.
             if (receivedAtMs - lastPrintAt < 5_000) return;
@@ -1949,7 +1964,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         // A live tastytrade print outranks a delayed REST snapshot: keep only
         // its reference close (for day change) and leave price/source alone.
         if (tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000) {
-          if (q.hasReferenceClose && Number.isFinite(q.change)) prevCloseRef.current = q.price - q.change;
+          if (!tastyRefCloseRef.current && q.hasReferenceClose && Number.isFinite(q.change)) prevCloseRef.current = q.price - q.change;
           setState(prev2 => ({ ...prev2, quoteRefusal: null }));
           return;
         }
@@ -1971,7 +1986,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         // change on every tick: a NON-ZERO fabrication, which is invisible to
         // selectTickerChangeDisplay because its only "no reference" signature is
         // exactly-zero. Seed only from a quote that carries a real reference.
-        if (q.hasReferenceClose && Number.isFinite(q.change)) {
+        if (!tastyRefCloseRef.current && q.hasReferenceClose && Number.isFinite(q.change)) {
           prevCloseRef.current = realPrice - q.change;
         }
         // SF-D01: stamp the synthesized tick with the REAL observation time when
@@ -1982,7 +1997,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         if (q.observedAt != null) {
           processTick({ price: realPrice, size: 1, side, time: q.observedAt }, true);
         }
-        // Real day change comes straight from the quote (not a per-poll delta).
+        // Real day change comes straight from the quote (not a per-poll delta) —
+        // unless the exchange's own reference close (tastytrade Summary) is held:
+        // that day boundary outranks the vendor's.
+        const exchangeRef = tastyRefCloseRef.current && prevCloseRef.current > 0 ? prevCloseRef.current : null;
+        const dayChange = exchangeRef != null ? +(realPrice - exchangeRef).toFixed(8) : q.change;
+        const dayChangePct = exchangeRef != null ? +((realPrice - exchangeRef) / exchangeRef * 100).toFixed(2) : q.changePct;
         const tape = tapeSourceRef.current;
         setState(prev2 => ({
           ...prev2,
@@ -1997,7 +2017,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           // A certified answer clears the previous round's refusal. Leaving it
           // set would turn a resolved condition into a permanent accusation.
           quoteRefusal: null,
-          ticker: { price: realPrice, change: q.change, changePct: q.changePct, volume: prev2.ticker.volume },
+          ticker: { price: realPrice, change: dayChange, changePct: dayChangePct, volume: prev2.ticker.volume },
           orderBook: bookRef.current,
           // processTick above already stamped the ref from q.observedAt, but its
           // publication is deferred to the next RAF flush and this setState
