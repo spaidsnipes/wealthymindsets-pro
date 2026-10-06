@@ -17046,7 +17046,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (bx == null || by == null || +bx < 0 || +bx > plotRightD) continue;
                 evs.push({ x: +bx, y: by, e });
               }
-              const shown = evs.sort((a, b) => b.e.size - a.e.size).slice(0, 12);
+              // Same order as the owner's budget: money first (premium estimate, else price × size).
+              const money = (e: typeof flow.events[number]) => e.premiumEst ?? e.price * e.size;
+              const shown = evs.sort((a, b) => money(b.e) - money(a.e)).slice(0, 12);
               ctx.save();
               ctx.font = marketFont("OBJECT_NAME");
               ctx.textBaseline = "middle";
@@ -17095,7 +17097,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // per-contract history is its own bound, said once.
               if (flow.fromMs != null) {
                 const fromWords = new Date(flow.fromMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
-                const cap = `OPTIONS FLOW · ${flow.events.length} largest of ${flow.heard.toLocaleString()} prints · heard from ${fromWords} · ≥${flow.minSize} contracts`;
+                const cap = `OPTIONS FLOW · ${flow.events.length} largest by premium of ${flow.heard.toLocaleString()} prints · heard from ${fromWords} · ≥${flow.minSize} contracts`;
                 const rowY = takeSilenceRow();
                 if (rowY > 0) {
                   ctx.textAlign = "left";

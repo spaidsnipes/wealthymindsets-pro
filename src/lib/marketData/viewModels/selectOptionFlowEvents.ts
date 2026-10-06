@@ -128,7 +128,10 @@ export function selectOptionFlowEvents(
   })
     // The LARGEST qualify for the budget, not the newest (serving SPY overnight:
     // the 40 newest all sat in the closing minutes), then back to time order.
-    .sort((a, b) => b.size - a.size || b.timeMs - a.timeMs)
+    // Ranked by money, not contract count (100 lots at 0.05 is not 10 lots at
+    // the money): the premium estimate, or price × size when the multiplier
+    // is unknown — one chain, one multiplier, so the order is the same.
+    .sort((a, b) => (b.premiumEst ?? b.price * b.size) - (a.premiumEst ?? a.price * a.size) || b.timeMs - a.timeMs)
     .slice(0, maxEvents)
     .sort((a, b) => a.timeMs - b.timeMs);
   let fromMs: number | null = null;

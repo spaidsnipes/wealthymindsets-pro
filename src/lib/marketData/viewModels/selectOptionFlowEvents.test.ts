@@ -69,3 +69,13 @@ describe("corrections, cancels and exchange-marked spread legs (P-03)", () => {
     expect(vm.events.map(e => [e.timeMs, e.size, e.multiLeg])).toEqual([[1, 12, false], [3, 8, true]]);
   });
 });
+
+describe("the budget ranks by money, not contract count", () => {
+  it("10 lots at 100 outrank 100 lots at 0.05", () => {
+    const vm = selectOptionFlowEvents([
+      p({ size: 100, price: 0.05, timeMs: 1, sequence: 1 }),
+      p({ size: 10, price: 100, timeMs: 2, sequence: 2 }),
+    ], legs, 1);
+    expect(vm.events.map(e => e.size)).toEqual([10]);
+  });
+});
