@@ -383,3 +383,12 @@ With the 21 rows measured earlier (13:12 CDT), every one of the 30 chart switche
 | P0.1 re-check (source, on the served candidate): Lounge delete author-only (`route.ts:175`), LiveKit identity = `wm:<session sub>` and publish only for hosts, approve host-gated + registered rooms + WM identities, worker secret length-independent compare | — | CLOSED in source (no change needed) |
 | P0.2 sweep: `Math.random` on consumer surfaces | — | none feeds a displayed number (sound synthesis, TV game, injectable shuffle only) |
 | §11.3 Decision → Journal → Review loop | — | **PARTIAL** — source-tested (`growthTabIntegration.test`, decision lifecycle tests); a live run would write decisions into the Founder's account, so it waits for a test account (BLOCKED on the guest/test account) |
+
+## ATHOS 8-hour shift — build log (20:30 → 21:00 CDT)
+| Build | Commit | Proof |
+|---|---|---|
+| **Tape CVD across the whole history** — closed bars by the provider's bar sides, the newest side-bearing bar and later by the signed tape; hand-over bar PARTIAL unless the tape held prints from before it opened | `d796a3d` | live glass NQ 5m (`ind=Tape CVD`, nothing persisted): `cvdSource BAR_SIDES:4894+TAPE`, 4,895 bars, caption "CVD · bar sides (provider) since Sep 9, 07:50 PM · signed tape from Oct 5, 08:35 PM" (was: since ~minutes ago) |
+| §11.4 in-app symbol switch NQ1! → ES1! (quick access) | — | live glass: header 7,833.00 on ES scale, CVD rebuilt for ES (`BAR_SIDES:4974+TAPE`), no NQ value left on the glass; `wm_last_symbol` stayed `NQ1!` (proof scene writes nothing). Note: the pick's route push drops `scene=` from the URL (operator-only effect; nothing written) |
+| §5 focus returns to the opener on close (every Escape-closable popover) incl. a toggle that unmounts while its popover is open | `17e120f`, `d8ebbf6`, `55fff49` | live glass: Inspect opened from its toggle, Escape → focus on "Open the inspect ticket for the bar under the cursor" (the proof window has no OS focus, so the focusin a focused window fires was supplied; without it focus stays on body — channel limit, not product) |
+| §4 Workspace / Tools panels on this candidate | — | live glass 1,568×784: Workspace 689 px (87→776), own scroll 687/1,165; Tools 689 px, own scroll 687/901; close control first in each; Escape closes both → **CLOSED** |
+| Inspect Escape (listed OPEN at line 53) | existing | `ChartInspectTicket.tsx:934` `useEscapeToClose` — **CLOSED** |
