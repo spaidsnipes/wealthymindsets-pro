@@ -3554,6 +3554,31 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     } catch {}
   }, [chartSettings?.displayTimeZone, chartSettings?.clock24h]);
 
+  /* ── THE SECONDS NEVER WAIT FOR THE CHART (Founder, 2026-10-05: "I'm watching
+     the seconds and don't see them moving … thinking of getting in a trade").
+     The countdown used to reach the glass only through a re-render of this
+     whole component once a second, so any busy moment held the seconds still.
+     This clock writes the header glyph and the price-line pill's text
+     directly, 4×/s, from the wall clock and the same owner
+     (chartBarCountdown) — no render, no paint frame in between. */
+  const countdownGlyphRef = useRef<HTMLSpanElement | null>(null);
+  const countdownFeedRef = useRef<{ live: boolean; label: string | null; closed: boolean; sec: number | null }>({ live: false, label: null, closed: false, sec: null });
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const f = countdownFeedRef.current;
+      const sec = getIntervalSec(timeframe);
+      const now = Date.now() / 1000;
+      const remaining = Math.floor(now / sec) * sec + sec - now;
+      const c = chartBarCountdown(remaining, sec, f.live, f.label, f.closed);
+      countdownRef.current = c.kind === "MARKET_CLOSED" ? "" : c.glyph;
+      closeFlashRef.current = c.closing;
+      progressRef.current = Math.max(0, Math.min(1, 1 - remaining / sec));
+      const el = countdownGlyphRef.current;
+      if (el && el.textContent !== c.glyph) el.textContent = c.glyph;
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [timeframe]);
+
   /* ── Countdown timer ─────────────────────────────────── */
   useEffect(() => {
     const sec = getIntervalSec(timeframe);
@@ -24396,6 +24421,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // Empty on a closed market: the canvas pill at the price line draws nothing.
   countdownRef.current = barCountdown.kind === "MARKET_CLOSED" ? "" : barCountdown.glyph;
   closeFlashRef.current = barCountdown.closing;
+  // The feed verdict the independent clock below reads between renders.
+  countdownFeedRef.current = { live: candleStatus.live, label: candleStatus.label, closed: sessionOpen === false, sec: intervalSec };
 
   return (
     <div
@@ -24935,7 +24962,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               <line x1="4" y1="4" x2="4" y2="1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
               <line x1="4" y1="4" x2="6" y2="4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
             </svg>
-            <span className={barCountdown.closing ? "animate-pulse" : ""}>{barCountdown.glyph}</span>
+            <span ref={countdownGlyphRef} className={barCountdown.closing ? "animate-pulse" : ""}>{barCountdown.glyph}</span>
           </div>
 
           {/* Data-truth strip — vendor-agnostic status + real feed freshness. */}
