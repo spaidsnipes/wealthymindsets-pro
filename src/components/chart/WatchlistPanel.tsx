@@ -948,7 +948,8 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                 const lvSrc = lv === tt ? "tastytrade" : "coinbase";
                 const liveFresh = !!lv && nowTick - lv.at < WATCH_LIVE_FRESH_MS;
                 // The exchange's prior-day close (tastytrade Summary) outranks the vendor's.
-                const exchClose = lv && lv === tt && tt.prevClose != null && tt.prevClose > 0 ? tt.prevClose : null;
+                // — even while the lane's PRICE is not fresh: the reference does not age.
+                const exchClose = tt?.prevClose != null && tt.prevClose > 0 ? tt.prevClose : null;
                 const refClose = exchClose ?? (rawItem.price > 0 && rawItem.changeObserved ? rawItem.price / (1 + rawItem.changePct / 100) : null);
                 const item = liveFresh && lv ? {
                   ...rawItem,
@@ -956,6 +957,11 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                   src: lvSrc,
                   ...(refClose ? { change: lv.price - refClose, changePct: ((lv.price - refClose) / refClose) * 100 } : {}),
                   ...(exchClose ? { changeObserved: true } : {}),
+                } : exchClose && rawItem.price > 0 ? {
+                  ...rawItem,
+                  change: rawItem.price - exchClose,
+                  changePct: ((rawItem.price - exchClose) / exchClose) * 100,
+                  changeObserved: true,
                 } : rawItem;
                 const up = item.changeObserved && item.change >= 0;
                 // With no observed change there is no direction to assert. Red

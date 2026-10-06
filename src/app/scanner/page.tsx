@@ -619,6 +619,17 @@ function ChangeMeter({ changePct, fact }: { changePct: number | null; fact: Scan
   );
 }
 
+/**
+ * A row whose live PRICE is not fresh still measures "today" from the
+ * exchange's prior-day close when the live lane carries it (2026-10-06: the
+ * scanner vendor's change spanned Friday→now in Tuesday's premarket).
+ */
+function exchangeChangeRow<R extends { price: number | null | undefined; changePct: number | null | undefined; changePctFact: { text: string; reason?: string } }>(row: R, prevClose: number | null | undefined): R {
+  if (!(prevClose != null && prevClose > 0) || !(row.price != null && row.price > 0)) return row;
+  const pct = ((row.price - prevClose) / prevClose) * 100;
+  return { ...row, changePct: pct, changePctFact: { ...row.changePctFact, text: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`, reason: `From the exchange's prior-day close ${prevClose} (tastytrade).` } };
+}
+
 export default function ScannerPage() {
   const router = useRouter();
   const { setActiveSymbol } = useActiveSymbol();
@@ -1053,7 +1064,7 @@ export default function ScannerPage() {
                 changePct: lv.changePct,
                 priceFact: { ...r0.priceFact, text: lv.priceText, reason: lv.title },
                 changePctFact: lv.changeText ? { ...r0.changePctFact, text: lv.changeText, reason: lv.title } : r0.changePctFact,
-              } : r0;
+              } : exchangeChangeRow(r0, liveRows.get(r0.symbol.toUpperCase())?.prevClose);
               const meta = r.signal ? SIGNAL_META[r.signal] : null;
               const up   = r.changePct != null && r.changePct >= 0;
               const isSel = selected?.id === r.id;

@@ -672,9 +672,14 @@ export function TickerTape() {
       // tastytrade's lane speaks for the rest (2026-10-04).
       const lv = tt && nowMs - tt.at < WATCH_LIVE_FRESH_MS ? { ...tt, src: "tastytrade" as const }
         : cb && nowMs - cb.at < WATCH_LIVE_FRESH_MS ? { ...cb, src: "coinbase" as const } : null;
-      if (!lv) return row;
-      // The exchange's prior-day close (tastytrade Summary) outranks the vendor's.
-      const exch = "prevClose" in lv && lv.prevClose != null && lv.prevClose > 0 ? lv.prevClose : null;
+      // The exchange's prior-day close (tastytrade Summary) outranks the vendor's
+      // — even while the lane's PRICE is not fresh: the reference does not age.
+      const exch = tt?.prevClose != null && tt.prevClose > 0 ? tt.prevClose : null;
+      if (!lv) {
+        if (!exch || !(row.price > 0)) return row;
+        const c0 = row.price - exch;
+        return { ...row, chg: c0, pct: (c0 / exch) * 100, up: c0 >= 0, chgObserved: true };
+      }
       const ref = exch ?? (row.price > 0 && row.chgObserved ? row.price - row.chg : null);
       const chg = ref ? lv.price - ref : row.chg;
       return { ...row, price: lv.price, src: lv.src, live: true, fresh: true, chg, pct: ref ? (chg / ref) * 100 : row.pct, up: ref ? chg >= 0 : row.up, ...(exch ? { chgObserved: true } : {}) };
