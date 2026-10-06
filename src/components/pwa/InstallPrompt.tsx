@@ -9,6 +9,7 @@
  */
 
 import React, { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, X, Smartphone, Monitor, Zap } from "lucide-react";
 
@@ -17,7 +18,23 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+/**
+ * NEVER OVER PRICE (phone pass 2026-10-06). MEASURED at 390x844, 430x932,
+ * 834x1112 and landscape 844x390 on the signed-in /charts: three seconds after
+ * first load this card rose over the bottom quarter of the chart — the
+ * countdown, the last-price row and the timeframe chip — and in landscape it
+ * covered the middle of the candles. The first thing a person who had just
+ * signed in on a phone met in the market room was a shortcut offer sitting on
+ * the market. The offer still appears in every document room (Journal, Morning
+ * Prep, Profile…), where it covers no price; it is withheld in the trading
+ * surfaces and on any viewport too short to give up a quarter of its height.
+ */
+const PRICE_ROOMS = /^\/(charts|paper|desk|backtest|command-deck)(\/|$)/;
+const MIN_HEIGHT_FOR_OFFER_PX = 560;
+
 export function InstallPrompt() {
+  const pathname = usePathname() ?? "";
+  const overPrice = PRICE_ROOMS.test(pathname);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [show,            setShow]           = useState(false);
   const [isIOS,           setIsIOS]          = useState(false);
@@ -33,8 +50,12 @@ export function InstallPrompt() {
       return;
     }
 
-    // Previously dismissed
-    if (localStorage.getItem("wm-install-dismissed") === "true") return;
+    // Previously dismissed (storage can throw in private mode — treat as not dismissed)
+    try {
+      if (localStorage.getItem("wm-install-dismissed") === "true") return;
+    } catch {
+      /* no storage: the offer may show; dismiss still hides it for this visit */
+    }
 
     // iOS detection — Safari shows no beforeinstallprompt
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as any).MSStream;
@@ -64,14 +85,19 @@ export function InstallPrompt() {
 
   const handleDismiss = () => {
     setShow(false);
-    localStorage.setItem("wm-install-dismissed", "true");
+    try {
+      localStorage.setItem("wm-install-dismissed", "true");
+    } catch {
+      /* private mode: hidden for this visit only */
+    }
   };
 
   if (isInstalled) return null;
+  const tooShort = typeof window !== "undefined" && window.innerHeight < MIN_HEIGHT_FOR_OFFER_PX;
 
   return (
     <AnimatePresence>
-      {show && (
+      {show && !overPrice && !tooShort && (
         // Centered by INSETS, never by a transform utility. Framer owns
         // `transform` on a motion element and rewrites it every frame —
         // including `none` at rest — so a `-translate-x-1/2` class here is
@@ -135,14 +161,14 @@ export function InstallPrompt() {
                     <span id="wm-install-prompt-title" className="pr-8 text-sm font-bold text-wm-text">Install WealthyMindsets Pro</span>
                     <Zap size={11} className="text-wm-gold fill-wm-gold" aria-hidden="true" />
                   </div>
-                  <p id="wm-install-prompt-description" className="text-[11px] text-wm-text-muted leading-relaxed">
+                  <p id="wm-install-prompt-description" className="text-[12px] text-wm-text-muted leading-relaxed">
                     {isIOS
                       ? 'Tap the Share button then "Add to Home Screen" for a quicker shortcut to the same WM Pro web app.'
                       : "Install a WM Pro shortcut for quicker access. Data, alerts, and offline availability still depend on your connection and enabled services."}
                   </p>
 
                   {isIOS ? (
-                    <div className="mt-2 flex items-center gap-1.5 text-[10px] text-wm-text-dim">
+                    <div className="mt-2 flex items-center gap-1.5 text-[11px] text-wm-text-dim">
                       <span>Tap</span>
                       <span className="px-1.5 py-0.5 rounded bg-wm-surface border border-wm-border text-wm-text">⬆ Share</span>
                       <span>→</span>
@@ -166,7 +192,7 @@ export function InstallPrompt() {
                 {["Home screen shortcut", "Focused workspace", "Connection-aware", "Same WM Pro"].map(f => (
                   <span
                     key={f}
-                    className="text-[9px] px-2 py-0.5 text-wm-text-dim"
+                    className="text-[11px] px-2 py-0.5 text-wm-text-dim"
                     style={{ borderLeft: "1px solid rgba(139,106,41,0.35)" }}
                   >
                     {f}

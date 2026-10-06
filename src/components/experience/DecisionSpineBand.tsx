@@ -1439,6 +1439,13 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
             flex: 0 0 180px !important;
             min-width: 180px !important;
             max-width: 180px !important;
+            /* Phone pass 2026-10-06: every card stretched to the tallest
+               (Next, 378px at 390x844), so the band under the chart was ~380px
+               of mostly empty black before the provenance footer. Same cap the
+               tablets carry; a long card scrolls inside itself. */
+            max-height: 240px;
+            overflow-y: auto;
+            overscroll-behavior-y: auto;
           }
         }
         /* Garden 16 §55 — DESKTOP widths 901–1023 (a narrowed desktop window,

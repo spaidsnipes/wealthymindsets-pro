@@ -1563,8 +1563,11 @@ input[type=range]::-webkit-slider-runnable-track {
    visually — MainChart keeps canvas words out of the EFFORT/INSPECT row by its
    exact 24px height (READING_ANCHOR_ROW_BOTTOM) — so on narrow screens they
    carry an invisible 44px hit area instead, centred on the drawn chip.
-   Measured at 390 on /charts: Futures 105x26, INSPECT 79x24, EFFORT 74x24. */
-@media (max-width: 767px) {
+   Measured at 390 on /charts: Futures 105x26, INSPECT 79x24, EFFORT 74x24.
+   Phone pass 2026-10-06: the same chips measured the same on a LANDSCAPE phone
+   (844x390) and a portrait iPad (834x1112) — touch screens wider than 767 —
+   so the slop follows a coarse pointer up to the tablet width as well. */
+@media (max-width: 767px), (pointer: coarse) and (max-width: 1023px) {
   .wm-tap-slop:not(.absolute):not(.fixed) { position: relative; }
   .wm-tap-slop::after {
     content: "";
@@ -1577,14 +1580,56 @@ input[type=range]::-webkit-slider-runnable-track {
   }
 }
 
+/* ── iOS ZOOMS INTO ANY FIELD UNDER 16px (phone pass 2026-10-06) ─────────────
+   Safari on iPhone/iPad zooms the whole page when a focused text field's
+   font-size is under 16px, and since the viewport no longer blocks pinch-zoom
+   (WM-RESP-P0-02, correctly) the room STAYS zoomed after the keyboard closes.
+   Measured: the paper ticket's "Search any symbol…" (12px), Journal search
+   (12px) and the Tools "Find a tool" field were all under 16. Touch screens
+   only; the desktop's dense 12px fields are unchanged. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="color"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+/* ── THE INSPECT TICKET'S ✕ ON A FINGER (phone pass 2026-10-06) ─────────────
+   MEASURED at 390x844 on /charts: "Close the inspect ticket" was a 12x12 glyph
+   (ChartInspectTicket.tsx, chart lane), the only way to put the ticket down
+   besides Escape, which a phone does not have. Same invisible 44px hit area as
+   .wm-tap-slop, keyed on the accessible name so the drawn glyph and the
+   ticket's header row stay exactly as the chart lane drew them. Touch only. */
+@media (pointer: coarse) {
+  button[aria-label="Close the inspect ticket"],
+  button[aria-label="Close the passport"] {
+    position: relative;
+  }
+  button[aria-label="Close the inspect ticket"]::after,
+  button[aria-label="Close the passport"]::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
 /* ── DOCUMENT ROOMS MEET THE PHONE TAP FLOOR (canon sweep 2026-10-06) ───────
    Measured at 390: News carried 83 controls under 44px (filter chips 23–26px
    tall), Shop 53, Journal 31, WM TV 13 (28px channel rows), Radio 9 (25px
    like buttons). One rule on the room surface instead of eighty class edits:
    on a phone every control in a document room is at least 44x44. Machines
    (the chart) are excluded at the shell, and `.wm-tap-exempt` opts a control
-   out where its owner has measured a reason. */
-@media (max-width: 767px) {
+   out where its owner has measured a reason.
+   Phone pass 2026-10-06: a phone held LANDSCAPE (844x390) and a portrait iPad
+   (834x1112) are touch screens wider than 767, and measured there the Journal
+   carried 31 controls under 44px (filter chips 21px tall, the new-trade ✕
+   14x14). The floor now follows the finger, not only the width. */
+@media (max-width: 767px), (pointer: coarse) and (max-width: 1023px) {
   .wm-phone-taps :is(button, [role="button"], summary, select, a[class*="px-"], a[class*="rounded"], a[style*="padding"]):not(.wm-tap-exempt) {
     min-height: 44px;
     min-width: 44px;

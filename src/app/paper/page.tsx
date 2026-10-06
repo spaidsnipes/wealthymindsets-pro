@@ -965,7 +965,7 @@ function OrderTicket({
             <button key={pp}
               onClick={()=>{setPurpose(pp); setType(purposeOrderType(pp)); setLevelIssues([]);}}
               aria-pressed={purpose===pp}
-              className={clsx("py-1.5 px-2 rounded text-[10px] font-bold border text-left transition-all",
+              className={clsx("wm-tap py-1.5 px-2 rounded text-[11px] font-bold border text-left transition-all",
                 purpose===pp ? "bg-wm-gold/20 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-wm-border hover:text-wm-text")}>
               {purposeSentence(pp).replace(/\.$/, "")}
             </button>

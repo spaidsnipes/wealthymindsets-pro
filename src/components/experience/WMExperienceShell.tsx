@@ -353,6 +353,22 @@ function SanctuaryRoom({
             overscroll-behavior-y: contain;
           }
         }
+        /* ── UNDER THE NOTCH (phone pass 2026-10-06) ─────────────────────
+           app/layout.tsx declares viewportFit "cover" and an Apple status bar
+           of "black-translucent", which hands the page the WHOLE glass —
+           including the strip under the clock/notch when the room is opened
+           from the Home Screen (the install prompt asks people to do exactly
+           that), and the notch side of a landscape phone. Nothing in the room
+           gave that strip back: the crest, Workspace and Tools sat under the
+           status bar, and in landscape the first candles and the symbol chip
+           sat under the notch. The insets are 0 on desktop and in a portrait
+           Safari tab, so this costs nothing where there is no notch. The
+           bottom inset is owned by the phone nav and provenance footer. */
+        .wm-sanctuary.wm-sanctuary {
+          padding-top: env(safe-area-inset-top, 0px);
+          padding-left: env(safe-area-inset-left, 0px);
+          padding-right: env(safe-area-inset-right, 0px);
+        }
         .wm-sanctuary::before,
         .wm-sanctuary::after,
         .wm-sanctuary > .wm-water-breath {

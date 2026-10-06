@@ -2792,8 +2792,23 @@ export function WMOperatingSystem({
              NOTE FOR THE NEXT EDITOR: this comment is inside a TEMPLATE
              LITERAL. A backtick here ends the stylesheet mid-sentence and the
              rest of the component becomes a syntax error. Quote code with
-             plain words. */
-          .wm-os-market-rooms,
+             plain words.
+
+             ROOMS COMES BACK ON THE PHONE (phone pass 2026-10-06). MEASURED at
+             390x844, 375x667, 430x932, 834x1112 and 844x390 on the signed-in
+             landing room: the market masthead carried Workspace, Tools and four
+             icons, the phone nav bar is withheld in the instrument room, and
+             neither drawer holds a door. A person who had just signed in on a
+             phone could not reach Journal, Paper, Morning Prep or Command Deck
+             from where sign-in put them. The Rooms doorway opens the same
+             panel the desk uses, which carries the full map; it is the way
+             out, not a redesign. Sized to the 44px thumb floor here. Community
+             stays held (it does not fit the 390 line, and /profile carries it). */
+          .wm-os-market-rooms {
+            min-height: 44px !important;
+            font-size: 11px !important;
+            border-color: rgba(196,165,116,0.42) !important;
+          }
           .wm-os-market-community { display: none !important; }
           /* The Command Deck control (2026-09-26) obeys the same Phase 1 law:
              Garden 16 section 11 is a desktop order while the 390 certificate
@@ -2818,6 +2833,14 @@ export function WMOperatingSystem({
                 `.wm-os-rail {
             position: fixed !important;
             inset: 0 !important;
+            /* Under the notch (2026-10-06): viewport-fit cover plus a
+               black-translucent status bar hand the page the strip under the
+               clock when opened from the Home Screen, and the notch side in
+               landscape. The sheet's Close sat in that strip. Insets are 0
+               where there is no notch. */
+            top: env(safe-area-inset-top, 0px) !important;
+            left: env(safe-area-inset-left, 0px) !important;
+            right: env(safe-area-inset-right, 0px) !important;
             z-index: 60 !important;
             /* The desk rail is a 176px column beside the room. Pinned over a
                390px viewport that basis would leave 214px of untouchable
