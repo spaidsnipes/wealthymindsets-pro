@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import DeckExpressionShortlist, { hasReviewedOptionsReceipt } from "./DeckExpressionShortlist";
+import DeckExpressionShortlist, { hasReviewedOptionsReceipt, isAlpacaOptionsUnderlying } from "./DeckExpressionShortlist";
 import { UNREVIEWED_RECEIPT } from "@/lib/optionsChainRead";
 
 /**
@@ -264,5 +264,19 @@ describe("T-WAIT / OCTOPUS: the room survives a severed options cable", () => {
     expect(script).toContain('name: "expression-shortlist-wait"');
     expect(script).toContain('root: \'[data-testid="deck-expression-shortlist"]\'');
     expect(script).toContain('direction: null');
+  });
+});
+
+describe("shortlist request contract (2026-10-06 prod sweep)", () => {
+  const SOURCE = () => readFileSync(resolve(__dirname, "DeckExpressionShortlist.tsx"), "utf8");
+  it("sends the `symbol` key the options route reads — never the `sym` key it 400s", () => {
+    expect(SOURCE()).toContain("/api/market-data/alpaca/options?symbol=");
+    expect(SOURCE()).not.toContain("alpaca/options?sym=");
+  });
+  it("only asks the equity-options route about equity underlyings", () => {
+    expect(isAlpacaOptionsUnderlying("TSLA")).toBe(true);
+    expect(isAlpacaOptionsUnderlying("BRK.B")).toBe(true);
+    expect(isAlpacaOptionsUnderlying("NQ1!")).toBe(false);
+    expect(isAlpacaOptionsUnderlying("BTC-USD")).toBe(false);
   });
 });

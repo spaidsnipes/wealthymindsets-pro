@@ -61,6 +61,11 @@ interface FetchState {
   readonly reason?: string;
 }
 
+/** Mirrors the options route's own underlying validation (route.ts cleanSymbol). */
+export function isAlpacaOptionsUnderlying(symbol: string): boolean {
+  return /^[A-Z][A-Z0-9.]{0,9}$/.test(symbol.trim().toUpperCase());
+}
+
 export function hasReviewedOptionsReceipt(receipt: OptionsSourceReceipt): boolean {
   return receipt.source !== "unknown"
     && receipt.fidelity !== "UNKNOWN"
@@ -97,6 +102,10 @@ export function DeckExpressionShortlist({
     ? { kind: "WAIT_DIRECTION", symbol }
     : fetchedState.symbol === symbol
       ? fetchedState : { kind: "LOADING", symbol };
+  // Spot is read at request time, not a dependency: a ticking price must not
+  // refetch the chain on every quote.
+  const spotRef = React.useRef(spot);
+  React.useEffect(() => { spotRef.current = spot; }, [spot]);
   const [nowMs, setNowMs] = React.useState(Number.NaN);
   React.useEffect(() => {
     setNowMs(Date.now());
@@ -110,9 +119,24 @@ export function DeckExpressionShortlist({
       setState({ kind: "WAIT_DIRECTION", symbol });
       return;
     }
+    // The options route serves listed EQUITY options only and validates the
+    // underlying with this exact pattern. A futures root (NQ1!) or a crypto
+    // pair (BTC-USD) is not a malformed request — it is outside this
+    // provider's coverage, so say that instead of firing a guaranteed 400.
+    if (!isAlpacaOptionsUnderlying(symbol)) {
+      setState({ kind: "UNAVAILABLE", symbol, reason: "NOT COVERED · equity options only" });
+      return;
+    }
     let cancelled = false;
     setState({ kind: "LOADING", symbol });
-    const url = `/api/market-data/alpaca/options?sym=${encodeURIComponent(symbol)}`;
+    // Contract: the route reads `symbol` (a `sym` key was answered 400
+    // "Valid symbol required" on every request, 2026-10-06 prod sweep) and an
+    // optional `spot` that bounds the strike window to ±15%.
+    const spotNow = spotRef.current;
+    const spotParam = spotNow !== null && Number.isFinite(spotNow) && spotNow > 0
+      ? `&spot=${encodeURIComponent(String(spotNow))}`
+      : "";
+    const url = `/api/market-data/alpaca/options?symbol=${encodeURIComponent(symbol)}${spotParam}`;
     const doFetch = fetcher ?? ((u: string) => fetch(u, { cache: "no-store", credentials: "include" }));
     doFetch(url)
       .then(async (r) => {
