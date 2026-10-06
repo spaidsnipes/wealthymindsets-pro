@@ -17036,6 +17036,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 let lo = 0, hi = barsD.length - 1, at = -1;
                 while (lo <= hi) { const m = (lo + hi) >> 1; if (Number(barsD[m].time) <= tSec) { at = m; lo = m + 1; } else hi = m - 1; }
                 if (at < 0) continue;
+                // A print after the last bar's own interval has no bar on this
+                // glass — in replay it is FUTURE data and is never pinned to the
+                // last replayed bar.
+                if (at === barsD.length - 1 && tSec >= Number(barsD[at].time) + getIntervalSec(timeframe)) continue;
                 const b = barsD[at];
                 const bx = tsD.timeToCoordinate(b.time as never);
                 const by = yOfD(Number(b.close));
