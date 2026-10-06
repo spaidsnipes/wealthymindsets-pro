@@ -24,6 +24,12 @@ describe("flow current", () => {
     expect(block).toContain('canvas.dataset.flowCurrent = "NO_SIDED_TAPE";');
     expect(block).not.toMatch(/close\s*>=?\s*.*open/);
   });
+  it("fills tapeless bars only from the provider's own per-bar bid / ask volume (2026-10-05)", () => {
+    // Prints first; the candle's sides only where a bar has no prints — and the
+    // receipt counts each source, so the glass never hides which one spoke.
+    expect(block).toContain("if (buy + sell <= 0) {\n              const cs = sidedC.get(Number(b.time));");
+    expect(block).toContain("|TAPE:${fromTape}|CANDLE_SIDES:${fromCandle}");
+  });
   it("moves only in LIVE", () => {
     expect(block).toContain("const tt = motionOnRef.current ? performance.now() / 1000 : 0;");
   });

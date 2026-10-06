@@ -33,7 +33,11 @@ export const CONTRACT_EVENT_FIELDS = {
   // extended-hours (form-T) trades. Read as a receipt only.
   TimeAndSale: ["eventType", "eventSymbol", "time", "sequence", "price", "size", "aggressorSide", "bidPrice", "askPrice", "validTick"],
   // History bars by snapshot (see adapters/tastytradeCandles.ts for the receipts).
-  Candle: ["eventType", "eventSymbol", "eventFlags", "time", "open", "high", "low", "close", "volume"],
+  // bidVolume / askVolume (2026-10-05): the bar's volume traded at the bid
+  // (sellers hitting) and at the ask (buyers lifting) — proven on the owner's
+  // socket for `/NQZ26:XCME{=5m}`: 880 + 952 = 1832 = volume. Signed flow for
+  // the WHOLE candle history, where the print tape stops at ~1,000 prints.
+  Candle: ["eventType", "eventSymbol", "eventFlags", "time", "open", "high", "low", "close", "volume", "bidVolume", "askVolume"],
 } as const;
 
 export type ContractEventType = keyof typeof CONTRACT_EVENT_FIELDS;

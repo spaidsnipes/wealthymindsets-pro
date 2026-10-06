@@ -43,3 +43,21 @@ describe("tastytrade candle history", () => {
     expect(isSnapshotEnd(null)).toBe(false);
   });
 });
+
+import { tastyCandlesToSidedVolume } from "./tastytradeCandles";
+
+describe("bar-level signed volume from the candle snapshot (2026-10-05)", () => {
+  it("buy = askVolume, sell = bidVolume, keyed by bar second; unsided and NaN rows carry nothing", () => {
+    const m = tastyCandlesToSidedVolume([
+      { time: 1791226200000, volume: 1832, bidVolume: 880, askVolume: 952 },
+      { time: 1791225900000, volume: 1648, bidVolume: 704, askVolume: 944 },
+      { time: 1791225600000, volume: 900, bidVolume: null, askVolume: null },
+      { time: 1791225300000, volume: NaN, bidVolume: NaN, askVolume: NaN },
+      { time: 1791225000000, volume: 0, bidVolume: 0, askVolume: 0 },
+    ]);
+    expect([...m.entries()]).toEqual([
+      [1791226200, { buy: 952, sell: 880 }],
+      [1791225900, { buy: 944, sell: 704 }],
+    ]);
+  });
+});

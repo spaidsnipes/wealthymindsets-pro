@@ -64,7 +64,7 @@ import { MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
-import { tastyCandleFromTime, tastyCandlePeriod, tastyCandleSymbol, tastyCandlesToBars } from "@/lib/marketData/adapters/tastytradeCandles";
+import { tastyCandleFromTime, tastyCandlePeriod, tastyCandleSymbol, tastyCandlesToBars, tastyCandlesToSidedVolume } from "@/lib/marketData/adapters/tastytradeCandles";
 import {
   DELTA_LEVEL_CAP_DEFAULT,
   DELTA_LEVEL_CAP_EVENT,
@@ -877,6 +877,12 @@ interface CanonicalCandleBatch {
    * Absent/null = no tail was read for this batch.
    */
   readonly tailFilled?: number | null;
+  /**
+   * tastytrade only: each bar's own bid / ask volume (bar second → sides),
+   * the WHOLE history's signed flow where the print tape stops at ~1,000
+   * prints. Bar-level — never a per-price reading.
+   */
+  readonly sided?: ReadonlyMap<number, { buy: number; sell: number }>;
 }
 
 function candleBatch(json: {
@@ -1125,7 +1131,7 @@ async function fetchTastyCandles(sym: string, tf: string, count: number, signal?
     const candles = rows ? tastyCandlesToBars(rows, count) : [];
     if (!rows) { note(log, { vendor: "tastytrade", outcome: "REFUSED", edge: null }); return null; }
     note(log, { vendor: "tastytrade", outcome: candles.length ? "SERVED" : "EMPTY" });
-    return candles.length ? { candles, identities: [] } : null;
+    return candles.length ? { candles, identities: [], sided: tastyCandlesToSidedVolume(rows) } : null;
   } catch {
     if (!signal?.aborted) note(log, { vendor: "tastytrade", outcome: "REFUSED", edge: null });
     return null;
@@ -3379,6 +3385,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // live socket uses (a print heard both ways folds once). Bounded: the
   // ladder's 400-bar window, at most 40 pages. The receipt says what came.
   const tapeBackfillRef = useRef<string>("NONE");
+  /** Bar second → the provider's own bid / ask volume for that bar (tastytrade candles). */
+  const candleSidedRef = useRef<ReadonlyMap<number, { buy: number; sell: number }>>(new Map());
   /** tastytrade's TimeAndSale history answers at most ~this many prints (measured 2026-10-01). */
   const TASTY_PRINT_HISTORY_CAP = 990;
   // FUTURES (2026-10-01): tastytrade's own print history fills the same window
@@ -3788,6 +3796,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const canonicalBatch = exchangeData ?? tastyData ?? alpacaData ?? fhDirectData ?? yahooData ?? finnhubData;
       const realData = canonicalBatch?.candles ?? polyData;
       const fetchedBarIdentities = canonicalBatch?.identities ?? [];
+      // The bars' own signed volume travels with the bars that carried it.
+      candleSidedRef.current = canonicalBatch?.sided ?? new Map();
       // Provenance: record which provider ACTUALLY supplied these candles.
       const srcName =
         exchangeData ? (exParsed?.exchange?.toUpperCase() || "EXCHANGE") :
@@ -10794,7 +10804,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.tapeBackfill = tapeBackfillRef.current;
         if (!flowCurrentOnRef.current || !att.paints("flowCurrent")) {
           canvas.dataset.flowCurrent = att.offWord(flowCurrentOnRef.current);
-        } else if (!srs || accF.size === 0) {
+        } else if (!srs || (accF.size === 0 && candleSidedRef.current.size === 0)) {
           canvas.dataset.flowCurrent = "NO_SIDED_TAPE";
         } else {
           const tsF = chart.timeScale();
@@ -10806,19 +10816,31 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           let firstInViewX: number | null = null;
           let firstSidedTime: number | null = null;
           let firstSidedX: number | null = null;
+          // TWO HONEST SOURCES, ONE SUM PER BAR (2026-10-05). Flow Current
+          // reads only each bar's bought / sold total, so the provider's own
+          // per-bar bid / ask volume is the same quantity as the summed
+          // prints. Prints win where they exist (they also feed the live bar);
+          // the candle's sides cover the history the ~1,000-print tape cannot.
+          const sidedC = candleSidedRef.current;
+          let fromCandle = 0, fromTape = 0;
           for (const b of barsRef.current.slice(-400)) {
             const bx = tsF.timeToCoordinate(b.time as never);
             if (bx != null && +bx >= -bsp && +bx <= W && firstInViewX == null) firstInViewX = +bx;
             const lv = accF.get(Number(b.time));
-            if (!lv) continue;
             let buy = 0, sell = 0;
-            for (const v of lv.values()) { buy += v.ask; sell += v.bid; }
+            if (lv) for (const v of lv.values()) { buy += v.ask; sell += v.bid; }
+            let viaCandle = false;
+            if (buy + sell <= 0) {
+              const cs = sidedC.get(Number(b.time));
+              if (cs) { buy = cs.buy; sell = cs.sell; viaCandle = true; }
+            }
             if (buy + sell <= 0) continue;
             const xx = tsF.timeToCoordinate(b.time as never);
             const yh = srs.priceToCoordinate(Number(b.high));
             const yl = srs.priceToCoordinate(Number(b.low));
             if (xx == null || yh == null || yl == null || +xx < -bsp || +xx > W) continue;
             if (firstSidedTime == null) { firstSidedTime = Number(b.time); firstSidedX = +xx; }
+            if (viaCandle) fromCandle++; else fromTape++;
             rows.push({ x: +xx, yHigh: +yh, yLow: +yl, buy, sell });
           }
           // FAR (QUIET): the same sided tape, coarser form — bars too thin for
@@ -10912,7 +10934,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // COVERAGE block (every tape sense reads the same buffer).
             const tapeStartsInView = firstSidedX != null && firstInViewX != null && firstSidedX - firstInViewX > bsp * 1.5;
             canvas.dataset.flowCurrentCoverage = firstSidedTime != null
-              ? `FROM:${firstSidedTime}|BARS:${rows.length}|${tapeStartsInView ? "STARTS_IN_VIEW" : "COVERS_VIEW"}`
+              ? `FROM:${firstSidedTime}|BARS:${rows.length}|${tapeStartsInView ? "STARTS_IN_VIEW" : "COVERS_VIEW"}|TAPE:${fromTape}|CANDLE_SIDES:${fromCandle}`
               : "NONE";
           }
         }
@@ -22431,13 +22453,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // NQ 5m, 2026-10-05: Imbalance Stack 5 bars, Value Candle 4 bars —
         // both tape-limited, both silent about it until this line).
         const loT = layerOnRef.current;
-        const tapeSenseOn = fpOn
-          || (flowCurrentOnRef.current && att.paints("flowCurrent"))
-          || loT.stack === true
-          || loT.valueCandle === true;
+        // The Flow Current alone is covered by the candles' own bid / ask
+        // volume across the whole history; only the PER-PRICE senses stop
+        // where the prints stop.
+        const candleSidesT = candleSidedRef.current.size > 0;
+        const perPriceOn = fpOn || loT.stack === true || loT.valueCandle === true;
+        const tapeSenseOn = perPriceOn
+          || (flowCurrentOnRef.current && att.paints("flowCurrent") && !candleSidesT);
         const accT = tickAccRef.current;
         if (!tapeSenseOn || !srs || accT.size === 0) {
-          canvas.dataset.tapeCoverage = tapeSenseOn ? "NO_SIDED_TAPE" : "OFF";
+          canvas.dataset.tapeCoverage = tapeSenseOn ? "NO_SIDED_TAPE"
+            : (flowCurrentOnRef.current && candleSidesT ? "CANDLE_SIDES_COVER" : "OFF");
         } else {
           const tsT = chart.timeScale();
           let firstInView: number | null = null, firstSided: { t: number; x: number } | null = null, sidedBars = 0;
@@ -22463,7 +22489,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.beginPath(); ctx.moveTo(bx, 28); ctx.lineTo(bx, H - 34); ctx.stroke();
             ctx.setLineDash([]);
             const when = new Date(firstSided.t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
-            const words = `SIGNED TAPE FROM ${when} — earlier bars carry none`;
+            const words = candleSidesT
+              ? `PRINT TAPE FROM ${when} — earlier bars: bar totals only`
+              : `SIGNED TAPE FROM ${when} — earlier bars carry none`;
             ctx.font = marketFont("OBJECT_NAME");
             ctx.textBaseline = "bottom";
             const tw = ctx.measureText(words).width;

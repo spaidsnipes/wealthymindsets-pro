@@ -80,6 +80,24 @@ export function tastyCandlesToBars(rows: readonly TastyCandleRow[], count: numbe
   return [...byTime.values()].sort((a, b) => a.time - b.time).slice(-count);
 }
 
+/**
+ * The bar's own signed volume from the same snapshot rows (seconds → sides):
+ * buy = askVolume (traded at the ask), sell = bidVolume (traded at the bid).
+ * A row without both sides, or with none traded, carries nothing — never
+ * split from the candle's colour. BAR-LEVEL: it says how much was bought and
+ * sold in the bar, not at which price — a per-price sense still needs prints.
+ */
+export function tastyCandlesToSidedVolume(rows: readonly TastyCandleRow[]): Map<number, { buy: number; sell: number }> {
+  const out = new Map<number, { buy: number; sell: number }>();
+  for (const r of rows) {
+    const t = r.time, a = r.askVolume, b = r.bidVolume;
+    if (t == null || a == null || b == null) continue;
+    if (!(Number.isFinite(a) && Number.isFinite(b) && a >= 0 && b >= 0 && a + b > 0)) continue;
+    out.set(Math.floor(t / 1000), { buy: a, sell: b });
+  }
+  return out;
+}
+
 /** dxFeed eventFlags: the snapshot is complete when SNAPSHOT_END (0x08) or SNAPSHOT_SNIP (0x10) is set. */
 export function isSnapshotEnd(flags: number | null): boolean {
   return flags != null && (flags & 0x18) !== 0;
