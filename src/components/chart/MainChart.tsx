@@ -64,7 +64,7 @@ import { MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
-import type { OptionFlowVM } from "@/lib/marketData/viewModels/selectOptionFlowEvents";
+import { flowSideWords, type OptionFlowVM } from "@/lib/marketData/viewModels/selectOptionFlowEvents";
 import { tastyCandleFromTime, tastyCandlePeriod, tastyCandleSymbol, tastyCandlesToBars, tastyCandlesToSidedVolume } from "@/lib/marketData/adapters/tastytradeCandles";
 import {
   DELTA_LEVEL_CAP_DEFAULT,
@@ -16996,6 +16996,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.textBaseline = "middle";
                 ctx.textAlign = "center";
                 const peak = Math.max(1, ...shown.map(s => s.e.size));
+                const fmtStrike = (k: number) => (Number.isInteger(k) ? String(k) : fmtD(k));
+                const cp = crosshairPointRef.current;
+                let hovered: { x: number; y: number; e: typeof flow.events[number] } | null = null;
                 shown.forEach((s, i) => {
                   const rgb = s.e.type === "call" ? "80,190,180" : "214,120,150";
                   const r = 5 + 5 * Math.sqrt(s.e.size / peak);
@@ -17011,9 +17014,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.fillStyle = `rgba(${rgb},0.95)`;
                   ctx.fillText(glyph, s.x, cy + 0.5);
                   floatingChips.push({ x: s.x - r, y: cy - r, w: 2 * r, h: 2 * r });
+                  if (cp && Math.hypot(cp.x - s.x, cp.y - cy) <= r + 4 && !hovered) hovered = { x: s.x, y: cy, e: s.e };
                   if (i < 3) {
                     const prem = s.e.premiumEst != null ? ` · ~$${s.e.premiumEst >= 1e6 ? `${(s.e.premiumEst / 1e6).toFixed(1)}M` : `${Math.round(s.e.premiumEst / 1000)}k`}` : "";
-                    const words = `${s.e.type === "call" ? "C" : "P"}${fmtD(s.e.strike)} ×${s.e.size} ${glyph === "+" ? "BUY" : glyph === "−" ? "SELL" : "?"}${s.e.sideStamped ? "" : " (inferred)"}${prem}`;
+                    const words = `${s.e.type === "call" ? "C" : "P"}${fmtStrike(s.e.strike)} ×${s.e.size} ${glyph === "+" ? "BUY" : glyph === "−" ? "SELL" : "?"}${s.e.sideStamped ? "" : " (inferred)"}${prem}`;
                     const tw = ctx.measureText(words).width;
                     const lx = Math.min(plotRightD - tw / 2 - 4, Math.max(tw / 2 + 4, s.x));
                     const ly = s.e.type === "call" ? cy - r - 9 : cy + r + 9;
@@ -17027,8 +17031,31 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     }
                   }
                 });
+                // HOVER TICKET (P-03 "selected flow"): the whole identity of
+                // the print under the cursor — contract, expiry, size, price,
+                // premium estimate, time ET and the side's own words.
+                const hv = hovered as { x: number; y: number; e: typeof flow.events[number] } | null;
+                if (hv) {
+                  const e = hv.e;
+                  const et = new Date(e.timeMs).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour12: false });
+                  const lines = [
+                    `${e.contract} · exp ${e.expiration}`,
+                    `${e.size} contracts @ ${e.price}${e.premiumEst != null ? ` · ~$${Math.round(e.premiumEst).toLocaleString()} premium est.` : ""} · ${et} ET`,
+                    flowSideWords(e),
+                  ];
+                  ctx.textAlign = "left";
+                  const tw = Math.max(...lines.map(l => ctx.measureText(l).width));
+                  const bx = Math.min(plotRightD - tw - 16, hv.x + 14), byT = Math.max(24, hv.y - 26);
+                  ctx.fillStyle = "rgba(11,10,8,0.94)";
+                  ctx.fillRect(bx, byT, tw + 12, lines.length * 14 + 8);
+                  ctx.strokeStyle = e.type === "call" ? "rgba(80,190,180,0.8)" : "rgba(214,120,150,0.8)";
+                  ctx.lineWidth = 1;
+                  ctx.strokeRect(bx + 0.5, byT + 0.5, tw + 11, lines.length * 14 + 7);
+                  ctx.fillStyle = "rgba(236,226,206,0.95)";
+                  lines.forEach((l, k) => ctx.fillText(l, bx + 6, byT + 11 + k * 14));
+                }
                 ctx.restore();
-                ds.optionFlow = `${flow.receipt}|SHOWN:${shown.length}`;
+                ds.optionFlow = `${flow.receipt}|SHOWN:${shown.length}${hv ? `|HOVER:${hv.e.contract}` : ""}`;
               } else ds.optionFlow = !wallsOn ? "OFF" : "NO_FLOW_SOURCE";
               ctx.restore();
 
