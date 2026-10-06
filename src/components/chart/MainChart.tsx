@@ -16970,97 +16970,6 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ds.oiTickWords = `N:${tickWords.length}|STEPPED:${stepped}`;
               } else delete ds.oiTickWords;
 
-              // ── OPTIONS FLOW (ATHOS §6 · PROPOSED P-03) ────────────────────
-              // Large futures-option prints at their underlying-time anchor:
-              // the bar the print fell in, at that bar's close. "+" an
-              // aggressive buyer, "−" an aggressive seller, "?" unsigned; teal
-              // calls, rose puts (the OI tick inks). Budget: the 12 largest in
-              // view, words on the 3 largest. Open / close is never claimed.
-              const flow = optionFlowRef.current;
-              if (wallsOn && flow) {
-                const evs: { x: number; y: number; e: typeof flow.events[number] }[] = [];
-                for (const e of flow.events) {
-                  const tSec = Math.floor(e.timeMs / 1000);
-                  let lo = 0, hi = barsD.length - 1, at = -1;
-                  while (lo <= hi) { const m = (lo + hi) >> 1; if (Number(barsD[m].time) <= tSec) { at = m; lo = m + 1; } else hi = m - 1; }
-                  if (at < 0) continue;
-                  const b = barsD[at];
-                  const bx = tsD.timeToCoordinate(b.time as never);
-                  const by = yOfD(Number(b.close));
-                  if (bx == null || by == null || +bx < 0 || +bx > plotRightD) continue;
-                  evs.push({ x: +bx, y: by, e });
-                }
-                const shown = evs.sort((a, b) => b.e.size - a.e.size).slice(0, 12);
-                ctx.save();
-                ctx.font = marketFont("OBJECT_NAME");
-                ctx.textBaseline = "middle";
-                ctx.textAlign = "center";
-                const peak = Math.max(1, ...shown.map(s => s.e.size));
-                const fmtStrike = (k: number) => (Number.isInteger(k) ? String(k) : fmtD(k));
-                const cp = crosshairPointRef.current;
-                let hovered: { x: number; y: number; e: typeof flow.events[number] } | null = null;
-                shown.forEach((s, i) => {
-                  const rgb = s.e.type === "call" ? "80,190,180" : "214,120,150";
-                  const r = 5 + 5 * Math.sqrt(s.e.size / peak);
-                  const glyph = s.e.side === "BUY" || s.e.side === "ASK_NEAR" ? "+" : s.e.side === "SELL" || s.e.side === "BID_NEAR" ? "−" : "?";
-                  // Offset off the candle body: calls above the close, puts below.
-                  const cy = s.y + (s.e.type === "call" ? -(r + 8) : r + 8);
-                  ctx.fillStyle = "rgba(11,10,8,0.85)";
-                  ctx.beginPath(); ctx.arc(s.x, cy, r, 0, Math.PI * 2); ctx.fill();
-                  ctx.strokeStyle = `rgba(${rgb},${s.e.sideStamped ? 0.95 : 0.6})`;
-                  ctx.lineWidth = 1.5;
-                  if (!s.e.sideStamped) ctx.setLineDash([2, 2]);
-                  ctx.stroke(); ctx.setLineDash([]);
-                  ctx.fillStyle = `rgba(${rgb},0.95)`;
-                  ctx.fillText(glyph, s.x, cy + 0.5);
-                  floatingChips.push({ x: s.x - r, y: cy - r, w: 2 * r, h: 2 * r });
-                  if (cp && Math.hypot(cp.x - s.x, cp.y - cy) <= r + 4 && !hovered) hovered = { x: s.x, y: cy, e: s.e };
-                  if (i < 3) {
-                    const prem = s.e.premiumEst != null ? ` · ~$${s.e.premiumEst >= 1e6 ? `${(s.e.premiumEst / 1e6).toFixed(1)}M` : `${Math.round(s.e.premiumEst / 1000)}k`}` : "";
-                    const words = `${s.e.type === "call" ? "C" : "P"}${fmtStrike(s.e.strike)} ×${s.e.size} ${glyph === "+" ? "BUY" : glyph === "−" ? "SELL" : "?"}${s.e.sideStamped ? "" : " (inferred)"}${prem}`;
-                    const tw = ctx.measureText(words).width;
-                    const lx = Math.min(plotRightD - tw / 2 - 4, Math.max(tw / 2 + 4, s.x));
-                    const ly = s.e.type === "call" ? cy - r - 9 : cy + r + 9;
-                    const box = { x: lx - tw / 2 - 3, y: ly - 7, w: tw + 6, h: 13 };
-                    if (!floatingChips.some(q => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y)) {
-                      ctx.fillStyle = "rgba(11,10,8,0.85)";
-                      ctx.fillRect(box.x, box.y, box.w, box.h);
-                      ctx.fillStyle = `rgba(${rgb},0.95)`;
-                      ctx.fillText(words, lx, ly);
-                      floatingChips.push(box);
-                    }
-                  }
-                });
-                // HOVER TICKET (P-03 "selected flow"): the whole identity of
-                // the print under the cursor — contract, expiry, size, price,
-                // premium estimate, time ET and the side's own words.
-                const hv = hovered as { x: number; y: number; e: typeof flow.events[number] } | null;
-                if (hv) {
-                  const e = hv.e;
-                  const et = new Date(e.timeMs).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour12: false });
-                  const lines = [
-                    `${e.contract} · exp ${e.expiration}`,
-                    `${e.size} contracts @ ${e.price}${e.premiumEst != null ? ` · ~$${Math.round(e.premiumEst).toLocaleString()} premium est.` : ""} · ${et} ET`,
-                    flowSideWords(e),
-                  ];
-                  ctx.textAlign = "left";
-                  const tw = Math.max(...lines.map(l => ctx.measureText(l).width));
-                  // Above-LEFT of the mark: the cursor's own bar card opens
-                  // below-right of the pointer and would cover a ticket there.
-                  const boxW = tw + 12, boxH = lines.length * 14 + 8;
-                  const bx = hv.x - boxW - 14 >= 4 ? hv.x - boxW - 14 : Math.min(plotRightD - boxW - 4, hv.x + 14);
-                  const byT = Math.max(24, hv.y - boxH - 12);
-                  ctx.fillStyle = "rgba(11,10,8,0.94)";
-                  ctx.fillRect(bx, byT, tw + 12, lines.length * 14 + 8);
-                  ctx.strokeStyle = e.type === "call" ? "rgba(80,190,180,0.8)" : "rgba(214,120,150,0.8)";
-                  ctx.lineWidth = 1;
-                  ctx.strokeRect(bx + 0.5, byT + 0.5, tw + 11, lines.length * 14 + 7);
-                  ctx.fillStyle = "rgba(236,226,206,0.95)";
-                  lines.forEach((l, k) => ctx.fillText(l, bx + 6, byT + 11 + k * 14));
-                }
-                ctx.restore();
-                ds.optionFlow = `${flow.receipt}|SHOWN:${shown.length}${hv ? `|HOVER:${hv.e.contract}` : ""}`;
-              } else ds.optionFlow = !wallsOn ? "OFF" : "NO_FLOW_SOURCE";
               ctx.restore();
 
               // ── CLIMATE (global) — one line, the environment's name ────
@@ -17109,6 +17018,102 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.restore();
             }
             ds.derivativesPressurePainted = painted.join("|") || "NONE";
+            try {
+            // ── OPTIONS FLOW (ATHOS §6 · PROPOSED P-03) ────────────────────
+            // Large futures-option prints at their underlying-time anchor:
+            // the bar the print fell in, at that bar's close. "+" an
+            // aggressive buyer, "−" an aggressive seller, "?" unsigned; teal
+            // calls, rose puts (the OI tick inks). Budget: the 12 largest in
+            // view, words on the 3 largest. Open / close is never claimed.
+            // Painted whether or not the walls themselves can be drawn: a print
+            // needs no open interest (ES weeklies report 0 OI overnight).
+            const flow = optionFlowRef.current;
+            const barsD = barsRef.current ?? [];
+            if (wallsOn && flow) {
+              const evs: { x: number; y: number; e: typeof flow.events[number] }[] = [];
+              for (const e of flow.events) {
+                const tSec = Math.floor(e.timeMs / 1000);
+                let lo = 0, hi = barsD.length - 1, at = -1;
+                while (lo <= hi) { const m = (lo + hi) >> 1; if (Number(barsD[m].time) <= tSec) { at = m; lo = m + 1; } else hi = m - 1; }
+                if (at < 0) continue;
+                const b = barsD[at];
+                const bx = tsD.timeToCoordinate(b.time as never);
+                const by = yOfD(Number(b.close));
+                if (bx == null || by == null || +bx < 0 || +bx > plotRightD) continue;
+                evs.push({ x: +bx, y: by, e });
+              }
+              const shown = evs.sort((a, b) => b.e.size - a.e.size).slice(0, 12);
+              ctx.save();
+              ctx.font = marketFont("OBJECT_NAME");
+              ctx.textBaseline = "middle";
+              ctx.textAlign = "center";
+              const peak = Math.max(1, ...shown.map(s => s.e.size));
+              const fmtStrike = (k: number) => (Number.isInteger(k) ? String(k) : fmtD(k));
+              const cp = crosshairPointRef.current;
+              let hovered: { x: number; y: number; e: typeof flow.events[number] } | null = null;
+              shown.forEach((s, i) => {
+                const rgb = s.e.type === "call" ? "80,190,180" : "214,120,150";
+                const r = 5 + 5 * Math.sqrt(s.e.size / peak);
+                const glyph = s.e.side === "BUY" || s.e.side === "ASK_NEAR" ? "+" : s.e.side === "SELL" || s.e.side === "BID_NEAR" ? "−" : "?";
+                // Offset off the candle body: calls above the close, puts below.
+                const cy = s.y + (s.e.type === "call" ? -(r + 8) : r + 8);
+                ctx.fillStyle = "rgba(11,10,8,0.85)";
+                ctx.beginPath(); ctx.arc(s.x, cy, r, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = `rgba(${rgb},${s.e.sideStamped ? 0.95 : 0.6})`;
+                ctx.lineWidth = 1.5;
+                if (!s.e.sideStamped) ctx.setLineDash([2, 2]);
+                ctx.stroke(); ctx.setLineDash([]);
+                ctx.fillStyle = `rgba(${rgb},0.95)`;
+                ctx.fillText(glyph, s.x, cy + 0.5);
+                floatingChips.push({ x: s.x - r, y: cy - r, w: 2 * r, h: 2 * r });
+                if (cp && Math.hypot(cp.x - s.x, cp.y - cy) <= r + 4 && !hovered) hovered = { x: s.x, y: cy, e: s.e };
+                if (i < 3) {
+                  const prem = s.e.premiumEst != null ? ` · ~$${s.e.premiumEst >= 1e6 ? `${(s.e.premiumEst / 1e6).toFixed(1)}M` : `${Math.round(s.e.premiumEst / 1000)}k`}` : "";
+                  const words = `${s.e.type === "call" ? "C" : "P"}${fmtStrike(s.e.strike)} ×${s.e.size} ${glyph === "+" ? "BUY" : glyph === "−" ? "SELL" : "?"}${s.e.sideStamped ? "" : " (inferred)"}${prem}`;
+                  const tw = ctx.measureText(words).width;
+                  const lx = Math.min(plotRightD - tw / 2 - 4, Math.max(tw / 2 + 4, s.x));
+                  const ly = s.e.type === "call" ? cy - r - 9 : cy + r + 9;
+                  const box = { x: lx - tw / 2 - 3, y: ly - 7, w: tw + 6, h: 13 };
+                  if (!floatingChips.some(q => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y)) {
+                    ctx.fillStyle = "rgba(11,10,8,0.85)";
+                    ctx.fillRect(box.x, box.y, box.w, box.h);
+                    ctx.fillStyle = `rgba(${rgb},0.95)`;
+                    ctx.fillText(words, lx, ly);
+                    floatingChips.push(box);
+                  }
+                }
+              });
+              // HOVER TICKET (P-03 "selected flow"): the whole identity of
+              // the print under the cursor — contract, expiry, size, price,
+              // premium estimate, time ET and the side's own words.
+              const hv = hovered as { x: number; y: number; e: typeof flow.events[number] } | null;
+              if (hv) {
+                const e = hv.e;
+                const et = new Date(e.timeMs).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour12: false });
+                const lines = [
+                  `${e.contract} · exp ${e.expiration}`,
+                  `${e.size} contracts @ ${e.price}${e.premiumEst != null ? ` · ~$${Math.round(e.premiumEst).toLocaleString()} premium est.` : ""} · ${et} ET`,
+                  flowSideWords(e),
+                ];
+                ctx.textAlign = "left";
+                const tw = Math.max(...lines.map(l => ctx.measureText(l).width));
+                // Above-LEFT of the mark: the cursor's own bar card opens
+                // below-right of the pointer and would cover a ticket there.
+                const boxW = tw + 12, boxH = lines.length * 14 + 8;
+                const bx = hv.x - boxW - 14 >= 4 ? hv.x - boxW - 14 : Math.min(plotRightD - boxW - 4, hv.x + 14);
+                const byT = Math.max(24, hv.y - boxH - 12);
+                ctx.fillStyle = "rgba(11,10,8,0.94)";
+                ctx.fillRect(bx, byT, tw + 12, lines.length * 14 + 8);
+                ctx.strokeStyle = e.type === "call" ? "rgba(80,190,180,0.8)" : "rgba(214,120,150,0.8)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(bx + 0.5, byT + 0.5, tw + 11, lines.length * 14 + 7);
+                ctx.fillStyle = "rgba(236,226,206,0.95)";
+                lines.forEach((l, k) => ctx.fillText(l, bx + 6, byT + 11 + k * 14));
+              }
+              ctx.restore();
+              ds.optionFlow = `${flow.receipt}|SHOWN:${shown.length}${hv ? `|HOVER:${hv.e.contract}` : ""}`;
+            } else ds.optionFlow = !wallsOn ? "OFF" : "NO_FLOW_SOURCE";
+            } catch (err) { layerFault("OPTION_FLOW", err); }
             // Where each wall is on this glass, for a browser proof to find and
             // click it (as memoryGhostHitAt): "strike@x,y" at the body's centre.
             ds.pressureFrontHitAt = pressureFrontHitRef.current ? `${Math.round(pressureFrontHitRef.current.x1 * 0.3)},${Math.round(pressureFrontHitRef.current.y)}` : "NONE";

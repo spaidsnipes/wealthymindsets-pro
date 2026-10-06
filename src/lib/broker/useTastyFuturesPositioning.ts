@@ -26,6 +26,8 @@ const MAX_DTE = 60;
 const MAX_CONTRACTS = 160;
 /** Share of the subscribed contracts that must have reported open interest. */
 const MIN_REPORTED = 0.5;
+/** Contracts with non-zero open interest needed before walls can be read. */
+const MIN_WITH_OI = 6;
 
 export interface FuturesPositioning {
   readonly receipt: CboeOptionsReceipt | null;
@@ -94,6 +96,11 @@ export function useTastyFuturesPositioning(symbol: string, enabled: boolean, pri
       rows.push({ contract: l.contract, type: l.type, expiration: l.expiration, strike: l.strike, openInterest: q.openInterest, gamma: q.gamma, iv: q.iv, volume: q.dayVolume });
     }
     if (rows.length < legs.length * MIN_REPORTED) return { receipt: null, edge: `GATHERING_OI:${rows.length}/${legs.length}`, legs };
+    // Reported, but zero: the provider's open interest for these contracts is
+    // 0 (measured 2026-10-06 01:40 CDT: every ES weekly near the money). That
+    // is the provider's figure, named as such — not "too few contracts".
+    const withOi = rows.filter(r => r.openInterest > 0).length;
+    if (withOi < Math.max(MIN_WITH_OI, rows.length * 0.1)) return { receipt: null, edge: `PROVIDER_REPORTS_ZERO_OI:${withOi}/${rows.length}`, legs };
     const ivs = rows.map(r => r.iv).filter((v): v is number => v != null && v > 0).sort((a, b) => a - b);
     const iv30 = ivs.length ? ivs[Math.floor(ivs.length / 2)] * 100 : null;
     return {
