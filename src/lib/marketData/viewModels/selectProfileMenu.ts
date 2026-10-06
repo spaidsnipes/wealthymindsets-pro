@@ -788,10 +788,10 @@ const CATALOGUE: readonly ProfileSpec[] = [
       courses, cracks at observed tests, breach, scar; OFF clears it from the
       glass without touching the evidence, the wall lifecycle or any other lens.
     */
-    what: "dealer-defended strikes as masonry walls at their price — bricks, cracks at each observed test, breach and scar (Cboe delayed; BTC / ETH from Deribit public — INFERRED)",
+    what: "dealer-defended strikes as masonry walls at their price — bricks, cracks at each observed test, breach and scar (Cboe delayed; futures from tastytrade; BTC / ETH from Deribit public — INFERRED). Beside them: call / put open-interest ticks, NDX / SPX walls mapped onto NQ / ES, and Options Flow — the largest option prints on price (your tastytrade session)",
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectDerivativesPressure.ts",
-    levels: ["Pressure walls"],
+    levels: ["Pressure walls", "Open-interest ticks", "Index walls mapped", "Options flow"],
   },
 ];
 

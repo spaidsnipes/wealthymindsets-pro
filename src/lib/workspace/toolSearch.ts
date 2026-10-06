@@ -23,7 +23,7 @@ export const TOOL_ALIASES: Readonly<Partial<Record<ProfileId, readonly string[]>
   DELTA_LEVELS: ["delta"],
   LIQUIDITY_WEATHER: ["weather", "liquidity"],
   LIQUIDITY_LIFECYCLE: ["liquidity", "walls", "lifecycle"],
-  BRICK_WALLS: ["brick", "walls", "liquidity wall"],
+  BRICK_WALLS: ["brick", "walls", "liquidity wall", "options flow", "unusual options", "option prints", "open interest", "oi walls", "gamma walls"],
   EFFORT_MARK: ["effort", "effort response", "effort/response"],
   MARKET_STRUCTURE: ["structure", "bos", "choch", "swings"],
   MEMORY_GHOST: ["memory", "ghost"],
