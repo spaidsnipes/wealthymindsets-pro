@@ -15,6 +15,8 @@ import { usePublishOsStanding } from "@/components/os/osStandingContext";
  * export. Public: readable signed out (authRoutes PUBLIC_INFO_PATHS).
  */
 const GOLD = "#c9a55c", INK = "#ede6d3", MUTED = "#a89c80", LINE = "rgba(201,165,92,0.28)", FIELD = "#0e0d0b";
+// Thumb targets (phone audit 2026-10-06: the footer's inline links were 15 px tall at 375 px).
+const TAP = { display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 44, minWidth: 44, padding: "0 4px", color: GOLD } as const;
 
 type Tier = { name: string; price: string; tagline: string; includes: string[]; limits: string[]; cta: { label: string; href?: string } };
 
@@ -89,13 +91,15 @@ export default function PricingPage() {
           ))}
         </div>
 
-        <p style={{ color: MUTED, fontSize: 12, lineHeight: 1.6, marginTop: 28, maxWidth: 820 }}>
-          WM Pro is analysis and trading software, not investment advice. Read the{" "}
-          <Link href="/legal/risk" style={{ color: GOLD }}>risk disclosure</Link> and the{" "}
-          <Link href="/legal/market-data" style={{ color: GOLD }}>market-data disclosure</Link> before you trade.{" "}
-          <Link href="/legal" style={{ color: GOLD }}>All policies</Link> ·{" "}
-          <Link href="/login" style={{ color: GOLD }}>Sign in</Link>
+        <p style={{ color: MUTED, fontSize: 12, lineHeight: 1.6, marginTop: 28, marginBottom: 4, maxWidth: 820 }}>
+          WM Pro is analysis and trading software, not investment advice. Read the risk and market-data disclosures before you trade.
         </p>
+        <nav aria-label="Policies" style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 12 }}>
+          <Link href="/legal/risk" style={TAP}>Risk disclosure</Link>
+          <Link href="/legal/market-data" style={TAP}>Market-data disclosure</Link>
+          <Link href="/legal" style={TAP}>All policies</Link>
+          <Link href="/login" style={TAP}>Sign in</Link>
+        </nav>
       </div>
     </div>
   );

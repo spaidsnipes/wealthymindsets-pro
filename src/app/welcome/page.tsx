@@ -18,6 +18,8 @@ import { usePublishOsStanding } from "@/components/os/osStandingContext";
  * Public (authRoutes PUBLIC_INFO_PATHS).
  */
 const GOLD = "#c9a55c", INK = "#ede6d3", MUTED = "#a89c80", LINE = "rgba(201,165,92,0.28)", UP = "#3ccf9c", DN = "#ef6a76";
+// Thumb targets (phone audit 2026-10-06: market / view buttons were 36 px, footer links 15 px).
+const TAP = { display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 44, minWidth: 44, padding: "0 4px", color: GOLD } as const;
 
 type Bar = { o: number; h: number; l: number; c: number; v: number };
 const MARKETS = [
@@ -116,14 +118,14 @@ export default function WelcomePage() {
               <span style={{ fontSize: 12, fontWeight: 700 }}>1 · Market</span>
               {MARKETS.map(mk => (
                 <button key={mk.id} type="button" aria-pressed={market === mk.id} onClick={() => setMarket(mk.id)}
-                  className="wm-tap" style={{ minHeight: 36, padding: "0 12px", borderRadius: 8, border: `1px solid ${market === mk.id ? GOLD : "rgba(255,255,255,0.14)"}`, background: market === mk.id ? "rgba(201,165,92,0.14)" : "transparent", color: market === mk.id ? "#e8b923" : INK, cursor: "pointer", fontSize: 12 }}>
+                  className="wm-tap" style={{ minHeight: 44, padding: "0 12px", borderRadius: 8, border: `1px solid ${market === mk.id ? GOLD : "rgba(255,255,255,0.14)"}`, background: market === mk.id ? "rgba(201,165,92,0.14)" : "transparent", color: market === mk.id ? "#e8b923" : INK, cursor: "pointer", fontSize: 12 }}>
                   {mk.id}
                 </button>
               ))}
               <span style={{ marginLeft: 12, fontSize: 12, fontWeight: 700 }}>2 · View</span>
               {(["CLEAN", "PROFILE", "STRUCTURE"] as const).map(v => (
                 <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
-                  className="wm-tap" style={{ minHeight: 36, padding: "0 12px", borderRadius: 8, border: `1px solid ${view === v ? GOLD : "rgba(255,255,255,0.14)"}`, background: view === v ? "rgba(201,165,92,0.14)" : "transparent", color: view === v ? "#e8b923" : INK, cursor: "pointer", fontSize: 12 }}>
+                  className="wm-tap" style={{ minHeight: 44, padding: "0 12px", borderRadius: 8, border: `1px solid ${view === v ? GOLD : "rgba(255,255,255,0.14)"}`, background: view === v ? "rgba(201,165,92,0.14)" : "transparent", color: view === v ? "#e8b923" : INK, cursor: "pointer", fontSize: 12 }}>
                   {v.charAt(0) + v.slice(1).toLowerCase()}
                 </button>
               ))}
@@ -172,9 +174,9 @@ export default function WelcomePage() {
 
         <p style={{ color: MUTED, fontSize: 12, lineHeight: 1.6, marginTop: 24, maxWidth: 860 }}>
           Guest mode · sample candles are simulated and labelled · no account data, no broker, no live orders.{" "}
-          <Link href="/legal/risk" style={{ color: GOLD }}>Risk disclosure</Link> ·{" "}
-          <Link href="/legal/market-data" style={{ color: GOLD }}>Market data</Link> ·{" "}
-          <Link href="/login" style={{ color: GOLD }}>Sign in</Link>
+          <Link href="/legal/risk" style={TAP}>Risk disclosure</Link> ·{" "}
+          <Link href="/legal/market-data" style={TAP}>Market data</Link> ·{" "}
+          <Link href="/login" style={TAP}>Sign in</Link>
         </p>
       </div>
       <style>{`@media (max-width: 860px) { .wm-welcome-grid { grid-template-columns: minmax(0,1fr) !important; } }`}</style>

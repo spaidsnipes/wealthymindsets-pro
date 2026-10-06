@@ -29,7 +29,7 @@ export default function RiskDisclosure() {
       <p>Paper trading and backtests are simulations. They state their assumptions (for example: entry at the next bar's open, no commissions or slippage modelled). Real results will differ and are usually worse.</p>
 
       <h2 style={legalH2}>Data can be late or wrong</h2>
-      <p>Prices and market data come from third parties and can be delayed, incomplete or wrong. A stale price is labelled as stale and can never authorise an order. See the <Link href="/legal/market-data" style={{ color: "#c9a55c" }}>market-data disclosure</Link>.</p>
+      <p>Prices and market data come from third parties and can be delayed, incomplete or wrong. A stale price is labelled as stale and can never authorise an order. See the <Link href="/legal/market-data" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>market-data disclosure</Link>.</p>
     </LegalPage>
   );
 }

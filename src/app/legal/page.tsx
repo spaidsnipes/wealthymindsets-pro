@@ -14,8 +14,8 @@ export default function LegalIndex() {
     <LegalPage title="Policies" version="2026-10-05">
       <h2 style={legalH2}>Published</h2>
       <ul>
-        <li><Link href="/legal/risk" style={{ color: "#c9a55c" }}>Risk disclosure</Link> — trading risk, what WM Pro is and is not, and how orders work.</li>
-        <li><Link href="/legal/market-data" style={{ color: "#c9a55c" }}>Market-data disclosure</Link> — where prices come from, how fresh they are, and what you may not do with them.</li>
+        <li><Link href="/legal/risk" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Risk disclosure</Link> — trading risk, what WM Pro is and is not, and how orders work.</li>
+        <li><Link href="/legal/market-data" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, color: "#c9a55c" }}>Market-data disclosure</Link> — where prices come from, how fresh they are, and what you may not do with them.</li>
       </ul>
       <h2 style={legalH2}>Not yet published</h2>
       <p>
