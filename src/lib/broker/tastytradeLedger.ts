@@ -35,8 +35,14 @@ export interface TtLedgerSummary {
   readonly open: number;
   readonly wins: number;
   readonly losses: number;
+  /** REALIZED, after fees — closed round trips only. */
   readonly net: number;
+  /** Realized BEFORE fees (tastytrade's principal cash) — closed round trips only. */
+  readonly gross: number;
+  /** Fees on CLOSED round trips only — the fees inside `net`. Never the account's fee total. */
   readonly fees: number;
+  /** Fees already paid on legs of positions still OPEN — not in `net`, not realized. */
+  readonly openFees: number;
   readonly byInstrumentType: readonly { readonly type: string; readonly trades: number; readonly net: number }[];
 }
 
@@ -100,9 +106,27 @@ export function summarizeTtLedger(trips: readonly TtRoundTrip[]): TtLedgerSummar
     wins: closed.filter(t => t.net > 0).length,
     losses: closed.filter(t => t.net < 0).length,
     net: cents(closed.reduce((s, t) => s + t.net, 0)),
+    gross: cents(closed.reduce((s, t) => s + t.gross, 0)),
     fees: cents(closed.reduce((s, t) => s + t.fees, 0)),
+    openFees: cents(trips.filter(t => t.truth === "OPEN").reduce((s, t) => s + t.fees, 0)),
     byInstrumentType: [...types].map(([type, v]) => ({ type, ...v })).sort((a, b) => b.trades - a.trades),
   };
+}
+
+/**
+ * WHAT THE FEE FIGURE IS — Garden 18 §4 (2026-10-06). Two closed tastytrade
+ * fills read "net −$21.42 including $2.42 fees": realized after fees, realized
+ * before fees and fees are three different facts, and a fee sum over the
+ * closed trips WM read is NOT the broker's fee total — open legs carry fees
+ * that are not in the realized net, and a truncated history read did not see
+ * older fees at all. Each figure is named for exactly what it covers.
+ */
+export function ttFeeScope(summary: Pick<TtLedgerSummary, "fees" | "openFees" | "open">, truncated: boolean): string {
+  const parts = ["on closed round trips only, inside the realized net"];
+  if (summary.open > 0 && summary.openFees > 0) parts.push(`another ${summary.openFees.toFixed(2)} paid on ${summary.open} open position${summary.open === 1 ? "" : "s"}, not realized`);
+  if (truncated) parts.push("history truncated, so this is NOT your tastytrade fee total");
+  else parts.push("not an account fee total");
+  return parts.join(" · ");
 }
 
 /**

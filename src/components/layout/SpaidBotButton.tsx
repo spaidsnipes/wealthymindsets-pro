@@ -1,7 +1,10 @@
 "use client";
+// Canon F22A (2026-10-06): SpaidBot wears the house graphite + warm gold, not teal.
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { readSceneDecision } from "@/lib/traderMemory/decisionContinuity";
+import { SPAIDBOT_IDLE_TIMEOUT_MS, spaidbotFailureMessage, withSceneDecisionId } from "@/lib/ai/spaidbotContext";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Send, Zap, Minimize2, Maximize2,
@@ -86,10 +89,15 @@ export function SpadeBotButton() {
   const getContext = useCallback(() => {
     try {
       const el = document.getElementById("wm-chart-context");
-      if (el?.dataset.ctx) return JSON.parse(el.dataset.ctx) as Record<string, unknown>;
+      if (el?.dataset.ctx) {
+        const ctx = JSON.parse(el.dataset.ctx) as Record<string, unknown>;
+        // Garden 18 §8: the ONE decision store answers which Decision_ID this
+        // chart's scene holds — SpaidBot keeps none of its own.
+        return withSceneDecisionId(ctx, user?.id ?? null, readSceneDecision);
+      }
     } catch {}
     return {};
-  }, []);
+  }, [user?.id]);
 
   /* ── Send to Claude (streaming) ── */
   const sendToClaude = useCallback(async (userText: string, history: Msg[]) => {
@@ -106,7 +114,7 @@ export function SpadeBotButton() {
     let idle: ReturnType<typeof setTimeout> | undefined;
     const armIdle = () => {
       if (idle) clearTimeout(idle);
-      idle = setTimeout(() => { timedOut = true; controller.abort(); }, 45_000);
+      idle = setTimeout(() => { timedOut = true; controller.abort(); }, SPAIDBOT_IDLE_TIMEOUT_MS);
     };
     armIdle();
 
@@ -174,15 +182,7 @@ export function SpadeBotButton() {
       // variable. The operator's remedy (ANTHROPIC_API_KEY on the host) lives in
       // /readiness, not in a guest's chat.
       const raw = String(err);
-      const msg = /API_KEY|not set|not configured/i.test(raw)
-        ? "SpaidBot is not switched on for this deployment yet."
-        : timedOut
-          ? "SpaidBot took too long to answer — nothing was decided; ask again in a moment."
-          : raw.includes("EMPTY_ANSWER")
-            ? "SpaidBot returned no answer — ask again, or rephrase the question."
-            : /429|rate|too many/i.test(raw)
-              ? "SpaidBot is busy — give it a minute and ask again."
-              : "SpaidBot could not answer just now — try again in a moment.";
+      const msg = spaidbotFailureMessage(raw, timedOut);
       setMessages(prev => {
         const u = [...prev];
         u[u.length - 1] = { role: "assistant", content: `⚠️ ${msg}` };
@@ -221,7 +221,7 @@ export function SpadeBotButton() {
         onClick={() => setOpen(o => !o)}
         whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
         className="wm-spaidbot-launcher fixed bottom-5 right-5 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-xl"
-        style={{ background: "linear-gradient(135deg,#00D4AA,#4FA3E0)", boxShadow: "0 4px 28px rgba(0,212,170,0.45)" }}
+        style={{ background: "linear-gradient(135deg,#c4a574,#8b6a29)", boxShadow: "0 4px 28px rgba(196,165,116,0.35)" }}
         title="SpaidBot — AI Trading Assistant"
       >
         {open ? <X size={20} className="text-white"/> : <Zap size={20} className="text-white"/>}
@@ -245,7 +245,7 @@ export function SpadeBotButton() {
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-wm-border shrink-0"
               style={{ background: "linear-gradient(90deg,#0F1018,#111320)" }}>
               <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: "linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
+                style={{ background: "linear-gradient(135deg,#c4a574,#8b6a29)" }}>
                 <Zap size={15} className="text-white"/>
               </div>
               <div className="flex-1 min-w-0">
@@ -277,7 +277,7 @@ export function SpadeBotButton() {
                       {!isUser && (
                         <div className="flex items-center gap-1.5">
                           <div className="w-4 h-4 rounded-md flex items-center justify-center shrink-0"
-                            style={{ background: "linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
+                            style={{ background: "linear-gradient(135deg,#c4a574,#8b6a29)" }}>
                             <Zap size={9} className="text-white"/>
                           </div>
                           <span className="text-[9px] font-bold text-wm-text-dim">{botName}</span>
@@ -287,8 +287,8 @@ export function SpadeBotButton() {
                         <div
                           className="rounded-xl px-3 py-2.5 text-[12px] leading-relaxed"
                           style={{
-                            background: isUser ? "linear-gradient(135deg,#00D4AA18,#4FA3E018)" : "#111320",
-                            border: isUser ? "1px solid rgba(0,212,170,0.22)" : "1px solid #1E2030",
+                            background: isUser ? "linear-gradient(135deg,#c4a57418,#8b6a2918)" : "#111320",
+                            border: isUser ? "1px solid rgba(196,165,116,0.22)" : "1px solid #1E2030",
                             color: isUser ? "#E2E8F0" : "#C8D0E0",
                           }}
                           dangerouslySetInnerHTML={{ __html: renderMd(displayText) }}
@@ -320,7 +320,7 @@ export function SpadeBotButton() {
                     <button key={s} onClick={() => send(s)}
                       className="text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap border shrink-0 transition-all"
                       style={{ background: "rgba(255,255,255,0.04)", borderColor: "#1E2030", color: "#8B8FA8" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.cssText += ";border-color:rgba(0,212,170,0.4);color:#00D4AA"; }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.cssText += ";border-color:rgba(196,165,116,0.4);color:#c9a55c"; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.cssText += ";border-color:#1E2030;color:#8B8FA8"; }}
                     >{s}</button>
                   ))}
@@ -340,7 +340,7 @@ export function SpadeBotButton() {
                 disabled={streaming}
                 className="flex-1 rounded-xl px-3 py-2 text-[12px] text-wm-text placeholder-wm-text-dim outline-none transition-all"
                 style={{ background: "#111320", border: "1px solid #1E2030" }}
-                onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(0,212,170,0.4)"; }}
+                onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(196,165,116,0.4)"; }}
                 onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = "#1E2030"; }}
               />
               {streaming ? (
@@ -352,7 +352,7 @@ export function SpadeBotButton() {
               ) : (
                 <button aria-label="Send message" onClick={() => send(input)} disabled={!input.trim()}
                   className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 disabled:opacity-40"
-                  style={{ background: "linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
+                  style={{ background: "linear-gradient(135deg,#c4a574,#8b6a29)" }}>
                   <Send size={13} className="text-white"/>
                 </button>
               )}

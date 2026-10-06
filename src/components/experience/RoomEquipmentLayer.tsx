@@ -195,11 +195,14 @@ function Control({
   onClick,
   emphasis = false,
   testId,
+  glyph,
 }: {
   label: string;
   onClick: () => void;
   emphasis?: boolean;
   testId: string;
+  /** A drawn mark before the word (decoration only — the word is the name). */
+  glyph?: string;
 }): React.ReactElement {
   return (
     <button
@@ -217,8 +220,12 @@ function Control({
         textTransform: "uppercase",
         fontFamily: "inherit",
         cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
       }}
     >
+      {glyph ? <span aria-hidden="true" style={{ fontSize: 13, lineHeight: 1 }}>{glyph}</span> : null}
       {label}
     </button>
   );
@@ -376,6 +383,9 @@ export function RoomEquipmentLayer({
           rowGap: 6,
           padding: stage === "full" ? "0 0 14px" : "10px 12px",
           borderBottom: `1px solid ${HAIR}`,
+          // The panel family's gold top rule (canon plate 07, shared with the
+          // Workspace / Tools panel header) — on the docked wall only.
+          ...(marketDock ? { borderTop: `2px solid ${GOLD}` } : null),
           flex: "0 0 auto",
           ...(stage === "full" ? FULL_MEASURE : null),
         }}
@@ -429,7 +439,9 @@ export function RoomEquipmentLayer({
               {onEnter && (
                 <Control label="Enter" onClick={onEnter} emphasis testId="equipment-enter" />
               )}
-              <Control label="Close" onClick={onClose} testId="equipment-close" />
+              {/* The same "✕ CLOSE" the Workspace and Tools panels carry —
+                  one panel family, one way out (canon plate 07). */}
+              <Control label="Close" onClick={onClose} testId="equipment-close" glyph="✕" />
             </>
           )}
         </span>

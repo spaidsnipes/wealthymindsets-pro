@@ -35,7 +35,7 @@
  * PURE. DETERMINISTIC. No React, no canvas, no IO, no clock.
  */
 
-import { chooseTickSize } from "@/lib/vpEngine";
+import { bucketOnTickGrid, chooseTickSize } from "@/lib/vpEngine";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { sessionsByGap, SESSION_GAP_FACTOR } from "./sessionsByGap";
 
@@ -85,6 +85,8 @@ const empty = (reason: Exclude<ValueMigrationReason, "DRAWN">): ValueMigrationVM
 export function selectValueMigration(
   input: readonly LegacyOhlcvTuple[] | null | undefined,
   dayKey?: (sec: number) => string,
+  /** The instrument's tick (pricePrecision.instrumentTickFor): the row grid is a whole multiple of it (P0.2). */
+  instrumentTick?: number | null,
 ): ValueMigrationVM {
   const bars = (input ?? [])
     .filter(b => Number.isFinite(b.time) && Number.isFinite(b.high) && Number.isFinite(b.low) && b.high >= b.low)
@@ -106,7 +108,7 @@ export function selectValueMigration(
   // RULE 2 — the grid depends on the FIRST bar only. ~3% of its price split
   // into MIGRATION_TARGET_ROWS rows; edges are absolute multiples of the tick.
   const ref = Math.abs(bars[0].close) || Math.abs(bars[0].high) || 1;
-  const tick = chooseTickSize(ref * 0.03, MIGRATION_TARGET_ROWS);
+  const tick = bucketOnTickGrid(chooseTickSize(ref * 0.03, MIGRATION_TARGET_ROWS), instrumentTick);
   const base = Math.floor(lo / tick + 1e-9) * tick;
   const idx = (p: number) => Math.floor((p - base) / tick + 1e-9);
   const n = idx(hi) + 1;

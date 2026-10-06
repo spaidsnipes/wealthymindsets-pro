@@ -18,6 +18,8 @@
  *                   fp:<mode>     → footprint on, that mode (bid-ask, delta,
  *                                   volume-profile, imbalance, aggressive-passive, big-trades)
  *                   scaff:<depth> → scaffolding depth (FOUNDATION, INTERMEDIATE, ADVANCED, OFF)
+ *                   anat:<mode>   → Dual Anatomy for this load (OFF, MARKET, FOUNDER,
+ *                                   FUSION); a clean scene starts at MARKET
  *                   ask:<choice>  → the Question Lens's asked question (AUTO, ABSORPTION,
  *                                   EXHAUSTION, CONTINUATION, TRAP, HOLD, WHAT_CHANGED,
  *                                   PERMISSION) — pair with QuestionLens
@@ -61,6 +63,9 @@ const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP"
 const SCAFFOLDING_KEY = "wm_ofScaffolding";
 /** What the trader asked of the Question Lens (ChartsDashboard's own key). */
 const QUESTION_CHOICE_KEY = "wm_questionChoice";
+/** Dual Anatomy's representation mode (anatomyMode.ts's ANATOMY_MODE_KEY; not imported — that module reads this one). */
+const ANATOMY_MODE_SCENE_KEY = "wm_anatomyMode";
+const ANATOMY_MODE_TOKENS = new Set(["OFF", "MARKET", "FOUNDER", "FUSION"]);
 const NON_BOOLEAN_OF_KEYS = new Set([SCAFFOLDING_KEY, "wm_ofStackPrefs", "wm_ofMyStack"]);
 const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy"]);
 
@@ -101,6 +106,10 @@ export function parseProofScene(search: string): ProofScene {
       if (token.slice(3) === "big-trades") overrides.wm_bigtrades_on = true;
     } else if (/^scaff:/i.test(token)) {
       overrides[SCAFFOLDING_KEY] = token.slice(6).toUpperCase();
+    } else if (/^anat:/i.test(token)) {
+      // anat:<OFF|MARKET|FOUNDER|FUSION> — Dual Anatomy's mode for this load only.
+      const m = token.slice(5).toUpperCase();
+      if (ANATOMY_MODE_TOKENS.has(m)) overrides[ANATOMY_MODE_SCENE_KEY] = m;
     } else if (/^ask:/i.test(token)) {
       // The room validates the id against QUESTION_CHOICES; an unknown one reads AUTO.
       overrides[QUESTION_CHOICE_KEY] = token.slice(4).toUpperCase();
@@ -122,6 +131,11 @@ export function proofSceneValue(scene: ProofScene, key: string): unknown {
   if (Object.prototype.hasOwnProperty.call(scene.overrides, key)) return scene.overrides[key];
   if (!scene.clean) return undefined;
   if (key === SCAFFOLDING_KEY) return "OFF";
+  // A clean scene shows the market's own geometry: the trader's Dual Anatomy
+  // preference (FOUNDER / FUSION bodies) must not leak into a canon
+  // comparison (serving NQ1! 5m, 2026-10-06: a G06 figure stood beside the
+  // absorption shelf in a scene=clean proof). MARKET is the room's default.
+  if (key === ANATOMY_MODE_SCENE_KEY) return "MARKET";
   if ((CLEAN_EXTRA_OFF as readonly string[]).includes(key)) return false;
   if (key.startsWith(CLEAN_BOOLEAN_PREFIX) && !key.startsWith("wm_of_") && !NON_BOOLEAN_OF_KEYS.has(key)) return false;
   return undefined;

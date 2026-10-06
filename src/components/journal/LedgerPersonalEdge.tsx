@@ -12,7 +12,7 @@
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
-import { computeLedgerEdge, MIN_SAMPLE } from "@/lib/broker/ledgerEdge";
+import { computeLedgerEdge, edgeEvidenceLine, MIN_SAMPLE } from "@/lib/broker/ledgerEdge";
 import { processOutcome } from "@/lib/broker/processOutcome";
 import { PROFILE_RULES, replayDailyRules, versionedRuleReplay } from "@/lib/broker/dailyRules";
 import { ledgerTimeline, MIN_WINDOW, whatChanged } from "@/lib/broker/ledgerTimeline";
@@ -117,7 +117,7 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
                   const thin = b.evidence !== "SUPPORTED";
                   return (
                     <tr key={b.key} data-evidence={b.evidence} style={{ borderTop: `1px solid ${LINE}`, textAlign: "right", color: thin ? MUTED : INK }}>
-                      <td style={{ textAlign: "left", padding: "2px 0" }}>{b.key}</td>
+                      <td style={{ textAlign: "left", padding: "2px 0" }}>{b.key}<div data-testid="edge-evidence-line" style={{ fontSize: 9.5, color: MUTED }}>{edgeEvidenceLine(b, Date.now())}</div></td>
                       <td>{b.n}</td>
                       <td>{(b.winRate * 100).toFixed(0)}%</td>
                       <td style={{ color: thin ? MUTED : tone(b.expectancy) }}>{usd(b.expectancy)}</td>

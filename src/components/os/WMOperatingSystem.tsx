@@ -245,6 +245,18 @@ export const OS_RAIL_WIDTH_PX = 176;
 export const OS_EQUIPMENT_RAIL_WIDTH_PX = 264;
 
 /**
+ * THE TABLET SHEET (2026-10-06). Between this width and
+ * {@link OS_RAIL_BREAKPOINT_PX} the pinned door sheet stops covering the whole
+ * viewport and becomes a left-edge sheet {@link OS_TABLET_SHEET_WIDTH_PX} wide.
+ * MEASURED at 834x1112 (iPad portrait) on /charts: Workspace opened as a
+ * full-screen sheet and the market vanished — the opposite of F24's "workspace
+ * is equipment, chart camera alive". A phone (390) keeps the full sheet; there
+ * is no width beside it for the market.
+ */
+export const OS_TABLET_SHEET_MIN_PX = 600;
+export const OS_TABLET_SHEET_WIDTH_PX = 400;
+
+/**
  * How tall the pinned phone bar is.
  *
  * ONE OWNER, for the same reason as the breakpoint above. The bar is
@@ -555,6 +567,10 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
   const camerasAt = firstArrangementIndex(equipment);
   return (
     <div data-testid="os-rail-workspace">
+      {/* An EMPTY heading draws nothing: in equipment mode the panel's own
+          sticky header already names the hand, and a second "WORKSPACE" one
+          scroll below it was the same word twice (measured at 390). */}
+      {heading === "" ? null : (
       <div
         style={{
           ...EYEBROW,
@@ -568,6 +584,7 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
       >
         {heading}
       </div>
+      )}
       {equipment.map((item, index) => {
         // A MOMENTARY entry is a command, not a holdable: the room never
         // announces a stage for it (the Sentinel forbids one), so `openIds`
@@ -605,7 +622,9 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
             data-testid="os-camera-caption"
             style={{
               ...EYEBROW,
-              padding: tiled ? "2px 14px 8px" : "4px 14px 4px",
+              // With no heading above it (equipment mode), the caption opens
+              // the section and takes the heading's air.
+              padding: tiled ? (heading === "" ? "14px 14px 8px" : "2px 14px 8px") : "4px 14px 4px",
               color: HINT_INK,
               letterSpacing: 1.4,
             }}
@@ -936,7 +955,8 @@ function CommandDeckPlate({
         alignItems: "center",
         justifyContent: "flex-start",
         gap: 7,
-        minHeight: 34,
+        // 44, the phone tap floor (measured 34px tall at 390, 2026-10-06).
+        minHeight: 44,
         padding: "7px 13px",
         borderRadius: 3,
         border: `1px solid ${held ? GOLD : "rgba(196,165,116,0.42)"}`,
@@ -1769,7 +1789,10 @@ export function WMOperatingSystem({
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  minHeight: 32,
+                  // 44: the phone tap floor — measured 67x32 at 390 on every
+                  // doors-only room (2026-10-06).
+                  minHeight: 44,
+                  minWidth: 44,
                   padding: "6px 9px",
                   borderRadius: 3,
                   border: `1px solid ${GOLD}`,
@@ -1846,7 +1869,10 @@ export function WMOperatingSystem({
                     // share a 390px line with the crest — 180px each does not
                     // fit there, and the Founder's directive for this shift is
                     // desktop only.
-                    minHeight: 34,
+                    // 44 since 2026-10-06: at 390 these measured 126x34 and
+                    // 89x34 — under the 44px thumb floor the canon binds on
+                    // phone. Desktop is unchanged (the stylesheet's 58px wins).
+                    minHeight: 44,
                     padding: "7px 13px",
                     borderRadius: 3,
                     border: `1px solid ${open ? GOLD : "rgba(196,165,116,0.42)"}`,
@@ -2156,7 +2182,10 @@ export function WMOperatingSystem({
             display: "flex",
             flexDirection: "column",
             gap: 2,
-            padding: "14px 0",
+            // Equipment mode: no top padding, so the sticky panel header (below)
+            // sits flush at the scrollport's edge — measured, a 14px top pad
+            // left a strip where scrolled tiles showed ABOVE the header.
+            padding: equipmentMode ? 0 : "14px 0",
             /* The rail used to hold seven doors and could never outgrow the
                viewport. It now holds twenty-one plus the standing conditions.
                Without this, a short screen simply CUTS the last rooms off —
@@ -2203,7 +2232,64 @@ export function WMOperatingSystem({
               its own visible close at every width, like the Chart tools sheet —
               the masthead plate still toggles it, but a panel that reads as a
               sheet must close like one. */}
+          {/* ── THE HEADER THAT CANNOT SCROLL AWAY (canon plate 07 / F24) ──
+              MEASURED on serving /charts at 1920x902, 2026-10-06: the
+              Workspace panel's content is 1165px in an 805px scrollport, and
+              with the content scrolled to its end the Close control sat at
+              y = −258 — gone. The canon's panel grammar (Workspace Equipment
+              Wall, plate 07, and the Chart tools sheet that is the quality
+              bar) is a header that names the hand and keeps Close in reach
+              while the shelf scrolls beneath it. Equipment mode only: the
+              phone door in rail mode keeps the bare control below. */}
           {!(phoneDoorOnly || equipmentMode) ? null : (
+            <div
+              data-testid={equipmentMode ? "os-panel-header" : undefined}
+              style={
+                equipmentMode
+                  ? {
+                      position: "sticky" as const,
+                      top: 0,
+                      zIndex: 3,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      minHeight: 56,
+                      margin: "0 0 8px",
+                      padding: "10px 6px 8px 14px",
+                      background: FIELD,
+                      borderTop: `2px solid ${GOLD}`,
+                      borderBottom: `1px solid ${RULE}`,
+                      flex: "none" as const,
+                    }
+                  : { display: "flex", justifyContent: "flex-end" }
+              }
+            >
+            {equipmentMode ? (
+              <div style={{ minWidth: 0 }}>
+                <div
+                  data-testid="os-panel-title"
+                  style={{ ...EYEBROW, color: GOLD, fontSize: 13, letterSpacing: 2.4, fontWeight: 600 }}
+                >
+                  {scenePanel === "rooms"
+                    ? "Rooms"
+                    : scenePanel === "community"
+                      ? "Community"
+                      : scenePanel === "tools"
+                        ? "Tools"
+                        : "Workspace"}
+                </div>
+                <div style={{ marginTop: 3, fontSize: 10.5, letterSpacing: 0.3, color: HINT_INK, lineHeight: 1.35 }}>
+                  {scenePanel === "rooms"
+                    ? "Changed-job rooms"
+                    : scenePanel === "community"
+                      ? "People · learning · news"
+                      : scenePanel === "tools"
+                        ? "Lenses on this market"
+                        : "Compose this camera"}
+                </div>
+              </div>
+            ) : null}
             <button
               type="button"
               className="wm-os-rail-close"
@@ -2225,12 +2311,13 @@ export function WMOperatingSystem({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
-                alignSelf: "flex-end",
+                alignSelf: equipmentMode ? "center" : "flex-end",
+                flex: "none",
                 /* 44px is the floor a thumb can actually hit — the same floor
                    the phone strip's doors were held to. */
                 minHeight: 44,
                 minWidth: 44,
-                margin: "0 10px 6px",
+                margin: equipmentMode ? 0 : "0 10px 6px",
                 padding: "8px 12px",
                 borderRadius: 3,
                 border: `1px solid ${RULE}`,
@@ -2243,6 +2330,7 @@ export function WMOperatingSystem({
               <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>✕</span>
               Close
             </button>
+            </div>
           )}
 
           {/* ── THE ROOM LIST, AND WHERE THE MALL IS NOT DRAWN ──────────────
@@ -2252,7 +2340,10 @@ export function WMOperatingSystem({
               old ROOM-group mall never returns over the live market. */}
           {equipmentMode && scenePanel !== "rooms" ? null : (
             <>
-              <div style={{ ...EYEBROW, padding: "0 14px 10px", color: GOLD }}>Rooms</div>
+              {/* In equipment mode the sticky panel header already says ROOMS. */}
+              {equipmentMode ? null : (
+                <div style={{ ...EYEBROW, padding: "0 14px 10px", color: GOLD }}>Rooms</div>
+              )}
 
               {equipmentMode
                 ? MARKET_HOME_ROOMS.map((room) => (
@@ -2302,6 +2393,7 @@ export function WMOperatingSystem({
                       ink={{ gold: GOLD, rule: RULE, pearl: PEARL, muted: MUTED, hint: HINT_INK, warn: WM.state.warn }}
                     />
                   }
+                  heading=""
                 />
               </>
             ) : null
@@ -2340,7 +2432,7 @@ export function WMOperatingSystem({
               <>
                 {/* Garden 18 §XXVI: find any tool by name, before any family door. */}
                 <div style={{ padding: "8px 10px 0" }}><ToolsSlot slot="tool-finder" /></div>
-                <RoomWorkspaceRail activeHref={activeHref} kind="lens" heading="Tools" presentation="tile" />
+                <RoomWorkspaceRail activeHref={activeHref} kind="lens" heading="" presentation="tile" />
               </>
             ) : null
           ) : (
@@ -2369,15 +2461,12 @@ export function WMOperatingSystem({
               live behind this door, and neither is in the COMMUNITY group. */}
           {equipmentMode && scenePanel !== "community" ? null : (
             <>
-              <div
-                style={{
-                  ...EYEBROW,
-                  padding: equipmentMode ? "0 14px 10px" : "18px 14px 8px",
-                  color: equipmentMode ? GOLD : MUTED,
-                }}
-              >
-                Community
-              </div>
+              {/* In equipment mode the sticky panel header already says COMMUNITY. */}
+              {equipmentMode ? null : (
+                <div style={{ ...EYEBROW, padding: "18px 14px 8px", color: MUTED }}>
+                  Community
+                </div>
+              )}
               {(equipmentMode ? HOUSE_DOOR : OS_COMMUNITY).map((d) => (
                 <RailLink key={d.href} href={d.href} label={d.label} activeHref={activeHref} quiet />
               ))}
@@ -2407,11 +2496,45 @@ export function WMOperatingSystem({
               ))}
             </div>
           )}
+          {/* THE FOOTER RHYTHM (canon plate 07: "CLOSE · ESC" under a shelf
+              that scrolls inside). Sticky, so it doubles as the scroll
+              affordance: the fade above it says the shelf continues, and the
+              line names the way out at every scroll position. Decoration for
+              assistive tech — the Close control above is the accessible one. */}
+          {!equipmentMode ? null : (
+            <div
+              aria-hidden="true"
+              data-testid="os-panel-footer"
+              className="wm-os-panel-footer"
+              style={{
+                position: "sticky" as const,
+                bottom: 0,
+                zIndex: 3,
+                marginTop: "auto",
+                flex: "none" as const,
+                padding: "18px 14px 10px",
+                background: `linear-gradient(180deg, rgba(7,8,10,0) 0%, ${FIELD} 45%)`,
+                pointerEvents: "none" as const,
+                ...EYEBROW,
+                color: HINT_INK,
+                letterSpacing: 1.6,
+                textAlign: "center" as const,
+              }}
+            >
+              Close · Esc — the chart stays live
+            </div>
+          )}
         </nav>
         )}
 
         <main
           data-testid="os-room"
+          // Phone tap floor for DOCUMENT rooms (globals.css .wm-phone-taps).
+          // A bleed room is a machine that draws its own controls (the chart
+          // lane's), and the trading machines (/charts, /paper, /desk,
+          // /backtest — the same list MainLayout excludes) are left to their
+          // owners: their chip heights are layout inputs, not decoration.
+          className={room === "bleed" || /^\/(charts|paper|desk|backtest)/.test(activeHref) ? undefined : "wm-phone-taps"}
           /* ── TOUCHING THE MARKET PUTS THE EQUIPMENT DOWN ───────────────────
              The second half of the canon's §3 dismiss clause: "Escape /
              tap-chart-background closes the overlay. URL unchanged." Escape is
@@ -2712,10 +2835,24 @@ export function WMOperatingSystem({
           /* Shown ONLY here. On the desk the masthead toggle is never covered,
              so a second close control would be a second answer; pinned over
              the market it is the only one left on screen. */
-          .wm-os-rail-close { display: flex !important; }`
+          .wm-os-rail-close { display: flex !important; }
+          /* TABLET: a left sheet, the market alive beside it (see
+             OS_TABLET_SHEET_MIN_PX). Touching the market still puts it down. */
+          @media (min-width: ${OS_TABLET_SHEET_MIN_PX}px) {
+            .wm-os-rail {
+              right: auto !important;
+              width: min(${OS_TABLET_SHEET_WIDTH_PX}px, 60vw) !important;
+              border-right: 1px solid ${RULE} !important;
+              box-shadow: 18px 0 46px rgba(0,0,0,0.55) !important;
+            }
+          }`
               : ".wm-os-rail { display: none !important; }"
           }
           .wm-os-context { display: none !important; }
+          /* The panel's "Close · Esc" footer is a desk line: a phone has no
+             Escape key, the sticky header's Close is the thumb's way out, and
+             the sheet's own bottom padding would show content beneath it. */
+          .wm-os-panel-footer { display: none !important; }
           /* ── THE MASTHEAD THAT ATE THE PHONE ──────────────────────────
              MEASURED 2026-09-16 with Playwright at 390x844 and 360x800:
              the masthead was 349px tall — 41% of the viewport before ANY

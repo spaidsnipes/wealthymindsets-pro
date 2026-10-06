@@ -40,6 +40,38 @@ export interface ContextBucket {
   /** Recency (super order §7): the oldest and newest decision in this context (epoch ms), so an edge built months ago never reads as current. */
   readonly firstAt: number | null;
   readonly lastAt: number | null;
+  /** Garden 18 §4 — closed decisions that point AGAINST this context's reading (losers when avgR ≥ 0, winners when < 0). */
+  readonly counterevidence: number;
+  /** 95% Wilson interval on the closed win rate; null when nothing closed. */
+  readonly winRateInterval: { readonly low: number; readonly high: number } | null;
+}
+
+/** 95% Wilson score interval; n=0 → null (undefined, never "0–0%"). */
+export function wilsonWinRateInterval(k: number, n: number): { low: number; high: number } | null {
+  if (!(n > 0)) return null;
+  const z = 1.96, p = k / n, z2 = z * z;
+  const centre = (p + z2 / (2 * n)) / (1 + z2 / n);
+  const half = (z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / (1 + z2 / n);
+  return { low: Math.max(0, centre - half), high: Math.min(1, centre + half) };
+}
+
+/**
+ * The evidence a context carries beside its R (Garden 18 §4): sample size,
+ * first / last observation, recency, counterevidence and uncertainty — so an
+ * edge built months ago, or on a lopsided handful, never reads as current fact.
+ */
+export function contextEvidenceLine(b: ContextBucket, nowMs: number): string {
+  const day = (t: number | null) => (t == null ? "—" : new Date(t).toISOString().slice(0, 10));
+  const parts = [`n=${b.sampleCount}`, `first ${day(b.firstAt)} · last ${day(b.lastAt)}`];
+  if (b.lastAt != null) {
+    const days = Math.max(0, Math.floor((nowMs - b.lastAt) / 86_400_000));
+    parts.push(days === 0 ? "seen today" : `last seen ${days} day${days === 1 ? "" : "s"} ago`);
+  }
+  parts.push(`${b.counterevidence} against`);
+  parts.push(b.winRateInterval
+    ? `win rate plausibly ${Math.round(b.winRateInterval.low * 100)}–${Math.round(b.winRateInterval.high * 100)}% (95%)`
+    : "win rate undefined — nothing closed");
+  return parts.join(" · ");
 }
 
 export interface PersonalEdgeVM {
@@ -160,6 +192,8 @@ export function selectPersonalEdge(input: PersonalEdgeInput): PersonalEdgeVM {
       avgRealizedR,
       avgProcessAdherence: avgProcess,
       decisionIds: items.map((d) => d.decisionId),
+      counterevidence: typeof avgRealizedR === "number" && avgRealizedR < 0 ? bWins : bLosses,
+      winRateInterval: wilsonWinRateInterval(bWins, bClosed.length),
       ...(() => {
         const times = items.map((d) => d.capturedAt).filter((t): t is number => typeof t === "number" && Number.isFinite(t));
         return { firstAt: times.length ? Math.min(...times) : null, lastAt: times.length ? Math.max(...times) : null };

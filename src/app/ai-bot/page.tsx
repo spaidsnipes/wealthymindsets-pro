@@ -293,7 +293,10 @@ export default function AIBotPage() {
               <button
                 key={symbol}
                 onClick={() => setActiveSymbol(symbol)}
-                className={`rounded-xl border px-3 py-2 text-xs font-black transition-colors ${
+                // The selected symbol is told, not only tinted (no colour-only
+                // meaning), and the chip meets the 44px tap floor on phone.
+                aria-pressed={symbol === activeSymbol}
+                className={`min-h-11 rounded-xl border px-3 py-2 text-xs font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold ${
                   symbol === activeSymbol
                     ? "border-wm-gold/50 bg-wm-gold/15 text-wm-gold"
                     : "border-wm-border text-wm-text-muted hover:border-wm-blue/40 hover:text-wm-text"

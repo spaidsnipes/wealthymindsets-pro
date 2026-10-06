@@ -2,9 +2,21 @@
    ticket, portfolio, and delayed market list stack instead of shrinking
    trading controls below the platform 44px interaction floor. */
 @media (max-width: 767px) {
+  /* The PAGE is the phone scroller (Garden 18 §4, measured 2026-10-06 at
+     390×844): this rule used to be `height: auto`, so the page grew to its
+     content (~3,200px) and pushed the shell's <main> and .wm-sanctuary with
+     it — while the root layout holds <body> at overflow:hidden. Nothing could
+     scroll: the order ticket's send button sat at y≈1,620 of an 844px screen,
+     unreachable. Neither `height: 100%` nor a zero flex basis fixes it — the
+     shell's column is height:auto and Chrome sizes it from the page's content
+     either way. Taken out of flow, the page contributes no height to the
+     shell; it fills the shell's positioned body slot (.wm-os-body is
+     position:relative) and scrolls itself. */
   .page {
+    position: absolute !important;
+    inset: 0;
     height: auto !important;
-    min-height: 100%;
+    min-height: 0 !important;
     overflow-y: auto !important;
   }
 
@@ -73,5 +85,33 @@
   .body {
     flex: none !important;
     min-height: 560px !important;
+  }
+}
+
+/* SEND BAR (Garden 18 §4, 2026-10-06). The ticket's verdict list, protection
+   note and send button stick to the bottom of whichever box is scrolling, so
+   they are visible whenever the ticket is — never parked below the fold. */
+.sendBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding-top: 0.5rem;
+  margin-inline: -0.25rem;
+  padding-inline: 0.25rem;
+  padding-bottom: 0.25rem;
+  box-shadow: 0 -8px 12px -8px rgba(0, 0, 0, 0.6);
+}
+
+/* On a short desktop window the PAGE scrolls (rule above). A sticky bar binds
+   to its nearest scroll container, and the ticket column and body were both
+   still scroll containers that never scroll — so the bar stuck to nothing.
+   Releasing them hands the bar to the page scroller. */
+@media (min-width: 768px) and (max-height: 900px) {
+  .body {
+    overflow: visible !important;
+  }
+
+  .ticket {
+    overflow: visible !important;
   }
 }

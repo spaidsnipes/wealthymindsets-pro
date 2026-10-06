@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  bigTradeRankSize,
+  formingColumnCrossesWords,
   CELL_MIN_PX,
   INSCRIPTION_PAD,
   aggPassiveRing,
@@ -302,5 +304,57 @@ describe("the phone's word budget waits for the trader to ask (2026-10-04)", () 
     expect(pickBigTradeCallout(b, { depth: "MID", selectedKey: "a", hoveredKey: null, quiet: true }).reason).toBe("SELECTED");
     expect(pickBigTradeCallout(b, { depth: "MID", selectedKey: null, hoveredKey: "b", quiet: true }).reason).toBe("HOVERED");
     expect(pickBigTradeCallout(b, { depth: "MID", selectedKey: null, hoveredKey: null }).reason).toBe("DOMINANT");
+  });
+});
+
+describe("F07A vs the ACTIVE CANDLE — a candle through the words prints a wrong number, so the words yield", () => {
+  const measure = (text: string, px: number) => text.length * px * 0.6;
+  const lines = [
+    { text: "41 ×7", px: 14, weight: 700 as const, dy: -8 },
+    { text: "↓ 31515.00", px: 9, weight: 600 as const, dy: 7 },
+  ];
+  const disc = { x: 1220, y: 230 };
+
+  it("the forming column through the disc's middle crosses the words (serving NQ1! 5m, 2026-10-06)", () => {
+    expect(formingColumnCrossesWords({ x0: 1217, x1: 1225, y0: 160, y1: 320 }, disc, lines, measure)).toBe(true);
+  });
+
+  it("a column beside the words, or a disc with no words, does not", () => {
+    expect(formingColumnCrossesWords({ x0: 1260, x1: 1268, y0: 160, y1: 320 }, disc, lines, measure)).toBe(false);
+    expect(formingColumnCrossesWords({ x0: 1217, x1: 1225, y0: 260, y1: 320 }, disc, lines, measure)).toBe(false);
+    expect(formingColumnCrossesWords({ x0: 1217, x1: 1225, y0: 160, y1: 320 }, disc, [], measure)).toBe(false);
+    expect(formingColumnCrossesWords(null, disc, lines, measure)).toBe(false);
+  });
+});
+
+describe("F07A/F07B · a cluster is ranked like against like (serving NQ1! 5m: seven small prints read 100.0TH PERCENTILE)", () => {
+  const cluster = { anchor: { size: 9 }, members: [1, 2, 3, 4, 5, 6, 7] };
+  it("a lone print is ranked by its own size, a cluster by its largest member's", () => {
+    expect(bigTradeRankSize(-12, null)).toBe(12);
+    expect(bigTradeRankSize(41, cluster)).toBe(9);
+    expect(bigTradeRankSize(41, { anchor: { size: 9 }, members: [1] })).toBe(41);
+  });
+  it("the cluster's rank line names its subject", () => {
+    const w = bigTradeCalloutLines({ bid: 0, ask: 41, price: 31515, priceText: "31515.00", pct: 0.873, prints: 300, cluster: { n: 7, total: 41 }, clusterRankOf: "LARGEST" })!;
+    expect(w.lines).toEqual(["CLUSTER ×7", "41 @ 31515.00", "LARGEST PRINT · 87.3RD PERCENTILE"]);
+    const thin = bigTradeCalloutLines({ bid: 0, ask: 41, price: 31515, priceText: "31515.00", pct: null, prints: 12, cluster: { n: 7, total: 41 }, clusterRankOf: "LARGEST" })!;
+    expect(thin.lines[2]).toBe("UNRANKED · 12 SESSION PRINTS");
+  });
+});
+
+import { sessionRankWords } from "./footprintCanon";
+describe("F07B Inspect · the cluster's session rank names its subject (one owner with the canvas)", () => {
+  it("a cluster reads LARGEST PRINT, never 'combined size vs single prints'", () => {
+    const w = sessionRankWords(0.873, 1033, true);
+    expect(w.headline).toBe("LARGEST PRINT · 87.3RD");
+    expect(w.caption).toMatch(/largest member print vs 1033 single prints/);
+    expect(w.caption).not.toMatch(/Combined/);
+  });
+  it("a lone print reads its own size; too few prints are UNRANKED", () => {
+    expect(sessionRankWords(0.987, 500, false).headline).toBe("98.7TH");
+    expect(sessionRankWords(null, 7, true).caption).toBe("UNRANKED · 7 session prints — too few for a percentile");
+  });
+  it("the subject is the largest member (bigTradeRankSize), not the sum", () => {
+    expect(bigTradeRankSize(74, { anchor: { size: 12 }, members: new Array(13).fill(0) })).toBe(12);
   });
 });

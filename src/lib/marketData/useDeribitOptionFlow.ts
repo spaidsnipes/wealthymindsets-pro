@@ -7,6 +7,7 @@
  * once a minute while Brick Walls is on; nothing stored.
  */
 import { useEffect, useState } from "react";
+import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
 import { deribitCurrencyFor } from "@/lib/marketData/deribitOptions";
 import { selectOptionFlowEvents, type OptionFlowVM, type OptionLeg, type OptionPrint } from "@/lib/marketData/viewModels/selectOptionFlowEvents";
 
@@ -14,21 +15,22 @@ const POLL_MS = 60_000;
 
 export function useDeribitOptionFlow(symbol: string, enabled: boolean): OptionFlowVM | null {
   const currency = enabled ? deribitCurrencyFor(symbol) : null;
-  const [vm, setVm] = useState<OptionFlowVM | null>(null);
+  // Stored WITH its currency: a switch never paints the previous coin's flow.
+  const [ownedVm, setOwnedVm] = useState<Owned<OptionFlowVM>>(UNOWNED);
   useEffect(() => {
-    setVm(null);
+    setOwnedVm(UNOWNED);
     if (!currency) return;
     let alive = true;
     const load = () => fetch(`/api/market-data/deribit/options?symbol=${currency}&view=trades`, { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
       .then((j: { prints?: OptionPrint[]; legs?: Record<string, OptionLeg> } | null) => {
         if (!alive || !j?.prints || !j.legs) return;
-        setVm(selectOptionFlowEvents(j.prints, new Map(Object.entries(j.legs))));
+        setOwnedVm(owned(currency, selectOptionFlowEvents(j.prints, new Map(Object.entries(j.legs)))));
       })
       .catch(() => { /* the lane stays as it was; the next poll retries */ });
     void load();
     const id = window.setInterval(load, POLL_MS);
     return () => { alive = false; window.clearInterval(id); };
   }, [currency]);
-  return vm;
+  return readOwned(ownedVm, currency);
 }

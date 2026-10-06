@@ -412,6 +412,26 @@ export function fitBubbleInscription(
   return [];
 }
 
+/**
+ * F07A vs the ACTIVE CANDLE. The forming bar's high–low column is cut out of
+ * any disc it crosses (the candle always wins). When that column runs through
+ * the disc's WORDS, the cut would print a wrong number ("41 ×7" read as
+ * "4 ×7"), so the words yield instead. `measure` is the same text measure the
+ * inscription was fitted with. True only when the column's box overlaps the
+ * inscription's box (centred on the disc).
+ */
+export function formingColumnCrossesWords(
+  col: { readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number } | null,
+  center: { readonly x: number; readonly y: number },
+  lines: readonly PlacedInscriptionLine[],
+  measure: (text: string, px: number, weight: 600 | 700) => number,
+): boolean {
+  if (!col || lines.length === 0) return false;
+  const halfW = Math.max(...lines.map(l => measure(l.text, l.px, l.weight))) / 2 + INSCRIPTION_PAD;
+  const halfH = Math.max(...lines.map(l => Math.abs(l.dy) + l.px / 2)) + 1;
+  return col.x1 > center.x - halfW && col.x0 < center.x + halfW && col.y1 > center.y - halfH && col.y0 < center.y + halfH;
+}
+
 export type BigTradeCalloutReason = "SELECTED" | "HOVERED" | "DOMINANT";
 export type BigTradeCalloutSilence = "FAR" | "NEAR_QUIET" | "NARROW_QUIET" | "NO_PRINT";
 
@@ -466,10 +486,19 @@ export function bigTradeCalloutLines(input: {
    * anchor print's price; the side of each member lives in Inspect.
    */
   readonly cluster?: { readonly n: number; readonly total: number } | null;
+  /**
+   * What `pct` ranks for a cluster. "LARGEST": the cluster's largest member
+   * print against the session's prints (like against like), and the line
+   * says so. Omitted: the legacy wording, no subject named.
+   */
+  readonly clusterRankOf?: "LARGEST";
 }): { readonly lines: readonly string[]; readonly receipt: string } | null {
-  const rank = input.pct == null
+  const rankWords = input.pct == null
     ? `UNRANKED · ${input.prints} SESSION PRINTS`
     : `${percentileOrdinal(input.pct)} PERCENTILE`;
+  const rank = input.cluster && input.cluster.n > 1 && input.clusterRankOf === "LARGEST" && input.pct != null
+    ? `LARGEST PRINT · ${rankWords}`
+    : rankWords;
   const pctReceipt = input.pct == null ? "UNRANKED" : (Math.floor(input.pct * 1000) / 10).toFixed(1);
   if (input.cluster && input.cluster.n > 1) {
     if (!(input.cluster.total > 0)) return null;
@@ -486,6 +515,31 @@ export function bigTradeCalloutLines(input: {
     lines: [claim.heading, `${size} @ ${input.priceText}`, rank],
     receipt: `ONE:${size}@${pctReceipt}`,
   };
+}
+
+/**
+ * THE SIZE A DISC IS RANKED BY (serving NQ1! 5m, 2026-10-06 08:39 CDT: a
+ * cluster of 7 small prints read "100.0TH PERCENTILE" and wore the WHALE
+ * crown). The session percentile compares PRINTS; a cluster's total is a sum
+ * of prints, so ranking it against single prints inflates it every time. A
+ * lone print is ranked by its own size; a cluster by its LARGEST member's.
+ */
+export function bigTradeRankSize(discValue: number, cluster: { readonly anchor: { readonly size: number }; readonly members: readonly unknown[] } | null | undefined): number {
+  if (cluster && cluster.members.length > 1 && Number.isFinite(cluster.anchor.size)) return Math.abs(cluster.anchor.size);
+  return Math.abs(discValue);
+}
+
+/**
+ * The Inspect card's words for the session rank — the SAME subject the canvas
+ * ranks (bigTradeRankSize): a lone print by its size, a cluster by its
+ * LARGEST member print. Never "combined size vs single prints".
+ */
+export function sessionRankWords(pct: number | null, prints: number, cluster: boolean): { readonly headline: string; readonly caption: string } {
+  if (pct == null) return { headline: "UNRANKED", caption: `UNRANKED · ${prints} session prints — too few for a percentile` };
+  const ord = percentileOrdinal(pct);
+  return cluster
+    ? { headline: `LARGEST PRINT · ${ord}`, caption: `The cluster's largest member print vs ${prints} single prints this chart captured this session — measured at selection` }
+    : { headline: ord, caption: `Size vs ${prints} single prints this chart captured this session — measured at selection` };
 }
 
 /* ═══ BIG TRADE CLUSTERS (F07B · GP12 §60 / §64) ═══════════════════════════

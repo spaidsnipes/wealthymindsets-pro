@@ -137,6 +137,8 @@ export function AssetClassSwitcher({ symbol, onSelect }: { symbol: string; onSel
       <button
         ref={btnRef}
         onClick={() => setOpen(o => !o)}
+        // 44px phone hit area around the 26px chip (globals.css .wm-tap-slop).
+        className="wm-tap-slop"
         title="Asset class — switch between Stocks, Crypto, Futures, Forex, Indices and Metals"
         style={{
           display: "flex", alignItems: "center", gap: 6, height: 26, padding: "0 10px",

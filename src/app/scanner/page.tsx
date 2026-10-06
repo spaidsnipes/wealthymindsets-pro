@@ -1,5 +1,6 @@
 "use client";
 
+import { scannerEmptyReason } from "@/lib/scanner/scannerEmptyReason";
 import toast from "react-hot-toast";
 // `strengthDisclosure` is deliberately NOT imported here. The page used to call
 // it at two render sites with `as number` casts; the sentence is now emitted by
@@ -639,6 +640,7 @@ export default function ScannerPage() {
   // result is missing, and the header needs both to state a denominator.
   const [round,         setRound]         = useState<ScannerQuoteRound | null>(null);
   const [loading,       setLoading]       = useState(true);
+  const [scanFailed,    setScanFailed]    = useState(false);
   const [search,        setSearch]        = useState("");
   const [preset,        setPreset]        = useState("all");
   const [sortKey,       setSortKey]       = useState<SortKey>("time");
@@ -703,6 +705,7 @@ export default function ScannerPage() {
       setRound(round);
       setResults(prev => buildResults(round.quotes, profiles, prev));
       setLastRefresh(Date.now());
+      setScanFailed(false);
       setLoading(false);
       // No fundamentals provider → read SEC share counts once, then fill only
       // the market-cap cell on the CURRENT rows (rebuilding from this round's
@@ -719,6 +722,7 @@ export default function ScannerPage() {
         });
       }
     } catch {
+      setScanFailed(true);
       setLoading(false);
     }
   }, []);
@@ -908,9 +912,9 @@ export default function ScannerPage() {
             wide, so every preset was invisible (measured 2026-10-03). */}
         <div className="wm-scanner-presets flex flex-1 min-w-[120px] items-center gap-1 ml-2 overflow-x-auto" style={{ scrollbarWidth:"none" }}>
           {PRESETS.map(p => (
-            <button key={p.id} onClick={() => applyPreset(p.id)}
+            <button key={p.id} onClick={() => applyPreset(p.id)} aria-pressed={preset===p.id}
               className={clsx("whitespace-nowrap px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all",
-                preset===p.id ? "bg-wm-blue/20 text-wm-blue border-wm-blue/40" : "text-wm-text-muted border-transparent hover:border-wm-border hover:text-wm-text"
+                preset===p.id ? "bg-wm-gold/15 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-transparent hover:border-wm-border hover:text-wm-text"
               )}>{p.label}</button>
           ))}
         </div>
@@ -920,15 +924,17 @@ export default function ScannerPage() {
             <input value={search} onChange={e => setSearch(e.target.value)} aria-label="Filter scanner by symbol" placeholder="Symbol..."
               className="bg-transparent text-xs text-wm-text outline-none w-24 placeholder-wm-text-dim"/>
           </div>
-          <button onClick={() => setFilterOpen(v => !v)}
+          {/* Canon sweep 2026-10-06: the house selected state is warm gold, and
+              it is told (aria-expanded / aria-pressed), not only tinted. */}
+          <button onClick={() => setFilterOpen(v => !v)} aria-expanded={filterOpen}
             className={clsx("flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border transition-all",
-              filterOpen ? "bg-wm-blue/15 text-wm-blue border-wm-blue/40" : "text-wm-text-muted border-wm-border hover:text-wm-text")}>
+              filterOpen ? "bg-wm-gold/15 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-wm-border hover:text-wm-text")}>
             <SlidersHorizontal size={11}/> Filters
           </button>
-          <button onClick={() => setLive(v => !v)}
+          <button onClick={() => setLive(v => !v)} aria-pressed={live}
             title="Controls automatic refresh cadence; it does not certify every row as real-time."
             className={clsx("wm-scanner-mobile-secondary flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border font-bold transition-all",
-              live ? "bg-wm-blue/15 text-wm-blue border-wm-blue/40" : "text-wm-text-muted border-wm-border")}>
+              live ? "bg-wm-gold/15 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-wm-border")}>
             {live ? <><Activity size={11}/> AUTO 30s</> : <><Pause size={11}/> Paused</>}
           </button>
           {failedRsiIdentities.length > 0 && (
@@ -1052,7 +1058,10 @@ export default function ScannerPage() {
             {filtered.length === 0 && !(loading && results.length === 0) && (
               <div className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-2">
                 <AlertCircle size={24} className="opacity-30"/>
-                <span className="text-xs">No signals match current filters</span>
+                <span className="text-xs text-center max-w-sm" data-testid="scanner-empty-reason">{scannerEmptyReason({
+                  resultsCount: results.length, scanFailed, lastRefreshAt: lastRefresh, search,
+                  signalsActive: activeSignals.length, signalsTotal: SIGNALS.length, minVol, minPct, sectors: selSectors,
+                })}</span>
               </div>
             )}
             {filtered.map((r0, idx) => {
@@ -1360,6 +1369,7 @@ export default function ScannerPage() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-4 py-1 border-t border-wm-border bg-wm-dark shrink-0 text-[9px] text-wm-text-dim">
         <span suppressHydrationWarning>
           {lastRefresh ? `Received: ${new Date(lastRefresh).toLocaleTimeString()}` : "Not yet received"}
+          {scanFailed && lastRefresh ? " · latest refresh failed — rows are from that time" : ""}
         </span>
         <span>·</span>
         <span>{filtered.length}/{results.length} results</span>

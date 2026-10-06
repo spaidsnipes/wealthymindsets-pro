@@ -1,4 +1,7 @@
 "use client";
+// Canon sweep 2026-10-06: station / track / studio accents are the house
+// graphite + warm-gold family (gold, bronze, champagne, copper) — no teal,
+// violet or cyan as decoration. Red stays only where it means ON AIR / LIVE.
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
@@ -79,11 +82,11 @@ type Show = {
 };
 const SHOWS: Show[] = [
   { id:"morning-bell", title:"Morning Bell",           host:"Host TBD", genre:"Trading Room", color:"#E8B923", status:"upcoming", motif:"chart", opens:"live"    },
-  { id:"wm-podcast",   title:"The Wealthy Mindset",    host:"Host TBD", genre:"Podcast",      color:"#8B5CF6", status:"upcoming", motif:"vinyl", opens:"podcast" },
-  { id:"culture-cap",  title:"Culture & Capital",      host:"Host TBD", genre:"Talk",         color:"#FF6B9D", status:"upcoming", motif:"kente", opens:"podcast" },
-  { id:"order-flow",   title:"Order Flow Masterclass", host:"Host TBD", genre:"Education",    color:"#4FA3E0", status:"upcoming", motif:"chart", opens:"live"    },
-  { id:"after-hours",  title:"After Hours Lounge",     host:"Host TBD", genre:"Music · Talk", color:"#059669", status:"upcoming", motif:"kente", opens:"podcast" },
-  { id:"chart-chill",  title:"Chart & Chill",          host:"Host TBD", genre:"Lo-Fi",        color:"#00D4AA", status:"upcoming", motif:"vinyl", opens:"live"    },
+  { id:"wm-podcast",   title:"The Wealthy Mindset",    host:"Host TBD", genre:"Podcast",      color:"#A88A5C", status:"upcoming", motif:"vinyl", opens:"podcast" },
+  { id:"culture-cap",  title:"Culture & Capital",      host:"Host TBD", genre:"Talk",         color:"#C47A5A", status:"upcoming", motif:"kente", opens:"podcast" },
+  { id:"order-flow",   title:"Order Flow Masterclass", host:"Host TBD", genre:"Education",    color:"#D9C08A", status:"upcoming", motif:"chart", opens:"live"    },
+  { id:"after-hours",  title:"After Hours Lounge",     host:"Host TBD", genre:"Music · Talk", color:"#8B6A29", status:"upcoming", motif:"kente", opens:"podcast" },
+  { id:"chart-chill",  title:"Chart & Chill",          host:"Host TBD", genre:"Lo-Fi",        color:"#C9A55C", status:"upcoming", motif:"vinyl", opens:"live"    },
 ];
 
 const TV_HERO_ART = "/images/community/wm-tv-host-studio-v1.jpg";
@@ -137,7 +140,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
           <div className="flex items-center gap-3">
             <motion.button onClick={onOpenLive} whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.03 }}
               className="flex items-center gap-2 px-6 h-11 rounded-xl text-black text-xs font-black"
-              style={{ background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 10px 26px rgba(232,185,35,0.3)" }}>
+              style={{ background: "linear-gradient(135deg,#E8B923,#8B6A29)", boxShadow: "0 10px 26px rgba(232,185,35,0.3)" }}>
               <Play size={15} /> Open Studio
             </motion.button>
             <motion.button onClick={onOpenPodcast} whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.03 }}
@@ -259,7 +262,7 @@ export default function WMTVPage() {
         <div className="flex items-center gap-2 px-3 py-3 border-b border-wm-border">
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-            style={{ background: "linear-gradient(135deg, #8B5CF6 0%, #FF4D6A 100%)" }}
+            style={{ background: "linear-gradient(135deg, #A88A5C 0%, #FF4D6A 100%)" }}
           >
             <Tv size={14} className="text-white" />
           </div>
@@ -294,7 +297,7 @@ export default function WMTVPage() {
                 activeId === c.id ? "bg-wm-black text-wm-text" : "text-wm-text-muted hover:bg-wm-black/50"
               }`}
             >
-              {c.kind === "live" ? <Radio size={13} className="text-wm-red shrink-0" /> : <Podcast size={13} className="text-wm-purple shrink-0" />}
+              {c.kind === "live" ? <Radio size={13} className="text-wm-red shrink-0" /> : <Podcast size={13} className="text-wm-gold shrink-0" />}
               <span className="text-xs font-bold truncate">{c.name}</span>
               {onAir && (onAir[`wmtv-${c.id}`] ?? 0) > 0
                 ? <span className="ml-auto text-[9px] font-black text-wm-red">ON AIR</span>
@@ -362,13 +365,13 @@ function LiveStage({ channel }: { channel: StageChannel }) {
   // Stable, shared room name per channel so everyone lands in the SAME room.
   const roomName  = `wmtv-${channel.id}`;
   const roomLabel = channel.name;
-  const color     = channel.kind === "live" ? "#FF4D6A" : "#8B5CF6";
+  const color     = channel.kind === "live" ? "#FF4D6A" : "#A88A5C";
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-wm-border bg-wm-dark shrink-0">
-        {channel.kind === "live" ? <Radio size={15} className="text-wm-red" /> : <Podcast size={15} className="text-wm-purple" />}
+        {channel.kind === "live" ? <Radio size={15} className="text-wm-red" /> : <Podcast size={15} className="text-wm-gold" />}
         <div>
           <h2 className="text-sm font-black text-wm-text">{channel.name}</h2>
           <p className="text-[10px] text-wm-text-muted">
@@ -415,12 +418,12 @@ function LiveStage({ channel }: { channel: StageChannel }) {
                 transition={{ duration: 2.6, repeat: Infinity }}
               >
                 {/* Green + pulse only when the studio is actually READY (garden pass 2026-10-04). */}
-                <span className={`w-2 h-2 rounded-full ${studio === "READY" ? "animate-pulse" : ""}`} style={{ background: studio === "READY" ? "#059669" : studio === "CHECKING" ? "#8a8271" : "#c05a4a" }} />
+                <span className={`w-2 h-2 rounded-full ${studio === "READY" ? "animate-pulse" : ""}`} style={{ background: studio === "READY" ? "#8B6A29" : studio === "CHECKING" ? "#8a8271" : "#c05a4a" }} />
                 <span className="text-[10px] font-black tracking-widest" style={{ color: "#E8B923" }}>STUDIO · {studioWord(studio)}</span>
               </motion.div>
               <motion.div
                 className="w-16 h-16 rounded-2xl mb-4 flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg, #E8B923 0%, #059669 100%)", boxShadow: "0 12px 32px rgba(232,185,35,0.30)" }}
+                style={{ background: "linear-gradient(135deg, #E8B923 0%, #8B6A29 100%)", boxShadow: "0 12px 32px rgba(232,185,35,0.30)" }}
                 animate={{ scale: [1, 1.04, 1] }} transition={{ duration: 3, repeat: Infinity }}
               >
                 {channel.kind === "live" ? <MonitorUp size={28} className="text-black" /> : <Podcast size={28} className="text-black" />}
@@ -438,7 +441,7 @@ function LiveStage({ channel }: { channel: StageChannel }) {
                 {isWmHost && <motion.button
                   onClick={() => setRole("host")} whileTap={{ scale: 0.95 }} whileHover={{ scale: 1.03 }}
                   className="flex items-center gap-2 px-6 h-11 rounded-xl text-black text-xs font-black"
-                  style={{ background: "linear-gradient(135deg, #E8B923 0%, #059669 100%)", boxShadow: "0 8px 24px rgba(232,185,35,0.30)" }}
+                  style={{ background: "linear-gradient(135deg, #E8B923 0%, #8B6A29 100%)", boxShadow: "0 8px 24px rgba(232,185,35,0.30)" }}
                 >
                   <Video size={15} /> Join Stream
                 </motion.button>}
@@ -480,7 +483,7 @@ function ChatChannel({ channel }: { channel: TextChannel }) {
   const send = () => {
     const body = draft.trim();
     if (!body) return;
-    setMsgs(m => [...m, { id: `${Date.now()}`, author: "You", color: "#00D4AA", body, ts: Date.now() }]);
+    setMsgs(m => [...m, { id: `${Date.now()}`, author: "You", color: "#C9A55C", body, ts: Date.now() }]);
     setDraft("");
   };
 
@@ -545,13 +548,13 @@ function ChatChannel({ channel }: { channel: TextChannel }) {
 /* ── Brain Fitness channel — mindset & focus training for traders ── */
 type Drill = { icon: React.ReactNode; title: string; time: string; desc: string; color: string };
 const BRAIN_DRILLS: Drill[] = [
-  { icon: <Timer size={18} />,    title: "Box Breathing Reset",  time: "4 min", color: "#00D4AA",
+  { icon: <Timer size={18} />,    title: "Box Breathing Reset",  time: "4 min", color: "#C9A55C",
     desc: "Inhale 4s · hold 4s · exhale 4s · hold 4s. Regulate your nervous system before the open so fear and FOMO don't drive your clicks." },
-  { icon: <Target size={18} />,   title: "Single-Task Focus",    time: "10 min", color: "#4FA3E0",
+  { icon: <Target size={18} />,   title: "Single-Task Focus",    time: "10 min", color: "#D9C08A",
     desc: "Pick ONE setup. Watch only that. Train the discipline to sit on your hands until your edge appears — the hardest skill in trading." },
   { icon: <Sparkles size={18} />, title: "Visualization Rep",    time: "5 min", color: "#F0B429",
     desc: "Rehearse taking the perfect trade AND the perfect loss. Emotional reps build the calm to execute your plan under real pressure." },
-  { icon: <Dumbbell size={18} />, title: "Working-Memory Drill", time: "6 min", color: "#8B5CF6",
+  { icon: <Dumbbell size={18} />, title: "Working-Memory Drill", time: "6 min", color: "#A88A5C",
     desc: "Recall the last 5 price levels without looking. Sharpen the mental RAM you use to track order flow and multi-timeframe context." },
   { icon: <Brain size={18} />,    title: "Post-Session Review",  time: "8 min", color: "#FF4D6A",
     desc: "Write one lesson, one win, one mistake. Neuroplasticity turns reflection into instinct — this is how good traders compound." },
@@ -562,10 +565,10 @@ const BRAIN_DRILLS: Drill[] = [
 /* ── Brain Fitness activity types — what the community does together ── */
 type BFActivity = { id: string; icon: React.ReactNode; title: string; blurb: string; color: string; status: string };
 const BRAIN_ACTIVITIES: BFActivity[] = [
-  { id:"learn",      icon:<GraduationCap size={16}/>, title:"Learn Together",   color:"#00D4AA", status:"When a host goes live", blurb:"Guided group lessons on mindset, risk & the inner game of trading." },
-  { id:"books",      icon:<BookOpen size={16}/>,      title:"Book Discussions", color:"#4FA3E0", status:"Pick shared in room", blurb:"Read the classics together — one chapter, one conversation at a time." },
+  { id:"learn",      icon:<GraduationCap size={16}/>, title:"Learn Together",   color:"#C9A55C", status:"When a host goes live", blurb:"Guided group lessons on mindset, risk & the inner game of trading." },
+  { id:"books",      icon:<BookOpen size={16}/>,      title:"Book Discussions", color:"#D9C08A", status:"Pick shared in room", blurb:"Read the classics together — one chapter, one conversation at a time." },
   { id:"games",      icon:<Gamepad2 size={16}/>,      title:"Brain Games",      color:"#F0B429", status:"Play now ↓",          blurb:"Memory, focus & pattern drills — play solo or together in a session." },
-  { id:"challenges", icon:<Trophy size={16}/>,        title:"Challenges",       color:"#8B5CF6", status:"Planned",             blurb:"Weekly discipline & focus challenges with honest, private progress." },
+  { id:"challenges", icon:<Trophy size={16}/>,        title:"Challenges",       color:"#A88A5C", status:"Planned",             blurb:"Weekly discipline & focus challenges with honest, private progress." },
   { id:"workshops",  icon:<Target size={16}/>,        title:"Workshops",        color:"#FF4D6A", status:"Planned",             blurb:"Deep-dive live workshops with hosts and guest practitioners." },
   { id:"study",      icon:<Timer size={16}/>,         title:"Study Sessions",   color:"#06B6D4", status:"Planned",             blurb:"Focused co-working rooms — show up, lock in, and grow with others." },
   { id:"replays",    icon:<Play size={16}/>,          title:"Replays",          color:"#94A3B8", status:"After first live",    blurb:"Catch sessions you missed once recordings are available." },
@@ -733,7 +736,7 @@ function BrainFitnessChannel() {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center gap-3 px-5 py-3 border-b border-wm-border bg-wm-dark shrink-0">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background:"linear-gradient(135deg,#00D4AA,#8B5CF6)" }}>
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background:"linear-gradient(135deg,#C9A55C,#A88A5C)" }}>
             <Brain size={16} className="text-white" />
           </div>
           <div>
@@ -746,7 +749,7 @@ function BrainFitnessChannel() {
             key={live}
             roomName="wmtv-brain-fitness"
             roomLabel="Brain Fitness Live"
-            color="#00D4AA"
+            color="#C9A55C"
             userName={userName}
             isHost={live === "host"}
             onClose={() => setLive(null)}
@@ -760,7 +763,7 @@ function BrainFitnessChannel() {
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-wm-border bg-wm-dark shrink-0">
         <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: "linear-gradient(135deg,#00D4AA,#8B5CF6)" }}>
+          style={{ background: "linear-gradient(135deg,#C9A55C,#A88A5C)" }}>
           <Brain size={18} className="text-white" />
         </div>
         <div>
@@ -773,7 +776,7 @@ function BrainFitnessChannel() {
         {/* ── Next live session ── */}
         <section className="rounded-2xl p-5 relative overflow-hidden" style={{ background:"#0B1220", border:"1px solid #1E2A3A" }}>
           <div className="pointer-events-none absolute inset-0" style={{
-            background: "radial-gradient(60% 80% at 85% 20%, rgba(0,212,170,0.14) 0%, transparent 60%), radial-gradient(60% 80% at 10% 90%, rgba(139,92,246,0.12) 0%, transparent 60%)",
+            background: "radial-gradient(60% 80% at 85% 20%, rgba(196,165,116,0.14) 0%, transparent 60%), radial-gradient(60% 80% at 10% 90%, rgba(139,92,246,0.12) 0%, transparent 60%)",
           }} />
           <div className="relative">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-wm-text-muted mb-1">
@@ -787,18 +790,18 @@ function BrainFitnessChannel() {
               {clock.countdown === "ENDED"
                 ? <span className="text-wm-text-muted">The kickoff ran {clock.when}. The next one appears here when a host schedules it.</span>
                 : <span className="font-bold text-wm-text">{clock.when || "Loading time…"}</span>}
-              {clock.countdown && clock.countdown !== "ENDED" && <span className="px-2 py-0.5 rounded-full text-[10px] font-black text-wm-green" style={{ background:"#00D4AA1E", border:"1px solid #00D4AA44" }}>{clock.countdown}</span>}
+              {clock.countdown && clock.countdown !== "ENDED" && <span className="px-2 py-0.5 rounded-full text-[10px] font-black text-wm-green" style={{ background:"#C9A55C1E", border:"1px solid #C9A55C44" }}>{clock.countdown}</span>}
             </div>
 
             <div className="flex flex-wrap items-center gap-2 mt-4">
               {isWmHost && <button onClick={() => setLive("host")}
                 className="flex items-center gap-1.5 text-[12px] font-black px-4 py-2 rounded-xl text-white transition-transform hover:scale-[1.03]"
-                style={{ background:"linear-gradient(135deg,#00D4AA,#059669)" }}>
+                style={{ background:"linear-gradient(135deg,#C9A55C,#8B6A29)" }}>
                 <Radio size={13} /> Go Live (Host)
               </button>}
               <button onClick={() => setLive("viewer")}
                 className="flex items-center gap-1.5 text-[12px] font-black px-4 py-2 rounded-xl transition-colors"
-                style={{ background:"#8B5CF622", color:"#A78BFA", border:"1px solid #8B5CF655" }}>
+                style={{ background:"#A88A5C22", color:"#A78BFA", border:"1px solid #A88A5C55" }}>
                 <Eye size={13} /> Join Live Room
               </button>
               {clock.countdown !== "ENDED" && <a href={bfCalendarUrl()} target="_blank" rel="noopener noreferrer"

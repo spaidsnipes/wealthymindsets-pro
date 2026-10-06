@@ -474,7 +474,7 @@ function LiveNewsPlayer() {
         actually permits the scroll: without it a flex child refuses to shrink
         below its content and overflows the parent instead.
       */}
-      <div className="flex items-center gap-2 px-3 h-9 border-b border-wm-border shrink-0">
+      <div className="flex items-center gap-2 px-3 min-h-9 border-b border-wm-border shrink-0">
         {/* LIVE only when a channel is actually live now (garden pass
             2026-10-04: a pulsing "LIVE NEWS" showed while loading, with every
             channel offline, and when the check itself failed). */}
@@ -486,7 +486,7 @@ function LiveNewsPlayer() {
         )}
         <div className="flex gap-1 ml-2 min-w-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {LIVE_STREAMS.map((s, i) => (
-            <button key={s.label} onClick={() => setActiveIdx(i)}
+            <button key={s.label} onClick={() => setActiveIdx(i)} aria-pressed={activeIdx === i}
               className={clsx(
                 "flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-semibold transition-all border shrink-0 whitespace-nowrap",
                 activeIdx === i
@@ -940,10 +940,13 @@ export default function NewsPage() {
             <button
               key={f}
               onClick={() => setTagFilter(f)}
+              aria-pressed={tagFilter === f}
               className={clsx(
                 "px-2 py-1 rounded text-[10px] font-medium transition-all",
                 tagFilter === f
-                  ? "bg-wm-blue/20 text-wm-blue border border-wm-blue/40"
+                  // Canon sweep 2026-10-06: the house selected state (gold), as
+                  // the source row below already wears — not a lone blue.
+                  ? "bg-wm-gold/15 text-wm-gold border border-wm-gold/30"
                   : "text-wm-text-muted hover:text-wm-text"
               )}
             >
@@ -966,6 +969,7 @@ export default function NewsPage() {
             <button
               key={s}
               onClick={() => hasArticles ? setSourceFilter(s) : setShowKeys(true)}
+              aria-pressed={hasArticles ? sourceFilter === s : undefined}
               title={hasArticles ? undefined : keyUnlockable ? `Connect your API key to unlock ${s}` : `Limited access — no live ${s} articles right now`}
               className={clsx(
                 "px-2.5 py-1 rounded-full text-[10px] font-medium whitespace-nowrap transition-all border shrink-0 flex items-center gap-1",

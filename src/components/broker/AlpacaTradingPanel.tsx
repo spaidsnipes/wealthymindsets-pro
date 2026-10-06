@@ -5,6 +5,7 @@
  * Live execution is unavailable until the canonical firewall is certified.
  */
 
+import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -194,9 +195,12 @@ export function AlpacaTradingPanel({
   // is the exact state the Founder called out: connected, and still no numbers.
   //
   // Every outcome renders, including refusals. Nothing is collapsed to null.
-  const [ttQuote, setTtQuote] = useState<
+  // Garden 18 §4: the quote is stored WITH the symbol it was asked for — it was
+  // never reset on a switch, so the previous symbol's quote stood under the
+  // new ticket until the new answer landed.
+  const [ttQuote, setTtQuote] = useSymbolOwnedState<
     { outcome: string; note: string; items: Array<Record<string, unknown>> } | null
-  >(null);
+  >(symbol.trim().toUpperCase(), null);
   useEffect(() => {
     if (!ttStatus?.connected) { setTtQuote(null); return; }
     const sym = symbol.trim().toUpperCase();
@@ -210,7 +214,7 @@ export function AlpacaTradingPanel({
         if (alive) setTtQuote({ outcome: "NOT_ASKED", note: "WM Pro could not reach its own quote route.", items: [] });
       });
     return () => { alive = false; };
-  }, [ttStatus?.connected, symbol]);
+  }, [ttStatus?.connected, symbol, setTtQuote]);
 
   const loadAccount = useCallback(async () => {
     accountRead.current?.cancel();

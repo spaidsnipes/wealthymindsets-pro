@@ -95,6 +95,12 @@ export interface RegimeLightingVM {
   readonly field: RegimeField | null;
   /** The compact title a breaker earns ("REGIME · TREND · magnets dim"); null with no breaker. */
   readonly title: string | null;
+  /**
+   * What the title's word measured, set by the chart's scope reader
+   * (scopeRegimeLighting): AGREE / SCOPED · CONTRADICTION:<tape>/<bars> ·
+   * BARS_UNREAD · NO_VERDICT. Absent = not scoped.
+   */
+  readonly scope?: string;
 }
 
 const BREAKER: Readonly<Record<RegimeVerdict, RegimeBreaker | null>> = {

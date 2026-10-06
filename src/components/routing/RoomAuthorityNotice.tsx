@@ -128,7 +128,7 @@ export function RoomAuthorityNotice({ href }: RoomAuthorityNoticeProps): React.R
             // height comes from padding rather than a fixed box that would
             // stretch the plate on a phone.
             padding: "10px 12px",
-            minHeight: 40,
+            minHeight: 44, // phone tap floor (measured 115x40 at 390, 2026-10-06)
             display: "inline-flex",
             alignItems: "center",
             flexShrink: 0,

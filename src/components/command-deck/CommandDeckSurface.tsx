@@ -491,18 +491,31 @@ const RAIL_LABEL: React.CSSProperties = {
 };
 
 /**
+ * EVERY OTHER LABEL DROPS ONE LINE — measured 2026-10-06 on /charts at 1440
+ * (deck 316px wide): seven 9px words in a ~270px rail ran into each other —
+ * "ObservingApproach", "ManagingPost-Exit" — each label 1–2px wider than its
+ * press (Observing 41 in 40, Approach 39 in 37, Post-Exit 37 in 35), and the
+ * clamp's 280px floor at 1280 makes it worse. The type floor forbids going
+ * under 9px, so the rail staggers instead: alternate labels sit one line
+ * lower, and a label may then borrow its neighbours' width without ever
+ * sharing a line with them. Positional, not semantic — the lit/pressed ink is
+ * unchanged.
+ */
+const RAIL_LABEL_DROP: React.CSSProperties = { marginTop: 11 };
+
+/**
  * A stop with no press of its own (MANAGING — lit WITH In Trade, because both
  * are the chain's one POSITION phase). A plaque, not a button: a second button
  * writing the same stage would be two controls for one fact.
  */
-function RailPlaque({ label, lit, tense }: { label: string; lit: boolean; tense: StopTense }): React.ReactElement {
+function RailPlaque({ label, lit, tense, drop = false }: { label: string; lit: boolean; tense: StopTense; drop?: boolean }): React.ReactElement {
   return (
     <span
       data-rail-plaque={label}
       style={{ flex: "1 1 0", minWidth: 0, minHeight: 48, padding: "0 1px 2px", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, fontFamily: SERIF }}
     >
       <span aria-hidden="true" data-node={tense} style={nodeStyle(false, lit, tense)} />
-      <span style={{ ...RAIL_LABEL, color: lit ? GOLD : tense === "past" ? "#a8997a" : MUTED }}>{label}</span>
+      <span style={{ ...RAIL_LABEL, ...(drop ? RAIL_LABEL_DROP : null), color: lit ? GOLD : tense === "past" ? "#a8997a" : MUTED }}>{label}</span>
     </span>
   );
 }
@@ -535,6 +548,14 @@ export function LifecycleRail({
     stage !== null &&
     stop.stages.includes(stage) &&
     (stop.presses.length === 1 || stageForPhase(press) === stage);
+
+  // Position of every label along the rail (plaques and presses alike), so
+  // the stagger alternates across the whole rail, not within one stop.
+  const labelSlot = new Map<string, number>();
+  LIFECYCLE_RAIL.forEach((stop) => {
+    if (stop.presses.length === 0) labelSlot.set(`plaque:${stop.id}`, labelSlot.size);
+    stop.presses.forEach((press) => labelSlot.set(`press:${press}`, labelSlot.size));
+  });
 
   return (
     <div
@@ -585,7 +606,7 @@ export function LifecycleRail({
                 style={{ display: "flex", justifyContent: "center", gap: 2, minWidth: 0 }}
               >
                 {stop.presses.length === 0 ? (
-                  <RailPlaque label={stop.label} lit={tense === "lit"} tense={tense} />
+                  <RailPlaque label={stop.label} lit={tense === "lit"} tense={tense} drop={(labelSlot.get(`plaque:${stop.id}`) ?? 0) % 2 === 1} />
                 ) : null}
                 {stop.presses.map((press) => {
                   const on = pressed(stop, press);
@@ -616,7 +637,11 @@ export function LifecycleRail({
                     >
                       <span aria-hidden="true" data-node={on ? "lit" : tense} style={nodeStyle(on, lit, tense)} />
                       <span
-                        style={{ ...RAIL_LABEL, color: on ? PEARL : lit ? GOLD : tense === "past" ? "#a8997a" : MUTED }}
+                        style={{
+                          ...RAIL_LABEL,
+                          ...((labelSlot.get(`press:${press}`) ?? 0) % 2 === 1 ? RAIL_LABEL_DROP : null),
+                          color: on ? PEARL : lit ? GOLD : tense === "past" ? "#a8997a" : MUTED,
+                        }}
                       >
                         {label}
                       </span>

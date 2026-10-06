@@ -86,7 +86,10 @@ describe("Living Profile view wiring", () => {
     // Pin moved 2026-09-27 (volumeTruth.ts): the session bars pass the volume
     // gate first and placeholder-volume feeds hand no tape — still both
     // sources, still no choice made here.
-    expect(src).toMatch(/buildLivingProfileSnapshot\(\s*volumeIsReal \? recentTicks : null,\s*livingSessionBars\s*\)/);
+    // Pin updated 2026-10-06 (P0.2): the third argument is the instrument's
+    // tick from the one tick owner (instrumentTickFor) — a grid, not a source
+    // choice; tape-vs-bars is still decided inside the snapshot owner.
+    expect(src).toMatch(/buildLivingProfileSnapshot\(\s*volumeIsReal \? recentTicks : null,\s*livingSessionBars\s*(,\s*instrumentTickFor\(symbol, ticker\.price\)\s*)?\)/);
     expect(src).toMatch(/livingSessionBars\s*=\s*React\.useMemo\(\s*\(\)\s*=>\s*selectSessionWindowBars\(\[\.\.\.volumeBars\],\s*sessionWindowFor\(/);
     expect(src).toMatch(/volumeBars\s*=\s*React\.useMemo\(\(\)\s*=>\s*volumeBearingBars\(symbol,\s*chartBars\)/);
     // And it must not reach around that owner into the engine.

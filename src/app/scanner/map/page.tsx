@@ -978,9 +978,16 @@ export default function OpportunityMapPage() {
       {activeView !== "Markov" && activeView !== "VP" && (
       <div
         ref={containerRef}
+        className="wm-heat-pane"
         style={{
           flex: 1,
           overflow: "auto",
+          // Desktop: the pane scrolls inside the fixed frame and contains its
+          // overscroll. PHONE: see `.wm-heat-pane` in globals.css — there the
+          // frame is released, this pane grows to its content and never
+          // scrolls vertically itself, and a Y "contain" swallowed every
+          // vertical swipe that started on the map (MEASURED 2026-10-06 at
+          // 390x844: the 4753px page could not be scrolled from the map).
           overscrollBehavior: "contain",
           WebkitOverflowScrolling: "touch",
           touchAction: "pan-x pan-y",

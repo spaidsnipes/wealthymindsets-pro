@@ -3,6 +3,7 @@ import {
   fitWeatherLens, ladderRungYs, lensDistance, LENS_MIN_RX, LENS_MIN_RY, poolSpan,
   scaleAngle, SCALE_HEAVY_T, SCALE_THIN_T, wordOnTopArc, PHASE_WORD,
   weatherLensGate, LENS_MIN_BARS, LENS_MIN_REGION_W, ladderInk, STANDING_AGE_FLOOR, splitAtBites,
+  liveEdgeKeepOutX, LENS_LIVE_EDGE_BARS, lensRadiusCapFor,
 } from "./liquidityGlassGeometry";
 import { candleCutOutRects } from "@/lib/chartKeepOut";
 
@@ -255,5 +256,48 @@ describe("the tablet loupe stands on part of the glass (2026-10-04)", () => {
     expect(Math.max(uncapped.rx, uncapped.ry)).toBeGreaterThan(300);
     // The desk is capped too (2026-10-04): the loupe stands beside the Smart Money marks.
     expect(lensRadiusCapFor(1400)).toBeCloseTo(1400 * 0.17, 5);
+  });
+});
+
+describe("F08B — the live edge stays OUTSIDE the loupe (plate beside serving NQ1! 5m, 2026-10-06)", () => {
+  const plot = { x0: 18, y0: 120, x1: 1230, y1: 660 };
+  const bsp = 8;
+  const xNewest = 1210;
+  const edge = liveEdgeKeepOutX(xNewest, bsp)!;
+
+  it("the keep-out covers the newest LENS_LIVE_EDGE_BARS bars", () => {
+    expect(edge).toBeLessThan(xNewest - bsp * (LENS_LIVE_EDGE_BARS - 1) - bsp / 2 + 0.001);
+    expect(liveEdgeKeepOutX(null, bsp)).toBeNull();
+    expect(liveEdgeKeepOutX(xNewest, 0)).toBeNull();
+  });
+
+  it("a window measured up to NOW: the whole ring stands left of the newest candles, and says PARTIAL", () => {
+    const region = { x0: 900, y0: 200, x1: xNewest + bsp / 2, y1: 420 };
+    const L = fitWeatherLens(region, plot, { maxRadius: lensRadiusCapFor(1230), liveEdgeX: edge })!;
+    expect(L).not.toBeNull();
+    expect(L.cx + L.rx).toBeLessThanOrEqual(edge + 0.001);
+    expect(L.partial).toBe(true);
+    // Still over the window it measured (its older part), not off in history.
+    expect(L.cx + L.rx).toBeGreaterThan(region.x0);
+  });
+
+  it("without the keep-out the same window put the ring over the newest bars (the serving divergence)", () => {
+    const region = { x0: 900, y0: 200, x1: xNewest + bsp / 2, y1: 420 };
+    const L = fitWeatherLens(region, plot, { maxRadius: lensRadiusCapFor(1230) })!;
+    expect(L.cx + L.rx).toBeGreaterThan(edge);
+  });
+
+  it("a window that ends before the keep-out is enclosed whole and is not PARTIAL", () => {
+    const region = { x0: 500, y0: 300, x1: 640, y1: 360 };
+    const L = fitWeatherLens(region, plot, { liveEdgeX: edge })!;
+    expect(L.partial).toBeFalsy();
+    for (const [x, y] of [[500, 300], [640, 300], [500, 360], [640, 360]]) expect(lensDistance(L, x, y)).toBeLessThanOrEqual(1);
+  });
+
+  it("a pane too narrow for a loupe beside the live edge waives the keep-out (never no lens at all)", () => {
+    const small = { x0: 0, y0: 120, x1: 260, y1: 600 };
+    const region = { x0: 100, y0: 200, x1: 250, y1: 400 };
+    const L = fitWeatherLens(region, small, { liveEdgeX: 150 });
+    expect(L).not.toBeNull();
   });
 });

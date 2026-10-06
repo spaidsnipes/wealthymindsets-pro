@@ -87,6 +87,23 @@ export interface ChartContextInput {
   readonly priceProvenance?: unknown;
   readonly change?: unknown;
   readonly changePct?: unknown;
+  /**
+   * Garden 18 §8 (2026-10-06) — EVIDENCE MUST CARRY SOURCE + FRESHNESS.
+   * `source` is the feed the chart's quote came from ("tastytrade", "yahoo"…);
+   * `observedAt` is the epoch-ms the feed last delivered an observation. Both
+   * cross the wire from a client, so both are re-validated: a non-string or
+   * out-of-shape source and a non-finite or future time collapse to UNKNOWN,
+   * and UNKNOWN is said out loud.
+   */
+  readonly source?: unknown;
+  readonly observedAt?: unknown;
+  /**
+   * The Decision_ID the trader's scene already holds for this instrument, read
+   * by the client from the ONE decision store (decisionContinuity). SpaidBot
+   * keeps no decision store of its own; a thesis it proposes belongs to this
+   * id, and is recorded only when the trader records it.
+   */
+  readonly decisionId?: unknown;
 }
 
 /**
@@ -126,7 +143,56 @@ const num = (v: unknown): number | null =>
  * Returns the note to append, or "" when there is no symbol to talk about.
  * Never throws on a malformed body — every field is treated as `unknown`.
  */
-export function formatChartContextNote(context: ChartContextInput | null | undefined): string {
+/** A feed name we will repeat to the model — short, plain, no markup. */
+function cleanSource(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return /^[A-Za-z0-9 ._\-/]{1,32}$/.test(t) && t.toLowerCase() !== "unavailable" ? t : null;
+}
+
+function cleanDecisionId(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return /^[A-Za-z0-9_\-:.]{3,80}$/.test(t) ? t : null;
+}
+
+/** Tolerance for a client clock ahead of the server (same bound as paper quotes). */
+const FUTURE_SKEW_MS = 5 * 60_000;
+
+function ageWords(ms: number): string {
+  const s = Math.round(ms / 1000);
+  if (s < 90) return `${s}s`;
+  const m = Math.round(s / 60);
+  if (m < 90) return `${m} min`;
+  return `${Math.round(m / 60)} h`;
+}
+
+/**
+ * The evidence tail: source, freshness and decision identity. Pure — the
+ * caller supplies `nowMs` (the route passes its own clock). Without `nowMs`
+ * the as-of time is printed but no age is claimed.
+ */
+export function formatEvidenceTail(context: ChartContextInput, nowMs?: number): string {
+  const src = cleanSource(context.source);
+  let tail = src ? ` [source ${src}]` : " [source UNKNOWN]";
+  const at = num(context.observedAt);
+  const valid = at !== null && at > 0 && (nowMs === undefined || at <= nowMs + FUTURE_SKEW_MS);
+  if (valid) {
+    const iso = new Date(at).toISOString().replace(/\.\d{3}Z$/, "Z");
+    tail += nowMs === undefined
+      ? ` [last observed ${iso}]`
+      : ` [last observed ${iso}, ${ageWords(Math.max(0, nowMs - at))} before this question]`;
+  } else {
+    tail += " [as-of time UNKNOWN — treat every chart figure as possibly stale]";
+  }
+  const id = cleanDecisionId(context.decisionId);
+  tail += id
+    ? ` [Decision_ID ${id} — a thesis you propose belongs to this decision and is recorded only when the trader records it in the Journal]`
+    : " [no Decision_ID on this chart — a thesis you propose is not a decision until the trader records one]";
+  return tail;
+}
+
+export function formatChartContextNote(context: ChartContextInput | null | undefined, nowMs?: number): string {
   if (!context) return "";
   const symbol = typeof context.symbol === "string" ? context.symbol.trim() : "";
   if (!symbol) return "";
@@ -172,6 +238,8 @@ export function formatChartContextNote(context: ChartContextInput | null | undef
     // Named, not silent. This sentence is the whole point of the file.
     note += ", day change unavailable — do not state or imply a daily move";
   }
+
+  note += formatEvidenceTail(context, nowMs);
 
   return `\n\n${note}]`;
 }

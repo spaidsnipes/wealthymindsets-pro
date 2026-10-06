@@ -27,6 +27,7 @@ import { openSettings } from "@/components/layout/shellPanels";
 import { tastytradeEntryFields, type TastytradeEntryType } from "@/lib/broker/tastytradeEntryFields";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 
 import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/TastytradeLiveOrder";
 import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -84,8 +85,11 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const audience = useBrokerAudience();
   // §LXXX: the trader's master switch, visible before any order is built.
   const liveArmed = useGuardrails().liveArmed;
-  const [contract, setContract] = useState<{ symbol: string; streamer: string } | null>(null);
-  const [contractWhy, setContractWhy] = useState<string | null>(null);
+  // Garden 18 §4: the contract belongs to the symbol it was named for — the
+  // first frame after a switch used to quote the PREVIOUS symbol's contract.
+  const contractKey = `${symbol.toUpperCase()}|${kind}`;
+  const [contract, setContract] = useSymbolOwnedState<{ symbol: string; streamer: string } | null>(contractKey, null);
+  const [contractWhy, setContractWhy] = useSymbolOwnedState<string | null>(contractKey, null);
 
   // The actual contract — never a continuous symbol routed blind (§LXX).
   useEffect(() => {
@@ -105,7 +109,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
       else setContractWhy("This coin has no USD pair WM can name exactly.");
     }
     return () => { live = false; };
-  }, [symbol, kind]);
+  }, [symbol, kind, setContract, setContractWhy]);
 
   const snap = useTastyQuotes(contract ? [contract.streamer] : []);
   const q = contract ? snap.quotes.get(contract.streamer) : undefined;

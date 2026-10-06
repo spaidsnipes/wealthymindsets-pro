@@ -240,3 +240,17 @@ export function displayPrecisionReading(symbol: string, bars: readonly Precision
 export function displayPrecisionFor(symbol: string, bars: readonly PrecisionBar[]): number {
   return displayPrecisionReading(symbol, bars).dp;
 }
+
+/**
+ * THE INSTRUMENT'S TICK, for anything that paints a price derived from a grid
+ * of its own (profile buckets, value-area edges). Read from the ONE tick owner
+ * (contractEconomics.instrumentEconomics: futures contract specs, US equity
+ * $0.01 at/above $1 and $0.0001 below). Null when no tick is on file — crypto
+ * venues, spot FX, unknown instruments — and then nothing is snapped: rounding
+ * to a guessed grid would be a second fabrication. (P0.2, 2026-10-06.)
+ */
+export function instrumentTickFor(symbol: string, refPrice: number | null | undefined): number | null {
+  if (!symbol) return null;
+  const e = instrumentEconomics(symbol, refPrice != null && Number.isFinite(refPrice) ? refPrice : null);
+  return e.status === "PRICED" && typeof e.tickSize === "number" && e.tickSize > 0 ? e.tickSize : null;
+}

@@ -162,7 +162,7 @@ export default function ShopPage() {
       if (existing) return c.map(x => x.id === id ? { ...x, qty: x.qty + 1 } : x);
       return [...c, { id, qty: 1 }];
     });
-    toast.success(`${name} added to cart`, { icon: "🛍️" });
+    toast.success(`${name} saved to your concept cart — checkout not connected`, { icon: "🛍️" });
   };
 
   const changeQty = (id: number, delta: number) => {
@@ -240,7 +240,7 @@ export default function ShopPage() {
         {/* Wraps on a phone: at 390 the search box ran 7px past the edge (measured 2026-10-03). */}
         <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-3">
           {/* Search */}
-          <div className="flex min-w-0 items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
+          <div className="flex min-w-0 min-h-11 md:min-h-0 items-center gap-2 bg-wm-surface border border-wm-border rounded-lg px-2.5 py-1">
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products…" aria-label="Search products"
               className="bg-transparent text-xs text-wm-text outline-none w-28 sm:w-32 min-w-0 placeholder-wm-text-dim" />
             {search && <button type="button" aria-label="Clear search" onClick={() => setSearch("")} className="text-wm-text-dim hover:text-wm-text"><X size={11}/></button>}
@@ -248,16 +248,19 @@ export default function ShopPage() {
           {/* Category filters — scroll sideways on a phone rather than run off it. */}
           <div className="flex max-w-full gap-1 overflow-x-auto">
             {CATEGORIES.map(c => (
-              <button key={c} onClick={() => setCat(c)}
-                className={clsx("shrink-0 px-3 py-1 rounded text-xs font-medium transition-all",
-                  cat === c ? "bg-wm-gold/20 text-wm-gold border border-wm-gold/40" : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface")}>
+              // Canon sweep 2026-10-06: resting chips carry their own graphite
+              // plate — on the cream catalogue they were muted ink on cream and
+              // all but vanished (1440). 44px tall on phone; state is told.
+              <button key={c} onClick={() => setCat(c)} aria-pressed={cat === c}
+                className={clsx("shrink-0 min-h-11 md:min-h-0 px-3 py-1 rounded text-xs font-medium transition-all",
+                  cat === c ? "bg-wm-gold/20 text-wm-gold border border-wm-gold/40" : "bg-wm-surface/85 border border-wm-border text-wm-text-muted hover:text-wm-text hover:bg-wm-surface")}>
                 {c}
               </button>
             ))}
           </div>
           {/* Cart button */}
           <button onClick={() => setCartOpen(true)}
-            className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-wm-gold/15 border border-wm-gold/30 text-wm-gold text-xs font-semibold hover:bg-wm-gold/20 transition-colors">
+            className="relative flex min-h-11 md:min-h-0 items-center gap-1.5 px-3 py-1.5 rounded-lg bg-wm-gold/15 border border-wm-gold/30 text-wm-gold text-xs font-semibold hover:bg-wm-gold/20 transition-colors">
             <ShoppingCart size={13} />
             Cart
             {cartCount > 0 && (
@@ -323,8 +326,8 @@ export default function ShopPage() {
                 </button>
 
                 <button onClick={e => { e.stopPropagation(); addToCart(product.id, product.name); }}
-                  aria-label={`Add ${product.name} to cart`}
-                  className="absolute bottom-3 right-3 w-10 h-10 rounded-full flex items-center justify-center bg-[#E8B923] text-[#241f14] shadow-lg transition-transform hover:scale-110">
+                  aria-label={`Save ${product.name} to the concept cart — checkout not connected`}
+                  className="absolute bottom-3 right-3 w-11 h-11 rounded-full flex items-center justify-center bg-[#E8B923] text-[#241f14] shadow-lg transition-transform hover:scale-110">
                   <ShoppingCart size={16} />
                 </button>
               </div>
@@ -340,7 +343,7 @@ export default function ShopPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-wm-gold">Planned ${product.price.toFixed(2)}</span>
-                  <button onClick={e => { e.stopPropagation(); addToCart(product.id, product.name); }} className="text-[10px] font-black text-[#241f14] hover:text-wm-gold">Add to cart →</button>
+                  <button onClick={e => { e.stopPropagation(); addToCart(product.id, product.name); }} className="min-h-11 md:min-h-0 text-[10px] font-black text-[#241f14] hover:text-wm-gold">Save to concept cart →</button>
                 </div>
               </div>
             </motion.div>
@@ -484,7 +487,7 @@ export default function ShopPage() {
                   <button onClick={() => { addToCart(detail.id, detail.name); setDetail(null); }}
                     className="flex-1 py-3 rounded-xl text-sm font-black text-wm-black hover:opacity-90 transition-all"
                     style={{ background: `linear-gradient(135deg, ${detail.accent}, ${detail.accent}bb)` }}>
-                    Add to Cart
+                    Save to concept cart
                   </button>
                   <button aria-label="Add to wishlist" aria-pressed={wishlist.includes(detail.id)} onClick={() => toggleWishlist(detail.id)}
                     className={clsx("w-12 rounded-xl border transition-all flex items-center justify-center",

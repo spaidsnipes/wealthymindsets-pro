@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/kraken";
 import { buildObservedDom, deriveDomCenter, type DomLevel } from "@/lib/marketData/domTruth";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
+import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 
 /* ── Crypto detection ──────────────────────────────────────── */
 const CRYPTO_SYMS = new Set([
@@ -67,8 +68,12 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
   // (e.g. TSLA 405) is only a pre-data placeholder and must never anchor the DOM.
   const livePrice = (ticker?.price && ticker.price > 0) ? ticker.price : (liveBar?.close ?? base);
 
-  const [levels, setLevels] = useState<DomLevel[]>([]);
-  const [trades, setTrades] = useState<{ price: number; size: number; side: "buy"|"sell"; time: string }[]>([]);
+  // Garden 18 §4 (2026-10-06): the book and the prints belong to ONE symbol.
+  // BTC → ETH kept `crypto` true, so nothing reset them: BTC's ladder stood
+  // under ETH until ETH's REST snapshot answered — and for good if it failed.
+  // A late answer for the previous symbol is dropped, never painted.
+  const [levels, setLevels] = useSymbolOwnedState<DomLevel[]>(sym, []);
+  const [trades, setTrades] = useSymbolOwnedState<{ price: number; size: number; side: "buy"|"sell"; time: string }[]>(sym, []);
   const [realConnected, setRealConnected] = useState(false);
   // LIVE also needs a RECENT book message: an open socket that has gone quiet
   // is not live (15s of silence on a crypto book is a stalled feed).

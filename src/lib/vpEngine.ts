@@ -79,6 +79,42 @@ export interface ProfileOptions {
   valueAreaPct?: number;
   /** Target number of buckets when tickSize is auto-derived. Default 320. */
   targetRows?: number;
+  /**
+   * The instrument's minimum price increment, from the ONE tick owner
+   * (contractEconomics.instrumentEconomics: futures contract specs, US equity
+   * $0.01 / $0.0001 below $1). Null/omitted = no tick on file (crypto venues,
+   * spot FX, unknown): the bucket is left as derived. See `bucketOnTickGrid`.
+   */
+  instrumentTick?: number | null;
+}
+
+/**
+ * THE SNAPPING RULE (P0.2 painted-number truth, 2026-10-06). Serving NQ1! 1m
+ * printed "VAH 31548.74": a few minutes of tape spans a few points, so the
+ * auto bucket came out at 0.02 — finer than NQ's 0.25 tick — and every row
+ * edge, POC, VAH and VAL was a price NQ cannot trade at. When the instrument
+ * has a tick on file, the bucket is a WHOLE MULTIPLE of that tick (the nearest
+ * one to the derived size, never less than one tick), and every bucket edge
+ * is stated on the tick's own decimals. Rows, POC, VAH and VAL are then
+ * bucket edges ON the venue's grid (or the lowest traded price, itself on the
+ * grid). No tick on file → the derived bucket stands; nothing is guessed.
+ */
+export function bucketOnTickGrid(derived: number, instrumentTick: number | null | undefined): number {
+  if (!(typeof instrumentTick === "number" && instrumentTick > 0) || !(derived > 0)) return derived;
+  const k = Math.max(1, Math.round(derived / instrumentTick));
+  return Number((k * instrumentTick).toFixed(tickDecimals(instrumentTick)));
+}
+
+function tickDecimals(tick: number): number {
+  const t = String(tick);
+  if (t.includes("e-")) return Number(t.split("e-")[1]);
+  return (t.split(".")[1] ?? "").length;
+}
+
+/** A bucket edge stated on the tick's decimals (float drift removed); unchanged with no tick. */
+function onGrid(price: number, instrumentTick: number | null | undefined): number {
+  if (!(typeof instrumentTick === "number" && instrumentTick > 0)) return price;
+  return Number((Math.round(price / instrumentTick) * instrumentTick).toFixed(tickDecimals(instrumentTick)));
 }
 
 /** Round to a bucket LOW edge for a given tick size (floor to the grid). */
@@ -197,12 +233,12 @@ export function computeProfileFromTrades(
     if (t.price < lo) lo = t.price;
   }
   const range = hi - lo;
-  const tick = opts.tickSize ?? chooseTickSize(range > 0 ? range : Math.abs(hi) || 1, opts.targetRows);
+  const tick = bucketOnTickGrid(opts.tickSize ?? chooseTickSize(range > 0 ? range : Math.abs(hi) || 1, opts.targetRows), opts.instrumentTick);
 
   const buckets = new Map<number, { up: number; down: number }>();
   for (const t of trades) {
     if (!(t.size > 0) || !Number.isFinite(t.price)) continue;
-    const key = bucketFloor(t.price, tick);
+    const key = onGrid(bucketFloor(t.price, tick), opts.instrumentTick);
     const cur = buckets.get(key) ?? { up: 0, down: 0 };
     // Unknown aggressor splits evenly — never invented, just not attributable.
     if (t.side === "buy") cur.up += t.size;
@@ -210,7 +246,7 @@ export function computeProfileFromTrades(
     else { cur.up += t.size / 2; cur.down += t.size / 2; }
     buckets.set(key, cur);
   }
-  return finalize(buckets, tick, valueAreaPct, "trade-based", lo);
+  return finalize(buckets, tick, valueAreaPct, "trade-based", onGrid(lo, opts.instrumentTick));
 }
 
 /**
@@ -238,22 +274,22 @@ export function computeProfileFromBars(
     if (b.low < lo) lo = b.low;
   }
   const range = hi - lo;
-  const tick = opts.tickSize ?? chooseTickSize(range > 0 ? range : Math.abs(hi) || 1, opts.targetRows);
+  const tick = bucketOnTickGrid(opts.tickSize ?? chooseTickSize(range > 0 ? range : Math.abs(hi) || 1, opts.targetRows), opts.instrumentTick);
 
   const buckets = new Map<number, { up: number; down: number }>();
   for (const b of bars) {
     if (!(b.volume > 0) || !(b.high >= b.low)) continue;
-    const first = bucketFloor(b.low, tick);
-    const last = bucketFloor(b.high, tick);
+    const first = onGrid(bucketFloor(b.low, tick), opts.instrumentTick);
+    const last = onGrid(bucketFloor(b.high, tick), opts.instrumentTick);
     const nBuckets = Math.max(1, Math.round((last - first) / tick) + 1);
     const per = b.volume / nBuckets;
     const isUp = b.close >= b.open;
     for (let i = 0; i < nBuckets; i++) {
-      const key = +(first + i * tick).toFixed(10);
+      const key = onGrid(+(first + i * tick).toFixed(10), opts.instrumentTick);
       const cur = buckets.get(key) ?? { up: 0, down: 0 };
       if (isUp) cur.up += per; else cur.down += per;
       buckets.set(key, cur);
     }
   }
-  return finalize(buckets, tick, valueAreaPct, "candle-estimated", lo);
+  return finalize(buckets, tick, valueAreaPct, "candle-estimated", onGrid(lo, opts.instrumentTick));
 }

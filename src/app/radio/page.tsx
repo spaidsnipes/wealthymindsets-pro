@@ -1,4 +1,7 @@
 "use client";
+// Canon sweep 2026-10-06: station / track / studio accents are the house
+// graphite + warm-gold family (gold, bronze, champagne, copper) — no teal,
+// violet or cyan as decoration. Red stays only where it means ON AIR / LIVE.
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
@@ -108,7 +111,7 @@ const STATIONS: Station[] = [
   {
     id:"wm-main", name:"WM Radio", genre:"All Genres", host:"SpaidFX",
     desc:"The official WealthyMindsets station concept. A real stream has not been connected yet.",
-    color:"#00D4AA", live:false, listeners:0, avatar:"W",
+    color:"#C9A55C", live:false, listeners:0, avatar:"W",
     tags:["#Trading","#HipHop","#RnB","#Lofi"],
   },
   {
@@ -120,19 +123,19 @@ const STATIONS: Station[] = [
   {
     id:"wm-lofi", name:"WM Lo-Fi", genre:"Lo-Fi / Chill", host:"WealthQueen",
     desc:"Study beats, chart sessions, late-night lofi. Perfect focus music for traders.",
-    color:"#8B5CF6", live:false, listeners:0, avatar:"L",
+    color:"#A88A5C", live:false, listeners:0, avatar:"L",
     tags:["#Lofi","#Chill","#Study","#Beats"],
   },
   {
     id:"wm-rnb", name:"WM R&B", genre:"R&B / Soul", host:"GoldRush",
     desc:"Smooth R&B from WM creators. Vibes for the winners.",
-    color:"#FF6B9D", live:false, listeners:0, avatar:"R",
+    color:"#C47A5A", live:false, listeners:0, avatar:"R",
     tags:["#RnB","#Soul","#Vibes"],
   },
   {
     id:"wm-beats", name:"WM Beats", genre:"Beats / Instrumentals", host:"ChartFanatics",
     desc:"Pure instrumentals, sample packs, and production from WM producers.",
-    color:"#4FA3E0", live:false, listeners:0, avatar:"B",
+    color:"#D9C08A", live:false, listeners:0, avatar:"B",
     tags:["#Beats","#Instrumental","#Production"],
   },
   {
@@ -144,21 +147,21 @@ const STATIONS: Station[] = [
 ];
 
 const TRACKS: Track[] = [
-  { id:1, title:"China", artist:"Randy Music Beat", album:"Archive.org", genre:"Hip-Hop", duration:178, plays:"Archive.org", color:"#00D4AA", liked:false, verified:false, new:false },
-  { id:2, title:"Free Piano Instrumental", artist:"Adi Rambo", album:"Archive.org", genre:"R&B", duration:222, plays:"Archive.org", color:"#8B5CF6", liked:false, verified:false, new:false },
-  { id:3, title:"Garden Flower", artist:"Dontcry & Nokiaa", album:"Archive.org", genre:"Lo-fi", duration:252, plays:"Archive.org", color:"#4FA3E0", liked:false, verified:false, new:false },
+  { id:1, title:"China", artist:"Randy Music Beat", album:"Archive.org", genre:"Hip-Hop", duration:178, plays:"Archive.org", color:"#C9A55C", liked:false, verified:false, new:false },
+  { id:2, title:"Free Piano Instrumental", artist:"Adi Rambo", album:"Archive.org", genre:"R&B", duration:222, plays:"Archive.org", color:"#A88A5C", liked:false, verified:false, new:false },
+  { id:3, title:"Garden Flower", artist:"Dontcry & Nokiaa", album:"Archive.org", genre:"Lo-fi", duration:252, plays:"Archive.org", color:"#D9C08A", liked:false, verified:false, new:false },
   { id:4, title:"Dark Hip Hop Trap Beat", artist:"Adi Rambo", album:"Archive.org", genre:"Trap", duration:201, plays:"Archive.org", color:"#F0B429", liked:false, verified:false, new:false },
   { id:5, title:"Watch The Sky", artist:"Brentin Davis", album:"Archive.org", genre:"Ambient", duration:245, plays:"Archive.org", color:"#FF4D6A", liked:false, verified:false, new:false },
-  { id:6, title:"Send Her In Gold", artist:"Brentin Davis", album:"Archive.org", genre:"R&B", duration:198, plays:"Archive.org", color:"#8B5CF6", liked:false, verified:false, new:false },
-  { id:7, title:"Ghost House", artist:"Randy Music Beat", album:"Archive.org", genre:"Hip-Hop", duration:215, plays:"Archive.org", color:"#4FA3E0", liked:false, verified:false, new:false },
+  { id:6, title:"Send Her In Gold", artist:"Brentin Davis", album:"Archive.org", genre:"R&B", duration:198, plays:"Archive.org", color:"#A88A5C", liked:false, verified:false, new:false },
+  { id:7, title:"Ghost House", artist:"Randy Music Beat", album:"Archive.org", genre:"Hip-Hop", duration:215, plays:"Archive.org", color:"#D9C08A", liked:false, verified:false, new:false },
 ];
 
 const EPISODES: Episode[] = [];
 
 const ARTISTS: Artist[] = [
-  { id:1, name:"Randy Music Beat", handle:"Archive.org credit", genre:"Hip-Hop", tracks:2, followers:"—", color:"#00D4AA", avatar:"R", verified:false, wm_team:false, bio:"Artist attribution from the linked Archive.org recordings." },
-  { id:2, name:"Adi Rambo", handle:"Archive.org credit", genre:"Hip-Hop / R&B", tracks:2, followers:"—", color:"#8B5CF6", avatar:"A", verified:false, wm_team:false, bio:"Artist attribution from the linked Archive.org recordings." },
-  { id:3, name:"Dontcry & Nokiaa", handle:"Archive.org credit", genre:"Lo-fi", tracks:1, followers:"—", color:"#4FA3E0", avatar:"D", verified:false, wm_team:false, bio:"Artist attribution from the linked Archive.org recording." },
+  { id:1, name:"Randy Music Beat", handle:"Archive.org credit", genre:"Hip-Hop", tracks:2, followers:"—", color:"#C9A55C", avatar:"R", verified:false, wm_team:false, bio:"Artist attribution from the linked Archive.org recordings." },
+  { id:2, name:"Adi Rambo", handle:"Archive.org credit", genre:"Hip-Hop / R&B", tracks:2, followers:"—", color:"#A88A5C", avatar:"A", verified:false, wm_team:false, bio:"Artist attribution from the linked Archive.org recordings." },
+  { id:3, name:"Dontcry & Nokiaa", handle:"Archive.org credit", genre:"Lo-fi", tracks:1, followers:"—", color:"#D9C08A", avatar:"D", verified:false, wm_team:false, bio:"Artist attribution from the linked Archive.org recording." },
   { id:4, name:"Brentin Davis", handle:"Archive.org credit", genre:"R&B / Ambient", tracks:2, followers:"—", color:"#F0B429", avatar:"B", verified:false, wm_team:false, bio:"Artist attribution from the linked Archive.org recordings." },
 ];
 
@@ -389,7 +392,7 @@ function TrackRow({ track, idx, active, playing, onPlay, liked, onToggleLike }: 
 
       {/* Gold play button */}
       <div className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center transition-all group-hover:scale-110"
-        style={{ background: active ? "linear-gradient(135deg,#E8B923,#059669)" : "rgba(232,185,35,0.16)", border: "1px solid rgba(232,185,35,0.45)" }}>
+        style={{ background: active ? "linear-gradient(135deg,#E8B923,#8B6A29)" : "rgba(232,185,35,0.16)", border: "1px solid rgba(232,185,35,0.45)" }}>
         {active && playing
           ? <Pause size={16} style={{ color: "#0b0a06" }} />
           : <Play size={16} className="ml-0.5" style={{ color: active ? "#0b0a06" : "#E8B923" }} />}
@@ -425,7 +428,7 @@ function EpisodeCard({ ep, artIndex, active, playing, onPlay }: {
           ) : (
             <Mic size={22} className="relative z-10" style={{ color: "#E8B923" }} />
           )}
-          <div className="absolute bottom-1 right-1 w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 3px 10px rgba(232,185,35,0.4)" }}>
+          <div className="absolute bottom-1 right-1 w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: "linear-gradient(135deg,#E8B923,#8B6A29)", boxShadow: "0 3px 10px rgba(232,185,35,0.4)" }}>
             {active && playing ? <Pause size={12} className="text-black" /> : <Play size={12} className="text-black ml-0.5" />}
           </div>
         </div>
@@ -476,7 +479,7 @@ function ArtistCard({ artist, artIndex, onOpen }: { artist: Artist; artIndex: nu
         <div className="pointer-events-none absolute inset-0 opacity-[0.12]" style={{ background: `repeating-radial-gradient(circle at 82% 40%, ${artist.color} 0 1px, transparent 1px 7px)` }} />
         <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(to top, rgba(11,12,18,0.9), transparent 70%)" }} />
         {artist.wm_team && (
-          <span className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "rgba(0,212,170,0.2)", color: "#00D4AA", border: "1px solid rgba(0,212,170,0.4)" }}>WM TEAM</span>
+          <span className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "rgba(196,165,116,0.2)", color: "#C9A55C", border: "1px solid rgba(196,165,116,0.4)" }}>WM TEAM</span>
         )}
       </div>
       {/* Body — avatar overlaps cover */}
@@ -510,7 +513,7 @@ function ArtistCard({ artist, artIndex, onOpen }: { artist: Artist; artIndex: nu
             onClick={onOpen}
             aria-label={`Play tracks by ${artist.name}`}
             className="px-4 py-1.5 rounded-xl text-[10px] font-black transition-all hover:scale-105"
-            style={{ background: "linear-gradient(135deg,#E8B923,#059669)", color: "#0b0a06" }}
+            style={{ background: "linear-gradient(135deg,#E8B923,#8B6A29)", color: "#0b0a06" }}
           >
             Play tracks
           </button>
@@ -577,7 +580,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
           title: title.trim(), artist: artist.trim(),
           album: "WM Radio Uploads", genre,
           duration: duration || 180, plays: "0",
-          color: "#00D4AA", liked: false, verified: false, new: true,
+          color: "#C9A55C", liked: false, verified: false, new: true,
         };
         finalUrl = url;
         // Recorded server-side; the uploader is the signed-in trader.
@@ -605,7 +608,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
           title: dbTrack.title, artist: dbTrack.artist,
           album: "WM Radio Uploads", genre: dbTrack.genre,
           duration: dbTrack.duration ?? duration, plays: "0",
-          color: "#00D4AA", liked: false, verified: false, new: true,
+          color: "#C9A55C", liked: false, verified: false, new: true,
         };
       }
 
@@ -644,7 +647,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
                 // The UNSELECTED tab still has to be readable — it is the
                 // control that tells you the other mode exists. #5A6575 was
                 // 3.55:1 at best; `muted` is the floor for a live control.
-                style={mode===m ? { background:"#00D4AA", color:"#000" } : { color: WM.text.muted }}>
+                style={mode===m ? { background:"#C9A55C", color:"#000" } : { color: WM.text.muted }}>
                 {m === "file" ? "Upload File" : "Paste URL"}
               </button>
             ))}
@@ -661,7 +664,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
               aria-label="Choose an audio file to upload"
               onKeyDown={keyActivates}
               className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-8 cursor-pointer transition-all"
-              style={{ borderColor: dragging ? "#00D4AA" : "rgba(255,255,255,0.1)", background: dragging ? "rgba(0,212,170,0.05)" : "transparent" }}>
+              style={{ borderColor: dragging ? "#C9A55C" : "rgba(255,255,255,0.1)", background: dragging ? "rgba(196,165,116,0.05)" : "transparent" }}>
               <input ref={fileRef} type="file" accept="audio/*" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
               {file ? (
@@ -722,7 +725,7 @@ function UploadModal({ onClose, onAdd, uploader }: {
 
           <button onClick={handleSubmit} disabled={uploading}
             className="w-full py-3 rounded-xl font-black text-[13px] transition-all hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
-            style={{ background:"linear-gradient(135deg,#00D4AA,#00A896)", color:"#000" }}>
+            style={{ background:"linear-gradient(135deg,#C9A55C,#8B6A29)", color:"#000" }}>
             {uploading ? <><Upload size={14} className="animate-bounce" /> Uploading…</> : "Add to Library →"}
           </button>
         </div>
@@ -801,7 +804,7 @@ export default function RadioPage() {
           id: r.id, title: r.title, artist: r.artist,
           album: "WM Radio Uploads", genre: r.genre,
           duration: r.duration ?? 180, plays: r.plays?.toString() ?? "0",
-          color: "#00D4AA", liked: false, verified: false, new: false,
+          color: "#C9A55C", liked: false, verified: false, new: false,
         }));
         const urls: Record<number, string> = {};
         data.forEach(r => { urls[r.id] = r.public_url; });
@@ -840,7 +843,7 @@ export default function RadioPage() {
       <div className="shrink-0 px-6 pt-6 pb-4" style={{ borderBottom:"1px solid rgba(30,32,48,0.8)" }}>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-            style={{ background:"linear-gradient(135deg, #00D4AA44, #00D4AA18)", border:"1px solid rgba(0,212,170,0.3)" }}>
+            style={{ background:"linear-gradient(135deg, #C9A55C44, #C9A55C18)", border:"1px solid rgba(196,165,116,0.3)" }}>
             <Radio size={18} className="text-wm-green" />
           </div>
           <div>
@@ -932,7 +935,7 @@ export default function RadioPage() {
                       <button
                         onClick={() => activeStation === "WM Radio" ? togglePlay() : playStation("wm-main")}
                         className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[13px] transition-all hover:scale-105"
-                        style={{ background: "linear-gradient(135deg, #E8B923, #059669)", color: "#0b0a06", boxShadow: "0 10px 26px rgba(232,185,35,0.32)" }}>
+                        style={{ background: "linear-gradient(135deg, #E8B923, #8B6A29)", color: "#0b0a06", boxShadow: "0 10px 26px rgba(232,185,35,0.32)" }}>
                         {activeStation === "WM Radio" && playing ? <><Pause size={15}/> Pause</> : <><Play size={15} className="ml-0.5"/> Check Stream</>}
                       </button>
                       <span className="text-[11px] text-wm-text-muted font-mono">No live audience data</span>
@@ -960,7 +963,7 @@ export default function RadioPage() {
                       onClick={() => activeStation === "WM Radio" ? togglePlay() : playStation("wm-main")}
                       aria-label={activeStation === "WM Radio" && playing ? "Pause WM Radio" : "Play WM Radio"}
                       className="absolute bottom-0 right-0 rounded-full flex items-center justify-center transition-transform hover:scale-110"
-                      style={{ width: 52, height: 52, background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 6px 20px rgba(232,185,35,0.5)" }}>
+                      style={{ width: 52, height: 52, background: "linear-gradient(135deg,#E8B923,#8B6A29)", boxShadow: "0 6px 20px rgba(232,185,35,0.5)" }}>
                       {activeStation === "WM Radio" && playing ? <Pause size={20} style={{ color: "#0b0a06" }} /> : <Play size={20} className="ml-0.5" style={{ color: "#0b0a06" }} />}
                     </button>
                   </div>
@@ -986,10 +989,10 @@ export default function RadioPage() {
               <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
                 {[
                   { name: "Hip-Hop",     station: "wm-hiphop", from: "#E8B923", to: "#8a6a12" },
-                  { name: "R&B",         station: "wm-rnb",    from: "#8B5CF6", to: "#4c2d99" },
-                  { name: "Smooth Jazz", station: "wm-main",   from: "#059669", to: "#053f31" },
-                  { name: "Lo-Fi",       station: "wm-lofi",   from: "#4FA3E0", to: "#1e5f8f" },
-                  { name: "Soul",        station: "wm-rnb",    from: "#FF6B9D", to: "#a03b62" },
+                  { name: "R&B",         station: "wm-rnb",    from: "#A88A5C", to: "#4c2d99" },
+                  { name: "Smooth Jazz", station: "wm-main",   from: "#8B6A29", to: "#053f31" },
+                  { name: "Lo-Fi",       station: "wm-lofi",   from: "#D9C08A", to: "#1e5f8f" },
+                  { name: "Soul",        station: "wm-rnb",    from: "#C47A5A", to: "#a03b62" },
                   { name: "Afrobeats",   station: "wm-global", from: "#00C853", to: "#067a34" },
                   { name: "Beats",       station: "wm-beats",  from: "#F0B429", to: "#96700f" },
                 ].map(g => (
@@ -1087,7 +1090,7 @@ export default function RadioPage() {
               <button
                 onClick={() => setShowUpload(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all hover:scale-105"
-                style={{ background: "linear-gradient(135deg,#00D4AA,#00A896)", color: "#000" }}
+                style={{ background: "linear-gradient(135deg,#C9A55C,#8B6A29)", color: "#000" }}
               >
                 <Plus size={12} /> Upload Track
               </button>
@@ -1112,7 +1115,7 @@ export default function RadioPage() {
               style={{ background: "linear-gradient(135deg, rgba(232,185,35,0.10), rgba(13,14,20,0.9))", border: "1px solid rgba(232,185,35,0.25)" }}>
               <div className="w-12 h-12 rounded-full shrink-0 flex items-center justify-center animate-[spin_5s_linear_infinite]"
                 style={{ background: "repeating-radial-gradient(circle, #141310 0 1.5px, #08080c 1.5px 4px)", border: "1px solid rgba(232,185,35,0.4)" }}>
-                <div className="w-4 h-4 rounded-full" style={{ background: "linear-gradient(135deg,#E8B923,#059669)" }} />
+                <div className="w-4 h-4 rounded-full" style={{ background: "linear-gradient(135deg,#E8B923,#8B6A29)" }} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[9px] font-black uppercase tracking-widest text-wm-text-muted">Station</div>
@@ -1122,7 +1125,7 @@ export default function RadioPage() {
                 {Array.from({ length: 34 }).map((_, i) => { const h = Math.min(100, 20 + Math.abs(Math.sin(i * 0.6)) * 80); return <div key={i} style={{ width: 3, height: `${h}%`, borderRadius: 2, background: "rgba(232,185,35,0.6)" }} />; })}
               </div>
               <button aria-label="Play WM Radio" onClick={() => playStation("wm-main")} className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center transition-transform hover:scale-110"
-                style={{ background: "linear-gradient(135deg,#E8B923,#059669)", boxShadow: "0 4px 14px rgba(232,185,35,0.4)" }}>
+                style={{ background: "linear-gradient(135deg,#E8B923,#8B6A29)", boxShadow: "0 4px 14px rgba(232,185,35,0.4)" }}>
                 <Play size={16} className="text-black ml-0.5" />
               </button>
             </div>

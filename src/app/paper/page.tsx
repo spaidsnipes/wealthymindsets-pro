@@ -118,6 +118,7 @@ import { selectExpressionCard } from "@/lib/expressionCard";
 import { limitPriceCell, fillPriceCell } from "@/lib/paper/orderBlotterCells";
 import { paperAccountStats, paperWinRateStat, UNREADABLE_BOOK_REASON } from "@/lib/paper/paperAccountStats";
 import { paperSpotStat, describeObservationAge } from "@/lib/paper/paperSpotDisclosure";
+import { paperQuoteAgeVerdict, selectPaperTicketPreflight } from "@/lib/paper/paperTicketPreflight";
 import { continueOrMint } from "@/lib/traderMemory/decisionIdentity";
 import { readSceneDecision, writeSceneDecision } from "@/lib/traderMemory/decisionContinuity";
 import { useAuth } from "@/contexts/AuthContext";
@@ -692,12 +693,14 @@ function EquitySparkline({ points }: { points: EquityPoint[] }) {
 
 /* ── Order ticket ────────────────────────────────────────── */
 function OrderTicket({
-  prices, quoteReadiness, onSubmit, initialSymbol,
+  prices, quoteReadiness, onSubmit, initialSymbol, cash,
 }: {
   prices: Record<string,number>;
   quoteReadiness: Record<string, PaperQuoteReadiness>;
   onSubmit: (o: Order) => void;
   initialSymbol?: string;
+  /** Paper cash for the pre-send funding check; null when the book is unreadable. */
+  cash: number | null;
 }) {
   const { user: authUser } = useAuth();
   const [sym,    setSym]    = useState(initialSymbol ?? "NQ1!");
@@ -748,8 +751,29 @@ function OrderTicket({
   // ticket when the symbol changes: it is re-read under the new symbol's rule.
   useEffect(() => { setQty(q => normalizeTicketQty(sym, q)); }, [sym]);
 
+  // Garden 18 §4: quote age is re-measured on a clock, not only when a poll
+  // lands — a verdict computed at fetch time keeps saying ACTIVE DEGRADED while
+  // the observation ages past the simulation limit.
+  const [ticketNow, setTicketNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setTicketNow(Date.now()), 5_000);
+    return () => clearInterval(id);
+  }, []);
+  // Every check that can be made before the press is made before the button
+  // enables: quote age vs the limit, supported type, quantity, levels, funding.
+  const preflight = selectPaperTicketPreflight({
+    readiness, nowMs: ticketNow, type, side, qty, wholeContracts,
+    limitRaw: limitPx, stopRaw: stopPx, multiplier: pointValue, cash,
+  });
+
   const submit = () => {
     if (!readiness.actionable || !qty || qty <= 0) return;
+    // The age is measured AGAIN at the press — the clock above ticks every 5 s.
+    const pressPreflight = selectPaperTicketPreflight({
+      readiness, nowMs: Date.now(), type, side, qty, wholeContracts,
+      limitRaw: limitPx, stopRaw: stopPx, multiplier: pointValue, cash,
+    });
+    if (!pressPreflight.ready) return;
     // UI gating is not the sole guard: a fractional contract never leaves the
     // ticket, whatever state the input was left in.
     if (wholeContracts && !Number.isInteger(qty)) return;
@@ -1078,13 +1102,35 @@ function OrderTicket({
       )}
 
       {/* Submit */}
-      <button onClick={submit} disabled={!readiness.actionable}
-        aria-disabled={!readiness.actionable}
+      {/* THE SEND BAR (Garden 18 §4, 2026-10-06): the ticket is ~1,400px of
+          controls, so on any window shorter than that the send button and the
+          reasons it is disabled sat below the fold of whichever box scrolled.
+          The bar sticks to the bottom of the visible scroller (paper.module.css
+          .sendBar), so the verdict and the button are on screen whenever any
+          of the ticket is. */}
+      <div className={clsx(styles.sendBar, "bg-wm-dark")} data-testid="paper-ticket-send-bar">
+      {/* Preflight — why the simulated send is not enabled, before the press. */}
+      {readiness.actionable && !preflight.ready && (
+        <div role="status" data-testid="paper-ticket-preflight" className="mb-3 rounded-lg border border-wm-border bg-wm-surface/30 px-2.5 py-2">
+          <div className="text-[9px] font-black uppercase tracking-wider text-wm-text-muted mb-1">Not ready to send</div>
+          <ul className="space-y-1">
+            {preflight.blockers.map((b, i) => (
+              <li key={i} className="text-[10px] leading-snug text-wm-text">{b}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p data-testid="paper-ticket-protection-note" className="mb-2 px-1 text-[9px] leading-snug text-wm-text-dim">{preflight.protectionNote}</p>
+
+      {/* Submit */}
+      <button onClick={submit} disabled={!readiness.actionable || !preflight.ready}
+        aria-disabled={!readiness.actionable || !preflight.ready}
         className={clsx("w-full py-3 rounded-xl text-sm font-black transition-all hover:opacity-90 active:scale-[0.99]",
-          !readiness.actionable && "cursor-not-allowed opacity-50 hover:opacity-50",
+          (!readiness.actionable || !preflight.ready) && "cursor-not-allowed opacity-50 hover:opacity-50",
           side==="buy" ? "bg-wm-green text-wm-black" : "bg-wm-red text-white")}>
-        {!readiness.actionable ? "WAIT FOR VERIFIED QUOTE" : side==="buy"?"▲ Place Buy Order":"▼ Place Sell Order"}
+        {!readiness.actionable ? "WAIT FOR VERIFIED QUOTE" : !preflight.ready ? "ORDER NOT READY" : side==="buy"?"▲ Place Simulated Buy":"▼ Place Simulated Sell"}
       </button>
+      </div>
     </div>
   );
 }
@@ -2129,6 +2175,10 @@ export default function PaperTradingPage() {
     for (const ord of pend) {
       const readiness = quoteReadiness[ord.symbol];
       if (!readiness?.actionable || readiness.price == null) continue;
+      // Garden 18 §4: the quote's age is measured at FILL time against the
+      // simulation limit. A verdict computed when the quote arrived does not
+      // license a fill after the observation has aged past the limit.
+      if (!paperQuoteAgeVerdict(readiness, Date.now()).fresh) continue;
       const px = readiness.price;
       // selectOrderFill owns BOTH halves of this decision: whether the order
       // triggers, and the price recorded. The price is the OBSERVED price for
@@ -2262,6 +2312,7 @@ export default function PaperTradingPage() {
     // subset that cannot be safely persisted beside the unreadable original.
     if (bookRecoveryRequired) return;
     if (!quoteReadiness[ord.symbol]?.actionable) return;
+    if (!paperQuoteAgeVerdict(quoteReadiness[ord.symbol], Date.now()).fresh) return;
     setOrders(prev => [ord, ...prev]);
   };
 
@@ -2273,6 +2324,9 @@ export default function PaperTradingPage() {
     }
     const uPx = actionablePaperQuotePrice(quoteReadiness[p.underlying]);
     if (uPx == null) return;
+    // Garden 18 §4: same quote-age policy as the stock ticket, measured now.
+    const optAge = paperQuoteAgeVerdict(quoteReadiness[p.underlying], Date.now());
+    if (!optAge.fresh) { setOptionReject(optAge.reason); return; }
     const t   = Math.max((p.expiryTs-Date.now())/86_400_000,0.0001)/365;
     const g   = blackScholes(uPx, p.strike, t, underlyingIV(p.underlying), p.type==="call");
     const band = modelBand(g.price);
@@ -3005,7 +3059,7 @@ export default function PaperTradingPage() {
 
         {/* Left: Order ticket */}
         <div className={clsx(styles.ticket, "w-64 border-r border-wm-border shrink-0 overflow-y-auto p-3")} style={{ scrollbarWidth:"thin" }}>
-          <OrderTicket key={resetKey} prices={prices} quoteReadiness={quoteReadiness} onSubmit={handleOrder} initialSymbol={UNIVERSE[activeSymbol] ? activeSymbol : undefined}/>
+          <OrderTicket key={resetKey} prices={prices} quoteReadiness={quoteReadiness} onSubmit={handleOrder} initialSymbol={UNIVERSE[activeSymbol] ? activeSymbol : undefined} cash={bookRecoveryRequired ? null : cash}/>
 
           <SignalBot
             prices={prices}

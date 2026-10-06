@@ -145,13 +145,17 @@ const SPECS: Readonly<Record<OrderPurpose, PurposeSpec>> = {
   },
   FLATTEN_EVERYTHING: {
     purpose: "FLATTEN_EVERYTHING",
-    sentence: "Flatten everything.",
+    // Garden 18 §4 (2026-10-06): this purpose compiles to ONE market order
+    // closing ONE position (compileOrderPurpose takes a single positionSide).
+    // "Flatten everything." promised every open position; the words now say
+    // what the compiler does. The id is kept so stored intents still resolve.
+    sentence: "Flatten this position.",
     type: "market",
     intent: "exit",
     needsLevel: false,
     triggered: false,
     tradeoff: {
-      prioritises: "Being flat, immediately",
+      prioritises: "Being flat in this position, immediately",
       sacrifices: "Every dollar of price control",
     },
   },

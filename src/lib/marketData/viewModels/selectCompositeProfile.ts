@@ -22,7 +22,7 @@
  * PURE. DETERMINISTIC. No React, no canvas, no IO, no clock.
  */
 
-import { computeProfileFromBars, chooseTickSize, type ProfileQuality } from "@/lib/vpEngine";
+import { bucketOnTickGrid, computeProfileFromBars, chooseTickSize, type ProfileQuality } from "@/lib/vpEngine";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { sessionsByGap } from "./sessionsByGap";
 
@@ -72,6 +72,8 @@ const none = (reason: Exclude<CompositeReason, "DRAWN">): CompositeProfileVM => 
 export function selectCompositeProfile(
   input: readonly LegacyOhlcvTuple[] | null | undefined,
   dayKey?: (sec: number) => string,
+  /** The instrument's tick (pricePrecision.instrumentTickFor): buckets and levels land on its grid. */
+  instrumentTick?: number | null,
 ): CompositeProfileVM {
   const bars = (input ?? [])
     .filter(b => Number.isFinite(b.time) && Number.isFinite(b.high) && Number.isFinite(b.low) && b.high >= b.low)
@@ -91,15 +93,15 @@ export function selectCompositeProfile(
   let lo = Infinity;
   for (const b of kept) { if (b.high > hi) hi = b.high; if (b.low < lo) lo = b.low; }
   const range = hi - lo;
-  const tickSize = chooseTickSize(range > 0 ? range : Math.abs(hi) || 1, COMPOSITE_TARGET_ROWS);
-  const snap = computeProfileFromBars(kept, { tickSize });
+  const tickSize = bucketOnTickGrid(chooseTickSize(range > 0 ? range : Math.abs(hi) || 1, COMPOSITE_TARGET_ROWS), instrumentTick);
+  const snap = computeProfileFromBars(kept, { tickSize, instrumentTick });
   if (snap.rows.length === 0 || !(snap.totalVolume > 0)) return none("NO_VOLUME");
   // Each aggregated session's own profile on the SAME grid (the engine's
   // buckets are origin-anchored, so the keys line up) — the strata.
   const perSession: Map<number, number>[] = [];
   for (let s = firstKept; s < current; s++) {
     const own = bars.filter((_, i) => sessionOf[i] === s);
-    const snapS = computeProfileFromBars(own, { tickSize });
+    const snapS = computeProfileFromBars(own, { tickSize, instrumentTick });
     perSession.push(new Map(snapS.rows.map(r => [r.price, r.total])));
   }
 

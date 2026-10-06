@@ -1629,6 +1629,124 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         </div>
       )}
 
+      {/* GARDEN 18 CANON SHIFT 2026-10-06 — F16A / F24 Surface One Canvas /
+          WHY-over-same-chart put the decision organism (DECISION · RISK · WHY ·
+          NEXT) DIRECTLY under the WAIT plaque. Measured at 1440x900 on serving
+          /charts: with the reading cards (breathing, response matrix,
+          order-flow context, footprint) stacked between them, this fold landed
+          at y≈800 — the finished WAIT read as a headline with its reasons
+          buried. Same fold, same contents, same S-501 collapse — moved up, not
+          opened. The reading cards follow it unchanged, still at rest. */}
+      {/* ── THE FOLD NOW CARRIES EVERY ORGAN BUT THE PLAQUE ────────────────
+          S-501 collapsed RISK, WHY and the fidelity plaque behind this one
+          disclosure; the F24 pass added MARKET provenance and the two drawn
+          forms of the evidence ledger. The H-101 plaque pass (2026-09-25) adds
+          the DECISION_ID birth (with its canvas pill) and NEXT (with the GO
+          interlock), for the same stated reason and by the same rule:
+          COLLAPSE, NOT DELETE. Order inside: identity, the next act and its
+          permission, then provenance, fidelity, risk, why, the ledger.
+
+          EVERY ONE OF THEM IS STILL ON THE SCENE, one click away, in the
+          markup at all times (native <details>, so SSR ships the content and
+          a screen reader is handed the whole rail regardless of visual state).
+          Nothing here is computed differently and no producer changed.
+
+          The handle names every region it hides, and — §9 — the STATE of what
+          it hides when that state is not nominal (selectFoldEscalation). It is
+          set at detail scale now: the plaque is the headline, the handle is a
+          door, and a door set at headline size is a fifth card. `aria-expanded`
+          is supplied by the native element itself. */}
+      {rail && (
+        <details data-testid="spine-detail-drawer" style={DETAIL_DRAWER}>
+          <summary
+            style={DETAIL_SUMMARY}
+            data-testid="spine-detail-summary"
+            data-fold-escalation={foldEscalation.level}
+            title={foldEscalation.detail}
+            aria-label={foldEscalation.detail}
+          >
+            <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+              <span style={{ whiteSpace: "normal" }}>Decision · Risk · Why · Next</span>
+              {/* §9: the wound is VISIBLE, which is a different instruction
+                  from the wound is RED. One parchment word on a brass hairline
+                  — no severity rainbow, and absent entirely when INTACT. */}
+              {foldEscalation.word ? (
+                <span
+                  data-testid="spine-fold-integrity"
+                  data-integrity={foldEscalation.word}
+                  style={{
+                    alignSelf: "flex-start",
+                    padding: "1px 5px",
+                    borderRadius: 2,
+                    border: "1px solid rgba(139,106,41,0.45)",
+                    color: "#c2b892",
+                    background: "rgba(139,106,41,0.10)",
+                    // The 11px readable floor it shipped with before the plaque
+                    // pass shrank it; the chip may wrap rather than overflow a
+                    // 232px handle, because a wound that is cut off is mute.
+                    fontSize: 11,
+                    lineHeight: "16px",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    whiteSpace: "normal",
+                    maxWidth: "100%",
+                    fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+                    fontWeight: 600,
+                  }}
+                >
+                  Chart integrity · {foldEscalation.word}
+                </span>
+              ) : null}
+            </span>
+            <span aria-hidden="true" className="wm-spine-fold-chevron">
+              ▸
+            </span>
+          </summary>
+          <div style={{ paddingTop: 6 }}>
+            {/* DECISION_ID — the thing every other cell is about, with the
+                canvas pill beside it. MOVED, NOT DELETED: at rest the plaque
+                is the decision; the identity (or the reason there is none) is
+                the first thing the fold opens onto. Same testid, same pill,
+                same `verdictOwnedBySurface` handed down. */}
+            <div
+              data-testid="spine-provenance-header"
+              style={{
+                ...cellStyle,
+                borderTop: "none",
+                paddingTop: 8,
+                paddingBottom: 8,
+                gap: 8,
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={LABEL}>Decision</span>
+                {decisionValue}
+              </div>
+              {canvasSummaryNode && (
+                <div data-testid="spine-canvas-summary" style={{ paddingTop: 2 }}>
+                  {canvasSummaryNode}
+                </div>
+              )}
+            </div>
+            {nextCell}
+            <div style={cellStyle}>
+              <span style={LABEL}>Market</span>
+              {marketValue}
+            </div>
+            {honestyCell}
+            {riskCell}
+            {whyCell}
+            <div style={cellStyle}>
+              {/* A two-word phrase, not a one-word cell label: it takes the
+                  phrase floor (11px) rather than LABEL's 9px caps. */}
+              <span style={{ ...LABEL, fontSize: 11 }}>Evidence ledger</span>
+              {ladderBar}
+              {ladderRoster}
+            </div>
+          </div>
+        </details>
+      )}
+
       {/* UI-04 · THE QUESTION AND ITS DEBT, BESIDE THE MARKET — the chart's own
           lens reading, verbatim. Order as the plate: question, focus, the debt
           ledger item by item, posture, next question, then who is in control. */}
@@ -1887,115 +2005,6 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
       {!rail && honestyCell}
       {!rail && riskCell}
       {!rail && whyCell}
-      {/* ── THE FOLD NOW CARRIES EVERY ORGAN BUT THE PLAQUE ────────────────
-          S-501 collapsed RISK, WHY and the fidelity plaque behind this one
-          disclosure; the F24 pass added MARKET provenance and the two drawn
-          forms of the evidence ledger. The H-101 plaque pass (2026-09-25) adds
-          the DECISION_ID birth (with its canvas pill) and NEXT (with the GO
-          interlock), for the same stated reason and by the same rule:
-          COLLAPSE, NOT DELETE. Order inside: identity, the next act and its
-          permission, then provenance, fidelity, risk, why, the ledger.
-
-          EVERY ONE OF THEM IS STILL ON THE SCENE, one click away, in the
-          markup at all times (native <details>, so SSR ships the content and
-          a screen reader is handed the whole rail regardless of visual state).
-          Nothing here is computed differently and no producer changed.
-
-          The handle names every region it hides, and — §9 — the STATE of what
-          it hides when that state is not nominal (selectFoldEscalation). It is
-          set at detail scale now: the plaque is the headline, the handle is a
-          door, and a door set at headline size is a fifth card. `aria-expanded`
-          is supplied by the native element itself. */}
-      {rail && (
-        <details data-testid="spine-detail-drawer" style={DETAIL_DRAWER}>
-          <summary
-            style={DETAIL_SUMMARY}
-            data-testid="spine-detail-summary"
-            data-fold-escalation={foldEscalation.level}
-            title={foldEscalation.detail}
-            aria-label={foldEscalation.detail}
-          >
-            <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-              <span style={{ whiteSpace: "normal" }}>Decision · Risk · Why · Next</span>
-              {/* §9: the wound is VISIBLE, which is a different instruction
-                  from the wound is RED. One parchment word on a brass hairline
-                  — no severity rainbow, and absent entirely when INTACT. */}
-              {foldEscalation.word ? (
-                <span
-                  data-testid="spine-fold-integrity"
-                  data-integrity={foldEscalation.word}
-                  style={{
-                    alignSelf: "flex-start",
-                    padding: "1px 5px",
-                    borderRadius: 2,
-                    border: "1px solid rgba(139,106,41,0.45)",
-                    color: "#c2b892",
-                    background: "rgba(139,106,41,0.10)",
-                    // The 11px readable floor it shipped with before the plaque
-                    // pass shrank it; the chip may wrap rather than overflow a
-                    // 232px handle, because a wound that is cut off is mute.
-                    fontSize: 11,
-                    lineHeight: "16px",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    whiteSpace: "normal",
-                    maxWidth: "100%",
-                    fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
-                    fontWeight: 600,
-                  }}
-                >
-                  Chart integrity · {foldEscalation.word}
-                </span>
-              ) : null}
-            </span>
-            <span aria-hidden="true" className="wm-spine-fold-chevron">
-              ▸
-            </span>
-          </summary>
-          <div style={{ paddingTop: 6 }}>
-            {/* DECISION_ID — the thing every other cell is about, with the
-                canvas pill beside it. MOVED, NOT DELETED: at rest the plaque
-                is the decision; the identity (or the reason there is none) is
-                the first thing the fold opens onto. Same testid, same pill,
-                same `verdictOwnedBySurface` handed down. */}
-            <div
-              data-testid="spine-provenance-header"
-              style={{
-                ...cellStyle,
-                borderTop: "none",
-                paddingTop: 8,
-                paddingBottom: 8,
-                gap: 8,
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={LABEL}>Decision</span>
-                {decisionValue}
-              </div>
-              {canvasSummaryNode && (
-                <div data-testid="spine-canvas-summary" style={{ paddingTop: 2 }}>
-                  {canvasSummaryNode}
-                </div>
-              )}
-            </div>
-            {nextCell}
-            <div style={cellStyle}>
-              <span style={LABEL}>Market</span>
-              {marketValue}
-            </div>
-            {honestyCell}
-            {riskCell}
-            {whyCell}
-            <div style={cellStyle}>
-              {/* A two-word phrase, not a one-word cell label: it takes the
-                  phrase floor (11px) rather than LABEL's 9px caps. */}
-              <span style={{ ...LABEL, fontSize: 11 }}>Evidence ledger</span>
-              {ladderBar}
-              {ladderRoster}
-            </div>
-          </div>
-        </details>
-      )}
 
       {!rail && nextCell}
     </section>

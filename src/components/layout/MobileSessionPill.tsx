@@ -175,7 +175,7 @@ export function MobileSessionPill(): React.ReactElement | null {
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        minHeight: 32,
+        minHeight: 44, // phone tap floor (measured 98x32 at 390, 2026-10-06)
         padding: "4px 10px",
         borderRadius: 999,
         border: "1px solid rgba(139,106,41,0.35)",

@@ -309,7 +309,12 @@ export function selectPermission(input: PermissionInput): PermissionVM {
   if (hardEngaged.length > 0) {
     verdict = "RESTRICTED";
     headline = `Your ${hardEngaged.length === 1 ? "rule says" : "rules say"} ${hardEngaged.map((e) => e.rule.label).join(", ")}.`;
-    reason = "Hard rule(s) engaged. You retain override capacity — WM does not gate the action. Consider acknowledging the override intentionally.";
+    // Garden 18 §4 (2026-10-06): the copy must match ACTUAL enforcement. The
+    // order-submit routes do not read these rules (they pass Right of Way
+    // "ACTION"), and no surface sets `overrideHardRule` — so there is no
+    // override step to "acknowledge". Say what is true: WM does not block the
+    // order, and trading through the rule is the trader's own decision.
+    reason = "Hard rule(s) engaged. You retain override capacity — WM does not block the order, and there is no separate override step to acknowledge; trading through your rule is your decision.";
   } else if (softEngaged.length > 0) {
     verdict = "ADVISORY";
     headline = `Advisory: ${softEngaged.map((e) => e.rule.label).join(", ")}.`;

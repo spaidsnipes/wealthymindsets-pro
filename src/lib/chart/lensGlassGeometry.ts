@@ -234,6 +234,25 @@ export function smoothSegments(pts: readonly GlassPoint[]): CurveSegment[] {
   return [{ cx: m0.x, cy: m0.y, x: m0.x, y: m0.y }, ...out];
 }
 
+// ── F03 · WHERE THE FAN IS DRAWN ────────────────────────────────────────────
+
+/**
+ * Plate F03 ("expected envelope · market surprise") read beside serving NQ1!
+ * 5m, 2026-10-06 08:51 CDT: on the plate the analogue fan opens a short way
+ * before NOW and runs through the newest candles to the right edge — the
+ * history to its left is clean candles. On the glass the fan was laid from
+ * the session open (17:00 CT the evening before, for Globex): 196 columns of
+ * gold bands across the whole camera, 120 of them past the pane's bottom.
+ * The owner still measures every step from the open (that is what "same bar
+ * from the open" means); the glass draws only the steps from
+ * ENVELOPE_TAIL_STEPS before NOW onward.
+ */
+export const ENVELOPE_TAIL_STEPS = 20;
+export function envelopeTailFrom(nowK: number, tail = ENVELOPE_TAIL_STEPS): number {
+  if (!Number.isFinite(nowK)) return 0;
+  return Math.max(0, Math.floor(nowK) - Math.max(1, Math.floor(tail)));
+}
+
 // ── F17A · THE R TICKS ──────────────────────────────────────────────────────
 
 /**

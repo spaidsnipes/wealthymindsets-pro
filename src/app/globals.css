@@ -1557,3 +1557,43 @@ input[type=range]::-webkit-slider-runnable-track {
     min-height: 44px;
   }
 }
+
+/* ── PHONE TAP FLOOR WITHOUT GROWING THE GLYPH (2026-10-06) ──────────────────
+   The canon binds a 44x44 target on phone. Some chart-edge chips cannot grow
+   visually — MainChart keeps canvas words out of the EFFORT/INSPECT row by its
+   exact 24px height (READING_ANCHOR_ROW_BOTTOM) — so on narrow screens they
+   carry an invisible 44px hit area instead, centred on the drawn chip.
+   Measured at 390 on /charts: Futures 105x26, INSPECT 79x24, EFFORT 74x24. */
+@media (max-width: 767px) {
+  .wm-tap-slop:not(.absolute):not(.fixed) { position: relative; }
+  .wm-tap-slop::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* ── DOCUMENT ROOMS MEET THE PHONE TAP FLOOR (canon sweep 2026-10-06) ───────
+   Measured at 390: News carried 83 controls under 44px (filter chips 23–26px
+   tall), Shop 53, Journal 31, WM TV 13 (28px channel rows), Radio 9 (25px
+   like buttons). One rule on the room surface instead of eighty class edits:
+   on a phone every control in a document room is at least 44x44. Machines
+   (the chart) are excluded at the shell, and `.wm-tap-exempt` opts a control
+   out where its owner has measured a reason. */
+@media (max-width: 767px) {
+  .wm-phone-taps :is(button, [role="button"], summary, select, a[class*="px-"], a[class*="rounded"], a[style*="padding"]):not(.wm-tap-exempt) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* The scanner map's heat pane (src/app/scanner/map/page.tsx): on a phone the
+   frame is released and the pane is content-tall, so a vertical overscroll
+   "contain" only traps the page's own scroll. Horizontal stays contained. */
+@media (max-width: 900px) {
+  .wm-heat-pane { overscroll-behavior-y: auto !important; }
+}

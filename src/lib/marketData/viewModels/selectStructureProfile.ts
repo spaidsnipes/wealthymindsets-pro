@@ -95,6 +95,8 @@ const blank = (
 export function selectStructureProfile(
   structure: MarketStructureVM | null | undefined,
   bars: readonly StructureProfileBarInput[] | null | undefined,
+  /** The instrument's tick (pricePrecision.instrumentTickFor): buckets and levels land on its grid. */
+  instrumentTick?: number | null,
 ): StructureProfileVM {
   if (!structure || !structure.measured) {
     return blank("NO_STRUCTURE", "structure is not measured on this window — no leg to anchor");
@@ -133,7 +135,7 @@ export function selectStructureProfile(
   const range = top - bottom;
   const snap = computeProfileFromBars(
     leg,
-    { tickSize: chooseTickSize(range > 0 ? range : Math.abs(top) || 1, STRUCTURE_TARGET_ROWS) },
+    { tickSize: chooseTickSize(range > 0 ? range : Math.abs(top) || 1, STRUCTURE_TARGET_ROWS), instrumentTick },
   );
   if (snap.rows.length === 0 || !(snap.totalVolume > 0)) {
     return blank("NO_VOLUME", "the bars since the swing carry no volume", anchor, leg.length);

@@ -337,6 +337,21 @@ function SanctuaryRoom({
             min-height: 100dvh !important;
             overflow: visible !important;
           }
+          /* ── AND THE DOCUMENT COULD NOT SCROLL EITHER (2026-10-06) ─────
+             "The document scrolls" was only half true: <body> carries an
+             inline overflow:hidden (app/layout.tsx), so the released
+             sanctuary simply ran past the bottom of the screen with no
+             scroller anywhere. MEASURED at 390x844 by wheel-scrolling to the
+             deepest control: /news (y 31598), /education (1181),
+             /morning-prep (2256), /command-deck (4720), /tv, /radio,
+             /creator, /partnerships — none reachable. Release the body too,
+             here, so the rule ships only with the sanctuary and every framed
+             room scrolls without having to scroll itself. */
+          body {
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            overscroll-behavior-y: contain;
+          }
         }
         .wm-sanctuary::before,
         .wm-sanctuary::after,

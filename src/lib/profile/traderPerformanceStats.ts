@@ -100,7 +100,7 @@ export function traderPerformanceStats(
     reason:
       n === 0
         ? "No trades have been closed yet. Zero is the measured count."
-        : `${n} closed ${n === 1 ? "trade" : "trades"} counted from the journal and the paper book.`,
+        : `${n} closed ${n === 1 ? "trade" : "trades"} counted from the journal (paper-simulation trades are held out).`,
   };
 
   // A RATIO over an empty set has no denominator. Unlike the sum above, this
@@ -147,4 +147,29 @@ export function traderPerformanceStats(
   }
 
   return [winRate, avgRR, net, trades];
+}
+
+/**
+ * WHICH TRADES THE PROFILE TILES MAY COUNT — Garden 18 §4 (2026-10-06).
+ *
+ * The tiles summed journal entries AND closed paper-simulation trades into one
+ * "Net P&L" / "Win Rate". Simulated fills on delayed quotes are not money the
+ * trader made or lost, and a balance that mixes them with the trader's own
+ * record is the mixing the build order forbids. The tiles now count the
+ * journal only; paper trades are held out BY NAME, never silently dropped.
+ */
+export function selectProfileTileTrades<T extends ClosedTradeInput>(
+  journal: readonly T[],
+  paper: readonly ClosedTradeInput[],
+  isResolved: (t: ClosedTradeInput) => boolean,
+): { counted: T[]; paperHeldOut: number; note: string | null } {
+  const counted = journal.filter(isResolved);
+  const paperHeldOut = paper.filter(isResolved).length;
+  return {
+    counted,
+    paperHeldOut,
+    note: paperHeldOut === 0
+      ? null
+      : `${paperHeldOut} closed paper-simulation ${paperHeldOut === 1 ? "trade is" : "trades are"} kept out of these figures — simulated results live on Paper Trading and are never mixed with your journal.`,
+  };
 }

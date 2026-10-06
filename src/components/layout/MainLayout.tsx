@@ -175,7 +175,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   // OS rooms DO get document-scroll semantics; WMExperienceShell owns that
   // fact, which is the whole point of the cutover. `/proof-lane` is still on
   // the July shell (frame: "legacy") and still needs document scroll here.
-  const documentScroll = pathname === "/proof-lane";
+  // Public information pages (pricing / legal / welcome) are documents too,
+  // signed in as well as out — same 2026-10-06 measurement as the bare branch.
+  const documentScroll = pathname === "/proof-lane" || isPublicInfoPath(pathname);
   const router   = useRouter();
   const { user, signOut, signOutAllDevices } = useAuth();
 
@@ -258,6 +260,18 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   // Skip shell on auth pages — MUST be after all hooks to keep hook order stable
   if (isPublicAuthPath(pathname) || (isPublicInfoPath(pathname) && !user)) {
+    // A public INFORMATION page is a long document, and <body> is inline
+    // overflow:hidden (app/layout.tsx). MEASURED 2026-10-06 at 390x844:
+    // /pricing's last control at y 2163 and /welcome's at 1205 could not be
+    // scrolled to — the pages a guest must read before signing up. The bare
+    // branch gives them a scroller; the auth doors stay exactly as they were.
+    if (isPublicInfoPath(pathname)) {
+      return (
+        <div data-scroll-owner="public-info" style={{ height: "100%", overflowX: "hidden", overflowY: "auto", overscrollBehaviorY: "contain" }}>
+          {children}
+        </div>
+      );
+    }
     return <>{children}</>;
   }
 
@@ -447,14 +461,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               ref={workspaceTriggerRef}
               onClick={() => setProfileOpen(o => !o)}
               aria-label={profileOpen ? "Close profile menu" : "Open profile menu"}
-              className="wm-shell-avatar w-7 h-7 rounded-full overflow-hidden ring-2 ring-wm-green/30 hover:ring-wm-green/60 transition-all shrink-0"
+              className="wm-shell-avatar w-7 h-7 rounded-full overflow-hidden ring-2 ring-wm-gold/30 hover:ring-wm-gold/60 transition-all shrink-0"
               title={user?.displayName ?? "Profile"}
             >
               {user?.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-wm-green to-wm-blue flex items-center justify-center text-[11px] font-black text-wm-black">
+                <div className="w-full h-full bg-gradient-to-br from-[#c4a574] to-[#5c4a2c] flex items-center justify-center text-[11px] font-black text-wm-black">
                   {user?.displayName?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "W"}
                 </div>
               )}
@@ -720,7 +734,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
         {/* Main content */}
         <main
-          className="wm-app-surface"
+          // Phone tap floor for document rooms (globals.css .wm-phone-taps);
+          // chart and paper machines own their own controls.
+          className={/^\/(charts|paper|desk|backtest)/.test(pathname) ? "wm-app-surface" : "wm-app-surface wm-phone-taps"}
           data-scroll-owner={documentScroll ? "shell" : "workspace"}
           style={{
             flex: 1,

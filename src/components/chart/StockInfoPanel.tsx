@@ -1,6 +1,7 @@
 "use client";
 
 import { selectTickerChangeDisplay } from "@/lib/marketData/selectTickerChangeDisplay";
+import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
 import { CHANGE_UNAVAILABLE_TEXT, CHANGE_UNAVAILABLE_TITLE } from "@/lib/marketData/changeAbsence";
 import { PRICE_ABSENCE_GLYPH, priceAbsenceReason } from "@/lib/marketData/priceAbsence";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
@@ -118,31 +119,42 @@ export function StockInfoPanel({ symbol }: Props) {
   // The heart was component state and the bell had no handler (2026-10-04).
   // The heart now means what a trader expects — this symbol is on the active
   // watchlist, the same list the Watchlist panel and Scanner write.
-  const [favorited, setFavorited] = useState(false);
+  // Garden 18 §4: the heart, the session facts and the settled flag are stored
+  // WITH the symbol they were read for — the first frame after a switch used
+  // to show the previous symbol's open/high/low and heart under the new name.
+  const ownerKey = symbol.toUpperCase();
+  const [ownedFav, setOwnedFav] = useState<Owned<boolean>>(UNOWNED);
+  const favorited = readOwned(ownedFav, ownerKey) === true;
+  const setFavorited = React.useCallback((v: boolean) => setOwnedFav(owned(ownerKey, v)), [ownerKey]);
   useEffect(() => {
     try { setFavorited(readActiveWatchlist(localStorage).symbols.includes(symbol.toUpperCase())); } catch { setFavorited(false); }
   }, [symbol, setFavorited]);
   const ticksRef = useRef<HTMLDivElement>(null);
   // Real OHLC from Finnhub/Yahoo
-  const [realOHLC, setRealOHLC] = useState<{
+  type SessionOHLC = {
     // `volume` is NOT `number`. It used to be written `j.volume ?? 0` on
     // ingest, which laundered "the provider did not carry a volume" into the
     // number zero BEFORE anything downstream could tell them apart. Carry the
     // absence; let the owner decide what to say about it.
     open: number; high: number; low: number; prevClose: number; volume: number | null;
-  } | null>(null);
+  };
+  const [ownedOHLC, setOwnedOHLC] = useState<Owned<SessionOHLC>>(UNOWNED);
+  const realOHLC = readOwned(ownedOHLC, ownerKey);
 
   // Did the session-facts request come back at all? Without it the status
   // line read "LOADING…" forever after a refusal or a failed fetch
   // (garden pass 2026-10-05, SILENT_ALARM).
-  const [quoteSettled, setQuoteSettled] = useState(false);
+  const [ownedSettled, setOwnedSettled] = useState<Owned<true>>(UNOWNED);
+  const quoteSettled = readOwned(ownedSettled, ownerKey) === true;
 
   // Fetch real OHLC at mount and on symbol change
   useEffect(() => {
-    setRealOHLC(null);
-    setQuoteSettled(false);
+    setOwnedOHLC(UNOWNED);
+    setOwnedSettled(UNOWNED);
     let current = true;
     const up = symbol.toUpperCase();
+    const setRealOHLC = (v: SessionOHLC) => setOwnedOHLC(owned(up, v));
+    const setQuoteSettled = (_: true) => setOwnedSettled(owned(up, true as const));
     // Yahoo for everything — it includes pre/post-market (matches TradingView);
     // Finnhub free is regular-hours-only and goes stale outside RTH. Two class
     // predicates were computed here and immediately discarded with `void`; they

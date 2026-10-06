@@ -327,9 +327,9 @@ function VoiceMemoRow({ recorder }: { recorder: ReturnType<typeof useVoiceRecord
       {state === "idle" && (
         <button
           onClick={start}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border border-wm-border bg-wm-surface text-wm-text-muted hover:text-wm-purple hover:border-wm-purple/40 transition-all"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border border-wm-border bg-wm-surface text-wm-text-muted hover:text-wm-gold hover:border-wm-gold/40 transition-all"
         >
-          <Mic size={13} className="text-wm-purple" /> + Voice Memo
+          <Mic size={13} className="text-wm-gold" /> + Voice Memo
         </button>
       )}
 
@@ -343,8 +343,8 @@ function VoiceMemoRow({ recorder }: { recorder: ReturnType<typeof useVoiceRecord
       )}
 
       {state === "done" && memo && (
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-wm-purple/30 bg-wm-purple/5">
-          <button onClick={togglePlay} className="text-wm-purple hover:opacity-80">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-wm-gold/30 bg-wm-gold/5">
+          <button onClick={togglePlay} className="text-wm-gold hover:opacity-80">
             {playing ? <Pause size={13} /> : <Play size={13} />}
           </button>
           <WaveformBars n={18} color="#8B5CF6" />
@@ -425,7 +425,7 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
     return (
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-2">
-          <Brain size={16} className="text-wm-purple" />
+          <Brain size={16} className="text-wm-gold" />
           <span className="text-sm font-black text-wm-text">Strategy Evidence Coach</span>
           <span className="text-[10px] text-wm-text-dim">{entries.length} of {JOURNAL_COACH_MIN_SAMPLE} trades</span>
         </div>
@@ -526,7 +526,7 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2 mb-2">
-        <Brain size={16} className="text-wm-purple" />
+        <Brain size={16} className="text-wm-gold" />
         <span className="text-sm font-black text-wm-text">Journal Evidence Coach</span>
         <span className="text-[10px] text-wm-text-dim">Based on {entries.length} journaled trades</span>
       </div>
@@ -1677,7 +1677,7 @@ Trade the system, trust the process, winners every day 🚀`,
           wrapping onto as many rows as it needs, and the chips flowing in a
           row of their own. The four hooks below are those rules' names. */}
       <div className="wm-journal-header flex items-center gap-3 px-4 border-b border-wm-border shrink-0" style={{ minHeight:44 }}>
-        <FileText size={15} className="text-wm-purple shrink-0" />
+        <FileText size={15} className="text-wm-gold shrink-0" />
         <h1 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, fontWeight: 400, color: "#ede6d3" }}>Trade Journal</h1>
         {/* Main tabs */}
         <div className="wm-journal-tabs flex gap-1">
@@ -1697,7 +1697,7 @@ Trade the system, trust the process, winners every day 🚀`,
               className={clsx(
                 "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all",
                 mainTab === t.id
-                  ? "bg-wm-purple/20 text-wm-purple border-wm-purple/40"
+                  ? "bg-wm-gold/20 text-wm-gold border-wm-gold/40"
                   : "text-wm-text-muted border-transparent hover:border-wm-border hover:text-wm-text"
               )}>
               <t.icon size={11} /> {t.label}
@@ -2134,7 +2134,7 @@ Trade the system, trust the process, winners every day 🚀`,
               onClick={() => setFilterContract(c)}
               aria-pressed={filterContract === c}
               className={clsx("px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all",
-                filterContract === c && c === "option" && "bg-wm-purple/20 text-wm-purple border-wm-purple/40",
+                filterContract === c && c === "option" && "bg-wm-gold/20 text-wm-gold border-wm-gold/40",
                 filterContract === c && c === "stock" && "bg-wm-surface text-wm-text border-wm-border",
                 filterContract === c && c === "futures" && "bg-wm-blue/20 text-wm-blue border-wm-blue/40",
                 filterContract === c && c === "all" && "bg-wm-surface text-wm-text border-wm-border",
@@ -2529,7 +2529,7 @@ Trade the system, trust the process, winners every day 🚀`,
             <div className="flex gap-1 min-w-max">
               <button onClick={() => setFilterTag("")}
                 className={clsx("px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all",
-                  !filterTag ? "bg-wm-purple/20 text-wm-purple border-wm-purple/40" : "text-wm-text-muted border-transparent hover:border-wm-border")}>
+                  !filterTag ? "bg-wm-gold/20 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-transparent hover:border-wm-border")}>
                 All
               </button>
               {/* Every tag must be reachable. This row is already
@@ -2621,7 +2621,7 @@ Trade the system, trust the process, winners every day 🚀`,
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-[9px] text-wm-text-dim">{e.date}</span>
                       {e.starred && <Star size={9} className="text-wm-gold fill-wm-gold" />}
-                      {e.voiceSec > 0 && <Mic size={9} className="text-wm-purple" />}
+                      {e.voiceSec > 0 && <Mic size={9} className="text-wm-gold" />}
                       {e.images?.length > 0 && <ImageIcon size={9} className="text-wm-blue" />}
                       {e.emojis?.slice(0, 3).map((em, i) => <span key={i} className="text-[10px]">{em}</span>)}
                       <span className="text-[10px]">{MOODS.find(m => m.val === e.mood)?.emoji}</span>
@@ -2808,7 +2808,7 @@ Trade the system, trust the process, winners every day 🚀`,
                       <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Contract</div>
                       <div className={clsx(
                         "text-sm font-mono font-bold mt-0.5",
-                        selected.contractType === "option" ? "text-wm-purple" : "text-wm-text",
+                        selected.contractType === "option" ? "text-wm-gold" : "text-wm-text",
                       )}>
                         {/* Garden 16 §17: the same money owner the save used. */}
                         {selectRecordedMoney(selected).label}
@@ -3011,8 +3011,8 @@ Trade the system, trust the process, winners every day 🚀`,
 
               {/* Voice memo */}
               {selected.voiceSec > 0 && (
-                <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg border border-wm-purple/30 bg-wm-purple/5">
-                  <Play size={13} className="text-wm-purple shrink-0" />
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg border border-wm-gold/30 bg-wm-gold/5">
+                  <Play size={13} className="text-wm-gold shrink-0" />
                   <WaveformBars n={24} color="#8B5CF6" />
                   <span className="text-[10px] text-wm-text-dim font-mono">{fmtSec(selected.voiceSec)}</span>
                   <span className="text-[9px] text-wm-text-dim ml-auto">Voice Memo</span>

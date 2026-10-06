@@ -5,6 +5,7 @@
  * Info / Contract / Valuation views (2026-10-01). See tastyMarketMetrics.ts.
  * Says where the numbers came from and when; says plainly when there are none.
  */
+import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
 import React, { useEffect, useState } from "react";
 import { symbolDoorHref } from "@/contexts/SymbolContext";
 
@@ -54,12 +55,16 @@ import { deribitCurrencyFor, dvolFrom } from "@/lib/marketData/deribitOptions";
 /** A coin's day from Coinbase's public stats, plus Deribit DVOL for BTC / ETH (2026-10-02). */
 function CryptoMarketInfo({ symbol }: { readonly symbol: string }) {
   const product = coinbaseProductFor(symbol);
-  const [rows, setRows] = useState<MetricRow[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  // Garden 18 §4: stored WITH the product they were read for — a switch never
+  // paints the previous coin's 24h stats under the new coin's name.
+  const [ownedRows, setOwnedRows] = useState<Owned<MetricRow[]>>(UNOWNED);
+  const [ownedFailed, setOwnedFailed] = useState<Owned<true>>(UNOWNED);
+  const rows = readOwned(ownedRows, product);
+  const failed = readOwned(ownedFailed, product) === true;
   useEffect(() => {
     if (!product) return;
     let alive = true;
-    setRows(null); setFailed(false);
+    setOwnedRows(UNOWNED); setOwnedFailed(UNOWNED);
     const cur = deribitCurrencyFor(symbol);
     const now = Date.now();
     const dvolP = cur
@@ -67,8 +72,8 @@ function CryptoMarketInfo({ symbol }: { readonly symbol: string }) {
           .then(r => (r.ok ? r.json() : null)).then(dvolFrom).catch(() => null)
       : Promise.resolve(null);
     Promise.all([fetch(`https://api.exchange.coinbase.com/products/${product}/stats`, { cache: "no-store" }).then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))))), dvolP])
-      .then(([stats, dvol]) => { if (alive) setRows(readCoinbaseStats(stats, product.split("-")[0], dvol)); })
-      .catch(() => { if (alive) setFailed(true); });
+      .then(([stats, dvol]) => { if (alive) setOwnedRows(owned(product, readCoinbaseStats(stats, product.split("-")[0], dvol))); })
+      .catch(() => { if (alive) setOwnedFailed(owned(product, true as const)); });
     return () => { alive = false; };
   }, [product, symbol]);
   if (!product) return null;
@@ -104,14 +109,17 @@ function CryptoMarketInfo({ symbol }: { readonly symbol: string }) {
 /** A future's listed contracts, tastytrade's own (Contract view, 2026-10-01). */
 function FuturesContracts({ symbol }: { readonly symbol: string }) {
   const product = classifySymbol(symbol) === "FUTURES" ? futuresProductFor(symbol) : null;
-  const [list, setList] = useState<readonly FutureContract[] | null>(null);
+  // Garden 18 §4: this list was never reset on a switch — ES's contracts stayed
+  // under NQ until NQ's chain answered. Stored WITH its product now.
+  const [ownedList, setOwnedList] = useState<Owned<readonly FutureContract[]>>(UNOWNED);
+  const list = readOwned(ownedList, product);
   useEffect(() => {
     if (!product) return;
     let alive = true;
     fetch(`/api/broker/tastytrade/chain?futuresOptions=${encodeURIComponent(product)}`, { cache: "no-store" })
       .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (alive) setList(j?.state === "OK" ? readFuturesOptionChain(j.data).futures : []); })
-      .catch(() => { if (alive) setList([]); });
+      .then(j => { if (alive) setOwnedList(owned(product, j?.state === "OK" ? readFuturesOptionChain(j.data).futures : [])); })
+      .catch(() => { if (alive) setOwnedList(owned(product, [] as readonly FutureContract[])); });
     return () => { alive = false; };
   }, [product]);
   if (!product || !list || list.length === 0) return null;
@@ -133,15 +141,23 @@ function FuturesContracts({ symbol }: { readonly symbol: string }) {
 
 export function MarketMetricsCard({ symbol }: { readonly symbol: string }) {
   const q = metricsSymbolFor(symbol);
-  const [rows, setRows] = useState<MetricRow[] | null>(null);
-  const [asOf, setAsOf] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [notMine, setNotMine] = useState(false);
+  // Garden 18 §4: every reading is stored WITH the symbol it was read for, so
+  // the first frame after a switch never shows the previous symbol's metrics.
+  const [ownedRead, setOwnedRead] = useState<Owned<{ rows: MetricRow[]; asOf: string | null }>>(UNOWNED);
+  const [ownedFailed, setOwnedFailed] = useState<Owned<true>>(UNOWNED);
+  const [ownedNotMine, setOwnedNotMine] = useState<Owned<true>>(UNOWNED);
+  const read = readOwned(ownedRead, q);
+  const rows = read?.rows ?? null;
+  const asOf = read?.asOf ?? null;
+  const failed = readOwned(ownedFailed, q) === true;
+  const notMine = readOwned(ownedNotMine, q) === true;
 
   useEffect(() => {
     if (!q) return;
     let alive = true;
-    setRows(null); setFailed(false); setAsOf(null); setNotMine(false);
+    setOwnedRead(UNOWNED); setOwnedFailed(UNOWNED); setOwnedNotMine(UNOWNED);
+    const setNotMine = (_: true) => setOwnedNotMine(owned(q, true as const));
+    const setFailed = (_: true) => setOwnedFailed(owned(q, true as const));
     fetch(`/api/broker/tastytrade/market-metrics?symbols=${encodeURIComponent(q)}`, { cache: "no-store" })
       .then(r => {
         // Not the broker owner: these metrics come from the owner's tastytrade
@@ -153,8 +169,10 @@ export function MarketMetricsCard({ symbol }: { readonly symbol: string }) {
       .then(j => {
         if (!alive) return;
         const item = (j?.items ?? []).find((x: { symbol?: string }) => x?.symbol === q) ?? null;
-        setRows(item ? readMarketMetrics(item) : []);
-        setAsOf(item && typeof item["updated-at"] === "string" ? item["updated-at"] : null);
+        setOwnedRead(owned(q, {
+          rows: item ? readMarketMetrics(item) : [],
+          asOf: item && typeof item["updated-at"] === "string" ? item["updated-at"] : null,
+        }));
       })
       .catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };

@@ -10,6 +10,8 @@ import {
   contradictionZoneBox,
   crackStrokes,
   fanBandPolygon,
+  envelopeTailFrom,
+  ENVELOPE_TAIL_STEPS,
   rewardRTicks,
   smoothSegments,
 } from "./lensGlassGeometry";
@@ -140,5 +142,17 @@ describe("F17A · R ticks sit on the reward side, only where the plan's target r
     expect(rewardRTicks("LONG", 100, 2, null)).toEqual([]);
     expect(rewardRTicks("LONG", 100, 2, 0.8)).toEqual([]);
     expect(rewardRTicks("LONG", 100, 0, 3)).toEqual([]);
+  });
+});
+
+describe("F03 — the fan opens a short way before NOW (plate beside serving NQ1! 5m, 2026-10-06)", () => {
+  it("draws from ENVELOPE_TAIL_STEPS before NOW, never from the session open of a long session", () => {
+    expect(envelopeTailFrom(190)).toBe(190 - ENVELOPE_TAIL_STEPS);
+    expect(envelopeTailFrom(190, 12)).toBe(178);
+  });
+  it("early in the session the whole fan from the open is drawn", () => {
+    expect(envelopeTailFrom(5)).toBe(0);
+    expect(envelopeTailFrom(0)).toBe(0);
+    expect(envelopeTailFrom(Number.NaN)).toBe(0);
   });
 });

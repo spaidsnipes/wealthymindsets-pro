@@ -7,6 +7,7 @@
  * and filing dates; a derived fourth quarter says so; nothing is invented.
  */
 import React, { useEffect, useState } from "react";
+import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
 
 import type { SecQuarter } from "@/lib/fundamentals/secEdgar";
 import { secValuation } from "@/lib/fundamentals/secValuation";
@@ -39,16 +40,27 @@ export function fmtUsdBig(n: number | null | undefined): string {
 const fye = (mmdd: string | null | undefined) => (mmdd && /^\d{4}$/.test(mmdd) ? new Date(Date.UTC(2000, Number(mmdd.slice(0, 2)) - 1, Number(mmdd.slice(2)))).toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" }) : "—");
 
 export function SecFundamentalsCard({ symbol, tab }: { readonly symbol: string; readonly tab: string }) {
-  const [body, setBody] = useState<SecBody | null>(null);
-  const [failed, setFailed] = useState(false);
+  // Garden 18 §4 (2026-10-06): every reading is stored WITH the symbol it was
+  // read for. The quote was never reset on a switch, so the Valuation view
+  // divided the new company's filings by the PREVIOUS symbol's price until
+  // the new quote landed; the filings showed the previous company for a frame.
+  const key = symbol.toUpperCase();
+  const [ownedBody, setOwnedBody] = useState<Owned<SecBody>>(UNOWNED);
+  const [ownedFailed, setOwnedFailed] = useState<Owned<true>>(UNOWNED);
   // The price the Valuation view divides by — the same quote route the room reads.
-  const [quote, setQuote] = useState<{ price: number; ts: number | null } | null>(null);
+  const [ownedQuote, setOwnedQuote] = useState<Owned<{ price: number; ts: number | null }>>(UNOWNED);
   // SF-D01: a refused quote (e.g. a day close presented as live) never prices
   // the valuation, and the refusal's own words are shown instead.
-  const [quoteRefused, setQuoteRefused] = useState<string | null>(null);
+  const [ownedRefused, setOwnedRefused] = useState<Owned<string>>(UNOWNED);
+  const body = readOwned(ownedBody, key);
+  const failed = readOwned(ownedFailed, key) === true;
+  const quote = readOwned(ownedQuote, key);
+  const quoteRefused = readOwned(ownedRefused, key);
   useEffect(() => {
     if (tab !== "Valuation") return;
     let off = false;
+    const setQuote = (q: { price: number; ts: number | null } | null) => setOwnedQuote(q ? owned(key, q) : UNOWNED);
+    const setQuoteRefused = (r: string | null) => setOwnedRefused(r ? owned(key, r) : UNOWNED);
     fetch(`/api/yahoo?sym=${encodeURIComponent(symbol.toUpperCase())}&type=quote`, { cache: "no-store" })
       .then(r => r.json() as Promise<{ price?: number; ts?: number }>)
       .then(j => {
@@ -59,16 +71,16 @@ export function SecFundamentalsCard({ symbol, tab }: { readonly symbol: string; 
       })
       .catch(() => {});
     return () => { off = true; };
-  }, [symbol, tab]);
+  }, [symbol, tab, key]);
   useEffect(() => {
     let off = false;
-    setBody(null); setFailed(false);
+    setOwnedBody(UNOWNED); setOwnedFailed(UNOWNED);
     fetch(`/api/fundamentals/sec?symbol=${encodeURIComponent(symbol.toUpperCase())}`)
       .then(r => r.json() as Promise<SecBody>)
-      .then(j => { if (!off) setBody(j); })
-      .catch(() => { if (!off) setFailed(true); });
+      .then(j => { if (!off) setOwnedBody(owned(key, j)); })
+      .catch(() => { if (!off) setOwnedFailed(owned(key, true as const)); });
     return () => { off = true; };
-  }, [symbol]);
+  }, [symbol, key]);
 
   if (failed || body?.state === "SEC_UNAVAILABLE") {
     return <p data-testid="sec-fundamentals-unavailable" style={{ fontSize: 12, color: "#8896BE" }}>SEC EDGAR did not answer just now — company filings for {symbol.toUpperCase()} will load on the next visit.</p>;

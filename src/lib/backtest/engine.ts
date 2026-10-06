@@ -74,6 +74,21 @@ export interface BTResult {
 }
 
 /** The fill and cost model, said with every run (super order §7). */
+/**
+ * The one-line run summary handed to the journal (Walk-forward → Journal).
+ * Garden 18 §4 (2026-10-06): a ZERO-trade run has no win rate and no profit
+ * factor — the old line printed "0 trades · win rate 0%" into the journal,
+ * a measured-looking 0% for a strategy that never triggered. Zero-trade
+ * metrics stay undefined, in words.
+ */
+export function backtestRunLine(r: Pick<BTResult, "trades" | "winRate" | "profitFactor" | "totalPnl">): string {
+  if (r.trades.length === 0) {
+    return "Run: 0 trades — the strategy never triggered, so there is no win rate or profit factor (simulated).";
+  }
+  const pf = r.trades.some(t => t.pnl < 0) ? r.profitFactor.toFixed(2) : "no losing trades";
+  return `Run: ${r.trades.length} trades · win rate ${r.winRate}% · profit factor ${pf} · P&L ${r.totalPnl >= 0 ? "+" : "−"}$${Math.abs(r.totalPnl).toLocaleString()} (simulated).`;
+}
+
 export const BACKTEST_ASSUMPTIONS =
   "Signal on a bar's close, entry at the NEXT bar's open (no look-ahead). Stop and target fill at their price, or at the bar's open when it gapped beyond them; stop is checked before target inside a bar. No commissions, fees or slippage are modelled — real results will be lower. 1% risk per trade, one position at a time.";
 

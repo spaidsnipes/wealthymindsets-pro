@@ -14,7 +14,7 @@ import { Play, Square, RotateCcw, TrendingUp, TrendingDown, BarChart2, Download,
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
-import { fetchBars, runRealBacktest, type BTTrade, type BTResult } from "@/lib/backtest/engine";
+import { backtestRunLine, fetchBars, runRealBacktest, type BTTrade, type BTResult } from "@/lib/backtest/engine";
 import { CHART_TF_SHIPPED } from "@/lib/timeframes";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 
@@ -331,7 +331,7 @@ export default function BacktestingPage() {
     const lines = [
       `Walk-forward / backtest review — ${strategyName} on ${symbol} ${tf}${rangeName ? `, ${rangeName}` : ""}.`,
       result
-        ? `Run: ${result.trades.length} trades · win rate ${result.winRate}% · profit factor ${profitFactorText(result) ?? "—"} · P&L ${result.totalPnl >= 0 ? "+" : "−"}$${Math.abs(result.totalPnl).toLocaleString()} (simulated).`
+        ? backtestRunLine(result)
         : "No run recorded on this visit — paste each window's in-sample / out-of-sample numbers.",
       "Out-of-sample held up? What would invalidate it?",
     ];

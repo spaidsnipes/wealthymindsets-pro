@@ -28,14 +28,19 @@ import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketD
 import { continuousDayKeyFor, selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "@/lib/marketData/sessionWindow";
 import { nearestFreeLabelY } from "@/lib/chart/labelSlot";
 import {
-  PHASE_WORD, PHASE_MEANING, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, lensRadiusCapFor, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
+  PHASE_WORD, PHASE_MEANING, SCALE_HEAVY_T, SCALE_THIN_T, fitWeatherLens, lensRadiusCapFor, liveEdgeKeepOutX, ladderInk, ladderRungYs, poolSpan, splitAtBites, ringPoint, scaleAngle, weatherLensGate,
   wordOnTopArc, type WeatherLens,
 } from "@/lib/chart/liquidityGlassGeometry";
-import { axisPriceFormatFor, displayPrecisionFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
+import { axisPriceFormatFor, displayPrecisionFor, instrumentTickFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
+import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
+import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
+/** One stable empty book (a fresh [] per render would re-run the cost-line effect every frame). */
+const NO_BROKER_COST_POSITIONS: never[] = [];
+import { rowsInPriceOrder } from "@/lib/chart/levelRowOrder";
 import { marketTickDedupeKey } from "@/lib/marketData/tickIdentity";
 import type { AggressorMethod } from "@/lib/marketData/marketEvent";
 import {
@@ -298,6 +303,7 @@ const ANATOMY_BLOCK_RECEIPTS = [
 const REGIME_LIGHTING_RECEIPTS = [
   "regimeLightingFixtures", "regimeLightingChannel", "regimeLightingMagnets",
   "regimeLightingField", "regimeLightingMark", "regimeLightingCandlesKept", "regimeLightingClipped",
+  "regimeLightingScope",
 ] as const;
 /** F15A's state light, as an ambient wash (olive BALANCE, amber TRANSITION, oxblood WAIT). */
 const REGIME_FIELD_RGB = { BALANCE: "128,150,72", TRANSITION: "214,150,50", WAIT: "170,62,50" } as const;
@@ -435,6 +441,7 @@ import {
   contradictionZoneBox,
   crackStrokes,
   fanBandPolygon,
+  envelopeTailFrom,
   rewardRTicks,
   smoothSegments,
 } from "@/lib/chart/lensGlassGeometry";
@@ -529,6 +536,8 @@ import {
   type ClusterDiscInput,
   fitBidAskCellText,
   fitBubbleInscription,
+  formingColumnCrossesWords,
+  bigTradeRankSize,
   footprintHistogramRow,
   imbalanceRunWord,
   imbalanceRuns,
@@ -1572,6 +1581,12 @@ interface Props {
   scaffoldingStructure?: MarketStructureVM | null;
   /** H-901 — the regime dimmer, compiled from the one regime owner. */
   regimeLighting?: RegimeLightingVM | null;
+  /**
+   * F05B — the bar the Inspect Ticket is reading, when a bar is pinned and
+   * Inspect is open (ChartsDashboard's `inspectBar`). Marked on the candle:
+   * hairline + truth ceiling / floor. Null = nothing pinned, nothing marked.
+   */
+  inspectedBarOnChart?: { readonly time: number; readonly high: number; readonly low: number } | null;
   regimeLightingOnChart?: boolean;
   // Footprint toggle
   footprintEnabled?: boolean;
@@ -1966,6 +1981,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   onVpLevels,
   scaffoldingStructure = null,
   regimeLighting = null,
+  inspectedBarOnChart = null,
   regimeLightingOnChart = false,
   bigTradesOverlay = false,
   visualRoles,
@@ -2054,14 +2070,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // `lastPrice` starts at a seed (getBase) and is not reset on a symbol
   // change, so paper money is marked only against this, for THIS symbol.
   const observedPxRef = useRef<{ symbol: string; px: number } | null>(null);
-  const [brokerCostPositions, setBrokerCostPositions] = useState<Array<{
+  // SYMBOL-OWNED (truth lane, 2026-10-06): the REAL Webull cost lines belong
+  // to the symbol they were read for. A plain useState kept the previous
+  // symbol's lines painted on the new symbol's price until the positions
+  // route answered (forever if it hung). Reads now return [] the moment the
+  // symbol changes, and a late answer for the old symbol is dropped.
+  const brokerCostKey = (symbol || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const [brokerCostPositions, setBrokerCostPositions] = useSymbolOwnedState<Array<{
     symbol: string;
     instrumentType: "STOCK" | "OPTION" | "OTHER";
     quantity: number;
     paintLevel: number;
     costPrice: number;
     option?: { type: "CALL" | "PUT"; strike: number; expireDate: string; multiplier: number };
-  }>>([]);
+  }>>(brokerCostKey, NO_BROKER_COST_POSITIONS);
   // Live-updating oscillators: each entry recomputes its series values from the
   // CURRENT bars (barsRef) and pushes only the last point on every live tick, so
   // Tape Speed / Exhaustion / flow histograms visibly move with real-time data
@@ -2154,6 +2176,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   useEffect(() => { stackPrefsRef.current = profileStackPrefs ?? DEFAULT_STACK_PREFS; }, [profileStackPrefs]);
   /** Offscreen layer the P-601 heat cells composite into before meeting the glass once. */
   const heatLayerRef = useRef<HTMLCanvasElement | null>(null);
+  /** What the heat layer last rendered (heatLayerKey) — an unchanged field is not re-blurred (perf pass 2026-10-06). */
+  const heatLayerKeyRef = useRef<string | null>(null);
+  const heatContoursCachedRef = useRef(0);
   /** F08B storm texture cache (weatherStorm.ts) — rebuilt only when its key changes; STILL holds the frozen phase. */
   const stormCacheRef = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
   /** A storm rebuild in progress: half the rows per frame, swapped in when whole (performance pass). */
@@ -2192,6 +2217,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const vrpCacheRef = useRef<{ key: string; vm: VisibleRangeProfileVM } | null>(null);
   const regimeLightingRef = useRef<RegimeLightingVM | null>(null);
   useEffect(() => { regimeLightingRef.current = regimeLighting ?? null; }, [regimeLighting]);
+  const inspectedBarRef = useRef<{ readonly time: number; readonly high: number; readonly low: number } | null>(null);
+  inspectedBarRef.current = inspectedBarOnChart ?? null;
 
   /** Last crosshair reading published — see the crosshair subscription. */
   const lastCursorKeyRef = useRef<string | null>(null);
@@ -8753,6 +8780,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // price/time sat over the forming candle. The disc keeps its place;
         // the forming bar's high–low column is cut out of it.
         let formingCut: Path2D | null = null;
+        /** The forming bar's high–low column on screen (the cut), for the inscription test below. */
+        let formingCol: { x0: number; x1: number; y0: number; y1: number } | null = null;
         if (btNewest) {
           const fx = chart.timeScale().timeToCoordinate(btNewest.time as never);
           const fyh = srs.priceToCoordinate(btNewest.high), fyl = srs.priceToCoordinate(btNewest.low);
@@ -8761,9 +8790,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             formingCut = new Path2D();
             formingCut.rect(0, 0, W, H);
             formingCut.rect(+fx - half - 1, +fyh - 2, 2 * half + 2, +fyl - +fyh + 4);
+            formingCol = { x0: +fx - half - 1, x1: +fx + half + 1, y0: Math.min(+fyh, +fyl) - 2, y1: Math.max(+fyh, +fyl) + 2 };
           }
         }
         let discsYieldedToForming = 0;
+        /** Inscriptions withheld because the forming candle's column runs through their words. */
+        let inscriptionsYieldedToForming = 0;
         for (const b of [...bigDiscs].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {
           const buy = b.side === "buy";
           const selB = selDiscKey != null && b.spawnKey === selDiscKey;
@@ -8809,7 +8841,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const acc = bigTradePrintAccRef.current;
           let printCount = 0; for (const v of acc.values()) printCount += v.length;
           if (sessionSizesRef.current.count !== printCount) sessionSizesRef.current = { count: printCount, sorted: sortedSessionSizes(acc.values()) };
-          const tier = bigTradeTier(percentileFromSorted(sessionSizesRef.current.sorted, Math.abs(b.value)));
+          const tier = bigTradeTier(percentileFromSorted(sessionSizesRef.current.sorted, bigTradeRankSize(b.value, bigClusterOf.get(b.spawnKey))));
           const ripple = arrivalRipple(nowMs, b.born, arriving, motionOnRef.current);
           if (ripple != null) {
             ctx.save();
@@ -8881,7 +8913,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             formatBubbleClock(b.anchorTime, tzRef.current, clock24hRef.current),
             `${buy ? "↑" : "↓"} ${b.anchorPrice.toFixed(pxDp)}`,
             bigClusterOf.get(b.spawnKey)?.members.length ?? 1), measureInscription);
-          if (inscription.length) {
+          // F07A vs the ACTIVE CANDLE (serving NQ1! 5m, 2026-10-06 08:39 CDT):
+          // the forming bar's column is cut out of the disc, and it cut the
+          // words too — "41 ×7 · ↓ 31515.00" read as "4 ×7 · 315 5.00". A
+          // number with a candle through it is a wrong number: the words
+          // yield (the callout / Inspect carry them), the candle stays whole.
+          const formingThroughWords = formingColumnCrossesWords(formingCol, b, inscription, measureInscription);
+          if (formingThroughWords) inscriptionsYieldedToForming++;
+          if (inscription.length && !formingThroughWords) {
             ctx.globalAlpha = att.textAlpha("bigTrades", { selectedItem: selB });
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 3;
@@ -8904,7 +8943,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.bigTradeOverlaps = String(countCircleOverlaps(drawnDiscs));
         canvas.dataset.bigTradesDrawn = String(bigDrawn);
         canvas.dataset.bigTradeFormingCut = formingCut ? `YIELDS:${discsYieldedToForming}` : "NONE";
-        canvas.dataset.bigTradeInscribed = String(bigInscribed);
+        canvas.dataset.bigTradeInscribed = inscriptionsYieldedToForming > 0 ? `${bigInscribed}|YIELDED_FORMING:${inscriptionsYieldedToForming}` : String(bigInscribed);
         canvas.dataset.bigTradeQuieted = String(bubblesQuieted);
         canvas.dataset.responsePaths = String(responsePaths);
 
@@ -8935,11 +8974,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           calloutReceipt = calloutWaits ? "NONE:NARROW_QUIET" : `NONE:${pick.reason}`;
           if (pick.target && !calloutWaits) {
             const b = pick.target.b;
-            const rank = sessionSizePercentile(Math.abs(b.value), bigTradePrintAccRef.current.values());
+            const rank = sessionSizePercentile(bigTradeRankSize(b.value, bigClusterOf.get(b.spawnKey)), bigTradePrintAccRef.current.values());
             const words = bigTradeCalloutLines({
               bid: b.bid, ask: b.ask, price: b.anchorPrice, priceText: b.anchorPrice.toFixed(pxDp),
               aggressorMethod: b.aggressorMethod, pct: rank.pct, prints: rank.prints,
               cluster: bigClusterOf.has(b.spawnKey) ? { n: bigClusterOf.get(b.spawnKey)!.members.length, total: Math.abs(b.value) } : null,
+              clusterRankOf: "LARGEST",
             });
             if (words) {
               ctx.font = `700 10px ${MARKET_SANS}`;
@@ -9268,10 +9308,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // FORCE caption at the arrow's tail.
             plate(["FORCE", `(${claim.heading})`], ax0 - 70, up ? ay0 + 4 : ay0 - 34, true);
             if (pr.verdict === "PENDING") {
-              // A live-bar print sits at the right edge, under the Inspect
-              // ticket's column; the debt plate stands clear of it on a leader.
-              const px0 = ex > W - 560 ? W - 560 - 190 : ex - 190;
-              const py0 = up ? ey + 30 : ey - 50;
+              // F04A: the debt plate hangs ON the event — directly under it,
+              // on the side opposite the FORCE (plate beside serving NQ1! 1m,
+              // select=bigtrade, 2026-10-06: it stood ~420px left of the event
+              // on a long leader, stepping round a right-hand Inspect column
+              // that now opens on the left). plate() keeps it in the plot and
+              // steps it off the disc and every chip already placed.
+              const px0 = ex - 95;
+              const py0 = up ? ey - 62 : ey + 30;
               const debt = plate(["UNPAID EVIDENCE DEBT", `${pr.responseBars}/3 response bars closed`], px0, py0, true);
               // The leader leaves the plate where it actually landed.
               ctx.save(); clipOutChips(ctx, W, H, forceChips, debt);
@@ -10003,7 +10047,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
          */
         // Placeholder volume (spot FX / all-0/1 feeds, volumeTruth.ts) builds no
         // profile: one live "1" over 0s drew a VP out of a flag (2026-09-26).
-        const snap = computeProfileFromBars([...volumeBearingBars(symbol, barsToUse)], { targetRows: rows, valueAreaPct: 0.7 });
+        const snap = computeProfileFromBars([...volumeBearingBars(symbol, barsToUse)], {
+          targetRows: rows, valueAreaPct: 0.7,
+          // P0.2: rows, POC, VAH, VAL on the instrument's tick grid.
+          instrumentTick: instrumentTickFor(symbol, barsToUse.length ? barsToUse[barsToUse.length - 1].close : null),
+        });
         // The market's own decimals for this column's price tags (pricePrecision.ts);
         // computed here, not read from the frame, because this can run first.
         const vpDp = displayPrecisionFor(symbol, barsToUse);
@@ -11992,19 +12040,33 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // The narrow chip's backing is opaque, so it also steps off the
               // newest candle bodies; when only a slot on a body is free it
               // keeps that slot and its backing yields. The desktop annotation
-              // has no backing, so it is not held to the keep-out.
+              // has no backing, but its WORDS still step off the bodies (plate
+              // F06A beside serving NQ1! 5m, 2026-10-06: "ABSORPTION SHELF" and
+              // "SUPPLY … TESTED" printed through the newest candles; on the
+              // plate the shelf's name sits under the slab, clear of price).
+              // It takes the first slot clear of every body, and only when
+              // none is clear keeps the slot it had before (no backing, so no
+              // yield is counted for it).
               // Every body under its slots counts, not only the newest three:
               // a shelf formed back in history hangs its chip over the older
               // candles that made it.
               const slotRects = slots.map(y => ({ x: chipX, y: Math.max(2, y), w: chipW, h: chipH }));
-              const chipSpot = slotRects.length === 0 ? null : pickSlotClearOfKeepOut(
+              const chipSpot = ((first: ReturnType<typeof pickSlotClearOfKeepOut>) => {
+                if (!desktopShelfInstrument || first == null) return first;
+                const clear = pickSlotClearOfKeepOut(
+                  slotRects,
+                  [...keepOut(), ...rowBodiesAt(Math.min(...slotRects.map(s => s.y)), Math.max(...slotRects.map(s => s.y + s.h)))],
+                  s => hit(s.y),
+                );
+                return clear && !clear.onCandles ? clear : first;
+              })(slotRects.length === 0 ? null : pickSlotClearOfKeepOut(
                 slotRects,
                 desktopShelfInstrument ? [] : [
                   ...keepOut(),
                   ...rowBodiesAt(Math.min(...slotRects.map(s => s.y)), Math.max(...slotRects.map(s => s.y + s.h))),
                 ],
                 s => hit(s.y),
-              );
+              ));
               if (chipSpot == null) { absorbChipsHidden++; continue; }
               // QUIET (the phone's word budget): the shelf paints, its words
               // wait — the same path as a shelf with no free slot. Selecting
@@ -15383,6 +15445,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // only for what reached the glass.
         for (const k of REGIME_LIGHTING_RECEIPTS) delete ds[k];
         if (lightOn && regimeLight) {
+          // What the title's word measured (TAPE vs BARS), or the named contradiction (F15A × F14).
+          if (regimeLight.scope) ds.regimeLightingScope = regimeLight.scope;
           const tsR = chart.timeScale();
           const vrR = tsR.getVisibleLogicalRange();
           const barsR = barsRef.current ?? [];
@@ -16004,7 +16068,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               return xl == null ? null : +xl;
             };
             const cols: { k: number; x: number; y10: number; y25: number; y50: number; y75: number; y90: number }[] = [];
+            // F03: the fan opens a short way before NOW, not at the session
+            // open — the history left of it stays clean candles.
+            const tailFromE = envelopeTailFrom(fan.nowK);
             for (const s of fan.steps) {
+              if (s.k < tailFromE) continue;
               const x = xAtK(s.k);
               const y10 = srs.priceToCoordinate(s.p10), y25 = srs.priceToCoordinate(s.p25), y50 = srs.priceToCoordinate(s.p50);
               const y75 = srs.priceToCoordinate(s.p75), y90 = srs.priceToCoordinate(s.p90);
@@ -16015,7 +16083,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const fwd = inView.filter(c => c.k > fan.nowK).length;
             const nNow = fan.steps[Math.min(fan.nowK, fan.steps.length - 1)].n;
             if (cols.length >= 2 && inView.length >= 1) {
-              ds.expectedEnvelopeFan = `STEPS:${cols.length}|IN_VIEW:${inView.length}|NOW:${fan.nowK}|FWD:${fwd}|N:${nNow}`;
+              ds.expectedEnvelopeFan = `STEPS:${cols.length}|IN_VIEW:${inView.length}|NOW:${fan.nowK}|FWD:${fwd}|N:${nNow}|FROM:${tailFromE}`;
               // THE FAN — behind the market: every candle in its span is cut
               // out, and nothing crosses under the price axis.
               const vrE = tsE.getVisibleLogicalRange();
@@ -16058,6 +16126,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.clip("evenodd");
               }
               const GOLD = (a: number) => `rgba(201,165,92,${a})`;
+              // F03: where the fan opens before NOW it fades in over its first
+              // few columns (the plate's fan has no wall at its start).
+              const fanInk = (a: number): string | CanvasGradient => {
+                if (tailFromE <= 0 || cols.length < 3) return GOLD(a);
+                const g = ctx.createLinearGradient(cols[0].x, 0, cols[Math.min(cols.length - 1, 5)].x, 0);
+                g.addColorStop(0, GOLD(0));
+                g.addColorStop(1, GOLD(a));
+                return g;
+              };
               // Curves through the measured columns (smoothSegments rounds
               // the corners between them; no value is moved or invented).
               const trace = (pts: readonly { x: number; y: number }[], cont: boolean) => {
@@ -16071,14 +16148,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 trace(poly.slice(0, cols.length), false);
                 trace(poly.slice(cols.length), true);
                 ctx.closePath();
-                ctx.fillStyle = GOLD(a);
+                ctx.fillStyle = fanInk(a);
                 ctx.fill();
               };
               band("y10", "y90", 0.07);
               band("y25", "y75", 0.08);
               const edge = (key: "y10" | "y25" | "y50" | "y75" | "y90", dash: number[], a: number, lw: number) => {
                 ctx.setLineDash(dash);
-                ctx.strokeStyle = GOLD(a);
+                ctx.strokeStyle = fanInk(a);
                 ctx.lineWidth = lw;
                 ctx.beginPath();
                 trace(cols.map(c => ({ x: c.x, y: c[key] })), false);
@@ -17765,7 +17842,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const key = `${from}|${to}|${bs.length}|${last?.time ?? ""}|${last?.volume ?? ""}|${last?.close ?? ""}`;
           if (vrpCacheRef.current?.key === key) vrpVM = vrpCacheRef.current.vm;
           else {
-            vrpVM = selectVisibleRangeProfile(bs, from, to);
+            vrpVM = selectVisibleRangeProfile(bs, from, to, instrumentTickFor(symbol, last?.close ?? null));
             vrpCacheRef.current = { key, vm: vrpVM };
           }
         }
@@ -18588,11 +18665,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // QUIET (FAR skeleton, NEAR): the lane without its level words.
               if (price == null || !att.speaks("livingProfile")) return;
               if (parentChipsWithheld.has("LIVING")) { parentChipsWithheldCount++; return; } // a fused parent: its chips wait in Inspect
-              const yr = srs.priceToCoordinate(price);
-              if (yr == null) return;
+              const yAt = srs.priceToCoordinate(price);
+              if (yAt == null) return;
+              // The row in price order (rowsInPriceOrder below), else the level's own.
+              const yr = rowFor.get(text.includes("POC ") ? "POC" : text.includes("VAH ") ? "VAH" : "VAL") ?? +yAt;
               levelChip(+yr, text, ink);
               livingChips++;
             };
+            // The three words keep the order of their prices (rowsInPriceOrder):
+            // a narrow value area steps VAH up and VAL down around the POC's
+            // own row, never VAL above VAH (serving NQ1! 1m, 2026-10-06).
+            const yOfLp = (p: number | null | undefined) => { if (p == null) return NaN; const yv = srs.priceToCoordinate(p); return yv == null ? NaN : +yv; };
+            const rowFor = rowsInPriceOrder<"POC" | "VAH" | "VAL">([
+              { key: "VAH", y: yOfLp(lp.vah) }, { key: "POC", y: yOfLp(lp.poc) }, { key: "VAL", y: yOfLp(lp.val) },
+            ], LEVEL_CHIP_H + 1, "POC");
             const tag = stacked ? "LIVING " : "";
             let livingChips = 0;
             if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
@@ -20857,6 +20943,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const x = chart.timeScale().timeToCoordinate(lensBars[at].time as never);
           return x == null ? null : +x;
         };
+        const weatherLiveEdgeX = lensBars.length > 0
+          ? liveEdgeKeepOutX((() => { const xk = chart.timeScale().timeToCoordinate(lensBars[lensBars.length - 1].time as never); return xk == null ? null : +xk; })(), bsp)
+          : null;
         if (on && glass.drawn) {
           const wnd = glass.window;
           if (!wnd) weatherLensWhy = "UNTIMED";
@@ -20896,8 +20985,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // …and room for the whole brass bezel (F08B: the loupe is always whole on the glass).
                 { x0: LENS_BEZEL_W + 2, y0: HEADER_FLOOR_Y + 16 + LENS_BEZEL_W, x1: weatherPlotRight - LENS_BEZEL_W - 2, y1: pane0Bottom - 16 - LENS_BEZEL_W },
                 // A tablet's loupe stands on part of the glass, not across it.
-                { maxRadius: lensRadiusCapFor(weatherPlotRight) },
+                // F08B: the newest candles, last price and countdown stand
+                // OUTSIDE the ring (bezel included) — the live-edge keep-out.
+                { maxRadius: lensRadiusCapFor(weatherPlotRight), liveEdgeX: weatherLiveEdgeX == null ? null : weatherLiveEdgeX - LENS_BEZEL_W - 2 },
               );
+              ds.liquidityWeatherLiveEdge = weatherLiveEdgeX == null ? "UNMEASURED" : weatherLens && weatherLens.cx + weatherLens.rx + LENS_BEZEL_W <= weatherLiveEdgeX + 0.5 ? "CLEAR" : "WAIVED";
               weatherLensWhy = weatherLens ? "DRAWN" : "OFF_CAMERA";
               if (!weatherLens) weatherOffCamera = region;
             }
@@ -21051,9 +21143,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const glassAlpha = heat.maxOpacity * 0.72;
           const ctxHeat = hctx ?? ctx;
           ctxHeat.save();
-          ctxHeat.setTransform(1, 0, 0, 1, 0, 0);
-          ctxHeat.clearRect(0, 0, hc.width, hc.height);
-          ctxHeat.setTransform(mainCtx.getTransform());
+          /* PERFORMANCE (serving NQ1! 5m, 2026-10-06): Weather alone cost a
+             14–16 ms mean frame with 54 ms spikes. Each cell paints a blurred
+             band and five blurred smoke puffs — ~70 canvas blur filters per
+             frame — into a layer whose content is a pure function of the
+             cells' screen geometry, tones and alphas. The draws are now
+             collected and replayed ONLY when that geometry changes
+             (heatLayerKey); otherwise the layer already holds the same pixels
+             and is composited as before. Nothing painted changes. */
+          const heatDraws: (() => void)[] = [];
+          const heatKeyParts: string[] = [];
           let painted = 0;
           let contours = 0;
           let untimed = 0;
@@ -21110,6 +21209,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                A vertical fade keeps the candle bodies legible at both edges
                of the zone. The selector still owns the hard 0.30 regulator;
                this renderer can only spend less than it was handed. */
+            heatKeyParts.push(`${cell.index}:${cx0.toFixed(2)}:${cx1.toFixed(2)}:${top.toFixed(2)}:${band.toFixed(2)}:${alpha}:${tone}:${cell.intensity}`);
+            heatDraws.push(() => {
             const wash = ctxHeat.createLinearGradient(0, top, 0, top + band);
             wash.addColorStop(0, "rgba(0,0,0,0)");
             wash.addColorStop(0.28, tone);
@@ -21188,7 +21289,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               contours++;
             }
             ctxHeat.restore();
+            });
             painted++;
+          }
+          {
+            const T = mainCtx.getTransform();
+            const heatKey = `${hc.width}x${hc.height}|${T.a},${T.b},${T.c},${T.d},${T.e},${T.f}|${heat.maxOpacity}|${heatKeyParts.join(";")}`;
+            if (heatDraws.length > 0 && heatKey !== heatLayerKeyRef.current) {
+              ctxHeat.setTransform(1, 0, 0, 1, 0, 0);
+              ctxHeat.clearRect(0, 0, hc.width, hc.height);
+              ctxHeat.setTransform(T);
+              for (const draw of heatDraws) draw();
+              heatLayerKeyRef.current = heatKey;
+              ds.heatLensLayer = "REDRAWN";
+            } else if (heatDraws.length > 0) {
+              // The same contours were counted as when they were drawn.
+              contours = heatContoursCachedRef.current;
+              ds.heatLensLayer = "REUSED";
+            }
+            if (heatDraws.length > 0 && ds.heatLensLayer === "REDRAWN") heatContoursCachedRef.current = contours;
           }
           ctxHeat.restore();
           /* F08B · THE STORM (Founder plate WM_NewMockup_79, Garden 16 order
@@ -21355,6 +21474,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           delete ds.heatLensCells;
           delete ds.heatLensContours;
           delete ds.heatLensUntimed;
+          delete ds.heatLensLayer;
           delete ds.weatherStorm;
         }
         /* ══ F08B · WEATHER IS A LENS — THE RING, ITS WORDS, ITS READOUT ══════
@@ -21795,6 +21915,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             delete ds.liquidityWeatherStage;
             delete ds.liquidityWeatherShelves;
             delete ds.liquidityWeatherLens;
+            delete ds.liquidityWeatherLiveEdge;
             delete ds.weatherLensHandle;
             delete ds.liquidityWeatherRing;
             delete ds.liquidityWeatherReadout;
@@ -22776,6 +22897,66 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         ctx.restore();
         canvas.dataset.silenceFolded = String(silenceFolded);
       } else delete canvas.dataset.silenceFolded; } catch (err) { layerFault("SILENCE_FOLD", err); }
+
+      /* ══ F05B · THE INSPECTED CANDLE IS MARKED ON THE CANDLE ═══════════════
+         The Inspect Ticket reads one bar; the glass says which. A dashed
+         hairline above and below that candle (never across it) and its truth
+         ceiling / floor — its own high and low — as short rules either side.
+         Geometry from inspectedBarMark; words only the two prices, placed by
+         the keep-out owner. Light: a few strokes, no fills, no gradients.
+         Receipt: inspectedBar = MARKED:<time> · OFF_CAMERA · NONE. */
+      try {
+        const ib = inspectedBarRef.current;
+        if (!ib) delete canvas.dataset.inspectedBar;
+        else {
+          const tsI = chart.timeScale();
+          const xI = tsI.timeToCoordinate(ib.time as never);
+          const yHI = srs.priceToCoordinate(ib.high), yLI = srs.priceToCoordinate(ib.low);
+          let axisWI = 60;
+          try { axisWI = chart.priceScale("right").width(); } catch { /* keep default */ }
+          const mark = xI == null || yHI == null || yLI == null ? null : inspectedBarMark({
+            x: +xI, yHigh: +yHI, yLow: +yLI, barSpacing: bsp,
+            plot: { x0: 0, x1: Math.max(8, W - axisWI), y0: HEADER_FLOOR_Y, y1: pane0Bottom },
+          });
+          if (!mark) canvas.dataset.inspectedBar = "OFF_CAMERA";
+          else {
+            ctx.save();
+            ctx.strokeStyle = "rgba(232,184,92,0.55)"; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+            ctx.beginPath();
+            for (const h of mark.hairline) { ctx.moveTo(Math.round(h.x) + 0.5, h.y0); ctx.lineTo(Math.round(h.x) + 0.5, h.y1); }
+            ctx.stroke();
+            ctx.strokeStyle = "rgba(232,184,92,0.85)"; ctx.setLineDash([5, 3]);
+            ctx.beginPath();
+            for (const r of [mark.ceiling, mark.floor]) { ctx.moveTo(r.x0, Math.round(r.y) + 0.5); ctx.lineTo(r.x1, Math.round(r.y) + 0.5); }
+            ctx.stroke();
+            ctx.setLineDash([]);
+            // The two prices, at the rules' left ends, clear of every body.
+            ctx.font = marketFont("FIDELITY"); ctx.textBaseline = "middle"; ctx.textAlign = "left";
+            const words: [string, number, number][] = [
+              [`TRUTH HIGH ${ib.high.toFixed(pxDp)}`, mark.ceiling.y, -1],
+              [`TRUTH LOW ${ib.low.toFixed(pxDp)}`, mark.floor.y, 1],
+            ];
+            for (const [t, y, dir] of words) {
+              const tw = Math.ceil(ctx.measureText(t).width) + 8, th = 14;
+              const yy = dir < 0 ? y - th - 2 : y + 2;
+              const pref = { x: Math.max(keepOutMinX(), mark.ceiling.x0 - tw - 4), y: yy, w: tw, h: th };
+              const spot = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(yy, yy + th)], {
+                minX: keepOutMinX(), blockers: floatingChips, strict: true,
+                alternates: [{ ...pref, x: Math.min(mark.ceiling.x1 + 4, Math.max(8, W - axisWI) - tw - 2) }],
+              });
+              if (spot.mode === "BLOCKED") continue;
+              recordKeepOut(keepOutLedger, spot);
+              floatingChips.push(spot.rect);
+              ctx.fillStyle = "rgba(11,10,8,0.78)";
+              ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
+              ctx.fillStyle = "rgba(240,200,110,0.95)";
+              ctx.fillText(t, spot.rect.x + 4, spot.rect.y + th / 2 + 0.5);
+            }
+            ctx.restore();
+            canvas.dataset.inspectedBar = `MARKED:${ib.time}`;
+          }
+        }
+      } catch (err) { layerFault("INSPECTED_BAR", err); }
 
       /* ══ H-101 · THE DEBT TAG LIVES ON THE EVENT ═══════════════════════════
          Sheet H-101 ("EVIDENCE DEBT — WAIT IS A FINISHED ORGANISM") hangs a
@@ -24108,7 +24289,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // RELATIVE SIZE VS SESSION for the cluster's total and for each member,
       // against every print this chart captured this session.
       const accC = bigTradePrintAccRef.current;
-      const rankC = sessionSizePercentile(hitCluster.size, accC.values());
+      // Ranked like against like (bigTradeRankSize): the cluster's LARGEST
+      // member print vs single prints — never its sum (F07A, 2026-10-06).
+      const rankC = sessionSizePercentile(bigTradeRankSize(hitCluster.size, hitCluster), accC.values());
       const members = hitCluster.members.map(m => ({
         printKey: m.key, barTime: m.barTime, timeMs: m.timeSec * 1000, price: m.price,
         bid: m.bid, ask: m.ask, size: m.size, side: m.b.side, aggressorMethod: m.b.aggressorMethod,
@@ -25296,6 +25479,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               key={target.object.objectId}
               type="button"
               data-market-object-target={target.object.objectId}
+              className="wm-tap-slop"
               aria-pressed={selected}
               aria-label={`Select ${target.object.kind.toLowerCase()} market object at ${target.object.priceHigh}`}
               onClick={() => onSelectMarketObject?.(target.object.objectId)}
@@ -26046,6 +26230,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }}
               title="Reset price scale to auto-fit"
               data-testid="chart-reset-scale"
+              className="wm-tap-slop"
               style={{
                 height: 22, padding: "0 8px", borderRadius: 4, fontSize: 9.5, fontWeight: 800,
                 cursor: "pointer", letterSpacing: 0.3, whiteSpace: "nowrap",
@@ -26067,6 +26252,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }}
             title={chartAxisControlLabel("RESET", false).title}
             aria-label={chartAxisControlLabel("RESET", false).spoken}
+            className="wm-tap-slop"
             style={{
               width: 22, height: 22, borderRadius: 4, fontSize: 11, fontWeight: 800, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
@@ -26080,6 +26266,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             title={chartAxisControlLabel("AUTO_SCALE", autoScale).title}
             aria-label={chartAxisControlLabel("AUTO_SCALE", autoScale).spoken}
             aria-pressed={chartAxisControlLabel("AUTO_SCALE", autoScale).pressed}
+            className="wm-tap-slop"
             style={{
               width: 22, height: 22, borderRadius: 4, fontSize: 11, fontWeight: 800, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
@@ -26099,7 +26286,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const c = chartAxisControlLabel(btn.control, btn.active);
             return (
             <button key={btn.control} onClick={btn.onClick} title={c.title}
-              aria-label={c.spoken} aria-pressed={c.pressed} style={{
+              aria-label={c.spoken} aria-pressed={c.pressed} className="wm-tap-slop" style={{
               width: 22, height: 22, borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer",
               background: btn.active ? "rgba(47,128,237,0.2)" : "rgba(20,24,36,0.85)",
               border: `1px solid ${btn.active ? "rgba(47,128,237,0.5)" : "#263050"}`,
@@ -26115,6 +26302,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           <button
             type="button"
             aria-label={`Order-flow overlay opacity ${Math.round(flowOpacity * 100)} percent`}
+            className="wm-tap-slop"
             onClick={() => setFlowOpacity(o => (o > 0.7 ? 0.4 : o > 0.25 ? 0.15 : 1))}
             title={`Order-flow overlay opacity: ${Math.round(flowOpacity * 100)}% — click to dim footprint / bubbles / VP so drawings and price stand out (cycles 100 → 40 → 15%)`}
             style={{
@@ -26131,6 +26319,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           <button
             type="button"
             data-testid="living-market-toggle"
+            className="wm-tap-slop"
             aria-pressed={livingMarket === "STILL"}
             aria-label={`Living market: ${livingMarket}. Press to ${livingMarket === "LIVE" ? "hold every invention still" : "let it live"}.`}
             onClick={() => setLivingMarket(m => (m === "LIVE" ? "STILL" : "LIVE"))}
@@ -26265,6 +26454,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // meaning". The name says what it is; aria-pressed says whether it is on.
           aria-label="Data window"
           aria-pressed={dataWindowOpen}
+          className="wm-tap-slop"
           style={{
             display: "block",
             width: 22, height: 22, borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: "pointer",

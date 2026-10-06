@@ -26,7 +26,7 @@ import type {
   CanonicalMarketState,
   MarketStateResolution,
 } from "../canonicalMarketState";
-import { DECK_PHASE_HEADLINE } from "@/lib/experience/decisionLifecycle";
+import { chainHeadlineWord, type LifecycleStage } from "@/lib/experience/decisionLifecycle";
 import { selectRegime, type RegimeVM } from "./selectRegime";
 import { selectDLAR, type DLARVM } from "./selectDLAR";
 import { selectCLC, type CLCVM } from "./selectCLC";
@@ -55,6 +55,13 @@ export interface DecisionChainInput {
   readonly history?: readonly CanonicalMarketState[];
   readonly nowMs: number;
   readonly phase: TradePhase;
+  /**
+   * The trader's POSTURE (lifecycle stage) this chain was compiled for, when
+   * the caller knows it. Only the headline word reads it, so the headline and
+   * the mode row name the same posture (Garden 18 §4). Optional: absent, the
+   * headline speaks the phase word as before.
+   */
+  readonly stage?: LifecycleStage | null;
   readonly msSinceSessionOpen?: number;
 
   /** Optional Available R inputs — populated when trader has a proposed setup. */
@@ -424,7 +431,7 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
     total: nodes.length,
   };
 
-  const headline = composeHeadline(phase, summary, nodes);
+  const headline = composeHeadline(chainHeadlineWord(phase, input.stage), summary, nodes);
 
   return {
     phase,
@@ -442,25 +449,21 @@ export function selectDecisionChain(input: DecisionChainInput): DecisionChainVM 
 }
 
 function composeHeadline(
-  phase: TradePhase,
+  word: string,
   summary: DecisionChainVM["summary"],
   nodes: readonly DecisionChainNode[],
 ): string {
   const warnNode = nodes.find(n => n.indicator === "WARN");
   if (warnNode) {
-    return `${phaseLabel(phase)} — ${warnNode.label} says ${warnNode.verdict}.`;
+    return `${word} — ${warnNode.label} says ${warnNode.verdict}.`;
   }
   if (summary.unknown >= summary.total / 2) {
-    return `${phaseLabel(phase)} — insufficient evidence across ${summary.unknown} of ${summary.total} nodes.`;
+    return `${word} — insufficient evidence across ${summary.unknown} of ${summary.total} nodes.`;
   }
   const watchNode = nodes.find(n => n.indicator === "WATCH");
   if (watchNode) {
-    return `${phaseLabel(phase)} — ${watchNode.label} is ${watchNode.verdict}. ${summary.ok} node(s) resolved.`;
+    return `${word} — ${watchNode.label} is ${watchNode.verdict}. ${summary.ok} node(s) resolved.`;
   }
-  return `${phaseLabel(phase)} — chain resolved (${summary.ok}/${summary.total}).`;
+  return `${word} — chain resolved (${summary.ok}/${summary.total}).`;
 }
 
-/** The chain headline's word for a phase — the lifecycle owner's (Garden 16 §15). */
-function phaseLabel(phase: TradePhase): string {
-  return DECK_PHASE_HEADLINE[phase];
-}

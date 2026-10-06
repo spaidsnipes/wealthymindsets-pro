@@ -8,6 +8,7 @@
  * remembered as an empty map so nobody keeps asking.
  */
 
+import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
 import { useEffect, useState } from "react";
 
 import { compactOcc, tastyStreamerMap } from "@/lib/broker/tastyOptionOverlay";
@@ -35,14 +36,16 @@ export function forgetTastyOptionStreamers(): void { cache.clear(); }
 
 /** The map for an underlying (null while it is being read). */
 export function useTastyOptionStreamers(underlying: string): Map<string, string> | null {
-  const [map, setMap] = useState<Map<string, string> | null>(null);
+  // Garden 18 §4: stored WITH its underlying — the first frame after a switch
+  // never answers "read" with the previous underlying's map.
+  const [ownedMap, setOwnedMap] = useState<Owned<Map<string, string>>>(UNOWNED);
   useEffect(() => {
     let live = true;
-    setMap(null);
-    void tastyOptionStreamers(underlying).then(m => { if (live) setMap(m); });
+    setOwnedMap(UNOWNED);
+    void tastyOptionStreamers(underlying).then(m => { if (live) setOwnedMap(owned(underlying, m)); });
     return () => { live = false; };
   }, [underlying]);
-  return map;
+  return readOwned(ownedMap, underlying);
 }
 
 export const streamerForOcc = (map: Map<string, string> | null, occ: string | undefined | null) =>

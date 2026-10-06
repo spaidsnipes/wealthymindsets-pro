@@ -41,7 +41,7 @@
  * PURE. DETERMINISTIC. No React, no canvas, no IO, no clock.
  */
 
-import { chooseTickSize } from "@/lib/vpEngine";
+import { bucketOnTickGrid, chooseTickSize } from "@/lib/vpEngine";
 
 export const TPO_PROFILE_VERSION = 1;
 
@@ -132,6 +132,8 @@ function refuse(reason: Exclude<TpoReason, "DRAWN">, periods: number, note: stri
 
 export function selectTpoProfile(
   bars: readonly TpoBarInput[] | null | undefined,
+  /** The instrument's tick (pricePrecision.instrumentTickFor): the row grid is a whole multiple of it (P0.2). */
+  instrumentTick?: number | null,
 ): TpoProfileVM {
   const valid = (bars ?? []).filter(
     b => Number.isFinite(b.high) && Number.isFinite(b.low) && b.high >= b.low,
@@ -163,7 +165,7 @@ export function selectTpoProfile(
   // The grid is anchored at a tick multiple so every bucket edge is a readable
   // price. Indices are integers, not float keys: the bucket a bar touches must
   // be the same bucket on every run, and float division drifts at the edges.
-  let tick = chooseTickSize(range, TPO_TARGET_ROWS);
+  let tick = bucketOnTickGrid(chooseTickSize(range, TPO_TARGET_ROWS), instrumentTick);
   let base = Math.floor(lo / tick + 1e-9) * tick;
   const idx = (p: number) => Math.floor((p - base) / tick + 1e-9);
   while (idx(hi) + 1 > MAX_TPO_ROWS) {

@@ -121,7 +121,9 @@ describe("hover and click hit-test the discs that were drawn", () => {
     const click = slice("const bigFrame = bigTradeFrameRef.current;", "const tapeHit = ");
     expect(click).toContain("const hit = [...bigFrame.discs, ...deltaBubblesRef.current].reverse().find(");
     expect(click).not.toMatch(/\[\.\.\.bubblesRef\.current, \.\.\.deltaBubblesRef\.current\]/);
-    expect(click).toContain("const rankC = sessionSizePercentile(hitCluster.size, accC.values());");
+    // Pin updated 2026-10-06 (canon lane, F07A/F07B): the cluster is ranked by
+    // its LARGEST member print (bigTradeRankSize) — the canvas's own subject.
+    expect(click).toContain("const rankC = sessionSizePercentile(bigTradeRankSize(hitCluster.size, hitCluster), accC.values());");
     expect(click).toContain("barDots: clusterBarDots(hitCluster.barTimes, bigFrame.intervalSec),");
     expect(click.match(/onSelectBigTrade\?\.\(/g) ?? []).toHaveLength(2);
   });

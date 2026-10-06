@@ -65,6 +65,8 @@ export function selectVisibleRangeProfile(
   bars: readonly LegacyOhlcvTuple[] | null | undefined,
   from: number | null | undefined,
   to: number | null | undefined,
+  /** The instrument's tick (pricePrecision.instrumentTickFor): buckets and levels land on its grid. */
+  instrumentTick?: number | null,
 ): VisibleRangeProfileVM {
   if (from == null || to == null || !Number.isFinite(from) || !Number.isFinite(to) || to < from) {
     return none("NO_RANGE");
@@ -82,6 +84,7 @@ export function selectVisibleRangeProfile(
   const range = hi - lo;
   const snap = computeProfileFromBars(inView, {
     tickSize: chooseTickSize(range > 0 ? range : Math.abs(hi) || 1, VRP_TARGET_ROWS),
+    instrumentTick,
   });
   if (snap.rows.length === 0 || !(snap.totalVolume > 0)) return none("NO_VOLUME", inView.length, from, to);
 

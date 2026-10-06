@@ -29,6 +29,51 @@ export interface EdgeBucket {
   /** Expectancy minus the overall expectancy (same trades universe). */
   readonly vsOverall: number;
   readonly evidence: EvidenceState;
+  /**
+   * Garden 18 §4 — what an edge claim must carry beside its number. Optional
+   * only so derived buckets (studyRoute's pattern rows) need not invent them.
+   */
+  /** First and last observation (entry time, ISO) — recency of the evidence. */
+  readonly firstAt?: string | null;
+  readonly lastAt?: string | null;
+  /** Trades in the group that point AGAINST its direction vs your average (losers in a better-than-you group, winners in a worse one). */
+  readonly counterevidence?: number;
+  /** 95% Wilson interval on the win rate — the uncertainty a bare % hides. */
+  readonly winRateLow?: number;
+  readonly winRateHigh?: number;
+}
+
+/** 95% Wilson score interval for k successes in n trials. n=0 → null (undefined, never 0–0%). */
+export function wilsonInterval(k: number, n: number): { low: number; high: number } | null {
+  if (!(n > 0)) return null;
+  const z = 1.96, p = k / n, z2 = z * z;
+  const centre = (p + z2 / (2 * n)) / (1 + z2 / n);
+  const half = (z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / (1 + z2 / n);
+  return { low: Math.max(0, centre - half), high: Math.min(1, centre + half) };
+}
+
+/**
+ * The evidence line a Personal Edge group shows under its name: sample size,
+ * first / last observation, recency, counterevidence and uncertainty. Under
+ * MIN_SAMPLE it still says INSUFFICIENT EVIDENCE first — the line describes
+ * the evidence, it never upgrades it.
+ */
+export function edgeEvidenceLine(b: EdgeBucket, nowMs: number): string {
+  const day = (iso: string | null | undefined) => (iso ? iso.slice(0, 10) : "—");
+  const parts: string[] = [];
+  if (b.evidence !== "SUPPORTED") parts.push(`INSUFFICIENT EVIDENCE (n=${b.n}, needs ${MIN_SAMPLE})`);
+  else parts.push(`n=${b.n}`);
+  parts.push(`first ${day(b.firstAt)} · last ${day(b.lastAt)}`);
+  const lastMs = b.lastAt ? Date.parse(b.lastAt) : NaN;
+  if (Number.isFinite(lastMs)) {
+    const days = Math.max(0, Math.floor((nowMs - lastMs) / 86_400_000));
+    parts.push(days === 0 ? "seen today" : `last seen ${days} day${days === 1 ? "" : "s"} ago`);
+  }
+  if (typeof b.counterevidence === "number") parts.push(`${b.counterevidence} trade${b.counterevidence === 1 ? "" : "s"} against`);
+  if (typeof b.winRateLow === "number" && typeof b.winRateHigh === "number") {
+    parts.push(`win rate plausibly ${Math.round(b.winRateLow * 100)}–${Math.round(b.winRateHigh * 100)}% (95%)`);
+  }
+  return parts.join(" · ");
 }
 
 export interface EdgeDimension {
@@ -155,7 +200,16 @@ export function computeLedgerEdge(episodes: readonly Episode[]): LedgerEdge {
       const net = xs.reduce((s, e) => s + e.net!, 0);
       const wins = xs.filter(e => e.net! > 0).length, losses = xs.filter(e => e.net! < 0).length;
       const expectancy = net / xs.length;
-      return { key, n: xs.length, wins, losses, net: cents(net), expectancy: cents(expectancy), winRate: wins / xs.length, vsOverall: cents(expectancy - overall), evidence: (xs.length >= MIN_SAMPLE ? "SUPPORTED" : "INSUFFICIENT EVIDENCE") as EvidenceState };
+      const vsOverall = cents(expectancy - overall);
+      const ci = wilsonInterval(wins, xs.length);
+      const times = xs.map(e => e.openedAt).filter(Boolean).sort();
+      return {
+        key, n: xs.length, wins, losses, net: cents(net), expectancy: cents(expectancy), winRate: wins / xs.length, vsOverall,
+        evidence: (xs.length >= MIN_SAMPLE ? "SUPPORTED" : "INSUFFICIENT EVIDENCE") as EvidenceState,
+        firstAt: times[0] ?? null, lastAt: times[times.length - 1] ?? null,
+        counterevidence: vsOverall >= 0 ? losses : wins,
+        winRateLow: ci?.low, winRateHigh: ci?.high,
+      };
     }).sort((a, b) => order ? order.indexOf(a.key) - order.indexOf(b.key) : b.n - a.n);
     return { id, title, question, buckets };
   };

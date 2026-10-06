@@ -4,6 +4,7 @@
  * chart's own props (one name per sense, read from MainChart's interface).
  * Shared truth, independent composition: the market data is never per-View.
  */
+import { instrumentTickFor } from "@/lib/chart/pricePrecision";
 import type { LayoutSwitches } from "@/lib/workspace/savedLayouts";
 import type { SavedLayout } from "@/lib/workspace/savedLayouts";
 import type { ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
@@ -101,7 +102,8 @@ export function compileDeskBarReadings(symbol: string, bars: readonly LegacyOhlc
   const structureProfile = selectStructureProfile(structure, volumeBars);
   // No tape or live quote is borrowed from another Desk market. The shared
   // owner names this bar-built body candle-estimated; live distance is absent.
-  const living = selectLivingProfile(buildLivingProfileSnapshot(null, selectSessionWindowBars([...volumeBars], sessionWindowFor(symbol, timeframe, false))));
+  const living = selectLivingProfile(buildLivingProfileSnapshot(null, selectSessionWindowBars([...volumeBars], sessionWindowFor(symbol, timeframe, false)),
+    instrumentTickFor(symbol, bars.length ? bars[bars.length - 1].close : null)));
   const livingProfileGlass = selectLivingProfileGlass(living);
   const profileDna = living.measured ? selectProfileDna({ curve: living.curve, poc: living.poc, vah: living.vah, val: living.val, bars: bars.length, estimated: living.quality !== "trade-based", rowStep: living.tickSize }) : selectProfileDna(null);
   const valueMigration = selectValueMigration(volumeBars, continuousDayKeyFor(symbol));

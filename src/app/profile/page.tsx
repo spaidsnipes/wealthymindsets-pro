@@ -4,7 +4,7 @@ import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
-import { traderPerformanceStats } from "@/lib/profile/traderPerformanceStats";
+import { selectProfileTileTrades, traderPerformanceStats } from "@/lib/profile/traderPerformanceStats";
 import { describeLegacyFuturesMoney } from "@/lib/journal/computePnl";
 import { hydrateJournalEntries } from "@/lib/journal/hydrateJournalEntries";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -78,7 +78,7 @@ const EMPTY_PROFILE: ProfileData = {
    journal row while the date sat in the same object. It also routed a date-only
    string through `new Date()` and rendered THE DAY BEFORE west of Greenwich.
    See tradeDateFact — DEFECTS FOUR through SEVEN. */
-interface TradeRow { sym: TradeRowFact; dir: TradeDirectionBadge; entry: TradeRowFact; exit: TradeRowFact; pnl: string; rr: TradeRowFact; date: TradeDateFact; outcomeResolved: boolean; }
+interface TradeRow { sym: TradeRowFact; dir: TradeDirectionBadge; entry: TradeRowFact; exit: TradeRowFact; pnl: string; rr: TradeRowFact; date: TradeDateFact; outcomeResolved: boolean; source: "JOURNAL" | "PAPER"; }
 interface LikedTrack { title: string; artist: string; duration: string; }
 
 const CIRCLE_OF_EXCELLENCE: { name: string; color: string; avatar: string }[] = [];
@@ -276,6 +276,7 @@ function ProfilePageInner() {
             // tradeDateFact DEFECT FOUR.
             date: tradeDateFact(t.createdAt ?? t.date, "OPENED", sym.text),
             outcomeResolved,
+            source: "JOURNAL" as const,
           };
         }),
         ...paperTrades.filter(t => t.pnl !== undefined).map(t => {
@@ -293,6 +294,7 @@ function ProfilePageInner() {
             // date the trade was opened. The basis travels with the value.
             date: tradeDateFact(t.closedAt, "CLOSED", sym.text),
             outcomeResolved,
+            source: "PAPER" as const,
           };
         }),
       ].slice(0, 20);
@@ -320,12 +322,16 @@ function ProfilePageInner() {
   // per point are in these tiles as recorded. The journal money owner counts
   // them and the tiles say so beneath them.
   const [legacyFuturesNote, setLegacyFuturesNote] = useState<string | null>(null);
+  const [paperHeldOutNote, setPaperHeldOutNote] = useState<string | null>(null);
   useEffect(() => {
     try {
       const journalEntries = JSON.parse(localStorage.getItem("wm_journal_entries") ?? "[]") as Array<{ pnl?: number }>;
       const paperState = JSON.parse(localStorage.getItem("wm_paper_state") ?? "null");
       const paperTrades: Array<{ pnl?: number }> = paperState?.trades ?? [];
-      setClosedTrades([...journalEntries, ...paperTrades].filter(hasResolvedTradeOutcome));
+      // Garden 18 §4: paper simulation is never mixed into the trader's tiles.
+      const split = selectProfileTileTrades(journalEntries, paperTrades, hasResolvedTradeOutcome);
+      setClosedTrades(split.counted);
+      setPaperHeldOutNote(split.note);
       setLegacyFuturesNote(
         Array.isArray(journalEntries)
           ? describeLegacyFuturesMoney(hydrateJournalEntries(journalEntries).entries).note
@@ -423,8 +429,10 @@ function ProfilePageInner() {
   };
 
   const STAT_COLORS: Record<string, string> = {
-    "Win Rate": "#00D4AA", "Avg R:R": "#F0B429",
-    "Net P&L": "#00D4AA", "Trades": "#4FA3E0",
+    // Garden 18 canon shift 2026-10-06: graphite + warm gold (F09/F11B).
+    // Label inks only — green on a measured "+$0" read as profit.
+    "Win Rate": "#ede6d3", "Avg R:R": "#c9a55c",
+    "Net P&L": "#ede6d3", "Trades": "#c9a55c",
   };
 
   // ── Setup / onboarding modal ─────────────────────────────────
@@ -442,7 +450,7 @@ function ProfilePageInner() {
           <div className="flex justify-center">
             <div role="button" tabIndex={0} onKeyDown={keyActivates} className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
               <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-black text-3xl text-wm-black border-4 border-wm-border overflow-hidden"
-                style={{ background: avatarUrl ? undefined : "linear-gradient(135deg, #00D4AA, #4FA3E0)" }}>
+                style={{ background: avatarUrl ? undefined : "linear-gradient(135deg, #c4a574, #5c4a2c)" }}>
                 {avatarUrl
                   ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
                   : (editProfile.name.charAt(0).toUpperCase() || "?")}
@@ -459,45 +467,45 @@ function ProfilePageInner() {
               <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Display Name *</label>
               <input value={editProfile.name} onChange={e => setEditProfile(p => ({ ...p, name: e.target.value }))}
                 placeholder="e.g. John Trader" autoFocus
-                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-green/50" />
+                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50" />
             </div>
             <div>
               <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Handle *</label>
               <input value={editProfile.handle} onChange={e => setEditProfile(p => ({ ...p, handle: e.target.value }))}
                 placeholder="@yourhandle"
-                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-green/50" />
+                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50" />
             </div>
             <div>
               <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Bio</label>
               <textarea value={editProfile.bio} onChange={e => setEditProfile(p => ({ ...p, bio: e.target.value }))}
                 placeholder="Tell the community about your trading style…" rows={3}
-                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-green/50 resize-none" />
+                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50 resize-none" />
             </div>
             <div>
               <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Email</label>
               <input value={editProfile.email} onChange={e => setEditProfile(p => ({ ...p, email: e.target.value }))}
                 placeholder="you@example.com" type="email"
-                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-green/50" />
+                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50" />
             </div>
             <div>
               <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Timezone</label>
               <select aria-label="Timezone" value={editProfile.timezone} onChange={e => setEditProfile(p => ({ ...p, timezone: e.target.value }))}
-                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-green/50">
+                className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/50">
                 {["America/New_York","America/Chicago","America/Los_Angeles","Europe/London","Asia/Tokyo","Australia/Sydney"].map(tz => (
                   <option key={tz} value={tz}>{tz}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-[10px] text-[#a78bfa] uppercase tracking-wider font-bold block mb-1">AI Bot Name</label>
+              <label className="text-[10px] text-[#c9a55c] uppercase tracking-wider font-bold block mb-1">AI Bot Name</label>
               <input value={editProfile.botName} onChange={e => setEditProfile(p => ({ ...p, botName: e.target.value }))}
                 placeholder="e.g. SpaidBot" maxLength={24}
-                className="w-full bg-wm-surface border border-[#7C3AED]/30 rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-[#7C3AED]/60" />
+                className="w-full bg-wm-surface border border-wm-gold/30 rounded-lg px-3 py-2 text-sm text-wm-text outline-none focus:border-wm-gold/60" />
             </div>
           </div>
 
           <button onClick={saveProfile}
-            className="w-full py-3 rounded-xl bg-wm-green text-wm-black font-black text-sm hover:opacity-90 transition-all">
+            className="w-full py-3 rounded-xl bg-wm-gold text-wm-black font-black text-sm hover:opacity-90 transition-all">
             Create My Profile
           </button>
         </div>
@@ -510,13 +518,13 @@ function ProfilePageInner() {
       {/* Profile banner */}
       <div className="relative shrink-0" style={{
         height: 230,
-        backgroundImage: "radial-gradient(circle at 78% 22%,rgba(0,192,118,.16),transparent 30%),linear-gradient(120deg,#090b12 0%,#11151e 58%,#0b1012 100%)",
+        backgroundImage: "radial-gradient(circle at 78% 22%,rgba(196,165,116,.14),transparent 30%),linear-gradient(120deg,#090b12 0%,#11151e 58%,#0b1012 100%)",
         backgroundSize: "cover",
         backgroundPosition: "center",
         borderBottom: "1px solid #252D38",
       }}>
         <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: "repeating-linear-gradient(45deg, #00D4AA 0, #00D4AA 1px, transparent 0, transparent 50%)",
+          backgroundImage: "repeating-linear-gradient(45deg, #c4a574 0, #c4a574 1px, transparent 0, transparent 50%)",
           backgroundSize: "20px 20px",
         }} />
         {/* cultural texture — faint vinyl grooves + trading-chart line */}
@@ -539,15 +547,20 @@ function ProfilePageInner() {
               aria-label={`Use ${label} profile background`}
               aria-pressed={bgColor === color}
               title={`Use ${label} profile background`}
-              className="w-5 h-5 rounded-full border-2 transition-all"
-              style={{ background: color, borderColor: bgColor === color ? "#F0B429" : "#252D38" }} />
+              // 44x44 hit area around the 20px swatch (phone tap floor;
+              // measured 20x20 at 390, 2026-10-06). The negative margin keeps
+              // the row's footprint, so four swatches still fit at 390.
+              className="grid place-items-center w-11 h-11 -mx-1.5 rounded-full">
+              <span aria-hidden="true" className="block w-5 h-5 rounded-full border-2 transition-all"
+                style={{ background: color, borderColor: bgColor === color ? "#F0B429" : "#252D38" }} />
+            </button>
           ))}
           <button onClick={() => { setEditProfile(profile); setEditMode(e => !e); }}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-wm-surface/80 text-wm-text-muted hover:text-wm-text text-xs transition-colors">
+            className="flex items-center gap-1 px-2.5 py-1 min-h-11 rounded-lg bg-wm-surface/80 text-wm-text-muted hover:text-wm-text text-xs transition-colors">
             <Edit3 size={11} /> {editMode ? "Cancel" : "Edit"}
           </button>
           <button onClick={exportData}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-wm-surface/80 text-wm-text-muted hover:text-wm-text text-xs transition-colors">
+            className="flex items-center gap-1 px-2.5 py-1 min-h-11 rounded-lg bg-wm-surface/80 text-wm-text-muted hover:text-wm-text text-xs transition-colors">
             Export CSV
           </button>
         </div>
@@ -560,7 +573,7 @@ function ProfilePageInner() {
             {/* Avatar — clickable to change */}
             <div role="button" tabIndex={0} onKeyDown={keyActivates} className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
               <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-black text-3xl text-wm-black border-4 border-wm-black shadow-xl overflow-hidden"
-                style={{ background: avatarUrl ? undefined : "linear-gradient(135deg, #00D4AA, #4FA3E0)" }}>
+                style={{ background: avatarUrl ? undefined : "linear-gradient(135deg, #c4a574, #5c4a2c)" }}>
                 {avatarUrl
                   ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
                   : profile.name.charAt(0).toUpperCase()}
@@ -578,14 +591,14 @@ function ProfilePageInner() {
               {editMode ? (
                 <div className="space-y-2">
                   <input aria-label="Display name" value={editProfile.name} onChange={e => setEditProfile(p => ({ ...p, name: e.target.value }))}
-                    className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-sm font-bold text-wm-text outline-none focus:border-wm-green/50 w-48" />
+                    className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-sm font-bold text-wm-text outline-none focus:border-wm-gold/50 w-48" />
                   <input aria-label="Handle" value={editProfile.handle} onChange={e => setEditProfile(p => ({ ...p, handle: e.target.value }))}
-                    className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text-muted outline-none focus:border-wm-green/50 w-48 block" />
+                    className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text-muted outline-none focus:border-wm-gold/50 w-48 block" />
                   <input value={editProfile.email} onChange={e => setEditProfile(p => ({ ...p, email: e.target.value }))}
                     placeholder="email" type="email"
-                    className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none focus:border-wm-green/50 w-64 block" />
+                    className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none focus:border-wm-gold/50 w-64 block" />
                   <select aria-label="Timezone" value={editProfile.timezone} onChange={e => setEditProfile(p => ({ ...p, timezone: e.target.value }))}
-                    className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none focus:border-wm-green/50">
+                    className="bg-wm-surface border border-wm-border rounded-lg px-2 py-1 text-xs text-wm-text outline-none focus:border-wm-gold/50">
                     {["America/New_York","America/Chicago","America/Los_Angeles","Europe/London","Asia/Tokyo"].map(tz => (
                       <option key={tz} value={tz}>{tz}</option>
                     ))}
@@ -597,7 +610,7 @@ function ProfilePageInner() {
                   {/* A verified mark only where something verified it (2026-10-04: it
                       rendered for every account while the Lounge records the same
                       trader as unverified). The core-team check below is real. */}
-                  {isCoreTeam(profile.handle, profile.email) ? <span title="Verified — WealthyMindsets core team"><Shield size={14} className="text-wm-blue" /></span> : null}
+                  {isCoreTeam(profile.handle, profile.email) ? <span title="Verified — WealthyMindsets core team"><Shield size={14} className="text-wm-gold" /></span> : null}
                   {/* Crown W badge for core team */}
                   {isCoreTeam(profile.handle, profile.email) ? (
                     <span title="WealthyMindsets Core Team — Unlimited Access" className="flex items-center gap-1">
@@ -618,14 +631,14 @@ function ProfilePageInner() {
             <div className="flex gap-2 mb-1">
               {editMode ? (
                 <button onClick={saveProfile}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-wm-green text-wm-black text-xs font-bold hover:opacity-90 transition-all">
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-wm-gold text-wm-black text-xs font-bold hover:opacity-90 transition-all">
                   <Save size={12} /> Save
                 </button>
               ) : (
                 <button onClick={() => { void navigator.clipboard?.writeText(window.location.href).then(() => toast.success("Link copied!"), () => toast.error("Couldn't copy the link")); }}
                   aria-label="Copy profile link"
                   title="Copy profile link"
-                  className="p-1.5 rounded-lg bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text transition-colors">
+                  className="grid place-items-center min-w-11 min-h-11 p-1.5 rounded-lg bg-wm-surface border border-wm-border text-wm-text-muted hover:text-wm-text transition-colors">
                   <Share2 size={13} />
                 </button>
               )}
@@ -635,9 +648,9 @@ function ProfilePageInner() {
           {editMode ? (
             <div className="space-y-2 mb-4 max-w-lg">
               <textarea aria-label="Bio" value={editProfile.bio} onChange={e => setEditProfile(p => ({ ...p, bio: e.target.value }))}
-                rows={3} className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text-muted outline-none focus:border-wm-green/50 resize-none" />
-              <div className="flex items-center gap-2 bg-wm-surface border border-[#7C3AED]/30 rounded-lg px-3 py-2">
-                <span className="text-[10px] text-[#a78bfa] font-bold uppercase tracking-wider whitespace-nowrap">AI Bot Name</span>
+                rows={3} className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-sm text-wm-text-muted outline-none focus:border-wm-gold/50 resize-none" />
+              <div className="flex items-center gap-2 bg-wm-surface border border-wm-gold/30 rounded-lg px-3 py-2">
+                <span className="text-[10px] text-[#c9a55c] font-bold uppercase tracking-wider whitespace-nowrap">AI Bot Name</span>
                 <input
                   value={editProfile.botName ?? "SpaidBot"}
                   onChange={e => setEditProfile(p => ({ ...p, botName: e.target.value }))}
@@ -665,9 +678,19 @@ function ProfilePageInner() {
                   style={s.kind === "MEASURED" ? { color: STAT_COLORS[s.label] } : undefined}
                 >{s.value}</div>
                 <div className="text-[10px] text-wm-text-dim uppercase tracking-wider">{s.label}</div>
+                {/* A measured zero says what it is a sum OF, on the glass and
+                    not only in the tooltip (empty states say why). */}
+                {s.label === "Net P&L" && stats.find(x => x.label === "Trades")?.value === "0" ? (
+                  <div data-testid="profile-net-zero-context" className="text-[10px] text-wm-text-dim">no closed trades yet</div>
+                ) : null}
               </div>
             ))}
           </div>
+          {paperHeldOutNote !== null && (
+            <p role="note" data-testid="profile-paper-held-out" className="mt-2 max-w-lg text-[10px] leading-relaxed text-wm-text-dim">
+              {paperHeldOutNote}
+            </p>
+          )}
           {legacyFuturesNote !== null && (
             <p role="note" data-testid="profile-legacy-futures-note" className="mt-2 max-w-lg text-[10px] leading-relaxed text-wm-text-dim">
               {legacyFuturesNote}
@@ -675,17 +698,17 @@ function ProfilePageInner() {
           )}
 
           {/* The same sign-in, two connections (2026-10-03): the broker record
-              this profile does not compute (it counts Journal entries and Paper
-              trades only), and the WOW World Passport this account already is. */}
+              this profile does not compute (its tiles count Journal entries only;
+              Paper trades are held out and named), and the WOW World Passport this account already is. */}
           <div data-testid="profile-connections" className="mt-3 flex flex-wrap gap-2 text-[11px]">
             <Link href="/journal?tab=ledger" prefetch={false} data-testid="profile-broker-record"
-              className="rounded-lg border border-wm-border px-3 py-1.5 text-wm-text hover:border-wm-gold/60"
+              className="inline-flex items-center min-h-11 rounded-lg border border-wm-border px-3 py-1.5 text-wm-text hover:border-wm-gold/60"
               title="Your Webull order history, rebuilt into trades with fees — broker truth, not counted in the stats above">
               Broker record (Webull) → Journal · Broker Ledger
             </Link>
             <button type="button" data-testid="profile-wow-passport"
               onClick={() => { window.open("/api/passport/to-wow?to=/passport", "_blank", "noopener"); }}
-              className="rounded-lg border border-wm-border px-3 py-1.5 text-wm-text hover:border-wm-gold/60"
+              className="inline-flex items-center min-h-11 rounded-lg border border-wm-border px-3 py-1.5 text-wm-text hover:border-wm-gold/60"
               title="This account is your WM World Passport — the same sign-in opens WOW World">
               WOW World Passport ↗
             </button>
@@ -737,7 +760,7 @@ function ProfilePageInner() {
               onClick={() => router.replace(profileTabHref(searchParams.toString(), t.id as ProfileTab))}
               className={clsx(
                 "flex items-center gap-1.5 px-5 py-2.5 text-xs font-semibold border-b-2 transition-all min-h-[44px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold",
-                tab === t.id ? "border-wm-green text-wm-green" : "border-transparent text-wm-text-muted hover:text-wm-text",
+                tab === t.id ? "border-wm-gold text-wm-gold" : "border-transparent text-wm-text-muted hover:text-wm-text",
               )}
             >
               <t.icon size={13} /> {t.label}
@@ -967,7 +990,7 @@ function ProfilePageInner() {
                 <div className="flex flex-col items-center justify-center h-40 gap-3 text-wm-text-muted">
                   <BarChart2 size={32} className="opacity-20" />
                   <div className="text-sm">No trades yet</div>
-                  <div className="text-xs text-wm-text-dim text-center max-w-xs">Your closed trades from the Journal and Paper Trading will appear here automatically. Your Webull history is in <Link href="/journal?tab=ledger" prefetch={false} className="underline text-wm-text">Journal → Broker Ledger</Link>.</div>
+                  <div className="text-xs text-wm-text-dim text-center max-w-xs">Your closed trades from the Journal and Paper Trading will appear here automatically. Your Webull history is in <Link href="/journal?tab=ledger" prefetch={false} className="inline-block py-[15px] -my-[15px] underline text-wm-text">Journal → Broker Ledger</Link>.</div>
                 </div>
               ) : recentTrades.map((t, i) => (
                 <div key={i} className="glass rounded-xl p-3 flex items-center gap-4 hover:border-wm-border/80 transition-all">
@@ -985,6 +1008,9 @@ function ProfilePageInner() {
                       t.date.state === "MEASURED" ? "text-wm-text-muted" : "text-wm-text-dim text-[10px]")}
                     >{t.date.text}</div>
                     <div className="text-[9px] uppercase tracking-wide text-wm-text-dim">{t.date.basisLabel}</div>
+                    {t.source === "PAPER" && (
+                      <div data-testid="profile-trade-paper" className="text-[9px] uppercase tracking-wide text-wm-text-dim">Paper · simulated</div>
+                    )}
                   </div>
                   <div
                     className={clsx("font-bold w-14 shrink-0",
@@ -1044,7 +1070,7 @@ function ProfilePageInner() {
                   <div className="text-xs text-wm-text-muted mb-3">Liked Tracks · {likedTracks.length}</div>
                   {likedTracks.map((track, i) => (
                     <div key={i} className="glass rounded-xl p-3 flex items-center gap-3 hover:border-wm-border/80 transition-all group">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-wm-purple to-wm-blue flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#c4a574] to-[#5c4a2c] flex items-center justify-center">
                         <Play size={13} className="text-white ml-0.5" />
                       </div>
                       <div className="flex-1">
@@ -1077,15 +1103,15 @@ function ProfilePageInner() {
             <div className="space-y-4 pb-4">
 
               {/* WM$ Main Token Card */}
-              <div className="rounded-xl border border-[#7C3AED]/30 bg-gradient-to-br from-[#7C3AED]/10 to-transparent p-4">
+              <div className="rounded-xl border border-wm-gold/30 bg-gradient-to-br from-wm-gold/10 to-transparent p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#00D4AA] flex items-center justify-center text-white font-black text-sm">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#c4a574] to-[#5c4a2c] flex items-center justify-center text-white font-black text-sm">
                       WM$
                     </div>
                     <div>
                       <div className="text-sm font-black text-wm-text">Wealthy Mindsets Activity Points</div>
-                      <div className="text-[10px] text-[#a78bfa] font-bold">Local app points · not cryptocurrency</div>
+                      <div className="text-[10px] text-[#c9a55c] font-bold">Local app points · not cryptocurrency</div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -1118,7 +1144,7 @@ function ProfilePageInner() {
                           <button onClick={() => { void navigator.clipboard.writeText(WMS_CONTRACT.address).then(() => toast.success("Copied!"), () => toast.error("Couldn't copy")); }}
                             aria-label="Copy creator coin contract address"
                             title="Copy creator coin contract address"
-                            className="text-[#a78bfa] hover:text-[#00D4AA] transition-colors"><ExternalLink size={9}/></button>
+                            className="text-[#c9a55c] hover:text-[#ede6d3] transition-colors"><ExternalLink size={9}/></button>
                         </div>
                       </div>
                       {[
@@ -1135,17 +1161,17 @@ function ProfilePageInner() {
                     </div>
                     <div className="flex gap-2">
                       <a href={WMS_CONTRACT.blockscout} target="_blank" rel="noopener noreferrer"
-                        className="flex-1 text-center py-1.5 rounded-lg bg-[#7C3AED]/20 border border-[#7C3AED]/30 text-[9px] text-[#a78bfa] font-bold hover:bg-[#7C3AED]/30 transition-all">
+                        className="flex-1 text-center py-1.5 rounded-lg bg-wm-gold/15 border border-wm-gold/30 text-[9px] text-[#c9a55c] font-bold hover:bg-wm-gold/25 transition-all">
                         Blockscout ↗
                       </a>
                       <a href={WMS_CONTRACT.basescan} target="_blank" rel="noopener noreferrer"
-                        className="flex-1 text-center py-1.5 rounded-lg bg-[#00D4AA]/10 border border-[#00D4AA]/20 text-[9px] text-[#00D4AA] font-bold hover:bg-[#00D4AA]/20 transition-all">
+                        className="flex-1 text-center py-1.5 rounded-lg bg-white/5 border border-wm-border text-[9px] text-[#ede6d3] font-bold hover:bg-white/10 transition-all">
                         Basescan ↗
                       </a>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-[9px] text-wm-text-muted bg-[#7C3AED]/10 rounded-lg px-3 py-2 border border-[#7C3AED]/20 mb-3">
+                  <div className="text-[9px] text-wm-text-muted bg-wm-gold/10 rounded-lg px-3 py-2 border border-wm-gold/20 mb-3">
                     <strong>Local points only:</strong> This balance is stored in your browser for app activity. It is not an on-chain asset and has no promised conversion.
                   </div>
                 )}
@@ -1156,7 +1182,7 @@ function ProfilePageInner() {
                     {recentEarnings.slice(0, 8).map((e, i) => (
                       <div key={i} className="flex justify-between items-center text-[10px]">
                         <span className="text-wm-text-muted">{e.reason}</span>
-                        <span className="font-black text-[#a78bfa] font-mono">+{e.amount} pts</span>
+                        <span className="font-black text-[#c9a55c] font-mono">+{e.amount} pts</span>
                       </div>
                     ))}
                   </div>

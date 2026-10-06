@@ -249,13 +249,37 @@ export function lensRadiusCapFor(plotWidth: number): number | undefined {
   return Math.max(LENS_MIN_RX, plotWidth * (plotWidth < LENS_TABLET_MAX_PANE_W ? LENS_TABLET_RADIUS_SHARE : LENS_DESK_RADIUS_SHARE));
 }
 
-export function fitWeatherLens(region: ScreenBox, plot: ScreenBox, opts: { readonly maxRadius?: number } = {}): WeatherLens | null {
-  const vals = [region.x0, region.x1, region.y0, region.y1, plot.x0, plot.x1, plot.y0, plot.y1];
+/**
+ * THE LIVE EDGE STAYS OUTSIDE THE LOUPE (plate F08B read beside serving NQ1! 5m,
+ * 2026-10-06 08:40 CDT). On the plate the newest candles and the last-price
+ * tag stand to the RIGHT of the brass ring, unveiled; on serving glass the
+ * loupe sat ON them and its gold field lay under the forming candle. The
+ * newest LENS_LIVE_EDGE_BARS (5) bars are a keep-out — room for the forming candle, its countdown and the last-price tag to read as the plate draws them: `liveEdgeKeepOutX` is the
+ * x left of which the whole loupe (ring included) must stand. When the
+ * measured window reaches into the keep-out, the loupe magnifies the part
+ * left of it and says PARTIAL — it never pretends to enclose bars it does not.
+ */
+export const LENS_LIVE_EDGE_BARS = 5;
+/** Below this many px between the plot's left side and the keep-out, the keep-out is waived (the clear-zone cut still protects the face). */
+export const LENS_LIVE_EDGE_MIN_ROOM = 2 * LENS_MIN_RX + 40;
+export function liveEdgeKeepOutX(xNewest: number | null | undefined, barSpacing: number): number | null {
+  if (xNewest == null || !Number.isFinite(xNewest) || !Number.isFinite(barSpacing) || barSpacing <= 0) return null;
+  return xNewest - barSpacing * (LENS_LIVE_EDGE_BARS - 0.5) - 6;
+}
+
+export function fitWeatherLens(region: ScreenBox, plotIn: ScreenBox, opts: { readonly maxRadius?: number; readonly liveEdgeX?: number | null } = {}): WeatherLens | null {
+  const vals = [region.x0, region.x1, region.y0, region.y1, plotIn.x0, plotIn.x1, plotIn.y0, plotIn.y1];
   if (!vals.every(Number.isFinite)) return null;
-  if (!(plot.x1 > plot.x0) || !(plot.y1 > plot.y0)) return null;
+  if (!(plotIn.x1 > plotIn.x0) || !(plotIn.y1 > plotIn.y0)) return null;
   const rx0 = Math.min(region.x0, region.x1), rx1 = Math.max(region.x0, region.x1);
   const ry0 = Math.min(region.y0, region.y1), ry1 = Math.max(region.y0, region.y1);
-  if (rx1 < plot.x0 || rx0 > plot.x1 || ry1 < plot.y0 || ry0 > plot.y1) return null;
+  if (rx1 < plotIn.x0 || rx0 > plotIn.x1 || ry1 < plotIn.y0 || ry0 > plotIn.y1) return null;
+  const edge = opts.liveEdgeX;
+  const keepOut = edge != null && Number.isFinite(edge) && edge < plotIn.x1 && edge - plotIn.x0 >= LENS_LIVE_EDGE_MIN_ROOM
+    // A window wholly inside the keep-out has nothing left of it to magnify: no keep-out then (the clear-zone cut still protects the face).
+    && rx0 < (edge as number);
+  const plot: ScreenBox = keepOut ? { ...plotIn, x1: edge as number } : plotIn;
+  const cutByEdge = keepOut && rx1 > plot.x1;
   // Only the part of the region the camera shows is enclosed.
   const bx0 = Math.max(plot.x0, rx0), bx1 = Math.min(plot.x1, rx1);
   const by0 = Math.max(plot.y0, ry0), by1 = Math.min(plot.y1, ry1);
@@ -287,7 +311,7 @@ export function fitWeatherLens(region: ScreenBox, plot: ScreenBox, opts: { reado
   // now) and the lens says PARTIAL.
   const grow = k > 1 ? k * 1.02 : 1;
   const gmax = rCap / Math.max(rx, ry);
-  if (grow <= gmax) return { cx, cy, rx: rx * grow, ry: ry * grow };
+  if (grow <= gmax) return { cx, cy, rx: rx * grow, ry: ry * grow, ...(cutByEdge ? { partial: true } : {}) };
   // Plate: the loupe is about four-fifths of the pane, centred on the price it reads.
   const R = { rx: rCap * LENS_PARTIAL_SHARE, ry: rCap * LENS_PARTIAL_SHARE };
   const cxN = clamp(bx1 - R.rx * 0.85, plot.x0 + R.rx, plot.x1 - R.rx);

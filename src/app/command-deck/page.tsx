@@ -121,6 +121,7 @@ import {
   DECK_PHASE_LABEL,
   DECK_PHASE_ORDER,
   lifecyclePhaseFor,
+  stageAttachedTo,
   stageForPhase,
 } from "@/lib/experience/decisionLifecycle";
 import { shellEmphasis } from "@/lib/experience/shellLayout";
@@ -335,6 +336,9 @@ function CommandDeckInner() {
   // this symbol, and a market change returns it to the lifecycle start in the
   // same render (lifecyclePhaseFor) and in the owner (attachSymbol).
   const phase: CommandPhase = lifecyclePhaseFor(experienceContext, symbol);
+  // The posture behind that phase, so the chain headline names the SAME
+  // posture the mode row does (OBSERVE reads "Observing", not "Preparing").
+  const posture = stageAttachedTo(experienceContext, symbol);
   // Attach, and return the detach: the market is "in view" only while shown.
   React.useEffect(() => attachLifecycleSymbol(symbol), [attachLifecycleSymbol, symbol]);
   const setPhase = React.useCallback(
@@ -488,6 +492,7 @@ function CommandDeckInner() {
       history,
       nowMs,
       phase,
+      stage: posture,
       permissionInputs: {
         ownerId: user?.id ?? "",
         sessionIdentity: `session-${marketDayKey(new Date(nowMs))}`,
@@ -495,7 +500,7 @@ function CommandDeckInner() {
         sessionDecisions,
       },
     });
-  }, [state, history, phase, nowMs, user?.id, sessionDecisions]);
+  }, [state, history, phase, posture, nowMs, user?.id, sessionDecisions]);
 
   const athos = React.useMemo(() => {
     const momentMap: Record<CommandPhase, ATHOSIntervention["moment"]> = {
@@ -1978,6 +1983,9 @@ function CommandDeckInner() {
                 // how the model learns to quote one as a print.
                 price: chartContextPrice.value,
                 priceProvenance: chartContextPrice.provenance,
+                // Garden 18 §8: source + freshness ride with the evidence.
+                source: wsFeed.source,
+                observedAt: wsFeed.lastObservedAtMs ?? null,
               })}
               style={{ display: "none" }}
             />
@@ -2029,7 +2037,7 @@ function CommandDeckInner() {
                         title={sug.reason}
                         style={{
                           display: "inline-flex",
-                          alignItems: "baseline",
+                          alignItems: "center",
                           gap: 6,
                           background: "transparent",
                           border: hint
@@ -2037,6 +2045,8 @@ function CommandDeckInner() {
                             : "1px solid rgba(212,175,55,0.35)",
                           borderRadius: 999,
                           padding: "3px 10px",
+                          // phone tap floor (measured 284x38 at 390, 2026-10-06)
+                          minHeight: 44,
                           cursor: "pointer",
                           fontSize: 10,
                           letterSpacing: 0.4,
@@ -2143,7 +2153,7 @@ function CommandDeckInner() {
                 >
                   <summary
                     style={{
-                      minHeight: 38,
+                      minHeight: 44, // phone tap floor (measured 322x38 at 390, 2026-10-06)
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",

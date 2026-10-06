@@ -51,7 +51,7 @@
 import React from "react";
 import { positioningSourceWords } from "@/lib/marketData/cboeDelayedOptions";
 import type { BigTradeClusterMember, SelectedBigTrade } from "@/lib/bigTradeLevels";
-import { percentileOrdinal } from "@/lib/chart/footprintCanon";
+import { sessionRankWords } from "@/lib/chart/footprintCanon";
 import { RESPONSE_BARS, type PrintResponseVM } from "@/lib/marketData/viewModels/selectPrintResponse";
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
@@ -712,19 +712,22 @@ function F07Card({ title, children, testId }: { title: string; children: React.R
 function SessionRankCard({ rank, combined }: { rank: { pct: number | null; prints: number } | null | undefined; combined: boolean }) {
   if (!rank) return null;
   const pct = rank.pct;
+  // One owner of the words (footprintCanon.sessionRankWords) and of the subject
+  // (bigTradeRankSize): a cluster is ranked by its LARGEST member print.
+  const words = sessionRankWords(pct, rank.prints, combined);
   return (
     <F07Card title="RELATIVE SIZE VS SESSION" testId="inspect-session-rank">
       {pct == null ? (
-        <div className="text-[11px]" style={{ color: UNREAD_COLOR }}>UNRANKED · {rank.prints} session prints — too few for a percentile</div>
+        <div className="text-[11px]" style={{ color: UNREAD_COLOR }}>{words.caption}</div>
       ) : (
         <>
-          <div className="text-[18px] font-bold leading-tight text-wm-gold" data-session-pct={(Math.floor(pct * 1000) / 10).toFixed(1)}>{percentileOrdinal(pct)}</div>
+          <div className="text-[18px] font-bold leading-tight text-wm-gold" data-session-pct={(Math.floor(pct * 1000) / 10).toFixed(1)}>{words.headline}</div>
           <div className="text-[10px]" style={{ color: "#C8C0AE" }}>PERCENTILE</div>
           <div className="mt-1 h-1.5 w-full rounded-sm" style={{ background: "#2A2618" }} aria-hidden>
             <div className="h-1.5 rounded-sm" style={{ width: `${Math.max(1, Math.floor(pct * 1000) / 10)}%`, background: "#E8B85C" }} />
           </div>
           <div className="mt-1 text-[10px]" style={{ color: "#C8C0AE" }}>
-            {combined ? "Combined size vs" : "Size vs"} {rank.prints} single prints this chart captured this session — measured at selection
+            {words.caption}
           </div>
         </>
       )}
@@ -938,7 +941,7 @@ export function ChartInspectTicket({
         onClick={() => onOpenChange(true)}
         aria-label="Open the inspect ticket for the bar under the cursor"
         data-testid="chart-inspect-reopen"
-        className="wm-chart-reading-anchor absolute top-16 right-[76px] z-20 flex items-center gap-1 rounded border px-2 h-6 text-[10px] font-bold tracking-wide"
+        className="wm-chart-reading-anchor wm-tap-slop absolute top-16 right-[76px] z-20 flex items-center gap-1 rounded border px-2 h-6 text-[10px] font-bold tracking-wide"
         style={{ background: "#131520", borderColor: "#1E2030", color: "#8B8FA8" }}
       >
         <Crosshair size={10} />

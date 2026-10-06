@@ -104,3 +104,17 @@ describe("proof scene", () => {
     expect(proofSelectReceipt("bigtrade", "NONE_AVAILABLE")).toBe("bigtrade:NONE_AVAILABLE");
   });
 });
+
+describe("Dual Anatomy in a proof scene (serving NQ1! 5m, 2026-10-06: a G06 body leaked into scene=clean)", () => {
+  it("a clean scene shows the market's geometry: anatomy mode MARKET, whatever the trader saved", () => {
+    expect(proofSceneValue(parseProofScene("?scene=clean&on=absorptionAnatomy"), "wm_anatomyMode")).toBe("MARKET");
+  });
+  it("anat:<mode> chooses it for this load; unknown modes are ignored", () => {
+    expect(proofSceneValue(parseProofScene("?scene=clean&on=anat:fusion"), "wm_anatomyMode")).toBe("FUSION");
+    expect(proofSceneValue(parseProofScene("?scene=clean&on=anat:body"), "wm_anatomyMode")).toBe("MARKET");
+  });
+  it("no scene → no opinion (the saved preference stands)", () => {
+    expect(proofSceneValue(parseProofScene(""), "wm_anatomyMode")).toBeUndefined();
+    expect(proofSceneValue(parseProofScene("?on=BrickWalls"), "wm_anatomyMode")).toBeUndefined();
+  });
+});

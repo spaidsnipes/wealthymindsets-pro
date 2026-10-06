@@ -1,4 +1,5 @@
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
+import { instrumentTickFor } from "@/lib/chart/pricePrecision";
 import { useEffect, useState } from "react";
 import type { MarketState, Tick } from "../../hooks/useWebSocket";
 import { priceSourceBadge, REST_QUOTE_SOURCES } from "../priceSource";
@@ -449,7 +450,9 @@ export function createChartMarketStatePublication(
   // POC the panel refused to draw from a placeholder unit.
   const volumeIsReal = volumeTruthFor(input.symbol, profileBars).real;
   const livingProfile = selectLivingProfile(
-    buildLivingProfileSnapshot(volumeIsReal ? input.recentTicks : null, [...volumeBearingBars(input.symbol, profileBars)]),
+    buildLivingProfileSnapshot(volumeIsReal ? input.recentTicks : null, [...volumeBearingBars(input.symbol, profileBars)],
+      // P0.2: the Passport seals the SAME on-grid levels the glass paints.
+      instrumentTickFor(input.symbol, input.ticker.price)),
     { livePrice: input.ticker.price },
   );
   const profileEvidenceInput = {

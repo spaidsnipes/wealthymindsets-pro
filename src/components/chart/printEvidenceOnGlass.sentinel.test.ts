@@ -107,7 +107,10 @@ describe("the one G04 callout stays on the plot, clear of the candles, in its ow
 
   it("says side, size and rank in the owners' words — never its own", () => {
     const b = callout();
-    expect(b).toMatch(/const rank = sessionSizePercentile\(Math\.abs\(b\.value\), bigTradePrintAccRef\.current\.values\(\)\);/);
+    // Pin updated 2026-10-06 (canon lane, F07A): a cluster is ranked by its
+    // LARGEST member print (bigTradeRankSize, footprintCanon) — the session
+    // percentile compares prints, never a sum of prints against single prints.
+    expect(b).toMatch(/const rank = sessionSizePercentile\(bigTradeRankSize\(b\.value, bigClusterOf\.get\(b\.spawnKey\)\), bigTradePrintAccRef\.current\.values\(\)\);/);
     expect(b).toContain("const words = bigTradeCalloutLines({");
     expect(b).toContain("priceText: b.anchorPrice.toFixed(pxDp)");
     expect(b).not.toMatch(/AGGRESSIVE|SIDE INFERRED|PERCENTILE/);

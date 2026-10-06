@@ -999,21 +999,39 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
   const AS_OF = Date.UTC(2026, 8, 25, 19, 16, 4);
 
   function split(html: string) {
-    // Anchored on the SPINE's drawer, and closed at the LAST </details> before
-    // the section ends: the honesty plaque inside the fold carries a native
-    // <details> of its own.
+    // Anchored on the SPINE's drawer and closed at ITS OWN </details> — found
+    // by balancing, because the honesty plaque inside the fold carries a
+    // native <details> of its own.
     // (The plaque is a <section> too, so the spine's end is the LAST one.)
+    //
+    // Garden 18 canon shift 2026-10-06: F16A puts the fold under WAIT. The
+    // fold used to be the rail's LAST element, so "at rest" was simply
+    // everything before it. It now sits directly under the plaque, with the
+    // reading cards after it — so "at rest" is everything OUTSIDE the fold
+    // (before it AND after it). The intent is unchanged: what is at rest is
+    // what the trader sees without opening the fold.
     const end = html.lastIndexOf("</section>");
     const open = html.indexOf('<details data-testid="spine-detail-drawer"');
-    const close = html.lastIndexOf("</details>", end);
     expect(open, "the fold is missing").toBeGreaterThan(-1);
+    let depth = 0;
+    let close = -1;
+    for (let i = open; i < end; ) {
+      const nextOpen = html.indexOf("<details", i);
+      const nextClose = html.indexOf("</details>", i);
+      if (nextClose < 0) break;
+      if (nextOpen > -1 && nextOpen < nextClose) { depth++; i = nextOpen + 8; continue; }
+      depth--;
+      if (depth === 0) { close = nextClose; break; }
+      i = nextClose + 10;
+    }
     expect(close).toBeGreaterThan(open);
     const summary = html.slice(html.indexOf("<summary", open), html.indexOf("</summary>", open));
+    const after = html.slice(close + "</details>".length, end);
     return {
-      rest: html.slice(0, open),
+      rest: html.slice(0, open) + after,
       summary,
       fold: html.slice(open, close),
-      after: html.slice(close + "</details>".length, end),
+      after,
     };
   }
 
@@ -1222,7 +1240,12 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
       expect(line, `${id} line box`).toBeGreaterThan(size);
     }
     // The flow panel's rows and heading too — every font-size inside it.
-    const panel = html.slice(html.indexOf('data-testid="spine-flow-context"'), html.indexOf('data-testid="spine-detail-drawer"'));
+    // Garden 18 canon shift 2026-10-06: F16A puts the fold under WAIT, so the
+    // flow panel now runs from its own id to the NEXT rail organ's id (it no
+    // longer ends at the fold, which sits above it).
+    const flowAt = html.indexOf('data-testid="spine-flow-context"');
+    const nextOrgan = [...html.matchAll(/data-testid="spine-(?!flow-)[a-z-]+"/g)].map((m) => m.index ?? -1).find((i) => i > flowAt) ?? html.lastIndexOf("</section>");
+    const panel = html.slice(flowAt, nextOrgan);
     const sizes = [...panel.matchAll(/font-size:([\d.]+)px/g)].map((m) => Number(m[1]));
     expect(sizes.length).toBeGreaterThan(3);
     for (const s of sizes) expect(s).toBeGreaterThanOrEqual(11);

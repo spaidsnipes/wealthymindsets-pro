@@ -9,7 +9,7 @@ import React, { useEffect, useState } from "react";
 
 import Link from "next/link";
 import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
-import { ttChartSymbol, type TtLedgerSummary, type TtRoundTrip } from "@/lib/broker/tastytradeLedger";
+import { ttChartSymbol, ttFeeScope, type TtLedgerSummary, type TtRoundTrip } from "@/lib/broker/tastytradeLedger";
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3", LINE = "rgba(139,106,41,0.25)", UP = "#7fd1a8", DOWN = "#e0786b";
 const money = (v: number) => `${v < 0 ? "−" : v > 0 ? "+" : ""}$${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -53,9 +53,13 @@ export function TastytradeLedger() {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 6, fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>
               <span>Closed <b style={{ color: INK }}>{a.summary.closed}</b></span>
               <span>Wins <b style={{ color: UP }}>{a.summary.wins}</b> · Losses <b style={{ color: DOWN }}>{a.summary.losses}</b></span>
-              <span>Net <b style={{ color: a.summary.net >= 0 ? UP : DOWN }}>{money(a.summary.net)}</b></span>
-              <span>Fees <b style={{ color: INK }}>{money(-a.summary.fees)}</b></span>
+              <span>Realized net <b style={{ color: a.summary.net >= 0 ? UP : DOWN }}>{money(a.summary.net)}</b></span>
+              {typeof a.summary.gross === "number" ? <span>Before fees <b style={{ color: INK }}>{money(a.summary.gross)}</b></span> : null}
+              <span>Fees (closed trips) <b style={{ color: INK }}>{money(-a.summary.fees)}</b></span>
               {a.summary.open ? <span style={{ color: MUTED }}>{a.summary.open} open — no result until flat</span> : null}
+              <span data-testid="tt-ledger-fee-scope" style={{ color: MUTED, fontSize: 11, flexBasis: "100%" }}>
+                Fees {ttFeeScope({ fees: a.summary.fees, openFees: a.summary.openFees ?? 0, open: a.summary.open }, Boolean(a.truncated))}. Unrealized P&amp;L and cost basis of open positions are not claimed here.
+              </span>
             </div>
           ) : null}
           {a.summary && a.summary.byInstrumentType.length ? (

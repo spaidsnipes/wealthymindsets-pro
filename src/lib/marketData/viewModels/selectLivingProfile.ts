@@ -247,6 +247,8 @@ export interface TapePrint {
 export function buildLivingProfileSnapshot(
   prints: readonly TapePrint[] | null | undefined,
   bars: readonly LegacyOhlcvTuple[] | null | undefined,
+  /** The instrument's tick (pricePrecision.instrumentTickFor) — buckets and levels land on its grid. */
+  instrumentTick?: number | null,
 ): ProfileSnapshot {
   const trades: NormalizedTradeLite[] = [];
   for (const p of prints ?? []) {
@@ -258,8 +260,8 @@ export function buildLivingProfileSnapshot(
     trades.push({ price, size, side: p.side === "buy" || p.side === "sell" ? p.side : "unknown" });
   }
 
-  if (trades.length >= MIN_TRADES_FOR_TAPE_PROFILE) return computeProfileFromTrades(trades);
-  return computeProfileFromBars([...(bars ?? [])]);
+  if (trades.length >= MIN_TRADES_FOR_TAPE_PROFILE) return computeProfileFromTrades(trades, { instrumentTick });
+  return computeProfileFromBars([...(bars ?? [])], { instrumentTick });
 }
 
 export function selectLivingProfile(

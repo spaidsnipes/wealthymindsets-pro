@@ -313,7 +313,7 @@ import type { FlowLadderReader } from "@/lib/marketData/flowLadder";
 import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
-import { displayPrecisionFor } from "@/lib/chart/pricePrecision";
+import { displayPrecisionFor, instrumentTickFor } from "@/lib/chart/pricePrecision";
 import { volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { BREATH_SAMPLE, selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
@@ -350,6 +350,11 @@ import selectProfileMemory from "@/lib/marketData/viewModels/selectProfileMemory
 import selectProfileFusion, { type FusionSourceLevel } from "@/lib/marketData/viewModels/selectProfileFusion";
 import selectCompositeProfile from "@/lib/marketData/viewModels/selectCompositeProfile";
 import selectRegimeLighting from "@/lib/marketData/viewModels/selectRegimeLighting";
+import { scopeRegimeLighting } from "@/lib/chart/regimeScope";
+import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
+/** Stable empties for the symbol-owned bar state (a fresh [] per render would re-run every chartBars memo). */
+const NO_LIVE_BARS: LegacyOhlcvTuple[] = [];
+const NO_LIVE_BAR_IDENTITIES: readonly CanonicalBarIdentity[] = [];
 import { SCAFFOLDING_DEPTHS, type ScaffoldingDepth } from "@/lib/marketData/viewModels/selectScaffoldingRead";
 import selectStructureZoneObjects from "@/lib/marketData/viewModels/selectStructureZoneObjects";
 import { selectLiquidityLifecycle } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
@@ -781,8 +786,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // The LIVE bars MainChart hands up (see handleBarsReady). Read as `chartBars`
   // everywhere below EXCEPT the MarketState publish: `chartBars` is what the
   // camera shows, which is these unless bar replay is driving it.
-  const [liveChartBars,   setChartBars]       = useState<LegacyOhlcvTuple[]>([]);
-  const [liveChartBarIdentities, setChartBarIdentities] = useState<readonly CanonicalBarIdentity[]>([]);
+  //
+  // SYMBOL-OWNED (truth lane, 2026-10-06): the bars, their identities and the
+  // "we finished asking" flag belong to the symbol|timeframe they were read
+  // for. The reset effect below ran AFTER the first render of a new symbol, so
+  // one frame painted the old symbol's bars (and barsSettled=true) beside the
+  // new symbol's name. Owned state returns empty the moment the key changes.
+  const barsOwnerKey = `${symbol}|${timeframe}`;
+  const [liveChartBars,   setChartBars]       = useSymbolOwnedState<LegacyOhlcvTuple[]>(barsOwnerKey, NO_LIVE_BARS);
+  const [liveChartBarIdentities, setChartBarIdentities] = useSymbolOwnedState<readonly CanonicalBarIdentity[]>(barsOwnerKey, NO_LIVE_BAR_IDENTITIES);
   const [communityOpen,   setCommunityOpen]   = useState(false);
   const [requestedTab,    setActiveTab]       = useState("Chart");
   const assetClass = canonicalAssetClass(symbol);
@@ -1470,8 +1482,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, [compareInput]);
 
   // ── Day high/low tracking ───────────────────────────────────
-  const [dayHigh, setDayHigh] = useState(0);
-  const [dayLow,  setDayLow]  = useState(0);
+  // Symbol-owned too: the running high/low never carries one market's extreme into the next.
+  const [dayHigh, setDayHigh] = useSymbolOwnedState<number>(symbol, 0);
+  const [dayLow,  setDayLow]  = useSymbolOwnedState<number>(symbol, 0);
 
   // ── Snapshot ────────────────────────────────────────────────
   const [snapping, setSnapping] = useState(false);
@@ -1660,10 +1673,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // candle traded 300–500 (serving, beside P110, 2026-09-27). The bars
       // now go through the ONE session-window owner the canvas uses, after
       // the volume gate (volumeTruth.ts): placeholder volume builds no body.
-      selectLivingProfile(buildLivingProfileSnapshot(volumeIsReal ? recentTicks : null, livingSessionBars), {
+      // P0.2: buckets and POC/VAH/VAL on the instrument's tick grid (vpEngine.bucketOnTickGrid).
+      selectLivingProfile(buildLivingProfileSnapshot(volumeIsReal ? recentTicks : null, livingSessionBars, instrumentTickFor(symbol, ticker.price)), {
         livePrice: ticker.price,
       }),
-    [recentTicks, livingSessionBars, volumeIsReal, ticker.price],
+    [recentTicks, livingSessionBars, volumeIsReal, ticker.price, symbol],
   );
 
   // Micah + Noah 2026-09-02 — /charts joins Phase 3 Market Canvas as a
@@ -1845,7 +1859,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     [chartCanvasState, continuationHistory],
   );
   /** H-901 — the ONE regime owner, read as a dimmer. Never re-derived. */
-  const chartRegimeLighting = React.useMemo(() => selectRegimeLighting(chartRegimeVM), [chartRegimeVM]);
+  // F15A × F14 (2026-10-06): the lighting's word is the TAPE's; Market
+  // Breathing's is the chart's closed BARS. The glass names that scope, and a
+  // tape-vs-bars volatility disagreement is printed as a named contradiction
+  // (scopeRegimeLighting) — never re-derived, never averaged.
+  const chartRegimeLighting = React.useMemo(
+    () => scopeRegimeLighting(selectRegimeLighting(chartRegimeVM), marketBreathing, timeframe)?.vm ?? null,
+    [chartRegimeVM, marketBreathing, timeframe],
+  );
   const chartStructureVM = React.useMemo(() =>
     selectMarketStructure(
       chartBars.map(b => ({
@@ -1907,6 +1928,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       })),
       // Crypto's day is 00:00 UTC (no gap in a 24/7 feed marks it).
       continuousDayKeyFor(symbol),
+      instrumentTickFor(symbol, volumeBars.length ? volumeBars[0].close : null),
     ),
     [volumeBars, symbol],
   );
@@ -2185,6 +2207,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     return { o: last.open, h: last.high, l: last.low, c: last.close, v: last.volume, time: last.time };
   }, [cursorBar, chartBars]);
   const inspectFollowingLiveBar = cursorBar === null && inspectBar !== null;
+  /** F05B — the pinned bar the open Inspect Ticket reads, marked on its candle by MainChart. */
+  const inspectedBarOnChart = React.useMemo(
+    () => (chartSelection.inspectOpen && cursorBar ? { time: cursorBar.time, high: cursorBar.h, low: cursorBar.l } : null),
+    [chartSelection.inspectOpen, cursorBar],
+  );
   /**
    * EFFORT'S SUBJECT (cross-market run, 2026-10-01: Effort Mark read UNREAD on
    * TSLA, NQ, ES, GC, CL, EURUSD — every market). Following the live edge, the
@@ -2380,8 +2407,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         high: b.high,
         low: b.low,
       })),
+      instrumentTickFor(symbol, chartBars.length ? chartBars[chartBars.length - 1].close : null),
     ),
-    [chartBars],
+    [chartBars, symbol],
   );
 
   /**
@@ -2395,8 +2423,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         time: typeof b.time === "number" ? b.time : Number(b.time),
         open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
       })),
+      instrumentTickFor(symbol, chartBars.length ? chartBars[chartBars.length - 1].close : null),
     ),
-    [chartStructureVM, chartBars],
+    [chartStructureVM, chartBars, symbol],
   );
 
   /**
@@ -2429,6 +2458,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       })),
       // Crypto's day is 00:00 UTC (no gap in a 24/7 feed marks it).
       continuousDayKeyFor(symbol),
+      instrumentTickFor(symbol, volumeBars.length ? volumeBars[volumeBars.length - 1].close : null),
     ),
     [volumeBars, symbol],
   );
@@ -4432,7 +4462,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * them is how the flag would eventually go stale on a symbol switch,
    * certifying instrument A's settled request as instrument B's.
    */
-  const [barsSettled, setBarsSettled] = useState(false);
+  const [barsSettled, setBarsSettled] = useSymbolOwnedState<boolean>(barsOwnerKey, false);
 
   const handleBarsReady = useCallback((
     bars: LegacyOhlcvTuple[],
@@ -4447,7 +4477,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       setDayHigh(Math.max(...highs));
       setDayLow(Math.min(...lows));
     }
-  }, []);
+  }, [setBarsSettled, setChartBars, setChartBarIdentities, setDayHigh, setDayLow]);
 
   // WM-VP-P0-01: monotonic data identity for pure downstream projections (the
   // Session VP). Bumps when the chart's symbol/timeframe changes and clears the
@@ -4778,6 +4808,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       <span aria-hidden="true">·</span>
       <span data-standing-change={badge.changePct >= 0 ? "UP" : "DOWN"}>{badge.changePct >= 0 ? "+" : ""}{badge.changePct.toFixed(2)}%{badge.periodLabel ? ` ${badge.periodLabel}` : ""}</span>
       <span aria-hidden="true">·</span>
+      {/* The canonical regime dimension is read from the recent TAPE — named,
+          so it never reads as a claim about the bars on camera (F15A × F14). */}
+      <span className="wm-chart-market-standing-label" title="Regime of the recent tape (direction × tick range), not of the bars on camera">TAPE</span>
       <span className="wm-chart-market-standing-label">REGIME</span>
       <span data-standing-regime={badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}>
         {badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}
@@ -5063,6 +5096,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               role: chartCanvasState?.qualityState ?? null,
               price: px.value,
               priceProvenance: px.provenance,
+              // Garden 18 §8: source + freshness ride with the evidence.
+              source,
+              observedAt: lastObservedAtMs ?? null,
               ...(chg.displayable
                 ? { change: chg.change, changePct: chg.changePct }
                 : {}),
@@ -6712,6 +6748,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       compositeProfileOnChart={compositeProfileOn}
                       visibleRangeProfileOnChart={visibleRangeProfileOn}
                       regimeLighting={chartRegimeLighting}
+                      inspectedBarOnChart={inspectedBarOnChart}
                       regimeLightingOnChart={regimeLightingOn}
                       questionLensOnChart={questionLensOn}
                       onQuestionLensRead={setRailLens}

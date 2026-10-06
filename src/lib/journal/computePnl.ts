@@ -548,6 +548,11 @@ export function selectJournalPricing(input: JournalPricingInput): JournalPricing
   };
 }
 
+/** Entry, exit and size are all real, positive, finite numbers. */
+function hasCompletePrice(input: { entry?: number; exit?: number; size?: number }): boolean {
+  return [input.entry, input.exit, input.size].every((v) => typeof v === "number" && Number.isFinite(v) && v > 0);
+}
+
 export interface RealizedRInput extends PnlInput {
   plannedRDollars?: number;
 }
@@ -560,6 +565,11 @@ export interface RealizedRInput extends PnlInput {
 export function computeJournalRealizedR(input: RealizedRInput): number | undefined {
   const p = input.plannedRDollars;
   if (!(typeof p === "number" && Number.isFinite(p) && p > 0)) return undefined;
+  // Garden 18 §4 (2026-10-06): an EMPTY / incomplete entry has no R. Without
+  // this, missing entry/exit/size made computeJournalPnl answer 0 and this
+  // helper answer 0 / plannedR = 0.00R — a breakeven nobody traded.
+  // Undefined stays undefined.
+  if (!hasCompletePrice(input)) return undefined;
   const pnl = computeJournalPnl(input);
   // An instrument WM cannot price has no dollars, so it has no R either.
   if (!Number.isFinite(pnl)) return undefined;
@@ -602,6 +612,13 @@ export type JournalSaveMoney =
 
 export function selectJournalSaveMoney(input: JournalSaveMoneyInput): JournalSaveMoney {
   if (input.isNoTradeDay) return { status: "WRITE", pnl: 0, realizedR: undefined };
+  // Garden 18 §4 (2026-10-06): the second lock also covers an EMPTY or
+  // incomplete entry. computeJournalPnl answers a finite 0 for missing
+  // entry/exit/size, which used to pass straight through here as
+  // WRITE pnl 0 → result "be" — an empty entry saved as a breakeven trade.
+  if (!hasCompletePrice(input)) {
+    return { status: "REFUSED", reason: "This entry has no complete entry, exit and size, so it is not a trade and is never saved as a breakeven" };
+  }
   const pnl = computeJournalPnl(input);
   if (!Number.isFinite(pnl)) {
     const money = journalMoneyFor(input);

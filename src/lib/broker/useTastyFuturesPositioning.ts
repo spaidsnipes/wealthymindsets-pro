@@ -20,6 +20,7 @@ import { futuresProductFor, readFuturesOptionChain, type FuturesOptionChain } fr
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import type { CboeOptionRow, CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
 import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
+import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
 
 const STRIKE_REACH = 0.04;
 const MAX_DTE = 60;
@@ -56,10 +57,15 @@ export function pickPositioningLegs(chain: FuturesOptionChain, price: number): L
 
 export function useTastyFuturesPositioning(symbol: string, enabled: boolean, price: number | null): FuturesPositioning | null {
   const product = enabled ? futuresProductFor(symbol) : null;
-  const [chain, setChain] = useState<FuturesOptionChain | null>(null);
-  const [edge, setEdge] = useState<string | null>(null);
+  // Chain, edge and anchor are stored WITH the product they were read for, so
+  // the first frame after a switch never prices the previous product's chain.
+  const [ownedChain, setOwnedChain] = useState<Owned<FuturesOptionChain>>(UNOWNED);
+  const [ownedEdge, setOwnedEdge] = useState<Owned<string>>(UNOWNED);
+  const chain = readOwned(ownedChain, product);
+  const edge = readOwned(ownedEdge, product);
   useEffect(() => {
-    setChain(null); setEdge(null);
+    setOwnedChain(UNOWNED); setOwnedEdge(UNOWNED);
+    const setEdge = (e: string) => setOwnedEdge(owned(product, e));
     if (!product) return;
     let alive = true;
     fetch(`/api/broker/tastytrade/chain?futuresOptions=${encodeURIComponent(product)}`, { cache: "no-store" })
@@ -70,16 +76,16 @@ export function useTastyFuturesPositioning(symbol: string, enabled: boolean, pri
         // CHAIN_403 fault code painted on their chart (garden pass 2026-10-05).
         if (isOwnerRefusal(j, status)) { setEdge("NEEDS_A_CONNECTED_BROKER"); return; }
         if (j?.state !== "OK") { setEdge(j?.state === "NOT_CONFIGURED" ? "TASTYTRADE_NOT_CONNECTED" : `CHAIN_${status}`); return; }
-        setChain(readFuturesOptionChain(j.data));
+        setOwnedChain(owned(product, readFuturesOptionChain(j.data)));
       })
       .catch(() => { if (alive) setEdge("TRANSPORT"); });
     return () => { alive = false; };
   }, [product]);
   // Strikes chosen at the price the chain was first read against (a moving
   // price must not churn the subscription every tick).
-  const [anchor, setAnchor] = useState<number | null>(null);
-  useEffect(() => { if (chain && price && price > 0 && anchor == null) setAnchor(price); }, [chain, price, anchor]);
-  useEffect(() => { setAnchor(null); }, [product]);
+  const [ownedAnchor, setOwnedAnchor] = useState<Owned<number>>(UNOWNED);
+  const anchor = readOwned(ownedAnchor, product);
+  useEffect(() => { if (chain && price && price > 0 && anchor == null) setOwnedAnchor(owned(product, price)); }, [chain, price, anchor, product]);
   const legs = useMemo(() => (chain && anchor ? pickPositioningLegs(chain, anchor) : []), [chain, anchor]);
   const streamers = useMemo(() => legs.map(l => l.streamer), [legs]);
   const snap = useTastyQuotes(streamers);

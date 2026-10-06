@@ -352,6 +352,32 @@ export const DECK_PHASE_HEADLINE: Readonly<Record<TradePhase, string>> = {
 };
 
 /**
+ * THE CHAIN HEADLINE'S WORD WHEN THE TRADER'S POSTURE IS KNOWN — Garden 18 §4
+ * (2026-10-06). OBSERVE and PREP both compile the PREPARATION chain, so a
+ * phase-only headline said "Preparing — …" while the mode row said OBSERVE:
+ * the visible label disagreed with the underlying mode at the OBSERVE
+ * transition ("Observing — decision chain now reads preparation"). With the
+ * stage in hand the headline speaks the POSTURE's word; a stage that does not
+ * compile this phase (stale caller) falls back to the phase word rather than
+ * naming a posture the chain was not compiled for. Posture is never the
+ * market's verdict (WAIT / READY), which the rail states separately.
+ */
+export const STAGE_HEADLINE: Readonly<Record<LifecycleStage, string>> = {
+  OBSERVE: "Observing",
+  PREP: DECK_PHASE_HEADLINE.PREPARATION,
+  WAIT: DECK_PHASE_HEADLINE.APPROACH,
+  EXECUTE: DECK_PHASE_HEADLINE.DECISION,
+  MANAGE: DECK_PHASE_HEADLINE.POSITION,
+  POST_EXIT: DECK_PHASE_HEADLINE.POST_EXIT,
+  REVIEW: DECK_PHASE_HEADLINE.REVIEW,
+};
+
+export function chainHeadlineWord(phase: TradePhase, stage?: LifecycleStage | null): string {
+  if (stage && phaseForStage(stage) === phase) return STAGE_HEADLINE[stage];
+  return DECK_PHASE_HEADLINE[phase];
+}
+
+/**
  * The stage a room's rail lights, for ITS market — `lifecyclePhaseFor`'s twin.
  * A stage declared on another symbol does not travel (the lifecycle START is
  * lit); `null` is a non-lifecycle job (LEARN), which lights NO stop rather than

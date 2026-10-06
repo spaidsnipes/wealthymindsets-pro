@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { owned, readOwned, UNOWNED, type Owned } from "@/lib/marketData/symbolOwned";
 
 import { KRAKEN_WS_URL } from "@/lib/api/kraken";
 import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
@@ -24,14 +25,15 @@ export const BOOK_DEPTH = 100;
 const PUBLISH_MS = 1_000;
 
 export function useBookLiquidityLifecycle(symbol: string, enabled: boolean, step: number): LiquidityLifecycleVM | null {
-  const [vm, setVm] = useState<LiquidityLifecycleVM | null>(null);
+  // Stored WITH its pair + bucket: a switch never paints the previous book.
+  const [ownedVm, setOwnedVm] = useState<Owned<LiquidityLifecycleVM>>(UNOWNED);
   const trackerRef = useRef<BookLifecycleTracker | null>(null);
   const pair = enabled ? krakenBookPairForChart(symbol) : null;
   // The bucket is fixed per connection; a changed step reopens the reading.
   const stepKey = Number.isFinite(step) && step > 0 ? +step.toPrecision(3) : 0;
 
   useEffect(() => {
-    setVm(null);
+    setOwnedVm(UNOWNED);
     if (!pair || !stepKey || typeof WebSocket === "undefined") { trackerRef.current = null; return; }
     const tracker = createBookLifecycleTracker({ step: stepKey, venue: "Kraken" });
     trackerRef.current = tracker;
@@ -95,7 +97,7 @@ export function useBookLiquidityLifecycle(symbol: string, enabled: boolean, step
     };
     open();
     const publish = setInterval(() => {
-      if (snapshotSeen && trackerRef.current === tracker) setVm(tracker.read(Date.now()));
+      if (snapshotSeen && trackerRef.current === tracker) setOwnedVm(owned(`${pair}|${stepKey}`, tracker.read(Date.now())));
     }, PUBLISH_MS);
     return () => {
       closed = true;
@@ -106,5 +108,5 @@ export function useBookLiquidityLifecycle(symbol: string, enabled: boolean, step
     };
   }, [pair, stepKey]);
 
-  return pair ? vm : null;
+  return pair ? readOwned(ownedVm, `${pair}|${stepKey}`) : null;
 }

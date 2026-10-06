@@ -59,7 +59,18 @@ Response style:
   sufficient prices/context. Otherwise explain what data is required.
 - Clean numbers: "$7,550 support", "21,820 resistance"
 - Never invent current prices, order flow, support/resistance, win rates, or performance.
-- Be honest — if structure is unclear or data is stale, say so`;
+- Be honest — if structure is unclear or data is stale, say so
+
+Evidence citation (Garden 18 §8):
+- Every chart fact you use (price, change, role, levels) is cited with its source and
+  its as-of time exactly as the bracketed chart line gives them, e.g. "(source tastytrade,
+  last observed 14:32:05Z, 12s before this question)". If the line says the as-of time is
+  UNKNOWN, say the figures may be stale and do not treat them as current.
+- State your uncertainty in words: what the evidence supports, what it does not, and what
+  would change your read. Never turn a possibility into a certainty.
+- You keep no record of decisions. If you propose a thesis, tie it to the Decision_ID in the
+  chart line when there is one, and say it is recorded only when the trader records it in
+  the Journal. Never invent a Decision_ID.`;
 
 type GeminiChunk = {
   candidates?: Array<{
@@ -110,7 +121,7 @@ export async function POST(req: NextRequest) {
     // reached the model as "(+0.00%)" while SYSTEM_PROMPT above told it never
     // to invent a price. Re-derived server-side on purpose: this route accepts
     // a client-supplied body and must not be talked into the claim.
-    const ctxNote = formatChartContextNote(context);
+    const ctxNote = formatChartContextNote(context, Date.now());
 
     const contents = messages.map((m, i) => ({
       role: m.role === "assistant" ? "model" : "user",

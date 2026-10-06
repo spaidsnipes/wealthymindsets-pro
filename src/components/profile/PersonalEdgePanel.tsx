@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import type { PersonalEdgeVM, ContextBucket } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
+import { contextEvidenceLine, type PersonalEdgeVM, type ContextBucket } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 
 /**
  * PersonalEdgePanel — pure display of selectPersonalEdge output.
@@ -92,7 +92,7 @@ export function PersonalEdgePanel({ vm, onBucketClick, className }: PersonalEdge
           <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#5cb85c", fontWeight: 700, marginBottom: 6 }}>
             Strength contexts
           </div>
-          <BucketList buckets={vm.topStrengths} tone="positive" onBucketClick={onBucketClick} />
+          <BucketList buckets={vm.topStrengths} nowMs={vm.evaluatedAt} tone="positive" onBucketClick={onBucketClick} />
         </section>
       )}
 
@@ -101,7 +101,7 @@ export function PersonalEdgePanel({ vm, onBucketClick, className }: PersonalEdge
           <div style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#c05a4a", fontWeight: 700, marginBottom: 6 }}>
             Watch contexts
           </div>
-          <BucketList buckets={vm.topWatch} tone="negative" onBucketClick={onBucketClick} />
+          <BucketList buckets={vm.topWatch} nowMs={vm.evaluatedAt} tone="negative" onBucketClick={onBucketClick} />
         </section>
       )}
     </div>
@@ -141,10 +141,12 @@ function Metric({
 
 function BucketList({
   buckets,
+  nowMs,
   tone,
   onBucketClick,
 }: {
   buckets: readonly ContextBucket[];
+  nowMs: number;
   tone: "positive" | "negative";
   onBucketClick?: (b: ContextBucket) => void;
 }) {
@@ -176,7 +178,10 @@ function BucketList({
               color: "#ede6d3",
             }}
           >
-            <span style={{ flex: 1, fontSize: 12 }}>{b.label}</span>
+            <span style={{ flex: 1, fontSize: 12 }}>
+              {b.label}
+              <span data-testid="personal-edge-evidence" style={{ display: "block", fontSize: 10, color: "#8a8271" }}>{contextEvidenceLine(b, nowMs)}</span>
+            </span>
             <span style={{ fontSize: 10, color: "#8a8271", fontVariantNumeric: "tabular-nums" }}>
               n={b.sampleCount}
             </span>
