@@ -316,6 +316,13 @@ export function toYahooSymbol(sym: string): string {
     }
   }
 
+  // A broker futures ROOT ("/NQ", "/6E") of a contract this table names is
+  // that continuous series. It used to fall into the forex rule below and ask
+  // Yahoo for "NQ=X" (serving 2026-10-06). Unknown roots and dated months are
+  // not guessed at.
+  const slashRoot = /^\/([A-Z0-9]{1,4})$/.exec(up);
+  if (slashRoot && isKnownFuturesRoot(slashRoot[1])) return `${slashRoot[1]}=F`;
+
   // Forex pairs: Yahoo uses the "EURUSD=X" format (no slash).
   // Handles "EUR/USD", "GBP/JPY", and also bare 6-letter pairs like "EURUSD".
   if (up.includes("/")) return `${up.replace("/", "")}=X`;

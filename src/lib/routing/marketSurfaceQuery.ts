@@ -1,4 +1,5 @@
 import { normalizeTFId, type TFId } from "@/lib/timeframes";
+import { resolveEnteredSymbol } from "@/lib/marketData/futuresNotation";
 
 // A leading ^ is an index (^SPX, ^N225) — search offers it, so a deep link must open it (Garden 17 master order §LVIII, 2026-09-29).
 // A leading "/" is a specific futures month (/MNQH7) — the brokers' own notation.
@@ -11,7 +12,9 @@ const MARKET_SYMBOL_PATTERN = /^[\^/]?[A-Za-z0-9][A-Za-z0-9.\-!/=]{0,14}$/;
 export function normalizeMarketSurfaceSymbol(raw: string | null | undefined): string | null {
   const candidate = raw?.trim();
   if (!candidate || !MARKET_SYMBOL_PATTERN.test(candidate)) return null;
-  return candidate.toUpperCase();
+  // A bare futures root / "/NQ" / "NQ=F" names the continuous series the bar
+  // doors serve (serving 2026-10-06: ?symbol=NQ refused at all five doors).
+  return resolveEnteredSymbol(candidate);
 }
 
 /** Keep URL timeframes inside the canonical chart vocabulary. */

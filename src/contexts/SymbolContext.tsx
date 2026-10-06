@@ -2,6 +2,7 @@
 
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { normalizeMarketSurfaceSymbol } from "@/lib/routing/marketSurfaceQuery";
+import { resolveEnteredSymbol } from "@/lib/marketData/futuresNotation";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect } from "react";
 import { resolveDefaultCameraSymbol } from "@/lib/marketData/defaultMarketCamera";
@@ -80,7 +81,7 @@ function readPersistedSymbol(): string {
       return linked;
     }
     const saved = window.localStorage.getItem(LAST_SYMBOL_KEY);
-    if (saved) return saved.toUpperCase();
+    if (saved) return resolveEnteredSymbol(saved);
     const settings = JSON.parse(window.localStorage.getItem("wm_settings") || "{}");
     const defSym = settings.defSym as string | undefined;
     if (defSym) return defSym.toUpperCase();
@@ -106,7 +107,9 @@ export function SymbolProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setActiveSymbol = useCallback((sym: string) => {
-    const up = sym.toUpperCase();
+    // Typed "Open as entered", pickers, restored state: one entry gate, so a
+    // bare root ("NQ") opens the series that has bars (NQ1!), not an empty chart.
+    const up = resolveEnteredSymbol(sym);
     setActiveSymbolState(up);
     try { if (!proofSceneHoldsWrites()) localStorage.setItem(LAST_SYMBOL_KEY, up); } catch {}
   }, []);
