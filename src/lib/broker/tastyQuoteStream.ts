@@ -270,6 +270,16 @@ export function requestTastyCandles(candleSymbol: string, keepAlive: string, fro
 }
 
 const getSnapshot = () => snapshot;
+
+/**
+ * What the shared stream already holds for a symbol. dxFeed sends a Summary
+ * (prior-day close, open interest) only on the FIRST subscription, so a
+ * second consumer of an already-streamed symbol reads it here (2026-10-06:
+ * /desk's tape subscribed SPY first and the chart never heard its Summary).
+ */
+export function peekTastyQuote(streamerSymbol: string): ContractQuoteState | null {
+  return quotes.get(streamerSymbol) ?? null;
+}
 const onStore = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
 
 /** Diagnostic count for the duplicate-stream check (§CX): sockets this tab holds. */

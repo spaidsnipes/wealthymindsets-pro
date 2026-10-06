@@ -36,7 +36,7 @@ import { electProviderTapeSource, type ProviderTapeSource } from "@/lib/marketDa
 import { OBSERVED_LANE_HEDGE_MS, selectObservedProviderFallback } from "@/lib/marketData/selectObservedProviderFallback";
 import { restQuoteNextPollDelayMs } from "@/lib/marketData/restQuotePolling";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
-import { subscribeTastyEvents } from "@/lib/broker/tastyQuoteStream";
+import { peekTastyQuote, subscribeTastyEvents } from "@/lib/broker/tastyQuoteStream";
 import { tastyLiveContractFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { inferEquityAggressor } from "@/lib/marketData/adapters/tastytradeEquityInference";
@@ -1790,6 +1790,13 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           let lastPrintAt = 0;
           let lastEquityPrice: number | null = null;
           let lastEquitySide: "BUY" | "SELL" | null = null;
+          // The stream may already hold this symbol's Summary (another consumer
+          // subscribed first; dxFeed sends it only once): adopt its reference.
+          {
+            const pc = peekTastyQuote(contract.streamer)?.prevClose;
+            const hasReferenceClose = pc != null && Number.isFinite(pc) && pc > 0;
+            if (hasReferenceClose) { prevCloseRef.current = pc!; tastyRefCloseRef.current = true; }
+          }
           tastyCleanup = subscribeTastyEvents([contract.streamer], (e, receivedAtMs) => {
             if (disposed) return;
             if (e.type === "TimeAndSale") {

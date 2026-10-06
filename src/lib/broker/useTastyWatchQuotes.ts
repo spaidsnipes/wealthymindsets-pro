@@ -71,9 +71,12 @@ export function useTastyWatchQuotes(symbols: readonly string[]): ReadonlyMap<str
       const tradeClock = q.tradeTime ?? q.tradeAt;
       const tradeCurrent = tradeClock != null && (q.quoteAt == null || q.quoteAt - tradeClock <= TRADE_STALE_BESIDE_QUOTE_MS);
       if (q.last != null && q.last > 0 && q.tradeAt != null && tradeCurrent) { out.set(sym, { price: q.last, at: Math.max(q.tradeAt, q.quoteAt ?? 0), prevClose: q.prevClose }); continue; }
-      if (q.quoteAt == null) continue;
-      const price = saneMidpoint(q.bid, q.ask);
-      if (price != null) out.set(sym, { price, at: q.quoteAt, prevClose: q.prevClose });
+      const price = q.quoteAt == null ? null : saneMidpoint(q.bid, q.ask);
+      if (price != null) { out.set(sym, { price, at: q.quoteAt!, prevClose: q.prevClose }); continue; }
+      // No current price, but the exchange's reference close is known: publish
+      // the reference alone (price 0, never fresh) so a row can still measure
+      // "today" from the right day while its price comes from elsewhere.
+      if (q.prevClose != null && q.prevClose > 0) out.set(sym, { price: 0, at: 0, prevClose: q.prevClose });
     }
     return out;
   }, [snap, streamerOf]);
