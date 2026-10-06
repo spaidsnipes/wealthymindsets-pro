@@ -16810,6 +16810,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // inferred dealer exposure. Own material — a short dashed tick
               // at the price axis, teal for calls, rose for puts — so it can
               // never be read as a defended wall, support or resistance.
+              // Both tick families' words are placed together at the end
+              // (serving NQ 5m, 2026-10-05: "CALL OI …" printed straight over
+              // the brick texture and over its neighbour — unreadable).
+              const tickWords: { y: number; text: string; rgb: string; a: number }[] = [];
               const ev = optionsEvidenceRef.current;
               if (wallsOn && ev && ev.drawn) {
                 const oiMarks: string[] = [];
@@ -16830,8 +16834,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.stroke();
                   ctx.setLineDash([]);
                   const label = `${call ? "CALL" : "PUT"} OI ${fmtD(w.strike)} · ${w.openInterest >= 1000 ? `${Math.round(w.openInterest / 1000)}k` : w.openInterest}`;
-                  ctx.fillStyle = `rgba(${rgb},${0.95 * baseA})`;
-                  ctx.fillText(label, plotRightD - 2, y - 2);
+                  tickWords.push({ y, text: label, rgb, a: 0.95 * baseA });
                   oiMarks.push(`${w.type}@${w.strike}`);
                 }
                 ctx.textAlign = "left";
@@ -16864,8 +16867,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.lineTo(plotRightD, y);
                   ctx.stroke();
                   ctx.setLineDash([]);
-                  ctx.fillStyle = `rgba(${rgb},${0.92 * baseA})`;
-                  ctx.fillText(`${im.index} ${lv.indexLevel} → ${fmtD(lv.futuresLevel)} · ${lv.kind === "CALL_OI" ? "CALL" : "PUT"} OI · MAPPED`, plotRightD - 2, y - 2);
+                  tickWords.push({ y, text: `${im.index} ${lv.indexLevel} → ${fmtD(lv.futuresLevel)} · ${lv.kind === "CALL_OI" ? "CALL" : "PUT"} OI · MAPPED`, rgb, a: 0.92 * baseA });
                   marks.push(`${lv.kind}@${lv.indexLevel}->${lv.futuresLevel}`);
                 }
                 ctx.textAlign = "left";
@@ -16874,6 +16876,43 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               } else {
                 ds.indexMappedWalls = !wallsOn ? "OFF" : !im ? "NONE" : `SILENT:${im.mapped ? "" : im.reason}`;
               }
+              // ONE PLACER: each label on a dark backing, right-aligned to the
+              // axis, sitting on its tick; a label that would overlap one already
+              // placed (or other words on the glass) steps away from it by whole
+              // rows, and its tick gets a hairline leader so the pair still reads.
+              if (tickWords.length) {
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.textAlign = "left";
+                ctx.textBaseline = "bottom";
+                const ROW = 13;
+                const placed: { x: number; y: number; w: number; h: number }[] = [];
+                const hits = (q: { x: number; y: number; w: number; h: number }) =>
+                  [...placed, ...floatingChips].some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y);
+                let stepped = 0;
+                for (const t of [...tickWords].sort((p, q) => p.y - q.y)) {
+                  const tw = ctx.measureText(t.text).width;
+                  const x = plotRightD - tw - 6;
+                  let by = t.y - 2;
+                  for (const k of [0, -1, 1, -2, 2, -3, 3]) {
+                    const cand = t.y - 2 + k * ROW;
+                    if (!hits({ x: x - 3, y: cand - 12, w: tw + 6, h: 13 })) { by = cand; break; }
+                  }
+                  if (by !== t.y - 2) {
+                    stepped++;
+                    ctx.strokeStyle = `rgba(${t.rgb},${(0.5 * t.a).toFixed(3)})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(plotRightD - 4, t.y); ctx.lineTo(plotRightD - 4, by - 6); ctx.stroke();
+                  }
+                  ctx.fillStyle = `rgba(11,10,8,${(0.86 * t.a).toFixed(3)})`;
+                  ctx.fillRect(x - 3, by - 12, tw + 6, 13);
+                  ctx.fillStyle = `rgba(${t.rgb},${t.a.toFixed(3)})`;
+                  ctx.fillText(t.text, x, by);
+                  const box = { x: x - 3, y: by - 12, w: tw + 6, h: 13 };
+                  placed.push(box);
+                  floatingChips.push(box);
+                }
+                ds.oiTickWords = `N:${tickWords.length}|STEPPED:${stepped}`;
+              } else delete ds.oiTickWords;
               ctx.restore();
 
               // ── CLIMATE (global) — one line, the environment's name ────
