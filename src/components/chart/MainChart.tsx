@@ -615,6 +615,7 @@ import { wallContact } from "@/lib/marketData/viewModels/wallContact";
 import { coinbaseProductFor, fetchCoinbaseTradeHistory } from "@/lib/marketData/coinbaseTradeBackfill";
 import { ANATOMY_MODE_EVENT, readAnatomyMode } from "@/lib/chart/anatomyMode";
 import { placeWaitPlaque } from "@/lib/chart/waitPlaquePlacement";
+import { ingestTastytradeCandles, TASTYTRADE_BAR_SOURCE } from "@/lib/marketData/tastytradeCandleIngress";
 import { selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 /** The forming candle's own print ring (bounded; a truncated ring is named in its receipt). */
 const FORMING_RING_CAP = 3000;
@@ -1142,7 +1143,12 @@ async function fetchTastyCandles(sym: string, tf: string, count: number, signal?
     const candles = rows ? tastyCandlesToBars(rows, count) : [];
     if (!rows) { note(log, { vendor: "tastytrade", outcome: "REFUSED", edge: null }); return null; }
     note(log, { vendor: "tastytrade", outcome: candles.length ? "SERVED" : "EMPTY" });
-    return candles.length ? { candles, identities: [], sided: tastyCandlesToSidedVolume(rows) } : null;
+    // FIFTH INGRESS (2026-10-06): the futures door mints identities like
+    // every other — a pivot on NQ1! can now be born as a MarketObject.
+    const identities = candles.length
+      ? ingestTastytradeCandles({ streamer: contract.streamer, timeframe: tf, tuples: candles, receivedAt: Date.now() }).identities
+      : [];
+    return candles.length ? { candles, identities, sided: tastyCandlesToSidedVolume(rows) } : null;
   } catch {
     if (!signal?.aborted) note(log, { vendor: "tastytrade", outcome: "REFUSED", edge: null });
     return null;
@@ -4017,6 +4023,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const ids = [symbol, canonical, `ALPACA:${symbol}`];
           if (canonical.endsWith("-USD")) ids.push(`ALPACA:${canonical.replace(/-USD$/, "/USD")}`);
           if (exParsed) ids.push(`${exParsed.exchange}:${exParsed.coin}`);
+          // The tastytrade contract that served the bars (TASTYTRADE:/NQZ26:XCME).
+          for (const ident of fetchedBarIdentities) if (ident.source === TASTYTRADE_BAR_SOURCE) { ids.push(ident.symbolId); break; }
           return ids;
         })(),
         timeframe,

@@ -876,6 +876,10 @@ describe("M8 · the artery cannot be narrowed before anyone uses it", () => {
     // FOURTH INGRESS, 2026-09-18. This list may only GROW.
     { from: "lib/marketData/finnhubCandleIngress.ts", to: "canonicalBar" },
     { from: "app/api/finnhub/route.ts", to: "finnhubCandleIngress" },
+    // FIFTH INGRESS, 2026-10-06 (futures: tastytrade's door published no
+    // identities, so no NQ1! pivot could be born as a MarketObject). This list may only GROW.
+    { from: "lib/marketData/tastytradeCandleIngress.ts", to: "canonicalBar" },
+    { from: "components/chart/MainChart.tsx", to: "tastytradeCandleIngress" },
   ];
 
   it("has at least the production consumers it had when the migration began", () => {
