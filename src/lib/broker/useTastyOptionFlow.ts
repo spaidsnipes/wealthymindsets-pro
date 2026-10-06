@@ -43,6 +43,8 @@ export function useTastyOptionFlow(legs: readonly Leg[] | null | undefined, enab
         streamer: e.symbol, timeMs: v.time, sequence: v.sequence ?? null, price: v.price, size: v.size,
         aggressor: side === "BUY" || side === "SELL" || side === "UNDEFINED" ? side : null,
         bid: v.bidPrice ?? null, ask: v.askPrice ?? null,
+        kind: e.text.type === "NEW" || e.text.type === "CORRECTION" || e.text.type === "CANCEL" ? e.text.type : null,
+        spreadLeg: v.spreadLeg === 1,
       });
       if (prints.length > MAX_PRINTS) prints.splice(0, prints.length - MAX_PRINTS);
       dirty = true;

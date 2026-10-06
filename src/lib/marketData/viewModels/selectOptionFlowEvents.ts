@@ -32,6 +32,10 @@ export interface OptionPrint {
   readonly aggressor: "BUY" | "SELL" | "UNDEFINED" | null;
   readonly bid: number | null;
   readonly ask: number | null;
+  /** dxFeed's TimeAndSale type: a CORRECTION replaces, a CANCEL removes, the print with the same time + sequence. */
+  readonly kind?: "NEW" | "CORRECTION" | "CANCEL" | null;
+  /** The exchange marked this print as one leg of a spread. */
+  readonly spreadLeg?: boolean;
 }
 
 export interface OptionLeg {
@@ -83,16 +87,18 @@ export function selectOptionFlowEvents(
   legs: ReadonlyMap<string, OptionLeg>,
   maxEvents = 40,
 ): OptionFlowVM {
-  const seen = new Set<string>();
-  const clean: OptionPrint[] = [];
+  // One print per (contract, time, sequence), in arrival order: a repeat folds
+  // once, a CORRECTION replaces what it corrects, a CANCEL removes it.
+  const byKey = new Map<string, OptionPrint>();
   for (const p of prints) {
     if (!legs.has(p.streamer)) continue;
-    if (!(Number.isFinite(p.size) && p.size > 0 && Number.isFinite(p.price) && p.price >= 0 && Number.isFinite(p.timeMs))) continue;
     const key = `${p.streamer}|${p.timeMs}|${p.sequence ?? ""}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    clean.push(p);
+    if (p.kind === "CANCEL") { byKey.delete(key); continue; }
+    if (!(Number.isFinite(p.size) && p.size > 0 && Number.isFinite(p.price) && p.price >= 0 && Number.isFinite(p.timeMs))) continue;
+    if (byKey.has(key) && p.kind !== "CORRECTION") continue;
+    byKey.set(key, p);
   }
+  const clean = [...byKey.values()];
   const sizes = clean.map(p => p.size).sort((a, b) => a - b);
   const median = sizes.length ? sizes[Math.floor((sizes.length - 1) / 2)] : 0;
   // A median from a handful of prints is the big prints themselves: the
@@ -111,7 +117,7 @@ export function selectOptionFlowEvents(
   const events: OptionFlowEvent[] = big.map(p => {
     const leg = legs.get(p.streamer)!;
     const { side, stamped } = sideOf(p);
-    const multiLeg = (twins.get(`${p.timeMs}|${p.size}`)?.size ?? 0) > 1;
+    const multiLeg = p.spreadLeg === true || (twins.get(`${p.timeMs}|${p.size}`)?.size ?? 0) > 1;
     return {
       id: `${p.streamer}|${p.timeMs}|${p.sequence ?? ""}`,
       timeMs: p.timeMs, contract: leg.contract, type: leg.type, strike: leg.strike, expiration: leg.expiration,

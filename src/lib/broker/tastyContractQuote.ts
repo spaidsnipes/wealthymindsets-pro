@@ -31,7 +31,10 @@ export const CONTRACT_EVENT_FIELDS = {
   // live and again in a history snapshot folds once.
   // validTick (2026-10-02): dxFeed's regular-session marker — false on
   // extended-hours (form-T) trades. Read as a receipt only.
-  TimeAndSale: ["eventType", "eventSymbol", "time", "sequence", "price", "size", "aggressorSide", "bidPrice", "askPrice", "validTick"],
+  // type (NEW / CORRECTION / CANCEL) and spreadLeg (2026-10-06, Options Flow
+  // P-03: "deduplicate corrections and multi-leg events") — both measured
+  // present on the owner's socket (1,482 NQ option prints, all NEW overnight).
+  TimeAndSale: ["eventType", "eventSymbol", "time", "sequence", "price", "size", "aggressorSide", "bidPrice", "askPrice", "validTick", "type", "spreadLeg"],
   // History bars by snapshot (see adapters/tastytradeCandles.ts for the receipts).
   // bidVolume / askVolume (2026-10-05): the bar's volume traded at the bid
   // (sellers hitting) and at the ask (buyers lifting) — proven on the owner's
@@ -45,7 +48,7 @@ export type ContractEventType = keyof typeof CONTRACT_EVENT_FIELDS;
 export const CONTRACT_EVENT_TYPES: ContractEventType[] = ["Quote", "Trade", "TradeETH", "Greeks", "Summary"];
 export const TAPE_EVENT_TYPE: ContractEventType = "TimeAndSale";
 /** Fields carried as text, never coerced to numbers. */
-const TEXT_FIELDS: ReadonlySet<string> = new Set(["aggressorSide"]);
+const TEXT_FIELDS: ReadonlySet<string> = new Set(["aggressorSide", "type"]);
 
 export function buildContractFeedSetupFrame(): DxlinkFrame {
   return {

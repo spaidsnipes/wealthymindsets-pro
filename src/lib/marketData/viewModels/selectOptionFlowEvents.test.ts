@@ -55,3 +55,17 @@ describe("options flow events (P-03)", () => {
     expect(vm.events.map(e => [e.timeMs, e.size])).toEqual([[1, 50], [103, 6], [104, 6]]);
   });
 });
+
+describe("corrections, cancels and exchange-marked spread legs (P-03)", () => {
+  it("a CORRECTION replaces the print, a CANCEL removes it, a spread leg is MULTI-LEG", () => {
+    const base = { streamer: "./NQZ26C31400", sequence: 1, price: 50, aggressor: "BUY" as const, bid: null, ask: null };
+    const vm = selectOptionFlowEvents([
+      { ...base, timeMs: 1, size: 10, kind: "NEW" },
+      { ...base, timeMs: 1, size: 12, kind: "CORRECTION" },
+      { ...base, timeMs: 2, sequence: 2, size: 30, kind: "NEW" },
+      { ...base, timeMs: 2, sequence: 2, size: 30, kind: "CANCEL" },
+      { ...base, timeMs: 3, sequence: 3, size: 8, kind: "NEW", spreadLeg: true },
+    ], legs);
+    expect(vm.events.map(e => [e.timeMs, e.size, e.multiLeg])).toEqual([[1, 12, false], [3, 8, true]]);
+  });
+});

@@ -423,3 +423,4 @@ Paint mean / longest ms (frames over budget): none 3.4/6.6 · Brick Walls 5.6/7.
 | Fix | Commit | Proof |
 |---|---|---|
 | `etParts` memoized — Intl date formatting was 11 of 12.8 ms the Envelope spent on every live tick | `96d68f1` | Envelope alone 25.2 → **12.3 ms mean, 0 of 21 over**; 20-layer stress steady state mean 21.6 ms, longest 58 ms, 7 of 45 over (one 282 ms frame at load only). Candles are drawn by the chart library independently of this overlay (governed to 30 fps) |
+| §5 a11y sweep (owner session, serving): visible controls with no accessible name | — | /charts 45 · /settings 53 · /tv 42 · /radio 45 controls, and /command-deck /journal /desk /paper /scanner /news /education /lounge /profile — **0 unnamed** on every route; pointer-cursor elements not keyboard-reachable on /charts: 0 (only native `<summary>`) → **CLOSED** for names + keyboard reach (screen-reader walkthrough not run) |

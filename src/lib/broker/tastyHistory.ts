@@ -18,7 +18,7 @@ import { fetchQuoteToken } from "./tastyQuoteTokenClient";
 import type { ContractEvent } from "@/lib/broker/tastyContractQuote";
 import { isSnapshotEnd } from "@/lib/marketData/adapters/tastytradeCandles";
 
-const FIELDS = ["eventType", "eventSymbol", "eventFlags", "time", "sequence", "price", "size", "aggressorSide", "bidPrice", "askPrice"] as const;
+const FIELDS = ["eventType", "eventSymbol", "eventFlags", "time", "sequence", "price", "size", "aggressorSide", "bidPrice", "askPrice", "type", "spreadLeg"] as const;
 const CHANNEL = 7;
 
 const num = (v: unknown): number | null => {
@@ -88,8 +88,8 @@ export async function fetchTastyTimeAndSales(
               events.push({
                 type: "TimeAndSale",
                 symbol,
-                values: { time: num(flat[j + 3]), sequence: num(flat[j + 4]), price: num(flat[j + 5]), size: num(flat[j + 6]), bidPrice: num(flat[j + 8]), askPrice: num(flat[j + 9]) },
-                text: { aggressorSide: typeof flat[j + 7] === "string" ? (flat[j + 7] as string) : null },
+                values: { time: num(flat[j + 3]), sequence: num(flat[j + 4]), price: num(flat[j + 5]), size: num(flat[j + 6]), bidPrice: num(flat[j + 8]), askPrice: num(flat[j + 9]), spreadLeg: flat[j + 11] === true ? 1 : flat[j + 11] === false ? 0 : num(flat[j + 11]) },
+                text: { aggressorSide: typeof flat[j + 7] === "string" ? (flat[j + 7] as string) : null, type: typeof flat[j + 10] === "string" ? (flat[j + 10] as string) : null },
               });
             }
             // SNAPSHOT_SNIP (0x10): tastytrade trimmed the history (measured:
