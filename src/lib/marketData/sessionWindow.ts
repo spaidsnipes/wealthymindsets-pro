@@ -197,10 +197,22 @@ const ET = new Intl.DateTimeFormat("en-CA", {
 });
 
 /** New-York calendar date (YYYY-MM-DD) + minute-of-day for unix seconds — one cached formatter. */
-export function etParts(sec: number): { date: string; minute: number } {
+// PERFORMANCE (serving NQ 5m, 2026-10-06): Intl formatting per bar was 11 of
+// the 12.8 ms the Expected Envelope spent on every live tick (it re-keys every
+// loaded bar). A bar's New York date / minute never changes, so each second is
+// formatted once. Bounded: the memo is dropped whole past ETPARTS_MEMO_MAX.
+const ETPARTS_MEMO_MAX = 50_000;
+const etPartsMemo = new Map<number, { readonly date: string; readonly minute: number }>();
+
+export function etParts(sec: number): { readonly date: string; readonly minute: number } {
+  const hit = etPartsMemo.get(sec);
+  if (hit) return hit;
   const o: Record<string, string> = {};
   for (const p of ET.formatToParts(new Date(sec * 1000))) o[p.type] = p.value;
-  return { date: `${o.year}-${o.month}-${o.day}`, minute: Number(o.hour) * 60 + Number(o.minute) };
+  const v = Object.freeze({ date: `${o.year}-${o.month}-${o.day}`, minute: Number(o.hour) * 60 + Number(o.minute) });
+  if (etPartsMemo.size >= ETPARTS_MEMO_MAX) etPartsMemo.clear();
+  etPartsMemo.set(sec, v);
+  return v;
 }
 
 /**
