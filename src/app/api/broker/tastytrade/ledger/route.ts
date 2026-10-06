@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { brokerOwnerRefusal, tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { TASTY_READ_LIMIT } from "@/lib/broker/brokerReadLimit";
 import { readTastytradeFills } from "@/lib/broker/tastytradeFills";
 import { buildTtRoundTrips, summarizeTtLedger } from "@/lib/broker/tastytradeLedger";
 import { requireAuth } from "@/lib/requireAuth";
@@ -20,6 +22,8 @@ export async function GET(req: NextRequest) {
   if (!auth.ok) return auth.response;
   const owner = tastytradeOwnerGate(auth.user.sub, process.env);
   if (!owner.allowed) return NextResponse.json(brokerOwnerRefusal(owner), { status: 403, headers: NO_STORE });
+  // P0.1: a runaway client loop must not hammer the owner's broker session.
+  { const rl = checkRateLimit(`tasty-ledger:${auth.user.sub}`, TASTY_READ_LIMIT); if (!rl.ok) return rl.response; }
   if (!tastytradeConfigStatus().configured) return NextResponse.json({ state: "NOT_CONFIGURED" }, { headers: NO_STORE });
   const since = req.nextUrl.searchParams.get("since") ?? "2020-01-01";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(since)) return NextResponse.json({ state: "BAD_REQUEST", reason: "since must be YYYY-MM-DD." }, { status: 400, headers: NO_STORE });
