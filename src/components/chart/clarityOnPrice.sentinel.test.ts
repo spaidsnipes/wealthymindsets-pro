@@ -20,4 +20,8 @@ describe("F05B clarity on price", () => {
     expect(block).toContain("PRESSURE · UNREAD — no sided prints for this bar");
     expect(block).not.toMatch(/close\s*>\s*open.*BUY|isGreen|bullCandle/);
   });
+  it("an old bar's split falls back ONLY to the provider's own bar sides, and says so", () => {
+    expect(block).toContain("const csA = candleSidedRef.current.get(Number(barA.time));");
+    expect(block).toContain('splitSrc = "bar sides (provider)"');
+  });
 });

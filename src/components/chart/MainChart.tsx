@@ -11039,10 +11039,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const px = bx + sgn * 16 * Math.cos(ang), py = by - sgn * 16 * Math.sin(ang);
                 ctx.beginPath(); ctx.arc(px, py + 5, 4, 0, Math.PI); ctx.stroke();
               }
-              // PRESSURE SPLIT — only from this bar's sided prints.
+              // PRESSURE SPLIT — this bar's sided prints; where the held tape
+              // no longer reaches it, the provider's own bid / ask volume for
+              // the bar (the same per-bar quantity), named as such.
               const lvA = tickAccRef.current.get(Number(barA.time));
               let buyA = 0, sellA = 0;
               if (lvA) for (const v of lvA.values()) { buyA += v.ask; sellA += v.bid; }
+              let splitSrc = "sided prints";
+              if (buyA + sellA <= 0) {
+                const csA = candleSidedRef.current.get(Number(barA.time));
+                if (csA) { buyA = csA.buy; sellA = csA.sell; splitSrc = "bar sides (provider)"; }
+              }
               const totA = buyA + sellA;
               const sy = l + 26, sw = 120, sx = x - sw / 2;
               if (totA > 0) {
@@ -11052,12 +11059,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillRect(sx, sy, sw - bw, 6);
                 ctx.fillStyle = `rgba(${inks.btBuy},0.85)`;
                 ctx.fillRect(sx + sw - bw, sy, bw, 6);
-                tag(`SELL ${Math.round((sellA / totA) * 100)}% · BUY ${Math.round((buyA / totA) * 100)}% · sided prints`, side > 0 ? sx : sx + sw, sy + 16);
+                tag(`SELL ${Math.round((sellA / totA) * 100)}% · BUY ${Math.round((buyA / totA) * 100)}% · ${splitSrc}`, side > 0 ? sx : sx + sw, sy + 16);
               } else {
                 tag("PRESSURE · UNREAD — no sided prints for this bar", side > 0 ? sx : sx + sw, sy + 6);
               }
               ctx.restore();
-              canvas.dataset.clarityOnPrice = `BAR:${barA.time}|D:${D.toFixed(2)}|${totA > 0 ? `SPLIT:${Math.round((buyA / totA) * 100)}` : "SPLIT:UNREAD"}`;
+              canvas.dataset.clarityOnPrice = `BAR:${barA.time}|D:${D.toFixed(2)}|${totA > 0 ? `SPLIT:${Math.round((buyA / totA) * 100)}${splitSrc === "sided prints" ? "" : ":BAR_SIDES"}` : "SPLIT:UNREAD"}`;
               wrote = true;
             }
           }
