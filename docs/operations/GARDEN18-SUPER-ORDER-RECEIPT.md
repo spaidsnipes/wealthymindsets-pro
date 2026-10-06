@@ -350,3 +350,20 @@ Channel: the connected Chrome extension's own tab group (never the Founder's tab
 | ExpectedEnvelope (retest) | fan 26/26 in-view columns above the camera → caption "reaches past this view" | PROVED (offscreen explained) |
 
 With the 21 rows measured earlier (13:12 CDT), every one of the 30 chart switches now has a serving-glass receipt; screenshots for the tape boundary, Living Profile, Visible Range and Scaffolding were captured from the extension tab.
+
+## ATHOS 8-hour shift — build log (18:06 → 19:30 CDT)
+| Build | Commit | Proof |
+|---|---|---|
+| P0.3 live trading starts DISARMED; unset ceilings refuse (shares / contracts / premium + limit) | `e2d7851` | guardrails.test (source); Settings copy says ceilings are required. **Founder note: if your stored settings are armed with blank ceilings, live orders now refuse until the three ceilings are set.** |
+| Journal unpriceable message is a refusal, not a promise | `193e5bb` | journal tests |
+| Paper freshness shield (plate 12) | — | already enforced: only `actionablePaperQuotePrice` can authorise a fill; stale stays visible as STALE — CLOSED in source |
+| Pricing page Free / $10 / $20 / $50 (one charge, never stacked; paid "not on sale yet") | `71f00a2` | serving, signed out, 390 + 1440: renders, 0 errors, no overflow; screenshot sent |
+| Risk + market-data disclosures, Policies index (Terms/Privacy "not yet in effect"), links from sign-in | `71f00a2` | serving, signed out |
+| 16 PROPOSED plates versioned (`docs/canon/proposed-garden18/`), Drive canon PROPOSED folder + INDEX doc | `05fe7b9` | Drive folder `177kSuU_HAwnUTc6ki5KV0ymvYEXQW1Ni` |
+| 30-switch census complete; tape boundary for Imbalance Stack + Value Candle | `288fd7a` | serving glass (extension tab + shim) |
+| SpaidBot: 45 s idle timeout, split-frame buffering, empty-answer and not-configured words | `3ae6023` | live: 200, streamed answer in ~14 s |
+| Tools search finds SpaidBot (SpadeBot / AI / chat / assistant) | `029c480` | inventionCensus.test |
+| ON AIR / OFF AIR from LiveKit publisher counts (WM TV + Lounge) | `52d3453` | live: 8 registered rooms, 0 publishers → OFF AIR |
+| Mode read-back names posture (button word + deck word), not the market's verdict | `2c41d7d` | experience tests |
+| Paper ticket keeps a working height on short windows | `cd4e42c` | live 1920×784: ticket 1,334 px, page scrolls (was boxed at 343 px) |
+| Guest first session `/welcome` (simulated, labelled, no API data) + guest door on sign-in | `e93e666`, `17cbfb1` | serving, signed out, 390 + 1440: SIMULATED label, POC computed, 0 errors; profile in its own lane |

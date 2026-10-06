@@ -636,6 +636,7 @@ import { barSlotAt } from "@/lib/chart/barSlotAt";
 import { selectValueCandleBars, type ValueCandleBar } from "@/lib/marketData/viewModels/selectValueCandle";
 import { mergeValueCandleBars } from "@/lib/marketData/viewModels/mergeValueCandleBars";
 import type { OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
+import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
 // NOTE: fetchPolygonOHLCV returns real OHLCV data for stocks/ETFs/crypto.
@@ -1502,6 +1503,8 @@ interface Props {
   derivativesPressure?: DerivativesPressureVM | null;
   /** Garden 18 super order §5 — call / put OPEN-INTEREST concentration walls (OBSERVED positioning), painted under Brick Walls as their own material. */
   optionsEvidence?: OptionsBarrierEvidenceVM | null;
+  /** ATHOS order §6 — NDX / SPX option walls mapped onto this NQ / ES chart through a same-time basis (both levels named). */
+  indexMapping?: IndexFuturesMappingVM | null;
   /** A click on a pressure wall selects it (by strike) through the one selection owner. */
   onSelectPressureWall?: (strike: number) => void;
   /** A click on the zero-gamma front selects the derivatives environment. */
@@ -1921,6 +1924,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   roomPosture = null,
   derivativesPressure = null,
   optionsEvidence = null,
+  indexMapping = null,
   onSelectPressureWall,
   onSelectPressureFront,
   pressureFrontSelected = false,
@@ -2267,6 +2271,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   derivativesPressureRef.current = derivativesPressure;
   const optionsEvidenceRef = useRef<OptionsBarrierEvidenceVM | null>(null);
   optionsEvidenceRef.current = optionsEvidence;
+  const indexMappingRef = useRef<IndexFuturesMappingVM | null>(null);
+  indexMappingRef.current = indexMapping;
   // The wall rects painted this frame (what a click hits), and the selected strike.
   const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number }[]>([]);
   const selectedPressureWallStrikeRef = useRef<number | null>(null);
@@ -16811,6 +16817,40 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ds.optionsEvidence = ev.receipt;
               } else {
                 ds.optionsOiWalls = !wallsOn ? "OFF" : !ev ? "WAITING_FOR_EVIDENCE" : `SILENT:${ev.drawn ? "" : ev.reason}`;
+              }
+
+              // ── INDEX WALLS MAPPED ONTO THIS FUTURE (ATHOS order §6) ─────
+              // NDX / SPX open-interest concentrations carried onto NQ / ES
+              // through the same-time basis. Same tick grammar as the OI ticks
+              // but DOTTED and labelled with BOTH levels and the source index,
+              // so a mapped level can never be read as native futures evidence.
+              const im = indexMappingRef.current;
+              if (wallsOn && im && im.mapped) {
+                const marks: string[] = [];
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.textAlign = "right";
+                ctx.textBaseline = "bottom";
+                for (const lv of im.levels) {
+                  const y = yOfD(lv.futuresLevel);
+                  if (y == null) { marks.push(`${lv.kind}@${lv.indexLevel}:OFF_CAMERA`); continue; }
+                  const rgb = lv.kind === "CALL_OI" ? "80,190,180" : "214,120,150";
+                  ctx.strokeStyle = `rgba(${rgb},${0.8 * baseA})`;
+                  ctx.lineWidth = 1.6;
+                  ctx.setLineDash([2, 3]);
+                  ctx.beginPath();
+                  ctx.moveTo(plotRightD - 72, y);
+                  ctx.lineTo(plotRightD, y);
+                  ctx.stroke();
+                  ctx.setLineDash([]);
+                  ctx.fillStyle = `rgba(${rgb},${0.92 * baseA})`;
+                  ctx.fillText(`${im.index} ${lv.indexLevel} → ${fmtD(lv.futuresLevel)} · ${lv.kind === "CALL_OI" ? "CALL" : "PUT"} OI · MAPPED`, plotRightD - 2, y - 2);
+                  marks.push(`${lv.kind}@${lv.indexLevel}->${lv.futuresLevel}`);
+                }
+                ctx.textAlign = "left";
+                ds.indexMappedWalls = marks.join("|") || "NONE";
+                ds.indexMapping = im.receipt;
+              } else {
+                ds.indexMappedWalls = !wallsOn ? "OFF" : !im ? "NONE" : `SILENT:${im.mapped ? "" : im.reason}`;
               }
               ctx.restore();
 

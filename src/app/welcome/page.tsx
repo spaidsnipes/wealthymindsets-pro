@@ -116,14 +116,14 @@ export default function WelcomePage() {
               <span style={{ fontSize: 12, fontWeight: 700 }}>1 · Market</span>
               {MARKETS.map(mk => (
                 <button key={mk.id} type="button" aria-pressed={market === mk.id} onClick={() => setMarket(mk.id)}
-                  style={{ minHeight: 36, padding: "0 12px", borderRadius: 8, border: `1px solid ${market === mk.id ? GOLD : "rgba(255,255,255,0.14)"}`, background: market === mk.id ? "rgba(201,165,92,0.14)" : "transparent", color: market === mk.id ? "#e8b923" : INK, cursor: "pointer", fontSize: 12 }}>
+                  className="wm-tap" style={{ minHeight: 36, padding: "0 12px", borderRadius: 8, border: `1px solid ${market === mk.id ? GOLD : "rgba(255,255,255,0.14)"}`, background: market === mk.id ? "rgba(201,165,92,0.14)" : "transparent", color: market === mk.id ? "#e8b923" : INK, cursor: "pointer", fontSize: 12 }}>
                   {mk.id}
                 </button>
               ))}
               <span style={{ marginLeft: 12, fontSize: 12, fontWeight: 700 }}>2 · View</span>
               {(["CLEAN", "PROFILE", "STRUCTURE"] as const).map(v => (
                 <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
-                  style={{ minHeight: 36, padding: "0 12px", borderRadius: 8, border: `1px solid ${view === v ? GOLD : "rgba(255,255,255,0.14)"}`, background: view === v ? "rgba(201,165,92,0.14)" : "transparent", color: view === v ? "#e8b923" : INK, cursor: "pointer", fontSize: 12 }}>
+                  className="wm-tap" style={{ minHeight: 36, padding: "0 12px", borderRadius: 8, border: `1px solid ${view === v ? GOLD : "rgba(255,255,255,0.14)"}`, background: view === v ? "rgba(201,165,92,0.14)" : "transparent", color: view === v ? "#e8b923" : INK, cursor: "pointer", fontSize: 12 }}>
                   {v.charAt(0) + v.slice(1).toLowerCase()}
                 </button>
               ))}

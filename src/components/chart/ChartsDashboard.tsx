@@ -380,6 +380,8 @@ import dynamic from "next/dynamic";
 import { keyActivates } from "@/lib/a11y/keyActivates";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 import { selectOptionsBarrierEvidence, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
+import { INDEX_FOR_FUTURES, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
+import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
 // ON-DEMAND PANELS LOAD ON DEMAND (2026-10-04): each mounts only when its
 // door opens, yet all six (~7,500 lines) shipped in /charts' first load —
 // about 1 MB compressed for a guest on a phone. Same components, fetched when
@@ -2657,6 +2659,35 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (!derivativesPressureVM?.drawn || !derivativesReceipt?.receipt) return null;
     return selectOptionsBarrierEvidence(derivativesReceipt.receipt, derivativesPressureVM.spot, Date.now(), optionsScope);
   }, [derivativesPressureVM, derivativesReceipt, optionsScope]);
+  // ATHOS order §6 — the cash-index chain behind an NQ / ES chart (NDX / SPX),
+  // mapped through a same-time basis. Fetched only while Brick Walls is on a
+  // mapped future; a stale or missing basis refuses (selectIndexFuturesMapping).
+  const mappedRoot = mappedFuturesRoot(symbol);
+  const [indexReceipt, setIndexReceipt] = useState<{ root: string; receipt: CboeOptionsReceipt | null } | null>(null);
+  useEffect(() => {
+    if (!brickWallsOn || !mappedRoot) { setIndexReceipt(null); return; }
+    const idx = INDEX_FOR_FUTURES[mappedRoot]?.index;
+    if (!idx) return;
+    let alive = true;
+    const load = () => fetch(`/api/market-data/cboe/options?symbol=${idx}`, { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive) setIndexReceipt({ root: mappedRoot, receipt: j && Array.isArray(j.rows) ? (j as CboeOptionsReceipt) : null }); })
+      .catch(() => { if (alive) setIndexReceipt({ root: mappedRoot, receipt: null }); });
+    void load();
+    const t = window.setInterval(load, 120_000);
+    return () => { alive = false; window.clearInterval(t); };
+  }, [brickWallsOn, mappedRoot]);
+  const indexMappingVM = React.useMemo<IndexFuturesMappingVM | null>(() => {
+    if (!brickWallsOn || !mappedRoot || !indexReceipt || indexReceipt.root !== mappedRoot) return null;
+    const ev = selectOptionsBarrierEvidence(indexReceipt.receipt, null, Date.now(), "ALL");
+    return selectIndexFuturesMapping({
+      futuresSymbol: symbol,
+      indexReceipt: indexReceipt.receipt,
+      indexWalls: ev.drawn ? [...ev.callWalls, ...ev.putWalls] : [],
+      futuresBars: chartBars.map(b => ({ time: Number(b.time), high: Number(b.high), low: Number(b.low), close: Number(b.close) })),
+      barSeconds: tastyCandleSeconds(timeframe) ?? 300,
+    });
+  }, [brickWallsOn, mappedRoot, indexReceipt, symbol, chartBars, timeframe]);
   // T-210 — the ancestry the glass painted, for the MTF Inspect ticket; re-render only when the receipt changes.
   const [mtfAncestryVM, setMtfAncestryVM] = useState<MtfAncestryVM | null>(null);
   // Garden 16 §46 — the glass's measured depth, so the order-flow door can say
@@ -6702,6 +6733,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       roomPosture={chartCanvasVM.oneStory?.decision?.value === "WAIT" || chartCanvasVM.oneStory?.decision?.value === "NO TRADE" ? "QUIET" : null}
                       derivativesPressure={derivativesPressureVM}
                       optionsEvidence={optionsEvidenceVM}
+                      indexMapping={indexMappingVM}
                       onSemanticDepth={setSemanticDepth}
                       onSenseEvents={setSenseEvents}
                       onSelectPressureWall={strike => actOnChartSelection({ type: "select", selection: { kind: "PRESSURE_WALL", symbol, timeframe, strike } })}
