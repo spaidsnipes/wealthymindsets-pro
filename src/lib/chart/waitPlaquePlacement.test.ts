@@ -55,3 +55,15 @@ describe("the plaque also steps off the labels and chips on the glass", () => {
     for (const b of [...candles, caption]) expect(r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y).toBe(false);
   });
 });
+
+describe("price first when no spot clears both", () => {
+  it("takes the first spot clear of the candles, says OVER chips, and never falls back onto price while one exists", () => {
+    const candles = Array.from({ length: 10 }, (_, i) => ({ x: 1170 + i * 12, y: 200, w: 6, h: 150 }));
+    const chipsEverywhere = [{ x: 0, y: 0, w: 1300, h: 600 }];
+    const p = placeWaitPlaque({ x: 1180, y: 300 }, size, box, candles, chipsEverywhere);
+    expect(p.overChips).toBe(true);
+    expect(p.mode).not.toBe("BLOCKED");
+    const r = { x: p.left, y: p.top, w: size.w, h: size.h };
+    expect(candles.some(b => r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y)).toBe(false);
+  });
+});

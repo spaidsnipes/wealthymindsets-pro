@@ -21,6 +21,8 @@ export interface WaitPlaquePlacement {
   readonly top: number;
   /** Which candidate won: RIGHT (the original), LEFT, BELOW, ABOVE, or BLOCKED (nothing clear; the original kept). */
   readonly mode: "RIGHT" | "LEFT" | "BELOW" | "ABOVE" | "BLOCKED";
+  /** True when no spot cleared both, and this one clears the candles but sits over a label or chip. */
+  readonly overChips?: boolean;
 }
 
 const hits = (a: PlaqueRect, b: PlaqueRect) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -50,6 +52,14 @@ export function placeWaitPlaque(
   for (const c of cands) {
     const r = { x: c.x, y: c.y, w: size.w, h: size.h };
     if (!obstacles.some(b => hits(r, b))) return { left: c.x, top: c.y, mode: c.mode };
+  }
+  // PRICE FIRST (serving BTC-USD 15m select=level, 2026-10-06 12:22 CDT: with
+  // the chips counted every spot was taken, and BLOCKED fell back onto the
+  // newest candles). When no spot clears both, the first spot clear of the
+  // candles wins — a card over words is a lesser harm than a card over price.
+  for (const c of cands) {
+    const r = { x: c.x, y: c.y, w: size.w, h: size.h };
+    if (!candles.some(b => hits(r, b))) return { left: c.x, top: c.y, mode: c.mode, overChips: true };
   }
   return { left: right.x, top: right.y, mode: "BLOCKED" };
 }

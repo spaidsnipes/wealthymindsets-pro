@@ -23356,11 +23356,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           try { axisWP = Math.max(0, Number(chart.priceScale("right").width()) || 0); } catch { /* keep 0 */ }
           const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H }, rowBodiesAt(-1e9, 1e9), floatingChips);
           const prev = waitPlaqueLiveRef.current;
-          if (!prev || prev.left !== spotP.left || prev.top !== spotP.top || prev.mode !== spotP.mode) {
-            waitPlaqueLiveRef.current = spotP;
+          const modeP = spotP.overChips ? `${spotP.mode}:OVER_CHIP` : spotP.mode;
+          if (!prev || prev.left !== spotP.left || prev.top !== spotP.top || prev.mode !== modeP) {
+            waitPlaqueLiveRef.current = { left: spotP.left, top: spotP.top, mode: modeP };
             el.style.left = `${spotP.left}px`;
             el.style.top = `${spotP.top}px`;
-            el.dataset.h101WaitPlaqueSpot = spotP.mode;
+            el.dataset.h101WaitPlaqueSpot = modeP;
           }
         }
       } catch (err) { layerFault("H101_WAIT_PLAQUE", err); }
