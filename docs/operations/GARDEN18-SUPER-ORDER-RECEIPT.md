@@ -498,3 +498,4 @@ GET 401: tastytrade positions / accounts / quote-token / chain / ledger, Webull 
 | P0.6 Financials (AAPL) | — | serving: tastytrade market metrics + SEC EDGAR quarterly results "as filed", derived Q4 marked DERIVED, source line names EDGAR → CLOSED |
 | /welcome step groups on phone ("2 · View" on its own row) | `3304071` | Playwright 390 px screenshot, scrollWidth 390; iPad 834 audit 0 offenders / 0 under-44 taps on all 8 public routes |
 | Options Flow on an INDEX (SPX — the plate's own example) | — | serving SPX 5m: tastytrade chain roots SPXW + SPX, `OPTFLOW:HEARD:15,072|EVENTS:40|STAMPED:40`, 0 faults |
+| Options Flow on touch: a tap pins the mark's ticket, a second tap releases | `a84a2d4` | serving NQ 5m, pointer events at the published hit point (`optionFlowHitAt`): `PINNED:./NQZ6 Q1BV6 261006P31350` → second tap releases → third pins again |
