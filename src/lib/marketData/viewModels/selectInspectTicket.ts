@@ -258,6 +258,14 @@ export interface InspectTicketInput {
    * stand behind the row for its sign to mean anything.
    */
   readonly ladderBar?: FlowLadderBar | null;
+  /**
+   * THE BAR'S OWN SIDES from its provider (tastytrade candle bidVolume /
+   * askVolume, 2026-10-05): volume traded at the ask (buy) and at the bid
+   * (sell) for the whole bar. Read ONLY when the ladder cannot read this bar —
+   * an old bar the held tape no longer reaches. Bar-level: it gives a delta
+   * and an imbalance, never a footprint (no price levels).
+   */
+  readonly barSides?: { readonly buy: number; readonly sell: number } | null;
 }
 
 /**
@@ -480,7 +488,15 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
   const buyVol = ladder?.buy ?? 0;
   const sellVol = ladder?.sell ?? 0;
   const canRead = reach === "COVERS_BAR" && ladder !== null;
+  const bs = input.barSides;
+  const sidesRead = !canRead && barOpenMs !== null && bs != null
+    && isFiniteNumber(bs.buy) && isFiniteNumber(bs.sell) && bs.buy >= 0 && bs.sell >= 0 && bs.buy + bs.sell > 0;
+  const sideBuy = sidesRead ? bs!.buy : 0, sideSell = sidesRead ? bs!.sell : 0;
   const delta = ladder?.delta ?? 0;
+  const SIDES_BASIS =
+    "The provider's own bid / ask volume for this whole bar (traded at the ask " +
+    "minus traded at the bid) — BAR-LEVEL: the held tape no longer reaches this " +
+    "bar, so this reading has no price levels and no footprint.";
 
   const perTradeAbsenceNow =
     reach === "COVERS_BAR" && ladder === null
@@ -499,13 +515,19 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
             `Ask-side minus bid-side volume on this bar's row of the one flow ` +
             `ladder — the row its footprint cells and delta bubbles read.`,
         }
-      : null,
+      : sidesRead
+        ? {
+            value: `${sideBuy - sideSell > 0 ? "+" : sideBuy - sideSell < 0 ? "−" : ""}${formatCount(Math.abs(sideBuy - sideSell))}`,
+            basis: SIDES_BASIS,
+          }
+        : null,
     perTradeAbsenceNow,
   );
 
   const heavier = Math.max(buyVol, sellVol);
   const lighter = Math.min(buyVol, sellVol);
   const imbalanceReadable = canRead && lighter > 0;
+  const sidesImbalance = sidesRead && Math.min(sideBuy, sideSell) > 0;
 
   const imbalanceRow = row(
     "IMBALANCE",
@@ -518,12 +540,20 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
             "of the one flow ladder — the same row the delta above reads. The side " +
             "is named because a bare ratio does not say who it favours.",
         }
-      : null,
+      : sidesImbalance
+        ? {
+            value: `${(Math.max(sideBuy, sideSell) / Math.min(sideBuy, sideSell)).toFixed(1)}:1 ${sideBuy >= sideSell ? "buy" : "sell"}`,
+            basis: SIDES_BASIS,
+          }
+        : null,
     canRead
       ? "This bar's row of the one flow ladder holds volume on one side only, " +
         "so there is no lighter side to divide by. That one-sidedness is itself " +
         "the reading, and it is in the delta above."
-      : perTradeAbsenceNow,
+      : sidesRead
+        ? "The provider's sides for this bar hold volume on one side only, so " +
+          "there is no lighter side to divide by. The delta above is the reading."
+        : perTradeAbsenceNow,
   );
 
   /* ── FIDELITY, LINEAGE, CHAIN — FROM THE ADMITTED IDENTITY ─────────────── */

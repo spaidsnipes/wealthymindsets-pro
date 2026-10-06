@@ -991,6 +991,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // §15 — the chart's ONE flow ladder, as a reader (MainChart `onFlowLadder`).
   const [flowLadderReader, setFlowLadderReader] = useState<FlowLadderReader | null>(null);
   const onFlowLadder = useCallback((read: FlowLadderReader | null) => setFlowLadderReader(() => read), []);
+  // The loaded bars' own provider sides (MainChart `onBarSides`) — an old bar's delta.
+  const [barSides, setBarSides] = useState<ReadonlyMap<number, { buy: number; sell: number }> | null>(null);
   // What the trader ASKED of the Question Lens (Auto = the camera chooses).
   const [questionChoice, setQuestionChoice] = useState<QuestionChoice>(() => {
     const v = lsGet("wm_questionChoice", "AUTO") as string;
@@ -2817,9 +2819,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       chain: { objects: chartMarketObjects, selectedObjectId: selectedMarketObjectId, decisionId: inspectDecisionId },
       // §15 — delta/imbalance are this bar's row of the chart's one ladder.
       ladderBar: inspectBar && flowLadderReader ? flowLadderReader(inspectBar.time) : null,
+      barSides: inspectBar && barSides ? barSides.get(inspectBar.time) ?? null : null,
     }),
     [inspectBar, chartBarSpanMs, recentTicks, chartBarIdentityIndex, effortSubjectIsForming,
-      chartMarketObjects, selectedMarketObjectId, inspectDecisionId, flowLadderReader],
+      chartMarketObjects, selectedMarketObjectId, inspectDecisionId, flowLadderReader, barSides],
   );
 
   /*
@@ -6704,6 +6707,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       onAbsorptionRead={setRailAbsorption}
                       onTapeFootprint={setRailFootprint}
                       onFlowLadder={onFlowLadder}
+                      onBarSides={setBarSides}
                       lensInRail={!narrowViewport && !optionsOpen}
                       questionChoiceOnChart={questionChoice}
                       rawOnChart={rawOn}

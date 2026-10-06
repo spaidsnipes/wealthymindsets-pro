@@ -1471,6 +1471,12 @@ interface Props {
    * null when the ladder is rebuilt for a new symbol/source/timeframe.
    */
   onFlowLadder?: (read: FlowLadderReader | null) => void;
+  /**
+   * The loaded bars' own provider sides (bar second → buy / sell volume;
+   * tastytrade candles), published once per load — the Inspect Ticket reads
+   * an old bar's delta from it where the held tape no longer reaches.
+   */
+  onBarSides?: (sides: ReadonlyMap<number, { buy: number; sell: number }> | null) => void;
   /** SHOW RAW — every overlay reading hidden, candles bare; switches untouched. */
   rawOnChart?: boolean;
   /** The continuation owner's verdict, for the Question Lens's Continuing? (verbatim). */
@@ -1912,6 +1918,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   onAbsorptionRead,
   onTapeFootprint,
   onFlowLadder,
+  onBarSides,
   rawOnChart = false,
   continuationOnChart = null,
   permissionOnChart = null,
@@ -2364,6 +2371,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   onTapeFootprintRef.current = onTapeFootprint;
   const onFlowLadderRef = useRef(onFlowLadder);
   onFlowLadderRef.current = onFlowLadder;
+  const onBarSidesRef = useRef(onBarSides);
+  onBarSidesRef.current = onBarSides;
   // §15 — THE ladder is handed to the room after EVERY fold that changed it
   // (≤4×/s, with a trailing publish), so the Inspect Ticket never rests one
   // batch behind the prints it holds. Rule and test: flowLadder.ts.
@@ -3798,6 +3807,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const fetchedBarIdentities = canonicalBatch?.identities ?? [];
       // The bars' own signed volume travels with the bars that carried it.
       candleSidedRef.current = canonicalBatch?.sided ?? new Map();
+      onBarSidesRef.current?.(candleSidedRef.current.size ? candleSidedRef.current : null);
       // Provenance: record which provider ACTUALLY supplied these candles.
       const srcName =
         exchangeData ? (exParsed?.exchange?.toUpperCase() || "EXCHANGE") :

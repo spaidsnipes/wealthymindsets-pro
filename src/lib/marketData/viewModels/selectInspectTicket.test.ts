@@ -455,3 +455,25 @@ describe("plate 75 — local footprint and time & sales in the ticket", () => {
     expect(base({ prints: [print({ timeMs: BAR_OPEN_MS - 5 })] }).barTape).toBeNull();
   });
 });
+
+describe("an old bar reads its PROVIDER's sides, labelled bar-level (2026-10-05)", () => {
+  const old = (barSides: { buy: number; sell: number } | null) =>
+    base({ prints: coveringTape().map(p => ({ ...p, timeMs: BAR_OPEN_MS + SPAN_15M + 60_000 })), ladderBar: null, barSides });
+
+  it("delta = ask-side − bid-side from the candle's own volumes; imbalance names the side", () => {
+    const vm = old({ buy: 952, sell: 880 });
+    expect(vm.reach).toBe("TAPE_IS_ELSEWHERE");
+    expect(rowOf(vm, "DELTA").value).toBe("+72");
+    expect(rowOf(vm, "DELTA").basis).toMatch(/BAR-LEVEL/);
+    expect(rowOf(vm, "IMBALANCE").value).toBe("1.1:1 buy");
+    // No price levels → no footprint door, still.
+    expect(vm.footprintDoorAvailable).toBe(false);
+  });
+
+  it("without sides the refusal stands; the ladder always wins where it reads", () => {
+    expect(rowOf(old(null), "DELTA").value).toBeNull();
+    expect(rowOf(old({ buy: 0, sell: 0 }), "DELTA").value).toBeNull();
+    const live = base({ barSides: { buy: 1, sell: 999 } });
+    expect(rowOf(live, "DELTA").value).toBe("+25");
+  });
+});
