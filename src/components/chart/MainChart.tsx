@@ -17045,7 +17045,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ];
                   ctx.textAlign = "left";
                   const tw = Math.max(...lines.map(l => ctx.measureText(l).width));
-                  const bx = Math.min(plotRightD - tw - 16, hv.x + 14), byT = Math.max(24, hv.y - 26);
+                  // Above-LEFT of the mark: the cursor's own bar card opens
+                  // below-right of the pointer and would cover a ticket there.
+                  const boxW = tw + 12, boxH = lines.length * 14 + 8;
+                  const bx = hv.x - boxW - 14 >= 4 ? hv.x - boxW - 14 : Math.min(plotRightD - boxW - 4, hv.x + 14);
+                  const byT = Math.max(24, hv.y - boxH - 12);
                   ctx.fillStyle = "rgba(11,10,8,0.94)";
                   ctx.fillRect(bx, byT, tw + 12, lines.length * 14 + 8);
                   ctx.strokeStyle = e.type === "call" ? "rgba(80,190,180,0.8)" : "rgba(214,120,150,0.8)";
