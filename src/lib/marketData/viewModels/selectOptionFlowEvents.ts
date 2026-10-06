@@ -62,6 +62,8 @@ export interface OptionFlowVM {
   readonly events: readonly OptionFlowEvent[];
   readonly heard: number;
   readonly minSize: number;
+  /** The earliest print heard (epoch ms) — the lane's coverage start; null when none. */
+  readonly fromMs: number | null;
   readonly receipt: string;
 }
 
@@ -123,8 +125,10 @@ export function selectOptionFlowEvents(
     .sort((a, b) => b.size - a.size || b.timeMs - a.timeMs)
     .slice(0, maxEvents)
     .sort((a, b) => a.timeMs - b.timeMs);
+  let fromMs: number | null = null;
+  for (const p of clean) if (fromMs == null || p.timeMs < fromMs) fromMs = p.timeMs;
   return {
-    events, heard: clean.length, minSize,
+    events, heard: clean.length, minSize, fromMs,
     receipt: `OPTFLOW:HEARD:${clean.length}|MIN:${minSize}|EVENTS:${events.length}|STAMPED:${events.filter(e => e.sideStamped).length}`,
   };
 }

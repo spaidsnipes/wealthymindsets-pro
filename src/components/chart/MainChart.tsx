@@ -17051,6 +17051,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const fmtStrike = (k: number) => (Number.isInteger(k) ? String(k) : fmtD(k));
               const cp = crosshairPointRef.current;
               let hovered: { x: number; y: number; e: typeof flow.events[number] } | null = null;
+              const labelJobs: (() => void)[] = [];
               shown.forEach((s, i) => {
                 const rgb = s.e.type === "call" ? "80,190,180" : "214,120,150";
                 const r = 5 + 5 * Math.sqrt(s.e.size / peak);
@@ -17067,7 +17068,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillText(glyph, s.x, cy + 0.5);
                 floatingChips.push({ x: s.x - r, y: cy - r, w: 2 * r, h: 2 * r });
                 if (cp && Math.hypot(cp.x - s.x, cp.y - cy) <= r + 4 && !hovered) hovered = { x: s.x, y: cy, e: s.e };
-                if (i < 3) {
+                if (i < 3) labelJobs.push(() => {
                   const prem = s.e.premiumEst != null ? ` · ~$${s.e.premiumEst >= 1e6 ? `${(s.e.premiumEst / 1e6).toFixed(1)}M` : `${Math.round(s.e.premiumEst / 1000)}k`}` : "";
                   const words = `${s.e.type === "call" ? "C" : "P"}${fmtStrike(s.e.strike)} ×${s.e.size} ${glyph === "+" ? "BUY" : glyph === "−" ? "SELL" : "?"}${s.e.sideStamped ? "" : " (inferred)"}${prem}`;
                   const tw = ctx.measureText(words).width;
@@ -17081,8 +17082,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ctx.fillText(words, lx, ly);
                     floatingChips.push(box);
                   }
-                }
+                });
               });
+              // Words after EVERY mark is down, so a later mark never covers
+              // an earlier label (serving SPY: "C778 ×2422 SELL" under a mark).
+              for (const job of labelJobs) job();
+              // COVERAGE: where this lane's prints begin — the provider's
+              // per-contract history is its own bound, said once.
+              if (flow.fromMs != null) {
+                const fromWords = new Date(flow.fromMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+                const cap = `OPTIONS FLOW · ${flow.events.length} largest of ${flow.heard.toLocaleString()} prints · heard from ${fromWords} · ≥${flow.minSize} contracts`;
+                const rowY = takeSilenceRow();
+                if (rowY > 0) {
+                  ctx.textAlign = "left";
+                  ctx.fillStyle = "rgba(200,192,174,0.85)";
+                  ctx.fillText(fitSilence(cap), silenceX, rowY);
+                  floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(cap).width, h: 14 });
+                }
+              }
               // HOVER TICKET (P-03 "selected flow"): the whole identity of
               // the print under the cursor — contract, expiry, size, price,
               // premium estimate, time ET and the side's own words.
