@@ -615,6 +615,7 @@ import { wallContact } from "@/lib/marketData/viewModels/wallContact";
 import { coinbaseProductFor, fetchCoinbaseTradeHistory } from "@/lib/marketData/coinbaseTradeBackfill";
 import { ANATOMY_MODE_EVENT, readAnatomyMode } from "@/lib/chart/anatomyMode";
 import { placeWaitPlaque } from "@/lib/chart/waitPlaquePlacement";
+import { sharedRead } from "@/lib/chart/sharedRead";
 import { ingestTastytradeCandles, TASTYTRADE_BAR_SOURCE } from "@/lib/marketData/tastytradeCandleIngress";
 import { selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 /** The forming candle's own print ring (bounded; a truncated ring is named in its receipt). */
@@ -6209,14 +6210,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (!wanted) { setBrokerCostPositions([]); return; }
     (async () => {
       try {
-        const res = await fetch(
-          `/api/broker/webull/positions?symbol=${encodeURIComponent(wanted)}`,
-          { cache: "no-store" },
-        );
+        // One read per symbol at a time, shared by every pane (error sweep
+        // 2026-10-06: each pane asked twice within seconds; /desk made 8 calls).
+        const { ok, receipt } = await sharedRead(`broker-positions:${wanted}`, async () => {
+          const res = await fetch(
+            `/api/broker/webull/positions?symbol=${encodeURIComponent(wanted)}`,
+            { cache: "no-store" },
+          );
+          return { ok: res.ok, receipt: res.ok ? await res.json() : null };
+        });
         if (cancelled) return;
-        if (!res.ok) { setBrokerCostPositions([]); return; }
-        const receipt = await res.json();
-        if (cancelled) return;
+        if (!ok) { setBrokerCostPositions([]); return; }
         // Only an OBSERVED read may paint. NO_POSITIONS, UNCONFIGURED,
         // AWAITING_2FA etc. all mean "nothing honest to draw here".
         setBrokerCostPositions(
