@@ -411,3 +411,5 @@ With the 21 rows measured earlier (13:12 CDT), every one of the 30 chart switche
 | Cross-tab tape dedupe (old memory item) | existing | `useWebSocket.ts createTapeHub`: Web Lock leader + BroadcastChannel, 6 s silent-leader fallback → **CLOSED** |
 | **P0-A deploy-version recovery — live proof** | `d73c167` | serving 02:04 CDT: a tab loaded on `e791a6a` (marked in memory) stayed on the old build through the deploy of `d73c167` (no forced reload); an in-app link from it (→ /desk) did a full document load onto `d73c167`, no error page, no recovery reload needed → **CLOSED** |
 | §11.7 replay: an Options Flow print after the last bar's own interval is never pinned to the last (replayed) bar | pending | source guard in the flow paint; prints before the replay clock remain lawful |
+| Options Flow at phone width (390 px iframe probe, owner session) | `6e15cea` | `OPTFLOW:…|SHOWN:3`, one label, scrollWidth 390 (no overflow); the coverage caption folds into "1 SENSE SILENT — TOOLS › ACTIVE" per the narrow-glass word budget. Desktop NQ: 1,106 prints from 06:17 AM, 40 largest, all stamped |
+| OI tick / mapped labels print whole strikes without ".00" | pending | — |

@@ -16883,7 +16883,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.lineTo(plotRightD, y);
                   ctx.stroke();
                   ctx.setLineDash([]);
-                  const label = `${call ? "CALL" : "PUT"} OI ${fmtD(w.strike)} · ${w.openInterest >= 1000 ? `${Math.round(w.openInterest / 1000)}k` : w.openInterest}`;
+                  const label = `${call ? "CALL" : "PUT"} OI ${Number.isInteger(w.strike) ? w.strike : fmtD(w.strike)} · ${w.openInterest >= 1000 ? `${Math.round(w.openInterest / 1000)}k` : w.openInterest}`;
                   tickWords.push({ y, text: label, rgb, a: 0.95 * baseA });
                   oiMarks.push(`${w.type}@${w.strike}`);
                 }
@@ -16917,7 +16917,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.lineTo(plotRightD, y);
                   ctx.stroke();
                   ctx.setLineDash([]);
-                  tickWords.push({ y, text: `${im.index} ${lv.indexLevel} → ${fmtD(lv.futuresLevel)} · ${lv.kind === "CALL_OI" ? "CALL" : "PUT"} OI · MAPPED`, rgb, a: 0.92 * baseA });
+                  tickWords.push({ y, text: `${im.index} ${lv.indexLevel} → ${Number.isInteger(lv.futuresLevel) ? lv.futuresLevel : fmtD(lv.futuresLevel)} · ${lv.kind === "CALL_OI" ? "CALL" : "PUT"} OI · MAPPED`, rgb, a: 0.92 * baseA });
                   marks.push(`${lv.kind}@${lv.indexLevel}->${lv.futuresLevel}`);
                 }
                 ctx.textAlign = "left";
