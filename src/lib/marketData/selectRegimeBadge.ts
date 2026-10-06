@@ -174,6 +174,8 @@ export type RegimeClass = "BULL" | "BEAR" | "SIDE";
  * derived from classified per-trade tape and speaks TREND / BALANCE.
  */
 export const DAY_BIAS_LABEL = "DAY BIAS";
+/** Crypto's band reads a ROLLING 24-hour change, not a day's (2026-10-06). */
+export const ROLLING_BIAS_LABEL = "24H BIAS";
 
 /** What the canonical regime dimension says, carried through unchanged. */
 export type CanonRegimeView =
@@ -214,7 +216,7 @@ export type RegimeBadgeView =
        * a field rather than a component-side literal so the Sentinel can pin
        * the rendered word to this owner.
        */
-      readonly verdictLabel: typeof DAY_BIAS_LABEL;
+      readonly verdictLabel: typeof DAY_BIAS_LABEL | typeof ROLLING_BIAS_LABEL;
       /** The canonical regime dimension, so one chip cannot contradict it. */
       readonly canon: CanonRegimeView;
       /**
@@ -277,7 +279,7 @@ export function selectRegimeBadge(input: RegimeBadgeInput): RegimeBadgeView {
     regime,
     changePct: pct,
     periodLabel,
-    verdictLabel: DAY_BIAS_LABEL,
+    verdictLabel: periodLabel === "24h" ? ROLLING_BIAS_LABEL : DAY_BIAS_LABEL,
     canon,
     spoken: speak(input.symbol, regime, pct, periodLabel, canon),
   };
@@ -301,7 +303,7 @@ function speak(
 ): string {
   const move = `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%${periodLabel ? ` ${periodLabel}` : ""}`;
   return (
-    `${symbol} day bias ${regime}, from a change of ${move}. ` +
+    `${symbol} ${periodLabel === "24h" ? "24-hour" : "day"} bias ${regime}, from a change of ${move}. ` +
     `Day bias is a band over that day-change percent only — it has not read ` +
     `the tape. Market regime is a different question, derived from classified ` +
     `per-trade tape, and ` +

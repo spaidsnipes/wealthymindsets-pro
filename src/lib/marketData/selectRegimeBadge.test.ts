@@ -359,3 +359,12 @@ describe("ChartsDashboard adoption", () => {
     expect(CODE).toContain("data-regime-badge-canon=");
   });
 });
+
+describe("crypto's chip names a rolling 24 hours (2026-10-06)", () => {
+  it("BTC reads '24H BIAS … 24h'; a stock keeps DAY BIAS", () => {
+    const btc = selectRegimeBadge({ canonRegime: null, change: 200, changePct: 0.24, symbol: "BTC-USD", at: TUE });
+    expect(btc).toMatchObject({ displayable: true, verdictLabel: "24H BIAS", periodLabel: "24h" });
+    const tsla = selectRegimeBadge({ canonRegime: null, change: 2, changePct: 0.6, symbol: "TSLA", at: TUE });
+    expect(tsla).toMatchObject({ verdictLabel: DAY_BIAS_LABEL });
+  });
+});
