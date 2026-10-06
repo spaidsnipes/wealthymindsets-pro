@@ -16,6 +16,9 @@ export function useEscapeToClose(open: boolean, close: () => void): void {
   useEffect(() => {
     if (!open) return;
     const opener = typeof document !== "undefined" ? document.activeElement : null;
+    // A toggle that is REPLACED while its popover is open (Inspect's opener
+    // unmounts and re-mounts) is found again by its accessible name.
+    const openerName = (opener as HTMLElement | null)?.getAttribute?.("aria-label") ?? null;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
       e.preventDefault();
@@ -25,7 +28,11 @@ export function useEscapeToClose(open: boolean, close: () => void): void {
     window.addEventListener("keydown", onKey, true);
     return () => {
       window.removeEventListener("keydown", onKey, true);
-      if (typeof document !== "undefined") restoreFocusTo(opener, document);
+      if (typeof document === "undefined") return;
+      const twin = openerName && (opener as HTMLElement | null)?.isConnected === false
+        ? document.querySelector(`[aria-label="${CSS.escape(openerName)}"]`)
+        : null;
+      restoreFocusTo(twin ?? opener, document);
     };
   }, [open]);
 }
