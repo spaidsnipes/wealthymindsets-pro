@@ -20,3 +20,11 @@ describe("scannerLiveQuote", () => {
     expect(r.changeText).toBeNull();
   });
 });
+
+describe("the exchange's prior-day close owns 'today' (2026-10-06)", () => {
+  it("a live row with the exchange's prevClose measures from it, not the vendor's change", () => {
+    // Vendor: +0.88% (Friday basis). Exchange: Monday's close 774.83.
+    const r = scannerLiveQuote({ price: 776.18, changePct: 0.85 }, { price: 776.18, at: 1000, prevClose: 774.83 }, 1500, 15_000);
+    expect(r?.changeText).toBe("+0.17%");
+  });
+});

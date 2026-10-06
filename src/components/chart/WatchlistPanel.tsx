@@ -947,12 +947,15 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                 const lv = tt && nowTick - tt.at < WATCH_LIVE_FRESH_MS ? tt : cb;
                 const lvSrc = lv === tt ? "tastytrade" : "coinbase";
                 const liveFresh = !!lv && nowTick - lv.at < WATCH_LIVE_FRESH_MS;
-                const refClose = rawItem.price > 0 && rawItem.changeObserved ? rawItem.price / (1 + rawItem.changePct / 100) : null;
+                // The exchange's prior-day close (tastytrade Summary) outranks the vendor's.
+                const exchClose = lv && lv === tt && tt.prevClose != null && tt.prevClose > 0 ? tt.prevClose : null;
+                const refClose = exchClose ?? (rawItem.price > 0 && rawItem.changeObserved ? rawItem.price / (1 + rawItem.changePct / 100) : null);
                 const item = liveFresh && lv ? {
                   ...rawItem,
                   price: lv.price,
                   src: lvSrc,
                   ...(refClose ? { change: lv.price - refClose, changePct: ((lv.price - refClose) / refClose) * 100 } : {}),
+                  ...(exchClose ? { changeObserved: true } : {}),
                 } : rawItem;
                 const up = item.changeObserved && item.change >= 0;
                 // With no observed change there is no direction to assert. Red

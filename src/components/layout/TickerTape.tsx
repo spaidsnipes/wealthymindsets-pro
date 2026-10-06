@@ -673,9 +673,11 @@ export function TickerTape() {
       const lv = tt && nowMs - tt.at < WATCH_LIVE_FRESH_MS ? { ...tt, src: "tastytrade" as const }
         : cb && nowMs - cb.at < WATCH_LIVE_FRESH_MS ? { ...cb, src: "coinbase" as const } : null;
       if (!lv) return row;
-      const ref = row.price > 0 && row.chgObserved ? row.price - row.chg : null;
+      // The exchange's prior-day close (tastytrade Summary) outranks the vendor's.
+      const exch = "prevClose" in lv && lv.prevClose != null && lv.prevClose > 0 ? lv.prevClose : null;
+      const ref = exch ?? (row.price > 0 && row.chgObserved ? row.price - row.chg : null);
       const chg = ref ? lv.price - ref : row.chg;
-      return { ...row, price: lv.price, src: lv.src, live: true, fresh: true, chg, pct: ref ? (chg / ref) * 100 : row.pct, up: ref ? chg >= 0 : row.up };
+      return { ...row, price: lv.price, src: lv.src, live: true, fresh: true, chg, pct: ref ? (chg / ref) * 100 : row.pct, up: ref ? chg >= 0 : row.up, ...(exch ? { chgObserved: true } : {}) };
     });
 
   /* Charts keeps one stable pulse; other routes retain the seamless loop. */

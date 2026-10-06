@@ -8,7 +8,7 @@
  * ÷ (1 + its change)). No fresh live price: the row keeps its honest state.
  * PURE.
  */
-export interface ScannerLive { readonly price: number; readonly at: number }
+export interface ScannerLive { readonly price: number; readonly at: number; readonly prevClose?: number | null }
 export interface ScannerLiveRead {
   readonly price: number;
   readonly priceText: string;
@@ -24,8 +24,11 @@ export function scannerLiveQuote(
   freshMs: number,
 ): ScannerLiveRead | null {
   if (!live || !(live.price > 0) || nowMs - live.at >= freshMs) return null;
-  const ref = row.price != null && row.price > 0 && row.changePct != null && Number.isFinite(row.changePct)
-    ? row.price / (1 + row.changePct / 100) : null;
+  // The exchange's prior-day close when the live lane carries it; the row's own
+  // change only otherwise.
+  const ref = live.prevClose != null && live.prevClose > 0 ? live.prevClose
+    : row.price != null && row.price > 0 && row.changePct != null && Number.isFinite(row.changePct)
+      ? row.price / (1 + row.changePct / 100) : null;
   const changePct = ref != null && ref > 0 ? ((live.price - ref) / ref) * 100 : null;
   return {
     price: live.price,
