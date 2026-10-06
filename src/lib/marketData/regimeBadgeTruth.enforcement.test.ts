@@ -72,7 +72,7 @@ const src = () => readFileSync(CHARTS_DASHBOARD, "utf8");
 /** The band boundary the chip and the Markov state model must share. */
 const BAND_BOUNDARY = 1.5;
 /** The only period words the owner may return. */
-const PERIOD_WORDS = ["today", "last session"] as const;
+const PERIOD_WORDS = ["today", "last session", "24h"] as const;
 
 const ZERO_FALLBACK_PATTERN = /changePct[^\n]*\?[^\n]*:\s*0\b/g;
 const HARDCODED_PERIOD_PATTERN = new RegExp(`%\\s+(${PERIOD_WORDS.join("|")})\\s*$`, "gm");
@@ -292,5 +292,15 @@ describe("× THE BORROWED WORD — the chart chip does not impersonate canon", (
     expect(code).toContain("badge.canon.resolved");
     expect(code, "canon's 'not yet' has no rendering, so an unresolved dimension looks like agreement")
       .toContain("UNRESOLVED");
+  });
+});
+
+import { selectRegimePeriodLabel as periodWord } from "./selectRegimeBadge";
+describe("crypto's change is a rolling 24 hours, never 'today' (2026-10-06)", () => {
+  it("BTC / ETH read '24h'; a future still reads its session word", () => {
+    const at = new Date("2026-10-06T09:10:00Z");
+    expect(periodWord("BTC-USD", at)).toBe("24h");
+    expect(periodWord("ETH-USD", at)).toBe("24h");
+    expect(periodWord("NQ1!", at)).not.toBe("24h");
   });
 });

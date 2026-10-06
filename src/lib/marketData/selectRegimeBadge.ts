@@ -159,6 +159,7 @@
  */
 
 import { provenSessionClosure } from "./canonicalIdentity";
+import { classifySymbol } from "./symbolAssetClass";
 import { selectTickerChangeDisplay } from "./selectTickerChangeDisplay";
 import type { MarketStateDimension } from "./canonicalMarketState";
 
@@ -198,7 +199,8 @@ export type CanonRegimeView =
  * the bare percentage is true in every case, and the label can only sharpen
  * once the client settles — it never has to retract.
  */
-export type RegimePeriodLabel = "today" | "last session" | null;
+/** "24h" (2026-10-06): a crypto change is the venue's ROLLING 24-hour change — never a day's. */
+export type RegimePeriodLabel = "today" | "last session" | "24h" | null;
 
 export type RegimeBadgeView =
   | { readonly displayable: false }
@@ -376,5 +378,8 @@ function unresolved(dimension: MarketStateDimension | null): CanonRegimeView {
  */
 export function selectRegimePeriodLabel(symbol: string, at: Date | null): RegimePeriodLabel {
   if (!at) return null;
+  // Crypto has no session: its change (Coinbase stats / Binance 24hr) spans
+  // the last 24 hours, and calling that "today" claims a day boundary it has not.
+  if (classifySymbol(symbol) === "CRYPTO") return "24h";
   return provenSessionClosure(symbol, at) === false ? "last session" : "today";
 }

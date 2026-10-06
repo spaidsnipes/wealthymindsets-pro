@@ -114,10 +114,12 @@ describe("'today' is a liveness claim and must be earned", () => {
       .toMatchObject({ displayable: true, periodLabel: null });
   });
 
-  it("still says 'today' for crypto on a Saturday — it never closed", () => {
+  it("crypto never reads 'last session' — and its change is a rolling 24 hours, so it says '24h'", () => {
     // Continuous markets have no session to close. Labelling BTC's Saturday
     // move "last session" would be the same overreach pointed the other way.
-    expect(selectRegimePeriodLabel("BTC", SAT)).toBe("today");
+    // 2026-10-06: nor is it "today" — the venue's change (Coinbase stats /
+    // Binance 24hr) spans the last 24 hours, not a calendar day.
+    expect(selectRegimePeriodLabel("BTC", SAT)).toBe("24h");
   });
 });
 
