@@ -18031,6 +18031,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         */
         const levelChipYs: number[] = [];
         let levelChipsPlaced = 0;
+        /* PRICE ORDER SURVIVES THE KEEP-OUT (serving NQ1! 5m at 844x390,
+           2026-10-06 11:15 CDT: a 0.25-wide value area read "POC 31552.25"
+           ABOVE "VAH 31552.50" — rowsInPriceOrder ordered the rows, then the
+           keep-out moved VAH's chip alone). A species that names a level SET
+           opens a group: its chips are placed one by one as before, then the
+           rows they won are handed back in price order before anything paints. */
+        let levelChipGroup: { y: number; r: { x: number; y: number; w: number; h: number }; paint: (r: { x: number; y: number; w: number; h: number }) => void }[] | null = null;
+        let levelChipsReordered = 0;
+        const flushLevelChipGroup = () => {
+          const g = levelChipGroup;
+          levelChipGroup = null;
+          if (!g || g.length === 0) return;
+          const rowsTopDown = g.map(e => e.r.y).sort((a, b) => a - b);
+          const byPrice = [...g].sort((a, b) => a.y - b.y);
+          if (byPrice.some((e, i) => e.r.y !== rowsTopDown[i])) levelChipsReordered++;
+          byPrice.forEach((e, i) => e.paint({ ...e.r, y: rowsTopDown[i] }));
+        };
         let levelChipsQuieted = 0;
         let levelChipsMoved = 0;
         let levelChipsYielded = 0;
@@ -18093,6 +18110,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (stackOrder.length >= 3 && !/^LIVING\b/.test(text)) { ctx.globalAlpha *= 0.65; levelChipsQuieted++; }
           if (spotL.mode !== "CLEAR") levelChipsMoved++;
           if (spotL.onCandles) levelChipsYielded++;
+          const chipAlpha = ctx.globalAlpha;
+          const paintAt = (r: { x: number; y: number; w: number; h: number }) => {
+          ctx.save();
+          ctx.font = LEVEL_CHIP_FONT;
+          ctx.globalAlpha = chipAlpha;
           if (!movedToStack && levelChipNeedsLeader(r, y, spotL.mode === "SLID")) {
             ctx.save();
             ctx.globalAlpha *= 0.6;
@@ -18115,6 +18137,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.textBaseline = "middle";
           ctx.fillText(text, r.x + r.w / 2, r.y + r.h / 2 + 0.5);
           ctx.restore();
+          };
+          ctx.restore();
+          // In a level set, the paint waits for the set's price order.
+          if (levelChipGroup) { levelChipGroup.push({ y, r, paint: paintAt }); return; }
+          paintAt(r);
         };
         /*
           A SPECIES' QUIET WORDS (a caption, a named silence): the same keep-out
@@ -18747,9 +18774,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ], LEVEL_CHIP_H + 1, "POC");
             const tag = stacked ? "LIVING " : "";
             let livingChips = 0;
-            if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
-            if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.9));
-            if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.9));
+            levelChipGroup = [];
+            try {
+              if (lp.poc != null) label(lp.poc, `${tag}POC ${lp.poc.toFixed(pxDp)}`, pk.rgba("POC", 0.95));
+              if (lp.vah != null) label(lp.vah, `${tag}VAH ${lp.vah.toFixed(pxDp)}`, pk.rgbaAs("EDGE_HIGH", "ANCHOR", 0.9));
+              if (lp.val != null) label(lp.val, `${tag}VAL ${lp.val.toFixed(pxDp)}`, pk.rgbaAs("EDGE_LOW", "ANCHOR", 0.9));
+            } finally { flushLevelChipGroup(); }
             ds.livingProfileLabels = `CHIPS:${livingChips}`;
             // ① LIVING (a pulse) — the organism glyph at the head of the body.
             if (silhouette.length > 0) {
@@ -20372,6 +20402,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         else delete ds.profileQuietedForLiveCandle;
         if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y:${levelChipsToStack}S${levelChipsQuieted ? `:${levelChipsQuieted}Q` : ""}`;
         else delete ds.profileLevelChips;
+        if (levelChipsReordered > 0) ds.profileLevelChipsReordered = String(levelChipsReordered);
+        else delete ds.profileLevelChipsReordered;
         // The organism glyphs painted this frame, in paint order — e.g.
         // "SESSION,SESSION_TICK,LIVING,COMPOSITE". A species whose glyph found
         // no spot clear of the candles is absent (withheld, never on a candle).

@@ -250,3 +250,19 @@ describe("the candle countdown is a blocker for every later chip placer", () => 
     expect(seedAt).toBeGreaterThan(timerAt);
   });
 });
+
+// Serving NQ1! 5m at 844x390 (2026-10-06 11:15 CDT): a 0.25-wide value area
+// read "POC 31552.25" above "VAH 31552.50" — the keep-out moved one chip alone.
+describe("a level set keeps its price order after the keep-out", () => {
+  it("Living's three chips are placed as a group and painted on the won rows in price order", () => {
+    expect(CHART).toContain("const rowsTopDown = g.map(e => e.r.y).sort((a, b) => a - b);");
+    expect(CHART).toContain("const byPrice = [...g].sort((a, b) => a.y - b.y);");
+    expect(CHART).toContain("byPrice.forEach((e, i) => e.paint({ ...e.r, y: rowsTopDown[i] }));");
+    expect(CHART).toContain("if (levelChipGroup) { levelChipGroup.push({ y, r, paint: paintAt }); return; }");
+    const open = CHART.indexOf("levelChipGroup = [];");
+    const flush = CHART.indexOf("} finally { flushLevelChipGroup(); }", open);
+    expect(open).toBeGreaterThan(0);
+    expect(flush).toBeGreaterThan(open);
+    expect(CHART.slice(open, flush)).toContain("label(lp.vah,");
+  });
+});
