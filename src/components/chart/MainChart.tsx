@@ -2370,6 +2370,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // H-101 · the MarketObject pins' diamonds, in canvas pixels, for placers that
   // must not land a plate on a pin (the WAIT plate sat on one: "◆AIT").
   const marketObjectPinRectsRef = useRef<{ x: number; y: number; w: number; h: number }[]>([]);
+  /** H-101 WAIT plaque: its element, the selected pin it hangs on, and the spot the paint loop last gave it. */
+  const waitPlaqueElRef = useRef<HTMLDivElement | null>(null);
+  const waitPlaquePinRef = useRef<{ x: number; y: number } | null>(null);
+  const waitPlaqueLiveRef = useRef<{ left: number; top: number; mode: string } | null>(null);
   const onProfileFusionRef = useRef<typeof onProfileFusion>(undefined);
   useEffect(() => { onProfileFusionRef.current = onProfileFusion; }, [onProfileFusion]);
   const onVisibleRangeRefusalRef = useRef<typeof onVisibleRangeRefusal>(undefined);
@@ -23340,6 +23344,27 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const keepOutNow = keepOutReceipt(keepOutLedger);
       if (keepOutNow) Object.assign(canvas.dataset, keepOutNow);
 
+      // H-101 WAIT PLAQUE, EVERY FRAME (serving BTC-USD 15m select=level,
+      // 2026-10-06: placed once per render against candles only, at LEFT it
+      // sat on "STRUCTURE · HIGHER HIGHS" and the supply-zone chip). It now
+      // steps off every candle in view AND every label/chip this frame put on
+      // the glass (floatingChips), and is moved directly — no React render.
+      try {
+        const el = waitPlaqueElRef.current, pin = waitPlaquePinRef.current;
+        if (el && pin) {
+          let axisWP = 0;
+          try { axisWP = Math.max(0, Number(chart.priceScale("right").width()) || 0); } catch { /* keep 0 */ }
+          const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H }, rowBodiesAt(-1e9, 1e9), floatingChips);
+          const prev = waitPlaqueLiveRef.current;
+          if (!prev || prev.left !== spotP.left || prev.top !== spotP.top || prev.mode !== spotP.mode) {
+            waitPlaqueLiveRef.current = spotP;
+            el.style.left = `${spotP.left}px`;
+            el.style.top = `${spotP.top}px`;
+            el.dataset.h101WaitPlaqueSpot = spotP.mode;
+          }
+        }
+      } catch (err) { layerFault("H101_WAIT_PLAQUE", err); }
+
       // Release the plot-area clip established right after the data guard.
       ctx.restore();
 
@@ -24964,6 +24989,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       candles,
     );
   }, [selectedMarketObjectTarget, rangeVer]);
+  waitPlaquePinRef.current = selectedMarketObjectTarget ? selectedMarketObjectTarget.point : null;
+  if (!selectedMarketObjectTarget) waitPlaqueLiveRef.current = null;
 
   // The RAF canvas pill draws the same glyph and the same flash verdict, so
   // the on-chart pill can never disagree with the header strip.
@@ -25713,16 +25740,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         {selectedMarketObjectTarget && selectedMarketObjectWait && (
           <div
             data-h101-wait-plaque
-            data-h101-wait-plaque-spot={waitPlaqueSpot?.mode ?? "RIGHT"}
+            ref={waitPlaqueElRef}
+            data-h101-wait-plaque-spot={waitPlaqueLiveRef.current?.mode ?? waitPlaqueSpot?.mode ?? "RIGHT"}
             role="status"
             aria-label={`Wait on selected ${selectedMarketObjectTarget.object.kind.toLowerCase()} object. ${selectedMarketObjectWait.headline}. ${selectedMarketObjectWait.detail}`}
             style={{
               position: "absolute",
-              left: waitPlaqueSpot?.left ?? Math.min(
+              left: waitPlaqueLiveRef.current?.left ?? waitPlaqueSpot?.left ?? Math.min(
                 selectedMarketObjectTarget.point.x + 16,
                 Math.max(12, (containerRef.current?.clientWidth ?? 900) - 224),
               ),
-              top: waitPlaqueSpot?.top ?? Math.max(10, selectedMarketObjectTarget.point.y - 28),
+              top: waitPlaqueLiveRef.current?.top ?? waitPlaqueSpot?.top ?? Math.max(10, selectedMarketObjectTarget.point.y - 28),
               zIndex: 73,
               width: 208,
               padding: "7px 9px",

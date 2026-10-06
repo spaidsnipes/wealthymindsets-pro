@@ -37,8 +37,21 @@ describe("MainChart places the H-101 plaque through placeWaitPlaque", () => {
     const mc = readFileSync("src/components/chart/MainChart.tsx", "utf8");
     expect(mc.length).toBeGreaterThan(100000);
     expect(mc).toContain("return placeWaitPlaque(");
-    expect(mc).toContain("left: waitPlaqueSpot?.left ??");
-    expect(mc).toContain("top: waitPlaqueSpot?.top ??");
-    expect(mc).toContain('data-h101-wait-plaque-spot={waitPlaqueSpot?.mode ?? "RIGHT"}');
+    expect(mc).toContain("left: waitPlaqueLiveRef.current?.left ?? waitPlaqueSpot?.left ??");
+    expect(mc).toContain("top: waitPlaqueLiveRef.current?.top ?? waitPlaqueSpot?.top ??");
+    expect(mc).toContain('data-h101-wait-plaque-spot={waitPlaqueLiveRef.current?.mode ?? waitPlaqueSpot?.mode ?? "RIGHT"}');
+    // Every frame, against candles AND the labels/chips this frame put on the glass.
+    expect(mc).toContain("const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H }, rowBodiesAt(-1e9, 1e9), floatingChips);");
+  });
+});
+
+describe("the plaque also steps off the labels and chips on the glass", () => {
+  it("a caption under the LEFT spot sends it on to a clear spot", () => {
+    const candles = Array.from({ length: 10 }, (_, i) => ({ x: 1170 + i * 12, y: 200, w: 6, h: 150 }));
+    const caption = { x: 950, y: 260, w: 220, h: 14 }; // "STRUCTURE · HIGHER HIGHS" left of the pin
+    const p = placeWaitPlaque({ x: 1180, y: 300 }, size, box, candles, [caption]);
+    expect(p.mode).not.toBe("LEFT");
+    const r = { x: p.left, y: p.top, w: size.w, h: size.h };
+    for (const b of [...candles, caption]) expect(r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y).toBe(false);
   });
 });

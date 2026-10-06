@@ -8,7 +8,9 @@
  *
  * The plaque keeps its place beside its pin when that is clear. Otherwise it
  * tries the pin's left, then below and above it (a step further out each
- * time), and takes the first spot that covers no candle (body or wick). When
+ * time), and takes the first spot that covers no candle (body or wick) and no
+ * label or chip already on the glass (serving BTC-USD 15m select=level,
+ * 2026-10-06: at LEFT it sat on "STRUCTURE · HIGHER HIGHS"). When
  * every spot covers one, it keeps the first — the caller's old placement.
  * PURE: screen rectangles in, a rectangle out.
  */
@@ -28,7 +30,10 @@ export function placeWaitPlaque(
   size: { readonly w: number; readonly h: number },
   container: { readonly w: number; readonly h: number },
   candles: readonly PlaqueRect[],
+  /** The labels and chips already on the glass this frame (the keep-out chip ledger). */
+  chips: readonly PlaqueRect[] = [],
 ): WaitPlaquePlacement {
+  const obstacles = [...candles, ...chips];
   const clampX = (x: number) => Math.min(x, Math.max(12, container.w - size.w - 16));
   const clampY = (y: number) => Math.max(10, Math.min(y, Math.max(10, container.h - size.h - 10)));
   const right = { mode: "RIGHT" as const, x: clampX(pin.x + 16), y: Math.max(10, pin.y - 28) };
@@ -44,7 +49,7 @@ export function placeWaitPlaque(
   ];
   for (const c of cands) {
     const r = { x: c.x, y: c.y, w: size.w, h: size.h };
-    if (!candles.some(b => hits(r, b))) return { left: c.x, top: c.y, mode: c.mode };
+    if (!obstacles.some(b => hits(r, b))) return { left: c.x, top: c.y, mode: c.mode };
   }
   return { left: right.x, top: right.y, mode: "BLOCKED" };
 }
