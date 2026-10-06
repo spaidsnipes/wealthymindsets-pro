@@ -1781,6 +1781,19 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // prints flow, goes through the UNSIGNED door. Owner-gated upstream: for
     // anyone else the lane stays silent and the REST lane keeps its own label.
     tastyLiveAtRef.current = null;
+    // The exchange's reference close just arrived: the displayed change moves
+    // to it NOW, not at the next tick or quote poll (overnight a stock can go
+    // a minute without either — /desk showed the vendor's Friday basis that long).
+    const republishDayChange = () => {
+      const ref = prevCloseRef.current;
+      setState(prev => {
+        const price = prev.ticker.price;
+        if (!(ref > 0) || !(price > 0)) return prev;
+        const change = +(price - ref).toFixed(8);
+        const changePct = +((price - ref) / ref * 100).toFixed(2);
+        return prev.ticker.change === change && prev.ticker.changePct === changePct ? prev : { ...prev, ticker: { ...prev.ticker, change, changePct } };
+      });
+    };
     let tastyCleanup: (() => void) | null = null;
     {
       tastyLiveContractFor(symbol)
@@ -1795,7 +1808,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           {
             const pc = peekTastyQuote(contract.streamer)?.prevClose;
             const hasReferenceClose = pc != null && Number.isFinite(pc) && pc > 0;
-            if (hasReferenceClose) { prevCloseRef.current = pc!; tastyRefCloseRef.current = true; }
+            if (hasReferenceClose) { prevCloseRef.current = pc!; tastyRefCloseRef.current = true; republishDayChange(); }
           }
           tastyCleanup = subscribeTastyEvents([contract.streamer], (e, receivedAtMs) => {
             if (disposed) return;
@@ -1863,7 +1876,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               const pc = e.values.prevDayClosePrice;
               // The exchange's own prior-day close: a real reference, or none.
               const hasReferenceClose = pc != null && Number.isFinite(pc) && pc > 0;
-              if (hasReferenceClose) { prevCloseRef.current = pc; tastyRefCloseRef.current = true; }
+              if (hasReferenceClose) { prevCloseRef.current = pc; tastyRefCloseRef.current = true; republishDayChange(); }
               return;
             }
             // The side-less snapshot only speaks while no prints are flowing,
