@@ -27,9 +27,14 @@ const MAX_CONTRACTS = 160;
 /** Share of the subscribed contracts that must have reported open interest. */
 const MIN_REPORTED = 0.5;
 
-export interface FuturesPositioning { readonly receipt: CboeOptionsReceipt | null; readonly edge: string | null }
+export interface FuturesPositioning {
+  readonly receipt: CboeOptionsReceipt | null;
+  readonly edge: string | null;
+  /** The contracts streamed (Options Flow hears their prints on the same socket). */
+  readonly legs?: readonly Leg[];
+}
 
-interface Leg { contract: string; streamer: string; type: "call" | "put"; expiration: string; strike: number }
+export interface Leg { contract: string; streamer: string; type: "call" | "put"; expiration: string; strike: number; multiplier: number | null }
 
 export function pickPositioningLegs(chain: FuturesOptionChain, price: number): Leg[] {
   const parent = chain.futures.find(f => f.activeMonth)?.symbol ?? chain.expirations[0]?.parent ?? null;
@@ -39,8 +44,8 @@ export function pickPositioningLegs(chain: FuturesOptionChain, price: number): L
   for (const e of exps) {
     for (const s of e.strikes) {
       if (Math.abs(s.strike - price) / price > STRIKE_REACH) continue;
-      if (s.call && s.callStreamer) legs.push({ contract: s.call, streamer: s.callStreamer, type: "call", expiration: e.expiration, strike: s.strike });
-      if (s.put && s.putStreamer) legs.push({ contract: s.put, streamer: s.putStreamer, type: "put", expiration: e.expiration, strike: s.strike });
+      if (s.call && s.callStreamer) legs.push({ contract: s.call, streamer: s.callStreamer, type: "call", expiration: e.expiration, strike: s.strike, multiplier: e.multiplier });
+      if (s.put && s.putStreamer) legs.push({ contract: s.put, streamer: s.putStreamer, type: "put", expiration: e.expiration, strike: s.strike, multiplier: e.multiplier });
     }
   }
   // Nearest strikes first, so the cap keeps the money's neighbourhood.
@@ -88,11 +93,12 @@ export function useTastyFuturesPositioning(symbol: string, enabled: boolean, pri
       if (!q || q.openInterest == null || !(q.openInterest >= 0)) { dropped++; continue; }
       rows.push({ contract: l.contract, type: l.type, expiration: l.expiration, strike: l.strike, openInterest: q.openInterest, gamma: q.gamma, iv: q.iv, volume: q.dayVolume });
     }
-    if (rows.length < legs.length * MIN_REPORTED) return { receipt: null, edge: `GATHERING_OI:${rows.length}/${legs.length}` };
+    if (rows.length < legs.length * MIN_REPORTED) return { receipt: null, edge: `GATHERING_OI:${rows.length}/${legs.length}`, legs };
     const ivs = rows.map(r => r.iv).filter((v): v is number => v != null && v > 0).sort((a, b) => a - b);
     const iv30 = ivs.length ? ivs[Math.floor(ivs.length / 2)] * 100 : null;
     return {
       edge: null,
+      legs,
       receipt: {
         source: "TASTYTRADE_LIVE",
         underlying: symbol.toUpperCase(),

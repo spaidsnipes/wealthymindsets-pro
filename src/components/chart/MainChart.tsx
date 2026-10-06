@@ -64,6 +64,7 @@ import { MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
+import type { OptionFlowVM } from "@/lib/marketData/viewModels/selectOptionFlowEvents";
 import { tastyCandleFromTime, tastyCandlePeriod, tastyCandleSymbol, tastyCandlesToBars, tastyCandlesToSidedVolume } from "@/lib/marketData/adapters/tastytradeCandles";
 import {
   DELTA_LEVEL_CAP_DEFAULT,
@@ -1517,6 +1518,8 @@ interface Props {
   optionsEvidence?: OptionsBarrierEvidenceVM | null;
   /** ATHOS order §6 — NDX / SPX option walls mapped onto this NQ / ES chart through a same-time basis (both levels named). */
   indexMapping?: IndexFuturesMappingVM | null;
+  /** ATHOS §6 · P-03 — large futures-option prints (owner's tastytrade tape), marked on price under Brick Walls. */
+  optionFlow?: OptionFlowVM | null;
   /** A click on a pressure wall selects it (by strike) through the one selection owner. */
   onSelectPressureWall?: (strike: number) => void;
   /** A click on the zero-gamma front selects the derivatives environment. */
@@ -1938,6 +1941,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   derivativesPressure = null,
   optionsEvidence = null,
   indexMapping = null,
+  optionFlow = null,
   onSelectPressureWall,
   onSelectPressureFront,
   pressureFrontSelected = false,
@@ -2286,6 +2290,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   optionsEvidenceRef.current = optionsEvidence;
   const indexMappingRef = useRef<IndexFuturesMappingVM | null>(null);
   indexMappingRef.current = indexMapping;
+  const optionFlowRef = useRef<OptionFlowVM | null>(null);
+  optionFlowRef.current = optionFlow;
   // The wall rects painted this frame (what a click hits), and the selected strike.
   const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number }[]>([]);
   const selectedPressureWallStrikeRef = useRef<number | null>(null);
@@ -16963,6 +16969,67 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 }
                 ds.oiTickWords = `N:${tickWords.length}|STEPPED:${stepped}`;
               } else delete ds.oiTickWords;
+
+              // ── OPTIONS FLOW (ATHOS §6 · PROPOSED P-03) ────────────────────
+              // Large futures-option prints at their underlying-time anchor:
+              // the bar the print fell in, at that bar's close. "+" an
+              // aggressive buyer, "−" an aggressive seller, "?" unsigned; teal
+              // calls, rose puts (the OI tick inks). Budget: the 12 largest in
+              // view, words on the 3 largest. Open / close is never claimed.
+              const flow = optionFlowRef.current;
+              if (wallsOn && flow) {
+                const evs: { x: number; y: number; e: typeof flow.events[number] }[] = [];
+                for (const e of flow.events) {
+                  const tSec = Math.floor(e.timeMs / 1000);
+                  let lo = 0, hi = barsD.length - 1, at = -1;
+                  while (lo <= hi) { const m = (lo + hi) >> 1; if (Number(barsD[m].time) <= tSec) { at = m; lo = m + 1; } else hi = m - 1; }
+                  if (at < 0) continue;
+                  const b = barsD[at];
+                  const bx = tsD.timeToCoordinate(b.time as never);
+                  const by = yOfD(Number(b.close));
+                  if (bx == null || by == null || +bx < 0 || +bx > plotRightD) continue;
+                  evs.push({ x: +bx, y: by, e });
+                }
+                const shown = evs.sort((a, b) => b.e.size - a.e.size).slice(0, 12);
+                ctx.save();
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.textBaseline = "middle";
+                ctx.textAlign = "center";
+                const peak = Math.max(1, ...shown.map(s => s.e.size));
+                shown.forEach((s, i) => {
+                  const rgb = s.e.type === "call" ? "80,190,180" : "214,120,150";
+                  const r = 5 + 5 * Math.sqrt(s.e.size / peak);
+                  const glyph = s.e.side === "BUY" || s.e.side === "ASK_NEAR" ? "+" : s.e.side === "SELL" || s.e.side === "BID_NEAR" ? "−" : "?";
+                  // Offset off the candle body: calls above the close, puts below.
+                  const cy = s.y + (s.e.type === "call" ? -(r + 8) : r + 8);
+                  ctx.fillStyle = "rgba(11,10,8,0.85)";
+                  ctx.beginPath(); ctx.arc(s.x, cy, r, 0, Math.PI * 2); ctx.fill();
+                  ctx.strokeStyle = `rgba(${rgb},${s.e.sideStamped ? 0.95 : 0.6})`;
+                  ctx.lineWidth = 1.5;
+                  if (!s.e.sideStamped) ctx.setLineDash([2, 2]);
+                  ctx.stroke(); ctx.setLineDash([]);
+                  ctx.fillStyle = `rgba(${rgb},0.95)`;
+                  ctx.fillText(glyph, s.x, cy + 0.5);
+                  floatingChips.push({ x: s.x - r, y: cy - r, w: 2 * r, h: 2 * r });
+                  if (i < 3) {
+                    const prem = s.e.premiumEst != null ? ` · ~$${s.e.premiumEst >= 1e6 ? `${(s.e.premiumEst / 1e6).toFixed(1)}M` : `${Math.round(s.e.premiumEst / 1000)}k`}` : "";
+                    const words = `${s.e.type === "call" ? "C" : "P"}${fmtD(s.e.strike)} ×${s.e.size} ${glyph === "+" ? "BUY" : glyph === "−" ? "SELL" : "?"}${s.e.sideStamped ? "" : " (inferred)"}${prem}`;
+                    const tw = ctx.measureText(words).width;
+                    const lx = Math.min(plotRightD - tw / 2 - 4, Math.max(tw / 2 + 4, s.x));
+                    const ly = s.e.type === "call" ? cy - r - 9 : cy + r + 9;
+                    const box = { x: lx - tw / 2 - 3, y: ly - 7, w: tw + 6, h: 13 };
+                    if (!floatingChips.some(q => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y)) {
+                      ctx.fillStyle = "rgba(11,10,8,0.85)";
+                      ctx.fillRect(box.x, box.y, box.w, box.h);
+                      ctx.fillStyle = `rgba(${rgb},0.95)`;
+                      ctx.fillText(words, lx, ly);
+                      floatingChips.push(box);
+                    }
+                  }
+                });
+                ctx.restore();
+                ds.optionFlow = `${flow.receipt}|SHOWN:${shown.length}`;
+              } else ds.optionFlow = !wallsOn ? "OFF" : "NO_FLOW_SOURCE";
               ctx.restore();
 
               // ── CLIMATE (global) — one line, the environment's name ────

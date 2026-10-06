@@ -33,7 +33,7 @@ export interface TastyPrintHistory {
 }
 
 export async function fetchTastyTimeAndSales(
-  streamer: string,
+  streamer: string | readonly string[],
   fromTime: number,
   opts: { readonly timeoutMs?: number; readonly maxEvents?: number; readonly signal?: AbortSignal } = {},
 ): Promise<TastyPrintHistory | null> {
@@ -49,6 +49,10 @@ export async function fetchTastyTimeAndSales(
 
   return new Promise(resolve => {
     const events: ContractEvent[] = [];
+    // Several contracts on one connection (options flow, 2026-10-05): the
+    // snapshot is whole when EVERY symbol has closed its own.
+    const symbols = typeof streamer === "string" ? [streamer] : [...streamer];
+    const ended = new Set<string>();
     let done = false;
     let snipped = false;
     const ws = new WebSocket(tok!.dxlinkUrl!);
@@ -71,7 +75,7 @@ export async function fetchTastyTimeAndSales(
       else if (m.type === "AUTH_STATE" && m.state === "AUTHORIZED") send({ type: "CHANNEL_REQUEST", channel: CHANNEL, service: "FEED", parameters: { contract: "AUTO" } });
       else if (m.type === "CHANNEL_OPENED" && m.channel === CHANNEL) {
         send({ type: "FEED_SETUP", channel: CHANNEL, acceptAggregationPeriod: 0, acceptDataFormat: "COMPACT", acceptEventFields: { TimeAndSale: [...FIELDS] } });
-        send({ type: "FEED_SUBSCRIPTION", channel: CHANNEL, reset: true, add: [{ type: "TimeAndSale", symbol: streamer, fromTime }] });
+        send({ type: "FEED_SUBSCRIPTION", channel: CHANNEL, reset: true, add: symbols.map(symbol => ({ type: "TimeAndSale", symbol, fromTime })) });
       } else if (m.type === "FEED_DATA" && Array.isArray(m.data)) {
         const d = m.data as unknown[];
         for (let i = 0; i + 1 < d.length; i += 2) {
@@ -92,7 +96,10 @@ export async function fetchTastyTimeAndSales(
             // ~1,000 prints, so ~2 minutes of NQ at the open). That is a
             // PARTIAL window, never a complete one.
             if (flags != null && (flags & 0x10) !== 0) snipped = true;
-            if (isSnapshotEnd(flags)) { finish(!snipped); return; }
+            if (isSnapshotEnd(flags) && typeof symbol === "string") {
+              ended.add(symbol);
+              if (ended.size >= symbols.length) { finish(!snipped); return; }
+            }
             if (events.length >= maxEvents) { finish(false); return; }
           }
         }

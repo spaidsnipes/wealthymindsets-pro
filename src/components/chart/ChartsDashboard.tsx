@@ -379,6 +379,7 @@ import { useTastyFuturesPositioning } from "@/lib/broker/useTastyFuturesPosition
 import dynamic from "next/dynamic";
 import { keyActivates } from "@/lib/a11y/keyActivates";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
+import { useTastyOptionFlow } from "@/lib/broker/useTastyOptionFlow";
 import { selectOptionsBarrierEvidence, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 import { INDEX_FOR_FUTURES, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
@@ -2572,6 +2573,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // options, Deribit is crypto only). Same receipt, same owner.
   const futuresPressureOn = pressureEvidenceOn && classifySymbol(symbol) === "FUTURES";
   const futuresPositioning = useTastyFuturesPositioning(symbol, futuresPressureOn, chartBars.length ? chartBars[chartBars.length - 1].close : null);
+  // ATHOS §6 · P-03 — the same contracts' signed prints, on the same socket, while Brick Walls is on.
+  const optionFlowVM = useTastyOptionFlow(futuresPositioning?.legs, futuresPressureOn && brickWallsOn);
   useEffect(() => {
     if (!futuresPressureOn) return;
     setDerivativesReceipt({ symbol, receipt: futuresPositioning?.receipt ?? null, edge: futuresPositioning?.edge ?? "LOADING" });
@@ -6738,6 +6741,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       derivativesPressure={derivativesPressureVM}
                       optionsEvidence={optionsEvidenceVM}
                       indexMapping={indexMappingVM}
+                      optionFlow={optionFlowVM}
                       onSemanticDepth={setSemanticDepth}
                       onSenseEvents={setSenseEvents}
                       onSelectPressureWall={strike => actOnChartSelection({ type: "select", selection: { kind: "PRESSURE_WALL", symbol, timeframe, strike } })}
