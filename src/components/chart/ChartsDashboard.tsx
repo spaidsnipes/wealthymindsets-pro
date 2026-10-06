@@ -380,6 +380,7 @@ import dynamic from "next/dynamic";
 import { keyActivates } from "@/lib/a11y/keyActivates";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 import { useTastyOptionFlow } from "@/lib/broker/useTastyOptionFlow";
+import { useTastyEquityOptionLegs } from "@/lib/broker/useTastyEquityOptionLegs";
 import { selectOptionsBarrierEvidence, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 import { INDEX_FOR_FUTURES, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
@@ -2574,7 +2575,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const futuresPressureOn = pressureEvidenceOn && classifySymbol(symbol) === "FUTURES";
   const futuresPositioning = useTastyFuturesPositioning(symbol, futuresPressureOn, chartBars.length ? chartBars[chartBars.length - 1].close : null);
   // ATHOS §6 · P-03 — the same contracts' signed prints, on the same socket, while Brick Walls is on.
-  const optionFlowVM = useTastyOptionFlow(futuresPositioning?.legs, futuresPressureOn && brickWallsOn);
+  // Stocks, ETFs and indexes: the owner's tastytrade equity chain supplies the contracts.
+  const equityFlowOn = brickWallsOn && (classifySymbol(symbol) === "EQUITY" || classifySymbol(symbol) === "INDEX");
+  const equityFlowLegs = useTastyEquityOptionLegs(symbol, equityFlowOn, chartBars.length ? chartBars[chartBars.length - 1].close : null);
+  const optionFlowVM = useTastyOptionFlow(futuresPressureOn ? futuresPositioning?.legs : equityFlowLegs, (futuresPressureOn || equityFlowOn) && brickWallsOn);
   useEffect(() => {
     if (!futuresPressureOn) return;
     setDerivativesReceipt({ symbol, receipt: futuresPositioning?.receipt ?? null, edge: futuresPositioning?.edge ?? "LOADING" });

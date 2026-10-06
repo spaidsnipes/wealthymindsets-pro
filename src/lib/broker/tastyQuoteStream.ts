@@ -149,7 +149,12 @@ async function connect() {
             if (isSnapshotEnd(e.values.eventFlags)) req.done(req.rows);
             continue;
           }
-          if (!refs.has(e.symbol)) continue;
+          if (!refs.has(e.symbol)) {
+            // A PRINTS-ONLY symbol (Options Flow, 2026-10-06): its prints go to
+            // their listeners; it holds no quote and repaints no quote panel.
+            if (e.type === TAPE_EVENT_TYPE && tapeRefs.has(e.symbol)) for (const l of eventListeners) if (l.symbols.has(e.symbol)) l.onEvent(e, now);
+            continue;
+          }
           quotes.set(e.symbol, applyContractEvent(quotes.get(e.symbol) ?? emptyContractQuote(e.symbol), e, now));
           for (const l of eventListeners) if (l.symbols.has(e.symbol)) l.onEvent(e, now);
         }
@@ -166,12 +171,12 @@ async function connect() {
   };
 }
 
-function subscribe(symbols: readonly string[], tape = false): () => void {
+function subscribe(symbols: readonly string[], tape = false, withQuotes = true): () => void {
   const tapeAdded: string[] = [];
   if (tape) for (const s of symbols) { const n = tapeRefs.get(s) ?? 0; tapeRefs.set(s, n + 1); if (n === 0) tapeAdded.push(s); }
   if (tapeAdded.length && feedOpen) send(buildContractSubscriptionFrame(tapeAdded, [], false, [TAPE_EVENT_TYPE]));
   const added: string[] = [];
-  for (const s of symbols) {
+  if (withQuotes) for (const s of symbols) {
     const n = refs.get(s) ?? 0;
     refs.set(s, n + 1);
     if (n === 0) added.push(s);
@@ -186,15 +191,15 @@ function subscribe(symbols: readonly string[], tape = false): () => void {
       if (tapeRemoved.length && feedOpen) send(buildContractSubscriptionFrame([], tapeRemoved, false, [TAPE_EVENT_TYPE]));
     }
     const removed: string[] = [];
-    for (const s of symbols) {
+    if (withQuotes) for (const s of symbols) {
       const n = (refs.get(s) ?? 1) - 1;
       if (n <= 0) { refs.delete(s); removed.push(s); quotes.delete(s); } else refs.set(s, n);
     }
     if (removed.length && feedOpen) send(buildContractSubscriptionFrame([], removed));
-    if (refs.size === 0) {
+    if (refs.size === 0 && tapeRefs.size === 0) {
       closeTimer = setTimeout(() => {
         closeTimer = null;
-        if (refs.size) return;
+        if (refs.size || tapeRefs.size) return;
         if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
         teardown();
         quotes = new Map();
@@ -214,12 +219,14 @@ export function subscribeTastyEvents(
   onEvent: (e: ContractEvent, receivedAtMs: number) => void,
   onState?: (stream: StreamState, reason: string | null) => void,
   tape = false,
+  /** False: prints only — no Quote / Greeks / Summary stream for these symbols. */
+  withQuotes = true,
 ): () => void {
   const entry = { symbols: new Set(streamerSymbols), onEvent };
   eventListeners.add(entry);
   const stateListener = onState ? () => onState(snapshot.stream, snapshot.reason) : null;
   if (stateListener) { listeners.add(stateListener); stateListener(); }
-  const release = subscribe(streamerSymbols, tape);
+  const release = subscribe(streamerSymbols, tape, withQuotes);
   return () => {
     eventListeners.delete(entry);
     if (stateListener) listeners.delete(stateListener);

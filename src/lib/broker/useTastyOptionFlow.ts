@@ -16,7 +16,9 @@ import { selectOptionFlowEvents, type OptionLeg, type OptionPrint, type OptionFl
 
 const MAX_PRINTS = 3000;
 const FLUSH_MS = 1000;
-const HISTORY_MS = 6 * 3600_000;
+// Back to the last regular session on a stock chart read overnight; each
+// contract's snapshot is still the provider's own (~1,000 prints).
+const HISTORY_MS = 20 * 3600_000;
 
 export function useTastyOptionFlow(legs: readonly Leg[] | null | undefined, enabled: boolean): OptionFlowVM | null {
   const key = enabled && legs?.length ? legs.map(l => l.streamer).sort().join("|") : "";
@@ -45,7 +47,10 @@ export function useTastyOptionFlow(legs: readonly Leg[] | null | undefined, enab
       if (prints.length > MAX_PRINTS) prints.splice(0, prints.length - MAX_PRINTS);
       dirty = true;
     };
-    const release = subscribeTastyEvents(key.split("|"), take, undefined, true);
+    // Prints only: the quote / Greeks streams of these contracts would repaint
+    // panels several times a second for nothing this lane reads (Founder,
+    // 2026-10-05: nothing on the chart may cost the candles their smoothness).
+    const release = subscribeTastyEvents(key.split("|"), take, undefined, true, false);
     // The session so far (HISTORY_MS back), one short-lived connection; the
     // selector folds a print heard both ways once (contract, time, sequence).
     const ctrl = new AbortController();
