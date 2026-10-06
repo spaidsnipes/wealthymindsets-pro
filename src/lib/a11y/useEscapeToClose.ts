@@ -10,12 +10,25 @@ import { useEffect, useRef } from "react";
  * when the popover opened gets it back when it closes — unless the trader has
  * already moved focus somewhere real, or the opener has left the page.
  */
+// The last element that held focus. A toggle that unmounts in the same commit
+// that opens its popover has already handed focus to <body> by the time the
+// effect below runs, so the opener is read from here instead.
+let lastFocused: Element | null = null;
+let tracking = false;
+function trackFocus(): void {
+  if (tracking || typeof document === "undefined") return;
+  tracking = true;
+  document.addEventListener("focusin", e => { lastFocused = e.target as Element | null; }, true);
+}
+
 export function useEscapeToClose(open: boolean, close: () => void): void {
   const closeRef = useRef(close);
   closeRef.current = close;
+  useEffect(() => { trackFocus(); }, []);
   useEffect(() => {
     if (!open) return;
-    const opener = typeof document !== "undefined" ? document.activeElement : null;
+    const active = typeof document !== "undefined" ? document.activeElement : null;
+    const opener = active && active !== document.body ? active : lastFocused;
     // A toggle that is REPLACED while its popover is open (Inspect's opener
     // unmounts and re-mounts) is found again by its accessible name.
     const openerName = (opener as HTMLElement | null)?.getAttribute?.("aria-label") ?? null;
