@@ -2297,6 +2297,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   optionFlowRef.current = optionFlow;
   // The wall rects painted this frame (what a click hits), and the selected strike.
   const pressureWallHitRef = useRef<{ strike: number; x: number; y: number; w: number; h: number }[]>([]);
+  /** Options Flow marks on this frame (for a tap), and the one a tap pinned (touch has no hover). */
+  const flowHitRef = useRef<{ id: string; x: number; y: number; r: number }[]>([]);
+  const pinnedFlowRef = useRef<string | null>(null);
   const selectedPressureWallStrikeRef = useRef<number | null>(null);
   // The front's hit band this frame (full plot width, ±6px), and its selected state.
   const pressureFrontHitRef = useRef<{ y: number; x1: number } | null>(null);
@@ -17056,6 +17059,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // needs no open interest (ES weeklies report 0 OI overnight).
             const flow = optionFlowRef.current;
             const barsD = barsRef.current ?? [];
+            flowHitRef.current = [];
             if (wallsOn && flow) {
               const evs: { x: number; y: number; e: typeof flow.events[number] }[] = [];
               for (const e of flow.events) {
@@ -17100,7 +17104,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillStyle = `rgba(${rgb},0.95)`;
                 ctx.fillText(glyph, s.x, cy + 0.5);
                 floatingChips.push({ x: s.x - r, y: cy - r, w: 2 * r, h: 2 * r });
-                if (cp && Math.hypot(cp.x - s.x, cp.y - cy) <= r + 4 && !hovered) hovered = { x: s.x, y: cy, e: s.e };
+                flowHitRef.current.push({ id: s.e.id, x: s.x, y: cy, r });
+                // A TAPPED mark holds its ticket (touch has no hover); otherwise the cursor's.
+                if (pinnedFlowRef.current === s.e.id) hovered = { x: s.x, y: cy, e: s.e };
+                else if (!pinnedFlowRef.current && cp && Math.hypot(cp.x - s.x, cp.y - cy) <= r + 4 && !hovered) hovered = { x: s.x, y: cy, e: s.e };
                 if (i < 3) labelJobs.push(() => {
                   const prem = s.e.premiumEst != null ? ` · ~$${s.e.premiumEst >= 1e6 ? `${(s.e.premiumEst / 1e6).toFixed(1)}M` : `${Math.round(s.e.premiumEst / 1000)}k`}` : "";
                   const words = `${s.e.type === "call" ? "C" : "P"}${fmtStrike(s.e.strike)} ×${s.e.size} ${glyph === "+" ? "BUY" : glyph === "−" ? "SELL" : "?"}${s.e.sideStamped ? "" : " (inferred)"}${prem}`;
@@ -17161,7 +17168,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 lines.forEach((l, k) => ctx.fillText(l, bx + 6, byT + 11 + k * 14));
               }
               ctx.restore();
-              ds.optionFlow = `${flow.receipt}|SHOWN:${shown.length}${hv ? `|HOVER:${hv.e.contract}` : ""}`;
+              ds.optionFlow = `${flow.receipt}|SHOWN:${shown.length}${hv ? `|${pinnedFlowRef.current === hv.e.id ? "PINNED" : "HOVER"}:${hv.e.contract}` : ""}`;
+              ds.optionFlowHitAt = flowHitRef.current.slice(0, 3).map(h => `${Math.round(h.x)},${Math.round(h.y)}`).join("|") || "NONE";
             } else ds.optionFlow = !wallsOn ? "OFF" : "NO_FLOW_SOURCE";
             } catch (err) { layerFault("OPTION_FLOW", err); }
             // Where each wall is on this glass, for a browser proof to find and
@@ -24214,6 +24222,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       reading handed up is resolved from that same frame's owners. Nothing
       painted there → no hit, and the click falls through as before.
     */
+    /*
+      OPTIONS FLOW (P-03): a TAP on a flow mark pins its ticket — on a phone or
+      iPad there is no hover — and a second tap (or a tap elsewhere) lets go.
+    */
+    const flowHit = flowHitRef.current.find(h => Math.hypot(x - h.x, y - h.y) <= h.r + 6);
+    if (flowHit) {
+      pinnedFlowRef.current = pinnedFlowRef.current === flowHit.id ? null : flowHit.id;
+      return;
+    }
+    if (pinnedFlowRef.current) pinnedFlowRef.current = null;
     const anatomyHit = pickAnatomyHit(anatomyHitsRef.current, x, y);
     const anatomyFrame = anatomyFrameRef.current;
     if (anatomyHit && anatomyFrame) {
