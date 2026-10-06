@@ -614,6 +614,7 @@ import { QUIET_CEILING, NARROW_GLASS_MAX_PX, NARROW_GLASS_MIN_PLOT_H } from "@/l
 import { wallContact } from "@/lib/marketData/viewModels/wallContact";
 import { coinbaseProductFor, fetchCoinbaseTradeHistory } from "@/lib/marketData/coinbaseTradeBackfill";
 import { ANATOMY_MODE_EVENT, readAnatomyMode } from "@/lib/chart/anatomyMode";
+import { placeWaitPlaque } from "@/lib/chart/waitPlaquePlacement";
 import { selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 /** The forming candle's own print ring (bounded; a truncated ring is named in its receipt). */
 const FORMING_RING_CAP = 3000;
@@ -24919,6 +24920,38 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const selectedMarketObjectTarget = projectedMarketObjects.find(
     target => target.object.objectId === selectedMarketObjectId,
   ) ?? null;
+  // H-101's plaque stands clear of the candles (serving BTC-USD 15m,
+  // 2026-10-06: clamped inside the container it covered the newest bars).
+  const waitPlaqueSpot = React.useMemo(() => {
+    void rangeVer;
+    if (!selectedMarketObjectTarget) return null;
+    const candles: { x: number; y: number; w: number; h: number }[] = [];
+    let plotAxisW = 0;
+    try { plotAxisW = Math.max(0, Number(chartRef.current?.priceScale("right").width()) || 0); } catch { /* keep 0 */ }
+    try {
+      const ts = chartRef.current?.timeScale();
+      const srsP = candleRef.current;
+      const bs = barsRef.current ?? [];
+      const vr = ts?.getVisibleLogicalRange();
+      const sp = Math.max(2, Number(ts?.options().barSpacing) || 6);
+      if (ts && srsP && vr) {
+        for (let i = Math.max(0, Math.floor(+vr.from)); i <= Math.min(bs.length - 1, Math.ceil(+vr.to)); i++) {
+          const b = bs[i] as unknown as { time: number; high: number; low: number };
+          const xk = ts.timeToCoordinate(b.time as never), yh = srsP.priceToCoordinate(b.high), yl = srsP.priceToCoordinate(b.low);
+          if (xk == null || yh == null || yl == null) continue;
+          candles.push({ x: +xk - sp / 2, y: Math.min(+yh, +yl) - 2, w: sp, h: Math.abs(+yl - +yh) + 4 });
+        }
+      }
+    } catch { /* camera mid-transition: the original spot stands */ }
+    return placeWaitPlaque(
+      selectedMarketObjectTarget.point,
+      { w: 208, h: 60 },
+      // The plot, not the container: the price axis is not a place for a
+      // plaque (serving BTC-USD 15m select=level: its right edge sat on the axis).
+      { w: (containerRef.current?.clientWidth ?? 900) - plotAxisW, h: containerRef.current?.clientHeight ?? 600 },
+      candles,
+    );
+  }, [selectedMarketObjectTarget, rangeVer]);
 
   // The RAF canvas pill draws the same glyph and the same flash verdict, so
   // the on-chart pill can never disagree with the header strip.
@@ -25668,15 +25701,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         {selectedMarketObjectTarget && selectedMarketObjectWait && (
           <div
             data-h101-wait-plaque
+            data-h101-wait-plaque-spot={waitPlaqueSpot?.mode ?? "RIGHT"}
             role="status"
             aria-label={`Wait on selected ${selectedMarketObjectTarget.object.kind.toLowerCase()} object. ${selectedMarketObjectWait.headline}. ${selectedMarketObjectWait.detail}`}
             style={{
               position: "absolute",
-              left: Math.min(
+              left: waitPlaqueSpot?.left ?? Math.min(
                 selectedMarketObjectTarget.point.x + 16,
                 Math.max(12, (containerRef.current?.clientWidth ?? 900) - 224),
               ),
-              top: Math.max(10, selectedMarketObjectTarget.point.y - 28),
+              top: waitPlaqueSpot?.top ?? Math.max(10, selectedMarketObjectTarget.point.y - 28),
               zIndex: 73,
               width: 208,
               padding: "7px 9px",
