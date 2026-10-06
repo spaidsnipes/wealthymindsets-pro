@@ -265,7 +265,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     // /pricing's last control at y 2163 and /welcome's at 1205 could not be
     // scrolled to — the pages a guest must read before signing up. The bare
     // branch gives them a scroller; the auth doors stay exactly as they were.
-    if (isPublicInfoPath(pathname)) {
+    // The auth doors need the same scroller: MEASURED 2026-10-06 on serving,
+    // /login is 919-983 px tall with 0 scrollers, so on a phone with the
+    // keyboard open (390x420) the submit button sat at y 542-585 and could
+    // not be reached — a friend of the Founder could not sign in on his phone.
+    if (isPublicInfoPath(pathname) || isPublicAuthPath(pathname)) {
       return (
         <div data-scroll-owner="public-info" style={{ height: "100%", overflowX: "hidden", overflowY: "auto", overscrollBehaviorY: "contain" }}>
           {children}
