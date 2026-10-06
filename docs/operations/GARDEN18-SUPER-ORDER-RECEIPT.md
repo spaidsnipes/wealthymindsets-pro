@@ -417,3 +417,9 @@ With the 21 rows measured earlier (13:12 CDT), every one of the 30 chart switche
 | §7 ledger truth: tastytrade LIVE_PRINTS names option prints + candle bid/ask history; DEPTH NOT_BUILT → UNSUPPORTED (probe: PriceLevel "not available", Order internal error) | `6e15cea` | read-only DXLink probe on the owner socket |
 | P0.1 rate limits on the owner's tastytrade READ routes (240/min per user per route; order routes untouched) | `22de511` | serving full NQ load (Brick Walls + Flow Current + CVD + Options Flow): chain ×2, quote-token ×1 — far below the ceiling; every lane drew |
 | Worst-case stress (20 layers + big trades + Tape CVD on NQ 5m) | — | paint mean 22.7 ms vs 33 ms budget; 11 of 95 frames over budget in a later window; occasional single frame ~300 ms — per-layer profile follows |
+
+### Per-layer paint profile (serving NQ 5m, each layer alone, ~25 s, extension tab) — Founder: "don't let everything on the chart mess with the candle smoothness"
+Paint mean / longest ms (frames over budget): none 3.4/6.6 · Brick Walls 5.6/7.9 · Flow Current 11.5/14.9 · Imbalance Stack 8.3/15.3 · Value Candle 4.9/14.1 · Living Profile 11.5/19.5 · TPO 7.1/15.2 · Structure 5.6/11.5 · Weather 9.5/11.4 · Lifecycle 6.6/11.6 · Derivatives Pressure 6.1/14.6 · Question Lens 5.5/8.4 · Composite 6.2/9.2 · Profile Memory 5.7/10.3 · Visible Range 6.5/11.2 · Big Trades 4.8/5.7 · Memory Ghost 9.5/17 · Regime 9.1/16.5 · Delta Levels+Divergence+Effort 7/13.4 · **Expected Envelope 25.2/42.3 (6 of 22 over)**.
+| Fix | Commit | Proof |
+|---|---|---|
+| `etParts` memoized — Intl date formatting was 11 of 12.8 ms the Envelope spent on every live tick | `96d68f1` | Envelope alone 25.2 → **12.3 ms mean, 0 of 21 over**; 20-layer stress steady state mean 21.6 ms, longest 58 ms, 7 of 45 over (one 282 ms frame at load only). Candles are drawn by the chart library independently of this overlay (governed to 30 fps) |
