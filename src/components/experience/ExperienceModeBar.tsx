@@ -75,10 +75,16 @@ export const EXPERIENCE_MODE_LIFECYCLE_TESTID = "experience-mode-lifecycle";
 /** The words the read-back line says for a stage (null = a non-lifecycle job). */
 export function lifecycleReadback(stage: LifecycleStage | null): string {
   if (stage === null) return "Not in a trade lifecycle — LEARN is a changed job. Pick a stage to re-enter it.";
-  const phase = phaseForStage(stage);
   // The STAGE's word, not the phase's: PREP and OBSERVE share a chain phase
   // but light different stops on the deck's rail (2026-09-27, deck canon).
-  return `Command Deck phase · ${STAGE_WORD[stage]} — the decision chain now reads ${phase.replace("_", "-").toLowerCase()}.`;
+  // ATHOS order 2026-10-05: "Observing — the decision chain now reads
+  // preparation" read as a contradiction, and the bar's button names (WAIT,
+  // EXECUTE, MANAGE) differ from the deck's (Approach, Decide, In Trade). The
+  // line now names BOTH and says what it is: the trader's posture — never the
+  // market's verdict, which the WAIT / READY rail states separately.
+  const button = stage.replace("_", "-");
+  const sameWord = STAGE_WORD[stage].toUpperCase() === button;
+  return `Your posture · ${button}${sameWord ? "" : ` (Command Deck phase · ${STAGE_WORD[stage]})`}${sameWord ? ` · Command Deck phase · ${STAGE_WORD[stage]}` : ""} — what you are doing, not the market's verdict, which reads separately.`;
 }
 
 /** The id the collapsed chip points `aria-controls` at. */
