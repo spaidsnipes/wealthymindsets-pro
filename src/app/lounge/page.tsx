@@ -36,6 +36,7 @@ import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { wmConfirm } from "@/components/ui/wmConfirm";
 import { useDialogFrame } from "@/components/ui/DialogFrame";
 import { useLiveHost } from "@/lib/livekit/useLiveHost";
+import { useOnAir } from "@/lib/livekit/useOnAir";
 
 /* ══════════════════════════════════════════════════════════════
    TYPES
@@ -769,6 +770,7 @@ export default function LoungePage() {
   // Only a WM host can publish; a guest is offered Watch, not a Go Live the
   // token server refuses after the host pre-join screen (garden pass 2026-10-05).
   const isLiveHost = useLiveHost();
+  const onAir = useOnAir();
   const [showCommunityTools, setShowCommunityTools] = useState(false);
 
   // Deep-link support: a shared live link (…/lounge?room=<name>) drops the visitor
@@ -984,7 +986,13 @@ export default function LoungePage() {
                 <div key={r.name} className="flex items-start gap-2 px-2 py-2 rounded-lg hover:bg-wm-surface transition-all group">
                   <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{background: r.color}} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-semibold text-wm-text group-hover:text-wm-green">{r.label}</div>
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-wm-text group-hover:text-wm-green">
+                      {r.label}
+                      {/* Who is actually broadcasting (ATHOS order P0.8) — a card is not a live room. */}
+                      {onAir && ((onAir[r.name] ?? 0) > 0
+                        ? <span className="text-[8px] font-black text-wm-red">ON AIR</span>
+                        : <span className="text-[8px] font-black text-wm-text-dim">OFF AIR</span>)}
+                    </div>
                     <div className="text-[9px] text-wm-text-dim mb-1">{r.desc}</div>
                     <div className="flex gap-1">
                       {isLiveHost === true && (

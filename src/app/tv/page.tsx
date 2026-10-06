@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { useLiveHost } from "@/lib/livekit/useLiveHost";
+import { useOnAir } from "@/lib/livekit/useOnAir";
 
 // Real multi-user broadcast room (LiveKit SFU). ssr:false — it touches
 // browser media APIs and must never render on the server.
@@ -243,6 +244,9 @@ export default function WMTVPage() {
   // why silence must be declared rather than inferred.
   usePublishOsStanding({ surface: "WM TV", feed: FEEDLESS_SURFACE });
   const studio = useStudioState();
+  // Who is actually ON AIR, per registered room (ATHOS order P0.8) — a
+  // configured studio is not a live room.
+  const onAir = useOnAir();
 
   const [activeId, setActiveId] = useState<string>("wmtv-home");
   const activeStage = STAGE_CHANNELS.find(c => c.id === activeId) || null;
@@ -292,7 +296,11 @@ export default function WMTVPage() {
             >
               {c.kind === "live" ? <Radio size={13} className="text-wm-red shrink-0" /> : <Podcast size={13} className="text-wm-purple shrink-0" />}
               <span className="text-xs font-bold truncate">{c.name}</span>
-              {c.kind === "live" && <span className={`ml-auto text-[9px] font-black ${studio === "READY" ? "text-wm-green" : "text-wm-text-dim"}`}>{studioWord(studio)}</span>}
+              {onAir && (onAir[`wmtv-${c.id}`] ?? 0) > 0
+                ? <span className="ml-auto text-[9px] font-black text-wm-red">ON AIR</span>
+                : onAir
+                  ? <span className="ml-auto text-[9px] font-black text-wm-text-dim" title="The studio may be ready, but no one is broadcasting in this room right now.">OFF AIR</span>
+                  : c.kind === "live" && <span className={`ml-auto text-[9px] font-black ${studio === "READY" ? "text-wm-green" : "text-wm-text-dim"}`}>{studioWord(studio)}</span>}
             </button>
           ))}
 
