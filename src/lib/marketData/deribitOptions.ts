@@ -86,3 +86,44 @@ export function normalizeDeribitOptions(body: unknown, currency: "BTC" | "ETH", 
     dropped,
   };
 }
+
+/**
+ * DERIBIT PUBLIC OPTION TRADES → Options Flow prints (ATHOS §6 · P-03,
+ * 2026-10-06). `direction` is Deribit's TAKER side — an exchange-stamped
+ * aggressor. Price is quoted in the coin, so each print is carried in USD
+ * (price × the trade's own index price) with multiplier 1: the premium
+ * estimate is then price(USD) × contracts. A print that is one leg of a combo
+ * or a block of several legs is a spread leg (MULTI-LEG?). PURE.
+ */
+export interface DeribitFlowPrint {
+  readonly streamer: string; readonly timeMs: number; readonly sequence: number | null;
+  readonly price: number; readonly size: number; readonly aggressor: "BUY" | "SELL" | null;
+  readonly spreadLeg: boolean;
+}
+export interface DeribitFlowLeg { readonly contract: string; readonly type: "call" | "put"; readonly strike: number; readonly expiration: string; readonly multiplier: number }
+
+export function normalizeDeribitTrades(body: unknown, currency: "BTC" | "ETH"): { prints: DeribitFlowPrint[]; legs: Record<string, DeribitFlowLeg> } {
+  const root = body && typeof body === "object" ? (body as { result?: { trades?: unknown } }).result : null;
+  const list = Array.isArray(root?.trades) ? (root!.trades as unknown[]) : [];
+  const prints: DeribitFlowPrint[] = [];
+  const legs: Record<string, DeribitFlowLeg> = {};
+  for (const raw of list) {
+    const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+    const m = typeof o?.instrument_name === "string" ? NAME.exec(o.instrument_name) : null;
+    if (!o || !m || m[1] !== currency) continue;
+    const [, , dd, mon, yy, k, cp] = m;
+    const mm = MONTHS[mon];
+    const price = num(o.price), size = num(o.amount), idx = num(o.index_price), ts = num(o.timestamp);
+    if (!mm || price == null || size == null || idx == null || ts == null || !(size > 0) || !(idx > 0)) continue;
+    const name = o.instrument_name as string;
+    legs[name] ??= { contract: name, type: cp === "C" ? "call" : "put", strike: Number(k), expiration: `20${yy}-${mm}-${dd.padStart(2, "0")}`, multiplier: 1 };
+    const legCount = num(o.block_trade_leg_count);
+    prints.push({
+      streamer: name, timeMs: ts, sequence: num(o.trade_seq),
+      price: price * idx, size,
+      aggressor: o.direction === "buy" ? "BUY" : o.direction === "sell" ? "SELL" : null,
+      spreadLeg: typeof o.combo_id === "string" || (legCount != null && legCount > 1),
+    });
+  }
+  return { prints, legs };
+}

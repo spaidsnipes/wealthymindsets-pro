@@ -46,3 +46,20 @@ describe("Deribit public options → the one pressure receipt", () => {
     expect(vm.envelope?.session).toBeCloseTo(84000 * 0.35 * Math.sqrt(1 / 365), 0);
   });
 });
+
+import { normalizeDeribitTrades } from "./deribitOptions";
+describe("Deribit public option trades → Options Flow prints (P-03)", () => {
+  it("taker side stamped, price carried in USD, combo / block legs are spread legs", () => {
+    const body = { result: { trades: [
+      { timestamp: 1791277444029, price: 0.0009, amount: 20, direction: "buy", index_price: 86012.38, instrument_name: "BTC-7OCT26-84500-P", trade_seq: 64, combo_id: "BTC-PS-7OCT26-85500_84500", block_trade_leg_count: 2 },
+      { timestamp: 1791277444100, price: 0.05, amount: 3, direction: "sell", index_price: 86000, instrument_name: "BTC-30OCT26-90000-C", trade_seq: 7 },
+      { timestamp: 1, price: 0.1, amount: 1, direction: "buy", index_price: 4000, instrument_name: "ETH-30OCT26-4000-C", trade_seq: 1 },
+    ] } };
+    const { prints, legs } = normalizeDeribitTrades(body, "BTC");
+    expect(prints).toHaveLength(2);
+    expect(prints[0]).toMatchObject({ aggressor: "BUY", size: 20, spreadLeg: true });
+    expect(prints[0].price).toBeCloseTo(0.0009 * 86012.38, 6);
+    expect(prints[1]).toMatchObject({ aggressor: "SELL", spreadLeg: false });
+    expect(legs["BTC-30OCT26-90000-C"]).toEqual({ contract: "BTC-30OCT26-90000-C", type: "call", strike: 90000, expiration: "2026-10-30", multiplier: 1 });
+  });
+});

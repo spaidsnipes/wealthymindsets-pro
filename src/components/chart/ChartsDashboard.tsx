@@ -381,6 +381,7 @@ import { keyActivates } from "@/lib/a11y/keyActivates";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 import { useTastyOptionFlow } from "@/lib/broker/useTastyOptionFlow";
 import { useTastyEquityOptionLegs } from "@/lib/broker/useTastyEquityOptionLegs";
+import { useDeribitOptionFlow } from "@/lib/marketData/useDeribitOptionFlow";
 import { selectOptionsBarrierEvidence, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 import { INDEX_FOR_FUTURES, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
@@ -2578,7 +2579,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Stocks, ETFs and indexes: the owner's tastytrade equity chain supplies the contracts.
   const equityFlowOn = brickWallsOn && (classifySymbol(symbol) === "EQUITY" || classifySymbol(symbol) === "INDEX");
   const equityFlowLegs = useTastyEquityOptionLegs(symbol, equityFlowOn, chartBars.length ? chartBars[chartBars.length - 1].close : null);
-  const optionFlowVM = useTastyOptionFlow(futuresPressureOn ? futuresPositioning?.legs : equityFlowLegs, (futuresPressureOn || equityFlowOn) && brickWallsOn);
+  const tastyOptionFlowVM = useTastyOptionFlow(futuresPressureOn ? futuresPositioning?.legs : equityFlowLegs, (futuresPressureOn || equityFlowOn) && brickWallsOn);
+  // BTC / ETH: Deribit's public option trades (taker side stamped by the venue).
+  const deribitOptionFlowVM = useDeribitOptionFlow(symbol, brickWallsOn && classifySymbol(symbol) === "CRYPTO");
+  const optionFlowVM = deribitOptionFlowVM ?? tastyOptionFlowVM;
   useEffect(() => {
     if (!futuresPressureOn) return;
     setDerivativesReceipt({ symbol, receipt: futuresPositioning?.receipt ?? null, edge: futuresPositioning?.edge ?? "LOADING" });
