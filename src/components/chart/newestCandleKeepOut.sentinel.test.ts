@@ -178,6 +178,11 @@ describe("the narrow absorption chip's backing yields to the newest bodies", () 
     expect(chip).toContain("const leftRects = [(yHi + yLo) / 2 - chipH / 2, ...slots]");
     expect(chip).toMatch(/if \(left && !left\.onCandles\) \{ shelfWordsBeside\+\+; return left; \}\s*chipX = keepX;/);
   });
+  it("then under — else over — every body and wick in the words' own x-span (serving 15m, 2026-10-06 11:13 CDT)", () => {
+    expect(chip).toContain("const colBodies = rowBodiesAt(-1e9, 1e9).filter(b => b.x < chipX + chipW && b.x + b.w > chipX);");
+    expect(chip).toContain("pickSlotClearOfKeepOut(colRects, [...keepOut(), ...colBodies], s => hit(s.y))");
+    expect(chip).toContain("if (col && !col.onCandles) { shelfWordsBeside++; return col; }");
+  });
 });
 
 describe("the exhaustion chip clears every body under its row and the chips on the glass", () => {

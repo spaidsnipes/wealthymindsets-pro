@@ -1,3 +1,4 @@
+import { isPublicInfoPath } from "@/lib/authRoutes";
 import { MARKET_DATA_CAPABILITIES, type MarketDataCapability } from "./capabilityRegistry";
 import {
   createChannelCoverage,
@@ -279,7 +280,10 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
   // The signed-out door (/login, /signup, password reset) has no WM session:
   // the server ledger answers 401 there, which printed two red console
   // errors on the first page every visitor sees (2026-10-04).
-  const atSignedOutDoor = () => /^\/(login|signup|register|forgot-password|reset-password)(\/|$)/.test(window.location.pathname);
+  const atSignedOutDoor = () => /^\/(login|signup|register|forgot-password|reset-password)(\/|$)/.test(window.location.pathname)
+    // Public information pages (/welcome, /pricing, /legal) are signed-out
+    // ground too: the ledger answered 401 there on every guest visit (2026-10-06).
+    || isPublicInfoPath(window.location.pathname);
   const persistRemote = () => {
     if (remotePersistTimer) {
       clearTimeout(remotePersistTimer);

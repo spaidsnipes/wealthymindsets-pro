@@ -12105,6 +12105,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   if (left && !left.onCandles) { shelfWordsBeside++; return left; }
                   chipX = keepX;
                 }
+                // CLEAR OF THE CANDLE COLUMN (serving NQ1! 15m, 2026-10-06 11:13
+                // CDT, after the left step shipped: the bars left of the shelf
+                // stood at the same prices, so that column was covered too).
+                // The words go under — else over — every body and wick in their
+                // own x-span, stepping a row further when a chip holds the row.
+                {
+                  const colBodies = rowBodiesAt(-1e9, 1e9).filter(b => b.x < chipX + chipW && b.x + b.w > chipX);
+                  if (colBodies.length > 0) {
+                    const colBottom = Math.max(...colBodies.map(b => b.y + b.h));
+                    const colTop = Math.min(...colBodies.map(b => b.y));
+                    const colRects = [0, 1, 2].flatMap(k => [colBottom + 4 + k * (chipH + 4), colTop - chipH - 4 - k * (chipH + 4)])
+                      .filter(y => y >= HEADER_FLOOR_Y && y + chipH <= pane0Bottom)
+                      .map(y => ({ x: chipX, y, w: chipW, h: chipH }));
+                    const col = colRects.length === 0 ? null : pickSlotClearOfKeepOut(colRects, [...keepOut(), ...colBodies], s => hit(s.y));
+                    if (col && !col.onCandles) { shelfWordsBeside++; return col; }
+                  }
+                }
                 return first;
               })(slotRects.length === 0 ? null : pickSlotClearOfKeepOut(
                 slotRects,
