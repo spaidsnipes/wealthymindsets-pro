@@ -501,4 +501,7 @@ GET 401: tastytrade positions / accounts / quote-token / chain / ledger, Webull 
 | Options Flow on touch: a tap pins the mark's ticket, a second tap releases | `a84a2d4` | serving NQ 5m, pointer events at the published hit point (`optionFlowHitAt`): `PINNED:./NQZ6 Q1BV6 261006P31350` → second tap releases → third pins again |
 | Crypto chip names its window: "24H BIAS … 24h" (stocks / futures keep DAY BIAS) | `3d6195a` | serving BTC-USD: "24H BIAS SIDE · +0.37% 24h" |
 
-**Shift closed 05:15 CDT (order ran to 06:00).** Production at the receipt's commit; every build above passed the full gate (tsc + 15,460 tests) and was proved on serving glass in the extension tab (never the Founder's tab). Deploys were held while the Founder traded (21:00 → 01:23).
+| Options Flow on gold (GC) | — | serving GC 5m: 897 prints, 39 of 40 exchange-stamped, "C4170 ×15 BUY ~$183k" (multiplier 100 ✓) |
+| Crypto chip's spoken label names the rolling 24-hour window | pending | selectRegimeBadge tests |
+
+**Last build 05:25 CDT; the order ran to 06:00.** Production at the receipt's commit; every build above passed the full gate (tsc + 15,460 tests) and was proved on serving glass in the extension tab (never the Founder's tab). Deploys were held while the Founder traded (21:00 → 01:23).

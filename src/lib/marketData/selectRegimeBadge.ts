@@ -304,7 +304,9 @@ function speak(
   const move = `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%${periodLabel ? ` ${periodLabel}` : ""}`;
   return (
     `${symbol} ${periodLabel === "24h" ? "24-hour" : "day"} bias ${regime}, from a change of ${move}. ` +
-    `Day bias is a band over that day-change percent only — it has not read ` +
+    (periodLabel === "24h"
+      ? `24-hour bias is a band over that rolling 24-hour change only — it has not read `
+      : `Day bias is a band over that day-change percent only — it has not read `) +
     `the tape. Market regime is a different question, derived from classified ` +
     `per-trade tape, and ` +
     (canon.resolved
