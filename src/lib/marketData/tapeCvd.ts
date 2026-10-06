@@ -54,6 +54,10 @@ export interface TapeCvdResult {
   startsAtHorizon: boolean;
   /** Sides were inferred (tick rule), not stamped by the venue. */
   sidesInferred: boolean;
+  /** Bars whose step came from the provider's bar sides (0 = tape only). */
+  barSideBars?: number;
+  /** First bar the TAPE carries after the bar-side span, epoch seconds (null = none). */
+  tapeFromSec?: number | null;
   refused: TapeCvdRefusal | null;
 }
 
@@ -77,6 +81,15 @@ export interface TapeCvdInput {
    * buffer on a timeframe switch) — so "since" can never be earlier than this.
    */
   accumulatorStartedAtSec?: number | null;
+  /**
+   * THE BARS' OWN SIDES from their provider (tastytrade candle askVolume /
+   * bidVolume, 2026-10-05): bar open second → buy / sell volume for the WHOLE
+   * bar. They carry the cumulative back through the history the held tape
+   * cannot reach. Used for every bar OLDER than the newest side-bearing bar
+   * (that one was still forming when the candles were read, so it and every
+   * later bar come from the tape). Absent / empty → the tape-only rule above.
+   */
+  barSides?: ReadonlyMap<number, { buy: number; sell: number }> | null;
 }
 
 export function barTapeDelta(levels: ReadonlyMap<number, TapeCvdLevel>): number {
@@ -90,6 +103,11 @@ export function barTapeDelta(levels: ReadonlyMap<number, TapeCvdLevel>): number 
 }
 
 export function selectTapeCvd(input: TapeCvdInput): TapeCvdResult {
+  const sides = input.barSides;
+  if (sides && sides.size > 0) {
+    const mixed = selectSidedCvd(input, sides);
+    if (mixed) return mixed;
+  }
   const sidesInferred = input.aggressorMethod === "TICK_RULE";
   const refuse = (refused: TapeCvdRefusal): TapeCvdResult =>
     ({ points: [], sinceSec: null, startsAtHorizon: false, sidesInferred, refused });
@@ -128,9 +146,62 @@ export function selectTapeCvd(input: TapeCvdInput): TapeCvdResult {
   return { points, sinceSec, startsAtHorizon: heldFromHorizon, sidesInferred, refused: null };
 }
 
+/**
+ * Bar sides for the closed history, the tape from the newest side-bearing bar
+ * on. The cumulative starts at the first side-bearing bar in `bars`; it is
+ * whole there (the provider's sides cover the whole bar), so no point is
+ * PARTIAL unless the tape takes over mid-span on a bar it cannot prove whole —
+ * the tape's own bars keep the tape rule (labelled sides only; a bar the
+ * accumulator lacks is whitespace and the cumulative carries).
+ */
+function selectSidedCvd(input: TapeCvdInput, sides: ReadonlyMap<number, { buy: number; sell: number }>): TapeCvdResult | null {
+  let newestSide = -Infinity;
+  for (const t of sides.keys()) if (t > newestSide) newestSide = t;
+  const points: TapeCvdPoint[] = [];
+  let cum = 0, barSideBars = 0;
+  let tapeFromSec: number | null = null;
+  const tapeOk = input.verifiedTape;
+  for (const bar of input.bars) {
+    const sd = bar.time < newestSide ? sides.get(bar.time) : undefined;
+    let delta: number | null = null;
+    let partial = false;
+    if (sd && Number.isFinite(sd.buy) && Number.isFinite(sd.sell)) {
+      delta = sd.buy - sd.sell;
+      barSideBars++;
+    } else if (tapeOk && bar.time >= newestSide && points.length) {
+      const levels = input.accumulator.get(bar.time);
+      if (levels) {
+        delta = barTapeDelta(levels);
+        // The hand-over bar: the tape is proven whole on it only when the
+        // accumulator held prints from before it opened.
+        if (tapeFromSec == null) {
+          tapeFromSec = bar.time;
+          const acc = input.accumulatorStartedAtSec;
+          partial = !(Number.isFinite(acc as number) && (acc as number) <= bar.time);
+        }
+      }
+    }
+    if (delta == null) continue;
+    const from = cum;
+    cum += delta;
+    points.push({ time: bar.time, from, to: cum, delta, partial });
+  }
+  if (!barSideBars) return null;
+  return {
+    points, sinceSec: points[0].time, startsAtHorizon: false,
+    sidesInferred: input.aggressorMethod === "TICK_RULE" && tapeFromSec != null,
+    refused: null, barSideBars, tapeFromSec,
+  };
+}
+
 /** The pane's one caption. `hhmm` formats epoch seconds in the chart's zone. */
 export function tapeCvdCaption(r: TapeCvdResult, hhmm: (sec: number) => string): string {
   if (r.refused === "NO_VERIFIED_TAPE") return "CVD · REFUSED · no verified aggressor tape";
   if (r.refused === "NO_TAPE_IN_VIEW" || r.sinceSec == null) return "CVD · REFUSED · no tape heard on these bars";
+  if (r.barSideBars) {
+    return `CVD · bar sides (provider) since ${hhmm(r.sinceSec)}` +
+      (r.tapeFromSec != null ? ` · signed tape from ${hhmm(r.tapeFromSec)}` : "") +
+      (r.sidesInferred ? " · SIDES INFERRED" : "");
+  }
   return `CVD · signed tape since ${hhmm(r.sinceSec)}${r.sidesInferred ? " · SIDES INFERRED" : ""}`;
 }

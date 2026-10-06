@@ -93,7 +93,10 @@ describe("the one CVD is the tape's", () => {
 
   it("the caption comes from the owner and the glass names its source", () => {
     expect(CAPTION).toContain("tapeCvdCaption(cvd");
-    expect(CAPTION).toContain('canvas.dataset.cvdSource = cvd.refused ? "REFUSED" : "TAPE"');
+    // 2026-10-05: the provider's bar sides may carry the history; the receipt names them.
+    expect(CAPTION).toContain('canvas.dataset.cvdSource = cvd.refused ? "REFUSED" : cvd.barSideBars ? `BAR_SIDES:${cvd.barSideBars}');
+    expect(CAPTION).toContain(': "TAPE";');
+    expect(OWNER).toContain("bar sides (provider) since");
     expect(CAPTION).toContain("canvas.dataset.cvdBars");
     expect(OWNER).toContain("SIDES INFERRED");
   });

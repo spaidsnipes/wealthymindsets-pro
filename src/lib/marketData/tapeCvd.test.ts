@@ -170,3 +170,38 @@ describe("tape CVD", () => {
     expect(r.sinceSec).toBe(50_000);
   });
 });
+
+import { selectTapeCvd as selectCvdSided, tapeCvdCaption as cvdCaption } from "./tapeCvd";
+
+describe("CVD across the whole history from the provider's bar sides (2026-10-05)", () => {
+  const bars = [100, 200, 300, 400, 500].map(time => ({ time }));
+  const sides = new Map([[100, { buy: 10, sell: 4 }], [200, { buy: 3, sell: 9 }], [300, { buy: 5, sell: 5 }], [400, { buy: 99, sell: 0 }]]);
+  const acc = new Map([[400, new Map([[1, { ask: 7, bid: 2 }]])], [500, new Map([[1, { ask: 1, bid: 4 }]])]]);
+  const base = { bars, accumulator: acc, horizonBarSec: null, horizonStartedAtSec: null, aggressorMethod: "EXCHANGE", verifiedTape: true, accumulatorStartedAtSec: 350 };
+
+  it("closed bars from sides, the newest side bar (forming at read time) and later from the tape", () => {
+    const r = selectCvdSided({ ...base, barSides: sides });
+    expect(r.points.map(p => [p.time, p.delta, p.to])).toEqual([[100, 6, 6], [200, -6, 0], [300, 0, 0], [400, 5, 5], [500, -3, 2]]);
+    expect(r.barSideBars).toBe(3);
+    expect(r.tapeFromSec).toBe(400);
+    expect(r.points.every(p => !p.partial)).toBe(true); // tape held prints from 350, before 400 opened
+    expect(cvdCaption(r, s => String(s))).toBe("CVD · bar sides (provider) since 100 · signed tape from 400");
+  });
+
+  it("the hand-over bar is PARTIAL when the tape began inside it", () => {
+    const r = selectCvdSided({ ...base, accumulatorStartedAtSec: 420, barSides: sides });
+    expect(r.points.find(p => p.time === 400)!.partial).toBe(true);
+  });
+
+  it("no verified tape: the sides still carry the history; the tape bars are not added", () => {
+    const r = selectCvdSided({ ...base, verifiedTape: false, barSides: sides });
+    expect(r.points.map(p => p.time)).toEqual([100, 200, 300]);
+    expect(r.refused).toBeNull();
+  });
+
+  it("no sides → the tape-only rule, unchanged", () => {
+    const a = selectCvdSided({ ...base, barSides: new Map() });
+    const b = selectCvdSided({ ...base });
+    expect(a).toEqual(b);
+  });
+});

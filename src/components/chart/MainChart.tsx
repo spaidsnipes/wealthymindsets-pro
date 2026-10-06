@@ -3510,6 +3510,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       aggressorMethod: getRuntimeTapeCapability(src)?.aggressorMethod ?? null,
       verifiedTape: hasRealAggressorTape(src ?? ""),
       accumulatorStartedAtSec: tickAccStartedAtRef.current,
+      // The provider's own bar sides carry the cumulative through the history.
+      barSides: candleSidedRef.current,
     });
     tapeCvdRef.current = r;
     const pair = ofColorsRef.current.delta ?? OF_DEFAULT;
@@ -22815,7 +22817,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const cvdSeries = tapeCvdSeriesRef.current;
       const cvd = tapeCvdRef.current;
       try { if (cvdSeries && cvd) {
-        canvas.dataset.cvdSource = cvd.refused ? "REFUSED" : "TAPE";
+        canvas.dataset.cvdSource = cvd.refused ? "REFUSED" : cvd.barSideBars ? `BAR_SIDES:${cvd.barSideBars}${cvd.tapeFromSec != null ? "+TAPE" : ""}` : "TAPE";
         canvas.dataset.cvdBars = String(cvd.points.length);
         canvas.dataset.cvdSides = cvd.sidesInferred ? "INFERRED" : "LABELLED";
         try {
