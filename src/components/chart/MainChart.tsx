@@ -16886,17 +16886,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.textBaseline = "bottom";
                 const ROW = 13;
                 const placed: { x: number; y: number; w: number; h: number }[] = [];
-                const hits = (q: { x: number; y: number; w: number; h: number }) =>
-                  [...placed, ...floatingChips].some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y);
+                const over = (q: { x: number; y: number; w: number; h: number }, rs: readonly { x: number; y: number; w: number; h: number }[]) =>
+                  rs.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y);
+                const fixedChips = [...floatingChips];
                 let stepped = 0;
                 for (const t of [...tickWords].sort((p, q) => p.y - q.y)) {
                   const tw = ctx.measureText(t.text).width;
                   const x = plotRightD - tw - 6;
-                  let by = t.y - 2;
-                  for (const k of [0, -1, 1, -2, 2, -3, 3]) {
-                    const cand = t.y - 2 + k * ROW;
-                    if (!hits({ x: x - 3, y: cand - 12, w: tw + 6, h: 13 })) { by = cand; break; }
-                  }
+                  const at = (k: number) => ({ x: x - 3, y: t.y - 2 + k * ROW - 12, w: tw + 6, h: 13 });
+                  const near = [0, -1, 1, -2, 2, -3, 3];
+                  // Clear of everything if possible; failing that (crowded live
+                  // edge, serving NQ 5m NEAREST scope: three ticks within 4px)
+                  // clear of its own siblings at least — two tick labels never
+                  // print over each other.
+                  const k = near.find(k => !over(at(k), [...placed, ...fixedChips]))
+                    ?? [...near, -4, 4, -5, 5, -6, 6].find(k => !over(at(k), placed))
+                    ?? 0;
+                  const by = t.y - 2 + k * ROW;
                   if (by !== t.y - 2) {
                     stepped++;
                     ctx.strokeStyle = `rgba(${t.rgb},${(0.5 * t.a).toFixed(3)})`;
