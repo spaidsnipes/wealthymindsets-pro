@@ -59,3 +59,19 @@
     min-height: 44px;
   }
 }
+
+/* Short desktop windows (ATHOS order §4, measured 2026-10-05 at 1920×784):
+   the honesty panel and scene line above the body left the order ticket
+   343px tall — it scrolled, but read as clipped. On a short window the PAGE
+   scrolls instead and the body keeps a working height, so the ticket's
+   controls are never squeezed. Tall windows are unchanged. */
+@media (min-width: 768px) and (max-height: 900px) {
+  .page {
+    overflow-y: auto !important;
+  }
+
+  .body {
+    flex: none !important;
+    min-height: 560px !important;
+  }
+}
