@@ -14,7 +14,7 @@ import type { ContractEvent } from "@/lib/broker/tastyContractQuote";
 import type { Leg } from "@/lib/broker/useTastyFuturesPositioning";
 import { selectOptionFlowEvents, type OptionLeg, type OptionPrint, type OptionFlowVM } from "@/lib/marketData/viewModels/selectOptionFlowEvents";
 
-const MAX_PRINTS = 3000;
+const MAX_PRINTS = 20_000;
 const FLUSH_MS = 1000;
 // Back to the last regular session on a stock chart read overnight; each
 // contract's snapshot is still the provider's own (~1,000 prints).

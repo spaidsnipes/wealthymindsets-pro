@@ -97,10 +97,19 @@ export function selectOptionFlowEvents(
   // relative rule waits for MEDIAN_SAMPLE prints, the floor applies before.
   const minSize = Math.max(MIN_CONTRACTS, sizes.length >= MEDIAN_SAMPLE ? Math.ceil(MEDIAN_MULTIPLE * median) : 0);
   const big = clean.filter(p => p.size >= minSize).sort((a, b) => a.timeMs - b.timeMs);
+  // Same instant + same size → the contracts that printed it (one pass, not
+  // every pair: a session of SPY prints is thousands of qualifying rows).
+  const twins = new Map<string, Set<string>>();
+  for (const p of big) {
+    const k = `${p.timeMs}|${p.size}`;
+    const set = twins.get(k) ?? new Set<string>();
+    set.add(p.streamer);
+    twins.set(k, set);
+  }
   const events: OptionFlowEvent[] = big.map(p => {
     const leg = legs.get(p.streamer)!;
     const { side, stamped } = sideOf(p);
-    const multiLeg = big.some(q => q !== p && q.streamer !== p.streamer && q.timeMs === p.timeMs && q.size === p.size);
+    const multiLeg = (twins.get(`${p.timeMs}|${p.size}`)?.size ?? 0) > 1;
     return {
       id: `${p.streamer}|${p.timeMs}|${p.sequence ?? ""}`,
       timeMs: p.timeMs, contract: leg.contract, type: leg.type, strike: leg.strike, expiration: leg.expiration,
@@ -108,7 +117,12 @@ export function selectOptionFlowEvents(
       premiumEst: leg.multiplier != null && leg.multiplier > 0 ? p.price * p.size * leg.multiplier : null,
       multiLeg,
     };
-  }).slice(-maxEvents);
+  })
+    // The LARGEST qualify for the budget, not the newest (serving SPY overnight:
+    // the 40 newest all sat in the closing minutes), then back to time order.
+    .sort((a, b) => b.size - a.size || b.timeMs - a.timeMs)
+    .slice(0, maxEvents)
+    .sort((a, b) => a.timeMs - b.timeMs);
   return {
     events, heard: clean.length, minSize,
     receipt: `OPTFLOW:HEARD:${clean.length}|MIN:${minSize}|EVENTS:${events.length}|STAMPED:${events.filter(e => e.sideStamped).length}`,

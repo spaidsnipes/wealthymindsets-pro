@@ -48,4 +48,10 @@ describe("options flow events (P-03)", () => {
     expect(vm.events.every(e => e.multiLeg)).toBe(true);
     expect(flowSideWords(vm.events[1])).toContain("MULTI-LEG?");
   });
+
+  it("the budget keeps the LARGEST qualifying prints, in time order", () => {
+    const prints = [p({ size: 50, timeMs: 1, sequence: 1 }), ...Array.from({ length: 5 }, (_, i) => p({ size: 6, timeMs: 100 + i, sequence: 10 + i }))];
+    const vm = selectOptionFlowEvents(prints, legs, 3);
+    expect(vm.events.map(e => [e.timeMs, e.size])).toEqual([[1, 50], [103, 6], [104, 6]]);
+  });
 });
