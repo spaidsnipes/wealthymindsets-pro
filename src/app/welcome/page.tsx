@@ -114,7 +114,10 @@ export default function WelcomePage() {
 
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 18, marginTop: 26 }} className="wm-welcome-grid">
           <section aria-label="Guest sample chart" style={{ background: "#0b0c10", border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, minWidth: 0 }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 10 }}>
+            {/* Each step is its own group, so on a phone "2 · View" starts its
+                own row instead of trailing the market buttons. */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 20px", alignItems: "center", marginBottom: 10 }}>
+              <div role="group" aria-label="1 · Market" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
               <span style={{ fontSize: 12, fontWeight: 700 }}>1 · Market</span>
               {MARKETS.map(mk => (
                 <button key={mk.id} type="button" aria-pressed={market === mk.id} onClick={() => setMarket(mk.id)}
@@ -122,13 +125,16 @@ export default function WelcomePage() {
                   {mk.id}
                 </button>
               ))}
-              <span style={{ marginLeft: 12, fontSize: 12, fontWeight: 700 }}>2 · View</span>
+              </div>
+              <div role="group" aria-label="2 · View" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: 12, fontWeight: 700 }}>2 · View</span>
               {(["CLEAN", "PROFILE", "STRUCTURE"] as const).map(v => (
                 <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
                   className="wm-tap" style={{ minHeight: 44, padding: "0 12px", borderRadius: 8, border: `1px solid ${view === v ? GOLD : "rgba(255,255,255,0.14)"}`, background: view === v ? "rgba(201,165,92,0.14)" : "transparent", color: view === v ? "#e8b923" : INK, cursor: "pointer", fontSize: 12 }}>
                   {v.charAt(0) + v.slice(1).toLowerCase()}
                 </button>
               ))}
+              </div>
             </div>
             <div style={{ fontSize: 11, color: "#e0a050", fontWeight: 700, letterSpacing: "0.08em", marginBottom: 6 }}>
               {m.label.toUpperCase()} · 5M · SIMULATED — NOT MARKET DATA
