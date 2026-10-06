@@ -86,7 +86,11 @@ export default function WelcomePage() {
   const W = 760, H = 360, padR = 70;
   const lo = Math.min(...bars.map(b => b.l)), hi = Math.max(...bars.map(b => b.h));
   const y = (p: number) => 14 + ((hi - p) / (hi - lo)) * (H - 28);
-  const bw = (W - padR) / bars.length;
+  // The profile gets its OWN lane right of the candles — a lens never covers
+  // the newest bars (canon: no lens over the active candle).
+  const lane = view === "PROFILE" ? 150 : 0;
+  const plotW = W - padR - lane;
+  const bw = plotW / bars.length;
   const x = (i: number) => i * bw + bw / 2;
   const dp = m.start < 1000 ? 2 : 0;
   const fmt = (p: number) => p.toFixed(dp);
@@ -130,13 +134,13 @@ export default function WelcomePage() {
             <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Simulated ${m.id} sample chart, ${view.toLowerCase()} view`} style={{ width: "100%", height: "auto", display: "block" }}>
               {view === "PROFILE" && (
                 <g>
-                  <rect x={0} y={y(prof.vah)} width={W - padR} height={y(prof.val) - y(prof.vah)} fill="rgba(201,165,92,0.08)" />
+                  <rect x={0} y={y(prof.vah)} width={plotW} height={y(prof.val) - y(prof.vah)} fill="rgba(201,165,92,0.08)" />
                   {prof.vol.map((v, r) => {
                     const max = Math.max(...prof.vol);
                     const top = y(prof.lo + (r + 1) * prof.size), bot = y(prof.lo + r * prof.size);
-                    return <rect key={r} x={W - padR - (v / max) * 150} y={top} width={(v / max) * 150} height={Math.max(1, bot - top - 1)} fill="rgba(201,165,92,0.28)" />;
+                    return <rect key={r} x={plotW + 6} y={top} width={(v / max) * (lane - 12)} height={Math.max(1, bot - top - 1)} fill="rgba(201,165,92,0.28)" />;
                   })}
-                  <line x1={0} x2={W - padR} y1={y(prof.poc)} y2={y(prof.poc)} stroke={GOLD} strokeDasharray="5 4" />
+                  <line x1={0} x2={plotW + lane} y1={y(prof.poc)} y2={y(prof.poc)} stroke={GOLD} strokeDasharray="5 4" />
                 </g>
               )}
               {bars.map((b, i) => (
