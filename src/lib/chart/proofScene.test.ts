@@ -118,3 +118,15 @@ describe("Dual Anatomy in a proof scene (serving NQ1! 5m, 2026-10-06: a G06 body
     expect(proofSceneValue(parseProofScene("?on=BrickWalls"), "wm_anatomyMode")).toBeUndefined();
   });
 });
+
+describe("the chart reads Dual Anatomy through its one owner", () => {
+  // Serving NQ1! 5m scene=clean (2026-10-06 10:41 CDT): MainChart read the saved
+  // wm_anatomyMode key directly and painted dualAnatomy FUSION in a clean scene.
+  it("MainChart has no direct read of the saved key; it calls readAnatomyMode()", async () => {
+    const { readFileSync } = await import("node:fs");
+    const mc = readFileSync("src/components/chart/MainChart.tsx", "utf8");
+    expect(mc.length).toBeGreaterThan(100000);
+    expect(mc).not.toContain("localStorage.getItem(ANATOMY_MODE_KEY)");
+    expect(mc).toContain("const read = () => { anatomyModeRef.current = readAnatomyMode(); };");
+  });
+});

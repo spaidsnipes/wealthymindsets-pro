@@ -339,6 +339,11 @@ describe("causal-mark plates stay in pane 0 and step off earlier chips", () => {
     expect(placed).toBeGreaterThan(-1);
     expect(leader).toBeGreaterThan(placed);
   });
+  it("the DEBT plate is centred on the event's x by its own measured width (F04A, serving 2026-10-06)", () => {
+    const b = forceResponse();
+    expect(b).toContain("const px0 = ex - debtW / 2;");
+    expect(b).not.toContain("const px0 = ex - 95;");
+  });
 });
 
 describe("the RESPONSE is graded on closed bars only", () => {

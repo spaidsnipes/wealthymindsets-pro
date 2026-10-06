@@ -5226,7 +5226,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         <div className="wm-chart-orientation-actions">
         {(narrowViewport || optionsOpen) && (chartCanvasVM.decisionWhy || chartPassportVM.capturedAt !== null) && (
           <button
-            className="wm-chart-orientation-action wm-chart-why-trigger"
+            className="wm-chart-orientation-action wm-chart-why-trigger wm-tap-slop"
             ref={whyTriggerRef}
             type="button"
             onClick={(event) => {

@@ -21,11 +21,17 @@ describe("the heat layer is redrawn only when what it paints changes", () => {
   });
   it("every blur filter and gradient on the heat layer sits inside a replayed draw, and the layer is cleared only when it is replayed", () => {
     const loopBody = block.slice(0, block.indexOf("const T = mainCtx.getTransform();"));
-    const firstDraw = loopBody.indexOf("heatDraws.push(() => {");
+    const firstDraw = loopBody.indexOf("heatDraws.push(() => paintHeatCellSprite(cellSpriteKey, reach, (ctxHeat: CanvasRenderingContext2D) => {");
     expect(firstDraw).toBeGreaterThan(0);
     for (const m of loopBody.matchAll(/ctxHeat\.filter = `blur/g)) expect(m.index!).toBeGreaterThan(firstDraw);
     expect(block).toMatch(/if \(heatDraws\.length > 0 && heatKey !== heatLayerKeyRef\.current\) \{\s*ctxHeat\.setTransform\(1, 0, 0, 1, 0, 0\);\s*ctxHeat\.clearRect\(0, 0, hc\.width, hc\.height\);\s*ctxHeat\.setTransform\(T\);\s*for \(const draw of heatDraws\) draw\(\);/);
     expect(block.match(/clearRect\(/g)).toHaveLength(1);
+  });
+  it("a cell whose own pixels did not change is composited from its sprite, keyed by the layer size, transform, regulator and that cell's key part", () => {
+    expect(block).toContain("const cellSpriteKey = heatKeyParts[heatKeyParts.length - 1];");
+    expect(block).toContain("const key = `${hc.width}x${hc.height}|${T.a},${T.d},${T.e},${T.f}|${heat.maxOpacity}|${part}`;");
+    expect(block).toContain("contours += sprite.contours;");
+    expect(block).toContain("ds.heatLensCellSprites = `REUSED:${heatSpritesReused}|DRAWN:${heatSpritesDrawn}`;");
   });
   it("the receipt names which happened; the counts stay the drawn counts", () => {
     expect(block).toContain('ds.heatLensLayer = "REDRAWN";');

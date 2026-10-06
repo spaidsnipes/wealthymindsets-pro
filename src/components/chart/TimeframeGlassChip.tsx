@@ -254,7 +254,7 @@ export function TimeframeGlassChip({ timeframe, setTimeframe, symbol }: Props) {
         title={`Timeframe: ${timeframeSpokenName(timeframe as never)}`}
         style={{ pointerEvents: "auto" }}
         className={clsx(
-          "wm-chart-timeframe-chip-trigger block mx-auto px-3 h-7 min-w-11 rounded",
+          "wm-chart-timeframe-chip-trigger wm-tap-slop block mx-auto px-3 h-7 min-w-11 rounded",
           "text-[11px] font-mono font-bold tracking-wide",
           "wm-room-chrome border border-wm-border",
           "text-wm-text-dim hover:text-wm-text hover:border-wm-blue/40 transition-colors",

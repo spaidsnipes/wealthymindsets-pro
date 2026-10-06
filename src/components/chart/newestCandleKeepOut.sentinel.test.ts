@@ -170,6 +170,14 @@ describe("the narrow absorption chip's backing yields to the newest bodies", () 
   it("paints the backed form at an alpha the placement allows", () => {
     expect(chip).toMatch(/ctx\.fillStyle = `rgba\(14,12,8,\$\{keepOutBackingAlpha\(chipSpot, 0\.92\)\}\)`;\s*ctx\.fillRect\(chipX, chipY, chipW, chipH\);/);
   });
+
+  // Serving NQ1! 15m, 2026-10-06 10:46 CDT: a shelf under the newest candles had
+  // every slot above/below on a body, and the desktop words printed through them.
+  it("desktop shelf words with no clear slot over the shelf step beside it (left), only onto a spot clear of every body", () => {
+    expect(chip).toContain("const leftX = Math.max(2, x0 - chipW - 8);");
+    expect(chip).toContain("const leftRects = [(yHi + yLo) / 2 - chipH / 2, ...slots]");
+    expect(chip).toMatch(/if \(left && !left\.onCandles\) \{ shelfWordsBeside\+\+; return left; \}\s*chipX = keepX;/);
+  });
 });
 
 describe("the exhaustion chip clears every body under its row and the chips on the glass", () => {
@@ -223,5 +231,17 @@ describe("price sovereignty: a column chip with no free slot goes to the stack, 
     const MC = readFileSync("src/components/chart/MainChart.tsx", "utf8");
     expect(MC).toContain("if (opts.leftX != null && spotL.onCandles) {");
     expect(MC).toContain("if (!spotR.onCandles) { spotL = spotR; movedToStack = true; levelChipsToStack++; }");
+  });
+});
+
+// Phone pass 2026-10-06 (844x390, 834x1112): "POC 86249.00" slid onto the
+// left-edge countdown. The countdown's box is chrome every later chip clears.
+describe("the candle countdown is a blocker for every later chip placer", () => {
+  it("records its box when it paints and seeds floatingChips with it", () => {
+    expect(CHART).toContain("candleTimerRect = { x: x - 2, y: boxY - 2, w: boxW + 4, h: boxH + 4 };");
+    const timerAt = CHART.indexOf("candleTimerRect = { x: x - 2");
+    const seedAt = CHART.indexOf("if (candleTimerRect) floatingChips.push(candleTimerRect);");
+    expect(timerAt).toBeGreaterThan(0);
+    expect(seedAt).toBeGreaterThan(timerAt);
   });
 });

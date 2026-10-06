@@ -287,7 +287,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
 
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
 const ANATOMY_BLOCK_RECEIPTS = [
-  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTerrain", "absorptionTravel", "absorptionWall", "absorptionWords", "absorptionTerrainWords", "absorptionZones",
+  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTerrain", "absorptionTravel", "absorptionWall", "absorptionWords", "absorptionWordsBeside", "absorptionTerrainWords", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded", "exhaustionEffortResult", "exhaustionWords",
   "questionCallout", "questionChoice", "questionLensForm", "questionLensHome", "questionLensTag", "questionBandYielded",
@@ -613,7 +613,7 @@ import { marketClockReceipt, noteSeries, notePaint, resetMarketClock } from "@/l
 import { QUIET_CEILING, NARROW_GLASS_MAX_PX, NARROW_GLASS_MIN_PLOT_H } from "@/lib/marketData/viewModels/selectSemanticPermission";
 import { wallContact } from "@/lib/marketData/viewModels/wallContact";
 import { coinbaseProductFor, fetchCoinbaseTradeHistory } from "@/lib/marketData/coinbaseTradeBackfill";
-import { ANATOMY_MODE_EVENT, ANATOMY_MODE_KEY } from "@/lib/chart/anatomyMode";
+import { ANATOMY_MODE_EVENT, readAnatomyMode } from "@/lib/chart/anatomyMode";
 import { selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 /** The forming candle's own print ring (bounded; a truncated ring is named in its receipt). */
 const FORMING_RING_CAP = 3000;
@@ -2179,6 +2179,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   /** What the heat layer last rendered (heatLayerKey) — an unchanged field is not re-blurred (perf pass 2026-10-06). */
   const heatLayerKeyRef = useRef<string | null>(null);
   const heatContoursCachedRef = useRef(0);
+  /** Per-cell heat sprites (serving NQ1! live tape, 2026-10-06): each print moved
+   *  the forming cell, so the whole-layer key missed on most frames and all ~70
+   *  blurs re-ran. A cell whose own pixels did not change is now composited from
+   *  its sprite; only the changed cell is re-blurred. */
+  /** A cell sprite is composited whole — its pixels already carry the regulated alpha. */
+  const HEAT_SPRITE_WHOLE = 1;
+  const heatCellSpritesRef = useRef<Map<string, { canvas: HTMLCanvasElement; x: number; y: number; contours: number }>>(new Map());
   /** F08B storm texture cache (weatherStorm.ts) — rebuilt only when its key changes; STILL holds the frozen phase. */
   const stormCacheRef = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
   /** A storm rebuild in progress: half the rows per frame, swapped in when whole (performance pass). */
@@ -2295,12 +2302,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // DUAL ANATOMY mode (Appearance; persisted). OFF · MARKET · FOUNDER · FUSION.
   const anatomyModeRef = useRef<"OFF" | "MARKET" | "FOUNDER" | "FUSION">("MARKET");
   useEffect(() => {
-    const read = () => {
-      try {
-        const v = localStorage.getItem(ANATOMY_MODE_KEY);
-        anatomyModeRef.current = v === "OFF" || v === "FOUNDER" || v === "FUSION" ? v : "MARKET";
-      } catch { anatomyModeRef.current = "MARKET"; }
-    };
+    // Through the mode's one owner, so a proof scene decides for this load
+    // (serving NQ1! 5m scene=clean, 2026-10-06 10:41 CDT: the chart read the
+    // saved key directly and painted dualAnatomy FUSION in a clean scene).
+    const read = () => { anatomyModeRef.current = readAnatomyMode(); };
     read();
     window.addEventListener(ANATOMY_MODE_EVENT, read);
     return () => window.removeEventListener(ANATOMY_MODE_EVENT, read);
@@ -9314,13 +9319,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // on a long leader, stepping round a right-hand Inspect column
               // that now opens on the left). plate() keeps it in the plot and
               // steps it off the disc and every chip already placed.
-              const px0 = ex - 95;
+              // CENTRED on the event's x (serving NQ1! 1m select=bigtrade,
+              // 2026-10-06 10:40 CDT: a fixed ex − 95 left edge hung the plate
+              // ~40 px left of the event it settles). plate() measures with the
+              // same font, so the plate's own width centres it.
+              ctx.font = `700 10px ${MARKET_SANS}`;
+              const debtW = Math.max(ctx.measureText("UNPAID EVIDENCE DEBT").width, ctx.measureText(`${pr.responseBars}/3 response bars closed`).width) + 12;
+              const px0 = ex - debtW / 2;
               const py0 = up ? ey - 62 : ey + 30;
               const debt = plate(["UNPAID EVIDENCE DEBT", `${pr.responseBars}/3 response bars closed`], px0, py0, true);
-              // The leader leaves the plate where it actually landed.
+              // The leader leaves the plate where it actually landed: straight
+              // up/down from its edge when the plate spans the event's x, else
+              // from its near side.
               ctx.save(); clipOutChips(ctx, W, H, forceChips, debt);
               ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(232,184,92,0.7)"; ctx.lineWidth = 1;
-              ctx.beginPath(); ctx.moveTo(ex < debt.x ? debt.x : debt.x + debt.w, debt.y + debt.h / 2); ctx.lineTo(ex - 5, ey); ctx.stroke(); ctx.setLineDash([]);
+              ctx.beginPath();
+              if (ex >= debt.x && ex <= debt.x + debt.w) { const below = debt.y > ey; ctx.moveTo(ex, below ? debt.y : debt.y + debt.h); ctx.lineTo(ex, below ? ey + 5 : ey - 5); }
+              else { ctx.moveTo(ex < debt.x ? debt.x : debt.x + debt.w, debt.y + debt.h / 2); ctx.lineTo(ex - 5, ey); }
+              ctx.stroke(); ctx.setLineDash([]);
               ctx.restore();
             }
             if (xEnd != null) {
@@ -11188,6 +11204,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
          on the left edge, so it travels vertically with price.
          Gated by chartSettings.candleTimer (Chart Settings toggle).
       ══════════════════════════════════════════════════════ */
+      // The countdown's box this frame (Founder priority): every later chip
+      // placer reads it through floatingChips and steps off it.
+      let candleTimerRect: { x: number; y: number; w: number; h: number } | null = null;
       try { if (candleTimerRef.current && countdownRef.current && att.paints("candleTimer")) {
         const liveBars = barsRef.current;
         const lastBar  = liveBars.length ? liveBars[liveBars.length - 1] : null;
@@ -11208,6 +11227,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // 2026-09-28). Its ceiling is below that corner's rows.
           const cy    = Math.max(READING_ANCHOR_ROW_BOTTOM + 2 + boxH / 2, Math.min(H - boxH / 2 - 1, y));
           const boxY  = Math.round(cy - boxH / 2);
+          // Phone pass 2026-10-06 (844x390, 834x1112): "POC 86249.00" slid onto
+          // the countdown at the left edge. The box (and its pad) is chrome now.
+          candleTimerRect = { x: x - 2, y: boxY - 2, w: boxW + 4, h: boxH + 4 };
           const border = flash ? "#FF2E63" : (neon ? "#00FFA3" : "#2F80ED");
           // FL-06: desktop is one continuous price instrument. The countdown
           // keeps its real price coordinate, ring/progress, live-close flash,
@@ -11289,6 +11311,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Chips that float with price and were painted this frame; later chrome
       // steps around them instead of printing through them.
       const floatingChips: { x: number; y: number; w: number; h: number }[] = [...forceChips];
+      if (candleTimerRect) floatingChips.push(candleTimerRect);
       // Big-trade discs carry their size / time / price INSIDE (F07A), and
       // they were painted earlier this frame. Words placed later step off
       // them (live NQ open 2026-10-04: "SUPPORT · BROKEN · 11 LVL" printed
@@ -11647,6 +11670,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // ── ABSORPTION ZONE: pinned at the price the auction happened at.
             const absorbChipRects: { x: number; y: number; w: number; h: number }[] = [];
             let absorbChipsHidden = 0;
+            let shelfWordsBeside = 0;
             // H-501 · SEMANTIC ZOOM CHANGES THE REPRESENTATION, not just its
             // opacity. Same owner, same count the zoom word uses. FAR: a shelf
             // is only its two edges, no hatch, no words. MID: the shelf, its
@@ -12023,7 +12047,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 return 90;
               })();
               const plotRight = Math.max(4, W - axisW);
-              const chipX = Math.min(Math.max(2, x0), Math.max(2, plotRight - chipW - 2));
+              let chipX = Math.min(Math.max(2, x0), Math.max(2, plotRight - chipW - 2));
               // NO TWO CHIPS ON ONE ANOTHER. Neighbouring shelves printed
               // "ABSORPTION 4.18 MOD…ABSORPTION 2.83" as one smear. Try above
               // the shelf, then below it, then stepped further up; if every
@@ -12058,7 +12082,30 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   [...keepOut(), ...rowBodiesAt(Math.min(...slotRects.map(s => s.y)), Math.max(...slotRects.map(s => s.y + s.h)))],
                   s => hit(s.y),
                 );
-                return clear && !clear.onCandles ? clear : first;
+                if (clear && !clear.onCandles) return clear;
+                // BESIDE THE SHELF, LEFT (serving NQ1! 15m, 2026-10-06 10:46
+                // CDT: a shelf under the newest candles had every slot above
+                // and below it on a body, so "ABSORPTION SHELF / Force is
+                // hitting…" printed through the live candles). The words try
+                // the column just left of where the shelf begins — at the
+                // shelf's own height first, then the same stepped slots —
+                // and move there only when that spot is clear of every body.
+                const leftX = Math.max(2, x0 - chipW - 8);
+                if (leftX + chipW <= x0 - 2) {
+                  const keepX = chipX;
+                  chipX = leftX;
+                  const leftRects = [(yHi + yLo) / 2 - chipH / 2, ...slots]
+                    .filter(y => y >= HEADER_FLOOR_Y && y + chipH <= pane0Bottom)
+                    .map(y => ({ x: leftX, y: Math.max(2, y), w: chipW, h: chipH }));
+                  const left = leftRects.length === 0 ? null : pickSlotClearOfKeepOut(
+                    leftRects,
+                    [...keepOut(), ...rowBodiesAt(Math.min(...leftRects.map(s => s.y)), Math.max(...leftRects.map(s => s.y + s.h)))],
+                    s => hit(s.y),
+                  );
+                  if (left && !left.onCandles) { shelfWordsBeside++; return left; }
+                  chipX = keepX;
+                }
+                return first;
               })(slotRects.length === 0 ? null : pickSlotClearOfKeepOut(
                 slotRects,
                 desktopShelfInstrument ? [] : [
@@ -12115,6 +12162,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
             ctx.globalAlpha = 1;
             ds.absorptionChips = `${absorbChipRects.length}/${absorbChipRects.length + absorbChipsHidden}`;
+            // Shelf words that stepped beside the shelf (left) to stay off the candles.
+            if (shelfWordsBeside > 0) ds.absorptionWordsBeside = String(shelfWordsBeside); else delete ds.absorptionWordsBeside;
             // What the desktop shelf words say: names at rest, the selected
             // shelf's numbers when one is selected. None painted, no receipt.
             if (shelfNumbersShown) ds.absorptionWords = shelfNamesShown > 0 ? `SELECTED+${shelfNamesShown}_NAMES` : "SELECTED";
@@ -21153,6 +21202,44 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
              and is composited as before. Nothing painted changes. */
           const heatDraws: (() => void)[] = [];
           const heatKeyParts: string[] = [];
+          let heatSpriteT: DOMMatrix | null = null;
+          const heatSpritesUsed = new Set<string>();
+          let heatSpritesReused = 0, heatSpritesDrawn = 0;
+          const paintHeatCellSprite = (part: string, reach: { x0: number; x1: number; y0: number; y1: number }, body: (c: CanvasRenderingContext2D) => void) => {
+            const T = heatSpriteT ?? mainCtx.getTransform();
+            const sx = Math.max(0, Math.floor(T.a * reach.x0 + T.e)), sy = Math.max(0, Math.floor(T.d * reach.y0 + T.f));
+            const ex = Math.min(hc.width, Math.ceil(T.a * reach.x1 + T.e)), ey = Math.min(hc.height, Math.ceil(T.d * reach.y1 + T.f));
+            // A skewed transform or an empty reach: draw straight onto the layer, as before.
+            if (T.b !== 0 || T.c !== 0 || !(T.a > 0) || !(T.d > 0) || ex <= sx || ey <= sy) { heatSpritesDrawn++; body(ctxHeat); return; }
+            const key = `${hc.width}x${hc.height}|${T.a},${T.d},${T.e},${T.f}|${heat.maxOpacity}|${part}`;
+            const cache = heatCellSpritesRef.current;
+            let sprite = cache.get(key);
+            if (sprite) {
+              heatSpritesReused++;
+              contours += sprite.contours;
+            } else {
+              const sc = document.createElement("canvas");
+              sc.width = ex - sx; sc.height = ey - sy;
+              const sctx = sc.getContext("2d");
+              if (!sctx) { heatSpritesDrawn++; body(ctxHeat); return; }
+              sctx.setTransform(T.a, 0, 0, T.d, T.e - sx, T.f - sy);
+              const before = contours;
+              body(sctx);
+              sprite = { canvas: sc, x: sx, y: sy, contours: contours - before };
+              cache.set(key, sprite);
+              heatSpritesDrawn++;
+            }
+            heatSpritesUsed.add(key);
+            ctxHeat.save();
+            ctxHeat.setTransform(1, 0, 0, 1, 0, 0);
+            // The sprite already holds the cell at its regulated alpha; it is
+            // laid on whole (no second alpha), exactly as the direct draw did.
+            ctxHeat.globalAlpha = HEAT_SPRITE_WHOLE;
+            ctxHeat.globalCompositeOperation = "source-over";
+            ctxHeat.filter = "none";
+            ctxHeat.drawImage(sprite.canvas, sprite.x, sprite.y);
+            ctxHeat.restore();
+          };
           let painted = 0;
           let contours = 0;
           let untimed = 0;
@@ -21210,7 +21297,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                of the zone. The selector still owns the hard 0.30 regulator;
                this renderer can only spend less than it was handed. */
             heatKeyParts.push(`${cell.index}:${cx0.toFixed(2)}:${cx1.toFixed(2)}:${top.toFixed(2)}:${band.toFixed(2)}:${alpha}:${tone}:${cell.intensity}`);
-            heatDraws.push(() => {
+            // THE CELL'S OWN SPRITE: its draws land on a transparent layer the
+            // size of the cell's reach (band, smoke ellipses and their blur),
+            // which is composited source-over onto the heat layer — the same
+            // pixels as drawing the cell straight onto it, so a cell whose
+            // geometry, tone and alpha did not change is not re-blurred.
+            const smokeRy = Math.max(band * 1.1, 34), smokeRx = Math.max(cw * 0.9, 30), smokeR = Math.max(smokeRx, smokeRy);
+            const smokeBlur = Math.round(Math.min(18, Math.max(8, smokeRy / 3)));
+            const reach = { x0: cx0 + cw * 0.2 - smokeR - 4 * smokeBlur - 2, x1: cx0 + cw * 0.8 + smokeR + 4 * smokeBlur + 2, y0: top + band / 2 - smokeRy * 1.4 - 4 * smokeBlur - 2, y1: top + band / 2 + smokeRy * 1.4 + 4 * smokeBlur + 2 };
+            const cellSpriteKey = heatKeyParts[heatKeyParts.length - 1];
+            heatDraws.push(() => paintHeatCellSprite(cellSpriteKey, reach, (ctxHeat: CanvasRenderingContext2D) => {
             const wash = ctxHeat.createLinearGradient(0, top, 0, top + band);
             wash.addColorStop(0, "rgba(0,0,0,0)");
             wash.addColorStop(0.28, tone);
@@ -21289,11 +21385,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               contours++;
             }
             ctxHeat.restore();
-            });
+            }));
             painted++;
           }
           {
             const T = mainCtx.getTransform();
+            heatSpriteT = T;
             const heatKey = `${hc.width}x${hc.height}|${T.a},${T.b},${T.c},${T.d},${T.e},${T.f}|${heat.maxOpacity}|${heatKeyParts.join(";")}`;
             if (heatDraws.length > 0 && heatKey !== heatLayerKeyRef.current) {
               ctxHeat.setTransform(1, 0, 0, 1, 0, 0);
@@ -21302,6 +21399,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               for (const draw of heatDraws) draw();
               heatLayerKeyRef.current = heatKey;
               ds.heatLensLayer = "REDRAWN";
+              // Sprites no cell asked for this frame are let go (memory stays one field's worth).
+              for (const k of [...heatCellSpritesRef.current.keys()]) if (!heatSpritesUsed.has(k)) heatCellSpritesRef.current.delete(k);
+              ds.heatLensCellSprites = `REUSED:${heatSpritesReused}|DRAWN:${heatSpritesDrawn}`;
             } else if (heatDraws.length > 0) {
               // The same contours were counted as when they were drawn.
               contours = heatContoursCachedRef.current;
@@ -21475,6 +21575,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           delete ds.heatLensContours;
           delete ds.heatLensUntimed;
           delete ds.heatLensLayer;
+          delete ds.heatLensCellSprites;
           delete ds.weatherStorm;
         }
         /* ══ F08B · WEATHER IS A LENS — THE RING, ITS WORDS, ITS READOUT ══════

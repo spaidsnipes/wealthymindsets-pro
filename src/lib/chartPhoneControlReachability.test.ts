@@ -330,3 +330,16 @@ describe("phone chart control reachability", () => {
     expect(dashboard.match(/setTimeframe=\{setTimeframe\}/g)?.length ?? 0).toBe(1);
   });
 });
+
+// Phone pass 2026-10-06 (844x390, 834x1112): the timeframe chip measured 44x28
+// and the WHY trigger 23 px tall on touch screens wider than the 639 px branch.
+describe("small chart triggers carry the invisible 44 px tap slop", () => {
+  it("the timeframe chip trigger and the WHY trigger wear wm-tap-slop", () => {
+    expect(chip.length).toBeGreaterThan(1000);
+    expect(chip).toContain('"wm-chart-timeframe-chip-trigger wm-tap-slop ');
+    expect(dashboard).toContain('className="wm-chart-orientation-action wm-chart-why-trigger wm-tap-slop"');
+  });
+  it("below 380 px the symbol-row fidelity badge wraps inside the row instead of clipping", () => {
+    expect(css).toMatch(/@media \(max-width: 379px\) \{\s*\.wm-chart-market-summary \{[\s\S]*?flex-shrink: 1 !important;[\s\S]*?\.wm-chart-market-summary \.wm-fidelity-badge--chrome \{[\s\S]*?white-space: normal !important;/);
+  });
+});
