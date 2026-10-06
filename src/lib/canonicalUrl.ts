@@ -114,6 +114,37 @@ export function isNonCanonicalPlatformHost(
 }
 
 /**
+ * PLAIN-HTTP FRONT DOOR (guest journey pass 2026-10-06). MEASURED on
+ * production: `curl -I http://wealthymindsetspro.com/` and `/pricing` answered
+ * `HTTP/1.1 200 OK` over plain HTTP — the full app, unencrypted, with no
+ * redirect. (`www.` already 301s to the https apex at the Cloudflare edge.)
+ * The response carries Strict-Transport-Security, but browsers ignore HSTS
+ * delivered over HTTP, so a stranger who types the address can begin a sign-in
+ * journey on an insecure page.
+ *
+ * True ONLY when Cloudflare's edge says the VISITOR used http — the
+ * `cf-visitor` header (`{"scheme":"http"}`), which Cloudflare sets from the
+ * client connection — and only on the canonical host. Deliberately NOT read:
+ * `request.nextUrl.protocol`, whose scheme inside the Worker runtime is not a
+ * measured fact here; trusting it could 308 an https visitor to https forever.
+ * No header, a local host, or any parse failure → false (never redirect).
+ */
+export function isPlainHttpVisitOnCanonicalHost(
+  host: string | null | undefined,
+  cfVisitor: string | null | undefined,
+  canonicalHost: string = CANONICAL_HOST,
+): boolean {
+  if (!host || !cfVisitor) return false;
+  if (host.toLowerCase().trim() !== canonicalHost.toLowerCase()) return false;
+  try {
+    const parsed = JSON.parse(cfVisitor) as { scheme?: unknown };
+    return parsed?.scheme === "http";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Dreamboard (Above The Hill) external app URL, or NULL when this build was
  * given none. Env-driven — set NEXT_PUBLIC_DREAMBOARD_URL to Dreamboard's
  * Cloudflare host. Intentionally has NO Vercel default (zero Vercel coupling).

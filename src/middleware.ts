@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CANONICAL_HOST as canonicalHost, isNonCanonicalPlatformHost } from "@/lib/canonicalUrl";
+import {
+  CANONICAL_HOST as canonicalHost,
+  isNonCanonicalPlatformHost,
+  isPlainHttpVisitOnCanonicalHost,
+} from "@/lib/canonicalUrl";
 import { legacyAliasTarget } from "@/lib/legacyRouteAliases";
 
 /**
@@ -31,6 +35,16 @@ export function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.protocol = "https:";
     url.host = canonicalHost;
+    return NextResponse.redirect(url, 308);
+  }
+
+  // Plain http on the company domain → https (see the predicate for the
+  // measurement and for why only Cloudflare's cf-visitor header is trusted).
+  if (isPlainHttpVisitOnCanonicalHost(host, request.headers.get("cf-visitor"), canonicalHost)) {
+    const url = request.nextUrl.clone();
+    url.protocol = "https:";
+    url.host = canonicalHost;
+    url.port = "";
     return NextResponse.redirect(url, 308);
   }
 

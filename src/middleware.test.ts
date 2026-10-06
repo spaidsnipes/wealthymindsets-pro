@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isNonCanonicalPlatformHost,
+  isPlainHttpVisitOnCanonicalHost,
   PLATFORM_HOST_SUFFIXES,
   CANONICAL_HOST,
 } from "@/lib/canonicalUrl";
@@ -77,5 +78,22 @@ describe("canonical-host guard — no Passport on a platform hostname", () => {
 
   it("the module's own CANONICAL_HOST is not self-redirecting under the default argument", () => {
     expect(isNonCanonicalPlatformHost(CANONICAL_HOST)).toBe(false);
+  });
+});
+
+describe("plain-http guard — the company domain is never served unencrypted", () => {
+  it("REGRESSION: an http visitor on the canonical host is redirected (measured 200 over plain http)", () => {
+    expect(isPlainHttpVisitOnCanonicalHost(CANON, '{"scheme":"http"}', CANON)).toBe(true);
+  });
+  it("an https visitor is never redirected — that would be a loop", () => {
+    expect(isPlainHttpVisitOnCanonicalHost(CANON, '{"scheme":"https"}', CANON)).toBe(false);
+  });
+  it("no cf-visitor header (local dev, tests, self-fetch) is never redirected", () => {
+    expect(isPlainHttpVisitOnCanonicalHost(CANON, null, CANON)).toBe(false);
+    expect(isPlainHttpVisitOnCanonicalHost("localhost:3000", '{"scheme":"http"}', CANON)).toBe(false);
+  });
+  it("a malformed header is ignored, not trusted", () => {
+    expect(isPlainHttpVisitOnCanonicalHost(CANON, "http", CANON)).toBe(false);
+    expect(isPlainHttpVisitOnCanonicalHost(CANON, "{", CANON)).toBe(false);
   });
 });

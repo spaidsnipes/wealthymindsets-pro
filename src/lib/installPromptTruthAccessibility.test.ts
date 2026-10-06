@@ -82,4 +82,18 @@ describe("PWA install prompt truth and accessibility", () => {
     expect(prompt).toContain('localStorage.setItem("wm-install-dismissed", "true")');
     expect(prompt).toContain("Add to Home Screen");
   });
+
+  it("is withheld on the signed-out front door (measured covering /welcome's sign-up CTA)", () => {
+    const m = prompt.match(/const FRONT_DOOR = (\/.+\/);/);
+    expect(m, "FRONT_DOOR route table").toBeTruthy();
+    // eslint-disable-next-line no-eval
+    const re = eval(m![1]) as RegExp;
+    for (const p of ["/welcome", "/pricing", "/login", "/signup", "/reset-password", "/legal", "/legal/risk", "/auth/confirm"]) {
+      expect(re.test(p), p).toBe(true);
+    }
+    for (const p of ["/journal", "/morning-prep", "/profile", "/welcomeback"]) {
+      expect(re.test(p), p).toBe(false);
+    }
+    expect(prompt).toMatch(/FRONT_DOOR\.test\(pathname\)/);
+  });
 });

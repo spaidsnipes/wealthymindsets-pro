@@ -32,9 +32,21 @@ interface BeforeInstallPromptEvent extends Event {
 const PRICE_ROOMS = /^\/(charts|paper|desk|backtest|command-deck)(\/|$)/;
 const MIN_HEIGHT_FOR_OFFER_PX = 560;
 
+/**
+ * NEVER OVER THE FRONT DOOR (guest journey pass 2026-10-06). MEASURED on
+ * production at 390x844 with an iPhone Safari UA, signed out: three seconds
+ * after /welcome loaded this card rose over "Create a free account" — the one
+ * action the page exists for — and on /login it sat over the sign-in form's
+ * footer. A stranger who has not made an account yet is offered a home-screen
+ * shortcut to a door they have not walked through. The offer is withheld on
+ * every signed-out front-door page; it still appears in the document rooms
+ * after sign-in.
+ */
+const FRONT_DOOR = /^\/(welcome|pricing|login|signup|reset-password|legal|auth)(\/|$)/;
+
 export function InstallPrompt() {
   const pathname = usePathname() ?? "";
-  const overPrice = PRICE_ROOMS.test(pathname);
+  const overPrice = PRICE_ROOMS.test(pathname) || FRONT_DOOR.test(pathname);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [show,            setShow]           = useState(false);
   const [isIOS,           setIsIOS]          = useState(false);

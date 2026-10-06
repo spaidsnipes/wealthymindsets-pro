@@ -367,7 +367,7 @@ function LoginPage() {
               style={{ background: WM.surface.mid, border: `1px solid ${WM.border.hair}` }}>
               {(["login", "signup"] as const).map(m => (
                 <button key={m} onClick={() => setMode(m)}
-                  className="flex-1 py-3 rounded-lg text-[13px] font-bold transition-all"
+                  className="flex-1 min-h-[44px] py-3 rounded-lg text-[13px] font-bold transition-all"
                   style={mode === m
                     ? { background: WM.surface.raised, color: WM.gold.hero, border: `1px solid ${WM.border.strong}` }
                     : { color: WM.text.muted }}>
@@ -559,7 +559,7 @@ function LoginPage() {
               <div className="flex items-center gap-2 mt-6 px-3 py-2 rounded-lg"
                 style={{ background: WM.surface.deep, border: `1px solid ${WM.border.hair}` }}>
                 <CheckCircle size={12} className="shrink-0" style={{ color: WM.gold.mark }} />
-                <span className="text-[10px]" style={{ color: WM.text.muted }}>
+                <span className="text-[12px]" style={{ color: WM.text.muted }}>
                   {/* Was "Secured with PBKDF2-SHA512 encryption": on the live host sign-in
                       is Supabase Auth (PBKDF2 is the local, no-Supabase path only),
                       and a password hash is not encryption (2026-10-04). */}
