@@ -60,7 +60,7 @@ const routes = argv.filter((a, i) => !a.startsWith("--") && !argv[i - 1]?.starts
  * path would measure the login form twice and report the signup form as clean
  * without ever rendering it.
  */
-const ROUTES = routes.length ? routes : ["/login", "/login?mode=signup", "/reset-password", "/pricing", "/legal/risk", "/legal/market-data"];
+const ROUTES = routes.length ? routes : ["/login", "/login?mode=signup", "/reset-password", "/pricing", "/legal/risk", "/legal/market-data", "/welcome"];
 
 /**
  * Minimum comfortable touch target. WCAG 2.5.5 / Apple HIG both land on 44.

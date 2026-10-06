@@ -6,7 +6,7 @@ export const PUBLIC_AUTH_PATHS = ["/login", "/signup", "/reset-password"] as con
  * BEFORE signing up. Readable signed out AND signed in — unlike the auth doors,
  * a signed-in member is never bounced away from them.
  */
-export const PUBLIC_INFO_PATHS = ["/pricing", "/legal"] as const;
+export const PUBLIC_INFO_PATHS = ["/pricing", "/legal", "/welcome"] as const;
 
 export function isPublicInfoPath(pathname: string): boolean {
   return PUBLIC_INFO_PATHS.some(

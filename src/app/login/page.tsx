@@ -542,6 +542,7 @@ function LoginPage() {
               </div>
               {/* Readable before signing up (ATHOS order §9 / P0.4). */}
               <nav aria-label="Before you join" className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px]">
+                <Link href="/welcome" className="inline-flex min-h-11 items-center font-bold" style={{ color: WM.gold.mark }}>Explore as a guest →</Link>
                 <Link href="/pricing" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Pricing</Link>
                 <Link href="/legal/risk" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Risk disclosure</Link>
                 <Link href="/legal/market-data" className="inline-flex min-h-11 items-center" style={{ color: WM.gold.mark }}>Market data</Link>
