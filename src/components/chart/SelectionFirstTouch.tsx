@@ -21,7 +21,7 @@
  */
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { educationFor, type EducationKey } from "@/lib/chart/inventionEducation";
+import { educationFor, firstTouchFor, type EducationKey } from "@/lib/chart/inventionEducation";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 
 const GOLD = "#d4af37";
@@ -36,7 +36,7 @@ function readLearned(id: string): boolean {
 }
 
 /** The selected mark's education id + menu label, for Inspect's header on a phone. */
-export const InspectFirstTouchContext = createContext<{ id: EducationKey; label: string } | null>(null);
+export const InspectFirstTouchContext = createContext<{ id: EducationKey; label: string; objectId?: string | null } | null>(null);
 
 /**
  * Inside Inspect's header, phone only: "Brick Walls — Brick wall — a strike…".
@@ -51,13 +51,15 @@ export function InspectFirstTouchLine() {
     <div data-testid="inspect-first-touch" data-first-touch-id={ctx.id}
       className="hidden max-sm:block mt-1 text-[11px] leading-snug" style={{ color: PEARL }}>
       <span className="font-bold" style={{ color: GOLD }}>{ctx.label}</span>
-      <span style={{ color: MUTED }}> · </span>{edu.firstTouch}
+      <span style={{ color: MUTED }}> · </span>{firstTouchFor(ctx.id, ctx.objectId)}
     </div>
   );
 }
 
-export function SelectionFirstTouch({ id, label, inspectOpen, onOpenInspect }: {
+export function SelectionFirstTouch({ id, label, objectId, inspectOpen, onOpenInspect }: {
   id: EducationKey | null;
+  /** The selected market object's id, when the selection is one (zone vs swing wording). */
+  objectId?: string | null;
   /** The tool's name as its menu prints it. */
   label: string;
   inspectOpen: boolean;
@@ -73,7 +75,7 @@ export function SelectionFirstTouch({ id, label, inspectOpen, onOpenInspect }: {
       data-testid="selection-first-touch"
       data-first-touch-id={id}
       aria-live="polite"
-      aria-label={`${label}: ${edu.firstTouch}`}
+      aria-label={`${label}: ${firstTouchFor(id, objectId)}`}
       data-inspect-open={inspectOpen ? "true" : "false"}
       className={`absolute bottom-14 left-2 z-[76] rounded-lg p-2.5 shadow-2xl max-sm:bottom-12 max-sm:p-2 ${inspectOpen ? "max-sm:hidden" : ""}`}
       style={{
@@ -85,7 +87,7 @@ export function SelectionFirstTouch({ id, label, inspectOpen, onOpenInspect }: {
       <div className="text-[9px] font-bold uppercase tracking-[0.16em] max-sm:hidden" style={{ color: MUTED }}>You selected</div>
       <div className="text-[12.5px] font-bold leading-tight max-sm:hidden" style={{ color: GOLD }}>{label}</div>
       <div className="mt-1 text-[12px] leading-snug max-sm:mt-0 max-sm:text-[11.5px]" style={{ color: PEARL }} data-testid="first-touch-line">
-        <span className="hidden max-sm:inline font-bold" style={{ color: GOLD }}>{label} · </span>{edu.firstTouch}
+        <span className="hidden max-sm:inline font-bold" style={{ color: GOLD }}>{label} · </span>{firstTouchFor(id, objectId)}
       </div>
       {more ? (
         <div className="mt-1.5 text-[11.5px] leading-snug max-sm:hidden" style={{ color: PEARL }} data-testid="first-touch-more">

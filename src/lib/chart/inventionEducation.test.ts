@@ -120,3 +120,12 @@ describe("spot FX says 'needs traded volume' once", () => {
     expect((t.lines.join(" ").match(/needs traded volume/gi) ?? []).length).toBe(1);
   });
 });
+
+describe("first touch names the object it touched", () => {
+  it("a zone is a zone, a swing is a swing", async () => {
+    const { firstTouchFor } = await import("./inventionEducation");
+    expect(firstTouchFor("MARKET_STRUCTURE", "ZONE:coinbase:BTC|5m|1")).toMatch(/^Supply \/ demand zone/);
+    expect(firstTouchFor("MARKET_STRUCTURE", "SWING:abc")).toMatch(/^Swing level/);
+    expect(firstTouchFor("NOT_A_TOOL")).toBeNull();
+  });
+});

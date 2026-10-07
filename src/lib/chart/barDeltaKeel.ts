@@ -7,7 +7,7 @@
  * sign. Read left to right, the keels are the temporal story — aggression
  * arriving (keels appear), increasing (they lengthen), fading (they shorten),
  * and FAILURE TO DISPLACE: a strong keel whose bar did not move its way (body
- * against the delta, or under a fifth of an ATR) is drawn HOLLOW. Form, not
+ * against the delta, or under 0.15 ATR; |ratio| ≥ 0.35 — serving SPY 5m at 0.2 / 0.2 hollowed 26 of 72 keels, noise) is drawn HOLLOW. Form, not
  * hue, carries the failure.
  *
  * Evidence ladder (one owner each — this module only reads what they hand it):
@@ -46,9 +46,9 @@ export const KEEL_MIN_RATIO = 0.05;
 /** |ratio| at or above this paints a full-length keel. */
 export const KEEL_FULL_RATIO = 0.6;
 /** A keel this strong that fails to displace is a failure, not noise. */
-export const FAIL_MIN_RATIO = 0.2;
+export const FAIL_MIN_RATIO = 0.35;
 /** Displacement under this fraction of ATR is "did not move". */
-export const FAIL_MAX_BODY_ATR = 0.2;
+export const FAIL_MAX_BODY_ATR = 0.15;
 export const DELTA_KEEL_BUDGET_MS = 1.5;
 
 export function readKeels(rows: readonly KeelInput[]): Keel[] {

@@ -58,4 +58,25 @@ describe("Garden 19 §22 device manifestation", () => {
   it("the symbol row's verdict wraps on the whole phone band — canon words, never clipped", () => {
     expect(block).toMatch(/\.wm-chart-market-summary \.wm-fidelity-badge--chrome \{[^}]*white-space: normal !important;/);
   });
+  it("the phone thumb bar is exactly the height the pane reserves, on every pointer", () => {
+    const phone = block.slice(block.indexOf("@media (max-width: 639px) and (min-height: 521px)"));
+    expect(phone).toMatch(/\.wm-instrument-context-strip \{[^}]*box-sizing: border-box !important;[^}]*height: calc\(52px \+ env\(safe-area-inset-bottom\)\) !important;/);
+  });
+
+  it("a phone turned sideways keeps a Trade door — pills at the lower left, never over the newest candles", () => {
+    const land = block.slice(block.indexOf("@media (max-height: 520px) and (max-width: 1023px)"));
+    expect(land).toMatch(/\.wm-instrument-context-strip \{[^}]*position: fixed !important;[^}]*left: calc\(8px/);
+    expect(land).not.toMatch(/\.wm-instrument-context-strip \{[^}]*right: (?!auto)/);
+    expect(land).toMatch(/\[data-testid="context-trade"\],[\s\S]*?min-height: 44px !important;/);
+    expect(land).toMatch(/\[data-testid="context-trade"\] \{ order: -3;/);
+  });
+  it("a phone on its side gets a one-row market masthead: monogram, doors, utilities, the verdict as a chip", () => {
+    const m = block.slice(block.indexOf("PHONE LANDSCAPE: THE MASTHEAD IS ONE ROW"));
+    expect(m).toMatch(/@media \(max-height: 520px\) and \(max-width: 1023px\) \{\s*body:has\(\.wm-chart-market-pane\[data-market-primary="true"\]\) \.wm-os-masthead\.wm-os-masthead \{/);
+    // Only a LIVE, established verdict folds its detail; any other tone keeps it.
+    expect(m).toContain('.wm-os-feed-standing[data-tone="LIVE"][data-established="true"] [data-testid="os-feed-standing-detail"]');
+    expect(m).not.toMatch(/\.wm-os-feed-standing(?!\[data-tone="LIVE"\])[^{]*\{[^}]*display: none/);
+    // The tap floor is never what pays for the height.
+    expect(m).not.toMatch(/min-height: (?:[0-3]\d|4[0-3])px/);
+  });
 });

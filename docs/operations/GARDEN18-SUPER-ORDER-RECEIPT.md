@@ -615,3 +615,19 @@ Canon pulled from Drive "CURRENT VISUAL CANON — ONE AUTHORITY" (`1DFuPuMvggyKM
 | Real FX feed (EURUSD/GBPUSD update once a minute; no 1m high/low; no tick activity) | — | Yahoo EURUSD=X 60 s cadence measured | DEFERRED WITH FOUNDER SCOPE DECISION (OANDA practice token per canon) |
 | FX session bands (Asia/London/New York, overlap) + owner-only CME 6E/6B/6J related-market flow | `e7ace4e` → `b9a4877` (fractional logical index returned x 0; prints-only stream never opened) | serving EURUSD 5m `DRAWN:A1|L1|N1|O1|W2`, 0.90 ms MET; GBPUSD scene 0.40 ms; EURUSD `LIVE:B0|S2|D-2`, "CME 6E flow · related, not spot · 5m signed Δ -2"; GBPUSD 6B LIVE | CLOSED (non-owner line source-tested) |
 | NEW YORK label dropped when London and New York both start off-screen | label slides past the earlier one | test | shipping |
+
+## Garden 19 shift — Oct 6 20:40 → Oct 7 03:40 CDT (Candle-Field Intelligence & Final ATH Pre-Build Lock)
+Founder decisions: members bring their own tastytrade (and Webull when supported) + referral doors; Passport first month half off until the promotion ends; trade-from-chart authorized in chat.
+| Item | Build | Proof | Status |
+|---|---|---|---|
+| §34 invention census + 15 certificates + plate ⇄ glass (docs/operations/GARDEN19-INVENTION-CERTIFICATES.md) | `2fc2346`, `f8cb690` | live receipts NQ1!/SPY/EURUSD/BTC; Call ≠ Put ≠ Gamma holds live | CLOSED (doc); 6 inventions lack a Founder plate (Breathing, CVD notch, Failed Aggression, Compression, TED, Structure state); CLC blocked |
+| §7 Effort → Response inside each volume bar (Response Matrix cells; FX silent) | `2fc2346` → live `2f0351b` | serving NQ1! 5m `responseCells 150|ABS:17|INIT:28|VAC:12`, 1.0 ms mean | CLOSED |
+| §6 Bar Delta Keel (signed evidence only; hollow = failed to displace) | `2fc2346`, cost cache `f8cb690` | serving `barDeltaKeels 98|BASIS:TAPE2+SIDES148|FAIL:2`; 1.3 ms → cached | CLOSED (re-measure pending) |
+| §16/§14 notes collapse into "N MARKET EVENTS" + override | `f8cb690` | tests | shipped |
+| §17 one cross-candle wisdom line traced to evidence | `f8cb690` | tests | shipped |
+| §9/§10 ⓘ education on every tool + first touch | `2fc2346`, `f8cb690` | local 1440/834/390 | shipped (serving proof in progress) |
+| §25 member-owned tastytrade (read-only scope, AES-GCM grants per session user) + referral doors | `2fc2346` | 17 tests incl. A/B isolation | BLOCKED until Founder sets `WM_BROKER_GRANT_KEY`; tastytrade policy confirmation |
+| Passport intro offer (first month $10, then $20) | `2fc2346` | tests | CLOSED (display only) |
+| §22 phone thumb bar / tablet strip / Inspect bottom sheet | `2f0351b` | injected-CSS measurements; serving proof in progress | shipped |
+| §23 trade from chart — fail-closed server limits, kill switch, preflight, confirm sheet, UNKNOWN reconcile, chart-line store, readback; SpaidBot PROPOSE_ONLY | `f8cb690` | 30+ tests, no order ever sent | shipped; Founder must save limits + arm; chart order-line paint in progress |
+| Cloudflare build failure (route exported a non-route constant) | `2f0351b` + guard test | build LIVE | CLOSED |

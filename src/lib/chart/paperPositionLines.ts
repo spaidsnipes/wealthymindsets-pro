@@ -126,7 +126,8 @@ export function brokerCostLineTitle(p: BrokerCostLine): string {
  * is WITHHELD with a receipt, not overprinted.
  */
 export interface PriceLineWords {
-  readonly kind: "PAPER" | "BROKER";
+  /** ORDER = a chart order line (chartOrderLines.ts), Garden 19 §23. */
+  readonly kind: "PAPER" | "BROKER" | "ORDER";
   readonly price: number;
   readonly text: string;
   readonly ink: string;

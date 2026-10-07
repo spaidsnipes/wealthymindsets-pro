@@ -118,6 +118,9 @@ import { memoryLevelKindOf } from "@/lib/marketData/viewModels/selectMemoryMarke
 import { scenarioHedge, type ConcentrationWall, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 import { InspectFirstTouchLine } from "./SelectionFirstTouch";
+import { inspectEvidence, type EvidenceClass, type InspectEvidence } from "@/lib/chart/inspectEvidence";
+import type { CandleReadingRow } from "@/lib/chart/barCandleReadings";
+import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
  *  the feed, not a problem the trader caused. */
@@ -163,6 +166,44 @@ function zonedClock(timeZone: string | null | undefined) {
   };
 }
 const READ_COLOR = "#E8EAF2";
+
+/* ═══ Garden 19 §28 · INSPECT DEPTH — one evidence line on every ticket ═════
+   The canon's ladder word (FULL / PARTIAL / DEGRADED / SILENT), why, the
+   source, as of when, and the feed's own sentence when the feed lowered it.
+   The words come from inspectEvidence (one owner); this only lays them out. */
+// No green for FULL (§9 Sentinel: a verdict never chooses its own colour) — the WORD carries the class.
+const EVIDENCE_COLOR: Record<EvidenceClass, string> = { FULL: READ_COLOR, PARTIAL: "#E9C46A", DEGRADED: "#F0B429", SILENT: "#8B8FA8" };
+
+function EvidenceLine({ ev, timeZone, testId = "inspect-evidence" }: { ev: InspectEvidence; timeZone?: string | null; testId?: string }) {
+  const clock = zonedClock(timeZone);
+  return (
+    <div className="mt-1.5 rounded border-l-2 pl-2 text-[10px] leading-snug" data-testid={testId} data-inspect-evidence={ev.klass}
+      style={{ borderColor: EVIDENCE_COLOR[ev.klass], color: "#C8C0AE" }}>
+      <div className="font-bold tracking-wide" style={{ color: EVIDENCE_COLOR[ev.klass] }}>EVIDENCE · {ev.klass}</div>
+      <div>{ev.why}</div>
+      <div>Source · {ev.source ?? "not named by its owner"}{ev.asOfMs != null ? ` · as of ${clock.exact(ev.asOfMs)}` : ""}</div>
+      {ev.feedNote && <div style={{ color: UNREAD_COLOR }}>{ev.feedNote}</div>}
+    </div>
+  );
+}
+
+/** §28 · the inspected bar's candle readings — the numbers the glass withholds (selectBarCandleReadings). */
+function CandleReadingsBlock({ rows }: { rows: readonly CandleReadingRow[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-testid="inspect-candle-readings" style={{ color: "#C8C0AE" }}>
+      <div className="font-bold tracking-wide text-wm-gold">ACROSS THE CANDLES · THIS BAR</div>
+      {rows.map(r => (
+        <div key={r.id} className="pt-0.5" data-inspect-candle-reading={r.id} data-inspect-evidence={r.klass}>
+          <span className="font-bold text-white">{r.label}</span>{" "}
+          <span className="font-bold" style={{ color: EVIDENCE_COLOR[r.klass] }}>{r.klass}</span>
+          <div className={r.klass === "SILENT" ? undefined : "tabular-nums text-white"} style={r.klass === "SILENT" ? { color: UNREAD_COLOR } : undefined}>{r.value}</div>
+          <div className="text-wm-muted">from {r.basis}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function Row({ row, sameReasonAsAbove = false }: { row: TicketRow; sameReasonAsAbove?: boolean }) {
   const read = row.state === "READ";
@@ -262,7 +303,7 @@ function AnatomyRow({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
-function AnatomyTicket({ sel, onClose, timeZone }: { sel: SelectedAnatomy; onClose: () => void; timeZone?: string | null }) {
+function AnatomyTicket({ sel, onClose, timeZone, feed = null, sourceName = null }: { sel: SelectedAnatomy; onClose: () => void; timeZone?: string | null; feed?: MarketQualityState | "UNKNOWN" | null; sourceName?: string | null }) {
   const r = sel.reading;
   const absorption = r.target.reading === "ABSORPTION";
   // The body is the CURRENT reading whenever the owners still measure it; only
@@ -319,6 +360,7 @@ function AnatomyTicket({ sel, onClose, timeZone }: { sel: SelectedAnatomy; onClo
         <button className="ml-auto" aria-label="Close the inspect ticket" onClick={onClose}><X size={12} /></button>
       </div>
       <InspectFirstTouchLine />
+      <EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "ANATOMY", basis: (body ?? r).window.basis, asOfSec: (body ?? r).window.to ?? null, source: sourceName }, feed)} />
       <div className="mt-1 text-[11px] text-white">{sel.symbol} · {sel.timeframe} <span className="break-all font-mono text-[10px]" style={{ color: "#8B8676" }}>{r.id}</span></div>
       <div className="mt-1 text-[10px] font-bold tracking-wide" style={{ color: anatomyReadingDrawn(r) ? "#7FD1A6" : UNREAD_COLOR }}>
         {anatomyReadingDrawn(r) ? "ON THE GLASS" : r.state.replace(/_/g, " ")}
@@ -512,6 +554,8 @@ function PassportDrawer({
   activeDecisionId,
   timeZone,
   onClose,
+  feed = null,
+  sourceName = null,
 }: {
   object: MarketObject;
   zone: StructureZone | null;
@@ -519,6 +563,8 @@ function PassportDrawer({
   activeDecisionId: string | null;
   timeZone: string | null;
   onClose: () => void;
+  feed?: MarketQualityState | "UNKNOWN" | null;
+  sourceName?: string | null;
 }) {
   const clock = zonedClock(timeZone);
   const t = clock.stamp;
@@ -599,6 +645,7 @@ function PassportDrawer({
           <button className="ml-1" aria-label="Close the passport" onClick={onClose}><X size={14} /></button>
         </div>
         <InspectFirstTouchLine />
+        <EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "OBJECT", birthRead: own?.birth.state === "READ", asOfMs: null, source: sourceName }, feed)} />
         {/* D ≈ 0 — depth zero: the object, its lineage and its decision in ONE inspect (inspectChain.ts). */}
         <div className="mt-0.5 text-center text-[11px] tracking-[0.2em]" style={{ color: WM.text.body }} title="Depth zero — one inspect, the chart stays">D ≈ 0</div>
         <div className="mt-1 flex items-center gap-2 text-[12px]" style={{ color: WM.text.body }}>
@@ -870,6 +917,10 @@ export function ChartInspectTicket({
   clarity = null,
   printResponse = null,
   onSelectPrint,
+  feed = null,
+  sourceName = null,
+  tapeSourceName = null,
+  candleReadings = [],
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -932,6 +983,14 @@ export function ChartInspectTicket({
   printResponse?: PrintResponseVM | null;
   /** F07B · select one member of a selected cluster — the room's one selection. */
   onSelectPrint?: (print: SelectedBigTrade) => void;
+  /** §28 · the chart's feed state — it caps every evidence class (degraded behaviour). */
+  feed?: MarketQualityState | "UNKNOWN" | null;
+  /** §28 · the bar feed's provider name, as the room names it. */
+  sourceName?: string | null;
+  /** §28 · the tape's provider name (prints, footprint). */
+  tapeSourceName?: string | null;
+  /** §28 · the inspected bar's candle readings (selectBarCandleReadings). */
+  candleReadings?: readonly CandleReadingRow[];
 }) {
   // T-210 · MTF prices at the market's display decimals (the band's body is raw bar prices).
   const mtfPx = (v: number) => (priceDp != null ? v.toFixed(priceDp) : String(+v.toPrecision(8)));
@@ -975,12 +1034,14 @@ export function ChartInspectTicket({
         activeDecisionId={activeDecisionId}
         timeZone={timeZone}
         onClose={() => onOpenChange(false)}
+        feed={feed}
+        sourceName={sourceName}
       />
     );
   }
 
   if (selectedAnatomy) {
-    return <AnatomyTicket sel={selectedAnatomy} onClose={() => onOpenChange(false)} timeZone={timeZone} />;
+    return <AnatomyTicket sel={selectedAnatomy} onClose={() => onOpenChange(false)} timeZone={timeZone} feed={feed} sourceName={sourceName} />;
   }
 
   if (selectedProfileSlice) {
@@ -1003,6 +1064,7 @@ export function ChartInspectTicket({
           <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
         </div>
         <InspectFirstTouchLine />
+        <EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "SLICE", found: sl.found, estimated: sl.found ? sl.estimated : false, asOfSec: profileSliceAsOf, source: sl.found && !sl.estimated ? tapeSourceName : sourceName }, feed)} />
         {sl.found ? (
           <>
             <div className="mt-2 text-[11px] text-white">{profileSliceSymbol} · {fmt(sl.price)} – {fmt(sl.priceHigh)}{sl.isPoc ? " · POC" : ""}</div>
@@ -1080,6 +1142,7 @@ export function ChartInspectTicket({
             <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
           </div>
           <InspectFirstTouchLine />
+          <EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "PRINT", aggressorMethod: p.aggressorMethod, timeMs: p.timeMs ?? null, source: tapeSourceName }, feed)} />
           <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
           <div className="mt-1 text-[18px] font-bold leading-tight text-wm-gold">{formatBubbleExact(c.total)} <span className="text-[12px]">×{c.n}</span></div>
           <div className="text-[10px]" style={{ color: "#C8C0AE" }}>
@@ -1140,6 +1203,7 @@ export function ChartInspectTicket({
             <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
           </div>
           <InspectFirstTouchLine />
+          <EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "PRINT", aggressorMethod: p.aggressorMethod, timeMs: p.timeMs ?? null, source: tapeSourceName }, feed)} />
           <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
           <dl className="mt-2 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
             <dt>Net in this zone (bought − sold)</dt><dd className="text-white">{net >= 0 ? "+" : "−"}{formatBubbleExact(net)}</dd>
@@ -1162,6 +1226,7 @@ export function ChartInspectTicket({
           <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
         </div>
         <InspectFirstTouchLine />
+        <EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "PRINT", aggressorMethod: p.aggressorMethod, timeMs: p.timeMs ?? null, source: tapeSourceName }, feed)} />
         <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
         <dl className="mt-2 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
           <dt>Executed price</dt><dd className="text-white">{String(p.priceLevel)}</dd>
@@ -1267,6 +1332,11 @@ export function ChartInspectTicket({
         </div>
       )}
 
+      {!weatherLens && !pressureWall && !pressureFront && (
+        <EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "BAR", barRead: vm.barOpenMs !== null, signedTapeReaches: vm.reach === "COVERS_BAR", asOfMs: vm.barOpenMs, source: vm.reach === "COVERS_BAR" && tapeSourceName ? `${sourceName ?? "bars"} · tape ${tapeSourceName}` : sourceName }, feed)} />
+      )}
+      <CandleReadingsBlock rows={candleReadings} />
+
       <div className="mt-1.5 border-t border-wm-border pt-1">
         {vm.rows.map((row, i) => (
           <Row key={row.id} row={row} sameReasonAsAbove={i > 0 && row.state !== "READ" && vm.rows[i - 1].state !== "READ" && !!row.absence && row.absence === vm.rows[i - 1].absence} />
@@ -1359,6 +1429,7 @@ export function ChartInspectTicket({
         return (
           <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-weather={wv.stage} style={{ color: "#C8C0AE" }}>
             <div className="font-bold tracking-wide text-wm-gold">LIQUIDITY WEATHER · {wv.stage}</div>
+            <EvidenceLine timeZone={timeZone} testId="inspect-weather-evidence" ev={inspectEvidence({ kind: "WEATHER", measured: wv.stage !== "UNMEASURED", derived, asOfMs: to, source: derived ? sourceName : tapeSourceName }, feed)} />
             {wv.stage === "UNMEASURED" ? (
               <div>{wv.detail} — no weather is guessed at.</div>
             ) : (
@@ -1378,6 +1449,7 @@ export function ChartInspectTicket({
       {/* GARDEN 15 §4 · THE ZERO-GAMMA FRONT — the environment, explained. */}
       {pressureFront && (
         <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-pressure-front={pressureFront.drawn ? pressureFront.climate : "SILENT"} style={{ color: "#C8C0AE" }}>
+          <EvidenceLine timeZone={timeZone} testId="inspect-front-evidence" ev={inspectEvidence({ kind: "DERIVATIVES", drawn: pressureFront.drawn, fidelity: pressureFront.drawn ? pressureFront.fidelity : null, sourceName: pressureFront.drawn ? positioningSourceWords(pressureFront.source).name : "derivatives chain", asOfMs: pressureFront.drawn ? pressureFront.clocks.modelAsOf * 1000 : null }, feed)} />
           {pressureFront.drawn ? (
             <>
               <div className="font-bold tracking-wide text-wm-gold">DERIVATIVES ENVIRONMENT · {pressureFront.climate.replace("_", " ")}</div>
@@ -1431,6 +1503,7 @@ export function ChartInspectTicket({
         return (
           <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-pressure-wall={`${w.strike}:${w.life}`} style={{ color: "#C8C0AE" }}>
             <div className="font-bold tracking-wide text-wm-gold">PRESSURE WALL {mtfPx(w.strike)} · {w.life}</div>
+            <EvidenceLine timeZone={timeZone} testId="inspect-wall-evidence" ev={inspectEvidence({ kind: "DERIVATIVES", drawn: true, fidelity: dp.fidelity, sourceName: positioningSourceWords(dp.source).name, asOfMs: dp.clocks.modelAsOf * 1000 }, feed)} />
             <div>What · a damping concentration: dealer hedging expected to lean AGAINST moves through {mtfPx(w.strike)} (not a direction call)</div>
             <div>Where · strike {mtfPx(w.strike)}, price {w.side === "ABOVE" ? "above" : "below"} it · {(w.share * 100).toFixed(1)}% of gross exposure</div>
             <div>Evidence · call OI {w.callOi.toLocaleString()} · put OI {w.putOi.toLocaleString()} · ≈${(w.exposure / 1e6).toFixed(1)}M per 1% move</div>

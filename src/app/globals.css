@@ -1717,6 +1717,14 @@ input[type=range]::-webkit-slider-runnable-track {
     z-index: 45 !important;
     gap: 6px !important;
     padding: 4px 8px calc(4px + env(safe-area-inset-bottom)) !important;
+    /* Exactly the 52px the pane reserves, on every pointer. Measured on
+       production in a desktop-Chrome frame (pointer: fine): the bar stood
+       35px tall against a 52px reservation, and 17px of the scrolled spine
+       showed between the plaque and the bar. */
+    box-sizing: border-box !important;
+    height: calc(52px + env(safe-area-inset-bottom)) !important;
+    min-height: calc(52px + env(safe-area-inset-bottom)) !important;
+    align-items: center !important;
     background: #0b0a08 !important;
     border-top: 1px solid rgba(139,106,41,.32) !important;
     border-bottom: none !important;
@@ -1829,4 +1837,102 @@ input[type=range]::-webkit-slider-runnable-track {
   .wm-chart-room-header--market-home > .wm-chart-orientation-strip:not(:has(:not(.wm-chart-orientation-context, .wm-chart-orientation-actions))) {
     display: none !important;
   }
+}
+
+/* ── 5. PHONE LANDSCAPE: THE TRADE PILLS (Garden 19 §22, 2026-10-07) ────────
+   At 520px tall or less the phone and tablet rules above stand down, and the
+   max-width 900 rule hid the strip, so a phone turned sideways had no door to
+   Trade at all (measured 844x390: no Trade control on the page). Here the
+   strip becomes three floating pills — Trade, then Watchlist and Indicators
+   by their marks (names stay in the accessibility tree) — at the chart's
+   lower LEFT, over settled history and above the volume footer, the same
+   corner TradePanel already chose (§XIV): never over the forming candle, the
+   live price or the price axis. The instrument views stay reachable from
+   Tools; on a 390px-tall glass they would be a second toolbar. */
+@media (max-height: 520px) and (max-width: 1023px) {
+  .wm-instrument-context-strip {
+    display: flex !important;
+    position: fixed !important;
+    left: calc(8px + env(safe-area-inset-left)) !important;
+    bottom: calc(46px + env(safe-area-inset-bottom)) !important;
+    right: auto !important;
+    z-index: 45 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    gap: 6px !important;
+    background: transparent !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+  .wm-instrument-context-strip > * { display: none !important; }
+  .wm-instrument-context-strip > [data-testid="context-trade"],
+  .wm-instrument-context-strip > [data-testid="context-watchlist"],
+  .wm-instrument-context-strip > [data-testid="context-indicators"] {
+    display: inline-flex !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+    background-color: #0b0a08 !important;
+    box-shadow: 0 6px 18px rgba(0,0,0,.5) !important;
+  }
+  .wm-instrument-context-strip > [data-testid="context-trade"] { order: -3; padding: 0 18px !important; }
+  .wm-instrument-context-strip > [data-testid="context-watchlist"] { order: -2; }
+  .wm-instrument-context-strip > [data-testid="context-watchlist"],
+  .wm-instrument-context-strip > [data-testid="context-indicators"] {
+    min-width: 44px !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    font-size: 0 !important;
+    letter-spacing: 0 !important;
+    gap: 0 !important;
+  }
+  .wm-instrument-context-strip > [data-testid="context-watchlist"] svg,
+  .wm-instrument-context-strip > [data-testid="context-indicators"] svg { width: 16px !important; height: 16px !important; }
+  [data-testid="trade-panel"] {
+    bottom: calc(98px + env(safe-area-inset-bottom)) !important;
+    max-height: calc(100svh - 110px) !important;
+  }
+}
+
+/* ── 6. PHONE LANDSCAPE: THE MASTHEAD IS ONE ROW (Garden 19 §22, 2026-10-07) ─
+   MEASURED at 844x390 on /charts: masthead 88px in two rows (the feed reading
+   took a row of its own) + the symbol row 35 = 123px of a 390px glass before
+   the market. Here, market room only: the engraved sub-line goes (a desk
+   legend; the mark's accessible name is unchanged), the gaps tighten, and the
+   feed reading becomes a chip beside the utilities — its verdict phrases
+   only, WHILE the verdict is LIVE and established. Any other tone keeps its
+   detail and its instant (a DELAYED reading's detail is the truth), and the
+   row may then wrap rather than hide it. The full reading stays the chip's
+   accessible name and title. Tap floors (44px) are untouched: the row is the
+   plates' height plus 8px above and below. Doubled class: the masthead's own
+   stylesheet is a later <style> at equal weight. */
+@media (max-height: 520px) and (max-width: 1023px) {
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-masthead.wm-os-masthead {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    column-gap: 8px !important;
+    row-gap: 4px !important;
+    align-items: center !important;
+  }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) [data-testid="os-identity"] .wm-wordmark > div + div { display: none !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing.wm-os-feed-standing {
+    flex: 1 1 0% !important;
+    min-width: min-content !important;
+    max-width: max-content !important;
+    border: 1px solid rgba(196,165,116,.28);
+    border-radius: 3px;
+    padding: 3px 8px;
+  }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing[data-tone="LIVE"][data-established="true"] [data-testid="os-feed-standing-detail"],
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing[data-tone="LIVE"][data-established="true"] [data-testid="os-feed-standing-instant"] {
+    display: none !important;
+  }
+}
+/* The word steps back to the delivered monogram so the one row holds at
+   every phone landscape width (measured: with the word, 844 and 932 still
+   wrapped the reading onto a second row; 667 wrapped with the word gone).
+   The lockup's accessible name ("WealthyMindsets Pro") is unchanged. */
+@media (max-height: 520px) and (max-width: 1023px) {
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) [data-testid="os-identity"] .wm-wordmark > div:first-child > span { display: none !important; }
 }

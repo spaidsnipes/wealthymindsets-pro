@@ -478,6 +478,17 @@ export const INSTRUMENT_EDUCATION: Readonly<Record<string, InventionEducation>> 
     firstTouch: "Wisdom line — the one sentence the drawn evidence supports.",
     canon: "F17 Cross-candle wisdom · Garden 19 §17",
   },
+  RVOL_TONE: {
+    question: "Was this bar unusually busy for its time of day?",
+    needs: "VOLUME", evidence: "Real traded volume, compared with the same time of day over 10+ earlier sessions (else the recent bars, labelled).",
+    appears: "A brass tone inside the volume bar of each unusually busy bar — the rarer, the brighter. Ordinary bars stay plain.",
+    grammar: "A run of toned volume bars is participation arriving; tone fading while price keeps going is a move running on less.",
+    full: "10+ sessions of the same time slot loaded.",
+    partial: "Fewer sessions loaded — the baseline is the recent bars and the receipt says ROLLING.",
+    degraded: "No traded volume (spot FX, placeholder feeds) — no tone, and no quote count is relabelled as volume.",
+    firstTouch: "Relative volume — how busy this bar was for its time of day.",
+    canon: "C-03 Relative volume · F05A (tone on the volume bar, never the body)",
+  },
   "FP_bid-ask": {
     question: "Inside this candle, how much traded on the bid versus the ask at each price?",
     needs: "SIDED_TAPE", evidence: "Sided prints inside each bar.",
@@ -560,6 +571,11 @@ const FEED_WORDS: Partial<Record<MarketQualityState, string>> = {
   UNAVAILABLE: "This chart has no live feed right now.",
 };
 
+/** The feed state's one sentence (Inspect's evidence line reads the same words as the ⓘ). */
+export function feedWords(state: MarketQualityState): string | null {
+  return FEED_WORDS[state] ?? null;
+}
+
 /**
  * THE PREVIEW'S TRUTH BLOCK — compiled from the menu compiler's own verdict
  * for this symbol (`entry`), or a caller-supplied owner sentence for an
@@ -614,6 +630,20 @@ export function educationTruthLines(input: {
  * first-touch line comes from the same record as its ⓘ preview. Structural
  * shape only (mirrors `ChartSelection`), so this module needs no view-model import.
  */
+/**
+ * §10 · the first-touch sentence for a selected mark. One structure record
+ * covers swings AND supply/demand zones; a zone is not a "swing level", so a
+ * ZONE:* object gets the zone's own noun (found on glass 2026-10-07, 390).
+ */
+export function firstTouchFor(id: string, objectId?: string | null): string | null {
+  const edu = educationFor(id);
+  if (!edu) return null;
+  if (id === "MARKET_STRUCTURE" && objectId?.startsWith("ZONE:")) {
+    return "Supply / demand zone — where price left fast; its passport shows tests, defence and whether it is consumed.";
+  }
+  return edu.firstTouch;
+}
+
 export function educationIdForSelection(sel:
   | { readonly kind: "OBJECT"; readonly objectId: string }
   | { readonly kind: "PRINT"; readonly print: { readonly kind?: string } }

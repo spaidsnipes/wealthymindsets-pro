@@ -310,12 +310,13 @@ import { QuestionLensChooser } from "@/components/chart/QuestionLensChooser";
 import type { AbsorptionRailRead } from "@/lib/marketData/selectAbsorptionAnatomy";
 import type { TapeFootprintVM } from "@/lib/marketData/viewModels/selectTapeFootprint";
 import { identityForBar, indexBarIdentitiesBySecond, selectInspectTicket } from "@/lib/marketData/viewModels/selectInspectTicket";
-import type { FlowLadderReader } from "@/lib/marketData/flowLadder";
+import { readLadderBar, type FlowLadderReader } from "@/lib/marketData/flowLadder";
+import { selectBarCandleReadings } from "@/lib/chart/barCandleReadings";
 import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
 import { displayPrecisionFor, instrumentTickFor } from "@/lib/chart/pricePrecision";
-import { hasNoCentralVolume, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
+import { hasNoCentralVolume, needsTradedVolumeSentence, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { sessionBandsDefaultOn } from "@/lib/chart/sessionBands";
 import { BREATH_SAMPLE, selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
@@ -916,6 +917,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [deltaKeelOn, setDeltaKeelOn] = useState<boolean>(() => lsGet("wm_deltaKeel", true) as boolean);
   // CROSS-CANDLE WISDOM (Garden 19 §17): one quiet line, only from real evidence.
   const [wisdomLineOn, setWisdomLineOn] = useState<boolean>(() => lsGet("wm_wisdomLine", true) as boolean);
+  // RELATIVE VOLUME TONE (census C-03): on by default; silent without traded volume.
+  const [rvolToneOn, setRvolToneOn] = useState<boolean>(() => lsGet("wm_rvolTone", true) as boolean);
   /**
    * ABSORPTION ANATOMY (Founder Asset 06) — the EFFORT field + ABSORPTION ZONE
    * band, drawn on the chart in price/time space by MainChart's overlay pass.
@@ -1284,6 +1287,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_effortResponse", effortResponseOn);
   usePersistOnChange("wm_deltaKeel", deltaKeelOn);
   usePersistOnChange("wm_wisdomLine", wisdomLineOn);
+  usePersistOnChange("wm_rvolTone", rvolToneOn);
   usePersistOnChange("wm_absorptionAnatomy",   absorptionAnatomy);
   usePersistOnChange("wm_exhaustion",          exhaustionOn);
   usePersistOnChange("wm_ofImbalanceStack",    imbalanceStackOn);
@@ -2891,6 +2895,24 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     [inspectBar, chartBarSpanMs, recentTicks, chartBarIdentityIndex, effortSubjectIsForming,
       chartMarketObjects, selectedMarketObjectId, inspectDecisionId, flowLadderReader, barSides],
   );
+  // Garden 19 §28 · the inspected bar's candle readings — the numbers the glass withholds.
+  const inspectCandleReadings = React.useMemo(() => {
+    const t = inspectBar?.time ?? null;
+    const last = chartBars[chartBars.length - 1];
+    return selectBarCandleReadings({
+      bars: chartBars,
+      barTime: t,
+      forming: t != null && last != null && t === last.time && inspectFollowingLiveBar,
+      effortOn: effortResponseOn,
+      keelOn: deltaKeelOn,
+      sessionOn: sessionBandsPref ?? sessionBandsDefaultOn(symbol),
+      volumeReal: volumeIsReal,
+      volumeSilenceWhy: volumeIsReal ? null : needsTradedVolumeSentence(symbol),
+      noCentralVolume: !!hasNoCentralVolume(symbol),
+      tapeTotals: t != null && flowLadderReader ? readLadderBar(flowLadderReader(t)) : null,
+      providerSides: t != null && barSides ? barSides.get(t) ?? null : null,
+    });
+  }, [inspectBar?.time, chartBars, inspectFollowingLiveBar, effortResponseOn, deltaKeelOn, sessionBandsPref, symbol, volumeIsReal, flowLadderReader, barSides]);
 
   /*
     WORKSPACE — the equipment journey for THIS room.
@@ -3841,6 +3863,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         aliases: ["wisdom", "insight", "summary line", "failed to displace", "value migrating", "effort increasing"],
         active: wisdomLineOn,
         onToggle: () => setWisdomLineOn(v => !v),
+      }, {
+        id: "RVOL_TONE",
+        label: "Relative Volume Tone",
+        what: "A brass tone inside each volume bar that was unusually busy for its time of day (same slot over 10+ sessions; else a labelled recent baseline) — brighter = rarer. Never on the candle. Needs traded volume",
+        familyWord: "Context",
+        aliases: ["rvol", "relative volume", "unusual volume", "busy", "time of day volume"],
+        active: rvolToneOn,
+        onToggle: () => setRvolToneOn(v => !v),
       }, ...FOOTPRINT_TYPES.map(t => ({
         id: `FP_${t.id}`,
         label: t.id === "big-trades" ? "Big Trades" : `Footprint · ${t.label}`,
@@ -6767,6 +6797,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       effortResponseOn={effortResponseOn}
                       deltaKeelOn={deltaKeelOn}
                       wisdomLineOn={wisdomLineOn}
+                      rvolToneOn={rvolToneOn}
                       absorptionAnatomyActive={absorptionAnatomy}
                       exhaustionOnChart={exhaustionOn}
                       /*
@@ -6939,7 +6970,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         (UI-04 — no question controls on the price surface). */}
                     {!lensRailMounted && lensChooser}
                     {/* Garden 19 §10 · on a phone the first-touch line rides in Inspect's header. */}
-                    <InspectFirstTouchContext.Provider value={firstTouchId ? { id: firstTouchId, label: firstTouchLabel } : null}>
+                    <InspectFirstTouchContext.Provider value={firstTouchId ? { id: firstTouchId, label: firstTouchLabel, objectId: firstTouchId === "MARKET_STRUCTURE" ? selectedMarketObjectId : null } : null}>
                     {activeTab === "Chart" && !gridView && chartBars.length >= 2 && (
                       <ChartInspectTicket
                         vm={inspectTicketVM}
@@ -6975,6 +7006,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         profileSliceAsOf={livingProfileAsOf}
                         onOpenChange={open => actOnChartSelection({ type: open ? "openInspect" : "closeInspect" })}
                         onOpenFootprint={() => setActiveTab("Worksheet")}
+                        feed={chartCanvasState?.qualityState ?? null}
+                        sourceName={source && source !== "unavailable" ? String(source) : null}
+                        tapeSourceName={tapeSource ? String(tapeSource) : null}
+                        candleReadings={inspectCandleReadings}
                       />
                     )}
                     </InspectFirstTouchContext.Provider>
@@ -6982,6 +7017,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         same education record as its ⓘ; Inspect stays the evidence. */}
                     {activeTab === "Chart" && !gridView && firstTouchId ? (
                       <SelectionFirstTouch id={firstTouchId} label={firstTouchLabel} inspectOpen={inspectOpen}
+                        objectId={firstTouchId === "MARKET_STRUCTURE" ? selectedMarketObjectId : null}
                         onOpenInspect={() => actOnChartSelection({ type: "openInspect" })} />
                     ) : null}
                     {/*

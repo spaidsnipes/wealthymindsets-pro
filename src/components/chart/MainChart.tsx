@@ -37,6 +37,8 @@ import { useFxRelatedFlow } from "@/lib/broker/useFxRelatedFlow";
 import { atrSeries, EFFORT_RESPONSE_BUDGET_MS, readEffortResponseField, responseColumnHeight, type EffortResponseField } from "@/lib/chart/effortResponseField";
 import { DELTA_KEEL_BUDGET_MS, keelLength, readKeels, type KeelInput } from "@/lib/chart/barDeltaKeel";
 import { readCrossCandleWisdom, type WisdomLine } from "@/lib/chart/crossCandleWisdom";
+import { readRelativeVolume, RVOL_BUDGET_MS, rvolToneAlpha, type RvolBar } from "@/lib/chart/relativeVolume";
+import { chartPricePickArmed, deliverChartPricePick, orderLineWords, registerChartPricePickHost, useChartOrderLines } from "@/lib/execution/chartOrderLines";
 import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, type DisplacedNote } from "@/lib/chart/eventNoteComposer";
 import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
 import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
@@ -1349,6 +1351,11 @@ interface Props {
    */
   wisdomLineOn?: boolean;
   /**
+   * RELATIVE VOLUME TONE (census C-03, relativeVolume.ts): busy-for-its-time
+   * bars take a brass tone on their own VOLUME bar — never on the body.
+   */
+  rvolToneOn?: boolean;
+  /**
    * ABSORPTION ANATOMY (Founder Asset 06) — draws the EFFORT field and the
    * ABSORPTION ZONE band directly in price/time space. See the draw block.
    */
@@ -1922,7 +1929,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
-  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false,
+  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false,
   absorptionAnatomyActive = false,
   exhaustionOnChart = true,
   imbalanceStack = null,
@@ -2097,7 +2104,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // The words of the paper and broker price lines, painted on the WM overlay
   // by its keep-out owner (the native lines carry no title). Keyed by owner so
   // each effect clears only its own.
-  const priceLineWordsRef = useRef<{ paper: PriceLineWords[]; broker: PriceLineWords[] }>({ paper: [], broker: [] });
+  const priceLineWordsRef = useRef<{ paper: PriceLineWords[]; broker: PriceLineWords[]; order: PriceLineWords[] }>({ paper: [], broker: [], order: [] });
   // The newest price OBSERVED for a named symbol (a loaded bar, a live tick).
   // `lastPrice` starts at a seed (getBase) and is not reset on a symbol
   // change, so paper money is marked only against this, for THIS symbol.
@@ -2264,6 +2271,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const effortResponseCacheRef = useRef<{ key: string; field: EffortResponseField } | null>(null);
   const effortResponseCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const deltaKeelAtrRef = useRef<{ key: string; atr: number[] } | null>(null);
+  const rvolCacheRef = useRef<{ key: string; bars: RvolBar[] } | null>(null);
+  const rvolCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const deltaKeelCacheRef = useRef<{ key: string; at: number; keels: ReturnType<typeof readKeels>; nTape: number; nSides: number } | null>(null);
   // The keels this frame painted (null when the keel layer is off / silent) —
   // the wisdom line reads evidence the glass is showing, never a hidden one.
@@ -6320,6 +6329,86 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     };
   }, [brokerCostPositions, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* ── ORDER LINES (Garden 19 §23 TRADE FROM CHART) ─────────────────────────
+     The ticket / broker readback PUBLISH lines (chartOrderLines.ts); the chart
+     paints each as a native price line in the words `orderLineWords` chose —
+     STAGED dotted & muted, WORKING solid, RECONCILING / UNKNOWN dashed — so a
+     staged idea can never read as a working order. Their words go through the
+     same keep-out placement as paper / broker cost (kind ORDER). WITHHELD on a
+     replay camera: a live order drawn over replayed bars would sit at a price
+     the shown market has not reached. Nothing here sends anything. */
+  const chartOrderLines = useChartOrderLines(symbol);
+  const orderLinesRef = useRef<any[]>([]);
+  useEffect(() => {
+    const series = candleRef.current;
+    if (!series || !ready || !chartOrderLines.length) return;
+    if (replayCameraOn) { try { if (canvasRef.current) canvasRef.current.dataset.orderLines = `WITHHELD:REPLAY:${chartOrderLines.length}`; } catch {} return; }
+    for (const l of chartOrderLines) {
+      const w = orderLineWords(l);
+      if (!Number.isFinite(w.price) || w.price <= 0) continue;
+      try {
+        const line = series.createPriceLine({
+          price: w.price,
+          color: w.ink,
+          lineWidth: w.lineWidth,
+          lineStyle: w.lineStyle,
+          axisLabelVisible: true,
+          title: PRICE_LINE_NATIVE_TITLE, // the words are the overlay's
+        });
+        orderLinesRef.current.push(line);
+        priceLineWordsRef.current.order.push({ kind: "ORDER", price: w.price, text: w.text, ink: w.ink });
+      } catch {}
+    }
+    try { if (canvasRef.current) canvasRef.current.dataset.orderLines = `DRAWN:${orderLinesRef.current.length}`; } catch {}
+    setRangeVer(v => v + 1);
+    return () => {
+      orderLinesRef.current.forEach(line => { try { series.removePriceLine(line); } catch {} });
+      orderLinesRef.current = [];
+      priceLineWordsRef.current.order = [];
+      try { if (canvasRef.current) canvasRef.current.dataset.orderLines = "NONE"; } catch {}
+    };
+  }, [chartOrderLines, ready, replayCameraOn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // This chart will deliver a price pick, so the ticket may offer "pick on chart".
+  useEffect(() => registerChartPricePickHost(), []);
+  // An ARMED pick consumes the next press on the price glass: the price under
+  // it goes to the ticket and the press does nothing else (no bar select, no
+  // pan). Window capture so it runs before the chart's own handlers. Axis and
+  // DOM chrome (buttons) are left alone.
+  const pickSymbolRef = useRef(symbol);
+  pickSymbolRef.current = symbol;
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (!chartPricePickArmed()) return;
+      const host = containerRef.current, series = candleRef.current, chart = chartRef.current;
+      if (!host || !series || !chart || !(e.target instanceof Node) || !host.contains(e.target)) return;
+      if ((e.target as HTMLElement).closest?.("button, a, input, select, textarea")) return;
+      const rect = host.getBoundingClientRect();
+      const x = e.clientX - rect.left, y = e.clientY - rect.top;
+      let axisW = 60;
+      try { axisW = Number(chart.priceScale("right").width()) || 60; } catch { /* default */ }
+      let paneH = rect.height;
+      try { const ps = chart.paneSize(0); if (ps && ps.height > 0) paneH = ps.height; } catch { /* default */ }
+      if (x < 0 || x > rect.width - axisW || y < 0 || y > paneH) return;
+      const p = series.coordinateToPrice(y);
+      if (p == null || !deliverChartPricePick(pickSymbolRef.current, +p)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      e.stopPropagation();
+      swallowClickUntil = performance.now() + 600;
+    };
+    // The press was the pick; the click that follows it is not a bar select.
+    let swallowClickUntil = 0;
+    const onClick = (e: MouseEvent) => {
+      if (performance.now() > swallowClickUntil) return;
+      swallowClickUntil = 0;
+      e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation();
+    };
+    window.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("click", onClick, true);
+    return () => { window.removeEventListener("pointerdown", onDown, true); window.removeEventListener("click", onClick, true); };
+  }, []);
+
   /* ── Log / pct / auto scale mode ─────────────────────────── */
   useEffect(() => {
     if (!chartRef.current) return;
@@ -10011,6 +10100,81 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("SESSION_BANDS", err); }
 
+      /* ══ RELATIVE VOLUME TONE (census C-03, revised §3a) ═════════════════
+         Painted BEFORE the effort → response column so the column sits on it.
+         A brass inlay inside each finished volume bar whose volume beats
+         TONE_FLOOR of its baseline (same time-of-day slot over ≥10 sessions,
+         else a labelled trailing baseline); alpha rises with the percentile.
+         Ordinary bars take no tone. Never on the candle body (F05A belongs to
+         Clarity). No traded volume → silent; no quote count becomes "volume". */
+      try {
+        const t0RV = performance.now();
+        const bs = barsRef.current || [];
+        const vsRV = volRef.current;
+        if (!rvolToneOn) canvas.dataset.rvolWeight = "OFF";
+        else if (bs.length < 2 || !vsRV) canvas.dataset.rvolWeight = "NO_BARS";
+        else if (!volumeTruthFor(symbol, bs).real) canvas.dataset.rvolWeight = "SILENT:NO_TRADED_VOLUME";
+        else {
+          const tsRV = chart.timeScale();
+          const lrRV = tsRV.getVisibleLogicalRange();
+          const i0 = Math.max(0, Math.floor(lrRV ? +lrRV.from : 0));
+          const i1 = Math.min(bs.length - 1, Math.ceil(lrRV ? +lrRV.to : bs.length - 1));
+          const barSecRV = barInterval();
+          const last = bs[bs.length - 1];
+          const formingRV = Date.now() / 1000 < (last.time as number) + barSecRV ? (last.time as number) : null;
+          const hiRV = formingRV != null && i1 === bs.length - 1 ? i1 - 1 : i1;
+          const key = `${symbol}|${i0}|${hiRV}|${bs.length}|${bs[0]?.time}|${bs[Math.max(0, hiRV)]?.volume}`;
+          if (rvolCacheRef.current?.key !== key) rvolCacheRef.current = { key, bars: readRelativeVolume(bs, i0, hiRV, barSecRV) };
+          const rv = rvolCacheRef.current.bars;
+          const baseC = vsRV.priceToCoordinate(0);
+          let volTopRV = 0.78;
+          try { const t = chart.priceScale("vol").options().scaleMargins?.top; if (Number.isFinite(t)) volTopRV = t as number; } catch { /* default */ }
+          const yBase = baseC == null ? pane0Bottom : Math.min(pane0Bottom, +baseC);
+          const spacing = (() => { try { return +(tsRV.options().barSpacing ?? 6); } catch { return 6; } })();
+          const w = Math.max(1, Math.round(spacing * 0.6));
+          // Batched by tone step (5 steps) — one path per step.
+          const steps: number[][] = [[], [], [], [], []];
+          let toned = 0, slot = 0;
+          const volByT = new Map<number, number>();
+          for (let i = i0; i <= hiRV; i++) volByT.set(bs[i].time as number, bs[i].volume);
+          for (const b of rv) {
+            if (b.basis === "SLOT") slot++;
+            const a = rvolToneAlpha(b.pct);
+            if (!(a > 0)) continue;
+            const xr = tsRV.timeToCoordinate(b.time as never);
+            if (xr == null || +xr < 0 || +xr > plotRight) continue;
+            const vol = volByT.get(b.time);
+            const yt = vol != null ? vsRV.priceToCoordinate(vol) : null;
+            if (yt == null) continue;
+            const top = Math.max(pane0Bottom * volTopRV, +yt);
+            if (!(yBase - top > 0.5)) continue;
+            const step = Math.min(4, Math.floor(((b.pct - 0.6) / 0.4) * 5));
+            steps[step].push(Math.round(+xr - w / 2), top, w, yBase - top);
+            toned++;
+          }
+          ctx.save();
+          for (let k = 0; k < steps.length; k++) {
+            const r = steps[k];
+            if (!r.length) continue;
+            ctx.beginPath();
+            for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], r[i + 3]);
+            ctx.fillStyle = `rgba(214,176,96,${rvolToneAlpha(0.6 + (k + 0.5) * 0.08).toFixed(3)})`;
+            ctx.fill();
+          }
+          ctx.restore();
+          canvas.dataset.rvolWeight = `${toned}|BASE:${rv.length && slot === rv.length ? "SLOT" : slot > 0 ? `SLOT${slot}+ROLLING${rv.length - slot}` : "ROLLING"}|SAME`;
+          const insp = inspectedBarRef.current?.time ?? null;
+          const sel = insp != null ? rv.find(q => q.time === insp) : null;
+          if (sel) canvas.dataset.rvolInspect = `P${Math.round(sel.pct * 100)}|${sel.basis}|N${sel.sample}`;
+          else delete canvas.dataset.rvolInspect;
+          const ms = performance.now() - t0RV;
+          const cr = rvolCostRef.current;
+          if (cr.n >= 120) { cr.n = 0; cr.sum = 0; cr.longest = 0; }
+          cr.n++; cr.sum += ms; cr.longest = Math.max(cr.longest, ms);
+          canvas.dataset.rvolWeightCost = `${ms.toFixed(2)}ms|mean${(cr.sum / cr.n).toFixed(2)}|longest${cr.longest.toFixed(2)}|${cr.longest <= RVOL_BUDGET_MS ? "MET" : "OVER"}`;
+        }
+      } catch (err) { layerFault("RVOL_TONE", err); }
+
       /* ══ EFFORT → RESPONSE ACROSS THE CANDLES (Garden 19 §7) ══════════════
          The volume bar IS the effort (one owner — nothing new drawn for it).
          Inside it, a narrow ivory column = that bar's displacement in ATR
@@ -10036,7 +10200,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const barSecER = barInterval();
           const last = bs[bs.length - 1];
           const formingTime = Date.now() / 1000 < (last.time as number) + barSecER ? (last.time as number) : null;
-          const key = `${symbol}|${i0}|${i1}|${bs.length}|${formingTime ?? "-"}|${bs[Math.min(i1, bs.length - 1)]?.close}|${bs[Math.min(i1, bs.length - 1)]?.volume}`;
+          // Keyed on the newest FINISHED bar in view — the forming bar's ticks must
+          // not re-read the whole field (serving BTC: a recompute every tick).
+          const lastClosedI = formingTime != null && i1 === bs.length - 1 ? i1 - 1 : i1;
+          const key = `${symbol}|${i0}|${i1}|${bs.length}|${formingTime ?? "-"}|${bs[Math.max(0, lastClosedI)]?.close}|${bs[Math.max(0, lastClosedI)]?.volume}`;
           if (effortResponseCacheRef.current?.key !== key) {
             const vt = volumeTruthFor(symbol, bs);
             effortResponseCacheRef.current = {
@@ -10182,36 +10349,44 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const byTime = new Map<number, (typeof bs)[number]>();
             for (let i = i0; i <= i1; i++) byTime.set(bs[i].time as number, bs[i]);
             let drawn = 0, failed = 0;
-            ctx.save();
-            ctx.lineWidth = 1;
+            // Batched by (ink, age bucket): a fillStyle per keel cost ~2.5ms a
+            // frame on serving NQ (101 keels); one path per group stays inside
+            // DELTA_KEEL_BUDGET_MS. Age is quantised to four steps (memory aged).
+            const halo: number[] = [];
+            const groups = new Map<string, { solid: number[]; hollow: number[] }>();
+            const grp = (k: string) => { let g = groups.get(k); if (!g) { g = { solid: [], hollow: [] }; groups.set(k, g); } return g; };
             for (let k = 0; k < keels.length; k++) {
               const kl = keels[k];
               const bar = byTime.get(kl.time);
               if (!bar) continue;
+              if (bodyW < 3 && !kl.failed) continue; // too dense: failures only
               const xr = tsDK.timeToCoordinate(kl.time as never);
               const yc = csDK.priceToCoordinate(bar.close);
               if (xr == null || yc == null || +xr < 0 || +xr > plotRight) continue;
-              if (bodyW < 3 && !kl.failed) continue; // too dense: failures only
-              const L = keelLength(kl.ratio, bodyW);
+              const L = Math.max(1, keelLength(kl.ratio, bodyW));
               const up = bar.close >= bar.open;
               // Just OUTSIDE the close edge: above an up body, below a down one.
               const y = Math.round(+yc + (up ? -5 : 3));
               const x = Math.round(+xr - L / 2);
-              const ink = kl.ratio > 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
-              const age = 0.6 + 0.4 * (keels.length > 1 ? k / (keels.length - 1) : 1);
-              const a = insp === kl.time ? 0.95 : 0.55 * age;
+              const side = kl.ratio > 0 ? "B" : "S";
+              const bucket = insp === kl.time ? 4 : Math.min(3, Math.floor(4 * (keels.length > 1 ? k / (keels.length - 1) : 1)));
               // Dark halo: the keel is its own mark, never read as more body.
-              ctx.fillStyle = "rgba(8,7,5,0.85)";
-              ctx.fillRect(x - 1, y - 1, Math.max(1, L) + 2, 4);
-              if (kl.failed) {
-                ctx.strokeStyle = `rgba(${ink},${Math.min(1, a + 0.15).toFixed(3)})`;
-                ctx.strokeRect(x + 0.5, y + 0.5, Math.max(1, L - 1), 2);
-                failed++;
-              } else {
-                ctx.fillStyle = `rgba(${ink},${a.toFixed(3)})`;
-                ctx.fillRect(x, y, Math.max(1, L), 2);
-              }
+              halo.push(x - 1, y - 1, L + 2, 4);
+              const g = grp(`${side}${bucket}`);
+              if (kl.failed) { g.hollow.push(x + 0.5, y + 0.5, Math.max(1, L - 1), 2); failed++; }
+              else g.solid.push(x, y, L, 2);
               drawn++;
+            }
+            ctx.save();
+            ctx.lineWidth = 1;
+            const rects = (r: number[]) => { ctx.beginPath(); for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], r[i + 3]); };
+            if (halo.length) { rects(halo); ctx.fillStyle = "rgba(8,7,5,0.85)"; ctx.fill(); }
+            for (const [gk, g] of groups) {
+              const ink = gk[0] === "B" ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
+              const b = Number(gk.slice(1));
+              const a = b === 4 ? 0.95 : 0.55 * (0.6 + 0.4 * (b + 0.5) / 4);
+              if (g.solid.length) { rects(g.solid); ctx.fillStyle = `rgba(${ink},${a.toFixed(3)})`; ctx.fill(); }
+              if (g.hollow.length) { rects(g.hollow); ctx.strokeStyle = `rgba(${ink},${Math.min(1, a + 0.15).toFixed(3)})`; ctx.stroke(); }
             }
             ctx.restore();
             canvas.dataset.barDeltaKeels = `${drawn}|BASIS:TAPE${nTape}+SIDES${nSides}|FAIL:${failed}`;
@@ -23640,7 +23815,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
          WITHHELD — the line and its axis price stay, the receipt names it.
          Receipt, every frame: `priceLineWords` (`PAPER@370:SLID,…` or NONE). */
       try {
-        const wordsP = [...priceLineWordsRef.current.paper, ...priceLineWordsRef.current.broker];
+        const wordsP = [...priceLineWordsRef.current.paper, ...priceLineWordsRef.current.broker, ...priceLineWordsRef.current.order];
         const placedP: { kind: PriceLineWords["kind"]; price: number; mode: string }[] = [];
         if (wordsP.length) {
           let axisWP = 60;
@@ -24020,7 +24195,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, wisdomLineOn, absorptionAnatomyActive, getBarSubProfile]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, wisdomLineOn, rvolToneOn, absorptionAnatomyActive, getBarSubProfile]);
 
   /*
     THE HIDDEN-TAB STAMP CANNOT LIVE INSIDE THE RAF LOOP.
