@@ -312,7 +312,7 @@ import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
 import { displayPrecisionFor, instrumentTickFor } from "@/lib/chart/pricePrecision";
-import { volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
+import { hasNoCentralVolume, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { BREATH_SAMPLE, selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
@@ -3717,6 +3717,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         />
       </div>
       <ProfilesMenu
+        symbol={symbol}
         barsPresent={chartBars.length > 0}
         printsPresent={chartOrderFlowReadings.printsPresent}
         observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -3736,6 +3737,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // switches Chart tools holds, published live into the W drawer's slots.
   const wStructureNode = (
     <ProfilesMenu
+      symbol={symbol}
       barsPresent={chartBars.length > 0}
       printsPresent={chartOrderFlowReadings.printsPresent}
       observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -3749,6 +3751,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   );
   const wMemoryNode = (
     <ProfilesMenu
+      symbol={symbol}
       barsPresent={chartBars.length > 0}
       printsPresent={chartOrderFlowReadings.printsPresent}
       observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -3883,6 +3886,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     shape this file already uses for live tick state.
   */
   const arrangementMenu = selectProfileMenu({
+    symbol,
     barsPresent: chartBars.length > 0,
     printsPresent: chartOrderFlowReadings.printsPresent,
     observedAggressorFlow: chartFlowSnap.hasFlow,
@@ -4813,8 +4817,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           so it never reads as a claim about the bars on camera (F15A × F14). */}
       <span className="wm-chart-market-standing-label" title="Regime of the recent tape (direction × tick range), not of the bars on camera">TAPE</span>
       <span className="wm-chart-market-standing-label">REGIME</span>
-      <span data-standing-regime={badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}>
-        {badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}
+      {/* Spot FX has no tape at all (FX lane, 2026-10-06): "UNRESOLVED"
+          promised a verdict that no print will ever settle. Same muted ink. */}
+      <span data-standing-regime={badge.canon.resolved ? badge.canon.value : "UNRESOLVED"}
+        data-standing-regime-why={!badge.canon.resolved && hasNoCentralVolume(symbol) ? "NO_TAPE" : undefined}>
+        {badge.canon.resolved ? badge.canon.value : hasNoCentralVolume(symbol) ? `NONE · ${hasNoCentralVolume(symbol)} has no tape` : "UNRESOLVED"}
       </span>
     </span>
   ) : null;
@@ -5969,6 +5976,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 this tape can draw.
               */}
               <ChartArrangementBar
+                symbol={symbol}
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -6001,6 +6009,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               />
               <ProfilePresetBar active={profileMenuActive} onApply={applyPresetKeepingOwn} />
               <ProfilesMenu
+                symbol={symbol}
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -6020,6 +6029,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   not share the profiles' grid. Order-flow tools live behind
                   Tools › Order flow. */}
               <ProfilesMenu
+                symbol={symbol}
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}
                 observedAggressorFlow={chartFlowSnap.hasFlow}

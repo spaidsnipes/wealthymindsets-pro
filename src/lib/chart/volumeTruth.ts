@@ -108,3 +108,28 @@ export function volumeBearingBars<T extends { readonly volume: number }>(
   if (volumeTruthFor(symbol, bars).real) return bars;
   return bars.map(b => ({ ...b, volume: 0 }));
 }
+
+/**
+ * NEEDS TRADED VOLUME — the state a volume-reading tool is in on a market that
+ * has none (FX lane, serving GBPUSD 1h, 2026-10-06). The Founder read "nothing
+ * for forex works": Delta Levels and Volume Profile said "ACTIVE · NO CURRENT
+ * EVENT", Liquidity Lifecycle said "NO POOL IN VIEW · SCROLL BACK", Imbalance
+ * Stack said "WAITING FOR SIDED PRINTS". Each of those promises an event that
+ * can never come: spot FX trades over the counter, so no feed has its traded
+ * volume or its aggressor side. A no-event state must read differently from
+ * a state the market itself cannot supply — this is that state, worded as a
+ * calm fact about the market, never as an outage of this feed.
+ */
+export const NEEDS_TRADED_VOLUME = "NEEDS TRADED VOLUME";
+
+/** "NEEDS TRADED VOLUME · SPOT FX HAS NONE" — or null when the market has central volume. */
+export function needsTradedVolumeWords(symbol: string): string | null {
+  const noun = hasNoCentralVolume(symbol);
+  return noun ? `${NEEDS_TRADED_VOLUME} · ${noun.toUpperCase()} HAS NONE` : null;
+}
+
+/** The same state as a clause inside a sentence: "needs traded volume — spot FX has none". */
+export function needsTradedVolumeSentence(symbol: string): string | null {
+  const noun = hasNoCentralVolume(symbol);
+  return noun ? `needs traded volume — ${noun} has none` : null;
+}

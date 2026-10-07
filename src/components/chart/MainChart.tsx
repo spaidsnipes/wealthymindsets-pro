@@ -32,7 +32,7 @@ import {
   wordOnTopArc, type WeatherLens,
 } from "@/lib/chart/liquidityGlassGeometry";
 import { axisPriceFormatFor, displayPrecisionFor, instrumentTickFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
-import { volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
+import { needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
@@ -10668,7 +10668,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           statement that no profile was asked for. Those are different facts and
           must not share an encoding.
         */
-        const receipt = compileVpRenderReceipt(attempts);
+        const receipt = compileVpRenderReceipt(attempts, { noVolumeWords: needsTradedVolumeSentence(symbol) });
         {
           // The Session column's own decline goes to the room's Profiles door
           // (DATA REFUSES instead of READY over an empty lane), on change only —
@@ -17925,7 +17925,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const key = `${from}|${to}|${bs.length}|${last?.time ?? ""}|${last?.volume ?? ""}|${last?.close ?? ""}`;
           if (vrpCacheRef.current?.key === key) vrpVM = vrpCacheRef.current.vm;
           else {
-            vrpVM = selectVisibleRangeProfile(bs, from, to, instrumentTickFor(symbol, last?.close ?? null));
+            // Placeholder volume (spot FX's live fold carries a 1) is not a count:
+            // reading it drew a one-row "VRP POC" on EURUSD that Profile Fusion
+            // then knotted with TPO (FX lane, 2026-10-06). volumeTruth gates it.
+            vrpVM = selectVisibleRangeProfile([...volumeBearingBars(symbol, bs)], from, to, instrumentTickFor(symbol, last?.close ?? null));
             vrpCacheRef.current = { key, vm: vrpVM };
           }
         }
@@ -18879,7 +18882,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const livingOnMute = on && !!lp && !lp.drawn;
             if (livingOnMute) {
               const rL = lp!.reason;
-              const quietL = rL === "NO_PROFILE"
+              const needsL = needsTradedVolumeWords(symbol);
+              const quietL = rL === "NO_PROFILE" && needsL ? `LIVING PROFILE · ${needsL}`
+                : rL === "NO_PROFILE"
                 ? "LIVING PROFILE · UNAVAILABLE ON THIS FEED · NO VOLUME DISTRIBUTED ACROSS PRICE"
                 : rL === "TOO_FEW_BUCKETS" ? "LIVING PROFILE · NO CURRENT EVENT · TOO FEW PRICE BUCKETS FOR A SHAPE"
                 : rL === "NO_READING" || rL === "UNMEASURED" ? "LIVING PROFILE · WAITING FOR BARS"
@@ -19068,7 +19073,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // (2026-09-30), Composite ON read NO_VOLUME and the glass said
             // nothing at all. A switched-on Composite that cannot draw names why.
             if (on && cp && !cp.drawn) {
-              const why = cp.reason === "NO_VOLUME" ? "UNAVAILABLE ON THIS FEED · NO TRADED VOLUME"
+              const needsC = needsTradedVolumeWords(symbol);
+              const why = cp.reason === "NO_VOLUME" && needsC ? needsC
+                : cp.reason === "NO_VOLUME" ? "UNAVAILABLE ON THIS FEED · NO TRADED VOLUME"
                 : cp.reason === "NO_COMPLETED_SESSION" ? "NO CURRENT EVENT · NO COMPLETED SESSION IN VIEW"
                 : "WAITING FOR BARS";
               const quiet = `COMPOSITE PROFILE · ${why}`;
@@ -22618,7 +22625,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const why = lc.pools.length === 0 ? "NO POOL MEASURED"
                 : skipL.tail > 0 && skipL.price === 0 && skipL.time === 0 ? `${lc.pools.length} POOLS ENDED BEFORE THIS CAMERA`
                 : `${lc.pools.length} POOLS OUTSIDE THIS CAMERA`;
-              const quietL = `LIQUIDITY LIFECYCLE · ACTIVE · NO POOL IN VIEW — ${why} · SCROLL BACK OR ZOOM OUT`;
+              // Pools are volume-by-price nodes. With no traded volume there
+              // is nothing to scroll back to — "NO POOL IN VIEW · SCROLL BACK"
+              // was a promise the market cannot keep (spot FX, 2026-10-06).
+              const needsLc = lc.reason === "NO_VOLUME"
+                ? needsTradedVolumeWords(symbol) ?? "UNAVAILABLE ON THIS FEED · NO TRADED VOLUME"
+                : null;
+              const quietL0 = `LIQUIDITY LIFECYCLE · ACTIVE · NO POOL IN VIEW — ${why} · SCROLL BACK OR ZOOM OUT`;
+              const quietL = needsLc ? quietL0.replace(/ · .*$/, ` · ${needsLc}`) : quietL0;
               ctx.save();
               ctx.font = marketFont("OBJECT_NAME");
               ctx.fillStyle = "rgba(237,230,211,0.8)";
@@ -22628,6 +22642,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               floatingChips.push({ x: silenceX, y: rowQ - 7, w: ctx.measureText(quietL).width, h: 14 });
               ctx.restore();
               ds.liquidityLifecycleSilence = "NO_POOL_IN_VIEW";
+              if (needsLc) ds.liquidityLifecycleSilence = needsLc.startsWith("NEEDS") ? "NEEDS_TRADED_VOLUME" : "NO_VOLUME";
             } else delete ds.liquidityLifecycleSilence;
             ds.liquidityLifecycleTicks = `${ticks}/${wordsSaid}`;
             // How many painted pools were BORN on camera (a birth bracket) —
@@ -22936,10 +22951,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       try {
         const ds = canvas.dataset;
         const lo2 = layerOnRef.current;
-        const waiting: string[] = [], noEvent: string[] = [];
+        const waiting: string[] = [], noEvent: string[] = [], needsVolume: string[] = [];
+        // Spot FX / spot metals (FX lane, 2026-10-06): no sided print will
+        // ever arrive and no event can form — every quiet order-flow sense is
+        // named once as NEEDS TRADED VOLUME, never as WAITING / NO EVENT.
+        const needsOF = needsTradedVolumeWords(symbol);
         const sort = (on: boolean, name: string, r: string | undefined, waitWords: RegExp, quietWords: RegExp) => {
           if (!on || r == null) return;
-          if (waitWords.test(r)) waiting.push(name);
+          if (needsOF && (waitWords.test(r) || quietWords.test(r))) needsVolume.push(name);
+          else if (waitWords.test(r)) waiting.push(name);
           else if (quietWords.test(r)) noEvent.push(name);
         };
         // Per-bar stacks on the glass are an event, whatever the window ladder says (2026-10-04).
@@ -22959,10 +22979,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const name = mode.replace(/-/g, " ").toUpperCase();
             const loading = /^LOADING/.test(ds.tapeBackfill ?? "");
             const bigIdle = mode === "big-trades" && ds.bigTradesDrawn === "0";
-            if (/:NO_EXECUTIONS$/.test(fp) || bigIdle) (loading || ds.bigTradeBubbleStatus === "WAITING_FOR_PRINTS" ? waiting : noEvent).push(name);
+            if (/:NO_EXECUTIONS$/.test(fp) || bigIdle) (needsOF ? needsVolume : loading || ds.bigTradeBubbleStatus === "WAITING_FOR_PRINTS" ? waiting : noEvent).push(name);
           }
         }
         const parts: string[] = [];
+        if (needsVolume.length && needsOF) parts.push(`${needsOF}: ${needsVolume.join(", ")}`);
         if (waiting.length) parts.push(`WAITING FOR SIDED PRINTS: ${waiting.join(", ")}`);
         if (noEvent.length) parts.push(`ACTIVE · NO CURRENT EVENT: ${noEvent.join(", ")}`);
         if (parts.length) {
@@ -22975,7 +22996,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.fillText(fitSilence(quiet), silenceX, rowY);
           floatingChips.push({ x: silenceX, y: rowY - 7, w: ctx.measureText(quiet).width, h: 14 });
           ctx.restore();
-          ds.orderFlowQuiet = `W:${waiting.length}|N:${noEvent.length}`;
+          ds.orderFlowQuiet = `W:${waiting.length}|N:${noEvent.length}${needsVolume.length ? `|NEEDS_VOLUME:${needsVolume.length}` : ""}`;
         } else delete ds.orderFlowQuiet;
       } catch (err) { layerFault("ORDER_FLOW_QUIET", err); }
 
@@ -23461,7 +23482,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (ds) for (const [k, v] of Object.entries(paintLedgerReceipt(paintLedger))) ds[k] = v;
         // NO SILENT NOTHING: what each order-flow sense painted this frame, told to the room on change.
         if (ds && onSenseEventsRef.current) {
-          const states = senseEventStates(ds);
+          const states = senseEventStates(ds, { symbol });
           const key = JSON.stringify(states);
           if (key !== senseEventsSentRef.current) { senseEventsSentRef.current = key; onSenseEventsRef.current(states); }
         }
@@ -23868,7 +23889,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (A && B) {
           const tLo = Math.min(d.pts[0].time, d.pts[1].time);
           const tHi = Math.max(d.pts[0].time, d.pts[1].time);
-          const vm = selectTimeRangeProfile(barsRef.current || [], tLo, tHi);
+          const vm = selectTimeRangeProfile([...volumeBearingBars(symbol, barsRef.current || [])], tLo, tHi);
           // The same family ink the overlay reads: a Fixed Range POC is a POC.
           const pk = profileInkRef.current;
           const x0 = Math.min(A.x, B.x);
@@ -25145,7 +25166,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               <button
                 type="button"
                 data-testid="fx-futures-door"
-                title={`Spot FX has no central volume. ${fxDoor.futures} is the ${fxDoor.note} — a different market, streamed live with traded volume.`}
+                title={`Spot FX has no central volume. ${fxDoor.futures} is the ${fxDoor.note} — a different market with its own traded volume, opened on its own chart and never shown as spot volume.`}
                 onClick={() => {
                   try {
                     window.location.assign(symbolDoorHref(window.location.href, fxDoor.futures));
@@ -25154,7 +25175,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 style={{ marginLeft: 8, pointerEvents: "auto", background: "transparent", border: "1px solid rgba(201,165,92,.45)",
                   color: "#C9A55C", borderRadius: 4, padding: "1px 6px", cursor: "pointer", font: "inherit" }}
               >
-                live volume: {fxDoor.futures} →
+                {/* FX lane 2026-10-06: this read "live volume: 6B1!", which the
+                    Founder read as "681!" — and as volume FOR the pair. It is
+                    a related market's participation, named as such. */}
+                CME futures participation: {fxDoor.futures} →
               </button>
             ) : null}
           </div>

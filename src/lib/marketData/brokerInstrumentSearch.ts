@@ -50,7 +50,15 @@ export function tastySymbolHits(items: unknown): InstrumentSearchHit[] {
     if (!sym || sym.startsWith(".")) return [];
     const type = (str(o["instrument-type"]) ?? "").toLowerCase();
     const opinion = type.includes("future") ? "Futures" : type.includes("etf") || o["is-etf"] === true ? "ETF" : type.includes("index") ? "Index" : type.includes("crypto") ? "Crypto" : "Stock";
-    return [{ sym: sym.toUpperCase(), label: str(o.description, o["short-description"]) ?? sym, cat: reconcileSearchCategory(sym, opinion), exchange: str(o["listed-market"]) ?? "tastytrade" }];
+    const cat = reconcileSearchCategory(sym, opinion);
+    // SPOT FX IS NOT A TASTYTRADE INSTRUMENT HERE (FX lane, 2026-10-06):
+    // "EUR/USD" answered "EUR 100,000 Contract · tastytrade" as the top row,
+    // ahead of — and de-duplicating away — the canonical "EURUSD · Euro / US
+    // Dollar". No tastytrade FX rail is wired and the chart prices spot FX
+    // from its own quote source, so the row named a rail that does not exist.
+    // The canonical pair row (instrumentSearch) answers the query instead.
+    if (cat === "Forex") return [];
+    return [{ sym: sym.toUpperCase(), label: str(o.description, o["short-description"]) ?? sym, cat, exchange: str(o["listed-market"]) ?? "tastytrade" }];
   });
 }
 

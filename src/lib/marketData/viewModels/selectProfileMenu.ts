@@ -39,6 +39,8 @@
 
 import { fxFuturesDoor } from "@/lib/chart/fxFuturesDoor";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
+import { VOLUME_READING_SENSES } from "@/lib/chart/senseEventStates";
+import { hasNoCentralVolume, needsTradedVolumeWords } from "@/lib/chart/volumeTruth";
 
 export const PROFILE_MENU_VERSION = 1;
 
@@ -217,6 +219,12 @@ export interface ProfileMenuEntry {
   readonly availability: ProfileAvailability;
   /** Why it is in that state, in a sentence the panel prints verbatim. */
   readonly availabilityNote: string;
+  /**
+   * The state's own short words when they are a fact about the MARKET rather
+   * than this feed — "NEEDS TRADED VOLUME · SPOT FX HAS NONE". Absent → the
+   * panel's usual words for the availability.
+   */
+  readonly stateWords?: string;
 }
 
 export interface ProfileMenuInput {
@@ -842,16 +850,27 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
     // narrower gap while the bigger one goes unmentioned.
     let availability: ProfileAvailability;
     let availabilityNote: string;
+    let stateWords: string | undefined;
+    // FX lane (2026-10-06): on spot FX / spot metals a volume reader is not
+    // "AVAILABLE" and will never be "waiting" — the market has no central
+    // traded volume. Said before it is switched on, not after.
+    const noCentral = input.symbol ? hasNoCentralVolume(input.symbol) : null;
+    const sided = NEEDS_SIDED_TAPE.has(spec.id);
 
     if (!input.barsPresent) {
       availability = "WAITING_FOR_BARS";
       availabilityNote = "no bars loaded for this symbol yet";
+    } else if (noCentral && !sided && VOLUME_READING_SENSES.has(spec.id)) {
+      availability = "REFUSED_BY_DATA";
+      availabilityNote = `Needs traded volume — ${noCentral} trades over the counter and has no central volume; TPO, Structure and the price tools still read it`;
+      stateWords = needsTradedVolumeWords(input.symbol!) ?? undefined;
     } else if (NEEDS_PRINTS.has(spec.id) && !input.printsPresent) {
       availability = "WAITING_FOR_PRINTS";
       availabilityNote =
         "no per-trade prints have reached this chart yet — aggressor side is not required";
     } else if (NEEDS_SIDED_TAPE.has(spec.id) && !input.observedAggressorFlow) {
       availability = "NEEDS_SIDED_TAPE";
+      if (noCentral) stateWords = needsTradedVolumeWords(input.symbol!) ?? undefined;
       const door = input.symbol ? fxFuturesDoor(input.symbol) : null;
       const cls = input.symbol ? classifySymbol(input.symbol) : null;
       availabilityNote = door
@@ -874,6 +893,7 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
       active: input.active[spec.id] === true,
       availability,
       availabilityNote,
+      ...(stateWords ? { stateWords } : {}),
     };
   });
 
@@ -926,7 +946,11 @@ export function selectProfileMenu(input: ProfileMenuInput): ProfileMenuVM {
     const causes = [waiting, waitingForPrints, untaped, refused.length > 0].filter(Boolean).length;
     // A data refusal is specific to its species, so each one carries its own
     // selector's sentence rather than one shared cause.
-    const refusedWhy = refused.map(e => `${e.label}: ${e.availabilityNote}`).join("; ");
+    // One sentence per distinct reason: spot FX refuses six volume readers for
+    // ONE fact, and repeating it six times read as six failures.
+    const byNote = new Map<string, string[]>();
+    for (const e of refused) byNote.set(e.availabilityNote, [...(byNote.get(e.availabilityNote) ?? []), e.label]);
+    const refusedWhy = [...byNote].map(([note, labels]) => `${labels.join(", ")}: ${note}`).join("; ");
     const why = refused.length > 0 && causes === 1
       ? refusedWhy
       : causes > 1

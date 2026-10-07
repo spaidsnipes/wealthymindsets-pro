@@ -184,6 +184,13 @@ const LABEL: Record<VpProfileKind, string> = {
  */
 export function compileVpRenderReceipt(
   attempts: readonly VpColumnAttempt[],
+  /**
+   * The market's own words for NO_VOLUME when it has no central volume
+   * (volumeTruth.needsTradedVolumeSentence — "needs traded volume — spot FX
+   * has none"). "no volume at any level" read as a gap in this feed on spot FX,
+   * where no feed has any (FX lane, 2026-10-06).
+   */
+  opts?: { readonly noVolumeWords?: string | null },
 ): VpRenderReceipt {
   if (!attempts.length) return EMPTY;
 
@@ -210,7 +217,8 @@ export function compileVpRenderReceipt(
           axisClearancePx === null ? clearance : Math.min(axisClearancePx, clearance);
       }
     } else {
-      missing.push(`${LABEL[a.profile]} not drawn — ${WORDING[reason]}`);
+      const words = reason === "NO_VOLUME" && opts?.noVolumeWords ? opts.noVolumeWords : WORDING[reason];
+      missing.push(`${LABEL[a.profile]} not drawn — ${words}`);
     }
   }
 

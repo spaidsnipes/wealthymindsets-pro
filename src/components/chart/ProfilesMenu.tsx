@@ -41,7 +41,7 @@
  * still prints `silentNote` verbatim.
  */
 
-import { senseIsQuiet, SENSE_UNAVAILABLE, SENSE_NOT_ENTITLED, SENSE_BROKEN } from "@/lib/chart/senseEventStates";
+import { senseIsQuiet, senseNeedsTradedVolume, SENSE_UNAVAILABLE, SENSE_NOT_ENTITLED, SENSE_BROKEN } from "@/lib/chart/senseEventStates";
 import React from "react";
 import { Layers, Check } from "lucide-react";
 import {
@@ -74,6 +74,7 @@ export function ProfilesMenu({
   columns = 2,
   stateDetail,
   speciesRefusal,
+  symbol,
 }: {
   /** Bars RECEIVED, not bars requested. */
   barsPresent: boolean;
@@ -96,8 +97,10 @@ export function ProfilesMenu({
   stateDetail?: Readonly<Partial<Record<ProfileId, string>>>;
   /** Species whose selector refused the bars on screen, with its reason (see selectProfileMenu). */
   speciesRefusal?: ProfileMenuInput["speciesRefusal"];
+  /** The chart's symbol — a market with no central volume (spot FX) refuses its volume readers before they are switched on. */
+  symbol?: string;
 }) {
-  const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, families, only, speciesRefusal });
+  const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, families, only, speciesRefusal, symbol });
   const menuName = testId === "order-flow-tools-menu" ? "Order flow tools" : "Profiles menu";
   const manifestationNotes = vm.entries.filter(e => e.active && stateDetail?.[e.id])
     .map(e => `${e.label}: ${stateDetail![e.id]}`).join(". ");
@@ -169,7 +172,7 @@ export function ProfilesMenu({
             <div className="text-[9px] uppercase tracking-[0.12em] text-wm-text-dim text-right" data-testid={`${testId}-capability`}>
               {(() => {
                 const waiting = vm.entries.filter(e => e.availability === "WAITING_FOR_BARS" || e.availability === "WAITING_FOR_PRINTS").length;
-                const refusedByReceipt = vm.entries.filter(e => e.availability === "READY" && stateDetail?.[e.id] === SENSE_UNAVAILABLE).length;
+                const refusedByReceipt = vm.entries.filter(e => e.availability === "READY" && (stateDetail?.[e.id] === SENSE_UNAVAILABLE || senseNeedsTradedVolume(stateDetail?.[e.id]))).length;
                 const notEntitled = vm.entries.filter(e => e.availability === "READY" && stateDetail?.[e.id] === SENSE_NOT_ENTITLED).length;
                 const broken = vm.entries.filter(e => e.availability === "READY" && stateDetail?.[e.id] === SENSE_BROKEN).length;
                 const available = vm.readyCount - refusedByReceipt - notEntitled - broken;
@@ -195,6 +198,9 @@ export function ProfilesMenu({
                   ? "WAITING FOR BARS"
                   : entry.availability === "WAITING_FOR_PRINTS"
                     ? "WAITING FOR PRINTS"
+                    // A fact about the MARKET (spot FX has no traded volume), not this feed.
+                    : entry.stateWords
+                      ? entry.active ? `SILENT · ${entry.stateWords}` : entry.stateWords
                     : entry.availability === "REFUSED_BY_DATA"
                       ? entry.active ? "SILENT · UNAVAILABLE ON THIS FEED" : "UNAVAILABLE ON THIS FEED"
                       : entry.active ? "SILENT · TAPE REQUIRED" : "UNAVAILABLE ON THIS FEED · NEEDS SIDED TAPE";

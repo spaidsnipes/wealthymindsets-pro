@@ -79,6 +79,7 @@ export function ChartArrangementBar({
   observedAggressorFlow,
   active,
   onApply,
+  symbol,
 }: {
   /** Bars RECEIVED, not bars requested. */
   barsPresent: boolean;
@@ -90,8 +91,10 @@ export function ChartArrangementBar({
   active: Readonly<Partial<Record<ProfileId, boolean>>>;
   /** Apply a whole desk at once. Receives every TOGGLE profile's new position. */
   onApply: (switches: Readonly<Partial<Record<ProfileId, boolean>>>) => void;
+  /** The chart's symbol — spot FX's volume readers are refused by the market, not the feed. */
+  symbol?: string;
 }) {
-  const menu = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active });
+  const menu = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, symbol });
   const vm = selectChartArrangement({ menu });
 
   const press = (id: ArrangementId) => {

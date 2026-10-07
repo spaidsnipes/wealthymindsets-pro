@@ -10,16 +10,34 @@
  * out; a reading with no receipt yet gets no word (the drawer keeps its own).
  */
 
+import { NEEDS_TRADED_VOLUME, needsTradedVolumeWords } from "./volumeTruth";
+
 export const SENSE_ON_CAMERA = "ON CAMERA";
 export const SENSE_NO_EVENT = "NO CURRENT EVENT";
 export const SENSE_UNAVAILABLE = "UNAVAILABLE ON THIS FEED";
 export const SENSE_NOT_ENTITLED = "NOT ENTITLED";
 export const SENSE_BROKEN = "BROKEN / NOT WIRED";
 
+/**
+ * Every Tools switch that reads TRADED VOLUME (or its aggressor side). On a
+ * market with no central volume (spot FX, spot metals) each of these is in
+ * the NEEDS TRADED VOLUME state whatever its own receipt says — its receipt
+ * would otherwise read NO CURRENT EVENT / WAITING and promise an event the
+ * market cannot produce (FX lane, 2026-10-06). Price-only and time-only tools
+ * (TPO, Structure Profile, Clarity Candle, Market Structure, …) are absent.
+ */
+export const VOLUME_READING_SENSES: ReadonlySet<string> = new Set([
+  "FIXED_RANGE", "SESSION", "DELTA_VP", "ABSORPTION", "EXHAUSTION", "ANATOMY_CARDS",
+  "IMBALANCE_STACK", "VALUE_CANDLE", "FLOW_CURRENT", "DELTA_DIVERGENCE", "LIQUIDITY_WEATHER",
+  "EFFORT_MARK", "DELTA_LEVELS", "LIVING_PROFILE", "PROFILE_DNA", "VALUE_MIGRATION",
+  "PROFILE_MEMORY", "COMPOSITE_PROFILE", "VISIBLE_RANGE_PROFILE", "ANCHORED_RANGE",
+  "LIQUIDITY_LIFECYCLE",
+]);
+
 /** Receipts are a DOMStringMap in the browser; a plain record in tests. */
 export type Receipts = Readonly<Record<string, string | undefined>>;
 
-export function senseEventStates(r: Receipts): Record<string, string> {
+export function senseEventStates(r: Receipts, market?: { readonly symbol?: string | null }): Record<string, string> {
   const out: Record<string, string> = {};
   const zones = Number(r.absorptionZones ?? NaN);
   if (r.absorptionBasis === "UNMEASURED") out.ABSORPTION = SENSE_UNAVAILABLE;
@@ -74,10 +92,34 @@ export function senseEventStates(r: Receipts): Record<string, string> {
   for (const [layer, id] of Object.entries(faultOwners)) {
     if (r.layerFaults?.includes(`${layer}:`)) out[id] = SENSE_BROKEN;
   }
+
+  // Options positioning (Derivatives Pressure / Brick Walls) had no word, so
+  // on a market with no option chain (spot FX: "PRESSURE:SILENT:UNSUPPORTED",
+  // "ON:SILENT:NO_CHAIN") the Evidence Lineage rail counted both as
+  // observations while the glass said "no option positioning" (2026-10-06).
+  const dp = r.derivativesPressure ?? "";
+  if (/^PRESSURE:SILENT:(UNSUPPORTED|NO_CHAIN|NO_SPOT)/.test(dp)) out.DERIVATIVES_PRESSURE = SENSE_UNAVAILABLE;
+  else if (dp.startsWith("PRESSURE:SILENT:")) out.DERIVATIVES_PRESSURE = SENSE_NO_EVENT;
+  const walls = r.brickWalls ?? "";
+  if (/^ON:SILENT:(UNSUPPORTED|NO_CHAIN|NO_SPOT)/.test(walls)) out.BRICK_WALLS = SENSE_UNAVAILABLE;
+  else if (walls.startsWith("ON:SILENT:") || walls === "ON:NO_CURRENT_WALL_EVENT") out.BRICK_WALLS = SENSE_NO_EVENT;
+  else if (/^ON:\d+$/.test(walls)) out.BRICK_WALLS = SENSE_ON_CAMERA;
+
+  // NEEDS TRADED VOLUME (FX lane, 2026-10-06): on a market with no central
+  // volume every volume-reading sense says so, outranking NO CURRENT EVENT
+  // and UNAVAILABLE ON THIS FEED — no feed could answer it.
+  const needs = market?.symbol ? needsTradedVolumeWords(market.symbol) : null;
+  if (needs) for (const id of VOLUME_READING_SENSES) out[id] = needs;
   return out;
 }
 
 /** True when the drawer should say ACTIVE rather than DRAWING. */
 export function senseIsQuiet(detail: string | undefined): boolean {
-  return detail === SENSE_NO_EVENT || detail === SENSE_UNAVAILABLE || detail === SENSE_NOT_ENTITLED || detail === SENSE_BROKEN;
+  return detail === SENSE_NO_EVENT || detail === SENSE_UNAVAILABLE || detail === SENSE_NOT_ENTITLED || detail === SENSE_BROKEN
+    || senseNeedsTradedVolume(detail);
+}
+
+/** True for the NEEDS TRADED VOLUME state (a market with no central volume). */
+export function senseNeedsTradedVolume(detail: string | undefined): boolean {
+  return (detail ?? "").startsWith(NEEDS_TRADED_VOLUME);
 }
