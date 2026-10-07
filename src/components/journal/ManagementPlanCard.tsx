@@ -26,6 +26,7 @@ import { LOOP_DOORS } from "@/lib/journal/planLoop";
 import { freezePlanSnapshot, parseManagementCondition, planLine, type ManagementPlanSnapshot, type TraderPlanInput } from "@/lib/journal/managementPlan";
 import { DRAFT_MAX_AGE_MS, latestPlanForSymbol, readDraft, writeDraft } from "@/lib/journal/managementPlanDraft";
 import { draftWithDayRules, readDayRules, type ManagementDayRules } from "@/lib/journal/managementDayRules";
+import { erasePlanForDecision } from "@/lib/journal/managementPlanErase";
 import { appendPlanAmendment, freezePlanOnce, readPlanForDecision } from "@/lib/journal/managementPlanStore";
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3", LINE = "rgba(139,106,41,0.25)";
@@ -143,6 +144,24 @@ function AmendForm({ snap, onSaved }: { snap: ManagementPlanSnapshot; onSaved: (
   );
 }
 
+/** §47–51: delete the plan (its amendments and the "why did the plan change?" answer go with it). Two presses, no dialog. */
+function ErasePlan({ decisionId, onErased }: { decisionId: string; onErased: () => void }) {
+  const [armed, setArmed] = useState(false);
+  return (
+    <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <button type="button" data-testid={armed ? "plan-erase-confirm" : "plan-erase"} onClick={() => {
+        if (!armed) { setArmed(true); return; }
+        erasePlanForDecision(store(), decisionId);
+        setArmed(false);
+        onErased();
+      }} style={{ fontSize: 11, color: armed ? "#e0786b" : MUTED, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", minHeight: 28, cursor: "pointer" }}>
+        {armed ? "Press again to delete this plan and its amendments" : "Delete this plan"}
+      </button>
+      {armed ? <button type="button" onClick={() => setArmed(false)} style={{ fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer" }}>Keep it</button> : null}
+    </span>
+  );
+}
+
 function FrozenPlan({ snap, onAmended }: { snap: ManagementPlanSnapshot; onAmended: (s: ManagementPlanSnapshot) => void }) {
   const at = snap.frozenAt === "TICKET_SEND" ? "at the ticket's send" : snap.frozenAt === "PAPER_FILL" ? "at the paper fill" : "after the trade (journal)";
   return (
@@ -163,7 +182,7 @@ function FrozenPlan({ snap, onAmended }: { snap: ManagementPlanSnapshot; onAmend
 
 export function ManagementPlanCard(props:
   | { readonly mode: "ticket"; readonly symbol: string }
-  | { readonly mode: "story"; readonly decisionId: string; readonly symbol?: string | null; readonly initial?: ManagementPlanSnapshot | null; readonly onPlanChange?: (s: ManagementPlanSnapshot) => void }) {
+  | { readonly mode: "story"; readonly decisionId: string; readonly symbol?: string | null; readonly initial?: ManagementPlanSnapshot | null; readonly onPlanChange?: (s: ManagementPlanSnapshot | null) => void }) {
   const [frozen, setFrozen] = useState<ManagementPlanSnapshot | null>(props.mode === "story" ? props.initial ?? null : null);
   const [draft, setDraft] = useState<DraftForm>(EMPTY_DRAFT);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -184,10 +203,11 @@ export function ManagementPlanCard(props:
   useEffect(() => { refresh(); }, [refresh]);
 
   const onAmended = (s: ManagementPlanSnapshot) => { setFrozen(s); if (props.mode === "story") props.onPlanChange?.(s); };
+  const onErased = () => { setFrozen(null); if (props.mode === "story") props.onPlanChange?.(null); };
 
   if (props.mode === "story") {
     // The Review's "WHAT YOU PLANNED" column already states the frozen plan and its amendments; here, only the amend form.
-    if (frozen) return <div data-testid="plan-card" data-mode="story"><AmendForm snap={frozen} onSaved={onAmended} /></div>;
+    if (frozen) return <div data-testid="plan-card" data-mode="story" style={{ display: "grid", gap: 6 }}><AmendForm snap={frozen} onSaved={onAmended} /><ErasePlan decisionId={frozen.base.decisionId} onErased={onErased} /></div>;
     const record = () => {
       const snap = freezePlanSnapshot({ decisionId: props.decisionId, frozenAt: "JOURNAL_ENTRY", atMs: Date.now(), source: "written in Review after the trade", plan: { symbol, ...toPlan(draft) } });
       if (freezePlanOnce(store(), snap) === "FROZEN" && snap) { setFrozen(snap); props.onPlanChange?.(snap); }
@@ -215,6 +235,7 @@ export function ManagementPlanCard(props:
         {frozen && !newPlan ? (
           <>
             <FrozenPlan snap={frozen} onAmended={onAmended} />
+            <ErasePlan decisionId={frozen.base.decisionId} onErased={onErased} />
             <Link href={LOOP_DOORS.JOURNAL} prefetch={false} data-testid="plan-card-to-journal" style={{ fontSize: 11, color: GOLD }}>After the trade: review this decision in the Journal →</Link>
             <button type="button" onClick={() => setNewPlan(true)} style={{ justifySelf: "start", fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer", padding: 0 }}>Write a plan for the next trade on {props.symbol} →</button>
           </>

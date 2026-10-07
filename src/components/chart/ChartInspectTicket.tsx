@@ -1547,9 +1547,12 @@ export function ChartInspectTicket({
             <EvidenceLine timeZone={timeZone} testId="inspect-wall-evidence" ev={inspectEvidence({ kind: "DERIVATIVES", drawn: true, fidelity: dp.fidelity, sourceName: positioningSourceWords(dp.source).name, asOfMs: dp.clocks.modelAsOf * 1000 }, feed)} />
             <div>What · a damping concentration: dealer hedging expected to lean AGAINST moves through {mtfPx(w.strike)} (not a direction call)</div>
             <div>Where · strike {mtfPx(w.strike)}, price {w.side === "ABOVE" ? "above" : "below"} it · {(w.share * 100).toFixed(1)}% of gross exposure</div>
-            <div>Evidence · call OI {w.callOi.toLocaleString()} · put OI {w.putOi.toLocaleString()} · ≈${(w.exposure / 1e6).toFixed(1)}M per 1% move</div>
+            <div>Evidence · call OI {w.callOi.toLocaleString()} · put OI {w.putOi.toLocaleString()} · ≈${(w.exposure / 1e6).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}M per 1% move</div>
             <div>Class · exposure INFERRED ({dp.assumption}) · tests OBSERVED on this chart&apos;s bars</div>
-            <div>Fidelity · {dp.fidelity} ({positioningSourceWords(dp.source).name}) · clocks: chain {dp.clocks.chainAsOf ?? "—"} · underlying {dp.clocks.underlyingAsOf ?? "—"} · {positioningSourceWords(dp.source).oi}</div>
+            {/* The provider's own stamps, verbatim and unconverted — they arrive in two
+                formats with no zone, beside a CDT "as of" (sheriff sweep 2026-10-07),
+                so the line says so rather than implying a local clock. */}
+            <div>Fidelity · {dp.fidelity} ({positioningSourceWords(dp.source).name}) · clocks as the provider stamps them (zone not stated): chain {dp.clocks.chainAsOf ?? "—"} · underlying {dp.clocks.underlyingAsOf ?? "—"} · {positioningSourceWords(dp.source).oi}</div>
             <div data-testid="inspect-pressure-wall-life">Life · {lifeWords[w.life]} · {w.tests} test{w.tests === 1 ? "" : "s"}{w.firstTestTime != null ? ` since ${clock.minute(w.firstTestTime)} ${clock.zone(w.firstTestTime)}` : ""}{w.closesBeyond ? ` · ${w.closesBeyond} close${w.closesBeyond === 1 ? "" : "s"} beyond` : ""}{wallTestSpanWords(dp.testSpanSec) ? ` · counted over the ${wallTestSpanWords(dp.testSpanSec)!.replace(" seen", "")} this chart has loaded — a longer timeframe sees more of the week` : ""}</div>
             <div>Contradiction · {contra}</div>
             <div>Climate · {dp.climate.replace("_", " ")} at price ({dp.climateRatio.toFixed(2)}) · zero-gamma front {dp.zeroGamma != null ? mtfPx(dp.zeroGamma) : "none in ±20%"}</div>

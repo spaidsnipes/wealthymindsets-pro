@@ -80,10 +80,11 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
       setFvgNote(`Read from ${r.ledger.barCount} ${r.ledger.timeframe} bars (as of ${new Date(r.ledger.asOf ?? Date.now()).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}); entry time = the reference's decision time where the journal reported none.`);
     });
   };
-  const [planOverride, setPlanOverride] = useState<ManagementPlanSnapshot | null>(null);
+  /** undefined = no change this visit; null = the trader erased the plan here. */
+  const [planOverride, setPlanOverride] = useState<ManagementPlanSnapshot | null | undefined>(undefined);
   const [path, setPath] = useState<PricePath | null>(null);
   const [pathNote, setPathNote] = useState<string | null>(null);
-  const plan = useMemo<PlanReviewInput | null>(() => (planIn ? { ...planIn, plan: planOverride ?? planIn.plan, path: path ?? planIn.path ?? null } : null), [planIn, planOverride, path]);
+  const plan = useMemo<PlanReviewInput | null>(() => (planIn ? { ...planIn, plan: planOverride !== undefined ? planOverride : planIn.plan, path: path ?? planIn.path ?? null } : null), [planIn, planOverride, path]);
   const pathWin = useMemo(() => (planIn?.actuals ? pathWindowFor(planIn.actuals, Date.now()) : null), [planIn]);
   const loadPath = () => {
     if (!pathWin?.ok || !planSymbol) return;
@@ -221,7 +222,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
                   {pathNote ? <span role="status">{pathNote}</span> : null}
                 </span>
               ) : null}
-              {planDecisionId ? <ManagementPlanCard mode="story" decisionId={planDecisionId} symbol={planSymbol ?? null} initial={plan?.plan ?? null} onPlanChange={setPlanOverride} /> : null}
+              {planDecisionId ? <ManagementPlanCard mode="story" decisionId={planDecisionId} symbol={planSymbol ?? null} initial={plan?.plan ?? null} onPlanChange={s => { setPlanOverride(s); if (s === null) setAll(readStoryReviews()); }} /> : null}
               <span data-testid="plan-question" style={{ fontSize: 12, color: INK, overflowWrap: "anywhere" }}>SpaidBot asks: {composed.question}</span>
               <AskSpaidbotButton testId="review-ask-spaidbot" label="Ask SpaidBot about this decision" ask={askDecision} />
               <label style={{ fontSize: 11, color: MUTED }}>Why did the plan change? (your words — WM never fills this in)

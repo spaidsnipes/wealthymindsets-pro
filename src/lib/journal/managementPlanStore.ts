@@ -73,3 +73,16 @@ export function appendPlanAmendment(storage: Storage | null | undefined, decisio
   if (!r.ok) return r;
   return writeAll(storage, { ...all, [decisionId]: r.snapshot }) ? r : { ok: false, reason: "This device would not keep the amendment." };
 }
+
+/**
+ * Garden 19 §47–51 — ERASE a decision's plan. Its amendments live inside the
+ * snapshot, so they go with it (nothing can orphan). The trader's own action
+ * only. Returns whether a plan was there.
+ */
+export function deletePlanForDecision(storage: Storage | null | undefined, decisionId: string): boolean {
+  if (!storage) return false;
+  const all = readAll(storage);
+  if (!all[decisionId]) return false;
+  delete all[decisionId];
+  return writeAll(storage, all);
+}

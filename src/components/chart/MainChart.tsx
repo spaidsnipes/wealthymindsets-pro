@@ -22659,7 +22659,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // receipts and Tools › Active; the phone's glass keeps the market.
             // A6 residual (serving /desk 4-up, 2026-10-07): in a ~550px pane the
             // header's recency words wrap onto the plate — same rule under 640.
-            if (W < 640) ds.zoomPlate = "WITHHELD:NARROW";
+            // Measured on the PLOT (canvas less the price axis): a desk pane's
+            // canvas is 676 wide but its plot ~610 (serving /desk, 2026-10-07).
+            if (W < 640 || plotRight < 640) ds.zoomPlate = "WITHHELD:NARROW";
             else {
             delete ds.zoomPlate;
             ctx.save();

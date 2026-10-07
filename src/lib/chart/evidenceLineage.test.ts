@@ -58,3 +58,11 @@ describe("a switch with nothing on the glass is waiting, not an observation (202
     expect(vm.families.flatMap(f => f.members)).toEqual(["WM Value Candle"]);
   });
 });
+
+describe("Brick Walls are counted from what they are built of (2026-10-07)", () => {
+  it("files Brick Walls with Derivatives, not Liquidity", async () => {
+    const src = (await import("node:fs")).readFileSync("src/lib/chart/evidenceLineage.ts", "utf8");
+    expect(src).toContain('BRICK_WALLS: "DERIVATIVES"');
+    expect(src).not.toContain('BRICK_WALLS: "LIQUIDITY"');
+  });
+});

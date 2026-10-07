@@ -103,6 +103,15 @@ export interface FeedRecency {
   readonly barsBehind: number | null;
 }
 
+/**
+ * The phone's clock: "04:40 PM CDT" → "4:40 PM". Measured at 390 (AAPL 5m,
+ * 2026-10-07): the zone word pushed the time under the price axis. The zone
+ * stays in the full sentence (`title` / `spoken`).
+ */
+export function phoneClock(clock: string): string {
+  return clock.replace(/^(.*\d)(\s(?:AM|PM))?\s+(?!AM$|PM$)[A-Z]{2,5}$/, "$1$2").replace(/^0(\d):/, "$1:");
+}
+
 function fin(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
@@ -202,7 +211,7 @@ export function chartFeedRecency(
     return {
       kind: "MARKET_CLOSED",
       glyph: `MARKET CLOSED · LAST BAR OPENED ${clock}`,
-      short: `OPENED ${clock}`,
+      short: `OPENED ${phoneClock(clock)}`,
       // Not a count of missing bars: on a closed market none are missing.
       barsBehind: 0,
       title:
@@ -219,7 +228,7 @@ export function chartFeedRecency(
     return {
       kind: "CURRENT_BAR",
       glyph: `BAR OPENED ${clock} · FORMING`,
-      short: `OPENED ${clock}`,
+      short: `OPENED ${phoneClock(clock)}`,
       barsBehind: 0,
       title:
         `The newest bar on this chart OPENED at ${clock}. That is an OPENING ` +

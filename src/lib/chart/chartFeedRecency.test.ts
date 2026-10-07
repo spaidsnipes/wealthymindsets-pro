@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { chartFeedRecency } from "./chartFeedRecency";
+import { chartFeedRecency, phoneClock } from "./chartFeedRecency";
 
 const SRC = resolve(__dirname, "..", "..");
 
@@ -251,5 +251,12 @@ describe("A11 · the phone short form keeps the time (2026-10-07)", () => {
     expect(cur.short.startsWith("OPENED ")).toBe(true);
     const behind = chartFeedRecency(t0, 300, (t0 + 1000) * 1000);
     expect(behind.short).toMatch(/^\d+ BARS? BEHIND$/);
+  });
+});
+
+describe("A11 · phoneClock drops the zone and the leading zero", () => {
+  it("04:40 PM CDT → 4:40 PM", () => {
+    expect(phoneClock("04:40 PM CDT")).toBe("4:40 PM");
+    expect(phoneClock("11:05 AM")).toBe("11:05 AM");
   });
 });

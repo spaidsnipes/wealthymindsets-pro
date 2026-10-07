@@ -1985,3 +1985,16 @@ input[type=range]::-webkit-slider-runnable-track {
 @container wm-legend (max-width: 760px) {
   [data-legend-group="ohlc"] { display: none !important; }
 }
+
+/* SHERIFF (serving /charts at 390, 2026-10-07): the market-object pins
+   (wm-tap-slop, z 72, inside the chart) painted over the fixed TRADE panel
+   (z 60) and took its BUY / size taps. On a phone, while the panel is open,
+   the pins stand down — an order ticket outranks a chart handle; closing the
+   panel brings them back. Desktop keeps them (the panel sits at the lower
+   left, over settled history). */
+@media (max-width: 639px) {
+  body:has([data-testid="trade-panel"]) [data-market-object-target] {
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
