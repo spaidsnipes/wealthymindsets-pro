@@ -39,6 +39,7 @@ import { DELTA_KEEL_BUDGET_MS, keelLength, readKeels, type KeelInput } from "@/l
 import { readCrossCandleWisdom, type WisdomLine } from "@/lib/chart/crossCandleWisdom";
 import { readRelativeVolume, RVOL_BUDGET_MS, rvolToneAlpha, type RvolBar } from "@/lib/chart/relativeVolume";
 import type { RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegimeSeries";
+import { bucketStep, profileContribution } from "@/lib/chart/profileContribution";
 import { chartPricePickArmed, deliverChartPricePick, orderLineWords, registerChartPricePickHost, useChartOrderLines } from "@/lib/execution/chartOrderLines";
 import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, type DisplacedNote } from "@/lib/chart/eventNoteComposer";
 import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
@@ -10564,6 +10565,58 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           canvas.dataset.regimeStateLine = `${traced}|X${crossings}|NOW:${last?.state ?? "SILENT"}`;
         }
       } catch (err) { layerFault("REGIME_STATE_LINE", err); }
+
+      /* ══ #14 · PROFILE × CANDLE (Garden 19 §8) ════════════════════════════
+         Selection-only. When a Living Profile row is selected (the slice the
+         Inspect ticket reads), the bars that built it light up: a thin brass
+         underline below each contributing candle's low and a brass inlay in
+         its volume bar, both scaled by that bar's share of the row. The row's
+         own grid × each bar's captured prints (or, for a candle-estimated
+         profile, the same even spread over the bar's range) —
+         profileContribution.ts. At rest nothing paints. */
+      try {
+        const sel = selectedSliceRef.current;
+        const lpPC = livingProfileRef.current;
+        if (sel == null) delete canvas.dataset.profileContributionBars;
+        else if (!lpPC || !lpPC.drawn) canvas.dataset.profileContributionBars = "NO_PROFILE";
+        else {
+          const step = bucketStep(lpPC.bars.map(b => b.price));
+          const bs = barsRef.current || [];
+          const tsPC = chart.timeScale();
+          const lrPC = tsPC.getVisibleLogicalRange();
+          const i0 = Math.max(0, Math.floor(lrPC ? +lrPC.from : 0));
+          const i1 = Math.min(bs.length - 1, Math.ceil(lrPC ? +lrPC.to : bs.length - 1));
+          const inView = bs.slice(i0, i1 + 1).map(b => ({
+            time: b.time as number, low: b.low, high: b.high, volume: b.volume,
+            tape: tickAccRef.current.get(b.time as number) ?? null,
+          }));
+          const contrib = step == null ? [] : profileContribution(sel, step, inView, lpPC.estimated ? "ESTIMATED" : "TAPE");
+          const spacingPC = (() => { try { return +(tsPC.options().barSpacing ?? 6); } catch { return 6; } })();
+          const wU = Math.max(3, Math.round(spacingPC * 0.7));
+          const vsPC = volRef.current;
+          const baseV = vsPC ? vsPC.priceToCoordinate(0) : null;
+          const byT = new Map(inView.map(b => [b.time, b]));
+          ctx.save();
+          for (const c of contrib) {
+            const b = byT.get(c.time);
+            const xr = tsPC.timeToCoordinate(c.time as never);
+            if (!b || xr == null || +xr < 0 || +xr > plotRight) continue;
+            const a = 0.35 + 0.55 * c.share;
+            ctx.fillStyle = `rgba(201,165,92,${a.toFixed(3)})`;
+            const yl = srs.priceToCoordinate(b.low);
+            if (yl != null) ctx.fillRect(Math.round(+xr - wU / 2), Math.round(+yl) + 4, wU, 2);
+            if (vsPC && baseV != null) {
+              const yt = vsPC.priceToCoordinate(b.volume);
+              if (yt != null && +baseV - +yt > 0.5) {
+                ctx.fillStyle = `rgba(201,165,92,${(0.18 + 0.4 * c.share).toFixed(3)})`;
+                ctx.fillRect(Math.round(+xr - wU / 2), +yt, wU, +baseV - +yt);
+              }
+            }
+          }
+          ctx.restore();
+          canvas.dataset.profileContributionBars = `${contrib.length}|ROW:${sel}|${lpPC.estimated ? "ESTIMATED" : "TAPE"}`;
+        }
+      } catch (err) { layerFault("PROFILE_CONTRIBUTION", err); }
 
       /* ══ C-05 · EFFORT MARK ON EVERY QUALIFYING BAR ══════════════════════
          Class B: the room's own verdict (one reading — the same selector the
