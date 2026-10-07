@@ -16,6 +16,7 @@ describe("cross-candle wisdom (§17) — one line, only from a real evidence obj
     const w = readCrossCandleWisdom({ keels: [keel(0, 0.3, false), keel(300, -0.5, true)], newestClosedTime: 300, barSec: 300 });
     expect(w?.text).toBe("SELL AGGRESSION FAILED TO DISPLACE");
     expect(w?.provenance).toMatch(/^Delta Keel · provider bar sides · bar 300/);
+    expect(w?.sources).toEqual(["DELTA_KEEL:SIDES"]);
   });
 
   it("an old failure is history, not news", () => {

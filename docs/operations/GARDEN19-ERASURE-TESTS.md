@@ -90,3 +90,72 @@ The hidden-window rAF/visibility shim was injected, otherwise overlays never pai
 8. **The folded-silence line should move off the volume bars.** At 390 it is drawn across the volume histogram, where the DOM R/A/%/L chips also sit. Place it at the top-left of the price pane instead.
 
 Screens: `~/wm-held/proof/g19-charts-390x844-erasure*.png` (local, the same scene before §22). The production frame was read live; its receipts are quoted above.
+
+## MainChart asks for the chart lane (the two erasure fails)
+
+The education lane does not edit `MainChart.tsx`. Each ask below names the code as it stands on serving f8cb690 and says what a fix must do. An ask is done when the phenomenon is still readable with every glyph erased (same harness as above).
+
+### ASK-1 · Brick Walls off camera: give the off-camera wall a glyph, not only a chip
+
+- **Today** (`MainChart.tsx` ≈ L17462–17483, the derivatives block's `offLines`): walls beyond the camera become ONE text chip per direction, e.g. `▲ 2 WALLS ABOVE · 90000 · 95000`. It is drawn by `chip()`: a `rgba(11,10,8,0.86)` slab plus `fillText`. The slab is near-black on near-black, so with labels erased **nothing is visible**. The chip is drawn only when `dpSpeaks`.
+- **Ask:**
+  1. On the pane edge the walls lie beyond (top for ▲, bottom for ▼), just left of `plotRightD`, draw an **edge brick stack**: one masonry brick per off-camera wall, in the same brick ink and course pattern the on-camera wall uses.
+     - Brick length ∝ `share` of gross exposure.
+     - Stacked by distance, nearest wall closest to the edge.
+     - A 4 px notch or chevron points off camera.
+  2. Draw the stack whenever the walls layer is on, not only when `dpSpeaks`. The text chip becomes an optional label riding on the stack.
+  3. Make the stack a hit target. A tap selects the nearest off-camera wall (`SelectedPressureWall` by strike), so Inspect opens the wall ticket. That ticket now carries the §28 EVIDENCE line (DEGRADED for a DELAYED Cboe chain, PARTIAL for a Deribit snapshot).
+  4. Publish a receipt: `canvas.dataset.pressureWallsOffCamera = "UP:<n>|DOWN:<n>"`, so a probe can prove the glyph without reading words.
+- **Done when:** with labels and numbers erased on BTC-USD 5m (walls at 90k/95k, price 84k), a viewer can say "walls exist above, two of them, the nearer one heavier", and a tap on the stack opens the wall ticket.
+
+### ASK-2 · Session Bands on a one-session camera: draw the lanes it is not using
+
+- **Today** (`MainChart.tsx` ≈ L10046–10093):
+  - Session identity is encoded twice: by **lane height** (`laneY.ASIA` top, `LONDON` middle, `NEW_YORK` bottom, 3 px lanes with a 1 px gap) and by **ink** (ASIA `120,170,190`, LONDON `201,165,92`, NEW_YORK `170,150,210`).
+  - Only lanes with a span in view are filled.
+  - On a camera inside one session (BTC-USD 5m overnight showed only ASIA), a single 3 px strip floats with no reference. Its height says nothing because the other two lanes are absent, and its ink is learned only by contrast. With labels erased, which session it is cannot be seen.
+- **Ask:**
+  1. While the bands are on and the timeframe is intraday, always stroke the **three lane rails**: a 1 px hairline at 0.10 alpha in each lane's own ink, across the plot (`0 → plotRight`). An occupied lane then fills its rail, and an empty lane still shows where the other sessions live. Lane position becomes readable on any camera.
+  2. At each band's left end, draw a tiny fixed **lane mark**: 1, 2 or 3 stacked ticks for ASIA, LONDON and NEW_YORK. It is a learnable shape that does not depend on colour vision.
+  3. Keep the existing word labels and the overlap wash (`LDN_NY_OVERLAP`) as they are.
+  4. Receipt: `canvas.dataset.sessionBandRails = "3"` while the rails are drawn.
+  5. Budget: the rails are three `fillRect` calls per frame, inside `SESSION_BANDS_BUDGET_MS`.
+- **Done when:** with labels erased on a one-session camera, the filled lane's position against the two empty rails says which session it is, and the tick mark agrees.
+
+## §28 · Inspect depth audit (2026-10-07, education lane)
+
+For each selectable invention, Inspect must show four things:
+1. What was measured.
+2. Its source and as-of time.
+3. Its evidence class (FULL / PARTIAL / DEGRADED / SILENT) and why.
+4. The numbers the canvas withholds.
+
+**Before:** every ticket printed what its owner measured. The class word, the source and the feed's degradation were uneven, and the bar-level readings had no Inspect at all.
+
+**After** (unshipped at this writing):
+- `src/lib/chart/inspectEvidence.ts` is the one owner of the class word.
+- `src/lib/chart/barCandleReadings.ts` gives the bar's own readings.
+- `ChartInspectTicket` renders both.
+
+| Selectable | Ticket | Measured | Source + as-of | Class (rule) | Withheld numbers | Gap closed |
+|---|---|---|---|---|---|---|
+| Zone / level | Market Object Passport | birth bar, tests, response history | birth bar's admitted source, `INSPECTED AS OF` footer | **added:** FULL with an admitted birth identity, PARTIAL without | test depths, prices, ids | class line |
+| Big trade / cluster / single print | print tickets | price, size, time, side, rank, raw tape | **added:** tape source; as-of = execution time | **added:** FULL when the venue stamped the side, PARTIAL when inferred, DEGRADED when no side | size, count, members, percentile | class + source |
+| Delta zone | delta-zone ticket | net, bought/sold, anchor | **added:** tape source + bar time | as for prints | net, bought/sold | class + source |
+| Absorption shelf / exhaustion | anatomy ticket | effort, displacement and Δ per bar; ratios | **added:** bar source; as-of = the window's end | **added:** FULL signed, PARTIAL inferred or volume-only, SILENT when unmeasured | per-bar %, ratios | class + source |
+| Brick wall | wall section | OI, exposure, share, life, tests | chain fidelity and clocks (already there) | **added:** PARTIAL for a public snapshot, DEGRADED for a delayed chain, SILENT when not compiled | OI, $ per 1% move, share | class word |
+| Zero-gamma front | front section | climate, ratio, contracts | already there | **added** (same rule as walls) | ratio, contracts, envelope | class word |
+| Profile lane (slice) | profile-slice ticket | share of POC, location, node, biography | **added:** source (tape when trade-based, bars when estimated) + as-of | **added:** FULL trade-based, PARTIAL candle-estimated, SILENT for an empty bucket | share %, distance, POC path | class + source |
+| Liquidity weather | weather section | segments, prints, ratios | provenance (already there) **+ added:** source and as-of | **added:** FULL tape, PARTIAL derived from bars, SILENT when unmeasured | ratios, dispersion | class word |
+| Effort → Response bar | bar ticket · ACROSS THE CANDLES | **added:** cell, effort × median, response in ATR | bars, ranked over the trailing window, stated as such | **added:** FULL, or SILENT with the owner's reason (no volume / forming / too few bars) | effort ×, ATR, × median | **new** |
+| Delta keel bar | bar ticket · ACROSS THE CANDLES | **added:** winner, failed-to-displace, bought/sold, ratio | tape ladder row, else provider bar sides | **added:** FULL tape, PARTIAL provider sides, SILENT none or spot FX | bought, sold, ratio | **new** |
+| Session band | bar ticket · ACROSS THE CANDLES | **added:** which session(s) the bar sits in | the clock | FULL (a clock fact) | — | **new** (also covers ASK-2's identity in Inspect) |
+| Wisdom line | not selectable | — | — | — | — | **ASK-3** |
+| Any bar | bar ticket | volume, delta, imbalance, fidelity rows | **added:** bar source + tape source | **added:** FULL when signed tape reaches the bar, PARTIAL for OHLCV only | (rows, as before) | class + source |
+
+**Degraded behaviour.** A DELAYED, STALE, REPLAY, PROXY or UNAVAILABLE feed lowers any FULL or PARTIAL class to **DEGRADED**. The line says "Lowered to DEGRADED: the feed is X" and prints the feed's own sentence, the same words as the ⓘ preview. A PARTIAL feed (some senses missing) never lowers a reading whose own sense is present. SILENT is never raised.
+
+### ASK-3 · Wisdom line: make it selectable
+
+- **Today:** the cross-candle wisdom line (`readCrossCandleWisdom`, MainChart ≈ L23848) is drawn with a hairline to its bar, but it is not a selection kind. Inspect cannot show which readings it was traced from.
+- **Ask:** a tap on the line selects the bar its hairline is tied to, through the room's one selection owner, opening the bar ticket. Publish the traced sources on the canvas as `dataset.crossCandleWisdomTrace = "<kind>|<barTime>|<sources>"`, so the education lane can print them under ACROSS THE CANDLES without reading MainChart's state.

@@ -28,6 +28,10 @@ import type {
   MarketStateResolution,
 } from "../canonicalMarketState";
 import { describeDimension } from "../canonicalMarketState";
+// Value imports, deliberately: the matchers are built FROM the shipping
+// producers' vocabulary (the same repair selectMarketStory carries).
+import { VOLATILITY_VERDICTS } from "../deriveVolatilityDimension";
+import { REGIME_VERDICTS } from "../deriveRegimeDimension";
 
 export type RegimeVerdict = "TREND" | "BALANCE" | "TRANSITION" | "EXPANSION" | "COMPRESSION" | "UNKNOWN";
 
@@ -53,13 +57,24 @@ export interface RegimeMatchers {
   volatilityShock: RegimeMatcher;
 }
 
+/*
+ * VOCABULARY THE PRODUCERS ACTUALLY SPEAK (found 2026-10-07 while building the
+ * per-bar series). The volatility producer emits "LOW VOLATILITY" /
+ * "NORMAL VOLATILITY" / "HIGH VOLATILITY"; looseMatch compares whole
+ * normalised words, so the bare adjectives matched NOTHING it emits. Effects
+ * on the live canvas verdict: BALANCE was unreachable (it needs a low/normal
+ * match), and rankVolatility read every sealed volatility as 0 — so any three
+ * snapshots of sealed volatility satisfied COMPRESSION ("trending down",
+ * last ≤ 1) and pre-empted TREND. selectMarketStory carried the same defect
+ * and was repaired the same way; this owner never was.
+ */
 export const DEFAULT_REGIME_MATCHERS: RegimeMatchers = {
-  regimeTrend:      looseMatch(["trend", "trending", "trendup", "trenddown"]),
-  regimeBalance:    looseMatch(["balance", "balanced", "range", "ranging"]),
+  regimeTrend:      looseMatch(["trend", "trending", "trendup", "trenddown", REGIME_VERDICTS.TREND]),
+  regimeBalance:    looseMatch(["balance", "balanced", "range", "ranging", REGIME_VERDICTS.BALANCE]),
   regimeRotation:   looseMatch(["rotation", "rotating", "meanreversion"]),
-  volatilityLow:    looseMatch(["low", "compressed", "quiet"]),
-  volatilityNormal: looseMatch(["normal", "average", "typical"]),
-  volatilityHigh:   looseMatch(["high", "elevated", "expansion"]),
+  volatilityLow:    looseMatch(["low", "compressed", "quiet", VOLATILITY_VERDICTS.LOW]),
+  volatilityNormal: looseMatch(["normal", "average", "typical", VOLATILITY_VERDICTS.NORMAL]),
+  volatilityHigh:   looseMatch(["high", "elevated", "expansion", VOLATILITY_VERDICTS.HIGH]),
   volatilityShock:  looseMatch(["shock", "extreme", "spike"]),
 };
 
@@ -82,14 +97,41 @@ export interface SelectRegimeInput {
   readonly minHistoryDepth?: number;
 }
 
+/** The two dimensions the classifier reads, at one instant. */
+export interface RegimeDimensions {
+  readonly regime: MarketStateDimension;
+  readonly volatility: MarketStateDimension;
+}
+
 export function selectRegime(input: SelectRegimeInput): RegimeVM {
-  const { state } = input;
+  return classifyRegime({
+    now: { regime: input.state.regime, volatility: input.state.volatility },
+    capturedAt: input.state.capturedAt,
+    history: (input.history ?? []).map(s => ({ regime: s.regime, volatility: s.volatility })),
+    matchers: input.matchers,
+    minHistoryDepth: input.minHistoryDepth,
+  });
+}
+
+/**
+ * THE ONE REGIME CLASSIFIER. `selectRegime` (the canvas's single verdict) and
+ * `selectRegimeSeries` (the per-bar state line, Garden 19 / census #7 F15A)
+ * both call this — same rules, same thresholds, same order.
+ */
+export function classifyRegime(input: {
+  readonly now: RegimeDimensions;
+  readonly capturedAt: number;
+  readonly history?: readonly RegimeDimensions[];
+  readonly matchers?: Partial<RegimeMatchers>;
+  readonly minHistoryDepth?: number;
+}): RegimeVM {
+  const state = { capturedAt: input.capturedAt };
   const m: RegimeMatchers = { ...DEFAULT_REGIME_MATCHERS, ...(input.matchers ?? {}) };
   const history = input.history ?? [];
   const minDepth = input.minHistoryDepth ?? 3;
 
-  const regime = state.regime;
-  const volatility = state.volatility;
+  const regime = input.now.regime;
+  const volatility = input.now.volatility;
   const evidence = [...regime.evidence, ...volatility.evidence];
   const contradictions = [...regime.contradictions, ...volatility.contradictions];
 
@@ -146,7 +188,9 @@ export function selectRegime(input: SelectRegimeInput): RegimeVM {
     const volTrend = history
       .slice(-minDepth)
       .map((s) => rankVolatility(s.volatility, m));
-    if (volTrend.every((v, i) => (i === 0 ? true : v <= volTrend[i - 1]!)) && (volTrend[volTrend.length - 1] ?? 3) <= 1) {
+    // Every snapshot must carry a RANKED volatility (rank 0 = unmatched / unsealed):
+    // an unreadable volatility is not a falling one.
+    if (volTrend.every(v => v > 0) && volTrend.every((v, i) => (i === 0 ? true : v <= volTrend[i - 1]!)) && (volTrend[volTrend.length - 1] ?? 3) <= 1) {
       return {
         verdict: "COMPRESSION",
         resolution: "RESOLVED",

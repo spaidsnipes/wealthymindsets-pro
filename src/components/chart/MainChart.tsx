@@ -38,6 +38,7 @@ import { atrSeries, EFFORT_RESPONSE_BUDGET_MS, readEffortResponseField, response
 import { DELTA_KEEL_BUDGET_MS, keelLength, readKeels, type KeelInput } from "@/lib/chart/barDeltaKeel";
 import { readCrossCandleWisdom, type WisdomLine } from "@/lib/chart/crossCandleWisdom";
 import { readRelativeVolume, RVOL_BUDGET_MS, rvolToneAlpha, type RvolBar } from "@/lib/chart/relativeVolume";
+import type { RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegimeSeries";
 import { chartPricePickArmed, deliverChartPricePick, orderLineWords, registerChartPricePickHost, useChartOrderLines } from "@/lib/execution/chartOrderLines";
 import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, type DisplacedNote } from "@/lib/chart/eventNoteComposer";
 import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
@@ -361,7 +362,7 @@ import { HEAT_SMOKE_LAYER_WEIGHT } from "@/lib/marketData/viewModels/selectHeatL
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { HEAVY_RATIO, selectLiquidityWeatherFromBars } from "@/lib/marketData/viewModels/selectLiquidityWeather";
 import { constrainWeatherLens, weatherLensBarSpan, isWeatherLensBezel, isInsideWeatherLens, LENS_DRAG_SLOP } from "@/lib/chart/weatherLensDrag";
-import type { EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
+import type { EffortMark, EffortMarkVerdict } from "@/lib/marketData/effortMarkGeometry";
 import type { DeltaLevelsGlass } from "@/lib/marketData/viewModels/selectDeltaLevelsGlass";
 import type { LivingProfileGlass } from "@/lib/marketData/viewModels/selectLivingProfileGlass";
 import selectSemanticZoom from "@/lib/marketData/viewModels/selectSemanticZoom";
@@ -1356,6 +1357,12 @@ interface Props {
    */
   rvolToneOn?: boolean;
   /**
+   * #7 REGIME STATE LINE (F15A): the room's per-bar regime series
+   * (selectRegimeSeries — the canvas verdict re-asked at each bar's close).
+   * Painted only while Regime Lighting is on.
+   */
+  regimeSeries?: readonly RegimeSeriesPoint[] | null;
+  /**
    * ABSORPTION ANATOMY (Founder Asset 06) — draws the EFFORT field and the
    * ABSORPTION ZONE band directly in price/time space. See the draw block.
    */
@@ -1419,6 +1426,12 @@ interface Props {
    * file may not second-guess it. Null means the room asked nothing.
    */
   effortMark?: EffortMarkVerdict | null;
+  /**
+   * C-05: the SAME verdict (selectEffortVsResult → selectEffortMark, computed
+   * by the room) for every finished bar in the window that qualified. The
+   * glass paints them quietly; the subject bar keeps its own full mark.
+   */
+  effortMarksField?: { readonly marks: readonly EffortMark[]; readonly considered: number; readonly reason: string } | null;
   /**
    * DELTA LEVELS ON GLASS — H-702, family Order Flow / Aggressor Delta.
    *
@@ -1674,6 +1687,8 @@ interface Props {
   auctionVerdict?: string | null;
   selectedMarketObjectId?: string | null;
   onSelectMarketObject?: (objectId: string) => void;
+  /** ASK-3: a tap on a bar-anchored glass object (the wisdom line) selects that bar → Inspect. */
+  onSelectBarAt?: (time: number) => void;
   /** Swing-origin ZONES with their lifecycle — painted on price. */
   structureZones?: readonly StructureZone[];
   selectedMarketObjectWait?: WaitStandingVM | null;
@@ -1929,7 +1944,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
-  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false,
+  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, regimeSeries = null,
   absorptionAnatomyActive = false,
   exhaustionOnChart = true,
   imbalanceStack = null,
@@ -1938,6 +1953,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   deltaDivergence = null,
   liquidityWeather = null,
   effortMark = null,
+  effortMarksField = null,
   deltaLevelsGlass = null,
   livingProfileGlass = null,
   marketStructureGlass = null,
@@ -2034,6 +2050,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   auctionVerdict = null,
   selectedMarketObjectId = null,
   onSelectMarketObject,
+  onSelectBarAt,
   structureZones = [],
   selectedMarketObjectWait = null,
 }: Props) {
@@ -2271,6 +2288,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const effortResponseCacheRef = useRef<{ key: string; field: EffortResponseField } | null>(null);
   const effortResponseCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const deltaKeelAtrRef = useRef<{ key: string; atr: number[] } | null>(null);
+  const regimeSeriesRef = useRef<readonly RegimeSeriesPoint[] | null>(null);
+  regimeSeriesRef.current = regimeSeries;
+  // ASK-3: the wisdom line's hit rect this frame (null when not drawn).
+  const wisdomHitRef = useRef<{ x: number; y: number; w: number; h: number; time: number } | null>(null);
+  // C-05 marks travel through a ref: they change on bar close, and the paint
+  // loop must not be torn down for them.
+  const effortMarksFieldRef = useRef<typeof effortMarksField>(null);
+  effortMarksFieldRef.current = effortMarksField;
   const rvolCacheRef = useRef<{ key: string; bars: RvolBar[] } | null>(null);
   const rvolCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const deltaKeelCacheRef = useRef<{ key: string; at: number; keels: ReturnType<typeof readKeels>; nTape: number; nSides: number } | null>(null);
@@ -10030,6 +10055,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const t0SB = performance.now();
         const bs = barsRef.current || [];
         const barSecSB = barInterval();
+        delete canvas.dataset.sessionBandRails;
         if (!sessionBandsOn) canvas.dataset.sessionBands = "OFF";
         else if (bs.length < 2) canvas.dataset.sessionBands = "NO_BARS";
         else if (barSecSB >= 86_400) canvas.dataset.sessionBands = "NOT_INTRADAY";
@@ -10059,6 +10085,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           let labels = 0;
           const labelRects: { x: number; y: number; w: number; h: number }[] = [];
           ctx.save();
+          // ASK-2 (erasure, 2026-10-07): the three lane RAILS are always drawn
+          // while the bands are on — a one-session camera's lone strip then
+          // reads by its position against the two empty rails, not by its ink.
+          for (const id of ["ASIA", "LONDON", "NEW_YORK"] as const) {
+            ctx.fillStyle = `rgba(${INK[id]},0.10)`;
+            ctx.fillRect(0, laneY[id] + 1, plotRight, 1);
+          }
+          canvas.dataset.sessionBandRails = "3";
+          // Lane mark: 1 / 2 / 3 notches at a band's left end (ASIA / LONDON /
+          // NEW YORK) — a learnable shape that does not depend on colour vision.
+          const LANE_TICKS: Record<string, number> = { ASIA: 1, LONDON: 2, NEW_YORK: 3 };
           ctx.font = `700 9px ${MARKET_SANS}`;
           ctx.textBaseline = "bottom"; ctx.textAlign = "left";
           for (const sp of spans) {
@@ -10078,6 +10115,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             ctx.fillStyle = `rgba(${INK[sp.id]},0.42)`;
             ctx.fillRect(a, laneY[sp.id], b - a, LANE_H);
+            if (b - a >= 12) {
+              ctx.fillStyle = "rgba(8,7,5,0.9)";
+              for (let t = 0; t < (LANE_TICKS[sp.id] ?? 0); t++) ctx.fillRect(a + 2 + t * 3, laneY[sp.id], 1, LANE_H);
+            }
             const word = SESSION_BAND_LABEL[sp.id];
             const tw = ctx.measureText(word).width;
             const r = { x: a + 2, y: laneY.ASIA - 12, w: tw, h: 10 };
@@ -10230,9 +10271,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const spacing = (() => { try { return +(tsER.options().barSpacing ?? 6); } catch { return 6; } })();
             const w = Math.max(1, Math.min(4, Math.round(spacing * 0.3)));
             const sparse = spacing < 2.5;
+            const narrowER = spacing <= 6;
+            const classInk = { A: 0, I: 0, V: 0, O: 0 };
             const insp = inspectedBarRef.current?.time ?? null;
             const n = field.bars.length;
             let drawn = 0, lids = 0, hollow = 0;
+            // P-05 span (census C-01 §3a): consecutive ABSORBED bars — effort
+            // up, displacement down — get ONE amber bracket over their volume
+            // bars. Class B over the Class A field; silence elsewhere.
+            const absorbedAt: { time: number; x: number; top: number }[] = [];
             ctx.save();
             for (let k = 0; k < n; k++) {
               const b = field.bars[k];
@@ -10250,7 +10297,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const inside = Math.min(hR, effortPx);
               // Overflow under 1.5× its own volume bar is ordinary variation:
               // the column simply fills its bar; only a clear excess is drawn.
-              ctx.fillStyle = `rgba(237,230,211,${a.toFixed(3)})`;
+              // ≤6px bars (phone ask 4): a 1px column cannot carry the lid or
+              // the hollow, so the CLASS takes the ink — absorbed amber, vacuum
+              // cool, everything else ivory.
+              ctx.fillStyle = narrowER && b.cell === "ABSORBED" ? `rgba(${flowColorsRef.current.absorb},${Math.max(0.7, a).toFixed(3)})`
+                : narrowER && b.cell === "VACUUM" ? `rgba(120,170,190,${Math.max(0.7, a).toFixed(3)})`
+                : `rgba(237,230,211,${a.toFixed(3)})`;
+              if (narrowER) classInk[b.cell === "ABSORBED" ? "A" : b.cell === "VACUUM" ? "V" : b.cell === "INITIATIVE" ? "I" : "O"]++;
               if (inside > 0) ctx.fillRect(x, yBase - inside, w, inside);
               if (hR > effortPx * 1.5 + 0.5) {
                 ctx.strokeStyle = `rgba(237,230,211,${(a * 0.9).toFixed(3)})`;
@@ -10266,9 +10319,36 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillRect(Math.round(+xr - lw / 2), Math.round(yBase - inside) - 1, lw, 1);
                 lids++;
               }
+              if (b.cell === "ABSORBED") absorbedAt.push({ time: b.time, x: +xr, top: +yTopC });
               drawn++;
             }
+            let spans = 0;
+            {
+              const barSecSp = barInterval();
+              let run: typeof absorbedAt = [];
+              const flush = () => {
+                if (run.length >= 2) {
+                  const x0 = run[0].x - spacing * 0.45, x1 = run[run.length - 1].x + spacing * 0.45;
+                  const yTop = Math.max(bandTop - 2, Math.min(...run.map(r => r.top)) - 5);
+                  ctx.strokeStyle = `rgba(${flowColorsRef.current.absorb},0.75)`;
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  ctx.moveTo(Math.round(x0) + 0.5, yTop + 4); ctx.lineTo(Math.round(x0) + 0.5, yTop + 0.5);
+                  ctx.lineTo(Math.round(x1) + 0.5, yTop + 0.5); ctx.lineTo(Math.round(x1) + 0.5, yTop + 4);
+                  ctx.stroke();
+                  spans++;
+                }
+                run = [];
+              };
+              for (const a of absorbedAt) {
+                if (run.length && a.time - run[run.length - 1].time > barSecSp * 1.5) flush();
+                run.push(a);
+              }
+              flush();
+            }
             ctx.restore();
+            canvas.dataset.effortResponseSpans = String(spans);
+            if (narrowER) canvas.dataset.effortResponseNarrow = `CLASS_INK|A${classInk.A}|I${classInk.I}|V${classInk.V}`; else delete canvas.dataset.effortResponseNarrow;
             const c = field.counts;
             canvas.dataset.effortResponse = `DRAWN:N${drawn}|A${c.ABSORBED}|I${c.INITIATIVE}|V${c.VACUUM}|Q${c.QUIET}|L${lids}|H${hollow}`;
             // C-01 certificate receipt (Response Matrix on the field).
@@ -10316,18 +10396,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const atrDK = deltaKeelAtrRef.current.atr;
           const sidedDK = candleSidedRef.current;
           // Evidence rows are re-read when the camera / bar set changes, else at
-          // most every 400ms (tape for the newest bars still lands) — keeps the
+          // most every second (tape for the newest bars still lands) — keeps the
           // per-frame cost inside DELTA_KEEL_BUDGET_MS.
           const ckDK = `${symbol}|${i0}|${i1}|${bs.length}|${formingDK ?? "-"}|${sidedDK.size}`;
           const cachedDK = deltaKeelCacheRef.current;
-          const freshDK = cachedDK && cachedDK.key === ckDK && t0DK - cachedDK.at < 400;
+          const freshDK = cachedDK && cachedDK.key === ckDK && t0DK - cachedDK.at < 1000;
           const rowsDK: KeelInput[] = [];
           let nTape = freshDK ? cachedDK!.nTape : 0, nSides = freshDK ? cachedDK!.nSides : 0;
           if (!freshDK) for (let i = i0; i <= i1; i++) {
             const cDK = bs[i];
             if (formingDK != null && (cDK.time as number) === formingDK) continue;
             // The bar's delta from its ONE owner (footprintCanon.barTapeDelta).
-            const bd = barTapeDelta(getBarSubProfile(cDK));
+            // Only a bar the tape accumulator holds can have tape rows — skip
+            // the 120-row allocation for every other bar (serving: the 400ms
+            // refresh built ~150 empty profiles, the keel's cost spikes).
+            const heardDK = tickAccRef.current.get(cDK.time as number);
+            const bd = heardDK && heardDK.size ? barTapeDelta(getBarSubProfile(cDK)) : null;
             const sd = bd ? null : sidedDK.get(Number(cDK.time)) ?? null;
             if (!bd && !sd) { rowsDK.push({ time: cDK.time as number, open: cDK.open, close: cDK.close, atr: atrDK[i], buy: 0, sell: 0, basis: "SIDES" }); continue; }
             if (bd) nTape++; else nSides++;
@@ -10347,8 +10431,30 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const bodyW = Math.max(1, Math.round(spacing * 0.7));
             const insp = inspectedBarRef.current?.time ?? null;
             const byTime = new Map<number, (typeof bs)[number]>();
-            for (let i = i0; i <= i1; i++) byTime.set(bs[i].time as number, bs[i]);
+            const idxOf = new Map<number, number>();
+            for (let i = i0; i <= i1; i++) { byTime.set(bs[i].time as number, bs[i]); idxOf.set(bs[i].time as number, i); }
+            // Coordinates by calibration, not a library call per keel: x is
+            // linear in bar index (two measured anchors), y linear in price on
+            // a normal scale (two measured prices). Log / % scales fall back.
+            const xCal = (() => {
+              const ta = bs[i0]?.time, tb = bs[i1]?.time;
+              const xa = ta != null ? tsDK.timeToCoordinate(ta as never) : null, xb = tb != null ? tsDK.timeToCoordinate(tb as never) : null;
+              if (xa == null || xb == null || i1 === i0) return null;
+              const k = (+xb - +xa) / (i1 - i0);
+              return (i: number) => +xa + (i - i0) * k;
+            })();
+            const yCal = (() => {
+              let mode = 0;
+              try { mode = Number(chart.priceScale("right").options().mode) || 0; } catch { /* normal */ }
+              if (mode !== 0) return null;
+              const pa = bs[i1]?.close, pb = pa != null ? pa * 1.01 : null;
+              const ya = pa != null ? csDK.priceToCoordinate(pa) : null, yb = pb != null ? csDK.priceToCoordinate(pb) : null;
+              if (ya == null || yb == null || pa == null || pb == null) return null;
+              const k = (+yb - +ya) / (pb - pa);
+              return (p: number) => +ya + (p - pa) * k;
+            })();
             let drawn = 0, failed = 0;
+            const narrowDK = bodyW < 4 || W < 640;
             // Batched by (ink, age bucket): a fillStyle per keel cost ~2.5ms a
             // frame on serving NQ (101 keels); one path per group stays inside
             // DELTA_KEEL_BUDGET_MS. Age is quantised to four steps (memory aged).
@@ -10359,11 +10465,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const kl = keels[k];
               const bar = byTime.get(kl.time);
               if (!bar) continue;
-              if (bodyW < 3 && !kl.failed) continue; // too dense: failures only
-              const xr = tsDK.timeToCoordinate(kl.time as never);
-              const yc = csDK.priceToCoordinate(bar.close);
+              // Narrow glass (phone ask 5): only FAILED keels, each ≥3px long and
+              // drawn SOLID in its side ink — a 1px hollow is invisible at 390.
+              if (narrowDK && !kl.failed) continue;
+              const ix = idxOf.get(kl.time);
+              const xr = xCal && ix != null ? xCal(ix) : tsDK.timeToCoordinate(kl.time as never);
+              const yc = yCal ? yCal(bar.close) : csDK.priceToCoordinate(bar.close);
               if (xr == null || yc == null || +xr < 0 || +xr > plotRight) continue;
-              const L = Math.max(1, keelLength(kl.ratio, bodyW));
+              const L = Math.max(narrowDK ? 3 : 1, keelLength(kl.ratio, bodyW));
               const up = bar.close >= bar.open;
               // Just OUTSIDE the close edge: above an up body, below a down one.
               const y = Math.round(+yc + (up ? -5 : 3));
@@ -10373,7 +10482,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Dark halo: the keel is its own mark, never read as more body.
               halo.push(x - 1, y - 1, L + 2, 4);
               const g = grp(`${side}${bucket}`);
-              if (kl.failed) { g.hollow.push(x + 0.5, y + 0.5, Math.max(1, L - 1), 2); failed++; }
+              if (kl.failed && narrowDK) { g.solid.push(x, y, L, 2); failed++; }
+              else if (kl.failed) { g.hollow.push(x + 0.5, y + 0.5, Math.max(1, L - 1), 2); failed++; }
               else g.solid.push(x, y, L, 2);
               drawn++;
             }
@@ -10390,6 +10500,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             ctx.restore();
             canvas.dataset.barDeltaKeels = `${drawn}|BASIS:TAPE${nTape}+SIDES${nSides}|FAIL:${failed}`;
+            if (narrowDK) canvas.dataset.barDeltaKeelsNarrow = "FAIL_ONLY|W2"; else delete canvas.dataset.barDeltaKeelsNarrow;
             const sel = insp != null ? keels.find(q => q.time === insp) : null;
             if (sel) canvas.dataset.barDeltaKeelInspect = `${sel.basis}|D${sel.delta}|R${sel.ratio.toFixed(2)}${sel.failed ? "|FAILED_TO_DISPLACE" : ""}`;
             else delete canvas.dataset.barDeltaKeelInspect;
@@ -10401,6 +10512,98 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           canvas.dataset.barDeltaKeelsCost = `${ms.toFixed(2)}ms|mean${(cr.sum / cr.n).toFixed(2)}|longest${cr.longest.toFixed(2)}|${cr.longest <= DELTA_KEEL_BUDGET_MS ? "MET" : "OVER"}`;
         }
       } catch (err) { layerFault("DELTA_KEEL", err); }
+
+      /* ══ #7 · REGIME STATE LINE (F15A "Regime decides which geometry may
+         speak") ════════════════════════════════════════════════════════════
+         A thin strip just above the volume band: four faint wordless lanes —
+         TREND, TRANSITION (+EXPANSION), BALANCE (+COMPRESSION), WAIT
+         (UNKNOWN) — and ONE continuous 1px trace stepping between them bar by
+         bar; a transition is the trace crossing lanes, not a hairline. Bars
+         the held tape never reached are silent (no trace — never guessed from
+         candles). A hollow chip marks the present point. Drawn only while
+         Regime Lighting is on (the same switch as the live verdict). */
+      try {
+        const rs = regimeSeriesRef.current;
+        if (layerOnRef.current.regimeLighting !== true) canvas.dataset.regimeStateLine = "OFF";
+        else if (!rs || !rs.length) canvas.dataset.regimeStateLine = "NO_SERIES";
+        else {
+          const LEVEL: Record<string, number> = { TREND: 0, TRANSITION: 1, EXPANSION: 1, BALANCE: 2, COMPRESSION: 2, UNKNOWN: 3 };
+          let volTopRS = 0.78;
+          try { const t = chart.priceScale("vol").options().scaleMargins?.top; if (Number.isFinite(t)) volTopRS = t as number; } catch { /* default */ }
+          const LANE = 3, GAPR = 2;
+          const stripBot = Math.round(pane0Bottom * volTopRS) - 6;
+          const yLane = (lv: number) => stripBot - (4 - lv) * (LANE + GAPR) + 1;
+          ctx.save();
+          ctx.fillStyle = "rgba(237,230,211,0.06)";
+          for (let lv = 0; lv < 4; lv++) ctx.fillRect(0, yLane(lv), plotRight, LANE);
+          const tsRS = chart.timeScale();
+          ctx.strokeStyle = "rgba(237,230,211,0.62)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          let pen = false, traced = 0, crossings = 0, prevLv: number | null = null;
+          let last: { x: number; y: number; state: string } | null = null;
+          for (const p of rs) {
+            const xr = tsRS.timeToCoordinate(p.time as never);
+            if (xr == null) { pen = false; continue; }
+            if (p.basis !== "TAPE") { pen = false; prevLv = null; continue; }
+            const lv = LEVEL[p.state] ?? 3;
+            const y = yLane(lv) + 1;
+            if (+xr < -20 || +xr > plotRight) { pen = false; continue; }
+            if (!pen) { ctx.moveTo(+xr, y); pen = true; }
+            else { ctx.lineTo(+xr, y); }
+            if (prevLv != null && prevLv !== lv) crossings++;
+            prevLv = lv; traced++;
+            last = { x: +xr, y, state: p.state };
+          }
+          ctx.stroke();
+          if (last) {
+            ctx.strokeStyle = "rgba(237,230,211,0.9)";
+            ctx.beginPath(); ctx.arc(last.x, last.y, 3, 0, Math.PI * 2); ctx.stroke();
+          }
+          ctx.restore();
+          canvas.dataset.regimeStateLine = `${traced}|X${crossings}|NOW:${last?.state ?? "SILENT"}`;
+        }
+      } catch (err) { layerFault("REGIME_STATE_LINE", err); }
+
+      /* ══ C-05 · EFFORT MARK ON EVERY QUALIFYING BAR ══════════════════════
+         Class B: the room's own verdict (one reading — the same selector the
+         Effort panel and the subject mark read) for each finished bar that
+         qualified, drawn in the SAME grammar as the subject mark (stem off the
+         extreme + hollow cap) but quiet (0.45) and wordless. Silence on every
+         other bar. The cursor's subject keeps its full-ink mark and words. If
+         more than a quarter of the bars qualify, the threshold is wrong for
+         this market and NOTHING is drawn (census rule) — the receipt says so. */
+      try {
+        const ef = effortMarksFieldRef.current;
+        const onEF = layerOnRef.current.effort && att.paints("effort");
+        if (!onEF) canvas.dataset.effortMarks = "OFF";
+        else if (!ef) canvas.dataset.effortMarks = "NO_READING";
+        else if (ef.reason !== "OK") canvas.dataset.effortMarks = `${ef.reason}:${ef.marks.length}/${ef.considered}`;
+        else {
+          const subjT = effortMarkRef.current?.drawn ? effortMarkRef.current.mark.time : null;
+          const tsEF = chart.timeScale();
+          let drawnEF = 0;
+          ctx.save();
+          ctx.globalAlpha = att.alpha("effort") * 0.45;
+          ctx.strokeStyle = "rgba(237,230,211,0.85)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          for (const mk of ef.marks) {
+            if (mk.time === subjT) continue;
+            const xr = tsEF.timeToCoordinate(mk.time as never), yr = srs.priceToCoordinate(mk.price);
+            if (xr == null || yr == null || +xr < 0 || +xr > plotRight) continue;
+            const x = Math.round(+xr) + 0.5, y = Math.round(+yr) + 0.5;
+            const out = mk.side === "ABOVE" ? -1 : 1;
+            ctx.moveTo(x, y + out * 3); ctx.lineTo(x, y + out * 11);
+            ctx.moveTo(x + 2.5, y + out * 13.5);
+            ctx.arc(x, y + out * 13.5, 2.5, 0, Math.PI * 2);
+            drawnEF++;
+          }
+          ctx.stroke();
+          ctx.restore();
+          canvas.dataset.effortMarks = `${drawnEF}/${ef.considered}`;
+        }
+      } catch (err) { layerFault("EFFORT_MARKS_FIELD", err); }
 
       /* ══════════════════════════════════════════════════════
          WM FIXED VP & SESSION VP — right-anchored inside chart
@@ -15490,6 +15693,44 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
           }
           const chosen = new Set(found.slice().sort((a, b) => b.score - a.score).slice(0, STACK_BUDGET));
+          /* F06A SLABS (census C-11, §3a): where the SAME side's stack held on
+             consecutive bars at overlapping prices, one translucent slab spans
+             those bars at the shared band — the imbalance as territory through
+             time, not a mark per candle. Every run found feeds it (not only the
+             budgeted marks); drawn UNDER the per-bar marks. A single bar's
+             stack makes no slab (that is the mark's job). */
+          {
+            const barSecSl = barInterval();
+            type SlabT = { side: "buy" | "sell"; lo: number; hi: number; x0: number; x1: number; lastT: number; n: number };
+            const openSl: SlabT[] = [], doneSl: SlabT[] = [];
+            const seqSl = found.slice().sort((a, b) => Number(a.c.time) - Number(b.c.time));
+            for (const f of seqSl) {
+              const t = Number(f.c.time);
+              for (let q = openSl.length - 1; q >= 0; q--) if (t - openSl[q].lastT > barSecSl * 1.5) doneSl.push(...openSl.splice(q, 1));
+              const lo = f.c.low + f.run.from * f.binW, hi = f.c.low + (f.run.to + 1) * f.binW;
+              const sl = openSl.find(q => q.side === f.run.side && t > q.lastT && lo < q.hi && hi > q.lo);
+              if (sl) { sl.lo = Math.max(sl.lo, lo); sl.hi = Math.min(sl.hi, hi); sl.x1 = f.rawX; sl.lastT = t; sl.n++; }
+              else openSl.push({ side: f.run.side, lo, hi, x0: f.rawX, x1: f.rawX, lastT: t, n: 1 });
+            }
+            doneSl.push(...openSl);
+            let slB = 0, slS = 0;
+            ctx.globalAlpha = att.alpha("stack");
+            for (const sl of doneSl) {
+              if (sl.n < 2) continue;
+              const ya = srs.priceToCoordinate(sl.hi), yb = srs.priceToCoordinate(sl.lo);
+              if (ya == null || yb == null) continue;
+              const y0 = Math.round(Math.min(+ya, +yb)), y1 = Math.max(y0 + 2, Math.round(Math.max(+ya, +yb)));
+              const xa = Math.round(sl.x0 - slotW / 2), xb = Math.round(sl.x1 + slotW / 2);
+              const rgbSl = sl.side === "buy" ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
+              ctx.fillStyle = `rgba(${rgbSl},${sl.n >= 4 ? 0.34 : 0.25})`;
+              ctx.fillRect(xa, y0, xb - xa, y1 - y0);
+              ctx.fillStyle = `rgba(${rgbSl},0.5)`;
+              ctx.fillRect(xa, y0, xb - xa, 1);
+              ctx.fillRect(xa, y1 - 1, xb - xa, 1);
+              if (sl.side === "buy") slB++; else slS++;
+            }
+            ds.imbalanceSlabs = `${slB + slS}|BUY:${slB}|SELL:${slS}`;
+          }
           for (const f of found) {
             if (!chosen.has(f)) continue;
             const { c, rawX, binW, run } = f;
@@ -15561,6 +15802,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const tx = wordSpot.rect.x, ty = wordSpot.rect.y + wordH / 2;
             const hit = wordSpot.mode === "BLOCKED" || !fit(wordSpot.rect);
             ds.imbalanceStackWord = hit ? "HELD" : wordSpot.mode;
+            // §16: a held stack word goes to the note composer, not away.
+            if (hit) displacedNotes.push({ layer: "IMBALANCE", text: newest.word, x: newest.x, y: midY });
             if (!hit) {
               ctx.globalAlpha = att.textAlpha("stack");
               ctx.fillStyle = (newest.buy ? buyRgba : sellRgba)(1);
@@ -16817,8 +17060,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.font = marketFont("WARNING");
                   const fw = ctx.measureText(flagT).width + 14, fh = 18;
                   const clampY = (y: number) => Math.max(HEADER_FLOOR_Y + 2, Math.min(H * 0.78 - fh, y));
-                  const off = sp.side === "ABOVE" ? -30 - fh / 2 : 30 - fh / 2;
-                  const flagPref = { x: +xEv - 44 - fw, y: clampY(+yEv + off), w: fw, h: fh };
+                  // C-15 (census §3a, H-801 / plate 120): a FLAG ON A POLE at the
+                  // event bar. The pole stands off the bar's own extreme (never
+                  // through the newest candle — §15 clear zone) and the flag flies
+                  // LEFT of it, away from the live edge and the axis.
+                  const evBar = (barsRef.current || []).find(b => (b.time as number) === sp.time) ?? null;
+                  const exC = evBar ? srs.priceToCoordinate(sp.side === "ABOVE" ? evBar.high : evBar.low) : null;
+                  const yFoot = exC != null ? +exC + (sp.side === "ABOVE" ? -4 : 4) : +yEv;
+                  const off = sp.side === "ABOVE" ? -34 - fh : 34;
+                  const flagPref = { x: +xEv - fw, y: clampY(yFoot + off), w: fw, h: fh };
                   const flagAlt = { x: flagPref.x, y: clampY(+yEv - off - fh), w: fw, h: fh };
                   const spotF = placeClearOfKeepOut(
                     flagPref,
@@ -16827,21 +17077,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   );
                   recordKeepOut(keepOutLedger, spotF);
                   floatingChips.push({ x: spotF.rect.x, y: spotF.rect.y, w: fw, h: fh });
-                  // The arrow from the flag to the live event, and a ring on it.
-                  const ax0 = spotF.rect.x + fw, ay0 = spotF.rect.y + fh / 2;
-                  const ang = Math.atan2(+yEv - ay0, +xEv - 7 - ax0);
-                  const tipX = +xEv - 7 * Math.cos(ang), tipY = +yEv - 7 * Math.sin(ang);
+                  // The POLE: from the bar's extreme straight to the flag's row,
+                  // with a foot tick on the extreme. If the keep-out owner slid
+                  // the flag off the pole, a hairline joins the pole top to it.
+                  const flagMidY = spotF.rect.y + fh / 2;
+                  const poleX = Math.round(+xEv) + 0.5;
                   ctx.strokeStyle = "rgba(240,190,70,0.95)";
-                  ctx.fillStyle = "rgba(240,190,70,0.95)";
                   ctx.lineWidth = 1.2;
-                  ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(tipX, tipY); ctx.stroke();
-                  ctx.beginPath();
-                  ctx.moveTo(tipX, tipY);
-                  ctx.lineTo(tipX - 7 * Math.cos(ang - 0.4), tipY - 7 * Math.sin(ang - 0.4));
-                  ctx.lineTo(tipX - 7 * Math.cos(ang + 0.4), tipY - 7 * Math.sin(ang + 0.4));
-                  ctx.closePath(); ctx.fill();
-                  ctx.beginPath(); ctx.arc(+xEv, +yEv, 5, 0, Math.PI * 2); ctx.stroke();
+                  ctx.beginPath(); ctx.moveTo(poleX, yFoot); ctx.lineTo(poleX, flagMidY); ctx.stroke();
+                  ctx.beginPath(); ctx.moveTo(poleX - 3, yFoot); ctx.lineTo(poleX + 3, yFoot); ctx.stroke();
+                  const flagRight = spotF.rect.x + fw;
+                  if (Math.abs(flagRight - poleX) > 1) { ctx.beginPath(); ctx.moveTo(poleX, flagMidY); ctx.lineTo(flagRight, flagMidY); ctx.stroke(); }
                   ctx.lineWidth = 1;
+                  ds.expectedEnvelopeSurpriseForm = "FLAG_ON_POLE";
                   ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotF, 0.9)})`;
                   ctx.fillRect(spotF.rect.x, spotF.rect.y, fw, fh);
                   ctx.strokeStyle = "rgba(240,190,70,0.85)";
@@ -17101,6 +17349,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // ── WALLS (bricks) ──────────────────────────────────────────
               const wallWords: { word: string; x: number; y: number }[] = [];
               const offCamera: string[] = [];
+              // ASK-1: the off-camera walls as objects, for the edge brick stack.
+              const offWalls: { strike: number; share: number; up: boolean }[] = [];
               // The masonry each drawn wall occupies — no pressure chip may sit
               // on the bricks (serving BTC: off-camera wall chips landed on the 85,000 wall).
               const masonryRects: { x: number; y: number; w: number; h: number }[] = [];
@@ -17114,6 +17364,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (yc == null) continue;
                 if (yc < HEADER_FLOOR_Y + 6 || yc > paneBotD - 6) {
                   offCamera.push(`${yc < HEADER_FLOOR_Y + 6 ? "▲" : "▼"} WALL ${fmtD(w.strike)} · ${w.life}`);
+                  offWalls.push({ strike: w.strike, share: Number.isFinite(w.share) ? w.share : 0, up: yc < HEADER_FLOOR_Y + 6 });
                   painted.push(`WALL@${w.strike}:${w.life}:OFF_CAMERA`);
                   continue;
                 }
@@ -17429,6 +17680,45 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }
               void strikesSorted;
+              /* ASK-1 (erasure, 2026-10-07) · OFF-CAMERA WALLS AS AN EDGE BRICK
+                 STACK. On the pane edge the walls lie beyond (top = above, bottom
+                 = below), one brick per wall in the wall's own brick ink, length
+                 ∝ its share of gross exposure, nearest wall closest to the edge,
+                 a chevron pointing off camera. Wordless, drawn whenever the walls
+                 are on (not only when the layer speaks); each brick is a hit
+                 target that selects its wall → Inspect (the wall ticket). */
+              {
+                let nUp = 0, nDown = 0;
+                for (const up of [true, false]) {
+                  const same = offWalls.filter(o => o.up === up).sort((a, b) => Math.abs(a.strike - dp.spot) - Math.abs(b.strike - dp.spot));
+                  same.slice(0, 4).forEach((o, k) => {
+                    const bl = Math.round(Math.min(90, 18 + o.share * 420));
+                    const bh = 5;
+                    const x1 = plotRightD - 6, x0 = x1 - bl;
+                    const y = up ? HEADER_FLOOR_Y + 4 + k * (bh + 2) : paneBotD - 4 - bh - k * (bh + 2);
+                    ctx.fillStyle = `rgba(214,176,112,${0.8 * baseA})`;
+                    ctx.fillRect(x0, y, bl, bh);
+                    // Mortar: a course joint every brick-length, like the wall.
+                    ctx.fillStyle = `rgba(20,14,8,${0.6 * baseA})`;
+                    for (let jx = x1 - 13; jx > x0 + 2; jx -= 13) ctx.fillRect(jx, y, 1, bh);
+                    if (k === 0) {
+                      // Chevron off camera, left of the nearest brick.
+                      const cx = x0 - 6, cy = up ? y + 1 : y + bh - 1;
+                      ctx.strokeStyle = `rgba(214,176,112,${0.9 * baseA})`;
+                      ctx.lineWidth = 1.2;
+                      ctx.beginPath();
+                      ctx.moveTo(cx - 3, cy + (up ? 3 : -3)); ctx.lineTo(cx, cy); ctx.lineTo(cx + 3, cy + (up ? 3 : -3));
+                      ctx.stroke();
+                    }
+                    masonryRects.push({ x: x0 - 10, y: y - 1, w: bl + 12, h: bh + 2 });
+                    // Generous on touch: the hit row is 12px tall around a 5px brick.
+                    pressureWallHitRef.current.push({ strike: o.strike, x: x0 - 10, y: y - 4, w: bl + 12, h: bh + 8 });
+                    if (up) nUp++; else nDown++;
+                  });
+                }
+                ds.pressureWallsOffCamera = `UP:${nUp}|DOWN:${nDown}`;
+                ds.brickWallsOffCamera = `ABOVE:${nUp}|BELOW:${nDown}|MARK:${nUp + nDown > 0 ? "DRAWN" : "NONE"}`;
+              }
               // The masonry is a body on the glass: every word painted after it
               // (structure caption, gap words, MTF tags) steps clear of the
               // bricks (serving SPY 1h, 2026-10-01: "STRUCTURE · LOWER LOWS"
@@ -23921,6 +24211,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
          bar, its provenance (owner · bars · numbers) is revealed under it. */
       try {
         let wl: WisdomLine | null = null;
+        wisdomHitRef.current = null;
         if (!wisdomLineOn) canvas.dataset.crossCandleWisdom = "OFF";
         else {
           const kl = deltaKeelLastRef.current;
@@ -23937,9 +24228,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ? { travel: vmW.latestPocTravel, atr: lastAtr, time: vmW.points.length ? vmW.points[vmW.points.length - 1].time : 0 }
               : null,
           });
-          if (!wl) { canvas.dataset.crossCandleWisdom = "SILENT:NO_EVIDENCE_OBJECT"; delete canvas.dataset.crossCandleWisdomWhy; }
+          if (!wl) { canvas.dataset.crossCandleWisdom = "SILENT:NO_EVIDENCE_OBJECT"; delete canvas.dataset.crossCandleWisdomWhy; delete canvas.dataset.crossCandleWisdomTrace; }
           else {
             canvas.dataset.crossCandleWisdom = `${wl.kind}|${wl.time}`;
+            canvas.dataset.crossCandleWisdomTrace = `${wl.kind}|${wl.time}|${wl.sources.join("+")}`;
             canvas.dataset.crossCandleWisdomWhy = wl.provenance;
             ctx.save();
             ctx.font = `700 10px ${MARKET_SANS}`; ctx.textBaseline = "top"; ctx.textAlign = "left";
@@ -23952,6 +24244,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             else {
               const r = sp.rect;
               floatingChips.push({ ...r });
+              // Tappable (ASK-3): a generous hit rect — at least 24px tall on touch.
+              wisdomHitRef.current = { x: r.x - 4, y: r.y - 6, w: r.w + 8, h: Math.max(24, r.h + 12), time: wl.time };
               // Quiet: below price ink, above memory. A hairline ties it to its bar.
               ctx.fillStyle = "rgba(237,230,211,0.72)";
               ctx.fillText(wl.text, r.x + 4, r.y + 2);
@@ -25238,6 +25532,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const idx = hitTestDrawing(x, y);
     setSelectedIdx(idx >= 0 ? idx : null);
     if (idx >= 0) return;
+    // ASK-3: the wisdom line selects the bar its hairline is tied to.
+    const wh = wisdomHitRef.current;
+    if (wh && onSelectBarAt && x >= wh.x && x <= wh.x + wh.w && y >= wh.y && y <= wh.y + wh.h) { onSelectBarAt(wh.time); return; }
     if (selectBigTradeAt(x, y)) return;
     /*
       H-501 NEAR · A CLICK ON A TAPE DOT SELECTS THAT PRINT — the one
@@ -25349,7 +25646,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       onSelectMemoryGhost?.(ghostHit.vm);
       return;
     }
-  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, onSelectMemoryGhost, onSelectPressureWall, onSelectPressureFront, onSelectWeather, symbol, timeframe, selectBigTradeAt]);
+  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, onSelectMemoryGhost, onSelectPressureWall, onSelectPressureFront, onSelectWeather, onSelectBarAt, symbol, timeframe, selectBigTradeAt]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking

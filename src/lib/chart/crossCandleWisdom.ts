@@ -27,6 +27,8 @@ export interface WisdomLine {
   readonly provenance: string;
   /** The bar the line is about (its newest evidence bar). */
   readonly time: number;
+  /** The readings it was traced from (owner ids) — Inspect prints these. */
+  readonly sources: readonly string[];
 }
 
 /** How many of the newest finished keels a failure may be found in. */
@@ -72,6 +74,7 @@ export function readCrossCandleWisdom(input: WisdomInput): WisdomLine | null {
         text: `${side} AGGRESSION FAILED TO DISPLACE`,
         provenance: `Delta Keel · ${k.basis === "TAPE" ? "captured signed prints" : "provider bar sides"} · bar ${k.time} · delta ${k.delta} · ${(Math.abs(k.ratio) * 100).toFixed(0)}% of sided volume, price did not move its way`,
         time: k.time,
+        sources: [`DELTA_KEEL:${k.basis}`],
       };
     }
   }
@@ -87,6 +90,7 @@ export function readCrossCandleWisdom(input: WisdomInput): WisdomLine | null {
         text: "EFFORT INCREASING — RESPONSE WEAKENING",
         provenance: `Effort → Response · last ${TREND_BARS} finished bars · effort ${w.map(b => b.effort.toFixed(2)).join("→")}× median · response per effort ${w.map(b => b.efficiency.toFixed(2)).join("→")}`,
         time: w[w.length - 1].time,
+        sources: ["EFFORT_RESPONSE", "RESPONSE_MATRIX"],
       };
     }
   }
@@ -97,6 +101,7 @@ export function readCrossCandleWisdom(input: WisdomInput): WisdomLine | null {
       text: `VALUE MIGRATING ${v.travel > 0 ? "HIGHER" : "LOWER"}`,
       provenance: `Value Migration · latest session POC travel ${v.travel > 0 ? "+" : ""}${v.travel} (${(v.travel / v.atr).toFixed(2)} ATR) · candle-estimated value`,
       time: v.time,
+      sources: ["VALUE_MIGRATION"],
     };
   }
   return null;

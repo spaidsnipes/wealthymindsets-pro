@@ -179,7 +179,7 @@ function EvidenceLine({ ev, timeZone, testId = "inspect-evidence" }: { ev: Inspe
   return (
     <div className="mt-1.5 rounded border-l-2 pl-2 text-[10px] leading-snug" data-testid={testId} data-inspect-evidence={ev.klass}
       style={{ borderColor: EVIDENCE_COLOR[ev.klass], color: "#C8C0AE" }}>
-      <div className="font-bold tracking-wide" style={{ color: EVIDENCE_COLOR[ev.klass] }}>EVIDENCE · {ev.klass}</div>
+      <div className="font-bold tracking-wide" style={{ color: EVIDENCE_COLOR[ev.klass] }}>EVIDENCE COMPLETENESS · {ev.klass}</div>
       <div>{ev.why}</div>
       <div>Source · {ev.source ?? "not named by its owner"}{ev.asOfMs != null ? ` · as of ${clock.exact(ev.asOfMs)}` : ""}</div>
       {ev.feedNote && <div style={{ color: UNREAD_COLOR }}>{ev.feedNote}</div>}

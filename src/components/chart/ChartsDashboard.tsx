@@ -319,7 +319,8 @@ import { displayPrecisionFor, instrumentTickFor } from "@/lib/chart/pricePrecisi
 import { hasNoCentralVolume, needsTradedVolumeSentence, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { sessionBandsDefaultOn } from "@/lib/chart/sessionBands";
 import { BREATH_SAMPLE, selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
-import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
+import { selectEffortMark, type EffortMark } from "@/lib/marketData/effortMarkGeometry";
+import { selectRegimeSeries } from "@/lib/marketData/viewModels/selectRegimeSeries";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
 import { cboeSymbolFor, type CboeOptionsReceipt } from "@/lib/marketData/cboeDelayedOptions";
 import { deribitCurrencyFor, dvolFrom, normalizeDeribitOptions } from "@/lib/marketData/deribitOptions";
@@ -2362,6 +2363,52 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    * SAME `effortVsResultVM` the panel reads. One reading, one verdict, two
    * renderings of it.
    */
+  /**
+   * C-05 · THE SAME VERDICT ON EVERY QUALIFYING BAR. Each of the newest
+   * EFFORT_FIELD_BARS finished bars is weighed exactly as the subject bar is
+   * (selectEffortVsResult against every bar before it → selectEffortMark).
+   * Recomputed only when a bar closes (ref cache), never per tick. Over a
+   * quarter of bars qualifying = the threshold is wrong here → OVER_QUOTA,
+   * nothing drawn.
+   */
+  /**
+   * #7 · PER-BAR REGIME SERIES for the F15A state line — the canvas verdict
+   * re-asked at each bar's close (selectRegimeSeries). Keyed on the newest
+   * closed bar + tape length, never per tick; only while Regime Lighting is on.
+   */
+  const regimeSeriesCacheRef = React.useRef<{ key: string; value: ReturnType<typeof selectRegimeSeries> } | null>(null);
+  const regimeSeriesVM = React.useMemo(() => {
+    if (!regimeLightingOn || chartBars.length < 2 || !valueCandleBarSec) return null;
+    const key = `${symbol}|${chartBars.length}|${chartBars[chartBars.length - 2].time}|${recentTicks.length}|${tapeSource}`;
+    if (regimeSeriesCacheRef.current?.key === key) return regimeSeriesCacheRef.current.value;
+    const value = selectRegimeSeries({ bars: chartBars.slice(-300), barSec: valueCandleBarSec, ticks: recentTicks, source: tapeSource ?? null, now: Date.now() });
+    regimeSeriesCacheRef.current = { key, value };
+    return value;
+  }, [regimeLightingOn, chartBars, recentTicks, tapeSource, symbol, valueCandleBarSec]);
+
+  const effortMarksFieldCacheRef = React.useRef<{ key: string; value: { marks: EffortMark[]; considered: number; reason: string } } | null>(null);
+  const effortMarksField = React.useMemo(() => {
+    const EFFORT_FIELD_BARS = 150;
+    if (chartBars.length < 3) return null;
+    const lastClosed = chartBars[chartBars.length - 2];
+    const key = `${symbol}|${chartBars.length}|${lastClosed.time}|${lastClosed.volume}|${volumeIsReal}`;
+    if (effortMarksFieldCacheRef.current?.key === key) return effortMarksFieldCacheRef.current.value;
+    const prior = chartBars.map(b => ({ volume: volumeIsReal ? b.volume : null, open: b.open, close: b.close }));
+    const marks: EffortMark[] = [];
+    const end = chartBars.length - 1; // the newest bar is still forming
+    const start = Math.max(1, end - EFFORT_FIELD_BARS);
+    for (let i = start; i < end; i++) {
+      const b = chartBars[i];
+      const vm = selectEffortVsResult({ bar: { volume: volumeIsReal ? b.volume : null, open: b.open, close: b.close }, priorBars: prior.slice(0, i), subjectIsForming: false });
+      const v = selectEffortMark(vm, { time: b.time, open: b.open, close: b.close, high: b.high, low: b.low });
+      if (v.drawn) marks.push(v.mark);
+    }
+    const considered = end - start;
+    const value = { marks, considered, reason: !volumeIsReal ? "NO_VOLUME" : marks.length > considered * 0.25 ? "OVER_QUOTA" : "OK" };
+    effortMarksFieldCacheRef.current = { key, value };
+    return value;
+  }, [chartBars, volumeIsReal, symbol]);
+
   const effortMarkVerdict = React.useMemo(
     () => selectEffortMark(
       effortVsResultVM,
@@ -6760,6 +6807,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                          closed) is opened on the first click, not deselected;
                          see `toggleObject`. */
                       onSelectMarketObject={id => actOnChartSelection({ type: "toggleObject", objectId: id })}
+                      onSelectBarAt={t => {
+                        // ASK-3: the same bar selection the proof scene's select=bar makes.
+                        const bar = chartBars.find(b => b.time === t);
+                        if (!bar) return;
+                        setCursorBar({ o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume, time: bar.time });
+                        actOnChartSelection({ type: "clear" });
+                        actOnChartSelection({ type: "openInspect" });
+                      }}
                       structureZones={chartStructureZones}
                       selectedMarketObjectWait={selectedMarketObjectWait}
                       marketStanding={marketStanding}
@@ -6844,6 +6899,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       */
                       liquidityWeather={chartLiquidityWeather}
                       effortMark={effortMarkVerdict}
+                      effortMarksField={effortMarksField}
+                      regimeSeries={regimeSeriesVM}
                       deltaLevelsGlass={deltaLevelsGlass}
                       deltaLevelsOnChart={deltaLevelsOn}
                       livingProfileGlass={livingProfileGlass}
