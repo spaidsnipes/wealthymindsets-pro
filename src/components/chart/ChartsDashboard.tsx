@@ -175,7 +175,7 @@ import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStandi
 import { selectDebtTag, selectPlaqueFlowContext } from "@/lib/marketData/viewModels/selectWaitPlaque";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
-import { getTimeframe, normalizeChartTfId, normalizeTFId } from "@/lib/timeframes";
+import { getTimeframe, normalizeChartTfId, normalizeTFId, tickCountOf } from "@/lib/timeframes";
 import { marketSurfaceUrlWriteback, normalizeMarketSurfaceTimeframe } from "@/lib/routing/marketSurfaceQuery";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
 import { canonicalSession, canonicalAssetClass, canonicalMarketStateIdentity, selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
@@ -2380,13 +2380,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
    */
   const regimeSeriesCacheRef = React.useRef<{ key: string; value: ReturnType<typeof selectRegimeSeries> } | null>(null);
   const regimeSeriesVM = React.useMemo(() => {
-    if (!regimeLightingOn || chartBars.length < 2 || !valueCandleBarSec) return null;
-    const key = `${symbol}|${chartBars.length}|${chartBars[chartBars.length - 2].time}|${recentTicks.length}|${tapeSource}`;
+    // Tick (N-trade) bars have no bar length: each owns [its open, the next bar's open).
+    const tradeCountBars = tickCountOf(timeframe) != null;
+    if (!regimeLightingOn || chartBars.length < 2 || (!valueCandleBarSec && !tradeCountBars)) return null;
+    const key = `${symbol}|${timeframe}|${chartBars.length}|${chartBars[chartBars.length - 2].time}|${recentTicks.length}|${tapeSource}`;
     if (regimeSeriesCacheRef.current?.key === key) return regimeSeriesCacheRef.current.value;
-    const value = selectRegimeSeries({ bars: chartBars.slice(-300), barSec: valueCandleBarSec, ticks: recentTicks, source: tapeSource ?? null, now: Date.now() });
+    const regimeBars = chartBars.slice(-300);
+    const value = selectRegimeSeries({ bars: regimeBars, barSec: valueCandleBarSec ?? 0, ticks: recentTicks, source: tapeSource ?? null, now: Date.now(),
+      barCloses: tradeCountBars ? regimeBars.map((_, i) => regimeBars[i + 1]?.time ?? Infinity) : undefined });
     regimeSeriesCacheRef.current = { key, value };
     return value;
-  }, [regimeLightingOn, chartBars, recentTicks, tapeSource, symbol, valueCandleBarSec]);
+  }, [regimeLightingOn, chartBars, recentTicks, tapeSource, symbol, valueCandleBarSec, timeframe]);
 
   /**
    * §8 LIVING PROFILE DEVELOPMENT — POC / VAH / VAL at each bar's close, from

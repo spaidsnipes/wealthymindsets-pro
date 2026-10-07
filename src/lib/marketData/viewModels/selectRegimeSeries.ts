@@ -58,6 +58,13 @@ export interface RegimeSeriesInput {
   readonly bars: readonly { readonly time: number }[];
   /** Bar length in seconds. */
   readonly barSec: number;
+  /**
+   * TICK (N-trade) BARS (2026-10-07): a trade-count bar has no length — it
+   * owns [its open, the next bar's open). When given, bar i closes at
+   * `barCloses[i]` (epoch seconds; Infinity for the forming bar) and `barSec`
+   * is not read.
+   */
+  readonly barCloses?: readonly number[];
   /** The held tape, any order; `time` in epoch MS. Untimed prints are ignored. */
   readonly ticks: readonly AggressorTick[];
   readonly source: string | null;
@@ -87,9 +94,11 @@ export function selectRegimeSeries(input: RegimeSeriesInput): RegimeSeriesPoint[
   const oldest = timed.length ? Number(timed[timed.length - 1].time) : null;
   const out: RegimeSeriesPoint[] = [];
   const history: RegimeDimensions[] = [];
-  for (const bar of input.bars) {
+  for (let bi = 0; bi < input.bars.length; bi++) {
+    const bar = input.bars[bi];
     // A bar owns [open, close): a print stamped at the next bar's open is not this bar's.
-    const cutoff = Math.min((bar.time + input.barSec) * 1000 - 1, input.now);
+    const closeSec = input.barCloses ? input.barCloses[bi] ?? Infinity : bar.time + input.barSec;
+    const cutoff = Math.min(closeSec * 1000 - 1, input.now);
     if (oldest == null || cutoff < oldest) {
       out.push({ time: bar.time, state: "UNKNOWN", resolution: "UNKNOWN", basis: "NO_TAPE", trades: 0, why: "The held tape does not reach this bar — regime is read from per-trade prints, never from candles." });
       continue;

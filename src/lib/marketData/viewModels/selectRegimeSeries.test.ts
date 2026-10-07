@@ -84,3 +84,22 @@ describe("census #7 · per-bar regime series — one classifier with selectRegim
     expect(s.every(p => p.basis === "NO_TAPE" && p.state === "UNKNOWN")).toBe(true);
   });
 });
+
+describe("tick (N-trade) bars: each bar owns [its open, the next bar's open) (2026-10-07)", () => {
+  it("barCloses equal to the next opens reproduces the clock series exactly on evenly spaced bars", () => {
+    const ticks = tape();
+    const clock = selectRegimeSeries({ bars, barSec: BAR, ticks, source: "coinbase", now: NOW });
+    const closes = bars.map((_, i) => bars[i + 1]?.time ?? Infinity);
+    const counted = selectRegimeSeries({ bars, barSec: 0, barCloses: closes, ticks, source: "coinbase", now: NOW });
+    expect(counted.map(p => [p.time, p.state, p.basis, p.trades])).toEqual(clock.map(p => [p.time, p.state, p.basis, p.trades]));
+  });
+  it("uneven trade-count bars read each bar's own window, never a fixed length", () => {
+    const ticks = tape();
+    // Two bars: the second opens late; the first owns everything before it.
+    const uneven = [{ time: T0 + 4 * BAR }, { time: T0 + 9 * BAR + 0.5 }];
+    const s = selectRegimeSeries({ bars: uneven, barSec: 0, barCloses: [uneven[1].time, Infinity], ticks, source: "coinbase", now: NOW });
+    expect(s).toHaveLength(2);
+    expect(s.every(p => p.basis === "TAPE")).toBe(true);
+    expect(s[1].trades).toBeGreaterThanOrEqual(s[0].trades);
+  });
+});
