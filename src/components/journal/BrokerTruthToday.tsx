@@ -74,7 +74,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
       const exits = (a?.exits ?? []).map(e => e.atMs);
       // The reference's decision instant stands in for an entry time the journal did not report — said in the note below.
       setFvgLoaded(fvgReviewAnswersAt(ctx, a?.entry?.atMs ?? fvgRef.decisionAtMs, exits.length && exits.every(t => t != null) ? Math.max(...(exits as number[])) : null));
-      setFvgNote(`Read from ${r.ledger.barCount} ${r.ledger.timeframe} bars (as of ${new Date(r.ledger.asOf ?? Date.now()).toISOString().slice(0, 16).replace("T", " ")}Z); entry time = the reference's decision time where the journal reported none.`);
+      setFvgNote(`Read from ${r.ledger.barCount} ${r.ledger.timeframe} bars (as of ${new Date(r.ledger.asOf ?? Date.now()).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}); entry time = the reference's decision time where the journal reported none.`);
     });
   };
   const [planOverride, setPlanOverride] = useState<ManagementPlanSnapshot | null>(null);
@@ -229,7 +229,8 @@ const money = (v: number) => `${v < 0 ? "−" : ""}$${Math.abs(v).toFixed(2)}`;
 // A broker price is printed at least to the cent: Webull states an option fill
 // as 0.2 and the row read "@ 0.2" beside "@ 0.14" (sheriff sweep 2026-10-07).
 const fillPx = (v: number | null) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 }));
-const time = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—");
+// F2 (2026-10-07): every time the trader reads names its zone.
+const time = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZoneName: "short" }) : "—");
 
 export function BrokerTruthToday() {
   const [feed, setFeed] = useState<{ state: string; reason?: string; accounts: FeedAccount[]; asOf?: string; decisionLinks?: string } | null>(null);

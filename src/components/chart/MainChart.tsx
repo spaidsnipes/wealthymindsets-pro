@@ -2417,6 +2417,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const fvgMemoRef = useRef(createFvgCameraMemo());
   const fvgSceneRef = useRef<{ key: string; ids: unknown; scene: FvgCameraScene | null; receipt: string; asOf: string } | null>(null);
   const fvgComputeRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
+  /** The FVG paint frame (geometry + clip + batched paths), reused while the camera stands still. */
+  const fvgFrameRef = useRef<{
+    key: string; scene: FvgCameraScene; bands: { g: FvgBandGeometry; ink: string; sel: boolean }[];
+    groups: Map<string, Path2D>; clipF: Path2D; cutF: Path2D;
+    hits: { objectId: string; x: number; y: number; w: number; h: number }[];
+    clear: string; drawn: string; hit: string | null; selected: string;
+  } | null>(null);
   const fvgPublishedRef = useRef<FvgCameraScene | null | undefined>(undefined);
   const fvgCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const fvgCoarsePointer = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches;
@@ -7754,6 +7761,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   nowMs: Date.now(),
                   replayCursorTimeSec: cursorF,
                   tickBars: tickTf,
+                  tickSize: instrumentTickFor(symbol, srcF[srcF.length - 1]?.close ?? null) ?? undefined,
                 }, fvgMemoRef.current)
               : null;
             // Receipts that walk the ledger are written once per scene, not per frame.
@@ -7783,43 +7791,52 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (dsF.fvg !== entry.receipt) dsF.fvg = entry.receipt;
             if (dsF.fvgAsOf !== entry.asOf) dsF.fvgAsOf = entry.asOf;
             const tsF = chart.timeScale();
-            let axisF = 0;
-            try { axisF = Math.max(0, Number(chart.priceScale("right").width()) || 0); } catch { /* keep 0 */ }
-            const plotRightF = W - axisF;
-            const newestF = camF.length ? tsF.timeToCoordinate(camF[camF.length - 1].time as never) : null;
-            const xStop = fvgClearZoneX(newestF == null ? null : +newestF, bsp, plotRightF);
-            const lastCloseF = camF.length ? camF[camF.length - 1].close : null;
+            const vrK = tsF.getVisibleLogicalRange();
+            const lastF = camF.length ? camF[camF.length - 1] : null;
             const plw = priceLineWordsRef.current;
-            const lineYs = [lastCloseF, ...[...plw.paper, ...plw.broker, ...plw.order].map(w => w.price)]
-              .map(p => (p == null || !Number.isFinite(p) ? null : srs.priceToCoordinate(p)))
-              .map(y => (y == null ? null : +y));
-            const strips = fvgKeepOutStrips(lineYs, 3);
             const selIdF = selectedObjectIdRef.current;
-            const minHit = fvgCoarsePointer ? 24 : 10;
-            const cam = {
-              timeToX: (sec: number) => { const x = tsF.timeToCoordinate(sec as never); return x == null ? null : +x; },
-              priceToY: (p: number) => { const y = srs.priceToCoordinate(p); return y == null ? null : +y; },
-              xStop,
-            };
-            const timeOfIndex = (k: number) => scene.barTimesSec[k] ?? null;
-            const newestIndex = led.barCount - 1;
-            const want = [...vis.open, ...vis.scars];
-            // The selected object always paints (even past the budget or in memory).
-            if (selIdF && !want.some(o => o.objectId === selIdF)) { const so = led.objects.find(o => o.objectId === selIdF); if (so) want.push(so); }
-            const bands: { g: FvgBandGeometry; ink: string; sel: boolean }[] = [];
-            let maxX1 = -1;
-            for (const o of want) {
-              const g = fvgBandGeometry(o, cam, timeOfIndex, { newestIndex, minHit, closeTimes: led.closeTimes });
-              if (!g) continue;
-              bands.push({ g, ink: g.bullish ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell, sel: o.objectId === selIdF });
-              maxX1 = Math.max(maxX1, g.x1);
-            }
-            dsF.fvgClear = `X:${Math.round(xStop)}|NEWEST:${newestF == null ? "NONE" : Math.round(+newestF)}|MAXX:${Math.round(maxX1)}|STRIPS:${strips.length}`;
-            const forms = { LIVE: 0, SCAR: 0, MEMORY: 0 };
-            for (const b of bands) forms[b.g.form]++;
-            dsF.fvgDrawn = `${bands.length}|LIVE:${forms.LIVE}|SCAR:${forms.SCAR}|MEMORY:${forms.MEMORY}`;
-            if (bands.length) {
-              ctx.save();
+            const lineWordsF = [...plw.paper, ...plw.broker, ...plw.order];
+            // FRAME MEMO (paint budget 1.5 ms): geometry, clip paths and batched
+            // paths are rebuilt only when the camera, the newest bar, the
+            // selection, the price lines or the scene change; otherwise the
+            // frame only fills the cached paths.
+            const yRefA = lastF ? srs.priceToCoordinate(lastF.close) : null;
+            const yRefB = lastF ? srs.priceToCoordinate(lastF.close + Math.max(1e-9, Math.abs(lastF.close) * 0.01)) : null;
+            const frameKey = `${W}x${H}|${vrK ? `${(+vrK.from).toFixed(3)},${(+vrK.to).toFixed(3)}` : "-"}|${bsp}|${yRefA},${yRefB}|${camF.length}|`
+              + `${lastF ? `${lastF.time},${lastF.open},${lastF.high},${lastF.low},${lastF.close}` : "-"}|${selIdF}|${lineWordsF.map(w => w.price).join(",")}|`
+              + `${flowColorsRef.current.dBuy}|${flowColorsRef.current.dSell}`;
+            let frame = fvgFrameRef.current;
+            if (!frame || frame.scene !== scene || frame.key !== frameKey) {
+              let axisF = 0;
+              try { axisF = Math.max(0, Number(chart.priceScale("right").width()) || 0); } catch { /* keep 0 */ }
+              const plotRightF = W - axisF;
+              const newestF = lastF ? tsF.timeToCoordinate(lastF.time as never) : null;
+              const xStop = fvgClearZoneX(newestF == null ? null : +newestF, bsp, plotRightF);
+              const lineYs = [lastF ? lastF.close : null, ...lineWordsF.map(w => w.price)]
+                .map(p => (p == null || !Number.isFinite(p) ? null : srs.priceToCoordinate(p)))
+                .map(y => (y == null ? null : +y));
+              const strips = fvgKeepOutStrips(lineYs, 3);
+              const minHit = fvgCoarsePointer ? 24 : 10;
+              const cam = {
+                timeToX: (sec: number) => { const x = tsF.timeToCoordinate(sec as never); return x == null ? null : +x; },
+                priceToY: (p: number) => { const y = srs.priceToCoordinate(p); return y == null ? null : +y; },
+                xStop,
+              };
+              const timeOfIndex = (k: number) => scene.barTimesSec[k] ?? null;
+              const newestIndex = led.barCount - 1;
+              const want = [...vis.open, ...vis.scars];
+              // The selected object always paints (even past the budget or in memory).
+              if (selIdF && !want.some(o => o.objectId === selIdF)) { const so = led.objects.find(o => o.objectId === selIdF); if (so) want.push(so); }
+              const bands: { g: FvgBandGeometry; ink: string; sel: boolean }[] = [];
+              let maxX1 = -1;
+              for (const o of want) {
+                const g = fvgBandGeometry(o, cam, timeOfIndex, { newestIndex, minHit, closeTimes: led.closeTimes });
+                if (!g) continue;
+                bands.push({ g, ink: g.bullish ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell, sel: o.objectId === selIdF });
+                maxX1 = Math.max(maxX1, g.x1);
+              }
+              const forms = { LIVE: 0, SCAR: 0, MEMORY: 0 };
+              for (const b of bands) forms[b.g.form]++;
               // §15 CLEAR ZONE + LINE KEEP-OUT: the plot left of the newest
               // candle's slot, minus a strip round the last price and every
               // position / order / broker line (merged — even-odd never re-opens one).
@@ -7835,27 +7852,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const clipF = new Path2D();
               clipF.rect(0, 0, xStop, floorF);
               for (const s of strips) if (s.y0 < floorF) clipF.rect(0, s.y0, xStop, Math.min(s.y1, floorF) - s.y0);
-              ctx.clip(clipF, "evenodd");
               // Behind the market: every candle body and wick crossing a band is
-              // cut out (only the bands' own rows — the full-plot cut cost ~1 ms).
-              {
+              // cut out (only the bands' own x-span and rows).
+              const cutF = new Path2D();
+              cutF.rect(0, 0, W, H);
+              if (bands.length) {
                 let yLo = Infinity, yHi = -Infinity, xLo = Infinity, xHi = -Infinity;
                 for (const b of bands) { yLo = Math.min(yLo, b.g.yTop - 8); yHi = Math.max(yHi, b.g.yBottom + 8); xLo = Math.min(xLo, b.g.x0); xHi = Math.max(xHi, b.g.x1); }
-                const vrF = tsF.getVisibleLogicalRange();
-                const cutF = new Path2D();
-                cutF.rect(0, 0, W, H);
                 for (const r of candleCutOutRects(camF, {
-                  visible: vrF ? { from: +vrF.from, to: +vrF.to } : null,
+                  visible: vrK ? { from: +vrK.from, to: +vrK.to } : null,
                   barSpacing: bsp,
                   timeToX: t => { const xk = tsF.timeToCoordinate(t as never); return xk == null ? null : +xk; },
                   priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
                 }, xLo, xHi)) if (r.y < yHi && r.y + r.h > yLo) cutF.rect(r.x, r.y, r.w, r.h);
-                ctx.clip(cutF, "evenodd");
               }
               // BATCHED: one path per (ink, rung, age step) group.
               const groups = new Map<string, Path2D>();
               const grp = (k: string) => { let p = groups.get(k); if (!p) { p = new Path2D(); groups.set(k, p); } return p; };
               const ageStep = (a: number) => Math.round(a * 10) / 10;
+              const hits: { objectId: string; x: number; y: number; w: number; h: number }[] = [];
               for (const { g, ink, sel } of bands) {
                 const a = ageStep(g.age);
                 const w = g.x1 - g.x0;
@@ -7898,9 +7913,28 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   tk.moveTo(cx - 3, cy - out * 3); tk.lineTo(cx, cy); tk.lineTo(cx + 3, cy - out * 3);
                 }
                 // Tap target only where the band shows (above the volume well).
-                if (g.hit.y < floorF) fvgHitsRef.current.push({ objectId: g.objectId, ...g.hit, h: Math.min(g.hit.h, floorF - g.hit.y) });
+                if (g.hit.y < floorF) hits.push({ objectId: g.objectId, ...g.hit, h: Math.min(g.hit.h, floorF - g.hit.y) });
               }
-              for (const [k, p] of groups) {
+              const so = selIdF ? led.objects.find(o => o.objectId === selIdF) : null;
+              const h0 = hits[0];
+              frame = fvgFrameRef.current = {
+                key: frameKey, scene, bands, groups, clipF, cutF, hits,
+                clear: `X:${Math.round(xStop)}|NEWEST:${newestF == null ? "NONE" : Math.round(+newestF)}|MAXX:${Math.round(maxX1)}|STRIPS:${strips.length}`,
+                drawn: `${bands.length}|LIVE:${forms.LIVE}|SCAR:${forms.SCAR}|MEMORY:${forms.MEMORY}`,
+                hit: h0 ? `${Math.round(h0.x + h0.w / 2)},${Math.round(h0.y + h0.h / 2)}|${h0.objectId}` : null,
+                selected: so ? `${so.objectId}|${so.state}` : "NONE",
+              };
+            }
+            if (dsF.fvgClear !== frame.clear) dsF.fvgClear = frame.clear;
+            if (dsF.fvgDrawn !== frame.drawn) dsF.fvgDrawn = frame.drawn;
+            if (dsF.fvgSelected !== frame.selected) dsF.fvgSelected = frame.selected;
+            if (frame.hit) { if (dsF.fvgHit !== frame.hit) dsF.fvgHit = frame.hit; } else delete dsF.fvgHit;
+            fvgHitsRef.current = frame.hits.slice();
+            if (frame.bands.length) {
+              ctx.save();
+              ctx.clip(frame.clipF, "evenodd");
+              ctx.clip(frame.cutF, "evenodd");
+              for (const [k, p] of frame.groups) {
                 const [kind, ink, alpha, lw] = k.split("|");
                 if (kind === "F") { ctx.fillStyle = `rgba(${ink},${alpha})`; ctx.fill(p); continue; }
                 ctx.strokeStyle = `rgba(${ink},${alpha})`;
@@ -7910,7 +7944,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
               ctx.setLineDash([]);
               // APPROACH: a soft glow outward from the near edge only (gradients do not batch).
-              for (const { g, ink } of bands) {
+              for (const { g, ink } of frame.bands) {
                 if (!g.approach) continue;
                 const out = g.bullish ? -1 : 1;
                 const y0 = g.nearY, y1 = g.nearY + out * 8;
@@ -7921,11 +7955,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillRect(g.x0, Math.min(y0, y1), g.x1 - g.x0, 8);
               }
               ctx.restore();
-              const h0 = fvgHitsRef.current[0];
-              if (h0) dsF.fvgHit = `${Math.round(h0.x + h0.w / 2)},${Math.round(h0.y + h0.h / 2)}|${h0.objectId}`; else delete dsF.fvgHit;
-            } else delete dsF.fvgHit;
-            const so = selIdF ? led.objects.find(o => o.objectId === selIdF) : null;
-            dsF.fvgSelected = so ? `${so.objectId}|${so.state}` : "NONE";
+            }
           }
         }
         if (fvgOn && !computedFvgThisFrame) {

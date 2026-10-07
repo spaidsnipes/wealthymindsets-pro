@@ -81,7 +81,10 @@ const SPLIT_LABEL: Record<string, string> = {
 
 function fmtTime(ms: number): string {
   try {
-    return new Date(ms).toISOString().replace("T", " ").slice(0, 19) + "Z";
+    // F2 (2026-10-07): the trader reads this — local date and time with its zone.
+    const d = new Date(ms);
+    if (Number.isNaN(d.getTime())) return String(ms);
+    return d.toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" });
   } catch {
     return String(ms);
   }

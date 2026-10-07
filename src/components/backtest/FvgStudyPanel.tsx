@@ -154,6 +154,13 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
     return runFvgStudy({ series: pool.map(e => e.series), asOfMs: clockMs, fromMs, filters });
   }, [pool, clockMs, rangeDays, filters]);
 
+  // How far back the bars actually held reach, at the study clock (days).
+  const heldDays = useMemo(() => {
+    if (!pool.length || clockMs === null) return null;
+    const starts = pool.map(e => fvgStudyClockAt(e.series, 0)).filter((v): v is number => v != null);
+    return starts.length ? Math.max(0, (clockMs - Math.min(...starts)) / 86_400_000) : null;
+  }, [pool, clockMs]);
+
   const dpBySymbol = useMemo(() => new Map(pool.map(e => [e.series.symbolId, displayPrecisionFor(e.series.symbolId, e.series.bars)])), [pool]);
   const recent = study ? [...study.objects].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8) : [];
 
@@ -218,7 +225,7 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
               onChange={e => setStepIdx(Number(e.target.value) >= lastIdx ? null : Number(e.target.value))}
               className="w-full" data-testid="fvg-study-clock" />
             <div className="text-[10px] font-mono text-wm-text-muted mt-1">
-              as of {new Date(study.asOfMs).toISOString().replace("T", " ").slice(0, 16)} UTC · bar {(stepIdx ?? lastIdx) + 1} of {lastIdx + 1}
+              as of {new Date(study.asOfMs).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })} · bar {(stepIdx ?? lastIdx) + 1} of {lastIdx + 1}
               {stepIdx !== null ? " · later bars are not read" : " · newest closed bar"}
             </div>
           </div>
@@ -248,6 +255,12 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
           <div className="glass rounded-xl p-4 mb-4">
             <div className="text-xs font-bold text-wm-text mb-1">
               {study.filtered} of {study.detectedInWindow} gaps in the last {rangeDays} days pass the filters
+              {/* Sheriff sweep 2026-10-07: "in the last 90 days" over 1024 closed
+                  5m bars (≈3.5 days) implied a quarter of history that was never
+                  read. The span the bars actually reach is stated beside it. */}
+              {heldDays != null && heldDays < rangeDays ? (
+                <span className="font-normal text-wm-text-muted"> — the bars read reach back only {heldDays < 10 ? heldDays.toFixed(1) : Math.round(heldDays)} days</span>
+              ) : null}
             </div>
             <StatsBlock s={study.stats} />
           </div>

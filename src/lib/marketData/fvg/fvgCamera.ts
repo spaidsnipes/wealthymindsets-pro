@@ -62,6 +62,14 @@ export interface FvgCameraInput {
    * tick bars (no replay clock), as before.
    */
   readonly tickBars?: boolean;
+  /**
+   * The instrument tick as the chart's ONE tick owner reads it for the
+   * DISPLAY symbol (pricePrecision.instrumentTickFor). A broker streamer id
+   * ("TASTYTRADE:/NQZ26:XCME") is not a symbol the tick table knows, so the
+   * engine's own lookup finds none and an NQ gap read in points only
+   * (serving 2026-10-07). Omitted → the engine looks it up itself.
+   */
+  readonly tickSize?: number;
 }
 
 /**
@@ -92,7 +100,7 @@ export function createFvgCameraMemo(): FvgCameraMemo {
 
 function ledgerThroughMemo(memo: FvgCameraMemo, closed: readonly CanonicalBar[], cfg: FvgEngineConfig, closeMs: Map<number, number> | null): FvgLedger {
   const n = closed.length;
-  const key = `${cfg.symbolId}|${cfg.timeframe}|${cfg.extendedHours !== false}|${closeMs ? "T" : "C"}`;
+  const key = `${cfg.symbolId}|${cfg.timeframe}|${cfg.extendedHours !== false}|${closeMs ? "T" : "C"}|${cfg.tickSize ?? "auto"}`;
   const st = memo.state;
   const grows = st != null && n > 0 && st.key === key && st.firstAsOf === closed[0].asOf
     && n >= st.count && closed[st.count - 1]?.asOf === st.lastAsOf;
@@ -183,6 +191,7 @@ export function fvgSceneForCamera(input: FvgCameraInput, memo?: FvgCameraMemo): 
     symbolId: input.symbolId,
     timeframe: input.timeframe,
     extendedHours: input.extendedHours,
+    ...(input.tickSize != null && input.tickSize > 0 ? { tickSize: input.tickSize } : {}),
   };
   const cmFull = closeMs;
   const full = memo
