@@ -48,6 +48,7 @@ const POLYGON_KEY = "";
    row starts with no price and gains one only from a provider.
 ─────────────────────────────────────────────────────────────── */
 import { selectQuoteChange } from "@/lib/quoteChange";
+import { formatTickerChange, formatTickerPrice, tickerDecimals } from "./tickerFormat";
 import {
   DEFAULT_TAPE_SYMBOLS,
   TAPE_SYMBOL_SUGGESTIONS,
@@ -339,7 +340,7 @@ function TickerItem({ item, onClick, active }: {
   active: boolean;
 }) {
   const { sym, price, chg, pct, chgObserved, up, live, src, fresh, providerAgeMs } = item;
-  const dp = price > 10_000 ? 0 : price > 100 ? 2 : price > 1 ? 4 : 6;
+  const dp = tickerDecimals(sym, price);
   // Provenance: name the feed each quote came from so a value that differs from
   // the chart header or watchlist is explainable, not a silent contradiction.
   // Canon "CLOSED IS NOT DELAYED": on a proven-closed session the rail must
@@ -387,12 +388,12 @@ function TickerItem({ item, onClick, active }: {
               row for free (canon §Failure Recovery Grammar). */}
           <CanonicalFidelityBadge badge={badge} variant="ticker" titleSuffix={`${sym} — Click to chart.`} capabilityReport={capabilityReport} />
           <span className="font-mono text-[11px] text-wm-text-muted">
-            {price.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}
+            {formatTickerPrice(price, dp)}
           </span>
           {chgObserved ? (
             <span className={`flex items-center gap-0.5 font-mono text-[10px] ${up ? "text-wm-green" : "text-wm-red"}`}>
               {up ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-              {chg >= 0 ? "+" : ""}{chg.toFixed(dp > 2 ? 4 : 2)} ({pct >= 0 ? "+" : ""}{pct.toFixed(2)}%)
+              {formatTickerChange(chg, dp)} ({pct >= 0 ? "+" : ""}{pct.toFixed(2)}%)
             </span>
           ) : (
             // Price observed, session change was not. "+0.00 (+0.00%)" here
@@ -416,7 +417,7 @@ function TickerItem({ item, onClick, active }: {
         // not an adjective.
         <>
           <span className="font-mono text-[11px] text-wm-text-dim">
-            {price.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}
+            {formatTickerPrice(price, dp)}
           </span>
           <span
             className="font-mono text-[10px] text-wm-text-dim"

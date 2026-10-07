@@ -120,3 +120,26 @@ describe("mistake patterns — facts only, sample size stated, insufficient unde
     expect(words).not.toMatch(/fail|stupid|bad trader|shame|fuck|idiot|revenge|reckless/i);
   });
 });
+
+describe("Garden 19 §28/§29 — plan-vs-actual patterns, MEASURED only at ≥20 decidable trades", () => {
+  const res = (id: string, decidable = true) => ({
+    decisionId: "d", findings: [{ id, label: "", sentence: "", facts: [], rule: null, emotionalReason: "unknown" }],
+    primary: id, exitDecidable: decidable, hindsightRisk: false, emotionalReason: "unknown", emotionalReasonSource: "NOT RECORDED",
+  }) as unknown as import("./planVsActual").PlanVsActualResult;
+  it("counts premature exits and held-through-invalidation over decidable exits only", () => {
+    const planReviews = [res("EXITED_BEFORE_PLANNED_CONDITION"), res("HELD_THROUGH_INVALIDATION"), res("PLAN_FOLLOWED"), res("INSUFFICIENT_EVIDENCE", false)];
+    const ps = mistakePatterns({ trips: [], webullTags: new Map(), marks: {}, journal: [], planReviews });
+    expect(ps.find(p => p.id === "EXIT_BEFORE_PLANNED_CONDITION")).toMatchObject({ occurrences: 1, sample: 3, state: "INSUFFICIENT EVIDENCE" });
+    expect(ps.find(p => p.id === "HELD_THROUGH_INVALIDATION")).toMatchObject({ occurrences: 1, sample: 3, state: "INSUFFICIENT EVIDENCE" });
+  });
+  it("20 decidable → MEASURED; no plan reviews → sample 0", () => {
+    const many = Array.from({ length: PATTERN_SAMPLE_MIN }, (_, i) => res(i < 5 ? "EXITED_BEFORE_PLANNED_CONDITION" : "PLAN_FOLLOWED"));
+    expect(mistakePatterns({ trips: [], webullTags: new Map(), marks: {}, journal: [], planReviews: many }).find(p => p.id === "EXIT_BEFORE_PLANNED_CONDITION")).toMatchObject({ occurrences: 5, sample: 20, share: 0.25, state: "MEASURED" });
+    expect(mistakePatterns({ trips: [], webullTags: new Map(), marks: {}, journal: [] }).find(p => p.id === "HELD_THROUGH_INVALIDATION")?.sample).toBe(0);
+  });
+  it("labels are factual, no shame words", () => {
+    for (const p of mistakePatterns({ trips: [], webullTags: new Map(), marks: {}, journal: [] }).slice(-2)) {
+      expect(`${p.label} ${p.basis}`).not.toMatch(/afraid|fear|panic|greed|impatien|undisciplined|failed|bad/i);
+    }
+  });
+});

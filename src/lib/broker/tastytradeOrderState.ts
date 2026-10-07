@@ -43,6 +43,8 @@ export interface TtOrderView {
   readonly cancellable: boolean;
   readonly rejectReason: string | null;
   readonly updatedAt: string | null;
+  /** When tastytrade received the order (Garden 19 §26: times a stop/target move; `updated-at` moves again at fill/cancel). */
+  readonly receivedAt?: string | null;
 }
 
 export function readTastytradeOrder(raw: unknown): TtOrderView | null {
@@ -72,6 +74,7 @@ export function readTastytradeOrder(raw: unknown): TtOrderView | null {
     cancellable: o.cancellable === true,
     rejectReason: typeof o["reject-reason"] === "string" ? (o["reject-reason"] as string) : null,
     updatedAt: typeof o["updated-at"] === "string" ? (o["updated-at"] as string) : null,
+    receivedAt: typeof o["received-at"] === "string" ? (o["received-at"] as string) : null,
   };
 }
 

@@ -35,6 +35,12 @@ export interface StoryReview {
   readonly notes?: Readonly<Partial<Record<ReviewDimension, string>>>;
   readonly lesson: string;
   readonly repeat: string;
+  /**
+   * Garden 19 §28: the trader's own answer to "why did the plan change?" —
+   * the ONLY source of an emotional or personal reason in plan review. Absent
+   * means the reason is unknown; WM never fills it in.
+   */
+  readonly planWhy?: string;
   readonly updatedAt: number;
 }
 
@@ -62,6 +68,7 @@ export function parseStoryReviews(raw: string | null): Readonly<Record<string, S
       notes,
       lesson: typeof o.lesson === "string" ? o.lesson.slice(0, MAX_TEXT) : "",
       repeat: typeof o.repeat === "string" ? o.repeat.slice(0, MAX_TEXT) : "",
+      ...(typeof o.planWhy === "string" && o.planWhy.trim() !== "" ? { planWhy: o.planWhy.slice(0, MAX_TEXT) } : {}),
       updatedAt: typeof o.updatedAt === "number" ? o.updatedAt : 0,
     };
   }
@@ -89,7 +96,7 @@ export function readStoryReviews(): Readonly<Record<string, StoryReview>> {
 export function writeStoryReview(key: string, review: StoryReview): Readonly<Record<string, StoryReview>> {
   const notes: Partial<Record<ReviewDimension, string>> = {};
   for (const d of REVIEW_DIMENSIONS) { const n = review.notes?.[d]; if (typeof n === "string" && n !== "") notes[d] = n.slice(0, MAX_TEXT); }
-  const all = { ...readStoryReviews(), [key]: { ...review, notes, lesson: review.lesson.slice(0, MAX_TEXT), repeat: review.repeat.slice(0, MAX_TEXT) } };
+  const all = { ...readStoryReviews(), [key]: { ...review, notes, lesson: review.lesson.slice(0, MAX_TEXT), repeat: review.repeat.slice(0, MAX_TEXT), ...(typeof review.planWhy === "string" ? { planWhy: review.planWhy.slice(0, MAX_TEXT) } : {}) } };
   try { localStorage.setItem(STORY_REVIEW_STORAGE_KEY, JSON.stringify(all)); } catch { /* this visit only */ }
   return all;
 }

@@ -14,6 +14,7 @@
  */
 
 import type { FillCaptureIntent } from "./journalCaptureFromFill";
+import { freezeAtTicketSend } from "./managementPlanDraft";
 
 export const TICKET_AT_SEND_KEY = "wm:journal-ticket-at-send:v1";
 export const TICKET_AT_SEND_TTL_MS = 24 * 3_600_000;
@@ -89,9 +90,27 @@ function writeAll(storage: Storage, list: readonly TicketAtSend[]): void {
   } catch { /* this visit only */ }
 }
 
-export function rememberTicketAtSend(storage: Storage, clientOrderId: string, ticket: FillCaptureIntent, nowMs: number): void {
+const deviceStorage = (): Pick<globalThis.Storage, "getItem" | "setItem"> | null => {
+  try { return typeof localStorage === "undefined" ? null : localStorage; } catch { return null; }
+};
+
+/**
+ * Keep the ticket as it left — and, Garden 19 §27, FREEZE the plan it carried
+ * on its Decision_ID (stop, target, View, plus the trader's pre-trade plan-card
+ * draft for that market; everything else UNRECORDED). The
+ * first freeze for a decision wins; a re-send never rewrites it. The freeze
+ * can never throw into the send.
+ */
+export function rememberTicketAtSend(
+  storage: Storage,
+  clientOrderId: string,
+  ticket: FillCaptureIntent,
+  nowMs: number,
+  planStorage: Pick<globalThis.Storage, "getItem" | "setItem"> | null = deviceStorage(),
+): void {
   const rest = readAll(storage, nowMs).filter(r => r.clientOrderId !== clientOrderId);
   writeAll(storage, [...rest, { clientOrderId, atMs: nowMs, ticket }]);
+  try { freezeAtTicketSend(planStorage, ticket, nowMs); } catch { /* the send never waits on the plan */ }
 }
 
 export function ticketsAtSend(storage: Storage, nowMs: number): readonly TicketAtSend[] {

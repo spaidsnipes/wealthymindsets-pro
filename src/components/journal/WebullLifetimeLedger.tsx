@@ -64,7 +64,12 @@ function Tile({ label, value, color, note }: { label: string; value: string; col
   return (
     <div style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 12px", background: "rgba(16,14,10,0.6)" }}>
       <div style={{ fontSize: 10, letterSpacing: 1, color: MUTED, textTransform: "uppercase" }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: color ?? INK, fontVariantNumeric: "tabular-nums", marginTop: 2 }}>{value}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: color ?? INK, fontVariantNumeric: "tabular-nums", marginTop: 2 }}>
+        {/* A pair ("+$16.82 / −$14.76") may wrap between its figures, never inside
+            one: at 1440 the minus was left on line one and "$14.76" on line two,
+            reading as a positive loss (sheriff sweep 2026-10-07). */}
+        {value.split(" / ").map((part, i) => <React.Fragment key={i}>{i ? " / " : null}<span style={{ whiteSpace: "nowrap" }}>{part}</span></React.Fragment>)}
+      </div>
       {note ? <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>{note}</div> : null}
     </div>
   );
@@ -347,7 +352,7 @@ export function WebullLifetimeLedger() {
           </div>
 
           {!data.partial ? (
-            <nav aria-label="Ledger sections" data-testid="ledger-jump" style={{ position: "sticky", top: 0, zIndex: 2, display: "flex", flexWrap: "wrap", gap: 6, padding: "4px 0", background: "rgba(11,10,8,0.92)" }}>
+            <nav aria-label="Ledger sections" data-testid="ledger-jump" style={{ position: "sticky", top: 0, zIndex: 2, display: "flex", flexWrap: "wrap", gap: 6, padding: "4px 0", background: "#0b0a08", boxShadow: "0 6px 8px -6px rgba(0,0,0,0.9)" }}>
               {([["Summary", "ledger-summary"], ["Personal Edge", "ledger-personal-edge"], ["Your days", "process-days"], ["Episodes", "ledger-episodes"]] as const).map(([label, id]) => (
                 <button key={id} type="button" onClick={() => document.querySelector(`[data-testid="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
                   style={{ fontSize: 10, letterSpacing: 0.8, padding: "2px 10px", borderRadius: 999, cursor: "pointer", background: "transparent", border: `1px solid ${LINE}`, color: GOLD }}>{label}</button>

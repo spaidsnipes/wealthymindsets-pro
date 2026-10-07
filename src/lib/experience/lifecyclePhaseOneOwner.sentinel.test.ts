@@ -200,7 +200,10 @@ describe("no file other than decisionLifecycle holds the trade phase", () => {
       .map((f) => [path.relative(process.cwd(), f), phaseOwnershipOffences(readFileSync(f, "utf8"))] as const)
       .filter(([, o]) => o.length > 0);
     expect(offenders).toEqual([]);
-  });
+  // The scan reads every source file; it grows with the repo and hit the
+  // 5 s default under a full parallel run (2026-10-07). The assertion is
+  // unchanged — only the time it is allowed to take.
+  }, 30_000);
 
   it("the owner really holds the words (so the scan is looking for the right ones)", () => {
     expect(phaseOwnershipOffences(readFileSync(path.join(process.cwd(), OWNER), "utf8"))).toContain("phase words");

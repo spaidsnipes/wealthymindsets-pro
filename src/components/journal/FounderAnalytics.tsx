@@ -22,6 +22,11 @@ import {
   type AnalyticsTrip, type JournalFact, type ProposedModel,
 } from "@/lib/journal/founderAnalytics";
 import { hydrateJournalEntries } from "@/lib/journal/hydrateJournalEntries";
+import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
+import { composePlanReview, planReviewInputForJournalEntry } from "@/lib/journal/planReview";
+import type { PlanVsActualResult } from "@/lib/journal/planVsActual";
+import { readStoryReviews } from "@/lib/journal/storyReview";
+import { journalReviewKey } from "@/lib/journal/captureReviewEvidence";
 import { readJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3", LINE = "rgba(139,106,41,0.25)";
@@ -38,13 +43,27 @@ function readJournalFacts(): JournalFact[] {
   } catch { return []; }
 }
 
+/** Garden 19 §28: plan vs actual for every journal entry whose Decision_ID has a frozen plan. Read only. */
+function readPlanReviews(): PlanVsActualResult[] {
+  try {
+    const read = readJournalStorage(window.localStorage);
+    const reviews = readStoryReviews();
+    return hydrateJournalEntries(read.records).entries.flatMap(e => {
+      const input = planReviewInputForJournalEntry(e, id => readPlanForDecision(window.localStorage, id));
+      return input?.plan ? [composePlanReview(input, reviews[journalReviewKey(e)]?.planWhy).result] : [];
+    });
+  } catch { return []; }
+}
+
 const MODEL_WORD: Readonly<Record<ProposedModel, string>> = { MODEL_1: "Model 1", MODEL_2: "Model 2", UNCLASSIFIED: "Unclassified" };
 
 export function FounderAnalytics({ episodes, ttAccounts }: { episodes: readonly Episode[]; ttAccounts: readonly TtTripsByAccount[] }) {
   const [journal, setJournal] = useState<JournalFact[]>([]);
   const [marks, setMarks] = useState<Record<string, ModelMark>>({});
+  const [planReviews, setPlanReviews] = useState<PlanVsActualResult[]>([]);
   useEffect(() => {
     setJournal(readJournalFacts());
+    setPlanReviews(readPlanReviews());
     try { setMarks(parseModels(window.localStorage.getItem(EPISODE_MODELS_KEY))); } catch { setMarks({}); }
   }, []);
 
@@ -53,7 +72,7 @@ export function FounderAnalytics({ episodes, ttAccounts }: { episodes: readonly 
     ...ttAccounts.flatMap(a => a.trips.map(t => tripFromTastytrade(t, a.tail)).filter((t): t is AnalyticsTrip => t != null)),
   ], [episodes, ttAccounts]);
   const proposals = useMemo(() => trips.filter(t => t.closedAt).map(t => proposeModel(t, marks[t.id], journal)), [trips, marks, journal]);
-  const patterns = useMemo(() => mistakePatterns({ trips, webullTags: behaviourTags(episodes), marks, journal }), [trips, episodes, marks, journal]);
+  const patterns = useMemo(() => mistakePatterns({ trips, webullTags: behaviourTags(episodes), marks, journal, planReviews }), [trips, episodes, marks, journal, planReviews]);
   const fills = useMemo(() => episodes.reduce((s, e) => s + e.entries.length + e.exits.length, 0) + ttAccounts.reduce((s, a) => s + a.fills, 0), [episodes, ttAccounts]);
   const census = useMemo(() => provenanceCensus(trips, fills, journal.length), [trips, fills, journal.length]);
 

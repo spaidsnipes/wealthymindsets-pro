@@ -40,6 +40,7 @@ import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 
 import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/TastytradeLiveOrder";
 import { PendingFillJournalOffers } from "@/components/journal/FillJournalOffer";
+import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
 import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { isOwnerRefusal, plainBrokerAnswer, TASTYTRADE_NOT_AVAILABLE } from "@/lib/broker/ownerRefusal";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
@@ -457,6 +458,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <span style={{ color: MUTED, fontSize: 11 }}>Validates against your real account; places nothing.</span>
           </div>
           {answer ? <p role="status" style={{ color: /accepted/.test(answer) ? GREEN : GOLD }}>{answer}</p> : null}
+
+          {/* Garden 19 §27: what the ticket does not carry — frozen with its stop and target at the send. */}
+          <ManagementPlanCard mode="ticket" symbol={symbol} />
 
           <TastytradeLiveOrder
             intent={contract && instrumentType ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: contract.symbol, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate, chartSymbol: symbol } : null}

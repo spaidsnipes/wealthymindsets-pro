@@ -5,6 +5,7 @@
  * blotter, equity curve, and risk controls. All state is in-memory.
  */
 
+import { formatTickerPrice, tickerDecimals } from "@/components/layout/tickerFormat";
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
 import { acceptOrderSubmit } from "@/lib/orderSubmitGuard";
@@ -128,6 +129,8 @@ import { wmConfirm } from "@/components/ui/wmConfirm";
 import { validateTicketLevels, purposeOrderType, purposeSentence, purposeTradeoff,
          TICKET_PURPOSES, type OrderPurpose, type TicketLevelIssue } from "@/lib/orderPurpose";
 import { dayAwareStamp } from "@/lib/time/dayAwareStamp";
+import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
+import { freezePaperFillPlans } from "@/lib/journal/managementPlanDraft";
 
 /* ── Symbol universe with live-ish prices ────────────────── */
 const UNIVERSE: Record<string,{ name:string; base:number; tick:number }> = {
@@ -954,6 +957,9 @@ function OrderTicket({
           </button>
         ))}
       </div>
+
+      {/* Garden 19 §27: the plan before the trade — frozen at this decision's first paper fill. */}
+      <div className="mb-3"><ManagementPlanCard mode="ticket" symbol={sym} /></div>
 
       {/* Purpose — §7 ORDER PURPOSE BEFORE ORDER TYPE. */}
       <div className="mb-3">
@@ -1846,6 +1852,9 @@ export default function PaperTradingPage() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [orders,    setOrders]    = useState<Order[]>([]);
   const [trades,    setTrades]    = useState<Trade[]>([]);
+  // Garden 19 §27: a decision's FIRST paper fill freezes the plan-card draft
+  // written before it (read-only on the book; writes only the plan store).
+  useEffect(() => { try { freezePaperFillPlans(window.localStorage, trades); } catch { /* the book never waits on the plan */ } }, [trades]);
   const [equity,    setEquity]    = useState<EquityPoint[]>([{ ts:Date.now(), equity:STARTING_CASH }]);
   const [tab,       setTab]       = useState<"positions"|"orders"|"trades"|"options"|"leaderboard">("positions");
   const [resetKey,  setResetKey]  = useState(0);
@@ -3640,7 +3649,10 @@ export default function PaperTradingPage() {
                   </div>
                   <div className="text-right">
                     <div className={clsx("text-[10px] font-mono font-bold", closeOnly != null ? "text-wm-text-dim" : "text-wm-text")}>
-                      {closeOnly != null ? (closeOnly>=1000 ? closeOnly.toLocaleString("en-US",{maximumFractionDigits:2}) : fmt2(closeOnly)) : px == null ? "—" : px>=1000 ? px.toLocaleString("en-US",{maximumFractionDigits:0}) : fmt2(px)}
+                      {/* The display-precision owner, as the tape rail reads it: NQ1! 31,377.25
+                          printed "31,377" here (any price ≥ 1000 lost its decimals),
+                          BTC lost its cents (sheriff sweep 2026-10-07). */}
+                      {closeOnly != null ? formatTickerPrice(closeOnly, tickerDecimals(sym, closeOnly)) : px == null ? "—" : formatTickerPrice(px, tickerDecimals(sym, px))}
                     </div>
                     {/* Colour MAY support this verdict; it may never replace
                         it. `paperQuoteRowTruth` keeps the status WORD on the

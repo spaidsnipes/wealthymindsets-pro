@@ -7,6 +7,8 @@
  * SpaidBot is not a second decision store.
  */
 import type { ScopedDecisionIdentity } from "@/lib/expressionShortlist";
+import type { ManagementPlanSnapshot } from "@/lib/journal/managementPlan";
+import { formatPlanContextLine } from "./spaidbotPlanReview";
 
 export type SceneDecisionReader = (owner: string | null | undefined, underlying: string | null | undefined) => ScopedDecisionIdentity | null;
 
@@ -20,6 +22,22 @@ export function withSceneDecisionId(
   let scene: ScopedDecisionIdentity | null = null;
   try { scene = read(owner, symbol); } catch { scene = null; }
   return { ...ctx, decisionId: scene?.identity.decisionId ?? null };
+}
+
+export type DecisionPlanReader = (decisionId: string) => ManagementPlanSnapshot | null;
+
+/**
+ * Garden 19 §27/§31: the plan the trader FROZE on this Decision_ID rides with
+ * the chart context as `plan` — read from the one plan store, never written
+ * here. No Decision_ID, or no frozen plan → `plan: null` (the note then says
+ * nothing about a plan rather than inventing one).
+ */
+export function withScenePlan(ctx: Record<string, unknown>, read: DecisionPlanReader): Record<string, unknown> {
+  const id = typeof ctx.decisionId === "string" ? ctx.decisionId : null;
+  if (!id) return { ...ctx, plan: null };
+  let snap: ManagementPlanSnapshot | null = null;
+  try { snap = read(id); } catch { snap = null; }
+  return { ...ctx, plan: formatPlanContextLine(snap) };
 }
 
 /** A stream silent this long is ended and SAID to have timed out (§8). */

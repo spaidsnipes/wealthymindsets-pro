@@ -86,6 +86,11 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
 
   return (
     <section data-testid="ledger-personal-edge" aria-label="Personal edge from the broker ledger" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 10, scrollMarginTop: 40 }}>
+      {/* Figures never break inside themselves: at 1440 the 330px edge cards
+          printed "−" on one line and "$2.32" under it, and "485 42%" ran n into
+          Win with no gap (sheriff sweep 2026-10-07). Text cells (left-aligned)
+          still wrap. */}
+      <style>{`[data-testid="ledger-personal-edge"] td:not([style*="text-align: left"]){white-space:nowrap;padding-left:8px}`}</style>
       <div data-testid="edge-development-timeline" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
         <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>DEVELOPMENT TIMELINE · FROM YOUR OWN RECORD</div>
         <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>Every line is a number from the sections below — not motivation, not a verdict. Your history informs; it does not define you.</p>

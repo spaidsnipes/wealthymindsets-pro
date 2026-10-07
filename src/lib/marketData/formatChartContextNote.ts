@@ -104,6 +104,13 @@ export interface ChartContextInput {
    * id, and is recorded only when the trader records it.
    */
   readonly decisionId?: unknown;
+  /**
+   * Garden 19 §27/§31 — the plan the trader froze on this Decision_ID, one
+   * line (spaidbotPlanReview.formatPlanContextLine). TRADER TRUTH: it is what
+   * was intended, never market data, and the model is told to ask, not to
+   * diagnose. Re-cleaned here (client-supplied).
+   */
+  readonly plan?: unknown;
 }
 
 /**
@@ -156,6 +163,12 @@ function cleanDecisionId(v: unknown): string | null {
   return /^[A-Za-z0-9_\-:.]{3,80}$/.test(t) ? t : null;
 }
 
+function cleanPlan(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.replace(/[[\]\n\r]/g, " ").replace(/\s+/g, " ").trim();
+  return t.length >= 8 && t.startsWith("plan frozen") ? t.slice(0, 600) : null;
+}
+
 /** Tolerance for a client clock ahead of the server (same bound as paper quotes). */
 const FUTURE_SKEW_MS = 5 * 60_000;
 
@@ -189,6 +202,8 @@ export function formatEvidenceTail(context: ChartContextInput, nowMs?: number): 
   tail += id
     ? ` [Decision_ID ${id} — a thesis you propose belongs to this decision and is recorded only when the trader records it in the Journal]`
     : " [no Decision_ID on this chart — a thesis you propose is not a decision until the trader records one]";
+  const plan = id ? cleanPlan(context.plan) : null;
+  if (plan) tail += ` [trader's recorded ${plan} — TRADER TRUTH, not market data: compare it with what happened as facts and ASK why it changed; never name an emotion the trader did not write]`;
   return tail;
 }
 

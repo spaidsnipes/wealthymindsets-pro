@@ -4,7 +4,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { readSceneDecision } from "@/lib/traderMemory/decisionContinuity";
-import { SPAIDBOT_IDLE_TIMEOUT_MS, spaidbotFailureMessage, withSceneDecisionId } from "@/lib/ai/spaidbotContext";
+import { SPAIDBOT_IDLE_TIMEOUT_MS, spaidbotFailureMessage, withSceneDecisionId, withScenePlan } from "@/lib/ai/spaidbotContext";
+import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Send, Zap, Minimize2, Maximize2,
@@ -93,7 +94,8 @@ export function SpadeBotButton() {
         const ctx = JSON.parse(el.dataset.ctx) as Record<string, unknown>;
         // Garden 18 §8: the ONE decision store answers which Decision_ID this
         // chart's scene holds — SpaidBot keeps none of its own.
-        return withSceneDecisionId(ctx, user?.id ?? null, readSceneDecision);
+        // Garden 19 §27/§31: the plan frozen on that Decision_ID (read only).
+        return withScenePlan(withSceneDecisionId(ctx, user?.id ?? null, readSceneDecision), id => readPlanForDecision(window.localStorage, id));
       }
     } catch {}
     return {};

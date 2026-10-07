@@ -22,9 +22,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import {
   ACADEMY_LESSON_CONTENT_STATUS,
+  academyLessonContentStatus,
   canRecordAcademyLessonCompletion,
-  summarizeAcademyProgress,
+  summarizeAcademyLessons,
 } from "@/lib/educationProgressTruth";
+import { FVG_ACADEMY_MODULE, FVG_LESSONS, FVG_QUIZ_BANK } from "@/lib/academy/fvgCourse";
+import { FvgLessonBody } from "@/components/education/FvgLessonBody";
 import { persistAcademyNote, readAcademyNote } from "@/lib/educationNotesStorage";
 import { persistAcademyProgress } from "@/lib/educationProgressStorage";
 import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
@@ -112,7 +115,13 @@ const BANK_GEN: QQ[] = [
     choices:["Waiting for the next day's price action","Entering on order flow signals, NOT waiting for candle close","Getting confirmation from another trader","Checking news before entry"] },
 ];
 
-function getBank(title: string): QQ[] {
+/** The FVG course's own knowledge check — questions on its coded definition (FVG_3C v1). */
+const BANK_FVG: QQ[] = FVG_QUIZ_BANK.map(q => ({ ...q, choices: [...q.choices] }));
+const FVG_LESSON_BY_ID = new Map(FVG_LESSONS.map(l => [l.id, l]));
+const isFvgLesson = (id: string) => FVG_LESSON_BY_ID.has(id);
+
+function getBank(title: string, lessonId?: string): QQ[] {
+  if (lessonId && isFvgLesson(lessonId)) return BANK_FVG;
   const t = title.toLowerCase();
   if (t.includes("wyckoff") || t.includes("markov")) return BANK_WY;
   if (t.includes("order flow") || t.includes("footprint") || t.includes("cvd") || t.includes("delta")
@@ -209,6 +218,12 @@ const MODULES: Module[] = [
       { id:"ai-2", title:"Setting Up Real-Time Alerts with SpaidBot",       duration:"25m", completed:false },
       { id:"ai-3", title:"AI Pattern Recognition: Reading SpaidBot Signals",duration:"30m", completed:false },
     ]},
+  // FVG / IMBALANCE & PATIENCE (Garden 19 §32–36) — a course IN this Academy,
+  // registered once from its owner (src/lib/academy/fvgCourse.ts).
+  { id:FVG_ACADEMY_MODULE.id, title:FVG_ACADEMY_MODULE.title,
+    duration:formatHoursMinutes(catalogueMinutes(FVG_LESSONS.map(l => l.duration)) ?? 0),
+    level:FVG_ACADEMY_MODULE.level, locked:false, completed:false, color:FVG_ACADEMY_MODULE.color,
+    lessons:FVG_LESSONS.map(l => ({ id:l.id, title:l.title, duration:l.duration, completed:false })) },
 ];
 
 const LEVEL_COLOR: Record<Module["level"],string> = {
@@ -278,7 +293,7 @@ function LessonNotes({ lessonId }: { lessonId: string }) {
 
 /* ── Quiz panel ──────────────────────────────────────────── */
 function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boolean) => void }) {
-  const [qs,       setQs]       = useState<QQ[]>(() => shufflePick(getBank(lesson.title)));
+  const [qs,       setQs]       = useState<QQ[]>(() => shufflePick(getBank(lesson.title, lesson.id)));
   const [cur,      setCur]      = useState(0);
   const [sel,      setSel]      = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
@@ -302,7 +317,7 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
   };
 
   const retake = () => {
-    setQs(shufflePick(getBank(lesson.title)));
+    setQs(shufflePick(getBank(lesson.title, lesson.id)));
     setCur(0); setSel(null); setAnswered(false); setScore(0); setDone(false); setLog([]);
   };
 
@@ -430,7 +445,9 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
               </div>
               <div className="text-xs text-wm-text-muted mb-6">
                 {score}/{qs.length} correct · {pct>=70
-                  ? "The lesson remains incomplete until its video is published."
+                  ? (academyLessonContentStatus(lesson.id) === "AVAILABLE"
+                    ? "Closing records this lesson complete in this browser."
+                    : "The lesson remains incomplete until its video is published.")
                   : "Score 70%+ to pass the knowledge check."}
               </div>
               <div className="flex gap-1.5 mb-6 flex-wrap justify-center">
@@ -448,7 +465,7 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
                 </button>
                 <button onClick={() => onClose(canRecordAcademyLessonCompletion({
                     quizPassed: pct >= 70,
-                    contentStatus: ACADEMY_LESSON_CONTENT_STATUS,
+                    contentStatus: academyLessonContentStatus(lesson.id),
                   }))}
                   className="min-h-11 flex-1 py-2.5 rounded-xl text-sm font-bold text-wm-black hover:opacity-90 transition-all"
                   style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
@@ -466,12 +483,13 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
 /* ── Video player ────────────────────────────────────────── */
 function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; color: string; onClose: () => void; onComplete?: (id: string) => void }) {
   const [showQuiz, setShowQuiz] = useState(false);
+  const fvgLesson = FVG_LESSON_BY_ID.get(lesson.id) ?? null;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b border-wm-border shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Play size={12} style={{ color }}/>
+          {fvgLesson ? <BookOpen size={12} style={{ color }}/> : <Play size={12} style={{ color }}/>}
           <span className="text-xs font-bold text-wm-text truncate">{lesson.title}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -490,6 +508,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
       </div>
 
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
+        {fvgLesson ? <FvgLessonBody lesson={fvgLesson} color={color}/> : (<>
         {/* Video — coming soon */}
         <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden"
           style={{ aspectRatio:"16/9", background:`${color}08`, border:`1px solid ${color}25` }}>
@@ -517,9 +536,10 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
           </div>
         </div>
 
+        </>)}
         {/* Notes + Quiz CTA */}
         <div className="px-4 py-4 space-y-4">
-          <div data-testid="lesson-key-ideas" className="p-3 rounded-xl border border-wm-border bg-wm-surface/20">
+          {fvgLesson ? null : <div data-testid="lesson-key-ideas" className="p-3 rounded-xl border border-wm-border bg-wm-surface/20">
             <div className="text-[10px] font-black uppercase tracking-wider mb-2.5" style={{ color }}>Key ideas</div>
             <ol className="space-y-2.5">
               {keyIdeasFor(lesson.title).map((k, i) => (
@@ -532,7 +552,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
                 </li>
               ))}
             </ol>
-          </div>
+          </div>}
 
           <div className="p-3 rounded-xl border border-wm-border bg-wm-surface/20">
             <div className="text-[10px] font-black text-wm-text-muted uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -636,13 +656,13 @@ export default function EducationPage() {
   };
 
   const allLessons = mods.flatMap(m => m.lessons);
-  const progress = summarizeAcademyProgress({
-    markedCompleted: allLessons.filter(l => l.completed).length,
-    total: allLessons.length,
-    contentStatus: ACADEMY_LESSON_CONTENT_STATUS,
-  });
+  const progress = summarizeAcademyLessons(allLessons);
   const { total, verifiedCompleted: completed, priorPracticeMarks, verifiedPercent: pct } = progress;
   const contentAvailable = ACADEMY_LESSON_CONTENT_STATUS === "AVAILABLE";
+  // Per-lesson truth: a published course (FVG) verifies completion while the
+  // rest of the catalogue is still coming soon.
+  const lessonAvailable = (id: string) => academyLessonContentStatus(id) === "AVAILABLE";
+  const moduleVerified = (m: Module) => m.completed && m.lessons.every(l => lessonAvailable(l.id));
   const catalogueTotal = catalogueMinutes(mods.map(m => m.duration));
 
   // SCENE_FRAGMENTATION cure: an opaque root `bg-wm-black` paints the
@@ -703,7 +723,7 @@ export default function EducationPage() {
         </div>
         <div className="hidden lg:flex ml-auto items-center gap-1.5 text-[10px] text-wm-text-muted">
           <Star size={11} className="text-wm-gold"/>
-          {contentAvailable ? mods.filter(m => m.completed).length : 0}/{mods.length} modules verified
+          {mods.filter(moduleVerified).length}/{mods.length} modules verified
         </div>
         <Link
           href="/proof-lane"
@@ -743,7 +763,11 @@ export default function EducationPage() {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
 
         {/* Module list — full-width on phones, 320px on md+ */}
-        <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-wm-border flex flex-col overflow-hidden shrink-0 max-h-[45vh] md:max-h-none">
+        {/* Phones: list → lesson. With a lesson open the list steps aside so
+            the lesson gets the screen (it was left ~60px under a 45vh list,
+            390px proof 2026-10-07); the lesson's ✕ brings the list back. */}
+        <div className={clsx("w-full md:w-80 border-b md:border-b-0 md:border-r border-wm-border flex-col overflow-hidden shrink-0 max-h-[45vh] md:max-h-none md:flex",
+          activeLesson ? "hidden" : "flex")}>
           <Link
             href="/proof-lane"
             className="mx-3 my-3 inline-flex min-h-11 shrink-0 items-center justify-between gap-3 rounded-xl border border-amber-600/40 bg-gradient-to-r from-amber-950/50 to-wm-surface/30 px-3 text-left transition-colors hover:border-amber-400/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold sm:hidden"
@@ -761,11 +785,7 @@ export default function EducationPage() {
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
             {mods.map(mod => {
               const isExp = expandedId === mod.id;
-              const moduleProgress = summarizeAcademyProgress({
-                markedCompleted: mod.lessons.filter(l => l.completed).length,
-                total: mod.lessons.length,
-                contentStatus: ACADEMY_LESSON_CONTENT_STATUS,
-              });
+              const moduleProgress = summarizeAcademyLessons(mod.lessons);
               const done = moduleProgress.verifiedCompleted;
               return (
                 <div key={mod.id} className="border-b border-wm-border/40">
@@ -781,7 +801,7 @@ export default function EducationPage() {
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-bold text-wm-text leading-snug">{mod.title}</span>
                         {mod.locked && <Lock size={10} className="text-wm-text-dim shrink-0"/>}
-                        {contentAvailable && mod.completed && <CheckCircle2 size={10} className="text-wm-green shrink-0"/>}
+                        {moduleVerified(mod) && <CheckCircle2 size={10} className="text-wm-green shrink-0"/>}
                       </div>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                         <span className="text-[9px] font-bold px-1 rounded"
@@ -812,8 +832,8 @@ export default function EducationPage() {
                       <motion.div initial={{ height:0,opacity:0 }} animate={{ height:"auto",opacity:1 }} exit={{ height:0,opacity:0 }} className="overflow-hidden">
                         {mod.lessons.map((lesson, li) => {
                           const isActive = activeLesson?.lesson.id === lesson.id;
-                          const isVerifiedComplete = contentAvailable && lesson.completed;
-                          const isPriorPracticeMark = !contentAvailable && lesson.completed;
+                          const isVerifiedComplete = lessonAvailable(lesson.id) && lesson.completed;
+                          const isPriorPracticeMark = !lessonAvailable(lesson.id) && lesson.completed;
                           return (
                             <button
                               type="button"
@@ -863,7 +883,7 @@ export default function EducationPage() {
               <div className="grid grid-cols-3 gap-2 sm:gap-4 px-3 sm:px-0">
                 {[
                   { label:"Verified Lessons", value:completed, color:"#00D4AA", icon:<CheckCircle2 size={18}/> },
-                  { label:"Modules",      value:`${mods.filter(m => !m.locked && !(contentAvailable && m.completed)).length} active`, color:"#4FA3E0", icon:<BookOpen size={18}/> },
+                  { label:"Modules",      value:`${mods.filter(m => !m.locked && !moduleVerified(m)).length} active`, color:"#4FA3E0", icon:<BookOpen size={18}/> },
                   // Summed from the catalogue, not typed; "planned" until lesson content ships.
                   { label: contentAvailable ? "Total Time" : "Planned Time", value: catalogueTotal != null ? formatHoursMinutes(catalogueTotal) : "—", color:"#F0B429", icon:<Clock size={18}/> },
                 ].map(({label,value,color,icon})=>(

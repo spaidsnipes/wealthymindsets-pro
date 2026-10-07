@@ -136,7 +136,7 @@ function WalkForwardGuide({ onSendToJournal }: { onSendToJournal: () => void }) 
         {STEPS.map((s, i) => (
           <button key={i} onClick={() => setStep(i)}
             className={clsx(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border whitespace-nowrap transition-all shrink-0",
+              "wm-tap flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border whitespace-nowrap transition-all shrink-0",
               step === i
                 ? "bg-wm-blue/20 text-wm-blue border-wm-blue/40"
                 : "bg-wm-surface text-wm-text-muted border-wm-border hover:text-wm-text"
@@ -166,11 +166,11 @@ function WalkForwardGuide({ onSendToJournal }: { onSendToJournal: () => void }) 
         </div>
         <div className="flex items-center gap-2 mt-4">
           <button onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0}
-            className="px-3 py-1.5 rounded-lg text-xs border border-wm-border text-wm-text-muted disabled:opacity-30 hover:text-wm-text transition-colors">
+            className="wm-tap px-3 py-1.5 rounded-lg text-xs border border-wm-border text-wm-text-muted disabled:opacity-30 hover:text-wm-text transition-colors">
             ← Previous
           </button>
           <button onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))} disabled={step === STEPS.length - 1}
-            className="px-3 py-1.5 rounded-lg text-xs border border-wm-blue/40 bg-wm-blue/10 text-wm-blue disabled:opacity-30 transition-colors">
+            className="wm-tap px-3 py-1.5 rounded-lg text-xs border border-wm-blue/40 bg-wm-blue/10 text-wm-blue disabled:opacity-30 transition-colors">
             Next →
           </button>
           <div className="ml-auto text-[10px] text-wm-text-dim">{step + 1} / {STEPS.length}</div>
@@ -384,7 +384,7 @@ export default function BacktestingPage() {
           ]).map(t => (
             <button key={t.id} onClick={() => setMainTab(t.id)}
               className={clsx(
-                "px-3 py-1 rounded-lg text-xs font-semibold border transition-all",
+                "wm-tap px-3 py-1 rounded-lg text-xs font-semibold border transition-all",
                 mainTab === t.id
                   ? "bg-wm-blue/20 text-wm-blue border-wm-blue/40"
                   : "text-wm-text-muted border-transparent hover:border-wm-border hover:text-wm-text"
@@ -455,7 +455,7 @@ export default function BacktestingPage() {
             <div className="grid grid-cols-2 gap-1">
               {SYMBOLS.map(s => (
                 <button key={s} onClick={() => setSymbol(s)}
-                  className={clsx("py-1.5 rounded-lg text-xs font-bold border transition-all",
+                  className={clsx("wm-tap py-1.5 rounded-lg text-xs font-bold border transition-all",
                     symbol === s ? "bg-wm-blue/20 text-wm-blue border-wm-blue/40" : "bg-wm-surface border-wm-border text-wm-text-muted hover:text-wm-text")}>
                   {s}
                 </button>
@@ -469,7 +469,7 @@ export default function BacktestingPage() {
             <div className="space-y-1">
               {STRATEGIES.map(s => (
                 <button key={s.id} onClick={() => setStrategy(s)}
-                  className={clsx("w-full text-left px-3 py-2 rounded-lg border transition-all",
+                  className={clsx("wm-tap w-full text-left px-3 py-2 rounded-lg border transition-all",
                     strategy.id === s.id ? "bg-wm-green/10 border-wm-green/30" : "bg-wm-surface border-wm-border hover:border-wm-border/80")}
                 >
                   <div className={clsx("text-xs font-semibold", strategy.id === s.id ? "text-wm-green" : "text-wm-text")}>{s.label}</div>
@@ -485,7 +485,7 @@ export default function BacktestingPage() {
             <div className="flex flex-wrap gap-1">
               {TIMEFRAMES.map(t => (
                 <button key={t} onClick={() => setTf(t)}
-                  className={clsx("px-2 py-1 rounded text-xs font-mono transition-all",
+                  className={clsx("wm-tap px-2 py-1 rounded text-xs font-mono transition-all",
                     tf === t ? "bg-wm-gold/20 text-wm-gold" : "bg-wm-surface text-wm-text-muted hover:text-wm-text")}>
                   {t}
                 </button>
@@ -499,7 +499,7 @@ export default function BacktestingPage() {
             <div className="grid grid-cols-2 gap-1">
               {DATE_RANGES.map(d => (
                 <button key={d.label} onClick={() => setDateRange(d)}
-                  className={clsx("py-1.5 rounded-lg text-xs border transition-all",
+                  className={clsx("wm-tap py-1.5 rounded-lg text-xs border transition-all",
                     dateRange.days === d.days ? "bg-wm-purple/20 text-wm-purple border-wm-purple/40" : "bg-wm-surface border-wm-border text-wm-text-muted hover:text-wm-text")}>
                   {d.label}
                 </button>
@@ -520,7 +520,7 @@ export default function BacktestingPage() {
 
           {result && (
             <button onClick={() => { setResult(null); setProgress(0); setError(null); }}
-              className="flex items-center justify-center gap-2 py-2 rounded-lg text-xs text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border transition-colors">
+              className="wm-tap flex items-center justify-center gap-2 py-2 rounded-lg text-xs text-wm-text-muted hover:text-wm-text bg-wm-surface border border-wm-border transition-colors">
               <RotateCcw size={12} /> Reset
             </button>
           )}
@@ -646,7 +646,7 @@ export default function BacktestingPage() {
                     <div className="flex gap-1">
                       {(["all","wins","losses"] as const).map(t => (
                         <button key={t} onClick={() => setTradeTab(t)}
-                          className={clsx("px-2 py-0.5 rounded text-[10px] font-semibold transition-all",
+                          className={clsx("wm-tap px-2 py-0.5 rounded text-[10px] font-semibold transition-all",
                             tradeTab === t
                               ? t === "wins"   ? "bg-wm-green/20 text-wm-green"
                               : t === "losses" ? "bg-wm-red/20 text-wm-red"

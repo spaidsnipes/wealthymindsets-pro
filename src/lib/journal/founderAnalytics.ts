@@ -29,6 +29,7 @@ import type { TtRoundTrip } from "@/lib/broker/tastytradeLedger";
 import type { Episode } from "@/lib/broker/webullLedger";
 import type { BehaviourTag } from "./behaviorTags";
 import type { ModelMark } from "./episodeModel";
+import type { PlanVsActualResult } from "./planVsActual";
 
 export type RecordProvenance = "PROVIDER-RETRIEVED" | "USER-IMPORTED" | "RECONSTRUCTED WITH EVIDENCE" | "UNKNOWN";
 export type EvidenceKind = "FACT FROM BROKER HISTORY" | "MODEL/RULE MATCH" | "INFERENCE" | "HUMAN JOURNAL NOTE" | "UNKNOWN";
@@ -156,7 +157,8 @@ export const REENTRY_AFTER_LOSS_MS = 5 * 60_000;
 
 export type PatternId =
   | "NO_PROTECTION_AT_ENTRY" | "SIZE_ABOVE_USUAL" | "LOSS_BEYOND_PLANNED_1R" | "EXIT_BEFORE_MODEL_OBJECTIVE"
-  | "REENTRY_SOON_AFTER_LOSS" | "TRADING_PAST_DAILY_STOP" | "TRADE_ON_NO_TRADE_RECORD";
+  | "REENTRY_SOON_AFTER_LOSS" | "TRADING_PAST_DAILY_STOP" | "TRADE_ON_NO_TRADE_RECORD"
+  | "EXIT_BEFORE_PLANNED_CONDITION" | "HELD_THROUGH_INVALIDATION";
 
 export interface PatternSummary {
   readonly id: PatternId;
@@ -180,6 +182,8 @@ const LABEL: Readonly<Record<PatternId, string>> = {
   REENTRY_SOON_AFTER_LOSS: "A new trade within 5 minutes of a loss",
   TRADING_PAST_DAILY_STOP: "A trade opened after two losses that day",
   TRADE_ON_NO_TRADE_RECORD: "A trade taken where the record said Model 0",
+  EXIT_BEFORE_PLANNED_CONDITION: "Exited before the plan's recorded condition",
+  HELD_THROUGH_INVALIDATION: "Held past the plan's invalidation",
 };
 
 function summary(id: PatternId, occurrences: number, sample: number, evidenceKind: EvidenceKind, basis: string): PatternSummary {
@@ -197,6 +201,12 @@ export interface PatternInput {
   readonly webullTags: ReadonlyMap<string, readonly BehaviourTag[]>;
   readonly marks: Readonly<Record<string, ModelMark>>;
   readonly journal: readonly JournalFact[];
+  /**
+   * Garden 19 §28/§29: plan-vs-actual results (planVsActual) for trades with
+   * a frozen plan. Only those whose exit was DECIDABLE (plan levels + price
+   * path + fill times) are counted; the rest are left out of the sample.
+   */
+  readonly planReviews?: readonly PlanVsActualResult[];
 }
 
 export function mistakePatterns(input: PatternInput): PatternSummary[] {
@@ -252,6 +262,14 @@ export function mistakePatterns(input: PatternInput): PatternSummary[] {
   const marked = closed.filter(t => input.marks[t.id]);
   out.push(summary("TRADE_ON_NO_TRADE_RECORD", marked.filter(t => input.marks[t.id] === "M0").length, marked.length, "HUMAN JOURNAL NOTE",
     "Trades you marked with a model on the ledger."));
+
+  // 8/9. Plan vs actual — the frozen plan against the fills and the price path.
+  const decidable = (input.planReviews ?? []).filter(r => r.exitDecidable);
+  const has = (r: PlanVsActualResult, id: string) => r.findings.some(f => f.id === id);
+  out.push(summary("EXIT_BEFORE_PLANNED_CONDITION", decidable.filter(r => has(r, "EXITED_BEFORE_PLANNED_CONDITION")).length, decidable.length, "MODEL/RULE MATCH",
+    "Trades with a frozen plan whose exit could be compared (plan levels, fill times and the price path): no target, invalidation or time condition had printed at the exit. Why is yours to record."));
+  out.push(summary("HELD_THROUGH_INVALIDATION", decidable.filter(r => has(r, "HELD_THROUGH_INVALIDATION")).length, decidable.length, "MODEL/RULE MATCH",
+    "Same trades: the position was still open more than a bar after the plan's invalidation printed."));
   return out;
 }
 

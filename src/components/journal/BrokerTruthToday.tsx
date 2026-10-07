@@ -14,6 +14,14 @@
 
 import { REVIEW_DIMENSIONS, REVIEW_QUESTION, cycleMark, readStoryReviews, reviewSummary, writeStoryReview, type ReviewDimension, type StoryReview } from "@/lib/journal/storyReview";
 import type { ReviewEvidenceLine } from "@/lib/journal/captureReviewEvidence";
+import { planLine } from "@/lib/journal/managementPlan";
+import { composePlanReview, planReviewInputForBrokerStory, type PlanReviewInput } from "@/lib/journal/planReview";
+import type { ManagementPlanSnapshot } from "@/lib/journal/managementPlan";
+import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
+import { pathWindowFor } from "@/lib/journal/planPricePath";
+import { loadPlanPricePath } from "@/lib/journal/planPricePathLoader";
+import type { PricePath } from "@/lib/journal/planVsActual";
+import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -22,7 +30,7 @@ const MUTED = "#8a8271";
 const INK = "#ede6d3";
 const LINE = "rgba(139,106,41,0.25)";
 
-interface FeedOrder { id: string; state: string; status: string; symbol: string | null; action: string | null; quantity: number | null; filled: number | null; price: string | null; externalId: string | null; decisionId: string | null; sentFromWm: boolean }
+interface FeedOrder { id: string; state: string; status: string; symbol: string | null; action: string | null; quantity: number | null; filled: number | null; price: string | null; externalId: string | null; decisionId: string | null; sentFromWm: boolean; orderType?: string | null; stopTrigger?: string | null; receivedAt?: string | null }
 interface FeedFill { id: string; orderId: string | null; symbol: string | null; action: string | null; quantity: number | null; price: number | null; value: number | null; fees: number; executedAt: string | null; feesReported?: boolean; decisionId?: string | null }
 interface FeedAccount { tail: string; broker: string; state: string; reason?: string; orders: FeedOrder[]; fills: FeedFill[] }
 
@@ -33,15 +41,36 @@ interface Story { key: string; broker: string; decisionId: string | null; accoun
  * dimension, and their own words. `evidence` (from a captured fill) sets the
  * machine facts beside the dimension they inform; they are never edited here.
  */
-export function StoryReviewRow({ storyKey, evidence, defaultOpen = false }: {
+export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, defaultOpen = false }: {
   storyKey: string;
   evidence?: Readonly<Record<ReviewDimension, readonly ReviewEvidenceLine[]>>;
+  /** Garden 19 §27/§28: the frozen plan + this trade's actuals, when the story has a Decision_ID. */
+  plan?: PlanReviewInput | null;
+  /** The story's Decision_ID — the plan card amends (or records, after the trade) the plan on it. */
+  planDecisionId?: string | null;
+  /** The traded symbol, for loading the hold's price path from the candle owner. */
+  planSymbol?: string | null;
   defaultOpen?: boolean;
 }) {
+  const [planOverride, setPlanOverride] = useState<ManagementPlanSnapshot | null>(null);
+  const [path, setPath] = useState<PricePath | null>(null);
+  const [pathNote, setPathNote] = useState<string | null>(null);
+  const plan = useMemo<PlanReviewInput | null>(() => (planIn ? { ...planIn, plan: planOverride ?? planIn.plan, path: path ?? planIn.path ?? null } : null), [planIn, planOverride, path]);
+  const pathWin = useMemo(() => (planIn?.actuals ? pathWindowFor(planIn.actuals, Date.now()) : null), [planIn]);
+  const loadPath = () => {
+    if (!pathWin?.ok || !planSymbol) return;
+    setPathNote("Loading the hold's 1-minute bars from tastytrade…");
+    void loadPlanPricePath(planSymbol, pathWin.window).then(r => {
+      if ("path" in r) { setPath(r.path); setPathNote(`Price path: ${r.path.bars.length} bars · ${r.path.source}.`); }
+      else setPathNote(`Price path unavailable — ${r.reason}.`);
+    });
+  };
   const [all, setAll] = useState<Readonly<Record<string, StoryReview>>>({});
   const [open, setOpen] = useState(defaultOpen);
   useEffect(() => { setAll(readStoryReviews()); }, []);
   const r: StoryReview = all[storyKey] ?? { marks: {}, lesson: "", repeat: "", updatedAt: 0 };
+  const planWhy = r.planWhy;
+  const composed = useMemo(() => (plan ? composePlanReview(plan, planWhy) : null), [plan, planWhy]);
   const save = (next: StoryReview) => setAll(writeStoryReview(storyKey, { ...next, updatedAt: Date.now() }));
   return (
     <div data-testid="story-review" style={{ marginTop: 8, borderTop: `1px dashed ${LINE}`, paddingTop: 6 }}>
@@ -75,6 +104,18 @@ export function StoryReviewRow({ storyKey, evidence, defaultOpen = false }: {
                       ))}
                     </div>
                   ) : null}
+                  {(composed?.byDimension[d] ?? []).map((f, i) => (
+                    <div key={`${f.id}-${i}`} data-testid={`plan-finding-${d}`} data-finding={f.id} style={{ fontSize: 11, color: INK, display: "grid", gap: 2 }}>
+                      <span><b style={{ color: GOLD, fontWeight: 600, letterSpacing: ".04em" }}>{f.label.toUpperCase()}</b> · {f.sentence}</span>
+                      {f.facts.map((x, j) => (
+                        <span key={j} data-layer={x.layer} style={{ color: MUTED, fontSize: 10.5 }}>{x.layer} · {x.text}</span>
+                      ))}
+                      {f.rule ? <span data-layer="EDUCATION TRUTH" style={{ color: MUTED, fontSize: 10.5 }}>EDUCATION TRUTH · {f.rule}</span> : null}
+                      <span data-testid="plan-finding-reason" style={{ color: MUTED, fontSize: 10.5 }}>
+                        {composed?.result.emotionalReasonSource === "TRADER RECORDED" ? `Reason (your words): ${f.emotionalReason}` : "Reason: unknown — only you can record it below."}
+                      </span>
+                    </div>
+                  ))}
                   <input aria-label={`${d} note`} data-testid={`review-note-${d}`} value={r.notes?.[d] ?? ""} placeholder="note (optional)"
                     onChange={e => save({ ...r, notes: { ...(r.notes ?? {}), [d]: e.target.value } })}
                     style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: "3px 6px", borderRadius: 4, minHeight: 26 }} />
@@ -82,6 +123,33 @@ export function StoryReviewRow({ storyKey, evidence, defaultOpen = false }: {
               );
             })}
           </div>
+          {composed ? (
+            <div data-testid="plan-vs-actual" data-primary={composed.result.primary} style={{ display: "grid", gap: 4, borderTop: `1px dashed ${LINE}`, paddingTop: 6 }}>
+              <span style={{ fontSize: 10.5, letterSpacing: 1, color: GOLD }}>PLAN vs ACTUAL · Decision_ID {composed.result.decisionId ?? "—"}</span>
+              <span data-testid="plan-frozen" style={{ fontSize: 11, color: INK }}>
+                {composed.plan ? `Frozen ${composed.plan.frozenAt === "TICKET_SEND" ? "at the ticket's send" : composed.plan.frozenAt === "PAPER_FILL" ? "at the paper fill" : "at the journal entry (after the trade)"}: ${planLine(composed.plan)}` : "No plan was frozen for this decision."}
+              </span>
+              <span data-testid="plan-alone" style={{ fontSize: 11, color: MUTED }}>{composed.planAlone.sentence}</span>
+              {pathWin && planSymbol ? (
+                <span data-testid="plan-path" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 11, color: MUTED }}>
+                  {pathWin.ok && !path ? (
+                    <button type="button" data-testid="plan-path-load" onClick={loadPath}
+                      style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", minHeight: 28, cursor: "pointer" }}>
+                      Load the price path for this hold (tastytrade 1m)
+                    </button>
+                  ) : null}
+                  {!pathWin.ok ? <span>Price path cannot be loaded — {pathWin.reason}.</span> : null}
+                  {pathNote ? <span role="status">{pathNote}</span> : null}
+                </span>
+              ) : null}
+              {planDecisionId ? <ManagementPlanCard mode="story" decisionId={planDecisionId} symbol={planSymbol ?? null} onPlanChange={setPlanOverride} /> : null}
+              <span data-testid="plan-question" style={{ fontSize: 12, color: INK }}>SpaidBot asks: {composed.question}</span>
+              <label style={{ fontSize: 11, color: MUTED }}>Why did the plan change? (your words — WM never fills this in)
+                <textarea data-testid="plan-why" value={r.planWhy ?? ""} onChange={e => save({ ...r, planWhy: e.target.value })} rows={2}
+                  style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />
+              </label>
+            </div>
+          ) : null}
           <label style={{ fontSize: 11, color: MUTED }}>The lesson, in my words
             <textarea value={r.lesson} onChange={e => save({ ...r, lesson: e.target.value })} rows={2}
               style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />
@@ -98,6 +166,9 @@ export function StoryReviewRow({ storyKey, evidence, defaultOpen = false }: {
 }
 
 const money = (v: number) => `${v < 0 ? "−" : ""}$${Math.abs(v).toFixed(2)}`;
+// A broker price is printed at least to the cent: Webull states an option fill
+// as 0.2 and the row read "@ 0.2" beside "@ 0.14" (sheriff sweep 2026-10-07).
+const fillPx = (v: number | null) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 }));
 const time = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—");
 
 export function BrokerTruthToday() {
@@ -202,18 +273,27 @@ export function BrokerTruthToday() {
                   <ul style={{ marginTop: 6, display: "grid", gap: 2, fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
                     {st.fills.map(f => (
                       <li key={f.id}>
-                        <span style={{ color: "#7fd1a8" }}>FILL</span> · {time(f.executedAt)} · {f.action} {f.quantity} {f.symbol} @ {f.price}
+                        <span style={{ color: "#7fd1a8" }}>FILL</span> · {time(f.executedAt)} · {f.action} {f.quantity} {f.symbol} @ {fillPx(f.price)}
                         <span style={{ color: MUTED }}> · {f.feesReported === false ? "fees not reported" : `fees ${money(f.fees)}`}</span>
                       </li>
                     ))}
                     {st.broker === "webull" ? (
-                      <li style={{ color: MUTED }}>Prices and quantities as Webull states them; Webull&apos;s executions carry no fees or cash, so none are claimed here.</li>
+                      // The rows above print Webull's fees where Webull states them
+                      // (webullFills: feesReported); this footnote said "no fees"
+                      // beneath "fees $0.05" on every row (sheriff sweep 2026-10-07).
+                      <li style={{ color: MUTED }}>{st.fills.every(f => f.feesReported === false)
+                        ? <>Prices and quantities as Webull states them; Webull&apos;s executions carry no fees or cash, so none are claimed here.</>
+                        : <>Prices, quantities and fees as Webull states them; Webull&apos;s executions carry no cash amount, so none is claimed here.</>}</li>
                     ) : (
                       <li style={{ color: MUTED }}>Net cash {cashKnown ? money(cash) : "not stated for every fill"} · fees {feesKnown ? money(fees) : "not reported for every fill"} — as tastytrade states it; P/L on open positions is not claimed here.</li>
                     )}
                   </ul>
                 ) : st.orders.length ? <p style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>No fill yet.</p> : null}
-                <StoryReviewRow storyKey={st.decisionId ?? st.key} />
+                {(() => {
+                  // Garden 19 §26/§28: the frozen plan against tastytrade's own fills and stop / target orders.
+                  const pin = planReviewInputForBrokerStory(st, id => readPlanForDecision(typeof window === "undefined" ? null : window.localStorage, id));
+                  return <StoryReviewRow storyKey={st.decisionId ?? st.key} plan={pin} planDecisionId={pin?.decisionId ?? null} planSymbol={pin?.symbol ?? null} />;
+                })()}
               </article>
             );
           })}

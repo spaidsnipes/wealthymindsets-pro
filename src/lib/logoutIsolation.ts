@@ -67,6 +67,8 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm_desks_v1",          // named trade desks
   "wm_desk_active_v1",    // the active desk
   "wm:journal-capture-handoff:v1", // §J: an unsaved fill draft on its way to /journal (order id, account tail)
+  "wm:management-plan:v1", // Garden 19 §27: the trader's plan frozen per Decision_ID, with dated amendments
+  "wm:management-plan-draft:v1", // Garden 19 §27: the trader's pre-trade plan-card draft per market
 ] as const;
 
 /**

@@ -19,6 +19,8 @@ import { CapturedFacts } from "@/components/journal/CapturedFacts";
 import { captureToJournalForm } from "@/lib/journal/journalCaptureFromFill";
 import { takeJournalCapture } from "@/lib/journal/journalCaptureHandoff";
 import { journalReviewKey, reviewEvidenceFromCapture } from "@/lib/journal/captureReviewEvidence";
+import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
+import { planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
@@ -2774,7 +2776,9 @@ Trade the system, trust the process, winners every day 🚀`,
               ) : null}
               <section data-testid="journal-entry-review" aria-label="Review" className="mb-4 rounded-lg border border-wm-border bg-wm-surface/60 p-3">
                 <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Review · read, decision, adherence, expression, execution, slippage, risk, management, discipline, result</div>
-                <StoryReviewRow key={journalReviewKey(selected)} storyKey={journalReviewKey(selected)} evidence={reviewEvidenceFromCapture(selected.capture)} />
+                <StoryReviewRow key={journalReviewKey(selected)} storyKey={journalReviewKey(selected)} evidence={reviewEvidenceFromCapture(selected.capture)}
+                  plan={planReviewInputForJournalEntry(selected, id => readPlanForDecision(typeof window === "undefined" ? null : window.localStorage, id))}
+                  planDecisionId={selected.capture?.decisionId.value ?? null} planSymbol={selected.capture?.contract.value ?? null} />
               </section>
 
               {/* Garden 16 §17: a futures entry saved before futures were

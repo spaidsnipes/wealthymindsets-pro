@@ -547,11 +547,46 @@ export const INSTRUMENT_EDUCATION: Readonly<Record<string, InventionEducation>> 
   },
 };
 
-export type EducationKey = ProfileId | keyof typeof INSTRUMENT_EDUCATION;
+/**
+ * A CONCEPT record: a method WM Pro teaches whose "what it is" has no catalogue
+ * row to quote yet, so the record carries it — plus the Academy lesson its
+ * canon reference opens. When the concept's tool joins a menu, `what` moves to
+ * that catalogue and this record keeps the rest.
+ */
+export interface ConceptEducation extends InventionEducation {
+  readonly what: string;
+  /** The Academy lesson that teaches it (deep link into /education). */
+  readonly academy: { readonly lessonId: string; readonly href: string; readonly title: string };
+}
 
-/** The one lookup — a catalogue id or a Tool Finder instrument id. */
+/**
+ * Garden 19 §32 — FAIR VALUE GAP / IMBALANCE. The law is
+ * src/lib/marketData/fvg/fvgDefinition.ts (FVG_3C v1); the course
+ * (src/lib/academy/fvgCourse.ts) teaches the same words.
+ */
+export const CONCEPT_EDUCATION: Readonly<Record<"FVG_IMBALANCE", ConceptEducation>> = {
+  FVG_IMBALANCE: {
+    what: "Fair value gap — a price territory left between two candles' wicks when the middle candle displaced so fast that the market barely traded there.",
+    question: "Where did price move so fast that one side barely traded — and what has happened at that territory since?",
+    needs: "PRICE",
+    evidence: "Three closed bars (wick highs and lows), b2's body pointing the gap's way, and ATR14 at b2 for the size floor — max(1 tick, 0.10 × ATR14). No volume is needed to draw it.",
+    appears: "A hatched territory from the third bar's close, extending right until it is traded through: bullish [high(b1), low(b3)], bearish [high(b3), low(b1)].",
+    grammar: "Touch = the first wick to reach the near edge. Under 50% penetration is partial, 50% or more deep, the far boundary is full. A close back outside on the origin side without full mitigation is rejection; 2+ consecutive closes inside is acceptance (rejection counts within the visit's first 5 bars); a close beyond the far boundary is traded through. No guaranteed return should be assumed. WM Pro tracks what actually happens.",
+    full: "Every closed bar since creation is loaded — touch, depth, rejection or acceptance are measured, not estimated.",
+    partial: "The territory's later bars are not all loaded — it is drawn, and its history covers only the bars in hand.",
+    degraded: "Fewer than 14 closed bars (no ATR yet) or no bars — nothing is detected; a forming bar never creates or erases a territory.",
+    firstTouch: "Fair value gap — a defined territory; its history shows touch, depth and what the closes did. No guaranteed return should be assumed.",
+    canon: "Garden 19 §32 · FVG_3C v1 · Academy: FVG / Imbalance & Patience, lesson 1",
+    academy: { lessonId: "fvg-1", href: "/education?lesson=fvg-1", title: "What is an imbalance?" },
+  },
+};
+
+export type EducationKey = ProfileId | keyof typeof INSTRUMENT_EDUCATION | keyof typeof CONCEPT_EDUCATION;
+
+/** The one lookup — a catalogue id, a Tool Finder instrument id, or a taught concept. */
 export function educationFor(id: string): InventionEducation | null {
-  return (INVENTION_EDUCATION as Record<string, InventionEducation>)[id] ?? INSTRUMENT_EDUCATION[id] ?? null;
+  return (INVENTION_EDUCATION as Record<string, InventionEducation>)[id] ?? INSTRUMENT_EDUCATION[id]
+    ?? (CONCEPT_EDUCATION as Record<string, ConceptEducation>)[id] ?? null;
 }
 
 /** What "now" means on this chart, for the preview's truth block. */

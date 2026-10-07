@@ -7,6 +7,7 @@
  */
 
 import { foldYahooLastRow } from "@/lib/marketData/yahooLastRow";
+import { foldHourlyTrailingRow } from "./foldHourlyTrailingRow";
 import { withholdUntradedOutliers } from "@/lib/marketData/untradedOutlierBars";
 import { classifySymbol } from "@/lib/marketData/symbolAssetClass";
 import { NextResponse } from "next/server";
@@ -304,6 +305,10 @@ export async function GET(request: Request) {
       // open — folded into its interval's bar (lib/marketData/yahooLastRow).
       const lastRow = foldYahooLastRow(baseCandles, interval);
       baseCandles.splice(0, baseCandles.length, ...lastRow.bars);
+      // Hourly: a trailing row stamped inside the previous bar is that bar's
+      // forming state, not a new bar (./foldHourlyTrailingRow, 2026-10-07).
+      const hourlyRow = foldHourlyTrailingRow(baseCandles, interval);
+      baseCandles.splice(0, baseCandles.length, ...hourlyRow.bars);
 
       // Untraded outliers are WITHHELD before aggregation (equities only, and
       // only where this feed reports volume): a zero-volume bar whose range is

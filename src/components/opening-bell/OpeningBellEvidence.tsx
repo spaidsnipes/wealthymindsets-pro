@@ -49,7 +49,10 @@ import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 const QUALITY_WORDS: Record<string, string> = {
   LIVE: "live",
   DELAYED: "delayed",
-  STALE: "quiet — no fresh prints reached this page yet",
+  // "quiet" read as a claim about the MARKET; at 12:35 CDT on a trading
+  // Wednesday the market was not quiet, this page simply holds no tape
+  // subscription (sheriff sweep 2026-10-07). The words describe the page.
+  STALE: "no fresh prints have reached this page yet",
   PARTIAL: "partly connected",
   PROXY: "read through a proxy feed",
   REPLAY: "replay",
