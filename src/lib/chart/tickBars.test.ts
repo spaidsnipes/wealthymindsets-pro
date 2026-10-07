@@ -8,6 +8,7 @@ import {
   normalizeChartTfId, tickCountOf, tickTfSpokenName,
 } from "@/lib/timeframes";
 import { mintTickBarId } from "@/lib/marketData/canonicalBar";
+import { canonicalMarketStateIdentity } from "@/lib/marketData/canonicalIdentity";
 
 let seqN = 0;
 const pr = (timeMs: number, price: number, size = 1, _side: "buy" | "sell" | null = "buy", extra: Partial<TickPrint> = {}): TickPrint =>
@@ -30,6 +31,10 @@ describe("registry: the tick ids live in the one timeframe registry", () => {
     expect(normalizeChartTfId("5m")).toBe("5m");
     expect(normalizeChartTfId("777T")).toBeNull();
     expect(normalizeChartTfId("banana")).toBeNull();
+  });
+  it("the market-state identity accepts a tick id (serving 2026-10-07: tf=500T threw and the room did not open)", () => {
+    expect(canonicalMarketStateIdentity({ symbol: "NQ1!", timeframe: "500T" }).timeframeContext).toEqual(["500T"]);
+    expect(() => canonicalMarketStateIdentity({ symbol: "NQ1!", timeframe: "777T" })).toThrow(/unknown timeframe/);
   });
   it("has no live clock (the hook builds no forming bar for a trade count)", () => {
     for (const id of TICK_TF_IDS) expect(liveBarBucketSec(id)).toBeNull();

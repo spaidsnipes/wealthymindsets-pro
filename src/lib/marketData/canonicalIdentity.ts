@@ -18,7 +18,7 @@
  * every canonical-store caller MUST route through canonicalMarketStateIdentity().
  */
 
-import { normalizeTFId } from "../timeframes";
+import { normalizeChartTfId } from "../timeframes";
 import { parseFuturesNotation } from "./futuresNotation";
 
 export type CanonicalAssetClass = "crypto" | "equity" | "etf" | "futures" | "forex" | "options";
@@ -870,7 +870,7 @@ export function canonicalMarketStateIdentity(input: {
   // '1wk' becomes '1W', and unknown ids fail loudly instead of silently
   // producing a store key nothing else will match.
   const raw = input.timeframe.trim();
-  const normalized = normalizeTFId(raw);
+  const normalized = normalizeChartTfId(raw); // clocks + the registry's tick counts ("500T")
   if (!normalized) {
     throw new Error(
       `canonicalMarketStateIdentity: unknown timeframe "${raw}" — see @/lib/timeframes TFId registry.`
