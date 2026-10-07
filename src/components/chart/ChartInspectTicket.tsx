@@ -578,14 +578,15 @@ function PassportDrawer({
     : object.objectId.endsWith(":HIGH") ? "Swing high" : object.objectId.endsWith(":LOW") ? "Swing low" : null;
   // Only a lineage compiled for THIS object is printed beside it.
   const own = lineage?.objectId === object.objectId ? lineage : null;
+  // The band at the instrument's decimals: NQ1! read "31373.5 – 31386.5"
+  // beside an axis printing 31373.50 (sheriff sweep 2026-10-07) — and every
+  // slot price (INVALIDATION, Sheriff A8) at the same decimals.
+  const px = (v: number) => (priceDp != null && Number.isFinite(v) ? v.toFixed(priceDp) : passportPrice(v));
   const vm = selectPassportSlots({
     object, zone, lineage: own, originWord: levelOrigin,
     levelOwner: zone ? null : memoryKind ? "MEMORY" : "STRUCTURE",
-    decisionId: activeDecisionId, stamp: t,
+    decisionId: activeDecisionId, stamp: t, price: px,
   });
-  // The band at the instrument's decimals: NQ1! read "31373.5 – 31386.5"
-  // beside an axis printing 31373.50 (sheriff sweep 2026-10-07).
-  const px = (v: number) => (priceDp != null && Number.isFinite(v) ? v.toFixed(priceDp) : passportPrice(v));
   const price = object.priceLow === object.priceHigh ? px(object.priceHigh) : `${px(object.priceLow)} – ${px(object.priceHigh)}`;
   const noun = zone
     ? `${zone.side === "DEMAND" ? "Demand" : "Supply"} zone · ${price}`

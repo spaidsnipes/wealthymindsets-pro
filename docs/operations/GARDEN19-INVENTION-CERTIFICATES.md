@@ -652,4 +652,9 @@ First runs, 2026-10-07:
   - SMALL_TEXT on /login at 390: the WmWordmark "PRO" and the subtitle render at 9 px.
   - CONSOLE: a 401 from the signed-out session probe on every page.
 - **In-tab, local dev with stubbed auth, /education /journal /charts at 1440 + 390:** 6 / 6 PASS. TAP_44 warned on the header buttons at 390, which touch emulation shows are 44 × 44 on a phone.
+- **Full public run, production, 2026-10-07 20:56 UTC** (`origin/main` was `909177d` at the time; the deployed build was not separately confirmed): **48 / 48 PASS**, 8 routes × 1440 / 1024 / 834 / 768 / 390 / 360.
+  - Report and 48 full-page screenshots: `~/wm-held/proof/release-52/` (`release52-public-report.json`, `release52-*.png`).
+  - Warnings only:
+    - SMALL_TEXT on /login and /login?mode=signup at ≤ 834 px: the WmWordmark "PRO" and "TRADING OPERATING SYSTEM" render at 9 px.
+    - CONSOLE: the signed-out session probe's 401 on every page.
 - Not yet run: the full in-tab set (14 rooms × 6 widths) on serving in a signed-in tab.

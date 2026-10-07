@@ -18,6 +18,7 @@
  * the stop at the broker; the card says so.
  */
 
+import { traderClock } from "@/components/time/traderClock";
 import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
 import { LOOP_DOORS } from "@/lib/journal/planLoop";
@@ -150,7 +151,7 @@ function FrozenPlan({ snap, onAmended }: { snap: ManagementPlanSnapshot; onAmend
       <span style={{ fontSize: 11, color: MUTED }}>{planLine(snap)}</span>
       {snap.amendments.map((a, i) => (
         <span key={i} data-testid="plan-card-amendment" style={{ fontSize: 10.5, color: MUTED }}>
-          {new Date(a.atMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} amendment
+          {traderClock(a.atMs, { seconds: false })} amendment
           {a.stopPx != null ? ` · stop ${a.stopPx}` : ""}{a.targetPx != null ? ` · target ${a.targetPx}` : ""}{a.invalidationPx != null ? ` · invalidation ${a.invalidationPx}` : ""}{a.expectedHoldMin != null ? ` · hold ${a.expectedHoldMin} min` : ""}
           {a.newEvidence ? ` · new evidence: ${a.newEvidence}` : " · no new evidence recorded"}{a.note ? ` · ${a.note}` : ""}
         </span>

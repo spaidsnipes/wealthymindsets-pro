@@ -105,6 +105,11 @@ describe("a ZONE — every slot read from the lifecycle and lineage owners", () 
     expect(slotOf(vm, "DECAY")).toMatchObject({ primary: "Edges intact", secondary: "1 test in 3 bars · stated, not projected — no half-life", status: "OK" });
   });
 
+  it("INVALIDATION prints at the caller's display precision (Sheriff A8, 2026-10-07)", () => {
+    const withDp = selectPassportSlots({ object: demand.object, zone: demand, lineage: null, stamp, price: (v: number) => v.toFixed(2) });
+    expect(slotOf(withDp, "INVALIDATION").primary).toBe("7.00");
+  });
+
   it("INVALIDATION: the lifecycle's own rule — armed is WATCH, a ✕ in the watch tone", () => {
     expect(slotOf(vm, "INVALIDATION")).toMatchObject({ primary: "7", secondary: "A bar close below breaks it · a wick through is a sweep", status: "WATCH", mark: "CROSS" });
   });

@@ -127,6 +127,12 @@ export interface PassportSlotsInput {
   readonly decisionId?: string | null;
   /** The caller's zoned clock: unix seconds → "YYYY-MM-DD HH:MM ZZZ". */
   readonly stamp: (sec: number) => string;
+  /**
+   * The market's display precision for every price a slot prints (Sheriff A8,
+   * 2026-10-07: INVALIDATION read "31432.5" beside an axis printing 31432.50).
+   * Omitted → `passportPrice`'s significant-figure form.
+   */
+  readonly price?: (v: number) => string;
 }
 
 /* ── small pure helpers ─────────────────────────────────────────────────── */
@@ -207,6 +213,7 @@ export function selectPassportSlots(input: PassportSlotsInput): PassportSlotsVM 
   const lc = zone?.lifecycle ?? null;
   const state: MarketObjectState = lc?.state ?? o.state;
   const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const px = input.price ?? passportPrice;
 
   const origin = zone
     ? (zone.side === "DEMAND" ? "Swing-low origin" : "Swing-high origin")
@@ -297,10 +304,10 @@ export function selectPassportSlots(input: PassportSlotsInput): PassportSlotsVM 
   if (lc && zone) {
     const beyond = zone.side === "DEMAND" ? "below" : "above";
     invalidation = lc.invalidatedAt != null
-      ? slot("INVALIDATION", passportPrice(lc.invalidationPrice), `Closed ${beyond} it ${t(lc.invalidatedAt)}`, "FAIL")
-      : slot("INVALIDATION", passportPrice(lc.invalidationPrice), `A bar close ${beyond} breaks it · a wick through is a sweep`, "WATCH");
+      ? slot("INVALIDATION", px(lc.invalidationPrice), `Closed ${beyond} it ${t(lc.invalidatedAt)}`, "FAIL")
+      : slot("INVALIDATION", px(lc.invalidationPrice), `A bar close ${beyond} breaks it · a wick through is a sweep`, "WATCH");
   } else if (o.invalidationPrice != null) {
-    invalidation = slot("INVALIDATION", passportPrice(o.invalidationPrice),
+    invalidation = slot("INVALIDATION", px(o.invalidationPrice),
       state === "INVALID" ? "Stated by the owner · broken" : "Stated by the owner", state === "INVALID" ? "FAIL" : "WATCH");
   } else {
     invalidation = slot("INVALIDATION", "No rule stated", "This level has no lifecycle owner yet", "UNKNOWN");

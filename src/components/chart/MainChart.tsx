@@ -40,6 +40,7 @@ import { useFxRelatedFlow } from "@/lib/broker/useFxRelatedFlow";
 import { atrSeries, EFFORT_RESPONSE_BUDGET_MS, readEffortResponseField, responseColumnHeight, type EffortResponseField } from "@/lib/chart/effortResponseField";
 import { DELTA_KEEL_BUDGET_MS, groupKeelGlyphs, keelLength, patchKeelGeometry, patchKeels, readKeels, type KeelGeometry, type KeelGlyph, type KeelInput } from "@/lib/chart/barDeltaKeel";
 import { readCrossCandleWisdom, type WisdomLine } from "@/lib/chart/crossCandleWisdom";
+import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
 import { readRelativeVolume, RVOL_BUDGET_MS, rvolToneAlpha, type RvolBar } from "@/lib/chart/relativeVolume";
 import { createFvgCameraMemo, fvgSceneForCamera, type FvgCameraScene } from "@/lib/marketData/fvg/fvgCamera";
 import { FVG_OPACITY, fvgAlpha, fvgBandGeometry, fvgClearZoneX, fvgCostReceipt, fvgKeepOutStrips, fvgReceipt, type FvgBandGeometry } from "@/lib/chart/fvgGlass";
@@ -2420,7 +2421,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   /** The FVG paint frame (geometry + clip + batched paths), reused while the camera stands still. */
   const fvgFrameRef = useRef<{
     key: string; scene: FvgCameraScene; bands: { g: FvgBandGeometry; ink: string; sel: boolean }[];
-    groups: Map<string, Path2D>; clipF: Path2D; cutF: Path2D;
+    groups: Map<string, Path2D>; clipF: Path2D; cutF: Path2D; pillCut: Path2D;
     hits: { objectId: string; x: number; y: number; w: number; h: number }[];
     clear: string; drawn: string; hit: string | null; selected: string;
   } | null>(null);
@@ -7849,9 +7850,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const vt = Number((chart.priceScale("vol").options() as { scaleMargins?: { top?: number } }).scaleMargins?.top);
                 floorF = paneH * (Number.isFinite(vt) && vt > 0 && vt < 1 ? vt : 0.78);
               } catch { /* no volume scale: the pane */ }
+              // A10 (serving 834×1112, 2026-10-07): bands ran behind the header's
+              // DOM chrome (D / day-bias row, EFFORT · INSPECT) — territory starts
+              // below the reading-anchor row.
+              const ceilF = READING_ANCHOR_ROW_BOTTOM;
               const clipF = new Path2D();
-              clipF.rect(0, 0, xStop, floorF);
-              for (const s of strips) if (s.y0 < floorF) clipF.rect(0, s.y0, xStop, Math.min(s.y1, floorF) - s.y0);
+              clipF.rect(0, ceilF, xStop, Math.max(0, floorF - ceilF));
+              for (const s of strips) if (s.y0 < floorF && s.y1 > ceilF) clipF.rect(0, Math.max(s.y0, ceilF), xStop, Math.min(s.y1, floorF) - Math.max(s.y0, ceilF));
+              // …and the live countdown pill at the left edge on the last price (A10).
+              const pillCut = new Path2D();
+              pillCut.rect(0, 0, W, H);
+              const yPill = lineYs[0];
+              if (yPill != null) pillCut.rect(0, yPill - 13, 96, 26);
               // Behind the market: every candle body and wick crossing a band is
               // cut out (only the bands' own x-span and rows).
               const cutF = new Path2D();
@@ -7913,12 +7923,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   tk.moveTo(cx - 3, cy - out * 3); tk.lineTo(cx, cy); tk.lineTo(cx + 3, cy - out * 3);
                 }
                 // Tap target only where the band shows (above the volume well).
-                if (g.hit.y < floorF) hits.push({ objectId: g.objectId, ...g.hit, h: Math.min(g.hit.h, floorF - g.hit.y) });
+                if (g.hit.y < floorF && g.hit.y + g.hit.h > ceilF) {
+                  const hy = Math.max(g.hit.y, ceilF);
+                  hits.push({ objectId: g.objectId, ...g.hit, y: hy, h: Math.min(g.hit.y + g.hit.h, floorF) - hy });
+                }
               }
               const so = selIdF ? led.objects.find(o => o.objectId === selIdF) : null;
               const h0 = hits[0];
               frame = fvgFrameRef.current = {
-                key: frameKey, scene, bands, groups, clipF, cutF, hits,
+                key: frameKey, scene, bands, groups, clipF, cutF, pillCut, hits,
                 clear: `X:${Math.round(xStop)}|NEWEST:${newestF == null ? "NONE" : Math.round(+newestF)}|MAXX:${Math.round(maxX1)}|STRIPS:${strips.length}`,
                 drawn: `${bands.length}|LIVE:${forms.LIVE}|SCAR:${forms.SCAR}|MEMORY:${forms.MEMORY}`,
                 hit: h0 ? `${Math.round(h0.x + h0.w / 2)},${Math.round(h0.y + h0.h / 2)}|${h0.objectId}` : null,
@@ -7934,6 +7947,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.save();
               ctx.clip(frame.clipF, "evenodd");
               ctx.clip(frame.cutF, "evenodd");
+              ctx.clip(frame.pillCut, "evenodd");
               for (const [k, p] of frame.groups) {
                 const [kind, ink, alpha, lw] = k.split("|");
                 if (kind === "F") { ctx.fillStyle = `rgba(${ink},${alpha})`; ctx.fill(p); continue; }
@@ -22158,7 +22172,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // speak, on a clear spot of the chip ledger, else silent.
                 if (att.speaks("marketZones")) {
                   const n = z.lifecycle.touches.length;
-                  const words = `${z.side} ZONE · ${z.lifecycle.state}${n > 0 ? ` · ${n} TEST${n === 1 ? "" : "S"}` : ""}`;
+                  // A9 (2026-10-07): the Passport's own state word (zoneStateWords) —
+                  // the glass said CONSUMED while the Passport said SWEPT · STILL VALID.
+                  const words = `${z.side} ZONE · ${zoneStateWords(z.lifecycle.state)}${n > 0 ? ` · ${n} TEST${n === 1 ? "" : "S"}` : ""}`;
                   ctx.font = marketFont("OBJECT_NAME");
                   const tw = ctx.measureText(words).width;
                   // Slots: inside top, inside bottom, just below, just above —
@@ -22166,6 +22182,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const ys = [
                     ...(h >= 16 ? [Math.round(top) + 11, Math.round(top + h) - 3] : []),
                     Math.round(top + h) + 12, Math.round(top) - 4,
+                    // A1 residual (2026-10-07): further rows before falling silent.
+                    Math.round(top + h) + 26, Math.round(top) - 18,
                   ];
                   // SHERIFF A1: a third x — just left of the newest candles' column.
                   const colZ = newestColumnKeepOut();
@@ -22175,6 +22193,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     for (const x of xs) {
                       const ok = y - 10 >= HEADER_FLOOR_Y && y <= pane0Bottom - 2 && x + tw <= plotRight - 2
                         && !onNewestColumn(x, y - 11, tw, 12)
+                        // A1 residual: never across ANY candle body on its row (serving 834).
+                        && !rowBodiesAt(y - 12, y + 1).some(b => x < b.x + b.w && x + tw > b.x)
                         && !floatingChips.some(r => x < r.x + r.w && x + tw > r.x && y - 10 < r.y + r.h && y > r.y);
                       if (ok) { tx = x; ty = y; break; }
                     }
@@ -22227,7 +22247,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // above the zone on a leader to its middle — what it is, then its
               // side, range and measured state.
               const l1 = "SELECTED ZONE";
-              const l2 = `${z.side} · ${z.object.priceLow.toFixed(pxDp)} – ${z.object.priceHigh.toFixed(pxDp)} · ${z.lifecycle.state}`;
+              const l2 = `${z.side} · ${z.object.priceLow.toFixed(pxDp)} – ${z.object.priceHigh.toFixed(pxDp)} · ${zoneStateWords(z.lifecycle.state)}`;
               ctx.font = `700 11px ${MARKET_SANS}`;
               const w1 = ctx.measureText(l1).width;
               ctx.font = `700 10px ${MARKET_SANS}`;
@@ -22599,6 +22619,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           else delete ds.semanticZoomBars;
 
           if (zoom.tag && att.paints("zoomPlate")) {
+            // SHERIFF A7 (serving 390×640, 2026-10-07): on a glass under 500px the
+            // plate sat on the newest highs. The depth word stays in the
+            // receipts and Tools › Active; the phone's glass keeps the market.
+            if (W < 500) ds.zoomPlate = "WITHHELD:NARROW";
+            else {
+            delete ds.zoomPlate;
             ctx.save();
             ctx.font = marketFont("FIDELITY");
             ctx.textAlign = "right";
@@ -22659,6 +22685,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.fillText(l.t, rightX, top + (i + 1) * pitch);
             });
             ctx.restore();
+            }
           }
           if (activeDecisionIdRef.current) ds.activeDecisionId = activeDecisionIdRef.current;
           else delete ds.activeDecisionId;
@@ -25499,6 +25526,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
    * change: this module knows the instrument's precision and the compiler,
    * being pure, cannot.
    *
+   * A5 KEEP (Founder-lane ruling 2026-10-07): the Sheriff asked for thousands
+   * separators here; ruled KEEP — one ungrouped format matching the price axis
+   * a few pixels below beats two formats for one price.
+   *
    * Honest about what this costs: the number loses its thousands separator,
    * because the compiler owns the text and does not group. That reads as a
    * regression for one second and is not one — the price AXIS a few pixels
@@ -27364,7 +27395,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               role="group"
               aria-label={stripScope.spoken}
               data-ohlc-strip-scope={stripScope.subheading}
-              className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim xl:shrink-0 xl:whitespace-nowrap" data-legend-group="ohlc">
+              // SHERIFF A3 (serving NQ1! at 390px, 2026-10-07): the band clips below
+              // 640 and the row was cut mid-number ("O 31…") by the price axis. A
+              // half price is worse than none: on a phone the bar's O/H/L/NOW/V
+              // leave the row (the headline price stays; Inspect › bar has them).
+              className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim xl:shrink-0 xl:whitespace-nowrap max-sm:hidden" data-legend-group="ohlc">
               {rangeFact.measured ? (
                 <>
                   <span title={stripScope.open.title}>O <span className="text-wm-text">{last.open.toFixed(dp)}</span></span>

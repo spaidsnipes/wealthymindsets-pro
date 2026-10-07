@@ -62,7 +62,9 @@ describe("the header's truth groups never split inside themselves from 1280 up (
     // 2026-10-01: the price group now holds together at EVERY width — at 390px
     // it wrapped to four lines and printed over the day-bias row.
     expect(src).toContain('<div className="flex items-baseline gap-2 shrink-0 whitespace-nowrap" data-legend-group="price">');
-    expect(src).toContain('className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim xl:shrink-0 xl:whitespace-nowrap" data-legend-group="ohlc">');
+    // 2026-10-07 (Sheriff A3): below 640 the OHLC group leaves the clipped band
+    // (it was cut mid-number by the price axis) — `max-sm:hidden`.
+    expect(src).toContain('className="flex items-center gap-3 text-[10px] font-mono text-wm-text-dim xl:shrink-0 xl:whitespace-nowrap max-sm:hidden" data-legend-group="ohlc">');
     expect(src).toContain('<div className="ml-auto flex min-w-0 items-center gap-3" style={{ flexShrink: 2 }}>');
   });
 });

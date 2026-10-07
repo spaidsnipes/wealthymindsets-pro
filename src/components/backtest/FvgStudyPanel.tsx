@@ -63,7 +63,25 @@ const RELATIONSHIP_VALUE_LABEL: Readonly<Record<string, string>> = {
   NO_PROFILE: "No profile level at the gap",
 };
 
-function facetValueLabel(facet: FvgStudyFacet, v: string): string {
+/** Session-window keys (lib/marketData/sessionWindow) in a trader's words.
+ *  The keys stay the filter values; only the printed label changes. */
+const SESSION_VALUE_LABEL: Readonly<Record<string, string>> = {
+  US_EQUITY_RTH: "US regular hours",
+  US_EQUITY_ETH: "US extended hours",
+  GLOBEX_DAY: "CME Globex day (18:00–17:00 ET)",
+  CBOT_GRAINS_DAY: "CBOT grains day",
+  CME_LIVESTOCK_DAY: "CME livestock day",
+  FX_DAY: "FX day (rolls 17:00 ET)",
+  CONTINUOUS_ET_DAY: "Continuous market · ET calendar day",
+  CRYPTO_UTC_DAY: "Crypto · UTC calendar day",
+  DAILY_WINDOW: "Daily bars",
+  NO_CLOCK: "No session clock",
+};
+const REGIME_VALUE_LABEL: Readonly<Record<string, string>> = { UNTAGGED: "Not tagged (no tape on these bars)" };
+
+export function facetValueLabel(facet: FvgStudyFacet, v: string): string {
+  if (facet === "session") return SESSION_VALUE_LABEL[v] ?? v;
+  if (facet === "regime") return REGIME_VALUE_LABEL[v] ?? v;
   if (facet === "displacement") return FVG_DISPLACEMENT_BAND_LABEL[v as keyof typeof FVG_DISPLACEMENT_BAND_LABEL] ?? v;
   if (facet === "crossesSession") return v === "CROSSES_SESSION" ? "Crosses a session boundary" : "Within one session";
   if (facet === "structure" || facet === "profile") return RELATIONSHIP_VALUE_LABEL[v] ?? v;
