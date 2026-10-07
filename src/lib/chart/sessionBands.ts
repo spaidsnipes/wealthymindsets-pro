@@ -136,3 +136,22 @@ export function logicalForTime(times: readonly number[], t: number, barSec: numb
 
 /** The per-frame cost this layer may spend before its receipt reads OVER. */
 export const SESSION_BANDS_BUDGET_MS = 1.5;
+
+/**
+ * A fractional logical index → x, interpolated between the two whole indices
+ * around it. MEASURED on serving (EURUSD 5m, 2026-10-07 01:15Z): the chart's
+ * `logicalToCoordinate(941.5)` answers 0 while 941 → -602 and 942 → -592, so
+ * every band edge collapsed to x = 0 and the layer painted nothing while its
+ * receipt said DRAWN:A0|L0|N0. Only whole indices are asked.
+ */
+export function xForLogical(l: number, toX: (whole: number) => number | null): number | null {
+  if (!Number.isFinite(l)) return null;
+  const a = Math.floor(l);
+  const xa = toX(a);
+  if (xa == null || !Number.isFinite(xa)) return null;
+  const frac = l - a;
+  if (frac === 0) return xa;
+  const xb = toX(a + 1);
+  if (xb == null || !Number.isFinite(xb)) return null;
+  return xa + (xb - xa) * frac;
+}

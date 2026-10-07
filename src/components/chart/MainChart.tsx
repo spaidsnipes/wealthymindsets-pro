@@ -34,7 +34,7 @@ import {
 import { axisPriceFormatFor, displayPrecisionFor, instrumentTickFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { relatedFlowLine, relatedRoot } from "@/lib/chart/fxRelatedFlow";
 import { useFxRelatedFlow } from "@/lib/broker/useFxRelatedFlow";
-import { logicalForTime, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
+import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
 import { needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
@@ -9934,7 +9934,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           for (const sp of spans) {
             const l0 = logicalForTime(times, sp.start, barSecSB), l1 = logicalForTime(times, sp.end, barSecSB);
             if (l0 == null || l1 == null || l1 <= l0) continue;
-            const x0 = tsSB.logicalToCoordinate((l0 - 0.5) as never), x1 = tsSB.logicalToCoordinate((l1 - 0.5) as never);
+            // Whole indices only — this chart answers 0 for a fractional one (xForLogical).
+            const toXSB = (i: number) => { const v = tsSB.logicalToCoordinate(i as never); return v == null ? null : +v; };
+            const x0 = xForLogical(l0 - 0.5, toXSB), x1 = xForLogical(l1 - 0.5, toXSB);
             if (x0 == null || x1 == null) continue;
             const a = Math.max(0, +x0), b = Math.min(plotRight, +x1);
             if (b - a < 1) continue;

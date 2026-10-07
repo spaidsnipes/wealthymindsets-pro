@@ -84,9 +84,18 @@ function teardown() {
   ws = null;
 }
 
+/**
+ * Does anyone want this socket? Quote subscribers AND prints-only ones. Asking
+ * `refs` alone left a prints-only consumer with no socket at all (FX lane,
+ * 2026-10-06: the CME 6E related-flow line on EURUSD sat at CONNECTING —
+ * `connect()` returned before asking for a token; the Options Flow lane had
+ * the same hole whenever no quote panel was open beside it).
+ */
+const wanted = () => refs.size > 0 || tapeRefs.size > 0;
+
 function scheduleRetry(reason: string) {
   teardown();
-  if (refs.size === 0) { emit({ stream: "IDLE", reason: null }); return; }
+  if (!wanted()) { emit({ stream: "IDLE", reason: null }); return; }
   emit({ stream: "DEGRADED", reason });
   const delay = Math.min(30_000, 1000 * 2 ** Math.min(retries++, 5));
   if (retryTimer) clearTimeout(retryTimer);
@@ -94,7 +103,7 @@ function scheduleRetry(reason: string) {
 }
 
 async function connect() {
-  if (ws || refs.size === 0) return;
+  if (ws || !wanted()) return;
   emit({ stream: "CONNECTING", reason: null });
   let tok: { state?: string; token?: string; dxlinkUrl?: string; reason?: string; error?: string } | null = null;
   let status = 0;
@@ -106,7 +115,7 @@ async function connect() {
   if (status === 403) { emit({ stream: "NOT_OWNER", reason: tok?.error ?? "tastytrade market data belongs to its owner only." }); return; }
   if (tok?.state === "NOT_CONFIGURED") { emit({ stream: "NOT_CONNECTED", reason: "tastytrade is not connected on this deployment." }); return; }
   if (tok?.state !== "OK" || !tok.token || !tok.dxlinkUrl) { scheduleRetry(`Quote token unavailable${tok?.reason ? `: ${tok.reason}` : status ? ` (HTTP ${status})` : ""}`); return; }
-  if (refs.size === 0) return;
+  if (!wanted()) return;
 
   const sock = new WebSocket(tok.dxlinkUrl);
   ws = sock;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { logicalForTime, sessionBandsDefaultOn, sessionSpans, sessionsAt } from "./sessionBands";
+import { logicalForTime, sessionBandsDefaultOn, sessionSpans, sessionsAt, xForLogical } from "./sessionBands";
 
 const utc = (iso: string) => Date.parse(iso) / 1000;
 const hhmm = (sec: number) => new Date(sec * 1000).toISOString().slice(5, 16);
@@ -72,5 +72,20 @@ describe("session bands on the glass (wiring)", () => {
     const block = MC.slice(MC.indexOf("SESSION BANDS · ASIA / LONDON / NEW YORK"), MC.indexOf('layerFault("SESSION_BANDS"'));
     expect(block.length).toBeGreaterThan(1000);
     expect(block).not.toMatch(/\.volume\b/);
+  });
+});
+
+describe("fractional logical → x without asking the chart for a fraction", () => {
+  // Serving: logicalToCoordinate(941.5) → 0, 941 → -602, 942 → -592.
+  const chartX = (l: number) => (Number.isInteger(l) ? -602 + (l - 941) * 10 : 0);
+  it("interpolates between whole indices", () => {
+    expect(xForLogical(941.5, chartX)).toBe(-597);
+    expect(xForLogical(942, chartX)).toBe(-592);
+    expect(xForLogical(NaN, chartX)).toBeNull();
+    expect(xForLogical(3.5, () => null)).toBeNull();
+  });
+  it("MainChart never hands the chart a fractional index for a band edge", () => {
+    const MC = readFileSync("src/components/chart/MainChart.tsx", "utf8");
+    expect(MC).toContain("const x0 = xForLogical(l0 - 0.5, toXSB), x1 = xForLogical(l1 - 0.5, toXSB);");
   });
 });
