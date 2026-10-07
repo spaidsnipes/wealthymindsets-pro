@@ -639,3 +639,25 @@ Founder decisions: members bring their own tastytrade (and Webull when supported
 | Smoothness, Founder's stored layers, NQ1! 1m | — | `8f7f6f4`: mean 16–19 ms, longest 30.1, 0 over 33 ms; countdown 0m39s → 0m28s; 14-layer 5m mean ~20 ms, 0 over | CLOSED |
 | §8 Profile × Candle (selection lights the bars that built a Living row) | `c6de9ef` | serving NQ1! `profileContributionBars=3|ROW:31462.25|TAPE` | CLOSED |
 | 390 erasure pass on the new candle-field layers | — | volume tone + response columns, absorbed brackets, wall bricks, sell slabs, regime strip, session rails all perceivable with every word erased; wisdom sentence is words by design | CLOSED |
+| Sign-out / account switch close the tastytrade stream and forget the quote token (incl. in-flight) | `f112414` | `tastyStreamSignOut.test.ts` (4) + token client case | CLOSED (source) |
+| §8 Living Profile developing-value trail (idle-sliced compute, aged steps, ESTIMATED dotted, tape-takeover tick) | `3b927a9` | serving NQ1! 5m steady paint mean 5.5 ms / longest 7.2, no long task > 50 ms, countdown 4m59s → 4m49s, `livingDevelopment` 110 points | CLOSED |
+| Lone event pip: 44 px touch hit area, slid left of the newest-candle clear zone | final ship | 4 tests | shipped |
+
+### GARDEN 19 SHERIFF RECEIPT — Oct 7 02:20 CDT (§35 release gate)
+| Gate | Verdict | Evidence / blocker |
+|---|---|---|
+| THE DATA IS TRUE | CLOSED for tonight's layers | every new layer reads an existing owner; spot FX silent with reasons; regime matcher defect fixed (`1ba83cb`) |
+| THE INVENTIONS MANIFEST (Class A history across candles) | PARTIAL | built: Effort→Response, Delta Keel, RVOL tone, regime state line, Living developing trail, Effort Marks; no Founder plate yet for Breathing, CVD notch, Failed Aggression, Compression, TED, Structure state; CLC blocked (no market plate) |
+| EVENTS SILENT WHEN ABSENT | CLOSED | wisdom `SILENT:NO_EVIDENCE_OBJECT`; Effort Mark 25% quota; keel failures only on evidence |
+| PHYSICAL GRAMMAR DISTINCT / label + number erasure | PARTIAL | 390 erasure pass on new layers holds; 10-invention erasure doc: 4 pass, 4 partial, 2 fails fixed (brick stack, lane rails) — docs/operations/GARDEN19-ERASURE-TESTS.md |
+| PANEL-ERASURE / Inspect explains, canvas manifests | PARTIAL | Inspect carries evidence completeness + source + as-of on every ticket; panel-only items listed in the certificates doc |
+| NOTES TEACH WITHOUT BLOCKING PRICE | CLOSED | "N MARKET EVENTS" anchors + pips, strict keep-out off candle bodies, override available |
+| OPACITY / COLOR / TYPOGRAPHY | PARTIAL | new layers follow aged opacity + form-not-only-colour; imbalance slab inks = house aggressor semantics (Founder to confirm plate reading) |
+| SMOOTHNESS (Founder #1) | CLOSED | Founder defaults NQ1! 1m: mean 16–18 ms, 0 over 33 ms, countdown advancing; 14 layers 5m: ~20 ms, 0 over |
+| DESKTOP / TABLET / PHONE | PARTIAL | phone thumb bar, landscape pills + one-row masthead, tablet strip, Inspect bottom sheet live; notch + real-touch tablet check need a real device |
+| FOREX TELLS THE TRUTH | CLOSED | NEEDS TRADED VOLUME on 21 readers; session bands; owner-only CME related flow; no fabricated spot volume |
+| MEMBER DATA / BROKER ENTITLEMENTS MEMBER-OWNED | BLOCKED | built read-only member tastytrade connect + sign-out isolation; needs Founder `WM_BROKER_GRANT_KEY` + tastytrade policy confirmation; Webull per-member not supported by the adapter |
+| FOUNDER CAN TRADE FROM THE CHART | BLOCKED | fail-closed path + chart lines + price-pick proved on prod without sending; tastytrade dry run: insufficient buying power on futures account …5019; Founder must fund, save limits, arm, and make the first send |
+| SPAIDBOT CANNOT TRADE OUTSIDE AUTHORITY | CLOSED | PROPOSE_ONLY; no send path from proposals (sentinel) |
+| §9/§10 WM PRO TEACHES ITSELF | CLOSED | ⓘ on every tool (44 px, focus/Escape), first-touch on selection, proved on prod 1440/834/390 |
+| Passport intro offer / referral doors | CLOSED (display) / OPEN (links) | first month $10 then $20; referral URLs await the Founder |

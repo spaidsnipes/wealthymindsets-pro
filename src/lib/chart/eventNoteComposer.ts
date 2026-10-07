@@ -78,3 +78,40 @@ export function anchorListLines(a: NoteAnchor): string[] {
 export function anchorsKey(anchors: readonly NoteAnchor[]): string {
   return anchors.map(a => `${Math.round(a.x)}:${Math.round(a.y)}:${a.notes.map(n => n.text).join(",")}`).join("|");
 }
+
+/* ── THE PIP'S TOUCH TARGET ────────────────────────────────────────────────
+ * A lone held word paints as a 12px pip but carries an invisible ≥44px hit
+ * area on touch (the house `.wm-tap-slop`). That square must not reach into the
+ * newest candle's clear zone (§15) — a tap meant for the live candle must never
+ * open a note — nor overlap a neighbour pip's square. The painted pip moves
+ * left (never right, toward the live edge) until its square is clear.
+ */
+export const PIP_HIT = 44;
+
+export interface PipRect { readonly x: number; readonly y: number; readonly w: number; readonly h: number }
+
+export function pipHitRect(r: PipRect): PipRect {
+  const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+  const w = Math.max(r.w, PIP_HIT), h = Math.max(r.h, PIP_HIT);
+  return { x: cx - w / 2, y: cy - h / 2, w, h };
+}
+
+const overlaps = (a: PipRect, b: PipRect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/**
+ * Where the pip may sit: its own rect shifted left as far as needed so its hit
+ * square stays left of `clearLeft` and off every `taken` hit square. Returns
+ * null when no spot at or right of `minX` exists (the caller keeps the pip
+ * as a word in the cluster list rather than plant a tap trap).
+ */
+export function placePipHit(r: PipRect, clearLeft: number, taken: readonly PipRect[], minX = 0): PipRect | null {
+  let x = Math.min(r.x, clearLeft - PIP_HIT / 2 - r.w / 2 - 1);
+  for (let guard = 0; guard < 40 && x >= minX; guard++) {
+    const cand = { ...r, x };
+    const hit = pipHitRect(cand);
+    const clash = taken.find(t => overlaps(hit, t));
+    if (!clash && hit.x + hit.w <= clearLeft) return cand;
+    x = clash ? Math.min(x - 2, clash.x - PIP_HIT / 2 - r.w / 2 - 1) : x - 4;
+  }
+  return null;
+}

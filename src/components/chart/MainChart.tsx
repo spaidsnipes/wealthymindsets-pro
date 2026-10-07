@@ -42,7 +42,7 @@ import type { RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegime
 import { bucketStep, profileContribution } from "@/lib/chart/profileContribution";
 import type { LivingDevelopmentPoint } from "@/lib/marketData/viewModels/selectLivingProfile";
 import { chartPricePickArmed, deliverChartPricePick, orderLineWords, registerChartPricePickHost, useChartOrderLines } from "@/lib/execution/chartOrderLines";
-import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, type DisplacedNote } from "@/lib/chart/eventNoteComposer";
+import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, pipHitRect, placePipHit, type DisplacedNote, type PipRect } from "@/lib/chart/eventNoteComposer";
 import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
 import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
@@ -24473,6 +24473,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.eventNotes = `ANCHORS:${anchors.length}|NOTES:${displacedNotes.length}|COMPOSE:${composeOn ? "ON" : "OFF"}`;
         const el = noteAnchorsElRef.current;
         if (el) {
+          // §15: the newest candle's clear zone — no pip's 44px touch square may
+          // reach into it (a tap meant for the live candle never opens a note).
+          const pipClearLeft = (() => {
+            const nb = (barsRef.current || []).length;
+            const xl = nb ? chart.timeScale().logicalToCoordinate((nb - 1) as never) : null;
+            let sp = 6; try { sp = +(chart.timeScale().options().barSpacing ?? 6); } catch { /* default */ }
+            return xl == null ? plotRight : Math.min(plotRight, +xl - sp * 1.5);
+          })();
+          const pipHits: PipRect[] = [];
           const placed = anchors.map(a => {
             // A lone held word is a quiet 12px pip (tap lists it); only a
             // CLUSTER earns the words "N MARKET EVENTS" (serving NQ 5m, 8f7f6f4:
@@ -24487,11 +24496,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const alts = [-26, 26, -52, 52, -78, 78].map(dy => ({ ...pref, y: clampY(pref.y + dy) }));
             const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(Math.min(...alts.map(q => q.y)), Math.max(...alts.map(q => q.y)) + h)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts });
             const topRow = { ...pref, y: HEADER_FLOOR_Y + 4 };
-            const r = sp.mode === "BLOCKED" ? topRow : sp.rect;
+            let r = sp.mode === "BLOCKED" ? topRow : sp.rect;
+            if (single) {
+              // Painted 12px, touched 44px (.wm-tap-slop): the square stays left
+              // of the clear zone and off its neighbours' squares.
+              const pr = placePipHit(r, pipClearLeft, pipHits, Math.max(4, keepOutMinX() - 16));
+              if (pr) { r = pr; pipHits.push(pipHitRect(pr)); }
+              else r = { ...r, x: Math.max(4, Math.min(r.x, pipClearLeft - 40)) };
+            }
             floatingChips.push({ ...r });
             const seed = `${a.notes[0].layer}:${a.notes[0].text}`;
             return { a, r, seed, crowded: sp.mode === "BLOCKED", single };
           });
+          canvas.dataset.eventNotePips = `${pipHits.length}|HIT:44|CLEAR_OF:${Math.round(pipClearLeft)}`;
           const offCount = composeOn ? 0 : displacedNotes.length;
           const key = `${anchorsKey(anchors)}|${placed.map(p => `${Math.round(p.r.x)},${Math.round(p.r.y)}`).join(";")}|${noteAnchorOpenRef.current ?? ""}|${offCount}`;
           if (key !== noteAnchorsKeyRef.current) {
@@ -24513,6 +24530,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const b = document.createElement("button");
               b.type = "button";
               b.dataset.testid = "event-note-anchor";
+              if (p.single) b.className = "wm-tap-slop";
               b.dataset.anchorSeed = p.seed;
               b.setAttribute("aria-expanded", noteAnchorOpenRef.current === p.seed ? "true" : "false");
               b.title = anchorListLines(p.a).join("\n");

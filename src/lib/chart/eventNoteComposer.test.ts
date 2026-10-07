@@ -35,3 +35,28 @@ describe("notes move intelligently (§16) — the composer aggregates, never del
     expect(anchorsKey(a)).toBe(anchorsKey(composeNoteAnchors([n("A", "w", 1, 1)])));
   });
 });
+
+import { PIP_HIT, pipHitRect, placePipHit } from "./eventNoteComposer";
+
+describe("the lone-word pip's touch target", () => {
+  const pip = { x: 500, y: 100, w: 12, h: 12 };
+  it("carries a ≥44px hit square centred on the 12px pip", () => {
+    const h = pipHitRect(pip);
+    expect(h.w).toBe(PIP_HIT); expect(h.h).toBe(PIP_HIT);
+    expect(h.x + h.w / 2).toBe(506); expect(h.y + h.h / 2).toBe(106);
+  });
+  it("moves left until its square is clear of the newest-candle clear zone", () => {
+    const p = placePipHit(pip, 520, [])!;
+    const h = pipHitRect(p);
+    expect(h.x + h.w).toBeLessThanOrEqual(520);
+    expect(p.w).toBe(12);
+  });
+  it("never overlaps a neighbour pip's square", () => {
+    const first = pipHitRect(placePipHit(pip, 1000, [])!);
+    const second = pipHitRect(placePipHit({ ...pip, x: 510 }, 1000, [first])!);
+    expect(second.x + second.w <= first.x || first.x + first.w <= second.x).toBe(true);
+  });
+  it("gives up (null) rather than plant a square in the clear zone", () => {
+    expect(placePipHit({ ...pip, x: 10 }, 20, [], 0)).toBeNull();
+  });
+});
