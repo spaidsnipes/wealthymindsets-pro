@@ -7857,11 +7857,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (g.accepted) grp(`F|${ink}|${fvgAlpha(FVG_OPACITY.acceptedFill, a)}`).rect(g.x0, g.yTop, w, g.yBottom - g.yTop);
                 if (g.visited) {
                   grp(`F|${ink}|${fvgAlpha(FVG_OPACITY.visitedFill, a)}`).rect(g.x0, g.visited.y0, w, g.visited.y1 - g.visited.y0);
-                  // The scar: a hatch inside the visited part (45°, 6px), clipped analytically to its rect.
+                  // The scar: a hatch inside the visited part (45°, 8px), clipped analytically to its rect.
                   const hh = g.visited.y1 - g.visited.y0;
                   if (hh >= 3) {
                     const hp = grp(`S|${ink}|${fvgAlpha(FVG_OPACITY.visitedHatch, a)}|1`);
-                    for (let x = g.x0 - hh; x < g.x1; x += 6) {
+                    for (let x = g.x0 - hh; x < g.x1; x += 8) {
                       const t0 = Math.max(0, g.x0 - x), t1 = Math.min(hh, g.x1 - x);
                       if (t1 <= t0) continue;
                       hp.moveTo(x + t0, g.visited.y1 - t0);

@@ -60,6 +60,16 @@ describe("the camera door feeds the glass — incremental live memo ≡ full sca
     expect(s.ledger.closeTimes[0]).toBe(T0 + MIN);
   });
 
+  it("tick bars on a millisecond axis (tickBars.ts time = firstPrintMs / 1000) still pair and place", () => {
+    const rows = [...FLAT, ...BULL, AWAY];
+    const t = tuples(rows).map((b, i) => ({ ...b, time: (T0 + i * MIN + 437) / 1000 }));
+    const id = ids(rows, "100T").map((x, i) => ({ ...x, asOf: T0 + i * MIN + 437 }));
+    const s = fvgSceneForCamera({ candles: t, identities: id, symbolId: SYM, timeframe: "100T", nowMs: 0, replayCursorTimeSec: null, tickBars: true });
+    expect(s.unpaired).toBe(0);
+    expect(s.ledger.objects.length).toBe(1);
+    expect(s.barTimesSec[0]).toBe(t[0].time);
+  });
+
   it("FUTURE LEAK: replay on b2 → the gap does not exist; on b3 → born, untouched", () => {
     const rows = [...FLAT, ...BULL, AWAY, [104.5, 105, 101.6, 104.4]] as Row[];
     const t = tuples(rows);

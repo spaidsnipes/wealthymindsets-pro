@@ -43,10 +43,11 @@ export const FVG_COST_BUDGET_MS = 1.5;
  * never below the floor — memory is quiet, never invisible.
  */
 export const FVG_OPACITY = {
-  remainingFill: 0.2,
-  visitedHatch: 0.34,
-  visitedFill: 0.05,
-  edge: 0.62,
+  // Quieted 2026-10-07 after serving SPY 5m: six stacked scars read as a striped wall.
+  remainingFill: 0.16,
+  visitedHatch: 0.2,
+  visitedFill: 0.04,
+  edge: 0.5,
   acceptedFill: 0.13,
   innerLine: 0.32,
   glow: 0.34,
@@ -135,7 +136,8 @@ export function fvgBandGeometry(
   timeOfIndex: (barIndex: number) => number | null,
   opts: { readonly newestIndex: number; readonly minHit?: number; readonly closeTimes?: readonly number[] },
 ): FvgBandGeometry | null {
-  const b2Sec = Math.floor(o.bars.b2.asOf / 1000);
+  // b2 is the bar before b3 (createdBarIndex); its axis time from the scene (tick bars keep ms).
+  const b2Sec = timeOfIndex(o.createdBarIndex - 1) ?? Math.floor(o.bars.b2.asOf / 1000);
   const xb2 = cam.timeToX(b2Sec);
   const yA = cam.priceToY(o.top), yB = cam.priceToY(o.bottom);
   if (xb2 == null || yA == null || yB == null || !Number.isFinite(xb2) || !Number.isFinite(yA) || !Number.isFinite(yB)) return null;

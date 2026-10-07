@@ -134,8 +134,34 @@ export function fvgReplayClockMs(cursorTimeSec: number, timeframe: string): numb
   return cursorTimeSec * 1000 + getTimeframe(id).candleIntervalSec * 1000;
 }
 
+/**
+ * Tick bars sit on the axis at their first print's time in seconds WITH
+ * millisecond precision (tickBars.ts), so the whole-second pairing rule cannot
+ * see them. Same rule otherwise: a candle pairs with exactly ONE identity of
+ * this instrument and timeframe whose `asOf` is that millisecond; zero or two
+ * → refused and counted (a bar nudged 1 ms to keep the axis increasing has no
+ * identity at its axis time and is refused, never guessed).
+ */
+function rejoinTickBars(input: Pick<FvgCameraInput, "candles" | "identities" | "symbolId" | "timeframe">): { bars: CanonicalBar[]; unpaired: number } {
+  const sym = input.symbolId.trim().toUpperCase();
+  const byMs = new Map<number, CanonicalBarIdentity | null>();
+  for (const id of input.identities) {
+    if (id.symbolId.trim().toUpperCase() !== sym || id.timeframe !== input.timeframe) continue;
+    byMs.set(id.asOf, byMs.has(id.asOf) ? null : id);
+  }
+  const bars: CanonicalBar[] = [];
+  let unpaired = 0;
+  for (const c of input.candles) {
+    const id = byMs.get(Math.round(Number(c.time) * 1000)) ?? null;
+    if (!id) { unpaired += 1; continue; }
+    bars.push({ ...id, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume });
+  }
+  bars.sort((a, b) => a.asOf - b.asOf);
+  return { bars, unpaired };
+}
+
 export function fvgSceneForCamera(input: FvgCameraInput, memo?: FvgCameraMemo): FvgCameraScene {
-  const joined = rejoinCanonicalBars({
+  const joined = input.tickBars ? rejoinTickBars(input) : rejoinCanonicalBars({
     candles: input.candles,
     identities: input.identities,
     symbolId: input.symbolId,
@@ -175,6 +201,7 @@ export function fvgSceneForCamera(input: FvgCameraInput, memo?: FvgCameraMemo): 
     visibility: selectFvgVisibility(ledger, { openBudget: input.openBudget, scarBudget: input.scarBudget }),
     unpaired: joined.unpaired,
     forming,
-    barTimesSec: closed.map(b => Math.floor(b.asOf / 1000)),
+    // Axis time: whole seconds for clock bars; tick bars keep their millisecond.
+    barTimesSec: closed.map(b => (input.tickBars ? b.asOf / 1000 : Math.floor(b.asOf / 1000))),
   };
 }

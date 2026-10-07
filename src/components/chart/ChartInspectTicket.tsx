@@ -558,7 +558,9 @@ function PassportDrawer({
   onClose,
   feed = null,
   sourceName = null,
+  priceDp = null,
 }: {
+  priceDp?: number | null;
   object: MarketObject;
   zone: StructureZone | null;
   lineage: ObjectLineageVM | null;
@@ -580,7 +582,9 @@ function PassportDrawer({
     levelOwner: zone ? null : memoryKind ? "MEMORY" : "STRUCTURE",
     decisionId: activeDecisionId, stamp: t,
   });
-  const px = passportPrice;
+  // The band at the instrument's decimals: NQ1! read "31373.5 – 31386.5"
+  // beside an axis printing 31373.50 (sheriff sweep 2026-10-07).
+  const px = (v: number) => (priceDp != null && Number.isFinite(v) ? v.toFixed(priceDp) : passportPrice(v));
   const price = object.priceLow === object.priceHigh ? px(object.priceHigh) : `${px(object.priceLow)} – ${px(object.priceHigh)}`;
   const noun = zone
     ? `${zone.side === "DEMAND" ? "Demand" : "Supply"} zone · ${price}`
@@ -1055,6 +1059,7 @@ export function ChartInspectTicket({
         onClose={() => onOpenChange(false)}
         feed={feed}
         sourceName={sourceName}
+        priceDp={priceDp}
       />
     );
   }
