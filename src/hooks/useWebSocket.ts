@@ -1869,7 +1869,13 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
                 trade: true,
                 marketEvent: print,
               }, true);
-              setState(previous => previous.tapeSource === "tastytrade" ? previous : { ...previous, tapeSource: "tastytrade" });
+              // The exchange's own print NAMES its provider. A chart that joins
+              // an already-live stream (a Desk screen switched onto NQ1! while
+              // its twin streams it) hears prints before any REST quote, and
+              // the REST lane stands down while tastytrade speaks — so without
+              // this the switched screen read "SOURCE UNCERTIFIED" forever
+              // beside its twin's "LIVE — CERTIFIED QUOTE" (serving, 2026-10-07).
+              setState(previous => previous.tapeSource === "tastytrade" && previous.source === "tastytrade" && previous.connected ? previous : { ...previous, tapeSource: "tastytrade", source: "tastytrade", connected: true });
               return;
             }
             if (e.type === "Summary") {

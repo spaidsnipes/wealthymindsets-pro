@@ -17,7 +17,10 @@ const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString([], 
 
 interface AccountRead { readonly tail: string; readonly state: string; readonly reason?: string; readonly fills?: number; readonly pages?: number; readonly truncated?: boolean; readonly trips?: TtRoundTrip[]; readonly summary?: TtLedgerSummary }
 
-export function TastytradeLedger() {
+export function TastytradeLedger({ onAccounts }: {
+  /** §I personal analytics: the round trips this read returned, per account (the parent never fetches them twice). */
+  readonly onAccounts?: (accounts: readonly { tail: string; fills: number; trips: readonly TtRoundTrip[] }[]) => void;
+} = {}) {
   const [state, setState] = useState<"LOADING" | "OK" | "REFUSED" | "FAILED">("LOADING");
   const [accounts, setAccounts] = useState<readonly AccountRead[]>([]);
   const [reason, setReason] = useState<string>("");
@@ -31,10 +34,11 @@ export function TastytradeLedger() {
         if (isOwnerRefusal(j, r.status)) { setState("REFUSED"); return; }
         if (!j || j.state !== "OK") { setState("FAILED"); setReason(j?.reason ?? j?.error ?? j?.state ?? `HTTP ${r.status}`); return; }
         setAccounts(j.accounts ?? []); setState("OK");
+        onAccounts?.((j.accounts ?? []).filter(a => a.state === "READ" && Array.isArray(a.trips)).map(a => ({ tail: a.tail, fills: a.fills ?? 0, trips: a.trips ?? [] })));
       })
       .catch(e => { if (alive) { setState("FAILED"); setReason(String(e)); } });
     return () => { alive = false; };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- read once on open
 
   return (
     <section data-testid="tastytrade-ledger" aria-label="tastytrade ledger" style={{ border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px", background: "rgba(16,14,10,0.5)" }}>

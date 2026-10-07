@@ -148,8 +148,8 @@ export function ActiveToolsPanel({ entries, instruments = [], receipts, roles, o
               <li key={r.id} data-testid={`active-tool-${r.id}`} data-active-tool-paint={r.paint} data-active-tool-role={r.role}
                 onKeyDown={closeOnEscape(r.id)}
                 className="rounded px-1.5 py-1" style={{ border: `1px solid ${focused ? GOLD : "rgba(212,175,55,0.16)"}`, opacity: r.hidden ? 0.75 : 1 }}>
-                <div className="flex items-center gap-1">
-                  <span className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="min-w-0 basis-full">
                     <span className="block truncate text-[12px] font-semibold" style={{ color: focused ? GOLD : PEARL }}>{r.label}</span>
                     <span data-testid={`active-tool-words-${r.id}`} className="block text-[10.5px] leading-snug" style={{ color: PAINT_INK[r.paint] }}>{r.words}</span>
                   </span>
@@ -189,8 +189,8 @@ export function ActiveToolsPanel({ entries, instruments = [], receipts, roles, o
           {instruments.map(i => (
             <li key={i.id} data-testid={`active-tool-${i.id}`} data-active-tool-paint="UNREPORTED" onKeyDown={closeOnEscape(i.id)}
               className="rounded px-1.5 py-1" style={{ border: "1px solid rgba(212,175,55,0.16)" }} title={i.what}>
-              <div className="flex items-center gap-1">
-                <span className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="min-w-0 basis-full">
                   <span className="block truncate text-[12px] font-semibold" style={{ color: PEARL }}>{i.label}</span>
                   <span className="block text-[10.5px] leading-snug" style={{ color: PEARL }}>ON</span>
                 </span>

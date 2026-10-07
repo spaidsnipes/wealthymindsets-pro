@@ -221,6 +221,54 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLi
   );
 }
 
+/**
+ * PHONE DESK MENU (Garden 19 §22, Founder ruling 2026-10-07): on a phone the
+ * four desk actions fold into one "Desk ⋯" menu so the chart gets the room.
+ * 44px targets; arrow keys move, Escape closes and returns focus.
+ */
+function DeskMenu({ dirty, items }: { dirty: boolean; items: readonly (readonly [string, () => void])[] }) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    menu.current?.querySelector<HTMLButtonElement>("[role=menuitem]")?.focus();
+    const away = (e: PointerEvent) => {
+      if (!menu.current?.contains(e.target as Node) && !trigger.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [open]);
+  const close = () => { setOpen(false); trigger.current?.focus(); };
+  return (
+    <span style={{ position: "relative" }}>
+      <button ref={trigger} type="button" data-testid="desk-menu" aria-haspopup="menu" aria-expanded={open}
+        onClick={() => setOpen(v => !v)} style={{ ...btn(open || dirty), textTransform: "none" }}>
+        Desk ⋯{dirty ? " •" : ""}
+      </button>
+      {open ? (
+        <div ref={menu} role="menu" aria-label="Desk actions" data-testid="desk-menu-list"
+          onKeyDown={e => {
+            const list = [...(menu.current?.querySelectorAll<HTMLButtonElement>("[role=menuitem]") ?? [])];
+            const at = list.indexOf(document.activeElement as HTMLButtonElement);
+            if (e.key === "Escape") { e.preventDefault(); close(); }
+            else if (e.key === "ArrowDown") { e.preventDefault(); list[(at + 1) % list.length]?.focus(); }
+            else if (e.key === "ArrowUp") { e.preventDefault(); list[(at - 1 + list.length) % list.length]?.focus(); }
+          }}
+          style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 60, display: "flex", flexDirection: "column", minWidth: 180, background: "#0b0a08", border: `1px solid ${LINE}`, borderRadius: 6, padding: 4, boxShadow: "0 8px 24px rgba(0,0,0,.6)" }}>
+          {items.map(([label, run]) => (
+            <button key={label} type="button" role="menuitem" data-testid={label === "Save" ? "desk-save" : undefined}
+              onClick={() => { setOpen(false); run(); }}
+              style={{ ...btn(label === "Save" && dirty), minHeight: 44, textAlign: "left", border: "none" }}>
+              {label}{label === "Save" && dirty ? " (unsaved changes)" : ""}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
 export function DeskShell() {
   const [desks, setDesks] = useState<readonly Desk[]>([MORNING_DESK]);
   const [activeName, setActiveName] = useState(MORNING_DESK.name);
@@ -432,15 +480,19 @@ export function DeskShell() {
         {!popout ? (
           <button type="button" className="wm-desk-new-window" data-testid="desk-window" title="Open this whole desk in a new window that stays linked" onClick={() => openWindow()} style={btn()}>Desk in new window</button>
         ) : null}
-        <span style={{ color: MUTED, fontSize: 11 }}>Tap or drag a market into a screen · drag a screen&apos;s header onto another to swap</span>
+        {phone ? null : <span style={{ color: MUTED, fontSize: 11 }}>Tap or drag a market into a screen · drag a screen&apos;s header onto another to swap</span>}
         <span style={{ flex: 1 }} />
         {popout ? null : <>
-        {dirty ? <span style={{ color: GOLD, fontSize: 11 }}>Unsaved changes</span> : null}
+        {dirty && !phone ? <span style={{ color: GOLD, fontSize: 11 }}>Unsaved changes</span> : null}
         {!crossWindow ? <span style={{ color: MUTED, fontSize: 11 }}>New windows here cannot stay linked</span> : null}
+        {phone ? (
+          <DeskMenu dirty={dirty} items={[["Save", save], ["Save as…", saveAs], ["Rename", rename], ["Delete", remove]]} />
+        ) : <>
         <button type="button" data-testid="desk-save" onClick={save} style={btn(dirty)}>Save</button>
         <button type="button" onClick={saveAs} style={btn()}>Save as…</button>
         <button type="button" onClick={rename} style={btn()}>Rename</button>
         <button type="button" onClick={remove} style={btn()}>Delete</button>
+        </>}
         </>}
       </div>
       {ask ? (

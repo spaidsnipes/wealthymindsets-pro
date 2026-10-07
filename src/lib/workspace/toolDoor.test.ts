@@ -64,6 +64,12 @@ describe("the doors listen; Configure uses the owner", () => {
     expect(src).toContain("subscribeToolDoor(");
     expect(src).toMatch(/querySelector<HTMLElement>\(`\[data-profile-id="\$\{id\}"\]`\)/);
   });
+  it("the W door's footprint modes answer FP_<mode> — only the door copy (wrapNote), never the study row", () => {
+    const src = readFileSync("src/components/chart/FootprintControls.tsx", "utf8");
+    expect(src).toMatch(/if \(!wrapNote\) return;[^]*?takePendingToolDoor\(holds\)/);
+    expect(src).toContain('id.startsWith("FP_") && FOOTPRINT_TYPES.some(t => t.id === id.slice(3))');
+    expect(src).toContain("data-footprint-id={id}");
+  });
   it("Active Tools' Configure opens the door, falling back to the card only when none holds the tool", () => {
     const src = readFileSync("src/components/chart/ActiveToolsPanel.tsx", "utf8");
     expect(src).toContain("onClick={() => { if (!openDoor(id)) onConfigure(id); }}");

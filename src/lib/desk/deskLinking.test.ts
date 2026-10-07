@@ -194,3 +194,13 @@ describe("Garden 19 §22 — the Desk as a touch station", () => {
     expect(readFileSync("src/components/chart/WatchlistRow.tsx", "utf8")).toContain("minWidth: 44, minHeight: 44");
   });
 });
+
+describe("phone Desk ⋯ menu (Founder ruling 2026-10-07)", () => {
+  it("folds Save / Save as / Rename / Delete into one keyboard-operable menu on phone only", () => {
+    const shell = readFileSync("src/components/desk/DeskShell.tsx", "utf8");
+    expect(shell).toContain('<DeskMenu dirty={dirty} items={[["Save", save], ["Save as…", saveAs], ["Rename", rename], ["Delete", remove]]} />');
+    expect(shell).toContain('aria-haspopup="menu" aria-expanded={open}');
+    expect(shell).toContain('if (e.key === "Escape") { e.preventDefault(); close(); }');
+    expect(shell).toContain("minHeight: 44, textAlign: \"left\"");
+  });
+});

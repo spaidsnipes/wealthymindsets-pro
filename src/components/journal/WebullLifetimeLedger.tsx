@@ -1,5 +1,6 @@
 "use client";
 import { TastytradeLedger } from "@/components/journal/TastytradeLedger";
+import { FounderAnalytics, type TtTripsByAccount } from "@/components/journal/FounderAnalytics";
 import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 
 /**
@@ -257,6 +258,7 @@ export function WebullLifetimeLedger() {
 
   // §64 PRESCRIBE → REHEARSE: a Study Next item narrows the episode list to exactly its trades.
   const [rehearse, setRehearse] = useState<StudyItem | null>(null);
+  const [ttAccounts, setTtAccounts] = useState<readonly TtTripsByAccount[]>([]);
   const conds = useMemo(() => episodeConditions(data?.episodes ?? []), [data]);
   const tagMap = useMemo(() => behaviourTags(data?.episodes ?? []), [data]);
   const episodes = useMemo(() => {
@@ -413,7 +415,9 @@ export function WebullLifetimeLedger() {
           </div>
         </>
       ) : null}
-      <TastytradeLedger />
+      {/* §I — owner-only: built from what the owner-gated ledger reads returned; a guest gets refusals, so nothing renders. */}
+      <FounderAnalytics episodes={data?.state === "OK" && !data.partial ? data.episodes ?? [] : []} ttAccounts={ttAccounts} />
+      <TastytradeLedger onAccounts={setTtAccounts} />
     </section>
   );
 }

@@ -260,8 +260,29 @@ function candleFrame(op: "add" | "remove", symbol: string, fromTime: number) {
  * stream cannot open (not the owner, not connected) — the caller falls through.
  */
 export function requestTastyCandles(candleSymbol: string, keepAlive: string, fromTime: number, timeoutMs = 8_000): Promise<TastyCandleRow[] | null> {
+  // ONE SNAPSHOT, EVERY ASKER (serving /desk, 2026-10-07). A second request for
+  // a candle symbol already in flight used to answer null AT ONCE, so a Desk
+  // screen moved onto AAPL 5m by its link group — asking the same instant as
+  // the screen that moved it — fell through to a delayed vendor and drew
+  // regular-session bars ending at yesterday's close beside a twin showing the
+  // overnight session. A later asker now JOINS the snapshot in flight (it
+  // reaches back at least as far); one wanting older history waits for it to
+  // finish and then asks for its own. Same bars, same door, for both.
+  const pending = candleInflight.get(candleSymbol);
+  if (pending) {
+    return pending.fromTime <= fromTime
+      ? pending.promise
+      : pending.promise.then(() => requestTastyCandles(candleSymbol, keepAlive, fromTime, timeoutMs));
+  }
+  const promise = openTastyCandleRequest(candleSymbol, keepAlive, fromTime, timeoutMs);
+  candleInflight.set(candleSymbol, { fromTime, promise });
+  return promise;
+}
+
+const candleInflight = new Map<string, { readonly fromTime: number; readonly promise: Promise<TastyCandleRow[] | null> }>();
+
+function openTastyCandleRequest(candleSymbol: string, keepAlive: string, fromTime: number, timeoutMs: number): Promise<TastyCandleRow[] | null> {
   return new Promise(resolve => {
-    if (candleRequests.has(candleSymbol)) { resolve(null); return; }
     let settled = false;
     const release = subscribe([keepAlive]);
     const finish = (rows: TastyCandleRow[] | null) => {
@@ -270,6 +291,7 @@ export function requestTastyCandles(candleSymbol: string, keepAlive: string, fro
       clearTimeout(timer);
       clearInterval(watch);
       candleRequests.delete(candleSymbol);
+      candleInflight.delete(candleSymbol);
       if (feedOpen) send(candleFrame("remove", candleSymbol, fromTime));
       release();
       resolve(rows);

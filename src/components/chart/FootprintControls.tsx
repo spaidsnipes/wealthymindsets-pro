@@ -9,6 +9,7 @@ import type { FootprintType } from "./ChartsDashboard";
 import { getIndicatorInfo } from "./indicatorDescriptions";
 import { orderFlowToolCapability } from "@/lib/marketData/orderFlowToolCapability";
 import { SchemePresets } from "./SchemePresets";
+import { subscribeToolDoor, takePendingToolDoor } from "@/lib/workspace/toolDoor";
 
 function emitBigTradesControl(action: "pause" | "resume" | "refresh") {
   try { window.dispatchEvent(new CustomEvent("wm-bigtrades-control", { detail: { action } })); } catch {}
@@ -525,6 +526,32 @@ export function FootprintControls({
   const capabilityOf = (id: FootprintType, label: string) =>
     orderFlowToolCapability(id, label, { source: tapeSource, observedAggressorFlow });
 
+  // §B5 TOOL DOOR (2026-10-07): Active Tools' Configure on a footprint row
+  // ("FP_<mode>") opened the W door — bring that mode's button forward. Only
+  // the door copy (`wrapNote`) answers; the study-row copy never takes it.
+  const fpButtons = useRef(new Map<string, HTMLButtonElement>());
+  const [doorFocusId, setDoorFocusId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!wrapNote) return;
+    const holds = (id: string) => id.startsWith("FP_") && FOOTPRINT_TYPES.some(t => t.id === id.slice(3));
+    const bring = (id: string) => {
+      const b = fpButtons.current.get(id.slice(3));
+      if (!b) return;
+      b.scrollIntoView?.({ block: "center" });
+      b.focus();
+      setDoorFocusId(id.slice(3));
+    };
+    const waiting = takePendingToolDoor(holds);
+    const raf = waiting ? requestAnimationFrame(() => bring(waiting)) : 0;
+    const off = subscribeToolDoor(() => { const id = takePendingToolDoor(holds); if (id) bring(id); });
+    return () => { off(); if (raf) cancelAnimationFrame(raf); };
+  }, [wrapNote]);
+  useEffect(() => {
+    if (!doorFocusId) return;
+    const t = setTimeout(() => setDoorFocusId(null), 2400);
+    return () => clearTimeout(t);
+  }, [doorFocusId]);
+
   // The tool whose emptiness the trader is actually looking at right now. Big
   // Trades in Simultaneous Mode is an independent overlay, so it can be the
   // armed-and-empty tool even when the exclusive selection is switched off.
@@ -572,8 +599,12 @@ export function FootprintControls({
               the SELECTED ring is what gets withheld, because a green ring over
               an empty overlay is the reading "delta is flat", not "no data". */}
           <button
+            ref={el => { if (el) fpButtons.current.set(id, el); else fpButtons.current.delete(id); }}
             onClick={() => onChange(id)}
             aria-pressed={selected}
+            data-footprint-id={id}
+            data-tool-door-focus={doorFocusId === id ? "true" : undefined}
+            style={doorFocusId === id ? { outline: "1px solid rgba(212,175,55,0.9)" } : undefined}
             data-of-capability={cap.state}
             title={`${desc}\n\n${cap.reason}`}
             aria-label={`${label}. ${cap.reason}`}

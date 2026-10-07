@@ -86,6 +86,8 @@ describe("the panel", () => {
     expect(html).toMatch(/data-testid="active-tool-configure-ABSORPTION" data-tool-door="order-flow"/);
     expect(html).toContain('aria-label="Turn off Footprint · Volume"');
     expect(html).not.toMatch(/min-width:(?:[0-3]\d|4[0-3])px/);
+    // Narrow Tools sheet (live 47a4c37, 2026-10-07): the name takes its own line, the controls wrap below it.
+    expect(html).toContain('class="min-w-0 basis-full"');
     expect(html).not.toMatch(/min-height:(?:[0-3]\d|4[0-3])px/);
   });
 
