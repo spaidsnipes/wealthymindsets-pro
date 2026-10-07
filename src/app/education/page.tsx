@@ -373,7 +373,7 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-6" style={{ scrollbarWidth:"thin" }}>
+        <div className="flex-1 overflow-y-auto p-6" style={ACADEMY_SCROLL}>
           {!done ? (
             <>
               <div className="text-[10px] text-wm-text-dim mb-3 truncate">📖 {lesson.title}</div>
@@ -507,7 +507,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
+      <div className="flex-1 overflow-y-auto" style={ACADEMY_SCROLL}>
         {fvgLesson ? <FvgLessonBody lesson={fvgLesson} color={color}/> : (<>
         {/* Video — coming soon */}
         <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden"
@@ -587,6 +587,14 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
     </div>
   );
 }
+
+/**
+ * Scroll areas. `scrollbar-width` alone switches Chrome (121+) to the standard
+ * scrollbar and IGNORES the global ::-webkit-scrollbar skin, so the module list
+ * drew the OS default white track on dark graphite (Sheriff, 2026-10-07). The
+ * standard pair — width AND colour — keeps the thin bar in the room's brass.
+ */
+const ACADEMY_SCROLL: React.CSSProperties = { scrollbarWidth: "thin", scrollbarColor: "rgba(139,106,41,0.55) transparent" };
 
 /* ── Main ────────────────────────────────────────────────── */
 const EDU_KEY = "wm_edu_progress";
@@ -782,7 +790,7 @@ export default function EducationPage() {
             </span>
             <ChevronRight size={14} className="shrink-0 text-amber-300" aria-hidden="true" />
           </Link>
-          <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth:"thin" }}>
+          <div className="flex-1 overflow-y-auto" style={ACADEMY_SCROLL}>
             {mods.map(mod => {
               const isExp = expandedId === mod.id;
               const moduleProgress = summarizeAcademyLessons(mod.lessons);

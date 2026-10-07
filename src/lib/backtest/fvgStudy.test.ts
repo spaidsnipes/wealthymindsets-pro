@@ -144,4 +144,26 @@ describe("FVG study — reads the one engine, labelled descriptive", () => {
     expect(src).not.toMatch(/b3\.low\s*>\s*b1\.high|fairValueGaps/);
     expect(src).not.toMatch(/must fill|will fill|probabilit(y|ies) of|score\s*[:=]/i);
   });
+
+  it("relationship filters: structure / profile, from pre-formation bars only (stepping cannot leak)", () => {
+    const asOf = END(S_BULL);
+    const all = runFvgStudy({ series: [S_BULL, S_BEAR], asOfMs: asOf });
+    const total = (f: { value: string; count: number }[]) => f.reduce((a, x) => a + x.count, 0);
+    expect(total(all.facets.structure as { value: string; count: number }[])).toBe(all.detectedInWindow);
+    expect(total(all.facets.profile as { value: string; count: number }[])).toBe(all.detectedInWindow);
+    const withP = runFvgStudy({ series: [S_BULL, S_BEAR], asOfMs: asOf, filters: { profile: "WITH_PROFILE" } });
+    const noP = runFvgStudy({ series: [S_BULL, S_BEAR], asOfMs: asOf, filters: { profile: "NO_PROFILE" } });
+    expect(withP.filtered + noP.filtered).toBe(all.detectedInWindow);
+    // A gap's relationship family is the same at formation and at the end (pre-formation bars only).
+    const o = all.objects[0];
+    const atBirth = runFvgStudy({ series: [S_BULL, S_BEAR], asOfMs: o.createdAt });
+    const key = (st: typeof all) => st.facets.profile.map(f => f.value).join();
+    expect(atBirth.objects.find(x => x.objectId === o.objectId)).toBeDefined();
+    expect(key(atBirth).length).toBeGreaterThan(0);
+    for (const v of ["WITH_PROFILE", "NO_PROFILE"] as const) {
+      const a = runFvgStudy({ series: [S_BULL, S_BEAR], asOfMs: o.createdAt, filters: { profile: v } }).objects.some(x => x.objectId === o.objectId);
+      const b = runFvgStudy({ series: [S_BULL, S_BEAR], asOfMs: asOf, filters: { profile: v } }).objects.some(x => x.objectId === o.objectId);
+      expect(a).toBe(b);
+    }
+  });
 });

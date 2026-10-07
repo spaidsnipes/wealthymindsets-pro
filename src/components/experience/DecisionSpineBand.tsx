@@ -677,7 +677,10 @@ function rText(v: number | "UNKNOWN" | undefined): string {
 
 function asOfText(capturedAt: number | null): string {
   if (capturedAt === null) return "asOf UNKNOWN";
-  return `asOf ${new Date(capturedAt).toISOString().slice(11, 19)}Z`;
+  // F2 (2026-10-07): the trader reads this stamp, so it is local time with its
+  // zone (traderClock). It was "asOf HH:MM:SSZ" beside a header in ET and a bar
+  // clock in CDT — three clocks on one screen. UTC stays in machine receipts.
+  return `asOf ${traderClock(capturedAt)}`;
 }
 
 /**
@@ -1918,16 +1921,17 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
         const fp = props.tapeFootprint!;
         const peak = Math.max(...fp.rows.map(r => Math.max(r.buy, r.sell)), 0);
         if (!(peak > 0)) return null;
-        const since = new Date(fp.sinceSec * 1000).toISOString().slice(11, 16);
+        // F2 (2026-10-07): local time with its zone, not "HH:MM UTC".
+        const since = traderClock(fp.sinceSec * 1000, { seconds: false });
         return (
           <div
             data-testid="spine-tape-footprint"
             data-footprint-rows={fp.rows.length}
-            aria-label={`Tape footprint since ${since} UTC: aggressor buy ${fp.buy.toPrecision(4)}, aggressor sell ${fp.sell.toPrecision(4)} across ${fp.rows.length} price rows.`}
+            aria-label={`Tape footprint since ${since}: aggressor buy ${fp.buy.toPrecision(4)}, aggressor sell ${fp.sell.toPrecision(4)} across ${fp.rows.length} price rows.`}
             style={{ display: "flex", flexDirection: "column", gap: 4, margin: "0 2px 10px", padding: "8px 11px", border: "1px solid rgba(196,165,116,0.24)", borderRadius: 2 }}
           >
             <span aria-hidden="true" style={{ ...LABEL, fontSize: 11, lineHeight: "16px", letterSpacing: "0.14em", textAlign: "center" }}>
-              Footprint · since {since} UTC
+              Footprint · since {since}
             </span>
             <span aria-hidden="true" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", fontSize: 11, lineHeight: "14px", color: "#a9a191" }}>
               <span>Buy</span><span style={{ textAlign: "right" }}>Sell</span>

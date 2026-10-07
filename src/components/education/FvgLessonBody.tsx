@@ -13,6 +13,7 @@ import {
 } from "@/lib/academy/fvgCourse";
 import { readJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
 import { FvgDiagram } from "./FvgDiagram";
+import { learnYourselfLinks } from "@/lib/journal/planLoop";
 
 export function FvgMythCard() {
   return (
@@ -106,6 +107,14 @@ export function FvgLessonBody({ lesson, color }: { lesson: FvgLesson; color: str
           </div>
         ) : null}
         <MyExamples />
+        {/* Garden 19 §56: LEARN → LEARN YOURSELF — from the lesson back into your own record. */}
+        {learnYourselfLinks(lesson.id).length ? (
+          <div data-testid="fvg-learn-yourself" className="flex flex-wrap gap-2">
+            {learnYourselfLinks(lesson.id).map(l => (
+              <Link key={l.href} href={l.href} prefetch={false} className="inline-flex min-h-11 items-center rounded-lg border px-3 text-[11px] font-semibold text-wm-text hover:text-wm-gold" style={{ borderColor: "rgba(201,165,92,0.45)" }}>{l.label} →</Link>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );

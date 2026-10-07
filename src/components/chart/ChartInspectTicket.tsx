@@ -48,6 +48,7 @@
  * honestly be said about the bar and the tape; this renders that verdict.
  */
 
+import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
 import React from "react";
 import { positioningSourceWords } from "@/lib/marketData/cboeDelayedOptions";
 import type { BigTradeClusterMember, SelectedBigTrade } from "@/lib/bigTradeLevels";
@@ -641,8 +642,8 @@ function PassportDrawer({
       data-passport-dock={dock}
       data-passport-object-x={objectX ?? undefined}
       aria-label={zone
-        ? `Market object passport. ${zone.side} zone ${object.priceLow} to ${object.priceHigh}. ${vm.state}.`
-        : `Market object passport. ${object.kind} ${price}. ${vm.state}.`}>
+        ? `Market object passport. ${zone.side} zone ${price.replace(" – ", " to ")}. ${zoneStateWords(vm.state)}.`
+        : `Market object passport. ${object.kind} ${price}. ${zoneStateWords(vm.state)}.`}>
       <div className="border-b border-wm-border px-3 pb-2 pt-3">
         <div className="flex items-center gap-2">
           <IdCard size={20} style={{ color: WM.gold.hero }} aria-hidden />
@@ -657,7 +658,7 @@ function PassportDrawer({
         <div className="mt-1 flex items-center gap-2 text-[12px]" style={{ color: WM.text.body }}>
           <span className="min-w-0 truncate">{noun}</span>
           <span className="ml-auto shrink-0 rounded border px-1.5 text-[10px] font-bold tracking-[0.08em]" data-passport-state={vm.state}
-            style={{ color: stateTone, borderColor: stateTone }}>{vm.state}</span>
+            style={{ color: stateTone, borderColor: stateTone }}>{zoneStateWords(vm.state)}</span>
         </div>
       </div>
 

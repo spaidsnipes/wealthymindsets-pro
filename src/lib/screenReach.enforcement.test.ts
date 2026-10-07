@@ -463,6 +463,14 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
       + "data' failure he asked us not to repeat. Delete both entries together "
       + "when the relay lands measured.",
   },
+  "src/lib/marketData/fvg/fvgInspectRelationships.ts": {
+    reason: "AWAITING_SURFACE",
+    note:
+      "Garden 19 §12/§16–§18: the chart room's one call for an FVG's relationships in Inspect "
+      + "(structure / Living Profile / options walls / liquidity, each with its owner's evidence word). "
+      + "Built 2026-10-07 for the chart lane to call from ChartsDashboard → FvgInspectTicket (that lane's "
+      + "files). Delete this entry when the chart imports it.",
+  },
   "src/lib/marketData/isOptionSymbol.ts": {
     reason: "AWAITING_SURFACE",
     note: "Symbol classification helper, unused by any surface.",

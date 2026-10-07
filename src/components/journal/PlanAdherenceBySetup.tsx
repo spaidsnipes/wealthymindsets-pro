@@ -6,7 +6,9 @@
  * happened and grouped by setup. MEASURED only at 20 decided trades.
  */
 
+import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import { lessonForFinding } from "@/lib/journal/planLoop";
 
 import { journalReviewKey } from "@/lib/journal/captureReviewEvidence";
 import type { JournalEntry } from "@/lib/journal/hydrateJournalEntries";
@@ -62,11 +64,23 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
     }))));
     setEdgeNote(refused.length ? `Not read: ${refused.join("; ")}.` : null);
   };
-  const edgeBlock = withRef.length ? (
+  return <PlanAdherenceView rows={rows} fvgRows={fvgRows} edge={edge} edgeNote={edgeNote} showEdge={withRef.length > 0} onCompare={() => { void compare(); }} />;
+}
+
+/** The Personal Edge block itself — pure, so it can be proved without a signed-in book. */
+export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onCompare }: {
+  readonly rows: readonly SetupAdherence[];
+  readonly fvgRows: readonly SetupAdherence[];
+  readonly edge: FvgEdgeComparison | null;
+  readonly edgeNote: string | null;
+  readonly showEdge: boolean;
+  readonly onCompare: () => void;
+}) {
+  const edgeBlock = showEdge ? (
     <div data-testid="fvg-market-vs-execution" style={{ display: "grid", gap: 4, marginTop: 4 }}>
       <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>MARKET EDGE vs EXECUTION EDGE · FVG · descriptive only</span>
       {!edge ? (
-        <button type="button" data-testid="fvg-compare-untaken" onClick={() => { void compare(); }}
+        <button type="button" data-testid="fvg-compare-untaken" onClick={onCompare}
           style={{ justifySelf: "start", fontSize: 11, color: GOLD, background: "none", border: "1px solid rgba(139,106,41,0.25)", borderRadius: 6, padding: "3px 10px", minHeight: 28, cursor: "pointer" }}>
           Compare with the gaps you did not trade (same instrument, timeframe, days)
         </button>
@@ -75,7 +89,7 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
           {edge.market.map(m => <span key={m.group} data-state={m.state} style={{ fontSize: 11.5, color: m.state === "MEASURED" ? INK : MUTED }}>{m.sentence}</span>)}
           <span data-state={edge.execution.state} style={{ fontSize: 11.5, color: edge.execution.state === "MEASURED" ? INK : MUTED }}>{edge.execution.sentence}</span>
           {edge.notCompared.map(n => <span key={n.state} style={{ fontSize: 10.5, color: MUTED }}>Not compared: {n.count} decision{n.count === 1 ? "" : "s"} {n.state.replace(/_/g, " ").toLowerCase()}.</span>)}
-          <span style={{ fontSize: 10.5, color: MUTED }}>Days compared: {edge.days.join(", ") || "none"}. {edge.claim}.</span>
+          <span style={{ fontSize: 10.5, color: MUTED, overflowWrap: "anywhere" }}>Days compared: {edge.days.join(", ") || "none"}. {edge.claim}.</span>
         </>
       )}
       {edgeNote ? <span role="status" style={{ fontSize: 10.5, color: MUTED }}>{edgeNote}</span> : null}
@@ -90,6 +104,9 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
           <b style={{ fontWeight: 600 }}>{r.setup}</b>
           <span style={{ color: r.state === "MEASURED" ? INK : MUTED }}>{r.line}</span>
           {r.commonDeparture ? <span style={{ color: MUTED }}>most common departure: {DEVIATION_LABEL[r.commonDeparture.id].toLowerCase()} ({r.commonDeparture.count})</span> : null}
+          {r.commonDeparture && lessonForFinding(r.commonDeparture.id) ? (
+            <Link href={lessonForFinding(r.commonDeparture.id)!.href} prefetch={false} data-testid="plan-adherence-study" style={{ color: GOLD }}>Study: {lessonForFinding(r.commonDeparture.id)!.label} →</Link>
+          ) : null}
         </div>
       ))}
       {fvgRows.length ? (

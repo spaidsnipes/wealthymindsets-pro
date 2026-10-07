@@ -13,7 +13,8 @@
  *
  * EVIDENCE WORDS, from each owner's own state (a stated mapping, not a grade):
  *   structure   selectMarketStructure measured → FULL (pivots from OHLC);
- *               not measured → SILENCE (its insufficientNote).
+ *               unreadable sequence but confirmed pivots published → PARTIAL;
+ *               no pivots → SILENCE (its insufficientNote).
  *   profile     drawn/measured + trade-based → FULL; candle-estimated →
  *               PARTIAL (an estimate of where volume traded); not drawn → SILENCE.
  *   options     selectDerivativesPressure drawn: SNAPSHOT → PARTIAL, DELAYED →
@@ -121,9 +122,14 @@ export interface FvgRelationshipInputs {
 
 export function structureSource(s: StructureInput | null | undefined): RelationshipSource {
   if (!s) return { family: "STRUCTURE", owner: "selectMarketStructure", label: "Market structure", evidence: "SILENCE", provenance: "no structure reading attached" };
-  return s.vm.measured
-    ? { family: "STRUCTURE", owner: "selectMarketStructure", label: "Market structure", evidence: "FULL", provenance: `confirmed ${s.vm.lookback}-bar pivots from OHLC; ${s.vm.confirmationLagNote}` }
-    : { family: "STRUCTURE", owner: "selectMarketStructure", label: "Market structure", evidence: "SILENCE", provenance: s.vm.insufficientNote ?? "no readable swing sequence" };
+  if (s.vm.measured) return { family: "STRUCTURE", owner: "selectMarketStructure", label: "Market structure", evidence: "FULL", provenance: `confirmed ${s.vm.lookback}-bar pivots from OHLC; ${s.vm.confirmationLagNote}` };
+  // The owner still publishes the pivots that DID confirm when the sequence is
+  // unreadable ("withholding them would be a second refusal") — real pivots,
+  // no readable sequence: PARTIAL, in the owner's own words.
+  if (s.vm.swingHighs.length || s.vm.swingLows.length) {
+    return { family: "STRUCTURE", owner: "selectMarketStructure", label: "Market structure", evidence: "PARTIAL", provenance: `confirmed pivots only — ${s.vm.insufficientNote ?? "no readable swing sequence"}` };
+  }
+  return { family: "STRUCTURE", owner: "selectMarketStructure", label: "Market structure", evidence: "SILENCE", provenance: s.vm.insufficientNote ?? "no readable swing sequence" };
 }
 
 export function profileSource(p: ProfileInput): RelationshipSource {
@@ -176,7 +182,10 @@ function rel(family: RelationshipFamily, kind: RelationshipKind, relation: Relat
 }
 
 /** Structure relationships, using only swings CONFIRMED before b2 opened. */
-function structureRelationships(o: FvgObject, s: StructureInput, src: RelationshipSource, bars: readonly CanonicalBar[]): FvgRelationship[] {
+/** The bar fields the break / reclaim test reads (a CanonicalBar, or a renderer tuple keyed by asOf). */
+export type RelationshipBar = Pick<CanonicalBar, "asOf" | "low" | "high" | "close"> & { readonly barId?: string };
+
+function structureRelationships(o: FvgObject, s: StructureInput, src: RelationshipSource, bars: readonly RelationshipBar[]): FvgRelationship[] {
   if (src.evidence === "SILENCE") return [];
   const out: FvgRelationship[] = [];
   const b2OpenSec = o.bars.b2.asOf / 1000;
@@ -184,10 +193,11 @@ function structureRelationships(o: FvgObject, s: StructureInput, src: Relationsh
   const confirmed = (pts: readonly { time: number; price: number }[]) => pts.filter(p => p.time + lagSec <= b2OpenSec);
   const highs = confirmed(s.vm.swingHighs);
   const lows = confirmed(s.vm.swingLows);
-  const byId = new Map<string, CanonicalBar>();
-  for (const b of bars) byId.set(b.barId, b);
-  const b1 = byId.get(o.bars.b1.barId);
-  const b2 = byId.get(o.bars.b2.barId);
+  const byId = new Map<string, RelationshipBar>();
+  const byAsOf = new Map<number, RelationshipBar>();
+  for (const b of bars) { if (b.barId) byId.set(b.barId, b); byAsOf.set(b.asOf, b); }
+  const b1 = byId.get(o.bars.b1.barId) ?? byAsOf.get(o.bars.b1.asOf);
+  const b2 = byId.get(o.bars.b2.barId) ?? byAsOf.get(o.bars.b2.asOf);
   if (b1 && b2) {
     const bull = o.direction === "BULLISH";
     const lastSame = ((xs) => xs[xs.length - 1])(bull ? highs : lows);
@@ -260,7 +270,7 @@ export function relationshipBarSec(timeframe: string): number | null {
  * `bars` are the closed canonical bars the object was detected on (b1/b2 are
  * looked up by barId for the break/reclaim test).
  */
-export function fvgRelationshipsFor(o: FvgObject, inputs: FvgRelationshipInputs, bars: readonly CanonicalBar[] = []): FvgRelationshipReading {
+export function fvgRelationshipsFor(o: FvgObject, inputs: FvgRelationshipInputs, bars: readonly RelationshipBar[] = []): FvgRelationshipReading {
   const sources: RelationshipSource[] = [];
   const out: FvgRelationship[] = [];
   const sSrc = structureSource(inputs.structure);

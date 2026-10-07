@@ -18,7 +18,9 @@
  * the stop at the broker; the card says so.
  */
 
+import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
+import { LOOP_DOORS } from "@/lib/journal/planLoop";
 
 import { freezePlanSnapshot, parseManagementCondition, planLine, type ManagementPlanSnapshot, type TraderPlanInput } from "@/lib/journal/managementPlan";
 import { DRAFT_MAX_AGE_MS, latestPlanForSymbol, readDraft, writeDraft } from "@/lib/journal/managementPlanDraft";
@@ -212,6 +214,7 @@ export function ManagementPlanCard(props:
         {frozen && !newPlan ? (
           <>
             <FrozenPlan snap={frozen} onAmended={onAmended} />
+            <Link href={LOOP_DOORS.JOURNAL} prefetch={false} data-testid="plan-card-to-journal" style={{ fontSize: 11, color: GOLD }}>After the trade: review this decision in the Journal →</Link>
             <button type="button" onClick={() => setNewPlan(true)} style={{ justifySelf: "start", fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer", padding: 0 }}>Write a plan for the next trade on {props.symbol} →</button>
           </>
         ) : (
@@ -223,6 +226,7 @@ export function ManagementPlanCard(props:
                   style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 8px", minHeight: 28, cursor: "pointer" }}>Use today&apos;s rules</button>
               </div>
             ) : null}
+            {!dayRules ? <Link href={LOOP_DOORS.MORNING_PREP} prefetch={false} data-testid="plan-card-to-prep" style={{ fontSize: 10.5, color: MUTED }}>No management rules for today yet — set them in Morning Prep →</Link> : null}
             {dayRules?.sessionPlan ? <span data-testid="plan-day-session" style={{ fontSize: 10.5, color: MUTED }}>Session plan (Morning Prep): {dayRules.sessionPlan} — joins this decision at its freeze unless you name a session below.</span> : null}
             <DraftFields f={draft} set={save} />
             <span data-testid="plan-draft-state" style={{ fontSize: 10.5, color: MUTED }}>

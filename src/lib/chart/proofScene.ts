@@ -76,6 +76,20 @@ export function fvgSelectToken(objectId: string): string {
   return `fvg:${objectId}`;
 }
 
+/**
+ * The `select=fvg:<OBJECT_ID>` receipt state, given the object ids the glass's
+ * FVG scene holds (null while no scene exists yet): HELD when the scene holds
+ * that exact id, NONE_AVAILABLE when a scene exists without it, PENDING before
+ * any scene. ChartsDashboard writes `<html data-proof-select-object="fvg:<id>|<state>">`.
+ */
+export function proofSelectObjectVerdict(
+  sel: ProofSelectObjectRef,
+  sceneObjectIds: readonly string[] | null,
+): "HELD" | "NONE_AVAILABLE" | "PENDING" {
+  if (sceneObjectIds === null) return "PENDING";
+  return sceneObjectIds.includes(sel.objectId) ? "HELD" : "NONE_AVAILABLE";
+}
+
 /** Parse `fvg:<OBJECT_ID>`; null for anything else. */
 export function parseSelectObjectToken(raw: string | null): ProofSelectObjectRef | null {
   const t = (raw ?? "").trim();

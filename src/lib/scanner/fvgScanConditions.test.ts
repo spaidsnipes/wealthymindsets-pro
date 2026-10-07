@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { CanonicalBar } from "@/lib/marketData/canonicalBar";
 import { parseProofScene } from "@/lib/chart/proofScene";
 import {
+  FVG_CONVERGENCE_CONDITIONS,
   FVG_SCAN_CONDITIONS,
   FVG_SCAN_MIN_BARS,
   fvgScanConditions,
@@ -112,5 +113,31 @@ describe("Scanner FVG conditions — the one engine, at the newest closed bar", 
     expect(src.length).toBeGreaterThan(1000);
     expect(src).toContain("fvgStateAsOf(ledger");
     expect(src).not.toMatch(/must fill|will fill|probabilit(y|ies) of|score\s*[:=]|strength\s*[:=]/i);
+  });
+
+  it("CONVERGENCE: FVG + STRUCTURE when b2 broke a confirmed swing; FVG + PROFILE when a prior-range level sits at the gap", () => {
+    expect(FVG_CONVERGENCE_CONDITIONS).toEqual(["FVG_PLUS_STRUCTURE", "FVG_PLUS_PROFILE"]);
+    // A swing high of 103 at bar 7 (confirmed 5 bars later, before b2 opens); b2 closes 103.8 through it.
+    const swing: Row[] = FLAT.map((r, i) => (i === 7 ? [100, 103, 99, 100] as Row : r));
+    const r = readAt([...swing, ...BULL]);
+    if (r.status !== "READ") throw new Error(r.reason);
+    expect(r.hits.map(h => h.condition)).toEqual(["NEW_FVG"]);
+    const c = r.convergence.map(x => x.condition);
+    expect(c).toContain("FVG_PLUS_STRUCTURE");
+    const s = r.convergence.find(x => x.condition === "FVG_PLUS_STRUCTURE")!;
+    expect(s.with).toEqual(["NEW_FVG"]);
+    expect(s.objectId).toBe(r.hits[0].objectId);
+    expect(s.relationships.join(" ")).toMatch(/Market structure broke the swing 103\.00 — at formation · PARTIAL \(confirmed pivots only/);
+    const p = r.convergence.find(x => x.condition === "FVG_PLUS_PROFILE");
+    if (p) expect(p.relationships.every(l => /PARTIAL \(volume placed by candle estimate/.test(l))).toBe(true);
+  });
+
+  it("CONVERGENCE never fires without an FVG condition, and never for walls (no chain or book on bars)", () => {
+    const r = readAt([...FLAT, ...BULL, AWAY]);
+    if (r.status !== "READ") throw new Error(r.reason);
+    expect(r.hits).toEqual([]);
+    expect(r.convergence).toEqual([]);
+    const src = readFileSync(path.resolve(__dirname, "fvgScanConditions.ts"), "utf8");
+    expect(src).not.toMatch(/"FVG_PLUS_WALL"/);
   });
 });

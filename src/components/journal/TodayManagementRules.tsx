@@ -9,7 +9,9 @@
  * onto the next decision frozen today. No score, no streak, no verdict.
  */
 
+import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import { LOOP_DOORS } from "@/lib/journal/planLoop";
 
 import { readDayRules, writeDayRules } from "@/lib/journal/managementDayRules";
 import { conditionReadback } from "@/components/journal/ManagementPlanCard";
@@ -60,6 +62,7 @@ export function TodayManagementRules() {
         <span role="status" style={{ fontSize: 12, color: MUTED }}>
           {savedAt != null ? `Kept for today (${new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}). The session plan rides onto each decision frozen today unless its card names another session.` : "Nothing saved for today. Blank stays blank — WM never fills it in."}
         </span>
+        <Link href={LOOP_DOORS.CHART} prefetch={false} data-testid="day-rules-to-chart" style={{ fontSize: 12, color: GOLD }}>Open the chart — your ticket&apos;s plan card offers these →</Link>
       </div>
     </section>
   );

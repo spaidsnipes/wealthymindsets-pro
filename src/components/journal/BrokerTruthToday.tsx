@@ -24,6 +24,7 @@ import type { PricePath } from "@/lib/journal/planVsActual";
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
 import { fvgAnswersFromReference, fvgContextFromLedger, fvgContextGroup, fvgReviewAnswersAt, type FvgReviewAnswers } from "@/lib/journal/planFvgContext";
 import { loadFvgLedgerFor } from "@/lib/journal/planFvgLoader";
+import { lessonForFinding } from "@/lib/journal/planLoop";
 import type { JournalFvgReference } from "@/lib/journal/fvgDecisionReference";
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
@@ -177,9 +178,14 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
               {composed.result.findings.length ? (
                 <div data-testid="plan-deviations" style={{ display: "grid", gap: 2 }}>
                   <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>PLAN vs WHAT HAPPENED</span>
-                  {composed.result.findings.map((f, i) => (
-                    <span key={i} data-finding={f.id} style={{ fontSize: 11.5, color: INK, overflowWrap: "anywhere" }}><b style={{ fontWeight: 600 }}>{f.label}</b> — {f.sentence}</span>
-                  ))}
+                  {composed.result.findings.map((f, i) => {
+                    const study = lessonForFinding(f.id, !!fvg);
+                    return (
+                      <span key={i} data-finding={f.id} style={{ fontSize: 11.5, color: INK, overflowWrap: "anywhere" }}><b style={{ fontWeight: 600 }}>{f.label}</b> — {f.sentence}
+                        {study ? <> <Link href={study.href} prefetch={false} data-testid="plan-finding-study" style={{ color: GOLD, fontSize: 11, whiteSpace: "nowrap" }}>Study: {study.label} →</Link></> : null}
+                      </span>
+                    );
+                  })}
                 </div>
               ) : null}
               <span data-testid="plan-alone" style={{ fontSize: 11, color: MUTED, overflowWrap: "anywhere" }}>{composed.planAlone.sentence}</span>

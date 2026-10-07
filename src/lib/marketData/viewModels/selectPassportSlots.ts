@@ -181,7 +181,8 @@ const STATE_WORD: Readonly<Record<MarketObjectState, string>> = {
   ALIVE: "Edges intact · untested",
   TESTED: "Under test",
   DEFENDED: "Edges intact",
-  CONSUMED: "Far edge swept",
+  // A9 (2026-10-07): a sweep is not a break — the zone still stands.
+  CONSUMED: "Far edge swept · still valid",
   INVALID: "Broken",
 };
 const STATE_STATUS: Readonly<Record<MarketObjectState, PassportSlotStatus>> = {

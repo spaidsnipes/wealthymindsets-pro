@@ -1,5 +1,6 @@
 "use client";
 
+import { scannerPriceText } from "./scannerPriceText";
 import { scannerEmptyReason } from "@/lib/scanner/scannerEmptyReason";
 import toast from "react-hot-toast";
 // `strengthDisclosure` is deliberately NOT imported here. The page used to call
@@ -1147,9 +1148,9 @@ export default function ScannerPage() {
                   <div
                     className={clsx("px-2 text-xs font-mono font-bold", SCANNER_PRICE_TONE[r.priceFact.tone])}
                     title={r.priceFact.reason}
-                    aria-label={`Price for ${r.symbol}: ${r.priceFact.text}. ${r.priceFact.reason}`}
+                    aria-label={`Price for ${r.symbol}: ${scannerPriceText(r.symbol, r.priceFact.text)}. ${r.priceFact.reason}`}
                   >
-                    {r.priceFact.text}
+                    {scannerPriceText(r.symbol, r.priceFact.text)}
                   </div>
                   <div className={clsx("px-2 text-xs font-mono font-bold",
                     r.changePct==null?"text-wm-text-dim":up?"text-wm-green":"text-wm-red")}
@@ -1271,7 +1272,7 @@ export default function ScannerPage() {
               <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3" style={{ scrollbarWidth:"thin" }}>
                 <div className="rounded-xl border border-wm-border bg-wm-surface/30 p-3">
                   <div className="text-xl font-black text-wm-text">
-                    ${selected.price.toLocaleString("en-US",{minimumFractionDigits:2})}
+                    {scannerPriceText(selected.symbol, `$${selected.price.toLocaleString("en-US",{minimumFractionDigits:2})}`)}
                   </div>
                   <div className={clsx("text-sm font-bold mt-0.5",
                     selected.changePct==null?"text-wm-text-dim":selected.changePct>=0?"text-wm-green":"text-wm-red")}

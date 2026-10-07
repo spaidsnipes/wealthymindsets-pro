@@ -27,6 +27,7 @@
  * harness the sibling experience components already use.
  */
 
+import { traderClock } from "@/components/time/traderClock";
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -299,12 +300,14 @@ describe("DecisionSpineBand — absence is disclosed, never filled", () => {
     expect(html).not.toContain("00:00:00Z");
   });
 
-  it("a real capture time is rendered as a UTC clock reading", () => {
+  // 2026-10-07 (F2, coordinator ruling): truth to the trader outranks the old
+  // UTC pin — the stamp is the viewer's local time with its zone (traderClock).
+  it("a real capture time is rendered as a local clock reading with its zone", () => {
     // 2026-09-12T14:46:05Z
     const html = render({
       market: { symbol: "TSLA", timeframe: "5m", quality: "LIVE", capturedAt: Date.UTC(2026, 8, 12, 14, 46, 5), last: 332.25 },
     });
-    expect(html).toContain("asOf 14:46:05Z");
+    expect(html).toContain(`asOf ${traderClock(Date.UTC(2026, 8, 12, 14, 46, 5))}`);
     expect(html).not.toContain("asOf UNKNOWN");
     expect(html).toContain('data-price-provenance="PRINT"');
   });
@@ -1054,7 +1057,7 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
     expect(rest).toContain(">WAIT<");
     expect(rest.match(/data-testid="spine-plaque-reason"/g)).toHaveLength(1);
     expect(rest.match(/data-testid="spine-plaque-asof"/g)).toHaveLength(1);
-    expect(rest).toContain("asOf 19:16:04Z");
+    expect(rest).toContain(`asOf ${traderClock(AS_OF)}`);
     expect(rest).toContain("⚖");
     // Everything the four cards used to show at rest is NOT at rest any more.
     for (const organ of [
@@ -1154,7 +1157,7 @@ describe("DecisionSpineBand — H-101: the rail at rest is ONE calm WAIT plaque"
     const replay = split(railHtml({ replayEngaged: true })).rest;
     const stamp = replay.slice(replay.indexOf('data-testid="spine-plaque-asof"'));
     expect(stamp).toContain("BAR REPLAY");
-    expect(replay).not.toContain("asOf 19:16:04Z");
+    expect(replay).not.toContain(`asOf ${traderClock(AS_OF)}`);
     expect(replay).toContain('data-replay-camera="engaged"');
   });
 
@@ -1322,7 +1325,8 @@ describe("F06A · the rail's footprint from the heard tape", () => {
       buy: 5, sell: 3, sinceSec: Date.UTC(2026, 8, 26, 4, 0, 0) / 1000,
     } });
     expect(html).toContain('data-testid="spine-tape-footprint"');
-    expect(html).toContain("Footprint · since 04:00 UTC");
+    // F2 (2026-10-07): local time with its zone, no longer "04:00 UTC".
+    expect(html).toContain(`Footprint · since ${traderClock(Date.UTC(2026, 8, 26, 4, 0, 0), { seconds: false })}`);
     expect(html).toContain("width:100%");
     expect(html).toContain("width:25%");
     expect(html).not.toMatch(/session footprint/i);

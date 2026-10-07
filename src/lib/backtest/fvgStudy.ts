@@ -26,11 +26,20 @@
  *                            engine (displacement context). The bands are a
  *                            reader's split, never a grade.
  *   crossesSession         — opening gaps vs within-session gaps
+ *   structure / profile    — RELATIONSHIPS (fvgRelationships via fvgBarContext):
+ *                            whether a confirmed swing was broken / reclaimed /
+ *                            contained, and whether a POC / VAH / VAL of the
+ *                            range profile of the 100 bars BEFORE the gap sits
+ *                            inside or near it. Both read only pre-formation
+ *                            bars, so stepping the clock cannot leak. Walls
+ *                            need a chain or a book: not a bar-study filter.
  *
  * PURE. DETERMINISTIC. No IO, no clock.
  */
 
 import type { CanonicalBar } from "@/lib/marketData/canonicalBar";
+import { fvgBarContext, fvgBarOnlyRelationships, type FvgBarContext } from "@/lib/marketData/fvg/fvgBarContext";
+import { fvgRelationshipFamilies, type RelationshipFamily } from "@/lib/marketData/fvg/fvgRelationships";
 import { FVG_DEFINITION_ID, FVG_DEFINITION_VERSION } from "@/lib/marketData/fvg/fvgDefinition";
 import { detectFvgs, fvgStateAsOf, type FvgLedger, type FvgObject } from "@/lib/marketData/fvg/fvgEngine";
 import {
@@ -71,6 +80,8 @@ export interface FvgStudyFilters {
   readonly direction?: "BULLISH" | "BEARISH" | "ALL";
   readonly displacement?: FvgDisplacementBand | "ALL";
   readonly crossesSession?: "CROSSES_SESSION" | "WITHIN_SESSION" | "ALL";
+  readonly structure?: "WITH_STRUCTURE" | "NO_STRUCTURE" | "ALL";
+  readonly profile?: "WITH_PROFILE" | "NO_PROFILE" | "ALL";
 }
 
 export interface FvgStudySeries {
@@ -99,7 +110,7 @@ export interface FvgStudySeriesReading {
   readonly detectedInWindow: number;
 }
 
-export type FvgStudyFacet = Exclude<FvgStatsDimension, never> | "displacement";
+export type FvgStudyFacet = Exclude<FvgStatsDimension, never> | "displacement" | "structure" | "profile";
 
 export interface FvgStudy {
   readonly label: typeof FVG_STUDY_LABEL;
@@ -120,7 +131,23 @@ export interface FvgStudy {
   readonly objects: readonly FvgObject[];
 }
 
-const FACET_KEY: Readonly<Record<FvgStudyFacet, (o: FvgObject) => string>> = {
+/** Relationship families per object, cached per bars array (they read only pre-formation bars). */
+const relCache = new WeakMap<readonly CanonicalBar[], { ctx: FvgBarContext; byId: Map<string, ReadonlySet<RelationshipFamily>> }>();
+
+export function fvgStudyRelationshipFamilies(s: FvgStudySeries, o: FvgObject): ReadonlySet<RelationshipFamily> {
+  let c = relCache.get(s.bars);
+  if (!c) { c = { ctx: fvgBarContext(s.bars, s.symbolId, s.timeframe), byId: new Map() }; relCache.set(s.bars, c); }
+  let f = c.byId.get(o.objectId);
+  if (!f) { f = fvgRelationshipFamilies(fvgBarOnlyRelationships(c.ctx, o)); c.byId.set(o.objectId, f); }
+  return f;
+}
+
+type Families = ReadonlyMap<string, ReadonlySet<RelationshipFamily>>;
+const NO_FAMILIES: ReadonlySet<RelationshipFamily> = new Set();
+
+const facetKeys = (families: Families): Readonly<Record<FvgStudyFacet, (o: FvgObject) => string>> => {
+  const fam = (o: FvgObject) => families.get(o.objectId) ?? NO_FAMILIES;
+  return {
   instrument: o => o.symbolId,
   timeframe: o => o.timeframe,
   session: o => o.session.segment,
@@ -128,11 +155,14 @@ const FACET_KEY: Readonly<Record<FvgStudyFacet, (o: FvgObject) => string>> = {
   direction: o => o.direction,
   crossesSession: o => (o.session.crossesSession ? "CROSSES_SESSION" : "WITHIN_SESSION"),
   displacement: o => fvgDisplacementBand(o),
+  structure: o => (fam(o).has("STRUCTURE") ? "WITH_STRUCTURE" : "NO_STRUCTURE"),
+  profile: o => (fam(o).has("PROFILE") ? "WITH_PROFILE" : "NO_PROFILE"),
+  };
 };
 
-const FACETS = Object.keys(FACET_KEY) as FvgStudyFacet[];
+const FACETS = Object.keys(facetKeys(new Map())) as FvgStudyFacet[];
 
-function passes(o: FvgObject, f: FvgStudyFilters): boolean {
+function passes(o: FvgObject, f: FvgStudyFilters, FACET_KEY: ReturnType<typeof facetKeys>): boolean {
   const want: Record<FvgStudyFacet, string | undefined> = {
     instrument: f.instrument,
     timeframe: f.timeframe,
@@ -141,6 +171,8 @@ function passes(o: FvgObject, f: FvgStudyFilters): boolean {
     direction: f.direction,
     crossesSession: f.crossesSession,
     displacement: f.displacement,
+    structure: f.structure,
+    profile: f.profile,
   };
   for (const k of FACETS) {
     const w = want[k];
@@ -160,10 +192,12 @@ export function runFvgStudy(input: FvgStudyInput): FvgStudy {
   const filters = input.filters ?? {};
   const readings: FvgStudySeriesReading[] = [];
   const windowObjects: FvgObject[] = [];
+  const families = new Map<string, ReadonlySet<RelationshipFamily>>();
   for (const s of input.series) {
     const ledger = fvgStudyLedger(s, input.asOfMs);
     const inWindow = ledger.objects.filter(o => fromMs === null || o.createdAt >= fromMs);
     windowObjects.push(...inWindow);
+    for (const o of inWindow) families.set(o.objectId, fvgStudyRelationshipFamilies(s, o));
     readings.push({
       symbolId: s.symbolId,
       timeframe: s.timeframe,
@@ -173,11 +207,12 @@ export function runFvgStudy(input: FvgStudyInput): FvgStudy {
       detectedInWindow: inWindow.length,
     });
   }
-  const objects = windowObjects.filter(o => passes(o, filters));
+  const FACET_KEY = facetKeys(families);
+  const objects = windowObjects.filter(o => passes(o, filters, FACET_KEY));
   const by = {} as Record<FvgStudyFacet, Readonly<Record<string, FvgOutcomeStats>>>;
   const facets = {} as Record<FvgStudyFacet, { value: string; count: number }[]>;
   for (const k of FACETS) {
-    by[k] = k === "displacement" ? splitBy(objects, FACET_KEY.displacement) : describeFvgOutcomesBy(objects, k);
+    by[k] = k === "displacement" || k === "structure" || k === "profile" ? splitBy(objects, FACET_KEY[k]) : describeFvgOutcomesBy(objects, k);
     const counts = new Map<string, number>();
     for (const o of windowObjects) counts.set(FACET_KEY[k](o), (counts.get(FACET_KEY[k](o)) ?? 0) + 1);
     facets[k] = [...counts.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([value, count]) => ({ value, count }));

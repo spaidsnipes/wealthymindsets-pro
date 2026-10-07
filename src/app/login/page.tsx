@@ -272,7 +272,7 @@ function LoginPage() {
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full"
           style={{ background: `radial-gradient(circle, ${WM.halo.gold} 0%, transparent 70%)` }} />
 
-        <div className="relative z-10 p-12 overflow-y-auto" style={{ maxHeight: "100vh", scrollbarWidth: "thin" }}>
+        <div className="relative z-10 p-12 overflow-y-auto" style={{ maxHeight: "100vh", scrollbarWidth: "thin", scrollbarColor: "rgba(139,106,41,0.55) transparent" }}>
           {/* Master crest — the REAL delivered hero mark (faceless gentleman +
               WM medallion + jeweled crown + wordmark + "STAY SHARP. STAY A
               STUDENT.", founder Drive kit 2026-08-24). This is the one surface

@@ -175,4 +175,27 @@ export function selectZoneLifecycle(
   };
 }
 
+/**
+ * THE STATE IN THE TRADER'S WORDS (A9, 2026-10-07).
+ *
+ * Measured on serving NQ1! 5m: the Passport chip read CONSUMED while the same
+ * card said "still valid" and "swept, not broken"; the glass read "SUPPLY ZONE
+ * · CONSUMED". Each was true, together they read as a contradiction — and
+ * "consumed" says the zone is used up, which a sweep without a close beyond
+ * the far edge does not establish. The enum key stays (it is a data contract
+ * across the market-object family); the WORD the trader reads is chosen here,
+ * next to the rules that define it, and nowhere else.
+ */
+export const ZONE_STATE_WORDS: Readonly<Record<MarketObjectState, string>> = Object.freeze({
+  ALIVE: "UNTESTED",
+  TESTED: "UNDER TEST",
+  DEFENDED: "DEFENDED",
+  CONSUMED: "SWEPT · STILL VALID",
+  INVALID: "BROKEN",
+});
+
+export function zoneStateWords(state: MarketObjectState): string {
+  return ZONE_STATE_WORDS[state] ?? state;
+}
+
 export default selectZoneLifecycle;

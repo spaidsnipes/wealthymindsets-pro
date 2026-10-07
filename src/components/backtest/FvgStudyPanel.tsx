@@ -50,13 +50,23 @@ const FACET_LABEL: Record<FvgStudyFacet, string> = {
   direction: "Direction",
   displacement: "Displacement context",
   crossesSession: "Opening gap",
+  structure: "Structure (swing broken / reclaimed / inside)",
+  profile: "Prior-range profile level at the gap",
 };
 
-const FILTER_FACETS: readonly FvgStudyFacet[] = ["instrument", "timeframe", "session", "regime", "direction", "displacement", "crossesSession"];
+const FILTER_FACETS: readonly FvgStudyFacet[] = ["instrument", "timeframe", "session", "regime", "direction", "displacement", "crossesSession", "structure", "profile"];
+
+const RELATIONSHIP_VALUE_LABEL: Readonly<Record<string, string>> = {
+  WITH_STRUCTURE: "With a structure relationship",
+  NO_STRUCTURE: "No structure relationship",
+  WITH_PROFILE: "POC / VAH / VAL inside or near",
+  NO_PROFILE: "No profile level at the gap",
+};
 
 function facetValueLabel(facet: FvgStudyFacet, v: string): string {
   if (facet === "displacement") return FVG_DISPLACEMENT_BAND_LABEL[v as keyof typeof FVG_DISPLACEMENT_BAND_LABEL] ?? v;
   if (facet === "crossesSession") return v === "CROSSES_SESSION" ? "Crosses a session boundary" : "Within one session";
+  if (facet === "structure" || facet === "profile") return RELATIONSHIP_VALUE_LABEL[v] ?? v;
   return v;
 }
 
@@ -229,6 +239,11 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
             ))}
           </div>
           {study.regimeNote && <p className="text-[10px] text-wm-text-dim mb-3">{study.regimeNote}</p>}
+          <p className="text-[10px] text-wm-text-dim mb-3" data-testid="fvg-study-relationship-note">
+            Relationship filters read only bars from before each gap formed: structure = a confirmed swing it broke, reclaimed or contains;
+            profile = a POC / VAH / VAL of the range profile of the 100 bars before it (candle-estimated, PARTIAL). Options and liquidity walls
+            need a chain or a book, which historical bars do not carry, so they are not a filter here.
+          </p>
 
           <div className="glass rounded-xl p-4 mb-4">
             <div className="text-xs font-bold text-wm-text mb-1">

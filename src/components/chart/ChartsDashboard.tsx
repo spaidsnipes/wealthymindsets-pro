@@ -1,5 +1,6 @@
 "use client";
 
+import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
 import { educationIdForSelection } from "@/lib/chart/inventionEducation";
 import { spaidbotFvgScene } from "@/lib/ai/spaidbotFvgFacts";
 import { FVG_INSTRUMENT_ID, FVG_PREF_KEY, isFvgObjectId, type FvgCameraScene } from "@/lib/chart/fvgGlass";
@@ -4069,10 +4070,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               style={{ borderColor: selected ? "rgba(212,175,55,0.7)" : "rgba(139,106,41,0.3)", background: "rgba(11,10,8,0.6)" }}
             >
               <span className="text-[11px] font-bold" style={{ color: selected ? "#d4af37" : "#EDE6D3" }}>
-                {z.side} ZONE · {z.object.priceLow.toFixed(2)} – {z.object.priceHigh.toFixed(2)}
+                {z.side} ZONE · {z.object.priceLow.toFixed(chartDisplayDp)} – {z.object.priceHigh.toFixed(chartDisplayDp)}
               </span>
               <span className="text-[9px] font-semibold uppercase tracking-[0.1em]" style={{ color: "#C8C0AE" }}>
-                {z.lifecycle.state} · {z.lifecycle.touches.length} touch{z.lifecycle.touches.length === 1 ? "" : "es"}
+                {zoneStateWords(z.lifecycle.state)} · {z.lifecycle.touches.length} touch{z.lifecycle.touches.length === 1 ? "" : "es"}
               </span>
             </button>
           );

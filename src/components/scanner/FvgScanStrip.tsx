@@ -15,10 +15,13 @@ import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import { fetchFvgBars } from "@/lib/marketData/fvg/fvgBarSource";
 import {
+  FVG_CONVERGENCE_CONDITIONS,
+  FVG_CONVERGENCE_LABEL,
   FVG_SCAN_CONDITIONS,
   FVG_SCAN_CONDITION_LABEL,
   fvgScanConditions,
   fvgScanCoverage,
+  type FvgConvergenceCondition,
   type FvgScanCondition,
   type FvgScanReading,
 } from "@/lib/scanner/fvgScanConditions";
@@ -32,7 +35,7 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [readings, setReadings] = useState<readonly FvgScanReading[]>([]);
-  const [only, setOnly] = useState<FvgScanCondition | "ALL">("ALL");
+  const [only, setOnly] = useState<FvgScanCondition | FvgConvergenceCondition | "ALL">("ALL");
 
   const run = async () => {
     setRunning(true);
@@ -51,7 +54,10 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
   };
 
   const cov = fvgScanCoverage(readings);
-  const hits = readings.flatMap(r => (r.status === "READ" ? r.hits : [])).filter(h => only === "ALL" || h.condition === only);
+  const isConv = (c: string): c is FvgConvergenceCondition => (FVG_CONVERGENCE_CONDITIONS as readonly string[]).includes(c);
+  const hits = isConv(only) ? [] : readings.flatMap(r => (r.status === "READ" ? r.hits : [])).filter(h => only === "ALL" || h.condition === only);
+  const conv = readings.flatMap(r => (r.status === "READ" ? r.convergence : [])).filter(h => only === "ALL" || h.condition === only);
+  const label = (c: FvgScanCondition | FvgConvergenceCondition) => (isConv(c) ? FVG_CONVERGENCE_LABEL[c] : FVG_SCAN_CONDITION_LABEL[c]);
   const refused = readings.filter((r): r is Extract<FvgScanReading, { status: "REFUSED" }> => r.status === "REFUSED");
 
   return (
@@ -69,11 +75,11 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
               {running ? `Reading… ${readings.length} of ${symbols.length}` : readings.length ? "Read again" : `Read ${symbols.length} symbols (daily, closed bars)`}
             </button>
             <div className="flex flex-wrap gap-1" role="group" aria-label="FVG condition">
-              {(["ALL", ...FVG_SCAN_CONDITIONS] as const).map(c => (
+              {(["ALL", ...FVG_SCAN_CONDITIONS, ...FVG_CONVERGENCE_CONDITIONS] as const).map(c => (
                 <button key={c} onClick={() => setOnly(c)} aria-pressed={only === c}
                   className={clsx("wm-tap px-2 py-0.5 rounded text-[10px] border",
                     only === c ? "bg-wm-gold/15 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-transparent hover:border-wm-border")}>
-                  {c === "ALL" ? "All" : FVG_SCAN_CONDITION_LABEL[c]}
+                  {c === "ALL" ? "All" : label(c)}
                 </button>
               ))}
             </div>
@@ -87,9 +93,9 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
       </div>
       {open && readings.length > 0 && (
         <div className="px-4 pb-2 max-h-56 overflow-y-auto">
-          {hits.length === 0 ? (
+          {hits.length === 0 && conv.length === 0 ? (
             <p className="text-[11px] text-wm-text-muted py-1">
-              {only === "ALL" ? "No FVG condition on the newest closed daily bar among the symbols read." : `No "${FVG_SCAN_CONDITION_LABEL[only]}" on the newest closed daily bar among the symbols read.`}
+              {only === "ALL" ? "No FVG condition on the newest closed daily bar among the symbols read." : `No "${label(only)}" on the newest closed daily bar among the symbols read.`}
             </p>
           ) : (
             <ul className="divide-y divide-wm-border/30">
@@ -103,6 +109,25 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
                     <span className="font-mono text-wm-text-muted">{h.bottom.toFixed(h.priceDp)} – {h.top.toFixed(h.priceDp)}</span>
                     <span className="text-wm-text-dim">{h.state.replace(/_/g, " ").toLowerCase()}</span>
                     <span className="ml-auto text-wm-blue">Open on the chart →</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {conv.length > 0 && (
+            <ul className="mt-1 divide-y divide-wm-border/30" data-testid="scanner-fvg-convergence">
+              {conv.map(h => (
+                <li key={`${h.condition}:${h.objectId}`}>
+                  <button onClick={() => { onOpenSymbol?.(h.symbol); router.push(h.href); }} data-testid="scanner-fvg-convergence-hit"
+                    className="wm-tap w-full text-left py-1.5 text-[11px] hover:bg-wm-surface/40">
+                    <span className="flex flex-wrap items-center gap-x-3">
+                      <span className="font-bold text-wm-text w-16">{h.symbol}</span>
+                      <span className="text-wm-gold">{FVG_CONVERGENCE_LABEL[h.condition]}</span>
+                      <span className="text-wm-text-dim">with {h.with.map(c => FVG_SCAN_CONDITION_LABEL[c].toLowerCase()).join(", ")}</span>
+                      <span className="font-mono text-wm-text-muted">{h.bottom.toFixed(h.priceDp)} – {h.top.toFixed(h.priceDp)}</span>
+                      <span className="ml-auto text-wm-blue">Open on the chart →</span>
+                    </span>
+                    {h.relationships.map(line => <span key={line} className="block pl-16 text-[10px] text-wm-text-dim">{line}</span>)}
                   </button>
                 </li>
               ))}
