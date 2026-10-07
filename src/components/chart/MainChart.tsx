@@ -2347,6 +2347,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   effortMarksFieldRef.current = effortMarksField;
   const rvolCacheRef = useRef<{ key: string; bars: RvolBar[] } | null>(null);
   const rvolCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
+  const deltaKeelBarMemoRef = useRef(new WeakMap<object, { k: string; bd: ReturnType<typeof barTapeDelta> }>());
   const deltaKeelCacheRef = useRef<{ key: string; at: number; keels: ReturnType<typeof readKeels>; nTape: number; nSides: number } | null>(null);
   // The keels this frame painted (null when the keel layer is off / silent) —
   // the wisdom line reads evidence the glass is showing, never a hidden one.
@@ -10689,7 +10690,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // the 120-row allocation for every other bar (serving: the 400ms
             // refresh built ~150 empty profiles, the keel's cost spikes).
             const heardDK = tickAccRef.current.get(cDK.time as number);
-            const bd = heardDK && heardDK.size ? barTapeDelta(getBarSubProfile(cDK)) : null;
+            // MEMO per ladder row (2026-10-07, serving BTC-USD 500T: the 1 s
+            // re-read rebuilt ~80 sub-profiles, spikes to 4.4 ms). A row whose
+            // levels, totals and bar range are unchanged has the same delta;
+            // the check is one pass over its levels with no allocation.
+            let bd: ReturnType<typeof barTapeDelta> | null = null;
+            if (heardDK && heardDK.size) {
+              let tot = 0;
+              for (const rt of heardDK.values()) tot += rt.bid * 3 + rt.ask;
+              const mk = `${heardDK.size}|${tot}|${cDK.high}|${cDK.low}`;
+              const memo = deltaKeelBarMemoRef.current.get(heardDK);
+              if (memo && memo.k === mk) bd = memo.bd;
+              else { bd = barTapeDelta(getBarSubProfile(cDK)); deltaKeelBarMemoRef.current.set(heardDK, { k: mk, bd }); }
+            }
             const sd = bd ? null : sidedDK.get(Number(cDK.time)) ?? null;
             if (!bd && !sd) { rowsDK.push({ time: cDK.time as number, open: cDK.open, close: cDK.close, atr: atrDK[i], buy: 0, sell: 0, basis: "SIDES" }); continue; }
             if (bd) nTape++; else nSides++;
