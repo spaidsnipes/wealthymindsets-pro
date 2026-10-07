@@ -139,7 +139,8 @@ describe("every other price named on the glass quotes the same precision", () =>
     expect(CHART).toContain("`${tagWord} · ${lens.bandLow.toFixed(pxDp)}–${lens.bandHigh.toFixed(pxDp)}`");
     expect(CHART).toContain("`${tagWord} · ${lens.bandLow.toFixed(pxDp)}`");
     expect(CHART).toContain("const t = `${tag} · ${lvl.toFixed(pxDp)}`;");
-    expect(CHART).toContain("`${z.side} · ${z.object.priceLow.toFixed(pxDp)} – ${z.object.priceHigh.toFixed(pxDp)} · ${z.lifecycle.state}`");
+    // 2026-10-07 (A9): the state word is the Passport's (zoneStateWords); the precision pin is unchanged.
+    expect(CHART).toContain("`${z.side} · ${z.object.priceLow.toFixed(pxDp)} – ${z.object.priceHigh.toFixed(pxDp)} · ${zoneStateWords(z.lifecycle.state)}`");
     expect(CHART).not.toMatch(/lens\.band(Low|High)\.toFixed\(2\)|lvl\.toFixed\(2\)|z\.object\.price(Low|High)\.toFixed\(2\)/);
   });
 });

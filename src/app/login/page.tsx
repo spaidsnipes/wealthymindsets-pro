@@ -338,7 +338,7 @@ function LoginPage() {
               height={396}
               style={{ height: 132, width: "auto", display: "block", marginBottom: 14, borderRadius: 6 }}
             />
-            <WmWordmark size="compact" subtitle="TRADING OPERATING SYSTEM" />
+            <WmWordmark size="compact" subtitle="TRADING OPERATING SYSTEM" className="wm-login-wordmark" />
             {/* Phones never see the left panel: the product line in one sentence, and the door to the full story. */}
             <p data-testid="login-phone-product-line" className="mt-3 text-[13px] leading-relaxed" style={{ color: WM.text.body }}>
               <span style={{ color: WM.text.hero }}>{HEADLINE}</span> Price territories followed from formation to memory — into your review and your education.

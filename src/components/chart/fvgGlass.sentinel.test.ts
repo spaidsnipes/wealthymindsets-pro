@@ -52,7 +52,8 @@ describe("FVG glass sentinel", () => {
   it("4 · clear-zone keep-out: left of the newest candle, off the price lines, round the candles", () => {
     expect(block).toMatch(/const xStop = fvgClearZoneX\(/);
     expect(block).toMatch(/fvgKeepOutStrips\(lineYs, 3\)/);
-    expect(block).toMatch(/clipF\.rect\(0, 0, xStop, floorF\)/);
+    expect(block).toMatch(/clipF\.rect\(0, ceilF, xStop, Math\.max\(0, floorF - ceilF\)\)/);
+    expect(block).toMatch(/ctx\.clip\(frame\.pillCut, "evenodd"\)/);
     expect(block).toMatch(/ctx\.clip\(frame\.clipF, "evenodd"\)/);
     expect(block).toMatch(/candleCutOutRects\(camF/);
     expect(block).toMatch(/ctx\.clip\(frame\.cutF, "evenodd"\)/);

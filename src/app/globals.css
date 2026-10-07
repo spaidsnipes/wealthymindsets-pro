@@ -1948,3 +1948,18 @@ input[type=range]::-webkit-slider-runnable-track {
 @media (max-height: 520px) and (max-width: 1023px) {
   body:has(.wm-chart-market-pane[data-market-primary="true"]) [data-testid="os-identity"] .wm-wordmark > div:first-child > span { display: none !important; }
 }
+
+/* Public story pages on a phone: the assistant launcher covered the sample
+   chart and headings on /welcome (390, 2026-10-07). ShellCompanions marks the
+   page; rooms and wider screens keep the launcher. */
+@media (max-width: 767px) {
+  .wm-spaidbot-public-page .wm-spaidbot-launcher { display: none !important; }
+}
+
+/* /login wordmark on phones and tablets: the compact token prints "PRO" and
+   "TRADING OPERATING SYSTEM" at 9px — under the 11px floor where a first-time
+   visitor reads the name (sheriff sweep 2026-10-07). The header token is
+   unchanged; only the login mark is lifted. */
+@media (max-width: 834px) {
+  .wm-login-wordmark [style*="font-size: 9px"] { font-size: 11px !important; }
+}

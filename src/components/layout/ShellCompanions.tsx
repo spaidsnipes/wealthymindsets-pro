@@ -26,6 +26,8 @@ import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
  * "these are always on screen" — a claim that a second copy can silently stop
  * making. One mount point, mounted by both shells.
  */
+const PUBLIC_STORY_PAGES = /^\/(welcome|pricing|login|signup|legal)(\/|$)/;
+
 export function ShellCompanions(): React.ReactElement {
   const pathname = usePathname() ?? "";
 
@@ -36,7 +38,11 @@ export function ShellCompanions(): React.ReactElement {
           corner belongs to the price scale. The room asks for the offset; the
           button does not know which room it is in. */}
       <div
-        className={pathname === INSTRUMENT_VIEW_ROUTE ? "wm-spaidbot-chart-context" : undefined}
+        // Public story pages (/welcome, /pricing, /login, /legal): on a phone the
+        // launcher sat over the sample chart and the section headings
+        // (serving /welcome at 390, 2026-10-07). There it steps aside on phones;
+        // every room keeps it, and tablets/desktop keep it everywhere.
+        className={pathname === INSTRUMENT_VIEW_ROUTE ? "wm-spaidbot-chart-context" : PUBLIC_STORY_PAGES.test(pathname) ? "wm-spaidbot-public-page" : undefined}
         data-testid="shell-companions-assistant"
       >
         <SpadeBotButton />
