@@ -245,6 +245,45 @@ const ARRANGEMENTS: readonly ArrangementSpec[] = [
 /** Public, so chrome can render the desks without importing the whole VM. */
 export const ARRANGEMENT_SPECS: readonly ArrangementSpec[] = ARRANGEMENTS;
 
+/*
+  ── STARTER VIEWS ARE EDITABLE COPIES (Drive Garden 18 snapshot 10-02 §B1–2,
+  2026-10-07) ─────────────────────────────────────────────────────────────
+
+  "Starter Views (CLEAN / ORDER FLOW / REGIME / REVIEW) are editable copies
+  (restore-to-default available)." The four specs above stay the CANON — they
+  are the defaults a Restore returns to, and every sentinel that reads them
+  reads the canon. The trader's edit is a set of arms registered here by the
+  ONE Views owner (`savedLayouts.ts` → `myViewsRuntime.ts`), never a second
+  layout store. With nothing registered every function below answers exactly
+  as it did before the edit existed.
+*/
+let starterArmsOverride: Readonly<Partial<Record<ArrangementId, readonly ProfileId[]>>> = {};
+
+/** Registered by the Views owner only. `null`/`{}` = every starter at its default. */
+export function setStarterArmsOverride(next: Readonly<Partial<Record<ArrangementId, readonly ProfileId[]>>> | null): void {
+  starterArmsOverride = next ?? {};
+}
+
+/** The canon arms — what Restore returns a starter View to. */
+export function defaultStarterArms(id: ArrangementId): readonly ProfileId[] {
+  return ARRANGEMENTS.find(a => a.id === id)?.arms ?? [];
+}
+
+/** The arms a starter View presses NOW: the trader's edit when there is one, else the canon. */
+export function starterArms(id: ArrangementId): readonly ProfileId[] {
+  return starterArmsOverride[id] ?? defaultStarterArms(id);
+}
+
+/** True when the trader has edited this starter View. */
+export function starterEdited(id: ArrangementId): boolean {
+  return starterArmsOverride[id] !== undefined;
+}
+
+function effectiveSpec(spec: ArrangementSpec): ArrangementSpec {
+  const arms = starterArmsOverride[spec.id];
+  return arms ? { ...spec, arms } : spec;
+}
+
 /**
  * THE CAMERA GRAMMAR — Garden 16 §14, ONE OWNER.
  *
@@ -299,8 +338,9 @@ export function arrangementSwitches(
   id: ArrangementId,
   menu: ProfileMenuVM,
 ): Readonly<Partial<Record<ProfileId, boolean>>> {
-  const spec = ARRANGEMENTS.find(a => a.id === id);
-  if (!spec) return {};
+  const found = ARRANGEMENTS.find(a => a.id === id);
+  if (!found) return {};
+  const spec = effectiveSpec(found);
   const out: Partial<Record<ProfileId, boolean>> = {};
   for (const entry of menu.entries) {
     if (entry.gesture !== "TOGGLE") continue;
@@ -395,7 +435,7 @@ export function selectChartArrangement(
   const toggles = menu.entries.filter(e => e.gesture === "TOGGLE");
   const byId = new Map(menu.entries.map(e => [e.id, e] as const));
 
-  const entries: ArrangementEntry[] = ARRANGEMENTS.map(spec => {
+  const entries: ArrangementEntry[] = ARRANGEMENTS.map(effectiveSpec).map(spec => {
     /*
       Count over the catalogue's OWN verdicts. An arm naming a profile the menu
       does not publish contributes nothing rather than being counted as ready —
@@ -527,7 +567,7 @@ export function selectChartArrangement(
   switched off by composing.
 */
 export function cameraArms(id: ArrangementId): readonly ProfileId[] {
-  return ARRANGEMENTS.find(a => a.id === id)?.arms ?? [];
+  return starterArms(id);
 }
 
 /** Current switches ∪ the camera's arms. Rows the camera does not arm are left exactly as they were. */
@@ -544,7 +584,7 @@ export function composeCamera(
 /** Every named camera whose senses are ALL on right now (Clean is the absence of senses, never "in force" inside a compound). */
 export function camerasInForce(current: Readonly<Partial<Record<string, boolean>>> | null): ArrangementId[] {
   if (!current) return [];
-  return ARRANGEMENTS
+  return ARRANGEMENTS.map(effectiveSpec)
     .filter(a => a.arms.length > 0 && a.arms.every(arm => current[arm] === true))
     .map(a => a.id);
 }

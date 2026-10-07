@@ -62,9 +62,16 @@ import {
   arrangementSwitches,
   arrangementCameraLabel,
   CAMERA_PROMISE,
+  starterEdited,
   type ArrangementId,
   type ArrangementEntry,
 } from "@/lib/marketData/viewModels/selectChartArrangement";
+import { installMyViews, subscribeMyViews } from "@/lib/workspace/myViewsRuntime";
+
+// Drive §B1–2 (2026-10-07): the starter Views are the trader's editable
+// copies. Registering the stored edits at module load means every press —
+// this panel, the Workspace rail, My Views — arranges the trader's edit.
+installMyViews();
 
 /** Readiness is a colour AND a sentence, never only a colour. */
 const READINESS_DOT: Record<ArrangementEntry["readiness"], string> = {
@@ -94,6 +101,9 @@ export function ChartArrangementBar({
   /** The chart's symbol — spot FX's volume readers are refused by the market, not the feed. */
   symbol?: string;
 }) {
+  // Re-read when a starter View is edited or restored (this tab or another).
+  const [, setViewsTick] = React.useState(0);
+  React.useEffect(() => subscribeMyViews(() => setViewsTick(t => t + 1)), []);
   const menu = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, symbol });
   const vm = selectChartArrangement({ menu });
 
@@ -181,6 +191,9 @@ export function ChartArrangementBar({
                 >
                   {arrangementCameraLabel(entry.id)}
                 </span>
+                {starterEdited(entry.id) && (
+                  <span data-testid={`arrangement-edited-${entry.id}`} className="text-[9px] font-bold uppercase tracking-widest text-wm-muted">edited</span>
+                )}
                 {entry.active && <Check size={11} className="text-wm-gold" />}
                 <span className="ml-auto text-[10px] font-bold tabular-nums text-wm-muted">
                   {entry.deliverableCount}/{entry.armedCount} DRAWING

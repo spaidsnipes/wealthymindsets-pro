@@ -58,13 +58,13 @@ describe("Garden 18 §LV–§LVIII — linked screens follow one market", () => 
       { symbol: "TSLA", timeframe: "1m" }, { symbol: "NQ1!", timeframe: "5m" },
       { symbol: "SPY", timeframe: "1h" }, { symbol: "BTC", timeframe: "5m" },
     ] };
-    d = cycleLink(cycleLink(d, 0), 2); // screens 1 and 3 → link A
+    d = cycleLink(cycleLink(d, 0), 2); // screens 1 and 3 → link group 1
     const out = setLinkedSymbol(d, 0, "aapl");
     expect(out.screens.map(s => s.symbol)).toEqual(["AAPL", "NQ1!", "AAPL", "BTC"]);
     expect(out.screens.map(s => s.timeframe)).toEqual(["1m", "5m", "1h", "5m"]);
     expect(setLinkedSymbol(d, 1, "ES1!").screens.map(s => s.symbol)).toEqual(["TSLA", "ES1!", "SPY", "BTC"]);
-    expect(readDesk(JSON.parse(JSON.stringify(out)))?.screens[2]?.link).toBe("A");
-    expect(cycleLink(cycleLink(cycleLink(d, 1), 1), 1).screens[1]?.link).toBeUndefined();
+    expect(readDesk(JSON.parse(JSON.stringify(out)))?.screens[2]?.link).toBe(1);
+    expect(cycleLink(cycleLink(cycleLink(cycleLink(cycleLink(d, 1), 1), 1), 1), 1).screens[1]?.link).toBeUndefined();
   });
 });
 
@@ -74,7 +74,7 @@ describe("Garden 18 §LVI — each screen keeps its own View through save and re
     let d: import("./desks").Desk = { name: "V", layout: 2, screens: [{ symbol: "TSLA", timeframe: "5m" }, { symbol: "NQ1!", timeframe: "5m" }] };
     d = setScreenView(cycleLink(d, 0), 0, "l1abc");
     d = setLinkedSymbol(d, 0, "AAPL");
-    expect(d.screens[0]).toEqual({ symbol: "AAPL", timeframe: "5m", link: "A", view: "l1abc" });
+    expect(d.screens[0]).toEqual({ symbol: "AAPL", timeframe: "5m", link: 1, view: "l1abc" });
     expect(readDesk(JSON.parse(JSON.stringify(d)))?.screens[0]?.view).toBe("l1abc");
     expect(setScreenView(d, 0, undefined).screens[0]?.view).toBeUndefined();
   });

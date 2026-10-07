@@ -2286,7 +2286,7 @@ export function WMOperatingSystem({
                       ? "People · learning · news"
                       : scenePanel === "tools"
                         ? "Lenses on this market"
-                        : "Compose this camera"}
+                        : "Compose your View"}
                 </div>
               </div>
             ) : null}

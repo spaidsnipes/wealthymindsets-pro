@@ -14,7 +14,11 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
-import { BrokerTruthToday } from "@/components/journal/BrokerTruthToday";
+import { BrokerTruthToday, StoryReviewRow } from "@/components/journal/BrokerTruthToday";
+import { CapturedFacts } from "@/components/journal/CapturedFacts";
+import { captureToJournalForm } from "@/lib/journal/journalCaptureFromFill";
+import { takeJournalCapture } from "@/lib/journal/journalCaptureHandoff";
+import { journalReviewKey, reviewEvidenceFromCapture } from "@/lib/journal/captureReviewEvidence";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
@@ -1070,6 +1074,15 @@ function JournalPageInner() {
     // Backtesting hands over its run as notes + a tag (hallway audit 2026-10-04).
     const notes = (q.get("notes") ?? "").slice(0, 2000);
     const tag = (q.get("tag") ?? "").trim().slice(0, 32);
+    // §J 2026-10-07: a broker-confirmed fill handed over by the live ticket —
+    // the draft's machine facts prefill the form; the trader still saves.
+    let captured: ReturnType<typeof captureToJournalForm> | null = null;
+    if (q.get("capture") === "1") {
+      try {
+        const draft = takeJournalCapture(window.localStorage, Date.now());
+        if (draft) captured = captureToJournalForm(draft, marketDayKey);
+      } catch { captured = null; }
+    }
     setForm(f => ({
       ...f,
       // Option contracts carry spaces and run past 24 (TSLA  261002C00305000) — hallway audit 2026-10-04.
@@ -1078,11 +1091,12 @@ function JournalPageInner() {
       ...(Number.isFinite(size) && size > 0 ? { size } : {}),
       ...(notes ? { notes } : {}),
       ...(tag ? { tags: [...(f.tags ?? []), tag] } : {}),
+      ...(captured ?? {}),
     }));
     setSelected(null);
     setNewMode(true);
     // Consume the hand-off so a reload does not open a second blank entry.
-    for (const k of ["new", "symbol", "side", "size", "notes", "tag"]) q.delete(k);
+    for (const k of ["new", "symbol", "side", "size", "notes", "tag", "capture"]) q.delete(k);
     const rest = q.toString();
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
   }, []);
@@ -2752,6 +2766,17 @@ Trade the system, trust the process, winners every day 🚀`,
                 ))}
               </div>
 
+              {/* §J 2026-10-07: the broker's machine facts for a captured fill,
+                  each with its provenance — then the review, ten separate
+                  questions, keyed to the same story as Broker Truth. */}
+              {selected.capture ? (
+                <div className="mb-4"><CapturedFacts capture={selected.capture} /></div>
+              ) : null}
+              <section data-testid="journal-entry-review" aria-label="Review" className="mb-4 rounded-lg border border-wm-border bg-wm-surface/60 p-3">
+                <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Review · read, decision, adherence, expression, execution, slippage, risk, management, discipline, result</div>
+                <StoryReviewRow key={journalReviewKey(selected)} storyKey={journalReviewKey(selected)} evidence={reviewEvidenceFromCapture(selected.capture)} />
+              </section>
+
               {/* Garden 16 §17: a futures entry saved before futures were
                   priced carries 1x dollars. It says so beside its numbers —
                   on every entry, not only ones with Proof Lane fields. */}
@@ -3141,8 +3166,19 @@ Trade the system, trust the process, winners every day 🚀`,
             <motion.div initial={{ opacity:0,y:8 }} animate={{ opacity:1,y:0 }}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-bold text-wm-text">Log New Trade</h2>
-                <button aria-label="Cancel new trade" onClick={() => { setNewMode(false); voiceRec.reset(); }}><X size={14} className="text-wm-text-muted hover:text-wm-text" /></button>
+                <button aria-label="Cancel new trade" onClick={() => { setNewMode(false); voiceRec.reset(); setForm(f => ({ ...f, capture: undefined })); }}><X size={14} className="text-wm-text-muted hover:text-wm-text" /></button>
               </div>
+
+              {/* §J: a draft from a broker-confirmed fill. Nothing is saved until you press Save. */}
+              {form.capture ? (
+                <div data-testid="journal-capture-draft" className="mb-4 grid gap-2">
+                  <p className="text-[11px] text-wm-text-muted">
+                    Prefilled from tastytrade&apos;s fill — entry, size, date and planned risk only. Write the exit, your review and notes, then Save. Unreported fields stay unreported.
+                    {" "}<button type="button" className="underline" onClick={() => setForm(f => ({ ...f, capture: undefined }))}>Detach the broker facts</button>
+                  </p>
+                  <CapturedFacts capture={form.capture} title="Broker facts for this entry" />
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div>

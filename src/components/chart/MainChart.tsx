@@ -3,6 +3,8 @@
 import { arrivalRipple, bigTradeTier, percentileFromSorted, sortedSessionSizes } from "@/lib/chart/bigTradeTier";
 import { symbolDoorHref } from "@/contexts/SymbolContext";
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
+import { liveBarBucketSec } from "@/lib/timeframes";
+import { barTimeContaining } from "@/lib/desk/deskLinkBus";
 
 /**
  * MainChart — TradingView Lightweight Charts v4.2
@@ -1333,6 +1335,10 @@ interface Props {
   /** This frame's resolution of the selected shelf or mark — sent only when it changed. */
   onAnatomyReading?: (reading: AnatomyInspectVM) => void;
   onOHLCAtCursor?:  (ohlc: { o: number; h: number; l: number; c: number; v: number; time: number } | null) => void;
+  /** DESK LINKING: the hovered chart time (seconds) or null — called from the crosshair handler, so it must be cheap. */
+  onCrosshairTime?: (time: number | null) => void;
+  /** DESK LINKING: where a linked hairline for a time falls on this chart (client px), or null when this chart does not show that time. Read on demand — never on the paint loop. */
+  onCrosshairHandle?: (handle: { hairlineAt(time: number): { x: number; top: number; height: number } | null } | null) => void;
   // WM VP indicators
   fixedVPActive?:  boolean;
   sessionVPActive?:boolean;
@@ -1949,7 +1955,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   onDrawingComplete,
   drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
   alertLevels = [], chartSettings, replayActive = false, replayBars,
-  compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
+  compareSymbol, onPriceAtCursor, onOHLCAtCursor, onCrosshairTime, onCrosshairHandle, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
   fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, regimeSeries = null, livingDevelopment = null,
@@ -2154,6 +2160,33 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // without tearing down & rebuilding the whole pane on each tick.
   const oscLiveRef    = useRef<Array<{ series: any; recompute: (bs: LegacyOhlcvTuple[]) => { value: number; color?: string } | null }>>([]);
   const barsRef       = useRef<LegacyOhlcvTuple[]>([]);
+  // DESK LINKING (2026-10-07): the crosshair subscription attaches once, so the
+  // callback rides a ref; the hairline handle reads the chart only when asked.
+  const onCrosshairTimeRef = useRef(onCrosshairTime);
+  onCrosshairTimeRef.current = onCrosshairTime;
+  useEffect(() => {
+    if (!onCrosshairHandle) return;
+    const intervalSec = liveBarBucketSec(timeframe) ?? 60;
+    onCrosshairHandle({
+      hairlineAt(time: number) {
+        const chart = chartRef.current;
+        const bars = barsRef.current;
+        if (!chart || !bars.length) return null;
+        const open = barTimeContaining(bars.length, i => Number(bars[i].time), time, intervalSec);
+        if (open == null) return null;
+        try {
+          const x = chart.timeScale().timeToCoordinate(open);
+          if (x == null || !Number.isFinite(+x)) return null;
+          const rect = (chart.chartElement() as HTMLElement).getBoundingClientRect();
+          const left = chart.priceScale("left")?.width?.() ?? 0;
+          const paneW = rect.width - left - (chart.priceScale("right")?.width?.() ?? 0);
+          if (+x < 0 || +x > paneW) return null;
+          return { x: rect.left + left + +x, top: rect.top, height: Math.max(0, rect.height - (chart.timeScale().height?.() ?? 0)) };
+        } catch { return null; }
+      },
+    });
+    return () => onCrosshairHandle(null);
+  }, [onCrosshairHandle, timeframe]);
   /** Expected Envelope, read once per bar state (not per frame). */
   const envCacheRef = useRef<{ key: string; env: ExpectedEnvelopeVM } | null>(null);
   /** Memory Ghost, read once per bar state (not per frame). */
@@ -4528,6 +4561,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           crosshairPointRef.current = param?.point && Number.isFinite(+param.point.x) && Number.isFinite(+param.point.y)
             ? { x: +param.point.x, y: +param.point.y }
             : null;
+          onCrosshairTimeRef.current?.(param?.point && typeof param?.time === "number" ? param.time : null);
           if (!param || !param.time) {
             if (lastCursorKeyRef.current !== null) {
               lastCursorKeyRef.current = null;

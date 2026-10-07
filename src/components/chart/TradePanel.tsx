@@ -39,6 +39,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 
 import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/TastytradeLiveOrder";
+import { PendingFillJournalOffers } from "@/components/journal/FillJournalOffer";
 import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { isOwnerRefusal, plainBrokerAnswer, TASTYTRADE_NOT_AVAILABLE } from "@/lib/broker/ownerRefusal";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
@@ -461,7 +462,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             intent={contract && instrumentType ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: contract.symbol, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate, chartSymbol: symbol } : null}
             ensureDecision={ensureDecision}
             onPhase={setEntryPhase}
+            journal={{ targetPx: closing ? null : targetNum, plannedStopPx: stopNum, orderIntentId: loadedProposal?.orderIntentId ?? null, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
           />
+          <PendingFillJournalOffers />
 
           {/* §LXXVIII — PROTECTION, broker-native, each armed and pressed by the human. */}
           {kind !== "CRYPTO" && contract && instrumentType ? (
@@ -474,12 +477,14 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
                 <TastytradeLiveOrder
                   intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: null, orderType: "Stop", stopPx: stopNum, tif: "GTC", describe: `${contract.symbol} protective stop`, quote: quoteForGate, chartSymbol: symbol }}
                   ensureDecision={ensureDecision}
+                  journal={{ plannedStopPx: stopNum, targetPx: targetNum, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
                 />
               ) : <p style={{ color: GOLD, fontSize: 11 }}>{stopWrongSide ? "The stop is on the wrong side of the entry." : "Type a stop above to send it as a resting Stop."}</p>}
               {targetNum != null ? (
                 <TastytradeLiveOrder
                   intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: targetNum, tif: "GTC", describe: `${contract.symbol} target`, quote: quoteForGate, chartSymbol: symbol }}
                   ensureDecision={ensureDecision}
+                  journal={{ plannedStopPx: stopNum, targetPx: targetNum, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
                 />
               ) : <p style={{ color: MUTED, fontSize: 11 }}>Type a target above to send it as a resting Limit.</p>}
             </details>

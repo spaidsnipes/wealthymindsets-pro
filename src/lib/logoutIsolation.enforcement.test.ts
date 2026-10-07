@@ -50,6 +50,8 @@ const OWNER_SCOPED_KEYS = new Set<string>([
   "wm-journal", "wm_execution_guardrails_v1", "wm_price_alerts", "wm_story_review_v1", "wm-pine-scripts",
   "wm_research_heat_archive_v1", "wm_alpaca_disconnected", "wm_alpaca_proxy", "wm_lounge_bookmarks",
   "wm_desks_v1", "wm_desk_active_v1",
+  "wm:journal-capture-handoff:v1",
+  "wm:journal-ticket-at-send:v1", // sessionStorage, cleared by the same sign-out sweep
 ]);
 
 /** OWNER_SCOPED_PREFIXES from logoutIsolation.ts (matches by startsWith). */

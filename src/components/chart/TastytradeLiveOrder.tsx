@@ -41,6 +41,12 @@ import { PROTECTION_WORDS, datedFuturesContract, type Refusal } from "@/lib/exec
 import { useServerOrderLimits } from "@/lib/execution/useServerOrderLimits";
 
 import { tastytradeEntryFields, type TastytradeEntryType } from "@/lib/broker/tastytradeEntryFields";
+import { FillJournalOffer } from "@/components/journal/FillJournalOffer";
+import type { FillCaptureIntent } from "@/lib/journal/journalCaptureFromFill";
+import { rememberTicketAtSend, ticketForOrder } from "@/lib/journal/ticketAtSendStore";
+import { viewNameAtSend } from "@/lib/journal/viewAtSend";
+import { announcedArrangementCapture } from "@/lib/workspace/equipmentChannel";
+import { loadSavedLayouts } from "@/lib/workspace/savedLayouts";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -72,18 +78,39 @@ export interface TastytradeIntent {
   readonly chartSymbol?: string;
 }
 
+/**
+ * §J 2026-10-07 — what the journal draft needs that the order body does not
+ * carry. Never part of what is sent; read only after tastytrade reports FILLED.
+ */
+export interface TastytradeJournalContext {
+  readonly view?: string | null;
+  readonly orderIntentId?: string | null;
+  readonly targetPx?: number | null;
+  /** The plan's stop when this ticket does not send it as `protectiveStopPx` (closing / protective tickets). */
+  readonly plannedStopPx?: number | null;
+  /** $ per 1.0 of price per unit (futures point value, 100 per equity option, 1 per share). */
+  readonly multiplier?: number | null;
+}
+
 interface Account { index: number; tail: string; accountType: string | null; futuresApproved: boolean | null }
 interface PreviewPass { ok: true; notionalUsd: number | null; lossAtStopUsd: number | null; protection: keyof typeof PROTECTION_WORDS; riskBound: string; referencePx: number | null }
+
+/** The ticket this tab recorded when it sent the order with this client order id, if any. */
+function ticketAtSendFor(clientOrderId: string | null): FillCaptureIntent | null {
+  try { return ticketForOrder(window.sessionStorage, clientOrderId, Date.now()); } catch { return null; }
+}
 
 const FUTURES_TYPES = new Set(["Future", "Future Option"]);
 const usd = (n: number | null | undefined) => (n == null ? "—" : `$${n.toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`);
 
-export function TastytradeLiveOrder({ intent, ensureDecision, onPhase }: {
+export function TastytradeLiveOrder({ intent, ensureDecision, onPhase, journal }: {
   readonly intent: TastytradeIntent | null;
   /** The decision this order expresses (minted on this explicit press when none exists); null refuses. */
   readonly ensureDecision: () => string | null;
   /** Garden 19 §23: the ticket's lifecycle, for the chart's STAGED / WORKING lines. */
   readonly onPhase?: (phase: LiveOrderPhase) => void;
+  /** §J — context for the "Add to Journal" draft offered after a broker-confirmed fill. */
+  readonly journal?: TastytradeJournalContext;
 }) {
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [accountIndex, setAccountIndex] = useState<number | null>(null);
@@ -108,6 +135,9 @@ export function TastytradeLiveOrder({ intent, ensureDecision, onPhase }: {
     return t.accepted;
   };
   useEffect(() => { onPhase?.(phase); }, [phase, onPhase]);
+  // §J: the ticket as it was when the one POST left — what a journal draft calls TICKET-INTENT.
+  // Read-only snapshot; it plays no part in the send.
+  const sentTicketRef = useRef<FillCaptureIntent | null>(null);
 
   const futures = intent ? FUTURES_TYPES.has(intent.instrumentType) : false;
 
@@ -168,6 +198,37 @@ export function TastytradeLiveOrder({ intent, ensureDecision, onPhase }: {
   }, [order]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const account = accounts?.find(a => a.index === accountIndex) ?? null;
+  useEffect(() => {
+    if (phase !== "SUBMITTING" || !intent) return;
+    let view: string | null = journal?.view ?? null;
+    if (view == null) {
+      // The View in force as the order left: read from the room's live switches and the Views owner.
+      try { view = viewNameAtSend(announcedArrangementCapture(), loadSavedLayouts(window.localStorage)); } catch { view = null; }
+    }
+    sentTicketRef.current = {
+      decisionId: ensureDecision(),
+      orderIntentId: journal?.orderIntentId ?? null,
+      view,
+      broker: "tastytrade",
+      environment: server.environment ?? null,
+      accountTail: account?.tail ?? null,
+      instrumentType: intent.instrumentType,
+      chartSymbol: intent.chartSymbol ?? null,
+      action: intent.action,
+      qty: intent.qty,
+      orderType: intent.orderType ?? "Limit",
+      limitPx: intent.limitPx,
+      entryTriggerPx: intent.stopPx ?? null,
+      protectiveStopPx: intent.protectiveStopPx ?? null,
+      plannedStopPx: journal?.plannedStopPx ?? null,
+      targetPx: journal?.targetPx ?? null,
+      quote: intent.quote ?? null,
+      sentAtMs: Date.now(),
+      multiplier: journal?.multiplier ?? intent.multiplier ?? (intent.instrumentType === "Equity" ? 1 : null),
+    };
+    // Kept for this tab under the idempotency key tastytrade echoes back, so a reload keeps the offer.
+    if (keyRef.current) { try { rememberTicketAtSend(window.sessionStorage, keyRef.current, sentTicketRef.current, Date.now()); } catch { /* this visit only */ } }
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
   const accountBlocks = futures && account && account.futuresApproved !== true
     ? `Account …${account.tail} is not futures-enabled at tastytrade. Choose a futures-eligible account.`
     : null;
@@ -393,6 +454,9 @@ export function TastytradeLiveOrder({ intent, ensureDecision, onPhase }: {
             </button>
           ) : null}
         </div>
+      ) : null}
+      {phase === "FILLED" && order?.state === "FILLED" && (sentTicketRef.current ??= ticketAtSendFor(order.externalId)) ? (
+        <FillJournalOffer intent={sentTicketRef.current} order={order} />
       ) : null}
       <p style={{ marginTop: 4, color: MUTED }}>Real money. Market and stop orders have no guaranteed fill price; limit orders have no guaranteed fill.</p>
     </section>

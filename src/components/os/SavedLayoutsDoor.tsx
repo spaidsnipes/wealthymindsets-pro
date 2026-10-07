@@ -46,15 +46,24 @@ import {
 import {
   deleteLayout,
   duplicateLayout,
+  duplicateStarterView,
   layoutOnCount,
   loadSavedLayouts,
   MAX_LAYOUT_NAME_LENGTH,
+  migrateCurrentView,
   renameLayout,
+  restoreStarterView,
   SAVED_LAYOUTS_STORAGE_KEY,
   saveLayout,
+  saveStarterView,
+  starterOverride,
+  starterView,
   storeSavedLayouts,
+  userViews,
   type SavedLayout,
 } from "@/lib/workspace/savedLayouts";
+import { notifyMyViewsChanged, subscribeMyViews, syncStarterViews } from "@/lib/workspace/myViewsRuntime";
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { readStoredProfileStrength, writeStoredProfileStrength } from "@/lib/chart/profileStrengthStore";
 import { readStoredRoles, writeStoredRoles } from "@/lib/workspace/visualRoles";
 import { announcedFootprintPrefs, requestFootprintPrefs } from "@/lib/workspace/footprintPrefs";
@@ -139,6 +148,24 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, [store]);
+  // …and this tab's other Views readers (the Desk, the Tools panel) commit too.
+  React.useEffect(() => subscribeMyViews(() => setLayouts(loadSavedLayouts(store))), [store]);
+
+  // MIGRATE IN PLACE (Drive §B1–2, 2026-10-07): the first time My Views meets
+  // a chart, the trader's switches as they stand become "My current view".
+  // Nothing is switched on or off — a list entry is ADDED from the capture
+  // the chart announced. A proof scene's capture is the scene's, not the
+  // trader's, so a scene never migrates (and never writes).
+  React.useEffect(() => {
+    if (!capture || proofSceneHoldsWrites()) return;
+    let raw: string | null = null;
+    try { raw = store?.getItem(SAVED_LAYOUTS_STORAGE_KEY) ?? null; } catch { return; }
+    const list = loadSavedLayouts(store);
+    const next = migrateCurrentView(list, raw, capture, { roles: readStoredRoles(), profileStrength: readStoredProfileStrength(), footprint: announcedFootprintPrefs() });
+    if (!next) return;
+    // The Views event re-reads the stored list into this door (subscribeMyViews above).
+    if (storeSavedLayouts(store, next)) notifyMyViewsChanged(next);
+  }, [capture, store]);
 
   // Focus moves AFTER the render that created (or removed) its target.
   React.useEffect(() => {
@@ -152,7 +179,11 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
   const commit = (next: readonly SavedLayout[], ok: string) => {
     setLayouts(next);
     const kept = storeSavedLayouts(store, next);
-    setStatus(kept ? { tone: "ok", text: ok } : { tone: "warn", text: `${ok} — for this visit only; this browser blocked storage` });
+    // Tell this tab's other readers only what is actually stored; an unkept
+    // list still arms the compiler for this visit.
+    if (kept) notifyMyViewsChanged(next);
+    else syncStarterViews(next);
+    setStatus(kept ? { tone: "ok", text: ok } : { tone: "warn", text: proofSceneHoldsWrites() ? `${ok} — proof scene: this page only, nothing saved` : `${ok} — for this visit only; this browser blocked storage` });
   };
 
   const closeNaming = () => {
@@ -201,7 +232,8 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
     }
     const next = deleteLayout(layouts, layout.id);
     setArmedDeleteId(null);
-    const neighbour = next[index] ?? next[index - 1] ?? null;
+    const mine = userViews(next);
+    const neighbour = mine[index] ?? mine[index - 1] ?? null;
     pendingFocus.current = neighbour ? { kind: "apply", id: neighbour.id } : { kind: "save-trigger" };
     commit(next, `Deleted “${layout.name}”`);
   };
@@ -221,8 +253,8 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
 
   const rowButtonStyle: React.CSSProperties = {
     flex: "0 0 auto",
-    minWidth: 30,
-    minHeight: 30,
+    minWidth: 44,
+    minHeight: 44,
     padding: "0 6px",
     borderRadius: 3,
     border: `1px solid ${ink.rule}`,
@@ -236,7 +268,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
   const inputStyle: React.CSSProperties = {
     flex: "1 1 auto",
     minWidth: 0,
-    minHeight: 30,
+    minHeight: 44,
     padding: "0 8px",
     borderRadius: 3,
     border: `1px solid ${inputError ? ink.warn : ink.gold}`,
@@ -293,7 +325,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                     title={on ? `${a.label}'s senses are all on` : `Add ${a.label}'s senses to what is already on — nothing is switched off`}
                     onClick={() => requestSavedLayout({ layoutId: `compose:${a.id}`, switches: composeCamera(capture, a.id as ArrangementId) })}
                     style={{
-                      fontSize: 10, padding: "4px 8px", borderRadius: 999, cursor: on ? "default" : "pointer",
+                      fontSize: 10, minHeight: 44, padding: "4px 10px", borderRadius: 999, cursor: on ? "default" : "pointer",
                       border: `1px solid ${on ? ink.gold : ink.rule}`, color: on ? ink.gold : ink.pearl,
                       background: "transparent", opacity: on ? 0.85 : 1,
                     }}
@@ -305,7 +337,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
             </div>
             {/* CAMERA LOADOUTS (§59) — named compositions, same door. */}
             <div data-testid="camera-loadouts" style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", marginTop: 2 }}>
-              <span style={{ fontSize: 9, letterSpacing: 1.2, textTransform: "uppercase", color: ink.muted }}>Starter views</span>
+              <span style={{ fontSize: 9, letterSpacing: 1.2, textTransform: "uppercase", color: ink.muted }}>Loadouts</span>
               {CAMERA_LOADOUTS.map(l => {
                 const on = savedArrangementInForce(loadoutSwitches(capture, l.id), capture);
                 return (
@@ -316,7 +348,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                     aria-pressed={on}
                     title={`${l.label}: ${l.senses}`}
                     onClick={() => requestSavedLayout({ layoutId: `loadout:${l.id}`, switches: loadoutSwitches(capture, l.id) })}
-                    style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, cursor: "pointer", border: `1px solid ${on ? ink.gold : ink.rule}`, color: on ? ink.gold : ink.pearl, background: "transparent" }}
+                    style={{ fontSize: 10, minHeight: 44, padding: "4px 10px", borderRadius: 999, cursor: "pointer", border: `1px solid ${on ? ink.gold : ink.rule}`, color: on ? ink.gold : ink.pearl, background: "transparent" }}
                   >
                     {l.label}
                   </button>
@@ -333,12 +365,12 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
         <button
           type="button"
           data-testid="own-arrangement-return"
-          aria-label="Return to your arrangement"
+          aria-label="Return to your composition"
           onClick={() => requestSavedLayout({ layoutId: "own-arrangement", switches: own })}
           style={{
             display: "block",
             width: "100%",
-            minHeight: 30,
+            minHeight: 44,
             padding: "5px 8px",
             textAlign: "left",
             border: `1px solid ${ink.gold}`,
@@ -349,7 +381,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
           }}
         >
           <span style={{ display: "block", fontSize: 12, fontWeight: 500, letterSpacing: 0.3, color: ink.gold }}>
-            <span aria-hidden>↩ </span>Your arrangement
+            <span aria-hidden>↩ </span>Your composition
           </span>
           <span style={{ display: "block", fontSize: 10.5, lineHeight: 1.45, color: ink.hint }}>
             {layoutOnCount({ switches: own as SavedLayout["switches"] })} readings — as it was before the View
@@ -357,13 +389,107 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
         </button>
       ) : null}
 
-      {layouts.length === 0 ? (
+      {/* STARTER VIEWS (Drive §B1–2, 2026-10-07): Clean / Order Flow / Regime /
+          Review are the trader's editable copies. Keep the chart's current
+          composition as one, duplicate it into a View of your own, or
+          Restore it to its default. A starter keeps its name. */}
+      <div data-testid="starter-views" role="group" aria-label="Starter Views" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ fontSize: 9, letterSpacing: 1.2, textTransform: "uppercase", color: ink.muted, padding: "0 4px" }}>Starter Views</div>
+        {ARRANGEMENT_SPECS.map((spec) => {
+          const view = starterView(layouts, spec.id);
+          const edited = starterOverride(layouts, spec.id) !== null;
+          const inForce = capture !== null && (savedArrangementInForce(view.switches, capture) || (layoutOnCount(view) === 0 && !Object.values(capture).some(Boolean)));
+          const on = layoutOnCount(view);
+          return (
+            <div
+              key={spec.id}
+              data-starter-view={spec.id}
+              data-starter-edited={edited ? "true" : undefined}
+              style={{ display: "flex", alignItems: "stretch", gap: 4, borderRadius: 3, border: `1px solid ${inForce ? ink.gold : ink.rule}`, background: inForce ? "rgba(196,165,116,0.12)" : "rgba(196,165,116,0.03)", padding: 4 }}
+            >
+              <button
+                type="button"
+                ref={(el) => {
+                  if (el) rowButtons.current.set(`apply:${view.id}`, el);
+                  else rowButtons.current.delete(`apply:${view.id}`);
+                }}
+                data-testid={`starter-view-apply-${spec.id}`}
+                aria-label={`Open starter View ${spec.label}${edited ? ", edited" : ""}`}
+                aria-current={inForce ? "true" : undefined}
+                disabled={!chartAnswering}
+                onClick={() => {
+                  setArmedDeleteId(null);
+                  requestSavedLayout({ layoutId: view.id, switches: view.switches });
+                  if (edited) applyLayoutStyle(view);
+                }}
+                style={{ flex: "1 1 auto", minWidth: 0, minHeight: 44, padding: "3px 6px", textAlign: "left", border: "none", background: "transparent", cursor: chartAnswering ? "pointer" : "default", fontFamily: "inherit", opacity: chartAnswering ? 1 : 0.55 }}
+              >
+                <span style={{ display: "block", fontSize: 12, fontWeight: 500, letterSpacing: 0.3, color: inForce ? ink.gold : ink.pearl }}>{spec.label}</span>
+                <span style={{ display: "block", fontSize: 10, color: ink.hint, marginTop: 1 }}>
+                  {inForce ? "The chart is arranged this way now" : `${edited ? "Edited" : "Default"} · ${on} reading${on === 1 ? "" : "s"} on`}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-testid={`starter-view-keep-${spec.id}`}
+                aria-label={`Keep the chart's current composition as ${spec.label}`}
+                title={`Keep what is on now as ${spec.label} — Restore brings the default back`}
+                disabled={!chartAnswering}
+                onClick={() => {
+                  if (!capture) return;
+                  const result = saveStarterView(layouts, spec.id, capture, { roles: readStoredRoles(), profileStrength: readStoredProfileStrength(), footprint: announcedFootprintPrefs() });
+                  if (!result.ok) { setStatus({ tone: "warn", text: result.message }); return; }
+                  commit(result.list, `${spec.label} now keeps your composition`);
+                }}
+                style={rowButtonStyle}
+              >
+                <span aria-hidden>⤓</span>
+              </button>
+              <button
+                type="button"
+                data-testid={`starter-view-duplicate-${spec.id}`}
+                aria-label={`Duplicate starter View ${spec.label}`}
+                title="Duplicate into your own Views"
+                onClick={() => {
+                  const result = duplicateStarterView(layouts, spec.id, newLayoutId);
+                  if (!result.ok) { setStatus({ tone: "warn", text: result.message }); return; }
+                  commit(result.list, `Duplicated as “${result.layout.name}”`);
+                  setNaming(false);
+                  setInputError(null);
+                  setRenamingId(result.layout.id);
+                  setRenameDraft(result.layout.name);
+                }}
+                style={rowButtonStyle}
+              >
+                <span aria-hidden>⧉</span>
+              </button>
+              {edited ? (
+                <button
+                  type="button"
+                  data-testid={`starter-view-restore-${spec.id}`}
+                  aria-label={`Restore ${spec.label} to its default`}
+                  title="Restore to default"
+                  onClick={() => {
+                    pendingFocus.current = { kind: "apply", id: view.id };
+                    commit(restoreStarterView(layouts, spec.id), `${spec.label} restored to its default`);
+                  }}
+                  style={rowButtonStyle}
+                >
+                  <span aria-hidden>↺</span>
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+
+      {userViews(layouts).length === 0 ? (
         <p data-testid="saved-layouts-empty" style={{ margin: 0, padding: "0 4px", fontSize: 10.5, lineHeight: 1.45, color: ink.hint }}>
           No My Views yet. Turn on the tools you want, then save them here by name.
         </p>
       ) : (
         <ul aria-label="My Views" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-          {layouts.map((layout, index) => {
+          {userViews(layouts).map((layout, index) => {
             const inForce = savedArrangementInForce(layout.switches, capture);
             const on = layoutOnCount(layout);
             const armed = armedDeleteId === layout.id;
@@ -426,7 +552,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                     style={{
                       flex: "1 1 auto",
                       minWidth: 0,
-                      minHeight: 30,
+                      minHeight: 44,
                       padding: "3px 6px",
                       textAlign: "left",
                       border: "none",
@@ -462,7 +588,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                         else rowButtons.current.delete(`rename:${layout.id}`);
                       }}
                       data-testid="saved-layout-rename"
-                      aria-label={`Rename layout ${layout.name}`}
+                      aria-label={`Rename View ${layout.name}`}
                       title="Rename"
                       onClick={() => {
                         setArmedDeleteId(null);
@@ -478,7 +604,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                     <button
                       type="button"
                       data-testid="saved-layout-duplicate"
-                      aria-label={`Duplicate view ${layout.name}`}
+                      aria-label={`Duplicate View ${layout.name}`}
                       title="Duplicate — experiment on a copy"
                       onClick={() => {
                         setArmedDeleteId(null);
@@ -498,7 +624,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                       type="button"
                       data-testid="saved-layout-delete"
                       data-armed={armed ? "true" : undefined}
-                      aria-label={armed ? `Confirm delete layout ${layout.name}` : `Delete layout ${layout.name}`}
+                      aria-label={armed ? `Confirm delete View ${layout.name}` : `Delete View ${layout.name}`}
                       title={armed ? "Press again to delete" : "Delete"}
                       onClick={() => pressDelete(layout, index)}
                       onBlur={() => armed && setArmedDeleteId(null)}
@@ -546,7 +672,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
           <button
             type="button"
             data-testid="saved-layouts-save"
-            aria-label="Save the chart's current arrangement under this name"
+            aria-label="Save the chart's current composition as a View under this name"
             onClick={submitSave}
             style={{ ...rowButtonStyle, color: ink.gold, borderColor: ink.gold, padding: "0 10px" }}
           >
@@ -558,7 +684,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
           type="button"
           ref={saveTriggerRef}
           data-testid="saved-layouts-new"
-          aria-label="Save the chart's current arrangement as a named layout"
+          aria-label="Save the chart's current composition as a named View"
           disabled={!chartAnswering}
           title={chartAnswering ? undefined : "The chart is not answering yet"}
           onClick={() => {
@@ -569,7 +695,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
             setNaming(true);
           }}
           style={{
-            minHeight: 32,
+            minHeight: 44,
             borderRadius: 3,
             border: `1px dashed ${ink.rule}`,
             background: "transparent",

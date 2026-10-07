@@ -43,7 +43,8 @@ describe("Saved layouts — first frame", () => {
     expect(html).toContain('data-testid="saved-layouts-empty"');
     expect(html).toContain("No My Views yet. Turn on the tools you want, then save them here by name.");
     // The one way in: a labelled button, enabled because a chart is answering.
-    expect(html).toMatch(/<button[^>]*data-testid="saved-layouts-new"[^>]*aria-label="Save the chart&#x27;s current arrangement as a named layout"/);
+    // 2026-10-07 · Drive Garden 18 snapshot 10-02 §B1: user-facing copy says View, not layout.
+    expect(html).toMatch(/<button[^>]*data-testid="saved-layouts-new"[^>]*aria-label="Save the chart&#x27;s current composition as a named View"/);
     expect(html).not.toMatch(/data-testid="saved-layouts-new"[^>]*disabled/);
   });
 
@@ -69,8 +70,9 @@ describe("Saved layouts — first frame", () => {
     expect(html).toContain('<ul aria-label="My Views"');
     for (const name of ["Open drive", "Close"]) {
       expect(html).toContain(`aria-label="Open View ${name}"`);
-      expect(html).toContain(`aria-label="Rename layout ${name}"`);
-      expect(html).toContain(`aria-label="Delete layout ${name}"`);
+      // 2026-10-07 · Drive §B1: "View", not "layout", in every accessible name.
+      expect(html).toContain(`aria-label="Rename View ${name}"`);
+      expect(html).toContain(`aria-label="Delete View ${name}"`);
     }
     expect(html.indexOf("Open drive")).toBeLessThan(html.indexOf(">Close<"));
     expect(html).toContain("1 reading on");
@@ -103,7 +105,9 @@ describe("Saved layouts — first frame", () => {
       [SAVED_LAYOUTS_STORAGE_KEY]: serializeSavedLayouts([{ id: "open", name: "Open drive", switches: { SESSION: true } }]),
     });
     expect(html).not.toContain("data-saved-layout-in-force");
-    expect(html).not.toContain('aria-current="true"');
+    // 2026-10-07 · Drive §B1–2: the starter Views sit above the list and an
+    // all-off chart IS the Clean starter, so only the saved row is asked.
+    expect(html).not.toMatch(/<button[^>]*data-testid="saved-layout-apply"[^>]*aria-current="true"/);
   });
 
   it("with NO chart answering, Save and Apply are disabled rather than saving an empty desk", () => {
@@ -123,5 +127,25 @@ describe("Saved layouts — first frame", () => {
     });
     expect(html).not.toContain("<a ");
     expect(html).not.toContain("href=");
+  });
+
+  // Drive Garden 18 snapshot 10-02 §B1–2 (2026-10-07): starter Views are editable copies.
+  it("offers the four starter Views; an edited one says so and offers Restore, a default one does not", () => {
+    announceArrangementCapture(capture({ SESSION: true }));
+    const html = render({
+      [SAVED_LAYOUTS_STORAGE_KEY]: JSON.stringify({ v: 1, cv: 1, layouts: [{ id: "starter-REGIME", name: "Regime", starter: "REGIME", switches: capture({ SESSION: true }) }] }),
+    });
+    for (const id of ["CLEAN", "ORDER_FLOW", "REGIME", "REVIEW"]) {
+      expect(html).toContain(`data-testid="starter-view-apply-${id}"`);
+      expect(html).toContain(`data-testid="starter-view-keep-${id}"`);
+      expect(html).toContain(`data-testid="starter-view-duplicate-${id}"`);
+    }
+    expect(html).toContain('data-starter-edited="true"');
+    expect(html).toContain('aria-label="Restore Regime to its default"');
+    expect(html).not.toContain('data-testid="starter-view-restore-ORDER_FLOW"');
+    // The edited Regime (SESSION only) is what the chart is arranged as.
+    expect(html).toMatch(/<button[^>]*data-testid="starter-view-apply-REGIME"[^>]*aria-current="true"/);
+    // An edited starter is not listed twice among My Views.
+    expect(html).toContain('data-testid="saved-layouts-empty"');
   });
 });

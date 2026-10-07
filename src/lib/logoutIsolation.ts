@@ -66,6 +66,15 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm_lounge_bookmarks",  // the trader's saved lounge posts
   "wm_desks_v1",          // named trade desks
   "wm_desk_active_v1",    // the active desk
+  "wm:journal-capture-handoff:v1", // §J: an unsaved fill draft on its way to /journal (order id, account tail)
+] as const;
+
+/**
+ * Owner-scoped sessionStorage keys (this tab only, but still the previous
+ * owner's on a shared device until the tab closes).
+ */
+const OWNER_SCOPED_SESSION_KEYS: readonly string[] = [
+  "wm:journal-ticket-at-send:v1", // §J: live tickets as sent (Decision_ID, account tail, plan) awaiting "Add to Journal"
 ] as const;
 
 /**
@@ -129,6 +138,14 @@ export function clearOwnerScopedLocalStorage(): number {
         removed += 1;
       }
     } catch { /* private mode / quota — skip this key */ }
+  }
+  for (const key of OWNER_SCOPED_SESSION_KEYS) {
+    try {
+      if (window.sessionStorage?.getItem(key) != null) {
+        window.sessionStorage.removeItem(key);
+        removed += 1;
+      }
+    } catch { /* no sessionStorage — nothing to clear */ }
   }
   return removed;
 }

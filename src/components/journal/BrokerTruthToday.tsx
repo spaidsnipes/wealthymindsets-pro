@@ -12,7 +12,8 @@
  * behalf.
  */
 
-import { REVIEW_DIMENSIONS, REVIEW_QUESTION, cycleMark, readStoryReviews, reviewSummary, writeStoryReview, type StoryReview } from "@/lib/journal/storyReview";
+import { REVIEW_DIMENSIONS, REVIEW_QUESTION, cycleMark, readStoryReviews, reviewSummary, writeStoryReview, type ReviewDimension, type StoryReview } from "@/lib/journal/storyReview";
+import type { ReviewEvidenceLine } from "@/lib/journal/captureReviewEvidence";
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -27,10 +28,18 @@ interface FeedAccount { tail: string; broker: string; state: string; reason?: st
 
 interface Story { key: string; broker: string; decisionId: string | null; accountTail: string; orders: FeedOrder[]; fills: FeedFill[] }
 
-/** §XCI — the trader's half of one story: eight marks and their own words. */
-export function StoryReviewRow({ storyKey }: { storyKey: string }) {
+/**
+ * §XCI + §J — the trader's half of one story: ten separate marks, a note per
+ * dimension, and their own words. `evidence` (from a captured fill) sets the
+ * machine facts beside the dimension they inform; they are never edited here.
+ */
+export function StoryReviewRow({ storyKey, evidence, defaultOpen = false }: {
+  storyKey: string;
+  evidence?: Readonly<Record<ReviewDimension, readonly ReviewEvidenceLine[]>>;
+  defaultOpen?: boolean;
+}) {
   const [all, setAll] = useState<Readonly<Record<string, StoryReview>>>({});
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   useEffect(() => { setAll(readStoryReviews()); }, []);
   const r: StoryReview = all[storyKey] ?? { marks: {}, lesson: "", repeat: "", updatedAt: 0 };
   const save = (next: StoryReview) => setAll(writeStoryReview(storyKey, { ...next, updatedAt: Date.now() }));
@@ -42,16 +51,34 @@ export function StoryReviewRow({ storyKey }: { storyKey: string }) {
       </button>
       {open ? (
         <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          <div data-testid="review-dimensions" style={{ display: "grid", gap: 6 }}>
             {REVIEW_DIMENSIONS.map(d => {
               const m = r.marks[d];
+              const facts = evidence?.[d] ?? [];
               return (
-                <button key={d} type="button" data-testid={`review-${d}`} data-mark={m ?? "OPEN"} title={REVIEW_QUESTION[d]}
-                  onClick={() => save({ ...r, marks: { ...r.marks, [d]: cycleMark(m) } })}
-                  style={{ fontSize: 10, letterSpacing: 0.8, padding: "3px 7px", borderRadius: 999, cursor: "pointer", background: "transparent",
-                    border: `1px solid ${m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : LINE}`, color: m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : MUTED }}>
-                  {m === "HELD" ? "✓ " : m === "BROKE" ? "✗ " : ""}{d}
-                </button>
+                <div key={d} data-testid={`review-dimension-${d}`} style={{ display: "grid", gap: 3, borderLeft: `2px solid ${m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : LINE}`, paddingLeft: 6 }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    <button type="button" data-testid={`review-${d}`} data-mark={m ?? "OPEN"} title={REVIEW_QUESTION[d]} aria-label={`${d}: ${m ?? "not judged"}. ${REVIEW_QUESTION[d]}`}
+                      onClick={() => save({ ...r, marks: { ...r.marks, [d]: cycleMark(m) } })}
+                      style={{ fontSize: 10, letterSpacing: 0.8, padding: "3px 7px", minHeight: 24, borderRadius: 999, cursor: "pointer", background: "transparent",
+                        border: `1px solid ${m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : LINE}`, color: m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : MUTED }}>
+                      {m === "HELD" ? "✓ " : m === "BROKE" ? "✗ " : ""}{d}
+                    </button>
+                    <span style={{ fontSize: 11, color: MUTED }}>{REVIEW_QUESTION[d]}</span>
+                  </div>
+                  {facts.length ? (
+                    <div data-testid={`review-evidence-${d}`} style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 10.5, fontVariantNumeric: "tabular-nums" }}>
+                      {facts.map(f => (
+                        <span key={f.label} data-provenance={f.provenance} style={{ color: f.provenance === "UNREPORTED" ? MUTED : INK }}>
+                          {f.label} {f.text} <span style={{ color: MUTED, fontSize: 9, letterSpacing: ".06em" }}>{f.provenance}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <input aria-label={`${d} note`} data-testid={`review-note-${d}`} value={r.notes?.[d] ?? ""} placeholder="note (optional)"
+                    onChange={e => save({ ...r, notes: { ...(r.notes ?? {}), [d]: e.target.value } })}
+                    style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: "3px 6px", borderRadius: 4, minHeight: 26 }} />
+                </div>
               );
             })}
           </div>

@@ -31,7 +31,8 @@
  * passed in, never reached for, so every rule here is testable without a DOM.
  */
 
-import { ARRANGEMENT_SPECS } from "@/lib/marketData/viewModels/selectChartArrangement";
+import { ARRANGEMENT_SPECS, defaultStarterArms, type ArrangementId } from "@/lib/marketData/viewModels/selectChartArrangement";
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { selectProfileMenu, type ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
 import { MY_STACK_STORAGE_KEY, parseMyStack } from "@/lib/marketData/viewModels/myProfileStack";
 import { PROFILE_STRENGTHS, type ProfileStrength } from "@/lib/chart/profileFamilyInk";
@@ -60,6 +61,13 @@ export interface SavedLayout {
   readonly profileStrength?: ProfileStrength;
   /** The footprint mode and Big Trades as the View was saved. */
   readonly footprint?: FootprintPrefs;
+  /**
+   * Drive Garden 18 §B1–2 (2026-10-07): set when this entry is the trader's
+   * EDITED COPY of a starter View (Clean / Order Flow / Regime / Review). It
+   * carries the starter's canon name and is not counted against the cap;
+   * Restore removes it and the starter answers with its canon arms again.
+   */
+  readonly starter?: ArrangementId;
 }
 
 /** The style half of a View, as saved with it. */
@@ -78,6 +86,12 @@ function cleanStyle(raw: { roles?: unknown; profileStrength?: unknown; footprint
 interface SavedLayoutsDocV1 {
   readonly v: 1;
   readonly layouts: readonly SavedLayout[];
+  /**
+   * "My current view" migration done (§B1–2, 2026-10-07). Every document this
+   * build writes carries it: the door evaluates the migration on mount, before
+   * any write, so a written document is a migrated one.
+   */
+  readonly cv?: 1;
 }
 
 /** Every TOGGLE row in the whole catalogue — the only keys a layout may carry. */
@@ -139,7 +153,7 @@ export function checkLayoutName(
   exceptId?: string,
 ): LayoutNameCheck {
   const name = normaliseLayoutName(raw);
-  if (name.length === 0) return { ok: false, problem: "EMPTY", message: "Name the layout first" };
+  if (name.length === 0) return { ok: false, problem: "EMPTY", message: "Name the View first" };
   if (name.length > MAX_LAYOUT_NAME_LENGTH) {
     return { ok: false, problem: "TOO_LONG", message: `Keep the name to ${MAX_LAYOUT_NAME_LENGTH} characters` };
   }
@@ -148,7 +162,7 @@ export function checkLayoutName(
     return { ok: false, problem: "BAD_CHARACTERS", message: "That name has characters that cannot be saved" };
   }
   if (RESERVED_KEYS.has(layoutNameKey(name))) {
-    return { ok: false, problem: "RESERVED", message: `“${name}” is a built-in desk — pick another name` };
+    return { ok: false, problem: "RESERVED", message: `“${name}” is a starter View — pick another name` };
   }
   if (existing) {
     const key = layoutNameKey(name);
@@ -194,8 +208,8 @@ export function saveLayout(
     next[at] = layout;
     return { ok: true, list: next, layout, replaced: true };
   }
-  if (list.length >= MAX_SAVED_LAYOUTS) {
-    return { ok: false, message: `${MAX_SAVED_LAYOUTS} layouts saved — delete one first` };
+  if (userViews(list).length >= MAX_SAVED_LAYOUTS) {
+    return { ok: false, message: `${MAX_SAVED_LAYOUTS} Views saved — delete one first` };
   }
   const taken = new Set(list.map((l) => l.id));
   let id = newId();
@@ -210,7 +224,8 @@ export type RenameLayoutResult =
 
 export function renameLayout(list: readonly SavedLayout[], id: string, rawName: string): RenameLayoutResult {
   const at = list.findIndex((l) => l.id === id);
-  if (at < 0) return { ok: false, message: "That layout is no longer saved" };
+  if (at >= 0 && list[at].starter) return { ok: false, message: "A starter View keeps its name — duplicate it to name your own" };
+  if (at < 0) return { ok: false, message: "That View is no longer saved" };
   const check = checkLayoutName(rawName, list, id);
   if (!check.ok) return { ok: false, message: check.message };
   const layout: SavedLayout = { ...list[at], name: check.name };
@@ -226,8 +241,8 @@ export function renameLayout(list: readonly SavedLayout[], id: string, rawName: 
  */
 export function duplicateLayout(list: readonly SavedLayout[], id: string, newId: () => string): SaveLayoutResult {
   const at = list.findIndex((l) => l.id === id);
-  if (at < 0) return { ok: false, message: "That view is no longer saved" };
-  if (list.length >= MAX_SAVED_LAYOUTS) return { ok: false, message: `${MAX_SAVED_LAYOUTS} views saved — delete one first` };
+  if (at < 0) return { ok: false, message: "That View is no longer saved" };
+  if (userViews(list).length >= MAX_SAVED_LAYOUTS) return { ok: false, message: `${MAX_SAVED_LAYOUTS} Views saved — delete one first` };
   const src = list[at];
   const taken = new Set(list.map((l) => layoutNameKey(l.name)));
   let name = "";
@@ -240,7 +255,9 @@ export function duplicateLayout(list: readonly SavedLayout[], id: string, newId:
   const ids = new Set(list.map((l) => l.id));
   let copyId = newId();
   for (let i = 0; ids.has(copyId) || !isLayoutId(copyId); i++) copyId = `layout-${i}-${list.length}`;
-  const layout: SavedLayout = { ...src, id: copyId, name, switches: { ...src.switches } };
+  const { starter: _starter, ...rest } = src;
+  void _starter;
+  const layout: SavedLayout = { ...rest, id: copyId, name, switches: { ...src.switches } };
   const next = [...list.slice(0, at + 1), layout, ...list.slice(at + 1)];
   return { ok: true, list: next, layout, replaced: false };
 }
@@ -258,7 +275,8 @@ function isLayoutId(v: unknown): v is string {
 export function serializeSavedLayouts(list: readonly SavedLayout[]): string {
   const doc: SavedLayoutsDocV1 = {
     v: SAVED_LAYOUTS_SCHEMA_VERSION,
-    layouts: list.map((l) => ({ id: l.id, name: l.name, switches: l.switches, ...cleanStyle(l) })),
+    layouts: list.map((l) => ({ id: l.id, name: l.name, switches: l.switches, ...cleanStyle(l), ...(l.starter ? { starter: l.starter } : null) })),
+    cv: 1,
   };
   return JSON.stringify(doc);
 }
@@ -287,11 +305,23 @@ export function parseSavedLayouts(raw: string | null): readonly SavedLayout[] | 
   const out: SavedLayout[] = [];
   const ids = new Set<string>();
   const names = new Set<string>();
+  const starters = new Set<string>();
+  let users = 0;
   for (const entry of layouts) {
-    if (out.length >= MAX_SAVED_LAYOUTS) break;
     if (!entry || typeof entry !== "object") continue;
-    const { id, name, switches, roles, profileStrength, footprint } = entry as { id?: unknown; name?: unknown; switches?: unknown; roles?: unknown; profileStrength?: unknown; footprint?: unknown };
+    const { id, name, switches, roles, profileStrength, footprint, starter } = entry as { id?: unknown; name?: unknown; switches?: unknown; roles?: unknown; profileStrength?: unknown; footprint?: unknown; starter?: unknown };
     if (!isLayoutId(id) || typeof name !== "string") continue;
+    // An edited starter View: its id and name are the starter's own, one per starter.
+    const spec = typeof starter === "string" ? ARRANGEMENT_SPECS.find((a) => a.id === starter) : undefined;
+    if (starter !== undefined) {
+      if (!spec || starters.has(spec.id) || id !== starterViewId(spec.id)) continue;
+      const clean = sanitizeLayoutSwitches(switches);
+      if (Object.keys(clean).length === 0) continue;
+      starters.add(spec.id);
+      out.push({ id, name: spec.label, switches: clean, ...cleanStyle({ roles, profileStrength, footprint }), starter: spec.id });
+      continue;
+    }
+    if (users >= MAX_SAVED_LAYOUTS) continue;
     const check = checkLayoutName(name);
     if (!check.ok) continue;
     const key = layoutNameKey(check.name);
@@ -300,6 +330,7 @@ export function parseSavedLayouts(raw: string | null): readonly SavedLayout[] | 
     if (Object.keys(clean).length === 0) continue;
     ids.add(id);
     names.add(key);
+    users++;
     out.push({ id, name: check.name, switches: clean, ...cleanStyle({ roles, profileStrength, footprint }) });
   }
   return out;
@@ -350,6 +381,9 @@ export function storeSavedLayouts(
   storage: Pick<Storage, "setItem"> | null | undefined,
   list: readonly SavedLayout[],
 ): boolean {
+  // A proof scene persists NOTHING (proofSceneHoldsComposition.sentinel): its
+  // Views live for this page only, exactly like its roles and strength.
+  if (proofSceneHoldsWrites()) return false;
   if (!storage) return false;
   try {
     storage.setItem(SAVED_LAYOUTS_STORAGE_KEY, serializeSavedLayouts(list));
@@ -357,4 +391,136 @@ export function storeSavedLayouts(
   } catch {
     return false;
   }
+}
+
+// ── STARTER VIEWS + MY CURRENT VIEW (Drive Garden 18 snapshot 10-02 §B1–2) ──
+
+/** The Views event: the same tab learns of a commit (`storage` fires only in OTHER tabs). */
+export const MY_VIEWS_EVENT = "wm-my-views";
+
+/** A starter View's edited copy has a fixed id, so re-saves never duplicate it. */
+export function starterViewId(id: ArrangementId): string {
+  return `starter-${id}`;
+}
+
+/** The trader's own Views — everything but edited starter copies. */
+export function userViews(list: readonly SavedLayout[]): readonly SavedLayout[] {
+  return list.filter((l) => !l.starter);
+}
+
+/** The trader's edit of a starter View, or null when it is at its default. */
+export function starterOverride(list: readonly SavedLayout[], id: ArrangementId): SavedLayout | null {
+  return list.find((l) => l.starter === id) ?? null;
+}
+
+/** The arms each edited starter presses — what the compiler registry is fed. */
+export function starterArmsFromList(list: readonly SavedLayout[]): Partial<Record<ArrangementId, readonly ProfileId[]>> {
+  const out: Partial<Record<ArrangementId, readonly ProfileId[]>> = {};
+  for (const l of list) {
+    if (!l.starter) continue;
+    out[l.starter] = (Object.entries(l.switches) as [ProfileId, boolean | undefined][]).filter(([, v]) => v === true).map(([k]) => k);
+  }
+  return out;
+}
+
+/** The starter's switch set over every TOGGLE row: its arms on, the rest off. */
+export function starterDefaultSwitches(id: ArrangementId): LayoutSwitches {
+  const arms = defaultStarterArms(id);
+  const out: Partial<Record<ProfileId, boolean>> = {};
+  for (const t of toggleIds()) out[t as ProfileId] = arms.includes(t as ProfileId);
+  return out;
+}
+
+/** The starter View as it presses now — the trader's edit, else the canon default. */
+export function starterView(list: readonly SavedLayout[], id: ArrangementId): SavedLayout {
+  const spec = ARRANGEMENT_SPECS.find((a) => a.id === id);
+  return starterOverride(list, id) ?? { id: starterViewId(id), name: spec?.label ?? id, switches: starterDefaultSwitches(id), starter: id };
+}
+
+/**
+ * EDIT a starter View: keep the chart's current composition (and style) as
+ * this starter. The edited copy replaces any earlier edit; the canon is
+ * untouched, so Restore can always bring it back.
+ */
+export function saveStarterView(
+  list: readonly SavedLayout[],
+  id: ArrangementId,
+  switches: Readonly<Partial<Record<string, unknown>>>,
+  style: LayoutStyle = {},
+): SaveLayoutResult {
+  const spec = ARRANGEMENT_SPECS.find((a) => a.id === id);
+  if (!spec) return { ok: false, message: "That starter View does not exist" };
+  const clean = sanitizeLayoutSwitches(switches);
+  if (Object.keys(clean).length === 0) return { ok: false, message: "The chart has not reported its arrangement yet" };
+  const layout: SavedLayout = { id: starterViewId(id), name: spec.label, switches: clean, ...cleanStyle(style), starter: id };
+  const at = list.findIndex((l) => l.starter === id);
+  if (at >= 0) {
+    const next = list.slice();
+    next[at] = layout;
+    return { ok: true, list: next, layout, replaced: true };
+  }
+  return { ok: true, list: [...list, layout], layout, replaced: false };
+}
+
+/** RESTORE a starter View to its default: the edit is removed, nothing else moves. */
+export function restoreStarterView(list: readonly SavedLayout[], id: ArrangementId): readonly SavedLayout[] {
+  return list.filter((l) => l.starter !== id);
+}
+
+/**
+ * The Views a Desk screen can wear (§LVI): the three composed starters as they
+ * press now, then the trader's own. Clean is offered by the screen as its own
+ * option (every reading off).
+ */
+export function screenViews(list: readonly SavedLayout[]): readonly SavedLayout[] {
+  const starters = ARRANGEMENT_SPECS.filter((a) => a.arms.length > 0).map((a) => starterView(list, a.id));
+  return [...starters, ...userViews(list)];
+}
+
+export const CURRENT_VIEW_ID = "my-current-view";
+export const CURRENT_VIEW_NAME = "My current view";
+
+/** Has the stored document already been through the "My current view" migration? */
+export function currentViewMigrated(storedRaw: string | null): boolean {
+  if (!storedRaw) return false;
+  try {
+    const doc = JSON.parse(storedRaw) as { cv?: unknown };
+    return doc?.cv === 1;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * MIGRATE IN PLACE — the trader's switches as they stand become a View named
+ * "My current view". Nothing is turned on or off: this only ADDS a list entry
+ * holding the capture the chart announced. Returns null when there is nothing
+ * to do (already migrated, the chart has not answered, or a View already holds
+ * exactly this composition).
+ */
+export function migrateCurrentView(
+  list: readonly SavedLayout[],
+  storedRaw: string | null,
+  capture: Readonly<Partial<Record<string, unknown>>> | null,
+  style: LayoutStyle = {},
+): readonly SavedLayout[] | null {
+  if (currentViewMigrated(storedRaw) || !capture) return null;
+  const clean = sanitizeLayoutSwitches(capture);
+  if (Object.keys(clean).length === 0) return null;
+  // Clean (nothing on) has its own starter View; and a View that already holds
+  // the composition needs no twin. Either way the document is still written so
+  // the migration is recorded as done.
+  const nothingOn = !Object.values(clean).some((v) => v === true);
+  const twin = list.some((l) => Object.keys(l.switches).length > 0 && Object.entries(l.switches).every(([k, v]) => clean[k as ProfileId] === v));
+  if (nothingOn || twin || list.some((l) => l.id === CURRENT_VIEW_ID) || userViews(list).length >= MAX_SAVED_LAYOUTS) return list;
+  return [{ id: CURRENT_VIEW_ID, name: CURRENT_VIEW_NAME, switches: clean, ...cleanStyle(style) }, ...list];
+}
+
+/** DUPLICATE a starter View (edited or default) into the trader's own Views — "Order Flow 2". */
+export function duplicateStarterView(list: readonly SavedLayout[], id: ArrangementId, newId: () => string): SaveLayoutResult {
+  const edited = starterOverride(list, id) !== null;
+  const withStarter = edited ? list : [...list, starterView(list, id)];
+  const result = duplicateLayout(withStarter, starterViewId(id), newId);
+  if (!result.ok || edited) return result;
+  return { ...result, list: result.list.filter((l) => !(l.starter === id && l.id === starterViewId(id))) };
 }

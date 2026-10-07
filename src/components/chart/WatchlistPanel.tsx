@@ -293,9 +293,11 @@ interface Props {
    * serve, so wearing it would hide the drawer's own contents.
    */
   variant?: "rail" | "sheet";
+  /** DESK LINKING: each row offers "Send to screen" (touch/keyboard alternative to drag). Desk only. */
+  sendTo?: { readonly labels: readonly string[]; readonly onSend: (sym: string, index: number) => void };
 }
 
-export function WatchlistPanel({ open, gridView = false, onGridViewChange, variant = "rail" }: Props) {
+export function WatchlistPanel({ open, gridView = false, onGridViewChange, variant = "rail", sendTo }: Props) {
   const isSheet = variant === "sheet";
 
   /**
@@ -995,6 +997,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                     dp={dp}
                     sessionNow={sessionNow}
                     onSelect={() => setActiveSymbol(item.sym)}
+                    sendTo={sendTo}
                     onContextMenu={e => { e.preventDefault(); setCtxMenu({ sym: item.sym, x: e.clientX, y: e.clientY }); }}
                   />
                 );

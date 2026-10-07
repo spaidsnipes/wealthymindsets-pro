@@ -15,7 +15,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 
-import { ROLE_LAYERS, VISUAL_ROLES_EVENT, autoCompose, nextRole, readStoredRoles, writeStoredRoles, type VisualRole, type VisualRoles } from "@/lib/workspace/visualRoles";
+import { VISUAL_ROLES_EVENT, readStoredRoles, type VisualRoles } from "@/lib/workspace/visualRoles";
 
 import { PROFILE_FAMILY, selectProfileMenu, type ProfileId, type ProfileMenuInput } from "@/lib/marketData/viewModels/selectProfileMenu";
 import { censusPlaceWords, searchCensusPlaces } from "@/lib/canon/inventionCensus";
@@ -23,6 +23,7 @@ import { FAMILY_WORD, LIBRARY_CATEGORIES, LIBRARY_CATEGORY, searchToolRows, sear
 import { educationTruthLines } from "@/lib/chart/inventionEducation";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 import { InventionInfoButton, InventionPreview } from "./InventionInfo";
+import { ActiveToolsPanel } from "./ActiveToolsPanel";
 
 /** A chart instrument outside the reading catalogue (footprint modes, Big Trades). */
 export interface FinderInstrument {
@@ -35,14 +36,10 @@ const GOLD = "#d4af37";
 const PEARL = "#E8EAF2";
 const MUTED = "#8B8FA8";
 const AMBER = "#F0B429";
-const ROLE_STYLE: Readonly<Record<VisualRole, React.CSSProperties>> = {
-  PRIMARY: { background: GOLD, color: "#14110a" },
-  SUPPORTING: { border: "1px solid rgba(212,175,55,0.6)", color: GOLD },
-  AMBIENT: { border: "1px solid rgba(139,143,168,0.6)", color: MUTED },
-  LATENT: { border: "1px dashed rgba(139,143,168,0.5)", color: MUTED, opacity: 0.8 },
-};
 
-export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal, instruments = [], symbol, feed = null }: {
+export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal, instruments = [], symbol, feed = null, stateDetail }: {
+  /** §B5 · the chart's paint receipts as words (`senseEventStates`) — Active tools says what the glass holds. */
+  stateDetail?: Readonly<Partial<Record<string, string>>>;
   instruments?: readonly FinderInstrument[];
   symbol?: string;
   /** §9 · the chart feed's quality (DELAYED, STALE …) — the ⓘ preview says what that means for the tool. */
@@ -70,7 +67,6 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
     window.addEventListener(VISUAL_ROLES_EVENT, load);
     return () => window.removeEventListener(VISUAL_ROLES_EVENT, load);
   }, []);
-  const setRole = (id: ProfileId, role: VisualRole) => writeStoredRoles({ ...roles, [id]: role });
   // §9 · ONE preview open at a time, under the row it explains.
   const [eduId, setEduId] = useState<string | null>(null);
   const flip = (id: string) => setEduId(cur => (cur === id ? null : id));
@@ -212,45 +208,23 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
         </div>
       ) : null}
 
-      <div data-testid="active-tools-strip" className="mt-2 flex flex-wrap items-center gap-1" aria-label="Active on the chart">
-        <span className="mr-1 text-[9.5px] font-bold uppercase tracking-[0.14em]" style={{ color: MUTED }}>Active</span>
-        {on.some(e => ROLE_LAYERS[e.id]) ? (
-          <button type="button" data-testid="auto-compose" title="Give one sense the lead and quiet the context — nothing is switched off"
-            onClick={() => writeStoredRoles(autoCompose(on.map(e => e.id)))}
-            className="ml-auto order-last rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ color: GOLD, border: "1px solid rgba(212,175,55,0.45)" }}>
-            Auto compose
-          </button>
-        ) : null}
-        {instOn.map(i => (
-          <span key={i.id} data-testid={`active-tool-${i.id}`} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"
-            style={{ border: "1px solid rgba(212,175,55,0.55)", color: PEARL }} title={i.what}>
-            {i.label}
-            <button type="button" aria-label={`Turn off ${i.label}`} data-testid={`active-tool-off-${i.id}`} onClick={i.onToggle}
-              className="ml-0.5 leading-none hover:text-white" style={{ color: MUTED }}>×</button>
-          </span>
-        ))}
-        {on.length === 0 && instOn.length === 0 ? (
-          <span className="text-[11px]" style={{ color: MUTED }}>Clean — just the market.</span>
-        ) : on.map(e => (
-          <span key={e.id} data-testid={`active-tool-${e.id}`} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"
-            style={{ border: `1px solid ${e.availability === "READY" ? "rgba(212,175,55,0.55)" : "rgba(240,180,41,0.55)"}`, color: e.availability === "READY" ? PEARL : AMBER }}
-            title={e.availability === "READY" ? e.what : e.availabilityNote}>
-            {e.label}
-            {ROLE_LAYERS[e.id] ? (
-              <button type="button" data-testid={`role-${e.id}`} data-role={roles[e.id] ?? "SUPPORTING"}
-                aria-label={`${e.label} visual role: ${(roles[e.id] ?? "SUPPORTING").toLowerCase()}. Press to change.`}
-                title="Primary · Supporting · Ambient · Latent"
-                onClick={() => setRole(e.id, nextRole(roles[e.id]))}
-                className="rounded px-1 text-[9px] font-bold leading-[14px]"
-                style={ROLE_STYLE[roles[e.id] ?? "SUPPORTING"]}>
-                {(roles[e.id] ?? "SUPPORTING")[0]}
-              </button>
-            ) : null}
-            <button type="button" aria-label={`Turn off ${e.label}`} data-testid={`active-tool-off-${e.id}`} onClick={() => onToggle(e.id)}
-              className="ml-0.5 leading-none hover:text-white" style={{ color: MUTED }}>×</button>
-          </span>
-        ))}
-      </div>
+      {/* §B5 ACTIVE TOOLS (2026-10-07): one compact panel — every sense ON,
+          its receipt's words, focus / configure / hide / remove. */}
+      <ActiveToolsPanel
+        entries={vm.entries}
+        instruments={instOn}
+        receipts={stateDetail}
+        roles={roles}
+        onToggle={onToggle}
+        configureOpenId={q.trim() ? null : eduId}
+        onConfigure={flip}
+        renderConfigure={id => {
+          const e = vm.entries.find(x => x.id === id);
+          if (e) return entryPreview(e, "active");
+          const i = instruments.find(x => x.id === id);
+          return i ? instPreview(i, "active") : null;
+        }}
+      />
     </section>
   );
 }

@@ -101,11 +101,16 @@ export interface WatchlistRowProps {
   readonly sessionNow: Date | null;
   readonly onSelect: () => void;
   readonly onContextMenu: (e: React.MouseEvent) => void;
+  /**
+   * DESK LINKING (2026-10-07): the touch/keyboard alternative to dragging a
+   * market onto a Desk screen — a "Send to screen" menu. Only the Desk passes it.
+   */
+  readonly sendTo?: { readonly labels: readonly string[]; readonly onSend: (sym: string, index: number) => void };
 }
 
 export function WatchlistRow({
   sym, fullName, price, changePct, changeObserved, changeWindow, src, fresh, providerObservedAt, refusal,
-  isActive, up, dirColor, dp, sessionNow, onSelect, onContextMenu,
+  isActive, up, dirColor, dp, sessionNow, onSelect, onContextMenu, sendTo,
 }: WatchlistRowProps): React.ReactElement {
   const priced = price > 0 || !!refusal;
 
@@ -169,6 +174,23 @@ export function WatchlistRow({
           </div>
         </div>
 
+        {sendTo && sendTo.labels.length > 0 ? (
+          <select
+            aria-label={`Send ${sym} to a desk screen`}
+            data-testid={`watchlist-send-${sym}`}
+            title={`Send ${sym} to a desk screen`}
+            value=""
+            onClick={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
+            onKeyDown={e => e.stopPropagation()}
+            onChange={e => { const i = Number(e.target.value); if (e.target.value !== "" && Number.isInteger(i)) sendTo.onSend(sym, i); }}
+            style={{ flexShrink: 0, minWidth: 44, minHeight: 44, fontSize: 11, background: "#0b0a08", color: "#E2E8F0", border: "1px solid #2a2d40", borderRadius: 3 }}
+          >
+            <option value="" disabled>Send →</option>
+            {sendTo.labels.map((l, i) => <option key={i} value={i}>{l}</option>)}
+          </select>
+        ) : null}
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           {/* A refusal RETRACTS the price to 0, so gating this block on
               `price > 0` alone sent every refused row to the "quote pending"

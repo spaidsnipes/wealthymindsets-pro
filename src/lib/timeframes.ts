@@ -611,3 +611,66 @@ export function liveBarBucketSec(raw: string): number | null {
   if (!isTFId(raw)) return null;
   return LIVE_BAR_SEC_PENDING_DECISION[raw] ?? getTimeframe(raw).candleIntervalSec;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * TICK (N-TRADE) BARS — the TICK rung's counts, owned HERE (2026-10-07).
+ *
+ * Constitution OPEN item "TICK (N-trade) bars are not built"; Garden 18 "one
+ * timeframe registry from TICK to yearly". A tick bar is N CONSECUTIVE REAL
+ * PRINTS — not a clock. So these ids are deliberately NOT TFIds: a TFId has a
+ * `candleIntervalSec`, and every consumer that reads one (the live forming-bar
+ * clock, the vendor bar doors, the countdown) would be told a lie. They live
+ * beside the TFIds as their own branch of the same registry, and
+ * `liveBarBucketSec` keeps answering null for them (no clock, no forming bar
+ * from the hook — the tick-bar builder owns the forming bar).
+ *
+ * The counts are the ones the lane order names (100 / 500 / 1000 / 2000). The
+ * canon names only "TICK"; this list is the first choice of counts and is a
+ * single edit here if the Founder chooses others.
+ *
+ * Bars are built ONLY from real per-trade prints (src/lib/chart/tickBars.ts),
+ * never from candles. Where the symbol has no per-trade source the rung
+ * refuses in words (tickBarRefusal) instead of drawing anything.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/** "500T" — N real prints per bar. */
+export type TickTfId = `${number}T`;
+
+/** Every timeframe id the chart may hold: a clock (TFId) or a trade count. */
+export type ChartTfId = TFId | TickTfId;
+
+/** The trade counts the chart offers, ascending. */
+export const TICK_BAR_COUNTS: readonly number[] = Object.freeze([100, 500, 1000, 2000]);
+
+/** The tick ids, derived from the counts so the two cannot disagree. */
+export const TICK_TF_IDS: readonly TickTfId[] = Object.freeze(TICK_BAR_COUNTS.map(n => `${n}T` as TickTfId));
+
+const TICK_TF_SET = new Set<string>(TICK_TF_IDS);
+
+/** Is this one of the registry's tick ids? Exact spelling only ("500T"). */
+export function isTickTfId(raw: string | null | undefined): raw is TickTfId {
+  return raw != null && TICK_TF_SET.has(raw);
+}
+
+/** Prints per bar for a tick id, or null for anything else (clocks included). */
+export function tickCountOf(raw: string | null | undefined): number | null {
+  return isTickTfId(raw) ? Number(raw.slice(0, -1)) : null;
+}
+
+/** The chart vocabulary: a TFId (legacy spellings migrated) or a tick id. */
+export function normalizeChartTfId(raw: string | null | undefined): ChartTfId | null {
+  if (raw == null) return null;
+  if (isTickTfId(raw)) return raw;
+  return normalizeTFId(raw);
+}
+
+/** Spoken name for a tick id — "500 trade bars". Never "500 minutes". */
+export function tickTfSpokenName(id: TickTfId): string {
+  const n = tickCountOf(id)!;
+  return `${n} trade${n === 1 ? "" : "s"} bars`;
+}
+
+/** Spoken name for any chart id. */
+export function chartTfSpokenName(id: ChartTfId): string {
+  return isTickTfId(id) ? tickTfSpokenName(id) : timeframeSpokenName(id);
+}

@@ -3935,6 +3935,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const toolFinderNode = (
     <ToolFinder
       symbol={symbol}
+      // §B5 Active tools reads the chart's own paint receipts (Drive 10-02, 2026-10-07).
+      stateDetail={senseEvents}
       feed={chartCanvasState?.qualityState ?? null}
       barsPresent={chartBars.length > 0}
       printsPresent={chartOrderFlowReadings.printsPresent}

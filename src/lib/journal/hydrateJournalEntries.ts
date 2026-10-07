@@ -38,6 +38,7 @@
  */
 
 import type { DayModel } from "@/lib/proofLane/proofLaneR";
+import { readJournalCapture, type JournalCaptureDraft } from "./journalCaptureFromFill";
 import type { ProcessOutcome, ProcessQuality } from "@/lib/journalProcess";
 import {
   describeRecordCoverage,
@@ -96,6 +97,12 @@ export interface JournalEntry {
   contractType?: "stock" | "option";
   mfeR?: number;
   maeR?: number;
+  /**
+   * §J 2026-10-07: the machine facts of a broker-confirmed fill, each with its
+   * provenance (journalCaptureFromFill). Present only on entries the trader
+   * opened from an "Add to Journal" hand-off; never written silently.
+   */
+  capture?: JournalCaptureDraft;
 }
 
 const MOODS: readonly Mood[] = ["confident", "anxious", "neutral", "fomo", "disciplined"];
@@ -199,5 +206,7 @@ export function hydrateJournalEntry(value: unknown): JournalEntry | null {
     contractType: oneOf(["stock", "option"] as const, value.contractType),
     mfeR: readStoredNumber(value.mfeR),
     maeR: readStoredNumber(value.maeR),
+    // Read field by field; an unknown provenance degrades to UNREPORTED, never to a value.
+    ...(readJournalCapture(value.capture) ? { capture: readJournalCapture(value.capture) as JournalCaptureDraft } : {}),
   };
 }

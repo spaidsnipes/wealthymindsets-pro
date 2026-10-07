@@ -41,6 +41,7 @@
  * still prints `silentNote` verbatim.
  */
 
+import { subscribeToolDoor, takePendingToolDoor } from "@/lib/workspace/toolDoor";
 import { senseIsQuiet, senseNeedsTradedVolume, SENSE_UNAVAILABLE, SENSE_NOT_ENTITLED, SENSE_BROKEN } from "@/lib/chart/senseEventStates";
 import React from "react";
 import { Layers, Check } from "lucide-react";
@@ -113,6 +114,32 @@ export function ProfilesMenu({
   const manifestationNotes = vm.entries.filter(e => e.active && stateDetail?.[e.id])
     .map(e => `${e.label}: ${stateDetail![e.id]}`).join(". ");
 
+  // §B5 TOOL DOOR (2026-10-07): Active Tools' Configure opened this door for
+  // one of its rows — bring that row forward, focus it, mark it briefly.
+  const sectionRef = React.useRef<HTMLElement | null>(null);
+  const [doorFocusId, setDoorFocusId] = React.useState<string | null>(null);
+  const rowIdsKey = vm.entries.map(e => e.id).join(",");
+  React.useEffect(() => {
+    const holds = (id: string) => rowIdsKey.split(",").includes(id);
+    const bring = (id: string) => {
+      const row = sectionRef.current?.querySelector<HTMLElement>(`[data-profile-id="${id}"]`);
+      if (!row) return;
+      row.scrollIntoView?.({ block: "center" });
+      row.focus();
+      setDoorFocusId(id);
+    };
+    const waiting = takePendingToolDoor(holds);
+    // The drawer is still laying out on the mount frame.
+    const raf = waiting ? requestAnimationFrame(() => bring(waiting)) : 0;
+    const off = subscribeToolDoor(() => { const id = takePendingToolDoor(holds); if (id) bring(id); });
+    return () => { off(); if (raf) cancelAnimationFrame(raf); };
+  }, [rowIdsKey]);
+  React.useEffect(() => {
+    if (!doorFocusId) return;
+    const t = setTimeout(() => setDoorFocusId(null), 2400);
+    return () => clearTimeout(t);
+  }, [doorFocusId]);
+
   return (
     <section
       /*
@@ -145,6 +172,7 @@ export function ProfilesMenu({
       // label, and so the glass and the chrome can be checked against each
       // other from outside the app.
       data-profiles-silent={String(vm.silentCount)}
+      ref={sectionRef}
       data-testid={testId}
       data-profile-layout="instrument-grid"
       className="min-w-0"
@@ -226,6 +254,7 @@ export function ProfilesMenu({
                   data-profile-id={entry.id}
                   data-profile-availability={entry.availability}
                   data-profile-active={entry.active ? "1" : "0"}
+                  data-tool-door-focus={doorFocusId === entry.id ? "true" : undefined}
                   className="min-w-0 flex-1 px-2 py-1.5 text-left transition-colors hover:bg-wm-card"
                   // A row, not a card: only the active reading carries the gold
                   // left edge (the Chart tools / Workspace rail grammar).
@@ -233,6 +262,7 @@ export function ProfilesMenu({
                     border: "none",
                     borderLeft: entry.active ? "2px solid rgba(212,175,55,0.85)" : "2px solid transparent",
                     background: entry.active ? "rgba(212,175,55,0.07)" : "transparent",
+                    outline: doorFocusId === entry.id ? "1px solid rgba(212,175,55,0.9)" : undefined,
                   }}
                 >
                   <div className="flex min-w-0 items-center gap-1.5">

@@ -1,23 +1,28 @@
 /**
  * TRADE REVIEW — Garden 18 §XC/§XCI. "Profit is not the only teacher."
  *
- * Eight separate questions about one decision story, each answered by the
- * human: HELD (it went as it should), BROKE (it did not), or unjudged. Plus
- * the human's own words — the lesson, and what they would repeat. Broker facts
+ * Ten separate questions about one decision story, each answered by the
+ * human: HELD (it went as it should), BROKE (it did not), or unjudged, with
+ * an optional note per question. Plus the human's own words — the lesson, and
+ * what they would repeat. (§J 2026-10-07: ADHERENCE and SLIPPAGE joined the
+ * original eight so "did I follow the plan" and "what did the fill cost" are
+ * never folded into EXECUTION.) Broker facts
  * (orders, fills, fees) are never edited here; this is the trader's half of
  * the story, kept on this device and keyed by the story (its Decision_ID).
  * PURE parsing + one storage owner.
  */
 
-export const REVIEW_DIMENSIONS = ["READ", "DECISION", "EXPRESSION", "EXECUTION", "RISK", "MANAGEMENT", "DISCIPLINE", "RESULT"] as const;
+export const REVIEW_DIMENSIONS = ["READ", "DECISION", "ADHERENCE", "EXPRESSION", "EXECUTION", "SLIPPAGE", "RISK", "MANAGEMENT", "DISCIPLINE", "RESULT"] as const;
 export type ReviewDimension = (typeof REVIEW_DIMENSIONS)[number];
 export type ReviewMark = "HELD" | "BROKE";
 
 export const REVIEW_QUESTION: Readonly<Record<ReviewDimension, string>> = {
   READ: "Did I read the market right?",
   DECISION: "Was the decision earned before I acted?",
+  ADHERENCE: "Did the order I sent match the plan I wrote (entry, size, stop, target)?",
   EXPRESSION: "Did the instrument / contract express the idea well?",
   EXECUTION: "Did I get in and out the way I planned?",
+  SLIPPAGE: "What did the fill cost against the touch, and was it acceptable?",
   RISK: "Did the risk fit, and was the stop where it belonged?",
   MANAGEMENT: "Did I manage it by plan, not by feeling?",
   DISCIPLINE: "Did I follow my own rules?",
@@ -26,6 +31,8 @@ export const REVIEW_QUESTION: Readonly<Record<ReviewDimension, string>> = {
 
 export interface StoryReview {
   readonly marks: Readonly<Partial<Record<ReviewDimension, ReviewMark>>>;
+  /** The trader's note per question — kept apart so each dimension is its own field. */
+  readonly notes?: Readonly<Partial<Record<ReviewDimension, string>>>;
   readonly lesson: string;
   readonly repeat: string;
   readonly updatedAt: number;
@@ -43,12 +50,16 @@ export function parseStoryReviews(raw: string | null): Readonly<Record<string, S
     if (!r || typeof r !== "object" || k.length > 120) continue;
     const o = r as Record<string, unknown>;
     const marks: Partial<Record<ReviewDimension, ReviewMark>> = {};
+    const notes: Partial<Record<ReviewDimension, string>> = {};
     for (const d of REVIEW_DIMENSIONS) {
       const m = (o.marks as Record<string, unknown> | undefined)?.[d];
       if (m === "HELD" || m === "BROKE") marks[d] = m;
+      const n = (o.notes as Record<string, unknown> | undefined)?.[d];
+      if (typeof n === "string" && n.trim() !== "") notes[d] = n.slice(0, MAX_TEXT);
     }
     out[k] = {
       marks,
+      notes,
       lesson: typeof o.lesson === "string" ? o.lesson.slice(0, MAX_TEXT) : "",
       repeat: typeof o.repeat === "string" ? o.repeat.slice(0, MAX_TEXT) : "",
       updatedAt: typeof o.updatedAt === "number" ? o.updatedAt : 0,
@@ -76,7 +87,9 @@ export function readStoryReviews(): Readonly<Record<string, StoryReview>> {
 }
 
 export function writeStoryReview(key: string, review: StoryReview): Readonly<Record<string, StoryReview>> {
-  const all = { ...readStoryReviews(), [key]: { ...review, lesson: review.lesson.slice(0, MAX_TEXT), repeat: review.repeat.slice(0, MAX_TEXT) } };
+  const notes: Partial<Record<ReviewDimension, string>> = {};
+  for (const d of REVIEW_DIMENSIONS) { const n = review.notes?.[d]; if (typeof n === "string" && n !== "") notes[d] = n.slice(0, MAX_TEXT); }
+  const all = { ...readStoryReviews(), [key]: { ...review, notes, lesson: review.lesson.slice(0, MAX_TEXT), repeat: review.repeat.slice(0, MAX_TEXT) } };
   try { localStorage.setItem(STORY_REVIEW_STORAGE_KEY, JSON.stringify(all)); } catch { /* this visit only */ }
   return all;
 }
