@@ -144,7 +144,9 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
         <div data-testid="tool-library" className="mt-1.5 flex flex-col gap-2">
           {LIBRARY_CATEGORIES.map(cat => {
             const rows = vm.entries.filter(e => LIBRARY_CATEGORY[e.id] === cat);
-            const extra = cat === "ORDER FLOW" ? instruments : [];
+            // Footprint modes browse under ORDER FLOW; a context instrument
+            // (Session Bands, familyWord "Context") under MARKET SENSE.
+            const extra = instruments.filter(i => (i.familyWord === "Context" ? "MARKET SENSE" : "ORDER FLOW") === cat);
             if (!rows.length && !extra.length) return null;
             return (
               <div key={cat}>

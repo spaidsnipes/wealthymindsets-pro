@@ -2176,6 +2176,13 @@ function EvidenceLineageCard({ vm }: { readonly vm: EvidenceLineageVM }): React.
           <span style={{ fontSize: 10, lineHeight: "14px", color: "#8b8fa8", fontStyle: "italic" }}>not counted — they appear on the glass when their event happens</span>
         </span>
       ) : null}
+      {vm.unsupported && vm.unsupported.length > 0 ? (
+        <span data-testid="spine-evidence-unsupported" style={{ display: "flex", flexDirection: "column", gap: 1, borderTop: "1px solid rgba(196,165,116,0.14)", paddingTop: 5 }}>
+          <span style={{ fontSize: 10, lineHeight: "14px", fontWeight: 800, color: "#8a8271", letterSpacing: "0.08em" }}>ON — NEEDS TRADED VOLUME</span>
+          <span style={{ fontSize: 11, lineHeight: "15px", color: "#8a8271" }}>{vm.unsupported.join(", ")}</span>
+          <span style={{ fontSize: 10, lineHeight: "14px", color: "#8b8fa8", fontStyle: "italic" }}>not counted — this market has no central traded volume, so they cannot draw here</span>
+        </span>
+      ) : null}
       <span style={{ ...PLAQUE_STAMP, fontSize: 10, textAlign: "center", borderTop: "1px solid rgba(196,165,116,0.14)", paddingTop: 5 }}>
         {vm.families.length} {vm.families.length === 1 ? "family" : "families"} · independent
       </span>

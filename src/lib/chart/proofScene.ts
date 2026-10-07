@@ -14,7 +14,7 @@
  *   scene=clean   every layer switch starts OFF for this page load
  *   on=…          switches turned ON for this load. Tokens:
  *                   <Name>        → wm_of<Name>      (LivingProfile, TpoProfile, …)
- *                   sessionVP | fixedVP | absorptionAnatomy
+ *                   sessionVP | fixedVP | absorptionAnatomy | sessionBands
  *                   fp:<mode>     → footprint on, that mode (bid-ask, delta,
  *                                   volume-profile, imbalance, aggressive-passive, big-trades)
  *                   scaff:<depth> → scaffolding depth (FOUNDATION, INTERMEDIATE, ADVANCED, OFF)
@@ -59,7 +59,8 @@ export type ProofSelectKind = (typeof PROOF_SELECT_KINDS)[number];
 const CLEAN_BOOLEAN_PREFIX = "wm_of";
 // wm_bigtrades_on (2026-10-03): the Big Trades overlay is persisted now, so a
 // clean scene must switch it off too — or the trader's own overlay leaks in.
-const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP", "wm_fixedVP", "wm_bigtrades_on"] as const;
+// wm_sessionBands (FX lane, 2026-10-06): default ON for spot FX — a clean scene starts without it.
+const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP", "wm_fixedVP", "wm_bigtrades_on", "wm_sessionBands"] as const;
 const SCAFFOLDING_KEY = "wm_ofScaffolding";
 /** What the trader asked of the Question Lens (ChartsDashboard's own key). */
 const QUESTION_CHOICE_KEY = "wm_questionChoice";
@@ -67,7 +68,7 @@ const QUESTION_CHOICE_KEY = "wm_questionChoice";
 const ANATOMY_MODE_SCENE_KEY = "wm_anatomyMode";
 const ANATOMY_MODE_TOKENS = new Set(["OFF", "MARKET", "FOUNDER", "FUSION"]);
 const NON_BOOLEAN_OF_KEYS = new Set([SCAFFOLDING_KEY, "wm_ofStackPrefs", "wm_ofMyStack"]);
-const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy"]);
+const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy", "sessionBands"]);
 
 export interface ProofScene {
   readonly active: boolean;

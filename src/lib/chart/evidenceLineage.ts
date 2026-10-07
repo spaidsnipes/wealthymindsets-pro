@@ -66,7 +66,7 @@ export interface EvidenceInput {
    * "pop up with a description in the right panel and nothing on the chart".
    * A quiet tool is not an observation; it is listed as waiting.
    */
-  readonly tools: ReadonlyArray<{ readonly id: string; readonly label: string; readonly quiet?: boolean }>;
+  readonly tools: ReadonlyArray<{ readonly id: string; readonly label: string; readonly quiet?: boolean; readonly needsVolume?: boolean }>;
 }
 
 export interface EvidenceFamilyGroup {
@@ -86,6 +86,11 @@ export interface EvidenceLineageVM {
   readonly summary: string;
   /** Switched on, nothing of them on this camera — named, never counted. */
   readonly waiting: readonly string[];
+  /**
+   * Switched on, and the MARKET cannot feed them (spot FX: no traded volume).
+   * Not "waiting": no event will ever come (FX lane, 2026-10-06).
+   */
+  readonly unsupported: readonly string[];
 }
 
 export function evidenceFamilyOfIndicator(name: string, cat: string | null): EvidenceFamilyId | null {
@@ -110,11 +115,13 @@ export function compileEvidenceLineage(input: EvidenceInput): EvidenceLineageVM 
   };
   for (const i of input.indicators) add(evidenceFamilyOfIndicator(i.name, i.cat), i.name);
   const waiting: string[] = [];
+  const unsupported: string[] = [];
   for (const t of input.tools) {
+    if (t.needsVolume && evidenceFamilyOfTool(t.id)) { if (!unsupported.includes(t.label)) unsupported.push(t.label); continue; }
     if (t.quiet && evidenceFamilyOfTool(t.id)) { if (!waiting.includes(t.label)) waiting.push(t.label); continue; }
     add(evidenceFamilyOfTool(t.id), t.label);
   }
-  if (byFam.size === 0 && waiting.length === 0) return null;
+  if (byFam.size === 0 && waiting.length === 0 && unsupported.length === 0) return null;
   const families = ORDER.filter(f => byFam.has(f)).map(f => ({ id: f, label: EVIDENCE_FAMILY[f].label, from: EVIDENCE_FAMILY[f].from, members: byFam.get(f)! }));
   const observations = families.reduce((n, f) => n + f.members.length, 0);
   const correlated = families.reduce((n, f) => n + (f.members.length > 1 ? f.members.length : 0), 0);
@@ -126,5 +133,6 @@ export function compileEvidenceLineage(input: EvidenceInput): EvidenceLineageVM 
     warning: observations > k ? `DO NOT COUNT ${observations}` : null,
     summary: `${observations} observation${observations === 1 ? "" : "s"} / ${k} independent famil${k === 1 ? "y" : "ies"}`,
     waiting,
+    unsupported,
   };
 }

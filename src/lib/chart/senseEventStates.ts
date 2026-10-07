@@ -105,6 +105,13 @@ export function senseEventStates(r: Receipts, market?: { readonly symbol?: strin
   else if (walls.startsWith("ON:SILENT:") || walls === "ON:NO_CURRENT_WALL_EVENT") out.BRICK_WALLS = SENSE_NO_EVENT;
   else if (/^ON:\d+$/.test(walls)) out.BRICK_WALLS = SENSE_ON_CAMERA;
 
+  // Profile Fusion with fewer than two species on fuses nothing (serving
+  // EURUSD 5m, 2026-10-06: "PROFILE FUSION · silent" on the glass while the
+  // Evidence Lineage counted it as an AUCTION observation).
+  const fusion = r.profileFusion ?? "";
+  if (fusion === "DRAWN") out.PROFILE_FUSION = SENSE_ON_CAMERA;
+  else if (fusion === "FEWER_THAN_TWO_SPECIES" || fusion === "NO_AGREEMENT") out.PROFILE_FUSION = SENSE_NO_EVENT;
+
   // NEEDS TRADED VOLUME (FX lane, 2026-10-06): on a market with no central
   // volume every volume-reading sense says so, outranking NO CURRENT EVENT
   // and UNAVAILABLE ON THIS FEED — no feed could answer it.

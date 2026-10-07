@@ -32,6 +32,9 @@ import {
   wordOnTopArc, type WeatherLens,
 } from "@/lib/chart/liquidityGlassGeometry";
 import { axisPriceFormatFor, displayPrecisionFor, instrumentTickFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
+import { relatedFlowLine, relatedRoot } from "@/lib/chart/fxRelatedFlow";
+import { useFxRelatedFlow } from "@/lib/broker/useFxRelatedFlow";
+import { logicalForTime, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
 import { needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
@@ -1324,6 +1327,8 @@ interface Props {
   // WM VP indicators
   fixedVPActive?:  boolean;
   sessionVPActive?:boolean;
+  /** SESSION BANDS (sessionBands.ts): Asia / London / New York on the time axis. */
+  sessionBandsOn?: boolean;
   /**
    * ABSORPTION ANATOMY (Founder Asset 06) — draws the EFFORT field and the
    * ABSORPTION ZONE band directly in price/time space. See the draw block.
@@ -1898,7 +1903,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
-  fixedVPActive = false, sessionVPActive = false,
+  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false,
   absorptionAnatomyActive = false,
   exhaustionOnChart = true,
   imbalanceStack = null,
@@ -2230,6 +2235,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   useEffect(() => { compositeProfileRef.current = compositeProfile ?? null; }, [compositeProfile]);
 
   const vrpCacheRef = useRef<{ key: string; vm: VisibleRangeProfileVM } | null>(null);
+  // Session Bands: the spans for the camera's time window, recomputed only when it moves.
+  const sessionSpansCacheRef = useRef<{ key: string; spans: SessionSpan[] } | null>(null);
+  // CME related-market evidence for a spot pair (fxRelatedFlow.ts): words in
+  // the volume footer, never paint on the spot candles. Owner-only upstream.
+  const fxRelated = useFxRelatedFlow(symbol);
   const regimeLightingRef = useRef<RegimeLightingVM | null>(null);
   useEffect(() => { regimeLightingRef.current = regimeLighting ?? null; }, [regimeLighting]);
   const inspectedBarRef = useRef<{ readonly time: number; readonly high: number; readonly low: number } | null>(null);
@@ -9877,6 +9887,82 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // Which owner said two bars share a session (CONTINUOUS / BAR_IDENTITY / MARKET_CLOCK).
         canvas.dataset.dataGapsSession = dg.sessionSource ?? "NONE";
       } catch (err) { layerFault("DATA_GAPS", err); /* camera mid-transition */ }
+
+      /* ══ SESSION BANDS · ASIA / LONDON / NEW YORK (FX lane, 2026-10-06) ══
+         Drive canon: sessions are first-class context. Three hairline lanes
+         on the floor of the price pane, just above the time axis — a clock
+         fact (sessionBands.ts: 08:00–17:00 in each centre's own zone), price-
+         and volume-free, so it works on spot FX. The London ∩ New York
+         overlap is marked across both lanes. Low ink; words only where the
+         band is wide enough and never over the newest candles. Default ON
+         for spot FX only (ChartsDashboard owns the switch). */
+      try {
+        const t0SB = performance.now();
+        const bs = barsRef.current || [];
+        const barSecSB = barInterval();
+        if (!sessionBandsOn) canvas.dataset.sessionBands = "OFF";
+        else if (bs.length < 2) canvas.dataset.sessionBands = "NO_BARS";
+        else if (barSecSB >= 86_400) canvas.dataset.sessionBands = "NOT_INTRADAY";
+        else {
+          const tsSB = chart.timeScale();
+          const lr = tsSB.getVisibleLogicalRange();
+          const times = bs.map(b => b.time as number);
+          const i0 = Math.max(0, Math.floor(lr ? +lr.from : 0));
+          const i1 = Math.min(bs.length - 1, Math.ceil(lr ? +lr.to : bs.length - 1));
+          const from = times[i0], to = times[i1] + barSecSB;
+          const key = `${from}|${to}`;
+          if (sessionSpansCacheRef.current?.key !== key) sessionSpansCacheRef.current = { key, spans: sessionSpans(from, to) };
+          const spans = sessionSpansCacheRef.current.spans;
+          const LANE_H = 3, GAP = 1;
+          const floorY = pane0Bottom - 2;
+          const laneY: Record<string, number> = {
+            ASIA: floorY - 3 * LANE_H - 2 * GAP,
+            LONDON: floorY - 2 * LANE_H - GAP,
+            NEW_YORK: floorY - LANE_H,
+          };
+          const INK: Record<string, string> = {
+            ASIA: "120,170,190", LONDON: "201,165,92", NEW_YORK: "170,150,210", LDN_NY_OVERLAP: "237,230,211",
+          };
+          // Words stay off the newest candles: nothing right of the bar 8 back.
+          const wordsStopX = (() => { const x = tsSB.logicalToCoordinate((bs.length - 9) as never); return x == null ? plotRight : +x; })();
+          const counts: Record<string, number> = { ASIA: 0, LONDON: 0, NEW_YORK: 0, LDN_NY_OVERLAP: 0 };
+          let labels = 0;
+          const labelRects: { x: number; y: number; w: number; h: number }[] = [];
+          ctx.save();
+          ctx.font = `700 9px ${MARKET_SANS}`;
+          ctx.textBaseline = "bottom"; ctx.textAlign = "left";
+          for (const sp of spans) {
+            const l0 = logicalForTime(times, sp.start, barSecSB), l1 = logicalForTime(times, sp.end, barSecSB);
+            if (l0 == null || l1 == null || l1 <= l0) continue;
+            const x0 = tsSB.logicalToCoordinate((l0 - 0.5) as never), x1 = tsSB.logicalToCoordinate((l1 - 0.5) as never);
+            if (x0 == null || x1 == null) continue;
+            const a = Math.max(0, +x0), b = Math.min(plotRight, +x1);
+            if (b - a < 1) continue;
+            counts[sp.id]++;
+            if (sp.id === "LDN_NY_OVERLAP") {
+              ctx.fillStyle = `rgba(${INK[sp.id]},0.22)`;
+              ctx.fillRect(a, laneY.LONDON, b - a, 2 * LANE_H + GAP);
+              continue;
+            }
+            ctx.fillStyle = `rgba(${INK[sp.id]},0.42)`;
+            ctx.fillRect(a, laneY[sp.id], b - a, LANE_H);
+            const word = SESSION_BAND_LABEL[sp.id];
+            const tw = ctx.measureText(word).width;
+            const r = { x: a + 2, y: laneY.ASIA - 12, w: tw, h: 10 };
+            if (b - a < tw + 8 || r.x + r.w > wordsStopX || labelRects.some(q => q.x < r.x + r.w + 4 && r.x < q.x + q.w + 4)) continue;
+            ctx.fillStyle = `rgba(${INK[sp.id]},0.75)`;
+            ctx.fillText(word, r.x, laneY.ASIA - 2);
+            labelRects.push(r);
+            forceChips.push(r);
+            labels++;
+          }
+          ctx.restore();
+          const ms = performance.now() - t0SB;
+          canvas.dataset.sessionBands = `DRAWN:A${counts.ASIA}|L${counts.LONDON}|N${counts.NEW_YORK}|O${counts.LDN_NY_OVERLAP}|W${labels}`;
+          canvas.dataset.sessionBandsCost = `${ms.toFixed(2)}ms|${ms <= SESSION_BANDS_BUDGET_MS ? "MET" : "OVER"}`;
+          canvas.dataset.sessionBandsNow = sessionsAt(Math.floor(Date.now() / 1000)).join("+") || "NONE";
+        }
+      } catch (err) { layerFault("SESSION_BANDS", err); }
 
       /* ══════════════════════════════════════════════════════
          WM FIXED VP & SESSION VP — right-anchored inside chart
@@ -23528,7 +23614,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, absorptionAnatomyActive, getBarSubProfile]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, absorptionAnatomyActive, getBarSubProfile]);
 
   /*
     THE HIDDEN-TAB STAMP CANNOT LIVE INSIDE THE RAF LOOP.
@@ -25133,6 +25219,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           volumeTruth,
         );
         const fxDoor = fact.state !== "OBSERVED" ? fxFuturesDoor(symbol) : null;
+        const relatedLine = fxDoor ? relatedFlowLine(symbol, fxRelated) : null;
         return (
           <div
             className={clsx(
@@ -25166,7 +25253,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               <button
                 type="button"
                 data-testid="fx-futures-door"
-                title={`Spot FX has no central volume. ${fxDoor.futures} is the ${fxDoor.note} — a different market with its own traded volume, opened on its own chart and never shown as spot volume.`}
+                title={`Spot FX has no central volume. ${fxDoor.futures} is the ${fxDoor.note} — a different market with its own traded volume, opened on its own chart and never shown as spot volume.${relatedLine ? `\n\n${relatedLine}` : ""}`}
+                aria-label={relatedLine ?? `CME futures participation: ${fxDoor.futures}`}
+                data-related-flow={fxRelated.kind === "LIVE" ? `LIVE:B${fxRelated.summary.buy}|S${fxRelated.summary.sell}|D${fxRelated.summary.delta}|P${fxRelated.summary.prints}|U${fxRelated.summary.unsided}` : fxRelated.kind}
                 onClick={() => {
                   try {
                     window.location.assign(symbolDoorHref(window.location.href, fxDoor.futures));
@@ -25178,8 +25267,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 {/* FX lane 2026-10-06: this read "live volume: 6B1!", which the
                     Founder read as "681!" — and as volume FOR the pair. It is
                     a related market's participation, named as such. */}
-                CME futures participation: {fxDoor.futures} →
+                {fxRelated.kind === "LIVE" && relatedRoot(symbol)
+                  // Related-market words, compact; the full line is the title.
+                  ? <>CME {relatedRoot(symbol)} flow · related, not spot · 5m signed Δ {fxRelated.summary.delta > 0 ? "+" : ""}{fxRelated.summary.delta} →</>
+                  : <>CME futures participation: {fxDoor.futures} →</>}
               </button>
+            ) : null}
+            {fxDoor && fxRelated.kind === "UNSUPPORTED" ? (
+              <span data-testid="fx-related-flow-unsupported" style={{ marginLeft: 6 }} title={relatedLine ?? undefined}>
+                · {relatedRoot(symbol)} signed flow: owner connection only
+              </span>
             ) : null}
           </div>
         );

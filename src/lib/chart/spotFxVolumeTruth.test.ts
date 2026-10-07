@@ -72,6 +72,23 @@ describe("sense states on spot FX", () => {
   });
 });
 
+describe("Evidence Lineage names what the market cannot feed", () => {
+  it("needs-volume tools are listed apart from waiting ones, never counted", () => {
+    const vm = compileEvidenceLineage({ indicators: [], tools: [
+      { id: "TPO_PROFILE", label: "TPO Profile" },
+      { id: "PROFILE_FUSION", label: "Profile Fusion", quiet: senseIsQuiet(senseEventStates({ profileFusion: "FEWER_THAN_TWO_SPECIES" }).PROFILE_FUSION) },
+      { id: "DELTA_LEVELS", label: "Delta Levels", quiet: true, needsVolume: senseNeedsTradedVolume(senseEventStates({}, { symbol: "EURUSD" }).DELTA_LEVELS) },
+    ] })!;
+    expect(vm.observations).toBe(1);
+    expect(vm.waiting).toEqual(["Profile Fusion"]);
+    expect(vm.unsupported).toEqual(["Delta Levels"]);
+  });
+  it("the room passes the flag and the rail prints it", () => {
+    expect(readFileSync("src/components/chart/ChartsDashboard.tsx", "utf8")).toContain("needsVolume: senseNeedsTradedVolume(senseEvents[e.id])");
+    expect(readFileSync("src/components/experience/DecisionSpineBand.tsx", "utf8")).toContain('data-testid="spine-evidence-unsupported"');
+  });
+});
+
 describe("the Tools menu says it before the switch is pressed", () => {
   const base = { barsPresent: true, printsPresent: false, observedAggressorFlow: false, active: { FIXED_RANGE: true } };
   it("spot FX: volume readers are refused by the market, TPO stays available", () => {

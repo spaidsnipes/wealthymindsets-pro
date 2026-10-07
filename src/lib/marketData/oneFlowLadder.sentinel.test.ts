@@ -292,6 +292,10 @@ const TAPE_FOLDS: Readonly<Record<string, { owner: string; why: string }>> = {
     owner: "Webull lifetime ledger — the trader's broker position walked fill by fill into episodes",
     why: "ORDER side (the trader's own Webull fills), not tape aggressor side",
   },
+  "src/lib/chart/fxRelatedFlow.ts": {
+    owner: "spot FX related-market line — a CME future's (6E/6B/6J) signed prints, five-minute words in the footer",
+    why: "a DIFFERENT market's tape, never the chart symbol's: it may not enter the spot chart's ladder (Drive §1E: spot and CME are not equivalent)",
+  },
 };
 
 /** Files that re-sum sides someone else already folded. Reading, not folding. */
@@ -309,6 +313,7 @@ const SIDE_SUMS: Readonly<Record<string, string>> = {
   "src/lib/marketData/viewModels/selectStackedImbalance.ts": "its own rows (owner, see TAPE_FOLDS)",
   "src/lib/marketData/viewModels/selectFootprintWorksheet.ts": "its own six levels (owner, see TAPE_FOLDS)",
   "src/lib/sessionVP.ts": "its own session levels (owner, see TAPE_FOLDS)",
+  "src/lib/chart/fxRelatedFlow.ts": "its own five-minute related-market window (owner, see TAPE_FOLDS)",
 };
 
 describe("THE FOLD SCAN — every side-fold in production code is named, or the build is red", () => {

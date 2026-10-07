@@ -604,3 +604,12 @@ Canon pulled from Drive "CURRENT VISUAL CANON — ONE AUTHORITY" (`1DFuPuMvggyKM
 | WAIT card BLOCKED on BTC-USD level once chips counted (fell back over the newest candles) | price-first second pass (`<MODE>:OVER_CHIP`); BLOCKED only when every spot is on a candle | test; NQ1! zone BELOW proved on serving | shipping |
 
 **Shift close 12:40 CDT.** 16 production builds since 10:15, each through the full gate (tsc + 15,800+ tests). Founder-gated: Supabase URL configuration + custom SMTP, FMP key, Morning Prep / Command Deck reach on phone, bare ES/CL → future?, EXECUTE vs Decide, G06 figure on the Founder's own chart, Memory Ghost style, duplicate view picker; plus the standing account / billing / legal / live-order / NinjaTrader items.
+| WAIT card price-first fallback | `66e490a` | serving BTC-USD 15m level: `LEFT:OVER_CHIP`, clear of every candle (overlaps the structure caption by design); blockers were real labels (no band-sized ledger rect) | CLOSED · follow-up: vertically stepped LEFT/RIGHT candidates |
+
+## Evening — Oct 6, 19:35 CDT (Founder: forex "nothing works"; members see ACTIVE DEGRADED)
+| Item | Build | Proof | Status |
+|---|---|---|---|
+| Member feed chip read the internal grade "ACTIVE DEGRADED" on every polled/delayed symbol | plain words from the measured provider age: "POLLED · under 1 min old" / "DELAYED · price N min old" / "IEX REAL-TIME · one exchange only"; grade kept in tooltip + aria; no vendor names (WM-CHART-PROV-EMERG-01) | `36997a5`; `memberFeedWords.test.ts` (11); prod RTY futures 618 s old → "DELAYED · price 10 min old" | CLOSED (source) |
+| Member real-time stocks — IEX relay `aplacawsproxy-production.up.railway.app` answers 404 "Application not found" | — | probe | BLOCKED (Founder: re-host relay / paid SIP) |
+| Spot FX tools fabricated or mis-worded (one-row VRP from placeholder volume, fusion "KNOT", lineage counting tools that drew nothing, "scroll back", "unavailable on this feed", "live volume: 6B1!") | NEEDS TRADED VOLUME · SPOT FX HAS NONE state across 21 volume readers; `volumeBearingBars`; tools menu marks volume readers on FX; "CME futures participation"; EUR/USD search → spot; header "TAPE REGIME NONE · spot FX has no tape" | `0386d45`; `spotFxVolumeTruth.test.ts` (15); serving re-check in progress | shipped |
+| Real FX feed (EURUSD/GBPUSD update once a minute; no 1m high/low; no tick activity) | — | Yahoo EURUSD=X 60 s cadence measured | DEFERRED WITH FOUNDER SCOPE DECISION (OANDA practice token per canon) |

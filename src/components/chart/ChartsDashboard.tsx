@@ -20,7 +20,7 @@ import { ChartToolbar, INDICATOR_CATEGORY } from "./ChartToolbar";
 // Drawer-only panels load on open (dynamic chunks, warmed on idle) — see chartDrawers.
 import { TradePanel, DOMPanel, PnLStatsPanel, IndicatorSettingsModal } from "./chartDrawers";
 import { compileEvidenceLineage } from "@/lib/chart/evidenceLineage";
-import { senseIsQuiet } from "@/lib/chart/senseEventStates";
+import { senseIsQuiet, senseNeedsTradedVolume } from "@/lib/chart/senseEventStates";
 import { readMarketBreathing } from "@/lib/chart/marketBreathing";
 import { readResponseMatrix, readTemporalEvidenceDensity } from "@/lib/chart/effortEvidence";
 import { MainChart, type VpDrawnLevels } from "./MainChart";
@@ -313,6 +313,7 @@ import ChartEffortVsResult from "@/components/chart/ChartEffortVsResult";
 import { selectEffortVsResult } from "@/lib/marketData/viewModels/selectEffortVsResult";
 import { displayPrecisionFor, instrumentTickFor } from "@/lib/chart/pricePrecision";
 import { hasNoCentralVolume, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
+import { sessionBandsDefaultOn } from "@/lib/chart/sessionBands";
 import { BREATH_SAMPLE, selectClarityAnatomy } from "@/lib/marketData/viewModels/selectClarityAnatomy";
 import { selectEffortMark } from "@/lib/marketData/effortMarkGeometry";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
@@ -903,6 +904,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // ── WM VP indicators (draw ON chart canvas) ─────────────────
   const [fixedVPActive,   setFixedVPActive]   = useState<boolean>(() => lsGet("wm_fixedVP", false) as boolean);
   const [sessionVPChart,  setSessionVPChart]  = useState<boolean>(() => lsGet("wm_sessionVP", false) as boolean);
+  // SESSION BANDS (FX lane, 2026-10-06): null = the market's default (ON for
+  // spot FX only, sessionBandsDefaultOn); a trader's press stores true/false.
+  const [sessionBandsPref, setSessionBandsPref] = useState<boolean | null>(() => lsGet<boolean | null>("wm_sessionBands", null));
   /**
    * ABSORPTION ANATOMY (Founder Asset 06) — the EFFORT field + ABSORPTION ZONE
    * band, drawn on the chart in price/time space by MainChart's overlay pass.
@@ -1267,6 +1271,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_extHours",     extHours);
   usePersistOnChange("wm_fixedVP",      fixedVPActive);
   usePersistOnChange("wm_sessionVP",    sessionVPChart);
+  usePersistOnChange("wm_sessionBands", sessionBandsPref);
   usePersistOnChange("wm_absorptionAnatomy",   absorptionAnatomy);
   usePersistOnChange("wm_exhaustion",          exhaustionOn);
   usePersistOnChange("wm_ofImbalanceStack",    imbalanceStackOn);
@@ -3776,7 +3781,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       speciesRefusal={profileSpeciesRefusalVM}
       active={profileMenuActive}
       onToggle={onProfileMenuToggle}
-      instruments={FOOTPRINT_TYPES.map(t => ({
+      instruments={[{
+        id: "SESSION_BANDS",
+        label: "Session Bands",
+        what: "Asia · London · New York business hours on the time axis, the London/New York overlap marked — a clock fact, no volume needed (on by default for spot FX)",
+        familyWord: "Context",
+        aliases: ["sessions", "asia", "london", "new york", "tokyo", "overlap", "fx sessions"],
+        active: sessionBandsPref ?? sessionBandsDefaultOn(symbol),
+        onToggle: () => setSessionBandsPref(!(sessionBandsPref ?? sessionBandsDefaultOn(symbol))),
+      }, ...FOOTPRINT_TYPES.map(t => ({
         id: `FP_${t.id}`,
         label: t.id === "big-trades" ? "Big Trades" : `Footprint · ${t.label}`,
         what: t.desc,
@@ -3786,7 +3799,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           ? (bigTradesSimul ? bigTradesOverlay : footprintEnabled && footprintType === "big-trades")
           : footprintEnabled && footprintType === t.id,
         onToggle: () => onFootprintChange(t.id),
-      }))}
+      }))]}
     />
   );
   useEffect(() => { publishToolsSlot("tool-finder", toolFinderNode); });
@@ -4894,7 +4907,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     indicators: [...activeInds].map(name => ({ name, cat: INDICATOR_CATEGORY[name] ?? null })),
     // A switch whose glass receipt says nothing is on this camera is named as
     // waiting, not counted as an observation (senseEvents = the chart's receipts).
-    tools: arrangementMenu.entries.filter(e => e.active).map(e => ({ id: e.id, label: e.label, quiet: senseIsQuiet(senseEvents[e.id]) })),
+    tools: arrangementMenu.entries.filter(e => e.active).map(e => ({ id: e.id, label: e.label, quiet: senseIsQuiet(senseEvents[e.id]), needsVolume: senseNeedsTradedVolume(senseEvents[e.id]) })),
   });
   const decisionSpineProps = {
     drawnPlan: riskPlan,
@@ -6691,6 +6704,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       compareSymbol={compareSymbol}
                       fixedVPActive={fixedVPActive}
                       sessionVPActive={sessionVPChart}
+                      sessionBandsOn={sessionBandsPref ?? sessionBandsDefaultOn(symbol)}
                       absorptionAnatomyActive={absorptionAnatomy}
                       exhaustionOnChart={exhaustionOn}
                       /*
