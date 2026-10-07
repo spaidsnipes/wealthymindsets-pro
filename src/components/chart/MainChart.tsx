@@ -11759,6 +11759,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.save();
             ctx.lineCap = "round";
             if (!flowSpeaks) ctx.globalAlpha = QUIET_CEILING;
+            // PHONE ASK 6 (erasure, 2026-10-07): the QUIET form needs a stroke no
+            // other layer uses, so a trader can tell Flow Current is on — its
+            // streak cores are DOTTED (2·2) with the arrow head kept solid.
+            const quietDash = flowSpeaks ? [] : [2, 2];
             for (const r of rows) {
               const total = r.buy + r.sell;
               const net = r.buy - r.sell;
@@ -11799,7 +11803,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.beginPath(); ctx.moveTo(r.x + off, y0); ctx.lineTo(r.x + off, y1); ctx.stroke();
                 ctx.strokeStyle = `rgba(${rgb},${a.toFixed(3)})`;
                 ctx.lineWidth = Math.min(1.4 + 1.2 * weight, Math.max(1, pitch * 0.6));
+                ctx.setLineDash(quietDash);
                 ctx.beginPath(); ctx.moveTo(r.x + off, y0); ctx.lineTo(r.x + off, y1); ctx.stroke();
+                ctx.setLineDash([]);
                 // Arrow head: the direction is read, not guessed.
                 ctx.fillStyle = `rgba(${rgb},${Math.min(1, a + 0.35).toFixed(3)})`;
                 ctx.beginPath();
@@ -11810,7 +11816,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
             }
             ctx.restore();
-            canvas.dataset.flowCurrent = `${flowSpeaks ? "BARS" : `QUIET:POOLED${k}`}:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}|SHOWN:${flowShown}`;
+            canvas.dataset.flowCurrent = `${flowSpeaks ? "BARS" : `QUIET:POOLED${k}`}:${rows.length}|${motionOnRef.current ? "LIVE" : "STILL"}|SHOWN:${flowShown}${flowSpeaks ? "" : "|FORM:DOTTED_STREAK"}`;
             // The boundary itself is drawn once per frame by the shared TAPE
             // COVERAGE block (every tape sense reads the same buffer).
             const tapeStartsInView = firstSidedX != null && firstInViewX != null && firstSidedX - firstInViewX > bsp * 1.5;
@@ -21731,6 +21737,28 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
               ds.marketStructureBiasPlaced = spot.mode;
             }
+            // PHONE ASK 3 (erasure, 2026-10-07): when the bias words are quieted
+            // (narrow budget) or had no clear spot, the bias survives as ONE
+            // wordless glyph beside the newest pivot: ↔ RANGE, ↗ higher highs,
+            // ↘ lower lows. Strokes only; never on a body (it sits outside the
+            // pivot's extreme, where the chevron already stands clear).
+            delete ds.marketStructureBiasGlyph;
+            if (ms.bias !== "UNCLEAR" && (!msSpeaks || ds.marketStructureBiasPlaced === "BLOCKED")) {
+              const newestM = marks.reduce<(typeof marks)[number] | null>((b, m) => (!b || m.x > b.x ? m : b), null);
+              if (newestM) {
+                const dirM = newestM.kind === "HIGH" ? -1 : 1;
+                const gx = newestM.x + 9, gy = newestM.y + dirM * 16;
+                ctx.save();
+                ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.lineCap = "round";
+                ctx.beginPath();
+                if (ms.bias === "HIGHER_HIGHS") { ctx.moveTo(gx - 4, gy + 4); ctx.lineTo(gx + 4, gy - 4); ctx.moveTo(gx, gy - 4); ctx.lineTo(gx + 4, gy - 4); ctx.lineTo(gx + 4, gy); }
+                else if (ms.bias === "LOWER_LOWS") { ctx.moveTo(gx - 4, gy - 4); ctx.lineTo(gx + 4, gy + 4); ctx.moveTo(gx, gy + 4); ctx.lineTo(gx + 4, gy + 4); ctx.lineTo(gx + 4, gy); }
+                else { ctx.moveTo(gx - 5, gy); ctx.lineTo(gx + 5, gy); ctx.moveTo(gx - 2, gy - 3); ctx.lineTo(gx - 5, gy); ctx.lineTo(gx - 2, gy + 3); ctx.moveTo(gx + 2, gy - 3); ctx.lineTo(gx + 5, gy); ctx.lineTo(gx + 2, gy + 3); }
+                ctx.stroke();
+                ctx.restore();
+                ds.marketStructureBiasGlyph = ms.bias === "HIGHER_HIGHS" ? "UP" : ms.bias === "LOWER_LOWS" ? "DOWN" : "RANGE";
+              }
+            }
 
             ctx.restore();
             if (painted > 0) ds.marketStructurePivots = String(painted);
@@ -23917,14 +23945,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
       // The folded silences, as one line (see takeSilenceRow).
       try { if (silenceFolded > 0) {
-        const y = silenceRowY;
+        // PHONE ASK 8 (erasure, 2026-10-07): on narrow glass the summary line
+        // sat across the volume bars (and the DOM R/A/%/L chips). It moves to
+        // the top-left of the price pane, under the header band.
+        const y = narrowGlass ? HEADER_FLOOR_Y + 10 : silenceRowY;
         const words = narrowGlass
           ? `${silenceFolded} SENSE${silenceFolded === 1 ? "" : "S"} SILENT — TOOLS › ACTIVE`
           : `+${silenceFolded} MORE SENSE${silenceFolded === 1 ? "" : "S"} SILENT HERE — TOOLS › ACTIVE SAYS WHY`;
         ctx.save();
         ctx.font = marketFont("OBJECT_NAME");
         ctx.fillStyle = "rgba(7,9,15,0.62)";
-        ctx.fillRect(Math.max(0, silenceX - 4), y - 7, Math.min(W * 0.62, 760), 14);
+        ctx.fillRect(Math.max(0, silenceX - 4), y - 7, narrowGlass ? Math.ceil(ctx.measureText(words).width) + 8 : Math.min(W * 0.62, 760), 14);
         ctx.fillStyle = "rgba(200,192,174,0.85)";
         ctx.textAlign = "left"; ctx.textBaseline = "middle";
         ctx.fillText(fitSilence(words), silenceX, y);
@@ -24319,7 +24350,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const el = noteAnchorsElRef.current;
         if (el) {
           const placed = anchors.map(a => {
-            const w = Math.ceil(a.word.length * 6.2) + 14, h = 20;
+            // A lone held word is a quiet 12px pip (tap lists it); only a
+            // CLUSTER earns the words "N MARKET EVENTS" (serving NQ 5m, 8f7f6f4:
+            // five "1 MARKET EVENT" chips read as clutter, not composition).
+            const single = a.notes.length === 1;
+            const w = single ? 12 : Math.ceil(a.word.length * 6.2) + 14, h = single ? 12 : 20;
             const pref = { x: Math.max(4, Math.min(plotRight - w - 4, a.x - w / 2)), y: Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - h - 4, a.y - h / 2)), w, h };
             // Never on the candles (serving BTC 5m, 1ba83cb: an anchor sat across
             // the bodies by the live price). Strict placement, stepping off the
@@ -24331,7 +24366,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const r = sp.mode === "BLOCKED" ? topRow : sp.rect;
             floatingChips.push({ ...r });
             const seed = `${a.notes[0].layer}:${a.notes[0].text}`;
-            return { a, r, seed, crowded: sp.mode === "BLOCKED" };
+            return { a, r, seed, crowded: sp.mode === "BLOCKED", single };
           });
           const offCount = composeOn ? 0 : displacedNotes.length;
           const key = `${anchorsKey(anchors)}|${placed.map(p => `${Math.round(p.r.x)},${Math.round(p.r.y)}`).join(";")}|${noteAnchorOpenRef.current ?? ""}|${offCount}`;
@@ -24357,10 +24392,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               b.dataset.anchorSeed = p.seed;
               b.setAttribute("aria-expanded", noteAnchorOpenRef.current === p.seed ? "true" : "false");
               b.title = anchorListLines(p.a).join("\n");
-              b.textContent = p.a.word;
+              b.textContent = p.single ? "" : p.a.word;
+              b.setAttribute("aria-label", p.single ? `${p.a.word}: ${anchorListLines(p.a).join(", ")}` : p.a.word);
               Object.assign(b.style, {
                 position: "absolute", left: `${Math.round(p.r.x)}px`, top: `${Math.round(p.r.y)}px`, height: `${p.r.h}px`,
-                padding: "0 7px", font: `700 10px ${MARKET_SANS}`, letterSpacing: "0.04em", fontVariantNumeric: "tabular-nums",
+                width: p.single ? `${p.r.w}px` : "auto",
+                padding: p.single ? "0" : "0 7px", font: `700 10px ${MARKET_SANS}`, letterSpacing: "0.04em", fontVariantNumeric: "tabular-nums",
                 color: "#ede6d3", background: "rgba(17,15,11,0.86)", border: "1px solid rgba(201,165,92,0.55)", borderRadius: "9px",
                 opacity: p.crowded ? "0.7" : "1", pointerEvents: "auto", cursor: "pointer", whiteSpace: "nowrap",
               });
