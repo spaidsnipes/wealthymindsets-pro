@@ -182,6 +182,11 @@ export const LAYER_ATTENTION = {
   sessionGhosts: { tier: "MEMORY", depth: "MID", light: "MAGNETS", lane: "LIVING" },
   valueMigration: { tier: "MEMORY", depth: "MID", light: "TREND" },
   memoryGhost: { tier: "MEMORY", depth: null, light: null },
+  // Garden 19 FVG lane D (2026-10-07, §12 opacity hierarchy): an FVG's live
+  // territory is a present reading (LIVE); its scars and aged memory sit with
+  // what the market did before (MEMORY). Selected → SELECTED like any object.
+  fvg: { tier: "LIVE", depth: null, light: null },
+  fvgMemory: { tier: "MEMORY", depth: null, light: null },
   // ── House chrome: never dimmed ──────────────────────────────────────────
   riskOnPrice: { tier: "CHROME", depth: null, light: null },
   questionLens: { tier: "CHROME", depth: null, light: null },

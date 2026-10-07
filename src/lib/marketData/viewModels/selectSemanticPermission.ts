@@ -120,6 +120,10 @@ export const SEMANTIC_PERMISSION = {
   valueMigration: [X, S, X],
   volumeProfile: [X, S, Q],      // the toolbar's WM Fixed / Session VP columns
   memoryGhost: [X, S, X],
+  // Garden 19 FVG lane D: territory has no words; QUIET only caps its alpha.
+  // FAR keeps the bands quiet (never invisible), NEAR keeps live territory.
+  fvg: [Q, S, S],
+  fvgMemory: [Q, S, Q],
   contradiction: [X, S, S],
   absorption: [X, S, S],         // NEAR: "absorption hatch"
   exhaustion: [X, S, S],

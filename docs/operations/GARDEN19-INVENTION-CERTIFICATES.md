@@ -657,4 +657,8 @@ First runs, 2026-10-07:
   - Warnings only:
     - SMALL_TEXT on /login and /login?mode=signup at ≤ 834 px: the WmWordmark "PRO" and "TRADING OPERATING SYSTEM" render at 9 px.
     - CONSOLE: the signed-out session probe's 401 on every page.
+- **Re-run, production, 2026-10-07 21:19 UTC** (`origin/main` was `aeb83c9`; the deployed build was not separately confirmed): **48 / 48 PASS** at all six widths.
+  - The SMALL_TEXT warning on /login has cleared.
+  - The only remaining warning is the signed-out 401 console line.
+  - Report and screenshots: `~/wm-held/proof/release-52-b/`.
 - Not yet run: the full in-tab set (14 rooms × 6 widths) on serving in a signed-in tab.
