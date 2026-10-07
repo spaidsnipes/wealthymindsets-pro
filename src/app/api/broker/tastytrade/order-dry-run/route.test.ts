@@ -62,4 +62,11 @@ describe("PREVIEW (Garden 19 §23): tastytrade's dry run plus the server's own g
     const j = await (await post({ ...body(), accountIndex: undefined })).json();
     expect(j.preflight.refusals.map((r: { code: string }) => r.code)).toContain("ACCOUNT_UNSTATED");
   });
+
+  it("a broker refusal still carries the gate's answer (measured on prod 2026-10-07: 422 buying power hid it)", async () => {
+    mocks.dryRunTastytradeOrder.mockRejectedValue(new Error("HTTP 422: insufficient buying power"));
+    const j = await (await post(body())).json();
+    expect(j).toMatchObject({ state: "REJECTED", preflight: { ok: true, lossAtStopUsd: 100 } });
+    expect(j.reason).toMatch(/buying power/);
+  });
 });

@@ -260,19 +260,23 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
       const r = await fetch("/api/broker/tastytrade/order-dry-run", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ instrumentType, symbol: contract.symbol, action, qty, ...entryFields, decisionId }),
+        body: JSON.stringify({ instrumentType, symbol: contract.symbol, action, qty, ...entryFields, decisionId, environment: server.environment, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate }),
       });
       const j = await r.json().catch(() => null);
+      // Garden 19 §23: the server's own gate answers beside the broker. The account
+      // is named in the live ticket below, so this check leaves that one refusal to it.
+      const gateRefusals = Array.isArray(j?.preflight?.refusals) ? (j.preflight.refusals as { code: string; reason: string }[]).filter(x => x.code !== "ACCOUNT_UNSTATED") : [];
+      const gateWords = j?.preflight ? (gateRefusals.length ? ` SERVER GATE would refuse the send: ${gateRefusals.map(x => x.reason).join(" ")}` : " SERVER GATE: inside your limits.") : "";
       if (j?.state === "DRY_RUN_OK") {
         const bp = j.result?.["buying-power-effect"];
         const fee = j.result?.["fee-calculation"];
-        setAnswer(`tastytrade accepted the dry run${bp?.["change-in-buying-power"] ? ` · buying power ${bp["change-in-buying-power-effect"] === "Debit" ? "−" : "+"}${bp["change-in-buying-power"]}` : ""}${fee?.["total-fees"] ? ` · fees ${fee["total-fees"]}` : ""} — nothing was placed.`);
+        setAnswer(`tastytrade accepted the dry run${bp?.["change-in-buying-power"] ? ` · buying power ${bp["change-in-buying-power-effect"] === "Debit" ? "−" : "+"}${bp["change-in-buying-power"]}` : ""}${fee?.["total-fees"] ? ` · fees ${fee["total-fees"]}` : ""} — nothing was placed.${gateWords}`);
       } else if (isOwnerRefusal(j, r.status)) {
         // guest audit 2026-10-04: the owner gate's 403 is "not on your account", not "HTTP 403".
         setAnswer(TASTYTRADE_NOT_AVAILABLE);
       } else {
         const why = j?.reason ?? j?.error;
-        setAnswer(`${j?.state ? plainBrokerAnswer(j.state) : `The dry run did not go through (${r.status}).`}${why ? ` · ${why}` : ""}`);
+        setAnswer(`${j?.state ? plainBrokerAnswer(j.state) : `The dry run did not go through (${r.status}).`}${why ? ` · ${why}` : ""}${gateWords}`);
       }
     } catch {
       setAnswer("The dry run did not return.");
@@ -306,7 +310,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         <strong style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 15, letterSpacing: 1 }}>TRADE</strong>
         <span data-testid="trade-kind" style={{ fontSize: 10, letterSpacing: 1.2, color: GOLD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 6px" }}>{kind === "FUTURE" ? "FUTURE" : kind}</span>
         <span style={{ fontWeight: 600 }}>{contract?.symbol ?? symbol}</span>
-        {kind === "FUTURE" && contract && contract.symbol !== symbol.toUpperCase() ? <span data-testid="trade-dated-contract" style={{ color: MUTED }}>· {symbol} → {dated?.label ?? contract.symbol}</span> : null}
+        {kind === "FUTURE" && contract && contract.symbol !== symbol.toUpperCase() ? <span data-testid="trade-dated-contract" title={`${symbol} → ${dated?.label ?? contract.symbol}`} style={{ color: MUTED, whiteSpace: "nowrap" }}>{dated ? `${dated.month} ${dated.year}` : `from ${symbol}`}</span> : null}
         {audience === "OWNER" && <button type="button" data-testid="trade-live-arm" onClick={() => openSettings("execution")}
           title={liveArmed ? "Live orders can be armed — open Settings › Execution" : "Live trading is disarmed — open Settings › Execution; nothing can be sent until it is armed there"}
           style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", border: `1px solid ${liveArmed ? RED : LINE}`, color: liveArmed ? RED : MUTED, background: "none", cursor: "pointer" }}>
@@ -454,7 +458,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           {answer ? <p role="status" style={{ color: /accepted/.test(answer) ? GREEN : GOLD }}>{answer}</p> : null}
 
           <TastytradeLiveOrder
-            intent={contract && instrumentType ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: `${qty} ${contract.symbol}`, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate, chartSymbol: symbol } : null}
+            intent={contract && instrumentType ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: contract.symbol, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate, chartSymbol: symbol } : null}
             ensureDecision={ensureDecision}
             onPhase={setEntryPhase}
           />
@@ -468,13 +472,13 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
               </p>
               {stopNum != null && !stopWrongSide ? (
                 <TastytradeLiveOrder
-                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: null, orderType: "Stop", stopPx: stopNum, tif: "GTC", describe: `${qty} ${contract.symbol} protective stop`, quote: quoteForGate, chartSymbol: symbol }}
+                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: null, orderType: "Stop", stopPx: stopNum, tif: "GTC", describe: `${contract.symbol} protective stop`, quote: quoteForGate, chartSymbol: symbol }}
                   ensureDecision={ensureDecision}
                 />
               ) : <p style={{ color: GOLD, fontSize: 11 }}>{stopWrongSide ? "The stop is on the wrong side of the entry." : "Type a stop above to send it as a resting Stop."}</p>}
               {targetNum != null ? (
                 <TastytradeLiveOrder
-                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: targetNum, tif: "GTC", describe: `${qty} ${contract.symbol} target`, quote: quoteForGate, chartSymbol: symbol }}
+                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: targetNum, tif: "GTC", describe: `${contract.symbol} target`, quote: quoteForGate, chartSymbol: symbol }}
                   ensureDecision={ensureDecision}
                 />
               ) : <p style={{ color: MUTED, fontSize: 11 }}>Type a target above to send it as a resting Limit.</p>}

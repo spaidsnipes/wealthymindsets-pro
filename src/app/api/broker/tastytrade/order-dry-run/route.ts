@@ -55,11 +55,12 @@ export async function POST(req: NextRequest) {
     const choices = accounts.map((a, i) => ({ index: i, accountType: a.accountType ?? null, tail: a.accountNumber.slice(-4), futuresApproved: a.isFuturesApproved ?? null }));
     const account = accounts[index];
     if (!account) return NextResponse.json({ state: "NO_SUCH_ACCOUNT", accounts: choices }, { headers: { "Cache-Control": "no-store" } });
-    const result = await dryRunTastytradeOrder(account.accountNumber, mapped.order);
     // Garden 19 §23 — the PREVIEW answers with the server's own gate beside
     // tastytrade's dry run: the same liveOrderPreflight the order-submit route
     // runs, on the same fields. A refusal here is what the send would answer.
-    // The dry run itself places nothing either way.
+    // The dry run itself places nothing either way. It is computed BEFORE the
+    // broker is asked, so a broker refusal still carries it (measured 2026-10-07:
+    // a 422 buying-power refusal hid the gate's answer).
     let limits = null;
     try { limits = await loadServerOrderLimits(orderDecisionKv(await webullWorkerEnv()), auth.user.sub); } catch { limits = null; }
     const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -72,6 +73,10 @@ export async function POST(req: NextRequest) {
       quote: q && typeof q === "object" ? { bid: num(q.bid), ask: num(q.ask), atMs: num(q.atMs) } : null,
       multiplier: num(input.multiplier),
     }, { limits, serverEnvironment: tastytradeConfigStatus().env === "cert" ? "cert" : "production", nowMs: Date.now() });
+    const result = await dryRunTastytradeOrder(account.accountNumber, mapped.order).catch((e: unknown) => ({ __rejected: e instanceof Error ? e.message : "unknown" }));
+    if (result && typeof result === "object" && "__rejected" in result) {
+      return NextResponse.json({ state: "REJECTED", reason: (result as { __rejected: string }).__rejected, accounts: choices, accountIndex: index, preflight }, { headers: { "Cache-Control": "no-store" } });
+    }
     return NextResponse.json({ state: "DRY_RUN_OK", result, accounts: choices, accountIndex: index, order: mapped.order, preflight }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return NextResponse.json({ state: "REJECTED", reason: e instanceof Error ? e.message : "unknown" }, { headers: { "Cache-Control": "no-store" } });

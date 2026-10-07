@@ -297,7 +297,7 @@ const PROFILE_GEOMETRY_RECEIPTS = [
 
 /** Every receipt the absorption-anatomy block publishes, withdrawn together when it stops running. */
 const ANATOMY_BLOCK_RECEIPTS = [
-  "absorptionBasis", "absorptionChips", "absorptionDepthForm", "absorptionRows", "absorptionTerrain", "absorptionTravel", "absorptionWall", "absorptionWords", "absorptionWordsBeside", "absorptionTerrainWords", "absorptionZones",
+  "absorptionBasis", "absorptionChips", "absorptionStateInk", "absorptionDepthForm", "absorptionRows", "absorptionTerrain", "absorptionTravel", "absorptionWall", "absorptionWords", "absorptionWordsBeside", "absorptionTerrainWords", "absorptionZones",
   "anatomyCards", "anatomyCardsCandleHits", "anatomyCardsLayout", "anatomyCardsScale", "anatomySelected",
   "exhaustion", "exhaustionGeometry", "exhaustionChipsYielded", "exhaustionEffortResult", "exhaustionWords",
   "questionCallout", "questionChoice", "questionLensForm", "questionLensHome", "questionLensTag", "questionBandYielded",
@@ -12414,6 +12414,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // ── ABSORPTION ZONE: pinned at the price the auction happened at.
             const absorbChipRects: { x: number; y: number; w: number; h: number }[] = [];
             let absorbChipsHidden = 0;
+            let absorbStateZones = 0, absorbStateGraded = 0;
             let shelfWordsBeside = 0;
             // H-501 · SEMANTIC ZOOM CHANGES THE REPRESENTATION, not just its
             // opacity. Same owner, same count the zoom word uses. FAR: a shelf
@@ -12621,6 +12622,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.stroke();
               ctx.setLineDash([]);
               shelvesEdged++;
+              // PHONE ASK 2 (erasure, 2026-10-07): the shelf's STATE in ink, not
+              // only in a chip the narrow budget withholds — grade notches at
+              // the shelf's left end (STRONG two, MODERATE one, WEAK none). No
+              // edge is promoted: the shelf names no defended side.
+              {
+                absorbStateZones++;
+                const ticksA = zone.strength === "STRONG" ? 2 : zone.strength === "MODERATE" ? 1 : 0;
+                if (ticksA > 0) {
+                  ctx.fillStyle = `rgba(${flowColorsRef.current.absorb},0.95)`;
+                  for (let t = 0; t < ticksA; t++) ctx.fillRect(Math.round(x0) + 2 + t * 4, Math.round(yHi) + 2, 2, Math.max(3, Math.min(8, bh - 4)));
+                  absorbStateGraded++;
+                }
+              }
               if (shelfSelected) {
                 // Both edges solid and alike (no defended side is named), and a
                 // 1px halo just outside the real bounds, in the Appearance
@@ -12923,6 +12937,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
             ctx.globalAlpha = 1;
             ds.absorptionChips = `${absorbChipRects.length}/${absorbChipRects.length + absorbChipsHidden}`;
+            ds.absorptionStateInk = `ABSORBING:${absorbStateZones}|GRADED:${absorbStateGraded}`;
             // Shelf words that stepped beside the shelf (left) to stay off the candles.
             if (shelfWordsBeside > 0) ds.absorptionWordsBeside = String(shelfWordsBeside); else delete ds.absorptionWordsBeside;
             // What the desktop shelf words say: names at rest, the selected
@@ -18886,6 +18901,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         let levelChipsMoved = 0;
         let levelChipsYielded = 0;
         let levelChipsToStack = 0;
+        let levelChipsNarrowHeld = 0;
         // `leftX` anchors a chip by its LEFT end instead (TPO's, beside its column).
         const levelChip = (y: number, text: string, ink: string, opts: { rightX?: number; leftX?: number; minX?: number; floorY?: number } = {}) => {
           const floorY = opts.floorY ?? HEADER_FLOOR_Y;
@@ -18931,6 +18947,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: s2.alternates },
             );
             if (!spotR.onCandles) { spotL = spotR; movedToStack = true; levelChipsToStack++; }
+          }
+          // PHONE ASK 7 (erasure, 2026-10-07): on narrow glass a level name
+          // that could only sit ON the candles (serving 390: the VAL chip across
+          // the forming candles and the WAIT tag) leaves the bodies. A wordless
+          // 5px tick in the level's ink stays at the plot edge on its row; the
+          // name goes to the §16 note composer (tap → listed), never deleted.
+          if (W < 640 && spotL.onCandles) {
+            ctx.fillStyle = ink;
+            ctx.fillRect(Math.round(plotRight - 7), Math.round(y) - 1, 5, 2);
+            ctx.restore();
+            displacedNotes.push({ layer: "PROFILE", text, x: Math.max(8, rightX - cw / 2), y });
+            levelChipsYielded++;
+            levelChipsNarrowHeld++;
+            return;
           }
           recordKeepOut(keepOutLedger, spotL);
           const r = spotL.rect;
@@ -21240,6 +21270,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         else delete ds.profileQuietedForLiveCandle;
         if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y:${levelChipsToStack}S${levelChipsQuieted ? `:${levelChipsQuieted}Q` : ""}`;
         else delete ds.profileLevelChips;
+        if (levelChipsNarrowHeld > 0) ds.profileLevelChipsNarrow = `HELD_OFF_CANDLES:${levelChipsNarrowHeld}`; else delete ds.profileLevelChipsNarrow;
         if (levelChipsReordered > 0) ds.profileLevelChipsReordered = String(levelChipsReordered);
         else delete ds.profileLevelChipsReordered;
         // The organism glyphs painted this frame, in paint order — e.g.
@@ -24239,7 +24270,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const xr = chart.timeScale().timeToCoordinate(wl.time as never);
             const ax = xr == null ? plotRight - tw - 8 : Math.max(keepOutMinX(), Math.min(plotRight - tw - 8, +xr - tw / 2));
             const pref = { x: ax, y: HEADER_FLOOR_Y + 6, w: tw, h: th };
-            const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th + 18)], { minX: keepOutMinX(), blockers: floatingChips, alternates: [{ ...pref, y: pref.y + 18 }, { ...pref, y: pref.y + 36 }] });
+            const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th + 18)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [{ ...pref, y: pref.y + 18 }, { ...pref, y: pref.y + 36 }] });
             if (sp.mode === "BLOCKED") displacedNotes.push({ layer: "WISDOM", text: wl.text, x: pref.x + tw / 2, y: pref.y + th / 2, time: wl.time });
             else {
               const r = sp.rect;
@@ -24290,8 +24321,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const placed = anchors.map(a => {
             const w = Math.ceil(a.word.length * 6.2) + 14, h = 20;
             const pref = { x: Math.max(4, Math.min(plotRight - w - 4, a.x - w / 2)), y: Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - h - 4, a.y - h / 2)), w, h };
-            const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + h)], { minX: keepOutMinX(), blockers: floatingChips });
-            const r = sp.mode === "BLOCKED" ? pref : sp.rect;
+            // Never on the candles (serving BTC 5m, 1ba83cb: an anchor sat across
+            // the bodies by the live price). Strict placement, stepping off the
+            // cluster's row; failing that, the quiet top row over the cluster.
+            const clampY = (y: number) => Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - h - 4, y));
+            const alts = [-26, 26, -52, 52, -78, 78].map(dy => ({ ...pref, y: clampY(pref.y + dy) }));
+            const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(Math.min(...alts.map(q => q.y)), Math.max(...alts.map(q => q.y)) + h)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts });
+            const topRow = { ...pref, y: HEADER_FLOOR_Y + 4 };
+            const r = sp.mode === "BLOCKED" ? topRow : sp.rect;
             floatingChips.push({ ...r });
             const seed = `${a.notes[0].layer}:${a.notes[0].text}`;
             return { a, r, seed, crowded: sp.mode === "BLOCKED" };
