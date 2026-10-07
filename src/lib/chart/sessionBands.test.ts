@@ -67,6 +67,8 @@ describe("session bands on the glass (wiring)", () => {
     expect(MC).toContain("canvas.dataset.sessionBands = `DRAWN:A${counts.ASIA}|L${counts.LONDON}|N${counts.NEW_YORK}|O${counts.LDN_NY_OVERLAP}|W${labels}`;");
     expect(MC).toContain('canvas.dataset.sessionBandsCost = `${ms.toFixed(2)}ms|${ms <= SESSION_BANDS_BUDGET_MS ? "MET" : "OVER"}`;');
     expect(MC).toContain("r.x + r.w > wordsStopX");
+    // a word blocked by an earlier one slides right along its own band
+    expect(MC).toContain("for (const q of labelRects) if (q.x < r.x + r.w + 4 && r.x < q.x + q.w + 4) r.x = q.x + q.w + 8;");
     expect(MC).toContain('layerFault("SESSION_BANDS", err)');
     // reads no volume
     const block = MC.slice(MC.indexOf("SESSION BANDS · ASIA / LONDON / NEW YORK"), MC.indexOf('layerFault("SESSION_BANDS"'));

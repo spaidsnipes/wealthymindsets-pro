@@ -9951,7 +9951,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const word = SESSION_BAND_LABEL[sp.id];
             const tw = ctx.measureText(word).width;
             const r = { x: a + 2, y: laneY.ASIA - 12, w: tw, h: 10 };
-            if (b - a < tw + 8 || r.x + r.w > wordsStopX || labelRects.some(q => q.x < r.x + r.w + 4 && r.x < q.x + q.w + 4)) continue;
+            // Two bands that both start off the left edge (London and New York
+            // on serving EURUSD 5m, 2026-10-07) share x = 2: the later word
+            // slides right past the earlier one while it still sits on its band.
+            for (const q of labelRects) if (q.x < r.x + r.w + 4 && r.x < q.x + q.w + 4) r.x = q.x + q.w + 8;
+            if (r.x + r.w > b - 2 || r.x + r.w > wordsStopX || labelRects.some(q => q.x < r.x + r.w + 4 && r.x < q.x + q.w + 4)) continue;
             ctx.fillStyle = `rgba(${INK[sp.id]},0.75)`;
             ctx.fillText(word, r.x, laneY.ASIA - 2);
             labelRects.push(r);
