@@ -26,9 +26,12 @@ describe("chart fidelity chrome", () => {
      * age in bars. That is a change of WORDING, not of this contract, so the
      * assertion is re-pinned to the new owner rather than deleted.
      */
+    // 2026-10-07 (Sheriff A11): the same verdict, routed through recencyWords so a
+    // phone shows the short form ("OPENED 04:15 PM") instead of a clipped sentence.
     expect(chart).toContain(
-      'showFidelityChrome ? `${status.label} · ${feedRecency.glyph}` : feedRecency.glyph',
+      'recencyWords(`${status.label} · ${feedRecency.glyph}`, `${status.label} · ${feedRecency.short}`)',
     );
+    expect(chart).toContain(': recencyWords(feedRecency.glyph, feedRecency.short)}');
   });
 
   it("keeps the canonical verdict visible in the phone market header", () => {

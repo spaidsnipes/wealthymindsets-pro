@@ -8028,7 +8028,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const inspecting = selectionInspectedRef.current;
         const selId = selectedObjectIdRef.current;
         const selSlice = selectedSliceRef.current;
-        if (selId) {
+        if (selId && selId.startsWith("FVG|")) {
+          // §12 (2026-10-07): a selected FVG is on camera when the last frame
+          // painted its band (the band's own hit rect) — then everything else
+          // recedes and the gap reads SELECTED, like a zone.
+          const onCamera = !!fvgFrameRef.current?.hits.some(h => h.objectId === selId && h.w > 0 && h.h > 0);
+          attSelection = { kind: "FVG", key: selId, onCamera, inspecting };
+        } else if (selId) {
           const zone = structureZonesRef.current.find(z => z.object.objectId === selId);
           if (zone) {
             const yh = srs.priceToCoordinate(zone.object.priceHigh), yl = srs.priceToCoordinate(zone.object.priceLow);
@@ -8168,9 +8174,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const tickTf = tickCountOf(timeframe) != null;
           const bucketSec = liveBarBucketSec(timeframe);
           const clockBucket = tickTf || !bucketSec ? 0 : Math.floor(Date.now() / 1000 / bucketSec);
-          const keyF = `${symbol}|${timeframe}|${extendedHours}|${srcF.length}|${srcF[0]?.time}|${srcF[srcF.length - 1]?.time}|${idsF.length}|${cursorF}|${clockBucket}`;
+          // §58 PERFORMANCE LAW: the identities are keyed by CONTENT (count, first,
+          // newest id), not array identity — the tick-bar path hands a fresh
+          // identities array on every print, which re-read the scene per tick.
+          const keyF = `${symbol}|${timeframe}|${extendedHours}|${srcF.length}|${srcF[0]?.time}|${srcF[srcF.length - 1]?.time}|${idsF.length}|${idsF[0]?.barId}|${newestId?.barId}|${cursorF}|${clockBucket}`;
           let entry = fvgSceneRef.current;
-          if (!entry || entry.key !== keyF || entry.ids !== idsF) {
+          if (!entry || entry.key !== keyF) {
             computedFvgThisFrame = true;
             const scene = newestId && srcF.length >= 3
               ? fvgSceneForCamera({
@@ -8364,7 +8373,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 key: frameKey, scene, bands, groups, clipF, cutF, pillCut, hits,
                 clear: `X:${Math.round(xStop)}|NEWEST:${newestF == null ? "NONE" : Math.round(+newestF)}|MAXX:${Math.round(maxX1)}|STRIPS:${strips.length}`,
                 drawn: `${bands.length}|LIVE:${forms.LIVE}|SCAR:${forms.SCAR}|MEMORY:${forms.MEMORY}`,
-                hit: h0 ? `${Math.round(h0.x + h0.w / 2)},${Math.round(h0.y + h0.h / 2)}|${h0.objectId}` : null,
+                // A tap point near the band's ORIGIN (clear of the right-edge profile lane).
+                hit: h0 ? `${Math.round(h0.x + Math.min(h0.w / 2, 24))},${Math.round(h0.y + h0.h / 2)}|${h0.objectId}` : null,
                 selected: so ? `${so.objectId}|${so.state}` : "NONE",
               };
             }
@@ -22647,7 +22657,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // SHERIFF A7 (serving 390×640, 2026-10-07): on a glass under 500px the
             // plate sat on the newest highs. The depth word stays in the
             // receipts and Tools › Active; the phone's glass keeps the market.
-            if (W < 500) ds.zoomPlate = "WITHHELD:NARROW";
+            // A6 residual (serving /desk 4-up, 2026-10-07): in a ~550px pane the
+            // header's recency words wrap onto the plate — same rule under 640.
+            if (W < 640) ds.zoomPlate = "WITHHELD:NARROW";
             else {
             delete ds.zoomPlate;
             ctx.save();
@@ -26845,6 +26857,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
      one of them. */
   // Proven closure only (`=== false`): a closed exchange is not a lagging feed.
   const feedRecency = chartFeedRecency(lastBarT, intervalSec, nowMs, undefined, sessionOpen === false);
+  // Sheriff A11 (2026-10-07): the full sentence on desktop / tablet (two-line
+  // clamp, A10 KEEP), the short form on a phone — the time never clipped away.
+  const recencyWords = (full: string, short: string) => (
+    <>
+      <span className="max-sm:hidden">{full}</span>
+      <span className="hidden max-sm:inline" data-recency-short>{short}</span>
+    </>
+  );
 
   /*
    * H-101 lives in price/time space. The target is projected from the
@@ -27581,7 +27601,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                         tape's "quote pending" did. A timestamped bar still
                         earns the historical receipt either way. */}
                     {!showFidelityChrome
-                      ? feedRecency.glyph
+                      ? recencyWords(feedRecency.glyph, feedRecency.short)
                       : lastBarT
                       ? `HISTORICAL ONLY · ${feedRecency.glyph}`
                       : quoteRefusal ? "QUOTE NOT CERTIFIED" : "DATA UNAVAILABLE"}
@@ -27601,14 +27621,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-wm-text animate-pulse" aria-hidden="true" />
                     <span className="line-clamp-2 text-[10px] text-wm-text font-semibold">
-                      {showFidelityChrome ? "LIVE — CERTIFIED QUOTE" : feedRecency.glyph}
+                      {showFidelityChrome ? "LIVE — CERTIFIED QUOTE" : recencyWords(feedRecency.glyph, feedRecency.short)}
                     </span>
                   </span>
                 ) : (
                   // A proven-closed market is a calm fact, not a warning: pearl,
                   // never the amber a lagging feed earns.
                   <span className="line-clamp-2 text-[10px] font-semibold" style={{ color: feedRecency.kind === "MARKET_CLOSED" ? "#8B92AC" : "#F0B429" }}>
-                    {showFidelityChrome ? `${status.label} · ${feedRecency.glyph}` : feedRecency.glyph}
+                    {showFidelityChrome
+                      ? recencyWords(`${status.label} · ${feedRecency.glyph}`, `${status.label} · ${feedRecency.short}`)
+                      : recencyWords(feedRecency.glyph, feedRecency.short)}
                   </span>
                 )}
               </div>

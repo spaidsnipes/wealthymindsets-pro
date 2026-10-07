@@ -82,6 +82,13 @@ export type FeedRecencyKind =
 export interface FeedRecency {
   /** Visible glyph. Always names the VERB, never a bare `LAST hh:mm`. */
   readonly glyph: string;
+  /**
+   * The PHONE form (Sheriff A11, 2026-10-07: at 390 the two-line clamp cut the
+   * glyph to "BAR OPENED." with no time). Still names the verb and the time,
+   * or the verdict — "OPENED 04:15 PM", "3 BARS BEHIND". The full sentence
+   * stays in `spoken` / `title`.
+   */
+  readonly short: string;
   readonly kind: FeedRecencyKind;
   /** Hover text. Names the quantity, the convention, and the verdict. */
   readonly title: string;
@@ -121,6 +128,7 @@ function fmtClock(seconds: number, timeZone?: string): string | null {
 const UNKNOWN = (why: string): FeedRecency => ({
   kind: "UNKNOWN",
   glyph: "NEWEST BAR — TIME UNKNOWN",
+  short: "BAR TIME UNKNOWN",
   barsBehind: null,
   title:
     `WM cannot say how far behind this chart is: ${why} So it will not ` +
@@ -194,6 +202,7 @@ export function chartFeedRecency(
     return {
       kind: "MARKET_CLOSED",
       glyph: `MARKET CLOSED · LAST BAR OPENED ${clock}`,
+      short: `OPENED ${clock}`,
       // Not a count of missing bars: on a closed market none are missing.
       barsBehind: 0,
       title:
@@ -210,6 +219,7 @@ export function chartFeedRecency(
     return {
       kind: "CURRENT_BAR",
       glyph: `BAR OPENED ${clock} · FORMING`,
+      short: `OPENED ${clock}`,
       barsBehind: 0,
       title:
         `The newest bar on this chart OPENED at ${clock}. That is an OPENING ` +
@@ -226,6 +236,7 @@ export function chartFeedRecency(
   return {
     kind: "BARS_BEHIND",
     glyph: `BAR OPENED ${clock} · ${barsBehind} ${plural} BEHIND`,
+    short: `${barsBehind} ${plural} BEHIND`,
     barsBehind,
     title:
       `The newest bar on this chart OPENED at ${clock}. That is an OPENING ` +

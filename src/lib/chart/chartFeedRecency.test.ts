@@ -243,3 +243,13 @@ describe("clock skew is not a future bar", () => {
     expect(s.kind).toBe("UNKNOWN");
   });
 });
+
+describe("A11 · the phone short form keeps the time (2026-10-07)", () => {
+  it("names OPENED + the clock, or the bars-behind verdict", () => {
+    const t0 = Date.UTC(2026, 9, 7, 20, 15) / 1000;
+    const cur = chartFeedRecency(t0, 300, (t0 + 60) * 1000);
+    expect(cur.short.startsWith("OPENED ")).toBe(true);
+    const behind = chartFeedRecency(t0, 300, (t0 + 1000) * 1000);
+    expect(behind.short).toMatch(/^\d+ BARS? BEHIND$/);
+  });
+});

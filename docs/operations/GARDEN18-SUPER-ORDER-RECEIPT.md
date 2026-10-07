@@ -676,3 +676,65 @@ Founder decisions: members bring their own tastytrade (and Webull when supported
 | Keel cost on the Founder's NQ1! 5m: per-row tape memo, geometry memo, incremental re-read | `4bc7326`, `edbf0f1`, `4744412` | serving 4744412: keel mean 0.46 → 0.24 ms; one 3.0 ms longest (load or re-read, unsplit); whole page mean 3.0–3.5 ms, longest 4.6–7.3, 0 over (was mean 7.1 / longest 23.4); keels correct across a bar rollover | PARTIAL (keel peak still over its own 1.5 ms line) |
 
 **Deploy freeze 07:40 CDT → after the Founder's trading.** Last production build `4744412`. This receipt row ships with the next build.
+
+## Garden 19 FVG / Imbalance + Patience shift — Oct 7 12:25 → 20:00 CDT
+
+Builds `388c941..f96618c` (13 commits, in order):
+- `4769a31` → `c4de0f0` → `a10514f` → `d5ac6ff` → `d6e2c18` → `eea2771` → `57e9fda`
+- → `909177d` → `301d85d` → `8db9b21` → `6e65180` → `aeb83c9` → `8f776cc` → `f96618c`
+
+Deploys ran freely all shift: the Founder was not trading, and the deploy freeze was lifted in `388c941`.
+
+Field-level proof lives in `docs/operations/GARDEN19-INVENTION-CERTIFICATES.md`:
+- §5 is the FVG invention certificate;
+- §6 is the release evidence;
+- §7 and §8 are the Sheriff checklists;
+- §9 is the §52 responsive test.
+
+A row is CLOSED only where that document has a PROVED serving receipt.
+
+Status words: **CLOSED** (serving proof) · **PARTIAL** (built; the missing proof is named) · **OPEN** (not built) · **BLOCKED** (needs something outside the code) · **DEFERRED WITH FOUNDER SCOPE DECISION**.
+
+| Item | Build | Proof | Status |
+|---|---|---|---|
+| FVG_3C v1 definition, one detector, lifecycle on one object, as-of accessor, visibility budget, descriptive stats, methodology doc (`docs/operations/FVG-METHODOLOGY.md`) | `4769a31` | engine tests. Every serving reader below runs on this engine | CLOSED |
+| FVG chart layer `on=fvg` (default off): territory grammar, clear zone, keep-out strips, receipts | wiring `c4de0f0` → `d6e2c18` → `301d85d` / `8db9b21` → `6e65180` | 16-row matrix on eea2771 (NQ1!, ES1!, SPY and BTC-USD at 1m / 5m / 1h; BTC-USD 500T; EURUSD 1m / 5m / 1h): LEAK:0 on every row, MAXX ≤ X < NEWEST. Sizes 1180 / 834 / 390 on 301d85d: the newest candle is never covered and paint is within budget | CLOSED. Scar quieting on SPY 5m not re-read (PARTIAL) |
+| Paint cost within 1.5 ms (frame memo; compute per closed bar) | `d6e2c18`, `301d85d` | 301d85d: paint mean 0.23–1.10 ms, MET (eea2771 was OVER on NQ 1m / 5m and SPY 5m at 1.58–2.17) | CLOSED |
+| Tick-bar gaps (ms pairing) | `d6e2c18` | BTC-USD 500T draws gaps. NQ / ES 500T are in warm-up (2 bars) | CLOSED |
+| Tap → Inspect, first touch, size in ticks, relationships by reference | `d6e2c18`, `301d85d` | ES1! 5m: "4 ticks · 1.00 points · 0.27× ATR14", 4 relationships FULL, walls and liquidity SILENCE | CLOSED |
+| FVG Inspect in four truth layers + "Ask SpaidBot" pre-filled, sent by the trader | `f96618c` | tests | PARTIAL: no serving receipt |
+| Replay camera: as-of at the cursor | `c4de0f0`, `301d85d` | ES1! 5m cursor 4857 / 4977: `REPLAY:…\|LEAK:0`; an object born after the clock drops out; put-down returns LIVE | CLOSED |
+| Scanner: five FVG conditions + door `select=fvg:<id>` → HELD | `c4de0f0`, `57e9fda`, `301d85d` | eea2771: 30 of 30 read, 0 refused, 14 hits across 5 conditions. 301d85d: `data-proof-select-object …\|HELD`, Inspect on that id | CLOSED |
+| Scanner convergence (FVG + structure / profile, with source evidence) | `eea2771`, `57e9fda` | tests | PARTIAL: no serving receipt |
+| Backtest FVG study (as-of, DESCRIPTIVE, n of m) | `c4de0f0` | eea2771 NQ1! 5m: 991 bars, 148 gaps, revisited 139 of 148; the clock at bar 501 sees 73 gaps; pooled 524; localStorage untouched | CLOSED |
+| Backtest splits by structure / profile relationship (pre-formation bars only) | `57e9fda` | tests | PARTIAL: no serving receipt |
+| Journal × FVG reference + as-of-decision snapshot | `d5ac6ff` | eea2771: at b3 close "born, 0 interactions, deepest 0%"; now "fully mitigated, deepest 100%" | PARTIAL: save → reload → same snapshot not proven |
+| Review: FVG answers (first or later touch, acted before the condition, held after trade-through), three-column market / planned / actual | `d5ac6ff`, `eea2771` | tests | PARTIAL: no serving receipt |
+| First counterfactual slice (traded vs untraded touches, descriptive) | `eea2771`, `909177d` | tests | PARTIAL: no serving receipt |
+| SpaidBot FVG fact block (observed vs derived; "price does not have to fill") | `c4de0f0`, `d6e2c18` | tests | PARTIAL: lane in progress; needs a serving reply quoting the block |
+| Management / patience: pre-trade plan card, freeze at send / paper fill, dated amendments, plan-vs-actual from broker readback, Morning Prep day rules, session plan on the Decision_ID, plan adherence by setup and FVG context, SpaidBot plan-review rules, patience copy guard | `4769a31`, `c4de0f0`, `eea2771`, `f96618c` | tests | PARTIAL: no serving receipt in this file. Plan-vs-actual needs a real fill |
+| Learning-loop hand-offs (Morning Prep ↔ plan card ↔ Journal ↔ Review → Academy lesson; Personal Edge → lesson) | `909177d` | tests | PARTIAL: no serving receipt |
+| Academy: "FVG / Imbalance & Patience" course in the existing Academy (21 lessons, myth card, 14-question quiz, ⓘ `FVG_IMBALANCE` deep-link to lesson 1) | `4769a31` | serving 4769a31: 21 lessons × 1440 / 834 / 390, 63 / 63 with no overflow and distinct diagrams. Quiz pass recorded browser-local (local run) | CLOSED |
+| Academy: "Show me on a chart" switch-over + "Practice in Replay" (lessons 6–10, 14, 15) | `c4de0f0` | local: the link resolves to `/charts?scene=clean&on=fvg`. The target layer is proven separately (rows above) | PARTIAL: lesson link → territories painted, not read on serving |
+| Academy module-list scrollbar (the OS-default white track) | `57e9fda` | local computed `scrollbar-color` brass; `academyScroll.test.ts` | PARTIAL: serving read |
+| Selling pass: /welcome, /pricing, /login tell one story (product line, living market intelligence, 14-step loop, "what is live today"); banned-claims sweep; prices locked | `a10514f` (+ welcome axis labels `eea2771`, login wordmark 11 px `6e65180`) | production 1440 / 390 PASS (d5ac6ff). §52 public run 48 / 48 on production twice (20:56 and 21:19 UTC) | CLOSED |
+| §52 responsive release test, runnable (`scripts/release/responsive-public.mjs` + `responsive-in-tab.js`) | `57e9fda` | production 48 / 48, 8 routes × 6 widths. In-tab dry run 6 / 6 (local) | CLOSED (public). PARTIAL: full in-tab run (14 rooms × 6 widths) on serving |
+| Certificates: §53 FVG certificate, §62 release evidence, §63 / §64 Sheriff checklists | `eea2771` → `8db9b21` → `8f776cc` | this table's proof column | CLOSED (doc, kept current) |
+| Chart Sheriff: phone header O/H/L, Passport prices at market precision, zone names (SWEPT · STILL VALID; clear slots only; off the newest candles; local times with zone), FVG bands below the reading row and around the countdown, zoom plate withheld under 500 px, tick-bar coverage chip, desk 4-up legend, Evidence chip at 1024–1439, one countdown, assistant off public phone pages | `eea2771`, `301d85d`, `8db9b21`, `6e65180`, `aeb83c9`, `8f776cc`, `f96618c` | NQ1! 5m at 390: zoom plate `WITHHELD:NARROW` (8db9b21). Other items: tests / lane screenshots | PARTIAL: per-item serving receipts are not in this file |
+| EURUSD 1m shows 0 gaps | — | the feed serves point bars (2998 of 2998 with O = H = L = C, volume 0); FVG_3C rule 3 refuses a doji b2 | BLOCKED (data lane: Yahoo EURUSD 1m) |
+
+### Founder list (end of shift)
+
+**Blockers (outside the code):**
+1. **Member broker connect** stays BETA and not enabled until `WM_BROKER_GRANT_KEY` is set and tastytrade's policy is confirmed. The public pages already say this.
+2. **Trade from the chart** needs the futures account funded (dry run: insufficient buying power on …5019), limits saved, the device armed, and the first send.
+3. **Billing** is not connected, so paid tiers stay "Not on sale yet" and prices are unchanged.
+4. **Terms of Service and Privacy Policy** must be published before public enrollment; /login says so.
+5. **EURUSD 1m** point bars (data lane): pick another 1m FX source or keep the honest zero.
+
+**Decisions:**
+1. **FVG layer default.** It ships OFF, reachable from the Tool Finder and by `on=fvg`. Decide whether it is on by default for members.
+2. **Garden 19 PROPOSED plates** (Breathing, CVD notch, Failed Aggression, Compression, Structure leg state) need acceptance. **TED** needs a definition. **CLC** needs a market plate.
+3. **Academy.** The FVG course is the only published course (its quiz records completion); the other 8 modules stay COMING_SOON. Choose the next course to publish.
+4. **Brand voice.** No brand-voice document exists in Drive. The selling copy was written to the order's terms (product line, loop, honesty block); approve or redline it.
+5. **Referral URLs** for the broker doors are still unset.

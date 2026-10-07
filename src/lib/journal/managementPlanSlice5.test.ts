@@ -123,10 +123,10 @@ describe("Personal Edge view — setup rows, FVG-context rows, market vs executi
   const rows = planAdherenceBySetup([...Array.from({ length: 20 }, (_, i) => ({ setup: "ORB", result: res(i < 14) })), { setup: "VWAP reclaim", result: res(false) }]);
   const edge = compareFvgTakenVsUntaken([ledger([obj("A", [inter(1, T0, T0 + M, "REJECTED")])])], [{ objectId: "A", interaction: "DURING_FIRST_INTERACTION", interactionsSoFar: 1, decisionAtMs: T0, realizedR: 1.2, followedPlan: true }]);
   it("before the compare: the button; after: the descriptive lines with their states", () => {
-    const before = renderToStaticMarkup(React.createElement(PlanAdherenceView, { rows, fvgRows: rows, edge: null, edgeNote: null, showEdge: true, onCompare: () => {} }));
+    const before = renderToStaticMarkup(React.createElement(PlanAdherenceView, { rows, fvgRows: [], edge: null, edgeNote: null, showEdge: true, onCompare: () => {} }));
     expect(before).toContain('data-testid="fvg-compare-untaken"');
     expect(before).toContain("Plan followed on 14 of 20 decided trades (70%).");
-    const after = renderToStaticMarkup(React.createElement(PlanAdherenceView, { rows, fvgRows: rows, edge, edgeNote: null, showEdge: true, onCompare: () => {} }));
+    const after = renderToStaticMarkup(React.createElement(PlanAdherenceView, { rows, fvgRows: [], edge, edgeNote: null, showEdge: true, onCompare: () => {} }));
     expect(after).toContain("INSUFFICIENT EVIDENCE on first touches: 1 traded and 0 not traded (20 each side needed).");
     expect(after).toContain("DESCRIPTIVE — not evidence of edge");
     expect(after).not.toMatch(FORBIDDEN);

@@ -234,7 +234,8 @@ export interface AttentionGovernorInput {
  * SLICE = a Living Profile bucket; BUBBLE = a big-trade or delta print;
  * ANATOMY = an absorption shelf or exhaustion mark (the reducer's ANATOMY kind).
  */
-export type AttentionSelectionKind = "ZONE" | "LEVEL" | "SLICE" | "BUBBLE" | "ANATOMY";
+// FVG (Garden 19 lane D, 2026-10-07): a selected gap's territory — on camera when its band painted.
+export type AttentionSelectionKind = "ZONE" | "LEVEL" | "SLICE" | "BUBBLE" | "ANATOMY" | "FVG";
 
 export interface AttentionSelection {
   readonly kind: AttentionSelectionKind;

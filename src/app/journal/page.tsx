@@ -987,6 +987,13 @@ function JournalPageInner() {
 
   const [selected,  setSelected]  = useState<JournalEntry | null>(null);
   const [newMode,   setNewMode]   = useState(false);
+  // Garden 19 §36: /journal?entry=<id> opens that entry (Academy "Show me my examples").
+  const entryParam = searchParams.get("entry");
+  useEffect(() => {
+    if (!entryParam) return;
+    const hit = entries.find(x => x.id === entryParam);
+    if (hit) { setSelected(hit); setNewMode(false); }
+  }, [entryParam, entries]);
 
   // canon §Phase 3 Market Canvas propagation (Shift-X X2): when the
   // trader opens a journal entry, show the CURRENT canvas for that

@@ -60,6 +60,19 @@ export function readFvgBarBody(
   };
 }
 
+/**
+ * §58 PERFORMANCE LAW — one fetch per question. Readers that ask for the same
+ * symbol / timeframe / depth at once (the Scanner strip and the Backtest study
+ * in one session, a double click) share ONE request; a body that arrived in the
+ * last FVG_BAR_REUSE_MS is reused (closed bars are re-cut against each caller's
+ * own `nowMs`, so reuse never reads a bar as closed early). Refusals are not cached.
+ */
+export const FVG_BAR_REUSE_MS = 60_000;
+const bodyCache = new Map<string, { readonly at: number; readonly body: Promise<{ ok: boolean; status: number; body: unknown }> }>();
+
+/** Test seam: forget every shared body. */
+export function clearFvgBarCache(): void { bodyCache.clear(); }
+
 /** Fetch closed canonical bars for one symbol/timeframe. */
 export async function fetchFvgBars(input: {
   readonly symbol: string;
@@ -73,16 +86,34 @@ export async function fetchFvgBars(input: {
   const q = new URLSearchParams({ sym: input.symbol, type: "candles", tf: input.timeframe, bars: String(input.bars) });
   if (input.extendedHours) q.set("ext", "1");
   const f: FetchLike = input.fetcher ?? ((u, i) => fetch(u, i));
-  let res: Response;
-  try {
-    res = await f(`/api/yahoo?${q.toString()}`, { cache: "no-store", signal: input.signal });
-  } catch {
-    return { ok: false, reason: "The market history did not load just now." };
+  const url = `/api/yahoo?${q.toString()}`;
+  const hit = bodyCache.get(url);
+  let shared: Promise<{ ok: boolean; status: number; body: unknown }>;
+  if (hit && input.nowMs - hit.at < FVG_BAR_REUSE_MS && input.nowMs >= hit.at) {
+    shared = hit.body;
+  } else {
+    // The shared request is not tied to one caller's abort signal; each caller
+    // stops LISTENING on its own signal below.
+    shared = f(url, { cache: "no-store" })
+      .then(async res => ({ ok: res.ok, status: res.status, body: await res.json().catch(() => null) }));
+    bodyCache.set(url, { at: input.nowMs, body: shared });
+    shared.then(r => { if (!r.ok) bodyCache.delete(url); }, () => bodyCache.delete(url));
   }
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
+  let got: { ok: boolean; status: number; body: unknown };
+  try {
+    got = await (input.signal
+      ? Promise.race([shared, new Promise<never>((_, rej) => {
+          if (input.signal!.aborted) rej(new Error("aborted"));
+          input.signal!.addEventListener("abort", () => rej(new Error("aborted")), { once: true });
+        })])
+      : shared);
+  } catch {
+    return { ok: false, reason: input.signal?.aborted ? "The read was stopped." : "The market history did not load just now." };
+  }
+  const body = got.body;
+  if (!got.ok) {
     const said = body && typeof body === "object" ? plain((body as Record<string, unknown>).reason) ?? plain((body as Record<string, unknown>).error) : null;
-    return { ok: false, reason: said ?? `The bar route answered ${res.status}, so no bars were read.` };
+    return { ok: false, reason: said ?? `The bar route answered ${got.status}, so no bars were read.` };
   }
   return readFvgBarBody(body, input);
 }

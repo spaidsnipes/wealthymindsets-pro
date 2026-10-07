@@ -10,7 +10,7 @@
  * with that exact FVG object selected (`select=fvg:<OBJECT_ID>`).
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import { fetchFvgBars } from "@/lib/marketData/fvg/fvgBarSource";
@@ -37,20 +37,27 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
   const [readings, setReadings] = useState<readonly FvgScanReading[]>([]);
   const [only, setOnly] = useState<FvgScanCondition | FvgConvergenceCondition | "ALL">("ALL");
 
+  // §58: a read in flight stops with the strip — no state set after unmount.
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
   const run = async () => {
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
     setRunning(true);
     const out: FvgScanReading[] = [];
     const queue = [...symbols];
     const worker = async () => {
-      for (let s = queue.shift(); s !== undefined; s = queue.shift()) {
+      for (let s = queue.shift(); s !== undefined && !ac.signal.aborted; s = queue.shift()) {
         const nowMs = Date.now();
-        const fetch = await fetchFvgBars({ symbol: s, timeframe: TF, bars: BARS, nowMs });
+        const fetch = await fetchFvgBars({ symbol: s, timeframe: TF, bars: BARS, nowMs, signal: ac.signal });
+        if (ac.signal.aborted) return;
         out.push(fvgScanConditions({ symbol: s, timeframe: TF, fetch, nowMs }));
         setReadings([...out]);
       }
     };
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-    setRunning(false);
+    if (!ac.signal.aborted) setRunning(false);
   };
 
   const cov = fvgScanCoverage(readings);

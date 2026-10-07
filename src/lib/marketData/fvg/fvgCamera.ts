@@ -92,10 +92,18 @@ export interface FvgCameraMemo {
   } | null;
   /** "PUSH:n" | "REBUILD:n" | "SAME" — the last step taken (a receipt). */
   lastStep: string;
+  /**
+   * §58 PERFORMANCE LAW: the last scene handed out, and what it was read from.
+   * When nothing it depends on changed (same ledger object, same replay clock,
+   * same budgets, same refusal counts) the SAME scene object is returned, so a
+   * room that publishes the scene into React state re-renders only when a bar
+   * closes — never per tick.
+   */
+  lastScene?: { readonly ledger: FvgLedger; readonly key: string; readonly scene: FvgCameraScene } | null;
 }
 
 export function createFvgCameraMemo(): FvgCameraMemo {
-  return { state: null, lastStep: "NONE" };
+  return { state: null, lastStep: "NONE", lastScene: null };
 }
 
 function ledgerThroughMemo(memo: FvgCameraMemo, closed: readonly CanonicalBar[], cfg: FvgEngineConfig, closeMs: Map<number, number> | null): FvgLedger {
@@ -200,10 +208,13 @@ export function fvgSceneForCamera(input: FvgCameraInput, memo?: FvgCameraMemo): 
   const replayClock = input.replayCursorTimeSec === null ? null : fvgReplayClockMs(input.replayCursorTimeSec, input.timeframe);
   // REPLAY: what was knowable at the replay clock — never later. An unknowable
   // clock reads NOTHING rather than the live ledger.
+  const sceneKey = `${input.replayCursorTimeSec}|${input.openBudget ?? ""}|${input.scarBudget ?? ""}|${joined.unpaired}|${forming}|${closed.length}`;
+  const prev = memo?.lastScene;
+  if (memo && prev && prev.ledger === full && prev.key === sceneKey) return prev.scene;
   const ledger = input.replayCursorTimeSec === null
     ? full
     : fvgStateAsOf(full, replayClock ?? Number.NEGATIVE_INFINITY);
-  return {
+  const scene: FvgCameraScene = {
     mode: input.replayCursorTimeSec === null ? "LIVE" : "REPLAY",
     clockMs: input.replayCursorTimeSec === null ? ledger.asOf : replayClock,
     ledger,
@@ -213,4 +224,6 @@ export function fvgSceneForCamera(input: FvgCameraInput, memo?: FvgCameraMemo): 
     // Axis time: whole seconds for clock bars; tick bars keep their millisecond.
     barTimesSec: closed.map(b => (input.tickBars ? b.asOf / 1000 : Math.floor(b.asOf / 1000))),
   };
+  if (memo) memo.lastScene = { ledger: full, key: sceneKey, scene };
+  return scene;
 }

@@ -235,6 +235,11 @@ export default function ProofLanePage() {
           <h2 id="mountain" className="text-sm uppercase tracking-widest text-amber-400/80 mb-3">
             Pace Mountain — Required Theoretical Rate
           </h2>
+          {/* Coordinator ruling 2026-10-07: a required rate with no target could
+              not be read (189% a week — to reach what?). Canon wording. */}
+          <p data-testid="pace-target" className="-mt-1 mb-3 text-xs text-neutral-400">
+            Required rate to reach the lane&apos;s ${TARGET.toLocaleString("en-US")} target from ${START.toLocaleString("en-US")} — aspirational, not an earnings promise.
+          </p>
           <div className="overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-950/60">
             <table className="w-full text-sm">
               <thead className="text-left text-xs uppercase tracking-widest text-neutral-400 bg-black/40">

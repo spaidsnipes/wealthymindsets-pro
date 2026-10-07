@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   FVG_ACADEMY_MODULE, FVG_DEFINITION, FVG_EXAMPLES_EMPTY_LINE, FVG_LAYER_PENDING_NOTE, FVG_LESSONS,
   FVG_MYTH_CARD, FVG_MYTH_LESSONS, FVG_NO_GUARANTEE, FVG_QUIZ_BANK, fvgChartLink, fvgCourseText,
-  fvgLessonHref, fvgTaggedExamples, fvgReplayPractice, FVG_REPLAY_LESSONS,
+  fvgLessonHref, fvgReferencedExamples, fvgReplayPractice, FVG_REPLAY_LESSONS,
 } from "./fvgCourse";
 import { CONCEPT_EDUCATION, educationFor } from "@/lib/chart/inventionEducation";
 import { parseProofScene } from "@/lib/chart/proofScene";
@@ -137,18 +137,26 @@ describe("§35 — Show me on a chart", () => {
   });
 });
 
-describe("§36 — Show me my examples", () => {
-  it("finds only FVG-tagged journal records", () => {
-    const ex = fvgTaggedExamples([
-      { id: "a", symbol: "NQ1!", date: "2026-10-01", result: "win", tags: ["FVG"] },
-      { id: "b", symbol: "ES1!", date: "2026-10-02", tags: ["imbalance"] },
-      { id: "c", symbol: "TSLA", date: "2026-10-03", tags: [], setup: "Fair Value Gap" },
-      { id: "d", symbol: "BTC", tags: ["fomo"] },
+describe("§36 — Show me my examples (journal FVG references, not tags)", () => {
+  const ref = (decisionAtMs: number, interaction: string, mitigation = "PARTIAL", ageBars = 12) => ({
+    kind: "WM_FVG_REFERENCE", version: 1, objectId: "FVG|NQ1!|5m|1791404100000|BULLISH|v1", definitionId: "FVG_3C", definitionVersion: 1,
+    symbol: "NQ1!", timeframe: "5m", decisionAtMs, readAsOfMs: decisionAtMs, priceDp: 2,
+    snapshot: { direction: "BULLISH", bottom: 1, top: 2, state: "TOUCHED", mitigation, maxPenetration: 0.4, remaining: null, interaction, interactionsSoFar: 1, ageBars, evidence: [] },
+  });
+  it("lists only entries with a valid FVG reference — tags alone are not evidence — newest first, with state, result, adherence and a link", () => {
+    const ex = fvgReferencedExamples([
+      { id: "a", symbol: "NQ1!", date: "2026-10-01", result: "win", realizedR: 1.4, tags: ["FVG"], fvgRef: ref(1000, "DURING_FIRST_INTERACTION") },
+      { id: "b", symbol: "ES1!", date: "2026-10-02", tags: ["FVG"], setup: "Fair Value Gap" },
+      { id: "c", symbol: "NQ1!", date: "2026-10-03", fvgRef: ref(3000, "BEFORE_ANY_TOUCH", "NONE", 80) },
+      { id: "d", fvgRef: { kind: "WM_FVG_REFERENCE" } },
       null, "junk", 7,
-    ]);
-    expect(ex.map(e => e.id)).toEqual(["a", "c"]);
-    expect(fvgTaggedExamples([])).toEqual([]);
-    expect(FVG_EXAMPLES_EMPTY_LINE).toMatch(/once your Journal holds trades tagged FVG/);
+    ], id => (id === "a" ? "plan followed" : null));
+    expect(ex.map(e => e.id)).toEqual(["c", "a"]);
+    expect(ex[1]).toMatchObject({ stateLine: "First touch · partial mitigation · 12 bars old · bullish 5m", result: "win · +1.4R", adherence: "plan followed", href: "/journal?entry=a" });
+    expect(ex[0].stateLine).toBe("Anticipatory (before any touch) · untouched · 80 bars old · bullish 5m");
+    expect(ex[0].result).toBeNull();
+    expect(fvgReferencedExamples([])).toEqual([]);
+    expect(FVG_EXAMPLES_EMPTY_LINE).toMatch(/once a Journal entry references an FVG/);
   });
 });
 

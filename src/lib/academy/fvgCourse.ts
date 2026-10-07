@@ -24,6 +24,8 @@
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { parseProofScene } from "@/lib/chart/proofScene";
 import { readStoredText } from "@/lib/storedShape";
+import { readJournalFvgReference } from "@/lib/journal/fvgDecisionReference";
+import { fvgStudyGroupsOf } from "@/lib/journal/planFvgStudy";
 import {
   FVG_ACCEPT_CLOSES, FVG_ATR_PERIOD, FVG_DEEP_FRACTION, FVG_DEFINITION_ID, FVG_DEFINITION_VERSION,
   FVG_IDLE_MEMORY_BARS, FVG_IMMEDIATE_BARS, FVG_LATER_SESSION_MAX, FVG_MIN_ATR_FRACTION,
@@ -328,43 +330,64 @@ export function fvgLessonHref(n: number): string {
   return `/education?lesson=fvg-${n}`;
 }
 
-// ── §36 "Show me my examples" — FVG-tagged trades from the Journal ──────────
+// ── §36 "Show me my examples" — the trader's own decisions on gaps ──────────
 
-const FVG_TAG = /^(fvg|fair[\s_-]*value[\s_-]*gap)s?\b/i;
-
+/**
+ * One journal decision that REFERENCES a canonical FVG object (JournalEntry
+ * .fvgRef, read through the journal's own validator) — never a tag string.
+ * The state shown is the gap's state AS OF THE DECISION.
+ */
 export interface FvgJournalExample {
   readonly id: string;
   readonly symbol: string;
   readonly date: string;
+  readonly decisionAtMs: number;
+  readonly objectId: string;
+  /** "First touch · partial · 12 bars old · bullish 5m" — as of the decision. */
+  readonly stateLine: string;
+  /** win / loss / be and R when the journal recorded them; null otherwise. */
   readonly result: string | null;
+  /** Plan adherence words from the caller (plan-vs-actual), or null when unknown. */
+  readonly adherence: string | null;
+  /** Opens this entry in the Journal. */
+  readonly href: string;
 }
 
+const MITIGATION_WORD: Readonly<Record<string, string>> = { NONE: "untouched", TOUCHED: "touched", PARTIAL: "partial mitigation", DEEP: "deep mitigation", FULL: "full mitigation" };
+
 /**
- * Journal records the trader tagged FVG (tag or setup "FVG" / "Fair Value
- * Gap"). Reads the canonical journal records as stored — unknown shapes are
- * skipped, never coerced. Footprint "imbalance" is a different object and does
- * not count.
+ * The trader's journal decisions that reference an FVG, newest decision first.
+ * Records without a valid reference are skipped — tags are not evidence of a
+ * gap. Unknown shapes are skipped, never coerced.
  */
-export function fvgTaggedExamples(records: readonly unknown[]): FvgJournalExample[] {
+export function fvgReferencedExamples(records: readonly unknown[], adherenceOf?: (id: string) => string | null): FvgJournalExample[] {
   const out: FvgJournalExample[] = [];
   for (const r of records) {
     if (!r || typeof r !== "object") continue;
     const rec = r as Record<string, unknown>;
-    const tags = Array.isArray(rec.tags) ? rec.tags.filter((t): t is string => typeof t === "string") : [];
-    const setup = readStoredText(rec.setup) ?? "";
-    if (!tags.some(t => FVG_TAG.test(t.trim())) && !FVG_TAG.test(setup.trim())) continue;
+    const ref = readJournalFvgReference(rec.fvgRef);
+    const id = readStoredText(rec.id);
+    if (!ref || !id) continue;
+    const s = ref.snapshot;
+    const res = readStoredText(rec.result);
+    const R = typeof rec.realizedR === "number" && Number.isFinite(rec.realizedR) ? `${rec.realizedR >= 0 ? "+" : ""}${rec.realizedR}R` : null;
     out.push({
-      id: readStoredText(rec.id) ?? String(out.length),
-      symbol: readStoredText(rec.symbol) ?? "—",
+      id,
+      symbol: readStoredText(rec.symbol) ?? ref.symbol,
       date: readStoredText(rec.date) ?? "",
-      result: readStoredText(rec.result) ?? null,
+      decisionAtMs: ref.decisionAtMs,
+      objectId: ref.objectId,
+      stateLine: `${fvgStudyGroupsOf(ref).WHEN} · ${MITIGATION_WORD[s.mitigation] ?? s.mitigation.toLowerCase()} · ${s.ageBars} bars old · ${s.direction.toLowerCase()} ${ref.timeframe}`,
+      result: [res, R].filter(Boolean).join(" · ") || null,
+      adherence: adherenceOf ? adherenceOf(id) : null,
+      href: `/journal?entry=${encodeURIComponent(id)}`,
     });
   }
-  return out;
+  return out.sort((a, b) => b.decisionAtMs - a.decisionAtMs);
 }
 
 export const FVG_EXAMPLES_EMPTY_LINE =
-  "Your own examples appear here once your Journal holds trades tagged FVG.";
+  "Your own examples appear here once a Journal entry references an FVG (use \"Reference an FVG\" when you write the entry).";
 
 /** Every sentence the course shows a learner — for the honesty sweep. */
 export function fvgCourseText(): string[] {

@@ -11,7 +11,7 @@
  * "has to" fill.
  */
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { clsx } from "clsx";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
@@ -145,10 +145,17 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
   // The study clock, as a bar index into the first series (null = its newest closed bar).
   const [stepIdx, setStepIdx] = useState<number | null>(null);
 
+  // §58: a read in flight stops with the panel — no state set after unmount.
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
   const load = async () => {
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
     setLoading(true);
     setRefusal(null);
-    const r = await fetchFvgBars({ symbol, timeframe, bars: 3000, nowMs: Date.now() });
+    const r = await fetchFvgBars({ symbol, timeframe, bars: 3000, nowMs: Date.now(), signal: ac.signal });
+    if (ac.signal.aborted) return;
     setLoading(false);
     if (!r.ok) { setRefusal(r.reason); return; }
     if (r.bars.length < 20) { setRefusal(`Only ${r.bars.length} closed ${timeframe} bars for ${symbol} — ATR(14) needs more history before any gap can be read.`); return; }

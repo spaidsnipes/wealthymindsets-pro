@@ -48,6 +48,7 @@
  * honestly be said about the bar and the tape; this renders that verdict.
  */
 
+import { sizeUnitFor } from "@/lib/marketData/sizeUnit";
 import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
 import React from "react";
 import { positioningSourceWords } from "@/lib/marketData/cboeDelayedOptions";
@@ -1179,9 +1180,12 @@ export function ChartInspectTicket({
           <InspectFirstTouchLine />
           <EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "PRINT", aggressorMethod: p.aggressorMethod, timeMs: p.timeMs ?? null, source: tapeSourceName }, feed)} />
           <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
-          <div className="mt-1 text-[18px] font-bold leading-tight text-wm-gold">{formatBubbleExact(c.total)} <span className="text-[12px]">×{c.n}</span></div>
+          {/* Units from the one size owner (sizeUnitFor) and the anchor at the
+              instrument's decimals — "15.0757 ×29 · 8.58 bought" named no unit
+              (sheriff sweep 2026-10-07). */}
+          <div className="mt-1 text-[18px] font-bold leading-tight text-wm-gold">{formatBubbleExact(c.total)}{sizeUnitFor(p.symbol, c.total) ? <span className="text-[12px]"> {sizeUnitFor(p.symbol, c.total)}</span> : null} <span className="text-[12px]">×{c.n}</span></div>
           <div className="text-[10px]" style={{ color: "#C8C0AE" }}>
-            anchor {String(p.priceLevel)} @ {p.timeMs != null ? clock.exact(p.timeMs) : "UNKNOWN"} · {formatBubbleVolume(p.ask)} bought · {formatBubbleVolume(p.bid)} sold
+            anchor {priceDp != null ? p.priceLevel.toFixed(priceDp) : String(p.priceLevel)} @ {p.timeMs != null ? clock.exact(p.timeMs) : "UNKNOWN"} · {formatBubbleVolume(p.ask)} bought · {formatBubbleVolume(p.bid)} sold{sizeUnitFor(p.symbol) ? ` (${sizeUnitFor(p.symbol)})` : ""}
           </div>
           <SessionRankCard rank={p.sessionRank} combined />
           <LocationCard loc={p.timeMs != null ? printLocationInStructure(p.priceLevel, p.timeMs / 1000, structure) : null} fmt={n => n.toFixed(2)} />
@@ -1264,8 +1268,8 @@ export function ChartInspectTicket({
         <EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "PRINT", aggressorMethod: p.aggressorMethod, timeMs: p.timeMs ?? null, source: tapeSourceName }, feed)} />
         <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
         <dl className="mt-2 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
-          <dt>Executed price</dt><dd className="text-white">{String(p.priceLevel)}</dd>
-          <dt>Executed size</dt><dd className="text-white">{String(p.total)}</dd>
+          <dt>Executed price</dt><dd className="text-white">{priceDp != null ? p.priceLevel.toFixed(priceDp) : String(p.priceLevel)}</dd>
+          <dt>Executed size</dt><dd className="text-white">{String(p.total)}{sizeUnitFor(p.symbol, p.total) ? ` ${sizeUnitFor(p.symbol, p.total)}` : ""}</dd>
           <dt>Execution time</dt><dd>{p.timeMs != null ? clock.exact(p.timeMs) : "UNKNOWN"}</dd>
           <dt>Side fidelity</dt><dd>{stamped ? "OBSERVED" : inferred ? "INFERRED" : "UNKNOWN"}{stamped || inferred ? ` · ${p.ask >= p.bid ? "buy" : "sell"} classification` : " · classification not verified"}</dd>
           <dd>{describeAggressorMethod(p.aggressorMethod)}</dd>

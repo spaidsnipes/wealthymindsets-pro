@@ -8,10 +8,14 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  FVG_EXAMPLES_EMPTY_LINE, FVG_MYTH_CARD, FVG_MYTH_LESSONS, fvgChartLink, fvgReplayPractice, fvgTaggedExamples,
+  FVG_EXAMPLES_EMPTY_LINE, FVG_MYTH_CARD, FVG_MYTH_LESSONS, fvgChartLink, fvgReplayPractice, fvgReferencedExamples,
   type FvgJournalExample, type FvgLesson,
 } from "@/lib/academy/fvgCourse";
 import { readJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
+import { hydrateJournalEntries } from "@/lib/journal/hydrateJournalEntries";
+import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
+import { DEPARTURES } from "@/lib/journal/planAdherence";
+import { composePlanReview, planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import { FvgDiagram } from "./FvgDiagram";
 import { learnYourselfLinks } from "@/lib/journal/planLoop";
 
@@ -24,13 +28,29 @@ export function FvgMythCard() {
   );
 }
 
-/** §36 — the trader's own FVG-tagged trades, or one plain line until there are some. */
+/** Plan adherence words for each journal entry with a frozen plan (plan-vs-actual), read only. */
+function adherenceById(records: readonly unknown[]): Map<string, string> {
+  const st = window.localStorage;
+  const out = new Map<string, string>();
+  for (const e of hydrateJournalEntries(records).entries) {
+    const input = planReviewInputForJournalEntry(e, id => readPlanForDecision(st, id));
+    if (!input) continue;
+    if (!input.plan) { out.set(e.id, "no plan frozen"); continue; }
+    const r = composePlanReview(input).result;
+    const departed = r.findings.find(f => DEPARTURES.includes(f.id));
+    out.set(e.id, !r.exitDecidable ? "plan comparison not decided" : departed ? `departed: ${departed.label.toLowerCase()}` : "plan followed");
+  }
+  return out;
+}
+
+/** §36 — the trader's own decisions on gaps (journal FVG references), or one plain line until there are some. */
 function MyExamples() {
   const [examples, setExamples] = useState<FvgJournalExample[] | null>(null);
   useEffect(() => {
     try {
       const read = readJournalStorage(window.localStorage);
-      setExamples(fvgTaggedExamples(read.records));
+      const adh = adherenceById(read.records);
+      setExamples(fvgReferencedExamples(read.records, id => adh.get(id) ?? null));
     } catch { setExamples([]); }
   }, []);
   if (examples === null) return null;
@@ -39,15 +59,16 @@ function MyExamples() {
   }
   return (
     <div data-testid="fvg-examples">
-      <div className="text-[10px] font-black uppercase tracking-wider text-wm-text-muted">Show me my examples · {examples.length} from your Journal (this browser)</div>
-      <ul className="mt-1.5 space-y-1">
-        {examples.slice(0, 6).map(e => (
-          <li key={e.id} className="text-[11px] text-wm-text">
-            {e.symbol} · {e.date || "undated"}{e.result ? ` · ${e.result}` : ""}
+      <div className="text-[10px] font-black uppercase tracking-wider text-wm-text-muted">Show me my examples · {examples.length} decision{examples.length === 1 ? "" : "s"} on gaps from your Journal (this browser)</div>
+      <ul className="mt-1.5 space-y-1.5">
+        {examples.slice(0, 8).map(e => (
+          <li key={e.id} className="text-[11px] text-wm-text leading-snug" style={{ overflowWrap: "anywhere" }}>
+            <Link href={e.href} prefetch={false} data-testid="fvg-example-link" className="font-semibold text-wm-gold hover:underline">{e.symbol} · {e.date || "undated"} →</Link>
+            <span className="block text-wm-text-muted">As of the decision: {e.stateLine}</span>
+            <span className="block text-wm-text-dim">{e.result ? `Result: ${e.result}` : "Result: not recorded"} · {e.adherence ? `Plan: ${e.adherence}` : "Plan: no frozen plan"}</span>
           </li>
         ))}
       </ul>
-      <Link href="/journal" className="mt-1.5 inline-flex min-h-9 items-center text-[11px] font-semibold text-wm-gold hover:underline">Open them in the Journal →</Link>
     </div>
   );
 }

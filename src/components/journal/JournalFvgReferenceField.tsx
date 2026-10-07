@@ -7,7 +7,7 @@
  * sentence that will be saved, and nothing is saved until the entry is.
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { fetchFvgBars } from "@/lib/marketData/fvg/fvgBarSource";
 import {
   fvgReferenceAtDecision,
@@ -46,14 +46,21 @@ export function JournalFvgReferenceField({ value, onChange, initialObjectId, ini
     );
   }
 
+  // §58: a read in flight stops with the field — no state set after unmount.
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
   const read = async () => {
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
     setRefusal(null);
     const id = parseFvgObjectId(objectId);
     if (!id) { setRefusal("Paste an FVG object id (it starts with FVG|)."); return; }
     const at = Date.parse(when);
     if (!Number.isFinite(at)) { setRefusal("Set the decision time first."); return; }
     setBusy(true);
-    const bars = await fetchFvgBars({ symbol: id.symbol, timeframe: id.timeframe, bars: 3000, nowMs: Date.now() });
+    const bars = await fetchFvgBars({ symbol: id.symbol, timeframe: id.timeframe, bars: 3000, nowMs: Date.now(), signal: ac.signal });
+    if (ac.signal.aborted) return;
     setBusy(false);
     if (!bars.ok) { setRefusal(bars.reason); return; }
     const r = fvgReferenceAtDecision({ objectId: objectId.trim(), decisionAtMs: at, bars: bars.bars });

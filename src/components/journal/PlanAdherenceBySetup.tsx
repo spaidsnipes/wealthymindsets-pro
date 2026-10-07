@@ -17,7 +17,7 @@ import { planAdherenceBySetup, type SetupAdherence } from "@/lib/journal/planAdh
 import { composePlanReview, planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import { DEVIATION_LABEL } from "@/lib/journal/planVsActual";
 import { readStoryReviews } from "@/lib/journal/storyReview";
-import { fvgAnswersFromReference, planAdherenceByFvgContext } from "@/lib/journal/planFvgContext";
+import { fvgStudyList, OLD_GAP_AGE_BARS, type FvgStudyRow } from "@/lib/journal/planFvgStudy";
 import { compareFvgTakenVsUntaken, type FvgEdgeComparison } from "@/lib/journal/planFvgCounterfactual";
 import { loadFvgLedgerFor } from "@/lib/journal/planFvgLoader";
 import { DEPARTURES } from "@/lib/journal/planAdherence";
@@ -27,7 +27,7 @@ const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3";
 
 export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly JournalEntry[] }) {
   const [rows, setRows] = useState<SetupAdherence[]>([]);
-  const [fvgRows, setFvgRows] = useState<SetupAdherence[]>([]);
+  const [fvgRows, setFvgRows] = useState<FvgStudyRow[]>([]);
   const [followedBy, setFollowedBy] = useState<Record<string, boolean | null>>({});
   const [edge, setEdge] = useState<FvgEdgeComparison | null>(null);
   const [edgeNote, setEdgeNote] = useState<string | null>(null);
@@ -41,10 +41,10 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
       });
       setRows(planAdherenceBySetup(reviewed.map(r => ({ setup: r.e.setup, result: r.result }))));
       setFollowedBy(Object.fromEntries(reviewed.map(r => [r.e.id, r.result.exitDecidable ? !r.result.findings.some(f => DEPARTURES.includes(f.id)) : null])));
-      // Garden 19 §23/§41: the same counting by FVG context, as of each decision (the reference's own snapshot).
-      setFvgRows(reviewed.some(r => r.e.fvgRef)
-        ? planAdherenceByFvgContext(reviewed.map(r => ({ fvg: r.e.fvgRef ? fvgAnswersFromReference(r.e.fvgRef) : null, result: r.result })))
-        : []);
+      // Garden 19 §23: the FVG study list — every decision that references a gap, by WHEN / DEPTH / AGE, as of each decision.
+      const byId = new Map(reviewed.map(r => [r.e.id, r.result]));
+      const refd = entries.filter(e => e.fvgRef);
+      setFvgRows(refd.length ? fvgStudyList(refd.map(e => ({ ref: e.fvgRef!, result: byId.get(e.id) ?? null, realizedR: e.realizedR ?? null }))) : []);
     } catch { setRows([]); setFvgRows([]); }
   }, [entries]);
   const withRef = entries.filter(e => e.fvgRef);
@@ -70,7 +70,7 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
 /** The Personal Edge block itself — pure, so it can be proved without a signed-in book. */
 export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onCompare }: {
   readonly rows: readonly SetupAdherence[];
-  readonly fvgRows: readonly SetupAdherence[];
+  readonly fvgRows: readonly FvgStudyRow[];
   readonly edge: FvgEdgeComparison | null;
   readonly edgeNote: string | null;
   readonly showEdge: boolean;
@@ -95,10 +95,10 @@ export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onC
       {edgeNote ? <span role="status" style={{ fontSize: 10.5, color: MUTED }}>{edgeNote}</span> : null}
     </div>
   ) : null;
-  if (!rows.length) return edgeBlock ? <div style={{ marginTop: 6 }}>{edgeBlock}</div> : null;
+  if (!rows.length && !fvgRows.length) return edgeBlock ? <div style={{ marginTop: 6 }}>{edgeBlock}</div> : null;
   return (
     <div data-testid="plan-adherence-by-setup" style={{ display: "grid", gap: 4, marginTop: 6 }}>
-      <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>PLAN ADHERENCE BY SETUP · trades with a frozen plan</span>
+      {rows.length ? <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>PLAN ADHERENCE BY SETUP · trades with a frozen plan</span> : null}
       {rows.map(r => (
         <div key={r.setup} data-state={r.state} style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 11.5, color: INK, fontVariantNumeric: "tabular-nums" }}>
           <b style={{ fontWeight: 600 }}>{r.setup}</b>
@@ -111,11 +111,15 @@ export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onC
       ))}
       {fvgRows.length ? (
         <div data-testid="plan-adherence-by-fvg" style={{ display: "grid", gap: 4, marginTop: 4 }}>
-          <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>PLAN ADHERENCE BY FVG CONTEXT · as of each decision</span>
-          {fvgRows.map(r => (
-            <div key={r.setup} data-state={r.state} style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 11.5, color: INK, fontVariantNumeric: "tabular-nums" }}>
-              <b style={{ fontWeight: 600 }}>{r.setup}</b>
-              <span style={{ color: r.state === "MEASURED" ? INK : MUTED }}>{r.line}</span>
+          <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>FVG STUDY LIST · as of each decision · old gap = more than {OLD_GAP_AGE_BARS} bars</span>
+          {(["WHEN", "DEPTH", "AGE"] as const).map(dim => (
+            <div key={dim} data-dimension={dim} style={{ display: "grid", gap: 2 }}>
+              {fvgRows.filter(r => r.dimension === dim).map(r => (
+                <div key={r.group} data-state={r.rState} data-adherence={r.adherence?.state ?? "NONE"} style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 11.5, color: INK, fontVariantNumeric: "tabular-nums" }}>
+                  <b style={{ fontWeight: 600 }}>{r.group}</b>
+                  <span style={{ color: r.rState === "MEASURED" ? INK : MUTED }}>{r.line}</span>
+                </div>
+              ))}
             </div>
           ))}
         </div>
