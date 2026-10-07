@@ -20,6 +20,7 @@
 
 import { normalizeChartTfId } from "../timeframes";
 import { parseFuturesNotation } from "./futuresNotation";
+import { readMarketSession } from "./marketSessionClock";
 
 export type CanonicalAssetClass = "crypto" | "equity" | "etf" | "futures" | "forex" | "options";
 /**
@@ -379,16 +380,38 @@ export function selectCanonicalSessionToken(
   // at once. `=== false` and not a truthiness test — provenSessionClosure
   // returns `false | null`, and `null` must NOT be read as "open".
   if (input.at && provenSessionClosure(input.symbol, input.at) === false) {
+    // The schedule names WHY (weekend close, Globex daily break) when it agrees.
+    const why = readMarketSession({
+      symbol: input.symbol,
+      assetClass: cls,
+      clock: marketClockET(input.at),
+      isUsCashIndex: US_CASH_INDICES.has(input.symbol.trim().toUpperCase()),
+    });
     return {
       token: SESSION_TOKEN_CLOSED,
-      detail: "closure is established for this market today",
+      detail: why?.verdict === "CLOSED" ? why.basis : "closure is established for this market today",
       established: true,
     };
   }
 
+  // THE OPEN HALF (sheriff sweep 2026-10-07). The venues' weekly hours are
+  // published; a Wednesday at 13:00 ET IS NYSE regular hours, and printing
+  // "SESSION ?" there was a missing fact. marketSessionClock reads the
+  // schedule and names its basis — including that no holiday calendar is
+  // loaded. Only an unreadable clock or an unscheduled class stays unknown.
+  if (input.at) {
+    const r = readMarketSession({
+      symbol: input.symbol,
+      assetClass: cls,
+      clock: marketClockET(input.at),
+      isUsCashIndex: US_CASH_INDICES.has(input.symbol.trim().toUpperCase()),
+    });
+    if (r) return { token: r.token, detail: r.basis, established: true };
+  }
+
   return {
     token: SESSION_TOKEN_UNKNOWN,
-    detail: "no exchange calendar — the current session is not established",
+    detail: "no published schedule read for this instrument — the current session is not established",
     established: false,
   };
 }

@@ -89,6 +89,13 @@ describe("SpaidBot FVG facts — from the one object, tagged, never a forecast",
     expect(formatOneFvgFact(badSense)).toContain("EVIDENCE PER SENSE: not stated");
   });
 
+  it("prices print at the chart's display decimals; tick counts stay counts", () => {
+    const b = formatOneFvgFact({ ...fvgFactsForSpaidbot(obj, true, 2), bottom: 374.6000061035156, top: 378.5199890136719 })!;
+    expect(b).toContain("boundaries 374.60–378.52");
+    expect(b).toContain("(100 ticks)");
+    expect(formatOneFvgFact({ ...fvgFactsForSpaidbot(obj, true), bottom: 374.6000061035156, top: 378.5199890136719 })).toContain("boundaries 374.6–378.52");
+  });
+
   it("the system prompt carries the Founder's sentence, verbatim", () => {
     const route = readFileSync(path.resolve(__dirname, "../../app/api/spaidbot/route.ts"), "utf8");
     expect(route.length).toBeGreaterThan(1000);

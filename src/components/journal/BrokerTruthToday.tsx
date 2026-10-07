@@ -22,6 +22,7 @@ import { pathWindowFor } from "@/lib/journal/planPricePath";
 import { loadPlanPricePath } from "@/lib/journal/planPricePathLoader";
 import type { PricePath } from "@/lib/journal/planVsActual";
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
+import { fvgContextGroup, type FvgReviewAnswers } from "@/lib/journal/planFvgContext";
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -41,7 +42,7 @@ interface Story { key: string; broker: string; decisionId: string | null; accoun
  * dimension, and their own words. `evidence` (from a captured fill) sets the
  * machine facts beside the dimension they inform; they are never edited here.
  */
-export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, defaultOpen = false }: {
+export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, fvg, defaultOpen = false }: {
   storyKey: string;
   evidence?: Readonly<Record<ReviewDimension, readonly ReviewEvidenceLine[]>>;
   /** Garden 19 §27/§28: the frozen plan + this trade's actuals, when the story has a Decision_ID. */
@@ -50,6 +51,8 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
   planDecisionId?: string | null;
   /** The traded symbol, for loading the hold's price path from the candle owner. */
   planSymbol?: string | null;
+  /** Garden 19 §23/§41: the trade's FVG answers, when the journal ties it to one FVG object. */
+  fvg?: FvgReviewAnswers | null;
   defaultOpen?: boolean;
 }) {
   const [planOverride, setPlanOverride] = useState<ManagementPlanSnapshot | null>(null);
@@ -105,7 +108,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
                     </div>
                   ) : null}
                   {(composed?.byDimension[d] ?? []).map((f, i) => (
-                    <div key={`${f.id}-${i}`} data-testid={`plan-finding-${d}`} data-finding={f.id} style={{ fontSize: 11, color: INK, display: "grid", gap: 2 }}>
+                    <div key={`${f.id}-${i}`} data-testid={`plan-finding-${d}`} data-finding={f.id} style={{ fontSize: 11, color: INK, display: "grid", gap: 2, overflowWrap: "anywhere", minWidth: 0 }}>
                       <span><b style={{ color: GOLD, fontWeight: 600, letterSpacing: ".04em" }}>{f.label.toUpperCase()}</b> · {f.sentence}</span>
                       {f.facts.map((x, j) => (
                         <span key={j} data-layer={x.layer} style={{ color: MUTED, fontSize: 10.5 }}>{x.layer} · {x.text}</span>
@@ -125,14 +128,35 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
           </div>
           {composed ? (
             <div data-testid="plan-vs-actual" data-primary={composed.result.primary} style={{ display: "grid", gap: 4, borderTop: `1px dashed ${LINE}`, paddingTop: 6 }}>
-              <span style={{ fontSize: 10.5, letterSpacing: 1, color: GOLD }}>PLAN vs ACTUAL · Decision_ID {composed.result.decisionId ?? "—"}</span>
-              <span data-testid="plan-frozen" style={{ fontSize: 11, color: INK }}>
-                {composed.plan ? `Frozen ${composed.plan.frozenAt === "TICKET_SEND" ? "at the ticket's send" : composed.plan.frozenAt === "PAPER_FILL" ? "at the paper fill" : "at the journal entry (after the trade)"}: ${planLine(composed.plan)}` : "No plan was frozen for this decision."}
-              </span>
-              <span data-testid="plan-alone" style={{ fontSize: 11, color: MUTED }}>{composed.planAlone.sentence}</span>
+              <span style={{ fontSize: 10.5, letterSpacing: 1, color: GOLD, overflowWrap: "anywhere" }}>PLAN vs ACTUAL · Decision_ID {composed.result.decisionId ?? "—"}</span>
+              <div data-testid="plan-sheriff" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 8 }}>
+                {([["market", "WHAT THE MARKET DID", composed.sheriff.market], ["planned", "WHAT YOU PLANNED", composed.sheriff.planned], ["actual", "WHAT YOU ACTUALLY DID", composed.sheriff.actual]] as const).map(([id, title, lines]) => (
+                  <div key={id} data-testid={`plan-sheriff-${id}`} style={{ border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px", minWidth: 0, display: "grid", gap: 3, alignContent: "start" }}>
+                    <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>{title}</span>
+                    {lines.map((l, i) => <span key={i} style={{ fontSize: 11, color: INK, overflowWrap: "anywhere" }}>{l}</span>)}
+                  </div>
+                ))}
+              </div>
+              {fvg ? (
+                <div data-testid="plan-fvg" data-group={fvgContextGroup(fvg)} style={{ display: "grid", gap: 2, border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px" }}>
+                  <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD, overflowWrap: "anywhere" }}>FVG · {fvg.objectId}</span>
+                  {[["First touch or later?", fvg.touch.sentence], ["Acted before the territory was reached?", fvg.actedBeforeCondition.sentence], ["Held after it was traded through?", fvg.heldAfterTradedThrough.sentence]].map(([q, a]) => (
+                    <span key={q} style={{ fontSize: 11, color: INK, overflowWrap: "anywhere" }}><span style={{ color: MUTED }}>{q}</span> {a}</span>
+                  ))}
+                </div>
+              ) : null}
+              {composed.result.findings.length ? (
+                <div data-testid="plan-deviations" style={{ display: "grid", gap: 2 }}>
+                  <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>PLAN vs WHAT HAPPENED</span>
+                  {composed.result.findings.map((f, i) => (
+                    <span key={i} data-finding={f.id} style={{ fontSize: 11.5, color: INK, overflowWrap: "anywhere" }}><b style={{ fontWeight: 600 }}>{f.label}</b> — {f.sentence}</span>
+                  ))}
+                </div>
+              ) : null}
+              <span data-testid="plan-alone" style={{ fontSize: 11, color: MUTED, overflowWrap: "anywhere" }}>{composed.planAlone.sentence}</span>
               {pathWin && planSymbol ? (
                 <span data-testid="plan-path" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 11, color: MUTED }}>
-                  {pathWin.ok && !path ? (
+                  {pathWin.ok && !path && !planIn?.path ? (
                     <button type="button" data-testid="plan-path-load" onClick={loadPath}
                       style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", minHeight: 28, cursor: "pointer" }}>
                       Load the price path for this hold (tastytrade 1m)
@@ -142,8 +166,8 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
                   {pathNote ? <span role="status">{pathNote}</span> : null}
                 </span>
               ) : null}
-              {planDecisionId ? <ManagementPlanCard mode="story" decisionId={planDecisionId} symbol={planSymbol ?? null} onPlanChange={setPlanOverride} /> : null}
-              <span data-testid="plan-question" style={{ fontSize: 12, color: INK }}>SpaidBot asks: {composed.question}</span>
+              {planDecisionId ? <ManagementPlanCard mode="story" decisionId={planDecisionId} symbol={planSymbol ?? null} initial={plan?.plan ?? null} onPlanChange={setPlanOverride} /> : null}
+              <span data-testid="plan-question" style={{ fontSize: 12, color: INK, overflowWrap: "anywhere" }}>SpaidBot asks: {composed.question}</span>
               <label style={{ fontSize: 11, color: MUTED }}>Why did the plan change? (your words — WM never fills this in)
                 <textarea data-testid="plan-why" value={r.planWhy ?? ""} onChange={e => save({ ...r, planWhy: e.target.value })} rows={2}
                   style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />

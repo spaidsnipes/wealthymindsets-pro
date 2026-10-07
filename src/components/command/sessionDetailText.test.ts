@@ -81,13 +81,13 @@ describe("sessionDetailText — weekend / market-closed / connection truth", () 
       activity: "OBSERVED",
     });
   });
-  it("Futures without observed activity remain session UNKNOWN", () => {
-    // A weekday: Sunday noon ET is now PROVEN closed for futures (the weekly
-    // edge, 2026-09-26), so the unestablished case is asked mid-week.
-    expect(present("RTH", false, 3, "ES1!", null)).toMatchObject({
-      value: "SESSION UNKNOWN",
-      activity: "UNKNOWN",
-    });
+  it("Futures without observed activity read the published Globex schedule mid-week (2026-10-07)", () => {
+    // Wednesday noon ET is inside CME Globex hours (Sun 18:00 → Fri 17:00 ET,
+    // daily break 17:00–18:00): an established OPEN, with its basis named.
+    const r = present("RTH", false, 3, "ES1!", null);
+    expect(r).toMatchObject({ value: "OPEN", activity: "UNKNOWN" });
+    expect(r.detail).toContain("CME Globex");
+    expect(r.detail).toContain("holiday calendar not loaded");
   });
 });
 
@@ -155,9 +155,9 @@ describe("SESSION tile value — the headline may not contradict its own caption
     expect(present("RTH", true, 6, "NQ1!", 1_000).value).toBe("FUTURES ACTIVITY OBSERVED");
   });
 
-  it("weekday equities are honestly unknown — there is still no intraday calendar", () => {
+  it("weekday equities at midday read the published NYSE hours — OPEN, never the store key RTH (2026-10-07)", () => {
     for (let d = 1; d <= 5; d++) {
-      expect(present("RTH", true, d).value, `day ${d}`).toBe("SESSION ?");
+      expect(present("RTH", true, d).value, `day ${d}`).toBe("OPEN");
     }
   });
 

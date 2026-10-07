@@ -37,6 +37,7 @@
  * A book that quietly shrinks teaches the trader he traded less than he did.
  */
 
+import { readJournalFvgReference, type JournalFvgReference } from "./fvgDecisionReference";
 import type { DayModel } from "@/lib/proofLane/proofLaneR";
 import { readJournalCapture, type JournalCaptureDraft } from "./journalCaptureFromFill";
 import type { ProcessOutcome, ProcessQuality } from "@/lib/journalProcess";
@@ -103,6 +104,12 @@ export interface JournalEntry {
    * opened from an "Add to Journal" hand-off; never written silently.
    */
   capture?: JournalCaptureDraft;
+  /**
+   * Garden 19 §40: a canonical FVG object this decision referenced, with a
+   * snapshot of it AT DECISION TIME (fvgDecisionReference). A reference and
+   * the facts as they stood — never "FVG = YES".
+   */
+  fvgRef?: JournalFvgReference;
 }
 
 const MOODS: readonly Mood[] = ["confident", "anxious", "neutral", "fomo", "disciplined"];
@@ -208,5 +215,6 @@ export function hydrateJournalEntry(value: unknown): JournalEntry | null {
     maeR: readStoredNumber(value.maeR),
     // Read field by field; an unknown provenance degrades to UNREPORTED, never to a value.
     ...(readJournalCapture(value.capture) ? { capture: readJournalCapture(value.capture) as JournalCaptureDraft } : {}),
+    ...(readJournalFvgReference(value.fvgRef) ? { fvgRef: readJournalFvgReference(value.fvgRef) as JournalFvgReference } : {}),
   };
 }

@@ -34,6 +34,7 @@
  * reconstructed side may not wear the same chrome as a stated one.
  */
 
+import { traderClock } from "@/components/time/traderClock";
 import React from "react";
 import type {
   BigTradeIntelligenceVM,
@@ -99,9 +100,9 @@ function px(v: number): string {
 
 function clockOf(time: number | null): string {
   if (time == null) return "—";
-  const d = new Date(time);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toISOString().slice(11, 19);
+  // Local time with its zone (traderClock, F2 2026-10-07) — this column read
+  // bare UTC under a "TIME (UTC)" header beside a chart speaking CDT.
+  return traderClock(time);
 }
 
 function Metric({
@@ -246,7 +247,7 @@ export default function BigTradeIntelligenceView({
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["TIME (UTC)", "PRICE", "SIZE", "SIDE", "RANK IN WINDOW"].map((h, i) => (
+                  {["TIME", "PRICE", "SIZE", "SIDE", "RANK IN WINDOW"].map((h, i) => (
                     <th
                       key={h}
                       style={{

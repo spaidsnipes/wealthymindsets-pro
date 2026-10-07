@@ -94,16 +94,23 @@ describe("selectCanonicalSessionToken — closure that is proven is not withheld
     expect(selectCanonicalSessionToken({ symbol: "EUR/USD", at: SUNDAY }).token).toBe(SESSION_TOKEN_CLOSED);
     // After the reopen, claiming closure would be the same overreach inverted.
     const SUNDAY_1900_ET = new Date("2026-09-06T23:00:00Z");
-    expect(selectCanonicalSessionToken({ symbol: "NQ1!", at: SUNDAY_1900_ET }).token).toBe(SESSION_TOKEN_UNKNOWN);
-    expect(selectCanonicalSessionToken({ symbol: "EUR/USD", at: SUNDAY_1900_ET }).token).toBe(SESSION_TOKEN_UNKNOWN);
+    expect(selectCanonicalSessionToken({ symbol: "NQ1!", at: SUNDAY_1900_ET }).token).toBe("OPEN");
+    expect(selectCanonicalSessionToken({ symbol: "EUR/USD", at: SUNDAY_1900_ET }).token).toBe("OPEN");
   });
 
-  it("'SESSION ?' is still the honest answer on a weekday — there is no intraday calendar", () => {
+  it("a weekday midday reads the published schedule: OPEN with its basis, holiday calendar named as not loaded (2026-10-07)", () => {
     for (const sym of ["TSLA", "GC1!", "EUR/USD"]) {
       const r = selectCanonicalSessionToken({ symbol: sym, at: WEDNESDAY });
-      expect(r.token, sym).toBe(SESSION_TOKEN_UNKNOWN);
-      expect(r.established, sym).toBe(false);
+      expect(r.token, sym).toBe("OPEN");
+      expect(r.established, sym).toBe(true);
+      expect(r.detail, sym).toContain("holiday calendar not loaded");
     }
+  });
+
+  it("an instrument with no schedule read (CBOT grains) stays 'SESSION ?' on a weekday", () => {
+    const r = selectCanonicalSessionToken({ symbol: "ZC1!", at: WEDNESDAY });
+    expect(r.token).toBe(SESSION_TOKEN_UNKNOWN);
+    expect(r.established).toBe(false);
   });
 
   it("continuous markets are 24X7 every day — they have no session to close", () => {
@@ -164,7 +171,7 @@ describe("the settle can only ever sharpen — never introduce a claim", () => {
     // Wednesday/Saturday split above is what distinguishes them.
     expect(provenSessionClosure("TSLA", WEDNESDAY)).toBeNull();
     expect(provenSessionClosure("TSLA", SATURDAY)).toBe(false);
-    expect(selectCanonicalSessionToken({ symbol: "TSLA", at: WEDNESDAY }).token).toBe(SESSION_TOKEN_UNKNOWN);
+    expect(selectCanonicalSessionToken({ symbol: "TSLA", at: WEDNESDAY }).token).toBe("OPEN");
     expect(selectCanonicalSessionToken({ symbol: "TSLA", at: SATURDAY }).token).toBe(SESSION_TOKEN_CLOSED);
   });
 });

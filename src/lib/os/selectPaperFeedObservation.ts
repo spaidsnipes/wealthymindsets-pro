@@ -83,6 +83,9 @@ export interface PaperFeedObservationInput {
 function sessionOpenFromToken(token: string): boolean | null {
   if (token === SESSION_TOKEN_CONTINUOUS) return true;
   if (token === SESSION_TOKEN_CLOSED) return false;
+  // The open half of the canonical owner (marketSessionClock, 2026-10-07):
+  // a scheduled session the venue publishes is an established open session.
+  if (token === "RTH" || token === "OPEN" || token === "PRE" || token === "POST") return true;
   return null;
 }
 

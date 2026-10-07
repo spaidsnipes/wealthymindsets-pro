@@ -4,6 +4,8 @@ import Link from "next/link";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { passportPromo, passportPromoLine } from "@/lib/pricing/passportPromo";
+import { SellingStory } from "@/components/marketing/SellingStory";
+import { PRODUCT_LINE } from "@/lib/marketing/sellingStory";
 
 // Founder 2026-10-06: Passport first month half off until the promotion ends.
 const PASSPORT_PROMO = passportPromoLine(passportPromo(process.env.NEXT_PUBLIC_PASSPORT_PROMO_ENDS));
@@ -58,7 +60,7 @@ export default function PricingPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#050506", color: INK, fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", padding: "40px 16px 64px" }}>
       <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-        <div style={{ fontFamily: "Georgia, 'Times New Roman', serif", letterSpacing: "0.32em", fontSize: 12, color: GOLD }}>WEALTHYMINDSETS PRO</div>
+        <div data-testid="product-line" style={{ fontFamily: "Georgia, 'Times New Roman', serif", letterSpacing: "0.28em", fontSize: 12, color: GOLD, lineHeight: 1.6 }}>{PRODUCT_LINE}</div>
         <h1 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 400, fontSize: 34, margin: "14px 0 8px" }}>Pricing</h1>
         <p style={{ color: MUTED, fontSize: 15, lineHeight: 1.6, maxWidth: 720, margin: 0 }}>
           Monthly, in US dollars. Each tier includes everything in the one before it — you are charged once, for one tier.
@@ -67,6 +69,11 @@ export default function PricingPage() {
         <p role="status" style={{ marginTop: 14, border: `1px solid ${LINE}`, borderRadius: 8, padding: "10px 14px", color: GOLD, fontSize: 13, maxWidth: 720 }}>
           Paid plans are not on sale yet. Billing is being connected; until it is, no card can be charged here and no paid badge grants access.
         </p>
+
+        {/* §57 SELLING PASS — what the tiers buy into, said once, above them. */}
+        <div style={{ marginTop: 28, border: `1px solid ${LINE}`, borderRadius: 12, padding: "18px 18px 16px", background: FIELD }}>
+          <SellingStory variant="compact" withProductLine={false} />
+        </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, marginTop: 28 }}>
           {TIERS.map((t) => (

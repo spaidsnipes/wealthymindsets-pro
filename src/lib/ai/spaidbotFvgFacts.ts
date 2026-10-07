@@ -63,6 +63,8 @@ export interface SpaidbotFvgFacts {
   readonly interactionsTotal: number;
   /** Close time of the newest bar the object was read at. */
   readonly readAsOf: number;
+  /** Decimals the instrument's prices print at (pricePrecision.displayPrecisionFor), or null. */
+  readonly priceDp: number | null;
 }
 
 const MAX_INTERACTIONS = 4;
@@ -75,7 +77,7 @@ function priceEvidence(fidelity: string): FvgSenseEvidenceWord {
 }
 
 /** Project one engine object onto the structured record (client side). */
-export function fvgFactsForSpaidbot(o: FvgObject, selected: boolean): SpaidbotFvgFacts {
+export function fvgFactsForSpaidbot(o: FvgObject, selected: boolean, priceDp: number | null = null): SpaidbotFvgFacts {
   const senses: SpaidbotFvgSense[] = [
     {
       sense: "PRICE_GEOMETRY",
@@ -115,6 +117,7 @@ export function fvgFactsForSpaidbot(o: FvgObject, selected: boolean): SpaidbotFv
     interactions: o.interactions.slice(-MAX_INTERACTIONS).map(it => ({ response: it.response, depth: it.depth, tradedThrough: it.tradedThrough })),
     interactionsTotal: o.interactions.length,
     readAsOf: o.asOf,
+    priceDp,
   };
 }
 
@@ -126,10 +129,13 @@ export function fvgFactsForSpaidbot(o: FvgObject, selected: boolean): SpaidbotFv
 export function spaidbotFvgScene(input: {
   readonly objects: readonly FvgObject[];
   readonly selectedObjectId: string | null;
+  /** The chart's display decimals (pricePrecision.displayPrecisionFor). */
+  readonly priceDp?: number | null;
 }): SpaidbotFvgFacts[] {
+  const dp = input.priceDp ?? null;
   const sel = input.selectedObjectId ? input.objects.find(o => o.objectId === input.selectedObjectId) ?? null : null;
   const rest = input.objects.filter(o => o !== sel);
-  return [...(sel ? [fvgFactsForSpaidbot(sel, true)] : []), ...rest.map(o => fvgFactsForSpaidbot(o, false))].slice(0, MAX_OBJECTS);
+  return [...(sel ? [fvgFactsForSpaidbot(sel, true, dp)] : []), ...rest.map(o => fvgFactsForSpaidbot(o, false, dp))].slice(0, MAX_OBJECTS);
 }
 
 /* ── SERVER: validate + write the words ──────────────────────────────────── */
@@ -147,7 +153,10 @@ const iso = (ms: number) => {
   return Number.isFinite(d.getTime()) ? d.toISOString().replace(/:\d{2}\.\d{3}Z$/, "Z") : "an unknown time";
 };
 const pct = (x: number) => `${Math.round(Math.max(0, Math.min(1, x)) * 100)}%`;
-const px = (x: number) => String(Number(x.toPrecision(10)));
+/** Price words: the chart's decimals when stated, else 7 significant figures (float noise is not a quote). */
+let pxDp: number | null = null;
+const cnt = (x: number) => String(Number(x.toPrecision(7)));
+const px = (x: number) => (pxDp !== null ? x.toFixed(pxDp) : String(Number(x.toPrecision(7))));
 
 function rec(v: unknown): Record<string, unknown> | null {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
@@ -157,6 +166,7 @@ function rec(v: unknown): Record<string, unknown> | null {
 export function formatOneFvgFact(raw: unknown): string | null {
   const r = rec(raw);
   if (!r || r.v !== 1) return null;
+  pxDp = typeof r.priceDp === "number" && Number.isInteger(r.priceDp) && r.priceDp >= 0 && r.priceDp <= 10 ? r.priceDp : null;
   const objectId = typeof r.objectId === "string" && ID_RE.test(r.objectId) ? r.objectId : null;
   const direction = r.direction === "BULLISH" || r.direction === "BEARISH" ? r.direction : null;
   const defId = word(r.definitionId);
@@ -179,9 +189,9 @@ export function formatOneFvgFact(raw: unknown): string | null {
   const pips = fin(size?.pips);
   const unit = size?.unit === "TICKS" || size?.unit === "PIPS" || size?.unit === "POINTS" ? size.unit : "POINTS";
   const sizeWords = sizePrice === null ? "size unknown"
-    : unit === "TICKS" && ticks !== null ? `${px(ticks)} ticks (${px(sizePrice)} points)`
-    : unit === "PIPS" && pips !== null ? `${px(pips)} pips (${px(sizePrice)} in price)`
-    : `${px(sizePrice)} points${ticks !== null ? ` (${px(ticks)} ticks)` : ""}`;
+    : unit === "TICKS" && ticks !== null ? `${cnt(ticks)} ticks (${px(sizePrice)} points)`
+    : unit === "PIPS" && pips !== null ? `${cnt(pips)} pips (${px(sizePrice)} in price)`
+    : `${px(sizePrice)} points${ticks !== null ? ` (${cnt(ticks)} ticks)` : ""}`;
   const rem = rec(r.remaining);
   const remB = fin(rem?.bottom), remT = fin(rem?.top);
   const remainingWords = rem && remB !== null && remT !== null ? `${px(remB)}–${px(remT)}` : "none (every part visited)";

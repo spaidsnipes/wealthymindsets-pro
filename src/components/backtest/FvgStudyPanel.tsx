@@ -15,6 +15,7 @@ import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { clsx } from "clsx";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
+import { displayPrecisionFor } from "@/lib/chart/pricePrecision";
 import { fetchFvgBars } from "@/lib/marketData/fvg/fvgBarSource";
 import { fvgChartHref } from "@/lib/marketData/fvg/fvgChartLink";
 import { FVG_HORIZONS } from "@/lib/marketData/fvg/fvgDefinition";
@@ -143,6 +144,7 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
     return runFvgStudy({ series: pool.map(e => e.series), asOfMs: clockMs, fromMs, filters });
   }, [pool, clockMs, rangeDays, filters]);
 
+  const dpBySymbol = useMemo(() => new Map(pool.map(e => [e.series.symbolId, displayPrecisionFor(e.series.symbolId, e.series.bars)])), [pool]);
   const recent = study ? [...study.objects].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8) : [];
 
   return (
@@ -276,10 +278,12 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
                 {recent.map(o => (
                   <li key={o.objectId} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
                     <span className={clsx("font-bold", o.direction === "BULLISH" ? "text-wm-green" : "text-wm-red")}>{o.direction}</span>
-                    <span className="font-mono text-wm-text-muted">{o.bottom} – {o.top}</span>
+                    <span className="font-mono text-wm-text-muted">{o.bottom.toFixed(dpBySymbol.get(o.symbolId) ?? 2)} – {o.top.toFixed(dpBySymbol.get(o.symbolId) ?? 2)}</span>
                     <span className="text-wm-text-dim">{o.state.replace(/_/g, " ").toLowerCase()}</span>
                     <Link href={fvgChartHref({ symbol: o.symbolId, timeframe: o.timeframe, objectId: o.objectId })}
                       className="wm-tap ml-auto text-wm-blue hover:underline">Open on the chart →</Link>
+                    <Link href={`/journal?${new URLSearchParams({ new: "1", symbol: o.symbolId, fvg: o.objectId }).toString()}`}
+                      className="wm-tap text-wm-text-muted hover:underline">Journal it</Link>
                   </li>
                 ))}
               </ul>

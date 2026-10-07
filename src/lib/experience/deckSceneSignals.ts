@@ -93,7 +93,7 @@ export function sessionOpenFrom(session: string | null | undefined): boolean | n
   const s = session.trim().toUpperCase();
   if (s === "CLOSED") return false;
   if (s === "24X7") return true;
-  if (s === "RTH" || s === "ETH" || s === "OVERNIGHT" || s === "PREMARKET" || s === "AFTERHOURS") {
+  if (s === "RTH" || s === "ETH" || s === "OVERNIGHT" || s === "PREMARKET" || s === "AFTERHOURS" || s === "OPEN" || s === "PRE" || s === "POST") {
     return true;
   }
   return null;

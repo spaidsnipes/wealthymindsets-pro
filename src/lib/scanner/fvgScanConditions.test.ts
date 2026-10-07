@@ -81,6 +81,7 @@ describe("Scanner FVG conditions — the one engine, at the newest closed bar", 
     expect(parseProofScene(h.href.slice("/charts".length)).selectObject).toEqual({ kind: "fvg", objectId: h.objectId });
     expect(h.href).toContain("on=fvg");
     expect(r.definition).toEqual({ id: "FVG_3C", version: 1 });
+    expect(h.priceDp).toBe(2); // pricePrecision.displayPrecisionFor — the strip prints toFixed(priceDp)
   });
 
   it("refuses with a plain reason: too few bars, stale bars, unavailable bars", () => {

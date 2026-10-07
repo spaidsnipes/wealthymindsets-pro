@@ -100,7 +100,7 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
                     <span className="font-bold text-wm-text w-16">{h.symbol}</span>
                     <span className="text-wm-gold">{FVG_SCAN_CONDITION_LABEL[h.condition]}</span>
                     <span className={h.direction === "BULLISH" ? "text-wm-green" : "text-wm-red"}>{h.direction.toLowerCase()}</span>
-                    <span className="font-mono text-wm-text-muted">{h.bottom} – {h.top}</span>
+                    <span className="font-mono text-wm-text-muted">{h.bottom.toFixed(h.priceDp)} – {h.top.toFixed(h.priceDp)}</span>
                     <span className="text-wm-text-dim">{h.state.replace(/_/g, " ").toLowerCase()}</span>
                     <span className="ml-auto text-wm-blue">Open on the chart →</span>
                   </button>

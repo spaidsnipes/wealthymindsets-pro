@@ -4,13 +4,15 @@ import Link from "next/link";
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, Mail, Lock, TrendingUp, Zap, Shield, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { safeNextPath } from "@/lib/authRoutes";
 import { classifySignInFailure } from "@/lib/signInErrorMessage";
 import { useSearchParams } from "next/navigation";
 import WmWordmark from "@/components/brand/WmWordmark";
 import { WM } from "@/lib/design/wmTokens";
+import { SellingStory } from "@/components/marketing/SellingStory";
+import { HEADLINE, PRODUCT_KIND_TITLE, PRODUCT_NAME_TITLE } from "@/lib/marketing/sellingStory";
 import { authFailureMessage, authLinkErrorMessage } from "@/lib/auth/authLinkError";
 
 /**
@@ -44,11 +46,9 @@ import { authFailureMessage, authLinkErrorMessage } from "@/lib/auth/authLinkErr
  * colour, not credentials.
  */
 
-const FEATURES = [
-  { icon: TrendingUp, text: "Professional order flow charts" },
-  { icon: Zap,        text: "Live market data with source-aware tools" },
-  { icon: Shield,     text: "Every read shows its evidence — or says UNKNOWN" },
-];
+// The door's pitch is the one selling story (src/lib/marketing/sellingStory.ts,
+// §57 SELLING PASS 2026-10-07) — the old three-bullet feature list and the
+// "Real data / Private / Source-aware" tiles were feature soup.
 
 export default function LoginPageWrapper() {
   return (
@@ -258,7 +258,7 @@ function LoginPage() {
     <div className="min-h-screen bg-wm-black flex overflow-hidden">
 
       {/* ── Left panel — branding ── */}
-      <div className="hidden lg:flex flex-col justify-between w-[55%] relative overflow-hidden"
+      <div className="hidden lg:flex flex-col w-[55%] relative overflow-hidden"
         style={{ background: `linear-gradient(145deg, ${WM.surface.deep} 0%, ${WM.surface.mid} 50%, ${WM.surface.deepest} 100%)` }}>
 
         {/* Grid overlay — brass ruling, not a teal blueprint. Kept at 4% so it
@@ -272,13 +272,13 @@ function LoginPage() {
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full"
           style={{ background: `radial-gradient(circle, ${WM.halo.gold} 0%, transparent 70%)` }} />
 
-        <div className="relative z-10 p-12">
+        <div className="relative z-10 p-12 overflow-y-auto" style={{ maxHeight: "100vh", scrollbarWidth: "thin" }}>
           {/* Master crest — the REAL delivered hero mark (faceless gentleman +
               WM medallion + jeweled crown + wordmark + "STAY SHARP. STAY A
               STUDENT.", founder Drive kit 2026-08-24). This is the one surface
               the founder named for the full crest; kept to a calm hero size so
               WM Pro reads professional, never plastered. */}
-          <div className="mb-12">
+          <div className="mb-8">
             {/* lazy: this panel is display:none below lg, and a lazy image
                 that is never rendered is never fetched — phones no longer pay
                 204 KB for a crest they cannot see (2026-10-06). */}
@@ -286,7 +286,7 @@ function LoginPage() {
               src="/brand/wm-master-crest.jpeg"
               alt="WEALTHY MINDSETS — Stay Sharp. Stay a Student."
               loading="lazy"
-              style={{ height: 300, width: "auto", display: "block" }}
+              style={{ height: 200, width: "auto", display: "block" }}
             />
             <div
               className="mt-4"
@@ -302,55 +302,16 @@ function LoginPage() {
             </div>
           </div>
 
-          <div
-            className="mb-4"
-            style={{
-              fontFamily: "Georgia, 'Times New Roman', serif",
-              fontSize: 13,
-              letterSpacing: 0.36,
-              color: "#c9a55c",
-              textTransform: "uppercase",
-              fontWeight: 400,
-            }}
-          >
-            Trading Command Center
-          </div>
-
-          <h1 className="text-[46px] font-black leading-[1.05] mb-8 tracking-tight" style={{ color: WM.text.hero }}>
-            Professional Trading<br />
-            {/* Was teal→amber. The gradient now runs through the brass family
-                only, so the one emphasised phrase on the door is identity
-                metal rather than a market colour. */}
-            <span style={{ background: `linear-gradient(135deg, ${WM.gold.hero}, ${WM.gold.halo})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              Operating System
+          {/* §57 SELLING PASS: the product line, then the one selling story. */}
+          <h1 className="mb-6" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 400, fontSize: 38, lineHeight: 1.1, color: WM.text.hero }}>
+            {PRODUCT_NAME_TITLE}
+            <br />
+            <span style={{ color: WM.gold.hero }}>
+              {PRODUCT_KIND_TITLE}
             </span>
           </h1>
 
-          <p className="text-[14px] leading-relaxed mb-10 max-w-sm" style={{ color: WM.text.muted }}>
-            The all-in-one platform for serious traders — order flow, smart money, community, and creator tools.
-          </p>
-
-          <div className="space-y-4">
-            {FEATURES.map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: WM.halo.gold, border: `1px solid ${WM.border.line}` }}>
-                  <Icon size={15} style={{ color: WM.gold.mark }} />
-                </div>
-                <span className="text-[13px]" style={{ color: WM.text.body }}>{text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Bottom stats */}
-        <div className="relative z-10 p-12 grid grid-cols-3 gap-6">
-          {[["Real data","Market tools"],["Private","Trade journal"],["Source-aware","Analytics"]].map(([val, lbl]) => (
-            <div key={lbl}>
-              <div className="text-[22px] font-black" style={{ color: WM.text.hero }}>{val}</div>
-              <div className="text-[11px] font-medium" style={{ color: WM.text.muted }}>{lbl}</div>
-            </div>
-          ))}
+          <SellingStory variant="compact" withProductLine={false} />
         </div>
       </div>
 
@@ -378,6 +339,11 @@ function LoginPage() {
               style={{ height: 132, width: "auto", display: "block", marginBottom: 14, borderRadius: 6 }}
             />
             <WmWordmark size="compact" subtitle="TRADING OPERATING SYSTEM" />
+            {/* Phones never see the left panel: the product line in one sentence, and the door to the full story. */}
+            <p data-testid="login-phone-product-line" className="mt-3 text-[13px] leading-relaxed" style={{ color: WM.text.body }}>
+              <span style={{ color: WM.text.hero }}>{HEADLINE}</span> Price territories followed from formation to memory — into your review and your education.
+            </p>
+            <Link href="/welcome" className="inline-flex min-h-11 items-center text-[12px] font-bold" style={{ color: WM.gold.mark }}>See how it works →</Link>
           </div>
 
           {/* Mode tabs — hidden in forgot mode */}

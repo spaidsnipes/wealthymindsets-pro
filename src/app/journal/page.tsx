@@ -18,6 +18,8 @@ import { BrokerTruthToday, StoryReviewRow } from "@/components/journal/BrokerTru
 import { CapturedFacts } from "@/components/journal/CapturedFacts";
 import { captureToJournalForm } from "@/lib/journal/journalCaptureFromFill";
 import { takeJournalCapture } from "@/lib/journal/journalCaptureHandoff";
+import { JournalFvgReferenceField } from "@/components/journal/JournalFvgReferenceField";
+import { fvgReferenceSentence, parseFvgObjectId } from "@/lib/journal/fvgDecisionReference";
 import { journalReviewKey, reviewEvidenceFromCapture } from "@/lib/journal/captureReviewEvidence";
 import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
 import { planReviewInputForJournalEntry } from "@/lib/journal/planReview";
@@ -1068,9 +1070,14 @@ function JournalPageInner() {
   // ?new=1&symbol=…&side=long|short&size=… — another room (Paper's blotter)
   // hands a trade over to be journaled. Only the facts it carries are filled;
   // the trader still writes the review and saves. Read once after mount.
+  // Garden 19 §40: ?fvg=<OBJECT_ID> pre-fills the FVG reference field (the
+  // trader still reads its state at decision time and saves).
+  const [fvgPrefillId, setFvgPrefillId] = useState<string | null>(null);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     if (q.get("new") !== "1") return;
+    const fvgId = q.get("fvg");
+    if (parseFvgObjectId(fvgId)) setFvgPrefillId(fvgId);
     const sym = (q.get("symbol") ?? "").trim().toUpperCase();
     const side = q.get("side");
     const size = Number(q.get("size"));
@@ -1099,7 +1106,7 @@ function JournalPageInner() {
     setSelected(null);
     setNewMode(true);
     // Consume the hand-off so a reload does not open a second blank entry.
-    for (const k of ["new", "symbol", "side", "size", "notes", "tag", "capture"]) q.delete(k);
+    for (const k of ["new", "symbol", "side", "size", "notes", "tag", "capture", "fvg"]) q.delete(k);
     const rest = q.toString();
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
   }, []);
@@ -2777,6 +2784,15 @@ Trade the system, trust the process, winners every day 🚀`,
               {selected.capture ? (
                 <div className="mb-4"><CapturedFacts capture={selected.capture} /></div>
               ) : null}
+              {selected.fvgRef ? (
+                <section data-testid="journal-entry-fvg-ref" aria-label="FVG referenced" className="mb-4 rounded-lg border border-wm-border bg-wm-surface/40 p-3">
+                  <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">FVG referenced — its state at decision time</div>
+                  <p className="mt-1 text-[11px] text-wm-text">{fvgReferenceSentence(selected.fvgRef)}</p>
+                  <p className="mt-1 text-[10px] text-wm-text-dim">
+                    Evidence then: {selected.fvgRef.snapshot.evidence.map(e => `${e.sense.replace("_", " ").toLowerCase()} ${e.state}`).join(" · ")}
+                  </p>
+                </section>
+              ) : null}
               <section data-testid="journal-entry-review" aria-label="Review" className="mb-4 rounded-lg border border-wm-border bg-wm-surface/60 p-3">
                 <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Review · read, decision, adherence, expression, execution, slippage, risk, management, discipline, result</div>
                 <StoryReviewRow key={journalReviewKey(selected)} storyKey={journalReviewKey(selected)} evidence={reviewEvidenceFromCapture(selected.capture)}
@@ -3186,6 +3202,12 @@ Trade the system, trust the process, winners every day 🚀`,
                   <CapturedFacts capture={form.capture} title="Broker facts for this entry" />
                 </div>
               ) : null}
+
+              {/* Garden 19 §40: one canonical FVG, referenced with its state AT DECISION TIME. */}
+              <JournalFvgReferenceField key={fvgPrefillId ?? "none"} value={form.fvgRef}
+                onChange={ref => setForm(f => ({ ...f, fvgRef: ref }))}
+                initialObjectId={fvgPrefillId}
+                initialDecisionAtMs={form.capture?.filledAt.value ? Date.parse(form.capture.filledAt.value) : null} />
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div>

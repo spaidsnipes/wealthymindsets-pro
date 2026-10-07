@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { SellingStory } from "@/components/marketing/SellingStory";
+import { PRODUCT_LINE } from "@/lib/marketing/sellingStory";
 
 /**
  * GUEST FIRST SESSION (Garden 18 ATHOS order P0.4 · PROPOSED plate 10,
@@ -106,7 +108,7 @@ export default function WelcomePage() {
   return (
     <div style={{ minHeight: "100vh", background: "#050506", color: INK, fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif", padding: "36px 16px 64px" }}>
       <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-        <div style={{ fontFamily: "Georgia, 'Times New Roman', serif", letterSpacing: "0.32em", fontSize: 12, color: GOLD }}>WEALTHYMINDSETS PRO · YOUR MARKET SANCTUARY</div>
+        <div data-testid="product-line" style={{ fontFamily: "Georgia, 'Times New Roman', serif", letterSpacing: "0.28em", fontSize: 12, color: GOLD, lineHeight: 1.6 }}>{PRODUCT_LINE}</div>
         <h1 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 400, fontSize: 36, margin: "14px 0 8px", lineHeight: 1.15 }}>Read the market before you risk a dollar.</h1>
         <p style={{ color: MUTED, fontSize: 15, lineHeight: 1.6, maxWidth: 720, margin: 0 }}>
           Try a real WM Pro reading on a sample chart — no account, no broker, nothing saved. Then see exactly what is live, estimated, delayed or unavailable when you sign in.
@@ -176,6 +178,11 @@ export default function WelcomePage() {
               <Link href="/pricing" style={{ display: "inline-flex", justifyContent: "center", alignItems: "center", minHeight: 44, borderRadius: 8, border: "1px solid rgba(255,255,255,0.14)", color: INK, textDecoration: "none" }}>See pricing</Link>
             </div>
           </aside>
+        </div>
+
+        {/* §57 SELLING PASS — what WM Pro is, after the guest has touched it. */}
+        <div style={{ marginTop: 40, paddingTop: 28, borderTop: `1px solid ${LINE}` }}>
+          <SellingStory variant="full" withProductLine={false} />
         </div>
 
         <p style={{ color: MUTED, fontSize: 12, lineHeight: 1.6, marginTop: 24, maxWidth: 860 }}>

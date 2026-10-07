@@ -140,11 +140,12 @@ describe("HeroTruth session — the strip reads the owner, not the store key", (
     expect(html).toContain("24X7");
   });
 
-  it("a weekday future stays honestly unresolved — there is still no intraday calendar", () => {
+  it("a weekday future reads the published Globex schedule — OPEN, never the store key (2026-10-07)", () => {
     const token = selectCanonicalSessionToken({ symbol: "GC1!", at: WEDNESDAY });
-    expect(token.established).toBe(false);
+    expect(token.established).toBe(true);
+    expect(token.token).toBe("OPEN");
     const html = stripFor("GC1!", WEDNESDAY);
-    expect(html).toContain("SESSION ?");
+    expect(html).toContain("OPEN");
     expect(html).not.toMatch(/>\s*RTH\s*</);
   });
 
@@ -167,7 +168,7 @@ describe("HeroTruth session — the strip reads the owner, not the store key", (
 
   it("the detail is carried through as the tooltip, so the claim is inspectable", () => {
     const token = selectCanonicalSessionToken({ symbol: "GC1!", at: SATURDAY });
-    expect(token.detail).toContain("closure is established");
+    expect(token.detail).toContain("CME Globex weekend close");
     expect(stripFor("GC1!", SATURDAY)).toContain(token.detail);
   });
 

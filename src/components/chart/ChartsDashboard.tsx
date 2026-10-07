@@ -1,6 +1,7 @@
 "use client";
 
 import { educationIdForSelection } from "@/lib/chart/inventionEducation";
+import { spaidbotFvgScene } from "@/lib/ai/spaidbotFvgFacts";
 import { FVG_INSTRUMENT_ID, FVG_PREF_KEY, isFvgObjectId, type FvgCameraScene } from "@/lib/chart/fvgGlass";
 import { SelectionFirstTouch, InspectFirstTouchContext } from "./SelectionFirstTouch";
 import { orderFlowToolCapability } from "@/lib/marketData/orderFlowToolCapability";
@@ -5369,6 +5370,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               observedAt: lastObservedAtMs ?? null,
               ...(chg.displayable
                 ? { change: chg.change, changePct: chg.changePct }
+                : {}),
+              // Garden 19 · the FVGs on the glass (selected first, then the
+              // visible budget) — the same scene the chart painted, never a
+              // second ledger. Absent while the layer is off.
+              ...(fvgOn && fvgScene
+                ? { fvg: spaidbotFvgScene({ objects: [...fvgScene.visibility.open, ...fvgScene.visibility.scars], selectedObjectId: selectedMarketObjectId }) }
                 : {}),
             };
           })(),

@@ -36,6 +36,7 @@ import { detectFvgs, fvgStateAsOf, type FvgObject } from "@/lib/marketData/fvg/f
 import type { FvgBarFetch } from "@/lib/marketData/fvg/fvgBarSource";
 import { fvgChartHref } from "@/lib/marketData/fvg/fvgChartLink";
 import { getTimeframe, normalizeTFId } from "@/lib/timeframes";
+import { displayPrecisionFor } from "@/lib/chart/pricePrecision";
 
 export const FVG_SCAN_CONDITIONS = [
   "NEW_FVG",
@@ -83,6 +84,8 @@ export interface FvgScanHit {
   /** Close time (epoch ms) of the bar that revealed the condition. */
   readonly knownAt: number;
   readonly href: string;
+  /** Decimals the instrument's prices print at (pricePrecision.displayPrecisionFor). */
+  readonly priceDp: number;
 }
 
 export type FvgScanReading =
@@ -98,7 +101,7 @@ export type FvgScanReading =
     }
   | { readonly status: "REFUSED"; readonly symbol: string; readonly timeframe: string; readonly reason: string };
 
-function hit(condition: FvgScanCondition, o: FvgObject, symbol: string, timeframe: string, knownAt: number): FvgScanHit {
+function hit(condition: FvgScanCondition, o: FvgObject, symbol: string, timeframe: string, knownAt: number, priceDp: number): FvgScanHit {
   return {
     condition,
     symbol,
@@ -111,6 +114,7 @@ function hit(condition: FvgScanCondition, o: FvgObject, symbol: string, timefram
     mitigation: o.mitigation,
     knownAt,
     href: fvgChartHref({ symbol, timeframe, objectId: o.objectId }),
+    priceDp,
   };
 }
 
@@ -142,14 +146,15 @@ export function fvgScanConditionsFromBars(input: {
   const now = fvgStateAsOf(ledger, tNow);
   const prev = fvgStateAsOf(ledger, ledger.closeTimes[n - 2]);
   const before = new Map(prev.objects.map(o => [o.objectId, o]));
+  const dp = displayPrecisionFor(symbol, input.bars);
   const hits: FvgScanHit[] = [];
   for (const o of now.objects) {
     const p = before.get(o.objectId) ?? null;
-    if (!p) { hits.push(hit("NEW_FVG", o, symbol, timeframe, tNow)); continue; }
-    if (o.coreState === "APPROACHING" && o.firstTouch === null) hits.push(hit("PRICE_APPROACHING_FVG", o, symbol, timeframe, tNow));
-    if (o.firstTouch !== null && p.firstTouch === null) hits.push(hit("FIRST_TOUCH", o, symbol, timeframe, tNow));
-    if (o.mitigation === "PARTIAL" && p.mitigation !== "PARTIAL") hits.push(hit("PARTIAL_MITIGATION", o, symbol, timeframe, tNow));
-    if (o.mitigation === "DEEP" && p.mitigation !== "DEEP") hits.push(hit("DEEP_MITIGATION", o, symbol, timeframe, tNow));
+    if (!p) { hits.push(hit("NEW_FVG", o, symbol, timeframe, tNow, dp)); continue; }
+    if (o.coreState === "APPROACHING" && o.firstTouch === null) hits.push(hit("PRICE_APPROACHING_FVG", o, symbol, timeframe, tNow, dp));
+    if (o.firstTouch !== null && p.firstTouch === null) hits.push(hit("FIRST_TOUCH", o, symbol, timeframe, tNow, dp));
+    if (o.mitigation === "PARTIAL" && p.mitigation !== "PARTIAL") hits.push(hit("PARTIAL_MITIGATION", o, symbol, timeframe, tNow, dp));
+    if (o.mitigation === "DEEP" && p.mitigation !== "DEEP") hits.push(hit("DEEP_MITIGATION", o, symbol, timeframe, tNow, dp));
   }
   return {
     status: "READ",

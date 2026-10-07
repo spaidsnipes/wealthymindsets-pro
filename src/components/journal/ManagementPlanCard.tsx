@@ -160,8 +160,8 @@ function FrozenPlan({ snap, onAmended }: { snap: ManagementPlanSnapshot; onAmend
 
 export function ManagementPlanCard(props:
   | { readonly mode: "ticket"; readonly symbol: string }
-  | { readonly mode: "story"; readonly decisionId: string; readonly symbol?: string | null; readonly onPlanChange?: (s: ManagementPlanSnapshot) => void }) {
-  const [frozen, setFrozen] = useState<ManagementPlanSnapshot | null>(null);
+  | { readonly mode: "story"; readonly decisionId: string; readonly symbol?: string | null; readonly initial?: ManagementPlanSnapshot | null; readonly onPlanChange?: (s: ManagementPlanSnapshot) => void }) {
+  const [frozen, setFrozen] = useState<ManagementPlanSnapshot | null>(props.mode === "story" ? props.initial ?? null : null);
   const [draft, setDraft] = useState<DraftForm>(EMPTY_DRAFT);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [newPlan, setNewPlan] = useState(false);
@@ -171,7 +171,7 @@ export function ManagementPlanCard(props:
 
   const refresh = useCallback(() => {
     const st = store();
-    if (props.mode === "story") setFrozen(readPlanForDecision(st, decisionId));
+    if (props.mode === "story") { const read = readPlanForDecision(st, decisionId); if (read) setFrozen(read); }
     else setFrozen(latestPlanForSymbol(st, symbol, Date.now() - DRAFT_MAX_AGE_MS));
     const d = props.mode === "ticket" ? readDraft(st, symbol) : null;
     setDraft(d ? fromPlan(d.plan) : EMPTY_DRAFT);
@@ -183,7 +183,8 @@ export function ManagementPlanCard(props:
   const onAmended = (s: ManagementPlanSnapshot) => { setFrozen(s); if (props.mode === "story") props.onPlanChange?.(s); };
 
   if (props.mode === "story") {
-    if (frozen) return <div data-testid="plan-card" data-mode="story"><FrozenPlan snap={frozen} onAmended={onAmended} /></div>;
+    // The Review's "WHAT YOU PLANNED" column already states the frozen plan and its amendments; here, only the amend form.
+    if (frozen) return <div data-testid="plan-card" data-mode="story"><AmendForm snap={frozen} onSaved={onAmended} /></div>;
     const record = () => {
       const snap = freezePlanSnapshot({ decisionId: props.decisionId, frozenAt: "JOURNAL_ENTRY", atMs: Date.now(), source: "written in Review after the trade", plan: { symbol, ...toPlan(draft) } });
       if (freezePlanOnce(store(), snap) === "FROZEN" && snap) { setFrozen(snap); props.onPlanChange?.(snap); }

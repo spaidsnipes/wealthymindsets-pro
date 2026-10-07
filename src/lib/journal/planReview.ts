@@ -13,6 +13,7 @@ import type { ManagementPlanSnapshot } from "./managementPlan";
 import { planAloneReference, type PlanAloneReference } from "./planCounterfactual";
 import { actualsFromJournalEntry, classifyPlanVsActual, findingsByDimension, type PlanDeviation, type PlanVsActualResult, type PricePath, type TradeActuals } from "./planVsActual";
 import type { ReviewDimension } from "./storyReview";
+import { sheriffColumns, type SheriffColumns } from "./planSheriff";
 import { actualsFromBrokerStory, type StoryFillFact, type StoryOrderFact } from "./planActualsFromBroker";
 
 export interface PlanReviewInput {
@@ -27,6 +28,8 @@ export interface ComposedPlanReview {
   readonly byDimension: Readonly<Partial<Record<ReviewDimension, readonly PlanDeviation[]>>>;
   readonly question: string;
   readonly planAlone: PlanAloneReference;
+  /** §64: market / planned / actual, stated apart. */
+  readonly sheriff: SheriffColumns;
 }
 
 export function composePlanReview(input: PlanReviewInput, traderReason?: string | null): ComposedPlanReview {
@@ -43,6 +46,7 @@ export function composePlanReview(input: PlanReviewInput, traderReason?: string 
       entryPx: input.actuals?.entry?.px ?? null,
       path: input.path ?? null,
     }),
+    sheriff: sheriffColumns(input),
   };
 }
 

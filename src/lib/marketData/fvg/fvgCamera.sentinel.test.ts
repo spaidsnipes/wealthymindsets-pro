@@ -37,9 +37,10 @@ const ENGINE_CALLERS = new Set([
   "src/lib/marketData/fvg/fvgCamera.ts",
   "src/lib/backtest/fvgStudy.ts",
   "src/lib/scanner/fvgScanConditions.ts",
-  // Chart lane D's glass helper (incremental ledger memo). It runs the same
-  // engine; Replay state on the glass must still come through fvgSceneForCamera.
-  "src/lib/chart/fvgGlass.ts",
+  "src/lib/journal/fvgDecisionReference.ts",
+  // (2026-10-07: chart lane D's fvgGlass.ts no longer runs the engine — its
+  // live increment memo moved INTO fvgCamera (createFvgCameraMemo) — so it is
+  // not a caller and is not listed.)
 ]);
 
 describe("FVG camera sentinel", () => {

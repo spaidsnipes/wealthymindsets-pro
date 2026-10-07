@@ -284,13 +284,13 @@ describe("deckSceneSignals — fed by the real owner, not a hand-written string"
     }
   });
 
-  it("a weekday equity is honestly UNOBSERVED — there is still no intraday calendar", () => {
-    // The honest downgrade. The deck used to report SESSION OBSERVED on a
-    // Tuesday on the strength of a store key; it had observed nothing.
+  it("a weekday-midday equity is OBSERVED from the published NYSE schedule, not from a store key (2026-10-07)", () => {
+    // The deck once reported SESSION OBSERVED on the strength of a store key.
+    // It now reads the canonical owner's schedule verdict, which names its basis.
     const { token, out, scene } = sceneFor("TSLA", WEDNESDAY);
-    expect(token.token).toBe(SESSION_TOKEN_UNKNOWN);
-    expect(out.provenance.SESSION).toBe("UNOBSERVED");
-    expect(out.observedCount).toBe(0);
+    expect(token.token).toBe("OPEN");
+    expect(token.detail).toContain("regular hours 09:30–16:00 ET");
+    expect(out.provenance.SESSION).toBe("OBSERVED");
     expect(scene).not.toBe("CLOSED");
   });
 

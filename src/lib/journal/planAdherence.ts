@@ -39,11 +39,15 @@ export interface SetupAdherence {
 export const UNNAMED_SETUP = "(no setup named)";
 
 export function planAdherenceBySetup(rows: readonly { readonly setup?: string | null; readonly result: PlanVsActualResult }[]): SetupAdherence[] {
+  return planAdherenceByGroup(rows.map(r => ({ group: r.setup && r.setup.trim() ? r.setup.trim() : UNNAMED_SETUP, result: r.result })));
+}
+
+/** The same counting for any grouping (setup, FVG context …). `setup` on each row names the group. */
+export function planAdherenceByGroup(rows: readonly { readonly group: string; readonly result: PlanVsActualResult }[]): SetupAdherence[] {
   const groups = new Map<string, PlanVsActualResult[]>();
   for (const r of rows) {
     if (!r.result.decisionId) continue;
-    const k = r.setup && r.setup.trim() ? r.setup.trim() : UNNAMED_SETUP;
-    (groups.get(k) ?? groups.set(k, []).get(k)!).push(r.result);
+    (groups.get(r.group) ?? groups.set(r.group, []).get(r.group)!).push(r.result);
   }
   const out: SetupAdherence[] = [];
   for (const [setup, rs] of groups) {
