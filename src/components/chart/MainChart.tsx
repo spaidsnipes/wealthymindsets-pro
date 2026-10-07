@@ -40,6 +40,7 @@ import { readCrossCandleWisdom, type WisdomLine } from "@/lib/chart/crossCandleW
 import { readRelativeVolume, RVOL_BUDGET_MS, rvolToneAlpha, type RvolBar } from "@/lib/chart/relativeVolume";
 import type { RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegimeSeries";
 import { bucketStep, profileContribution } from "@/lib/chart/profileContribution";
+import type { LivingDevelopmentPoint } from "@/lib/marketData/viewModels/selectLivingProfile";
 import { chartPricePickArmed, deliverChartPricePick, orderLineWords, registerChartPricePickHost, useChartOrderLines } from "@/lib/execution/chartOrderLines";
 import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, type DisplacedNote } from "@/lib/chart/eventNoteComposer";
 import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
@@ -1364,6 +1365,12 @@ interface Props {
    */
   regimeSeries?: readonly RegimeSeriesPoint[] | null;
   /**
+   * §8 LIVING PROFILE DEVELOPMENT: POC / VAH / VAL as the Living Profile
+   * published them at each bar's close (selectLivingProfileDevelopment — the
+   * same engine, no lookahead). Painted while Living Profile is on.
+   */
+  livingDevelopment?: readonly LivingDevelopmentPoint[] | null;
+  /**
    * ABSORPTION ANATOMY (Founder Asset 06) — draws the EFFORT field and the
    * ABSORPTION ZONE band directly in price/time space. See the draw block.
    */
@@ -1945,7 +1952,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
-  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, regimeSeries = null,
+  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, regimeSeries = null, livingDevelopment = null,
   absorptionAnatomyActive = false,
   exhaustionOnChart = true,
   imbalanceStack = null,
@@ -2291,6 +2298,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const deltaKeelAtrRef = useRef<{ key: string; atr: number[] } | null>(null);
   const regimeSeriesRef = useRef<readonly RegimeSeriesPoint[] | null>(null);
   regimeSeriesRef.current = regimeSeries;
+  const livingDevelopmentRef = useRef<readonly LivingDevelopmentPoint[] | null>(null);
+  livingDevelopmentRef.current = livingDevelopment;
   // ASK-3: the wisdom line's hit rect this frame (null when not drawn).
   const wisdomHitRef = useRef<{ x: number; y: number; w: number; h: number; time: number } | null>(null);
   // C-05 marks travel through a ref: they change on bar close, and the paint
@@ -10565,6 +10574,68 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           canvas.dataset.regimeStateLine = `${traced}|X${crossings}|NOW:${last?.state ?? "SILENT"}`;
         }
       } catch (err) { layerFault("REGIME_STATE_LINE", err); }
+
+      /* ══ §8 · THE LIVING PROFILE EVOLVES — DEVELOPING VALUE TRAIL ═════════
+         Quiet steps behind price: POC (brass) and VAH / VAL (bone hairlines)
+         where the Living Profile stood at each bar's close
+         (selectLivingProfileDevelopment — the same engine, no lookahead).
+         Memory is aged: older steps fainter. A stretch built from candles
+         (ESTIMATED) is DOTTED — a degraded reading never wears the solid
+         stroke of the tape. The forming bar is skipped (§15 clear zone).
+         Only while Living Profile is on and drawn. */
+      try {
+        const dev = livingDevelopmentRef.current;
+        if (layerOnRef.current.livingProfile !== true || livingProfileRef.current?.drawn !== true) canvas.dataset.livingDevelopment = "OFF";
+        else if (!dev || dev.length < 2) canvas.dataset.livingDevelopment = "NO_SERIES";
+        else {
+          const tsLD = chart.timeScale();
+          const spacingLD = (() => { try { return +(tsLD.options().barSpacing ?? 6); } catch { return 6; } })();
+          const half = spacingLD / 2;
+          const pts = dev.filter(p => !p.forming);
+          let steps = 0, estimated = 0;
+          ctx.save();
+          ctx.lineWidth = 1;
+          const n = pts.length;
+          for (const key of ["val", "vah", "poc"] as const) {
+            let prevY: number | null = null, prevX: number | null = null;
+            for (let k = 0; k < n; k++) {
+              const p = pts[k];
+              const v = p[key];
+              const xr = tsLD.timeToCoordinate(p.time as never);
+              if (v == null || xr == null || +xr < -half || +xr > plotRight) { prevY = null; prevX = null; continue; }
+              const yr = srs.priceToCoordinate(v);
+              if (yr == null) { prevY = null; prevX = null; continue; }
+              const age = n > 1 ? k / (n - 1) : 1;
+              const a = key === "poc" ? 0.14 + 0.36 * age : 0.08 + 0.22 * age;
+              ctx.strokeStyle = key === "poc" ? `rgba(201,165,92,${a.toFixed(3)})` : `rgba(237,230,211,${a.toFixed(3)})`;
+              ctx.setLineDash(p.basis === "ESTIMATED" ? [1, 3] : []);
+              const y = Math.round(+yr) + 0.5, x0 = +xr - half, x1 = +xr + half;
+              ctx.beginPath();
+              if (prevY != null && prevX != null && Math.abs(prevX - x0) < spacingLD) { ctx.moveTo(x0, prevY); ctx.lineTo(x0, y); }
+              else ctx.moveTo(x0, y);
+              ctx.lineTo(x1, y);
+              ctx.stroke();
+              prevY = y; prevX = x1;
+              steps++;
+              if (p.basis === "ESTIMATED" && key === "poc") estimated++;
+            }
+          }
+          ctx.setLineDash([]);
+          // The moment the tape took over (ESTIMATED → TAPE): one brass tick
+          // across the POC step at that bar.
+          let switchAt: number | null = null;
+          for (let k = 1; k < n; k++) if (pts[k - 1].basis === "ESTIMATED" && pts[k].basis === "TAPE") switchAt = k;
+          if (switchAt != null && pts[switchAt].poc != null) {
+            const xs = tsLD.timeToCoordinate(pts[switchAt].time as never), ys = srs.priceToCoordinate(pts[switchAt].poc!);
+            if (xs != null && ys != null && +xs >= 0 && +xs <= plotRight) {
+              ctx.strokeStyle = "rgba(201,165,92,0.85)";
+              ctx.beginPath(); ctx.moveTo(Math.round(+xs) + 0.5, +ys - 4); ctx.lineTo(Math.round(+xs) + 0.5, +ys + 4); ctx.stroke();
+            }
+          }
+          ctx.restore();
+          canvas.dataset.livingDevelopment = `${pts.length}|STEPS:${steps}|EST:${estimated}${switchAt != null ? `|TAPE_FROM:${pts[switchAt].time}` : ""}`;
+        }
+      } catch (err) { layerFault("LIVING_DEVELOPMENT", err); }
 
       /* ══ #14 · PROFILE × CANDLE (Garden 19 §8) ════════════════════════════
          Selection-only. When a Living Profile row is selected (the slice the

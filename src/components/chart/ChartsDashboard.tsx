@@ -381,6 +381,8 @@ import { selectAggressionResponse } from "@/lib/marketData/viewModels/selectAggr
 import { selectBigTradeIntelligence } from "@/lib/marketData/viewModels/selectBigTradeIntelligence";
 import {
   buildLivingProfileSnapshot,
+  selectLivingProfileDevelopment,
+  type LivingDevelopmentPoint,
   selectLivingProfile,
 } from "@/lib/marketData/viewModels/selectLivingProfile";
 import type { AnatomyBarInput } from "@/lib/marketData/selectAbsorptionAnatomy";
@@ -2385,6 +2387,69 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     regimeSeriesCacheRef.current = { key, value };
     return value;
   }, [regimeLightingOn, chartBars, recentTicks, tapeSource, symbol, valueCandleBarSec]);
+
+  /**
+   * §8 LIVING PROFILE DEVELOPMENT — POC / VAH / VAL at each bar's close, from
+   * the Living Profile's own engine (selectLivingProfileDevelopment).
+   * SMOOTHNESS FIRST (Founder priority #1): a cold series costs ~300ms, so it
+   * NEVER runs in render or on the paint path. It is computed in idle slices
+   * (requestIdleCallback, setTimeout fallback), ≤12 bars per slice, each slice
+   * reusing the finished points before it (`previous`), keyed on the newest
+   * CLOSED bar — warm updates cost ~1ms. Only while Living Profile is on.
+   */
+  const [livingDevelopmentVM, setLivingDevelopmentVM] = useState<readonly LivingDevelopmentPoint[] | null>(null);
+  const livingDevPrevRef = React.useRef<{ scope: string; value: readonly LivingDevelopmentPoint[] } | null>(null);
+  const livingDevInputsRef = React.useRef({ recentTicks, livingSessionBars, volumeIsReal, price: ticker.price, valueCandleBarSec });
+  livingDevInputsRef.current = { recentTicks, livingSessionBars, volumeIsReal, price: ticker.price, valueCandleBarSec };
+  const livingDevClosedKey = livingSessionBars.length >= 2
+    ? `${symbol}|${livingSessionBars[0]?.time}|${livingSessionBars[livingSessionBars.length - 2]?.time}|${volumeIsReal}`
+    : null;
+  useEffect(() => {
+    if (!livingProfileOn || !livingDevClosedKey) { setLivingDevelopmentVM(null); return; }
+    let cancelled = false;
+    const w = window as unknown as { requestIdleCallback?: (cb: (d: { timeRemaining: () => number }) => void, o?: { timeout: number }) => number; cancelIdleCallback?: (h: number) => void };
+    let handle: number | null = null;
+    const scope = livingDevClosedKey.split("|").slice(0, 2).join("|");
+    const inp = livingDevInputsRef.current;
+    const bars = inp.livingSessionBars;
+    const prev0 = livingDevPrevRef.current?.scope === scope ? livingDevPrevRef.current.value : null;
+    // Finished points already known: start the slices after them.
+    let done = prev0 ? prev0.filter(p => !p.forming).length : 0;
+    let previous: readonly LivingDevelopmentPoint[] | null = prev0 ? prev0.filter(p => !p.forming) : null;
+    const SLICE = 12;
+    const step = () => {
+      if (cancelled) return;
+      const upto = Math.min(bars.length, done + SLICE);
+      const full = upto >= bars.length;
+      const out = selectLivingProfileDevelopment({
+        prints: inp.volumeIsReal ? inp.recentTicks : null,
+        bars: bars.slice(0, upto),
+        instrumentTick: instrumentTickFor(symbol, inp.price),
+        barSec: inp.valueCandleBarSec ?? 60,
+        now: Date.now(),
+        previous,
+      });
+      // A partial slice's LAST point read every print (it was the slice's last
+      // bar) — drop it so the next slice recomputes it without lookahead.
+      previous = full ? out : out.slice(0, -1);
+      done = full ? bars.length : Math.max(done, upto - 1);
+      if (full) {
+        livingDevPrevRef.current = { scope, value: out };
+        setLivingDevelopmentVM(out);
+        return;
+      }
+      schedule();
+    };
+    const schedule = () => {
+      if (w.requestIdleCallback) handle = w.requestIdleCallback(() => step(), { timeout: 500 });
+      else handle = window.setTimeout(step, 16) as unknown as number;
+    };
+    schedule();
+    return () => {
+      cancelled = true;
+      if (handle != null) { if (w.cancelIdleCallback) w.cancelIdleCallback(handle); else window.clearTimeout(handle); }
+    };
+  }, [livingProfileOn, livingDevClosedKey, symbol]);
 
   const effortMarksFieldCacheRef = React.useRef<{ key: string; value: { marks: EffortMark[]; considered: number; reason: string } } | null>(null);
   const effortMarksField = React.useMemo(() => {
@@ -6901,6 +6966,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       effortMark={effortMarkVerdict}
                       effortMarksField={effortMarksField}
                       regimeSeries={regimeSeriesVM}
+                      livingDevelopment={livingDevelopmentVM}
                       deltaLevelsGlass={deltaLevelsGlass}
                       deltaLevelsOnChart={deltaLevelsOn}
                       livingProfileGlass={livingProfileGlass}

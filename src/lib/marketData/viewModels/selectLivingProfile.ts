@@ -438,3 +438,106 @@ export function selectLivingProfile(
     locationNote,
   };
 }
+
+/* ═══ Garden 19 §8 · THE LIVING PROFILE, AS IT STOOD AT EACH BAR'S CLOSE ═════
+ *
+ * "Living Profile should visibly evolve with the market." The glass draws the
+ * profile as it stands NOW; this series answers, for every bar of the same
+ * session window, what POC / VAH / VAL the Living Profile published when that
+ * bar closed — through the SAME source decision and the SAME engine
+ * (`buildLivingProfileSnapshot` → vpEngine, buckets via bucketOnTickGrid). No
+ * second profile math: each point IS a snapshot, built from the bars up to
+ * that bar and the prints stamped before its close.
+ *
+ *   NO LOOKAHEAD   point k reads bars[0..k] and prints with time < close(k).
+ *   BASIS          TAPE when the tape decision chose prints (≥ the tape
+ *                  threshold by then), ESTIMATED when it fell back to bars —
+ *                  so the line can show the moment the tape took over.
+ *   THE LAST POINT is the forming bar read at `now`, with every bar and print
+ *                  the live snapshot reads: it equals the live snapshot (test).
+ *   NOT A REPAINT  a finished point, once computed, is reused from `previous`
+ *                  (memo): it is what the profile said THEN, even after the
+ *                  ring evicts the prints it was built from. Only the forming
+ *                  point and newly closed bars are computed — incremental.
+ *
+ * Prints without a time cannot be placed before or after a close and are
+ * excluded from every point except the live (last) one, which reads them all,
+ * exactly as the live snapshot does.
+ */
+
+export type LivingDevelopmentBasis = "TAPE" | "ESTIMATED";
+
+export interface LivingDevelopmentPoint {
+  /** The bar's open, unix seconds. */
+  readonly time: number;
+  /** POC / VAH / VAL as published at this bar's close (bucket low edges); null when nothing had traded. */
+  readonly poc: number | null;
+  readonly vah: number | null;
+  readonly val: number | null;
+  readonly basis: LivingDevelopmentBasis;
+  /** The bucket size the engine chose for this snapshot (it can widen as the range grows). */
+  readonly tickSize: number;
+  readonly totalVolume: number;
+  /** True for the bar still forming — its point is the live snapshot and will move. */
+  readonly forming: boolean;
+}
+
+export interface LivingDevelopmentInput {
+  /** The same prints the live snapshot gets (null when volume is not real). `time` in ms. */
+  readonly prints: readonly (TapePrint & { readonly time?: number | null })[] | null | undefined;
+  /** The same session-window bars the live snapshot gets, oldest first. */
+  readonly bars: readonly LegacyOhlcvTuple[];
+  readonly instrumentTick?: number | null;
+  /** Bar length in seconds. */
+  readonly barSec: number;
+  /** Wall clock, ms. */
+  readonly now: number;
+  /** The previous result, for reuse of finished points (memo). */
+  readonly previous?: readonly LivingDevelopmentPoint[] | null;
+}
+
+function developmentPoint(snap: ProfileSnapshot, time: number, forming: boolean): LivingDevelopmentPoint {
+  const has = snap.populatedRows > 0;
+  return {
+    time,
+    poc: has ? snap.poc : null,
+    vah: has ? snap.vah : null,
+    val: has ? snap.val : null,
+    basis: snap.quality === "trade-based" ? "TAPE" : "ESTIMATED",
+    tickSize: snap.tickSize,
+    totalVolume: snap.totalVolume,
+    forming,
+  };
+}
+
+export function selectLivingProfileDevelopment(input: LivingDevelopmentInput): LivingDevelopmentPoint[] {
+  const bars = input.bars;
+  if (bars.length === 0) return [];
+  const prints = input.prints ?? null;
+  const timed = prints
+    ? prints.filter(p => typeof p.time === "number" && Number.isFinite(p.time)).slice().sort((a, b) => Number(a.time) - Number(b.time))
+    : null;
+  const prevByTime = new Map<number, LivingDevelopmentPoint>();
+  for (const p of input.previous ?? []) if (!p.forming) prevByTime.set(p.time, p);
+
+  const out: LivingDevelopmentPoint[] = [];
+  let printEnd = 0; // prints [0, printEnd) are before the current close
+  for (let k = 0; k < bars.length; k++) {
+    const closeMs = (bars[k].time + input.barSec) * 1000;
+    const isLast = k === bars.length - 1;
+    const forming = isLast && closeMs > input.now;
+    if (forming) {
+      // The live snapshot, exactly: every bar, every print it would read.
+      out.push(developmentPoint(buildLivingProfileSnapshot(prints, bars, input.instrumentTick), bars[k].time, true));
+      break;
+    }
+    // The newest bar is never reused: it reads what the live snapshot reads.
+    const reuse = isLast ? undefined : prevByTime.get(bars[k].time);
+    if (reuse) { out.push(reuse); continue; }
+    if (timed) while (printEnd < timed.length && Number(timed[printEnd].time) < closeMs) printEnd++;
+    // A closed last bar with nothing after it reads like the live snapshot too.
+    const window = isLast ? prints : timed ? timed.slice(0, printEnd) : null;
+    out.push(developmentPoint(buildLivingProfileSnapshot(window, bars.slice(0, k + 1), input.instrumentTick), bars[k].time, false));
+  }
+  return out;
+}
