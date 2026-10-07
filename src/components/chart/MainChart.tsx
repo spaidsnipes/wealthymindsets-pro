@@ -3,7 +3,8 @@
 import { arrivalRipple, bigTradeTier, percentileFromSorted, sortedSessionSizes } from "@/lib/chart/bigTradeTier";
 import { symbolDoorHref } from "@/contexts/SymbolContext";
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
-import { liveBarBucketSec } from "@/lib/timeframes";
+import { liveBarBucketSec, tickCountOf } from "@/lib/timeframes";
+import { TickBarBuilder, printFromTapeTick, tickBarCoverageLabel, tickBarIdentity, tickBarRefusal, type TickBar } from "@/lib/chart/tickBars";
 import { barTimeContaining } from "@/lib/desk/deskLinkBus";
 
 /**
@@ -785,6 +786,11 @@ export function getIntervalSec(tf: string): number {
     // vocabulary survives the registry that was meant to end it.
   };
   const v = m[tf];
+  // TICK (N-trade) BARS have no clock. 60 is a NOMINAL window unit only — the
+  // tape-backfill reach and the camera's spacing size against it; the bars
+  // themselves come from TickBarBuilder (prints, not time) and the countdown
+  // reads "prints left", never this number.
+  if (v == null && tickCountOf(tf) != null) return 60;
   if (v == null) {
     throw new Error(`getIntervalSec: unknown timeframe "${tf}" — refusing to silently default to 60s. See WM-CHART-P0-03.`);
   }
@@ -3429,6 +3435,32 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const tapeHorizonRef = useRef<{ sym: string; tapeSrc: string; startedAtSec: number } | null>(sessionSlot.horizon);
   tapeHorizonRef.current = sessionSlot.horizon;
 
+  // ── TICK (N-TRADE) BARS (2026-10-07) ─────────────────────────────────────
+  // On a tick timeframe (registry: TICK_TF_IDS) the bars are N consecutive real
+  // prints from THE fold below — never candles, never a vendor door. One
+  // builder per (symbol, tape, timeframe); live prints fold in O(1), backfilled
+  // prints merge once per page (ingestBatch). The ladder (`tickAccRef`) buckets
+  // every print by the builder's bar time, so footprint / delta / big trades /
+  // Inspect read the SAME tick bars. See src/lib/chart/tickBars.ts.
+  const tickN = tickCountOf(timeframe);
+  const tickBuilderRef = useRef<TickBarBuilder | null>(null);
+  /** Backfilled prints waiting for the one merge (tickFlushRef). */
+  const tickBackfillRef = useRef<Tick[]>([]);
+  /** `${sym}|${tf}` once the build effect has put THIS tick series on the glass. */
+  const tickPaintKeyRef = useRef<string>("");
+  /** The builder whose bars are on the series (a new one = one full repaint). */
+  const tickPaintedBuilderRef = useRef<TickBarBuilder | null>(null);
+  /** Set only while THE ladder is refolded from the builder: the print's re-cut bar time. */
+  const tickRefoldAtRef = useRef<number | null>(null);
+  /** The words under the tick bars: coverage, or the plain refusal. */
+  const [tickNote, setTickNote] = useState<string | null>(null);
+  /** Coverage start in the chart's display zone, to the second. */
+  const fmtTickCoverageTime = (ms: number): string => {
+    try {
+      return new Date(ms).toLocaleTimeString("en-US", { hour12: false, timeZone: tzRef.current || undefined });
+    } catch { return new Date(ms).toISOString().slice(11, 19) + "Z"; }
+  };
+
   // Rebuild timeframe-owned buckets whenever symbol, source, or timeframe
   // changes. The bounded recent-tick buffer is then folded into the new bars by
   // the accumulator effects below.
@@ -3438,6 +3470,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // timeframe) change. The bounded recent-tick buffer folds back into them.
     tickAccRef.current = new Map();
     tickAccStartedAtRef.current = null;
+    // A tick timeframe gets a fresh builder; the bounded recent tape folds back
+    // into it below, and the backfill reaches further.
+    tickBuilderRef.current = tickN != null ? new TickBarBuilder(tickN) : null;
+    tickBackfillRef.current = [];
     // The rail's footprint belonged to the old buckets: withdraw it now.
     footprintPublishRef.current = { at: 0, key: "NONE" };
     onTapeFootprintRef.current?.(null);
@@ -3486,7 +3522,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       processedTicksRef.current = new Set([...processedTicksRef.current].slice(-4000));
     }
 
-    const barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
+    let barTime = Math.floor(tick.time / 1000 / intervalSec) * intervalSec;
+    // TICK BARS: the print's bar is the builder's, not a clock bucket. A
+    // backfilled print waits for the one merge (tickFlushRef); a re-cut
+    // refolds the ladder through here with each print's new bar time.
+    const tb = tickBuilderRef.current;
+    if (tickRefoldAtRef.current != null) {
+      barTime = tickRefoldAtRef.current;
+    } else if (tb) {
+      if (!heardLive) { tickBackfillRef.current.push(tick); return true; }
+      const p = printFromTapeTick(tick, true);
+      if (!p || tb.ingest(p) === "dup") return false;
+      const forming = tb.formingBarTime();
+      if (forming == null) return true;
+      barTime = forming;
+    }
     const priceLevel = +(Math.round(tick.price / minTick) * minTick).toFixed(dp);
     if (!bigTradePrintAccRef.current.has(barTime)) bigTradePrintAccRef.current.set(barTime, []);
     bigTradePrintAccRef.current.get(barTime)!.push({
@@ -3519,6 +3569,121 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   };
   foldPrintRef.current = foldPrint;
 
+  const tickIdentityFor = (bar: TickBar) => tickBarIdentity(bar, {
+    source: (tapeSource ?? "TAPE").toUpperCase(),
+    symbolId: canonicalSym,
+    ticks: tickN ?? 1,
+    receivedAt: Date.now(),
+    continuousVenue: canonicalAssetClass(symbol) === "crypto",
+  });
+  /** The build effect's batch on a tick timeframe: what the builder holds NOW. */
+  const tickBatchRef = useRef<() => CanonicalCandleBatch>(() => ({ candles: [], identities: [] }));
+  tickBatchRef.current = () => {
+    const tb = tickBuilderRef.current;
+    if (!tb) return { candles: [], identities: [] };
+    tb.drain(); // everything held is in this batch; the painter continues from here
+    tickPaintedBuilderRef.current = tb;
+    const bars = tb.bars();
+    return { candles: [...bars], identities: bars.map(tickIdentityFor).filter((x): x is CanonicalBarIdentity => x != null) };
+  };
+
+  /* TICK BARS — THE PAINTER. Reads what changed since the last paint (drain):
+     a TAIL change updates only those bars (series.update — no setData, no time
+     scale rebuild); a RESET (a backfill re-cut the bars, or the oldest were
+     shed) repaints once and refolds THE ladder through `foldPrint` so every
+     order-flow reading buckets by the SAME tick bars. Runs at most once per
+     tape flush (the tape is rAF-batched), never per canvas frame. */
+  const tickPaintRef = useRef<() => void>(() => {});
+  tickPaintRef.current = () => {
+    const tb = tickBuilderRef.current;
+    const cs = candleRef.current, vs = volRef.current;
+    if (!tb || !cs || !vs || tickPaintKeyRef.current !== `${canonicalSym}|${timeframe}`) return;
+    if (replayCameraRef.current) return; // the builder keeps folding; the next build repaints
+    const freshBuilder = tickPaintedBuilderRef.current !== tb;
+    tickPaintedBuilderRef.current = tb;
+    const drained = tb.drain();
+    const change = freshBuilder ? { kind: "reset" as const } : drained;
+    if (change.kind === "none") return;
+    const t0 = performance.now();
+    const bars = tb.bars();
+    const pts = mainSeriesPoints(candleType, bars, {
+      up: chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
+      down: chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
+      base,
+      intervalSec: getIntervalSec(timeframe),
+    });
+    const vpts = volumeSeriesPoints(
+      bars,
+      chartSettings?.neon ? "rgba(0,255,163,0.70)" : VOLUME_UP_DEFAULT,
+      chartSettings?.neon ? "rgba(255,46,99,0.70)"  : VOLUME_DOWN_DEFAULT,
+      symbol,
+    );
+    const full = change.kind === "reset" || pts.length !== bars.length || vpts.length !== bars.length;
+    try {
+      if (full) {
+        cs.setData(pts as any);
+        vs.setData(vpts as any);
+      } else {
+        for (let i = change.fromIndex; i < bars.length; i++) {
+          cs.update(pts[i] as any);
+          vs.update(vpts[i] as any);
+        }
+      }
+    } catch { return; /* series swapped mid-paint; the next build repaints */ }
+    if (full) {
+      // Refold THE ladder by the re-cut bars, through THE one fold (newest 400 bars).
+      tickAccRef.current = new Map();
+      bigTradePrintAccRef.current = new Map();
+      tickAccStartedAtRef.current = null;
+      processedTicksRef.current = new Set();
+      const keepFrom = bars.length > 400 ? bars[bars.length - 400].time : -Infinity;
+      try {
+        tb.forEachPrint((p, t) => {
+          if (t < keepFrom) return;
+          tickRefoldAtRef.current = t;
+          foldPrintRef.current(p.origin as Tick, false);
+        });
+      } finally { tickRefoldAtRef.current = null; }
+      flowLadderPublisherRef.current?.changed();
+    }
+    const tuples = [...bars];
+    barsRef.current = tuples;
+    barIdentitiesRef.current = bars.map(tickIdentityFor).filter((x): x is CanonicalBarIdentity => x != null);
+    setCandles(tuples);
+    setTickNote(tickBarCoverageLabel(tb.coverage(), fmtTickCoverageTime));
+    onBarsReady?.(barsRef.current, barIdentitiesRef.current);
+    // PAINT COST RECEIPT (data, not ink): the last tick paint's kind, size and ms.
+    try {
+      const cv = canvasRef.current;
+      if (cv) cv.dataset.tickBarPaint = `${full ? "FULL" : "TAIL"}:${tuples.length}bars:${(performance.now() - t0).toFixed(2)}ms`;
+    } catch { /* canvas not mounted */ }
+  };
+  /** Merge the pending backfilled prints in one pass, then paint. */
+  const tickFlushRef = useRef<() => void>(() => {});
+  tickFlushRef.current = () => {
+    const tb = tickBuilderRef.current;
+    if (!tb) return;
+    const pending = tickBackfillRef.current;
+    if (pending.length) {
+      tickBackfillRef.current = [];
+      const ps = [];
+      for (const t of pending) { const p = printFromTapeTick(t, false); if (p) ps.push(p); }
+      tb.ingestBatch(ps);
+    }
+    tickPaintRef.current();
+  };
+  // The note: the plain refusal where there are no prints, else the coverage.
+  useEffect(() => {
+    if (tickN == null) { setTickNote(null); return; }
+    const refusal = tickBarRefusal({
+      assetClass: canonicalAssetClass(symbol),
+      tapeSource: tapeSource ?? null,
+      perTradeTape: hasRealAggressorTape(tapeSource ?? ""),
+    });
+    const cov = tickBuilderRef.current?.coverage();
+    setTickNote(refusal ?? tickBarCoverageLabel(cov ?? { fromMs: null, toMs: null, prints: 0, bars: 0, backfilledPrints: 0 }, fmtTickCoverageTime));
+  }, [tickN, tapeSource, symbol]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!recentTicks?.length || !hasRealAggressorTape(tapeSource ?? "")) return;
     const intervalSec = getIntervalSec(timeframe);
@@ -3529,6 +3694,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     recentTicks.forEach(tick => {
       if (foldPrint(tick, true)) ladderChanged = true;
     });
+    // TICK BARS: the prints just folded move the forming bar (or open the next).
+    if (tickBuilderRef.current) tickPaintRef.current();
     if (tickAccRef.current.size > 400) {
       const oldest = [...tickAccRef.current.keys()].sort((a, b) => a - b)[0];
       tickAccRef.current.delete(oldest);
@@ -3608,6 +3775,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const tick: Tick = { price: ev.price!, size: ev.size!, side: ev.aggressorSide === "BUY" ? "buy" : "sell", time: ev.timestampProvider, trade: true, marketEvent: ev };
           if (foldPrintRef.current(tick, false)) folded++;
         }
+        tickFlushRef.current();
         await new Promise(r => setTimeout(r, 0));
       }
       while (tickAccRef.current.size > 400) {
@@ -3649,12 +3817,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const onPage = (page: readonly Tick[]) => {
       if (ctrl.signal.aborted) return;
       for (const t of page) if (foldPrintRef.current(t, false)) folded++;
+      tickFlushRef.current();
       flowLadderPublisherRef.current?.changed();
     };
     void fetchCoinbaseTradeHistory(product, canonicalSym, { sinceMs, maxPages: 40, signal: ctrl.signal, onPage })
       .then(({ ticks, pages, reachedMs, complete }) => {
         if (ctrl.signal.aborted) return;
         for (const t of ticks) if (foldPrintRef.current(t, false)) folded++;
+        tickFlushRef.current();
         while (tickAccRef.current.size > 400) {
           const oldest = Math.min(...tickAccRef.current.keys());
           tickAccRef.current.delete(oldest);
@@ -3764,6 +3934,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   useEffect(() => {
     const id = window.setInterval(() => {
       const f = countdownFeedRef.current;
+      // TICK BARS close on prints, not on the clock: the glyph counts prints.
+      const tb = tickBuilderRef.current;
+      if (tb) {
+        const left = tb.printsToClose();
+        const glyph = `${left}T left`;
+        countdownRef.current = glyph;
+        closeFlashRef.current = false;
+        progressRef.current = Math.max(0, Math.min(1, 1 - left / tb.ticks));
+        const el = countdownGlyphRef.current;
+        if (el && el.textContent !== glyph) el.textContent = glyph;
+        return;
+      }
       const sec = getIntervalSec(timeframe);
       const now = Date.now() / 1000;
       const remaining = Math.floor(now / sec) * sec + sec - now;
@@ -3831,6 +4013,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   useEffect(() => {
     if (!containerRef.current) return;
     let disposed = false;
+    // A new build owns the glass: no tick paint until it has put its series up.
+    tickPaintKeyRef.current = "";
     const buildId = Date.now(); // unique ID per effect run
     (chartRef as any).__buildId = buildId;
     // WM-CHART-P0-02: new dataVersion + AbortSignal for this symbol/timeframe.
@@ -3997,6 +4181,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                      : ["1m","2m","3m"].includes(timeframe) ? 3000
                      : ["5m","10m","15m","30m"].includes(timeframe) ? 5000
                      : 500;
+      // TICK BARS come from the tape's prints only — no vendor door is asked:
+      // the builder's batch stands where the venue's batch would, so every
+      // door below sees a batch in hand and stays shut.
+      const skipVendors = tickN != null;
 
       // Per-exchange crypto (e.g. "BTC.COINBASE") → that exchange's real candles.
       //
@@ -4011,7 +4199,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const tapeCoinbase = parseExchangeSymbol(symbol) ? null : coinbaseProduct(symbol);
       const exParsed = parseExchangeSymbol(symbol)
         ?? (tapeCoinbase ? { coin: tapeCoinbase.split("-")[0], exchange: "coinbase" as const } : null);
-      const exchangeData: CanonicalCandleBatch | null = exParsed
+      const exchangeData: CanonicalCandleBatch | null = skipVendors ? tickBatchRef.current() : exParsed
         ? await fetch(`/api/exchange?ex=${exParsed.exchange}&coin=${exParsed.coin}&type=candles&tf=${timeframe}&bars=${barCount}`, { cache: "no-store", signal: myAbortSignal })
             .then(r => r.json()).then(j => candleBatch(j, barCount)).catch(() => null)
         : null;
@@ -4035,6 +4223,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       onBarSidesRef.current?.(candleSidedRef.current.size ? candleSidedRef.current : null);
       // Provenance: record which provider ACTUALLY supplied these candles.
       const srcName =
+        skipVendors  ? ((tapeSource ?? "").toUpperCase() || "__unresolved__") :
         exchangeData ? (exParsed?.exchange?.toUpperCase() || "EXCHANGE") :
         tastyData    ? "TASTYTRADE" :
         alpacaData   ? "ALPACA"  :
@@ -4049,13 +4238,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // If we have real candle data but the candles are at a stale price level
       // we reject it instead of silently moving or fabricating bars.
       let candleData = realData;
-      if (candleData && candleData.length > 0 && spotPrice > 0) {
+      if (!skipVendors && candleData && candleData.length > 0 && spotPrice > 0) {
         const lastClose = candleData[candleData.length - 1].close;
         const stalePct  = Math.abs(lastClose - spotPrice) / spotPrice;
         if (stalePct > 0.05) candleData = null;
       }
 
-      const rawData = filterSession(
+      // Tick bars are prints, not session clock buckets: no session filter.
+      const rawData = skipVendors ? (candleData ?? []) : filterSession(
         candleData ?? [],
         symbol, intervalSec, !!extendedHours,
       );
@@ -4090,7 +4280,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // ("broken/distorted candles"). We clamp only egregious wicks (range >
         // 6× the median bar range) back toward the body, so real volatility is
         // untouched but lone spikes can't blow up the price scale.
-        if (out.length >= 8) {
+        // Not on tick bars: every wick there is a print the tape carried.
+        if (out.length >= 8 && !skipVendors) {
           const ranges = out
             .map(b => (b.high as number) - (b.low as number))
             .filter(r => r > 0)
@@ -4144,7 +4335,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         base,
         intervalSec: getIntervalSec(timeframe),
       });
-      const admittedBarIdentities = alignCanonicalBarIdentities({
+      // Tick bars carry their own ids (source|symbol|T<N>|first print|seq); a
+      // first print's time is not a whole second, so they are not re-aligned.
+      const admittedBarIdentities = skipVendors ? fetchedBarIdentities : alignCanonicalBarIdentities({
         bars: data,
         identities: fetchedBarIdentities,
         acceptedSymbolIds: (() => {
@@ -4477,6 +4670,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // precision, not the library default of two decimals (EURUSD 1h read
       // 1.15 / 1.14 / 1.13). Read from the raw bars, not Heikin-Ashi averages.
       try { cs.applyOptions({ priceFormat: axisPriceFormatFor(displayPrecisionFor(symbol, data), symbol) }); } catch { /* series type without a price scale */ }
+      // Tick bars may open several per second: the axis shows seconds there.
+      try { chart.timeScale().applyOptions({ secondsVisible: skipVendors || intervalSec < 60 }); } catch { /* chart mid-build */ }
+      if (skipVendors) tickPaintKeyRef.current = `${canonicalSym}|${timeframe}`;
       chartRef.current  = chart;
       candleRef.current = cs;
       // A new series paints its own ink; the Clarity layer re-hides it after it paints.
@@ -4522,7 +4718,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Published in the SAME statement-block as the source sentinel, so the
       // glass can never show "__unresolved__" beside a stale list of reasons
       // from the previous symbol.
-      setBarRefusal(compileBarHistoryRefusal(vendorLog));
+      setBarRefusal(skipVendors ? null : compileBarHistoryRefusal(vendorLog));
       setReady(true);
       onBarsReady?.(data, admittedBarIdentities);
       // A rebuild WHILE the replay camera is on history (a candle-type switch;
@@ -26250,6 +26446,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           bar hid the note and the glass read blank). */}
       {barRefusal && (candles.length === 0 || (!barRefusal.served && candles.length < 3)) && (
         <BarHistoryRefusalNote vm={barRefusal} futuresHint={futuresFormHint(symbol)} cfdDoor={cfdDoorFor(symbol)} timeframeDoor={historyTimeframeDoor(symbol, timeframe)} onTimeframe={setTimeframe} />
+      )}
+      {/* TICK BARS: where the held tape begins, or why there are none. */}
+      {tickNote && (
+        <div data-testid="tick-bar-note" role="status" data-refused={tickNote.startsWith("TICK BARS") ? "false" : "true"}
+          style={tickNote.startsWith("TICK BARS")
+            ? { position: "absolute", left: 10, bottom: 72, zIndex: 6, pointerEvents: "none", padding: "3px 8px", borderRadius: 6,
+                background: "rgba(16,17,24,0.82)", border: "1px solid rgba(136,150,190,0.25)", color: "#AEB6D0",
+                fontSize: 11, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.3, whiteSpace: "nowrap" }
+            : { position: "absolute", left: "50%", top: 64, transform: "translateX(-50%)", maxWidth: 460, padding: "8px 14px",
+                borderRadius: 8, border: "1px solid rgba(240,180,41,0.35)", background: "rgba(16,17,24,0.9)",
+                color: "#C9CDDD", fontSize: 12, lineHeight: 1.45, pointerEvents: "none", zIndex: 6, textAlign: "center" }}>
+          {tickNote}
+        </div>
       )}
       {isQuoteSampleSeries(candles) && (
         <div data-testid="quote-sample-note" role="status"

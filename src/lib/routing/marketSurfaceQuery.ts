@@ -1,4 +1,4 @@
-import { normalizeTFId, type TFId } from "@/lib/timeframes";
+import { normalizeChartTfId, type ChartTfId } from "@/lib/timeframes";
 import { resolveEnteredSymbol } from "@/lib/marketData/futuresNotation";
 
 // A leading ^ is an index (^SPX, ^N225) — search offers it, so a deep link must open it (Garden 17 master order §LVIII, 2026-09-29).
@@ -17,11 +17,12 @@ export function normalizeMarketSurfaceSymbol(raw: string | null | undefined): st
   return resolveEnteredSymbol(candidate);
 }
 
-/** Keep URL timeframes inside the canonical chart vocabulary. */
-export function normalizeMarketSurfaceTimeframe(raw: string | null | undefined): TFId | null {
+/** Keep URL timeframes inside the canonical chart vocabulary: clocks, plus the
+ *  registry's tick counts ("500T") which the chart draws from its tape. */
+export function normalizeMarketSurfaceTimeframe(raw: string | null | undefined): ChartTfId | null {
   const candidate = raw?.trim();
   if (!candidate) return null;
-  return normalizeTFId(candidate);
+  return normalizeChartTfId(candidate);
 }
 
 /**

@@ -267,6 +267,34 @@ export function mintBarId(input: {
   return `${symbolId}|${timeframe}|${input.asOf}|e${input.truthEpoch}`;
 }
 
+/**
+ * A TICK (N-TRADE) BAR'S id (2026-10-07). A tick bar has no clock bucket, so
+ * `mintBarId`'s `symbol|tf|asOf` is not enough: two 100T bars can open in the
+ * same millisecond. Its identity is the print that OPENED it:
+ *
+ *   source|symbol|T<N>|<first-print epoch ms>|<first-print seq>
+ *
+ * `seq` is the provider's own sequence where the print carries one, else its
+ * ordinal among the held prints of that same millisecond. Deterministic: the
+ * same held prints redelivered mint the same ids. Null on any blank or
+ * non-finite part — never a guessed id.
+ */
+export function mintTickBarId(input: {
+  readonly source: string;
+  readonly symbolId: string;
+  readonly ticks: number;
+  readonly firstPrintMs: number;
+  readonly firstSeq: number | string;
+}): string | null {
+  const source = input.source.trim();
+  const symbolId = input.symbolId.trim();
+  const seq = String(input.firstSeq).trim();
+  if (source === "" || symbolId === "" || seq === "") return null;
+  if (!Number.isInteger(input.ticks) || input.ticks < 1) return null;
+  if (!Number.isFinite(input.firstPrintMs)) return null;
+  return `${source}|${symbolId}|T${input.ticks}|${input.firstPrintMs}|${seq}`;
+}
+
 /* ── GEOMETRY ──────────────────────────────────────────────────────────────── */
 
 export type BarVerdict =

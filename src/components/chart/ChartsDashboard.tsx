@@ -175,7 +175,7 @@ import { selectWaitStanding } from "@/lib/marketData/viewModels/selectWaitStandi
 import { selectDebtTag, selectPlaqueFlowContext } from "@/lib/marketData/viewModels/selectWaitPlaque";
 import type { DrawingTool } from "./DrawingToolsPanel";
 import type { ChartLayout } from "./ChartLayoutManager";
-import { getTimeframe, normalizeTFId } from "@/lib/timeframes";
+import { getTimeframe, normalizeChartTfId, normalizeTFId } from "@/lib/timeframes";
 import { marketSurfaceUrlWriteback, normalizeMarketSurfaceTimeframe } from "@/lib/routing/marketSurfaceQuery";
 import { usePublishChartMarketState } from "@/lib/marketData/chartMarketStatePublisher";
 import { canonicalSession, canonicalAssetClass, canonicalMarketStateIdentity, selectCanonicalSessionToken } from "@/lib/marketData/canonicalIdentity";
@@ -742,7 +742,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // Honor a configured Default Timeframe (unless "last"=use last used, "none"=ignore)
     if (defTF && defTF !== "last" && defTF !== "none") stored = defTF;
     // Reject all sub-minute timeframes — they have no data outside market hours
-    return normalizeTFId(stored) ?? "5m";
+    return normalizeChartTfId(stored) ?? "5m";
   });
   const seededUrlTimeframe = useRef<string | null>(normalizeMarketSurfaceTimeframe(initialTimeframe));
   useEffect(() => {

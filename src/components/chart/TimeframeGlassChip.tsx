@@ -38,8 +38,8 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import {
-  CANON_LADDER, CANON_LADDER_GROUPS, CHART_TF_SHIPPED, canonRungSpokenName, getTimeframe,
-  timeframeSpokenName, type CanonRung, type TFId,
+  CANON_LADDER, CANON_LADDER_GROUPS, CHART_TF_SHIPPED, TICK_TF_IDS, canonRungSpokenName, getTimeframe,
+  isTickTfId, tickTfSpokenName, timeframeSpokenName, type CanonRung, type ChartTfId, type TFId,
 } from "@/lib/timeframes";
 import { canonAvailabilityFor, ladderOnNowSentence } from "@/lib/marketData/chartBarRoute";
 
@@ -238,6 +238,7 @@ export function TimeframeGlassChip({ timeframe, setTimeframe, symbol }: Props) {
         </div>
       )}
       {open && ladderOpen && <TimeframeLadder timeframe={timeframe} symbol={symbol} onChoose={choose} />}
+      {open && ladderOpen && <TradeCountRow timeframe={timeframe} onChoose={choose} />}
 
       <button
         type="button"
@@ -310,7 +311,8 @@ export function TimeframeLadder({ timeframe, symbol, onChoose, rungs: given }: L
   // 45m / 3M / 2Y / 5Y which are not rungs), say what the chart is on in
   // words. No rung is marked current for it: an unavailable rung is never
   // dressed as a healthy one.
-  const onNow = ladderOnNowSentence(timeframe, symbol, rungs);
+  // A trade-count timeframe is marked on its own button (TradeCountRow), not in words.
+  const onNow = isTickTfId(timeframe) ? null : ladderOnNowSentence(timeframe, symbol, rungs);
   return (
     <section
       id={TIMEFRAME_LADDER_ID}
@@ -397,5 +399,51 @@ function ladderRung(r: CanonRung, timeframe: string, onChoose: (id: TFId) => voi
       {r.id}
       {derived && <span aria-hidden="true" className="ml-0.5 text-[9px] text-wm-text-dim">derived</span>}
     </button>
+  );
+}
+
+/**
+ * TRADE-COUNT BARS (2026-10-07) — the registry's TICK_TF_IDS, beside the
+ * ladder, through the chip's ONE door. The chip's `choose` hands its id
+ * straight to setTimeframe(string), so a tick id passes through it unchanged;
+ * the narrower TFId in its signature is the clock ladder's type. Whether THIS
+ * symbol has prints to count is the chart's to say (its refusal note), because
+ * only the chart knows which tape is live.
+ */
+export function TradeCountRow({ timeframe, onChoose }: { timeframe: string; onChoose: (id: TFId) => void }) {
+  const chooseCount = onChoose as (id: ChartTfId) => void;
+  return (
+    <section
+      aria-label="Trade-count bars"
+      className="wm-chart-timeframe-ticks w-full min-w-[min(92vw,360px)] mb-1.5 px-2 py-1.5 rounded-lg wm-room-chrome border border-wm-border"
+      style={{ pointerEvents: "auto", contain: "inline-size" }}
+    >
+      <h3 className="mb-1 text-[9px] font-mono font-bold uppercase tracking-[0.14em] text-wm-text-dim">Trade count</h3>
+      <ul className="flex flex-wrap items-center gap-0.5">
+        {TICK_TF_IDS.map(id => (
+          <li key={id}>
+            <button
+              type="button"
+              data-availability="TAPE_PRINTS"
+              onClick={() => chooseCount(id)}
+              aria-current={id === timeframe ? "true" : undefined}
+              aria-label={tickTfSpokenName(id)}
+              title={tickTfSpokenName(id)}
+              className={clsx(
+                "wm-chart-timeframe px-2 h-7 rounded text-[11px] font-mono transition-colors",
+                id === timeframe
+                  ? "bg-wm-blue/20 text-wm-blue border border-wm-blue/40"
+                  : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface",
+              )}
+            >
+              {id}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1 text-[10px] leading-snug text-wm-text-dim">
+        N real prints per bar, from where the held tape begins. No prints, no bars.
+      </p>
+    </section>
   );
 }
