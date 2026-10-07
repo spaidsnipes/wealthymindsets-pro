@@ -13,6 +13,10 @@ import { fvgContextFromEvents, fvgContextGroup, fvgReviewAnswers, planAdherenceB
 import { sheriffColumns } from "./planSheriff";
 import type { PlanVsActualResult, PricePath, TradeActuals } from "./planVsActual";
 
+import { traderClock } from "@/components/time/traderClock";
+const tc = (ms: number) => traderClock(ms, { seconds: false });
+const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const T0 = Date.parse("2026-10-07T14:30:00Z");
 const M = 60_000;
 const base = freezePlanSnapshot({ decisionId: "wmd_sh", frozenAt: "TICKET_SEND", atMs: T0 - 1000, source: "t",
@@ -31,23 +35,23 @@ const path: PricePath = { barMs: M, source: "tastytrade 1m bars for /MNQZ26:XCME
 describe("§64 the three columns, stated apart", () => {
   const s = sheriffColumns({ plan, actuals, path });
   it("WHAT THE MARKET DID — extremes in and after the hold, and when each planned level printed", () => {
-    expect(s.market).toContain("During the hold: high 102.2 (14:32Z), low 99.6 (14:30Z).");
-    expect(s.market).toContain("After the exit, to 14:36Z: high 104.2, low 101.");
-    expect(s.market).toContain("The planned target 104 printed after the exit (bar 14:36Z).");
+    expect(s.market).toContain(`During the hold: high 102.2 (${tc(T0 + (2) * M)}), low 99.6 (${tc(T0 + (0) * M)}).`);
+    expect(s.market).toContain(`After the exit, to ${tc(T0 + (6) * M)}: high 104.2, low 101.`);
+    expect(s.market).toContain(`The planned target 104 printed after the exit (bar ${tc(T0 + (6) * M)}).`);
     expect(s.market).toContain("The planned stop 98 did not print in the bars loaded.");
     expect(s.market).toContain("The planned invalidation 99 did not print in the bars loaded.");
   });
   it("WHAT YOU PLANNED — frozen snapshot plus each dated amendment with its new evidence", () => {
-    expect(s.planned[0]).toMatch(/^Frozen at the ticket's send, 14:29Z\. Decision_ID wmd_sh\.$/);
+    expect(s.planned[0]).toMatch(new RegExp(`^Frozen at the ticket's send, ${esc(tc(T0 + (-1) * M))}\\. Decision_ID wmd_sh\\.$`));
     expect(s.planned).toContain("Management: “move to breakeven after +1R”.");
-    expect(s.planned).toContain("Amended 14:32Z: target → 103 — new evidence: breadth rolled over.");
+    expect(s.planned).toContain(`Amended ${tc(T0 + (2) * M)}: target → 103 — new evidence: breadth rolled over.`);
   });
   it("WHAT YOU ACTUALLY DID — fills, stop/target moves, exit, with the reporter", () => {
     expect(s.actual).toEqual([
       "Reported by: tastytrade order readback and trade transactions.",
-      "Entry 2 @ 100 at 14:30Z (long).",
-      "Stop order 98 → 100 at 14:33Z.",
-      "Exit 2 @ 101.2 at 14:34Z.",
+      `Entry 2 @ 100 at ${tc(T0 + (0) * M)} (long).`,
+      `Stop order 98 → 100 at ${tc(T0 + (3) * M)}.`,
+      `Exit 2 @ 101.2 at ${tc(T0 + (4) * M)}.`,
     ]);
   });
   it("missing facts are named, never filled", () => {
@@ -87,7 +91,7 @@ describe("§23/§41 FVG answers from the object's own events", () => {
     expect(fvgReviewAnswers(ctx, act(-22, 0)).touch.answer).toBe("FIRST_TOUCH");
     const later = fvgReviewAnswers(ctx, act(1, 3));
     expect(later.touch).toMatchObject({ answer: "LATER_TOUCH", episode: 2 });
-    expect(later.touch.sentence).toBe("Your entry at 14:31Z came on touch 2 of the territory 99–100 (bullish FVG, 5m), not the first.");
+    expect(later.touch.sentence).toBe(`Your entry at ${tc(T0 + (1) * M)} came on touch 2 of the territory 99–100 (bullish FVG, 5m), not the first.`);
     const early = fvgReviewAnswers(ctx, act(-40, -30));
     expect(early.touch.answer).toBe("BEFORE_ANY_TOUCH");
     expect(early.actedBeforeCondition.answer).toBe("YES");

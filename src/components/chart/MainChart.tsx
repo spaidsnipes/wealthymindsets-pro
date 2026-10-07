@@ -10586,7 +10586,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // newest bar.
         const lastGapBar = gapSrc && gapSrc.length ? gapSrc[gapSrc.length - 1] : null;
         const liveXg = lastGapBar ? chart.timeScale().timeToCoordinate(lastGapBar.time as never) : null;
-        const liveColLeft = liveXg == null ? Infinity : +liveXg - Math.max(12, bsp * 1.5);
+        const liveColLeft = liveXg == null ? Infinity : +liveXg - Math.max(12, bsp * 3.5);
         ctx.save();
         ctx.font = marketFont("FIDELITY"); ctx.textAlign = "center"; ctx.textBaseline = "bottom";
         for (const g of att.paints("dataGaps") ? dg.gaps : []) {
@@ -10640,6 +10640,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (gapWordRects.some(hits(q)) || profileCandleCut().rects.some(hits(q))) continue;
               if (q.x + q.w > profileColLeft - 4) continue;
               if (q.x + q.w > liveColLeft) continue;
+              // A12 (SPY 5m after hours, 2026-10-07): the words printed over the newest
+              // candles at the price line — the newest THREE bars' column (liveColLeft,
+              // §15) and a strip round the last price are kept out.
+              const lastPxY = lastGapBar ? srs.priceToCoordinate(lastGapBar.close) : null;
+              if (lastPxY != null && q.y < +lastPxY + 6 && q.y + q.h > +lastPxY - 6) continue;
               my = cy; mx = px; break spot;
             }
           }
@@ -22227,8 +22232,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     for (const x of xs) {
                       const ok = y - 10 >= HEADER_FLOOR_Y && y <= pane0Bottom - 2 && x + tw <= plotRight - 2
                         && !onNewestColumn(x, y - 11, tw, 12)
-                        // A1 residual: never across ANY candle body on its row (serving 834).
-                        && !rowBodiesAt(y - 12, y + 1).some(b => x < b.x + b.w && x + tw > b.x)
+                        // A1 residual: never across ANY candle body (serving 834) — or WICK
+                        // (serving GC1! 1180: "SUPPLY ZONE · DEFENDED · 2 TESTS" touched one):
+                        // the one candle cut-out (bodies + wicks), 1px of air.
+                        && !profileCandleCut().rects.some(b => x - 1 < b.x + b.w && x + tw + 1 > b.x && y - 12 < b.y + b.h && y + 1 > b.y)
                         && !floatingChips.some(r => x < r.x + r.w && x + tw > r.x && y - 10 < r.y + r.h && y > r.y);
                       if (ok) { tx = x; ty = y; break; }
                     }
@@ -22661,7 +22668,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // header's recency words wrap onto the plate — same rule under 640.
             // Measured on the PLOT (canvas less the price axis): a desk pane's
             // canvas is 676 wide but its plot ~610 (serving /desk, 2026-10-07).
-            if (W < 640 || plotRight < 640) ds.zoomPlate = "WITHHELD:NARROW";
+            // Re-measured on serving /desk 4-up (5475a8e): the pane's price axis is
+            // an overlay (its table cell is 0 wide), so plot = canvas = 676 and a
+            // 640 rule never fired. The header's recency words reach the plate on
+            // any glass under 720 (tablet 834's ~760 glass keeps it).
+            if (W < 720 || plotRight < 640) ds.zoomPlate = "WITHHELD:NARROW";
             else {
             delete ds.zoomPlate;
             ctx.save();

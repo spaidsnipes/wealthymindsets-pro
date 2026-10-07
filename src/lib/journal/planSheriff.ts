@@ -18,6 +18,7 @@
  * another's mind: there are no reasons here, only facts.
  */
 
+import { traderClock } from "@/components/time/traderClock";
 import { effectivePlanAt, fmtPx, type ManagementPlanSnapshot } from "./managementPlan";
 import type { PathBar, PricePath, TradeActuals } from "./planVsActual";
 
@@ -27,7 +28,8 @@ export interface SheriffColumns {
   readonly actual: readonly string[];
 }
 
-const clock = (ms: number) => new Date(ms).toISOString().slice(11, 16) + "Z";
+/** Times the trader reads are the viewer's local time with its zone (traderClock), never bare UTC. */
+const clock = (ms: number) => traderClock(ms, { seconds: false });
 const lastExitAt = (a: TradeActuals | null) => {
   const t = (a?.exits ?? []).map(e => e.atMs);
   return t.length && t.every(x => x != null) ? Math.max(...(t as number[])) : null;

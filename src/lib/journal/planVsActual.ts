@@ -20,6 +20,7 @@
  * is missing. Nothing is inferred from the result.
  */
 
+import { traderClock } from "@/components/time/traderClock";
 import type { ReviewDimension } from "./storyReview";
 import { effectivePlanAt, fmtPx, type ManagementPlanSnapshot, type PlanDirection } from "./managementPlan";
 
@@ -169,7 +170,8 @@ const PRIMARY_ORDER: readonly DeviationId[] = [
   "INSUFFICIENT_EVIDENCE",
 ];
 
-const clock = (ms: number) => new Date(ms).toISOString().slice(11, 16) + "Z";
+/** Times the trader reads are the viewer's local time with its zone (traderClock), never bare UTC. */
+const clock = (ms: number) => traderClock(ms, { seconds: false });
 
 export function classifyPlanVsActual(input: PlanVsActualInput): PlanVsActualResult {
   const reason = typeof input.traderReason === "string" && input.traderReason.trim() ? input.traderReason.trim().slice(0, 400) : null;

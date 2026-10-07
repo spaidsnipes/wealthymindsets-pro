@@ -19,6 +19,7 @@
  * no emotion is named.
  */
 
+import { traderClock } from "@/components/time/traderClock";
 import type { FvgEvent, FvgLedger, FvgObject } from "@/lib/marketData/fvg/fvgEngine";
 import type { JournalFvgReference } from "./fvgDecisionReference";
 import { fmtPx } from "./managementPlan";
@@ -119,7 +120,8 @@ export interface FvgReviewAnswers {
   readonly heldAfterTradedThrough: { readonly answer: HeldAnswer; readonly sentence: string };
 }
 
-const clock = (ms: number) => new Date(ms).toISOString().slice(11, 16) + "Z";
+/** Times the trader reads are the viewer's local time with its zone (traderClock), never bare UTC. */
+const clock = (ms: number) => traderClock(ms, { seconds: false });
 
 export function fvgReviewAnswers(ctx: FvgTradeContext, a: TradeActuals | null): FvgReviewAnswers {
   const exits = (a?.exits ?? []).map(e => e.atMs);

@@ -22,6 +22,7 @@ import { pathWindowFor } from "@/lib/journal/planPricePath";
 import { loadPlanPricePath } from "@/lib/journal/planPricePathLoader";
 import type { PricePath } from "@/lib/journal/planVsActual";
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
+import { formatMoney } from "@/lib/marketData/contractEconomics";
 import { fvgAnswersFromReference, fvgContextFromLedger, fvgContextGroup, fvgReviewAnswersAt, type FvgReviewAnswers } from "@/lib/journal/planFvgContext";
 import { loadFvgLedgerFor } from "@/lib/journal/planFvgLoader";
 import { lessonForFinding } from "@/lib/journal/planLoop";
@@ -248,7 +249,8 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
   );
 }
 
-const money = (v: number) => `${v < 0 ? "−" : ""}$${Math.abs(v).toFixed(2)}`;
+/** Money through the one shared formatter (contractEconomics.formatMoney). */
+const money = (v: number) => formatMoney(v);
 // A broker price is printed at least to the cent: Webull states an option fill
 // as 0.2 and the row read "@ 0.2" beside "@ 0.14" (sheriff sweep 2026-10-07).
 const fillPx = (v: number | null) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 }));

@@ -147,17 +147,24 @@ function AmendForm({ snap, onSaved }: { snap: ManagementPlanSnapshot; onSaved: (
 /** §47–51: delete the plan (its amendments and the "why did the plan change?" answer go with it). Two presses, no dialog. */
 function ErasePlan({ decisionId, onErased }: { decisionId: string; onErased: () => void }) {
   const [armed, setArmed] = useState(false);
+  // An armed delete that waits forever is a trap for the next tap (sheriff
+  // sweep 2026-10-07, phone): it stands down on its own after 6 s, and says so.
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 6_000);
+    return () => clearTimeout(t);
+  }, [armed]);
   return (
-    <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+    <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }} aria-live="polite">
       <button type="button" data-testid={armed ? "plan-erase-confirm" : "plan-erase"} onClick={() => {
         if (!armed) { setArmed(true); return; }
         erasePlanForDecision(store(), decisionId);
         setArmed(false);
         onErased();
       }} style={{ fontSize: 11, color: armed ? "#e0786b" : MUTED, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", minHeight: 28, cursor: "pointer" }}>
-        {armed ? "Press again to delete this plan and its amendments" : "Delete this plan"}
+        {armed ? "Press again within 6 s to delete this plan and its amendments" : "Delete this plan"}
       </button>
-      {armed ? <button type="button" onClick={() => setArmed(false)} style={{ fontSize: 11, color: MUTED, background: "none", border: "none", cursor: "pointer" }}>Keep it</button> : null}
+      {armed ? <button type="button" onClick={() => setArmed(false)} style={{ fontSize: 11, color: MUTED, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", minHeight: 28, cursor: "pointer" }}>Keep it</button> : null}
     </span>
   );
 }

@@ -13,6 +13,7 @@
  * cohorts) is a later slice; this record is its row.
  */
 
+import { traderClock } from "@/components/time/traderClock";
 import { fmtPx, type ManagementPlanSnapshot, type PlanDirection } from "./managementPlan";
 import type { PricePath } from "./planVsActual";
 
@@ -53,7 +54,8 @@ export interface PlanAloneInput {
 }
 
 const CLAIM = "DESCRIPTIVE — one trade is not evidence of edge" as const;
-const clock = (ms: number) => new Date(ms).toISOString().slice(11, 16) + "Z";
+/** Times the trader reads are the viewer's local time with its zone (traderClock), never bare UTC. */
+const clock = (ms: number) => traderClock(ms, { seconds: false });
 
 export function planAloneReference(input: PlanAloneInput): PlanAloneReference {
   const plan = input.plan;

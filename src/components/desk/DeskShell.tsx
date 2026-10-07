@@ -156,8 +156,10 @@ const btn = (on = false): React.CSSProperties => ({
 });
 
 
-function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLink, onSymbol, onTimeframe, onMaximize, view, views, onView, onNewWindow }: {
+function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLink, onSymbol, onTimeframe, onMaximize, view, views, onView, onNewWindow, compact = false }: {
   onNewWindow?: () => void;
+  /** Touch glass with several screens: the header must fit one row (sheriff sweep 2026-10-07). */
+  compact?: boolean;
   focused: boolean;
   link?: DeskLink;
   onLink: () => void;
@@ -177,10 +179,10 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLi
       onDragStart={e => { e.dataTransfer.setData(DESK_SCREEN_DRAG_TYPE, String(index)); e.dataTransfer.effectAllowed = "move"; }}
       title="Drag onto another screen to swap"
       style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, padding: "4px 6px", borderBottom: `1px solid ${LINE}`, background: "rgba(10,9,7,.92)", cursor: "grab" }}>
-      <span style={{ color: focused ? GOLD : MUTED, font: "700 10px/1 ui-sans-serif", letterSpacing: ".1em" }}>{focused ? "● " : ""}SCREEN {index + 1}</span>
+      <span style={{ color: focused ? GOLD : MUTED, font: "700 10px/1 ui-sans-serif", letterSpacing: ".1em" }}>{focused ? "● " : ""}{compact ? "" : "SCREEN "}{index + 1}</span>
       <form onSubmit={e => { e.preventDefault(); onSymbol(draft); }} style={{ display: "flex" }}>
         <input aria-label={`Screen ${index + 1} market`} value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => draft !== symbol && onSymbol(draft)}
-          style={{ width: 92, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: "3px 6px", font: "700 12px/1 ui-monospace, monospace" }} />
+          style={{ width: compact ? 72 : 92, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: "3px 6px", font: "700 12px/1 ui-monospace, monospace" }} />
       </form>
       <select aria-label={`Screen ${index + 1} timeframe`} value={timeframe} onChange={e => onTimeframe(e.target.value)}
         style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: "3px 4px" }}>
@@ -188,7 +190,7 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLi
       </select>
       {/* §LVI: each screen wears its own View; the market data is shared. */}
       <select aria-label={`Screen ${index + 1} view`} data-testid={`desk-view-${index + 1}`} value={view ?? ""} onChange={e => onView(e.target.value || undefined)}
-        style={{ maxWidth: 130, background: "#0b0a08", border: `1px solid ${view ? GOLD : LINE}`, color: view ? GOLD : INK, padding: "3px 4px" }}>
+        style={{ maxWidth: compact ? 96 : 130, background: "#0b0a08", border: `1px solid ${view ? GOLD : LINE}`, color: view ? GOLD : INK, padding: "3px 4px" }}>
         <option value="">Chart defaults</option>
         <option value={CLEAN_VIEW_ID}>Clean</option>
         {views.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -204,7 +206,7 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLi
       </button>
       <span style={{ flex: 1 }} />
       <Link href={`${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`} style={{ ...btn(), display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
-        Open room
+        {compact ? "Room" : "Open room"}
       </Link>
       {/* §LV + DESK LINKING: a second monitor — this screen in its own Desk
           window that STAYS in its link group (BroadcastChannel), named per
@@ -213,10 +215,10 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLi
         <button type="button" className="wm-desk-new-window" data-testid={`desk-window-${index + 1}`} title="Open this screen in a new window that stays linked (drag it to another monitor)"
           onClick={onNewWindow}
           style={btn()}>
-          New window
+          {compact ? "Window" : "New window"}
         </button>
       ) : null}
-      <button type="button" onClick={onMaximize} aria-pressed={maximized} style={btn(maximized)}>{maximized ? "Restore" : "Maximize"}</button>
+      <button type="button" onClick={onMaximize} aria-pressed={maximized} style={btn(maximized)} aria-label={maximized ? `Restore screen ${index + 1}` : `Maximize screen ${index + 1}`}>{maximized ? "Restore" : compact ? "Max" : "Maximize"}</button>
     </div>
   );
 }
@@ -413,6 +415,7 @@ export function DeskShell() {
   // nobody is watching).
   const shown = maximized != null ? [maximized] : phone ? [Math.min(focused, screens.length - 1)] : screens.map((_, i) => i);
   const grid = phone ? phoneGridFor(shown.length) : maximized != null ? gridFor(1) : tabletPortrait ? tabletPortraitGridFor(shown.length) : gridFor(working.layout);
+  const compactHeaders = Boolean(touch) && !phone && maximized == null && shown.length > 1;
 
   const open = (name: string) => {
     const d = desks.find(x => x.name === name);
@@ -574,6 +577,9 @@ export function DeskShell() {
               style={{ gridArea: grid.areas[slot], minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", borderRadius: 4, overflow: "hidden",
                 border: `1px solid ${dropTarget === i ? "rgba(127,209,168,.9)" : focused === i ? "rgba(201,165,92,.75)" : LINE}` }}>
               <ScreenHeader
+                // At 1180×820 (touch glass) each 4-up header wrapped to two 44px
+                // rows and left the chart ~170px; compact words keep it to one.
+                compact={compactHeaders}
                 index={i} symbol={s.symbol} timeframe={s.timeframe} maximized={maximized === i} focused={focused === i}
                 link={s.link}
                 onLink={() => setWorking(w => cycleLink(w, i))}

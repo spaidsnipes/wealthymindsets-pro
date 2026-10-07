@@ -15,7 +15,9 @@ import {
   FVG_STUDY_REGIME_NOTE,
   fvgDisplacementBand,
   fvgMedianText,
+  fvgSampleText,
   fvgShareText,
+  FVG_STUDY_MIN_SAMPLE,
   fvgStudyClockAt,
   runFvgStudy,
   type FvgStudySeries,
@@ -165,5 +167,40 @@ describe("FVG study — reads the one engine, labelled descriptive", () => {
       const b = runFvgStudy({ series: [S_BULL, S_BEAR], asOfMs: asOf, filters: { profile: v } }).objects.some(x => x.objectId === o.objectId);
       expect(a).toBe(b);
     }
+  });
+
+  it("relationship splits: FVG+structure / FVG+profile groups carry n of m; below 20 gaps INSUFFICIENT, no share printed", () => {
+    expect(FVG_STUDY_MIN_SAMPLE).toBe(20);
+    expect(fvgSampleText(19)).toBe("19 · INSUFFICIENT (fewer than 20)");
+    expect(fvgSampleText(20)).toBe("20");
+    expect(fvgShareText({ count: 3, of: 5, share: 0.6 }, { insufficient: true })).toBe("3 of 5 — no share below 20 gaps");
+    expect(fvgShareText({ count: 3, of: 5, share: 0.6 }, { insufficient: true })).not.toMatch(/%/);
+    // A long random-walk series: enough gaps for both sides of each relationship split.
+    let seed = 11;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    let px = 100;
+    const rows: Row[] = [];
+    for (let i = 0; i < 3000; i++) { const o = px, c = o + (rnd() - 0.5) * 2, h = Math.max(o, c) + rnd() * 0.6, l = Math.min(o, c) - rnd() * 0.6; px = c; rows.push([o, h, l, c]); }
+    const big: FvgStudySeries = { symbolId: "BTC-USD", timeframe: "1m", bars: series("BTC-USD", rows) };
+    const st = runFvgStudy({ series: [big], asOfMs: END(big) });
+    for (const facet of ["structure", "profile"] as const) {
+      const groups = Object.values(st.by[facet]);
+      expect(groups.length).toBeGreaterThanOrEqual(1);
+      expect(groups.reduce((a, g) => a + g.detected, 0)).toBe(st.filtered);
+      for (const g of groups) {
+        expect(g.touched.of).toBe(g.detected); // every share names its own denominator
+        const txt = fvgShareText(g.touched, { insufficient: g.detected < FVG_STUDY_MIN_SAMPLE });
+        expect(txt).toContain(`${g.touched.count} of ${g.touched.of}`);
+        if (g.detected < FVG_STUDY_MIN_SAMPLE) expect(txt).not.toMatch(/%/);
+      }
+    }
+    expect(Object.keys(st.by.structure).sort()).toEqual(expect.arrayContaining(["NO_STRUCTURE"]));
+    expect(Object.keys(st.by.profile).sort()).toEqual(expect.arrayContaining(["NO_PROFILE", "WITH_PROFILE"]));
+    // The panel renders the gate in both the split table and the filtered block.
+    const panel = readFileSync(path.resolve(__dirname, "../../components/backtest/FvgStudyPanel.tsx"), "utf8");
+    expect(panel).toContain("const insufficient = s.detected < FVG_STUDY_MIN_SAMPLE;");
+    expect(panel).toContain("fvgSampleText(s.detected)");
+    expect(panel).toMatch(/fvgShareText\(s\.touched, \{ insufficient \}\)/);
+    expect(panel).not.toMatch(/fvgShareText\(s\.[A-Za-z]+\)/);
   });
 });

@@ -24,7 +24,9 @@ import {
   FVG_DISPLACEMENT_BAND_LABEL,
   fvgDurationText,
   fvgMedianText,
+  fvgSampleText,
   fvgShareText,
+  FVG_STUDY_MIN_SAMPLE,
   fvgStudyClockAt,
   runFvgStudy,
   type FvgStudyFacet,
@@ -99,25 +101,27 @@ function Row({ label, value, testId }: { label: string; value: string; testId?: 
 
 function StatsBlock({ s }: { s: FvgOutcomeStats }) {
   const touched = s.touched.count;
+  // Below FVG_STUDY_MIN_SAMPLE gaps the counts stand, the shares are withheld.
+  const insufficient = s.detected < FVG_STUDY_MIN_SAMPLE;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
       <div>
-        <Row label="Gaps counted" value={`${s.detected} (${s.bullish} bullish · ${s.bearish} bearish)`} testId="fvg-study-detected" />
-        <Row label="Revisited (touched)" value={fvgShareText(s.touched)} testId="fvg-study-touched" />
+        <Row label="Gaps counted" value={`${fvgSampleText(s.detected)} (${s.bullish} bullish · ${s.bearish} bearish)`} testId="fvg-study-detected" />
+        <Row label="Revisited (touched)" value={fvgShareText(s.touched, { insufficient })} testId="fvg-study-touched" />
         {FVG_HORIZONS.map(h => (
-          <Row key={h} label={`· ${HORIZON_LABEL[h]}`} value={fvgShareText(s.revisitByHorizon[h])} />
+          <Row key={h} label={`· ${HORIZON_LABEL[h]}`} value={fvgShareText(s.revisitByHorizon[h], { insufficient })} />
         ))}
         <Row label="Time to first touch" value={fvgMedianText(s.medianBarsToFirstTouch, touched, "bars")} />
         <Row label="Time to first touch (clock)" value={fvgDurationText(s.medianMsToFirstTouch) ? `${fvgDurationText(s.medianMsToFirstTouch)} (median of ${touched})` : `none touched (0 of ${s.detected})`} />
       </div>
       <div>
-        <Row label="Deepest reach · partial (<50%)" value={fvgShareText(s.partialMitigation)} />
-        <Row label="Deepest reach · deep (50–99%)" value={fvgShareText(s.deepMitigation)} />
-        <Row label="Deepest reach · full (100%)" value={fvgShareText(s.fullMitigation)} />
-        <Row label="Rejected after a touch" value={fvgShareText(s.rejectionAfterTouch)} />
-        <Row label="Accepted inside" value={fvgShareText(s.acceptance)} />
-        <Row label="Closed through the far edge" value={fvgShareText(s.tradeThrough)} />
-        <Row label="Still open" value={fvgShareText(s.stillOpen)} testId="fvg-study-still-open" />
+        <Row label="Deepest reach · partial (<50%)" value={fvgShareText(s.partialMitigation, { insufficient })} />
+        <Row label="Deepest reach · deep (50–99%)" value={fvgShareText(s.deepMitigation, { insufficient })} />
+        <Row label="Deepest reach · full (100%)" value={fvgShareText(s.fullMitigation, { insufficient })} />
+        <Row label="Rejected after a touch" value={fvgShareText(s.rejectionAfterTouch, { insufficient })} />
+        <Row label="Accepted inside" value={fvgShareText(s.acceptance, { insufficient })} />
+        <Row label="Closed through the far edge" value={fvgShareText(s.tradeThrough, { insufficient })} />
+        <Row label="Still open" value={fvgShareText(s.stillOpen, { insufficient })} testId="fvg-study-still-open" />
         <Row label={`· of those, younger than ${s.stillOpenYoungerThan.bars} bars (too young to judge)`} value={`${s.stillOpenYoungerThan.count} of ${s.stillOpen.count}`} />
         <Row label="Average deepest penetration" value={s.avgMaxPenetration === null ? `none touched (0 of ${s.detected})` : `${Math.round(s.avgMaxPenetration * 100)}% of size (mean of ${touched})`} />
         <Row label="Post-touch move away (ATR)" value={s.avgPostTouchDisplacementAtr === null ? `no complete window (0 of ${touched})` : `${s.avgPostTouchDisplacementAtr.toFixed(2)}× ATR (mean of ${s.postTouchDisplacementSample} of ${touched})`} />
@@ -215,25 +219,25 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
         <label className="flex flex-col text-[10px] text-wm-text-dim uppercase tracking-wider">
           Timeframe
           <select value={timeframe} onChange={e => onTimeframeChange(e.target.value)} data-testid="fvg-study-tf"
-            className="wm-tap mt-1 bg-wm-surface border border-wm-border rounded px-2 py-1.5 text-xs text-wm-text normal-case">
+            className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold mt-1 bg-wm-surface border border-wm-border rounded px-2 py-1.5 text-xs text-wm-text normal-case">
             {timeframes.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </label>
         <button onClick={load} disabled={loading} data-testid="fvg-study-run"
-          className="wm-tap px-3 py-2 rounded-lg text-xs font-bold border border-wm-blue/40 bg-wm-blue/10 text-wm-blue disabled:opacity-40">
+          className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold px-3 py-2 rounded-lg text-xs font-bold border border-wm-blue/40 bg-wm-blue/10 text-wm-blue disabled:opacity-40">
           {loading ? "Reading bars…" : pool.some(e => e.key === `${symbol}|${timeframe}`) ? `Re-read ${symbol} ${timeframe}` : `Add ${symbol} ${timeframe} to the study`}
         </button>
         {pool.map(e => (
           <span key={e.key} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-wm-border text-wm-text-muted">
             {e.key.replace("|", " ")} · {e.series.bars.length} closed bars{e.unpaired ? ` · ${e.unpaired} refused (no identity)` : ""}
             <button aria-label={`Remove ${e.key.replace("|", " ")} from the study`} onClick={() => { setPool(p => p.filter(x => x.key !== e.key)); setStepIdx(null); }}
-              className="wm-tap ml-1 text-wm-text-dim hover:text-wm-text">×</button>
+              className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold ml-1 text-wm-text-dim hover:text-wm-text">×</button>
           </span>
         ))}
       </div>
 
       {refusal && (
-        <p data-testid="fvg-study-refusal" className="mb-4 text-[11px] text-wm-gold">Nothing was studied: {refusal}</p>
+        <p data-testid="fvg-study-refusal" role="status" className="mb-4 text-[11px] text-wm-gold">Nothing was studied: {refusal}</p>
       )}
 
       {!study && !refusal && (
@@ -261,7 +265,7 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
                 {FACET_LABEL[f]}
                 <select value={(filters[f as keyof FvgStudyFilters] as string | undefined) ?? "ALL"}
                   onChange={e => setFilters(prev => ({ ...prev, [f]: e.target.value }))}
-                  className="wm-tap mt-0.5 bg-wm-surface border border-wm-border rounded px-1.5 py-1 text-[11px] text-wm-text">
+                  className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold mt-0.5 bg-wm-surface border border-wm-border rounded px-1.5 py-1 text-[11px] text-wm-text">
                   <option value="ALL">All ({study.detectedInWindow})</option>
                   {study.facets[f].map(v => (
                     <option key={v.value} value={v.value}>{facetValueLabel(f, v.value)} ({v.count})</option>
@@ -294,7 +298,7 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="text-xs font-bold text-wm-text">Split by</span>
               <select value={splitBy} onChange={e => setSplitBy(e.target.value as FvgStudyFacet)} aria-label="Split by"
-                className="wm-tap bg-wm-surface border border-wm-border rounded px-1.5 py-1 text-[11px] text-wm-text">
+                className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold bg-wm-surface border border-wm-border rounded px-1.5 py-1 text-[11px] text-wm-text">
                 {FILTER_FACETS.map(f => <option key={f} value={f}>{FACET_LABEL[f]}</option>)}
               </select>
             </div>
@@ -308,17 +312,21 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(study.by[splitBy]).map(([k, s]) => (
-                    <tr key={k} className="border-b border-wm-border/30">
-                      <td className="px-2 py-1.5 text-wm-text">{facetValueLabel(splitBy, k)}</td>
-                      <td className="px-2 py-1.5 font-mono">{s.detected}</td>
-                      <td className="px-2 py-1.5 font-mono">{fvgShareText(s.touched)}</td>
-                      <td className="px-2 py-1.5 font-mono">{fvgShareText(s.fullMitigation)}</td>
-                      <td className="px-2 py-1.5 font-mono">{fvgShareText(s.rejectionAfterTouch)}</td>
-                      <td className="px-2 py-1.5 font-mono">{fvgShareText(s.tradeThrough)}</td>
-                      <td className="px-2 py-1.5 font-mono">{fvgShareText(s.stillOpen)}</td>
-                    </tr>
-                  ))}
+                  {Object.entries(study.by[splitBy]).map(([k, s]) => {
+                    // A group under FVG_STUDY_MIN_SAMPLE gaps shows its counts, never a share.
+                    const insufficient = s.detected < FVG_STUDY_MIN_SAMPLE;
+                    return (
+                      <tr key={k} className="border-b border-wm-border/30" data-testid="fvg-study-split-row" data-insufficient={insufficient}>
+                        <td className="px-2 py-1.5 text-wm-text">{facetValueLabel(splitBy, k)}</td>
+                        <td className="px-2 py-1.5 font-mono">{fvgSampleText(s.detected)}</td>
+                        <td className="px-2 py-1.5 font-mono">{fvgShareText(s.touched, { insufficient })}</td>
+                        <td className="px-2 py-1.5 font-mono">{fvgShareText(s.fullMitigation, { insufficient })}</td>
+                        <td className="px-2 py-1.5 font-mono">{fvgShareText(s.rejectionAfterTouch, { insufficient })}</td>
+                        <td className="px-2 py-1.5 font-mono">{fvgShareText(s.tradeThrough, { insufficient })}</td>
+                        <td className="px-2 py-1.5 font-mono">{fvgShareText(s.stillOpen, { insufficient })}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -334,9 +342,11 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
                     <span className="font-mono text-wm-text-muted">{o.bottom.toFixed(dpBySymbol.get(o.symbolId) ?? 2)} – {o.top.toFixed(dpBySymbol.get(o.symbolId) ?? 2)}</span>
                     <span className="text-wm-text-dim">{o.state.replace(/_/g, " ").toLowerCase()}</span>
                     <Link href={fvgChartHref({ symbol: o.symbolId, timeframe: o.timeframe, objectId: o.objectId })}
-                      className="wm-tap ml-auto text-wm-blue hover:underline">Open on the chart →</Link>
+                      aria-label={`Open the ${o.direction.toLowerCase()} gap ${o.bottom.toFixed(dpBySymbol.get(o.symbolId) ?? 2)} to ${o.top.toFixed(dpBySymbol.get(o.symbolId) ?? 2)} on ${o.symbolId} ${o.timeframe} on the chart`}
+                      className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold ml-auto text-wm-blue hover:underline">Open on the chart →</Link>
                     <Link href={`/journal?${new URLSearchParams({ new: "1", symbol: o.symbolId, fvg: o.objectId }).toString()}`}
-                      className="wm-tap text-wm-text-muted hover:underline">Journal it</Link>
+                      aria-label={`Journal the ${o.direction.toLowerCase()} gap ${o.bottom.toFixed(dpBySymbol.get(o.symbolId) ?? 2)} to ${o.top.toFixed(dpBySymbol.get(o.symbolId) ?? 2)} on ${o.symbolId} ${o.timeframe}`}
+                      className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold text-wm-text-muted hover:underline">Journal it</Link>
                   </li>
                 ))}
               </ul>

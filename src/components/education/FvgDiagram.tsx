@@ -11,6 +11,7 @@
  */
 import React, { useId } from "react";
 import type { FvgDiagramKind } from "@/lib/academy/fvgCourse";
+import { fvgDiagramAlt } from "@/lib/academy/fvgDiagramText";
 
 const GRAPHITE = "#8b8f97";
 const INK = "#d6d2c4";
@@ -280,11 +281,15 @@ function body(kind: FvgDiagramKind, pat: string): React.ReactNode {
 }
 
 export function FvgDiagram({ kind, title }: { kind: FvgDiagramKind; title: string }) {
-  const pat = `fvg-hatch-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const pat = `fvg-hatch-${uid}`;
+  // Text alternative (accessibility pass): the drawing in words, bullish / bearish named.
   return (
-    <svg viewBox="0 0 300 150" role="img" aria-label={`Schematic: ${title}. A drawing, not market data.`}
+    <svg viewBox="0 0 300 150" role="img" aria-labelledby={`fvg-dt-${uid}`} aria-describedby={`fvg-dd-${uid}`}
       data-testid="fvg-diagram" data-fvg-diagram={kind}
       style={{ width: "100%", maxWidth: 520, height: "auto", display: "block", background: BG, borderRadius: 10, border: "1px solid rgba(139,106,41,0.25)" }}>
+      <title id={`fvg-dt-${uid}`}>{`Schematic: ${title}`}</title>
+      <desc id={`fvg-dd-${uid}`}>{fvgDiagramAlt(kind, title)}</desc>
       <defs>
         <pattern id={pat} patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
           <rect width={6} height={6} fill="rgba(201,165,92,0.08)" />

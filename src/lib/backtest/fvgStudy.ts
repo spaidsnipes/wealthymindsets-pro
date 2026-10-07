@@ -251,9 +251,25 @@ function splitBy(objects: readonly FvgObject[], key: (o: FvgObject) => string): 
 
 export interface ShareLike { readonly count: number; readonly of: number; readonly share: number | null }
 
-/** "7 of 9 (78%)", or "0 of 0 — nothing to count". Never a bare percent. */
-export function fvgShareText(s: ShareLike): string {
+/**
+ * A split group with fewer gaps than this is INSUFFICIENT: its counts are
+ * shown (n of m) but no percentage is printed — a share of 3 of 5 reads like
+ * a property of gaps and is not one.
+ */
+export const FVG_STUDY_MIN_SAMPLE = 20;
+
+/** The sample word for a group of `detected` gaps. */
+export function fvgSampleText(detected: number): string {
+  return detected < FVG_STUDY_MIN_SAMPLE ? `${detected} · INSUFFICIENT (fewer than ${FVG_STUDY_MIN_SAMPLE})` : String(detected);
+}
+
+/**
+ * "7 of 9 (78%)", or "0 of 0 — nothing to count". Never a bare percent. With
+ * `insufficient`, the percentage is withheld: "3 of 5 — no share below 20 gaps".
+ */
+export function fvgShareText(s: ShareLike, opts: { readonly insufficient?: boolean } = {}): string {
   if (s.of === 0) return "0 of 0 — nothing to count";
+  if (opts.insufficient) return `${s.count} of ${s.of} — no share below ${FVG_STUDY_MIN_SAMPLE} gaps`;
   return `${s.count} of ${s.of} (${Math.round((s.share ?? 0) * 100)}%)`;
 }
 

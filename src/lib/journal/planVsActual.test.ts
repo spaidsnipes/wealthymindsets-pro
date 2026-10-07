@@ -4,6 +4,10 @@ import { amendPlan, freezePlanSnapshot, type TraderPlanInput } from "./managemen
 import { planAloneReference } from "./planCounterfactual";
 import { actualsFromJournalEntry, classifyPlanVsActual, findingsByDimension, type PathBar, type PricePath, type TradeActuals } from "./planVsActual";
 
+import { traderClock } from "@/components/time/traderClock";
+const tc = (ms: number) => traderClock(ms, { seconds: false });
+const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const T0 = Date.parse("2026-10-07T14:30:00Z");
 const M = 60_000;
 
@@ -57,7 +61,7 @@ describe("§26 exits, with the price path", () => {
     const r = classifyPlanVsActual({ plan: plan({ invalidationPx: 99 }), actuals: act({ exits: exitAt(6, 98.2) }), path: path([[99.5, 100.4], [98.9, 99.8], [98.6, 99.3], [98.4, 99.0], [98.3, 98.9], [98.2, 98.8], [98.1, 98.6]]) });
     expect(r.primary).toBe("HELD_THROUGH_INVALIDATION");
     const f = r.findings[0];
-    expect(f.sentence).toMatch(/^The invalidation recorded in your plan \(99\) printed at 14:31Z; the position stayed open \d+ bars longer and closed at 98.2\.$/);
+    expect(f.sentence).toMatch(new RegExp(`^The invalidation recorded in your plan \\(99\\) printed at ${esc(tc(T0 + (1) * M))}; the position stayed open \\d+ bars longer and closed at 98.2\\.$`));
     expect(findingsByDimension(r).DISCIPLINE?.[0].id).toBe("HELD_THROUGH_INVALIDATION");
   });
 
