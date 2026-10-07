@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><linearGradient id="ground" x2="0" y2="1"><stop stop-color="#18202a"/><stop offset=".42" stop-color="#0c1119"/><stop offset="1" stop-color="#080b10"/></linearGradient><linearGradient id="header" x2="1" y2="0"><stop stop-color="#25251f"/><stop offset=".45" stop-color="#121720"/><stop offset="1" stop-color="#0a0e14"/></linearGradient><linearGradient id="goldMetal" x2="0" y2="1"><stop stop-color="#ffe3a2"/><stop offset=".42" stop-color="#d7a94f"/><stop offset="1" stop-color="#79582b"/></linearGradient></defs>
+<rect width="1600" height="1000" fill="url(#ground)"/><rect x="0" y="0" width="1600" height="108" fill="url(#header)"/>
+<path d="M0 107H1600" stroke="url(#goldMetal)" stroke-width="2" opacity=".7"/>
+<text x="54" y="42" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="750" text-anchor="start" letter-spacing="2.2">ABOVE THE HILL  /  WM PRO</text>
+<text x="54" y="82" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="650" text-anchor="start" letter-spacing="0">Order Flow Compression · the coil and its release</text>
+<text x="1545" y="43" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="end" letter-spacing="1.2">PROPOSED — awaiting Founder canon acceptance</text>
+<text x="1545" y="64" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="600" text-anchor="end" letter-spacing="0.6">GARDEN 19  ·  G19-P04  ·  CLASS B — span event</text>
+<text x="54" y="134" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="650" text-anchor="start" letter-spacing="0.3">PARENT F06.COMPRESSION (census B12 · cert C-12)   ·   OWNER NOT BUILT (proposed: selectOrderFlowCompression.ts)</text>
+<text x="54" y="157" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">A thin bracket over the span where pressure coiled, closed by a double-bar gap mark; a ring sits on the release bar. Nothing outside the span.</text>
+<text x="54" y="178" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="600" text-anchor="start" letter-spacing="0.2">EVIDENCE: A run of narrowing range AND falling sided aggression (F, C; S inferred). Range alone is not enough — that is Breathing&#x27;s job.</text>
+<rect x="54" y="190" width="1492" height="552" rx="14" fill="#0a0e14" stroke="#3a3b37"/>
+<line x1="70" y1="226" x2="1330" y2="226" stroke="#1d242e"/>
+<text x="1342" y="230.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">9165.93</text>
+<line x1="70" y1="307" x2="1330" y2="307" stroke="#1d242e"/>
+<text x="1342" y="311.3333333333333" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8898.03</text>
+<line x1="70" y1="389" x2="1330" y2="389" stroke="#1d242e"/>
+<text x="1342" y="392.66666666666663" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8630.12</text>
+<line x1="70" y1="470" x2="1330" y2="470" stroke="#1d242e"/>
+<text x="1342" y="474.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8362.22</text>
+<line x1="70" y1="551" x2="1330" y2="551" stroke="#1d242e"/>
+<text x="1342" y="555.3333333333333" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8094.32</text>
+<line x1="70" y1="633" x2="1330" y2="633" stroke="#1d242e"/>
+<text x="1342" y="636.6666666666667" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7826.41</text>
+<line x1="70" y1="714" x2="1330" y2="714" stroke="#1d242e"/>
+<text x="1342" y="718.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7558.51</text>
+<line x1="1330" y1="200" x2="1330" y2="732" stroke="#2c3138"/>
+
+<line x1="108.0" y1="636.7" x2="108.0" y2="669.7" stroke="#ef6a76" stroke-width="1.6"/><rect x="98.5" y="643.7" width="19" height="10.2" rx="1.5" fill="#ef6a76"/>
+<line x1="144.4" y1="587.1" x2="144.4" y2="664.1" stroke="#3ccf9c" stroke-width="1.6"/><rect x="134.9" y="606.3" width="19" height="47.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="180.7" y1="601.7" x2="180.7" y2="628.1" stroke="#ef6a76" stroke-width="1.6"/><rect x="171.2" y="606.3" width="19" height="19.6" rx="1.5" fill="#ef6a76"/>
+<line x1="217.1" y1="621.9" x2="217.1" y2="674.8" stroke="#ef6a76" stroke-width="1.6"/><rect x="207.6" y="625.9" width="19" height="28.4" rx="1.5" fill="#ef6a76"/>
+<line x1="253.5" y1="625.5" x2="253.5" y2="658.9" stroke="#3ccf9c" stroke-width="1.6"/><rect x="244.0" y="638.4" width="19" height="15.9" rx="1.5" fill="#3ccf9c"/>
+<line x1="289.8" y1="623.5" x2="289.8" y2="646.9" stroke="#3ccf9c" stroke-width="1.6"/><rect x="280.3" y="624.9" width="19" height="13.5" rx="1.5" fill="#3ccf9c"/>
+<line x1="326.2" y1="608.6" x2="326.2" y2="664.3" stroke="#ef6a76" stroke-width="1.6"/><rect x="316.7" y="624.9" width="19" height="16.2" rx="1.5" fill="#ef6a76"/>
+<line x1="362.5" y1="595.8" x2="362.5" y2="647.0" stroke="#3ccf9c" stroke-width="1.6"/><rect x="353.0" y="623.6" width="19" height="17.5" rx="1.5" fill="#3ccf9c"/>
+<line x1="398.9" y1="604.0" x2="398.9" y2="627.1" stroke="#3ccf9c" stroke-width="1.6"/><rect x="389.4" y="612.4" width="19" height="11.3" rx="1.5" fill="#3ccf9c"/>
+<line x1="435.3" y1="607.9" x2="435.3" y2="625.9" stroke="#ef6a76" stroke-width="1.6"/><rect x="425.8" y="612.4" width="19" height="9.0" rx="1.5" fill="#ef6a76"/>
+<line x1="471.6" y1="601.2" x2="471.6" y2="625.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="462.1" y="607.8" width="19" height="13.5" rx="1.5" fill="#3ccf9c"/>
+<line x1="508.0" y1="604.3" x2="508.0" y2="625.1" stroke="#ef6a76" stroke-width="1.6"/><rect x="498.5" y="607.8" width="19" height="16.0" rx="1.5" fill="#ef6a76"/>
+<line x1="544.4" y1="619.9" x2="544.4" y2="632.3" stroke="#ef6a76" stroke-width="1.6"/><rect x="534.9" y="623.9" width="19" height="4.7" rx="1.5" fill="#ef6a76"/>
+<line x1="580.7" y1="610.7" x2="580.7" y2="631.6" stroke="#3ccf9c" stroke-width="1.6"/><rect x="571.2" y="612.7" width="19" height="15.9" rx="1.5" fill="#3ccf9c"/>
+<line x1="617.1" y1="598.9" x2="617.1" y2="618.0" stroke="#3ccf9c" stroke-width="1.6"/><rect x="607.6" y="603.9" width="19" height="8.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="653.5" y1="591.6" x2="653.5" y2="604.1" stroke="#3ccf9c" stroke-width="1.6"/><rect x="644.0" y="595.8" width="19" height="8.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="689.8" y1="589.4" x2="689.8" y2="602.5" stroke="#3ccf9c" stroke-width="1.6"/><rect x="680.3" y="589.7" width="19" height="6.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="726.2" y1="578.1" x2="726.2" y2="592.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="716.7" y="584.3" width="19" height="5.3" rx="1.5" fill="#3ccf9c"/>
+<line x1="762.5" y1="582.2" x2="762.5" y2="598.2" stroke="#ef6a76" stroke-width="1.6"/><rect x="753.0" y="584.3" width="19" height="11.8" rx="1.5" fill="#ef6a76"/>
+<line x1="798.9" y1="595.1" x2="798.9" y2="600.2" stroke="#ef6a76" stroke-width="1.6"/><rect x="789.4" y="596.1" width="19" height="2.8" rx="1.5" fill="#ef6a76"/>
+<line x1="835.3" y1="580.8" x2="835.3" y2="604.0" stroke="#3ccf9c" stroke-width="1.6"/><rect x="825.8" y="582.9" width="19" height="16.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="871.6" y1="560.3" x2="871.6" y2="626.4" stroke="#ef6a76" stroke-width="1.6"/><rect x="862.1" y="582.9" width="19" height="25.0" rx="1.5" fill="#ef6a76"/>
+<line x1="908.0" y1="515.5" x2="908.0" y2="626.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="898.5" y="545.4" width="19" height="62.5" rx="1.5" fill="#3ccf9c"/>
+<line x1="944.4" y1="529.4" x2="944.4" y2="590.0" stroke="#ef6a76" stroke-width="1.6"/><rect x="934.9" y="545.4" width="19" height="31.5" rx="1.5" fill="#ef6a76"/>
+<line x1="980.7" y1="472.3" x2="980.7" y2="578.0" stroke="#3ccf9c" stroke-width="1.6"/><rect x="971.2" y="513.7" width="19" height="63.2" rx="1.5" fill="#3ccf9c"/>
+<line x1="1017.1" y1="460.9" x2="1017.1" y2="543.5" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1007.6" y="464.0" width="19" height="49.7" rx="1.5" fill="#3ccf9c"/>
+<line x1="1053.5" y1="452.4" x2="1053.5" y2="496.1" stroke="#ef6a76" stroke-width="1.6"/><rect x="1044.0" y="464.0" width="19" height="16.5" rx="1.5" fill="#ef6a76"/>
+<line x1="1089.8" y1="464.4" x2="1089.8" y2="509.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1080.3" y="471.6" width="19" height="8.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="1126.2" y1="427.6" x2="1126.2" y2="492.3" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1116.7" y="469.4" width="19" height="2.3" rx="1.5" fill="#3ccf9c"/>
+<line x1="1162.5" y1="358.2" x2="1162.5" y2="497.7" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1153.0" y="388.3" width="19" height="81.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="1198.9" y1="341.4" x2="1198.9" y2="390.9" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1189.4" y="373.7" width="19" height="14.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="1235.3" y1="327.9" x2="1235.3" y2="376.1" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1225.8" y="340.2" width="19" height="33.5" rx="1.5" fill="#3ccf9c"/>
+<line x1="1271.6" y1="325.7" x2="1271.6" y2="342.2" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1262.1" y="332.0" width="19" height="8.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="1308.0" y1="265.2" x2="1308.0" y2="346.7" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1298.5" y="275.1" width="19" height="56.9" rx="1.5" fill="#3ccf9c"/>
+<path d="M425.3 568.1 L425.3 560.1 L845.3 560.1" fill="none" stroke="#efe6cf" stroke-width="1.6"/>
+<line x1="851.3" y1="553.1" x2="851.3" y2="567.1" stroke="#efe6cf" stroke-width="1.6"/><line x1="856.3" y1="553.1" x2="856.3" y2="567.1" stroke="#efe6cf" stroke-width="1.6"/>
+<circle cx="871.6" cy="560.1" r="5" fill="none" stroke="#efe6cf" stroke-width="1.6"/>
+<text x="425.2727272727273" y="548.0629565950378" fill="#efe6cf" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="650" text-anchor="start" letter-spacing="0">COIL · 12 bars · range ↓ · aggression ↓</text>
+<text x="785.2727272727274" y="530.0629565950378" fill="#efe6cf" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="650" text-anchor="start" letter-spacing="0">gap mark ‖ · release ring ○ (no direction)</text>
+<rect x="433.3" y="692.0" width="4" height="26.0" fill="#efe6cf" opacity=".35"/>
+<rect x="469.6" y="693.8" width="4" height="24.2" fill="#efe6cf" opacity=".35"/>
+<rect x="506.0" y="695.6" width="4" height="22.4" fill="#efe6cf" opacity=".35"/>
+<rect x="542.4" y="697.4" width="4" height="20.6" fill="#efe6cf" opacity=".35"/>
+<rect x="578.7" y="699.2" width="4" height="18.8" fill="#efe6cf" opacity=".35"/>
+<rect x="615.1" y="701.0" width="4" height="17.0" fill="#efe6cf" opacity=".35"/>
+<rect x="651.5" y="702.8" width="4" height="15.2" fill="#efe6cf" opacity=".35"/>
+<rect x="687.8" y="704.6" width="4" height="13.4" fill="#efe6cf" opacity=".35"/>
+<rect x="724.2" y="706.4" width="4" height="11.6" fill="#efe6cf" opacity=".35"/>
+<rect x="760.5" y="708.2" width="4" height="9.8" fill="#efe6cf" opacity=".35"/>
+<rect x="796.9" y="710.0" width="4" height="8.0" fill="#efe6cf" opacity=".35"/>
+<rect x="833.3" y="711.8" width="4" height="6.2" fill="#efe6cf" opacity=".35"/>
+<text x="425.2727272727273" y="684" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="600" text-anchor="start" letter-spacing="0">sided aggression per bar (falling)</text>
+<rect x="1360" y="204" width="170" height="520" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="1374" y="232" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="750" text-anchor="start" letter-spacing="1.3">INSPECT</text>
+<text x="1374" y="260" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">span 12 bars</text>
+<text x="1374" y="283" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">range −58%</text>
+<text x="1374" y="306" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">aggression −41%</text>
+<text x="1374" y="329" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">release bar +1</text>
+<text x="1374" y="352" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">release side UP</text>
+<text x="1374" y="375" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">sides LABELLED</text>
+<text x="1374" y="398" fill="#ef8f9a" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">no target implied</text>
+<rect x="54" y="760" width="700" height="130" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="76" y="790" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.4">CLASS · DEPTH · DEGRADED</text>
+<text x="76" y="816" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">B (span): drawn only over a qualifying coil; the bracket length is the span.</text>
+<text x="76" y="838" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">FAR: bracket · MID: + gap mark · NEAR: + aggression ticks + Inspect.</text>
+<text x="76" y="860" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">DEGRADED: no sides → range-only compression is LENT to Breathing (P01),</text>
+<text x="76" y="882" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">not drawn here. Stocks INFERRED → dashed bracket. FX → never.</text>
+<rect x="774" y="760" width="772" height="130" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="796" y="790" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.4">ERASURE TEST · FORBIDDEN</text>
+<text x="796" y="816" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">Erase labels + colour: bracket + double bar + ring remain — form + position.</text>
+<text x="796" y="838" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">Erase panels: the coil sits over the bars that coiled.</text>
+<text x="796" y="860" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">FORBIDDEN: breakout arrows or targets · &#x27;squeeze&#x27; wording</text>
+<text x="796" y="882" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">FORBIDDEN: a bracket from range alone (that is P01&#x27;s ribbon)</text>
+<path d="M54 905H1546" stroke="#4a4030"/>
+<text x="54" y="935" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.2">ATH MARKET INSTRUMENTS  ·  PRICE REMAINS SOVEREIGN  ·  FORM + POSITION, NEVER COLOUR ALONE  ·  PROPOSED UNTIL FOUNDER CANON ACCEPTANCE</text>
+<text x="54" y="962" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Schematic values, not market evidence. Drawn 2026-10-07 for the Garden 19 census gap &#x27;no Founder plate&#x27;. No canon ID assigned; not uploaded to Drive.</text>
+<text x="54" y="984" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Receipt (proposed): dataset.ofCompression=&lt;spans&gt;. Census gap: no symbol in src; no plate in the canon folder.</text>
+</svg>

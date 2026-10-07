@@ -443,13 +443,33 @@ Field order follows §28. Shared defaults (apply unless a certificate overrides 
 
 ---
 
+### 3b. PROPOSED plates for the six inventions with no Founder plate (2026-10-07)
+
+Drawn 06:15–06:45 CDT Oct 7 by the MY VIEWS / ACTIVE TOOLS lane, docs only. Files are in `docs/canon/proposed-garden19/`; open `index.html` for the gallery. Each plate is **PROPOSED — awaiting Founder canon acceptance**. None is a Founder plate, none has a canon ID, and none was uploaded to Drive.
+
+All six follow the same rules:
+- the Garden 18 schematic style (graphite, gold, ivory marks);
+- Class A history is drawn across the candles; Class B marks appear only where the event occurred;
+- each reading survives label and colour erasure, because it is carried by form and position.
+
+| Plate | File | Cert | Parent invention | Owner file | Class | Evidence requirement | Degraded state | Plate status |
+|---|---|---|---|---|---|---|---|---|
+| G19-P01 Market Breathing ribbon | `01-market-breathing-ribbon.svg` | C-04 | F15.BREATHING (A7) | `src/lib/chart/marketBreathing.ts` (`atrSeries`) | A | OHLC only: ATR14 vs window median. DERIVED. Lawful on FX | < 40 bars → no ribbon; a quiet row says "needs N bars" | PROPOSED. Re-reads Garden 18 P-14 under Class A (filled ribbon width; pinch / flare marks only at turns) |
+| G19-P02 CVD ⇄ price divergence notch | `02-cvd-price-divergence-notch.svg` | C-06 | G19.CVD_REL (A5) · host F06.DIV | host `selectDeltaDivergence.ts` + MainChart CVD_PANE; per-bar owner NOT BUILT | A, expressed as silence on agreement | Sided tape: per-bar CVD slope vs body sign. OBSERVED (F, C) · INFERRED (S) | Before tape coverage: nothing, with the boundary drawn. Stocks: dashed notch. FX: never | PROPOSED. The registry requires a "CVD / Delta relationship" plate; none exists |
+| G19-P03 Failed Aggression | `03-failed-aggression.svg` | C-09 | G19.FAILED_AGG (B3) | NOT BUILT (proposed `selectFailedAggression.ts`) | B | Sided aggression > P80 with no displacement follow-through within 3 bars | Stocks INFERRED → dashed arrow. FX: never. No sides: nothing, and the Tools row says why | PROPOSED. Glyph is distinct from the Absorption slab and the Exhaustion thinning (legend on the plate) |
+| G19-P04 Order Flow Compression | `04-order-flow-compression.svg` | C-12 | F06.COMPRESSION (B12) | NOT BUILT (proposed `selectOrderFlowCompression.ts`) | B (span) | Narrowing range AND falling sided aggression | No sides: range-only compression is lent to P01 and not drawn here. Stocks: dashed bracket. FX: never | PROPOSED. The release is a neutral ring: no direction, no target |
+| G19-P05 Structure leg state | `05-structure-leg-state.svg` | C-10 | G19.STRUCTURE_STATE (A9) · Registry §K | `src/lib/marketData/viewModels/selectMarketStructure.ts` (swings); leg state NOT BUILT | A (leg) + B (BOS / reclaim) | Confirmed swings; a break counts on a BODY close only | No confirmed swing → nothing. A forming swing is never drawn | PROPOSED. State is carried by line form: solid INTACT, dashed TESTING, dotted DETERIORATING, grey FAILED |
+| G19-P06 TED carrier (question) | `06-ted-carrier-question.svg` | C-13 | F10.TED (A15) | `src/lib/chart/effortEvidence.ts` (`readTemporalEvidenceDensity`) | A, pending a definition | As built: volume concentration across clock time. **Definition not confirmed** | As built: no traded volume → absent; FX → none | **Grammar deliberately not drawn.** The plate reserves only the strip above the time axis and asks the Founder to define TED. The C-13 2-px strip must not ship before the answer |
+
+After acceptance, each certificate's "Governing plate" cell in §3a moves from "none" to the accepted plate. Until then, the build lane may build these only as PROPOSED, and TED not at all.
+
 ## 4. Open items (not closed by this pass)
 
 1. **Live glass:** taken in pass 2 for every URL-provable switch on four symbols (§1f).
    - Still unmeasured: Exhaustion (no proof token), DELTA_VP and ANCHORED_RANGE (drag tools), and phone / tablet widths.
    - Every row was read on desktop only; no screenshots were taken.
 2. **Plates:** 9 opened (§3a).
-   - No Founder plate exists for Breathing, CVD relationship, Failed Aggression, Order Flow Compression, TED or Structure state.
+   - No Founder plate exists for Breathing, CVD relationship, Failed Aggression, Order Flow Compression, TED or Structure state. PROPOSED plates for all six are now in `docs/canon/proposed-garden19/` (§3b, 2026-10-07). TED's plate only asks the definition question.
    - The only CLC plate is off-topic.
 3. **`inventionCensus.ts`:** 20 `G19.*` rows added in pass 2. vitest `src/lib/canon` passes 23/23; tsc shows no errors in that file.
    - 00:16 CDT, after the freeze: `G19.CROSS` → PARTIAL (owner `src/lib/chart/fxRelatedFlow.ts`) and the `G19.RVOL` gap text corrected. Uncommitted. vitest canon + inventionEducation 33/33 pass.

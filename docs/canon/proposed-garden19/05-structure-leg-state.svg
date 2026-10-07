@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><linearGradient id="ground" x2="0" y2="1"><stop stop-color="#18202a"/><stop offset=".42" stop-color="#0c1119"/><stop offset="1" stop-color="#080b10"/></linearGradient><linearGradient id="header" x2="1" y2="0"><stop stop-color="#25251f"/><stop offset=".45" stop-color="#121720"/><stop offset="1" stop-color="#0a0e14"/></linearGradient><linearGradient id="goldMetal" x2="0" y2="1"><stop stop-color="#ffe3a2"/><stop offset=".42" stop-color="#d7a94f"/><stop offset="1" stop-color="#79582b"/></linearGradient></defs>
+<rect width="1600" height="1000" fill="url(#ground)"/><rect x="0" y="0" width="1600" height="108" fill="url(#header)"/>
+<path d="M0 107H1600" stroke="url(#goldMetal)" stroke-width="2" opacity=".7"/>
+<text x="54" y="42" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="750" text-anchor="start" letter-spacing="2.2">ABOVE THE HILL  /  WM PRO</text>
+<text x="54" y="82" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="650" text-anchor="start" letter-spacing="0">Structure leg state · intact · testing · deteriorating · failed</text>
+<text x="1545" y="43" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="end" letter-spacing="1.2">PROPOSED — awaiting Founder canon acceptance</text>
+<text x="1545" y="64" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="600" text-anchor="end" letter-spacing="0.6">GARDEN 19  ·  G19-P05  ·  CLASS A (leg state) + B (break / reclaim)</text>
+<text x="54" y="134" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="650" text-anchor="start" letter-spacing="0.3">PARENT G19.STRUCTURE_STATE (census A9 · cert C-10) · Registry §K   ·   OWNER src/lib/marketData/viewModels/selectMarketStructure.ts (swings) · leg state NOT BUILT</text>
+<text x="54" y="157" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">Each leg between confirmed swings carries its state as LINE FORM; chevrons mark the breaking close (single) and a reclaim (double).</text>
+<text x="54" y="178" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="600" text-anchor="start" letter-spacing="0.2">EVIDENCE: Confirmed swings from bars (all assets, FX lawful). A break counts only on a BODY CLOSE beyond the swing — wicks do not break structure.</text>
+<rect x="54" y="190" width="1492" height="552" rx="14" fill="#0a0e14" stroke="#3a3b37"/>
+<line x1="70" y1="226" x2="1330" y2="226" stroke="#1d242e"/>
+<text x="1342" y="230.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8394.47</text>
+<line x1="70" y1="307" x2="1330" y2="307" stroke="#1d242e"/>
+<text x="1342" y="311.3333333333333" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8265.53</text>
+<line x1="70" y1="389" x2="1330" y2="389" stroke="#1d242e"/>
+<text x="1342" y="392.66666666666663" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8136.59</text>
+<line x1="70" y1="470" x2="1330" y2="470" stroke="#1d242e"/>
+<text x="1342" y="474.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8007.65</text>
+<line x1="70" y1="551" x2="1330" y2="551" stroke="#1d242e"/>
+<text x="1342" y="555.3333333333333" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7878.70</text>
+<line x1="70" y1="633" x2="1330" y2="633" stroke="#1d242e"/>
+<text x="1342" y="636.6666666666667" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7749.76</text>
+<line x1="70" y1="714" x2="1330" y2="714" stroke="#1d242e"/>
+<text x="1342" y="718.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7620.82</text>
+<line x1="1330" y1="200" x2="1330" y2="732" stroke="#2c3138"/>
+
+<line x1="108.0" y1="574.0" x2="108.0" y2="674.8" stroke="#ef6a76" stroke-width="1.6"/><rect x="98.5" y="607.3" width="19" height="31.7" rx="1.5" fill="#ef6a76"/>
+<line x1="144.4" y1="566.4" x2="144.4" y2="650.1" stroke="#3ccf9c" stroke-width="1.6"/><rect x="134.9" y="592.8" width="19" height="46.2" rx="1.5" fill="#3ccf9c"/>
+<line x1="180.7" y1="531.9" x2="180.7" y2="596.9" stroke="#3ccf9c" stroke-width="1.6"/><rect x="171.2" y="569.8" width="19" height="23.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="217.1" y1="509.6" x2="217.1" y2="640.0" stroke="#3ccf9c" stroke-width="1.6"/><rect x="207.6" y="548.7" width="19" height="21.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="253.5" y1="501.4" x2="253.5" y2="549.3" stroke="#3ccf9c" stroke-width="1.6"/><rect x="244.0" y="519.8" width="19" height="28.9" rx="1.5" fill="#3ccf9c"/>
+<line x1="289.8" y1="498.0" x2="289.8" y2="539.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="280.3" y="514.2" width="19" height="5.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="326.2" y1="469.1" x2="326.2" y2="548.2" stroke="#3ccf9c" stroke-width="1.6"/><rect x="316.7" y="481.9" width="19" height="32.3" rx="1.5" fill="#3ccf9c"/>
+<line x1="362.5" y1="440.7" x2="362.5" y2="513.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="353.0" y="455.1" width="19" height="26.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="398.9" y1="411.6" x2="398.9" y2="456.9" stroke="#3ccf9c" stroke-width="1.6"/><rect x="389.4" y="412.5" width="19" height="42.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="435.3" y1="355.4" x2="435.3" y2="434.3" stroke="#3ccf9c" stroke-width="1.6"/><rect x="425.8" y="366.1" width="19" height="46.3" rx="1.5" fill="#3ccf9c"/>
+<line x1="471.6" y1="359.5" x2="471.6" y2="422.5" stroke="#ef6a76" stroke-width="1.6"/><rect x="462.1" y="366.1" width="19" height="49.6" rx="1.5" fill="#ef6a76"/>
+<line x1="508.0" y1="374.1" x2="508.0" y2="517.5" stroke="#ef6a76" stroke-width="1.6"/><rect x="498.5" y="415.7" width="19" height="87.5" rx="1.5" fill="#ef6a76"/>
+<line x1="544.4" y1="481.7" x2="544.4" y2="537.4" stroke="#ef6a76" stroke-width="1.6"/><rect x="534.9" y="503.2" width="19" height="17.8" rx="1.5" fill="#ef6a76"/>
+<line x1="580.7" y1="517.3" x2="580.7" y2="555.3" stroke="#ef6a76" stroke-width="1.6"/><rect x="571.2" y="521.0" width="19" height="29.5" rx="1.5" fill="#ef6a76"/>
+<line x1="617.1" y1="512.0" x2="617.1" y2="632.4" stroke="#ef6a76" stroke-width="1.6"/><rect x="607.6" y="550.6" width="19" height="56.3" rx="1.5" fill="#ef6a76"/>
+<line x1="653.5" y1="590.1" x2="653.5" y2="627.4" stroke="#ef6a76" stroke-width="1.6"/><rect x="644.0" y="606.9" width="19" height="7.8" rx="1.5" fill="#ef6a76"/>
+<line x1="689.8" y1="591.5" x2="689.8" y2="666.7" stroke="#ef6a76" stroke-width="1.6"/><rect x="680.3" y="614.7" width="19" height="18.4" rx="1.5" fill="#ef6a76"/>
+<line x1="726.2" y1="530.5" x2="726.2" y2="660.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="716.7" y="539.7" width="19" height="93.4" rx="1.5" fill="#3ccf9c"/>
+<line x1="762.5" y1="513.0" x2="762.5" y2="579.9" stroke="#ef6a76" stroke-width="1.6"/><rect x="753.0" y="539.7" width="19" height="11.9" rx="1.5" fill="#ef6a76"/>
+<line x1="798.9" y1="505.9" x2="798.9" y2="557.3" stroke="#3ccf9c" stroke-width="1.6"/><rect x="789.4" y="519.3" width="19" height="32.3" rx="1.5" fill="#3ccf9c"/>
+<line x1="835.3" y1="465.5" x2="835.3" y2="520.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="825.8" y="484.6" width="19" height="34.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="871.6" y1="477.3" x2="871.6" y2="507.2" stroke="#ef6a76" stroke-width="1.6"/><rect x="862.1" y="484.6" width="19" height="16.6" rx="1.5" fill="#ef6a76"/>
+<line x1="908.0" y1="412.2" x2="908.0" y2="504.7" stroke="#3ccf9c" stroke-width="1.6"/><rect x="898.5" y="436.6" width="19" height="64.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="944.4" y1="367.1" x2="944.4" y2="456.9" stroke="#3ccf9c" stroke-width="1.6"/><rect x="934.9" y="368.7" width="19" height="67.9" rx="1.5" fill="#3ccf9c"/>
+<line x1="980.7" y1="265.2" x2="980.7" y2="388.1" stroke="#3ccf9c" stroke-width="1.6"/><rect x="971.2" y="313.2" width="19" height="55.5" rx="1.5" fill="#3ccf9c"/>
+<line x1="1017.1" y1="307.3" x2="1017.1" y2="424.0" stroke="#ef6a76" stroke-width="1.6"/><rect x="1007.6" y="313.2" width="19" height="66.3" rx="1.5" fill="#ef6a76"/>
+<line x1="1053.5" y1="374.8" x2="1053.5" y2="457.8" stroke="#ef6a76" stroke-width="1.6"/><rect x="1044.0" y="379.5" width="19" height="53.9" rx="1.5" fill="#ef6a76"/>
+<line x1="1089.8" y1="370.0" x2="1089.8" y2="455.3" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1080.3" y="380.6" width="19" height="52.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="1126.2" y1="321.9" x2="1126.2" y2="381.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1116.7" y="349.2" width="19" height="31.4" rx="1.5" fill="#3ccf9c"/>
+<line x1="1162.5" y1="328.1" x2="1162.5" y2="378.1" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1153.0" y="333.0" width="19" height="16.2" rx="1.5" fill="#3ccf9c"/>
+<line x1="1198.9" y1="320.1" x2="1198.9" y2="395.4" stroke="#ef6a76" stroke-width="1.6"/><rect x="1189.4" y="333.0" width="19" height="56.1" rx="1.5" fill="#ef6a76"/>
+<line x1="1235.3" y1="345.0" x2="1235.3" y2="491.4" stroke="#ef6a76" stroke-width="1.6"/><rect x="1225.8" y="389.1" width="19" height="62.8" rx="1.5" fill="#ef6a76"/>
+<line x1="1271.6" y1="418.1" x2="1271.6" y2="463.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1262.1" y="434.5" width="19" height="17.5" rx="1.5" fill="#3ccf9c"/>
+<line x1="1308.0" y1="414.4" x2="1308.0" y2="529.7" stroke="#ef6a76" stroke-width="1.6"/><rect x="1298.5" y="434.5" width="19" height="47.5" rx="1.5" fill="#ef6a76"/>
+<line x1="180.7" y1="596.9" x2="435.3" y2="355.4" stroke="#6c6f78" stroke-width="1.6" opacity=".85"/>
+<line x1="435.3" y1="355.4" x2="689.8" y2="666.7" stroke="#efe6cf" stroke-width="2" stroke-dasharray="1.5 4" opacity=".85"/>
+<line x1="689.8" y1="666.7" x2="980.7" y2="265.2" stroke="#efe6cf" stroke-width="1.8" opacity=".85"/>
+<line x1="980.7" y1="265.2" x2="1235.3" y2="491.4" stroke="#efe6cf" stroke-width="1.8" stroke-dasharray="6 5" opacity=".85"/>
+<circle cx="180.7" cy="596.9" r="3.5" fill="none" stroke="#efe6cf" stroke-width="1.4"/>
+<circle cx="435.3" cy="355.4" r="3.5" fill="none" stroke="#efe6cf" stroke-width="1.4"/>
+<circle cx="689.8" cy="666.7" r="3.5" fill="none" stroke="#efe6cf" stroke-width="1.4"/>
+<circle cx="980.7" cy="265.2" r="3.5" fill="none" stroke="#efe6cf" stroke-width="1.4"/>
+<circle cx="1235.3" cy="491.4" r="3.5" fill="none" stroke="#efe6cf" stroke-width="1.4"/>
+<path d="M610.1 646.4 L617.1 654.4 L624.1 646.4" fill="none" stroke="#efe6cf" stroke-width="2"/>
+<text x="629.0909090909091" y="658.361777545982" fill="#efe6cf" font-family="Inter,Arial,sans-serif" font-size="11.5" font-weight="650" text-anchor="start" letter-spacing="0">BOS · body close below swing</text>
+<line x1="180.7" y1="596.9" x2="625.1" y2="596.9" stroke="#6c6f78" stroke-width="1" stroke-dasharray="2 3"/>
+<path d="M973.7 410.1 L980.7 402.1 L987.7 410.1" fill="none" stroke="#efe6cf" stroke-width="2"/><path d="M973.7 417.1 L980.7 409.1 L987.7 417.1" fill="none" stroke="#efe6cf" stroke-width="2"/>
+<text x="992.7272727272727" y="418.09512286297" fill="#efe6cf" font-family="Inter,Arial,sans-serif" font-size="11.5" font-weight="650" text-anchor="start" letter-spacing="0">RECLAIM · body close above swing</text>
+<line x1="435.3" y1="355.4" x2="988.7" y2="355.4" stroke="#6c6f78" stroke-width="1" stroke-dasharray="2 3"/>
+<rect x="82" y="220" width="232" height="104" rx="8" fill="#0f141c" stroke="#3a3b37"/>
+<line x1="96" y1="238.0" x2="142" y2="238.0" stroke="#efe6cf" stroke-width="1.8"/>
+<text x="154" y="242" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="650" text-anchor="start" letter-spacing="1">INTACT</text>
+<line x1="96" y1="260.0" x2="142" y2="260.0" stroke="#efe6cf" stroke-width="1.8" stroke-dasharray="6 5"/>
+<text x="154" y="264" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="650" text-anchor="start" letter-spacing="1">TESTING</text>
+<line x1="96" y1="282.0" x2="142" y2="282.0" stroke="#efe6cf" stroke-width="2" stroke-dasharray="1.5 4"/>
+<text x="154" y="286" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="650" text-anchor="start" letter-spacing="1">DETERIORATING</text>
+<line x1="96" y1="304.0" x2="142" y2="304.0" stroke="#6c6f78" stroke-width="1.6"/>
+<text x="154" y="308" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="650" text-anchor="start" letter-spacing="1">FAILED</text>
+<rect x="1360" y="204" width="170" height="520" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="1374" y="232" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="750" text-anchor="start" letter-spacing="1.3">INSPECT</text>
+<text x="1374" y="260" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">leg 4 · 7 bars</text>
+<text x="1374" y="283" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">Structural Age 7</text>
+<text x="1374" y="306" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">tests 2</text>
+<text x="1374" y="329" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">state TESTING</text>
+<text x="1374" y="352" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">leg 1 FAILED by BOS</text>
+<text x="1374" y="375" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">leg 3 born by RECLAIM</text>
+<text x="1374" y="398" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">swings CONFIRMED only</text>
+<rect x="54" y="760" width="700" height="130" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="76" y="790" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.4">CLASS · DEPTH · DEGRADED</text>
+<text x="76" y="816" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">A: every leg between confirmed swings carries its state — history on the field.</text>
+<text x="76" y="838" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">B: chevrons only at the breaking / reclaiming close.</text>
+<text x="76" y="860" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">DEGRADED: no confirmed swing yet → nothing (a forming swing is not drawn).</text>
+<text x="76" y="882" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">FAR: legs only · MID: + chevrons · NEAR: + Inspect (age, tests).</text>
+<rect x="774" y="760" width="772" height="130" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="796" y="790" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.4">ERASURE TEST · FORBIDDEN</text>
+<text x="796" y="816" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">Erase labels + colour: solid / dashed / dotted / grey line form carries the state.</text>
+<text x="796" y="838" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">Erase panels: the Thesis card&#x27;s prose is no longer the only carrier.</text>
+<text x="796" y="860" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">FORBIDDEN: wick breaks · state words on the field at FAR</text>
+<text x="796" y="882" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">FORBIDDEN: implying the next leg&#x27;s direction</text>
+<path d="M54 905H1546" stroke="#4a4030"/>
+<text x="54" y="935" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.2">ATH MARKET INSTRUMENTS  ·  PRICE REMAINS SOVEREIGN  ·  FORM + POSITION, NEVER COLOUR ALONE  ·  PROPOSED UNTIL FOUNDER CANON ACCEPTANCE</text>
+<text x="54" y="962" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Schematic values, not market evidence. Drawn 2026-10-07 for the Garden 19 census gap &#x27;no Founder plate&#x27;. No canon ID assigned; not uploaded to Drive.</text>
+<text x="54" y="984" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Receipt (proposed): dataset.structureLegs=&lt;n&gt;|BOS:&lt;k&gt;|RECLAIM:&lt;r&gt;. Thesis Canvas (51) is prose only — no geometry plate exists.</text>
+</svg>

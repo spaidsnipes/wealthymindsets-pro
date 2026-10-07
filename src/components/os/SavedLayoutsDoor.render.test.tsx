@@ -148,4 +148,18 @@ describe("Saved layouts — first frame", () => {
     // An edited starter is not listed twice among My Views.
     expect(html).toContain('data-testid="saved-layouts-empty"');
   });
+
+  // 2026-10-07 · live 47a4c37 at 264px: "My current view" read "My curre…". Names wrap to two lines now.
+  it("a View's name wraps to two lines instead of truncating to one", () => {
+    announceArrangementCapture(capture({}));
+    const html = render({
+      [SAVED_LAYOUTS_STORAGE_KEY]: serializeSavedLayouts([{ id: "my-current-view", name: "My current view", switches: { SESSION: true } }]),
+    });
+    const name = html.match(/<span data-testid="saved-layout-name" style="([^"]*)">([^<]*)</);
+    expect(name?.[2]).toBe("My current view");
+    expect(name?.[1]).toContain("-webkit-line-clamp:2");
+    expect(name?.[1]).toContain("white-space:normal");
+    expect(name?.[1]).not.toContain("nowrap");
+    expect(name?.[1]).not.toContain("text-overflow:ellipsis");
+  });
 });

@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><linearGradient id="ground" x2="0" y2="1"><stop stop-color="#18202a"/><stop offset=".42" stop-color="#0c1119"/><stop offset="1" stop-color="#080b10"/></linearGradient><linearGradient id="header" x2="1" y2="0"><stop stop-color="#25251f"/><stop offset=".45" stop-color="#121720"/><stop offset="1" stop-color="#0a0e14"/></linearGradient><linearGradient id="goldMetal" x2="0" y2="1"><stop stop-color="#ffe3a2"/><stop offset=".42" stop-color="#d7a94f"/><stop offset="1" stop-color="#79582b"/></linearGradient></defs>
+<rect width="1600" height="1000" fill="url(#ground)"/><rect x="0" y="0" width="1600" height="108" fill="url(#header)"/>
+<path d="M0 107H1600" stroke="url(#goldMetal)" stroke-width="2" opacity=".7"/>
+<text x="54" y="42" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="750" text-anchor="start" letter-spacing="2.2">ABOVE THE HILL  /  WM PRO</text>
+<text x="54" y="82" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="650" text-anchor="start" letter-spacing="0">TED · carrier reserved — definition owed by the Founder</text>
+<text x="1545" y="43" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="end" letter-spacing="1.2">PROPOSED — awaiting Founder canon acceptance</text>
+<text x="1545" y="64" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="600" text-anchor="end" letter-spacing="0.6">GARDEN 19  ·  G19-P06  ·  CLASS A — pending definition</text>
+<text x="54" y="134" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="650" text-anchor="start" letter-spacing="0.3">PARENT F10.TED (census A15 · cert C-13)   ·   OWNER src/lib/chart/effortEvidence.ts (readTemporalEvidenceDensity)</text>
+<text x="54" y="157" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">Only the carrier&#x27;s POSITION is proposed (a thin strip above the time axis). Its marks, scale and opacity wait for the Founder&#x27;s TED.</text>
+<text x="54" y="178" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="600" text-anchor="start" letter-spacing="0.2">EVIDENCE: As built today: per-bar volume concentration across clock time (all assets with volume; FX → none). Definition NOT confirmed.</text>
+<rect x="54" y="190" width="1492" height="552" rx="14" fill="#0a0e14" stroke="#3a3b37"/>
+<line x1="70" y1="226" x2="1330" y2="226" stroke="#1d242e"/>
+<text x="1342" y="230.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8742.59</text>
+<line x1="70" y1="307" x2="1330" y2="307" stroke="#1d242e"/>
+<text x="1342" y="311.3333333333333" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8563.06</text>
+<line x1="70" y1="389" x2="1330" y2="389" stroke="#1d242e"/>
+<text x="1342" y="392.66666666666663" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8383.53</text>
+<line x1="70" y1="470" x2="1330" y2="470" stroke="#1d242e"/>
+<text x="1342" y="474.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8204.00</text>
+<line x1="70" y1="551" x2="1330" y2="551" stroke="#1d242e"/>
+<text x="1342" y="555.3333333333333" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8024.47</text>
+<line x1="70" y1="633" x2="1330" y2="633" stroke="#1d242e"/>
+<text x="1342" y="636.6666666666667" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7844.94</text>
+<line x1="70" y1="714" x2="1330" y2="714" stroke="#1d242e"/>
+<text x="1342" y="718.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7665.41</text>
+<line x1="1330" y1="200" x2="1330" y2="732" stroke="#2c3138"/>
+
+<line x1="108.0" y1="594.5" x2="108.0" y2="674.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="98.5" y="607.6" width="19" height="50.0" rx="1.5" fill="#3ccf9c"/>
+<line x1="144.4" y1="588.8" x2="144.4" y2="613.7" stroke="#3ccf9c" stroke-width="1.6"/><rect x="134.9" y="605.6" width="19" height="2.0" rx="1.5" fill="#3ccf9c"/>
+<line x1="180.7" y1="579.3" x2="180.7" y2="645.7" stroke="#ef6a76" stroke-width="1.6"/><rect x="171.2" y="605.6" width="19" height="38.7" rx="1.5" fill="#ef6a76"/>
+<line x1="217.1" y1="627.6" x2="217.1" y2="648.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="207.6" y="629.6" width="19" height="14.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="253.5" y1="626.4" x2="253.5" y2="647.9" stroke="#ef6a76" stroke-width="1.6"/><rect x="244.0" y="629.6" width="19" height="6.4" rx="1.5" fill="#ef6a76"/>
+<line x1="289.8" y1="586.8" x2="289.8" y2="656.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="280.3" y="615.2" width="19" height="20.7" rx="1.5" fill="#3ccf9c"/>
+<line x1="326.2" y1="565.4" x2="326.2" y2="638.2" stroke="#3ccf9c" stroke-width="1.6"/><rect x="316.7" y="567.4" width="19" height="47.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="362.5" y1="562.2" x2="362.5" y2="593.8" stroke="#ef6a76" stroke-width="1.6"/><rect x="353.0" y="567.4" width="19" height="18.2" rx="1.5" fill="#ef6a76"/>
+<line x1="398.9" y1="579.3" x2="398.9" y2="613.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="389.4" y="580.7" width="19" height="4.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="435.3" y1="571.9" x2="435.3" y2="605.9" stroke="#ef6a76" stroke-width="1.6"/><rect x="425.8" y="580.7" width="19" height="2.2" rx="1.5" fill="#ef6a76"/>
+<line x1="471.6" y1="546.6" x2="471.6" y2="598.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="462.1" y="548.0" width="19" height="35.0" rx="1.5" fill="#3ccf9c"/>
+<line x1="508.0" y1="505.9" x2="508.0" y2="560.2" stroke="#3ccf9c" stroke-width="1.6"/><rect x="498.5" y="534.2" width="19" height="13.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="544.4" y1="471.0" x2="544.4" y2="536.5" stroke="#3ccf9c" stroke-width="1.6"/><rect x="534.9" y="471.6" width="19" height="62.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="580.7" y1="432.1" x2="580.7" y2="492.6" stroke="#3ccf9c" stroke-width="1.6"/><rect x="571.2" y="459.2" width="19" height="12.3" rx="1.5" fill="#3ccf9c"/>
+<line x1="617.1" y1="441.9" x2="617.1" y2="503.8" stroke="#ef6a76" stroke-width="1.6"/><rect x="607.6" y="459.2" width="19" height="28.8" rx="1.5" fill="#ef6a76"/>
+<line x1="653.5" y1="436.5" x2="653.5" y2="493.3" stroke="#3ccf9c" stroke-width="1.6"/><rect x="644.0" y="470.4" width="19" height="17.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="689.8" y1="466.3" x2="689.8" y2="484.6" stroke="#ef6a76" stroke-width="1.6"/><rect x="680.3" y="470.4" width="19" height="6.4" rx="1.5" fill="#ef6a76"/>
+<line x1="726.2" y1="422.4" x2="726.2" y2="515.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="716.7" y="437.2" width="19" height="39.7" rx="1.5" fill="#3ccf9c"/>
+<line x1="762.5" y1="427.7" x2="762.5" y2="463.9" stroke="#ef6a76" stroke-width="1.6"/><rect x="753.0" y="437.2" width="19" height="24.8" rx="1.5" fill="#ef6a76"/>
+<line x1="798.9" y1="445.9" x2="798.9" y2="468.6" stroke="#ef6a76" stroke-width="1.6"/><rect x="789.4" y="462.0" width="19" height="2.6" rx="1.5" fill="#ef6a76"/>
+<line x1="835.3" y1="397.0" x2="835.3" y2="469.5" stroke="#3ccf9c" stroke-width="1.6"/><rect x="825.8" y="400.2" width="19" height="64.4" rx="1.5" fill="#3ccf9c"/>
+<line x1="871.6" y1="381.4" x2="871.6" y2="411.8" stroke="#ef6a76" stroke-width="1.6"/><rect x="862.1" y="400.2" width="19" height="6.2" rx="1.5" fill="#ef6a76"/>
+<line x1="908.0" y1="388.5" x2="908.0" y2="419.5" stroke="#ef6a76" stroke-width="1.6"/><rect x="898.5" y="406.4" width="19" height="5.6" rx="1.5" fill="#ef6a76"/>
+<line x1="944.4" y1="364.0" x2="944.4" y2="437.0" stroke="#3ccf9c" stroke-width="1.6"/><rect x="934.9" y="369.5" width="19" height="42.4" rx="1.5" fill="#3ccf9c"/>
+<line x1="980.7" y1="316.8" x2="980.7" y2="385.2" stroke="#3ccf9c" stroke-width="1.6"/><rect x="971.2" y="345.0" width="19" height="24.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="1017.1" y1="305.6" x2="1017.1" y2="351.6" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1007.6" y="306.4" width="19" height="38.5" rx="1.5" fill="#3ccf9c"/>
+<line x1="1053.5" y1="289.7" x2="1053.5" y2="322.8" stroke="#ef6a76" stroke-width="1.6"/><rect x="1044.0" y="306.4" width="19" height="7.4" rx="1.5" fill="#ef6a76"/>
+<line x1="1089.8" y1="285.7" x2="1089.8" y2="338.7" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1080.3" y="288.8" width="19" height="25.0" rx="1.5" fill="#3ccf9c"/>
+<line x1="1126.2" y1="280.1" x2="1126.2" y2="343.4" stroke="#ef6a76" stroke-width="1.6"/><rect x="1116.7" y="288.8" width="19" height="52.1" rx="1.5" fill="#ef6a76"/>
+<line x1="1162.5" y1="324.4" x2="1162.5" y2="356.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1153.0" y="336.9" width="19" height="4.0" rx="1.5" fill="#3ccf9c"/>
+<line x1="1198.9" y1="297.9" x2="1198.9" y2="337.3" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1189.4" y="320.9" width="19" height="16.0" rx="1.5" fill="#3ccf9c"/>
+<line x1="1235.3" y1="316.4" x2="1235.3" y2="334.8" stroke="#ef6a76" stroke-width="1.6"/><rect x="1225.8" y="320.9" width="19" height="2.7" rx="1.5" fill="#ef6a76"/>
+<line x1="1271.6" y1="265.7" x2="1271.6" y2="340.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1262.1" y="288.9" width="19" height="34.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="1308.0" y1="265.2" x2="1308.0" y2="381.6" stroke="#ef6a76" stroke-width="1.6"/><rect x="1298.5" y="288.9" width="19" height="58.3" rx="1.5" fill="#ef6a76"/>
+<rect x="90" y="710" width="1220" height="10" fill="none" stroke="#8a8271" stroke-dasharray="4 4"/>
+<text x="94" y="702" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="650" text-anchor="start" letter-spacing="0">RESERVED CARRIER · above the time axis · grammar withheld until the Founder defines TED</text>
+<rect x="420" y="300" width="560" height="150" rx="12" fill="#0f141c" stroke="#d4ad61" stroke-opacity=".7"/>
+<text x="440" y="334" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="750" text-anchor="start" letter-spacing="1.3">FOUNDER QUESTION — TED</text>
+<text x="440" y="364" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="500" text-anchor="start" letter-spacing="0">WM reads TED as &#x27;Temporal Evidence Density&#x27;: where in clock</text>
+<text x="440" y="386" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="500" text-anchor="start" letter-spacing="0">time this chart&#x27;s traded volume concentrated (effortEvidence.ts).</text>
+<text x="440" y="412" fill="#efe6cf" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="650" text-anchor="start" letter-spacing="0">Is that your TED? If not, what does it measure, and from what?</text>
+<text x="440" y="434" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">No mark grammar is proposed on this plate until you answer.</text>
+<rect x="1360" y="204" width="170" height="520" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="1374" y="232" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="750" text-anchor="start" letter-spacing="1.3">INSPECT</text>
+<text x="1374" y="260" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">TED today: one rail line</text>
+<text x="1374" y="283" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">&#x27;63% in busiest fifth&#x27;</text>
+<text x="1374" y="306" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">definition owed</text>
+<text x="1374" y="329" fill="#ef8f9a" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">by the Founder</text>
+<rect x="54" y="760" width="700" height="130" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="76" y="790" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.4">CLASS · DEPTH · DEGRADED</text>
+<text x="76" y="816" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">A (pending): if TED is a per-bar density, it lives in this strip across all bars.</text>
+<text x="76" y="838" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">No FAR/MID/NEAR grammar proposed — that is the Founder&#x27;s answer.</text>
+<text x="76" y="860" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">DEGRADED (as built): no traded volume → TED absent; FX → none.</text>
+<text x="76" y="882" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">Clock / Session / Regime Age (G19.AGES) would share the strip — open.</text>
+<rect x="774" y="760" width="772" height="130" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="796" y="790" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.4">ERASURE TEST · FORBIDDEN</text>
+<text x="796" y="816" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">Erasure tests cannot be run on a grammar that is not defined.</text>
+<text x="796" y="838" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">Panel-erasure today: FAILS — TED exists only as a rail line.</text>
+<text x="796" y="860" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">FORBIDDEN: inventing a TED meaning to fill the strip</text>
+<text x="796" y="882" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">FORBIDDEN: shipping the C-13 2-px strip before this answer</text>
+<path d="M54 905H1546" stroke="#4a4030"/>
+<text x="54" y="935" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.2">ATH MARKET INSTRUMENTS  ·  PRICE REMAINS SOVEREIGN  ·  FORM + POSITION, NEVER COLOUR ALONE  ·  PROPOSED UNTIL FOUNDER CANON ACCEPTANCE</text>
+<text x="54" y="962" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Schematic values, not market evidence. Drawn 2026-10-07 for the Garden 19 census gap &#x27;no Founder plate&#x27;. No canon ID assigned; not uploaded to Drive.</text>
+<text x="54" y="984" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Supersedes nothing: Garden 18 P-16 drew a density strip; Garden 19 C-13 marks the definition Founder-gated, so this plate asks rather than draws.</text>
+</svg>

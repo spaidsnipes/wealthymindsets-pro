@@ -562,7 +562,8 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                       opacity: chartAnswering ? 1 : 0.55,
                     }}
                   >
-                    <span style={{ display: "block", fontSize: 12, fontWeight: 500, letterSpacing: 0.3, color: inForce ? ink.gold : ink.pearl, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {/* The whole name, on up to two lines (live 47a4c37 @264px: "My curre…"). */}
+                    <span data-testid="saved-layout-name" style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2, fontSize: 12, fontWeight: 500, lineHeight: 1.3, letterSpacing: 0.3, color: inForce ? ink.gold : ink.pearl, overflow: "hidden", whiteSpace: "normal", overflowWrap: "anywhere" }}>
                       {layout.name}
                     </span>
                     <span id={`${idBase}-hint-${layout.id}`} style={{ display: "block", fontSize: 10, color: ink.hint, marginTop: 1 }}>

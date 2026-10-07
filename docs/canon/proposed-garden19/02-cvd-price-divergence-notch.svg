@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><linearGradient id="ground" x2="0" y2="1"><stop stop-color="#18202a"/><stop offset=".42" stop-color="#0c1119"/><stop offset="1" stop-color="#080b10"/></linearGradient><linearGradient id="header" x2="1" y2="0"><stop stop-color="#25251f"/><stop offset=".45" stop-color="#121720"/><stop offset="1" stop-color="#0a0e14"/></linearGradient><linearGradient id="goldMetal" x2="0" y2="1"><stop stop-color="#ffe3a2"/><stop offset=".42" stop-color="#d7a94f"/><stop offset="1" stop-color="#79582b"/></linearGradient></defs>
+<rect width="1600" height="1000" fill="url(#ground)"/><rect x="0" y="0" width="1600" height="108" fill="url(#header)"/>
+<path d="M0 107H1600" stroke="url(#goldMetal)" stroke-width="2" opacity=".7"/>
+<text x="54" y="42" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="750" text-anchor="start" letter-spacing="2.2">ABOVE THE HILL  /  WM PRO</text>
+<text x="54" y="82" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="32" font-weight="650" text-anchor="start" letter-spacing="0">CVD ⇄ Price · divergence notch on the wick</text>
+<text x="1545" y="43" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="end" letter-spacing="1.2">PROPOSED — awaiting Founder canon acceptance</text>
+<text x="1545" y="64" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="600" text-anchor="end" letter-spacing="0.6">GARDEN 19  ·  G19-P02  ·  CLASS A — silence on agreement</text>
+<text x="54" y="134" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="650" text-anchor="start" letter-spacing="0.3">PARENT G19.CVD_REL (census A5 · cert C-06) · host F06.DIV   ·   OWNER host: selectDeltaDivergence.ts + MainChart CVD_PANE · per-bar owner NOT BUILT</text>
+<text x="54" y="157" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">Every sided bar is read; only DISAGREEMENT speaks — a hollow notch at the wick tip, pointing the way price moved without the aggression.</text>
+<text x="54" y="178" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="600" text-anchor="start" letter-spacing="0.2">EVIDENCE: Sided tape: per-bar CVD slope vs body sign. OBSERVED (futures, crypto) · INFERRED (stocks, Lee–Ready) · FX never.</text>
+<rect x="54" y="190" width="1492" height="552" rx="14" fill="#0a0e14" stroke="#3a3b37"/>
+<line x1="70" y1="226" x2="1330" y2="226" stroke="#1d242e"/>
+<text x="1342" y="230.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8541.05</text>
+<line x1="70" y1="307" x2="1330" y2="307" stroke="#1d242e"/>
+<text x="1342" y="311.3333333333333" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8402.74</text>
+<line x1="70" y1="389" x2="1330" y2="389" stroke="#1d242e"/>
+<text x="1342" y="392.66666666666663" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8264.44</text>
+<line x1="70" y1="470" x2="1330" y2="470" stroke="#1d242e"/>
+<text x="1342" y="474.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">8126.13</text>
+<line x1="70" y1="551" x2="1330" y2="551" stroke="#1d242e"/>
+<text x="1342" y="555.3333333333333" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7987.83</text>
+<line x1="70" y1="633" x2="1330" y2="633" stroke="#1d242e"/>
+<text x="1342" y="636.6666666666667" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7849.53</text>
+<line x1="70" y1="714" x2="1330" y2="714" stroke="#1d242e"/>
+<text x="1342" y="718.0" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">7711.22</text>
+<line x1="1330" y1="200" x2="1330" y2="732" stroke="#2c3138"/>
+
+<line x1="108.0" y1="547.7" x2="108.0" y2="674.8" stroke="#3ccf9c" stroke-width="1.6" opacity=".45"/><rect x="98.5" y="572.1" width="19" height="95.6" rx="1.5" fill="#3ccf9c" opacity=".45"/>
+<line x1="144.4" y1="546.3" x2="144.4" y2="584.7" stroke="#3ccf9c" stroke-width="1.6" opacity=".45"/><rect x="134.9" y="565.7" width="19" height="6.5" rx="1.5" fill="#3ccf9c" opacity=".45"/>
+<line x1="180.7" y1="563.5" x2="180.7" y2="577.1" stroke="#ef6a76" stroke-width="1.6" opacity=".45"/><rect x="171.2" y="565.7" width="19" height="3.0" rx="1.5" fill="#ef6a76" opacity=".45"/>
+<line x1="217.1" y1="511.1" x2="217.1" y2="592.5" stroke="#3ccf9c" stroke-width="1.6" opacity=".45"/><rect x="207.6" y="515.5" width="19" height="53.2" rx="1.5" fill="#3ccf9c" opacity=".45"/>
+<line x1="253.5" y1="482.7" x2="253.5" y2="521.2" stroke="#3ccf9c" stroke-width="1.6" opacity=".45"/><rect x="244.0" y="484.1" width="19" height="31.4" rx="1.5" fill="#3ccf9c" opacity=".45"/>
+<line x1="289.8" y1="448.4" x2="289.8" y2="508.0" stroke="#ef6a76" stroke-width="1.6" opacity=".45"/><rect x="280.3" y="484.1" width="19" height="21.1" rx="1.5" fill="#ef6a76" opacity=".45"/>
+<line x1="326.2" y1="491.3" x2="326.2" y2="511.3" stroke="#3ccf9c" stroke-width="1.6" opacity=".45"/><rect x="316.7" y="497.1" width="19" height="8.1" rx="1.5" fill="#3ccf9c" opacity=".45"/>
+<line x1="362.5" y1="480.4" x2="362.5" y2="554.6" stroke="#ef6a76" stroke-width="1.6" opacity=".45"/><rect x="353.0" y="497.1" width="19" height="31.8" rx="1.5" fill="#ef6a76" opacity=".45"/>
+<line x1="398.9" y1="474.9" x2="398.9" y2="530.2" stroke="#3ccf9c" stroke-width="1.6"/><rect x="389.4" y="478.7" width="19" height="50.2" rx="1.5" fill="#3ccf9c"/>
+<line x1="435.3" y1="449.6" x2="435.3" y2="511.9" stroke="#ef6a76" stroke-width="1.6"/><rect x="425.8" y="478.7" width="19" height="19.1" rx="1.5" fill="#ef6a76"/>
+<line x1="471.6" y1="479.3" x2="471.6" y2="532.3" stroke="#3ccf9c" stroke-width="1.6"/><rect x="462.1" y="487.8" width="19" height="9.9" rx="1.5" fill="#3ccf9c"/>
+<line x1="508.0" y1="442.2" x2="508.0" y2="500.7" stroke="#3ccf9c" stroke-width="1.6"/><rect x="498.5" y="462.3" width="19" height="25.5" rx="1.5" fill="#3ccf9c"/>
+<line x1="544.4" y1="450.0" x2="544.4" y2="470.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="534.9" y="460.8" width="19" height="2.0" rx="1.5" fill="#3ccf9c"/>
+<line x1="580.7" y1="409.8" x2="580.7" y2="474.1" stroke="#3ccf9c" stroke-width="1.6"/><rect x="571.2" y="415.6" width="19" height="45.2" rx="1.5" fill="#3ccf9c"/>
+<line x1="617.1" y1="380.4" x2="617.1" y2="432.7" stroke="#3ccf9c" stroke-width="1.6"/><rect x="607.6" y="387.0" width="19" height="28.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="653.5" y1="327.3" x2="653.5" y2="405.0" stroke="#3ccf9c" stroke-width="1.6"/><rect x="644.0" y="363.8" width="19" height="23.2" rx="1.5" fill="#3ccf9c"/>
+<line x1="689.8" y1="345.4" x2="689.8" y2="369.4" stroke="#ef6a76" stroke-width="1.6"/><rect x="680.3" y="363.8" width="19" height="2.0" rx="1.5" fill="#ef6a76"/>
+<line x1="726.2" y1="313.8" x2="726.2" y2="392.3" stroke="#3ccf9c" stroke-width="1.6"/><rect x="716.7" y="318.6" width="19" height="46.4" rx="1.5" fill="#3ccf9c"/>
+<line x1="762.5" y1="293.0" x2="762.5" y2="325.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="753.0" y="303.4" width="19" height="15.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="798.9" y1="295.8" x2="798.9" y2="357.8" stroke="#ef6a76" stroke-width="1.6"/><rect x="789.4" y="303.4" width="19" height="40.1" rx="1.5" fill="#ef6a76"/>
+<line x1="835.3" y1="329.7" x2="835.3" y2="450.6" stroke="#ef6a76" stroke-width="1.6"/><rect x="825.8" y="343.6" width="19" height="62.8" rx="1.5" fill="#ef6a76"/>
+<line x1="871.6" y1="376.6" x2="871.6" y2="490.7" stroke="#ef6a76" stroke-width="1.6"/><rect x="862.1" y="406.3" width="19" height="32.6" rx="1.5" fill="#ef6a76"/>
+<line x1="908.0" y1="399.9" x2="908.0" y2="478.5" stroke="#3ccf9c" stroke-width="1.6"/><rect x="898.5" y="407.8" width="19" height="31.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="944.4" y1="379.8" x2="944.4" y2="462.5" stroke="#3ccf9c" stroke-width="1.6"/><rect x="934.9" y="402.6" width="19" height="5.2" rx="1.5" fill="#3ccf9c"/>
+<line x1="980.7" y1="326.5" x2="980.7" y2="466.2" stroke="#3ccf9c" stroke-width="1.6"/><rect x="971.2" y="376.9" width="19" height="25.7" rx="1.5" fill="#3ccf9c"/>
+<line x1="1017.1" y1="376.8" x2="1017.1" y2="428.0" stroke="#ef6a76" stroke-width="1.6"/><rect x="1007.6" y="376.9" width="19" height="30.8" rx="1.5" fill="#ef6a76"/>
+<line x1="1053.5" y1="373.7" x2="1053.5" y2="410.8" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1044.0" y="377.1" width="19" height="30.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="1089.8" y1="353.8" x2="1089.8" y2="380.2" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1080.3" y="368.1" width="19" height="9.1" rx="1.5" fill="#3ccf9c"/>
+<line x1="1126.2" y1="268.7" x2="1126.2" y2="370.2" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1116.7" y="290.5" width="19" height="77.6" rx="1.5" fill="#3ccf9c"/>
+<line x1="1162.5" y1="265.2" x2="1162.5" y2="292.9" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1153.0" y="278.3" width="19" height="12.2" rx="1.5" fill="#3ccf9c"/>
+<line x1="1198.9" y1="267.4" x2="1198.9" y2="348.0" stroke="#ef6a76" stroke-width="1.6"/><rect x="1189.4" y="278.3" width="19" height="69.2" rx="1.5" fill="#ef6a76"/>
+<line x1="1235.3" y1="294.4" x2="1235.3" y2="361.4" stroke="#3ccf9c" stroke-width="1.6"/><rect x="1225.8" y="313.7" width="19" height="33.8" rx="1.5" fill="#3ccf9c"/>
+<line x1="1271.6" y1="275.0" x2="1271.6" y2="379.1" stroke="#ef6a76" stroke-width="1.6"/><rect x="1262.1" y="313.7" width="19" height="47.2" rx="1.5" fill="#ef6a76"/>
+<line x1="1308.0" y1="352.3" x2="1308.0" y2="458.1" stroke="#ef6a76" stroke-width="1.6"/><rect x="1298.5" y="360.9" width="19" height="76.3" rx="1.5" fill="#ef6a76"/>
+<line x1="380.9" y1="214" x2="380.9" y2="714" stroke="#5a5d66" stroke-dasharray="3 5"/>
+<text x="86" y="236" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" text-anchor="start" letter-spacing="0">before tape coverage · silent</text>
+<text x="388.90909090909093" y="236" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="600" text-anchor="start" letter-spacing="0">tape starts (shared coverage boundary)</text>
+<path d="M538.4 445.0 L544.4 435.0 L550.4 445.0 Z" fill="none" stroke="#efe6cf" stroke-opacity=".75" stroke-width="1.5"/>
+<path d="M647.5 322.3 L653.5 312.3 L659.5 322.3 Z" fill="none" stroke="#efe6cf" stroke-opacity=".75" stroke-width="1.5"/>
+<path d="M683.8 374.4 L689.8 384.4 L695.8 374.4 Z" fill="none" stroke="#efe6cf" stroke-opacity=".75" stroke-width="1.5"/>
+<path d="M938.4 374.8 L944.4 364.8 L950.4 374.8 Z" fill="none" stroke="#efe6cf" stroke-opacity=".75" stroke-width="1.5"/>
+<path d="M1047.5 368.7 L1053.5 358.7 L1059.5 368.7 Z" fill="none" stroke="#efe6cf" stroke-opacity=".75" stroke-width="1.5" stroke-dasharray="2.5 2"/>
+<path d="M1083.8 348.8 L1089.8 338.8 L1095.8 348.8 Z" fill="none" stroke="#efe6cf" stroke-opacity=".75" stroke-width="1.5" stroke-dasharray="2.5 2"/>
+<path d="M1192.9 353.0 L1198.9 363.0 L1204.9 353.0 Z" fill="none" stroke="#efe6cf" stroke-opacity=".75" stroke-width="1.5" stroke-dasharray="2.5 2"/>
+<text x="394.3636363636364" y="419.96366157596555" fill="#efe6cf" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="650" text-anchor="start" letter-spacing="0">price up · CVD down →</text>
+<text x="1023.4545454545455" y="450.782978804595" fill="#efe6cf" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="650" text-anchor="start" letter-spacing="0">INFERRED sides → dashed</text>
+<rect x="1360" y="204" width="170" height="520" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="1374" y="232" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="750" text-anchor="start" letter-spacing="1.3">INSPECT</text>
+<text x="1374" y="260" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">bar 15 · body +6.25</text>
+<text x="1374" y="283" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">CVD Δ −412</text>
+<text x="1374" y="306" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">agreement: NO</text>
+<text x="1374" y="329" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">sides LABELLED</text>
+<text x="1374" y="352" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">tape since 09:31</text>
+<text x="1374" y="375" fill="#7d7a72" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">OBSERVED</text>
+<text x="1374" y="398" fill="#ef8f9a" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">agreement bars are</text>
+<text x="1374" y="421" fill="#ef8f9a" font-family="Inter,Arial,sans-serif" font-size="12.5" font-weight="500" text-anchor="start" letter-spacing="0">silent by design</text>
+<rect x="54" y="760" width="700" height="130" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="76" y="790" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.4">CLASS · DEPTH · DEGRADED</text>
+<text x="76" y="816" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">A expressed as silence: agreeing bars carry nothing; the field still reads.</text>
+<text x="76" y="838" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">FAR: notches only on bars ≥ 2× median |Δ| · MID/NEAR: every disagreement.</text>
+<text x="76" y="860" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">DEGRADED: before tape coverage → nothing, boundary shown; FX → never.</text>
+<text x="76" y="882" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">Stocks: INFERRED sides → dashed notch outline.</text>
+<rect x="774" y="760" width="772" height="130" rx="12" fill="#0f141c" stroke="#3a3b37"/>
+<text x="796" y="790" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.4">ERASURE TEST · FORBIDDEN</text>
+<text x="796" y="816" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">Erase labels + colour: a hollow triangle at a wick tip, pointing — form + position.</text>
+<text x="796" y="838" fill="#e8e3d8" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">Erase the CVD pane: the relationship is still on the candles (panel-erasure).</text>
+<text x="796" y="860" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">FORBIDDEN: filling the notch with buy/sell colour · numerals on the field</text>
+<text x="796" y="882" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="13.5" font-weight="500" text-anchor="start" letter-spacing="0">FORBIDDEN: a notch where the tape did not cover the bar</text>
+<path d="M54 905H1546" stroke="#4a4030"/>
+<text x="54" y="935" fill="#d4ad61" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="750" text-anchor="start" letter-spacing="1.2">ATH MARKET INSTRUMENTS  ·  PRICE REMAINS SOVEREIGN  ·  FORM + POSITION, NEVER COLOUR ALONE  ·  PROPOSED UNTIL FOUNDER CANON ACCEPTANCE</text>
+<text x="54" y="962" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Schematic values, not market evidence. Drawn 2026-10-07 for the Garden 19 census gap &#x27;no Founder plate&#x27;. No canon ID assigned; not uploaded to Drive.</text>
+<text x="54" y="984" fill="#9b9a96" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">Receipt (proposed): dataset.cvdNotches=&lt;n&gt;|SIDES:&lt;LABELLED|INFERRED&gt;. Registry requires a &#x27;CVD / Delta relationship&#x27; plate — none in the canon folder.</text>
+</svg>
