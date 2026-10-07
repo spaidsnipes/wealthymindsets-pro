@@ -661,3 +661,15 @@ Founder decisions: members bring their own tastytrade (and Webull when supported
 | SPAIDBOT CANNOT TRADE OUTSIDE AUTHORITY | CLOSED | PROPOSE_ONLY; no send path from proposals (sentinel) |
 | §9/§10 WM PRO TEACHES ITSELF | CLOSED | ⓘ on every tool (44 px, focus/Escape), first-touch on selection, proved on prod 1440/834/390 |
 | Passport intro offer / referral doors | CLOSED (display) / OPEN (links) | first month $10 then $20; referral URLs await the Founder |
+
+## Morning shift — Oct 7 05:30 → 09:00 CDT (open items from Garden 18 snapshot §B/§I/§J + Constitution OPEN)
+| Item | Build | Proof | Status |
+|---|---|---|---|
+| Desk linking: numbered link groups, time-synced crosshair, Send-to-screen, linked new windows; desk as touch station; phone "Desk ⋯" | `47a4c37`, `4d247f0` | serving: ●3 group sync, hairline 0.2 ms, popout sync both ways, no stored-desk writes | CLOSED |
+| Linked pane loaded shorter history / SOURCE UNCERTIFIED (second candle request got null; futures prints never named their source) | single-flight candle request; prints set source | `4d247f0`; serving AAPL pair identical, NQ trio LIVE | CLOSED |
+| Chip vs corner strip disagreed (STALE beside LIVE) | one verdict `chartFeedReading` (provider observation clock, 15 s) | `e104a48`; 198-combination invariant test | CLOSED (source) |
+| My Views (editable starters, "My current view" migration in place, per-screen Views) + Active Tools (paint-receipt truth, focus/hide/configure/remove, deep-link to door) | `47a4c37`, `4d247f0`, `48addd9` | Founder account read-only: one migration, 21 wm_of* keys byte-identical; writes proved in scene=clean only | CLOSED |
+| Journal auto-capture from broker fills (per-field provenance, closing round-trip P&L, View at send, reload-safe) + ten-dimension Review | `47a4c37` | fixture tests; needs a real fill | PARTIAL |
+| Founder analytics (owner-only): Model 1/2 tags only from recorded models (PROPOSED), seven mistake patterns with samples | `4d247f0` | tests | shipped; Founder to confirm model definitions |
+| Tick bars 100T–2000T from real prints (P0 crash fixed twice: identity + spoken name) | `1a79d85` → `4eb81d5`, `17d84a9`, `e104a48`, `3e367a0`, `4f09ede`, `74c8b39` | serving NQ 500T "486T left", paint 0.3 ms; BTC 500T 40k prints 81 bars, backfill repaints 0.6–2.9 ms; EURUSD refuses in words; G19 layers paint or say NOT_A_CLOCK | CLOSED (Living development on tick bars: NOT_A_CLOCK) |
+| PROPOSED Garden 19 plates (Breathing, CVD notch, Failed Aggression, Compression, Structure leg state, TED question) | `48addd9` | docs/canon/proposed-garden19 | awaiting Founder |

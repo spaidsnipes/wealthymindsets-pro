@@ -2347,6 +2347,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   effortMarksFieldRef.current = effortMarksField;
   const rvolCacheRef = useRef<{ key: string; bars: RvolBar[] } | null>(null);
   const rvolCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
+  const deltaKeelGeoRef = useRef<{ keels: unknown; key: string; halo: number[]; groups: Map<string, { solid: number[]; hollow: number[] }>; drawn: number; failed: number } | null>(null);
   const deltaKeelBarMemoRef = useRef(new WeakMap<object, { k: string; bd: ReturnType<typeof barTapeDelta> }>());
   const deltaKeelCacheRef = useRef<{ key: string; at: number; keels: ReturnType<typeof readKeels>; nTape: number; nSides: number } | null>(null);
   // The keels this frame painted (null when the keel layer is off / silent) —
@@ -10723,7 +10724,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const insp = inspectedBarRef.current?.time ?? null;
             const byTime = new Map<number, (typeof bs)[number]>();
             const idxOf = new Map<number, number>();
-            for (let i = i0; i <= i1; i++) { byTime.set(bs[i].time as number, bs[i]); idxOf.set(bs[i].time as number, i); }
+            const fillDKMaps = () => { for (let i = i0; i <= i1; i++) { byTime.set(bs[i].time as number, bs[i]); idxOf.set(bs[i].time as number, i); } };
             // Coordinates by calibration, not a library call per keel: x is
             // linear in bar index (two measured anchors), y linear in price on
             // a normal scale (two measured prices). Log / % scales fall back.
@@ -10746,13 +10747,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             })();
             let drawn = 0, failed = 0;
             const narrowDK = bodyW < 4 || W < 640;
+            // GEOMETRY MEMO (2026-10-07, serving NQ1! 5m peaks 2.8–3.0 ms): the
+            // keel rects are a pure function of the keels, the visible bars,
+            // the two calibration anchors per axis and the body width. A frame
+            // whose inputs match the last one replays its rects; only a camera,
+            // price-scale, keel or inspect change re-walks the keels.
+            const anchorDK = (f: ((v: number) => number) | null, v: number | undefined) => (f && v != null ? f(v).toFixed(2) : "-");
+            const geoKeyDK = `${i0}|${i1}|${bodyW}|${insp ?? "-"}|${narrowDK ? 1 : 0}|${plotRight}|${anchorDK(xCal, i0)}|${anchorDK(xCal, i1)}|${anchorDK(yCal, bs[i1]?.close)}|${anchorDK(yCal, bs[i1] ? bs[i1].close * 1.01 : undefined)}`;
+            const geoDK = deltaKeelGeoRef.current;
+            const reuseGeo = !!geoDK && geoDK.keels === keels && geoDK.key === geoKeyDK && !!xCal && !!yCal;
             // Batched by (ink, age bucket): a fillStyle per keel cost ~2.5ms a
             // frame on serving NQ (101 keels); one path per group stays inside
             // DELTA_KEEL_BUDGET_MS. Age is quantised to four steps (memory aged).
-            const halo: number[] = [];
-            const groups = new Map<string, { solid: number[]; hollow: number[] }>();
+            const halo: number[] = reuseGeo ? geoDK!.halo : [];
+            const groups = reuseGeo ? geoDK!.groups : new Map<string, { solid: number[]; hollow: number[] }>();
+            if (reuseGeo) { drawn = geoDK!.drawn; failed = geoDK!.failed; }
             const grp = (k: string) => { let g = groups.get(k); if (!g) { g = { solid: [], hollow: [] }; groups.set(k, g); } return g; };
-            for (let k = 0; k < keels.length; k++) {
+            if (!reuseGeo) fillDKMaps();
+            if (!reuseGeo) for (let k = 0; k < keels.length; k++) {
               const kl = keels[k];
               const bar = byTime.get(kl.time);
               if (!bar) continue;
@@ -10778,6 +10790,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               else g.solid.push(x, y, L, 2);
               drawn++;
             }
+            if (!reuseGeo) deltaKeelGeoRef.current = { keels, key: geoKeyDK, halo, groups, drawn, failed };
             ctx.save();
             ctx.lineWidth = 1;
             const rects = (r: number[]) => { ctx.beginPath(); for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], r[i + 3]); };
