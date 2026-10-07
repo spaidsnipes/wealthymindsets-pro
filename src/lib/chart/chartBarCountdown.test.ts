@@ -121,10 +121,13 @@ describe("MainChart adoption", () => {
       .not.toMatch(/function formatCountdown/);
   });
 
-  it("× THE COUNTDOWN THAT NEVER ASKED: feedLive is threaded from candleDataStatus", () => {
+  it("× THE COUNTDOWN THAT NEVER ASKED: feedLive is threaded from the chart's one feed reading", () => {
     expect(CODE).toContain("candleStatus.live");
     // And the status is compiled ONCE — a second call is a second opinion.
-    expect((CODE.match(/candleDataStatus\(/g) || []).length).toBe(1);
+    // 2026-10-07: the owner is chartFeedReading (chip + strip + countdown in
+    // one verdict, on the provider's clock); candleDataStatus is not called here.
+    expect((CODE.match(/chartFeedReading\(/g) || []).length).toBe(1);
+    expect((CODE.match(/candleDataStatus\(/g) || []).length).toBe(0);
   });
 
   it("the countdown reaches the eye, the hover and assistive tech", () => {

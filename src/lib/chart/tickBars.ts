@@ -45,6 +45,7 @@
 import { mintTickBarId, BAR_PROVENANCES, SESSION_UNKNOWN, SESSION_CONTINUOUS, type CanonicalBarIdentity, type LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { MARKET_FIDELITIES } from "@/lib/marketData/marketFidelityAlgebra";
 import type { CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
+import type { BarCountdown } from "@/lib/chart/chartBarCountdown";
 
 /** One real print, as the tick-bar builder holds it. */
 export interface TickPrint {
@@ -422,4 +423,19 @@ export function tickBarRefusal(input: {
   if (!input.tapeSource || input.tapeSource === "unavailable") return "No per-trade tape on this symbol — tick bars need prints.";
   if (!input.perTradeTape) return "Delayed REST feed here, not a live per-trade tape — tick bars need prints.";
   return null;
+}
+
+/**
+ * A tick bar closes on PRINTS, not on the clock. The chart's countdown reads
+ * this instead of a minute clock on a tick timeframe ("312T left").
+ */
+export function tickBarCountdown(printsLeft: number, ticks: number): BarCountdown {
+  const left = Math.max(0, Math.min(ticks, Math.round(printsLeft)));
+  return {
+    glyph: `${left}T left`,
+    kind: "LIVE_BAR",
+    title: `${left} of ${ticks} prints still to trade before this bar closes. Tick bars close on prints, not on the clock.`,
+    spoken: `${left} prints until this ${ticks}-trade bar closes`,
+    closing: false,
+  };
 }

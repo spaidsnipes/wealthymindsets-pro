@@ -4,7 +4,7 @@ import { arrivalRipple, bigTradeTier, percentileFromSorted, sortedSessionSizes }
 import { symbolDoorHref } from "@/contexts/SymbolContext";
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
 import { liveBarBucketSec, tickCountOf } from "@/lib/timeframes";
-import { TickBarBuilder, printFromTapeTick, tickBarCoverageLabel, tickBarIdentity, tickBarRefusal, type TickBar } from "@/lib/chart/tickBars";
+import { TickBarBuilder, printFromTapeTick, tickBarCountdown, tickBarCoverageLabel, tickBarIdentity, tickBarRefusal, type TickBar } from "@/lib/chart/tickBars";
 import { barTimeContaining } from "@/lib/desk/deskLinkBus";
 
 /**
@@ -125,7 +125,7 @@ import {
   withPaintBudget,
 } from "@/lib/chart/paintBudgetLedger";
 import { coinbaseProduct, useWebSocket, type Tick } from "@/hooks/useWebSocket";
-import { candleDataStatus, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
+import { chartFeedReading, priceSourceBadge, resolveChartSurfaceBadge } from "@/lib/priceSource";
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
@@ -3474,6 +3474,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // into it below, and the backfill reaches further.
     tickBuilderRef.current = tickN != null ? new TickBarBuilder(tickN) : null;
     tickBackfillRef.current = [];
+    tickBackfillInFlightRef.current = false;
+    tickLadderStaleRef.current = false;
     // The rail's footprint belonged to the old buckets: withdraw it now.
     footprintPublishRef.current = { at: 0, key: "NONE" };
     onTapeFootprintRef.current?.(null);
@@ -3593,8 +3595,28 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
      shed) repaints once and refolds THE ladder through `foldPrint` so every
      order-flow reading buckets by the SAME tick bars. Runs at most once per
      tape flush (the tape is rAF-batched), never per canvas frame. */
-  const tickPaintRef = useRef<() => void>(() => {});
-  tickPaintRef.current = () => {
+  /** True while backfilled prints sit in the bars but not yet in THE ladder. */
+  const tickLadderStaleRef = useRef(false);
+  /** Refold THE ladder by the builder's bars, through THE one fold (newest 400 bars). */
+  const tickRefoldLadder = (tb: TickBarBuilder) => {
+    const bars = tb.bars();
+    tickAccRef.current = new Map();
+    bigTradePrintAccRef.current = new Map();
+    tickAccStartedAtRef.current = null;
+    processedTicksRef.current = new Set();
+    const keepFrom = bars.length > 400 ? bars[bars.length - 400].time : -Infinity;
+    try {
+      tb.forEachPrint((p, t) => {
+        if (t < keepFrom) return;
+        tickRefoldAtRef.current = t;
+        foldPrintRef.current(p.origin as Tick, false);
+      });
+    } finally { tickRefoldAtRef.current = null; }
+    tickLadderStaleRef.current = false;
+    flowLadderPublisherRef.current?.changed();
+  };
+  const tickPaintRef = useRef<(refold?: boolean) => void>(() => {});
+  tickPaintRef.current = (refold = true) => {
     const tb = tickBuilderRef.current;
     const cs = candleRef.current, vs = volRef.current;
     if (!tb || !cs || !vs || tickPaintKeyRef.current !== `${canonicalSym}|${timeframe}`) return;
@@ -3630,22 +3652,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       }
     } catch { return; /* series swapped mid-paint; the next build repaints */ }
-    if (full) {
-      // Refold THE ladder by the re-cut bars, through THE one fold (newest 400 bars).
-      tickAccRef.current = new Map();
-      bigTradePrintAccRef.current = new Map();
-      tickAccStartedAtRef.current = null;
-      processedTicksRef.current = new Set();
-      const keepFrom = bars.length > 400 ? bars[bars.length - 400].time : -Infinity;
-      try {
-        tb.forEachPrint((p, t) => {
-          if (t < keepFrom) return;
-          tickRefoldAtRef.current = t;
-          foldPrintRef.current(p.origin as Tick, false);
-        });
-      } finally { tickRefoldAtRef.current = null; }
-      flowLadderPublisherRef.current?.changed();
-    }
+    // A re-cut moves every bar time: THE ladder follows — now, or once the
+    // backfill's last page lands (a refold per page was the measured cost:
+    // 33 pages × the whole held tape, up to 30 ms each, serving 2026-10-07).
+    if (full && refold) tickRefoldLadder(tb);
+    else if (full) tickLadderStaleRef.current = true;
     const tuples = [...bars];
     barsRef.current = tuples;
     barIdentitiesRef.current = bars.map(tickIdentityFor).filter((x): x is CanonicalBarIdentity => x != null);
@@ -3659,8 +3670,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     } catch { /* canvas not mounted */ }
   };
   /** Merge the pending backfilled prints in one pass, then paint. */
-  const tickFlushRef = useRef<() => void>(() => {});
-  tickFlushRef.current = () => {
+  const tickFlushRef = useRef<(final: boolean) => void>(() => {});
+  const tickBackfillPaintAtRef = useRef(0);
+  const tickBackfillInFlightRef = useRef(false);
+  tickFlushRef.current = (final) => {
     const tb = tickBuilderRef.current;
     if (!tb) return;
     const pending = tickBackfillRef.current;
@@ -3670,7 +3683,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       for (const t of pending) { const p = printFromTapeTick(t, false); if (p) ps.push(p); }
       tb.ingestBatch(ps);
     }
-    tickPaintRef.current();
+    tickBackfillInFlightRef.current = !final;
+    if (!final) {
+      // Mid-backfill: the bars may repaint at most every 750 ms; the ladder waits for the last page.
+      const now = performance.now();
+      if (now - tickBackfillPaintAtRef.current < 750) return;
+      tickBackfillPaintAtRef.current = now;
+      tickPaintRef.current(false);
+      return;
+    }
+    tickPaintRef.current(true);
+    if (tickLadderStaleRef.current) tickRefoldLadder(tb);
   };
   // The note: the plain refusal where there are no prints, else the coverage.
   useEffect(() => {
@@ -3695,7 +3718,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (foldPrint(tick, true)) ladderChanged = true;
     });
     // TICK BARS: the prints just folded move the forming bar (or open the next).
-    if (tickBuilderRef.current) tickPaintRef.current();
+    // A re-cut met here refolds THE ladder only once no backfill is mid-flight.
+    if (tickBuilderRef.current) {
+      tickPaintRef.current(false);
+      if (tickLadderStaleRef.current && !tickBackfillInFlightRef.current) tickRefoldLadder(tickBuilderRef.current);
+    }
     if (tickAccRef.current.size > 400) {
       const oldest = [...tickAccRef.current.keys()].sort((a, b) => a - b)[0];
       tickAccRef.current.delete(oldest);
@@ -3775,9 +3802,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const tick: Tick = { price: ev.price!, size: ev.size!, side: ev.aggressorSide === "BUY" ? "buy" : "sell", time: ev.timestampProvider, trade: true, marketEvent: ev };
           if (foldPrintRef.current(tick, false)) folded++;
         }
-        tickFlushRef.current();
+        tickFlushRef.current(false);
         await new Promise(r => setTimeout(r, 0));
       }
+      tickFlushRef.current(true);
       while (tickAccRef.current.size > 400) {
         const oldest = Math.min(...tickAccRef.current.keys());
         tickAccRef.current.delete(oldest);
@@ -3817,14 +3845,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const onPage = (page: readonly Tick[]) => {
       if (ctrl.signal.aborted) return;
       for (const t of page) if (foldPrintRef.current(t, false)) folded++;
-      tickFlushRef.current();
+      tickFlushRef.current(false);
       flowLadderPublisherRef.current?.changed();
     };
     void fetchCoinbaseTradeHistory(product, canonicalSym, { sinceMs, maxPages: 40, signal: ctrl.signal, onPage })
       .then(({ ticks, pages, reachedMs, complete }) => {
         if (ctrl.signal.aborted) return;
         for (const t of ticks) if (foldPrintRef.current(t, false)) folded++;
-        tickFlushRef.current();
+        tickFlushRef.current(true);
         while (tickAccRef.current.size > 400) {
           const oldest = Math.min(...tickAccRef.current.keys());
           tickAccRef.current.delete(oldest);
@@ -26297,32 +26325,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
      without the interval: twelve minutes old is the FORMING bar on a 30m
      chart and ELEVEN BARS DEAD on a 1m chart. See chartFeedRecency's
      docblock for the live reading and the arithmetic. */
-  const candleStatus = candleDataStatus(
+  // ONE FEED READING (2026-10-07): the strip, the countdown and the chip
+  // below all read `feedReading` — graded on the PROVIDER's observation time,
+  // never on when a tick reached this chart (serving SPY 5m read "STALE
+  // PIPELINE" in the chip beside "LIVE — CERTIFIED QUOTE" in the strip).
+  // sessionOpen: canon §8 closure precedence; `candleSource !== ""` is "we
+  // have finished asking" (an unanswered request is not an empty one).
+  const feedReading = chartFeedReading(
     source,
     connected,
     candleSource !== "__unresolved__" && candles.length > 0,
-    lastTickAtRef.current,
-    undefined,
-    undefined,
-    // Canon §8 — this chip sat beside a rail already reading
-    // SESSION CLOSED and printed ACTIVE DEGRADED on a Saturday.
     sessionOpen,
-    // THE EVIDENCE WAS ALREADY IN THE ROOM, ONE LINE ABOVE.
-    //
-    // `candleSource` is "" until the bars fetch settles and is then
-    // set — unconditionally, in the same statement — to either a
-    // provider name or the "__unresolved__" sentinel. So `!== ""` IS
-    // "we have finished asking", exactly and already.
-    //
-    // The line above this one was ALSO reading `candleSource`, and
-    // threw this fact away by collapsing it into the `hasCandles`
-    // boolean. The chip then had no way to tell a request in flight
-    // from a request that came back empty, and printed DATA
-    // UNAVAILABLE for both. Nothing new had to be computed or
-    // fetched to fix it; the distinction only had to survive the
-    // trip into the function.
+    lastObservedAtMs,
+    Date.now(),
     candleSource !== "",
   );
+  const candleStatus = feedReading.status;
 
   // The same verdict, handed to the canvas's attention governor (read per frame).
   feedStateRef.current = candleStatus.state === "STALE" ? "STALE" : candleStatus.state === "LIVE" ? "LIVE" : null;
@@ -26330,7 +26348,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   /* The countdown's wording AND its claim about the feed, from one owner.
      AWAITING is not a reading — there is no certified tape, so the number
      is about the clock only, which is exactly what `live: false` says. */
-  const barCountdown = chartBarCountdown(
+  const clockCountdown = chartBarCountdown(
     remainingSec,
     intervalSec,
     candleStatus.live,
@@ -26338,6 +26356,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // Proven closure only: no bar is forming, so nothing counts down.
     sessionOpen === false,
   );
+  // TICK BARS close on prints: the strip, the pill and assistive tech count prints.
+  const barCountdown = tickN != null && tickBuilderRef.current
+    ? tickBarCountdown(tickBuilderRef.current.printsToClose(), tickN)
+    : clockCountdown;
 
   /* ONE INTERVAL, TWO READERS — same law as the feed verdict above. The
      countdown and the recency reading are both statements about where a bar
@@ -26857,9 +26879,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // §LXXXII: graded by the live lane's own last observation, the
             // same evidence the room's header uses — never "unverified" for a
             // feed that spoke a second ago, never LIVE for one that went quiet.
-            const observedFresh = lastObservedAtMs != null && Date.now() - lastObservedAtMs < 15_000;
-            const b = resolveChartSurfaceBadge(source, connected, candles.length > 0, sessionOpen,
-              connected && lastObservedAtMs != null ? { present: true, fresh: observedFresh } : undefined);
+            // ONE FEED READING: the same badge the strip and countdown read.
+            const b = feedReading.badge;
             const capabilityReport = selectPerCapabilityFidelity({
               source, connected, hasCandles: candles.length > 0, sessionOpen,
             });

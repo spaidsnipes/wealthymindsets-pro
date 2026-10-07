@@ -549,3 +549,41 @@ export function candleDataStatus(
   }
   return { state: "LIVE", label: L.LIVE_CERTIFIED_QUOTE, live: true };
 }
+
+/** A chart's live observation is current for this long, by the PROVIDER's own timestamp. */
+export const CHART_LIVE_OBSERVATION_MS = 15_000;
+
+/**
+ * ONE FEED READING PER CHART (serving /desk SPY 5m, 2026-10-07 pre-market).
+ * The chart's fidelity chip read "STALE PIPELINE" while the data-truth strip
+ * on the same pane read "LIVE — CERTIFIED QUOTE". Two owners, two clocks:
+ *   - the chip graded the PROVIDER's observation time (lastObservedAtMs) over 15s;
+ *   - the strip graded when a tick last REACHED THE CHART (a local receipt
+ *     time) over 20s — and a REST poll re-delivering a 40-second-old quote
+ *     reaches the chart every few seconds.
+ * A UI receipt is not a freshness certificate (see candleDataStatus's own
+ * docblock), so the provider's clock wins: the chip's badge is graded once
+ * here and the strip's status (and the countdown and canvas governor that read
+ * it) is DERIVED from that same badge. They cannot disagree any more.
+ * PURE.
+ */
+export function chartFeedReading(
+  source: PriceSource,
+  connected: boolean,
+  hasCandles: boolean,
+  sessionOpen: boolean | null | undefined,
+  lastObservedAtMs: number | null | undefined,
+  now: number = Date.now(),
+  barsSettled?: boolean,
+): { readonly badge: PriceSourceBadge; readonly status: CandleDataStatus } {
+  const observed = connected && lastObservedAtMs != null && Number.isFinite(lastObservedAtMs) && lastObservedAtMs > 0;
+  const fresh = observed && now - (lastObservedAtMs as number) < CHART_LIVE_OBSERVATION_MS;
+  const badge = resolveChartSurfaceBadge(source, connected, hasCandles, sessionOpen, observed ? { present: true, fresh } : undefined, barsSettled);
+  const L = CANONICAL_FIDELITY_LABELS;
+  const status: CandleDataStatus = !hasCandles
+    ? (barsSettled === false ? { state: "AWAITING", label: "", live: false } : { state: "UNAVAILABLE", label: "DATA UNAVAILABLE", live: false })
+    : badge.live ? { state: "LIVE", label: badge.label, live: true }
+    : badge.label === L.STALE_PIPELINE ? { state: "STALE", label: badge.label, live: false }
+    : { state: "DELAYED", label: badge.label, live: false };
+  return { badge, status };
+}

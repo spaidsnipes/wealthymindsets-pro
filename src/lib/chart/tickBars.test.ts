@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  TickBarBuilder, printFromTapeTick, tickBarCoverageLabel, tickBarIdentity, tickBarRefusal,
+  TickBarBuilder, printFromTapeTick, tickBarCountdown, tickBarCoverageLabel, tickBarIdentity, tickBarRefusal,
   type TickPrint,
 } from "./tickBars";
 import {
@@ -201,6 +201,11 @@ describe("adapting the shared tape", () => {
 });
 
 describe("words on the glass", () => {
+  it("the countdown counts prints, never minutes", () => {
+    expect(tickBarCountdown(312, 500)).toMatchObject({ glyph: "312T left", kind: "LIVE_BAR", closing: false });
+    expect(tickBarCountdown(312, 500).spoken).toBe("312 prints until this 500-trade bar closes");
+    expect(tickBarCountdown(-3, 500).glyph).toBe("0T left");
+  });
   it("states the coverage start and print count", () => {
     expect(tickBarCoverageLabel({ fromMs: 5, toMs: 9, prints: 41250, bars: 82, backfilledPrints: 0 }, () => "13:02:11"))
       .toBe("TICK BARS · from 13:02:11 · 41,250 prints");
