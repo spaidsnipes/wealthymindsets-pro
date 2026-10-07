@@ -31,18 +31,33 @@ function plain(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v.replace(/\s+/g, " ").trim().slice(0, 160) : null;
 }
 
+/**
+ * The route's own sentence, only when it is already in trader words. A vendor
+ * name, an HTTP code or an exception string is plumbing (serving fabce3a read
+ * "Nothing was studied: Error: Yahoo HTTP 404") — it is replaced, never shown.
+ */
+const PLUMBING = /\b(error|exception|http|https|fetch|undefined|null|stack|api|status|yahoo|finnhub|alpaca|tastytrade|webull|coinbase|kraken|deribit|cboe|oanda)\b|\b[1-5]\d\d\b/i;
+export function traderWords(v: unknown): string | null {
+  const t = plain(v);
+  return t && !PLUMBING.test(t) ? t : null;
+}
+
+const noBars = (symbol: string, timeframe: string) =>
+  `No ${timeframe} bars could be read for ${symbol} — it may not be a symbol we can chart, or it has no history at this timeframe.`;
+const DID_NOT_LOAD = "The market history did not load just now — try again in a moment.";
+
 /** Interpret one /api/yahoo candles body. Pure — exported for tests. */
 export function readFvgBarBody(
   body: unknown,
   input: { readonly symbol: string; readonly timeframe: string; readonly nowMs: number },
 ): FvgBarFetch {
-  if (!body || typeof body !== "object") return { ok: false, reason: "The bar route sent no readable answer." };
+  if (!body || typeof body !== "object") return { ok: false, reason: DID_NOT_LOAD };
   const j = body as Record<string, unknown>;
-  const said = plain(j.error) ?? plain(j.reason) ?? plain(j.message);
-  if (j.ok === false) return { ok: false, reason: said ?? "The bar route said these bars are unavailable." };
+  const said = traderWords(j.reason) ?? traderWords(j.message) ?? traderWords(j.error);
+  if (j.ok === false) return { ok: false, reason: said ?? noBars(input.symbol, input.timeframe) };
   const candles = Array.isArray(j.candles) ? (j.candles as LegacyOhlcvTuple[]) : null;
-  if (!candles) return { ok: false, reason: said ?? "The bar route sent no bars." };
-  if (!candles.length) return { ok: false, reason: said ?? `No ${input.timeframe} bars are available for ${input.symbol}.` };
+  if (!candles) return { ok: false, reason: said ?? noBars(input.symbol, input.timeframe) };
+  if (!candles.length) return { ok: false, reason: said ?? noBars(input.symbol, input.timeframe) };
   const identities = Array.isArray(j.barIdentities) ? (j.barIdentities as CanonicalBarIdentity[]) : null;
   if (!identities) {
     return { ok: false, reason: "These bars arrived without their canonical identity, so no FVG object can be named from them." };
@@ -108,12 +123,12 @@ export async function fetchFvgBars(input: {
         })])
       : shared);
   } catch {
-    return { ok: false, reason: input.signal?.aborted ? "The read was stopped." : "The market history did not load just now." };
+    return { ok: false, reason: input.signal?.aborted ? "The read was stopped." : DID_NOT_LOAD };
   }
   const body = got.body;
   if (!got.ok) {
-    const said = body && typeof body === "object" ? plain((body as Record<string, unknown>).reason) ?? plain((body as Record<string, unknown>).error) : null;
-    return { ok: false, reason: said ?? `The bar route answered ${got.status}, so no bars were read.` };
+    const said = body && typeof body === "object" ? traderWords((body as Record<string, unknown>).reason) ?? traderWords((body as Record<string, unknown>).error) : null;
+    return { ok: false, reason: said ?? (got.status === 404 || got.status === 400 ? noBars(input.symbol, input.timeframe) : DID_NOT_LOAD) };
   }
   return readFvgBarBody(body, input);
 }

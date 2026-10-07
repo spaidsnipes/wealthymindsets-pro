@@ -44,12 +44,16 @@ interface FeedAccount { tail: string; broker: string; state: string; reason?: st
 
 interface Story { key: string; broker: string; decisionId: string | null; accountTail: string; orders: FeedOrder[]; fills: FeedFill[] }
 
+/** Said in Review when a story has no Decision_ID from a WM ticket (§ empty states). */
+export const PLAN_ABSENT_OUTSIDE_WM = "Placed outside WM, so no plan was frozen with this order. Send from the ticket's plan card next time and Review will compare the plan with what happened.";
+export const PLAN_ABSENT_JOURNAL = "This entry did not come from a WM ticket, so there is no frozen plan to compare. Trades sent from the ticket's plan card carry one.";
+
 /**
  * §XCI + §J — the trader's half of one story: ten separate marks, a note per
  * dimension, and their own words. `evidence` (from a captured fill) sets the
  * machine facts beside the dimension they inform; they are never edited here.
  */
-export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, fvg: fvgIn, fvgRef, defaultOpen = false }: {
+export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, fvg: fvgIn, fvgRef, planAbsent, defaultOpen = false }: {
   storyKey: string;
   evidence?: Readonly<Record<ReviewDimension, readonly ReviewEvidenceLine[]>>;
   /** Garden 19 §27/§28: the frozen plan + this trade's actuals, when the story has a Decision_ID. */
@@ -62,6 +66,8 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
   fvg?: FvgReviewAnswers | null;
   /** The journal's FVG reference (fvgDecisionReference): answered as of the decision, and from the ledger on request. */
   fvgRef?: JournalFvgReference | null;
+  /** Why this story has no plan to compare (no Decision_ID from a WM ticket), said instead of an empty block. */
+  planAbsent?: string | null;
   defaultOpen?: boolean;
 }) {
   const [fvgLoaded, setFvgLoaded] = useState<FvgReviewAnswers | null>(null);
@@ -232,6 +238,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
               </label>
             </div>
           ) : null}
+          {!composed && planAbsent ? <p data-testid="plan-absent" style={{ margin: 0, fontSize: 11, color: MUTED }}>{planAbsent}</p> : null}
           {!composed ? fvgBlock : null}
           {!composed && fvg ? <AskSpaidbotButton testId="review-ask-spaidbot" label="Ask SpaidBot about this decision" ask={askDecision} /> : null}
           <label style={{ fontSize: 11, color: MUTED }}>The lesson, in my words
@@ -378,7 +385,7 @@ export function BrokerTruthToday() {
                 {(() => {
                   // Garden 19 §26/§28: the frozen plan against tastytrade's own fills and stop / target orders.
                   const pin = planReviewInputForBrokerStory(st, id => readPlanForDecision(typeof window === "undefined" ? null : window.localStorage, id));
-                  return <StoryReviewRow storyKey={st.decisionId ?? st.key} plan={pin} planDecisionId={pin?.decisionId ?? null} planSymbol={pin?.symbol ?? null} />;
+                  return <StoryReviewRow storyKey={st.decisionId ?? st.key} plan={pin} planDecisionId={pin?.decisionId ?? null} planSymbol={pin?.symbol ?? null} planAbsent={pin ? null : PLAN_ABSENT_OUTSIDE_WM} />;
                 })()}
               </article>
             );

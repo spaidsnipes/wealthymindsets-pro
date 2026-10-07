@@ -178,7 +178,7 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLi
       draggable
       onDragStart={e => { e.dataTransfer.setData(DESK_SCREEN_DRAG_TYPE, String(index)); e.dataTransfer.effectAllowed = "move"; }}
       title="Drag onto another screen to swap"
-      style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, padding: "4px 6px", borderBottom: `1px solid ${LINE}`, background: "rgba(10,9,7,.92)", cursor: "grab" }}>
+      style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 - (compact ? 2 : 0), padding: "4px 6px", borderBottom: `1px solid ${LINE}`, background: "rgba(10,9,7,.92)", cursor: "grab" }}>
       <span style={{ color: focused ? GOLD : MUTED, font: "700 10px/1 ui-sans-serif", letterSpacing: ".1em" }}>{focused ? "● " : ""}{compact ? "" : "SCREEN "}{index + 1}</span>
       <form onSubmit={e => { e.preventDefault(); onSymbol(draft); }} style={{ display: "flex" }}>
         <input aria-label={`Screen ${index + 1} market`} value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => draft !== symbol && onSymbol(draft)}
@@ -202,7 +202,7 @@ function ScreenHeader({ index, symbol, timeframe, maximized, focused, link, onLi
         aria-label={link ? `Screen ${index + 1} is in link group ${link}. Press to change.` : `Screen ${index + 1} is not linked. Press to link.`}
         title="Link group: screens in the same group follow one market and share a crosshair (press to cycle 1 → 2 → 3 → 4 → unlinked)"
         style={{ ...btn(!!link), color: link ? DESK_LINK_INK[link] : MUTED, borderColor: link ? DESK_LINK_INK[link] : LINE, minWidth: 44, textTransform: "none" }}>
-        {linkChipLabel(link)}
+        {compact && !link ? "Link" : <>{linkChipLabel(link)}</>}
       </button>
       <span style={{ flex: 1 }} />
       <Link href={`${INSTRUMENT_VIEW_ROUTE}?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(timeframe)}`} style={{ ...btn(), display: "inline-flex", alignItems: "center", textDecoration: "none" }}>

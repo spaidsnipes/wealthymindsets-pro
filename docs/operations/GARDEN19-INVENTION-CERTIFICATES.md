@@ -544,6 +544,54 @@ Test inventory at `d5ac6ff9` (run in this worktree, 2026-10-07): 17 FVG-related 
 | Selling pass (/welcome, /pricing, /login) | a10514f → d5ac6ff | `sellingStory.test.ts` (11), `frontDoorPalette`, auth, pricing suites | serving d5ac6ff, signed out: story present on all three, no horizontal scroll, no element past the right edge, no link or button under 44 px, at 1440 and 390 | `~/wm-held/proof/selling-prod-d5ac6ff-*.png` (+ `selling-before-*` from before a10514f) | **PROVED** for content and layout. One fix after the serving read: /welcome sample-chart axis labels drew ~5 px tall at 390, now 19 units under 600 px (shipped eea2771) |
 | Academy module-list scrollbar (Sheriff) | 57e9fda | `src/lib/academy/academyScroll.test.ts` (every `scrollbarWidth` in /education and /login carries a `scrollbarColor`) | local: computed `scrollbar-color: rgba(139,106,41,0.55) transparent`, `scrollbar-width: thin` on the module list | `~/wm-held/proof/academy-module-list-scrollbar-1440.png` | BUILT. **PARTIAL:** serving read after it ships. Cause: Chrome 121+ ignores the global `::-webkit-scrollbar` skin on any element that sets standard `scrollbar-width`, and then paints the OS default track |
 
+### 6a. §62 per-surface evidence — Scanner, Backtest, SpaidBot, Replay (FVG lane, 2026-10-07)
+
+One row per claim. **PROVED** means a test pins it and a serving receipt was read (SHA named). **PARTIAL** names the missing serving read. Lane receipts not written to a file are cited by build and by what was read. Tests are in `src/`; every file below passes at `8e7beee` or later.
+
+**Scanner (`/scanner` → FVG conditions)**
+
+| Claim | Test | Serving receipt | Status |
+|---|---|---|---|
+| Five conditions (NEW_FVG, PRICE_APPROACHING_FVG, FIRST_TOUCH, PARTIAL_MITIGATION, DEEP_MITIGATION), each decided at the newest closed bar against the previous close via `fvgStateAsOf` | `lib/scanner/fvgScanConditions.test.ts` | eea2771, own tab, read-only: read 30 of 30, 0 refused, 14 hits across the five | **PROVED** |
+| Coverage always carries its denominator ("read X of Y · Z refused · FVG_3C v1") | `fvgScanConditions.test.ts` (coverage) | eea2771: "read 30 of 30 symbols · 0 refused · definition FVG_3C v1" | **PROVED** |
+| Boundaries at instrument decimals | `fvgScanConditions.test.ts` (`priceDp`) | eea2771 (after d5ac6ff): TSLA 374.60 – 378.52, NVDA 237.88 – 238.93 | **PROVED** |
+| Plain refusals (too few bars, stale, unavailable) | `fvgScanConditions.test.ts`; `lib/marketData/fvg/fvgWireBars.test.ts` (trader words) | fabce3a: the scanner universe read 30 of 30 again, so its own list could not refuse. The SHARED bar reader's refusal was read through the Backtest study (`ZZZZQ 5m`, same `fetchFvgBars` path): it said **"Nothing was studied: Error: Yahoo HTTP 404"** — a vendor name and an HTTP code. **Defect, fixed (uncommitted, next batch):** `traderWords` drops plumbing; that case now reads "No 5m bars could be read for ZZZZQ — it may not be a symbol we can chart, or it has no history at this timeframe." | **PARTIAL:** re-read the refusal on the next build |
+| Hit → `/charts?…&on=fvg&select=fvg:<id>` → that object selected | `lib/chart/proofSelectFvgHeld.sentinel.test.ts`, `lib/marketData/fvg/fvgChartLink.test.ts` | 301d85d (chart lane): `data-proof-select-object …\|HELD`, Inspect on that id (`~/wm-held/proof/fvg-serving-inspect-replay-sizes-2026-10-07.txt`) | **PROVED** |
+| Convergence FVG + STRUCTURE / FVG + PROFILE (walls omitted: no chain or book on bars) | `fvgScanConditions.test.ts` (convergence), `lib/marketData/fvg/fvgRelationships.test.ts` | fabce3a, own tab, read-only: 10 convergence rows (9 FVG + structure, 1 FVG + profile, 0 wall), e.g. "NVDA · FVG + structure · with new fvg · 237.88 – 238.93 · Market structure broke the swing 234.76 — at formation · FULL (confirmed 5-bar pivots…)" and "QBTS · FVG + profile · with first touch, deep mitigation · 15.78 – 16.40 · Range profile of the 100 bars before formation VAL 16.20 — inside · PARTIAL (CANDLE-EST)"; chips include "FVG + structure", "FVG + profile" | **PROVED** |
+| Reads deduped and reused 60 s; aborted on unmount; nothing fetched until the strip is opened and Read | `lib/marketData/fvg/fvgPerformance.sentinel.test.ts`, `lib/marketData/fvg/fvgSilence.sentinel.test.ts` | fabce3a, own tab, resource log (`/api/yahoo … type=candles&tf=1D&bars=160`): page load **0**, strip opened **0**, after Read **30** (one per symbol), "Read again" within 60 s still **30** (reused, no new requests); localStorage byte-identical | **PROVED** |
+| Keyboard, visible focus, ≥ 44 px on phone, direction in words | `lib/marketData/fvg/fvgAccessibility.sentinel.test.ts` | none — a 390 px read needs a window resize, which would move other lanes' tabs in the shared window | **PARTIAL:** 390 px tap read — handed to the chart lane (frontmost window) |
+
+**Backtest (`/backtesting?mode=fvg`)**
+
+| Claim | Test | Serving receipt | Status |
+|---|---|---|---|
+| Study reads the ONE engine as of the study clock; labelled DESCRIPTIVE EVIDENCE · NOT A PREDICTION; definition FVG_3C v1 | `lib/backtest/fvgStudy.test.ts` | eea2771: NQ1! 5m, 991 closed bars, 148 gaps, both labels | **PROVED** |
+| Every number n of m (revisits, medians with sample, censoring count) | `fvgStudy.test.ts` | eea2771: revisited 139 of 148; median first touch 2 bars (median of 139); still open 9 of 148, 1 of 9 too young | **PROVED** |
+| No future leak when the clock steps back | `fvgStudy.test.ts` (freeze after formation; bar-by-bar = truncated scan) | eea2771: clock at bar 501 of 991 → 73 gaps, revisited 70 of 73, "later bars are not read" | **PROVED** |
+| Pooled instruments with instrument / timeframe / session / regime / direction / displacement / opening-gap filters | `fvgStudy.test.ts` | c4de0f0: NQ1! 148 + AAPL 61 + BTC 315 = 524; sessions CRYPTO_UTC_DAY / GLOBEX_DAY / RTH; regime UNTAGGED with its note | **PROVED** |
+| Gap list at instrument decimals, with "Open on the chart" and "Journal it" doors | `fvgStudy.test.ts`, `lib/journal/fvgDecisionReference.test.ts` | eea2771: 31388.00 – 31392.50; "Journal it" pre-filled the id on /journal | **PROVED** |
+| Relationship splits (structure / profile) from pre-formation bars; n of m; INSUFFICIENT below 20 gaps, no share printed | `fvgStudy.test.ts` (relationship + INSUFFICIENT) | not yet — chart lane reads the split table on serving | **PARTIAL** |
+| Read-only: nothing saved by a study | `fvgSilence.sentinel.test.ts` (fetch only on Add) | c4de0f0 / eea2771: localStorage byte-identical before and after | **PROVED** |
+
+**SpaidBot (FVG facts)**
+
+| Claim | Test | Serving receipt | Status |
+|---|---|---|---|
+| The selected gap's fact block reaches the model's turn: definition id / version, as-of time, lifecycle state, OBSERVED FACT / DERIVED MEASUREMENT tags, evidence per sense, limitations, no fill / probability words | `app/api/spaidbot/fvgContext.e2e.test.ts` (real route, model stubbed), `lib/ai/spaidbotFvgFacts.test.ts` | none — the chart context could not be read in a hidden automation window | **PARTIAL:** `#wm-chart-context` `fvg` read with a gap selected, frontmost window |
+| System prompt carries "Never say price has to fill an imbalance; distinguish observed fact, derived measurement, inference and hypothesis." verbatim | `spaidbotFvgFacts.test.ts`, `fvgContext.e2e.test.ts` | server code (no client receipt applies) | **BUILT** |
+| Forged / malformed records say nothing (server re-validates every field) | `spaidbotFvgFacts.test.ts` | n/a (server) | **BUILT** |
+| No selection: visible gaps without a SELECTED marker; no gaps: no block; layer OFF: no `fvg` | `fvgContext.e2e.test.ts`, `fvgSilence.sentinel.test.ts` | 683aecf, own tab, `scene=clean` (OFF): chart context had no `fvg` field | **PROVED** for OFF; **PARTIAL** for the ON cases |
+| "Ask SpaidBot" (Inspect, Review) opens the existing panel PRE-FILLED and never sends for the trader; patch rides one question | `lib/ai/spaidbotAsk.test.ts`, `fvgContext.e2e.test.ts` | none (no request sent on the Founder's account by design) | **PARTIAL:** panel opening pre-filled, read on serving |
+
+**Replay (FVG under the replay clock)**
+
+| Claim | Test | Serving receipt | Status |
+|---|---|---|---|
+| Under replay, FVG state = `fvgStateAsOf(replay clock)`; one millisecond before b3's close the gap does not exist | `lib/marketData/fvg/fvgCamera.test.ts` | 301d85d (chart lane): ES1! 5m cursor 4857 / 4977 `REPLAY:1791370800000\|BARS:4857\|LEAK:0`; an object born after the clock drops out; put-down returns LIVE (`~/wm-held/proof/fvg-serving-inspect-replay-sizes-2026-10-07.txt`) | **PROVED** |
+| Chart code producing an FVG ledger goes through `fvgSceneForCamera(… replayCursorTimeSec …)`; one detector | `lib/marketData/fvg/fvgCamera.sentinel.test.ts` | 301d85d LEAK:0 at every size (`~/wm-held/proof/fvg-serving-inspect-replay-sizes-2026-10-07.txt`) | **PROVED** |
+| Journal reference snapshot is as of the decision time (same as-of accessor) | `lib/journal/fvgDecisionReference.test.ts` | eea2771: at b3 close "born, before price had touched it … 0 bars old"; now "fully mitigated … 4 bars old" | **PROVED** (snapshot); **PARTIAL:** save → reload → same snapshot |
+| Performance: one scene object per closed bar; push 0.025 ms on 5,000 bars; tick returns the same scene | `fvgPerformance.sentinel.test.ts` | 301d85d paint MET (chart lane); compute timings are Node / laptop | **PARTIAL:** `fvgCompute` on a phone-class device |
+
 ## 7. §63 SHERIFF CHECKLIST — FVG / Imbalance on the glass
 
 The order's exact §63 wording was not in hand; scope is the FVG release. Each line is a test a Sheriff runs on **serving**, signed in, in their own tab, with the hidden-window shim if the tab is not frontmost.

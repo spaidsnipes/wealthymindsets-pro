@@ -122,7 +122,9 @@ export function FounderAnalytics({ episodes, ttAccounts }: { episodes: readonly 
         {patterns.map(p => (
           <div key={p.id} data-pattern={p.id} data-state={p.state} style={{ display: "grid", gap: 2, borderLeft: `2px solid ${LINE}`, paddingLeft: 8 }}>
             <div style={{ fontSize: 12, color: INK, fontVariantNumeric: "tabular-nums" }}>
-              {p.label} · <b>{p.occurrences}</b> of {p.sample}{p.share != null ? ` (${Math.round(p.share * 100)}%)` : ""}{" "}
+              {p.sample === 0
+                ? <>{p.label} · <span data-testid="pattern-nothing-yet" style={{ color: MUTED }}>nothing to count yet — no record holds this fact</span>{" "}</>
+                : <>{p.label} · <b>{p.occurrences}</b> of {p.sample}{p.state === "MEASURED" && p.share != null ? ` (${Math.round(p.share * 100)}%)` : ""}{" "}</>}
               <span style={{ fontSize: 10, letterSpacing: ".06em", color: p.state === "MEASURED" ? GOLD : MUTED }}>{p.state === "MEASURED" ? "MEASURED" : `INSUFFICIENT EVIDENCE · fewer than 20`}</span>
             </div>
             <div style={{ fontSize: 10.5, color: MUTED }}><span style={{ letterSpacing: ".06em" }}>{p.evidenceKind}</span> · {p.basis}</div>

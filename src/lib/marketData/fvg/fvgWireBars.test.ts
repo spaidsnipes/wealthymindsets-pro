@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CanonicalBarIdentity, LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { closedFvgBars, fvgBarCloseMs, rejoinCanonicalBars } from "./fvgWireBars";
-import { readFvgBarBody } from "./fvgBarSource";
+import { readFvgBarBody, traderWords } from "./fvgBarSource";
 
 const DAY = 86_400;
 const T = 1_790_000_000; // epoch seconds
@@ -44,10 +44,26 @@ describe("FVG wire bars — the producer's identity rejoined, never invented", (
   it("route body: refuses plainly — no identities, no bars, route error", () => {
     const now = (T + 10 * DAY) * 1000;
     expect(readFvgBarBody({ candles: [tuple(0)] }, { symbol: "SPY", timeframe: "1D", nowMs: now })).toMatchObject({ ok: false, reason: expect.stringMatching(/canonical identity/) });
-    expect(readFvgBarBody({ candles: [] }, { symbol: "SPY", timeframe: "1D", nowMs: now })).toMatchObject({ ok: false, reason: expect.stringMatching(/No 1D bars/) });
+    expect(readFvgBarBody({ candles: [] }, { symbol: "SPY", timeframe: "1D", nowMs: now })).toMatchObject({ ok: false, reason: expect.stringMatching(/No 1D bars could be read for SPY/) });
     expect(readFvgBarBody({ candles: [], reason: "Unsupported timeframe: 7m" }, { symbol: "SPY", timeframe: "7m", nowMs: now })).toEqual({ ok: false, reason: "Unsupported timeframe: 7m" });
     expect(readFvgBarBody(null, { symbol: "SPY", timeframe: "1D", nowMs: now }).ok).toBe(false);
+    // Serving fabce3a read "Error: Yahoo HTTP 404" — plumbing is never shown; trader words instead.
+    const leak = readFvgBarBody({ error: "Error: Yahoo HTTP 404" }, { symbol: "ZZZZQ", timeframe: "5m", nowMs: now });
+    expect(leak).toEqual({ ok: false, reason: "No 5m bars could be read for ZZZZQ — it may not be a symbol we can chart, or it has no history at this timeframe." });
+    for (const raw of ["TypeError: Failed to fetch", "finnhub 429", "status 502", "Alpaca said no"]) expect(traderWords(raw)).toBeNull();
+    expect(traderWords("Unsupported timeframe: 7m")).toBe("Unsupported timeframe: 7m");
     const ok = readFvgBarBody({ candles: [tuple(0), tuple(1)], barIdentities: [ident(0), ident(1)], barProvenance: "REST_BACKFILL", barFidelity: "INDICATIVE" }, { symbol: "SPY", timeframe: "1D", nowMs: now });
     expect(ok).toMatchObject({ ok: true, unpaired: 0, forming: 0, provenance: "REST_BACKFILL", fidelity: "INDICATIVE" });
+  });
+
+  it("a 404 / 5xx from the bar route reads in trader words, never the vendor's", async () => {
+    const { fetchFvgBars, clearFvgBarCache } = await import("./fvgBarSource");
+    clearFvgBarCache();
+    const r404 = await fetchFvgBars({ symbol: "ZZZZQ", timeframe: "5m", bars: 10, nowMs: 1, fetcher: async () => new Response(JSON.stringify({ error: "Error: Yahoo HTTP 404" }), { status: 404 }) });
+    expect(r404).toEqual({ ok: false, reason: "No 5m bars could be read for ZZZZQ — it may not be a symbol we can chart, or it has no history at this timeframe." });
+    clearFvgBarCache();
+    const r502 = await fetchFvgBars({ symbol: "SPY", timeframe: "1D", bars: 10, nowMs: 1, fetcher: async () => new Response("{}", { status: 502 }) });
+    expect(r502).toEqual({ ok: false, reason: "The market history did not load just now — try again in a moment." });
+    clearFvgBarCache();
   });
 });

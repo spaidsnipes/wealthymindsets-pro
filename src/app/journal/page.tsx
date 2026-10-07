@@ -14,7 +14,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import MirrorPanel from "@/components/mirror/MirrorPanel";
-import { BrokerTruthToday, StoryReviewRow } from "@/components/journal/BrokerTruthToday";
+import { BrokerTruthToday, PLAN_ABSENT_JOURNAL, StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { CapturedFacts } from "@/components/journal/CapturedFacts";
 import { captureToJournalForm } from "@/lib/journal/journalCaptureFromFill";
 import { takeJournalCapture } from "@/lib/journal/journalCaptureHandoff";
@@ -2805,7 +2805,7 @@ Trade the system, trust the process, winners every day 🚀`,
                 <StoryReviewRow key={journalReviewKey(selected)} storyKey={journalReviewKey(selected)} evidence={reviewEvidenceFromCapture(selected.capture)}
                   plan={planReviewInputForJournalEntry(selected, id => readPlanForDecision(typeof window === "undefined" ? null : window.localStorage, id))}
                   planDecisionId={selected.capture?.decisionId.value ?? null} planSymbol={selected.capture?.contract.value ?? null}
-                  fvgRef={selected.fvgRef ?? null} />
+                  fvgRef={selected.fvgRef ?? null} planAbsent={selected.capture?.decisionId.value ? null : PLAN_ABSENT_JOURNAL} />
               </section>
 
               {/* Garden 16 §17: a futures entry saved before futures were

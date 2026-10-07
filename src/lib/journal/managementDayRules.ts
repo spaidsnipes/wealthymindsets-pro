@@ -17,6 +17,8 @@
 
 import type { TraderPlanInput } from "./managementPlan";
 import { marketDayKey } from "./localDayKey";
+import { marketClockET } from "@/lib/marketData/canonicalIdentity";
+import { readMarketSession, type MarketSessionReading } from "@/lib/marketData/marketSessionClock";
 
 export const MANAGEMENT_DAY_RULES_KEY = "wm:management-day-rules:v1";
 
@@ -74,4 +76,32 @@ export function draftWithDayRules(draft: TraderPlanInput, rules: ManagementDayRu
 export function sessionPlanForFreeze(storage: Storage | null | undefined, atMs: number): string | null {
   const r = readDayRules(storage, atMs);
   return r && r.sessionPlan && r.updatedAtMs <= atMs ? r.sessionPlan : null;
+}
+
+/* ── the day's session, from the one session owner (marketSessionClock) ─── */
+
+export interface DayRulesSession {
+  readonly equities: MarketSessionReading | null;
+  readonly futures: MarketSessionReading | null;
+  /** Both reference markets CLOSED right now (weekend, overnight; holidays are NOT known — see basis). */
+  readonly allClosed: boolean;
+  readonly line: string;
+}
+
+/**
+ * The session the rules are being written for, read from the canonical owner
+ * for two reference markets (US listed equities, CME Globex futures). Every
+ * verdict says its basis, including "holiday calendar not loaded" — a holiday
+ * is never claimed or denied.
+ */
+export function dayRulesSession(nowMs: number): DayRulesSession {
+  const clock = marketClockET(new Date(nowMs));
+  const equities = readMarketSession({ symbol: "SPY", assetClass: "equity", clock, isUsCashIndex: false });
+  const futures = readMarketSession({ symbol: "ES1!", assetClass: "futures", clock, isUsCashIndex: false });
+  const word = (r: MarketSessionReading | null) => (r ? `${r.token} — ${r.basis}` : "UNKNOWN — the session clock could not be read");
+  const allClosed = equities?.verdict === "CLOSED" && futures?.verdict === "CLOSED";
+  return {
+    equities, futures, allClosed,
+    line: `US listed equities: ${word(equities)} · CME futures: ${word(futures)}.${allClosed ? " Markets are CLOSED now — rules saved here are kept for today's date only; write them again on your next trading morning." : ""}`,
+  };
 }

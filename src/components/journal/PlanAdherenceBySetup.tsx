@@ -64,8 +64,13 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
     }))));
     setEdgeNote(refused.length ? `Not read: ${refused.join("; ")}.` : null);
   };
+  // An empty book is the Journal's own empty state; this line speaks only once there are trades.
+  if (!entries.length) return null;
   return <PlanAdherenceView rows={rows} fvgRows={fvgRows} edge={edge} edgeNote={edgeNote} showEdge={withRef.length > 0} onCompare={() => { void compare(); }} />;
 }
+
+/** §: no frozen plan in the book yet — say so and name the next action; never a 0% that measures nothing. */
+export const PLAN_ADHERENCE_EMPTY_LINE = "Plan adherence: no trade in your Journal has a frozen plan yet. Write the plan on the ticket's plan card before your next trade — Review compares it after the exit.";
 
 /** The Personal Edge block itself — pure, so it can be proved without a signed-in book. */
 export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onCompare }: {
@@ -95,7 +100,13 @@ export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onC
       {edgeNote ? <span role="status" style={{ fontSize: 10.5, color: MUTED }}>{edgeNote}</span> : null}
     </div>
   ) : null;
-  if (!rows.length && !fvgRows.length) return edgeBlock ? <div style={{ marginTop: 6 }}>{edgeBlock}</div> : null;
+  if (!rows.length && !fvgRows.length) {
+    return edgeBlock ? <div style={{ marginTop: 6 }}>{edgeBlock}</div> : (
+      <p data-testid="plan-adherence-empty" style={{ margin: "6px 0 0", fontSize: 11, color: MUTED }}>
+        {PLAN_ADHERENCE_EMPTY_LINE}
+      </p>
+    );
+  }
   return (
     <div data-testid="plan-adherence-by-setup" style={{ display: "grid", gap: 4, marginTop: 6 }}>
       {rows.length ? <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>PLAN ADHERENCE BY SETUP · trades with a frozen plan</span> : null}

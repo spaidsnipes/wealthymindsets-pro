@@ -20,7 +20,6 @@ export const SPAIDBOT_ASK_EVENT = "wm:spaidbot-ask" as const;
 export const SPAIDBOT_ASK_MAX = 600;
 
 export const FVG_ASK_PROMPT = "What am I looking at?" as const;
-export const REVIEW_ASK_PROMPT = "Ask SpaidBot about this decision" as const;
 
 export interface SpaidbotAsk {
   readonly prompt: string;
