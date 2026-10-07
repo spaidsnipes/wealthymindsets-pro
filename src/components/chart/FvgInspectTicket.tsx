@@ -50,7 +50,7 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
     >
       <div className="flex items-center gap-2 text-wm-gold text-[11px] font-bold">
         <Crosshair size={11} /> FVG · {bull ? "BULLISH" : "BEARISH"} · {o.timeframe}
-        <button className="ml-auto" aria-label="Close the inspect ticket" onClick={onClose}><X size={12} /></button>
+        <button className="wm-tap ml-auto inline-flex items-center justify-center rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold" aria-label="Close the gap's inspect ticket" onClick={onClose}><X size={12} aria-hidden="true" /></button>
       </div>
       {firstTouch}
       {evidence}
@@ -83,7 +83,7 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
             {layer.id === "TRADER" ? (
               <div className="mt-1 text-[11px] text-white leading-snug" data-inspect-fvg-trader>
                 No decision of yours is recorded on this gap here.{" "}
-                <Link href={`/journal?${new URLSearchParams({ new: "1", symbol: o.symbolId, fvg: o.objectId }).toString()}`} prefetch={false} className="underline" style={{ color: GOLD }}>
+                <Link href={`/journal?${new URLSearchParams({ new: "1", symbol: o.symbolId, fvg: o.objectId }).toString()}`} prefetch={false} className="wm-tap inline-flex items-center underline rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold" style={{ color: GOLD }}>
                   Journal it with its state at your decision time ›
                 </Link>
               </div>
@@ -94,7 +94,7 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
       <AskSpaidbotButton testId="inspect-fvg-ask-spaidbot" label="Ask SpaidBot: what am I looking at?" ask={() => fvgInspectAsk(o, priceDp)} />
       <br />
       <a href={academy.href} data-testid="inspect-fvg-academy"
-        className="mt-2 inline-block text-[11px] font-semibold underline" style={{ color: GOLD }}>
+        className="wm-tap mt-2 inline-flex items-center rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold text-[11px] font-semibold underline" style={{ color: GOLD }}>
         Academy · {academy.title} ›
       </a>
     </section>

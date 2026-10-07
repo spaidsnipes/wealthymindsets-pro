@@ -310,9 +310,10 @@ export function fvgInspectRows(o: FvgObject, fmt: (p: number) => string, clock: 
   if (o.tradedThrough) rows.push({ id: "traded-through", label: "Traded through", value: `${clock(o.tradedThrough.at)} · close ${fmt(o.tradedThrough.close)}` });
   const sense = (k: "PRICE_GEOMETRY" | "ORDER_FLOW" | "DERIVATIVES") => {
     const e = o.senses[k];
-    if (e.state === "FULL") return `FULL — read from OHLC wicks of bars ${o.bars.b1.barId}, ${o.bars.b2.barId}, ${o.bars.b3.barId} · fidelity at birth ${o.fidelityAtBirth}`;
+    // Accessibility pass: trader words, no raw ids read aloud (the bar ids live in the receipts).
+    if (e.state === "FULL") return `FULL — read from the wicks of the three bars that formed it · fidelity at birth ${o.fidelityAtBirth}`;
     if (e.state === "NOT_ATTACHED") return "NOT ATTACHED — the FVG does not read this sense; its own owner speaks for it.";
-    return `BY REFERENCE — ${e.owner} said ${e.ownerState} (${e.ref}); not upgraded or re-graded here.`;
+    return `BY REFERENCE — its own reading said ${e.ownerState}; not upgraded or re-graded here.`;
   };
   rows.push(
     { id: "sense-price", label: "Evidence · price geometry", value: sense("PRICE_GEOMETRY") },

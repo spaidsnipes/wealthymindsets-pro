@@ -71,27 +71,27 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
     <div className="shrink-0 border-b border-wm-border bg-wm-dark/60" data-testid="scanner-fvg">
       <div className="flex flex-wrap items-center gap-2 px-4 py-1.5">
         <button onClick={() => setOpen(v => !v)} aria-expanded={open}
-          className={clsx("wm-tap px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all",
+          className={clsx("wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all",
             open ? "bg-wm-gold/15 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-wm-border hover:text-wm-text")}>
           FVG conditions
         </button>
         {open && (
           <>
             <button onClick={() => { void run(); }} disabled={running} data-testid="scanner-fvg-run"
-              className="wm-tap px-2.5 py-1 rounded-lg text-[10px] font-bold border border-wm-blue/40 bg-wm-blue/10 text-wm-blue disabled:opacity-40">
+              className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold px-2.5 py-1 rounded-lg text-[10px] font-bold border border-wm-blue/40 bg-wm-blue/10 text-wm-blue disabled:opacity-40">
               {running ? `Reading… ${readings.length} of ${symbols.length}` : readings.length ? "Read again" : `Read ${symbols.length} symbols (daily, closed bars)`}
             </button>
             <div className="flex flex-wrap gap-1" role="group" aria-label="FVG condition">
               {(["ALL", ...FVG_SCAN_CONDITIONS, ...FVG_CONVERGENCE_CONDITIONS] as const).map(c => (
                 <button key={c} onClick={() => setOnly(c)} aria-pressed={only === c}
-                  className={clsx("wm-tap px-2 py-0.5 rounded text-[10px] border",
+                  className={clsx("wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold px-2 py-0.5 rounded text-[10px] border",
                     only === c ? "bg-wm-gold/15 text-wm-gold border-wm-gold/40" : "text-wm-text-muted border-transparent hover:border-wm-border")}>
                   {c === "ALL" ? "All" : label(c)}
                 </button>
               ))}
             </div>
             {readings.length > 0 && (
-              <span data-testid="scanner-fvg-coverage" className="text-[10px] text-wm-text-dim">
+              <span data-testid="scanner-fvg-coverage" role="status" className="text-[10px] text-wm-text-dim">
                 read {cov.read} of {cov.of} symbols · {cov.refused} refused · definition FVG_3C v1 · observed lifecycle facts, not signals
               </span>
             )}
@@ -109,7 +109,7 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
               {hits.map(h => (
                 <li key={`${h.condition}:${h.objectId}`}>
                   <button onClick={() => { onOpenSymbol?.(h.symbol); router.push(h.href); }} data-testid="scanner-fvg-hit"
-                    className="wm-tap w-full flex flex-wrap items-center gap-x-3 gap-y-0.5 py-1.5 text-left text-[11px] hover:bg-wm-surface/40">
+                    className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold w-full flex flex-wrap items-center gap-x-3 gap-y-0.5 py-1.5 text-left text-[11px] hover:bg-wm-surface/40">
                     <span className="font-bold text-wm-text w-16">{h.symbol}</span>
                     <span className="text-wm-gold">{FVG_SCAN_CONDITION_LABEL[h.condition]}</span>
                     <span className={h.direction === "BULLISH" ? "text-wm-green" : "text-wm-red"}>{h.direction.toLowerCase()}</span>
@@ -126,7 +126,7 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
               {conv.map(h => (
                 <li key={`${h.condition}:${h.objectId}`}>
                   <button onClick={() => { onOpenSymbol?.(h.symbol); router.push(h.href); }} data-testid="scanner-fvg-convergence-hit"
-                    className="wm-tap w-full text-left py-1.5 text-[11px] hover:bg-wm-surface/40">
+                    className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold w-full text-left py-1.5 text-[11px] hover:bg-wm-surface/40">
                     <span className="flex flex-wrap items-center gap-x-3">
                       <span className="font-bold text-wm-text w-16">{h.symbol}</span>
                       <span className="text-wm-gold">{FVG_CONVERGENCE_LABEL[h.condition]}</span>

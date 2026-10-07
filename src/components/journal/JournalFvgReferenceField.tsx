@@ -40,8 +40,8 @@ export function JournalFvgReferenceField({ value, onChange, initialObjectId, ini
       <div data-testid="journal-fvg-ref" className="mb-4 rounded-lg border border-wm-border bg-wm-surface/40 p-3">
         <div className="text-[9px] text-wm-text-dim uppercase tracking-wider mb-1">FVG referenced — its state at decision time</div>
         <p className="text-[11px] text-wm-text">{fvgReferenceSentence(value)}</p>
-        <p className="mt-1 text-[10px] font-mono text-wm-text-dim break-all">{value.objectId}</p>
-        <button type="button" onClick={() => onChange(undefined)} className="wm-tap mt-1 text-[10px] underline text-wm-text-muted">Remove the reference</button>
+        <p className="mt-1 text-[10px] font-mono text-wm-text-dim break-all" aria-hidden="true">{value.objectId}</p>
+        <button type="button" onClick={() => onChange(undefined)} className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold mt-1 text-[10px] underline text-wm-text-muted">Remove the reference</button>
       </div>
     );
   }
@@ -81,11 +81,11 @@ export function JournalFvgReferenceField({ value, onChange, initialObjectId, ini
             className="mt-0.5 bg-wm-surface border border-wm-border rounded px-2 py-1.5 text-[11px] text-wm-text" />
         </label>
         <button type="button" onClick={() => { void read(); }} disabled={busy} data-testid="journal-fvg-read"
-          className="wm-tap px-3 py-1.5 rounded-lg text-[11px] font-bold border border-wm-blue/40 bg-wm-blue/10 text-wm-blue disabled:opacity-40">
+          className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold px-3 py-1.5 rounded-lg text-[11px] font-bold border border-wm-blue/40 bg-wm-blue/10 text-wm-blue disabled:opacity-40">
           {busy ? "Reading…" : "Read its state then"}
         </button>
       </div>
-      {refusal && <p className="mt-1 text-[11px] text-wm-gold">Nothing attached: {refusal}</p>}
+      {refusal && <p role="status" className="mt-1 text-[11px] text-wm-gold">Nothing attached: {refusal}</p>}
       <p className="mt-1 text-[10px] text-wm-text-dim">Saved as a reference and the facts at that moment — not a yes/no, and not a forecast.</p>
     </details>
   );

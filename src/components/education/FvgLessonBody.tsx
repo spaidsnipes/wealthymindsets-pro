@@ -63,7 +63,7 @@ function MyExamples() {
       <ul className="mt-1.5 space-y-1.5">
         {examples.slice(0, 8).map(e => (
           <li key={e.id} className="text-[11px] text-wm-text leading-snug" style={{ overflowWrap: "anywhere" }}>
-            <Link href={e.href} prefetch={false} data-testid="fvg-example-link" className="font-semibold text-wm-gold hover:underline">{e.symbol} · {e.date || "undated"} →</Link>
+            <Link href={e.href} prefetch={false} data-testid="fvg-example-link" className="inline-flex min-h-11 items-center rounded font-semibold text-wm-gold hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold">{e.symbol} · {e.date || "undated"} →</Link>
             <span className="block text-wm-text-muted">As of the decision: {e.stateLine}</span>
             <span className="block text-wm-text-dim">{e.result ? `Result: ${e.result}` : "Result: not recorded"} · {e.adherence ? `Plan: ${e.adherence}` : "Plan: no frozen plan"}</span>
           </li>
@@ -108,7 +108,7 @@ export function FvgLessonBody({ lesson, color }: { lesson: FvgLesson; color: str
           prefetch={false}
           data-testid="fvg-show-on-chart"
           data-fvg-layer={chart.shipped ? "SHIPPED" : "PENDING"}
-          className="inline-flex min-h-11 items-center rounded-lg border px-3 text-[11px] font-semibold text-wm-text hover:text-wm-gold"
+          className="inline-flex min-h-11 items-center rounded-lg border px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold text-[11px] font-semibold text-wm-text hover:text-wm-gold"
           style={{ borderColor: "rgba(201,165,92,0.45)" }}
         >
           Show me on a chart →
@@ -119,7 +119,7 @@ export function FvgLessonBody({ lesson, color }: { lesson: FvgLesson; color: str
             <Link
               href={replay.href}
               prefetch={false}
-              className="inline-flex min-h-11 items-center rounded-lg border px-3 text-[11px] font-semibold text-wm-text hover:text-wm-gold"
+              className="inline-flex min-h-11 items-center rounded-lg border px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold text-[11px] font-semibold text-wm-text hover:text-wm-gold"
               style={{ borderColor: "rgba(201,165,92,0.45)" }}
             >
               Practice in Replay →
@@ -132,7 +132,7 @@ export function FvgLessonBody({ lesson, color }: { lesson: FvgLesson; color: str
         {learnYourselfLinks(lesson.id).length ? (
           <div data-testid="fvg-learn-yourself" className="flex flex-wrap gap-2">
             {learnYourselfLinks(lesson.id).map(l => (
-              <Link key={l.href} href={l.href} prefetch={false} className="inline-flex min-h-11 items-center rounded-lg border px-3 text-[11px] font-semibold text-wm-text hover:text-wm-gold" style={{ borderColor: "rgba(201,165,92,0.45)" }}>{l.label} →</Link>
+              <Link key={l.href} href={l.href} prefetch={false} className="inline-flex min-h-11 items-center rounded-lg border px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold text-[11px] font-semibold text-wm-text hover:text-wm-gold" style={{ borderColor: "rgba(201,165,92,0.45)" }}>{l.label} →</Link>
             ))}
           </div>
         ) : null}
