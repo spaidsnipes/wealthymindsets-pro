@@ -36,6 +36,8 @@ export interface TtOrderView {
   readonly quantity: number | null;
   readonly filled: number | null;
   readonly price: string | null;
+  /** The stop trigger of a Stop / Stop Limit (Garden 19 §23: where its chart line is drawn). */
+  readonly stopTrigger: string | null;
   readonly orderType: string | null;
   readonly externalId: string | null;
   readonly cancellable: boolean;
@@ -64,6 +66,7 @@ export function readTastytradeOrder(raw: unknown): TtOrderView | null {
     quantity: Number.isFinite(qty) ? qty : null,
     filled,
     price: o.price != null ? String(o.price) : null,
+    stopTrigger: o["stop-trigger"] != null ? String(o["stop-trigger"]) : null,
     orderType: typeof o["order-type"] === "string" ? (o["order-type"] as string) : null,
     externalId: typeof o["external-identifier"] === "string" ? (o["external-identifier"] as string) : null,
     cancellable: o.cancellable === true,

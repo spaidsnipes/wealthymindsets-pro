@@ -36,6 +36,8 @@ import { relatedFlowLine, relatedRoot } from "@/lib/chart/fxRelatedFlow";
 import { useFxRelatedFlow } from "@/lib/broker/useFxRelatedFlow";
 import { atrSeries, EFFORT_RESPONSE_BUDGET_MS, readEffortResponseField, responseColumnHeight, type EffortResponseField } from "@/lib/chart/effortResponseField";
 import { DELTA_KEEL_BUDGET_MS, keelLength, readKeels, type KeelInput } from "@/lib/chart/barDeltaKeel";
+import { readCrossCandleWisdom, type WisdomLine } from "@/lib/chart/crossCandleWisdom";
+import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, type DisplacedNote } from "@/lib/chart/eventNoteComposer";
 import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
 import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
@@ -1342,6 +1344,11 @@ interface Props {
    */
   deltaKeelOn?: boolean;
   /**
+   * CROSS-CANDLE WISDOM (Garden 19 §17, crossCandleWisdom.ts): one quiet line
+   * at most, only from an evidence object an ON layer produced this frame.
+   */
+  wisdomLineOn?: boolean;
+  /**
    * ABSORPTION ANATOMY (Founder Asset 06) — draws the EFFORT field and the
    * ABSORPTION ZONE band directly in price/time space. See the draw block.
    */
@@ -1915,7 +1922,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
-  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false,
+  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false,
   absorptionAnatomyActive = false,
   exhaustionOnChart = true,
   imbalanceStack = null,
@@ -2257,6 +2264,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const effortResponseCacheRef = useRef<{ key: string; field: EffortResponseField } | null>(null);
   const effortResponseCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const deltaKeelAtrRef = useRef<{ key: string; atr: number[] } | null>(null);
+  const deltaKeelCacheRef = useRef<{ key: string; at: number; keels: ReturnType<typeof readKeels>; nTape: number; nSides: number } | null>(null);
+  // The keels this frame painted (null when the keel layer is off / silent) —
+  // the wisdom line reads evidence the glass is showing, never a hidden one.
+  const deltaKeelLastRef = useRef<{ keels: ReturnType<typeof readKeels>; newest: number | null } | null>(null);
+  // §16 NOTES MOVE INTELLIGENTLY: the anchor layer is moved directly from the
+  // paint loop (no React render per pan frame); the open anchor and the
+  // trader's compose override live in refs.
+  const noteAnchorsElRef = useRef<HTMLDivElement | null>(null);
+  const noteAnchorsKeyRef = useRef<string>("");
+  const noteAnchorOpenRef = useRef<string | null>(null);
+  const composeNotesRef = useRef<boolean>(true);
+  useEffect(() => { try { composeNotesRef.current = localStorage.getItem(COMPOSE_NOTES_KEY) !== "false"; } catch { /* default ON */ } }, []);
   const deltaKeelCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const regimeLightingRef = useRef<RegimeLightingVM | null>(null);
   useEffect(() => { regimeLightingRef.current = regimeLighting ?? null; }, [regimeLighting]);
@@ -7102,6 +7121,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Chips painted before the floating-chip owner exists (print tickets,
       // the force→response tag, NEAR anatomy); it is seeded from this list.
       const forceChips: { x: number; y: number; w: number; h: number }[] = [];
+      // §16: a Class-B word that cannot find a clear spot by its mark is
+      // handed here instead of being dropped; the composer at the end of the
+      // frame collapses neighbours into one "N MARKET EVENTS" anchor.
+      const displacedNotes: DisplacedNote[] = [];
       // What each drawn VP column measured — reported up for Profile Fusion.
       // Declared HERE, before any VP pass: runWMVP() runs early in the Big
       // Trades path, and a declaration further down threw 'Cannot access …
@@ -10058,9 +10081,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const selected = insp != null && insp === b.time;
               const a = selected ? 0.95 : 0.28 + 0.47 * (n > 1 ? k / (n - 1) : 1);
               const inside = Math.min(hR, effortPx);
+              // Overflow under 1.5× its own volume bar is ordinary variation:
+              // the column simply fills its bar; only a clear excess is drawn.
               ctx.fillStyle = `rgba(237,230,211,${a.toFixed(3)})`;
               if (inside > 0) ctx.fillRect(x, yBase - inside, w, inside);
-              if (hR > effortPx + 0.5) {
+              if (hR > effortPx * 1.5 + 0.5) {
                 ctx.strokeStyle = `rgba(237,230,211,${(a * 0.9).toFixed(3)})`;
                 ctx.lineWidth = 1;
                 ctx.strokeRect(x + 0.5, yBase - hR + 0.5, Math.max(0, w - 1), hR - effortPx);
@@ -10107,6 +10132,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const bs = barsRef.current || [];
         const csDK = candleRef.current;
         const realBody = candleType === "candles" || candleType === "hollow" || candleType === "orderflow-candles" || candleType === "bars";
+        deltaKeelLastRef.current = null;
         if (!deltaKeelOn) canvas.dataset.barDeltaKeels = "OFF";
         else if (!realBody) canvas.dataset.barDeltaKeels = `SILENT:NOT_REAL_OHLC:${candleType}`;
         else if (bs.length < 2 || !csDK) canvas.dataset.barDeltaKeels = "NO_BARS";
@@ -10122,9 +10148,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (deltaKeelAtrRef.current?.key !== akey) deltaKeelAtrRef.current = { key: akey, atr: atrSeries(bs) };
           const atrDK = deltaKeelAtrRef.current.atr;
           const sidedDK = candleSidedRef.current;
+          // Evidence rows are re-read when the camera / bar set changes, else at
+          // most every 400ms (tape for the newest bars still lands) — keeps the
+          // per-frame cost inside DELTA_KEEL_BUDGET_MS.
+          const ckDK = `${symbol}|${i0}|${i1}|${bs.length}|${formingDK ?? "-"}|${sidedDK.size}`;
+          const cachedDK = deltaKeelCacheRef.current;
+          const freshDK = cachedDK && cachedDK.key === ckDK && t0DK - cachedDK.at < 400;
           const rowsDK: KeelInput[] = [];
-          let nTape = 0, nSides = 0;
-          for (let i = i0; i <= i1; i++) {
+          let nTape = freshDK ? cachedDK!.nTape : 0, nSides = freshDK ? cachedDK!.nSides : 0;
+          if (!freshDK) for (let i = i0; i <= i1; i++) {
             const cDK = bs[i];
             if (formingDK != null && (cDK.time as number) === formingDK) continue;
             // The bar's delta from its ONE owner (footprintCanon.barTapeDelta).
@@ -10134,7 +10166,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (bd) nTape++; else nSides++;
             rowsDK.push({ time: cDK.time as number, open: cDK.open, close: cDK.close, atr: atrDK[i], buy: bd ? bd.buy : sd!.buy, sell: bd ? bd.sell : sd!.sell, basis: bd ? "TAPE" : "SIDES" });
           }
-          const keels = readKeels(rowsDK);
+          const keels = freshDK ? cachedDK!.keels : readKeels(rowsDK);
+          if (!freshDK) deltaKeelCacheRef.current = { key: ckDK, at: t0DK, keels, nTape, nSides };
+          {
+            let newestDK: number | null = null;
+            for (let i = i1; i >= i0; i--) { const t = bs[i].time as number; if (t !== formingDK) { newestDK = t; break; } }
+            deltaKeelLastRef.current = { keels, newest: newestDK };
+          }
           if (!keels.length) {
             canvas.dataset.barDeltaKeels = nTape + nSides === 0 ? "SILENT:NO_SIGNED_EVIDENCE" : "DRAWN:0|BALANCED";
           } else {
@@ -10157,11 +10195,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const L = keelLength(kl.ratio, bodyW);
               const up = bar.close >= bar.open;
               // Just OUTSIDE the close edge: above an up body, below a down one.
-              const y = Math.round(+yc + (up ? -3 : 1));
+              const y = Math.round(+yc + (up ? -5 : 3));
               const x = Math.round(+xr - L / 2);
               const ink = kl.ratio > 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
               const age = 0.6 + 0.4 * (keels.length > 1 ? k / (keels.length - 1) : 1);
               const a = insp === kl.time ? 0.95 : 0.55 * age;
+              // Dark halo: the keel is its own mark, never read as more body.
+              ctx.fillStyle = "rgba(8,7,5,0.85)";
+              ctx.fillRect(x - 1, y - 1, Math.max(1, L) + 2, 4);
               if (kl.failed) {
                 ctx.strokeStyle = `rgba(${ink},${Math.min(1, a + 0.15).toFixed(3)})`;
                 ctx.strokeRect(x + 0.5, y + 0.5, Math.max(1, L - 1), 2);
@@ -16342,7 +16383,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   [...keepOut(), ...rowBodiesAt(y - 7, y + 7)],
                   { minX: keepOutMinX(), blockers: floatingChips, strict: true },
                 );
-                if (spotE.mode === "BLOCKED") return;
+                if (spotE.mode === "BLOCKED") { displacedNotes.push({ layer: "MEMORY GHOST", text: word, x: cx, y }); return; }
                 recordKeepOut(keepOutLedger, spotE);
                 const r = spotE.rect;
                 floatingChips.push({ ...r });
@@ -17229,7 +17270,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const chip = (word: string, pref: { x: number; y: number }, alts: { x: number; y: number }[]) => {
                   const ww = ctx.measureText(word).width + 10;
                   const spotW = placeClearOfKeepOut({ ...pref, w: ww, h: 14 }, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + 14)], { minX: keepOutMinX(), blockers: [...floatingChips, ...masonryRects], strict: true, alternates: alts.map(a => ({ ...a, w: ww, h: 14 })) });
-                  if (spotW.mode === "BLOCKED") return;
+                  if (spotW.mode === "BLOCKED") { displacedNotes.push({ layer: "DERIVATIVES", text: word, x: pref.x + ww / 2, y: pref.y + 7 }); return; }
                   recordKeepOut(keepOutLedger, spotW);
                   floatingChips.push({ ...spotW.rect });
                   const r = spotW.rect;
@@ -21111,6 +21152,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const pref = { x: m.x - tw / 2, y: cy - th / 2, w: tw, h: th };
               if (pref.y < HEADER_FLOOR_Y || pref.y + th > paneBotS) continue;
               const spot = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th)], { minX: keepOutMinX(), blockers: floatingChips, strict: true });
+              // §16: a held letter goes to the note composer, never silently away.
+              if (spot.mode === "BLOCKED" || Math.abs(spot.rect.x - pref.x) > 10) displacedNotes.push({ layer: "STRUCTURE", text: m.label, x: m.x, y: cy });
               if (spot.mode === "BLOCKED" || Math.abs(spot.rect.x - pref.x) > 10) continue;
               recordKeepOut(keepOutLedger, spot);
               floatingChips.push({ x: spot.rect.x, y: spot.rect.y, w: tw, h: th });
@@ -23440,7 +23483,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 minX: keepOutMinX(), blockers: floatingChips, strict: true,
                 alternates: [{ ...pref, x: Math.min(mark.ceiling.x1 + 4, Math.max(8, W - axisWI) - tw - 2) }],
               });
-              if (spot.mode === "BLOCKED") continue;
+              if (spot.mode === "BLOCKED") { displacedNotes.push({ layer: "TRUTH", text: t, x: pref.x + tw / 2, y: yy + th / 2 }); continue; }
               recordKeepOut(keepOutLedger, spot);
               floatingChips.push(spot.rect);
               ctx.fillStyle = "rgba(11,10,8,0.78)";
@@ -23695,6 +23738,147 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("H101_WAIT_PLAQUE", err); }
 
+      /* ══ §17 CROSS-CANDLE WISDOM ════════════════════════════════════════
+         ONE quiet line at most, traced to an evidence object an ON layer
+         produced this frame (Delta Keel failures, the Effort → Response
+         sequence, Value Migration's session POC travel). No object → no line.
+         Words only on default glass; when the trader inspects the line's own
+         bar, its provenance (owner · bars · numbers) is revealed under it. */
+      try {
+        let wl: WisdomLine | null = null;
+        if (!wisdomLineOn) canvas.dataset.crossCandleWisdom = "OFF";
+        else {
+          const kl = deltaKeelLastRef.current;
+          const fld = effortResponseOn && effortResponseCacheRef.current?.field.state === "DRAWN" ? effortResponseCacheRef.current.field.bars : null;
+          const vmW = valueMigrationRef.current;
+          const atrW = deltaKeelAtrRef.current?.atr;
+          const lastAtr = atrW && atrW.length ? atrW[atrW.length - 1] : NaN;
+          wl = readCrossCandleWisdom({
+            keels: kl?.keels ?? null,
+            newestClosedTime: kl?.newest ?? null,
+            barSec: barInterval(),
+            field: fld,
+            valueTravel: layerOnRef.current.valueMigration && vmW?.drawn && vmW.latestPocTravel != null && Number.isFinite(lastAtr)
+              ? { travel: vmW.latestPocTravel, atr: lastAtr, time: vmW.points.length ? vmW.points[vmW.points.length - 1].time : 0 }
+              : null,
+          });
+          if (!wl) { canvas.dataset.crossCandleWisdom = "SILENT:NO_EVIDENCE_OBJECT"; delete canvas.dataset.crossCandleWisdomWhy; }
+          else {
+            canvas.dataset.crossCandleWisdom = `${wl.kind}|${wl.time}`;
+            canvas.dataset.crossCandleWisdomWhy = wl.provenance;
+            ctx.save();
+            ctx.font = `700 10px ${MARKET_SANS}`; ctx.textBaseline = "top"; ctx.textAlign = "left";
+            const tw = Math.ceil(ctx.measureText(wl.text).width) + 8, th = 14;
+            const xr = chart.timeScale().timeToCoordinate(wl.time as never);
+            const ax = xr == null ? plotRight - tw - 8 : Math.max(keepOutMinX(), Math.min(plotRight - tw - 8, +xr - tw / 2));
+            const pref = { x: ax, y: HEADER_FLOOR_Y + 6, w: tw, h: th };
+            const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th + 18)], { minX: keepOutMinX(), blockers: floatingChips, alternates: [{ ...pref, y: pref.y + 18 }, { ...pref, y: pref.y + 36 }] });
+            if (sp.mode === "BLOCKED") displacedNotes.push({ layer: "WISDOM", text: wl.text, x: pref.x + tw / 2, y: pref.y + th / 2, time: wl.time });
+            else {
+              const r = sp.rect;
+              floatingChips.push({ ...r });
+              // Quiet: below price ink, above memory. A hairline ties it to its bar.
+              ctx.fillStyle = "rgba(237,230,211,0.72)";
+              ctx.fillText(wl.text, r.x + 4, r.y + 2);
+              if (xr != null && +xr >= r.x && +xr <= r.x + r.w) {
+                ctx.fillStyle = "rgba(237,230,211,0.35)";
+                ctx.fillRect(Math.round(+xr), r.y + th, 1, 4);
+              }
+              if (inspectedBarRef.current?.time === wl.time) {
+                ctx.font = `600 9px ${MARKET_SANS}`;
+                ctx.fillStyle = "rgba(200,192,174,0.85)";
+                const prov = wl.provenance.length > 120 ? wl.provenance.slice(0, 119) + "…" : wl.provenance;
+                ctx.fillText(prov, r.x + 4, r.y + th + 4);
+              }
+            }
+            ctx.restore();
+          }
+        }
+      } catch (err) { layerFault("CROSS_CANDLE_WISDOM", err); }
+
+      /* ══ §16 NOTES MOVE INTELLIGENTLY · §14 AUTO COMPOSE ═════════════════
+         Words the layers above could not seat beside their marks arrive here
+         (displacedNotes) instead of vanishing. Neighbours collapse into ONE
+         contextual anchor — "3 MARKET EVENTS" — at the place they happened;
+         a tap lists every word it holds (eventNoteComposer.ts). The marks
+         themselves were already painted and stay visible. The composer
+         aggregates words only: it cannot switch a layer, change an evidence
+         class, or touch orders / protection. Trader override: compose OFF →
+         every held word prints at its own preferred spot, collisions and all. */
+      try {
+        const composeOn = composeNotesRef.current;
+        if (!composeOn && displacedNotes.length) {
+          ctx.save();
+          ctx.font = marketFont("FIDELITY"); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillStyle = "rgba(237,230,211,0.8)";
+          for (const n of displacedNotes) if (Number.isFinite(n.x) && Number.isFinite(n.y)) ctx.fillText(n.text, n.x, n.y);
+          ctx.restore();
+        }
+        const anchors = composeOn ? composeNoteAnchors(displacedNotes) : [];
+        canvas.dataset.eventNotes = `ANCHORS:${anchors.length}|NOTES:${displacedNotes.length}|COMPOSE:${composeOn ? "ON" : "OFF"}`;
+        const el = noteAnchorsElRef.current;
+        if (el) {
+          const placed = anchors.map(a => {
+            const w = Math.ceil(a.word.length * 6.2) + 14, h = 20;
+            const pref = { x: Math.max(4, Math.min(plotRight - w - 4, a.x - w / 2)), y: Math.max(HEADER_FLOOR_Y, Math.min(pane0Bottom - h - 4, a.y - h / 2)), w, h };
+            const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + h)], { minX: keepOutMinX(), blockers: floatingChips });
+            const r = sp.mode === "BLOCKED" ? pref : sp.rect;
+            floatingChips.push({ ...r });
+            const seed = `${a.notes[0].layer}:${a.notes[0].text}`;
+            return { a, r, seed, crowded: sp.mode === "BLOCKED" };
+          });
+          const offCount = composeOn ? 0 : displacedNotes.length;
+          const key = `${anchorsKey(anchors)}|${placed.map(p => `${Math.round(p.r.x)},${Math.round(p.r.y)}`).join(";")}|${noteAnchorOpenRef.current ?? ""}|${offCount}`;
+          if (key !== noteAnchorsKeyRef.current) {
+            noteAnchorsKeyRef.current = key;
+            el.replaceChildren();
+            if (offCount > 0) {
+              // The override is the trader's, and so is the way back.
+              const on = document.createElement("button");
+              on.type = "button"; on.dataset.action = "compose-on"; on.dataset.testid = "event-note-compose-on";
+              on.textContent = `COMPOSE ${offCount} LABEL${offCount === 1 ? "" : "S"}`;
+              Object.assign(on.style, {
+                position: "absolute", left: "8px", top: `${Math.max(HEADER_FLOOR_Y, pane0Bottom - 30)}px`, height: "20px", padding: "0 7px",
+                font: `700 10px ${MARKET_SANS}`, color: "#c9a55c", background: "rgba(17,15,11,0.8)", border: "1px solid rgba(201,165,92,0.4)",
+                borderRadius: "9px", pointerEvents: "auto", cursor: "pointer",
+              });
+              el.appendChild(on);
+            }
+            for (const p of placed) {
+              const b = document.createElement("button");
+              b.type = "button";
+              b.dataset.testid = "event-note-anchor";
+              b.dataset.anchorSeed = p.seed;
+              b.setAttribute("aria-expanded", noteAnchorOpenRef.current === p.seed ? "true" : "false");
+              b.title = anchorListLines(p.a).join("\n");
+              b.textContent = p.a.word;
+              Object.assign(b.style, {
+                position: "absolute", left: `${Math.round(p.r.x)}px`, top: `${Math.round(p.r.y)}px`, height: `${p.r.h}px`,
+                padding: "0 7px", font: `700 10px ${MARKET_SANS}`, letterSpacing: "0.04em", fontVariantNumeric: "tabular-nums",
+                color: "#ede6d3", background: "rgba(17,15,11,0.86)", border: "1px solid rgba(201,165,92,0.55)", borderRadius: "9px",
+                opacity: p.crowded ? "0.7" : "1", pointerEvents: "auto", cursor: "pointer", whiteSpace: "nowrap",
+              });
+              el.appendChild(b);
+              if (noteAnchorOpenRef.current === p.seed) {
+                const list = document.createElement("div");
+                list.dataset.testid = "event-note-list";
+                Object.assign(list.style, {
+                  position: "absolute", left: `${Math.round(Math.min(p.r.x, plotRight - 230))}px`, top: `${Math.round(p.r.y + p.r.h + 4)}px`, width: "226px",
+                  padding: "6px 8px", font: `600 10px ${MARKET_SANS}`, color: "#ede6d3", background: "rgba(17,15,11,0.94)",
+                  border: "1px solid rgba(201,165,92,0.5)", borderRadius: "8px", pointerEvents: "auto", zIndex: "1",
+                });
+                for (const line of anchorListLines(p.a)) { const d = document.createElement("div"); d.textContent = line; d.style.padding = "2px 0"; list.appendChild(d); }
+                const off = document.createElement("button");
+                off.type = "button"; off.dataset.action = "compose-off"; off.textContent = "Show every label in place";
+                Object.assign(off.style, { marginTop: "4px", color: "#c9a55c", background: "transparent", border: "none", padding: "2px 0", cursor: "pointer", font: `700 10px ${MARKET_SANS}` });
+                list.appendChild(off);
+                el.appendChild(list);
+              }
+            }
+          }
+        }
+      } catch (err) { layerFault("EVENT_NOTES", err); }
+
       // Release the plot-area clip established right after the data guard.
       ctx.restore();
 
@@ -23836,7 +24020,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, absorptionAnatomyActive, getBarSubProfile]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, wisdomLineOn, absorptionAnatomyActive, getBarSubProfile]);
 
   /*
     THE HIDDEN-TAB STAMP CANNOT LIVE INSIDE THE RAF LOOP.
@@ -26483,6 +26667,34 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ref={canvasRef}
           className="absolute top-0 left-0 pointer-events-none"
           style={{ mixBlendMode: "normal", opacity: flowOpacity, zIndex: 5 }}
+        />
+        {/* §16 event-note anchors — filled by the paint loop (no React render per frame). */}
+        <div
+          ref={noteAnchorsElRef}
+          data-testid="event-note-anchors"
+          className="absolute inset-0 pointer-events-none"
+          style={{ zIndex: 21 }}
+          onPointerDown={e => { if ((e.target as HTMLElement).closest("button")) e.stopPropagation(); }}
+          onClick={e => {
+            const t = e.target as HTMLElement;
+            const btn = t.closest("button") as HTMLButtonElement | null;
+            if (!btn) return;
+            e.stopPropagation();
+            if (btn.dataset.action === "compose-on") {
+              composeNotesRef.current = true;
+              if (!proofSceneHoldsWrites()) { try { localStorage.setItem(COMPOSE_NOTES_KEY, "true"); } catch { /* this visit only */ } }
+              return;
+            }
+            if (btn.dataset.action === "compose-off") {
+              composeNotesRef.current = false;
+              noteAnchorOpenRef.current = null;
+              if (!proofSceneHoldsWrites()) { try { localStorage.setItem(COMPOSE_NOTES_KEY, "false"); } catch { /* this visit only */ } }
+              return;
+            }
+            const seed = btn.dataset.anchorSeed ?? null;
+            noteAnchorOpenRef.current = noteAnchorOpenRef.current === seed ? null : seed;
+            noteAnchorsKeyRef.current = "";
+          }}
         />
         {/*
           VP DECLINE NOTICE — the empty lane explains itself.

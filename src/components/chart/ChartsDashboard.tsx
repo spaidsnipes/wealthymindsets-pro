@@ -1,7 +1,7 @@
 "use client";
 
 import { educationIdForSelection } from "@/lib/chart/inventionEducation";
-import { SelectionFirstTouch } from "./SelectionFirstTouch";
+import { SelectionFirstTouch, InspectFirstTouchContext } from "./SelectionFirstTouch";
 import { orderFlowToolCapability } from "@/lib/marketData/orderFlowToolCapability";
 import { openSettings } from "@/components/layout/shellPanels";
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
@@ -914,6 +914,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [effortResponseOn, setEffortResponseOn] = useState<boolean>(() => lsGet("wm_effortResponse", true) as boolean);
   // BAR DELTA KEEL (Garden 19 §6): on by default; silent without signed evidence.
   const [deltaKeelOn, setDeltaKeelOn] = useState<boolean>(() => lsGet("wm_deltaKeel", true) as boolean);
+  // CROSS-CANDLE WISDOM (Garden 19 §17): one quiet line, only from real evidence.
+  const [wisdomLineOn, setWisdomLineOn] = useState<boolean>(() => lsGet("wm_wisdomLine", true) as boolean);
   /**
    * ABSORPTION ANATOMY (Founder Asset 06) — the EFFORT field + ABSORPTION ZONE
    * band, drawn on the chart in price/time space by MainChart's overlay pass.
@@ -1281,6 +1283,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_sessionBands", sessionBandsPref);
   usePersistOnChange("wm_effortResponse", effortResponseOn);
   usePersistOnChange("wm_deltaKeel", deltaKeelOn);
+  usePersistOnChange("wm_wisdomLine", wisdomLineOn);
   usePersistOnChange("wm_absorptionAnatomy",   absorptionAnatomy);
   usePersistOnChange("wm_exhaustion",          exhaustionOn);
   usePersistOnChange("wm_ofImbalanceStack",    imbalanceStackOn);
@@ -3830,6 +3833,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         aliases: ["delta", "bar delta", "keel", "aggression", "failed aggression", "order flow", "cvd"],
         active: deltaKeelOn,
         onToggle: () => setDeltaKeelOn(v => !v),
+      }, {
+        id: "WISDOM_LINE",
+        label: "Cross-Candle Wisdom",
+        what: "One quiet line across the candles — e.g. EFFORT INCREASING — RESPONSE WEAKENING — only when a switched-on reading proves it; inspect its bar for the evidence",
+        familyWord: "Context",
+        aliases: ["wisdom", "insight", "summary line", "failed to displace", "value migrating", "effort increasing"],
+        active: wisdomLineOn,
+        onToggle: () => setWisdomLineOn(v => !v),
       }, ...FOOTPRINT_TYPES.map(t => ({
         id: `FP_${t.id}`,
         label: t.id === "big-trades" ? "Big Trades" : `Footprint · ${t.label}`,
@@ -6755,6 +6766,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       sessionBandsOn={sessionBandsPref ?? sessionBandsDefaultOn(symbol)}
                       effortResponseOn={effortResponseOn}
                       deltaKeelOn={deltaKeelOn}
+                      wisdomLineOn={wisdomLineOn}
                       absorptionAnatomyActive={absorptionAnatomy}
                       exhaustionOnChart={exhaustionOn}
                       /*
@@ -6926,6 +6938,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         mounted the same element renders in the rail's lens card
                         (UI-04 — no question controls on the price surface). */}
                     {!lensRailMounted && lensChooser}
+                    {/* Garden 19 §10 · on a phone the first-touch line rides in Inspect's header. */}
+                    <InspectFirstTouchContext.Provider value={firstTouchId ? { id: firstTouchId, label: firstTouchLabel } : null}>
                     {activeTab === "Chart" && !gridView && chartBars.length >= 2 && (
                       <ChartInspectTicket
                         vm={inspectTicketVM}
@@ -6963,6 +6977,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         onOpenFootprint={() => setActiveTab("Worksheet")}
                       />
                     )}
+                    </InspectFirstTouchContext.Provider>
                     {/* Garden 19 §10 · FIRST TOUCH — what the selected mark IS, from the
                         same education record as its ⓘ; Inspect stays the evidence. */}
                     {activeTab === "Chart" && !gridView && firstTouchId ? (

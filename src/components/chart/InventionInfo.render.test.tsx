@@ -66,3 +66,22 @@ describe("§10 first touch", () => {
     expect(renderToStaticMarkup(<SelectionFirstTouch id={null} label="" inspectOpen={false} onOpenInspect={() => {}} />)).toBe("");
   });
 });
+
+describe("§10 on a phone — never a second card beside an open Inspect", () => {
+  it("hides the card on phone while Inspect is open, and keeps the phone card to one line + two buttons", async () => {
+    const open = renderToStaticMarkup(<SelectionFirstTouch id="BRICK_WALLS" label="Brick Walls" inspectOpen onOpenInspect={() => {}} />);
+    expect(open).toMatch(/data-inspect-open="true"[^>]*class="[^"]*max-sm:hidden/);
+    const closed = renderToStaticMarkup(<SelectionFirstTouch id="BRICK_WALLS" label="Brick Walls" inspectOpen={false} onOpenInspect={() => {}} />);
+    expect(closed).toMatch(/data-testid="first-touch-read"[^>]*class="max-sm:hidden/);
+  });
+  it("the same line rides in Inspect's header, phone only", async () => {
+    const { InspectFirstTouchContext, InspectFirstTouchLine } = await import("./SelectionFirstTouch");
+    const html = renderToStaticMarkup(
+      <InspectFirstTouchContext.Provider value={{ id: "BRICK_WALLS", label: "Brick Walls" }}><InspectFirstTouchLine /></InspectFirstTouchContext.Provider>,
+    );
+    expect(html).toContain('data-testid="inspect-first-touch"');
+    expect(html).toContain("hidden max-sm:block");
+    expect(html).toContain("Brick wall — a strike dealers are positioned at");
+    expect(renderToStaticMarkup(<InspectFirstTouchLine />)).toBe("");
+  });
+});

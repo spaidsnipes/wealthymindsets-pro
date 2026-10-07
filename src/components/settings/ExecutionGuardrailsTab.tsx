@@ -10,6 +10,7 @@ import React, { useEffect, useState } from "react";
 
 import type { Guardrails } from "@/lib/execution/guardrails";
 import { useGuardrails, writeGuardrails } from "@/lib/execution/useGuardrails";
+import { ServerOrderLimitsPanel } from "./ServerOrderLimitsPanel";
 
 const field = "min-h-11 w-28 rounded-lg border border-wm-border bg-wm-surface px-2 py-1 text-xs text-wm-text outline-none focus-visible:ring-2 focus-visible:ring-wm-gold";
 
@@ -54,6 +55,8 @@ export function ExecutionGuardrailsTab() {
         Save commitments
       </button>
       {note ? <p role="status" className="mt-2 text-[11px] text-wm-text-muted">{note}</p> : null}
+      {/* Garden 19 §23 / P0.3 — the limits the order route itself enforces, and the kill switch. */}
+      <ServerOrderLimitsPanel />
     </div>
   );
 }

@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { brokerOwnerRefusal, tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
 import { TT_ACTIONS, TT_INSTRUMENT_TYPES, osiToTastytrade, toTastytradeOrder } from "@/lib/broker/tastytradeOrder";
+import { orderDecisionKv } from "@/lib/broker/orderDecisionLedger";
+import { preflightLiveOrder } from "@/lib/execution/liveOrderPreflight";
+import { loadServerOrderLimits } from "@/lib/execution/serverOrderLimitsStore";
+import { webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
 import { requireAuth } from "@/lib/requireAuth";
 import { dryRunTastytradeOrder, getTastytradeAccounts, tastytradeConfigStatus } from "@/lib/tastytrade";
 
@@ -52,7 +56,23 @@ export async function POST(req: NextRequest) {
     const account = accounts[index];
     if (!account) return NextResponse.json({ state: "NO_SUCH_ACCOUNT", accounts: choices }, { headers: { "Cache-Control": "no-store" } });
     const result = await dryRunTastytradeOrder(account.accountNumber, mapped.order);
-    return NextResponse.json({ state: "DRY_RUN_OK", result, accounts: choices, accountIndex: index, order: mapped.order }, { headers: { "Cache-Control": "no-store" } });
+    // Garden 19 §23 — the PREVIEW answers with the server's own gate beside
+    // tastytrade's dry run: the same liveOrderPreflight the order-submit route
+    // runs, on the same fields. A refusal here is what the send would answer.
+    // The dry run itself places nothing either way.
+    let limits = null;
+    try { limits = await loadServerOrderLimits(orderDecisionKv(await webullWorkerEnv()), auth.user.sub); } catch { limits = null; }
+    const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+    const q = (input.quote ?? null) as Record<string, unknown> | null;
+    const preflight = preflightLiveOrder({
+      instrumentType, symbol, action, qty: typeof input.qty === "number" ? input.qty : 0, type: mapped.order["order-type"],
+      limitPx: num(input.limitPx), stopPx: num(input.stopPx), protectiveStopPx: num(input.protectiveStopPx),
+      environment: input.environment === "production" || input.environment === "cert" ? input.environment : null,
+      accountIndex: Number.isInteger(input.accountIndex) ? index : null,
+      quote: q && typeof q === "object" ? { bid: num(q.bid), ask: num(q.ask), atMs: num(q.atMs) } : null,
+      multiplier: num(input.multiplier),
+    }, { limits, serverEnvironment: tastytradeConfigStatus().env === "cert" ? "cert" : "production", nowMs: Date.now() });
+    return NextResponse.json({ state: "DRY_RUN_OK", result, accounts: choices, accountIndex: index, order: mapped.order, preflight }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return NextResponse.json({ state: "REJECTED", reason: e instanceof Error ? e.message : "unknown" }, { headers: { "Cache-Control": "no-store" } });
   }

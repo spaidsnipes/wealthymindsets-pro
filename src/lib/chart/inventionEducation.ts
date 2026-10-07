@@ -467,6 +467,17 @@ export const INSTRUMENT_EDUCATION: Readonly<Record<string, InventionEducation>> 
     firstTouch: "Delta keel — who won this bar, and whether it moved.",
     canon: "F06 Order flow across candles · Garden 19 §6 · C-02",
   },
+  WISDOM_LINE: {
+    question: "Across the last candles, what is the one thing the evidence says?",
+    needs: "OTHER_LAYERS", evidence: "Only readings already switched on and drawn: Delta Keel, Effort → Response, Value Migration.",
+    appears: "One quiet line near the top of the chart, tied by a hairline to the bar it is about.",
+    grammar: "SELL AGGRESSION FAILED TO DISPLACE, EFFORT INCREASING — RESPONSE WEAKENING, VALUE MIGRATING HIGHER. No line means no reading proved one.",
+    full: "Its source readings are on and drawn.",
+    partial: "Some sources are off — the line speaks only from the ones that are on.",
+    degraded: "No source reading on this market (spot FX has no volume or sides) — it stays silent.",
+    firstTouch: "Wisdom line — the one sentence the drawn evidence supports.",
+    canon: "F17 Cross-candle wisdom · Garden 19 §17",
+  },
   "FP_bid-ask": {
     question: "Inside this candle, how much traded on the bid versus the ask at each price?",
     needs: "SIDED_TAPE", evidence: "Sided prints inside each bar.",
@@ -570,7 +581,12 @@ export function educationTruthLines(input: {
     if (e.availability === "WAITING_FOR_BARS" || e.availability === "WAITING_FOR_PRINTS") verdict = "WAITING";
     else if (e.availability !== "READY") verdict = "UNAVAILABLE HERE";
     const note = e.availabilityNote.charAt(0).toUpperCase() + e.availabilityNote.slice(1);
-    lines.push(e.stateWords ? `${e.stateWords}. ${note}.` : `${note}.`);
+    // The state words are the chip's short form of the note; print them only
+    // when the note does not already say the same thing (spot FX said
+    // "needs traded volume" twice).
+    const head = e.stateWords ? e.stateWords.split("·")[0].trim().toLowerCase() : "";
+    const repeats = head.length > 0 && note.toLowerCase().includes(head);
+    lines.push(e.stateWords && !repeats ? `${e.stateWords}. ${note}.` : `${note}.`);
   } else if (input.instrumentTruth) {
     verdict = input.instrumentTruth.ok ? "CAN DRAW HERE" : input.instrumentTruth.waiting ? "WAITING" : "UNAVAILABLE HERE";
     lines.push(input.instrumentTruth.sentence);

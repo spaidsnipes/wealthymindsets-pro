@@ -520,7 +520,7 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
               </div>
               {answer ? <p role="status" style={{ marginTop: 6, color: answer.includes("accepted") ? GREEN : GOLD }}>{answer}</p> : null}
               <TastytradeLiveOrder
-                intent={{ instrumentType: optionType, symbol: pick.symbol, action, qty, limitPx: limitNum, describe: `${product} ${pick.strike} ${pick.right} · ${exp ? shortDate(exp.expiration) : ""} on ${exp?.parent ?? ""}` }}
+                intent={{ instrumentType: optionType, symbol: pick.symbol, action, qty, limitPx: limitNum, describe: `${product} ${pick.strike} ${pick.right} · ${exp ? shortDate(exp.expiration) : ""} on ${exp?.parent ?? ""}`, quote: pickQ ? { bid: pickQ.bid, ask: pickQ.ask, atMs: pickQ.quoteAt } : null, multiplier: exp?.multiplier ?? null }}
                 ensureDecision={ensureDecision}
               />
             </section>
@@ -548,7 +548,7 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
                 <span style={{ color: MUTED, ...MONO }}>live {px(parentQ?.bid)} × {px(parentQ?.ask)} · limit starts at the {futAction.startsWith("Buy") ? "ask" : "bid"}</span>
               </div>
               <TastytradeLiveOrder
-                intent={parent ? { instrumentType: "Future", symbol: parent, action: futAction, qty: futQty, limitPx: Number(futLimit) > 0 ? Number(futLimit) : null, describe: `${parent} future` } : null}
+                intent={parent ? { instrumentType: "Future", symbol: parent, action: futAction, qty: futQty, limitPx: Number(futLimit) > 0 ? Number(futLimit) : null, describe: `${parent} future`, quote: parentQ ? { bid: parentQ.bid, ask: parentQ.ask, atMs: parentQ.quoteAt } : null } : null}
                 ensureDecision={ensureDecision}
               />
             </details>}

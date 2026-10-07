@@ -5,6 +5,8 @@ import { brokerOwnerRefusal, tastytradeOwnerGate } from "@/lib/broker/brokerOwne
 import { TT_ACTIONS, TT_INSTRUMENT_TYPES, osiToTastytrade, toTastytradeOrder } from "@/lib/broker/tastytradeOrder";
 import { readTastytradeOrder } from "@/lib/broker/tastytradeOrderState";
 import { orderDecisionKv, putOrderDecision } from "@/lib/broker/orderDecisionLedger";
+import { preflightLiveOrder, type ServerOrderLimits } from "@/lib/execution/liveOrderPreflight";
+import { loadServerOrderLimits } from "@/lib/execution/serverOrderLimitsStore";
 import { requireAuth } from "@/lib/requireAuth";
 import { webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
 import {
@@ -29,6 +31,12 @@ const NO_STORE = { "Cache-Control": "no-store" };
  *      Decision_ID, idempotency key) or is refused locally;
  *   3. executionAuthority: a live order is HIGH_IMPACT and needs the human's
  *      explicit approval in THIS request (`confirmLive: true`);
+ *   3b. Garden 19 §23 / P0.3: the SERVER-HELD limits (liveOrderPreflight):
+ *      kill switch, server arm (default DISARMED), every applicable cap set
+ *      and held (quantity, notional, loss at the protective stop), the
+ *      environment the ticket showed equals the server's, a dated contract,
+ *      a fresh quote for risk-increasing orders, verified protection for
+ *      opening orders, unsupported products refused;
  *   4. the account is the one the trader named — never silently moved — and a
  *      futures order to a non-futures account is refused in words;
  *   5. duplicate protection: an order already at tastytrade with this
@@ -74,6 +82,30 @@ export async function POST(req: NextRequest) {
     humanApproval: input.confirmLive === true ? { approved: true, approvedBy: auth.user.sub } : null,
   });
   if (!authority.authorized) return NextResponse.json({ state: "NOT_AUTHORIZED", reason: authority.reason, code: authority.reasonCode }, { status: 403, headers: NO_STORE });
+
+  // Garden 19 §23 / P0.3 — the SERVER-HELD limits and kill switch, read on every
+  // send. No store, nothing stored, or any refusal → nothing reaches tastytrade.
+  let limits: ServerOrderLimits | null = null;
+  try {
+    limits = await loadServerOrderLimits(orderDecisionKv(await webullWorkerEnv()), auth.user.sub);
+  } catch {
+    limits = null;
+  }
+  const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const q = (input.quote ?? null) as Record<string, unknown> | null;
+  const preflight = preflightLiveOrder({
+    instrumentType, symbol, action, qty, type: mapped.order["order-type"],
+    limitPx: num(input.limitPx), stopPx: num(input.stopPx), protectiveStopPx: num(input.protectiveStopPx),
+    environment: input.environment === "production" || input.environment === "cert" ? input.environment : null,
+    accountIndex: input.accountIndex as number,
+    quote: q && typeof q === "object" ? { bid: num(q.bid), ask: num(q.ask), atMs: num(q.atMs) } : null,
+    multiplier: num(input.multiplier),
+  }, { limits, serverEnvironment: tastytradeConfigStatus().env === "cert" ? "cert" : "production", nowMs: Date.now() });
+  if (!preflight.ok) {
+    const first = preflight.refusals[0]!;
+    const state = first.code === "KILL_SWITCH" ? "KILL_SWITCH" : first.code === "LIMITS_UNSET" ? "LIMITS_UNSET" : "REFUSED_PREFLIGHT";
+    return NextResponse.json({ state, reason: preflight.refusals.map(r => r.reason).join(" "), refusals: preflight.refusals }, { status: 422, headers: NO_STORE });
+  }
 
   let accountNumber: string;
   let tail: string;

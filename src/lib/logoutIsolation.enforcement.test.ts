@@ -114,6 +114,7 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   "wm_bubble_sound",          // bubble sound — device chart pref
   "wm_bigtrades_simul",       // demo mode — device chart pref
   "wm_bigtrades_on",          // Big Trades overlay on/off — device chart pref
+  "wm_composeNotes",          // §16 note-anchor compose on/off — device chart pref
   "wm_bf_seq_best",           // best-perf record — device metric
   "wm_active_watchlist",      // last-selected watchlist name — device chart pref
   "wm_chart_watchlist_open",  // watchlist visibility — device chart layout pref

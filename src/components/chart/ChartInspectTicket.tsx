@@ -117,6 +117,7 @@ import type { ClarityAnatomyVM } from "@/lib/marketData/viewModels/selectClarity
 import { memoryLevelKindOf } from "@/lib/marketData/viewModels/selectMemoryMarketObjects";
 import { scenarioHedge, type ConcentrationWall, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
+import { InspectFirstTouchLine } from "./SelectionFirstTouch";
 
 /** A refused row is the WARM colour, not the alarm colour. It is a fact about
  *  the feed, not a problem the trader caused. */
@@ -317,6 +318,7 @@ function AnatomyTicket({ sel, onClose, timeZone }: { sel: SelectedAnatomy; onClo
         <Crosshair size={11} /> {absorption ? "SELECTED ABSORPTION ZONE" : "SELECTED EXHAUSTION"}
         <button className="ml-auto" aria-label="Close the inspect ticket" onClick={onClose}><X size={12} /></button>
       </div>
+      <InspectFirstTouchLine />
       <div className="mt-1 text-[11px] text-white">{sel.symbol} · {sel.timeframe} <span className="break-all font-mono text-[10px]" style={{ color: "#8B8676" }}>{r.id}</span></div>
       <div className="mt-1 text-[10px] font-bold tracking-wide" style={{ color: anatomyReadingDrawn(r) ? "#7FD1A6" : UNREAD_COLOR }}>
         {anatomyReadingDrawn(r) ? "ON THE GLASS" : r.state.replace(/_/g, " ")}
@@ -596,6 +598,7 @@ function PassportDrawer({
           <Lock size={14} className="ml-auto" style={{ color: WM.gold.mark }} aria-label="Read-only: the passport remembers, it is not edited" />
           <button className="ml-1" aria-label="Close the passport" onClick={onClose}><X size={14} /></button>
         </div>
+        <InspectFirstTouchLine />
         {/* D ≈ 0 — depth zero: the object, its lineage and its decision in ONE inspect (inspectChain.ts). */}
         <div className="mt-0.5 text-center text-[11px] tracking-[0.2em]" style={{ color: WM.text.body }} title="Depth zero — one inspect, the chart stays">D ≈ 0</div>
         <div className="mt-1 flex items-center gap-2 text-[12px]" style={{ color: WM.text.body }}>
@@ -999,6 +1002,7 @@ export function ChartInspectTicket({
           <Crosshair size={11} /> PROFILE SLICE · LIVING
           <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
         </div>
+        <InspectFirstTouchLine />
         {sl.found ? (
           <>
             <div className="mt-2 text-[11px] text-white">{profileSliceSymbol} · {fmt(sl.price)} – {fmt(sl.priceHigh)}{sl.isPoc ? " · POC" : ""}</div>
@@ -1075,6 +1079,7 @@ export function ChartInspectTicket({
             <Crosshair size={11} /> INSPECT: BIG TRADE CLUSTER
             <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
           </div>
+          <InspectFirstTouchLine />
           <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
           <div className="mt-1 text-[18px] font-bold leading-tight text-wm-gold">{formatBubbleExact(c.total)} <span className="text-[12px]">×{c.n}</span></div>
           <div className="text-[10px]" style={{ color: "#C8C0AE" }}>
@@ -1134,6 +1139,7 @@ export function ChartInspectTicket({
             <Crosshair size={11} /> SELECTED DELTA ZONE
             <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
           </div>
+          <InspectFirstTouchLine />
           <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
           <dl className="mt-2 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
             <dt>Net in this zone (bought − sold)</dt><dd className="text-white">{net >= 0 ? "+" : "−"}{formatBubbleExact(net)}</dd>
@@ -1155,6 +1161,7 @@ export function ChartInspectTicket({
           <Crosshair size={11} /> SELECTED PRINT
           <button className="ml-auto" aria-label="Close the inspect ticket" onClick={() => onOpenChange(false)}><X size={12} /></button>
         </div>
+        <InspectFirstTouchLine />
         <div className="mt-2 text-[11px] text-white">{p.symbol} · {p.timeframe}</div>
         <dl className="mt-2 text-[11px] break-words space-y-1" style={{ color: "#C8C0AE" }}>
           <dt>Executed price</dt><dd className="text-white">{String(p.priceLevel)}</dd>
@@ -1240,6 +1247,7 @@ export function ChartInspectTicket({
           <X size={12} />
         </button>
       </div>
+      <InspectFirstTouchLine />
 
       <div className="pt-1.5 text-[10px] font-bold tracking-wide text-wm-muted">
         {followingLiveBar ? "LIVE BAR" : "SELECTED BAR"}

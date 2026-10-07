@@ -112,3 +112,11 @@ describe("a row with no owner verdict never claims ready", () => {
     expect(educationTruthLines({ id: "EFFORT_RESPONSE", symbol: "AAPL" }).verdict).toBe("STATE NOT REPORTED");
   });
 });
+
+describe("spot FX says 'needs traded volume' once", () => {
+  it("drops the chip's state words when the note already says them", () => {
+    const fx = selectProfileMenu({ barsPresent: true, printsPresent: false, observedAggressorFlow: false, active: {}, symbol: "EURUSD" });
+    const t = educationTruthLines({ entry: fx.entries.find(e => e.id === "ABSORPTION")!, feed: "LIVE" });
+    expect((t.lines.join(" ").match(/needs traded volume/gi) ?? []).length).toBe(1);
+  });
+});

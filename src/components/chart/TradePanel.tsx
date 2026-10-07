@@ -21,6 +21,15 @@
  * Protection is real and stated: after the entry, a broker-native Stop and a
  * target Limit (both GTC, both closing) can each be armed and sent; they are
  * NOT linked (no OCO yet), and the panel says so.
+ *
+ * TRADE FROM CHART (Garden 19 §23): entry / stop / target can be picked on the
+ * glass (when the chart hosts the pick) and are published to the chart as
+ * STAGED lines — never drawn as working. Preview (dry run + the server gate)
+ * → confirm sheet → send happen in TastytradeLiveOrder. tastytrade's own
+ * working orders and position for the contract are read back
+ * (useBrokerChartLines) and drawn as WORKING / RECONCILING / UNKNOWN /
+ * POSITION lines. A SpaidBot PROPOSAL (§24) can be loaded into the ticket; it
+ * never sends.
  */
 
 import { openSettings } from "@/components/layout/shellPanels";
@@ -39,6 +48,14 @@ import { canonicalAssetClass, cryptoBaseTicker } from "@/lib/marketData/canonica
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
+import { armChartPricePick, cancelChartPricePick, publishChartOrderLines, useChartPricePick, useChartPricePickHosted, type ChartOrderLine } from "@/lib/execution/chartOrderLines";
+import { datedFuturesContract } from "@/lib/execution/liveOrderPreflight";
+import { isPreSendPhase, type LiveOrderPhase } from "@/lib/execution/liveOrderLifecycle";
+import { changeServerOrderLimits, useServerOrderLimits } from "@/lib/execution/useServerOrderLimits";
+import { useBrokerChartLines } from "@/lib/execution/useBrokerChartLines";
+import { planFlatten } from "@/lib/execution/brokerOrderLines";
+import { proposalToTicket, recordProposalEvent, type SpaidBotProposal } from "@/lib/execution/spaidbotProposal";
+import { dismissSpaidBotProposal, useSpaidBotProposal } from "@/lib/execution/spaidbotProposalInbox";
 
 /** guest audit 2026-10-04: quote-stream states in plain words (the enum stays in data-state). */
 const STREAM_WORDS: Readonly<Record<string, string>> = {
@@ -161,6 +178,68 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const stopWrongSide = referenceEntry != null && stopNum != null && (side === "BUY" ? stopNum >= referenceEntry : stopNum <= referenceEntry);
   const notional = referenceEntry != null ? referenceEntry * perUnit * qty : null;
 
+  // ── Garden 19 §23 — TRADE FROM CHART ──────────────────────────────────────
+  const owner = audience === "OWNER";
+  const tradable = kind === "FUTURE" || kind === "STOCK" || kind === "CRYPTO";
+  const server = useServerOrderLimits(owner);
+  const [entryPhase, setEntryPhase] = useState<LiveOrderPhase>("DISARMED");
+  const pickHosted = useChartPricePickHosted();
+  const { pick, picked } = useChartPricePick();
+  const lastPick = useRef(0);
+  useEffect(() => {
+    if (!picked || picked.seq === lastPick.current || picked.symbol !== symbol.toUpperCase()) return;
+    lastPick.current = picked.seq;
+    const v = (tick ? Math.round(picked.price / tick) * tick : picked.price).toFixed(dp);
+    if (picked.role === "STOP") setStop(v);
+    else if (picked.role === "TARGET") setTarget(v);
+    else if (effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit") setEntryTrigger(v);
+    else { if (effectiveEntryType === "Market") setEntryType("Limit"); setLimit(v); }
+    setAnswer(null);
+  }, [picked]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => cancelChartPricePick(), []);
+  const pickBtn = (role: "ENTRY" | "STOP" | "TARGET") => pickHosted && owner ? (
+    <button type="button" data-testid={`trade-pick-${role.toLowerCase()}`} aria-label={`Pick the ${role.toLowerCase()} on the chart`} aria-pressed={pick?.role === role}
+      onClick={() => (pick?.role === role ? cancelChartPricePick() : armChartPricePick(role))} style={{ ...btn(pick?.role === role), minHeight: 26, padding: "0 6px" }}>⌖</button>
+  ) : null;
+
+  // STAGED lines on the chart while nothing has been sent from this ticket.
+  const stagedEntryPx = referenceEntry ?? (effectiveEntryType === "Stop" ? triggerNum : null);
+  useEffect(() => {
+    const c = contract?.symbol;
+    if (!c || !owner || !tradable || !isPreSendPhase(entryPhase)) { publishChartOrderLines("ticket", symbol, []); return; }
+    const exit = side === "BUY" ? "SELL" : "BUY";
+    const lines: ChartOrderLine[] = [];
+    if (stagedEntryPx != null) lines.push({ id: "ticket-entry", role: "ENTRY", status: "STAGED", price: stagedEntryPx, contract: c, detail: `${side} ${qty} ${effectiveEntryType.toUpperCase()}` });
+    if (stopNum != null && !closing) lines.push({ id: "ticket-stop", role: "STOP", status: "STAGED", price: stopNum, contract: c, detail: `${exit} ${qty}`, pnlUsd: riskUsd != null ? -riskUsd : null });
+    if (targetNum != null && !closing) lines.push({ id: "ticket-target", role: "TARGET", status: "STAGED", price: targetNum, contract: c, detail: `${exit} ${qty}`, pnlUsd: rewardUsd });
+    publishChartOrderLines("ticket", symbol, lines);
+  }, [contract?.symbol, owner, tradable, entryPhase, stagedEntryPx, stopNum, targetNum, side, qty, effectiveEntryType, closing, riskUsd, rewardUsd, symbol]);
+  useEffect(() => () => publishChartOrderLines("ticket", symbol, []), [symbol]);
+
+  // tastytrade's own working orders and position for this contract (read routes only).
+  const mark = q?.bid != null && q?.ask != null ? (q.bid + q.ask) / 2 : q?.last ?? null;
+  const broker = useBrokerChartLines({ enabled: owner && tradable, chartSymbol: symbol, contract: contract?.symbol ?? null, mark, pointValue: kind === "FUTURE" ? pointValue : 1 });
+  const dated = kind === "FUTURE" && contract ? datedFuturesContract(contract.symbol, Date.now()) : null;
+  const quoteForGate = q ? { bid: q.bid, ask: q.ask, atMs: q.quoteAt } : null;
+
+  // §24 — a SpaidBot PROPOSAL waits here; loading it stages the ticket, never sends.
+  const proposal = useSpaidBotProposal(symbol);
+  const [loadedProposal, setLoadedProposal] = useState<SpaidBotProposal | null>(null);
+  const [proposalWhy, setProposalWhy] = useState<string | null>(null);
+  function loadProposal(p: SpaidBotProposal) {
+    const cap = kind === "STOCK" ? server.limits?.maxSharesPerOrder ?? null : server.limits?.maxContractsPerOrder ?? null;
+    const r = proposalToTicket(p, cap, Date.now());
+    if (!r.ok) { setProposalWhy(r.reasons.join(" ")); return; }
+    const t = r.ticket;
+    setSide(t.side); setClosing(false); setQty(t.qty); setEntryType("Limit");
+    setLimit(t.limitPx.toFixed(dp)); setStop(t.stopPx.toFixed(dp)); setTarget(t.targetPx != null ? t.targetPx.toFixed(dp) : "");
+    seeded.current = `${contract?.symbol}|${t.side}`;
+    decisionRef.current = t.decisionId;
+    setLoadedProposal(recordProposalEvent(p, "LOADED_INTO_TICKET", "TRADER", Date.now()));
+    setProposalWhy(null);
+    dismissSpaidBotProposal(symbol);
+  }
+
   const decisionRef = useRef<string | null>(null);
   useEffect(() => { decisionRef.current = bornDecision?.decisionId ?? null; }, [bornDecision]);
   function ensureDecision(): string | null {
@@ -227,11 +306,17 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         <strong style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 15, letterSpacing: 1 }}>TRADE</strong>
         <span data-testid="trade-kind" style={{ fontSize: 10, letterSpacing: 1.2, color: GOLD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 6px" }}>{kind === "FUTURE" ? "FUTURE" : kind}</span>
         <span style={{ fontWeight: 600 }}>{contract?.symbol ?? symbol}</span>
-        {kind === "FUTURE" && contract && contract.symbol !== symbol.toUpperCase() ? <span style={{ color: MUTED }}>· {symbol} → this contract</span> : null}
+        {kind === "FUTURE" && contract && contract.symbol !== symbol.toUpperCase() ? <span data-testid="trade-dated-contract" style={{ color: MUTED }}>· {symbol} → {dated?.label ?? contract.symbol}</span> : null}
         {audience === "OWNER" && <button type="button" data-testid="trade-live-arm" onClick={() => openSettings("execution")}
           title={liveArmed ? "Live orders can be armed — open Settings › Execution" : "Live trading is disarmed — open Settings › Execution; nothing can be sent until it is armed there"}
           style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", border: `1px solid ${liveArmed ? RED : LINE}`, color: liveArmed ? RED : MUTED, background: "none", cursor: "pointer" }}>
           {liveArmed ? "LIVE ARMED" : "LIVE DISARMED"}
+        </button>}
+        {owner && <button type="button" data-testid="trade-kill-switch" disabled={!!server.limits?.killSwitch}
+          onClick={() => void changeServerOrderLimits({ killSwitch: true })}
+          title={server.limits?.killSwitch ? "Kill switch engaged — release it in Settings › Execution" : "Kill switch: one press refuses every new live order (cancel stays open)"}
+          style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", border: `1px solid ${RED}`, color: server.limits?.killSwitch ? "#fff" : RED, background: server.limits?.killSwitch ? "#7a2a22" : "none", cursor: "pointer" }}>
+          {server.limits?.killSwitch ? "KILLED" : "KILL"}
         </button>}
         <button type="button" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
       </header>
@@ -262,6 +347,36 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           </div>
           {contractWhy ? <p style={{ color: GOLD }}>{contractWhy}</p> : null}
 
+          {/* §24 — SpaidBot PROPOSES; the trader decides. */}
+          {proposal ? (
+            <div data-testid="trade-spaidbot-proposal" style={{ border: `1px dashed ${GOLD}`, borderRadius: 8, padding: 8, display: "grid", gap: 4 }}>
+              <strong style={{ color: GOLD, fontSize: 11, letterSpacing: 1 }}>SPAIDBOT PROPOSES · PROPOSE ONLY — nothing is sent</strong>
+              <span style={MONO}>{proposal.side} {proposal.qty} @ {proposal.entryPx} · stop {proposal.stopPx}{proposal.targetPx != null ? ` · target ${proposal.targetPx}` : ""}</span>
+              <span>{proposal.reason}</span>
+              {proposal.evidence.map((e, i) => <span key={i} style={{ color: MUTED, fontSize: 11 }}>· {e.claim} — {e.source}</span>)}
+              <span style={{ color: MUTED, fontSize: 10 }}>{proposal.decisionId} · {proposal.orderIntentId}</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button type="button" data-testid="trade-load-proposal" onClick={() => loadProposal(proposal)} style={btn(true)}>Load into ticket</button>
+                <button type="button" onClick={() => dismissSpaidBotProposal(symbol)} style={btn(false)}>Dismiss</button>
+              </div>
+            </div>
+          ) : null}
+          {proposalWhy ? <p role="status" style={{ color: GOLD }}>{proposalWhy}</p> : null}
+          {loadedProposal ? <p data-testid="trade-proposal-loaded" style={{ color: MUTED, fontSize: 11 }}>Loaded from SpaidBot proposal {loadedProposal.proposalId} ({loadedProposal.reason}). Preview and confirmation are still yours.</p> : null}
+
+          {/* §23 — tastytrade's own position on this contract, read back. */}
+          {broker?.position ? (
+            <div data-testid="trade-broker-position" data-protection={broker.position.protection} data-readback={broker.readback} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", ...MONO }}>
+              <span>tastytrade · {broker.position.row.direction.toUpperCase()} {broker.position.row.quantity} @ {broker.position.row.averageOpenPrice}</span>
+              <span style={{ color: broker.position.pnlUsd == null ? MUTED : INK }}>{broker.position.pnlUsd == null ? "P&L —" : `${broker.position.pnlUsd >= 0 ? "+" : "−"}$${Math.abs(broker.position.pnlUsd).toFixed(2)}`}</span>
+              <span style={{ color: broker.position.protection === "PROTECTED" ? GREEN : RED, fontWeight: 700 }}>{broker.readback === "STALE" ? "RECONCILING" : broker.position.protection === "PROTECTED" ? "STOP WORKING" : "UNPROTECTED"}</span>
+              <button type="button" data-testid="trade-flatten" onClick={() => {
+                const f = planFlatten(broker.position!.row);
+                setSide(f.action === "Sell to Close" ? "SELL" : "BUY"); setClosing(true); setQty(f.qty); setEntryType("Market"); setAnswer("FLATTEN loaded: a closing MARKET order for the held quantity. Preview and confirm below to send it.");
+              }} style={btn(false, RED)}>Load FLATTEN</button>
+            </div>
+          ) : broker?.readback === "STALE" ? <p style={{ color: GOLD, fontSize: 11 }}>RECONCILING · tastytrade&apos;s orders and positions have not answered recently; the chart lines are the last answer, labelled as such.</p> : null}
+
           {/* Side + open/close */}
           <div style={{ display: "flex", gap: 6 }}>
             <button type="button" data-testid="trade-buy" aria-pressed={side === "BUY"} onClick={() => setSide("BUY")} style={{ ...btn(side === "BUY", GREEN), flex: 1, minHeight: 36, fontSize: 13 }}>BUY</button>
@@ -288,12 +403,14 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           {effectiveEntryType === "Market" ? <p style={{ color: MUTED }}>Market entry: fill price and entry risk are unknown until execution.</p> : null}
           {(effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit") ? <label style={{ color: MUTED }}>Entry stop trigger
             <input aria-label="Entry stop trigger" inputMode="decimal" value={entryTrigger} onChange={e => setEntryTrigger(e.target.value)} style={{ marginLeft: 8, width: 110, background: "#0b0a08", color: INK }} />
+            {pickBtn("ENTRY")}
             {effectiveEntryType === "Stop" ? " · fill price is not guaranteed" : " · activates the limit order"}
           </label> : null}
           {(effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit") ? <>
           {/* Limit */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <span style={{ color: MUTED, width: 64 }}>Limit</span>
+            {pickBtn("ENTRY")}
             <button type="button" aria-label="One tick lower" onClick={() => nudge(-1)} style={btn(false)}>−</button>
             <input inputMode="decimal" value={limit} aria-label="Limit price" onChange={e => setLimit(e.target.value)}
               style={{ width: 110, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
@@ -307,11 +424,11 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
 
           {/* Risk on the ticket */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-            <label style={{ color: MUTED }}>Stop / invalidation
+            <label style={{ color: MUTED }}>Stop / invalidation {pickBtn("STOP")}
               <input inputMode="decimal" value={stop} aria-label="Stop price" onChange={e => setStop(e.target.value)}
                 style={{ width: "100%", background: "#0b0a08", border: `1px solid ${stopWrongSide ? RED : LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
             </label>
-            <label style={{ color: MUTED }}>Target
+            <label style={{ color: MUTED }}>Target {pickBtn("TARGET")}
               <input inputMode="decimal" value={target} aria-label="Target price" onChange={e => setTarget(e.target.value)}
                 style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
             </label>
@@ -322,7 +439,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <span style={{ color: MUTED }}>Planned risk at stop</span><span style={{ color: riskUsd != null ? RED : MUTED }}>{stopWrongSide ? "stop is on the wrong side" : riskUsd != null ? `−$${riskUsd.toFixed(2)}` : referenceEntry == null ? "entry fill unknown" : "set a stop"}</span>
             <span style={{ color: MUTED }}>Reward at target</span><span style={{ color: rewardUsd != null ? GREEN : MUTED }}>{rewardUsd != null ? `+$${rewardUsd.toFixed(2)}${riskUsd ? ` · ${(rewardUsd / riskUsd).toFixed(2)}R` : ""}` : "—"}</span>
           </div>
+          {pick ? <p role="status" data-testid="trade-pick-armed" style={{ color: GOLD, fontSize: 11 }}>Click a price on the chart for the {pick.role.toLowerCase()}.</p> : null}
           <p data-testid="trade-protection" style={{ color: MUTED, fontSize: 11 }}>
+            An opening order is refused without a protective stop on the right side of the entry; the server checks the loss at that stop against your ceiling.{" "}
             Protection is sent separately below, once you hold the position: a <strong style={{ color: GOLD }}>broker-native stop</strong> (a resting Stop at tastytrade, GTC) and a target (a resting Limit, GTC). They are <strong style={{ color: GOLD }}>not linked</strong> (no OCO yet) — if one fills, cancel the other.
           </p>
 
@@ -335,8 +454,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           {answer ? <p role="status" style={{ color: /accepted/.test(answer) ? GREEN : GOLD }}>{answer}</p> : null}
 
           <TastytradeLiveOrder
-            intent={contract && instrumentType ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: `${qty} ${contract.symbol}` } : null}
+            intent={contract && instrumentType ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: `${qty} ${contract.symbol}`, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate, chartSymbol: symbol } : null}
             ensureDecision={ensureDecision}
+            onPhase={setEntryPhase}
           />
 
           {/* §LXXVIII — PROTECTION, broker-native, each armed and pressed by the human. */}
@@ -348,13 +468,13 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
               </p>
               {stopNum != null && !stopWrongSide ? (
                 <TastytradeLiveOrder
-                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: null, orderType: "Stop", stopPx: stopNum, tif: "GTC", describe: `${qty} ${contract.symbol} protective stop` }}
+                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: null, orderType: "Stop", stopPx: stopNum, tif: "GTC", describe: `${qty} ${contract.symbol} protective stop`, quote: quoteForGate, chartSymbol: symbol }}
                   ensureDecision={ensureDecision}
                 />
               ) : <p style={{ color: GOLD, fontSize: 11 }}>{stopWrongSide ? "The stop is on the wrong side of the entry." : "Type a stop above to send it as a resting Stop."}</p>}
               {targetNum != null ? (
                 <TastytradeLiveOrder
-                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: targetNum, tif: "GTC", describe: `${qty} ${contract.symbol} target` }}
+                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: targetNum, tif: "GTC", describe: `${qty} ${contract.symbol} target`, quote: quoteForGate, chartSymbol: symbol }}
                   ensureDecision={ensureDecision}
                 />
               ) : <p style={{ color: MUTED, fontSize: 11 }}>Type a target above to send it as a resting Limit.</p>}

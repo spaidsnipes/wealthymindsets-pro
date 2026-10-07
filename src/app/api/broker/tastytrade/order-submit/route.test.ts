@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getTastytradeLiveOrders: vi.fn(),
   dryRunTastytradeOrder: vi.fn(),
   submitTastytradeOrder: vi.fn(),
+  kv: new Map<string, string>(),
 }));
 
 vi.mock("@/lib/requireAuth", () => ({ requireAuth: mocks.requireAuth }));
@@ -18,7 +19,16 @@ vi.mock("@/lib/tastytrade", () => ({
   submitTastytradeOrder: mocks.submitTastytradeOrder,
 }));
 
+// The deployment's KV store (server-held limits + the order → decision ledger), faked in memory.
+vi.mock("@/lib/marketData/webullSessionStore", () => ({
+  WEBULL_SESSION_KV_BINDING: "WEBULL_SESSION",
+  webullWorkerEnv: async () => ({ WEBULL_SESSION: { get: async (k: string) => mocks.kv.get(k) ?? null, put: async (k: string, v: string) => { mocks.kv.set(k, v); } } }),
+}));
+
 import { POST } from "./route";
+import { serverLimitsKey } from "@/lib/execution/serverOrderLimitsStore";
+
+const LIMITS = { armed: true, killSwitch: false, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 100_000, maxLossUsdPerOrder: 300, maxQuoteAgeMs: 5_000, updatedAtMs: 1 };
 
 // The owner's two real accounts, by shape: …6649 is NOT futures-approved, …5019 is.
 const ACCOUNTS = [
@@ -29,6 +39,8 @@ const ACCOUNTS = [
 const MNQ = {
   instrumentType: "Future", symbol: "/MNQZ6", action: "Buy to Open", qty: 1, type: "Limit", limitPx: 30000,
   decisionId: "wmd_test_decision", clientOrderId: "wmo_abcdef123456", accountIndex: 1, confirmLive: true,
+  // Garden 19 §23 / P0.3: the environment the ticket showed, the touch it priced at, the protective stop.
+  environment: "production", protectiveStopPx: 29_950, quote: { bid: 29_999.75, ask: 30_000, atMs: Date.now() },
 };
 
 const post = (body: unknown) => POST(new NextRequest("http://localhost/api/broker/tastytrade/order-submit", { method: "POST", body: JSON.stringify(body) }));
@@ -38,6 +50,8 @@ describe("POST /api/broker/tastytrade/order-submit — the firewall refuses befo
     vi.clearAllMocks();
     vi.unstubAllEnvs();
     mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub: "owner-1" } });
+    mocks.kv.clear();
+    mocks.kv.set(serverLimitsKey("owner-1"), JSON.stringify(LIMITS));
     vi.stubEnv("WEBULL_OWNER_USER_ID", "owner-1");
     mocks.getTastytradeAccounts.mockResolvedValue(ACCOUNTS);
     mocks.getTastytradeLiveOrders.mockResolvedValue([]);
@@ -104,5 +118,54 @@ describe("POST /api/broker/tastytrade/order-submit — the firewall refuses befo
     mocks.submitTastytradeOrder.mockRejectedValue(new Error("network"));
     const j = await (await post(MNQ)).json();
     expect(j).toMatchObject({ state: "UNKNOWN", reconcileBy: MNQ.clientOrderId });
+  });
+
+  // ── Garden 19 §23 / P0.3: the server-held limits refuse before tastytrade is asked anything ──
+  const nothingReachedTastytrade = () => {
+    expect(mocks.getTastytradeAccounts).not.toHaveBeenCalled();
+    expect(mocks.dryRunTastytradeOrder).not.toHaveBeenCalled();
+    expect(mocks.submitTastytradeOrder).not.toHaveBeenCalled();
+  };
+
+  it("no limits stored on the server → LIMITS_UNSET, nothing sent", async () => {
+    mocks.kv.clear();
+    const r = await post({ ...MNQ, quote: { ...MNQ.quote, atMs: Date.now() } });
+    expect(r.status).toBe(422);
+    await expect(r.json()).resolves.toMatchObject({ state: "LIMITS_UNSET" });
+    nothingReachedTastytrade();
+  });
+
+  it("the kill switch refuses a fully confirmed, in-cap order", async () => {
+    mocks.kv.set(serverLimitsKey("owner-1"), JSON.stringify({ ...LIMITS, killSwitch: true }));
+    const r = await post({ ...MNQ, quote: { ...MNQ.quote, atMs: Date.now() } });
+    await expect(r.json()).resolves.toMatchObject({ state: "KILL_SWITCH" });
+    nothingReachedTastytrade();
+  });
+
+  it("server DISARMED, over a cap, stale quote, no protective stop, wrong environment — each refused, nothing sent", async () => {
+    const fresh = () => ({ ...MNQ.quote, atMs: Date.now() });
+    const cases: [Record<string, unknown>, string][] = [
+      [{ ...MNQ, quote: fresh(), qty: 3 }, "OVER_QTY_CAP"],
+      [{ ...MNQ, quote: { ...MNQ.quote, atMs: Date.now() - 60_000 } }, "QUOTE_STALE"],
+      [{ ...MNQ, quote: undefined }, "QUOTE_STALE"],
+      [{ ...MNQ, quote: fresh(), protectiveStopPx: undefined }, "NO_PROTECTION"],
+      [{ ...MNQ, quote: fresh(), protectiveStopPx: 29_000 }, "OVER_LOSS_CAP"],
+      [{ ...MNQ, quote: fresh(), environment: "cert" }, "ENVIRONMENT"],
+      [{ ...MNQ, quote: fresh(), environment: undefined }, "ENVIRONMENT"],
+    ];
+    for (const [body, code] of cases) {
+      const j = await (await post(body)).json();
+      expect(j.state, code).toBe("REFUSED_PREFLIGHT");
+      expect(j.refusals.map((x: { code: string }) => x.code), code).toContain(code);
+    }
+    mocks.kv.set(serverLimitsKey("owner-1"), JSON.stringify({ ...LIMITS, armed: false }));
+    const j = await (await post({ ...MNQ, quote: fresh() })).json();
+    expect(j.refusals.map((x: { code: string }) => x.code)).toContain("DISARMED");
+    nothingReachedTastytrade();
+  });
+
+  it("a closing resting stop (protection) is not held hostage to a dead quote", async () => {
+    const j = await (await post({ ...MNQ, action: "Sell to Close", type: "Stop", limitPx: undefined, stopPx: 29_950, protectiveStopPx: undefined, quote: undefined, tif: "GTC" })).json();
+    expect(j.state).toBe("ACKNOWLEDGED");
   });
 });
