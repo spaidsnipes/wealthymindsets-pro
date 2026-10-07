@@ -20,6 +20,17 @@ describe("delta keels: the frame replays, it does not re-walk", () => {
     expect(SRC).toMatch(/if \(!reuseGeo\) for \(let k = 0; k < keels\.length; k\+\+\) \{/);
     expect(SRC).toContain("if (!reuseGeo) deltaKeelGeoRef.current = { keels, key: geoKeyDK, halo, groups, drawn, failed };");
   });
+  it("the 1 s re-read is incremental: keels patch from the first moved row, geometry re-lays only moved keels", () => {
+    expect(SRC).toContain("patchKeels(cachedDK?.rows ?? null, cachedDK?.keels ?? null, rowsDK)");
+    expect(SRC).toContain("const lay = patchKeelGeometry(geoDK.layout, changedDK, glyphDK);");
+    expect(SRC).toContain("if (!reuseGeo) deltaKeelGeoRef.current!.layout = layDK!;");
+    // the price anchors of the geometry key are fixed prices, not the forming close
+    expect(SRC).toContain("${anchorDK(yCal, bs[i0]?.close)}");
+  });
+  it("the ladder row memo checks the row's write count, bumped only by the one fold", () => {
+    expect(SRC.match(/ladderRowRevRef\.current\.set\(/g) ?? []).toHaveLength(1);
+    expect(SRC).toContain("ladderRowRevRef.current.set(lvlMap, (ladderRowRevRef.current.get(lvlMap) ?? 0) + 1);");
+  });
   it("the cost receipt still measures the whole layer, from the same start", () => {
     expect(SRC).toContain("canvas.dataset.barDeltaKeelsCost = `${ms.toFixed(2)}ms|mean");
     expect(SRC).toContain("const ms = performance.now() - t0DK;");

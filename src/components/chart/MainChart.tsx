@@ -38,7 +38,7 @@ import { axisPriceFormatFor, displayPrecisionFor, instrumentTickFor, priceFormat
 import { relatedFlowLine, relatedRoot } from "@/lib/chart/fxRelatedFlow";
 import { useFxRelatedFlow } from "@/lib/broker/useFxRelatedFlow";
 import { atrSeries, EFFORT_RESPONSE_BUDGET_MS, readEffortResponseField, responseColumnHeight, type EffortResponseField } from "@/lib/chart/effortResponseField";
-import { DELTA_KEEL_BUDGET_MS, keelLength, readKeels, type KeelInput } from "@/lib/chart/barDeltaKeel";
+import { DELTA_KEEL_BUDGET_MS, groupKeelGlyphs, keelLength, patchKeelGeometry, patchKeels, readKeels, type KeelGeometry, type KeelGlyph, type KeelInput } from "@/lib/chart/barDeltaKeel";
 import { readCrossCandleWisdom, type WisdomLine } from "@/lib/chart/crossCandleWisdom";
 import { readRelativeVolume, RVOL_BUDGET_MS, rvolToneAlpha, type RvolBar } from "@/lib/chart/relativeVolume";
 import type { RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegimeSeries";
@@ -2347,9 +2347,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   effortMarksFieldRef.current = effortMarksField;
   const rvolCacheRef = useRef<{ key: string; bars: RvolBar[] } | null>(null);
   const rvolCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
-  const deltaKeelGeoRef = useRef<{ keels: unknown; key: string; halo: number[]; groups: Map<string, { solid: number[]; hollow: number[] }>; drawn: number; failed: number } | null>(null);
+  const deltaKeelGeoRef = useRef<{ keels: unknown; key: string; halo: number[]; groups: Map<string, { solid: number[]; hollow: number[] }>; drawn: number; failed: number; layout?: KeelGeometry } | null>(null);
   const deltaKeelBarMemoRef = useRef(new WeakMap<object, { k: string; bd: ReturnType<typeof barTapeDelta> }>());
-  const deltaKeelCacheRef = useRef<{ key: string; at: number; keels: ReturnType<typeof readKeels>; nTape: number; nSides: number } | null>(null);
+  const deltaKeelCacheRef = useRef<{ key: string; at: number; keels: ReturnType<typeof readKeels>; nTape: number; nSides: number; rows?: KeelInput[] } | null>(null);
   // The keels this frame painted (null when the keel layer is off / silent) —
   // the wisdom line reads evidence the glass is showing, never a hidden one.
   const deltaKeelLastRef = useRef<{ keels: ReturnType<typeof readKeels>; newest: number | null } | null>(null);
@@ -3364,6 +3364,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // ── Tick accumulator: EVERY real executed trade (no synthetic / quote-poll noise) ──
   // Map<barTime, Map<priceRounded, {bid, ask}>>
   const tickAccRef = useRef<Map<number, Map<number, { bid: number; ask: number }>>>(new Map());
+  // Write count per ladder row (keyed by the row's level map): a reader that
+  // memoises a row's reading checks one number instead of re-summing the row
+  // (the delta keel's 1 s evidence re-read). Bumped only by foldPrint.
+  const ladderRowRevRef = useRef(new WeakMap<object, number>());
   // The first trade the accumulator above actually holds (epoch seconds). The
   // tape horizon is persisted for days; this map is in-memory and restarts on
   // reload / refolds on a timeframe switch — the Tape CVD's "since" may never
@@ -3560,6 +3564,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       bid: existing.bid + (tick.side === "sell" ? tick.size : 0),
       ask: existing.ask + (tick.side === "buy"  ? tick.size : 0),
     });
+    ladderRowRevRef.current.set(lvlMap, (ladderRowRevRef.current.get(lvlMap) ?? 0) + 1);
     // WM Session Tape Stats — cumulative counters routed through the
     // per-symbol store so switching symbols preserves each symbol's window.
     if (heardLive) recordSessionTrade(
@@ -10695,11 +10700,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // re-read rebuilt ~80 sub-profiles, spikes to 4.4 ms). A row whose
             // levels, totals and bar range are unchanged has the same delta;
             // the check is one pass over its levels with no allocation.
+            // The row's write count (foldPrint) stands in for the level sum —
+            // an O(1) check per bar; a row with no count falls back to the sum.
             let bd: ReturnType<typeof barTapeDelta> | null = null;
             if (heardDK && heardDK.size) {
+              const revDK = ladderRowRevRef.current.get(heardDK);
               let tot = 0;
-              for (const rt of heardDK.values()) tot += rt.bid * 3 + rt.ask;
-              const mk = `${heardDK.size}|${tot}|${cDK.high}|${cDK.low}`;
+              if (revDK == null) for (const rt of heardDK.values()) tot += rt.bid * 3 + rt.ask;
+              const mk = revDK != null ? `r${revDK}|${heardDK.size}|${cDK.high}|${cDK.low}` : `${heardDK.size}|${tot}|${cDK.high}|${cDK.low}`;
               const memo = deltaKeelBarMemoRef.current.get(heardDK);
               if (memo && memo.k === mk) bd = memo.bd;
               else { bd = barTapeDelta(getBarSubProfile(cDK)); deltaKeelBarMemoRef.current.set(heardDK, { k: mk, bd }); }
@@ -10709,8 +10717,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (bd) nTape++; else nSides++;
             rowsDK.push({ time: cDK.time as number, open: cDK.open, close: cDK.close, atr: atrDK[i], buy: bd ? bd.buy : sd!.buy, sell: bd ? bd.sell : sd!.sell, basis: bd ? "TAPE" : "SIDES" });
           }
-          const keels = freshDK ? cachedDK!.keels : readKeels(rowsDK);
-          if (!freshDK) deltaKeelCacheRef.current = { key: ckDK, at: t0DK, keels, nTape, nSides };
+          // INCREMENTAL (2026-10-07, serving NQ1! 5m peaks ~2.0 ms on the 1 s
+          // re-read): patchKeels re-reads only from the first row that moved
+          // (the newest closed bar(s) whose tape / sides changed) and keeps
+          // every unchanged keel OBJECT — nothing moved → the same array, and
+          // the geometry below replays; a few moved → only those are re-laid.
+          const keels = freshDK ? cachedDK!.keels : patchKeels(cachedDK?.rows ?? null, cachedDK?.keels ?? null, rowsDK);
+          if (!freshDK) deltaKeelCacheRef.current = { key: ckDK, at: t0DK, keels, nTape, nSides, rows: rowsDK };
           {
             let newestDK: number | null = null;
             for (let i = i1; i >= i0; i--) { const t = bs[i].time as number; if (t !== formingDK) { newestDK = t; break; } }
@@ -10722,9 +10735,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const spacing = (() => { try { return +(tsDK.options().barSpacing ?? 6); } catch { return 6; } })();
             const bodyW = Math.max(1, Math.round(spacing * 0.7));
             const insp = inspectedBarRef.current?.time ?? null;
-            const byTime = new Map<number, (typeof bs)[number]>();
             const idxOf = new Map<number, number>();
-            const fillDKMaps = () => { for (let i = i0; i <= i1; i++) { byTime.set(bs[i].time as number, bs[i]); idxOf.set(bs[i].time as number, i); } };
+            const fillDKMaps = () => { for (let i = i0; i <= i1; i++) idxOf.set(bs[i].time as number, i); };
             // Coordinates by calibration, not a library call per keel: x is
             // linear in bar index (two measured anchors), y linear in price on
             // a normal scale (two measured prices). Log / % scales fall back.
@@ -10751,30 +10763,30 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // keel rects are a pure function of the keels, the visible bars,
             // the two calibration anchors per axis and the body width. A frame
             // whose inputs match the last one replays its rects; only a camera,
-            // price-scale, keel or inspect change re-walks the keels.
+            // price-scale, keel or inspect change re-walks the keels. The price
+            // anchors are FIXED prices (the oldest visible bar's close, +1%):
+            // anchoring on the newest bar's close re-keyed on every forming
+            // tick although the price→y map had not moved.
             const anchorDK = (f: ((v: number) => number) | null, v: number | undefined) => (f && v != null ? f(v).toFixed(2) : "-");
-            const geoKeyDK = `${i0}|${i1}|${bodyW}|${insp ?? "-"}|${narrowDK ? 1 : 0}|${plotRight}|${anchorDK(xCal, i0)}|${anchorDK(xCal, i1)}|${anchorDK(yCal, bs[i1]?.close)}|${anchorDK(yCal, bs[i1] ? bs[i1].close * 1.01 : undefined)}`;
-            const geoDK = deltaKeelGeoRef.current;
-            const reuseGeo = !!geoDK && geoDK.keels === keels && geoDK.key === geoKeyDK && !!xCal && !!yCal;
-            // Batched by (ink, age bucket): a fillStyle per keel cost ~2.5ms a
-            // frame on serving NQ (101 keels); one path per group stays inside
-            // DELTA_KEEL_BUDGET_MS. Age is quantised to four steps (memory aged).
-            const halo: number[] = reuseGeo ? geoDK!.halo : [];
-            const groups = reuseGeo ? geoDK!.groups : new Map<string, { solid: number[]; hollow: number[] }>();
-            if (reuseGeo) { drawn = geoDK!.drawn; failed = geoDK!.failed; }
-            const grp = (k: string) => { let g = groups.get(k); if (!g) { g = { solid: [], hollow: [] }; groups.set(k, g); } return g; };
-            if (!reuseGeo) fillDKMaps();
-            if (!reuseGeo) for (let k = 0; k < keels.length; k++) {
+            const geoKeyDK = `${i0}|${i1}|${bodyW}|${insp ?? "-"}|${narrowDK ? 1 : 0}|${plotRight}|${anchorDK(xCal, i0)}|${anchorDK(xCal, i1)}|${anchorDK(yCal, bs[i0]?.close)}|${anchorDK(yCal, bs[i0] ? bs[i0].close * 1.01 : undefined)}`;
+            // One keel's glyph — the ONE layout both the full walk and the
+            // incremental patch use, so a patched frame equals a full walk.
+            const ixOfDK = (t: number): number | undefined => {
+              if (idxOf.size) return idxOf.get(t);
+              for (let i = i1; i >= i0; i--) { const bt = bs[i].time as number; if (bt === t) return i; if (bt < t) break; }
+              return undefined;
+            };
+            const glyphDK = (k: number): KeelGlyph | null => {
               const kl = keels[k];
-              const bar = byTime.get(kl.time);
-              if (!bar) continue;
+              const ix = ixOfDK(kl.time);
+              const bar = ix != null ? bs[ix] : undefined;
+              if (!bar) return null;
               // Narrow glass (phone ask 5): only FAILED keels, each ≥3px long and
               // drawn SOLID in its side ink — a 1px hollow is invisible at 390.
-              if (narrowDK && !kl.failed) continue;
-              const ix = idxOf.get(kl.time);
+              if (narrowDK && !kl.failed) return null;
               const xr = xCal && ix != null ? xCal(ix) : tsDK.timeToCoordinate(kl.time as never);
               const yc = yCal ? yCal(bar.close) : csDK.priceToCoordinate(bar.close);
-              if (xr == null || yc == null || +xr < 0 || +xr > plotRight) continue;
+              if (xr == null || yc == null || +xr < 0 || +xr > plotRight) return null;
               const L = Math.max(narrowDK ? 3 : 1, keelLength(kl.ratio, bodyW));
               const up = bar.close >= bar.open;
               // Just OUTSIDE the close edge: above an up body, below a down one.
@@ -10782,15 +10794,42 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const x = Math.round(+xr - L / 2);
               const side = kl.ratio > 0 ? "B" : "S";
               const bucket = insp === kl.time ? 4 : Math.min(3, Math.floor(4 * (keels.length > 1 ? k / (keels.length - 1) : 1)));
+              const hollow = kl.failed && !narrowDK;
               // Dark halo: the keel is its own mark, never read as more body.
-              halo.push(x - 1, y - 1, L + 2, 4);
-              const g = grp(`${side}${bucket}`);
-              if (kl.failed && narrowDK) { g.solid.push(x, y, L, 2); failed++; }
-              else if (kl.failed) { g.hollow.push(x + 0.5, y + 0.5, Math.max(1, L - 1), 2); failed++; }
-              else g.solid.push(x, y, L, 2);
-              drawn++;
+              return {
+                group: `${side}${bucket}`, hollow, failed: kl.failed,
+                rect: hollow ? [x + 0.5, y + 0.5, Math.max(1, L - 1), 2] : [x, y, L, 2],
+                halo: [x - 1, y - 1, L + 2, 4],
+              };
+            };
+            let geoDK = deltaKeelGeoRef.current;
+            // PATCH: same camera key, same keel count, some keels moved (the
+            // 1 s re-read on a live tail) → re-lay only the moved keels (by
+            // object identity from patchKeels) and hand the result to the
+            // replay below. A camera / scale / inspect change re-walks once.
+            if (geoDK && geoDK.layout && geoDK.keels !== keels && geoDK.key === geoKeyDK && !!xCal && !!yCal
+              && Array.isArray(geoDK.keels) && geoDK.keels.length === keels.length) {
+              const prevK = geoDK.keels as typeof keels;
+              const changedDK: number[] = [];
+              for (let k = 0; k < keels.length; k++) if (prevK[k] !== keels[k]) changedDK.push(k);
+              const lay = patchKeelGeometry(geoDK.layout, changedDK, glyphDK);
+              geoDK = deltaKeelGeoRef.current = { keels, key: geoKeyDK, halo: lay.halo, groups: lay.groups, drawn: lay.drawn, failed: lay.failed, layout: lay };
             }
+            const reuseGeo = !!geoDK && geoDK.keels === keels && geoDK.key === geoKeyDK && !!xCal && !!yCal;
+            // Batched by (ink, age bucket): a fillStyle per keel cost ~2.5ms a
+            // frame on serving NQ (101 keels); one path per group stays inside
+            // DELTA_KEEL_BUDGET_MS. Age is quantised to four steps (memory aged).
+            const glyphsDK: (KeelGlyph | null)[] = [];
+            if (!reuseGeo) fillDKMaps();
+            if (!reuseGeo) for (let k = 0; k < keels.length; k++) {
+              glyphsDK.push(glyphDK(k));
+            }
+            const layDK = reuseGeo ? geoDK!.layout ?? null : groupKeelGlyphs(glyphsDK);
+            const halo: number[] = reuseGeo ? geoDK!.halo : layDK!.halo;
+            const groups = reuseGeo ? geoDK!.groups : layDK!.groups;
+            if (reuseGeo) { drawn = geoDK!.drawn; failed = geoDK!.failed; } else { drawn = layDK!.drawn; failed = layDK!.failed; }
             if (!reuseGeo) deltaKeelGeoRef.current = { keels, key: geoKeyDK, halo, groups, drawn, failed };
+            if (!reuseGeo) deltaKeelGeoRef.current!.layout = layDK!;
             ctx.save();
             ctx.lineWidth = 1;
             const rects = (r: number[]) => { ctx.beginPath(); for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], r[i + 3]); };
