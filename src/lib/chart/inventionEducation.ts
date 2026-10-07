@@ -689,7 +689,8 @@ export function educationIdForSelection(sel:
 ): EducationKey | null {
   if (!sel) return null;
   switch (sel.kind) {
-    case "OBJECT": return sel.objectId.startsWith("MEMORY:") ? "PROFILE_MEMORY" : "MARKET_STRUCTURE";
+    // FVG| — a GAP_FVG object (fvgDefinition.mintFvgObjectId; Garden 19 lane D, 2026-10-07).
+    case "OBJECT": return sel.objectId.startsWith("FVG|") ? "FVG_IMBALANCE" : sel.objectId.startsWith("MEMORY:") ? "PROFILE_MEMORY" : "MARKET_STRUCTURE";
     case "PRINT": return sel.print.kind === "delta" ? "FP_delta" : "FP_big-trades";
     case "SLICE": return "LIVING_PROFILE";
     case "ANATOMY": return sel.reading.target.reading;

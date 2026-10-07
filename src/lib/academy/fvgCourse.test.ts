@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   FVG_ACADEMY_MODULE, FVG_DEFINITION, FVG_EXAMPLES_EMPTY_LINE, FVG_LAYER_PENDING_NOTE, FVG_LESSONS,
   FVG_MYTH_CARD, FVG_MYTH_LESSONS, FVG_NO_GUARANTEE, FVG_QUIZ_BANK, fvgChartLink, fvgCourseText,
-  fvgLessonHref, fvgTaggedExamples,
+  fvgLessonHref, fvgTaggedExamples, fvgReplayPractice, FVG_REPLAY_LESSONS,
 } from "./fvgCourse";
 import { CONCEPT_EDUCATION, educationFor } from "@/lib/chart/inventionEducation";
 import { parseProofScene } from "@/lib/chart/proofScene";
@@ -178,5 +178,23 @@ describe("aligned to docs/operations/FVG-METHODOLOGY.md", () => {
     }
     expect(doc).toMatch(/A doji or a counter-body `b2` is not an FVG under v1/);
     expect(t).toMatch(/A doji b2 is not an FVG under this version/);
+  });
+});
+
+describe("§56 — Practice in Replay (as-of-time through the FVG camera)", () => {
+  it("only on the after-creation lessons, only once the layer ships", () => {
+    for (const l of FVG_LESSONS) {
+      expect(fvgReplayPractice(l, false), l.id).toBeNull();
+      const r = fvgReplayPractice(l, true);
+      if (FVG_REPLAY_LESSONS.includes(l.n)) {
+        expect(r?.href, l.id).toBe(fvgChartLink(l, true).href);
+        expect(r?.steps).toMatch(/only what was knowable at the replay cursor/);
+      } else expect(r, l.id).toBeNull();
+    }
+  });
+  it("the replay owner it names exists and folds as-of", () => {
+    const cam = readFileSync("src/lib/marketData/fvg/fvgCamera.ts", "utf8");
+    expect(cam).toContain("fvgStateAsOf");
+    expect(cam).toContain('"REPLAY"');
   });
 });

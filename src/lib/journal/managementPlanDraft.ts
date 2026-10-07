@@ -15,6 +15,7 @@
 
 import type { FillCaptureIntent } from "./journalCaptureFromFill";
 import { freezePlanSnapshot, planSnapshotFromTicket, type ManagementPlanSnapshot, type TraderPlanInput } from "./managementPlan";
+import { sessionPlanForFreeze } from "./managementDayRules";
 import { freezePlanOnce, readAllPlans, readPlanForDecision, type FreezeOutcome } from "./managementPlanStore";
 
 export const MANAGEMENT_PLAN_DRAFT_KEY = "wm:management-plan-draft:v1";
@@ -104,7 +105,8 @@ export function freezeAtTicketSend(storage: Storage | null | undefined, ticket: 
   if (readPlanForDecision(storage, ticket.decisionId)) return "ALREADY_FROZEN";
   const at = ticket.sentAtMs ?? nowMs;
   const draft = takeDraftForFreeze(storage, ticket.chartSymbol, at) ?? {};
-  return freezePlanOnce(storage, planSnapshotFromTicket(ticket, draft, at));
+  const day = draft.session ? null : sessionPlanForFreeze(storage, at);
+  return freezePlanOnce(storage, planSnapshotFromTicket(ticket, day ? { ...draft, session: day } : draft, at, day ? { session: "morning prep session plan" } : undefined));
 }
 
 /** The subset of a paper Trade this reads. */
@@ -135,9 +137,11 @@ export function freezePaperFillPlans(storage: Storage | null | undefined, trades
     if (readPlanForDecision(storage, decisionId)) continue;
     const draft = takeDraftForFreeze(storage, t.symbol, t.ts);
     if (!draft) continue;
+    const day = draft.session ? null : sessionPlanForFreeze(storage, t.ts);
     const snap = freezePlanSnapshot({
       decisionId, frozenAt: "PAPER_FILL", atMs: t.ts, source: "plan card before the paper fill",
-      plan: { ...draft, symbol: t.symbol, direction: t.side === "buy" ? "LONG" : "SHORT" },
+      plan: { ...draft, ...(day ? { session: day } : {}), symbol: t.symbol, direction: t.side === "buy" ? "LONG" : "SHORT" },
+      ...(day ? { fieldSources: { session: "morning prep session plan" } } : {}),
     });
     if (freezePlanOnce(storage, snap) === "FROZEN") frozen++;
   }

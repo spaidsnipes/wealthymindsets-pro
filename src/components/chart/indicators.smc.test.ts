@@ -1,7 +1,7 @@
 /**
  * indicators — truth-lock for Smart Money Concepts + pattern detection.
  *
- * Locks the SMC visuals (fairValueGaps, swingHighLow, orderBlocks) that
+ * Locks the SMC visuals (swingHighLow, orderBlocks; fairValueGaps retired 2026-10-07) that
  * traders read as market structure, plus classic pattern detectors
  * (dojiDetector, engulfingPattern, hammerShootingStar) and the
  * statistical primitives (zScore, percentileRank, linearRegressionSlope,
@@ -11,47 +11,24 @@
 
 import { describe, it, expect } from "vitest";
 import {
-  fairValueGaps, swingHighLow, orderBlocks,
+  swingHighLow, orderBlocks,
   dojiDetector, engulfingPattern, hammerShootingStar,
   zScore, percentileRank, linearRegressionSlope, roc, momentum,
   REQUIRES_FEED, MTF_INDICATORS, 
 } from "./indicators";
+import * as IND from "./indicators";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 function bar(o: number, h: number, l: number, c: number, v = 100, t = 0): LegacyOhlcvTuple {
   return { time: t, open: o, high: h, low: l, close: c, volume: v };
 }
 
-describe("fairValueGaps — 3-candle gap detector", () => {
-  it("detects a bullish FVG when candle[i-2].high < candle[i].low", () => {
-    // FVG at index 2: prev2.high=100 < curr.low=105 → bullish gap
-    const bars = [
-      bar(99, 100, 98, 99, 100, 1),   // i-2
-      bar(101, 103, 101, 102, 100, 2), // i-1 (the "gap" candle)
-      bar(105, 107, 105, 106, 100, 3), // i
-    ];
-    const g = fairValueGaps(bars);
-    expect(g.length).toBe(1);
-    expect(g[0].bull).toBe(true);
-    expect(g[0].top).toBe(105);
-    expect(g[0].bot).toBe(100);
-    expect(g[0].time).toBe(2); // i-1 time
-  });
-
-  it("detects a bearish FVG when candle[i-2].low > candle[i].high", () => {
-    const bars = [
-      bar(106, 108, 105, 107, 100, 1),
-      bar(104, 105, 102, 103, 100, 2),
-      bar(99, 100, 98, 99, 100, 3),
-    ];
-    const g = fairValueGaps(bars);
-    expect(g.length).toBe(1);
-    expect(g[0].bull).toBe(false);
-  });
-
-  it("empty input → empty gaps array", () => {
-    expect(fairValueGaps([])).toEqual([]);
-    expect(fairValueGaps([bar(100, 101, 99, 100)])).toEqual([]);
+// fairValueGaps — RETIRED 2026-10-07 (Garden 19 FVG lane D). The ONE FVG
+// detector is fvgEngine (FVG_3C v1); its truth-lock is fvgEngine.test.ts, and
+// this file now locks that the legacy export stays gone.
+describe("fairValueGaps — retired; the ONE detector is fvgEngine", () => {
+  it("indicators.ts no longer exports a gap detector", () => {
+    expect((IND as Record<string, unknown>).fairValueGaps).toBeUndefined();
   });
 });
 

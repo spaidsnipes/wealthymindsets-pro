@@ -1071,17 +1071,14 @@ export function linearRegressionSlope(src: number[], p = 14): number[] {
 }
 
 /* ─── Smart Money Concepts (visual, approximate) ──────────────── */
-export function fairValueGaps(bars: LegacyOhlcvTuple[]): { time: number; top: number; bot: number; bull: boolean }[] {
-  const gaps: { time: number; top: number; bot: number; bull: boolean }[] = [];
-  for (let i = 2; i < bars.length; i++) {
-    const prev2 = bars[i - 2]; const curr = bars[i];
-    // Bullish FVG: candle[i-2].high < candle[i].low
-    if (prev2.high < curr.low) gaps.push({ time: bars[i-1].time, top: curr.low, bot: prev2.high, bull: true });
-    // Bearish FVG: candle[i-2].low > candle[i].high
-    if (prev2.low > curr.high) gaps.push({ time: bars[i-1].time, top: prev2.low, bot: curr.high, bull: false });
-  }
-  return gaps;
-}
+/*
+ * RETIRED 2026-10-07 (Garden 19 FVG lane D): the legacy `fairValueGaps()` —
+ * a second, rule-less FVG detector (no displacement body, no size floor, no
+ * lifecycle, both directions from one triple) — is gone. The ONE detector is
+ * src/lib/marketData/fvg/fvgEngine.ts (FVG_3C v1); the chart reads it through
+ * fvgCamera.fvgSceneForCamera and paints it as the "FVG / Imbalance"
+ * instrument (Tool Finder, pref wm_fvg). Do not re-add a detector here.
+ */
 
 export function swingHighLow(bars: readonly PivotBar[], lookback = 5): { highs: { time: number; price: number }[]; lows: { time: number; price: number }[] } {
   const highs: { time: number; price: number }[] = [];

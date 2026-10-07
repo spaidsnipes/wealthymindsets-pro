@@ -18,6 +18,7 @@
  *   · wm-install-dismissed               (PWA install prompt state, device-level)
  *   · wm-watchlist-prices                (cache, not user data)
  *   · wm-tape-symbols                    (ticker tape customization, device-level)
+ *   · wm_fvg                             (FVG / Imbalance layer on/off — device chart pref, 2026-10-07)
  *   · HM_CACHE_PREFIX + tf               (heatmap %s cache, not user data)
  *
  * Extends automatically when a new owner-scoped key appears — add
@@ -69,6 +70,7 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm:journal-capture-handoff:v1", // §J: an unsaved fill draft on its way to /journal (order id, account tail)
   "wm:management-plan:v1", // Garden 19 §27: the trader's plan frozen per Decision_ID, with dated amendments
   "wm:management-plan-draft:v1", // Garden 19 §27: the trader's pre-trade plan-card draft per market
+  "wm:management-day-rules:v1", // Garden 19 §55: today's management rules from Morning Prep
 ] as const;
 
 /**

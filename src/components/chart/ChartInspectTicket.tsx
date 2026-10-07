@@ -118,6 +118,8 @@ import { memoryLevelKindOf } from "@/lib/marketData/viewModels/selectMemoryMarke
 import { scenarioHedge, type ConcentrationWall, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 import { InspectFirstTouchLine } from "./SelectionFirstTouch";
+import { FvgInspectTicket } from "./FvgInspectTicket";
+import type { FvgObject } from "@/lib/chart/fvgGlass";
 import { inspectEvidence, type EvidenceClass, type InspectEvidence } from "@/lib/chart/inspectEvidence";
 import type { CandleReadingRow } from "@/lib/chart/barCandleReadings";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
@@ -895,6 +897,7 @@ export function ChartInspectTicket({
   profileSliceSymbol = "",
   profileSliceAsOf = null,
   selectedZone = null,
+  selectedFvg = null,
   zoneLineage = null,
   selectedLevel = null,
   levelLineage = null,
@@ -938,6 +941,8 @@ export function ChartInspectTicket({
   profileSliceAsOf?: number | null;
   /** F11 · a selected swing-origin ZONE — its Passport. */
   selectedZone?: StructureZone | null;
+  /** Garden 19 FVG lane D · the selected GAP_FVG object, from the scene the glass painted. */
+  selectedFvg?: FvgObject | null;
   /** The selected zone's LINEAGE (selectZoneLineage) — ids, provenance and the Decision_ID chain. */
   zoneLineage?: ZoneLineageVM | null;
   /** F11 · a selected MarketObject that is not a zone (a swing LEVEL) — the same Passport drawer. */
@@ -1024,6 +1029,20 @@ export function ChartInspectTicket({
     drawer layout does not change." Every line is an owner's; a slot whose
     owner is silent says so (selectPassportSlots).
   */
+  if (selectedFvg) {
+    const o = selectedFvg;
+    return (
+      <FvgInspectTicket
+        o={o}
+        fmt={p => (priceDp != null ? p.toFixed(priceDp) : String(+p.toPrecision(8)))}
+        clock={ms => clock.exact(ms)}
+        firstTouch={<InspectFirstTouchLine />}
+        evidence={<EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "OBJECT", birthRead: true, asOfMs: o.asOf, source: sourceName }, feed)} />}
+        onClose={() => onOpenChange(false)}
+      />
+    );
+  }
+
   if (selectedZone || selectedLevel) {
     const object = selectedZone ? selectedZone.object : selectedLevel!;
     return (

@@ -21,6 +21,7 @@ import { matchCuratedSymbols } from "@/lib/marketData/curatedSymbolCatalog";
 import { isPersonalAdviceColumn } from "@/lib/news/marketRelevance";
 import { keyActivates } from "@/lib/a11y/keyActivates";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
+import { plainSummary } from "./plainSummary";
 
 /* ── Types ─────────────────────────────────────────────── */
 /** "JUST NOW" / "12m ago" / "3h ago" / "2d ago", from the publish time and a live clock. */
@@ -236,7 +237,7 @@ function buildNewsItems(arrs: FinnhubRaw[][]): NewsItem[] {
 
       const impact  = classifyImpact(item);
       const sym     = extractSymbol(item.related ?? "", item.headline);
-      const summary = item.summary || item.headline;
+      const summary = plainSummary(item.summary) || item.headline;
       return {
         id:         item.id || i,
         source:     canonicalSource(item.source || "News"),
@@ -549,7 +550,11 @@ function LiveNewsPlayer() {
                 <div className="px-3 py-2 border-b border-wm-border/40 flex items-center gap-2 shrink-0">
                   <span className="text-[9px] font-black text-wm-green uppercase tracking-wider">📊 Stocked Up — Recent Videos (Last 5 Days)</span>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 grid grid-cols-2 gap-2 content-start" style={{ scrollbarWidth:"thin" }}>
+                {/* Rows are max-content: inside this fixed-height well the auto rows were
+                    squeezed to 66px, so each card showed a 66px sliver of its
+                    thumbnail and no title (serving /news at 1440, 2026-10-07).
+                    Wider wells carry more columns so a card stays well-sized. */}
+                <div className="flex-1 overflow-y-auto p-2 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 content-start" style={{ scrollbarWidth:"thin", gridAutoRows:"max-content" }}>
                   {recentVideos.map(v => (
                     <button key={v.videoId} onClick={() => setSelectedRecent(v.videoId)}
                       className="text-left rounded-lg overflow-hidden border border-wm-border/30 hover:border-wm-green/40 transition-all group">

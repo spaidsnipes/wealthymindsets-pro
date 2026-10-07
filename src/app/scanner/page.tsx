@@ -46,6 +46,7 @@ import { scannerQuoteTruth, type ScannerQuoteQuality } from "@/lib/scannerQuoteT
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { ScannerDeckViewSwitch } from "@/components/scanner/ScannerDeckViewSwitch";
 import { ChartCompanion } from "@/components/experience/ChartCompanion";
+import { FvgScanStrip } from "@/components/scanner/FvgScanStrip";
 import { selectScannerFeedObservation } from "@/lib/os/selectScannerFeedObservation";
 
 import {
@@ -193,6 +194,8 @@ const SYM_SECTOR: Record<string,string> = {
 const SCANNER_STOCKS = SYMS.filter(([s]) => !isUnsupportedByEquityVendors(s)).map(([s]) => s);
 // Futures symbols (Finnhub has no free futures quotes — use Yahoo via /api/yahoo)
 const SCANNER_FUTURES = SYMS.filter(([s]) => classifySymbol(s) === "FUTURES").map(([s]) => s);
+/** The FVG conditions strip reads the same universe the quote round asks about. */
+const FVG_SCAN_UNIVERSE: readonly string[] = [...new Set([...SCANNER_STOCKS, ...SCANNER_FUTURES])];
 
 // Cache FMP profiles (mktcap, float) — changes slowly, cache 10 min.
 /* The round carries the rows AND, when there are none, WHY there are none.
@@ -965,6 +968,9 @@ export default function ScannerPage() {
           </button>
         </div>
       </div>
+
+      {/* Garden 19 §22: FVG conditions from the one engine, on request. */}
+      <FvgScanStrip symbols={FVG_SCAN_UNIVERSE} onOpenSymbol={setActiveSymbol} />
 
       {/* Body */}
       <div className="wm-scanner-body" style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>

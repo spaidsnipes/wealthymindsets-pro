@@ -53,6 +53,7 @@ const OWNER_SCOPED_KEYS = new Set<string>([
   "wm:journal-capture-handoff:v1",
   "wm:management-plan:v1",
   "wm:management-plan-draft:v1",
+  "wm:management-day-rules:v1",
   "wm:journal-ticket-at-send:v1", // sessionStorage, cleared by the same sign-out sweep
 ]);
 
@@ -92,6 +93,7 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   "wm_sm_compact",            // sidebar compact toggle — device layout
   "wm_sm_width",              // sidebar width — device layout
   "wm_extHours",              // extended-hours toggle — device chart pref
+  "wm_fvg",                   // FVG / Imbalance layer on/off (Garden 19 lane D, 2026-10-07) — device chart pref
   "wm_candleType",            // candle vs bar vs line — device chart pref
   "wm_timeframe",             // last-active timeframe — device chart pref
   "wm_chartLayout",           // panel arrangement — device chart pref

@@ -175,6 +175,15 @@ export function InventionPreview({ scope, id, label, what, familyWord, symbol, t
         ))}
       </div>
 
+      {/* A taught concept carries its Academy lesson (CONCEPT_EDUCATION, e.g. FVG → fvg-1). */}
+      {"academy" in edu && (edu as { academy?: { href: string; title: string } }).academy ? (
+        <a href={(edu as { academy: { href: string } }).academy.href} data-testid="edu-academy"
+          className="mt-2 inline-block text-[11.5px] font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+          style={{ color: GOLD }}>
+          Academy · {(edu as { academy: { title: string } }).academy.title} ›
+        </a>
+      ) : null}
+
       <div className="mt-3 flex items-center gap-2">
         <button type="button" data-testid="edu-add" aria-pressed={active}
           onClick={() => { onAdd(); close(); }}

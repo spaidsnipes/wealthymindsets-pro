@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { CHUNK_RECOVERY_SCRIPT } from "@/components/layout/chunkRecoveryScript";
 import "./globals.css";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { SymbolProvider } from "@/contexts/SymbolContext";
@@ -87,6 +88,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="msapplication-TileColor"       content="#070A0F" />
         <meta name="msapplication-TileImage"       content="/icons/icon-144x144.png" />
         <meta name="msapplication-config"          content="/browserconfig.xml" />
+        {/* Before any chunk is requested: a chunk-load failure (deploy skew)
+            reloads once even when the error boundary's own chunk is the one
+            that failed — see components/layout/chunkRecoveryScript. */}
+        <script dangerouslySetInnerHTML={{ __html: CHUNK_RECOVERY_SCRIPT }} />
         {/* Preconnect for performance */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="dns-prefetch" href="https://api.polygon.io" />

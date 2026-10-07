@@ -199,7 +199,7 @@ describe("/charts chrome header adoption — the source actually reaches the own
     );
     expect(call, "the header never calls chartHeaderPriceFact").not.toBe("");
     expect(call, "barsSettled is no longer passed").toContain("barsSettled");
-    expect(call, "decimals must be explicit so source cannot land in its slot").toMatch(/\n\s*2,/);
+    expect(call, "decimals must be explicit so source cannot land in its slot").toMatch(/\n\s*(2|chartDisplayDp),/);
     expect(call, "the live quote's source is not handed over").toMatch(/\n\s*source,/);
   });
 

@@ -17,6 +17,7 @@ import { SymbolSearch } from "@/components/ui/SymbolSearch";
 import { backtestRunLine, fetchBars, runRealBacktest, type BTTrade, type BTResult } from "@/lib/backtest/engine";
 import { CHART_TF_SHIPPED } from "@/lib/timeframes";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
+import { FvgStudyPanel } from "@/components/backtest/FvgStudyPanel";
 
 /** The profit factor as words when it is undefined: the engine's 99 sentinel
  *  ("only wins") and 0 ("no trades") are not measurements (painted-window
@@ -263,7 +264,7 @@ export default function BacktestingPage() {
   const [progress,  setProgress]  = useState(0);
   const [result,    setResult]    = useState<BacktestResult | null>(null);
   const [tradeTab,  setTradeTab]  = useState<"all"|"wins"|"losses">("all");
-  const [mainTab,   setMainTab]   = useState<"backtest"|"walkforward">("backtest");
+  const [mainTab,   setMainTab]   = useState<"backtest"|"walkforward"|"fvg">("backtest");
   const [error,     setError]     = useState<string | null>(null);
 
   // Inbound connection: other rooms (Scanner, Charts, Morning Prep) hand a
@@ -276,6 +277,7 @@ export default function BacktestingPage() {
       if (s && /^[A-Z0-9.!:^=/-]{1,24}$/.test(s)) setSymbol(s);
       const t = q.get("tf");
       if (t && (CHART_TF_SHIPPED as readonly string[]).includes(t)) setTf(t);
+      if (q.get("mode") === "fvg") setMainTab("fvg");
     } catch { /* no URL — keep defaults */ }
   }, []);
 
@@ -381,6 +383,9 @@ export default function BacktestingPage() {
           {([
             { id:"backtest"   as const, label:"Backtest" },
             { id:"walkforward"as const, label:"Walk Forward" },
+            // Garden 19 §20: FVG study mode — the one engine's gaps on this
+            // symbol/timeframe's history, DESCRIPTIVE counts, never a forecast.
+            { id:"fvg"        as const, label:"FVG Study" },
           ]).map(t => (
             <button key={t.id} onClick={() => setMainTab(t.id)}
               className={clsx(
@@ -416,10 +421,15 @@ export default function BacktestingPage() {
 
             The icon changed with the words: Zap is live-energy iconography and
             was the picture half of the same overclaim. */}
-        <div className="flex items-center gap-1 text-[10px] text-wm-text-dim">
-          <CheckCircle size={10} className="text-wm-green" />{" "}
-          {CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED}
-        </div>
+        {/* Sheriff sweep 2026-10-07: the chip claimed VERIFIED bars on an empty
+            room, before any bars were read, and after a failed read. It now
+            appears only once a run has bars behind it. */}
+        {result ? (
+          <div className="flex items-center gap-1 text-[10px] text-wm-text-dim">
+            <CheckCircle size={10} className="text-wm-green" />{" "}
+            {CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED}
+          </div>
+        ) : null}
         {result && mainTab === "backtest" && (
           <button onClick={() => {
             const header = "id,date,symbol,side,entry,exit,pnl,pct,result,bars,signal";
@@ -441,6 +451,12 @@ export default function BacktestingPage() {
       {mainTab === "walkforward" && (
         <div className="flex-1 overflow-y-auto">
           <WalkForwardGuide onSendToJournal={handleSendToJournal} />
+        </div>
+      )}
+
+      {mainTab === "fvg" && (
+        <div className="flex-1 overflow-y-auto">
+          <FvgStudyPanel symbol={symbol} timeframe={tf} rangeDays={dateRange.days} timeframes={TIMEFRAMES} onSymbolChange={setSymbol} onTimeframeChange={setTf} />
         </div>
       )}
 

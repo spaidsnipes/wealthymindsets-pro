@@ -304,6 +304,25 @@ export function fvgChartLink(lesson: Pick<FvgLesson, "alsoOn">, shipped = fvgLay
   return { href: `${INSTRUMENT_VIEW_ROUTE}?scene=clean&on=${on}`, shipped: true, note: null };
 }
 
+/**
+ * §56 LEARNING LOOP — "Practice in Replay" for the lessons that are about what
+ * happens AFTER creation (touch → depth → response → time → trade-through →
+ * memory). Replay's FVG owner is `fvgCamera.fvgSceneForCamera`, which folds
+ * the ledger as of the replay cursor (`fvgStateAsOf`) — so a replayed
+ * territory never shows a touch that had not happened yet. Replay has no URL
+ * door; it is started on the chart itself, so the practice opens the same FVG
+ * scene and says how. Omitted until the FVG layer ships.
+ */
+export const FVG_REPLAY_LESSONS: readonly number[] = [6, 7, 8, 9, 10, 14, 15];
+
+export const FVG_REPLAY_STEPS =
+  "Opens the chart with the FVG layer. Press Replay, then step forward bar by bar: each territory shows only what was knowable at the replay cursor — the touch, the depth and the closes appear as they happened, never before.";
+
+export function fvgReplayPractice(lesson: Pick<FvgLesson, "n" | "alsoOn">, shipped = fvgLayerShipped()): { href: string; steps: string } | null {
+  if (!shipped || !FVG_REPLAY_LESSONS.includes(lesson.n)) return null;
+  return { href: fvgChartLink(lesson, true).href, steps: FVG_REPLAY_STEPS };
+}
+
 /** The Academy deep link for a lesson. */
 export function fvgLessonHref(n: number): string {
   return `/education?lesson=fvg-${n}`;

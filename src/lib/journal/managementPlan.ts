@@ -168,6 +168,8 @@ export interface FreezePlanInput {
   /** Where these fields were recorded, in words. */
   readonly source: string;
   readonly plan: TraderPlanInput;
+  /** Where a field came from when not the same as `source` (e.g. session ← "morning prep"). */
+  readonly fieldSources?: Partial<Record<keyof TraderPlanInput, string>>;
 }
 
 /** Freeze the plan. Returns null when there is no Decision_ID to freeze it on. */
@@ -200,7 +202,7 @@ export function freezePlanSnapshot(input: FreezePlanInput): ManagementPlanSnapsh
       expectedHoldMin: positive(p.expectedHoldMin, s),
       context: text(p.context, s),
       riskUsd: positive(p.riskUsd, s),
-      session: text(p.session, s),
+      session: text(p.session, input.fieldSources?.session ?? s),
     },
     amendments: [],
   });
@@ -221,7 +223,7 @@ export function directionFromAction(action: string | null | undefined): PlanDire
  * (stop, target, view) are recorded; anything the ticket did not carry and the
  * trader did not add stays UNRECORDED.
  */
-export function planSnapshotFromTicket(intent: FillCaptureIntent, extra: TraderPlanInput = {}, atMs?: number): ManagementPlanSnapshot | null {
+export function planSnapshotFromTicket(intent: FillCaptureIntent, extra: TraderPlanInput = {}, atMs?: number, fieldSources?: FreezePlanInput["fieldSources"]): ManagementPlanSnapshot | null {
   if (!intent.decisionId) return null;
   const at = atMs ?? intent.sentAtMs ?? null;
   if (at == null) return null;
@@ -231,6 +233,7 @@ export function planSnapshotFromTicket(intent: FillCaptureIntent, extra: TraderP
     frozenAt: "TICKET_SEND",
     atMs: at,
     source: "ticket at send",
+    fieldSources,
     plan: {
       symbol: intent.chartSymbol ?? null,
       direction: directionFromAction(intent.action),
@@ -419,6 +422,7 @@ export function planLine(snap: ManagementPlanSnapshot): string {
     `management ${b.conditions.length ? b.conditions.map(c => c.text).join("; ") : "UNRECORDED"}`,
     `expected hold ${b.expectedHoldMin.value != null ? `${b.expectedHoldMin.value} min` : "UNRECORDED"}`,
   ];
+  if (b.session.value) parts.push(`session ${b.session.value}${b.session.source === "morning prep session plan" ? " (Morning Prep)" : ""}`);
   return parts.join(" · ");
 }
 

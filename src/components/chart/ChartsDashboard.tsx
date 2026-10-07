@@ -1,6 +1,7 @@
 "use client";
 
 import { educationIdForSelection } from "@/lib/chart/inventionEducation";
+import { FVG_INSTRUMENT_ID, FVG_PREF_KEY, isFvgObjectId, type FvgCameraScene } from "@/lib/chart/fvgGlass";
 import { SelectionFirstTouch, InspectFirstTouchContext } from "./SelectionFirstTouch";
 import { orderFlowToolCapability } from "@/lib/marketData/orderFlowToolCapability";
 import { openSettings } from "@/components/layout/shellPanels";
@@ -922,6 +923,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [wisdomLineOn, setWisdomLineOn] = useState<boolean>(() => lsGet("wm_wisdomLine", true) as boolean);
   // RELATIVE VOLUME TONE (census C-03): on by default; silent without traded volume.
   const [rvolToneOn, setRvolToneOn] = useState<boolean>(() => lsGet("wm_rvolTone", true) as boolean);
+  // FVG / IMBALANCE (Garden 19 FVG lane D): OFF by default; the glass paints
+  // the ONE FVG history and hands back the scene it painted (Inspect reads it).
+  const [fvgOn, setFvgOn] = useState<boolean>(() => lsGet(FVG_PREF_KEY, false) as boolean);
+  const [fvgScene, setFvgScene] = useState<FvgCameraScene | null>(null);
   /**
    * ABSORPTION ANATOMY (Founder Asset 06) — the EFFORT field + ABSORPTION ZONE
    * band, drawn on the chart in price/time space by MainChart's overlay pass.
@@ -1291,6 +1296,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_deltaKeel", deltaKeelOn);
   usePersistOnChange("wm_wisdomLine", wisdomLineOn);
   usePersistOnChange("wm_rvolTone", rvolToneOn);
+  usePersistOnChange(FVG_PREF_KEY, fvgOn);
   usePersistOnChange("wm_absorptionAnatomy",   absorptionAnatomy);
   usePersistOnChange("wm_exhaustion",          exhaustionOn);
   usePersistOnChange("wm_ofImbalanceStack",    imbalanceStackOn);
@@ -2207,6 +2213,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     ?? (selectedSlicePrice != null ? { kind: "SLICE" as const } : null),
   );
   const firstTouchLabel = firstTouchId == null ? ""
+    : firstTouchId === FVG_INSTRUMENT_ID ? "FVG / Imbalance"
     : firstTouchId === "FP_big-trades" ? "Big Trades"
     : firstTouchId.startsWith("FP_") ? (FOOTPRINT_TYPES.find(t => `FP_${t.id}` === firstTouchId)?.label ?? firstTouchId)
     : (selectProfileMenu({ barsPresent: true, printsPresent: true, observedAggressorFlow: true, active: {}, only: [firstTouchId as ProfileId] }).entries[0]?.label ?? firstTouchId);
@@ -2939,6 +2946,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const selectedMarketObject = chartMarketObjects.find(
     object => object.objectId === selectedMarketObjectId,
   ) ?? null;
+  // Garden 19 FVG lane D · a selected GAP_FVG object, read from the scene the
+  // glass painted (live, or as of the replay cursor) — never a second ledger.
+  const selectedFvgObject = isFvgObjectId(selectedMarketObjectId) && fvgOn
+    ? fvgScene?.ledger.objects.find(o => o.objectId === selectedMarketObjectId) ?? null
+    : null;
   const selectedObjectChain = selectedMarketObject
     ? buildInspectChain({
         barId: selectedMarketObject.birthBarId,
@@ -3989,6 +4001,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         aliases: ["rvol", "relative volume", "unusual volume", "busy", "time of day volume"],
         active: rvolToneOn,
         onToggle: () => setRvolToneOn(v => !v),
+      }, {
+        // Garden 19 FVG lane D · id = the education key, so the ⓘ reads
+        // CONCEPT_EDUCATION.FVG_IMBALANCE (and its Academy lesson fvg-1).
+        id: FVG_INSTRUMENT_ID,
+        label: "FVG / Imbalance",
+        what: "Fair value gaps as territory on price — the band left where a candle displaced so fast one side barely traded; the visited part turns to a hatched scar, a close through the far edge breaks it. Tap a band to inspect it. Price only — works on every market",
+        familyWord: "Structure",
+        aliases: ["fvg", "fair value gap", "imbalance", "gap", "inefficiency", "ict", "smart money"],
+        active: fvgOn,
+        onToggle: () => setFvgOn(v => !v),
+        truth: { ok: true, sentence: "Price geometry only (three closed bars and ATR14) — it reads on every market, with or without volume." },
       }, ...FOOTPRINT_TYPES.map(t => ({
         id: `FP_${t.id}`,
         label: t.id === "big-trades" ? "Big Trades" : `Footprint · ${t.label}`,
@@ -4266,6 +4289,25 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }, 250);
     return () => window.clearInterval(timer);
   }, [proofSelectKind, deskBarsReady, proofSelectUrl]);
+  /*
+    select=fvg:<OBJECT_ID> (proofScene `selectObject`, the Scanner / Backtest
+    door): once per URL, when the glass's scene holds that object, it is
+    selected through the one selection owner and Inspect opens on it.
+    Receipt: <html data-proof-select-object="fvg:<id>|HELD" | "…|NONE_AVAILABLE">.
+  */
+  const proofSelectObject = typeof window === "undefined" ? null : currentProofScene().selectObject ?? null;
+  const proofSelectObjectDoneRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!proofSelectObject || proofSelectObjectDoneRef.current === proofSelectUrl) return;
+    const root = document.documentElement.dataset;
+    const tag = `fvg:${proofSelectObject.objectId}`;
+    if (fvgScene?.ledger.objects.some(o => o.objectId === proofSelectObject.objectId)) {
+      proofSelectObjectDoneRef.current = proofSelectUrl;
+      actOnChartSelection({ type: "select", selection: { kind: "OBJECT", objectId: proofSelectObject.objectId } });
+      actOnChartSelection({ type: "openInspect" });
+      root.proofSelectObject = `${tag}|HELD`;
+    } else root.proofSelectObject = fvgScene ? `${tag}|NONE_AVAILABLE` : `${tag}|PENDING`;
+  }, [proofSelectObject, fvgScene, proofSelectUrl]);
   const proofSelectHeld: string | null = (() => {
     switch (proofSelectKind) {
       case "zone":
@@ -5693,7 +5735,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               // same hazard the chartHeaderChangeFact call site already warns
               // about for `minDecimals`. Passing the source without this would
               // land a vendor string in the decimal slot.
-              2,
+              // The instrument's own decimals (display-precision owner): at 2 the
+              // phone symbol row read "EURUSD 1.12" beside a chart header of
+              // 1.11982 (sheriff sweep 2026-10-07).
+              chartDisplayDp,
               // SILENCE IS NOT CERTIFICATION. `source` is useWebSocket's own
               // verdict on whether it could vouch for this quote's provenance;
               // when it is still at the "unavailable" sentinel the product has
@@ -5724,7 +5769,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               // Explicit, because `minDecimals` sits between and defaults: the
               // header renders 2dp today, and passing it by name here keeps the
               // trailing settled flag from silently landing in the wrong slot.
-              2,
+              chartDisplayDp,
               barsSettled,
             );
             const changeStyle = HEADER_CHANGE_STYLE[headerChangeFact.kind];
@@ -6924,6 +6969,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       deltaKeelOn={deltaKeelOn}
                       wisdomLineOn={wisdomLineOn}
                       rvolToneOn={rvolToneOn}
+                      fvgOn={fvgOn}
+                      onFvgScene={setFvgScene}
                       absorptionAnatomyActive={absorptionAnatomy}
                       exhaustionOnChart={exhaustionOn}
                       /*
@@ -7123,6 +7170,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         profileDnaOnGlass={livingProfileOn && livingProfileGlass.drawn}
                         selectedProfileSlice={activeProfileSlice}
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
+                        selectedFvg={selectedFvgObject}
                         zoneLineage={selectedZoneLineage}
                         selectedLevel={selectedLevelObject}
                         levelLineage={selectedLevelLineage}

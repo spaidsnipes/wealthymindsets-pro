@@ -22,10 +22,11 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { freezePlanSnapshot, parseManagementCondition, planLine, type ManagementPlanSnapshot, type TraderPlanInput } from "@/lib/journal/managementPlan";
 import { DRAFT_MAX_AGE_MS, latestPlanForSymbol, readDraft, writeDraft } from "@/lib/journal/managementPlanDraft";
+import { draftWithDayRules, readDayRules, type ManagementDayRules } from "@/lib/journal/managementDayRules";
 import { appendPlanAmendment, freezePlanOnce, readPlanForDecision } from "@/lib/journal/managementPlanStore";
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3", LINE = "rgba(139,106,41,0.25)";
-const field: React.CSSProperties = { width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: "4px 6px", borderRadius: 4, minHeight: 28 };
+const field: React.CSSProperties = { boxSizing: "border-box", minWidth: 0, width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: "4px 6px", borderRadius: 4, minHeight: 28 };
 
 const store = (): Storage | null => { try { return typeof window === "undefined" ? null : window.localStorage; } catch { return null; } };
 const numOrNull = (s: string) => { const x = Number(s.trim()); return s.trim() !== "" && Number.isFinite(x) && x > 0 ? x : null; };
@@ -69,7 +70,7 @@ export function conditionReadback(text: string): string {
 function DraftFields({ f, set }: { f: DraftForm; set: (f: DraftForm) => void }) {
   return (
     <div style={{ display: "grid", gap: 6 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 6 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 6 }}>
         <label style={{ color: MUTED, fontSize: 11 }}>Invalidation (words)
           <input data-testid="plan-invalidation" value={f.invalidation} onChange={e => set({ ...f, invalidation: e.target.value })} placeholder="e.g. loses the opening-range low" style={field} />
         </label>
@@ -84,7 +85,7 @@ function DraftFields({ f, set }: { f: DraftForm; set: (f: DraftForm) => void }) 
       {f.conditions.split("\n").map(s => s.trim()).filter(Boolean).map((s, i) => (
         <span key={i} data-testid="plan-condition-readback" style={{ fontSize: 10.5, color: MUTED }}>“{s}” — {conditionReadback(s)}</span>
       ))}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))", gap: 6 }}>
         <label style={{ color: MUTED, fontSize: 11 }}>Expected hold (min)
           <input data-testid="plan-hold" inputMode="numeric" value={f.expectedHoldMin} onChange={e => set({ ...f, expectedHoldMin: e.target.value })} style={field} />
         </label>
@@ -116,7 +117,7 @@ function AmendForm({ snap, onSaved }: { snap: ManagementPlanSnapshot; onSaved: (
     <details data-testid="plan-amend" style={{ border: `1px dashed ${LINE}`, borderRadius: 6, padding: "4px 6px" }}>
       <summary style={{ cursor: "pointer", color: GOLD, fontSize: 11 }}>Amend the plan (dated now)</summary>
       <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))", gap: 6 }}>
           {(["stopPx", "targetPx", "invalidationPx", "expectedHoldMin"] as const).map(k => (
             <label key={k} style={{ color: MUTED, fontSize: 11 }}>{k === "stopPx" ? "New stop" : k === "targetPx" ? "New target" : k === "invalidationPx" ? "New invalidation" : "New hold (min)"}
               <input data-testid={`plan-amend-${k}`} inputMode="decimal" value={a[k]} onChange={e => setA({ ...a, [k]: e.target.value })} style={field} />
@@ -164,6 +165,7 @@ export function ManagementPlanCard(props:
   const [draft, setDraft] = useState<DraftForm>(EMPTY_DRAFT);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [newPlan, setNewPlan] = useState(false);
+  const [dayRules, setDayRules] = useState<ManagementDayRules | null>(null);
   const symbol = props.symbol ?? null;
   const decisionId = props.mode === "story" ? props.decisionId : null;
 
@@ -174,6 +176,7 @@ export function ManagementPlanCard(props:
     const d = props.mode === "ticket" ? readDraft(st, symbol) : null;
     setDraft(d ? fromPlan(d.plan) : EMPTY_DRAFT);
     setSavedAt(d?.updatedAtMs ?? null);
+    setDayRules(props.mode === "ticket" ? readDayRules(st, Date.now()) : null);
   }, [props.mode, decisionId, symbol]);
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -203,7 +206,7 @@ export function ManagementPlanCard(props:
   };
   return (
     <details data-testid="plan-card" data-mode="ticket" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px" }} open={!!frozen || savedAt != null}>
-      <summary style={{ cursor: "pointer", color: GOLD, fontWeight: 600 }}>Plan for {props.symbol} — management, invalidation, hold</summary>
+      <summary style={{ cursor: "pointer", color: GOLD, fontWeight: 600, fontSize: 12, lineHeight: 1.35, minHeight: 28 }}>Plan · {props.symbol} <span style={{ color: MUTED, fontWeight: 400 }}>invalidation, management, hold</span></summary>
       <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
         {frozen && !newPlan ? (
           <>
@@ -212,6 +215,14 @@ export function ManagementPlanCard(props:
           </>
         ) : (
           <>
+            {dayRules && (dayRules.conditions.length || dayRules.expectedHoldMin != null) ? (
+              <div data-testid="plan-day-rules" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 10.5, color: MUTED }}>
+                <span>Today&apos;s rules from Morning Prep: {[...dayRules.conditions, dayRules.expectedHoldMin != null ? `hold ${dayRules.expectedHoldMin} min` : ""].filter(Boolean).join(" · ")}</span>
+                <button type="button" data-testid="plan-use-day-rules" onClick={() => save(fromPlan(draftWithDayRules(toPlan(draft), dayRules)))}
+                  style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 8px", minHeight: 28, cursor: "pointer" }}>Use today&apos;s rules</button>
+              </div>
+            ) : null}
+            {dayRules?.sessionPlan ? <span data-testid="plan-day-session" style={{ fontSize: 10.5, color: MUTED }}>Session plan (Morning Prep): {dayRules.sessionPlan} — joins this decision at its freeze unless you name a session below.</span> : null}
             <DraftFields f={draft} set={save} />
             <span data-testid="plan-draft-state" style={{ fontSize: 10.5, color: MUTED }}>
               {savedAt != null ? "Draft kept on this device. It is frozen with the ticket's stop and target when this decision becomes a trade (the send, or the first paper fill) — after that, changes are dated amendments." : "Anything left blank stays UNRECORDED — WM never fills it in."}

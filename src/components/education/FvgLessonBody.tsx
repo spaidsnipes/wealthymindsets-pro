@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  FVG_EXAMPLES_EMPTY_LINE, FVG_MYTH_CARD, FVG_MYTH_LESSONS, fvgChartLink, fvgTaggedExamples,
+  FVG_EXAMPLES_EMPTY_LINE, FVG_MYTH_CARD, FVG_MYTH_LESSONS, fvgChartLink, fvgReplayPractice, fvgTaggedExamples,
   type FvgJournalExample, type FvgLesson,
 } from "@/lib/academy/fvgCourse";
 import { readJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
@@ -53,6 +53,7 @@ function MyExamples() {
 
 export function FvgLessonBody({ lesson, color }: { lesson: FvgLesson; color: string }) {
   const chart = fvgChartLink(lesson);
+  const replay = fvgReplayPractice(lesson, chart.shipped);
   return (
     <div data-testid="fvg-lesson" data-fvg-lesson={lesson.id} className="px-4 py-4 space-y-4">
       <div>
@@ -91,6 +92,19 @@ export function FvgLessonBody({ lesson, color }: { lesson: FvgLesson; color: str
           Show me on a chart →
         </Link>
         {chart.note ? <p data-testid="fvg-layer-pending" className="text-[10px] text-amber-200">{chart.note}</p> : null}
+        {replay ? (
+          <div data-testid="fvg-replay-practice">
+            <Link
+              href={replay.href}
+              prefetch={false}
+              className="inline-flex min-h-11 items-center rounded-lg border px-3 text-[11px] font-semibold text-wm-text hover:text-wm-gold"
+              style={{ borderColor: "rgba(201,165,92,0.45)" }}
+            >
+              Practice in Replay →
+            </Link>
+            <p className="mt-1 text-[10px] text-wm-text-dim leading-relaxed">{replay.steps}</p>
+          </div>
+        ) : null}
         <MyExamples />
       </div>
     </div>

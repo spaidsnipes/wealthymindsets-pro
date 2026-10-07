@@ -15,6 +15,7 @@
  *   on=…          switches turned ON for this load. Tokens:
  *                   <Name>        → wm_of<Name>      (LivingProfile, TpoProfile, …)
  *                   sessionVP | fixedVP | absorptionAnatomy | sessionBands | effortResponse | deltaKeel | wisdomLine | rvolTone
+ *                   fvg           → wm_fvg (FVG / Imbalance territory, FVG_3C v1; Garden 19 lane D, 2026-10-07)
  *                   fp:<mode>     → footprint on, that mode (bid-ask, delta,
  *                                   volume-profile, imbalance, aggressive-passive, big-trades)
  *                   scaff:<depth> → scaffolding depth (FOUNDATION, INTERMEDIATE, ADVANCED, OFF)
@@ -34,6 +35,12 @@
  *                   level    → the compiled LEVEL object nearest price (Passport)
  *                   bar      → the newest CLOSED bar (F05B candle anatomy)
  *                   bigtrade → the largest Big Trade disc/cluster drawn (F07B)
+ *                   fvg:<OBJECT_ID> → ONE canonical FVG object by its FVG_3C OBJECT_ID
+ *                               (Garden 19 §22: the Scanner's door). Parsed into
+ *                               `selectObject`, NOT `select` — the room applies it
+ *                               through `actOnChartSelection` as an OBJECT select
+ *                               once the chart lane compiles GAP_FVG objects.
+ *                               An id that is not a well-formed FVG id is ignored.
  *                 Unknown words are ignored. The receipt is on <html>:
  *                 data-proof-select="<kind>:<id>" | "<kind>:NONE_AVAILABLE"
  *                 (also "<kind>:PENDING" while waiting, "<kind>:RELEASED" once let go).
@@ -55,12 +62,35 @@ export const SELECT_PARAM = "select";
 export const PROOF_SELECT_KINDS = ["zone", "level", "bar", "bigtrade"] as const;
 export type ProofSelectKind = (typeof PROOF_SELECT_KINDS)[number];
 
+/** `select=fvg:<OBJECT_ID>` — a named canonical object, not a "nearest" pick. */
+export interface ProofSelectObjectRef {
+  readonly kind: "fvg";
+  readonly objectId: string;
+}
+
+/** The FVG_3C OBJECT_ID shape (fvgDefinition.mintFvgObjectId): FVG|<sym>|<tf>|<b2 ms>|<dir>|v<n>. */
+const FVG_OBJECT_ID = /^FVG\|[^|\s]{1,40}\|[^|\s]{1,12}\|-?\d{1,16}\|(BULLISH|BEARISH)\|v[1-9]\d{0,3}$/;
+
+/** The select token for one FVG object (URL-encode it as a query value). */
+export function fvgSelectToken(objectId: string): string {
+  return `fvg:${objectId}`;
+}
+
+/** Parse `fvg:<OBJECT_ID>`; null for anything else. */
+export function parseSelectObjectToken(raw: string | null): ProofSelectObjectRef | null {
+  const t = (raw ?? "").trim();
+  const m = /^fvg:(.+)$/i.exec(t);
+  if (!m) return null;
+  return FVG_OBJECT_ID.test(m[1]) ? { kind: "fvg", objectId: m[1] } : null;
+}
+
 /** Layer switches a clean scene turns off (booleans), plus the non-boolean scaffolding depth. */
 const CLEAN_BOOLEAN_PREFIX = "wm_of";
 // wm_bigtrades_on (2026-10-03): the Big Trades overlay is persisted now, so a
 // clean scene must switch it off too — or the trader's own overlay leaks in.
 // wm_sessionBands (FX lane, 2026-10-06): default ON for spot FX — a clean scene starts without it.
-const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP", "wm_fixedVP", "wm_bigtrades_on", "wm_sessionBands", "wm_effortResponse", "wm_deltaKeel", "wm_wisdomLine", "wm_rvolTone"] as const;
+// wm_fvg (Garden 19 FVG lane D, 2026-10-07): default OFF; a clean scene keeps it off unless on=fvg.
+const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP", "wm_fixedVP", "wm_bigtrades_on", "wm_sessionBands", "wm_effortResponse", "wm_deltaKeel", "wm_wisdomLine", "wm_rvolTone", "wm_fvg"] as const;
 const SCAFFOLDING_KEY = "wm_ofScaffolding";
 /** What the trader asked of the Question Lens (ChartsDashboard's own key). */
 const QUESTION_CHOICE_KEY = "wm_questionChoice";
@@ -68,7 +98,7 @@ const QUESTION_CHOICE_KEY = "wm_questionChoice";
 const ANATOMY_MODE_SCENE_KEY = "wm_anatomyMode";
 const ANATOMY_MODE_TOKENS = new Set(["OFF", "MARKET", "FOUNDER", "FUSION"]);
 const NON_BOOLEAN_OF_KEYS = new Set([SCAFFOLDING_KEY, "wm_ofStackPrefs", "wm_ofMyStack"]);
-const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy", "sessionBands", "effortResponse", "deltaKeel", "wisdomLine", "rvolTone"]);
+const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy", "sessionBands", "effortResponse", "deltaKeel", "wisdomLine", "rvolTone", "fvg"]);
 
 export interface ProofScene {
   readonly active: boolean;
@@ -79,9 +109,11 @@ export interface ProofScene {
   readonly bars: number | null;
   /** What Inspect opens on for this load, or null. */
   readonly select: ProofSelectKind | null;
+  /** A NAMED object Inspect opens on (`select=fvg:<OBJECT_ID>`), or null. */
+  readonly selectObject: ProofSelectObjectRef | null;
 }
 
-export const NO_PROOF_SCENE: ProofScene = { active: false, clean: false, overrides: {}, bars: null, select: null };
+export const NO_PROOF_SCENE: ProofScene = { active: false, clean: false, overrides: {}, bars: null, select: null, selectObject: null };
 
 export function parseProofScene(search: string): ProofScene {
   let q: URLSearchParams;
@@ -94,7 +126,9 @@ export function parseProofScene(search: string): ProofScene {
   const bars = Number.isFinite(barsN) && barsN >= 5 && barsN <= 5000 ? barsN : null;
   const selectRaw = (q.get(SELECT_PARAM) ?? "").trim().toLowerCase();
   const select = (PROOF_SELECT_KINDS as readonly string[]).includes(selectRaw) ? selectRaw as ProofSelectKind : null;
-  if (!clean && !onRaw && bars == null && indRaw == null && select == null) return NO_PROOF_SCENE;
+  // Object ids are case-sensitive: read the raw value, not the lower-cased one.
+  const selectObject = parseSelectObjectToken(q.get(SELECT_PARAM));
+  if (!clean && !onRaw && bars == null && indRaw == null && select == null && selectObject == null) return NO_PROOF_SCENE;
 
   const overrides: Record<string, unknown> = {};
   if (indRaw != null) overrides.wm_activeInds = indRaw.split(",").map(t => t.trim()).filter(Boolean);
@@ -120,7 +154,7 @@ export function parseProofScene(search: string): ProofScene {
       overrides[`${CLEAN_BOOLEAN_PREFIX}${token}`] = true;
     }
   }
-  return { active: true, clean, overrides, bars, select };
+  return { active: true, clean, overrides, bars, select, selectObject };
 }
 
 /**

@@ -21,6 +21,7 @@ import { takeJournalCapture } from "@/lib/journal/journalCaptureHandoff";
 import { journalReviewKey, reviewEvidenceFromCapture } from "@/lib/journal/captureReviewEvidence";
 import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
 import { planReviewInputForJournalEntry } from "@/lib/journal/planReview";
+import { PlanAdherenceBySetup } from "@/components/journal/PlanAdherenceBySetup";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
@@ -2468,6 +2469,8 @@ Trade the system, trust the process, winners every day 🚀`,
       {mainTab === "journal" && journalSnapshots.length > 0 && (
         <div style={{ padding: "8px 16px", borderBottom: "1px solid rgba(139,106,41,0.15)" }}>
           <PersonalEdgeChip vm={personalEdgeVm} />
+          {/* Garden 19 §28/§29: plan adherence by setup (MEASURED only at 20 decided trades). */}
+          <PlanAdherenceBySetup entries={entries} />
         </div>
       )}
 

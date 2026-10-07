@@ -477,7 +477,7 @@ const INDICATORS = [
   { cat:"Order Flow", name:"Tape CVD",                desc:"Cumulative signed tape — only bars the tape was heard on, sides as the feed labelled them; hollow first bar, never candle colour" },
   // ─── Smart Money ──────────────────────────────────────
   { cat:"Smart Money", name:"Order Block Finder",    desc:"Institutional demand/supply zones" },
-  { cat:"Smart Money", name:"Fair Value Gaps",       desc:"Imbalanced price inefficiency zones" },
+  // "Fair Value Gaps" RETIRED 2026-10-07 (Garden 19 FVG lane D) — Tools › Find "FVG / Imbalance" is its one door now.
   { cat:"Smart Money", name:"Break of Structure",    desc:"Market structure BOS highlights" },
   { cat:"Smart Money", name:"Change of Character",   desc:"CHoCH — trend shift detection" },
   { cat:"Smart Money", name:"Liquidity Pools",       desc:"Buy/sell side liquidity sweep levels" },

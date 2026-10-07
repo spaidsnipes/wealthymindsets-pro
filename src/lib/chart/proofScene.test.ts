@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  NO_PROOF_SCENE, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneValue, proofSelectReceipt,
+  NO_PROOF_SCENE, fvgSelectToken, parseProofScene, parseSelectObjectToken, pickNewestClosedBar, pickProofSelectObject, proofSceneValue, proofSelectReceipt,
 } from "./proofScene";
 
 describe("proof scene", () => {
@@ -128,5 +128,23 @@ describe("the chart reads Dual Anatomy through its one owner", () => {
     expect(mc.length).toBeGreaterThan(100000);
     expect(mc).not.toContain("localStorage.getItem(ANATOMY_MODE_KEY)");
     expect(mc).toContain("const read = () => { anatomyModeRef.current = readAnatomyMode(); };");
+  });
+});
+
+describe("select=fvg:<OBJECT_ID> — one named FVG object (Garden 19 §22)", () => {
+  const ID = "FVG|NQ1!|5m|1791000000000|BULLISH|v1";
+  it("parses the canonical object id (URL-encoded) into selectObject, not select", () => {
+    const s = parseProofScene(`?symbol=NQ1!&tf=5m&on=fvg&select=${encodeURIComponent(fvgSelectToken(ID))}`);
+    expect(s.active).toBe(true);
+    expect(s.select).toBeNull();
+    expect(s.selectObject).toEqual({ kind: "fvg", objectId: ID });
+  });
+  it("ignores anything that is not a well-formed FVG_3C id", () => {
+    expect(parseSelectObjectToken("fvg:")).toBeNull();
+    expect(parseSelectObjectToken("fvg:FVG|NQ1!|5m|abc|BULLISH|v1")).toBeNull();
+    expect(parseSelectObjectToken("fvg:FVG|NQ1!|5m|1|SIDEWAYS|v1")).toBeNull();
+    expect(parseSelectObjectToken("zone")).toBeNull();
+    expect(parseProofScene("?select=fvg:nonsense").selectObject).toBeNull();
+    expect(parseProofScene("?symbol=TSLA")).toEqual(NO_PROOF_SCENE);
   });
 });

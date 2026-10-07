@@ -463,23 +463,6 @@ const LEDGER: Readonly<Record<string, LedgerEntry>> = {
       + "data' failure he asked us not to repeat. Delete both entries together "
       + "when the relay lands measured.",
   },
-  "src/lib/marketData/fvg/fvgEngine.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "Garden 19 FVG / Imbalance: the ONE FVG_3C v1 detector + lifecycle + as-of accessor "
-      + "(fvgStateAsOf) + visibility budget + GAP_FVG MarketObject projection. Built 2026-10-07 "
-      + "ahead of its painter: the chart lane paints it on /charts (MainChart is that lane's file, "
-      + "not this one's); Scanner / Inspect / Replay / Backtest / Journal / SpaidBot read it. Until a "
-      + "route imports it a trader sees no FVG lifecycle at all. Delete this entry when it is wired.",
-  },
-  "src/lib/marketData/fvg/fvgStats.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "Garden 19 FVG / Imbalance: DESCRIPTIVE outcome tallies (touched, horizons, mitigation, "
-      + "rejection / acceptance / trade-through, still-open with right-censoring) — counts with "
-      + "denominators, never probabilities. Awaiting the Scanner / Personal Edge / Academy surface "
-      + "that prints them. Delete this entry when it is wired.",
-  },
   "src/lib/marketData/isOptionSymbol.ts": {
     reason: "AWAITING_SURFACE",
     note: "Symbol classification helper, unused by any surface.",

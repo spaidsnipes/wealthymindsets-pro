@@ -41,6 +41,8 @@ import { atrSeries, EFFORT_RESPONSE_BUDGET_MS, readEffortResponseField, response
 import { DELTA_KEEL_BUDGET_MS, groupKeelGlyphs, keelLength, patchKeelGeometry, patchKeels, readKeels, type KeelGeometry, type KeelGlyph, type KeelInput } from "@/lib/chart/barDeltaKeel";
 import { readCrossCandleWisdom, type WisdomLine } from "@/lib/chart/crossCandleWisdom";
 import { readRelativeVolume, RVOL_BUDGET_MS, rvolToneAlpha, type RvolBar } from "@/lib/chart/relativeVolume";
+import { createFvgCameraMemo, fvgSceneForCamera, type FvgCameraScene } from "@/lib/marketData/fvg/fvgCamera";
+import { FVG_OPACITY, fvgAlpha, fvgBandGeometry, fvgClearZoneX, fvgCostReceipt, fvgKeepOutStrips, fvgReceipt, type FvgBandGeometry } from "@/lib/chart/fvgGlass";
 import type { RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegimeSeries";
 import { bucketStep, profileContribution } from "@/lib/chart/profileContribution";
 import type { LivingDevelopmentPoint } from "@/lib/marketData/viewModels/selectLivingProfile";
@@ -1371,6 +1373,14 @@ interface Props {
    */
   rvolToneOn?: boolean;
   /**
+   * FVG / IMBALANCE (Garden 19 FVG lane D, fvgGlass.ts): the ONE FVG history
+   * (fvgEngine FVG_3C v1, read through fvgCamera.fvgSceneForCamera — live
+   * increment memo, replay cursor) painted as TERRITORY on price.
+   */
+  fvgOn?: boolean;
+  /** The FVG scene the glass painted from (live, or as of the replay cursor) — Inspect reads its objects. */
+  onFvgScene?: (scene: FvgCameraScene | null) => void;
+  /**
    * #7 REGIME STATE LINE (F15A): the room's per-bar regime series
    * (selectRegimeSeries — the canvas verdict re-asked at each bar's close).
    * Painted only while Regime Lighting is on.
@@ -1964,7 +1974,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onCrosshairTime, onCrosshairHandle, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
-  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, regimeSeries = null, livingDevelopment = null,
+  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, fvgOn = false, onFvgScene, regimeSeries = null, livingDevelopment = null,
   absorptionAnatomyActive = false,
   exhaustionOnChart = true,
   imbalanceStack = null,
@@ -2399,6 +2409,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const nearTapeHitsRef = useRef<{ x: number; y: number; r: number; barTime: number; dot: NearTapeDot }[]>([]);
   /** R-19 · structure-zone bands painted this frame, for band clicks. */
   const zoneHitsRef = useRef<{ objectId: string; x: number; y: number; w: number; h: number }[]>([]);
+  /* FVG / IMBALANCE (Garden 19 lane D). Bands painted THIS frame (tap → the
+     GAP_FVG object through the one selection owner); the camera's live
+     increment memo; the scene keyed on the newest CLOSED bar + bar count
+     (never recomputed per frame or on pointer move); the paint cost ledger. */
+  const fvgHitsRef = useRef<{ objectId: string; x: number; y: number; w: number; h: number }[]>([]);
+  const fvgMemoRef = useRef(createFvgCameraMemo());
+  const fvgSceneRef = useRef<{ key: string; ids: unknown; scene: FvgCameraScene | null } | null>(null);
+  const fvgPublishedRef = useRef<FvgCameraScene | null | undefined>(undefined);
+  const fvgCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
+  const onFvgSceneRef = useRef(onFvgScene);
+  onFvgSceneRef.current = onFvgScene;
   /** H-201 · the ghost painted this frame (its candle columns and caption), for a ghost click. */
   const memoryGhostHitRef = useRef<{ rects: { x: number; y: number; w: number; h: number }[]; vm: MemoryGhostVM } | null>(null);
   /** The frame those hits were painted from, so a click reads the reading that was on screen. */
@@ -5891,22 +5912,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (inds.has("Percentile Rank"))         { setupScale("prank"); addOsc(IND.percentileRank(closes), "#67E8F9", "prank"); }
 
     // ── SMC / Price Action overlays ───────────────────────────
-    if (inds.has("Fair Value Gaps")) {
-      try {
-        const fvgs = IND.fairValueGaps(bars);
-        fvgs.slice(-30).forEach(g => {
-          const idx = bars.findIndex(b => b.time === g.time);
-          if (idx < 0) return;
-          const color = g.bull ? "rgba(0,192,118,0.12)" : "rgba(255,77,103,0.12)";
-          const s = chart.addSeries(LW.LineSeries,{ color: g.bull ? "#26a69a" : "#ef5350", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-          s.setData([{ time: bars[idx].time as any, value: g.top }, ...bars.slice(idx).map(b => ({ time: b.time as any, value: g.top }))]);
-          indSeriesRef.current.push(s);
-          const s2 = chart.addSeries(LW.LineSeries,{ color: g.bull ? "#26a69a" : "#ef5350", lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-          s2.setData([{ time: bars[idx].time as any, value: g.bot }, ...bars.slice(idx).map(b => ({ time: b.time as any, value: g.bot }))]);
-          indSeriesRef.current.push(s2);
-        });
-      } catch {}
-    }
+    // "Fair Value Gaps" (classic indicator) RETIRED 2026-10-07 — Garden 19 FVG
+    // lane D: the ONE detector (fvgEngine, FVG_3C v1) paints as the FVG /
+    // Imbalance territory layer (prop `fvgOn`, pref wm_fvg); a saved
+    // "Fair Value Gaps" indicator entry now draws nothing here.
     if (inds.has("Swing High/Low")) {
       const swings = IND.swingHighLow(bars, CHART_SWING_LOOKBACK);
       swings.highs.forEach(h => {
@@ -7433,6 +7442,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // A click selects only what is on the glass: the anatomy hit list is
       // cleared with it and refilled only by the anatomy paint below.
       anatomyHitsRef.current = [];
+      fvgHitsRef.current = [];
       zoneHitsRef.current = [];
       nearTapeHitsRef.current = [];
       memoryGhostHitRef.current = null;
@@ -7682,6 +7692,206 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Session shading is intentionally omitted until it is calculated with
       // DST-aware America/New_York boundaries; a fixed UTC-4 offset mislabeled
       // winter sessions by one hour.
+
+      /* ══ GARDEN 19 · FVG / IMBALANCE — TERRITORY, NOT A LABEL ═══════════
+         (FVG lane D, Founder order 2026-10-07 §8–§10, §19, §43–§51, §58.)
+         The ONE history (fvgEngine FVG_3C v1) through the ONE camera door
+         (fvgSceneForCamera): the live increment memo pushes CLOSED bars only;
+         under Replay the scene is the ledger as of the cursor's close
+         (replayCursorTimeSec → fvgStateAsOf), never the live ledger. The scene
+         is recomputed only when the newest closed bar or the bar count
+         changes — never per frame, never on pointer move.
+         PHYSICAL GRAMMAR (fvgGlass.ts): remaining territory dense; the visited
+         part a hatched scar; approach = a soft glow on the near edge only;
+         rejection = a short tick at the response bar on the near edge;
+         acceptance = filled interior + a quiet inner line; traded through =
+         the far edge breaks (dashed) and the band quiets into memory. Bull /
+         bear by FORM (territory below vs above, edge-tick and origin-chevron
+         direction) AND house buy / sell ink. NO WORDS, NO NUMBERS on the glass
+         (they live in Inspect). Painted first, behind every reading, clipped
+         round the candles; never in the newest candle's clear zone (§15), and
+         never across the last price or a position / order / broker line.
+         FVG-GLASS-BEGIN */
+      try {
+        const t0F = performance.now();
+        const dsF = canvas.dataset;
+        if (!fvgOn) {
+          if (dsF.fvg !== "OFF") {
+            dsF.fvg = "OFF";
+            for (const k of ["fvgDrawn", "fvgAsOf", "fvgClear", "fvgSelected", "fvgStep", "fvgCost", "fvgHit"]) delete dsF[k];
+          }
+          if (fvgPublishedRef.current !== null) { fvgPublishedRef.current = null; const cb = onFvgSceneRef.current; setTimeout(() => cb?.(null), 0); }
+        } else {
+          const replaying = replayCameraRef.current;
+          const srcF = replaying ? liveHeldBarsRef.current : barsRef.current;
+          const camF = barsRef.current;
+          const idsF = barIdentitiesRef.current;
+          const newestId = idsF.length ? idsF[idsF.length - 1] : null;
+          const cursorF = replaying && camF.length ? Number(camF[camF.length - 1].time) : null;
+          const tickTf = tickCountOf(timeframe) != null;
+          const bucketSec = liveBarBucketSec(timeframe);
+          const clockBucket = tickTf || !bucketSec ? 0 : Math.floor(Date.now() / 1000 / bucketSec);
+          const keyF = `${symbol}|${timeframe}|${extendedHours}|${srcF.length}|${srcF[0]?.time}|${srcF[srcF.length - 1]?.time}|${idsF.length}|${cursorF}|${clockBucket}`;
+          let entry = fvgSceneRef.current;
+          if (!entry || entry.key !== keyF || entry.ids !== idsF) {
+            const scene = newestId && srcF.length >= 3
+              ? fvgSceneForCamera({
+                  candles: srcF,
+                  identities: idsF,
+                  symbolId: newestId.symbolId,
+                  timeframe: newestId.timeframe,
+                  extendedHours,
+                  nowMs: Date.now(),
+                  replayCursorTimeSec: cursorF,
+                  tickBars: tickTf,
+                }, fvgMemoRef.current)
+              : null;
+            entry = fvgSceneRef.current = { key: keyF, ids: idsF, scene };
+            dsF.fvgStep = fvgMemoRef.current.lastStep;
+          }
+          const scene = entry.scene;
+          if (fvgPublishedRef.current !== scene) { fvgPublishedRef.current = scene; const cb = onFvgSceneRef.current; setTimeout(() => cb?.(scene), 0); }
+          if (!scene) {
+            dsF.fvg = newestId ? "SILENT:NO_CLOSED_BARS" : "SILENT:NO_CANONICAL_IDENTITY";
+            delete dsF.fvgHit;
+          } else {
+            const led = scene.ledger, vis = scene.visibility;
+            dsF.fvg = fvgReceipt(vis);
+            // FUTURE-LEAK receipt (§51): nothing created or revealed after the camera's clock.
+            const clockF = scene.clockMs ?? Number.NEGATIVE_INFINITY;
+            let leaks = 0;
+            for (const o of led.objects) { if (o.createdAt > clockF) leaks++; for (const e of o.events) if (e.knownAt > clockF) leaks++; }
+            dsF.fvgAsOf = `${scene.mode}:${scene.clockMs ?? "NONE"}|BARS:${led.barCount}|LEAK:${leaks}`;
+            const tsF = chart.timeScale();
+            let axisF = 0;
+            try { axisF = Math.max(0, Number(chart.priceScale("right").width()) || 0); } catch { /* keep 0 */ }
+            const plotRightF = W - axisF;
+            const newestF = camF.length ? tsF.timeToCoordinate(camF[camF.length - 1].time as never) : null;
+            const xStop = fvgClearZoneX(newestF == null ? null : +newestF, bsp, plotRightF);
+            const lastCloseF = camF.length ? camF[camF.length - 1].close : null;
+            const plw = priceLineWordsRef.current;
+            const lineYs = [lastCloseF, ...[...plw.paper, ...plw.broker, ...plw.order].map(w => w.price)]
+              .map(p => (p == null || !Number.isFinite(p) ? null : srs.priceToCoordinate(p)))
+              .map(y => (y == null ? null : +y));
+            const strips = fvgKeepOutStrips(lineYs, 3);
+            const selIdF = selectedObjectIdRef.current;
+            const minHit = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches ? 24 : 10;
+            const cam = {
+              timeToX: (sec: number) => { const x = tsF.timeToCoordinate(sec as never); return x == null ? null : +x; },
+              priceToY: (p: number) => { const y = srs.priceToCoordinate(p); return y == null ? null : +y; },
+              xStop,
+            };
+            const timeOfIndex = (k: number) => scene.barTimesSec[k] ?? null;
+            const newestIndex = led.barCount - 1;
+            const want = [...vis.open, ...vis.scars];
+            // The selected object always paints (even past the budget or in memory).
+            if (selIdF && !want.some(o => o.objectId === selIdF)) { const so = led.objects.find(o => o.objectId === selIdF); if (so) want.push(so); }
+            const bands: { g: FvgBandGeometry; ink: string; sel: boolean }[] = [];
+            let maxX1 = -1;
+            for (const o of want) {
+              const g = fvgBandGeometry(o, cam, timeOfIndex, { newestIndex, minHit, closeTimes: led.closeTimes });
+              if (!g) continue;
+              bands.push({ g, ink: g.bullish ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell, sel: o.objectId === selIdF });
+              maxX1 = Math.max(maxX1, g.x1);
+            }
+            dsF.fvgClear = `X:${Math.round(xStop)}|NEWEST:${newestF == null ? "NONE" : Math.round(+newestF)}|MAXX:${Math.round(maxX1)}|STRIPS:${strips.length}`;
+            const forms = { LIVE: 0, SCAR: 0, MEMORY: 0 };
+            for (const b of bands) forms[b.g.form]++;
+            dsF.fvgDrawn = `${bands.length}|LIVE:${forms.LIVE}|SCAR:${forms.SCAR}|MEMORY:${forms.MEMORY}`;
+            if (bands.length) {
+              ctx.save();
+              // §15 CLEAR ZONE + LINE KEEP-OUT: the plot left of the newest
+              // candle's slot, minus a strip round the last price and every
+              // position / order / broker line (merged — even-odd never re-opens one).
+              const clipF = new Path2D();
+              clipF.rect(0, 0, xStop, H);
+              for (const s of strips) clipF.rect(0, s.y0, xStop, s.y1 - s.y0);
+              ctx.clip(clipF, "evenodd");
+              // Behind the market: every candle body and wick is cut out.
+              ctx.clip(profileCandleCut().path, "evenodd");
+              // BATCHED: one path per (ink, rung, age step) group.
+              const groups = new Map<string, Path2D>();
+              const grp = (k: string) => { let p = groups.get(k); if (!p) { p = new Path2D(); groups.set(k, p); } return p; };
+              const ageStep = (a: number) => Math.round(a * 10) / 10;
+              for (const { g, ink, sel } of bands) {
+                const a = ageStep(g.age);
+                const w = g.x1 - g.x0;
+                if (g.remaining) grp(`F|${ink}|${fvgAlpha(FVG_OPACITY.remainingFill, a)}`).rect(g.x0, g.remaining.y0, w, g.remaining.y1 - g.remaining.y0);
+                if (g.accepted) grp(`F|${ink}|${fvgAlpha(FVG_OPACITY.acceptedFill, a)}`).rect(g.x0, g.yTop, w, g.yBottom - g.yTop);
+                if (g.visited) {
+                  grp(`F|${ink}|${fvgAlpha(FVG_OPACITY.visitedFill, a)}`).rect(g.x0, g.visited.y0, w, g.visited.y1 - g.visited.y0);
+                  // The scar: a hatch inside the visited part (45°, 6px), clipped analytically to its rect.
+                  const hh = g.visited.y1 - g.visited.y0;
+                  if (hh >= 3) {
+                    const hp = grp(`S|${ink}|${fvgAlpha(FVG_OPACITY.visitedHatch, a)}|1`);
+                    for (let x = g.x0 - hh; x < g.x1; x += 6) {
+                      const t0 = Math.max(0, g.x0 - x), t1 = Math.min(hh, g.x1 - x);
+                      if (t1 <= t0) continue;
+                      hp.moveTo(x + t0, g.visited.y1 - t0);
+                      hp.lineTo(x + t1, g.visited.y1 - t1);
+                    }
+                  }
+                }
+                const ea = fvgAlpha(FVG_OPACITY.edge * (sel ? 1.5 : 1), a);
+                const lw = sel ? 1.5 : 1;
+                // Thin boundary: near edge solid; far edge solid until traded through, then broken.
+                const ep = grp(`S|${ink}|${ea}|${lw}`);
+                ep.moveTo(g.x0, Math.round(g.nearY) + 0.5); ep.lineTo(g.x1, Math.round(g.nearY) + 0.5);
+                ep.moveTo(Math.round(g.x0) + 0.5, g.yTop); ep.lineTo(Math.round(g.x0) + 0.5, g.yBottom);
+                const fp = grp(`${g.farBroken ? "D" : "S"}|${ink}|${ea}|${lw}`);
+                fp.moveTo(g.x0, Math.round(g.farY) + 0.5); fp.lineTo(g.x1, Math.round(g.farY) + 0.5);
+                // Acceptance: a quiet inner line through the territory.
+                if (g.accepted && g.yBottom - g.yTop >= 4) {
+                  const ip = grp(`S|${ink}|${fvgAlpha(FVG_OPACITY.innerLine, a)}|1`);
+                  const ym = Math.round((g.yTop + g.yBottom) / 2) + 0.5;
+                  ip.moveTo(g.x0 + 2, ym); ip.lineTo(g.x1 - 2, ym);
+                }
+                // Direction by FORM: rejection ticks and the origin chevron point the way price left.
+                const out = g.bullish ? -1 : 1;
+                const tk = grp(`S|${ink}|${fvgAlpha(FVG_OPACITY.tick, Math.max(a, 0.6))}|1.5`);
+                for (const x of g.rejectTicks) { const xr = Math.round(x) + 0.5; tk.moveTo(xr, g.nearY); tk.lineTo(xr, g.nearY + out * 6); }
+                if (w >= 10) {
+                  const cx = g.x0 + 5, cy = g.nearY + out * 4;
+                  tk.moveTo(cx - 3, cy - out * 3); tk.lineTo(cx, cy); tk.lineTo(cx + 3, cy - out * 3);
+                }
+                fvgHitsRef.current.push({ objectId: g.objectId, ...g.hit });
+              }
+              for (const [k, p] of groups) {
+                const [kind, ink, alpha, lw] = k.split("|");
+                if (kind === "F") { ctx.fillStyle = `rgba(${ink},${alpha})`; ctx.fill(p); continue; }
+                ctx.strokeStyle = `rgba(${ink},${alpha})`;
+                ctx.lineWidth = Number(lw) || 1;
+                ctx.setLineDash(kind === "D" ? [3, 3] : []);
+                ctx.stroke(p);
+              }
+              ctx.setLineDash([]);
+              // APPROACH: a soft glow outward from the near edge only (gradients do not batch).
+              for (const { g, ink } of bands) {
+                if (!g.approach) continue;
+                const out = g.bullish ? -1 : 1;
+                const y0 = g.nearY, y1 = g.nearY + out * 8;
+                const gr = ctx.createLinearGradient(0, y0, 0, y1);
+                gr.addColorStop(0, `rgba(${ink},${fvgAlpha(FVG_OPACITY.glow, g.age)})`);
+                gr.addColorStop(1, `rgba(${ink},0)`);
+                ctx.fillStyle = gr;
+                ctx.fillRect(g.x0, Math.min(y0, y1), g.x1 - g.x0, 8);
+              }
+              ctx.restore();
+              const h0 = fvgHitsRef.current[0];
+              if (h0) dsF.fvgHit = `${Math.round(h0.x + h0.w / 2)},${Math.round(h0.y + h0.h / 2)}|${h0.objectId}`; else delete dsF.fvgHit;
+            } else delete dsF.fvgHit;
+            const so = selIdF ? led.objects.find(o => o.objectId === selIdF) : null;
+            dsF.fvgSelected = so ? `${so.objectId}|${so.state}` : "NONE";
+          }
+        }
+        if (fvgOn) {
+          const msF = performance.now() - t0F;
+          const cr = fvgCostRef.current;
+          cr.n++; cr.sum += msF; cr.longest = Math.max(cr.longest, msF);
+          dsF.fvgCost = fvgCostReceipt(msF, cr);
+        }
+      } catch (err) { layerFault("FVG", err); }
+      /* FVG-GLASS-END */
 
       // Read the LIVE bar array from the ref each frame (not the `candles` state)
       // so the continuous RAF loop always has the latest data WITHOUT the effect
@@ -25040,7 +25250,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, wisdomLineOn, rvolToneOn, absorptionAnatomyActive, getBarSubProfile]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, wisdomLineOn, rvolToneOn, fvgOn, absorptionAnatomyActive, getBarSubProfile]);
 
   /*
     THE HIDDEN-TAB STAMP CANNOT LIVE INSIDE THE RAF LOOP.
@@ -26172,6 +26382,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       pin, so the ONE selection reducer opens the same Passport. Where bands
       overlap, the smallest (most specific) one wins.
     */
+    /*
+      GARDEN 19 · A TAP ON AN FVG BAND SELECTS ITS GAP_FVG OBJECT — the same
+      one selection owner, so Inspect (and first touch) open on it. The rects
+      are this frame's painted bands; where bands overlap the smallest wins.
+    */
+    const fvgHit = fvgHitsRef.current
+      .filter(h => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h)
+      .sort((a, b) => a.w * a.h - b.w * b.h)[0];
+    if (fvgHit) {
+      onSelectMarketObject?.(fvgHit.objectId);
+      return;
+    }
     const zoneHit = zoneHitsRef.current
       .filter(z => x >= z.x && x <= z.x + z.w && y >= z.y - 2 && y <= z.y + z.h + 2)
       .sort((a, b) => a.w * a.h - b.w * b.h)[0];

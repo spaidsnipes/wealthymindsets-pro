@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { TodayManagementRules } from "@/components/journal/TodayManagementRules";
 import Link from "next/link";
 import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
@@ -638,6 +639,9 @@ export default function MorningPrepPage() {
         <MorningPrepStreakBadge userId={user?.id ?? ""} />
 
         <MorningPrepOpeningBell userId={user?.id ?? ""} />
+
+        {/* Garden 19 §55: patience and management are prepared here, before the bell. */}
+        {ownerId ? <TodayManagementRules /> : null}
 
         {/* Yesterday's Mirror — retrospective patterns from journal.
             Renders NOTHING when 0 patterns detected (silence-is-a-feature).

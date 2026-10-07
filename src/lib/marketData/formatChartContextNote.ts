@@ -43,6 +43,7 @@
  */
 
 import { selectTickerChangeDisplay } from "./selectTickerChangeDisplay";
+import { formatFvgFactBlock } from "@/lib/ai/spaidbotFvgFacts";
 
 export interface ChartContextInput {
   readonly symbol?: unknown;
@@ -111,6 +112,13 @@ export interface ChartContextInput {
    * diagnose. Re-cleaned here (client-supplied).
    */
   readonly plan?: unknown;
+  /**
+   * Garden 19 §23–§24 — the FVG objects on the chart's scene (the selected
+   * GAP_FVG first), as STRUCTURED records (spaidbotFvgFacts.spaidbotFvgScene).
+   * Client-supplied, so the words are written HERE from re-validated fields
+   * (formatFvgFactBlock); a record that does not validate says nothing.
+   */
+  readonly fvg?: unknown;
 }
 
 /**
@@ -255,6 +263,7 @@ export function formatChartContextNote(context: ChartContextInput | null | undef
   }
 
   note += formatEvidenceTail(context, nowMs);
+  note += formatFvgFactBlock(context.fvg);
 
   return `\n\n${note}]`;
 }
