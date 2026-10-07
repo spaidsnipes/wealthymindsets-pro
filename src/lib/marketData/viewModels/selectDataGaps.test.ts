@@ -209,3 +209,14 @@ describe("selectDataGaps — the market clock names the session the bars could n
     expect(code).toMatch(/const sessionWin = sessionWindowFor\(symbol, timeframe, !!extendedHours\)/);
   });
 });
+
+describe("tick (N-trade) bars are not a clock (2026-10-07)", () => {
+  it("reads NOT_A_CLOCK and draws no gap, however far apart the bars open", () => {
+    const bars = [0, 60, 600, 660, 5000, 5060].map((t, i) => ({ time: 1_759_800_000 + t, open: 100 + i, close: 100 + i }));
+    const vm = selectDataGaps({ bars, continuous: true, tradeCountBars: true });
+    expect(vm.reason).toBe("NOT_A_CLOCK");
+    expect(vm.gaps).toEqual([]);
+    // …while the same bars on a clock would have read holes.
+    expect(selectDataGaps({ bars, continuous: true }).gaps.length).toBeGreaterThan(0);
+  });
+});

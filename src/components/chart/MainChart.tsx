@@ -3681,7 +3681,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       tickBackfillRef.current = [];
       const ps = [];
       for (const t of pending) { const p = printFromTapeTick(t, false); if (p) ps.push(p); }
-      tb.ingestBatch(ps);
+      // Backfilled prints are in the bars, not yet in THE ladder — whether or
+      // not a paint happens now (the series may not be up yet: serving BTC-USD
+      // 500T, 2026-10-07, keels read NO_SIGNED_EVIDENCE on 81 bars of tape).
+      if (tb.ingestBatch(ps) > 0) tickLadderStaleRef.current = true;
     }
     tickBackfillInFlightRef.current = !final;
     if (!final) {
@@ -3997,7 +4000,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const barEnd    = barStart + sec;
       const remaining = barEnd - now;
       setRemainingSec(remaining);
-      setIntervalSec(sec);
+      // TICK BARS have no interval: the span the recency reading measures is
+      // the forming bar's own age, so a bar that opened minutes ago on a quiet
+      // tape reads "opened <time> · forming", never "N BARS BEHIND" (serving
+      // BTC-USD 500T, 2026-10-07). Whether the TAPE is alive stays the feed
+      // reading's job. The countdown on tick bars counts prints, not this.
+      const tickLastT = tickBuilderRef.current && barsRef.current.length ? Number(barsRef.current[barsRef.current.length - 1].time) : null;
+      setIntervalSec(tickLastT != null && Number.isFinite(tickLastT) ? Math.max(1, Math.ceil(now - tickLastT) + 1) : sec);
       setNowMs(now * 1000);
       progressRef.current = Math.max(0, Math.min(1, (now - barStart) / sec));
     };
@@ -10206,6 +10215,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // for bars whose ingress minted SESSION_UNKNOWN — every non-crypto
             // feed today. Without it no equity/futures/FX hole was ever read.
             sessionClock: sessionWin,
+            tradeCountBars: tickBuilderRef.current != null,
           }),
         };
         const dg = dataGapsCache.vm;
@@ -10793,7 +10803,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       try {
         const rs = regimeSeriesRef.current;
         if (layerOnRef.current.regimeLighting !== true) canvas.dataset.regimeStateLine = "OFF";
-        else if (!rs || !rs.length) canvas.dataset.regimeStateLine = "NO_SERIES";
+        // Tick bars: the regime series buckets the tape by a clock bar size, which a trade-count bar does not have.
+        else if (!rs || !rs.length) canvas.dataset.regimeStateLine = tickBuilderRef.current ? "SILENT:NOT_A_CLOCK" : "NO_SERIES";
         else {
           const LEVEL: Record<string, number> = { TREND: 0, TRANSITION: 1, EXPANSION: 1, BALANCE: 2, COMPRESSION: 2, UNKNOWN: 3 };
           let volTopRS = 0.78;
@@ -10844,7 +10855,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       try {
         const dev = livingDevelopmentRef.current;
         if (layerOnRef.current.livingProfile !== true || livingProfileRef.current?.drawn !== true) canvas.dataset.livingDevelopment = "OFF";
-        else if (!dev || dev.length < 2) canvas.dataset.livingDevelopment = "NO_SERIES";
+        // Tick bars: the developing value is computed per clock bar; a trade-count bar has no clock.
+        else if (!dev || dev.length < 2) canvas.dataset.livingDevelopment = tickBuilderRef.current ? "SILENT:NOT_A_CLOCK" : "NO_SERIES";
         else {
           const tsLD = chart.timeScale();
           const spacingLD = (() => { try { return +(tsLD.options().barSpacing ?? 6); } catch { return 6; } })();

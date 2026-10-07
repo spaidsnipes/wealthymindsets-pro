@@ -75,7 +75,8 @@ export interface DataGap {
 
 export interface DataGapsVM {
   readonly version: number;
-  readonly reason: "MEASURED" | "TOO_FEW_BARS" | "NO_SESSION_IDENTITY";
+  /** NOT_A_CLOCK: tick (N-trade) bars — a bar is N prints, not an interval, so "no bar in an interval" has no meaning. */
+  readonly reason: "MEASURED" | "TOO_FEW_BARS" | "NO_SESSION_IDENTITY" | "NOT_A_CLOCK";
   readonly interval: number;
   readonly gaps: readonly DataGap[];
   /**
@@ -97,6 +98,8 @@ export interface DataGapsInput {
    * continuous ET day is not a venue session and is never used.
    */
   readonly sessionClock?: SessionWindow | null;
+  /** Tick (N-trade) bars (2026-10-07): bars close on prints, not on a clock. */
+  readonly tradeCountBars?: boolean;
 }
 
 /** Longest hole whose in-session intervals are counted one by one. */
@@ -107,6 +110,10 @@ export function dataGapLabel(emptyIntervals: number): string {
 }
 
 export function selectDataGaps(input: DataGapsInput): DataGapsVM {
+  // A 500T bar spans as long as 500 prints take: a long space between two of
+  // them is a quiet tape, never a missing bar (serving BTC-USD 500T, 2026-10-07:
+  // eight "NO BAR · 1 interval" bridges drawn on a complete print series).
+  if (input.tradeCountBars) return { version: DATA_GAPS_VERSION, reason: "NOT_A_CLOCK", interval: 0, gaps: [], sessionSource: null };
   const sorted = (input.bars ?? [])
     .map(b => ({ time: Number(b.time), open: b.open, close: b.close }))
     .filter(b => Number.isFinite(b.time))
