@@ -478,7 +478,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           {/* PRO badge */}
           <div className="wm-mobile-hide ml-1 flex items-center gap-1 bg-gradient-to-r from-wm-gold/25 to-wm-gold/10 border border-wm-gold/40 rounded-full px-2.5 py-0.5">
             <Zap size={10} className="text-wm-gold fill-wm-gold" />
-            <span className="text-[10px] font-bold text-wm-gold tracking-wide">PRO</span>
+            <span className="text-[11px] font-bold text-wm-gold tracking-wide">PRO</span>
           </div>
 
           {/* User avatar — click to open dropdown */}

@@ -13,7 +13,7 @@ import { weatherInspectReading as selectWeatherInspectReading } from "@/lib/char
 import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsStore";
 
 import {
-  currentProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue,
+  currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue,
   proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind,
 } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
@@ -930,6 +930,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // the ONE FVG history and hands back the scene it painted (Inspect reads it).
   const [fvgOn, setFvgOn] = useState<boolean>(() => lsGet(FVG_PREF_KEY, false) as boolean);
   const [fvgScene, setFvgScene] = useState<FvgCameraScene | null>(null);
+  // THE SCANNER DOOR ARRIVES BY CLIENT NAVIGATION (serving 390, 2026-10-07:
+  // Scanner › "Open on the chart" → /charts?…&on=fvg&select=fvg:<id> read
+  // fvg=OFF and the select stayed PENDING). The useState initializer above ran
+  // while window.location still held /scanner's search, so the scene's on=fvg
+  // was never seen. The router's own search params are re-read here: a proof
+  // scene that names wm_fvg sets it for this load (writes stay held).
+  useEffect(() => {
+    const v = proofSceneValue(parseProofScene(`?${optionSearchParams?.toString() ?? ""}`), FVG_PREF_KEY);
+    if (typeof v === "boolean") setFvgOn(v);
+  }, [optionSearchParams]);
   const fvgCompiledIds = React.useMemo(
     () => (fvgOn && fvgScene ? fvgScene.ledger.objects.map(o => o.objectId) : []),
     [fvgOn, fvgScene],

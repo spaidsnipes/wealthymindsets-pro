@@ -115,13 +115,18 @@ export function HeaderPnL() {
   return (
     <div
       className="wm-mobile-hide flex items-center gap-1 px-2 py-0.5 rounded-lg border mr-1"
-      style={{ borderColor: border }}
+      // 5px sides and no trailing margin so the 11px PAPER label fits the 1440 masthead (see below).
+      style={{ borderColor: border, paddingLeft: 5, paddingRight: 5, marginRight: 0 }}
       title={stat.reason}
       aria-label={`${stat.label}: ${stat.value}. ${stat.reason}`}
     >
       {/* PAPER is on the glass, not only in the tooltip: this is simulated
           money drawn beside broker truth ("WEBULL COST") on /charts. */}
-      {/* 11px floor (ruling 2026-10-07): the PAPER label is what keeps this money from reading as broker money. */}
+      {/* 11px floor (ruling 2026-10-07): the PAPER label is what keeps this money
+          from reading as broker money. Measured at 1440 on /journal the OS
+          masthead had 18px of slack; the chip's padding went 8→5px and its
+          trailing margin to 0 so the 11px label fits without wrapping the
+          phase nav (which wrapped to two rows when the label alone grew). */}
       <span className="text-[11px] text-wm-text-dim font-semibold">{stat.label}</span>
       <span
         className={clsx(

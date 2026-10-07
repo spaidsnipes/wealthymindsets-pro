@@ -59,3 +59,11 @@ describe("FVG glass sentinel", () => {
     expect(block).toMatch(/ctx\.clip\(frame\.cutF, "evenodd"\)/);
   });
 });
+
+describe("the scanner door turns the layer on after a CLIENT navigation (2026-10-07)", () => {
+  it("ChartsDashboard re-reads on=fvg from the router's search params, not only at first render", () => {
+    const dash = readFileSync(path.join(SRC, "ChartsDashboard.tsx"), "utf8");
+    expect(dash).toMatch(/proofSceneValue\(parseProofScene\(`\?\$\{optionSearchParams\?\.toString\(\) \?\? ""\}`\), FVG_PREF_KEY\)/);
+    expect(dash).toMatch(/\}, \[optionSearchParams\]\);/);
+  });
+});
