@@ -673,3 +673,6 @@ Founder decisions: members bring their own tastytrade (and Webull when supported
 | Founder analytics (owner-only): Model 1/2 tags only from recorded models (PROPOSED), seven mistake patterns with samples | `4d247f0` | tests | shipped; Founder to confirm model definitions |
 | Tick bars 100T–2000T from real prints (P0 crash fixed twice: identity + spoken name) | `1a79d85` → `4eb81d5`, `17d84a9`, `e104a48`, `3e367a0`, `4f09ede`, `74c8b39` | serving NQ 500T "486T left", paint 0.3 ms; BTC 500T 40k prints 81 bars, backfill repaints 0.6–2.9 ms; EURUSD refuses in words; G19 layers paint or say NOT_A_CLOCK | CLOSED (Living development on tick bars: NOT_A_CLOCK) |
 | PROPOSED Garden 19 plates (Breathing, CVD notch, Failed Aggression, Compression, Structure leg state, TED question) | `48addd9` | docs/canon/proposed-garden19 | awaiting Founder |
+| Keel cost on the Founder's NQ1! 5m: per-row tape memo, geometry memo, incremental re-read | `4bc7326`, `edbf0f1`, `4744412` | serving 4744412: keel mean 0.46 → 0.24 ms; one 3.0 ms longest (load or re-read, unsplit); whole page mean 3.0–3.5 ms, longest 4.6–7.3, 0 over (was mean 7.1 / longest 23.4); keels correct across a bar rollover | PARTIAL (keel peak still over its own 1.5 ms line) |
+
+**Deploy freeze 07:40 CDT → after the Founder's trading.** Last production build `4744412`. This receipt row ships with the next build.
