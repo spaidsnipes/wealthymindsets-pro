@@ -10644,7 +10644,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // candles at the price line — the newest THREE bars' column (liveColLeft,
               // §15) and a strip round the last price are kept out.
               const lastPxY = lastGapBar ? srs.priceToCoordinate(lastGapBar.close) : null;
-              if (lastPxY != null && q.y < +lastPxY + 6 && q.y + q.h > +lastPxY - 6) continue;
+              // ±12 px: re-measured on serving SPY 5m (fbc999b) the words sat 0–1 px above
+              // the line at ±6, reading as printed on it.
+              if (lastPxY != null && q.y < +lastPxY + 12 && q.y + q.h > +lastPxY - 12) continue;
               my = cy; mx = px; break spot;
             }
           }
