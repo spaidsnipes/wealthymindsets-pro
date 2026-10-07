@@ -89,6 +89,8 @@ export interface WatchlistRowProps {
   readonly src?: string;
   /** The price is a live observation inside its freshness budget (the chart's own lane). */
   readonly fresh?: boolean;
+  /** The provider's own trade stamp for a polled quote (epoch ms), when published. */
+  readonly providerObservedAt?: number;
   /** SF-D01 — a provider answered and WM declined it. `price` is 0. */
   readonly refusal?: string;
   readonly isActive: boolean;
@@ -102,7 +104,7 @@ export interface WatchlistRowProps {
 }
 
 export function WatchlistRow({
-  sym, fullName, price, changePct, changeObserved, changeWindow, src, fresh, refusal,
+  sym, fullName, price, changePct, changeObserved, changeWindow, src, fresh, providerObservedAt, refusal,
   isActive, up, dirColor, dp, sessionNow, onSelect, onContextMenu,
 }: WatchlistRowProps): React.ReactElement {
   const priced = price > 0 || !!refusal;
@@ -112,7 +114,11 @@ export function WatchlistRow({
   // tooltip each derived closure separately, the tooltip silently kept the
   // pre-closure verdict. One row, one fact — so one variable.
   const sessionOpen = sessionNow ? provenSessionClosure(sym, sessionNow) : null;
-  const observation = { present: Number.isFinite(price) && price > 0, ...(fresh ? { fresh: true } : {}) };
+  // The polled quote's age, against the row's own session clock (no render-time
+  // Date.now()), so the chip can say "DELAYED · price 10 min old".
+  const ageMs = sessionNow && providerObservedAt !== undefined && sessionNow.getTime() >= providerObservedAt
+    ? sessionNow.getTime() - providerObservedAt : undefined;
+  const observation = { present: Number.isFinite(price) && price > 0, ...(fresh ? { fresh: true } : {}), ...(ageMs !== undefined ? { ageMs } : {}) };
   const badge = priceSourceBadge(src ?? "unavailable", price > 0, sessionOpen, observation);
   const capabilityReport = selectPerCapabilityFidelity({
     source: src ?? "unavailable",

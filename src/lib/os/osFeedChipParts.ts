@@ -205,14 +205,25 @@ export function feedLabelLines(label: string): readonly string[] {
  * — would put a hole in the masthead at exactly the moment the feed is sick.
  */
 export function osFeedChipParts(feed: FeedStanding): OsFeedChipParts {
-  const label = typeof feed.label === "string" && feed.label.trim().length > 0
+  const canonical = typeof feed.label === "string" && feed.label.trim().length > 0
     ? feed.label.trim()
     : "FEED UNKNOWN";
+  // THE MEMBER'S WORDS WIN THE GLASS (2026-10-06). When the compiler attached a
+  // plain reading — "DELAYED · price 10 min old" for a polled quote — the chip
+  // says that instead of the engine grade ACTIVE DEGRADED. The grade is not
+  // dropped: it rides in `spoken` (aria-label + title) below.
+  const plainLabel = feed.plain && feed.plain.label.trim().length > 0 ? feed.plain.label.trim() : null;
+  const label = plainLabel ?? canonical;
 
-  const rawDetail = typeof feed.detail === "string" ? feed.detail.trim() : "";
+  const rawDetail = plainLabel !== null
+    ? feed.plain!.detail.trim()
+    : typeof feed.detail === "string" ? feed.detail.trim() : "";
   const detail = rawDetail.length > 0 ? rawDetail : null;
 
   const instant = formatObservedInstant(feed.observedAtMs);
+  const grade = plainLabel !== null && plainLabel !== canonical
+    ? `${feed.plain!.title} (feed grade: ${canonical})`
+    : null;
 
   return {
     label,
@@ -227,7 +238,7 @@ export function osFeedChipParts(feed: FeedStanding): OsFeedChipParts {
     // got wrong in rehearsal was `detail === null && instant !== null`, which
     // produced a leading "·" — the dangling separator this file was written to
     // outlaw, arriving from the other side.
-    spoken: [label, detail, instant].filter((s) => s !== null).join(" · "),
+    spoken: [label, detail, instant].filter((s) => s !== null).join(" · ") + (grade ? ` — ${grade}` : ""),
     unestablished: feed.established !== true,
   };
 }

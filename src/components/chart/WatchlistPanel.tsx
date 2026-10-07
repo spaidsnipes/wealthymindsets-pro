@@ -12,7 +12,7 @@ import { Search, X, Plus, TrendingUp, TrendingDown, LayoutGrid, List } from "luc
 import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { WatchlistRow } from "@/components/chart/WatchlistRow";
-import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
+import { yahooQuoteObservedAt, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { selectVisibilityRefetch } from "@/lib/marketData/visibilityRefetch";
 
 /** The watchlist's poll cadence — and the interval its visibility handler tops up. */
@@ -71,6 +71,8 @@ interface FinnhubQuote {
    * sit in the price column while a badge two elements away hedges about it.
    */
   refusal?: string;
+  /** The provider's own trade stamp (epoch ms) for a polled quote, when published. */
+  providerObservedAt?: number;
 }
 
 // Two curated sets stood here and were deleted: every member classified as the
@@ -179,7 +181,7 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
         const y = await fetchYahooQuoteBody(up) as any;
         const yRefusal = yahooQuoteRefusal(y);
         if (yRefusal) { result[up] = refusedQuote(yRefusal, "yahoo"); return; }
-        if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, ...changeFields(y, "PRIOR_CLOSE"), src: "yahoo" }; return; }
+        if ((y?.price ?? 0) > 0) { result[up] = { price: y.price, ...changeFields(y, "PRIOR_CLOSE"), src: "yahoo", providerObservedAt: yahooQuoteObservedAt(y) }; return; }
         return;
       }
 
@@ -189,7 +191,7 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
         const j = await fetchYahooQuoteBody(up) as any;
         const refusal = yahooQuoteRefusal(j);
         if (refusal) { result[up] = refusedQuote(refusal, "yahoo"); return; }
-        if ((j?.price ?? 0) > 0) result[up] = { price: j.price, ...changeFields(j, "PRIOR_CLOSE"), src: "yahoo" };
+        if ((j?.price ?? 0) > 0) result[up] = { price: j.price, ...changeFields(j, "PRIOR_CLOSE"), src: "yahoo", providerObservedAt: yahooQuoteObservedAt(j) };
         return;
       }
 
@@ -198,7 +200,7 @@ async function fetchPolygonSnapshot(syms: string[]): Promise<Record<string, Finn
       // independent consumer happened to receive an IEX-only print first.
       const yhJ = await fetchYahooQuoteBody(up).catch(() => null) as any;
       heldRefusal ??= yahooQuoteRefusal(yhJ);
-      if (!heldRefusal && yhJ?.price > 0) { result[up] = { price: yhJ.price, ...changeFields(yhJ, "PRIOR_CLOSE"), src: "yahoo" }; return; }
+      if (!heldRefusal && yhJ?.price > 0) { result[up] = { price: yhJ.price, ...changeFields(yhJ, "PRIOR_CLOSE"), src: "yahoo", providerObservedAt: yahooQuoteObservedAt(yhJ) }; return; }
 
       // Alpaca declares its own window: it falls back to the session OPEN when
       // no prior daily bar is available, which is a weaker reference than a
@@ -236,6 +238,8 @@ interface WatchItem {
   src?: string;
   /** SF-D01 — a provider answered and WM declined it. `price` is 0. */
   refusal?: string;
+  /** The provider's own trade stamp (epoch ms) for a polled quote, when published. */
+  providerObservedAt?: number;
 }
 
 function Sparkline({ data, up }: { data: number[]; up: boolean }) {
@@ -540,7 +544,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
           const updated = prev.map(item => {
             const q = liveMap[item.sym.toUpperCase()];
             if (!q) return item;
-            const { price, change, changePct, changeObserved, changeWindow, src, refusal } = q;
+            const { price, change, changePct, changeObserved, changeWindow, src, refusal, providerObservedAt } = q;
             if (refusal) {
               // Retract. Leaving the previous round's price on the row would
               // let a quote certified at 13:00 keep rendering after WM stopped
@@ -548,11 +552,11 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
               // screen saying so. And a refused number must not reach
               // SEED_PRICES either, or it would be reborn as the seed on the
               // next mount, laundered of the refusal that produced it.
-              return { ...item, price: 0, change: 0, changePct: 0, changeObserved: false, changeWindow: "UNKNOWN" as ChangeWindow, src, refusal };
+              return { ...item, price: 0, change: 0, changePct: 0, changeObserved: false, changeWindow: "UNKNOWN" as ChangeWindow, src, refusal, providerObservedAt: undefined };
             }
             SEED_PRICES[item.sym.toUpperCase()] = price;
             const dp = price < 10 ? 4 : 2;
-            return { ...item, price: +price.toFixed(dp), change, changePct, changeObserved, changeWindow, src, refusal: undefined };
+            return { ...item, price: +price.toFixed(dp), change, changePct, changeObserved, changeWindow, src, refusal: undefined, providerObservedAt };
           });
           // Persist to window cache only (localStorage cleared on init to prevent stale change%)
           try {
@@ -983,6 +987,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                     changeWindow={item.changeWindow}
                     src={item.src}
                     fresh={liveFresh}
+                    providerObservedAt={liveFresh ? undefined : item.providerObservedAt}
                     refusal={item.refusal}
                     isActive={isActive}
                     up={up}

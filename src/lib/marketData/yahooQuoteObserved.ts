@@ -67,3 +67,20 @@ export function yahooQuoteRefusal(response: unknown): string | null {
   // that it refused without saying why.
   return reasons[0] ?? `Quote resolution ${obs.resolution}; no reason supplied.`;
 }
+
+/**
+ * WHEN the provider says its price traded — epoch ms — or `undefined`.
+ *
+ * Only a RESOLVED observation carries a real instant (SF-D01); anything else
+ * is `undefined`, never the transport time. Read by the tape and watchlist so
+ * their chips can say how far behind a polled quote is ("DELAYED · price
+ * 10 min old") rather than the engine grade ACTIVE DEGRADED.
+ */
+export function yahooQuoteObservedAt(response: unknown): number | undefined {
+  if (!response || typeof response !== "object") return undefined;
+  const obs = (response as { observation?: { resolution?: string; observedAt?: unknown } }).observation;
+  if (!obs || obs.resolution !== "RESOLVED") return undefined;
+  return typeof obs.observedAt === "number" && Number.isFinite(obs.observedAt) && obs.observedAt > 0
+    ? obs.observedAt
+    : undefined;
+}

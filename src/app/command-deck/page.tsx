@@ -173,7 +173,7 @@ import { provenTapeWireBlock } from "@/lib/marketData/provenTapeWireBlock";
 import OrderFlowDepthPanel from "@/components/experience/OrderFlowDepthPanel";
 import { W_DOOR_LABEL } from "@/lib/workspace/marketIntelligence";
 import { resolveChartSurfaceBadge } from "@/lib/priceSource";
-import { quoteFreshness } from "@/lib/os/osChrome";
+import { quoteAgeMs, quoteFreshness } from "@/lib/os/osChrome";
 import { readCanvasHonesty } from "@/lib/marketData/readCanvasHonesty";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 
@@ -614,6 +614,7 @@ function CommandDeckInner() {
       {
         present: Number.isFinite(wsFeed.ticker.price) && wsFeed.ticker.price > 0,
         fresh: quoteFreshness(src, wsFeed.lastObservedAtMs, deckQuoteClockMs),
+        ageMs: quoteAgeMs(wsFeed.lastObservedAtMs, deckQuoteClockMs),
       },
       deckCandles != null,
     );

@@ -39,6 +39,114 @@ export interface PriceObservationEvidence {
   present: boolean;
   /** Provider/event timestamp is within budget; omitted means not established. */
   fresh?: boolean;
+  /**
+   * How old the observed price is, measured from the PROVIDER's own timestamp
+   * against the reader's clock. Omitted means NOT MEASURED — and an unmeasured
+   * age is never rounded into "recent". Only `memberFeedWords` reads it, and
+   * only to say in plain words how far behind a polled quote is; it never
+   * changes the canonical verdict.
+   */
+  ageMs?: number;
+}
+
+/**
+ * THE MEMBER'S WORDS FOR A DEGRADED READING (Founder, 2026-10-06 evening:
+ * "the homie is signed in and all his charts say ACTIVE DEGRADED …
+ * unacceptable").
+ *
+ * `ACTIVE DEGRADED` is the canon's ENGINE grade: "the session is active but at
+ * least one capability is degraded". It is correct and it is useless to a
+ * member — it does not say WHAT is degraded, and it reads as an alarm. A
+ * signed-in member without the owner's broker sessions is served by public
+ * sources: a polled REST quote for futures, FX, indices and (off-IEX) stocks;
+ * one exchange's real-time prints (IEX) for stocks; Coinbase's public stream
+ * for crypto. Every one of those has a plain name, and the chip now says it:
+ *
+ *   polled REST quote, measured ≤ 90s old   POLLED   · under 1 min old
+ *   polled REST quote, measured older       DELAYED  · price 10 min old
+ *   polled REST quote, age not measured     DELAYED  · polled quote
+ *   IEX relay (one venue, real time)        IEX REAL-TIME · one exchange only
+ *   owner broker lanes (uncertified)        BROKER QUOTE · not certified real-time
+ *   streaming exchange, freshness unproven  SNAPSHOT · not confirmed live
+ *
+ * TRUTH IS UNCHANGED. The verdict (`label`), `live`, tone, health and every
+ * comparison keep reading the canonical label; these words are presentation
+ * only, and nothing here can reach LIVE — a polled quote is never called live.
+ * The full engine grade stays in the tooltip and the aria-label.
+ *
+ * NO VENDOR NAMES (WM-CHART-PROV-EMERG-01, Founder 2026-08-06: "it can say
+ * delayed but stop telling people where the apis come from"). IEX is the
+ * EXCHANGE whose prints these are, not the API that carries them.
+ */
+export interface MemberFeedWords {
+  /** Short plain verdict for the chip, e.g. "DELAYED". */
+  readonly label: string;
+  /** The second half — what that means, e.g. "price 10 min old". */
+  readonly detail: string;
+  /** One plain sentence for the tooltip. */
+  readonly title: string;
+}
+
+/** A polled quote this young is "polled", not "delayed" — the same 90s budget the OS uses for a live print. */
+export const POLLED_NEAR_LIVE_MS = 90_000;
+
+function plainAge(ageMs: number): string {
+  const seconds = Math.max(0, Math.floor(ageMs / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 120) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h`;
+}
+
+const OWNER_BROKER_SOURCES: ReadonlySet<string> = new Set(["moomoo", "longbridge", "webull"]);
+
+export function memberFeedWords(
+  source: PriceSource,
+  label: CanonicalFidelityLabel,
+  ageMs?: number,
+): MemberFeedWords | undefined {
+  if (label !== CANONICAL_FIDELITY_LABELS.ACTIVE_DEGRADED) return undefined;
+  const age = typeof ageMs === "number" && Number.isFinite(ageMs) && ageMs >= 0 ? ageMs : undefined;
+  if (REST_QUOTE_SOURCES.has(source)) {
+    if (age !== undefined && age <= POLLED_NEAR_LIVE_MS) {
+      return {
+        label: "POLLED",
+        detail: "under 1 min old",
+        title: `Polled quote, refreshed every few seconds — not a streaming tape. The last price is ${plainAge(age)} old.`,
+      };
+    }
+    if (age !== undefined) {
+      return {
+        label: "DELAYED",
+        detail: `price ${plainAge(age)} old`,
+        title: `Delayed quote — the last price is ${plainAge(age)} old. This market is polled from a free quote, not streamed in real time.`,
+      };
+    }
+    return {
+      label: "DELAYED",
+      detail: "polled quote",
+      title: "Polled quote, not a streaming tape, and its delay was not measured. Treat the price as behind the market.",
+    };
+  }
+  if (PARTIAL_TAPE_PROVENANCES.has(source)) {
+    return {
+      label: "IEX REAL-TIME",
+      detail: "one exchange only",
+      title: "Real-time trades from one exchange (IEX), not the full market. Price and volume can differ from the consolidated tape, most in pre/post-market.",
+    };
+  }
+  if (OWNER_BROKER_SOURCES.has(source)) {
+    return {
+      label: "BROKER QUOTE",
+      detail: "not certified real-time",
+      title: "Price from a connected broker. Its real-time certification is not established yet.",
+    };
+  }
+  return {
+    label: "SNAPSHOT",
+    detail: "not confirmed live",
+    title: "A price from a streaming-capable source, but this reading has not been confirmed fresh on the stream.",
+  };
 }
 
 export interface PriceSourceBadge {
@@ -84,6 +192,13 @@ export interface PriceSourceBadge {
    * person who has not finished looking would do.
    */
   availability?: "unavailable" | "awaiting";
+  /**
+   * The member-facing words for this reading, when the canonical label is an
+   * engine grade a member cannot act on (today: ACTIVE DEGRADED). Renderers
+   * show these words and keep `label` in the tooltip/aria. See
+   * {@link memberFeedWords}. Absent = render `label` as-is.
+   */
+  plain?: MemberFeedWords;
 }
 
 export interface CandleDataStatus {
@@ -145,6 +260,17 @@ export const REST_QUOTE_SOURCES: ReadonlySet<PriceSource> = new Set([
  *   never be rounded into a claim in either direction.
  */
 export function priceSourceBadge(
+  source: PriceSource,
+  connected: boolean,
+  sessionOpen?: boolean | null,
+  observation?: PriceObservationEvidence,
+): PriceSourceBadge {
+  const badge = gradePriceSource(source, connected, sessionOpen, observation);
+  const plain = memberFeedWords(source, badge.label, observation?.ageMs);
+  return plain ? { ...badge, plain } : badge;
+}
+
+function gradePriceSource(
   source: PriceSource,
   connected: boolean,
   sessionOpen?: boolean | null,

@@ -10,7 +10,7 @@ import { useActiveSymbol } from "@/contexts/SymbolContext";
 import { priceSourceBadge } from "@/lib/priceSource";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
-import { yahooQuoteObserved, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
+import { yahooQuoteObserved, yahooQuoteObservedAt, yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { useProvenSessionClosure } from "@/lib/marketData/useProvenSessionClosure";
 import {
   TAPE_QUOTE_FRESH_MS,
@@ -86,6 +86,12 @@ interface TickerState {
    * See tapeQuoteFreshness for the measurement that produced this field.
    */
   staleAgeMs?: number;
+  /**
+   * How old the PROVIDER says its price is (its own trade stamp, not our
+   * receipt time), or undefined when it published none. Lets the chip say
+   * "DELAYED · price 10 min old" for a polled quote — see memberFeedWords.
+   */
+  providerAgeMs?: number;
 }
 
 /**
@@ -113,6 +119,8 @@ interface Quote {
    * rendered identically to a healthy tape. See tapeQuoteFreshness.
    */
   observedAt: number;
+  /** The provider's own trade stamp for this price (epoch ms), when it published one. */
+  providerObservedAt?: number;
 }
 
 /**
@@ -161,6 +169,8 @@ function rowFor(
     up: q.chg >= 0,
     live: true,
     src: q.src,
+    ...(q.providerObservedAt !== undefined && now >= q.providerObservedAt
+      ? { providerAgeMs: now - q.providerObservedAt } : {}),
   };
 }
 
@@ -206,7 +216,7 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
       // read a substituted prevClose as a real one and published a
       // manufactured flat session as OBSERVED.
       const yc = selectQuoteChange({ price, prevClose: j?.prevClose, prevCloseObserved: j?.ohlcObservation?.prevClose });
-      if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
+      if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo", providerObservedAt: yahooQuoteObservedAt(j) };
       // Yahoo is the ONLY free futures source, so its refusal is the tape's
       // final answer for this symbol — there is no next provider to try.
       const refusal = yahooQuoteRefusal(j);
@@ -232,7 +242,7 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
       // read a substituted prevClose as a real one and published a
       // manufactured flat session as OBSERVED.
       const yc = selectQuoteChange({ price, prevClose: j?.prevClose, prevCloseObserved: j?.ohlcObservation?.prevClose });
-      if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
+      if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo", providerObservedAt: yahooQuoteObservedAt(j) };
       const refusal = yahooQuoteRefusal(j);
       if (refusal) return { kind: "refused", reason: refusal };
     } catch {}
@@ -250,7 +260,7 @@ async function fetchQuote(sym: string): Promise<QuoteAnswer | null> {
     // Same rule as the futures/crypto Yahoo paths above — the route's own
     // fallback flag, honored rather than ignored.
     const yc = selectQuoteChange({ price, prevClose: j?.prevClose, prevCloseObserved: j?.ohlcObservation?.prevClose });
-    if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo" };
+    if (price > 0 && yahooQuoteObserved(j)) return { kind: "quote", price, chg: yc.observed ? yc.chg : 0, pct: yc.observed ? yc.pct : 0, chgObserved: yc.observed, src: "yahoo", providerObservedAt: yahooQuoteObservedAt(j) };
     yahooRefusal = yahooQuoteRefusal(j);
   } catch {}
   // The flag is forwarded from coinbase/alpaca/finnhub too, even though none of
@@ -328,7 +338,7 @@ function TickerItem({ item, onClick, active }: {
   onClick: () => void;
   active: boolean;
 }) {
-  const { sym, price, chg, pct, chgObserved, up, live, src, fresh } = item;
+  const { sym, price, chg, pct, chgObserved, up, live, src, fresh, providerAgeMs } = item;
   const dp = price > 10_000 ? 0 : price > 100 ? 2 : price > 1 ? 4 : 6;
   // Provenance: name the feed each quote came from so a value that differs from
   // the chart header or watchlist is explainable, not a silent contradiction.
@@ -337,7 +347,7 @@ function TickerItem({ item, onClick, active }: {
   // on every weekday, so provider labelling is untouched the rest of the time.
   const sessionOpen = useProvenSessionClosure(sym);
   const blocker = tapeQuoteBlocker(sym);
-  const quoteObservation = {present: Boolean(src) && Number.isFinite(price) && price > 0, ...(fresh ? { fresh: true } : {})};
+  const quoteObservation = {present: Boolean(src) && Number.isFinite(price) && price > 0, ...(fresh ? { fresh: true } : {}), ...(providerAgeMs !== undefined ? { ageMs: providerAgeMs } : {})};
   const badge = priceSourceBadge(src ?? "unavailable", live, sessionOpen, quoteObservation);
   // SHIFT-U continuation — per-capability tooltip enrichment: bars +
   // quotes lit from the ticker's own source; other slots silent.

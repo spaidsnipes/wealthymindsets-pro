@@ -153,7 +153,7 @@ import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgeb
 // The decision rail's Honesty Plaque is fed from here and from nowhere else.
 import { readCanvasHonesty } from "@/lib/marketData/readCanvasHonesty";
 import { useFeedEvaluationClock, useProvenSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
-import { quoteFreshness } from "@/lib/os/osChrome";
+import { quoteAgeMs, quoteFreshness } from "@/lib/os/osChrome";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
 import { useActiveSymbol } from "@/contexts/SymbolContext";
@@ -4573,6 +4573,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     () => ({
       present: Number.isFinite(ticker.price) && ticker.price > 0,
       fresh: quoteFreshness(source === "unavailable" ? null : source, lastObservedAtMs, quoteClockMs),
+      // The provider stamp as an age, so the chip can name a polled quote's
+      // lag in plain words (memberFeedWords) instead of ACTIVE DEGRADED.
+      ageMs: quoteAgeMs(lastObservedAtMs, quoteClockMs),
     }),
     [ticker.price, source, lastObservedAtMs, quoteClockMs],
   );

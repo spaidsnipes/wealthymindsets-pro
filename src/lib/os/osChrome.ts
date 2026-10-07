@@ -173,6 +173,14 @@ export interface FeedStanding {
    * painted.
    */
   readonly observedAtMs: number | null;
+  /**
+   * THE MEMBER'S WORDS for this reading, when `label` is an engine grade a
+   * member cannot act on (ACTIVE DEGRADED). `osFeedChipParts` renders these in
+   * the chip and keeps `label` in the spoken/tooltip sentence. Compiled by
+   * `priceSourceBadge` (`memberFeedWords`), never here. Absent = render `label`.
+   * Vendor-free by construction (WM-CHART-PROV-EMERG-01).
+   */
+  readonly plain?: { readonly label: string; readonly detail: string; readonly title: string };
 }
 
 export interface FeedObservation {
@@ -486,6 +494,26 @@ export function quoteFreshness(
   return Math.max(0, rawAgeMs) <= LIVE_STALENESS_BUDGET_MS;
 }
 
+/**
+ * THE AGE JOIN, beside the freshness join and with the same clock rules: the
+ * provider stamp × the sampled clock → how old the observed price is. Read by
+ * `memberFeedWords` to say "DELAYED · price 10 min old" for a polled quote.
+ *
+ *   · No stamp, or a stamp materially in the future → undefined (a bad clock
+ *     is never rounded into "recent").
+ *   · Inside one sampling interval of the future → 0 (our sample is simply
+ *     older than the newest print; see FEED_CLOCK_SAMPLE_INTERVAL_MS).
+ */
+export function quoteAgeMs(
+  lastObservedAtMs: number | null | undefined,
+  evaluatedAtMs: number,
+): number | undefined {
+  if (typeof lastObservedAtMs !== "number" || !Number.isFinite(lastObservedAtMs)) return undefined;
+  const rawAgeMs = evaluatedAtMs - lastObservedAtMs;
+  if (rawAgeMs < -FEED_CLOCK_SAMPLE_INTERVAL_MS) return undefined;
+  return Math.max(0, rawAgeMs);
+}
+
 export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number): FeedStanding {
   // ── THE CAMERA IS ASKED BEFORE THE PROVIDER ────────────────────────────────
   //
@@ -675,6 +703,9 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
   const badge = priceSourceBadge(obs.source, obs.connected !== false, obs.sessionOpen, {
     present: true,
     fresh,
+    // The same provider stamp, as an age, so a polled quote can say HOW far
+    // behind it is ("DELAYED · price 10 min old") instead of ACTIVE DEGRADED.
+    ageMs,
   });
 
   // The delegate cannot grade a provider it does not recognise, and says so
@@ -755,6 +786,7 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
     //                                   open. It is a PAST time either way, and
     //                                   never a statement about now.
     observedAtMs: observedInstant(obs.lastObservedAtMs),
+    ...(badge.plain && !sessionClosed ? { plain: badge.plain } : {}),
   };
 }
 

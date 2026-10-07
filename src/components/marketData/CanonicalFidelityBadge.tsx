@@ -158,6 +158,13 @@ export function buildCanonicalFidelityTooltip(
     lines.push(`Capabilities evaluated: ${evaluatedCount} / 7 — all normal`);
   }
 
+  // THE MEMBER'S WORDS, AND THE GRADE THEY TRANSLATE (2026-10-06). The chip
+  // shows the plain reading; the tooltip keeps the engine grade beside it so
+  // nothing the narrative above says is hidden by the friendlier word.
+  if (badge.plain) {
+    lines.push("", `Shown as: ${badge.plain.label} · ${badge.plain.detail} — ${badge.plain.title}`, `Feed grade: ${badge.label}`);
+  }
+
   return lines.join("\n");
 }
 
@@ -188,6 +195,13 @@ export function CanonicalFidelityBadge({
     }}>DATA UNAVAILABLE</span>;
   }
   const isLive = badge.live;
+  // THE MEMBER'S WORDS (2026-10-06): when the badge carries a plain reading
+  // ("DELAYED", "POLLED", "IEX REAL-TIME"), that is the visible text; the
+  // engine grade (ACTIVE DEGRADED) stays in the aria-label and the tooltip.
+  const shown = badge.plain?.label ?? badge.label;
+  const spoken = badge.plain
+    ? `${badge.plain.label} · ${badge.plain.detail} (feed grade: ${badge.label})`
+    : badge.label;
   const dotColor  = isLive ? "#00E88A" : "#F5A623";
   const textColor = isLive ? "#00E88A" : "#F5A623";
   const bgColor   = isLive ? "#00C0762A" : "#F5A62322";
@@ -199,7 +213,7 @@ export function CanonicalFidelityBadge({
       <span
         className="wm-fidelity-badge wm-fidelity-badge--chrome"
         title={tooltip}
-        aria-label={ariaLabel ?? badge.label}
+        aria-label={ariaLabel ?? spoken}
         style={{
           display: "inline-flex", alignItems: "center", gap: 5,
           fontSize: 11, fontWeight: 700, letterSpacing: "0.05em",
@@ -213,7 +227,7 @@ export function CanonicalFidelityBadge({
           background: dotColor,
           boxShadow: isLive ? `0 0 4px ${dotColor}` : "none",
         }} />
-        {badge.label}
+        {badge.plain?.label ?? badge.label}
       </span>
     );
   }
@@ -223,11 +237,11 @@ export function CanonicalFidelityBadge({
     return (
       <span
         title={tooltip}
-        aria-label={ariaLabel ?? badge.label}
+        aria-label={ariaLabel ?? spoken}
         className="text-[10px] font-semibold"
         style={{ color: isLive ? "#00E88A" : "#F5A623" }}
       >
-        {badge.label}
+        {shown}
       </span>
     );
   }
@@ -237,7 +251,7 @@ export function CanonicalFidelityBadge({
     return (
       <span
         title={tooltip}
-        aria-label={ariaLabel ?? badge.label}
+        aria-label={ariaLabel ?? spoken}
         style={{
           display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0,
           fontSize: 10, fontWeight: 600, letterSpacing: "0.03em",
@@ -250,7 +264,7 @@ export function CanonicalFidelityBadge({
           boxShadow: isLive ? `0 0 3px ${dotColor}` : "none",
         }} />
         {!isLive && (
-          <span>{badge.label}</span>
+          <span>{shown}</span>
         )}
       </span>
     );
@@ -260,7 +274,7 @@ export function CanonicalFidelityBadge({
   return (
     <span
       title={tooltip}
-      aria-label={ariaLabel ?? badge.label}
+      aria-label={ariaLabel ?? spoken}
       style={{
         display: "inline-flex", alignItems: "center", gap: 3, flexShrink: 0,
         fontSize: 9, fontWeight: 600, opacity: 0.85,
@@ -271,7 +285,7 @@ export function CanonicalFidelityBadge({
         width: 5, height: 5, borderRadius: "50%",
         background: dotColor,
       }} />
-      {badge.label}
+      {shown}
     </span>
   );
 }
