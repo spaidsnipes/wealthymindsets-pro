@@ -12913,6 +12913,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           : "NONE";
         return newestColumnRect;
       };
+      const newestColumnRects = () => { const c = newestColumnKeepOut(); return c ? [c] : []; };
       const onNewestColumn = (x: number, y: number, w: number, h: number): boolean => {
         const c = newestColumnKeepOut();
         return !!c && x < c.x + c.w && x + w > c.x && y < c.y + c.h && y + h > c.y;
@@ -24868,7 +24869,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // too, not only the newest: slid left off a pin it must not land
               // on older bodies (price first).
               const rowsT = [below, above, ...fartherT];
-              const spotT = placeClearOfKeepOut(below, [...keepOut(), ...rowBodiesAt(Math.min(...rowsT.map(r => r.y)), Math.max(...rowsT.map(r => r.y)) + hT)], {
+              // Garden 19 §15 (Sheriff A1, 2026-10-07): the plate never sits on the
+              // newest candles' column (bodies AND wicks) — price sovereignty.
+              const spotT = placeClearOfKeepOut(below, [...keepOut(), ...newestColumnRects(), ...rowBodiesAt(Math.min(...rowsT.map(r => r.y)), Math.max(...rowsT.map(r => r.y)) + hT)], {
                 minX: keepOutMinX(),
                 // The pins are the objects' own handles, fixed to price/time:
                 // the plate steps around them, never the other way round.

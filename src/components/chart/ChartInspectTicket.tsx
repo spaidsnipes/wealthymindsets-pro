@@ -903,6 +903,7 @@ export function ChartInspectTicket({
   profileSliceAsOf = null,
   selectedZone = null,
   selectedFvg = null,
+  fvgRelationships = null,
   zoneLineage = null,
   selectedLevel = null,
   levelLineage = null,
@@ -948,6 +949,8 @@ export function ChartInspectTicket({
   selectedZone?: StructureZone | null;
   /** Garden 19 FVG lane D · the selected GAP_FVG object, from the scene the glass painted. */
   selectedFvg?: FvgObject | null;
+  /** Its relationships to other owners' objects (fvgInspectRelationships) — words for Inspect only. */
+  fvgRelationships?: { readonly rows: readonly string[]; readonly silences: readonly string[] } | null;
   /** The selected zone's LINEAGE (selectZoneLineage) — ids, provenance and the Decision_ID chain. */
   zoneLineage?: ZoneLineageVM | null;
   /** F11 · a selected MarketObject that is not a zone (a swing LEVEL) — the same Passport drawer. */
@@ -1042,6 +1045,7 @@ export function ChartInspectTicket({
         fmt={p => (priceDp != null ? p.toFixed(priceDp) : String(+p.toPrecision(8)))}
         clock={ms => clock.exact(ms)}
         firstTouch={<InspectFirstTouchLine />}
+        relationships={fvgRelationships}
         evidence={<EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "OBJECT", birthRead: true, asOfMs: o.asOf, source: sourceName }, feed)} />}
         onClose={() => onOpenChange(false)}
       />

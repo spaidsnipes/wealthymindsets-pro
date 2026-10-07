@@ -93,7 +93,9 @@ describe("(b) the chart places and draws — it decides nothing", () => {
     const block = tagBlock();
     // 2026-09-27: every candle body on its candidate rows and every MarketObject
     // pin are kept out too (the plate read "◆AIT" on a pin) — same owner.
-    expect(block).toMatch(/placeClearOfKeepOut\(below, \[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(/);
+    // Garden 19 §15 (2026-10-07, Sheriff A1): the newest candles' column (bodies AND wicks,
+    // `newestColumnRects()`) joins the keep-out — price sovereignty outranks the old pin.
+    expect(block).toMatch(/placeClearOfKeepOut\(below, \[\.\.\.keepOut\(\), \.\.\.newestColumnRects\(\), \.\.\.rowBodiesAt\(/);
     expect(block).toContain("blockers: [...floatingChips, ...marketObjectPinRectsRef.current]");
     expect(block).toContain("strict: true");
     expect(block).toContain("recordKeepOut(keepOutLedger, spotT);");

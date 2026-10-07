@@ -3,6 +3,7 @@
 import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
 import { educationIdForSelection } from "@/lib/chart/inventionEducation";
 import { spaidbotFvgScene } from "@/lib/ai/spaidbotFvgFacts";
+import { fvgInspectRelationships } from "@/lib/marketData/fvg/fvgInspectRelationships";
 import { FVG_INSTRUMENT_ID, FVG_PREF_KEY, isFvgObjectId, type FvgCameraScene } from "@/lib/chart/fvgGlass";
 import { SelectionFirstTouch, InspectFirstTouchContext } from "./SelectionFirstTouch";
 import { orderFlowToolCapability } from "@/lib/marketData/orderFlowToolCapability";
@@ -13,7 +14,7 @@ import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsSto
 
 import {
   currentProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue,
-  proofSelectReceipt, type ProofSelectKind,
+  proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind,
 } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
 import { listenForWatchlist } from "@/lib/os/watchlistDoor";
@@ -2959,6 +2960,23 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const selectedFvgObject = isFvgObjectId(selectedMarketObjectId) && fvgOn
     ? fvgScene?.ledger.objects.find(o => o.objectId === selectedMarketObjectId) ?? null
     : null;
+  // Garden 19 §12/§16–§18 · the selected FVG's relationships, words for
+  // Inspect only — each row names its owner's evidence (nothing on glass).
+  const fvgRelationships = React.useMemo(
+    () => selectedFvgObject
+      ? fvgInspectRelationships({
+          o: selectedFvgObject,
+          timeframe,
+          chartBars,
+          structure: chartStructureVM,
+          livingProfile: livingProfileVM,
+          derivatives: derivativesPressureVM,
+          liquidity: chartLiquidityLifecycle,
+          fmt: p => p.toFixed(chartDisplayDp),
+        })
+      : null,
+    [selectedFvgObject, timeframe, chartBars, chartStructureVM, livingProfileVM, derivativesPressureVM, chartLiquidityLifecycle, chartDisplayDp],
+  );
   const selectedObjectChain = selectedMarketObject
     ? buildInspectChain({
         barId: selectedMarketObject.birthBarId,
@@ -4309,12 +4327,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (!proofSelectObject || proofSelectObjectDoneRef.current === proofSelectUrl) return;
     const root = document.documentElement.dataset;
     const tag = `fvg:${proofSelectObject.objectId}`;
-    if (fvgScene?.ledger.objects.some(o => o.objectId === proofSelectObject.objectId)) {
+    const verdict = proofSelectObjectVerdict(proofSelectObject, fvgScene ? fvgScene.ledger.objects.map(o => o.objectId) : null);
+    if (verdict === "HELD") {
       proofSelectObjectDoneRef.current = proofSelectUrl;
       actOnChartSelection({ type: "select", selection: { kind: "OBJECT", objectId: proofSelectObject.objectId } });
       actOnChartSelection({ type: "openInspect" });
-      root.proofSelectObject = `${tag}|HELD`;
-    } else root.proofSelectObject = fvgScene ? `${tag}|NONE_AVAILABLE` : `${tag}|PENDING`;
+    }
+    root.proofSelectObject = `${tag}|${verdict}`;
   }, [proofSelectObject, fvgScene, proofSelectUrl]);
   const proofSelectHeld: string | null = (() => {
     switch (proofSelectKind) {
@@ -7185,6 +7204,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         selectedProfileSlice={activeProfileSlice}
                         selectedZone={chartStructureZones.find(z => z.object.objectId === selectedMarketObjectId) ?? null}
                         selectedFvg={selectedFvgObject}
+                        fvgRelationships={fvgRelationships}
                         zoneLineage={selectedZoneLineage}
                         selectedLevel={selectedLevelObject}
                         levelLineage={selectedLevelLineage}

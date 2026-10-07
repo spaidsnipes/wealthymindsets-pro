@@ -466,6 +466,18 @@ export function DeskShell() {
             {desks.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
           </select>
         )}
+        {/* Sheriff sweep 2026-10-07, 390×640: the layout row (five buttons) and
+            Link timeframe took two wrapped rows above the screen and left the
+            chart ~130px. On a phone the layout is ONE select — same state,
+            same action — and Link timeframe stays a button. */}
+        {phone ? (
+          <select aria-label="Desk layout" value={working.layout}
+            onChange={e => { setWorking({ ...working, layout: Number(e.target.value) as DeskLayout }); setMaximized(null); }}
+            style={{ minHeight: 44, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: "4px 6px" }}>
+            {([1, 2, 3, 4] as DeskLayout[]).map(n => <option key={n} value={n}>{n === 1 ? "1 screen" : `${n}-up`}</option>)}
+          </select>
+        ) : null}
+        {phone ? null : <>
         <span style={{ color: MUTED, fontSize: 11 }}>Layout</span>
         {([1, 2, 3, 4] as DeskLayout[]).map(n => (
           <button key={n} type="button" aria-pressed={working.layout === n} onClick={() => { setWorking({ ...working, layout: n }); setMaximized(null); }} style={btn(working.layout === n)}>
@@ -477,6 +489,13 @@ export function DeskShell() {
           title="When on, screens in the same link group also share a timeframe"
           onClick={() => setWorking(w => { const { linkTimeframe: _t, ...rest } = w; void _t; return w.linkTimeframe ? rest : { ...rest, linkTimeframe: true }; })}
           style={btn(!!working.linkTimeframe)}>Link timeframe</button>
+        </>}
+        {phone ? (
+          <button type="button" data-testid="desk-link-timeframe" aria-pressed={!!working.linkTimeframe}
+            title="When on, screens in the same link group also share a timeframe"
+            onClick={() => setWorking(w => { const { linkTimeframe: _t, ...rest } = w; void _t; return w.linkTimeframe ? rest : { ...rest, linkTimeframe: true }; })}
+            style={btn(!!working.linkTimeframe)}>Link TF</button>
+        ) : null}
         {!popout ? (
           <button type="button" className="wm-desk-new-window" data-testid="desk-window" title="Open this whole desk in a new window that stays linked" onClick={() => openWindow()} style={btn()}>Desk in new window</button>
         ) : null}

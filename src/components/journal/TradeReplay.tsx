@@ -105,7 +105,7 @@ export function TradeReplay({ e }: { readonly e: Episode }) {
         <span style={{ color: MUTED }}>bars after the cursor are hidden — no look-ahead</span>
         <span style={{ flex: 1 }} />
         <span style={{ color: INK, fontVariantNumeric: "tabular-nums" }} data-testid="trade-replay-clock">
-          {new Date(at.time * 1000).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} · close {at.close.toFixed(2)}
+          {new Date(at.time * 1000).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZoneName: "short" })} · close {at.close.toFixed(2)}
         </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={`Replay of ${e.instrumentKey}`} style={{ display: "block" }}>

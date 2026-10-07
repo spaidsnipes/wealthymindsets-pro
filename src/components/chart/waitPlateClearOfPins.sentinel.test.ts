@@ -19,7 +19,9 @@ describe("the WAIT plate's placement", () => {
   });
   it("the plate steps around pins and every body on its candidate rows", () => {
     expect(MC).toContain("blockers: [...floatingChips, ...marketObjectPinRectsRef.current],");
-    expect(MC).toMatch(/placeClearOfKeepOut\(below, \[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(/);
+    // Garden 19 §15 (2026-10-07, Sheriff A1): the newest candles' column (bodies AND wicks,
+    // `newestColumnRects()`) joins the keep-out — price sovereignty outranks the old pin.
+    expect(MC).toMatch(/placeClearOfKeepOut\(below, \[\.\.\.keepOut\(\), \.\.\.newestColumnRects\(\), \.\.\.rowBodiesAt\(/);
   });
   it("tries farther rows on its own column before any sideways slide", () => {
     expect(MC).toContain("alternates: [above, ...fartherT],");

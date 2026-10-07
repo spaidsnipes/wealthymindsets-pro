@@ -20,13 +20,15 @@ import { CONCEPT_EDUCATION } from "@/lib/chart/inventionEducation";
 
 const GOLD = "#d4af37";
 
-export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, onClose }: {
+export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relationships = null, onClose }: {
   o: FvgObject;
   fmt: (p: number) => string;
   clock: (ms: number) => string;
   /** The room's evidence-completeness line (feed-capped), rendered by the ticket. */
   evidence?: React.ReactNode;
   firstTouch?: React.ReactNode;
+  /** Relationships BY REFERENCE (fvgInspectRelationships): price-ordered rows, then what is silent. */
+  relationships?: { readonly rows: readonly string[]; readonly silences: readonly string[] } | null;
   onClose: () => void;
 }) {
   const rows = fvgInspectRows(o, fmt, clock);
@@ -54,6 +56,14 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, onClose 
           </div>
         ))}
       </dl>
+      {relationships && (relationships.rows.length > 0 || relationships.silences.length > 0) ? (
+        <div className="mt-2 border-t border-wm-border pt-1.5 text-[11px] leading-snug" data-inspect-fvg-relationships
+          data-inspect-fvg-relationship-count={relationships.rows.length}>
+          <div className="text-[9.5px] font-bold uppercase tracking-[0.12em] text-wm-muted">Relationships (by reference)</div>
+          {relationships.rows.map((r, i) => <div key={`r${i}`} className="pt-0.5 text-white">{r}</div>)}
+          {relationships.silences.map((r, i) => <div key={`s${i}`} className="pt-0.5 text-wm-muted">{r}</div>)}
+        </div>
+      ) : null}
       <a href={academy.href} data-testid="inspect-fvg-academy"
         className="mt-2 inline-block text-[11px] font-semibold underline" style={{ color: GOLD }}>
         Academy · {academy.title} ›
