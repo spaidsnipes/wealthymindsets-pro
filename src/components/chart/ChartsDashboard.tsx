@@ -1,5 +1,8 @@
 "use client";
 
+import { educationIdForSelection } from "@/lib/chart/inventionEducation";
+import { SelectionFirstTouch } from "./SelectionFirstTouch";
+import { orderFlowToolCapability } from "@/lib/marketData/orderFlowToolCapability";
 import { openSettings } from "@/components/layout/shellPanels";
 import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
 import { weatherInspectReading as selectWeatherInspectReading } from "@/lib/chart/weatherLensDrag";
@@ -907,6 +910,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // SESSION BANDS (FX lane, 2026-10-06): null = the market's default (ON for
   // spot FX only, sessionBandsDefaultOn); a trader's press stores true/false.
   const [sessionBandsPref, setSessionBandsPref] = useState<boolean | null>(() => lsGet<boolean | null>("wm_sessionBands", null));
+  // EFFORT → RESPONSE field (Garden 19 §7): on by default; silent on markets without traded volume.
+  const [effortResponseOn, setEffortResponseOn] = useState<boolean>(() => lsGet("wm_effortResponse", true) as boolean);
+  // BAR DELTA KEEL (Garden 19 §6): on by default; silent without signed evidence.
+  const [deltaKeelOn, setDeltaKeelOn] = useState<boolean>(() => lsGet("wm_deltaKeel", true) as boolean);
   /**
    * ABSORPTION ANATOMY (Founder Asset 06) — the EFFORT field + ABSORPTION ZONE
    * band, drawn on the chart in price/time space by MainChart's overlay pass.
@@ -1272,6 +1279,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_fixedVP",      fixedVPActive);
   usePersistOnChange("wm_sessionVP",    sessionVPChart);
   usePersistOnChange("wm_sessionBands", sessionBandsPref);
+  usePersistOnChange("wm_effortResponse", effortResponseOn);
+  usePersistOnChange("wm_deltaKeel", deltaKeelOn);
   usePersistOnChange("wm_absorptionAnatomy",   absorptionAnatomy);
   usePersistOnChange("wm_exhaustion",          exhaustionOn);
   usePersistOnChange("wm_ofImbalanceStack",    imbalanceStackOn);
@@ -2180,6 +2189,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const activeSelectedWall = selectedPressureWall?.symbol === symbol && selectedPressureWall.timeframe === timeframe ? selectedPressureWall : null;
   const activeSelectedFront = selectedPressureFront?.symbol === symbol && selectedPressureFront.timeframe === timeframe ? selectedPressureFront : null;
   const activeSelectedWeather = selectedWeather?.symbol === symbol && selectedWeather.timeframe === timeframe ? selectedWeather : null;
+  // Garden 19 §10 · which invention the ONE selection belongs to (first-touch education).
+  const firstTouchId = educationIdForSelection(
+    activeSelectedAnatomy ?? activeSelectedGhost ?? activeSelectedWall ?? activeSelectedFront ?? activeSelectedWeather
+    ?? (activeSelectedPrint ? { kind: "PRINT" as const, print: activeSelectedPrint } : null)
+    ?? (selectedMarketObjectId ? { kind: "OBJECT" as const, objectId: selectedMarketObjectId } : null)
+    ?? (selectedSlicePrice != null ? { kind: "SLICE" as const } : null),
+  );
+  const firstTouchLabel = firstTouchId == null ? ""
+    : firstTouchId === "FP_big-trades" ? "Big Trades"
+    : firstTouchId.startsWith("FP_") ? (FOOTPRINT_TYPES.find(t => `FP_${t.id}` === firstTouchId)?.label ?? firstTouchId)
+    : (selectProfileMenu({ barsPresent: true, printsPresent: true, observedAggressorFlow: true, active: {}, only: [firstTouchId as ProfileId] }).entries[0]?.label ?? firstTouchId);
 
   /* The span comes from the bars the chart DREW, not from a second
    * string→seconds table beside `EXCHANGE_TIMEFRAME_SECONDS`. A parallel
@@ -3723,6 +3743,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       </div>
       <ProfilesMenu
         symbol={symbol}
+        feed={chartCanvasState?.qualityState ?? null}
         barsPresent={chartBars.length > 0}
         printsPresent={chartOrderFlowReadings.printsPresent}
         observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -3743,6 +3764,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const wStructureNode = (
     <ProfilesMenu
       symbol={symbol}
+      feed={chartCanvasState?.qualityState ?? null}
       barsPresent={chartBars.length > 0}
       printsPresent={chartOrderFlowReadings.printsPresent}
       observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -3757,6 +3779,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const wMemoryNode = (
     <ProfilesMenu
       symbol={symbol}
+      feed={chartCanvasState?.qualityState ?? null}
       barsPresent={chartBars.length > 0}
       printsPresent={chartOrderFlowReadings.printsPresent}
       observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -3775,6 +3798,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const toolFinderNode = (
     <ToolFinder
       symbol={symbol}
+      feed={chartCanvasState?.qualityState ?? null}
       barsPresent={chartBars.length > 0}
       printsPresent={chartOrderFlowReadings.printsPresent}
       observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -3789,6 +3813,23 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         aliases: ["sessions", "asia", "london", "new york", "tokyo", "overlap", "fx sessions"],
         active: sessionBandsPref ?? sessionBandsDefaultOn(symbol),
         onToggle: () => setSessionBandsPref(!(sessionBandsPref ?? sessionBandsDefaultOn(symbol))),
+        truth: { ok: true, sentence: "A clock fact — it reads on every market, with or without volume." },
+      }, {
+        id: "EFFORT_RESPONSE",
+        label: "Effort → Response",
+        what: "Inside every finished volume bar, a narrow column = how far that bar actually moved (ATR units). Tall bar, short column: effort spent, little moved. Column climbing out of a short bar: response with no fuel. Needs traded volume",
+        familyWord: "Context",
+        aliases: ["effort", "response", "effort vs result", "absorption", "vsa", "displacement", "volume spread"],
+        active: effortResponseOn,
+        onToggle: () => setEffortResponseOn(v => !v),
+      }, {
+        id: "DELTA_KEEL",
+        label: "Delta Keel",
+        what: "A short keel on each finished candle's close edge — who won the bar and by how much of its sided volume (buy/sell ink, length = share). Hollow = strong aggression that failed to move price its way. Needs signed prints or provider bar sides",
+        familyWord: "Order Flow",
+        aliases: ["delta", "bar delta", "keel", "aggression", "failed aggression", "order flow", "cvd"],
+        active: deltaKeelOn,
+        onToggle: () => setDeltaKeelOn(v => !v),
       }, ...FOOTPRINT_TYPES.map(t => ({
         id: `FP_${t.id}`,
         label: t.id === "big-trades" ? "Big Trades" : `Footprint · ${t.label}`,
@@ -3799,6 +3840,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           ? (bigTradesSimul ? bigTradesOverlay : footprintEnabled && footprintType === "big-trades")
           : footprintEnabled && footprintType === t.id,
         onToggle: () => onFootprintChange(t.id),
+        // §9 · the ⓘ preview prints the order-flow capability owner's verdict for THIS feed.
+        truth: (() => {
+          const cap = orderFlowToolCapability(t.id, t.id === "big-trades" ? "Big Trades" : `Footprint · ${t.label}`, { source, observedAggressorFlow: chartFlowSnap.hasFlow });
+          return { ok: cap.drawable, waiting: cap.state === "AWAITING_TAPE", sentence: cap.reason };
+        })(),
       }))]}
     />
   );
@@ -6023,6 +6069,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               <ProfilePresetBar active={profileMenuActive} onApply={applyPresetKeepingOwn} />
               <ProfilesMenu
                 symbol={symbol}
+                feed={chartCanvasState?.qualityState ?? null}
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -6043,6 +6090,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   Tools › Order flow. */}
               <ProfilesMenu
                 symbol={symbol}
+                feed={chartCanvasState?.qualityState ?? null}
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}
                 observedAggressorFlow={chartFlowSnap.hasFlow}
@@ -6705,6 +6753,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       fixedVPActive={fixedVPActive}
                       sessionVPActive={sessionVPChart}
                       sessionBandsOn={sessionBandsPref ?? sessionBandsDefaultOn(symbol)}
+                      effortResponseOn={effortResponseOn}
+                      deltaKeelOn={deltaKeelOn}
                       absorptionAnatomyActive={absorptionAnatomy}
                       exhaustionOnChart={exhaustionOn}
                       /*
@@ -6913,6 +6963,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         onOpenFootprint={() => setActiveTab("Worksheet")}
                       />
                     )}
+                    {/* Garden 19 §10 · FIRST TOUCH — what the selected mark IS, from the
+                        same education record as its ⓘ; Inspect stays the evidence. */}
+                    {activeTab === "Chart" && !gridView && firstTouchId ? (
+                      <SelectionFirstTouch id={firstTouchId} label={firstTouchLabel} inspectOpen={inspectOpen}
+                        onOpenInspect={() => actOnChartSelection({ type: "openInspect" })} />
+                    ) : null}
                     {/*
                       FL-06 object ④, on the opposite edge from the ticket.
                       Same bar, different question: the ticket says what the

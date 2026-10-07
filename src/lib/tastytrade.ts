@@ -64,14 +64,36 @@ export function tastytradeConfigStatus() {
 let _access: { token: string; expiresAt: number } | null = null;
 
 /**
- * Mint (or reuse) a 15-minute access token via the refresh-token grant.
- * Returns null when not configured — callers must handle "not connected".
+ * WHOSE tastytrade a call speaks for (MEMBER-BROKER-CONNECT.md). The default —
+ * no lane passed — is the deployment owner's env credentials, exactly as before.
+ * A MEMBER lane carries that member's own decrypted client secret + refresh
+ * token (never env) and asks tastytrade for `read` scope only: a member grant
+ * can never place, cancel or replace an order through WM.
  */
-async function getAccessToken(): Promise<string | null> {
-  const c = creds();
-  if (!c.clientSecret || !c.refreshToken) return null;
-  if (_access && Date.now() < _access.expiresAt - 30_000) return _access.token;
+export interface TastyLane {
+  readonly kind: "MEMBER";
+  /** The server-verified WM user id the credentials belong to (cache key only). */
+  readonly userId: string;
+  readonly clientSecret: string;
+  readonly refreshToken: string;
+}
 
+export const MEMBER_TASTY_SCOPE = "read";
+
+const memberAccess = new Map<string, { token: string; expiresAt: number; refreshToken: string }>();
+
+/** Build a member lane. Pure; the secrets stay in server memory. */
+export function memberTastyLane(userId: string, pair: { clientSecret: string; refreshToken: string }): TastyLane {
+  return { kind: "MEMBER", userId, clientSecret: pair.clientSecret, refreshToken: pair.refreshToken };
+}
+
+/** Drop everything this isolate holds for a member (disconnect / reconnect). */
+export function forgetTastytradeMember(userId: string): void {
+  memberAccess.delete(userId);
+  memberQuoteTokenMemo.delete(userId);
+}
+
+async function mintAccessToken(clientSecret: string, refreshToken: string, scope: string): Promise<{ token: string; expiresAt: number }> {
   // Exact format from tastytrade's own SDK (tastytrade-http-client.ts): JSON body
   // with grant_type/refresh_token/client_secret/scope and NO client_id.
   const res = await fetchProviderWithTimeout(fetch, `${BASE}/oauth/token`, {
@@ -79,9 +101,9 @@ async function getAccessToken(): Promise<string | null> {
     headers: { "Content-Type": "application/json", Accept: "application/json", "User-Agent": UA },
     body: JSON.stringify({
       grant_type: "refresh_token",
-      refresh_token: c.refreshToken,
-      client_secret: c.clientSecret,
-      scope: SCOPES,
+      refresh_token: refreshToken,
+      client_secret: clientSecret,
+      scope,
     }),
     cache: "no-store",
   });
@@ -93,8 +115,32 @@ async function getAccessToken(): Promise<string | null> {
   const token = json?.access_token as string | undefined;
   const expiresIn = Number(json?.expires_in) || 900; // ~15 min default
   if (!token) throw new Error("tastytrade token refresh returned no access_token");
-  _access = { token, expiresAt: Date.now() + expiresIn * 1000 };
-  return token;
+  return { token, expiresAt: Date.now() + expiresIn * 1000 };
+}
+
+/**
+ * Mint (or reuse) a 15-minute access token via the refresh-token grant.
+ * Returns null when not configured — callers must handle "not connected".
+ */
+async function getAccessToken(lane?: TastyLane): Promise<string | null> {
+  if (lane) {
+    if (!lane.clientSecret || !lane.refreshToken) return null;
+    const held = memberAccess.get(lane.userId);
+    if (held && held.refreshToken === lane.refreshToken && Date.now() < held.expiresAt - 30_000) return held.token;
+    const minted = await mintAccessToken(lane.clientSecret, lane.refreshToken, MEMBER_TASTY_SCOPE);
+    memberAccess.set(lane.userId, { ...minted, refreshToken: lane.refreshToken });
+    return minted.token;
+  }
+  const c = creds();
+  if (!c.clientSecret || !c.refreshToken) return null;
+  if (_access && Date.now() < _access.expiresAt - 30_000) return _access.token;
+  _access = await mintAccessToken(c.clientSecret, c.refreshToken, SCOPES);
+  return _access.token;
+}
+
+function dropAccessToken(lane?: TastyLane) {
+  if (lane) memberAccess.delete(lane.userId);
+  else _access = null;
 }
 
 /**
@@ -107,8 +153,12 @@ async function ttRequest<T = unknown>(
   method: "GET" | "POST" | "DELETE",
   path: string,
   body?: unknown,
+  lane?: TastyLane,
 ): Promise<T> {
-  const token = await getAccessToken();
+  // A member lane is READ ONLY by construction: its grant is minted with `read`
+  // scope, and this refuses before any mutation leaves the server.
+  if (lane && method !== "GET") throw new Error("a member tastytrade connection is read-only in WM");
+  const token = await getAccessToken(lane);
   if (!token) throw new Error("tastytrade not configured");
   const doFetch = (tok: string) =>
     fetchProviderWithTimeout(fetch, `${BASE}${path}`, {
@@ -125,8 +175,8 @@ async function ttRequest<T = unknown>(
 
   let res = await doFetch(token);
   if (res.status === 401) {
-    _access = null;
-    const t2 = await getAccessToken();
+    dropAccessToken(lane);
+    const t2 = await getAccessToken(lane);
     if (!t2) throw new Error("tastytrade not configured");
     res = await doFetch(t2);
   }
@@ -153,8 +203,8 @@ async function ttRequest<T = unknown>(
 }
 
 /** Authenticated GET against the tastytrade API. Server-side only. */
-export async function ttGet<T = unknown>(path: string): Promise<T> {
-  return ttRequest<T>("GET", path);
+export async function ttGet<T = unknown>(path: string, lane?: TastyLane): Promise<T> {
+  return ttRequest<T>("GET", path, undefined, lane);
 }
 
 export interface TastytradeAccountLite {
@@ -166,8 +216,8 @@ export interface TastytradeAccountLite {
 }
 
 /** List the authenticated customer's accounts (no secrets returned). */
-export async function getTastytradeAccounts(): Promise<TastytradeAccountLite[]> {
-  const data = await ttGet<any>("/customers/me/accounts");
+export async function getTastytradeAccounts(lane?: TastyLane): Promise<TastytradeAccountLite[]> {
+  const data = await ttGet<any>("/customers/me/accounts", lane);
   const items = data?.data?.items ?? [];
   return items.map((it: any) => {
     const a = it.account ?? it;
@@ -268,14 +318,14 @@ export async function dryRunTastytradeOrder(accountNumber: string, order: unknow
 }
 
 /** Equity option chain, nested by expiration (tastytrade /option-chains/{symbol}/nested). */
-export async function getTastytradeOptionChain(symbol: string): Promise<unknown> {
-  const j = await ttGet<{ data?: unknown }>(`/option-chains/${encodeURIComponent(symbol)}/nested`);
+export async function getTastytradeOptionChain(symbol: string, lane?: TastyLane): Promise<unknown> {
+  const j = await ttGet<{ data?: unknown }>(`/option-chains/${encodeURIComponent(symbol)}/nested`, lane);
   return j?.data ?? j;
 }
 
 /** The specific futures contracts of a product (e.g. MNQ → /MNQZ6, /MNQH7 …). */
-export async function getTastytradeFutures(productCode: string): Promise<unknown[]> {
-  const j = await ttGet<{ data?: { items?: unknown[] } }>(`/instruments/futures?product-code[]=${encodeURIComponent(productCode)}`);
+export async function getTastytradeFutures(productCode: string, lane?: TastyLane): Promise<unknown[]> {
+  const j = await ttGet<{ data?: { items?: unknown[] } }>(`/instruments/futures?product-code[]=${encodeURIComponent(productCode)}`, lane);
   return j?.data?.items ?? [];
 }
 
@@ -298,8 +348,8 @@ export async function getTastytradeCryptocurrencies(): Promise<unknown[]> {
 }
 
 /** Futures-option chain, nested (tastytrade /futures-option-chains/{product}/nested). */
-export async function getTastytradeFuturesOptionChain(productCode: string): Promise<unknown> {
-  const j = await ttGet<{ data?: unknown }>(`/futures-option-chains/${encodeURIComponent(productCode)}/nested`);
+export async function getTastytradeFuturesOptionChain(productCode: string, lane?: TastyLane): Promise<unknown> {
+  const j = await ttGet<{ data?: unknown }>(`/futures-option-chains/${encodeURIComponent(productCode)}/nested`, lane);
   return j?.data ?? j;
 }
 
@@ -314,7 +364,18 @@ const QUOTE_TOKEN_TTL_MS = 20 * 60_000;
 let quoteTokenMemo: { at: number; value: { token: string; dxlinkUrl: string; level: string | null } } | null = null;
 let quoteTokenInFlight: Promise<{ token: string; dxlinkUrl: string; level: string | null }> | null = null;
 
-export async function getTastytradeQuoteToken(): Promise<{ token: string; dxlinkUrl: string; level: string | null }> {
+type QuoteTokenValue = { token: string; dxlinkUrl: string; level: string | null };
+const memberQuoteTokenMemo = new Map<string, { at: number; refreshToken: string; value: QuoteTokenValue }>();
+
+export async function getTastytradeQuoteToken(lane?: TastyLane): Promise<{ token: string; dxlinkUrl: string; level: string | null }> {
+  if (lane) {
+    // Per member, never shared: a member's token carries THEIR entitlement.
+    const held = memberQuoteTokenMemo.get(lane.userId);
+    if (held && held.refreshToken === lane.refreshToken && Date.now() - held.at < QUOTE_TOKEN_TTL_MS) return held.value;
+    const value = await fetchTastytradeQuoteToken(lane);
+    memberQuoteTokenMemo.set(lane.userId, { at: Date.now(), refreshToken: lane.refreshToken, value });
+    return value;
+  }
   if (quoteTokenMemo && Date.now() - quoteTokenMemo.at < QUOTE_TOKEN_TTL_MS) return quoteTokenMemo.value;
   if (quoteTokenInFlight) return quoteTokenInFlight;
   quoteTokenInFlight = fetchTastytradeQuoteToken()
@@ -323,8 +384,8 @@ export async function getTastytradeQuoteToken(): Promise<{ token: string; dxlink
   return quoteTokenInFlight;
 }
 
-async function fetchTastytradeQuoteToken(): Promise<{ token: string; dxlinkUrl: string; level: string | null }> {
-  const r = await ttGet<any>("/api-quote-tokens");
+async function fetchTastytradeQuoteToken(lane?: TastyLane): Promise<{ token: string; dxlinkUrl: string; level: string | null }> {
+  const r = await ttGet<any>("/api-quote-tokens", lane);
   const d = r?.data ?? r;
   const token = typeof d?.token === "string" ? d.token : "";
   const dxlinkUrl = typeof d?.["dxlink-url"] === "string" ? d["dxlink-url"] : "";

@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
+import { passportPromo, passportPromoLine } from "@/lib/pricing/passportPromo";
+
+// Founder 2026-10-06: Passport first month half off until the promotion ends.
+const PASSPORT_PROMO = passportPromoLine(passportPromo(process.env.NEXT_PUBLIC_PASSPORT_PROMO_ENDS));
 
 /**
  * PRICING — the Founder's prices (Garden 18 ATHOS order §9, 2026-10-05).
@@ -18,7 +22,7 @@ const GOLD = "#c9a55c", INK = "#ede6d3", MUTED = "#a89c80", LINE = "rgba(201,165
 // Thumb targets (phone audit 2026-10-06: the footer's inline links were 15 px tall at 375 px).
 const TAP = { display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 44, minWidth: 44, padding: "0 4px", color: GOLD } as const;
 
-type Tier = { name: string; price: string; tagline: string; includes: string[]; limits: string[]; cta: { label: string; href?: string } };
+type Tier = { name: string; price: string; tagline: string; includes: string[]; limits: string[]; cta: { label: string; href?: string }; offer?: string | null };
 
 const TIERS: Tier[] = [
   {
@@ -38,6 +42,7 @@ const TIERS: Tier[] = [
     includes: ["Everything in WM Pro App — one $20 charge, not $20 + $10", "Passport identity and member rooms", "Access to the participating ATH operating systems named at checkout"],
     limits: ["Only the apps named at checkout — not every future app"],
     cta: { label: "Not on sale yet" },
+    offer: PASSPORT_PROMO,
   },
   {
     name: "WM Pro OS", price: "$50", tagline: "The full operating system.",
@@ -73,6 +78,9 @@ export default function PricingPage() {
                   <span style={{ color: MUTED, fontSize: 13 }}> / month</span>
                 </div>
                 <p style={{ color: MUTED, fontSize: 13, margin: "6px 0 0" }}>{t.tagline}</p>
+                {t.offer ? (
+                  <p data-testid="passport-intro-offer" style={{ margin: "10px 0 0", padding: "8px 10px", borderRadius: 8, border: `1px solid ${GOLD}`, background: "rgba(201,165,92,0.10)", color: INK, fontSize: 13, lineHeight: 1.5 }}>{t.offer}</p>
+                ) : null}
               </div>
               <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6 }}>
                 {t.includes.map((x) => <li key={x}>{x}</li>)}

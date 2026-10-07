@@ -24,6 +24,7 @@ import type { ProviderReport } from "@/app/api/broker/status/route";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { WEBULL_2FA_SWITCH_PATH, WEBULL_CODE_ENTRY_PATH, webullCapabilityCertificate, webullSessionGuidance, type WebullKeeperView } from "@/lib/broker/webullSessionGuidance";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
+import { MemberTastytradeConnect, MemberWebullDoor } from "@/components/broker/MemberBrokerConnect";
 
 type BrokerCategory = "broker" | "crypto" | "forex" | "prop";
 
@@ -1139,7 +1140,10 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
   // strip) are the broker OWNER's — a guest read the owner's refusals as
   // "Connection not proven" / BLOCKED / raw stage names. Everyone else gets
   // the plain card: the broker's own site (garden pass 2026-10-05).
-  const ownerView = useBrokerAudience() === "OWNER";
+  const audience = useBrokerAudience();
+  const ownerView = audience === "OWNER";
+  // Garden 19 §25: a member brings THEIR OWN account (MEMBER-BROKER-CONNECT.md).
+  const memberView = audience === "GUEST";
   const ownersWire = !ownerView && Boolean(broker.managedConnection || broker.runtimeConnection);
 
   return (
@@ -1242,6 +1246,10 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
               </a>
             </div>
           </div>
+        ) : memberView && broker.id === "tastytrade" ? (
+          <MemberTastytradeConnect color={broker.color} />
+        ) : memberView && broker.id === "webull" ? (
+          <MemberWebullDoor color={broker.color} />
         ) : (
           <div className="space-y-2">
             {/* G12 (2026-09-29): a broker with no adapter, managed or runtime

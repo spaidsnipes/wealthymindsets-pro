@@ -639,6 +639,13 @@ export const PLATFORM_SECRETS: readonly PlatformSecret[] = [
     note: "/api/spaidbot only. Absent means the assistant is unavailable and says so.",
   },
   {
+    // MEMBER-BROKER-CONNECT.md: members' own tastytrade grants are stored
+    // AES-GCM encrypted under a key derived from this. Optional feature.
+    name: "WM_BROKER_GRANT_KEY",
+    gatesBoot: false,
+    note: "memberGrants.ts only. Absent means member broker connections report 'not enabled' and nothing is stored; every other route still answers.",
+  },
+  {
     name: "WM_RECONCILIATION_WORKER_SECRET",
     gatesBoot: false,
     note: "/api/decision-position shared-secret guard. Absent means that one worker callback is refused, which is the safe direction.",

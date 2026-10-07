@@ -1,0 +1,620 @@
+/**
+ * WM PRO TEACHES ITSELF — Garden 19 §9 / §10. THE ONE EDUCATION OWNER.
+ *
+ * "No trader should need to remember what every proprietary WM Pro invention
+ * means." Before a tool is switched on, its ⓘ opens a preview; after it is on,
+ * selecting its mark on the market opens a first-touch line, and the deeper
+ * read is Inspect. All three read THIS registry, keyed by the ids the menus
+ * already use (ProfileId from `selectProfileMenu`, and the Tool Finder's
+ * instrument ids `SESSION_BANDS` / `FP_<footprint mode>`).
+ *
+ * WHAT IS NOT HERE, ON PURPOSE: the one-line "what it is". That sentence is
+ * owned by the catalogue (`selectProfileMenu` → `entry.what`, and
+ * `FOOTPRINT_TYPES[].desc`), so the preview quotes it rather than keeping a
+ * second copy that could drift. Availability on THIS symbol is not here
+ * either — it is the menu compiler's `availabilityNote` (spot FX, no sided
+ * tape, refused by data) or the order-flow capability compiler's reason,
+ * passed through verbatim by `educationTruthLines`.
+ *
+ * Meanings follow the Drive canon — CURRENT Invention Registry & Surface Map
+ * (1pC82nUdffKbfr60RTwbbXjNErRgj0gZKAqbPhEzvCvY) and the Invention-to-Canvas
+ * Manifestation Map (1pC6M1oktBGpcD5uVQW0ryW86i8eyBQHUeSAGLzWaX_s): the
+ * FULL / PARTIAL / DEGRADED / SILENCE evidence ladder, ABSORPTION ≠
+ * EXHAUSTION, COMPOSITE ≠ FUSION, the eleven profile children, Memory Ghost
+ * "no second past, no lookahead", Contradiction "never averaged".
+ * A test pins: every menu row has a record, every record names a real id.
+ */
+import type { ProfileId, ProfileMenuEntry } from "@/lib/marketData/viewModels/selectProfileMenu";
+import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
+import { hasNoCentralVolume } from "@/lib/chart/volumeTruth";
+
+/** The weakest thing the tool cannot draw without. */
+export type EvidenceNeed =
+  | "PRICE"          // bars alone — OHLC and time
+  | "VOLUME"         // traded volume on the bars
+  | "PRINTS"         // per-trade prints, side not required
+  | "SIDED_TAPE"     // prints that state who crossed the spread
+  | "OPTIONS"        // an options chain (open interest / greeks)
+  | "YOUR_PLAN"      // something the trader draws or holds
+  | "OTHER_LAYERS";  // reads other switched-on tools
+
+export interface InventionEducation {
+  /** The question a trader asks that this tool answers — in their words. */
+  readonly question: string;
+  readonly needs: EvidenceNeed;
+  /** What evidence it needs, in a sentence. */
+  readonly evidence: string;
+  /** Where and how it physically appears on the market. */
+  readonly appears: string;
+  /** How to read its marks — its physical grammar. */
+  readonly grammar: string;
+  /** What FULL / PARTIAL / DEGRADED mean for THIS tool (canon evidence ladder). */
+  readonly full: string;
+  readonly partial: string;
+  readonly degraded: string;
+  /** One sentence for the moment its mark is selected on the market (§10). */
+  readonly firstTouch: string;
+  /** The canon it answers to (registry family / hard plate). */
+  readonly canon: string;
+}
+
+/** Shared ladder words for the sided order-flow readings (canon: ORDER-FLOW / DELTA EVIDENCE LADDER). */
+const SIDED_FULL = "Every print carries a stated aggressor side — the marks are measured, not estimated.";
+const SIDED_PARTIAL = "Sides are inferred (quote test or tick rule) — the read is labelled inferred and only covers bars since the tape arrived.";
+const SIDED_DEGRADED = "No sided tape — it stays silent rather than guess sides from candle colour.";
+/** Shared ladder words for the volume-by-price profiles (canon: SHARED VOLUME-PROFILE ENGINE). */
+const VP_FULL = "Volume is allocated to price from real per-trade prints.";
+const VP_PARTIAL = "Volume is spread across each bar's range from the bars' own totals — the shape is honest, single rows are approximate.";
+const VP_DEGRADED = "No traded volume (spot FX, spot metals) or none loaded — it does not draw rather than invent a histogram.";
+const PRICE_FULL = "Built from the loaded bars — nothing more is needed.";
+const PRICE_PARTIAL = "Too few bars loaded or in view — it draws what the bars support and says what is short.";
+const PRICE_DEGRADED = "No bars — nothing to read yet.";
+
+export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>> = {
+  FIXED_RANGE: {
+    question: "Where did the most business happen across everything loaded?",
+    needs: "VOLUME", evidence: "Traded volume on the loaded bars.",
+    appears: "A volume histogram against the price axis, with POC, VAH and VAL lines across the chart.",
+    grammar: "The longest row (POC) is the price the market accepted most. VAH–VAL holds about 70% of volume — inside is fair value, outside is the market testing for acceptance.",
+    full: VP_FULL, partial: VP_PARTIAL, degraded: VP_DEGRADED,
+    firstTouch: "Classic volume profile — the longest row is where most volume traded.",
+    canon: "Profile family · shared VP engine",
+  },
+  SESSION: {
+    question: "Where did this session trade the most?",
+    needs: "VOLUME", evidence: "Traded volume on the bars inside the chosen session window.",
+    appears: "A histogram clipped to the session, with POC, VAH, VAL and high/low volume nodes.",
+    grammar: "Fat rows (HVN) are prices the session accepted; thin rows (LVN) are prices it passed through quickly and may move through again.",
+    full: VP_FULL, partial: VP_PARTIAL, degraded: VP_DEGRADED,
+    firstTouch: "This session's volume profile — fat rows accepted, thin rows rejected.",
+    canon: "P-110 #6 Session Profile",
+  },
+  DELTA_VP: {
+    question: "At each price in a range I choose, who was the aggressor — buyers or sellers?",
+    needs: "SIDED_TAPE", evidence: "Prints that state which side crossed the spread.",
+    appears: "A box you drag across bars; inside it, each price row splits into a buy side and a sell side.",
+    grammar: "A row leaning to one side shows who pressed at that price. Heavy selling into a row that held is absorption; one side owning a run of rows is initiative.",
+    full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
+    firstTouch: "Bid/ask split — each row shows who was the aggressor at that price.",
+    canon: "P-110 #11 Bid/Ask Split Profile · only where evidence supports side",
+  },
+  ABSORPTION: {
+    question: "Is heavy effort hitting a price and failing to move it?",
+    needs: "VOLUME", evidence: "Bar volume (sided prints sharpen it) measured against how far price actually moved.",
+    appears: "A shelf on the bars where effort was high and displacement near zero, at the real high and low it covered.",
+    grammar: "Thicker shelf = more effort absorbed. A shelf that holds when tested again is a defended level; a clean break through it means the wall gave way.",
+    full: "Sided prints and volume both measured — a confirmed absorption once its evidence floor passes.",
+    partial: "Bar volume only — shown as an absorption candidate, not confirmed.",
+    degraded: "No traded volume — no shelf is drawn (effort cannot be measured).",
+    firstTouch: "Absorption shelf — heavy effort met here and price barely moved.",
+    canon: "F06 · H-701A Absorption (effort high, displacement near zero)",
+  },
+  EXHAUSTION: {
+    question: "Is the push running out of fuel?",
+    needs: "VOLUME", evidence: "Bar volume along a push, measured against how far each step moved price.",
+    appears: "A mark at the push's extreme bar — where effort faded as price stretched.",
+    grammar: "The mark sits where the last push failed to follow through. It is not a defended wall — exhaustion needs no defender, just fading fuel.",
+    full: "Volume and sided prints measured along the whole push.",
+    partial: "Bar volume only — an exhaustion candidate, labelled as such.",
+    degraded: "No traded volume — no mark is drawn.",
+    firstTouch: "Exhaustion — the push spent its fuel here and failed to continue.",
+    canon: "F06 · H-701A Exhaustion (aggression drying, no defender required)",
+  },
+  IMBALANCE_STACK: {
+    question: "Did one side keep out-trading the other for several prices in a row?",
+    needs: "SIDED_TAPE", evidence: "Sided prints at each price level.",
+    appears: "A run of rungs on consecutive prices, with the stack's high and low.",
+    grammar: "Three or more rungs stacked is initiative — a zone that often acts as support (buy stack) or resistance (sell stack) when revisited.",
+    full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
+    firstTouch: "Stacked imbalance — one side out-traded the other at consecutive prices.",
+    canon: "F06 Stacked Imbalance",
+  },
+  FLOW_CURRENT: {
+    question: "Who is pressing on each bar?",
+    needs: "SIDED_TAPE", evidence: "Sided prints inside each bar.",
+    appears: "A small current on each bar with tape — up for net buying, down for net selling.",
+    grammar: "Length is how one-sided the bar was. Long currents against the candle's direction are a warning: price moved one way while aggression pushed the other.",
+    full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
+    firstTouch: "Flow current — net aggression on this bar, up for buying, down for selling.",
+    canon: "F06A Order flow lives on price",
+  },
+  VALUE_CANDLE: {
+    question: "Where inside each window did volume actually concentrate?",
+    needs: "SIDED_TAPE", evidence: "Prints inside the window, binned by price.",
+    appears: "On the candle: a centre of gravity with its value high and low.",
+    grammar: "A centre of gravity near the close means the move was accepted; near the far wick means most business happened at prices the bar left behind.",
+    full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
+    firstTouch: "Value candle — where this window's volume concentrated.",
+    canon: "Clarity / auction language",
+  },
+  CLARITY_CANDLE: {
+    question: "How much of each candle was decision and how much was indecision?",
+    needs: "PRICE", evidence: "The bars' open, high, low and close.",
+    appears: "Re-inked candles: the real high and low kept, body strength drawn by body efficiency, dominant wick named, open gaps marked.",
+    grammar: "Solid body = most of the range was decision. Hollow = indecision. A long named wick shows where one side was rejected. Clarity never rewrites the real OHLC.",
+    full: PRICE_FULL, partial: PRICE_PARTIAL, degraded: PRICE_DEGRADED,
+    firstTouch: "Clarity candle — solid is decision, hollow is indecision; real OHLC unchanged.",
+    canon: "F05 Clarity · WM_NewMockup_72",
+  },
+  DELTA_DIVERGENCE: {
+    question: "Did price and buying/selling pressure disagree at the last swings?",
+    needs: "SIDED_TAPE", evidence: "Cumulative delta from sided prints, compared at swing pivots.",
+    appears: "The two swing pivots marked where price made a new extreme and cumulative delta did not.",
+    grammar: "Higher high in price with a lower delta high = buyers did not back the new high. The reverse at lows = sellers did not back the new low.",
+    full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
+    firstTouch: "Delta divergence — price and aggression disagreed between these two swings.",
+    canon: "F06 CVD / delta relationship",
+  },
+  LIQUIDITY_WEATHER: {
+    question: "How much size does it cost to move price here?",
+    needs: "VOLUME", evidence: "Prints (or traded bars when no tape window) — volume per unit of price travel; side not needed.",
+    appears: "A restrained tint on price as heat bands; candles stay readable through it.",
+    grammar: "Hot = dear: it takes a lot of size to move price (stalls are likely). Cool = cheap: price can travel fast through it.",
+    full: "Measured from live prints.",
+    partial: "Measured from the chart's traded bars because the tape window is short — coarser bands, labelled.",
+    degraded: "No traded volume or too few traded bars — the lens says UNMEASURED instead of painting.",
+    firstTouch: "Liquidity weather — hot bands are expensive to move through, cool bands are cheap.",
+    canon: "F08B Liquidity Weather (a lens, not a page)",
+  },
+  EFFORT_MARK: {
+    question: "Did this bar spend a lot and move a little — or the reverse?",
+    needs: "VOLUME", evidence: "The bar's volume against its range, compared with recent bars.",
+    appears: "A mark at the high or low of the bar under your cursor when effort and result disagree.",
+    grammar: "Big effort, small result = something absorbed it. Small effort, big result = nobody was in the way.",
+    full: "Volume and range both measured on real traded bars.",
+    partial: "Short history — compared against fewer bars, labelled.",
+    degraded: "No traded volume — no mark.",
+    firstTouch: "Effort mark — this bar's effort and result disagreed.",
+    canon: "F06 Effort → Response",
+  },
+  DELTA_LEVELS: {
+    question: "At which real prices did one side cross the spread hardest?",
+    needs: "SIDED_TAPE", evidence: "Sided prints at each traded level.",
+    appears: "Rungs at the real traded prices, sized by net aggressor delta.",
+    grammar: "The biggest rung shows where aggression concentrated. A big buy rung that price then fell through is aggression that failed.",
+    full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
+    firstTouch: "Delta level — net aggression at this real price.",
+    canon: "F06 delta evidence ladder",
+  },
+  LIVING_PROFILE: {
+    question: "Where is the market accepting price right now, and where is value moving?",
+    needs: "VOLUME", evidence: "Traded volume on the bars (prints when present).",
+    appears: "A live histogram attached to the price scale; its POC migrates as value expands, contracts or shifts.",
+    grammar: "Watch the POC move — value following price is acceptance; value staying behind is rejection. Click a row for its biography.",
+    full: VP_FULL, partial: VP_PARTIAL, degraded: VP_DEGRADED,
+    firstTouch: "Living profile row — how much trade this price has taken this session.",
+    canon: "P-110 #1 Living Profile · H-601",
+  },
+  TPO_PROFILE: {
+    question: "How much TIME did the market spend at each price?",
+    needs: "PRICE", evidence: "Bars alone — time and price, no volume needed.",
+    appears: "Letters on the left edge, one per period that traded at each price, with TPO POC, value and single prints.",
+    grammar: "Wide rows = time spent (acceptance). Single prints = prices the market rushed through — often revisited.",
+    full: PRICE_FULL, partial: "Too few periods on screen — it says so instead of lettering a thin profile.", degraded: PRICE_DEGRADED,
+    firstTouch: "TPO — letters show how long the market spent at each price.",
+    canon: "P-110 #10 TPO / auction distribution",
+  },
+  STRUCTURE_PROFILE: {
+    question: "Where did trade build since the last confirmed swing?",
+    needs: "PRICE", evidence: "A confirmed swing; volume makes the rows exact.",
+    appears: "A histogram anchored to the last swing, with the leg's POC, VAH and VAL.",
+    grammar: "It answers for this leg only — a POC near the swing means the leg is still auctioning at its start; far from it means the leg moved value.",
+    full: "Swing confirmed and traded volume present.",
+    partial: "Swing confirmed but volume is bar-spread — shape honest, rows approximate.",
+    degraded: "No lawful swing to anchor on — it says so and does not float.",
+    firstTouch: "Structure profile — volume for the leg since the last swing.",
+    canon: "P-110 #2 Structure Profile (market-anchored)",
+  },
+  PROFILE_DNA: {
+    question: "What shape is the profile — balanced, skewed, thin?",
+    needs: "VOLUME", evidence: "The Living Profile it describes.",
+    appears: "A spine beside the Living Profile: range, value bracket, POC notch and mass-centre diamond. Numbers in Inspect.",
+    grammar: "A diamond away from the POC means the volume is skewed to one side. It describes; it never forecasts.",
+    full: "Living Profile drawn from real volume.",
+    partial: "Living Profile drawn from bar-spread volume — statistics labelled approximate.",
+    degraded: "No Living Profile on the glass — DNA has nothing to describe.",
+    firstTouch: "Profile DNA — the shape of the profile, described not predicted.",
+    canon: "P-110 #5 Profile DNA (never prophecy)",
+  },
+  VALUE_MIGRATION: {
+    question: "Where did value stand after every bar — and which way is it moving?",
+    needs: "VOLUME", evidence: "Traded volume, rebuilt bar by bar.",
+    appears: "Developing POC, VAH and VAL drawn across the candles.",
+    grammar: "Rising POC = value moving up with price (accepted). Price rising while POC stays flat = the move is not yet accepted.",
+    full: VP_FULL, partial: VP_PARTIAL, degraded: VP_DEGRADED,
+    firstTouch: "Value migration — where value stood as each bar closed.",
+    canon: "Living Profile's auction movie",
+  },
+  PROFILE_MEMORY: {
+    question: "Where did earlier sessions find value — and has price been back?",
+    needs: "VOLUME", evidence: "At least one completed prior session in the loaded bars.",
+    appears: "Earlier sessions' POC and value carried forward as lines — naked until the market returns.",
+    grammar: "A naked POC (never revisited) often draws price back. Once touched, its biography records the test and the response.",
+    full: "Completed prior sessions with traded volume.",
+    partial: "Fewer prior sessions loaded — fewer memories, said plainly.",
+    degraded: "A 24/7 feed with no session gap, or no volume — nothing to remember.",
+    firstTouch: "Profile memory — an earlier session's value, carried forward.",
+    canon: "P-110 #4 Profile Memory",
+  },
+  PROFILE_FUSION: {
+    question: "Where do two or more of my profiles agree?",
+    needs: "OTHER_LAYERS", evidence: "Two or more switched-on profiles that genuinely overlap.",
+    appears: "A fused zone where profiles overlap; the originals stay visible and each source is named.",
+    grammar: "A fused zone is recomputed from the combined rows — never an average of two POCs. No real overlap, no zone.",
+    full: "Two or more profiles from real volume overlap.",
+    partial: "Sources are bar-spread profiles — the zone inherits their approximation.",
+    degraded: "Fewer than two profiles on, or no real overlap — it refuses and says why.",
+    firstTouch: "Profile fusion — profiles agree here; each source stays inspectable.",
+    canon: "P-110 #3 Profile Fusion (COMPOSITE ≠ FUSION)",
+  },
+  COMPOSITE_PROFILE: {
+    question: "Across the last few completed sessions, where was value?",
+    needs: "VOLUME", evidence: "Completed sessions with volume; today is excluded.",
+    appears: "One histogram aggregated over recent sessions, with composite POC, VAH and VAL.",
+    grammar: "The composite value area is the multi-day fair price — today trading inside it is balance, outside it is a test of new value.",
+    full: VP_FULL, partial: VP_PARTIAL,
+    degraded: "No completed session (a 24/7 feed never closes one) or no volume — it refuses.",
+    firstTouch: "Composite profile — value across recent completed sessions.",
+    canon: "P-110 #9 Composite Profile",
+  },
+  VISIBLE_RANGE_PROFILE: {
+    question: "Where did trade happen in exactly what I am looking at?",
+    needs: "VOLUME", evidence: "Traded volume on the bars in view.",
+    appears: "A histogram for the bars on screen — it rebuilds when you scroll or zoom.",
+    grammar: "Same reading as any profile, but its levels move with your camera — do not treat them as fixed.",
+    full: VP_FULL, partial: VP_PARTIAL, degraded: VP_DEGRADED,
+    firstTouch: "Visible range profile — volume for the bars in view.",
+    canon: "P-110 #7 Visible Range Profile",
+  },
+  ANCHORED_RANGE: {
+    question: "Where did trade happen across a stretch I pick?",
+    needs: "VOLUME", evidence: "Traded volume on the bars you drag across.",
+    appears: "Drag across bars; a profile builds only inside that range, with its POC, VAH and VAL.",
+    grammar: "Pick a move (a rally, a range) and read where it did its business.",
+    full: VP_FULL, partial: VP_PARTIAL, degraded: VP_DEGRADED,
+    firstTouch: "Fixed range profile — volume for the range you chose.",
+    canon: "P-110 #8 Fixed Range Profile (user-anchored)",
+  },
+  REGIME_LIGHTING: {
+    question: "Is this market trending or balancing — and which tools should I trust?",
+    needs: "PRICE", evidence: "Closes of the bars in view.",
+    appears: "Lights the fitting fixtures: a trend channel in trend, mean/σ magnets in balance.",
+    grammar: "It is a dimmer, not a room — it changes which geometry speaks. In balance, trust the magnets; in trend, trust the channel.",
+    full: PRICE_FULL, partial: PRICE_PARTIAL, degraded: PRICE_DEGRADED,
+    firstTouch: "Regime lighting — the regime decides which fixtures are lit.",
+    canon: "F15 Regime · H-901",
+  },
+  QUESTION_LENS: {
+    question: "Is the newest absorption or exhaustion holding up — what is it still owed?",
+    needs: "OTHER_LAYERS", evidence: "An absorption or exhaustion reading on the chart.",
+    appears: "Asks the newest event one question, lists what evidence is still owed, quiets the rest.",
+    grammar: "Owed items are evidence debt — until paid, the answer stays unresolved.",
+    full: "The event has full evidence behind it.",
+    partial: "The event is a candidate — the lens lists exactly what is missing.",
+    degraded: "No event to ask — it says so.",
+    firstTouch: "Question lens — one question, and what the answer still owes.",
+    canon: "F13 Question lenses",
+  },
+  SCAFFOLDING: {
+    question: "Show me the same read with more or less help.",
+    needs: "PRICE", evidence: "The nearest confirmed swings.",
+    appears: "The same read at three depths — six steps, three dynamics, then geometry only.",
+    grammar: "Click again to go deeper. The truth never changes, only how much is explained.",
+    full: PRICE_FULL, partial: PRICE_PARTIAL, degraded: PRICE_DEGRADED,
+    firstTouch: "Scaffolding — the same read, with more or less teaching.",
+    canon: "F21 Learning genome · scaffolding",
+  },
+  ANATOMY_CARDS: {
+    question: "What exactly measured the latest absorption and exhaustion?",
+    needs: "VOLUME", evidence: "The absorption and exhaustion readings.",
+    appears: "Key metrics side by side, each tied to the candles it measured.",
+    grammar: "Compare effort and displacement for each — the card points at the bars it is about.",
+    full: "Both readings measured from real volume and prints.",
+    partial: "Bar volume only — candidate metrics, labelled.",
+    degraded: "No traded volume — no cards.",
+    firstTouch: "Anatomy card — the metrics behind this event.",
+    canon: "F06 · H-701A (market anatomy, never bodies)",
+  },
+  MEMORY_GHOST: {
+    question: "When did this market last make this same shape?",
+    needs: "PRICE", evidence: "Enough history to find a close analogue.",
+    appears: "The earlier stretch ghosted faintly under the live bars on the same axes — never projected forward.",
+    grammar: "It shows what the past shape looked like, not what will happen. Sample size and mismatch are in Inspect.",
+    full: "A close analogue with enough history.",
+    partial: "A weaker match — mismatch shown in Inspect.",
+    degraded: "No adequate analogue — silence, not a guess.",
+    firstTouch: "Memory ghost — an earlier stretch with the same shape. Not a forecast.",
+    canon: "F03 Memory Ghost · H-201 (no second past, no lookahead)",
+  },
+  EXPECTED_ENVELOPE: {
+    question: "How far does this market usually travel from the open — and is today unusual?",
+    needs: "PRICE", evidence: "Recent completed sessions.",
+    appears: "The typical reach above and below the open, with how many sessions went as far as today.",
+    grammar: "Price at the envelope edge with few sessions reaching further = an unusual day. Inside = ordinary.",
+    full: "Enough completed sessions to count.",
+    partial: "Few sessions — counts shown, read with care.",
+    degraded: "No completed sessions — no envelope.",
+    firstTouch: "Expected envelope — the usual reach from the open.",
+    canon: "H-801 Expected Envelope + Analogue Surprise",
+  },
+  CONTRADICTION: {
+    question: "Do my tools disagree at this price?",
+    needs: "OTHER_LAYERS", evidence: "Two or more switched-on reading families.",
+    appears: "Where families disagree at price, both truths paint and the zone reads unresolved.",
+    grammar: "Unresolved means wait or reduce — the two cases are never averaged into one score.",
+    full: "Both families have full evidence.",
+    partial: "One side is a candidate — named in Inspect.",
+    degraded: "Fewer than two families on — nothing to contradict.",
+    firstTouch: "Contradiction — two readings disagree here; both shown, never averaged.",
+    canon: "H-401 Contradiction Not Averaged",
+  },
+  RISK_ON_PRICE: {
+    question: "Where is my stop, entry and target — and how far is price from my stop?",
+    needs: "YOUR_PLAN", evidence: "A position you draw on the chart.",
+    appears: "Your plan bracketed on the price axis: stop, entry, target, R, and live price against the stop.",
+    grammar: "Distance to stop in R is your live risk. Nothing here places an order.",
+    full: "Your drawn plan and a live price.",
+    partial: "Price is delayed — the distance to stop trails the market.",
+    degraded: "No plan drawn — nothing to bracket.",
+    firstTouch: "Risk on price — your stop, entry and target on the axis.",
+    canon: "F17 Risk on Price · H-1001",
+  },
+  LIQUIDITY_LIFECYCLE: {
+    question: "Where did volume pool — and what happened to each pool since?",
+    needs: "VOLUME", evidence: "Traded volume at price over time.",
+    appears: "Pool bands at price with stage markers: appeared, grew, persisted, touched, refilled, consumed.",
+    grammar: "A pool that refills after a touch is being defended; a consumed pool is gone. It never claims spoofing from volume alone.",
+    full: "Built from prints at price.",
+    partial: "Built from bar volume — stages coarser, labelled. No resting-book depth is claimed.",
+    degraded: "No traded volume — no pools.",
+    firstTouch: "Liquidity pool — where volume collected, and its life since.",
+    canon: "F08 Liquidity Lifecycle",
+  },
+  MARKET_STRUCTURE: {
+    question: "Where are the confirmed swing highs and lows?",
+    needs: "PRICE", evidence: "Bars alone.",
+    appears: "Swing highs and lows, the latest of each drawn loudest.",
+    grammar: "Higher highs and higher lows = up-structure. A close beyond the last swing is a break of structure. Click a swing for its passport.",
+    full: PRICE_FULL, partial: PRICE_PARTIAL, degraded: PRICE_DEGRADED,
+    firstTouch: "Swing level — a confirmed high or low; its passport shows tests and age.",
+    canon: "F11 Market Object Passport · structure",
+  },
+  MTF_ANCESTRY: {
+    question: "What do the higher timeframes say about where price came from?",
+    needs: "PRICE", evidence: "This chart's bars, resampled to 4H, 1H and daily.",
+    appears: "On this chart: the 4H body price grew from, the last hour's volume node, the prior day's nearest high or low.",
+    grammar: "Price above its 4H band is building on it; a return into it is a test of the parent. PDH/PDL are the day's shelves.",
+    full: "Enough bars loaded to resample every timeframe.",
+    partial: "Too few bars for one timeframe — that one is named silent.",
+    degraded: "No bars — nothing to resample.",
+    firstTouch: "Higher-timeframe ancestry — the parent structure under this price.",
+    canon: "T-210 / F10 MTF ancestry (same camera)",
+  },
+  DERIVATIVES_PRESSURE: {
+    question: "Will dealer hedging damp moves here or speed them up?",
+    needs: "OPTIONS", evidence: "An options chain with open interest (Cboe delayed; BTC/ETH from Deribit public).",
+    appears: "A pressure field, the zero-gamma front, walls with observed tests, and the implied expected move.",
+    grammar: "Above zero-gamma dealers tend to damp moves; below it they tend to amplify them. It is INFERRED from positioning, not observed orders.",
+    full: "Fresh chain for this underlying.",
+    partial: "Chain is delayed — positioning trails the market, said in the label.",
+    degraded: "No chain for this market — unavailable on this feed.",
+    firstTouch: "Derivatives pressure — where dealer hedging is expected to damp or amplify moves.",
+    canon: "Garden 15/16 Market Sense · Derivatives Pressure",
+  },
+  BRICK_WALLS: {
+    question: "Which strikes are dealers defending, and have they cracked?",
+    needs: "OPTIONS", evidence: "Options open interest (Cboe delayed; futures via tastytrade; BTC/ETH Deribit).",
+    appears: "Masonry walls at strike prices — bricks, a crack at each observed test, breach and scar.",
+    grammar: "More bricks = more open interest. Each crack is a test that held; a breach leaves a scar. Inferred positioning, not orders.",
+    full: "Fresh chain and observed tests on this chart.",
+    partial: "Chain delayed or mapped from an index (NDX/SPX onto NQ/ES) — labelled.",
+    degraded: "No chain for this market — no walls.",
+    firstTouch: "Brick wall — a strike dealers are positioned at; cracks are observed tests.",
+    canon: "Garden 16 §20 Brick Walls",
+  },
+};
+
+/** The Tool Finder's instruments outside the catalogue (Session Bands, footprint modes). */
+export const INSTRUMENT_EDUCATION: Readonly<Record<string, InventionEducation>> = {
+  SESSION_BANDS: {
+    question: "Which of the world's sessions is open right now?",
+    needs: "PRICE", evidence: "The clock alone — no volume needed.",
+    appears: "Asia, London and New York business hours on the time axis, the London/New York overlap marked.",
+    grammar: "Moves often start at a session open and the overlap is usually the most active stretch.",
+    full: "Always full — a clock fact.", partial: "Not applicable — a clock fact.", degraded: "Not applicable — a clock fact.",
+    firstTouch: "Session band — the trading session these bars belong to.",
+    canon: "F10 One clock",
+  },
+  EFFORT_RESPONSE: {
+    question: "Bar by bar, did the volume spent actually move price?",
+    needs: "VOLUME", evidence: "Real traded volume on each closed bar, and its open-to-close move.",
+    appears: "Inside every finished volume bar, a narrow column — how far that bar moved, in ATR units.",
+    grammar: "Tall volume bar, short column: effort spent, little moved (absorbed). Full column: the effort bought movement (initiative). A column climbing out of a short bar: movement with no fuel (vacuum).",
+    full: "Real traded volume on every bar in view.",
+    partial: "Few closed bars in view — the medians it compares against are thin.",
+    degraded: "No traded volume (spot FX, placeholder feeds) — it stays silent and says why.",
+    firstTouch: "Effort → response — the column shows how far this bar's volume moved price.",
+    canon: "F06 Effort → Response · Garden 19 §7",
+  },
+  DELTA_KEEL: {
+    question: "Bar by bar, who won — and did winning move price?",
+    needs: "SIDED_TAPE", evidence: "Signed prints captured for the bar, or the provider's own bid / ask volume per bar.",
+    appears: "A short keel on each finished candle's close edge, in buy or sell ink; its length is the winning side's share of the bar's sided volume.",
+    grammar: "Keels lengthening in one ink: aggression increasing. Shortening: fading. A hollow keel: strong aggression that failed to move price its way.",
+    full: "Signed prints or provider bar sides on the bars in view.",
+    partial: "Only some bars carry sides — the rest stay silent, never guessed.",
+    degraded: "No signed evidence (spot FX, unsided feeds) — no keel is drawn.",
+    firstTouch: "Delta keel — who won this bar, and whether it moved.",
+    canon: "F06 Order flow across candles · Garden 19 §6 · C-02",
+  },
+  "FP_bid-ask": {
+    question: "Inside this candle, how much traded on the bid versus the ask at each price?",
+    needs: "SIDED_TAPE", evidence: "Sided prints inside each bar.",
+    appears: "Each candle split into price rows with bid and ask volume.",
+    grammar: "Read bottom to top: heavy ask volume at a bar's low (that held) is absorption; one side owning several rows is initiative.",
+    full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
+    firstTouch: "Footprint cell — bid vs ask volume at this price inside the bar.",
+    canon: "F06A Order flow on price",
+  },
+  FP_delta: {
+    question: "Where in this bar did net buying or selling concentrate?",
+    needs: "SIDED_TAPE", evidence: "Sided prints.",
+    appears: "Bubbles on the candle at the price zone, teal for net buying, purple for net selling.",
+    grammar: "Bigger bubble = more net aggression. No sided print, no bubble.",
+    full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
+    firstTouch: "Delta bubble — net aggression in this price zone.",
+    canon: "H-701B Delta bubbles",
+  },
+  "FP_volume-profile": {
+    question: "Where inside each candle did volume trade?",
+    needs: "SIDED_TAPE", evidence: "Prints inside each bar.",
+    appears: "Small horizontal volume bars inside each candle.",
+    grammar: "The widest row is the bar's own POC — where its business was done.",
+    full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
+    firstTouch: "Per-candle volume — where this bar did its business.",
+    canon: "F06A footprint",
+  },
+  FP_imbalance: {
+    question: "Where did one side overwhelm the other inside the bar?",
+    needs: "SIDED_TAPE", evidence: "Sided prints at adjacent prices.",
+    appears: "Highlighted cells where the bid/ask ratio passed the threshold.",
+    grammar: "An imbalance against the bar's direction can mark trapped traders.",
+    full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
+    firstTouch: "Imbalance cell — one side overwhelmed the other here.",
+    canon: "F06 Imbalance",
+  },
+  "FP_aggressive-passive": {
+    question: "Who was aggressive and who was passive here?",
+    needs: "SIDED_TAPE", evidence: "Sided prints; passive roles are inferred from location.",
+    appears: "Cells marked by aggressor side, with passive side as a labelled proxy.",
+    grammar: "Aggressor side is observed; the passive role is an inference, never a resting-order observation.",
+    full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
+    firstTouch: "Aggressive/passive — observed aggressor, inferred passive side.",
+    canon: "F06 evidence ladder",
+  },
+  "FP_big-trades": {
+    question: "Where did unusually large trades print?",
+    needs: "PRINTS", evidence: "Per-trade prints.",
+    appears: "Marks at the actual time and price of large prints, sized relative to this session.",
+    grammar: "Size is relative, not absolute. Click one to see what price did after it. No claim about who traded or why.",
+    full: "Every print observed with its side.",
+    partial: "Prints observed, side inferred — labelled.",
+    degraded: "No per-trade prints — no marks.",
+    firstTouch: "Big trade — an unusually large print; Inspect shows what price did next.",
+    canon: "F07 Big Trades · H-701B",
+  },
+};
+
+export type EducationKey = ProfileId | keyof typeof INSTRUMENT_EDUCATION;
+
+/** The one lookup — a catalogue id or a Tool Finder instrument id. */
+export function educationFor(id: string): InventionEducation | null {
+  return (INVENTION_EDUCATION as Record<string, InventionEducation>)[id] ?? INSTRUMENT_EDUCATION[id] ?? null;
+}
+
+/** What "now" means on this chart, for the preview's truth block. */
+export interface EducationTruth {
+  /** CAN DRAW · WAITING · UNAVAILABLE HERE — the headline word. */
+  readonly verdict: "CAN DRAW HERE" | "WAITING" | "UNAVAILABLE HERE" | "STATE NOT REPORTED";
+  /** The owner's sentence for THIS symbol, verbatim. */
+  readonly lines: readonly string[];
+}
+
+const FEED_WORDS: Partial<Record<MarketQualityState, string>> = {
+  DELAYED: "This chart's feed is DELAYED — what it draws trails the live market by the provider's delay.",
+  STALE: "This chart's feed is STALE — no fresh data; what it draws is as of the last update.",
+  PROXY: "This chart's price is a PROXY from another venue — read levels as approximate.",
+  REPLAY: "This chart is in REPLAY — it draws the frozen past, not the live market.",
+  PARTIAL: "Some senses on this feed are missing — only those readings degrade; the rest stay full.",
+  UNAVAILABLE: "This chart has no live feed right now.",
+};
+
+/**
+ * THE PREVIEW'S TRUTH BLOCK — compiled from the menu compiler's own verdict
+ * for this symbol (`entry`), or a caller-supplied owner sentence for an
+ * instrument (`instrumentTruth`, e.g. the order-flow capability reason), plus
+ * the feed's quality. Nothing here decides availability.
+ */
+export function educationTruthLines(input: {
+  readonly entry?: Pick<ProfileMenuEntry, "availability" | "availabilityNote" | "stateWords"> | null;
+  readonly instrumentTruth?: { readonly ok: boolean; readonly waiting?: boolean; readonly sentence: string } | null;
+  readonly feed?: MarketQualityState | "UNKNOWN" | null;
+  /** For a row with no owner verdict: the tool id + symbol, so the market's own fact (no central volume) still speaks. */
+  readonly id?: string;
+  readonly symbol?: string;
+}): EducationTruth {
+  const lines: string[] = [];
+  let verdict: EducationTruth["verdict"] = "CAN DRAW HERE";
+  const e = input.entry;
+  if (e) {
+    if (e.availability === "WAITING_FOR_BARS" || e.availability === "WAITING_FOR_PRINTS") verdict = "WAITING";
+    else if (e.availability !== "READY") verdict = "UNAVAILABLE HERE";
+    const note = e.availabilityNote.charAt(0).toUpperCase() + e.availabilityNote.slice(1);
+    lines.push(e.stateWords ? `${e.stateWords}. ${note}.` : `${note}.`);
+  } else if (input.instrumentTruth) {
+    verdict = input.instrumentTruth.ok ? "CAN DRAW HERE" : input.instrumentTruth.waiting ? "WAITING" : "UNAVAILABLE HERE";
+    lines.push(input.instrumentTruth.sentence);
+  } else {
+    // No owner verdict for this row. Say the one market fact this module can
+    // prove (spot FX / spot metals have no central traded volume) — never a
+    // made-up "ready".
+    const edu = input.id ? educationFor(input.id) : null;
+    const noCentral = input.symbol ? hasNoCentralVolume(input.symbol) : null;
+    if (edu && noCentral && (edu.needs === "VOLUME" || edu.needs === "PRINTS" || edu.needs === "SIDED_TAPE")) {
+      verdict = "UNAVAILABLE HERE";
+      lines.push(`Needs traded volume — ${noCentral} trades over the counter and has no central volume.`);
+    } else {
+      verdict = "STATE NOT REPORTED";
+      lines.push("Its own readiness for this chart is shown on the chart once it is on.");
+    }
+  }
+  const fw = input.feed && input.feed !== "UNKNOWN" && input.feed !== "LIVE" ? FEED_WORDS[input.feed] : undefined;
+  if (fw) lines.push(fw);
+  return { verdict, lines };
+}
+
+/**
+ * §10 · WHICH INVENTION A SELECTION ON THE MARKET BELONGS TO — so its
+ * first-touch line comes from the same record as its ⓘ preview. Structural
+ * shape only (mirrors `ChartSelection`), so this module needs no view-model import.
+ */
+export function educationIdForSelection(sel:
+  | { readonly kind: "OBJECT"; readonly objectId: string }
+  | { readonly kind: "PRINT"; readonly print: { readonly kind?: string } }
+  | { readonly kind: "SLICE" }
+  | { readonly kind: "ANATOMY"; readonly reading: { readonly target: { readonly reading: "ABSORPTION" | "EXHAUSTION" } } }
+  | { readonly kind: "MEMORY_GHOST" | "PRESSURE_WALL" | "PRESSURE_FRONT" | "WEATHER" }
+  | null,
+): EducationKey | null {
+  if (!sel) return null;
+  switch (sel.kind) {
+    case "OBJECT": return sel.objectId.startsWith("MEMORY:") ? "PROFILE_MEMORY" : "MARKET_STRUCTURE";
+    case "PRINT": return sel.print.kind === "delta" ? "FP_delta" : "FP_big-trades";
+    case "SLICE": return "LIVING_PROFILE";
+    case "ANATOMY": return sel.reading.target.reading;
+    case "MEMORY_GHOST": return "MEMORY_GHOST";
+    case "PRESSURE_WALL": return "BRICK_WALLS";
+    case "PRESSURE_FRONT": return "DERIVATIVES_PRESSURE";
+    case "WEATHER": return "LIQUIDITY_WEATHER";
+  }
+}

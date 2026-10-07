@@ -20,9 +20,16 @@ import { ROLE_LAYERS, VISUAL_ROLES_EVENT, autoCompose, nextRole, readStoredRoles
 import { PROFILE_FAMILY, selectProfileMenu, type ProfileId, type ProfileMenuInput } from "@/lib/marketData/viewModels/selectProfileMenu";
 import { censusPlaceWords, searchCensusPlaces } from "@/lib/canon/inventionCensus";
 import { FAMILY_WORD, LIBRARY_CATEGORIES, LIBRARY_CATEGORY, searchToolRows, searchTools } from "@/lib/workspace/toolSearch";
+import { educationTruthLines } from "@/lib/chart/inventionEducation";
+import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
+import { InventionInfoButton, InventionPreview } from "./InventionInfo";
 
 /** A chart instrument outside the reading catalogue (footprint modes, Big Trades). */
-export interface FinderInstrument { readonly id: string; readonly label: string; readonly what: string; readonly active: boolean; readonly aliases?: readonly string[]; readonly familyWord: string; readonly onToggle: () => void }
+export interface FinderInstrument {
+  readonly id: string; readonly label: string; readonly what: string; readonly active: boolean; readonly aliases?: readonly string[]; readonly familyWord: string; readonly onToggle: () => void;
+  /** §9 · its owner's verdict for THIS chart (e.g. the order-flow capability reason), printed verbatim by the ⓘ preview. */
+  readonly truth?: { readonly ok: boolean; readonly waiting?: boolean; readonly sentence: string };
+}
 
 const GOLD = "#d4af37";
 const PEARL = "#E8EAF2";
@@ -35,9 +42,11 @@ const ROLE_STYLE: Readonly<Record<VisualRole, React.CSSProperties>> = {
   LATENT: { border: "1px dashed rgba(139,143,168,0.5)", color: MUTED, opacity: 0.8 },
 };
 
-export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal, instruments = [], symbol }: {
+export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal, instruments = [], symbol, feed = null }: {
   instruments?: readonly FinderInstrument[];
   symbol?: string;
+  /** §9 · the chart feed's quality (DELAYED, STALE …) — the ⓘ preview says what that means for the tool. */
+  feed?: MarketQualityState | "UNKNOWN" | null;
   barsPresent: boolean;
   printsPresent: boolean;
   observedAggressorFlow: boolean;
@@ -62,6 +71,19 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
     return () => window.removeEventListener(VISUAL_ROLES_EVENT, load);
   }, []);
   const setRole = (id: ProfileId, role: VisualRole) => writeStoredRoles({ ...roles, [id]: role });
+  // §9 · ONE preview open at a time, under the row it explains.
+  const [eduId, setEduId] = useState<string | null>(null);
+  const flip = (id: string) => setEduId(cur => (cur === id ? null : id));
+  const entryPreview = (e: (typeof vm.entries)[number], scope = "finder") => eduId === e.id ? (
+    <InventionPreview scope={scope} id={e.id} label={e.label} what={e.what} familyWord={FAMILY_WORD[PROFILE_FAMILY[e.id]]} symbol={symbol}
+      truth={educationTruthLines({ entry: e, feed })} active={e.active} gestureNote={e.gesture === "DRAW" ? e.gestureNote : undefined}
+      onAdd={() => onToggle(e.id)} onClose={() => setEduId(null)} />
+  ) : null;
+  const instPreview = (i: FinderInstrument, scope = "finder") => eduId === i.id ? (
+    <InventionPreview scope={scope} id={i.id} label={i.label} what={i.what} familyWord={i.familyWord} symbol={symbol}
+      truth={educationTruthLines({ instrumentTruth: i.truth ?? null, feed, id: i.id, symbol })} active={i.active}
+      onAdd={i.onToggle} onClose={() => setEduId(null)} />
+  ) : null;
 
   return (
     <section data-testid="tool-finder" aria-label="Find a tool" className="rounded-lg border border-wm-border bg-wm-surface/95 p-2 mb-2">
@@ -81,8 +103,9 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
         <ul data-testid="tool-finder-results" className="mt-1.5 flex flex-col gap-1" aria-label="Matching tools">
           {instHits.map(i => (
             <li key={i.id}>
+              <div className="flex items-start gap-1">
               <button type="button" role="switch" aria-checked={i.active} data-testid={`tool-finder-${i.id}`} onClick={i.onToggle}
-                className="w-full rounded px-2 py-1.5 text-left hover:bg-white/5"
+                className="min-w-0 flex-1 rounded px-2 py-1.5 text-left hover:bg-white/5"
                 style={{ border: `1px solid ${i.active ? GOLD : "rgba(255,255,255,0.06)"}` }}>
                 <span className="flex items-center gap-2">
                   <span aria-hidden className="inline-block h-2 w-2 rounded-full" style={{ background: i.active ? GOLD : "transparent", border: `1px solid ${i.active ? GOLD : MUTED}` }} />
@@ -91,6 +114,9 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
                 </span>
                 <span className="block pl-4 text-[11px] leading-snug" style={{ color: MUTED }}>{i.what}</span>
               </button>
+              <InventionInfoButton scope="finder" id={i.id} label={i.label} open={eduId === i.id} onToggle={() => flip(i.id)} />
+              </div>
+              {instPreview(i)}
             </li>
           ))}
           {places.map(e => (
@@ -110,13 +136,14 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
             <li className="px-1 text-[11px]" style={{ color: MUTED }}>No tool by that name. Try a word it does — “delta”, “profile”, “walls”.</li>
           ) : hits.map(e => (
             <li key={e.id}>
+              <div className="flex items-start gap-1">
               <button
                 type="button"
                 role="switch"
                 aria-checked={e.active}
                 data-testid={`tool-finder-${e.id}`}
                 onClick={() => onToggle(e.id)}
-                className="w-full rounded px-2 py-1.5 text-left hover:bg-white/5"
+                className="min-w-0 flex-1 rounded px-2 py-1.5 text-left hover:bg-white/5"
                 style={{ border: `1px solid ${e.active ? GOLD : "rgba(255,255,255,0.06)"}` }}
               >
                 <span className="flex items-center gap-2">
@@ -129,6 +156,9 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
                   <span className="block pl-4 text-[10.5px] leading-snug" style={{ color: AMBER }}>{e.availabilityNote}</span>
                 ) : null}
               </button>
+              <InventionInfoButton scope="finder" id={e.id} label={e.label} open={eduId === e.id} onToggle={() => flip(e.id)} />
+              </div>
+              {entryPreview(e)}
             </li>
           ))}
         </ul>
@@ -151,23 +181,31 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
             return (
               <div key={cat}>
                 <div className="text-[9.5px] font-bold uppercase tracking-[0.14em]" style={{ color: MUTED }}>{cat}</div>
-                <div className="mt-1 flex flex-wrap gap-1">
+                <div className="mt-1 flex flex-wrap items-center gap-1">
                   {rows.map(e => (
-                    <button key={e.id} type="button" role="switch" aria-checked={e.active} title={e.availability === "READY" ? e.what : e.availabilityNote}
+                    <span key={e.id} className="inline-flex items-center gap-0.5">
+                    <button type="button" role="switch" aria-checked={e.active} title={e.availability === "READY" ? e.what : e.availabilityNote}
                       data-testid={`tool-library-${e.id}`} onClick={() => onToggle(e.id)}
                       className="rounded-full px-2 py-0.5 text-[11px]"
                       style={{ border: `1px solid ${e.active ? GOLD : "rgba(255,255,255,0.12)"}`, color: e.active ? GOLD : e.availability === "READY" ? PEARL : AMBER, background: e.active ? "rgba(212,175,55,0.1)" : "transparent" }}>
                       {e.label}
                     </button>
+                    <InventionInfoButton compact scope="library" id={e.id} label={e.label} open={eduId === e.id} onToggle={() => flip(e.id)} />
+                    </span>
                   ))}
                   {extra.map(i => (
-                    <button key={i.id} type="button" role="switch" aria-checked={i.active} title={i.what} onClick={i.onToggle}
+                    <span key={i.id} className="inline-flex items-center gap-0.5">
+                    <button type="button" role="switch" aria-checked={i.active} title={i.what} onClick={i.onToggle}
                       className="rounded-full px-2 py-0.5 text-[11px]"
                       style={{ border: `1px solid ${i.active ? GOLD : "rgba(255,255,255,0.12)"}`, color: i.active ? GOLD : PEARL, background: i.active ? "rgba(212,175,55,0.1)" : "transparent" }}>
                       {i.label}
                     </button>
+                    <InventionInfoButton compact scope="library" id={i.id} label={i.label} open={eduId === i.id} onToggle={() => flip(i.id)} />
+                    </span>
                   ))}
                 </div>
+                {rows.map(e => eduId === e.id ? <div key={`edu-${e.id}`}>{entryPreview(e, "library")}</div> : null)}
+                {extra.map(i => eduId === i.id ? <div key={`edu-${i.id}`}>{instPreview(i, "library")}</div> : null)}
               </div>
             );
           })}

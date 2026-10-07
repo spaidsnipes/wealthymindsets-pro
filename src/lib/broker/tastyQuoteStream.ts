@@ -291,6 +291,21 @@ export function peekTastyQuote(streamerSymbol: string): ContractQuoteState | nul
 }
 const onStore = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
 
+/**
+ * WHOSE token the socket uses just changed — a member connected or disconnected
+ * THEIR OWN tastytrade (MEMBER-BROKER-CONNECT.md). Drop the remembered token and
+ * the open socket, and ask again for whatever is already subscribed, so a
+ * NOT_OWNER stream becomes the member's own (or a member's stream ends).
+ */
+export function reopenTastyStream(): void {
+  forgetQuoteToken();
+  if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+  retries = 0;
+  teardown();
+  if (wanted()) void connect();
+  else emit({ stream: "IDLE", reason: null });
+}
+
 /** Diagnostic count for the duplicate-stream check (§CX): sockets this tab holds. */
 export function tastyStreamSocketCount(): number {
   return ws ? 1 : 0;

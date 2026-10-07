@@ -51,6 +51,9 @@ import {
   type ProfileMenuInput,
   type ProfileFamily,
 } from "@/lib/marketData/viewModels/selectProfileMenu";
+import { educationTruthLines } from "@/lib/chart/inventionEducation";
+import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
+import { InventionInfoButton, InventionPreview } from "./InventionInfo";
 
 /** The dot beside each entry. Availability is a colour AND a sentence, never only a colour. */
 const AVAILABILITY_DOT: Record<ProfileMenuEntry["availability"], string> = {
@@ -75,6 +78,7 @@ export function ProfilesMenu({
   stateDetail,
   speciesRefusal,
   symbol,
+  feed = null,
 }: {
   /** Bars RECEIVED, not bars requested. */
   barsPresent: boolean;
@@ -99,7 +103,11 @@ export function ProfilesMenu({
   speciesRefusal?: ProfileMenuInput["speciesRefusal"];
   /** The chart's symbol — a market with no central volume (spot FX) refuses its volume readers before they are switched on. */
   symbol?: string;
+  /** §9 · the chart feed's quality — the ⓘ preview says what DELAYED / STALE means for the tool. */
+  feed?: MarketQualityState | "UNKNOWN" | null;
 }) {
+  // §9 · one ⓘ preview open per door, directly under its row.
+  const [eduId, setEduId] = React.useState<ProfileId | null>(null);
   const vm = selectProfileMenu({ barsPresent, printsPresent, observedAggressorFlow, active, families, only, speciesRefusal, symbol });
   const menuName = testId === "order-flow-tools-menu" ? "Order flow tools" : "Profiles menu";
   const manifestationNotes = vm.entries.filter(e => e.active && stateDetail?.[e.id])
@@ -206,8 +214,9 @@ export function ProfilesMenu({
                       : entry.active ? "SILENT · TAPE REQUIRED" : "UNAVAILABLE ON THIS FEED · NEEDS SIDED TAPE";
 
               return (
+                <React.Fragment key={entry.id}>
+                <div className="flex min-w-0 items-stretch">
                 <button
-                  key={entry.id}
                   role="menuitemcheckbox"
                   aria-checked={entry.active}
                   // NOT `disabled` — see the header. The reason rides along instead.
@@ -217,7 +226,7 @@ export function ProfilesMenu({
                   data-profile-id={entry.id}
                   data-profile-availability={entry.availability}
                   data-profile-active={entry.active ? "1" : "0"}
-                  className="min-w-0 px-2 py-1.5 text-left transition-colors hover:bg-wm-card"
+                  className="min-w-0 flex-1 px-2 py-1.5 text-left transition-colors hover:bg-wm-card"
                   // A row, not a card: only the active reading carries the gold
                   // left edge (the Chart tools / Workspace rail grammar).
                   style={{
@@ -272,6 +281,16 @@ export function ProfilesMenu({
                     </span>
                   </div>
                 </button>
+                <InventionInfoButton scope={testId} id={entry.id} label={entry.label} open={eduId === entry.id}
+                  onToggle={() => setEduId(cur => (cur === entry.id ? null : entry.id))} />
+                </div>
+                {eduId === entry.id ? (
+                  <InventionPreview scope={testId} id={entry.id} label={entry.label} what={entry.what} familyWord={heading} symbol={symbol}
+                    truth={educationTruthLines({ entry, feed })} active={entry.active}
+                    gestureNote={entry.gesture === "DRAW" ? entry.gestureNote : undefined}
+                    onAdd={() => onToggle(entry.id)} onClose={() => setEduId(null)} />
+                ) : null}
+                </React.Fragment>
               );
             })}
           </div>

@@ -34,8 +34,10 @@ import {
 import { axisPriceFormatFor, displayPrecisionFor, instrumentTickFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { relatedFlowLine, relatedRoot } from "@/lib/chart/fxRelatedFlow";
 import { useFxRelatedFlow } from "@/lib/broker/useFxRelatedFlow";
+import { atrSeries, EFFORT_RESPONSE_BUDGET_MS, readEffortResponseField, responseColumnHeight, type EffortResponseField } from "@/lib/chart/effortResponseField";
+import { DELTA_KEEL_BUDGET_MS, keelLength, readKeels, type KeelInput } from "@/lib/chart/barDeltaKeel";
 import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
-import { needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
+import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
@@ -1330,6 +1332,16 @@ interface Props {
   /** SESSION BANDS (sessionBands.ts): Asia / London / New York on the time axis. */
   sessionBandsOn?: boolean;
   /**
+   * EFFORT → RESPONSE FIELD (Garden 19 §7, effortResponseField.ts): each
+   * finished bar's displacement drawn as a column INSIDE its own volume bar.
+   */
+  effortResponseOn?: boolean;
+  /**
+   * BAR DELTA KEEL (Garden 19 §6 / C-02, barDeltaKeel.ts): signed evidence
+   * across the candles — a keel on each finished bar's close edge.
+   */
+  deltaKeelOn?: boolean;
+  /**
    * ABSORPTION ANATOMY (Founder Asset 06) — draws the EFFORT field and the
    * ABSORPTION ZONE band directly in price/time space. See the draw block.
    */
@@ -1903,7 +1915,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
-  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false,
+  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false,
   absorptionAnatomyActive = false,
   exhaustionOnChart = true,
   imbalanceStack = null,
@@ -2240,6 +2252,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // CME related-market evidence for a spot pair (fxRelatedFlow.ts): words in
   // the volume footer, never paint on the spot candles. Owner-only upstream.
   const fxRelated = useFxRelatedFlow(symbol);
+  // Effort → Response field: recomputed only when the camera or a bar's close
+  // moves; the paint cost keeps a rolling mean / longest for the receipt.
+  const effortResponseCacheRef = useRef<{ key: string; field: EffortResponseField } | null>(null);
+  const effortResponseCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
+  const deltaKeelAtrRef = useRef<{ key: string; atr: number[] } | null>(null);
+  const deltaKeelCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const regimeLightingRef = useRef<RegimeLightingVM | null>(null);
   useEffect(() => { regimeLightingRef.current = regimeLighting ?? null; }, [regimeLighting]);
   const inspectedBarRef = useRef<{ readonly time: number; readonly high: number; readonly low: number } | null>(null);
@@ -9969,6 +9987,204 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           canvas.dataset.sessionBandsNow = sessionsAt(Math.floor(Date.now() / 1000)).join("+") || "NONE";
         }
       } catch (err) { layerFault("SESSION_BANDS", err); }
+
+      /* ══ EFFORT → RESPONSE ACROSS THE CANDLES (Garden 19 §7) ══════════════
+         The volume bar IS the effort (one owner — nothing new drawn for it).
+         Inside it, a narrow ivory column = that bar's displacement in ATR
+         units, scaled so an ordinary response to an ordinary effort fills its
+         own volume bar (effortResponseField.ts). Tall bar, short column: spent
+         and didn't move. Full column: the effort bought displacement. Column
+         climbing OUT of a short bar (drawn hollow): response with no fuel.
+         ABSORBED bars carry a hairline lid at the column top so the unspent
+         gap reads as form, not colour. Older bars quieter (memory aged); the
+         forming bar is never drawn (§15 clear zone — it has not finished
+         responding). No volume (spot FX / placeholder) → silent, with reason. */
+      try {
+        const t0ER = performance.now();
+        const bs = barsRef.current || [];
+        const vsER = volRef.current;
+        if (!effortResponseOn) { canvas.dataset.effortResponse = "OFF"; delete canvas.dataset.effortResponseWhy; }
+        else if (bs.length < 2 || !vsER) canvas.dataset.effortResponse = "NO_BARS";
+        else {
+          const tsER = chart.timeScale();
+          const lrER = tsER.getVisibleLogicalRange();
+          const i0 = Math.max(0, Math.floor(lrER ? +lrER.from : 0));
+          const i1 = Math.min(bs.length - 1, Math.ceil(lrER ? +lrER.to : bs.length - 1));
+          const barSecER = barInterval();
+          const last = bs[bs.length - 1];
+          const formingTime = Date.now() / 1000 < (last.time as number) + barSecER ? (last.time as number) : null;
+          const key = `${symbol}|${i0}|${i1}|${bs.length}|${formingTime ?? "-"}|${bs[Math.min(i1, bs.length - 1)]?.close}|${bs[Math.min(i1, bs.length - 1)]?.volume}`;
+          if (effortResponseCacheRef.current?.key !== key) {
+            const vt = volumeTruthFor(symbol, bs);
+            effortResponseCacheRef.current = {
+              key,
+              field: readEffortResponseField(bs, i0, i1, {
+                volumeReal: vt.real,
+                volumeSilenceWhy: vt.real ? null : `${needsTradedVolumeSentence(symbol) ?? vt.title} — effort cannot be weighed, so the field stays empty (this feed reports no tick activity either).`,
+                formingTime,
+              }),
+            };
+          }
+          const field = effortResponseCacheRef.current.field;
+          if (field.state === "SILENT") {
+            canvas.dataset.effortResponse = `SILENT:${field.reason}`;
+            canvas.dataset.responseCells = field.reason === "NEEDS_TRADED_VOLUME" ? "NO_VOLUME" : "NO_SAMPLE";
+            canvas.dataset.effortResponseWhy = field.why;
+          } else {
+            delete canvas.dataset.effortResponseWhy;
+            let volTopER = 0.78;
+            try { const t = chart.priceScale("vol").options().scaleMargins?.top; if (Number.isFinite(t)) volTopER = t as number; } catch { /* default */ }
+            const bandTop = pane0Bottom * volTopER;
+            const baseC = vsER.priceToCoordinate(0);
+            const yBase = baseC == null ? pane0Bottom : Math.min(pane0Bottom, +baseC);
+            const spacing = (() => { try { return +(tsER.options().barSpacing ?? 6); } catch { return 6; } })();
+            const w = Math.max(1, Math.min(4, Math.round(spacing * 0.3)));
+            const sparse = spacing < 2.5;
+            const insp = inspectedBarRef.current?.time ?? null;
+            const n = field.bars.length;
+            let drawn = 0, lids = 0, hollow = 0;
+            ctx.save();
+            for (let k = 0; k < n; k++) {
+              const b = field.bars[k];
+              if (sparse && b.cell !== "ABSORBED" && b.cell !== "VACUUM") continue;
+              const xr = tsER.timeToCoordinate(b.time as never);
+              if (xr == null || +xr < 0 || +xr > plotRight) continue;
+              const yTopC = vsER.priceToCoordinate(b.volume);
+              if (yTopC == null) continue;
+              const effortPx = yBase - +yTopC;
+              if (!(effortPx > 0.5)) continue;
+              const hR = Math.min(responseColumnHeight(effortPx, b), yBase - bandTop);
+              const x = Math.round(+xr - w / 2);
+              const selected = insp != null && insp === b.time;
+              const a = selected ? 0.95 : 0.28 + 0.47 * (n > 1 ? k / (n - 1) : 1);
+              const inside = Math.min(hR, effortPx);
+              ctx.fillStyle = `rgba(237,230,211,${a.toFixed(3)})`;
+              if (inside > 0) ctx.fillRect(x, yBase - inside, w, inside);
+              if (hR > effortPx + 0.5) {
+                ctx.strokeStyle = `rgba(237,230,211,${(a * 0.9).toFixed(3)})`;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x + 0.5, yBase - hR + 0.5, Math.max(0, w - 1), hR - effortPx);
+                hollow++;
+              }
+              if (b.cell === "ABSORBED") {
+                const lw = Math.max(w + 2, Math.round(spacing * 0.7));
+                // Amber lid (C-01 ABSORBED ink) — hue AND form: the lid is the
+                // shape that says "spent, didn't move"; the amber only agrees.
+                ctx.fillStyle = `rgba(${flowColorsRef.current.absorb},${Math.min(1, a + 0.2).toFixed(3)})`;
+                ctx.fillRect(Math.round(+xr - lw / 2), Math.round(yBase - inside) - 1, lw, 1);
+                lids++;
+              }
+              drawn++;
+            }
+            ctx.restore();
+            const c = field.counts;
+            canvas.dataset.effortResponse = `DRAWN:N${drawn}|A${c.ABSORBED}|I${c.INITIATIVE}|V${c.VACUUM}|Q${c.QUIET}|L${lids}|H${hollow}`;
+            // C-01 certificate receipt (Response Matrix on the field).
+            canvas.dataset.responseCells = `${field.bars.length}|ABS:${c.ABSORBED}|INIT:${c.INITIATIVE}|VAC:${c.VACUUM}`;
+            const sel = insp != null ? field.bars.find(b => b.time === insp) : null;
+            if (sel) canvas.dataset.effortResponseInspect = `${sel.cell}|E${sel.effort.toFixed(2)}|R${sel.responseAtr.toFixed(2)}ATR`;
+            else delete canvas.dataset.effortResponseInspect;
+          }
+          const ms = performance.now() - t0ER;
+          const cr = effortResponseCostRef.current;
+          if (cr.n >= 120) { cr.n = 0; cr.sum = 0; cr.longest = 0; }
+          cr.n++; cr.sum += ms; cr.longest = Math.max(cr.longest, ms);
+          canvas.dataset.effortResponseCost = `${ms.toFixed(2)}ms|mean${(cr.sum / cr.n).toFixed(2)}|longest${cr.longest.toFixed(2)}|${cr.longest <= EFFORT_RESPONSE_BUDGET_MS ? "MET" : "OVER"}`;
+        }
+      } catch (err) { layerFault("EFFORT_RESPONSE", err); }
+
+      /* ══ ORDER FLOW ACROSS CANDLES · BAR DELTA KEEL (Garden 19 §6, C-02) ══
+         Each finished bar with SIGNED evidence (captured tape via
+         barTapeDelta, else the provider's bid/ask bar sides) carries a 2px
+         keel just outside its close edge: length ∝ delta ÷ sided volume,
+         buy/sell ink by sign. Left to right the keels tell the story —
+         arriving, lengthening, fading. A strong keel whose bar did not move
+         its way (body against the delta, or < 0.2 ATR) is HOLLOW: aggression
+         that failed to displace. No signed evidence → no keel (silence).
+         Real-OHLC candle types only (a Heikin-Ashi close is not the close). */
+      try {
+        const t0DK = performance.now();
+        const bs = barsRef.current || [];
+        const csDK = candleRef.current;
+        const realBody = candleType === "candles" || candleType === "hollow" || candleType === "orderflow-candles" || candleType === "bars";
+        if (!deltaKeelOn) canvas.dataset.barDeltaKeels = "OFF";
+        else if (!realBody) canvas.dataset.barDeltaKeels = `SILENT:NOT_REAL_OHLC:${candleType}`;
+        else if (bs.length < 2 || !csDK) canvas.dataset.barDeltaKeels = "NO_BARS";
+        else if (hasNoCentralVolume(symbol)) canvas.dataset.barDeltaKeels = "SILENT:NO_SIGNED_EVIDENCE:SPOT_MARKET";
+        else {
+          const tsDK = chart.timeScale();
+          const lrDK = tsDK.getVisibleLogicalRange();
+          const i0 = Math.max(0, Math.floor(lrDK ? +lrDK.from : 0));
+          const i1 = Math.min(bs.length - 1, Math.ceil(lrDK ? +lrDK.to : bs.length - 1));
+          const last = bs[bs.length - 1];
+          const formingDK = Date.now() / 1000 < (last.time as number) + barInterval() ? (last.time as number) : null;
+          const akey = `${symbol}|${bs.length}|${bs[0]?.time}|${bs[bs.length - 2]?.close}`;
+          if (deltaKeelAtrRef.current?.key !== akey) deltaKeelAtrRef.current = { key: akey, atr: atrSeries(bs) };
+          const atrDK = deltaKeelAtrRef.current.atr;
+          const sidedDK = candleSidedRef.current;
+          const rowsDK: KeelInput[] = [];
+          let nTape = 0, nSides = 0;
+          for (let i = i0; i <= i1; i++) {
+            const cDK = bs[i];
+            if (formingDK != null && (cDK.time as number) === formingDK) continue;
+            // The bar's delta from its ONE owner (footprintCanon.barTapeDelta).
+            const bd = barTapeDelta(getBarSubProfile(cDK));
+            const sd = bd ? null : sidedDK.get(Number(cDK.time)) ?? null;
+            if (!bd && !sd) { rowsDK.push({ time: cDK.time as number, open: cDK.open, close: cDK.close, atr: atrDK[i], buy: 0, sell: 0, basis: "SIDES" }); continue; }
+            if (bd) nTape++; else nSides++;
+            rowsDK.push({ time: cDK.time as number, open: cDK.open, close: cDK.close, atr: atrDK[i], buy: bd ? bd.buy : sd!.buy, sell: bd ? bd.sell : sd!.sell, basis: bd ? "TAPE" : "SIDES" });
+          }
+          const keels = readKeels(rowsDK);
+          if (!keels.length) {
+            canvas.dataset.barDeltaKeels = nTape + nSides === 0 ? "SILENT:NO_SIGNED_EVIDENCE" : "DRAWN:0|BALANCED";
+          } else {
+            const spacing = (() => { try { return +(tsDK.options().barSpacing ?? 6); } catch { return 6; } })();
+            const bodyW = Math.max(1, Math.round(spacing * 0.7));
+            const insp = inspectedBarRef.current?.time ?? null;
+            const byTime = new Map<number, (typeof bs)[number]>();
+            for (let i = i0; i <= i1; i++) byTime.set(bs[i].time as number, bs[i]);
+            let drawn = 0, failed = 0;
+            ctx.save();
+            ctx.lineWidth = 1;
+            for (let k = 0; k < keels.length; k++) {
+              const kl = keels[k];
+              const bar = byTime.get(kl.time);
+              if (!bar) continue;
+              const xr = tsDK.timeToCoordinate(kl.time as never);
+              const yc = csDK.priceToCoordinate(bar.close);
+              if (xr == null || yc == null || +xr < 0 || +xr > plotRight) continue;
+              if (bodyW < 3 && !kl.failed) continue; // too dense: failures only
+              const L = keelLength(kl.ratio, bodyW);
+              const up = bar.close >= bar.open;
+              // Just OUTSIDE the close edge: above an up body, below a down one.
+              const y = Math.round(+yc + (up ? -3 : 1));
+              const x = Math.round(+xr - L / 2);
+              const ink = kl.ratio > 0 ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell;
+              const age = 0.6 + 0.4 * (keels.length > 1 ? k / (keels.length - 1) : 1);
+              const a = insp === kl.time ? 0.95 : 0.55 * age;
+              if (kl.failed) {
+                ctx.strokeStyle = `rgba(${ink},${Math.min(1, a + 0.15).toFixed(3)})`;
+                ctx.strokeRect(x + 0.5, y + 0.5, Math.max(1, L - 1), 2);
+                failed++;
+              } else {
+                ctx.fillStyle = `rgba(${ink},${a.toFixed(3)})`;
+                ctx.fillRect(x, y, Math.max(1, L), 2);
+              }
+              drawn++;
+            }
+            ctx.restore();
+            canvas.dataset.barDeltaKeels = `${drawn}|BASIS:TAPE${nTape}+SIDES${nSides}|FAIL:${failed}`;
+            const sel = insp != null ? keels.find(q => q.time === insp) : null;
+            if (sel) canvas.dataset.barDeltaKeelInspect = `${sel.basis}|D${sel.delta}|R${sel.ratio.toFixed(2)}${sel.failed ? "|FAILED_TO_DISPLACE" : ""}`;
+            else delete canvas.dataset.barDeltaKeelInspect;
+          }
+          const ms = performance.now() - t0DK;
+          const cr = deltaKeelCostRef.current;
+          if (cr.n >= 120) { cr.n = 0; cr.sum = 0; cr.longest = 0; }
+          cr.n++; cr.sum += ms; cr.longest = Math.max(cr.longest, ms);
+          canvas.dataset.barDeltaKeelsCost = `${ms.toFixed(2)}ms|mean${(cr.sum / cr.n).toFixed(2)}|longest${cr.longest.toFixed(2)}|${cr.longest <= DELTA_KEEL_BUDGET_MS ? "MET" : "OVER"}`;
+        }
+      } catch (err) { layerFault("DELTA_KEEL", err); }
 
       /* ══════════════════════════════════════════════════════
          WM FIXED VP & SESSION VP — right-anchored inside chart
@@ -23620,7 +23836,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, absorptionAnatomyActive, getBarSubProfile]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, absorptionAnatomyActive, getBarSubProfile]);
 
   /*
     THE HIDDEN-TAB STAMP CANNOT LIVE INSIDE THE RAF LOOP.
