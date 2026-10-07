@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { readSceneDecision } from "@/lib/traderMemory/decisionContinuity";
 import { SPAIDBOT_IDLE_TIMEOUT_MS, spaidbotFailureMessage, withSceneDecisionId, withScenePlan } from "@/lib/ai/spaidbotContext";
 import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
-import { SPAIDBOT_ASK_EVENT, contextWithAsk, readSpaidbotAsk, type SpaidbotAsk } from "@/lib/ai/spaidbotAsk";
+import { SPAIDBOT_ASK_EVENT, contextWithAsk, readSpaidbotAsk, registerSpaidbotAskListener, rememberPendingAsk, takePendingAsk, type SpaidbotAsk } from "@/lib/ai/spaidbotAsk";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Send, Zap, Minimize2, Maximize2,
@@ -51,7 +51,16 @@ const SUGGESTIONS = [
 /* ══════════════════════════════════════════════════════════════
    MAIN COMPONENT
 ══════════════════════════════════════════════════════════════ */
-export function SpadeBotButton() {
+export function SpadeBotButton({ launcher = true }: {
+  /**
+   * Garden 19 §30 (2026-10-07). `false` = no floating launcher: the panel
+   * exists only when a surface ASKED (wm:spaidbot-ask — Inspect "Ask SpaidBot",
+   * Review "Ask SpaidBot about this decision") and closes back to nothing.
+   * This is how the Founder shell — which retired the floating chrome button
+   * (MainLayout.residency.sentinel) — still answers the Ask door.
+   */
+  launcher?: boolean;
+} = {}) {
   const [open,       setOpen]       = useState(false);
   const [expanded,   setExpanded]   = useState(false);
   const [messages,   setMessages]   = useState<Msg[]>([]);
@@ -93,16 +102,24 @@ export function SpadeBotButton() {
      fields only) rides with the next question and is then dropped. */
   const askRef = useRef<SpaidbotAsk | null>(null);
   useEffect(() => {
-    const onAsk = (e: Event) => {
-      const ask = readSpaidbotAsk((e as CustomEvent).detail);
-      if (!ask) return;
+    const apply = (ask: SpaidbotAsk) => {
       askRef.current = ask;
       setOpen(true);
       setInput(ask.prompt);
       setTimeout(() => inputRef.current?.focus(), 150);
     };
+    const onAsk = (e: Event) => {
+      const ask = readSpaidbotAsk((e as CustomEvent).detail);
+      if (!ask) return;
+      rememberPendingAsk(null);
+      apply(ask);
+    };
+    // The launcherless host mounts this panel on the FIRST ask; that ask is waiting.
+    const waiting = takePendingAsk();
+    if (waiting) apply(waiting);
+    const unregister = registerSpaidbotAskListener();
     window.addEventListener(SPAIDBOT_ASK_EVENT, onAsk);
-    return () => window.removeEventListener(SPAIDBOT_ASK_EVENT, onAsk);
+    return () => { unregister(); window.removeEventListener(SPAIDBOT_ASK_EVENT, onAsk); };
   }, []);
 
   /* ── Chart context ── */
@@ -242,7 +259,8 @@ export function SpadeBotButton() {
 
   return (
     <>
-      {/* Floating button */}
+      {/* Floating button (not in the launcherless ask host) */}
+      {launcher ? (
       <motion.button
         onClick={() => setOpen(o => !o)}
         whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}
@@ -255,6 +273,7 @@ export function SpadeBotButton() {
           <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-wm-gold rounded-full border-2 border-wm-black animate-pulse"/>
         )}
       </motion.button>
+      ) : null}
 
       {/* Chat panel */}
       <AnimatePresence>

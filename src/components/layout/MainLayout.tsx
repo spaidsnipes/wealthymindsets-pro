@@ -19,6 +19,7 @@ import WmWordmark from "@/components/brand/WmWordmark";
 import MobileSessionPill from "@/components/layout/MobileSessionPill";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
+import { SpaidbotAskHost } from "@/components/ai/SpaidbotAskHost";
 /* PHONE LOAD SPEED (2026-10-06): the July shell's tape (and its live-quote
    hooks) and the player/assistant companions draw only inside a signed-in
    July room, yet rode the root layout chunk onto every public door. They are
@@ -341,6 +342,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
          (every other surface that borrows WmWordmark names its own sub-line). */
       <WMExperienceShell brand={<WmWordmark size="compact" subtitle="— A Trading Sanctuary —" />}>
         {children}
+        {/* Garden 19 §30 (2026-10-07): the launcherless Ask host — no chrome
+            on screen until an "Ask SpaidBot" button is pressed. A dated
+            exception in MainLayout.residency.sentinel. */}
+        <SpaidbotAskHost />
       </WMExperienceShell>
     );
   }

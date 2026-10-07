@@ -121,7 +121,8 @@ export function HeaderPnL() {
     >
       {/* PAPER is on the glass, not only in the tooltip: this is simulated
           money drawn beside broker truth ("WEBULL COST") on /charts. */}
-      <span className="text-[9px] text-wm-text-dim font-semibold">{stat.label}</span>
+      {/* 11px floor (ruling 2026-10-07): the PAPER label is what keeps this money from reading as broker money. */}
+      <span className="text-[11px] text-wm-text-dim font-semibold">{stat.label}</span>
       <span
         className={clsx(
           "text-[11px] font-bold font-mono",

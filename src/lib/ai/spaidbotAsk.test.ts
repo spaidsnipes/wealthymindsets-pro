@@ -58,8 +58,10 @@ describe("Ask SpaidBot — the existing panel, pre-filled, one question's contex
   it("the panel listens, opens, PRE-FILLS (never sends for the trader), and drops the patch after one question", () => {
     const src = readFileSync(path.resolve(__dirname, "../../components/layout/SpaidBotButton.tsx"), "utf8");
     expect(src.length).toBeGreaterThan(1000);
-    const at = src.indexOf("const onAsk");
-    const handler = src.slice(at, src.indexOf("};", at));
+    // The ask effect: `apply` (opens + pre-fills), `onAsk` (event), the waiting ask on mount.
+    const at = src.indexOf("const apply = (ask: SpaidbotAsk)");
+    const handler = src.slice(at, src.indexOf("window.addEventListener(SPAIDBOT_ASK_EVENT, onAsk)", at));
+    expect(handler.length).toBeGreaterThan(100);
     expect(handler).toContain("setOpen(true)");
     expect(handler).toContain("setInput(ask.prompt)");
     expect(handler).not.toMatch(/\bsend\(|sendToClaude\(/);

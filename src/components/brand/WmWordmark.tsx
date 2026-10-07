@@ -84,7 +84,9 @@ export function WmWordmark({ size = "regular", subtitle, className }: WmWordmark
         </span>
         <span
           style={{
-            fontSize: s.sub,
+            // Ruling 2026-10-07: "PRO" names the product — never under the
+            // 11px floor (it was 9px in every compact masthead).
+            fontSize: Math.max(s.sub, 11),
             fontFamily: "Georgia, 'Times New Roman', serif",
             fontWeight: 400,
             color: "#c9a55c",

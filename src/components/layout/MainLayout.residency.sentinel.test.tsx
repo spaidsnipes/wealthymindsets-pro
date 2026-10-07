@@ -127,6 +127,27 @@ describe("MainLayout · Founder-route residency — Ticket T G12 gate", () => {
     expect(founderBranch()).not.toMatch(/from\s*"lucide-react"|<\s*(BarChart2|ScanLine|Newspaper|Trophy|Menu)\b/);
   });
 
+  it("DATED EXCEPTION 2026-10-07 (Garden 19 §30): the launcherless SpaidBot ASK HOST — and nothing else", () => {
+    /**
+     * Why an exception exists. FVG Inspect and the Review offer "Ask SpaidBot
+     * …"; on /charts nothing listened (chart lane serving read) — a dead door.
+     * The retirement above is about the FLOATING CHROME (the July launcher),
+     * not about SpaidBot as a capability ("Spaidbot itself remains an OS-level
+     * capability"). So the Founder branch may mount exactly ONE thing for it:
+     * `SpaidbotAskHost`, which renders NOTHING until the trader presses an Ask
+     * button, then the existing panel with `launcher={false}`.
+     *
+     * The exception is pinned narrowly: the host must stay launcherless, and
+     * the retired names above stay absent.
+     */
+    const branch = founderBranch();
+    expect(branch).toMatch(/<SpaidbotAskHost \/>/);
+    expect(branch).not.toMatch(/\bSpadeBotButton\b|\bSpaidBotButton\b|\bShellCompanions\b/);
+    const host = readFileSync(path.resolve(__dirname, "../ai/SpaidbotAskHost.tsx"), "utf-8");
+    expect(host).toContain("launcher={false}");
+    expect(host).toMatch(/return mounted \? <LauncherlessSpaidBot \/> : null;/);
+  });
+
   it("returns WMExperienceShell — the only mount on the Founder branch", () => {
     // Restatement of the parent-cut law for locality: if a future edit
     // forgets to render WMExperienceShell inside this branch, MainLayout

@@ -104,8 +104,10 @@ describe("SpaidBot × FVG — the request the model receives", () => {
 
   it("the prefill event never auto-sends (the panel only opens and fills the input)", () => {
     const bot = readFileSync(path.resolve(__dirname, "../../../components/layout/SpaidBotButton.tsx"), "utf8");
-    const at = bot.indexOf("const onAsk");
-    const handler = bot.slice(at, bot.indexOf("};", at));
+    // The ask effect: `apply` (opens + pre-fills), `onAsk` (event), the waiting ask on mount.
+    const at = bot.indexOf("const apply = (ask: SpaidbotAsk)");
+    const handler = bot.slice(at, bot.indexOf("window.addEventListener(SPAIDBOT_ASK_EVENT, onAsk)", at));
+    expect(handler.length).toBeGreaterThan(100);
     expect(handler).toContain("setInput(ask.prompt)");
     expect(handler).not.toMatch(/\bsend\(|sendToClaude\(|fetch\(/);
   });

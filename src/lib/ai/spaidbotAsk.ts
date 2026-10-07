@@ -75,8 +75,32 @@ export function reviewDecisionAsk(input: {
   };
 }
 
-/** Open the existing SpaidBot panel with this ask (browser only). */
-export function askSpaidbot(ask: SpaidbotAsk): void {
-  if (typeof window === "undefined") return;
+/* ── WHO IS LISTENING (no dead doors) ──────────────────────────────────────
+   An Ask button with nobody listening is a dead door (serving, chart lane,
+   2026-10-07: /charts had no SpaidBot panel in the Founder shell). Every
+   listener registers; the button asks `spaidbotAskListened()` and hides
+   itself when nothing would answer. */
+let listeners = 0;
+let pending: SpaidbotAsk | null = null;
+
+/** Register a listener (the panel, or the Founder shell's ask host). Returns the unregister. */
+export function registerSpaidbotAskListener(): () => void {
+  listeners += 1;
+  let done = false;
+  return () => { if (!done) { done = true; listeners -= 1; } };
+}
+
+export function spaidbotAskListened(): boolean {
+  return listeners > 0;
+}
+
+/** The ask host keeps the ask that mounted the panel; the panel takes it once on mount. */
+export function rememberPendingAsk(ask: SpaidbotAsk | null): void { pending = ask; }
+export function takePendingAsk(): SpaidbotAsk | null { const p = pending; pending = null; return p; }
+
+/** Open the existing SpaidBot panel with this ask (browser only). False when nothing listens. */
+export function askSpaidbot(ask: SpaidbotAsk): boolean {
+  if (typeof window === "undefined" || !spaidbotAskListened()) return false;
   window.dispatchEvent(new CustomEvent(SPAIDBOT_ASK_EVENT, { detail: ask }));
+  return true;
 }

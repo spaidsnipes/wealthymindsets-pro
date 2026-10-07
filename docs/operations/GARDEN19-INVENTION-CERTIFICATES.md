@@ -710,3 +710,19 @@ First runs, 2026-10-07:
   - The only remaining warning is the signed-out 401 console line.
   - Report and screenshots: `~/wm-held/proof/release-52-b/`.
 - Not yet run: the full in-tab set (14 rooms × 6 widths) on serving in a signed-in tab.
+
+## 10. §56 LEARNING LOOP — hand-off certificate (management / patience lane, appended 2026-10-07)
+
+Append-only. This row does not edit anything above it. **Correction to §8 item 7:** since 683aecf, "Show me my examples" lists Journal entries that carry a real FVG **reference** (`JournalEntry.fvgRef`); tag text no longer counts.
+
+| Hop | Owner | Door to the next hop | Proof | Status |
+|---|---|---|---|---|
+| Morning Prep: today's management rules + session plan, and the session verdict with its basis (CLOSED on weekends; "holiday calendar not loaded") | `managementDayRules.ts`, `TodayManagementRules.tsx` | "Open the chart — your ticket's plan card offers these →" (`/charts`, via `INSTRUMENT_VIEW_ROUTE`) | `learningLoop.integration.test.ts` hop 1–3; `managementEmptyStates.test.ts` closed-day cases; serving walk 6e65180 (1440/390, lands on `/charts`, no 404) | **PROVED** |
+| Ticket plan card: the draft is frozen on the Decision_ID at the ticket's send; later changes are dated amendments | `managementPlan.ts`, `managementPlanDraft.ts`, `ticketAtSendStore.rememberTicketAtSend`, `ManagementPlanCard.tsx` | "After the trade: review this decision in the Journal →" (`/journal`); no rules today → "set them in Morning Prep →" | hop 1–4 (TICKET_SEND, Morning Prep session line, an amendment, and the paper fill does not refreeze); serving TRADE panel 1440/390 | **PROVED** (the Journal link renders only once a plan is frozen; not yet seen on the Founder's account) |
+| Journal: broker capture + FVG reference as of the decision, saved → reloaded identical | `journalCaptureFromFill.ts`, `fvgDecisionReference.ts`, `hydrateJournalEntries.ts` | The entry's Review row; `/journal?entry=<id>` opens it | hop 5; `managementPlanPersistence.test.ts` | **PROVED** (unit) |
+| Review: market / planned / actual, deviations, the trader's own "why"; FVG answers | `planSheriff.ts`, `planVsActual.ts`, `planFvgContext.ts`, `BrokerTruthToday.StoryReviewRow` | Each deviation → "Study: Lesson N · title →" (`/education?lesson=fvg-N`) | hop 6; local Playwright `review-1440.png` / `review-390.png`; Sheriff sweep `managementSheriff.sentinel.test.ts` | **PROVED** locally. **PARTIAL** on serving: the Founder has no frozen plans yet |
+| Personal Edge: adherence by setup, FVG study list (WHEN / DEPTH / AGE, old gap > 50 bars), market vs execution edge; MEASURED only at n ≥ 20 | `planAdherence.ts`, `planFvgStudy.ts`, `planFvgCounterfactual.ts`, `PlanAdherenceBySetup.tsx` | The most common departure → its lesson | hop 7; `pe-1440.png` / `pe-390.png` | **PROVED** locally; **PARTIAL** on serving (no entries with plans or FVG references yet) |
+| Academy: "Show me my examples" from the trader's own FVG references, with adherence | `fvgCourse.fvgReferencedExamples`, `FvgLessonBody.tsx` | Each example → `/journal?entry=<id>`; lessons 17 / 18 / 19 / 21 → Morning Prep and the Journal ("learn yourself") | hop 8; serving 6e65180: lesson 18 links land on `/morning-prep` and `/journal`, no 404 | **PROVED** |
+| SpaidBot: the Decision_ID and the frozen plan as TRADER TRUTH; a factual question that names no emotion | `spaidbotContext.withScenePlan`, `formatChartContextNote`, `spaidbotPlanReview.ts`, SpaidBot system prompt | — (the loop restarts at Morning Prep) | hop 9; `patienceCopy.sentinel.test.ts` | **PROVED** (unit; no provider call) |
+
+The single walk is `src/lib/journal/learningLoop.integration.test.ts`. It asserts the same Decision_ID at every hop, the plan as frozen at the send (the paper fill does not refreeze it, and later changes are dated amendments), and the FVG state as of the decision (`readAsOfMs ≤ decisionAtMs`). Each hop's door points at the next hop.
