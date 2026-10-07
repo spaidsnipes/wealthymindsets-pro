@@ -93,11 +93,28 @@ subscription. Per-member Webull needs: per-user session keys in the session stor
 data via Webull OpenAPI is a separate subscription the member would have to buy. Tonight the Webull card
 for members is a referral/sign-up door + an honest "member connections for Webull aren't available yet".
 
+## 6b. Sign-out and account switch (shared devices)
+
+The browser's quote token (5-minute memo) and the one shared DXLink socket belong to whoever asked for
+them. Sign-out and sign-out-everywhere call `forgetQuoteToken` + `closeTastyStreamForSignOut` (socket
+closed, last quotes and pending candle snapshots dropped, no reconnect). AuthContext also watches the
+account id: a change to another account re-asks under the new account (`reopenTastyStream`); a change
+to signed-out closes. A token request already in flight at the switch is never remembered, and a
+connect waiting on it never opens a socket. Tests: `tastyStreamSignOut.test.ts`,
+`tastyQuoteTokenClient.test.ts`.
+
 ## 7. What the Founder must set / decide
 
-- `WM_BROKER_GRANT_KEY` (Worker secret, server-only): 32+ random bytes, base64. e.g.
-  `openssl rand -base64 32` → `wrangler secret put WM_BROKER_GRANT_KEY`. Unset = feature reports
-  "member connections not enabled".
+- `WM_BROKER_GRANT_KEY` (Worker secret, server-only). Exactly, from the repo root:
+  1. `openssl rand -base64 32 | ./node_modules/.bin/wrangler secret put WM_BROKER_GRANT_KEY`
+     (Worker `wealthymindsets-pro`; or Cloudflare dashboard → Workers → wealthymindsets-pro →
+     Settings → Variables and Secrets → Add → type **Secret**). Never a plain variable, never `NEXT_PUBLIC_`.
+  2. Save the same value in the password manager. It is not recoverable from Cloudflare.
+  3. No rebuild needed. Check: signed in as a member, Connections → tastytrade shows
+     "Connect your own tastytrade" instead of "isn't enabled on WM yet".
+  - Unset or under 16 characters = "member connections not enabled", nothing stored.
+  - Rotating it makes every stored grant unreadable (`GRANT_UNREADABLE`, "reconnect needed") — fail
+    closed; only rotate on suspected compromise.
 - `NEXT_PUBLIC_TASTYTRADE_REFERRAL_URL`, `NEXT_PUBLIC_WEBULL_REFERRAL_URL` (build-time, public): his
   referral links. Unset = plain public sign-up links, nothing labelled referral.
 - DECISION: Path A has members paste a personal-app credential into WM. tastytrade documents personal apps

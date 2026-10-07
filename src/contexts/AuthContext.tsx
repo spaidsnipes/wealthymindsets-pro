@@ -8,7 +8,7 @@
  * the client never sees the raw token. We expose user metadata here.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { isCoreTeam } from "@/lib/coreTeam";
 import { isPublicAuthPath, safeNextPath, selectAuthenticatedRouteState, signInPathFor } from "@/lib/authRoutes";
@@ -21,6 +21,7 @@ import { clearSessionNectarForSignOut } from "@/lib/marketData/sessionNectar";
 import { forgetQuoteToken } from "@/lib/broker/tastyQuoteTokenClient";
 import { forgetTastyFrontMonths } from "@/lib/broker/tastyFrontMonth";
 import { forgetTastyOptionStreamers } from "@/lib/broker/tastyOptionStreamers";
+import { closeTastyStreamForSignOut, reopenTastyStream } from "@/lib/broker/tastyQuoteStream";
 import { hydrateCachedUser, readCachedSession, type WMUser } from "@/lib/auth/cachedSession";
 import { authLinkForwardTarget } from "@/lib/auth/authLinkForward";
 
@@ -173,6 +174,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Hydrate on mount
   useEffect(() => { refreshUser(); }, [refreshUser]);
 
+  // ACCOUNT SWITCH without a sign-out through this tab (session expired, a
+  // different account signed in from another tab, the cached account replaced
+  // by /api/auth/me): the tastytrade stream token belongs to whoever asked for
+  // it. A member's grant serves that member only, so a change of identity drops
+  // the token, the socket and every contract the previous account resolved —
+  // and re-asks under the new account (or stays closed when no one is signed in).
+  const streamIdentityRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const id = user?.id ?? null;
+    const previous = streamIdentityRef.current;
+    streamIdentityRef.current = id;
+    if (previous === undefined || previous === id) return;
+    forgetTastyFrontMonths();
+    forgetTastyOptionStreamers();
+    if (id === null) closeTastyStreamForSignOut();
+    else reopenTastyStream();
+  }, [user?.id]);
+
   // Route guard
   useEffect(() => {
     const routeState = selectAuthenticatedRouteState(pathname, user, loading);
@@ -289,6 +308,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // In-memory owner state that outlives a client-side sign-out (garden pass 2026-10-04):
         clearSessionNectarForSignOut,
         forgetQuoteToken,
+        // The shared tastytrade socket and its last values: a member's own live
+        // stream must not keep running for the next person on this device.
+        closeTastyStreamForSignOut,
         forgetTastyFrontMonths,
         forgetTastyOptionStreamers,
         () => writeCachedUser(null),
@@ -311,6 +333,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // In-memory owner state that outlives a client-side sign-out (garden pass 2026-10-04):
         clearSessionNectarForSignOut,
         forgetQuoteToken,
+        // The shared tastytrade socket and its last values: a member's own live
+        // stream must not keep running for the next person on this device.
+        closeTastyStreamForSignOut,
         forgetTastyFrontMonths,
         forgetTastyOptionStreamers,
         () => writeCachedUser(null),

@@ -58,6 +58,8 @@ let closeTimer: ReturnType<typeof setTimeout> | null = null;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let retries = 0;
 let emitQueued = false;
+/** Bumped when the identity behind the stream changes; a connect that began before it gives up. */
+let identity = 0;
 
 function emit(patch: Partial<Omit<Snapshot, "version" | "quotes">> = {}) {
   snapshot = { ...snapshot, ...patch, quotes, version: snapshot.version + 1 };
@@ -105,6 +107,7 @@ function scheduleRetry(reason: string) {
 async function connect() {
   if (ws || !wanted()) return;
   emit({ stream: "CONNECTING", reason: null });
+  const asked = identity;
   let tok: { state?: string; token?: string; dxlinkUrl?: string; reason?: string; error?: string } | null = null;
   let status = 0;
   try {
@@ -112,6 +115,9 @@ async function connect() {
     status = a.status;
     tok = a.body;
   } catch { /* network */ }
+  // The account changed while the token was being asked for: that token
+  // belongs to the previous identity and must not open a socket now.
+  if (asked !== identity) return;
   if (status === 403) { emit({ stream: "NOT_OWNER", reason: tok?.error ?? "tastytrade market data belongs to its owner only." }); return; }
   if (tok?.state === "NOT_CONFIGURED") { emit({ stream: "NOT_CONNECTED", reason: "tastytrade is not connected on this deployment." }); return; }
   if (tok?.state !== "OK" || !tok.token || !tok.dxlinkUrl) { scheduleRetry(`Quote token unavailable${tok?.reason ? `: ${tok.reason}` : status ? ` (HTTP ${status})` : ""}`); return; }
@@ -298,12 +304,35 @@ const onStore = (l: () => void) => { listeners.add(l); return () => { listeners.
  * NOT_OWNER stream becomes the member's own (or a member's stream ends).
  */
 export function reopenTastyStream(): void {
-  forgetQuoteToken();
-  if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
-  retries = 0;
-  teardown();
+  dropIdentity();
   if (wanted()) void connect();
   else emit({ stream: "IDLE", reason: null });
+}
+
+/** Everything the previous identity's stream left in this tab: token, socket, last values, pending snapshots. */
+function dropIdentity(): void {
+  identity += 1;
+  forgetQuoteToken();
+  if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+  if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+  retries = 0;
+  teardown();
+  quotes = new Map();
+  for (const r of [...candleRequests.values()]) r.done(null);
+  candleRequests.clear();
+}
+
+/**
+ * SIGN-OUT / ACCOUNT SWITCH (logoutIsolation): close the shared socket and
+ * forget the token and every last value it carried, WITHOUT reconnecting — on
+ * a shared device the next person must not keep receiving the previous
+ * member's live stream. Mounted subscribers stay registered; the next
+ * subscribe (or reopenTastyStream once a new account is known) asks for a token
+ * under whoever is signed in then.
+ */
+export function closeTastyStreamForSignOut(): void {
+  dropIdentity();
+  emit({ stream: "IDLE", reason: null });
 }
 
 /** Diagnostic count for the duplicate-stream check (§CX): sockets this tab holds. */
