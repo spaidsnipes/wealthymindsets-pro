@@ -121,7 +121,7 @@ import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
 import { InspectFirstTouchLine } from "./SelectionFirstTouch";
 import { FvgInspectTicket } from "./FvgInspectTicket";
 import type { FvgObject } from "@/lib/chart/fvgGlass";
-import { inspectEvidence, type EvidenceClass, type InspectEvidence } from "@/lib/chart/inspectEvidence";
+import { inspectEvidence, type EvidenceClass, type InspectEvidence, type InspectFeed } from "@/lib/chart/inspectEvidence";
 import type { CandleReadingRow } from "@/lib/chart/barCandleReadings";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 
@@ -306,7 +306,7 @@ function AnatomyRow({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
-function AnatomyTicket({ sel, onClose, timeZone, feed = null, sourceName = null }: { sel: SelectedAnatomy; onClose: () => void; timeZone?: string | null; feed?: MarketQualityState | "UNKNOWN" | null; sourceName?: string | null }) {
+function AnatomyTicket({ sel, onClose, timeZone, feed = null, sourceName = null }: { sel: SelectedAnatomy; onClose: () => void; timeZone?: string | null; feed?: InspectFeed | null; sourceName?: string | null }) {
   const r = sel.reading;
   const absorption = r.target.reading === "ABSORPTION";
   // The body is the CURRENT reading whenever the owners still measure it; only
@@ -568,7 +568,7 @@ function PassportDrawer({
   activeDecisionId: string | null;
   timeZone: string | null;
   onClose: () => void;
-  feed?: MarketQualityState | "UNKNOWN" | null;
+  feed?: InspectFeed | null;
   sourceName?: string | null;
 }) {
   const clock = zonedClock(timeZone);
@@ -927,10 +927,11 @@ export function ChartInspectTicket({
   clarity = null,
   printResponse = null,
   onSelectPrint,
-  feed = null,
+  feed: feedIn = null,
   sourceName = null,
   tapeSourceName = null,
   candleReadings = [],
+  sessionClosed = false,
 }: {
   vm: InspectTicketVM;
   followingLiveBar: boolean;
@@ -998,14 +999,17 @@ export function ChartInspectTicket({
   /** F07B · select one member of a selected cluster — the room's one selection. */
   onSelectPrint?: (print: SelectedBigTrade) => void;
   /** §28 · the chart's feed state — it caps every evidence class (degraded behaviour). */
-  feed?: MarketQualityState | "UNKNOWN" | null;
+  feed?: InspectFeed | null;
   /** §28 · the bar feed's provider name, as the room names it. */
   sourceName?: string | null;
   /** §28 · the tape's provider name (prints, footprint). */
   tapeSourceName?: string | null;
   /** §28 · the inspected bar's candle readings (selectBarCandleReadings). */
   candleReadings?: readonly CandleReadingRow[];
+  /** The canonical session owner says CLOSED (weekend / Globex break): a missing feed then dates the reading instead of degrading it. */
+  sessionClosed?: boolean;
 }) {
+  const feed: InspectFeed | null = sessionClosed && (feedIn === "UNAVAILABLE" || feedIn === "STALE") ? "SESSION_CLOSED" : feedIn;
   // T-210 · MTF prices at the market's display decimals (the band's body is raw bar prices).
   const mtfPx = (v: number) => (priceDp != null ? v.toFixed(priceDp) : String(+v.toPrecision(8)));
   const clock = zonedClock(timeZone);
@@ -1047,6 +1051,7 @@ export function ChartInspectTicket({
         clock={ms => clock.exact(ms)}
         firstTouch={<InspectFirstTouchLine />}
         relationships={fvgRelationships}
+        priceDp={priceDp ?? null}
         evidence={<EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "OBJECT", birthRead: true, asOfMs: o.asOf, source: sourceName }, feed)} />}
         onClose={() => onOpenChange(false)}
       />

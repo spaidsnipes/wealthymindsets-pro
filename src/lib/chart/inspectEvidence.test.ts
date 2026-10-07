@@ -44,3 +44,15 @@ describe("BAR evidence names the provider's bar-level sides when they are the re
     expect(inspectEvidence({ kind: "BAR", barRead: true, signedTapeReaches: false, asOfMs: 1, source: "x" }).why).toContain("stay unread");
   });
 });
+
+describe("a closed session dates a reading, it does not degrade it (2026-10-07)", () => {
+  it("SESSION_CLOSED keeps the class and says the market is closed, not that the feed failed", () => {
+    const ev = inspectEvidence({ kind: "OBJECT", birthRead: true, asOfMs: 1, source: "tastytrade" }, "SESSION_CLOSED");
+    expect(ev.klass).toBe("FULL");
+    expect(ev.feedNote).toContain("market is closed");
+    expect(ev.why).not.toContain("UNAVAILABLE");
+  });
+  it("an open-session UNAVAILABLE feed is still lowered", () => {
+    expect(inspectEvidence({ kind: "OBJECT", birthRead: true, asOfMs: 1, source: "x" }, "UNAVAILABLE").klass).toBe("DEGRADED");
+  });
+});

@@ -93,8 +93,20 @@ function base(i: InspectEvidenceInput): Omit<InspectEvidence, "feedNote"> {
   }
 }
 
-export function inspectEvidence(input: InspectEvidenceInput, feed?: MarketQualityState | "UNKNOWN" | null): InspectEvidence {
+/**
+ * The feed as Inspect reads it. "SESSION_CLOSED" (sheriff sweep 2026-10-07):
+ * during the CME daily break the ticket said "Lowered to DEGRADED: the feed is
+ * UNAVAILABLE · This chart has no live feed right now" under a header reading
+ * SESSION CLOSED — a closed market read as a failing provider (GP12 §24). A
+ * closed session does not lower a reading; it dates it.
+ */
+export type InspectFeed = MarketQualityState | "UNKNOWN" | "SESSION_CLOSED";
+export const SESSION_CLOSED_NOTE = "The market is closed — these readings are as of its last bar; that is not a feed failure.";
+
+export function inspectEvidence(input: InspectEvidenceInput, feedIn?: InspectFeed | null): InspectEvidence {
   const b = base(input);
+  if (feedIn === "SESSION_CLOSED") return { ...b, feedNote: SESSION_CLOSED_NOTE };
+  const feed = feedIn;
   const capped = feed != null && feed !== "UNKNOWN" && CAPPING.has(feed) && (b.klass === "FULL" || b.klass === "PARTIAL");
   // PARTIAL feed = some senses missing; it never lowers a reading whose own sense is present.
   const note = feed != null && feed !== "UNKNOWN" && feed !== "LIVE" ? feedWords(feed) : null;

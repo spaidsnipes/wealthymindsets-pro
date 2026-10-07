@@ -7218,6 +7218,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         onOpenChange={open => actOnChartSelection({ type: open ? "openInspect" : "closeInspect" })}
                         onOpenFootprint={() => setActiveTab("Worksheet")}
                         feed={chartCanvasState?.qualityState ?? null}
+                        sessionClosed={selectCanonicalSessionToken({ symbol, at: sessionClockDate }).token === "CLOSED"}
                         sourceName={source && source !== "unavailable" ? String(source) : null}
                         tapeSourceName={tapeSource ? String(tapeSource) : null}
                         candleReadings={inspectCandleReadings}

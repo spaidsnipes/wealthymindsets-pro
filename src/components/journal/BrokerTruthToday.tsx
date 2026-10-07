@@ -25,7 +25,10 @@ import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
 import { fvgAnswersFromReference, fvgContextFromLedger, fvgContextGroup, fvgReviewAnswersAt, type FvgReviewAnswers } from "@/lib/journal/planFvgContext";
 import { loadFvgLedgerFor } from "@/lib/journal/planFvgLoader";
 import { lessonForFinding } from "@/lib/journal/planLoop";
-import type { JournalFvgReference } from "@/lib/journal/fvgDecisionReference";
+import { fvgReferenceSentence, type JournalFvgReference } from "@/lib/journal/fvgDecisionReference";
+import { AskSpaidbotButton } from "@/components/ai/AskSpaidbotButton";
+import { reviewDecisionAsk } from "@/lib/ai/spaidbotAsk";
+import { formatPlanContextLine } from "@/lib/ai/spaidbotPlanReview";
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -96,12 +99,29 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
   const r: StoryReview = all[storyKey] ?? { marks: {}, lesson: "", repeat: "", updatedAt: 0 };
   const planWhy = r.planWhy;
   const composed = useMemo(() => (plan ? composePlanReview(plan, planWhy) : null), [plan, planWhy]);
+  // Garden 19 §30: "Ask SpaidBot about this decision" — the plan question
+  // (formatPlanReviewQuestion, via composePlanReview) + the trader's own FVG
+  // reference sentence; pre-filled in the existing panel, never sent for them.
+  const askDecision = () => reviewDecisionAsk({
+    question: composed?.question ?? "What should I look at in this decision?",
+    fvgReferenceSentence: fvgRef ? fvgReferenceSentence(fvgRef) : null,
+    symbol: planSymbol ?? fvgRef?.symbol ?? null,
+    decisionId: planDecisionId ?? null,
+    planLine: formatPlanContextLine(plan?.plan ?? null),
+  });
+  // Garden 19 §42: the FVG block keeps TRADER (what you recorded), MARKET × TRADER
+  // (what the gap did around your actions) and EDUCATION apart, each labelled.
   const fvgBlock = fvg ? (
     <div data-testid="plan-fvg" data-group={fvgContextGroup(fvg)} style={{ display: "grid", gap: 2, border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px" }}>
                   <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD, overflowWrap: "anywhere" }}>FVG · {fvg.objectId}</span>
+                  {fvgRef ? (
+                    <span data-layer="TRADER TRUTH" style={{ fontSize: 11, color: INK, overflowWrap: "anywhere" }}><span style={{ color: MUTED, fontSize: 9.5, letterSpacing: ".08em" }}>TRADER TRUTH · your journal reference</span> {fvgReferenceSentence(fvgRef)}</span>
+                  ) : null}
+                  <span data-layer="MARKET TRUTH" style={{ color: MUTED, fontSize: 9.5, letterSpacing: ".08em" }}>MARKET TRUTH · what the gap did around your actions</span>
                   {[["First touch or later?", fvg.touch.sentence], ["Acted before the territory was reached?", fvg.actedBeforeCondition.sentence], ["Held after it was traded through?", fvg.heldAfterTradedThrough.sentence]].map(([q, a]) => (
-                    <span key={q} style={{ fontSize: 11, color: INK, overflowWrap: "anywhere" }}><span style={{ color: MUTED }}>{q}</span> {a}</span>
+                    <span key={q} data-layer="MARKET TRUTH" style={{ fontSize: 11, color: INK, overflowWrap: "anywhere" }}><span style={{ color: MUTED }}>{q}</span> {a}</span>
                   ))}
+                  <span data-layer="EDUCATION TRUTH" style={{ color: MUTED, fontSize: 10.5 }}>EDUCATION TRUTH · A gap is a record of where price moved fast, not a target — price does not have to return to it.</span>
                   {fvgRef && !fvgLoaded ? (
                     <button type="button" data-testid="plan-fvg-load" onClick={loadFvg}
                       style={{ justifySelf: "start", fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", minHeight: 28, cursor: "pointer" }}>
@@ -203,6 +223,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
               ) : null}
               {planDecisionId ? <ManagementPlanCard mode="story" decisionId={planDecisionId} symbol={planSymbol ?? null} initial={plan?.plan ?? null} onPlanChange={setPlanOverride} /> : null}
               <span data-testid="plan-question" style={{ fontSize: 12, color: INK, overflowWrap: "anywhere" }}>SpaidBot asks: {composed.question}</span>
+              <AskSpaidbotButton testId="review-ask-spaidbot" label="Ask SpaidBot about this decision" ask={askDecision} />
               <label style={{ fontSize: 11, color: MUTED }}>Why did the plan change? (your words — WM never fills this in)
                 <textarea data-testid="plan-why" value={r.planWhy ?? ""} onChange={e => save({ ...r, planWhy: e.target.value })} rows={2}
                   style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />
@@ -210,6 +231,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
             </div>
           ) : null}
           {!composed ? fvgBlock : null}
+          {!composed && fvg ? <AskSpaidbotButton testId="review-ask-spaidbot" label="Ask SpaidBot about this decision" ask={askDecision} /> : null}
           <label style={{ fontSize: 11, color: MUTED }}>The lesson, in my words
             <textarea value={r.lesson} onChange={e => save({ ...r, lesson: e.target.value })} rows={2}
               style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />

@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { readSceneDecision } from "@/lib/traderMemory/decisionContinuity";
 import { SPAIDBOT_IDLE_TIMEOUT_MS, spaidbotFailureMessage, withSceneDecisionId, withScenePlan } from "@/lib/ai/spaidbotContext";
 import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
+import { SPAIDBOT_ASK_EVENT, contextWithAsk, readSpaidbotAsk, type SpaidbotAsk } from "@/lib/ai/spaidbotAsk";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Send, Zap, Minimize2, Maximize2,
@@ -86,8 +87,26 @@ export function SpadeBotButton() {
   /* ── Auto scroll ── */
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
+  /* ── Garden 19 §30: "Ask SpaidBot" from a surface (Inspect, Review) ──
+     Opens THIS panel with the question pre-filled — the trader presses Send;
+     nothing is sent for them. The ask's context patch (server-validated
+     fields only) rides with the next question and is then dropped. */
+  const askRef = useRef<SpaidbotAsk | null>(null);
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const ask = readSpaidbotAsk((e as CustomEvent).detail);
+      if (!ask) return;
+      askRef.current = ask;
+      setOpen(true);
+      setInput(ask.prompt);
+      setTimeout(() => inputRef.current?.focus(), 150);
+    };
+    window.addEventListener(SPAIDBOT_ASK_EVENT, onAsk);
+    return () => window.removeEventListener(SPAIDBOT_ASK_EVENT, onAsk);
+  }, []);
+
   /* ── Chart context ── */
-  const getContext = useCallback(() => {
+  const getChartContext = useCallback((): Record<string, unknown> => {
     try {
       const el = document.getElementById("wm-chart-context");
       if (el?.dataset.ctx) {
@@ -100,6 +119,11 @@ export function SpadeBotButton() {
     } catch {}
     return {};
   }, [user?.id]);
+  const getContext = useCallback(() => {
+    const ctx = contextWithAsk(getChartContext(), askRef.current);
+    askRef.current = null; // the ask's patch rides with ONE question only
+    return ctx;
+  }, [getChartContext]);
 
   /* ── Send to Claude (streaming) ── */
   const sendToClaude = useCallback(async (userText: string, history: Msg[]) => {

@@ -22276,7 +22276,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ];
               const spotZ = placeClearOfKeepOut(
                 { x: cxAbove, y: byAbove, w, h: bh2 },
-                [...keepOut(), ...rowBodiesAt(Math.min(byAbove, byHigher), Math.max(byAbove, byLower) + bh2)],
+                // Garden 19 §15 (Sheriff A1, 2026-10-07): and the newest candles' column (wicks too).
+                [...keepOut(), ...newestColumnRects(), ...rowBodiesAt(Math.min(byAbove, byHigher), Math.max(byAbove, byLower) + bh2)],
                 {
                   minX: Math.max(keepOutMinX(), Math.min(cxAbove, x0 - w)),
                   blockers: floatingChips,
@@ -27142,6 +27143,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           position: "absolute", top: 0, left: 0, right: priceLegendInset, height: PRICE_LEGEND_OVERLAY_H,
           alignItems: "safe center",
           zIndex: 20, pointerEvents: "none", background: "transparent",
+          // SHERIFF A6 (serving /desk 4-up, 2026-10-07): in a ~550px pane the
+          // OHLC group ran under the axis and over the depth plate. The band is
+          // a size container; globals.css drops the OHLC group when it is narrow.
+          containerType: "inline-size", containerName: "wm-legend",
         }}
         className="flex items-center gap-4 px-3 max-sm:overflow-hidden"
       >

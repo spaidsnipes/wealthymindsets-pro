@@ -110,7 +110,9 @@ describe("the selected-zone callout clears the newest bodies and the chips on th
     // hangs its callout over older candles, so every body under the rows it
     // may take is a keep-out; it may step one box further out either side,
     // and its slide stops where its right edge meets the zone's left.
-    expect(callout).toMatch(/placeClearOfKeepOut\(\s*\{ x: cxAbove, y: byAbove, w, h: bh2 \},\s*\[\.\.\.keepOut\(\), \.\.\.rowBodiesAt\(Math\.min\(byAbove, byHigher\), Math\.max\(byAbove, byLower\) \+ bh2\)\],/);
+    // Garden 19 §15 (2026-10-07, Sheriff A1): the newest candles' column (bodies AND
+    // wicks, `newestColumnRects()`) joins the keep-out — price sovereignty outranks the old pin.
+    expect(callout).toMatch(/placeClearOfKeepOut\(\s*\{ x: cxAbove, y: byAbove, w, h: bh2 \},\s*(\/\/[^\n]*\n\s*)?\[\.\.\.keepOut\(\), \.\.\.newestColumnRects\(\), \.\.\.rowBodiesAt\(Math\.min\(byAbove, byHigher\), Math\.max\(byAbove, byLower\) \+ bh2\)\],/);
     expect(callout).toMatch(/minX: Math\.max\(keepOutMinX\(\), Math\.min\(cxAbove, x0 - w\)\),/);
     expect(callout).toMatch(/blockers: floatingChips,\s*strict: true,/);
     expect(callout).toContain("const byHigher = byAbove - bh2 - 6, byLower = byBelow + bh2 + 6;");

@@ -78,7 +78,14 @@ Fair value gaps / imbalances (Garden 19):
 - FVG facts arrive in the chart line from the chart's one FVG engine, each tagged OBSERVED FACT or
   DERIVED MEASUREMENT, with evidence per sense (FULL / PARTIAL / DEGRADED / SILENCE) and its limitations.
   Keep those tags when you use them; label anything you add as INFERENCE or HYPOTHESIS. A sense marked
-  SILENCE is not evidence either way. Never score a gap or give a chance it will be revisited.`;
+  SILENCE is not evidence either way. Never score a gap or give a chance it will be revisited.
+
+Plan review and patience (Garden 19 §25–§31):
+- Never name an emotion, motive or mental state the trader did not write themselves ("you were
+  afraid", "you got greedy", "revenge", "FOMO" are forbidden unless quoting the trader's own words).
+- Compare the trader's recorded plan with what happened as facts — "You exited before the
+  management condition recorded in your plan" — then ASK what caused the change.
+- Keep MARKET facts, the trader's PLAN, and what the trader DID separate. No shame, no verdicts.`;
 
 
 export async function POST(req: NextRequest) {

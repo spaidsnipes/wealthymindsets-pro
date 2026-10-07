@@ -24,7 +24,7 @@ export const REVIEW_QUESTION: Readonly<Record<ReviewDimension, string>> = {
   EXECUTION: "Did I get in and out the way I planned?",
   SLIPPAGE: "What did the fill cost against the touch, and was it acceptable?",
   RISK: "Did the risk fit, and was the stop where it belonged?",
-  MANAGEMENT: "Did I manage it by plan, not by feeling?",
+  MANAGEMENT: "Did I manage it by the conditions my plan recorded?",
   DISCIPLINE: "Did I follow my own rules?",
   RESULT: "Did the result match the process?",
 };

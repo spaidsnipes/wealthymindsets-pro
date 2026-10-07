@@ -14,13 +14,17 @@
  */
 
 import React from "react";
+import Link from "next/link";
 import { Crosshair, X } from "lucide-react";
 import { fvgInspectRows, type FvgObject } from "@/lib/chart/fvgGlass";
 import { CONCEPT_EDUCATION } from "@/lib/chart/inventionEducation";
+import { AskSpaidbotButton } from "@/components/ai/AskSpaidbotButton";
+import { fvgInspectAsk } from "@/lib/ai/spaidbotAsk";
+import { fvgInspectLayerOf, FVG_TRUTH_LAYERS } from "@/lib/chart/fvgTruthLayers";
 
 const GOLD = "#d4af37";
 
-export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relationships = null, onClose }: {
+export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relationships = null, priceDp = null, onClose }: {
   o: FvgObject;
   fmt: (p: number) => string;
   clock: (ms: number) => string;
@@ -29,6 +33,8 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
   firstTouch?: React.ReactNode;
   /** Relationships BY REFERENCE (fvgInspectRelationships): price-ordered rows, then what is silent. */
   relationships?: { readonly rows: readonly string[]; readonly silences: readonly string[] } | null;
+  /** The chart's display decimals, for the SpaidBot fact block (Garden 19 §30). */
+  priceDp?: number | null;
   onClose: () => void;
 }) {
   const rows = fvgInspectRows(o, fmt, clock);
@@ -48,22 +54,45 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
       </div>
       {firstTouch}
       {evidence}
-      <dl className="mt-2 text-[11px] break-words space-y-1.5" style={{ color: "#C8C0AE" }}>
-        {rows.map(r => (
-          <div key={r.id} data-inspect-fvg-row={r.id}>
-            <dt className="text-[9.5px] font-bold uppercase tracking-[0.12em] text-wm-muted">{r.label}</dt>
-            <dd className="text-white leading-snug">{r.value}</dd>
-          </div>
-        ))}
-      </dl>
-      {relationships && (relationships.rows.length > 0 || relationships.silences.length > 0) ? (
-        <div className="mt-2 border-t border-wm-border pt-1.5 text-[11px] leading-snug" data-inspect-fvg-relationships
-          data-inspect-fvg-relationship-count={relationships.rows.length}>
-          <div className="text-[9.5px] font-bold uppercase tracking-[0.12em] text-wm-muted">Relationships (by reference)</div>
-          {relationships.rows.map((r, i) => <div key={`r${i}`} className="pt-0.5 text-white">{r}</div>)}
-          {relationships.silences.map((r, i) => <div key={`s${i}`} className="pt-0.5 text-wm-muted">{r}</div>)}
-        </div>
-      ) : null}
+      {/* Garden 19 §42: MARKET / CONTEXT / TRADER / EDUCATION truth, visibly separate. */}
+      {FVG_TRUTH_LAYERS.map(layer => {
+        const own = rows.filter(r => fvgInspectLayerOf(r.id) === layer.id);
+        const rel = layer.id === "CONTEXT" && relationships && (relationships.rows.length > 0 || relationships.silences.length > 0) ? relationships : null;
+        if (!own.length && !rel && layer.id !== "TRADER") return null;
+        return (
+          <section key={layer.id} data-inspect-fvg-layer={layer.id} className="mt-2 border-t border-wm-border pt-1.5">
+            <div className="text-[9.5px] font-bold uppercase tracking-[0.14em]" style={{ color: GOLD }}>{layer.title}</div>
+            <div className="text-[9.5px] text-wm-muted leading-snug">{layer.means}</div>
+            {own.length ? (
+              <dl className="mt-1 text-[11px] break-words space-y-1.5" style={{ color: "#C8C0AE" }}>
+                {own.map(r => (
+                  <div key={r.id} data-inspect-fvg-row={r.id}>
+                    <dt className="text-[9.5px] font-bold uppercase tracking-[0.12em] text-wm-muted">{r.label}</dt>
+                    <dd className="text-white leading-snug">{r.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+            {rel ? (
+              <div className="mt-1 text-[11px] leading-snug" data-inspect-fvg-relationships data-inspect-fvg-relationship-count={rel.rows.length}>
+                <div className="text-[9.5px] font-bold uppercase tracking-[0.12em] text-wm-muted">Relationships (by reference)</div>
+                {rel.rows.map((r, i) => <div key={`r${i}`} className="pt-0.5 text-white">{r}</div>)}
+                {rel.silences.map((r, i) => <div key={`s${i}`} className="pt-0.5 text-wm-muted">{r}</div>)}
+              </div>
+            ) : null}
+            {layer.id === "TRADER" ? (
+              <div className="mt-1 text-[11px] text-white leading-snug" data-inspect-fvg-trader>
+                No decision of yours is recorded on this gap here.{" "}
+                <Link href={`/journal?${new URLSearchParams({ new: "1", symbol: o.symbolId, fvg: o.objectId }).toString()}`} prefetch={false} className="underline" style={{ color: GOLD }}>
+                  Journal it with its state at your decision time ›
+                </Link>
+              </div>
+            ) : null}
+          </section>
+        );
+      })}
+      <AskSpaidbotButton testId="inspect-fvg-ask-spaidbot" label="Ask SpaidBot: what am I looking at?" ask={() => fvgInspectAsk(o, priceDp)} />
+      <br />
       <a href={academy.href} data-testid="inspect-fvg-academy"
         className="mt-2 inline-block text-[11px] font-semibold underline" style={{ color: GOLD }}>
         Academy · {academy.title} ›

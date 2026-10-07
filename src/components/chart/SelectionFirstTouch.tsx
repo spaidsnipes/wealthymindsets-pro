@@ -77,7 +77,11 @@ export function SelectionFirstTouch({ id, label, objectId, inspectOpen, onOpenIn
       aria-live="polite"
       aria-label={`${label}: ${firstTouchFor(id, objectId)}`}
       data-inspect-open={inspectOpen ? "true" : "false"}
-      className={`absolute bottom-14 left-2 z-[76] rounded-lg p-2.5 shadow-2xl max-sm:bottom-12 max-sm:p-2 ${inspectOpen ? "max-sm:hidden" : ""}`}
+      // Sheriff sweep 2026-10-07 (desktop, BTC-USD big trades): with Inspect
+      // docked left this card sat on top of the ticket's LOCATION IN STRUCTURE
+      // and BARS TOUCHED rows. Inspect is the deeper reading of the same
+      // selection, so the card yields at every width while it is open.
+      className={`absolute bottom-14 left-2 z-[76] rounded-lg p-2.5 shadow-2xl max-sm:bottom-12 max-sm:p-2 ${inspectOpen ? "max-sm:hidden sm:hidden" : ""}`}
       style={{
         width: "min(320px, calc(100% - 120px))",
         background: "linear-gradient(180deg, rgba(23,24,31,0.97) 0%, rgba(18,19,24,0.97) 100%)",

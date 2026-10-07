@@ -3050,7 +3050,7 @@ Trade the system, trust the process, winners every day 🚀`,
                         <div className="text-[10px] opacity-80 leading-snug mt-0.5">
                           {match.exempted
                             ? `Exempt reason: ${match.exempt_reason ?? "multi-leg strategy"}`
-                            : "Long + short on same symbol same day. Canon: each side must carry its own thesis, invalidation, model, and DTE — not emotional insurance."}
+                            : "Long + short on same symbol same day. Canon: each side must carry its own thesis, invalidation, model, and DTE — a hedge needs its own written plan."}
                         </div>
                       </div>
                     );

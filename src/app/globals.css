@@ -1976,3 +1976,12 @@ input[type=range]::-webkit-slider-runnable-track {
     text-overflow: ellipsis;
   }
 }
+
+/* SHERIFF A6 (serving /desk 4-up, 2026-10-07): a chart pane's legend band
+   narrower than 760px cannot hold price + certification + O/H/L/NOW/V + the
+   bar clock on one line — the OHLC group ran under the price axis and printed
+   over the depth plate. The headline price stays; the bar's O/H/L live in
+   Inspect › bar. (Phones already drop the group at 640, Sheriff A3.) */
+@container wm-legend (max-width: 760px) {
+  [data-legend-group="ohlc"] { display: none !important; }
+}
