@@ -113,7 +113,10 @@ describe("TimeframeGlassChip — ONE expandable control, ONE door to the setter"
     // The ONLY call of setTimeframe in the file is inside `choose`.
     expect(code.match(/setTimeframe\(/g)).toHaveLength(1);
     expect(code).toContain("onClick={() => choose(id)}");
-    expect(code).toContain("<TimeframeLadder timeframe={timeframe} symbol={symbol} onChoose={choose} />");
+    // 2026-10-07: tick bars shipped (1a79d85); the rung states the per-source
+    // truth, so the ladder also receives the chart's tick refusal (null = the
+    // tape carries signed prints). The door is still the one `choose`.
+    expect(code).toContain("<TimeframeLadder timeframe={timeframe} symbol={symbol} onChoose={choose} tickRefusal={tickRefusal} />");
   });
 
   it("the More control is a disclosure: expanded/collapsed, controls the ladder, named with its visible word", () => {
@@ -178,9 +181,12 @@ describe("the ladder answers for the symbol on the glass (Garden 16 §26)", () =
   });
 
   it("the chip hands the chart's symbol to the ladder", () => {
-    expect(code).toContain("export function TimeframeGlassChip({ timeframe, setTimeframe, symbol }: Props)");
+    // 2026-10-07: tick bars shipped (1a79d85); the chip also carries the chart's
+    // per-source tick truth, read from the capability registry via tickBarRefusal.
+    expect(code).toContain("export function TimeframeGlassChip({ timeframe, setTimeframe, symbol, tickRefusal }: Props)");
     const main = readFileSync(join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
-    expect(main).toContain("<TimeframeGlassChip timeframe={timeframe} setTimeframe={setTimeframe} symbol={symbol} />");
+    expect(main).toContain("<TimeframeGlassChip timeframe={timeframe} setTimeframe={setTimeframe} symbol={symbol}");
+    expect(main).toMatch(/tickRefusal=\{tickBarRefusal\(\{ assetClass: canonicalAssetClass\(symbol\), tapeSource: tapeSource \?\? null, perTradeTape: hasRealAggressorTape\(tapeSource \?\? ""\) \}\)\}/);
   });
 
   it("on 1Y the ladder top says what the chart is on — and marks NO rung current, the dashed 1Y included", () => {

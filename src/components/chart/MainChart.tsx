@@ -3457,7 +3457,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   /** Coverage start in the chart's display zone, to the second. */
   const fmtTickCoverageTime = (ms: number): string => {
     try {
-      return new Date(ms).toLocaleTimeString("en-US", { hour12: false, timeZone: tzRef.current || undefined });
+      return new Date(ms).toLocaleTimeString("en-US", { hour12: false, timeZone: tzRef.current || undefined, timeZoneName: "short" });
     } catch { return new Date(ms).toISOString().slice(11, 19) + "Z"; }
   };
 
@@ -26547,7 +26547,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           Rendered only when a setter exists: a chip that cannot change the
           timeframe is a label wearing a button's clothes. */}
       {setTimeframe && (
-        <TimeframeGlassChip timeframe={timeframe} setTimeframe={setTimeframe} symbol={symbol} />
+        <TimeframeGlassChip timeframe={timeframe} setTimeframe={setTimeframe} symbol={symbol}
+          tickRefusal={tickBarRefusal({ assetClass: canonicalAssetClass(symbol), tapeSource: tapeSource ?? null, perTradeTape: hasRealAggressorTape(tapeSource ?? "") })} />
       )}
 
       {/* ── THE OTHER HALF OF THE FOOTER BAND ────────────────────────────

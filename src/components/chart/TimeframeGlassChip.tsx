@@ -93,9 +93,17 @@ interface Props {
   /** The chart's symbol. Whether a rung's bars are the provider's own or
    *  rebuilt by WM depends on which route serves THIS instrument (§26). */
   symbol: string;
+  /** TICK, per source (2026-10-07): null = this symbol's live tape carries
+   *  signed per-trade prints (tick bars are drawn from them); a string = why it
+   *  cannot (tickBarRefusal, the capability registry's answer); undefined =
+   *  not known here, and the canon ladder's own sentence stands. */
+  tickRefusal?: string | null;
 }
 
-export function TimeframeGlassChip({ timeframe, setTimeframe, symbol }: Props) {
+/** "TICK · 100T–2000T from signed prints" — the TICK rung where a tape carries prints. */
+export const TICK_FROM_PRINTS = `TICK \u00B7 ${TICK_TF_IDS[0]}\u2013${TICK_TF_IDS[TICK_TF_IDS.length - 1]} from signed prints`;
+
+export function TimeframeGlassChip({ timeframe, setTimeframe, symbol, tickRefusal }: Props) {
   const [open, setOpen] = useState(false);
   const [ladderOpen, setLadderOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -237,8 +245,8 @@ export function TimeframeGlassChip({ timeframe, setTimeframe, symbol }: Props) {
           </button>
         </div>
       )}
-      {open && ladderOpen && <TimeframeLadder timeframe={timeframe} symbol={symbol} onChoose={choose} />}
-      {open && ladderOpen && <TradeCountRow timeframe={timeframe} onChoose={choose} />}
+      {open && ladderOpen && <TimeframeLadder timeframe={timeframe} symbol={symbol} onChoose={choose} tickRefusal={tickRefusal} />}
+      {open && ladderOpen && <TradeCountRow timeframe={timeframe} onChoose={choose} tickRefusal={tickRefusal} />}
 
       <button
         type="button"
@@ -277,6 +285,9 @@ interface LadderProps {
   symbol: string;
   /** The chip's own `choose` — the same door the strip's nine use. */
   onChoose: (id: TFId) => void;
+  /** See the chip's prop: null = the tape carries prints, so the TICK rung
+   *  states that instead of the canon's "no tape" sentence. */
+  tickRefusal?: string | null;
   /** Overrides the per-symbol ladder. A prop only so a test can hand it a rung
    *  of a shape no live symbol produces and watch it be drawn. */
   rungs?: readonly CanonRung[];
@@ -305,8 +316,13 @@ interface LadderProps {
  * current timeframe, which is what lets a test call it and press its buttons
  * without a DOM.
  */
-export function TimeframeLadder({ timeframe, symbol, onChoose, rungs: given }: LadderProps) {
-  const rungs = given ?? CANON_LADDER.map(r => canonAvailabilityFor(r, symbol));
+export function TimeframeLadder({ timeframe, symbol, onChoose, tickRefusal, rungs: given }: LadderProps) {
+  // TICK is source-aware (2026-10-07): where the live tape carries signed
+  // prints, the canon's "no tape" sentence is false for it — the rung reads
+  // TICK_FROM_PRINTS and its counts are pressed in the Trade count row.
+  const tickFromPrints = tickRefusal === null;
+  const rungs = (given ?? CANON_LADDER.map(r => canonAvailabilityFor(r, symbol)))
+    .filter(r => !(tickFromPrints && r.id === "TICK"));
   // When no rung is the chart's timeframe (6M / 1Y drawn unavailable, or
   // 45m / 3M / 2Y / 5Y which are not rungs), say what the chart is on in
   // words. No rung is marked current for it: an unavailable rung is never
@@ -358,6 +374,9 @@ export function TimeframeLadder({ timeframe, symbol, onChoose, rungs: given }: L
                 <span className="font-mono text-wm-text-muted">{ids.join(" \u00B7 ")}</span>: {reason}
               </p>
             ))}
+            {tickFromPrints && group.id === "TICK_SECONDS" && (
+              <p className="wm-chart-timeframe-tick-truth mt-1 text-[10px] leading-snug text-wm-text-muted font-mono">{TICK_FROM_PRINTS}</p>
+            )}
           </section>
         );
       })}
@@ -410,7 +429,7 @@ function ladderRung(r: CanonRung, timeframe: string, onChoose: (id: TFId) => voi
  * symbol has prints to count is the chart's to say (its refusal note), because
  * only the chart knows which tape is live.
  */
-export function TradeCountRow({ timeframe, onChoose }: { timeframe: string; onChoose: (id: TFId) => void }) {
+export function TradeCountRow({ timeframe, onChoose, tickRefusal }: { timeframe: string; onChoose: (id: TFId) => void; tickRefusal?: string | null }) {
   const chooseCount = onChoose as (id: ChartTfId) => void;
   return (
     <section
@@ -419,6 +438,9 @@ export function TradeCountRow({ timeframe, onChoose }: { timeframe: string; onCh
       style={{ pointerEvents: "auto", contain: "inline-size" }}
     >
       <h3 className="mb-1 text-[9px] font-mono font-bold uppercase tracking-[0.14em] text-wm-text-dim">Trade count</h3>
+      {typeof tickRefusal === "string" ? (
+        <p className="text-[10px] leading-snug text-wm-text-dim">{tickRefusal}</p>
+      ) : (<>
       <ul className="flex flex-wrap items-center gap-0.5">
         {TICK_TF_IDS.map(id => (
           <li key={id}>
@@ -444,6 +466,7 @@ export function TradeCountRow({ timeframe, onChoose }: { timeframe: string; onCh
       <p className="mt-1 text-[10px] leading-snug text-wm-text-dim">
         N real prints per bar, from where the held tape begins. No prints, no bars.
       </p>
+      </>)}
     </section>
   );
 }
