@@ -164,7 +164,7 @@ export default function WelcomePage() {
                   <circle cx={x(s.i)} cy={s.kind === "H" ? y(s.p) - 8 : y(s.p) + 8} r={3.5} fill="none" stroke={s.kind === "H" ? "#8fb2d8" : "#e0a050"} strokeWidth={1.5} />
                 </g>
               ))}
-              {[hi, (hi + lo) / 2, lo].map(p => <text key={p} x={W - padR + 6} y={y(p) + 4} fill={MUTED} fontSize={11}>{fmt(p)}</text>)}
+              {[hi, (hi + lo) / 2, lo].map(p => <text key={p} className="wm-welcome-axis" x={W - padR + 6} y={y(p) + 4} fill={MUTED} fontSize={11}>{fmt(p)}</text>)}
             </svg>
           </section>
 
@@ -192,7 +192,9 @@ export default function WelcomePage() {
           <Link href="/login" style={TAP}>Sign in</Link>
         </p>
       </div>
-      <style>{`@media (max-width: 860px) { .wm-welcome-grid { grid-template-columns: minmax(0,1fr) !important; } }`}</style>
+      {/* The sample chart scales to ~0.47× on a 390 phone, so its 11-unit axis
+          labels drew ~5 px tall (production d5ac6ff, 2026-10-07): bigger units there. */}
+      <style>{`@media (max-width: 860px) { .wm-welcome-grid { grid-template-columns: minmax(0,1fr) !important; } } @media (max-width: 600px) { .wm-welcome-axis { font-size: 19px; } }`}</style>
     </div>
   );
 }

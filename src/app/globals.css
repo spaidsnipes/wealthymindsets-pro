@@ -1432,6 +1432,18 @@ input[type=range]::-webkit-slider-runnable-track {
   }
 }
 
+/* SHERIFF A2 (serving NQ1! 5m at 1180×820, 2026-10-07): at 50% + 156px the
+   chip ran over the top-right depth / DECISION_ID plate on a chart pane this
+   narrow. Below 1440 it takes the tablet seat — centred in the EFFORT ·
+   INSPECT row's free gap — and 1440+ keeps the desktop seat. */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .wm-nectar-vault-chip {
+    top: 64px !important;
+    left: 50% !important;
+    transform: translateX(-50%);
+  }
+}
+
 @media (max-width: 480px) {
   /* The live chart is a critical decision surface. The global assistant stays
      reachable from every other primary route but cannot cover chart evidence,

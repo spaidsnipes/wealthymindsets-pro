@@ -2797,7 +2797,8 @@ Trade the system, trust the process, winners every day 🚀`,
                 <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">Review · read, decision, adherence, expression, execution, slippage, risk, management, discipline, result</div>
                 <StoryReviewRow key={journalReviewKey(selected)} storyKey={journalReviewKey(selected)} evidence={reviewEvidenceFromCapture(selected.capture)}
                   plan={planReviewInputForJournalEntry(selected, id => readPlanForDecision(typeof window === "undefined" ? null : window.localStorage, id))}
-                  planDecisionId={selected.capture?.decisionId.value ?? null} planSymbol={selected.capture?.contract.value ?? null} />
+                  planDecisionId={selected.capture?.decisionId.value ?? null} planSymbol={selected.capture?.contract.value ?? null}
+                  fvgRef={selected.fvgRef ?? null} />
               </section>
 
               {/* Garden 16 §17: a futures entry saved before futures were

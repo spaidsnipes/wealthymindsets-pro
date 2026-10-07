@@ -477,3 +477,150 @@ After acceptance, each certificate's "Governing plate" cell in §3a moves from "
    - the TED definition;
    - approval of the C-01, C-04 and C-13 grammars;
    - the Garden 18 PROPOSED plates for Breathing, Response Matrix and TED (`GARDEN18-SUPER-ORDER-RECEIPT.md` §4) predate Garden 19's Class A law and should be re-read against it.
+
+---
+
+## 5. §53 FVG / IMBALANCE — INVENTION CERTIFICATE (FVG_3C v1)
+
+Written 2026-10-07 by the Academy / selling lane, **from shipped code and tests only** (main at `d5ac6ff9`). The Founder order's exact §53 field list was not in hand when this was written. The fields below are this file's certificate fields (C-01 … C-15) plus the FVG-specific ones the coordinator named (… AS-OF-TIME BEHAVIOR). A field the order adds is a gap in this section, not a pass.
+
+**Status words:**
+- **PROVED** — a test pins it *and* a serving receipt was read.
+- **BUILT** — code and tests are on `main`, but there is no serving receipt in this document.
+- **PARTIAL** — the exact missing proof is named.
+
+When this section was written, no FVG serving receipt from the chart lane had been recorded here. The receipts were requested from the coordinator. Until they arrive, every glass row is at best BUILT.
+
+| Field | Certificate | Source (shipped) | Status |
+|---|---|---|---|
+| **NAME** | FVG / Imbalance (Fair Value Gap). Instrument id `FVG_IMBALANCE`. Drawer kind `GAP_FVG`; no new kind and no "FVG room" (`FVG_ROOM` is a rejected kind) | `fvgGlass.ts` `FVG_INSTRUMENT_ID`; `marketObjectKinds.ts` | BUILT |
+| **DEFINITION_ID / VERSION** | `FVG_3C` v1. OBJECT_ID = `FVG\|<instrument>\|<tf>\|<b2 open ms>\|<BULLISH\|BEARISH>\|v1`, minted once and never respawned | `fvgDefinition.ts` `mintFvgObjectId`; `docs/operations/FVG-METHODOLOGY.md` §7 | BUILT (tests: `fvgEngine.test.ts`) |
+| **OWNER** | Definition `fvgDefinition.ts` · detector + lifecycle + as-of `fvgEngine.ts` · descriptive tally `fvgStats.ts` · camera door `fvgCamera.ts` · glass projection `fvgGlass.ts` · chart door `fvgChartLink.ts` · bar source `fvgBarSource.ts` / `fvgWireBars.ts` | files named | BUILT. `fvgCamera.sentinel.test.ts` pins that chart and scanner code read through `fvgSceneForCamera` and never call `detectFvgs` themselves |
+| **MARKET QUESTION** | "Where did price move so fast that one side barely traded — and what has happened at that territory since?" | `inventionEducation.ts` `CONCEPT_EDUCATION.FVG_IMBALANCE.question` | BUILT |
+| **EVIDENCE** | Three CLOSED bars, read on wicks. b2's body must point the gap's direction. Size ≥ max(1 tick, 0.10 × ATR14 at b2), using Wilder's ATR. Before ATR14 exists nothing is detected; the warm-up triples are counted. No volume is needed | `fvgDefinition.ts` rules 1–4, `testFvgGeometry` | BUILT (tests: `fvgEngine.test.ts`) |
+| **TRUTH CLASS** | PRICE_GEOMETRY = **FULL**, from OHLC. ORDER_FLOW and DERIVATIVES are `NOT_ATTACHED` until another owner's reading is attached **by reference** (owner, ownerState verbatim, ref). The FVG never upgrades that evidence | `fvgEngine.ts` `FvgSenseEvidence`; methodology §12 | BUILT |
+| **MANIFESTATION CLASS** | C — a territory on price, extending right from b3's close until it is traded through or ages into memory. It is never a badge | `fvgGlass.ts` §1 | BUILT |
+| **PHYSICAL GRAMMAR** | The remaining territory is dense. The visited part is a hatched scar. Approach is a soft glow on the near edge, toward price. Each rejection is a short tick at its response bar. Acceptance is a filled interior with a quiet inner line. Traded through means the far edge breaks (dashed). Numbers live in Inspect, never on the glass | `fvgGlass.ts` `fvgBandGeometry`, `FvgBandGeometry` | BUILT (tests: `fvgGlass.test.ts`) |
+| **STATE GRAMMAR** | BORN · OPEN · APPROACHING · TOUCHED · PARTIALLY_MITIGATED (> 0, < 50 %) · DEEPLY_MITIGATED (≥ 50 %, < 100 %) · FULLY_MITIGATED · REJECTED (within an interaction's first 5 bars) · ACCEPTED (2 consecutive closes inside) · TRADED_THROUGH (terminal) · MEMORY (overlay). Mitigation is cumulative and separate from `state` | `fvgDefinition.ts` `FVG_STATES`; methodology §8 | BUILT |
+| **CANDLE RELATIONSHIP** | Behind price. The clear zone (§15) means no band reaches the newest candle's slot, and keep-out strips (±3 px) leave the last price and paper / broker / order lines readable | `fvgGlass.ts` `fvgClearZoneX`, `fvgKeepOutStrips`; MainChart FVG block | BUILT. **PARTIAL:** no serving screenshot at 1440 / 834 / 390 showing the newest candle and price line unobstructed |
+| **COLOR** | Side ink from `flowColorsRef` (`dBuy` for bullish, `dSell` for bearish), the same inks as the other order-flow layers. Form, not colour alone, carries state: hatch, dashed edge, tick, inner line | MainChart FVG block (`bands.push({ … ink: g.bullish ? dBuy : dSell })`) | BUILT |
+| **OPACITY** | remainingFill 0.16 · visitedHatch 0.20 · visitedFill 0.04 · edge 0.50 · acceptedFill 0.13 · innerLine 0.32 · glow 0.34 · tick 0.85 · floor 0.05, each × an age factor ∈ (0, 1]. Quieted 2026-10-07 after a SPY 5m serving read showed six stacked scars as "a striped wall" | `fvgGlass.ts` `FVG_OPACITY`, `fvgAlpha`, `fvgAgeFactor` | BUILT. The quieting came from a serving observation; the after-receipt is **missing** |
+| **VISIBILITY BUDGET** | ≤ 6 live territories (ordered by distance to their remaining territory, then newest; an ordering, not a grade) + the 3 most recent scars. The rest are counted as hidden, never deleted | `fvgEngine.ts` `selectFvgVisibility`; receipt `fvgReceipt` | BUILT |
+| **ⓘ** | `CONCEPT_EDUCATION.FVG_IMBALANCE`: what / question / evidence / appears / grammar / full / partial / degraded / firstTouch / canon. Carries "No guaranteed return should be assumed. WM Pro tracks what actually happens." Selecting an `FVG\|…` object routes to it (`educationIdForSelection`). The Tool Finder row is labelled "FVG / Imbalance" | `inventionEducation.ts`; `ChartsDashboard.tsx` | BUILT (tests: `fvgCourse.test.ts` §32 block, `inventionEducation.test.ts`) |
+| **INSPECT DEPTH** | `fvgInspectRows`: state words, territory at instrument decimals, size, created-at, first touch, deepest penetration, responses, remaining territory, and evidence per sense. Rendered by `FvgInspectTicket` inside `ChartInspectTicket` | `fvgGlass.ts` §4; `FvgInspectTicket.tsx` | BUILT. **PARTIAL:** no serving receipt of `dataset.fvgSelected` on a selected object |
+| **DEGRADED / SILENCE** | No canonical identity → `dataset.fvg = SILENT:NO_CANONICAL_IDENTITY`. Fewer than 3 closed bars → `SILENT:NO_CLOSED_BARS`. Inside the ATR warm-up nothing is detected (counted). Tick bars with no clock are refused with `NO_CLOCK`. Spot FX: geometry is FULL from OHLC, no tick term (ATR alone, `minimum.basis = ATR`), size in pips | MainChart FVG block; `fvgDefinition.ts` rules 4–5 | BUILT |
+| **RECEIPTS** | `canvas.dataset.fvg` = `OPEN:n\|SCARS:n\|HIDDEN:n\|DEF:FVG_3C@1` · `fvgAsOf` = `<LIVE\|REPLAY>:<clockMs>\|BARS:n\|LEAK:n` · `fvgStep` · `fvgCompute` = `…\|PER_CLOSED_BAR` · `fvgCost` = `<ms>\|mean\|longest\|budget1.5\|MET\|OVER` · `fvgHit` · `fvgSelected` | MainChart FVG block; `fvgGlass.ts` `fvgReceipt`, `fvgCostReceipt` | BUILT. **PARTIAL:** these values have not been read on serving at d5ac6ff for any symbol or width |
+| **PERFORMANCE** | Detection is incremental per closed bar (`createFvgCameraMemo`). Paint budget is `FVG_COST_BUDGET_MS` = 1.5 ms per frame, receipted MET / OVER | `fvgCamera.ts`, `fvgGlass.ts` | BUILT. **PARTIAL:** a serving `fvgCost` reading of MET is needed on a long series (e.g. NQ1! 1m) |
+| **PROOF-SCENE TOKEN** | `on=fvg` → `wm_fvg` (default OFF; a clean scene keeps it off). `select=fvg:<OBJECT_ID>` opens one object through the room's one selection owner | `proofScene.ts` | BUILT. **CONFLICT:** `proofScene.test.ts` (scanner lane) asserted that `on=fvg` must NOT parse, while the chart lane's `proofScene.ts` parses it. Check that the test on `main` was reconciled |
+| **CHART DOOR** | `/charts?symbol=<sym>&tf=<tf>&on=fvg&select=fvg:<OBJECT_ID>` from Scanner, Backtest and Journal | `fvgChartLink.ts` `fvgChartHref` | BUILT (tests: `fvgChartLink.test.ts`) |
+| **REPLAY** | The replay camera passes `replayCursorTimeSec`. The ledger is read through `fvgStateAsOf` at `fvgReplayClockMs(cursor)`, so a replayed territory never shows a touch, mitigation or response after the cursor | `fvgCamera.ts`; MainChart `replayCursorTimeSec: cursorF` | BUILT (tests: `fvgCamera.test.ts`). **PARTIAL:** no serving receipt of `fvgAsOf = REPLAY:<ms>\|…\|LEAK:0` while stepping Replay |
+| **SCANNER** | Five conditions, decided at the newest closed bar against the previous close through `fvgStateAsOf`: NEW_FVG · PRICE_APPROACHING_FVG · FIRST_TOUCH · PARTIAL_MITIGATION · DEEP_MITIGATION. Refusals are plain: bars unavailable, too few bars for ATR14, bars too old. Convergence conditions are omitted until an owner provides the evidence | `fvgScanConditions.ts`; `FvgScanStrip.tsx` | BUILT (tests: `fvgScanConditions.test.ts`). **PARTIAL:** no serving receipt from /scanner |
+| **BACKTEST** | Study mode, not a strategy. One engine read as of the study clock (no future leak). The tally is `{count, of, share}`, labelled DESCRIPTIVE. Filters: instrument / timeframe / session / regime (an UNTAGGED note on bar-only history) / direction / displacement band / crossesSession | `fvgStudy.ts`; `FvgStudyPanel.tsx` | BUILT (tests: `fvgStudy.test.ts`). **PARTIAL:** no serving receipt from /backtesting |
+| **JOURNAL / REVIEW** | A reference to one OBJECT_ID plus a snapshot **as of decision time** (`fvgStateAsOf(ledger, decisionAt)`), never "FVG = YES". Review answers first-or-later touch, acted before the condition, and held after a trade-through. A missing fill time answers UNKNOWN | `fvgDecisionReference.ts`, `planFvgContext.ts`, `JournalFvgReferenceField.tsx` | BUILT (tests: `fvgDecisionReference.test.ts`). **PARTIAL:** no serving receipt of a saved reference reloading with the same snapshot |
+| **SPAIDBOT** | The client projects a structured record (`spaidbotFvgScene`). The server re-validates it and writes the words (`formatFvgFactBlock`). Lines are tagged OBSERVED FACT / DERIVED MEASUREMENT, evidence is given per sense, limitations are named, and the block says price does not have to fill | `spaidbotFvgFacts.ts`; `ChartsDashboard.tsx` data-ctx `fvg` | BUILT (tests: `spaidbotFvgFacts.test.ts`). **PARTIAL:** no serving receipt of a SpaidBot answer quoting the block |
+| **ACADEMY** | The course "FVG / Imbalance & Patience" is module 9 in the one Academy: 21 lessons, the myth card on 1/10/14/15/16, a 14-question quiz on FVG_3C, and lesson numbers imported from `fvgDefinition.ts`. "Show me on a chart" goes to `/charts?scene=clean&on=fvg` once the token parses. "Practice in Replay" appears on lessons 6–10, 14 and 15 | `fvgCourse.ts`, `FvgLessonBody.tsx`, `FvgDiagram.tsx` | **PROVED** for the course: serving 4769a31 had 21 lessons × 1440/834/390 in same-origin iframes, 63/63 with no overflow and every diagram distinct; local quiz pass recorded browser-local (`academy-fvg-quiz-*.png`). The chart link, Replay link and territories on the target chart are **PARTIAL**: locally the link landed on `/charts?scene=clean&on=fvg`, but no territories had painted yet (`academy-fvg-showme-chart-1440.png`, pre-c4de0f0) |
+| **AS-OF-TIME BEHAVIOR** | Every lifecycle fact is an event stamped with the close time of the bar that revealed it. `fvgStateAsOf(ledger, t)` folds only the events known at t with the live reducer: frozen right after formation, nothing later is visible; one ms earlier the object does not exist; as-of at every bar equals a scan of the bars closed by then. Readers that use it: chart (live + replay), scanner, backtest, journal snapshot. The glass receipts a future-leak count (`fvgAsOf …\|LEAK:n`, which must be 0) | `fvgEngine.ts` `fvgStateAsOf`; methodology §11; MainChart `asOfR` | BUILT (tests: `fvgEngine.test.ts`, `fvgStudy.test.ts`, `fvgScanConditions.test.ts`, `fvgDecisionReference.test.ts`). **PARTIAL:** no serving read of `LEAK:0` in LIVE and in REPLAY |
+| **HONESTY** | No fill expectation, no "unfilled = target", no strength score. Statistics are counts with denominators. The MYTH card is the only place "must fill" is written, and only as a myth | methodology "What WM does not claim"; `fvgCourse.test.ts` regex sweep; `sellingStory.test.ts` banned-claims sweep | BUILT |
+
+Test inventory at `d5ac6ff9` (run in this worktree, 2026-10-07): 17 FVG-related files, **163 / 163 pass**.
+- `fvgEngine`, `fvgCamera` (+ sentinel), `fvgChartLink`, `fvgWireBars`
+- `fvgGlass` (+ `components/chart/fvgGlass.sentinel`)
+- `fvgStudy`, `fvgScanConditions`, `fvgDecisionReference`, `spaidbotFvgFacts`
+- `fvgCourse`, `inventionEducation`, `proofScene`
+
+## 6. §62 RELEASE EVIDENCE — FVG / Imbalance + Academy + Selling pass
+
+| Surface | Commit | Tests (pass) | Serving receipt | Screenshots | Status / missing proof |
+|---|---|---|---|---|---|
+| FVG core (definition, engine, stats, as-of) | 4769a31 | `fvgEngine.test.ts` (in the 163) | n/a (pure) | n/a | BUILT |
+| Chart layer `on=fvg` | c4de0f0 (wiring, default off) | `fvgGlass`, `fvgGlass.sentinel`, `fvgCamera` (+ sentinel) | **none recorded here** | none | **PARTIAL:** need `dataset.fvg`, `fvgAsOf` (`LEAK:0`) and `fvgCost` (MET) on NQ1!, SPY, EURUSD and BTC-USD 5m, at 1440 / 834 / 390, plus a screenshot showing territories beside the newest candle |
+| Replay camera | c4de0f0 | `fvgCamera.test.ts` | none | none | **PARTIAL:** step Replay with `on=fvg`; read `fvgAsOf = REPLAY:…\|LEAK:0` at three cursor positions |
+| Scanner FVG conditions + `select=fvg:<id>` | c4de0f0 | `fvgScanConditions`, `fvgChartLink` | none | none | **PARTIAL:** a /scanner row with a condition, its door opening /charts with `dataset.fvgSelected = <id>\|<state>` |
+| Backtest FVG study | c4de0f0 | `fvgStudy` | none | none | **PARTIAL:** /backtesting study panel showing a DESCRIPTIVE `{count, of, share}` block on a named symbol |
+| Journal × FVG reference + Review | d5ac6ff | `fvgDecisionReference` | none | none | **PARTIAL:** save a reference, reload, see the same as-of snapshot. The Review three-column view with FVG answers |
+| SpaidBot FVG fact block | c4de0f0 | `spaidbotFvgFacts` | none | none | **PARTIAL:** one SpaidBot reply quoting OBSERVED FACT lines for a selected FVG |
+| Academy course (21 lessons, myth, quiz, ⓘ) | 4769a31 | `fvgCourse` (22 tests at 4769a31; 24 after c4de0f0), `inventionEducation`, education suites | serving 4769a31: 63/63 lesson × width checks, no overflow | `~/wm-held/proof/academy-fvg-lesson*-{1440,390}*.png`, `academy-fvg-quiz-{pass,recorded}-390.png` | **PROVED** |
+| Academy "Show me on a chart" / "Practice in Replay" | c4de0f0 | `fvgCourse` §35 / §56 blocks | local: the link resolves to `/charts?scene=clean&on=fvg` | `academy-fvg-showme-chart-1440.png`, `academy-fvg-lesson9-390-scrolled.png` | **PARTIAL:** territories visible on the landing chart on serving |
+| Selling pass (/welcome, /pricing, /login) | a10514f → d5ac6ff | `sellingStory.test.ts` (11), `frontDoorPalette`, auth, pricing suites | serving d5ac6ff, signed out: story present on all three, no horizontal scroll, no element past the right edge, no link or button under 44 px, at 1440 and 390 | `~/wm-held/proof/selling-prod-d5ac6ff-*.png` (+ `selling-before-*` from before a10514f) | **PROVED** for content and layout. One fix after the serving read: /welcome sample-chart axis labels drew ~5 px tall at 390, now 19 units under 600 px (uncommitted at the time of writing) |
+
+## 7. §63 SHERIFF CHECKLIST — FVG / Imbalance on the glass
+
+The order's exact §63 wording was not in hand; scope is the FVG release. Each line is a test a Sheriff runs on **serving**, signed in, in their own tab, with the hidden-window shim if the tab is not frontmost.
+
+1. **Off by default.** `/charts?symbol=NQ1!&tf=5m&scene=clean`: `canvas.dataset.fvg` is absent or SILENT, and no territory is painted.
+2. **On by token.** Add `&on=fvg`.
+   - `dataset.fvg` matches `OPEN:\d+\|SCARS:\d+\|HIDDEN:\d+\|DEF:FVG_3C@1`.
+   - OPEN ≤ 6 and SCARS ≤ 3.
+3. **No future leak (live).** `dataset.fvgAsOf` starts `LIVE:` and ends `LEAK:0`.
+4. **No future leak (replay).**
+   - Engage Replay and step back 20 bars: `fvgAsOf` starts `REPLAY:` and ends `LEAK:0`.
+   - Territories created after the cursor are gone.
+   - A territory touched after the cursor shows as untouched.
+5. **Clear zone.**
+   - No band covers the newest candle's slot.
+   - The last price line, and any paper / broker / order line, stays readable (keep-out strips).
+   - Screenshot at 1440, 834 and 390.
+6. **Grammar, not labels.** Erase the words: remaining = dense, visited = hatch, rejection = tick, acceptance = inner line, traded through = dashed far edge. No price or number is painted on the glass.
+7. **Performance.** `dataset.fvgCost` ends `\|MET` after 60 s on NQ1! 1m, and `fvgCompute` ends `PER_CLOSED_BAR`.
+8. **Selection.**
+   - Tap a territory (the `dataset.fvgHit` centre): `fvgSelected = FVG\|…\|<state>`.
+   - Inspect shows the territory at instrument decimals.
+   - ⓘ opens `FVG_IMBALANCE` with the no-guarantee sentence and a link to `/education?lesson=fvg-1`.
+9. **Door by id.** `/charts?symbol=<s>&tf=<tf>&on=fvg&select=fvg:<OBJECT_ID>` from a Scanner row: `fvgSelected` equals that id.
+10. **Evidence honesty.**
+    - On EURUSD the territory draws from OHLC, with size in pips.
+    - No order-flow claim is attached unless another owner's reading is shown BY REFERENCE.
+11. **Scanner.**
+    - Each of the five conditions is named with its OBJECT_ID.
+    - A refused symbol shows its plain reason, never silent absence.
+12. **Backtest study.**
+    - Every rate prints as `n of m`.
+    - The block is labelled DESCRIPTIVE.
+    - Moving the study clock earlier never reveals a later touch.
+13. **Journal.**
+    - Attach an FVG reference, save and reload: the snapshot is unchanged.
+    - Review answers first or later touch, acted before the condition, and held after trade-through; UNKNOWN when a fill time is missing.
+14. **SpaidBot.**
+    - With an FVG selected, ask "what happened at this gap?": the answer quotes OBSERVED FACT / DERIVED MEASUREMENT lines.
+    - No answer says price must or will fill.
+15. **Copy sweep.** No FVG surface (glass, ⓘ, Inspect, scanner, study, journal, SpaidBot, Academy) says "must fill", gives a strength score, or treats unfilled as a target.
+
+## 8. §64 SHERIFF CHECKLIST — Academy course + public selling pages
+
+The order's exact §64 wording was not in hand; scope is the two learner- and buyer-facing surfaces this lane shipped.
+
+**Academy (signed in; do not complete quizzes on the Founder's account — use a scene or a local run)**
+1. `/education?lesson=fvg-1 … fvg-21` opens each lesson at 1440, 834 and 390. There is no horizontal overflow, and every lesson has its own schematic labelled "not market data".
+2. The MYTH card appears on lessons 1, 10, 14, 15 and 16, with the myth struck through and the BETTER QUESTION word for word.
+3. Lesson numbers match `FVG-METHODOLOGY.md`: 50 % deep, 2 closes for acceptance, 5-bar rejection window, 0.10 × ATR14 floor, 20 / 300 memory bars, 6 / 3 visibility.
+4. "Show me on a chart" goes to `/charts?scene=clean&on=fvg` (+ the lesson's extra layer), and territories are visible there. Before the layer ships, the pending note shows instead.
+5. "Practice in Replay" appears only on lessons 6–10, 14 and 15, and only once the layer ships.
+6. The quiz draws from the 14-question FVG bank. A pass records completion **in this browser** ("Progress saved in this browser after verified readback"). Non-FVG lessons are still COMING_SOON.
+7. "Show me my examples" lists only Journal trades tagged FVG / Fair Value Gap, and otherwise shows the one plain line.
+8. At 390, opening a lesson hides the module list, and the lesson's ✕ brings it back.
+
+**Public selling pages (signed out, production)**
+
+9. `/welcome`, `/pricing` and `/login` at 1440 and 390:
+   - no horizontal scroll and no element past the right edge;
+   - every link and button ≥ 44 px.
+10. Product line "WEALTHY MINDSETS PRO — TRADING OPERATING SYSTEM":
+    - /welcome and /pricing headers;
+    - /login desktop panel heading;
+    - /login phone line plus the "See how it works →" link.
+11. The loop reads LEARN → … → LEARN YOURSELF (14 steps, in order). The six territory stages appear on /welcome.
+12. "What is live today" on all three pages:
+    - broker connection BETA, not enabled for members;
+    - orders through your own broker, confirmed by you;
+    - data limits by market;
+    - not advice, no promised outcome.
+13. Pricing is unchanged:
+    - Free · Guest $0 / WM Pro App $10 / Passport $20 / WM Pro OS $50;
+    - three "Not on sale yet";
+    - the Passport intro offer line per `passportPromo`.
+14. Copy sweep:
+    - no guaranteed outcome, win rate or invented user count;
+    - no testimonial, "Now with … indicator" or "all-in-one";
+    - no claim beyond what is live.
+    - `sellingStory.test.ts` pins this for source; the Sheriff reads the rendered page.
+15. The /welcome sample chart says SIMULATED on the chart, in Inspect and in the footer. Its axis labels are legible at 390.

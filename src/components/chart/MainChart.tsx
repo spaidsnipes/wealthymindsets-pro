@@ -3991,6 +3991,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
      directly, 4×/s, from the wall clock and the same owner
      (chartBarCountdown) — no render, no paint frame in between. */
   const countdownGlyphRef = useRef<HTMLSpanElement | null>(null);
+  /* SHERIFF A4 (2026-10-07): ONE countdown on the glass. The price-line pill
+     (the canvas CANDLE TIMER — Founder priority, it travels with price) is the
+     canon; while it paints, the header copy is visually withdrawn (kept for
+     screen readers — the pill is canvas). Set from the paint loop, no render. */
+  const headerCountdownRef = useRef<HTMLDivElement | null>(null);
+  const headerCountdownHiddenRef = useRef<boolean | null>(null);
   const countdownFeedRef = useRef<{ live: boolean; label: string | null; closed: boolean; sec: number | null }>({ live: false, label: null, closed: false, sec: null });
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -12718,6 +12724,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.restore();
         }
       } } catch (err) { layerFault("CANDLE_TIMER", err); }
+      try {
+        // A4 · the pill painted → the header countdown steps back (and returns the frame it does not).
+        const hideHeader = candleTimerRect != null;
+        const hc = headerCountdownRef.current;
+        if (hc && headerCountdownHiddenRef.current !== hideHeader) {
+          headerCountdownHiddenRef.current = hideHeader;
+          hc.dataset.pillOwnsCountdown = hideHeader ? "1" : "0";
+          Object.assign(hc.style, hideHeader
+            ? { position: "absolute", width: "1px", height: "1px", overflow: "hidden", clipPath: "inset(50%)", whiteSpace: "nowrap" }
+            : { position: "", width: "", height: "", overflow: "", clipPath: "", whiteSpace: "" });
+        }
+      } catch (err) { layerFault("HEADER_COUNTDOWN", err); }
 
       /* ══════════════════════════════════════════════════════════════════════
          ABSORPTION ANATOMY — Founder Asset 06, drawn in price/time space.
@@ -12840,6 +12858,35 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // left the bottom-left word stack on 2026-09-25: F08A draws pools as
       // time-bounded ladders and F08B draws weather as a lens, and their
       // honesty statements travel as receipts and one compact tag.)
+      // SHERIFF A1 (2026-10-07, serving ES1! 5m 1440 / NQ1! 1m / 1180×820):
+      // zone names and the WAIT tag printed across the newest candles' WICKS —
+      // `keepOut()` guards bodies only. The newest candles' COLUMN: bodies and
+      // wicks of the newest 3 in view, ±½ slot wide, 6px of air above and
+      // below. No word or plate sits on it; built at most once per frame.
+      let newestColumnRect: { x: number; y: number; w: number; h: number } | null | undefined;
+      const newestColumnKeepOut = (): { x: number; y: number; w: number; h: number } | null => {
+        if (newestColumnRect !== undefined) return newestColumnRect;
+        newestColumnRect = null;
+        const bsN = barsRef.current ?? [];
+        const tsN = chart.timeScale();
+        let cx0 = Infinity, cx1 = -Infinity, cy0 = Infinity, cy1 = -Infinity;
+        for (let i = bsN.length - 1, k = 0; i >= 0 && k < 3; i--, k++) {
+          const b = bsN[i];
+          const xk = tsN.timeToCoordinate(b.time as never), yh = srs.priceToCoordinate(b.high), yl = srs.priceToCoordinate(b.low);
+          if (xk == null || yh == null || yl == null) continue;
+          cx0 = Math.min(cx0, +xk - bsp / 2); cx1 = Math.max(cx1, +xk + bsp / 2);
+          cy0 = Math.min(cy0, +yh, +yl); cy1 = Math.max(cy1, +yh, +yl);
+        }
+        if (Number.isFinite(cx0)) newestColumnRect = { x: cx0 - 2, y: cy0 - 6, w: cx1 - cx0 + 4, h: cy1 - cy0 + 12 };
+        canvas.dataset.newestColumnKeepOut = newestColumnRect
+          ? `${Math.round(newestColumnRect.x)},${Math.round(newestColumnRect.y)},${Math.round(newestColumnRect.w)}x${Math.round(newestColumnRect.h)}`
+          : "NONE";
+        return newestColumnRect;
+      };
+      const onNewestColumn = (x: number, y: number, w: number, h: number): boolean => {
+        const c = newestColumnKeepOut();
+        return !!c && x < c.x + c.w && x + w > c.x && y < c.y + c.h && y + h > c.y;
+      };
       // A slid label never lands in the column an active Question Lens owns.
       const keepOutMinX = () => Math.max(lensColumnActive ? QUESTION_LENS_COLUMN_RIGHT : 4, railOcclusionX + 4);
       // Every candle body in view, once per frame, for a label that prints on
@@ -22089,11 +22136,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ...(h >= 16 ? [Math.round(top) + 11, Math.round(top + h) - 3] : []),
                     Math.round(top + h) + 12, Math.round(top) - 4,
                   ];
-                  const xs = [Math.max(4, x0 + 4), Math.max(4, zEnd - tw - 4)];
+                  // SHERIFF A1: a third x — just left of the newest candles' column.
+                  const colZ = newestColumnKeepOut();
+                  const xs = [Math.max(4, x0 + 4), Math.max(4, zEnd - tw - 4), ...(colZ ? [Math.max(4, colZ.x - tw - 6)] : [])];
                   let tx = xs[0]!, ty: number | undefined;
                   for (const y of ys) {
                     for (const x of xs) {
                       const ok = y - 10 >= HEADER_FLOOR_Y && y <= pane0Bottom - 2 && x + tw <= plotRight - 2
+                        && !onNewestColumn(x, y - 11, tw, 12)
                         && !floatingChips.some(r => x < r.x + r.w && x + tw > r.x && y - 10 < r.y + r.h && y > r.y);
                       if (ok) { tx = x; ty = y; break; }
                     }
@@ -27343,6 +27393,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         <div className="ml-auto flex min-w-0 items-center gap-3" style={{ flexShrink: 2 }}>
           {/* Candle countdown */}
           <div
+            ref={headerCountdownRef}
             role="group"
             aria-label={barCountdown.spoken}
             title={barCountdown.title}

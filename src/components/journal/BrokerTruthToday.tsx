@@ -22,7 +22,9 @@ import { pathWindowFor } from "@/lib/journal/planPricePath";
 import { loadPlanPricePath } from "@/lib/journal/planPricePathLoader";
 import type { PricePath } from "@/lib/journal/planVsActual";
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
-import { fvgContextGroup, type FvgReviewAnswers } from "@/lib/journal/planFvgContext";
+import { fvgAnswersFromReference, fvgContextFromLedger, fvgContextGroup, fvgReviewAnswersAt, type FvgReviewAnswers } from "@/lib/journal/planFvgContext";
+import { loadFvgLedgerFor } from "@/lib/journal/planFvgLoader";
+import type { JournalFvgReference } from "@/lib/journal/fvgDecisionReference";
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -42,7 +44,7 @@ interface Story { key: string; broker: string; decisionId: string | null; accoun
  * dimension, and their own words. `evidence` (from a captured fill) sets the
  * machine facts beside the dimension they inform; they are never edited here.
  */
-export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, fvg, defaultOpen = false }: {
+export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, fvg: fvgIn, fvgRef, defaultOpen = false }: {
   storyKey: string;
   evidence?: Readonly<Record<ReviewDimension, readonly ReviewEvidenceLine[]>>;
   /** Garden 19 §27/§28: the frozen plan + this trade's actuals, when the story has a Decision_ID. */
@@ -53,8 +55,27 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
   planSymbol?: string | null;
   /** Garden 19 §23/§41: the trade's FVG answers, when the journal ties it to one FVG object. */
   fvg?: FvgReviewAnswers | null;
+  /** The journal's FVG reference (fvgDecisionReference): answered as of the decision, and from the ledger on request. */
+  fvgRef?: JournalFvgReference | null;
   defaultOpen?: boolean;
 }) {
+  const [fvgLoaded, setFvgLoaded] = useState<FvgReviewAnswers | null>(null);
+  const [fvgNote, setFvgNote] = useState<string | null>(null);
+  const fvg = fvgLoaded ?? fvgIn ?? (fvgRef ? fvgAnswersFromReference(fvgRef) : null);
+  const loadFvg = () => {
+    if (!fvgRef) return;
+    setFvgNote("Reading the FVG's history from the one engine…");
+    void loadFvgLedgerFor(fvgRef.objectId, Date.now()).then(r => {
+      if ("reason" in r) { setFvgNote(`FVG history unavailable — ${r.reason}.`); return; }
+      const ctx = fvgContextFromLedger(r.ledger, fvgRef.objectId);
+      if (!ctx) { setFvgNote("The bars on hand no longer hold this gap — nothing is answered rather than a guess."); return; }
+      const a = planIn?.actuals ?? null;
+      const exits = (a?.exits ?? []).map(e => e.atMs);
+      // The reference's decision instant stands in for an entry time the journal did not report — said in the note below.
+      setFvgLoaded(fvgReviewAnswersAt(ctx, a?.entry?.atMs ?? fvgRef.decisionAtMs, exits.length && exits.every(t => t != null) ? Math.max(...(exits as number[])) : null));
+      setFvgNote(`Read from ${r.ledger.barCount} ${r.ledger.timeframe} bars (as of ${new Date(r.ledger.asOf ?? Date.now()).toISOString().slice(0, 16).replace("T", " ")}Z); entry time = the reference's decision time where the journal reported none.`);
+    });
+  };
   const [planOverride, setPlanOverride] = useState<ManagementPlanSnapshot | null>(null);
   const [path, setPath] = useState<PricePath | null>(null);
   const [pathNote, setPathNote] = useState<string | null>(null);
@@ -74,6 +95,21 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
   const r: StoryReview = all[storyKey] ?? { marks: {}, lesson: "", repeat: "", updatedAt: 0 };
   const planWhy = r.planWhy;
   const composed = useMemo(() => (plan ? composePlanReview(plan, planWhy) : null), [plan, planWhy]);
+  const fvgBlock = fvg ? (
+    <div data-testid="plan-fvg" data-group={fvgContextGroup(fvg)} style={{ display: "grid", gap: 2, border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px" }}>
+                  <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD, overflowWrap: "anywhere" }}>FVG · {fvg.objectId}</span>
+                  {[["First touch or later?", fvg.touch.sentence], ["Acted before the territory was reached?", fvg.actedBeforeCondition.sentence], ["Held after it was traded through?", fvg.heldAfterTradedThrough.sentence]].map(([q, a]) => (
+                    <span key={q} style={{ fontSize: 11, color: INK, overflowWrap: "anywhere" }}><span style={{ color: MUTED }}>{q}</span> {a}</span>
+                  ))}
+                  {fvgRef && !fvgLoaded ? (
+                    <button type="button" data-testid="plan-fvg-load" onClick={loadFvg}
+                      style={{ justifySelf: "start", fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", minHeight: 28, cursor: "pointer" }}>
+                      Read what happened to this gap after the decision
+                    </button>
+                  ) : null}
+                  {fvgNote ? <span role="status" style={{ fontSize: 10.5, color: MUTED }}>{fvgNote}</span> : null}
+    </div>
+  ) : null;
   const save = (next: StoryReview) => setAll(writeStoryReview(storyKey, { ...next, updatedAt: Date.now() }));
   return (
     <div data-testid="story-review" style={{ marginTop: 8, borderTop: `1px dashed ${LINE}`, paddingTop: 6 }}>
@@ -137,14 +173,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
                   </div>
                 ))}
               </div>
-              {fvg ? (
-                <div data-testid="plan-fvg" data-group={fvgContextGroup(fvg)} style={{ display: "grid", gap: 2, border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px" }}>
-                  <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD, overflowWrap: "anywhere" }}>FVG · {fvg.objectId}</span>
-                  {[["First touch or later?", fvg.touch.sentence], ["Acted before the territory was reached?", fvg.actedBeforeCondition.sentence], ["Held after it was traded through?", fvg.heldAfterTradedThrough.sentence]].map(([q, a]) => (
-                    <span key={q} style={{ fontSize: 11, color: INK, overflowWrap: "anywhere" }}><span style={{ color: MUTED }}>{q}</span> {a}</span>
-                  ))}
-                </div>
-              ) : null}
+              {fvgBlock}
               {composed.result.findings.length ? (
                 <div data-testid="plan-deviations" style={{ display: "grid", gap: 2 }}>
                   <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>PLAN vs WHAT HAPPENED</span>
@@ -174,6 +203,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
               </label>
             </div>
           ) : null}
+          {!composed ? fvgBlock : null}
           <label style={{ fontSize: 11, color: MUTED }}>The lesson, in my words
             <textarea value={r.lesson} onChange={e => save({ ...r, lesson: e.target.value })} rows={2}
               style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />

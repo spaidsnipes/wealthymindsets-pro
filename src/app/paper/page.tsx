@@ -3161,7 +3161,10 @@ export default function PaperTradingPage() {
           {/* Equity curve card */}
           <div className="border-b border-wm-border px-4 py-3 shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <div>
+              {/* flex-1 + min-w-0: at 834 the sparkline kept its width and this
+                  column was squeezed to one word per line ("no / trades /
+                  placed, so") — sheriff sweep 2026-10-07. */}
+              <div className="min-w-0 flex-1 pr-3">
                 <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">
                   {bookRecoveryRequired || hasUnmarkedOptions ? "Portfolio valuation unavailable" : "Portfolio Equity"}
                 </div>

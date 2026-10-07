@@ -12,9 +12,15 @@
  *   PARTIAL_MITIGATION     its deepest reach ENTERED partial (> 0, < 50 %) on that bar
  *   DEEP_MITIGATION        its deepest reach ENTERED deep (≥ 50 %, < 100 %) on that bar
  *
- * Only these for now. Convergence conditions (an FVG plus order flow, plus
- * derivatives …) are omitted until an owner provides that evidence by
- * reference — never faked here.
+ * CONVERGENCE (Garden 19 §18): an object that met one of the five conditions
+ * AND holds a relationship to another owner's reading (fvgRelationships, from
+ * bars alone via fvgBarContext) is ALSO listed as
+ *   FVG_PLUS_STRUCTURE  a confirmed swing it broke / reclaimed / contains
+ *   FVG_PLUS_PROFILE    a POC / VAH / VAL of the range profile of the bars
+ *                       before it formed, inside or near the territory
+ * each carrying the relationships and the source owner's evidence word.
+ * FVG_PLUS_WALL is omitted: the scanner reads bars, and walls need an options
+ * chain or a book — that family is SILENCE here, never faked.
  *
  * REFUSALS, in plain words: bars unavailable, too few closed bars for ATR(14),
  * or bars too old to be a current reading (the newest close is older than the
@@ -37,6 +43,8 @@ import type { FvgBarFetch } from "@/lib/marketData/fvg/fvgBarSource";
 import { fvgChartHref } from "@/lib/marketData/fvg/fvgChartLink";
 import { getTimeframe, normalizeTFId } from "@/lib/timeframes";
 import { displayPrecisionFor } from "@/lib/chart/pricePrecision";
+import { fvgBarContext, fvgBarOnlyRelationships } from "@/lib/marketData/fvg/fvgBarContext";
+import { fvgRelationshipRows } from "@/lib/marketData/fvg/fvgRelationships";
 
 export const FVG_SCAN_CONDITIONS = [
   "NEW_FVG",
@@ -88,6 +96,21 @@ export interface FvgScanHit {
   readonly priceDp: number;
 }
 
+export const FVG_CONVERGENCE_CONDITIONS = ["FVG_PLUS_STRUCTURE", "FVG_PLUS_PROFILE"] as const;
+export type FvgConvergenceCondition = (typeof FVG_CONVERGENCE_CONDITIONS)[number];
+export const FVG_CONVERGENCE_LABEL: Readonly<Record<FvgConvergenceCondition, string>> = {
+  FVG_PLUS_STRUCTURE: "FVG + structure",
+  FVG_PLUS_PROFILE: "FVG + profile",
+};
+
+export interface FvgConvergenceHit extends Omit<FvgScanHit, "condition"> {
+  readonly condition: FvgConvergenceCondition;
+  /** The FVG conditions this object met on the newest closed bar. */
+  readonly with: readonly FvgScanCondition[];
+  /** The relationships, as Inspect words them (spatial order), with their source evidence. */
+  readonly relationships: readonly string[];
+}
+
 export type FvgScanReading =
   | {
       readonly status: "READ";
@@ -98,6 +121,8 @@ export type FvgScanReading =
       /** Close time of the newest closed bar read. */
       readonly asOfMs: number;
       readonly hits: readonly FvgScanHit[];
+      /** Convergence (FVG + another owner's reading). Never a grade; each line names its source evidence. */
+      readonly convergence: readonly FvgConvergenceHit[];
     }
   | { readonly status: "REFUSED"; readonly symbol: string; readonly timeframe: string; readonly reason: string };
 
@@ -156,6 +181,23 @@ export function fvgScanConditionsFromBars(input: {
     if (o.mitigation === "PARTIAL" && p.mitigation !== "PARTIAL") hits.push(hit("PARTIAL_MITIGATION", o, symbol, timeframe, tNow, dp));
     if (o.mitigation === "DEEP" && p.mitigation !== "DEEP") hits.push(hit("DEEP_MITIGATION", o, symbol, timeframe, tNow, dp));
   }
+  const convergence: FvgConvergenceHit[] = [];
+  const hitIds = [...new Set(hits.map(h => h.objectId))];
+  if (hitIds.length) {
+    const ctx = fvgBarContext(input.bars, symbol, timeframe);
+    const fmt = (x: number) => x.toFixed(dp);
+    for (const id of hitIds) {
+      const o = now.objects.find(x => x.objectId === id)!;
+      const reading = fvgBarOnlyRelationships(ctx, o);
+      const base = hits.find(h => h.objectId === id)!;
+      const withC = hits.filter(h => h.objectId === id).map(h => h.condition);
+      for (const [family, condition] of [["STRUCTURE", "FVG_PLUS_STRUCTURE"], ["PROFILE", "FVG_PLUS_PROFILE"]] as const) {
+        const fam = { ...reading, relationships: reading.relationships.filter(x => x.family === family) };
+        if (!fam.relationships.length) continue;
+        convergence.push({ ...base, condition, with: withC, relationships: fvgRelationshipRows(fam, fmt).rows });
+      }
+    }
+  }
   return {
     status: "READ",
     symbol,
@@ -164,6 +206,7 @@ export function fvgScanConditionsFromBars(input: {
     barsRead: n,
     asOfMs: tNow,
     hits,
+    convergence,
   };
 }
 

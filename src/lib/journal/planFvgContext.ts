@@ -19,7 +19,8 @@
  * no emotion is named.
  */
 
-import type { FvgEvent } from "@/lib/marketData/fvg/fvgEngine";
+import type { FvgEvent, FvgLedger, FvgObject } from "@/lib/marketData/fvg/fvgEngine";
+import type { JournalFvgReference } from "./fvgDecisionReference";
 import { fmtPx } from "./managementPlan";
 import type { PlanVsActualResult, TradeActuals } from "./planVsActual";
 import { planAdherenceByGroup, type SetupAdherence } from "./planAdherence";
@@ -32,8 +33,8 @@ export interface FvgTradeContext {
   readonly top: number;
   /** Bar length of the object's timeframe, ms. */
   readonly barMs: number;
-  /** Start of each touch episode's first bar (knownAt − barMs), in order. */
-  readonly touchStarts: readonly { readonly episode: number; readonly atMs: number }[];
+  /** Each touch episode: start of its first bar (knownAt − barMs) and the close time that ended it (null while running). */
+  readonly touches: readonly { readonly episode: number; readonly atMs: number; readonly endMs: number | null }[];
   /** Close time of the bar whose close traded through the far edge, or null. */
   readonly tradedThroughAt: number | null;
 }
@@ -44,15 +45,71 @@ export function fvgContextFromEvents(
   events: readonly FvgEvent[],
   barMs: number,
 ): FvgTradeContext {
-  const touchStarts = events
+  const ends = new Map<number, number>();
+  for (const e of events) if (e.kind === "EPISODE_END") ends.set(e.episode, e.knownAt);
+  const touches = events
     .filter((e): e is Extract<FvgEvent, { kind: "TOUCH_START" }> => e.kind === "TOUCH_START")
-    .map(e => ({ episode: e.episode, atMs: e.knownAt - barMs }))
+    .map(e => ({ episode: e.episode, atMs: e.knownAt - barMs, endMs: ends.get(e.episode) ?? null }))
     .sort((a, b) => a.atMs - b.atMs);
   const tt = events.find(e => e.kind === "TRADED_THROUGH");
-  return { ...birth, barMs, touchStarts, tradedThroughAt: tt ? tt.knownAt : null };
+  return { ...birth, barMs, touches, tradedThroughAt: tt ? tt.knownAt : null };
 }
 
-export type TouchAnswer = "FIRST_TOUCH" | "LATER_TOUCH" | "BEFORE_ANY_TOUCH" | "UNKNOWN";
+/** One canonical FVG object (from the one engine's ledger) → the context Review reads. */
+export function fvgContextFromObject(o: FvgObject, barMs: number): FvgTradeContext {
+  return {
+    objectId: o.objectId, timeframe: o.timeframe, direction: o.direction, bottom: o.bottom, top: o.top, barMs,
+    touches: o.interactions.map(i => ({ episode: i.episode, atMs: i.startAt - barMs, endMs: i.endAt })).sort((a, b) => a.atMs - b.atMs),
+    tradedThroughAt: o.tradedThrough?.at ?? null,
+  };
+}
+
+/** Bar length for an FVG timeframe id ("1m", "5m", "1h", "1H", "4h", "1D"), or null when it is not a clock timeframe. */
+export function fvgTimeframeMs(tf: string): number | null {
+  const m = /^(\d{1,3})(s|m|h|H|D|d)$/.exec(tf.trim());
+  if (!m) return null;
+  const n = Number(m[1]);
+  const unit = m[2] === "s" ? 1_000 : m[2] === "m" ? 60_000 : m[2] === "h" || m[2] === "H" ? 3_600_000 : 86_400_000;
+  return n > 0 ? n * unit : null;
+}
+
+/**
+ * The adapter from the journal's FVG reference: the object re-read from the
+ * ONE engine's ledger over the same symbol / timeframe (no second engine).
+ * Null when the ledger no longer holds that object — never a reconstruction.
+ */
+export function fvgContextFromLedger(ledger: FvgLedger, objectId: string): FvgTradeContext | null {
+  const o = ledger.objects.find(x => x.objectId === objectId);
+  const barMs = fvgTimeframeMs(ledger.timeframe);
+  return o && barMs ? fvgContextFromObject(o, barMs) : null;
+}
+
+/**
+ * Before the ledger is read, the stored reference alone answers the first two
+ * questions AS OF THE DECISION (its snapshot was read through the one as-of
+ * accessor); whether the territory was later traded through needs the ledger.
+ */
+export function fvgAnswersFromReference(ref: JournalFvgReference): FvgReviewAnswers {
+  const s = ref.snapshot;
+  const p = (x: number) => (ref.priceDp !== null ? x.toFixed(ref.priceDp) : fmtPx(x));
+  const zone = `${p(s.bottom)}–${p(s.top)} (${s.direction.toLowerCase()} FVG, ${ref.timeframe})`;
+  const n = s.interactionsSoFar;
+  const touch: FvgReviewAnswers["touch"] =
+    s.interaction === "BEFORE_ANY_TOUCH" ? { answer: "BEFORE_ANY_TOUCH", episode: null, sentence: `Your decision came before price first touched the territory ${zone}.` }
+    : s.interaction === "DURING_FIRST_INTERACTION" ? { answer: "FIRST_TOUCH", episode: 1, sentence: `Your decision came during the first touch of the territory ${zone}.` }
+    : s.interaction === "DURING_LATER_INTERACTION" ? { answer: "LATER_TOUCH", episode: n, sentence: `Your decision came during touch ${n} of the territory ${zone}, not the first.` }
+    : { answer: "BETWEEN_TOUCHES", episode: n, sentence: `Your decision came after touch ${n} of the territory ${zone} had ended, before any next touch.` };
+  return {
+    objectId: ref.objectId,
+    touch,
+    actedBeforeCondition: s.interaction === "BEFORE_ANY_TOUCH"
+      ? { answer: "YES", sentence: `You decided before price had reached the territory ${zone}.` }
+      : { answer: "NO", sentence: `Price had reached the territory (${n} interaction${n === 1 ? "" : "s"} by then) before your decision.` },
+    heldAfterTradedThrough: { answer: "UNKNOWN", sentence: "Whether the territory was traded through while you held needs the FVG's history after the decision — read it below." },
+  };
+}
+
+export type TouchAnswer = "FIRST_TOUCH" | "LATER_TOUCH" | "BETWEEN_TOUCHES" | "BEFORE_ANY_TOUCH" | "UNKNOWN";
 export type HeldAnswer = "HELD_AFTER_TRADED_THROUGH" | "EXITED_AS_TRADED_THROUGH" | "NOT_TRADED_THROUGH_WHILE_OPEN" | "UNKNOWN";
 
 export interface FvgReviewAnswers {
@@ -65,10 +122,13 @@ export interface FvgReviewAnswers {
 const clock = (ms: number) => new Date(ms).toISOString().slice(11, 16) + "Z";
 
 export function fvgReviewAnswers(ctx: FvgTradeContext, a: TradeActuals | null): FvgReviewAnswers {
-  const zone = `${fmtPx(ctx.bottom)}–${fmtPx(ctx.top)} (${ctx.direction.toLowerCase()} FVG, ${ctx.timeframe})`;
-  const entryAt = a?.entry?.atMs ?? null;
   const exits = (a?.exits ?? []).map(e => e.atMs);
-  const exitAt = exits.length && exits.every(t => t != null) ? Math.max(...(exits as number[])) : null;
+  return fvgReviewAnswersAt(ctx, a?.entry?.atMs ?? null, exits.length && exits.every(t => t != null) ? Math.max(...(exits as number[])) : null);
+}
+
+/** The same answers from the two instants alone (entry, last exit); null = not reported. */
+export function fvgReviewAnswersAt(ctx: FvgTradeContext, entryAt: number | null, exitAt: number | null): FvgReviewAnswers {
+  const zone = `${fmtPx(ctx.bottom)}–${fmtPx(ctx.top)} (${ctx.direction.toLowerCase()} FVG, ${ctx.timeframe})`;
 
   let touch: FvgReviewAnswers["touch"];
   let acted: FvgReviewAnswers["actedBeforeCondition"];
@@ -76,10 +136,13 @@ export function fvgReviewAnswers(ctx: FvgTradeContext, a: TradeActuals | null): 
     touch = { answer: "UNKNOWN", episode: null, sentence: "The entry fill time was not reported, so the touch cannot be named." };
     acted = { answer: "UNKNOWN", sentence: "The entry fill time was not reported." };
   } else {
-    const during = [...ctx.touchStarts].reverse().find(t => t.atMs <= entryAt) ?? null;
+    const during = [...ctx.touches].reverse().find(t => t.atMs <= entryAt) ?? null;
     if (!during) {
       touch = { answer: "BEFORE_ANY_TOUCH", episode: null, sentence: `Your entry at ${clock(entryAt)} came before price first touched the territory ${zone}.` };
-      acted = { answer: "YES", sentence: `You entered before price had reached the territory ${zone}${ctx.touchStarts[0] ? `; the first touch began in the bar from ${clock(ctx.touchStarts[0].atMs)}` : "; no touch is on record"}.` };
+      acted = { answer: "YES", sentence: `You entered before price had reached the territory ${zone}${ctx.touches[0] ? `; the first touch began in the bar from ${clock(ctx.touches[0].atMs)}` : "; no touch is on record"}.` };
+    } else if (during.endMs != null && entryAt > during.endMs) {
+      touch = { answer: "BETWEEN_TOUCHES", episode: during.episode, sentence: `Your entry at ${clock(entryAt)} came after touch ${during.episode} of the territory ${zone} had ended (${clock(during.endMs)}), before any next touch.` };
+      acted = { answer: "NO", sentence: `Price had reached the territory (touch ${during.episode} began in the bar from ${clock(during.atMs)}) before your entry.` };
     } else {
       touch = during.episode === 1
         ? { answer: "FIRST_TOUCH", episode: 1, sentence: `Your entry at ${clock(entryAt)} came on the first touch of the territory ${zone}.` }
@@ -109,6 +172,7 @@ export function fvgContextGroup(ans: FvgReviewAnswers | null): string {
   switch (ans.touch.answer) {
     case "FIRST_TOUCH": return "FVG · first touch";
     case "LATER_TOUCH": return "FVG · later touch";
+    case "BETWEEN_TOUCHES": return "FVG · between touches";
     case "BEFORE_ANY_TOUCH": return "FVG · entered before the touch";
     default: return "FVG · touch unknown";
   }

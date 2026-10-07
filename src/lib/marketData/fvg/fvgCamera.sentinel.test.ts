@@ -38,6 +38,9 @@ const ENGINE_CALLERS = new Set([
   "src/lib/backtest/fvgStudy.ts",
   "src/lib/scanner/fvgScanConditions.ts",
   "src/lib/journal/fvgDecisionReference.ts",
+  // 2026-10-07: the Review's "what happened to this gap after the decision"
+  // reader — same engine over the same bars, as-of reads only.
+  "src/lib/journal/planFvgLoader.ts",
   // (2026-10-07: chart lane D's fvgGlass.ts no longer runs the engine — its
   // live increment memo moved INTO fvgCamera (createFvgCameraMemo) — so it is
   // not a caller and is not listed.)
