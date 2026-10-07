@@ -1662,3 +1662,171 @@ input[type=range]::-webkit-slider-runnable-track {
     line-height: 1.15 !important;
   }
 }
+
+/* ══ GARDEN 19 §22 — DESKTOP · TABLET · PHONE (2026-10-07) ═══════════════════
+   Founder: "TABLET: touch-native professional trading station, not stretched
+   phone. PHONE: focused market camera, not compressed desktop, not cards
+   underneath a tiny chart. Trade controls usable."  Canon: M-401/390 MOBILE
+   ASSEMBLY (MARKET CAMERA + WAIT FINISHED PLAQUE + WORKSPACE / TOOLS CORNER
+   FASTENERS; the rest "DO NOT INSTALL — LEFTOVER MALL PARTS") and F24 Mobile
+   Four Chunk WAIT (Workspace · symbol · Tools, the camera, the decision
+   plaque, Passport / WHY).
+
+   MEASURED BEFORE (Playwright on installed Chrome, DSF 3, /charts BTC-USD 5m
+   with Brick Walls, Flow Current, Big Trades, Living Profile, Market
+   Structure and Absorption on):
+     390x844   masthead 194 + room header 101: the market began at y 295.
+               No Trade, Watchlist or Indicators door anywhere on the page.
+               The symbol row's fidelity badge ran to x 411 of 390, clipped.
+               Inspect: a 228px card over the left 60% of the candles.
+     834x1112  no Trade / Watchlist / Indicators door (strip hidden <=900).
+     1180x820  an EMPTY 44px orientation row above the symbol row; context
+               strip controls 26px tall on a touch screen.
+   SENTINEL: g19DeviceManifestation.sentinel.test.ts */
+
+/* ── 1. THE CONTEXT STRIP COMES TO TOUCH SCREENS ────────────────────────────
+   The strip was DESKTOP ONLY while the phone/tablet pass was phase-gated
+   (the max-width 900 rule above). Garden 19 §22 IS that pass. Trade,
+   Watchlist, Indicators and the instrument's views are capabilities, not
+   desk chrome: hiding the strip removed the only Trade door on every phone
+   and every portrait tablet. Tablet: the strip stands where the desk has it.
+   Every touch screen: the 44px floor. */
+@media (min-width: 640px) and (max-width: 900px) and (min-height: 521px) {
+  .wm-instrument-context-strip { display: flex !important; }
+}
+@media (pointer: coarse) {
+  .wm-instrument-context-strip { min-height: 48px !important; }
+  .wm-instrument-context-strip > button,
+  .wm-instrument-context-strip > a { min-height: 44px !important; }
+}
+
+/* ── 2. PHONE: THE THUMB BAR ────────────────────────────────────────────────
+   On a phone the same strip is pinned to the bottom edge, under the thumb —
+   Trade first, then Watchlist and Indicators, then the instrument's views
+   (scrolling sideways, as the strip always has). The market phone draws no
+   OS phone nav (phoneDestinations="door"), so this edge is free. The pane
+   below gives the bar its height back, so the market still ends exactly at
+   the bar's top edge and nothing of the camera is hidden under it. */
+@media (max-width: 639px) and (min-height: 521px) {
+  .wm-instrument-context-strip {
+    display: flex !important;
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 45 !important;
+    gap: 6px !important;
+    padding: 4px 8px calc(4px + env(safe-area-inset-bottom)) !important;
+    background: #0b0a08 !important;
+    border-top: 1px solid rgba(139,106,41,.32) !important;
+    border-bottom: none !important;
+  }
+  .wm-instrument-context-strip > span { display: none !important; }
+  .wm-instrument-context-strip > [data-testid="context-trade"] { order: -3; margin-right: 0 !important; padding: 0 18px !important; }
+  .wm-instrument-context-strip > [data-testid="context-watchlist"] { order: -2; margin-right: 0 !important; }
+  .wm-instrument-context-strip > [data-testid="context-indicators"] { order: -1; }
+  .wm-instrument-context-strip > [data-testid="context-desk"] { margin-right: 0 !important; }
+  .wm-chart-market-pane[data-market-primary="true"] {
+    height: max(300px, calc(100svh - var(--wm-chart-fit-top, 300px) - 52px - var(--wm-g19-plaque, 0px) - env(safe-area-inset-bottom))) !important;
+    min-height: max(300px, calc(100svh - var(--wm-chart-fit-top, 300px) - 52px - var(--wm-g19-plaque, 0px) - env(safe-area-inset-bottom))) !important;
+  }
+  /* THE DECISION PLAQUE STANDS UNDER THE CAMERA (F24 Mobile Four Chunk:
+     header, camera, DECISION RAIL "WAIT", Passport / WHY — in that order).
+     The WAIT + WHY row was the first thing under the masthead, above the
+     symbol and 56px of the camera's height; it now stands on the thumb bar,
+     where the thumb that opens WHY already is. Same element, same controls,
+     same sheet. When it has nothing to say it takes no row (and the pane
+     keeps the height). */
+  body:has(.wm-chart-room-header > .wm-chart-orientation-strip button) { --wm-g19-plaque: 48px; }
+  .wm-chart-room-header > .wm-chart-orientation-strip {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: calc(52px + env(safe-area-inset-bottom)) !important;
+    z-index: 44 !important;
+    min-height: 48px !important;
+    padding: 2px 8px !important;
+    background: #0b0a08 !important;
+    border-top: 1px solid rgba(139,106,41,.22) !important;
+  }
+  .wm-chart-room-header > .wm-chart-orientation-strip:not(:has(button)) { display: none !important; }
+  /* What scrolls below the market (the decision spine, provenance) ends
+     above the bar, never under it. */
+  .wm-chart-dashboard { padding-bottom: calc(52px + var(--wm-g19-plaque, 0px) + env(safe-area-inset-bottom)); }
+  /* TRADE ON A PHONE IS A SHEET OVER THE THUMB BAR, edge to edge with an 8px
+     gutter — not a 400px desk card pushed against the right edge. */
+  [data-testid="trade-panel"] {
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    bottom: calc(56px + var(--wm-g19-plaque, 0px) + env(safe-area-inset-bottom)) !important;
+    max-height: 58svh !important;
+  }
+}
+
+/* ── 3. PHONE: THE MASTHEAD SPENDS ITS ROWS ON JOBS ─────────────────────────
+   Market room only. Row one: the mark. Row two: Workspace · Tools · Rooms
+   (the corner fasteners). Row three: the utilities WITH the feed reading
+   beside them — before, the reading took a 26px row of its own because its
+   one-line width could not fit there; with a zero basis it shares the row and
+   wraps its phrases inside it (it never hides one: a DELAYED reading's detail
+   is the truth). The engraved sub-line under the mark is a desk legend; the
+   mark's accessible name is unchanged. */
+@media (max-width: 639px) {
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) [data-testid="os-identity"] .wm-wordmark > div + div { display: none !important; }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-feed-standing {
+    flex: 1 1 0% !important;
+    min-width: 140px !important;
+  }
+  body:has(.wm-chart-market-pane[data-market-primary="true"]) .wm-os-masthead { row-gap: 6px !important; padding-top: 8px !important; padding-bottom: 8px !important; }
+
+  /* The symbol row's verdict wraps inside the row instead of running past
+     the edge (the <=379 rule below, now for the whole phone band: measured
+     x 411 of 390). Canon words, never shortened. */
+  .wm-chart-market-summary { flex-shrink: 1 !important; min-width: 0 !important; margin-right: 8px !important; }
+  .wm-chart-market-summary > span:not(.wm-fidelity-badge) { white-space: nowrap !important; flex-shrink: 0 !important; }
+  .wm-chart-market-summary .wm-fidelity-badge--chrome {
+    flex-shrink: 1 !important;
+    min-width: 0 !important;
+    height: auto !important;
+    white-space: normal !important;
+    line-height: 1.15 !important;
+  }
+
+  /* INSPECT ON A PHONE IS A SHEET FROM THE BOTTOM OF THE CAMERA, full width,
+     at most 46% of it — the top of the camera (the live price, the newest
+     bars' highs) stays visible above it. Was a 228px card across the left 60%. */
+  .wm-chart-market-pane [data-testid="chart-inspect-ticket"] {
+    top: auto !important;
+    bottom: 8px !important;
+    left: 6px !important;
+    right: 6px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: 46% !important;
+  }
+}
+
+/* A 12px close glyph is not a touch control: every touch screen gets the
+   44px target around the same icon. */
+@media (pointer: coarse) {
+  [data-testid="chart-inspect-ticket"] button[aria-label="Close the inspect ticket"] {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    margin: -14px -12px -14px auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+/* ── 4. TABLET LANDSCAPE: NO EMPTY ROW ABOVE THE MARKET ─────────────────────
+   Between 1024 and 1279 the room header stands, but on the Chart home its
+   orientation half is EMPTY (WAIT and WHY live on the glass and the rail
+   there): measured 44px of nothing at 1180x820. A strip with no content
+   takes no row. */
+@media (min-width: 1024px) {
+  .wm-chart-room-header--market-home > .wm-chart-orientation-strip:not(:has(:not(.wm-chart-orientation-context, .wm-chart-orientation-actions))) {
+    display: none !important;
+  }
+}

@@ -29,7 +29,7 @@ export const dynamic = "force-dynamic";
  */
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 /** Connect + disconnect share one bucket: 5 per 10 minutes per member. */
-export const MEMBER_CONNECT_LIMIT = { max: 5, windowMs: 10 * 60_000 } as const;
+const MEMBER_CONNECT_LIMIT = { max: 5, windowMs: 10 * 60_000 } as const;
 
 function sameOrigin(req: NextRequest): boolean {
   const origin = req.headers.get("origin");
