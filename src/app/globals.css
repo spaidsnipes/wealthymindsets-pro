@@ -1963,3 +1963,16 @@ input[type=range]::-webkit-slider-runnable-track {
 @media (max-width: 834px) {
   .wm-login-wordmark [style*="font-size: 9px"] { font-size: 11px !important; }
 }
+
+/* SHERIFF A7 (serving 390×640, 2026-10-07): the tick-bar coverage chip sat on
+   the chart controls (R · A · % · L) at bottom 72. On a phone it rides under
+   the EFFORT · INSPECT row instead, one line, ellipsised short of the axis. */
+@media (max-width: 639px) {
+  .wm-tick-bar-note[data-refused="false"] {
+    bottom: auto !important;
+    top: 92px !important;
+    max-width: calc(100% - 96px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

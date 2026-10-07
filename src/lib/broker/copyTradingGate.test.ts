@@ -73,7 +73,7 @@ describe("× AN UNMEASURED NO IS STILL AN UNMEASURED CLAIM", () => {
     // The MET one names the broker and its level, so the claim is traceable.
     const hist = g.requirements.find(r => r.id === "brokerHistory");
     expect(hist?.state).toBe("MET");
-    expect(hist?.evidence).toContain("alpaca");
+    expect(hist?.evidence).toContain("Alpaca"); // displayed name (2026-10-07), not the provider key
     expect(hist?.evidence).toContain("read-only"); // the level, in trader words (2026-10-04)
   });
 

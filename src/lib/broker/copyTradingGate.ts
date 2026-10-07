@@ -127,7 +127,7 @@ export function selectCopyTradingGate(
 
   const noBrokers = brokers.length === 0;
   const best = rank(bestLevel);
-  const who = bestBroker === null ? "no registered broker" : bestBroker;
+  const who = bestBroker === null ? "no registered broker" : brokerDisplayName(bestBroker);
 
   const requirements: readonly CopyTradingRequirement[] = [
     {
@@ -181,4 +181,16 @@ export function selectCopyTradingGate(
     : `${metCount} of ${totalCount} activation requirements are met — measured, not assumed.`;
 
   return { available, requirements, metCount, totalCount, bestBroker, bestLevel, headline };
+}
+
+/**
+ * A broker named the way the trader knows it (sheriff sweep 2026-10-07):
+ * /copy-trading read "webull is certified read-only" — the provider KEY in a
+ * sentence. Brands that style themselves lower-case keep it.
+ */
+const BROKER_DISPLAY: Readonly<Record<string, string>> = {
+  webull: "Webull", alpaca: "Alpaca", longbridge: "Longbridge", tastytrade: "tastytrade", moomoo: "moomoo", ibkr: "Interactive Brokers", tradovate: "Tradovate",
+};
+export function brokerDisplayName(provider: string): string {
+  return BROKER_DISPLAY[provider.toLowerCase()] ?? provider;
 }

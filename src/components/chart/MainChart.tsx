@@ -26923,7 +26923,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       )}
       {/* TICK BARS: where the held tape begins, or why there are none. */}
       {tickNote && (
-        <div data-testid="tick-bar-note" role="status" data-refused={tickNote.startsWith("TICK BARS") ? "false" : "true"}
+        <div data-testid="tick-bar-note" className="wm-tick-bar-note" role="status" data-refused={tickNote.startsWith("TICK BARS") ? "false" : "true"}
           style={tickNote.startsWith("TICK BARS")
             ? { position: "absolute", left: 10, bottom: 72, zIndex: 6, pointerEvents: "none", padding: "3px 8px", borderRadius: 6,
                 background: "rgba(16,17,24,0.82)", border: "1px solid rgba(136,150,190,0.25)", color: "#AEB6D0",
@@ -27457,7 +27457,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             does, and they ABBREVIATE — at most two lines, ending in "…" —
             instead of growing into the chip row under the band. The full
             sentence stays in the element's title and spoken label. At 1600
-            nothing shrinks, nothing clamps, nothing moves. */}
+            nothing shrinks, nothing clamps, nothing moves.
+            A10 KEEP (ruling 2026-10-07): the two-line wrap at 834 stays — it
+            abbreviates by design; a one-line ellipsis would hide truth. */}
         <div className="ml-auto flex min-w-0 items-center gap-3" style={{ flexShrink: 2 }}>
           {/* Candle countdown */}
           <div

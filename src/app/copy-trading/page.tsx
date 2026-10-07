@@ -1,5 +1,6 @@
 "use client";
 
+import { brokerDisplayName } from "@/lib/broker/copyTradingGate";
 import React from "react";
 import { AlertTriangle, Link2, ShieldCheck, Users } from "lucide-react";
 import { WM } from "@/lib/design/wmTokens";
@@ -211,7 +212,7 @@ export default function CopyTradingPage() {
               {view.gate.headline}
               {view.gate.bestBroker !== null && (
                 <>
-                  {" "}Furthest-certified broker: <strong style={{ color: WM.text.body }}>{view.gate.bestBroker}</strong>{" "}
+                  {" "}Furthest-certified broker: <strong style={{ color: WM.text.body }}>{view.gate.bestBroker ? brokerDisplayName(view.gate.bestBroker) : view.gate.bestBroker}</strong>{" "}
                   at <strong data-level={view.gate.bestLevel} style={{ color: WM.text.body }}>{CERT_WORDS[view.gate.bestLevel] ?? view.gate.bestLevel}</strong>.
                 </>
               )}
@@ -307,7 +308,7 @@ export default function CopyTradingPage() {
             <>
               <h2 className="mt-3 text-lg font-black">Your broker is connected — copying is not certified yet</h2>
               <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-wm-text-dim">
-                {view.gate.bestBroker} is certified {CERT_WORDS[view.gate.bestLevel] ?? view.gate.bestLevel}. Copy trading stays off until order acknowledgements and fills are certified and a follower authorization exists.
+                {view.gate.bestBroker ? brokerDisplayName(view.gate.bestBroker) : view.gate.bestBroker} is certified {CERT_WORDS[view.gate.bestLevel] ?? view.gate.bestLevel}. Copy trading stays off until order acknowledgements and fills are certified and a follower authorization exists.
               </p>
             </>
           ) : (
