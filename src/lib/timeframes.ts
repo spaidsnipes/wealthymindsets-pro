@@ -389,6 +389,12 @@ export const HEATMAP_TF_ORDER: readonly TFId[] = Object.freeze([
  * Returns a phrase, not a sentence: it is composed into button labels.
  */
 export function timeframeSpokenName(id: TFId): string {
+  // NEVER THROWS ON A RENDER PATH (serving 2026-10-07): the resting chip speaks
+  // the chart's timeframe through here, and on 500T getTimeframe threw and the
+  // chart pane's boundary closed. A tick id is spoken as trades; anything the
+  // registry does not hold is spoken as itself.
+  if (isTickTfId(id)) return tickTfSpokenName(id);
+  if (!isTFId(id)) return String(id);
   const sec = getTimeframe(id).candleIntervalSec;
   // Months are the one unit that is not a fixed multiple of a day, so the
   // canonical table stores 1M as 30 days. Naming it "30 days" would be a
@@ -672,5 +678,7 @@ export function tickTfSpokenName(id: TickTfId): string {
 
 /** Spoken name for any chart id. */
 export function chartTfSpokenName(id: ChartTfId): string {
-  return isTickTfId(id) ? tickTfSpokenName(id) : timeframeSpokenName(id);
+  if (isTickTfId(id)) return tickTfSpokenName(id);
+  // Never throw on a render path: an id outside both branches is spoken as itself.
+  return isTFId(id) ? timeframeSpokenName(id) : String(id);
 }
