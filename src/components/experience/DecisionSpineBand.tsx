@@ -45,6 +45,7 @@
  * the difference.
  */
 
+import { traderClock } from "@/components/time/traderClock";
 import Link from "next/link";
 import type { WebullLiveReading } from "@/lib/marketData/useWebullLiveCrypto";
 import type { RiskOnPriceVM } from "@/lib/marketData/viewModels/selectRiskOnPrice";
@@ -2028,7 +2029,8 @@ export default DecisionSpineBand;
  */
 function WebullLiveCard({ reading }: { readonly reading: WebullLiveReading }): React.ReactElement {
   const fmt = (n: number | null) => (n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-  const t = reading.providerAtMs != null ? new Date(reading.providerAtMs).toISOString().slice(11, 19) + "Z" : "—";
+  // The trader reads this stamp: local time with its zone (traderClock, F2).
+  const t = traderClock(reading.providerAtMs);
   const word = reading.phase === "LIVE" ? "LIVE" : reading.phase === "REFUSED" ? "REFUSED" : reading.phase === "RETRYING" ? "RECONNECTING" : "CONNECTING";
   const ink = reading.phase === "LIVE" ? "#c4a574" : reading.phase === "REFUSED" ? "#d98b7a" : "#8a8271";
   return (

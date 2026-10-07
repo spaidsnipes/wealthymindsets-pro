@@ -928,6 +928,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // the ONE FVG history and hands back the scene it painted (Inspect reads it).
   const [fvgOn, setFvgOn] = useState<boolean>(() => lsGet(FVG_PREF_KEY, false) as boolean);
   const [fvgScene, setFvgScene] = useState<FvgCameraScene | null>(null);
+  const fvgCompiledIds = React.useMemo(
+    () => (fvgOn && fvgScene ? fvgScene.ledger.objects.map(o => o.objectId) : []),
+    [fvgOn, fvgScene],
+  );
   /**
    * ABSORPTION ANATOMY (Founder Asset 06) — the EFFORT field + ABSORPTION ZONE
    * band, drawn on the chart in price/time space by MainChart's overlay pass.
@@ -2023,10 +2027,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       type: "reconcile",
       symbol,
       timeframe,
-      compiledObjectIds: chartMarketObjects.map(object => object.objectId),
+      // GAP_FVG objects are compiled by the FVG camera the glass paints from
+      // (Garden 19 lane D) — a tapped band must survive reconciliation.
+      compiledObjectIds: [...chartMarketObjects.map(object => object.objectId), ...fvgCompiledIds],
       savedObjectId: saved,
     });
-  }, [chartMarketObjects, selectionKey, symbol, timeframe]);
+  }, [chartMarketObjects, fvgCompiledIds, selectionKey, symbol, timeframe]);
   // Written on select; cleared ONLY by an explicit let-go (`releasesObject`) —
   // an early compile that has not produced the object yet must not erase it.
   useEffect(() => {

@@ -11,6 +11,7 @@
  * says, on its face, that nothing here can be traded in WM.
  */
 
+import { traderClock } from "@/components/time/traderClock";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { deribitStrikesNear, normalizeDeribitChain, type DeribitChain, type DeribitChainLeg } from "@/lib/marketData/deribitChain";
@@ -86,7 +87,7 @@ export function DeribitChainPanel({ chartSymbol, onClose }: { readonly chartSymb
         <strong style={{ color: GOLD, letterSpacing: ".08em", fontSize: 11 }}>{cur ?? "—"} OPTIONS · DERIBIT</strong>
         <span style={{ color: MUTED, fontSize: 10 }}>public book · view only · not tradeable in WM</span>
         <span style={{ marginLeft: "auto", color: MUTED, fontSize: 10, ...MONO }}>
-          {chain?.index != null ? `index ${money(chain.index)}` : ""}{chain?.asOf ? ` · asOf ${chain.asOf.slice(11, 19)}Z` : ""}
+          {chain?.index != null ? `index ${money(chain.index)}` : ""}{chain?.asOf ? ` · asOf ${traderClock(Date.parse(chain.asOf))}` : ""}
         </span>
         <button type="button" onClick={onClose} aria-label="Close options chain"
           style={{ background: "transparent", border: `1px solid ${LINE}`, color: INK, borderRadius: 6, padding: "2px 8px", cursor: "pointer" }}>×</button>

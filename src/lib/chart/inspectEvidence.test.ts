@@ -32,3 +32,15 @@ describe("Garden 19 §28 — one evidence class per selected object", () => {
     expect(inspectEvidence({ kind: "SLICE", found: false, estimated: false, asOfSec: null, source: null }, "DELAYED").klass).toBe("SILENT");
   });
 });
+
+describe("BAR evidence names the provider's bar-level sides when they are the reading (2026-10-07)", () => {
+  it("never says 'delta and imbalance stay unread' while a bar-level delta is shown", () => {
+    const ev = inspectEvidence({ kind: "BAR", barRead: true, signedTapeReaches: false, barSidesRead: true, asOfMs: 1, source: "tastytrade" });
+    expect(ev.klass).toBe("PARTIAL");
+    expect(ev.why).toContain("bar-level bid / ask volume");
+    expect(ev.why).not.toContain("stay unread");
+  });
+  it("without sides or tape, OHLCV only is still the sentence", () => {
+    expect(inspectEvidence({ kind: "BAR", barRead: true, signedTapeReaches: false, asOfMs: 1, source: "x" }).why).toContain("stay unread");
+  });
+});

@@ -188,7 +188,7 @@ export function MarketMetricsCard({ symbol }: { readonly symbol: string }) {
       style={{ background: "#141824", border: "1px solid #1E2030", borderRadius: 8, padding: 16, marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#E2E8F0" }}>Market metrics — {q}</div>
-        <div style={{ fontSize: 10, color: "#8b8fa8" }}>tastytrade{asOf ? ` · updated ${asOf.slice(0, 16).replace("T", " ")}Z` : ""}</div>
+        <div style={{ fontSize: 10, color: "#8b8fa8" }}>tastytrade{asOf ? ` · updated ${new Date(asOf).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}` : ""}</div>
       </div>
       {failed ? (
         <p style={{ fontSize: 12, color: "#8896BE", margin: 0 }}>tastytrade did not answer for {q} — nothing is shown in its place.</p>

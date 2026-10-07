@@ -42,7 +42,7 @@ export type InspectEvidenceInput =
   | { readonly kind: "DERIVATIVES"; readonly drawn: boolean; readonly fidelity: "DELAYED" | "SNAPSHOT" | null; readonly sourceName: string; readonly asOfMs: number | null }
   | { readonly kind: "WEATHER"; readonly measured: boolean; readonly derived: boolean; readonly asOfMs: number | null; readonly source: string | null }
   | { readonly kind: "OBJECT"; readonly birthRead: boolean; readonly asOfMs: number | null; readonly source: string | null }
-  | { readonly kind: "BAR"; readonly signedTapeReaches: boolean; readonly barRead: boolean; readonly asOfMs: number | null; readonly source: string | null };
+  | { readonly kind: "BAR"; readonly signedTapeReaches: boolean; readonly barRead: boolean; readonly asOfMs: number | null; readonly source: string | null; /** The provider's own bar-level bid/ask volume was read (tastytrade candle sides). */ readonly barSidesRead?: boolean };
 
 /** Feed states that cap the class at DEGRADED (the measurement is not about NOW). */
 const CAPPING: ReadonlySet<MarketQualityState> = new Set(["DELAYED", "STALE", "REPLAY", "PROXY", "UNAVAILABLE"]);
@@ -83,9 +83,13 @@ function base(i: InspectEvidenceInput): Omit<InspectEvidence, "feedNote"> {
         : { klass: "PARTIAL", why: "Built from the chart's bars, but its birth bar has no admitted identity — lineage is incomplete.", source: i.source, asOfMs: i.asOfMs };
     case "BAR":
       if (!i.barRead) return { klass: "SILENT", why: "No bar under the cursor to read.", source: i.source, asOfMs: i.asOfMs };
-      return i.signedTapeReaches
-        ? { klass: "FULL", why: "OHLCV plus signed prints inside this bar.", source: i.source, asOfMs: i.asOfMs }
-        : { klass: "PARTIAL", why: "OHLCV only — no signed prints reach this bar, so delta and imbalance stay unread.", source: i.source, asOfMs: i.asOfMs };
+      if (i.signedTapeReaches) return { klass: "FULL", why: "OHLCV plus signed prints inside this bar.", source: i.source, asOfMs: i.asOfMs };
+      // Sheriff sweep 2026-10-07 (serving ES1! 5m): the ticket said "delta and
+      // imbalance stay unread" two lines above "Delta +541 · Imbalance 1.1:1
+      // buy", read from the provider's own bar-level sides. Both were true
+      // about different evidence; the sentence now names the one in use.
+      if (i.barSidesRead) return { klass: "PARTIAL", why: "OHLCV plus the provider's bar-level bid / ask volume — delta and imbalance are read for the whole bar; no per-trade prints reach it, so there is no footprint.", source: i.source, asOfMs: i.asOfMs };
+      return { klass: "PARTIAL", why: "OHLCV only — no signed prints reach this bar, so delta and imbalance stay unread.", source: i.source, asOfMs: i.asOfMs };
   }
 }
 

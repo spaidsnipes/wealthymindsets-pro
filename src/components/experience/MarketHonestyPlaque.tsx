@@ -38,6 +38,7 @@
  * mistaken for the room's lighting.
  */
 
+import { traderClock } from "@/components/time/traderClock";
 import * as React from "react";
 
 import {
@@ -77,8 +78,8 @@ export interface MarketHonestyPlaqueProps {
   readonly formatAsOf?: (asOf: number) => string;
 }
 
-const defaultFormatAsOf = (asOf: number): string =>
-  new Date(asOf).toISOString().slice(11, 19);
+// Local time with its zone (traderClock, F2 2026-10-07); was a bare UTC clock.
+const defaultFormatAsOf = (asOf: number): string => traderClock(asOf);
 
 export function MarketHonestyPlaque({
   reading,

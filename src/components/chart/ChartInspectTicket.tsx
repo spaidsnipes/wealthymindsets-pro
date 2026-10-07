@@ -1338,7 +1338,9 @@ export function ChartInspectTicket({
       </div>
       <div className="text-[11px] font-bold tabular-nums text-white">
         {time ? `${time}` : "—"}
-        {vm.price !== null && <span className="text-wm-muted"> · {vm.price}</span>}
+        {/* At the instrument's decimals, like every other price in this ticket:
+            raw, ES 7854.00 read "7854" (sheriff sweep 2026-10-07). */}
+        {vm.price !== null && <span className="text-wm-muted"> · {priceDp != null ? vm.price.toFixed(priceDp) : String(+vm.price.toPrecision(8))}</span>}
       </div>
       {/*
         Stated, not implied. A trader who moved the cursor off the chart and got
@@ -1352,7 +1354,7 @@ export function ChartInspectTicket({
       )}
 
       {!weatherLens && !pressureWall && !pressureFront && (
-        <EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "BAR", barRead: vm.barOpenMs !== null, signedTapeReaches: vm.reach === "COVERS_BAR", asOfMs: vm.barOpenMs, source: vm.reach === "COVERS_BAR" && tapeSourceName ? `${sourceName ?? "bars"} · tape ${tapeSourceName}` : sourceName }, feed)} />
+        <EvidenceLine timeZone={timeZone} ev={inspectEvidence({ kind: "BAR", barRead: vm.barOpenMs !== null, signedTapeReaches: vm.reach === "COVERS_BAR", barSidesRead: vm.reach !== "COVERS_BAR" && vm.rows.some(r => r.id === "DELTA" && r.state === "READ"), asOfMs: vm.barOpenMs, source: vm.reach === "COVERS_BAR" && tapeSourceName ? `${sourceName ?? "bars"} · tape ${tapeSourceName}` : sourceName }, feed)} />
       )}
       <CandleReadingsBlock rows={candleReadings} />
 

@@ -2415,9 +2415,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
      (never recomputed per frame or on pointer move); the paint cost ledger. */
   const fvgHitsRef = useRef<{ objectId: string; x: number; y: number; w: number; h: number }[]>([]);
   const fvgMemoRef = useRef(createFvgCameraMemo());
-  const fvgSceneRef = useRef<{ key: string; ids: unknown; scene: FvgCameraScene | null } | null>(null);
+  const fvgSceneRef = useRef<{ key: string; ids: unknown; scene: FvgCameraScene | null; receipt: string; asOf: string } | null>(null);
+  const fvgComputeRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const fvgPublishedRef = useRef<FvgCameraScene | null | undefined>(undefined);
   const fvgCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
+  const fvgCoarsePointer = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches;
   const onFvgSceneRef = useRef(onFvgScene);
   onFvgSceneRef.current = onFvgScene;
   /** H-201 · the ghost painted this frame (its candle columns and caption), for a ghost click. */
@@ -7714,6 +7716,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
          FVG-GLASS-BEGIN */
       try {
         const t0F = performance.now();
+        let computedFvgThisFrame = false;
         const dsF = canvas.dataset;
         if (!fvgOn) {
           if (dsF.fvg !== "OFF") {
@@ -7734,6 +7737,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const keyF = `${symbol}|${timeframe}|${extendedHours}|${srcF.length}|${srcF[0]?.time}|${srcF[srcF.length - 1]?.time}|${idsF.length}|${cursorF}|${clockBucket}`;
           let entry = fvgSceneRef.current;
           if (!entry || entry.key !== keyF || entry.ids !== idsF) {
+            computedFvgThisFrame = true;
             const scene = newestId && srcF.length >= 3
               ? fvgSceneForCamera({
                   candles: srcF,
@@ -7746,8 +7750,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   tickBars: tickTf,
                 }, fvgMemoRef.current)
               : null;
-            entry = fvgSceneRef.current = { key: keyF, ids: idsF, scene };
+            // Receipts that walk the ledger are written once per scene, not per frame.
+            let receipt = "", asOfR = "";
+            if (scene) {
+              receipt = fvgReceipt(scene.visibility);
+              // FUTURE-LEAK receipt (§51): nothing created or revealed after the camera's clock.
+              const clockF = scene.clockMs ?? Number.NEGATIVE_INFINITY;
+              let leaks = 0;
+              for (const o of scene.ledger.objects) { if (o.createdAt > clockF) leaks++; for (const e of o.events) if (e.knownAt > clockF) leaks++; }
+              asOfR = `${scene.mode}:${scene.clockMs ?? "NONE"}|BARS:${scene.ledger.barCount}|LEAK:${leaks}`;
+            }
+            entry = fvgSceneRef.current = { key: keyF, ids: idsF, scene, receipt, asOf: asOfR };
             dsF.fvgStep = fvgMemoRef.current.lastStep;
+            const cms = performance.now() - t0F;
+            const cc = fvgComputeRef.current;
+            cc.n++; cc.sum += cms; cc.longest = Math.max(cc.longest, cms);
+            dsF.fvgCompute = `${cms.toFixed(2)}ms|mean${(cc.sum / cc.n).toFixed(2)}|longest${cc.longest.toFixed(2)}|runs${cc.n}|PER_CLOSED_BAR`;
           }
           const scene = entry.scene;
           if (fvgPublishedRef.current !== scene) { fvgPublishedRef.current = scene; const cb = onFvgSceneRef.current; setTimeout(() => cb?.(scene), 0); }
@@ -7756,12 +7774,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             delete dsF.fvgHit;
           } else {
             const led = scene.ledger, vis = scene.visibility;
-            dsF.fvg = fvgReceipt(vis);
-            // FUTURE-LEAK receipt (§51): nothing created or revealed after the camera's clock.
-            const clockF = scene.clockMs ?? Number.NEGATIVE_INFINITY;
-            let leaks = 0;
-            for (const o of led.objects) { if (o.createdAt > clockF) leaks++; for (const e of o.events) if (e.knownAt > clockF) leaks++; }
-            dsF.fvgAsOf = `${scene.mode}:${scene.clockMs ?? "NONE"}|BARS:${led.barCount}|LEAK:${leaks}`;
+            if (dsF.fvg !== entry.receipt) dsF.fvg = entry.receipt;
+            if (dsF.fvgAsOf !== entry.asOf) dsF.fvgAsOf = entry.asOf;
             const tsF = chart.timeScale();
             let axisF = 0;
             try { axisF = Math.max(0, Number(chart.priceScale("right").width()) || 0); } catch { /* keep 0 */ }
@@ -7775,7 +7789,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               .map(y => (y == null ? null : +y));
             const strips = fvgKeepOutStrips(lineYs, 3);
             const selIdF = selectedObjectIdRef.current;
-            const minHit = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches ? 24 : 10;
+            const minHit = fvgCoarsePointer ? 24 : 10;
             const cam = {
               timeToX: (sec: number) => { const x = tsF.timeToCoordinate(sec as never); return x == null ? null : +x; },
               priceToY: (p: number) => { const y = srs.priceToCoordinate(p); return y == null ? null : +y; },
@@ -7803,12 +7817,35 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // §15 CLEAR ZONE + LINE KEEP-OUT: the plot left of the newest
               // candle's slot, minus a strip round the last price and every
               // position / order / broker line (merged — even-odd never re-opens one).
+              // …and above the volume well (the vol overlay's own scale margin):
+              // territory is price's; it never lies across the volume bars.
+              let floorF = H;
+              try {
+                const ps = (chart as any).paneSize?.(0);
+                const paneH = ps && Number.isFinite(ps.height) && ps.height > 0 ? ps.height : H;
+                const vt = Number((chart.priceScale("vol").options() as { scaleMargins?: { top?: number } }).scaleMargins?.top);
+                floorF = paneH * (Number.isFinite(vt) && vt > 0 && vt < 1 ? vt : 0.78);
+              } catch { /* no volume scale: the pane */ }
               const clipF = new Path2D();
-              clipF.rect(0, 0, xStop, H);
-              for (const s of strips) clipF.rect(0, s.y0, xStop, s.y1 - s.y0);
+              clipF.rect(0, 0, xStop, floorF);
+              for (const s of strips) if (s.y0 < floorF) clipF.rect(0, s.y0, xStop, Math.min(s.y1, floorF) - s.y0);
               ctx.clip(clipF, "evenodd");
-              // Behind the market: every candle body and wick is cut out.
-              ctx.clip(profileCandleCut().path, "evenodd");
+              // Behind the market: every candle body and wick crossing a band is
+              // cut out (only the bands' own rows — the full-plot cut cost ~1 ms).
+              {
+                let yLo = Infinity, yHi = -Infinity, xLo = Infinity, xHi = -Infinity;
+                for (const b of bands) { yLo = Math.min(yLo, b.g.yTop - 8); yHi = Math.max(yHi, b.g.yBottom + 8); xLo = Math.min(xLo, b.g.x0); xHi = Math.max(xHi, b.g.x1); }
+                const vrF = tsF.getVisibleLogicalRange();
+                const cutF = new Path2D();
+                cutF.rect(0, 0, W, H);
+                for (const r of candleCutOutRects(camF, {
+                  visible: vrF ? { from: +vrF.from, to: +vrF.to } : null,
+                  barSpacing: bsp,
+                  timeToX: t => { const xk = tsF.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+                  priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
+                }, xLo, xHi)) if (r.y < yHi && r.y + r.h > yLo) cutF.rect(r.x, r.y, r.w, r.h);
+                ctx.clip(cutF, "evenodd");
+              }
               // BATCHED: one path per (ink, rung, age step) group.
               const groups = new Map<string, Path2D>();
               const grp = (k: string) => { let p = groups.get(k); if (!p) { p = new Path2D(); groups.set(k, p); } return p; };
@@ -7854,7 +7891,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const cx = g.x0 + 5, cy = g.nearY + out * 4;
                   tk.moveTo(cx - 3, cy - out * 3); tk.lineTo(cx, cy); tk.lineTo(cx + 3, cy - out * 3);
                 }
-                fvgHitsRef.current.push({ objectId: g.objectId, ...g.hit });
+                // Tap target only where the band shows (above the volume well).
+                if (g.hit.y < floorF) fvgHitsRef.current.push({ objectId: g.objectId, ...g.hit, h: Math.min(g.hit.h, floorF - g.hit.y) });
               }
               for (const [k, p] of groups) {
                 const [kind, ink, alpha, lw] = k.split("|");
@@ -7884,7 +7922,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             dsF.fvgSelected = so ? `${so.objectId}|${so.state}` : "NONE";
           }
         }
-        if (fvgOn) {
+        if (fvgOn && !computedFvgThisFrame) {
+          // PAINT cost per frame (the per-closed-bar scene compute is fvgCompute).
           const msF = performance.now() - t0F;
           const cr = fvgCostRef.current;
           cr.n++; cr.sum += msF; cr.longest = Math.max(cr.longest, msF);

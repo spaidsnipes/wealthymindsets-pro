@@ -1,5 +1,6 @@
 "use client";
 
+import { traderClock } from "@/components/time/traderClock";
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -995,7 +996,7 @@ function ManagedConnectionStatus({
                 style={{ borderColor: "rgba(139, 146, 172, 0.35)", background: "rgba(139, 146, 172, 0.05)" }}
               >
                 <div className="text-[9px] font-black uppercase tracking-wider text-wm-text-muted">
-                  Webull link · keeper{receipt.sessionKeeper ? ` · ${new Date(receipt.sessionKeeper.atMs).toISOString().slice(11, 16)} UTC` : ""}
+                  Webull link · keeper{receipt.sessionKeeper ? ` · ${traderClock(receipt.sessionKeeper.atMs, { seconds: false })}` : ""}
                 </div>
                 {broker.id === "webull" && receipt.sessionKeeper?.authMode !== "TOKENLESS" && !connected && (
                   <WebullSendCodeButton onSent={() => { window.setTimeout(() => { void check(); }, 1500); }} />
