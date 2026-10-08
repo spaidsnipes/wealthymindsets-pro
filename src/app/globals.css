@@ -220,13 +220,15 @@
 @media (max-width: 479px) {
   .wm-chart-market-standing {
     left: 36px;
-    right: 8px;
+    /* Clear of the price axis column (serving 390, b40b6113: "BALANCE" ran onto
+       the axis labels at right: 8px). It wraps to a second line instead. */
+    right: 72px;
     transform: none;
     flex-wrap: wrap;
     row-gap: 2px;
     white-space: normal;
     width: auto;
-    max-width: calc(100% - 44px);
+    max-width: calc(100% - 108px);
   }
 }
 .wm-chart-market-standing [data-standing-direction="BULL"] { color: #00d4aa; }
