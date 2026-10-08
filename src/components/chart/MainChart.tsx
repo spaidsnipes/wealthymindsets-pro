@@ -190,6 +190,10 @@ const DELTA_LEVELS_ALPHA_FLOOR = 0.8;
 const KEEL_ATR_WAIT_FRAMES = 2;
 /** Session Bands' empty lane rail ink: legible, never mistaken for the 0.42 session strip. */
 const SESSION_RAIL_INK = 0.26;
+/** The live countdown pill's height (the candle timer); FVG territory cuts round it. */
+const COUNTDOWN_BOX_H = 19;
+/** Air between FVG territory and the countdown pill (ASK-9). */
+const FVG_PILL_AIR = 6;
 /** Delta Divergence pivot marks never paint below this. */
 const DIVERGENCE_ALPHA_FLOOR = 0.8;
 /** Imbalance Stack band, edges and slabs never paint below this. */
@@ -3280,6 +3284,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // Both are now written from the owner's verdict, so the on-canvas pill and
   // the header strip cannot say different things about the same bar.
   const countdownRef  = useRef("—");
+  /** The countdown pill's painted width (+ pad), for layers that cut round it (FVG, ASK-9). */
+  const countdownPillWRef = useRef(96);
   const closeFlashRef  = useRef(false);
   const progressRef    = useRef(0); // 0→1 fraction of current candle elapsed
   const candleTimerRef = useRef(true); // live-readable copy of chartSettings.candleTimer
@@ -8327,7 +8333,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const pillCut = new Path2D();
               pillCut.rect(0, 0, W, H);
               const yPill = lineYs[0];
-              if (yPill != null) pillCut.rect(0, yPill - 13, 96, 26);
+              // ASK-9 (Sheriff re-run 69fb204, 390: a sell band's left end sat
+              // against the countdown, the two read as one red pill). The cut is
+              // the countdown's OWN rect — its clamped row and measured width —
+              // plus FVG_PILL_AIR on every side: price chrome is sovereign.
+              if (yPill != null) {
+                const cyP = Math.max(READING_ANCHOR_ROW_BOTTOM + 2 + COUNTDOWN_BOX_H / 2, Math.min(H - COUNTDOWN_BOX_H / 2 - 1, yPill));
+                // The countdown's measured width is published by its own block (last frame's).
+                const wP = Math.max(96, countdownPillWRef.current + FVG_PILL_AIR);
+                pillCut.rect(0, cyP - COUNTDOWN_BOX_H / 2 - 2 - FVG_PILL_AIR, wP, COUNTDOWN_BOX_H + 4 + 2 * FVG_PILL_AIR);
+              }
               // Behind the market: every candle body and wick crossing a band is
               // cut out (only the bands' own x-span and rows).
               const cutF = new Path2D();
@@ -12989,7 +13004,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.save();
           ctx.font = "bold 12px monospace";
           const tw    = ctx.measureText(txt).width;
-          const boxH  = 19;
+          const boxH  = COUNTDOWN_BOX_H;
           const boxW  = Math.round(tw + 30);
           const x     = 2;
           // Price above the camera pinned the countdown to the pane's top edge,
@@ -13000,6 +13015,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // Phone pass 2026-10-06 (844x390, 834x1112): "POC 86249.00" slid onto
           // the countdown at the left edge. The box (and its pad) is chrome now.
           candleTimerRect = { x: x - 2, y: boxY - 2, w: boxW + 4, h: boxH + 4 };
+          countdownPillWRef.current = boxW + 4;
           const border = flash ? "#FF2E63" : (neon ? "#00FFA3" : "#2F80ED");
           // FL-06: desktop is one continuous price instrument. The countdown
           // keeps its real price coordinate, ring/progress, live-close flash,
@@ -19996,9 +20012,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const alternates = opts.leftX != null
             ? [...slots.alternates, ...[40, 80, 120].flatMap(dx => [slots.preferred, ...slots.alternates].map(s => ({ ...s, x: s.x + dx })))]
             : slots.alternates;
+          // ASK-8 (Sheriff re-run 69fb204, 390: Living VAH / POC / VAL chips over
+          // the newest candles): the newest candles' COLUMN (bodies + wicks of
+          // the newest 3, ±½ slot, 6px air — Sheriff A1) is no place for a name.
           let spotL = placeClearOfKeepOut(
             slots.preferred,
-            [...keepOut(), ...profileCandlesAt(slots.top, slots.bottom)],
+            [...keepOut(), ...newestColumnRects(), ...profileCandlesAt(slots.top, slots.bottom)],
             { minX: Math.max(keepOutMinX(), opts.minX ?? 4), blockers: floatingChips, strict: true, alternates },
           );
           // PRICE SOVEREIGNTY (G9, 2026-09-29). A column-anchored chip (TPO)
@@ -20013,7 +20032,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const s2 = levelChipSlots({ y: yy, w: cw, rightX: stackRight, floorY, footY: pane0Bottom - 2 });
             const spotR = placeClearOfKeepOut(
               s2.preferred,
-              [...keepOut(), ...profileCandlesAt(s2.top, s2.bottom)],
+              [...keepOut(), ...newestColumnRects(), ...profileCandlesAt(s2.top, s2.bottom)],
               { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: s2.alternates },
             );
             if (!spotR.onCandles) { spotL = spotR; movedToStack = true; levelChipsToStack++; }

@@ -927,7 +927,12 @@ The class / grammar / opacity fields do not apply to these. The one canonical fi
 - **Gap 1 — closed in code.** Census rows: `F10.SESSION_BANDS`, `G19.EFFORT_FIELD`, `G19.WISDOM`, `F15.BREATH_RIBBON`, `G19.FVG`. `AB.MATRIX` / `G19.BAR_DELTA` are now BUILT and `G19.RVOL` is re-pointed. The test walks `INSTRUMENT_EDUCATION` + `CONCEPT_EDUCATION`.
 - **Gap 7 — closed in code.** Seven ⓘ concept records.
 - **Gap 2 — closed in code.** `manifestation` / `ink` / `narrow` / `layer` on `CensusEntry` for 49 inventions. Narrow is derived from the permission table, with a test.
-- **Gap 4 — begun.** §12 holds 19 certificates: 10 PROVED, 9 PARTIAL.
+- **Gap 4 — complete (02:27 CDT).** §12 holds 19 certificates and §12b holds 23 more. With C-01…C-15 and §5, all 49 built candle-field inventions are certified (18 PROVED, 24 PARTIAL in §12 / §12b, each naming its missing proof).
+- **Gap 3 — nearly closed by the chart lane's uncommitted worktree edits** (checked 02:28 CDT against the worktree's `LAYER_ATTENTION`). Only 3 built field inventions still have no attention tier:
+  - F05A Clarity Candle — the candles are price itself, which sits above the governor by design ("price (outside the governor) > LIVE 1 > …", opacity receipt f96618c).
+  - F06.BIDASK_PROFILE and P110.8 Fixed / Anchored Range — trader-drawn tools with no permission row.
+
+  All three are intended exceptions, not gaps — **if** the chart-lane edits to `selectAttentionGovernor.ts` / `selectSemanticPermission.ts` ship.
 
 ### 11c. Top gaps — the lanes' work list (ranked: built and on the glass first, then cost)
 
@@ -1014,7 +1019,7 @@ Status is PROVED only with a serving read; PARTIAL names the missing proof.
 | **RECEIPTS** | `structureProfile`, `structureProfileForm`, `structureProfileRows`, `structureProfileLegBars`, `structureProfileSilence` |
 | **CANON** | P-110 #2 Structure Profile (market-anchored) |
 | **SERVING PROOF** | §1f: DRAWN · RULE_SHORT_LEG on all four symbols, rows 0. Garden 18 receipt: `DRAWN`, form RULE_SHORT_LEG (named short-leg form). Erasure: SILENT — the silence reason is a word in a chip |
-| **STATUS** | **PARTIAL** — missing: No serving read with histogram ROWS (a leg long enough to profile); the silence reason is words-only |
+| **STATUS** | **PARTIAL** — missing: No serving read with histogram ROWS (a leg long enough to profile); the silence reason is words-only · now **PARTIAL** — **UPDATE 02:29 CDT (serving `69fb204`, own tab, read-only):** NQ1! 1h, SPY 1D and BTC-USD 15m all read `structureProfileForm=RULE_SHORT_LEG`, rows 0 (legs of 6 / 12 / 9 bars). **Finding for the chart lane:** the histogram needs ≥ 21 bars since the anchor (`STRUCTURE_MIN_READABLE_BARS`), but the anchor is the NEWEST confirmed swing, which is rarely 21 bars old — so the histogram form is almost never reachable on serving. The rule form and its named silence work as designed |
 
 ### P110.3 Profile Fusion
 | Field | Certificate |
@@ -1371,5 +1376,495 @@ Status is PROVED only with a serving read; PARTIAL names the missing proof.
 | **RECEIPTS** | `memoryGhost`, `memoryGhostForm`, `memoryGhostCaption` |
 | **CANON** | F03 Memory Ghost · H-201 (no second past, no lookahead) |
 | **SERVING PROOF** | Erasure: SILENT (`NO_ANALOGUE`) — correct silence, nothing drawn |
-| **STATUS** | **PARTIAL** — missing: A drawn ghost has never been read on serving; the ≤ 0.18 opacity target is unverified |
+| **STATUS** | **PARTIAL** — missing: A drawn ghost has never been read on serving; the ≤ 0.18 opacity target is unverified · now **PARTIAL** — **UPDATE 02:29 CDT (serving `69fb204`, own tab, read-only):** NQ1! 5m `on=MemoryGhost` → `memoryGhost=DRAWN:0.98` (match score), `memoryGhostForm=DASHED:20`, caption SLID, attention tier `memoryGhost:MEMORY:0.44`. The ghost now draws on serving. Still missing: its own stroke alpha against the ≤ 0.18 plate target — the receipt names the tier, not the stroke alpha |
+
+
+### 12b. §28 CERTIFICATES (continued) — the remaining built candle-field inventions (2026-10-08, night shift)
+
+Written 02:25–02:27 CDT (`date`). Same method and sources as §12.
+
+Together with C-01 … C-15 and §5 (FVG), every built candle-field invention in the census now has a §28 certificate. Of these 23: 8 PROVED, 15 PARTIAL.
+
+### F05A Clarity Candle (default language)
+| Field | Certificate |
+|---|---|
+| **NAME** | Clarity Candle (default language) · census `F05A` · owner `src/lib/chart/clarityCandle.ts` · plate WM_NewMockup_72_F05A_Clarity_Default_Language |
+| **MARKET QUESTION** | How much of each candle was decision and how much was indecision? |
+| **EVIDENCE** | The bars' open, high, low and close. (needs PRICE) |
+| **TRUTH CLASS** | FULL: Built from the loaded bars — nothing more is needed. · PARTIAL: Too few bars loaded or in view — it draws what the bars support and says what is short. |
+| **MANIFESTATION** | CONTINUOUS |
+| **PHYSICAL GRAMMAR** | Re-inked candles: the real high and low kept, body strength drawn by body efficiency, dominant wick named, open gaps marked. |
+| **STATE GRAMMAR** | Solid body = most of the range was decision. Hollow = indecision. A long named wick shows where one side was rejected. Clarity never rewrites the real OHLC. |
+| **COLOR** | `CANDLE` |
+| **OPACITY** | no attention tier (not governed — §11c gap 3) |
+| **DEPTH** | FAR / MID / NEAR = QUIET / SPEAK / SPEAK |
+| **NARROW** | KEEP — in NARROW_GLASS_KEEPS_WORDS — it keeps its words below 600px |
+| **ⓘ / FIRST TOUCH** | Clarity candle — solid is decision, hollow is indecision; real OHLC unchanged. |
+| **DEGRADED** | No bars — nothing to read yet. |
+| **RECEIPTS** | `clarityCandle`, `clarityNotable`, `clarityCallout`, `clarityOnPrice` |
+| **CANON** | F05 Clarity · WM_NewMockup_72 |
+| **SERVING PROOF** | §1f: DRAWN on every bar on all four symbols (NQ 180, SPY 114 + 46 gaps, EURUSD 152, BTC 152). Erasure second pass: `clarityNotable=5`, `clarityCallout=PINNED` |
+| **STATUS** | **PARTIAL** — missing: Erasure PARTIAL — what makes a bar notable lives in the callout's words |
+
+### F06.VALUE_CANDLE Value Candle
+| Field | Certificate |
+|---|---|
+| **NAME** | Value Candle · census `F06.VALUE_CANDLE` · owner `src/lib/marketData/viewModels/selectValueCandle.ts` · plate — (none) |
+| **MARKET QUESTION** | Where inside each window did volume actually concentrate? |
+| **EVIDENCE** | Prints inside the window, binned by price. (needs SIDED_TAPE) |
+| **TRUTH CLASS** | FULL: Every print carries a stated aggressor side — the marks are measured, not estimated. · PARTIAL: Sides are inferred (quote test or tick rule) — the read is labelled inferred and only covers bars since the tape arrived. |
+| **MANIFESTATION** | CONTINUOUS |
+| **PHYSICAL GRAMMAR** | On the candle: a centre of gravity with its value high and low. |
+| **STATE GRAMMAR** | A centre of gravity near the close means the move was accepted; near the far wick means most business happened at prices the bar left behind. |
+| **COLOR** | `BONE`, `BRASS` |
+| **OPACITY** | LIVE (ceiling 1), depth MICRO, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Value candle — where this window's volume concentrated. |
+| **DEGRADED** | No sided tape — it stays silent rather than guess sides from candle colour. |
+| **RECEIPTS** | `valueCandle`, `valueCandleForm`, `valueCandleCog`, `valueCandleRungs` |
+| **CANON** | Clarity / auction language |
+| **SERVING PROOF** | §1f: DRAWN (GLASS_PER_BAR:5) on NQ, DRAWN on BTC, UNMEASURED without sides. Erasure second pass: `valueCandleForm=GLASS_PER_BAR:13` |
+| **STATUS** | **PARTIAL** — missing: Erasure PARTIAL (salience): faint glass behind the newest bars |
+
+### F06A.FLOW Flow Current (order flow on price)
+| Field | Certificate |
+|---|---|
+| **NAME** | Flow Current (order flow on price) · census `F06A.FLOW` · owner `src/components/chart/MainChart.tsx` · plate WM_NewMockup_74_F06A_OrderFlow_On_Price |
+| **MARKET QUESTION** | Who is pressing on each bar? |
+| **EVIDENCE** | Sided prints inside each bar. (needs SIDED_TAPE) |
+| **TRUTH CLASS** | FULL: Every print carries a stated aggressor side — the marks are measured, not estimated. · PARTIAL: Sides are inferred (quote test or tick rule) — the read is labelled inferred and only covers bars since the tape arrived. |
+| **MANIFESTATION** | CONTINUOUS |
+| **PHYSICAL GRAMMAR** | A small current on each bar with tape — up for net buying, down for net selling. |
+| **STATE GRAMMAR** | Length is how one-sided the bar was. Long currents against the candle's direction are a warning: price moved one way while aggression pushed the other. |
+| **COLOR** | `TRADE_SIDE` |
+| **OPACITY** | LIVE (ceiling 1), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = QUIET / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Flow current — net aggression on this bar, up for buying, down for selling. |
+| **DEGRADED** | No sided tape — it stays silent rather than guess sides from candle colour. |
+| **RECEIPTS** | `flowCurrent`, `flowCurrentCoverage` |
+| **CANON** | F06A Order flow lives on price |
+| **SERVING PROOF** | §1f: `BARS:180\|SHOWN:7` (NQ), 49/13 (SPY), 33/12 (BTC); NO_SIDED_TAPE on EURUSD. Erasure: phone FAIL (unattributable), second pass PARTIAL (attribution) |
+| **STATUS** | **PARTIAL** — missing: A drawn mark cannot be tied to its receipt by eye (erasure attribution); the lean floor silences most bars (§1f) |
+
+### F09.MIGRATION Value Migration (Living's auction movie)
+| Field | Certificate |
+|---|---|
+| **NAME** | Value Migration (Living's auction movie) · census `F09.MIGRATION` · owner `src/lib/marketData/viewModels/selectValueMigration.ts` · plate — (none) |
+| **MARKET QUESTION** | Where did value stand after every bar — and which way is it moving? |
+| **EVIDENCE** | Traded volume, rebuilt bar by bar. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Volume is allocated to price from real per-trade prints. · PARTIAL: Volume is spread across each bar's range from the bars' own totals — the shape is honest, single rows are approximate. |
+| **MANIFESTATION** | CONTINUOUS |
+| **PHYSICAL GRAMMAR** | Developing POC, VAH and VAL drawn across the candles. |
+| **STATE GRAMMAR** | Rising POC = value moving up with price (accepted). Price rising while POC stays flat = the move is not yet accepted. |
+| **COLOR** | `PROFILE_ROLES` |
+| **OPACITY** | MEMORY (ceiling 0.5), depth MID, light TREND |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SILENT |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Value migration — where value stood as each bar closed. |
+| **DEGRADED** | No traded volume (spot FX, spot metals) or none loaded — it does not draw rather than invent a histogram. |
+| **RECEIPTS** | `valueMigration`, `valueMigrationPoints`, `valueMigrationSessions`, `valueMigrationLabel` |
+| **CANON** | Living Profile's auction movie |
+| **SERVING PROOF** | §1f: DRAWN 4942 points (NQ), 4772 (SPY), DRAWN (BTC); NO_VOLUME on EURUSD — "A — passes, history across the field". Erasure second pass: `Points=346`, `Sessions=2`, dotted VA trails + session boxes PASS |
+| **STATUS** | **PROVED** |
+
+### F10.SESSION_BANDS Session Bands (Asia · London · New York, overlap marked)
+| Field | Certificate |
+|---|---|
+| **NAME** | Session Bands (Asia · London · New York, overlap marked) · census `F10.SESSION_BANDS` · owner `src/lib/chart/sessionBands.ts` · plate — (none) |
+| **MARKET QUESTION** | Which of the world's sessions is open right now? |
+| **EVIDENCE** | The clock alone — no volume needed. (needs PRICE) |
+| **TRUTH CLASS** | FULL: Always full — a clock fact. · PARTIAL: Not applicable — a clock fact. |
+| **MANIFESTATION** | CONTINUOUS |
+| **PHYSICAL GRAMMAR** | Asia, London and New York business hours on the time axis, the London/New York overlap marked. |
+| **STATE GRAMMAR** | Moves often start at a session open and the overlap is usually the most active stretch. |
+| **COLOR** | `SESSION_INKS` |
+| **OPACITY** | SUPPORTING (ceiling 0.85), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = QUIET / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Session band — the trading session these bars belong to. |
+| **DEGRADED** | Not applicable — a clock fact. |
+| **RECEIPTS** | `sessionBands`, `sessionBandRails`, `sessionBandsNow`, `sessionBandsCost` |
+| **CANON** | F10 One clock |
+| **SERVING PROOF** | §1f: DRAWN on all four (A1\|N1, A1\|L1\|N1\|O1). Erasure: E8 FAIL (one session in view, no contrast) → second pass `sessionBandRails=3`, PARTIAL (salience) |
+| **STATUS** | **PARTIAL** — missing: Rails ~1 px at the axis foot — readable only when zoomed (erasure) |
+
+### H-901 Regime State Lighting
+| Field | Certificate |
+|---|---|
+| **NAME** | Regime State Lighting · census `H-901` · owner `src/lib/marketData/viewModels/selectRegimeLighting.ts` · plate WM_NewMockup_92_F15A_Regime_State_Lighting |
+| **MARKET QUESTION** | Is this market trending or balancing — and which tools should I trust? |
+| **EVIDENCE** | Closes of the bars in view. (needs PRICE) |
+| **TRUTH CLASS** | FULL: Built from the loaded bars — nothing more is needed. · PARTIAL: Too few bars loaded or in view — it draws what the bars support and says what is short. |
+| **MANIFESTATION** | CONTINUOUS |
+| **PHYSICAL GRAMMAR** | Lights the fitting fixtures: a trend channel in trend, mean/σ magnets in balance. |
+| **STATE GRAMMAR** | It is a dimmer, not a room — it changes which geometry speaks. In balance, trust the magnets; in trend, trust the channel. |
+| **COLOR** | `REGIME_FIELD`, `BRASS` |
+| **OPACITY** | SUPPORTING (ceiling 0.85), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SPEAK / QUIET / QUIET |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Regime lighting — the regime decides which fixtures are lit. |
+| **DEGRADED** | No bars — nothing to read yet. |
+| **RECEIPTS** | `regimeLighting`, `regimeLightingField`, `regimeLightingChannel`, `regimeLightingFixtures` |
+| **CANON** | F15 Regime · H-901 |
+| **SERVING PROOF** | §1f: RANGE · COMPRESSION · fixtures 89 (NQ, BTC); NO_BREAKER (SPY after hours, EURUSD). Erasure second pass: `regimeLighting=TREND`, hatched trend channel with rails PASS |
+| **STATUS** | **PROVED** — open item: The verdict word chip is empty with words erased; regime history is a separate invention (G19.REGIME_HISTORY, C-07) |
+
+### F06A.BIDASK Footprint · Bid × Ask
+| Field | Certificate |
+|---|---|
+| **NAME** | Footprint · Bid × Ask · census `F06A.BIDASK` · owner `src/components/chart/FootprintControls.tsx` · plate WM_NewMockup_74_F06A_OrderFlow_On_Price |
+| **MARKET QUESTION** | Inside this candle, how much traded on the bid versus the ask at each price? |
+| **EVIDENCE** | Sided prints inside each bar. (needs SIDED_TAPE) |
+| **TRUTH CLASS** | FULL: Every print carries a stated aggressor side — the marks are measured, not estimated. · PARTIAL: Sides are inferred (quote test or tick rule) — the read is labelled inferred and only covers bars since the tape arrived. |
+| **MANIFESTATION** | CONTINUOUS |
+| **PHYSICAL GRAMMAR** | Each candle split into price rows with bid and ask volume. |
+| **STATE GRAMMAR** | Read bottom to top: heavy ask volume at a bar's low (that held) is absorption; one side owning several rows is initiative. |
+| **COLOR** | `FOOTPRINT_SIDE` |
+| **OPACITY** | LIVE (ceiling 1), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / QUIET / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Footprint cell — bid vs ask volume at this price inside the bar. |
+| **DEGRADED** | No sided tape — it stays silent rather than guess sides from candle colour. |
+| **RECEIPTS** | `footprint`, `footprintForm`, `footprintBars`, `imbalanceRows` |
+| **CANON** | F06A Order flow on price |
+| **SERVING PROOF** | Footprint mode `bid-ask` — no serving read of this mode in this file |
+| **STATUS** | **PARTIAL** — missing: A serving read of the bid × ask cells on a sided market · now **PROVED** — **UPDATE 02:29 CDT (serving `69fb204`, own tab, read-only):** NQ1! 5m `scene=clean&on=fp:bid-ask` → `footprint=bid-ask`, `footprintForm=CELLS`, `footprintBars=2`, `footprintRows=4`, badges ABOVE_BARS. Only bars with sided rows draw (2 on camera). Erasure / phone read still to do |
+
+### F06A.AGGPAS Aggressive / Passive
+| Field | Certificate |
+|---|---|
+| **NAME** | Aggressive / Passive · census `F06A.AGGPAS` · owner `src/components/chart/FootprintControls.tsx` · plate — (none) |
+| **MARKET QUESTION** | Who was aggressive and who was passive here? |
+| **EVIDENCE** | Sided prints; passive roles are inferred from location. (needs SIDED_TAPE) |
+| **TRUTH CLASS** | FULL: Every print carries a stated aggressor side — the marks are measured, not estimated. · PARTIAL: Sides are inferred (quote test or tick rule) — the read is labelled inferred and only covers bars since the tape arrived. |
+| **MANIFESTATION** | CONTINUOUS |
+| **PHYSICAL GRAMMAR** | Cells marked by aggressor side, with passive side as a labelled proxy. |
+| **STATE GRAMMAR** | Aggressor side is observed; the passive role is an inference, never a resting-order observation. |
+| **COLOR** | `FOOTPRINT_SIDE` |
+| **OPACITY** | LIVE (ceiling 1), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / QUIET / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Aggressive/passive — observed aggressor, inferred passive side. |
+| **DEGRADED** | No sided tape — it stays silent rather than guess sides from candle colour. |
+| **RECEIPTS** | `footprint`, `footprintForm`, `footprintBars` |
+| **CANON** | F06 evidence ladder |
+| **SERVING PROOF** | Footprint mode `aggressive-passive` — no serving read in this file |
+| **STATUS** | **PARTIAL** — missing: A serving read of the mode, including the passive-side proxy label · now **PROVED** — **UPDATE 02:29 CDT (serving `69fb204`, own tab, read-only):** NQ1! 5m `scene=clean&on=fp:aggressive-passive` → `footprint=aggressive-passive`, `footprintForm=TRAIL`, `footprintRings=11`, `footprintBars=2`. Only bars with sided rows draw (2 on camera). Erasure / phone read still to do |
+
+### F06A.VOL Volume per candle
+| Field | Certificate |
+|---|---|
+| **NAME** | Volume per candle · census `F06A.VOL` · owner `src/components/chart/FootprintControls.tsx` · plate — (none) |
+| **MARKET QUESTION** | Where inside each candle did volume trade? |
+| **EVIDENCE** | Prints inside each bar. (needs SIDED_TAPE) |
+| **TRUTH CLASS** | FULL: Every print carries a stated aggressor side — the marks are measured, not estimated. · PARTIAL: Sides are inferred (quote test or tick rule) — the read is labelled inferred and only covers bars since the tape arrived. |
+| **MANIFESTATION** | CONTINUOUS |
+| **PHYSICAL GRAMMAR** | Small horizontal volume bars inside each candle. |
+| **STATE GRAMMAR** | The widest row is the bar's own POC — where its business was done. |
+| **COLOR** | `VP_PALETTE` |
+| **OPACITY** | LIVE (ceiling 1), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / QUIET / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Per-candle volume — where this bar did its business. |
+| **DEGRADED** | No sided tape — it stays silent rather than guess sides from candle colour. |
+| **RECEIPTS** | `footprint`, `footprintForm`, `footprintBars` |
+| **CANON** | F06A footprint |
+| **SERVING PROOF** | Footprint mode `volume-profile` — no serving read in this file |
+| **STATUS** | **PARTIAL** — missing: A serving read of the per-candle volume rows · now **PROVED** — **UPDATE 02:29 CDT (serving `69fb204`, own tab, read-only):** NQ1! 5m `scene=clean&on=fp:volume-profile` → `footprint=volume-profile`, `footprintForm=HISTOGRAM`, `footprintRows=4`, `footprintBars=2`. Only bars with sided rows draw (2 on camera). Erasure / phone read still to do |
+
+### F06A.DELTA Delta Bubbles
+| Field | Certificate |
+|---|---|
+| **NAME** | Delta Bubbles · census `F06A.DELTA` · owner `src/components/chart/FootprintControls.tsx` · plate WM_NewMockup_74_F06A_OrderFlow_On_Price |
+| **MARKET QUESTION** | Where in this bar did net buying or selling concentrate? |
+| **EVIDENCE** | Sided prints. (needs SIDED_TAPE) |
+| **TRUTH CLASS** | FULL: Every print carries a stated aggressor side — the marks are measured, not estimated. · PARTIAL: Sides are inferred (quote test or tick rule) — the read is labelled inferred and only covers bars since the tape arrived. |
+| **MANIFESTATION** | EVENT |
+| **PHYSICAL GRAMMAR** | Bubbles on the candle at the price zone, teal for net buying, purple for net selling. |
+| **STATE GRAMMAR** | Bigger bubble = more net aggression. No sided print, no bubble. |
+| **COLOR** | `FOOTPRINT_SIDE` |
+| **OPACITY** | LIVE (ceiling 1), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Delta bubble — net aggression in this price zone. |
+| **DEGRADED** | No sided tape — it stays silent rather than guess sides from candle colour. |
+| **RECEIPTS** | `deltaBubblesDrawn`, `deltaBubblesQuiet`, `deltaBubbleTop` |
+| **CANON** | H-701B Delta bubbles |
+| **SERVING PROOF** | Erasure second pass: `footprint=delta\|TRAIL`, delta bubbles readable by size + ink PASS |
+| **STATUS** | **PROVED** |
+
+### F06.STACK Stacked Imbalance
+| Field | Certificate |
+|---|---|
+| **NAME** | Stacked Imbalance · census `F06.STACK` · owner `src/lib/marketData/viewModels/selectStackedImbalance.ts` · plate — (none) |
+| **MARKET QUESTION** | Did one side keep out-trading the other for several prices in a row? |
+| **EVIDENCE** | Sided prints at each price level. (needs SIDED_TAPE) |
+| **TRUTH CLASS** | FULL: Every print carries a stated aggressor side — the marks are measured, not estimated. · PARTIAL: Sides are inferred (quote test or tick rule) — the read is labelled inferred and only covers bars since the tape arrived. |
+| **MANIFESTATION** | EVENT |
+| **PHYSICAL GRAMMAR** | A run of rungs on consecutive prices, with the stack's high and low. |
+| **STATE GRAMMAR** | Three or more rungs stacked is initiative — a zone that often acts as support (buy stack) or resistance (sell stack) when revisited. |
+| **COLOR** | `BRASS` |
+| **OPACITY** | LIVE (ceiling 1), depth MICRO, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Stacked imbalance — one side out-traded the other at consecutive prices. |
+| **DEGRADED** | No sided tape — it stays silent rather than guess sides from candle colour. |
+| **RECEIPTS** | `imbalanceStack`, `imbalanceRuns`, `imbalanceSlabs`, `imbalanceRunWords` |
+| **CANON** | F06 Stacked Imbalance |
+| **SERVING PROOF** | §1f: DRAWN (RUNS:1\|BARS:5) on NQ; NO_STACK on BTC (10 runs measured — correct silence). Erasure second pass: `imbalanceSlabs=1\|SELL:1` PASS |
+| **STATUS** | **PROVED** — open item: Weak salience (erasure) |
+
+### F06.DIV Delta Divergence
+| Field | Certificate |
+|---|---|
+| **NAME** | Delta Divergence · census `F06.DIV` · owner `src/lib/marketData/viewModels/selectDeltaDivergence.ts` · plate — (none) |
+| **MARKET QUESTION** | Did price and buying/selling pressure disagree at the last swings? |
+| **EVIDENCE** | Cumulative delta from sided prints, compared at swing pivots. (needs SIDED_TAPE) |
+| **TRUTH CLASS** | FULL: Every print carries a stated aggressor side — the marks are measured, not estimated. · PARTIAL: Sides are inferred (quote test or tick rule) — the read is labelled inferred and only covers bars since the tape arrived. |
+| **MANIFESTATION** | EVENT |
+| **PHYSICAL GRAMMAR** | The two swing pivots marked where price made a new extreme and cumulative delta did not. |
+| **STATE GRAMMAR** | Higher high in price with a lower delta high = buyers did not back the new high. The reverse at lows = sellers did not back the new low. |
+| **COLOR** | `BONE`, `BRASS` |
+| **OPACITY** | LIVE (ceiling 1), depth MICRO, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Delta divergence — price and aggression disagreed between these two swings. |
+| **DEGRADED** | No sided tape — it stays silent rather than guess sides from candle colour. |
+| **RECEIPTS** | `deltaDivergence`, `deltaDivergenceLean`, `deltaDivergenceTag` |
+| **CANON** | F06 CVD / delta relationship |
+| **SERVING PROOF** | §1f: DRAWN (lean DOWN) on NQ, DRAWN on BTC. Erasure second pass: SILENT (NO_SWING, correct silence) |
+| **STATUS** | **PROVED** — open item: No erasure read while it was drawn |
+
+### F04A Causal marks on the event (Force → Response, Unpaid Evidence Debt)
+| Field | Certificate |
+|---|---|
+| **NAME** | Causal marks on the event (Force → Response, Unpaid Evidence Debt) · census `F04A` · owner `src/lib/marketData/viewModels/selectPrintResponse.ts` · plate WM_NewMockup_70_F04A_Causal_Marks · WM_NewMockup_119_F06_Force_Response_Same_Print |
+| **MARKET QUESTION** | Did this big print actually move the market its way? |
+| **EVIDENCE** | One selected per-trade print (Big Trades on) and the closed bars after it; the yardstick is the median bar range of the bars BEFORE the print. (needs PRINTS) |
+| **TRUTH CLASS** | FULL: The print's side is stated by the venue and every response bar has closed. · PARTIAL: Response bars still forming — the verdict reads PENDING and shows what has printed so far. |
+| **MANIFESTATION** | EVENT |
+| **PHYSICAL GRAMMAR** | On the selected print only: a force mark at its time and price, then the response bars marked FOLLOWED / FADED / MUTED, with the evidence debt counting closed response bars (0/3 … 3/3). |
+| **STATE GRAMMAR** | FOLLOWED = moved at least one median range with the force, more than against it. FADED = the same against it. MUTED = neither. PENDING until the response bars have closed — a forming bar is never graded. |
+| **COLOR** | `BRASS`, `BONE` |
+| **OPACITY** | no attention tier (not governed — §11c gap 3) |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Force → response — what price did after this print, with and against it. |
+| **DEGRADED** | No per-trade prints on this market — there is no print to select, so nothing is marked. |
+| **RECEIPTS** | `printResponse` |
+| **CANON** | F04A Causal marks · H-701 Force → Response (the print-response owner) |
+| **SERVING PROOF** | Census glass note 2026-10-01 (MNQ 1m): FORCE (AGGRESSIVE SELL) → UNPAID EVIDENCE DEBT 0/3 … 2/3 → RESPONSE (FADED · REVERSED); Inspect OUTCOME UNKNOWN until the response bars closed |
+| **STATUS** | **PROVED** — open item: Not re-read in Garden 19 |
+
+### F08A Liquidity Lifecycle
+| Field | Certificate |
+|---|---|
+| **NAME** | Liquidity Lifecycle · census `F08A` · owner `src/lib/marketData/viewModels/selectLiquidityLifecycle.ts` · plate WM_NewMockup_78_F08A_Liquidity_Lifecycle |
+| **MARKET QUESTION** | Where did volume pool — and what happened to each pool since? |
+| **EVIDENCE** | Traded volume at price over time. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Built from prints at price. · PARTIAL: Built from bar volume — stages coarser, labelled. No resting-book depth is claimed. |
+| **MANIFESTATION** | EVENT |
+| **PHYSICAL GRAMMAR** | Pool bands at price with stage markers: appeared, grew, persisted, touched, refilled, consumed. |
+| **STATE GRAMMAR** | A pool that refills after a touch is being defended; a consumed pool is gone. It never claims spoofing from volume alone. |
+| **COLOR** | `BRASS` |
+| **OPACITY** | SUPPORTING (ceiling 0.85), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / QUIET |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Liquidity pool — where volume collected, and its life since. |
+| **DEGRADED** | No traded volume — no pools. |
+| **RECEIPTS** | `liquidityLifecycle`, `liquidityLifecycleBasis`, `liquidityLifecyclePainted`, `liquidityLifecycleBirths` |
+| **CANON** | F08 Liquidity Lifecycle |
+| **SERVING PROOF** | §1f: CANDLE_ESTIMATED (NQ, SPY), pull refused without depth; APPEARED ×3 (BTC); NO_VOLUME on EURUSD. Erasure second pass: `APPEARED,APPEARED`, `Painted=2/2` |
+| **STATUS** | **PARTIAL** — missing: Erasure PARTIAL (salience / state): two tiny marks at the newest bar; full pull / refill needs depth (Map §8) |
+
+### F06.ANATOMY Anatomy Cards (absorption / exhaustion metrics)
+| Field | Certificate |
+|---|---|
+| **NAME** | Anatomy Cards (absorption / exhaustion metrics) · census `F06.ANATOMY` · owner `src/lib/marketData/viewModels/selectAnatomyCards.ts` · plate WM_Transformation_UI_19_Absorption_Anatomy_Alternate |
+| **MARKET QUESTION** | What exactly measured the latest absorption and exhaustion? |
+| **EVIDENCE** | The absorption and exhaustion readings. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Both readings measured from real volume and prints. · PARTIAL: Bar volume only — candidate metrics, labelled. |
+| **MANIFESTATION** | EVENT |
+| **PHYSICAL GRAMMAR** | Key metrics side by side, each tied to the candles it measured. |
+| **STATE GRAMMAR** | Compare effort and displacement for each — the card points at the bars it is about. |
+| **COLOR** | `BRASS`, `TRADE_SIDE` |
+| **OPACITY** | SUPPORTING (ceiling 0.85), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Anatomy card — the metrics behind this event. |
+| **DEGRADED** | No traded volume — no cards. |
+| **RECEIPTS** | `anatomyCards`, `anatomySelected`, `anatomyCardsLayout` |
+| **CANON** | F06 · H-701A (market anatomy, never bodies) |
+| **SERVING PROOF** | Erasure second pass: SILENT (`AT_REST`) — painted only for a selection |
+| **STATUS** | **PARTIAL** — missing: A serving read with an absorption / exhaustion selected and its card drawn |
+
+### G19.WISDOM Cross-candle wisdom line
+| Field | Certificate |
+|---|---|
+| **NAME** | Cross-candle wisdom line · census `G19.WISDOM` · owner `src/lib/chart/crossCandleWisdom.ts` · plate — (none) |
+| **MARKET QUESTION** | Across the last candles, what is the one thing the evidence says? |
+| **EVIDENCE** | Only readings already switched on and drawn: Delta Keel, Effort → Response, Value Migration. (needs OTHER_LAYERS) |
+| **TRUTH CLASS** | FULL: Its source readings are on and drawn. · PARTIAL: Some sources are off — the line speaks only from the ones that are on. |
+| **MANIFESTATION** | EVENT |
+| **PHYSICAL GRAMMAR** | One quiet line near the top of the chart, tied by a hairline to the bar it is about. |
+| **STATE GRAMMAR** | SELL AGGRESSION FAILED TO DISPLACE, EFFORT INCREASING — RESPONSE WEAKENING, VALUE MIGRATING HIGHER. No line means no reading proved one. |
+| **COLOR** | `BONE` |
+| **OPACITY** | SUPPORTING (ceiling 0.85), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Wisdom line — the one sentence the drawn evidence supports. |
+| **DEGRADED** | No source reading on this market (spot FX has no volume or sides) — it stays silent. |
+| **RECEIPTS** | `crossCandleWisdom`, `crossCandleWisdomTier`, `crossCandleWisdomTrace` |
+| **CANON** | F17 Cross-candle wisdom · Garden 19 §17 |
+| **SERVING PROOF** | Erasure second pass: `SILENT:NO_EVIDENCE_OBJECT` (correct silence) |
+| **STATUS** | **PARTIAL** — missing: A serving read of a drawn wisdom line traced to its source readings |
+
+### F06.BIDASK_PROFILE Bid/Ask Split Profile (#11)
+| Field | Certificate |
+|---|---|
+| **NAME** | Bid/Ask Split Profile (#11) · census `F06.BIDASK_PROFILE` · owner `src/lib/marketData/viewModels/selectProfileMenu.ts` · plate WM_A_P110_LIVING_PROFILE_STACK |
+| **MARKET QUESTION** | At each price in a range I choose, who was the aggressor — buyers or sellers? |
+| **EVIDENCE** | Prints that state which side crossed the spread. (needs SIDED_TAPE) |
+| **TRUTH CLASS** | FULL: Every print carries a stated aggressor side — the marks are measured, not estimated. · PARTIAL: Sides are inferred (quote test or tick rule) — the read is labelled inferred and only covers bars since the tape arrived. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | A box you drag across bars; inside it, each price row splits into a buy side and a sell side. |
+| **STATE GRAMMAR** | A row leaning to one side shows who pressed at that price. Heavy selling into a row that held is absorption; one side owning a run of rows is initiative. |
+| **COLOR** | `DVP_SIDE` |
+| **OPACITY** | no attention tier (not governed — §11c gap 3) |
+| **DEPTH** | not in the permission table (a trader-drawn tool) |
+| **NARROW** | KEEP — a drawing the trader placed — it has no row in the permission table, so the narrow-glass budget does not touch it |
+| **ⓘ / FIRST TOUCH** | Bid/ask split — each row shows who was the aggressor at that price. |
+| **DEGRADED** | No sided tape — it stays silent rather than guess sides from candle colour. |
+| **RECEIPTS** | none written |
+| **CANON** | P-110 #11 Bid/Ask Split Profile · only where evidence supports side |
+| **SERVING PROOF** | A drag tool (`drawingTool === "delta-vp"`) — not URL-provable (§1f) |
+| **STATUS** | **PARTIAL** — missing: A hands-on drag receipt on a sided market |
+
+### F06.DLEVELS Delta Levels
+| Field | Certificate |
+|---|---|
+| **NAME** | Delta Levels · census `F06.DLEVELS` · owner `src/lib/marketData/viewModels/selectDeltaLevels.ts` · plate — (none) |
+| **MARKET QUESTION** | At which real prices did one side cross the spread hardest? |
+| **EVIDENCE** | Sided prints at each traded level. (needs SIDED_TAPE) |
+| **TRUTH CLASS** | FULL: Every print carries a stated aggressor side — the marks are measured, not estimated. · PARTIAL: Sides are inferred (quote test or tick rule) — the read is labelled inferred and only covers bars since the tape arrived. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | Rungs at the real traded prices, sized by net aggressor delta. |
+| **STATE GRAMMAR** | The biggest rung shows where aggression concentrated. A big buy rung that price then fell through is aggression that failed. |
+| **COLOR** | `BONE`, `BRASS` |
+| **OPACITY** | LIVE (ceiling 1), depth MICRO, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Delta level — net aggression at this real price. |
+| **DEGRADED** | No sided tape — it stays silent rather than guess sides from candle colour. |
+| **RECEIPTS** | `deltaLevels`, `deltaLevelsLane`, `deltaLevelsRungs`, `deltaLevelsCaption` |
+| **CANON** | F06 delta evidence ladder |
+| **SERVING PROOF** | §1f: DRAWN (RIGHT_EDGE lane) on NQ and BTC; NO_MEASURED_GRID on SPY / EURUSD. Erasure second pass: `Lane=LEFT_EDGE`, `Rungs=7` |
+| **STATUS** | **PARTIAL** — missing: Erasure PARTIAL (sign): every rung is one ink — buy vs sell needs the caption |
+
+### H-801 Expected Envelope + Analogue Surprise
+| Field | Certificate |
+|---|---|
+| **NAME** | Expected Envelope + Analogue Surprise · census `H-801` · owner `src/lib/marketData/viewModels/selectExpectedEnvelope.ts` · plate WM_NewMockup_120_F03_Expected_Envelope_Surprise |
+| **MARKET QUESTION** | How far does this market usually travel from the open — and is today unusual? |
+| **EVIDENCE** | Recent completed sessions. (needs PRICE) |
+| **TRUTH CLASS** | FULL: Enough completed sessions to count. · PARTIAL: Few sessions — counts shown, read with care. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | The typical reach above and below the open, with how many sessions went as far as today. |
+| **STATE GRAMMAR** | Price at the envelope edge with few sessions reaching further = an unusual day. Inside = ordinary. |
+| **COLOR** | `BRASS` |
+| **OPACITY** | SUPPORTING (ceiling 0.85), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SPEAK / SPEAK / SILENT |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Expected envelope — the usual reach from the open. |
+| **DEGRADED** | No completed sessions — no envelope. |
+| **RECEIPTS** | `expectedEnvelope`, `expectedEnvelopeFan`, `expectedEnvelopeSurprise`, `expectedEnvelopeSurpriseForm` |
+| **CANON** | H-801 Expected Envelope + Analogue Surprise |
+| **SERVING PROOF** | §1f: UP 10/10 · INSIDE (NQ); UP 1/10 · ABOVE:1/9 (SPY); UP 5/5 · DN 2/5 (EURUSD); TOO_FEW_SESSIONS (BTC) |
+| **STATUS** | **PROVED** — open item: The surprise state exists but has no mark on the live event (C-15) |
+
+### F10 MTF Ancestry (higher-timeframe objects on this camera)
+| Field | Certificate |
+|---|---|
+| **NAME** | MTF Ancestry (higher-timeframe objects on this camera) · census `F10` · owner `src/lib/marketData/viewModels/selectMtfAncestry.ts` · plate — (none) |
+| **MARKET QUESTION** | What do the higher timeframes say about where price came from? |
+| **EVIDENCE** | This chart's bars, resampled to 4H, 1H and daily. (needs PRICE) |
+| **TRUTH CLASS** | FULL: Enough bars loaded to resample every timeframe. · PARTIAL: Too few bars for one timeframe — that one is named silent. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | On this chart: the 4H body price grew from, the last hour's volume node, the prior day's nearest high or low. |
+| **STATE GRAMMAR** | Price above its 4H band is building on it; a return into it is a test of the parent. PDH/PDL are the day's shelves. |
+| **COLOR** | `LINEAGE` |
+| **OPACITY** | SUPPORTING (ceiling 0.85), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = QUIET / SPEAK / QUIET |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Higher-timeframe ancestry — the parent structure under this price. |
+| **DEGRADED** | No bars — nothing to resample. |
+| **RECEIPTS** | `mtfAncestry`, `mtfAncestryPainted` |
+| **CANON** | T-210 / F10 MTF ancestry (same camera) |
+| **SERVING PROOF** | §1f: PDH + 4H band + 1H node (NQ, SPY); PDL + 4H (EURUSD, BTC). Erasure second pass: `BAND:4H … INSIDE`, node |
+| **STATUS** | **PARTIAL** — missing: Erasure PARTIAL — the parent timeframe is words-only |
+
+### F11A Market Object on chart
+| Field | Certificate |
+|---|---|
+| **NAME** | Market Object on chart · census `F11A` · owner `src/lib/marketData/viewModels/selectStructureZoneObjects.ts` · plate WM_NewMockup_84_F11A_Object_On_Chart · WM_NewMockup_137_Object_Kinds_Shared_Passport_Slots |
+| **MARKET QUESTION** | Where did price leave fast from a confirmed swing, and is that zone still standing? |
+| **EVIDENCE** | Confirmed swing pivots from the one structure owner and the closed bars since; no volume is needed. (needs PRICE) |
+| **TRUTH CLASS** | FULL: Built from the loaded closed bars — nothing more is needed. · PARTIAL: Too few bars to confirm a swing — no zone is drawn until the pivot is confirmed. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | A zone band on price: swing low → DEMAND zone over that bar's low–high, swing high → SUPPLY zone; its name and state sit beside it in a clear slot. |
+| **STATE GRAMMAR** | A zone is tested when price trades into it, defended when it holds, and invalid on a close through it (below a demand zone, above a supply zone). SWEPT · STILL VALID means a wick ran it without a closing break. |
+| **COLOR** | `BRASS` |
+| **OPACITY** | LIVE (ceiling 1), depth MID, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / QUIET |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Supply / demand zone — where price left fast; its passport shows tests, defence and whether it is consumed. |
+| **DEGRADED** | No bars — nothing to read. |
+| **RECEIPTS** | `marketZones`, `marketZoneSelected` |
+| **CANON** | F11A Market object on chart (the swing-origin zone owner + the zone lifecycle owner) |
+| **SERVING PROOF** | Sheriff A1 / A9 (aeb83c9, fbc999b): "SUPPLY ZONE · SWEPT · STILL VALID · 2 TESTS" seated above its zone clear of every body and wick; "DEMAND ZONE · DEFENDED · 1 TEST" below its zone (GC1! 5m, 1180) |
+| **STATUS** | **PROVED** — open item: No erasure read of the zone body itself |
+
+### H-1001 Risk on Price + Frozen Receipt
+| Field | Certificate |
+|---|---|
+| **NAME** | Risk on Price + Frozen Receipt · census `H-1001` · owner `src/lib/marketData/viewModels/selectRiskOnPrice.ts` · plate WM_NewMockup_96_F17A_Risk_On_Price · WM_NewMockup_127_F20_Receipt_Frozen_asOf |
+| **MARKET QUESTION** | Where is my stop, entry and target — and how far is price from my stop? |
+| **EVIDENCE** | A position you draw on the chart. (needs YOUR_PLAN) |
+| **TRUTH CLASS** | FULL: Your drawn plan and a live price. · PARTIAL: Price is delayed — the distance to stop trails the market. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | Your plan bracketed on the price axis: stop, entry, target, R, and live price against the stop. |
+| **STATE GRAMMAR** | Distance to stop in R is your live risk. Nothing here places an order. |
+| **COLOR** | `RISK_REWARD` |
+| **OPACITY** | CHROME (ceiling 1), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SPEAK / SPEAK / SPEAK |
+| **NARROW** | KEEP — in NARROW_GLASS_KEEPS_WORDS — it keeps its words below 600px |
+| **ⓘ / FIRST TOUCH** | Risk on price — your stop, entry and target on the axis. |
+| **DEGRADED** | No plan drawn — nothing to bracket. |
+| **RECEIPTS** | `riskOnPrice`, `riskOnPriceTicks`, `riskOnPriceSilence` |
+| **CANON** | F17 Risk on Price · H-1001 |
+| **SERVING PROOF** | §1f: NO_POSITION_DRAWN (correct silence) |
+| **STATUS** | **PARTIAL** — missing: A serving read with a position drawn — on a paper position, never the Founder's live account |
+
+### H-401 Contradiction not averaged
+| Field | Certificate |
+|---|---|
+| **NAME** | Contradiction not averaged · census `H-401` · owner `src/lib/marketData/viewModels/selectContradiction.ts` · plate WM_NewMockup_124_F14_Contradiction_Not_Averaged |
+| **MARKET QUESTION** | Do my tools disagree at this price? |
+| **EVIDENCE** | Two or more switched-on reading families. (needs OTHER_LAYERS) |
+| **TRUTH CLASS** | FULL: Both families have full evidence. · PARTIAL: One side is a candidate — named in Inspect. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | Where families disagree at price, both truths paint and the zone reads unresolved. |
+| **STATE GRAMMAR** | Unresolved means wait or reduce — the two cases are never averaged into one score. |
+| **COLOR** | `BONE` |
+| **OPACITY** | SUPPORTING (ceiling 0.85), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Contradiction — two readings disagree here; both shown, never averaged. |
+| **DEGRADED** | Fewer than two families on — nothing to contradict. |
+| **RECEIPTS** | `contradiction`, `contradictionGeometry`, `contradictionPlaced`, `contradictionWords` |
+| **CANON** | H-401 Contradiction Not Averaged |
+| **SERVING PROOF** | §1f: NOT_ENOUGH (NQ, SPY, EURUSD), UNRESOLVED 1/2 (BTC). Erasure second pass: SILENT |
+| **STATUS** | **PARTIAL** — missing: A serving read with both truths painted at one price |
 

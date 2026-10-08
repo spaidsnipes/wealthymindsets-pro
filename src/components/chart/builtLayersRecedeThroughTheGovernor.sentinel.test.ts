@@ -64,3 +64,15 @@ describe("keel ATR fallback + session rails (2026-10-08)", () => {
     expect(ink).toBeLessThan(0.42);
   });
 });
+
+describe("price sovereignty asks from the Sheriff re-run (ASK-8 / ASK-9, 2026-10-08)", () => {
+  it("ASK-8: a level name never takes the newest candles' column", () => {
+    expect(CHART).toContain("[...keepOut(), ...newestColumnRects(), ...profileCandlesAt(slots.top, slots.bottom)],");
+    expect(CHART).toContain("[...keepOut(), ...newestColumnRects(), ...profileCandlesAt(s2.top, s2.bottom)],");
+  });
+  it("ASK-9: FVG territory cuts round the countdown's own rect plus air", () => {
+    expect(CHART).toContain("const boxH  = COUNTDOWN_BOX_H;");
+    expect(CHART).toContain("pillCut.rect(0, cyP - COUNTDOWN_BOX_H / 2 - 2 - FVG_PILL_AIR, wP, COUNTDOWN_BOX_H + 4 + 2 * FVG_PILL_AIR);");
+    expect(CHART).not.toContain("pillCut.rect(0, yPill - 13, 96, 26);");
+  });
+});
