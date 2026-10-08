@@ -471,13 +471,13 @@ function ProfilePageInner() {
 
           <div className="space-y-3">
             <div>
-              <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Display Name *</label>
+              <label className="text-[11px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Display Name *</label>
               <input value={editProfile.name} onChange={e => setEditProfile(p => ({ ...p, name: e.target.value }))}
                 placeholder="e.g. John Trader" autoComplete="name"
                 className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-base sm:text-sm text-wm-text outline-none focus:border-wm-gold/50" />
             </div>
             <div>
-              <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Handle *</label>
+              <label className="text-[11px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Handle *</label>
               <input value={editProfile.handle} onChange={e => setEditProfile(p => ({ ...p, handle: e.target.value }))}
                 placeholder="@yourhandle" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username"
                 aria-describedby="wm-setup-handle-rule"
@@ -485,19 +485,19 @@ function ProfilePageInner() {
               <p id="wm-setup-handle-rule" className="mt-1 text-[11px] text-wm-text-muted">3–30 letters, numbers, dots or underscores — no spaces.</p>
             </div>
             <div>
-              <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Bio</label>
+              <label className="text-[11px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Bio</label>
               <textarea value={editProfile.bio} onChange={e => setEditProfile(p => ({ ...p, bio: e.target.value }))}
                 placeholder="Tell the community about your trading style…" rows={3}
                 className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-base sm:text-sm text-wm-text outline-none focus:border-wm-gold/50 resize-none" />
             </div>
             <div>
-              <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Email</label>
+              <label className="text-[11px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Email</label>
               <input value={editProfile.email} onChange={e => setEditProfile(p => ({ ...p, email: e.target.value }))}
                 placeholder="you@example.com" type="email"
                 className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-base sm:text-sm text-wm-text outline-none focus:border-wm-gold/50" />
             </div>
             <div>
-              <label className="text-[10px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Timezone</label>
+              <label className="text-[11px] text-wm-text-dim uppercase tracking-wider font-bold block mb-1">Timezone</label>
               <select aria-label="Timezone" value={editProfile.timezone} onChange={e => setEditProfile(p => ({ ...p, timezone: e.target.value }))}
                 className="w-full bg-wm-surface border border-wm-border rounded-lg px-3 py-2 text-base sm:text-sm text-wm-text outline-none focus:border-wm-gold/50">
                 {["America/New_York","America/Chicago","America/Los_Angeles","Europe/London","Asia/Tokyo","Australia/Sydney"].map(tz => (
@@ -506,7 +506,7 @@ function ProfilePageInner() {
               </select>
             </div>
             <div>
-              <label className="text-[10px] text-[#c9a55c] uppercase tracking-wider font-bold block mb-1">AI Bot Name</label>
+              <label className="text-[11px] text-[#c9a55c] uppercase tracking-wider font-bold block mb-1">AI Bot Name</label>
               <input value={editProfile.botName} onChange={e => setEditProfile(p => ({ ...p, botName: e.target.value }))}
                 placeholder="e.g. SpaidBot" maxLength={24}
                 className="w-full bg-wm-surface border border-wm-gold/30 rounded-lg px-3 py-2 text-base sm:text-sm text-wm-text outline-none focus:border-wm-gold/60" />
@@ -598,7 +598,7 @@ function ProfilePageInner() {
                 <Star size={9} className="text-wm-black fill-wm-black" />
               </div>
               <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
-                <span className="text-white text-[10px] font-bold">Change</span>
+                <span className="text-white text-[11px] font-bold">Change</span>
               </div>
             </div>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
@@ -693,11 +693,11 @@ function ProfilePageInner() {
                   className={s.kind === "MEASURED" ? "text-base font-black" : "text-xs font-bold text-wm-text-dim"}
                   style={s.kind === "MEASURED" ? { color: STAT_COLORS[s.label] } : undefined}
                 >{s.value}</div>
-                <div className="text-[10px] text-wm-text-dim uppercase tracking-wider">{s.label}</div>
+                <div className="text-[11px] text-wm-text-dim uppercase tracking-wider">{s.label}</div>
                 {/* A measured zero says what it is a sum OF, on the glass and
                     not only in the tooltip (empty states say why). */}
                 {s.label === "Net P&L" && stats.find(x => x.label === "Trades")?.value === "0" ? (
-                  <div data-testid="profile-net-zero-context" className="text-[10px] text-wm-text-dim">no closed trades yet</div>
+                  <div data-testid="profile-net-zero-context" className="text-[11px] text-wm-text-dim">no closed trades yet</div>
                 ) : null}
               </div>
             ))}
@@ -733,12 +733,12 @@ function ProfilePageInner() {
           {/* Circle of Excellence — Top 8 */}
           <div className="mt-5">
             <div className="flex items-center gap-2 mb-2.5">
-              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#E8B923" }}>Circle of Excellence</span>
-              <span className="text-[10px] text-wm-text-dim">· Top 8</span>
+              <span className="text-[11px] font-black uppercase tracking-widest" style={{ color: "#E8B923" }}>Circle of Excellence</span>
+              <span className="text-[11px] text-wm-text-dim">· Top 8</span>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               {CIRCLE_OF_EXCELLENCE.length === 0 ? (
-                <span className="text-[10px] text-wm-text-dim">No members added yet.</span>
+                <span className="text-[11px] text-wm-text-dim">No members added yet.</span>
               ) : CIRCLE_OF_EXCELLENCE.map((m, index) => (
                 <div key={m.name} className="flex flex-col items-center gap-1">
                   <div className="rounded-full p-[2px]" style={{ background: `linear-gradient(135deg,#E8B923,${m.color})`, boxShadow: "0 0 12px rgba(232,185,35,0.32)" }}>
@@ -797,11 +797,11 @@ function ProfilePageInner() {
             <GraduationCap size={18} />
           </span>
           <span className="min-w-0">
-            <span className="block text-[10px] font-bold uppercase tracking-[0.28em] text-wm-gold">Academy · $100 Challenge Preview</span>
+            <span className="block text-[11px] font-bold uppercase tracking-[0.28em] text-wm-gold">Academy · $100 Challenge Preview</span>
             <span className="mt-1 block text-xs leading-relaxed text-wm-text">
               Open lesson outlines, browser-local notes, knowledge checks, and the theoretical challenge path.
             </span>
-            <span className="mt-1 block text-[10px] text-wm-text-dim">No enrollment · no live execution · no earnings promise</span>
+            <span className="mt-1 block text-[11px] text-wm-text-dim">No enrollment · no live execution · no earnings promise</span>
           </span>
         </button>
 
