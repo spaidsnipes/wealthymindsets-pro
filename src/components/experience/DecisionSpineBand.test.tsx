@@ -667,7 +667,11 @@ describe("DecisionSpineBand — the honesty plaque is fed, not drawn", () => {
     // masthead chip reading ACTIVE DEGRADED comes to sit beside a plaque
     // reading EXECUTABLE about one instrument at one instant.
     expect(dash.split("resolveChartSurfaceBadge(").length - 1).toBe(1);
-    expect(dash).toContain("const b = chartSurfaceBadge;");
+    // 2026-10-08 Garden 19 Replay law: while the camera walks history the ONE grading is
+    // re-labelled HISTORICAL BARS VERIFIED (live:false); it is still the single
+    // `chartSurfaceBadge` grading — no second grader call (asserted above).
+    expect(dash).toContain("const b = cameraWalksHistory");
+    expect(dash).toContain(": chartSurfaceBadge;");
   });
 
   it("× THE SILENT DEFAULT: an unfinished question may not be folded into a word", () => {

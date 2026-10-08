@@ -97,3 +97,25 @@ export const STATE_WORD: Readonly<Record<CapabilityState, string>> = {
   LIVE: "LIVE", HUMAN_ARMED: "ARMED BY YOU", PARTIAL: "PARTIAL", RECONSTRUCTED: "RECONSTRUCTED",
   NOT_CONNECTED: "NOT CONNECTED", NOT_BUILT: "NOT BUILT", UNSUPPORTED: "UNSUPPORTED",
 };
+
+/** The two arms a live order needs (device guardrail + server limits), each null when unread. */
+export interface ExecutionArms {
+  readonly device: boolean | null;
+  readonly server: boolean | null;
+  readonly killSwitch: boolean | null;
+}
+
+/**
+ * The word for a capability AS OF the arms (Sheriff P1-3, 2026-10-08: the map
+ * said "ARMED BY YOU" while device and server were both DISARMED). HUMAN_ARMED
+ * is a property of the RAIL (it sends only on your armed press); whether it is
+ * armed NOW is the arms' fact. "ARMED BY YOU" only when both arms are on and
+ * the kill switch is off; otherwise the word says what stands in the way.
+ */
+export function capabilityStateWord(state: CapabilityState, arms: ExecutionArms): string {
+  if (state !== "HUMAN_ARMED") return STATE_WORD[state];
+  if (arms.killSwitch === true) return "KILL SWITCH ON";
+  if (arms.device === null || arms.server === null) return "ARM UNREAD";
+  if (arms.device && arms.server) return STATE_WORD.HUMAN_ARMED;
+  return `DISARMED (${!arms.device && !arms.server ? "device + server" : !arms.device ? "device" : "server"}) — orders need your arm`;
+}

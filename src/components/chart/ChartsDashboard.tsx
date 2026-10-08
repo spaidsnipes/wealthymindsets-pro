@@ -1914,6 +1914,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     () => selectMarketObjectPassport(chartCanvasState),
     [chartCanvasState],
   );
+  // ASK-17 receipt (2026-10-08): the canonical quality state Inspect reads and
+  // the header's feed verdict, side by side on <html>, so a probe can prove the
+  // two owners agree without opening Inspect. Read-only DOM data, no render.
+  const dataQualityState = `${chartCanvasState?.qualityState ?? "NONE"}|FEED:${chartHeaderFeedState}`;
+  useEffect(() => {
+    try { document.documentElement.dataset.qualityState = dataQualityState; } catch { /* no DOM */ }
+    return () => { try { delete document.documentElement.dataset.qualityState; } catch { /* no DOM */ } };
+  }, [dataQualityState]);
 
   // ── Asset 15 · QUESTION-DRIVEN CONTINUATION HEALTH ────────────────────
   //
@@ -5196,7 +5204,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     at: sessionClockDate,
     canonRegime: chartCanvasState?.regime ?? null,
   });
-  const marketStanding = badge.displayable ? (
+  // REPLAY: today's day-change band beside a past bar is a live word on a
+  // past camera — withheld while the camera walks history (Sheriff batch 3).
+  const marketStanding = badge.displayable && !cameraWalksHistory ? (
     <span
       role="group"
       aria-label={badge.spoken}
@@ -6000,7 +6010,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             // chip and a plaque come to contradict each other on one screen.
             // (The `barsSettled` argument that keeps the badge from grading a
             // still-open question moved up with it.)
-            const b = chartSurfaceBadge;
+            // REPLAY (Sheriff batch 3, 2026-10-08): paused in the past, the
+            // masthead read "LIVE — CERTIFIED QUOTE" beside "BAR REPLAY · NO
+            // LIVE CLOCK". While the camera walks history the masthead grades
+            // what is on screen — verified HISTORICAL bars — never the live quote.
+            const b = cameraWalksHistory
+              ? { ...chartSurfaceBadge, label: CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED, live: false, title: "Bar replay: the chart is walking verified history. Nothing on this camera is a live quote." }
+              : chartSurfaceBadge;
             // SHIFT-U continuation — pass the per-capability report so
             // the trader hovering the chip sees "Weakest capability"
             // hint + coverage count. Canon §Provider Status Per

@@ -6,7 +6,9 @@
  */
 import React, { useEffect, useState } from "react";
 
-import { CAPABILITY_LABEL, CAPABILITY_LEDGER, STATE_WORD, type CapabilityState } from "@/lib/broker/capabilityLedger";
+import { CAPABILITY_LABEL, CAPABILITY_LEDGER, STATE_WORD, capabilityStateWord, type CapabilityState, type ExecutionArms } from "@/lib/broker/capabilityLedger";
+import { GUARDRAILS_STORAGE_KEY, readGuardrails } from "@/lib/execution/guardrails";
+import { readServerOrderLimits } from "@/lib/execution/liveOrderPreflight";
 
 const TONE: Readonly<Record<CapabilityState, string>> = {
   LIVE: "#7fd1a8", HUMAN_ARMED: "#d4af37", PARTIAL: "#d4af37", RECONSTRUCTED: "#c9a55c",
@@ -32,6 +34,23 @@ export function CapabilityLedgerView() {
       .catch(() => { /* stays the guest reading */ });
     return () => { live = false; };
   }, []);
+  // The arms, read (never written): "ARMED BY YOU" only while both are on (Sheriff P1-3).
+  const [arms, setArms] = useState<ExecutionArms>({ device: null, server: null, killSwitch: null });
+  useEffect(() => {
+    if (guest) return;
+    let live = true;
+    let device: boolean | null = null;
+    try { device = readGuardrails(window.localStorage.getItem(GUARDRAILS_STORAGE_KEY)).liveArmed; } catch { device = null; }
+    fetch("/api/execution/limits", { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => {
+        if (!live) return;
+        const L = j && j.limits ? readServerOrderLimits(j.limits) : null;
+        setArms({ device, server: j ? (L ? L.armed : false) : null, killSwitch: L ? L.killSwitch : null });
+      })
+      .catch(() => { if (live) setArms({ device, server: null, killSwitch: null }); });
+    return () => { live = false; };
+  }, [guest]);
   return (
     <section data-testid="capability-ledger" className="px-4 py-3">
       <div className="text-xs font-semibold text-wm-text">What each rail is for</div>
@@ -52,7 +71,7 @@ export function CapabilityLedgerView() {
         {rows.map(r => (
           <li key={r.capability} className="grid grid-cols-[1fr_auto] gap-x-2 text-[11.5px] leading-snug">
             <span className="text-wm-text">{CAPABILITY_LABEL[r.capability]}</span>
-            <span data-state={r.state} className="font-semibold tabular-nums" style={{ color: guest ? "#8a8271" : TONE[r.state] }}>{STATE_WORD[r.state]}{guest && (r.state === "LIVE" || r.state === "HUMAN_ARMED" || r.state === "PARTIAL") ? " · once connected" : ""}</span>
+            <span data-state={r.state} className="font-semibold tabular-nums" style={{ color: guest ? "#8a8271" : TONE[r.state] }}>{guest ? STATE_WORD[r.state] : capabilityStateWord(r.state, arms)}{guest && (r.state === "LIVE" || r.state === "HUMAN_ARMED" || r.state === "PARTIAL") ? " · once connected" : ""}</span>
             <span className="col-span-2 text-[10.5px] text-wm-text-dim">{r.note}</span>
           </li>
         ))}

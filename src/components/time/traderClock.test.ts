@@ -14,4 +14,10 @@ describe("trader clock — local time with its zone, never a bare UTC reading", 
     expect(traderClock(null)).toBe("—");
     expect(traderClock(NaN)).toBe("—");
   });
+  it("names the day when the instant is not today (a bare clock from yesterday read as hours ahead)", () => {
+    const now = Date.UTC(2026, 9, 8, 12, 47);
+    const yesterday = now - 20 * 3600_000;
+    expect(traderClock(yesterday, { seconds: false, nowMs: now })).toMatch(/^Oct \d{1,2}, /);
+    expect(traderClock(now - 60_000, { seconds: false, nowMs: now })).not.toMatch(/^Oct/);
+  });
 });

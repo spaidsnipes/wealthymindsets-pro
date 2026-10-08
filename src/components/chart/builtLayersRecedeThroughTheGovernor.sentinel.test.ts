@@ -210,3 +210,19 @@ describe("Sheriff §35 asks (2026-10-08)", () => {
     expect(CHART).toContain("canvas.dataset.bigTradeFormingCut = formingCut ? `YIELDS:${discsYieldedToForming}|NEWEST:${1 + newestCutBars}` : \"NONE\";");
   });
 });
+
+describe("Replay speaks no live words; clocks name their day (Sheriff batch 3, 2026-10-08)", () => {
+  const DASH = readFileSync(path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
+  it("the masthead grades history while the camera walks it; day bias is withheld; the motion switch never says LIVE", () => {
+    expect(DASH).toContain("const b = cameraWalksHistory\n              ? { ...chartSurfaceBadge, label: CANONICAL_FIDELITY_LABELS.HISTORICAL_BARS_VERIFIED, live: false,");
+    expect(DASH).toContain("const marketStanding = badge.displayable && !cameraWalksHistory ? (");
+    expect(CHART).toContain('(sessionOpen === false || replayActive ? "● MOTION" : "● LIVE")');
+  });
+  it("options-flow coverage and the Memory Ghost caption read the trader's clock", () => {
+    expect(CHART).toContain("const fromWords = traderClock(flow.fromMs, { seconds: false, nowMs: Date.now() });");
+    expect(CHART).not.toContain("UTC · fit");
+  });
+  it("the data-quality-state receipt names both owners", () => {
+    expect(DASH).toContain('const dataQualityState = `${chartCanvasState?.qualityState ?? "NONE"}|FEED:${chartHeaderFeedState}`;');
+  });
+});

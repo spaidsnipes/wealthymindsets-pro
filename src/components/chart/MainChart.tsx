@@ -472,6 +472,7 @@ import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeL
 import { selectRegimeFixtures } from "@/lib/marketData/viewModels/selectRegimeFixtures";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { readCvdNotches, cvdNotchProvenance } from "@/lib/chart/cvdRelationship";
+import { traderClock } from "@/components/time/traderClock";
 import { paintQuestionMark, QUESTION_MARK_SHAPE } from "@/lib/chart/questionLensMark";
 import { PRICE_ADJACENT_FLOOR, TIER_CEILING, selectAttentionGovernor, type AttentionSelection } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
@@ -18055,8 +18056,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             } else if (!bracket || ghostHits.length === 0) {
               ds.memoryGhostCaption = "HELD";
             } else {
-              const when = new Date(ghost.analogueStart! * 1000).toISOString().slice(5, 16).replace("T", " ");
-              const t = `MEMORY · ${when} UTC · fit ${ghost.fit!.toFixed(2)} · off ${ghost.mismatchPct!.toFixed(2)}%`;
+              // The trader's own clock with its zone, never bare UTC on glass (P4).
+              const when = traderClock(ghost.analogueStart! * 1000, { seconds: false, nowMs: Date.now() });
+              const t = `MEMORY · ${when} · fit ${ghost.fit!.toFixed(2)} · off ${ghost.mismatchPct!.toFixed(2)}%`;
               const capW = ctx.measureText(t).width + 10, capH = 14;
               const capY = (y: number) => Math.max(HEADER_FLOOR_Y + 2, Math.min(pane0Bottom - capH - 2, y));
               const capX = Math.max(keepOutMinX(), Math.min(bracket.x0 - 6, plotRight - 2 - capW));
@@ -19419,7 +19421,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // COVERAGE: where this lane's prints begin — the provider's
               // per-contract history is its own bound, said once.
               if (flow.fromMs != null) {
-                const fromWords = new Date(flow.fromMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+                // Sheriff batch 3 (2026-10-08): "heard from 11:47 AM CDT" at
+                // 07:47 CDT read as a clock 4h ahead — it was YESTERDAY 11:47
+                // (the lane asks 20h back). The trader's clock names the day
+                // whenever it is not today.
+                const fromWords = traderClock(flow.fromMs, { seconds: false, nowMs: Date.now() });
                 const cap = `OPTIONS FLOW · ${flow.events.length} largest by premium of ${flow.heard.toLocaleString()} prints · heard from ${fromWords} · ≥${flow.minSize} contracts`;
                 const rowY = takeSilenceRow();
                 if (rowY > 0) {
@@ -29224,7 +29230,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             aria-label={`Living market: ${livingMarket}. Press to ${livingMarket === "LIVE" ? "hold every invention still" : "let it live"}.`}
             onClick={() => setLivingMarket(m => (m === "LIVE" ? "STILL" : "LIVE"))}
             title={livingMarket === "LIVE"
-              ? `${sessionOpen === false ? "MOTION (market closed — nothing here is live data)" : "LIVE"} — inventions move with their own evidence. Press for STILL: the same objects, settled for study.`
+              ? `${replayActive ? "MOTION (bar replay — nothing here is live data)" : sessionOpen === false ? "MOTION (market closed — nothing here is live data)" : "LIVE"} — inventions move with their own evidence. Press for STILL: the same objects, settled for study.`
               : "STILL — the same inventions, settled. Press for LIVE."}
             style={{
               height: 22, padding: "0 6px", borderRadius: 4, fontSize: 9, fontWeight: 800, cursor: "pointer",
@@ -29235,7 +29241,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }}>
             {/* §8: a closed session is never called LIVE — the switch is motion,
                 not data (serving TSLA 5m Saturday: "● LIVE" beside MARKET CLOSED). */}
-            {livingMarket === "LIVE" ? (sessionOpen === false ? "● MOTION" : "● LIVE") : "❚❚ STILL"}
+            {/* …nor is a replayed past (Sheriff batch 3, 2026-10-08). */}
+            {livingMarket === "LIVE" ? (sessionOpen === false || replayActive ? "● MOTION" : "● LIVE") : "❚❚ STILL"}
           </button>
         </div>
 

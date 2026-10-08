@@ -36,6 +36,7 @@
  *
  * PURE. No clock, no I/O, no React. The registry it reads is a frozen constant.
  */
+import { traderSourceWords } from "@/lib/chart/traderSourceWords";
 import { getRuntimeTapeCapability } from "./capabilityRegistry";
 
 export type OrderFlowToolState = "DRAWABLE" | "AWAITING_TAPE" | "NO_AGGRESSOR_TAPE";
@@ -67,7 +68,11 @@ export interface OrderFlowTapeEvidence {
 
 /** A feed's own name is better evidence than "the data provider". */
 function feedName(source: string | null): string {
-  return source && source.trim() ? source : "no connected feed";
+  // Trader words, not the vendor (sheriff ruling 2026-10-08: "…observed live
+  // on tastytrade…"). The vendor stays in the runtime capability table.
+  if (!(source && source.trim())) return "no connected feed";
+  const kind = traderSourceWords(source);
+  return kind === "named feed" ? "this chart's feed" : `this chart's ${kind}`;
 }
 
 /**

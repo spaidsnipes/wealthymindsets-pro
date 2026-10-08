@@ -764,7 +764,7 @@ The single walk is `src/lib/journal/learningLoop.integration.test.ts`. It assert
 | The page's save path carries the reference | same file, source pins: the field writes `form.fvgRef`; `saveEntry` spreads the form; the persistence effect writes the entries; the loader reads `readJournalFvgReference` | **PROVED** (source) |
 | The reference, the broker capture and the frozen plan reload as one unit | `managementPlanPersistence.test.ts`; `learningLoop.integration.test.ts` hop 5 | **PROVED** (unit / integration) |
 | Save → reload → same snapshot on serving | none — needs a real Founder entry: he saves one Journal entry with "Reference an FVG", reloads, and the same sentence shows | **PARTIAL — needs a real Founder entry** |
-| Save → reload → same snapshot on serving, WITHOUT the Founder's book (appended 2026-10-08) | `journalRoundTrip.ts`: the Journal's own writer (`writeJournalStorage`, the member key) → reader → hydrator → reference reader, then a second save → reload, all in a throwaway in-memory Storage; the proof scene shows 9 before / after rows and the verdict. `journalRoundTrip.test.ts` (member key in memory, the real localStorage never called; guest = NOT SAVED); `journalProofScene.sentinel.test.tsx` (9 rows same, "SAME SNAPSHOT AFTER RELOAD") | **PROVED** (unit / render). **PARTIAL on serving** until the next ship's proof scene is read; a real Founder entry stays the only proof on his own book |
+| Save → reload → same snapshot on serving, WITHOUT the Founder's book (appended 2026-10-08) | `journalRoundTrip.ts`: the Journal's own writer (`writeJournalStorage`, the member key) → reader → hydrator → reference reader, then a second save → reload, all in a throwaway in-memory Storage; the proof scene shows 9 before / after rows and the verdict. `journalRoundTrip.test.ts` (member key in memory, the real localStorage never called; guest = NOT SAVED); `journalProofScene.sentinel.test.tsx` (9 rows same, "SAME SNAPSHOT AFTER RELOAD") | **PROVED** (unit / render). **PROVED on serving — appended 2026-10-08 13:47 CDT:** `7c3405b`, read 18:46:48Z, own tab, read only. **390 and 1440:** verdict "SAME SNAPSHOT AFTER RELOAD"; 9 rows, 9 same; "Stored 1054 bytes; read back as RESOLVED_CANONICAL"; overflow 0. A real Founder entry stays the only proof on his own book |
 
 **Other management rows, as they stand:**
 
@@ -791,8 +791,10 @@ tab was closed afterwards. Nothing was saved, sent or clicked.
 | Visible reason under refused tiles (phone has no hover) | — | Not on `c02c2d4`: added after it (`ProfilePerfTiles` → `profile-tile-reason`, pinned in `traderPerformanceStats.test.ts` and `profileProofScene.sentinel.test.tsx`: 4 visible reasons, e.g. "7 of 20 closed trades so far") | **PROVED** (unit / render). ~~PARTIAL on serving until the next ship is read~~ **PROVED on serving — appended 2026-10-08 03:02 CDT:** `a4f411c` (builtAt 07:59:32Z), read 08:02:12Z, own tab, read only, same-origin iframe. **390:** 4 visible reasons under the refused tiles — "no closed trades — no denominator", "needs a win and a loss", "7 of 20 closed trades so far" ×2 — each with a non-zero box, the rightmost edge at 347 px in a 390 viewport, horizontal overflow 0, 2 INSUFFICIENT_EVIDENCE tiles. **1440:** the same 4 reasons, overflow 0 |
 | Splits + management on the Founder's real Personal Edge block | `personalEdgeSplitsMount.test.tsx` (empty states: the plan-adherence line + "FVG context splits: no Journal entry references a gap yet…"; no table, no 0%) | **PROVED** (render). On serving his book shows the empty lines: he has no references or plans yet |
 | §26 the order's eleven management behaviours, each a factual class (5 added: took profit before planned condition, changed orders repeatedly without plan basis, reduced according to plan, moved to breakeven according to rule, walked away after protection according to plan; "Moved target" relabelled "without plan basis") | `managementBehaviours.test.ts` (each sample trade through the real classifier names its class; no emotion words, no "impulsive"); `journalProofScene.sentinel.test.tsx` (11 behaviour rows, 11 found) | **PROVED** (unit / render). **PROVED on serving — appended 2026-10-08 07:03 CDT:** `c104669` (builtAt 11:44:07Z), read 12:02:50Z, own tab, read only, same-origin iframe. **390:** 11 behaviour rows, 11 found, labels in order ("Exited before planned condition" … "Walked away after protection, according to plan"), e.g. "You closed 1.9 (+0.95R) in your favour at 101.9, before the target 104 or the invalidation 98 recorded in your plan had printed."; 0 rows past the right edge; overflow 0; no "impulsive". **1440:** 11 / 11 found, 0 past the edge, overflow 0. **PARTIAL** only on the Founder's own trades: needs a real WM-sent trade with a frozen plan |
-| §41 two Review questions, factual (far-edge targets vs other gap targets; an attached sense beyond price vs price only), counts always, comparison at ≥ 20, no belief labels | `planFvgFillTargets.test.ts` (9); `journalProofScene.sentinel.test.tsx` (book: INSUFFICIENT with "0 of 24 …"; 48-decision set: MEASURED); `personalEdgeSplitsMount.test.tsx` (on the real Personal Edge block) | **PROVED** (unit / render). **PARTIAL on serving** until the next ship's proof scene is read |
-| §64 the Founder's management Sheriff as one integration test (market / planned / actual apart; early exit and held-through-invalidation as factual deviations; documented new evidence preserved; no shaming, no fabricated psychology) + the proof-scene walkthrough (3 decisions × 6 steps) | `managementSheriff.integration.test.ts` (8); `journalProofScene.sentinel.test.tsx` (3 walks, 18 steps, the new-evidence line, 3 × "Not recorded") | **PROVED** (integration / render). **PARTIAL on serving** until the next ship's proof scene is read |
+| §41 two Review questions, factual (far-edge targets vs other gap targets; an attached sense beyond price vs price only), counts always, comparison at ≥ 20, no belief labels | `planFvgFillTargets.test.ts` (9); `journalProofScene.sentinel.test.tsx` (book: INSUFFICIENT with "0 of 24 …"; 48-decision set: MEASURED); `personalEdgeSplitsMount.test.tsx` (on the real Personal Edge block) | **PROVED** (unit / render). **PROVED on serving — appended 2026-10-08 13:47 CDT:** `7c3405b`, 390 + 1440: sample book `fvg-fill-targets` INSUFFICIENT EVIDENCE; 48-decision set MEASURED |
+| §64 the Founder's management Sheriff as one integration test (market / planned / actual apart; early exit and held-through-invalidation as factual deviations; documented new evidence preserved; no shaming, no fabricated psychology) + the proof-scene walkthrough (3 decisions × 6 steps) | `managementSheriff.integration.test.ts` (8); `journalProofScene.sentinel.test.tsx` (3 walks, 18 steps, the new-evidence line, 3 × "Not recorded") | **PROVED** (integration / render). **PROVED on serving — appended 2026-10-08 13:47 CDT:** `7c3405b`, read 18:46:48Z, own tab, read only, same-origin iframe. **390 and 1440:** 3 walkthroughs, 18 steps; primaries EXITED_DURING_NORMAL_RETRACEMENT / HELD_THROUGH_INVALIDATION / PLAN_CHANGED_WITH_DOCUMENTED_NEW_EVIDENCE; the new-evidence line present; "Not recorded. WM does not fill this in." ×3; 0 elements past the right edge; overflow 0 |
+| Sheriff P0-1 · Alpaca paper send disabled with the reason at the control when the rail is not connected | `railSendGate.test.ts`; serving `7c3405b` read 18:47:03Z (own tab, read only; TRADE → "Alpaca paper account" → Trade tab; NOTHING sent): "BUY 1 SPY — MARKET" `type="button"`, `disabled=true`, `aria-describedby="wm-alpaca-send-refusal"`; refusal at the control "Paper account not connected — nothing can be sent or closed here."; no ".env" / key names in the drawer; the live ticket stayed open behind the drawer | **PROVED on serving** |
+| Sheriff P1-2 / P1-4 / P2-6 · ticket truth: LIVE only with a fresh quote; no prefill from the chart close; no pre-staged side; book line; header on glass | `ticketTruth.test.ts` (12); serving `7c3405b` NQ1! read 18:46:46Z, 390 and 834 (own tab, read only): panel scroll overflow 0; KILL x 131–170 (390) / 37–76 (834) inside the panel; × 32×32 at x 329–361 (390) / 375–407 (834), inside panel and viewport; header "TRADE FUTURE /NQZ6 DEC 2026 LIVE DISARMED KILL ×" wraps; quote state "● connecting" `data-live="no"` (no LIVE word without a quote); "Pick BUY or SELL — nothing is staged until you do."; BUY not pressed; limit empty; book line "Position and working orders: not read from tastytrade yet — nothing is assumed flat." | **PROVED on serving** (geometry + truth words). The LIVE-with-fresh-quote path and the STALE prefill note are PROVED in unit only (the iframe never reached LIVE) |
 
 
 ## 11. §34 INVENTORY AUDIT — every canonical invention × the certificate fields (2026-10-08, night shift)
@@ -2074,3 +2076,55 @@ Panels (Decision card, Webull box, Market Breathing, Response Matrix, TED) are e
 7. Bar-selection first touch.
 
 Chart-lane asks: 15c #4, #5, #7, #8, #9, and the zone / FVG hit-test.
+
+## 16. §28 CERTIFICATE UPDATES — everything flipped on 2026-10-08 (DRAFT, cert lane, written 13:45 CDT)
+
+Append-only: the certificates above keep their text. Each row below names:
+- the certificate field that changes,
+- the new text's source,
+- the condition for the flip.
+
+**"Tree"** means the change is in the worktree and not yet LIVE. Such a row flips only after two things happen: the coordinator's ship gate reports its build LIVE, and a serving read in an own tab confirms it.
+
+### 16a. Glass proofs flipped today (serving `c104669`, own tab, read-only — LIVE at read time)
+
+| Certificate | Field | Was | Now | Proof |
+|---|---|---|---|---|
+| §5 FVG — ACCEPTANCE (§62 #9) | SERVING PROOF / STATUS | PARTIAL (engine state only) | **PROVED on glass.** Accepted fill 0.05 and inner line 0.094 on the selected ACCEPTED gap `…1791310800000|BEARISH`. Canvas row 229 reads alpha 47 vs 26 | §13 row 9, UPDATE 07:40 |
+| §5 FVG — INVALIDATION (§62 #10) | SERVING PROOF / STATUS | PARTIAL | **PROVED on glass.** TRADED_THROUGH far edge drawn dashed `[3,3]` (pixels `GGGoooGGG`); near edge solid | §13 row 10 |
+| §5 FVG — MEMORY (§62 #12) | SERVING PROOF / STATUS | PARTIAL (`MEMORY:0` everywhere) | **PROVED on glass.** `fvgDrawn …|MEMORY:1` with a gold frame when selected. MEMORY paints only when selected — by design | §13 row 12 |
+| §5 FVG — CHART DOOR | open item | Backtest row NONE_AVAILABLE | Cause: the chart alternates feeds between loads, and ids carry the feed. The alias resolver shipped in `70f1bf4` ("Backtest/Scanner doors carry their gap's band"). **Re-read on serving still owed** | §13 row 30 (i) |
+
+### 16b. ⓘ / first-touch fields rewritten today (LIVE in `7c3405b` 13:45:27; the verdict path is read on serving — see 16c; per-record text re-read owed)
+
+Source of the new text: `src/lib/chart/inventionEducation.ts`, written 13:36–13:39. Pinned by `indicatorEducation.test.ts` (banned-phrase scan + P3-K verdict cases).
+
+| Certificate | Fields | Change |
+|---|---|---|
+| P110.4 Profile Memory | STATE GRAMMAR | "often draws price back" → "a naked POC is one the market has not traded back to yet" |
+| P110.6 Session Profile | STATE GRAMMAR | drops "may move through again" |
+| P110.10 TPO | PHYSICAL GRAMMAR, STATE GRAMMAR, ⓘ / FIRST TOUCH | letters / single prints → brass blocks over ALL loaded bars; chips can sit off camera; no single-print mark. **Open chart-lane ask:** chips off camera (batch 3 #4) |
+| P110.3 Profile Fusion | ⓘ verdict | READY now reads NEEDS OTHER LAYERS. **Open chart-lane ask:** `profileFusion` and `profileFusionObject` receipts disagree (#9) |
+| H-701.EXH Exhaustion | MARKET QUESTION, FIRST TOUCH | "running out of fuel" / "spent its fuel… failed to continue" → effort per step fading; the mark at the last extreme |
+| F08B Liquidity Weather | STATE GRAMMAR | drops "stalls are likely"; describes the bars, not what comes next |
+| F15.PRESSURE Derivatives Pressure | MARKET QUESTION, STATE GRAMMAR, FIRST TOUCH, ⓘ verdict | no "will damp / tend to"; modelled gamma, inferred from open interest; verdict NEEDS AN OPTIONS CHAIN |
+| F08.BRICK Brick Walls | DEGRADED, FIRST TOUCH, ⓘ verdict | names both silent states (no chain yet / no current wall event); "a strike with large open interest (inferred)"; verdict NEEDS AN OPTIONS CHAIN. **Open chart-lane ask:** a reason word on the glass (#8) |
+| F06.STACK Stacked Imbalance | STATE GRAMMAR | drops "often acts as support / resistance when revisited" |
+| F10.SESSION_BANDS | STATE GRAMMAR | drops "moves often start…"; a clock fact |
+| H-901 Regime Lighting | MARKET QUESTION, PHYSICAL GRAMMAR, STATE GRAMMAR | names UNKNOWN (both sets lit); drops "trust the magnets / channel" |
+| H-801 Expected Envelope | PHYSICAL GRAMMAR | states that it is drawn past the newest candle and is not a forecast path. **Open chart-lane ask:** forward of now reads as a projection (#7) |
+| H-401 Contradiction | EVIDENCE (needs OTHER_LAYERS → PRICE), PHYSICAL GRAMMAR, TRUTH CLASS, STATE GRAMMAR | asks four families itself (per `selectContradiction`), so a solo UNRESOLVED is lawful; drops "wait or reduce" |
+| All 24 Profiles / Lenses + 50 Tool Finder rows | ⓘ verdict header | P3-K: verdict computed from needs (NEEDS YOUR INPUT / NEEDS OTHER LAYERS / NEEDS AN OPTIONS CHAIN / DRAWS FROM STALE DATA / NO LIVE FEED) |
+
+### 16c. New certificate row: Indicators menu ⓘ (LIVE `7c3405b` 13:45:27 — PROVED 13:49)
+
+| Field | Certificate (draft) |
+|---|---|
+| **NAME** | Indicators menu ⓘ · owner `src/lib/chart/indicatorEducation.ts` (142 records) · surface ChartToolbar Indicators picker |
+| **EVIDENCE** | Each record is written from the indicator code (`indicators.ts` + the chart's indicator block), with default windows. Needs PRICE / VOLUME / SIDED_TAPE |
+| **ⓘ** | Shared `InventionPreview`: what / question / needs / on the chart / how to read / FULL–PARTIAL–DEGRADED / ADD TO CHART. Button: aria-label, aria-expanded, 44 px |
+| **CATALOGUE** | Row subtitle = record `what` (pinned). Price-only Supply/Demand Zones and Stop Run Alert moved to Structure |
+| **HONESTY NOTES IN THE RECORDS** | Pivots read the last bar; Volume MA sits on the price scale; Swing High/Low draws nothing visible; VW-RSI and Choppiness are drawn twice; Ichimoku is unshifted; Stochastic Pop / Color RSI / RVGI draw another indicator. Each is a chart-lane ask |
+| **TESTS** | `indicatorEducation.test.ts` (142 = 142, fields, subtitle = record, Order Flow tape-only, toolbar wiring, banned phrases, verdicts) |
+| **SERVING PROOF** | `7c3405b` (LIVE 13:45:27), own tab, 13:46–13:49 CDT. 1440 NQ1!: 142 ⓘ buttons (aria-label "About <name>", aria-expanded, 44×44). RSI, Supply/Demand Zones (STRUCTURE) and Pivot Points Standard previews show all six parts and ADD TO CHART, verdict CAN DRAW HERE. 390 EURUSD: OBV reads UNAVAILABLE HERE (no central volume); bottom sheet x 0–386, no page h-scroll |
+| **STATUS** | **PROVED** (`7c3405b`) |

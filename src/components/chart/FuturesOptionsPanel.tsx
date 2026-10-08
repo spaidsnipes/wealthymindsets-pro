@@ -25,6 +25,7 @@ import { expectedMove, readFopTicket } from "@/lib/broker/fopTicket";
 import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 import { readContractQuote, type ContractQuoteState } from "@/lib/broker/tastyContractQuote";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
+import { fopStreamWords } from "@/lib/broker/fopStreamWords";
 import { firstLiveExpiration, futuresProductFor, readEquityOptionChain, readFuturesOptionChain, snapToTick, strikesNear, tickFor, type FopExpiration, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
@@ -289,7 +290,16 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
   }, [parent, futAction, parentQ?.ask, parentQ?.bid, futSeeded]);
 
   const chg = parentMark != null && parentQ?.prevClose != null ? parentMark - parentQ.prevClose : null;
-  const streamWords = live.stream === "LIVE" || parentOnly.stream === "LIVE" ? "LIVE" : live.stream === "CONNECTING" ? "CONNECTING" : (live.reason ?? live.stream.replace(/_/g, " "));
+  // LIVE only when option quotes are on the chain — a live parent over blank cells says so (Sheriff P2).
+  const optionStreamers = rows.flatMap(r => [r.callStreamer, r.putStreamer]).filter((x): x is string => !!x);
+  const chainWords = fopStreamWords({
+    chainStream: live.stream,
+    chainReason: live.reason ?? null,
+    parentStream: parentOnly.stream,
+    optionsAsked: optionStreamers.length,
+    optionsQuoted: optionStreamers.filter(s => { const v = live.quotes.get(s); return v != null && (v.bid != null || v.ask != null || v.last != null); }).length,
+  });
+  const streamWords = chainWords.word;
   const [c1, c2] = COLS[columns];
   const priceRowIndex = center == null ? -1 : rows.findIndex(r => r.strike > center);
   // Open (and re-open per expiry) centred on the price line, like the broker screen.
@@ -337,7 +347,7 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
           <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-.01em" }}>{grp(parentMark, 2)}</span>
           {chg != null ? <span style={{ color: chg >= 0 ? GREEN : RED, fontWeight: 700 }}>{chg >= 0 ? "+" : "−"}{grp(Math.abs(chg), 2)} ({((chg / (parentQ!.prevClose as number)) * 100).toFixed(2)}%)</span> : null}
           <span style={{ color: MUTED }}>{px(parentQ?.bid)} × {px(parentQ?.ask)}</span>
-          <span style={{ color: streamWords === "LIVE" ? GREEN : GOLD, fontSize: 10.5, fontWeight: 700 }}>● {streamWords}</span>
+          <span data-testid="fop-stream-word" style={{ color: chainWords.live ? GREEN : GOLD, fontSize: 10.5, fontWeight: 700 }}>● {streamWords}</span>
         </div>
         <span style={{ flex: 1 }} />
         {equity && onExpression ? (

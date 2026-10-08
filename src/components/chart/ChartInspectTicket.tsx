@@ -48,7 +48,7 @@
  * honestly be said about the bar and the tape; this renders that verdict.
  */
 
-import { traderSourceWords } from "@/lib/chart/traderSourceWords";
+import { signedWhole, traderSourceWords } from "@/lib/chart/traderSourceWords";
 import type { FvgRelationshipReading } from "@/lib/marketData/fvg/fvgRelationships";
 import { sizeUnitFor } from "@/lib/marketData/sizeUnit";
 import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
@@ -167,11 +167,42 @@ function zonedClock(timeZone: string | null | undefined) {
     /** Millisecond-exact, zoned: "YYYY-MM-DD HH:MM:SS.mmm ZZZ". */
     exact: (ms: number) => {
       const p = parts(ms);
-      return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}.${String(((ms % 1000) + 1000) % 1000).padStart(3, "0")} ${p.timeZoneName ?? tz}`;
+      // ".000" said nothing (sheriff 2026-10-08): milliseconds print only when a
+      // clock actually carries them.
+      const milli = ((ms % 1000) + 1000) % 1000;
+      return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}${milli ? `.${String(milli).padStart(3, "0")}` : ""} ${p.timeZoneName ?? tz}`;
+    },
+    /**
+     * A provider's own clock string in the chart's zone when it names its zone
+     * (ISO with Z or an offset); otherwise verbatim, marked as unzoned. ISO Z
+     * stamps printed raw beside a CDT "as of" (sheriff 2026-10-08).
+     */
+    provider: (raw: string | null | undefined) => {
+      if (!raw) return "—";
+      if (/(Z|[+-]\d\d:?\d\d)$/.test(raw.trim())) {
+        const t = Date.parse(raw);
+        if (Number.isFinite(t)) { const p = parts(t); return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} ${p.timeZoneName ?? tz}`; }
+      }
+      return `${raw} (provider clock, zone not stated)`;
     },
   };
 }
 const READ_COLOR = "#E8EAF2";
+
+/**
+ * THE RECEIPT (sheriff ruling 2026-10-08): trader-facing Inspect text uses
+ * trader words; the machine lineage — ids, method names, provider stamps,
+ * owner chains — sits behind ONE collapsed disclosure, still in the document
+ * for whoever audits it.
+ */
+function Receipt({ children, testId = "inspect-receipt" }: { children: React.ReactNode; testId?: string }) {
+  return (
+    <details className="mt-1" data-testid={testId}>
+      <summary className="cursor-pointer select-none text-wm-muted" style={{ listStyle: "revert" }}>Receipt</summary>
+      <div className="mt-0.5">{children}</div>
+    </details>
+  );
+}
 
 /* ═══ Garden 19 §28 · INSPECT DEPTH — one evidence line on every ticket ═════
    The canon's ladder word (FULL / PARTIAL / DEGRADED / SILENT), why, the
@@ -712,6 +743,7 @@ function PassportDrawer({
           never merged; nothing reprints the bar. */}
       <div className="space-y-1 border-t border-wm-border px-3 py-2.5" data-testid="passport-provenance"
         data-inspect-lineage={own ? own.birth.state : "NOT_COMPILED"}>
+        <Receipt testId="passport-receipt">
         <Head>LINEAGE</Head>
         <Row k="Object" v={<span className="break-all font-mono text-[11px]">{object.objectId}</span>} />
         {own ? (
@@ -740,6 +772,7 @@ function PassportDrawer({
             <Row k="Lineage" v={<span style={{ color: UNREAD_COLOR }}>Not compiled for this object.</span>} />
           </>
         )}
+        </Receipt>
       </div>
 
       {/* The footer stays on the glass while the depth above it scrolls: the
@@ -749,7 +782,7 @@ function PassportDrawer({
         data-testid="passport-footer" data-passport-id={vm.footer.passportId} data-passport-decision={vm.footer.decision.state}>
         <div><span style={{ color: WM.text.muted }}>PASSPORT ID:</span> <span className="break-all font-mono" title={vm.footer.objectId}>{vm.footer.passportId}</span></div>
         <div><span style={{ color: WM.text.muted }}>INSPECTED AS OF:</span> <span className="tabular-nums">{vm.footer.inspectedLine}</span></div>
-        <div><span style={{ color: WM.text.muted }}>DECISION:</span> <span className="break-all">{vm.footer.decision.line}</span></div>
+        <div><span style={{ color: WM.text.muted }}>DECISION:</span> <span className="break-all" title={vm.footer.decision.line}>{vm.footer.decision.state === "BESIDE" ? "bound to this chart's decision (id in the Receipt)" : vm.footer.decision.line}</span></div>
       </footer>
     </section>
   );
@@ -876,7 +909,8 @@ function OptionsEvidenceBlock({ ev, px, onScope }: { ev: OptionsBarrierEvidenceV
   const oi = (ws: readonly ConcentrationWall[]) =>
     ws.length ? ws.map(w => `${px(w.strike)} (${w.openInterest.toLocaleString()} OI · ${(w.share * 100).toFixed(0)}%${w.volume != null ? ` · vol ${w.volume.toLocaleString()}` : ""})`).join(", ") : "none above 5% of side OI";
   const roots = ev.rootKind === "NONE" ? "none in ±20%" : ev.rootKind === "ONE" ? `one, at ${px(ev.zeroGammaRoots[0])}` : `${ev.zeroGammaRoots.length} crossings — ${ev.zeroGammaRoots.map(px).join(", ")} (no single "flip" level)`;
-  const sh = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: 0 })} sh`;
+  // "gamma −0 sh" (sheriff 2026-10-08): a reading that rounds to zero prints 0.
+  const sh = (v: number) => signedWhole(v, "sh");
   // Price-only: a time scenario would cross today's expiries, where linear
   // greeks do not hold — charm is shown above as a current rate instead.
   const day = scenarioHedge(ev, { dS: ev.spot * 0.01, dVolPoints: 0, dDays: 0 });
@@ -1426,6 +1460,7 @@ export function ChartInspectTicket({
         data-inspect-bar-id={vm.lineage.state === "READ" ? vm.lineage.barId : undefined}
         style={{ color: "#C8C0AE" }}
       >
+        <Receipt>
         <div className="flex items-baseline gap-2">
           <span className="font-bold tracking-wide text-wm-muted">LINEAGE</span>
           {vm.lineage.state === "UNREAD" && (
@@ -1446,6 +1481,7 @@ export function ChartInspectTicket({
           )}
         </div>
         <div className="text-wm-muted">method {vm.method}</div>
+        </Receipt>
       </div>
 
       {fusion && (
@@ -1456,7 +1492,8 @@ export function ChartInspectTicket({
             <div key={s.id}>Source {s.species} · own POC {s.poc?.toFixed(2) ?? "—"} · volume {Math.round(s.volume).toLocaleString("en-US")}</div>
           ))}
           <div>DERIVED · {fusion.evidence === "CANDLE_ESTIMATED" ? "CANDLE-ESTIMATED (a parent's volume was spread over bar ranges)" : "TRADE-BASED"} · {fusion.volumeUnit} · {fusion.sharedRows} shared rows · policy {fusion.overlapPolicy}</div>
-          <div>Method {fusion.method} v{fusion.version} · grid {fusion.step} · asOf {fusion.asOf != null ? clock.stamp(fusion.asOf) : "—"} · fidelity {fusion.fidelity ?? "not carried on these bars"}</div>
+          <div>Grid {fusion.step} · as of {fusion.asOf != null ? clock.stamp(fusion.asOf) : "—"} · fidelity {fusion.fidelity ?? "not carried on these bars"}</div>
+          <Receipt testId="inspect-fusion-receipt"><div>Method {fusion.method} v{fusion.version}</div></Receipt>
         </div>
       )}
 
@@ -1486,7 +1523,7 @@ export function ChartInspectTicket({
                 <div>Evidence · {wv.segments.length} segment{wv.segments.length === 1 ? "" : "s"} · {wv.segments.reduce((t, sg) => t + sg.prints, 0)} {derived ? "bars" : "prints"}{wv.latestVsMedian != null ? ` · newest ${wv.latestVsMedian.toFixed(2)}× the window median` : ""}{wv.trendRatio != null ? ` · late/early ${wv.trendRatio.toFixed(2)}×` : ""}</div>
                 <div>Class · {derived ? "DERIVED from traded bars (volume per bar-range travel), not tape" : "MEASURED from per-trade tape"}</div>
                 <div>Fidelity · {wv.provenance}{wv.dispersion != null ? ` · dispersion ${(wv.dispersion * 100).toFixed(0)}%` : ""}</div>
-                <div>Lineage · {derived ? "chart bars (volume-gated)" : "tape prints"} → selectLiquidityWeather{derived ? "FromBars" : ""} (judgeWeather) → heat lens → this storm</div>
+                <Receipt testId="inspect-weather-receipt"><div>Lineage · {derived ? "chart bars (volume-gated)" : "tape prints"} → selectLiquidityWeather{derived ? "FromBars" : ""} (judgeWeather) → heat lens → this storm</div></Receipt>
               </>
             )}
           </div>
@@ -1505,8 +1542,8 @@ export function ChartInspectTicket({
               <div>Climate at price · {pressureFront.climate.replace("_", " ")} (net / gross {pressureFront.climateRatio.toFixed(2)}; ±0.12 or closer is MIXED)</div>
               <div>Evidence · {pressureFront.contracts} contracts with open interest · {pressureFront.walls.length} wall{pressureFront.walls.length === 1 ? "" : "s"} · {pressureFront.pockets.length} acceleration pocket{pressureFront.pockets.length === 1 ? "" : "s"}{pressureFront.envelope ? ` · expected move ±${mtfPx(pressureFront.envelope.session)} (IV30, DERIVED)` : ""}</div>
               <div>Class · INFERRED ({pressureFront.assumption}) · actual price response outranks this model</div>
-              <div>Fidelity · {pressureFront.fidelity} ({positioningSourceWords(pressureFront.source).name}) · chain {pressureFront.clocks.chainAsOf ?? "—"} · {positioningSourceWords(pressureFront.source).oi} · model {clock.minute(pressureFront.clocks.modelAsOf)}</div>
-              <div>Lineage · {positioningSourceWords(pressureFront.source).name} OI + IV → selectDerivativesPressure v{pressureFront.version} → geography sweep → this front</div>
+              <div>Fidelity · {pressureFront.fidelity} · chain {clock.provider(pressureFront.clocks.chainAsOf)} · {positioningSourceWords(pressureFront.source).oi} · model {clock.minute(pressureFront.clocks.modelAsOf)}</div>
+              <Receipt testId="inspect-front-receipt"><div>Lineage · {positioningSourceWords(pressureFront.source).name} OI + IV → selectDerivativesPressure v{pressureFront.version} → geography sweep → this front</div></Receipt>
             </>
           ) : (
             <div>The derivatives reading went silent ({pressureFront.receipt.replace("PRESSURE:SILENT:", "").replace(/_/g, " ").toLowerCase()}) — no environment is guessed at.</div>
@@ -1543,7 +1580,7 @@ export function ChartInspectTicket({
           BROKEN: "accepted through — what remains is a scar",
         };
         const contra = dp.climate === "AMPLIFYING"
-          ? "The global climate is AMPLIFYING while this strike is locally defensive — local geography and global climate disagree (Garden 15 §4)."
+          ? "The global climate is AMPLIFYING while this strike is locally defensive — local geography and global climate disagree."
           : w.life === "WEAKENING" || w.life === "BREAKING" || w.life === "BROKEN"
             ? "The model expects damping here; the observed response is failing to confirm it. Actual response outranks the model."
             : "None observed: the response so far agrees with the expected defence.";
@@ -1555,14 +1592,13 @@ export function ChartInspectTicket({
             <div>Where · strike {mtfPx(w.strike)}, price {w.side === "ABOVE" ? "above" : "below"} it · {(w.share * 100).toFixed(1)}% of gross exposure</div>
             <div>Evidence · call OI {w.callOi.toLocaleString()} · put OI {w.putOi.toLocaleString()} · ≈${(w.exposure / 1e6).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}M per 1% move</div>
             <div>Class · exposure INFERRED ({dp.assumption}) · tests OBSERVED on this chart&apos;s bars</div>
-            {/* The provider's own stamps, verbatim and unconverted — they arrive in two
-                formats with no zone, beside a CDT "as of" (sheriff sweep 2026-10-07),
-                so the line says so rather than implying a local clock. */}
-            <div>Fidelity · {dp.fidelity} ({positioningSourceWords(dp.source).name}) · clocks as the provider stamps them (zone not stated): chain {dp.clocks.chainAsOf ?? "—"} · underlying {dp.clocks.underlyingAsOf ?? "—"} · {positioningSourceWords(dp.source).oi}</div>
+            {/* Provider stamps: in the chart's zone when they name theirs (ISO Z),
+                verbatim and marked unzoned otherwise (sheriff 2026-10-07 / 10-08). */}
+            <div>Fidelity · {dp.fidelity} · chain {clock.provider(dp.clocks.chainAsOf)} · underlying {clock.provider(dp.clocks.underlyingAsOf)} · {positioningSourceWords(dp.source).oi}</div>
             <div data-testid="inspect-pressure-wall-life">Life · {lifeWords[w.life]} · {w.tests} test{w.tests === 1 ? "" : "s"}{w.firstTestTime != null ? ` since ${clock.minute(w.firstTestTime)} ${clock.zone(w.firstTestTime)}` : ""}{w.closesBeyond ? ` · ${w.closesBeyond} close${w.closesBeyond === 1 ? "" : "s"} beyond` : ""}{wallTestSpanWords(dp.testSpanSec) ? ` · counted over the ${wallTestSpanWords(dp.testSpanSec)!.replace(" seen", "")} this chart has loaded — a longer timeframe sees more of the week` : ""}</div>
             <div>Contradiction · {contra}</div>
             <div>Climate · {dp.climate.replace("_", " ")} at price ({dp.climateRatio.toFixed(2)}) · zero-gamma front {dp.zeroGamma != null ? mtfPx(dp.zeroGamma) : "none in ±20%"}</div>
-            <div>Lineage · {positioningSourceWords(dp.source).name} OI + IV → selectDerivativesPressure v{dp.version} → this wall ({dp.contracts} contracts)</div>
+            <Receipt testId="inspect-wall-receipt"><div>Lineage · {positioningSourceWords(dp.source).name} OI + IV → selectDerivativesPressure v{dp.version} → this wall ({dp.contracts} contracts)</div></Receipt>
             <OptionsEvidenceBlock ev={pressureWall.evidence ?? null} px={mtfPx} onScope={pressureWall.onScope} />
           </div>
         );
