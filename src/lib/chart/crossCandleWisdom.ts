@@ -72,7 +72,7 @@ export function readCrossCandleWisdom(input: WisdomInput): WisdomLine | null {
       return {
         kind: "FAILED_AGGRESSION",
         text: `${side} AGGRESSION FAILED TO DISPLACE`,
-        provenance: `Delta Keel · ${k.basis === "TAPE" ? "captured signed prints" : "provider bar sides"} · bar ${k.time} · delta ${k.delta} · ${(Math.abs(k.ratio) * 100).toFixed(0)}% of sided volume, price did not move its way`,
+        provenance: `Delta Keel · ${k.basis === "TAPE" ? "captured signed prints" : "provider bar sides"} · bar ${k.time} · delta ${Math.round(k.delta * 1e4) / 1e4} · ${(Math.abs(k.ratio) * 100).toFixed(0)}% of sided volume, price did not move its way`,
         time: k.time,
         sources: [`DELTA_KEEL:${k.basis}`],
       };

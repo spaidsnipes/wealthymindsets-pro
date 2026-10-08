@@ -9,8 +9,11 @@
  * never folded into EXECUTION.) Broker facts
  * (orders, fills, fees) are never edited here; this is the trader's half of
  * the story, kept on this device and keyed by the story (its Decision_ID).
- * PURE parsing + one storage owner.
+ * PURE parsing + one storage owner. Keyed by the signed-in member through the
+ * one owner (managementOwner, Garden 19 2026-10-08): `wm_story_review_v1:<member>`.
  */
+
+import { managementKey } from "./managementOwner";
 
 export const REVIEW_DIMENSIONS = ["READ", "DECISION", "ADHERENCE", "EXPRESSION", "EXECUTION", "SLIPPAGE", "RISK", "MANAGEMENT", "DISCIPLINE", "RESULT"] as const;
 export type ReviewDimension = (typeof REVIEW_DIMENSIONS)[number];
@@ -89,14 +92,20 @@ export function reviewSummary(r: StoryReview | undefined): string {
   return `${held} held · ${broke} broke · ${open} open`;
 }
 
+/** This member's review key; null for a guest or before auth resolves (nothing read, nothing written). */
+export const storyReviewKey = (): string | null => managementKey(STORY_REVIEW_STORAGE_KEY);
+
 export function readStoryReviews(): Readonly<Record<string, StoryReview>> {
-  try { return parseStoryReviews(localStorage.getItem(STORY_REVIEW_STORAGE_KEY)); } catch { return {}; }
+  const key = storyReviewKey();
+  if (!key) return {};
+  try { return parseStoryReviews(localStorage.getItem(key)); } catch { return {}; }
 }
 
 export function writeStoryReview(key: string, review: StoryReview): Readonly<Record<string, StoryReview>> {
   const notes: Partial<Record<ReviewDimension, string>> = {};
   for (const d of REVIEW_DIMENSIONS) { const n = review.notes?.[d]; if (typeof n === "string" && n !== "") notes[d] = n.slice(0, MAX_TEXT); }
   const all = { ...readStoryReviews(), [key]: { ...review, notes, lesson: review.lesson.slice(0, MAX_TEXT), repeat: review.repeat.slice(0, MAX_TEXT), ...(typeof review.planWhy === "string" ? { planWhy: review.planWhy.slice(0, MAX_TEXT) } : {}) } };
-  try { localStorage.setItem(STORY_REVIEW_STORAGE_KEY, JSON.stringify(all)); } catch { /* this visit only */ }
+  const storeKey = storyReviewKey();
+  if (storeKey) { try { localStorage.setItem(storeKey, JSON.stringify(all)); } catch { /* this visit only */ } }
   return all;
 }

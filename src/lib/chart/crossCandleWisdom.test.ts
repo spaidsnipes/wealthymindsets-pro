@@ -40,3 +40,11 @@ describe("cross-candle wisdom (§17) — one line, only from a real evidence obj
     expect(readCrossCandleWisdom({ field: f, keels: [keel(240, 0.4, true)], newestClosedTime: 240, barSec: 60 })?.kind).toBe("FAILED_AGGRESSION");
   });
 });
+
+describe("provenance numbers read as numbers (serving BTC 1m @390, 2026-10-08)", () => {
+  it("a fractional crypto delta never prints float noise", () => {
+    const k: Keel = { ...keel(300, -0.87, true), delta: -27.355398600000008, basis: "TAPE" };
+    const w = readCrossCandleWisdom({ keels: [keel(0, 0.3, false), k], newestClosedTime: 300, barSec: 300 });
+    expect(w?.provenance).toContain("delta -27.3554 ·");
+  });
+});

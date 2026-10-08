@@ -928,6 +928,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [rvolToneOn, setRvolToneOn] = useState<boolean>(() => lsGet("wm_rvolTone", true) as boolean);
   // F15 BREATH RIBBON (PROPOSED — no Founder plate for Breathing yet): OFF by default.
   const [breathRibbonOn, setBreathRibbonOn] = useState<boolean>(() => lsGet("wm_breathRibbon", false) as boolean);
+  // C-06 CVD ⇄ price notch (G19.CVD_REL): PROPOSED, no Founder plate — default OFF.
+  const [cvdNotchOn, setCvdNotchOn] = useState<boolean>(() => lsGet("wm_cvdNotch", false) as boolean);
   // FVG / IMBALANCE (Garden 19 FVG lane D): OFF by default; the glass paints
   // the ONE FVG history and hands back the scene it painted (Inspect reads it).
   const [fvgOn, setFvgOn] = useState<boolean>(() => lsGet(FVG_PREF_KEY, false) as boolean);
@@ -1316,6 +1318,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_wisdomLine", wisdomLineOn);
   usePersistOnChange("wm_rvolTone", rvolToneOn);
   usePersistOnChange("wm_breathRibbon", breathRibbonOn);
+  usePersistOnChange("wm_cvdNotch", cvdNotchOn);
   usePersistOnChange(FVG_PREF_KEY, fvgOn);
   usePersistOnChange("wm_absorptionAnatomy",   absorptionAnatomy);
   usePersistOnChange("wm_exhaustion",          exhaustionOn);
@@ -2243,6 +2246,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const firstTouchLabel = firstTouchId == null ? ""
     : firstTouchId === FVG_INSTRUMENT_ID ? "FVG / Imbalance"
     : firstTouchId === "FP_big-trades" ? "Big Trades"
+    : firstTouchId === "F11A" ? "Supply / demand zone"
     : firstTouchId.startsWith("FP_") ? (FOOTPRINT_TYPES.find(t => `FP_${t.id}` === firstTouchId)?.label ?? firstTouchId)
     : (selectProfileMenu({ barsPresent: true, printsPresent: true, observedAggressorFlow: true, active: {}, only: [firstTouchId as ProfileId] }).entries[0]?.label ?? firstTouchId);
 
@@ -4060,6 +4064,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         active: breathRibbonOn,
         onToggle: () => setBreathRibbonOn(v => !v),
         truth: { ok: true, sentence: "Range only (OHLC) — it reads on every market. Proposed until a Founder plate exists." },
+      }, {
+        id: "CVD_NOTCH",
+        label: "CVD Notch (proposed)",
+        what: "A small hollow notch on a candle's wick tip where the last 5 bars' cumulative delta ran against their price move — agreement stays silent. Reads the Delta Keel's signed rows, so Delta Keel must be on. Proposed: no Founder plate for the CVD relationship yet",
+        familyWord: "Order Flow",
+        aliases: ["cvd", "cumulative delta", "divergence", "delta divergence", "absorption", "aggression"],
+        active: cvdNotchOn,
+        onToggle: () => setCvdNotchOn(v => !v),
+        truth: deltaKeelOn
+          ? { ok: true, sentence: "Signed flow from the Delta Keel's rows (captured prints, else the provider's bar sides — dashed). Proposed until a Founder plate exists." }
+          : { ok: false, sentence: "Needs Delta Keel on — the notch reads the keel's signed rows." },
       }, {
         // Garden 19 FVG lane D · id = the education key, so the ⓘ reads
         // CONCEPT_EDUCATION.FVG_IMBALANCE (and its Academy lesson fvg-1).
@@ -7040,6 +7055,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       wisdomLineOn={wisdomLineOn}
                       rvolToneOn={rvolToneOn}
                       breathRibbonOn={breathRibbonOn}
+                      cvdNotchOn={cvdNotchOn}
                       fvgOn={fvgOn}
                       onFvgScene={setFvgScene}
                       absorptionAnatomyActive={absorptionAnatomy}

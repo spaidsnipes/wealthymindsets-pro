@@ -65,6 +65,7 @@ import { requestBrokerConnect } from "@/lib/broker/brokerConnectDoor";
    open-settings door live in `shellPanelDoors` (light, so a closed shell can
    read them without loading every panel) and are re-exported from here. */
 import { INITIAL_NOTIFS, type SettingsTabId } from "@/components/layout/shellPanelDoors";
+import { readJournalRaw } from "@/lib/traderMemory/adapters/journalStorage";
 export { initialUnreadNotificationCount, SETTINGS_TAB_IDS, OPEN_SETTINGS_EVENT, openSettings, type SettingsTabId } from "@/components/layout/shellPanelDoors";
 
 const CAT_COLOR: Record<string,string> = {
@@ -732,7 +733,7 @@ export function SettingsPanel({
                 <button
                   onClick={() => {
                     const data = {
-                      journal: JSON.parse(localStorage.getItem("wm_journal_entries") ?? "[]"),
+                      journal: JSON.parse(readJournalRaw(localStorage) ?? "[]"),
                       paper:   JSON.parse(localStorage.getItem("wm_paper_state") ?? "{}"),
                       profile: JSON.parse(localStorage.getItem("wm-profile") ?? "{}"),
                       exportedAt: new Date().toISOString(),

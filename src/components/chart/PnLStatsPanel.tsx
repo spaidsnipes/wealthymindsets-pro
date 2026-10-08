@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { X, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { journalStorageKeys } from "@/lib/traderMemory/adapters/journalStorage";
 import {
   compilePnlStats,
   type PnlStatsReport,
@@ -32,7 +33,10 @@ export function PnLStatsPanel({ onClose }: { onClose: () => void }) {
     const loadStats = () => {
       let raw: string | null = null;
       try {
-        raw = localStorage.getItem("wm_journal_entries");
+        // The signed-in member's own book (Garden 19 member isolation) — the one key resolver.
+        // Nobody signed in (or auth not yet resolved) = no book here, not an unreadable one.
+        const keys = journalStorageKeys();
+        raw = keys ? localStorage.getItem(keys.canonical) : null;
       } catch {
         // Storage itself is unavailable (private mode, blocked origin). An
         // unreadable record is exactly what the owner names for this.

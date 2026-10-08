@@ -5,9 +5,8 @@ import { hydrateJournalEntries, type JournalEntry } from "@/lib/journal/hydrateJ
 import type { JournalRecordCoverage } from "@/lib/journal/journalRecordShape";
 import type { DecisionMemorySnapshot } from "../viewModels/selectProcessLandscape";
 import {
-  JOURNAL_STORAGE_KEY,
   JOURNAL_UPDATED_EVENT,
-  LEGACY_JOURNAL_STORAGE_KEY,
+  isJournalStorageEventKey,
   readJournalStorage,
 } from "./journalStorage";
 
@@ -155,8 +154,11 @@ export function useJournalBook(ownerId: string | null | undefined): JournalBookR
     refresh();
     if (typeof window === "undefined") return;
     const onEvent = () => refresh();
+    // The member's own keys (Garden 19 member isolation): `wm_journal_entries:<member>` and the
+    // legacy `wm-journal:<member>`. A change of member re-reads through `ownerId` (AuthContext sets
+    // the owner before the account reaches React state), so this stays ONE subscription.
     const onStorage = (ev: StorageEvent) => {
-      if (ev.key === JOURNAL_STORAGE_KEY || ev.key === LEGACY_JOURNAL_STORAGE_KEY) refresh();
+      if (isJournalStorageEventKey(ev.key)) refresh();
     };
     window.addEventListener(JOURNAL_UPDATED_EVENT, onEvent);
     window.addEventListener("storage", onStorage);

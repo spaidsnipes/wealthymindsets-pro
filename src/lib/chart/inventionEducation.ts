@@ -489,6 +489,17 @@ export const INSTRUMENT_EDUCATION: Readonly<Record<string, InventionEducation>> 
     firstTouch: "Breath ribbon — each bar's range against its own normal; low = compressed, tall = expanded.",
     canon: "F15 Market Breathing (rail card) · panel-erasure carrier, PROPOSED",
   },
+  CVD_NOTCH: {
+    question: "Across the last few candles, is the aggression agreeing with the price move?",
+    needs: "SIDED_TAPE", evidence: "The Delta Keel's signed rows for the last 5 finished bars: captured signed prints, else the provider's bar sides. Their summed delta (the CVD slope) against the price move across the same bars.",
+    appears: "A small hollow ivory notch on the wick tip of the window's last bar, in the direction price moved — only where the cumulative delta ran the other way. Dashed when the window used the provider's bar sides.",
+    grammar: "Notch = price moved one way while the net aggression across those bars leaned the other. No notch = they agreed, or flow was balanced, or the move was under a quarter ATR. It describes finished bars and never forecasts a turn. PROPOSED — no Founder plate for the CVD relationship yet.",
+    full: "Every bar in the window carries signed flow from captured prints.",
+    partial: "A window used the provider's bar sides — its notch is dashed (inferred).",
+    degraded: "A bar in the window has no sides — no claim is made for that window. Spot FX has no central sides — silent.",
+    firstTouch: "CVD notch — price moved one way while the last 5 bars' net aggression leaned the other.",
+    canon: "G19.CVD_REL · C-06 CVD ⇄ price relationship notch (G19-P02), PROPOSED",
+  },
   RVOL_TONE: {
     question: "Was this bar unusually busy for its time of day?",
     needs: "VOLUME", evidence: "Real traded volume, compared with the same time of day over 10+ earlier sessions (else the recent bars, labelled).",
@@ -566,8 +577,8 @@ export const INSTRUMENT_EDUCATION: Readonly<Record<string, InventionEducation>> 
  */
 export interface ConceptEducation extends InventionEducation {
   readonly what: string;
-  /** The Academy lesson that teaches it (deep link into /education). */
-  readonly academy: { readonly lessonId: string; readonly href: string; readonly title: string };
+  /** The Academy lesson that teaches it (deep link into /education), when one exists. */
+  readonly academy?: { readonly lessonId: string; readonly href: string; readonly title: string };
 }
 
 /**
@@ -575,7 +586,7 @@ export interface ConceptEducation extends InventionEducation {
  * src/lib/marketData/fvg/fvgDefinition.ts (FVG_3C v1); the course
  * (src/lib/academy/fvgCourse.ts) teaches the same words.
  */
-export const CONCEPT_EDUCATION: Readonly<Record<"FVG_IMBALANCE", ConceptEducation>> = {
+export const CONCEPT_EDUCATION = {
   FVG_IMBALANCE: {
     what: "Fair value gap — a price territory left between two candles' wicks when the middle candle displaced so fast that the market barely traded there.",
     question: "Where did price move so fast that one side barely traded — and what has happened at that territory since?",
@@ -590,7 +601,101 @@ export const CONCEPT_EDUCATION: Readonly<Record<"FVG_IMBALANCE", ConceptEducatio
     canon: "Garden 19 §32 · FVG_3C v1 · Academy: FVG / Imbalance & Patience, lesson 1",
     academy: { lessonId: "fvg-1", href: "/education?lesson=fvg-1", title: "What is an imbalance?" },
   },
-};
+  // ── §34 inventory audit (2026-10-08): built candle-field inventions reached by
+  // a CONTEXT door (select / rail / pane) had no ⓘ. Keyed by their census ids.
+  // Words read from the owners named in each `canon`; nothing here is new grammar.
+  F04A: {
+    what: "Causal marks — the selected print is the FORCE; what price did in the next bars, with and against it, is the RESPONSE.",
+    question: "Did this big print actually move the market its way?",
+    needs: "PRINTS",
+    evidence: "One selected per-trade print (Big Trades on) and the closed bars after it; the yardstick is the median bar range of the bars BEFORE the print.",
+    appears: "On the selected print only: a force mark at its time and price, then the response bars marked FOLLOWED / FADED / MUTED, with the evidence debt counting closed response bars (0/3 … 3/3).",
+    grammar: "FOLLOWED = moved at least one median range with the force, more than against it. FADED = the same against it. MUTED = neither. PENDING until the response bars have closed — a forming bar is never graded.",
+    full: "The print's side is stated by the venue and every response bar has closed.",
+    partial: "Response bars still forming — the verdict reads PENDING and shows what has printed so far.",
+    degraded: "No per-trade prints on this market — there is no print to select, so nothing is marked.",
+    firstTouch: "Force → response — what price did after this print, with and against it.",
+    canon: "F04A Causal marks · H-701 Force → Response (the print-response owner)",
+  },
+  F11A: {
+    what: "Market object — a supply or demand zone drawn on the full range of the bar a confirmed swing was born on.",
+    question: "Where did price leave fast from a confirmed swing, and is that zone still standing?",
+    needs: "PRICE",
+    evidence: "Confirmed swing pivots from the one structure owner and the closed bars since; no volume is needed.",
+    appears: "A zone band on price: swing low → DEMAND zone over that bar's low–high, swing high → SUPPLY zone; its name and state sit beside it in a clear slot.",
+    grammar: "A zone is tested when price trades into it, defended when it holds, and invalid on a close through it (below a demand zone, above a supply zone). SWEPT · STILL VALID means a wick ran it without a closing break.",
+    full: "Built from the loaded closed bars — nothing more is needed.",
+    partial: "Too few bars to confirm a swing — no zone is drawn until the pivot is confirmed.",
+    degraded: "No bars — nothing to read.",
+    firstTouch: "Supply / demand zone — where price left fast; its passport shows tests, defence and whether it is consumed.",
+    canon: "F11A Market object on chart (the swing-origin zone owner + the zone lifecycle owner)",
+  },
+  F11B: {
+    what: "Object Passport — the biography of a selected market object: birth, lifecycle, evidence, contradictions and what is still unknown.",
+    question: "What is this object, where did it come from, and what would make it invalid?",
+    needs: "OTHER_LAYERS",
+    evidence: "Only what the engine actually resolved for the object; every field traces back to a canonical evidence ref.",
+    appears: "A passport drawer beside the chart when an object is selected — never paint on price.",
+    grammar: "Lifecycle RESOLVED / FORMING / UNRESOLVED, value and confidence, source and fidelity, evidence lineage, contradictions, and unknowns (what is missing or would invalidate it).",
+    full: "The object's dimensions are resolved from canonical evidence.",
+    partial: "Some dimensions are still forming — they say so.",
+    degraded: "Unknown dimensions read UNRESOLVED and state exactly what is missing — nothing is invented.",
+    firstTouch: "Passport — this object's birth, lifecycle, evidence and what would make it invalid.",
+    canon: "F11B Object Passport (the market-object passport owner)",
+  },
+  "G19.CVD_REL": {
+    what: "CVD relationship — cumulative signed volume read against price, in its own pane under the chart.",
+    question: "Is the aggression agreeing with price, or is price moving without it?",
+    needs: "SIDED_TAPE",
+    evidence: "Prints with a stated or inferred aggressor side; the pane says which (cvdSides INFERRED or LABELLED).",
+    appears: "A cumulative line in the Tape CVD pane under the chart; Delta Divergence marks two pivots on price where they disagree.",
+    grammar: "Price and CVD rising together = aggression agreeing. Price higher while CVD lower (or the reverse) = disagreement worth inspecting. The per-bar relationship is not yet drawn on the candles (census PARTIAL).",
+    full: "Every print carries a venue-stated side.",
+    partial: "Sides are inferred (quote test / tick rule) — labelled inferred.",
+    degraded: "No sided tape — no CVD is drawn rather than guess sides from candle colour.",
+    firstTouch: "CVD — the running balance of who crossed the spread, beside price.",
+    canon: "Registry §C aggression · tape CVD pane + the Delta Divergence reader (Garden 19 C-06 proposes the on-candle notch)",
+  },
+  "G19.CROSS": {
+    what: "Related-market evidence — for a spot FX pair, the CME future's exchange-signed flow, named as the future's, never as spot volume.",
+    question: "What is the related futures market doing while this spot pair has no central volume?",
+    needs: "SIDED_TAPE",
+    evidence: "The CME future's (6E / 6B / 6J) prints whose exchange aggressor side is BUY or SELL over the last few minutes; unsided prints are counted apart, never guessed.",
+    appears: "A line of words beside the spot price — \"CME 6E flow · related, not spot\" — never a bar, histogram or profile on the spot chart.",
+    grammar: "Net buying or selling on the related future, with its window and print count. It is related-market evidence, not this pair's volume.",
+    full: "The related future's stream is live with signed prints.",
+    partial: "Few signed prints in the window — the count says so.",
+    degraded: "No related future for this market, or the stream is owner-only — the plain unsupported line instead.",
+    firstTouch: "Related market — the CME future's signed flow, not spot volume.",
+    canon: "Garden 19 C23 cross-market · FX lane related-flow owner; index / sector benchmark alignment not built",
+  },
+  "G19.VWAP": {
+    what: "Session-anchored VWAP — the volume-weighted average price, reset at each session open on the one session clock.",
+    question: "Where is the session's volume-weighted fair price, and is price above or below it?",
+    needs: "VOLUME",
+    evidence: "Traded volume on the session's bars; sessions come from the one session owner (RTH / ETH, the Globex day, the 17:00 ET FX roll).",
+    appears: "A line across the session's bars with optional ±σ bands (Indicators › VWAP).",
+    grammar: "Above VWAP = trading above the session's average fill; the bands are volume-weighted deviation. A bar outside any session gets no value.",
+    full: "Real traded volume on every session bar.",
+    partial: "The session has only just traded — the line starts at its first volume.",
+    degraded: "No traded volume (spot FX) — no VWAP rather than a typical price dressed up as one.",
+    firstTouch: "VWAP — the session's volume-weighted average price.",
+    canon: "Registry §I value sense · indicators.ts session-anchored VWAP (no user-dragged anchor yet — census PARTIAL)",
+  },
+  "F10.TED": {
+    what: "Temporal Evidence Density — how unevenly the traded volume is spread across the window's clock time. DEFINITION PENDING FOUNDER: this is WM's reading of the name.",
+    question: "Was this stretch of the chart long on the clock but thin on actual trading?",
+    needs: "VOLUME",
+    evidence: "Traded volume on the camera's closed bars.",
+    appears: "One TED line in the WAIT rail — no mark on the candles until the Founder confirms the definition (proposed plate G19-P06 asks the question).",
+    grammar: "The share of all volume sitting in the densest fifth of bars, and how dense the newest closed bar is against the window's median bar.",
+    full: "Real traded volume on the bars in view.",
+    partial: "Few closed bars in view — the medians are thin.",
+    degraded: "No traded volume — no reading.",
+    firstTouch: "TED — how much of the window's trading is packed into a few bars. Definition pending the Founder.",
+    canon: "F10 Time · the effort-evidence owner's TED reading · Garden 19 C-13 (definition owed)",
+  },
+} as const satisfies Readonly<Record<string, ConceptEducation>>;
 
 export type EducationKey = ProfileId | keyof typeof INSTRUMENT_EDUCATION | keyof typeof CONCEPT_EDUCATION;
 
@@ -701,7 +806,9 @@ export function educationIdForSelection(sel:
   if (!sel) return null;
   switch (sel.kind) {
     // FVG| — a GAP_FVG object (fvgDefinition.mintFvgObjectId; Garden 19 lane D, 2026-10-07).
-    case "OBJECT": return sel.objectId.startsWith("FVG|") ? "FVG_IMBALANCE" : sel.objectId.startsWith("MEMORY:") ? "PROFILE_MEMORY" : "MARKET_STRUCTURE";
+    // ZONE:* — a supply / demand zone is its own market object (F11A, 2026-10-08),
+    // not a swing level: its ⓘ and first touch open the zone's record.
+    case "OBJECT": return sel.objectId.startsWith("FVG|") ? "FVG_IMBALANCE" : sel.objectId.startsWith("MEMORY:") ? "PROFILE_MEMORY" : sel.objectId.startsWith("ZONE:") ? "F11A" : "MARKET_STRUCTURE";
     case "PRINT": return sel.print.kind === "delta" ? "FP_delta" : "FP_big-trades";
     case "SLICE": return "LIVING_PROFILE";
     case "ANATOMY": return sel.reading.target.reading;

@@ -20,6 +20,13 @@
  * canon walk (§XLVIII) is run against.
  */
 import type { ProfileId } from "@/lib/marketData/viewModels/selectProfileMenu";
+import {
+  NARROW_GLASS_KEEPS_WORDS,
+  NARROW_GLASS_MAX_PX,
+  QUIET_CEILING,
+  SEMANTIC_PERMISSION,
+  type DepthLayer,
+} from "@/lib/marketData/viewModels/selectSemanticPermission";
 
 export type CensusStatus = "BUILT" | "PARTIAL" | "NOT_BUILT" | "INTERNAL";
 export type CensusSurface =
@@ -27,6 +34,8 @@ export type CensusSurface =
   | { readonly kind: "FOOTPRINT"; readonly mode: string }
   | { readonly kind: "ROUTE"; readonly href: string }
   | { readonly kind: "CONTEXT"; readonly how: string }
+  /** A Tool Finder instrument outside the Tools catalogue (ChartsDashboard `instruments`, ⓘ in INSTRUMENT_ / CONCEPT_EDUCATION). */
+  | { readonly kind: "INSTRUMENT"; readonly id: string }
   | { readonly kind: "NONE" };
 
 export interface CensusEntry {
@@ -41,14 +50,60 @@ export interface CensusEntry {
   readonly gap?: string;
   /** Words a trader may search by that are not in the name (Tools search). */
   readonly aliases?: readonly string[];
+  // ── §34 inventory audit (2026-10-08): the three facts every built candle-field
+  // invention must carry. Filled from FIELD_FACTS below — read from what the paint
+  // code does today, never a target. Absent on rooms, lenses, protocols, inspectors.
+  /** How it manifests on the candle field. */
+  readonly manifestation?: Manifestation;
+  /** Its colour semantics, as tokens whose owners are named in INK_SOURCE. */
+  readonly ink?: readonly InkToken[];
+  /** What it does under the narrow-glass budget (plot < NARROW_GLASS_MAX_PX), and why. */
+  readonly narrow?: NarrowBehaviour;
+  /** Its row in the one permission table (selectSemanticPermission), or null when it is not gated there. */
+  readonly layer?: DepthLayer | null;
+}
+
+export type Manifestation = "CONTINUOUS" | "EVENT" | "TERRITORY";
+
+/** Semantic ink tokens — each names the code that owns the colour, never a hex. */
+export type InkToken =
+  | "PROFILE_ROLES" | "VP_PALETTE" | "FUSED"
+  | "DELTA_SIDE" | "TRADE_SIDE" | "FOOTPRINT_SIDE" | "DVP_SIDE" | "ABSORB"
+  | "BRASS" | "BONE" | "EXHAUST_RED" | "OPTIONS_NET" | "REGIME_FIELD"
+  | "SESSION_INKS" | "RISK_REWARD" | "LINEAGE" | "CANDLE";
+
+export const INK_SOURCE: Readonly<Record<InkToken, string>> = {
+  PROFILE_ROLES: "profileFamilyInk.ts roles (POC · EDGE_HIGH · EDGE_LOW · VALUE · TAIL · ANCHOR · WASH), trader-chosen via the VP palette",
+  VP_PALETTE: "the trader's VP palette (vpColorsRef: up / dn / POC / VAH / VAL) — classic Fixed / Session VP columns",
+  FUSED: "flowColorsRef.fused — the trader's fused-profile ink",
+  DELTA_SIDE: "flowColorsRef.dBuy / dSell — the trader's delta buy / sell inks",
+  TRADE_SIDE: "flowColorsRef.btBuy / btSell — the trader's big-trade buy / sell inks",
+  FOOTPRINT_SIDE: "ofColorsRef[mode].buy / sell — the trader's per-footprint-mode inks",
+  DVP_SIDE: "dvpSideStyle — the bid/ask split's side ink, stated vs inferred sides drawn differently",
+  ABSORB: "flowColorsRef.absorb — the trader's absorption ink",
+  BRASS: "house brass (212,175,55 / 201,165,92 / 232,184,92) — hardware, never a market direction",
+  BONE: "bone / ivory neutral (237,230,211 · 200,192,174) — no direction claim",
+  EXHAUST_RED: "exhaustion's own red (226,92,92)",
+  OPTIONS_NET: "net positioning blue (84,140,204) vs orange (222,108,44) — derivatives pressure and brick walls",
+  REGIME_FIELD: "REGIME_FIELD_RGB — the regime light's own field",
+  SESSION_INKS: "per-session inks (Asia · London · New York · overlap) in the session bands block",
+  RISK_REWARD: "risk red / reward green / steel on the trader's own position lines",
+  LINEAGE: "per-horizon lineage inks of the MTF ancestry (daily · 4H · 1H)",
+  CANDLE: "the candle's own up / down body inks (Clarity species)",
+};
+
+export interface NarrowBehaviour {
+  readonly rule: "KEEP" | "SIMPLIFY" | "WITHHOLD";
+  readonly why: string;
 }
 
 const sw = (id: ProfileId): CensusSurface => ({ kind: "SWITCH", id });
 const ctx = (how: string): CensusSurface => ({ kind: "CONTEXT", how });
 const route = (href: string): CensusSurface => ({ kind: "ROUTE", href });
+const inst = (id: string): CensusSurface => ({ kind: "INSTRUMENT", id });
 const VM = "src/lib/marketData/viewModels/";
 
-export const INVENTION_CENSUS: readonly CensusEntry[] = [
+const RAW_CENSUS: readonly CensusEntry[] = [
   // ── F01 TRUTH / FIDELITY ───────────────────────────────────────────────
   { id: "F01", name: "Truth owns the candle · Fidelity five (not a rainbow)", family: "F01 Truth / Fidelity", status: "BUILT",
     owner: "src/components/marketData/CanonicalFidelityBadge.tsx", surface: ctx("fidelity chip beside every price (chart, watchlist, tape, desk)"),
@@ -170,7 +225,9 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
 
   // ── NAMED CROSS-SURFACE INVENTIONS (registry §AB) — not yet built ───────
   { id: "AB.TWIN", name: "Market Twin · State Graph", family: "Registry §AB", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "named; no owner" },
-  { id: "AB.MATRIX", name: "Response Matrix", family: "Registry §AB", status: "PARTIAL", owner: "src/lib/chart/effortEvidence.ts", surface: ctx("Response matrix card in the WAIT rail (effort × response cells per bar)"), plate: null, gap: "rail reading built to the registry line 'observed response vs contextual expected response'; on-canvas grammar waits for a Founder plate" },
+  // §34 audit 2026-10-08: the on-field carrier shipped in 2fc2346 (Effort → Response
+  // columns inside each volume bar, certificate C-01) — row G19.EFFORT_FIELD.
+  { id: "AB.MATRIX", name: "Response Matrix", family: "Registry §AB", status: "BUILT", owner: "src/lib/chart/effortEvidence.ts", surface: ctx("Response matrix card in the WAIT rail (effort × response cells per bar); on the field as Effort → Response (Tools)"), plate: null },
   { id: "AB.PERCEPTION", name: "Perception Graduation", family: "Registry §AB", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "named; no owner" },
   { id: "AB.COMPARATIVE", name: "Comparative Reality Mode", family: "Registry §AB", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "named; no owner" },
   { id: "AB.GRAVITY", name: "Process Gravity Field", family: "Registry §AB", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null, gap: "named; no owner" },
@@ -180,17 +237,20 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
   // Read from the Registry (1pC82nUdffKbfr60RTwbbXjNErRgj0gZKAqbPhEzvCvY) on
   // 2026-10-06. Classes per docs/operations/GARDEN19-INVENTION-CERTIFICATES.md
   // (A continuous · B event · C territory). Recorded so none is silently lost.
-  { id: "G19.BAR_DELTA", name: "Bar delta (signed aggressor volume per bar)", family: "F06 Order Flow", status: "PARTIAL", owner: "src/components/chart/MainChart.tsx",
-    surface: ctx("numerals under the bars at NEAR semantic zoom"), plate: null,
-    gap: "Class A: numbers only and only at NEAR zoom — no on-candle grammar across the field (number-erasure fails)" },
+  // §34 audit 2026-10-08: the Class A carrier is the Delta Keel (2fc2346, certificate C-02;
+  // serving `barDeltaKeels` receipts). Phone erasure still FAILS on salience (GARDEN19-ERASURE-TESTS).
+  { id: "G19.BAR_DELTA", name: "Bar delta (signed aggressor volume per bar) · Delta Keel", family: "F06 Order Flow", status: "BUILT", owner: "src/lib/chart/barDeltaKeel.ts",
+    surface: inst("DELTA_KEEL"), plate: null, aliases: ["delta keel", "keel", "bar delta"] },
   { id: "G19.DELTA_RATIO", name: "Delta ratio (|bar delta| ÷ bar volume)", family: "F06 Order Flow", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null,
     gap: "registry formula (H-701 refinement); no owner" },
-  { id: "G19.RVOL", name: "Relative volume · Relative Market Energy (RME)", family: "Participation sense", status: "PARTIAL", owner: "src/lib/chart/volumeTruth.ts",
-    surface: ctx("volume band under the candles and the Vol figure in the footer"), plate: null,
-    gap: "raw volume only — nothing carries bar-relative participation; spot FX is silenced honestly and has a CME related-flow line (G19.CROSS), but no TICK ACTIVITY carrier" },
+  // §34 audit 2026-10-08: bar-relative participation is carried by the Relative Volume Tone
+  // (9173189, certificate C-03). Still PARTIAL for one named leg: spot FX has no TICK ACTIVITY carrier.
+  { id: "G19.RVOL", name: "Relative volume · Relative Market Energy (RME) · Relative Volume Tone", family: "Participation sense", status: "PARTIAL", owner: "src/lib/chart/relativeVolume.ts",
+    surface: inst("RVOL_TONE"), plate: null, aliases: ["rvol", "relative volume"],
+    gap: "the tone carries bar-relative volume where central volume exists; spot FX is silenced honestly and has a CME related-flow line (G19.CROSS), but no TICK ACTIVITY carrier" },
   { id: "G19.CVD_REL", name: "CVD ⇄ price relationship (agreement / divergence per bar)", family: "Aggression sense", status: "PARTIAL", owner: "src/components/chart/MainChart.tsx",
-    surface: ctx("Indicators › Tape CVD pane under the chart"), plate: null,
-    gap: "CVD lives in its own pane; the per-bar relationship never reaches the candle (panel-erasure fails); Delta Divergence marks only two pivots" },
+    surface: inst("CVD_NOTCH"), plate: "PROPOSED G19-P02 (docs/canon/proposed-garden19)",
+    gap: "Per-bar half rides the Delta Keel's hollow; the cumulative half reaches the candle only as the PROPOSED CVD Notch (default off, src/lib/chart/cvdRelationship.ts, 2026-10-08) — waits for the Founder's CVD / Delta relationship plate. The Tape CVD pane stays under the chart" },
   { id: "G19.FAILED_AGG", name: "Failed aggression", family: "F06 Order Flow", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null,
     gap: "registry §C/§E and the order-flow plate pack; no owner" },
   { id: "G19.CLC", name: "CLC — Clean Level Close family (Wick Test · Weak Close · Clean Close · +Volume · +CVD Agreement · Break and Hold · Failed Hold · Reclaim · Rejection)",
@@ -214,6 +274,13 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
     surface: { kind: "NONE" }, plate: null, gap: "Market Structure draws swings; leg state and break / reclaim events are not distinguished" },
   { id: "G19.CONTRIBUTION", name: "Profile per-bar contribution (which candles built this shelf)", family: "P-110 Profiles", status: "NOT_BUILT", owner: null, surface: { kind: "NONE" }, plate: null,
     gap: "H-601 shared profile object; no owner — a component of the eleven, never a twelfth species" },
+  // ── §34 audit 2026-10-08: shipped Tool Finder instruments that had no census row ─────
+  { id: "F10.SESSION_BANDS", name: "Session Bands (Asia · London · New York, overlap marked)", family: "F10 Time", status: "BUILT", owner: "src/lib/chart/sessionBands.ts", surface: inst("SESSION_BANDS"), plate: null, aliases: ["sessions", "asia", "london", "new york"] },
+  { id: "G19.EFFORT_FIELD", name: "Effort → Response across the candles (Response Matrix on the field)", family: "Registry §AB", status: "BUILT", owner: "src/lib/chart/effortResponseField.ts", surface: inst("EFFORT_RESPONSE"), plate: null, aliases: ["effort", "response", "vsa"] },
+  { id: "G19.WISDOM", name: "Cross-candle wisdom line", family: "F17 Wisdom", status: "BUILT", owner: "src/lib/chart/crossCandleWisdom.ts", surface: inst("WISDOM_LINE"), plate: null },
+  { id: "F15.BREATH_RIBBON", name: "Breath Ribbon (Market Breathing on the field)", family: "F15 Regime", status: "PARTIAL", owner: "src/lib/chart/marketBreathing.ts", surface: inst("BREATH_RIBBON"), plate: "PROPOSED G19-P01 (docs/canon/proposed-garden19)",
+    gap: "PROPOSED grammar, default off — waits for the Founder to accept the plate" },
+  { id: "G19.FVG", name: "FVG / Imbalance territory (FVG_3C v1)", family: "Price geometry", status: "BUILT", owner: "src/lib/marketData/fvg/fvgEngine.ts", surface: inst("FVG_IMBALANCE"), plate: null, aliases: ["fvg", "fair value gap", "imbalance"] },
   { id: "G19.STACK", name: "Profile stack — show/hide · reorder · side · width · opacity · lock · Auto Arrange · Save My Stack · presets", family: "P-110 Profiles", status: "BUILT",
     owner: `${VM}myProfileStack.ts`, surface: ctx("Tools › Profiles preset bar (Save My Stack)"), plate: "WM_A_P110_LIVING_PROFILE_STACK" },
   { id: "G19.PLAYBOOKS", name: "Strategy playbooks — Trending · Mean-Reversion · Pullback Continuation · Breakout Retest · Failed Auction · NO TRADE", family: "Strategy", status: "NOT_BUILT",
@@ -232,6 +299,103 @@ export const INVENTION_CENSUS: readonly CensusEntry[] = [
   { id: "F25", name: "Vault continuity", family: "F25 Vault", status: "INTERNAL", owner: "src/components/chart/NectarVaultChip.tsx", surface: { kind: "NONE" }, plate: null },
   { id: "F26", name: "Chaos Gym", family: "F26 internal", status: "INTERNAL", owner: null, surface: { kind: "NONE" }, plate: null },
 ];
+
+/**
+ * THE THREE FIELD FACTS per built candle-field invention (§34 audit, 2026-10-08).
+ * manifestation — certificate §1a–1c. ink — the colours the paint block uses
+ * today (MainChart, read 2026-10-08). layer — the invention's row in the one
+ * permission table; its NARROW behaviour is derived from that table, not typed.
+ */
+const FIELD_FACTS: Readonly<Record<string, { readonly manifestation: Manifestation; readonly ink: readonly InkToken[]; readonly layer: DepthLayer | null }>> = {
+  // CONTINUOUS — history across the candles
+  "F05A": { manifestation: "CONTINUOUS", ink: ["CANDLE"], layer: "candles" },
+  "F06.VALUE_CANDLE": { manifestation: "CONTINUOUS", ink: ["BONE", "BRASS"], layer: "valueCandle" },
+  "F06A.FLOW": { manifestation: "CONTINUOUS", ink: ["TRADE_SIDE"], layer: "flowCurrent" },
+  "F09.MIGRATION": { manifestation: "CONTINUOUS", ink: ["PROFILE_ROLES"], layer: "valueMigration" },
+  "G19.BAR_DELTA": { manifestation: "CONTINUOUS", ink: ["DELTA_SIDE"], layer: "volumeField" },
+  "G19.RVOL": { manifestation: "CONTINUOUS", ink: ["BRASS"], layer: "volumeField" },
+  "G19.EFFORT_FIELD": { manifestation: "CONTINUOUS", ink: ["BONE", "ABSORB"], layer: "volumeField" },
+  "F15.BREATH_RIBBON": { manifestation: "CONTINUOUS", ink: ["BONE"], layer: "breathRibbon" },
+  "F10.SESSION_BANDS": { manifestation: "CONTINUOUS", ink: ["SESSION_INKS"], layer: "sessionBands" },
+  "H-901": { manifestation: "CONTINUOUS", ink: ["REGIME_FIELD", "BRASS"], layer: "regimeField" },
+  "F06A.BIDASK": { manifestation: "CONTINUOUS", ink: ["FOOTPRINT_SIDE"], layer: "footprint" },
+  "F06A.IMB": { manifestation: "CONTINUOUS", ink: ["FOOTPRINT_SIDE"], layer: "footprint" },
+  "F06A.AGGPAS": { manifestation: "CONTINUOUS", ink: ["FOOTPRINT_SIDE"], layer: "footprint" },
+  "F06A.VOL": { manifestation: "CONTINUOUS", ink: ["VP_PALETTE"], layer: "footprint" },
+  // EVENT — only where it occurred
+  "H-701.ABS": { manifestation: "EVENT", ink: ["BRASS"], layer: "absorption" },
+  "H-701.EXH": { manifestation: "EVENT", ink: ["EXHAUST_RED"], layer: "exhaustion" },
+  "F07A": { manifestation: "EVENT", ink: ["TRADE_SIDE", "BRASS"], layer: "bigTrades" },
+  "F06A.DELTA": { manifestation: "EVENT", ink: ["FOOTPRINT_SIDE"], layer: "bubbles" },
+  "F06.EFFORT": { manifestation: "EVENT", ink: ["BONE"], layer: "effort" },
+  "F06.STACK": { manifestation: "EVENT", ink: ["BRASS"], layer: "stack" },
+  "F06.DIV": { manifestation: "EVENT", ink: ["BONE", "BRASS"], layer: "divergence" },
+  "F04A": { manifestation: "EVENT", ink: ["BRASS", "BONE"], layer: "forceResponse" },
+  "F08A": { manifestation: "EVENT", ink: ["BRASS"], layer: "liquidityLifecycle" },
+  "F06.ANATOMY": { manifestation: "EVENT", ink: ["BRASS", "TRADE_SIDE"], layer: "anatomyCards" },
+  "G19.WISDOM": { manifestation: "EVENT", ink: ["BONE"], layer: "wisdomLine" },
+  // TERRITORY — on price, never a badge
+  "P110.1": { manifestation: "TERRITORY", ink: ["PROFILE_ROLES"], layer: "livingProfile" },
+  "P110.2": { manifestation: "TERRITORY", ink: ["PROFILE_ROLES"], layer: "structureProfile" },
+  "P110.3": { manifestation: "TERRITORY", ink: ["PROFILE_ROLES", "FUSED"], layer: "profileFusion" },
+  "P110.4": { manifestation: "TERRITORY", ink: ["PROFILE_ROLES"], layer: "profileMemory" },
+  "P110.5": { manifestation: "TERRITORY", ink: ["PROFILE_ROLES"], layer: "profileDna" },
+  "P110.6": { manifestation: "TERRITORY", ink: ["VP_PALETTE"], layer: "volumeProfile" },
+  "P110.7": { manifestation: "TERRITORY", ink: ["PROFILE_ROLES"], layer: "visibleRangeProfile" },
+  "P110.8": { manifestation: "TERRITORY", ink: ["PROFILE_ROLES"], layer: null },
+  "P110.9": { manifestation: "TERRITORY", ink: ["PROFILE_ROLES"], layer: "compositeProfile" },
+  "P110.10": { manifestation: "TERRITORY", ink: ["PROFILE_ROLES", "BRASS"], layer: "tpo" },
+  "P110.CLASSIC": { manifestation: "TERRITORY", ink: ["VP_PALETTE"], layer: "volumeProfile" },
+  "F06.BIDASK_PROFILE": { manifestation: "TERRITORY", ink: ["DVP_SIDE"], layer: null },
+  "F08B": { manifestation: "TERRITORY", ink: ["BONE"], layer: "weather" },
+  "F06.DLEVELS": { manifestation: "TERRITORY", ink: ["BONE", "BRASS"], layer: "deltaLevels" },
+  "H-801": { manifestation: "TERRITORY", ink: ["BRASS"], layer: "expectedEnvelope" },
+  "F10": { manifestation: "TERRITORY", ink: ["LINEAGE"], layer: "mtfAncestry" },
+  "F11A": { manifestation: "TERRITORY", ink: ["BRASS"], layer: "marketZones" },
+  "F11.STRUCTURE": { manifestation: "TERRITORY", ink: ["BONE", "BRASS"], layer: "marketStructure" },
+  "H-1001": { manifestation: "TERRITORY", ink: ["RISK_REWARD"], layer: "riskOnPrice" },
+  "H-401": { manifestation: "TERRITORY", ink: ["BONE"], layer: "contradiction" },
+  "F03A": { manifestation: "TERRITORY", ink: ["BONE"], layer: "memoryGhost" },
+  "F15.PRESSURE": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: "derivativesPressure" },
+  "F08.BRICK": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: "brickWalls" },
+  "G19.FVG": { manifestation: "TERRITORY", ink: ["DELTA_SIDE"], layer: "fvg" },
+};
+
+/** Field ids that are deliberately not candle-field paint (a lens, a card, a drawer, a pane, a rail line). */
+export const NOT_FIELD_REASON: Readonly<Record<string, string>> = {
+  "F13.LENS": "a question lens — chrome that re-weights other layers",
+  "F13.SCAFFOLD": "a teaching card and its tags — chrome",
+  "F11B": "a passport drawer beside the chart, never paint on price",
+  "AB.MATRIX": "the WAIT-rail card; its field carrier is G19.EFFORT_FIELD",
+  "G19.CVD_REL": "a separate pane under the chart; its on-candle carrier (CVD Notch) is PROPOSED, default off — not field paint until the Founder accepts the plate",
+  "G19.CROSS": "a line of words beside the price, never a bar or profile",
+  "G19.VWAP": "an indicator line from the Indicators panel, outside the permission table",
+  "F10.TED": "one line in the WAIT rail — no field paint until the Founder defines TED",
+};
+
+/** The narrow-glass behaviour, derived from the one permission table. */
+export function narrowBehaviourFor(layer: DepthLayer | null, id: string): NarrowBehaviour {
+  if (layer === null) {
+    return { rule: "KEEP", why: "a drawing the trader placed — it has no row in the permission table, so the narrow-glass budget does not touch it" };
+  }
+  if (layer === "weather") {
+    return { rule: "WITHHOLD", why: "the loupe yields on a small pane (liquidityGlassGeometry YIELDED_SMALL_PANE); below 600px its words go quiet as well" };
+  }
+  if (NARROW_GLASS_KEEPS_WORDS.has(layer)) {
+    return { rule: "KEEP", why: `in NARROW_GLASS_KEEPS_WORDS — it keeps its words below ${NARROW_GLASS_MAX_PX}px` };
+  }
+  const row = SEMANTIC_PERMISSION[layer];
+  if (!row.includes("SPEAK")) return { rule: "SIMPLIFY", why: `${id}: never SPEAKs at any depth — narrow glass changes nothing` };
+  return { rule: "SIMPLIFY", why: `below ${NARROW_GLASS_MAX_PX}px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at ${QUIET_CEILING} (the selected item still speaks)` };
+}
+
+export const INVENTION_CENSUS: readonly CensusEntry[] = RAW_CENSUS.map(e => {
+  const f = FIELD_FACTS[e.id];
+  return f ? { ...e, manifestation: f.manifestation, ink: f.ink, layer: f.layer, narrow: narrowBehaviourFor(f.layer, e.id) } : e;
+});
+
+/** The ids that carry field facts (for the audit and its test). */
+export const FIELD_FACT_IDS: readonly string[] = Object.keys(FIELD_FACTS);
 
 /**
  * WHERE IS IT? — Garden 18 §XXVI ("if we built it, show me where it is").

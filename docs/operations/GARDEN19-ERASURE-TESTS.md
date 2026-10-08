@@ -159,3 +159,55 @@ For each selectable invention, Inspect must show four things:
 
 - **Today:** the cross-candle wisdom line (`readCrossCandleWisdom`, MainChart ≈ L23848) is drawn with a hairline to its bar, but it is not a selection kind. Inspect cannot show which readings it was traced from.
 - **Ask:** a tap on the line selects the bar its hairline is tied to, through the room's one selection owner, opening the bar ticket. Publish the traced sources on the canvas as `dataset.crossCandleWisdomTrace = "<kind>|<barTime>|<sources>"`, so the education lane can print them under ACROSS THE CANDLES without reading MainChart's state.
+
+## Full-registry re-run · serving 69fb204 · 2026-10-08 02:07–02:20 CDT (Sheriff lane)
+
+**Harness.** Same law as above, run in the Sheriff lane's own tab: `/charts?symbol=BTC-USD&tf=5m&scene=clean&on=<token>` in a same-origin iframe, rAF/visibility shim, `fillText`/`strokeText` turned into no-ops **before first paint**, then every non-canvas element hidden (label + number + panel + mobile-card erasure at once). One token per load; the main canvas `data-*` receipt quoted per row. 1180×820 for every token; 390×844 for the inventions with geometry. Equities closed, BTC trading (crypto 24×7). An automated ink count was tried first and dropped: some layers paint on canvases the count did not read (Market Structure's legs), so it reported false FAILs. Every verdict below is from the erased frame itself.
+
+**Verdict key.** PASS — the phenomenon reads with no words. PARTIAL — it reads, but one named part (identity, state, sign, salience) needs words. FAIL — nothing readable without words. SILENT — the owner correctly drew nothing tonight (its receipt names why); erasure cannot be judged until it speaks.
+
+| Invention (token) | Receipt (1180) | 1180 erased | 390 erased | Verdict |
+|---|---|---|---|---|
+| Market Structure (`MarketStructure`) | `Bias=RANGE`, `PivotForms=FILLED:2\|HOLLOW:3` | filled vs hollow pivots, ↔ bias glyph at the newest pivot | same, ↔ visible | **PASS** (was PARTIAL — ASK done) |
+| Absorption Anatomy (`absorptionAnatomy`) | `absorptionStateInk=ABSORBING:1` | effort terrain with a gold absorbing edge; shelf box | same | **PASS** (was PARTIAL) |
+| Brick Walls, off camera (`BrickWalls`) | `brickWallsOffCamera=ABOVE:2\|MARK:DRAWN` | edge brick stack top-right | edge mark visible | **PASS** (was FAIL — ASK-1 done) |
+| Profile Memory (`ProfileMemory`) | `profileMemoryForms=POC_SOLID:1\|EDGE_DASHED:2\|NAKED_OPEN_CAP:1` | solid vs dashed levels, open cap | — | **PASS** for kind; which SESSION still words-only → PARTIAL |
+| Session Bands (`sessionBands`) | `DRAWN:A1\|L1`, `sessionBandRails=3` | rails drawn but ~1 px at the axis foot | not perceivable in the crop | **PARTIAL (salience)** — rails exist (ASK-2 shipped) but read only when zoomed |
+| Liquidity Weather (`LiquidityWeather`) | `LensState=DRAWN` (1180), `YIELDED_SMALL_PANE` (390) | loupe + grain survive | lens yields on the phone — nothing drawn | **PARTIAL** — one stage tonight, so grain-by-stage is unproven; on 390 the lens is withheld by design |
+| Imbalance Stack (`ImbalanceStack`) | `imbalanceSlabs=1\|SELL:1` | small sell slab beside the candles | — | **PASS, weak salience** |
+| Value Candle (`ValueCandle`) | `valueCandleForm=GLASS_PER_BAR:13` | faint glass behind the newest 13 bars | — | **PARTIAL (salience)** |
+| Flow Current (`FlowCurrent`) | `BARS:13\|LIVE\|SHOWN:6` | 6 thin marks near the newest bars | — | **PARTIAL (attribution)** — unchanged from the phone finding |
+| Clarity Candle (`ClarityCandle`) | `clarityNotable=5`, `clarityCallout=PINNED` | candles re-inked gold; callout becomes an empty frame | — | **PARTIAL** — notable-bar meaning lives in the callout's words |
+| Effort Mark (`EffortMark`) | `effortMarks=21/150` | small ∨ ticks above/below bars | — | **PASS, weak salience** |
+| Delta Levels (`DeltaLevels`) | `Lane=LEFT_EDGE`, `Rungs=7` | left-edge rungs (length = size) | — | **PARTIAL (sign)** — every rung one ink; buy vs sell needs the caption |
+| TPO Profile (`TpoProfile`) | `tpoProfileRows=95` | cell grid + VA lines; POC/VA chips empty | — | **PASS (shape)**, bound identity words-only (as Living Profile) |
+| Value Migration (`ValueMigration`) | `Points=346`, `Sessions=2` | dotted VA trails + session boxes | — | **PASS** |
+| Composite / Visible Range / Session VP | rows 91 / 66 / drawn | histograms survive; POC/VA chips empty | — | **PASS (shape)**, bound identity words-only |
+| Regime Lighting (`RegimeLighting`) | `regimeLighting=TREND` | hatched trend channel with rails | — | **PASS**; the verdict word chip is empty |
+| Question Lens (`QuestionLens`) | `questionLens=ABSORPTION:2` | tinted zone + circled bars | — | **PARTIAL** — which question was asked is words-only |
+| MTF Ancestry (`MtfAncestry`) | `BAND:4H … INSIDE`, node | 4H band + node | — | **PARTIAL** — the parent timeframe is words-only |
+| Derivatives Pressure (`DerivativesPressure`) | `PRESSURE:MIXED`, `Texture=ON` | climate wash + clear zone | — | **PARTIAL** — only MIXED tonight; tint-by-climate unproven |
+| Liquidity Lifecycle (`LiquidityLifecycle`) | `APPEARED,APPEARED`, `Painted=2/2` | two tiny marks at the newest bar | — | **PARTIAL (salience/state)** |
+| Structure Profile (`StructureProfile`) | `RULE_SHORT_LEG` (silence) | bracket + empty chip | — | **SILENT** — but the silence reason is a word in a chip |
+| Profile DNA (`ProfileDna`) | `Shape=ELONGATED` | tiny spine/diamond by the axis | — | **PARTIAL (salience)** |
+| Scaffolding (`scaff:FOUNDATION`) | `Form=CARD:FULL` | a large empty card frame + 1 swing mark | — | **FAIL by design** — a teaching card is words; flagged so it is never counted as a market invention |
+| FVG (`fvg`) | `OPEN:6\|SCARS:3\|HIDDEN:54` | open bands vs thin scars | bands survive | **PASS**; direction is ink + position (not colour alone) |
+| Footprint delta / imbalance (`fp:delta`, `fp:imbalance`) | `footprint=delta\|TRAIL`, `imbalance\|Rows:25` | delta bubbles (size + ink); small imbalance cells | — | delta **PASS**; imbalance **PARTIAL (salience)** |
+| Delta Keel (`deltaKeel`) | 390: `Narrow=FAIL_ONLY\|W2`, 1 keel | — | the one FAIL keel not perceivable | **PARTIAL (salience)** — unchanged |
+| Living Profile (`LivingProfile`) | `livingProfile=DRAWN`, lane 248–310 (390) | fan + chips | fan survives; empty VA/POC chips still sit over the newest candles | **PASS (shape)**; overlap ask stands |
+| Rvol Tone (`rvolTone`) | `rvolWeight=48` | tone differences not perceivable at this scale | — | **PARTIAL (salience)** |
+| Anatomy Cards / Memory Ghost / Expected Envelope / Contradiction / Risk on Price / Wisdom Line / Delta Divergence / Profile Fusion | `AT_REST` / `NO_ANALOGUE` / `TOO_FEW_SESSIONS` / `NOT_ENOUGH:0/0` / `NO_POSITION_DRAWN` / `SILENT:NO_EVIDENCE_OBJECT` / `NO_SWING` / `FEWER_THAN_TWO_SPECIES` | nothing drawn | — | **SILENT** — correct; re-test when they speak |
+| Big Trades / Effort→Response | — | — | — | **PASS** (unchanged from the first run) |
+
+### MainChart asks for the chart lane (from this run)
+
+1. **ASK-4 · Delta Levels sign by ink.** Buy rungs and sell rungs share one ink; with the caption erased the sign of each level is gone. Two inks (or a side notch) per rung. Receipt: `deltaLevelsSides=BUY:<n>|SELL:<n>`.
+2. **ASK-5 · Identity glyphs for the parent / question / session readers.** MTF Ancestry (which timeframe), Question Lens (which question), Profile Memory (which session) carry identity in words only. A learnable mark per kind (tick count, corner notch) as Session Bands did.
+3. **ASK-6 · Salience floor at MID.** Value Candle glass, Delta Keel, Liquidity Lifecycle marks, Profile DNA glyph, Imbalance cells, Rvol Tone and the Session Band rails are present but sub-perceptual at default depth (1–2 px). A minimum stroke/extent at MID, with the receipt naming it (`<layer>Salience=W2`).
+4. **ASK-7 · Clarity callout.** The pinned callout erases to an empty frame; the notable bar needs a mark on the bar itself (the frame alone says "something here").
+5. **ASK-8 · Living Profile chips at 390** still overlap the newest candles (unchanged from ask #7 of the phone run).
+6. **ASK-9 · FVG left pill at 390** — the red band pill at the left edge sits on the countdown chip (`fvg` scene, 390×844).
+7. **Liquidity Weather / Derivatives Pressure** — state-by-texture can only be proven when a second state occurs; the receipts should name the texture form per state (`liquidityWeatherStageInk`, `derivativesPressureTint`) so a probe can prove it without waiting for the market.
+
+### Not covered this run
+Pressure walls ON camera (BTC price far from 90k/95k), spot FX, NEAR zoom row numerals, selection-only objects (Memory Ghost, Contradiction). Fresh camera needed for each.

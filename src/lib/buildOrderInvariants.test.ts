@@ -135,7 +135,7 @@ describe("BUILD ORDER §14 invariants", () => {
       // Sanity: the file must still be a journal module, or this list has
       // rotted and the invariant is silently guarding nothing.
       expect(src, `${rel} no longer references the journal store`)
-        .toMatch(/wm_journal_entries|JOURNAL_STORAGE_KEY/);
+        .toMatch(/wm_journal_entries|JOURNAL_STORAGE_KEY|journalStorageKeys|readJournalStorage/);   // member-keyed since Garden 19 isolation
 
       expect(src, `${rel} writes paper execution state`)
         .not.toMatch(/setItem\(\s*["'`]wm_paper_state/);

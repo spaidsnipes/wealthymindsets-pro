@@ -921,6 +921,14 @@ The class / grammar / opacity fields do not apply to these. The one canonical fi
 | `F25` | Vault continuity | INTERNAL | NONE | — |
 | `F26` | Chaos Gym | INTERNAL | NONE | — |
 
+**Correction (02:24 CDT).** The erasure / phone column above counted only the first erasure run (E1–E10 + the phone table). `GARDEN19-ERASURE-TESTS.md` now has a second-pass table that reads ~30 more inventions (PASS, PARTIAL or SILENT each). So gap 5 below overstates the missing proofs; §12 cites the second pass per invention.
+
+**Progress (02:24 CDT, uncommitted):**
+- **Gap 1 — closed in code.** Census rows: `F10.SESSION_BANDS`, `G19.EFFORT_FIELD`, `G19.WISDOM`, `F15.BREATH_RIBBON`, `G19.FVG`. `AB.MATRIX` / `G19.BAR_DELTA` are now BUILT and `G19.RVOL` is re-pointed. The test walks `INSTRUMENT_EDUCATION` + `CONCEPT_EDUCATION`.
+- **Gap 7 — closed in code.** Seven ⓘ concept records.
+- **Gap 2 — closed in code.** `manifestation` / `ink` / `narrow` / `layer` on `CensusEntry` for 49 inventions. Narrow is derived from the permission table, with a test.
+- **Gap 4 — begun.** §12 holds 19 certificates: 10 PROVED, 9 PARTIAL.
+
 ### 11c. Top gaps — the lanes' work list (ranked: built and on the glass first, then cost)
 
 1. **Census is stale: 7 shipped inventions have no census row, and 3 rows understate built work** (`TF.*`, `FVG_3C`; AB.MATRIX / G19.BAR_DELTA / G19.RVOL say PARTIAL).
@@ -951,4 +959,417 @@ The class / grammar / opacity fields do not apply to these. The one canonical fi
    - G19.CVD_REL, G19.CROSS and G19.VWAP (PARTIAL);
    - F10.TED (definition owed). *Owner:* education owner (`inventionEducation.ts`), as CONCEPT records like FVG's.
 8. **2 standing erasure FAILs** on phone: Delta Keel (salience) and Flow Current (receipt cannot be attributed to a drawn mark). *Owner:* chart lane.
+
+
+## 12. §28 CERTIFICATES — profile species first, then the highest-traffic inventions (2026-10-08, night shift)
+
+Written 02:22–02:24 CDT (`date`) by the certificate lane, from code at `69fb204` plus the worktree's chart-lane permission rows. One certificate per invention, with C-01's fields. Each field cites its source:
+
+- **ⓘ** — `inventionEducation.ts`: question, evidence, appears, grammar, FULL / PARTIAL / DEGRADED, first touch, canon.
+- **Manifestation, ink, narrow** — the census field facts (§34 gap 2, `inventionCensus.ts`).
+- **Opacity tier** — `LAYER_ATTENTION`. Ceilings: LIVE 1 · SUPPORTING 0.85 · MEMORY 0.5 · STALE 0.3 · floor 0.12 · selection recede 0.45.
+- **Depth** — `SEMANTIC_PERMISSION` [FAR, MID, NEAR].
+- **Receipts** — the `canvas.dataset` keys MainChart writes for the layer.
+- **Proof** — the serving reads already in this file (§1f), `GARDEN19-ERASURE-TESTS.md` and the receipt doc.
+
+Status is PROVED only with a serving read; PARTIAL names the missing proof.
+
+### P110.1 Living Profile
+| Field | Certificate |
+|---|---|
+| **NAME** | Living Profile · census `P110.1` · owner `src/lib/marketData/viewModels/selectLivingProfile.ts` · plate WM_A_P110_LIVING_PROFILE_STACK · WM_NewMockup_121_F09_Living_Profile_Passport_Doorway |
+| **MARKET QUESTION** | Where is the market accepting price right now, and where is value moving? |
+| **EVIDENCE** | Traded volume on the bars (prints when present). (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Volume is allocated to price from real per-trade prints. · PARTIAL: Volume is spread across each bar's range from the bars' own totals — the shape is honest, single rows are approximate. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | A live histogram attached to the price scale; its POC migrates as value expands, contracts or shifts. |
+| **STATE GRAMMAR** | Watch the POC move — value following price is acceptance; value staying behind is rejection. Click a row for its biography. |
+| **COLOR** | `PROFILE_ROLES` |
+| **OPACITY** | LIVE (ceiling 1), depth MID, light MAGNETS |
+| **DEPTH** | FAR / MID / NEAR = QUIET / SPEAK / QUIET |
+| **NARROW** | KEEP — in NARROW_GLASS_KEEPS_WORDS — it keeps its words below 600px |
+| **ⓘ / FIRST TOUCH** | Living profile row — how much trade this price has taken this session. |
+| **DEGRADED** | No traded volume (spot FX, spot metals) or none loaded — it does not draw rather than invent a histogram. |
+| **RECEIPTS** | `livingProfile`, `livingProfileForm`, `livingProfileFidelity`, `livingProfileLane`, `livingProfileBodyGoverned`, `livingProfileLabels`, `livingProfilePocMark`, `livingDevelopment`, `profileContributionBars` |
+| **CANON** | P-110 #1 Living Profile · H-601 |
+| **SERVING PROOF** | §1f pass 2: NQ1! DRAWN · TRADE_BASED, SPY CANDLE_ESTIMATED, EURUSD NO_PROFILE (correct silence). Erasure: E1 (desktop) + phone `livingProfile=DRAWN`, lane 248–310, `livingProfileBodyGoverned=OVER_PRICE:0.5` (fan survives). Opacity: LIVE 1 → 0.45 under a selected gap (f96618c / 683aecf). Profile × candle `profileContributionBars=3\|ROW:31462.25\|TAPE` (c6de9ef). Developing trail `livingDevelopment` 110 points (3b927a9) |
+| **STATUS** | **PROVED** — open item: At 390 the empty VA / POC chips still sit over the newest candles (erasure doc, standing ask) |
+
+### P110.2 Structure Profile
+| Field | Certificate |
+|---|---|
+| **NAME** | Structure Profile · census `P110.2` · owner `src/lib/marketData/viewModels/selectStructureProfile.ts` · plate WM_A_P110_LIVING_PROFILE_STACK |
+| **MARKET QUESTION** | Where did trade build since the last confirmed swing? |
+| **EVIDENCE** | A confirmed swing; volume makes the rows exact. (needs PRICE) |
+| **TRUTH CLASS** | FULL: Swing confirmed and traded volume present. · PARTIAL: Swing confirmed but volume is bar-spread — shape honest, rows approximate. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | A histogram anchored to the last swing, with the leg's POC, VAH and VAL. |
+| **STATE GRAMMAR** | It answers for this leg only — a POC near the swing means the leg is still auctioning at its start; far from it means the leg moved value. |
+| **COLOR** | `PROFILE_ROLES` |
+| **OPACITY** | LIVE (ceiling 1), depth MID, light TREND |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SILENT |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Structure profile — volume for the leg since the last swing. |
+| **DEGRADED** | No lawful swing to anchor on — it says so and does not float. |
+| **RECEIPTS** | `structureProfile`, `structureProfileForm`, `structureProfileRows`, `structureProfileLegBars`, `structureProfileSilence` |
+| **CANON** | P-110 #2 Structure Profile (market-anchored) |
+| **SERVING PROOF** | §1f: DRAWN · RULE_SHORT_LEG on all four symbols, rows 0. Garden 18 receipt: `DRAWN`, form RULE_SHORT_LEG (named short-leg form). Erasure: SILENT — the silence reason is a word in a chip |
+| **STATUS** | **PARTIAL** — missing: No serving read with histogram ROWS (a leg long enough to profile); the silence reason is words-only |
+
+### P110.3 Profile Fusion
+| Field | Certificate |
+|---|---|
+| **NAME** | Profile Fusion · census `P110.3` · owner `src/lib/marketData/viewModels/selectProfileFusion.ts` · plate WM_A_P110_LIVING_PROFILE_STACK |
+| **MARKET QUESTION** | Where do two or more of my profiles agree? |
+| **EVIDENCE** | Two or more switched-on profiles that genuinely overlap. (needs OTHER_LAYERS) |
+| **TRUTH CLASS** | FULL: Two or more profiles from real volume overlap. · PARTIAL: Sources are bar-spread profiles — the zone inherits their approximation. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | A fused zone where profiles overlap; the originals stay visible and each source is named. |
+| **STATE GRAMMAR** | A fused zone is recomputed from the combined rows — never an average of two POCs. No real overlap, no zone. |
+| **COLOR** | `PROFILE_ROLES`, `FUSED` |
+| **OPACITY** | LIVE (ceiling 1), depth MACRO, light MAGNETS |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SILENT |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Profile fusion — profiles agree here; each source stays inspectable. |
+| **DEGRADED** | Fewer than two profiles on, or no real overlap — it refuses and says why. |
+| **RECEIPTS** | `profileFusion`, `profileFusionObject`, `profileFusionPair`, `profileFusionRefusal`, `profileFusionZones`, `profileFusionEvidence` |
+| **CANON** | P-110 #3 Profile Fusion (COMPOSITE ≠ FUSION) |
+| **SERVING PROOF** | §1f: DRAWN 3 zones; the fused object is REFUSED:UNIT_MISMATCH / TIME_OVERLAP / NO_AGREEMENT — the overlap gate is active. Garden 18: FEWER_THAN_TWO_SPECIES (correct silence) |
+| **STATUS** | **PARTIAL** — missing: The Fusion close test is unproven on serving: a fused object minted, unfused, and both originals inspectable |
+
+### P110.4 Profile Memory
+| Field | Certificate |
+|---|---|
+| **NAME** | Profile Memory · census `P110.4` · owner `src/lib/marketData/viewModels/selectProfileMemory.ts` · plate WM_A_P110_LIVING_PROFILE_STACK |
+| **MARKET QUESTION** | Where did earlier sessions find value — and has price been back? |
+| **EVIDENCE** | At least one completed prior session in the loaded bars. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Completed prior sessions with traded volume. · PARTIAL: Fewer prior sessions loaded — fewer memories, said plainly. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | Earlier sessions' POC and value carried forward as lines — naked until the market returns. |
+| **STATE GRAMMAR** | A naked POC (never revisited) often draws price back. Once touched, its biography records the test and the response. |
+| **COLOR** | `PROFILE_ROLES` |
+| **OPACITY** | MEMORY (ceiling 0.5), depth MACRO, light MAGNETS |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SILENT |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Profile memory — an earlier session's value, carried forward. |
+| **DEGRADED** | A 24/7 feed with no session gap, or no volume — nothing to remember. |
+| **RECEIPTS** | `profileMemory`, `profileMemoryForms`, `profileMemoryShown`, `profileMemoryNaked`, `profileMemorySessions` |
+| **CANON** | P-110 #4 Profile Memory |
+| **SERVING PROOF** | §1f: 4 / 15 shown. Erasure: E10 + second pass `profileMemoryForms=POC_SOLID:1\|EDGE_DASHED:2\|NAKED_OPEN_CAP:1` PASS for kind; 05670f2 re-proof `POC_SOLID:1\|EDGE_DASHED:3\|NAKED_OPEN_CAP:2\|AGE:S-1..S-3` at 1180 and 390. Opacity MEMORY 0.44 (f96618c) |
+| **STATUS** | **PROVED** — open item: Which session a level belongs to is words-only (erasure doc) |
+
+### P110.5 Profile DNA
+| Field | Certificate |
+|---|---|
+| **NAME** | Profile DNA · census `P110.5` · owner `src/lib/marketData/viewModels/selectProfileDna.ts` · plate WM_A_P110_LIVING_PROFILE_STACK |
+| **MARKET QUESTION** | What shape is the profile — balanced, skewed, thin? |
+| **EVIDENCE** | The Living Profile it describes. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Living Profile drawn from real volume. · PARTIAL: Living Profile drawn from bar-spread volume — statistics labelled approximate. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | A spine beside the Living Profile: range, value bracket, POC notch and mass-centre diamond. Numbers in Inspect. |
+| **STATE GRAMMAR** | A diamond away from the POC means the volume is skewed to one side. It describes; it never forecasts. |
+| **COLOR** | `PROFILE_ROLES` |
+| **OPACITY** | LIVE (ceiling 1), depth MID, light MAGNETS |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SILENT |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Profile DNA — the shape of the profile, described not predicted. |
+| **DEGRADED** | No Living Profile on the glass — DNA has nothing to describe. |
+| **RECEIPTS** | `profileDna`, `profileDnaShape`, `profileDnaSpine`, `profileDnaDiamond` |
+| **CANON** | P-110 #5 Profile DNA (never prophecy) |
+| **SERVING PROOF** | §1f: MEASURED · shape P (NQ, SPY, BTC); EURUSD LIVING_PROFILE_NOT_DRAWN. Garden 18: MEASURED:ALONE, shape P. Erasure: `Shape=ELONGATED`, a tiny spine / diamond by the axis |
+| **STATUS** | **PARTIAL** — missing: Salience: the spine and diamond are too small to read with words erased (erasure PARTIAL) |
+
+### P110.6 Session Profile
+| Field | Certificate |
+|---|---|
+| **NAME** | Session Profile · census `P110.6` · owner `src/lib/marketData/viewModels/selectProfileMenu.ts` · plate — (none) |
+| **MARKET QUESTION** | Where did this session trade the most? |
+| **EVIDENCE** | Traded volume on the bars inside the chosen session window. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Volume is allocated to price from real per-trade prints. · PARTIAL: Volume is spread across each bar's range from the bars' own totals — the shape is honest, single rows are approximate. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | A histogram clipped to the session, with POC, VAH, VAL and high/low volume nodes. |
+| **STATE GRAMMAR** | Fat rows (HVN) are prices the session accepted; thin rows (LVN) are prices it passed through quickly and may move through again. |
+| **COLOR** | `VP_PALETTE` |
+| **OPACITY** | no attention tier (not governed — §11c gap 3) |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / QUIET |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | This session's volume profile — fat rows accepted, thin rows rejected. |
+| **DEGRADED** | No traded volume (spot FX, spot metals) or none loaded — it does not draw rather than invent a histogram. |
+| **RECEIPTS** | `vpSessionWindow`, `vpDrawn`, `vpRequested`, `vpSessionContour`, `vpSpan` |
+| **CANON** | P-110 #6 Session Profile |
+| **SERVING PROOF** | §1f: `vpSessionWindow` GLOBEX_DAY (NQ1!), US_EQUITY_ETH (SPY), declined on EURUSD (no central volume), drawn on BTC. Erasure: histogram survives (PASS shape) |
+| **STATUS** | **PROVED** — open item: The species identity is words-only once its chip is erased (erasure doc) |
+
+### P110.7 Visible Range Profile
+| Field | Certificate |
+|---|---|
+| **NAME** | Visible Range Profile · census `P110.7` · owner `src/lib/marketData/viewModels/selectVisibleRangeProfile.ts` · plate — (none) |
+| **MARKET QUESTION** | Where did trade happen in exactly what I am looking at? |
+| **EVIDENCE** | Traded volume on the bars in view. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Volume is allocated to price from real per-trade prints. · PARTIAL: Volume is spread across each bar's range from the bars' own totals — the shape is honest, single rows are approximate. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | A histogram for the bars on screen — it rebuilds when you scroll or zoom. |
+| **STATE GRAMMAR** | Same reading as any profile, but its levels move with your camera — do not treat them as fixed. |
+| **COLOR** | `PROFILE_ROLES` |
+| **OPACITY** | LIVE (ceiling 1), depth MID, light MAGNETS |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / QUIET |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Visible range profile — volume for the bars in view. |
+| **DEGRADED** | No traded volume (spot FX, spot metals) or none loaded — it does not draw rather than invent a histogram. |
+| **RECEIPTS** | `visibleRangeProfile`, `visibleRangeProfileRows`, `visibleRangeProfilePoc`, `visibleRangeProfileBars` |
+| **CANON** | P-110 #7 Visible Range Profile |
+| **SERVING PROOF** | §1f: DRAWN on NQ1!, SPY, BTC; NO_VOLUME on EURUSD. Erasure: rows 66, histogram survives (PASS shape) |
+| **STATUS** | **PROVED** — open item: Identity words-only, as above |
+
+### P110.8 Fixed Range Profile
+| Field | Certificate |
+|---|---|
+| **NAME** | Fixed Range Profile · census `P110.8` · owner `src/lib/marketData/viewModels/selectProfileMenu.ts` · plate — (none) |
+| **MARKET QUESTION** | Where did trade happen across a stretch I pick? |
+| **EVIDENCE** | Traded volume on the bars you drag across. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Volume is allocated to price from real per-trade prints. · PARTIAL: Volume is spread across each bar's range from the bars' own totals — the shape is honest, single rows are approximate. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | Drag across bars; a profile builds only inside that range, with its POC, VAH and VAL. |
+| **STATE GRAMMAR** | Pick a move (a rally, a range) and read where it did its business. |
+| **COLOR** | `PROFILE_ROLES` |
+| **OPACITY** | no attention tier (not governed — §11c gap 3) |
+| **DEPTH** | not in the permission table (a trader-drawn tool) |
+| **NARROW** | KEEP — a drawing the trader placed — it has no row in the permission table, so the narrow-glass budget does not touch it |
+| **ⓘ / FIRST TOUCH** | Fixed range profile — volume for the range you chose. |
+| **DEGRADED** | No traded volume (spot FX, spot metals) or none loaded — it does not draw rather than invent a histogram. |
+| **RECEIPTS** | none written |
+| **CANON** | P-110 #8 Fixed Range Profile (user-anchored) |
+| **SERVING PROOF** | A drag tool (`drawingTool === "anchored-vp"`) — not URL-provable (§1f) |
+| **STATUS** | **PARTIAL** — missing: A hands-on drag receipt on serving; no dataset receipt is written by this tool |
+
+### P110.9 Composite Profile
+| Field | Certificate |
+|---|---|
+| **NAME** | Composite Profile · census `P110.9` · owner `src/lib/marketData/viewModels/selectCompositeProfile.ts` · plate — (none) |
+| **MARKET QUESTION** | Across the last few completed sessions, where was value? |
+| **EVIDENCE** | Completed sessions with volume; today is excluded. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Volume is allocated to price from real per-trade prints. · PARTIAL: Volume is spread across each bar's range from the bars' own totals — the shape is honest, single rows are approximate. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | One histogram aggregated over recent sessions, with composite POC, VAH and VAL. |
+| **STATE GRAMMAR** | The composite value area is the multi-day fair price — today trading inside it is balance, outside it is a test of new value. |
+| **COLOR** | `PROFILE_ROLES` |
+| **OPACITY** | LIVE (ceiling 1), depth MACRO, light MAGNETS |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / QUIET |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Composite profile — value across recent completed sessions. |
+| **DEGRADED** | No completed session (a 24/7 feed never closes one) or no volume — it refuses. |
+| **RECEIPTS** | `compositeProfile`, `compositeProfileRows`, `compositeProfileSessions`, `compositeProfileStrata` |
+| **CANON** | P-110 #9 Composite Profile |
+| **SERVING PROOF** | §1f: DRAWN (5 sessions) on NQ1!; DRAWN on SPY and BTC; NO_VOLUME on EURUSD. Garden 18: `DRAWN`, 94 rows, 5 sessions, sediment geometry. Erasure: rows 91, PASS shape |
+| **STATUS** | **PROVED** — open item: Identity words-only |
+
+### P110.10 TPO / Auction Distribution
+| Field | Certificate |
+|---|---|
+| **NAME** | TPO / Auction Distribution · census `P110.10` · owner `src/lib/marketData/viewModels/selectTpoProfile.ts` · plate — (none) |
+| **MARKET QUESTION** | How much TIME did the market spend at each price? |
+| **EVIDENCE** | Bars alone — time and price, no volume needed. (needs PRICE) |
+| **TRUTH CLASS** | FULL: Built from the loaded bars — nothing more is needed. · PARTIAL: Too few periods on screen — it says so instead of lettering a thin profile. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | Letters on the left edge, one per period that traded at each price, with TPO POC, value and single prints. |
+| **STATE GRAMMAR** | Wide rows = time spent (acceptance). Single prints = prices the market rushed through — often revisited. |
+| **COLOR** | `PROFILE_ROLES`, `BRASS` |
+| **OPACITY** | LIVE (ceiling 1), depth MID, light MAGNETS |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SILENT |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | TPO — letters show how long the market spent at each price. |
+| **DEGRADED** | No bars — nothing to read yet. |
+| **RECEIPTS** | `tpoProfile`, `tpoProfileRows`, `tpoProfilePeriods`, `tpoProfileSingles`, `tpoYields`, `tpoProfileAsOf` |
+| **CANON** | P-110 #10 TPO / auction distribution |
+| **SERVING PROOF** | §1f: DRAWN on all four — on EURUSD the only lawful profile. Erasure: `tpoProfileRows=95`, cell grid + VA lines, PASS shape |
+| **STATUS** | **PROVED** — open item: POC / VA chips are words-only |
+
+### P110.CLASSIC Classic VP · all loaded bars
+| Field | Certificate |
+|---|---|
+| **NAME** | Classic VP · all loaded bars · census `P110.CLASSIC` · owner `src/lib/marketData/viewModels/selectProfileMenu.ts` · plate — (none) |
+| **MARKET QUESTION** | Where did the most business happen across everything loaded? |
+| **EVIDENCE** | Traded volume on the loaded bars. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Volume is allocated to price from real per-trade prints. · PARTIAL: Volume is spread across each bar's range from the bars' own totals — the shape is honest, single rows are approximate. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | A volume histogram against the price axis, with POC, VAH and VAL lines across the chart. |
+| **STATE GRAMMAR** | The longest row (POC) is the price the market accepted most. VAH–VAL holds about 70% of volume — inside is fair value, outside is the market testing for acceptance. |
+| **COLOR** | `VP_PALETTE` |
+| **OPACITY** | no attention tier (not governed — §11c gap 3) |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / QUIET |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Classic volume profile — the longest row is where most volume traded. |
+| **DEGRADED** | No traded volume (spot FX, spot metals) or none loaded — it does not draw rather than invent a histogram. |
+| **RECEIPTS** | `vpDrawn`, `vpRows`, `vpSpan`, `vpLevelChips`, `vpFault` |
+| **CANON** | Profile family · shared VP engine |
+| **SERVING PROOF** | §1f groups fixedVP with the session VP (`vpDrawn 2` on NQ1!) |
+| **STATUS** | **PARTIAL** — missing: No receipt that names the classic (all-loaded-bars) column apart from the session column |
+
+### H-701.ABS Absorption Shelf
+| Field | Certificate |
+|---|---|
+| **NAME** | Absorption Shelf · census `H-701.ABS` · owner `src/lib/marketData/selectAbsorptionAnatomy.ts` · plate WM_NewMockup_46_OrderFlow_Footprint_Absorption · WM_Transformation_UI_06_Absorption_Anatomy |
+| **MARKET QUESTION** | Is heavy effort hitting a price and failing to move it? |
+| **EVIDENCE** | Bar volume (sided prints sharpen it) measured against how far price actually moved. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Sided prints and volume both measured — a confirmed absorption once its evidence floor passes. · PARTIAL: Bar volume only — shown as an absorption candidate, not confirmed. |
+| **MANIFESTATION** | EVENT |
+| **PHYSICAL GRAMMAR** | A shelf on the bars where effort was high and displacement near zero, at the real high and low it covered. |
+| **STATE GRAMMAR** | Thicker shelf = more effort absorbed. A shelf that holds when tested again is a defended level; a clean break through it means the wall gave way. |
+| **COLOR** | `BRASS` |
+| **OPACITY** | LIVE (ceiling 1), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Absorption shelf — heavy effort met here and price barely moved. |
+| **DEGRADED** | No traded volume — no shelf is drawn (effort cannot be measured). |
+| **RECEIPTS** | `absorption`, `absorptionTerrain`, `absorptionStateInk`, `absorptionChips` |
+| **CANON** | F06 · H-701A Absorption (effort high, displacement near zero) |
+| **SERVING PROOF** | §1f: DRAWN · ABSORBING on SPY and BTC; MEASURED_NO_ZONES on NQ (correct). Erasure: E3 + phone + second pass `absorptionStateInk=ABSORBING:1` (effort terrain with a gold absorbing edge, shelf box) PASS |
+| **STATUS** | **PROVED** |
+
+### H-701.EXH Exhaustion
+| Field | Certificate |
+|---|---|
+| **NAME** | Exhaustion · census `H-701.EXH` · owner `src/lib/marketData/viewModels/selectExhaustion.ts` · plate WM_Transformation_UI_06_Absorption_Anatomy |
+| **MARKET QUESTION** | Is the push running out of fuel? |
+| **EVIDENCE** | Bar volume along a push, measured against how far each step moved price. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Volume and sided prints measured along the whole push. · PARTIAL: Bar volume only — an exhaustion candidate, labelled as such. |
+| **MANIFESTATION** | EVENT |
+| **PHYSICAL GRAMMAR** | A mark at the push's extreme bar — where effort faded as price stretched. |
+| **STATE GRAMMAR** | The mark sits where the last push failed to follow through. It is not a defended wall — exhaustion needs no defender, just fading fuel. |
+| **COLOR** | `EXHAUST_RED` |
+| **OPACITY** | LIVE (ceiling 1), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Exhaustion — the push spent its fuel here and failed to continue. |
+| **DEGRADED** | No traded volume — no mark is drawn. |
+| **RECEIPTS** | `exhaustion` |
+| **CANON** | F06 · H-701A Exhaustion (aggression drying, no defender required) |
+| **SERVING PROOF** | In the census since Garden 18 §XXI (its own switch); ⓘ complete |
+| **STATUS** | **PARTIAL** — missing: Never read on serving — §4 open items: "Still unmeasured: Exhaustion (no proof token)". Needs `on=Exhaustion` + a drawn mark |
+
+### F07A Big Trades on the market
+| Field | Certificate |
+|---|---|
+| **NAME** | Big Trades on the market · census `F07A` · owner `src/lib/bigTradeLevels.ts` · plate WM_NewMockup_76_F07A_BigTrades_On_Market |
+| **MARKET QUESTION** | Where did unusually large trades print? |
+| **EVIDENCE** | Per-trade prints. (needs PRINTS) |
+| **TRUTH CLASS** | FULL: Every print observed with its side. · PARTIAL: Prints observed, side inferred — labelled. |
+| **MANIFESTATION** | EVENT |
+| **PHYSICAL GRAMMAR** | Marks at the actual time and price of large prints, sized relative to this session. |
+| **STATE GRAMMAR** | Size is relative, not absolute. Click one to see what price did after it. No claim about who traded or why. |
+| **COLOR** | `TRADE_SIDE`, `BRASS` |
+| **OPACITY** | LIVE (ceiling 1), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SPEAK |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Big trade — an unusually large print; Inspect shows what price did next. |
+| **DEGRADED** | No per-trade prints — no marks. |
+| **RECEIPTS** | `bigTradeBubbleCount`, `bigTradeClusters`, `bigTradeQuieted`, `bigTradeCallout` |
+| **CANON** | F07 Big Trades · H-701B |
+| **SERVING PROOF** | §1f receipts; erasure E5 + phone `bigTradeBubbleStatus=DRAWN`, `bigTradeClusters=1/132` PASS; "no tick → no bubble" enforced |
+| **STATUS** | **PROVED** |
+
+### F11.STRUCTURE Market Structure
+| Field | Certificate |
+|---|---|
+| **NAME** | Market Structure · census `F11.STRUCTURE` · owner `src/lib/marketData/viewModels/selectMarketStructure.ts` · plate — (none) |
+| **MARKET QUESTION** | Where are the confirmed swing highs and lows? |
+| **EVIDENCE** | Bars alone. (needs PRICE) |
+| **TRUTH CLASS** | FULL: Built from the loaded bars — nothing more is needed. · PARTIAL: Too few bars loaded or in view — it draws what the bars support and says what is short. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | Swing highs and lows, the latest of each drawn loudest. |
+| **STATE GRAMMAR** | Higher highs and higher lows = up-structure. A close beyond the last swing is a break of structure. Click a swing for its passport. |
+| **COLOR** | `BONE`, `BRASS` |
+| **OPACITY** | LIVE (ceiling 1), depth MACRO, light TREND |
+| **DEPTH** | FAR / MID / NEAR = QUIET / SPEAK / QUIET |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Swing level — a confirmed high or low; its passport shows tests and age. |
+| **DEGRADED** | No bars — nothing to read yet. |
+| **RECEIPTS** | `marketStructure`, `marketStructurePivotForms`, `marketStructureBias`, `marketStructureBiasGlyph` |
+| **CANON** | F11 Market Object Passport · structure |
+| **SERVING PROOF** | Erasure: E2 + phone + second pass `PivotForms=FILLED:2\|HOLLOW:3` PASS; 05670f2 re-proof `FILLED:6\|HOLLOW:3`, bias glyph RANGE at every width (1180, 390) |
+| **STATUS** | **PROVED** |
+
+### F08B Liquidity Weather (lens)
+| Field | Certificate |
+|---|---|
+| **NAME** | Liquidity Weather (lens) · census `F08B` · owner `src/lib/marketData/viewModels/selectLiquidityWeather.ts` · plate WM_NewMockup_79_F08B_Weather_Lens |
+| **MARKET QUESTION** | How much size does it cost to move price here? |
+| **EVIDENCE** | Prints (or traded bars when no tape window) — volume per unit of price travel; side not needed. (needs VOLUME) |
+| **TRUTH CLASS** | FULL: Measured from live prints. · PARTIAL: Measured from the chart's traded bars because the tape window is short — coarser bands, labelled. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | A restrained tint on price as heat bands; candles stay readable through it. |
+| **STATE GRAMMAR** | Hot = dear: it takes a lot of size to move price (stalls are likely). Cool = cheap: price can travel fast through it. |
+| **COLOR** | `BONE` |
+| **OPACITY** | LIVE (ceiling 1), depth MID, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SILENT |
+| **NARROW** | WITHHOLD — the loupe yields on a small pane (liquidityGlassGeometry YIELDED_SMALL_PANE); below 600px its words go quiet as well |
+| **ⓘ / FIRST TOUCH** | Liquidity weather — hot bands are expensive to move through, cool bands are cheap. |
+| **DEGRADED** | No traded volume or too few traded bars — the lens says UNMEASURED instead of painting. |
+| **RECEIPTS** | `liquidityWeather`, `liquidityWeatherStageInk`, `LensState` |
+| **CANON** | F08B Liquidity Weather (a lens, not a page) |
+| **SERVING PROOF** | Erasure E9 `LensState=DRAWN` (1180), `YIELDED_SMALL_PANE` (390, by design). 05670f2: `liquidityWeatherStageInk STEADY:GRAIN12` |
+| **STATUS** | **PARTIAL** — missing: Grain-by-stage is unproven: only one stage (STEADY) was on serving |
+
+### F15.PRESSURE Derivatives Pressure world
+| Field | Certificate |
+|---|---|
+| **NAME** | Derivatives Pressure world · census `F15.PRESSURE` · owner `src/lib/marketData/viewModels/selectDerivativesPressure.ts` · plate — (none) |
+| **MARKET QUESTION** | Will dealer hedging damp moves here or speed them up? |
+| **EVIDENCE** | An options chain with open interest (Cboe delayed; BTC/ETH from Deribit public). (needs OPTIONS) |
+| **TRUTH CLASS** | FULL: Fresh chain for this underlying. · PARTIAL: Chain is delayed — positioning trails the market, said in the label. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | A pressure field, the zero-gamma front, walls with observed tests, and the implied expected move. |
+| **STATE GRAMMAR** | Above zero-gamma dealers tend to damp moves; below it they tend to amplify them. It is INFERRED from positioning, not observed orders. |
+| **COLOR** | `OPTIONS_NET` |
+| **OPACITY** | SUPPORTING (ceiling 0.85), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SPEAK / SPEAK / QUIET |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Derivatives pressure — where dealer hedging is expected to damp or amplify moves. |
+| **DEGRADED** | No chain for this market — unavailable on this feed. |
+| **RECEIPTS** | `derivativesPressurePainted` |
+| **CANON** | Garden 15/16 Market Sense · Derivatives Pressure |
+| **SERVING PROOF** | Erasure `PRESSURE:MIXED`, `Texture=ON` (climate wash + clear zone). Call ≠ Put ≠ Gamma held live (§1, pass 2) |
+| **STATUS** | **PARTIAL** — missing: Tint-by-climate is unproven: only MIXED was on serving |
+
+### F08.BRICK Brick Walls
+| Field | Certificate |
+|---|---|
+| **NAME** | Brick Walls · census `F08.BRICK` · owner `src/lib/marketData/viewModels/selectProfileMenu.ts` · plate — (none) |
+| **MARKET QUESTION** | Which strikes are dealers defending, and have they cracked? |
+| **EVIDENCE** | Options open interest (Cboe delayed; futures via tastytrade; BTC/ETH Deribit). (needs OPTIONS) |
+| **TRUTH CLASS** | FULL: Fresh chain and observed tests on this chart. · PARTIAL: Chain delayed or mapped from an index (NDX/SPX onto NQ/ES) — labelled. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | Masonry walls at strike prices — bricks, a crack at each observed test, breach and scar. |
+| **STATE GRAMMAR** | More bricks = more open interest. Each crack is a test that held; a breach leaves a scar. Inferred positioning, not orders. |
+| **COLOR** | `OPTIONS_NET` |
+| **OPACITY** | SUPPORTING (ceiling 0.85), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SPEAK / SPEAK / QUIET |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Brick wall — a strike dealers are positioned at; cracks are observed tests. |
+| **DEGRADED** | No chain for this market — no walls. |
+| **RECEIPTS** | `brickWalls`, `optionsOiWalls`, `brickWallsOffCamera` |
+| **CANON** | Garden 16 §20 Brick Walls |
+| **SERVING PROOF** | Erasure: E4 + phone `brickWalls=ON:2`, `optionsOiWalls=CALL_OI@…\|PUT_OI@…`; second pass `brickWallsOffCamera=ABOVE:2\|MARK:DRAWN` (was FAIL — ASK-1 done) |
+| **STATUS** | **PROVED** |
+
+### F03A Memory Ghost
+| Field | Certificate |
+|---|---|
+| **NAME** | Memory Ghost · census `F03A` · owner `src/lib/marketData/viewModels/selectMemoryGhost.ts` · plate WM_NewMockup_68_F03A_Memory_Ghost |
+| **MARKET QUESTION** | When did this market last make this same shape? |
+| **EVIDENCE** | Enough history to find a close analogue. (needs PRICE) |
+| **TRUTH CLASS** | FULL: A close analogue with enough history. · PARTIAL: A weaker match — mismatch shown in Inspect. |
+| **MANIFESTATION** | TERRITORY |
+| **PHYSICAL GRAMMAR** | The earlier stretch ghosted faintly under the live bars on the same axes — never projected forward. |
+| **STATE GRAMMAR** | It shows what the past shape looked like, not what will happen. Sample size and mismatch are in Inspect. |
+| **COLOR** | `BONE` |
+| **OPACITY** | MEMORY (ceiling 0.5), depth —, light — |
+| **DEPTH** | FAR / MID / NEAR = SILENT / SPEAK / SILENT |
+| **NARROW** | SIMPLIFY — below 600px every SPEAK becomes QUIET: geometry kept, words withheld, alpha capped at 0.6 (the selected item still speaks) |
+| **ⓘ / FIRST TOUCH** | Memory ghost — an earlier stretch with the same shape. Not a forecast. |
+| **DEGRADED** | No adequate analogue — silence, not a guess. |
+| **RECEIPTS** | `memoryGhost`, `memoryGhostForm`, `memoryGhostCaption` |
+| **CANON** | F03 Memory Ghost · H-201 (no second past, no lookahead) |
+| **SERVING PROOF** | Erasure: SILENT (`NO_ANALOGUE`) — correct silence, nothing drawn |
+| **STATUS** | **PARTIAL** — missing: A drawn ghost has never been read on serving; the ≤ 0.18 opacity target is unverified |
 

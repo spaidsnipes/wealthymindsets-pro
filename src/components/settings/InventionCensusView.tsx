@@ -17,6 +17,7 @@ function where(e: CensusEntry): string {
     : s.kind === "FOOTPRINT" ? `Tools › Order flow › ${s.mode}`
     : s.kind === "ROUTE" ? s.href
     : s.kind === "CONTEXT" ? s.how
+    : s.kind === "INSTRUMENT" ? `Tools › ${s.id.replace(/_/g, " ").toLowerCase()}`
     : "—";
 }
 

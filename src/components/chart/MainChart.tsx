@@ -186,6 +186,10 @@ const WALL_CAMERA_REACH = 0.04;
 const HEADER_LIVE_FRESH_MS = 120_000;
 /** Delta Levels never paints below this — a lane nobody can see is not a reading on glass. */
 const DELTA_LEVELS_ALPHA_FLOOR = 0.8;
+/** Frames a Delta Keel waits for its off-frame ATR task before walking it in-frame. */
+const KEEL_ATR_WAIT_FRAMES = 2;
+/** Session Bands' empty lane rail ink: legible, never mistaken for the 0.42 session strip. */
+const SESSION_RAIL_INK = 0.26;
 /** Delta Divergence pivot marks never paint below this. */
 const DIVERGENCE_ALPHA_FLOOR = 0.8;
 /** Imbalance Stack band, edges and slabs never paint below this. */
@@ -425,7 +429,8 @@ import {
 import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeLighting";
 import { selectRegimeFixtures } from "@/lib/marketData/viewModels/selectRegimeFixtures";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
-import { TIER_CEILING, selectAttentionGovernor, type AttentionSelection } from "@/lib/marketData/viewModels/selectAttentionGovernor";
+import { readCvdNotches, cvdNotchProvenance } from "@/lib/chart/cvdRelationship";
+import { PRICE_ADJACENT_FLOOR, TIER_CEILING, selectAttentionGovernor, type AttentionSelection } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens, type QuestionChoice, type QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
 import { selectPrintResponse } from "@/lib/marketData/viewModels/selectPrintResponse";
@@ -1383,6 +1388,13 @@ interface Props {
    */
   breathRibbonOn?: boolean;
   /**
+   * C-06 CVD ⇄ PRICE NOTCH (G19.CVD_REL, PROPOSED — no Founder plate yet;
+   * default OFF): where the CVD across the last 5 finished bars ran against
+   * the price move across them, a hollow notch on the wick tip in the move's
+   * direction. Reads the Delta Keel's signed rows (one owner of a bar's delta).
+   */
+  cvdNotchOn?: boolean;
+  /**
    * FVG / IMBALANCE (Garden 19 FVG lane D, fvgGlass.ts): the ONE FVG history
    * (fvgEngine FVG_3C v1, read through fvgCamera.fvgSceneForCamera — live
    * increment memo, replay cursor) painted as TERRITORY on price.
@@ -1984,7 +1996,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onCrosshairTime, onCrosshairHandle, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
-  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, breathRibbonOn = false, fvgOn = false, onFvgScene, regimeSeries = null, livingDevelopment = null,
+  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, breathRibbonOn = false, cvdNotchOn = false, fvgOn = false, onFvgScene, regimeSeries = null, livingDevelopment = null,
   absorptionAnatomyActive = false,
   exhaustionOnChart = true,
   imbalanceStack = null,
@@ -2386,6 +2398,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const deltaKeelCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const deltaKeelPhaseRef = useRef<{ atr: number; rows: number; fresh: boolean } | null>(null);
   const deltaKeelAtrPendingRef = useRef<string | null>(null);
+  // Frames painted while the off-frame ATR task for this key has not landed.
+  const deltaKeelAtrWaitRef = useRef<{ key: string; frames: number } | null>(null);
   const deltaKeelLaidOnceRef = useRef(false);
   const regimeLightingRef = useRef<RegimeLightingVM | null>(null);
   useEffect(() => { regimeLightingRef.current = regimeLighting ?? null; }, [regimeLighting]);
@@ -10070,6 +10084,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (pr.drawn && xe != null && yp != null) {
             const ex = +xe, ey = +yp, up = pr.dir > 0;
             ctx.save();
+            // §12: causal marks exist only for the selected print — SELECTED, full weight.
+            ctx.globalAlpha = att.alpha("forceResponse", { selectedItem: true });
             ctx.setLineDash([4, 4]); ctx.strokeStyle = "rgba(232,184,92,0.75)"; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(Math.round(ex) + 0.5, 92); ctx.lineTo(Math.round(ex) + 0.5, H - 40); ctx.stroke(); ctx.setLineDash([]);
             // FORCE: an arrow from below (buy) / above (sell) into the print.
@@ -10727,11 +10743,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           let labels = 0;
           const labelRects: { x: number; y: number; w: number; h: number }[] = [];
           ctx.save();
+          // §12 (2026-10-08): the bands recede with the room (SUPPORTING).
+          if (att.paints("sessionBands")) ctx.globalAlpha = att.alpha("sessionBands");
+          const sbSpeaks = att.speaks("sessionBands");
           // ASK-2 (erasure, 2026-10-07): the three lane RAILS are always drawn
           // while the bands are on — a one-session camera's lone strip then
           // reads by its position against the two empty rails, not by its ink.
+          // Lifted 0.10 → SESSION_RAIL_INK (2026-10-08, desktop one-session camera:
+          // a 1px rail at 0.10 read as nothing). Still well under the 0.42 strip,
+          // so an empty rail never reads as a session in progress.
           for (const id of ["ASIA", "LONDON", "NEW_YORK"] as const) {
-            ctx.fillStyle = `rgba(${INK[id]},0.10)`;
+            ctx.fillStyle = `rgba(${INK[id]},${SESSION_RAIL_INK})`;
             ctx.fillRect(0, laneY[id] + 1, plotRight, 1);
           }
           canvas.dataset.sessionBandRails = "3";
@@ -10761,6 +10783,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.fillStyle = "rgba(8,7,5,0.9)";
               for (let t = 0; t < (LANE_TICKS[sp.id] ?? 0); t++) ctx.fillRect(a + 2 + t * 3, laneY[sp.id], 1, LANE_H);
             }
+            if (!sbSpeaks) continue;
             const word = SESSION_BAND_LABEL[sp.id];
             const tw = ctx.measureText(word).width;
             const r = { x: a + 2, y: laneY.ASIA - 12, w: tw, h: 10 };
@@ -10836,6 +10859,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             toned++;
           }
           ctx.save();
+          // §12: the volume field recedes with the room (SUPPORTING).
+          if (att.paints("volumeField")) ctx.globalAlpha = att.alpha("volumeField");
           for (let k = 0; k < steps.length; k++) {
             const r = steps[k];
             if (!r.length) continue;
@@ -10992,6 +11017,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // bars. Class B over the Class A field; silence elsewhere.
             const absorbedAt: { time: number; x: number; top: number }[] = [];
             ctx.save();
+            // §12: the volume field recedes with the room (SUPPORTING).
+            if (att.paints("volumeField")) ctx.globalAlpha = att.alpha("volumeField");
             for (let k = 0; k < n; k++) {
               const b = field.bars[k];
               if (sparse && b.cell !== "ABSORBED" && b.cell !== "VACUUM") continue;
@@ -11118,6 +11145,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               && bs.length > prevAtr.atr.length && bs.length - prevAtr.atr.length <= 3;
             if (grew) deltaKeelAtrRef.current = { key: akey, first: bs[0]?.time, atr: extendAtrSeries(prevAtr!.atr, bs) };
             else if (bs.length < 600) deltaKeelAtrRef.current = { key: akey, first: bs[0]?.time, atr: atrSeries(bs) };
+            else if ((deltaKeelAtrWaitRef.current = { key: akey, frames: deltaKeelAtrWaitRef.current?.key === akey ? deltaKeelAtrWaitRef.current.frames + 1 : 1 }).frames > KEEL_ATR_WAIT_FRAMES) {
+              // A timer-throttled background tab held the off-frame task ~30 s
+              // (serving read, 2026-10-08): after two frames waiting, the ATR is
+              // walked in this frame — the same series, never a guessed one.
+              deltaKeelAtrRef.current = { key: akey, first: bs[0]?.time, atr: atrSeries(bs) };
+              deltaKeelAtrPendingRef.current = null;
+              canvas.dataset.barDeltaKeelsAtr = `IN_FRAME:AFTER${KEEL_ATR_WAIT_FRAMES}`;
+            }
             else {
               atrReadyDK = false;
               if (deltaKeelAtrPendingRef.current !== akey) {
@@ -11132,6 +11167,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
           }
           const tAtrDK = performance.now();
+          if (atrReadyDK && deltaKeelAtrWaitRef.current?.key !== akey) delete canvas.dataset.barDeltaKeelsAtr;
           if (!atrReadyDK) canvas.dataset.barDeltaKeels = "WARMING:ATR";
           else {
           const atrDK = deltaKeelAtrRef.current!.atr;
@@ -11292,6 +11328,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (!reuseGeo) deltaKeelGeoRef.current = { keels, key: geoKeyDK, halo, groups, drawn, failed };
             if (!reuseGeo) deltaKeelGeoRef.current!.layout = layDK!;
             ctx.save();
+            // §12: keels sit on the close edge — read AS the candle, so they recede
+            // with the room but never below legibility (PRICE_ADJACENT_FLOOR).
+            if (att.paints("volumeField")) ctx.globalAlpha = Math.max(PRICE_ADJACENT_FLOOR, att.alpha("volumeField"));
             ctx.lineWidth = 1;
             const rects = (r: number[]) => { ctx.beginPath(); for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], r[i + 3]); };
             if (halo.length) { rects(halo); ctx.fillStyle = "rgba(8,7,5,0.85)"; ctx.fill(); }
@@ -11323,6 +11362,51 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           canvas.dataset.barDeltaKeelsCost = `${ms.toFixed(2)}ms|mean${(cr.sum / cr.n).toFixed(2)}|longest${cr.longest.toFixed(2)}|${cr.longest <= DELTA_KEEL_BUDGET_MS ? "MET" : "OVER"}`;
         }
       } catch (err) { layerFault("DELTA_KEEL", err); }
+
+      /* ══ C-06 CVD ⇄ PRICE NOTCH (G19.CVD_REL · PROPOSED, default OFF) ══════
+         The cumulative half of the CVD relationship on the candle (the per-bar
+         half is the keel's hollow). Reads the rows the keel read THIS frame —
+         one owner of a bar's delta; with the keel off there are no rows and the
+         receipt says so. Agreement is silence; a window with an unsided bar is
+         no claim. Hollow ivory notch on the wick tip in the move's direction;
+         dashed when a provider-sides row is in the window (inferred). */
+      try {
+        delete canvas.dataset.cvdNotchInspect;
+        if (!cvdNotchOn) canvas.dataset.cvdNotches = "OFF";
+        else if (!att.paints("cvdNotch")) canvas.dataset.cvdNotches = att.offWord(true);
+        else if (!deltaKeelOn || !deltaKeelLastRef.current || !deltaKeelCacheRef.current?.rows) canvas.dataset.cvdNotches = "SILENT:NEEDS_SIGNED_ROWS:DELTA_KEEL";
+        else {
+          const rd = readCvdNotches(deltaKeelCacheRef.current.rows ?? []);
+          const byTime = new Map<number, LegacyOhlcvTuple>();
+          for (const b of barsRef.current ?? []) byTime.set(b.time as number, b);
+          const tsN = chart.timeScale();
+          let drawnN = 0;
+          ctx.save();
+          ctx.globalAlpha = att.alpha("cvdNotch");
+          ctx.strokeStyle = "rgba(237,230,211,0.6)";
+          ctx.lineWidth = 1;
+          for (const n of rd.notches) {
+            const b = byTime.get(n.time);
+            const xr = tsN.timeToCoordinate(n.time as never);
+            if (!b || xr == null || +xr < 0 || +xr > plotRight) continue;
+            const yw = srs.priceToCoordinate(n.dir > 0 ? b.high : b.low);
+            if (yw == null) continue;
+            const x = Math.round(+xr) + 0.5, tip = +yw - n.dir * 3, base = tip + n.dir * 4;
+            ctx.setLineDash(n.inferred ? [1, 1] : []);
+            ctx.beginPath();
+            ctx.moveTo(x, tip - n.dir * 4);
+            ctx.lineTo(x - 3, base - n.dir * 4);
+            ctx.lineTo(x + 3, base - n.dir * 4);
+            ctx.closePath();
+            ctx.stroke();
+            drawnN++;
+            if (inspectedBarRef.current?.time === n.time) canvas.dataset.cvdNotchInspect = cvdNotchProvenance(n);
+          }
+          ctx.setLineDash([]);
+          ctx.restore();
+          canvas.dataset.cvdNotches = `PROPOSED:${drawnN}|SIDES:${rd.sidesRows}|M${rd.measured}|U${rd.unmeasured}`;
+        }
+      } catch (err) { layerFault("CVD_NOTCH", err); }
 
       /* ══ #7 · REGIME STATE LINE (F15A "Regime decides which geometry may
          speak") ════════════════════════════════════════════════════════════
@@ -12236,6 +12320,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (vpDrawn) return;
         vpDrawn = true;
         ctx?.save();
+        // §12: the classic VP columns recede with the room (LIVE tier).
+        if (ctx) ctx.globalAlpha = att.alpha("volumeProfile");
         try { runWMVPBody(); if (canvasRef.current?.dataset.vpFault) delete canvasRef.current.dataset.vpFault; }
         catch (err) {
           const ds = canvasRef.current?.dataset;
@@ -12690,6 +12776,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.save();
             ctx.lineCap = "round";
             if (!flowSpeaks) ctx.globalAlpha = QUIET_CEILING;
+            // §12: the current recedes with the room; launched from the wick, it
+            // never drops below legibility and never above its quiet ceiling.
+            ctx.globalAlpha = Math.min(ctx.globalAlpha, Math.max(PRICE_ADJACENT_FLOOR, att.alpha("flowCurrent")));
             // PHONE ASK 6 (erasure, 2026-10-07): the QUIET form needs a stroke no
             // other layer uses, so a trader can tell Flow Current is on — its
             // streak cores are DOTTED (2·2) with the arrow head kept solid.
@@ -25342,7 +25431,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       try {
         let wl: WisdomLine | null = null;
         wisdomHitRef.current = null;
+        delete canvas.dataset.crossCandleWisdomTier;
         if (!wisdomLineOn) canvas.dataset.crossCandleWisdom = "OFF";
+        else if (!att.paints("wisdomLine")) { canvas.dataset.crossCandleWisdom = att.offWord(true); delete canvas.dataset.crossCandleWisdomWhy; delete canvas.dataset.crossCandleWisdomTrace; }
         else {
           const kl = deltaKeelLastRef.current;
           const fld = effortResponseOn && effortResponseCacheRef.current?.field.state === "DRAWN" ? effortResponseCacheRef.current.field.bars : null;
@@ -25364,6 +25455,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             canvas.dataset.crossCandleWisdomTrace = `${wl.kind}|${wl.time}|${wl.sources.join("+")}`;
             canvas.dataset.crossCandleWisdomWhy = wl.provenance;
             ctx.save();
+            // §12: words about other layers' objects — SUPPORTING, legible floor;
+            // the line's own inspected bar makes it the selection.
+            const wlSel = { selectedItem: inspectedBarRef.current?.time === wl.time };
+            ctx.globalAlpha = att.textAlpha("wisdomLine", wlSel);
+            // Painted after the frame's attentionTiers receipt, so it names its own.
+            canvas.dataset.crossCandleWisdomTier = `${att.tierOf("wisdomLine", wlSel)}:${ctx.globalAlpha.toFixed(2)}`;
             ctx.font = `700 10px ${MARKET_SANS}`; ctx.textBaseline = "top"; ctx.textAlign = "left";
             const tw = Math.ceil(ctx.measureText(wl.text).width) + 8, th = 14;
             const xr = chart.timeScale().timeToCoordinate(wl.time as never);
@@ -25649,7 +25746,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, wisdomLineOn, rvolToneOn, breathRibbonOn, fvgOn, absorptionAnatomyActive, getBarSubProfile]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, wisdomLineOn, rvolToneOn, breathRibbonOn, cvdNotchOn, fvgOn, absorptionAnatomyActive, getBarSubProfile]);
 
   /*
     THE HIDDEN-TAB STAMP CANNOT LIVE INSIDE THE RAF LOOP.
@@ -27348,7 +27445,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     a related market's participation, named as such. */}
                 {fxRelated.kind === "LIVE" && relatedRoot(symbol)
                   // Related-market words, compact; the full line is the title.
-                  ? <>CME {relatedRoot(symbol)} flow · related, not spot · 5m signed Δ {fxRelated.summary.delta > 0 ? "+" : ""}{fxRelated.summary.delta} →</>
+                  // §18 (2026-10-08): the chip LEADS with what it is — related
+                  // futures evidence — and "not spot" stays in title + aria-label.
+                  ? <>RELATED FUTURES EVIDENCE · CME {relatedRoot(symbol)} · 5m signed Δ {fxRelated.summary.delta > 0 ? "+" : ""}{fxRelated.summary.delta} →</>
                   : <>CME futures participation: {fxDoor.futures} →</>}
               </button>
             ) : null}

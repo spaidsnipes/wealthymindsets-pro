@@ -63,7 +63,7 @@ describe("Reference an FVG → save → reload: the same snapshot comes back", (
     expect(page.length).toBeGreaterThan(50_000);
     expect(page).toContain("onChange={ref => setForm(f => ({ ...f, fvgRef: ref }))}");
     expect(page).toContain("const e = { ...(form as JournalEntry) };");
-    expect(page).toContain("localStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(entries));");
+    expect(page).toContain("localStorage.setItem(keys.canonical, JSON.stringify(entries));");   // the member's own key (Garden 19 isolation)
     expect(readFileSync(path.join(SRC, "lib/journal/hydrateJournalEntries.ts"), "utf8")).toContain("readJournalFvgReference(value.fvgRef)");
     // The proof scene cannot stand in for this: it is read only by construction.
     expect(readFileSync(path.join(SRC, "components/journal/JournalProofScene.tsx"), "utf8")).not.toMatch(/setItem\(|writeStoryReview|JournalFvgReferenceField/);

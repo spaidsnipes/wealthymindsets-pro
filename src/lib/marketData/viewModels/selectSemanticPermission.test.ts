@@ -27,10 +27,11 @@ describe("semantic permission — one table, every painting layer", () => {
       expect(k in SEMANTIC_PERMISSION, `${k} paints with no permission row`).toBe(true);
     }
     // And the painting blocks the governor does not tier.
-    for (const k of ["candles", "farEnvelope", "dataGaps", "microDelta", "nearGeometry", "forceResponse", "tapeHorizon", "volumeProfile", "debtTag", "candleTimer", "formingCandle", "flowCurrent"]) {
+    // forceResponse / volumeProfile / flowCurrent are tiered since §12 (2026-10-08).
+    for (const k of ["candles", "farEnvelope", "dataGaps", "microDelta", "nearGeometry", "tapeHorizon", "debtTag", "candleTimer", "formingCandle"]) {
       expect(k in SEMANTIC_PERMISSION, k).toBe(true);
     }
-    expect(DEPTH_LAYERS.length).toBe(Object.keys(LAYER_ATTENTION).length + 12);
+    expect(DEPTH_LAYERS.length).toBe(Object.keys(LAYER_ATTENTION).length + 9);
   });
 
   it("FAR is the plate's left panel: DIM CANDLES · REGIME ENVELOPE · MAJOR STRUCTURE ONLY", () => {
@@ -50,7 +51,9 @@ describe("semantic permission — one table, every painting layer", () => {
     // the live bar's tempo aura, geometry only, under the QUIET ceiling.
     // + fvg / fvgMemory (Garden 19 FVG lane D, 2026-10-07): territory is
     // structure-scale context — quiet at FAR, never invisible, no words.
-    expect(at("FAR", "QUIET")).toEqual(["candles", "dataGaps", "flowCurrent", "breathRibbon", "formingCandle", "fvg", "fvgMemory", "livingProfile", "marketStructure", "mtfAncestry"].sort());
+    // + volumeField / sessionBands (Garden 19 §12, 2026-10-08): geometry under
+    // the QUIET ceiling — the volume field and the three lane rails, no words.
+    expect(at("FAR", "QUIET")).toEqual(["candles", "dataGaps", "flowCurrent", "breathRibbon", "formingCandle", "fvg", "fvgMemory", "livingProfile", "marketStructure", "mtfAncestry", "volumeField", "sessionBands"].sort());
     // What serving still carried at FAR on 2026-09-25 (TSLA 15m, 755 bars) is silent.
     for (const k of [
       "scaffolding", "exhaustion", "debtTag", "valueCandle", "weather", "liquidityLifecycle",

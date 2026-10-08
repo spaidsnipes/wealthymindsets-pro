@@ -22,8 +22,7 @@ import { FVG_HORIZONS } from "@/lib/marketData/fvg/fvgDefinition";
 import type { FvgOutcomeStats } from "@/lib/marketData/fvg/fvgStats";
 import {
   FVG_DISPLACEMENT_BAND_LABEL,
-  fvgDurationText,
-  fvgMedianText,
+  fvgStudyStatRows,
   fvgSampleText,
   fvgShareText,
   FVG_STUDY_MIN_SAMPLE,
@@ -100,32 +99,16 @@ function Row({ label, value, testId }: { label: string; value: string; testId?: 
 }
 
 function StatsBlock({ s }: { s: FvgOutcomeStats }) {
-  const touched = s.touched.count;
-  // Below FVG_STUDY_MIN_SAMPLE gaps the counts stand, the shares are withheld.
-  const insufficient = s.detected < FVG_STUDY_MIN_SAMPLE;
+  // Every §21 outcome, worded once by fvgStudyStatRows: n of m always; below
+  // FVG_STUDY_MIN_SAMPLE gaps every share, median and mean is withheld.
+  const rows = fvgStudyStatRows(s, HORIZON_LABEL);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
-      <div>
-        <Row label="Gaps counted" value={`${fvgSampleText(s.detected)} (${s.bullish} bullish · ${s.bearish} bearish)`} testId="fvg-study-detected" />
-        <Row label="Revisited (touched)" value={fvgShareText(s.touched, { insufficient })} testId="fvg-study-touched" />
-        {FVG_HORIZONS.map(h => (
-          <Row key={h} label={`· ${HORIZON_LABEL[h]}`} value={fvgShareText(s.revisitByHorizon[h], { insufficient })} />
-        ))}
-        <Row label="Time to first touch" value={fvgMedianText(s.medianBarsToFirstTouch, touched, "bars")} />
-        <Row label="Time to first touch (clock)" value={fvgDurationText(s.medianMsToFirstTouch) ? `${fvgDurationText(s.medianMsToFirstTouch)} (median of ${touched})` : `none touched (0 of ${s.detected})`} />
-      </div>
-      <div>
-        <Row label="Deepest reach · partial (<50%)" value={fvgShareText(s.partialMitigation, { insufficient })} />
-        <Row label="Deepest reach · deep (50–99%)" value={fvgShareText(s.deepMitigation, { insufficient })} />
-        <Row label="Deepest reach · full (100%)" value={fvgShareText(s.fullMitigation, { insufficient })} />
-        <Row label="Rejected after a touch" value={fvgShareText(s.rejectionAfterTouch, { insufficient })} />
-        <Row label="Accepted inside" value={fvgShareText(s.acceptance, { insufficient })} />
-        <Row label="Closed through the far edge" value={fvgShareText(s.tradeThrough, { insufficient })} />
-        <Row label="Still open" value={fvgShareText(s.stillOpen, { insufficient })} testId="fvg-study-still-open" />
-        <Row label={`· of those, younger than ${s.stillOpenYoungerThan.bars} bars (too young to judge)`} value={`${s.stillOpenYoungerThan.count} of ${s.stillOpen.count}`} />
-        <Row label="Average deepest penetration" value={s.avgMaxPenetration === null ? `none touched (0 of ${s.detected})` : `${Math.round(s.avgMaxPenetration * 100)}% of size (mean of ${touched})`} />
-        <Row label="Post-touch move away (ATR)" value={s.avgPostTouchDisplacementAtr === null ? `no complete window (0 of ${touched})` : `${s.avgPostTouchDisplacementAtr.toFixed(2)}× ATR (mean of ${s.postTouchDisplacementSample} of ${touched})`} />
-      </div>
+      {([0, 1] as const).map(c => (
+        <div key={c}>
+          {rows.filter(r => r.column === c).map(r => <Row key={r.label} label={r.label} value={r.value} testId={r.testId} />)}
+        </div>
+      ))}
     </div>
   );
 }
@@ -146,6 +129,7 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
   const [refusal, setRefusal] = useState<string | null>(null);
   const [filters, setFilters] = useState<FvgStudyFilters>({});
   const [splitBy, setSplitBy] = useState<FvgStudyFacet>("direction");
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
   // The study clock, as a bar index into the first series (null = its newest closed bar).
   const [stepIdx, setStepIdx] = useState<number | null>(null);
 
@@ -277,9 +261,17 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
           {study.regimeNote && <p className="text-[10px] text-wm-text-dim mb-3">{study.regimeNote}</p>}
           <p className="text-[10px] text-wm-text-dim mb-3" data-testid="fvg-study-relationship-note">
             Relationship filters read only bars from before each gap formed: structure = a confirmed swing it broke, reclaimed or contains;
-            profile = a POC / VAH / VAL of the range profile of the 100 bars before it (candle-estimated, PARTIAL). Options and liquidity walls
-            need a chain or a book, which historical bars do not carry, so they are not a filter here.
+            profile = a POC / VAH / VAL of the range profile of the 100 bars before it (candle-estimated, PARTIAL). Liquidity walls need a
+            book, which historical bars do not carry, so they are not a filter here.
           </p>
+          {/* §37: the splits the study does not compute, each with its reason — never silently absent. */}
+          <ul className="mb-3 space-y-0.5" data-testid="fvg-study-evidence-splits">
+            {study.evidenceSplits.map(e => (
+              <li key={e.split} className="text-[10px] text-wm-text-dim">
+                <span className="font-bold text-wm-text-muted">{e.label}: {e.status}</span> — {e.reason}.
+              </li>
+            ))}
+          </ul>
 
           <div className="glass rounded-xl p-4 mb-4">
             <div className="text-xs font-bold text-wm-text mb-1">
@@ -306,7 +298,7 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
               <table className="w-full text-[11px]">
                 <thead>
                   <tr className="border-b border-wm-border">
-                    {["Group", "Gaps", "Revisited", "Full reach", "Rejected after touch", "Closed through", "Still open"].map(h => (
+                    {["Group", "Gaps", "Revisited", "Full reach", "Rejected after touch", "Closed through", "Still open", ""].map(h => (
                       <th key={h} className="text-left px-2 py-1.5 text-[10px] text-wm-text-muted uppercase">{h}</th>
                     ))}
                   </tr>
@@ -315,8 +307,10 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
                   {Object.entries(study.by[splitBy]).map(([k, s]) => {
                     // A group under FVG_STUDY_MIN_SAMPLE gaps shows its counts, never a share.
                     const insufficient = s.detected < FVG_STUDY_MIN_SAMPLE;
+                    const expanded = openGroup === `${splitBy}:${k}`;
                     return (
-                      <tr key={k} className="border-b border-wm-border/30" data-testid="fvg-study-split-row" data-insufficient={insufficient}>
+                      <React.Fragment key={k}>
+                      <tr className="border-b border-wm-border/30" data-testid="fvg-study-split-row" data-insufficient={insufficient}>
                         <td className="px-2 py-1.5 text-wm-text">{facetValueLabel(splitBy, k)}</td>
                         <td className="px-2 py-1.5 font-mono">{fvgSampleText(s.detected)}</td>
                         <td className="px-2 py-1.5 font-mono">{fvgShareText(s.touched, { insufficient })}</td>
@@ -324,7 +318,19 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
                         <td className="px-2 py-1.5 font-mono">{fvgShareText(s.rejectionAfterTouch, { insufficient })}</td>
                         <td className="px-2 py-1.5 font-mono">{fvgShareText(s.tradeThrough, { insufficient })}</td>
                         <td className="px-2 py-1.5 font-mono">{fvgShareText(s.stillOpen, { insufficient })}</td>
+                        <td className="px-2 py-1.5 text-right">
+                          {/* §21: every outcome, for this group alone (same rows, same withholding). */}
+                          <button onClick={() => setOpenGroup(expanded ? null : `${splitBy}:${k}`)} aria-expanded={expanded} data-testid="fvg-study-split-expand"
+                            aria-label={`${expanded ? "Hide" : "Show"} every outcome for ${facetValueLabel(splitBy, k)}`}
+                            className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold text-[10px] text-wm-blue hover:underline whitespace-nowrap">
+                            {expanded ? "Hide outcomes" : "All outcomes"}
+                          </button>
+                        </td>
                       </tr>
+                      {expanded && (
+                        <tr data-testid="fvg-study-split-outcomes"><td colSpan={8} className="px-2 py-2"><StatsBlock s={s} /></td></tr>
+                      )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>

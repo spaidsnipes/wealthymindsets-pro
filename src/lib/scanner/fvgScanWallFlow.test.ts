@@ -80,7 +80,7 @@ describe("FVG + options wall — only from the one options owner, returning to t
     const silent = read([...FLAT, ...BULL], { vm: { drawn: false, version: 1, underlying: SYM, reason: "TOO_FEW_CONTRACTS", contracts: 12, receipt: "x" } as DerivativesPressureVM });
     expect(silent.unavailable[0]).toEqual({ condition: "FVG_PLUS_WALL", reason: "Cboe delayed open interest: too few contracts with open interest to read walls" });
     expect(silent.convergence.some(c => c.condition === "FVG_PLUS_WALL")).toBe(false);
-    const refused = read([...FLAT, ...BULL], { unavailable: "NQ1! has no listed options chain at Cboe (futures lists none there), so no option wall is read" });
+    const refused = read([...FLAT, ...BULL], { unavailable: "NQ1! has no listed options chain at Cboe (Cboe lists no futures options), so no option wall is read" });
     expect(refused.unavailable[0].reason).toMatch(/no listed options chain at Cboe/);
   });
 
@@ -90,8 +90,8 @@ describe("FVG + options wall — only from the one options owner, returning to t
 
   it("which symbols may ask Cboe: listed names yes; futures, crypto, forex and unlisted shapes no — with the reason", () => {
     expect(fvgScanWallChainRefusal("AAPL", "STOCK", "AAPL")).toBeNull();
-    expect(fvgScanWallChainRefusal("NQ1!", "FUTURES", null)).toBe("NQ1! has no listed options chain at Cboe (futures lists none there), so no option wall is read");
-    expect(fvgScanWallChainRefusal("BTC-USD", "CRYPTO", null)).toMatch(/crypto lists none there/);
+    expect(fvgScanWallChainRefusal("NQ1!", "FUTURES", null)).toBe("NQ1! has no listed options chain at Cboe (Cboe lists no futures options), so no option wall is read");
+    expect(fvgScanWallChainRefusal("BTC-USD", "CRYPTO", null)).toMatch(/Cboe lists no crypto options/);
     expect(fvgScanWallChainRefusal("XYZ123", "STOCK", null)).toBe("XYZ123 is not a symbol Cboe lists options for, so no option wall is read");
   });
 });

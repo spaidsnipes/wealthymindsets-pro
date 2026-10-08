@@ -2,9 +2,10 @@
 
 import * as React from "react";
 
+import { MANAGEMENT_OWNER_EVENT } from "@/lib/journal/managementOwner";
 import {
-  JOURNAL_STORAGE_KEY,
   JOURNAL_UPDATED_EVENT,
+  isJournalStorageEventKey,
   readJournalStorage,
 } from "@/lib/traderMemory/adapters/journalStorage";
 import {
@@ -141,12 +142,14 @@ export function useLearningGenomeBundle(): LearningGenomeBundle | undefined {
     if (typeof window === "undefined") return;
     const onUpdated = () => compute();
     const onStorage = (ev: StorageEvent) => {
-      if (ev.key === JOURNAL_STORAGE_KEY) compute();
+      if (isJournalStorageEventKey(ev.key)) compute();   // the member's own book key (Garden 19 isolation)
     };
     window.addEventListener(JOURNAL_UPDATED_EVENT, onUpdated);
+    window.addEventListener(MANAGEMENT_OWNER_EVENT, onUpdated);
     window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener(JOURNAL_UPDATED_EVENT, onUpdated);
+      window.removeEventListener(MANAGEMENT_OWNER_EVENT, onUpdated);
       window.removeEventListener("storage", onStorage);
     };
   }, [compute]);

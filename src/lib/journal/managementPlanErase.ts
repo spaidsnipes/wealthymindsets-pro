@@ -13,7 +13,7 @@
  */
 
 import { deletePlanForDecision } from "./managementPlanStore";
-import { parseStoryReviews, STORY_REVIEW_STORAGE_KEY } from "./storyReview";
+import { parseStoryReviews, storyReviewKey } from "./storyReview";
 
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem">;
 
@@ -31,15 +31,17 @@ export function erasePlanForDecision(storage: Storage | null | undefined, decisi
   if (!storage || !decisionId) return { planRemoved: false, planWhyCleared: 0 };
   const planRemoved = deletePlanForDecision(storage, decisionId);
   let cleared = 0;
+  const reviewKey = storyReviewKey();
+  if (!reviewKey) return { planRemoved, planWhyCleared: 0 };
   try {
-    const all = { ...parseStoryReviews(storage.getItem(STORY_REVIEW_STORAGE_KEY)) };
+    const all = { ...parseStoryReviews(storage.getItem(reviewKey)) };
     for (const [k, r] of Object.entries(all)) {
       if (!reviewKeyBelongsTo(k, decisionId) || r.planWhy == null) continue;
       const { planWhy: _gone, ...rest } = r;
       all[k] = rest;
       cleared++;
     }
-    if (cleared) storage.setItem(STORY_REVIEW_STORAGE_KEY, JSON.stringify(all));
+    if (cleared) storage.setItem(reviewKey, JSON.stringify(all));
   } catch { /* the plan is still removed */ }
   return { planRemoved, planWhyCleared: cleared };
 }

@@ -17,7 +17,7 @@ import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import { clearPaperState } from "@/lib/paperTrade";
 import { clearWMSState } from "@/contexts/WMSContext";
 import { clearOwnerScopedLocalStorage, completeLocalSignOut } from "@/lib/logoutIsolation";
-import { setManagementOwner } from "@/lib/journal/managementOwner";
+import { setManagementOwner, stampLegacyOwner } from "@/lib/journal/managementOwner";
 import { clearSessionNectarForSignOut } from "@/lib/marketData/sessionNectar";
 import { forgetQuoteToken } from "@/lib/broker/tastyQuoteTokenClient";
 import { forgetTastyFrontMonths } from "@/lib/broker/tastyFrontMonth";
@@ -122,11 +122,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (target) window.location.replace(target);
   }, []);
 
+  // The browser's last-known account BEFORE this load's sign-in replaces the cache: the only
+  // member legacy (pre-isolation) rows may be handed to (managementOwner.legacyRowsBelongTo).
+  const legacyMarkerRef = useRef<string | null | undefined>(undefined);
+  if (legacyMarkerRef.current === undefined && typeof window !== "undefined") legacyMarkerRef.current = readCachedUser()?.id ?? null;
+  // The owner is set BEFORE the account reaches React state (Garden 19 member isolation,
+  // 2026-10-08): a room's first render — the journal reads its book in a state initializer —
+  // must already open the member's own key, never a guess and never nobody's.
+  const claimOwner = useCallback((u: WMUser | null | undefined, resolved: boolean) => {
+    if (u?.id) setManagementOwner(u.id, undefined, legacyMarkerRef.current ?? null);
+    else if (resolved) setManagementOwner(null);
+  }, []);
+
   // Restore from localStorage immediately on first render to prevent flash-to-login
   useEffect(() => {
     const cached = readCachedUser();
-    if (cached) setUser(cached);
-  }, []);
+    if (cached) { claimOwner(cached, false); setUser(cached); }
+  }, [claimOwner]);
 
   // Resolves the account (signed in), null (the server said: no session), or
   // undefined (could not tell — network, timeout, 5xx).
@@ -145,13 +157,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Core-team status is DERIVED here, never read from the payload.
           ceo: isCoreTeam(hydrated.handle, hydrated.email),
         };
+        claimOwner(u, true);
         setUser(u);
         writeCachedUser(u);
         return u;
       } else if (res.status === 401 || res.status === 403) {
         // Only an explicit authentication rejection invalidates this cache.
         // A 429/5xx response does not prove that the session expired.
+        // The session ended WITHOUT a sign-out: tie any legacy (pre-isolation) rows on this
+        // browser to the account they belonged to, before the cache that names it is cleared.
+        stampLegacyOwner(readCachedUser()?.id);
         writeCachedUser(null);
+        claimOwner(null, true);
         setUser(null);
         return null;
       } else {
@@ -159,18 +176,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // matching network-error recovery below. Protected API routes still
         // verify the cookie and revocation state on every request.
         const cached = readCachedUser();
-        if (cached) setUser(cached);
+        if (cached) { claimOwner(cached, false); setUser(cached); }
         return undefined;
       }
     } catch {
       // Network error or timeout — keep cached session alive
       const cached = readCachedUser();
-      if (cached) setUser(cached);
+      if (cached) { claimOwner(cached, false); setUser(cached); }
       return undefined;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [claimOwner]);
 
   // Hydrate on mount
   useEffect(() => { refreshUser(); }, [refreshUser]);
@@ -181,8 +198,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // reads no rows and writes none; a different member reads only their own.
   // The browser's last-known account BEFORE this load's sign-in replaces the cache: the only
   // member legacy (pre-isolation) management rows may be handed to (managementOwner.legacyRowsBelongTo).
-  const legacyMarkerRef = useRef<string | null | undefined>(undefined);
-  if (legacyMarkerRef.current === undefined && typeof window !== "undefined") legacyMarkerRef.current = readCachedUser()?.id ?? null;
   useEffect(() => {
     if (user?.id) setManagementOwner(user.id, undefined, legacyMarkerRef.current ?? null);
     else if (!loading) setManagementOwner(null);

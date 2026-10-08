@@ -49,6 +49,7 @@ import {
   type TradeRowFact,
 } from "@/lib/profile/tradeRowFacts";
 import { keyActivates } from "@/lib/a11y/keyActivates";
+import { readJournalRaw } from "@/lib/traderMemory/adapters/journalStorage";
 import { avatarDataUrlFromFile } from "@/lib/profile/avatarImage";
 
 
@@ -253,7 +254,7 @@ function ProfilePageInner() {
       setLikedTracks(liked);
 
       // Load recent trades from journal + paper trading
-      const journalRaw = JSON.parse(localStorage.getItem("wm_journal_entries") ?? "[]") as Array<{
+      const journalRaw = JSON.parse(readJournalRaw(localStorage) ?? "[]") as Array<{
         symbol?: string; direction?: string; entryPrice?: number; exitPrice?: number; pnl?: number; rr?: number; date?: string; createdAt?: string;
       }>;
       const paperState = JSON.parse(localStorage.getItem("wm_paper_state") ?? "null");
@@ -327,7 +328,7 @@ function ProfilePageInner() {
   const [paperHeldOutNote, setPaperHeldOutNote] = useState<string | null>(null);
   useEffect(() => {
     try {
-      const journalEntries = JSON.parse(localStorage.getItem("wm_journal_entries") ?? "[]") as Array<{ pnl?: number }>;
+      const journalEntries = JSON.parse(readJournalRaw(localStorage) ?? "[]") as Array<{ pnl?: number }>;
       const paperState = JSON.parse(localStorage.getItem("wm_paper_state") ?? "null");
       const paperTrades: Array<{ pnl?: number }> = paperState?.trades ?? [];
       // Garden 18 §4: paper simulation is never mixed into the trader's tiles.

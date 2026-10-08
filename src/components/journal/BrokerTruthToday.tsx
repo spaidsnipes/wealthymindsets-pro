@@ -113,7 +113,8 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
   };
   const [all, setAll] = useState<Readonly<Record<string, StoryReview>>>({});
   const [open, setOpen] = useState(defaultOpen);
-  useEffect(() => { setAll(readStoryReviews()); }, []);
+  const reviewOwnerVersion = useManagementOwnerVersion();   // the member's own review answers (Garden 19 isolation)
+  useEffect(() => { setAll(readStoryReviews()); }, [reviewOwnerVersion]);
   const r: StoryReview = all[storyKey] ?? { marks: {}, lesson: "", repeat: "", updatedAt: 0 };
   const planWhy = r.planWhy;
   const composed = useMemo(() => (plan ? composePlanReview(plan, planWhy) : null), [plan, planWhy]);

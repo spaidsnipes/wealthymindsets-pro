@@ -32,7 +32,11 @@ describe("CME related-market flow for a spot pair", () => {
     const MC = readFileSync("src/components/chart/MainChart.tsx", "utf8");
     expect(MC).toContain("const fxRelated = useFxRelatedFlow(symbol);");
     expect(MC).toContain('data-testid="fx-related-flow-unsupported"');
-    expect(MC).toContain("CME {relatedRoot(symbol)} flow · related, not spot · 5m signed Δ");
+    // §18 (2026-10-08): the chip leads with RELATED FUTURES EVIDENCE; "not spot"
+    // is carried by the title and the aria-label (relatedFlowLine), never dropped.
+    expect(MC).toContain("RELATED FUTURES EVIDENCE · CME {relatedRoot(symbol)} · 5m signed Δ");
+    expect(MC).toContain("aria-label={relatedLine ?? `CME futures participation: ${fxDoor.futures}`}");
+    expect(MC).toMatch(/title=\{`Spot FX has no central volume\.[^`]*never shown as spot volume\.\$\{relatedLine/);
     // the related prints never reach a canvas paint or the spot tape
     const hook = readFileSync("src/lib/broker/useFxRelatedFlow.ts", "utf8");
     expect(hook).not.toMatch(/processTick|ingest|volRef|candle/i);

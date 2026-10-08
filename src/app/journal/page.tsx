@@ -26,6 +26,7 @@ import { planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import { PlanAdherenceBySetup } from "@/components/journal/PlanAdherenceBySetup";
 import { INSUFFICIENT, insufficientLine, isMeasured, STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
 import { TodayRulesLine } from "@/components/journal/TodayManagementRules";
+import { HeldJournalClaim } from "@/components/journal/HeldJournalClaim";
 import { proofFixtureScene } from "@/lib/chart/proofScene";
 import { JournalProofScene } from "@/components/journal/JournalProofScene";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
@@ -51,8 +52,9 @@ import {
   buildWeekMaturity,
   learningGenomeToJson,
 } from "@/lib/learningGenome/learningGenomeToJson";
+import { useManagementOwnerVersion } from "@/lib/journal/useManagementOwner";
 import {
-  JOURNAL_STORAGE_KEY,
+  journalStorageKeys,
   migrateLegacyJournal,
   notifyCanonicalJournalChanged,
   readJournalStorage,
@@ -930,9 +932,13 @@ function JournalPageInner() {
   // What WM could not read out of the saved book. Held so the page can SAY so —
   // a book that quietly shrinks teaches the trader he traded less than he did.
   const coverageRef = useRef<JournalRecordCoverage | null>(null);
+  // WHOSE BOOK (Garden 19 member isolation): the key the entries on screen were read under. A
+  // save goes back to THAT key only — never into another member's book after an account change.
+  const hydratedKeyRef = useRef<string | null>(null);
   const [entries, setEntriesState] = useState<JournalEntry[]>(() => {
     if (typeof window === "undefined") return [];
     const read = readJournalStorage(localStorage);
+    hydratedKeyRef.current = journalStorageKeys()?.canonical ?? null;
     hydrationRef.current = read;
     persistenceAllowedRef.current = read.status === "RESOLVED_CANONICAL" || read.status === "ABSENT";
     // No cast. `read.records` is `unknown[]` because that is all
@@ -968,8 +974,10 @@ function JournalPageInner() {
   // ProcessLandscape update in lockstep.
   useEffect(() => {
     if (!persistenceArmedRef.current || !persistenceAllowedRef.current) return;
+    const keys = journalStorageKeys();
+    if (!keys || keys.canonical !== hydratedKeyRef.current) return;   // not this member's book: never written
     try {
-      localStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(entries));
+      localStorage.setItem(keys.canonical, JSON.stringify(entries));
       notifyCanonicalJournalChanged();
     } catch {
       // Browser-local persistence is unavailable; do not claim a successful save.
@@ -1009,6 +1017,25 @@ function JournalPageInner() {
 
   const [selected,  setSelected]  = useState<JournalEntry | null>(null);
   const [newMode,   setNewMode]   = useState(false);
+  // The member changed under the open page (Garden 19 member isolation): re-read THAT member's
+  // own book. Nothing is written until the trader acts again — a re-read never saves.
+  const journalOwnerVersion = useManagementOwnerVersion();
+  useEffect(() => {
+    if (journalOwnerVersion === 0) return;
+    const read = readJournalStorage(localStorage);
+    hydratedKeyRef.current = journalStorageKeys()?.canonical ?? null;
+    hydrationRef.current = read;
+    persistenceArmedRef.current = false;
+    persistenceAllowedRef.current = read.status === "RESOLVED_CANONICAL" || read.status === "ABSENT";
+    const hydration = hydrateJournalEntries(
+      read.status === "RESOLVED_CANONICAL" || read.status === "RESOLVED_LEGACY" ? read.records : [],
+    );
+    coverageRef.current = hydration.coverage;
+    setHydrationCoverage(hydration.coverage);
+    setEntriesState(hydration.entries.filter((e) => !LEGACY_DEMO_TRADES.has(`${e.id}|${e.date}|${e.symbol}`)));
+    setSelected(null);
+    if (read.status === "RESOLVED_LEGACY") persistenceAllowedRef.current = migrateLegacyJournal(localStorage, read).status === "MIGRATED";
+  }, [journalOwnerVersion]);
   // Garden 19 §36: /journal?entry=<id> opens that entry (Academy "Show me my examples").
   const entryParam = searchParams.get("entry");
   useEffect(() => {
@@ -2272,6 +2299,10 @@ Trade the system, trust the process, winners every day 🚀`,
           the counts, the export and every panel on this page. Without it the
           book simply looks shorter than it is. Same words, same owner, same
           quiet §9 treatment: nothing failed, WM refused to guess. */}
+      {/* Garden 19 isolation: entries saved before they were tied to an account, held because nothing
+          tied them to this member — a count and a two-press claim, never their contents. */}
+      <HeldJournalClaim />
+
       {hydrationCoverage?.note != null && (
         <p role="note" className="px-4 py-1.5 text-[10px] leading-relaxed text-wm-text-dim border-b border-wm-border shrink-0">
           {hydrationCoverage.note}

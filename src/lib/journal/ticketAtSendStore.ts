@@ -15,6 +15,7 @@
 
 import type { FillCaptureIntent } from "./journalCaptureFromFill";
 import { freezeAtTicketSend } from "./managementPlanDraft";
+import { managementKey } from "./managementOwner";
 
 export const TICKET_AT_SEND_KEY = "wm:journal-ticket-at-send:v1";
 export const TICKET_AT_SEND_TTL_MS = 24 * 3_600_000;
@@ -63,9 +64,14 @@ export function readTicketIntent(raw: unknown): FillCaptureIntent | null {
   };
 }
 
+/** This member's key (Garden 19 member isolation, the one owner); null for a guest or before auth resolves. */
+const ticketKey = (): string | null => managementKey(TICKET_AT_SEND_KEY);
+
 function readAll(storage: Storage, nowMs: number): TicketAtSend[] {
+  const key = ticketKey();
+  if (!key) return [];
   let raw: string | null = null;
-  try { raw = storage.getItem(TICKET_AT_SEND_KEY); } catch { return []; }
+  try { raw = storage.getItem(key); } catch { return []; }
   if (!raw) return [];
   try {
     const list = JSON.parse(raw) as unknown;
@@ -84,9 +90,11 @@ function readAll(storage: Storage, nowMs: number): TicketAtSend[] {
 }
 
 function writeAll(storage: Storage, list: readonly TicketAtSend[]): void {
+  const key = ticketKey();
+  if (!key) return;
   try {
-    if (list.length) storage.setItem(TICKET_AT_SEND_KEY, JSON.stringify(list.slice(-TICKET_AT_SEND_MAX)));
-    else storage.removeItem(TICKET_AT_SEND_KEY);
+    if (list.length) storage.setItem(key, JSON.stringify(list.slice(-TICKET_AT_SEND_MAX)));
+    else storage.removeItem(key);
   } catch { /* this visit only */ }
 }
 

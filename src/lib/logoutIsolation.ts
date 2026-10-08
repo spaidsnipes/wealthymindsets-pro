@@ -109,6 +109,17 @@ const OWNER_SCOPED_PREFIXES: readonly string[] = [
   "wm:management-plan:v1:",
   "wm:management-plan-draft:v1:",
   "wm:management-day-rules:v1:",
+  // Garden 19 (2026-10-08): the journal stores are keyed by the member through the SAME owner —
+  // `wm_journal_entries:<member>`, the legacy `wm-journal:<member>`, `wm_story_review_v1:<member>` —
+  // and purged at sign-out like their unsuffixed keys.
+  "wm_journal_entries:",
+  "wm-journal:",
+  "wm_story_review_v1:",
+] as const;
+
+/** Owner-scoped sessionStorage prefixes: tickets as sent, keyed per member (`wm:journal-ticket-at-send:v1:<member>`). */
+const OWNER_SCOPED_SESSION_PREFIXES: readonly string[] = [
+  "wm:journal-ticket-at-send:v1:",
 ] as const;
 
 /**
@@ -149,7 +160,18 @@ export function clearOwnerScopedLocalStorage(): number {
       }
     } catch { /* private mode / quota — skip this key */ }
   }
-  for (const key of OWNER_SCOPED_SESSION_KEYS) {
+  const sessionKeys = new Set<string>(OWNER_SCOPED_SESSION_KEYS);
+  try {
+    const ss = window.sessionStorage;
+    const length = ss?.length ?? 0;
+    for (let index = 0; index < length; index += 1) {
+      try {
+        const key = ss.key(index);
+        if (key && OWNER_SCOPED_SESSION_PREFIXES.some((prefix) => key.startsWith(prefix))) sessionKeys.add(key);
+      } catch { /* skip only this storage index */ }
+    }
+  } catch { /* fixed session keys still clear below */ }
+  for (const key of sessionKeys) {
     try {
       if (window.sessionStorage?.getItem(key) != null) {
         window.sessionStorage.removeItem(key);

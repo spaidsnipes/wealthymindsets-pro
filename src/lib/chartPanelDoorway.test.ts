@@ -198,10 +198,11 @@ describe("chart panels — a mounted panel must have a door", () => {
   it("the two P&L readings on this surface do not share a store", () => {
     const strip = readFileSync(resolve(process.cwd(), "src/components/chart/PnLStatsPanel.tsx"), "utf8");
     const masthead = readFileSync(resolve(process.cwd(), "src/components/layout/HeaderPnL.tsx"), "utf8");
-    expect(strip).toContain("wm_journal_entries");
+    // The strip reads the member's own journal key through the journal storage owner (Garden 19 isolation).
+    expect(strip).toMatch(/wm_journal_entries|journalStorageKeys\(\)/);
     expect(strip).not.toContain("wm_paper_state");
     expect(masthead).toContain("wm_paper_state");
-    expect(masthead).not.toContain("wm_journal_entries");
+    expect(masthead).not.toMatch(/wm_journal_entries|journalStorage/);
   });
 
   it("the panels that DO have doors are not falsely reported as orphans", () => {

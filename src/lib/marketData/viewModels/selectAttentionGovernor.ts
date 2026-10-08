@@ -118,6 +118,12 @@ export const SELECTION_RECEDE = 0.45;
 /** A receding layer's words stay legible. */
 export const TEXT_ALPHA_FLOOR = 0.5;
 /**
+ * Price-adjacent candle treatments (keels on the close edge, the flow current
+ * launched from the wick) recede with the room but never below legibility —
+ * they are read AS the candle. Price itself is never governed (§12, 2026-10-08).
+ */
+export const PRICE_ADJACENT_FLOOR = 0.5;
+/**
  * A stale tape dims every governed layer by ONE factor, so the hierarchy
  * holds (LIVE > SUPPORTING > MEMORY) while the whole reading steps back.
  * Capping only LIVE at the STALE ceiling (0.3) put the present BELOW memory
@@ -190,6 +196,25 @@ export const LAYER_ATTENTION = {
   // F15 breath ribbon (PROPOSED, no Founder plate yet; default OFF, 2026-10-07 night):
   // context about the bars' range, not a reading of its own.
   breathRibbon: { tier: "SUPPORTING", depth: null, light: null },
+  // Garden 19 §12 OPACITY law (cert audit gap #3, 2026-10-08): built layers
+  // that painted at a hand-set weight and never receded with a selection, a
+  // stale feed or the room's posture. The Clarity Candle is NOT here: it IS
+  // the candle — price stays sovereign under the candles' own row.
+  // The tape's current on each bar is a present reading.
+  flowCurrent: { tier: "LIVE", depth: null, light: null },
+  // The toolbar's WM Fixed / Session VP columns (the classic profile).
+  volumeProfile: { tier: "LIVE", depth: null, light: null },
+  // The volume-field family folded into ONE row (Delta Keel, Effort → Response
+  // columns, RVOL tone): context read about the bars, under the present.
+  volumeField: { tier: "SUPPORTING", depth: null, light: null },
+  // Session bands: the clock's territory, context under the market.
+  sessionBands: { tier: "SUPPORTING", depth: null, light: null },
+  // §17 cross-candle wisdom: one quiet line about other layers' objects.
+  wisdomLine: { tier: "SUPPORTING", depth: null, light: null },
+  // F04A causal marks: only ever drawn for the selected print — asks as SELECTED.
+  forceResponse: { tier: "SUPPORTING", depth: null, light: null },
+  // C-06 CVD ⇄ price notch (G19.CVD_REL, PROPOSED, default OFF): context about flow vs price.
+  cvdNotch: { tier: "SUPPORTING", depth: null, light: null },
   // ── House chrome: never dimmed ──────────────────────────────────────────
   riskOnPrice: { tier: "CHROME", depth: null, light: null },
   questionLens: { tier: "CHROME", depth: null, light: null },

@@ -162,6 +162,15 @@ export const SEMANTIC_PERMISSION = {
   // "Give Flow direction": the sided tape's current on each bar. FAR is QUIET —
   // bars too thin for their own streaks pool into ~10px buckets.
   flowCurrent: [Q, S, S],
+  // Garden 19 §12 (2026-10-08): rows for the layers the governor now tiers.
+  // The volume field has no words; FAR keeps it under the QUIET ceiling.
+  volumeField: [Q, S, S],
+  // FAR keeps the three lane rails (QUIET), withholds the session words.
+  sessionBands: [Q, S, S],
+  // Words only, about candle-scale objects — FAR (regime · major structure) withholds it.
+  wisdomLine: [X, S, S],
+  // C-06 CVD notch (PROPOSED): a per-bar mark on the wick tip — candle scale, FAR withholds it.
+  cvdNotch: [X, S, S],
 } as const satisfies Readonly<Record<string, PermissionRow>>;
 
 export type DepthLayer = keyof typeof SEMANTIC_PERMISSION;

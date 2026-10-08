@@ -83,6 +83,7 @@ describe("§10 — a selection on the market finds its own record", () => {
     const cases = [
       [{ kind: "OBJECT", objectId: "SWING:abc" }, "MARKET_STRUCTURE"],
       [{ kind: "OBJECT", objectId: "MEMORY:b1:POC" }, "PROFILE_MEMORY"],
+      [{ kind: "OBJECT", objectId: "ZONE:coinbase:BTC|5m|1" }, "F11A"],
       [{ kind: "PRINT", print: { kind: "delta" } }, "FP_delta"],
       [{ kind: "PRINT", print: { kind: "big-trade" } }, "FP_big-trades"],
       [{ kind: "SLICE" }, "LIVING_PROFILE"],

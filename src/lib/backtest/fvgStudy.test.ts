@@ -204,3 +204,29 @@ describe("FVG study — reads the one engine, labelled descriptive", () => {
     expect(panel).not.toMatch(/fvgShareText\(s\.[A-Za-z]+\)/);
   });
 });
+
+describe("§37 evidence splits — order flow and walls are rows with reasons, never computed from what does not exist", () => {
+  it("every study carries both rows: order flow UNAVAILABLE (no signed tape on history), walls WITHHELD (current chain only = future leak)", async () => {
+    const { runFvgStudy: run, FVG_STUDY_EVIDENCE_SPLITS } = await import("./fvgStudy");
+    const s = run({ series: [], asOfMs: Date.UTC(2026, 9, 7) });
+    expect(s.evidenceSplits).toBe(FVG_STUDY_EVIDENCE_SPLITS);
+    expect(s.evidenceSplits.map(e => [e.split, e.status])).toEqual([["orderFlow", "UNAVAILABLE"], ["wall", "WITHHELD"]]);
+    expect(s.evidenceSplits[0].reason).toMatch(/signed tape/);
+    expect(s.evidenceSplits[0].reason).toMatch(/never read as order flow/);
+    expect(s.evidenceSplits[1].reason).toMatch(/current delayed chain/);
+    expect(s.evidenceSplits[1].reason).toMatch(/future leak/);
+  });
+
+  it("no wall or order-flow facet exists to filter on, and the study never reads the options owner (no current chain against past gaps)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const path = await import("node:path");
+    const src = readFileSync(path.join(process.cwd(), "src/lib/backtest/fvgStudy.ts"), "utf8");
+    expect(src.length).toBeGreaterThan(1000);
+    expect(src).not.toMatch(/selectDerivativesPressure|cboeDelayedOptions|derivatives:/);
+    const { runFvgStudy: run } = await import("./fvgStudy");
+    expect(Object.keys(run({ series: [], asOfMs: 0 }).facets).sort()).toEqual(["crossesSession", "direction", "displacement", "instrument", "profile", "regime", "session", "structure", "timeframe"]);
+    const panel = readFileSync(path.join(process.cwd(), "src/components/backtest/FvgStudyPanel.tsx"), "utf8");
+    expect(panel).toContain('data-testid="fvg-study-evidence-splits"');
+    expect(panel).toContain("{study.evidenceSplits.map(");
+  });
+});

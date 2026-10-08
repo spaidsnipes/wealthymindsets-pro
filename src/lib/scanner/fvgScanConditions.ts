@@ -327,7 +327,7 @@ export function fvgScanConditions(input: {
  */
 export function fvgScanWallChainRefusal(symbol: string, assetClass: string, cboeSymbol: string | null): string | null {
   if (assetClass === "FUTURES" || assetClass === "CRYPTO" || assetClass === "FOREX") {
-    return `${symbol} has no listed options chain at Cboe (${assetClass.toLowerCase()} lists none there), so no option wall is read`;
+    return `${symbol} has no listed options chain at Cboe (Cboe lists no ${assetClass.toLowerCase()} options), so no option wall is read`;
   }
   if (!cboeSymbol) return `${symbol} is not a symbol Cboe lists options for, so no option wall is read`;
   return null;

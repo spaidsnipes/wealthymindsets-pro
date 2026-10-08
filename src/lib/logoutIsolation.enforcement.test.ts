@@ -59,7 +59,7 @@ const OWNER_SCOPED_KEYS = new Set<string>([
 ]);
 
 /** OWNER_SCOPED_PREFIXES from logoutIsolation.ts (matches by startsWith). */
-const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-", "wm_tv_chat_", "wm_draw:v1:", "wm:morning-prep:v2:", "wm:decision-identity:", "wm:risk-receipt:", "wm:management-plan:v1:", "wm:management-plan-draft:v1:", "wm:management-day-rules:v1:"];
+const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-", "wm_tv_chat_", "wm_draw:v1:", "wm:morning-prep:v2:", "wm:decision-identity:", "wm:risk-receipt:", "wm:management-plan:v1:", "wm:management-plan-draft:v1:", "wm:management-day-rules:v1:", "wm_journal_entries:", "wm-journal:", "wm_story_review_v1:", "wm:journal-ticket-at-send:v1:"];
 
 /**
  * Keys cleared by a domain-specific `clearX()` invoked from
@@ -220,6 +220,20 @@ function isClassified(key: string): boolean {
   if (OWNER_SCOPED_PREFIXES.some((p) => key.startsWith(p))) return true;
   return false;
 }
+
+describe("member-keyed stores are purged at sign-out under EVERY member's key (Garden 19, 2026-10-08)", () => {
+  it("each base the one owner keys per member has its `<base>:` prefix on the sign-out sweep", async () => {
+    const { MEMBER_LOCAL_BASE_KEYS, SESSION_MEMBER_BASE_KEYS } = await import("@/lib/journal/managementOwner");
+    const src = readFileSync(join(process.cwd(), "src/lib/logoutIsolation.ts"), "utf8");
+    const bases = [...MEMBER_LOCAL_BASE_KEYS, ...SESSION_MEMBER_BASE_KEYS];
+    expect(bases.length).toBeGreaterThan(6);
+    for (const base of bases) {
+      expect(src, `${base}: prefix`).toContain(`"${base}:"`);
+      expect(OWNER_SCOPED_PREFIXES, `${base}: mirrored here`).toContain(`${base}:`);
+    }
+    expect(src).toContain("OWNER_SCOPED_SESSION_PREFIXES");
+  });
+});
 
 describe("logoutIsolation — every wm_ localStorage key must be classified", () => {
   it("discovers a substantial set of wm_ storage-call keys (guards against stale walker)", () => {
