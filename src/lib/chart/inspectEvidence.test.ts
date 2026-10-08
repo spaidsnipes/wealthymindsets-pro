@@ -13,7 +13,9 @@ describe("Garden 19 §28 — one evidence class per selected object", () => {
     expect(inspectEvidence({ kind: "ANATOMY", basis: "VOLUME", asOfSec: null, source: null }).klass).toBe("PARTIAL");
     expect(inspectEvidence({ kind: "ANATOMY", basis: "UNMEASURED", asOfSec: null, source: null }).klass).toBe("SILENT");
     expect(inspectEvidence({ kind: "WEATHER", measured: true, derived: false, asOfMs: null, source: null }).klass).toBe("FULL");
-    expect(inspectEvidence({ kind: "DERIVATIVES", drawn: true, fidelity: "DELAYED", sourceName: "Cboe", asOfMs: null }).klass).toBe("DEGRADED");
+    // P2-G ruling 2026-10-08: the chain grades on the ⓘ ladder — fresh FULL, delayed PARTIAL, none SILENT.
+    expect(inspectEvidence({ kind: "DERIVATIVES", drawn: true, fidelity: "SNAPSHOT", sourceName: "Deribit", asOfMs: null }).klass).toBe("FULL");
+    expect(inspectEvidence({ kind: "DERIVATIVES", drawn: true, fidelity: "DELAYED", sourceName: "Cboe", asOfMs: null }).klass).toBe("PARTIAL");
     expect(inspectEvidence({ kind: "DERIVATIVES", drawn: false, fidelity: null, sourceName: "x", asOfMs: null }).klass).toBe("SILENT");
     expect(inspectEvidence({ kind: "OBJECT", birthRead: false, asOfMs: null, source: null }).klass).toBe("PARTIAL");
     expect(inspectEvidence({ kind: "BAR", barRead: true, signedTapeReaches: true, asOfMs: null, source: null }).klass).toBe("FULL");

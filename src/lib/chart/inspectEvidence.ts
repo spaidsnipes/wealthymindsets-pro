@@ -69,9 +69,14 @@ function base(i: InspectEvidenceInput): Omit<InspectEvidence, "feedNote"> {
     }
     case "DERIVATIVES":
       if (!i.drawn) return { klass: "SILENT", why: "The derivatives reading went silent — nothing is guessed at.", source: i.sourceName, asOfMs: i.asOfMs };
+      // Ruling 2026-10-08 (P2-G): Inspect grades a chain on the same ladder the
+      // ⓘ record teaches — a fresh chain is FULL, a delayed chain is PARTIAL,
+      // and no chain is SILENT with no wall drawn (the `drawn:false` branch
+      // above). Before, a delayed chain read DEGRADED here while the ⓘ said
+      // DEGRADED meant "no chain — no walls": one wall, two grades.
       return i.fidelity === "SNAPSHOT"
-        ? { klass: "PARTIAL", why: "A live public chain snapshot; exposure is INFERRED from open interest under a dealer-positioning assumption.", source: i.sourceName, asOfMs: i.asOfMs }
-        : { klass: "DEGRADED", why: "The options chain is DELAYED; exposure is INFERRED from open interest under a dealer-positioning assumption.", source: i.sourceName, asOfMs: i.asOfMs };
+        ? { klass: "FULL", why: "A fresh chain for this underlying; exposure is INFERRED from open interest under a dealer-positioning assumption.", source: i.sourceName, asOfMs: i.asOfMs }
+        : { klass: "PARTIAL", why: "The options chain is DELAYED — positioning trails the market; exposure is INFERRED from open interest under a dealer-positioning assumption.", source: i.sourceName, asOfMs: i.asOfMs };
     case "WEATHER":
       if (!i.measured) return { klass: "SILENT", why: "Unmeasured — no weather is guessed at.", source: i.source, asOfMs: i.asOfMs };
       return i.derived

@@ -94,7 +94,12 @@ describe("attention governor — one owner for every governed layer's alpha", ()
           for (const k of ROUTED) {
             if (k === "livingProfileMovie" && fusedParents.length) continue; // see the next test
             const ceil = TIER_CEILING[LAYER_ATTENTION[k].tier];
-            expect(g.alpha(k), `${k} ${depth} q${questionQuiet}`).toBeCloseTo(Math.max(ATTENTION_FLOOR, Math.min(ceil, handProduct(k, i)!)), 10);
+            // P2-E (2026-10-08): below FAR, context sits under the present's load.
+            const d = i.density;
+            const liveRef = d.depth === "FAR" ? Infinity : Math.min(d.mid, d.micro) * questionQuiet;
+            const tier = LAYER_ATTENTION[k].tier;
+            const loadCap = tier === "SUPPORTING" ? liveRef : tier === "MEMORY" ? liveRef * (TIER_CEILING.MEMORY / TIER_CEILING.SUPPORTING) : Infinity;
+            expect(g.alpha(k), `${k} ${depth} q${questionQuiet}`).toBeCloseTo(Math.max(ATTENTION_FLOOR, Math.min(ceil, loadCap, handProduct(k, i)!)), 10);
           }
         }
       }
@@ -208,7 +213,8 @@ describe("attention governor — one owner for every governed layer's alpha", ()
     g.alpha("marketZones");
     g.alpha("livingProfile");                  // asked twice, listed once
     g.alpha("profileMemory");
-    expect(g.tiersReceipt()).toBe("bubbles:LIVE:1,livingProfile:LIVE:0.35,marketZones:LIVE:0.35,profileMemory:MEMORY:0.21");
+    // profileMemory: P2-E load order — MID × quiet 0.35 × MEMORY's share (0.5 / 0.85) = 0.12.
+    expect(g.tiersReceipt()).toBe("bubbles:LIVE:1,livingProfile:LIVE:0.35,marketZones:LIVE:0.35,profileMemory:MEMORY:0.12");
     // A layer that never asked (switched OFF) is not listed.
     expect(g.tiersReceipt()).not.toContain("compositeProfile");
   });
@@ -434,5 +440,19 @@ describe("a PRIMARY sense leads the senses beside it (Garden 18 §XXXVII)", () =
     const flat = selectAttentionGovernor(input({ roles: { tpo: "SUPPORTING" } }));
     expect(led.alpha("tpo")).toBeLessThan(flat.alpha("tpo"));
     expect(led.alpha("absorption")).toBeGreaterThanOrEqual(0.92 * 0.999);
+  });
+});
+
+
+describe("P2-E load order (Sheriff §12 all-on, 2026-10-08)", () => {
+  it("under the Question Lens quiet at MID and NEAR, no SUPPORTING or MEMORY layer is louder than the LIVE candle anatomy", () => {
+    for (const depth of ["MID", "NEAR"] as const) {
+      const g = selectAttentionGovernor(input({ density: selectSemanticDensity(depth) })).withQuestionQuiet(0.35);
+      const live = Math.min(...(["valueCandle", "stack", "divergence", "deltaLevels"] as AttentionLayerKey[]).map(k => g.alpha(k)));
+      for (const k of KEYS) {
+        const t = LAYER_ATTENTION[k].tier;
+        if (t === "SUPPORTING" || t === "MEMORY") expect(g.alpha(k), `${k} @ ${depth}`).toBeLessThanOrEqual(Math.max(live, ATTENTION_FLOOR) + 1e-9);
+      }
+    }
   });
 });

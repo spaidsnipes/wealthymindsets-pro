@@ -22681,6 +22681,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const ts = chart.timeScale();
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let selectedPainted = "";
+            let zoneBrackets = 0;
             for (const z of zones) {
               const yh = srs.priceToCoordinate(z.object.priceHigh);
               const yl = srs.priceToCoordinate(z.object.priceLow);
@@ -22704,6 +22705,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // cursor ("a zone click landed on the bar ticket"). The band's
               // rect is recorded from this frame's paint for the click handler.
               zoneHitsRef.current.push({ objectId: z.object.objectId, x: x0, y: top, w: zEnd - x0, h });
+              // P2-D · A ZONE IS NOT AN FVG BY FORM (Sheriff §10, 2026-10-08:
+              // both read as a tinted, edged band). A market-object zone carries
+              // CORNER BRACKETS at its birth edge — no FVG paints them.
+              {
+                const bk = Math.min(6, Math.max(3, h / 3)), yb = Math.round(top) + 0.5, ybb = Math.round(top + h) - 0.5, xb = Math.round(x0) + 1;
+                ctx.save();
+                ctx.setLineDash([]); ctx.lineWidth = 2;
+                ctx.strokeStyle = invalid ? "rgba(170,170,180,0.85)" : "rgba(240,180,41,0.9)";
+                ctx.beginPath();
+                ctx.moveTo(xb + bk, yb); ctx.lineTo(xb, yb); ctx.lineTo(xb, yb + bk);
+                ctx.moveTo(xb + bk, ybb); ctx.lineTo(xb, ybb); ctx.lineTo(xb, ybb - bk);
+                ctx.stroke();
+                ctx.restore();
+                zoneBrackets++;
+              }
               // The object being READ is never dimmed by the depth governor:
               // the trader chose it, so it paints at full strength (MOCK 4).
               ctx.globalAlpha = att.alpha("marketZones", { selectedItem: selected });
@@ -22894,6 +22910,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               selectedPainted = z.object.objectId;
             }
             ctx.restore();
+            ds.marketZonesForm = `CORNER_BRACKETS:${zoneBrackets}`;
             if (selectedPainted) ds.marketZoneSelected = selectedPainted;
             else delete ds.marketZoneSelected;
           } else {
@@ -27121,6 +27138,55 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       });
       return;
     }
+    // P2-D · ONE HIT ORDER (2026-10-08): drawn objects with their own painted
+    // rects — walls, the zero-gamma front, FVG / zone bands — answer BEFORE the
+    // Living lane, which spans the newest bars and used to swallow every tap
+    // there. The lane still beats the shelves under it.
+    /*
+      GARDEN 15 §5 · A CLICK ON A PRESSURE WALL SELECTS IT. The rects are the
+      wall bodies the paint loop drew this frame; the strike goes up to the one
+      selection owner and Inspect reads the room's current compilation.
+    */
+    const wallHit = pressureWallHitRef.current.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+    if (wallHit) {
+      onSelectPressureWall?.(wallHit.strike);
+      return;
+    }
+    // The zero-gamma front: its line, ±6px, across the plot.
+    const front = pressureFrontHitRef.current;
+    if (front && x <= front.x1 && Math.abs(y - front.y) <= 6) {
+      onSelectPressureFront?.();
+      return;
+    }
+    /*
+      R-19 · A CLICK ON A ZONE'S BAND SELECTS THE ZONE — the same act as its
+      pin, so the ONE selection reducer opens the same Passport. Where bands
+      overlap, the smallest (most specific) one wins.
+    */
+    /*
+      GARDEN 19 · A TAP ON AN FVG BAND SELECTS ITS GAP_FVG OBJECT — the same
+      one selection owner, so Inspect (and first touch) open on it. The rects
+      are this frame's painted bands; where bands overlap the smallest wins.
+    */
+    const fvgHit = fvgHitsRef.current
+      .filter(h => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h)
+      .sort((a, b) => a.w * a.h - b.w * b.h)[0];
+    const zoneHit = zoneHitsRef.current
+      .filter(z => x >= z.x && x <= z.x + z.w && y >= z.y - 2 && y <= z.y + z.h + 2)
+      .sort((a, b) => a.w * a.h - b.w * b.h)[0];
+    // P2-D (Sheriff §10, 2026-10-08: a tap on a zone band opened an FVG — the
+    // FVG was tested first wherever the two overlapped). One rule across both
+    // kinds: the SMALLER painted rect (the more specific object) wins.
+    const areaOf = (r: { w: number; h: number } | undefined) => (r ? r.w * r.h : Infinity);
+    const zoneWins = zoneHit != null && areaOf(zoneHit) < areaOf(fvgHit);
+    if (fvgHit && !zoneWins) {
+      onSelectMarketObject?.(fvgHit.objectId);
+      return;
+    }
+    if (zoneHit) {
+      onSelectMarketObject?.(zoneHit.objectId);
+      return;
+    }
     /*
       H-601 · A CLICK ON THE LIVING PROFILE'S LANE SELECTS A SLICE. The lane's
       x-span is what the paint loop published this frame, so hit-testing and
@@ -27163,46 +27229,6 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         wall: x > r.width * 0.45 ? "LEFT" : "RIGHT",
         reading: selectAnatomyInspect(anatomyHit.target, anatomyFrame.anatomy, selectExhaustion(anatomyFrame.anatomy), anatomyFrame.windowCapped),
       });
-      return;
-    }
-    /*
-      GARDEN 15 §5 · A CLICK ON A PRESSURE WALL SELECTS IT. The rects are the
-      wall bodies the paint loop drew this frame; the strike goes up to the one
-      selection owner and Inspect reads the room's current compilation.
-    */
-    const wallHit = pressureWallHitRef.current.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
-    if (wallHit) {
-      onSelectPressureWall?.(wallHit.strike);
-      return;
-    }
-    // The zero-gamma front: its line, ±6px, across the plot.
-    const front = pressureFrontHitRef.current;
-    if (front && x <= front.x1 && Math.abs(y - front.y) <= 6) {
-      onSelectPressureFront?.();
-      return;
-    }
-    /*
-      R-19 · A CLICK ON A ZONE'S BAND SELECTS THE ZONE — the same act as its
-      pin, so the ONE selection reducer opens the same Passport. Where bands
-      overlap, the smallest (most specific) one wins.
-    */
-    /*
-      GARDEN 19 · A TAP ON AN FVG BAND SELECTS ITS GAP_FVG OBJECT — the same
-      one selection owner, so Inspect (and first touch) open on it. The rects
-      are this frame's painted bands; where bands overlap the smallest wins.
-    */
-    const fvgHit = fvgHitsRef.current
-      .filter(h => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h)
-      .sort((a, b) => a.w * a.h - b.w * b.h)[0];
-    if (fvgHit) {
-      onSelectMarketObject?.(fvgHit.objectId);
-      return;
-    }
-    const zoneHit = zoneHitsRef.current
-      .filter(z => x >= z.x && x <= z.x + z.w && y >= z.y - 2 && y <= z.y + z.h + 2)
-      .sort((a, b) => a.w * a.h - b.w * b.h)[0];
-    if (zoneHit) {
-      onSelectMarketObject?.(zoneHit.objectId);
       return;
     }
     // F08B · inside the weather lens (after every more specific object).

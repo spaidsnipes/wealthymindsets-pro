@@ -1378,6 +1378,8 @@ Status is PROVED only with a serving read; PARTIAL names the missing proof.
 | **SERVING PROOF** | Erasure: E4 + phone `brickWalls=ON:2`, `optionsOiWalls=CALL_OI@…\|PUT_OI@…`; second pass `brickWallsOffCamera=ABOVE:2\|MARK:DRAWN` (was FAIL — ASK-1 done) |
 | **STATUS** | **PROVED** |
 
+**Grade change · 2026-10-08 13:56 CDT (P2-G ruling, Sheriff lane).** Inspect graded a DELAYED chain `DEGRADED` while this certificate and the ⓘ record say DEGRADED means "no chain — no walls" (peer Sheriff, 07:30 CDT). `inspectEvidence.ts` DERIVATIVES now grades on this ladder: fresh chain = FULL, delayed chain = PARTIAL, no chain = SILENT with no wall drawn. Applies to F15.PRESSURE too (same owner).
+
 ### F03A Memory Ghost
 | Field | Certificate |
 |---|---|

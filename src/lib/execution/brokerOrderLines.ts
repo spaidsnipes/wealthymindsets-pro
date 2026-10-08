@@ -48,6 +48,8 @@ export interface BrokerReadback {
   readonly positions: readonly BrokerPositionRow[];
   /** Account tails (last 4) the read covered — named in the ticket's book line. */
   readonly tails?: readonly string[];
+  /** Which account (index + tail) each order id was read from — a cancel needs the index. */
+  readonly orderAccounts?: Readonly<Record<string, { readonly index: number; readonly tail: string }>>;
 }
 
 export interface BrokerLinesResult {
@@ -57,6 +59,9 @@ export interface BrokerLinesResult {
   readonly position: { readonly row: BrokerPositionRow; readonly protection: "PROTECTED" | "UNPROTECTED"; readonly pnlUsd: number | null } | null;
   /** Working orders on this contract (WORKING / PARTIALLY FILLED / ACKNOWLEDGED / pending), as read. */
   readonly working?: number;
+  /** The working orders themselves (broker readback), for the ticket's cancel controls. */
+  readonly workingOrders?: readonly TtOrderView[];
+  readonly orderAccounts?: BrokerReadback["orderAccounts"];
   readonly asOfMs?: number | null;
   readonly tails?: readonly string[];
 }
@@ -65,7 +70,7 @@ const WORKING = new Set(["WORKING", "PARTIALLY FILLED", "ACKNOWLEDGED", "CANCEL_
 
 export function selectBrokerOrderLines(rb: BrokerReadback, contract: string, mark: number | null, pointValue: number | null, nowMs: number): BrokerLinesResult {
   const readback = rb.asOfMs == null ? "NEVER_READ" : !rb.ok || nowMs - rb.asOfMs > READBACK_STALE_MS ? "STALE" : "FRESH";
-  if (readback === "NEVER_READ") return { lines: [], readback, position: null, working: 0, asOfMs: null, tails: rb.tails ?? [] };
+  if (readback === "NEVER_READ") return { lines: [], readback, position: null, working: 0, workingOrders: [], orderAccounts: {}, asOfMs: null, tails: rb.tails ?? [] };
   const stale = readback === "STALE";
   const mine = rb.orders.filter(o => o.symbol === contract);
   const lines: ChartOrderLine[] = [];
@@ -98,8 +103,8 @@ export function selectBrokerOrderLines(rb: BrokerReadback, contract: string, mar
       pnlUsd,
     });
   }
-  const working = mine.filter(o => WORKING.has(o.state)).length;
-  return { lines, readback, position, working, asOfMs: rb.asOfMs, tails: rb.tails ?? [] };
+  const workingOrders = mine.filter(o => WORKING.has(o.state));
+  return { lines, readback, position, working: workingOrders.length, workingOrders, orderAccounts: rb.orderAccounts ?? {}, asOfMs: rb.asOfMs, tails: rb.tails ?? [] };
 }
 
 /**

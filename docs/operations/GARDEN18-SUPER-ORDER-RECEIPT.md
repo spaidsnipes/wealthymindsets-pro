@@ -976,4 +976,17 @@ Production at the start of this shift: `70f1bf4`. Times are from `date`. Nothing
 | 13:45:27 | **LIVE `7c3405b`** (coordinator ship gate): indicator ⓘ wiring (P1-C), P3-K verdicts, batch-3 ⓘ text, plus the security lane's work | `7c3405b` | `/api/build-identity` read 13:45:46 | LIVE |
 | 13:45 | §28 certificate updates for today's flips, drafted | docs | certificate §16 (16a glass flips · 16b ⓘ field rewrites · 16c the new Indicators-menu row) | DRAFT |
 | 13:46–13:49 | **Serving read of the indicator ⓘ** (own tab, read-only, no ADD pressed) | `7c3405b` | **1440, NQ1! 5m:** 142 rows each with an ⓘ ("About <name>", aria-expanded false→true, 44×44). Subtitles come from the records. RSI, Supply/Demand Zones (filed under STRUCTURE) and Pivot Points Standard open the shared preview: "On NQ1! now · CAN DRAW HERE · Built from the bars on this chart — price is all it needs", all six parts, ADD TO CHART. Only one preview open at a time. Panel x 1013–1420, inside the 1440 viewport. **390, EURUSD 5m:** OBV reads "On EURUSD now · UNAVAILABLE HERE · Needs traded volume — spot FX…". The bottom sheet runs x 0–386 (page scrollWidth 386) and scrolls inside itself, with ADD TO CHART 21 px below the fold. Smallest text is the 9 px section labels. (A mid-animation read under the rAF shim first showed the panel off the right edge; it settled inside the viewport — not a defect.) | **PROVED** (P1-C + P3-K verdicts for PRICE and VOLUME-on-FX) |
-| ~16:45 | §52 public responsive run on production (`responsive-public.mjs`) — moved from 15:45 (shift extended to 17:00) | pending | — | OPEN |
+| 13:54:57 | **LIVE `2ac54be`** (coordinator ship gate): Replay words, day-named clock, data-quality-state, Inspect Receipt disclosure, options-flow stream words, ARMED BY YOU gating, ticketTruth tests | `2ac54be` | ship gate | LIVE |
+| 16:45 | §52 responsive run — **NOT RUN:** this lane was stopped by a usage-limit STOP from 13:56 (later ruled stale) and did not resume until 18:18 | — | — | MISSED (re-run 20:30) |
+| 17:43:26 | **LIVE `48bdea6`** (PR #27 merged on main; `/api/build-identity` builtAt 22:43:26Z) | `48bdea6` | read 18:20 | LIVE |
+
+## Evening shift — Oct 8 18:18 → 23:18 CDT (cert lane; Founder-ordered 5-hour shift)
+
+Production at the start: `48bdea6`. Times are from `date`. Nothing below is LIVE until the coordinator's ship gate says so.
+
+| Time (CDT) | Item | Build | Proof | Status |
+|---|---|---|---|---|
+| 18:18–18:20 | NEW `src/lib/chart/surfaceEducation.ts` finished and made reachable through `educationFor` (SM: / DRAW: / VIEW: / LOADOUT: / REPLAY / BAR_SELECTION) — 29 Smart Money cards from `generateSignals` + `readTapeSide`, every `DrawingTool` id (incl. Long / Short Position), 16 Views, 4 loadouts, Replay, bar selection | tree | tsc clean; indicatorEducation + inventionEducation 21/21 | GREEN (records). Surfaces not yet wired |
+| 18:21 | FREEZE — GREEN + files sent | — | — | CLOSED |
+| ~20:30 | §52 public responsive run on production | pending | — | OPEN |
+| ~23:00 | §52 public responsive run on production | pending | — | OPEN |

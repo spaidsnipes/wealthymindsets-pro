@@ -349,6 +349,24 @@ export function selectAttentionGovernor(
   };
 
   const hasPrimary = Object.values(input.roles ?? {}).includes("PRIMARY");
+  /*
+    P2-E · LOAD ORDER (Sheriff §12 all-on, 2026-10-08: with the Question Lens
+    quiet on, MEMORY and SUPPORTING read louder than the LIVE candle anatomy —
+    sessionGhosts 0.35 over valueCandle 0.21). Under compression, context is
+    compressed UNDER the present: SUPPORTING never above `liveLoadRef`, MEMORY
+    never above its share of it. `liveLoadRef` is what a LIVE layer gets at the
+    weaker of the MID / MICRO depth weights, the quiet, the selection recede
+    and the stale dim. FAR is exempt — at FAR the regime and structure context
+    IS the subject, and the candle anatomy is silent there.
+  */
+  const liveLoadRef = input.density.depth === "FAR"
+    ? Infinity
+    : TIER_CEILING.LIVE * Math.min(fin(input.density.mid, 1), fin(input.density.micro, 1)) * quiet
+      * (receding ? SELECTION_RECEDE : 1) * (stale ? STALE_DIM : 1);
+  const LOAD_SHARE: Readonly<Partial<Record<LayerStanding, number>>> = {
+    SUPPORTING: 1,
+    MEMORY: TIER_CEILING.MEMORY / TIER_CEILING.SUPPORTING,
+  };
   const alpha = (key: AttentionLayerKey, opts?: AttentionAlphaOpts): number => {
     const spec: LayerAttention = LAYER_ATTENTION[key];
     const tier = tierOf(key, opts);
@@ -385,6 +403,9 @@ export function selectAttentionGovernor(
       if (hasPrimary && (role === "SUPPORTING" || (role === undefined && (spec.tier === "SUPPORTING" || spec.tier === "MEMORY")))) {
         a = Math.max(ATTENTION_FLOOR, a * PRIMARY_LEADS_OTHERS);
       }
+      // P2-E: context under the present's load (a PRIMARY role is the trader's lead — exempt).
+      const share = LOAD_SHARE[spec.tier];
+      if (share != null && role !== "PRIMARY") a = Math.max(ATTENTION_FLOOR, Math.min(a, liveLoadRef * share));
     }
     // The receipt records what the layer was actually given, when it asked —
     // a layer painted before the Question Lens was not quieted by it.

@@ -28,6 +28,7 @@ import type { ProfileId, ProfileMenuEntry } from "@/lib/marketData/viewModels/se
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 import { hasNoCentralVolume } from "@/lib/chart/volumeTruth";
 import { indicatorEducationFor } from "@/lib/chart/indicatorEducation";
+import { surfaceEducationFor } from "@/lib/chart/surfaceEducation";
 
 /** The weakest thing the tool cannot draw without. */
 export type EvidenceNeed =
@@ -705,7 +706,9 @@ export function educationFor(id: string): InventionEducation | null {
   return (INVENTION_EDUCATION as Record<string, InventionEducation>)[id] ?? INSTRUMENT_EDUCATION[id]
     ?? (CONCEPT_EDUCATION as Record<string, ConceptEducation>)[id]
     // Indicators-menu rows (`IND:<catalogue name>`, Sheriff P1-C).
-    ?? indicatorEducationFor(id) ?? null;
+    ?? indicatorEducationFor(id)
+    // Smart Money cards, drawing tools, views, loadouts, Replay, bar selection (`SM:` `DRAW:` `VIEW:` `LOADOUT:` …).
+    ?? surfaceEducationFor(id) ?? null;
 }
 
 /** What "now" means on this chart, for the preview's truth block. */
