@@ -36,12 +36,17 @@ export function lessonForFinding(id: DeviationId, onFvg = false): LoopLink | nul
   switch (id) {
     case "EXITED_BEFORE_PLANNED_CONDITION":
     case "EXITED_DURING_NORMAL_RETRACEMENT":
+    case "TOOK_PROFIT_BEFORE_PLANNED_CONDITION":
       return lesson("fvg-18"); // Patience — waiting for the conditions your plan names
     case "HELD_THROUGH_INVALIDATION":
       return lesson(onFvg ? "fvg-14" : "fvg-19"); // trade-through / Management
     case "MOVED_STOP_WITHOUT_PLAN_BASIS":
     case "MOVED_TARGET":
+    case "INTERFERED_REPEATEDLY":
     case "PLAN_CHANGED_WITH_DOCUMENTED_NEW_EVIDENCE":
+    case "REDUCED_PER_PLAN":
+    case "MOVED_TO_BREAKEVEN_PER_RULE":
+    case "WALKED_AWAY_AFTER_PROTECTION_PER_PLAN":
       return lesson("fvg-19"); // Management — by the plan
     case "ADDED_RISK_AFTER_THESIS_WEAKENED":
       return lesson("fvg-17"); // Risk: context, not permission

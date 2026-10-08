@@ -40,6 +40,8 @@ export type ManagementConditionKind =
   | "TRAIL_STOP"
   | "TIME_STOP"
   | "ADD_ALLOWED"
+  /** "Walk away once the stop is protected" — no order changes after protection (Garden 19 §26). */
+  | "WALK_AWAY_AFTER_PROTECTION"
   | "OTHER";
 
 /** One management condition, in the trader's words, with the part WM can check. */
@@ -142,6 +144,8 @@ const dir = (v: unknown, source: string): PlanValue<PlanDirection> =>
 export function parseManagementCondition(raw: string): ManagementCondition | null {
   const t = raw.trim().slice(0, MAX_TEXT);
   if (!t) return null;
+  // Read first: "walk away once the stop is at breakeven" names protection, then hands off.
+  if (/\b(?:walk\s*away|hands\s*off|leave\s*it(?:\s*alone)?|set\s*(?:it\s*)?and\s*forget|don'?t\s*touch)\b/i.test(t)) return { kind: "WALK_AWAY_AFTER_PROTECTION", text: t };
   const be = /break\s*-?\s*even\b[^\d+]*\+?\s*(\d+(?:\.\d+)?)\s*R\b/i.exec(t) ?? /\b(?:BE|b\/e)\b[^\d+]*\+?\s*(\d+(?:\.\d+)?)\s*R\b/i.exec(t);
   if (be) return { kind: "BREAKEVEN_AFTER_R", text: t, triggerR: Number(be[1]) };
   const red = /\b(?:reduce|trim|scale\s*out|take\s*(?:a\s*)?partials?)\b.*?\b(?:target|T|TP)\s*(\d)\b/i.exec(t);
@@ -351,7 +355,7 @@ const readValue = <T,>(v: unknown, ok: (x: unknown) => x is T): PlanValue<T> => 
 const isStr = (x: unknown): x is string => typeof x === "string" && x.trim() !== "";
 const isPx = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x) && x > 0;
 const isDir = (x: unknown): x is PlanDirection => x === "LONG" || x === "SHORT";
-const KINDS: readonly ManagementConditionKind[] = ["BREAKEVEN_AFTER_R", "REDUCE_AT_TARGET", "TRAIL_STOP", "TIME_STOP", "ADD_ALLOWED", "OTHER"];
+const KINDS: readonly ManagementConditionKind[] = ["BREAKEVEN_AFTER_R", "REDUCE_AT_TARGET", "TRAIL_STOP", "TIME_STOP", "ADD_ALLOWED", "WALK_AWAY_AFTER_PROTECTION", "OTHER"];
 
 function readConditions(v: unknown): ManagementCondition[] {
   if (!Array.isArray(v)) return [];

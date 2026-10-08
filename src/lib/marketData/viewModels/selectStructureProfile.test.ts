@@ -79,3 +79,21 @@ describe("the leg", () => {
     expect(v.quality).toBe("candle-estimated");
   });
 });
+
+describe("the readable floor (cert lane 2026-10-08: the histogram was nearly unreachable)", () => {
+  it("anchors on the newest swing whose leg reaches the floor, else the newest swing", () => {
+    // Swings at 0 (high) and 1_200 (low, newest). 20 bars from 0 at 60s → the
+    // newest swing's leg is 10 bars, the older one's 30.
+    const all = bars(0, 30);
+    const s = structure({
+      swingHighs: [{ time: 0, price: 106 }], swingLows: [{ time: 1_200, price: 102 }],
+      lastSwingHigh: { time: 0, price: 106 }, lastSwingLow: { time: 1_200, price: 102 },
+    });
+    expect(selectStructureProfile(s, all).anchor).toEqual({ kind: "LOW", time: 1_200, price: 102 });
+    const floored = selectStructureProfile(s, all, null, 21);
+    expect(floored.anchor).toEqual({ kind: "HIGH", time: 0, price: 106 });
+    expect(floored.legBars).toBe(30);
+    // No swing reaches the floor → the newest swing, as before.
+    expect(selectStructureProfile(s, all, null, 99).anchor).toEqual({ kind: "LOW", time: 1_200, price: 102 });
+  });
+});

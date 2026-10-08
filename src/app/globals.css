@@ -1760,6 +1760,9 @@ input[type=range]::-webkit-slider-runnable-track {
   [data-testid="trade-panel"] a { display: inline-flex; align-items: center; min-height: 44px; }
   [data-testid="trade-panel"] label:has(> input[type="checkbox"]) { min-height: 44px; }
   [data-testid="trade-panel"] input[type="checkbox"] { width: 20px; height: 20px; }
+  /* The touch field font is 16px (iOS zoom rule), which clipped a fractional
+     size to "0.00" in the 64px box; on touch it takes the rest of its row. */
+  [data-testid="trade-panel"] input[aria-label="Quantity"] { flex: 1 1 64px; width: auto !important; min-width: 64px; }
 }
 
 /* ── DOCUMENT ROOMS MEET THE PHONE TAP FLOOR (canon sweep 2026-10-06) ───────

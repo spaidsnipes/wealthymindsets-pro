@@ -122,7 +122,7 @@ export function MusicPlayer() {
             >
               <div className="h-full rounded-full" style={{ width: `${pct}%`, background: nowPlaying.color }} />
               <div
-                className="absolute top-1/2 w-2.5 h-2.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-1/2 w-2.5 h-2.5 rounded-full shadow opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity"
                 style={{ left: `${pct}%`, transform: "translateX(-50%) translateY(-50%)", background: nowPlaying.color }}
               />
             </div>

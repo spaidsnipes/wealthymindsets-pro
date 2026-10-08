@@ -3142,7 +3142,7 @@ Trade the system, trust the process, winners every day 🚀`,
                   {selected.images.map((src, i) => (
                     <button key={i} type="button" aria-label={`Open screenshot ${i + 1} full size`} onClick={() => setLightbox(src)} className="group relative">
                       <img src={src} alt="" className="w-20 h-20 object-cover rounded-lg border border-wm-border group-hover:border-wm-blue/50 transition-colors" />
-                      <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div aria-hidden="true" className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <Camera size={16} className="text-white" />
                       </div>
                     </button>

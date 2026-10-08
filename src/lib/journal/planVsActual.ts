@@ -32,7 +32,12 @@ export type DeviationId =
   | "MOVED_STOP_WITHOUT_PLAN_BASIS"
   | "MOVED_TARGET"
   | "ADDED_RISK_AFTER_THESIS_WEAKENED"
+  | "TOOK_PROFIT_BEFORE_PLANNED_CONDITION"
+  | "INTERFERED_REPEATEDLY"
   | "PLAN_FOLLOWED"
+  | "REDUCED_PER_PLAN"
+  | "MOVED_TO_BREAKEVEN_PER_RULE"
+  | "WALKED_AWAY_AFTER_PROTECTION_PER_PLAN"
   | "PLAN_CHANGED_WITH_DOCUMENTED_NEW_EVIDENCE"
   | "INSUFFICIENT_EVIDENCE";
 
@@ -42,9 +47,14 @@ export const DEVIATION_LABEL: Readonly<Record<DeviationId, string>> = {
   EXITED_AFTER_THESIS_INVALIDATION: "Exited after thesis invalidation",
   HELD_THROUGH_INVALIDATION: "Held through invalidation",
   MOVED_STOP_WITHOUT_PLAN_BASIS: "Moved stop without plan basis",
-  MOVED_TARGET: "Moved target",
+  MOVED_TARGET: "Moved target without plan basis",
   ADDED_RISK_AFTER_THESIS_WEAKENED: "Added risk after thesis weakened",
+  TOOK_PROFIT_BEFORE_PLANNED_CONDITION: "Took profit before planned condition",
+  INTERFERED_REPEATEDLY: "Changed orders repeatedly without plan basis",
   PLAN_FOLLOWED: "Plan followed",
+  REDUCED_PER_PLAN: "Reduced according to plan",
+  MOVED_TO_BREAKEVEN_PER_RULE: "Moved to breakeven according to rule",
+  WALKED_AWAY_AFTER_PROTECTION_PER_PLAN: "Walked away after protection, according to plan",
   PLAN_CHANGED_WITH_DOCUMENTED_NEW_EVIDENCE: "Plan changed with documented new evidence",
   INSUFFICIENT_EVIDENCE: "Insufficient evidence",
 };
@@ -58,7 +68,12 @@ export const FINDING_DIMENSION: Readonly<Record<DeviationId, Extract<ReviewDimen
   MOVED_TARGET: "MANAGEMENT",
   HELD_THROUGH_INVALIDATION: "DISCIPLINE",
   ADDED_RISK_AFTER_THESIS_WEAKENED: "DISCIPLINE",
+  TOOK_PROFIT_BEFORE_PLANNED_CONDITION: "MANAGEMENT",
+  INTERFERED_REPEATEDLY: "DISCIPLINE",
   PLAN_FOLLOWED: "ADHERENCE",
+  REDUCED_PER_PLAN: "MANAGEMENT",
+  MOVED_TO_BREAKEVEN_PER_RULE: "MANAGEMENT",
+  WALKED_AWAY_AFTER_PROTECTION_PER_PLAN: "ADHERENCE",
   PLAN_CHANGED_WITH_DOCUMENTED_NEW_EVIDENCE: "ADHERENCE",
   INSUFFICIENT_EVIDENCE: "ADHERENCE",
 };
@@ -158,17 +173,24 @@ const TOL_FRACTION = 0.0002;
 export const RETRACEMENT_MIN_R = 0.25;
 /** An add is "after the thesis weakened" when it fills this many R against the entry, or after the invalidation printed. */
 export const WEAKENED_ADVERSE_R = 0.5;
+/** "Changed orders repeatedly": this many stop / target changes in one hold with no basis in the plan. */
+export const INTERFERENCE_MIN = 3;
 
 const PRIMARY_ORDER: readonly DeviationId[] = [
   "HELD_THROUGH_INVALIDATION",
   "ADDED_RISK_AFTER_THESIS_WEAKENED",
+  "INTERFERED_REPEATEDLY",
   "EXITED_DURING_NORMAL_RETRACEMENT",
+  "TOOK_PROFIT_BEFORE_PLANNED_CONDITION",
   "EXITED_BEFORE_PLANNED_CONDITION",
   "MOVED_STOP_WITHOUT_PLAN_BASIS",
   "MOVED_TARGET",
   "PLAN_CHANGED_WITH_DOCUMENTED_NEW_EVIDENCE",
   "EXITED_AFTER_THESIS_INVALIDATION",
   "PLAN_FOLLOWED",
+  "WALKED_AWAY_AFTER_PROTECTION_PER_PLAN",
+  "MOVED_TO_BREAKEVEN_PER_RULE",
+  "REDUCED_PER_PLAN",
   "INSUFFICIENT_EVIDENCE",
 ];
 
@@ -303,6 +325,14 @@ export function classifyPlanVsActual(input: PlanVsActualInput): PlanVsActualResu
     const conds = [tgt != null ? `the target ${fmtPx(tgt)}` : null, inv != null ? `the invalidation ${fmtPx(inv)}` : null].filter(Boolean).join(" or ");
     push("EXITED_BEFORE_PLANNED_CONDITION", `You exited at ${fmtPx(exitPx)} before ${conds} recorded in your plan had printed.`, facts(pathFact),
       "Exited before planned condition: during the hold no bar reached the plan's target or invalidation, and no recorded time condition had elapsed.");
+    // The same exit, when it closed in profit: profit taken before the plan's condition.
+    const gain = sgn * (exitPx - entry.px);
+    if (gain > tol) {
+      push("TOOK_PROFIT_BEFORE_PLANNED_CONDITION",
+        `You closed ${fmtPx(gain)}${r ? ` (+${(gain / r).toFixed(2)}R)` : ""} in your favour at ${fmtPx(exitPx)}, before ${conds} recorded in your plan had printed.`,
+        facts(pathFact),
+        "Took profit before planned condition: the position was closed at a gain while neither the plan's target nor its invalidation had printed, and no recorded time condition had elapsed.");
+    }
     // The retracement view of the same exit.
     const best = holdBars.reduce((m, b) => (sgn * (favour(b) - m) > 0 ? favour(b) : m), entry.px);
     const run = sgn * (best - entry.px);
@@ -320,7 +350,33 @@ export function classifyPlanVsActual(input: PlanVsActualInput): PlanVsActualResu
       facts(pathFact));
   }
 
+  /* ── partial exits (every closing fill but the last) ───────────────────── */
+  const ordered = timed ? [...exits].sort((a, b) => (a.atMs as number) - (b.atMs as number)) : exits;
+  for (const e of ordered.slice(0, -1)) {
+    const eff = effectivePlanAt(plan, e.atMs ?? Number.MAX_SAFE_INTEGER);
+    const reduce = eff.conditions.find(c => c.kind === "REDUCE_AT_TARGET");
+    const partFact: PlanFact = { layer: "MARKET TRUTH", text: `Partial close${qty(e)} at ${fmtPx(e.px)}${e.atMs != null ? ` at ${clock(e.atMs)}` : " (time not reported)"} (${act.source}).` };
+    if (eff.targetPx != null && atOrBeyond(e.px, eff.targetPx, sgn as 1 | -1)) {
+      if (reduce) push("REDUCED_PER_PLAN", `You reduced${qty(e)} at ${fmtPx(e.px)}, at or beyond the target ${fmtPx(eff.targetPx)}; your plan recorded “${reduce.text}”.`,
+        [...planFacts, partFact, { layer: "TRADER TRUTH", text: `Management condition you recorded: “${reduce.text}”.` }],
+        "Reduced according to plan: a partial close at or beyond the target named by a recorded reduce condition.");
+      continue;
+    }
+    const gain = sgn * (e.px - entry.px);
+    if (!(gain > tol) || !covered || e.atMs == null) continue;
+    const tgtBefore = tgtTouch && tgtTouch.t + (path as PricePath).barMs <= e.atMs;
+    const invBefore = invTouch && invTouch.t + (path as PricePath).barMs <= e.atMs;
+    if (tgtBefore || invBefore) continue;
+    push("TOOK_PROFIT_BEFORE_PLANNED_CONDITION",
+      `You closed${qty(e)} at ${fmtPx(e.px)}, ${fmtPx(gain)}${r ? ` (+${(gain / r).toFixed(2)}R)` : ""} in your favour, before the target${eff.targetPx != null ? ` ${fmtPx(eff.targetPx)}` : ""} recorded in your plan had printed${reduce ? ` (your reduce condition names target ${reduce.targetIndex})` : ""}.`,
+      [...planFacts, partFact, ...(pathFact ? [pathFact] : [])],
+      "Took profit before planned condition: a partial close at a gain before the bar in which the plan's target printed, with no recorded condition for it.");
+  }
+
   /* ── stop moves ──────────────────────────────────────────────────────── */
+  let protectionAt: number | null = null;
+  let protectionPx: number | null = null;
+  let unbasedStop = 0;
   for (const m of act.stopMoves) {
     if (!Number.isFinite(m.toPx) || m.toPx <= 0) continue;
     const at = m.atMs;
@@ -339,21 +395,31 @@ export function classifyPlanVsActual(input: PlanVsActualInput): PlanVsActualResu
       }
       const before = holdBars.filter(b => b.t + (path as PricePath).barMs <= at);
       const bestR = before.reduce((mx, b) => Math.max(mx, sgn * (favour(b) - entry.px) / r), 0);
-      if (bestR >= (be.triggerR ?? Infinity) - 1e-9) continue;
+      if (bestR >= (be.triggerR ?? Infinity) - 1e-9) {
+        push("MOVED_TO_BREAKEVEN_PER_RULE", `You moved the stop to about breakeven (${fmtPx(m.toPx)}) at ${clock(at)}, after +${bestR.toFixed(2)}R had printed; your plan allowed it after +${be.triggerR}R.`,
+          [...planFacts, moveFact, { layer: "TRADER TRUTH", text: `Management condition you recorded: “${be.text}”.` }],
+          `Moved to breakeven according to rule: the stop went to the entry only after the move your plan named (+${be.triggerR}R) had printed.`);
+        if (protectionAt == null) { protectionAt = at; protectionPx = m.toPx; }
+        continue;
+      }
+      unbasedStop++;
       push("MOVED_STOP_WITHOUT_PLAN_BASIS", `You moved the stop to breakeven at ${clock(at)}; your plan's condition was +${be.triggerR}R, and the best move before then was +${bestR.toFixed(2)}R.`,
         [...planFacts, moveFact, { layer: "TRADER TRUTH", text: `Management condition you recorded: “${be.text}”.` }],
         `A stop move has a plan basis when a recorded management condition allows it (breakeven after +${be.triggerR}R, a trailing condition) or an amendment records new evidence for it.`);
       continue;
     }
+    unbasedStop++;
     push("MOVED_STOP_WITHOUT_PLAN_BASIS", `You moved the stop${at != null ? ` at ${clock(at)}` : ""} to ${fmtPx(m.toPx)}; no management condition or amendment in your plan records a basis for that move.`,
       [...planFacts, moveFact],
       "A stop move has a plan basis when a recorded management condition allows it (breakeven after a stated R, a trailing condition) or an amendment records new evidence for it.");
   }
 
   /* ── target moves ────────────────────────────────────────────────────── */
+  let unbasedTarget = 0;
   for (const m of act.targetMoves) {
     if (!Number.isFinite(m.toPx) || m.toPx <= 0) continue;
     if (coveredByAmendment("targetPx", m.toPx, m.atMs)) continue;
+    unbasedTarget++;
     const from = m.fromPx ?? base.targetPx;
     push("MOVED_TARGET", `You moved the target${m.atMs != null ? ` at ${clock(m.atMs)}` : ""}${from != null ? ` from ${fmtPx(from)}` : ""} to ${fmtPx(m.toPx)}; no amendment in your plan records new evidence for it.`,
       [...planFacts, { layer: "MARKET TRUTH", text: `Target order moved to ${fmtPx(m.toPx)}.` }],
@@ -374,6 +440,29 @@ export function classifyPlanVsActual(input: PlanVsActualInput): PlanVsActualResu
         : `You added${qty(a)} at ${fmtPx(a.px)}, ${(adverseR as number).toFixed(2)}R against your entry and toward ${invWord}.`,
       [...planFacts, { layer: "MARKET TRUTH", text: `Add filled ${fmtPx(a.px)}${a.atMs != null ? ` at ${clock(a.atMs)}` : ""}.` }],
       `Thesis weakened means: the plan's invalidation had printed, or price stood at least ${WEAKENED_ADVERSE_R}R against the entry, when the add filled — and no amendment recorded new evidence.`);
+  }
+
+  /* ── repeated changes without plan basis ─────────────────────────────── */
+  if (unbasedStop + unbasedTarget >= INTERFERENCE_MIN) {
+    push("INTERFERED_REPEATEDLY",
+      `${unbasedStop + unbasedTarget} order changes during this hold had no basis in your plan (${unbasedStop} stop, ${unbasedTarget} target).`,
+      [...planFacts, { layer: "MARKET TRUTH", text: `Stop changes ${act.stopMoves.length}, target changes ${act.targetMoves.length} (${act.source}).` }],
+      `Changed orders repeatedly: ${INTERFERENCE_MIN} or more stop / target changes in one hold, none of them allowed by a recorded condition or an amendment with new evidence.`);
+  }
+
+  /* ── walked away after protection ────────────────────────────────────── */
+  const walk = atExit.conditions.find(c => c.kind === "WALK_AWAY_AFTER_PROTECTION");
+  if (walk && protectionAt != null && exitAt != null) {
+    const p0 = protectionAt;
+    const later = (x: { atMs: number | null }) => x.atMs == null || x.atMs > p0;
+    const touched = act.stopMoves.filter(later).length + act.targetMoves.filter(later).length + act.adds.filter(later).length
+      + ordered.slice(0, -1).filter(later).length;
+    if (touched === 0) {
+      push("WALKED_AWAY_AFTER_PROTECTION_PER_PLAN",
+        `After the stop reached ${fmtPx(protectionPx as number)} at ${clock(p0)}, no order was changed and nothing was added until the exit at ${fmtPx(exitPx)} (${clock(exitAt)}).`,
+        [...planFacts, exitFact, { layer: "TRADER TRUTH", text: `Management condition you recorded: “${walk.text}”.` }],
+        "Walked away after protection, according to plan: once the stop was protected by a recorded rule, no stop, target, add or partial close followed before the exit.");
+    }
   }
 
   return done(exitDecidable);

@@ -196,6 +196,22 @@ const VC_COG_EXT_NARROW = 3;
 const WALL_EDGE_BODY_PX = 24;
 /** Footprint bid × ask cells narrower than this are not a readable grid (ASK-14). */
 const FP_CELL_MIN_COL = 6;
+/** MTF Ancestry tag ticks per horizon (ASK-5): the tag names its timeframe without a word. */
+const MTF_TAG_TICKS: Readonly<Record<string, number>> = { "1H": 1, "4H": 2, D: 3 };
+/**
+ * ONE LEVEL GRAMMAR (ASK-5, 2026-10-08 — Profile Memory's language): a POC is
+ * a SOLID rule, a value-area edge a DASHED one, so POC vs VAH / VAL reads with
+ * every word erased. Short strokes across a profile column, behind the candles.
+ */
+const LEVEL_FORM_DASH: Readonly<Record<"POC" | "EDGE", readonly number[]>> = { POC: [], EDGE: [3, 4] };
+function strokeLevelForm(ctx: CanvasRenderingContext2D, y: number, x0: number, x1: number, ink: string, kind: "POC" | "EDGE"): void {
+  ctx.save();
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = kind === "POC" ? 1.5 : 1;
+  ctx.setLineDash([...LEVEL_FORM_DASH[kind]]);
+  ctx.beginPath(); ctx.moveTo(x0, Math.round(y) + 0.5); ctx.lineTo(x1, Math.round(y) + 0.5); ctx.stroke();
+  ctx.restore();
+}
 /** Session Bands' empty lane rail ink: legible, never mistaken for the 0.42 session strip. */
 const SESSION_RAIL_INK = 0.26;
 /** The live countdown pill's height (the candle timer); FVG territory cuts round it. */
@@ -12265,7 +12281,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.strokeStyle = ink(0.3);
           ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(colLeft, midY); ctx.stroke();
           ctx.strokeStyle = ink(tag === "POC" ? 0.9 : 0.95);
+          // ASK-5 · the one level grammar across the column: POC solid, edges dashed.
+          if (tag === "POC") { ctx.setLineDash([...LEVEL_FORM_DASH.POC]); ctx.lineWidth = 1.5; }
           ctx.beginPath(); ctx.moveTo(colLeft, midY); ctx.lineTo(vpRight - 2, midY); ctx.stroke();
+          ctx.lineWidth = 1;
           ctx.setLineDash([]);
           ctx.restore();
           // M47 · ONE LABEL PER LEVEL, PLACED AS ONE PAIR (2026-09-26, Regime
@@ -17781,6 +17800,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (ghostChanged) ghostCacheRef.current = { key: ghostKey, ghost: selectMemoryGhost(ghostBars) };
           const ghost = ghostCacheRef.current!.ghost;
           ds.memoryGhost = ghost.drawn ? `DRAWN:${ghost.fit!.toFixed(2)}` : ghost.reason;
+          if (!ghost.drawn) delete ds.memoryGhostStrokeAlpha;
           if (ghostChanged) onMemoryGhostRef.current?.(ghost);
           const tsG = chart.timeScale();
           ctx.save();
@@ -17795,6 +17815,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // zero). The ghost now reads at no less than 0.55; age and the
             // governor may lower it only above that floor.
             ctx.globalAlpha = Math.max(0.55, Math.min(ghost.opacity, att.alpha("memoryGhost")));
+            // Cert lane (2026-10-08): the ghost names its own stroke alpha against
+            // the plate's 0.18 ceiling — the §XXXVI 0.55 floor overrides it, and
+            // the receipt says so rather than leaving the gap to be measured.
+            canvas.dataset.memoryGhostStrokeAlpha = `${ctx.globalAlpha.toFixed(2)}|PLATE_MAX:0.18|FLOOR:0.55`;
             // Below this slot width a hollow ghost body cannot be told from its
             // neighbours or from the live body it sits on, so the path speaks.
             const GHOST_CANDLE_MIN_SPACING = 8;
@@ -18041,6 +18065,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.restore();
         } else {
           ds.memoryGhost = att.offWord(layerOnRef.current.memoryGhost === true);
+          delete ds.memoryGhostStrokeAlpha;
           delete ds.memoryGhostForm;
           delete ds.memoryGhostCaption;
           delete ds.memoryGhostClipped;
@@ -19382,7 +19407,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            fetched, and an element the history cannot build is a named silence
            on the glass, never an estimate. Every fill is cut out of the
            candles, so price stays sovereign. */
-        delete ds.mtfAncestryPainted;
+        delete ds.mtfAncestryPainted; delete ds.mtfAncestryTagTicks;
         if (layerOnRef.current.mtfAncestry === true && att.paints("mtfAncestry") && srs) {
           const barsM = (barsRef.current ?? []).map(b => ({ time: Number(b.time), open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
           const memoKey = `${symbol}|${timeframe}|${extendedHours ? 1 : 0}`;
@@ -19451,6 +19476,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // right edge; our live edge prints candles there, so the tag goes
           // through the keep-out placer: right edge when clear, else the
           // element's own left end — never over a candle body (price first).
+          const mtfTagTicks: string[] = [];
           const tag = (label: string, yMid: number, ink: string, back: string, xStart: number) => {
             if (!mtfSpeaks) return "QUIET";
             const ty = Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotM - TAG_H - 2, yMid - TAG_H / 2));
@@ -19485,6 +19511,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(label, tx + TAG_W / 2, tyy + TAG_H / 2 + 0.5);
+            // ASK-5 (Sheriff re-run 69fb204: which parent timeframe was
+            // words-only). The tag's own ticks name its horizon with no word:
+            // 1H one, 4H two, D three — the Session Bands' lane-notch grammar.
+            const rankT = MTF_TAG_TICKS[label] ?? 0;
+            for (let k = 0; k < rankT; k++) ctx.fillRect(tx + 3 + k * 3, tyy + TAG_H - 5, 1, 3);
+            mtfTagTicks.push(`${label}:${rankT}`);
             floatingChips.push({ x: tx, y: tyy, w: TAG_W, h: TAG_H });
             return spot.mode;
           };
@@ -19677,6 +19709,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.restore();
           }
           ds.mtfAncestryPainted = painted.join("|") || "NONE";
+          if (mtfTagTicks.length) ds.mtfAncestryTagTicks = mtfTagTicks.join("|"); else delete ds.mtfAncestryTagTicks;
         } else {
           ds.mtfAncestry = att.offWord(layerOnRef.current.mtfAncestry === true);
           onMtfAncestryRef.current?.(null);
@@ -21076,6 +21109,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 top = Math.min(top, y);
                 drawn++;
               }
+              // ASK-5 · the one level grammar on the Composite's column.
+              {
+                let cmpForms = 0;
+                const formAt = (pr: number | null | undefined, ink: string, kind: "POC" | "EDGE") => {
+                  if (pr == null) return; const yv = srs.priceToCoordinate(pr); if (yv == null) return;
+                  strokeLevelForm(ctx, +yv, right - width, right + 2, ink, kind); cmpForms++;
+                };
+                formAt(cp.poc, pk.rgba("POC", 0.95), "POC");
+                formAt(cp.vah, pk.rgbaAs("EDGE_HIGH", "VALUE", 0.88), "EDGE");
+                formAt(cp.val, pk.rgbaAs("EDGE_LOW", "VALUE", 0.88), "EDGE");
+                ds.compositeLevelForms = `POC_SOLID+EDGE_DASHED:${cmpForms}`;
+              }
               ctx.restore(); // releases the Composite's candle cut-out
               // The levels, named the family's one way: a price chip at the
               // plot's right edge on the level's own row (never on a candle).
@@ -21215,6 +21260,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (h >= 3) ctx.strokeRect(right - w + 0.5, y + 0.5, Math.max(0, w - 1), h - 1);
               top = Math.min(top, y);
               drawn++;
+            }
+            // ASK-5 · the one level grammar on the Visible Range column.
+            {
+              let vrForms = 0;
+              const formAt = (pr: number | null | undefined, ink: string, kind: "POC" | "EDGE") => {
+                if (pr == null) return; const yv = srs.priceToCoordinate(pr); if (yv == null) return;
+                strokeLevelForm(ctx, +yv, right - width, right + 2, ink, kind); vrForms++;
+              };
+              formAt(vrpVM.poc, pk.rgba("POC", 0.95), "POC");
+              formAt(vrpVM.vah, pk.rgba("EDGE_HIGH", 0.85), "EDGE");
+              formAt(vrpVM.val, pk.rgba("EDGE_LOW", 0.85), "EDGE");
+              ds.visibleRangeLevelForms = `POC_SOLID+EDGE_DASHED:${vrForms}`;
             }
             ctx.restore(); // releases the rows' candle cut-out
             // The levels, named the family's one way: a price chip at the

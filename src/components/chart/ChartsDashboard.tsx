@@ -337,6 +337,7 @@ import selectLivingProfileGlass from "@/lib/marketData/viewModels/selectLivingPr
 import selectMarketStructureGlass from "@/lib/marketData/viewModels/selectMarketStructureGlass";
 import selectTpoProfile from "@/lib/marketData/viewModels/selectTpoProfile";
 import selectStructureProfile from "@/lib/marketData/viewModels/selectStructureProfile";
+import { STRUCTURE_MIN_READABLE_BARS } from "@/lib/marketData/viewModels/profileCanonGlass";
 import selectProfileDna from "@/lib/marketData/viewModels/selectProfileDna";
 import selectValueMigration from "@/lib/marketData/viewModels/selectValueMigration";
 import selectProfileSlice from "@/lib/marketData/viewModels/selectProfileSlice";
@@ -2609,6 +2610,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
       })),
       instrumentTickFor(symbol, chartBars.length ? chartBars[chartBars.length - 1].close : null),
+      // The glass draws a histogram only from STRUCTURE_MIN_READABLE_BARS:
+      // anchor on the newest swing whose leg reaches that floor.
+      STRUCTURE_MIN_READABLE_BARS,
     ),
     [chartStructureVM, chartBars, symbol],
   );

@@ -97,6 +97,14 @@ export function selectStructureProfile(
   bars: readonly StructureProfileBarInput[] | null | undefined,
   /** The instrument's tick (pricePrecision.instrumentTickFor): buckets and levels land on its grid. */
   instrumentTick?: number | null,
+  /**
+   * The glass's readable floor (profileCanonGlass.STRUCTURE_MIN_READABLE_BARS).
+   * When given, the anchor is the NEWEST confirmed swing whose leg reaches it —
+   * a fresh pivot with a 7-bar leg no longer hides every older, readable leg
+   * (cert lane 2026-10-08: the histogram was nearly unreachable). With no swing
+   * reaching it, the newest swing anchors as before (and the glass names why).
+   */
+  readableFloor?: number,
 ): StructureProfileVM {
   if (!structure || !structure.measured) {
     return blank("NO_STRUCTURE", "structure is not measured on this window — no leg to anchor");
@@ -106,10 +114,21 @@ export function selectStructureProfile(
   if (!hi && !lo) {
     return blank("NO_CONFIRMED_PIVOT", "no swing has confirmed yet — the leg has no lawful start");
   }
-  const anchor =
+  const newest =
     hi && (!lo || hi.time >= lo.time)
       ? { kind: "HIGH" as const, time: hi.time, price: hi.price }
       : { kind: "LOW" as const, time: lo!.time, price: lo!.price };
+  const anchor = (() => {
+    if (!(readableFloor != null && readableFloor > 0)) return newest;
+    const times = (bars ?? []).map(b => b.time).filter(t => Number.isFinite(t));
+    const barsSince = (t: number) => times.reduce((k, bt) => k + (bt >= t ? 1 : 0), 0);
+    if (barsSince(newest.time) >= readableFloor) return newest;
+    const swings = [
+      ...(structure.swingHighs ?? []).map(p => ({ kind: "HIGH" as const, time: p.time, price: p.price })),
+      ...(structure.swingLows ?? []).map(p => ({ kind: "LOW" as const, time: p.time, price: p.price })),
+    ].sort((a, b) => b.time - a.time);
+    return swings.find(s => barsSince(s.time) >= readableFloor) ?? newest;
+  })();
 
   const leg = (bars ?? []).filter(
     b => Number.isFinite(b.time) && b.time >= anchor.time &&

@@ -68,6 +68,7 @@ export function conditionReadback(text: string): string {
     case "TIME_STOP": return `checked: exit after ${c.minutes} min`;
     case "TRAIL_STOP": return "checked: stop may trail toward the market";
     case "ADD_ALLOWED": return "kept: adding is part of the plan";
+    case "WALK_AWAY_AFTER_PROTECTION": return "checked: no order changes after the stop is protected";
     default: return "kept in your words (WM cannot check it automatically)";
   }
 }
