@@ -134,7 +134,8 @@ describe("2 · ONE level grammar: the chip, placed clear of every candle body an
 
   it("the chip's slots are the pure owner's, and its keep-out is bodies + wicks + every chip, strict", () => {
     expect(chip).toContain("const slots = levelChipSlots({ y: yy, w: cw, rightX, floorY, footY: pane0Bottom - 2 });");
-    expect(chip).toMatch(/\[\.\.\.keepOut\(\), \.\.\.profileCandlesAt\(slots\.top, slots\.bottom\)\]/);
+    // + the newest candles' column (ASK-8, 2026-10-08): stricter, never looser.
+    expect(chip).toMatch(/\[\.\.\.keepOut\(\), \.\.\.newestColumnRects\(\), \.\.\.profileCandlesAt\(slots\.top, slots\.bottom\)\]/);
     expect(chip).toMatch(/blockers: floatingChips, strict: true, alternates \}/);
     expect(chip).toContain("floatingChips.push({ x: r.x, y: r.y, w: r.w, h: r.h });");
   });

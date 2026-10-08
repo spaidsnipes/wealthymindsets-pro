@@ -211,3 +211,33 @@ For each selectable invention, Inspect must show four things:
 
 ### Not covered this run
 Pressure walls ON camera (BTC price far from 90k/95k), spot FX, NEAR zoom row numerals, selection-only objects (Memory Ghost, Contradiction). Fresh camera needed for each.
+
+## Uncovered-set erasure · serving 69fb204 → 57ff632 (rolled 02:28 CDT mid-run) · 2026-10-08 02:24–02:34 CDT (Sheriff lane)
+
+Same harness as the full-registry run (same-origin iframe at 1180×820 and 390×844, `fillText`/`strokeText` no-op before paint, every non-canvas node hidden, receipts read off the largest canvas). Each scene was also loaded un-erased (`none`) to name what the words were carrying. Times from `date`.
+
+| Object | Scene | Receipt (erased load) | 1180 erased | 390 erased | Verdict |
+|---|---|---|---|---|---|
+| Brick Walls ON camera | `SPY 5m on=BrickWalls` | `pressureWallHitAt 780@811,148 · 785@919,97 · 790@922,104`; `brickWalls ON:3`, off-camera `ABOVE:2` | 780 wall reads as a slab body at its strike; a TESTED wall draws masonry, a BORN wall (785, later load) draws only a thin dark outline that nearly vanishes | wall off camera (`ABOVE:1`), off-camera mark drawn at the top edge | PARTIAL — position survives; lifecycle survives only as masonry-vs-outline, and the BORN outline is below salience |
+| Derivatives Pressure ON camera | `SPY 5m on=DerivativesPressure` | `PRESSURE:MIXED:-0.04 · ZG:775.91 · WALLS:780/TESTED`; `pressureFrontHitAt 284,387` | zero-gamma dashed line with tick marks + the warm field under it survive; wall 780 a thin line | — | PARTIAL — sign (MIXED) is not readable without words (unchanged from ASK in the registry run) |
+| Spot FX | `EURUSD 5m` (+ `on=LivingProfile` at 1180 and 390) | `livingProfile NO_PROFILE`, `visibleRangeProfile OFF`, `tapeCoverage OFF`, `regimeLighting OFF` | candles only — no profile, no tape, no regime ink | same | PASS (truth) — no volume is invented. The *reason* (NO CENTRAL VOLUME · spot FX) is word-only, which is right for a refusal |
+| NEAR-zoom footprint numerals | `BTC-USD 1m on=fp:bid-ask bars=8` (and `bars=18`) | `semanticZoom MID · semanticZoomBars 118` while the glass header reads **NEAR** and shows ~11 bars; `fpCellText 0` while numerals are clearly painted | erased: per-row bid/ask tint and row intensity survive, cell outlines survive, important-print dots survive; un-erased: at NEAR the cell numerals collide (`0.10×0.03` overlaps its neighbour in the widest bars) | no footprint rows at all — candles + print marks only; receipt still says `footprintBars 44` | PARTIAL at 1180 (phenomenon survives, numerals crowd); 390: rows are not drawn and nothing on the glass says so |
+| Selected zone | `BTC 5m select=zone` | `attentionSelection ZONE:…:SUPPLY`, `<html data-proof-select="zone:…">` | selected supply zone gets a brighter outline than the un-selected demand zone; nothing else | same, small | PARTIAL — selection is readable only as a slightly lighter border |
+| Selected FVG | `BTC 5m on=fvg select=fvg:FVG\|COINBASE:BTC\|5m\|1791443700000\|BULLISH\|v1` | `fvgSelected …\|REJECTED`, `attentionSelection FVG:…`, html `…\|HELD` (selection held) | the selected gap paints identically to its un-selected self (compared against the same load without `select`) — selection lives only in the passport panel | same | **SILENT** |
+| Selected bar | `BTC 5m select=bar` | `<html data-proof-select="bar:1791444300">`, canvas `attentionSelection NONE` | dashed vertical time line + horizontal bracket at the bar | — | PASS (geometry); receipt drift: canvas says NONE |
+| Selected print (big trade) | `BTC 1m on=fp:big-trades select=bigtrade` | `attentionSelection BUBBLE:cluster:event:coinbase:BTC-USD:…` | selected bubble gets a bright gold ring + dashed time line through its centre; others stay dim | gold ring drawn; the dashed time line sits at x≈245 while the selected ring centre is at x≈141 | PASS at 1180; 390 needs a look (line and ring disagree) |
+
+`select=fvg` without an id selects nothing (receipt `NONE`) — the proof token needs the full `fvg:<id>`; the id is on the canvas as `data-fvg-hit`.
+
+### Asks to the MainChart owner (precise)
+1. **ASK-10 · Selected FVG is silent on glass** — a selected gap must paint differently from itself un-selected (the zone and the print already do: brighter edge / gold ring). Probe: `fvgSelected` set, pixel diff of the gap rect vs the same load without `select` is zero. Note FVG files are another lane's — route there if the gap paint lives in `src/lib/marketData/fvg*`.
+2. **ASK-11 · Semantic-zoom receipt disagrees with the header** — `bars=8`: header says NEAR, canvas `data-semantic-zoom=MID`, `data-semantic-zoom-bars=118`. One owner should feed both.
+3. **ASK-12 · `fpCellText` receipt reads 0 while numerals paint** (1180, `fp:bid-ask`, MID and NEAR). The receipt cannot prove the numeral governor.
+4. **ASK-13 · NEAR numerals collide** — at `bars=8` 1180 the widest bars' bid×ask strings overlap their neighbours; the cell governor should drop to one side or to tint-only before overlap.
+5. **ASK-14 · 390 footprint rows absent without a word** — `fp:bid-ask` at 390 draws candles only while `footprintBars 44` claims rows; either draw them at NEAR or say "footprint rows need a wider glass".
+6. **ASK-15 · BORN wall outline below salience** — the BORN lifecycle wall erases to a near-invisible outline; the lifecycle forms (BORN / TESTED / WEAKENING / BREAKING / BROKEN) should each carry a visible body.
+7. **ASK-16 · 390 selected-print time line** — check the dashed selection line passes through the selected ring at 390 (it does at 1180).
+8. **Receipt drift (low)** — `select=bar` leaves canvas `attentionSelection NONE`.
+
+### Still not covered
+Memory Ghost and Contradiction selection; spot FX with a related-futures lens on (blocked on the 6E chip ask from §18).

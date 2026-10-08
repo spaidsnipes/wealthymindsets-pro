@@ -76,3 +76,25 @@ describe("price sovereignty asks from the Sheriff re-run (ASK-8 / ASK-9, 2026-10
     expect(CHART).not.toContain("pillCut.rect(0, yPill - 13, 96, 26);");
   });
 });
+
+describe("ASK-4 (2026-10-08): Delta Levels' sign survives erasure by FORM, never hue (§9)", () => {
+  it("BUY rungs solid, SELL rungs hollow, one ink, receipt names the form", () => {
+    expect(CHART).toContain('ds.deltaLevelsSides = `BUY:${buyRungs}|SELL:${sellRungs}|FORM:SOLID_BUY+HOLLOW_SELL`;');
+    expect(CHART).toContain("ctx.strokeRect(Math.min(centerX, xEnd) + 0.5, Math.round(y - rungPx / 2) + 0.5, Math.max(1, len - 1), Math.max(2, rungPx - 1));");
+  });
+});
+
+describe("ASK-6 (2026-10-08): Delta Keel salience floor at every width", () => {
+  it("no keel shorter than KEEL_MIN_L, named in its receipt", () => {
+    expect(CHART).toContain("const KEEL_MIN_L = 3;");
+    expect(CHART).toContain("const L = Math.max(KEEL_MIN_L, keelLength(kl.ratio, bodyW));");
+    expect(CHART).toContain("canvas.dataset.barDeltaKeelsSalience = `L${KEEL_MIN_L}|W2`;");
+  });
+});
+
+describe("ASK-6 (2026-10-08): RVOL tone salience", () => {
+  it("every toned volume bar carries a 2px brass cap, named in its receipt", () => {
+    expect(CHART).toContain('canvas.dataset.rvolWeightSalience = "CAP2";');
+    expect(CHART).toContain("for (const r of steps) for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], Math.min(2, r[i + 3]));");
+  });
+});

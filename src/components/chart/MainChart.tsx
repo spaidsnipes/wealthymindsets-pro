@@ -188,6 +188,8 @@ const HEADER_LIVE_FRESH_MS = 120_000;
 const DELTA_LEVELS_ALPHA_FLOOR = 0.8;
 /** Frames a Delta Keel waits for its off-frame ATR task before walking it in-frame. */
 const KEEL_ATR_WAIT_FRAMES = 2;
+/** Delta Keel salience floor (ASK-6): no keel shorter than this, at any width. */
+const KEEL_MIN_L = 3;
 /** Session Bands' empty lane rail ink: legible, never mistaken for the 0.42 session strip. */
 const SESSION_RAIL_INK = 0.26;
 /** The live countdown pill's height (the candle timer); FVG territory cuts round it. */
@@ -10832,6 +10834,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const t0RV = performance.now();
         const bs = barsRef.current || [];
         const vsRV = volRef.current;
+        delete canvas.dataset.rvolWeightSalience;
         if (!rvolToneOn) canvas.dataset.rvolWeight = "OFF";
         else if (bs.length < 2 || !vsRV) canvas.dataset.rvolWeight = "NO_BARS";
         else if (!volumeTruthFor(symbol, bs).real) canvas.dataset.rvolWeight = "SILENT:NO_TRADED_VOLUME";
@@ -10884,7 +10887,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.fillStyle = `rgba(214,176,96,${rvolToneAlpha(0.6 + (k + 0.5) * 0.08).toFixed(3)})`;
             ctx.fill();
           }
+          // ASK-6 (Sheriff re-run 69fb204: tone differences not perceivable at
+          // MID): every toned bar also carries a 2px brass CAP on its top edge —
+          // the "unusually busy" mark reads at any scale; the fill keeps rarity.
+          ctx.beginPath();
+          for (const r of steps) for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], Math.min(2, r[i + 3]));
+          ctx.fillStyle = "rgba(214,176,96,0.85)";
+          ctx.fill();
           ctx.restore();
+          canvas.dataset.rvolWeightSalience = "CAP2";
           canvas.dataset.rvolWeight = `${toned}|BASE:${rv.length && slot === rv.length ? "SLOT" : slot > 0 ? `SLOT${slot}+ROLLING${rv.length - slot}` : "ROLLING"}|SAME`;
           const insp = inspectedBarRef.current?.time ?? null;
           const sel = insp != null ? rv.find(q => q.time === insp) : null;
@@ -11133,6 +11144,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const csDK = candleRef.current;
         const realBody = candleType === "candles" || candleType === "hollow" || candleType === "orderflow-candles" || candleType === "bars";
         deltaKeelLastRef.current = null;
+        delete canvas.dataset.barDeltaKeelsSalience;
         if (!deltaKeelOn) canvas.dataset.barDeltaKeels = "OFF";
         else if (!realBody) canvas.dataset.barDeltaKeels = `SILENT:NOT_REAL_OHLC:${candleType}`;
         else if (bs.length < 2 || !csDK) canvas.dataset.barDeltaKeels = "NO_BARS";
@@ -11299,7 +11311,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const xr = xCal && ix != null ? xCal(ix) : tsDK.timeToCoordinate(kl.time as never);
               const yc = yCal ? yCal(bar.close) : csDK.priceToCoordinate(bar.close);
               if (xr == null || yc == null || +xr < 0 || +xr > plotRight) return null;
-              const L = Math.max(narrowDK ? 3 : 1, keelLength(kl.ratio, bodyW));
+              // ASK-6 (Sheriff re-run 69fb204): at MID a 1px keel on a 4px body
+              // was sub-perceptual — every keel is at least KEEL_MIN_L px long.
+              const L = Math.max(KEEL_MIN_L, keelLength(kl.ratio, bodyW));
               const up = bar.close >= bar.open;
               // Just OUTSIDE the close edge: above an up body, below a down one.
               const y = Math.round(+yc + (up ? -5 : 3));
@@ -11359,6 +11373,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.restore();
             canvas.dataset.barDeltaKeels = `${drawn}|BASIS:TAPE${nTape}+SIDES${nSides}|FAIL:${failed}`;
             if (narrowDK) canvas.dataset.barDeltaKeelsNarrow = "FAIL_ONLY|W2"; else delete canvas.dataset.barDeltaKeelsNarrow;
+            canvas.dataset.barDeltaKeelsSalience = `L${KEEL_MIN_L}|W2`;
             const sel = insp != null ? keels.find(q => q.time === insp) : null;
             if (sel) canvas.dataset.barDeltaKeelInspect = `${sel.basis}|D${sel.delta}|R${sel.ratio.toFixed(2)}${sel.failed ? "|FAILED_TO_DISPLACE" : ""}`;
             else delete canvas.dataset.barDeltaKeelInspect;
@@ -17328,21 +17343,34 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // The lane is on the glass now: later words step around it.
               floatingChips.push({ x: centerX - laneMax - 4, y: top, w: laneMax * 2 + 8, h: bot - top });
             }
-            let drawnRungs = 0;
+            let drawnRungs = 0, buyRungs = 0, sellRungs = 0;
             for (const r of dl.rungs) {
               const yr = srs.priceToCoordinate(r.price);
               if (yr == null) continue;
               const y = Math.round(+yr) + 0.5;
               const len = Math.max(4, Math.round(r.weight * laneMax));
               ctx.strokeStyle = "rgba(237,230,211,0.92)";
-              ctx.lineWidth = rungPx;
-              ctx.lineCap = "butt";
-              ctx.beginPath();
-              ctx.moveTo(centerX, y);
-              ctx.lineTo(r.side === "BUY" ? centerX + len : centerX - len, y);
-              ctx.stroke();
+              const xEnd = r.side === "BUY" ? centerX + len : centerX - len;
+              // ASK-4 (Sheriff re-run 69fb204: with the caption erased the sign
+              // of each rung was gone). §9 keeps hue out of the sides, so the
+              // sign is FORM: a BUY rung is solid, a SELL rung is hollow — the
+              // same ivory, the same lane direction, readable with no words.
+              if (r.side === "BUY") {
+                ctx.lineWidth = rungPx;
+                ctx.lineCap = "butt";
+                ctx.beginPath();
+                ctx.moveTo(centerX, y);
+                ctx.lineTo(xEnd, y);
+                ctx.stroke();
+                buyRungs++;
+              } else {
+                ctx.lineWidth = 1;
+                ctx.strokeRect(Math.min(centerX, xEnd) + 0.5, Math.round(y - rungPx / 2) + 0.5, Math.max(1, len - 1), Math.max(2, rungPx - 1));
+                sellRungs++;
+              }
               drawnRungs++;
             }
+            ds.deltaLevelsSides = `BUY:${buyRungs}|SELL:${sellRungs}|FORM:SOLID_BUY+HOLLOW_SELL`;
             // Hairline centre so the trader can see the axis the lanes grow
             // from, even when only one side has rungs on screen.
             ctx.strokeStyle = "rgba(214,178,94,0.7)";
@@ -17358,6 +17386,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             else delete ds.deltaLevelsRungs;
           } else {
             delete ds.deltaLevelsRungs;
+            delete ds.deltaLevelsSides;
           }
         }
 

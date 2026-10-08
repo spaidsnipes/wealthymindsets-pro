@@ -61,7 +61,8 @@ describe("the profile family's level chips yield to the candles", () => {
   });
 
   it("asks the keep-out where the chip may print: every candle body and wick under its slots, every chip, strictly", () => {
-    expect(chip).toMatch(/placeClearOfKeepOut\(\s*slots\.preferred,\s*\[\.\.\.keepOut\(\), \.\.\.profileCandlesAt\(slots\.top, slots\.bottom\)\],\s*\{ minX: Math\.max\(keepOutMinX\(\), opts\.minX \?\? 4\), blockers: floatingChips, strict: true, alternates \},?\s*\)/);
+    // + the newest candles' column (ASK-8, 2026-10-08): stricter, never looser.
+    expect(chip).toMatch(/placeClearOfKeepOut\(\s*slots\.preferred,\s*\[\.\.\.keepOut\(\), \.\.\.newestColumnRects\(\), \.\.\.profileCandlesAt\(slots\.top, slots\.bottom\)\],\s*\{ minX: Math\.max\(keepOutMinX\(\), opts\.minX \?\? 4\), blockers: floatingChips, strict: true, alternates \},?\s*\)/);
     const rows = slice("function profileCandlesAt(yTop: number, yBot: number) {", "function drawWMVP(");
     expect(rows).toContain("profileCandleCut().rects.filter(r => r.y < yBot && r.y + r.h > yTop)");
     const cut = slice("function profileCandleCut() {", "function clipProfileToCandles(species: string) {");
