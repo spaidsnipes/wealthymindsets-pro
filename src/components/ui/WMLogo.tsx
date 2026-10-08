@@ -16,6 +16,10 @@ export function WMLogo({ size = 32, className = "", showGlow = false }: WMLogoPr
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
+      // Decorative: every use sits beside its own text label. The "$" glyph is
+      // logo art (7 units in an 18–26 px mark), not readable text.
+      aria-hidden="true"
+      focusable="false"
       style={showGlow ? { filter: "drop-shadow(0 0 6px rgba(240,180,41,0.7))" } : undefined}
     >
       {/* Background circle */}

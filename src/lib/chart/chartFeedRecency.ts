@@ -76,6 +76,14 @@ export type FeedRecencyKind =
    * amber about a CME market shut for the weekend since 17:00.
    */
   | "MARKET_CLOSED"
+  /**
+   * The thin US-equity OVERNIGHT session (20:00–04:00 ET, off-exchange venues,
+   * listed exchanges closed — marketSessionClock): a bar interval without a
+   * print is the session's nature, not a failing feed. Same bar count, calm
+   * tone (Sheriff, 2026-10-07 night: "1 BAR BEHIND" in warning orange
+   * overnight).
+   */
+  | "THIN_SESSION"
   /** No timestamp, no interval, or a bar stamped in the future. */
   | "UNKNOWN";
 
@@ -258,5 +266,29 @@ export function chartFeedRecency(
     spoken:
       `Newest bar opened ${clock}. This chart is ${barsBehind} ` +
       `${barsBehind === 1 ? "bar" : "bars"} behind.`,
+  };
+}
+
+/**
+ * Re-word a BARS_BEHIND reading during the thin OVERNIGHT equity session
+ * (`readMarketSession(...).verdict === "OVERNIGHT"`). The count stays (it is
+ * still arithmetic about the clock); the verdict word and tone change from
+ * "behind" to "thin overnight tape". Every other reading passes through.
+ */
+export function thinSessionRecency(r: FeedRecency, sessionVerdict: string | null | undefined): FeedRecency {
+  if (r.kind !== "BARS_BEHIND" || sessionVerdict !== "OVERNIGHT") return r;
+  const m = /^BAR OPENED (.+) · \d+ BARS? BEHIND$/.exec(r.glyph);
+  const clock = m ? m[1] : null;
+  const n = r.barsBehind ?? 0;
+  return {
+    kind: "THIN_SESSION",
+    glyph: clock ? `OVERNIGHT · THIN TAPE · BAR OPENED ${clock}` : "OVERNIGHT · THIN TAPE",
+    short: "OVERNIGHT · THIN",
+    barsBehind: r.barsBehind,
+    title:
+      `The overnight session (20:00–04:00 ET) trades only on off-exchange venues with thin prints, so a ` +
+      `${n} ${n === 1 ? "bar" : "bars"} gap since the newest bar ${clock ? `(opened ${clock}) ` : ""}is the session's nature, ` +
+      `not a failing feed. The count is kept; the listed exchanges are closed.`,
+    spoken: `Overnight session, thin tape. ${clock ? `Newest bar opened ${clock}. ` : ""}${n} ${n === 1 ? "bar" : "bars"} without a print.`,
   };
 }

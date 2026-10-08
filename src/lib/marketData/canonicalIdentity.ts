@@ -428,7 +428,7 @@ export function selectCanonicalSessionToken(
  * deliberately left weekday nights unresolved; the schedule owner
  * (marketSessionClock) now names them OVERNIGHT, so the two are joined here:
  *
- *   closed  `false` when closure is proven, OR when the instrument is a US
+ *   sessionOpen  `false` when closure is proven, OR when the instrument is a US
  *           equity / ETF / option whose schedule verdict is OVERNIGHT or CLOSED
  *           (the listed session is shut); otherwise `null` — never `true`.
  *   detail  the words the feed standing prints beside the canon label.
@@ -436,15 +436,15 @@ export function selectCanonicalSessionToken(
  * Futures, FX and crypto are untouched: when their market is open a quiet tape
  * IS a fault, and only proven closure (weekend, Globex break) changes that.
  */
-export function quoteSessionClosure(symbol: string, at: Date | null): { readonly closed: false | null; readonly detail: string | null } {
-  if (!at) return { closed: null, detail: null };
-  if (provenSessionClosure(symbol, at) === false) return { closed: false, detail: "session closed" };
+export function quoteSessionClosure(symbol: string, at: Date | null): { readonly sessionOpen: false | null; readonly detail: string | null } {
+  if (!at) return { sessionOpen: null, detail: null };
+  if (provenSessionClosure(symbol, at) === false) return { sessionOpen: false, detail: "session closed" };
   const cls = canonicalAssetClass(symbol);
-  if (cls !== "equity" && cls !== "etf" && cls !== "options") return { closed: null, detail: null };
+  if (cls !== "equity" && cls !== "etf" && cls !== "options") return { sessionOpen: null, detail: null };
   const r = readMarketSession({ symbol, assetClass: cls, clock: marketClockET(at), isUsCashIndex: US_CASH_INDICES.has(symbol.trim().toUpperCase()) });
-  if (r?.verdict === "OVERNIGHT") return { closed: false, detail: "overnight · listed exchanges closed, off-exchange prints not carried" };
-  if (r?.verdict === "CLOSED") return { closed: false, detail: "session closed" };
-  return { closed: null, detail: null };
+  if (r?.verdict === "OVERNIGHT") return { sessionOpen: false, detail: "overnight · listed exchanges closed, off-exchange prints not carried" };
+  if (r?.verdict === "CLOSED") return { sessionOpen: false, detail: "session closed" };
+  return { sessionOpen: null, detail: null };
 }
 
 /**

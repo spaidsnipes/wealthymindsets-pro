@@ -26,6 +26,8 @@ import { planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import { PlanAdherenceBySetup } from "@/components/journal/PlanAdherenceBySetup";
 import { INSUFFICIENT, insufficientLine, isMeasured, STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
 import { TodayRulesLine } from "@/components/journal/TodayManagementRules";
+import { proofFixtureScene } from "@/lib/chart/proofScene";
+import { JournalProofScene } from "@/components/journal/JournalProofScene";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
@@ -875,9 +877,22 @@ export default function JournalPage() {
     // hands the trader a room that scrolls by the masthead's height while
     // it is still empty. `min-h-full` fills the room it was given.
     <React.Suspense fallback={<div className="min-h-full" />}>
-      <JournalPageInner />
+      <JournalRouteSwitch />
     </React.Suspense>
   );
+}
+
+/**
+ * PROOF SCENE SWITCH (2026-10-07): `?scene=journal-fixture` shows a read-only
+ * SAMPLE book (JournalProofScene) instead of the trader's journal — only for a
+ * signed-in trader, never for a guest, and the trader's journal is not even
+ * mounted while it shows (so none of its effects can read or write).
+ */
+function JournalRouteSwitch() {
+  const sp = useSearchParams();
+  const { user: sceneUser } = useAuthCtx();
+  const fixture = proofFixtureScene(`?${sp.toString()}`) === "journal-fixture" && !!sceneUser;
+  return fixture ? <JournalProofScene /> : <JournalPageInner />;
 }
 
 function JournalPageInner() {
@@ -1194,7 +1209,8 @@ function JournalPageInner() {
   // that covers — two guards, because a total is the number the trader trusts
   // most.
   const recordedTotal = selectRecordedTotal(tradeRecords);
-  const winRate  = tradeRecords.length ? ((wins / tradeRecords.length) * 100).toFixed(0) : "0";
+  // Only computed where it may be printed: 20+ closed trades (statGuard).
+  const winRate  = isMeasured(tradeRecords.length) ? ((wins / tradeRecords.length) * 100).toFixed(0) : null;
 
   // Proof Lane §21 launch — today's session R evaluation. Composes the
   // canon §4 shutdown gate over TODAY's entries only. Founder sees

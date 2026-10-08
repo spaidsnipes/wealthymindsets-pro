@@ -1,4 +1,5 @@
 "use client";
+import { INSUFFICIENT } from "@/lib/journal/statGuard";
 import * as React from "react";
 import type { SessionEdgeVM, SessionEdgeMetric, SessionEdgeCell } from "@/lib/traderMemory/viewModels/selectSessionEdge";
 
@@ -150,7 +151,7 @@ export function SessionEdgePanel({ vm, onMetricChange, onCellClick, className }:
                     const unknown = cell.value === "UNKNOWN";
                     const bg = unknown ? "rgba(85,80,63,0.15)" : cellColor(cell.value as number, vm.metric, minV, maxV);
                     const label = unknown
-                      ? `${cell.dayLabel} ${cell.hourLabel}: value unknown, sample ${cell.sampleCount}`
+                      ? `${cell.dayLabel} ${cell.hourLabel}: ${INSUFFICIENT} — ${cell.sampleCount} of ${vm.sampleThreshold} decisions`
                       : `${cell.dayLabel} ${cell.hourLabel}: ${cfg.label} ${formatValue(vm.metric, cell.value as number)}${cfg.unit}, sample ${cell.sampleCount}`;
                     const clickable = !!onCellClick;
                     return (
@@ -177,7 +178,7 @@ export function SessionEdgePanel({ vm, onMetricChange, onCellClick, className }:
                             textAlign: "center",
                           }}
                         >
-                          {unknown ? "?" : formatValue(vm.metric, cell.value as number)}
+                          {unknown ? "—" : formatValue(vm.metric, cell.value as number)}
                         </button>
                       </td>
                     );

@@ -1,4 +1,5 @@
 "use client";
+import { INSUFFICIENT } from "@/lib/journal/statGuard";
 import * as React from "react";
 import type { PlaybookDNAVM, PlaybookDNAEntry, PlaybookMaturity } from "@/lib/traderMemory/viewModels/selectPlaybookDNA";
 
@@ -65,8 +66,9 @@ export function PlaybookDNAPanel({ vm, onPlaybookClick }: { vm: PlaybookDNAVM; o
         {vm.playbooks.map((p) => {
           const m = MATURITY_STYLES[p.maturity];
           const clickable = !!onPlaybookClick;
-          const avgRText = typeof p.avgRealizedR === "number" ? `${p.avgRealizedR.toFixed(2)}R` : "?";
-          const winRateText = typeof p.winRate === "number" ? `${Math.round(p.winRate * 100)}%` : "?";
+          // Below 20 closed decisions (STAT_SAMPLE_MIN) these are not measured (statGuard).
+          const avgRText = typeof p.avgRealizedR === "number" ? `${p.avgRealizedR.toFixed(2)}R` : "—";
+          const winRateText = typeof p.winRate === "number" ? `${Math.round(p.winRate * 100)}%` : INSUFFICIENT;
           return (
             <button
               key={p.playbookId}

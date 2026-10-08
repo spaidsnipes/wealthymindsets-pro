@@ -206,6 +206,20 @@ describe("closed-session precedence — call-site Sentinel (canon §8)", () => {
         // Skip files that merely re-export or type-reference the name.
         if (!content.includes(`${fn}(`)) continue;
         for (const call of callArgumentTexts(content, fn)) {
+          // 2026-10-07 (night shift, coordinator ruling B): the quote feed's
+          // session has ONE owner, `quoteSessionClosure` (hook:
+          // `useQuoteSessionClosure`), which joins proven closure with a US
+          // equity's overnight/weekend hours. A call site may pass its
+          // `.sessionOpen` — but only from a binding of that owner in the same
+          // file, so a stray `foo.sessionOpen` cannot satisfy this rule. The
+          // intent is unchanged: every call site passes session state.
+          const member = /\b(\w+)\.sessionOpen\b/.exec(call.text);
+          if (member) {
+            const bound = new RegExp(`\\b${member[1]}\\s*=\\s*(useQuoteSessionClosure|quoteSessionClosure)\\(`).test(content);
+            if (bound) continue;
+            violations.push(`${relative(SRC_ROOT, file)}:${call.line} — ${fn}() passes ${member[1]}.sessionOpen, which is not bound from the quote-session owner`);
+            continue;
+          }
           if (/\bsessionOpen\b/.test(call.text)) continue;
           violations.push(
             `${relative(SRC_ROOT, file)}:${call.line} — ${fn}() called without sessionOpen`,
@@ -259,5 +273,15 @@ describe("closed-session precedence — call-site Sentinel (canon §8)", () => {
     const gap = readFileSync(resolve(SRC_ROOT, "lib/marketData/canonicalIdentity.ts"), "utf8");
     expect(gap).toContain("KNOWN GAP");
     expect(gap).toContain("Closure is a property of the STATE, not of the IDENTITY.");
+  });
+});
+
+describe("the quote-session owner is the only accepted member form (2026-10-07)", () => {
+  it("ChartsDashboard and the Command Deck bind their badge's session from useQuoteSessionClosure", () => {
+    for (const f of ["src/components/chart/ChartsDashboard.tsx", "src/app/command-deck/page.tsx"]) {
+      const code = readFileSync(f, "utf8");
+      expect(code, f).toMatch(/\bquoteSession\s*=\s*useQuoteSessionClosure\(/);
+      expect(code, f).toMatch(/resolveChartSurfaceBadge\([\s\S]{0,200}quoteSession\.sessionOpen/);
+    }
   });
 });

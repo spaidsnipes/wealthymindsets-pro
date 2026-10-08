@@ -38,6 +38,8 @@ const ENGINE_CALLERS = new Set([
   "src/lib/backtest/fvgStudy.ts",
   "src/lib/scanner/fvgScanConditions.ts",
   "src/lib/journal/fvgDecisionReference.ts",
+  // The /journal proof scene's SAMPLE ledger (synthetic bars, built in the page — never a trader's data).
+  "src/lib/journal/journalProofFixture.ts",
   // 2026-10-07: the Review's "what happened to this gap after the decision"
   // reader — same engine over the same bars, as-of reads only.
   "src/lib/journal/planFvgLoader.ts",

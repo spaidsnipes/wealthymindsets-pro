@@ -87,7 +87,8 @@ export function RoomAuthorityNotice({ href }: RoomAuthorityNoticeProps): React.R
       <span
         data-testid="room-legacy-notice-word"
         style={{
-          fontSize: 9,
+          // 11 px (was 9) — fit-checked 390 / 834 / 1180 / 1440, 2026-10-07.
+          fontSize: 11,
           letterSpacing: "0.14em",
           color: "#8b8fa8",
           border: "1px solid rgba(111,116,144,0.45)",

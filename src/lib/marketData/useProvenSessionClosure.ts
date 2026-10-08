@@ -34,7 +34,7 @@ export function useProvenSessionClosure(symbol: string): false | null {
  * US equity's overnight and weekend hours, where a quiet tape is expected.
  * Same hydration discipline as `useProvenSessionClosure`.
  */
-export function useQuoteSessionClosure(symbol: string): { readonly closed: false | null; readonly detail: string | null } {
+export function useQuoteSessionClosure(symbol: string): { readonly sessionOpen: false | null; readonly detail: string | null } {
   const now = useSessionClockDate();
   return quoteSessionClosure(symbol, now);
 }

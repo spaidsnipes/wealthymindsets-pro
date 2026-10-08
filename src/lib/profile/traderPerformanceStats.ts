@@ -46,11 +46,15 @@
  * PURE — no clock, no I/O, no localStorage, no React.
  */
 
+import { INSUFFICIENT, insufficientLine, isMeasured } from "@/lib/journal/statGuard";
+
 export type PerfStatKind =
   /** A real computed number, including zero. */
   | "MEASURED"
   /** The operation has no value on this data. Not zero. */
-  | "UNDEFINED";
+  | "UNDEFINED"
+  /** Computable, but fewer than STAT_SAMPLE_MIN (20) closed trades — not a measurement (statGuard). */
+  | "INSUFFICIENT_EVIDENCE";
 
 export interface PerfStat {
   label: string;
@@ -114,6 +118,13 @@ export function traderPerformanceStats(
           reason:
             "A win rate is wins divided by trades. With no closed trades there is no denominator, so this is undefined — it is NOT zero percent, and WM will not print a rate it cannot defend.",
         }
+      : !isMeasured(n)
+      ? {
+          label: "Win Rate",
+          value: INSUFFICIENT,
+          kind: "INSUFFICIENT_EVIDENCE",
+          reason: `${winners.length} of ${n} closed ${n === 1 ? "trade" : "trades"} finished positive — ${insufficientLine(n)}, so no rate is printed.`,
+        }
       : {
           label: "Win Rate",
           value: `${Math.round((winners.length / n) * 100)}%`,
@@ -134,6 +145,13 @@ export function traderPerformanceStats(
           : losers.length === 0
             ? "An average reward-to-risk is the average win divided by the average loss. There are no losing trades, so there is no average loss to divide by. This is UNDEFINED — substituting a stand-in for the missing side would turn a dollar amount into something that merely looks like a ratio."
             : "An average reward-to-risk is the average win divided by the average loss. There are no winning trades, so there is no average win. This is undefined.",
+    };
+  } else if (!isMeasured(n)) {
+    avgRR = {
+      label: "Avg R:R",
+      value: INSUFFICIENT,
+      kind: "INSUFFICIENT_EVIDENCE",
+      reason: `${winners.length} winners and ${losers.length} losers — ${insufficientLine(n)}, so no ratio is printed.`,
     };
   } else {
     const avgWin = winners.reduce((s, t) => s + pnl(t), 0) / winners.length;

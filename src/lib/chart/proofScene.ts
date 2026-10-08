@@ -58,6 +58,24 @@ export const BARS_PARAM = "bars";
 export const INDICATORS_PARAM = "ind";
 export const SELECT_PARAM = "select";
 
+/**
+ * PAGE FIXTURE SCENES (2026-10-07, coordinator order): `scene=<token>` on a
+ * non-chart room renders a deterministic SAMPLE in place of the trader's data,
+ * read-only — no storage write, no network write, a banner on screen. Same
+ * `scene=` grammar as `scene=clean`; each token names its one room.
+ *   journal-fixture → /journal (Review FVG answers, counterfactual, Personal Edge, Academy examples)
+ */
+export const PROOF_FIXTURE_SCENES = ["journal-fixture"] as const;
+export type ProofFixtureScene = (typeof PROOF_FIXTURE_SCENES)[number];
+
+/** The fixture scene the URL asks for, or null. */
+export function proofFixtureScene(search: string): ProofFixtureScene | null {
+  let q: URLSearchParams;
+  try { q = new URLSearchParams(search); } catch { return null; }
+  const v = (q.get(SCENE_PARAM) ?? "").trim();
+  return (PROOF_FIXTURE_SCENES as readonly string[]).includes(v) ? v as ProofFixtureScene : null;
+}
+
 /** What a proof scene may open Inspect on. */
 export const PROOF_SELECT_KINDS = ["zone", "level", "bar", "bigtrade"] as const;
 export type ProofSelectKind = (typeof PROOF_SELECT_KINDS)[number];

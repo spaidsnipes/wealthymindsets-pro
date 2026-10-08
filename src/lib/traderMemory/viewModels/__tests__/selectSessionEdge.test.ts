@@ -41,7 +41,7 @@ describe("selectSessionEdge", () => {
   });
 
   it("groups by day-of-week × hour on the New York clock: 14:00Z in August is Thursday 10:00 ET", () => {
-    const decisions = Array.from({ length: 3 }, (_, i) => makeDecision({ decisionId: `d${i}`, pnlR: 1 }));
+    const decisions = Array.from({ length: 20 }, (_, i) => makeDecision({ decisionId: `d${i}`, pnlR: 1 }));
     const r = selectSessionEdge({ ownerId: "owner-1", decisions, nowMs: THU_14, metric: "avg_realized_r" });
     expect(r.cells).toHaveLength(1);
     expect(r.cells[0].dayLabel).toBe("Thu");
@@ -55,6 +55,13 @@ describe("selectSessionEdge", () => {
     const r = selectSessionEdge({ ownerId: "owner-1", decisions: [makeDecision({ decisionId: "c", ts: close })], nowMs: close, metric: "sample_count" });
     expect(r.cells[0].hour).toBe(15);
     expect(r.cells[0].dayLabel).toBe("Thu");
+  });
+
+  it("default threshold is the one n ≥ 20 rule (STAT_SAMPLE_MIN): 19 decisions in a cell stay UNKNOWN", () => {
+    const decisions = Array.from({ length: 19 }, (_, i) => makeDecision({ decisionId: `n${i}`, pnlR: 1 }));
+    const r = selectSessionEdge({ ownerId: "owner-1", decisions, nowMs: THU_14, metric: "avg_realized_r" });
+    expect(r.sampleThreshold).toBe(20);
+    expect(r.cells[0].value).toBe("UNKNOWN");
   });
 
   it("UNKNOWN when cell sample below threshold", () => {
@@ -73,8 +80,8 @@ describe("selectSessionEdge", () => {
     const winThu = THU_14; // Thu 14
     const lossFri = new Date("2026-08-14T15:00:00Z").getTime(); // Fri 15
     const decisions = [
-      ...Array.from({ length: 5 }, (_, i) => makeDecision({ decisionId: `w${i}`, pnlR: 2, ts: winThu })),
-      ...Array.from({ length: 5 }, (_, i) => makeDecision({ decisionId: `l${i}`, pnlR: -1, ts: lossFri })),
+      ...Array.from({ length: 20 }, (_, i) => makeDecision({ decisionId: `w${i}`, pnlR: 2, ts: winThu })),
+      ...Array.from({ length: 20 }, (_, i) => makeDecision({ decisionId: `l${i}`, pnlR: -1, ts: lossFri })),
     ];
     const r = selectSessionEdge({ ownerId: "owner-1", decisions, nowMs: THU_14, metric: "avg_realized_r" });
     expect(r.bestCell?.dayLabel).toBe("Thu");

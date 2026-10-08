@@ -61,7 +61,9 @@ export function CanvasBadgeMini({
         alignItems: "center",
         padding: "1px 6px",
         borderRadius: 3,
-        fontSize: 9,
+        // 11 px (was 9): the §52 in-tab run measured the verdict word at 9 px on
+        // narrow /charts; at 11 it still fits the breadcrumb row at 390 and 834.
+        fontSize: 11,
         fontWeight: 700,
         letterSpacing: 0.4,
         textTransform: "uppercase",

@@ -305,6 +305,25 @@ New York days, read from the FVG ledger.
 Tests: `managementPlanSlice3.test.ts`, `managementPlanSlice4.test.ts`, `managementPlanSlice5.test.ts`,
 `planFvgStudy.test.ts`, `founderAnalytics.test.ts`.
 
+### One n ≥ 20 rule for every rate a trader reads about themselves
+
+`src/lib/journal/statGuard.ts` owns it: `STAT_SAMPLE_MIN` = 20 (the same number as
+`PATTERN_SAMPLE_MIN`, `ledgerEdge.MIN_SAMPLE` and `ledgerTimeline.MIN_WINDOW`), with the wording
+"INSUFFICIENT EVIDENCE — n of 20 closed trades so far".
+* **Guarded rates:** win rate, expectancy, profit factor, average R:R, average win/loss and
+  per-group shares.
+* **Unguarded facts:** counts and sums (trades, wins, losses, net P&L) are facts at any n.
+* **Surfaces:**
+  * Broker Ledger tiles, and every Personal Edge table cell (groups, patterns, windows, months,
+    by model);
+  * the Journal coach tiles, header chip and setup rows (`selectSetupPerformance`);
+  * the /profile tiles (`traderPerformanceStats`, kind `INSUFFICIENT_EVIDENCE`);
+  * the profile view-models `selectPersonalEdge` / `selectPlaybookDNA` / `selectSessionEdge`,
+    whose default thresholds were 5 / 10 / 3 and are now 20.
+
+Test: `src/lib/journal/statGuard.sentinel.test.ts` (source scan of the surfaces, with a vacuity
+guard and positive controls).
+
 ## 6. Academy "Show me my examples" (§36)
 
 `fvgReferencedExamples` lists only Journal entries with a valid `fvgRef`; tags are not evidence.

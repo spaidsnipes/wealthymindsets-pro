@@ -54,12 +54,17 @@ function MyExamples() {
     } catch { setExamples([]); }
   }, []);
   if (examples === null) return null;
+  return <FvgExamplesView examples={examples} />;
+}
+
+/** The examples list itself — pure, so a proof scene can show it from sample data. */
+export function FvgExamplesView({ examples, heading }: { examples: readonly FvgJournalExample[]; heading?: string }) {
   if (examples.length === 0) {
     return <p data-testid="fvg-examples-empty" className="text-[11px] text-wm-text-dim">{FVG_EXAMPLES_EMPTY_LINE}</p>;
   }
   return (
     <div data-testid="fvg-examples">
-      <div className="text-[10px] font-black uppercase tracking-wider text-wm-text-muted">Show me my examples · {examples.length} decision{examples.length === 1 ? "" : "s"} on gaps from your Journal (this browser)</div>
+      <div className="text-[10px] font-black uppercase tracking-wider text-wm-text-muted">{heading ?? `Show me my examples · ${examples.length} decision${examples.length === 1 ? "" : "s"} on gaps from your Journal (this browser)`}</div>
       <ul className="mt-1.5 space-y-1.5">
         {examples.slice(0, 8).map(e => (
           <li key={e.id} className="text-[11px] text-wm-text leading-snug" style={{ overflowWrap: "anywhere" }}>

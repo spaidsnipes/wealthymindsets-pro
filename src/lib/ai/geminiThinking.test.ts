@@ -8,7 +8,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { geminiGenerationConfig, modelThinksByDefault, SPAIDBOT_MAX_OUTPUT_TOKENS } from "./geminiModel";
-import { ANSWER_CUT_NOTE, relayModelStream } from "./upstreamBounds";
+import { ANSWER_CUT_NOTE, answerStoppedNote, relayModelStream } from "./upstreamBounds";
 
 describe("SpaidBot generation config — thinking off, room to answer", () => {
   it("gemini-2.5+ flash thinks by default; 2.0 flash does not", () => {
@@ -42,5 +42,19 @@ describe("SpaidBot generation config — thinking off, room to answer", () => {
     expect(out).toContain('"text":"Here is the breakdown"');
     expect(out).toContain(JSON.stringify({ text: ANSWER_CUT_NOTE }).slice(1, -1));
     expect(out.trim().endsWith("data: [DONE]")).toBe(true);
+  });
+
+  it("an answer stopped for any other reason names the model's reason; every text part is relayed", async () => {
+    const upstream = new Response(
+      'data: {"candidates":[{"content":{"parts":[{"text":"Here is"},{"text":" the breakdown"}]}}]}\n\n'
+      + 'data: {"candidates":[{"content":{"parts":[{"text":" of the gap"}]},"finishReason":"RECITATION"}]}\n\n',
+      { status: 200 },
+    );
+    const out = await new Response(relayModelStream(upstream, new AbortController())).text();
+    expect(out).toContain('"text":"Here is the breakdown"');
+    expect(out).toContain("the model's reason: RECITATION");
+    expect(answerStoppedNote("SAFETY<script>")).toContain("reason: SAFETYscript.");
+    const clean = new Response('data: {"candidates":[{"content":{"parts":[{"text":"Done."}]},"finishReason":"STOP"}]}\n\n', { status: 200 });
+    expect(await new Response(relayModelStream(clean, new AbortController())).text()).not.toContain("stopped early");
   });
 });

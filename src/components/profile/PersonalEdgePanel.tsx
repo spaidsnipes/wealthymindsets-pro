@@ -1,4 +1,5 @@
 "use client";
+import { INSUFFICIENT, STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
 import * as React from "react";
 import { contextEvidenceLine, type PersonalEdgeVM, type ContextBucket } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
 
@@ -131,9 +132,10 @@ function Metric({
           marginTop: 4,
           fontFamily: "system-ui, -apple-system, sans-serif",
         }}
-        aria-label={unknown ? `${label} unknown` : `${label} ${format(value as number)}`}
+        aria-label={unknown ? `${label}: ${INSUFFICIENT} — fewer than ${STAT_SAMPLE_MIN} decisions` : `${label} ${format(value as number)}`}
+        title={unknown ? `${INSUFFICIENT} — fewer than ${STAT_SAMPLE_MIN} decisions` : undefined}
       >
-        {unknown ? "?" : format(value as number)}
+        {unknown ? <span data-testid="edge-metric-insufficient" style={{ fontSize: 10, letterSpacing: 0.3 }}>{INSUFFICIENT}</span> : format(value as number)}
       </div>
     </div>
   );
@@ -153,8 +155,8 @@ function BucketList({
   return (
     <div role="list" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       {buckets.map((b) => {
-        const avgRText = typeof b.avgRealizedR === "number" ? b.avgRealizedR.toFixed(2) : "?";
-        const winRateText = typeof b.winRate === "number" ? `${Math.round(b.winRate * 100)}%` : "?";
+        const avgRText = typeof b.avgRealizedR === "number" ? b.avgRealizedR.toFixed(2) : "—";
+        const winRateText = typeof b.winRate === "number" ? `${Math.round(b.winRate * 100)}%` : INSUFFICIENT;
         const clickable = !!onBucketClick;
         return (
           <button

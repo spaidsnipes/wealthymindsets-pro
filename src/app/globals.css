@@ -201,6 +201,27 @@
   white-space: nowrap;
 }
 .wm-chart-market-standing-label { color: #8b8fa8; font-size: 9px; letter-spacing: .08em; }
+/* Small-type pass (2026-10-07): 11 px where the strip fits (fit-checked at 834 / 1180 / 1440).
+   Phones stay at 9 px — the centred strip is already wider than a 390 screen (starts at x −26),
+   so larger words would push "DAY BIAS" further off-screen until the chart lane re-lays it out. */
+@media (min-width: 480px) { .wm-chart-market-standing-label { font-size: 11px; } }
+/* PHONE RE-LAYOUT (cert lane, serving 390, 2026-10-07 night): centred at 50%
+   the 358 px strip started at x −26 — "DAY BIAS" off-screen — and overlapped
+   the "D" button (x 8…30). Under 480 px it is LEFT-anchored right of that
+   button and WRAPS inside the glass instead of overflowing it (still
+   absolute; the 1280 px static pin is untouched), so it can take 11 px later. */
+@media (max-width: 479px) {
+  .wm-chart-market-standing {
+    left: 36px;
+    right: 8px;
+    transform: none;
+    flex-wrap: wrap;
+    row-gap: 2px;
+    white-space: normal;
+    width: auto;
+    max-width: calc(100% - 44px);
+  }
+}
 .wm-chart-market-standing [data-standing-direction="BULL"] { color: #00d4aa; }
 .wm-chart-market-standing [data-standing-direction="BEAR"] { color: #ff4d6a; }
 .wm-chart-market-standing [data-standing-direction="SIDE"] { color: #f0b429; }

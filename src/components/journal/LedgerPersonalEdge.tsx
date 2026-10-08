@@ -184,7 +184,7 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
           <ol style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6, fontSize: 12, color: INK }}>
             {study.map(x => (
               <li key={`${x.dimension}-${x.bucket.key}`}>
-                <b>{x.dimension}: {x.bucket.key}</b> — {x.bucket.n} trades, {usd(x.bucket.expectancy)} per trade (<span style={{ color: tone(x.bucket.vsOverall) }}>{usd(x.bucket.vsOverall)}</span> {x.dimension === "Pattern from your fills" ? "vs trades without it" : "vs your average"}), {usd(x.bucket.net)} in all.
+                <b>{x.dimension}: {x.bucket.key}</b> — {x.bucket.n} trades, {guardCell(x.bucket.n, usd(x.bucket.expectancy))} per trade (<span style={{ color: tone(x.bucket.vsOverall) }}>{usd(x.bucket.vsOverall)}</span> {x.dimension === "Pattern from your fills" ? "vs trades without it" : "vs your average"}), {usd(x.bucket.net)} in all.
                 <div style={{ fontSize: 11, color: MUTED }}>
                   Capability: {x.capability}.{" "}
                   {x.lesson ? <Link href={lessonHref(x.lesson.id)} style={{ color: GOLD }}>Study “{x.lesson.title}” →</Link> : <span>The Academy has no lesson for this yet.</span>}

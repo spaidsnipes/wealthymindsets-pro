@@ -95,6 +95,15 @@ export async function readWithIdleTimeout<T>(
 
 type GeminiChunk = { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }> };
 
+/**
+ * Said when the model stopped for any reason other than finishing (serving
+ * 05670f2: a reply ended after one sentence with no word of why). The reason
+ * is the model's own word (SAFETY, RECITATION, OTHER …), never hidden.
+ */
+export function answerStoppedNote(reason: string): string {
+  return `\n\n_(The answer stopped early — the model's reason: ${reason.replace(/[^A-Z_]/gi, "").slice(0, 40) || "not given"}. Ask again or rephrase.)_`;
+}
+
 /** Said when the model stopped at the length limit — an answer is never cut silently. */
 export const ANSWER_CUT_NOTE = "\n\n_(The answer stopped at the length limit — ask \"continue\" for the rest.)_";
 
@@ -127,9 +136,12 @@ export function relayModelStream(
             if (!t || t === "data: [DONE]" || !t.startsWith("data: ")) continue;
             try {
               const chunk = JSON.parse(t.slice(6)) as GeminiChunk;
-              const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
+              // Every text part, not only the first (a chunk may carry several).
+              const text = (chunk.candidates?.[0]?.content?.parts ?? []).map(p => (typeof p.text === "string" ? p.text : "")).join("");
               if (text) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
-              if (chunk.candidates?.[0]?.finishReason === "MAX_TOKENS") controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: ANSWER_CUT_NOTE })}\n\n`));
+              const why = chunk.candidates?.[0]?.finishReason;
+              if (why === "MAX_TOKENS") controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: ANSWER_CUT_NOTE })}\n\n`));
+              else if (why && why !== "STOP" && why !== "FINISH_REASON_UNSPECIFIED") controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: answerStoppedNote(why) })}\n\n`));
             } catch { /* a malformed frame is skipped */ }
           }
         }

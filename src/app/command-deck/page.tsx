@@ -597,7 +597,7 @@ function CommandDeckInner() {
       barsPresent: (deckCandles?.length ?? 0) > 0,
       lastObservedAtMs: wsFeed.lastObservedAtMs,
       connected: wsFeed.connected,
-      sessionOpen: quoteSession.closed,
+      sessionOpen: quoteSession.sessionOpen,
       sessionDetail: quoteSession.detail,
       // The deck carries NO companion camera — it has no replay engine and no
       // control that starts one. `false` here is a measured fact about this
@@ -615,7 +615,7 @@ function CommandDeckInner() {
   const deckHonesty = React.useMemo(() => {
     const src = wsFeed.source === "unavailable" ? null : wsFeed.source;
     const badge = resolveChartSurfaceBadge(
-      wsFeed.source, wsFeed.connected, (deckCandles?.length ?? 0) > 0, sessionOpen,
+      wsFeed.source, wsFeed.connected, (deckCandles?.length ?? 0) > 0, quoteSession.sessionOpen,
       {
         present: Number.isFinite(wsFeed.ticker.price) && wsFeed.ticker.price > 0,
         fresh: quoteFreshness(src, wsFeed.lastObservedAtMs, deckQuoteClockMs),
@@ -630,7 +630,7 @@ function CommandDeckInner() {
       // The deck places nothing: no adapter owns its price.
       execution: { adapterOwnsCanvasPrice: false },
     });
-  }, [wsFeed.source, wsFeed.connected, wsFeed.ticker.price, wsFeed.lastObservedAtMs, deckCandles, sessionOpen, deckQuoteClockMs, state?.capturedAt]);
+  }, [wsFeed.source, wsFeed.connected, wsFeed.ticker.price, wsFeed.lastObservedAtMs, deckCandles, quoteSession.sessionOpen, deckQuoteClockMs, state?.capturedAt]);
 
   const expressionDirection = expressionDirectionFromCanonical(state?.direction);
   const expressionOwner = user?.id ?? "signed-out";
@@ -2748,7 +2748,8 @@ function CommandDeckInner() {
                 // Canon §8 — the deck's bars/quotes slots claimed an active
                 // session on a closed one. ticks/orderFlow below keep their
                 // own owners; closure governs market-data capabilities only.
-                sessionOpen,
+                // The quote feed's session (night shift 2026-10-07).
+                sessionOpen: quoteSession.sessionOpen,
                 // TICKS lit from real wsFeed tape signal
                 tapeConnected: !wsFeed.connected
                   ? undefined

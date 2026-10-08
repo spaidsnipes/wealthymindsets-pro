@@ -23,7 +23,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { FootprintType, CandleType } from "./ChartsDashboard";
 import { resolveParams, visibleAtTf, type IndicatorSettings } from "./indicatorConfig";
 import { parseExchangeSymbol } from "@/lib/exchanges";
-import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
+import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker, marketClockET } from "@/lib/marketData/canonicalIdentity";
 import { DataVersionGuard } from "@/lib/chartContext";
 import { liveBarIsStale, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
@@ -340,7 +340,8 @@ import { VISUAL_ROLES_EVENT, readStoredRoles, rolesByLayer, clarityRoleOpacity, 
 import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
-import { chartFeedRecency } from "@/lib/chart/chartFeedRecency";
+import { chartFeedRecency, thinSessionRecency } from "@/lib/chart/chartFeedRecency";
+import { readMarketSession } from "@/lib/marketData/marketSessionClock";
 import { bindPriceLegendInset } from "@/lib/chart/priceLegendAxisClearance";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
@@ -2374,6 +2375,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   useEffect(() => { try { composeNotesRef.current = localStorage.getItem(COMPOSE_NOTES_KEY) !== "false"; } catch { /* default ON */ } }, []);
   const deltaKeelCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const deltaKeelPhaseRef = useRef<{ atr: number; rows: number; fresh: boolean } | null>(null);
+  const deltaKeelAtrPendingRef = useRef<string | null>(null);
+  const deltaKeelLaidOnceRef = useRef(false);
   const regimeLightingRef = useRef<RegimeLightingVM | null>(null);
   useEffect(() => { regimeLightingRef.current = regimeLighting ?? null; }, [regimeLighting]);
   const inspectedBarRef = useRef<{ readonly time: number; readonly high: number; readonly low: number } | null>(null);
@@ -11022,12 +11025,33 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // inside the frame. Same instrument + same first bar + grown by ≤ 3 →
           // continue the previous series from its last (then-forming) bar.
           const prevAtr = deltaKeelAtrRef.current;
+          // LOAD PEAK (re-read on serving 05670f2, NQ1! 5m 1180: the ONE frame over
+          // budget was the first — ATR 1.50 + rows 0.80 + layout 1.10 = 3.4 ms):
+          // a full ATR walk is done OFF the paint frame (a task right after it),
+          // and a cold build lays its geometry on the NEXT frame. The keels wait
+          // one or two frames ("WARMING:…") — never a guessed ATR.
+          let atrReadyDK = true;
           if (prevAtr?.key !== akey) {
             const grew = prevAtr && prevAtr.key.startsWith(`${symbol}|`) && prevAtr.first === bs[0]?.time
               && bs.length > prevAtr.atr.length && bs.length - prevAtr.atr.length <= 3;
-            deltaKeelAtrRef.current = { key: akey, first: bs[0]?.time, atr: grew ? extendAtrSeries(prevAtr!.atr, bs) : atrSeries(bs) };
+            if (grew) deltaKeelAtrRef.current = { key: akey, first: bs[0]?.time, atr: extendAtrSeries(prevAtr!.atr, bs) };
+            else if (bs.length < 600) deltaKeelAtrRef.current = { key: akey, first: bs[0]?.time, atr: atrSeries(bs) };
+            else {
+              atrReadyDK = false;
+              if (deltaKeelAtrPendingRef.current !== akey) {
+                deltaKeelAtrPendingRef.current = akey;
+                const barsSnap = bs, firstSnap = bs[0]?.time;
+                setTimeout(() => {
+                  if (deltaKeelAtrPendingRef.current !== akey) return;
+                  deltaKeelAtrRef.current = { key: akey, first: firstSnap, atr: atrSeries(barsSnap) };
+                  deltaKeelAtrPendingRef.current = null;
+                }, 0);
+              }
+            }
           }
           const tAtrDK = performance.now();
+          if (!atrReadyDK) canvas.dataset.barDeltaKeels = "WARMING:ATR";
+          else {
           const atrDK = deltaKeelAtrRef.current!.atr;
           const sidedDK = candleSidedRef.current;
           // Evidence rows are re-read when the camera / bar set changes, else at
@@ -11081,7 +11105,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             for (let i = i1; i >= i0; i--) { const t = bs[i].time as number; if (t !== formingDK) { newestDK = t; break; } }
             deltaKeelLastRef.current = { keels, newest: newestDK };
           }
-          if (!keels.length) {
+          // A cold build with no geometry on hand lays it out next frame.
+          const layoutNextDK = !freshDK && !deltaKeelGeoRef.current && keels.length > 0 && !deltaKeelLaidOnceRef.current;
+          if (layoutNextDK) { deltaKeelLaidOnceRef.current = true; canvas.dataset.barDeltaKeels = "WARMING:LAYOUT"; }
+          else if (!keels.length) {
             canvas.dataset.barDeltaKeels = nTape + nSides === 0 ? "SILENT:NO_SIGNED_EVIDENCE" : "DRAWN:0|BALANCED";
           } else {
             const spacing = (() => { try { return +(tsDK.options().barSpacing ?? 6); } catch { return 6; } })();
@@ -11200,6 +11227,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (sel) canvas.dataset.barDeltaKeelInspect = `${sel.basis}|D${sel.delta}|R${sel.ratio.toFixed(2)}${sel.failed ? "|FAILED_TO_DISPLACE" : ""}`;
             else delete canvas.dataset.barDeltaKeelInspect;
           }
+          } // atrReadyDK
           const ms = performance.now() - t0DK;
           const cr = deltaKeelCostRef.current;
           if (cr.n >= 120) { cr.n = 0; cr.sum = 0; cr.longest = 0; }
@@ -26949,7 +26977,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
      second derivation would agree with the first only until someone edited
      one of them. */
   // Proven closure only (`=== false`): a closed exchange is not a lagging feed.
-  const feedRecency = chartFeedRecency(lastBarT, intervalSec, nowMs, undefined, sessionOpen === false);
+  const feedRecencyClock = chartFeedRecency(lastBarT, intervalSec, nowMs, undefined, sessionOpen === false);
+  // Sheriff (2026-10-07 night): during the thin US-equity OVERNIGHT session a
+  // missing print is the session's nature — calm words, same bar count.
+  const recencySessionVerdict = (() => {
+    const cls = canonicalAssetClass(symbol);
+    if (cls !== "equity" && cls !== "etf") return null;
+    const clockET = marketClockET(new Date(nowMs));
+    return readMarketSession({ symbol, assetClass: cls, clock: clockET, isUsCashIndex: false })?.verdict ?? null;
+  })();
+  const feedRecency = thinSessionRecency(feedRecencyClock, recencySessionVerdict);
   // Sheriff A11 (2026-10-07): the full sentence on desktop / tablet (two-line
   // clamp, A10 KEEP), the short form on a phone — the time never clipped away.
   const recencyWords = (full: string, short: string) => (
@@ -27729,7 +27766,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ) : (
                   // A proven-closed market is a calm fact, not a warning: pearl,
                   // never the amber a lagging feed earns.
-                  <span className="line-clamp-2 text-[10px] font-semibold" style={{ color: feedRecency.kind === "MARKET_CLOSED" ? "#8B92AC" : "#F0B429" }}>
+                  <span className="line-clamp-2 text-[10px] font-semibold" style={{ color: feedRecency.kind === "THIN_SESSION" ? "#8B92AC" : feedRecency.kind === "MARKET_CLOSED" ? "#8B92AC" : "#F0B429" }}>
                     {showFidelityChrome
                       ? recencyWords(`${status.label} · ${feedRecency.glyph}`, `${status.label} · ${feedRecency.short}`)
                       : recencyWords(feedRecency.glyph, feedRecency.short)}

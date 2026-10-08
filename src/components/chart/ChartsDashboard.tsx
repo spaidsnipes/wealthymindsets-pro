@@ -1596,7 +1596,6 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // for every grader of the quote feed — masthead, symbol-row badge, capability
   // report — so a quiet overnight tape never reads STALE PIPELINE.
   const quoteSession = useQuoteSessionClosure(symbol);
-  const quoteSessionOpen = quoteSession.closed;
   // Read at component level, never inside the REGIME chip's render callback —
   // a hook called from inside JSX is the React #310 defect. `null` until mount,
   // which is exactly what selectRegimeBadge treats as "no period word yet".
@@ -1851,7 +1850,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       barsPresent: chartBars.length > 0,
       lastObservedAtMs,
       connected,
-      sessionOpen: quoteSessionOpen,
+      sessionOpen: quoteSession.sessionOpen,
       sessionDetail: quoteSession.detail,
       // THE COMPANION CAMERA. Not "is the panel open" — is a camera actually
       // DRIVING these bars. See `cameraWalksHistory`: answering the panel's
@@ -4893,11 +4892,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   );
   const chartSurfaceBadge = React.useMemo(
     () => resolveChartSurfaceBadge(
-      source, connected, chartBars.length > 0, sessionOpen, chartQuoteObservation,
+      source, connected, chartBars.length > 0, quoteSession.sessionOpen, chartQuoteObservation,
       // The badge may not grade a question that is still open.
       barsSettled,
     ),
-    [source, connected, chartBars.length, sessionOpen, chartQuoteObservation, barsSettled],
+    [source, connected, chartBars.length, quoteSession.sessionOpen, chartQuoteObservation, barsSettled],
   );
 
   /* ── ONE CAPABILITY REPORT, TWO READERS — 2026-09-26 ────────────────────────
@@ -4914,7 +4913,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         hasCandles: chartBars.length > 0,
         quoteObservation: chartQuoteObservation,
         // Closure outranks the provider verdict for bars + quotes.
-        sessionOpen: quoteSessionOpen,
+        sessionOpen: quoteSession.sessionOpen,
         // ticks / depth / options / greeks: unwired on
         // ChartsDashboard; silent per canon §no-silent-override.
         // orderFlow lights when the aggressor selector proves
@@ -4924,7 +4923,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         tapeConnected: chartFlowSnap.hasFlow ? true : undefined,
         orderFlowDerived: chartFlowSnap.hasFlow ? true : undefined,
       }),
-    [source, connected, chartBars.length, chartQuoteObservation, quoteSessionOpen, chartFlowSnap.hasFlow],
+    [source, connected, chartBars.length, chartQuoteObservation, quoteSession.sessionOpen, chartFlowSnap.hasFlow],
   );
 
   /*
@@ -7239,7 +7238,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         onOpenChange={open => actOnChartSelection({ type: open ? "openInspect" : "closeInspect" })}
                         onOpenFootprint={() => setActiveTab("Worksheet")}
                         feed={chartCanvasState?.qualityState ?? null}
-                        sessionClosed={selectCanonicalSessionToken({ symbol, at: sessionClockDate }).token === "CLOSED"}
+                        // The quote feed's session owner (2026-10-07 night): an overnight US
+                        // equity has no live feed by design — Inspect dates the reading
+                        // instead of calling it a feed failure.
+                        sessionClosed={quoteSession.sessionOpen === false}
                         sourceName={source && source !== "unavailable" ? String(source) : null}
                         tapeSourceName={tapeSource ? String(tapeSource) : null}
                         candleReadings={inspectCandleReadings}

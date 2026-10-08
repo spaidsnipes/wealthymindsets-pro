@@ -12,6 +12,7 @@
  * at 3N+ where N is caller-supplied `maturityThreshold`.
  */
 
+import { STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
 import type { DecisionMemorySnapshot } from "./selectProcessLandscape";
 
 export type PlaybookMaturity =
@@ -75,8 +76,8 @@ function classify(n: number, threshold: number): PlaybookMaturity {
 
 export function selectPlaybookDNA(input: PlaybookDNAInput): PlaybookDNAVM {
   const scoped = input.decisions.filter((d) => d.ownerId === input.ownerId);
-  const threshold = input.maturityThreshold ?? 20;
-  const contextThreshold = input.contextThreshold ?? 5;
+  const threshold = input.maturityThreshold ?? STAT_SAMPLE_MIN;
+  const contextThreshold = input.contextThreshold ?? STAT_SAMPLE_MIN;
 
   if (scoped.length === 0) {
     return {

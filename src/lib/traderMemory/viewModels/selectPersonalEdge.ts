@@ -23,6 +23,7 @@
  * Pure, deterministic, owner-scoped by caller.
  */
 
+import { STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
 import type { DecisionMemorySnapshot } from "./selectProcessLandscape";
 
 export type PersonalEdgeResolution = "RESOLVED" | "PARTIAL" | "UNKNOWN";
@@ -101,9 +102,9 @@ export interface PersonalEdgeInput {
   readonly ownerId: string;
   readonly decisions: readonly DecisionMemorySnapshot[];
   readonly nowMs: number;
-  /** Min bucket sample for RESOLVED. Default 5 (Founder: never certainty from 3). */
+  /** Min bucket sample for RESOLVED. Default STAT_SAMPLE_MIN (20) — the one n ≥ 20 rule (statGuard). */
   readonly sampleThreshold?: number;
-  /** Min total decisions for overall metrics to be RESOLVED. Default 10. */
+  /** Min total decisions for overall metrics to be RESOLVED. Default STAT_SAMPLE_MIN (20). */
   readonly overallThreshold?: number;
   /** Top-N bucket count returned. Default 3. */
   readonly topN?: number;
@@ -123,8 +124,8 @@ function bucketLabel(d: DecisionMemorySnapshot): string {
 
 export function selectPersonalEdge(input: PersonalEdgeInput): PersonalEdgeVM {
   const scoped = input.decisions.filter((d) => d.ownerId === input.ownerId);
-  const threshold = input.sampleThreshold ?? 5;
-  const overallThreshold = input.overallThreshold ?? 10;
+  const threshold = input.sampleThreshold ?? STAT_SAMPLE_MIN;
+  const overallThreshold = input.overallThreshold ?? STAT_SAMPLE_MIN;
   const topN = input.topN ?? 3;
 
   if (scoped.length === 0) {

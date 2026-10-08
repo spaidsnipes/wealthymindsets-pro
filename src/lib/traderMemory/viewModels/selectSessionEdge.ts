@@ -11,6 +11,7 @@
  * samples — cells below threshold return UNKNOWN, never 0.
  */
 
+import { STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
 import type { DecisionMemorySnapshot } from "./selectProcessLandscape";
 
 const ET_DOW_HOUR = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "2-digit", hourCycle: "h23" });
@@ -93,7 +94,7 @@ function aggregate(
 
 export function selectSessionEdge(input: SessionEdgeInput): SessionEdgeVM {
   const scoped = input.decisions.filter((d) => d.ownerId === input.ownerId);
-  const threshold = input.sampleThreshold ?? 3;
+  const threshold = input.sampleThreshold ?? STAT_SAMPLE_MIN;
 
   if (scoped.length === 0) {
     return {

@@ -377,7 +377,7 @@ export function WebullLifetimeLedger() {
                 <Tile label="Profit factor" value={pf.text} note={pf.note ?? undefined} />
               </>);
             })()}
-            <Tile label="Avg win / loss" value={`${usd(s.avgWin)} / ${usd(s.avgLoss)}`} />
+            <Tile label="Avg win / loss" value={guardStat(s.closed, `${usd(s.avgWin)} / ${usd(s.avgLoss)}`).text} note={guardStat(s.closed, "").note ?? undefined} />
             <Tile label="Max drawdown" value={usd(-s.maxDrawdown)} color={s.maxDrawdown ? DOWN : INK} note="peak → trough, closed trades" />
             <Tile label="Largest win / loss" value={`${usd(s.largestWin)} / ${usd(s.largestLoss)}`} />
           </div>

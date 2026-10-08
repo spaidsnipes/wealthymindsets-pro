@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { chartFeedRecency, phoneClock } from "./chartFeedRecency";
+import { chartFeedRecency, phoneClock, thinSessionRecency } from "./chartFeedRecency";
 
 const SRC = resolve(__dirname, "..", "..");
 
@@ -258,5 +258,21 @@ describe("A11 · phoneClock drops the zone and the leading zero", () => {
   it("04:40 PM CDT → 4:40 PM", () => {
     expect(phoneClock("04:40 PM CDT")).toBe("4:40 PM");
     expect(phoneClock("11:05 AM")).toBe("11:05 AM");
+  });
+});
+
+describe("thin overnight session (Sheriff, 2026-10-07 night)", () => {
+  it("BARS_BEHIND during OVERNIGHT reads THIN_SESSION, keeps the count; other sessions / kinds pass through", () => {
+    const t0 = Date.UTC(2026, 9, 8, 2, 0) / 1000; // 22:00 ET
+    const behind = chartFeedRecency(t0, 300, (t0 + 700) * 1000, "America/New_York");
+    expect(behind.kind).toBe("BARS_BEHIND");
+    const thin = thinSessionRecency(behind, "OVERNIGHT");
+    expect(thin.kind).toBe("THIN_SESSION");
+    expect(thin.barsBehind).toBe(behind.barsBehind);
+    expect(thin.glyph).toMatch(/^OVERNIGHT · THIN TAPE · BAR OPENED /);
+    expect(thin.short).toBe("OVERNIGHT · THIN");
+    expect(thinSessionRecency(behind, "POST")).toBe(behind);
+    const cur = chartFeedRecency(t0, 300, (t0 + 60) * 1000, "America/New_York");
+    expect(thinSessionRecency(cur, "OVERNIGHT")).toBe(cur);
   });
 });
