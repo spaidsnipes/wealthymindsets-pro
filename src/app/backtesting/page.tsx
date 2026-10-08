@@ -34,10 +34,14 @@ type BacktestResult = BTResult;
 
 const SYMBOLS = ["NQ1!", "ES1!", "AAPL", "TSLA", "NVDA", "BTC", "SPY", "GC1!"];
 const STRATEGIES = [
-  { id: "clc",        label: "CLC Rule — OHLCV",           desc: "EMA context + ATR location + volume confirmation" },
-  { id: "vwap",       label: "VWAP Deviation Fade",        desc: "Mean reversion at ±2σ" },
-  { id: "wyckoff",    label: "Wyckoff Spring / UTAD",      desc: "Phase C accumulation/distribution" },
-  { id: "momentum",   label: "Breakout Momentum",          desc: "Volume-confirmed range breaks" },
+  // Night shift 2026-10-07: each name and line says what lib/backtest/engine.ts
+  // signalAt() actually tests. "VWAP" there is a ROLLING 20-bar VWAP (not the
+  // session VWAP), and the old "Wyckoff … Phase C" detected no Wyckoff phase —
+  // it is a 20-bar range sweep that closes back inside.
+  { id: "clc",        label: "CLC Rule — OHLCV",           desc: "Fast EMA above/below slow + close within 0.5 ATR of the fast EMA + bar volume 1.1× its 20-bar average" },
+  { id: "vwap",       label: "Rolling-VWAP Deviation Fade", desc: "Fade a close more than 2σ from the 20-bar rolling VWAP (not the session VWAP)" },
+  { id: "wyckoff",    label: "Range Sweep & Reclaim",      desc: "Wick beyond the 20-bar high/low that closes back inside (spring / upthrust style — no Wyckoff phase is detected)" },
+  { id: "momentum",   label: "20-Bar Range Break",         desc: "Close beyond the 20-bar high/low on volume 1.4× its 20-bar average" },
 ];
 const TIMEFRAMES = CHART_TF_SHIPPED;
 const DATE_RANGES = [

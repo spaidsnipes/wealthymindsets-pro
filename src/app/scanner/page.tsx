@@ -1,5 +1,6 @@
 "use client";
 
+import { PRESET_LABEL, SIGNAL_LABEL } from "./signalLabels";
 import { scannerPriceText } from "./scannerPriceText";
 import { scannerEmptyReason } from "@/lib/scanner/scannerEmptyReason";
 import toast from "react-hot-toast";
@@ -132,26 +133,26 @@ type SortKey = "time" | "changePct" | "volRatio" | "rsi" | "strength";
 type SortDir = "asc" | "desc";
 
 const SIGNAL_META: Record<Signal, { label: string; color: string; icon: string }> = {
-  "momentum-long":  { label:"Momentum Long",    color:"#00D4AA", icon:"🚀" },
-  "momentum-short": { label:"Momentum Short",   color:"#FF4D6A", icon:"📉" },
-  "breakout-bull":  { label:"Breakout ↑",       color:"#4FA3E0", icon:"⬆" },
-  "breakout-bear":  { label:"Breakdown ↓",      color:"#FF4D6A", icon:"⬇" },
-  "volume-surge":   { label:"Volume Surge",      color:"#F0B429", icon:"⚡" },
-  "dark-pool":      { label:"Dark Pool Print",   color:"#8B5CF6", icon:"🌑" },
-  "vwap-reclaim":   { label:"VWAP Reclaim",      color:"#00D4AA", icon:"🎯" },
+  "momentum-long":  { label:SIGNAL_LABEL["momentum-long"],    color:"#00D4AA", icon:"🚀" },
+  "momentum-short": { label:SIGNAL_LABEL["momentum-short"],   color:"#FF4D6A", icon:"📉" },
+  "breakout-bull":  { label:SIGNAL_LABEL["breakout-bull"],       color:"#4FA3E0", icon:"⬆" },
+  "breakout-bear":  { label:SIGNAL_LABEL["breakout-bear"],      color:"#FF4D6A", icon:"⬇" },
+  "volume-surge":   { label:SIGNAL_LABEL["volume-surge"],      color:"#F0B429", icon:"⚡" },
+  "dark-pool":      { label:SIGNAL_LABEL["dark-pool"],   color:"#8B5CF6", icon:"🌑" },
+  "vwap-reclaim":   { label:SIGNAL_LABEL["vwap-reclaim"],      color:"#00D4AA", icon:"🎯" },
   // Night shift 2026-10-07 (cert lane): "Gap Fill" sat beside the FVG strip
   // and promised a fill. The ladder (scannerSignalEvidence.ts) reaches this key
   // by FALL-THROUGH — no other condition matched; no gap is measured at all —
   // so the honest words are a range with no trigger. The key stays (filters).
-  "gap-fill":       { label:"Range · no trigger", color:"#F0B429", icon:"↩" },
-  "wyckoff-accum":  { label:"Wyckoff Accum.",    color:"#00D4AA", icon:"⚖" },
-  "wyckoff-dist":   { label:"Wyckoff Dist.",     color:"#FF4D6A", icon:"⚖" },
-  "cvd-div-bull":   { label:"CVD Divergence ↑",  color:"#4FA3E0", icon:"〰" },
-  "cvd-div-bear":   { label:"CVD Divergence ↓",  color:"#FF4D6A", icon:"〰" },
-  "options-flow":   { label:"Options Flow",      color:"#8B5CF6", icon:"💎" },
-  "earnings-play":  { label:"Earnings Play",     color:"#F0B429", icon:"📊" },
-  "fib-bounce":     { label:"Fib Bounce",        color:"#4FA3E0", icon:"🌀" },
-  "supply-reject":  { label:"Supply Reject",     color:"#FF4D6A", icon:"⛔" },
+  "gap-fill":       { label:SIGNAL_LABEL["gap-fill"], color:"#F0B429", icon:"↩" },
+  "wyckoff-accum":  { label:SIGNAL_LABEL["wyckoff-accum"],    color:"#00D4AA", icon:"⚖" },
+  "wyckoff-dist":   { label:SIGNAL_LABEL["wyckoff-dist"],     color:"#FF4D6A", icon:"⚖" },
+  "cvd-div-bull":   { label:SIGNAL_LABEL["cvd-div-bull"],  color:"#4FA3E0", icon:"〰" },
+  "cvd-div-bear":   { label:SIGNAL_LABEL["cvd-div-bear"],  color:"#FF4D6A", icon:"〰" },
+  "options-flow":   { label:SIGNAL_LABEL["options-flow"],      color:"#8B5CF6", icon:"💎" },
+  "earnings-play":  { label:SIGNAL_LABEL["earnings-play"],     color:"#F0B429", icon:"📊" },
+  "fib-bounce":     { label:SIGNAL_LABEL["fib-bounce"],        color:"#4FA3E0", icon:"🌀" },
+  "supply-reject":  { label:SIGNAL_LABEL["supply-reject"],     color:"#FF4D6A", icon:"⛔" },
 };
 
 const STRENGTH_COLOR: Record<AlertStrength, string> = {
@@ -583,12 +584,12 @@ function buildResults(
 }
 
 const PRESETS = [
-  { id:"hot",      label:"🔥 Hot Movers",   sigs:["momentum-long","breakout-bull","volume-surge"] as Signal[] },
-  { id:"volume",   label:"⚡ Real Volume",   sigs:["volume-surge"] as Signal[] },
-  { id:"reclaim",  label:"🎯 Reclaims",      sigs:["vwap-reclaim","fib-bounce"] as Signal[] },
-  { id:"short",    label:"🩸 Shorts",        sigs:["momentum-short","breakout-bear","supply-reject"] as Signal[] },
-  { id:"range",    label:"↩ Range / Gap",    sigs:["gap-fill","fib-bounce","supply-reject"] as Signal[] },
-  { id:"all",      label:"📋 All",           sigs:SIGNALS },
+  { id:"hot",      label:PRESET_LABEL.hot,   sigs:["momentum-long","breakout-bull","volume-surge"] as Signal[] },
+  { id:"volume",   label:PRESET_LABEL.volume,   sigs:["volume-surge"] as Signal[] },
+  { id:"reclaim",  label:PRESET_LABEL.reclaim,      sigs:["vwap-reclaim","fib-bounce"] as Signal[] },
+  { id:"short",    label:PRESET_LABEL.short,        sigs:["momentum-short","breakout-bear","supply-reject"] as Signal[] },
+  { id:"range",    label:PRESET_LABEL.range,    sigs:["gap-fill","fib-bounce","supply-reject"] as Signal[] },
+  { id:"all",      label:PRESET_LABEL.all,           sigs:SIGNALS },
 ];
 
 /*

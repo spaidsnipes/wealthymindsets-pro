@@ -28,6 +28,8 @@ interface Realm {
   external?: boolean;
   glyph: string;
   active?: boolean;
+  /** A door that opens onto something not yet real says so on the card. */
+  note?: string;
 }
 
 const REALMS: readonly Realm[] = [
@@ -35,7 +37,9 @@ const REALMS: readonly Realm[] = [
   // No host → no door (it used to open WM itself); shown like the other realms not yet open.
   { key: "dreamboard",   label: "DREAMBOARD",  tagline: "Plan · Create · Manifest",   href: DREAMBOARD_URL ? `${DREAMBOARD_URL}/` : undefined, external: true, glyph: "★" },
   { key: "powertribes",  label: "POWERTRIBES", tagline: "Lead · Build · Scale",        glyph: "✦" },
-  { key: "marketplace",  label: "MARKETPLACE", tagline: "Merch · Books · Lifestyle",   href: "/shop", glyph: "◈" },
+  // Night shift 2026-10-07: the card read like a live store; /shop itself is a
+  // concept catalog with checkout not connected. The card now says so.
+  { key: "marketplace",  label: "MARKETPLACE", tagline: "Merch · Books · Lifestyle",   href: "/shop", glyph: "◈", note: "concept catalog" },
   { key: "games",        label: "GAMES",       tagline: "Play · Compete · Conquer",    glyph: "⬢" },
 ];
 
@@ -90,7 +94,7 @@ export function RealmGateway({ currentKey = "wm-pro", className }: RealmGatewayP
           const clickable = !!r.href;
           const disabled = !r.href;
           const label = clickable
-            ? `Open ${r.label}${isCurrent ? " (current realm)" : ""}${r.external ? " (opens in new tab)" : ""}`
+            ? `Open ${r.label}${r.note ? ` (${r.note})` : ""}${isCurrent ? " (current realm)" : ""}${r.external ? " (opens in new tab)" : ""}`
             : `${r.label} — coming soon`;
           return (
             <button
@@ -153,6 +157,11 @@ export function RealmGateway({ currentKey = "wm-pro", className }: RealmGatewayP
               >
                 {r.tagline}
               </span>
+              {!disabled && r.note ? (
+                <span style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: "#8a8271", marginTop: 2 }}>
+                  {r.note}
+                </span>
+              ) : null}
               {disabled && (
                 <span
                   style={{
