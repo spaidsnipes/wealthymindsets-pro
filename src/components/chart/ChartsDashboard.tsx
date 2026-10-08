@@ -5457,7 +5457,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               // visible budget) — the same scene the chart painted, never a
               // second ledger. Absent while the layer is off.
               ...(fvgOn && fvgScene
-                ? { fvg: spaidbotFvgScene({ objects: [...fvgScene.visibility.open, ...fvgScene.visibility.scars], selectedObjectId: selectedMarketObjectId }) }
+                ? { fvg: spaidbotFvgScene({ objects: [...fvgScene.visibility.open, ...fvgScene.visibility.scars], selectedObjectId: selectedMarketObjectId, selectedRelationships: fvgRelationships?.reading ?? null }) }
                 : {}),
             };
           })(),

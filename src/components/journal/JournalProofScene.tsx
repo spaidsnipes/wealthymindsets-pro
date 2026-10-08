@@ -19,7 +19,8 @@ import React, { useMemo } from "react";
 import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { PlanAdherenceView } from "@/components/journal/PlanAdherenceBySetup";
 import { FvgExamplesView } from "@/components/education/FvgLessonBody";
-import { FvgContextSplitsView, ManagementCounterfactualView } from "@/components/journal/FvgContextSplitsView";
+import { FvgContextSplitsView, FvgReviewQuestionsView, ManagementCounterfactualView } from "@/components/journal/FvgContextSplitsView";
+import { additionalEvidenceComparison, fillTargetComparison, fillTargetSample, gapDecisionFrom } from "@/lib/journal/planFvgFillTargets";
 import { JOURNAL_FIXTURE_BANNER, journalFixture } from "@/lib/journal/journalProofFixture";
 import { fvgReferenceSentence } from "@/lib/journal/fvgDecisionReference";
 import { behaviourCases } from "@/lib/journal/managementBehaviours";
@@ -30,6 +31,13 @@ export function JournalProofScene(): React.ReactElement {
   const f = useMemo(() => journalFixture(), []);
   const shown = f.entries.slice(0, 6);
   const behaviours = useMemo(() => behaviourCases(), []);
+  // §41: the 24 sample decisions (all targets 2R beyond the entry; references price-only) answer with
+  // counts and INSUFFICIENT; a second synthetic set of 48 gap decisions shows the MEASURED form.
+  const q41 = useMemo(() => {
+    const book = f.entries.map(e => gapDecisionFrom({ id: e.id, fvgRef: e.fvgRef, plan: e.plan, entryPx: e.actuals.entry?.px ?? null, exitPx: e.actuals.exits[0]?.px ?? null, realizedR: e.realizedR }));
+    const wide = fillTargetSample();
+    return { book: { fill: fillTargetComparison(book), evidence: additionalEvidenceComparison(book) }, wide: { fill: fillTargetComparison(wide), evidence: additionalEvidenceComparison(wide) } };
+  }, [f]);
   return (
     <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto" data-testid="journal-proof-scene" data-proof-scene="journal-fixture">
       <div role="status" data-testid="journal-proof-banner"
@@ -77,6 +85,11 @@ export function JournalProofScene(): React.ReactElement {
         <PlanAdherenceView rows={f.adherence} fvgRows={f.studyRows} edge={f.counterfactual} edgeNote="Read from the sample ledger in this page — nothing was fetched." showEdge onCompare={() => {}} />
         <FvgContextSplitsView rows={f.splits} />
         <ManagementCounterfactualView m={f.management} />
+        <div data-testid="journal-proof-q41-book"><FvgReviewQuestionsView fill={q41.book.fill} evidence={q41.book.evidence} /></div>
+        <div data-testid="journal-proof-q41-wide" className="mt-2">
+          <span className="block text-[10px] text-wm-text-muted">A second synthetic set — 48 sample gap decisions — so the measured form can be read:</span>
+          <FvgReviewQuestionsView fill={q41.wide.fill} evidence={q41.wide.evidence} />
+        </div>
       </section>
 
       <section aria-label="Academy — my examples (sample)" data-testid="journal-proof-academy" className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">

@@ -205,6 +205,13 @@ const MTF_TAG_TICKS: Readonly<Record<string, number>> = { "1H": 1, "4H": 2, D: 3
  */
 /** Profile Memory session identity dots (ASK-5): S-1 one … capped. */
 const PM_SESSION_DOTS_MAX = 4;
+/** Liquidity Lifecycle: a pool band is drawn at least this tall (ASK-6); width stays its true time. */
+const LIFECYCLE_MIN_H = 6;
+/** Profile DNA, one salience step (ASK-6): quieter than the profile body (0.76), louder than 0.45 / 0.5. */
+const DNA_SPINE_A = 0.6;
+const DNA_BRACKET_A = 0.65;
+/** Footprint imbalance cells: outlined, at least this tall (ASK-6). */
+const IMB_CELL_MIN_H = 3;
 const LEVEL_FORM_DASH: Readonly<Record<"POC" | "EDGE", readonly number[]>> = { POC: [], EDGE: [3, 4] };
 function strokeLevelForm(ctx: CanvasRenderingContext2D, y: number, x0: number, x1: number, ink: string, kind: "POC" | "EDGE"): void {
   ctx.save();
@@ -402,6 +409,7 @@ import type { ValueCandleBarsVM, ValueCandleVM } from "@/lib/marketData/viewMode
 import { selectDeltaDivergenceGlass } from "@/lib/marketData/viewModels/selectDeltaDivergenceGlass";
 import type { DeltaDivergenceVM } from "@/lib/marketData/viewModels/selectDeltaDivergence";
 import { selectLiquidityWeatherGlass } from "@/lib/marketData/viewModels/selectLiquidityWeatherGlass";
+import { derivativesPressureTint, weatherGrain } from "@/lib/chart/stateTextureReceipts";
 import { heatRampColor, selectHeatLens } from "@/lib/marketData/viewModels/selectHeatLens";
 import { HEAT_SMOKE_LAYER_WEIGHT } from "@/lib/marketData/viewModels/selectHeatLens";
 import type { LiquidityWeatherVM } from "@/lib/marketData/viewModels/selectLiquidityWeather";
@@ -460,6 +468,7 @@ import type { RegimeLightingVM } from "@/lib/marketData/viewModels/selectRegimeL
 import { selectRegimeFixtures } from "@/lib/marketData/viewModels/selectRegimeFixtures";
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { readCvdNotches, cvdNotchProvenance } from "@/lib/chart/cvdRelationship";
+import { paintQuestionMark, QUESTION_MARK_SHAPE } from "@/lib/chart/questionLensMark";
 import { PRICE_ADJACENT_FLOOR, TIER_CEILING, selectAttentionGovernor, type AttentionSelection } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
 import { selectQuestionLens, type QuestionChoice, type QuestionLensVM } from "@/lib/marketData/viewModels/selectQuestionLens";
@@ -9208,6 +9217,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.fillRect(x, rowY, colW, rH);
             ctx.fillStyle = ink(0.95);
             ctx.fillRect(buy ? x + colW - 3 : x, rowY, 3, rH);
+            // ASK-6 (Sheriff re-run 69fb204: "small imbalance cells", weak
+            // salience): every imbalanced cell carries a 1px outline in its
+            // side's ink, at least IMB_CELL_MIN_H tall — the cell reads as a
+            // cell at MID, not as a tint smear.
+            ctx.strokeStyle = ink(0.85); ctx.lineWidth = 1; ctx.setLineDash([]);
+            ctx.strokeRect(x + 0.5, rowY + 0.5, Math.max(1, colW - 1), Math.max(IMB_CELL_MIN_H, rH) - 1);
             rowsTinted++;
           });
           for (const run of imbalanceRuns(reads)) {
@@ -9256,6 +9271,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
         ctx.restore();
         canvas.dataset.imbalanceRows = String(rowsTinted);
+        canvas.dataset.imbalanceCellsSalience = `OUTLINE1|MIN_H${IMB_CELL_MIN_H}`;
         canvas.dataset.imbalanceRuns = String(runsFound);
         canvas.dataset.imbalanceRunWords = String(runWords);
       } } catch (err) { layerFault("FP_IMBALANCE", err); }
@@ -14937,6 +14953,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ctx.lineWidth = 1;
                     ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, W - 76 - x0, Math.round(h));
                     ctx.restore();
+                    // ASK-5 · THE QUESTION'S IDENTITY MARK (2026-10-08): which
+                    // question was asked reads with every word erased — one
+                    // ivory mark per kind, from the house primitives, at the
+                    // band's own start (questionLensMark.ts owns the set).
+                    {
+                      const qk = lens.kind;
+                      const mx = Math.max(keepOutMinX() + 8, x0 + 10), my = Math.round(top + h / 2);
+                      if (qk && paintQuestionMark(ctx, qk, mx, my, "rgba(237,230,211,0.95)")) ds.questionLensMark = `${qk}:${QUESTION_MARK_SHAPE[qk]}`;
+                      else delete ds.questionLensMark;
+                    }
                     // MOCK 4's tag on the band: the zone NAMED on price, and —
                     // only when the lens's own control reading says effort was
                     // absorbed — the measured displacement that failed to come.
@@ -18424,11 +18450,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const maxAbs = Math.max(1, ...geo.map(g => Math.abs(g.net)));
               // ASK-5 (Sheriff re-run 69fb204: only MIXED tonight, tint-by-climate
               // unproven): the receipt names how many field rows took each tint.
-              {
-                let posD = 0, negD = 0;
-                for (let i = 0; i < geo.length - 1; i++) { if ((geo[i].net + geo[i + 1].net) / 2 >= 0) posD++; else negD++; }
-                ds.derivativesPressureTint = `NET_POS:BLUE:${posD}|NET_NEG:ORANGE:${negD}`;
-              }
+              // The rule and receipt live in stateTextureReceipts (proved per climate there).
+              ds.derivativesPressureTint = derivativesPressureTint(geo).receipt;
               const paintFieldBase = (mult: number) => {
                 for (let i = 0; i < geo.length - 1; i++) {
                   const a = geo[i], b = geo[i + 1];
@@ -19480,7 +19503,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // element's own left end — never over a candle body (price first).
           const mtfTagTicks: string[] = [];
           const tag = (label: string, yMid: number, ink: string, back: string, xStart: number) => {
-            if (!mtfSpeaks) return "QUIET";
+            if (!mtfSpeaks) {
+              // Narrow / quiet glass withholds the boxed tag; the horizon ticks
+              // still stand at the object's own start (ASK-5, serving 30cb513 @390).
+              const rankQ = MTF_TAG_TICKS[label] ?? 0;
+              ctx.fillStyle = ink;
+              const xq = Math.max(keepOutMinX(), xStart + 3), yq = Math.round(yMid) - 1;
+              for (let k = 0; k < rankQ; k++) ctx.fillRect(xq + k * 3, yq, 1, 4);
+              mtfTagTicks.push(`${label}:${rankQ}:QUIET`);
+              return "QUIET";
+            }
             const ty = Math.max(HEADER_FLOOR_Y + 2, Math.min(paneBotM - TAG_H - 2, yMid - TAG_H / 2));
             const pref = { x: plotRightM - TAG_W - 6, y: ty, w: TAG_W, h: TAG_H };
             const alt = { x: Math.max(keepOutMinX(), xStart + 4), y: ty, w: TAG_W, h: TAG_H };
@@ -20331,12 +20363,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // lane edge, which now cuts through the middle of the body).
                 ctx.save();
                 ctx.lineCap = "butt";
-                ctx.strokeStyle = dna.measured ? pk.rgba("VALUE", 0.45) : pk.rgba("VALUE", 0.25);
-                ctx.lineWidth = 1;
+                // ASK-6 (one step, 2026-10-08): the spine 0.45 → DNA_SPINE_A and
+                // 1.5px — readable at MID, still under the profile it describes.
+                ctx.strokeStyle = dna.measured ? pk.rgba("VALUE", DNA_SPINE_A) : pk.rgba("VALUE", 0.25);
+                ctx.lineWidth = 1.5;
                 ctx.setLineDash(dna.estimated ? [2, 2] : []);
                 ctx.beginPath(); ctx.moveTo(sx, +yHi); ctx.lineTo(sx, +yLo); ctx.stroke();
                 ctx.setLineDash([]);
                 ds.profileDnaSpine = `${Math.round(+yLo)}-${Math.round(+yHi)}`;
+                ds.profileDnaSalience = `STEP1|SPINE:${DNA_SPINE_A}@1.5|BRACKET:${DNA_BRACKET_A}`;
                 // ⑤ DNA (a helix) — the organism glyph at the head of the spine.
                 paintOrganismGlyph("DNA", sx, Math.min(+yHi, +yLo) - 14, pk.rgba("VALUE", 0.9), floatingChips);
                 let yMass: number | null = null;
@@ -20348,7 +20383,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     // ivory bracket read as the loudest bar on the glass
                     // (serving, NQ1! 5m). Same 3px length-is-value-width
                     // geometry, quieter than the profile it describes.
-                    ctx.strokeStyle = pk.rgba("VALUE", 0.5); ctx.lineWidth = 3;
+                    // ASK-6 one step: 0.5 → DNA_BRACKET_A (still below the body's 0.76).
+                    ctx.strokeStyle = pk.rgba("VALUE", DNA_BRACKET_A); ctx.lineWidth = 3;
                     ctx.beginPath(); ctx.moveTo(sx, +yVah); ctx.lineTo(sx, +yVal); ctx.stroke();
                   }
                   const yPoc = dna.poc != null ? srs.priceToCoordinate(dna.poc) : null;
@@ -20949,7 +20985,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             } else {
               // With nothing measured, it says so.
               ds.profileDna = layerOnRef.current.profileDna ? "LIVING_PROFILE_NOT_DRAWN" : "OFF";
-              delete ds.profileDnaShape;
+              delete ds.profileDnaShape; delete ds.profileDnaSalience;
               delete ds.profileDnaSpine;
               delete ds.profileDnaDiamond;
             }
@@ -23927,13 +23963,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // same grain jittered (irregular); UNMEASURED no grain. Material only,
             // behind the candles, inside the glass.
             {
-              const SPACING: Partial<Record<string, number>> = { AIRLESS: 22, THINNING: 16, STEADY: 12, THICKENING: 9, HEAVY: 6, ERRATIC: 10 };
               // Density and regularity only — the ink is the same brass for every
-              // stage (§9: no stage is graded by colour).
-              const stageW: string = glass.stage;
-              const sp = SPACING[stageW];
+              // stage (§9: no stage is graded by colour). The rule and receipt live
+              // in stateTextureReceipts (proved per stage there).
+              const grainW = weatherGrain(glass.stage);
+              const sp = grainW.spacing;
               if (sp) {
-                const erratic = stageW === "ERRATIC";
+                const erratic = grainW.jitter;
                 const grain = new Path2D();
                 let k = 0;
                 for (let gy = L.cy - L.ry + sp / 2; gy < L.cy + L.ry; gy += sp) {
@@ -23946,8 +23982,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.strokeStyle = "rgba(201,165,92,0.22)";
                 ctx.lineWidth = 1;
                 ctx.stroke(grain);
-                ds.liquidityWeatherStageInk = `${glass.stage}:GRAIN${sp}${erratic ? ":JITTER" : ""}`;
-              } else ds.liquidityWeatherStageInk = `${glass.stage}:NONE`;
+                ds.liquidityWeatherStageInk = grainW.receipt;
+              } else ds.liquidityWeatherStageInk = grainW.receipt;
             }
             // GLASS (F08B / G03): a soft specular sheen on the upper-left of
             // the lens and a darker seat at its edge — the lens reads as a
@@ -24430,7 +24466,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const lc = liquidityLifecycleRef.current;
           if (!lc) {
             ds.liquidityLifecycle = "NO_READING";
-            delete ds.liquidityLifecyclePainted;
+            delete ds.liquidityLifecyclePainted; delete ds.liquidityLifecycleSalience;
             delete ds.liquidityLifecycleClipped;
             delete ds.liquidityLifecycleBirths;
             delete ds.liquidityLifecycleShown;
@@ -24507,7 +24543,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.clip("evenodd");
               }
             };
-            let clippedTop = 0, clippedBot = 0;
+            let clippedTop = 0, clippedBot = 0, liftedL = 0;
             // GP12 §64 — WHO SPEAKS WHEN IT IS CROWDED (serving TSLA 15m, the
             // Founder's full layer set, 2026-09-26 05:00 CDT: six ladders ran
             // the whole pane at 374–381 — a band of gold hairlines over a week
@@ -24573,7 +24609,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (!span) { skipL.span++; continue; }
               const yT = srs.priceToCoordinate(pool.high), yB = srs.priceToCoordinate(pool.low);
               if (yT == null || yB == null) { skipL.price++; continue; }
-              const top = Math.min(+yT, +yB), h = Math.max(1, Math.abs(+yB - +yT));
+              // ASK-6 (Sheriff re-run 69fb204: "two tiny marks at the newest bar").
+              // A just-born pool stays one bar WIDE (its birth time is a fact);
+              // its band is drawn at least LIFECYCLE_MIN_H px TALL, about its own
+              // centre price, so the ladder and its marks read at MID.
+              const hTrueL = Math.abs(+yB - +yT);
+              const h = Math.max(LIFECYCLE_MIN_H, hTrueL);
+              const top = (+yT + +yB) / 2 - h / 2;
+              if (hTrueL < LIFECYCLE_MIN_H) liftedL++;
               // A pool whose band (with its glow) reaches past the pane is
               // counted; one wholly above the header floor draws nothing.
               if (top - 10 < paneTopL) clippedTop++;
@@ -24718,8 +24761,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const xs = Math.round(xt) + 0.5;
                 ctx.strokeStyle = `rgba(${INK},${markA})`;
                 if (tk.stage === "APPEARED") {
-                  // BIRTH — a bracket opening the ladder.
-                  ctx.lineWidth = 1.5;
+                  // BIRTH — a bracket opening the ladder (2px: ASK-6 salience).
+                  ctx.lineWidth = 2;
                   ctx.beginPath();
                   ctx.moveTo(xs + 4, top - 5);
                   ctx.lineTo(xs, top - 5);
@@ -24850,6 +24893,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             ctx.restore();
             ds.liquidityLifecyclePainted = `${painted}/${lc.pools.length}`;
+            ds.liquidityLifecycleSalience = `MIN_H${LIFECYCLE_MIN_H}|LIFTED:${liftedL}|BIRTH_W2`;
             // NO SILENT NOTHING (§VIII · §CV): ON with every pool off this
             // camera (serving MNQ 1m: 0/6 painted — five consumed before the
             // view began, one off-price) left an empty glass. Say so.
@@ -24891,7 +24935,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         } else {
           ds.liquidityLifecycle = att.offWord(layerOnRef.current.liquidityLifecycle === true);
-          delete ds.liquidityLifecyclePainted;
+          delete ds.liquidityLifecyclePainted; delete ds.liquidityLifecycleSalience;
           delete ds.liquidityLifecycleClipped;
           delete ds.liquidityLifecycleBirths;
           delete ds.liquidityLifecycleShown;

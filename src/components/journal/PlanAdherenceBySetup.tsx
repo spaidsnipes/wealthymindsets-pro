@@ -25,7 +25,8 @@ import { DEPARTURES } from "@/lib/journal/planAdherence";
 import type { FvgLedger } from "@/lib/marketData/fvg/fvgEngine";
 import { fvgContextSplits, type SplitRow } from "@/lib/journal/planFvgContextSplits";
 import { managementCounterfactual, type ManagementCounterfactual } from "@/lib/journal/planManagementCounterfactual";
-import { FvgContextSplitsView, ManagementCounterfactualView } from "@/components/journal/FvgContextSplitsView";
+import { FvgContextSplitsView, FvgReviewQuestionsView, ManagementCounterfactualView } from "@/components/journal/FvgContextSplitsView";
+import { additionalEvidenceComparison, fillTargetComparison, gapDecisionFrom, type GroupComparison } from "@/lib/journal/planFvgFillTargets";
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3";
 
@@ -37,6 +38,7 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
   const [edgeNote, setEdgeNote] = useState<string | null>(null);
   const [splits, setSplits] = useState<SplitRow[]>([]);
   const [management, setManagement] = useState<ManagementCounterfactual | null>(null);
+  const [q41, setQ41] = useState<{ fill: GroupComparison; evidence: GroupComparison } | null>(null);
   const ownerVersion = useManagementOwnerVersion();
   useEffect(() => {
     try {
@@ -58,8 +60,12 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
       setSplits(refd.length ? fvgContextSplits(refd.map(e => ({ ref: e.fvgRef!, realizedR: e.realizedR ?? null, result: byId.get(e.id) ?? null }))) : []);
       // §24 did management help? A journal entry carries no price path, so the plan-alone side stays
       // INSUFFICIENT with its n until paths are loaded; restraint reads the trader's own recorded R.
+      // §41: the trader's gap decisions, from the stored reference + the frozen plan + the recorded result.
+      const inputById = new Map(reviewed.map(r => [r.e.id, r.input]));
+      const gapDs = refd.map(e => { const inp = inputById.get(e.id); return gapDecisionFrom({ id: e.id, fvgRef: e.fvgRef!, plan: inp?.plan ?? null, entryPx: inp?.actuals?.entry?.px ?? null, exitPx: inp?.actuals?.exits[0]?.px ?? null, realizedR: e.realizedR ?? null }); });
+      setQ41(gapDs.length ? { fill: fillTargetComparison(gapDs), evidence: additionalEvidenceComparison(gapDs) } : null);
       setManagement(reviewed.length ? managementCounterfactual(reviewed.map(r => ({ plan: r.input.plan, actuals: r.input.actuals, path: r.input.path ?? null, result: r.result, realizedR: r.e.realizedR ?? null }))) : null);
-    } catch { setRows([]); setFvgRows([]); setSplits([]); setManagement(null); }
+    } catch { setRows([]); setFvgRows([]); setSplits([]); setManagement(null); setQ41(null); }
   }, [entries, ownerVersion]);
   const withRef = entries.filter(e => e.fvgRef);
   const compare = async () => {
@@ -81,7 +87,7 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
   // An empty book is the Journal's own empty state; this line speaks only once there are trades.
   if (!entries.length) return null;
   return <PlanAdherenceView rows={rows} fvgRows={fvgRows} edge={edge} edgeNote={edgeNote} showEdge={withRef.length > 0} onCompare={() => { void compare(); }}
-    splits={splits} management={management} />;
+    splits={splits} management={management} q41={q41} />;
 }
 
 /** §: no frozen plan in the book yet — say so and name the next action; never a 0% that measures nothing. */
@@ -93,7 +99,8 @@ export const FVG_SPLITS_EMPTY_LINE = "FVG context splits: no Journal entry refer
 export const FVG_SPLITS_CONTEXT_NOTE = "Structure, profile, wall, effort→response, regime and the territory's response are read only when the reference stored them; otherwise they show NOT RECORDED — never re-read from today's chart.";
 
 /** The Personal Edge block itself — pure, so it can be proved without a signed-in book. */
-export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onCompare, splits, management }: {
+export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onCompare, splits, management, q41 }: {
+  readonly q41?: { readonly fill: GroupComparison; readonly evidence: GroupComparison } | null;
   readonly splits?: readonly SplitRow[];
   readonly management?: ManagementCounterfactual | null;
   readonly rows: readonly SetupAdherence[];
@@ -125,6 +132,7 @@ export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onC
   const splitsBlock = splits === undefined ? null : splits.length ? (
     <div style={{ display: "grid", gap: 2 }}>
       <FvgContextSplitsView rows={splits} />
+      {q41 ? <FvgReviewQuestionsView fill={q41.fill} evidence={q41.evidence} /> : null}
       <span data-testid="fvg-splits-context-note" style={{ fontSize: 10.5, color: MUTED }}>{FVG_SPLITS_CONTEXT_NOTE}</span>
     </div>
   ) : (

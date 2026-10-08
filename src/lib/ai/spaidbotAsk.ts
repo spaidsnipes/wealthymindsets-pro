@@ -15,6 +15,7 @@
 
 import { fvgFactsForSpaidbot } from "./spaidbotFvgFacts";
 import type { FvgObject } from "@/lib/marketData/fvg/fvgEngine";
+import type { FvgRelationshipReading } from "@/lib/marketData/fvg/fvgRelationships";
 
 export const SPAIDBOT_ASK_EVENT = "wm:spaidbot-ask" as const;
 export const SPAIDBOT_ASK_MAX = 600;
@@ -53,10 +54,10 @@ export function contextWithAsk(base: Record<string, unknown>, ask: SpaidbotAsk |
  * ("TASTYTRADE:/NQZ26:XCME" — serving 02e593e put that in the question and
  * overrode the chart's symbol), so it is never spoken or patched.
  */
-export function fvgInspectAsk(o: FvgObject, priceDp: number | null): SpaidbotAsk {
+export function fvgInspectAsk(o: FvgObject, priceDp: number | null, relationships: FvgRelationshipReading | null = null): SpaidbotAsk {
   return {
     prompt: `${FVG_ASK_PROMPT} (the selected ${o.direction.toLowerCase()} FVG on this chart, ${o.timeframe})`,
-    context: { fvg: [fvgFactsForSpaidbot(o, true, priceDp)] },
+    context: { fvg: [fvgFactsForSpaidbot(o, true, priceDp, relationships)] },
   };
 }
 

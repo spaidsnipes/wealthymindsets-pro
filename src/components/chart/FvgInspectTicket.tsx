@@ -20,6 +20,7 @@ import { fvgInspectRows, type FvgObject } from "@/lib/chart/fvgGlass";
 import { CONCEPT_EDUCATION } from "@/lib/chart/inventionEducation";
 import { AskSpaidbotButton } from "@/components/ai/AskSpaidbotButton";
 import { fvgInspectAsk } from "@/lib/ai/spaidbotAsk";
+import type { FvgRelationshipReading } from "@/lib/marketData/fvg/fvgRelationships";
 import { fvgInspectLayerOf, FVG_TRUTH_LAYERS } from "@/lib/chart/fvgTruthLayers";
 
 const GOLD = "#d4af37";
@@ -32,7 +33,7 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
   evidence?: React.ReactNode;
   firstTouch?: React.ReactNode;
   /** Relationships BY REFERENCE (fvgInspectRelationships): price-ordered rows, then what is silent. */
-  relationships?: { readonly rows: readonly string[]; readonly silences: readonly string[] } | null;
+  relationships?: { readonly rows: readonly string[]; readonly silences: readonly string[]; readonly reading?: FvgRelationshipReading } | null;
   /** The chart's display decimals, for the SpaidBot fact block (Garden 19 §30). */
   priceDp?: number | null;
   onClose: () => void;
@@ -95,7 +96,7 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
         // Phone (serving 390, 2026-10-07 night): the ticket stood over the SpaidBot
         // panel it had just opened. On a phone the ticket steps aside for the answer;
         // the selection stays, so Inspect reopens on the same gap.
-        const a = fvgInspectAsk(o, priceDp);
+        const a = fvgInspectAsk(o, priceDp, relationships?.reading ?? null);
         if (typeof window !== "undefined" && window.matchMedia?.("(max-width: 639px)").matches) onClose();
         return a;
       }} />

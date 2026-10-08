@@ -20,11 +20,19 @@
  * names its limitations, and says outright that price does not have to fill
  * the gap.
  *
+ * §30 RELATIONSHIPS (2026-10-08): the SELECTED gap also carries its
+ * relationships to other owners' objects — structure, profile, options walls,
+ * liquidity — exactly as `fvgRelationshipsFor` read them for Inspect (the one
+ * relationship owner), as enums and numbers; each family with no reading is
+ * listed as SILENCE with its reason. Order flow has no relationship family:
+ * its only reading is the ORDER_FLOW sense, and the block says so.
+ *
  * PURE. No IO, no clock (the server passes nothing; times are printed as ISO).
  */
 
 import { FVG_STATES, type FvgMitigation, type FvgState } from "@/lib/marketData/fvg/fvgDefinition";
 import type { FvgObject } from "@/lib/marketData/fvg/fvgEngine";
+import type { FvgRelationshipReading } from "@/lib/marketData/fvg/fvgRelationships";
 
 export type FvgSenseEvidenceWord = "FULL" | "PARTIAL" | "DEGRADED" | "SILENCE";
 
@@ -65,6 +73,36 @@ export interface SpaidbotFvgFacts {
   readonly readAsOf: number;
   /** Decimals the instrument's prices print at (pricePrecision.displayPrecisionFor), or null. */
   readonly priceDp: number | null;
+  /** §30 — the selected gap's relationships (fvgRelationshipsFor), when Inspect read them. Absent = not attached. */
+  readonly relationships?: SpaidbotFvgRelationships;
+}
+
+export interface SpaidbotFvgRelationships {
+  readonly rows: readonly {
+    readonly family: string;
+    readonly kind: string;
+    readonly relation: string;
+    readonly price: number;
+    readonly priceHigh: number | null;
+    readonly distance: number;
+    readonly ownerState: string | null;
+    readonly label: string;
+    readonly evidence: string;
+  }[];
+  readonly silences: readonly { readonly family: string; readonly label: string; readonly provenance: string }[];
+}
+
+const MAX_RELATIONSHIPS = 8;
+
+/** The relationship owner's reading as a structured record (client side). */
+export function spaidbotFvgRelationships(reading: FvgRelationshipReading): SpaidbotFvgRelationships {
+  return {
+    rows: reading.relationships.slice(0, MAX_RELATIONSHIPS).map(x => ({
+      family: x.family, kind: x.kind, relation: x.relation, price: x.price, priceHigh: x.priceHigh,
+      distance: x.distance, ownerState: x.ownerState, label: x.source.label, evidence: x.source.evidence,
+    })),
+    silences: reading.sources.filter(s => s.evidence === "SILENCE").map(s => ({ family: s.family, label: s.label, provenance: s.provenance })),
+  };
 }
 
 const MAX_INTERACTIONS = 4;
@@ -77,7 +115,7 @@ function priceEvidence(fidelity: string): FvgSenseEvidenceWord {
 }
 
 /** Project one engine object onto the structured record (client side). */
-export function fvgFactsForSpaidbot(o: FvgObject, selected: boolean, priceDp: number | null = null): SpaidbotFvgFacts {
+export function fvgFactsForSpaidbot(o: FvgObject, selected: boolean, priceDp: number | null = null, relationships: FvgRelationshipReading | null = null): SpaidbotFvgFacts {
   const senses: SpaidbotFvgSense[] = [
     {
       sense: "PRICE_GEOMETRY",
@@ -118,6 +156,7 @@ export function fvgFactsForSpaidbot(o: FvgObject, selected: boolean, priceDp: nu
     interactionsTotal: o.interactions.length,
     readAsOf: o.asOf,
     priceDp,
+    ...(relationships && relationships.objectId === o.objectId ? { relationships: spaidbotFvgRelationships(relationships) } : {}),
   };
 }
 
@@ -131,11 +170,13 @@ export function spaidbotFvgScene(input: {
   readonly selectedObjectId: string | null;
   /** The chart's display decimals (pricePrecision.displayPrecisionFor). */
   readonly priceDp?: number | null;
+  /** §30 — the selected gap's relationships, as Inspect read them (fvgInspectRelationships().reading). */
+  readonly selectedRelationships?: FvgRelationshipReading | null;
 }): SpaidbotFvgFacts[] {
   const dp = input.priceDp ?? null;
   const sel = input.selectedObjectId ? input.objects.find(o => o.objectId === input.selectedObjectId) ?? null : null;
   const rest = input.objects.filter(o => o !== sel);
-  return [...(sel ? [fvgFactsForSpaidbot(sel, true, dp)] : []), ...rest.map(o => fvgFactsForSpaidbot(o, false, dp))].slice(0, MAX_OBJECTS);
+  return [...(sel ? [fvgFactsForSpaidbot(sel, true, dp, input.selectedRelationships ?? null)] : []), ...rest.map(o => fvgFactsForSpaidbot(o, false, dp))].slice(0, MAX_OBJECTS);
 }
 
 /* ── SERVER: validate + write the words ──────────────────────────────────── */
@@ -145,6 +186,14 @@ const WORD_RE = /^[A-Za-z0-9 _.,:()@\-/|]{1,80}$/;
 const STATES = new Set<string>(FVG_STATES);
 const MITIGATIONS = new Set(["NONE", "TOUCHED", "PARTIAL", "DEEP", "FULL"]);
 const RESPONSES = new Set(["REJECTED", "ACCEPTED", "TRADED_THROUGH", "NONE", "OPEN"]);
+const REL_FAMILIES = new Set(["STRUCTURE", "PROFILE", "WALL"]);
+const REL_KINDS: Readonly<Record<string, string>> = {
+  BROKE_SWING: "broke the swing", RECLAIMED_SWING: "reclaimed the swing", SWING_INSIDE: "swing inside",
+  POC: "POC", VAH: "VAH", VAL: "VAL", HVN: "HVN", LVN: "LVN",
+  CALL_WALL: "call wall", PUT_WALL: "put wall", GAMMA_FLIP: "gamma flip", LIQUIDITY_POOL: "liquidity pool",
+};
+const REL_RELATIONS = new Set(["INSIDE", "NEAR", "OVERLAPS", "AT_FORMATION"]);
+const REL_EVIDENCE = new Set(["FULL", "PARTIAL", "DEGRADED", "SILENCE"]);
 
 const fin = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const word = (v: unknown): string | null => (typeof v === "string" && WORD_RE.test(v.trim()) ? v.trim() : null);
@@ -160,6 +209,40 @@ const px = (x: number) => (pxDp !== null ? x.toFixed(pxDp) : String(Number(x.toP
 
 function rec(v: unknown): Record<string, unknown> | null {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+}
+
+/**
+ * §30 — the relationships section, written from the validated record. Every
+ * row is a DERIVED MEASUREMENT from another owner's reading, carried by
+ * reference; nothing re-graded. Unattached → says so (never "none").
+ */
+function relationshipWords(raw: unknown): string {
+  const r = rec(raw);
+  if (!r) return "not attached for this gap (only the selected gap carries its relationships)";
+  const rows = (Array.isArray(r.rows) ? r.rows : []).slice(0, MAX_RELATIONSHIPS).map(rec).filter(Boolean).map(x => {
+    const fam = typeof x!.family === "string" && REL_FAMILIES.has(x!.family) ? x!.family : null;
+    const kind = typeof x!.kind === "string" ? REL_KINDS[x!.kind] ?? null : null;
+    const rel = typeof x!.relation === "string" && REL_RELATIONS.has(x!.relation) ? x!.relation : null;
+    const p = fin(x!.price), hi = x!.priceHigh === null ? null : fin(x!.priceHigh), d = fin(x!.distance);
+    const ev = typeof x!.evidence === "string" && REL_EVIDENCE.has(x!.evidence) ? x!.evidence : null;
+    const label = word(x!.label) ?? fam;
+    if (!fam || !kind || !rel || p === null || d === null || !ev) return null;
+    const where = hi !== null ? `${px(p)}–${px(hi)}` : px(p);
+    const how = rel === "AT_FORMATION" ? "at formation" : rel === "NEAR" ? `near (${px(d)} away)` : rel.toLowerCase();
+    const owner = x!.ownerState === null || x!.ownerState === undefined ? "" : word(x!.ownerState) ? `, owner says ${word(x!.ownerState)}` : "";
+    return `${fam} ${label} ${kind} ${where} ${how}${owner}, evidence ${ev}`;
+  }).filter(Boolean);
+  const silences = (Array.isArray(r.silences) ? r.silences : []).map(rec).filter(Boolean).map(s => {
+    const fam = typeof s!.family === "string" && REL_FAMILIES.has(s!.family) ? s!.family : null;
+    if (!fam) return null;
+    return `${fam} ${word(s!.label) ?? ""} SILENCE${word(s!.provenance) ? ` (${word(s!.provenance)})` : ""}`.replace(/\s+/g, " ");
+  }).filter(Boolean);
+  const parts = [
+    rows.length ? rows.join("; ") : "no relationship to another owner's object",
+    ...(silences.length ? [`silent: ${silences.join("; ")}`] : []),
+    "ORDER_FLOW has no relationship family — its only reading is the ORDER_FLOW sense above",
+  ];
+  return parts.join(". ");
 }
 
 /** One object's block, or null when the record does not validate. */
@@ -246,6 +329,7 @@ export function formatOneFvgFact(raw: unknown): string | null {
     + `OBSERVED FACT: ${observed}. `
     + `DERIVED MEASUREMENT: ${derived}. `
     + `EVIDENCE PER SENSE: ${senses || "not stated"}. `
+    + `RELATIONSHIPS (other owners' readings, by reference, DERIVED MEASUREMENT — not re-graded): ${relationshipWords(r.relationships)}. `
     + `LIMITATIONS: read as of ${iso(readAsOf)} from bars of fidelity ${fid}; a descriptive object, not a forecast — price does not have to fill it; a sense marked SILENCE says nothing either way.`;
 }
 

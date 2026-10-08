@@ -107,7 +107,9 @@ describe("ASK-7 (2026-10-08): the bar Clarity reads carries its own mark", () =>
 
 describe("ASK-5 / ASK-6 receipts (2026-10-08)", () => {
   it("Derivatives Pressure names its tint per state; Value Candle names its CoG reach", () => {
-    expect(CHART).toContain("ds.derivativesPressureTint = `NET_POS:BLUE:${posD}|NET_NEG:ORANGE:${negD}`;");
+    // The tint rule + receipt moved to its owner (2026-10-08, proved per climate in stateTextureReceipts.test.ts).
+    expect(CHART).toContain("ds.derivativesPressureTint = derivativesPressureTint(geo).receipt;");
+    expect(readFileSync(path.join(process.cwd(), "src/lib/chart/stateTextureReceipts.ts"), "utf8")).toContain("receipt: `NET_POS:BLUE:${positive}|NET_NEG:ORANGE:${negative}`");
     expect(CHART).toContain("const cogExt = gw < 7 ? VC_COG_EXT_NARROW : 1;");
   });
 });
@@ -164,5 +166,23 @@ describe("ASK-5 (2026-10-08): Profile Memory names its session without a word", 
     expect(CHART).toContain("const PM_SESSION_DOTS_MAX = 4;");
     expect(CHART).toContain("for (let k = 0; k < sDots; k++) ctx.fillRect(x0 + 3 + k * 4, y - 5, 2, 2);");
     expect(CHART).toContain("ds.profileMemorySessionDots = `DOTS:${pmDots}|MAX:${PM_SESSION_DOTS_MAX}`;");
+  });
+});
+
+describe("ASK-6 design calls (2026-10-08 day shift)", () => {
+  it("Liquidity Lifecycle: a just-born pool keeps its true width, gains a minimum band height", () => {
+    expect(CHART).toContain("const LIFECYCLE_MIN_H = 6;");
+    expect(CHART).toContain("const h = Math.max(LIFECYCLE_MIN_H, hTrueL);");
+    expect(CHART).toContain("ds.liquidityLifecycleSalience = `MIN_H${LIFECYCLE_MIN_H}|LIFTED:${liftedL}|BIRTH_W2`;");
+  });
+  it("Profile DNA: one salience step, still quieter than the profile body", () => {
+    expect(CHART).toContain("const DNA_SPINE_A = 0.6;");
+    expect(CHART).toContain("const DNA_BRACKET_A = 0.65;");
+  });
+  it("imbalance cells: outlined, minimum height", () => {
+    expect(CHART).toContain("canvas.dataset.imbalanceCellsSalience = `OUTLINE1|MIN_H${IMB_CELL_MIN_H}`;");
+  });
+  it("MTF ticks stand even when the narrow glass withholds the tag", () => {
+    expect(CHART).toContain("mtfTagTicks.push(`${label}:${rankQ}:QUIET`);");
   });
 });

@@ -10,6 +10,7 @@
 import React from "react";
 import type { SplitRow } from "@/lib/journal/planFvgContextSplits";
 import type { ManagementCounterfactual } from "@/lib/journal/planManagementCounterfactual";
+import type { GroupComparison } from "@/lib/journal/planFvgFillTargets";
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3", LINE = "rgba(139,106,41,0.25)";
 
@@ -44,6 +45,26 @@ export function ManagementCounterfactualView({ m }: { readonly m: ManagementCoun
       <span data-state={m.departed.state} style={{ fontSize: 11.5, color: m.departed.state === "MEASURED" ? INK : MUTED, overflowWrap: "anywhere" }}>{m.departed.line}</span>
       <span data-state={m.restraint.state} style={{ fontSize: 11.5, color: m.restraint.state === "MEASURED" ? INK : MUTED, overflowWrap: "anywhere" }}>{m.restraint.line}</span>
       <span style={{ fontSize: 10.5, color: MUTED }}>{m.claim}.</span>
+    </div>
+  );
+}
+
+/** §41 two Review questions, factual: far-edge (fill) targets, and an additional sense attached. Counts, then a ≥ 20 comparison. */
+export function FvgReviewQuestionsView({ fill, evidence }: { readonly fill: GroupComparison | null; readonly evidence: GroupComparison | null }) {
+  if (!fill && !evidence) return null;
+  const block = (title: string, c: GroupComparison, id: string) => (
+    <div data-testid={id} data-state={c.state} style={{ display: "grid", gap: 2 }}>
+      <span style={{ fontSize: 10, letterSpacing: 0.8, color: MUTED }}>{title}</span>
+      <span style={{ fontSize: 11.5, color: INK, overflowWrap: "anywhere" }}>{c.countLine}</span>
+      <span style={{ fontSize: 11.5, color: c.state === "MEASURED" ? INK : MUTED, overflowWrap: "anywhere" }}>{c.line}</span>
+    </div>
+  );
+  return (
+    <div data-testid="fvg-review-questions" style={{ display: "grid", gap: 6, marginTop: 6 }}>
+      <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>YOUR GAP DECISIONS · two questions, answered from the record · descriptive only</span>
+      {fill ? block("WHERE YOUR FROZEN TARGET SAT · the gap's far edge, or elsewhere", fill, "fvg-fill-targets") : null}
+      {evidence ? block("A SENSE BEYOND PRICE ATTACHED AT THE DECISION · or price only", evidence, "fvg-additional-evidence") : null}
+      <span style={{ fontSize: 10.5, color: MUTED }}>{(fill ?? evidence)!.claim}.</span>
     </div>
   );
 }

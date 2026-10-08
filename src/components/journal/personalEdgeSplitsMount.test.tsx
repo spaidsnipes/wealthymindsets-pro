@@ -46,6 +46,7 @@ describe("Personal Edge: context splits + did management help, on the real block
     expect(src.length).toBeGreaterThan(2_000);
     expect(src).toContain("setSplits(refd.length ? fvgContextSplits(");
     expect(src).toContain("setManagement(reviewed.length ? managementCounterfactual(");
-    expect(src).toContain("splits={splits} management={management}");
+    expect(src).toContain("splits={splits} management={management} q41={q41}");
+    expect(src).toContain("setQ41(gapDs.length ? { fill: fillTargetComparison(gapDs), evidence: additionalEvidenceComparison(gapDs) } : null);");
   });
 });

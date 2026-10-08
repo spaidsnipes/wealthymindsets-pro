@@ -888,3 +888,69 @@ Day-shift receipt files, by creation and modification time:
 - Desk 4-up closed-market legend over the price axis at 1180 (TSLA / SPY "vs prior 5m bar") — chart lane
 - SpaidBot panel at 390: watchlist pill + D button paint over it — `944ffd4` "SpaidBot panel above chart chrome"; not re-read
 - DAY BIAS strip off-screen at 390 (starts at x −26; overlaps the "D" button) — chart lane
+
+### Night shift close (written 07:07 CDT Oct 8; the 04:45 close was missed at the usage-limit stop)
+
+Times are CDT (`date`). LIVE times come from the ship gate polling `/api/build-identity`. Proof cites the file and the build it was read on; a read is valid only after its build was LIVE.
+
+| Build | LIVE | What shipped (commit message, short) | Serving proof | Status |
+|---|---|---|---|---|
+| `1ec6083` | 01:45:32 | Night receipt rows (docs) | §52 public run 48 / 48 on `1ec6083` (01:46–01:50) | CLOSED |
+| `69fb204` | 02:06:51 | Member isolation for plans / drafts / day rules (per-member keys, legacy rows adopted only when tied to the signing-in member); §16 colliding chart notes collapse; §39 FVG + options wall + order flow UNAVAILABLE with reasons; scanner names its fixed list + offers the watchlist; Personal Edge FVG splits; §34 inventory audit | §16 notes collapse 02:12–02:18: `eventNotes=ANCHORS:3\|NOTES:4`, the 390 pip opens its list on a real tap (`~/wm-held/proof/fvg-serving-night-2026-10-07.txt`). Footprint modes PROVED 02:27–02:30 (certificate §12b) | PARTIAL: member isolation and §39 have no serving read in this file |
+| `57ff632` | 02:31:58 | Journal, review answers and tickets keyed per member through the one owner (sign-out purges every member key); certificate work | uncovered-set erasure run "serving 69fb204 → 57ff632 (rolled 02:28 mid-run)" (`GARDEN19-ERASURE-TESTS.md`) | PARTIAL: member keys need a serving sign-out / sign-in read on a non-Founder account |
+| `8cded3a` | 02:36:31 | §21: every outcome worded as n-of-m, medians / means withheld below 20, same / later-session revisit rows; certificates §12b + footprint modes proved | certificate §12b | PARTIAL: the §21 wording has not been read on serving |
+| `d308c6c` | 02:43:04 | Price sovereignty at 390: Living Profile chips keep off the newest candle column; FVG bands cut around the countdown's measured rect; uncovered-set erasure audit | ASK-8 / ASK-9 PASS 02:47–02:48 (BTC-USD 5m @390: chips end left of the newest column; the sell band starts clear of the countdown pill). §12 recede on selection PROVED 02:43–02:45 (×0.45 at 1180 and 390) (`~/wm-held/proof/fvg-serving-night-2026-10-07.txt`) | CLOSED |
+| `c02c2d4` | 02:56:08 | Selected FVG reads on glass (gold frame); Clarity bracket; Value Candle salience; derivatives tint receipt; §38 replay lifecycle test; Personal Edge FVG splits + management counterfactual on the real panel | FVG tablet 1180 / 834 on NQ1! + SPY 5m, 02:57–03:03: LEAK:0, clear zone held, the tap selects with `FRAME:GOLD`, Inspect inside the pane, ⓘ → fvg-1, Replay LEAK:0 (`~/wm-held/proof/fvg-serving-night-2026-10-07.txt`). Management §10b profile proof scene PROVED 02:58 (certificate §10b) | CLOSED. PARTIAL: touch-target size on a real tablet (the automation window is pointer:fine) |
+| `a4f411c` | 03:01:41 | The selected print's time line passes through its ring; walls near the pane edge use the edge brick; phone footprint says ZOOM IN instead of 4 px cells | profile tile reasons PROVED 03:02 (certificate §10b); ASK-16 line through the ring and ASK-14 `TOO_NARROW:COL5` PASS on `b00cd10` 03:13–03:14 (`~/wm-held/proof/fvg-serving-night-2026-10-07.txt`) | CLOSED |
+| `b00cd10` | 03:11:06 | Tablet touch station §22 (touch floors on landscape iPad, 44 px controls above the chart pins, no hover-only reveals); Structure Profile readable-floor anchor | Structure histogram reachable: BTC-USD 5m 1180 `HISTOGRAM` rows 81 (leg 21), NQ1! 5m rows 87 (leg 37), BTC-USD 5m 390 rows 81 (03:11–03:12) — closes this lane's 02:29 finding. ASK-4 delta levels `SOLID_BUY+HOLLOW_SELL`, ASK-7 clarity bracket PASS (`~/wm-held/proof/fvg-serving-night-2026-10-07.txt`) | CLOSED. PARTIAL: §22 touch floors on a real iPad |
+| `30cb513` | 03:15:32 | §26 management behaviours complete (factual, no emotion words); ASK-5 identity marks (MTF horizon ticks, Profile Memory session dots, composite / VR level forms) | ASK-5 erased (no text drawn) on `c104669` 07:02–07:03 @1180: `mtfAncestryTagTicks=4H:2\|1H:1\|D:3`, `profileMemorySessionDots=DOTS:9`, level forms PASS. @390 the MTF ticks are ABSENT (narrow glass withholds the boxed tag) — fix in src, pending ship (`~/wm-held/proof/fvg-serving-night-2026-10-07.txt`) | PARTIAL: MTF ticks at 390 |
+| `c104669` | 06:45:49 | Plan card: every field has a spoken name in trader words | journal behaviour rows 11 / 11 at 390, PROVED 07:03 (certificate §10b) | CLOSED |
+
+**The night's open list, closed out:**
+
+| Item (open at 21:05) | Final status | Proof |
+|---|---|---|
+| SpaidBot panel at 390 painted under chart chrome | CLOSED | `14de5a0` 22:20: panel z-index 120, 4 hit points land on the panel (`~/wm-held/proof/fvg-serving-night-2026-10-07.txt`) |
+| DAY BIAS strip off-screen / clipped at 390 | CLOSED | `14de5a0` 22:20: the phone copy sits at 36..302, clear of the axis column (`~/wm-held/proof/fvg-serving-night-2026-10-07.txt`) |
+| FVG accessibility at 390 | CLOSED | `6568fa3` 01:43: Inspect inside the screen, every control ≥ 44 px and named. Finding: 28 of 52 Inspect text leaves under 11 px (9.5 px row labels) |
+| Academy "Show me on a chart" for every lesson | CLOSED | lessons 1, 6–10, 14, 15 land with territories painted (22:25–22:35 and 01:46–01:49) |
+| Academy Replay link | CLOSED | relabelled in `6568fa3`, read 01:55–01:57 |
+| Scanner labels; backtest provenance | CLOSED | read 01:55–01:57 |
+| Review FVG answers; Personal Edge FVG list | CLOSED (sample data) | proof scene on `bf5052b` |
+| Management sweep / plan adherence / behaviours | CLOSED (sample data) | certificate §10 / §10a / §10b (proof scenes, read only) |
+| Profile INSUFFICIENT tiles | CLOSED (sample data) | refused-tile reasons on `a4f411c` 03:02 |
+| Journal FVG save → reload on a real entry | PARTIAL | never on the Founder's account; needs a test member |
+| Bar-reader refusal words (unknown symbol) | PARTIAL | `dae44b0` fix, no serving re-read in this receipt |
+| Desk 4-up closed-market legend over the price axis (1180) | PARTIAL | `14de5a0` 22:16 read the SHORT words; the axis-overlap measure was not repeated |
+| §52 in-tab run, 14 rooms × 6 widths | CLOSED | 84 / 84 at 21:22 (`02e593e` / `dae44b0`) |
+| Phone erasure FAILs (Delta Keel, Flow Current) | CLOSED | 01:59 on `1ec6083`: keel FAIL_ONLY narrow form; Flow Current `FORM:DOTTED_STREAK` (`~/wm-held/proof/fvg-serving-night-2026-10-07.txt`) |
+
+**Founder list (end of night):**
+
+*Blockers (outside the code):*
+1. Member broker connect stays BETA until `WM_BROKER_GRANT_KEY` is set and tastytrade's policy is confirmed.
+2. Trade from the chart: fund the futures account (…5019), save the limits, arm the device, make the first send.
+3. Billing is not connected; paid tiers stay "Not on sale yet" (prices unchanged).
+4. Terms of Service + Privacy Policy before public enrollment.
+5. EURUSD 1m point bars: choose a 1m FX source or keep the honest zero.
+
+*Decisions:*
+1. PROPOSED plates now drawn as PROPOSED, default off — accept or redline:
+   - Breath Ribbon (F15);
+   - CVD notch (`cvdNotches=PROPOSED:…`);
+   - Failed Aggression, Compression and the Structure leg state, all still unbuilt.
+2. TED needs a definition (its ⓘ says "definition pending Founder").
+3. Whether the FVG layer is on by default.
+4. Approve or redline the selling copy (no brand-voice document exists).
+5. Referral URLs.
+6. Which Academy course to publish next.
+
+
+## Morning shift — Oct 8 07:02 → 12:05 CDT
+
+Founder: a 5-hour shift, and no ship hold at market open. Production at the start is `c104669` (LIVE 06:45:49). This lane works on docs and release scripts only. Times are `date`.
+
+| Time (CDT) | Item | Build | Proof | Status |
+|---|---|---|---|---|
+| 07:02:47–07:05:55 | §52 public responsive release test on production | `c104669` (`/api/build-identity` builtAt 11:44:07Z) | `responsive-public.mjs`: **48 / 48 PASS** (8 routes × 1440 / 1024 / 834 / 768 / 390 / 360). No SMALL_TEXT; the signed-out 401 console line only. `~/wm-held/proof/release-52-0703/` | CLOSED |
+| 07:07 | Night shift close written (overdue from 04:45) | docs | the "Night shift close" subsection above | CLOSED |

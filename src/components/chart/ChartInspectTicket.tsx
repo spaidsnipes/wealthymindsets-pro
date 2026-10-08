@@ -48,6 +48,7 @@
  * honestly be said about the bar and the tape; this renders that verdict.
  */
 
+import type { FvgRelationshipReading } from "@/lib/marketData/fvg/fvgRelationships";
 import { sizeUnitFor } from "@/lib/marketData/sizeUnit";
 import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
 import React from "react";
@@ -953,7 +954,7 @@ export function ChartInspectTicket({
   /** Garden 19 FVG lane D · the selected GAP_FVG object, from the scene the glass painted. */
   selectedFvg?: FvgObject | null;
   /** Its relationships to other owners' objects (fvgInspectRelationships) — words for Inspect only. */
-  fvgRelationships?: { readonly rows: readonly string[]; readonly silences: readonly string[] } | null;
+  fvgRelationships?: { readonly rows: readonly string[]; readonly silences: readonly string[]; readonly reading?: FvgRelationshipReading } | null;
   /** The selected zone's LINEAGE (selectZoneLineage) — ids, provenance and the Decision_ID chain. */
   zoneLineage?: ZoneLineageVM | null;
   /** F11 · a selected MarketObject that is not a zone (a swing LEVEL) — the same Passport drawer. */

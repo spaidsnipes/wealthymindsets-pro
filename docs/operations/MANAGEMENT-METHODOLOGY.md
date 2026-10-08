@@ -341,6 +341,25 @@ answer and yours kept apart, and the plan alone compared only where a price path
 
 Tests: `planFvgContextSplits.test.ts`, `components/journal/personalEdgeSplitsMount.test.tsx`.
 
+### Two Review questions about gap decisions, answered from the record (§41)
+
+`planFvgFillTargets.ts` answers both questions from the record only. It never names a belief the
+trader did not write: the words "magnet", "belief" and "mandatory" are absent, and a test pins it.
+* **Where the frozen target sat:** a *far-edge target* means the entry was outside the gap on its
+  near side, trading toward it, with the frozen target at the gap's far edge (within 10 % of the
+  gap's size). It is counted against the trader's other gap targets. Decisions with no direction,
+  entry or target are listed as not classified. Outcomes are compared side by side: mean R, and
+  how often the exit reached the far edge.
+* **A sense beyond price attached at the decision:** order flow or derivatives, attached and not
+  SILENCE, compared with price only. WM records that the sense was attached, not whether it agreed
+  with the trade, and the line says so.
+* **The n ≥ 20 rule:** counts are facts at any n. The comparison is MEASURED only when both sides
+  hold 20 recorded results. It is descriptive: one result per decision, never a cause.
+* **Where it shows:** the real Personal Edge block, and the proof scene (the sample book answers
+  with counts and INSUFFICIENT; a second set of 48 synthetic decisions shows the MEASURED form).
+
+Test: `planFvgFillTargets.test.ts`.
+
 ### One n ≥ 20 rule for every rate a trader reads about themselves
 
 `src/lib/journal/statGuard.ts` owns it: `STAT_SAMPLE_MIN` = 20 (the same number as

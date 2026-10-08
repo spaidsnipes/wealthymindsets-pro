@@ -72,7 +72,12 @@ describe("Profile DNA on the glass (Sentinel)", () => {
     // A thin sample is the SAME ink as a measured spine, fainter: one role
     // (profileFamilyInk.ts VALUE), two site alphas. Pinned together so the
     // faint arm cannot drift to a different ink or to the measured weight.
-    expect(BLOCK).toContain('dna.measured ? pk.rgba("VALUE", 0.45) : pk.rgba("VALUE", 0.25)');
+    // ASK-6 (2026-10-08): the measured arm took one salience step (DNA_SPINE_A);
+    // still the same ink, still louder than the thin arm.
+    expect(BLOCK).toContain('dna.measured ? pk.rgba("VALUE", DNA_SPINE_A) : pk.rgba("VALUE", 0.25)');
+    const spineA = Number(/const DNA_SPINE_A = ([0-9.]+);/.exec(chartSrc)?.[1]);
+    expect(spineA).toBeGreaterThan(0.25);
+    expect(spineA).toBeLessThan(0.76);
     // Bracket, notch and diamond are drawn only for a measured reading.
     const measuredArm = BLOCK.slice(BLOCK.indexOf("if (dna.measured) {"));
     expect(measuredArm).toContain("lineWidth = 3");
