@@ -90,11 +90,21 @@ function EquityCurve({ points }: { points: LedgerSummary["equity"] }) {
   const y = (v: number) => P + (1 - (v - lo) / Math.max(1e-9, hi - lo)) * (H - 2 * P);
   const d = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.cum).toFixed(1)}`).join("");
   const h = hover != null ? points[hover] : null;
+  const readAt = (e: React.PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const i = Math.round(((e.clientX - r.left) / r.width * W - P) / (W - 2 * P) * (points.length - 1));
+    setHover(Math.max(0, Math.min(points.length - 1, i)));
+  };
   return (
     <div style={{ position: "relative" }}>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height={H} role="img" aria-label="Cumulative net P&L by closed trade"
-        onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); const i = Math.round(((e.clientX - r.left) / r.width * W - P) / (W - 2 * P) * (points.length - 1)); setHover(Math.max(0, Math.min(points.length - 1, i))); }}
-        onMouseLeave={() => setHover(null)} style={{ display: "block" }}>
+        // Pointer events, not mouse events: a finger on a tablet reads the
+        // curve too (tap or drag sets the readout; it stays until the next
+        // touch). A mouse clears it on leave, as before. G19 §22.
+        onPointerMove={e => readAt(e)}
+        onPointerDown={e => readAt(e)}
+        onPointerLeave={e => { if (e.pointerType === "mouse") setHover(null); }}
+        style={{ display: "block", touchAction: "pan-y" }}>
         <line x1={P} x2={W - P} y1={y(0)} y2={y(0)} stroke={LINE} strokeWidth={1} />
         <path d={d} fill="none" stroke={GOLD} strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {hover != null ? <>

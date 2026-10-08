@@ -1615,7 +1615,11 @@ input[type=range]::-webkit-slider-runnable-track {
    Phone pass 2026-10-06: the same chips measured the same on a LANDSCAPE phone
    (844x390) and a portrait iPad (834x1112) — touch screens wider than 767 —
    so the slop follows a coarse pointer up to the tablet width as well. */
-@media (max-width: 767px), (pointer: coarse) and (max-width: 1023px) {
+/* G19 §22 tablet station (2026-10-08): the three touch floors below were capped
+   at 1023px, so an iPad held LANDSCAPE (1180x820, 1366x1024) — a finger on a
+   wider screen — lost the 44px hit areas. The floor follows the pointer, not
+   the width; a fine-pointer desktop is unchanged. */
+@media (max-width: 767px), (pointer: coarse) {
   .wm-tap-slop:not(.absolute):not(.fixed) { position: relative; }
   .wm-tap-slop::after {
     content: "";
@@ -1666,6 +1670,78 @@ input[type=range]::-webkit-slider-runnable-track {
   }
 }
 
+/* ── TABLET LANDSCAPE: MASTHEAD DOORS + CANVAS SUMMARY ON A FINGER ─────────
+   G19 §22 (2026-10-08). MEASURED at 1180x820 with a coarse pointer on /charts:
+   the masthead Rooms (61x32) and Community (91x32) doors and the canvas
+   summary pill (66x24) — the phone gives Rooms a 44px floor, but a landscape
+   iPad keeps the desktop masthead. The drawn chips stay as the owners drew
+   them; a finger gets the same invisible 44px hit area the chart-edge chips
+   carry. Touch only; a mouse-driven desktop is unchanged. */
+@media (pointer: coarse) {
+  .wm-os-market-rooms,
+  .wm-os-market-community,
+  button[data-testid="canvas-summary-pill"] {
+    position: relative;
+  }
+  .wm-os-market-rooms::after,
+  .wm-os-market-community::after,
+  button[data-testid="canvas-summary-pill"]::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* ── THE DESK AND THE LEGACY SHELL ON A FINGER (G19 §22, 2026-10-08) ──────
+   MEASURED on /desk at 834x1112 and 1180x820 with a coarse pointer: 33 and 38
+   controls under 44px — the desk's layout row, Save / Save as / Rename /
+   Delete, each screen's symbol, timeframe, view, link, Room, Window and
+   Maximize (28px, DeskShell btn()), and the shell's search / notifications /
+   settings / profile icons (26–30px). On a touch screen the desk's controls
+   take the 44px floor (the per-screen bar grows by 16px — a tablet desk is a
+   touch station, not a shrunken desktop); the shell icons get an invisible
+   44px hit area so the masthead keeps its height. Desktop unchanged. */
+@media (pointer: coarse) {
+  .wm-desk-chrome :is(button, a, select, input) {
+    min-height: 44px !important;
+  }
+  .wm-desk-chrome :is(button, a) {
+    min-width: 44px !important;
+  }
+  .wm-shell-actions :is(button, a),
+  .wm-shell-profile > button {
+    position: relative;
+  }
+  /* The avatar clips its picture with overflow:hidden, which would clip the
+     hit area too; the picture carries its own rounding instead. */
+  .wm-shell-profile > button { overflow: visible !important; }
+  .wm-shell-actions :is(button, a)::after,
+  .wm-shell-profile > button::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* ── TEXT FIELDS ON A FINGER (G19 §22, 2026-10-08) ─────────────────────────
+   MEASURED with a coarse pointer at 834x1112 and 1180x820: Journal search
+   (128x20), Scanner filter (96x20), Backtesting "Search any symbol…" (206x21).
+   A field is a tap target too; on a touch screen it is at least 44px tall
+   (its wrapper grows around it). `.wm-tap-exempt` opts a field out. */
+@media (pointer: coarse) {
+  input:is(:not([type]), [type="text"], [type="search"], [type="number"], [type="email"], [type="password"], [type="url"], [type="tel"]):not(.wm-tap-exempt) {
+    min-height: 44px;
+  }
+}
+
 /* ── DOCUMENT ROOMS MEET THE PHONE TAP FLOOR (canon sweep 2026-10-06) ───────
    Measured at 390: News carried 83 controls under 44px (filter chips 23–26px
    tall), Shop 53, Journal 31, WM TV 13 (28px channel rows), Radio 9 (25px
@@ -1677,7 +1753,7 @@ input[type=range]::-webkit-slider-runnable-track {
    (834x1112) are touch screens wider than 767, and measured there the Journal
    carried 31 controls under 44px (filter chips 21px tall, the new-trade ✕
    14x14). The floor now follows the finger, not only the width. */
-@media (max-width: 767px), (pointer: coarse) and (max-width: 1023px) {
+@media (max-width: 767px), (pointer: coarse) {
   .wm-phone-taps :is(button, [role="button"], summary, select, a[class*="px-"], a[class*="rounded"], a[style*="padding"]):not(.wm-tap-exempt) {
     min-height: 44px;
     min-width: 44px;
@@ -1757,7 +1833,7 @@ input[type=range]::-webkit-slider-runnable-track {
 /* The evidence chip's summary (32px tall at 390) gets the invisible 44px hit
    area the chart-edge chips carry; its class string is pinned by
    chartEvidenceHorizon.test.ts, so the slop is keyed on it here. */
-@media (max-width: 767px), (pointer: coarse) and (max-width: 1023px) {
+@media (max-width: 767px), (pointer: coarse) {
   .wm-nectar-vault-chip__summary { position: relative; }
   .wm-nectar-vault-chip__summary::after {
     content: "";

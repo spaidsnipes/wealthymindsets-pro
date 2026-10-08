@@ -1392,7 +1392,7 @@ export function ChartToolbar({
                         </div>
 
                         {/* category badge */}
-                        <span className="text-[11px] text-wm-text-dim shrink-0 hidden group-hover:block">{ind.cat}</span>
+                        <span className="text-[11px] text-wm-text-dim shrink-0 hidden group-hover:block [@media(hover:none)]:block">{ind.cat}</span>
 
                         {/* description "?" — opens an info panel below the row */}
                         <button

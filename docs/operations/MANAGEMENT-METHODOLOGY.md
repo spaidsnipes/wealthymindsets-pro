@@ -305,6 +305,27 @@ New York days, read from the FVG ledger.
 Tests: `managementPlanSlice3.test.ts`, `managementPlanSlice4.test.ts`, `managementPlanSlice5.test.ts`,
 `planFvgStudy.test.ts`, `founderAnalytics.test.ts`.
 
+### FVG context splits and "Did management help?" (§23, §24)
+
+Both sit on the real Personal Edge block (`PlanAdherenceBySetup`) as well as in the journal proof
+scene. The line for the trader: **split by what was knowable at the decision, with the market's
+answer and yours kept apart, and the plan alone compared only where a price path was loaded.**
+* **Context splits** (`planFvgContextSplits.ts`): every decision with an FVG reference is grouped
+  by structure, profile, order flow, wall, effort→response, New York session, regime, timeframe
+  and instrument. Context the reference did not store is its own group, "NOT RECORDED with this
+  reference" — never re-read from today's chart, never dropped. Each row has a MARKET column (the
+  territory's settled responses only) and a TRADER column (recorded R, plan followed). Each is
+  MEASURED only at ≥ 20.
+* **Did management help?** (`planManagementCounterfactual.ts`): on departed trades, your realised R
+  beside the plan alone on the same path (±0.05R counts as the same). Then restraint: realised R
+  for followed vs departed. A trade without a loaded path is not paired, so the first question
+  stays INSUFFICIENT with its n. The second is MEASURED only when both sides hold 20. It is
+  descriptive: one path per trade, never a cause.
+* **Empty states:** with no gap reference, one line says what the splits need. With no frozen plan,
+  the adherence empty line shows and the management block does not render.
+
+Tests: `planFvgContextSplits.test.ts`, `components/journal/personalEdgeSplitsMount.test.tsx`.
+
 ### One n ≥ 20 rule for every rate a trader reads about themselves
 
 `src/lib/journal/statGuard.ts` owns it: `STAT_SAMPLE_MIN` = 20 (the same number as
@@ -323,6 +344,12 @@ Tests: `managementPlanSlice3.test.ts`, `managementPlanSlice4.test.ts`, `manageme
 
 Test: `src/lib/journal/statGuard.sentinel.test.ts` (source scan of the surfaces, with a vacuity
 guard and positive controls).
+
+**Proof on serving without a real book:** `/profile?scene=profile-fixture` (signed-in token only).
+It renders three synthetic books (0, 7 and 24 closed trades) through the profile's own tile view
+(`ProfilePerfTiles`) and its edge panels, so the measured zero, the INSUFFICIENT tiles and the
+MEASURED tiles can be read on serving. It writes and fetches nothing
+(`profileProofScene.sentinel.test.tsx`).
 
 ## 6. Academy "Show me my examples" (§36)
 
@@ -357,11 +384,20 @@ In the card, "Delete this plan" takes two presses and opens no dialog.
 * **`AuthContext` is the one writer of the owner** (`setManagementOwner`): the member's id as soon
   as it is known; nobody only once auth has resolved. Readers re-read through
   `useManagementOwnerVersion`.
-* **Sign-out still purges** every management key (`logoutIsolation.ts` prefixes), and the old
-  unsuffixed keys are removed the first time an owner is set.
-* **Not keyed by member, purged at sign-out (existing owners):** the journal itself
-  (`wm_journal_entries`, which carries `fvgRef`), story reviews (`wm_story_review_v1`, including
-  the "why did the plan change?" answer) and the tab's tickets-at-send (sessionStorage).
+* **The journal stores use the same owner** (2026-10-08): the journal book
+  (`wm_journal_entries:<id>`, and the older `wm-journal:<id>`), review answers
+  (`wm_story_review_v1:<id>`) and the tab's tickets-at-send (`wm:journal-ticket-at-send:v1:<id>`).
+  `AuthContext` sets the owner before the account reaches React state, so the Journal's first
+  render opens the member's own book. A save goes only to the key its entries were read under.
+* **Sign-out still purges** every key, unsuffixed and suffixed (`logoutIsolation.ts` prefixes,
+  sessionStorage included).
+* **Rows saved before isolation:**
+  * **Adopted** only by the member they are tied to: the browser's last-known account, or the
+    stamp an expired session writes for its account. When the member has no rows yet they move
+    byte for byte; otherwise they are combined and none is dropped.
+  * **Held** (unread, never deleted) when nothing ties them. A signed-in member then sees one
+    line on the Journal: the count, never the contents. A two-press "Bring them into my journal"
+    adopts them through the same owner.
 * **No browser cache:** the broker review reads (`/api/broker/journal-feed`, the Webull ledger's
   server KV, price-path and FVG-ledger loads) sit behind the server's owner gate or live in memory
   for the page only.

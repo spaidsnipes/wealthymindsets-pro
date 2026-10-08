@@ -113,7 +113,10 @@ describe("a sentinel substituted for a missing denominator is a fabrication", ()
   });
 
   it("the reason is announced on a phone, not only hovered", () => {
-    expect(PAGE_CODE).toContain("title={s.reason}");
-    expect(PAGE_CODE).toContain("aria-label={`${s.label}: ${s.value}. ${s.reason}`}");
+    // The tiles are painted by ONE view, shared by /profile and its proof scene (Garden 19, 2026-10-08).
+    const TILES = fs.readFileSync(path.join(process.cwd(), "src/components/profile/ProfilePerfTiles.tsx"), "utf8");
+    expect(PAGE_CODE).toContain("<ProfilePerfTiles stats={stats} />");
+    expect(TILES).toContain("title={s.reason}");
+    expect(TILES).toContain("aria-label={`${s.label}: ${s.value}. ${s.reason}`}");
   });
 });

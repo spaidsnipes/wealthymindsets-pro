@@ -365,7 +365,7 @@ function TickerItem({ item, onClick, active }: {
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded transition-colors group cursor-pointer ${
+      className={`wm-tap-slop inline-flex items-center gap-1.5 px-3 py-0.5 rounded transition-colors group cursor-pointer ${
         active ? "bg-wm-surface" : "hover:bg-wm-surface/50"
       }`}
       title={
@@ -734,7 +734,8 @@ export function TickerTape() {
       <div className="relative shrink-0" ref={editRef}>
         <button
           onClick={() => setEditOpen(o => !o)}
-          className="flex items-center justify-center w-6 h-6 mx-1 rounded hover:bg-wm-surface text-wm-text-dim hover:text-wm-text transition-colors"
+          aria-label="Customize ticker tape symbols"
+          className="wm-tap-slop flex items-center justify-center w-6 h-6 mx-1 rounded hover:bg-wm-surface text-wm-text-dim hover:text-wm-text transition-colors"
           title="Customize ticker tape symbols"
         >
           <Pencil size={11} />
@@ -747,7 +748,7 @@ export function TickerTape() {
           >
             <div className="flex items-center justify-between px-3 py-2 border-b border-wm-border shrink-0">
               <span className="text-[11px] font-black text-wm-text">Tape Symbols</span>
-              <button aria-label="Close tape symbols editor" onClick={() => setEditOpen(false)}>
+              <button aria-label="Close tape symbols editor" className="wm-tap-slop" onClick={() => setEditOpen(false)}>
                 <X size={12} className="text-wm-text-muted hover:text-wm-text" />
               </button>
             </div>
@@ -759,7 +760,7 @@ export function TickerTape() {
                   <span className="text-[11px] font-bold text-wm-text">{sym}</span>
                   <button aria-label={`Remove ${sym} from tape`}
                     onClick={() => setCustomSyms(prev => withoutTapeSymbol(prev, sym))}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-wm-text-muted hover:text-wm-red"
+                    className="wm-tap-slop opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity text-wm-text-muted hover:text-wm-red"
                   >
                     <X size={11} />
                   </button>
@@ -782,7 +783,7 @@ export function TickerTape() {
                 />
                 <button aria-label="Add symbol to tape"
                   onClick={() => { handleAddSym(addInput); setAddInput(""); }}
-                  className="text-wm-green hover:text-wm-text transition-colors"
+                  className="wm-tap-slop text-wm-green hover:text-wm-text transition-colors"
                 >
                   <Plus size={12} />
                 </button>

@@ -64,8 +64,9 @@ export const SELECT_PARAM = "select";
  * read-only — no storage write, no network write, a banner on screen. Same
  * `scene=` grammar as `scene=clean`; each token names its one room.
  *   journal-fixture → /journal (Review FVG answers, counterfactual, Personal Edge, Academy examples)
+ *   profile-fixture → /profile (the four tiles and the edge panels at 0 / 1–19 / ≥ 20 trades)
  */
-export const PROOF_FIXTURE_SCENES = ["journal-fixture"] as const;
+export const PROOF_FIXTURE_SCENES = ["journal-fixture", "profile-fixture"] as const;
 export type ProofFixtureScene = (typeof PROOF_FIXTURE_SCENES)[number];
 
 /** The fixture scene the URL asks for, or null. */

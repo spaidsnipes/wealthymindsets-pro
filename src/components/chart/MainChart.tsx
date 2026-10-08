@@ -190,6 +190,8 @@ const DELTA_LEVELS_ALPHA_FLOOR = 0.8;
 const KEEL_ATR_WAIT_FRAMES = 2;
 /** Delta Keel salience floor (ASK-6): no keel shorter than this, at any width. */
 const KEEL_MIN_L = 3;
+/** Value Candle CoG reach past a narrow glass (ASK-6). */
+const VC_COG_EXT_NARROW = 3;
 /** Session Bands' empty lane rail ink: legible, never mistaken for the 0.42 session strip. */
 const SESSION_RAIL_INK = 0.26;
 /** The live countdown pill's height (the candle timer); FVG territory cuts round it. */
@@ -7831,7 +7833,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       ctx.globalAlpha *= clarityRoleOpacityRef.current;
       try {
         const ds = canvas.dataset;
-        if (!clarityOnRef.current) { ds.clarityCandle = "OFF"; restoreNativeAfterClarityLoss(); }
+        if (!clarityOnRef.current) { ds.clarityCandle = "OFF"; delete ds.clarityReadMark; restoreNativeAfterClarityLoss(); }
         else {
           const bsC = barsRef.current ?? [];
           const tsC = chart.timeScale();
@@ -7942,6 +7944,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const yLowH = hb ? srs.priceToCoordinate(hb.low) : null;
             if (hb && xh != null && yLowH != null) {
               const rd = readClarity(hb);
+              // ASK-7 (Sheriff re-run 69fb204: erased, the callout is an empty
+              // frame that only says "something here"). The bar it reads carries
+              // its own wordless mark: a gold bracket round its full range.
+              const yHighB = srs.priceToCoordinate(hb.high);
+              if (yHighB != null) {
+                const half = Math.max(3, Math.round(bodyW / 2) + 3), t = 3;
+                const xl = Math.round(+xh - half) + 0.5, xr2 = Math.round(+xh + half) + 0.5;
+                const yt = Math.round(+yHighB) - 3 + 0.5, yb = Math.round(+yLowH) + 3 + 0.5;
+                ctx.save();
+                ctx.strokeStyle = "rgba(232,198,104,0.9)"; ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(xl + t, yt); ctx.lineTo(xl, yt); ctx.lineTo(xl, yb); ctx.lineTo(xl + t, yb);
+                ctx.moveTo(xr2 - t, yt); ctx.lineTo(xr2, yt); ctx.lineTo(xr2, yb); ctx.lineTo(xr2 - t, yb);
+                ctx.stroke();
+                ctx.restore();
+                ds.clarityReadMark = `BRACKET:${hb.time}`;
+              }
               const gapHere = truthGaps(bsC.slice(Math.max(0, hi - 1))).find(g => g.time === hb.time);
               const lines: [string, string][] = [
                 ["BODY EFFICIENCY", rd.efficiency == null ? "—" : `${Math.round(rd.efficiency * 100)}%`],
@@ -8031,6 +8050,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
           }
           ds.clarityCallout = calloutFor;
+          if (calloutFor === "NONE") delete ds.clarityReadMark;
           ds.clarityCandle = `DRAWN:${drawnC}bars:${gapsC}gaps:${openC}open`;
           if (drawnC === 0) restoreNativeAfterClarityLoss();
           // The species painted: now (and only now) the library's ink steps aside.
@@ -8197,7 +8217,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (!fvgPaints) {
           if (dsF.fvg !== "OFF") {
             dsF.fvg = "OFF";
-            for (const k of ["fvgDrawn", "fvgAsOf", "fvgClear", "fvgSelected", "fvgStep", "fvgCost", "fvgHit", "fvgGov"]) delete dsF[k];
+            for (const k of ["fvgDrawn", "fvgAsOf", "fvgClear", "fvgSelected", "fvgStep", "fvgCost", "fvgHit", "fvgGov", "fvgSelectedMark"]) delete dsF[k];
           }
           if (fvgPublishedRef.current !== null) { fvgPublishedRef.current = null; const cb = onFvgSceneRef.current; setTimeout(() => cb?.(null), 0); }
         } else {
@@ -8455,8 +8475,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillStyle = gr;
                 ctx.fillRect(g.x0, Math.min(y0, y1), g.x1 - g.x0, 8);
               }
+              // ASK-10 (Sheriff uncovered-set run, 2026-10-08: a selected gap
+              // painted identically to its un-selected self with Inspect closed).
+              // The selected band carries the house selection mark on the glass —
+              // a gold frame 2px outside its territory, like a zone's lit border
+              // and a print's ring. No word; the geometry stays the band's own.
+              let selMarked = false;
+              for (const { g, sel } of frame.bands) {
+                if (!sel) continue;
+                ctx.strokeStyle = "rgba(232,198,104,0.95)";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(Math.round(g.x0) - 1.5, Math.round(g.yTop) - 2.5, Math.max(4, Math.round(g.x1 - g.x0) + 3), Math.max(4, Math.round(g.yBottom - g.yTop) + 5));
+                selMarked = true;
+              }
+              dsF.fvgSelectedMark = selMarked ? "FRAME:GOLD" : "NONE";
               ctx.restore();
-            }
+            } else dsF.fvgSelectedMark = "NONE";
           }
         }
         if (fvgOn && !computedFvgThisFrame) {
@@ -8471,7 +8505,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // The selected bubble, marked at full strength outside its layer's
       // alpha: a 2px ivory ring at r+6 and a dotted hairline from the disc to
       // the price axis at the print's own price.
+      // ASK-16 (Sheriff 2026-10-08, 390: the selected print's event line stood
+      // apart from its ring — a print ahead of the newest loaded bar is drawn at
+      // its own time, the bar lookup snapped to the last bar). The ring's centre
+      // this frame; the event line goes through it.
+      let selectedDiscX: number | null = null;
       const markSelectedBubble = (b: Bubble, rx: number, ry: number) => {
+        selectedDiscX = b.x;
         ctx.save();
         ctx.globalAlpha = 1;
         ctx.strokeStyle = "rgba(237,230,211,1)"; ctx.lineWidth = 2;
@@ -10099,7 +10139,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const xe = pr.eventBarTime != null ? chart.timeScale().timeToCoordinate(pr.eventBarTime as never) : null;
           const yp = srs.priceToCoordinate(sp.priceLevel);
           if (pr.drawn && xe != null && yp != null) {
-            const ex = +xe, ey = +yp, up = pr.dir > 0;
+            const discX: number | null = selectedDiscX;
+            const ex = discX != null && Number.isFinite(discX) ? discX : +xe, ey = +yp, up = pr.dir > 0;
+            canvas.dataset.printEventLine = discX != null ? `DISC:${Math.round(discX)}|BAR:${Math.round(+xe)}` : `BAR:${Math.round(+xe)}`;
             ctx.save();
             // §12: causal marks exist only for the selected print — SELECTED, full weight.
             ctx.globalAlpha = att.alpha("forceResponse", { selectedItem: true });
@@ -10730,7 +10772,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const t0SB = performance.now();
         const bs = barsRef.current || [];
         const barSecSB = barInterval();
-        delete canvas.dataset.sessionBandRails;
+        delete canvas.dataset.sessionBandRails; delete canvas.dataset.sessionBandRailsSalience;
         if (!sessionBandsOn) canvas.dataset.sessionBands = "OFF";
         else if (bs.length < 2) canvas.dataset.sessionBands = "NO_BARS";
         else if (barSecSB >= 86_400) canvas.dataset.sessionBands = "NOT_INTRADAY";
@@ -10774,6 +10816,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.fillRect(0, laneY[id] + 1, plotRight, 1);
           }
           canvas.dataset.sessionBandRails = "3";
+          canvas.dataset.sessionBandRailsSalience = `W1|INK${SESSION_RAIL_INK}`;
           // Lane mark: 1 / 2 / 3 notches at a band's left end (ASIA / LONDON /
           // NEW YORK) — a learnable shape that does not depend on colour vision.
           const LANE_TICKS: Record<string, number> = { ASIA: 1, LONDON: 2, NEW_YORK: 3 };
@@ -16305,12 +16348,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // ── THE CENTER OF GRAVITY — a crisp dark line across the body,
             // over a faint ivory halo so it reads off the band as well as on it.
             const yCog = Math.round(+yCogR) + 0.5;
+            // ASK-6 (Sheriff re-run 69fb204: "faint glass" at MID): on a narrow
+            // slot the CoG bar reaches VC_COG_EXT_NARROW px past each wall, so
+            // the reading is a visible cross-mark on the bar, not a hairline.
+            const cogExt = gw < 7 ? VC_COG_EXT_NARROW : 1;
             ctx.strokeStyle = "rgba(237,230,211,0.55)";
             ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.moveTo(gx - 1, yCog); ctx.lineTo(gx + gw + 1, yCog); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(gx - cogExt, yCog); ctx.lineTo(gx + gw + cogExt, yCog); ctx.stroke();
             ctx.strokeStyle = "rgba(14,12,8,0.95)";
             ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.moveTo(gx - 1, yCog); ctx.lineTo(gx + gw + 1, yCog); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(gx - cogExt, yCog); ctx.lineTo(gx + gw + cogExt, yCog); ctx.stroke();
 
             const yHiBar = srs.priceToCoordinate(bar.high);
             const yLoBar = srs.priceToCoordinate(bar.low);
@@ -16374,6 +16421,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ds.valueCandleCog = String(glass.cog);
           if (vcPlaced > 0) {
             ds.valueCandleForm = vcPlan.form === "GLASS_PER_BAR" ? `GLASS_PER_BAR:${vcPlaced}` : vcPlan.form;
+            ds.valueCandleSalience = gw < 7 ? `COG_EXT${VC_COG_EXT_NARROW}|W3` : "COG_EXT1|W3";
             // Where the newest value candle's CoG sits on the glass (css px) —
             // so a probe can point at it instead of guessing.
             const newest = vcHits[vcHits.length - 1]!;
@@ -16424,7 +16472,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         ds.valueCandleWords = vcWords;
         if (!painted) {
           // No value candle on the glass: no form, and no CoG claimed.
-          ds.valueCandleForm = "NONE";
+          ds.valueCandleForm = "NONE"; delete ds.valueCandleSalience;
           delete ds.valueCandleAt;
           delete ds.valueCandleCog;
         }
@@ -18288,6 +18336,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const wallsSpeak = wallsOn && att.speaks("brickWalls");
           if ((fieldOn || wallsOn) && srs && dp) {
             ds.derivativesPressure = fieldOn ? dp.receipt : "FIELD_OFF";
+            if (!fieldOn) delete ds.derivativesPressureTint;
             ds.brickWalls = !wallsOn ? "OFF" : !dp.drawn ? `ON:SILENT:${dp.reason}` : dp.walls.length ? `ON:${dp.walls.length}` : "ON:NO_CURRENT_WALL_EVENT";
             const dpSpeaks = att.speaks("derivativesPressure");
             const tsD = chart.timeScale();
@@ -18325,6 +18374,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // ── FIELD ────────────────────────────────────────────────────
               const geo = dp.geography;
               const maxAbs = Math.max(1, ...geo.map(g => Math.abs(g.net)));
+              // ASK-5 (Sheriff re-run 69fb204: only MIXED tonight, tint-by-climate
+              // unproven): the receipt names how many field rows took each tint.
+              {
+                let posD = 0, negD = 0;
+                for (let i = 0; i < geo.length - 1; i++) { if ((geo[i].net + geo[i + 1].net) / 2 >= 0) posD++; else negD++; }
+                ds.derivativesPressureTint = `NET_POS:BLUE:${posD}|NET_NEG:ORANGE:${negD}`;
+              }
               const paintFieldBase = (mult: number) => {
                 for (let i = 0; i < geo.length - 1; i++) {
                   const a = geo[i], b = geo[i + 1];
@@ -19282,6 +19338,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ds.pressureWallHitAt = pressureWallHitRef.current.map(r => `${r.strike}@${Math.round(r.x + r.w / 2)},${Math.round(r.y + r.h / 2)}`).join("|") || "NONE";
           } else {
             ds.derivativesPressure = att.offWord(layerOnRef.current.derivativesPressure === true);
+            delete ds.derivativesPressureTint;
             ds.brickWalls = wallsOn ? "ON:WAITING_FOR_EVIDENCE" : "OFF";
           }
           delete ds.derivativesPressureFault;

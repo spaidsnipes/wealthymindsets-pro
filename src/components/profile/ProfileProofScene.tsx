@@ -1,0 +1,61 @@
+"use client";
+
+/**
+ * /profile?scene=profile-fixture — PROOF SCENE (Garden 19, 2026-10-08). Three SAMPLE books (0, 7,
+ * 24 closed trades) through the page's own tile view and edge panels, so the measured zero, the
+ * INSUFFICIENT EVIDENCE tiles (1–19) and the MEASURED tiles (≥ 20) can be read on serving without
+ * one record on anyone's account.
+ *
+ * HARD LIMITS (pinned by profileProofScene.sentinel.test.tsx): a banner that says it is sample data,
+ * always on screen; ZERO storage writes and ZERO network calls; shown only for a signed-in trader
+ * with the token (ProfileRouteSwitch) — inert for guests.
+ */
+
+import React, { useMemo } from "react";
+
+import PersonalEdgePanel from "@/components/profile/PersonalEdgePanel";
+import PlaybookDNAPanel from "@/components/profile/PlaybookDNAPanel";
+import SessionEdgePanel from "@/components/profile/SessionEdgePanel";
+import { ProfilePerfTiles } from "@/components/profile/ProfilePerfTiles";
+import { PROFILE_FIXTURE_BANNER, PROFILE_FIXTURE_NOW_MS, PROFILE_FIXTURE_OWNER, PROFILE_FIXTURE_SIZES, profileFixtureBook } from "@/lib/profile/profileProofFixture";
+import { STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
+import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
+import { selectPlaybookDNA } from "@/lib/traderMemory/viewModels/selectPlaybookDNA";
+import { selectSessionEdge } from "@/lib/traderMemory/viewModels/selectSessionEdge";
+
+const GOLD = "#d4af37";
+const TITLE: Readonly<Record<number, string>> = {
+  0: "Book A · 0 closed trades — a measured zero; the ratios have no basis",
+  7: `Book B · 7 closed trades — below ${STAT_SAMPLE_MIN}: INSUFFICIENT EVIDENCE, never a rate`,
+  24: `Book C · 24 closed trades — ${STAT_SAMPLE_MIN} or more: MEASURED`,
+};
+
+export function ProfileProofScene(): React.ReactElement {
+  const books = useMemo(() => PROFILE_FIXTURE_SIZES.map(n => profileFixtureBook(n)), []);
+  return (
+    <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto" data-testid="profile-proof-scene" data-proof-scene="profile-fixture">
+      <div role="status" data-testid="profile-proof-banner"
+        className="rounded-lg border px-3 py-2 text-[12px] font-black tracking-wider"
+        style={{ borderColor: GOLD, color: GOLD, background: "rgba(212,175,55,0.08)" }}>
+        {PROFILE_FIXTURE_BANNER}
+        <span className="block text-[11px] font-normal tracking-normal text-wm-text-muted">
+          Three synthetic books (SAMPLE-FVG) through the profile&apos;s own tiles and edge panels.
+          Nothing here is saved, fetched or sent — leave the page (or drop <code>?scene=profile-fixture</code>) to return to your profile.
+        </span>
+      </div>
+      {books.map(b => (
+        <section key={b.size} data-testid="profile-proof-book" data-size={b.size} className="rounded-lg border border-wm-border p-3 space-y-3">
+          <h2 className="text-[12px] font-bold tracking-wider" style={{ color: GOLD }}>{TITLE[b.size] ?? `Book · ${b.size} closed trades`}</h2>
+          <ProfilePerfTiles stats={b.stats} />
+          {b.size > 0 ? (
+            <>
+              <PersonalEdgePanel vm={selectPersonalEdge({ ownerId: PROFILE_FIXTURE_OWNER, decisions: b.snapshots, nowMs: PROFILE_FIXTURE_NOW_MS })} />
+              <PlaybookDNAPanel vm={selectPlaybookDNA({ ownerId: PROFILE_FIXTURE_OWNER, decisions: b.snapshots, nowMs: PROFILE_FIXTURE_NOW_MS })} />
+              <SessionEdgePanel vm={selectSessionEdge({ ownerId: PROFILE_FIXTURE_OWNER, decisions: b.snapshots, nowMs: PROFILE_FIXTURE_NOW_MS, metric: "avg_realized_r" })} />
+            </>
+          ) : null}
+        </section>
+      ))}
+    </div>
+  );
+}

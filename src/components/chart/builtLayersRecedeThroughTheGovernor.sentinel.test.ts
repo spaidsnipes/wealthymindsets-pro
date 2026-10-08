@@ -98,3 +98,30 @@ describe("ASK-6 (2026-10-08): RVOL tone salience", () => {
     expect(CHART).toContain("for (const r of steps) for (let i = 0; i < r.length; i += 4) ctx.rect(r[i], r[i + 1], r[i + 2], Math.min(2, r[i + 3]));");
   });
 });
+
+describe("ASK-7 (2026-10-08): the bar Clarity reads carries its own mark", () => {
+  it("a gold bracket round the read bar's range, receipted", () => {
+    expect(CHART).toContain("ds.clarityReadMark = `BRACKET:${hb.time}`;");
+  });
+});
+
+describe("ASK-5 / ASK-6 receipts (2026-10-08)", () => {
+  it("Derivatives Pressure names its tint per state; Value Candle names its CoG reach", () => {
+    expect(CHART).toContain("ds.derivativesPressureTint = `NET_POS:BLUE:${posD}|NET_NEG:ORANGE:${negD}`;");
+    expect(CHART).toContain("const cogExt = gw < 7 ? VC_COG_EXT_NARROW : 1;");
+  });
+});
+
+describe("ASK-10 (2026-10-08): a selected FVG reads on the glass with Inspect closed", () => {
+  it("the selected band gets the gold selection frame, receipted", () => {
+    expect(CHART).toContain('dsF.fvgSelectedMark = selMarked ? "FRAME:GOLD" : "NONE";');
+    expect(CHART).toContain('ctx.strokeStyle = "rgba(232,198,104,0.95)";');
+  });
+});
+
+describe("ASK-16 (2026-10-08): the selected print's event line goes through its ring", () => {
+  it("the ring's centre this frame sets the event x; the receipt names both", () => {
+    expect(CHART).toContain("selectedDiscX = b.x;");
+    expect(CHART).toContain("const ex = discX != null && Number.isFinite(discX) ? discX : +xe, ey = +yp, up = pr.dir > 0;");
+  });
+});

@@ -883,7 +883,7 @@ export default function OpportunityMapPage() {
             savedHeat === "SAVED" ? (
               <Link href="/research-heat" data-testid="heat-saved" style={{ fontSize: 11, color: WM.gold.hero, fontWeight: 700, whiteSpace: "nowrap" }}>Saved — open the Archive →</Link>
             ) : (
-              <button type="button" data-testid="heat-save" onClick={saveHeat}
+              <button type="button" data-testid="heat-save" onClick={saveHeat} className="[@media(pointer:coarse)]:!min-h-[44px]"
                 title="Keep this moment's heat in the Research Heat Archive (this browser)"
                 style={{ minHeight: 28, padding: "0 10px", borderRadius: 6, border: `1px solid ${WM.border.strong}`, background: "transparent", color: WM.gold.hero, fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
                 {savedHeat === "FAILED" ? "Could not save — browser storage refused" : "Save this heat"}
@@ -1048,9 +1048,11 @@ export default function OpportunityMapPage() {
                 return (
                   <div
                     key={industry.name}
-                    onMouseEnter={e => handleMouseEnter(e, industry)}
-                    onMouseMove={e => handleMouseMove(e, industry)}
-                    onMouseLeave={handleMouseLeave}
+                    // Mouse only: a finger's compatibility mouse events would
+                    // open the card and the label's tap would close it again.
+                    onPointerEnter={e => { if (e.pointerType === "mouse") handleMouseEnter(e, industry); }}
+                    onPointerMove={e => { if (e.pointerType === "mouse") handleMouseMove(e, industry); }}
+                    onPointerLeave={e => { if (e.pointerType === "mouse") handleMouseLeave(); }}
                     style={{
                       position: "relative",
                       border: hovered?.industry.name === industry.name
@@ -1062,15 +1064,30 @@ export default function OpportunityMapPage() {
                       cursor: "default",
                     }}
                   >
-                    {/* Industry sub-label */}
-                    <div style={{
-                      fontSize: 9, fontWeight: 700, color: WM.text.muted,
-                      textTransform: "uppercase", letterSpacing: 0.5,
-                      padding: "3px 5px 1px", background: "rgba(0,0,0,0.45)",
-                      borderBottom: `1px solid ${WM.border.hair}`,
-                    }}>
+                    {/* Industry sub-label. G19 §22: the industry ranking card
+                        opened only on mouse hover, so a finger never saw it.
+                        The label is now a button: a tap pins the card under
+                        it, a second tap puts it down. On a touch screen it
+                        carries the 44px floor; desktop draws it as before. */}
+                    <button
+                      type="button"
+                      className="wm-heat-industry-label [@media(pointer:coarse)]:min-h-[44px]"
+                      aria-expanded={hovered?.industry.name === industry.name}
+                      aria-label={`${industry.name}: show how its stocks rank`}
+                      onClick={e => {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setHovered(h => h?.industry.name === industry.name ? null : { industry, x: r.left, y: r.bottom });
+                      }}
+                      style={{
+                        display: "block", width: "100%", textAlign: "left", border: 0,
+                        fontSize: 9, fontWeight: 700, color: WM.text.muted,
+                        textTransform: "uppercase", letterSpacing: 0.5,
+                        padding: "3px 5px 1px", background: "rgba(0,0,0,0.45)",
+                        borderBottom: `1px solid ${WM.border.hair}`,
+                        cursor: "pointer", touchAction: "manipulation",
+                      }}>
                       {industry.name}
-                    </div>
+                    </button>
 
                     {/* Stock tiles grid */}
                     <div style={{

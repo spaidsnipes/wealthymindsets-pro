@@ -50,6 +50,9 @@ import {
 } from "@/lib/profile/tradeRowFacts";
 import { keyActivates } from "@/lib/a11y/keyActivates";
 import { readJournalRaw } from "@/lib/traderMemory/adapters/journalStorage";
+import { ProfilePerfTiles } from "@/components/profile/ProfilePerfTiles";
+import { ProfileProofScene } from "@/components/profile/ProfileProofScene";
+import { proofFixtureScene } from "@/lib/chart/proofScene";
 import { avatarDataUrlFromFile } from "@/lib/profile/avatarImage";
 
 
@@ -125,9 +128,21 @@ export default function ProfilePage() {
     // the frame's scrolling room rather than of the screen. `min-h-full`
     // fills the room it was actually given, so an empty room stays still.
     <React.Suspense fallback={<div className="min-h-full" />}>
-      <ProfilePageInner />
+      <ProfileRouteSwitch />
     </React.Suspense>
   );
+}
+
+/**
+ * PROOF SCENE SWITCH (Garden 19, 2026-10-08): `?scene=profile-fixture` shows read-only SAMPLE books
+ * (ProfileProofScene) instead of the trader's profile — only for a signed-in trader, never a guest,
+ * and the trader's profile is not mounted while it shows (none of its effects can read or write).
+ */
+function ProfileRouteSwitch() {
+  const sp = useSearchParams();
+  const { user: sceneUser } = useAuth();
+  const fixture = proofFixtureScene(`?${sp.toString()}`) === "profile-fixture" && !!sceneUser;
+  return fixture ? <ProfileProofScene /> : <ProfilePageInner />;
 }
 
 function ProfilePageInner() {
@@ -436,12 +451,6 @@ function ProfilePageInner() {
     );
   };
 
-  const STAT_COLORS: Record<string, string> = {
-    // Garden 18 canon shift 2026-10-06: graphite + warm gold (F09/F11B).
-    // Label inks only — green on a measured "+$0" read as profit.
-    "Win Rate": "#ede6d3", "Avg R:R": "#c9a55c",
-    "Net P&L": "#ede6d3", "Trades": "#c9a55c",
-  };
 
   // ── Setup / onboarding modal ─────────────────────────────────
   if (setupMode) {
@@ -681,28 +690,8 @@ function ProfilePageInner() {
             <p className="text-sm text-wm-text-muted max-w-lg leading-relaxed mb-4 whitespace-pre-line">{profile.bio}</p>
           )}
 
-          {/* Stats */}
-          <div className="flex items-center gap-6 flex-wrap">
-            {stats.map(s => (
-              <div
-                key={s.label}
-                className="text-center"
-                title={s.reason}
-                aria-label={`${s.label}: ${s.value}. ${s.reason}`}
-              >
-                <div
-                  className={s.kind === "MEASURED" ? "text-base font-black" : "text-xs font-bold text-wm-text-dim"}
-                  style={s.kind === "MEASURED" ? { color: STAT_COLORS[s.label] } : undefined}
-                >{s.value}</div>
-                <div className="text-[11px] text-wm-text-dim uppercase tracking-wider">{s.label}</div>
-                {/* A measured zero says what it is a sum OF, on the glass and
-                    not only in the tooltip (empty states say why). */}
-                {s.label === "Net P&L" && stats.find(x => x.label === "Trades")?.value === "0" ? (
-                  <div data-testid="profile-net-zero-context" className="text-[11px] text-wm-text-dim">no closed trades yet</div>
-                ) : null}
-              </div>
-            ))}
-          </div>
+          {/* Stats — the one tile view (shared with the profile proof scene). */}
+          <ProfilePerfTiles stats={stats} />
           {paperHeldOutNote !== null && (
             <p role="note" data-testid="profile-paper-held-out" className="mt-2 max-w-lg text-[10px] leading-relaxed text-wm-text-dim">
               {paperHeldOutNote}

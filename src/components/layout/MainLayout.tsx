@@ -492,9 +492,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             >
               {user?.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
+                <img src={user.avatar} alt="avatar" className="w-full h-full object-cover rounded-full" />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-[#c4a574] to-[#5c4a2c] flex items-center justify-center text-[11px] font-black text-wm-black">
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-[#c4a574] to-[#5c4a2c] flex items-center justify-center text-[11px] font-black text-wm-black">
                   {user?.displayName?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "W"}
                 </div>
               )}
