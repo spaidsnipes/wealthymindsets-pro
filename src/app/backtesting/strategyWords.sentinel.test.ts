@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 
 /** Night shift 2026-10-07: a strategy's name and line say what signalAt() tests. */
 describe("backtest strategy words match the engine", () => {
-  const page = readFileSync("src/app/backtesting/page.tsx", "utf8");
+  // The names moved to their one owner (lib/backtest/strategyNames.ts); the page reads them from it.
+  const page = readFileSync("src/lib/backtest/strategyNames.ts", "utf8");
   const engine = readFileSync("src/lib/backtest/engine.ts", "utf8");
   it("the rolling VWAP is called rolling, and Wyckoff phases are not claimed", () => {
     expect(engine).toMatch(/Rolling VWAP/);

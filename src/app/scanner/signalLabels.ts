@@ -23,7 +23,9 @@ export const SIGNAL_LABEL: Readonly<Record<Signal, string>> = {
   "fib-bounce":     "RSI under 35",
   "supply-reject":  "RSI over 70",
   "vwap-reclaim":   "Up 0.5%+",
-  "gap-fill":       "Range · no trigger",
+  // "Range · no trigger" wrapped to two lines in the 112px signal column at
+  // 390 (serving 944ffd4, 2026-10-07 22:2x CDT); the measured fact is "no trigger".
+  "gap-fill":       "No trigger",
   "dark-pool":      "Dark Pool Print",
   "wyckoff-accum":  "Wyckoff Accum.",
   "wyckoff-dist":   "Wyckoff Dist.",

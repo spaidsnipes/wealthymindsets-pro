@@ -19,7 +19,7 @@ describe("each scanner label names the threshold the ladder actually crossed (20
     expect(label(0.1, 1, 30)).toBe("RSI under 35");
     expect(label(0.1, 1, 75)).toBe("RSI over 70");
     expect(label(0.8, 1, 50)).toBe("Up 0.5%+");
-    expect(label(0.1, 1, 50)).toBe("Range · no trigger");
+    expect(label(0.1, 1, 50)).toBe("No trigger");
   });
   it("no reachable label claims a structure the ladder does not measure", () => {
     const reachable = new Set<string>();

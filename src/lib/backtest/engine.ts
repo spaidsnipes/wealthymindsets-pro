@@ -70,6 +70,8 @@ export interface BTResult {
     rangeNote?: string; // set when Yahoo couldn't cover the requested span
     /** Declared fill and cost model (super order §7) — printed with every result. */
     assumptions: string;
+    /** The strategy id this result ran under — names are shown through strategyNames.ts by this id. */
+    strategyId: string;
   };
 }
 
@@ -307,6 +309,7 @@ export function runRealBacktest(
       fromDate: bars.length ? new Date(bars[fromTime != null ? Math.min(startIdx, bars.length - 1) : 0].time * 1000).toLocaleDateString() : "—",
       toDate:   bars.length ? new Date(bars[bars.length - 1].time * 1000).toLocaleDateString() : "—",
       assumptions: BACKTEST_ASSUMPTIONS,
+      strategyId,
     },
   };
 }

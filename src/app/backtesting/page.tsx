@@ -18,6 +18,7 @@ import { backtestRunLine, fetchBars, runRealBacktest, type BTTrade, type BTResul
 import { CHART_TF_SHIPPED } from "@/lib/timeframes";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 import { FvgStudyPanel } from "@/components/backtest/FvgStudyPanel";
+import { BACKTEST_STRATEGIES, backtestStrategyDisplay } from "@/lib/backtest/strategyNames";
 
 /** The profit factor as words when it is undefined: the engine's 99 sentinel
  *  ("only wins") and 0 ("no trades") are not measurements (painted-window
@@ -33,16 +34,8 @@ type Trade = BTTrade;
 type BacktestResult = BTResult;
 
 const SYMBOLS = ["NQ1!", "ES1!", "AAPL", "TSLA", "NVDA", "BTC", "SPY", "GC1!"];
-const STRATEGIES = [
-  // Night shift 2026-10-07: each name and line says what lib/backtest/engine.ts
-  // signalAt() actually tests. "VWAP" there is a ROLLING 20-bar VWAP (not the
-  // session VWAP), and the old "Wyckoff … Phase C" detected no Wyckoff phase —
-  // it is a 20-bar range sweep that closes back inside.
-  { id: "clc",        label: "CLC Rule — OHLCV",           desc: "Fast EMA above/below slow + close within 0.5 ATR of the fast EMA + bar volume 1.1× its 20-bar average" },
-  { id: "vwap",       label: "Rolling-VWAP Deviation Fade", desc: "Fade a close more than 2σ from the 20-bar rolling VWAP (not the session VWAP)" },
-  { id: "wyckoff",    label: "Range Sweep & Reclaim",      desc: "Wick beyond the 20-bar high/low that closes back inside (spring / upthrust style — no Wyckoff phase is detected)" },
-  { id: "momentum",   label: "20-Bar Range Break",         desc: "Close beyond the 20-bar high/low on volume 1.4× its 20-bar average" },
-];
+// The ONE name owner (lib/backtest/strategyNames.ts): ids never change, names may.
+const STRATEGIES = BACKTEST_STRATEGIES;
 const TIMEFRAMES = CHART_TF_SHIPPED;
 const DATE_RANGES = [
   { label: "1 Month",  days: 30  },
@@ -604,7 +597,8 @@ export default function BacktestingPage() {
                   <span className="flex items-center gap-1 text-wm-green font-bold"><CheckCircle size={11} /> Real data</span>
                   <span><span className="text-wm-text-muted font-mono">{result.meta.barCount.toLocaleString()}</span> bars</span>
                   <span><span className="text-wm-text-muted font-mono">{result.meta.fromDate}</span> → <span className="text-wm-text-muted font-mono">{result.meta.toDate}</span></span>
-                  <span>{symbol} · {tf} · {strategy.label}</span>
+                  {/* The strategy the RESULT ran under (by id), not today's selection; "(renamed)" if its stamped label differs. */}
+                  <span data-testid="backtest-result-strategy">{symbol} · {tf} · {backtestStrategyDisplay(result.meta.strategyId, result.trades[0]?.signal ?? null)}</span>
                   <Link href={`/charts?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(tf)}`} data-testid="backtest-open-chart"
                     className="ml-auto inline-flex min-h-8 items-center font-bold text-wm-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
                     Open {symbol} on the chart →
@@ -707,7 +701,7 @@ export default function BacktestingPage() {
                                 {t.pct >= 0 ? "+" : ""}{t.pct.toFixed(2)}%
                               </td>
                               <td className="px-3 py-2 text-wm-text-muted font-mono">{t.bars}</td>
-                              <td className="px-3 py-2 text-wm-text-dim text-[10px]">{t.signal.split("—")[0].trim()}</td>
+                              <td className="px-3 py-2 text-wm-text-dim text-[10px]">{backtestStrategyDisplay(result.meta.strategyId, t.signal).split("—")[0].trim()}</td>
                             </tr>
                           );
                         })}
