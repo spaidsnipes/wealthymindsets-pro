@@ -78,14 +78,14 @@ function DraftFields({ f, set }: { f: DraftForm; set: (f: DraftForm) => void }) 
     <div style={{ display: "grid", gap: 6 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 6 }}>
         <label style={{ color: MUTED, fontSize: 11 }}>Invalidation (words)
-          <input data-testid="plan-invalidation" value={f.invalidation} onChange={e => set({ ...f, invalidation: e.target.value })} placeholder="e.g. loses the opening-range low" style={field} />
+          <input data-testid="plan-invalidation" aria-label="Invalidation, in your words — what would prove the trade wrong" value={f.invalidation} onChange={e => set({ ...f, invalidation: e.target.value })} placeholder="e.g. loses the opening-range low" style={field} />
         </label>
         <label style={{ color: MUTED, fontSize: 11 }}>Invalidation price
-          <input data-testid="plan-invalidation-px" inputMode="decimal" value={f.invalidationPx} onChange={e => set({ ...f, invalidationPx: e.target.value })} style={field} />
+          <input data-testid="plan-invalidation-px" aria-label="Invalidation price" inputMode="decimal" value={f.invalidationPx} onChange={e => set({ ...f, invalidationPx: e.target.value })} style={field} />
         </label>
       </div>
       <label style={{ color: MUTED, fontSize: 11 }}>Management conditions (one per line)
-        <textarea data-testid="plan-conditions" rows={2} value={f.conditions} onChange={e => set({ ...f, conditions: e.target.value })}
+        <textarea data-testid="plan-conditions" aria-label="Management conditions, one per line (for example: move to breakeven after +1R)" rows={2} value={f.conditions} onChange={e => set({ ...f, conditions: e.target.value })}
           placeholder={"move to breakeven after +1R\nreduce at target 1"} style={field} />
       </label>
       {f.conditions.split("\n").map(s => s.trim()).filter(Boolean).map((s, i) => (
@@ -93,13 +93,13 @@ function DraftFields({ f, set }: { f: DraftForm; set: (f: DraftForm) => void }) 
       ))}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))", gap: 6 }}>
         <label style={{ color: MUTED, fontSize: 11 }}>Expected hold (min)
-          <input data-testid="plan-hold" inputMode="numeric" value={f.expectedHoldMin} onChange={e => set({ ...f, expectedHoldMin: e.target.value })} style={field} />
+          <input data-testid="plan-hold" aria-label="Expected hold, in minutes" inputMode="numeric" value={f.expectedHoldMin} onChange={e => set({ ...f, expectedHoldMin: e.target.value })} style={field} />
         </label>
         <label style={{ color: MUTED, fontSize: 11 }}>Session
-          <input data-testid="plan-session" value={f.session} onChange={e => set({ ...f, session: e.target.value })} placeholder="e.g. NY open" style={field} />
+          <input data-testid="plan-session" aria-label="Session you plan to trade (for example: NY open)" value={f.session} onChange={e => set({ ...f, session: e.target.value })} placeholder="e.g. NY open" style={field} />
         </label>
         <label style={{ color: MUTED, fontSize: 11 }}>Context
-          <input data-testid="plan-context" value={f.context} onChange={e => set({ ...f, context: e.target.value })} placeholder="e.g. above VWAP, trend day" style={field} />
+          <input data-testid="plan-context" aria-label="Context you see (for example: above VWAP, trend day)" value={f.context} onChange={e => set({ ...f, context: e.target.value })} placeholder="e.g. above VWAP, trend day" style={field} />
         </label>
       </div>
     </div>
@@ -126,15 +126,15 @@ function AmendForm({ snap, onSaved }: { snap: ManagementPlanSnapshot; onSaved: (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(96px, 1fr))", gap: 6 }}>
           {(["stopPx", "targetPx", "invalidationPx", "expectedHoldMin"] as const).map(k => (
             <label key={k} style={{ color: MUTED, fontSize: 11 }}>{k === "stopPx" ? "New stop" : k === "targetPx" ? "New target" : k === "invalidationPx" ? "New invalidation" : "New hold (min)"}
-              <input data-testid={`plan-amend-${k}`} inputMode="decimal" value={a[k]} onChange={e => setA({ ...a, [k]: e.target.value })} style={field} />
+              <input data-testid={`plan-amend-${k}`} aria-label={k === "stopPx" ? "New stop price" : k === "targetPx" ? "New target price" : k === "invalidationPx" ? "New invalidation price" : "New expected hold, in minutes"} inputMode="decimal" value={a[k]} onChange={e => setA({ ...a, [k]: e.target.value })} style={field} />
             </label>
           ))}
         </div>
         <label style={{ color: MUTED, fontSize: 11 }}>New evidence — what changed in the market that the plan did not know?
-          <textarea data-testid="plan-amend-evidence" rows={2} value={a.newEvidence} onChange={e => setA({ ...a, newEvidence: e.target.value })} style={field} />
+          <textarea data-testid="plan-amend-evidence" aria-label="New evidence: what changed in the market that the plan did not know" rows={2} value={a.newEvidence} onChange={e => setA({ ...a, newEvidence: e.target.value })} style={field} />
         </label>
         <label style={{ color: MUTED, fontSize: 11 }}>Note (optional)
-          <input data-testid="plan-amend-note" value={a.note} onChange={e => setA({ ...a, note: e.target.value })} style={field} />
+          <input data-testid="plan-amend-note" aria-label="Note on this change (optional)" value={a.note} onChange={e => setA({ ...a, note: e.target.value })} style={field} />
         </label>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <button type="button" data-testid="plan-amend-save" onClick={save} style={{ fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "4px 10px", minHeight: 30, cursor: "pointer" }}>Record amendment</button>
