@@ -18,7 +18,10 @@ import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
-import { reconstructEpisodes, summarizeLedger, type Episode, type LedgerOrder, type LedgerSummary } from "@/lib/broker/webullLedger";
+import { ledgerCoverageLine, reconstructEpisodes, summarizeLedger, WEBULL_PAIRING_TRUTH, type Episode, type LedgerOrder, type LedgerSummary } from "@/lib/broker/webullLedger";
+import { formatMoney } from "@/lib/marketData/contractEconomics";
+import { guardStat } from "@/lib/journal/statGuard";
+import { SPLIT_AT } from "@/lib/broker/webullLedgerWalk";
 import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { LedgerPersonalEdge } from "@/components/journal/LedgerPersonalEdge";
 import { TradeReplay } from "@/components/journal/TradeReplay";
@@ -54,7 +57,8 @@ const LEDGER_CSS = `
 }
 `;
 
-const usd = (v: number | null | undefined, sign = true) => v == null ? "—" : `${sign && v > 0 ? "+" : v < 0 ? "−" : ""}$${Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/** Money through the one shared formatter (contractEconomics.formatMoney); P&L keeps an explicit "+". */
+const usd = (v: number | null | undefined, sign = true) => v == null ? "—" : `${sign && v > 0 ? "+" : ""}${formatMoney(v)}`;
 const pct = (v: number | null | undefined) => v == null ? "—" : `${(v * 100).toFixed(1)}%`;
 const tone = (v: number | null | undefined) => v == null || v === 0 ? INK : v > 0 ? UP : DOWN;
 const day = (iso: string | null) => iso ? new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }) : "—"; // F2: the zone is named
@@ -141,7 +145,7 @@ function EpisodeRow({ e, all, conds, tags }: { e: Episode; all: readonly Episode
         <div style={{ margin: "6px 0 2px 16px", fontSize: 11, color: MUTED }}>
           <div style={{ marginBottom: 4 }}>
             <Link href={`/charts?symbol=${encodeURIComponent(e.symbol)}&tf=1m`} data-testid="ledger-open-chart" style={{ color: GOLD, marginRight: 8 }}>Open {e.symbol} chart →</Link>
-            <span style={{ color: GOLD }}>{e.label}</span> · gross {usd(e.gross)} · fees {usd(e.fees, false)} · net <span style={{ color: tone(e.net) }}>{usd(e.net)}</span> · ×{e.multiplier} per contract{e.note ? ` · ${e.note}` : ""}
+            <span style={{ color: GOLD }}>{e.label}</span> · gross {usd(e.gross)} · fees {usd(e.fees, false)}{e.feesUnreportedFills ? <span data-testid="ledger-fees-unreported"> (+ UNREPORTED on {e.feesUnreportedFills} fill{e.feesUnreportedFills === 1 ? "" : "s"} — Webull stated no fees; not counted as $0)</span> : null} · net <span style={{ color: tone(e.net) }}>{usd(e.net)}</span> · ×{e.multiplier} per contract{e.note ? ` · ${e.note}` : ""}
           </div>
           {[...e.entries.map(f => ({ ...f, role: "ENTRY" })), ...e.exits.map(f => ({ ...f, role: "EXIT" }))].sort((a, b) => a.at.localeCompare(b.at)).map(f => (
             <div key={`${f.orderId}-${f.role}-${f.at}`} style={{ display: "flex", gap: 10, fontVariantNumeric: "tabular-nums" }}>
@@ -150,7 +154,7 @@ function EpisodeRow({ e, all, conds, tags }: { e: Episode; all: readonly Episode
               <span style={{ width: 40 }}>{f.side}</span>
               <span style={{ width: 60 }}>{f.quantity} @ {f.price.toFixed(2)}</span>
               <span style={{ width: 90 }}>{f.orderType ?? ""}{f.comboType && f.comboType !== "NORMAL" ? ` · ${f.comboType}` : ""}</span>
-              <span>fees {usd(f.fees, false)}</span>
+              <span>{f.feesReported === false ? "fees UNREPORTED" : `fees ${usd(f.fees, false)}`}</span>
               <span style={{ opacity: 0.6 }}>Webull order {f.orderId}</span>
             </div>
           ))}
@@ -227,7 +231,7 @@ export function WebullLifetimeLedger() {
         if (!final && lastPublish && now - lastPublish < 2_000) return;
         lastPublish = now;
         const episodes = reconstructEpisodes(all, Date.now());
-        setData({ state: "OK", asOf: new Date().toISOString(), truth: "ACTUAL BROKER RESULT · episodes RECONSTRUCTED from Webull order history", accounts: [...rows], orderCount: all.length, summary: summarizeLedger(episodes), episodes, partial: !final });
+        setData({ state: "OK", asOf: new Date().toISOString(), truth: `ACTUAL BROKER RESULT (fills, prices, stated fees) · ${WEBULL_PAIRING_TRUTH}`, accounts: [...rows], orderCount: all.length, summary: summarizeLedger(episodes), episodes, partial: !final });
       };
       for (const acct of list.accounts) {
         const row: AccountRow = { tail: acct.tail, accountType: acct.accountType, orders: 0, filled: 0, askedBackTo: "", stoppedBecause: "QUIET_YEARS", reason: null };
@@ -335,7 +339,7 @@ export function WebullLifetimeLedger() {
           ) : null}
           <div style={{ fontSize: 11, color: MUTED, lineHeight: 1.6 }}>
             {(data.accounts ?? []).map(a => (
-              <div key={a.tail}>·{a.tail} {a.accountType ?? ""}: {a.orders} orders ({a.filled} filled) · asked back to {a.askedBackTo} · {a.stoppedBecause === "QUIET_YEARS" ? "history quiet before that" : a.stoppedBecause}{a.reason ? ` — ${a.reason}` : ""}</div>
+              <div key={a.tail} data-testid="ledger-coverage">·{a.tail} {a.accountType ?? ""}: {a.orders} orders ({a.filled} filled) · {ledgerCoverageLine(a, Date.now())}{data.partial ? " — still reading" : ""}</div>
             ))}
             {(() => {
               // Only once the history is whole and Webull has answered — never a premature "did not state".
@@ -349,6 +353,7 @@ export function WebullLifetimeLedger() {
               );
             })()}
             <div>First fill Webull returned: {day(s.firstFillAt)} · last: {day(s.lastFillAt)}. Earlier trading, if any, was not returned by Webull's order history and is not shown.</div>
+            <div data-testid="ledger-read-method">Read month by month; any window that answers with {SPLIT_AT} or more rows is split in half until whole, because Webull silently truncates long windows. Webull&apos;s end date is exclusive, so WM asks to tomorrow and today is included.</div>
           </div>
 
           {!data.partial ? (
@@ -362,10 +367,16 @@ export function WebullLifetimeLedger() {
           <div data-testid="ledger-summary" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 8, scrollMarginTop: 40 }}>
             <Tile label="Net P&L · realised" value={usd(s.net)} color={tone(s.net)} note={`${s.closed} closed trades`} />
             <Tile label="Gross" value={usd(s.gross)} color={tone(s.gross)} />
-            <Tile label="Fees paid" value={usd(s.fees, false)} note="Webull itemised" />
-            <Tile label="Win rate" value={pct(s.winRate)} note={`${s.wins} W · ${s.losses} L${s.scratches ? ` · ${s.scratches} flat` : ""}`} />
-            <Tile label="Expectancy" value={usd(s.expectancy)} color={tone(s.expectancy)} note="mean net per trade" />
-            <Tile label="Profit factor" value={s.profitFactor == null ? "—" : s.profitFactor.toFixed(2)} />
+            <Tile label="Fees paid" value={usd(s.fees, false)} note={s.feesUnreportedTrades ? `Webull itemised · ${s.feesUnreportedTrades} trades include fills with no stated fee (UNREPORTED, not $0)` : "Webull itemised"} />
+            {(() => {
+              // n ≥ 20 guard (statGuard): rates and ratios are INSUFFICIENT EVIDENCE below 20 closed trades.
+              const wr = guardStat(s.closed, pct(s.winRate)), ex = guardStat(s.closed, usd(s.expectancy)), pf = guardStat(s.closed, s.profitFactor == null ? "—" : s.profitFactor.toFixed(2));
+              return (<>
+                <Tile label="Win rate" value={wr.text} note={`${s.wins} W · ${s.losses} L${s.scratches ? ` · ${s.scratches} flat` : ""}${wr.note ? ` · ${wr.note}` : ""}`} />
+                <Tile label="Expectancy" value={ex.text} color={ex.state === "MEASURED" ? tone(s.expectancy) : MUTED} note={ex.note ?? "mean net per trade"} />
+                <Tile label="Profit factor" value={pf.text} note={pf.note ?? undefined} />
+              </>);
+            })()}
             <Tile label="Avg win / loss" value={`${usd(s.avgWin)} / ${usd(s.avgLoss)}`} />
             <Tile label="Max drawdown" value={usd(-s.maxDrawdown)} color={s.maxDrawdown ? DOWN : INK} note="peak → trough, closed trades" />
             <Tile label="Largest win / loss" value={`${usd(s.largestWin)} / ${usd(s.largestLoss)}`} />

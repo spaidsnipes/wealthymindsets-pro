@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { provenSessionClosure } from "./canonicalIdentity";
+import { provenSessionClosure, quoteSessionClosure } from "./canonicalIdentity";
 // The sampling interval is declared where the compiler that TOLERATES it lives.
 // Two numbers — one here, one there — is how "our clock is 15s coarse" and "we
 // forgive 15s of coarseness" silently stop being the same statement.
@@ -27,6 +27,16 @@ import { FEED_CLOCK_SAMPLE_INTERVAL_MS } from "@/lib/os/osChrome";
 export function useProvenSessionClosure(symbol: string): false | null {
   const now = useSessionClockDate();
   return now ? provenSessionClosure(symbol, now) : null;
+}
+
+/**
+ * The quote feed's session (see `quoteSessionClosure`): proven closure, plus a
+ * US equity's overnight and weekend hours, where a quiet tape is expected.
+ * Same hydration discipline as `useProvenSessionClosure`.
+ */
+export function useQuoteSessionClosure(symbol: string): { readonly closed: false | null; readonly detail: string | null } {
+  const now = useSessionClockDate();
+  return quoteSessionClosure(symbol, now);
 }
 
 /**

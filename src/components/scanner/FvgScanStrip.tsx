@@ -16,6 +16,7 @@ import { clsx } from "clsx";
 import { fetchFvgBars } from "@/lib/marketData/fvg/fvgBarSource";
 import {
   FVG_CONVERGENCE_CONDITIONS,
+  FVG_SCAN_FEED_NOTE,
   FVG_CONVERGENCE_LABEL,
   FVG_SCAN_CONDITIONS,
   FVG_SCAN_CONDITION_LABEL,
@@ -61,6 +62,13 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
   };
 
   const cov = fvgScanCoverage(readings);
+  // Whose bars, as of which bar — per symbol (two feeds are two truths; each names itself).
+  const feedOf = new Map(readings.flatMap(r => (r.status === "READ" ? [[r.symbol, r.feed] as const] : [])));
+  const barDay = (ms: number) => new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" }).format(new Date(ms));
+  const feedWords = (symbol: string) => {
+    const f = feedOf.get(symbol);
+    return f ? `${f.label}${f.fidelity ? ` (${f.fidelity.toLowerCase()})` : ""} · as of the ${barDay(f.barOpenMs)} bar` : null;
+  };
   const isConv = (c: string): c is FvgConvergenceCondition => (FVG_CONVERGENCE_CONDITIONS as readonly string[]).includes(c);
   const hits = isConv(only) ? [] : readings.flatMap(r => (r.status === "READ" ? r.hits : [])).filter(h => only === "ALL" || h.condition === only);
   const conv = readings.flatMap(r => (r.status === "READ" ? r.convergence : [])).filter(h => only === "ALL" || h.condition === only);
@@ -92,7 +100,7 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
             </div>
             {readings.length > 0 && (
               <span data-testid="scanner-fvg-coverage" role="status" className="text-[10px] text-wm-text-dim">
-                read {cov.read} of {cov.of} symbols · {cov.refused} refused · definition FVG_3C v1 · observed lifecycle facts, not signals
+                read {cov.read} of {cov.of} symbols · {cov.refused} refused · definition FVG_3C v1 · observed lifecycle facts, not signals · each row names the bars it read — {FVG_SCAN_FEED_NOTE}
               </span>
             )}
           </>
@@ -115,6 +123,7 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
                     <span className={h.direction === "BULLISH" ? "text-wm-green" : "text-wm-red"}>{h.direction.toLowerCase()}</span>
                     <span className="font-mono text-wm-text-muted">{h.bottom.toFixed(h.priceDp)} – {h.top.toFixed(h.priceDp)}</span>
                     <span className="text-wm-text-dim">{h.state.replace(/_/g, " ").toLowerCase()}</span>
+                    {feedWords(h.symbol) ? <span data-testid="scanner-fvg-feed" className="text-[10px] text-wm-text-dim">{feedWords(h.symbol)}</span> : null}
                     <span className="ml-auto text-wm-blue">Open on the chart →</span>
                   </button>
                 </li>

@@ -54,7 +54,7 @@ export const PLAN_ABSENT_JOURNAL = "This entry did not come from a WM ticket, so
  * dimension, and their own words. `evidence` (from a captured fill) sets the
  * machine facts beside the dimension they inform; they are never edited here.
  */
-export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, fvg: fvgIn, fvgRef, planAbsent, brokerNote, defaultOpen = false }: {
+export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, fvg: fvgIn, fvgRef, planAbsent, brokerNote, readOnly = false, defaultOpen = false }: {
   storyKey: string;
   evidence?: Readonly<Record<ReviewDimension, readonly ReviewEvidenceLine[]>>;
   /** Garden 19 §27/§28: the frozen plan + this trade's actuals, when the story has a Decision_ID. */
@@ -71,6 +71,12 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
   planAbsent?: string | null;
   /** A plain line about what this broker's readback does (e.g. Webull fills are not auto-captured). */
   brokerNote?: string | null;
+  /**
+   * PROOF SCENE ONLY (/journal?scene=journal-fixture): nothing is saved, loaded
+   * or asked — no storage write, no network read, no SpaidBot door. Every
+   * control is inert and says so.
+   */
+  readOnly?: boolean;
   defaultOpen?: boolean;
 }) {
   const [fvgLoaded, setFvgLoaded] = useState<FvgReviewAnswers | null>(null);
@@ -133,7 +139,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
                     <span key={q} data-layer="MARKET TRUTH" style={{ fontSize: 11, color: INK, overflowWrap: "anywhere" }}><span style={{ color: MUTED }}>{q}</span> {a}</span>
                   ))}
                   <span data-layer="EDUCATION TRUTH" style={{ color: MUTED, fontSize: 10.5 }}>EDUCATION TRUTH · A gap is a record of where price moved fast, not a target — price does not have to return to it.</span>
-                  {fvgRef && !fvgLoaded ? (
+                  {fvgRef && !fvgLoaded && !readOnly ? (
                     <button type="button" data-testid="plan-fvg-load" onClick={loadFvg}
                       style={{ justifySelf: "start", fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", minHeight: 28, cursor: "pointer" }}>
                       Read what happened to this gap after the decision
@@ -142,7 +148,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
                   {fvgNote ? <span role="status" style={{ fontSize: 10.5, color: MUTED }}>{fvgNote}</span> : null}
     </div>
   ) : null;
-  const save = (next: StoryReview) => setAll(writeStoryReview(storyKey, { ...next, updatedAt: Date.now() }));
+  const save = (next: StoryReview) => { if (readOnly) return; setAll(writeStoryReview(storyKey, { ...next, updatedAt: Date.now() })); };
   return (
     <div data-testid="story-review" style={{ marginTop: 8, borderTop: `1px dashed ${LINE}`, paddingTop: 6 }}>
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
@@ -158,7 +164,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
               return (
                 <div key={d} data-testid={`review-dimension-${d}`} style={{ display: "grid", gap: 3, borderLeft: `2px solid ${m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : LINE}`, paddingLeft: 6 }}>
                   <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                    <button type="button" data-testid={`review-${d}`} data-mark={m ?? "OPEN"} title={REVIEW_QUESTION[d]} aria-label={`${d}: ${m ?? "not judged"}. ${REVIEW_QUESTION[d]}`}
+                    <button type="button" disabled={readOnly} data-testid={`review-${d}`} data-mark={m ?? "OPEN"} title={REVIEW_QUESTION[d]} aria-label={`${d}: ${m ?? "not judged"}. ${REVIEW_QUESTION[d]}`}
                       onClick={() => save({ ...r, marks: { ...r.marks, [d]: cycleMark(m) } })}
                       style={{ fontSize: 10, letterSpacing: 0.8, padding: "3px 7px", minHeight: 24, borderRadius: 999, cursor: "pointer", background: "transparent",
                         border: `1px solid ${m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : LINE}`, color: m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : MUTED }}>
@@ -187,7 +193,7 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
                       </span>
                     </div>
                   ))}
-                  <input aria-label={`${d} note`} data-testid={`review-note-${d}`} value={r.notes?.[d] ?? ""} placeholder="note (optional)"
+                  <input readOnly={readOnly} aria-label={`${d} note`} data-testid={`review-note-${d}`} value={r.notes?.[d] ?? ""} placeholder="note (optional)"
                     onChange={e => save({ ...r, notes: { ...(r.notes ?? {}), [d]: e.target.value } })}
                     style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: "3px 6px", borderRadius: 4, minHeight: 26 }} />
                 </div>
@@ -234,9 +240,9 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
               ) : null}
               {planDecisionId ? <ManagementPlanCard mode="story" decisionId={planDecisionId} symbol={planSymbol ?? null} initial={plan?.plan ?? null} onPlanChange={s => { setPlanOverride(s); if (s === null) setAll(readStoryReviews()); }} /> : null}
               <span data-testid="plan-question" style={{ fontSize: 12, color: INK, overflowWrap: "anywhere" }}>SpaidBot asks: {composed.question}</span>
-              <AskSpaidbotButton testId="review-ask-spaidbot" label="Ask SpaidBot about this decision" ask={askDecision} />
+              {readOnly ? null : <AskSpaidbotButton testId="review-ask-spaidbot" label="Ask SpaidBot about this decision" ask={askDecision} />}
               <label style={{ fontSize: 11, color: MUTED }}>Why did the plan change? (your words — WM never fills this in)
-                <textarea data-testid="plan-why" value={r.planWhy ?? ""} onChange={e => save({ ...r, planWhy: e.target.value })} rows={2}
+                <textarea readOnly={readOnly} data-testid="plan-why" value={r.planWhy ?? ""} onChange={e => save({ ...r, planWhy: e.target.value })} rows={2}
                   style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />
               </label>
             </div>
@@ -245,13 +251,13 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
           {planIn?.actualsRefusal ? <p data-testid="plan-actuals-refusal" style={{ margin: 0, fontSize: 11, color: MUTED }}>{planIn.actualsRefusal}</p> : null}
           {!composed && planAbsent ? <p data-testid="plan-absent" style={{ margin: 0, fontSize: 11, color: MUTED }}>{planAbsent}</p> : null}
           {!composed ? fvgBlock : null}
-          {!composed && fvg ? <AskSpaidbotButton testId="review-ask-spaidbot" label="Ask SpaidBot about this decision" ask={askDecision} /> : null}
+          {!composed && fvg && !readOnly ? <AskSpaidbotButton testId="review-ask-spaidbot" label="Ask SpaidBot about this decision" ask={askDecision} /> : null}
           <label style={{ fontSize: 11, color: MUTED }}>The lesson, in my words
-            <textarea value={r.lesson} onChange={e => save({ ...r, lesson: e.target.value })} rows={2}
+            <textarea readOnly={readOnly} value={r.lesson} onChange={e => save({ ...r, lesson: e.target.value })} rows={2}
               style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />
           </label>
           <label style={{ fontSize: 11, color: MUTED }}>What I would repeat
-            <textarea value={r.repeat} onChange={e => save({ ...r, repeat: e.target.value })} rows={2}
+            <textarea readOnly={readOnly} value={r.repeat} onChange={e => save({ ...r, repeat: e.target.value })} rows={2}
               style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />
           </label>
           <p style={{ fontSize: 10.5, color: MUTED, margin: 0 }}>Kept on this device. The broker&apos;s facts above are never edited by a review.</p>

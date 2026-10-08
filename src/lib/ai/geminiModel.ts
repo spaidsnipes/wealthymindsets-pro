@@ -37,6 +37,30 @@ export function pickGeminiModel(models: readonly GeminiModelInfo[]): string | nu
   return best?.id ?? null;
 }
 
+/**
+ * The generation config for a model (serving 02e593e / dae44b0, FVG Ask proof):
+ * gemini-2.5+ flash THINKS by default. Its thinking ran ~30 s before the first
+ * byte (headers at 29.85 s against the route's 30 s bound; the first try timed
+ * out) and spent the 1024-token output budget, so the visible answer stopped
+ * after one sentence ("…last observed 2026"). SpaidBot explains evidence; it
+ * does not need hidden reasoning tokens: thinking is switched off where the
+ * model supports the switch, and the visible budget is 2048 tokens.
+ */
+export const SPAIDBOT_MAX_OUTPUT_TOKENS = 2048;
+export function modelThinksByDefault(model: string): boolean {
+  const id = model.replace(/^models\//, "");
+  if (!/^gemini-\d+(\.\d+)*-flash/.test(id)) return false;
+  const v = versionOf(id);
+  return newer(v, [2, 4]) || (v[0] === 2 && (v[1] ?? 0) >= 5);
+}
+export function geminiGenerationConfig(model: string): Record<string, unknown> {
+  return {
+    maxOutputTokens: SPAIDBOT_MAX_OUTPUT_TOKENS,
+    temperature: 0.7,
+    ...(modelThinksByDefault(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+  };
+}
+
 let memo: { at: number; id: string } | null = null;
 const TTL_MS = 6 * 3600_000;
 

@@ -8,8 +8,12 @@
  * order is placed, nothing is saved — each room is only opened in a
  * same-origin iframe at each width and measured.
  *
- * Keep the tab IN FRONT while it runs (a hidden tab pauses rendering and the
- * charts never paint). It takes ~4 s per room per width.
+ * Keep the tab IN FRONT and the Chrome window FOCUSED while it runs. A tab whose
+ * document reports visibilityState "hidden" pauses requestAnimationFrame: drawers
+ * stay parked at their start position (the Settings drawer read 420 px off-screen,
+ * 2026-10-07), so an animated element can read as overflow that a person never
+ * sees. If `document.visibilityState` is not "visible", the run refuses to start.
+ * It takes ~4 s per room per width.
  *
  * Change ROUTES / WIDTHS below if you want fewer. When it finishes:
  *   console.table(window.__wmRelease52.rows)          — every row
@@ -33,6 +37,8 @@
     "/charts", "/command-deck", "/desk", "/journal", "/paper", "/scanner", "/backtesting",
     "/morning-prep", "/education", "/education?lesson=fvg-1", "/news", "/lounge", "/settings", "/profile",
   ];
+  /** Routes that are ALIASES by design: where they land (src/lib/legacyRouteAliases). */
+  const LANDS_ON = { "/settings": "/charts" }; // the Settings drawer over the chart
   const WIDTHS = [1440, 1024, 834, 768, 390, 360];
   const HEIGHT = (w) => (w <= 430 ? 844 : w <= 1024 ? 1112 : 900);
   const SETTLE_MS = 4000;
@@ -41,7 +47,11 @@
   function measure(win, coarse) {
     const doc = win.document, vw = win.innerWidth;
     const cs = (el) => win.getComputedStyle(el);
+    // checkVisibility walks the ancestors (a collapsed drawer at opacity 0
+    // hides its children — /scanner's filter drawer, 2026-10-07).
+    const shown = (el) => (typeof el.checkVisibility === "function" ? el.checkVisibility({ opacityProperty: true, visibilityProperty: true }) : true);
     const visible = (el) => {
+      if (!shown(el)) return false;
       const s = cs(el);
       if (s.visibility === "hidden" || s.display === "none" || Number(s.opacity) === 0) return false;
       const r = el.getBoundingClientRect();
@@ -68,6 +78,7 @@
       if (s.display === "none" || s.visibility === "hidden") return false;
       if (el.closest("[aria-hidden=true], .sr-only, [hidden]")) return false;
       if (el.getClientRects().length === 0) return false;
+      if (!shown(el)) return false;
       if (s.position === "absolute" && (s.clip !== "auto" || s.clipPath !== "none")) return false;
       const r = el.getBoundingClientRect();
       return r.width === 0 || r.height === 0;
@@ -92,6 +103,10 @@
     return { path: win.location.pathname, hScroll: doc.documentElement.scrollWidth > vw, overflow, evicted, small, tiny };
   }
 
+  if (document.visibilityState !== "visible") {
+    console.warn("§52 in-tab: this tab is hidden — bring it to the front of a focused window and paste again.");
+    return;
+  }
   const rows = [];
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
@@ -105,7 +120,8 @@
         await sleep(SETTLE_MS);
         let m;
         try { m = measure(frame.contentWindow, w <= 1024); } catch (e) { m = { error: String(e) }; }
-        const reached = !m.error && m.path === route.split("?")[0];
+        const want = route.split("?")[0];
+        const reached = !m.error && m.path === (LANDS_ON[want] || want);
         const checks = {
           REACHED: reached,
           NO_HSCROLL: reached && !m.hScroll,

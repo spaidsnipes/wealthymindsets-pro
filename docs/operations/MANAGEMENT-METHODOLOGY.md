@@ -195,6 +195,27 @@ using Webull's own readback, read only — no Webull order tool is ever called.
 
 Test: `webullReviewShapes.test.ts`.
 
+### The Broker Ledger (Webull lifetime) — the same truth rules
+
+`src/lib/broker/webullLedger.ts`, `src/lib/broker/webullLedgerWalk.ts`, `src/components/journal/WebullLifetimeLedger.tsx`:
+
+* **Fees.** An order with no fee list and no commission is `feesReported: false`. Its fills read
+  "fees UNREPORTED". The round trip says "(+ UNREPORTED on N fills — Webull stated no fees; not
+  counted as $0)", and the Fees tile names how many trades include such fills. A stated $0 is a
+  fee of $0.
+* **Pairing.** Round trips are said to be PAIRED BY WM flat-to-flat from Webull's fills in time
+  order (`WEBULL_PAIRING_TRUTH`); Webull's order history links no close to its open.
+* **Coverage on screen.** Each account line reads "read N days of history, back to D (today
+  included) · stopped: why" (`ledgerCoverageLine`). "Refused" and "page budget" say that older
+  history was NOT read.
+* **Read method on screen.** The page says that history is read month by month, that a window
+  answering `SPLIT_AT` (30) or more rows is split until whole (Webull silently truncates), and
+  that WM asks to tomorrow because the end date is exclusive.
+* **Clock and money.** Months bucket on the New York clock (`nyMonth`); every clock names its
+  zone; money goes through `formatMoney`.
+
+Test: `src/lib/broker/webullLedgerTruth.test.ts` (with `webullLedger.test.ts`, `webullLedgerWalk.test.ts`).
+
 ## 3. The plan alone — counterfactual reference (§24)
 
 `planAloneReference` reads the **frozen base** (amendments are what was *done*). It asks which of

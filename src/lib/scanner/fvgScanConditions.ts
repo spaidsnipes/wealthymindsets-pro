@@ -111,6 +111,24 @@ export interface FvgConvergenceHit extends Omit<FvgScanHit, "condition"> {
   readonly relationships: readonly string[];
 }
 
+export interface FvgScanFeed {
+  /** Trader words for the bars read, e.g. "daily history bars". */
+  readonly label: string;
+  /** The bars' own fidelity word (INDICATIVE …), or null. */
+  readonly fidelity: string | null;
+  /** Open time (epoch ms) of the newest closed bar read — the reading's as-of bar. */
+  readonly barOpenMs: number;
+}
+
+/** "daily history bars" / "4h history bars"; "… built from finer bars" when the route reconstructed them. */
+export function fvgScanFeedLabel(timeframe: string, provenance: string | null): string {
+  const tf = timeframe === "1D" || timeframe === "D" ? "daily" : timeframe;
+  return provenance === "DERIVED" ? `${tf} bars built from finer history` : `${tf} history bars`;
+}
+
+/** The sentence the strip prints under its results: whose bars, as of when, and that the chart may differ. */
+export const FVG_SCAN_FEED_NOTE = "the chart reads its own feed, so a gap's state there can differ";
+
 export type FvgScanReading =
   | {
       readonly status: "READ";
@@ -120,6 +138,13 @@ export type FvgScanReading =
       readonly barsRead: number;
       /** Close time of the newest closed bar read. */
       readonly asOfMs: number;
+      /**
+       * WHICH bars were read (chart lane serving read: the strip said "born"
+       * while the chart's own feed read the same gap FULLY_MITIGATED). The
+       * scanner reads the bar route's history; the chart may read a live
+       * broker feed. Two readings are two truths — each says whose it is.
+       */
+      readonly feed: FvgScanFeed;
       readonly hits: readonly FvgScanHit[];
       /** Convergence (FVG + another owner's reading). Never a grade; each line names its source evidence. */
       readonly convergence: readonly FvgConvergenceHit[];
@@ -150,6 +175,7 @@ export function fvgScanConditionsFromBars(input: {
   readonly bars: readonly CanonicalBar[];
   readonly nowMs: number;
   readonly extendedHours?: boolean;
+  readonly provenance?: string | null;
 }): FvgScanReading {
   const { symbol, timeframe } = input;
   const refuse = (reason: string): FvgScanReading => ({ status: "REFUSED", symbol, timeframe, reason });
@@ -205,6 +231,11 @@ export function fvgScanConditionsFromBars(input: {
     definition: { id: FVG_DEFINITION_ID, version: FVG_DEFINITION_VERSION },
     barsRead: n,
     asOfMs: tNow,
+    feed: {
+      label: fvgScanFeedLabel(timeframe, input.provenance ?? null),
+      fidelity: input.bars[input.bars.length - 1]?.fidelity ?? null,
+      barOpenMs: input.bars[input.bars.length - 1]?.asOf ?? tNow,
+    },
     hits,
     convergence,
   };
@@ -218,7 +249,7 @@ export function fvgScanConditions(input: {
   readonly nowMs: number;
 }): FvgScanReading {
   if (!input.fetch.ok) return { status: "REFUSED", symbol: input.symbol, timeframe: input.timeframe, reason: input.fetch.reason };
-  return fvgScanConditionsFromBars({ symbol: input.symbol, timeframe: input.timeframe, bars: input.fetch.bars, nowMs: input.nowMs });
+  return fvgScanConditionsFromBars({ symbol: input.symbol, timeframe: input.timeframe, bars: input.fetch.bars, nowMs: input.nowMs, provenance: input.fetch.provenance });
 }
 
 /** The denominator line: "read 24 of 30 symbols · 6 refused". */

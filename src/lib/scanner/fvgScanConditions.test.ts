@@ -7,7 +7,9 @@ import { parseProofScene } from "@/lib/chart/proofScene";
 import {
   FVG_CONVERGENCE_CONDITIONS,
   FVG_SCAN_CONDITIONS,
+  FVG_SCAN_FEED_NOTE,
   FVG_SCAN_MIN_BARS,
+  fvgScanFeedLabel,
   fvgScanConditions,
   fvgScanConditionsFromBars,
   fvgScanCoverage,
@@ -139,5 +141,19 @@ describe("Scanner FVG conditions — the one engine, at the newest closed bar", 
     expect(r.convergence).toEqual([]);
     const src = readFileSync(path.resolve(__dirname, "fvgScanConditions.ts"), "utf8");
     expect(src).not.toMatch(/"FVG_PLUS_WALL"/);
+  });
+
+  it("every reading names WHOSE bars it read and as of which bar (two feeds are two truths)", () => {
+    const bars = series([...FLAT, ...BULL]);
+    const r = fvgScanConditions({ symbol: SYM, timeframe: "1m", nowMs: bars[bars.length - 1].asOf + MIN, fetch: { ok: true, bars, unpaired: 0, forming: 0, provenance: "REST_BACKFILL", fidelity: "INDICATIVE" } });
+    if (r.status !== "READ") throw new Error(r.reason);
+    expect(r.feed).toEqual({ label: "1m history bars", fidelity: "INDICATIVE", barOpenMs: bars[bars.length - 1].asOf });
+    expect(fvgScanFeedLabel("1D", "REST_BACKFILL")).toBe("daily history bars");
+    expect(fvgScanFeedLabel("4h", "DERIVED")).toBe("4h bars built from finer history");
+    expect(FVG_SCAN_FEED_NOTE).toMatch(/chart reads its own feed/);
+    const strip = readFileSync(path.resolve(__dirname, "../../components/scanner/FvgScanStrip.tsx"), "utf8");
+    expect(strip).toContain('data-testid="scanner-fvg-feed"');
+    expect(strip).toContain("{FVG_SCAN_FEED_NOTE}");
+    expect(strip).not.toMatch(/Yahoo|yahoo/); // the feed is named in trader words, never the vendor
   });
 });

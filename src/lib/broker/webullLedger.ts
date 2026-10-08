@@ -49,6 +49,8 @@ export interface LedgerOrder {
   readonly fees: readonly LedgerFee[];
   readonly feeTotal: number;
   readonly commission: number;
+  /** Webull stated fees on this order (a `fees` list or a commission). False = fees UNREPORTED — counted as no fee, said on screen, never "$0 fees". */
+  readonly feesReported?: boolean;
 }
 
 const num = (v: unknown): number | null => {
@@ -118,6 +120,7 @@ export function readWebullHistory(payload: unknown, accountId: string): LedgerOr
         fees,
         feeTotal: cents(fees.reduce((s, f) => s + f.value, 0)),
         commission,
+        feesReported: Array.isArray(o.fees) || num(c.actual_value) != null || num(c.value) != null,
       });
     }
   }
@@ -142,6 +145,8 @@ export interface EpisodeFill {
   readonly comboType: string | null;
   /** True when Webull stated no fill time and the order's PLACEMENT time stands in (older 2025 orders). */
   readonly atIsPlacement: boolean;
+  /** False when the order stated no fees — this fill's fee is UNREPORTED (not $0). */
+  readonly feesReported?: boolean;
 }
 
 export interface Episode {
@@ -168,6 +173,8 @@ export interface Episode {
   readonly entryCost: number;
   readonly label: TruthLabel;
   readonly note: string | null;
+  /** Fills in this round trip whose order stated no fees (their fee is UNREPORTED; `fees` and `net` exclude it). */
+  readonly feesUnreportedFills?: number;
 }
 
 /**
@@ -207,7 +214,7 @@ export function reconstructEpisodes(orders: readonly LedgerOrder[], nowMs: numbe
         const c = cur!;
         const sameWay = Math.sign(pos) === signed || pos === 0;
         const take = sameWay ? qty : Math.min(qty, Math.abs(pos));
-        const fill: EpisodeFill = { orderId: o.orderId, side: o.side, quantity: take, price: o.filledPrice!, at: at(o), fees: cents(feePer * take), orderType: o.orderType, comboType: o.comboType, atIsPlacement: !o.filledAt };
+        const fill: EpisodeFill = { orderId: o.orderId, side: o.side, quantity: take, price: o.filledPrice!, at: at(o), fees: cents(feePer * take), orderType: o.orderType, comboType: o.comboType, atIsPlacement: !o.filledAt, feesReported: o.feesReported !== false };
         if (sameWay) c.entries.push(fill); else c.exits.push(fill);
         pos += signed * take;
         c.max = Math.max(c.max, Math.abs(pos));
@@ -258,6 +265,7 @@ function finish(first: LedgerOrder, entries: EpisodeFill[], exits: EpisodeFill[]
     entryCost: cents(v(entries) * m),
     label,
     note,
+    feesUnreportedFills: [...entries, ...exits].filter(f => f.feesReported === false).length,
   };
 }
 
@@ -293,6 +301,8 @@ export interface LedgerSummary {
   readonly byAccount: readonly LedgerBucket[];
   readonly firstFillAt: string | null;
   readonly lastFillAt: string | null;
+  /** Closed round trips with at least one fill whose fee Webull did not state. */
+  readonly feesUnreportedTrades?: number;
 }
 
 function bucket(rows: readonly Episode[], keyOf: (e: Episode) => string): LedgerBucket[] {
@@ -304,6 +314,32 @@ function bucket(rows: readonly Episode[], keyOf: (e: Episode) => string): Ledger
     m.set(k, b);
   }
   return [...m.entries()].map(([key, b]) => ({ key, trades: b.trades, wins: b.wins, net: cents(b.net), fees: cents(b.fees) }));
+}
+
+const NY_MONTH = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit" });
+/** "2026-09" — the New York month of an instant. */
+export function nyMonth(iso: string): string {
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? NY_MONTH.format(new Date(t)).slice(0, 7) : iso.slice(0, 7);
+}
+
+/** The round-trip pairing, said on screen: Webull's order history links no close to an open. */
+export const WEBULL_PAIRING_TRUTH = "round trips PAIRED BY WM flat-to-flat from Webull's fills in time order — Webull's order history does not link a close to its open";
+
+/**
+ * How much history was read, per account, in days — so the page says "read N days" and never
+ * implies the account's whole life. `askedBackTo` is the walk's own floor; WM asks Webull up to
+ * tomorrow because Webull's end date is exclusive, so today is included.
+ */
+export function ledgerCoverageLine(row: { readonly askedBackTo: string; readonly stoppedBecause: string; readonly reason?: string | null }, todayMs: number): string {
+  const from = Date.parse(`${row.askedBackTo}T00:00:00Z`);
+  const todayUtc = Date.parse(`${new Date(todayMs).toISOString().slice(0, 10)}T00:00:00Z`);
+  const days = Number.isFinite(from) ? Math.max(0, Math.round((todayUtc - from) / 86_400_000)) + 1 : null;
+  const why = row.stoppedBecause === "QUIET_YEARS" ? "two quiet years before that"
+    : row.stoppedBecause === "REFUSED" ? `Webull refused${row.reason ? ` (${row.reason})` : ""} — older history NOT read`
+    : row.stoppedBecause === "PAGE_BUDGET" ? "page budget reached — older history NOT read"
+    : row.stoppedBecause === "FLOOR" ? "the walk's floor" : row.stoppedBecause;
+  return `read ${days == null ? "an unknown number of" : days} days of history, back to ${row.askedBackTo || "—"} (today included) · stopped: ${why}`;
 }
 
 export function summarizeLedger(episodes: readonly Episode[]): LedgerSummary {
@@ -336,10 +372,12 @@ export function summarizeLedger(episodes: readonly Episode[]): LedgerSummary {
     largestLoss: losses.length ? Math.min(...losses.map(e => e.net!)) : null,
     maxDrawdown: cents(dd),
     equity,
-    byMonth: bucket(closed, e => e.closedAt!.slice(0, 7)).sort((a, b) => a.key.localeCompare(b.key)),
+    // The trader's market month (New York), not the UTC month: a close at 19:30 ET on the 31st is that month's.
+    byMonth: bucket(closed, e => nyMonth(e.closedAt!)).sort((a, b) => a.key.localeCompare(b.key)),
     bySymbol: bucket(closed, e => e.symbol).sort((a, b) => a.net - b.net),
     byAccount: bucket(closed, e => e.accountId.slice(-4)),
     firstFillAt: allFills[0] ?? null,
     lastFillAt: allFills[allFills.length - 1] ?? null,
+    feesUnreportedTrades: closed.filter(e => (e.feesUnreportedFills ?? 0) > 0).length,
   };
 }

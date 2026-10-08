@@ -301,9 +301,10 @@ export function SpadeBotButton({ launcher = true }: {
                   <span className="text-wm-blue font-semibold">Analysis and learning mode</span>
                 </div>
               </div>
-              <button onClick={() => setExpanded(e => !e)}
-                className="p-1.5 rounded-lg text-wm-text-dim hover:text-wm-text hover:bg-wm-surface transition-all">
-                {expanded ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}
+              <button type="button" onClick={() => setExpanded(e => !e)}
+                aria-label={expanded ? "Make the chat smaller" : "Make the chat larger"} aria-pressed={expanded}
+                className="wm-tap p-1.5 rounded-lg text-wm-text-dim hover:text-wm-text hover:bg-wm-surface transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold">
+                {expanded ? <Minimize2 size={13} aria-hidden="true"/> : <Maximize2 size={13} aria-hidden="true"/>}
               </button>
               <button aria-label="Close chat" onClick={() => setOpen(false)}
                 className="p-1.5 rounded-lg text-wm-text-dim hover:text-wm-text hover:bg-wm-surface transition-all">

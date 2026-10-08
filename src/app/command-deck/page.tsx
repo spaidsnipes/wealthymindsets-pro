@@ -19,6 +19,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import {
   useFeedEvaluationClock,
   useProvenSessionClosure,
+  useQuoteSessionClosure,
   useSessionClockDate,
 } from "@/lib/marketData/useProvenSessionClosure";
 import { selectDecisionChain, type TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain";
@@ -366,6 +367,9 @@ function CommandDeckInner() {
   // JSX is the React #310 defect this codebase has already paid for twice.
   // `null` until mount and on every weekday: provider labelling unchanged.
   const sessionOpen = useProvenSessionClosure(symbol);
+  // The quote feed's session (night shift 2026-10-07) — see /charts: a US
+  // equity's overnight / weekend tape is quiet by design, never STALE PIPELINE.
+  const quoteSession = useQuoteSessionClosure(symbol);
   // THE DECK'S OWN CANDLES, PUBLISHED.
   //
   // `DeckMarketChart` fetches ~120 real candles from /api/yahoo and, until
@@ -593,7 +597,8 @@ function CommandDeckInner() {
       barsPresent: (deckCandles?.length ?? 0) > 0,
       lastObservedAtMs: wsFeed.lastObservedAtMs,
       connected: wsFeed.connected,
-      sessionOpen,
+      sessionOpen: quoteSession.closed,
+      sessionDetail: quoteSession.detail,
       // The deck carries NO companion camera — it has no replay engine and no
       // control that starts one. `false` here is a measured fact about this
       // room, not a default: the day the deck grows a replay, this line is

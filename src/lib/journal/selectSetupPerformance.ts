@@ -1,4 +1,5 @@
 import { selectRecordedTotal, type RecordedTotal } from "./selectRecordedTotal";
+import { INSUFFICIENT, insufficientLine, isMeasured } from "./statGuard";
 
 /**
  * SETUP PERFORMANCE — the same three laws, in the one row nobody guarded.
@@ -121,7 +122,9 @@ export function selectSetupPerformance(
     const decided = wins + losses;
 
     // NO DENOMINATOR IS NOT A DENOMINATOR OF ZERO.
-    const winRatePct = decided > 0 ? Math.round((wins / decided) * 100) : null;
+    // AND A FEW DECIDED TRADES ARE NOT A RATE: below STAT_SAMPLE_MIN (20) the row says
+    // INSUFFICIENT EVIDENCE with its count (statGuard), the same rule Personal Edge uses.
+    const winRatePct = isMeasured(decided) ? Math.round((wins / decided) * 100) : null;
 
     const pnl = selectRecordedTotal(group);
     const pnlLabel = pnl.total === null ? "UNKNOWN" : signedUsd0(pnl.total);
@@ -140,7 +143,7 @@ export function selectSetupPerformance(
       wins,
       losses,
       winRatePct,
-      winRateLabel: winRatePct === null ? "—" : `${winRatePct}%`,
+      winRateLabel: winRatePct !== null ? `${winRatePct}%` : decided > 0 ? INSUFFICIENT : "—",
       pnl,
       pnlLabel,
       tone,
@@ -169,10 +172,13 @@ function buildReason(
   const countWord = entries === 1 ? "entry" : "entries";
   const head = `${entries} ${countWord} filed under “${name}”.`;
 
+  const decided = wins + losses;
   const rate =
-    winRatePct === null
+    decided === 0
       ? ` None has been recorded as a win or a loss, so there is no win rate to`
         + ` compute — that is UNDEFINED, not zero percent.`
+      : winRatePct === null
+        ? ` ${wins} recorded ${wins === 1 ? "win" : "wins"} and ${losses} ${losses === 1 ? "loss" : "losses"} — ${insufficientLine(decided)}, so no win rate is printed.`
       : ` ${wins} recorded ${wins === 1 ? "win" : "wins"} and ${losses}`
         + ` ${losses === 1 ? "loss" : "losses"} give a ${winRatePct}% win rate`
         + ` over the ${wins + losses} decided.`;

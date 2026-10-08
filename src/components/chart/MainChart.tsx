@@ -21847,6 +21847,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // The lines, behind the candles; their names are collected and
             // printed after the cut-out is released (a name is never cut).
             const memNames: { l: (typeof memLevels)[number]; y: number; x0: number; fade: number }[] = [];
+            let pmPoc = 0, pmEdge = 0, pmAgeMin = Infinity, pmAgeMax = -Infinity;
             for (const l of memLevels) {
               const yr = srs.priceToCoordinate(l.price);
               if (yr == null) continue;
@@ -21862,16 +21863,29 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const edge = l.kind === "VAH" ? "EDGE_HIGH" : "EDGE_LOW";
               ctx.strokeStyle = isPoc ? pk.rgba("POC", fade) : pk.rgba(edge, fade * 0.75);
               ctx.lineWidth = isPoc ? 1.25 : 1;
-              ctx.setLineDash(isPoc ? (l.naked ? [] : [8, 3]) : [2, 4]);
+              // SHERIFF A-PM (erasure, 2026-10-07 night): the KIND reads by shape
+              // with the words erased — POC solid, VAH / VAL dashed; NAKED (never
+              // re-tested) ends in an OPEN cap (hollow ring), a tested level in a
+              // CLOSED cap (filled square); older sessions fainter (fade above).
+              ctx.setLineDash(isPoc ? [] : [5, 4]);
               ctx.beginPath();
               ctx.moveTo(x0, y);
               ctx.lineTo(endX, y);
               ctx.stroke();
               ctx.setLineDash([]);
+              if (l.naked) {
+                ctx.beginPath(); ctx.arc(endX - 2, y, 2.6, 0, Math.PI * 2); ctx.stroke();
+              } else {
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.fillRect(endX - 4.5, y - 2, 4, 4);
+              }
               drawn++;
               if (l.naked) naked++;
+              if (isPoc) pmPoc++; else pmEdge++;
+              pmAgeMin = Math.min(pmAgeMin, l.sessionsAgo); pmAgeMax = Math.max(pmAgeMax, l.sessionsAgo);
               memNames.push({ l, y, x0, fade });
             }
+            ds.profileMemoryForms = `POC_SOLID:${pmPoc}|EDGE_DASHED:${pmEdge}|NAKED_OPEN_CAP:${naked}|AGE:S-${Number.isFinite(pmAgeMin) ? pmAgeMin : 0}..S-${Number.isFinite(pmAgeMax) ? pmAgeMax : 0}`;
             ctx.restore(); // releases Memory's candle cut-out
             // ④ MEMORY (a brain) — the organism glyph at the head of the nearest
             // remembered level, where its line meets the stack.
@@ -22498,6 +22512,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             } else delete ds.marketStructurePath;
 
             // THE SWINGS — a chevron pointing at each swing's price.
+            // SHERIFF A-MS (erasure, 2026-10-07 night): with the HH/HL/LH/LL letters
+            // erased the sequence must still read — a HIGHER swing (HH, HL) is a
+            // FILLED chevron, a LOWER one (LH, LL) HOLLOW (outline only); an
+            // unlettered swing stays filled.
+            let pivFilled = 0, pivHollow = 0;
             for (const m of marks) {
               const s = m.isLast ? 7 : 5.5;
               const dir = m.kind === "HIGH" ? -1 : 1;
@@ -22507,10 +22526,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.lineTo(m.x - s, tipY + dir * s * 1.3);
               ctx.lineTo(m.x + s, tipY + dir * s * 1.3);
               ctx.closePath();
-              ctx.fillStyle = m.isLast ? INK : "rgba(214,206,188,0.75)";
-              ctx.fill();
+              const lower = m.label === "LH" || m.label === "LL";
+              if (lower) {
+                ctx.strokeStyle = m.isLast ? INK : "rgba(214,206,188,0.85)";
+                ctx.lineWidth = 1.4;
+                ctx.stroke();
+                pivHollow++;
+              } else {
+                ctx.fillStyle = m.isLast ? INK : "rgba(214,206,188,0.75)";
+                ctx.fill();
+                pivFilled++;
+              }
               painted++;
             }
+            ds.marketStructurePivotForms = `FILLED:${pivFilled}|HOLLOW:${pivHollow}`;
 
             // THE LETTERS — beyond the chevron, clear of every candle body on
             // their row; a letter that cannot sit by its own swing is dropped.
@@ -22614,7 +22643,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // ↘ lower lows. Strokes only; never on a body (it sits outside the
             // pivot's extreme, where the chevron already stands clear).
             delete ds.marketStructureBiasGlyph;
-            if (ms.bias !== "UNCLEAR" && (!msSpeaks || ds.marketStructureBiasPlaced === "BLOCKED")) {
+            // A-MS (2026-10-07 night): at EVERY width — the bias must survive the
+            // words' erasure (1180 had none: the words spoke, so no glyph).
+            if (ms.bias !== "UNCLEAR") {
               const newestM = marks.reduce<(typeof marks)[number] | null>((b, m) => (!b || m.x > b.x ? m : b), null);
               if (newestM) {
                 const dirM = newestM.kind === "HIGH" ? -1 : 1;
@@ -23478,6 +23509,35 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               shelves++;
             }
             ctx.setLineDash([]);
+            // SHERIFF A-LW (erasure, 2026-10-07 night): the stage WORD was the only
+            // carrier of the stage. The lens now carries it as TEXTURE — a grain of
+            // short level strokes whose density is the stage: AIRLESS sparse →
+            // THINNING → STEADY (even grid) → THICKENING → HEAVY dense; ERRATIC the
+            // same grain jittered (irregular); UNMEASURED no grain. Material only,
+            // behind the candles, inside the glass.
+            {
+              const SPACING: Partial<Record<string, number>> = { AIRLESS: 22, THINNING: 16, STEADY: 12, THICKENING: 9, HEAVY: 6, ERRATIC: 10 };
+              // Density and regularity only — the ink is the same brass for every
+              // stage (§9: no stage is graded by colour).
+              const stageW: string = glass.stage;
+              const sp = SPACING[stageW];
+              if (sp) {
+                const erratic = stageW === "ERRATIC";
+                const grain = new Path2D();
+                let k = 0;
+                for (let gy = L.cy - L.ry + sp / 2; gy < L.cy + L.ry; gy += sp) {
+                  for (let gx = L.cx - L.rx + sp / 2; gx < L.cx + L.rx; gx += sp * 1.6) {
+                    k++;
+                    const jx = erratic ? ((k * 7919) % 11) - 5 : 0, jy = erratic ? ((k * 104729) % 9) - 4 : 0;
+                    grain.moveTo(gx + jx - 2, gy + jy); grain.lineTo(gx + jx + 2, gy + jy);
+                  }
+                }
+                ctx.strokeStyle = "rgba(201,165,92,0.22)";
+                ctx.lineWidth = 1;
+                ctx.stroke(grain);
+                ds.liquidityWeatherStageInk = `${glass.stage}:GRAIN${sp}${erratic ? ":JITTER" : ""}`;
+              } else ds.liquidityWeatherStageInk = `${glass.stage}:NONE`;
+            }
             // GLASS (F08B / G03): a soft specular sheen on the upper-left of
             // the lens and a darker seat at its edge — the lens reads as a
             // physical glass over the market. Material only; behind the candles.
@@ -27651,7 +27711,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                      entire claim, and they carry it to a colour-blind trader
                      too. Pearl says the same thing and promises nothing
                      extra. */
-                  <span className="flex items-center gap-1">
+                  <span className={`flex items-center gap-1${showFidelityChrome ? " wm-legend-live-dup" : ""}`}>
                     <span className="w-1.5 h-1.5 rounded-full bg-wm-text animate-pulse" aria-hidden="true" />
                     <span className="line-clamp-2 text-[10px] text-wm-text font-semibold">
                       {/* Narrow-glass word budget (serving /desk 4-up at 1180, 2026-10-07

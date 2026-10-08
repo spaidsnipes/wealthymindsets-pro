@@ -24,6 +24,7 @@ import { journalReviewKey, reviewEvidenceFromCapture } from "@/lib/journal/captu
 import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
 import { planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import { PlanAdherenceBySetup } from "@/components/journal/PlanAdherenceBySetup";
+import { INSUFFICIENT, insufficientLine, isMeasured, STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
 import { TodayRulesLine } from "@/components/journal/TodayManagementRules";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
@@ -550,9 +551,10 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-2">
         {[
-          { l:"Win Rate",   v:`${wr.toFixed(0)}%`,         good: wr >= 50 },
-          { l:"Avg R:R",    v: ratiosKnown ? `${rr.toFixed(1)}:1` : "—", good: ratiosKnown ? rr >= 1.5 : null },
-          { l:"Profit Fac.",v: ratiosKnown ? `${pf.toFixed(2)}` : "—", good: ratiosKnown ? pf >= 1.5 : null },
+          // n ≥ 20 (statGuard): below 20 entries a rate is INSUFFICIENT EVIDENCE, uncoloured.
+          { l:"Win Rate",   v: isMeasured(entries.length) ? `${wr.toFixed(0)}%` : INSUFFICIENT, good: isMeasured(entries.length) ? wr >= 50 : null },
+          { l:"Avg R:R",    v: !isMeasured(entries.length) ? INSUFFICIENT : ratiosKnown ? `${rr.toFixed(1)}:1` : "—", good: ratiosKnown && isMeasured(entries.length) ? rr >= 1.5 : null },
+          { l:"Profit Fac.",v: !isMeasured(entries.length) ? INSUFFICIENT : ratiosKnown ? `${pf.toFixed(2)}` : "—", good: ratiosKnown && isMeasured(entries.length) ? pf >= 1.5 : null },
           { l:"Total P&L",
             v: coachTotal.total === null
               ? "UNKNOWN"
@@ -562,7 +564,11 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
         ].map(m => (
           <div key={m.l} className="glass rounded-xl p-3 text-center">
             <div className="text-[9px] text-wm-text-dim uppercase tracking-wider">{m.l}</div>
-            <div className={clsx("text-base font-black mt-1", m.good === null ? "text-wm-text-muted" : m.good ? "text-wm-green" : "text-wm-red")}>{m.v}</div>
+            {m.v === INSUFFICIENT ? (
+              <div data-testid="coach-stat-insufficient" className="text-[10px] font-bold mt-1 text-wm-text-muted leading-tight" title={insufficientLine(entries.length)}>{INSUFFICIENT}<span className="block font-normal">{entries.length} of {STAT_SAMPLE_MIN}</span></div>
+            ) : (
+              <div className={clsx("text-base font-black mt-1", m.good === null ? "text-wm-text-muted" : m.good ? "text-wm-green" : "text-wm-red")}>{m.v}</div>
+            )}
           </div>
         ))}
       </div>
@@ -600,7 +606,7 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
                   <div className="text-[10px] text-wm-text-dim">{s.wins}W / {s.losses}L</div>
                 </div>
                 <div className="text-xs font-mono font-bold text-wm-text-muted">
-                  {s.winRateLabel} WR
+                  {s.winRatePct !== null ? `${s.winRateLabel} WR` : s.winRateLabel}
                 </div>
                 {/* The TONE decides the colour. A sign test would repaint a flat
                     setup green the moment someone edits this line. */}
@@ -1750,8 +1756,10 @@ Trade the system, trust the process, winners every day 🚀`,
           {/* H1: absence is not zero. A journal of nothing but M0 no-trade days
               has no win rate — printing "0% WR" would read as a column of
               losses to a trader who correctly took none. §9: unknown is quiet. */}
-          {tradeRecords.length > 0 ? (
+          {isMeasured(tradeRecords.length) ? (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-green/15 text-wm-green border border-wm-green/30">{winRate}% WR</span>
+          ) : tradeRecords.length > 0 ? (
+            <span data-testid="journal-wr-insufficient" className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-surface text-wm-text-dim border border-wm-border">WR · {insufficientLine(tradeRecords.length)}</span>
           ) : (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-wm-surface text-wm-text-dim border border-wm-border">WR UNKNOWN · no journal entries</span>
           )}

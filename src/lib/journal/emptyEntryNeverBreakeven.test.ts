@@ -38,7 +38,9 @@ describe("an empty / incomplete entry is never a breakeven trade", () => {
 describe("zero-trade metrics stay undefined", () => {
   it("the journal header never prints a win rate over zero trades", () => {
     const src = readFileSync(path.resolve(__dirname, "../../app/journal/page.tsx"), "utf8");
-    expect(src).toContain("{tradeRecords.length > 0 ? (");
+    // Stricter since the n ≥ 20 guard: a rate only at 20+; 1–19 say INSUFFICIENT EVIDENCE; 0 says UNKNOWN.
+    expect(src).toContain("{isMeasured(tradeRecords.length) ? (");
+    expect(src).toContain(") : tradeRecords.length > 0 ? (");
     expect(src).toContain("WR UNKNOWN · no journal entries");
   });
   it("a zero-trade backtest hands the journal no 0% win rate / 0.00 profit factor", () => {

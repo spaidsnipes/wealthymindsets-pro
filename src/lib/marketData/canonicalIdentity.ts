@@ -417,6 +417,37 @@ export function selectCanonicalSessionToken(
 }
 
 /**
+ * THE QUOTE FEED'S SESSION — one owner for "may a quiet tape be called a
+ * failure?" (night shift 2026-10-07, Founder-lane ruling).
+ *
+ * Measured on serving at 22:15 ET, a Wednesday: /charts TSLA and /command-deck
+ * printed "STALE PIPELINE · last print 22523s ago" in the masthead. Our quote
+ * and tape providers do not carry the overnight off-exchange venues, so for a
+ * US equity between 20:00 and 04:00 ET a quiet tape is the EXPECTED condition
+ * — the listed session is closed — not a pipeline fault. `provenSessionClosure`
+ * deliberately left weekday nights unresolved; the schedule owner
+ * (marketSessionClock) now names them OVERNIGHT, so the two are joined here:
+ *
+ *   closed  `false` when closure is proven, OR when the instrument is a US
+ *           equity / ETF / option whose schedule verdict is OVERNIGHT or CLOSED
+ *           (the listed session is shut); otherwise `null` — never `true`.
+ *   detail  the words the feed standing prints beside the canon label.
+ *
+ * Futures, FX and crypto are untouched: when their market is open a quiet tape
+ * IS a fault, and only proven closure (weekend, Globex break) changes that.
+ */
+export function quoteSessionClosure(symbol: string, at: Date | null): { readonly closed: false | null; readonly detail: string | null } {
+  if (!at) return { closed: null, detail: null };
+  if (provenSessionClosure(symbol, at) === false) return { closed: false, detail: "session closed" };
+  const cls = canonicalAssetClass(symbol);
+  if (cls !== "equity" && cls !== "etf" && cls !== "options") return { closed: null, detail: null };
+  const r = readMarketSession({ symbol, assetClass: cls, clock: marketClockET(at), isUsCashIndex: US_CASH_INDICES.has(symbol.trim().toUpperCase()) });
+  if (r?.verdict === "OVERNIGHT") return { closed: false, detail: "overnight · listed exchanges closed, off-exchange prints not carried" };
+  if (r?.verdict === "CLOSED") return { closed: false, detail: "session closed" };
+  return { closed: null, detail: null };
+}
+
+/**
  * Bare cash-index names. Each names an INDEX, not a tradeable contract.
  *
  * Held as data because the rule below has to be executable: a comment saying

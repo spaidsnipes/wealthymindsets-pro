@@ -2010,4 +2010,9 @@ input[type=range]::-webkit-slider-runnable-track {
     clip-path: inset(50%); white-space: nowrap;
   }
   .wm-legend-words-short { display: inline; }
+  /* Re-measured on serving /desk 4-up 1180 (3f75f99): even the short form ran
+     over the price axis — and it repeated the fidelity chip beside the price
+     ("LIVE — CERTIFIED QUOTE"), the same verdict twice. In a narrow band the
+     chip alone carries it (its own title + aria); the duplicate steps out. */
+  .wm-legend-live-dup { display: none !important; }
 }

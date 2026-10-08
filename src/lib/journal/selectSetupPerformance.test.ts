@@ -27,19 +27,28 @@ describe("a ratio with no denominator is UNDEFINED, not zero percent", () => {
     expect(row.reason).toMatch(/UNDEFINED, not zero percent/);
   });
 
-  it("OVER-CORRECTION: a setup that HAS been decided still reports its rate", () => {
+  it("OVER-CORRECTION: a setup that HAS 20 decided still reports its rate", () => {
     const [row] = selectSetupPerformance([
-      win("ORB", 100), win("ORB", 100), win("ORB", 100), loss("ORB", -50),
+      ...Array.from({ length: 15 }, () => win("ORB", 100)), ...Array.from({ length: 5 }, () => loss("ORB", -50)),
     ]);
     expect(row.winRatePct).toBe(75);
     expect(row.winRateLabel).toBe("75%");
   });
 
+  it("n ≥ 20: fewer decided trades say INSUFFICIENT EVIDENCE with the count, never a rate", () => {
+    const [row] = selectSetupPerformance([win("ORB", 100), win("ORB", 100), win("ORB", 100), loss("ORB", -50)]);
+    expect(row.winRatePct).toBeNull();
+    expect(row.winRateLabel).toBe("INSUFFICIENT EVIDENCE");
+    expect(row.reason).toMatch(/INSUFFICIENT EVIDENCE — 4 of 20 closed trades so far, so no win rate is printed/);
+    expect(row.reason).not.toMatch(/%/);
+  });
+
   it("the denominator is the DECIDED count, not the entry count", () => {
     // A breakeven entry is filed, counted, and shown — but it decides nothing,
     // so it may not dilute a win rate it was never part of.
-    const [row] = selectSetupPerformance([win("ORB", 100), loss("ORB", -100), be("ORB", 0)]);
-    expect(row.entries).toBe(3);
+    const many = [...Array.from({ length: 10 }, () => win("ORB", 100)), ...Array.from({ length: 10 }, () => loss("ORB", -100))];
+    const [row] = selectSetupPerformance([...many, be("ORB", 0)]);
+    expect(row.entries).toBe(21);
     expect(row.winRatePct).toBe(50);
   });
 });
@@ -98,8 +107,8 @@ describe("a sum over values WM cannot read is not a dollar figure", () => {
     expect(row.pnlLabel).toBe("UNKNOWN");
     expect(row.pnlLabel).not.toContain("0");
     expect(row.tone).toBe("ALERT");
-    // The win rate is still knowable — the two questions are independent.
-    expect(row.winRatePct).toBe(50);
+    // The two questions are independent: the rate's own guard (n ≥ 20) decides it, not the money.
+    expect(row.winRateLabel).toBe("INSUFFICIENT EVIDENCE");
   });
 });
 

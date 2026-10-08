@@ -24,6 +24,7 @@ import { behaviourTags, PATTERN_MIN, patternEvidence, patternState, parseWorking
 import { EPISODE_MODELS_KEY, MODEL_LABEL, parseModels, resultsByModel, type ModelMark } from "@/lib/journal/episodeModel";
 import type { Episode } from "@/lib/broker/webullLedger";
 import { readStoryReviews, type StoryReview } from "@/lib/journal/storyReview";
+import { guardCell, insufficientLine, isMeasured } from "@/lib/journal/statGuard";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -107,7 +108,7 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
       <div style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: 10 }}>
         <div style={{ fontSize: 11, letterSpacing: 1, color: GOLD }}>PERSONAL EDGE · WHAT YOUR FILLS SHOW</div>
         <p style={{ fontSize: 11, color: MUTED, margin: "4px 0 8px" }}>
-          {edge.universe} closed trades, overall expectancy <span style={{ color: tone(edge.overallExpectancy) }}>{usd(edge.overallExpectancy)}</span> per trade.
+          {edge.universe} closed trades, overall expectancy {isMeasured(edge.universe) ? <span style={{ color: tone(edge.overallExpectancy) }}>{usd(edge.overallExpectancy)}</span> : <span data-testid="edge-overall-insufficient">{insufficientLine(edge.universe)}</span>} per trade.
           Each group is compared with that. Groups under {MIN_SAMPLE} trades are marked INSUFFICIENT EVIDENCE and are not a pattern.
           A difference here is a correlation across your trades — it does not say why.
         </p>
@@ -124,8 +125,8 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
                     <tr key={b.key} data-evidence={b.evidence} style={{ borderTop: `1px solid ${LINE}`, textAlign: "right", color: thin ? MUTED : INK }}>
                       <td style={{ textAlign: "left", padding: "2px 0" }}>{b.key}<div data-testid="edge-evidence-line" style={{ fontSize: 9.5, color: MUTED }}>{edgeEvidenceLine(b, Date.now())}</div></td>
                       <td>{b.n}</td>
-                      <td>{(b.winRate * 100).toFixed(0)}%</td>
-                      <td style={{ color: thin ? MUTED : tone(b.expectancy) }}>{usd(b.expectancy)}</td>
+                      <td>{guardCell(b.n, `${(b.winRate * 100).toFixed(0)}%`)}</td>
+                      <td style={{ color: thin ? MUTED : tone(b.expectancy) }}>{guardCell(b.n, usd(b.expectancy))}</td>
                       <td style={{ color: thin ? MUTED : tone(b.vsOverall) }}>{thin ? <span title={`Fewer than ${MIN_SAMPLE} trades`}>INSUFFICIENT EVIDENCE</span> : usd(b.vsOverall)}</td>
                     </tr>
                   );
@@ -147,8 +148,8 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
             <tr key={p.id} data-evidence={p.evidence} style={{ borderTop: `1px solid ${LINE}`, textAlign: "right", color: p.evidence === "SUPPORTED" ? INK : MUTED }}>
               <td style={{ textAlign: "left", padding: "3px 0" }}>{p.label}{p.evidence === "SUPPORTED" ? "" : " · INSUFFICIENT EVIDENCE"}</td>
               <td>{p.n}</td>
-              <td style={{ color: tone(p.expectancy) }}>{usd(p.expectancy)}</td>
-              <td>{p.withoutExpectancy == null ? "—" : usd(p.withoutExpectancy)}</td>
+              <td style={{ color: isMeasured(p.n) ? tone(p.expectancy) : MUTED }}>{guardCell(p.n, usd(p.expectancy))}</td>
+              <td>{p.withoutExpectancy == null ? "—" : guardCell(p.n, usd(p.withoutExpectancy))}</td>
               <td>{p.supporting} / {p.contradicting}</td>
               <td>{p.recentShare == null ? "—" : `${Math.round(p.recentShare * 100)}%`} vs {p.earlierShare == null ? "—" : `${Math.round(p.earlierShare * 100)}%`}</td>
               <td style={{ whiteSpace: "nowrap" }}>{p.firstSeen.slice(0, 10)} → {p.lastSeen.slice(0, 10)}</td>
@@ -207,9 +208,9 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
           <tbody>{timeline.windows.map(w => (
             <tr key={w.label} style={{ borderTop: `1px solid ${LINE}`, textAlign: "right", color: w.enough ? INK : MUTED }}>
               <td style={{ textAlign: "left", padding: "2px 0" }}>{w.label}{w.enough ? "" : ` · only ${w.n}`}</td>
-              <td>{w.n}</td><td>{pct(w.winRate)}</td>
-              <td style={{ color: w.enough && w.expectancy != null ? tone(w.expectancy) : undefined }}>{money(w.expectancy)}</td>
-              <td>{money(w.avgWin)}</td><td>{money(w.avgLoss)}</td>
+              <td>{w.n}</td><td>{guardCell(w.n, pct(w.winRate))}</td>
+              <td style={{ color: w.enough && w.expectancy != null ? tone(w.expectancy) : undefined }}>{guardCell(w.n, money(w.expectancy))}</td>
+              <td>{guardCell(w.n, money(w.avgWin))}</td><td>{guardCell(w.n, money(w.avgLoss))}</td>
               <td style={{ color: w.enough ? tone(w.net) : undefined }}>{usd(w.net)}</td>
             </tr>
           ))}</tbody>
@@ -229,9 +230,9 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
           <tbody>{timeline.months.map(m => (
             <tr key={m.month} style={{ borderTop: `1px solid ${LINE}`, textAlign: "right", color: m.trades >= MIN_WINDOW ? INK : MUTED }}>
               <td style={{ textAlign: "left", padding: "2px 0" }}>{m.month}</td>
-              <td>{m.trades}</td><td>{m.days}</td><td>{m.tradesPerDay}</td><td>{pct(m.pastSecondShare)}</td><td>{pct(m.bracketShare)}</td>
-              <td>{pct(m.winRate)}</td><td>{money(m.avgWin)}</td><td>{money(m.avgLoss)}</td>
-              <td style={{ color: tone(m.expectancy) }}>{usd(m.expectancy)}</td>
+              <td>{m.trades}</td><td>{m.days}</td><td>{m.tradesPerDay}</td><td>{guardCell(m.trades, pct(m.pastSecondShare))}</td><td>{guardCell(m.trades, pct(m.bracketShare))}</td>
+              <td>{guardCell(m.trades, pct(m.winRate))}</td><td>{guardCell(m.trades, money(m.avgWin))}</td><td>{guardCell(m.trades, money(m.avgLoss))}</td>
+              <td style={{ color: isMeasured(m.trades) ? tone(m.expectancy) : MUTED }}>{guardCell(m.trades, usd(m.expectancy))}</td>
             </tr>
           ))}</tbody>
         </table>
@@ -288,8 +289,8 @@ export function LedgerPersonalEdge({ episodes, onRehearse }: { readonly episodes
             <tbody>{byModel.rows.map(r => (
               <tr key={r.model} style={{ borderTop: `1px solid ${LINE}`, color: r.n >= MIN_SAMPLE ? INK : MUTED }}>
                 <td style={{ padding: "2px 12px 2px 0" }}>{MODEL_LABEL[r.model]}</td><td style={{ textAlign: "right", paddingRight: 12 }}>{r.n}</td>
-                <td style={{ textAlign: "right", paddingRight: 12 }}>{Math.round((r.wins / r.n) * 100)}%</td>
-                <td style={{ textAlign: "right", color: tone(r.expectancy) }}>{usd(r.expectancy)}/trade</td>
+                <td style={{ textAlign: "right", paddingRight: 12 }}>{guardCell(r.n, `${Math.round((r.wins / r.n) * 100)}%`)}</td>
+                <td style={{ textAlign: "right", color: isMeasured(r.n) ? tone(r.expectancy) : MUTED }}>{guardCell(r.n, `${usd(r.expectancy)}/trade`)}</td>
                 <td style={{ paddingLeft: 12 }}>{r.n < MIN_SAMPLE ? "INSUFFICIENT EVIDENCE" : ""}</td>
               </tr>
             ))}</tbody>

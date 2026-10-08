@@ -20,7 +20,7 @@ import { contextWithAsk, fvgInspectAsk } from "@/lib/ai/spaidbotAsk";
 vi.mock("@/lib/requireAuth", () => ({ requireAuth: async () => ({ ok: true, user: { sub: "test-user" } }) }));
 vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: () => ({ ok: true }) }));
 vi.mock("@/lib/edgeRateLimit", () => ({ edgeAllows: async () => true, tooManyRequests: () => new Response("", { status: 429 }), SPAIDBOT_LIMITER_BINDING: "X" }));
-vi.mock("@/lib/ai/geminiModel", () => ({ resolveGeminiModel: async () => "test-model", forgetGeminiModel: () => {} }));
+vi.mock("@/lib/ai/geminiModel", async (orig) => ({ ...(await orig<typeof import("@/lib/ai/geminiModel")>()), resolveGeminiModel: async () => "gemini-2.5-flash", forgetGeminiModel: () => {} }));
 
 type Row = readonly [number, number, number, number];
 const MIN = 60_000;
@@ -68,6 +68,8 @@ describe("SpaidBot × FVG — the request the model receives", () => {
     const [system, turn] = sent.split("\n----\n");
     expect(system).toContain("Never say price has to fill an imbalance; distinguish observed fact, derived measurement, inference and hypothesis.");
     expect(turn.startsWith("What am I looking at?")).toBe(true);
+    // The request the model receives has thinking switched off (first byte was 29.85 s on serving).
+    expect(JSON.parse(upstream[0]).generationConfig).toEqual({ maxOutputTokens: 2048, temperature: 0.7, thinkingConfig: { thinkingBudget: 0 } });
     expect(turn).toContain(`SELECTED ${obj.objectId} — definition FVG_3C v1.`);
     expect(turn).toContain(`latest lifecycle state ${obj.state}`);
     expect(turn).toMatch(/LIMITATIONS: read as of 2026-10-06T\d\d:\d\dZ/);

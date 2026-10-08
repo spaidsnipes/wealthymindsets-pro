@@ -53,7 +53,10 @@ mkdirSync(OUT, { recursive: true });
 /** Runs in the page. Pure DOM measurement. */
 function measure(coarse) {
   const vw = innerWidth;
+  // checkVisibility walks the ancestors (a collapsed drawer at opacity 0 hides its children).
+  const shown = (el) => (typeof el.checkVisibility === "function" ? el.checkVisibility({ opacityProperty: true, visibilityProperty: true }) : true);
   const visible = (el) => {
+    if (!shown(el)) return false;
     const cs = getComputedStyle(el);
     if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) === 0) return false;
     const r = el.getBoundingClientRect();
@@ -82,6 +85,7 @@ function measure(coarse) {
     // Not rendered at all (display:none somewhere up the chain — e.g. the
     // desktop-only panel on a phone) is hidden on purpose, not evicted.
     if (el.getClientRects().length === 0) return false;
+    if (!shown(el)) return false;
     if (cs.position === "absolute" && (cs.clip !== "auto" || cs.clipPath !== "none")) return false; // visually-hidden pattern
     const r = el.getBoundingClientRect();
     return r.width === 0 || r.height === 0;

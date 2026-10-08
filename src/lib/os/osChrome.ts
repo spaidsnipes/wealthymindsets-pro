@@ -225,6 +225,13 @@ export interface FeedObservation {
    */
   readonly sessionOpen: boolean | null;
   /**
+   * The words printed beside SESSION CLOSED — LAST VERIFIED, when the caller's
+   * session owner has more to say than "session closed" (a US equity's
+   * overnight hours: "overnight · listed exchanges closed …"). Optional;
+   * absent means "session closed".
+   */
+  readonly sessionDetail?: string | null;
+  /**
    * Whether OHLCV bars for this selection are actually on screen.
    *
    * ── WHY A SECOND PRESENCE FLAG IS NOT REDUNDANT ───────────────────────────
@@ -760,7 +767,7 @@ export function compileFeedStanding(obs: FeedObservation, evaluatedAtMs: number)
     // closed session it is not the reason and stating it invites the trader to
     // read a normal weekend as decay.
     detail: sessionClosed
-      ? "session closed"
+      ? (obs.sessionDetail ?? "session closed")
       : fresh === false
         ? `last print ${Math.floor(ageMs / 1000)}s ago`
         : badge.live

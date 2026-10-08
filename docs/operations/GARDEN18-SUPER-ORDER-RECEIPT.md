@@ -759,6 +759,8 @@ Production at the start: `02e593e`. This lane works on docs and release scripts 
 |---|---|---|---|---|
 | 21:05 | Day-shift receipt brought up to `02e593e`: 8 builds added as rows; flips with serving proof (opacity hierarchy + SPY scars, layer-off silence, backtest relationship splits, Academy layout, Academy scrollbar at 390 / 834, scanner convergence + request count, Sheriff A1 / A3 / A6 / A7 / A8 / A9 / A10 / A11 / A12) | docs | `~/wm-held/proof/fvg-serving-opacity-a6-2026-10-07.txt`, `fvg-serving-spaidbot-academy-backtest-2026-10-07.txt`, `fvg-serving-sheriff-2026-10-07.txt`, certificate §6a. Mirrored append-only in certificate §5 ("UPDATE 21:05 CDT") | CLOSED |
 | 21:07 | §52 public responsive release test on production | `02e593e` | `scripts/release/responsive-public.mjs`: 48 / 48 PASS (8 routes × 1440 / 1024 / 834 / 768 / 390 / 360). No SMALL_TEXT; the signed-out 401 console line only. `~/wm-held/proof/release-52-night/` | CLOSED |
+| 21:22 | §52 in-tab run on serving, 14 rooms × 6 widths (own tab, read-only, closed after) | `02e593e` | First pass 74 / 84. All 10 fails were tool artefacts: /scanner's collapsed filter drawer, and /settings (an alias to the chart's Settings drawer) frozen off-screen in a hidden automation tab. After the tool fixes (`checkVisibility`, a `LANDS_ON` alias map, a visible-tab guard) and a re-measure: **84 / 84 PASS**. WARN only: 9 px shell masthead / nav, desk "$" at 7 px; TAP_44 in a fine-pointer iframe. `~/wm-held/proof/release-52-intab-night/release52-intab-summary.md` | CLOSED |
+| 21:22 | Academy module-list scrollbar at ≥ 1024 | `02e593e` | 1440: `scrollbar-color rgba(139,106,41,0.55) transparent`, thin brass bar; 1024: same colour (no overflow at that height) | CLOSED |
 
 **Open at the start of the night** (from the day shift; each needs a serving read):
 - SpaidBot panel pre-filled from FVG Inspect after `4242dbd`
@@ -769,6 +771,4 @@ Production at the start: `02e593e`. This lane works on docs and release scripts 
 - Academy "Show me my examples" + Personal Edge FVG list
 - FVG accessibility at 390
 - Management sweep
-- Academy scrollbar colour at ≥ 1024
-- Full in-tab §52 run (14 rooms × 6 widths)
 - Desk pane header clip at 1180

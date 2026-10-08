@@ -10,7 +10,7 @@ import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { edgeAllows, tooManyRequests, SPAIDBOT_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { formatChartContextNote, type ChartContextInput } from "@/lib/marketData/formatChartContextNote";
-import { forgetGeminiModel, resolveGeminiModel } from "@/lib/ai/geminiModel";
+import { forgetGeminiModel, geminiGenerationConfig, resolveGeminiModel } from "@/lib/ai/geminiModel";
 import { MODEL_DID_NOT_ANSWER, UpstreamTimeout, fetchWithFirstByteTimeout, linkedController, relayModelStream } from "@/lib/ai/upstreamBounds";
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
@@ -142,10 +142,11 @@ export async function POST(req: NextRequest) {
       }],
     }));
 
-    const payload = JSON.stringify({
+    // The config depends on the model (thinking off where it is on by default — geminiModel.ts).
+    const payloadFor = (model: string) => JSON.stringify({
       system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents,
-      generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
+      generationConfig: geminiGenerationConfig(model),
     });
     // Garden 18 §8 server bounds (2026-10-06): the upstream is aborted when the
     // trader's request goes away, its headers must arrive within 30 s, and the
@@ -156,7 +157,7 @@ export async function POST(req: NextRequest) {
       const model = await resolveGeminiModel(GEMINI_KEY);
       if (!model) return null;
       upstreamCtl = linkedController(req.signal);
-      return fetchWithFirstByteTimeout(fetch, streamUrl(model), { method: "POST", headers: { "Content-Type": "application/json" }, body: payload }, upstreamCtl);
+      return fetchWithFirstByteTimeout(fetch, streamUrl(model), { method: "POST", headers: { "Content-Type": "application/json" }, body: payloadFor(model) }, upstreamCtl);
     };
     let geminiRes: Response | null;
     try {

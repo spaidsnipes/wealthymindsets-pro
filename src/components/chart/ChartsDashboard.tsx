@@ -159,7 +159,7 @@ import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgeb
 // which accept-site stamp the plaque names, and refuses rather than defaults.
 // The decision rail's Honesty Plaque is fed from here and from nowhere else.
 import { readCanvasHonesty } from "@/lib/marketData/readCanvasHonesty";
-import { useFeedEvaluationClock, useProvenSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
+import { useFeedEvaluationClock, useProvenSessionClosure, useQuoteSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { quoteAgeMs, quoteFreshness } from "@/lib/os/osChrome";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
 import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilityFidelity";
@@ -1591,6 +1591,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // Saturday. `null` until mount and on every weekday, so provider labelling
   // is untouched the rest of the time.
   const sessionOpen = useProvenSessionClosure(symbol);
+  // The QUOTE FEED's session (night shift 2026-10-07): a US equity's overnight
+  // and weekend hours, where our tape is quiet by design, join proven closure
+  // for every grader of the quote feed — masthead, symbol-row badge, capability
+  // report — so a quiet overnight tape never reads STALE PIPELINE.
+  const quoteSession = useQuoteSessionClosure(symbol);
+  const quoteSessionOpen = quoteSession.closed;
   // Read at component level, never inside the REGIME chip's render callback —
   // a hook called from inside JSX is the React #310 defect. `null` until mount,
   // which is exactly what selectRegimeBadge treats as "no period word yet".
@@ -1845,7 +1851,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       barsPresent: chartBars.length > 0,
       lastObservedAtMs,
       connected,
-      sessionOpen,
+      sessionOpen: quoteSessionOpen,
+      sessionDetail: quoteSession.detail,
       // THE COMPANION CAMERA. Not "is the panel open" — is a camera actually
       // DRIVING these bars. See `cameraWalksHistory`: answering the panel's
       // open/closed state here made the masthead certify HISTORICAL BARS over
@@ -4907,7 +4914,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         hasCandles: chartBars.length > 0,
         quoteObservation: chartQuoteObservation,
         // Closure outranks the provider verdict for bars + quotes.
-        sessionOpen,
+        sessionOpen: quoteSessionOpen,
         // ticks / depth / options / greeks: unwired on
         // ChartsDashboard; silent per canon §no-silent-override.
         // orderFlow lights when the aggressor selector proves
@@ -4917,7 +4924,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         tapeConnected: chartFlowSnap.hasFlow ? true : undefined,
         orderFlowDerived: chartFlowSnap.hasFlow ? true : undefined,
       }),
-    [source, connected, chartBars.length, chartQuoteObservation, sessionOpen, chartFlowSnap.hasFlow],
+    [source, connected, chartBars.length, chartQuoteObservation, quoteSessionOpen, chartFlowSnap.hasFlow],
   );
 
   /*

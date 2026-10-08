@@ -542,7 +542,7 @@ Test inventory at `d5ac6ff9` (run in this worktree, 2026-10-07): 17 FVG-related 
 | Academy course (21 lessons, myth, quiz, ⓘ) | 4769a31 | `fvgCourse` (22 tests at 4769a31; 24 after c4de0f0), `inventionEducation`, education suites | serving 4769a31: 63/63 lesson × width checks, no overflow | `~/wm-held/proof/academy-fvg-lesson*-{1440,390}*.png`, `academy-fvg-quiz-{pass,recorded}-390.png` | **PROVED** |
 | Academy "Show me on a chart" / "Practice in Replay" | c4de0f0 | `fvgCourse` §35 / §56 blocks | local: the link resolves to `/charts?scene=clean&on=fvg` | `academy-fvg-showme-chart-1440.png`, `academy-fvg-lesson9-390-scrolled.png` | **PARTIAL:** territories visible on the landing chart on serving |
 | Selling pass (/welcome, /pricing, /login) | a10514f → d5ac6ff | `sellingStory.test.ts` (11), `frontDoorPalette`, auth, pricing suites | serving d5ac6ff, signed out: story present on all three, no horizontal scroll, no element past the right edge, no link or button under 44 px, at 1440 and 390 | `~/wm-held/proof/selling-prod-d5ac6ff-*.png` (+ `selling-before-*` from before a10514f) | **PROVED** for content and layout. One fix after the serving read: /welcome sample-chart axis labels drew ~5 px tall at 390, now 19 units under 600 px (shipped eea2771) |
-| Academy module-list scrollbar (Sheriff) | 57e9fda | `src/lib/academy/academyScroll.test.ts` (every `scrollbarWidth` in /education and /login carries a `scrollbarColor`) | local: computed `scrollbar-color: rgba(139,106,41,0.55) transparent`, `scrollbar-width: thin` on the module list | `~/wm-held/proof/academy-module-list-scrollbar-1440.png` | BUILT. **PARTIAL:** serving read after it ships. Cause: Chrome 121+ ignores the global `::-webkit-scrollbar` skin on any element that sets standard `scrollbar-width`, and then paints the OS default track · **UPDATE 21:05 CDT:** at 390 / 834 there is no nested scroll area, so no OS track (fabce3a, `~/wm-held/proof/fvg-serving-spaidbot-academy-backtest-2026-10-07.txt`) — **PROVED at 390 / 834**; ≥ 1024 colour still unread |
+| Academy module-list scrollbar (Sheriff) | 57e9fda | `src/lib/academy/academyScroll.test.ts` (every `scrollbarWidth` in /education and /login carries a `scrollbarColor`) | local: computed `scrollbar-color: rgba(139,106,41,0.55) transparent`, `scrollbar-width: thin` on the module list | `~/wm-held/proof/academy-module-list-scrollbar-1440.png` | BUILT. **PARTIAL:** serving read after it ships. Cause: Chrome 121+ ignores the global `::-webkit-scrollbar` skin on any element that sets standard `scrollbar-width`, and then paints the OS default track · **UPDATE 21:05 CDT:** at 390 / 834 there is no nested scroll area, so no OS track (fabce3a, `~/wm-held/proof/fvg-serving-spaidbot-academy-backtest-2026-10-07.txt`) — **PROVED at 390 / 834**; ≥ 1024 colour still unread · **UPDATE 21:22 CDT:** serving 02e593e at 1440 computed `rgba(139,106,41,0.55) transparent`, thin brass bar; 1024 same colour (`~/wm-held/proof/release-52-intab-night/release52-intab-summary.md`) — **PROVED at ≥ 1024** |
 
 ### 6a. §62 per-surface evidence — Scanner, Backtest, SpaidBot, Replay (FVG lane, 2026-10-07)
 
@@ -713,7 +713,20 @@ First runs, 2026-10-07:
   - No SMALL_TEXT warnings.
   - The only console line is the signed-out 401.
   - Report and screenshots: `~/wm-held/proof/release-52-night/`.
-- Not yet run: the full in-tab set (14 rooms × 6 widths) on serving in a signed-in tab.
+- **Full in-tab run, serving 02e593e, 2026-10-07 21:12–21:22 CDT**, own claude-in-chrome tab, read-only, 14 rooms × 6 widths.
+  - First pass 74 / 84. All 10 fails were tool artefacts:
+    - /scanner ≥ 768: the collapsed filter drawer's children read as "evicted";
+    - /settings × 6: an alias to the chart's Settings drawer, frozen off-screen because the automation tab's `visibilityState` was hidden.
+  - Both tool fixes are in `scripts/release/responsive-in-tab.js`: `checkVisibility` up the chain, a `LANDS_ON` alias map, and a refusal to start in a hidden tab. `checkVisibility` is also in `responsive-public.mjs`.
+  - Re-measured with frames pumped: **84 / 84 PASS**; the Settings drawer sits inside the viewport at every width.
+  - WARN, not filed:
+    - TAP_44 in a fine-pointer iframe;
+    - SMALL_TEXT at 9 px on the shell masthead and nav ("— A Trading Sanctuary —", Market / Rooms / Community), desk "$" at 7 px, "DAY BIAS / TAPE / REGIME", and the "Beginner" chip.
+  - Summary: `~/wm-held/proof/release-52-intab-night/release52-intab-summary.md`.
+- **Academy module-list scrollbar on serving 02e593e:**
+  - 1440: computed `scrollbar-color: rgba(139,106,41,0.55) transparent`, a thin brass bar, no white track.
+  - 1024: same colour; the list does not overflow at that height.
+  - **PROVED at ≥ 1024** (closes the §6 PARTIAL).
 
 ## 10. §56 LEARNING LOOP — hand-off certificate (management / patience lane, appended 2026-10-07)
 

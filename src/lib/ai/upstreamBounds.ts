@@ -93,7 +93,10 @@ export async function readWithIdleTimeout<T>(
   }
 }
 
-type GeminiChunk = { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+type GeminiChunk = { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }> };
+
+/** Said when the model stopped at the length limit — an answer is never cut silently. */
+export const ANSWER_CUT_NOTE = "\n\n_(The answer stopped at the length limit — ask \"continue\" for the rest.)_";
 
 /**
  * Relay the model's SSE stream to the client as `data: {text}` frames, under
@@ -126,6 +129,7 @@ export function relayModelStream(
               const chunk = JSON.parse(t.slice(6)) as GeminiChunk;
               const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text;
               if (text) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+              if (chunk.candidates?.[0]?.finishReason === "MAX_TOKENS") controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: ANSWER_CUT_NOTE })}\n\n`));
             } catch { /* a malformed frame is skipped */ }
           }
         }
