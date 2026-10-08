@@ -57,4 +57,22 @@ describe("SpaidBot generation config — thinking off, room to answer", () => {
     const clean = new Response('data: {"candidates":[{"content":{"parts":[{"text":"Done."}]},"finishReason":"STOP"}]}\n\n', { status: 200 });
     expect(await new Response(relayModelStream(clean, new AbortController())).text()).not.toContain("stopped early");
   });
+
+  it("the relay closes with a meta receipt (finish reason, chunks, chars, tokens) the panel ignores; a last event without a newline is read", async () => {
+    const upstream = new Response(
+      'data: {"candidates":[{"content":{"parts":[{"text":"Part one"}]}}]}\n\n'
+      + 'data: {"candidates":[{"content":{"parts":[{"text":" and two."}]},"finishReason":"STOP"}],"usageMetadata":{"candidatesTokenCount":7}}',
+      { status: 200 },
+    );
+    const out = await new Response(relayModelStream(upstream, new AbortController())).text();
+    expect(out).toContain('"text":" and two."');
+    const meta = JSON.parse(out.split("\n").find(l => l.startsWith('data: {"meta"'))!.slice(6)).meta;
+    expect(meta).toEqual({ finishReason: "STOP", blockReason: null, chunks: 2, chars: 17, candidatesTokens: 7, endedWithoutFinish: false });
+    const cut = new Response('data: {"candidates":[{"content":{"parts":[{"text":"Half"}]}}]}\n\n', { status: 200 });
+    const m2 = JSON.parse((await new Response(relayModelStream(cut, new AbortController())).text()).split("\n").find(l => l.startsWith('data: {"meta"'))!.slice(6)).meta;
+    expect(m2.endedWithoutFinish).toBe(true);
+    // The panel reads only text / error — a meta frame adds nothing to the chat.
+    const bot = readFileSync(path.resolve(__dirname, "../../components/layout/SpaidBotButton.tsx"), "utf8");
+    expect(bot).toContain("const { text: t, error } = frame;");
+  });
 });

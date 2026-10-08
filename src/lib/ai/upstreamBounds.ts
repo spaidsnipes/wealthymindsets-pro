@@ -93,7 +93,27 @@ export async function readWithIdleTimeout<T>(
   }
 }
 
-type GeminiChunk = { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }> };
+type GeminiChunk = {
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
+  promptFeedback?: { blockReason?: string };
+  usageMetadata?: { candidatesTokenCount?: number; totalTokenCount?: number };
+};
+
+/**
+ * The relay's closing receipt — a `meta` frame the panel ignores (it reads only
+ * `text` / `error`) and a proof read can capture (serving 05670f2 / bf5052b:
+ * answers ended mid-sentence with no finish reason and no length note, so the
+ * cause could not be named from outside).
+ */
+export interface RelayMeta {
+  readonly finishReason: string | null;
+  readonly blockReason: string | null;
+  readonly chunks: number;
+  readonly chars: number;
+  readonly candidatesTokens: number | null;
+  /** True when the upstream closed without ever sending a finish reason. */
+  readonly endedWithoutFinish: boolean;
+}
 
 /**
  * Said when the model stopped for any reason other than finishing (serving
@@ -125,26 +145,38 @@ export function relayModelStream(
         reader = upstream.body!.getReader();
         const decoder = new TextDecoder();
         let buf = "";
+        const meta = { finishReason: null as string | null, blockReason: null as string | null, chunks: 0, chars: 0, candidatesTokens: null as number | null };
+        const handle = (line: string) => {
+          const t = line.trim();
+          if (!t || t === "data: [DONE]" || !t.startsWith("data: ")) return;
+          try {
+            const chunk = JSON.parse(t.slice(6)) as GeminiChunk;
+            meta.chunks += 1;
+            // Every text part, not only the first (a chunk may carry several).
+            const text = (chunk.candidates?.[0]?.content?.parts ?? []).map(p => (typeof p.text === "string" ? p.text : "")).join("");
+            if (text) { meta.chars += text.length; controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`)); }
+            const why = chunk.candidates?.[0]?.finishReason;
+            if (why) meta.finishReason = why;
+            if (chunk.promptFeedback?.blockReason) meta.blockReason = chunk.promptFeedback.blockReason;
+            if (typeof chunk.usageMetadata?.candidatesTokenCount === "number") meta.candidatesTokens = chunk.usageMetadata.candidatesTokenCount;
+            if (why === "MAX_TOKENS") controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: ANSWER_CUT_NOTE })}\n\n`));
+            else if (why && why !== "STOP" && why !== "FINISH_REASON_UNSPECIFIED") controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: answerStoppedNote(why) })}\n\n`));
+          } catch { /* a malformed frame is skipped */ }
+        };
         while (true) {
           const { done, value } = await readWithIdleTimeout(reader, upstreamCtl, idleMs);
           if (done) break;
           buf += decoder.decode(value, { stream: true });
           const lines = buf.split("\n");
           buf = lines.pop() ?? "";
-          for (const line of lines) {
-            const t = line.trim();
-            if (!t || t === "data: [DONE]" || !t.startsWith("data: ")) continue;
-            try {
-              const chunk = JSON.parse(t.slice(6)) as GeminiChunk;
-              // Every text part, not only the first (a chunk may carry several).
-              const text = (chunk.candidates?.[0]?.content?.parts ?? []).map(p => (typeof p.text === "string" ? p.text : "")).join("");
-              if (text) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
-              const why = chunk.candidates?.[0]?.finishReason;
-              if (why === "MAX_TOKENS") controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: ANSWER_CUT_NOTE })}\n\n`));
-              else if (why && why !== "STOP" && why !== "FINISH_REASON_UNSPECIFIED") controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: answerStoppedNote(why) })}\n\n`));
-            } catch { /* a malformed frame is skipped */ }
-          }
+          for (const line of lines) handle(line);
         }
+        // The last event may arrive without a trailing newline — read it, never drop it.
+        buf += decoder.decode();
+        if (buf.trim()) handle(buf);
+        if (meta.blockReason) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: answerStoppedNote(meta.blockReason) })}\n\n`));
+        const receipt: RelayMeta = { ...meta, endedWithoutFinish: meta.finishReason === null };
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ meta: receipt })}\n\n`));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       } catch (err) {
