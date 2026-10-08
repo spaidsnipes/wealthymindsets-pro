@@ -23,6 +23,7 @@ export const dynamic = "force-dynamic";
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 const NO_STORE = { "Cache-Control": "no-store" };
 const BUCKET = "radio";
+const TRACK_FIELDS = "id,title,artist,genre,duration,storage_path,public_url,uploader,plays,created_at";
 const AUDIO_EXT = new Set(["mp3", "m4a", "aac", "wav", "ogg", "flac"]);
 const PATH_RE = /^\d{13}-[a-z0-9]{6,12}\.(mp3|m4a|aac|wav|ogg|flac)$/;
 
@@ -66,7 +67,7 @@ export async function GET(request: Request): Promise<Response> {
   if (!auth.ok) return auth.response;
   try {
     const c = config();
-    const tracks = await call<unknown[]>(c, `/rest/v1/radio_tracks?select=*&order=created_at.desc&limit=200`);
+    const tracks = await call<unknown[]>(c, `/rest/v1/radio_tracks?select=${TRACK_FIELDS}&order=created_at.desc&limit=200`);
     return NextResponse.json({ state: "OK", tracks }, { headers: NO_STORE });
   } catch (e) {
     return failure(e);
@@ -126,7 +127,7 @@ export async function POST(request: Request): Promise<Response> {
         if (!(type.startsWith("audio/") || type === "application/ogg")) return NextResponse.json({ error: "That file is not audio, so it was not added." }, { status: 415 });
         if (!(Number.isFinite(size) && size > 0 && size <= MAX_AUDIO_BYTES)) return NextResponse.json({ error: "Audio files up to 50 MB only." }, { status: 413 });
       }
-      const [row] = await call<unknown[]>(c, `/rest/v1/radio_tracks`, { method: "POST", body: JSON.stringify({ ...m, storage_path, public_url, uploader }) });
+      const [row] = await call<unknown[]>(c, `/rest/v1/radio_tracks?select=${TRACK_FIELDS}`, { method: "POST", body: JSON.stringify({ ...m, storage_path, public_url, uploader, owner_id: auth.user.sub }) });
       return NextResponse.json({ state: "OK", track: row }, { headers: NO_STORE });
     }
     return NextResponse.json({ error: "Unknown op" }, { status: 400 });

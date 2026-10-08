@@ -25,6 +25,9 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 const MAX_POST = 2000;
 const MAX_COMMENT = 1000;
+// Private immutable identity stays in the store; API responses expose public fields only.
+const POST_FIELDS = "id,user_handle,user_name,user_avatar,user_color,user_tier,user_verified,user_ceo,content,type,trade_card,music,video,tags,created_at";
+const COMMENT_FIELDS = "id,post_id,user_handle,user_name,user_avatar,user_color,body,created_at";
 
 type Me = { handle: string; name: string; avatar: string };
 
@@ -83,18 +86,20 @@ export async function GET(request: Request): Promise<Response> {
     const commentsFor = new URL(request.url).searchParams.get("comments");
     if (commentsFor) {
       if (!/^\d{1,12}$/.test(commentsFor)) return NextResponse.json({ error: "Bad post id" }, { status: 400 });
-      const comments = await rest<unknown[]>(`lounge_comments?select=*&post_id=eq.${commentsFor}&order=created_at.asc&limit=200`);
+      const comments = await rest<unknown[]>(`lounge_comments?select=${COMMENT_FIELDS}&post_id=eq.${commentsFor}&order=created_at.asc&limit=200`);
       return NextResponse.json({ state: "OK", comments }, { headers: NO_STORE });
     }
-    const posts = await rest<Array<{ id: number }>>(`lounge_posts?select=*&order=created_at.desc&limit=60`);
+    const posts = await rest<Array<{ id: number }>>(`lounge_posts?select=${POST_FIELDS}&order=created_at.desc&limit=60`);
     const ids = posts.map(p => p.id);
-    const [likes, comments, follows] = await Promise.all([
+    const [likes, comments, follows, myLikes] = await Promise.all([
       ids.length ? rest<Array<{ post_id: number; user_handle: string }>>(`lounge_likes?select=post_id,user_handle&post_id=in.${inList(ids)}`) : Promise.resolve([]),
       ids.length ? rest<Array<{ post_id: number }>>(`lounge_comments?select=post_id&post_id=in.${inList(ids)}`) : Promise.resolve([]),
-      me ? rest<Array<{ following_handle: string }>>(`lounge_follows?select=following_handle&follower_handle=eq.${encodeURIComponent(me.handle)}`) : Promise.resolve([]),
+      me ? rest<Array<{ following_handle: string }>>(`lounge_follows?select=following_handle&owner_id=eq.${encodeURIComponent(auth.user.sub)}`) : Promise.resolve([]),
+      ids.length ? rest<Array<{ post_id: number }>>(`lounge_likes?select=post_id&owner_id=eq.${encodeURIComponent(auth.user.sub)}&post_id=in.${inList(ids)}`) : Promise.resolve([]),
     ]);
     const likeCount = new Map<number, number>(), liked = new Set<number>(), commentCount = new Map<number, number>();
-    for (const l of likes) { likeCount.set(l.post_id, (likeCount.get(l.post_id) ?? 0) + 1); if (me && l.user_handle === me.handle) liked.add(l.post_id); }
+    for (const l of likes) { likeCount.set(l.post_id, (likeCount.get(l.post_id) ?? 0) + 1); }
+    for (const l of myLikes) liked.add(l.post_id);
     for (const c of comments) commentCount.set(c.post_id, (commentCount.get(c.post_id) ?? 0) + 1);
     return NextResponse.json({
       state: "OK",
@@ -143,15 +148,15 @@ export async function POST(request: Request): Promise<Response> {
   }
   try {
     const rest = store();
-    const h = encodeURIComponent(me.handle);
+    const owner = encodeURIComponent(auth.user.sub);
     switch (body.op) {
       case "post": {
         const content = typeof body.content === "string" ? body.content.trim() : "";
         if (!content || content.length > MAX_POST) return NextResponse.json({ error: "Post is empty or too long." }, { status: 400 });
         const tags = Array.isArray(body.tags) ? body.tags.filter((t): t is string => typeof t === "string").slice(0, 12).map(t => t.slice(0, 40)) : [];
         const tc = body.type === "trade" && body.trade_card && typeof body.trade_card === "object" ? body.trade_card : null;
-        const [row] = await rest<unknown[]>("lounge_posts", { method: "POST", body: JSON.stringify({
-          user_handle: me.handle, user_name: me.name, user_avatar: me.avatar, user_color: "#00D4AA",
+        const [row] = await rest<unknown[]>(`lounge_posts?select=${POST_FIELDS}`, { method: "POST", body: JSON.stringify({
+          owner_id: auth.user.sub, user_handle: me.handle, user_name: me.name, user_avatar: me.avatar, user_color: "#00D4AA",
           user_tier: "BASIC", user_verified: false, user_ceo: false,
           content, type: body.type === "trade" ? "trade" : "text", trade_card: tc, tags,
         }) });
@@ -160,20 +165,20 @@ export async function POST(request: Request): Promise<Response> {
       case "comment": {
         const text = typeof body.body === "string" ? body.body.trim() : "";
         if (!text || text.length > MAX_COMMENT) return NextResponse.json({ error: "Comment is empty or too long." }, { status: 400 });
-        const [row] = await rest<unknown[]>("lounge_comments", { method: "POST", body: JSON.stringify({
-          post_id: id, user_handle: me.handle, user_name: me.name, user_avatar: me.avatar, user_color: "#00D4AA", body: text,
+        const [row] = await rest<unknown[]>(`lounge_comments?select=${COMMENT_FIELDS}`, { method: "POST", body: JSON.stringify({
+          owner_id: auth.user.sub, post_id: id, user_handle: me.handle, user_name: me.name, user_avatar: me.avatar, user_color: "#00D4AA", body: text,
         }) });
         return NextResponse.json({ state: "OK", comment: row }, { headers: NO_STORE });
       }
       case "like":
-        await rest("lounge_likes", { method: "POST", body: JSON.stringify({ post_id: id, user_handle: me.handle }) });
+        await rest("lounge_likes", { method: "POST", body: JSON.stringify({ owner_id: auth.user.sub, post_id: id, user_handle: me.handle }) });
         return NextResponse.json({ state: "OK" }, { headers: NO_STORE });
       case "unlike":
-        await rest(`lounge_likes?post_id=eq.${id}&user_handle=eq.${h}`, { method: "DELETE" });
+        await rest(`lounge_likes?post_id=eq.${id}&owner_id=eq.${owner}`, { method: "DELETE" });
         return NextResponse.json({ state: "OK" }, { headers: NO_STORE });
       case "delete": {
-        // Only the author's own row matches the filter; anything else deletes nothing.
-        const gone = await rest<unknown[]>(`lounge_posts?id=eq.${id}&user_handle=eq.${h}`, { method: "DELETE" });
+        // Editable handles cannot authorize deletion. Legacy rows without proven owners stay protected.
+        const gone = await rest<unknown[]>(`lounge_posts?id=eq.${id}&owner_id=eq.${owner}`, { method: "DELETE" });
         if (!Array.isArray(gone) || gone.length === 0) return NextResponse.json({ error: "Not your post." }, { status: 403, headers: NO_STORE });
         return NextResponse.json({ state: "OK" }, { headers: NO_STORE });
       }
@@ -181,8 +186,8 @@ export async function POST(request: Request): Promise<Response> {
       case "unfollow": {
         const target = typeof body.handle === "string" ? body.handle.trim() : "";
         if (!target || target.length > 60 || target === me.handle) return NextResponse.json({ error: "Bad handle" }, { status: 400 });
-        if (body.op === "follow") await rest("lounge_follows", { method: "POST", body: JSON.stringify({ follower_handle: me.handle, following_handle: target }) });
-        else await rest(`lounge_follows?follower_handle=eq.${h}&following_handle=eq.${encodeURIComponent(target)}`, { method: "DELETE" });
+        if (body.op === "follow") await rest("lounge_follows", { method: "POST", body: JSON.stringify({ owner_id: auth.user.sub, follower_handle: me.handle, following_handle: target }) });
+        else await rest(`lounge_follows?owner_id=eq.${owner}&following_handle=eq.${encodeURIComponent(target)}`, { method: "DELETE" });
         return NextResponse.json({ state: "OK" }, { headers: NO_STORE });
       }
       default:

@@ -19,7 +19,7 @@ describe("/api/lounge — the server holds the rules", () => {
     const { POST } = await load();
     const res = await POST(post({ op: "post", content: "hello", user_handle: "someone", user_ceo: true, user_tier: "ELITE" }));
     expect(res.status).toBe(200);
-    expect(sent).toMatchObject({ user_handle: "dave", user_ceo: false, user_tier: "BASIC", user_verified: false, content: "hello" });
+    expect(sent).toMatchObject({ owner_id: "u1", user_handle: "dave", user_ceo: false, user_tier: "BASIC", user_verified: false, content: "hello" });
   });
 
   it("refuses to delete a post that is not the trader's own", async () => {
@@ -28,7 +28,8 @@ describe("/api/lounge — the server holds the rules", () => {
     const { POST } = await load();
     const res = await POST(post({ op: "delete", postId: 5 }));
     expect(res.status).toBe(403);
-    expect(url).toContain("user_handle=eq.dave");
+    expect(url).toContain("owner_id=eq.u1");
+    expect(url).not.toContain("user_handle=eq.");
   });
 
   it("refuses the 11th post in a minute (anti-flood) but never limits likes", async () => {
@@ -71,5 +72,47 @@ describe("authorship is the account's own handle, never its email prefix (securi
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/Set a handle/);
     expect(touched).toBe(false);
+  });
+});
+
+
+describe("immutable Passport ownership", () => {
+  beforeEach(() => { vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://sb.example"); vi.stubEnv("TEST_SERVICE_KEY", "svc"); });
+  afterEach(() => { vi.unstubAllEnvs(); globalThis.fetch = realFetch; });
+  it("an attacker with the victim's editable handle cannot delete the victim's row", async () => {
+    const { POST } = await load();
+    const { requireAuth } = await import("@/lib/requireAuth");
+    vi.mocked(requireAuth).mockResolvedValueOnce({ ok: true, user: { sub: "attacker", email: "attacker@example.com", handle: "dave" } } as never);
+    let asked = "";
+    globalThis.fetch = (async (u: string) => {
+      asked = u;
+      const victimMatches = new URL(u).searchParams.get("owner_id") === "eq.victim";
+      return new Response(JSON.stringify(victimMatches ? [{ id: 7 }] : []), { status: 200 });
+    }) as unknown as typeof fetch;
+    const res = await POST(post({ op: "delete", postId: 7, owner_id: "victim" }));
+    expect(res.status).toBe(403);
+    expect(asked).toContain("owner_id=eq.attacker");
+    expect(asked).not.toContain("user_handle=eq.dave");
+  });
+  it("unlike and unfollow are scoped to immutable identity, even with a copied handle", async () => {
+    const asked: string[] = [];
+    globalThis.fetch = (async (u: string) => { asked.push(u); return new Response("[]"); }) as unknown as typeof fetch;
+    const { POST } = await load();
+    await POST(post({ op: "unlike", postId: 7 }));
+    await POST(post({ op: "unfollow", handle: "other" }));
+    expect(asked).toHaveLength(2);
+    for (const u of asked) expect(u).toContain("owner_id=eq.u1");
+  });
+  it("reads only public post/comment fields; ownership is not returned to the browser", async () => {
+    const asked: string[] = [];
+    globalThis.fetch = (async (u: string) => { asked.push(u); return new Response("[]"); }) as unknown as typeof fetch;
+    const { GET } = await load();
+    await GET(new Request("http://x/api/lounge"));
+    await GET(new Request("http://x/api/lounge?comments=7"));
+    for (const u of asked.filter(u => /lounge_posts|lounge_comments/.test(u))) {
+      const projection = new URL(u).searchParams.get("select");
+      expect(projection).not.toBe("*");
+      expect(projection).not.toContain("owner_id");
+    }
   });
 });
