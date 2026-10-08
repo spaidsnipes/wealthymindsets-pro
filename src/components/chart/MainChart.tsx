@@ -10664,6 +10664,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               my = cy; mx = px; break spot;
             }
           }
+          // §16 (2026-10-08): a word with no clear spot goes to the note composer
+          // (one anchor at the hole; tap lists it) — the dashed bridge stays drawn.
+          if (!Number.isFinite(my)) displacedNotes.push({ layer: "DATA GAP", text: t, x: mid, y: (yTop + yBot) / 2, time: g.fromTime });
           if (!Number.isFinite(my)) { wordsWithheld++; continue; }
           const rect = { x: mx - tw / 2, y: my - 12, w: tw, h: 13 };
           gapWordRects.push(rect);
@@ -12006,6 +12009,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         for (const wd of vpSpeaks ? vpWords : []) {
           ctx.font = wd.poc ? "bold 12px monospace" : "11px monospace";
           const twN = ctx.measureText(wd.text).width;
+          // §16 (2026-10-08): a word a candle stands on goes to the note composer.
+          if (rectHits({ x: vpRight - 4 - twN - 2, y: wd.y - 7, w: twN + 4, h: 14 }, profileCandlesAt(wd.y - 7, wd.y + 7)) > 0) displacedNotes.push({ layer: "PROFILE", text: wd.text, x: vpRight - 4 - twN / 2, y: wd.y });
           if (rectHits({ x: vpRight - 4 - twN - 2, y: wd.y - 7, w: twN + 4, h: 14 }, profileCandlesAt(wd.y - 7, wd.y + 7)) > 0) {
             vpWordsWithheld++;
             continue;
@@ -12119,6 +12124,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // with no clear row for the name printed the gold price alone — no
           // POC, no EST — beside other chips. A price never speaks without its
           // name: no name, no chip.
+          // §16: the level keeps its rule; a withheld name + price go to the composer.
+          if (pair.onCandles || !pair.name) displacedNotes.push({ layer: "PROFILE", text: `${nameTxt} ${chipTxt}`, x: vpChipRight - cw / 2, y: midY });
           if (pair.onCandles || !pair.name) {
             vpChipsWithheld++;
             vpWordsWithheld++;
@@ -14351,6 +14358,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 });
                 if (chipOnChip) {
                   exhaustionChipsYielded++;
+                  // §16: the held line goes to the note composer at the mark.
+                  displacedNotes.push({ layer: "EXHAUSTION", text: chipTxt, x: cxx + cw / 2, y: cy + 7 });
                 } else {
                   ctx.fillStyle = `rgba(20,8,8,${keepOutBackingAlpha(spotX, 0.88)})`;
                   ctx.fillRect(cxx, cy, cw, 14);
@@ -22028,6 +22037,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               recordKeepOut(keepOutLedger, spotM);
               // No clear row on its own line: the chip is withheld (the level
               // keeps its line; its words stay in Inspect), never printed on a candle.
+              if (spotM.onCandles) displacedNotes.push({ layer: "MEMORY", text, x: lx + w / 2, y });
               if (spotM.onCandles) { memChipsWithheld++; continue; }
               // Only a chip actually placed reserves its row: a withheld chip
               // must not keep a neighbouring level's words off the glass.
@@ -22384,6 +22394,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   }
                   // A short zone's name may run past its right edge; the slot
                   // check above already keeps it off every other chip.
+                  // §16 (2026-10-08): no clear slot → the name goes to the note composer
+                  // at the zone's centre; the band itself stays drawn.
+                  if (ty == null) displacedNotes.push({ layer: "ZONE", text: words, x: x0 + (zEnd - x0) / 2, y: top + h / 2, time: z.birthTime });
                   if (ty != null) {
                     ctx.save();
                     ctx.fillStyle = "rgba(233,196,106,0.92)";

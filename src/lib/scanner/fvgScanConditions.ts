@@ -19,8 +19,20 @@
  *   FVG_PLUS_PROFILE    a POC / VAH / VAL of the range profile of the bars
  *                       before it formed, inside or near the territory
  * each carrying the relationships and the source owner's evidence word.
- * FVG_PLUS_WALL is omitted: the scanner reads bars, and walls need an options
- * chain or a book — that family is SILENCE here, never faked.
+ *
+ * Garden 19 §39 (2026-10-08) — two more, ONLY where their evidence exists:
+ *   FVG_PLUS_WALL        a call / put wall or gamma flip from the ONE options
+ *                        owner (selectDerivativesPressure, Cboe DELAYED open
+ *                        interest, prior session) inside or near the territory.
+ *                        Read only for an options-bearing listed symbol whose
+ *                        chain the caller fetched; otherwise UNAVAILABLE with
+ *                        the reason (no listed chain, the owner drew nothing…).
+ *   FVG_PLUS_ORDER_FLOW  needs SIGNED tape at the bar that revealed the
+ *                        condition. The scanner reads daily HISTORY bars, and
+ *                        no signed tape exists for them — always UNAVAILABLE
+ *                        here, with that reason. Never read from candles.
+ * An UNAVAILABLE condition is listed per symbol with its reason; it is never
+ * silently absent and never a hit.
  *
  * REFUSALS, in plain words: bars unavailable, too few closed bars for ATR(14),
  * or bars too old to be a current reading (the newest close is older than the
@@ -44,7 +56,8 @@ import { fvgChartHref } from "@/lib/marketData/fvg/fvgChartLink";
 import { getTimeframe, normalizeTFId } from "@/lib/timeframes";
 import { displayPrecisionFor } from "@/lib/chart/pricePrecision";
 import { fvgBarContext, fvgBarOnlyRelationships } from "@/lib/marketData/fvg/fvgBarContext";
-import { fvgRelationshipRows } from "@/lib/marketData/fvg/fvgRelationships";
+import { fvgRelationshipRows, fvgRelationshipsFor } from "@/lib/marketData/fvg/fvgRelationships";
+import type { DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 
 export const FVG_SCAN_CONDITIONS = [
   "NEW_FVG",
@@ -96,12 +109,50 @@ export interface FvgScanHit {
   readonly priceDp: number;
 }
 
-export const FVG_CONVERGENCE_CONDITIONS = ["FVG_PLUS_STRUCTURE", "FVG_PLUS_PROFILE"] as const;
+export const FVG_CONVERGENCE_CONDITIONS = ["FVG_PLUS_STRUCTURE", "FVG_PLUS_PROFILE", "FVG_PLUS_WALL", "FVG_PLUS_ORDER_FLOW"] as const;
 export type FvgConvergenceCondition = (typeof FVG_CONVERGENCE_CONDITIONS)[number];
 export const FVG_CONVERGENCE_LABEL: Readonly<Record<FvgConvergenceCondition, string>> = {
   FVG_PLUS_STRUCTURE: "FVG + structure",
   FVG_PLUS_PROFILE: "FVG + profile",
+  FVG_PLUS_WALL: "FVG + options wall",
+  FVG_PLUS_ORDER_FLOW: "FVG + order flow",
 };
+
+/** The conditions whose evidence is not in the bars: read only when it exists, else UNAVAILABLE with a reason. */
+export type FvgEvidenceCondition = Extract<FvgConvergenceCondition, "FVG_PLUS_WALL" | "FVG_PLUS_ORDER_FLOW">;
+
+export interface FvgScanUnavailable {
+  readonly condition: FvgEvidenceCondition;
+  readonly reason: string;
+}
+
+/** Why the scanner never reads FVG + order flow: no signed tape exists for the bars it reads. */
+export const FVG_SCAN_ORDER_FLOW_UNAVAILABLE =
+  "needs signed tape (trades marked at the bid or the ask) at the bar that revealed the condition; the scanner reads history bars, and no signed tape exists for them — candles are never read as order flow";
+
+/**
+ * The options evidence for one symbol, as the caller found it: the one owner's
+ * reading of a fetched chain, or why there is none.
+ */
+export type FvgScanWallEvidence =
+  | { readonly vm: DerivativesPressureVM }
+  | { readonly unavailable: string };
+
+const PRESSURE_REASON_WORDS: Readonly<Record<string, string>> = {
+  NO_CHAIN: "no options chain was returned",
+  NO_SPOT: "the chain carried no underlying price",
+  TOO_FEW_CONTRACTS: "too few contracts with open interest to read walls",
+  NO_EXPOSURE: "the chain's open interest held no exposure to read",
+  AFTER_REPLAY_CLOCK: "the chain was published after the bar read",
+};
+
+/** The wall evidence's plain reason when it cannot be read, or null when walls were read. */
+export function fvgScanWallUnavailable(walls: FvgScanWallEvidence | undefined): string | null {
+  if (!walls) return "options walls were not read for this symbol";
+  if ("unavailable" in walls) return walls.unavailable;
+  if (!walls.vm.drawn) return `Cboe delayed open interest: ${PRESSURE_REASON_WORDS[walls.vm.reason] ?? walls.vm.reason}`;
+  return null;
+}
 
 export interface FvgConvergenceHit extends Omit<FvgScanHit, "condition"> {
   readonly condition: FvgConvergenceCondition;
@@ -148,6 +199,8 @@ export type FvgScanReading =
       readonly hits: readonly FvgScanHit[];
       /** Convergence (FVG + another owner's reading). Never a grade; each line names its source evidence. */
       readonly convergence: readonly FvgConvergenceHit[];
+      /** Evidence conditions that could not be read for this symbol's hits, with the reason. Empty when nothing was hit. */
+      readonly unavailable: readonly FvgScanUnavailable[];
     }
   | { readonly status: "REFUSED"; readonly symbol: string; readonly timeframe: string; readonly reason: string };
 
@@ -176,6 +229,8 @@ export function fvgScanConditionsFromBars(input: {
   readonly nowMs: number;
   readonly extendedHours?: boolean;
   readonly provenance?: string | null;
+  /** Options evidence for FVG + options wall; absent = not read (UNAVAILABLE when anything was hit). */
+  readonly walls?: FvgScanWallEvidence;
 }): FvgScanReading {
   const { symbol, timeframe } = input;
   const refuse = (reason: string): FvgScanReading => ({ status: "REFUSED", symbol, timeframe, reason });
@@ -208,8 +263,13 @@ export function fvgScanConditionsFromBars(input: {
     if (o.mitigation === "DEEP" && p.mitigation !== "DEEP") hits.push(hit("DEEP_MITIGATION", o, symbol, timeframe, tNow, dp));
   }
   const convergence: FvgConvergenceHit[] = [];
+  const unavailable: FvgScanUnavailable[] = [];
   const hitIds = [...new Set(hits.map(h => h.objectId))];
+  const wallReason = fvgScanWallUnavailable(input.walls);
+  const wallVm = wallReason === null && input.walls && "vm" in input.walls ? input.walls.vm : null;
   if (hitIds.length) {
+    if (wallReason !== null) unavailable.push({ condition: "FVG_PLUS_WALL", reason: wallReason });
+    unavailable.push({ condition: "FVG_PLUS_ORDER_FLOW", reason: FVG_SCAN_ORDER_FLOW_UNAVAILABLE });
     const ctx = fvgBarContext(input.bars, symbol, timeframe);
     const fmt = (x: number) => x.toFixed(dp);
     for (const id of hitIds) {
@@ -221,6 +281,12 @@ export function fvgScanConditionsFromBars(input: {
         const fam = { ...reading, relationships: reading.relationships.filter(x => x.family === family) };
         if (!fam.relationships.length) continue;
         convergence.push({ ...base, condition, with: withC, relationships: fvgRelationshipRows(fam, fmt).rows });
+      }
+      // FVG + options wall: the ONE options owner's walls / flip, through the one relationship owner.
+      if (wallVm) {
+        const walls = fvgRelationshipsFor(o, { derivatives: wallVm });
+        const fam = { ...walls, relationships: walls.relationships.filter(x => x.family === "WALL") };
+        if (fam.relationships.length) convergence.push({ ...base, condition: "FVG_PLUS_WALL", with: withC, relationships: fvgRelationshipRows(fam, fmt).rows });
       }
     }
   }
@@ -238,6 +304,7 @@ export function fvgScanConditionsFromBars(input: {
     },
     hits,
     convergence,
+    unavailable,
   };
 }
 
@@ -247,9 +314,23 @@ export function fvgScanConditions(input: {
   readonly timeframe: string;
   readonly fetch: FvgBarFetch;
   readonly nowMs: number;
+  readonly walls?: FvgScanWallEvidence;
 }): FvgScanReading {
   if (!input.fetch.ok) return { status: "REFUSED", symbol: input.symbol, timeframe: input.timeframe, reason: input.fetch.reason };
-  return fvgScanConditionsFromBars({ symbol: input.symbol, timeframe: input.timeframe, bars: input.fetch.bars, nowMs: input.nowMs, provenance: input.fetch.provenance });
+  return fvgScanConditionsFromBars({ symbol: input.symbol, timeframe: input.timeframe, bars: input.fetch.bars, nowMs: input.nowMs, provenance: input.fetch.provenance, walls: input.walls });
+}
+
+/**
+ * Does this symbol carry a listed options chain the scanner may ask Cboe for?
+ * Null when yes; otherwise the plain reason (futures, crypto and forex list no
+ * options at Cboe — the scanner does not fall back to another provider).
+ */
+export function fvgScanWallChainRefusal(symbol: string, assetClass: string, cboeSymbol: string | null): string | null {
+  if (assetClass === "FUTURES" || assetClass === "CRYPTO" || assetClass === "FOREX") {
+    return `${symbol} has no listed options chain at Cboe (${assetClass.toLowerCase()} lists none there), so no option wall is read`;
+  }
+  if (!cboeSymbol) return `${symbol} is not a symbol Cboe lists options for, so no option wall is read`;
+  return null;
 }
 
 /** The denominator line: "read 24 of 30 symbols · 6 refused". */

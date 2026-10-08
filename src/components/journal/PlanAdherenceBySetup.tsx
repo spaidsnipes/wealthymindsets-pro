@@ -6,6 +6,7 @@
  * happened and grouped by setup. MEASURED only at 20 decided trades.
  */
 
+import { useManagementOwnerVersion } from "@/lib/journal/useManagementOwner";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { lessonForFinding } from "@/lib/journal/planLoop";
@@ -31,6 +32,7 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
   const [followedBy, setFollowedBy] = useState<Record<string, boolean | null>>({});
   const [edge, setEdge] = useState<FvgEdgeComparison | null>(null);
   const [edgeNote, setEdgeNote] = useState<string | null>(null);
+  const ownerVersion = useManagementOwnerVersion();
   useEffect(() => {
     try {
       const reviews = readStoryReviews();
@@ -46,7 +48,7 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
       const refd = entries.filter(e => e.fvgRef);
       setFvgRows(refd.length ? fvgStudyList(refd.map(e => ({ ref: e.fvgRef!, result: byId.get(e.id) ?? null, realizedR: e.realizedR ?? null }))) : []);
     } catch { setRows([]); setFvgRows([]); }
-  }, [entries]);
+  }, [entries, ownerVersion]);
   const withRef = entries.filter(e => e.fvgRef);
   const compare = async () => {
     setEdgeNote("Reading the FVG ledgers for the instruments and timeframes you traded…");

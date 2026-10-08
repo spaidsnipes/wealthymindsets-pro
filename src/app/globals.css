@@ -2080,3 +2080,14 @@ input[type=range]::-webkit-slider-runnable-track {
    painted over the panel's welcome text — the panel was z 50). Chart chrome
    tops out at the Inspect ticket (z 75); the panel sits above it. */
 .wm-spaidbot-panel { z-index: 120 !important; }
+
+/* PHONE: ONE READING PER ROW (serving NQ1! 5m at 390, the trader's own layout,
+   2026-10-08 01:47 CDT): with the order-flow overlay on, the LIVE TAPE chip
+   (top 42, full width, z 58) printed straight over the DAY BIAS strip's phone
+   copy (top 36) — two readings in one row, neither legible. The live tape is
+   the present reading; while it stands on a phone the day-bias strip yields
+   (it is still in the room's header summary). No tape chip → the strip shows. */
+@media screen and (max-width: 639px) {
+  .wm-chart-dashboard:has(.wm-live-session-chip) .wm-chart-market-standing--phone,
+  body:has(.wm-live-session-chip) .wm-chart-market-standing--phone { display: none !important; }
+}

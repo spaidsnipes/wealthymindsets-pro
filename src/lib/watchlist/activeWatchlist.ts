@@ -34,6 +34,21 @@ function readLists(store: Store): Record<string, string[]> {
   return { [DEFAULT_WATCHLIST_NAME]: [...DEFAULT_WATCHLIST_SYMBOLS] };
 }
 
+/**
+ * The active list ONLY when the trader has stored one — null when nothing
+ * readable is stored (the default seed is WM's list, not a choice of his).
+ * Read-only: for rooms that offer "your watchlist" and must not offer WM's seed
+ * under his name.
+ */
+export function readStoredActiveWatchlist(store: Pick<Storage, "getItem">): { name: string; symbols: string[] } | null {
+  let stored = false;
+  try {
+    const p = JSON.parse(store.getItem(WATCHLISTS_KEY) ?? "null");
+    stored = !!p && typeof p === "object" && Object.keys(p).some(k => readSymbolList(p[k]) !== null);
+  } catch { /* unreadable or blocked — nothing of his to offer */ }
+  return stored ? readActiveWatchlist({ getItem: k => store.getItem(k), setItem: () => {} }) : null;
+}
+
 /** The list the trader is looking at: its name and symbols. */
 export function readActiveWatchlist(store: Store): { name: string; symbols: string[] } {
   const lists = readLists(store);

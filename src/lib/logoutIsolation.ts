@@ -71,6 +71,7 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm:management-plan:v1", // Garden 19 §27: the trader's plan frozen per Decision_ID, with dated amendments
   "wm:management-plan-draft:v1", // Garden 19 §27: the trader's pre-trade plan-card draft per market
   "wm:management-day-rules:v1", // Garden 19 §55: today's management rules from Morning Prep
+  "wm:management-owner:v1", // legacy owner stamp read by managementOwner.legacyRowsBelongTo (adopt tie) — an account id
 ] as const;
 
 /**
@@ -103,6 +104,11 @@ const OWNER_SCOPED_PREFIXES: readonly string[] = [
   "wm_tv_chat_",          // TV channel notes the trader typed (2026-10-04)
   "wm_draw:v1:",          // drawings, keyed by owner but never purged (2026-10-04)
   "wm:morning-prep:v2:",  // morning prep, keyed by owner but never purged (2026-10-04)
+  // Garden 19 isolation audit (2026-10-08): the management stores are keyed by the member's id
+  // (managementOwner.managementKey) AND purged at sign-out — both, so an expired session cannot leak them either.
+  "wm:management-plan:v1:",
+  "wm:management-plan-draft:v1:",
+  "wm:management-day-rules:v1:",
 ] as const;
 
 /**

@@ -18,6 +18,7 @@
  * the stop at the broker; the card says so.
  */
 
+import { useManagementOwnerVersion } from "@/lib/journal/useManagementOwner";
 import { traderClock } from "@/components/time/traderClock";
 import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
@@ -207,7 +208,8 @@ export function ManagementPlanCard(props:
     setSavedAt(d?.updatedAtMs ?? null);
     setDayRules(props.mode === "ticket" ? readDayRules(st, Date.now()) : null);
   }, [props.mode, decisionId, symbol]);
-  useEffect(() => { refresh(); }, [refresh]);
+  const ownerVersion = useManagementOwnerVersion();   // re-read under the member AuthContext resolves
+  useEffect(() => { refresh(); }, [refresh, ownerVersion]);
 
   const onAmended = (s: ManagementPlanSnapshot) => { setFrozen(s); if (props.mode === "story") props.onPlanChange?.(s); };
   const onErased = () => { setFrozen(null); if (props.mode === "story") props.onPlanChange?.(null); };

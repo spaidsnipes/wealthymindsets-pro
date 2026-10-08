@@ -343,8 +343,31 @@ It also clears the "why did the plan change?" answer on that decision's review k
 Personal Edge counts, the FVG study list's adherence, SpaidBot's plan line) is derived on read and
 stops referencing it. The journal entry and its FVG reference are untouched.
 
-In the card, "Delete this plan" takes two presses and opens no dialog. All management keys are
-purged at sign-out (`logoutIsolation.ts`).
+In the card, "Delete this plan" takes two presses and opens no dialog.
+
+### Member isolation (audit 2026-10-08)
+
+`src/lib/journal/managementOwner.ts` keys every management store by the signed-in member's id:
+`wm:management-plan:v1:<id>`, `wm:management-plan-draft:v1:<id>`, `wm:management-day-rules:v1:<id>`.
+* **Another member on the same browser reads nothing of yours**, and cannot amend or erase it —
+  even with no sign-out through this tab (an expired session, another tab).
+* **A guest reads none and writes none.** With auth resolved to nobody there is no key: a guest's
+  draft or rule is refused, so it never waits for the next member. Before `AuthContext` has
+  spoken, a browser has no key either.
+* **`AuthContext` is the one writer of the owner** (`setManagementOwner`): the member's id as soon
+  as it is known; nobody only once auth has resolved. Readers re-read through
+  `useManagementOwnerVersion`.
+* **Sign-out still purges** every management key (`logoutIsolation.ts` prefixes), and the old
+  unsuffixed keys are removed the first time an owner is set.
+* **Not keyed by member, purged at sign-out (existing owners):** the journal itself
+  (`wm_journal_entries`, which carries `fvgRef`), story reviews (`wm_story_review_v1`, including
+  the "why did the plan change?" answer) and the tab's tickets-at-send (sessionStorage).
+* **No browser cache:** the broker review reads (`/api/broker/journal-feed`, the Webull ledger's
+  server KV, price-path and FVG-ledger loads) sit behind the server's owner gate or live in memory
+  for the page only.
+
+Test: `managementIsolation.test.ts` (A writes → B reads empty → A returns; guest; legacy keys;
+sign-out sweep; wiring), with `logoutIsolation.enforcement.test.ts`.
 
 Tests: `managementPlanPersistence.test.ts` (including save → reload identity of the fvgRef, the
 plan, and the order of amendments).

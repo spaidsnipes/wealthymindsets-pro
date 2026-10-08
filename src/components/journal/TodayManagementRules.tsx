@@ -9,6 +9,7 @@
  * onto the next decision frozen today. No score, no streak, no verdict.
  */
 
+import { useManagementOwnerVersion } from "@/lib/journal/useManagementOwner";
 import { traderClock } from "@/components/time/traderClock";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
@@ -28,6 +29,7 @@ export function TodayManagementRules(props: { readonly nowMs?: number }) {
   const [hold, setHold] = useState("");
   const [sessionPlan, setSessionPlan] = useState("");
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const ownerVersion = useManagementOwnerVersion();
   useEffect(() => {
     setSession(dayRulesSession(nowMs ?? Date.now()));
     const r = readDayRules(store(), Date.now());
@@ -36,7 +38,7 @@ export function TodayManagementRules(props: { readonly nowMs?: number }) {
     setHold(r.expectedHoldMin != null ? String(r.expectedHoldMin) : "");
     setSessionPlan(r.sessionPlan ?? "");
     setSavedAt(r.updatedAtMs);
-  }, []);
+  }, [ownerVersion]);
   const save = () => {
     const h = Number(hold.trim());
     const r = writeDayRules(store(), { conditions: conditions.split("\n"), expectedHoldMin: hold.trim() && Number.isFinite(h) && h > 0 ? h : null, sessionPlan: sessionPlan || null }, Date.now());
@@ -84,14 +86,15 @@ export function TodayManagementRules(props: { readonly nowMs?: number }) {
  */
 export function TodayRulesLine(props: { readonly rules?: ManagementDayRules | null }) {
   const [rules, setRules] = useState<ManagementDayRules | null | undefined>(props.rules);
-  useEffect(() => { if (props.rules === undefined) setRules(readDayRules(store(), Date.now())); }, [props.rules]);
+  const ownerVersion = useManagementOwnerVersion();
+  useEffect(() => { if (props.rules === undefined) setRules(readDayRules(store(), Date.now())); }, [props.rules, ownerVersion]);
   if (rules === undefined) return null;
   return (
     <div role="region" aria-label="Today's management rules" data-testid="journal-day-rules" data-saved={rules ? "YES" : "NO"}
       style={{ padding: "6px 16px", borderBottom: "1px solid rgba(139,106,41,0.15)", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", fontSize: 12 }}>
       <span style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: GOLD, fontWeight: 700 }}>Today&apos;s rules</span>
       <span style={{ color: rules ? INK : MUTED, overflowWrap: "anywhere", minWidth: 0 }}>{dayRulesSummaryLine(rules)}</span>
-      <Link href={LOOP_DOORS.MORNING_PREP} prefetch={false} data-testid="journal-day-rules-edit" style={{ color: GOLD, minHeight: 28, display: "inline-flex", alignItems: "center" }}>
+      <Link href={LOOP_DOORS.MORNING_PREP} prefetch={false} data-testid="journal-day-rules-edit" className="wm-tap" style={{ color: GOLD, display: "inline-flex", alignItems: "center" }}>
         {rules ? "Edit in Morning Prep →" : "Set them in Morning Prep →"}
       </Link>
     </div>

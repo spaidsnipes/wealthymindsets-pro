@@ -54,11 +54,12 @@ const OWNER_SCOPED_KEYS = new Set<string>([
   "wm:management-plan:v1",
   "wm:management-plan-draft:v1",
   "wm:management-day-rules:v1",
+  "wm:management-owner:v1",
   "wm:journal-ticket-at-send:v1", // sessionStorage, cleared by the same sign-out sweep
 ]);
 
 /** OWNER_SCOPED_PREFIXES from logoutIsolation.ts (matches by startsWith). */
-const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-", "wm_tv_chat_", "wm_draw:v1:", "wm:morning-prep:v2:", "wm:decision-identity:", "wm:risk-receipt:"];
+const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-", "wm_tv_chat_", "wm_draw:v1:", "wm:morning-prep:v2:", "wm:decision-identity:", "wm:risk-receipt:", "wm:management-plan:v1:", "wm:management-plan-draft:v1:", "wm:management-day-rules:v1:"];
 
 /**
  * Keys cleared by a domain-specific `clearX()` invoked from

@@ -17,6 +17,7 @@ import { clearAllSessionSymbols } from "@/lib/marketData/sessionSymbolStore";
 import { clearPaperState } from "@/lib/paperTrade";
 import { clearWMSState } from "@/contexts/WMSContext";
 import { clearOwnerScopedLocalStorage, completeLocalSignOut } from "@/lib/logoutIsolation";
+import { setManagementOwner } from "@/lib/journal/managementOwner";
 import { clearSessionNectarForSignOut } from "@/lib/marketData/sessionNectar";
 import { forgetQuoteToken } from "@/lib/broker/tastyQuoteTokenClient";
 import { forgetTastyFrontMonths } from "@/lib/broker/tastyFrontMonth";
@@ -173,6 +174,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Hydrate on mount
   useEffect(() => { refreshUser(); }, [refreshUser]);
+
+  // MEMBER ISOLATION for the management stores (plans, drafts, Morning Prep rules), Garden 19
+  // audit 2026-10-08: they are keyed by the signed-in member's id. The owner is set as soon as
+  // a member is known, and set to nobody only once auth has RESOLVED to nobody — a guest then
+  // reads no rows and writes none; a different member reads only their own.
+  // The browser's last-known account BEFORE this load's sign-in replaces the cache: the only
+  // member legacy (pre-isolation) management rows may be handed to (managementOwner.legacyRowsBelongTo).
+  const legacyMarkerRef = useRef<string | null | undefined>(undefined);
+  if (legacyMarkerRef.current === undefined && typeof window !== "undefined") legacyMarkerRef.current = readCachedUser()?.id ?? null;
+  useEffect(() => {
+    if (user?.id) setManagementOwner(user.id, undefined, legacyMarkerRef.current ?? null);
+    else if (!loading) setManagementOwner(null);
+  }, [user?.id, loading]);
 
   // ACCOUNT SWITCH without a sign-out through this tab (session expired, a
   // different account signed in from another tab, the cached account replaced

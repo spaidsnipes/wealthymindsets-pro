@@ -12,6 +12,7 @@
  * behalf.
  */
 
+import { useManagementOwnerVersion } from "@/lib/journal/useManagementOwner";
 import { REVIEW_DIMENSIONS, REVIEW_QUESTION, cycleMark, readStoryReviews, reviewSummary, writeStoryReview, type ReviewDimension, type StoryReview } from "@/lib/journal/storyReview";
 import type { ReviewEvidenceLine } from "@/lib/journal/captureReviewEvidence";
 import { planLine } from "@/lib/journal/managementPlan";
@@ -276,6 +277,7 @@ const fillPx = (v: number | null) => (v == null || !Number.isFinite(v) ? "—" :
 const time = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZoneName: "short" }) : "—");
 
 export function BrokerTruthToday() {
+  useManagementOwnerVersion();   // re-render when the member is resolved: story plans are read at render
   const [feed, setFeed] = useState<{ state: string; reason?: string; accounts: FeedAccount[]; asOf?: string; decisionLinks?: string } | null>(null);
   const [status, setStatus] = useState<number | null>(null);
 

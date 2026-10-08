@@ -17,6 +17,7 @@ import { fetchFvgBars } from "@/lib/marketData/fvg/fvgBarSource";
 import {
   FVG_CONVERGENCE_CONDITIONS,
   FVG_SCAN_FEED_NOTE,
+  FVG_SCAN_ORDER_FLOW_UNAVAILABLE,
   FVG_CONVERGENCE_LABEL,
   FVG_SCAN_CONDITIONS,
   FVG_SCAN_CONDITION_LABEL,
@@ -26,14 +27,28 @@ import {
   type FvgScanCondition,
   type FvgScanReading,
 } from "@/lib/scanner/fvgScanConditions";
+import { fvgScanUniverses, type FvgScanUniverseId } from "@/lib/scanner/fvgScanUniverse";
+import { loadFvgScanWalls } from "@/lib/scanner/fvgScanWalls";
+import { readStoredActiveWatchlist } from "@/lib/watchlist/activeWatchlist";
 
 const TF = "1D";
 const BARS = 160;
 const CONCURRENCY = 3;
 
-export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly string[]; onOpenSymbol?: (symbol: string) => void }) {
+export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols: readonly string[]; onOpenSymbol?: (symbol: string) => void }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // WHICH LIST (2026-10-08): WM's fixed list, named with its date — or the
+  // trader's own stored watchlist, read (never written) through its one owner
+  // each time the strip opens.
+  const [want, setWant] = useState<FvgScanUniverseId>("FIXED");
+  const [watchlist, setWatchlist] = useState<{ name: string; symbols: string[] } | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    try { setWatchlist(readStoredActiveWatchlist(window.localStorage)); } catch { setWatchlist(null); }
+  }, [open]);
+  const { options: universes, active: universe } = fvgScanUniverses({ fixed: fixedSymbols, watchlist, want });
+  const symbols = universe.symbols;
   const [running, setRunning] = useState(false);
   const [readings, setReadings] = useState<readonly FvgScanReading[]>([]);
   const [only, setOnly] = useState<FvgScanCondition | FvgConvergenceCondition | "ALL">("ALL");
@@ -53,12 +68,28 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
         const nowMs = Date.now();
         const fetch = await fetchFvgBars({ symbol: s, timeframe: TF, bars: BARS, nowMs, signal: ac.signal });
         if (ac.signal.aborted) return;
-        out.push(fvgScanConditions({ symbol: s, timeframe: TF, fetch, nowMs }));
+        let reading = fvgScanConditions({ symbol: s, timeframe: TF, fetch, nowMs });
+        // §39 FVG + options wall: the chain is asked for only when this symbol met a condition.
+        if (reading.status === "READ" && reading.hits.length && fetch.ok) {
+          const walls = await loadFvgScanWalls({ symbol: s, bars: fetch.bars, nowMs, signal: ac.signal });
+          if (ac.signal.aborted) return;
+          reading = fvgScanConditions({ symbol: s, timeframe: TF, fetch, nowMs, walls });
+        }
+        out.push(reading);
         setReadings([...out]);
       }
     };
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
     if (!ac.signal.aborted) setRunning(false);
+  };
+
+  // A result belongs to the list it was read from: changing the list clears it.
+  const chooseUniverse = (id: FvgScanUniverseId) => {
+    if (id === universe.id) return;
+    abortRef.current?.abort();
+    setRunning(false);
+    setReadings([]);
+    setWant(id);
   };
 
   const cov = fvgScanCoverage(readings);
@@ -74,6 +105,12 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
   const conv = readings.flatMap(r => (r.status === "READ" ? r.convergence : [])).filter(h => only === "ALL" || h.condition === only);
   const label = (c: FvgScanCondition | FvgConvergenceCondition) => (isConv(c) ? FVG_CONVERGENCE_LABEL[c] : FVG_SCAN_CONDITION_LABEL[c]);
   const refused = readings.filter((r): r is Extract<FvgScanReading, { status: "REFUSED" }> => r.status === "REFUSED");
+  // §39: evidence conditions that could not be read, per symbol, with the reason — never silently absent.
+  const unavailable = readings.flatMap(r => (r.status === "READ" ? r.unavailable.map(u => ({ ...u, symbol: r.symbol })) : []));
+  const wallUnavailable = unavailable.filter(u => u.condition === "FVG_PLUS_WALL");
+  const flowUnavailable = unavailable.filter(u => u.condition === "FVG_PLUS_ORDER_FLOW");
+  const showWall = only === "ALL" || only === "FVG_PLUS_WALL";
+  const showFlow = only === "ALL" || only === "FVG_PLUS_ORDER_FLOW";
 
   return (
     <div className="shrink-0 border-b border-wm-border bg-wm-dark/60" data-testid="scanner-fvg">
@@ -98,6 +135,18 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
                 </button>
               ))}
             </div>
+            {universes.length > 1 && (
+              <div className="flex flex-wrap gap-1" role="group" aria-label="Symbols to read">
+                {universes.map(u => (
+                  <button key={u.id} onClick={() => chooseUniverse(u.id)} aria-pressed={universe.id === u.id} data-testid={`scanner-fvg-universe-${u.id.toLowerCase()}`}
+                    className={clsx("wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold px-2 py-0.5 rounded text-[10px] border",
+                      universe.id === u.id ? "bg-wm-blue/10 text-wm-blue border-wm-blue/40" : "text-wm-text-muted border-wm-border hover:text-wm-text")}>
+                    {u.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <span data-testid="scanner-fvg-universe" className="basis-full text-[10px] text-wm-text-dim">{universe.line}</span>
             {readings.length > 0 && (
               <span data-testid="scanner-fvg-coverage" role="status" className="text-[10px] text-wm-text-dim">
                 read {cov.read} of {cov.of} symbols · {cov.refused} refused · definition FVG_3C v1 · observed lifecycle facts, not signals · each row names the bars it read — {FVG_SCAN_FEED_NOTE}
@@ -148,6 +197,21 @@ export function FvgScanStrip({ symbols, onOpenSymbol }: { symbols: readonly stri
                 </li>
               ))}
             </ul>
+          )}
+          {showFlow && flowUnavailable.length > 0 && (
+            <p data-testid="scanner-fvg-unavailable-flow" className="mt-1 text-[10px] text-wm-text-dim">
+              <span className="font-bold text-wm-text-muted">{FVG_CONVERGENCE_LABEL.FVG_PLUS_ORDER_FLOW}: UNAVAILABLE</span> for the {flowUnavailable.length} symbol{flowUnavailable.length === 1 ? "" : "s"} with a condition — {FVG_SCAN_ORDER_FLOW_UNAVAILABLE}.
+            </p>
+          )}
+          {showWall && wallUnavailable.length > 0 && (
+            <details className="mt-1" data-testid="scanner-fvg-unavailable-wall">
+              <summary className="text-[10px] text-wm-text-dim cursor-pointer">{FVG_CONVERGENCE_LABEL.FVG_PLUS_WALL}: UNAVAILABLE for {wallUnavailable.length} of the {readings.filter(r => r.status === "READ" && r.hits.length).length} symbols with a condition — why</summary>
+              <ul className="mt-1 space-y-0.5">
+                {wallUnavailable.map(u => (
+                  <li key={u.symbol} className="text-[10px] text-wm-text-dim"><span className="font-bold text-wm-text-muted">{u.symbol}</span> — {u.reason}</li>
+                ))}
+              </ul>
+            </details>
           )}
           {refused.length > 0 && (
             <details className="mt-1">

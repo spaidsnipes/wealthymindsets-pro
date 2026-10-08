@@ -2976,6 +2976,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   ) ?? null;
   // Garden 19 FVG lane D · a selected GAP_FVG object, read from the scene the
   // glass painted (live, or as of the replay cursor) — never a second ledger.
+  // The gaps the glass paints (the visibility budget): the keyboard control's order.
+  const fvgGapsOnGlass = React.useMemo(
+    () => (fvgOn && fvgScene ? [...fvgScene.visibility.open, ...fvgScene.visibility.scars] : []),
+    [fvgOn, fvgScene],
+  );
   const selectedFvgObject = isFvgObjectId(selectedMarketObjectId) && fvgOn
     ? fvgScene?.ledger.objects.find(o => o.objectId === selectedMarketObjectId) ?? null
     : null;
@@ -7211,6 +7216,26 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         mounted the same element renders in the rail's lens card
                         (UI-04 — no question controls on the price surface). */}
                     {!lensRailMounted && lensChooser}
+                    {/* FVG WITHOUT A POINTER (a11y, serving 390 read 2026-10-08): the bands are
+                        canvas — a keyboard or screen-reader trader had no way to select
+                        one. ONE control (never a node per gap — §58 bounded DOM): it steps
+                        the room's one selection through the gaps on the glass, nearest
+                        first, and Inspect speaks the gap. Hidden until focused. */}
+                    {activeTab === "Chart" && !gridView && fvgOn && fvgGapsOnGlass.length > 0 ? (
+                      <button
+                        type="button"
+                        data-testid="fvg-next-gap"
+                        onClick={() => {
+                          const i = fvgGapsOnGlass.findIndex(o => o.objectId === selectedMarketObjectId);
+                          const next = fvgGapsOnGlass[(i + 1) % fvgGapsOnGlass.length];
+                          actOnChartSelection({ type: "select", selection: { kind: "OBJECT", objectId: next.objectId } });
+                          actOnChartSelection({ type: "openInspect" });
+                        }}
+                        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:bottom-24 focus:z-[76] focus:rounded focus:border focus:border-wm-gold focus:bg-wm-surface focus:px-3 focus:py-2 focus:text-[12px] focus:font-semibold focus:text-wm-gold"
+                      >
+                        {`Inspect next fair value gap (${fvgGapsOnGlass.length} on the chart)`}
+                      </button>
+                    ) : null}
                     {/* Garden 19 §10 · on a phone the first-touch line rides in Inspect's header. */}
                     <InspectFirstTouchContext.Provider value={firstTouchId ? { id: firstTouchId, label: firstTouchLabel, objectId: firstTouchId === "MARKET_STRUCTURE" ? selectedMarketObjectId : null } : null}>
                     {activeTab === "Chart" && !gridView && chartBars.length >= 2 && (

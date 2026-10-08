@@ -33,6 +33,10 @@ import { amendPlan, freezePlanSnapshot, type ManagementPlanSnapshot } from "@/li
 import type { PricePath, TradeActuals, PlanVsActualResult } from "@/lib/journal/planVsActual";
 import { composePlanReview } from "@/lib/journal/planReview";
 import { planAdherenceBySetup, type SetupAdherence } from "@/lib/journal/planAdherence";
+import { fvgBarContext, fvgBarOnlyRelationships } from "@/lib/marketData/fvg/fvgBarContext";
+import { readEffortResponseField } from "@/lib/chart/effortResponseField";
+import { fvgContextSplits, type SplitRow } from "@/lib/journal/planFvgContextSplits";
+import { managementCounterfactual, type ManagementCounterfactual } from "@/lib/journal/planManagementCounterfactual";
 
 export const JOURNAL_FIXTURE_SYMBOL = "SAMPLE-FVG";
 export const JOURNAL_FIXTURE_TF = "5m";
@@ -73,11 +77,18 @@ export interface JournalFixture {
   readonly planResults: Readonly<Record<string, PlanVsActualResult>>;
   /** Personal Edge adherence by setup. */
   readonly adherence: readonly SetupAdherence[];
+  /** Personal Edge × FVG context splits (structure, profile, order flow, wall, effort→response, session, regime, timeframe, instrument). */
+  readonly splits: readonly SplitRow[];
+  /** §24: did management destroy a valid plan / did restraint improve outcomes (descriptive). */
+  readonly management: ManagementCounterfactual;
 }
 
 function bars(): CanonicalBar[] {
   let seed = 20260105;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  // A separate seeded stream for volume, so the OHLC (and every gap) is unchanged by it.
+  let vseed = 777;
+  const vrnd = () => (vseed = (vseed * 16807) % 2147483647) / 2147483647;
   let px = 100;
   const out: CanonicalBar[] = [];
   for (let i = 0; i < N; i++) {
@@ -89,7 +100,7 @@ function bars(): CanonicalBar[] {
     const asOf = T0 + i * MIN5;
     out.push({
       barId: `${JOURNAL_FIXTURE_SYMBOL}|${JOURNAL_FIXTURE_TF}|${asOf}|e0`, symbolId: JOURNAL_FIXTURE_SYMBOL, sessionId: "SESSION_CONTINUOUS",
-      timeframe: JOURNAL_FIXTURE_TF, open: +o.toFixed(2), high: +h.toFixed(2), low: +l.toFixed(2), close: +c.toFixed(2), volume: 100,
+      timeframe: JOURNAL_FIXTURE_TF, open: +o.toFixed(2), high: +h.toFixed(2), low: +l.toFixed(2), close: +c.toFixed(2), volume: Math.round(40 + vrnd() * 160 + (Math.abs(c - o) > 0.3 ? vrnd() * 200 : 0)),
       asOf, receivedAt: asOf + MIN5, fidelity: "INDICATIVE", source: "sample", provenance: "DERIVED", truthEpoch: 0,
     });
   }
@@ -189,6 +200,30 @@ export function journalFixture(): JournalFixture {
   const studyRows = fvgStudyList(entries.map(e => ({ ref: e.fvgRef, result: planResults[e.id], realizedR: e.realizedR })));
   const examples = fvgReferencedExamples(entries.map(e => ({ id: e.id, symbol: e.symbol, date: e.date, result: e.result, realizedR: e.realizedR, fvgRef: e.fvgRef })))
     .map(x => ({ ...x, href: `/journal?scene=journal-fixture#${x.id}` }));
-  cached = { ledger, entries, review, counterfactual, studyRows, examples, planResults, adherence };
+  // Context as of formation, from the owners that can be asked from bars alone (structure; the
+  // profile of the bars BEFORE b1; walls SILENCE), the Response Matrix cell of the displacement bar,
+  // the gap's regime tag, and the territory's own response in the decision's interaction (MARKET).
+  const ctx = fvgBarContext(b, JOURNAL_FIXTURE_SYMBOL, JOURNAL_FIXTURE_TF);
+  const tuples = b.map(x => ({ time: x.asOf / 1000, open: x.open, high: x.high, low: x.low, close: x.close, volume: x.volume }));
+  const byId = new Map(ledger.objects.map(o => [o.objectId, o] as const));
+  const splits = fvgContextSplits(entries.map(e => {
+    const o = byId.get(e.fvgRef.objectId)!;
+    const i2 = ctx.indexById.get(o.bars.b2.barId) ?? 0;
+    const field = readEffortResponseField(tuples, Math.max(0, i2 - 99), i2, { volumeReal: true });
+    const s0 = e.fvgRef.snapshot;
+    const ep = s0.interaction === "BEFORE_ANY_TOUCH" ? 1 : s0.interaction === "AFTER_FIRST_INTERACTION" || s0.interaction === "AFTER_LATER_INTERACTION" ? s0.interactionsSoFar + 1 : s0.interactionsSoFar;
+    return {
+      ref: e.fvgRef,
+      relationships: fvgBarOnlyRelationships(ctx, o),
+      // The cell of b2 itself; if the owner did not read b2 (no volume / no ATR yet) it is SILENT, never a neighbour's cell.
+      effortCell: field.state === "DRAWN" && field.bars[field.bars.length - 1].time === tuples[i2].time ? field.bars[field.bars.length - 1].cell : "SILENT" as const,
+      regime: o.regime,
+      marketResponse: o.interactions.find(x => x.episode === ep)?.response ?? null,
+      realizedR: e.realizedR,
+      result: planResults[e.id],
+    };
+  }));
+  const management = managementCounterfactual(entries.map(e => ({ plan: e.plan, actuals: e.actuals, path: e.path, result: planResults[e.id], realizedR: e.realizedR })));
+  cached = { ledger, entries, review, counterfactual, studyRows, examples, planResults, adherence, splits, management };
   return cached;
 }

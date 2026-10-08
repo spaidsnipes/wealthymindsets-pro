@@ -17,6 +17,7 @@
 
 import type { TraderPlanInput } from "./managementPlan";
 import { marketDayKey } from "./localDayKey";
+import { managementKey } from "./managementOwner";
 import { marketClockET } from "@/lib/marketData/canonicalIdentity";
 import { readMarketSession, type MarketSessionReading } from "@/lib/marketData/marketSessionClock";
 
@@ -35,9 +36,10 @@ export interface ManagementDayRules {
 const clean = (s: unknown, n = 300) => (typeof s === "string" && s.trim() ? s.trim().slice(0, n) : null);
 
 export function readDayRules(storage: Storage | null | undefined, nowMs: number): ManagementDayRules | null {
-  if (!storage) return null;
+  const key = managementKey(MANAGEMENT_DAY_RULES_KEY);
+  if (!storage || !key) return null;
   try {
-    const o = JSON.parse(storage.getItem(MANAGEMENT_DAY_RULES_KEY) ?? "null") as Record<string, unknown> | null;
+    const o = JSON.parse(storage.getItem(key) ?? "null") as Record<string, unknown> | null;
     if (!o || typeof o !== "object" || o.day !== marketDayKey(new Date(nowMs)) || typeof o.updatedAtMs !== "number") return null;
     const hold = typeof o.expectedHoldMin === "number" && Number.isFinite(o.expectedHoldMin) && o.expectedHoldMin > 0 ? o.expectedHoldMin : null;
     return {
@@ -52,12 +54,13 @@ export function readDayRules(storage: Storage | null | undefined, nowMs: number)
 
 /** Save today's rules (the trader's own action in Morning Prep). Empty → cleared. */
 export function writeDayRules(storage: Storage | null | undefined, input: { conditions: readonly string[]; expectedHoldMin: number | null; sessionPlan: string | null }, nowMs: number): ManagementDayRules | null {
-  if (!storage) return null;
+  const key = managementKey(MANAGEMENT_DAY_RULES_KEY);
+  if (!storage || !key) return null;
   const conditions = input.conditions.map(c => clean(c)).filter((c): c is string => !!c).slice(0, 12);
   const hold = input.expectedHoldMin != null && Number.isFinite(input.expectedHoldMin) && input.expectedHoldMin > 0 ? input.expectedHoldMin : null;
   const sessionPlan = clean(input.sessionPlan);
   const r: ManagementDayRules = { day: marketDayKey(new Date(nowMs)), conditions, expectedHoldMin: hold, sessionPlan, updatedAtMs: nowMs };
-  try { storage.setItem(MANAGEMENT_DAY_RULES_KEY, JSON.stringify(conditions.length || hold != null || sessionPlan ? r : null)); } catch { return null; }
+  try { storage.setItem(key, JSON.stringify(conditions.length || hold != null || sessionPlan ? r : null)); } catch { return null; }
   return conditions.length || hold != null || sessionPlan ? r : null;
 }
 

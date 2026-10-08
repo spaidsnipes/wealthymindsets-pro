@@ -131,6 +131,7 @@ import { validateTicketLevels, purposeOrderType, purposeSentence, purposeTradeof
 import { dayAwareStamp } from "@/lib/time/dayAwareStamp";
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
 import { freezePaperFillPlans } from "@/lib/journal/managementPlanDraft";
+import { useManagementOwnerVersion } from "@/lib/journal/useManagementOwner";
 
 /* ── Symbol universe with live-ish prices ────────────────── */
 const UNIVERSE: Record<string,{ name:string; base:number; tick:number }> = {
@@ -1854,7 +1855,8 @@ export default function PaperTradingPage() {
   const [trades,    setTrades]    = useState<Trade[]>([]);
   // Garden 19 §27: a decision's FIRST paper fill freezes the plan-card draft
   // written before it (read-only on the book; writes only the plan store).
-  useEffect(() => { try { freezePaperFillPlans(window.localStorage, trades); } catch { /* the book never waits on the plan */ } }, [trades]);
+  const planOwnerVersion = useManagementOwnerVersion();
+  useEffect(() => { try { freezePaperFillPlans(window.localStorage, trades); } catch { /* the book never waits on the plan */ } }, [trades, planOwnerVersion]);
   const [equity,    setEquity]    = useState<EquityPoint[]>([{ ts:Date.now(), equity:STARTING_CASH }]);
   const [tab,       setTab]       = useState<"positions"|"orders"|"trades"|"options"|"leaderboard">("positions");
   const [resetKey,  setResetKey]  = useState(0);

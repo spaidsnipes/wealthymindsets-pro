@@ -11,6 +11,7 @@
  * under 20 they say INSUFFICIENT EVIDENCE. No shame language: this is for
  * learning, discipline and measurable improvement.
  */
+import { useManagementOwnerVersion } from "@/lib/journal/useManagementOwner";
 import React, { useEffect, useMemo, useState } from "react";
 
 import type { TtRoundTrip } from "@/lib/broker/tastytradeLedger";
@@ -61,11 +62,12 @@ export function FounderAnalytics({ episodes, ttAccounts }: { episodes: readonly 
   const [journal, setJournal] = useState<JournalFact[]>([]);
   const [marks, setMarks] = useState<Record<string, ModelMark>>({});
   const [planReviews, setPlanReviews] = useState<PlanVsActualResult[]>([]);
+  const ownerVersion = useManagementOwnerVersion();
   useEffect(() => {
     setJournal(readJournalFacts());
     setPlanReviews(readPlanReviews());
     try { setMarks(parseModels(window.localStorage.getItem(EPISODE_MODELS_KEY))); } catch { setMarks({}); }
-  }, []);
+  }, [ownerVersion]);
 
   const trips = useMemo<AnalyticsTrip[]>(() => [
     ...episodes.map(tripFromWebull),

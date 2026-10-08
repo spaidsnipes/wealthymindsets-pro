@@ -11,6 +11,7 @@
  * (logoutIsolation OWNER_SCOPED_KEYS).
  */
 
+import { managementKey } from "./managementOwner";
 import { amendPlan, readPlanSnapshot, type ManagementPlanSnapshot, type PlanAmendment } from "./managementPlan";
 
 export const MANAGEMENT_PLAN_KEY = "wm:management-plan:v1";
@@ -19,9 +20,10 @@ export const MANAGEMENT_PLAN_MAX = 400;
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem">;
 
 function readAll(storage: Storage | null | undefined): Record<string, ManagementPlanSnapshot> {
-  if (!storage) return {};
+  const key = managementKey(MANAGEMENT_PLAN_KEY);   // null: a guest, or the member is not known yet
+  if (!storage || !key) return {};
   let raw: string | null = null;
-  try { raw = storage.getItem(MANAGEMENT_PLAN_KEY); } catch { return {}; }
+  try { raw = storage.getItem(key); } catch { return {}; }
   if (!raw) return {};
   let v: unknown;
   try { v = JSON.parse(raw); } catch { return {}; }
@@ -38,7 +40,9 @@ function writeAll(storage: Storage, all: Record<string, ManagementPlanSnapshot>)
   const keys = Object.keys(all).sort((a, b) => all[a].frozenAtMs - all[b].frozenAtMs);
   const kept: Record<string, ManagementPlanSnapshot> = {};
   for (const k of keys.slice(-MANAGEMENT_PLAN_MAX)) kept[k] = all[k];
-  try { storage.setItem(MANAGEMENT_PLAN_KEY, JSON.stringify(kept)); return true; } catch { return false; }
+  const key = managementKey(MANAGEMENT_PLAN_KEY);
+  if (!key) return false;   // nobody signed in: nothing is written
+  try { storage.setItem(key, JSON.stringify(kept)); return true; } catch { return false; }
 }
 
 export function readPlanForDecision(storage: Storage | null | undefined, decisionId: string | null | undefined): ManagementPlanSnapshot | null {

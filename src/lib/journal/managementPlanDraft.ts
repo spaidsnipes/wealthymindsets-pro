@@ -16,6 +16,7 @@
 import type { FillCaptureIntent } from "./journalCaptureFromFill";
 import { freezePlanSnapshot, planSnapshotFromTicket, type ManagementPlanSnapshot, type TraderPlanInput } from "./managementPlan";
 import { sessionPlanForFreeze } from "./managementDayRules";
+import { managementKey } from "./managementOwner";
 import { freezePlanOnce, readAllPlans, readPlanForDecision, type FreezeOutcome } from "./managementPlanStore";
 
 export const MANAGEMENT_PLAN_DRAFT_KEY = "wm:management-plan-draft:v1";
@@ -47,9 +48,10 @@ function readPlanInput(v: unknown): TraderPlanInput {
 }
 
 function readDrafts(storage: Storage | null | undefined): Record<string, PlanDraft> {
-  if (!storage) return {};
+  const key = managementKey(MANAGEMENT_PLAN_DRAFT_KEY);
+  if (!storage || !key) return {};
   try {
-    const v = JSON.parse(storage.getItem(MANAGEMENT_PLAN_DRAFT_KEY) ?? "{}") as unknown;
+    const v = JSON.parse(storage.getItem(key) ?? "{}") as unknown;
     if (!v || typeof v !== "object" || Array.isArray(v)) return {};
     const out: Record<string, PlanDraft> = {};
     for (const [k, r] of Object.entries(v as Record<string, unknown>)) {
@@ -62,7 +64,9 @@ function readDrafts(storage: Storage | null | undefined): Record<string, PlanDra
 }
 
 function writeDrafts(storage: Storage, all: Record<string, PlanDraft>): void {
-  try { storage.setItem(MANAGEMENT_PLAN_DRAFT_KEY, JSON.stringify(all)); } catch { /* this visit only */ }
+  const key = managementKey(MANAGEMENT_PLAN_DRAFT_KEY);
+  if (!key) return;   // nobody signed in: a guest's draft is not kept for the next member
+  try { storage.setItem(key, JSON.stringify(all)); } catch { /* this visit only */ }
 }
 
 export function readDraft(storage: Storage | null | undefined, symbol: string | null | undefined): PlanDraft | null {
@@ -73,7 +77,7 @@ export function readDraft(storage: Storage | null | undefined, symbol: string | 
 /** Save the trader's draft for a market. An empty draft removes it. */
 export function writeDraft(storage: Storage | null | undefined, symbol: string, plan: TraderPlanInput, nowMs: number): PlanDraft | null {
   const k = draftKey(symbol);
-  if (!storage || !k) return null;
+  if (!storage || !k || !managementKey(MANAGEMENT_PLAN_DRAFT_KEY)) return null;
   const all = readDrafts(storage);
   const clean = readPlanInput(plan);
   const empty = Object.values(clean).every(v => v == null || (Array.isArray(v) && v.length === 0));

@@ -19,6 +19,7 @@ import React, { useMemo } from "react";
 import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { PlanAdherenceView } from "@/components/journal/PlanAdherenceBySetup";
 import { FvgExamplesView } from "@/components/education/FvgLessonBody";
+import { FvgContextSplitsView, ManagementCounterfactualView } from "@/components/journal/FvgContextSplitsView";
 import { JOURNAL_FIXTURE_BANNER, journalFixture } from "@/lib/journal/journalProofFixture";
 import { fvgReferenceSentence } from "@/lib/journal/fvgDecisionReference";
 
@@ -57,6 +58,8 @@ export function JournalProofScene(): React.ReactElement {
       <section aria-label="Personal Edge — FVG (sample)" data-testid="journal-proof-edge" className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">
         <h2 className="text-sm font-bold text-wm-text mb-2">Personal Edge · plan adherence by setup, FVG study list, traded vs untraded touches (sample)</h2>
         <PlanAdherenceView rows={f.adherence} fvgRows={f.studyRows} edge={f.counterfactual} edgeNote="Read from the sample ledger in this page — nothing was fetched." showEdge onCompare={() => {}} />
+        <FvgContextSplitsView rows={f.splits} />
+        <ManagementCounterfactualView m={f.management} />
       </section>
 
       <section aria-label="Academy — my examples (sample)" data-testid="journal-proof-academy" className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">

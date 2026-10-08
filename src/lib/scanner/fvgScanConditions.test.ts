@@ -118,7 +118,7 @@ describe("Scanner FVG conditions — the one engine, at the newest closed bar", 
   });
 
   it("CONVERGENCE: FVG + STRUCTURE when b2 broke a confirmed swing; FVG + PROFILE when a prior-range level sits at the gap", () => {
-    expect(FVG_CONVERGENCE_CONDITIONS).toEqual(["FVG_PLUS_STRUCTURE", "FVG_PLUS_PROFILE"]);
+    expect(FVG_CONVERGENCE_CONDITIONS).toEqual(["FVG_PLUS_STRUCTURE", "FVG_PLUS_PROFILE", "FVG_PLUS_WALL", "FVG_PLUS_ORDER_FLOW"]);
     // A swing high of 103 at bar 7 (confirmed 5 bars later, before b2 opens); b2 closes 103.8 through it.
     const swing: Row[] = FLAT.map((r, i) => (i === 7 ? [100, 103, 99, 100] as Row : r));
     const r = readAt([...swing, ...BULL]);
@@ -134,13 +134,15 @@ describe("Scanner FVG conditions — the one engine, at the newest closed bar", 
     if (p) expect(p.relationships.every(l => /PARTIAL \(volume placed by candle estimate/.test(l))).toBe(true);
   });
 
-  it("CONVERGENCE never fires without an FVG condition, and never for walls (no chain or book on bars)", () => {
+  it("CONVERGENCE never fires without an FVG condition, and walls never from bars (only the options owner's reading, fvgScanWallFlow.test.ts)", () => {
     const r = readAt([...FLAT, ...BULL, AWAY]);
     if (r.status !== "READ") throw new Error(r.reason);
     expect(r.hits).toEqual([]);
     expect(r.convergence).toEqual([]);
-    const src = readFileSync(path.resolve(__dirname, "fvgScanConditions.ts"), "utf8");
-    expect(src).not.toMatch(/"FVG_PLUS_WALL"/);
+    expect(r.unavailable).toEqual([]);
+    const withHit = readAt([...FLAT, ...BULL]);
+    if (withHit.status !== "READ") throw new Error(withHit.reason);
+    expect(withHit.convergence.some(c => c.condition === "FVG_PLUS_WALL" || c.condition === "FVG_PLUS_ORDER_FLOW")).toBe(false);
   });
 
   it("every reading names WHOSE bars it read and as of which bar (two feeds are two truths)", () => {

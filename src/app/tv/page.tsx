@@ -132,9 +132,12 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
             </motion.div>
           </div>
 
-          {/* serif title + tagline */}
+          {/* serif title + tagline. Night shift 2026-10-08: the old line read as
+              if WM TV's podcasts and live conversations had been on air since
+              the 1900s, on a page whose every show card says CONCEPT. The
+              heritage is honoured; the studio is described as what it is. */}
           <h1 className="font-black text-wm-text leading-none mb-2" style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 58, letterSpacing: 1 }}>WM TV</h1>
-          <p className="font-semibold mb-6" style={{ color: "#E8B923", fontFamily: 'Georgia, serif', fontSize: 14, maxWidth: 460 }}>Podcasts, live conversations &amp; Black excellence on air since the 1900s</p>
+          <p className="font-semibold mb-6" style={{ color: "#E8B923", fontFamily: 'Georgia, serif', fontSize: 14, maxWidth: 460 }}>A studio for podcasts and live conversations — honouring Black excellence on air since the 1900s</p>
 
           {/* CTAs */}
           <div className="flex items-center gap-3">

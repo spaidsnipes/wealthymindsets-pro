@@ -5,6 +5,7 @@
  * §32–36), rendered inside the Academy's own lesson pane. Content comes from
  * src/lib/academy/fvgCourse.ts — this component only lays it out.
  */
+import { useManagementOwnerVersion } from "@/lib/journal/useManagementOwner";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -46,13 +47,14 @@ function adherenceById(records: readonly unknown[]): Map<string, string> {
 /** §36 — the trader's own decisions on gaps (journal FVG references), or one plain line until there are some. */
 function MyExamples() {
   const [examples, setExamples] = useState<FvgJournalExample[] | null>(null);
+  const ownerVersion = useManagementOwnerVersion();
   useEffect(() => {
     try {
       const read = readJournalStorage(window.localStorage);
       const adh = adherenceById(read.records);
       setExamples(fvgReferencedExamples(read.records, id => adh.get(id) ?? null));
     } catch { setExamples([]); }
-  }, []);
+  }, [ownerVersion]);
   if (examples === null) return null;
   return <FvgExamplesView examples={examples} />;
 }
