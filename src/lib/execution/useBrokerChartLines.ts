@@ -44,8 +44,9 @@ export function useBrokerChartLines(opts: {
         const okBoth = o?.state === "OK" && p?.state === "OK";
         const orders = o?.state === "OK" ? (o.accounts as { orders: unknown[] }[]).flatMap(a => a.orders.map(x => (x && typeof x === "object" && "state" in (x as object) ? (x as TtOrderView) : readTastytradeOrder(x))).filter((x): x is TtOrderView => !!x)) : null;
         const positions = p?.state === "OK" ? (p.accounts as { positions?: unknown[] }[]).flatMap(a => (a.positions ?? []).map(readTastytradePosition).filter((x): x is BrokerPositionRow => !!x)) : null;
+        const tails = o?.state === "OK" ? (o.accounts as { tail?: unknown }[]).map(a => (typeof a.tail === "string" ? a.tail : null)).filter((t): t is string => !!t) : [];
         setRb(prev => okBoth && orders && positions
-          ? { asOfMs: Date.now(), ok: true, orders, positions }
+          ? { asOfMs: Date.now(), ok: true, orders, positions, tails }
           : { ...prev, ok: false });
       } catch {
         if (live) setRb(prev => ({ ...prev, ok: false }));

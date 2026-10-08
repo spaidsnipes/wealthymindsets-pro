@@ -960,3 +960,16 @@ Founder: a 5-hour shift, and no ship hold at market open. Production at the star
 | 07:40–08:07 | P1-C (Sheriff): 142 Indicators-menu ⓘ records written from the indicator code | tree (uncommitted) | `src/lib/chart/indicatorEducation.ts` — one record per catalogue row in the ⓘ shape. Chart-lane defects found while reading the code: pivots from the last bar; Volume MA on the price scale; Swing High/Low invisible; VW-RSI and Choppiness drawn twice; Ichimoku unshifted | records READY; wiring after THAW (FREEZE 08:05) |
 | 08:05 | FREEZE — GREEN + files sent | tsc clean | — | CLOSED |
 | 08:08–08:10 | §9 / §10 ⓘ + first-touch audit (docs) | tree + Sheriff batch 3 on `c104669` | certificate §15: Tool Finder 50/50 and Profiles 24/24 structure PASS; Indicators 0/142, drawing tools 0/17, views / loadouts / Replay without ⓘ; all 13 selection kinds have a first touch, bar selection has none; content-gap table | CLOSED (doc); gaps listed for the coordinator |
+
+## Afternoon shift — Oct 8 13:35 → 16:00 CDT (cert lane)
+
+Production at the start of this shift: `70f1bf4`. Times are from `date`. Nothing below is LIVE until the coordinator's ship gate says so.
+
+| Time (CDT) | Item | Build | Proof | Status |
+|---|---|---|---|---|
+| 13:35 | 142 indicator records restored from the held stash (`9b9b5a4`, the untracked file) | tree | `src/lib/chart/indicatorEducation.ts` present | CLOSED |
+| 13:35–13:39 | **P1-C:** the Indicators menu ⓘ now opens the shared preview. Each row's ⓘ is `InventionInfoButton` (aria-label + aria-expanded, 44 px), opening `InventionPreview` with all six parts and ADD TO CHART. The 142 subtitles come from the records. Supply/Demand Zones and Stop Run Alert move from Order Flow to Structure | tree (uncommitted) | `indicatorEducation.test.ts`: 142 = 142, every field present, subtitle = record, Order Flow holds tape tools only, toolbar wiring, banned-phrase scan over every ⓘ record | GREEN (tsc + 9 targeted files). Serving read after it ships |
+| 13:36–13:39 | **P3-K:** the ⓘ verdict follows each tool's needs. New verdicts: NEEDS YOUR INPUT, NEEDS OTHER LAYERS, NEEDS AN OPTIONS CHAIN, DRAWS FROM STALE DATA, NO LIVE FEED. Price-only tools read CAN DRAW HERE. Advice and prediction phrases removed from the registry | tree | same test file (verdict cases + scan) | GREEN |
+| 13:37 | **Batch-3 ⓘ fixes:** TPO (blocks over the whole history, chips can sit off camera, no single-print mark), Contradiction (asks four families itself — a solo UNRESOLVED is lawful, per `selectContradiction`), Regime UNKNOWN (lights both sets), Expected Envelope (drawn past the newest candle, not a forecast), Brick Walls (silent states named) | tree | record text; first-touch render test updated | GREEN. Chart-lane asks open: Envelope forward of now; Brick Walls reason word on the glass; Profile Fusion receipts; TPO chips off camera |
+| 13:39 | FREEZE — GREEN + files sent | tsc clean | — | CLOSED |
+| ~15:45 | §52 public responsive run on production (`responsive-public.mjs`) | pending | — | OPEN |

@@ -58,7 +58,7 @@ describe("§10 first touch", () => {
   it("prints the record's first-touch line and offers Inspect when Inspect is closed", () => {
     const html = renderToStaticMarkup(<SelectionFirstTouch id="BRICK_WALLS" label="Brick Walls" inspectOpen={false} onOpenInspect={() => {}} />);
     expect(html).toContain("You selected");
-    expect(html).toContain("Brick wall — a strike dealers are positioned at");
+    expect(html).toContain("Brick wall — a strike with large open interest (inferred positioning)");
     expect(html).toContain("Inspect the evidence");
     expect(html).toContain("Got it");
   });
@@ -81,7 +81,7 @@ describe("§10 on a phone — never a second card beside an open Inspect", () =>
     );
     expect(html).toContain('data-testid="inspect-first-touch"');
     expect(html).toContain("hidden max-sm:block");
-    expect(html).toContain("Brick wall — a strike dealers are positioned at");
+    expect(html).toContain("Brick wall — a strike with large open interest (inferred positioning)");
     expect(renderToStaticMarkup(<InspectFirstTouchLine />)).toBe("");
   });
 });

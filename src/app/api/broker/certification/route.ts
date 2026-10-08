@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
 import { getAdapter, listAdapters } from "../../../../lib/broker/adapters";
 import {
   computeCertificationLevel,
@@ -56,6 +57,13 @@ export interface BrokerCertificationReport {
 }
 
 export interface BrokerCertificationResponse {
+  /**
+   * Who the body was shaped for (security pass 2026-10-08, Sheriff P1-5). An
+   * adapter's note names the operator's env vars and setup paths ("MOOMOO_BRIDGE_URL
+   * / MOOMOO_BRIDGE_TOKEN … services/moomoo-bridge/README.md"); only the broker
+   * owner gets them. Everyone else gets the levels and stages with an empty note.
+   */
+  readonly audience: "OWNER" | "MEMBER";
   readonly generatedAt: string;
   readonly brokers: readonly BrokerCertificationReport[];
   readonly fullyCertifiedCount: number;
@@ -69,7 +77,7 @@ function deriveReports(implemented: boolean, envConfigured: boolean, connected: 
   return [{ stage: "auth", status: "PENDING", note: "Adapter present; live cert harness has not run." }];
 }
 
-async function buildBrokerCertification(nowMs: number, userId: string | null = null): Promise<BrokerCertificationResponse> {
+async function buildBrokerCertification(nowMs: number, userId: string | null = null): Promise<Omit<BrokerCertificationResponse, "audience">> {
   const brokers = await Promise.all(listAdapters().map(async (adapter) => {
     const id = adapter.id;
     const h = adapter.health();
@@ -107,7 +115,12 @@ export async function GET(request: Request): Promise<Response> {
   // and /api/broker/readiness). Presence-only, no secret VALUE ever shipped.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
-  const body = await buildBrokerCertification(Date.now(), auth.user.sub);
+  const full = await buildBrokerCertification(Date.now(), auth.user.sub);
+  // Operator internals (setup notes naming env vars and repo paths) are the
+  // owner's — server-gated here, not hidden by a component.
+  const body: BrokerCertificationResponse = tastytradeOwnerGate(auth.user.sub, process.env).allowed
+    ? { audience: "OWNER", ...full }
+    : { audience: "MEMBER", ...full, brokers: full.brokers.map(b => ({ ...b, note: "" })) };
   return NextResponse.json(body, {
     status: 200,
     headers: { "Cache-Control": "no-store" },

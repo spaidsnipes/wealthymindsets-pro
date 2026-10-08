@@ -7585,7 +7585,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           bornDecision={currentSceneDecision}
           onIdentity={(identity) => setSceneDecision((current) => adoptSceneDecision(current, { ...decisionScope, identity }))}
           onOpenOptions={() => { setTradeOpen(false); if (assetClass === "futures" || assetClass === "equity" || assetClass === "etf") setFuturesOptionsOpen(true); else setActiveTab("Options"); }}
-          onOpenPaper={() => { setTradeOpen(false); setPaperOpen(true); }}
+          // Sheriff P2-6 (2026-10-08): the paper drawer opens OVER the live ticket; closing it returns to the ticket, state kept.
+          onOpenPaper={() => setPaperOpen(true)}
           onClose={() => setTradeOpen(false)}
         />
       )}

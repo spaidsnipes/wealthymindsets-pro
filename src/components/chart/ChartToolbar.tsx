@@ -5,12 +5,14 @@ import {
   Search, ChevronDown,
   LayoutGrid, Clock, DollarSign, BarChart2, Plug2,
   X, ChevronRight, Star, Check, Bell, Settings,
-  Play, GitMerge, HelpCircle, MoreHorizontal, Info, Camera, Pencil, Layers, Palette,
+  Play, GitMerge, MoreHorizontal, Info, Camera, Pencil, Layers, Palette,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { type ChartLayout } from "./ChartLayoutManager";
 import { isConfigurable } from "./indicatorConfig";
-import { getIndicatorInfo } from "./indicatorDescriptions";
+import { InventionInfoButton, InventionPreview } from "./InventionInfo";
+import { INDICATOR_EDUCATION, indicatorEducationId } from "@/lib/chart/indicatorEducation";
+import { educationTruthLines } from "@/lib/chart/inventionEducation";
 // `@/lib/timeframes` is NOT imported here any more. The three symbols this
 // file used to pull from it (CHART_TF_SHIPPED, getTimeframe,
 // timeframeSpokenName) left with the strip on 2026-09-21 and now live in
@@ -364,159 +366,159 @@ const ALL_SYMBOLS: SymbolEntry[] = RAW_CHART_SYMBOLS.map((s) => ({
 ══════════════════════════════════════════════════════════════ */
 const INDICATORS = [
   // ─── Trend ────────────────────────────────────────────────
-  { cat:"Trend", name:"VWAP",                        desc:"Volume Weighted Average Price" },
-  { cat:"Trend", name:"VWAP Bands",                  desc:"VWAP ±1σ / ±2σ standard deviation bands" },
-  { cat:"Trend", name:"Anchored VWAP",               desc:"VWAP from user-selected anchor bar" },
-  { cat:"Trend", name:"EMA 8",                       desc:"8-period Exponential Moving Average" },
-  { cat:"Trend", name:"EMA 13",                      desc:"13-period Exponential Moving Average" },
-  { cat:"Trend", name:"EMA 21",                      desc:"21-period Exponential Moving Average" },
-  { cat:"Trend", name:"EMA 34",                      desc:"34-period Exponential Moving Average" },
-  { cat:"Trend", name:"EMA 50",                      desc:"50-period Exponential Moving Average" },
-  { cat:"Trend", name:"EMA 89",                      desc:"89-period Exponential Moving Average" },
-  { cat:"Trend", name:"EMA 144",                     desc:"144-period Exponential Moving Average" },
-  { cat:"Trend", name:"EMA 200",                     desc:"200-period Exponential Moving Average" },
-  { cat:"Trend", name:"SMA 9",                       desc:"9-period Simple Moving Average" },
-  { cat:"Trend", name:"SMA 20",                      desc:"20-period Simple Moving Average" },
-  { cat:"Trend", name:"SMA 50",                      desc:"50-period Simple Moving Average" },
-  { cat:"Trend", name:"SMA 100",                     desc:"100-period Simple Moving Average" },
-  { cat:"Trend", name:"SMA 200",                     desc:"200-period Simple Moving Average" },
-  { cat:"Trend", name:"WMA",                         desc:"Weighted Moving Average" },
-  { cat:"Trend", name:"HMA",                         desc:"Hull Moving Average — lag-reduced" },
-  { cat:"Trend", name:"DEMA",                        desc:"Double Exponential Moving Average" },
-  { cat:"Trend", name:"TEMA",                        desc:"Triple Exponential Moving Average" },
-  { cat:"Trend", name:"ALMA",                        desc:"Arnaud Legoux Moving Average" },
-  { cat:"Trend", name:"T3 Moving Average",            desc:"Tillson T3 — smooth, low-lag MA" },
-  { cat:"Trend", name:"ZLEMA",                       desc:"Zero-Lag Exponential Moving Average" },
-  { cat:"Trend", name:"KAMA",                        desc:"Kaufman Adaptive Moving Average" },
-  { cat:"Trend", name:"McGinley Dynamic",             desc:"Auto-adjusting moving average filter" },
-  { cat:"Trend", name:"Moving Average Ribbon",        desc:"Multi-MA stacked ribbon display" },
-  { cat:"Trend", name:"Bollinger Bands",              desc:"20-period SMA ±2σ standard deviation" },
-  { cat:"Trend", name:"Bollinger Band Width",         desc:"BB band width — squeeze detection" },
-  { cat:"Trend", name:"Ichimoku Cloud",               desc:"Ichimoku Kinko Hyo full suite" },
-  { cat:"Trend", name:"Supertrend",                   desc:"ATR-based trend following signal" },
-  { cat:"Trend", name:"Keltner Channel",              desc:"EMA ±ATR multiplier channel" },
-  { cat:"Trend", name:"Donchian Channel",             desc:"N-period high/low price channel" },
-  { cat:"Trend", name:"Price Channel",                desc:"Upper/lower N-period price channel" },
-  { cat:"Trend", name:"Envelope",                    desc:"MA ± percentage envelope bands" },
-  { cat:"Trend", name:"Parabolic SAR",                desc:"Stop and reverse trailing signal" },
-  { cat:"Trend", name:"Linear Regression",            desc:"Least-squares regression line overlay" },
-  { cat:"Trend", name:"Linear Regression Channel",    desc:"Regression ±σ channel bands" },
-  { cat:"Trend", name:"Alligator",                   desc:"Williams Alligator jaw / teeth / lips" },
+  { cat:"Trend", name:"VWAP", desc:"Session volume-weighted average price" },
+  { cat:"Trend", name:"VWAP Bands", desc:"Session VWAP with ±1σ and ±2σ bands" },
+  { cat:"Trend", name:"Anchored VWAP", desc:"Volume-weighted average price from the first loaded bar" },
+  { cat:"Trend", name:"EMA 8", desc:"8-period exponential moving average of the close" },
+  { cat:"Trend", name:"EMA 13", desc:"13-period exponential moving average of the close" },
+  { cat:"Trend", name:"EMA 21", desc:"21-period exponential moving average of the close" },
+  { cat:"Trend", name:"EMA 34", desc:"34-period exponential moving average of the close" },
+  { cat:"Trend", name:"EMA 50", desc:"50-period exponential moving average of the close" },
+  { cat:"Trend", name:"EMA 89", desc:"89-period exponential moving average of the close" },
+  { cat:"Trend", name:"EMA 144", desc:"144-period exponential moving average of the close" },
+  { cat:"Trend", name:"EMA 200", desc:"200-period exponential moving average of the close" },
+  { cat:"Trend", name:"SMA 9", desc:"9-period simple moving average of the close" },
+  { cat:"Trend", name:"SMA 20", desc:"20-period simple moving average of the close" },
+  { cat:"Trend", name:"SMA 50", desc:"50-period simple moving average of the close" },
+  { cat:"Trend", name:"SMA 100", desc:"100-period simple moving average of the close" },
+  { cat:"Trend", name:"SMA 200", desc:"200-period simple moving average of the close" },
+  { cat:"Trend", name:"WMA", desc:"Weighted moving average of the close (20 bars, linearly weighted toward the newest)" },
+  { cat:"Trend", name:"HMA", desc:"Hull moving average of the close (20 bars, weighted averages combined to cut lag)" },
+  { cat:"Trend", name:"DEMA", desc:"Double exponential moving average of the close (20 bars, 2×EMA − EMA of EMA)" },
+  { cat:"Trend", name:"TEMA", desc:"Triple exponential moving average of the close (20 bars, three stacked EMAs)" },
+  { cat:"Trend", name:"ALMA", desc:"Arnaud Legoux moving average of the close (9 bars, Gaussian weights offset 0.85)" },
+  { cat:"Trend", name:"T3 Moving Average", desc:"Tillson T3 average of the close (5 bars, six smoothed EMAs, volume factor 0.7)" },
+  { cat:"Trend", name:"ZLEMA", desc:"Zero-lag exponential moving average of the close (20 bars, EMA of a lag-corrected close)" },
+  { cat:"Trend", name:"KAMA", desc:"Kaufman adaptive moving average of the close (10, fast 2, slow 30)" },
+  { cat:"Trend", name:"McGinley Dynamic", desc:"McGinley Dynamic average of the close (14)" },
+  { cat:"Trend", name:"Moving Average Ribbon", desc:"Six EMAs of the close (8, 13, 21, 34, 55, 89)" },
+  { cat:"Trend", name:"Bollinger Bands", desc:"20-bar simple average of the close with bands 2 standard deviations away" },
+  { cat:"Trend", name:"Bollinger Band Width", desc:"Bollinger Band width as a percent of the middle line" },
+  { cat:"Trend", name:"Ichimoku Cloud", desc:"Ichimoku lines: conversion (9), base (26), span A, span B (52), lagging close" },
+  { cat:"Trend", name:"Supertrend", desc:"ATR trailing line (10 bars, 3 × ATR) that flips side when the close crosses it" },
+  { cat:"Trend", name:"Keltner Channel", desc:"20-bar EMA of the close with bands 2 ATRs away" },
+  { cat:"Trend", name:"Donchian Channel", desc:"Highest high and lowest low of the last 20 bars, with the midpoint" },
+  { cat:"Trend", name:"Price Channel", desc:"Highest high and lowest low of the last 20 bars" },
+  { cat:"Trend", name:"Envelope", desc:"20-bar simple average of the close with lines 2.5% above and below" },
+  { cat:"Trend", name:"Parabolic SAR", desc:"Parabolic stop-and-reverse line (step 0.02, max 0.2)" },
+  { cat:"Trend", name:"Linear Regression", desc:"End point of a 14-bar least-squares line through the closes" },
+  { cat:"Trend", name:"Linear Regression Channel", desc:"100-bar regression line with bands 2 standard errors away" },
+  { cat:"Trend", name:"Alligator", desc:"Williams Alligator: averages of the bar midpoint (13, 8, 5) shifted forward 8, 5 and 3 bars" },
   // ─── Pivot Levels ──────────────────────────────────────
-  { cat:"Pivots", name:"Pivot Points Standard",       desc:"Daily H/L/C pivot R1-R3 / S1-S3" },
-  { cat:"Pivots", name:"Pivot Points Fibonacci",      desc:"Fibonacci-based daily pivot levels" },
-  { cat:"Pivots", name:"Pivot Points Camarilla",      desc:"Camarilla intraday pivot levels" },
-  { cat:"Pivots", name:"Pivot Points Woodie",         desc:"Woodie pivot calculation method" },
-  { cat:"Pivots", name:"Pivot Points Demark",         desc:"Tom DeMark conditional pivot method" },
-  { cat:"Pivots", name:"Pivot Points CPR",            desc:"Central Pivot Range (CPR) levels" },
+  { cat:"Pivots", name:"Pivot Points Standard", desc:"Standard floor pivots (P, R1–R3, S1–S3) from the last bar's high, low and close" },
+  { cat:"Pivots", name:"Pivot Points Fibonacci", desc:"Fibonacci pivots: P ± 0.382 / 0.618 / 1.0 × range, from the last bar" },
+  { cat:"Pivots", name:"Pivot Points Camarilla", desc:"Camarilla levels: close ± 1.083 / 1.167 / 1.25 × range, from the last bar" },
+  { cat:"Pivots", name:"Pivot Points Woodie", desc:"Woodie pivots: P = (H + L + 2C) / 4, from the last bar" },
+  { cat:"Pivots", name:"Pivot Points Demark", desc:"DeMark pivots (P, R1, S1) from the last bar" },
+  { cat:"Pivots", name:"Pivot Points CPR", desc:"Central pivot range levels from the last bar" },
   // ─── Momentum ─────────────────────────────────────────
-  { cat:"Momentum", name:"RSI",                      desc:"Relative Strength Index (14)" },
-  { cat:"Momentum", name:"ConnorsRSI",               desc:"3-component Connors RSI" },
-  { cat:"Momentum", name:"Stoch RSI",                desc:"Stochastic applied to RSI values" },
-  { cat:"Momentum", name:"MACD",                     desc:"12/26/9 convergence-divergence" },
-  { cat:"Momentum", name:"MACD Histogram",            desc:"MACD histogram bars only" },
-  { cat:"Momentum", name:"MACD Signal",              desc:"MACD signal line cross alerts" },
-  { cat:"Momentum", name:"Stochastic",               desc:"Stochastic oscillator (14, 3, 3)" },
-  { cat:"Momentum", name:"Stochastic Momentum Index",desc:"SMI — refined stochastic oscillator" },
-  { cat:"Momentum", name:"CCI",                      desc:"Commodity Channel Index (20)" },
-  { cat:"Momentum", name:"Williams %R",              desc:"Williams Percent Range (14)" },
-  { cat:"Momentum", name:"Awesome Oscillator",        desc:"SMA5 − SMA34 of midpoints" },
-  { cat:"Momentum", name:"Accelerator Oscillator",    desc:"AO − 5-period SMA of AO" },
-  { cat:"Momentum", name:"Rate of Change",            desc:"Price rate of change (ROC) %" },
-  { cat:"Momentum", name:"Momentum",                 desc:"Current close minus N bars ago" },
-  { cat:"Momentum", name:"Ultimate Oscillator",       desc:"3-period composite oscillator" },
-  { cat:"Momentum", name:"TSI",                      desc:"True Strength Index" },
-  { cat:"Momentum", name:"Relative Vigor Index",     desc:"RVI close vs open momentum" },
-  { cat:"Momentum", name:"KDJ",                      desc:"K/D/J stochastic variation" },
-  { cat:"Momentum", name:"Coppock Curve",            desc:"Long-term buy momentum oscillator" },
-  { cat:"Momentum", name:"Elder Ray Index",           desc:"Bull/Bear power histogram" },
-  { cat:"Momentum", name:"TRIX",                     desc:"Triple-smoothed ROC oscillator" },
-  { cat:"Momentum", name:"PPO",                      desc:"Percentage Price Oscillator" },
-  { cat:"Momentum", name:"DPO",                      desc:"Detrended Price Oscillator" },
-  { cat:"Momentum", name:"Chande Momentum Oscillator",desc:"CMO momentum oscillator" },
-  { cat:"Momentum", name:"Balance of Power",         desc:"BOP open-to-close strength ratio" },
-  { cat:"Momentum", name:"Waddah Attar Explosion",   desc:"Trend + momentum hybrid indicator" },
-  { cat:"Momentum", name:"TTM Squeeze",              desc:"Momentum squeeze breakout signal" },
-  { cat:"Momentum", name:"Squeeze Momentum",         desc:"LazyBear squeeze momentum oscillator" },
-  { cat:"Momentum", name:"Schaff Trend Cycle",       desc:"STC fast-cycle trend indicator" },
+  { cat:"Momentum", name:"RSI", desc:"Relative Strength Index of the close (14)" },
+  { cat:"Momentum", name:"ConnorsRSI", desc:"Connors RSI: average of a 3-bar RSI, a 2-bar streak RSI and a 100-bar percent rank" },
+  { cat:"Momentum", name:"Stoch RSI", desc:"Stochastic of the 14-bar RSI (14, smoothed 3 and 3)" },
+  { cat:"Momentum", name:"MACD", desc:"MACD (12, 26, 9): EMA difference, its signal line and the histogram" },
+  { cat:"Momentum", name:"MACD Histogram", desc:"MACD (12, 26, 9) with its histogram" },
+  { cat:"Momentum", name:"MACD Signal", desc:"MACD (12, 26, 9) line and signal line, without the histogram" },
+  { cat:"Momentum", name:"Stochastic", desc:"Stochastic oscillator (14, 3, 3)" },
+  { cat:"Momentum", name:"Stochastic Momentum Index", desc:"Stochastic Momentum Index (13, 25, 2) and its signal line" },
+  { cat:"Momentum", name:"CCI", desc:"Commodity Channel Index (20)" },
+  { cat:"Momentum", name:"Williams %R", desc:"Williams %R (14)" },
+  { cat:"Momentum", name:"Awesome Oscillator", desc:"5-bar minus 34-bar simple average of the bar midpoint" },
+  { cat:"Momentum", name:"Accelerator Oscillator", desc:"Awesome Oscillator minus its own 5-bar average" },
+  { cat:"Momentum", name:"Rate of Change", desc:"Percent change of the close over 12 bars" },
+  { cat:"Momentum", name:"Momentum", desc:"Close minus the close 10 bars ago" },
+  { cat:"Momentum", name:"Ultimate Oscillator", desc:"Ultimate Oscillator (7, 14, 28)" },
+  { cat:"Momentum", name:"TSI", desc:"True Strength Index (25, 13)" },
+  { cat:"Momentum", name:"Relative Vigor Index", desc:"Relative Vigor Index (10) and its signal line" },
+  { cat:"Momentum", name:"KDJ", desc:"KDJ (9, 3, 3): stochastic %K, %D and J = 3K − 2D" },
+  { cat:"Momentum", name:"Coppock Curve", desc:"10-bar weighted average of the 14- and 11-bar rates of change" },
+  { cat:"Momentum", name:"Elder Ray Index", desc:"Bull power (high − EMA13) and bear power (low − EMA13)" },
+  { cat:"Momentum", name:"TRIX", desc:"Rate of change of a triple-smoothed 18-bar EMA" },
+  { cat:"Momentum", name:"PPO", desc:"Percentage Price Oscillator (12, 26, 9)" },
+  { cat:"Momentum", name:"DPO", desc:"Detrended Price Oscillator (20)" },
+  { cat:"Momentum", name:"Chande Momentum Oscillator", desc:"Chande Momentum Oscillator (14)" },
+  { cat:"Momentum", name:"Balance of Power", desc:"(close − open) ÷ (high − low), per bar" },
+  { cat:"Momentum", name:"Waddah Attar Explosion", desc:"Bollinger Band width, coloured by the sign of a MACD (20, 40, 9) histogram" },
+  { cat:"Momentum", name:"TTM Squeeze", desc:"Squeeze: Bollinger Bands (20, 2) inside Keltner (20, 1.5), with a momentum histogram" },
+  { cat:"Momentum", name:"Squeeze Momentum", desc:"Same squeeze histogram as TTM Squeeze" },
+  { cat:"Momentum", name:"Schaff Trend Cycle", desc:"Schaff Trend Cycle (23, 50, 10)" },
   // ─── Volume ───────────────────────────────────────────
-  { cat:"Volume", name:"Volume",                     desc:"Bar volume histogram" },
-  { cat:"Volume", name:"Volume MA",                  desc:"20-period moving average of volume" },
-  { cat:"Volume", name:"RVOL",                       desc:"Relative Volume vs 20-day average" },
-  { cat:"Volume", name:"OBV",                        desc:"On Balance Volume cumulative line" },
-  { cat:"Volume", name:"Money Flow Index",           desc:"MFI — volume-weighted RSI" },
-  { cat:"Volume", name:"Chaikin Money Flow",         desc:"CMF accumulation/distribution" },
-  { cat:"Volume", name:"Chaikin Oscillator",         desc:"MACD of Accumulation/Distribution line" },
-  { cat:"Volume", name:"Accumulation/Distribution",  desc:"A/D line trend confirmation" },
-  { cat:"Volume", name:"Ease of Movement",           desc:"Volume-price efficiency ratio" },
-  { cat:"Volume", name:"Force Index",                desc:"Volume × price change force" },
-  { cat:"Volume", name:"Klinger Oscillator",         desc:"Klinger volume oscillator" },
-  { cat:"Volume", name:"Price Volume Trend",         desc:"PVT cumulative line" },
-  { cat:"Volume", name:"Negative Volume Index",      desc:"NVI low-volume trend signal" },
-  { cat:"Volume", name:"Positive Volume Index",      desc:"PVI high-volume trend signal" },
-  { cat:"Volume", name:"VWMA",                       desc:"Volume Weighted Moving Average" },
-  { cat:"Volume", name:"Volume Oscillator",          desc:"Fast/slow volume MA difference" },
-  { cat:"Volume", name:"Volume Weighted RSI",        desc:"RSI weighted by volume intensity" },
+  { cat:"Volume", name:"Volume", desc:"Traded volume per bar" },
+  { cat:"Volume", name:"Volume MA", desc:"20-bar average volume divided by each bar's volume, drawn on the price scale" },
+  { cat:"Volume", name:"RVOL", desc:"Bar volume ÷ the average of the last 20 bars' volume" },
+  { cat:"Volume", name:"OBV", desc:"On-Balance Volume: running total adding volume on up-closes, subtracting on down-closes" },
+  { cat:"Volume", name:"Money Flow Index", desc:"Money Flow Index (14): an RSI of typical price × volume" },
+  { cat:"Volume", name:"Chaikin Money Flow", desc:"Chaikin Money Flow (20)" },
+  { cat:"Volume", name:"Chaikin Oscillator", desc:"3-bar EMA minus 10-bar EMA of the accumulation / distribution line" },
+  { cat:"Volume", name:"Accumulation/Distribution", desc:"Running total of each bar's close location × its volume" },
+  { cat:"Volume", name:"Ease of Movement", desc:"Ease of Movement (14): midpoint change per unit of volume and range" },
+  { cat:"Volume", name:"Force Index", desc:"13-bar EMA of (close change × volume)" },
+  { cat:"Volume", name:"Klinger Oscillator", desc:"Klinger volume oscillator (34, 55) and its signal line" },
+  { cat:"Volume", name:"Price Volume Trend", desc:"Running total of volume × percent change of the close" },
+  { cat:"Volume", name:"Negative Volume Index", desc:"Index that changes only on bars whose volume fell versus the previous bar" },
+  { cat:"Volume", name:"Positive Volume Index", desc:"Index that changes only on bars whose volume rose versus the previous bar" },
+  { cat:"Volume", name:"VWMA", desc:"20-bar volume-weighted moving average of the close" },
+  { cat:"Volume", name:"Volume Oscillator", desc:"5-bar vs 10-bar average volume, in percent" },
+  { cat:"Volume", name:"Volume Weighted RSI", desc:"RSI (14) with each gain and loss weighted by its bar's volume" },
   // ─── Volatility ───────────────────────────────────────
-  { cat:"Volatility", name:"ATR",                    desc:"Average True Range (14)" },
-  { cat:"Volatility", name:"Normalized ATR",         desc:"ATR expressed as % of price" },
-  { cat:"Volatility", name:"Chaikin Volatility",     desc:"High-Low EMA spread rate of change" },
-  { cat:"Volatility", name:"Historical Volatility",  desc:"20-period HV annualized %" },
-  { cat:"Volatility", name:"Realized Volatility",    desc:"5-day realized vol close-to-close" },
-  { cat:"Volatility", name:"BB Width",               desc:"Bollinger Band width — squeeze signal" },
-  { cat:"Volatility", name:"KC Width",               desc:"Keltner Channel width" },
-  { cat:"Volatility", name:"Volatility Stop",        desc:"ATR-based trailing stop loss" },
-  { cat:"Volatility", name:"Standard Deviation",     desc:"N-period price standard deviation" },
-  { cat:"Volatility", name:"Donchian Width",         desc:"Donchian channel spread" },
-  { cat:"Volatility", name:"Mass Index",             desc:"High-low range reversal detector" },
-  { cat:"Volatility", name:"Ulcer Index",            desc:"Downside volatility depth measure" },
-  { cat:"Volatility", name:"Parkinson Volatility",   desc:"High-low Parkinson estimator" },
+  { cat:"Volatility", name:"ATR", desc:"Average True Range (14)" },
+  { cat:"Volatility", name:"Normalized ATR", desc:"ATR (14) as a percent of the close" },
+  { cat:"Volatility", name:"Chaikin Volatility", desc:"10-bar rate of change of ATR (14)" },
+  { cat:"Volatility", name:"Historical Volatility", desc:"Standard deviation of 20 log returns, scaled by √252, in percent" },
+  { cat:"Volatility", name:"Realized Volatility", desc:"Standard deviation of 10 log returns, scaled by √252, in percent" },
+  { cat:"Volatility", name:"BB Width", desc:"Bollinger Band width as a percent of the middle line (20, 2)" },
+  { cat:"Volatility", name:"KC Width", desc:"Keltner Channel width as a percent of its middle line (20, 2)" },
+  { cat:"Volatility", name:"Volatility Stop", desc:"Close ± 1.5 × ATR (20), both sides, every bar" },
+  { cat:"Volatility", name:"Standard Deviation", desc:"Standard deviation of the last 20 closes" },
+  { cat:"Volatility", name:"Donchian Width", desc:"20-bar high minus 20-bar low" },
+  { cat:"Volatility", name:"Mass Index", desc:"Mass Index (9, 25): sum of the ratio of two EMAs of the bar range" },
+  { cat:"Volatility", name:"Ulcer Index", desc:"Ulcer Index (14): depth of closes below their 14-bar peak" },
+  { cat:"Volatility", name:"Parkinson Volatility", desc:"Parkinson high–low volatility (20 bars), scaled by √252, in percent" },
   // ─── Order Flow ────────────────────────────────────────
-  { cat:"Order Flow", name:"Supply/Demand Zones",     desc:"Boxes at confirmed swing highs (supply) and swing lows (demand) — price structure only, no side is read" },
-  { cat:"Order Flow", name:"Stop Run Alert",          desc:"Failed breakout momentum reversal" },
-  { cat:"Order Flow", name:"Tape CVD",                desc:"Cumulative signed tape — only bars the tape was heard on, sides as the feed labelled them; hollow first bar, never candle colour" },
+  { cat:"Structure", name:"Supply/Demand Zones", desc:"Boxes at swing highs and swing lows of the last 200 bars — price structure only" },
+  { cat:"Structure", name:"Stop Run Alert", desc:"Bars that broke the prior 5 bars' high or low and closed back inside — price only" },
+  { cat:"Order Flow", name:"Tape CVD", desc:"Cumulative signed tape — only bars the tape was heard on" },
   // ─── Smart Money ──────────────────────────────────────
-  { cat:"Smart Money", name:"Order Block Finder",    desc:"Institutional demand/supply zones" },
+  { cat:"Smart Money", name:"Order Block Finder", desc:"The last opposite-colour candle body before a move of more than 2 average ranges in 3 bars" },
   // "Fair Value Gaps" RETIRED 2026-10-07 (Garden 19 FVG lane D) — Tools › Find "FVG / Imbalance" is its one door now.
-  { cat:"Smart Money", name:"Break of Structure",    desc:"Market structure BOS highlights" },
-  { cat:"Smart Money", name:"Change of Character",   desc:"CHoCH — trend shift detection" },
-  { cat:"Smart Money", name:"Liquidity Pools",       desc:"Buy/sell side liquidity sweep levels" },
-  { cat:"Smart Money", name:"Strong Highs/Lows",     desc:"Protected structural swing points" },
-  { cat:"Smart Money", name:"Equal Highs/Lows",      desc:"Double top/bottom liquidity pools" },
-  { cat:"Smart Money", name:"Swing High/Low",        desc:"Structural swing point markers" },
-  { cat:"Smart Money", name:"VWAP Deviation Bands",  desc:"Key VWAP σ extension levels" },
+  { cat:"Smart Money", name:"Break of Structure", desc:"Closes beyond the prior 10 bars' high or low" },
+  { cat:"Smart Money", name:"Change of Character", desc:"Closes across the most recent confirmed swing high or low" },
+  { cat:"Smart Money", name:"Liquidity Pools", desc:"Pairs of swing highs (or lows) within 0.12% of each other" },
+  { cat:"Smart Money", name:"Strong Highs/Lows", desc:"Swing highs not exceeded since, and swing lows not undercut since" },
+  { cat:"Smart Money", name:"Equal Highs/Lows", desc:"Adjacent bars whose highs (or lows) are within 0.08% of each other" },
+  { cat:"Smart Money", name:"Swing High/Low", desc:"Swing highs (lows are not drawn)" },
+  { cat:"Smart Money", name:"VWAP Deviation Bands", desc:"Session VWAP with ±1σ, ±2σ and ±3σ bands" },
   // ─── Oscillators ──────────────────────────────────────
-  { cat:"Oscillators", name:"Fisher Transform",      desc:"Price mapped to Gaussian distribution" },
-  { cat:"Oscillators", name:"Aroon Oscillator",      desc:"Aroon up/down crossover oscillator" },
-  { cat:"Oscillators", name:"Aroon Up/Down",         desc:"Aroon up and down lines" },
-  { cat:"Oscillators", name:"ADX",                   desc:"Average Directional Index (14)" },
-  { cat:"Oscillators", name:"DMI",                   desc:"+DI / -DI directional movement index" },
-  { cat:"Oscillators", name:"Vortex Indicator",      desc:"V+ V- trend identification" },
-  { cat:"Oscillators", name:"Ehlers Fisher",         desc:"Ehlers Fisher Transform variant" },
-  { cat:"Oscillators", name:"RVI (Relative Vigor)",  desc:"Close/open range vs true range" },
-  { cat:"Oscillators", name:"Stochastic Pop",        desc:"BB + Stoch breakout signal" },
-  { cat:"Oscillators", name:"Awesome / AC Combo",    desc:"AO + Accelerator simultaneous" },
-  { cat:"Oscillators", name:"Dual Stochastic",       desc:"Fast & slow stochastic crossover" },
-  { cat:"Oscillators", name:"Color RSI",             desc:"RSI with bull/bear/div color fill" },
-  { cat:"Oscillators", name:"Smoothed RSI",          desc:"EMA-smoothed RSI oscillator" },
-  { cat:"Oscillators", name:"RVGI",                  desc:"Relative Volatility & Gain Index" },
-  { cat:"Oscillators", name:"Choppiness Index",      desc:"Measures trend vs chop (0-100)" },
+  { cat:"Oscillators", name:"Fisher Transform", desc:"Fisher Transform of the 10-bar midpoint position, and its signal line" },
+  { cat:"Oscillators", name:"Aroon Oscillator", desc:"Aroon Up minus Aroon Down (25)" },
+  { cat:"Oscillators", name:"Aroon Up/Down", desc:"Aroon Up and Aroon Down (25)" },
+  { cat:"Oscillators", name:"ADX", desc:"ADX (14) with +DI and −DI" },
+  { cat:"Oscillators", name:"DMI", desc:"+DI / −DI with ADX (14)" },
+  { cat:"Oscillators", name:"Vortex Indicator", desc:"Vortex VI+ and VI− (14)" },
+  { cat:"Oscillators", name:"Ehlers Fisher", desc:"Same Fisher Transform as above (10)" },
+  { cat:"Oscillators", name:"RVI (Relative Vigor)", desc:"Same Relative Vigor Index (10) and signal line" },
+  { cat:"Oscillators", name:"Stochastic Pop", desc:"Draws the Stochastic Momentum Index (13, 25, 2) — no Bollinger or breakout logic" },
+  { cat:"Oscillators", name:"Awesome / AC Combo", desc:"Awesome Oscillator and Accelerator Oscillator as two lines" },
+  { cat:"Oscillators", name:"Dual Stochastic", desc:"Two stochastic %K lines: 14-bar and 5-bar" },
+  { cat:"Oscillators", name:"Color RSI", desc:"Draws a 3-bar EMA of RSI (14) — the same line as Smoothed RSI, with no colour fill" },
+  { cat:"Oscillators", name:"Smoothed RSI", desc:"3-bar EMA of RSI (14)" },
+  { cat:"Oscillators", name:"RVGI", desc:"Draws the Relative Vigor Index (10) — not a separate volatility index" },
+  { cat:"Oscillators", name:"Choppiness Index", desc:"Choppiness Index (14)" },
   // ─── Patterns ─────────────────────────────────────────
-  { cat:"Patterns", name:"Doji Detector",            desc:"Doji candlestick pattern alert" },
-  { cat:"Patterns", name:"Engulfing Pattern",        desc:"Bullish/bearish engulfing candles" },
-  { cat:"Patterns", name:"Hammer / Shooting Star",   desc:"Reversal wick candle patterns" },
-  { cat:"Patterns", name:"Morning / Evening Star",   desc:"3-candle reversal patterns" },
-  { cat:"Patterns", name:"Three White Soldiers",     desc:"3 consecutive bullish candles" },
-  { cat:"Patterns", name:"Three Black Crows",        desc:"3 consecutive bearish candles" },
-  { cat:"Patterns", name:"Pin Bar",                  desc:"High-momentum rejection wick bar" },
-  { cat:"Patterns", name:"Inside Bar",               desc:"Inside candle consolidation pattern" },
+  { cat:"Patterns", name:"Doji Detector", desc:"Bars whose body is under 10% of their range" },
+  { cat:"Patterns", name:"Engulfing Pattern", desc:"Bars whose body covers the previous opposite-colour bar's body" },
+  { cat:"Patterns", name:"Hammer / Shooting Star", desc:"Bars with one wick over twice the body and the other wick under half the body" },
+  { cat:"Patterns", name:"Morning / Evening Star", desc:"Three-bar shape: a big bar, a small-bodied bar, then a bar closing past the first bar's middle" },
+  { cat:"Patterns", name:"Three White Soldiers", desc:"Three up bars, each opening inside the prior body and closing higher, near their highs" },
+  { cat:"Patterns", name:"Three Black Crows", desc:"Three down bars, each opening inside the prior body and closing lower, near their lows" },
+  { cat:"Patterns", name:"Pin Bar", desc:"Bars with one wick over 2.5× the body and over 2× the other wick" },
+  { cat:"Patterns", name:"Inside Bar", desc:"Bars whose high and low sit inside the previous bar's" },
   // ─── Statistics ───────────────────────────────────────
-  { cat:"Statistics", name:"Z-Score",                desc:"Price Z-score from rolling mean" },
-  { cat:"Statistics", name:"Percentile Rank",        desc:"Percentile vs N-bar lookback range" },
-  { cat:"Statistics", name:"Linear Regression Slope",desc:"Slope steepness of LR line" },
+  { cat:"Statistics", name:"Z-Score", desc:"(close − 20-bar average) ÷ 20-bar standard deviation" },
+  { cat:"Statistics", name:"Percentile Rank", desc:"Share of the last 100 closes at or below the current close" },
+  { cat:"Statistics", name:"Linear Regression Slope", desc:"Slope of the 14-bar least-squares line through the closes" },
   // ─── Session Tools ────────────────────────────────────
-  { cat:"Sessions", name:"Opening Range Breakout",   desc:"First 5/15/30-min range breakout" },
-  { cat:"Sessions", name:"Prior Day High/Low",       desc:"Yesterday's high and low levels" },
+  { cat:"Sessions", name:"Opening Range Breakout", desc:"High and low of the first 30 minutes after the 9:30 New York open" },
+  { cat:"Sessions", name:"Prior Day High/Low", desc:"The previous New York calendar day's high and low" },
 ];
 
 /* ══════════════════════════════════════════════════════════════
@@ -1388,27 +1390,18 @@ export function ChartToolbar({
                           <div className={clsx("text-[11px] font-semibold truncate", on ? "text-wm-text" : "text-wm-text-muted")}>
                             {ind.name}
                           </div>
-                          <div className="text-[11px] text-wm-text-dim truncate">{ind.desc}</div>
+                          <div className="text-[11px] text-wm-text-dim truncate">{INDICATOR_EDUCATION[ind.name]?.what ?? ind.desc}</div>
                         </div>
 
                         {/* category badge */}
                         <span className="text-[11px] text-wm-text-dim shrink-0 hidden group-hover:block [@media(hover:none)]:block">{ind.cat}</span>
 
-                        {/* description "?" — opens an info panel below the row */}
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            setDescOpen(prev => {
-                              const next = new Set(prev);
-                              next.has(ind.name) ? next.delete(ind.name) : next.add(ind.name);
-                              return next;
-                            });
-                          }}
-                          title="Show description"
-                          className={clsx("shrink-0 transition-colors", showDesc ? "text-wm-blue" : "text-wm-text-dim hover:text-wm-blue")}
-                        >
-                          <HelpCircle size={11} />
-                        </button>
+                        {/* ⓘ — the SAME preview as the Profiles / Tool Finder (Sheriff P1-C,
+                            2026-10-08): the record is `INDICATOR_EDUCATION`, written
+                            from what the chart computes; the button carries
+                            aria-label + aria-expanded (InventionInfoButton). */}
+                        <InventionInfoButton scope="ind" id={indicatorEducationId(ind.name)} label={ind.name} open={showDesc}
+                          onToggle={() => setDescOpen(prev => (prev.has(ind.name) ? new Set() : new Set([ind.name])))} />
 
                         {/* settings gear — only for configurable indicators */}
                         {isConfigurable(ind.name) && onIndicatorSettings && (
@@ -1430,33 +1423,13 @@ export function ChartToolbar({
                         </button>
                       </div>
 
-                      {/* Expanded description panel — opened by the "?" button.
-                          Rich TradingView-style sections (Definition / Calculation /
-                          How to use / What to look for / Summary). */}
-                      {showDesc && (() => {
-                        const info = getIndicatorInfo(ind.name, ind.cat, ind.desc);
-                        const Section = ({ label, body }: { label: string; body: string }) => (
-                          <div className="mb-2.5 last:mb-0">
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-wm-blue mb-0.5">{label}</div>
-                            <p className="text-[11px] text-wm-text-muted leading-relaxed">{body}</p>
-                          </div>
-                        );
-                        return (
-                          <div className="px-4 py-3 bg-wm-surface/40 border-b border-wm-blue/30 max-h-[320px] overflow-y-auto"
-                            style={{ borderLeft: "2px solid #4FA3E0" }}>
-                            <div className="flex items-center gap-2 mb-2 sticky top-0">
-                              <HelpCircle size={12} className="text-wm-blue shrink-0" />
-                              <span className="text-[12px] font-bold text-wm-text">{ind.name}</span>
-                              <span className="text-[9px] text-wm-text-dim px-1.5 py-0.5 rounded bg-wm-surface">{ind.cat}</span>
-                            </div>
-                            <Section label="Definition"        body={info.definition} />
-                            <Section label="Calculation"       body={info.calculation} />
-                            <Section label="How to use"        body={info.howToUse} />
-                            <Section label="What to look for"  body={info.whatToLookFor} />
-                            <Section label="Summary"           body={info.summary} />
-                          </div>
-                        );
-                      })()}
+                      {showDesc ? (
+                        <InventionPreview scope="ind" id={indicatorEducationId(ind.name)} label={ind.name}
+                          what={INDICATOR_EDUCATION[ind.name]?.what ?? ind.desc} familyWord={ind.cat} symbol={symbol}
+                          truth={educationTruthLines({ id: indicatorEducationId(ind.name), symbol })} active={on}
+                          onAdd={() => toggleIndicator(ind.name)}
+                          onClose={() => setDescOpen(new Set())} />
+                      ) : null}
                       </React.Fragment>
                     );
                   })}

@@ -48,6 +48,7 @@
  * honestly be said about the bar and the tape; this renders that verdict.
  */
 
+import { traderSourceWords } from "@/lib/chart/traderSourceWords";
 import type { FvgRelationshipReading } from "@/lib/marketData/fvg/fvgRelationships";
 import { sizeUnitFor } from "@/lib/marketData/sizeUnit";
 import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
@@ -186,7 +187,9 @@ function EvidenceLine({ ev, timeZone, testId = "inspect-evidence" }: { ev: Inspe
       style={{ borderColor: EVIDENCE_COLOR[ev.klass], color: "#C8C0AE" }}>
       <div className="font-bold tracking-wide" style={{ color: EVIDENCE_COLOR[ev.klass] }}>EVIDENCE COMPLETENESS · {ev.klass}</div>
       <div>{ev.why}</div>
-      <div>Source · {ev.source ?? "not named by its owner"}{ev.asOfMs != null ? ` · as of ${clock.exact(ev.asOfMs)}` : ""}</div>
+      {/* Trader words for the source (sheriff ruling 2026-10-08); the vendor's
+          own name stays in the title for whoever audits the receipt. */}
+      <div title={ev.source ?? undefined}>Data · {traderSourceWords(ev.source)}{ev.asOfMs != null ? ` · as of ${clock.exact(ev.asOfMs)}` : ""}</div>
       {ev.feedNote && <div style={{ color: UNREAD_COLOR }}>{ev.feedNote}</div>}
     </div>
   );

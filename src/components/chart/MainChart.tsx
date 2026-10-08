@@ -13324,8 +13324,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             priceToY: p => { const yk = srs.priceToCoordinate(p); return yk == null ? null : +yk; },
           });
         }
-        return keepOutLedger.boxes;
+        // P1-A (Sheriff §15, 2026-10-08: the scaffolding card, OI words, SUPPORT ·
+        // BROKEN, VAL chip and UNRESOLVED / WAIT plates sat on the newest
+        // candles). The ONE keep-out every word / plate painter asks now
+        // carries the newest COLUMN (bodies + wicks of the newest 3, ±½ slot,
+        // 6px air) as well as the bodies — so no painter can forget it. The
+        // ledger's own boxes (candleKeepOut receipt) stay the bodies.
+        if (!keepOutWithColumn) keepOutWithColumn = [...keepOutLedger.boxes, ...newestColumnRects()];
+        return keepOutWithColumn;
       };
+      let keepOutWithColumn: { x: number; y: number; w: number; h: number }[] | null = null;
       // (The Liquidity Lifecycle caption and the Liquidity Weather word lines
       // left the bottom-left word stack on 2026-09-25: F08A draws pools as
       // time-bounded ladders and F08B draws weather as a lens, and their
@@ -15910,6 +15918,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ds.scaffoldingDock = yielded ? "YIELDED" : pick.dock.mode;
                   ds.scaffoldingCardCandleHits = String(countRectHits(pick.dock.rect, candleRects));
                   ds.scaffoldingScale = k.toFixed(2);
+                  // P1-A (Sheriff §15, 390: the FOUNDATION card lay across the
+                  // newest bars and the price row). The card may yield its
+                  // backing over history (canon), never over NOW: a dock that
+                  // reaches the newest column withholds the card; the read stays
+                  // in Tools › Active and the receipts.
+                  const cardOnNewest = onNewestColumn(cx0, cy0, w * k, h * k);
+                  if (cardOnNewest) { ds.scaffoldingDock = "WITHHELD_NEWEST_COLUMN"; ds.scaffoldingForm = `${ds.scaffoldingForm}:WITHHELD`; }
+                  if (!cardOnNewest) {
                   floatingChips.push({ x: cx0, y: cy0, w: w * k, h: h * k });
 
                   // The read window, bracketed under its own bars: which
@@ -16010,6 +16026,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ctx.fillText(clip(sc.caution ? `${sc.cautionFlags.length} flag${sc.cautionFlags.length > 1 ? "s" : ""}: ${sc.cautionFlags.join(" · ")}` : "no flag fired — the read is yours", w - pw - 34), 22 + pw, ry + 20);
                   }
                   ctx.restore();
+                  } // P1-A: card painted only off the newest column
                 }
                 ctx.restore();
               }
@@ -17678,7 +17695,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const pref = { x: x0, y: y - 5, w, h: 10 };
               // Words take the first slot along their own row that clears the
               // candle bodies; otherwise the cut-out keeps the candle on top.
-              const spot = placeClearOfKeepOut(pref, rowBodiesAt(y - 5, y + 5), {
+              const spot = placeClearOfKeepOut(pref, [...rowBodiesAt(y - 5, y + 5), ...newestColumnRects()], {
                 minX: keepOutMinX(),
                 blockers: floatingChips,
                 alternates: [1, 2, 3, 4, 5, 6].map(i => ({ ...pref, x: x0 + i * 34 })),
@@ -25691,7 +25708,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (el && pin) {
           let axisWP = 0;
           try { axisWP = Math.max(0, Number(chart.priceScale("right").width()) || 0); } catch { /* keep 0 */ }
-          const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H }, rowBodiesAt(-1e9, 1e9), floatingChips);
+          const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects()], floatingChips);
           const prev = waitPlaqueLiveRef.current;
           const modeP = spotP.overChips ? `${spotP.mode}:OVER_CHIP` : spotP.mode;
           if (!prev || prev.left !== spotP.left || prev.top !== spotP.top || prev.mode !== modeP) {

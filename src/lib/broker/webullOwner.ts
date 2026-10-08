@@ -37,7 +37,7 @@ export function webullOwnerRefusal(gate: WebullOwnerGate) {
   return {
     error:
       gate.state === "NOT_CONFIGURED"
-        ? "The Webull accounts on this deployment have no named owner (WEBULL_OWNER_USER_ID), so no one may reach them through this route."
+        ? "The Webull accounts on this deployment have no named owner, so no one may reach them through this route."
         : "These Webull accounts belong to another user.",
     code: gate.state === "NOT_CONFIGURED" ? "BROKER_OWNER_NOT_CONFIGURED" : "BROKER_ACCOUNT_NOT_AUTHORIZED",
   } as const;

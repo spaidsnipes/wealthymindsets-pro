@@ -77,6 +77,11 @@ const VERDICT_COLOR: Record<EducationTruth["verdict"], string> = {
   WAITING: MUTED,
   "UNAVAILABLE HERE": AMBER,
   "STATE NOT REPORTED": MUTED,
+  "NEEDS YOUR INPUT": MUTED,
+  "NEEDS OTHER LAYERS": MUTED,
+  "NEEDS AN OPTIONS CHAIN": AMBER,
+  "DRAWS FROM STALE DATA": AMBER,
+  "NO LIVE FEED": AMBER,
 };
 
 export function InventionPreview({ scope, id, label, what, familyWord, symbol, truth, active, gestureNote, onAdd, onClose }: {

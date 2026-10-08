@@ -95,6 +95,19 @@ function teardown() {
  */
 const wanted = () => refs.size > 0 || tapeRefs.size > 0;
 
+/**
+ * TRADER WORDS for a degraded stream (Sheriff P2, 2026-10-08: the glass printed
+ * "tastytrade stream error: TIMEOUT The timeout for SETUP…"). The feed's own
+ * code never reaches a trader; what happened and what WM Pro does next does.
+ */
+export function tastyStreamReasonWords(kind: "ERROR" | "TOKEN" | "CLOSED", code?: string | null): string {
+  if (kind === "TOKEN") return "WM Pro could not open tastytrade's live feed just now — trying again shortly.";
+  if (kind === "CLOSED") return "tastytrade's live feed closed — reconnecting.";
+  return /TIMEOUT/i.test(code ?? "")
+    ? "tastytrade's live feed did not answer in time — reconnecting."
+    : "tastytrade's live feed reported a problem — reconnecting.";
+}
+
 function scheduleRetry(reason: string) {
   teardown();
   if (!wanted()) { emit({ stream: "IDLE", reason: null }); return; }
@@ -120,7 +133,7 @@ async function connect() {
   if (asked !== identity) return;
   if (status === 403) { emit({ stream: "NOT_OWNER", reason: tok?.error ?? "tastytrade market data belongs to its owner only." }); return; }
   if (tok?.state === "NOT_CONFIGURED") { emit({ stream: "NOT_CONNECTED", reason: "tastytrade is not connected on this deployment." }); return; }
-  if (tok?.state !== "OK" || !tok.token || !tok.dxlinkUrl) { scheduleRetry(`Quote token unavailable${tok?.reason ? `: ${tok.reason}` : status ? ` (HTTP ${status})` : ""}`); return; }
+  if (tok?.state !== "OK" || !tok.token || !tok.dxlinkUrl) { void status; scheduleRetry(tastyStreamReasonWords("TOKEN")); return; }
   if (!wanted()) return;
 
   const sock = new WebSocket(tok.dxlinkUrl);
@@ -129,7 +142,7 @@ async function connect() {
   sock.onopen = () => send(buildSetupFrame());
   sock.onerror = () => { /* onclose follows */ };
   // A close may mean the token was refused: the reconnect asks for a fresh one.
-  sock.onclose = () => { if (ws === sock) { forgetQuoteToken(); scheduleRetry("tastytrade stream closed; reconnecting."); } };
+  sock.onclose = () => { if (ws === sock) { forgetQuoteToken(); scheduleRetry(tastyStreamReasonWords("CLOSED")); } };
   sock.onmessage = ev => {
     let m: { type?: string; channel?: number; state?: string; data?: unknown; error?: string; message?: string };
     try { m = JSON.parse(String(ev.data)); } catch { return; }
@@ -178,7 +191,7 @@ async function connect() {
         return;
       }
       case "ERROR":
-        scheduleRetry(`tastytrade stream error: ${m.error ?? ""} ${m.message ?? ""}`.trim());
+        scheduleRetry(tastyStreamReasonWords("ERROR", m.error ?? null));
         return;
       default:
         return;

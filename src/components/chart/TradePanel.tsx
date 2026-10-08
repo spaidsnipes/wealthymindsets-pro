@@ -39,6 +39,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 
 import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/TastytradeLiveOrder";
+import { bookLine, orderActionLine, prefillNote, quoteStreamLabel, type Prefill } from "@/lib/execution/ticketTruth";
+import { selectTapeQuoteFreshness } from "@/lib/marketData/tapeQuoteFreshness";
 import { PendingFillJournalOffers } from "@/components/journal/FillJournalOffer";
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
 import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
@@ -137,7 +139,12 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const pointValue = econ.status === "PRICED" ? econ.pointValue : null;
   const dp = decimals(tick);
 
-  const [side, setSide] = useState<"BUY" | "SELL">("BUY");
+  // Sheriff P2-6: no side is pre-staged — nothing is built until the member picks BUY or SELL.
+  const [side, setSide] = useState<"BUY" | "SELL" | null>(null);
+  useEffect(() => { setSide(null); }, [symbol]);
+  // A clock for the quote's age and the prefill's staleness (said, not assumed).
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNowMs(Date.now()), 1000); return () => clearInterval(t); }, []);
   const [closing, setClosing] = useState(false);
   const [qty, setQty] = useState(1);
   // Crypto sizes in coin units; reset when the instrument kind changes.
@@ -152,13 +159,22 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const [answer, setAnswer] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Seed the limit from the touch you would trade against, once per contract + side.
+  // Seed the limit from the touch you would trade against, once per contract + side — only after a
+  // side is picked, only from a LIVE quote, and it names its source and age (ticketTruth.prefillNote).
   const seeded = useRef("");
+  const [prefill, setPrefill] = useState<Prefill | null>(null);
   useEffect(() => {
+    if (!side) return;
     const key = `${contract?.symbol}|${side}`;
     const touch = side === "BUY" ? q?.ask : q?.bid;
-    if (contract && touch != null && seeded.current !== key) { seeded.current = key; setLimit(touch.toFixed(dp)); }
-  }, [contract, side, q?.ask, q?.bid, dp]);
+    const fresh = q?.quoteAt != null && selectTapeQuoteFreshness(q.quoteAt, Date.now()).kind === "FRESH";
+    if (contract && touch != null && fresh && seeded.current !== key) {
+      seeded.current = key;
+      const px = Number(touch.toFixed(dp));
+      setLimit(touch.toFixed(dp));
+      setPrefill({ px, touch: side === "BUY" ? "ASK" : "BID", atMs: q!.quoteAt as number, source: "tastytrade" });
+    }
+  }, [contract, side, q?.ask, q?.bid, q?.quoteAt, dp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const limitNum = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : null;
   const triggerNum = Number.isFinite(Number(entryTrigger)) && Number(entryTrigger) > 0 ? Number(entryTrigger) : null;
@@ -167,7 +183,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const nudge = (dir: 1 | -1) => { if (limitNum == null || tick == null) return; setLimit((Math.round((limitNum + dir * tick) / tick) * tick).toFixed(dp)); };
   const setTo = (v: number | null | undefined) => { if (v == null) return; setLimit((tick ? Math.round(v / tick) * tick : v).toFixed(dp)); };
 
-  const action: TastytradeIntent["action"] = side === "BUY" ? (closing ? "Buy to Close" : "Buy to Open") : (closing ? "Sell to Close" : "Sell to Open");
+  const action: TastytradeIntent["action"] | null = side === "BUY" ? (closing ? "Buy to Close" : "Buy to Open") : side === "SELL" ? (closing ? "Sell to Close" : "Sell to Open") : null;
   const instrumentType: TastytradeIntent["instrumentType"] | null = kind === "FUTURE" ? "Future" : kind === "STOCK" ? "Equity" : kind === "CRYPTO" ? "Cryptocurrency" : null;
   const fractional = kind === "CRYPTO";
 
@@ -177,7 +193,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const perUnit = pointValue ?? 1;
   const riskUsd = referenceEntry != null && stopNum != null ? Math.abs(referenceEntry - stopNum) * perUnit * qty : null;
   const rewardUsd = referenceEntry != null && targetNum != null ? Math.abs(targetNum - referenceEntry) * perUnit * qty : null;
-  const stopWrongSide = referenceEntry != null && stopNum != null && (side === "BUY" ? stopNum >= referenceEntry : stopNum <= referenceEntry);
+  const stopWrongSide = side != null && referenceEntry != null && stopNum != null && (side === "BUY" ? stopNum >= referenceEntry : stopNum <= referenceEntry);
   const notional = referenceEntry != null ? referenceEntry * perUnit * qty : null;
 
   // ── Garden 19 §23 — TRADE FROM CHART ──────────────────────────────────────
@@ -208,7 +224,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const stagedEntryPx = referenceEntry ?? (effectiveEntryType === "Stop" ? triggerNum : null);
   useEffect(() => {
     const c = contract?.symbol;
-    if (!c || !owner || !tradable || !isPreSendPhase(entryPhase)) { publishChartOrderLines("ticket", symbol, []); return; }
+    if (!c || !owner || !tradable || !side || !isPreSendPhase(entryPhase)) { publishChartOrderLines("ticket", symbol, []); return; }
     const exit = side === "BUY" ? "SELL" : "BUY";
     const lines: ChartOrderLine[] = [];
     if (stagedEntryPx != null) lines.push({ id: "ticket-entry", role: "ENTRY", status: "STAGED", price: stagedEntryPx, contract: c, detail: `${side} ${qty} ${effectiveEntryType.toUpperCase()}` });
@@ -254,7 +270,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   }
 
   async function dryRun() {
-    if (!contract || !instrumentType || !entryFields || busy) return;
+    if (!contract || !instrumentType || !entryFields || !action || busy) return;
     setBusy(true);
     try {
       const decisionId = ensureDecision();
@@ -292,8 +308,10 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     background: on ? `${color}22` : "transparent", color: on ? color : INK, fontSize: 12, fontWeight: 600, cursor: "pointer",
   });
   const sizes = kind === "STOCK" ? [1, 10, 50, 100] : kind === "CRYPTO" ? [0.001, 0.01, 0.1, 1] : [1, 2, 3, 5];
-  // Crypto seeds its limit from the chart's last price when no quote has been heard.
-  useEffect(() => { if (kind === "CRYPTO" && !limit && price != null && price > 0) setLimit(price.toFixed(2)); }, [kind, price, limit]);
+  // Sheriff P1-2: a chart's bar close is not a quote — the limit is never prefilled from it.
+  const quoteLabel = quoteStreamLabel({ stream: snap.stream, bid: q?.bid, ask: q?.ask, quoteAtMs: q?.quoteAt, nowMs, contract: contract?.symbol ?? null, streamWords: STREAM_WORDS });
+  const prefillLine = prefillNote({ prefill, limitPx: limitNum, currentTouch: prefill?.touch === "ASK" ? q?.ask : q?.bid, tick, nowMs });
+  const book = bookLine({ readback: broker?.readback ?? null, holding: !!broker?.position, working: broker?.working ?? 0, asOfMs: broker?.asOfMs ?? null, tails: broker?.tails ?? [] });
 
   return (
     <section
@@ -304,14 +322,14 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         // price or a stop/target on price — all at the chart's right edge
         // (serving MNQ 1m, 2026-10-01: the panel at right:24 hid the forming
         // bar). It stands at the chart's lower LEFT, over settled history.
-        position: "fixed", left: 24, bottom: 64, zIndex: 60, width: "min(400px, calc(100vw - 24px))", maxHeight: "72vh", overflowY: "auto",
+        position: "fixed", left: 24, bottom: 64, zIndex: 60, width: "min(400px, calc(100vw - 48px))", maxHeight: "72vh", overflowY: "auto", overflowX: "hidden",
         background: "#0d0b08", border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 18px 48px rgba(0,0,0,0.6)", color: INK, fontSize: 12,
       }}
     >
-      <header style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: `1px solid ${LINE}` }}>
+      <header data-testid="trade-header" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 8px", padding: "10px 12px", borderBottom: `1px solid ${LINE}`, minWidth: 0 }}>
         <strong style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 15, letterSpacing: 1 }}>TRADE</strong>
         <span data-testid="trade-kind" style={{ fontSize: 10, letterSpacing: 1.2, color: GOLD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 6px" }}>{kind === "FUTURE" ? "FUTURE" : kind}</span>
-        <span style={{ fontWeight: 600 }}>{contract?.symbol ?? symbol}</span>
+        <span style={{ fontWeight: 600, minWidth: 0, overflowWrap: "anywhere" }}>{contract?.symbol ?? symbol}</span>
         {kind === "FUTURE" && contract && contract.symbol !== symbol.toUpperCase() ? <span data-testid="trade-dated-contract" title={`${symbol} → ${dated?.label ?? contract.symbol}`} style={{ color: MUTED, whiteSpace: "nowrap" }}>{dated ? `${dated.month} ${dated.year}` : `from ${symbol}`}</span> : null}
         {audience === "OWNER" && <button type="button" data-testid="trade-live-arm" onClick={() => openSettings("execution")}
           title={liveArmed ? "Live orders can be armed — open Settings › Execution" : "Live trading is disarmed — open Settings › Execution; nothing can be sent until it is armed there"}
@@ -324,7 +342,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", border: `1px solid ${RED}`, color: server.limits?.killSwitch ? "#fff" : RED, background: server.limits?.killSwitch ? "#7a2a22" : "none", cursor: "pointer" }}>
           {server.limits?.killSwitch ? "KILLED" : "KILL"}
         </button>}
-        <button type="button" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
+        <button type="button" data-testid="trade-close" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", flexShrink: 0, minWidth: 32, minHeight: 32, color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
       </header>
 
       {audience !== "OWNER" ? (
@@ -349,7 +367,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, ...MONO }}>
             <span style={{ color: MUTED }}>bid</span><strong>{q?.bid != null ? q.bid.toFixed(dp) : "—"}</strong>
             <span style={{ color: MUTED }}>ask</span><strong>{q?.ask != null ? q.ask.toFixed(dp) : "—"}</strong>
-            <span data-state={snap.stream} style={{ marginLeft: "auto", color: snap.stream === "LIVE" ? GREEN : GOLD }}>● {snap.stream === "LIVE" ? "LIVE · tastytrade" : STREAM_WORDS[snap.stream] ?? snap.stream.replace(/_/g, " ").toLowerCase()}</span>
+            <span data-testid="trade-quote-state" data-state={snap.stream} data-live={quoteLabel.live ? "yes" : "no"} style={{ marginLeft: "auto", color: quoteLabel.live ? GREEN : GOLD }}>● {quoteLabel.text}</span>
           </div>
           {contractWhy ? <p style={{ color: GOLD }}>{contractWhy}</p> : null}
 
@@ -382,6 +400,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
               }} style={btn(false, RED)}>Load FLATTEN</button>
             </div>
           ) : broker?.readback === "STALE" ? <p style={{ color: GOLD, fontSize: 11 }}>RECONCILING · tastytrade&apos;s orders and positions have not answered recently; the chart lines are the last answer, labelled as such.</p> : null}
+          {book ? <p data-testid="trade-book-line" style={{ color: MUTED, fontSize: 11, ...MONO }}>{book}</p> : null}
 
           {/* Side + open/close */}
           <div style={{ display: "flex", gap: 6 }}>
@@ -389,8 +408,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <button type="button" data-testid="trade-sell" aria-pressed={side === "SELL"} onClick={() => setSide("SELL")} style={{ ...btn(side === "SELL", RED), flex: 1, minHeight: 36, fontSize: 13 }}>SELL</button>
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, color: MUTED }}>
-            <input type="checkbox" checked={closing} onChange={e => setClosing(e.target.checked)} /> This closes a position I hold ({action})
+            <input type="checkbox" checked={closing} onChange={e => setClosing(e.target.checked)} /> This closes a position I hold
           </label>
+          <p data-testid="trade-order-action" style={{ color: side ? INK : GOLD, fontSize: 11, margin: 0 }}>{orderActionLine(side, closing)}</p>
 
           {/* Size */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -425,6 +445,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <button type="button" onClick={() => setTo(q?.bid != null && q?.ask != null ? (q.bid + q.ask) / 2 : null)} style={btn(false)}>MID</button>
             <button type="button" onClick={() => setTo(q?.ask)} style={btn(false)}>ASK</button>
           </div>
+          {prefillLine ? <p data-testid="trade-prefill-note" data-stale={prefillLine.stale ? "yes" : "no"} style={{ color: prefillLine.stale ? GOLD : MUTED, fontSize: 11, margin: 0 }}>{prefillLine.text}</p> : null}
 
           </> : null}
 
@@ -452,7 +473,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           </p>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button type="button" data-testid="trade-dry-run" disabled={!contract || !entryFields || busy} onClick={() => void dryRun()} style={{ ...btn(true), opacity: !contract || !entryFields ? 0.5 : 1 }}>
+            <button type="button" data-testid="trade-dry-run" disabled={!contract || !entryFields || !action || busy} onClick={() => void dryRun()} style={{ ...btn(true), opacity: !contract || !entryFields || !action ? 0.5 : 1 }}>
               {busy ? "Asking tastytrade…" : "Dry run on tastytrade"}
             </button>
             <span style={{ color: MUTED, fontSize: 11 }}>Validates against your real account; places nothing.</span>
@@ -463,7 +484,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           <ManagementPlanCard mode="ticket" symbol={symbol} />
 
           <TastytradeLiveOrder
-            intent={contract && instrumentType ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: contract.symbol, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate, chartSymbol: symbol } : null}
+            intent={contract && instrumentType && action ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: contract.symbol, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate, chartSymbol: symbol } : null}
             ensureDecision={ensureDecision}
             onPhase={setEntryPhase}
             journal={{ targetPx: closing ? null : targetNum, plannedStopPx: stopNum, orderIntentId: loadedProposal?.orderIntentId ?? null, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
@@ -471,7 +492,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           <PendingFillJournalOffers />
 
           {/* §LXXVIII — PROTECTION, broker-native, each armed and pressed by the human. */}
-          {kind !== "CRYPTO" && contract && instrumentType ? (
+          {kind !== "CRYPTO" && contract && instrumentType && side ? (
             <details data-testid="trade-protect" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px" }}>
               <summary style={{ cursor: "pointer", color: GOLD, fontWeight: 600 }}>Protect the position — stop & target at the broker</summary>
               <p style={{ color: MUTED, fontSize: 11, marginTop: 6 }}>

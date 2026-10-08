@@ -41,7 +41,8 @@ describe("MainChart places the H-101 plaque through placeWaitPlaque", () => {
     expect(mc).toContain("top: waitPlaqueLiveRef.current?.top ?? waitPlaqueSpot?.top ??");
     expect(mc).toContain('data-h101-wait-plaque-spot={waitPlaqueLiveRef.current?.mode ?? waitPlaqueSpot?.mode ?? "RIGHT"}');
     // Every frame, against candles AND the labels/chips this frame put on the glass.
-    expect(mc).toContain("const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H }, rowBodiesAt(-1e9, 1e9), floatingChips);");
+    // 2026-10-08 Garden 19 §15 P1-A: every visible candle box is still fed, plus the newest column's keep-out.
+    expect(mc).toContain("const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects()], floatingChips);");
   });
 });
 

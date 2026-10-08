@@ -18,6 +18,8 @@ import { aggressorProvenanceNote } from "@/lib/marketData/aggressorProvenanceNot
 // absence twice. See selectMissingTapeBanner for why that mattered.
 import { selectMissingTapeBanner } from "@/lib/marketData/selectMissingTapeBanner";
 import { formatImbalanceRatio } from "@/lib/marketData/formatImbalanceRatio";
+// G19 sheriff 2026-10-08: ONE owner decides which side took the tape; every card speaks it.
+import { readTapeSide, tapeSideLeans, TAPE_SIDE_SHARE_PCT } from "@/lib/marketData/tapeSideVerdict";
 import { getSmartMoneyPanelLayout } from "./smartMoneyLayout";
 import { computeConfluence as computeConfluenceV1 } from "@/lib/marketData/confluence";
 import ValueCandlePanel from "@/components/experience/ValueCandlePanel";
@@ -105,7 +107,6 @@ function biasFromFlow(price: number, f: Flow): boolean {
 function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
   if (price <= 0) price = 100;
   const dp = price > 1000 ? 0 : price > 10 ? 2 : 4;
-  const tick = price > 10_000 ? 0.25 : price > 1000 ? 0.25 : price > 10 ? 0.01 : 0.0001;
   // VWAP reference bands are explicitly fixed-distance context, not observed levels.
   const vwap     = f.vwap > 0 ? +f.vwap.toFixed(dp) : +(price).toFixed(dp);
   const vwapUp   = +(vwap * 1.004).toFixed(dp);
@@ -116,19 +117,17 @@ function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
   const cvdVal   = f.cvd;                           // REAL cumulative delta (unrounded)
   const cvdPos   = cvdVal >= 0;
   const askDom   = f.askDom;                         // REAL imbalance side
+  // The ONE side verdict (tapeSideVerdict). A row may name a side only when
+  // this names it; a 541 / 537 tape is BALANCED on every row, not "dominant".
+  const tape     = readTapeSide(f.askVol, f.bidVol, f.hasFlow);
+  const leans    = tapeSideLeans(tape);
   const imbRatio = Math.round(f.imbRatio);           // REAL dominant/passive %
   const aboveVwap = price >= vwap;
-
-  const entryPx  = +(price + (bullBias ? tick * 2 : -tick * 2)).toFixed(dp);
-
-  // Confidence scales with how one-sided the real delta is.
-  const totVol   = f.askVol + f.bidVol;
-  const deltaConf = totVol > 0 ? Math.min(96, 55 + Math.round(Math.abs(f.cvd) / totVol * 60)) : 60;
 
   // "delta-confirmed" is only true when the feed actually carries aggressor tape.
   return [
     // VWAP — REAL volume-weighted price of recent tape
-    { name: "VWAP", value: fmt(vwap, dp), strength: "strong", bullish: aboveVwap, description: aboveVwap ? "Price above session VWAP — bullish context" : "Price below session VWAP — bearish context" },
+    { name: "VWAP", value: fmt(vwap, dp), strength: "strong", bullish: aboveVwap, description: aboveVwap ? "Price is above the session VWAP" : "Price is below the session VWAP" },
     { name: "VWAP Upper Band", value: fmt(vwapUp, dp), strength: "moderate", bullish: price < vwapUp },
     { name: "VWAP Lower Band", value: fmt(vwapDown, dp), strength: "moderate", bullish: price > vwapDown },
 
@@ -141,14 +140,14 @@ function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
       // one-sided sentinel and the unbounded crypto tail. This panel used to
       // print `${imbRatio}%` raw — so it could render "300% Ask (buy)-heavy"
       // from a sentinel, or "27261700%" from a fractional opposing side.
-      ? { name: "Order Flow Imbalance", value: `${formatImbalanceRatio(f.imbRatio, f.oneSided)} ${askDom ? "Ask (buy)" : "Bid (sell)"}-heavy`, strength: f.oneSided || imbRatio > 160 ? "strong" : "moderate", bullish: askDom, description: f.oneSided ? `Every aggressor print in this window ${askDom ? "lifted the offer" : "hit the bid"} — there is no opposing volume to form a ratio` : `Aggressive ${askDom ? "buyers lifting offers" : "sellers hitting bids"} dominate the tape` }
+      ? { name: "Order Flow Imbalance", value: `${formatImbalanceRatio(f.imbRatio, f.oneSided)} ${askDom ? "Ask (buy)" : "Bid (sell)"}-heavy`, strength: f.oneSided || imbRatio > 160 ? "strong" : leans === null ? "neutral" : "moderate", bullish: leans, description: f.oneSided ? `Every aggressor print in this window ${askDom ? "lifted the offer" : "hit the bid"} — there is no opposing volume to form a ratio` : tape.words }
       : { name: "Order Flow Imbalance", value: "N/A — no aggressor tape", strength: "neutral", bullish: null, description: "This feed has no per-trade buy/sell side; imbalance can't be measured" },
     f.hasFlow
-      ? { name: "Aggressive Buyers vs Sellers", value: `Buyers ${fmt(f.askVol,0)} · Sellers ${fmt(f.bidVol,0)}`, strength: "strong", bullish: askDom, description: "Market-order volume by side (real ticks)" }
+      ? { name: "Aggressive Buyers vs Sellers", value: `Buyers ${fmt(f.askVol,0)} · Sellers ${fmt(f.bidVol,0)}`, strength: leans === null ? "neutral" : "strong", bullish: leans, description: "Market-order volume by side" }
       : { name: "Aggressive Buyers vs Sellers", value: "N/A — no tick-level side data", strength: "neutral", bullish: null, description: "Requires a feed that tags each trade as buy or sell" },
     { name: "Absorption", value: "N/A — needs passive-fill data", strength: "neutral", bullish: null, description: "Absorption (aggressors soaked up by resting size) needs bid/ask fill data, not just time-and-sales" },
     { name: "Volume Tails", value: "N/A — needs per-price volume", strength: "neutral", bullish: null, description: "Wick/tail volume requires per-price footprint data absent from this feed" },
-    { name: "Accumulation / Distribution", value: f.hasFlow ? (cvdPos ? "Net accumulation (delta ≥ 0)" : "Net distribution (delta < 0)") : "N/A — no aggressor tape", strength: f.hasFlow ? "strong" : "neutral", bullish: f.hasFlow ? cvdPos : null, description: "Derived from real cumulative delta over the tape" },
+    { name: "Accumulation / Distribution", value: !f.hasFlow ? "N/A — no aggressor tape" : tape.side === "BUYERS" ? "Buyers took the larger share" : tape.side === "SELLERS" ? "Sellers took the larger share" : "Balanced — no side leads", strength: leans === null ? "neutral" : "moderate", bullish: leans, description: "Cumulative delta over the tape window; a share, not a phase" },
     { name: "PDH / PDL Support", value: "N/A — prior-session levels not loaded", strength: "neutral", bullish: null, description: "A real prior-session high/low feed is required; no price-offset substitute is generated" },
     { name: bullBias ? "Passive Buyers" : "Passive Sellers", value: "N/A — needs Level-2 depth", strength: "neutral", bullish: null, description: "Resting bid/offer size requires an order-book feed" },
     { name: "Spoofing Detection", value: "N/A — needs Level-2 order book", strength: "neutral", bullish: null, description: "Cannot be measured from time-and-sales alone" },
@@ -158,33 +157,33 @@ function generateSignals(symbol: string, price: number, f: Flow): Signal[] {
 
     // Delta / CVD — REAL
     f.hasFlow
-      ? { name: "Delta Divergence", value: cvdPos === f.candleUp ? "Delta confirms price" : "Delta diverges from price", strength: "strong", bullish: cvdPos, description: "Real cumulative delta vs candle direction" }
+      ? { name: "Delta Divergence", value: leans === null ? "No side leads — nothing to compare" : leans === f.candleUp ? "The tape side agrees with the candle" : "The tape side and the candle disagree", strength: leans === null ? "neutral" : "moderate", bullish: null, description: "The tape's side verdict against this candle's direction — an observation, not a turn" }
       : { name: "Delta Divergence", value: "N/A — no aggressor tape", strength: "neutral", bullish: null, description: "Divergence needs per-trade delta, absent from this feed" },
     f.hasFlow
-      ? { name: "CVD (Cumulative Volume Delta)", value: `${fmtDelta(cvdVal)} (${cvdPos ? "rising" : "falling"})`, strength: "strong", bullish: cvdPos, description: "Real aggressive buy volume minus sell volume" }
+      ? { name: "CVD (Cumulative Volume Delta)", value: `${fmtDelta(cvdVal)} (${cvdPos ? "rising" : "falling"})`, strength: leans === null ? "neutral" : "strong", bullish: leans, description: "Aggressive buy volume minus sell volume" }
       : { name: "CVD (Cumulative Volume Delta)", value: "N/A — no aggressor tape", strength: "neutral", bullish: null, description: "Requires per-trade buy/sell side, absent from this feed" },
-    { name: "Footprint Pattern", value: f.hasFlow ? (askDom ? "Buy imbalance stack" : "Sell imbalance stack") : "N/A — no aggressor tape", strength: f.hasFlow ? "moderate" : "neutral", bullish: f.hasFlow ? askDom : null, description: "Aggressor-side stacking from real tick data" },
+    { name: "Footprint Pattern", value: !f.hasFlow ? "N/A — no aggressor tape" : tape.side === "BUYERS" ? "Buy-side stacking" : tape.side === "SELLERS" ? "Sell-side stacking" : "No side stacks", strength: leans === null ? "neutral" : "moderate", bullish: leans, description: "Aggressor-side stacking across the tape window" },
 
     // Iceberg / Dark Pool — genuinely require feeds we don't have; report honestly
     { name: "Iceberg Detection", value: "N/A — needs Level-2 depth feed", strength: "neutral", bullish: null, description: "Hidden-size detection requires order-book data" },
     { name: "Dark Pool Prints", value: "N/A — needs consolidated dark-pool feed", strength: "neutral", bullish: null, description: "Off-exchange prints not in this data source" },
 
     // Regime — inferred from real delta + trend
-    { name: "Regime", value: f.hasFlow ? `${cvdPos?"Buy-side":"Sell-side"} tape (${deltaConf}% delta concentration)` : `${aboveVwap?"Above":"Below"} VWAP — no tape confirmation`, strength: f.hasFlow && deltaConf > 75 ? "strong" : "moderate", bullish: f.hasFlow ? cvdPos : aboveVwap, description: f.hasFlow ? "Measured from real aggressor delta" : "Price location only; not a full market-regime classification" },
+    { name: "Regime", value: f.hasFlow ? (tape.side === "BUYERS" ? "Buy-side tape" : tape.side === "SELLERS" ? "Sell-side tape" : "Balanced tape") : `${aboveVwap?"Above":"Below"} VWAP — no tape`, strength: leans === null ? "neutral" : "moderate", bullish: f.hasFlow ? leans : null, description: f.hasFlow ? tape.words : "Price location only; not a full market-regime classification" },
     { name: "Wyckoff Phase", value: "N/A — phase model not implemented", strength: "neutral", bullish: null, description: "No phase is inferred from a single price/tape snapshot" },
     { name: "Wyckoff Schematic", value: "N/A — structure history required", strength: "neutral", bullish: null, description: "A schematic requires validated multi-swing structure" },
     { name: bullBias ? "Higher Lows at Demand" : "Lower Highs at Supply", value: "N/A — needs swing structure", strength: "neutral", bullish: null, description: "Swing-structure reads require tracked pivots, not in this snapshot" },
     { name: "PDL Setup", value: "N/A — prior-session level unavailable", strength: "neutral", bullish: null, description: "No PDL is displayed without a real prior-session calculation" },
 
     // CLC Rule — all three now REAL reads
-    { name: "Context", value: aboveVwap ? "Bullish — above VWAP" : "Bearish — below VWAP", strength: "strong", bullish: aboveVwap },
+    { name: "Context", value: aboveVwap ? "Above VWAP" : "Below VWAP", strength: "moderate", bullish: aboveVwap },
     { name: "Location", value: "N/A — no validated structure zone", strength: "neutral", bullish: null, description: "No synthetic demand/supply zone is generated" },
-    { name: "Confirmation", value: f.hasFlow ? `Real ${cvdPos?"buying":"selling"} on tape (Δ ${fmtDelta(cvdVal)})` : (aboveVwap ? "Price-confirmed above VWAP (no tape side data)" : "Price-confirmed below VWAP (no tape side data)"), strength: f.hasFlow ? "strong" : "moderate", bullish: f.hasFlow ? cvdPos : aboveVwap },
+    { name: "Confirmation", value: f.hasFlow ? (leans === null ? `Unresolved — balanced tape (Δ ${fmtDelta(cvdVal)})` : `${tape.side === "BUYERS" ? "Buyers" : "Sellers"} lead the tape (Δ ${fmtDelta(cvdVal)})`) : "Unresolved — no tape side data", strength: leans === null ? "neutral" : "moderate", bullish: f.hasFlow ? leans : null },
 
     // Entry signals
-    f.hasFlow
-      ? { name: "Entry Signal", value: `${bullBias?"LONG":"SHORT"} context near ${fmt(entryPx,dp)}`, strength: "moderate", bullish: bullBias, description: "Tape/VWAP context only; not an executable recommendation" }
-      : { name: "Entry Signal", value: "N/A — no aggressor-tape confirmation", strength: "neutral", bullish: null, description: "No entry is generated from price location alone" },
+    // An observation panel does not propose entries (sheriff 2026-10-08: the
+    // row printed a LONG / SHORT direction with a price beside it).
+    { name: "Entry Signal", value: "Not produced — this panel observes the tape; it does not propose entries", strength: "neutral", bullish: null, description: "Entries belong to your declared plan and its risk, not to a tape reading" },
     { name: "Best Opportunity", value: "N/A — define risk from your setup", strength: "neutral", bullish: null, description: "No arbitrary price-offset risk band is generated" },
   ];
 }
@@ -206,7 +205,7 @@ const SECTIONS = [
   { key: "delta",           label: "Delta / CVD / Footprint",   from: 14, to: 17 },
   { key: "iceberg",         label: "Iceberg & Dark Pool",       from: 17, to: 19 },
   { key: "regime",          label: "Markov / Wyckoff Regime",   from: 19, to: 24 },
-  { key: "clc",             label: "CLC Rule + Entry Signals",  from: 24, to: 29 },
+  { key: "clc",             label: "CLC Rule",                  from: 24, to: 29 },
 ];
 
 // Confluence engine moved to @/lib/marketData/confluence — versioned, tested,
@@ -537,12 +536,6 @@ export function SmartMoneyPanel({
   // in that case. Founder Aug-16 XVI: 'NO SCORE when minimum evidence is not
   // met. Do not output 56/100 if four of five components are unavailable.'
   const conf = computeConfluenceV1(livePrice, flow);
-  const bias = conf.bias;
-  const scoreColor =
-    conf.score == null ? "#8B95A5" :
-    conf.score >= 58   ? "#00D4AA" :
-    conf.score <= 42   ? "#F6465D" :
-                         "#F0B429";
 
   // CLC location remains unavailable until a real structure-zone model exists.
   // Never substitute percentage offsets around the current price.
@@ -553,9 +546,6 @@ export function SmartMoneyPanel({
     confirmation: flow.hasFlow,
   });
   const ddp = livePrice > 1000 ? 0 : livePrice > 10 ? 2 : 4;
-  // isBull is used for downstream directional pressure hints; INSUFFICIENT
-  // must not tilt bullish by default, so we require an explicit BULL or NEUTRAL.
-  const isBull = bias === "BULL" || bias === "NEUTRAL";
 
   // ── DELTA DOMINATION (the tug-of-war) ───────────────────────────────────────
   // Who is actually winning the fight right now — measured from REAL aggressor
@@ -569,25 +559,28 @@ export function SmartMoneyPanel({
   // Owned by @/lib/marketData/aggressorProvenanceNote so every surface that
   // shows aggressor sides makes the identical disclosure in identical words.
   const provenanceNote = aggressorProvenanceNote(flow.provenance);
+  // ONE side verdict for every card (tapeSideVerdict). The cards used to
+  // carry three thresholds (55 %, 65 %, any sign of delta) and so gave three
+  // answers about one tape (sheriff, serving NQ1! 2026-10-08 07:20 CDT).
+  const tapeSide = readTapeSide(flow.askVol, flow.bidVol, flow.hasFlow);
   const domSide: "buyers" | "sellers" | "even" | "none" =
-    !flow.hasFlow ? "none"
-    : buyPct >= 55 ? "buyers"
-    : sellPct >= 55 ? "sellers"
+    tapeSide.side === "NO_TAPE" ? "none"
+    : tapeSide.side === "BUYERS" ? "buyers"
+    : tapeSide.side === "SELLERS" ? "sellers"
     : "even";
   // Divergence = price says one thing, delta says the opposite → the lie.
+  // A disagreement is named only when the verdict names a side — a balanced
+  // tape has nothing to disagree with (a 50 / 50 tape once carried a "no
+  // winner" verdict and a one-sided warning at the same time).
   const divergence: "bearish" | "bullish" | null =
-    !flow.hasFlow ? null
-    : flow.candleUp && deltaVal < 0 ? "bearish"   // price up but sellers dominate
-    : !flow.candleUp && deltaVal > 0 ? "bullish"  // price down but buyers dominate
+    domSide === "sellers" && flow.candleUp ? "bearish"   // candle up, sellers took the tape
+    : domSide === "buyers" && !flow.candleUp ? "bullish" // candle down, buyers took the tape
     : null;
   // Tape pressure is an observation, not a trade command. It deliberately does
   // not produce entries, stops, targets, or order shortcuts. Location and risk
   // remain unresolved elsewhere in this panel.
   const pressureSide: "BUY" | "SELL" | null =
-    !flow.hasFlow                 ? null
-    : buyPct  >= 65               ? "BUY"
-    : sellPct >= 65               ? "SELL"
-    : null;
+    domSide === "buyers" ? "BUY" : domSide === "sellers" ? "SELL" : null;
   const pressureReason =
     !flow.hasFlow
       // Short by design. The reason the tape is absent belongs to the banner at
@@ -598,7 +591,7 @@ export function SmartMoneyPanel({
       ? `Observed buyers account for ${buyPct}% of aggressive tape (Δ ${fmtDelta(deltaVal)}). This is evidence, not an entry signal.`
     : pressureSide === "SELL"
       ? `Observed sellers account for ${sellPct}% of aggressive tape (Δ ${fmtDelta(deltaVal)}). This is evidence, not an entry signal.`
-    : "Aggressor tape is balanced; there is no dominant pressure observation.";
+    : tapeSide.words;
 
   // ── WM PLAYBOOK — folded contextual insights (on-brand, no external label) ───
   const playbook = getFabioInsights({ symbol, assetClass: inferAssetClass(symbol) }, 3);
@@ -649,23 +642,25 @@ export function SmartMoneyPanel({
         <WMLogo size={24} showGlow />
         <div className="flex-1">
           <div className="text-xs font-bold text-wm-gold">Smart Money Tools</div>
-          <div className="text-[10px] text-wm-text-dim">{symbol} · est. from price</div>
+          {/* The evidence class, stated ONCE for the drawer (sheriff 2026-10-08:
+              the header named a price estimate over cards reading the signed tape). */}
+          <div className="text-[10px] text-wm-text-dim">{symbol} · {flow.hasFlow ? "from the signed tape" : "price only — no signed tape"}</div>
         </div>
-        {/* Bias badge — INSUFFICIENT is a distinct honest state, not NEUTRAL.
-            A trader must be able to tell 'the market is balanced' apart from
-            'we do not have enough evidence to say anything at all'. */}
+        {/* Tape badge — the drawer's ONE side verdict (tapeSideVerdict), not a
+            BULL / BEAR call. NO TAPE is a distinct honest state, not BALANCED:
+            a trader must be able to tell 'the tape is balanced' apart from
+            'there is no tape to read'. */}
         <div
           className={clsx(
             "px-2 py-0.5 rounded text-[10px] font-bold mr-1",
-            bias === "BULL"          ? "bg-wm-green/15 text-wm-green border border-wm-green/30" :
-            bias === "BEAR"          ? "bg-wm-red/15 text-wm-red border border-wm-red/30" :
-            bias === "INSUFFICIENT"  ? "bg-wm-dark text-wm-text-dim border border-wm-border" :
-                                       "bg-wm-muted text-wm-text-muted"
+            domSide === "buyers"  ? "bg-wm-green/15 text-wm-green border border-wm-green/30" :
+            domSide === "sellers" ? "bg-wm-red/15 text-wm-red border border-wm-red/30" :
+            domSide === "none"    ? "bg-wm-dark text-wm-text-dim border border-wm-border" :
+                                    "bg-wm-muted text-wm-text-muted"
           )}
-          title={bias === "INSUFFICIENT" ? conf.reason : undefined}
+          title={tapeSide.words}
         >
-          {bias === "BULL" ? "↑" : bias === "BEAR" ? "↓" : bias === "INSUFFICIENT" ? "?" : "–"}{" "}
-          {bias === "INSUFFICIENT" ? "INSUFFICIENT" : bias}
+          {domSide === "buyers" ? "▲ BUYERS" : domSide === "sellers" ? "▼ SELLERS" : domSide === "none" ? "NO TAPE" : "BALANCED"}
         </div>
         {/* MEASURED 2026-09-19 on live /charts at 1920: 20x20, named only by
             `title`. Same repair as the close button on the next line, which has
@@ -687,7 +682,7 @@ export function SmartMoneyPanel({
         </button>
       </div>
 
-      {/* Confluence Score — TWO independent gates suppress the persuasive
+      {/* Lens agreement — TWO independent gates suppress the persuasive
           aggregate number:
             1) engine-side minimum-evidence gate (conf.insufficient — fewer
                than 3/5 lenses can measure at all)
@@ -696,9 +691,12 @@ export function SmartMoneyPanel({
           progress bar. Founder Aug-16 XVI explicit ask. */}
       <div className="px-2 py-1.5 border-b border-wm-border shrink-0">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-wm-text-muted">
-            Confluence Score
-            <span className="ml-1 text-wm-text-dim">· {conf.formulaVersion}</span>
+          {/* A count of lenses, never a score (sheriff 2026-10-08: "Confluence
+              Score · wm.confluence.v1" — a persuasive aggregate plus an
+              internal identifier on the glass). The formula id stays in the
+              title for whoever audits it. */}
+          <span className="text-[10px] text-wm-text-muted" title={`formula ${conf.formulaVersion}`}>
+            Lens agreement
           </span>
           <span
             className="text-[10px] font-black"
@@ -707,17 +705,10 @@ export function SmartMoneyPanel({
           >
             {conf.insufficient || clcDecision.status === "INSUFFICIENT_EVIDENCE"
               ? "INSUFFICIENT EVIDENCE"
-              : `${conf.score}/100`}
+              : `${conf.bull} up · ${conf.bear} down of ${conf.measured}`}
           </span>
         </div>
-        {!conf.insufficient && conf.score != null && clcDecision.status === "READY_FOR_RISK_REVIEW" && (
-          <div className="h-2 rounded-full bg-wm-muted overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${conf.score}%`, background: `linear-gradient(90deg, ${scoreColor}, #4FA3E0)` }}
-            />
-          </div>
-        )}
+
         {/* Independent-lens breakdown — shows genuine agreement / conflict.
             Rendered even when INSUFFICIENT so the trader can see WHICH lenses
             abstained and WHY. */}
@@ -739,7 +730,7 @@ export function SmartMoneyPanel({
         </div>
         <div className="text-[9px] text-wm-text-dim mt-1">
           {conf.measured}/{conf.totalLenses} lenses measured
-          {` · ${conf.bull} bullish · ${conf.bear} bearish · ${conf.totalLenses - conf.measured} N/A on this feed`}
+          {` · ${conf.bull} up · ${conf.bear} down · ${conf.totalLenses - conf.measured} not measured on this feed`}
           {conf.insufficient && (
             <span className="ml-1 text-wm-text-muted">(need {conf.minRequired})</span>
           )}
@@ -859,7 +850,7 @@ export function SmartMoneyPanel({
                 className="text-[11px] font-black"
                 style={{ color: domSide === "buyers" ? "#00D4AA" : domSide === "sellers" ? "#F6465D" : "#F0B429" }}
               >
-                {domSide === "buyers" ? "🟢 Buyers winning" : domSide === "sellers" ? "🔴 Sellers winning" : "⚖️ Dead even — no winner yet"}
+                {domSide === "buyers" ? `▲ Buyers took ${buyPct}%` : domSide === "sellers" ? `▼ Sellers took ${sellPct}%` : `⚖ Balanced — neither side reached ${TAPE_SIDE_SHARE_PCT}%`}
               </span>
               <span
                 className="text-[10px] font-bold tabular-nums"
@@ -881,8 +872,8 @@ export function SmartMoneyPanel({
                 <AlertCircle size={11} className={divergence === "bearish" ? "text-wm-red shrink-0 mt-px" : "text-wm-green shrink-0 mt-px"} />
                 <span className="text-[9px] text-wm-text leading-tight">
                   {divergence === "bearish"
-                    ? "⚠️ Price is UP but sellers dominate the tape — price may be lying. Possible reversal down."
-                    : "⚠️ Price is DOWN but buyers dominate the tape — sellers exhausting. Possible reversal up."}
+                    ? `This candle is up while sellers took ${sellPct}% of aggressive volume. The tape and the candle disagree — an observation, not a forecast.`
+                    : `This candle is down while buyers took ${buyPct}% of aggressive volume. The tape and the candle disagree — an observation, not a forecast.`}
                 </span>
               </div>
             )}
@@ -902,9 +893,9 @@ export function SmartMoneyPanel({
         {showEdu && (
           <div className="mt-2 pt-2 border-t border-wm-border space-y-2">
             {[
-              { icon: "🥊", title: "Who's winning the tug-of-war?", body: "Every price is a fight. Buyers pull the rope up, sellers pull it down. Delta counts who pulled harder — the green side is winning right now." },
-              { icon: "🎭", title: "Why price can lie but delta doesn't", body: "Price can tick up on thin air while big sellers quietly unload. Delta shows the real muscle behind the move — when they disagree, trust the muscle." },
-              { icon: "🛡️", title: "Small losses, big winners", body: "Losing fighters surrender fast. Keep the stop tight (<1%). One clean win pays for several small tap-outs — that's how the edge compounds." },
+              { icon: "⚖", title: "What the bar measures", body: `Every aggressive trade either lifts the offer (a buyer) or hits the bid (a seller). The bar splits this window's aggressive volume between them; a side is named only when it takes ${TAPE_SIDE_SHARE_PCT}% or more. ${tapeSide.words}` },
+              { icon: "Δ", title: "Delta and the candle", body: "Delta is buy volume minus sell volume. It can agree with the candle's direction or disagree with it; a disagreement is something to look at, not a prediction of the next move." },
+              { icon: "ⓘ", title: "What this does not say", body: "It does not say who is trading, where price goes next, or where to place a stop. Those belong to your declared plan and its risk." },
             ].map((c) => (
               <div key={c.title} className="flex items-start gap-1.5">
                 <span className="text-[12px] leading-none mt-px">{c.icon}</span>
@@ -1066,7 +1057,7 @@ export function SmartMoneyPanel({
               );
             })}
             <div className="text-[9px] text-wm-text-dim mt-1 leading-tight">
-              Green = buyers dominate that level · red = sellers. Bigger bubble = more lopsided. Net buy−sell size per level, live from the tape.
+              Green = net buying at that level · red = net selling. Bigger bubble = more lopsided. Net buy−sell size per level, live from the tape.
               {/* The row label is the level's LOW EDGE on the tape's measured
                   price grid. When a level groups more than one tick it covers
                   a band, and printing one price for a band without saying so
@@ -1218,10 +1209,15 @@ export function SmartMoneyPanel({
         </div>
         <div className="space-y-1">
           {[
-            { text: `Context: ${isBull ? "Bullish above" : "Bearish below"} VWAP`, ok: hasPrice },
+            // Context is the price's place against VWAP — read from the VWAP,
+            // not from the lens-vote bias (which said "Bullish above VWAP" on a
+            // NEUTRAL vote whatever the price did).
+            { text: flow.vwap > 0 ? `Context: price ${livePrice >= flow.vwap ? "above" : "below"} VWAP` : "Context: VWAP not measured yet", ok: hasPrice && flow.vwap > 0 },
             { text: "Location: unavailable — no validated structure zone", ok: false },
             flow.hasFlow
-              ? { text: `Confirmation: Real ${deltaVal >= 0 ? "buying" : "selling"} on tape (Δ ${fmtDelta(deltaVal)})`, ok: true }
+              ? (domSide === "buyers" || domSide === "sellers"
+                  ? { text: `Confirmation: ${domSide === "buyers" ? "buyers" : "sellers"} lead the tape (Δ ${fmtDelta(deltaVal)})`, ok: true }
+                  : { text: `Confirmation: unresolved — balanced tape (Δ ${fmtDelta(deltaVal)})`, ok: false })
               : { text: `Confirmation: Awaiting tape — no aggressor side on this feed`, ok: false },
           ].map((row, i) => (
             <div key={i} className="flex items-center gap-1.5 text-[10px] text-wm-text">

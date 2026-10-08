@@ -27,6 +27,7 @@
 import type { ProfileId, ProfileMenuEntry } from "@/lib/marketData/viewModels/selectProfileMenu";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 import { hasNoCentralVolume } from "@/lib/chart/volumeTruth";
+import { indicatorEducationFor } from "@/lib/chart/indicatorEducation";
 
 /** The weakest thing the tool cannot draw without. */
 export type EvidenceNeed =
@@ -84,7 +85,7 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
     question: "Where did this session trade the most?",
     needs: "VOLUME", evidence: "Traded volume on the bars inside the chosen session window.",
     appears: "A histogram clipped to the session, with POC, VAH, VAL and high/low volume nodes.",
-    grammar: "Fat rows (HVN) are prices the session accepted; thin rows (LVN) are prices it passed through quickly and may move through again.",
+    grammar: "Fat rows (HVN) are prices the session accepted; thin rows (LVN) are prices it passed through quickly.",
     full: VP_FULL, partial: VP_PARTIAL, degraded: VP_DEGRADED,
     firstTouch: "This session's volume profile — fat rows accepted, thin rows rejected.",
     canon: "P-110 #6 Session Profile",
@@ -110,21 +111,21 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
     canon: "F06 · H-701A Absorption (effort high, displacement near zero)",
   },
   EXHAUSTION: {
-    question: "Is the push running out of fuel?",
+    question: "Is each step of this push moving price less for the volume it takes?",
     needs: "VOLUME", evidence: "Bar volume along a push, measured against how far each step moved price.",
     appears: "A mark at the push's extreme bar — where effort faded as price stretched.",
     grammar: "The mark sits where the last push failed to follow through. It is not a defended wall — exhaustion needs no defender, just fading fuel.",
     full: "Volume and sided prints measured along the whole push.",
     partial: "Bar volume only — an exhaustion candidate, labelled as such.",
     degraded: "No traded volume — no mark is drawn.",
-    firstTouch: "Exhaustion — the push spent its fuel here and failed to continue.",
+    firstTouch: "Exhaustion — effort faded along this push; the mark sits at its last extreme.",
     canon: "F06 · H-701A Exhaustion (aggression drying, no defender required)",
   },
   IMBALANCE_STACK: {
     question: "Did one side keep out-trading the other for several prices in a row?",
     needs: "SIDED_TAPE", evidence: "Sided prints at each price level.",
     appears: "A run of rungs on consecutive prices, with the stack's high and low.",
-    grammar: "Three or more rungs stacked is initiative — a zone that often acts as support (buy stack) or resistance (sell stack) when revisited.",
+    grammar: "Three or more rungs stacked is initiative — one side out-traded the other at consecutive prices. Whether price comes back to them is not implied.",
     full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
     firstTouch: "Stacked imbalance — one side out-traded the other at consecutive prices.",
     canon: "F06 Stacked Imbalance",
@@ -169,7 +170,7 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
     question: "How much size does it cost to move price here?",
     needs: "VOLUME", evidence: "Prints (or traded bars when no tape window) — volume per unit of price travel; side not needed.",
     appears: "A restrained tint on price as heat bands; candles stay readable through it.",
-    grammar: "Hot = dear: it takes a lot of size to move price (stalls are likely). Cool = cheap: price can travel fast through it.",
+    grammar: "Hot = dear: on these bars it took a lot of size to move price. Cool = cheap: price moved further for the size traded. It describes the bars, not what comes next.",
     full: "Measured from live prints.",
     partial: "Measured from the chart's traded bars because the tape window is short — coarser bands, labelled.",
     degraded: "No traded volume or too few traded bars — the lens says UNMEASURED instead of painting.",
@@ -208,10 +209,10 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
   TPO_PROFILE: {
     question: "How much TIME did the market spend at each price?",
     needs: "PRICE", evidence: "Bars alone — time and price, no volume needed.",
-    appears: "Letters on the left edge, one per period that traded at each price, with TPO POC, value and single prints.",
-    grammar: "Wide rows = time spent (acceptance). Single prints = prices the market rushed through — often revisited.",
+    appears: "Brass blocks against the price axis — one block per period that traded at each price — built over ALL loaded bars (not only the bars on screen), with TPO POC and value-area chips. Because it spans the whole history, its POC / VAL chips can sit far from the candles in view. No separate single-print mark is drawn.",
+    grammar: "Wide rows = more periods spent at that price (acceptance). One-block rows are prices the market passed through in a single period.",
     full: PRICE_FULL, partial: "Too few periods on screen — it says so instead of lettering a thin profile.", degraded: PRICE_DEGRADED,
-    firstTouch: "TPO — letters show how long the market spent at each price.",
+    firstTouch: "TPO — blocks show how many periods the market spent at each price.",
     canon: "P-110 #10 TPO / auction distribution",
   },
   STRUCTURE_PROFILE: {
@@ -249,7 +250,7 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
     question: "Where did earlier sessions find value — and has price been back?",
     needs: "VOLUME", evidence: "At least one completed prior session in the loaded bars.",
     appears: "Earlier sessions' POC and value carried forward as lines — naked until the market returns.",
-    grammar: "A naked POC (never revisited) often draws price back. Once touched, its biography records the test and the response.",
+    grammar: "A naked POC is one the market has not traded back to yet. Once touched, its biography records the test and the response.",
     full: "Completed prior sessions with traded volume.",
     partial: "Fewer prior sessions loaded — fewer memories, said plainly.",
     degraded: "A 24/7 feed with no session gap, or no volume — nothing to remember.",
@@ -296,10 +297,10 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
     canon: "P-110 #8 Fixed Range Profile (user-anchored)",
   },
   REGIME_LIGHTING: {
-    question: "Is this market trending or balancing — and which tools should I trust?",
+    question: "Is this market trending or balancing — and which fixtures does that light?",
     needs: "PRICE", evidence: "Closes of the bars in view.",
-    appears: "Lights the fitting fixtures: a trend channel in trend, mean/σ magnets in balance.",
-    grammar: "It is a dimmer, not a room — it changes which geometry speaks. In balance, trust the magnets; in trend, trust the channel.",
+    appears: "Lights the fitting fixtures: a trend channel in trend, mean/σ levels in balance. When the verdict is UNKNOWN (no regime breaker yet), both sets are lit.",
+    grammar: "It is a dimmer, not a room — it changes which geometry speaks: the channel in trend, the mean/σ levels in balance. UNKNOWN lights both, because neither regime is confirmed.",
     full: PRICE_FULL, partial: PRICE_PARTIAL, degraded: PRICE_DEGRADED,
     firstTouch: "Regime lighting — the regime decides which fixtures are lit.",
     canon: "F15 Regime · H-901",
@@ -349,7 +350,7 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
   EXPECTED_ENVELOPE: {
     question: "How far does this market usually travel from the open — and is today unusual?",
     needs: "PRICE", evidence: "Recent completed sessions.",
-    appears: "The typical reach above and below the open, with how many sessions went as far as today.",
+    appears: "A dotted envelope from the session open at the typical reach above and below it, drawn a few bars PAST the newest candle; the count of sessions that went as far as today sits beside it. The part right of the newest candle is the same reach carried forward, not a forecast path.",
     grammar: "Price at the envelope edge with few sessions reaching further = an unusual day. Inside = ordinary.",
     full: "Enough completed sessions to count.",
     partial: "Few sessions — counts shown, read with care.",
@@ -358,13 +359,13 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
     canon: "H-801 Expected Envelope + Analogue Surprise",
   },
   CONTRADICTION: {
-    question: "Do my tools disagree at this price?",
-    needs: "OTHER_LAYERS", evidence: "Two or more switched-on reading families.",
-    appears: "Where families disagree at price, both truths paint and the zone reads unresolved.",
-    grammar: "Unresolved means wait or reduce — the two cases are never averaged into one score.",
-    full: "Both families have full evidence.",
-    partial: "One side is a candidate — named in Inspect.",
-    degraded: "Fewer than two families on — nothing to contradict.",
+    question: "Do the market's own readings lean opposite ways at this price?",
+    needs: "PRICE", evidence: "The loaded bars. It asks four families itself — swing structure, defended zones, exhaustion (needs volume) and effort (needs sided tape). No other tool has to be switched on.",
+    appears: "When at least one family leans up and one leans down, a box over the price band reads UNRESOLVED with each lean drawn as an arrow. Agreement, or fewer than two leaning families, draws nothing.",
+    grammar: "Unresolved means the readings disagree at this price — both cases are shown, never averaged into one score.",
+    full: "All four families could be asked — volume and sided tape present.",
+    partial: "Without sided tape the effort family is silent; without volume, exhaustion is silent — each named in Inspect.",
+    degraded: "Fewer than two families lean — NOT ENOUGH, nothing is drawn.",
     firstTouch: "Contradiction — two readings disagree here; both shown, never averaged.",
     canon: "H-401 Contradiction Not Averaged",
   },
@@ -411,14 +412,14 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
     canon: "T-210 / F10 MTF ancestry (same camera)",
   },
   DERIVATIVES_PRESSURE: {
-    question: "Will dealer hedging damp moves here or speed them up?",
+    question: "Where does options positioning put the zero-gamma level and the walls for this underlying?",
     needs: "OPTIONS", evidence: "An options chain with open interest (Cboe delayed; BTC/ETH from Deribit public).",
     appears: "A pressure field, the zero-gamma front, walls with observed tests, and the implied expected move.",
-    grammar: "Above zero-gamma dealers tend to damp moves; below it they tend to amplify them. It is INFERRED from positioning, not observed orders.",
+    grammar: "Above zero-gamma the modelled dealer book is long gamma (its hedges lean against the move); below it, short gamma (its hedges go with the move). It is INFERRED from open interest, not observed orders.",
     full: "Fresh chain for this underlying.",
     partial: "Chain is delayed — positioning trails the market, said in the label.",
     degraded: "No chain for this market — unavailable on this feed.",
-    firstTouch: "Derivatives pressure — where dealer hedging is expected to damp or amplify moves.",
+    firstTouch: "Derivatives pressure — modelled dealer gamma from open interest; inferred, not observed orders.",
     canon: "Garden 15/16 Market Sense · Derivatives Pressure",
   },
   BRICK_WALLS: {
@@ -428,8 +429,8 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
     grammar: "More bricks = more open interest. Each crack is a test that held; a breach leaves a scar. Inferred positioning, not orders.",
     full: "Fresh chain and observed tests on this chart.",
     partial: "Chain delayed or mapped from an index (NDX/SPX onto NQ/ES) — labelled.",
-    degraded: "No chain for this market — no walls.",
-    firstTouch: "Brick wall — a strike dealers are positioned at; cracks are observed tests.",
+    degraded: "No chain for this market — no walls. While the chain loads it is silent (no chain yet); with a chain but no wall event at the current strikes it stays silent too.",
+    firstTouch: "Brick wall — a strike with large open interest (inferred positioning); cracks are observed tests.",
     canon: "Garden 16 §20 Brick Walls",
   },
 };
@@ -440,7 +441,7 @@ export const INSTRUMENT_EDUCATION: Readonly<Record<string, InventionEducation>> 
     question: "Which of the world's sessions is open right now?",
     needs: "PRICE", evidence: "The clock alone — no volume needed.",
     appears: "Asia, London and New York business hours on the time axis, the London/New York overlap marked.",
-    grammar: "Moves often start at a session open and the overlap is usually the most active stretch.",
+    grammar: "Each band is a session's business hours on the clock; the London / New York overlap is marked. It is a clock fact, not a reading of the market.",
     full: "Always full — a clock fact.", partial: "Not applicable — a clock fact.", degraded: "Not applicable — a clock fact.",
     firstTouch: "Session band — the trading session these bars belong to.",
     canon: "F10 One clock",
@@ -702,13 +703,21 @@ export type EducationKey = ProfileId | keyof typeof INSTRUMENT_EDUCATION | keyof
 /** The one lookup — a catalogue id, a Tool Finder instrument id, or a taught concept. */
 export function educationFor(id: string): InventionEducation | null {
   return (INVENTION_EDUCATION as Record<string, InventionEducation>)[id] ?? INSTRUMENT_EDUCATION[id]
-    ?? (CONCEPT_EDUCATION as Record<string, ConceptEducation>)[id] ?? null;
+    ?? (CONCEPT_EDUCATION as Record<string, ConceptEducation>)[id]
+    // Indicators-menu rows (`IND:<catalogue name>`, Sheriff P1-C).
+    ?? indicatorEducationFor(id) ?? null;
 }
 
 /** What "now" means on this chart, for the preview's truth block. */
 export interface EducationTruth {
   /** CAN DRAW · WAITING · UNAVAILABLE HERE — the headline word. */
-  readonly verdict: "CAN DRAW HERE" | "WAITING" | "UNAVAILABLE HERE" | "STATE NOT REPORTED";
+  readonly verdict:
+    | "CAN DRAW HERE" | "WAITING" | "UNAVAILABLE HERE" | "STATE NOT REPORTED"
+    // P3-K (Sheriff 2026-10-08): the header was "CAN DRAW HERE" for every READY
+    // row, even tools that need a drawn range, other layers or an options
+    // chain, and even above "feed is STALE". These name the real dependency.
+    | "NEEDS YOUR INPUT" | "NEEDS OTHER LAYERS" | "NEEDS AN OPTIONS CHAIN"
+    | "DRAWS FROM STALE DATA" | "NO LIVE FEED";
   /** The owner's sentence for THIS symbol, verbatim. */
   readonly lines: readonly string[];
 }
@@ -734,7 +743,7 @@ export function feedWords(state: MarketQualityState): string | null {
  * the feed's quality. Nothing here decides availability.
  */
 export function educationTruthLines(input: {
-  readonly entry?: Pick<ProfileMenuEntry, "availability" | "availabilityNote" | "stateWords"> | null;
+  readonly entry?: Pick<ProfileMenuEntry, "availability" | "availabilityNote" | "stateWords"> & Partial<Pick<ProfileMenuEntry, "id" | "gesture">> | null;
   readonly instrumentTruth?: { readonly ok: boolean; readonly waiting?: boolean; readonly sentence: string } | null;
   readonly feed?: MarketQualityState | "UNKNOWN" | null;
   /** For a row with no owner verdict: the tool id + symbol, so the market's own fact (no central volume) still speaks. */
@@ -766,11 +775,32 @@ export function educationTruthLines(input: {
     if (edu && noCentral && (edu.needs === "VOLUME" || edu.needs === "PRINTS" || edu.needs === "SIDED_TAPE")) {
       verdict = "UNAVAILABLE HERE";
       lines.push(`Needs traded volume — ${noCentral} trades over the counter and has no central volume.`);
+    } else if (edu && edu.needs === "PRICE") {
+      // Price is all it needs, and every chart has price: a fact, not a guess.
+      verdict = "CAN DRAW HERE";
+      lines.push("Built from the bars on this chart — price is all it needs.");
     } else {
       verdict = "STATE NOT REPORTED";
       lines.push("Its own readiness for this chart is shown on the chart once it is on.");
     }
   }
+  // The tool's real needs refine a READY verdict (P3-K): a menu READY means the
+  // bars are there, not that a chain loaded or that the trader drew a range.
+  const eduN = educationFor(input.id ?? e?.id ?? "");
+  if (verdict === "CAN DRAW HERE" && eduN) {
+    if (eduN.needs === "YOUR_PLAN" || e?.gesture === "DRAW") {
+      verdict = "NEEDS YOUR INPUT";
+      lines.push("It draws only once you place it on the chart.");
+    } else if (eduN.needs === "OTHER_LAYERS") {
+      verdict = "NEEDS OTHER LAYERS";
+      lines.push("It reads other switched-on tools and draws nothing on its own.");
+    } else if (eduN.needs === "OPTIONS") {
+      verdict = "NEEDS AN OPTIONS CHAIN";
+      lines.push("It draws only where an options chain loads for this symbol; the chart says when it does.");
+    }
+  }
+  if (verdict === "CAN DRAW HERE" && input.feed === "STALE") verdict = "DRAWS FROM STALE DATA";
+  if (verdict === "CAN DRAW HERE" && input.feed === "UNAVAILABLE") verdict = "NO LIVE FEED";
   const fw = input.feed && input.feed !== "UNKNOWN" && input.feed !== "LIVE" ? FEED_WORDS[input.feed] : undefined;
   if (fw) lines.push(fw);
   return { verdict, lines };

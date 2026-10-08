@@ -1120,7 +1120,10 @@ function ManagedConnectionStatus({
         host and a different protocol — and the only one of the two that can
         put a live print in front of the Founder.
       */}
-      <WebullRealTimeStrip autoStart={connected} />
+      {/* Sheriff P1-5 (2026-10-08): opening the drawer is a READ — it must not
+          open a socket. The real-time stream starts only from the strip's own
+          Start control (an explicit action). */}
+      <WebullRealTimeStrip />
       <p className="px-0.5 text-[9px] leading-snug text-wm-text-dim">
         This verifies WM Pro&apos;s server-side signed OpenAPI wire. Webull Connect OAuth—authorize, callback, token refresh,
         per-user vault, and disconnect—is not implemented yet. Signing into Webull&apos;s website is separate and does not connect this app.
