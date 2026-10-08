@@ -781,6 +781,10 @@ Production at the start: `02e593e`. This lane works on docs and release scripts 
 | ~21:50 | Review FVG answers + Personal Edge FVG study list (read-only proof scene `/journal?scene=journal-fixture`, sample data) | `bf5052b` | 6 Review rows through the real `StoryReviewRow` with FVG truth layers. Personal Edge reads "First touch · 17 decisions · INSUFFICIENT EVIDENCE — 17 of 20 with a recorded R". Nothing from the scene on the network (certificate §5 / §6a) | CLOSED (sample data). PARTIAL: save → reload on a real entry, never on the Founder's account |
 | ~21:50 | SpaidBot answer quoting the FVG fact block (authorised Sends by the lane) | `bf5052b` → `10d1324` | Fourth Send on `bf5052b`: headers 8.44 s, a real answer with [OBSERVED FACT] lines, source + as-of cited, no fill / probability / score words — but it ended mid-list (775 chars) with no finish reason. `10d1324` reads a final event without a trailing newline and closes with a `meta` frame (certificate §5 / §6a) | PARTIAL: a complete reply on `10d1324` |
 | — | Small-type pass live (WAIT badge, LEGACY, standing label ≥ 480 px, WM logo decorative) + overnight equity badges / deck capability read the quote-session owner | `bf5052b` | shipped. Fit was checked before the ship (row above) | PARTIAL: post-ship serving read |
+| 22:17:26 (`date`) | SpaidBot answer quoting the FVG fact block, complete | `14de5a0` (commit 22:11; LIVE time not provided — before `944ffd4` LIVE 22:20:35) | Sixth Send (authorised, by the FVG lane), NQ1! 5m, selected bearish gap. Headers 6.92 s, stream complete 8.58 s, relay meta `finishReason: STOP, chunks 34`. The answer says "price does not have to fill or respect this gap"; no must / will fill, probability or score. Cause of the earlier cut answers: the Workers request signal aborted the upstream mid-stream (fixed by `linkUntilHeaders`) (certificate §6a) | CLOSED (closes the `10d1324` PARTIAL) |
+| — | `944ffd4` (LIVE 22:20:35): scanner signal labels name what the ladder measures (no breakout / VWAP / Fib / supply / gap claims — answers the "↩ Gap Fill" finding); backtest strategy names match `signalAt`; Marketplace realm card says concept catalog; **SpaidBot panel above chart chrome** (answers the 390 z-order defect); legend short words keep the owner sentence | `944ffd4` | tests | PARTIAL: serving re-read of the scanner labels and the SpaidBot panel z-order at 390 |
+| — | `6151e7b` (LIVE 22:27:24): backtest results name the strategy they ran under (one name owner, "(renamed)" when the stamped label differs); SpaidBot plan-review context e2e (frozen plan as TRADER TRUTH, no emotion labels) | `6151e7b` | tests | PARTIAL: serving read of the backtest provenance line |
+| — | `6568fa3` (LIVE 22:39:49): SpaidBot first-byte resilience (main model 18 s, one labelled retry on the lighter model inside 30 s, waiting line after 5 s); F15 Breath Ribbon PROPOSED (default off); claims lens (settings, Academy SpaidBot lessons, command-deck banner, scanner "No trigger"); **Academy Replay link relabelled "Open on the chart — then press Replay"** (the chart has no URL Replay entry; Workspace → Replay) | `6568fa3` | `fvgCourse.test.ts` 28 / 28 (the replay-door guard fails if `proofScene.ts` gains a replay token) | PARTIAL: serving read of the Academy link label |
 
 **Timestamp audit (22:07 CDT; truth = shell `date` and commit times).** Lane receipts were written with times 30–60 min ahead of the clock. The FVG lane corrected its night file at 22:05:58 CDT. Rows above now use the corrected windows, checked against commit times:
 
@@ -819,6 +823,9 @@ This lane's own re-reads are bracketed by its vitest start (21:38:32) and `date`
 | `b40b611` | 21:56:08 |
 | `10d1324` | 22:00:15 |
 | `dae10dd` | 22:05:19 |
+| `944ffd4` | 22:20:35 |
+| `6151e7b` | 22:27:24 |
+| `6568fa3` | 22:39:49 |
 
 Checked against every timed read in this section and the day section:
 
@@ -860,5 +867,5 @@ Day-shift receipt files, by creation and modification time:
 - FVG accessibility at 390
 - Management sweep
 - Desk 4-up closed-market legend over the price axis at 1180 (TSLA / SPY "vs prior 5m bar") — chart lane
-- SpaidBot panel at 390: watchlist pill + D button paint over it — chart lane
+- SpaidBot panel at 390: watchlist pill + D button paint over it — `944ffd4` "SpaidBot panel above chart chrome"; not re-read
 - DAY BIAS strip off-screen at 390 (starts at x −26; overlaps the "D" button) — chart lane
