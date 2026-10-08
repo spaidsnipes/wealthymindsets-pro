@@ -43,6 +43,9 @@ describe("profile proof scene", () => {
     expect(html.match(/data-testid="profile-perf-tiles"/g) ?? []).toHaveLength(3);
     expect(html.match(/data-kind="INSUFFICIENT_EVIDENCE"/g) ?? []).toHaveLength(2);
     expect(html).toContain("no closed trades yet");
+    // The refusal reason is visible text (phone): 2 "No basis" in book A, 2 INSUFFICIENT in book B.
+    expect(html.match(/data-testid="profile-tile-reason"/g) ?? []).toHaveLength(4);
+    expect(html).toContain("7 of 20 closed trades so far");
   });
 
   it("writes nothing, fetches nothing; gated to a signed-in trader with the token; the profile shares the tile view", () => {

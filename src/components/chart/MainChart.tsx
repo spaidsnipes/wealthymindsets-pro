@@ -192,6 +192,10 @@ const KEEL_ATR_WAIT_FRAMES = 2;
 const KEEL_MIN_L = 3;
 /** Value Candle CoG reach past a narrow glass (ASK-6). */
 const VC_COG_EXT_NARROW = 3;
+/** A pressure wall shows at least this much body inside the pane, else it is an edge wall (ASK-15). */
+const WALL_EDGE_BODY_PX = 24;
+/** Footprint bid × ask cells narrower than this are not a readable grid (ASK-14). */
+const FP_CELL_MIN_COL = 6;
 /** Session Bands' empty lane rail ink: legible, never mistaken for the 0.42 session strip. */
 const SESSION_RAIL_INK = 0.26;
 /** The live countdown pill's height (the candle timer); FVG territory cuts round it. */
@@ -9982,6 +9986,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
         // Painted nothing → no claim about where the numbers stood.
         if (effectiveFP === ("__off__" as FootprintType) || fpBars === 0) delete dsFp.footprintBadges;
+        // ASK-14 (Sheriff uncovered-set run 2026-10-08, 390 fp:bid-ask: the
+        // receipt claimed 44 bars while the glass showed candles only — 4px
+        // columns under the candle outline). Cells under FP_CELL_MIN_COL px are
+        // not a readable grid: the glass SAYS so in the shared silence stack
+        // (folded into the one summary line on a phone), and the receipt names it.
+        if (effectiveFP === "bid-ask" && fpBars > 0 && colW < FP_CELL_MIN_COL) {
+          dsFp.footprintCells = `TOO_NARROW:COL${colW}`;
+          ctx.save();
+          ctx.font = marketFont("OBJECT_NAME");
+          ctx.fillStyle = "rgba(200,192,174,0.85)";
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          const yN = takeSilenceRow();
+          const wordsN = "FOOTPRINT · ROWS NEED A WIDER VIEW — ZOOM IN";
+          ctx.fillText(fitSilence(wordsN), silenceX, yN);
+          if (yN > 0) forceChips.push({ x: silenceX, y: yN - 7, w: ctx.measureText(wordsN).width, h: 14 });
+          ctx.restore();
+        } else delete dsFp.footprintCells;
       } catch (err) { layerFault("FOOTPRINT_RECEIPT", err); }
 
       /* ── CANON F13 · MICRO: PER-BAR DELTA ON THE SAME CAMERA ────────────
@@ -18548,9 +18569,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               for (const w of wallsOn ? dp.walls : []) {
                 const yc = yOfD(w.strike);
                 if (yc == null) continue;
-                if (yc < HEADER_FLOOR_Y + 6 || yc > paneBotD - 6) {
-                  offCamera.push(`${yc < HEADER_FLOOR_Y + 6 ? "▲" : "▼"} WALL ${fmtD(w.strike)} · ${w.life}`);
-                  offWalls.push({ strike: w.strike, share: Number.isFinite(w.share) ? w.share : 0, up: yc < HEADER_FLOOR_Y + 6 });
+                // ASK-15 (Sheriff uncovered-set run 2026-10-08: a wall whose strike
+                // sat just inside the pane edge kept only a sliver of masonry under
+                // the header clip — "a thin dark outline"). A wall that cannot show
+                // WALL_EDGE_BODY_PX of body inside the pane is an edge wall: the
+                // brick-stack mark carries it, never a sliver.
+                const edgeUp = yc < HEADER_FLOOR_Y + WALL_EDGE_BODY_PX;
+                if (edgeUp || yc > paneBotD - WALL_EDGE_BODY_PX) {
+                  offCamera.push(`${edgeUp ? "▲" : "▼"} WALL ${fmtD(w.strike)} · ${w.life}`);
+                  offWalls.push({ strike: w.strike, share: Number.isFinite(w.share) ? w.share : 0, up: edgeUp });
                   painted.push(`WALL@${w.strike}:${w.life}:OFF_CAMERA`);
                   continue;
                 }

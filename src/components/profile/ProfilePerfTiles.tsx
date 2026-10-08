@@ -34,6 +34,10 @@ export function ProfilePerfTiles({ stats }: { readonly stats: readonly PerfStat[
             style={s.kind === "MEASURED" ? { color: STAT_COLORS[s.label] } : undefined}
           >{s.value}</div>
           <div className="text-[11px] text-wm-text-dim uppercase tracking-wider">{s.label}</div>
+          {/* A refusal says WHY on the glass — a phone has no hover (title/aria stay for the full reason). */}
+          {s.kind !== "MEASURED" && s.short ? (
+            <div data-testid="profile-tile-reason" className="text-[11px] text-wm-text-dim max-w-[11rem] mx-auto leading-snug">{s.short}</div>
+          ) : null}
           {/* A measured zero says what it is a sum OF, on the glass and
               not only in the tooltip (empty states say why). */}
           {s.label === "Net P&L" && stats.find(x => x.label === "Trades")?.value === "0" ? (

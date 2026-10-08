@@ -46,7 +46,7 @@
  * PURE — no clock, no I/O, no localStorage, no React.
  */
 
-import { INSUFFICIENT, insufficientLine, isMeasured } from "@/lib/journal/statGuard";
+import { INSUFFICIENT, insufficientLine, isMeasured, STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
 
 export type PerfStatKind =
   /** A real computed number, including zero. */
@@ -63,6 +63,11 @@ export interface PerfStat {
   kind: PerfStatKind;
   /** WHY it reads the way it does. Carried on BOTH title and aria-label. */
   reason: string;
+  /**
+   * The reason in a few words, shown as VISIBLE text under a refused tile (UNDEFINED or
+   * INSUFFICIENT_EVIDENCE) — a phone has no hover. Absent on MEASURED tiles.
+   */
+  short?: string;
 }
 
 /** The only field these four numbers are allowed to read. */
@@ -115,6 +120,7 @@ export function traderPerformanceStats(
           label: "Win Rate",
           value: "No basis",
           kind: "UNDEFINED",
+          short: "no closed trades — no denominator",
           reason:
             "A win rate is wins divided by trades. With no closed trades there is no denominator, so this is undefined — it is NOT zero percent, and WM will not print a rate it cannot defend.",
         }
@@ -123,6 +129,7 @@ export function traderPerformanceStats(
           label: "Win Rate",
           value: INSUFFICIENT,
           kind: "INSUFFICIENT_EVIDENCE",
+          short: `${n} of ${STAT_SAMPLE_MIN} closed trades so far`,
           reason: `${winners.length} of ${n} closed ${n === 1 ? "trade" : "trades"} finished positive — ${insufficientLine(n)}, so no rate is printed.`,
         }
       : {
@@ -139,6 +146,7 @@ export function traderPerformanceStats(
       label: "Avg R:R",
       value: "No basis",
       kind: "UNDEFINED",
+      short: losers.length === 0 && winners.length === 0 ? "needs a win and a loss" : losers.length === 0 ? "no losing trade to divide by" : "no winning trade yet",
       reason:
         losers.length === 0 && winners.length === 0
           ? "An average reward-to-risk needs at least one win and at least one loss. There are neither, so this is undefined — not zero and not infinite."
@@ -151,6 +159,7 @@ export function traderPerformanceStats(
       label: "Avg R:R",
       value: INSUFFICIENT,
       kind: "INSUFFICIENT_EVIDENCE",
+      short: `${n} of ${STAT_SAMPLE_MIN} closed trades so far`,
       reason: `${winners.length} winners and ${losers.length} losers — ${insufficientLine(n)}, so no ratio is printed.`,
     };
   } else {

@@ -125,3 +125,17 @@ describe("ASK-16 (2026-10-08): the selected print's event line goes through its 
     expect(CHART).toContain("const ex = discX != null && Number.isFinite(discX) ? discX : +xe, ey = +yp, up = pr.dir > 0;");
   });
 });
+
+describe("ASK-15 (2026-10-08): no pressure wall shows as a sliver at the pane edge", () => {
+  it("a wall without WALL_EDGE_BODY_PX of body inside the pane goes to the edge brick stack", () => {
+    expect(CHART).toContain("const WALL_EDGE_BODY_PX = 24;");
+    expect(CHART).toContain("const edgeUp = yc < HEADER_FLOOR_Y + WALL_EDGE_BODY_PX;");
+  });
+});
+
+describe("ASK-14 (2026-10-08): footprint cells too narrow to read are said, not implied", () => {
+  it("the receipt and the silence stack name it", () => {
+    expect(CHART).toContain("dsFp.footprintCells = `TOO_NARROW:COL${colW}`;");
+    expect(CHART).toContain('const wordsN = "FOOTPRINT · ROWS NEED A WIDER VIEW — ZOOM IN";');
+  });
+});

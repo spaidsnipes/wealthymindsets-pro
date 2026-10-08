@@ -118,5 +118,16 @@ describe("a sentinel substituted for a missing denominator is a fabrication", ()
     expect(PAGE_CODE).toContain("<ProfilePerfTiles stats={stats} />");
     expect(TILES).toContain("title={s.reason}");
     expect(TILES).toContain("aria-label={`${s.label}: ${s.value}. ${s.reason}`}");
+    // …and SEEN on a phone (no hover there): every refused tile carries a short visible reason.
+    expect(TILES).toContain('{s.kind !== "MEASURED" && s.short ? (');
+    for (const rows of [[], [t(100)], [t(-100)], [t(100), t(-50)], [t(300), t(500), t(-200), t(-200)]]) {
+      for (const s of traderPerformanceStats(rows)) {
+        if (s.kind === "MEASURED") expect(s.short).toBeUndefined();
+        else expect(s.short && s.short.length, `${s.label} ${s.kind}`).toBeGreaterThan(8);
+      }
+    }
+    expect(by([t(300), t(500), t(-200), t(-200)], "Win Rate").short).toBe("4 of 20 closed trades so far");
+    expect(by([], "Win Rate").short).toBe("no closed trades — no denominator");
+    expect(by([t(300)], "Avg R:R").short).toBe("no losing trade to divide by");
   });
 });
