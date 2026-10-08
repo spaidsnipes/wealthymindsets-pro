@@ -35,6 +35,17 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
     expect(journalFixture()).toBe(a);
   });
 
+  it("every sample decision carries a synthetic plan frozen at a sample send; 20 + 4 split → MEASURED + INSUFFICIENT; findings vary", () => {
+    const a = journalFixture();
+    expect(a.entries.every(e => e.plan.frozenAt === "TICKET_SEND" && e.plan.base.decisionId.startsWith("SAMPLE-DEC-") && e.plan.frozenAtMs < e.entryAtMs)).toBe(true);
+    expect(a.entries.filter(e => e.plan.amendments.length).length).toBe(6);
+    expect(a.entries.filter(e => e.plan.amendments.every(x => x.newEvidence?.startsWith("sample:"))).length).toBe(24);
+    expect(a.adherence.map(r => [r.setup, r.sample, r.state])).toEqual([["SAMPLE gap reclaim", 20, "MEASURED"], ["SAMPLE gap fade", 4, "INSUFFICIENT EVIDENCE"]]);
+    const ids = new Set(Object.values(a.planResults).flatMap(r => r.findings.map(f => f.id)));
+    for (const id of ["PLAN_FOLLOWED", "EXITED_BEFORE_PLANNED_CONDITION", "EXITED_AFTER_THESIS_INVALIDATION", "HELD_THROUGH_INVALIDATION", "MOVED_STOP_WITHOUT_PLAN_BASIS", "PLAN_CHANGED_WITH_DOCUMENTED_NEW_EVIDENCE"]) expect(ids.has(id as never), id).toBe(true);
+    expect(Object.values(a.planResults).every(r => r.emotionalReason === "unknown")).toBe(true);
+  });
+
   it("rendering the scene makes ZERO storage writes and ZERO network calls; the banner is on screen", async () => {
     const setItem = vi.fn();
     const fetchSpy = vi.fn();
@@ -50,6 +61,20 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
       expect(html).toContain('data-testid="journal-proof-academy"');
       expect(html).toContain('data-testid="fvg-example-link"');
       expect(html).not.toContain('data-testid="plan-fvg-load"');
+      // Management: the three columns, the deviation lines and the plan-alone line on every shown
+      // decision; adherence by setup with one MEASURED and one INSUFFICIENT row; no plan card, no
+      // price-path loader, no delete — read only.
+      expect(html.match(/data-testid="plan-sheriff-market"/g)?.length).toBe(6);
+      expect(html).toContain('data-testid="plan-sheriff-planned"');
+      expect(html).toContain('data-testid="plan-sheriff-actual"');
+      expect(html).toContain('data-testid="plan-deviations"');
+      expect(html).toContain('data-testid="plan-alone"');
+      expect(html).toMatch(/data-testid="plan-adherence-by-setup"/);
+      expect(html).toMatch(/data-state="MEASURED"[^>]*>\s*<b[^>]*>SAMPLE gap reclaim<\/b>/);
+      expect(html).toMatch(/data-state="INSUFFICIENT EVIDENCE"[^>]*>\s*<b[^>]*>SAMPLE gap fade<\/b>/);
+      expect(html).not.toContain('data-testid="plan-card"');
+      expect(html).not.toContain('data-testid="plan-path-load"');
+      expect(html).not.toContain('data-testid="plan-erase"');
       expect(html).not.toContain('data-testid="review-ask-spaidbot"');
       expect(setItem).not.toHaveBeenCalled();
       expect(fetchSpy).not.toHaveBeenCalled();

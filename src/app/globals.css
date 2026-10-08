@@ -222,13 +222,15 @@
     left: 36px;
     /* Clear of the price axis column (serving 390, b40b6113: "BALANCE" ran onto
        the axis labels at right: 8px). It wraps to a second line instead. */
-    right: 72px;
+    /* Re-read on dae10dd (390): the axis column starts at x 312 and the box
+       ended at 314 — 84 px clears an ~80 px axis with air. */
+    right: 84px;
     transform: none;
     flex-wrap: wrap;
     row-gap: 2px;
     white-space: normal;
     width: auto;
-    max-width: calc(100% - 108px);
+    max-width: calc(100% - 120px);
   }
 }
 .wm-chart-market-standing [data-standing-direction="BULL"] { color: #00d4aa; }
@@ -2046,3 +2048,9 @@ input[type=range]::-webkit-slider-runnable-track {
      chip alone carries it (its own title + aria); the duplicate steps out. */
   .wm-legend-live-dup { display: none !important; }
 }
+
+/* SpaidBot's panel stands ABOVE the chart's own chrome (cert lane, serving 390,
+   2026-10-07 night: the "· 16 symbols" evidence chip (z 57) and the D button
+   painted over the panel's welcome text — the panel was z 50). Chart chrome
+   tops out at the Inspect ticket (z 75); the panel sits above it. */
+.wm-spaidbot-panel { z-index: 120 !important; }

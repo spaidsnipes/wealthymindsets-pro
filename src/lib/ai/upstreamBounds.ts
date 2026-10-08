@@ -31,6 +31,24 @@ export class UpstreamTimeout extends Error {
   }
 }
 
+/**
+ * The client's abort reaches the upstream ONLY until the model's headers
+ * arrive (serving 05670f2 → 10d1324: four answers ended mid-sentence with no
+ * finish reason, 1–3 s after the first byte — the shape of the request's own
+ * signal firing once the route had handed its Response back, which aborted the
+ * upstream body and read as a clean end). After the headers, a trader who
+ * leaves is seen by the relay's `cancel()` (the response stream), which aborts
+ * the upstream itself — so nothing is lost by letting go of the request signal.
+ */
+export function linkUntilHeaders(clientSignal?: AbortSignal | null): { readonly controller: AbortController; release(): void } {
+  const controller = new AbortController();
+  if (!clientSignal) return { controller, release: () => {} };
+  if (clientSignal.aborted) { controller.abort(clientSignal.reason); return { controller, release: () => {} }; }
+  const onAbort = () => controller.abort(clientSignal.reason);
+  clientSignal.addEventListener("abort", onAbort, { once: true });
+  return { controller, release: () => clientSignal.removeEventListener("abort", onAbort) };
+}
+
 /** An AbortController that also aborts when `parent` does. */
 export function linkedController(parent?: AbortSignal | null): AbortController {
   const c = new AbortController();
@@ -113,6 +131,8 @@ export interface RelayMeta {
   readonly candidatesTokens: number | null;
   /** True when the upstream closed without ever sending a finish reason. */
   readonly endedWithoutFinish: boolean;
+  /** True when OUR controller had aborted the upstream before it ended (a cut of ours, not the model's). */
+  readonly upstreamAborted: boolean;
 }
 
 /**
@@ -175,7 +195,11 @@ export function relayModelStream(
         buf += decoder.decode();
         if (buf.trim()) handle(buf);
         if (meta.blockReason) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: answerStoppedNote(meta.blockReason) })}\n\n`));
-        const receipt: RelayMeta = { ...meta, endedWithoutFinish: meta.finishReason === null };
+        const receipt: RelayMeta = { ...meta, endedWithoutFinish: meta.finishReason === null, upstreamAborted: upstreamCtl.signal.aborted };
+        // A stream WE cut must never read as a finished answer.
+        if (receipt.upstreamAborted && receipt.endedWithoutFinish) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: answerStoppedNote("CUT_BY_SERVER") })}\n\n`));
+        }
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ meta: receipt })}\n\n`));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();

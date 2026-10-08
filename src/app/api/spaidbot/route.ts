@@ -11,7 +11,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { edgeAllows, tooManyRequests, SPAIDBOT_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { formatChartContextNote, type ChartContextInput } from "@/lib/marketData/formatChartContextNote";
 import { forgetGeminiModel, geminiGenerationConfig, resolveGeminiModel } from "@/lib/ai/geminiModel";
-import { MODEL_DID_NOT_ANSWER, UpstreamTimeout, fetchWithFirstByteTimeout, linkedController, relayModelStream } from "@/lib/ai/upstreamBounds";
+import { MODEL_DID_NOT_ANSWER, UpstreamTimeout, fetchWithFirstByteTimeout, linkUntilHeaders, relayModelStream } from "@/lib/ai/upstreamBounds";
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
 const streamUrl  = (model: string) =>
@@ -152,12 +152,21 @@ export async function POST(req: NextRequest) {
     // trader's request goes away, its headers must arrive within 30 s, and the
     // relay below ends a stream silent for 45 s. No total cap — a healthy long
     // answer is never cut.
-    let upstreamCtl = linkedController(req.signal);
+    // The request's own signal is linked only while we wait for the headers
+    // (linkUntilHeaders): on the Workers runtime it fired after the Response was
+    // handed back and cut answers mid-sentence. After that, the relay's cancel()
+    // is the "trader left" bound.
+    let upstreamCtl = new AbortController();
     const ask = async () => {
       const model = await resolveGeminiModel(GEMINI_KEY);
       if (!model) return null;
-      upstreamCtl = linkedController(req.signal);
-      return fetchWithFirstByteTimeout(fetch, streamUrl(model), { method: "POST", headers: { "Content-Type": "application/json" }, body: payloadFor(model) }, upstreamCtl);
+      const link = linkUntilHeaders(req.signal);
+      upstreamCtl = link.controller;
+      try {
+        return await fetchWithFirstByteTimeout(fetch, streamUrl(model), { method: "POST", headers: { "Content-Type": "application/json" }, body: payloadFor(model) }, upstreamCtl);
+      } finally {
+        link.release();
+      }
     };
     let geminiRes: Response | null;
     try {

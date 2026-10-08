@@ -341,6 +341,7 @@ import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
 import { candleCountdownUsesPillShell } from "@/lib/chart/candleCountdownMaterial";
 import { chartFeedRecency, thinSessionRecency } from "@/lib/chart/chartFeedRecency";
+import { legendShortWords } from "@/lib/chart/legendShortWords";
 import { readMarketSession } from "@/lib/marketData/marketSessionClock";
 import { bindPriceLegendInset } from "@/lib/chart/priceLegendAxisClearance";
 import { yahooQuoteRefusal } from "@/lib/marketData/yahooQuoteObserved";
@@ -27454,7 +27455,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 }`}
                 aria-label={`${symbol} ${headerPriceFact.text}. ${headerPriceFact.reason}`}
               >
-                {headerPriceFact.text}
+                {/* The owner's sentence always renders; a narrow legend band shows the short form. */}
+                <span className={legendShortWords(headerPriceFact.text) !== headerPriceFact.text ? "wm-legend-words-full" : undefined}>{headerPriceFact.text}</span>
+                {legendShortWords(headerPriceFact.text) !== headerPriceFact.text && (
+                  <span className="wm-legend-words-short" aria-hidden="true">{legendShortWords(headerPriceFact.text)}</span>
+                )}
               </span>
             );
           })()}
@@ -27495,7 +27500,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             title={headerChangeFact.reason}
             aria-label={`${symbol} change: ${headerChangeFact.text}. ${headerChangeFact.reason}`}
           >
-            {headerChangeFact.text}
+            <span className={legendShortWords(headerChangeFact.text) !== headerChangeFact.text ? "wm-legend-words-full" : undefined}>{headerChangeFact.text}</span>
+            {legendShortWords(headerChangeFact.text) !== headerChangeFact.text && (
+              <span className="wm-legend-words-short" aria-hidden="true">{legendShortWords(headerChangeFact.text)}</span>
+            )}
           </span>
           )}
           {showFidelityChrome ? (() => {

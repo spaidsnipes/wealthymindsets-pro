@@ -106,8 +106,11 @@ describe("(a) client gone → upstream aborted", () => {
 
 describe("the route is wired to the bounds", () => {
   const route = readFileSync(path.resolve(__dirname, "../../app/api/spaidbot/route.ts"), "utf8");
-  it("links the upstream to req.signal, bounds first byte, relays under the idle bound, answers 504 by name", () => {
-    expect(route).toContain("upstreamCtl = linkedController(req.signal);");
+  it("links the upstream to req.signal until the headers (then the relay's cancel bounds it), bounds first byte, relays under the idle bound, answers 504 by name", () => {
+    // 2026-10-07: linked only until the headers arrive — the request signal fired after the
+    // Response was handed back on Workers and cut answers mid-sentence (linkUntilHeaders).
+    expect(route).toContain("const link = linkUntilHeaders(req.signal);");
+    expect(route).toContain("upstreamCtl = link.controller;");
     expect(route).toContain("fetchWithFirstByteTimeout(fetch, streamUrl(model)");
     expect(route).toContain("relayModelStream(geminiRes, upstreamCtl)");
     expect(route).toContain("status: 504");

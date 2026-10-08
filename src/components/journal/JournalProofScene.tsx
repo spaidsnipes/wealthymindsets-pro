@@ -34,7 +34,7 @@ export function JournalProofScene(): React.ReactElement {
         style={{ borderColor: GOLD, color: GOLD, background: "rgba(212,175,55,0.08)" }}>
         {JOURNAL_FIXTURE_BANNER}
         <span className="block text-[11px] font-normal tracking-normal text-wm-text-muted">
-          A synthetic instrument (SAMPLE-FVG, 5m) and {f.entries.length} synthetic decisions, built in the page from the same FVG engine.
+          A synthetic instrument (SAMPLE-FVG, 5m) and {f.entries.length} synthetic decisions, each with a synthetic frozen plan, built in the page from the same FVG engine and plan owners.
           Nothing here is saved, fetched or sent — leave the page (or drop <code>?scene=journal-fixture</code>) to return to your journal.
         </span>
       </div>
@@ -43,17 +43,20 @@ export function JournalProofScene(): React.ReactElement {
         <h2 className="text-sm font-bold text-wm-text">Review · FVG answers (sample decisions)</h2>
         {shown.map(e => (
           <div key={e.id} id={e.id} className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">
-            <div className="text-[11px] text-wm-text">{e.id} · {e.symbol} · {e.date} · {e.result} {e.realizedR >= 0 ? "+" : ""}{e.realizedR}R</div>
+            <div className="text-[11px] text-wm-text">{e.id} · {e.setup} · {e.symbol} · {e.date} · {e.result} {e.realizedR >= 0 ? "+" : ""}{e.realizedR}R</div>
             <div className="text-[10px] text-wm-text-muted mt-0.5">{fvgReferenceSentence(e.fvgRef)}</div>
+            {/* The frozen sample plan + sample fills + sample path → the three columns, the management
+                findings and the plan-alone line. No planDecisionId / planSymbol: no plan card (no amend /
+                delete) and no price-path loader — read only. */}
             <StoryReviewRow storyKey={`proof-scene:${e.id}`} fvg={f.review[e.id] ?? null} fvgRef={e.fvgRef}
-              planAbsent="Sample decision — no plan was frozen." readOnly defaultOpen />
+              plan={{ plan: e.plan, actuals: e.actuals, path: e.path }} readOnly defaultOpen />
           </div>
         ))}
       </section>
 
       <section aria-label="Personal Edge — FVG (sample)" data-testid="journal-proof-edge" className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">
-        <h2 className="text-sm font-bold text-wm-text mb-2">Personal Edge · FVG study list and traded vs untraded touches (sample)</h2>
-        <PlanAdherenceView rows={[]} fvgRows={f.studyRows} edge={f.counterfactual} edgeNote="Read from the sample ledger in this page — nothing was fetched." showEdge onCompare={() => {}} />
+        <h2 className="text-sm font-bold text-wm-text mb-2">Personal Edge · plan adherence by setup, FVG study list, traded vs untraded touches (sample)</h2>
+        <PlanAdherenceView rows={f.adherence} fvgRows={f.studyRows} edge={f.counterfactual} edgeNote="Read from the sample ledger in this page — nothing was fetched." showEdge onCompare={() => {}} />
       </section>
 
       <section aria-label="Academy — my examples (sample)" data-testid="journal-proof-academy" className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">

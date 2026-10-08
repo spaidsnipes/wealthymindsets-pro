@@ -139,7 +139,11 @@ const SIGNAL_META: Record<Signal, { label: string; color: string; icon: string }
   "volume-surge":   { label:"Volume Surge",      color:"#F0B429", icon:"⚡" },
   "dark-pool":      { label:"Dark Pool Print",   color:"#8B5CF6", icon:"🌑" },
   "vwap-reclaim":   { label:"VWAP Reclaim",      color:"#00D4AA", icon:"🎯" },
-  "gap-fill":       { label:"Gap Fill",          color:"#F0B429", icon:"↩" },
+  // Night shift 2026-10-07 (cert lane): "Gap Fill" sat beside the FVG strip
+  // and promised a fill. The ladder (scannerSignalEvidence.ts) reaches this key
+  // by FALL-THROUGH — no other condition matched; no gap is measured at all —
+  // so the honest words are a range with no trigger. The key stays (filters).
+  "gap-fill":       { label:"Range · no trigger", color:"#F0B429", icon:"↩" },
   "wyckoff-accum":  { label:"Wyckoff Accum.",    color:"#00D4AA", icon:"⚖" },
   "wyckoff-dist":   { label:"Wyckoff Dist.",     color:"#FF4D6A", icon:"⚖" },
   "cvd-div-bull":   { label:"CVD Divergence ↑",  color:"#4FA3E0", icon:"〰" },

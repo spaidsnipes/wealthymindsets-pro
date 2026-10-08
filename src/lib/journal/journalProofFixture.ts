@@ -12,7 +12,12 @@
  *   · the ONE engine (detectFvgs) finds the gaps; decisions are taken at the
  *     first bar of chosen interactions; each reference is read through the one
  *     as-of accessor (fvgReferenceAtDecision);
- *   · ids are prefixed "SAMPLE-" and R values are synthetic (a fixed cycle).
+ *   · ids are prefixed "SAMPLE-"; each decision carries a synthetic plan frozen at a
+ *     sample ticket's send (stop beyond the gap's far edge, standing in as the invalidation,
+ *     target 2R, breakeven after +1R, 30-minute time stop), every fourth amended
+ *     with new evidence, every fifth with a stop moved to breakeven; exits and R
+ *     are read off the same sample bars. 20 decisions are setup "SAMPLE gap
+ *     reclaim" (n = 20 → MEASURED), 4 are "SAMPLE gap fade" (INSUFFICIENT).
  *
  * PURE. DETERMINISTIC. Builds nothing on disk, writes nothing, fetches nothing.
  */
@@ -24,6 +29,10 @@ import { fvgContextFromLedger, fvgReviewAnswersAt, type FvgReviewAnswers } from 
 import { compareFvgTakenVsUntaken, type FvgEdgeComparison } from "@/lib/journal/planFvgCounterfactual";
 import { fvgStudyList, type FvgStudyRow } from "@/lib/journal/planFvgStudy";
 import { fvgReferencedExamples, type FvgJournalExample } from "@/lib/academy/fvgCourse";
+import { amendPlan, freezePlanSnapshot, type ManagementPlanSnapshot } from "@/lib/journal/managementPlan";
+import type { PricePath, TradeActuals, PlanVsActualResult } from "@/lib/journal/planVsActual";
+import { composePlanReview } from "@/lib/journal/planReview";
+import { planAdherenceBySetup, type SetupAdherence } from "@/lib/journal/planAdherence";
 
 export const JOURNAL_FIXTURE_SYMBOL = "SAMPLE-FVG";
 export const JOURNAL_FIXTURE_TF = "5m";
@@ -32,10 +41,17 @@ export const JOURNAL_FIXTURE_BANNER = "PROOF SCENE — sample data, not your jou
 const N = 2400;
 const MIN5 = 5 * 60_000;
 const T0 = Date.UTC(2026, 0, 5, 14, 30, 0);
-const R_CYCLE = [1.2, -1, 0.6, -0.4, 2.1, -1, 0.3, -0.8, 1.5, -1];
+
+/** Two synthetic setups: one reaches n ≥ 20 decided (MEASURED), one stays below (INSUFFICIENT EVIDENCE). */
+export const JOURNAL_FIXTURE_SETUPS = ["SAMPLE gap reclaim", "SAMPLE gap fade"] as const;
 
 export interface JournalFixtureEntry {
   readonly id: string;
+  readonly setup: string;
+  /** The plan frozen at the (sample) ticket's send, with any dated amendments. */
+  readonly plan: ManagementPlanSnapshot;
+  readonly actuals: TradeActuals;
+  readonly path: PricePath;
   readonly symbol: string;
   readonly date: string;
   readonly result: "win" | "loss" | "be";
@@ -53,6 +69,10 @@ export interface JournalFixture {
   readonly counterfactual: FvgEdgeComparison;
   readonly studyRows: readonly FvgStudyRow[];
   readonly examples: readonly FvgJournalExample[];
+  /** Plan vs actual per entry (the Review's three columns, findings and plan-alone line). */
+  readonly planResults: Readonly<Record<string, PlanVsActualResult>>;
+  /** Personal Edge adherence by setup. */
+  readonly adherence: readonly SetupAdherence[];
 }
 
 function bars(): CanonicalBar[] {
@@ -96,16 +116,62 @@ export function journalFixture(): JournalFixture {
     const decisionAtMs = ep.startAt;
     const ref = fvgReferenceAtDecision({ objectId: o.objectId, decisionAtMs, bars: b });
     if (!ref.ok) continue;
-    const r = R_CYCLE[entries.length % R_CYCLE.length];
+    const i = entries.length;
+    // A synthetic plan on the gap: long a bullish gap / short a bearish one; stop beyond the far edge,
+    // invalidation at the far edge, target 2R; management: breakeven after +1R, a 30-minute time stop.
+    const dir = o.direction === "BULLISH" ? 1 : -1;
+    const at = (t: number) => b.find(x => x.asOf <= t && t < x.asOf + MIN5) ?? b[b.length - 1];
+    const entryPx = at(decisionAtMs).close;
+    const far = dir === 1 ? o.bottom : o.top;   // the stop sits beyond the far edge; the plan names no separate invalidation
+    const stopPx = +(far - dir * 0.3).toFixed(2);
+    const risk = Math.abs(entryPx - stopPx) || 0.3;
+    const targetPx = +(entryPx + dir * 2 * risk).toFixed(2);
+    const frozenAt = decisionAtMs - 60_000;
+    const base = freezePlanSnapshot({
+      decisionId: `SAMPLE-DEC-${i + 1}`, frozenAt: "TICKET_SEND", atMs: frozenAt, source: "sample ticket at send",
+      plan: { symbol: JOURNAL_FIXTURE_SYMBOL, direction: dir === 1 ? "LONG" : "SHORT", entryPx, stopPx, targetPx,
+        thesis: "sample: price returns to the gap and holds it", conditions: ["move to breakeven after +1R", "time stop 30 min"], expectedHoldMin: 30, session: "sample session" },
+    })!;
+    // Every fourth decision is amended mid-trade with new evidence (a tighter target).
+    const amended = i % 4 === 3 ? amendPlan(base, { atMs: decisionAtMs + 2 * MIN5, targetPx: +(entryPx + dir * 1.2 * risk).toFixed(2), newEvidence: "sample: momentum faded on the second bar", note: null }) : null;
+    const plan = amended && amended.ok ? amended.snapshot : base;
+    // The sample trader's exit: the stop or the target if a bar reaches it first, else a planned exit
+    // bar that varies (some before the 30-minute time stop — early exits — some at it). Every seventh
+    // ignores the stop (held through), every fifth moves the stop to breakeven after two bars.
+    const startAt = b.findIndex(x => x.asOf + MIN5 > decisionAtMs);
+    const planned = 2 + (i % 6) * 2;
+    let exitAtMs = b[Math.min(b.length - 1, startAt + planned)].asOf + 60_000;
+    let exitPx = b[Math.min(b.length - 1, startAt + planned)].close;
+    for (let j = startAt + 1; j <= startAt + planned && j < b.length; j++) {
+      const x = b[j];
+      const hitStop = dir === 1 ? x.low <= stopPx : x.high >= stopPx;
+      const hitTarget = dir === 1 ? x.high >= targetPx : x.low <= targetPx;
+      if (hitStop && i % 7 !== 6) { exitAtMs = x.asOf + 60_000; exitPx = stopPx; break; }
+      if (hitTarget) { exitAtMs = x.asOf + 60_000; exitPx = targetPx; break; }
+    }
+    const actuals: TradeActuals = {
+      direction: dir === 1 ? "LONG" : "SHORT",
+      entry: { atMs: decisionAtMs, px: entryPx, qty: 1 },
+      adds: [],
+      exits: [{ atMs: exitAtMs, px: exitPx, qty: 1 }],
+      stopMoves: i % 5 === 1 ? [{ atMs: decisionAtMs + 2 * MIN5, fromPx: stopPx, toPx: entryPx }] : [],
+      targetMoves: [],
+      source: "sample fills (proof scene)",
+    };
+    const startIdx = b.findIndex(x => x.asOf + MIN5 > decisionAtMs);
+    const path: PricePath = { barMs: MIN5, source: "sample 5m bars (proof scene)", bars: b.slice(Math.max(0, startIdx), startIdx + 48).map(x => ({ t: x.asOf, h: x.high, l: x.low, c: x.close })) };
+    const r = +((dir * (exitPx - entryPx)) / risk).toFixed(2);
     entries.push({
-      id: `SAMPLE-${entries.length + 1}`,
+      id: `SAMPLE-${i + 1}`,
+      setup: JOURNAL_FIXTURE_SETUPS[i < 20 ? 0 : 1],
+      plan, actuals, path,
       symbol: JOURNAL_FIXTURE_SYMBOL,
       date: day(decisionAtMs),
       result: r > 0 ? "win" : r < 0 ? "loss" : "be",
       realizedR: r,
       fvgRef: ref.ref,
       entryAtMs: decisionAtMs,
-      exitAtMs: decisionAtMs + 6 * MIN5,
+      exitAtMs,
     });
   }
   const review: Record<string, FvgReviewAnswers> = {};
@@ -117,9 +183,12 @@ export function journalFixture(): JournalFixture {
     objectId: e.fvgRef.objectId, interaction: e.fvgRef.snapshot.interaction, interactionsSoFar: e.fvgRef.snapshot.interactionsSoFar,
     decisionAtMs: e.fvgRef.decisionAtMs, realizedR: e.realizedR, followedPlan: null,
   })));
-  const studyRows = fvgStudyList(entries.map(e => ({ ref: e.fvgRef, result: null, realizedR: e.realizedR })));
+  const planResults: Record<string, PlanVsActualResult> = {};
+  for (const e of entries) planResults[e.id] = composePlanReview({ plan: e.plan, actuals: e.actuals, path: e.path }).result;
+  const adherence = planAdherenceBySetup(entries.map(e => ({ setup: e.setup, result: planResults[e.id] })));
+  const studyRows = fvgStudyList(entries.map(e => ({ ref: e.fvgRef, result: planResults[e.id], realizedR: e.realizedR })));
   const examples = fvgReferencedExamples(entries.map(e => ({ id: e.id, symbol: e.symbol, date: e.date, result: e.result, realizedR: e.realizedR, fvgRef: e.fvgRef })))
     .map(x => ({ ...x, href: `/journal?scene=journal-fixture#${x.id}` }));
-  cached = { ledger, entries, review, counterfactual, studyRows, examples };
+  cached = { ledger, entries, review, counterfactual, studyRows, examples, planResults, adherence };
   return cached;
 }
