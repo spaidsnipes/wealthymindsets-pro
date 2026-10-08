@@ -58,7 +58,7 @@ const ASKS_OTHERWISE: Partial<Record<DepthLayer, string>> = {
  */
 // fvg / fvgMemory (Garden 19 FVG lane D, 2026-10-07): territory paints no words
 // at all (fvgGlass.sentinel forbids fillText in its block) — QUIET caps alpha only.
-const QUIET_WITHOUT_WORDS = new Set<DepthLayer>(["candles", "regimeField", "marketZones", "fvg", "fvgMemory"]);
+const QUIET_WITHOUT_WORDS = new Set<DepthLayer>(["candles", "regimeField", "marketZones", "fvg", "fvgMemory", "breathRibbon"]);
 
 /** Each QUIET layer's word gates, at the words themselves (not just "asks somewhere"). */
 const WORD_GATES = [

@@ -20,6 +20,16 @@
 
 export const UPSTREAM_FIRST_BYTE_MS = 30_000;
 export const UPSTREAM_IDLE_MS = 45_000;
+/**
+ * When a lighter model is configured, the main model gets this much of the
+ * 30 s first-byte budget; the rest goes to ONE retry on the lighter model.
+ * The total never exceeds UPSTREAM_FIRST_BYTE_MS.
+ */
+export const PRIMARY_FIRST_BYTE_MS = 18_000;
+/** A retry with less than this left is not tried (it could not answer in time). */
+export const MIN_RETRY_FIRST_BYTE_MS = 3_000;
+
+export type AnsweredBy = "PRIMARY" | "LIGHTER";
 
 export const MODEL_DID_NOT_ANSWER = "SpaidBot's model did not answer";
 export const MODEL_STOPPED_ANSWERING = "SpaidBot's model stopped answering";
@@ -133,6 +143,9 @@ export interface RelayMeta {
   readonly endedWithoutFinish: boolean;
   /** True when OUR controller had aborted the upstream before it ended (a cut of ours, not the model's). */
   readonly upstreamAborted: boolean;
+  /** Which model answered; LIGHTER when the main one missed its first-byte share. */
+  readonly model: string | null;
+  readonly answeredBy: AnsweredBy;
 }
 
 /**
@@ -156,6 +169,7 @@ export function relayModelStream(
   upstream: Response,
   upstreamCtl: AbortController,
   idleMs: number = UPSTREAM_IDLE_MS,
+  answered: { readonly model: string | null; readonly answeredBy: AnsweredBy } = { model: null, answeredBy: "PRIMARY" },
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
@@ -195,7 +209,7 @@ export function relayModelStream(
         buf += decoder.decode();
         if (buf.trim()) handle(buf);
         if (meta.blockReason) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: answerStoppedNote(meta.blockReason) })}\n\n`));
-        const receipt: RelayMeta = { ...meta, endedWithoutFinish: meta.finishReason === null, upstreamAborted: upstreamCtl.signal.aborted };
+        const receipt: RelayMeta = { ...meta, endedWithoutFinish: meta.finishReason === null, upstreamAborted: upstreamCtl.signal.aborted, model: answered.model, answeredBy: answered.answeredBy };
         // A stream WE cut must never read as a finished answer.
         if (receipt.upstreamAborted && receipt.endedWithoutFinish) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: answerStoppedNote("CUT_BY_SERVER") })}\n\n`));

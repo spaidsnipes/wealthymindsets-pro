@@ -122,7 +122,7 @@ const CLEAN_BOOLEAN_PREFIX = "wm_of";
 // clean scene must switch it off too — or the trader's own overlay leaks in.
 // wm_sessionBands (FX lane, 2026-10-06): default ON for spot FX — a clean scene starts without it.
 // wm_fvg (Garden 19 FVG lane D, 2026-10-07): default OFF; a clean scene keeps it off unless on=fvg.
-const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP", "wm_fixedVP", "wm_bigtrades_on", "wm_sessionBands", "wm_effortResponse", "wm_deltaKeel", "wm_wisdomLine", "wm_rvolTone", "wm_fvg"] as const;
+const CLEAN_EXTRA_OFF = ["wm_fp_enabled", "wm_absorptionAnatomy", "wm_sessionVP", "wm_fixedVP", "wm_bigtrades_on", "wm_sessionBands", "wm_effortResponse", "wm_deltaKeel", "wm_wisdomLine", "wm_rvolTone", "wm_fvg", "wm_breathRibbon"] as const;
 const SCAFFOLDING_KEY = "wm_ofScaffolding";
 /** What the trader asked of the Question Lens (ChartsDashboard's own key). */
 const QUESTION_CHOICE_KEY = "wm_questionChoice";
@@ -130,7 +130,7 @@ const QUESTION_CHOICE_KEY = "wm_questionChoice";
 const ANATOMY_MODE_SCENE_KEY = "wm_anatomyMode";
 const ANATOMY_MODE_TOKENS = new Set(["OFF", "MARKET", "FOUNDER", "FUSION"]);
 const NON_BOOLEAN_OF_KEYS = new Set([SCAFFOLDING_KEY, "wm_ofStackPrefs", "wm_ofMyStack"]);
-const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy", "sessionBands", "effortResponse", "deltaKeel", "wisdomLine", "rvolTone", "fvg"]);
+const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy", "sessionBands", "effortResponse", "deltaKeel", "wisdomLine", "rvolTone", "fvg", "breathRibbon"]);
 
 export interface ProofScene {
   readonly active: boolean;

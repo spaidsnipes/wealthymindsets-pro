@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   FVG_ACADEMY_MODULE, FVG_DEFINITION, FVG_EXAMPLES_EMPTY_LINE, FVG_LAYER_PENDING_NOTE, FVG_LESSONS,
   FVG_MYTH_CARD, FVG_MYTH_LESSONS, FVG_NO_GUARANTEE, FVG_QUIZ_BANK, fvgChartLink, fvgCourseText,
-  fvgLessonHref, fvgReferencedExamples, fvgReplayPractice, FVG_REPLAY_LESSONS,
+  fvgLessonHref, fvgReferencedExamples, fvgReplayPractice, FVG_REPLAY_LESSONS, FVG_REPLAY_LINK_LABEL,
 } from "./fvgCourse";
 import { CONCEPT_EDUCATION, educationFor } from "@/lib/chart/inventionEducation";
 import { parseProofScene } from "@/lib/chart/proofScene";
@@ -204,5 +204,26 @@ describe("§56 — Practice in Replay (as-of-time through the FVG camera)", () =
     const cam = readFileSync("src/lib/marketData/fvg/fvgCamera.ts", "utf8");
     expect(cam).toContain("fvgStateAsOf");
     expect(cam).toContain('"REPLAY"');
+  });
+});
+
+describe("Replay practice says what it does — no invented Replay door", () => {
+  it("the chart has no URL-driven Replay entry, so the link only opens the chart and says so", () => {
+    const scene = readFileSync("src/lib/chart/proofScene.ts", "utf8");
+    // If the chart lane adds a replay token, this fails on purpose: point the link at it.
+    expect(scene).not.toMatch(/\breplay\b/i);
+    const r = fvgReplayPractice(FVG_LESSONS[5], true)!;
+    expect(r.label).toBe(FVG_REPLAY_LINK_LABEL);
+    expect(r.label).toMatch(/then press Replay/);
+    expect(r.steps).toMatch(/does not start Replay by itself/);
+    expect(r.steps).toMatch(/Workspace → Replay/);
+    expect(r.href).toBe(fvgChartLink(FVG_LESSONS[5], true).href);
+    const ui = readFileSync("src/components/education/FvgLessonBody.tsx", "utf8");
+    expect(ui).not.toMatch(/Practice in Replay/);
+    expect(ui).toContain("{replay.label}");
+  });
+  it("Replay is reached from the chart's Workspace control", () => {
+    const eq = readFileSync("src/lib/workspace/roomEquipment.ts", "utf8");
+    expect(eq).toMatch(/id: "bar-replay",\s*label: "Replay"/);
   });
 });

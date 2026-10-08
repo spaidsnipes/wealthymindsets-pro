@@ -643,7 +643,7 @@ The order's exact §64 wording was not in hand; scope is the two learner- and bu
 2. The MYTH card appears on lessons 1, 10, 14, 15 and 16, with the myth struck through and the BETTER QUESTION word for word.
 3. Lesson numbers match `FVG-METHODOLOGY.md`: 50 % deep, 2 closes for acceptance, 5-bar rejection window, 0.10 × ATR14 floor, 20 / 300 memory bars, 6 / 3 visibility.
 4. "Show me on a chart" goes to `/charts?scene=clean&on=fvg` (+ the lesson's extra layer), and territories are visible there. Before the layer ships, the pending note shows instead.
-5. "Practice in Replay" appears only on lessons 6–10, 14 and 15, and only once the layer ships.
+5. The Replay practice link appears only on lessons 6–10, 14 and 15, and only once the layer ships. Since 2026-10-07 22:2x it reads **"Open on the chart — then press Replay"** and says it does not start Replay itself. The chart has no URL-driven Replay entry; Replay is Workspace → Replay on the chart.
 6. The quiz draws from the 14-question FVG bank. A pass records completion **in this browser** ("Progress saved in this browser after verified readback"). Non-FVG lessons are still COMING_SOON.
 7. "Show me my examples" lists only Journal trades tagged FVG / Fair Value Gap, and otherwise shows the one plain line.
 8. At 390, opening a lesson hides the module list, and the lesson's ✕ brings it back.

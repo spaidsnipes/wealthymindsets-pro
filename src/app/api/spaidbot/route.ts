@@ -10,8 +10,8 @@ import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { edgeAllows, tooManyRequests, SPAIDBOT_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { formatChartContextNote, type ChartContextInput } from "@/lib/marketData/formatChartContextNote";
-import { forgetGeminiModel, geminiGenerationConfig, resolveGeminiModel } from "@/lib/ai/geminiModel";
-import { MODEL_DID_NOT_ANSWER, UpstreamTimeout, fetchWithFirstByteTimeout, linkUntilHeaders, relayModelStream } from "@/lib/ai/upstreamBounds";
+import { forgetGeminiModel, geminiGenerationConfig, lightGeminiModelFor, resolveGeminiModel } from "@/lib/ai/geminiModel";
+import { MIN_RETRY_FIRST_BYTE_MS, MODEL_DID_NOT_ANSWER, PRIMARY_FIRST_BYTE_MS, UPSTREAM_FIRST_BYTE_MS, UpstreamTimeout, fetchWithFirstByteTimeout, linkUntilHeaders, relayModelStream, type AnsweredBy } from "@/lib/ai/upstreamBounds";
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
 const streamUrl  = (model: string) =>
@@ -157,15 +157,34 @@ export async function POST(req: NextRequest) {
     // handed back and cut answers mid-sentence. After that, the relay's cancel()
     // is the "trader left" bound.
     let upstreamCtl = new AbortController();
-    const ask = async () => {
-      const model = await resolveGeminiModel(GEMINI_KEY);
-      if (!model) return null;
+    let answered: { model: string | null; answeredBy: AnsweredBy } = { model: null, answeredBy: "PRIMARY" };
+    const attempt = async (model: string, firstByteMs: number) => {
       const link = linkUntilHeaders(req.signal);
       upstreamCtl = link.controller;
       try {
-        return await fetchWithFirstByteTimeout(fetch, streamUrl(model), { method: "POST", headers: { "Content-Type": "application/json" }, body: payloadFor(model) }, upstreamCtl);
+        return await fetchWithFirstByteTimeout(fetch, streamUrl(model), { method: "POST", headers: { "Content-Type": "application/json" }, body: payloadFor(model) }, upstreamCtl, firstByteMs);
       } finally {
         link.release();
+      }
+    };
+    // FIRST-BYTE RESILIENCE (2026-10-07: 1 in 6 Sends waited past 30 s). With a
+    // lighter Gemini model configured, the main model gets PRIMARY_FIRST_BYTE_MS;
+    // if its headers have not come, ONE retry on the lighter model gets what is
+    // left of the same 30 s. Without one, the main model keeps the whole 30 s.
+    // A trader who cancels is never retried for.
+    const ask = async () => {
+      const startedAt = Date.now();
+      const model = await resolveGeminiModel(GEMINI_KEY);
+      if (!model) return null;
+      const light = lightGeminiModelFor(model);
+      answered = { model, answeredBy: "PRIMARY" };
+      try {
+        return await attempt(model, light ? PRIMARY_FIRST_BYTE_MS : UPSTREAM_FIRST_BYTE_MS);
+      } catch (err) {
+        const left = UPSTREAM_FIRST_BYTE_MS - (Date.now() - startedAt);
+        if (!(err instanceof UpstreamTimeout) || !light || req.signal.aborted || left < MIN_RETRY_FIRST_BYTE_MS) throw err;
+        answered = { model: light, answeredBy: "LIGHTER" };
+        return await attempt(light, left);
       }
     };
     let geminiRes: Response | null;
@@ -207,7 +226,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const readable = relayModelStream(geminiRes, upstreamCtl);
+    const readable = relayModelStream(geminiRes, upstreamCtl, undefined, answered);
 
     return new Response(readable, {
       headers: {

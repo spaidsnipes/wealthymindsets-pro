@@ -1593,8 +1593,12 @@ input[type=range]::-webkit-slider-runnable-track {
 
 /* Masthead icon buttons (ShellAccessChrome) are 30px squares, too small for a
    finger; `.wm-tap` gives any small dense-desktop button the same floor. On a touch screen they get the 44px minimum; min-* beats the inline
-   width/height, so mouse-driven desktop is unchanged. Garden pass 2026-10-05. */
-@media (pointer: coarse) {
+   width/height, so mouse-driven desktop is unchanged. Garden pass 2026-10-05.
+   Night shift 2026-10-07: also at phone WIDTH (≤767px), the same reach as
+   `.wm-phone-taps` — a 390px window with a mouse, an emulator, or a phone
+   browser reporting a fine pointer measured 30px masthead icons, 26px tabs and
+   30px symbol chips on /backtesting and /charts. Desktop widths unchanged. */
+@media (pointer: coarse), (max-width: 767px) {
   .wm-shell-access button,
   .wm-tap {
     min-width: 44px;
@@ -1742,6 +1746,28 @@ input[type=range]::-webkit-slider-runnable-track {
   .wm-instrument-context-strip { min-height: 48px !important; }
   .wm-instrument-context-strip > button,
   .wm-instrument-context-strip > a { min-height: 44px !important; }
+}
+/* Night shift 2026-10-07: the same 44px floor at phone WIDTH — at 390 with a
+   fine pointer the thumb bar's Trade / Desk / Watchlist / Indicators and the
+   room tabs measured 26px tall. The bar's 52px box already holds 44 + 4 + 4. */
+@media (max-width: 767px) {
+  .wm-instrument-context-strip > button,
+  .wm-instrument-context-strip > a { min-height: 44px !important; }
+}
+/* The evidence chip's summary (32px tall at 390) gets the invisible 44px hit
+   area the chart-edge chips carry; its class string is pinned by
+   chartEvidenceHorizon.test.ts, so the slop is keyed on it here. */
+@media (max-width: 767px), (pointer: coarse) and (max-width: 1023px) {
+  .wm-nectar-vault-chip__summary { position: relative; }
+  .wm-nectar-vault-chip__summary::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* ── 2. PHONE: THE THUMB BAR ────────────────────────────────────────────────

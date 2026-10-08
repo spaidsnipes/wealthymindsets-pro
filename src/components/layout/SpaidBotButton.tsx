@@ -39,6 +39,15 @@ function renderMd(text: string) {
     .replace(/\n/g, "<br/>");
 }
 
+/** Said under an answer the lighter model gave (the main model missed its first-byte share). */
+export const LIGHTER_MODEL_LINE = "\n\n_(answered by the lighter model — the main model was slow to start)_";
+
+/** The honest waiting line: nothing before 5 s, then the elapsed seconds. */
+export const WAITING_LINE_AFTER_S = 5;
+export function spaidbotWaitingLine(elapsedS: number): string | null {
+  return elapsedS >= WAITING_LINE_AFTER_S ? `SpaidBot is reading the chart… ${Math.floor(elapsedS)} s` : null;
+}
+
 /* ── Suggestions ────────────────────────────────────────────── */
 const SUGGESTIONS = [
   "What's the NQ setup right now?",
@@ -92,6 +101,18 @@ export function SpadeBotButton({ launcher = true }: {
     }
     if (open) { setUnread(false); setTimeout(() => inputRef.current?.focus(), 150); }
   }, [open]);
+
+  /* ── Waiting seconds: ticks only while a question waits for its first words ── */
+  const [waitS, setWaitS] = useState<number | null>(null);
+  const lastText = messages.length ? messages[messages.length - 1] : null;
+  const waitingForWords = streaming && lastText?.role === "assistant" && !lastText.content;
+  useEffect(() => {
+    if (!waitingForWords) { setWaitS(null); return; }
+    const t0 = Date.now();
+    setWaitS(0);
+    const id = setInterval(() => setWaitS((Date.now() - t0) / 1000), 1000);
+    return () => clearInterval(id);
+  }, [waitingForWords]);
 
   /* ── Auto scroll ── */
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -199,8 +220,18 @@ export function SpadeBotButton({ launcher = true }: {
           // Only a malformed frame is skipped; a server ERROR frame must reach
           // the ⚠️ path below (garden pass 2026-10-04: it was swallowed here,
           // leaving an empty or cut-off answer with no word of why).
-          let frame: { text?: string; error?: string };
-          try { frame = JSON.parse(payload) as { text?: string; error?: string }; } catch { continue; }
+          let frame: { text?: string; error?: string; meta?: { answeredBy?: string } };
+          try { frame = JSON.parse(payload) as { text?: string; error?: string; meta?: { answeredBy?: string } }; } catch { continue; }
+          // The relay's closing receipt: say (small) when the lighter model answered.
+          if (frame.meta?.answeredBy === "LIGHTER" && full.trim()) {
+            full += LIGHTER_MODEL_LINE;
+            setMessages(prev => {
+              const u = [...prev];
+              const last = u[u.length - 1];
+              if (last?.role === "assistant") u[u.length - 1] = { ...last, content: full };
+              return u;
+            });
+          }
           const { text: t, error } = frame;
           if (error) throw new Error(error);
           {
@@ -345,6 +376,10 @@ export function SpadeBotButton({ launcher = true }: {
                 );
               })}
 
+              {/* Honest waiting line (2026-10-07): after 5 s with no words yet, say how long. */}
+              {streaming && waitS !== null && spaidbotWaitingLine(waitS) ? (
+                <p data-testid="spaidbot-waiting" role="status" className="px-1 text-[11px] text-wm-text-dim">{spaidbotWaitingLine(waitS)}</p>
+              ) : null}
               {/* Streaming dots */}
               {streaming && (
                 <div className="flex items-center gap-1.5 px-1">

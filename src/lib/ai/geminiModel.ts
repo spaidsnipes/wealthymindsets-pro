@@ -61,7 +61,37 @@ export function geminiGenerationConfig(model: string): Record<string, unknown> {
   };
 }
 
-let memo: { at: number; id: string } | null = null;
+/**
+ * The LIGHTER Gemini model for a first-byte retry (2026-10-07: 1 in 6 Sends
+ * waited past 30 s for the main model's first byte). Newest stable
+ * "gemini-X-flash-lite" that can stream, from the same model list — never a
+ * non-Gemini or unconfigured provider. Null when the list has none.
+ */
+export function pickGeminiLightModel(models: readonly GeminiModelInfo[]): string | null {
+  let best: { id: string; v: number[] } | null = null;
+  for (const m of models) {
+    const id = m.name.replace(/^models\//, "");
+    if (!/^gemini-\d+(\.\d+)*-flash-lite$/.test(id)) continue;
+    const methods = m.supportedGenerationMethods ?? [];
+    if (!methods.includes("streamGenerateContent") && !methods.includes("generateContent")) continue;
+    const v = versionOf(id);
+    if (!best || newer(v, best.v)) best = { id, v };
+  }
+  return best?.id ?? null;
+}
+
+let memo: { at: number; id: string; light?: string | null } | null = null;
+
+/**
+ * The lighter model for this primary, if one is configured: GEMINI_LIGHT_MODEL
+ * when pinned, else the one read from the same list as the primary. Never the
+ * primary itself. Synchronous — read after resolveGeminiModel ran.
+ */
+export function lightGeminiModelFor(primary: string): string | null {
+  const pinned = process.env.GEMINI_LIGHT_MODEL?.trim();
+  const light = pinned || (memo && memo.id === primary ? memo.light ?? null : null);
+  return light && light !== primary && /^gemini-/.test(light) ? light : null;
+}
 const TTL_MS = 6 * 3600_000;
 
 export function forgetGeminiModel(): void {
@@ -77,7 +107,7 @@ export async function resolveGeminiModel(key: string, fetchImpl: typeof fetch = 
     if (!res.ok) return null;
     const body = (await res.json()) as { models?: GeminiModelInfo[] };
     const id = pickGeminiModel(body.models ?? []);
-    if (id) memo = { at: Date.now(), id };
+    if (id) memo = { at: Date.now(), id, light: pickGeminiLightModel(body.models ?? []) };
     return id;
   } catch {
     return null;

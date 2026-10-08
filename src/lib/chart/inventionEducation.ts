@@ -478,6 +478,17 @@ export const INSTRUMENT_EDUCATION: Readonly<Record<string, InventionEducation>> 
     firstTouch: "Wisdom line — the one sentence the drawn evidence supports.",
     canon: "F17 Cross-candle wisdom · Garden 19 §17",
   },
+  BREATH_RIBBON: {
+    question: "Are this market's ranges drawing in or breathing out — and since when?",
+    needs: "PRICE", evidence: "Each finished bar's Wilder ATR(14) against the median ATR of the last 120 bars — the same reading as the Market Breathing card. No volume needed.",
+    appears: "A thin ivory ribbon on the volume well's top edge: low and flat while ranges are compressed, tall while they are expanded, a short notch where the state changed.",
+    grammar: "Read the shape, not a signal: a long flat stretch is compression, a rising stretch is ranges widening. It describes the past bars and never forecasts a breakout. PROPOSED — no Founder plate for Breathing yet.",
+    full: "40+ bars carry ATR on the camera's window.",
+    partial: "Fewer bars in the window — the ribbon waits rather than reading a short median.",
+    degraded: "Under 40 bars with ATR — silent (SILENT:WARMUP).",
+    firstTouch: "Breath ribbon — each bar's range against its own normal; low = compressed, tall = expanded.",
+    canon: "F15 Market Breathing (rail card) · panel-erasure carrier, PROPOSED",
+  },
   RVOL_TONE: {
     question: "Was this bar unusually busy for its time of day?",
     needs: "VOLUME", evidence: "Real traded volume, compared with the same time of day over 10+ earlier sessions (else the recent bars, labelled).",

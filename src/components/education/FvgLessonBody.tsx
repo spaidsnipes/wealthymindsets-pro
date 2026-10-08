@@ -127,7 +127,7 @@ export function FvgLessonBody({ lesson, color }: { lesson: FvgLesson; color: str
               className="inline-flex min-h-11 items-center rounded-lg border px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold text-[11px] font-semibold text-wm-text hover:text-wm-gold"
               style={{ borderColor: "rgba(201,165,92,0.45)" }}
             >
-              Practice in Replay →
+              {replay.label} →
             </Link>
             <p className="mt-1 text-[10px] text-wm-text-dim leading-relaxed">{replay.steps}</p>
           </div>

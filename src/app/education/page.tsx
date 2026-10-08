@@ -215,8 +215,11 @@ const MODULES: Module[] = [
   { id:8, title:"SpaidBot: AI-Assisted Trading",       duration:"2h",     level:"Pro",          locked:true,  completed:false, color:"#F97316",
     lessons:[
       { id:"ai-1", title:"SpaidBot Overview & Capabilities",                duration:"20m", completed:false },
-      { id:"ai-2", title:"Setting Up Real-Time Alerts with SpaidBot",       duration:"25m", completed:false },
-      { id:"ai-3", title:"AI Pattern Recognition: Reading SpaidBot Signals",duration:"30m", completed:false },
+      // Night shift 2026-10-07: SpaidBot answers questions from the evidence it
+      // is handed (lib/ai/spaidbotAsk.ts); it sets no alerts and emits no
+      // signals, so the lesson titles teach what it actually does.
+      { id:"ai-2", title:"Asking SpaidBot About the Market in Front of You", duration:"25m", completed:false },
+      { id:"ai-3", title:"Reading SpaidBot's Answers: Evidence, Sources and Limits", duration:"30m", completed:false },
     ]},
   // FVG / IMBALANCE & PATIENCE (Garden 19 §32–36) — a course IN this Academy,
   // registered once from its owner (src/lib/academy/fvgCourse.ts).

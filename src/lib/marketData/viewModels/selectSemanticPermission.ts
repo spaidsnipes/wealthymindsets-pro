@@ -124,6 +124,8 @@ export const SEMANTIC_PERMISSION = {
   // FAR keeps the bands quiet (never invisible), NEAR keeps live territory.
   fvg: [Q, S, S],
   fvgMemory: [Q, S, Q],
+  // F15 breath ribbon (PROPOSED, default OFF): geometry only, no words.
+  breathRibbon: [Q, S, S],
   contradiction: [X, S, S],
   absorption: [X, S, S],         // NEAR: "absorption hatch"
   exhaustion: [X, S, S],

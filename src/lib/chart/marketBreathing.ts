@@ -115,3 +115,64 @@ export function breathingSentence(b: MarketBreathing): string {
   const what = b.state === "COMPRESSED" ? "Ranges are compressed" : b.state === "EXPANDED" ? "Ranges are expanded" : "Ranges are near their normal";
   return `${what}: ATR ${b.atrRatio.toFixed(2)}× its median over the last ${b.sample} bars (${b.atrPercentile}th percentile), ${b.phase.toLowerCase()}, ${b.barsInState} bar${b.barsInState === 1 ? "" : "s"} in this state.`;
 }
+
+/* ── THE BREATH RIBBON — F15 on the field (panel-erasure, Garden 19, 2026-10-07 night) ──
+ * The certificates' A7 row: the per-bar ATR series existed and was never
+ * painted — erase the WAIT rail's card and the breathing state was gone. The
+ * ribbon carries it on the chart: for every CLOSED bar in view, its ATR as a
+ * multiple of the window's own median ATR (the same `ratio` and the same
+ * COMPRESSED_AT / EXPANDED_AT lines the card reads), so a run of compressed
+ * bars reads LOW and FLAT, an expansion TALL. Form only — one ink for every
+ * state; describes, never forecasts.
+ */
+export interface BreathRibbonPoint {
+  readonly time: number;
+  readonly ratio: number;
+  readonly state: BreathState;
+}
+
+export interface BreathRibbon {
+  readonly points: readonly BreathRibbonPoint[];
+  /** The window's median ATR the ratios are read against. */
+  readonly medianAtr: number;
+  /** Bar times where the state changed (inside the points). */
+  readonly changes: readonly number[];
+}
+
+/**
+ * `bars` oldest → newest (the full series, so ATR has its warm-up behind the
+ * camera); `from`..`to` the CLOSED bars in view (indices). The median is the
+ * Wilder ATR over the WINDOW bars ending at `to` — the card's own normal.
+ * Null when fewer than MIN_BARS bars carry ATR.
+ */
+export function readBreathRibbon(
+  bars: readonly (BreathBar & { readonly time: number })[],
+  from: number,
+  to: number,
+  atrs: readonly (number | null)[] = atrSeries(bars),
+): BreathRibbon | null {
+  if (to < from || to >= bars.length) return null;
+  const winVals: number[] = [];
+  for (let i = Math.max(0, to - WINDOW + 1); i <= to; i++) { const a = atrs[i]; if (a != null && Number.isFinite(a) && a > 0) winVals.push(a); }
+  if (winVals.length < MIN_BARS) return null;
+  const med = median(winVals);
+  if (!(med > 0)) return null;
+  const points: BreathRibbonPoint[] = [];
+  const changes: number[] = [];
+  let prev: BreathState | null = null;
+  for (let i = Math.max(0, from); i <= to; i++) {
+    const a = atrs[i];
+    if (a == null || !Number.isFinite(a)) continue;
+    const ratio = a / med;
+    const state = stateOf(ratio);
+    if (prev && state !== prev) changes.push(bars[i].time);
+    prev = state;
+    points.push({ time: bars[i].time, ratio, state });
+  }
+  return { points, medianAtr: med, changes };
+}
+
+/** The ribbon's height in px for a ratio: 1 px floor, ~4 px at the median, capped. */
+export function breathRibbonHeight(ratio: number, unit = 4, cap = 12): number {
+  return Math.max(1, Math.min(cap, ratio * unit));
+}

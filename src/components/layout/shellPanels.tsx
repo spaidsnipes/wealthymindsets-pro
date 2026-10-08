@@ -651,7 +651,10 @@ export function SettingsPanel({
             <div role="tabpanel" id="wm-settings-panel-intelligence" aria-labelledby="wm-settings-tab-intelligence">
               <button type="button" onClick={() => { onClose(); if (window.location.pathname === INSTRUMENT_VIEW_ROUTE) requestEquipment("chart-tools"); else router.push(INSTRUMENT_VIEW_ROUTE); }} className="my-2 min-h-11 rounded border border-wm-border px-3 text-xs">Open market tools</button>
               <InventionCensusView />
-              <Row label="Default Symbol" sub="Symbol loaded when opening Charts — type any ticker">
+              {/* Night shift 2026-10-07: SymbolContext reads the LAST-OPENED symbol
+                  first and this setting only when there is none, so "loaded when
+                  opening Charts" overclaimed for anyone who has opened a chart. */}
+              <Row label="Default Symbol" sub="Opens on Charts when this browser has no last-opened market — the last market you opened wins">
                 <>
                   <input
                     list="wm-defsym-list"
@@ -665,13 +668,14 @@ export function SettingsPanel({
                   </datalist>
                 </>
               </Row>
-              <Row label="Default Timeframe" sub="Timeframe loaded on chart open">
+              <Row label="Default Timeframe" sub="Timeframe a chart opens on (a timeframe in the link still wins); Last Used keeps your last one">
                 <select
                   aria-label="Default Timeframe"
                   value={defaultTF} onChange={e => setDefaultTF(e.target.value)}
                   className="min-h-11 rounded-lg border border-wm-border bg-wm-surface px-2 py-1 text-xs text-wm-text outline-none focus-visible:ring-2 focus-visible:ring-wm-gold">
                   <option value="last">Last Used</option>
-                  <option value="none">None</option>
+                  {/* "None" behaves exactly as Last Used (ChartsDashboard ignores both). */}
+                  <option value="none">None (same as Last Used)</option>
                   {/* G12: the one timeframe registry — the retired "D"/"W"/"M" ids were written to storage from here. */}
                   {CHART_TF_SHIPPED.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>

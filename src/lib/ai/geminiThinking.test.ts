@@ -67,7 +67,7 @@ describe("SpaidBot generation config — thinking off, room to answer", () => {
     const out = await new Response(relayModelStream(upstream, new AbortController())).text();
     expect(out).toContain('"text":" and two."');
     const meta = JSON.parse(out.split("\n").find(l => l.startsWith('data: {"meta"'))!.slice(6)).meta;
-    expect(meta).toEqual({ finishReason: "STOP", blockReason: null, chunks: 2, chars: 17, candidatesTokens: 7, endedWithoutFinish: false, upstreamAborted: false });
+    expect(meta).toEqual({ finishReason: "STOP", blockReason: null, chunks: 2, chars: 17, candidatesTokens: 7, endedWithoutFinish: false, upstreamAborted: false, model: null, answeredBy: "PRIMARY" });
     const cut = new Response('data: {"candidates":[{"content":{"parts":[{"text":"Half"}]}}]}\n\n', { status: 200 });
     const m2 = JSON.parse((await new Response(relayModelStream(cut, new AbortController())).text()).split("\n").find(l => l.startsWith('data: {"meta"'))!.slice(6)).meta;
     expect(m2.endedWithoutFinish).toBe(true);
@@ -104,5 +104,27 @@ describe("SpaidBot generation config — thinking off, room to answer", () => {
     const out = await new Response(relayModelStream(new Response(body), ctl)).text();
     expect(out).toContain("CUT_BY_SERVER");
     expect(out).toContain('"upstreamAborted":true');
+  });
+});
+
+describe("SpaidBot panel — first-byte resilience (2026-10-07)", () => {
+  const panel = readFileSync(path.join(process.cwd(), "src/components/layout/SpaidBotButton.tsx"), "utf8");
+
+  it("the honest waiting line: nothing before 5 s, then the elapsed seconds", async () => {
+    const { spaidbotWaitingLine, WAITING_LINE_AFTER_S } = await import("@/components/layout/SpaidBotButton");
+    expect(WAITING_LINE_AFTER_S).toBe(5);
+    expect(spaidbotWaitingLine(0)).toBeNull();
+    expect(spaidbotWaitingLine(4.9)).toBeNull();
+    expect(spaidbotWaitingLine(12.4)).toBe("SpaidBot is reading the chart… 12 s");
+    // Rendered only while streaming with no words yet, as a polite status line.
+    expect(panel).toContain('data-testid="spaidbot-waiting" role="status"');
+    expect(panel).toContain('const waitingForWords = streaming && lastText?.role === "assistant" && !lastText.content;');
+  });
+
+  it("the meta receipt's answeredBy LIGHTER adds one small line under the answer — nothing else reads meta", async () => {
+    const { LIGHTER_MODEL_LINE } = await import("@/components/layout/SpaidBotButton");
+    expect(LIGHTER_MODEL_LINE).toContain("answered by the lighter model");
+    expect(panel).toContain('if (frame.meta?.answeredBy === "LIGHTER" && full.trim())');
+    expect(panel.match(/frame\.meta/g)?.length).toBe(1);
   });
 });

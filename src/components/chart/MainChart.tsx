@@ -42,6 +42,7 @@ import { DELTA_KEEL_BUDGET_MS, groupKeelGlyphs, keelLength, patchKeelGeometry, p
 import { readCrossCandleWisdom, type WisdomLine } from "@/lib/chart/crossCandleWisdom";
 import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
 import { readRelativeVolume, RVOL_BUDGET_MS, rvolToneAlpha, type RvolBar } from "@/lib/chart/relativeVolume";
+import { breathRibbonHeight, atrSeries as breathAtrSeries, readBreathRibbon, type BreathRibbon } from "@/lib/chart/marketBreathing";
 import { createFvgCameraMemo, fvgSceneForCamera, type FvgCameraScene } from "@/lib/marketData/fvg/fvgCamera";
 import { FVG_OPACITY, fvgAlpha, fvgBandGeometry, fvgClearZoneX, fvgCostReceipt, fvgKeepOutStrips, fvgReceipt, type FvgBandGeometry } from "@/lib/chart/fvgGlass";
 import type { RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegimeSeries";
@@ -1376,6 +1377,12 @@ interface Props {
    */
   rvolToneOn?: boolean;
   /**
+   * F15 BREATH RIBBON (panel-erasure, 2026-10-07 night): each closed bar's ATR
+   * vs the window's median as a thin ribbon on the volume well's top edge —
+   * compressed reads low and flat, expanded tall. Form only.
+   */
+  breathRibbonOn?: boolean;
+  /**
    * FVG / IMBALANCE (Garden 19 FVG lane D, fvgGlass.ts): the ONE FVG history
    * (fvgEngine FVG_3C v1, read through fvgCamera.fvgSceneForCamera — live
    * increment memo, replay cursor) painted as TERRITORY on price.
@@ -1977,7 +1984,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onCrosshairTime, onCrosshairHandle, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
-  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, fvgOn = false, onFvgScene, regimeSeries = null, livingDevelopment = null,
+  fixedVPActive = false, sessionVPActive = false, sessionBandsOn = false, effortResponseOn = false, deltaKeelOn = false, wisdomLineOn = false, rvolToneOn = false, breathRibbonOn = false, fvgOn = false, onFvgScene, regimeSeries = null, livingDevelopment = null,
   absorptionAnatomyActive = false,
   exhaustionOnChart = true,
   imbalanceStack = null,
@@ -2358,6 +2365,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // loop must not be torn down for them.
   const effortMarksFieldRef = useRef<typeof effortMarksField>(null);
   effortMarksFieldRef.current = effortMarksField;
+  const breathAtrRef = useRef<{ key: string; atr: (number | null)[] } | null>(null);
+  const breathRibbonRef = useRef<{ key: string; r: BreathRibbon | null } | null>(null);
   const rvolCacheRef = useRef<{ key: string; bars: RvolBar[] } | null>(null);
   const rvolCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
   const deltaKeelGeoRef = useRef<{ keels: unknown; key: string; halo: number[]; groups: Map<string, { solid: number[]; hollow: number[] }>; drawn: number; failed: number; layout?: KeelGeometry } | null>(null);
@@ -10845,6 +10854,75 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           canvas.dataset.rvolWeightCost = `${ms.toFixed(2)}ms|mean${(cr.sum / cr.n).toFixed(2)}|longest${cr.longest.toFixed(2)}|${cr.longest <= RVOL_BUDGET_MS ? "MET" : "OVER"}`;
         }
       } catch (err) { layerFault("RVOL_TONE", err); }
+      /* ══ F15 · BREATH RIBBON (panel-erasure, Garden 19, 2026-10-07 night) ══
+         The certificates' A7 row: the per-bar ATR existed only as the WAIT
+         rail's card. Here every CLOSED bar in view carries its ATR as a
+         multiple of the window's median (marketBreathing.readBreathRibbon) —
+         a thin ivory ribbon riding the volume well's top edge: compressed
+         reads LOW and FLAT, an expansion TALL, a state change a short notch.
+         One ink for every state (no hue grades volatility); OHLC only, so FX
+         and every market carry it. Never on a candle. */
+      try {
+        const t0BR = performance.now();
+        const bs = barsRef.current || [];
+        if (!breathRibbonOn) canvas.dataset.breathRibbon = "OFF";
+        else if (!att.paints("breathRibbon")) canvas.dataset.breathRibbon = att.offWord(true);
+        else if (bs.length < 2) canvas.dataset.breathRibbon = "NO_BARS";
+        else {
+          const tsBR = chart.timeScale();
+          const lrBR = tsBR.getVisibleLogicalRange();
+          const i0 = Math.max(0, Math.floor(lrBR ? +lrBR.from : 0));
+          const i1 = Math.min(bs.length - 1, Math.ceil(lrBR ? +lrBR.to : bs.length - 1));
+          const last = bs[bs.length - 1];
+          const formingBR = Date.now() / 1000 < (last.time as number) + barInterval() ? (last.time as number) : null;
+          const hiBR = formingBR != null && i1 === bs.length - 1 ? i1 - 1 : i1;
+          // Computed per closed bar / camera move, never per frame.
+          const akey = `${symbol}|${bs.length}|${bs[0]?.time}|${bs[bs.length - 2]?.close}`;
+          if (breathAtrRef.current?.key !== akey) breathAtrRef.current = { key: akey, atr: breathAtrSeries(bs) };
+          const rkey = `${akey}|${i0}|${hiBR}`;
+          if (breathRibbonRef.current?.key !== rkey) breathRibbonRef.current = { key: rkey, r: readBreathRibbon(bs as never, i0, hiBR, breathAtrRef.current.atr) };
+          const rib: BreathRibbon | null = breathRibbonRef.current.r;
+          if (!rib || rib.points.length < 2) canvas.dataset.breathRibbon = "SILENT:WARMUP";
+          else {
+            let volTopBR = 0.78;
+            try { const t = chart.priceScale("vol").options().scaleMargins?.top; if (Number.isFinite(t)) volTopBR = t as number; } catch { /* default */ }
+            const baseY = Math.round(pane0Bottom * volTopBR) - 1;
+            const line = new Path2D();
+            const fill = new Path2D();
+            const notches = new Path2D();
+            let started = false, firstX = 0, lastX = 0, n = 0;
+            const changeSet = new Set(rib.changes);
+            for (const p of rib.points) {
+              const xr = tsBR.timeToCoordinate(p.time as never);
+              if (xr == null || +xr < 0 || +xr > plotRight) continue;
+              const x = +xr, y = baseY - breathRibbonHeight(p.ratio);
+              if (!started) { line.moveTo(x, y); fill.moveTo(x, baseY); fill.lineTo(x, y); firstX = x; started = true; }
+              else { line.lineTo(x, y); fill.lineTo(x, y); }
+              lastX = x; n++;
+              if (changeSet.has(p.time)) { notches.moveTo(Math.round(x) + 0.5, baseY + 1); notches.lineTo(Math.round(x) + 0.5, baseY + 4); }
+            }
+            if (n >= 2) {
+              fill.lineTo(lastX, baseY); fill.lineTo(firstX, baseY); fill.closePath();
+              ctx.save();
+              ctx.globalAlpha = att.alpha("breathRibbon");
+              ctx.fillStyle = "rgba(237,230,211,0.10)";
+              ctx.fill(fill);
+              ctx.strokeStyle = "rgba(237,230,211,0.42)";
+              ctx.lineWidth = 1;
+              ctx.stroke(line);
+              ctx.strokeStyle = "rgba(237,230,211,0.55)";
+              ctx.stroke(notches);
+              ctx.restore();
+            }
+            const lastP = rib.points[rib.points.length - 1];
+            // PROPOSED: no Founder plate for Breathing yet — the receipt says so.
+            canvas.dataset.breathRibbon = `PROPOSED:DRAWN:${n}|NOW:${lastP.state}:${lastP.ratio.toFixed(2)}x|CHANGES:${rib.changes.length}`;
+          }
+          const ms = performance.now() - t0BR;
+          canvas.dataset.breathRibbonCost = `${ms.toFixed(2)}ms`;
+        }
+      } catch (err) { layerFault("BREATH_RIBBON", err); }
+
 
       /* ══ EFFORT → RESPONSE ACROSS THE CANDLES (Garden 19 §7) ══════════════
          The volume bar IS the effort (one owner — nothing new drawn for it).
@@ -25558,7 +25636,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // each frame, so it stays alive across live ticks (was rebuilding 4x/sec on
     // crypto, which made the VP/footprint flash off). Re-runs only on real config
     // changes below.
-  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, wisdomLineOn, rvolToneOn, fvgOn, absorptionAnatomyActive, getBarSubProfile]);
+  }, [footprintType, footprintEnabled, bigTradesOverlay, candleType, ready, rangeVer, getBarFootprint, getRealBigTradeLevels, getDeltaBubbleLevels, extendedHours, timeframe, symbol, fixedVPActive, sessionVPActive, sessionBandsOn, effortResponseOn, deltaKeelOn, wisdomLineOn, rvolToneOn, breathRibbonOn, fvgOn, absorptionAnatomyActive, getBarSubProfile]);
 
   /*
     THE HIDDEN-TAB STAMP CANNOT LIVE INSIDE THE RAF LOOP.

@@ -109,10 +109,15 @@ export function RoomAuthorityNotice({ href }: RoomAuthorityNoticeProps): React.R
         }}
       >
         {/* Says what was lost, and does NOT say the room is broken — because it
-            is not. Overstating a quarantine as a fault would be its own lie. */}
+            is not. Overstating a quarantine as a fault would be its own lie.
+            Nor does it promise "every organ still works" (night shift
+            2026-10-07): overnight the deck read STATE QUALITY UNAVAILABLE and
+            MARKET STATE UNKNOWN, honestly — a blanket "works" claim cannot be
+            measured; each organ's own state word can. */}
         {destination.label} is kept for legacy and debug use. It is no longer part
         of the normal trading loop, and nothing here is maintained as a primary
-        surface. Capability is preserved — every organ in this room still works.
+        surface. Capability is preserved — its readings come from the same owners as
+        the chart, and each one states its own reading or why it has none.
       </span>
       {home ? (
         <Link

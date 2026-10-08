@@ -112,7 +112,7 @@ describe("the route is wired to the bounds", () => {
     expect(route).toContain("const link = linkUntilHeaders(req.signal);");
     expect(route).toContain("upstreamCtl = link.controller;");
     expect(route).toContain("fetchWithFirstByteTimeout(fetch, streamUrl(model)");
-    expect(route).toContain("relayModelStream(geminiRes, upstreamCtl)");
+    expect(route).toContain("relayModelStream(geminiRes, upstreamCtl, undefined, answered)");
     expect(route).toContain("status: 504");
     expect(route).toContain("`${MODEL_DID_NOT_ANSWER}.`");
   });

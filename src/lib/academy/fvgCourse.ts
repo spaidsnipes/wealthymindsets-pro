@@ -311,18 +311,27 @@ export function fvgChartLink(lesson: Pick<FvgLesson, "alsoOn">, shipped = fvgLay
  * happens AFTER creation (touch → depth → response → time → trade-through →
  * memory). Replay's FVG owner is `fvgCamera.fvgSceneForCamera`, which folds
  * the ledger as of the replay cursor (`fvgStateAsOf`) — so a replayed
- * territory never shows a touch that had not happened yet. Replay has no URL
- * door; it is started on the chart itself, so the practice opens the same FVG
- * scene and says how. Omitted until the FVG layer ships.
+ * territory never shows a touch that had not happened yet.
+ *
+ * REPLAY HAS NO URL DOOR (checked 2026-10-07: proofScene.ts has no replay
+ * token and ChartsDashboard reads none; Replay starts only from the chart's
+ * Workspace → Replay control, `startReplay`). So this link does NOT claim to
+ * start Replay — its label says what it does ("Open on the chart — then press
+ * Replay") and the steps name the real control. When the chart lane adds a URL
+ * entry, point `fvgReplayPractice` at it and change the label in one place.
+ * Omitted until the FVG layer ships.
  */
 export const FVG_REPLAY_LESSONS: readonly number[] = [6, 7, 8, 9, 10, 14, 15];
 
-export const FVG_REPLAY_STEPS =
-  "Opens the chart with the FVG layer. Press Replay, then step forward bar by bar: each territory shows only what was knowable at the replay cursor — the touch, the depth and the closes appear as they happened, never before.";
+/** The link's own words — it opens the chart; Replay is pressed there. */
+export const FVG_REPLAY_LINK_LABEL = "Open on the chart — then press Replay";
 
-export function fvgReplayPractice(lesson: Pick<FvgLesson, "n" | "alsoOn">, shipped = fvgLayerShipped()): { href: string; steps: string } | null {
+export const FVG_REPLAY_STEPS =
+  "This opens the chart with the FVG layer on; it does not start Replay by itself. On the chart, open Workspace → Replay, then step forward bar by bar: each territory shows only what was knowable at the replay cursor — the touch, the depth and the closes appear as they happened, never before.";
+
+export function fvgReplayPractice(lesson: Pick<FvgLesson, "n" | "alsoOn">, shipped = fvgLayerShipped()): { href: string; label: string; steps: string } | null {
   if (!shipped || !FVG_REPLAY_LESSONS.includes(lesson.n)) return null;
-  return { href: fvgChartLink(lesson, true).href, steps: FVG_REPLAY_STEPS };
+  return { href: fvgChartLink(lesson, true).href, label: FVG_REPLAY_LINK_LABEL, steps: FVG_REPLAY_STEPS };
 }
 
 /** The Academy deep link for a lesson. */

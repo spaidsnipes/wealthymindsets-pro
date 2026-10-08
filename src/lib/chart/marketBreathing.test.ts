@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { atrSeries, breathingSentence, MIN_BARS, readMarketBreathing, type BreathBar } from "./marketBreathing";
+import { atrSeries, breathingSentence, breathRibbonHeight, MIN_BARS, readBreathRibbon, readMarketBreathing, type BreathBar } from "./marketBreathing";
 
 const bar = (mid: number, range: number): BreathBar => ({ high: mid + range / 2, low: mid - range / 2, close: mid });
 const series = (ranges: number[]) => ranges.map((r, i) => bar(100 + Math.sin(i / 3), r));
@@ -38,5 +38,25 @@ describe("Market Breathing", () => {
     const b = readMarketBreathing(series(Array(100).fill(2)))!;
     expect(b.state).toBe("NORMAL");
     expect(b.phase).toBe("LEVEL");
+  });
+});
+
+describe("readBreathRibbon — F15 on the field (2026-10-07 night)", () => {
+  const mk = (n: number, wide: (i: number) => number) => Array.from({ length: n }, (_, i) => ({ time: i * 60, high: 100 + wide(i), low: 100 - wide(i), close: 100 }));
+  it("compressed bars read low, expanded tall, against the window's own median; changes are marked", () => {
+    const bars = mk(200, i => (i < 150 ? 1 : 0.3));
+    const r = readBreathRibbon(bars, 120, 199)!;
+    expect(r).not.toBeNull();
+    const early = r.points.find(p => p.time === 130 * 60)!;
+    const late = r.points.find(p => p.time === 199 * 60)!;
+    expect(late.ratio).toBeLessThan(early.ratio);
+    expect(late.state).toBe("COMPRESSED");
+    expect(r.changes.length).toBeGreaterThan(0);
+    expect(breathRibbonHeight(late.ratio)).toBeLessThan(breathRibbonHeight(early.ratio));
+    expect(breathRibbonHeight(0)).toBe(1);
+    expect(breathRibbonHeight(99)).toBe(12);
+  });
+  it("silent with too few bars", () => {
+    expect(readBreathRibbon(mk(20, () => 1), 0, 19)).toBeNull();
   });
 });

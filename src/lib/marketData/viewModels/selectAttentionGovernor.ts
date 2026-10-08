@@ -187,6 +187,9 @@ export const LAYER_ATTENTION = {
   // what the market did before (MEMORY). Selected → SELECTED like any object.
   fvg: { tier: "LIVE", depth: null, light: null },
   fvgMemory: { tier: "MEMORY", depth: null, light: null },
+  // F15 breath ribbon (PROPOSED, no Founder plate yet; default OFF, 2026-10-07 night):
+  // context about the bars' range, not a reading of its own.
+  breathRibbon: { tier: "SUPPORTING", depth: null, light: null },
   // ── House chrome: never dimmed ──────────────────────────────────────────
   riskOnPrice: { tier: "CHROME", depth: null, light: null },
   questionLens: { tier: "CHROME", depth: null, light: null },

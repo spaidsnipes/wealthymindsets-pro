@@ -926,6 +926,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [wisdomLineOn, setWisdomLineOn] = useState<boolean>(() => lsGet("wm_wisdomLine", true) as boolean);
   // RELATIVE VOLUME TONE (census C-03): on by default; silent without traded volume.
   const [rvolToneOn, setRvolToneOn] = useState<boolean>(() => lsGet("wm_rvolTone", true) as boolean);
+  // F15 BREATH RIBBON (PROPOSED — no Founder plate for Breathing yet): OFF by default.
+  const [breathRibbonOn, setBreathRibbonOn] = useState<boolean>(() => lsGet("wm_breathRibbon", false) as boolean);
   // FVG / IMBALANCE (Garden 19 FVG lane D): OFF by default; the glass paints
   // the ONE FVG history and hands back the scene it painted (Inspect reads it).
   const [fvgOn, setFvgOn] = useState<boolean>(() => lsGet(FVG_PREF_KEY, false) as boolean);
@@ -1313,6 +1315,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_deltaKeel", deltaKeelOn);
   usePersistOnChange("wm_wisdomLine", wisdomLineOn);
   usePersistOnChange("wm_rvolTone", rvolToneOn);
+  usePersistOnChange("wm_breathRibbon", breathRibbonOn);
   usePersistOnChange(FVG_PREF_KEY, fvgOn);
   usePersistOnChange("wm_absorptionAnatomy",   absorptionAnatomy);
   usePersistOnChange("wm_exhaustion",          exhaustionOn);
@@ -4043,6 +4046,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         aliases: ["rvol", "relative volume", "unusual volume", "busy", "time of day volume"],
         active: rvolToneOn,
         onToggle: () => setRvolToneOn(v => !v),
+      }, {
+        id: "BREATH_RIBBON",
+        label: "Breath Ribbon (proposed)",
+        what: "A thin ribbon on the volume well's top edge: each finished bar's ATR against the window's own median — compressed reads low and flat, expanded tall, a notch where the state changed. Price only, every market. Proposed: no Founder plate for Breathing yet",
+        familyWord: "Context",
+        aliases: ["breathing", "atr", "volatility", "compression", "expansion", "squeeze", "range"],
+        active: breathRibbonOn,
+        onToggle: () => setBreathRibbonOn(v => !v),
+        truth: { ok: true, sentence: "Range only (OHLC) — it reads on every market. Proposed until a Founder plate exists." },
       }, {
         // Garden 19 FVG lane D · id = the education key, so the ⓘ reads
         // CONCEPT_EDUCATION.FVG_IMBALANCE (and its Academy lesson fvg-1).
@@ -7022,6 +7034,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       deltaKeelOn={deltaKeelOn}
                       wisdomLineOn={wisdomLineOn}
                       rvolToneOn={rvolToneOn}
+                      breathRibbonOn={breathRibbonOn}
                       fvgOn={fvgOn}
                       onFvgScene={setFvgScene}
                       absorptionAnatomyActive={absorptionAnatomy}
