@@ -203,6 +203,8 @@ const MTF_TAG_TICKS: Readonly<Record<string, number>> = { "1H": 1, "4H": 2, D: 3
  * a SOLID rule, a value-area edge a DASHED one, so POC vs VAH / VAL reads with
  * every word erased. Short strokes across a profile column, behind the candles.
  */
+/** Profile Memory session identity dots (ASK-5): S-1 one … capped. */
+const PM_SESSION_DOTS_MAX = 4;
 const LEVEL_FORM_DASH: Readonly<Record<"POC" | "EDGE", readonly number[]>> = { POC: [], EDGE: [3, 4] };
 function strokeLevelForm(ctx: CanvasRenderingContext2D, y: number, x0: number, x1: number, ink: string, kind: "POC" | "EDGE"): void {
   ctx.save();
@@ -19994,6 +19996,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           }
         }
         ds.visibleRangeProfile = vrpOn ? (vrpVM?.reason ?? "NO_READING") : att.offWord(layerOnRef.current.visibleRangeProfile === true);
+        delete ds.visibleRangeLevelForms;
         {
           // Only the camera knows this species' refusal; hand it to the room's
           // Profiles door (READY over an empty lane was the defect), on change.
@@ -21004,6 +21007,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const cp = compositeProfileRef.current;
           const on = layerOnRef.current.compositeProfile && att.paints("compositeProfile");
           ds.compositeProfile = on ? (cp ? cp.reason : "NO_READING") : att.offWord(layerOnRef.current.compositeProfile);
+          delete ds.compositeLevelForms;
           if (on && cp?.drawn) {
             const lane = stackPlan.lanes.COMPOSITE ?? soloLane(W);
             if (lane.fits) {
@@ -22241,7 +22245,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // The lines, behind the candles; their names are collected and
             // printed after the cut-out is released (a name is never cut).
             const memNames: { l: (typeof memLevels)[number]; y: number; x0: number; fade: number }[] = [];
-            let pmPoc = 0, pmEdge = 0, pmAgeMin = Infinity, pmAgeMax = -Infinity;
+            let pmPoc = 0, pmEdge = 0, pmAgeMin = Infinity, pmAgeMax = -Infinity, pmDots = 0;
             for (const l of memLevels) {
               const yr = srs.priceToCoordinate(l.price);
               if (yr == null) continue;
@@ -22273,6 +22277,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillStyle = ctx.strokeStyle;
                 ctx.fillRect(endX - 4.5, y - 2, 4, 4);
               }
+              // ASK-5 (Sheriff re-run 69fb204: which SESSION was words-only).
+              // Session dots ride above the line's start: S-1 one, S-2 two, …
+              // up to PM_SESSION_DOTS_MAX (then the cap holds) — never on the
+              // line, so they never read as the test notches crossing it.
+              const sDots = Math.min(PM_SESSION_DOTS_MAX, Math.max(1, l.sessionsAgo));
+              ctx.fillStyle = ctx.strokeStyle;
+              for (let k = 0; k < sDots; k++) ctx.fillRect(x0 + 3 + k * 4, y - 5, 2, 2);
+              pmDots += sDots;
               drawn++;
               if (l.naked) naked++;
               if (isPoc) pmPoc++; else pmEdge++;
@@ -22280,6 +22292,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               memNames.push({ l, y, x0, fade });
             }
             ds.profileMemoryForms = `POC_SOLID:${pmPoc}|EDGE_DASHED:${pmEdge}|NAKED_OPEN_CAP:${naked}|AGE:S-${Number.isFinite(pmAgeMin) ? pmAgeMin : 0}..S-${Number.isFinite(pmAgeMax) ? pmAgeMax : 0}`;
+            ds.profileMemorySessionDots = `DOTS:${pmDots}|MAX:${PM_SESSION_DOTS_MAX}`;
             ctx.restore(); // releases Memory's candle cut-out
             // ④ MEMORY (a brain) — the organism glyph at the head of the nearest
             // remembered level, where its line meets the stack.

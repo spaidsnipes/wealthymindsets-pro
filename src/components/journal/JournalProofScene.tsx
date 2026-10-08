@@ -22,12 +22,14 @@ import { FvgExamplesView } from "@/components/education/FvgLessonBody";
 import { FvgContextSplitsView, ManagementCounterfactualView } from "@/components/journal/FvgContextSplitsView";
 import { JOURNAL_FIXTURE_BANNER, journalFixture } from "@/lib/journal/journalProofFixture";
 import { fvgReferenceSentence } from "@/lib/journal/fvgDecisionReference";
+import { behaviourCases } from "@/lib/journal/managementBehaviours";
 
 const GOLD = "#d4af37";
 
 export function JournalProofScene(): React.ReactElement {
   const f = useMemo(() => journalFixture(), []);
   const shown = f.entries.slice(0, 6);
+  const behaviours = useMemo(() => behaviourCases(), []);
   return (
     <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto" data-testid="journal-proof-scene" data-proof-scene="journal-fixture">
       <div role="status" data-testid="journal-proof-banner"
@@ -53,6 +55,21 @@ export function JournalProofScene(): React.ReactElement {
               plan={{ plan: e.plan, actuals: e.actuals, path: e.path }} readOnly defaultOpen />
           </div>
         ))}
+      </section>
+
+      <section aria-label="Management behaviours (sample)" data-testid="journal-proof-behaviours" className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">
+        <h2 className="text-sm font-bold text-wm-text mb-2">Review · management behaviours, one sample trade each (read from fills, order changes and the frozen plan)</h2>
+        <ul className="space-y-2">
+          {behaviours.map(b => {
+            const hit = b.result.findings.find(x => x.id === b.expect);
+            return (
+              <li key={b.expect} data-testid="journal-proof-behaviour" data-class={b.expect} data-found={hit ? "yes" : "no"} className="text-[11px] leading-relaxed" style={{ overflowWrap: "anywhere" }}>
+                <b className="text-wm-text">{hit?.label ?? b.behaviour}</b>
+                <span className="block text-wm-text-muted">{hit?.sentence ?? "not found in this sample"}</span>
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       <section aria-label="Personal Edge — FVG (sample)" data-testid="journal-proof-edge" className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">

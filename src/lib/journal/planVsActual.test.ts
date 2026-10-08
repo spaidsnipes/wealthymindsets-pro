@@ -118,7 +118,9 @@ describe("§26 stop, target and add — plan basis", () => {
     expect(early.findings.map(f => f.id)).toContain("MOVED_STOP_WITHOUT_PLAN_BASIS");
     expect(early.findings.find(f => f.id === "MOVED_STOP_WITHOUT_PLAN_BASIS")!.sentence).toMatch(/condition was \+1R, and the best move before then was \+0.60R/);
     const later = classifyPlanVsActual({ plan: p, actuals: act({ exits: exitAt(4, 104), stopMoves: [{ atMs: T0 + 4 * M, fromPx: 98, toPx: 100 }] }), path: pth });
-    expect(later.findings.map(f => f.id)).toEqual(["PLAN_FOLLOWED"]);
+    // §26 (2026-10-08): the move by the rule is now NAMED, not silent.
+    expect(later.findings.map(f => f.id)).toEqual(["PLAN_FOLLOWED", "MOVED_TO_BREAKEVEN_PER_RULE"]);
+    expect(later.primary).toBe("PLAN_FOLLOWED");
   });
   it("a stop move with no condition and no amendment has no plan basis — and widening is named as more risk", () => {
     const r = classifyPlanVsActual({ plan: plan(), actuals: act({ exits: exitAt(1, 104), stopMoves: [{ atMs: T0 + M, fromPx: 98, toPx: 97 }] }) });

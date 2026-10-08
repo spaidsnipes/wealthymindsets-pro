@@ -76,6 +76,12 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
       expect(html).not.toContain('data-testid="plan-path-load"');
       expect(html).not.toContain('data-testid="plan-erase"');
       expect(html).not.toContain('data-testid="review-ask-spaidbot"');
+      // §26: the eleven management behaviours, one sample trade each, every one found by its class.
+      expect(html).toContain('data-testid="journal-proof-behaviours"');
+      expect(html.match(/data-testid="journal-proof-behaviour"/g) ?? []).toHaveLength(11);
+      expect(html.match(/data-found="yes"/g) ?? []).toHaveLength(11);
+      for (const label of ["Took profit before planned condition", "Changed orders repeatedly without plan basis", "Reduced according to plan", "Moved to breakeven according to rule", "Walked away after protection, according to plan", "Moved target without plan basis"]) expect(html, label).toContain(label);
+      expect(html).not.toMatch(/impulsiv/i);
       expect(setItem).not.toHaveBeenCalled();
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
@@ -84,7 +90,7 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
   });
 
   it("the scene path has no write in its source; the Review rows are readOnly; the switch needs token AND a signed-in trader", () => {
-    for (const f of ["components/journal/JournalProofScene.tsx", "lib/journal/journalProofFixture.ts"]) {
+    for (const f of ["components/journal/JournalProofScene.tsx", "lib/journal/journalProofFixture.ts", "lib/journal/managementBehaviours.ts"]) {
       const src = read(f);
       expect(src.length).toBeGreaterThan(500);
       expect(src, f).not.toMatch(/setItem\(|localStorage|sessionStorage|fetch\(|method:\s*"POST"|indexedDB|writeStoryReview/);

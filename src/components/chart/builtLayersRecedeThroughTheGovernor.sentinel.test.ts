@@ -145,3 +145,24 @@ describe("Memory Ghost names its stroke alpha against the plate (cert lane, 2026
     expect(CHART).toContain("canvas.dataset.memoryGhostStrokeAlpha = `${ctx.globalAlpha.toFixed(2)}|PLATE_MAX:0.18|FLOOR:0.55`;");
   });
 });
+
+describe("ASK-5 (2026-10-08): identity without words", () => {
+  it("MTF tags carry horizon ticks (1H 1 · 4H 2 · D 3)", () => {
+    expect(CHART).toContain('const MTF_TAG_TICKS: Readonly<Record<string, number>> = { "1H": 1, "4H": 2, D: 3 };');
+    expect(CHART).toContain("for (let k = 0; k < rankT; k++) ctx.fillRect(tx + 3 + k * 3, tyy + TAG_H - 5, 1, 3);");
+  });
+  it("one level grammar: POC solid, value-area edges dashed — Composite, Visible Range, Session/Fixed VP", () => {
+    expect(CHART).toContain("const LEVEL_FORM_DASH: Readonly<Record<\"POC\" | \"EDGE\", readonly number[]>> = { POC: [], EDGE: [3, 4] };");
+    expect(CHART).toContain("ds.compositeLevelForms = `POC_SOLID+EDGE_DASHED:${cmpForms}`;");
+    expect(CHART).toContain("ds.visibleRangeLevelForms = `POC_SOLID+EDGE_DASHED:${vrForms}`;");
+    expect(CHART).toContain('if (tag === "POC") { ctx.setLineDash([...LEVEL_FORM_DASH.POC]); ctx.lineWidth = 1.5; }');
+  });
+});
+
+describe("ASK-5 (2026-10-08): Profile Memory names its session without a word", () => {
+  it("session dots above the line start, capped, receipted", () => {
+    expect(CHART).toContain("const PM_SESSION_DOTS_MAX = 4;");
+    expect(CHART).toContain("for (let k = 0; k < sDots; k++) ctx.fillRect(x0 + 3 + k * 4, y - 5, 2, 2);");
+    expect(CHART).toContain("ds.profileMemorySessionDots = `DOTS:${pmDots}|MAX:${PM_SESSION_DOTS_MAX}`;");
+  });
+});

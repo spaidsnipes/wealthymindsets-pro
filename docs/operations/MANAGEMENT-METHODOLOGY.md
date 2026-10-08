@@ -146,7 +146,12 @@ Inputs:
 | EXITED_AFTER_THESIS_INVALIDATION | The exit came within the bar the invalidation printed in or the next one, or the exit price is at/through the invalidation |
 | HELD_THROUGH_INVALIDATION | The position was still open more than one full bar after the bar in which the invalidation printed |
 | MOVED_STOP_WITHOUT_PLAN_BASIS | No recorded condition (breakeven after +N R *once it printed*, trailing toward the market) and no evidenced amendment covers the move. Widening is named "away from the market (more risk)" |
-| MOVED_TARGET | A target order moved with no evidenced amendment |
+| MOVED_TARGET | "Moved target without plan basis": a target order moved with no evidenced amendment |
+| TOOK_PROFIT_BEFORE_PLANNED_CONDITION | A close (final or partial) at a gain while neither the target nor the invalidation had printed (price path), with no recorded condition for it. A close at a loss is never "took profit" |
+| INTERFERED_REPEATEDLY | "Changed orders repeatedly without plan basis": ≥ 3 (`INTERFERENCE_MIN`) stop / target changes in one hold, none allowed by a condition or an evidenced amendment |
+| REDUCED_PER_PLAN | A partial close at or beyond the target with a recorded reduce condition ("reduce at target 1") |
+| MOVED_TO_BREAKEVEN_PER_RULE | The stop moved to the entry only after the plan's "+N R" had printed (price path) |
+| WALKED_AWAY_AFTER_PROTECTION_PER_PLAN | The plan records a walk-away condition ("walk away once the stop is protected"); after protection by rule, no stop, target, add or partial close came before the exit |
 | ADDED_RISK_AFTER_THESIS_WEAKENED | The add filled after the invalidation printed, or ≥ 0.5 R against the entry (`WEAKENED_ADVERSE_R`), with no evidenced amendment |
 | PLAN_FOLLOWED | The exit is at or beyond the target, at a recorded time condition, or past the target under a recorded trailing condition |
 | PLAN_CHANGED_WITH_DOCUMENTED_NEW_EVIDENCE | An amendment with new evidence came before the exit. The trade is then compared against the amended plan |
@@ -157,7 +162,17 @@ layer: **MARKET TRUTH** (fills, path), **CONTEXT TRUTH** (session/context the tr
 **TRADER TRUTH** (the plan, amendments) or **EDUCATION TRUTH** (the rule). Findings are mapped to
 the Review rows MANAGEMENT / DISCIPLINE / ADHERENCE (`FINDING_DIMENSION`).
 
-Tests: `planVsActual.test.ts`, `managementPlanSlice2.test.ts`.
+**§26 coverage (2026-10-08).** The order's eleven management behaviours each have one class, read
+from broker readback and the frozen plan, never a feeling: exited before planned invalidation,
+moved stop / target without plan basis, took profit before planned condition, held beyond
+invalidation, added risk after thesis weakened, changed orders repeatedly, followed plan, reduced
+according to plan, moved to breakeven according to rule, walked away after protection according to
+plan. `managementBehaviours.ts` holds the list (`MANAGEMENT_BEHAVIOUR_COVERAGE`) and one sample trade
+per behaviour. The journal proof scene shows all eleven. The word is "without plan basis", never
+"impulsively". Took profit and changed orders repeatedly count as departures in adherence; the
+by-plan behaviours do not.
+
+Tests: `planVsActual.test.ts`, `managementPlanSlice2.test.ts`, `managementBehaviours.test.ts`.
 
 ### Journal auto-capture: the fill shapes it accepts (`journalCaptureFromFill.ts`)
 
