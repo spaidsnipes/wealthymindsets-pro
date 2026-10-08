@@ -39,10 +39,18 @@ describe("Ask SpaidBot — the existing panel, pre-filled, one question's contex
 
   it("Inspect: the selected gap's fact block leads, and the server note words it", () => {
     const ask = fvgInspectAsk(obj, 2);
-    expect(ask.prompt).toMatch(/^What am I looking at\? \(the selected bullish FVG on NQ1! 1m\)$/);
-    const ctx = contextWithAsk({ symbol: SYM, timeframe: "1m", fvg: [] }, ask);
-    const note = formatChartContextNote(ctx, T0 + 3_600_000);
+    expect(ask.prompt).toBe("What am I looking at? (the selected bullish FVG on this chart, 1m)");
+    // Only `fvg` is patched — the chart names its own symbol (serving 02e593e: a feed streamer id
+    // "TASTYTRADE:/NQZ26:XCME" reached the question and overrode the chart's "NQ1!").
+    expect(Object.keys(ask.context)).toEqual(["fvg"]);
+    const streamer = { ...obj, symbolId: "TASTYTRADE:/NQZ26:XCME" };
+    expect(fvgInspectAsk(streamer, 2).prompt).not.toContain("TASTYTRADE");
+    const ctx = contextWithAsk({ symbol: "NQ1!", timeframe: "1m", fvg: [] }, fvgInspectAsk(streamer, 2));
+    expect(ctx.symbol).toBe("NQ1!");
+    const note = formatChartContextNote(contextWithAsk({ symbol: SYM, timeframe: "1m", fvg: [] }, ask), T0 + 3_600_000);
+    expect(note).toContain("[Current chart: NQ1! 1m");
     expect(note).toContain(`SELECTED ${obj.objectId} — definition FVG_3C v1.`);
+    void ctx;
     expect(note).toContain("boundaries 101.00–102.00");
     expect(contextWithAsk({ symbol: SYM }, null)).toEqual({ symbol: SYM });
   });

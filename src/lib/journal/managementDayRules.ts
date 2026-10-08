@@ -105,3 +105,14 @@ export function dayRulesSession(nowMs: number): DayRulesSession {
     line: `US listed equities: ${word(equities)} · CME futures: ${word(futures)}.${allClosed ? " Markets are CLOSED now — rules saved here are kept for today's date only; write them again on your next trading morning." : ""}`,
   };
 }
+
+/** The read-only one-liner other rooms show (the Journal). Morning Prep stays the one editor. */
+export function dayRulesSummaryLine(rules: ManagementDayRules | null): string {
+  if (!rules) return "No management rules saved for today.";
+  const parts = [
+    rules.conditions.length ? rules.conditions.join("; ") : null,
+    rules.expectedHoldMin != null ? `hold ${rules.expectedHoldMin} min` : null,
+    rules.sessionPlan ? `session: ${rules.sessionPlan}` : null,
+  ].filter(Boolean);
+  return parts.join(" · ");
+}

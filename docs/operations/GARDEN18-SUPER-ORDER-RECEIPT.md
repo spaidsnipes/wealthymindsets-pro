@@ -679,9 +679,10 @@ Founder decisions: members bring their own tastytrade (and Webull when supported
 
 ## Garden 19 FVG / Imbalance + Patience shift — Oct 7 12:25 → 20:00 CDT
 
-Builds `388c941..f96618c` (13 commits, in order):
+Builds `388c941..02e593e` (21 commits; 13 in the day shift, then 8 more before the night shift):
 - `4769a31` → `c4de0f0` → `a10514f` → `d5ac6ff` → `d6e2c18` → `eea2771` → `57e9fda`
 - → `909177d` → `301d85d` → `8db9b21` → `6e65180` → `aeb83c9` → `8f776cc` → `f96618c`
+- → `683aecf` → `5475a8e` → `fbc999b` → `8e7beee` → `fabce3a` → `706995d` → `4242dbd` → `02e593e`
 
 Deploys ran freely all shift: the Founder was not trading, and the deploy freeze was lifted in `388c941`.
 
@@ -698,29 +699,40 @@ Status words: **CLOSED** (serving proof) · **PARTIAL** (built; the missing proo
 | Item | Build | Proof | Status |
 |---|---|---|---|
 | FVG_3C v1 definition, one detector, lifecycle on one object, as-of accessor, visibility budget, descriptive stats, methodology doc (`docs/operations/FVG-METHODOLOGY.md`) | `4769a31` | engine tests. Every serving reader below runs on this engine | CLOSED |
-| FVG chart layer `on=fvg` (default off): territory grammar, clear zone, keep-out strips, receipts | wiring `c4de0f0` → `d6e2c18` → `301d85d` / `8db9b21` → `6e65180` | 16-row matrix on eea2771 (NQ1!, ES1!, SPY and BTC-USD at 1m / 5m / 1h; BTC-USD 500T; EURUSD 1m / 5m / 1h): LEAK:0 on every row, MAXX ≤ X < NEWEST. Sizes 1180 / 834 / 390 on 301d85d: the newest candle is never covered and paint is within budget | CLOSED. Scar quieting on SPY 5m not re-read (PARTIAL) |
+| FVG chart layer `on=fvg` (default off): territory grammar, clear zone, keep-out strips, receipts | wiring `c4de0f0` → `d6e2c18` → `301d85d` / `8db9b21` → `6e65180` | 16-row matrix on eea2771 (NQ1!, ES1!, SPY and BTC-USD at 1m / 5m / 1h; BTC-USD 500T; EURUSD 1m / 5m / 1h): LEAK:0 on every row, MAXX ≤ X < NEWEST. Sizes 1180 / 834 / 390 on 301d85d: the newest candle is never covered and paint is within budget · **Opacity hierarchy** f96618c (NQ1! 5m, 14 layers on): price > LIVE 1 > SUPPORTING 0.75 > MEMORY 0.44 ≥ floor 0.12. **SPY 5m scars** read as two thin hatched strips, not a wall; stale feed dims the whole reading (`fvgGov LIVE:0.60\|MEMORY:0.26`). **Selected gap recedes the room** (683aecf): fvg 1 → 0.45, structure 0.6 → 0.27, memory 0.44 → 0.2, selected band 1 (`~/wm-held/proof/fvg-serving-opacity-a6-2026-10-07.txt`) | CLOSED |
 | Paint cost within 1.5 ms (frame memo; compute per closed bar) | `d6e2c18`, `301d85d` | 301d85d: paint mean 0.23–1.10 ms, MET (eea2771 was OVER on NQ 1m / 5m and SPY 5m at 1.58–2.17) | CLOSED |
 | Tick-bar gaps (ms pairing) | `d6e2c18` | BTC-USD 500T draws gaps. NQ / ES 500T are in warm-up (2 bars) | CLOSED |
 | Tap → Inspect, first touch, size in ticks, relationships by reference | `d6e2c18`, `301d85d` | ES1! 5m: "4 ticks · 1.00 points · 0.27× ATR14", 4 relationships FULL, walls and liquidity SILENCE | CLOSED |
 | FVG Inspect in four truth layers + "Ask SpaidBot" pre-filled, sent by the trader | `f96618c` | tests | PARTIAL: no serving receipt |
 | Replay camera: as-of at the cursor | `c4de0f0`, `301d85d` | ES1! 5m cursor 4857 / 4977: `REPLAY:…\|LEAK:0`; an object born after the clock drops out; put-down returns LIVE | CLOSED |
 | Scanner: five FVG conditions + door `select=fvg:<id>` → HELD | `c4de0f0`, `57e9fda`, `301d85d` | eea2771: 30 of 30 read, 0 refused, 14 hits across 5 conditions. 301d85d: `data-proof-select-object …\|HELD`, Inspect on that id | CLOSED |
-| Scanner convergence (FVG + structure / profile, with source evidence) | `eea2771`, `57e9fda` | tests | PARTIAL: no serving receipt |
+| Scanner convergence (FVG + structure / profile, with source evidence) | `eea2771`, `57e9fda` | tests · fabce3a, read-only: 10 convergence rows (9 FVG + structure, 1 FVG + profile, 0 wall) with source evidence words. Request count: page load 0, strip opened 0, after Read 30 (one per symbol), Read again within 60 s still 30 (reused); localStorage byte-identical (certificate §6a) | CLOSED |
 | Backtest FVG study (as-of, DESCRIPTIVE, n of m) | `c4de0f0` | eea2771 NQ1! 5m: 991 bars, 148 gaps, revisited 139 of 148; the clock at bar 501 sees 73 gaps; pooled 524; localStorage untouched | CLOSED |
-| Backtest splits by structure / profile relationship (pre-formation bars only) | `57e9fda` | tests | PARTIAL: no serving receipt |
+| Backtest splits by structure / profile relationship (pre-formation bars only) | `57e9fda` | tests · `fbc999b` INSUFFICIENT gate. fabce3a NQ1! 5m, 152 gaps: direction BEARISH 78 / BULLISH 74 with shares; "b2 range ≥ 2× ATR 17 · INSUFFICIENT (fewer than 20)" and "crosses a session boundary 2 · INSUFFICIENT" with no %; structure: none 57 / with 95. At 390 the table scrolls inside its own wrapper, page overflow 0 (`~/wm-held/proof/fvg-serving-spaidbot-academy-backtest-2026-10-07.txt`) | CLOSED |
 | Journal × FVG reference + as-of-decision snapshot | `d5ac6ff` | eea2771: at b3 close "born, 0 interactions, deepest 0%"; now "fully mitigated, deepest 100%" | PARTIAL: save → reload → same snapshot not proven |
 | Review: FVG answers (first or later touch, acted before the condition, held after trade-through), three-column market / planned / actual | `d5ac6ff`, `eea2771` | tests | PARTIAL: no serving receipt |
 | First counterfactual slice (traded vs untraded touches, descriptive) | `eea2771`, `909177d` | tests | PARTIAL: no serving receipt |
 | SpaidBot FVG fact block (observed vs derived; "price does not have to fill") | `c4de0f0`, `d6e2c18` | tests | PARTIAL: lane in progress; needs a serving reply quoting the block |
 | Management / patience: pre-trade plan card, freeze at send / paper fill, dated amendments, plan-vs-actual from broker readback, Morning Prep day rules, session plan on the Decision_ID, plan adherence by setup and FVG context, SpaidBot plan-review rules, patience copy guard | `4769a31`, `c4de0f0`, `eea2771`, `f96618c` | tests | PARTIAL: no serving receipt in this file. Plan-vs-actual needs a real fill |
 | Learning-loop hand-offs (Morning Prep ↔ plan card ↔ Journal ↔ Review → Academy lesson; Personal Edge → lesson) | `909177d` | tests | PARTIAL: no serving receipt |
-| Academy: "FVG / Imbalance & Patience" course in the existing Academy (21 lessons, myth card, 14-question quiz, ⓘ `FVG_IMBALANCE` deep-link to lesson 1) | `4769a31` | serving 4769a31: 21 lessons × 1440 / 834 / 390, 63 / 63 with no overflow and distinct diagrams. Quiz pass recorded browser-local (local run) | CLOSED |
+| Academy: "FVG / Imbalance & Patience" course in the existing Academy (21 lessons, myth card, 14-question quiz, ⓘ `FVG_IMBALANCE` deep-link to lesson 1) | `4769a31` | serving 4769a31: 21 lessons × 1440 / 834 / 390, 63 / 63 with no overflow and distinct diagrams. Quiz pass recorded browser-local (local run) · Layout re-read on fabce3a: lesson 1 at 390 and 834, page overflow 0, only BODY scrolls (no nested scroll trap) (`~/wm-held/proof/fvg-serving-spaidbot-academy-backtest-2026-10-07.txt`, ss_6856eun4t) | CLOSED |
 | Academy: "Show me on a chart" switch-over + "Practice in Replay" (lessons 6–10, 14, 15) | `c4de0f0` | local: the link resolves to `/charts?scene=clean&on=fvg`. The target layer is proven separately (rows above) | PARTIAL: lesson link → territories painted, not read on serving |
-| Academy module-list scrollbar (the OS-default white track) | `57e9fda` | local computed `scrollbar-color` brass; `academyScroll.test.ts` | PARTIAL: serving read |
+| Academy module-list scrollbar (the OS-default white track) | `57e9fda` | local computed `scrollbar-color` brass; `academyScroll.test.ts` · fabce3a at 390 / 834: no nested scroll area (only BODY scrolls), so no white track there (`~/wm-held/proof/fvg-serving-spaidbot-academy-backtest-2026-10-07.txt`) | CLOSED at 390 / 834. PARTIAL at ≥ 1024: the module list's brass `scrollbar-color` has not been read on serving |
 | Selling pass: /welcome, /pricing, /login tell one story (product line, living market intelligence, 14-step loop, "what is live today"); banned-claims sweep; prices locked | `a10514f` (+ welcome axis labels `eea2771`, login wordmark 11 px `6e65180`) | production 1440 / 390 PASS (d5ac6ff). §52 public run 48 / 48 on production twice (20:56 and 21:19 UTC) | CLOSED |
 | §52 responsive release test, runnable (`scripts/release/responsive-public.mjs` + `responsive-in-tab.js`) | `57e9fda` | production 48 / 48, 8 routes × 6 widths. In-tab dry run 6 / 6 (local) | CLOSED (public). PARTIAL: full in-tab run (14 rooms × 6 widths) on serving |
 | Certificates: §53 FVG certificate, §62 release evidence, §63 / §64 Sheriff checklists | `eea2771` → `8db9b21` → `8f776cc` | this table's proof column | CLOSED (doc, kept current) |
-| Chart Sheriff: phone header O/H/L, Passport prices at market precision, zone names (SWEPT · STILL VALID; clear slots only; off the newest candles; local times with zone), FVG bands below the reading row and around the countdown, zoom plate withheld under 500 px, tick-bar coverage chip, desk 4-up legend, Evidence chip at 1024–1439, one countdown, assistant off public phone pages | `eea2771`, `301d85d`, `8db9b21`, `6e65180`, `aeb83c9`, `8f776cc`, `f96618c` | NQ1! 5m at 390: zoom plate `WITHHELD:NARROW` (8db9b21). Other items: tests / lane screenshots | PARTIAL: per-item serving receipts are not in this file |
+| Chart Sheriff: phone header O/H/L, Passport prices at market precision, zone names (SWEPT · STILL VALID; clear slots only; off the newest candles; local times with zone), FVG bands below the reading row and around the countdown, zoom plate withheld under 500 px, tick-bar coverage chip, desk 4-up legend, Evidence chip at 1024–1439, one countdown, assistant off public phone pages | `eea2771`, `301d85d`, `8db9b21`, `6e65180`, `aeb83c9`, `8f776cc`, `f96618c` | NQ1! 5m at 390: zoom plate `WITHHELD:NARROW` (8db9b21). Other items: tests / lane screenshots · Per item (`~/wm-held/proof/fvg-serving-sheriff-2026-10-07.txt`, `~/wm-held/proof/fvg-serving-opacity-a6-2026-10-07.txt`, `~/wm-held/proof/fvg-serving-spaidbot-academy-backtest-2026-10-07.txt`): **A1** WAIT tag clear (aeb83c9); zone names clear of wicks (fbc999b, GC1! 5m); callout over newest wicks fixed in 8e7beee; **A3** phone OHLC group hidden (aeb83c9); **A6** desk 4-up depth plate withheld ×4 (fbc999b); **A7** tick chip clear of controls, zoom plate withheld (aeb83c9); **A8** Passport price at 2 dp (aeb83c9); **A9** zone state words (aeb83c9, fbc999b); **A10** FVG bands below the reading row (aeb83c9); **A11** phone clock "OPENED 4:50 PM" (5475a8e); **A12** data-gap words: 0 over the newest candles or the price line (fabce3a) | CLOSED. OPEN residual: desk pane header "LIVE — CERTIFIED QUOTE" clips at 1180 (706995d) |
+| FVG performance §58: one scene per closed bar, tick path stops re-reading the scene, fetches deduped + abort on unmount, 5k-bar sentinel | `683aecf`, `5475a8e` | `fvgPerformance.sentinel.test.ts`. Serving paint MET (301d85d). Scanner reads deduped (fabce3a, certificate §6a) | CLOSED (compute on a phone-class device: PARTIAL) |
+| FVG layer OFF is silent | `5475a8e` | NQ1! 5m `scene=clean` at 1180×820 and 390×844: fvg OFF; fvgGov / fvgDrawn / fvgHit ABSENT (`~/wm-held/proof/fvg-serving-opacity-a6-2026-10-07.txt`). SpaidBot context has no `fvg` (683aecf, certificate §6a) | CLOSED |
+| FVG accessibility: no raw ids read aloud, 44 px + visible focus on every FVG control, diagram text alternatives, direction always a word | `8e7beee` | `fvgAccessibility.sentinel.test.ts` | PARTIAL: 390 tap / keyboard read on serving |
+| Academy "Show me my examples" from real journal FVG references + Personal Edge FVG study list; `/journal?entry=` opens an entry | `683aecf` | tests | PARTIAL: no serving receipt |
+| Ask SpaidBot from FVG Inspect: payload correct, but at fabce3a no panel listened on /charts (P1 defect) → launcherless `SpaidbotAskHost` opens the existing panel pre-filled, never sends | `f96618c` → `4242dbd` | fabce3a payload: the selected gap's record, FVG_3C v1, senses, no must-fill words (`~/wm-held/proof/fvg-serving-spaidbot-academy-backtest-2026-10-07.txt`). The defect is fixed in 4242dbd | PARTIAL: panel opening pre-filled not re-read after 4242dbd |
+| Scanner "Open on the chart" (client navigation) turns the FVG layer on: at 706995d it landed with fvg=OFF and `…\|PENDING` | `02e593e` | defect read on serving (`~/wm-held/proof/fvg-serving-spaidbot-academy-backtest-2026-10-07.txt`); fix pinned in `fvgGlass.sentinel` | PARTIAL: re-read on 02e593e |
+| Shared bar reader refusal in trader words (backtest showed "Yahoo HTTP 404") | after `fabce3a` | certificate §6a; the fabce3a refusal reads "try again in a moment" for a symbol that does not exist (finding) | PARTIAL: re-read |
+| Management Sheriff sweep: local time with zone, shared money formatter, no emotion / shaming / edge words below n = 20 (sentinel); plan delete disarms after 6 s; management methodology doc | `fbc999b`, `8e7beee`, `02e593e` | tests + sentinel | PARTIAL: no serving receipt |
+| Market-object pins hidden + untappable under the open trade panel (phone) | `5475a8e` | AAPL 5m at 390: 4 pins hidden / pointer-events none; elementFromPoint at BUY = BUY; no order touched (`~/wm-held/proof/fvg-serving-opacity-a6-2026-10-07.txt`) | CLOSED |
+| Desk 4-up tablet header on one row | `706995d` | 1180: every pane header one row, 53 px (controls 44) (`~/wm-held/proof/fvg-serving-spaidbot-academy-backtest-2026-10-07.txt`) | CLOSED (residual above) |
+| Shell PAPER P&L + PRO at 11 px | `02e593e` | — | PARTIAL: serving read |
 | EURUSD 1m shows 0 gaps | — | the feed serves point bars (2998 of 2998 with O = H = L = C, volume 0); FVG_3C rule 3 refuses a doji b2 | BLOCKED (data lane: Yahoo EURUSD 1m) |
 
 ### Founder list (end of shift)
@@ -738,3 +750,25 @@ Status words: **CLOSED** (serving proof) · **PARTIAL** (built; the missing proo
 3. **Academy.** The FVG course is the only published course (its quiz records completion); the other 8 modules stay COMING_SOON. Choose the next course to publish.
 4. **Brand voice.** No brand-voice document exists in Drive. The selling copy was written to the order's terms (product line, loop, honesty block); approve or redline it.
 5. **Referral URLs** for the broker doors are still unset.
+
+## Night shift — Oct 7 21:05 → Oct 8 05:05 CDT
+
+Production at the start: `02e593e`. This lane works on docs and release scripts only. Rows are added as the lanes' serving receipts arrive. A row is CLOSED only with a receipt (build + file).
+
+| Time (CDT) | Item | Build | Proof | Status |
+|---|---|---|---|---|
+| 21:05 | Day-shift receipt brought up to `02e593e`: 8 builds added as rows; flips with serving proof (opacity hierarchy + SPY scars, layer-off silence, backtest relationship splits, Academy layout, Academy scrollbar at 390 / 834, scanner convergence + request count, Sheriff A1 / A3 / A6 / A7 / A8 / A9 / A10 / A11 / A12) | docs | `~/wm-held/proof/fvg-serving-opacity-a6-2026-10-07.txt`, `fvg-serving-spaidbot-academy-backtest-2026-10-07.txt`, `fvg-serving-sheriff-2026-10-07.txt`, certificate §6a. Mirrored append-only in certificate §5 ("UPDATE 21:05 CDT") | CLOSED |
+| 21:07 | §52 public responsive release test on production | `02e593e` | `scripts/release/responsive-public.mjs`: 48 / 48 PASS (8 routes × 1440 / 1024 / 834 / 768 / 390 / 360). No SMALL_TEXT; the signed-out 401 console line only. `~/wm-held/proof/release-52-night/` | CLOSED |
+
+**Open at the start of the night** (from the day shift; each needs a serving read):
+- SpaidBot panel pre-filled from FVG Inspect after `4242dbd`
+- Scanner "Open on the chart" layer-on after `02e593e`
+- Bar-reader refusal words
+- Journal FVG save → reload
+- Review FVG answers
+- Academy "Show me my examples" + Personal Edge FVG list
+- FVG accessibility at 390
+- Management sweep
+- Academy scrollbar colour at ≥ 1024
+- Full in-tab §52 run (14 rooms × 6 widths)
+- Desk pane header clip at 1180

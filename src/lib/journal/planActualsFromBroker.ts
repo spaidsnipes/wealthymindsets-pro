@@ -78,6 +78,15 @@ function moves(orders: readonly StoryOrderFact[], level: (o: StoryOrderFact) => 
   return out;
 }
 
+/**
+ * What tastytrade's readback has NOT yet been shown to establish (methodology §11). Said in Review
+ * as UNKNOWN, so a stop move WM did not see is never read as "the stop was not moved".
+ */
+export const BROKER_READBACK_UNKNOWNS: readonly string[] = [
+  "UNKNOWN: whether tastytrade's same-day order list keeps cancelled or replaced Stop orders — an earlier stop level may not be visible here.",
+  "UNKNOWN: whether a stop replaced at tastytrade keeps WM's order link — a replacement may not be counted as this decision's.",
+];
+
 export function actualsFromBrokerStory(
   story: { readonly orders: readonly StoryOrderFact[]; readonly fills: readonly StoryFillFact[] },
   plan: { readonly stopPx: number | null; readonly targetPx: number | null },
@@ -97,5 +106,6 @@ export function actualsFromBrokerStory(
     stopMoves: moves(closers.filter(isStop), o => px(o.stopTrigger), plan.stopPx),
     targetMoves: moves(closers.filter(isLimit), o => px(o.price), plan.targetPx),
     source,
+    unknowns: BROKER_READBACK_UNKNOWNS,
   };
 }

@@ -61,6 +61,8 @@ describe("select=fvg:<id> → HELD", () => {
     const inline = /ledger\.objects\.some\(o => o\.objectId === proofSelectObject\.objectId\)/.test(effect)
       && /\|HELD`/.test(effect) && /\|NONE_AVAILABLE`/.test(effect) && /\|PENDING`/.test(effect);
     expect(usesHelper || inline).toBe(true);
-    expect(effect).toMatch(/actOnChartSelection\(\{ type: "select", selection: \{ kind: "OBJECT", objectId: proofSelectObject\.objectId \} \}\)/);
+    // The chart lane resolves the door's id to the chart's own object (resolveFvgDoorTarget, strict
+    // equivalence across feeds) — either way the select goes through the ONE selection owner.
+    expect(effect).toMatch(/actOnChartSelection\(\{ type: "select", selection: \{ kind: "OBJECT", objectId: (proofSelectObject|target)\.objectId \} \}\)/);
   });
 });

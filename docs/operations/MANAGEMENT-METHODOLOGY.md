@@ -115,6 +115,10 @@ York market day only (`marketDayKey`).
   carries its basis.
 * **Holidays are never claimed.** The basis says "holiday calendar not loaded". When both
   reference markets are CLOSED, the line says so.
+* **One editor, many readers.** Morning Prep is the only place the rules are written. The Journal
+  shows them read only, as one line ("Today's rules: … · Edit in Morning Prep →", or "No
+  management rules saved for today. · Set them in Morning Prep →"), through `TodayRulesLine` in
+  the same file as the editor. Test: `journalDayRulesLine.test.ts`.
 
 Tests:
 * `managementPlan.test.ts` (freeze, parsing, immutability, round-trip, store, send hook)
@@ -130,6 +134,9 @@ Inputs:
   * Broker stories come from `actualsFromBrokerStory`: tastytrade's own fills (`executed-at`) and
     closing Stop / Limit orders, ordered and timed by `received-at` (never `updated-at`).
   * Journal entries come from `actualsFromJournalEntry`; those have prices but usually no times.
+  * Broker actuals carry `unknowns`, the two readback facts not yet established (§11). Review's
+    WHAT YOU ACTUALLY DID column prints them as **UNKNOWN** lines. With no stop order in the
+    readback it says "No stop move seen in the readback." — never "the stop was not moved".
 * **Optional:** the price path over the hold.
 
 | Class | Rule (stated in the finding as EDUCATION TRUTH) |
@@ -151,6 +158,23 @@ layer: **MARKET TRUTH** (fills, path), **CONTEXT TRUTH** (session/context the tr
 the Review rows MANAGEMENT / DISCIPLINE / ADHERENCE (`FINDING_DIMENSION`).
 
 Tests: `planVsActual.test.ts`, `managementPlanSlice2.test.ts`.
+
+### Journal auto-capture: the fill shapes it accepts (`journalCaptureFromFill.ts`)
+
+| Shape (tastytrade readback) | Capture |
+|---|---|
+| One fill | Fill price BROKER-REPORTED |
+| One order filled in pieces | Quantity-weighted price DERIVED; filled-at = earliest fill; fees summed |
+| Partial fill still working | Refused — waits for the broker's fill |
+| Partial fill then Cancelled / Expired / Removed | Captured with tastytrade's filled quantity (ordered vs filled both shown, status kept). The reload offer keeps it too (`filledOrdersWithTickets`) |
+| Cancelled with nothing filled | Refused — not a trade |
+| Multi-leg order | Refused as one trade, with the reason: journal each leg yourself; UNKNOWN to WM how the legs pair (`TtOrderView.legCount`) |
+| Fees: commission / clearing / regulatory reported separately | Summed, BROKER-REPORTED |
+| Fees: a fill with no fee field | UNREPORTED, never 0 (`TtFill.feesReported`); a reported 0 is a fee of 0 |
+| Fees: some fills without fees | Total UNKNOWN — the partial sum is not given |
+| Replaced stops | Each closing Stop / Stop Limit order in the readback is a move from the one before, timed by `received-at` |
+
+Test: `captureFillShapes.test.ts` (with `journalCaptureFromFill.test.ts`).
 
 ## 3. The plan alone — counterfactual reference (§24)
 
@@ -323,9 +347,13 @@ tests and by local renders only:
 * the plan card's Journal door;
 * SpaidBot's plan line.
 
-Also not yet proved with real broker data:
+Also not yet proved with real broker data, and therefore **printed as UNKNOWN in Review** wherever
+broker actuals are shown (`BROKER_READBACK_UNKNOWNS` in `planActualsFromBroker.ts`):
 * that tastytrade's same-day order list keeps cancelled/replaced Stop orders (needed to see every
   stop move);
 * that a stop moved through tastytrade's own replace keeps WM's external identifier.
+
+Journal auto-capture is proved on fixtures of every fill shape seen in readback (§2), not yet on a
+real fill.
 
 WM never writes a plan, a draft or a rule on the Founder's account. Only his own actions do.

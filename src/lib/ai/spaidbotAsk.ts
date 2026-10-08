@@ -45,11 +45,18 @@ export function contextWithAsk(base: Record<string, unknown>, ask: SpaidbotAsk |
   return ask ? { ...base, ...ask.context } : base;
 }
 
-/** Inspect → SpaidBot: the selected gap's facts lead, from the one object. */
+/**
+ * Inspect → SpaidBot: the selected gap's facts lead, from the one object.
+ *
+ * Only `fvg` is patched: the chart's own context already names the symbol the
+ * trader reads ("NQ1!"). The object's `symbolId` can be a feed's streamer id
+ * ("TASTYTRADE:/NQZ26:XCME" — serving 02e593e put that in the question and
+ * overrode the chart's symbol), so it is never spoken or patched.
+ */
 export function fvgInspectAsk(o: FvgObject, priceDp: number | null): SpaidbotAsk {
   return {
-    prompt: `${FVG_ASK_PROMPT} (the selected ${o.direction.toLowerCase()} FVG on ${o.symbolId} ${o.timeframe})`,
-    context: { symbol: o.symbolId, timeframe: o.timeframe, fvg: [fvgFactsForSpaidbot(o, true, priceDp)] },
+    prompt: `${FVG_ASK_PROMPT} (the selected ${o.direction.toLowerCase()} FVG on this chart, ${o.timeframe})`,
+    context: { fvg: [fvgFactsForSpaidbot(o, true, priceDp)] },
   };
 }
 

@@ -91,7 +91,14 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
           </section>
         );
       })}
-      <AskSpaidbotButton testId="inspect-fvg-ask-spaidbot" label="Ask SpaidBot: what am I looking at?" ask={() => fvgInspectAsk(o, priceDp)} />
+      <AskSpaidbotButton testId="inspect-fvg-ask-spaidbot" label="Ask SpaidBot: what am I looking at?" ask={() => {
+        // Phone (serving 390, 2026-10-07 night): the ticket stood over the SpaidBot
+        // panel it had just opened. On a phone the ticket steps aside for the answer;
+        // the selection stays, so Inspect reopens on the same gap.
+        const a = fvgInspectAsk(o, priceDp);
+        if (typeof window !== "undefined" && window.matchMedia?.("(max-width: 639px)").matches) onClose();
+        return a;
+      }} />
       <br />
       <a href={academy.href} data-testid="inspect-fvg-academy"
         className="wm-tap mt-2 inline-flex items-center rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold text-[11px] font-semibold underline" style={{ color: GOLD }}>

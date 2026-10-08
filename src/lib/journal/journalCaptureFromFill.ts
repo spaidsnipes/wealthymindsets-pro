@@ -85,6 +85,8 @@ export interface FillCaptureOrder {
   readonly orderType: string | null;
   readonly externalId: string | null;
   readonly updatedAt: string | null;
+  /** Legs tastytrade reported; > 1 is a multi-leg order (refused — not one instrument). */
+  readonly legCount?: number;
 }
 
 /** The subset of tastytrade's trade transaction (TtFill) capture reads. */
@@ -95,6 +97,8 @@ export interface FillCaptureFill {
   readonly price: number | null;
   readonly fees: number;
   readonly executedAt: string | null;
+  /** False when tastytrade sent no fee field on this transaction (fees UNREPORTED, never 0). */
+  readonly feesReported?: boolean;
 }
 
 /** tastytrade's own round-trip result, when a closing fill completes one (tastytradeLedger). */
@@ -190,11 +194,17 @@ const TICKET = "ticket at send";
 export function journalCaptureFromFill(input: FillCaptureInput): JournalCaptureResult {
   const { intent, order } = input;
   if (!order || !order.id) return { ok: false, reason: "No broker readback for this order — nothing to capture." };
-  if (order.state !== "FILLED") {
+  if ((order.legCount ?? 1) > 1) {
+    return { ok: false, reason: `tastytrade reports ${order.legCount} legs on this order. A multi-leg order is not one instrument, so WM does not capture it as one trade — journal each leg yourself (UNKNOWN to WM how the legs pair).` };
+  }
+  const mine = (input.fills ?? []).filter(f => f.orderId === order.id);
+  // A partial fill that was then cancelled / expired / removed is still a real fill: tastytrade
+  // reports the filled quantity and its own transactions. Anything still working waits.
+  const partialThenEnded = (order.state === "CANCELED" || order.state === "CLOSED") && (order.filled ?? 0) > 0 && mine.length > 0;
+  if (order.state !== "FILLED" && !partialThenEnded) {
     return { ok: false, reason: `tastytrade reads this order as ${order.state.replace(/_/g, " ")}, not FILLED. A journal draft waits for the broker's fill.` };
   }
 
-  const mine = (input.fills ?? []).filter(f => f.orderId === order.id);
   const priced = mine.filter(f => num(f.price) != null && num(f.quantity) != null && (f.quantity as number) > 0);
   const fillQty = priced.reduce((s, f) => s + (f.quantity as number), 0);
 
@@ -206,9 +216,14 @@ export function journalCaptureFromFill(input: FillCaptureInput): JournalCaptureR
     fillPx = { value: round(priced.reduce((s, f) => s + (f.price as number) * (f.quantity as number), 0) / fillQty), provenance: "DERIVED", source: `quantity-weighted average of ${priced.length} tastytrade fills` };
   } else fillPx = unreported("tastytrade has not reported a fill transaction for this order yet (the order's limit is not its fill price)");
 
-  const fees: CapturedField<number> = mine.length
-    ? { value: round(mine.reduce((s, f) => s + (Number.isFinite(f.fees) ? f.fees : 0), 0), 4), provenance: "BROKER-REPORTED", source: `${BROKER_FILLS} (commission + clearing + regulatory)` }
-    : unreported("tastytrade has not reported fees for this order yet");
+  // Fees are BROKER-REPORTED only when every fill of this order carried a fee field; a fill
+  // with none is UNREPORTED, and a partial sum would understate the cost — so it is not given.
+  const feeKnown = mine.filter(f => f.feesReported !== false);
+  const fees: CapturedField<number> = !mine.length
+    ? unreported("tastytrade has not reported fees for this order yet")
+    : feeKnown.length < mine.length
+      ? unreported(`tastytrade reported fees on ${feeKnown.length} of ${mine.length} fills for this order — the total is UNKNOWN, not the partial sum`)
+      : { value: round(mine.reduce((s, f) => s + (Number.isFinite(f.fees) ? f.fees : 0), 0), 4), provenance: "BROKER-REPORTED", source: `${BROKER_FILLS} (commission + clearing + regulatory, each reported separately)` };
 
   const executedTimes = mine.map(f => f.executedAt).filter((t): t is string => !!t).sort();
   const filledAt = field(executedTimes[0] ?? null, "BROKER-REPORTED", BROKER_FILLS, "tastytrade did not report when it filled");

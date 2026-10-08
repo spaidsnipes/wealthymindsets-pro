@@ -12,6 +12,7 @@ import {
   fvgKeepOutStrips,
   fvgReceipt,
   isFvgObjectId,
+  resolveFvgDoorTarget,
   FVG_OPACITY,
 } from "./fvgGlass";
 
@@ -188,5 +189,26 @@ describe("receipts + Inspect", () => {
     expect(isFvgObjectId("FVG|BTC-USD|1m|1|BULLISH|v1")).toBe(true);
     expect(isFvgObjectId("ZONE:x:SUPPLY")).toBe(false);
     expect(isFvgObjectId(null)).toBe(false);
+  });
+});
+
+describe("resolveFvgDoorTarget — one gap, two feeds (Scanner → chart door)", () => {
+  const o = (objectId: string, bottom = 100, top = 101) => ({ objectId, bottom, top });
+  it("exact id wins", () => {
+    expect(resolveFvgDoorTarget("FVG|NVDA|1D|1|BULLISH|v1", [o("FVG|NVDA|1D|1|BULLISH|v1")])).toEqual({ objectId: "FVG|NVDA|1D|1|BULLISH|v1", how: "EXACT" });
+  });
+  it("venue prefix + daily stamp convention differ → the same NY session is the same gap", () => {
+    // 13:30Z open stamp vs 00:00Z (ET 20:00 prior day? no — 2026-10-02 00:00Z) stamp of the same session
+    const door = `FVG|NVDA|1D|${Date.UTC(2026, 9, 2, 13, 30)}|BULLISH|v1`;
+    const chart = `FVG|TASTYTRADE:NVDA|1D|${Date.UTC(2026, 9, 2, 4, 0)}|BULLISH|v1`;
+    expect(resolveFvgDoorTarget(door, [o(chart)])).toEqual({ objectId: chart, how: "EQUIVALENT" });
+  });
+  it("never across direction, timeframe, instrument, or a non-overlapping territory; two candidates → null", () => {
+    const door = `FVG|NVDA|5m|${Date.UTC(2026, 9, 2, 14, 0)}|BULLISH|v1`;
+    expect(resolveFvgDoorTarget(door, [o(door.replace("BULLISH", "BEARISH"))])).toBeNull();
+    expect(resolveFvgDoorTarget(door, [o(door.replace("|5m|", "|1m|"))])).toBeNull();
+    expect(resolveFvgDoorTarget(door, [o(door.replace("NVDA", "TASTYTRADE:AMD"))])).toBeNull();
+    expect(resolveFvgDoorTarget(door, [o(door.replace("NVDA", "TASTYTRADE:NVDA"), 200, 201)], { bottom: 100, top: 101 })).toBeNull();
+    expect(resolveFvgDoorTarget(door, [o(door.replace("NVDA", "A:NVDA")), o(door.replace("NVDA", "B:NVDA"))])).toBeNull();
   });
 });

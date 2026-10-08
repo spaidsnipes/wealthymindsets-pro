@@ -24,6 +24,7 @@ import { journalReviewKey, reviewEvidenceFromCapture } from "@/lib/journal/captu
 import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
 import { planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import { PlanAdherenceBySetup } from "@/components/journal/PlanAdherenceBySetup";
+import { TodayRulesLine } from "@/components/journal/TodayManagementRules";
 import { selectMirror } from "@/lib/traderMemory/viewModels/selectMirror";
 import { useAuth as useAuthCtx } from "@/contexts/AuthContext";
 import { useJournalSnapshots } from "@/lib/traderMemory/adapters/useJournalSnapshots";
@@ -2494,6 +2495,8 @@ Trade the system, trust the process, winners every day 🚀`,
           renders nothing (silence-is-a-feature; never a fabricated
           "no plan" scold). Founder Aug-14 §14 explicit ask. */}
       {mainTab === "journal" && <TodayIntentStrip userId={authCtx?.user?.id ?? null} />}
+      {/* Garden 19 §55: today's management rules, read only — Morning Prep is the one editor. */}
+      {mainTab === "journal" && authCtx?.user?.id ? <TodayRulesLine /> : null}
 
       {/* Process-outcome quadrant strip — the founder-canon separation of
           'GOOD PROCESS + LOSING OUTCOME' from 'BAD PROCESS + WINNING

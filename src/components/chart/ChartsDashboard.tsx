@@ -4,7 +4,7 @@ import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle"
 import { educationIdForSelection } from "@/lib/chart/inventionEducation";
 import { spaidbotFvgScene } from "@/lib/ai/spaidbotFvgFacts";
 import { fvgInspectRelationships } from "@/lib/marketData/fvg/fvgInspectRelationships";
-import { FVG_INSTRUMENT_ID, FVG_PREF_KEY, isFvgObjectId, type FvgCameraScene } from "@/lib/chart/fvgGlass";
+import { FVG_INSTRUMENT_ID, FVG_PREF_KEY, isFvgObjectId, resolveFvgDoorTarget, type FvgCameraScene } from "@/lib/chart/fvgGlass";
 import { SelectionFirstTouch, InspectFirstTouchContext } from "./SelectionFirstTouch";
 import { orderFlowToolCapability } from "@/lib/marketData/orderFlowToolCapability";
 import { openSettings } from "@/components/layout/shellPanels";
@@ -4337,13 +4337,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (!proofSelectObject || proofSelectObjectDoneRef.current === proofSelectUrl) return;
     const root = document.documentElement.dataset;
     const tag = `fvg:${proofSelectObject.objectId}`;
-    const verdict = proofSelectObjectVerdict(proofSelectObject, fvgScene ? fvgScene.ledger.objects.map(o => o.objectId) : null);
-    if (verdict === "HELD") {
+    // One gap read by two feeds (Scanner: the bar route; chart: tastytrade) carries
+    // two ids — the door resolves to the chart's own object only by the strict
+    // equivalence rule (resolveFvgDoorTarget), never by nearest guess.
+    const target = fvgScene ? resolveFvgDoorTarget(proofSelectObject.objectId, fvgScene.ledger.objects) : null;
+    const verdict = target ? "HELD" : proofSelectObjectVerdict(proofSelectObject, fvgScene ? fvgScene.ledger.objects.map(o => o.objectId) : null);
+    if (target) {
       proofSelectObjectDoneRef.current = proofSelectUrl;
-      actOnChartSelection({ type: "select", selection: { kind: "OBJECT", objectId: proofSelectObject.objectId } });
+      actOnChartSelection({ type: "select", selection: { kind: "OBJECT", objectId: target.objectId } });
       actOnChartSelection({ type: "openInspect" });
     }
-    root.proofSelectObject = `${tag}|${verdict}`;
+    root.proofSelectObject = target && target.how === "EQUIVALENT" ? `${tag}|HELD:EQUIVALENT:${target.objectId}` : `${tag}|${verdict}`;
   }, [proofSelectObject, fvgScene, proofSelectUrl]);
   const proofSelectHeld: string | null = (() => {
     switch (proofSelectKind) {

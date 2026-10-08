@@ -115,6 +115,8 @@ function actualColumn(a: TradeActuals | null): string[] {
   for (const m of a.targetMoves) out.push(`Target order ${m.fromPx != null ? `${fmtPx(m.fromPx)} → ` : "at "}${fmtPx(m.toPx)}${t(m.atMs)}.`);
   if (!a.exits.length) out.push("No exit fill reported.");
   for (const x of a.exits) out.push(`Exit ${q(x.qty)}${fmtPx(x.px)}${t(x.atMs)}.`);
+  if (!a.stopMoves.length && a.unknowns?.length) out.push("No stop move seen in the readback.");
+  out.push(...(a.unknowns ?? []));
   return out;
 }
 

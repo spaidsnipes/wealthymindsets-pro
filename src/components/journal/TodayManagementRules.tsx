@@ -14,7 +14,7 @@ import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { LOOP_DOORS } from "@/lib/journal/planLoop";
 
-import { dayRulesSession, readDayRules, writeDayRules, type DayRulesSession } from "@/lib/journal/managementDayRules";
+import { dayRulesSession, dayRulesSummaryLine, readDayRules, writeDayRules, type DayRulesSession, type ManagementDayRules } from "@/lib/journal/managementDayRules";
 import { conditionReadback } from "@/components/journal/ManagementPlanCard";
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3", LINE = "rgba(139,106,41,0.25)";
@@ -74,5 +74,26 @@ export function TodayManagementRules(props: { readonly nowMs?: number }) {
         <Link href={LOOP_DOORS.CHART} prefetch={false} data-testid="day-rules-to-chart" style={{ fontSize: 12, color: GOLD }}>Open the chart — your ticket&apos;s plan card offers these →</Link>
       </div>
     </section>
+  );
+}
+
+/**
+ * THE JOURNAL'S READ-ONLY LINE — §55 residency. Today's management rules are
+ * written in ONE place (Morning Prep, above); every other room shows them read
+ * only, with the door back to that editor. No second editor exists.
+ */
+export function TodayRulesLine(props: { readonly rules?: ManagementDayRules | null }) {
+  const [rules, setRules] = useState<ManagementDayRules | null | undefined>(props.rules);
+  useEffect(() => { if (props.rules === undefined) setRules(readDayRules(store(), Date.now())); }, [props.rules]);
+  if (rules === undefined) return null;
+  return (
+    <div role="region" aria-label="Today's management rules" data-testid="journal-day-rules" data-saved={rules ? "YES" : "NO"}
+      style={{ padding: "6px 16px", borderBottom: "1px solid rgba(139,106,41,0.15)", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", fontSize: 12 }}>
+      <span style={{ fontSize: 9, letterSpacing: 0.4, textTransform: "uppercase", color: GOLD, fontWeight: 700 }}>Today&apos;s rules</span>
+      <span style={{ color: rules ? INK : MUTED, overflowWrap: "anywhere", minWidth: 0 }}>{dayRulesSummaryLine(rules)}</span>
+      <Link href={LOOP_DOORS.MORNING_PREP} prefetch={false} data-testid="journal-day-rules-edit" style={{ color: GOLD, minHeight: 28, display: "inline-flex", alignItems: "center" }}>
+        {rules ? "Edit in Morning Prep →" : "Set them in Morning Prep →"}
+      </Link>
+    </div>
   );
 }

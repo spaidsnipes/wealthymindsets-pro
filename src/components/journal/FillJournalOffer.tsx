@@ -59,7 +59,9 @@ export function filledOrdersWithTickets(feed: unknown, clientOrderIds: ReadonlyS
   for (const a of accounts) {
     if (a?.broker !== "tastytrade") continue;
     for (const o of a.orders ?? []) {
-      if (o?.state === "FILLED" && typeof o.externalId === "string" && clientOrderIds.has(o.externalId)) out.push(o);
+      // FILLED, or a partial fill that was then cancelled / expired (still a real fill — capture says so).
+      const filled = o?.state === "FILLED" || ((o?.state === "CANCELED" || o?.state === "CLOSED") && (o?.filled ?? 0) > 0);
+      if (filled && typeof o.externalId === "string" && clientOrderIds.has(o.externalId)) out.push(o);
     }
   }
   return out;

@@ -45,6 +45,8 @@ export interface TtOrderView {
   readonly updatedAt: string | null;
   /** When tastytrade received the order (Garden 19 §26: times a stop/target move; `updated-at` moves again at fill/cancel). */
   readonly receivedAt?: string | null;
+  /** How many legs tastytrade reported. The view reads leg 0 only — a multi-leg order is NOT one instrument. */
+  readonly legCount?: number;
 }
 
 export function readTastytradeOrder(raw: unknown): TtOrderView | null {
@@ -75,6 +77,7 @@ export function readTastytradeOrder(raw: unknown): TtOrderView | null {
     rejectReason: typeof o["reject-reason"] === "string" ? (o["reject-reason"] as string) : null,
     updatedAt: typeof o["updated-at"] === "string" ? (o["updated-at"] as string) : null,
     receivedAt: typeof o["received-at"] === "string" ? (o["received-at"] as string) : null,
+    legCount: legs.length,
   };
 }
 

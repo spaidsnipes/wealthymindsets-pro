@@ -46,6 +46,24 @@ const noBars = (symbol: string, timeframe: string) =>
   `No ${timeframe} bars could be read for ${symbol} — it may not be a symbol we can chart, or it has no history at this timeframe.`;
 const DID_NOT_LOAD = "The market history did not load just now — try again in a moment.";
 
+/**
+ * NOT FOUND IS NOT TRANSIENT (night shift 2026-10-07). An unknown symbol made
+ * the route answer HTTP 500 with `{"error":"Error: Yahoo HTTP 404"}` — the
+ * upstream's own "no such instrument" wrapped in a server error — and the
+ * Backtest / Scanner refusal read "try again in a moment", advice that can
+ * never work. The status the UPSTREAM gave is read from that plumbing string
+ * (never shown): a 404 / 400 there, like one from our own route, means the
+ * symbol or this timeframe has nothing to read. Only a genuine 5xx or network
+ * failure keeps the retry sentence.
+ */
+export function upstreamSaysMissing(status: number, body: unknown): boolean {
+  if (status === 404 || status === 400) return true;
+  if (!body || typeof body !== "object") return false;
+  const j = body as Record<string, unknown>;
+  const text = [j.error, j.reason, j.message].filter(v => typeof v === "string").join(" ");
+  return /\bHTTP (404|400)\b|\bnot found\b|\bno data\b|\bdelisted\b/i.test(text);
+}
+
 /** Interpret one /api/yahoo candles body. Pure — exported for tests. */
 export function readFvgBarBody(
   body: unknown,
@@ -128,7 +146,7 @@ export async function fetchFvgBars(input: {
   const body = got.body;
   if (!got.ok) {
     const said = body && typeof body === "object" ? traderWords((body as Record<string, unknown>).reason) ?? traderWords((body as Record<string, unknown>).error) : null;
-    return { ok: false, reason: said ?? (got.status === 404 || got.status === 400 ? noBars(input.symbol, input.timeframe) : DID_NOT_LOAD) };
+    return { ok: false, reason: said ?? (upstreamSaysMissing(got.status, body) ? noBars(input.symbol, input.timeframe) : DID_NOT_LOAD) };
   }
   return readFvgBarBody(body, input);
 }

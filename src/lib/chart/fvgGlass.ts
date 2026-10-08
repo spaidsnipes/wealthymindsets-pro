@@ -324,6 +324,47 @@ export function fvgInspectRows(o: FvgObject, fmt: (p: number) => string, clock: 
   return rows;
 }
 
+/* ── 5. ONE GAP, TWO FEEDS (the Scanner → chart door) ────────────────────── */
+
+/**
+ * The chart's object for a door's OBJECT_ID. Serving 2026-10-07 night (390,
+ * Scanner › "Open on the chart →" NVDA 1D): the Scanner minted
+ * `FVG|NVDA|1D|1791207000000|BULLISH|v1` from the bar route's bars while the
+ * chart read the same session from tastytrade (`FVG|TASTYTRADE:NVDA|1D|
+ * 1790812800000|…`) — one gap, two identities, so the door read NONE_AVAILABLE.
+ *
+ * Rule (no guess): an EXACT id wins. Otherwise ONE chart object is the same
+ * gap only when the definition version, timeframe and direction match, the
+ * instrument is the same once a venue prefix / exchange suffix is dropped
+ * (`TASTYTRADE:NVDA` ≡ `NVDA`; futures continuous vs dated never match), b2 is
+ * the same bar slot (same ms intraday; same New York calendar date for D / W /
+ * M bars), and the territories overlap. Zero or two candidates → null.
+ */
+export function resolveFvgDoorTarget(
+  doorId: string,
+  objects: readonly Pick<FvgObject, "objectId" | "bottom" | "top">[],
+  doorTerritory?: { readonly bottom: number; readonly top: number } | null,
+): { readonly objectId: string; readonly how: "EXACT" | "EQUIVALENT" } | null {
+  if (objects.some(o => o.objectId === doorId)) return { objectId: doorId, how: "EXACT" };
+  const parse = (id: string) => {
+    const m = /^FVG\|(.+)\|([^|]+)\|(-?\d+)\|(BULLISH|BEARISH)\|v(\d+)$/.exec(id);
+    return m ? { sym: m[1], tf: m[2], b2: Number(m[3]), dir: m[4], v: m[5] } : null;
+  };
+  const base = (sym: string) => sym.toUpperCase().replace(/^[A-Z_]+:/, "").replace(/:[A-Z]+$/, "");
+  const nyDate = (ms: number) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  const d = parse(doorId);
+  if (!d) return null;
+  const daily = /[DWM]$/.test(d.tf);
+  const hits = objects.filter(o => {
+    const c = parse(o.objectId);
+    if (!c || c.v !== d.v || c.tf !== d.tf || c.dir !== d.dir || base(c.sym) !== base(d.sym)) return false;
+    const sameSlot = daily ? nyDate(c.b2) === nyDate(d.b2) || nyDate(c.b2 + 12 * 3600_000) === nyDate(d.b2 + 12 * 3600_000) : c.b2 === d.b2;
+    if (!sameSlot) return false;
+    return doorTerritory ? o.bottom <= doorTerritory.top && doorTerritory.bottom <= o.top : true;
+  });
+  return hits.length === 1 ? { objectId: hits[0].objectId, how: "EQUIVALENT" } : null;
+}
+
 /* Types the chart's React readers need, re-exported so a component never
    reaches into the engine (fvgCamera.sentinel: chart code reads FVG objects
    only from the scene the camera door produced). */

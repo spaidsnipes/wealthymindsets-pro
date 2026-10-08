@@ -112,6 +112,8 @@ export interface TradeActuals {
   readonly targetMoves: readonly LevelMove[];
   /** Where these facts came from, in words ("tastytrade fills", "journal entry"). */
   readonly source: string;
+  /** Facts the source cannot establish, said as UNKNOWN in Review (never read as "none happened"). */
+  readonly unknowns?: readonly string[];
 }
 
 export interface PathBar {
