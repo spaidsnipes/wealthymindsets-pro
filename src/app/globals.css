@@ -210,6 +210,13 @@
    the "D" button (x 8…30). Under 480 px it is LEFT-anchored right of that
    button and WRAPS inside the glass instead of overflowing it (still
    absolute; the 1280 px static pin is untouched), so it can take 11 px later. */
+/* The phone copy (outside the clipping legend band) shows under 640; the in-band
+   strip hides there. ≥ 640 the copy never shows. */
+.wm-chart-market-standing--phone { display: none !important; }
+@media screen and (max-width: 639px) {
+  .wm-chart-market-standing:not(.wm-chart-market-standing--phone) { display: none !important; }
+  .wm-chart-market-standing--phone { display: flex !important; }
+}
 @media (max-width: 479px) {
   .wm-chart-market-standing {
     left: 36px;

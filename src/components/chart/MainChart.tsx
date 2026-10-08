@@ -27818,6 +27818,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         </div>
       </ClearOfOpenDoor>
 
+      {/* PHONE COPY of the market standing (cert lane, serving 390, 2026-10-07
+          night). Under 640 px the legend band clips (max-sm:overflow-hidden),
+          and the strip — absolute at top 36 INSIDE that band — was cut away
+          entirely. On a phone the strip stands here, outside the band, left-
+          anchored right of the "D" button; the in-band strip serves ≥ 640. */}
+      {marketStanding ? (
+        <div className="wm-chart-market-standing wm-chart-market-standing--phone">{marketStanding}</div>
+      ) : null}
+
         <div ref={containerRef} style={{ width:"100%", height:"100%" }} />
 
         {/* H-101 — WAIT belongs to a selected object, at that object's real
