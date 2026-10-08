@@ -87,6 +87,31 @@ export function atrSeries(bars: readonly FieldBar[], period = ATR_PERIOD): numbe
 }
 
 /**
+ * `atrSeries` continued from a previous result instead of re-walked (keel cost
+ * peak, serving NQ1! 5m 2026-10-07: every new bar re-ran Wilder over all 5,000
+ * bars inside the paint frame). `prev` was computed over bars that are still
+ * the prefix of `bars` EXCEPT possibly its last entry (the bar that was forming
+ * then), so the walk restarts at that entry from `prev`'s value before it.
+ * Identical to `atrSeries(bars)` (test); falls back to it when the restart
+ * point is inside the warm-up.
+ */
+export function extendAtrSeries(prev: readonly number[], bars: readonly FieldBar[], period = ATR_PERIOD): number[] {
+  const start = prev.length - 1;
+  if (start <= period || start > bars.length || !Number.isFinite(prev[start - 1])) return atrSeries(bars, period);
+  const out = prev.slice(0, start);
+  let atr = prev[start - 1];
+  for (let i = start; i < bars.length; i++) {
+    const b = bars[i];
+    const pc = bars[i - 1].close;
+    const tr = Math.max(b.high - b.low, Math.abs(b.high - pc), Math.abs(b.low - pc));
+    if (!Number.isFinite(tr)) { out.push(atr); continue; }
+    atr = (atr * (period - 1) + tr) / period;
+    out.push(atr);
+  }
+  return out;
+}
+
+/**
  * Read the field over bars[from..to] (inclusive, indices into `bars`). `bars`
  * is the full chronological series so ATR has its warm-up behind the camera.
  * `formingTime` excludes the still-forming bar: a bar not finished has not

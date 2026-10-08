@@ -260,7 +260,7 @@ function LessonNotes({ lessonId }: { lessonId: string }) {
   if (!editing) {
     return (
       <button onClick={() => setEditing(true)}
-        className="inline-flex min-h-11 items-center gap-1.5 text-[10px] text-wm-text-dim hover:text-wm-blue transition-colors">
+        className="inline-flex min-h-11 items-center gap-1.5 text-[11px] text-wm-text-dim hover:text-wm-blue transition-colors">
         <Pencil size={10}/>
         {text ? <span className="italic">{text.slice(0,60)}{text.length>60?"…":""}</span> : "Add notes"}
       </button>
@@ -270,18 +270,18 @@ function LessonNotes({ lessonId }: { lessonId: string }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] font-bold text-wm-text-muted uppercase flex items-center gap-1">
+        <span className="text-[11px] font-bold text-wm-text-muted uppercase flex items-center gap-1">
           <Pencil size={9}/> Notes
         </span>
         <div className="flex items-center gap-2">
-          <span className="text-[9px] text-wm-text-dim" role="status" aria-live="polite">
+          <span className="text-[11px] text-wm-text-dim" role="status" aria-live="polite">
             {readState === "LOADING" ? "Loading browser note…"
               : readState === "UNAVAILABLE" ? "Could not read note — editing disabled to protect existing notes"
               : persistence === "PERSISTED" ? "✓ Saved in this browser"
               : persistence === "UNAVAILABLE" ? "Not saved — browser storage unavailable"
               : "Browser-only note"}
           </span>
-          <button onClick={() => setEditing(false)} className="inline-flex min-h-11 items-center px-2 text-[9px] text-wm-text-dim hover:text-wm-text">Close notes</button>
+          <button onClick={() => setEditing(false)} className="inline-flex min-h-11 items-center px-2 text-[11px] text-wm-text-dim hover:text-wm-text">Close notes</button>
         </div>
       </div>
       <textarea aria-label="Lesson notes" value={text} onChange={e => onChange(e.target.value)} disabled={readState !== "READ"} rows={4} autoFocus
@@ -376,7 +376,7 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
         <div className="flex-1 overflow-y-auto p-6" style={ACADEMY_SCROLL}>
           {!done ? (
             <>
-              <div className="text-[10px] text-wm-text-dim mb-3 truncate">📖 {lesson.title}</div>
+              <div className="text-[11px] text-wm-text-dim mb-3 truncate">📖 {lesson.title}</div>
               <div className="text-sm font-bold text-wm-text mb-5 leading-relaxed">{q.q}</div>
 
               <div className="space-y-2.5 mb-5">
@@ -419,7 +419,7 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
                 )}
               </AnimatePresence>
 
-              <div className="flex items-center gap-2 text-[10px] text-wm-text-dim">
+              <div className="flex items-center gap-2 text-[11px] text-wm-text-dim">
                 <span className="text-wm-green font-bold">{score} correct</span>·
                 <span className="text-wm-red font-bold">{log.filter(r=>!r).length} wrong</span>·
                 <span>{qs.length-cur-(answered?1:0)} remaining</span>
@@ -452,7 +452,7 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
               </div>
               <div className="flex gap-1.5 mb-6 flex-wrap justify-center">
                 {log.map((r,i) => (
-                  <div key={i} className={clsx("w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold",
+                  <div key={i} className={clsx("w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold",
                     r?"bg-wm-green/20 text-wm-green border border-wm-green/40":"bg-wm-red/20 text-wm-red border border-wm-red/40")}>
                     {i+1}
                   </div>
@@ -494,7 +494,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setShowQuiz(true)}
-            className="inline-flex min-h-11 items-center gap-1 px-2.5 rounded-lg text-[10px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30 hover:bg-wm-gold/25 transition-all">
+            className="inline-flex min-h-11 items-center gap-1 px-2.5 rounded-lg text-[11px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30 hover:bg-wm-gold/25 transition-all">
             <HelpCircle size={10}/> Take Quiz
           </button>
           <button
@@ -528,7 +528,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
               <div className="text-xs text-wm-text-muted mt-1 flex items-center justify-center gap-2">
                 <Clock size={10}/>{lesson.duration}
               </div>
-              <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold"
+              <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold"
                 style={{ background:`${color}18`, color, border:`1px solid ${color}35` }}>
                 🎬 Video lesson coming soon
               </div>
@@ -540,11 +540,11 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
         {/* Notes + Quiz CTA */}
         <div className="px-4 py-4 space-y-4">
           {fvgLesson ? null : <div data-testid="lesson-key-ideas" className="p-3 rounded-xl border border-wm-border bg-wm-surface/20">
-            <div className="text-[10px] font-black uppercase tracking-wider mb-2.5" style={{ color }}>Key ideas</div>
+            <div className="text-[11px] font-black uppercase tracking-wider mb-2.5" style={{ color }}>Key ideas</div>
             <ol className="space-y-2.5">
               {keyIdeasFor(lesson.title).map((k, i) => (
                 <li key={i} className="flex gap-2.5">
-                  <span className="text-[10px] font-black mt-0.5 shrink-0 w-4 text-right" style={{ color }}>{i + 1}</span>
+                  <span className="text-[11px] font-black mt-0.5 shrink-0 w-4 text-right" style={{ color }}>{i + 1}</span>
                   <div className="min-w-0">
                     <div className="text-xs font-bold text-wm-text leading-snug">{k.idea}</div>
                     <div className="text-[11px] text-wm-text-muted leading-relaxed mt-0.5">{k.explain}</div>
@@ -555,7 +555,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
           </div>}
 
           <div className="p-3 rounded-xl border border-wm-border bg-wm-surface/20">
-            <div className="text-[10px] font-black text-wm-text-muted uppercase tracking-wider mb-2 flex items-center gap-1">
+            <div className="text-[11px] font-black text-wm-text-muted uppercase tracking-wider mb-2 flex items-center gap-1">
               <FileText size={10}/> Your Notes
             </div>
             <LessonNotes key={lesson.id} lessonId={lesson.id}/>
@@ -568,11 +568,11 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
               </div>
               <div>
                 <div className="text-xs font-bold text-wm-text mb-0.5">Test Your Knowledge</div>
-                <div className="text-[10px] text-wm-text-muted mb-2">
+                <div className="text-[11px] text-wm-text-muted mb-2">
                   10 questions · reshuffled every retake · Pass at 70%+
                 </div>
                 <button onClick={() => setShowQuiz(true)}
-                  className="inline-flex min-h-11 items-center gap-1.5 px-3 rounded-lg text-[10px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30 hover:bg-wm-gold/25 transition-all">
+                  className="inline-flex min-h-11 items-center gap-1.5 px-3 rounded-lg text-[11px] font-bold bg-wm-gold/15 text-wm-gold border border-wm-gold/30 hover:bg-wm-gold/25 transition-all">
                   <HelpCircle size={11}/> Start Quiz
                 </button>
               </div>
@@ -727,15 +727,15 @@ export default function EducationPage() {
             <div className="h-full rounded-full bg-gradient-to-r from-wm-green to-wm-blue transition-all"
               style={{ width:`${pct}%` }}/>
           </div>
-          <span className="whitespace-nowrap text-[10px] text-wm-text-muted font-mono">{completed}/{total} verified</span>
+          <span className="whitespace-nowrap text-[11px] text-wm-text-muted font-mono">{completed}/{total} verified</span>
         </div>
-        <div className="hidden lg:flex ml-auto items-center gap-1.5 text-[10px] text-wm-text-muted">
+        <div className="hidden lg:flex ml-auto items-center gap-1.5 text-[11px] text-wm-text-muted">
           <Star size={11} className="text-wm-gold"/>
           {mods.filter(moduleVerified).length}/{mods.length} modules verified
         </div>
         <Link
           href="/proof-lane"
-          className="hidden sm:inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 text-[10px] font-semibold text-amber-200 transition-colors hover:border-amber-400/70 hover:bg-amber-950/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
+          className="hidden sm:inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 text-[11px] font-semibold text-amber-200 transition-colors hover:border-amber-400/70 hover:bg-amber-950/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
           aria-label="Explore the $100 Academy Challenge preview"
         >
           <Trophy size={12} aria-hidden="true" />
@@ -744,7 +744,7 @@ export default function EducationPage() {
       </div>
 
       {priorPracticeMarks > 0 && (
-        <div className="shrink-0 border-b border-amber-700/20 bg-amber-950/20 px-3 py-1.5 text-[10px] text-amber-100 sm:px-4" role="status">
+        <div className="shrink-0 border-b border-amber-700/20 bg-amber-950/20 px-3 py-1.5 text-[11px] text-amber-100 sm:px-4" role="status">
           {priorPracticeMarks} prior browser practice {priorPracticeMarks === 1 ? "mark is" : "marks are"} retained. Lesson completion remains unverified until content is published.
         </div>
       )}
@@ -752,7 +752,7 @@ export default function EducationPage() {
       {progressPersistence !== "IDLE" && (
         <div
           className={clsx(
-            "shrink-0 border-b px-3 py-1.5 text-[10px] sm:px-4",
+            "shrink-0 border-b px-3 py-1.5 text-[11px] sm:px-4",
             progressPersistence === "PERSISTED"
               ? "border-emerald-700/20 bg-emerald-950/20 text-emerald-100"
               : "border-rose-700/20 bg-rose-950/20 text-rose-100",
@@ -785,7 +785,7 @@ export default function EducationPage() {
               <Trophy size={14} className="shrink-0 text-amber-300" aria-hidden="true" />
               <span className="min-w-0">
                 <span className="block text-[11px] font-bold text-amber-100">$100 Academy Challenge Preview</span>
-                <span className="block truncate text-[9px] text-wm-text-dim">No enrollment · browser-local progress</span>
+                <span className="block truncate text-[11px] text-wm-text-dim">No enrollment · browser-local progress</span>
               </span>
             </span>
             <ChevronRight size={14} className="shrink-0 text-amber-300" aria-hidden="true" />
@@ -812,17 +812,17 @@ export default function EducationPage() {
                         {moduleVerified(mod) && <CheckCircle2 size={10} className="text-wm-green shrink-0"/>}
                       </div>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-                        <span className="text-[9px] font-bold px-1 rounded"
+                        <span className="text-[11px] font-bold px-1 rounded"
                           style={{ background:`${LEVEL_COLOR[mod.level]}20`, color:LEVEL_COLOR[mod.level] }}>
                           {mod.level}
                         </span>
-                        <span className="text-[9px] text-wm-text-dim">{mod.duration}</span>
-                        <span className="text-[9px] text-wm-text-dim">{done}/{mod.lessons.length} verified</span>
+                        <span className="text-[11px] text-wm-text-dim">{mod.duration}</span>
+                        <span className="text-[11px] text-wm-text-dim">{done}/{mod.lessons.length} verified</span>
                         {moduleProgress.priorPracticeMarks > 0 && (
-                          <span className="text-[9px] text-amber-300">{moduleProgress.priorPracticeMarks} prior</span>
+                          <span className="text-[11px] text-amber-300">{moduleProgress.priorPracticeMarks} prior</span>
                         )}
                         {mod.locked && (
-                          <span className="text-[9px] text-amber-200">Preview locked · unlock not connected</span>
+                          <span className="text-[11px] text-amber-200">Preview locked · unlock not connected</span>
                         )}
                       </div>
                       <div className="mt-1.5 h-1 rounded-full bg-wm-surface w-full">
@@ -866,7 +866,7 @@ export default function EducationPage() {
                                   isActive ? "font-bold text-wm-text" : "text-wm-text-muted")}>
                                   {li+1}. {lesson.title}
                                 </div>
-                                <div className="text-[9px] text-wm-text-dim mt-0.5 flex items-center gap-1">
+                                <div className="text-[11px] text-wm-text-dim mt-0.5 flex items-center gap-1">
                                   <Clock size={8} aria-hidden="true"/>{lesson.duration}
                                 </div>
                               </div>
@@ -898,7 +898,7 @@ export default function EducationPage() {
                   <div key={label} className="flex flex-col items-center gap-2 p-3 sm:p-5 rounded-2xl border border-wm-border bg-wm-surface/30 min-w-0 sm:min-w-[120px]">
                     <div style={{ color }}>{icon}</div>
                     <div className="text-xl font-black" style={{ color }}>{value}</div>
-                    <div className="text-[10px] text-wm-text-muted text-center">{label}</div>
+                    <div className="text-[11px] text-wm-text-muted text-center">{label}</div>
                   </div>
                 ))}
               </div>
@@ -915,7 +915,7 @@ export default function EducationPage() {
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-base font-black text-wm-text">{pct}%</span>
-                  <span className="text-[9px] text-wm-text-dim">Verified</span>
+                  <span className="text-[11px] text-wm-text-dim">Verified</span>
                 </div>
               </div>
               {/* THE PLAYBOOK LIVES IN THE ACADEMY (2026-09-24). It used to be
@@ -933,9 +933,9 @@ export default function EducationPage() {
                 className="w-full rounded-lg border border-wm-border p-4"
                 style={{ maxWidth: 520 }}
               >
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-wm-text-dim">Scaffolding removal path</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-wm-text-dim">Scaffolding removal path</div>
                 <div className="mt-1 text-[13px] font-semibold text-wm-text">Same skill. Deeper mastery. Less hand-holding.</div>
-                <ol className="mt-3 grid grid-cols-3 gap-2 text-[10px] text-wm-text-muted">
+                <ol className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-wm-text-muted">
                   <li><span className="block font-bold text-wm-text">1 · Foundation</span>Six steps, every verdict with its fact</li>
                   <li><span className="block font-bold text-wm-text">2 · Intermediate</span>Effort, result, location — one posture</li>
                   <li><span className="block font-bold text-wm-text">3 · Pro</span>Effort against result, geometry only</li>

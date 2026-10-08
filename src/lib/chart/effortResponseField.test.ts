@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atrSeries, effortResponseWords, FIELD_MIN_BARS, readEffortResponseField, responseColumnHeight, type FieldBar } from "./effortResponseField";
+import { atrSeries, extendAtrSeries, effortResponseWords, FIELD_MIN_BARS, readEffortResponseField, responseColumnHeight, type FieldBar } from "./effortResponseField";
 
 const bar = (i: number, body: number, volume: number, range = 2): FieldBar => ({
   time: 1000 + i * 60, open: 100, close: 100 + body, high: 100 + Math.max(body, 0) + range / 2, low: 100 + Math.min(body, 0) - range / 2, volume,
@@ -55,5 +55,19 @@ describe("effort → response field", () => {
     const a = atrSeries(series(20));
     expect(Number.isNaN(a[12])).toBe(true);
     expect(a[13]).toBeGreaterThan(0);
+  });
+});
+
+describe("extendAtrSeries ≡ atrSeries (keel peak fix, 2026-10-07)", () => {
+  it("continuing from a previous series equals the full walk — appended bars and a revised last bar", () => {
+    const mk = (n: number, bump = 0) => Array.from({ length: n }, (_, i) => {
+      const c = 100 + Math.sin(i / 3) * 4 + (i === n - 1 ? bump : 0);
+      return { time: i, open: c - 0.5, high: c + 1 + (i % 5) * 0.3, low: c - 1 - (i % 7) * 0.2, close: c, volume: 10 };
+    });
+    const a = mk(200);
+    const prev = atrSeries(a);
+    const b = [...mk(200, 0.9).slice(0, 199), ...mk(203).slice(199)];
+    expect(extendAtrSeries(prev, b)).toEqual(atrSeries(b));
+    expect(extendAtrSeries(atrSeries(mk(10)), mk(30))).toEqual(atrSeries(mk(30)));
   });
 });

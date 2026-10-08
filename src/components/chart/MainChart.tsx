@@ -37,7 +37,7 @@ import {
 import { axisPriceFormatFor, displayPrecisionFor, instrumentTickFor, priceFormatFor, pricePrecisionFromBars } from "@/lib/chart/pricePrecision";
 import { relatedFlowLine, relatedRoot } from "@/lib/chart/fxRelatedFlow";
 import { useFxRelatedFlow } from "@/lib/broker/useFxRelatedFlow";
-import { atrSeries, EFFORT_RESPONSE_BUDGET_MS, readEffortResponseField, responseColumnHeight, type EffortResponseField } from "@/lib/chart/effortResponseField";
+import { atrSeries, extendAtrSeries, EFFORT_RESPONSE_BUDGET_MS, readEffortResponseField, responseColumnHeight, type EffortResponseField } from "@/lib/chart/effortResponseField";
 import { DELTA_KEEL_BUDGET_MS, groupKeelGlyphs, keelLength, patchKeelGeometry, patchKeels, readKeels, type KeelGeometry, type KeelGlyph, type KeelInput } from "@/lib/chart/barDeltaKeel";
 import { readCrossCandleWisdom, type WisdomLine } from "@/lib/chart/crossCandleWisdom";
 import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
@@ -2345,7 +2345,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // moves; the paint cost keeps a rolling mean / longest for the receipt.
   const effortResponseCacheRef = useRef<{ key: string; field: EffortResponseField } | null>(null);
   const effortResponseCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
-  const deltaKeelAtrRef = useRef<{ key: string; atr: number[] } | null>(null);
+  const deltaKeelAtrRef = useRef<{ key: string; first?: number; atr: number[] } | null>(null);
   const regimeSeriesRef = useRef<readonly RegimeSeriesPoint[] | null>(null);
   regimeSeriesRef.current = regimeSeries;
   const livingDevelopmentRef = useRef<readonly LivingDevelopmentPoint[] | null>(null);
@@ -2373,6 +2373,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const composeNotesRef = useRef<boolean>(true);
   useEffect(() => { try { composeNotesRef.current = localStorage.getItem(COMPOSE_NOTES_KEY) !== "false"; } catch { /* default ON */ } }, []);
   const deltaKeelCostRef = useRef<{ n: number; sum: number; longest: number }>({ n: 0, sum: 0, longest: 0 });
+  const deltaKeelPhaseRef = useRef<{ atr: number; rows: number; fresh: boolean } | null>(null);
   const regimeLightingRef = useRef<RegimeLightingVM | null>(null);
   useEffect(() => { regimeLightingRef.current = regimeLighting ?? null; }, [regimeLighting]);
   const inspectedBarRef = useRef<{ readonly time: number; readonly high: number; readonly low: number } | null>(null);
@@ -11017,8 +11018,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const last = bs[bs.length - 1];
           const formingDK = Date.now() / 1000 < (last.time as number) + barInterval() ? (last.time as number) : null;
           const akey = `${symbol}|${bs.length}|${bs[0]?.time}|${bs[bs.length - 2]?.close}`;
-          if (deltaKeelAtrRef.current?.key !== akey) deltaKeelAtrRef.current = { key: akey, atr: atrSeries(bs) };
-          const atrDK = deltaKeelAtrRef.current.atr;
+          // KEEL PEAK (night shift 2026-10-07): a new bar re-ran ATR over all bars
+          // inside the frame. Same instrument + same first bar + grown by ≤ 3 →
+          // continue the previous series from its last (then-forming) bar.
+          const prevAtr = deltaKeelAtrRef.current;
+          if (prevAtr?.key !== akey) {
+            const grew = prevAtr && prevAtr.key.startsWith(`${symbol}|`) && prevAtr.first === bs[0]?.time
+              && bs.length > prevAtr.atr.length && bs.length - prevAtr.atr.length <= 3;
+            deltaKeelAtrRef.current = { key: akey, first: bs[0]?.time, atr: grew ? extendAtrSeries(prevAtr!.atr, bs) : atrSeries(bs) };
+          }
+          const tAtrDK = performance.now();
+          const atrDK = deltaKeelAtrRef.current!.atr;
           const sidedDK = candleSidedRef.current;
           // Evidence rows are re-read when the camera / bar set changes, else at
           // most every second (tape for the newest bars still lands) — keeps the
@@ -11064,6 +11074,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // the geometry below replays; a few moved → only those are re-laid.
           const keels = freshDK ? cachedDK!.keels : patchKeels(cachedDK?.rows ?? null, cachedDK?.keels ?? null, rowsDK);
           if (!freshDK) deltaKeelCacheRef.current = { key: ckDK, at: t0DK, keels, nTape, nSides, rows: rowsDK };
+          const tRowsDK = performance.now();
+          deltaKeelPhaseRef.current = { atr: tAtrDK - t0DK, rows: tRowsDK - tAtrDK, fresh: !!freshDK };
           {
             let newestDK: number | null = null;
             for (let i = i1; i >= i0; i--) { const t = bs[i].time as number; if (t !== formingDK) { newestDK = t; break; } }
@@ -11191,7 +11203,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const ms = performance.now() - t0DK;
           const cr = deltaKeelCostRef.current;
           if (cr.n >= 120) { cr.n = 0; cr.sum = 0; cr.longest = 0; }
-          cr.n++; cr.sum += ms; cr.longest = Math.max(cr.longest, ms);
+          cr.n++; cr.sum += ms;
+          // Which phase the LONGEST frame spent its time in (load / re-read / layout).
+          if (ms > cr.longest) {
+            const ph = deltaKeelPhaseRef.current;
+            if (ph) canvas.dataset.barDeltaKeelsPeak = `ATR:${ph.atr.toFixed(2)}|ROWS:${ph.rows.toFixed(2)}${ph.fresh ? "(cached)" : "(re-read)"}|LAYOUT+PAINT:${(ms - ph.atr - ph.rows).toFixed(2)}|N${cr.n}`;
+          }
+          cr.longest = Math.max(cr.longest, ms);
           canvas.dataset.barDeltaKeelsCost = `${ms.toFixed(2)}ms|mean${(cr.sum / cr.n).toFixed(2)}|longest${cr.longest.toFixed(2)}|${cr.longest <= DELTA_KEEL_BUDGET_MS ? "MET" : "OVER"}`;
         }
       } catch (err) { layerFault("DELTA_KEEL", err); }
