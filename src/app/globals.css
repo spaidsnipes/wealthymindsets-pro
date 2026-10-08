@@ -1998,3 +1998,16 @@ input[type=range]::-webkit-slider-runnable-track {
     pointer-events: none;
   }
 }
+
+/* Narrow-glass word budget for the chart legend's live verdict (serving /desk
+   4-up at 1180, 2026-10-07 night: "LIVE — CERTIFIED QUOTE" clipped at the
+   pane's right edge). Short form inside a narrow legend band; the full words
+   stay in the element's title and the accessibility tree. */
+.wm-legend-words-short { display: none; }
+@container wm-legend (max-width: 760px) {
+  .wm-legend-words-full {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .wm-legend-words-short { display: inline; }
+}

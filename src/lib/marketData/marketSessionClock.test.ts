@@ -13,15 +13,21 @@ describe("open-session owner — the published weekly hours, each verdict with i
     expect(tok("TSLA", "2026-10-07T17:20:00Z").detail).toBe("regular hours 09:30–16:00 ET · holiday calendar not loaded");
   });
 
-  it("US equities: PRE 04:00–09:30, OPEN 09:30–16:00, POST 16:00–20:00, CLOSED otherwise (EDT)", () => {
-    expect(tok("AAPL", "2026-10-07T07:59:00Z").token).toBe("CLOSED"); // 03:59
+  it("US equities: OVERNIGHT 20:00–04:00 on weeknights, PRE, OPEN, POST; CLOSED on the weekend (EDT)", () => {
+    expect(tok("AAPL", "2026-10-07T07:59:00Z").token).toBe("OVERNIGHT"); // Wed 03:59
     expect(tok("AAPL", "2026-10-07T08:00:00Z").token).toBe("PRE");    // 04:00
     expect(tok("AAPL", "2026-10-07T13:29:00Z").token).toBe("PRE");    // 09:29
     expect(tok("AAPL", "2026-10-07T13:30:00Z").token).toBe("OPEN");   // 09:30
     expect(tok("AAPL", "2026-10-07T19:59:00Z").token).toBe("OPEN");   // 15:59
     expect(tok("AAPL", "2026-10-07T20:00:00Z").token).toBe("POST");   // 16:00
     expect(tok("AAPL", "2026-10-07T23:59:00Z").token).toBe("POST");   // 19:59
-    expect(tok("AAPL", "2026-10-08T00:00:00Z").token).toBe("CLOSED"); // 20:00
+    expect(tok("AAPL", "2026-10-08T00:00:00Z").token).toBe("OVERNIGHT"); // Wed 20:00
+    // Night shift 2026-10-07: TSLA printed 5m bars at 21:10 CDT under a CLOSED plaque.
+    expect(tok("TSLA", "2026-10-08T02:15:00Z").token).toBe("OVERNIGHT"); // Wed 22:15 ET
+    expect(tok("TSLA", "2026-10-08T02:15:00Z").detail).toContain("off-exchange");
+    expect(tok("AAPL", "2026-10-10T00:30:00Z").token).toBe("CLOSED");    // Fri 20:30 ET
+    expect(tok("AAPL", "2026-10-11T12:00:00Z").token).toBe("CLOSED");    // Sun 08:00 ET
+    expect(tok("AAPL", "2026-10-12T00:30:00Z").token).toBe("OVERNIGHT"); // Sun 20:30 ET
   });
 
   it("DST: the NYSE open follows New York, not UTC (spring forward 2026-03-08, fall back 2026-11-01)", () => {
@@ -76,7 +82,8 @@ describe("open-session owner — the published weekly hours, each verdict with i
     for (const s of ["TSLA", "SPY", "NQ1!", "GC1!", "EURUSD", "BTC", "SPX", "ZC1!"]) {
       for (const iso of hours) {
         const { token, detail } = tok(s, iso);
-        expect(["RTH", "EXTENDED", "OVERNIGHT", "ETH"]).not.toContain(token);
+        // OVERNIGHT is a schedule verdict (2026-10-07), not a canonicalSession() store key.
+        expect(["RTH", "EXTENDED", "ETH"]).not.toContain(token);
         expect(token.length).toBeLessThanOrEqual(9);
         expect(detail.length).toBeGreaterThan(10);
       }

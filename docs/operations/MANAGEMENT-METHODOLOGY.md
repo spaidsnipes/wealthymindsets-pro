@@ -176,6 +176,25 @@ Tests: `planVsActual.test.ts`, `managementPlanSlice2.test.ts`.
 
 Test: `captureFillShapes.test.ts` (with `journalCaptureFromFill.test.ts`).
 
+### Webull — Review reads it; auto-capture does not (`planActualsFromWebull.ts`)
+
+Journal auto-capture is **tastytrade-only**: Webull fills never become journal drafts, and every
+Webull story's Review row says so ("Webull fills are read for Review and the Broker Ledger; WM does
+not auto-capture them into the Journal — add the entry yourself"). For a Decision_ID WM sent
+through Webull (the journal feed links each fill by client order id), Review compares the plan
+using Webull's own readback, read only — no Webull order tool is ever called.
+
+| Shape (Webull readback) | Review |
+|---|---|
+| Several executions of one order (`execution_id` / `order_id`) | One event: quantity-weighted price, earliest time |
+| `side` BUY / SELL / SHORT, no open/close flag | Paired flat-to-flat in time order; the first fill sets the direction; later same-side orders are adds; pairing stops at the first return to flat — said as UNKNOWN in Review |
+| Fees: executions (`feesReported: false`) | UNREPORTED; order history's itemised `fees[]` → known |
+| Multi-leg option order (order history `legs.length > 1`) | Refused for comparison — UNKNOWN how the legs pair (`WbFill.legCount`) |
+| Fills on more than one instrument under one decision | Refused — not one position |
+| Stop / target orders and replaced stops | Not in the feed → "No stop move seen in the readback." plus the UNKNOWN line; never "not moved" |
+
+Test: `webullReviewShapes.test.ts`.
+
 ## 3. The plan alone — counterfactual reference (§24)
 
 `planAloneReference` reads the **frozen base** (amendments are what was *done*). It asks which of
@@ -354,6 +373,8 @@ broker actuals are shown (`BROKER_READBACK_UNKNOWNS` in `planActualsFromBroker.t
 * that a stop moved through tastytrade's own replace keeps WM's external identifier.
 
 Journal auto-capture is proved on fixtures of every fill shape seen in readback (§2), not yet on a
-real fill.
+real fill. Webull is Review-only: its two readback limits (no stop/target orders, no open/close
+flag) are printed as UNKNOWN (`WEBULL_READBACK_UNKNOWNS`), and no WM-sent Webull decision has been
+reviewed on serving yet.
 
 WM never writes a plan, a draft or a rule on the Founder's account. Only his own actions do.

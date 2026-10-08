@@ -27636,7 +27636,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-wm-text animate-pulse" aria-hidden="true" />
                     <span className="line-clamp-2 text-[10px] text-wm-text font-semibold">
-                      {showFidelityChrome ? "LIVE — CERTIFIED QUOTE" : recencyWords(feedRecency.glyph, feedRecency.short)}
+                      {/* Narrow-glass word budget (serving /desk 4-up at 1180, 2026-10-07
+                          night: "LIVE — CERTIFIED QUOTE" clipped at the pane's right edge).
+                          A legend band under 760px (the wm-legend container) reads the
+                          short form; the full words stay in title and the DOM. */}
+                      {showFidelityChrome ? (
+                        <span title="LIVE — CERTIFIED QUOTE">
+                          <span className="wm-legend-words-full">LIVE — CERTIFIED QUOTE</span>
+                          <span className="wm-legend-words-short" aria-hidden="true">LIVE · CERTIFIED</span>
+                        </span>
+                      ) : recencyWords(feedRecency.glyph, feedRecency.short)}
                     </span>
                   </span>
                 ) : (

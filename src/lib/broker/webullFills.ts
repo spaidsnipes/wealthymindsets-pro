@@ -11,6 +11,8 @@ export interface WbFill extends TtFill {
   readonly clientOrderId: string | null;
   /** Executions state no fees (false); an order-history order states them itemised (true). */
   readonly feesReported: boolean;
+  /** Legs on the Webull order (order history only); > 1 = a multi-leg order, read here as leg 0 only. */
+  readonly legCount?: number | null;
 }
 
 const n = (v: unknown): number | null => {
@@ -99,6 +101,7 @@ export function readWebullOrderHistoryFills(payload: unknown): WbFill[] {
       value: Math.round(qty * price * (leg ? (n(leg.option_contract_multiplier) ?? 100) : 1) * 100) / 100,
       fees: Array.isArray(o.fees) ? Math.round((o.fees as Record<string, unknown>[]).reduce((t, f) => t + (n(f?.actual_value) ?? n(f?.receivable_value) ?? 0), 0) * 100) / 100 : 0,
       feesReported: Array.isArray(o.fees),
+      legCount: Array.isArray(o.legs) ? o.legs.length : null,
       executedAt: isoTime(o.filled_time ?? o.filled_time_at ?? o.place_time),
     });
   }

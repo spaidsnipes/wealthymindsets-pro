@@ -26,6 +26,7 @@ import { formatMoney } from "@/lib/marketData/contractEconomics";
 import { fvgAnswersFromReference, fvgContextFromLedger, fvgContextGroup, fvgReviewAnswersAt, type FvgReviewAnswers } from "@/lib/journal/planFvgContext";
 import { loadFvgLedgerFor } from "@/lib/journal/planFvgLoader";
 import { lessonForFinding } from "@/lib/journal/planLoop";
+import { WEBULL_NOT_AUTO_CAPTURED } from "@/lib/journal/planActualsFromWebull";
 import { fvgReferenceSentence, type JournalFvgReference } from "@/lib/journal/fvgDecisionReference";
 import { AskSpaidbotButton } from "@/components/ai/AskSpaidbotButton";
 import { reviewDecisionAsk } from "@/lib/ai/spaidbotAsk";
@@ -39,7 +40,7 @@ const INK = "#ede6d3";
 const LINE = "rgba(139,106,41,0.25)";
 
 interface FeedOrder { id: string; state: string; status: string; symbol: string | null; action: string | null; quantity: number | null; filled: number | null; price: string | null; externalId: string | null; decisionId: string | null; sentFromWm: boolean; orderType?: string | null; stopTrigger?: string | null; receivedAt?: string | null }
-interface FeedFill { id: string; orderId: string | null; symbol: string | null; action: string | null; quantity: number | null; price: number | null; value: number | null; fees: number; executedAt: string | null; feesReported?: boolean; decisionId?: string | null }
+interface FeedFill { id: string; orderId: string | null; symbol: string | null; action: string | null; quantity: number | null; price: number | null; value: number | null; fees: number; executedAt: string | null; feesReported?: boolean; decisionId?: string | null; legCount?: number | null }
 interface FeedAccount { tail: string; broker: string; state: string; reason?: string; orders: FeedOrder[]; fills: FeedFill[] }
 
 interface Story { key: string; broker: string; decisionId: string | null; accountTail: string; orders: FeedOrder[]; fills: FeedFill[] }
@@ -53,7 +54,7 @@ export const PLAN_ABSENT_JOURNAL = "This entry did not come from a WM ticket, so
  * dimension, and their own words. `evidence` (from a captured fill) sets the
  * machine facts beside the dimension they inform; they are never edited here.
  */
-export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, fvg: fvgIn, fvgRef, planAbsent, defaultOpen = false }: {
+export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, fvg: fvgIn, fvgRef, planAbsent, brokerNote, defaultOpen = false }: {
   storyKey: string;
   evidence?: Readonly<Record<ReviewDimension, readonly ReviewEvidenceLine[]>>;
   /** Garden 19 §27/§28: the frozen plan + this trade's actuals, when the story has a Decision_ID. */
@@ -68,6 +69,8 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
   fvgRef?: JournalFvgReference | null;
   /** Why this story has no plan to compare (no Decision_ID from a WM ticket), said instead of an empty block. */
   planAbsent?: string | null;
+  /** A plain line about what this broker's readback does (e.g. Webull fills are not auto-captured). */
+  brokerNote?: string | null;
   defaultOpen?: boolean;
 }) {
   const [fvgLoaded, setFvgLoaded] = useState<FvgReviewAnswers | null>(null);
@@ -238,6 +241,8 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
               </label>
             </div>
           ) : null}
+          {brokerNote ? <p data-testid="broker-note" style={{ margin: 0, fontSize: 11, color: MUTED }}>{brokerNote}</p> : null}
+          {planIn?.actualsRefusal ? <p data-testid="plan-actuals-refusal" style={{ margin: 0, fontSize: 11, color: MUTED }}>{planIn.actualsRefusal}</p> : null}
           {!composed && planAbsent ? <p data-testid="plan-absent" style={{ margin: 0, fontSize: 11, color: MUTED }}>{planAbsent}</p> : null}
           {!composed ? fvgBlock : null}
           {!composed && fvg ? <AskSpaidbotButton testId="review-ask-spaidbot" label="Ask SpaidBot about this decision" ask={askDecision} /> : null}
@@ -385,7 +390,7 @@ export function BrokerTruthToday() {
                 {(() => {
                   // Garden 19 §26/§28: the frozen plan against tastytrade's own fills and stop / target orders.
                   const pin = planReviewInputForBrokerStory(st, id => readPlanForDecision(typeof window === "undefined" ? null : window.localStorage, id));
-                  return <StoryReviewRow storyKey={st.decisionId ?? st.key} plan={pin} planDecisionId={pin?.decisionId ?? null} planSymbol={pin?.symbol ?? null} planAbsent={pin ? null : PLAN_ABSENT_OUTSIDE_WM} />;
+                  return <StoryReviewRow storyKey={st.decisionId ?? st.key} plan={pin} planDecisionId={pin?.decisionId ?? null} planSymbol={pin?.symbol ?? null} planAbsent={pin ? null : PLAN_ABSENT_OUTSIDE_WM} brokerNote={st.broker === "webull" ? WEBULL_NOT_AUTO_CAPTURED : null} />;
                 })()}
               </article>
             );

@@ -16,7 +16,9 @@
  * Schedules, on the market's clock (America/New_York, DST-correct upstream):
  *   US equities / ETFs (NYSE/Nasdaq listed hours, Mon–Fri)
  *       PRE   04:00–09:30 · OPEN (RTH) 09:30–16:00 · POST 16:00–20:00
- *       otherwise CLOSED (overnight ATS sessions are not counted)
+ *       OVERNIGHT 20:00–04:00 Sun night → Fri morning (off-exchange ATS
+ *       session — night shift 2026-10-07: TSLA printed 5m bars at 21:10 CDT
+ *       while the plaque said CLOSED); Fri 20:00 → Sun 20:00 CLOSED
  *   US equity options      OPEN 09:30–16:00 Mon–Fri, otherwise CLOSED
  *   US cash indices        OPEN 09:30–16:15 Mon–Fri (index calculation), else CLOSED
  *   CME Globex futures     Sun 18:00 → Fri 17:00, daily break 17:00–18:00 Mon–Thu
@@ -28,7 +30,7 @@
  * (canonicalIdentity.marketClockET), so this module imports nothing.
  */
 
-export type MarketSessionVerdict = "OPEN" | "CLOSED" | "PRE" | "POST";
+export type MarketSessionVerdict = "OPEN" | "CLOSED" | "PRE" | "POST" | "OVERNIGHT";
 
 export type MarketSessionSchedule =
   | "US_EQUITY_LISTED"
@@ -94,7 +96,11 @@ export function readMarketSession(input: MarketSessionClockInput): MarketSession
       if (m >= M(9, 30) && m < M(16)) return reading("OPEN", "OPEN", "US_EQUITY_LISTED", "regular hours 09:30–16:00 ET");
       if (m >= M(16) && m < M(20)) return reading("POST", "POST", "US_EQUITY_LISTED", "post-market 16:00–20:00 ET");
     }
-    return reading("CLOSED", "CLOSED", "US_EQUITY_LISTED", "outside listed-exchange hours 04:00–20:00 ET Mon–Fri (overnight ATS not counted)");
+    // The overnight ATS session: Sunday 20:00 → Friday 04:00 ET, nights only.
+    // Listed exchanges are shut; off-exchange venues print thin size.
+    const overnight = (d === 0 && m >= M(20)) || (d >= 1 && d <= 4 && m >= M(20)) || (d >= 1 && d <= 5 && m < M(4));
+    if (overnight) return reading("OVERNIGHT", "OVERNIGHT", "US_EQUITY_LISTED", "overnight session 20:00–04:00 ET — off-exchange venues only, thin prints; listed exchanges closed");
+    return reading("CLOSED", "CLOSED", "US_EQUITY_LISTED", "weekend — no US equity venue trades Fri 20:00 → Sun 20:00 ET");
   }
 
   if (assetClass === "futures") {

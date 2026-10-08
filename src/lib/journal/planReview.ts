@@ -15,11 +15,14 @@ import { actualsFromJournalEntry, classifyPlanVsActual, findingsByDimension, typ
 import type { ReviewDimension } from "./storyReview";
 import { sheriffColumns, type SheriffColumns } from "./planSheriff";
 import { actualsFromBrokerStory, type StoryFillFact, type StoryOrderFact } from "./planActualsFromBroker";
+import { actualsFromWebullStory, type WebullStoryFill } from "./planActualsFromWebull";
 
 export interface PlanReviewInput {
   readonly plan: ManagementPlanSnapshot | null;
   readonly actuals: TradeActuals | null;
   readonly path?: PricePath | null;
+  /** Why the trade facts could not be read for comparison (e.g. a multi-leg Webull order), said in Review. */
+  readonly actualsRefusal?: string | null;
 }
 
 export interface ComposedPlanReview {
@@ -68,13 +71,20 @@ export function planReviewInputForJournalEntry(
  * target orders come from the broker, so the price path can be loaded for it.
  */
 export function planReviewInputForBrokerStory(
-  story: { readonly decisionId: string | null; readonly orders: readonly (StoryOrderFact & { readonly symbol?: string | null })[]; readonly fills: readonly (StoryFillFact & { readonly symbol?: string | null })[] },
+  story: { readonly decisionId: string | null; readonly broker?: string; readonly orders: readonly (StoryOrderFact & { readonly symbol?: string | null })[]; readonly fills: readonly (StoryFillFact & WebullStoryFill & { readonly symbol?: string | null })[] },
   readPlan: (decisionId: string) => ManagementPlanSnapshot | null,
 ): (PlanReviewInput & { readonly symbol: string | null; readonly decisionId: string }) | null {
   if (!story.decisionId || (!story.fills.length && !story.orders.length)) return null;
   let plan: ManagementPlanSnapshot | null = null;
   try { plan = readPlan(story.decisionId); } catch { plan = null; }
-  const actuals = actualsFromBrokerStory(story, { stopPx: plan?.base.stopPx.value ?? null, targetPx: plan?.base.targetPx.value ?? null });
   const symbol = story.fills.find(f => f.symbol)?.symbol ?? story.orders.find(o => o.symbol)?.symbol ?? null;
+  if (story.broker === "webull") {
+    // Webull: fills only, no open/close flag, no stop/target orders in the feed (planActualsFromWebull).
+    const w = actualsFromWebullStory(story.fills);
+    return w.ok
+      ? { plan, actuals: w.actuals, path: null, symbol, decisionId: story.decisionId }
+      : { plan, actuals: null, path: null, symbol, decisionId: story.decisionId, actualsRefusal: w.reason };
+  }
+  const actuals = actualsFromBrokerStory(story, { stopPx: plan?.base.stopPx.value ?? null, targetPx: plan?.base.targetPx.value ?? null });
   return { plan, actuals, path: null, symbol, decisionId: story.decisionId };
 }
