@@ -152,7 +152,8 @@ import { ErrorBoundary, SafePanel } from "@/components/ui/ErrorBoundary";
 import { StockInfoPanel } from "./StockInfoPanel";
 import LeftSidebar from "./LeftSidebar";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { resolveChartSurfaceBadge } from "@/lib/priceSource";
+import { chartFeedReading, resolveChartSurfaceBadge } from "@/lib/priceSource";
+import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
 // THE ONE OWNER of this surface's honesty reading: it performs the sanctioned
 // crossing from the seven pipeline labels into the five fidelities, chooses
@@ -261,6 +262,7 @@ import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { lifecyclePhaseFor, lifecycleStageFor, stageForPhase } from "@/lib/experience/decisionLifecycle";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
+import { LENS_FIXTURE_BANNER, lensFixturePressure, lensFixtureWeather, parseLensFixture } from "@/lib/chart/lensFixture";
 // Real aggressor flow still grades the canonical capability state here;
 // detailed order-flow inspection belongs to the Smart Money doorway.
 import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
@@ -1570,7 +1572,28 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // an open tab); until it does, the SAME judge reads the chart's own
   // volume-gated bars (selectLiquidityWeatherFromBars, DERIVED). One reading
   // reaches the lens and the order-flow view — never two.
+  // LENS FIXTURE SCENE (2026-10-08): `scene=lens-fixture&state=…&climate=…` —
+  // a SAMPLE tape / chain fed into the real lens owners, for a signed-in trader
+  // only. While it is on, the lens never reads the live tape and the live chain
+  // is never fetched (never mixed). Positioned once at the chart's last close.
+  const { user: lensFixtureUser } = useAuth();
+  const lensFixture = React.useMemo(
+    () => (lensFixtureUser ? parseLensFixture(`?${optionSearchParams?.toString() ?? ""}`) : null),
+    [lensFixtureUser, optionSearchParams],
+  );
+  const [lensFixtureAnchor, setLensFixtureAnchor] = useState<{ symbol: string; centre: number; nowMs: number } | null>(null);
+  const lensFixtureLastClose = chartBars.length ? chartBars[chartBars.length - 1].close : null;
+  useEffect(() => {
+    if (!lensFixture) { setLensFixtureAnchor(null); return; }
+    if (lensFixtureLastClose == null || !(lensFixtureLastClose > 0)) return;
+    setLensFixtureAnchor(prev => (prev && prev.symbol === symbol ? prev : { symbol, centre: lensFixtureLastClose, nowMs: Date.now() }));
+  }, [lensFixture, symbol, lensFixtureLastClose]);
+  const lensFixtureWeatherVM = React.useMemo(
+    () => (lensFixture?.stage ? lensFixtureWeather(lensFixture.stage, lensFixtureAnchor?.centre ?? 100) : null),
+    [lensFixture, lensFixtureAnchor],
+  );
   const chartLiquidityWeather = React.useMemo(() => {
+    if (lensFixtureWeatherVM) return lensFixtureWeatherVM;
     const tape = chartOrderFlowReadings.liquidityWeather;
     const segs = tape.segments.filter(sg => sg.fromTime != null && sg.toTime != null);
     const spanMs = segs.length ? Math.max(...segs.map(sg => sg.toTime!)) - Math.min(...segs.map(sg => sg.fromTime!)) : 0;
@@ -1579,7 +1602,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     const bars = volumeBars.map(b => ({ time: Number(b.time), high: b.high, low: b.low, volume: b.volume }));
     const fromBars = selectLiquidityWeatherFromBars(bars);
     return fromBars.stage === "UNMEASURED" ? tape : fromBars;
-  }, [chartOrderFlowReadings.liquidityWeather, valueCandleBarSec, volumeBars]);
+  }, [lensFixtureWeatherVM, chartOrderFlowReadings.liquidityWeather, valueCandleBarSec, volumeBars]);
   const [weatherApertureSample, setWeatherApertureSample] = useState<{ symbol: string; timeframe: string; vm: LiquidityWeatherVM } | null>(null);
   useEffect(() => { setWeatherApertureSample(null); }, [symbol, timeframe, liquidityWeatherOn]);
   const weatherInspectReading = selectWeatherInspectReading(
@@ -1607,6 +1630,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // a hook called from inside JSX is the React #310 defect. `null` until mount,
   // which is exactly what selectRegimeBadge treats as "no period word yet".
   const sessionClockDate = useSessionClockDate();
+  // ASK-17 · the FEED's one grader, read once here for canonical state.
+  const chartHeaderFeedState = chartFeedReading(
+    source, connected, liveChartBars.length > 0, quoteSession.sessionOpen, lastObservedAtMs, Date.now(), true,
+  ).status.state;
   usePublishChartMarketState({
     symbol,
     timeframe,
@@ -1629,6 +1656,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // the camera `chartBars` is last Tuesday; publishing that would make the
     // replay a second author of this instrument's canonical MarketState.
     bars: liveChartBars,
+    // ASK-17: the header's feed verdict (chartFeedReading — the same grader
+    // and inputs MainChart's strip uses), so Inspect and header agree.
+    feedState: chartHeaderFeedState,
   });
 
   // ── Asset 06 · ABSORPTION ANATOMY ────────────────────────────────────
@@ -2175,6 +2205,23 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [cursorBar, setCursorBar] = useState<
     { o: number; h: number; l: number; c: number; v: number; time: number } | null
   >(null);
+  // ASK-18 · a TOUCH-pinned bar holds the cursor reading: the crosshair's
+  // clear on finger-up (and moves elsewhere) do not unpin it; a second tap
+  // on the same bar releases. A mouse never pins, so desktop hover is unchanged.
+  const touchPinRef = useRef<number | null>(null);
+  const onOHLCAtCursorPinned = React.useCallback((o: { o: number; h: number; l: number; c: number; v: number; time: number } | null) => {
+    if (touchPinRef.current != null && o?.time !== touchPinRef.current) return;
+    setCursorBar(o);
+  }, []);
+  const onTouchPinBar = React.useCallback((t: number) => {
+    if (touchPinRef.current === t) { touchPinRef.current = null; setCursorBar(null); return; }
+    const bar = chartBars.find(b => Number(b.time) === t);
+    if (!bar) return;
+    touchPinRef.current = t;
+    setCursorBar({ o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume, time: bar.time });
+  }, [chartBars]);
+  // A new instrument or timeframe never inherits a pin.
+  useEffect(() => { touchPinRef.current = null; }, [symbol, timeframe]);
   /**
    * CLOSED ON ARRIVAL — A-201 LAYER 5 SAYS "OPTIONAL", AND OPTIONAL IS A WORD
    * ABOUT THE DEFAULT.
@@ -2792,7 +2839,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // FUTURES read tastytrade's futures-option chain (cross-market run
   // 2026-10-01: NQ / ES / GC / CL were UNSUPPORTED — Cboe lists no futures
   // options, Deribit is crypto only). Same receipt, same owner.
-  const futuresPressureOn = pressureEvidenceOn && classifySymbol(symbol) === "FUTURES";
+  const futuresPressureOn = pressureEvidenceOn && !lensFixture?.climate && classifySymbol(symbol) === "FUTURES";
   const futuresPositioning = useTastyFuturesPositioning(symbol, futuresPressureOn, chartBars.length ? chartBars[chartBars.length - 1].close : null);
   // ATHOS §6 · P-03 — the same contracts' signed prints, on the same socket, while Brick Walls is on.
   // Stocks, ETFs and indexes: the owner's tastytrade equity chain supplies the contracts.
@@ -2808,6 +2855,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   }, [futuresPressureOn, futuresPositioning, symbol]);
   useEffect(() => {
     if (futuresPressureOn) return; // the futures branch above owns this market
+    // LENS FIXTURE: the sample chain stands in; the live chain is not fetched.
+    if (lensFixture?.climate) { setDerivativesReceipt(null); return; }
     // BTC / ETH read Deribit's public options (Cboe lists no crypto options);
     // listed underlyings read Cboe delayed. Anything else has no chain.
     const deribit = pressureEvidenceOn ? deribitCurrencyFor(symbol) : null;
@@ -2857,8 +2906,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     load();
     const t = window.setInterval(load, 120_000);
     return () => { alive = false; window.clearInterval(t); };
-  }, [pressureEvidenceOn, symbol, futuresPressureOn]);
+  }, [pressureEvidenceOn, symbol, futuresPressureOn, lensFixture?.climate]);
   const derivativesPressureVM = React.useMemo<DerivativesPressureVM | null>(() => {
+    if (pressureEvidenceOn && lensFixture?.climate) {
+      return lensFixtureAnchor ? lensFixturePressure(lensFixture.climate, lensFixtureAnchor.centre, lensFixtureAnchor.nowMs) : null;
+    }
     if (!pressureEvidenceOn || !derivativesReceipt || derivativesReceipt.symbol !== symbol) return null;
     if (!derivativesReceipt.receipt) {
       return { drawn: false, version: 1, underlying: symbol, reason: "NO_CHAIN", contracts: 0, receipt: `PRESSURE:SILENT:${derivativesReceipt.edge ?? "NO_CHAIN"}` };
@@ -4382,15 +4434,15 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // One gap read by two feeds (Scanner: the bar route; chart: tastytrade) carries
     // two ids — the door resolves to the chart's own object only by the strict
     // equivalence rule (resolveFvgDoorTarget), never by nearest guess.
-    const target = fvgScene ? resolveFvgDoorTarget(proofSelectObject.objectId, fvgScene.ledger.objects) : null;
+    const target = fvgScene ? resolveFvgDoorTarget(proofSelectObject.objectId, fvgScene.ledger.objects, proofSelectObject.territory ?? null, { chartSymbol: symbol }) : null;
     const verdict = target ? "HELD" : proofSelectObjectVerdict(proofSelectObject, fvgScene ? fvgScene.ledger.objects.map(o => o.objectId) : null);
     if (target) {
       proofSelectObjectDoneRef.current = proofSelectUrl;
       actOnChartSelection({ type: "select", selection: { kind: "OBJECT", objectId: target.objectId } });
       actOnChartSelection({ type: "openInspect" });
     }
-    root.proofSelectObject = target && target.how === "EQUIVALENT" ? `${tag}|HELD:EQUIVALENT:${target.objectId}` : `${tag}|${verdict}`;
-  }, [proofSelectObject, fvgScene, proofSelectUrl]);
+    root.proofSelectObject = target && target.how !== "EXACT" ? `${tag}|HELD:${target.how}:${target.objectId}` : `${tag}|${verdict}`;
+  }, [proofSelectObject, fvgScene, proofSelectUrl, symbol]);
   const proofSelectHeld: string | null = (() => {
     switch (proofSelectKind) {
       case "zone":
@@ -5807,13 +5859,21 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
             // provenance, so it can never be read as what the instrument is
             // trading at now. See chartHeaderPriceFact for why the easy version
             // of this fix would have been worse than the dash.
+            const headerBarClose = deriveLastBarClose(chartBars, servedTimeframeFor(timeframe, symbol), Date.now());
+            // ASK-19 (Sheriff §35, cold-load SPY: header 777.14 STALE PIPELINE
+            // beside a legend reading 774.12). A STALE quote is not shown while a
+            // NEWER closed bar exists: the slot reads that bar's close under its
+            // own BAR CLOSE label. A stale quote with nothing newer still prints.
+            const staleQuoteOutrun = chartSurfaceBadge.label === CANONICAL_FIDELITY_LABELS.STALE_PIPELINE
+              && headerBarClose != null && lastObservedAtMs != null
+              && headerBarClose.barOpenedAtMs > lastObservedAtMs;
             const headerPriceFact = chartHeaderPriceFact(
               // BAR REPLAY withholds the live quote: `chartBars` is the replay
               // window, so the slot reads the replayed bar's close under the
               // compiler's BAR CLOSE label — the same answer MainChart's row
               // gives, from the same owner.
-              cameraWalksHistory ? null : ticker.price,
-              deriveLastBarClose(chartBars, servedTimeframeFor(timeframe, symbol), Date.now()),
+              cameraWalksHistory || staleQuoteOutrun ? null : ticker.price,
+              headerBarClose,
               // UNASKED IS NOT UNAVAILABLE. Without this argument the header of
               // the primary trading surface opened every cold load by telling
               // the trader their instrument had "No price" — seconds before
@@ -6965,10 +7025,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   <div style={{ flex: 1, display:"flex", overflow:"hidden", minWidth:0, minHeight:0, position:"relative",
                     ...(chartLayout === "4" ? { width: "50%", flexShrink: 0 } : {}),
                   }}>
+                    {lensFixture ? (
+                      <div data-testid="lens-fixture-banner" role="status"
+                        className="pointer-events-none absolute left-1/2 top-2 z-[80] -translate-x-1/2 rounded-md border border-amber-400/60 bg-black/80 px-3 py-1 text-[11px] font-bold tracking-wide text-amber-200">
+                        {LENS_FIXTURE_BANNER}
+                        {lensFixture.stage ? ` · weather ${lensFixture.stage}` : ""}
+                        {lensFixture.climate ? ` · pressure ${lensFixture.climate}` : ""}
+                      </div>
+                    ) : null}
                     <ErrorBoundary>
                     <MainChart
                       symbol={symbol}
                       timeframe={timeframe}
+                      lensFixtureWeather={!!lensFixtureWeatherVM}
                       /* Canon F24 / C-101: the timeframe is chosen ON THE GLASS,
                          from one bordered chip at the bottom centre of the
                          candle pane. The setter is handed to THIS pane only.
@@ -6987,7 +7056,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                          along with nobody listening. See the Inspect Ticket
                          compiler above for why this, and not a second click
                          path, is the bar-selection route. */
-                      onOHLCAtCursor={setCursorBar}
+                      onOHLCAtCursor={onOHLCAtCursorPinned}
+                      onTouchPinBar={onTouchPinBar}
                       onSelectBigTrade={print => actOnChartSelection({ type: "select", selection: { kind: "PRINT", print } })}
                       proofSelectBigTradeRef={proofSelectBigTradeRef}
                       selectedPrintOnChart={activeSelectedPrint}

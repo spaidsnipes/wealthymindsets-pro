@@ -212,6 +212,8 @@ const DNA_SPINE_A = 0.6;
 const DNA_BRACKET_A = 0.65;
 /** Footprint imbalance cells: outlined, at least this tall (ASK-6). */
 const IMB_CELL_MIN_H = 3;
+/** A touch tap within this many px of a candle's high–low pins it (ASK-18). */
+const TOUCH_BAR_SLOP = 10;
 const LEVEL_FORM_DASH: Readonly<Record<"POC" | "EDGE", readonly number[]>> = { POC: [], EDGE: [3, 4] };
 function strokeLevelForm(ctx: CanvasRenderingContext2D, y: number, x0: number, x1: number, ink: string, kind: "POC" | "EDGE"): void {
   ctx.save();
@@ -353,6 +355,8 @@ const ANATOMY_BLOCK_RECEIPTS = [
   "questionCallout", "questionChoice", "questionLensForm", "questionLensHome", "questionLensTag", "questionBandYielded",
   // 2026-09-26 · the lens's on-price geometry lives in questionLensForm; its card form moved here.
   "questionLensCard",
+  // ASK-5 (2026-10-08) · the question's identity mark on the band.
+  "questionLensMark",
   // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
   "scaffoldingScale", "scaffoldingForm", "scaffoldingDock", "scaffoldingCardCandleHits",
   "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
@@ -1503,6 +1507,8 @@ interface Props {
    * stalled-segment shelves get a level. Null means the room has no reading.
    */
   liquidityWeather?: LiquidityWeatherVM | null;
+  /** LENS FIXTURE SCENE: `liquidityWeather` is the sample's reading — the aperture never re-samples the live bars. */
+  lensFixtureWeather?: boolean;
   /**
    * THE EFFORT READING, PUT BACK ON THE CANDLE IT IS ABOUT.
    *
@@ -1780,6 +1786,12 @@ interface Props {
   onSelectMarketObject?: (objectId: string) => void;
   /** ASK-3: a tap on a bar-anchored glass object (the wisdom line) selects that bar → Inspect. */
   onSelectBarAt?: (time: number) => void;
+  /**
+   * ASK-18 (Sheriff §35): a finger has no hover, so Inspect / Effort followed
+   * the forming bar forever. A TOUCH tap on a candle (nothing more specific
+   * under it) pins that bar; a second tap on the same bar releases it.
+   */
+  onTouchPinBar?: (time: number) => void;
   /** Swing-origin ZONES with their lifecycle — painted on price. */
   structureZones?: readonly StructureZone[];
   selectedMarketObjectWait?: WaitStandingVM | null;
@@ -2043,6 +2055,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   valueCandleBars = null,
   deltaDivergence = null,
   liquidityWeather = null,
+  lensFixtureWeather = false,
   effortMark = null,
   effortMarksField = null,
   deltaLevelsGlass = null,
@@ -2142,6 +2155,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   selectedMarketObjectId = null,
   onSelectMarketObject,
   onSelectBarAt,
+  onTouchPinBar,
   structureZones = [],
   selectedMarketObjectWait = null,
 }: Props) {
@@ -2313,6 +2327,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
   /** And the fourth. Four tape-rate readings, one rule. */
   const liquidityWeatherRef = useRef<LiquidityWeatherVM | null>(null);
+  const lensFixtureWeatherRef = useRef(false);
+  useEffect(() => { lensFixtureWeatherRef.current = lensFixtureWeather; }, [lensFixtureWeather]);
   useEffect(() => { liquidityWeatherRef.current = liquidityWeather; }, [liquidityWeather]);
 
   /**
@@ -9707,6 +9723,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // price/time sat over the forming candle. The disc keeps its place;
         // the forming bar's high–low column is cut out of it.
         let formingCut: Path2D | null = null;
+        let newestCutBars = 0;
         /** The forming bar's high–low column on screen (the cut), for the inscription test below. */
         let formingCol: { x0: number; x1: number; y0: number; y1: number } | null = null;
         if (btNewest) {
@@ -9718,6 +9735,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             formingCut.rect(0, 0, W, H);
             formingCut.rect(+fx - half - 1, +fyh - 2, 2 * half + 2, +fyl - +fyh + 4);
             formingCol = { x0: +fx - half - 1, x1: +fx + half + 1, y0: Math.min(+fyh, +fyl) - 2, y1: Math.max(+fyh, +fyl) + 2 };
+            // ASK-20 (Sheriff §35, dense BTC: a 24×44 disc lay over the newest
+            // candles). The cut takes the NEWEST COLUMN — the two bars before
+            // the forming one as well (Sheriff A1's newest-3 rule) — each its
+            // own high–low. The disc keeps its place; those candles stay whole.
+            const bl = barsRef.current ?? [];
+            // evenodd: neighbouring cut rects must not overlap (an overlap re-paints).
+            const spN = chart.timeScale().options().barSpacing || 8;
+            const hw = Math.max(1, Math.min(half, spN - half - 2.5, spN / 2 - 1.5));
+            for (let k = bl.length - 2; k >= Math.max(0, bl.length - 3); k--) {
+              const b = bl[k];
+              if (!b) continue;
+              const bx = chart.timeScale().timeToCoordinate(b.time as never);
+              const bh = srs.priceToCoordinate(b.high), blo = srs.priceToCoordinate(b.low);
+              if (bx == null || bh == null || blo == null) continue;
+              formingCut.rect(+bx - hw - 1, Math.min(+bh, +blo) - 2, 2 * hw + 2, Math.abs(+blo - +bh) + 4);
+              newestCutBars++;
+            }
           }
         }
         let discsYieldedToForming = 0;
@@ -9869,7 +9903,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // still intersect. After clustering it is 0; anything else is a knot.
         canvas.dataset.bigTradeOverlaps = String(countCircleOverlaps(drawnDiscs));
         canvas.dataset.bigTradesDrawn = String(bigDrawn);
-        canvas.dataset.bigTradeFormingCut = formingCut ? `YIELDS:${discsYieldedToForming}` : "NONE";
+        canvas.dataset.bigTradeFormingCut = formingCut ? `YIELDS:${discsYieldedToForming}|NEWEST:${1 + newestCutBars}` : "NONE";
         canvas.dataset.bigTradeInscribed = inscriptionsYieldedToForming > 0 ? `${bigInscribed}|YIELDED_FORMING:${inscriptionsYieldedToForming}` : String(bigInscribed);
         canvas.dataset.bigTradeQuieted = String(bubblesQuieted);
         canvas.dataset.responsePaths = String(responsePaths);
@@ -14848,6 +14882,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // the H-101 debt tag's event bar, the one bar the compiler names.
                 permission: permissionRef.current ? { ...permissionRef.current, eventBarTime: debtTagRef.current?.barTimeSec ?? null } : null,
               });
+              delete ds.questionLensMark;
               ds.questionLens = lens.active ? `${lens.kind}:${lens.openDebt}` : lens.refusal ? `REFUSED:${lens.choice}` : "NO_QUESTION";
               // Published to the rail only when the reading CHANGES — never per frame.
               {
@@ -17255,7 +17290,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       try {
         let sampledWeather = liquidityWeatherRef.current;
         const aperture = weatherApertureRef.current;
-        if (aperture && layerOnRef.current.weather) {
+        if (aperture && layerOnRef.current.weather && !lensFixtureWeatherRef.current) {
           const sourceBars = barsRef.current ?? [];
           const spacing = chart.timeScale().options().barSpacing || 8;
           const span = weatherLensBarSpan(aperture.logical, aperture.rx, spacing, sourceBars.length);
@@ -27165,7 +27200,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       onSelectMemoryGhost?.(ghostHit.vm);
       return;
     }
-  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, onSelectMemoryGhost, onSelectPressureWall, onSelectPressureFront, onSelectWeather, onSelectBarAt, symbol, timeframe, selectBigTradeAt]);
+    // ASK-18 · last in line: a TOUCH tap on a candle (its slot, its high–low
+    // ± TOUCH_BAR_SLOP px) pins that bar for Inspect / Effort; again releases.
+    if (e.pointerType === "touch" && onTouchPinBar) {
+      try {
+        const ts = chartRef.current?.timeScale(), sr = candleRef.current;
+        const tHit = ts?.coordinateToTime(x);
+        const bar = tHit == null ? null : (barsRef.current ?? []).find(b => Number(b.time) === Number(tHit));
+        const yh = bar ? sr?.priceToCoordinate(bar.high) : null, yl = bar ? sr?.priceToCoordinate(bar.low) : null;
+        if (bar && yh != null && yl != null && y >= Math.min(+yh, +yl) - TOUCH_BAR_SLOP && y <= Math.max(+yh, +yl) + TOUCH_BAR_SLOP) {
+          onTouchPinBar(Number(bar.time));
+        }
+      } catch { /* camera mid-transition: no pin */ }
+    }
+  }, [drawingTool, hitTestDrawing, onSelectBigTrade, onSelectProfileSlice, onSelectAnatomy, onSelectMarketObject, onSelectMemoryGhost, onSelectPressureWall, onSelectPressureFront, onSelectWeather, onSelectBarAt, onTouchPinBar, symbol, timeframe, selectBigTradeAt]);
 
   // ── Big-Trade bubble hover hit-test → comic speech-bubble tooltip ──
   // Attached to the chart wrapper so it fires in cursor mode without blocking

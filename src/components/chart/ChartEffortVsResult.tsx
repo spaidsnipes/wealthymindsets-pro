@@ -184,8 +184,8 @@ export function ChartEffortVsResult({
       */}
       {followingLiveBar && (
         <div className="pt-0.5 text-[10px] leading-snug text-wm-muted">
-          The cursor is off the chart, so this weighs the bar still forming.
-          Hover a candle to weigh that one instead.
+          Nothing is pointed at, so this weighs the bar still forming. With a
+          mouse, hover a candle to weigh that one instead.
         </div>
       )}
 

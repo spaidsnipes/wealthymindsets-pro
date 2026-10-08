@@ -81,7 +81,7 @@ describe("Scanner FVG conditions — the one engine, at the newest closed bar", 
     if (r.status !== "READ") throw new Error("refused");
     const h = r.hits[0];
     expect(h.objectId).toMatch(/^FVG\|BTC-USD\|1m\|\d+\|BULLISH\|v1$/);
-    expect(parseProofScene(h.href.slice("/charts".length)).selectObject).toEqual({ kind: "fvg", objectId: h.objectId });
+    expect(parseProofScene(h.href.slice("/charts".length)).selectObject).toEqual({ kind: "fvg", objectId: h.objectId, territory: { bottom: h.bottom, top: h.top } });
     expect(h.href).toContain("on=fvg");
     expect(r.definition).toEqual({ id: "FVG_3C", version: 1 });
     expect(h.priceDp).toBe(2); // pricePrecision.displayPrecisionFor — the strip prints toFixed(priceDp)

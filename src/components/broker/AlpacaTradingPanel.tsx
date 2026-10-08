@@ -7,6 +7,7 @@
 
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { alpacaRailState, railSendGate } from "@/lib/broker/railSendGate";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -452,6 +453,9 @@ export function AlpacaTradingPanel({
   })();
 
   const accountObserved = account !== null && !acctError && !loading;
+  // Sheriff P0 (2026-10-08): a rail that is not connected cannot send — the control is disabled and
+  // says why, at the control. UNVERIFIED (connected, latest read failed) falls through to §14.6 below.
+  const railGate = railSendGate(alpacaRailState({ loading, disconnected, refused: acctRefused, error: !!acctError, accountObserved }), "Paper");
   const exitPermission = selectExitPermission({
     side,
     qty: parseFloat(qty),
@@ -516,7 +520,7 @@ export function AlpacaTradingPanel({
             <AlertCircle size={12} className="shrink-0 mt-0.5" />
             <span>
               {/401|not authorized/i.test(acctError)
-                ? "Paper trading unavailable — Alpaca paper account not authorized. Add ALPACA_PAPER_KEY / ALPACA_PAPER_SECRET (from the Alpaca paper dashboard) to enable paper trading."
+                ? "Paper trading unavailable — the Alpaca paper account was not authorized for this connection."
                 : acctError}
             </span>
           </div>
@@ -763,9 +767,17 @@ export function AlpacaTradingPanel({
                 trader in a live position. The gate is now asymmetric: an
                 outage may withhold the ability to ADD risk, never to shed it.
               */}
+              {!railGate.canSend && (
+                <div id="wm-alpaca-send-refusal" role="status" data-testid="alpaca-send-refusal" className="text-[11px] font-semibold text-wm-text">
+                  {railGate.reason}
+                </div>
+              )}
               <button
-                onClick={placeOrder}
-                disabled={!exitPermission.allowed}
+                type="button"
+                data-testid="alpaca-send"
+                onClick={() => { if (railGate.canSend) void placeOrder(); }}
+                disabled={!railGate.canSend || !exitPermission.allowed}
+                aria-describedby={!railGate.canSend ? "wm-alpaca-send-refusal" : undefined}
                 className={clsx(
                   "w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm transition-all disabled:opacity-50",
                   side === "buy"
@@ -780,12 +792,12 @@ export function AlpacaTradingPanel({
               </button>
 
               {/* Why it is refused, or what is missing while it goes through. */}
-              {exitPermission.reason && (
+              {railGate.canSend && exitPermission.reason && (
                 <div role="status" className="text-[11px] font-semibold text-wm-text-dim">
                   {exitPermission.reason}
                 </div>
               )}
-              {exitPermission.allowed && exitPermission.disclosure && (
+              {railGate.canSend && exitPermission.allowed && exitPermission.disclosure && (
                 <div className="text-[11px] font-semibold" style={{ color: CAUTION }}>
                   {exitPermission.disclosure}
                 </div>
@@ -820,11 +832,7 @@ export function AlpacaTradingPanel({
                 )}
               </AnimatePresence>
 
-              {!account && !loading && (
-                <div className="text-center text-[11px] text-wm-text-dim py-4">
-                  Alpaca account not connected. Check <code className="text-wm-text">.env.local</code> keys.
-                </div>
-              )}
+
             </div>
           )}
 

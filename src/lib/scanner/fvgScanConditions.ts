@@ -216,7 +216,7 @@ function hit(condition: FvgScanCondition, o: FvgObject, symbol: string, timefram
     state: o.state,
     mitigation: o.mitigation,
     knownAt,
-    href: fvgChartHref({ symbol, timeframe, objectId: o.objectId }),
+    href: fvgChartHref({ symbol, timeframe, objectId: o.objectId, territory: { bottom: o.bottom, top: o.top } }),
     priceDp,
   };
 }

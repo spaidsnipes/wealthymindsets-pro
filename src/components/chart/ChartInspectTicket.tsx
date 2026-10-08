@@ -1369,8 +1369,10 @@ export function ChartInspectTicket({
       */}
       {followingLiveBar && (
         <div className="pt-0.5 text-[10px] leading-snug text-wm-muted">
-          The cursor is off the chart, so this is the bar still forming. Hover a
-          candle to inspect it instead.
+          {/* G19 §22: a touch screen has no cursor and no hover — the sentence
+              must not tell a finger to hover. Tap-to-pick is the chart lane's. */}
+          Nothing is pointed at, so this is the bar still forming. With a mouse,
+          hover a candle to inspect it instead.
         </div>
       )}
 

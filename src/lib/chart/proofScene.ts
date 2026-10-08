@@ -65,8 +65,13 @@ export const SELECT_PARAM = "select";
  * `scene=` grammar as `scene=clean`; each token names its one room.
  *   journal-fixture → /journal (Review FVG answers, counterfactual, Personal Edge, Academy examples)
  *   profile-fixture → /profile (the four tiles and the edge panels at 0 / 1–19 / ≥ 20 trades)
+ *   lens-fixture    → /charts (2026-10-08): `state=<weather stage>` and / or
+ *                     `climate=<pressure climate>` feed a SAMPLE tape / chain into
+ *                     the real lens owners (src/lib/chart/lensFixture.ts). It is a
+ *                     CLEAN chart proof scene (writes held) that switches on the
+ *                     lens it fixes; the room uses it only for a signed-in trader.
  */
-export const PROOF_FIXTURE_SCENES = ["journal-fixture", "profile-fixture"] as const;
+export const PROOF_FIXTURE_SCENES = ["journal-fixture", "profile-fixture", "lens-fixture"] as const;
 export type ProofFixtureScene = (typeof PROOF_FIXTURE_SCENES)[number];
 
 /** The fixture scene the URL asks for, or null. */
@@ -85,6 +90,20 @@ export type ProofSelectKind = (typeof PROOF_SELECT_KINDS)[number];
 export interface ProofSelectObjectRef {
   readonly kind: "fvg";
   readonly objectId: string;
+  /** The reader's territory (`band=<bottom>~<top>`), when the door carried it. */
+  readonly territory?: { readonly bottom: number; readonly top: number };
+}
+
+/** `band=<bottom>~<top>` — the door's territory beside `select=fvg:<id>`. */
+export const FVG_BAND_PARAM = "band";
+export function fvgBandToken(t: { readonly bottom: number; readonly top: number }): string {
+  return `${t.bottom}~${t.top}`;
+}
+export function parseFvgBand(raw: string | null): { readonly bottom: number; readonly top: number } | null {
+  const m = /^(-?\d+(?:\.\d+)?(?:e-?\d+)?)~(-?\d+(?:\.\d+)?(?:e-?\d+)?)$/i.exec((raw ?? "").trim());
+  if (!m) return null;
+  const bottom = Number(m[1]), top = Number(m[2]);
+  return Number.isFinite(bottom) && Number.isFinite(top) && top > bottom ? { bottom, top } : null;
 }
 
 /** The FVG_3C OBJECT_ID shape (fvgDefinition.mintFvgObjectId): FVG|<sym>|<tf>|<b2 ms>|<dir>|v<n>. */
@@ -151,7 +170,9 @@ export const NO_PROOF_SCENE: ProofScene = { active: false, clean: false, overrid
 export function parseProofScene(search: string): ProofScene {
   let q: URLSearchParams;
   try { q = new URLSearchParams(search); } catch { return NO_PROOF_SCENE; }
-  const clean = q.get(SCENE_PARAM) === "clean";
+  // lens-fixture is a clean chart scene that switches on the lens it fixes.
+  const lensFixture = q.get(SCENE_PARAM) === "lens-fixture";
+  const clean = q.get(SCENE_PARAM) === "clean" || lensFixture;
   const onRaw = q.get(ON_PARAM);
   const barsRaw = q.get(BARS_PARAM);
   const indRaw = q.get(INDICATORS_PARAM);
@@ -160,7 +181,9 @@ export function parseProofScene(search: string): ProofScene {
   const selectRaw = (q.get(SELECT_PARAM) ?? "").trim().toLowerCase();
   const select = (PROOF_SELECT_KINDS as readonly string[]).includes(selectRaw) ? selectRaw as ProofSelectKind : null;
   // Object ids are case-sensitive: read the raw value, not the lower-cased one.
-  const selectObject = parseSelectObjectToken(q.get(SELECT_PARAM));
+  const selectRef = parseSelectObjectToken(q.get(SELECT_PARAM));
+  const band = selectRef ? parseFvgBand(q.get(FVG_BAND_PARAM)) : null;
+  const selectObject = selectRef && band ? { ...selectRef, territory: band } : selectRef;
   if (!clean && !onRaw && bars == null && indRaw == null && select == null && selectObject == null) return NO_PROOF_SCENE;
 
   const overrides: Record<string, unknown> = {};
@@ -186,6 +209,10 @@ export function parseProofScene(search: string): ProofScene {
     } else if (/^[A-Z][A-Za-z]+$/.test(token)) {
       overrides[`${CLEAN_BOOLEAN_PREFIX}${token}`] = true;
     }
+  }
+  if (lensFixture) {
+    if ((q.get("state") ?? "").trim()) overrides[`${CLEAN_BOOLEAN_PREFIX}LiquidityWeather`] = true;
+    if ((q.get("climate") ?? "").trim()) overrides[`${CLEAN_BOOLEAN_PREFIX}DerivativesPressure`] = true;
   }
   return { active: true, clean, overrides, bars, select, selectObject };
 }

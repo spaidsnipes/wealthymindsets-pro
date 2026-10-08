@@ -186,3 +186,27 @@ describe("ASK-6 design calls (2026-10-08 day shift)", () => {
     expect(CHART).toContain("mtfTagTicks.push(`${label}:${rankQ}:QUIET`);");
   });
 });
+
+describe("ASK-5 (2026-10-08): the Question Lens names its question without a word", () => {
+  it("the band carries the kind's mark from the one owner, receipted", () => {
+    expect(CHART).toContain('if (qk && paintQuestionMark(ctx, qk, mx, my, "rgba(237,230,211,0.95)")) ds.questionLensMark = `${qk}:${QUESTION_MARK_SHAPE[qk]}`;');
+  });
+});
+
+describe("Sheriff §35 asks (2026-10-08)", () => {
+  const DASH = readFileSync(path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
+  it("ASK-17: canonical state takes the header's feed verdict", () => {
+    expect(DASH).toContain("feedState: chartHeaderFeedState,");
+  });
+  it("ASK-18: a touch tap pins a bar; a second tap releases; the crosshair cannot unpin it", () => {
+    expect(CHART).toContain('if (e.pointerType === "touch" && onTouchPinBar) {');
+    expect(DASH).toContain("if (touchPinRef.current === t) { touchPinRef.current = null; setCursorBar(null); return; }");
+    expect(DASH).toContain("if (touchPinRef.current != null && o?.time !== touchPinRef.current) return;");
+  });
+  it("ASK-19: a stale quote yields the header slot to a newer closed bar", () => {
+    expect(DASH).toContain("cameraWalksHistory || staleQuoteOutrun ? null : ticker.price,");
+  });
+  it("ASK-20: big-trade discs are cut round the newest column", () => {
+    expect(CHART).toContain("canvas.dataset.bigTradeFormingCut = formingCut ? `YIELDS:${discsYieldedToForming}|NEWEST:${1 + newestCutBars}` : \"NONE\";");
+  });
+});

@@ -94,7 +94,9 @@ describe.runIf(REPLAY_DRIVES_THE_CAMERA)("THE ROOM — frozen ancestry in, live 
   });
 
   it("the header withholds the live quote while the camera walks history", () => {
-    expect(DASH).toContain("cameraWalksHistory ? null : ticker.price,");
+    // 2026-10-08 ASK-19: a stale quote outrun by a newer closed bar is also withheld; the
+    // camera-walks-history rule is unchanged (it still comes first in the same condition).
+    expect(DASH).toContain("cameraWalksHistory || staleQuoteOutrun ? null : ticker.price,");
     expect(DASH).toContain("hasReal && !cameraWalksHistory ? { chg: ticker.change, pct: ticker.changePct } : null,");
   });
 });

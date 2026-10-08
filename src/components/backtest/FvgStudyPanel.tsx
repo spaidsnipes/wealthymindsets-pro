@@ -347,7 +347,7 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
                     <span className={clsx("font-bold", o.direction === "BULLISH" ? "text-wm-green" : "text-wm-red")}>{o.direction}</span>
                     <span className="font-mono text-wm-text-muted">{o.bottom.toFixed(dpBySymbol.get(o.symbolId) ?? 2)} – {o.top.toFixed(dpBySymbol.get(o.symbolId) ?? 2)}</span>
                     <span className="text-wm-text-dim">{o.state.replace(/_/g, " ").toLowerCase()}</span>
-                    <Link href={fvgChartHref({ symbol: o.symbolId, timeframe: o.timeframe, objectId: o.objectId })}
+                    <Link href={fvgChartHref({ symbol: o.symbolId, timeframe: o.timeframe, objectId: o.objectId, territory: { bottom: o.bottom, top: o.top } })}
                       aria-label={`Open the ${o.direction.toLowerCase()} gap ${o.bottom.toFixed(dpBySymbol.get(o.symbolId) ?? 2)} to ${o.top.toFixed(dpBySymbol.get(o.symbolId) ?? 2)} on ${o.symbolId} ${o.timeframe} on the chart`}
                       className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold ml-auto text-wm-blue hover:underline">Open on the chart →</Link>
                     <Link href={`/journal?${new URLSearchParams({ new: "1", symbol: o.symbolId, fvg: o.objectId }).toString()}`}

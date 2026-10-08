@@ -26,7 +26,8 @@ describe("Alpaca panel — §14.6 the exit is never blocked by a dependency", ()
   it("asks the permission selector instead of deciding for itself", () => {
     expect(CODE).toContain('from "@/lib/exitPermission"');
     expect(CODE).toContain("selectExitPermission({");
-    expect(CODE).toContain("disabled={!exitPermission.allowed}");
+    // Sheriff P0 (2026-10-08): §14.6 still decides a CONNECTED rail; a rail that is not connected has no book to exit (railSendGate).
+    expect(CODE).toContain("disabled={!railGate.canSend || !exitPermission.allowed}");
   });
 
   it("passes the real degraded dependencies rather than a hardcoded list", () => {
@@ -50,8 +51,8 @@ describe("Alpaca panel — §14.6 the exit is never blocked by a dependency", ()
   });
 
   it("shows the trader why it refused, and what is missing when it does not", () => {
-    expect(CODE).toContain("{exitPermission.reason && (");
-    expect(CODE).toContain("{exitPermission.allowed && exitPermission.disclosure && (");
+    expect(CODE).toContain("{railGate.canSend && exitPermission.reason && (");
+    expect(CODE).toContain("{railGate.canSend && exitPermission.allowed && exitPermission.disclosure && (");
     // Amber, never green: an order placed without account data is not "safe".
     expect(CODE).toContain("style={{ color: CAUTION }}");
   });

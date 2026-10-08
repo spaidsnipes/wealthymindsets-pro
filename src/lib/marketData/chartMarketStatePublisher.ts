@@ -117,6 +117,16 @@ export interface ChartMarketStatePublicationInput {
    * is left no worse than it was rather than silently relabelled.
    */
   readonly barSource?: string | null;
+  /**
+   * ASK-17 (Sheriff §35, serving BTC 5m 2026-10-08): Inspect read "DEGRADED:
+   * feed UNAVAILABLE" while the header read LIVE — CERTIFIED and the price
+   * moved. One fact, two graders: the header grades the feed through
+   * `chartFeedReading`; this publisher graded it again, through an exact
+   * tick-to-quote match. The header's verdict is handed in here so the FEED
+   * has one owner. A LIVE feed whose quote has no matching print is PARTIAL
+   * (price present, tape provenance not matched) — never UNAVAILABLE.
+   */
+  readonly feedState?: "LIVE" | "STALE" | "DELAYED" | "UNAVAILABLE" | "AWAITING" | null;
 }
 
 // Asset class + instrument id + session all delegate to the single canonical
@@ -332,8 +342,12 @@ export function createChartMarketStatePublication(
     channel.instrumentId.toUpperCase() === normalizedSymbol ||
     channel.instrumentId.toUpperCase() === executableIdentityFor(normalizedSymbol, assetClass)
   );
-  const qualityState = qualityFor(input.source, input.connected, hasCanonicalPrice,
+  const graded = qualityFor(input.source, input.connected, hasCanonicalPrice,
     priceTick != null && input.capturedAt - priceTick.time < 20_000);
+  const qualityState: MarketQualityState = input.feedState === "LIVE"
+    ? (hasCanonicalPrice ? "LIVE" : "PARTIAL")
+    : input.feedState === "STALE" && graded === "LIVE" ? "STALE"
+    : graded;
 
   const eventAt = priceTick?.time ?? null;
   const coverageVersion = input.nectar.updatedAt ?? input.nectar.startedAt;
@@ -678,6 +692,7 @@ export function usePublishChartMarketState(
     // this forwarder does not destructure is silently discarded, and a dropped
     // input is indistinguishable from absent evidence at the far end.
     barSource,
+    feedState,
   }: Omit<ChartMarketStatePublicationInput, "capturedAt" | "nectar">,
 ): void {
   // THE BAR THAT CLOSES WHILE NOTHING CHANGES.
@@ -726,6 +741,7 @@ export function usePublishChartMarketState(
       connected,
       bars,
       barSource,
+      feedState,
       capturedAt: Date.now(),
       nectar: getSessionNectarSnapshot(),
     });
@@ -749,5 +765,5 @@ export function usePublishChartMarketState(
     // switches candle venue without re-publishing would keep stamping the old
     // venue on new numbers — a receipt that is wrong in the one way receipts
     // are supposed to make impossible.
-  }, [symbol, timeframe, session, ticker, recentTicks, source, connected, bars, barSource, recheck]);
+  }, [symbol, timeframe, session, ticker, recentTicks, source, connected, bars, barSource, feedState, recheck]);
 }

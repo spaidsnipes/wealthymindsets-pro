@@ -267,6 +267,25 @@ entry's bar to 120 minutes after the exit (`PATH_AFTER_EXIT_MIN`), and is refuse
 
 Tests: `managementPlanSlice4.test.ts`, `spaidbotPlanReview.test.ts`.
 
+**The Founder's management Sheriff (§64), as one integration test.** `managementWalkthrough.ts`
+walks three sample decisions through the real owners:
+* an exit before the plan's condition printed;
+* a position held through the plan's invalidation;
+* a plan changed mid-trade with the new evidence written down.
+
+`managementSheriff.integration.test.ts` holds the laws over them:
+* **Separate columns:** market, planned and actual stay apart. The market column never reports
+  what the trader did, the actual column never reports bars, and the plan column never reports
+  fills.
+* **Factual deviations:** the early exit and the hold through the invalidation are deviations,
+  each with its rule and its times.
+* **New evidence is preserved:** it is kept beside the untouched frozen base, and it covers the
+  stop it moved (no "without plan basis").
+* **No shaming and no psychology:** the "why" is the trader's own words, kept verbatim and
+  labelled as theirs, or "Not recorded. WM does not fill this in."
+
+The journal proof scene shows the same walkthrough in six steps per decision.
+
 ## 5. Personal Edge — adherence and the n ≥ 20 rule (§28, §29)
 
 * **Adherence:** a trade counts toward a group's sample only when its plan-vs-actual comparison

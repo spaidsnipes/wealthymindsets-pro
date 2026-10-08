@@ -89,6 +89,17 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
       expect(html.match(/data-testid="fvg-additional-evidence" data-state="MEASURED"/g) ?? []).toHaveLength(1);
       expect(html).toContain("0 of 24 gap decisions with a recorded target planned it at the gap&#x27;s far edge");
       expect(html).not.toMatch(/magnet|belie[fv]|mandatory/i);
+      // §64: the Sheriff walkthrough — three sample decisions, six steps each.
+      expect(html).toContain('data-testid="journal-proof-walkthrough"');
+      expect(html.match(/data-testid="journal-proof-walk"/g) ?? []).toHaveLength(3);
+      expect(html.match(/data-testid="journal-proof-walk-step"/g) ?? []).toHaveLength(18);
+      expect(html).toContain('data-primary="HELD_THROUGH_INVALIDATION"');
+      expect(html).toContain("new evidence: sample: a large seller printed at the gap");
+      expect(html.match(/Not recorded\. WM does not fill this in\./g) ?? []).toHaveLength(3);
+      // Save → reload of a sample entry in a throwaway in-memory store: 9 rows, all the same, verdict stated — and setItem on the real storage never called (below).
+      expect(html).toContain('data-verdict="SAME SNAPSHOT AFTER RELOAD"');
+      expect(html.match(/data-testid="journal-proof-roundtrip-row" data-same="yes"/g) ?? []).toHaveLength(9);
+      expect(html).not.toContain('data-same="no"');
       expect(setItem).not.toHaveBeenCalled();
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
@@ -97,7 +108,7 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
   });
 
   it("the scene path has no write in its source; the Review rows are readOnly; the switch needs token AND a signed-in trader", () => {
-    for (const f of ["components/journal/JournalProofScene.tsx", "lib/journal/journalProofFixture.ts", "lib/journal/managementBehaviours.ts", "lib/journal/planFvgFillTargets.ts"]) {
+    for (const f of ["components/journal/JournalProofScene.tsx", "lib/journal/journalProofFixture.ts", "lib/journal/managementBehaviours.ts", "lib/journal/planFvgFillTargets.ts", "lib/journal/managementWalkthrough.ts", "lib/journal/journalRoundTrip.ts"]) {
       const src = read(f);
       expect(src.length).toBeGreaterThan(500);
       expect(src, f).not.toMatch(/setItem\(|localStorage|sessionStorage|fetch\(|method:\s*"POST"|indexedDB|writeStoryReview/);

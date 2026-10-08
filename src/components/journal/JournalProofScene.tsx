@@ -24,6 +24,8 @@ import { additionalEvidenceComparison, fillTargetComparison, fillTargetSample, g
 import { JOURNAL_FIXTURE_BANNER, journalFixture } from "@/lib/journal/journalProofFixture";
 import { fvgReferenceSentence } from "@/lib/journal/fvgDecisionReference";
 import { behaviourCases } from "@/lib/journal/managementBehaviours";
+import { managementWalkthroughs } from "@/lib/journal/managementWalkthrough";
+import { journalRoundTrip } from "@/lib/journal/journalRoundTrip";
 
 const GOLD = "#d4af37";
 
@@ -31,6 +33,10 @@ export function JournalProofScene(): React.ReactElement {
   const f = useMemo(() => journalFixture(), []);
   const shown = f.entries.slice(0, 6);
   const behaviours = useMemo(() => behaviourCases(), []);
+  const walkthroughs = useMemo(() => managementWalkthroughs(), []);
+  // Save → reload of one sample entry with its FVG reference, in a throwaway in-memory Storage
+  // (the Journal's own writer and reader; the browser's storage is never touched).
+  const roundTrip = useMemo(() => journalRoundTrip(f.entries[0].fvgRef), [f]);
   // §41: the 24 sample decisions (all targets 2R beyond the entry; references price-only) answer with
   // counts and INSUFFICIENT; a second synthetic set of 48 gap decisions shows the MEASURED form.
   const q41 = useMemo(() => {
@@ -61,6 +67,45 @@ export function JournalProofScene(): React.ReactElement {
                 delete) and no price-path loader — read only. */}
             <StoryReviewRow storyKey={`proof-scene:${e.id}`} fvg={f.review[e.id] ?? null} fvgRef={e.fvgRef}
               plan={{ plan: e.plan, actuals: e.actuals, path: e.path }} readOnly defaultOpen />
+          </div>
+        ))}
+      </section>
+
+      <section aria-label="Journal save and reload (sample)" data-testid="journal-proof-roundtrip" data-verdict={roundTrip.verdict} className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">
+        <h2 className="text-sm font-bold text-wm-text">Journal · Reference an FVG → save → reload (one sample entry, in memory)</h2>
+        <p className="text-[11px] text-wm-text-muted">
+          The Journal&apos;s own writer and reader, run on a throwaway in-memory store under your member key — your saved journal is not read or written.
+          Stored {roundTrip.bytes} bytes; read back as {roundTrip.readStatus}.
+        </p>
+        <div role="table" className="mt-2 grid gap-1 text-[11px]" style={{ overflowWrap: "anywhere" }}>
+          {roundTrip.rows.map(r => (
+            <div role="row" key={r.field} data-testid="journal-proof-roundtrip-row" data-same={r.same ? "yes" : "no"}
+              style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: "2px 10px" }}>
+              <b role="cell" className="text-wm-text">{r.field}</b>
+              <span role="cell" className="text-wm-text-muted">before: {r.before}</span>
+              <span role="cell" className="text-wm-text-muted">after: {r.after}{r.same ? " · same" : " · DIFFERENT"}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] font-bold" style={{ color: GOLD }}>
+          {roundTrip.verdict}{roundTrip.secondSaveByteStable ? " · a second save → reload is byte-stable" : ""}
+        </p>
+      </section>
+
+      <section aria-label="Management Sheriff walkthrough (sample)" data-testid="journal-proof-walkthrough" className="rounded-lg border border-wm-border bg-wm-surface/40 p-3 space-y-3">
+        <h2 className="text-sm font-bold text-wm-text">Review · the management Sheriff, step by step (three sample decisions)</h2>
+        <p className="text-[11px] text-wm-text-muted">What you planned, what you actually did and what the market did stay in separate steps. Each finding is a fact with its rule. The reason a plan changed is only ever your own words.</p>
+        {walkthroughs.map(w => (
+          <div key={w.id} data-testid="journal-proof-walk" data-walk={w.id} data-primary={w.review.result.primary} className="rounded border border-wm-border p-2" style={{ overflowWrap: "anywhere" }}>
+            <h3 className="text-[12px] font-bold text-wm-text">{w.title}</h3>
+            <ol className="mt-1 space-y-1.5">
+              {w.steps.map(s => (
+                <li key={s.step} data-testid="journal-proof-walk-step">
+                  <span className="block text-[10px] tracking-wider" style={{ color: GOLD }}>{s.step}</span>
+                  {s.lines.map((l, i) => <span key={i} className="block text-[11px] leading-relaxed text-wm-text-muted">{l}</span>)}
+                </li>
+              ))}
+            </ol>
           </div>
         ))}
       </section>

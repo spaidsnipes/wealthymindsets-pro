@@ -489,3 +489,15 @@ describe("chart Market State publisher", () => {
     });
   });
 });
+
+describe("ASK-17 (2026-10-08): the header's feed verdict is the one grader", () => {
+  it("a LIVE feed whose quote has no matching print is PARTIAL, never UNAVAILABLE", () => {
+    const input = { ...base(), recentTicks: [] };
+    expect(createChartMarketStatePublication(input).qualityState).toBe("UNAVAILABLE");
+    expect(createChartMarketStatePublication({ ...input, feedState: "LIVE" }).qualityState).toBe("PARTIAL");
+  });
+  it("a LIVE feed with a matched print is LIVE; no feed verdict changes nothing", () => {
+    expect(createChartMarketStatePublication({ ...base(), feedState: "LIVE" }).qualityState).toBe("LIVE");
+    expect(createChartMarketStatePublication(base()).qualityState).toBe(createChartMarketStatePublication({ ...base(), feedState: null }).qualityState);
+  });
+});

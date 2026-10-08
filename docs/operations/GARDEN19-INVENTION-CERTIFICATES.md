@@ -764,6 +764,7 @@ The single walk is `src/lib/journal/learningLoop.integration.test.ts`. It assert
 | The page's save path carries the reference | same file, source pins: the field writes `form.fvgRef`; `saveEntry` spreads the form; the persistence effect writes the entries; the loader reads `readJournalFvgReference` | **PROVED** (source) |
 | The reference, the broker capture and the frozen plan reload as one unit | `managementPlanPersistence.test.ts`; `learningLoop.integration.test.ts` hop 5 | **PROVED** (unit / integration) |
 | Save → reload → same snapshot on serving | none — needs a real Founder entry: he saves one Journal entry with "Reference an FVG", reloads, and the same sentence shows | **PARTIAL — needs a real Founder entry** |
+| Save → reload → same snapshot on serving, WITHOUT the Founder's book (appended 2026-10-08) | `journalRoundTrip.ts`: the Journal's own writer (`writeJournalStorage`, the member key) → reader → hydrator → reference reader, then a second save → reload, all in a throwaway in-memory Storage; the proof scene shows 9 before / after rows and the verdict. `journalRoundTrip.test.ts` (member key in memory, the real localStorage never called; guest = NOT SAVED); `journalProofScene.sentinel.test.tsx` (9 rows same, "SAME SNAPSHOT AFTER RELOAD") | **PROVED** (unit / render). **PARTIAL on serving** until the next ship's proof scene is read; a real Founder entry stays the only proof on his own book |
 
 **Other management rows, as they stand:**
 
@@ -791,6 +792,7 @@ tab was closed afterwards. Nothing was saved, sent or clicked.
 | Splits + management on the Founder's real Personal Edge block | `personalEdgeSplitsMount.test.tsx` (empty states: the plan-adherence line + "FVG context splits: no Journal entry references a gap yet…"; no table, no 0%) | **PROVED** (render). On serving his book shows the empty lines: he has no references or plans yet |
 | §26 the order's eleven management behaviours, each a factual class (5 added: took profit before planned condition, changed orders repeatedly without plan basis, reduced according to plan, moved to breakeven according to rule, walked away after protection according to plan; "Moved target" relabelled "without plan basis") | `managementBehaviours.test.ts` (each sample trade through the real classifier names its class; no emotion words, no "impulsive"); `journalProofScene.sentinel.test.tsx` (11 behaviour rows, 11 found) | **PROVED** (unit / render). **PROVED on serving — appended 2026-10-08 07:03 CDT:** `c104669` (builtAt 11:44:07Z), read 12:02:50Z, own tab, read only, same-origin iframe. **390:** 11 behaviour rows, 11 found, labels in order ("Exited before planned condition" … "Walked away after protection, according to plan"), e.g. "You closed 1.9 (+0.95R) in your favour at 101.9, before the target 104 or the invalidation 98 recorded in your plan had printed."; 0 rows past the right edge; overflow 0; no "impulsive". **1440:** 11 / 11 found, 0 past the edge, overflow 0. **PARTIAL** only on the Founder's own trades: needs a real WM-sent trade with a frozen plan |
 | §41 two Review questions, factual (far-edge targets vs other gap targets; an attached sense beyond price vs price only), counts always, comparison at ≥ 20, no belief labels | `planFvgFillTargets.test.ts` (9); `journalProofScene.sentinel.test.tsx` (book: INSUFFICIENT with "0 of 24 …"; 48-decision set: MEASURED); `personalEdgeSplitsMount.test.tsx` (on the real Personal Edge block) | **PROVED** (unit / render). **PARTIAL on serving** until the next ship's proof scene is read |
+| §64 the Founder's management Sheriff as one integration test (market / planned / actual apart; early exit and held-through-invalidation as factual deviations; documented new evidence preserved; no shaming, no fabricated psychology) + the proof-scene walkthrough (3 decisions × 6 steps) | `managementSheriff.integration.test.ts` (8); `journalProofScene.sentinel.test.tsx` (3 walks, 18 steps, the new-evidence line, 3 × "Not recorded") | **PROVED** (integration / render). **PARTIAL on serving** until the next ship's proof scene is read |
 
 
 ## 11. §34 INVENTORY AUDIT — every canonical invention × the certificate fields (2026-10-08, night shift)
@@ -1910,10 +1912,10 @@ Together with C-01 … C-15 and §5 (FVG), every built candle-field invention in
 | 6 | partial mitigation | test C "PARTIALLY_MITIGATED (< 50 %)…"; serving: scanner PARTIAL_MITIGATION / DEEP_MITIGATION conditions among the 14 hits (§6a · `eea2771`); SpaidBot's answer read interactions at 39 % / 2 % / 52 % (§6a · `bf5052b`) | PROVED |
 | 7 | full mitigation | test C "FULLY_MITIGATED: a wick to the far edge without a close beyond it"; serving: Journal snapshot read now = "fully mitigated … deepest 100 %, no unvisited territory" (§6a · `eea2771`) | PROVED |
 | 8 | rejection | tests C "REJECTED…" (+ window, + not after full); serving: selected gaps in state REJECTED (I · `301d85d` ES1!; N · `c02c2d4` NQ1!) | PROVED |
-| 9 | acceptance | test C "ACCEPTED: two consecutive closes inside"; Academy lesson 9 | **PARTIAL:** no serving read of an object in state ACCEPTED (acceptance fill + inner line on glass) |
-| 10 | invalidation | test C "TRADED_THROUGH: a close beyond the far edge…; the lifecycle stops"; serving: scars counted on every row (`SCARS:3`; M · `eea2771`) | **PARTIAL:** scars include fully-mitigated gaps — no serving read names a single object in state TRADED_THROUGH with its dashed far edge |
+| 9 | acceptance | test C "ACCEPTED: two consecutive closes inside"; Academy lesson 9 | **PARTIAL:** no serving read of an object in state ACCEPTED (acceptance fill + inner line on glass) · **UPDATE 07:11:** serving `c104669`, Backtest FVG study, NQ1! 5m (07:10–07:11 CDT, own tab, read-only, localStorage byte-identical): "Accepted inside 29 of 143 (20 %)" — the engine produces ACCEPTED on real serving data. Still missing: the acceptance fill + inner line read on glass · **UPDATE 07:40 (reads 07:23–07:38 CDT) → acceptance on glass PROVED** (serving `c104669`, own tab, read-only; NQ1! 5m `scene=clean&on=fvg&select=fvg:FVG\|TASTYTRADE:/NQZ26:XCME\|5m\|1791310800000\|BEARISH\|v1` — the one gap in the 996-bar serving history whose core state is ACCEPTED, found by running the engine on `/api/yahoo` bars): `fvgSelected …\|MEMORY`, `fvgSelectedMark FRAME:GOLD`, `fvgDrawn 3\|LIVE:2\|SCAR:0\|MEMORY:1` after panning the camera to 2026-10-06. Paint calls for the selected band: accepted fill `rgba(239,68,68,0.05)` (0.13 × memory age 0.3, held at the 0.05 floor), inner line `0.094` at 1 px, edges `0.224` at 1.5 px solid. Canvas pixels (band rows 225–233): the inner line row 229 = round((225+233)/2) reads alpha 47 against 26–27 for the fill rows. Inspect: "Memory — aged out of the live view; kept, never deleted", interaction 1 "accepted" |
+| 10 | invalidation | test C "TRADED_THROUGH: a close beyond the far edge…; the lifecycle stops"; serving: scars counted on every row (`SCARS:3`; M · `eea2771`) | **PARTIAL:** scars include fully-mitigated gaps — no serving read names a single object in state TRADED_THROUGH with its dashed far edge · **UPDATE 07:11:** serving `c104669`, Backtest FVG study, NQ1! 5m (07:10–07:11 CDT, own tab, read-only, localStorage byte-identical): "Closed through the far edge 132 of 147 (90 %)"; the gap list names rows "traded through". Still missing: the dashed far edge read on glass · **UPDATE 07:40 (reads 07:23–07:38 CDT) → dashed far edge PROVED** (serving `c104669`, own tab, read-only): `select=fvg:FVG\|TASTYTRADE:/NQZ26:XCME\|5m\|1791458400000\|BULLISH\|v1` → `fvgSelected …\|TRADED_THROUGH`, `data-proof-select-object …\|HELD`, `FRAME:GOLD`; Inspect "traded through — a close beyond the far edge (invalidated)". Paint call: `setLineDash([3,3])` stroke in the selected bullish ink at 1.5 px. Canvas pixels on the far-edge rows 474–475: `GGGoooGGG` (3 on, 3 off); the near edge row 470 is solid. Unselected traded-through scars stroke dashed at 0.1 |
 | 11 | aging | test F "a live gap with no interaction for 300 bars becomes MEMORY…", "a scar becomes MEMORY 20 bars after…"; serving: aged opacity rungs (O · `f96618c`), `fvgMemory:MEMORY:0.44` tier | PROVED |
-| 12 | Memory | test F (comes straight back on a touch); visibility budget `HIDDEN:n` counted, never deleted (M · `eea2771`) | **PARTIAL:** `fvgDrawn …\|MEMORY:0` on every serving read — no MEMORY-state object was drawn on glass |
+| 12 | Memory | test F (comes straight back on a touch); visibility budget `HIDDEN:n` counted, never deleted (M · `eea2771`) | **PARTIAL:** `fvgDrawn …\|MEMORY:0` on every serving read — no MEMORY-state object was drawn on glass · **UPDATE 07:11:** serving `c104669`, Backtest FVG study, NQ1! 5m (07:10–07:11 CDT, own tab, read-only, localStorage byte-identical): the gap list names rows "memory" — MEMORY objects exist on serving data. Still missing: a MEMORY object drawn on glass · **UPDATE 07:40 (reads 07:23–07:38 CDT) → MEMORY drawn on glass PROVED** (serving `c104669`, own tab, read-only): `select=fvg:FVG\|TASTYTRADE:/NQZ26:XCME\|5m\|1791450900000\|BEARISH\|v1` (a Backtest "memory" row, chart-feed id) → `fvgDrawn 10\|LIVE:6\|SCAR:3\|MEMORY:1`, `fvgSelected …\|MEMORY`, `FRAME:GOLD` at canvas (1120,361) 23×12. Inspect "Memory — aged out of the live view; kept, never deleted". **By design a MEMORY gap paints only when selected** (`selectFvgVisibility` puts MEMORY in `hidden.memory`, never in the open/scar budget) — so `MEMORY:0` on an unselected chart is correct, not a defect |
 | 13 | replay AS-OF-TIME test | test G-core "as-of at every bar equals a scan…"; `fvgCamera.test.ts`; serving: cursor 4857 / 4977 `REPLAY:…\|LEAK:0`, a later-born object drops out (I · `301d85d`); stepping 4880 → 4882 LEAK:0 at 1180 and 834 (N · `c02c2d4`); §38 replay lifecycle test (birth → memory, no future state) shipped in `c02c2d4` | PROVED |
 | 14 | no future leakage | test G-core "FUTURE-LEAK TEST…"; serving `fvgAsOf …\|LEAK:0` on all 16 matrix rows (M · `eea2771`), every size (I · `301d85d`), tablet (N · `c02c2d4`); Backtest clock at bar 501 (§6a · `eea2771`); Journal snapshot at b3 close (§6a) | PROVED |
 | 15 | evidence degradation | test "evidence per sense — by reference, never upgraded"; serving: EURUSD price-only `OPEN:6\|SCARS:3` (M); Inspect "EVIDENCE COMPLETENESS DEGRADED" on a newest-bar SPY gap (N · `c02c2d4`); SpaidBot context ORDER_FLOW / DERIVATIVES SILENCE (S · `fabce3a`). Data-lane finding: EURUSD 1m point bars give 0 gaps (M) | PROVED |
@@ -1931,4 +1933,144 @@ Together with C-01 … C-15 and §5 (FVG), every built candle-field invention in
 | 27 | performance evidence | paint MET: 0.23–1.10 ms (I · `301d85d`), 0.00–0.40 ms (N · `c02c2d4`); compute per closed bar; phone-class bench at CPU ×4: ~30 ms cold, 6–7 ms per closed bar (N); `fvgPerformance.sentinel.test.ts` | PROVED (bench). **Missing:** a signed-in read on a real phone |
 | 28 | deployment / version | ship gate polls `/api/build-identity`; LIVE times in `GARDEN18-SUPER-ORDER-RECEIPT.md` (day, night and morning sections) | PROVED |
 | 29 | SHA | FVG chain: `4769a31` → `c4de0f0` → `d6e2c18` → `eea2771` → `57e9fda` → `301d85d` / `8db9b21` → `683aecf` → `5475a8e` → `8e7beee` → `fabce3a` → `dae44b0` → `3f75f99` → `14de5a0` → `c02c2d4`; production at writing `c104669` (builtAt 11:44:07Z) | PROVED |
-| 30 | remaining limitations | (a) ACCEPTED, TRADED_THROUGH and MEMORY states not individually read on serving (#9, #10, #12)<br>(b) real-tablet touch size (#17, #18)<br>(c) Journal save → reload and "Show me my examples" on real entries (#22, #26)<br>(d) §21 Backtest wording + refusal words (#24)<br>(e) real-phone compute (#27)<br>(f) EURUSD 1m point bars (data lane)<br>(g) Inspect text under 11 px at 390 (#20)<br>(h) the FVG layer ships default OFF (Founder decision) | — |
+| 30 | remaining limitations | (a) ACCEPTED, TRADED_THROUGH and MEMORY states not individually read on serving (#9, #10, #12)<br>(b) real-tablet touch size (#17, #18)<br>(c) Journal save → reload and "Show me my examples" on real entries (#22, #26)<br>(d) §21 Backtest wording + refusal words (#24)<br>(e) real-phone compute (#27)<br>(f) EURUSD 1m point bars (data lane)<br>(g) Inspect text under 11 px at 390 (#20)<br>(h) the FVG layer ships default OFF (Founder decision) | — · **UPDATE 07:11:** (i) **new defect, 07:11:** the Backtest study's "Open on the chart →" for an NQ1! 5m "traded through" row (`FVG|NQ1!|5m|1791458400000|BULLISH|v1`, bar-route id) landed with `data-proof-select-object …|NONE_AVAILABLE` — the cross-feed door resolver that holds Scanner rows (`HELD:EQUIVALENT`, `dae44b0`) did not hold this Backtest row. Owner: FVG / backtest lane · **UPDATE 07:40:** (a) CLOSED — #9, #10, #12 read on glass. (i) **door defect diagnosed:** the NQ1! chart's ledger comes from two feeds that alternate between loads (tastytrade, 4999 bars, ids `FVG\|TASTYTRADE:/NQZ26:XCME\|…`; or the bar route, 995–996 bars, ids `FVG\|NQ1!\|…`). On `c104669` the door matches the EXACT id only, so a Backtest row holds only when the chart happens to load the bar-route feed. A fix (`resolveFvgDoorTarget` … `EQUIVALENT_FEED_ALIAS`, needs the door's territory) is in the tree, uncommitted, not LIVE — re-read after it ships. (j) **new, minor:** a selected gap at the left edge sits under the Inspect card (desktop 1920, card x 0–225); the card does not move the camera |
+
+## 13. §35 SHERIFF RELEASE GATE — one row per line (serving `c104669`, 2026-10-08 07:04–07:13 CDT, Sheriff lane)
+
+Walked on `https://wealthymindsetspro.com` with `/api/build-identity` = `c1046692`. Times from `date`. Probes ran in the Sheriff's own Chrome tab (signed in, `scene=clean`, nothing saved or pressed beyond view toggles) and in the desktop Browser pane (signed out, touch emulation).
+
+| # | §35 line | Verdict | Receipt (what was read, where) |
+|---|---|---|---|
+| 1 | **Data true** | PASS | **BTC-USD:** five paired reads, glass vs `api.exchange.coinbase.com/products/BTC-USD/ticker` 07:07 CDT, e.g. glass 82288.77 against the same Coinbase print seen ~7 s earlier. Every glass value is a real Coinbase print; the lag is a background tab's timers. **SPY 07:09:** glass 774.38 −2.84 (−0.37%) vs Webull snapshot `trade_status PRE`, ext 774.33 / −2.89 against close 777.22. **ES1!** 7823.75 on a 0.25 tick. *Note:* the first SPY paint of a cold load showed header 777.14 "STALE PIPELINE" beside a legend reading 774.12. It is labelled stale and resolved within seconds, but two prices shared the glass for that moment. |
+| 2 | **Inventions manifest** | PARTIAL | Dense scene `on=LivingProfile,fvg,deltaKeel,rvolTone,fp:big-trades`: receipts show `livingProfile DRAWN`, `fvg OPEN:6\|SCARS:3\|HIDDEN:54`, `bigTradeBubbleStatus DRAWN`. Standing gaps from §11c are unchanged (certificates, erasure coverage). The census now carries `manifestation` / `ink` / `narrow` fields (51 manifestation rows, `inventionCensus.ts:319+`). *Proof-token note:* only one `on=` parameter is honoured; several tools need `on=A,B,C`. |
+| 3 | **Grammar distinct** | PARTIAL | `GARDEN19-ERASURE-TESTS.md`, full-registry re-run + uncovered set. PASS: Market Structure, Absorption, Brick Walls off-camera, selected print, selected bar, selected FVG (gold frame per commit `c02c2d4`; not re-proved on glass in this pass). PARTIAL: wall lifecycle (BORN outline), Derivatives Pressure sign, selected zone, NEAR numerals. ASK-11..15 routed. |
+| 4 | **History where evidence supports it** | PASS | `on=deltaKeel` BTC 5m: `barDeltaKeels 15\|BASIS:TAPE16+SIDES0\|FAIL:3`. Keels exist only on bars the tape reaches; the forming bar is SILENT, and Inspect says why ("keels are drawn on finished bars"). |
+| 5 | **Silence** | PASS | EURUSD + `on=LivingProfile`: `livingProfile NO_PROFILE`, no volume ink (erasure doc). Header reads "NO CENTRAL VOLUME · spot FX". The delta keel stays silent on the forming bar. |
+| 6 | **Numbers** | PASS | EURUSD 5 dp (1.11857); BTC 2 dp; SPY 2 dp; ES 2 dp on a 0.25 tick. OHLC legend and header agree once loaded (row 1 note aside). |
+| 7 | **Colour** | PASS (code) | Canon fidelity label set and tone map are locked by test (ruling A). `bannedClaims` + `marketingSurfaces.sentinel` are green in the suite. No new colour roles were found on today's walk. |
+| 8 | **Opacity** | PASS | Dense scene receipt: `attentionTiers fvg:LIVE:1, fvgMemory:MEMORY:0.44, volumeField:SUPPORTING:0.75, …`; `attention D:MID\|POSTURE:QUIET`. `LAYER_ATTENTION` now holds 52 layers (§11c listed 16 ungoverned; recount owed by the chart lane). |
+| 9 | **Typography** | PASS vs the 9 px DOM floor (`domTypeFloor.sentinel`) / OPEN vs 11 px | /charts 1568 wide: no DOM text under 9 px. At 9 px: wordmark tagline, masthead ROOMS / COMMUNITY. At 10 px: feed label line, OHLC legend. At 10.5 px: room tabs. **Ruling wanted:** does the 11 px floor (rulings 2026-10-07 for PRO / Paper P&L) extend to the masthead doors and the feed label line? |
+| 10 | **Notes (ⓘ)** | PARTIAL | `inventionEducation.ts` covers the ⓘ set; §11c item 7 lists 7 built inventions with no ⓘ record. Not re-counted today. |
+| 11 | **Inspect** | PARTIAL | BTC 5m: opens and names its evidence class, source and as-of. Two findings. **(a)** The copy told every user to "Hover a candle" — a touch screen has no hover. Fixed in-lane (`ChartInspectTicket.tsx`, `ChartEffortVsResult.tsx`): "With a mouse, hover a candle…". Tap-to-pick a past bar is a chart-lane ask (ChartsDashboard notes `cursorBar` is null for a touch user). **(b)** Inspect read "Lowered to DEGRADED: the feed is UNAVAILABLE · This chart has no live feed right now" while the room header read "LIVE — CERTIFIED QUOTE" and the price moved. Inspect's `feed` is `chartCanvasState.qualityState` (`useCanonicalMarketState(canvasIdentity)`); the header is the quote owner. One fact, two answers → ASK. |
+| 12 | **Desktop / tablet / phone** | PARTIAL | **Phone, real coarse pointer:** Browser pane mobile emulation, `matchMedia('(pointer: coarse)')` = true, `(hover: none)` = true, 375×812, signed out. `/welcome` 0 of 11 controls under 44 px, `/pricing` 0/5, `/login` 0/14 ("Forgot password?" 93×45), `/legal` 0/7. Every gated route sends a signed-out visitor to `/login`. **Tablet:** the 834 / 1180 sweep (yesterday, emulated coarse) is shipped. **Not certified:** iOS Simulator — this Mac has **no iOS runtime installed** (`xcrun simctl runtime list` → 0 disk images), so no iPhone/iPad can boot. Installing one is a multi-GB Xcode component download (Founder-gated). The pane's tablet preset does not emulate touch. |
+| 13 | **Forex** | PASS | EURUSD: "NO CENTRAL VOLUME · spot FX" and "RELATED FUTURES EVIDENCE · CME 6E · 5m signed Δ +9 →" (the §18 ask landed); 5 dp. |
+| 14 | **Member data** | PASS | Signed out, GET on every non-dynamic broker/execution/journal/morning-prep route: 401 "Not authenticated" (webull ledger/balance/positions/orders/status, tastytrade ledger/accounts/positions/orders/chain/quote-token/market-data, broker status/readiness/journal-feed/certification/member, execution limits, alpaca-trading, decision-position, morning-prep growth-rings). POST-only routes answer 405 to GET; no POST was sent. |
+| 15 | **SpaidBot authority** | PASS (code) | `/api/spaidbot` → `requireAuth` + per-user rate limit (`route.ts:93–100`). The system prompt forbids reading accounts, staging, submitting or cancelling orders, and emitting order tags (`route.ts` SYSTEM_PROMPT). `spaidbotProposal.test.ts` locks PROPOSE-only: size clamped to the server cap, no self-widening, refusal without Decision_ID / evidence. Signed out, the UI is unreachable. |
+
+### 13a. Asks from this pass (to the coordinator / chart lane)
+1. **ASK-17 · Inspect feed vs header.** `chartCanvasState.qualityState` = UNAVAILABLE while the quote owner says LIVE — CERTIFIED QUOTE (BTC-USD 5m, 07:11 CDT). Either the canonical store's feed state for `canvasIdentity` is stale, or the header overclaims. The canvas exposes no receipt of `qualityState`; add `data-quality-state` so a probe can prove which.
+2. **ASK-18 · Tap-to-pick a past bar on touch.** Inspect and Effort follow the forming bar forever for a finger. A tap on a candle should pin it as `cursorBar` (a second tap releases), the way Options Flow marks and bubbles already pin on tap.
+3. **ASK-19 · Cold-load SPY: two prices for a moment.** Header 777.14 STALE PIPELINE beside legend 774.12, with the same "+0.21 vs prior 5m bar" change attached to both.
+4. **ASK-20 · Bubbles over the forming bar.** Dense scene, BTC 5m 07:10: a 24.2×44 big-trade bubble sits over the newest candles at the right edge (price sovereignty, §XIV).
+5. **Ruling:** 11 px vs 9 px for the masthead doors and the feed label line (row 9).
+6. **Founder:** install an iOS Simulator runtime (Xcode › Settings › Components) to certify real Safari touch at iPhone / iPad sizes.
+
+## 14. §11 NUMBER-SOUP AUDIT — permanently visible numbers on the glass at default zoom (serving `c104669`, 2026-10-08 07:21–07:25 CDT, Sheriff lane)
+
+**Method.** Default camera (`/charts?symbol=<S>&tf=5m&scene=clean`, MID, ~112 bars) at 1440×850. Counted every numeral string that stays on the glass with no hover, no selection and no panel open:
+- DOM text inside `.wm-chart-market-pane`, visible by `checkVisibility()`;
+- custom canvas text, caught by a `fillText` hook;
+- the price and time axes, counted from the screenshot. The axis library draws from a text cache the hook does not see.
+
+Panels (Decision card, Webull box, Market Breathing, Response Matrix, TED) are excluded — they sit beside the glass.
+
+| | BTC-USD | SPY | NQ1! |
+|---|---|---|---|
+| Symbol row: price · change · % · O · H · L · NOW | 7 | 7 | 7 |
+| DAY BIAS "% today" (repeats the row's %) | — (24H BIAS) | 1 | 1 |
+| Bar status ("BAR OPENED 07:20 AM", countdown in the row) | 1–2 | 1 | 2 |
+| Depth tag "112 bars" | 1 | 1 | 1 |
+| `DECISION_ID wmd_9d1d…` under the depth tag | 0 | 0 | **1** |
+| "Evidence saved · 16 symbols" | 1 | 1 | 1 |
+| Zone chips ("1 TEST", "2 TESTS") | 2 | 2 | 2 |
+| Countdown chip on the axis edge | 1 | 1 | 1 |
+| Footer: "Vol …", "5m", opacity "100%" | 3 | 3 | 3 |
+| **Subtotal off the axes** | **~17** | **~18** | **~19** |
+| Price axis labels + last-price chip | 19 | 17 | 22 |
+| Time axis labels | 8 | 8 | 7 |
+| **Total permanently visible** | **~44** | **~43** | **~48** |
+
+**Verdict.** The axes are the honest majority (≈60%). Off the axes, the market itself speaks in ~7 numbers; the remaining ~10 are chrome and receipts.
+
+**Candidates for progressive disclosure** (show on hover / tap / Inspect, not permanently):
+1. **NOW in the OHLC legend.** Same value as the symbol-row price at all times (BTC 82411.20 twice in one row). Drop NOW while the legend follows the live bar; keep it when the cursor walks history.
+2. **DAY BIAS "−0.38% today"** repeats the symbol row's "(−0.38%)" eight words to its left (SPY, NQ). Say the bias word (SIDE / TREND) only.
+3. **`DECISION_ID wmd_9d1d132a-1e65-48…`** on the NQ canvas, under the depth tag. The canon wants one Decision_ID per camera, but a raw UUID fragment is a machine receipt. Put it in Inspect / the Decision card; on the glass a "●" bound-mark or nothing. *(Chart lane — MainChart.tsx ~23210; needs a ruling, since it was added per canon.)*
+4. **Depth tag "112 bars"** — a receipt of the camera. MID / NEAR / FAR is the reading; the count belongs to Inspect or hover.
+5. **"Evidence saved · 16 symbols"** — a vault count on the glass; the chip can keep its dot and show the count when opened.
+6. **Footer "Vol 0.121905 BTC"** — 6 decimals of the forming bar's volume. Show it at volume-display precision (e.g. 0.12 BTC), or only on hover.
+7. **Opacity "100%"** in the footer chip row — a setting, not a market fact.
+
+**Truth defect found while counting (not soup — numbers line, §35 row 6):**
+- **ASK-21 · BTC header change stuck while the price moved.** Six reads 3 s apart, 07:22 CDT: the price went 82372.98 → 82396.88 and the change read "+28.24 (+0.03%) vs prior 5m bar" every time.
+- Cause: `chartHeaderChangeFact` BAR_OVER_BAR is the last CLOSED bar's move (close − prior close; `deriveBarOverBarChange`), printed beside the LIVE ticker price. The row then reads "82396.88 is +28.24 vs the prior bar", which is false.
+- When the price slot is the live quote, the delta must be live − last closed close (or the price slot must be the bar close, as on cold load: "LAST 5m BAR CLOSE").
+- The same load also flipped the change kind between SESSION ("−1007.68 (−1.21%)", 07:05) and BAR_OVER_BAR ("+28.24", 07:20) on BTC.
+- `ChartsDashboard.tsx:5882` is being edited by another lane right now, so this is routed rather than fixed.
+
+## 15. §9 / §10 AUDIT — every tool's ⓘ and every selectable object's first touch (2026-10-08 08:10 CDT, cert lane)
+
+**Method.**
+- Registry read on the tree: an esbuild bundle of `inventionEducation.ts` checked every record for the eight fields (question, evidence, appears, how to read, FULL, PARTIAL, DEGRADED, first touch) and ran every selection kind through `educationIdForSelection` → `firstTouchFor`.
+- Serving glass read by the Sheriff lane on `c104669`: batch 3, `~/wm-held/proof/g19-sheriff-batch3-asks-2026-10-08.md`.
+- "What it is" comes from the catalogue (`entry.what`, the instrument `what`, `FOOTPRINT_TYPES` desc), so it is checked at the menu, not in the registry.
+
+### 15a. ⓘ coverage by surface
+
+| Surface | Tools | ⓘ with all six parts + ADD TO CHART | Status |
+|---|---|---|---|
+| Tool Finder (Tools → Browse all tools by family) | 50 | 50 / 50 (Sheriff batch 3 #13, serving) | **STRUCTURE PASS.** Content gaps in 15c |
+| Profiles / Lenses / Order flow / Structure / Memory doors (ProfilesMenu) | 24 | 24 / 24 | **STRUCTURE PASS.** The verdict header is generic: "ON NQ1! NOW · CAN DRAW HERE" even for tools that need a chain, a drawn range or two profiles, and even under "feed is STALE" (Sheriff P3-K) — **GAP** |
+| Registry records (profiles 36 · instruments 13 · concepts 8) | 57 | 57 / 57 with all eight fields (tree, 08:08) | PASS |
+| **Indicators menu** (ChartToolbar catalogue) | **142** | **0 / 142** on `c104669`. The "?" opens a five-section panel built from category boilerplate. 118 of the 142 say "support trade decisions" and 35 say "actionable signal", and some give advice (RSI "buy dips / sell rallies", VWAP "favors buyers"). The button has `title` only — no `aria-label`, no `aria-expanded` | **GAP — P1-C in progress.** 142 records are written from the indicator code (`src/lib/chart/indicatorEducation.ts`, uncommitted, inert). The wiring and the sentinel follow at THAW |
+| Footprint controls panel (FootprintControls "?") | footprint modes | Still reads the old `indicatorDescriptions` authoring, not the registry | **GAP** — route it to `FP_<mode>` records (they already exist in the registry) |
+| Drawing tools | 17 | 0 / 17. Name-only 44×44 icons, including Long / Short Position, the only way to feed Risk on Price (Sheriff #14) | **GAP** |
+| Workspace views and loadouts (Scalp / Trend / Sniper / Review) | 4+ | One line each, no ⓘ (Sheriff #15) | **GAP** |
+| Replay | 1 | One line, no ⓘ (Sheriff #2) | **GAP** |
+
+### 15b. First touch for every selectable on-chart object (tree, 08:08 — every kind resolves to a first-touch line)
+
+| Selection | Education key | First-touch line | Note |
+|---|---|---|---|
+| OBJECT `FVG\|…` | FVG_IMBALANCE | "Fair value gap — a defined territory; …" | ok |
+| OBJECT `ZONE:…` | F11A | "Supply / demand zone — where price left fast; …" | Sheriff #12: a tap on a band where a zone overlaps an FVG opens the FVG — hit-test ask (chart lane) |
+| OBJECT `LEVEL:…` | MARKET_STRUCTURE | "Swing level — a confirmed high or low; …" | ok |
+| OBJECT `MEMORY:…` | PROFILE_MEMORY | "Profile memory — an earlier session's value, carried forward." | ok |
+| PRINT delta / big trade | FP_delta / FP_big-trades | present | ok |
+| SLICE | LIVING_PROFILE | present | ok |
+| ANATOMY absorption / exhaustion | ABSORPTION / EXHAUSTION | present | **wording:** Exhaustion "spent its fuel … failed to continue" leans on outcome |
+| MEMORY_GHOST | MEMORY_GHOST | "… Not a forecast." | ok |
+| PRESSURE_WALL | BRICK_WALLS | "a strike dealers are positioned at" | **wording:** inferred positioning is stated as fact |
+| PRESSURE_FRONT | DERIVATIVES_PRESSURE | "where dealer hedging is expected to damp or amplify moves" | **wording:** reads as a forecast |
+| WEATHER | LIQUIDITY_WEATHER | present | ok |
+
+**Not covered by any first touch:**
+- **Bar selection**, which the Wisdom word, Delta keel and Effort → Response open. The Inspect sheet opens with no first-touch line. Sheriff #11: Value Migration's evidence is missing from that sheet.
+- **Trader drawings** — no education at all; see the drawing tools row in 15a.
+- **Indicator lines** — not selectable, so no first touch is owed.
+
+### 15c. Content gaps inside the 50 + 24 ⓘ (Sheriff batch 3 #4–#9, #13; cert lane rewrites at THAW)
+
+| # | Tool | ⓘ says | Glass does | Fix |
+|---|---|---|---|---|
+| 4 | TPO Profile | Letters on the left edge, single prints | Brass blocks over all 5,000 loaded bars. POC / VAL chips sit ~400 points off camera. No single-print mark | ⓘ to describe the blocks and the whole-history build. Chart-lane ask: build on the camera, or label the range, and keep the chips on camera |
+| 5 | Contradiction | Needs two families; DEGRADED = nothing to contradict | Solo paints an UNRESOLVED box (`contradiction=UNRESOLVED:1/1`) | Ask the chart lane whether a one-family UNRESOLVED is lawful. The ⓘ follows the answer |
+| 6 | Regime Lighting | No line for UNKNOWN | UNKNOWN / NO_BREAKER lights both the channel and the magnets | ⓘ to name the UNKNOWN state. Remove "trust the magnets" |
+| 7 | Expected Envelope | Typical reach from the open | Dotted path 5 bars right of the newest candle (`FWD:5`), top clipped | Chart-lane ask: a path forward of now reads as a projection. The ⓘ must say it is drawn ahead, or the glass stops at now |
+| 8 | Brick Walls | Walls at strikes | Solo: SILENT:NO_CHAIN → NO_CURRENT_WALL_EVENT, with no glass word saying why | Chart-lane ask: a reason word on the glass. The ⓘ to name both silent states |
+| 9 | Profile Fusion | — | `profileFusion=DRAWN zones=1` beside `profileFusionObject=REFUSED:TIME_OVERLAP` | Chart-lane ask: one receipt owner |
+| 13 | 36 / 50 Tool Finder rows | Generic "CAN DRAW HERE" | Tools with dependencies too | P3-K: compute the verdict from the tool's needs |
+| 13 | Six footprint modes | "…is drawing from sided prints observed live on tastytrade…" | Vendor name; "is drawing" while off | Drop the vendor; say "draws" |
+| 13 | Several | "(proposed)", "no Founder plate for Breathing yet" | Internal words | Remove from trader copy |
+| 13 | Stacked Imbalance, Liquidity Weather, Exhaustion, Session, Profile Memory, Derivatives Pressure, Contradiction | "often acts as support… when revisited", "stalls are likely", "running out of fuel", "moves often start…", "often draws price back", "Will dealer hedging damp moves…", "wait or reduce" | — | Rewrite as description, not prediction or advice (P3-K list) |
+
+**Gaps to close, in order:**
+1. Indicators 142 (P1-C, records ready).
+2. Verdict header (P3-K).
+3. Wording in 15c.
+4. Footprint panel → registry.
+5. Drawing tools ⓘ (17).
+6. Workspace views / loadouts / Replay ⓘ.
+7. Bar-selection first touch.
+
+Chart-lane asks: 15c #4, #5, #7, #8, #9, and the zone / FVG hit-test.

@@ -307,8 +307,8 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
   QUESTION_LENS: {
     question: "Is the newest absorption or exhaustion holding up — what is it still owed?",
     needs: "OTHER_LAYERS", evidence: "An absorption or exhaustion reading on the chart.",
-    appears: "Asks the newest event one question, lists what evidence is still owed, quiets the rest.",
-    grammar: "Owed items are evidence debt — until paid, the answer stays unresolved.",
+    appears: "Asks the newest event one question, lists what evidence is still owed, quiets the rest. The band carries one ivory mark naming the question asked: ■ absorption · ▽ exhaustion · » continuation · ✕ trap · ⊢⊣ hold · ◇ what changed · ○ permission.",
+    grammar: "Owed items are evidence debt — until paid, the answer stays unresolved. The mark names the question, never the answer.",
     full: "The event has full evidence behind it.",
     partial: "The event is a candidate — the lens lists exactly what is missing.",
     degraded: "No event to ask — it says so.",

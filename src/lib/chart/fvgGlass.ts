@@ -339,12 +339,22 @@ export function fvgInspectRows(o: FvgObject, fmt: (p: number) => string, clock: 
  * (`TASTYTRADE:NVDA` ≡ `NVDA`; futures continuous vs dated never match), b2 is
  * the same bar slot (same ms intraday; same New York calendar date for D / W /
  * M bars), and the territories overlap. Zero or two candidates → null.
+ *
+ * CONTINUOUS ↔ DATED (cert lane, 2026-10-08: Backtest › "Open on the chart →"
+ * `FVG|NQ1!|5m|1791458400000|BULLISH|v1` read NONE_AVAILABLE on the NQ1! chart,
+ * whose feed mints `FVG|TASTYTRADE:/NQZ26:XCME|5m|…`). The chart's ledger is
+ * by construction ONE instrument — the chart's own symbol. So when the door
+ * names the chart's symbol (`opts.chartSymbol`), a chart object under a feed
+ * alias is the same instrument — but ONLY with the door's territory present
+ * and overlapping, so a gap from another contract (across a roll, prices a
+ * basis apart) can never be taken for it. No territory → no alias match.
  */
 export function resolveFvgDoorTarget(
   doorId: string,
   objects: readonly Pick<FvgObject, "objectId" | "bottom" | "top">[],
   doorTerritory?: { readonly bottom: number; readonly top: number } | null,
-): { readonly objectId: string; readonly how: "EXACT" | "EQUIVALENT" } | null {
+  opts: { readonly chartSymbol?: string | null } = {},
+): { readonly objectId: string; readonly how: "EXACT" | "EQUIVALENT" | "EQUIVALENT_FEED_ALIAS" } | null {
   if (objects.some(o => o.objectId === doorId)) return { objectId: doorId, how: "EXACT" };
   const parse = (id: string) => {
     const m = /^FVG\|(.+)\|([^|]+)\|(-?\d+)\|(BULLISH|BEARISH)\|v(\d+)$/.exec(id);
@@ -355,14 +365,21 @@ export function resolveFvgDoorTarget(
   const d = parse(doorId);
   if (!d) return null;
   const daily = /[DWM]$/.test(d.tf);
+  const doorIsChart = !!opts.chartSymbol && base(opts.chartSymbol) === base(d.sym);
+  const overlaps = (o: { bottom: number; top: number }) => !!doorTerritory && o.bottom <= doorTerritory.top && doorTerritory.bottom <= o.top;
+  let alias = false;
   const hits = objects.filter(o => {
     const c = parse(o.objectId);
-    if (!c || c.v !== d.v || c.tf !== d.tf || c.dir !== d.dir || base(c.sym) !== base(d.sym)) return false;
+    if (!c || c.v !== d.v || c.tf !== d.tf || c.dir !== d.dir) return false;
+    const sameSym = base(c.sym) === base(d.sym);
+    // A feed alias of the chart's own symbol counts only with an overlapping territory.
+    if (!sameSym && !(doorIsChart && overlaps(o))) return false;
     const sameSlot = daily ? nyDate(c.b2) === nyDate(d.b2) || nyDate(c.b2 + 12 * 3600_000) === nyDate(d.b2 + 12 * 3600_000) : c.b2 === d.b2;
     if (!sameSlot) return false;
-    return doorTerritory ? o.bottom <= doorTerritory.top && doorTerritory.bottom <= o.top : true;
+    if (!sameSym) alias = true;
+    return doorTerritory ? overlaps(o) : true;
   });
-  return hits.length === 1 ? { objectId: hits[0].objectId, how: "EQUIVALENT" } : null;
+  return hits.length === 1 ? { objectId: hits[0].objectId, how: alias ? "EQUIVALENT_FEED_ALIAS" : "EQUIVALENT" } : null;
 }
 
 /* Types the chart's React readers need, re-exported so a component never
