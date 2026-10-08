@@ -36,7 +36,7 @@ describe("/api/radio — uploads go through rules the server holds", () => {
     expect((await POST(post({ op: "file", path: "../../etc/passwd", title: "t", artist: "a" }))).status).toBe(400);
     const res = await POST(post({ op: "file", path: "1759530000000-abc123.mp3", title: "Song", artist: "Me", uploader: "someone-else" }));
     expect(res.status).toBe(200);
-    expect(sent).toMatchObject({ uploader: "dave", storage_path: "1759530000000-abc123.mp3", public_url: "https://sb.example/storage/v1/object/public/radio/1759530000000-abc123.mp3" });
+    expect(sent).toMatchObject({ owner_id: "u1", uploader: "dave", storage_path: "1759530000000-abc123.mp3", public_url: "https://sb.example/storage/v1/object/public/radio/1759530000000-abc123.mp3" });
   });
 
   it("never records a stored object that is not audio, or is too large (P0-C)", async () => {
