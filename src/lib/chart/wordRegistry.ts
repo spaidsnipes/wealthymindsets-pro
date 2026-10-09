@@ -32,9 +32,29 @@
  */
 
 export interface WordRect { readonly x: number; readonly y: number; readonly w: number; readonly h: number }
-export type WordVerdict = "PAINT" | "HELD_COLUMN" | "HELD_WORD";
+export type WordVerdict = "PAINT" | "HELD_COLUMN" | "HELD_WORD" | "HELD_PRIORITY";
+/**
+ * PRIORITY (coordinator ruling 2026-10-09). TRUTH lines — a named silence, a
+ * WITHHELD, a CONTRADICTION, "N SENSES SILENT", data-quality words — are never
+ * held and never folded into the note list: they claim their band first.
+ * PRIMARY is the asked question's own words (the answer). Everything else is
+ * OTHER. A lower word yields to a higher one; never the reverse.
+ */
+export type WordTier = "TRUTH" | "PRIMARY" | "OTHER";
+const RANK: Readonly<Record<WordTier, number>> = { TRUTH: 3, PRIMARY: 2, OTHER: 1 };
+export interface ReservedWord { readonly text: string; readonly rect: WordRect; readonly tier: WordTier }
+
+/**
+ * Is this text a truth line? One classifier, here, so no painter decides for
+ * itself. These are the words that say what the glass does NOT know or is NOT
+ * showing — the ones a trader must never lose to decoration.
+ */
+const TRUTH_WORDS = /\b(SILENT|SILENCE|WITHHELD|CONTRADICTION|UNAVAILABLE|UNSUPPORTED|UNMEASURED|UNRESOLVED|STALE|DELAYED|DEGRADED|NOT ENOUGH|NOT ASKABLE|NO TAPE|NO DATA|NO BAR|NO VOLUME|NO CURRENT EVENT|NO READING|WAITING FOR|TAPE REQUIRED|CANDLE-ESTIMATED|ESTIMATED|PARTIAL|DATA GAP|BARS BEHIND|PROOF SCENE|SAMPLE|BAR TOTALS ONLY|CARRY NONE|NEEDS \d)/i;
+export function isTruthLine(text: string): boolean {
+  return TRUTH_WORDS.test(text);
+}
 export type WordGateMode = "OBSERVE" | "ENFORCE";
-export interface HeldWord { readonly text: string; readonly rect: WordRect; readonly verdict: Exclude<WordVerdict, "PAINT">; readonly against: string }
+export interface HeldWord { readonly text: string; readonly rect: WordRect; readonly verdict: Exclude<WordVerdict, "PAINT">; readonly against: string; readonly tier?: WordTier }
 
 /** A later word may cover at most this share of the smaller of the two boxes. */
 export const WORD_OVERLAP_MAX = 0.25;
@@ -54,15 +74,18 @@ const cut = (a: WordRect, b: WordRect) => {
 export const PANEL_ROW_INSIDE = 0.6;
 
 export interface WordRegistry {
-  /** Ask for a rect. PAINT registers it. */
-  claim(text: string, rect: WordRect): { verdict: WordVerdict; against: string };
+  /** Ask for a rect. PAINT registers it. `tier` defaults to TRUTH for a truth line, else OTHER. */
+  claim(text: string, rect: WordRect, tier?: WordTier): { verdict: WordVerdict; against: string };
+  /** This frame's TRUTH and PRIMARY words — the next frame's reservations. */
+  reservations(): readonly ReservedWord[];
+  readonly truthWords: number;
   /**
    * A chip or card asks for its BOX before it draws the backing. PAINT → the
    * box is registered and the rows inside it paint without asking again; held →
    * the rows inside it are held with it, so no word is left without its box and
    * no box without its word.
    */
-  claimPanel(label: string, rect: WordRect): { verdict: WordVerdict; against: string };
+  claimPanel(label: string, rect: WordRect, tier?: WordTier): { verdict: WordVerdict; against: string };
   /**
    * A box that is MEANT to sit on top (the crosshair's words, Inspect and
    * selection words, an opaque card's rows). Never judged, never held; its rows
@@ -78,8 +101,15 @@ export interface WordRegistry {
   readonly held: readonly HeldWord[];
 }
 
-export function createWordRegistry(): WordRegistry {
-  const placed: { text: string; rect: WordRect }[] = [];
+/**
+ * `reserved` = the TRUTH and PRIMARY words of the PREVIOUS frame. Truth lines
+ * are painted late (they have a fixed home at the foot of the glass), so "truth
+ * claims its band first" is kept by memory: a lower word that would cover a
+ * band a higher word held last frame yields before the higher word even asks.
+ * One frame of lag in, none out (the reservation is rebuilt every frame).
+ */
+export function createWordRegistry(reserved: readonly ReservedWord[] = []): WordRegistry {
+  const placed: { text: string; rect: WordRect; tier: WordTier }[] = [];
   const held: HeldWord[] = [];
   const panels: WordRect[] = [];
   const heldPanels: HeldWord[] = [];
@@ -87,7 +117,14 @@ export function createWordRegistry(): WordRegistry {
   const sovereignReasons: string[] = [];
   let column: WordRect | null = null;
   const inside = (rect: WordRect, box: WordRect) => cut(rect, box) / Math.max(1, area(rect)) >= PANEL_ROW_INSIDE;
-  const judge = (text: string, rect: WordRect): { verdict: WordVerdict; against: string } => {
+  const same = (a: WordRect, b: WordRect) => cut(a, b) / Math.max(1, Math.min(area(a), area(b))) > 0.5;
+  const judge = (text: string, rect: WordRect, tierIn?: WordTier): { verdict: WordVerdict; against: string } => {
+      const tier: WordTier = tierIn ?? (isTruthLine(text) ? "TRUTH" : "OTHER");
+      // TRUTH IS NEVER HELD — not by a word, a panel, the column or a reservation.
+      if (tier === "TRUTH") {
+        if (!placed.some(p => p.text === text && same(rect, p.rect))) placed.push({ text, rect, tier });
+        return { verdict: "PAINT", against: "" };
+      }
       if (sovereign.some(z => inside(rect, z))) return { verdict: "PAINT", against: "" };
       // A row of a panel shares the panel's verdict.
       for (const h of heldPanels) if (inside(rect, h.rect)) return { verdict: h.verdict, against: h.against };
@@ -104,21 +141,34 @@ export function createWordRegistry(): WordRegistry {
         return { verdict: "HELD_COLUMN", against: "NEWEST_COLUMN" };
       }
       const a = area(rect);
+      // A band a HIGHER word held last frame is already taken (truth first).
+      for (const r of reserved) {
+        if (RANK[r.tier] <= RANK[tier] || r.text === text) continue;
+        const c = cut(rect, r.rect);
+        if (c > 0 && c / Math.max(1, Math.min(a, area(r.rect))) > WORD_OVERLAP_MAX) {
+          held.push({ text, rect, verdict: "HELD_PRIORITY", against: r.text, tier });
+          return { verdict: "HELD_PRIORITY", against: r.text };
+        }
+      }
       for (const p of placed) {
+        // A higher word never yields to a lower one already on the glass.
+        if (RANK[p.tier] < RANK[tier]) continue;
         const c = cut(rect, p.rect);
         if (c > 0 && c / Math.max(1, Math.min(a, area(p.rect))) > WORD_OVERLAP_MAX) {
-          held.push({ text, rect, verdict: "HELD_WORD", against: p.text });
+          held.push({ text, rect, verdict: "HELD_WORD", against: p.text, tier });
           return { verdict: "HELD_WORD", against: p.text };
         }
       }
-      placed.push({ text, rect });
+      placed.push({ text, rect, tier });
       return { verdict: "PAINT", against: "" };
   };
   return {
     claim: judge,
-    claimPanel(label, rect) {
+    reservations: () => placed.filter(p => p.tier !== "OTHER").map(p => ({ text: p.text, rect: p.rect, tier: p.tier })),
+    get truthWords() { return placed.filter(p => p.tier === "TRUTH").length; },
+    claimPanel(label, rect, tier) {
       const before = held.length;
-      const v = judge(label, rect);
+      const v = judge(label, rect, tier);
       if (v.verdict === "PAINT") panels.push(rect);
       else if (held.length > before) heldPanels.push(held[held.length - 1]);
       else heldPanels.push({ text: label, rect, verdict: v.verdict, against: v.against });
@@ -143,6 +193,10 @@ export interface WordGate {
   sovereign<T>(paint: () => T): T;
   /** A chip / card asks for its box BEFORE drawing the backing. False = draw nothing (ENFORCE only). */
   panel(label: string, rect: WordRect): boolean;
+  /** The asked question's own words paint as PRIMARY between setTier("PRIMARY") and setTier("OTHER"). Reset every frame. */
+  setTier(tier: Exclude<WordTier, "TRUTH">): void;
+  /** `TRUTH:n|TRUTH_HELD:0|YIELDED_TO_HIGHER:k` — TRUTH_HELD must always read 0. */
+  truthReceipt(): string;
   /** Words meant to sit on top (crosshair, Inspect / selection, an opaque card): never judged. One-line reason required. */
   sovereignPanel(rect: WordRect, reason: string): void;
   rects(): readonly WordRect[];
@@ -186,6 +240,8 @@ export function installWordGate(ctx: GateCtx): WordGate {
   let onHeld: ((w: HeldWord) => void) | undefined;
   let sovereignDepth = 0;
   let live = false;
+  let scopeTier: WordTier = "OTHER";
+  const tierOf = (text: string): WordTier => (isTruthLine(text) ? "TRUTH" : scopeTier);
   const gated = (fn: CanvasRenderingContext2D["fillText"]) => function gatedText(this: GateCtx, text: string, x: number, y: number, maxWidth?: number) {
     const paint = () => (maxWidth === undefined ? fn.call(this as CanvasRenderingContext2D, text, x, y) : fn.call(this as CanvasRenderingContext2D, text, x, y, maxWidth));
     if (!live || sovereignDepth > 0) return paint();
@@ -193,7 +249,7 @@ export function installWordGate(ctx: GateCtx): WordGate {
     try { rect = wordBox(this, String(text), x, y, dpr); } catch { rect = null; }
     if (!rect) return paint();
     const before = registry.held.length;
-    const { verdict } = registry.claim(String(text), rect);
+    const { verdict } = registry.claim(String(text), rect, tierOf(String(text)));
     if (verdict !== "PAINT" && registry.held.length > before) {
       try { onHeld?.(registry.held[registry.held.length - 1]); } catch { /* a receipt must never stop the frame */ }
     }
@@ -205,7 +261,10 @@ export function installWordGate(ctx: GateCtx): WordGate {
   ctx.strokeText = gated(rawStroke);
   const gate: WordGate = {
     beginFrame(o) {
-      registry = createWordRegistry();
+      // Truth claims its band first: last frame's TRUTH and PRIMARY words are
+      // this frame's reservations (rebuilt every frame — nothing lingers).
+      registry = createWordRegistry(live ? registry.reservations() : []);
+      scopeTier = "OTHER";
       registry.setColumn(o.column ?? null);
       mode = o.mode; dpr = o.dpr; onHeld = o.onHeld; sovereignDepth = 0; live = true;
     },
@@ -214,16 +273,18 @@ export function installWordGate(ctx: GateCtx): WordGate {
     panel(label, rect) {
       if (!live) return true;
       const before = registry.held.length;
-      const { verdict } = registry.claimPanel(label, rect);
+      const { verdict } = registry.claimPanel(label, rect, tierOf(label));
       if (verdict !== "PAINT" && registry.held.length > before) {
         try { onHeld?.(registry.held[registry.held.length - 1]); } catch { /* a receipt must never stop the frame */ }
       }
       return verdict === "PAINT" || mode === "OBSERVE";
     },
     sovereignPanel(rect, reason) { if (live) registry.sovereignPanel(rect, reason); },
+    setTier(t) { scopeTier = t; },
+    truthReceipt: () => `TRUTH:${registry.truthWords}|TRUTH_HELD:${registry.held.filter(h => h.tier === "TRUTH" || isTruthLine(h.text)).length}|YIELDED_TO_HIGHER:${registry.held.filter(h => h.verdict === "HELD_PRIORITY").length}`,
     rects: () => registry.rects(),
     receipt: () => `${mode}|WORDS:${registry.words}|HELD:${registry.held.length}|COLUMN:${registry.held.filter(h => h.verdict === "HELD_COLUMN").length}${registry.sovereignReasons.length ? `|SOVEREIGN:${registry.sovereignReasons.join("+")}` : ""}`,
-    heldSample: (max = 6) => registry.held.slice(0, max).map(h => `${h.verdict === "HELD_COLUMN" ? "COL" : "WORD"}:${h.text.slice(0, 28)}`).join("|"),
+    heldSample: (max = 6) => registry.held.slice(0, max).map(h => `${h.verdict === "HELD_COLUMN" ? "COL" : h.verdict === "HELD_PRIORITY" ? "YIELD" : "WORD"}:${h.text.slice(0, 28)}`).join("|"),
   };
   GATES.set(ctx, gate);
   return gate;

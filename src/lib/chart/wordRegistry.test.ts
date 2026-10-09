@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createWordRegistry, installWordGate, wordBox, wordGateModeFor, type HeldWord } from "./wordRegistry";
+import { createWordRegistry, installWordGate, isTruthLine, wordBox, wordGateModeFor, type HeldWord } from "./wordRegistry";
 
 const fakeCtx = () => {
   const painted: string[] = [];
@@ -21,7 +21,7 @@ describe("word registry — one owner for every word on the glass", () => {
     const r = createWordRegistry();
     r.setColumn({ x: 200, y: 0, w: 30, h: 300 });
     expect(r.claim("TAPE REGIME · TREND", { x: 10, y: 90, w: 120, h: 10 }).verdict).toBe("PAINT");
-    expect(r.claim("5 SENSES SILENT", { x: 12, y: 92, w: 100, h: 10 })).toEqual({ verdict: "HELD_WORD", against: "TAPE REGIME · TREND" });
+    expect(r.claim("FUSED · DERIVED", { x: 12, y: 92, w: 100, h: 10 })).toEqual({ verdict: "HELD_WORD", against: "TAPE REGIME · TREND" });
     expect(r.claim("SUPPORT · BROKEN", { x: 150, y: 40, w: 90, h: 10 }).verdict).toBe("HELD_COLUMN");
     expect(r.words).toBe(1);
     expect(r.held.map(h => h.verdict)).toEqual(["HELD_WORD", "HELD_COLUMN"]);
@@ -141,5 +141,62 @@ describe("chips and cards ask for their box before the backing; on-top words are
     expect(gate.receipt()).toBe("ENFORCE|WORDS:0|HELD:1|COLUMN:1|SOVEREIGN:INSPECT");
     gate.beginFrame({ mode: "OBSERVE", dpr: 2, column: { x: 300, y: 0, w: 30, h: 400 } });
     expect(gate.panel("PUT OI 31200 · 296", { x: 280, y: 40, w: 80, h: 13 })).toBe(true);
+  });
+});
+
+describe("priority — truth first, then the answer, then everything else", () => {
+  it("names truth lines in one place", () => {
+    for (const s of ["5 SENSES SILENT — TOOLS › ACTIVE", "ZERO-GAMMA · WITHHELD — ONLY THE ~141 CONTRACTS NEAREST PRICE ARE HEARD", "CONTRADICTION · not enough finished bars",
+      "LIVING PROFILE · UNAVAILABLE ON THIS FEED", "VALUE CANDLE · tape required", "PRINT TAPE FROM 07:50 AM CDT — earlier bars: bar totals only", "EXPECTED ENVELOPE · needs 3 completed sessions",
+      "196 BARS BEHIND", "PROOF SCENE — sample market state, not live", "CANDLE-ESTIMATED · NODES WITHHELD"]) expect(isTruthLine(s)).toBe(true);
+    for (const s of ["LIVING VAH 31211.00", "SWING ABOVE · 31194.50", "CALL OI 31200 · 515", "2 MARKET EVENTS", "WAIT", "DECREASING EFFORT", "TAPE REGIME · TREND · magnets dim"]) expect(isTruthLine(s)).toBe(false);
+  });
+  it("a truth line is never held: not by a word under it, not by the column, not inside a held panel", () => {
+    const r = createWordRegistry();
+    r.setColumn({ x: 300, y: 0, w: 30, h: 400 });
+    r.claim("TAPE REGIME · TREND", { x: 10, y: 90, w: 140, h: 10 });
+    expect(r.claim("5 SENSES SILENT — TOOLS › ACTIVE", { x: 12, y: 91, w: 180, h: 10 }).verdict).toBe("PAINT");
+    expect(r.claim("ZERO-GAMMA · WITHHELD", { x: 290, y: 200, w: 120, h: 10 }).verdict).toBe("PAINT");
+    r.claimPanel("CALL OI 31200", { x: 280, y: 40, w: 80, h: 30 });
+    expect(r.claim("NO TAPE", { x: 284, y: 44, w: 50, h: 10 }).verdict).toBe("PAINT");
+    expect(r.held.filter(h => isTruthLine(h.text))).toHaveLength(0);
+    expect(r.truthWords).toBe(3);
+  });
+  it("the next frame, a lower word yields to the band truth held — before truth even asks; the answer yields to truth, not to decoration", () => {
+    const f1 = createWordRegistry();
+    f1.claim("TAPE REGIME · TREND", { x: 10, y: 90, w: 140, h: 10 });
+    f1.claim("5 SENSES SILENT — TOOLS › ACTIVE", { x: 12, y: 91, w: 180, h: 10 });
+    f1.claim("Is effort being absorbed?", { x: 10, y: 120, w: 150, h: 10 }, "PRIMARY");
+    const f2 = createWordRegistry(f1.reservations());
+    expect(f2.claim("TAPE REGIME · TREND", { x: 10, y: 90, w: 140, h: 10 })).toEqual({ verdict: "HELD_PRIORITY", against: "5 SENSES SILENT — TOOLS › ACTIVE" });
+    expect(f2.claim("LIVING VAH 31211.00", { x: 20, y: 121, w: 90, h: 10 }).verdict).toBe("HELD_PRIORITY"); // under the answer's band
+    expect(f2.claim("Is effort being absorbed?", { x: 10, y: 120, w: 150, h: 10 }, "PRIMARY").verdict).toBe("PAINT");
+    expect(f2.claim("5 SENSES SILENT — TOOLS › ACTIVE", { x: 12, y: 91, w: 180, h: 10 }).verdict).toBe("PAINT");
+    // A PRIMARY word over a decoration word already on the glass still paints; over truth it yields.
+    const f3 = createWordRegistry(f2.reservations());
+    f3.claim("DECORATION NAME", { x: 400, y: 50, w: 100, h: 10 });
+    expect(f3.claim("ACTIVE QUESTION", { x: 410, y: 51, w: 90, h: 10 }, "PRIMARY").verdict).toBe("PAINT");
+    expect(f3.claim("EVIDENCE DEBT", { x: 14, y: 92, w: 80, h: 10 }, "PRIMARY").verdict).toBe("HELD_PRIORITY");
+  });
+  it("through the gate: reservations carry frame to frame, the lens scope is PRIMARY, and the truth receipt reads TRUTH_HELD:0", () => {
+    const { ctx, painted } = fakeCtx();
+    const gate = installWordGate(ctx);
+    gate.beginFrame({ mode: "ENFORCE", dpr: 2 });
+    ctx.fillText("TAPE REGIME · TREND", 10, 100);
+    ctx.fillText("5 SENSES SILENT — TOOLS", 12, 101);
+    expect(painted).toEqual(["TAPE REGIME · TREND", "5 SENSES SILENT — TOOLS"]); // frame 1: truth paints over (one frame of lag)
+    painted.length = 0;
+    gate.beginFrame({ mode: "ENFORCE", dpr: 2 });
+    ctx.fillText("TAPE REGIME · TREND", 10, 100);
+    gate.setTier("PRIMARY"); ctx.fillText("ACTIVE QUESTION WORDS", 300, 100); gate.setTier("OTHER");
+    ctx.fillText("5 SENSES SILENT — TOOLS", 12, 101);
+    expect(painted).toEqual(["ACTIVE QUESTION WORDS", "5 SENSES SILENT — TOOLS"]);
+    expect(gate.truthReceipt()).toBe("TRUTH:1|TRUTH_HELD:0|YIELDED_TO_HIGHER:1");
+    // The frame after truth leaves, nothing is reserved for it.
+    gate.beginFrame({ mode: "ENFORCE", dpr: 2 });
+    painted.length = 0;
+    gate.beginFrame({ mode: "ENFORCE", dpr: 2 });
+    ctx.fillText("TAPE REGIME · TREND", 10, 100);
+    expect(painted).toEqual(["TAPE REGIME · TREND"]);
   });
 });
