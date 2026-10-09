@@ -1765,6 +1765,19 @@ input[type=range]::-webkit-slider-runnable-track {
   [data-testid="trade-panel"] input[aria-label="Quantity"] { flex: 1 1 64px; width: auto !important; min-width: 64px; }
 }
 
+/* ── A SLIDER UNDER A FINGER (sheriff batch 5, 2026-10-09) ─────────────────
+   MEASURED at 390 on /scanner: the two filter sliders were 303×6 — the drawn
+   track was the whole hit area. On touch and at phone width the input grows to
+   44px with padding while the track stays the 6px it was drawn (content-box). */
+@media (pointer: coarse), (max-width: 767px) {
+  .wm-range-touch {
+    box-sizing: content-box;
+    height: 6px;
+    padding-block: 19px;
+    background-clip: content-box;
+  }
+}
+
 /* ── DOCUMENT ROOMS MEET THE PHONE TAP FLOOR (canon sweep 2026-10-06) ───────
    Measured at 390: News carried 83 controls under 44px (filter chips 23–26px
    tall), Shop 53, Journal 31, WM TV 13 (28px channel rows), Radio 9 (25px

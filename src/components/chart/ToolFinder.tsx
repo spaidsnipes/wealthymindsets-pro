@@ -21,6 +21,7 @@ import { PROFILE_FAMILY, selectProfileMenu, type ProfileId, type ProfileMenuInpu
 import { censusPlaceWords, searchCensusPlaces } from "@/lib/canon/inventionCensus";
 import { FAMILY_WORD, LIBRARY_CATEGORIES, LIBRARY_CATEGORY, searchToolRows, searchTools } from "@/lib/workspace/toolSearch";
 import { educationTruthLines } from "@/lib/chart/inventionEducation";
+import type { ChainScope } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 import { InventionInfoButton, InventionPreview } from "./InventionInfo";
 import { ActiveToolsPanel } from "./ActiveToolsPanel";
@@ -37,13 +38,15 @@ const PEARL = "#E8EAF2";
 const MUTED = "#8B8FA8";
 const AMBER = "#F0B429";
 
-export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal, instruments = [], symbol, feed = null, stateDetail }: {
+export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, active, onToggle, speciesRefusal, instruments = [], symbol, feed = null, stateDetail, chainScope = null }: {
   /** §B5 · the chart's paint receipts as words (`senseEventStates`) — Active tools says what the glass holds. */
   stateDetail?: Readonly<Partial<Record<string, string>>>;
   instruments?: readonly FinderInstrument[];
   symbol?: string;
   /** §9 · the chart feed's quality (DELAYED, STALE …) — the ⓘ preview says what that means for the tool. */
   feed?: MarketQualityState | "UNKNOWN" | null;
+  /** §20 · the options chain the pressure owner heard — an options tool's ⓘ states a near-money subset. */
+  chainScope?: ChainScope | null;
   barsPresent: boolean;
   printsPresent: boolean;
   observedAggressorFlow: boolean;
@@ -72,7 +75,7 @@ export function ToolFinder({ barsPresent, printsPresent, observedAggressorFlow, 
   const flip = (id: string) => setEduId(cur => (cur === id ? null : id));
   const entryPreview = (e: (typeof vm.entries)[number], scope = "finder") => eduId === e.id ? (
     <InventionPreview scope={scope} id={e.id} label={e.label} what={e.what} familyWord={FAMILY_WORD[PROFILE_FAMILY[e.id]]} symbol={symbol}
-      truth={educationTruthLines({ entry: e, feed })} active={e.active} gestureNote={e.gesture === "DRAW" ? e.gestureNote : undefined}
+      truth={educationTruthLines({ entry: e, feed, chainScope })} active={e.active} gestureNote={e.gesture === "DRAW" ? e.gestureNote : undefined}
       onAdd={() => onToggle(e.id)} onClose={() => setEduId(null)} />
   ) : null;
   const instPreview = (i: FinderInstrument, scope = "finder") => eduId === i.id ? (

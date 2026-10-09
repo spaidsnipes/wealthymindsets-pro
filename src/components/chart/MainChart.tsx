@@ -475,6 +475,7 @@ import { selectRegimeFixtures } from "@/lib/marketData/viewModels/selectRegimeFi
 import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { readCvdNotches, cvdNotchProvenance } from "@/lib/chart/cvdRelationship";
 import { traderClock } from "@/components/time/traderClock";
+import { sizeUnitFor } from "@/lib/marketData/sizeUnit";
 import { paintQuestionMark, QUESTION_MARK_SHAPE } from "@/lib/chart/questionLensMark";
 import { PRICE_ADJACENT_FLOOR, TIER_CEILING, selectAttentionGovernor, type AttentionSelection } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
@@ -11552,7 +11553,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             canvas.dataset.barMarkHits = String(barMarkHitsRef.current.length);
             const sel = insp != null ? keels.find(q => q.time === insp) : null;
-            if (sel) canvas.dataset.barDeltaKeelInspect = `${sel.basis}|D${sel.delta}|R${sel.ratio.toFixed(2)}${sel.failed ? "|FAILED_TO_DISPLACE" : ""}`;
+            // The delta is a sum of fractional prints: rounded, so the receipt
+            // reads D-0.4755, not D-0.4755419000000002.
+            if (sel) canvas.dataset.barDeltaKeelInspect = `${sel.basis}|D${Math.round(sel.delta * 1e4) / 1e4}|R${sel.ratio.toFixed(2)}${sel.failed ? "|FAILED_TO_DISPLACE" : ""}`;
             else delete canvas.dataset.barDeltaKeelInspect;
           }
           } // atrReadyDK
@@ -19385,7 +19388,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.textAlign = "left";
                   ctx.textBaseline = "middle";
                   ctx.fillText(word, r.x + 8, r.y + 8.5);
+                  if (scopeW) ds.pressureScopeSaid = "STATUS_LINE";
+                } else if (scopeW) {
+                  // §20 (serving NQ1! 9f4d784: the longer status line found no
+                  // clear slot and the scope went unsaid). The scope is never
+                  // optional: with no slot, it takes a row of the silence stack.
+                  ctx.fillStyle = "rgba(200,192,174,0.85)";
+                  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                  const yS = takeSilenceRow();
+                  const scopeLine = `${fieldOn ? "DERIVATIVES PRESSURE" : "BRICK WALLS"} · ${scopeW}`;
+                  ctx.fillText(fitSilence(scopeLine), silenceX, yS);
+                  if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: ctx.measureText(scopeLine).width, h: 14 });
+                  ds.pressureScopeSaid = yS > 0 ? "SILENCE_STACK" : "SILENCE_FOLDED";
                 }
+                if (!scopeW) delete ds.pressureScopeSaid;
                 ctx.restore();
               }
             } else if (dpSpeaks) {
@@ -27891,10 +27907,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           disagree. Copying the call to the single owner is not the same thing
           as copying its logic, which is what would actually let them drift. */}
       {volumeInFooter && last && (() => {
+        // The unit is named by its one owner (sizeUnitFor) — in the number AND
+        // in the sentence a screen reader hears (Sheriff §19, 2026-10-08).
+        const volUnit = sizeUnitFor(symbol, typeof last.volume === "number" ? Math.round(last.volume) : undefined);
         const fact = chartVolumeFooterFact(
           last.volume,
-          dataWindowBarScope(last.time as number, timeframe, true, nowMs).volume.title,
+          dataWindowBarScope(last.time as number, timeframe, true, nowMs, undefined, sizeUnitFor(symbol)).volume.title,
           volumeTruth,
+          volUnit,
         );
         const fxDoor = fact.state !== "OBSERVED" ? fxFuturesDoor(symbol) : null;
         const relatedLine = fxDoor ? relatedFlowLine(symbol, fxRelated) : null;
@@ -27924,9 +27944,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }}
           >
             {fact.text}
-            {/* A crypto bar's volume is in COINS: "Vol 0.0003" read as a broken
-                number until it said which coin (2026-10-04). */}
-            {fact.state === "OBSERVED" && classifySymbol(symbol) === "CRYPTO" ? ` ${symbol.toUpperCase().replace(/[-/]?(USDT|USDC|USD)$/, "")}` : null}
+            {/* The unit (coin, contracts, shares) now travels in fact.text, from
+                sizeUnitFor — one owner, every asset class (2026-10-08). */}
             {fxDoor ? (
               <button
                 type="button"
@@ -28267,7 +28286,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
              make them contradict each other you would have to edit one
              function, and it would change both. */
           const stripScope = dataWindowBarScope(
-            last.time as number, timeframe, true, nowMs,
+            last.time as number, timeframe, true, nowMs, undefined, sizeUnitFor(symbol),
           );
           return (
             <div
@@ -29451,6 +29470,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             timeframe,
             !!lastBar && lastBar.time === dataWindow.time,
             nowMs,
+            undefined,
+            sizeUnitFor(symbol),
           );
           /* BESIDE ITS BAR, NEVER ON THE LEGEND (serving 2026-09-26: this
              panel sat at top 8 / left 48 over the symbol, the headline price

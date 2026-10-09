@@ -49,7 +49,13 @@ export function InspectFirstTouchLine() {
   if (!ctx || !edu) return null;
   return (
     <div data-testid="inspect-first-touch" data-first-touch-id={ctx.id}
-      className="hidden max-sm:block mt-1 text-[11px] leading-snug" style={{ color: PEARL }}>
+      // A BAR selected by a word (effort mark, keel, wisdom line) ALWAYS opens
+      // Inspect, and the side card yields to an open Inspect — so at desktop
+      // widths its first-touch line had no carrier at all (serving ea8ad94,
+      // 2026-10-09: both carriers `display:none` at 1440). It rides here at
+      // every width; every other selection keeps the phone-only rule.
+      data-first-touch-everywhere={ctx.id === "BAR_SELECTION" ? "true" : undefined}
+      className={`${ctx.id === "BAR_SELECTION" ? "block" : "hidden max-sm:block"} mt-1 text-[11px] leading-snug`} style={{ color: PEARL }}>
       <span className="font-bold" style={{ color: GOLD }}>{ctx.label}</span>
       <span style={{ color: MUTED }}> · </span>{firstTouchFor(ctx.id, ctx.objectId)}
     </div>

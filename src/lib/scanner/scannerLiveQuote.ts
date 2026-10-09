@@ -35,6 +35,7 @@ export function scannerLiveQuote(
     priceText: `$${live.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     changePct,
     changeText: changePct == null ? null : `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`,
-    title: `Live — tastytrade, ${Math.max(0, Math.round((nowMs - live.at) / 1000))}s ago. The same lane the chart, watchlist and tape read.`,
+    // Trader words, not the vendor (ruling 2026-10-08; batch 5 found the name here).
+    title: `Live quote from the broker feed, ${Math.max(0, Math.round((nowMs - live.at) / 1000))}s ago — the same quote the chart, watchlist and tape read.`,
   };
 }

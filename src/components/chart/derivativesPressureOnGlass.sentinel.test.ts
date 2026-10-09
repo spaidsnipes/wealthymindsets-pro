@@ -110,7 +110,9 @@ describe("no lookahead in replay (Garden 16 §46, serving c216f713)", () => {
     expect(vm).toContain("if (!Number.isFinite(asOfMs) || asOfMs / 1000 > clockSec) {");
     expect(vm).toContain('reason: "AFTER_REPLAY_CLOCK"');
     expect(guard).toBeLessThan(vm.indexOf("return selectDerivativesPressure("));
-    expect(vm).toContain("[derivativesPressureOn, derivativesReceipt, symbol, chartBars, cameraWalksHistory]");
+    // 2026-10-09 Garden 19 §20: the memo reads pressureEvidenceOn (Brick Walls OR Derivatives Pressure)
+    // and the lens fixture, so its dependency list names what it reads.
+    expect(vm).toContain("[pressureEvidenceOn, derivativesReceipt, symbol, chartBars, cameraWalksHistory, lensFixture?.climate, lensFixtureAnchor]");
   });
 
   it("the glass says why it is silent", () => {

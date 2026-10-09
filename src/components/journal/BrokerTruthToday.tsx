@@ -168,7 +168,10 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
                   <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                     <button type="button" disabled={readOnly} data-testid={`review-${d}`} data-mark={m ?? "OPEN"} title={REVIEW_QUESTION[d]} aria-label={`${d}: ${m ?? "not judged"}. ${REVIEW_QUESTION[d]}`}
                       onClick={() => save({ ...r, marks: { ...r.marks, [d]: cycleMark(m) } })}
-                      style={{ fontSize: 10, letterSpacing: 0.8, padding: "3px 7px", minHeight: 24, borderRadius: 999, cursor: "pointer", background: "transparent",
+                      // The 24px floor is a CLASS, not inline: inline beat the room's 44px
+                      // phone rule and the chip measured 46×24 at 390 (sheriff batch 5).
+                      className="min-h-[24px]"
+                      style={{ fontSize: 10, letterSpacing: 0.8, padding: "3px 7px", borderRadius: 999, cursor: "pointer", background: "transparent",
                         border: `1px solid ${m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : LINE}`, color: m === "HELD" ? "#7fd1a8" : m === "BROKE" ? "#e0786b" : MUTED }}>
                       {m === "HELD" ? "✓ " : m === "BROKE" ? "✗ " : ""}{d}
                     </button>
@@ -197,7 +200,8 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
                   ))}
                   <input readOnly={readOnly} aria-label={`${d} note`} data-testid={`review-note-${d}`} value={r.notes?.[d] ?? ""} placeholder="note (optional)"
                     onChange={e => save({ ...r, notes: { ...(r.notes ?? {}), [d]: e.target.value } })}
-                    style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: "3px 6px", borderRadius: 4, minHeight: 26 }} />
+                    className="min-h-[26px] max-[767px]:min-h-[44px]"
+                    style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: "3px 6px", borderRadius: 4 }} />
                 </div>
               );
             })}

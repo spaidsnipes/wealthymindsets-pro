@@ -2311,7 +2311,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     ?? (wordSelectedBar != null && chartSelection.inspectOpen && cursorBar?.time === wordSelectedBar ? { kind: "BAR" as const } : null),
   );
   const firstTouchLabel = firstTouchId == null ? ""
-    : firstTouchId === "BAR_SELECTION" ? "Selected bar"
+    // "Candle", not "Selected bar": the sentence beside it already opens with
+    // "Selected bar — …" and the line read "Selected bar · Selected bar — …".
+    : firstTouchId === "BAR_SELECTION" ? "Candle"
     : firstTouchId === FVG_INSTRUMENT_ID ? "FVG / Imbalance"
     : firstTouchId === "FP_big-trades" ? "Big Trades"
     : firstTouchId === "F11A" ? "Supply / demand zone"
@@ -2955,7 +2957,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     }
     const since = Date.now() / 1000 - WALL_TEST_WINDOW_DAYS * 86_400;
     return selectDerivativesPressure(derivativesReceipt.receipt, chartBars.filter(b => Number(b.time) >= since), Date.now());
-  }, [derivativesPressureOn, derivativesReceipt, symbol, chartBars, cameraWalksHistory]);
+  }, [pressureEvidenceOn, derivativesReceipt, symbol, chartBars, cameraWalksHistory, lensFixture?.climate, lensFixtureAnchor]);
+  // §20 · the chain the pressure owner HEARD (whole / near-money subset) — the options ⓘ truth line reads it.
+  const optionsChainScope = derivativesPressureVM?.drawn ? derivativesPressureVM.chainScope : null;
   // Garden 18 super order §5 — the Brick Wall / Market Sense options evidence
   // (call/put OI concentration, every zero-gamma root, gamma/vanna/charm
   // separately). Only while the pressure reading itself is drawn, so it obeys
@@ -4032,6 +4036,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       </div>
       <ProfilesMenu
         symbol={symbol}
+        chainScope={optionsChainScope}
         feed={chartCanvasState?.qualityState ?? null}
         barsPresent={chartBars.length > 0}
         printsPresent={chartOrderFlowReadings.printsPresent}
@@ -4053,6 +4058,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const wStructureNode = (
     <ProfilesMenu
       symbol={symbol}
+      chainScope={optionsChainScope}
       feed={chartCanvasState?.qualityState ?? null}
       barsPresent={chartBars.length > 0}
       printsPresent={chartOrderFlowReadings.printsPresent}
@@ -4068,6 +4074,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const wMemoryNode = (
     <ProfilesMenu
       symbol={symbol}
+      chainScope={optionsChainScope}
       feed={chartCanvasState?.qualityState ?? null}
       barsPresent={chartBars.length > 0}
       printsPresent={chartOrderFlowReadings.printsPresent}
@@ -4087,6 +4094,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const toolFinderNode = (
     <ToolFinder
       symbol={symbol}
+      chainScope={optionsChainScope}
       // §B5 Active tools reads the chart's own paint receipts (Drive 10-02, 2026-10-07).
       stateDetail={senseEvents}
       feed={chartCanvasState?.qualityState ?? null}
@@ -6484,6 +6492,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               <ProfilePresetBar active={profileMenuActive} onApply={applyPresetKeepingOwn} />
               <ProfilesMenu
                 symbol={symbol}
+                chainScope={optionsChainScope}
                 feed={chartCanvasState?.qualityState ?? null}
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}
@@ -6505,6 +6514,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   Tools › Order flow. */}
               <ProfilesMenu
                 symbol={symbol}
+                chainScope={optionsChainScope}
                 feed={chartCanvasState?.qualityState ?? null}
                 barsPresent={chartBars.length > 0}
                 printsPresent={chartOrderFlowReadings.printsPresent}

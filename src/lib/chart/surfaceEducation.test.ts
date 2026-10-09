@@ -187,3 +187,51 @@ describe("the preview fits its host and names its own action (serving 6350c69, 2
     expect(os).toMatch(/<InventionInfoButton scope="door" id=\{REPLAY_EDUCATION_ID\}/);
   });
 });
+
+describe("bar-selection first touch has a carrier at every width; Replay copy carries no receipt words", () => {
+  it("the in-Inspect line is not phone-only for a bar selection", () => {
+    const ft = read("src/components/chart/SelectionFirstTouch.tsx");
+    expect(ft).toMatch(/ctx\.id === "BAR_SELECTION" \? "block" : "hidden max-sm:block"/);
+  });
+  it("the Replay record names no internal receipt", () => {
+    const r = educationFor(REPLAY_EDUCATION_ID) as unknown as Record<string, string>;
+    for (const v of Object.values(r)) expect(v).not.toMatch(/LEAK:|receipts? [A-Z_]+:/);
+  });
+});
+
+describe("options ⓘ truth line reads the pressure owner's chain scope (§20)", () => {
+  const ready = { availability: "READY" as const, availabilityNote: "ready to draw from the bars on screen", stateWords: "" };
+  const subset = { kind: "NEAR_MONEY_SUBSET" as const, contracts: 40, reachPct: 3 };
+  it("a near-money subset is stated in the owner's words and capped below the top grade", () => {
+    for (const id of ["BRICK_WALLS", "DERIVATIVES_PRESSURE"] as const) {
+      const t = educationTruthLines({ entry: { ...ready, id }, chainScope: subset });
+      expect(t.verdict, id).toBe("PARTIAL · NEAR-PRICE CHAIN ONLY");
+      expect(t.lines.join(" "), id).toContain("NEAR-PRICE OPEN INTEREST · 40 CONTRACTS · ±3%");
+      expect(t.lines.join(" "), id).toContain("ZERO-GAMMA · WITHHELD");
+      expect(t.gradeCap, id).toBe("PARTIAL");
+    }
+  });
+  it("a whole chain can draw with no cap; no chain still names the dependency", () => {
+    const whole = educationTruthLines({ entry: { ...ready, id: "BRICK_WALLS" }, chainScope: { kind: "WHOLE" } });
+    expect(whole.verdict).toBe("CAN DRAW HERE");
+    expect(whole.gradeCap).toBeUndefined();
+    expect(educationTruthLines({ entry: { ...ready, id: "BRICK_WALLS" } }).verdict).toBe("NEEDS AN OPTIONS CHAIN");
+  });
+  it("a non-options tool ignores the scope; the menus and the preview carry it", () => {
+    expect(educationTruthLines({ entry: { ...ready, id: "SESSION" }, chainScope: subset }).verdict).toBe("CAN DRAW HERE");
+    expect(read("src/components/chart/ProfilesMenu.tsx")).toMatch(/educationTruthLines\(\{ entry, feed, chainScope \}\)/);
+    expect(read("src/components/chart/ToolFinder.tsx")).toMatch(/educationTruthLines\(\{ entry: e, feed, chainScope \}\)/);
+    expect(read("src/components/chart/ChartsDashboard.tsx").match(/chainScope=\{optionsChainScope\}/g)!.length).toBe(6);
+    expect(read("src/components/chart/InventionInfo.tsx")).toMatch(/data-testid="edu-grade-cap"/);
+  });
+});
+
+describe("the chain scope is known whenever ANY options-reading layer is on, and never computed when all are off", () => {
+  const dash = read("src/components/chart/ChartsDashboard.tsx");
+  it("one gate (Derivatives Pressure — which carries the zero-gamma front — or Brick Walls) feeds the pressure VM the ⓘ reads", () => {
+    expect(dash).toMatch(/const pressureEvidenceOn = derivativesPressureOn \|\| brickWallsOn;/);
+    // The VM returns null — no selector call — unless that gate is on.
+    expect(dash).toMatch(/if \(!pressureEvidenceOn \|\| !derivativesReceipt \|\| derivativesReceipt\.symbol !== symbol\) return null;/);
+    expect(dash).toMatch(/const optionsChainScope = derivativesPressureVM\?\.drawn \? derivativesPressureVM\.chainScope : null;/);
+  });
+});

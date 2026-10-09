@@ -89,8 +89,20 @@ export function formatBarVolume(n: number): string {
       useGrouping: false,
     });
   }
+  // ONE FORMATTER ACROSS THE THOUSAND (Sheriff §19, 2026-10-08: one forming SPY
+  // bar read "229.695" → "970.884" → "3K" — three figures of precision fell to
+  // none in one tick, because the magnitude rule prints whole thousands).
+  // Thousands keep their fraction: 2,500 → "2.5K", 12,340 → "12.3K"; a whole
+  // thousand still reads "1K", exactly as formatVolumeMagnitude prints it.
+  if (n < 1e6) {
+    const k = n / 1e3;
+    return `${Number(k.toFixed(k < 10 ? 2 : 1))}K`;
+  }
   return formatVolumeMagnitude(n);
 }
+
+/** Units counted in whole pieces: a bar's volume in them is printed whole. */
+const WHOLE_UNITS = new Set(["contract", "contracts", "share", "shares"]);
 
 /**
  * @param volume  the latest bar's traded quantity, as the feed reported it
@@ -102,6 +114,14 @@ export function chartVolumeFooterFact(
   volume: unknown,
   barScopeTitle: string,
   truth?: VolumeTruth,
+  /**
+   * What one unit of this instrument's volume IS (sizeUnitFor): "contracts",
+   * "shares", "BTC". OPTIONAL and LAST — a caller that names none prints the
+   * bare number, as before. Named, the number carries its unit; and a unit
+   * counted in whole pieces prints whole (fractional-share prints sum to
+   * "229.695 shares", which reads as a broken number).
+   */
+  unit?: string | null,
 ): ChartVolumeFooterFact {
   if (truth && !truth.real) {
     return { state: "SILENT", text: truth.text, title: truth.title };
@@ -124,9 +144,10 @@ export function chartVolumeFooterFact(
     };
   }
 
+  const shown = unit && WHOLE_UNITS.has(unit) && volume < 1e3 ? Math.round(volume) : volume;
   return {
     state: "OBSERVED",
-    text: `Vol ${formatBarVolume(volume)}`,
+    text: `Vol ${formatBarVolume(shown)}${unit ? ` ${unit}` : ""}`,
     title: barScopeTitle,
   };
 }

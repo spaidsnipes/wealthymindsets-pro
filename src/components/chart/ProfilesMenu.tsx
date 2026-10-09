@@ -53,6 +53,7 @@ import {
   type ProfileFamily,
 } from "@/lib/marketData/viewModels/selectProfileMenu";
 import { educationTruthLines } from "@/lib/chart/inventionEducation";
+import type { ChainScope } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 import { InventionInfoButton, InventionPreview } from "./InventionInfo";
 
@@ -80,6 +81,7 @@ export function ProfilesMenu({
   speciesRefusal,
   symbol,
   feed = null,
+  chainScope = null,
 }: {
   /** Bars RECEIVED, not bars requested. */
   barsPresent: boolean;
@@ -106,6 +108,8 @@ export function ProfilesMenu({
   symbol?: string;
   /** §9 · the chart feed's quality — the ⓘ preview says what DELAYED / STALE means for the tool. */
   feed?: MarketQualityState | "UNKNOWN" | null;
+  /** §20 · the options chain the pressure owner heard (whole / near-money subset) — an options tool's ⓘ states it. */
+  chainScope?: ChainScope | null;
 }) {
   // §9 · one ⓘ preview open per door, directly under its row.
   const [eduId, setEduId] = React.useState<ProfileId | null>(null);
@@ -316,7 +320,7 @@ export function ProfilesMenu({
                 </div>
                 {eduId === entry.id ? (
                   <InventionPreview scope={testId} id={entry.id} label={entry.label} what={entry.what} familyWord={heading} symbol={symbol}
-                    truth={educationTruthLines({ entry, feed })} active={entry.active}
+                    truth={educationTruthLines({ entry, feed, chainScope })} active={entry.active}
                     gestureNote={entry.gesture === "DRAW" ? entry.gestureNote : undefined}
                     onAdd={() => onToggle(entry.id)} onClose={() => setEduId(null)} />
                 ) : null}

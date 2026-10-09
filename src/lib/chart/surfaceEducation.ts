@@ -463,7 +463,7 @@ export const REPLAY_EDUCATION: SurfaceEducation = rec({
   q: "What did this chart know at a past bar, before the bars after it existed?",
   needs: "PRICE", evidence: "The bars already loaded. Nothing is fetched while replaying.",
   appears: "A replay control with the cursor bar's time and position (for example 4880 / 5000); the chart draws only bars up to the cursor; every tool reads as of that bar.",
-  read: "Everything on the glass is as of the cursor. A tool's state at the cursor comes from the bars closed by then — never from later bars (the FVG layer receipts LEAK:0). Step forward to watch how a reading developed.",
+  read: "Everything on the glass is as of the cursor. A tool's state at the cursor comes from the bars closed by then — never from later bars. Step forward to watch how a reading developed.",
   full: "Loaded bars cover the stretch you replay.", partial: "Bars that need a tape (footprint, big trades) show only what the tape recorded during replay's loaded window.", degraded: "No bars loaded — nothing to replay.",
   touch: "Replay — the chart as of the cursor bar; the live clock is off.",
   canon: "§38 Replay lifecycle · AS-OF-TIME, no future leakage",

@@ -2177,3 +2177,46 @@ Append-only. "Design call" rows record a decision the coordinator made; the cert
 | Five ⓘ layout / wording defects + Workspace Replay ⓘ | cert lane | Fix slice SHIPPABLE 00:05:33 (tree) — flips after LIVE + a 390 / 1440 read |
 | Footprint ⓘ truth line says "is drawing from sided prints…" while Order Flow is off | capability compiler's owner | OPEN |
 | 390 read of the surface ⓘ; bar-selection first touch on serving | cert lane | OWED |
+
+## 18. §28 CERTIFICATE UPDATES — builds `ea8ad94`, `9f4d784` and the coordinator's design calls (cert lane, written 00:27 CDT Oct 9)
+
+Append-only. A "design call" row records a decision the coordinator made. The cert lane read it on serving only where the row says so.
+
+### 18a. `ea8ad94` — LIVE 00:10:35 CDT Oct 9
+
+| Certificate | Field | Change | Proof / status |
+|---|---|---|---|
+| Surface ⓘ (§17b) | NARROW / layout | Preview capped at min(70vh, 560px) with its own scroll; Draw-sheet record in the flow | **PROVED** 1440 + 390, own tab 00:11–00:20 (loadout, Workspace Replay door, Draw sheet, Smart Money, Views) |
+| Surface ⓘ | action | Views "Open this view", loadouts "Apply this loadout", Replay "Start replay", drawing tools "Use this tool"; no button on Smart Money cards | **PROVED** (same read) |
+| Smart Money cards, tape Views | ⓘ verdict | The panel's own tape sentence; "not measured" cards UNAVAILABLE HERE; volume records on a volume market CAN DRAW HERE | **PROVED** (same read) |
+| Workspace drawer · Replay door | ⓘ | Carries the Replay record, read-only | **PROVED** 1440 + 390 |
+| §17d open items | — | 5 of 5 planned fixes closed. Left open by this build: Replay ⓘ inside the Chart tools menu; footprint popover below the viewport; Style popover over the Draw record | closed in `9f4d784` — re-read owed |
+
+### 18b. `9f4d784` — LIVE 00:24:13 CDT Oct 9
+
+| Certificate | Field | Change | Proof / status |
+|---|---|---|---|
+| Replay ⓘ (Chart tools menu) | layout | Opens centred over the room, not inside the 210 px menu | sentinel; serving re-read owed |
+| Footprint ⓘ | layout | The popover is pulled up so its bottom stays 8 px inside the viewport | sentinel; serving re-read owed |
+| Draw sheet ⓘ | layout | Opening the ⓘ closes the Style popover | sentinel; serving re-read owed |
+| Footprint ⓘ truth line | wording | Follows Order Flow on / off (closes the §17d open item "is drawing … while off") | another lane; not read by this lane |
+| **Design call (coordinator): §20 futures-options scope** | F08.BRICK / F15.PRESSURE — TRUTH CLASS, DEGRADED | When only the contracts nearest price are heard, the walls are named NEAR-PRICE OPEN INTEREST, the zero-gamma front and the pressure field are WITHHELD with the reason on the glass, edge strikes cannot be walls, and a wall that leaves the window gets an exit mark. Whether to show the subset (A) or nothing (B) is on the Founder list | `selectDerivativesPressure` (`chainScope`, `chainScopeWords`, `chainScopeGrade`); not read on serving by this lane |
+| **Design call (coordinator): phone ticket PEEK / ACT** | Ticket — NARROW | At phone width the ticket has a peek state and an act state, with a CSS-only fold | `ticketLayout.ts`; not read on serving by this lane |
+| **Design call (coordinator): ticket-fixture proof scene** | Ticket — RECEIPTS | An owner-only scene that draws the ticket for proof; nothing can be sent from it, pinned by a never-sends sentinel | not read on serving by this lane |
+| **Design call (coordinator): Command Deck words** | Command Deck — CHROME | Trader words on the deck, with the receipt behind a Receipt disclosure | not read on serving by this lane |
+
+### 18c. Tree after `9f4d784` (SHIPPABLE 00:26:34, not LIVE)
+
+| Certificate | Field | Change | Proof / status |
+|---|---|---|---|
+| §15b bar selection | FIRST TOUCH | The in-Inspect line shows at every width for a bar selection. On `ea8ad94` the selection resolved (Effort → Response tap) but had no visible carrier at 1440 | sentinel; serving read owed |
+| Replay | STATE GRAMMAR | "(the FVG layer receipts LEAK:0)" removed from trader copy | sentinel |
+| F08.BRICK Brick Walls · F15.PRESSURE Derivatives Pressure | ⓘ verdict, TRUTH CLASS | The ⓘ truth line reads the pressure owner's chain scope: a near-money subset reads "PARTIAL · NEAR-PRICE CHAIN ONLY" with the owner's scope and withheld words, and the preview states the top grade is PARTIAL. A whole chain reads CAN DRAW HERE. The scope is known while Derivatives Pressure (which carries the zero-gamma front) or Brick Walls is on; with both off nothing is fetched and the ⓘ reads NEEDS AN OPTIONS CHAIN | `surfaceEducation.test.ts`; serving read owed |
+
+### 18d. Founder list (recorded for the coordinator, not decided here)
+
+| Item | Question |
+|---|---|
+| §20 futures options, A vs B | On a near-money subset: show the walls as NEAR-PRICE OPEN INTEREST with the front and field withheld (A, shipped), or draw nothing (B)? |
+| 390 weather-lens carrier | Where the Liquidity Weather lens's words live at 390 px |
+| Phone ticket, act state | The act state covers up to 55% of the glass — is that the limit? |

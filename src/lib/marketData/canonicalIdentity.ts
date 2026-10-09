@@ -416,6 +416,11 @@ export function selectCanonicalSessionToken(
   };
 }
 
+/** Is this symbol one of the US cash indices (SPX, NDX, VIX …)? The one list, for callers of readMarketSession. */
+export function isUsCashIndexSymbol(symbol: string): boolean {
+  return US_CASH_INDICES.has((symbol ?? "").trim().toUpperCase());
+}
+
 /**
  * THE QUOTE FEED'S SESSION — one owner for "may a quiet tape be called a
  * failure?" (night shift 2026-10-07, Founder-lane ruling).

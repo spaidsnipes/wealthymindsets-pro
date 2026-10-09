@@ -29,6 +29,7 @@ import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 import { hasNoCentralVolume } from "@/lib/chart/volumeTruth";
 import { indicatorEducationFor } from "@/lib/chart/indicatorEducation";
 import { surfaceEducationFor } from "@/lib/chart/surfaceEducation";
+import { chainScopeGrade, chainScopeWithheldWords, chainScopeWords, type ChainScope } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 
 /** The weakest thing the tool cannot draw without. */
 export type EvidenceNeed =
@@ -720,7 +721,11 @@ export interface EducationTruth {
     // row, even tools that need a drawn range, other layers or an options
     // chain, and even above "feed is STALE". These name the real dependency.
     | "NEEDS YOUR INPUT" | "NEEDS OTHER LAYERS" | "NEEDS AN OPTIONS CHAIN"
-    | "DRAWS FROM STALE DATA" | "NO LIVE FEED";
+    | "DRAWS FROM STALE DATA" | "NO LIVE FEED"
+    // §20 futures-options scope: only the contracts nearest price were heard.
+    | "PARTIAL · NEAR-PRICE CHAIN ONLY";
+  /** The highest evidence grade this tool can reach on this chart now (the pressure owner's `chainScopeGrade`). Absent = no cap. */
+  readonly gradeCap?: "PARTIAL";
   /** The owner's sentence for THIS symbol, verbatim. */
   readonly lines: readonly string[];
 }
@@ -752,9 +757,17 @@ export function educationTruthLines(input: {
   /** For a row with no owner verdict: the tool id + symbol, so the market's own fact (no central volume) still speaks. */
   readonly id?: string;
   readonly symbol?: string;
+  /**
+   * The options chain the pressure owner actually heard for this chart
+   * (`DerivativesPressureVM.chainScope`); null / absent when no chain is drawn.
+   * An options tool's truth line states a near-money subset and its grade is
+   * capped below FULL — the same words the glass and Inspect print.
+   */
+  readonly chainScope?: ChainScope | null;
 }): EducationTruth {
   const lines: string[] = [];
   let verdict: EducationTruth["verdict"] = "CAN DRAW HERE";
+  let gradeCap: EducationTruth["gradeCap"];
   const e = input.entry;
   if (e) {
     if (e.availability === "WAITING_FOR_BARS" || e.availability === "WAITING_FOR_PRINTS") verdict = "WAITING";
@@ -806,15 +819,28 @@ export function educationTruthLines(input: {
       verdict = "NEEDS OTHER LAYERS";
       lines.push("It reads other switched-on tools and draws nothing on its own.");
     } else if (eduN.needs === "OPTIONS") {
-      verdict = "NEEDS AN OPTIONS CHAIN";
-      lines.push("It draws only where an options chain loads for this symbol; the chart says when it does.");
+      const scope = input.chainScope ?? null;
+      const scopeW = scope ? chainScopeWords(scope) : null;
+      if (scope && scopeW) {
+        // A near-money subset: say it, say what is withheld, never the top grade.
+        verdict = "PARTIAL · NEAR-PRICE CHAIN ONLY";
+        lines.push(`${scopeW}.`);
+        const withheld = chainScopeWithheldWords(scope);
+        if (withheld) lines.push(`${withheld}.`);
+        gradeCap = chainScopeGrade(scope) === "PARTIAL" ? "PARTIAL" : undefined;
+      } else if (scope) {
+        lines.push("A whole options chain is loaded for this underlying.");
+      } else {
+        verdict = "NEEDS AN OPTIONS CHAIN";
+        lines.push("It draws only where an options chain loads for this symbol; the chart says when it does.");
+      }
     }
   }
   if (verdict === "CAN DRAW HERE" && input.feed === "STALE") verdict = "DRAWS FROM STALE DATA";
   if (verdict === "CAN DRAW HERE" && input.feed === "UNAVAILABLE") verdict = "NO LIVE FEED";
   const fw = input.feed && input.feed !== "UNKNOWN" && input.feed !== "LIVE" ? FEED_WORDS[input.feed] : undefined;
   if (fw) lines.push(fw);
-  return { verdict, lines };
+  return gradeCap ? { verdict, lines, gradeCap } : { verdict, lines };
 }
 
 /**

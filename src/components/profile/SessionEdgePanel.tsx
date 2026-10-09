@@ -165,9 +165,12 @@ export function SessionEdgePanel({ vm, onMetricChange, onCellClick, className }:
                           title={label}
                           disabled={!clickable}
                           onClick={clickable ? () => onCellClick!(cell) : undefined}
+                          // 32px on a desk, 44px under a finger or at phone width — a
+                          // class, because inline min-height cannot follow the pointer
+                          // (the cells measured 44×32 at 390, sheriff batch 5).
+                          className="min-h-[32px] max-[767px]:min-h-[44px] [@media(pointer:coarse)]:min-h-[44px]"
                           style={{
                             width: "100%",
-                            minHeight: 32,
                             padding: 4,
                             border: "none",
                             cursor: clickable ? "pointer" : "default",

@@ -82,6 +82,7 @@ const VERDICT_COLOR: Record<EducationTruth["verdict"], string> = {
   "NEEDS AN OPTIONS CHAIN": AMBER,
   "DRAWS FROM STALE DATA": AMBER,
   "NO LIVE FEED": AMBER,
+  "PARTIAL · NEAR-PRICE CHAIN ONLY": GOLD,
 };
 
 export function InventionPreview({ scope, id, label, what, familyWord, symbol, truth, active, gestureNote, onAdd, onClose, action }: {
@@ -189,6 +190,12 @@ export function InventionPreview({ scope, id, label, what, familyWord, symbol, t
             <span style={{ color: PEARL }}>{v}</span>
           </div>
         ))}
+        {/* The owner's cap for THIS chart (a near-money options subset is never FULL). */}
+        {truth.gradeCap ? (
+          <div className="mt-1 text-[11.5px] leading-snug" data-testid="edu-grade-cap" data-grade-cap={truth.gradeCap} style={{ color: GOLD }}>
+            On this chart now the top grade is {truth.gradeCap} — FULL is not reachable.
+          </div>
+        ) : null}
       </div>
 
       {/* A taught concept carries its Academy lesson (CONCEPT_EDUCATION, e.g. FVG → fvg-1). */}

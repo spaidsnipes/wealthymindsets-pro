@@ -90,3 +90,22 @@ describe("chartVolumeFooterFact", () => {
     }
   });
 });
+
+describe("one formatter, named unit (Sheriff §19, 2026-10-08)", () => {
+  it("thousands keep their fraction — no 970.884 → 3K flip; a whole thousand still reads 1K", () => {
+    expect(formatBarVolume(970.884)).toBe("970.884");
+    expect(formatBarVolume(1000)).toBe("1K");
+    expect(formatBarVolume(2500)).toBe("2.5K");
+    expect(formatBarVolume(3049)).toBe("3.05K");
+    expect(formatBarVolume(12_340)).toBe("12.3K");
+    expect(formatBarVolume(999_949)).toBe("999.9K");
+  });
+  it("the unit travels with the number; whole units print whole", () => {
+    expect(chartVolumeFooterFact(229.695, "t", undefined, "shares").text).toBe("Vol 230 shares");
+    expect(chartVolumeFooterFact(326, "t", undefined, "contracts").text).toBe("Vol 326 contracts");
+    expect(chartVolumeFooterFact(4.0958944299999995, "t", undefined, "BTC").text).toBe("Vol 4.09589 BTC");
+    expect(chartVolumeFooterFact(2500, "t", undefined, "shares").text).toBe("Vol 2.5K shares");
+    // No unit named → the bare number, as before.
+    expect(chartVolumeFooterFact(57, "t").text).toBe("Vol 57");
+  });
+});

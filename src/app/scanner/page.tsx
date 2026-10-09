@@ -1,5 +1,6 @@
 "use client";
 
+import { scannerLiveSessionWords, scannerSessionBadge } from "@/lib/scanner/scannerSessionBadge";
 import { PRESET_LABEL, SIGNAL_LABEL } from "./signalLabels";
 import { scannerPriceText } from "./scannerPriceText";
 import { scannerEmptyReason } from "@/lib/scanner/scannerEmptyReason";
@@ -849,6 +850,9 @@ export default function ScannerPage() {
   const liveRows = useTastyWatchQuotes(React.useMemo(() => filtered.slice(0, 40).map(r => r.symbol), [filtered]));
   const [nowTick, setNowTick] = React.useState(() => Date.now());
   React.useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 2000); return () => clearInterval(t); }, []);
+  // The footer's LIVE count says which of those quotes sit outside the regular session.
+  const liveSessionWords = scannerLiveSessionWords(
+    filtered.filter(r => scannerLiveQuote(r, liveRows.get(r.symbol.toUpperCase()), nowTick, WATCH_LIVE_FRESH_MS)).map(r => r.symbol), nowTick);
   const liveCount = filtered.reduce((n, r) => n + (scannerLiveQuote(r, liveRows.get(r.symbol.toUpperCase()), nowTick, WATCH_LIVE_FRESH_MS) ? 1 : 0), 0);
 
   const failedRsiIdentities = filtered
@@ -1012,16 +1016,16 @@ export default function ScannerPage() {
                     <span className="text-wm-text-dim uppercase tracking-wider">Min Vol Ratio</span>
                     <span className="text-wm-gold font-mono font-bold">{minVol}×</span>
                   </div>
-                  <input type="range" min={1} max={10} step={0.5} value={minVol} onChange={e => setMinVol(+e.target.value)}
-                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer" style={{ accentColor:"#F0B429" }}/>
+                  <input type="range" min={1} max={10} step={0.5} value={minVol} onChange={e => setMinVol(+e.target.value)} aria-label="Minimum volume ratio"
+                    className="wm-range-touch w-full h-1.5 rounded-full appearance-none cursor-pointer" style={{ accentColor:"#F0B429" }}/>
                 </div>
                 <div>
                   <div className="flex justify-between text-[9px] mb-1">
                     <span className="text-wm-text-dim uppercase tracking-wider">Min |Change|%</span>
                     <span className="text-wm-blue font-mono font-bold">{minPct}%</span>
                   </div>
-                  <input type="range" min={0} max={10} step={0.5} value={minPct} onChange={e => setMinPct(+e.target.value)}
-                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer" style={{ accentColor:"#4FA3E0" }}/>
+                  <input type="range" min={0} max={10} step={0.5} value={minPct} onChange={e => setMinPct(+e.target.value)} aria-label="Minimum absolute change percent"
+                    className="wm-range-touch w-full h-1.5 rounded-full appearance-none cursor-pointer" style={{ accentColor:"#4FA3E0" }}/>
                 </div>
                 <div>
                   <div className="text-[9px] text-wm-text-dim uppercase tracking-wider mb-2">Sector</div>
@@ -1086,6 +1090,7 @@ export default function ScannerPage() {
                 priceFact: { ...r0.priceFact, text: lv.priceText, reason: lv.title },
                 changePctFact: lv.changeText ? { ...r0.changePctFact, text: lv.changeText, reason: lv.title } : r0.changePctFact,
               } : exchangeChangeRow(r0, liveRows.get(r0.symbol.toUpperCase())?.prevClose);
+              const liveBadge = scannerSessionBadge(r0.symbol, nowTick);
               const meta = r.signal ? SIGNAL_META[r.signal] : null;
               const up   = r.changePct != null && r.changePct >= 0;
               const isSel = selected?.id === r.id;
@@ -1126,9 +1131,12 @@ export default function ScannerPage() {
                             ? "border-wm-red/40 text-wm-red"
                             : "border-wm-border text-wm-text-muted",
                       )}
-                      title={lv ? lv.title : `${scannerQuoteTruth({ receivedAt: r.quoteReceivedAt, reusedPrevious: r.quoteQuality === "STALE" }).title} Received ${new Date(r.quoteReceivedAt).toLocaleTimeString()}.`}
+                      title={lv ? `${lv.title}${liveBadge.basis ? ` Session: ${liveBadge.basis}.` : ""}` : `${scannerQuoteTruth({ receivedAt: r.quoteReceivedAt, reusedPrevious: r.quoteQuality === "STALE" }).title} Received ${new Date(r.quoteReceivedAt).toLocaleTimeString()}.`}
                     >
-                      {r.quoteQuality}
+                      {/* LIVE is the quote's word; the session word rides with it so a
+                          fresh overnight quote is never read as "the session is open"
+                          (sheriff batch 5, 2026-10-09). */}
+                      {lv ? liveBadge.text : r.quoteQuality}
                     </span>
                   </div>
                   <div className="px-2">
@@ -1386,7 +1394,7 @@ export default function ScannerPage() {
         <span>·</span>
         <span>{filtered.length}/{results.length} results</span>
         <span>·</span>
-        <span className="text-wm-gold">{liveCount > 0 ? `QUOTE STATE: ${liveCount} LIVE · ${Math.max(0, filtered.length - liveCount)} DELAYED` : "QUOTE STATE: DELAYED"}</span>
+        <span className="text-wm-gold">{liveCount > 0 ? `QUOTE STATE: ${liveCount} LIVE${liveSessionWords ? ` (${liveSessionWords})` : ""} · ${Math.max(0, filtered.length - liveCount)} DELAYED` : "QUOTE STATE: DELAYED"}</span>
         <span>·</span>
         {/* The scan's own denominator. Silent when nothing was refused — a
             "0 not certified" chip on every clean round is noise, and noise is
