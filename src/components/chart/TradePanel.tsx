@@ -43,7 +43,7 @@ import { orderActionLine, prefillNote, protectBasisLine, quoteStreamLabel, SPAID
 import { brokerStateWords, ticketBook, type WorkingOrderRow } from "@/lib/execution/ticketBook";
 import type { WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { TicketBookRows, type CancelAck } from "@/components/chart/TicketBookRows";
-import { COMPACT_ACT_MAX_HEIGHT, COMPACT_PEEK_MAX_HEIGHT, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, ticketStage, type TicketSection } from "@/lib/execution/ticketLayout";
+import { COMPACT_ACT_MAX_HEIGHT, COMPACT_PEEK_MAX_HEIGHT, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketStage, ticketStep, type TicketSection } from "@/lib/execution/ticketLayout";
 import { TicketSections } from "@/components/chart/TicketSections";
 import { parseTicketFixture, TICKET_FIXTURE_BANNER, ticketFixtureLines, type TicketFixture } from "@/lib/execution/ticketFixture";
 import { railSendGate } from "@/lib/broker/railSendGate";
@@ -343,6 +343,12 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const stageInput = { compact, sidePicked: side != null, folded, preSend: isPreSendPhase(entryPhase) && scene?.state !== "inflight" };
   const stage = ticketStage(stageInput);
   const fold = foldControl(stageInput);
+  // ACT has two steps on a phone: BUILD (closing, size, price, stop / target, risk) and REVIEW (the live-order
+  // block alone). CSS only — both stay mounted. REVIEW is forced while an order is in flight.
+  const [reviewing, setReviewing] = useState(false);
+  useEffect(() => { setReviewing(false); }, [side, symbol]);
+  const step = ticketStep({ stage, reviewing, preSend: stageInput.preSend });
+  const review = reviewGate({ priceOk: entryFields != null, entryType: effectiveEntryType, stopWrongSide });
   // Sheriff P1-2: a chart's bar close is not a quote — the limit is never prefilled from it.
   const quoteLabel = quoteStreamLabel({ stream: snap.stream, bid: q?.bid, ask: q?.ask, quoteAtMs: q?.quoteAt, nowMs, contract: contract?.symbol ?? null, streamWords: STREAM_WORDS });
   const prefillLine = prefillNote({ prefill, limitPx: limitNum, currentTouch: prefill?.touch === "ASK" ? q?.ask : q?.bid, tick, nowMs });
@@ -412,17 +418,22 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
               setAnswer("FLATTEN loaded: a closing MARKET order for the held quantity. Preview and confirm below to send it.");
             }} />
     </>),
-    SIDE_SIZE: (<>
+    SIDE: (<>
           {/* Side + open/close */}
           <div style={{ display: "flex", gap: 6 }}>
             <button type="button" data-testid="trade-buy" aria-pressed={side === "BUY"} onClick={() => setSide("BUY")} style={{ ...btn(side === "BUY", GREEN), flex: 1, minHeight: 36, fontSize: 13 }}>BUY</button>
             <button type="button" data-testid="trade-sell" aria-pressed={side === "SELL"} onClick={() => setSide("SELL")} style={{ ...btn(side === "SELL", RED), flex: 1, minHeight: 36, fontSize: 13 }}>SELL</button>
           </div>
+    </>),
+    CLOSING: (<>
           <label style={{ display: "flex", alignItems: "center", gap: 6, color: MUTED }}>
             <input type="checkbox" checked={closing} onChange={e => setClosing(e.target.checked)} /> This closes a position I hold
           </label>
+    </>),
+    ACTION_LINE: (<>
           <p data-testid="trade-order-action" style={{ color: side ? INK : GOLD, fontSize: 11, margin: 0 }}>{orderActionLine(side, closing)}</p>
-
+    </>),
+    SIZE: (<>
           {/* Size */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ color: MUTED, width: 64 }}>{kind === "FUTURE" ? "Contracts" : kind === "CRYPTO" ? (contract?.symbol.split("/")[0] ?? "Coins") : "Shares"}</span>
@@ -557,6 +568,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
       data-testid="trade-panel"
       data-layout={compact ? "compact" : "full"}
       data-stage={stage}
+      data-step={step ?? undefined}
       aria-label={`Trade ${symbol}`}
       style={{
         // §XIV: a market instrument never covers the forming candle, the live
@@ -610,7 +622,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         </div>
       ) : (
         <div style={{ padding: compact ? "8px 10px" : 12, display: "grid", gap: compact ? 6 : 10 }}>
-          <TicketSections compact={compact} peek={stage === "PEEK"} sections={sectionEl} summary={detailsSummary(book)} />
+          <TicketSections compact={compact} peek={stage === "PEEK"} step={step} review={review} inFlight={!stageInput.preSend}
+            onReview={() => { if (review.allowed) setReviewing(true); }} onEdit={() => { if (stageInput.preSend) setReviewing(false); }}
+            sections={sectionEl} summary={detailsSummary(book)} />
         </div>
       )}
 

@@ -38,6 +38,13 @@ export const PASSPORT_STAMP_VERSION = "wm.passport-stamp.v1" as const;
 export interface StampField {
   readonly label: string;
   readonly value: string;
+  /**
+   * The Issued instant, epoch ms — DATA for the band, which prints it in the
+   * viewer's local time on the glass (ruling 2026-10-09: trader words on the
+   * Command Deck). `value` stays the deterministic UTC stamp and is what the
+   * band's Receipt prints. Present on the Issued field only.
+   */
+  readonly atMs?: number | null;
   /** True when the field has no reading — it must refuse the confident ink. */
   readonly unresolved: boolean;
   /**
@@ -129,6 +136,7 @@ export function selectPassportStamp(vm: MarketObjectPassportVM): PassportStampVM
     {
       label: "Issued",
       value: vm.capturedAt === null ? UNKNOWN : formatIssuedAt(vm.capturedAt),
+      atMs: vm.capturedAt,
       unresolved: vm.capturedAt === null,
       absence: false,
     },

@@ -29,6 +29,7 @@
  * NO ALIAS WAS LEFT BEHIND. `Bar` is gone from this module's exports; the test
  * was migrated in the same change rather than shimmed.
  */
+import { upstreamSaysMissing } from "@/lib/marketData/fvg/fvgBarSource";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 export interface BTTrade {
@@ -95,13 +96,43 @@ export const BACKTEST_ASSUMPTIONS =
   "Signal on a bar's close, entry at the NEXT bar's open (no look-ahead). Stop and target fill at their price, or at the bar's open when it gapped beyond them; stop is checked before target inside a bar. No commissions, fees or slippage are modelled — real results will be lower. 1% risk per trade, one position at a time.";
 
 /* ── Data fetch (real bars) ─────────────────────────────────── */
+/**
+ * NOT KNOWN IS NOT TRANSIENT (2026-10-09). An unknown symbol made the bar route
+ * answer a server error wrapping the upstream's "no such instrument", and the
+ * Backtest said "Try again in a moment" — advice that can never work. The one
+ * owner of that reading (`upstreamSaysMissing`, shared with the FVG study and
+ * the Scanner) decides; only a genuine outage keeps the retry sentence.
+ */
+export class BacktestBarsMissing extends Error {
+  constructor() { super("BARS_MISSING"); this.name = "BacktestBarsMissing"; }
+}
+
+/** The one sentence the Backtest prints when a run could not start. */
+export function backtestRefusalWords(e: unknown, symbol: string, tf: string): string {
+  if (e instanceof BacktestBarsMissing) {
+    return `${symbol} is not a symbol WM Pro can find history for at ${tf}, so nothing was tested. Check the spelling (futures use the 1! form, e.g. NQ1!; crypto uses BTC-USD), or pick it from the symbol search.`;
+  }
+  // The bar-count sentence is ours and stays.
+  if (e instanceof Error && e.message.startsWith("Only ")) return e.message;
+  return "The market history did not load just now, so nothing was tested. Try again in a moment.";
+}
+
 export async function fetchBars(symbol: string, tf: string): Promise<LegacyOhlcvTuple[]> {
   // Ask for the maximum the endpoint allows; Yahoo decides the real coverage.
   const url = `/api/yahoo?sym=${encodeURIComponent(symbol)}&type=candles&tf=${encodeURIComponent(tf)}&bars=3000`;
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Data fetch failed (${res.status})`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    if (upstreamSaysMissing(res.status, body)) throw new BacktestBarsMissing();
+    throw new Error(`Data fetch failed (${res.status})`);
+  }
   const json = await res.json() as { candles?: LegacyOhlcvTuple[]; error?: string };
-  if (json.error) throw new Error(json.error);
+  if (json.error) {
+    if (upstreamSaysMissing(res.status, json)) throw new BacktestBarsMissing();
+    throw new Error(json.error);
+  }
+  // A known route that answers with no candles at all: nothing to read for this symbol.
+  if (Array.isArray(json.candles) && json.candles.length === 0) throw new BacktestBarsMissing();
   const bars = (json.candles ?? []).filter(
     b => b && [b.open, b.high, b.low, b.close].every(n => typeof n === "number" && isFinite(n) && n > 0)
   );

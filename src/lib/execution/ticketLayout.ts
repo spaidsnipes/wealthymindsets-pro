@@ -32,8 +32,9 @@ export const COMPACT_TICKET_QUERY = `(max-width: ${COMPACT_TICKET_MAX_WIDTH}px)`
  * The fold is CSS only: nothing is unmounted, so a live order's state cannot be lost, and the fold
  * is refused while an order is in flight.
  */
-export const COMPACT_PEEK_MAX_HEIGHT = "40vh";
-export const COMPACT_ACT_MAX_HEIGHT = "80vh";
+export const COMPACT_PEEK_MAX_HEIGHT = "40svh";
+/** BUILD and REVIEW each fit inside this; globals.css carries the same caps beside its 58svh phone rule. */
+export const COMPACT_ACT_MAX_HEIGHT = "72svh";
 /** @deprecated the single phone height that measured 79 % coverage; kept so the reason is on record. */
 export const COMPACT_MAX_HEIGHT = "52vh";
 
@@ -63,16 +64,43 @@ export function foldControl(x: { readonly compact: boolean; readonly sidePicked:
     : { shown: true, enabled: true, label: "CHART ▾", ariaLabel: "Fold the ticket to see the chart — nothing is cleared" };
 }
 
-/** The sections a PEEK shows; the rest of the action path is hidden (still mounted) until ACT. */
-export const COMPACT_PEEK_SECTIONS: readonly TicketSection[] = ["QUOTE", "PROPOSAL", "SIDE_SIZE"];
+export type TicketStep = "BUILD" | "REVIEW";
+
+/** Which ACT step shows. An order in flight is always REVIEW — the order's state stays in view. */
+export function ticketStep(x: { readonly stage: TicketStage; readonly reviewing: boolean; readonly preSend: boolean }): TicketStep | null {
+  if (x.stage !== "ACT") return null;
+  if (!x.preSend) return "REVIEW";
+  return x.reviewing ? "REVIEW" : "BUILD";
+}
+
+/** May "Review & preview ▸" be pressed? When it may not, the reason is said beside the button. */
+export function reviewGate(x: { readonly priceOk: boolean; readonly entryType: string; readonly stopWrongSide: boolean }): { readonly allowed: boolean; readonly reason: string | null } {
+  if (x.stopWrongSide) return { allowed: false, reason: "The stop is on the wrong side of the entry — fix it before the preview." };
+  if (!x.priceOk) {
+    return { allowed: false, reason: x.entryType === "Stop Limit" ? "Set a stop trigger and a limit price first." : x.entryType === "Stop" ? "Set a stop trigger first." : "Set a limit price first." };
+  }
+  return { allowed: true, reason: null };
+}
 
 export type TicketSection =
-  | "QUOTE" | "PROPOSAL" | "BOOK" | "SIDE_SIZE" | "ENTRY_TYPE" | "PRICE" | "RISK_INPUTS" | "RISK_LINE" | "ECONOMICS"
+  | "QUOTE" | "PROPOSAL" | "BOOK" | "SIDE" | "CLOSING" | "ACTION_LINE" | "SIZE" | "ENTRY_TYPE" | "PRICE" | "RISK_INPUTS" | "RISK_LINE" | "ECONOMICS"
   | "PICK_STATUS" | "PROTECTION_DRYRUN" | "PLAN" | "LIVE_ORDER" | "PROTECT";
 
 /** Tablet / desktop: the flowing order the ticket has always had (RISK_LINE is the phone's one-line economics). */
-const FULL: readonly TicketSection[] = ["QUOTE", "PROPOSAL", "BOOK", "SIDE_SIZE", "ENTRY_TYPE", "PRICE", "RISK_INPUTS", "ECONOMICS", "PICK_STATUS", "PROTECTION_DRYRUN", "PLAN", "LIVE_ORDER", "PROTECT"];
-const COMPACT_ACTION: readonly TicketSection[] = ["QUOTE", "PROPOSAL", "SIDE_SIZE", "PRICE", "RISK_INPUTS", "RISK_LINE", "PICK_STATUS", "LIVE_ORDER"];
+const FULL: readonly TicketSection[] = ["QUOTE", "PROPOSAL", "BOOK", "SIDE", "CLOSING", "ACTION_LINE", "SIZE", "ENTRY_TYPE", "PRICE", "RISK_INPUTS", "ECONOMICS", "PICK_STATUS", "PROTECTION_DRYRUN", "PLAN", "LIVE_ORDER", "PROTECT"];
+/**
+ * The phone's action path, in three groups (approved 2026-10-09 after the serving read on 9f4d784:
+ * ACT measured 420 px of inner scroll — the path to Preview is ~770 px on a mouse pointer and taller
+ * on touch, where every control takes the 44 px floor, on an 844 px screen):
+ *   PEEK   — quote, a waiting proposal, the side buttons and the order line;
+ *   BUILD  — closing checkbox, quantity, price, stop / target, the risk line, then "Review & preview ▸";
+ *   REVIEW — the live-order block alone, with "◂ Edit". Forced while an order is in flight.
+ * Preview is one tap from BUILD with no scrolling in either step.
+ */
+export const COMPACT_PEEK_SECTIONS: readonly TicketSection[] = ["QUOTE", "PROPOSAL", "SIDE", "ACTION_LINE"];
+export const COMPACT_BUILD_SECTIONS: readonly TicketSection[] = ["CLOSING", "SIZE", "PRICE", "RISK_INPUTS", "RISK_LINE", "PICK_STATUS"];
+export const COMPACT_REVIEW_SECTIONS: readonly TicketSection[] = ["LIVE_ORDER"];
+const COMPACT_ACTION: readonly TicketSection[] = [...COMPACT_PEEK_SECTIONS, ...COMPACT_BUILD_SECTIONS, ...COMPACT_REVIEW_SECTIONS];
 const COMPACT_DETAILS: readonly TicketSection[] = ["BOOK", "ENTRY_TYPE", "ECONOMICS", "PROTECTION_DRYRUN", "PLAN", "PROTECT"];
 
 export function ticketSections(compact: boolean): { readonly action: readonly TicketSection[]; readonly details: readonly TicketSection[] } {

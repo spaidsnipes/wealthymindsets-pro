@@ -425,8 +425,8 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
     canon: "Garden 15/16 Market Sense · Derivatives Pressure",
   },
   BRICK_WALLS: {
-    question: "Which strikes are dealers defending, and have they cracked?",
-    needs: "OPTIONS", evidence: "Options open interest (Cboe delayed; futures via tastytrade; BTC/ETH Deribit).",
+    question: "Which strikes near price hold the most open interest, and has price tested them?",
+    needs: "OPTIONS", evidence: "Options open interest for this underlying — delayed where the venue delays it, and on futures only the contracts nearest price.",
     appears: "Masonry walls at strike prices — bricks, a crack at each observed test, breach and scar.",
     grammar: "More bricks = more open interest. Each crack is a test that held; a breach leaves a scar. Inferred positioning, not orders.",
     full: "Fresh chain and observed tests on this chart.",
@@ -860,6 +860,25 @@ export function firstTouchFor(id: string, objectId?: string | null): string | nu
     return "Supply / demand zone — where price left fast; its passport shows tests, defence and whether it is consumed.";
   }
   return edu.firstTouch;
+}
+
+/**
+ * DOES THE SENTENCE ALREADY OPEN WITH THE LABEL? (serving 7f2ca59, 2026-10-09:
+ * "Supply / demand zone · Supply / demand zone — where price left fast…").
+ * A first-touch line is `label · sentence`; when the record's sentence begins
+ * with the label's own words the label is dropped and the sentence stands
+ * alone. Decided HERE for the class, not per label: compared word by word,
+ * ignoring case, punctuation and a plural "s" ("Brick Walls" vs "Brick wall —").
+ */
+export function firstTouchRepeatsLabel(label: string, sentence: string): boolean {
+  const words = (t: string) => t.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean).map(w => (w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w));
+  const l = words(label), s = words(sentence);
+  return l.length > 0 && l.every((w, i) => s[i] === w);
+}
+/** The composed line every carrier prints: the sentence alone when it already opens with the label. */
+export function composeFirstTouch(label: string, sentence: string): { readonly label: string | null; readonly sentence: string; readonly text: string } {
+  const drop = !label.trim() || firstTouchRepeatsLabel(label, sentence);
+  return { label: drop ? null : label, sentence, text: drop ? sentence : `${label} · ${sentence}` };
 }
 
 export function educationIdForSelection(sel:

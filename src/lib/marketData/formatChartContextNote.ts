@@ -119,6 +119,17 @@ export interface ChartContextInput {
    * (formatFvgFactBlock); a record that does not validate says nothing.
    */
   readonly fvg?: unknown;
+  /**
+   * Garden 16 §20 (2026-10-09) — WHAT PART OF THE OPTIONS CHAIN THE CHART
+   * HEARD, from the pressure owner's one field (selectDerivativesPressure
+   * `chainScope`): `{ kind: "WHOLE" | "NEAR_MONEY_SUBSET", contracts, reachPct,
+   * walls }`. Present only while the options lenses are on and drew. On a
+   * subset the model is told the scope in the owner's own words and told what
+   * is withheld, so it cannot state a gamma flip or a dealer climate the chart
+   * itself refuses to draw. Client-supplied → re-validated; anything
+   * malformed says nothing.
+   */
+  readonly optionsScope?: unknown;
 }
 
 /**
@@ -193,6 +204,26 @@ function ageWords(ms: number): string {
  * caller supplies `nowMs` (the route passes its own clock). Without `nowMs`
  * the as-of time is printed but no age is claimed.
  */
+/**
+ * The options-scope sentence, written HERE from re-validated fields. The
+ * subset words match `chainScopeWords` (pinned by test) — one phrase on the
+ * glass, in Inspect and in the model's context.
+ */
+export function formatOptionsScopeNote(v: unknown): string {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return "";
+  const o = v as Record<string, unknown>;
+  const walls = num(o.walls);
+  const wallsW = walls !== null && Number.isInteger(walls) && walls >= 0 && walls <= 20 ? `${walls} wall${walls === 1 ? "" : "s"} drawn` : "walls not counted";
+  if (o.kind === "WHOLE") {
+    return ` [options positioning: whole listed chain heard · ${wallsW} · dealer exposure is INFERRED, never observed]`;
+  }
+  if (o.kind !== "NEAR_MONEY_SUBSET") return "";
+  const n = num(o.contracts), reach = num(o.reachPct);
+  if (n === null || !Number.isInteger(n) || n <= 0 || n > 100_000) return "";
+  if (reach === null || !(reach > 0) || reach > 50) return "";
+  return ` [options positioning: NEAR-PRICE OPEN INTEREST · ${n} CONTRACTS · ±${reach}% — grade PARTIAL, not the whole chain · ${wallsW} (open interest at those strikes only) · the zero-gamma level, the pressure field and the dealer climate are WITHHELD on this chart — do not state or imply a gamma flip, a dealer climate, or that a wall is the market's largest]`;
+}
+
 export function formatEvidenceTail(context: ChartContextInput, nowMs?: number): string {
   const src = cleanSource(context.source);
   let tail = src ? ` [source ${src}]` : " [source UNKNOWN]";
@@ -263,6 +294,7 @@ export function formatChartContextNote(context: ChartContextInput | null | undef
   }
 
   note += formatEvidenceTail(context, nowMs);
+  note += formatOptionsScopeNote(context.optionsScope);
   note += formatFvgFactBlock(context.fvg);
 
   return `\n\n${note}]`;

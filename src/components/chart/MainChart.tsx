@@ -476,6 +476,7 @@ import { selectSemanticDensity, semanticDensityForBarCount } from "@/lib/marketD
 import { readCvdNotches, cvdNotchProvenance } from "@/lib/chart/cvdRelationship";
 import { traderClock } from "@/components/time/traderClock";
 import { sizeUnitFor } from "@/lib/marketData/sizeUnit";
+import { ATTENTION_FIXTURE_QUIET } from "@/lib/chart/lensFixture";
 import { paintQuestionMark, QUESTION_MARK_SHAPE } from "@/lib/chart/questionLensMark";
 import { PRICE_ADJACENT_FLOOR, TIER_CEILING, selectAttentionGovernor, type AttentionSelection } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectExhaustion } from "@/lib/marketData/viewModels/selectExhaustion";
@@ -1514,6 +1515,8 @@ interface Props {
   liquidityWeather?: LiquidityWeatherVM | null;
   /** LENS FIXTURE SCENE: `liquidityWeather` is the sample's reading — the aperture never re-samples the live bars. */
   lensFixtureWeather?: boolean;
+  /** Attention fixture (lensFixture.parseAttentionFixture): hold the Question Lens quiet for this load — a proof scene, banner on. */
+  attentionFixtureQuiet?: boolean;
   /**
    * THE EFFORT READING, PUT BACK ON THE CANDLE IT IS ABOUT.
    *
@@ -2061,6 +2064,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   deltaDivergence = null,
   liquidityWeather = null,
   lensFixtureWeather = false,
+  attentionFixtureQuiet = false,
   effortMark = null,
   effortMarksField = null,
   deltaLevelsGlass = null,
@@ -2332,6 +2336,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
   /** And the fourth. Four tape-rate readings, one rule. */
   const liquidityWeatherRef = useRef<LiquidityWeatherVM | null>(null);
+  const attentionFixtureQuietRef = useRef(false);
+  useEffect(() => { attentionFixtureQuietRef.current = attentionFixtureQuiet; }, [attentionFixtureQuiet]);
   const lensFixtureWeatherRef = useRef(false);
   useEffect(() => { lensFixtureWeatherRef.current = lensFixtureWeather; }, [lensFixtureWeather]);
   useEffect(() => { liquidityWeatherRef.current = liquidityWeather; }, [liquidityWeather]);
@@ -5801,6 +5807,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (!inds.has(label)) continue;
       // The PRIOR completed session (the one session owner), never the forming bar.
       const pv = IND.pivotPoints(bars, ptType, sessionWindowFor(symbol, timeframe, !!extendedHours));
+      // The level the glass drew, as a receipt: a probe reads it twice across
+      // ticks to prove it does not move (the lines carry no value label).
+      { const dsPv = canvasRef.current?.dataset; if (dsPv) dsPv.pivotsSession = Number.isFinite(pv.pp) ? `${ptType}|PP:${pv.pp.toFixed(displayPrecisionFor(symbol, bars))}|R1:${pv.r1.toFixed(displayPrecisionFor(symbol, bars))}|S1:${pv.s1.toFixed(displayPrecisionFor(symbol, bars))}` : `${ptType}|WITHHELD:NO_PRIOR_SESSION`; }
       const cols = { pp: "#F0B429", r1: "#ef5350", r2: "#ef5350", r3: "#ef5350", s1: "#26a69a", s2: "#26a69a", s3: "#26a69a" };
       for (const [key, color] of Object.entries(cols)) {
         const val = (pv as any)[key];
@@ -16369,6 +16378,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // An active question quiets everything that is not its subject
       // ("SECONDARY NOISE · QUIETED"). Dims, never deletes — through the
       // attention governor, so the depth owner's reading is never rewritten.
+      // Attention fixture (proof scene, banner on): the lens's own quiet, held.
+      if (attentionFixtureQuietRef.current) { questionQuiet = Math.min(questionQuiet, ATTENTION_FIXTURE_QUIET); canvas.dataset.attentionFixture = `QUESTION_QUIET:${ATTENTION_FIXTURE_QUIET}`; }
+      else delete canvas.dataset.attentionFixture;
       att = att.withQuestionQuiet(questionQuiet);
       canvas.dataset.attention = att.receipt;
 

@@ -52,6 +52,25 @@ export function parseLensFixture(search: string): LensFixture | null {
   return stage || climate ? { stage, climate } : null;
 }
 
+/**
+ * ATTENTION FIXTURE (2026-10-09) — `scene=lens-fixture&attention=question-quiet`.
+ *
+ * The governor's Question Lens quiet (0.35) engages only while a live
+ * absorption / exhaustion event gives the lens a subject, so its load order
+ * (P2-E: context never louder than the present) could not be read on serving
+ * on a quiet tape. This token holds the quiet at the lens's own constant for
+ * the page load — it feeds NO market data, draws nothing, and changes only the
+ * one number the governor already takes. Same gates as the lens fixture
+ * (token, signed-in, banner, zero writes). Unknown values are ignored.
+ */
+export const ATTENTION_FIXTURE_QUIET = 0.35;
+export function parseAttentionFixture(search: string): "QUESTION_QUIET" | null {
+  let q: URLSearchParams;
+  try { q = new URLSearchParams(search); } catch { return null; }
+  if ((q.get("scene") ?? "").trim() !== LENS_FIXTURE_SCENE) return null;
+  return (q.get("attention") ?? "").trim().toLowerCase() === "question-quiet" ? "QUESTION_QUIET" : null;
+}
+
 /* ── the synthetic tape (shapes from the owner's own test suite) ─────────── */
 
 const tick = (price: number, size: number, side: "buy" | "sell"): AggressorTick =>

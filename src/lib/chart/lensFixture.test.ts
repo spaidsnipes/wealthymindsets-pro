@@ -156,3 +156,16 @@ describe("the room: signed-in only, never mixed with live, banner on screen", ()
     expect(D).toContain("{LENS_FIXTURE_BANNER}");
   });
 });
+
+describe("attention fixture — the governor's quiet, readable on serving (2026-10-09)", () => {
+  it("is inert without the scene token and the exact word; it never implies a weather or pressure fixture", async () => {
+    const { parseAttentionFixture, ATTENTION_FIXTURE_QUIET } = await import("./lensFixture");
+    expect(parseAttentionFixture("")).toBeNull();
+    expect(parseAttentionFixture("?attention=question-quiet")).toBeNull();
+    expect(parseAttentionFixture("?scene=clean&attention=question-quiet")).toBeNull();
+    expect(parseAttentionFixture("?scene=lens-fixture&attention=loud")).toBeNull();
+    expect(parseAttentionFixture("?scene=lens-fixture&attention=Question-Quiet")).toBe("QUESTION_QUIET");
+    expect(parseLensFixture("?scene=lens-fixture&attention=question-quiet")).toBeNull();
+    expect(ATTENTION_FIXTURE_QUIET).toBe(0.35);
+  });
+});

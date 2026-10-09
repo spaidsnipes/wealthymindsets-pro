@@ -1,3 +1,4 @@
+import type { WebullCertificateBlock } from "./webullOneHistory";
 import type { WebullKeeperView } from "@/lib/broker/webullSessionGuidance";
 import type { WebullBrokerConnectionState } from "@/lib/broker/adapters/webullBrokerConnection";
 import type { WireboardLiveMeasurement } from "@/lib/broker/selectReadinessWireboard";
@@ -35,6 +36,13 @@ export interface WebullStatus {
    * or no durable store) — never a guess.
    */
   readonly sessionKeeper: WebullKeeperView | null;
+  /**
+   * ONE HISTORY (2026-10-09): the certificate's observation of this broker — the
+   * same keeper record /api/broker/certification reads, with its own time. The
+   * card and the chip headline THIS; `connected` / `checkedAt` above stay the
+   * live check made for this response.
+   */
+  readonly certificate: WebullCertificateBlock;
 }
 
 export interface WebullConnectOAuthReadiness {
@@ -152,6 +160,8 @@ export type WebullDataLaneState =
 
 /** The value-free subset of the /api/broker/webull/status body this owner reads. */
 export interface WebullBrokerLaneReceipt {
+  /** The certificate's observation (ONE HISTORY); absent on an older payload. */
+  readonly certificate?: WebullCertificateBlock | null;
   readonly connected?: boolean;
   readonly state?: string;
   readonly note?: string;

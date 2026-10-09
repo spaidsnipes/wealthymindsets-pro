@@ -1,6 +1,7 @@
 "use client";
 
 import { traderClock } from "@/components/time/traderClock";
+import { webullOneHistory, type WebullCertificateBlock } from "@/lib/broker/webullOneHistory";
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -554,6 +555,8 @@ interface ManagedConnectionReceipt {
   };
   /** The keeper's last run — what Webull said with nobody on the site. */
   sessionKeeper?: WebullKeeperView | null;
+  /** ONE HISTORY: the certificate's observation (webullOneHistory). */
+  certificate?: WebullCertificateBlock | null;
 }
 
 const WEBULL_CANARY_LABELS: Record<WebullCanaryReceipt["state"], string> = {
@@ -929,7 +932,13 @@ function ManagedConnectionStatus({
     };
   }, [check]);
 
-  const connected = receipt?.connected === true;
+  // ONE HISTORY (2026-10-09): the headline is the certificate's observation —
+  // the same record the readiness board prints, with its own time. The live
+  // check made for this card is said on its own line, never as the headline.
+  const history = broker.id === "webull" && receipt?.certificate
+    ? webullOneHistory(receipt.certificate, receipt, iso => traderClock(Date.parse(iso), { seconds: true }))
+    : null;
+  const connected = history && history.basis !== "LIVE_ONLY" ? history.connected === true : receipt?.connected === true;
   return (
     <div className="space-y-2">
       <div
@@ -942,8 +951,14 @@ function ManagedConnectionStatus({
       >
         <div className="flex items-center gap-2 text-[11px] font-black" style={{ color: connected ? "#00C076" : "#d1d5db" }}>
           {loading ? <Loader2 size={12} className="animate-spin" /> : connected ? <Check size={12} /> : <AlertCircle size={12} />}
-          {loading ? "Checking signed connection…" : connected ? "Webull account wire connected" : (receipt?.state || "Connection not proven")}
+          {loading ? "Checking signed connection…" : history && history.basis !== "LIVE_ONLY" ? history.headline : connected ? "Webull account wire connected" : (receipt?.state || "Connection not proven")}
         </div>
+        {!loading && history && history.basis !== "LIVE_ONLY" && (
+          <div data-testid="webull-one-history" data-basis={history.basis} data-disagrees={history.disagrees} className="mt-1 text-[9px] leading-snug text-wm-text-dim">
+            <div>{history.asOf}</div>
+            {history.liveLine ? <div style={history.disagrees ? { color: "#f4c86b" } : undefined}>{history.liveLine}</div> : null}
+          </div>
+        )}
         {!loading && receipt && (
           <>
             {receipt.authMode === "SIGNED_OPENAPI" && (

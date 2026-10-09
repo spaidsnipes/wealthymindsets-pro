@@ -14,7 +14,7 @@ import { Play, Square, RotateCcw, TrendingUp, TrendingDown, BarChart2, Download,
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { SymbolSearch } from "@/components/ui/SymbolSearch";
-import { backtestRunLine, fetchBars, runRealBacktest, type BTTrade, type BTResult } from "@/lib/backtest/engine";
+import { backtestRefusalWords, backtestRunLine, fetchBars, runRealBacktest, type BTTrade, type BTResult } from "@/lib/backtest/engine";
 import { CHART_TF_SHIPPED } from "@/lib/timeframes";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
 import { FvgStudyPanel } from "@/components/backtest/FvgStudyPanel";
@@ -309,7 +309,9 @@ export default function BacktestingPage() {
     } catch (e) {
       // The bar count sentence is ours and stays; a wire failure ("Data fetch
       // failed (502)", "TypeError: Failed to fetch") reads as one plain line.
-      setError(e instanceof Error && e.message.startsWith("Only ") ? e.message : "The market history did not load just now, so nothing was tested. Try again in a moment.");
+      // One owner for the sentence: an unknown symbol says so and what to do;
+      // only a real outage says "try again".
+      setError(backtestRefusalWords(e, symbol, tf));
     } finally {
       setRunning(false);
     }

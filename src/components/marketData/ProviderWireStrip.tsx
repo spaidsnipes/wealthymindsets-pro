@@ -1,5 +1,6 @@
 "use client";
 
+import { webullOneHistory } from "@/lib/broker/webullOneHistory";
 import * as React from "react";
 import Link from "next/link";
 import type { SourceCertification } from "@/lib/marketData/sourceCapabilityCertification";
@@ -320,9 +321,22 @@ export function webullLanesWireView(input: {
   const dataMeasured = !input.dataPending && lanes.data.state !== "NOT_MEASURED";
   if (!brokerMeasured && !dataMeasured) return null;
 
+  // ONE HISTORY (2026-10-09): when the status receipt carries the certificate's
+  // observation, the BROKER lane's word is that observation — the record the
+  // readiness board and the Connect card print — and the live check is said in
+  // the detail with its own time. Without a certificate block the lane keeps
+  // the live reading (older payload).
+  const history = !input.brokerPending && input.broker?.certificate ? webullOneHistory(input.broker.certificate, input.broker) : null;
+  const historyLane: ProviderWireLane | null = !history || history.basis === "LIVE_ONLY"
+    ? null
+    : history.basis === "CERTIFICATE_UNKNOWN"
+      ? { lane: "BROKER", word: history.headline.toUpperCase(), ink: "NEUTRAL" }
+      : history.connected
+        ? { lane: "BROKER", word: "CONNECTED", ink: "POSITIVE" }
+        : { lane: "BROKER", word: "NOT PROVED", ink: "ATTENTION" };
   const brokerLane: ProviderWireLane = input.brokerPending
     ? { lane: "BROKER", word: "CHECKING", ink: "NEUTRAL" }
-    : { lane: "BROKER", word: lanes.broker.word, ink: BROKER_LANE_INK[lanes.broker.state] };
+    : historyLane ?? { lane: "BROKER", word: lanes.broker.word, ink: BROKER_LANE_INK[lanes.broker.state] };
   const dataLane: ProviderWireLane = input.dataPending
     ? { lane: "DATA", word: "CHECKING", ink: "NEUTRAL" }
     : {
@@ -352,11 +366,12 @@ export function webullLanesWireView(input: {
         ? `Data lane ${lanes.data.word}${lanes.data.evidence ? ` · ${lanes.data.evidence}` : ""}.`
         : `Broker lane ${lanes.broker.word}.`}${founderAction ? ` Founder action: ${founderAction}` : ""}`
     : lanes.summary;
+  const historyWords = historyLane && history ? ` Broker lane headline: ${history.asOf}.${history.liveLine ? ` ${history.liveLine}.` : ""}` : "";
   return {
     source: "webull",
     tone,
     label: `${brokerLane.lane} ${brokerLane.word} · ${dataLane.lane} ${dataLane.word}`,
-    detail,
+    detail: `${detail}${historyWords}`,
     lanes: [brokerLane, dataLane],
     ...(founderAction ? { founderAction } : {}),
   };
@@ -496,12 +511,21 @@ export function providerWireView(source: SourceCertification): ProviderWireView 
  * SUSPENDED must therefore also carry its own recovery: the reason it stopped
  * and the action that restarts it.
  */
-export function suspendedProviderWireView(source: string): ProviderWireView {
+/** The pause, with its reason and its recovery, in trader words (Sheriff, 2026-10-09: every chip read a bare "Paused"). */
+export const WIRE_PAUSED_LABEL = "Paused while this tab is hidden — resumes when you return";
+
+/** What a wire last read before the strip paused — said, never shown as current. */
+export interface LastEarnedWire { readonly label: string; readonly atMs: number }
+
+export function suspendedProviderWireView(source: string, last?: LastEarnedWire | null): ProviderWireView {
+  const lastWords = last
+    ? ` Last read before the pause: "${last.label}" at ${new Date(last.atMs).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" })} — not a current reading.`
+    : "";
   return {
     source,
     tone: "SUSPENDED",
-    label: "Paused",
-    detail: "Not checked while this surface is in the background. Reopen it to re-probe the wire.",
+    label: last ? `${WIRE_PAUSED_LABEL} · last read: ${last.label}` : WIRE_PAUSED_LABEL,
+    detail: `Not checked while this tab is hidden. Reopen it to re-probe the wire.${lastWords}`,
   };
 }
 
@@ -753,6 +777,8 @@ export interface ProviderWireInputs {
   readonly webullTicks: (MoomooTickReceipt & WebullDataLaneReceipt) | null;
   readonly failures: ReadonlySet<string>;
   readonly suspended: boolean;
+  /** What each wire last read before a pause cleared the receipts (never shown as current). */
+  readonly lastEarned?: Readonly<Record<string, LastEarnedWire>> | null;
   /** Optional: the page's own witness. Absent on surfaces that render no tape. */
   readonly sourcedObservation?: SourcedObservation | null;
   /**
@@ -787,7 +813,7 @@ export function selectProviderWires(inputs: ProviderWireInputs): ProviderWireVie
   // of work, and absence of work outranks nothing.
   const holdsNoVerdict = !matrix && !readiness && !moomooTicks && !longbridgeTicks && !webullTicks && !webullBroker && failures.size === 0;
   if (suspended && holdsNoVerdict) {
-    return PROVIDER_SOURCES.map((source) => suspendedProviderWireView(source));
+    return PROVIDER_SOURCES.map((source) => suspendedProviderWireView(source, inputs.lastEarned?.[source] ?? null));
   }
 
   const marketWires: ProviderWireView[] = failures.has("market") && !matrix
@@ -949,6 +975,9 @@ export default function ProviderWireStrip({
   // The Webull BROKER lane (2026-09-25). After `suspended`, not before it, for
   // the positional reason above: every existing slot keeps its index.
   const [webullBroker, setWebullBroker] = React.useState<WebullBrokerLaneReceipt | null>(null);
+  // LAST slot (the refresh test's useState stub is positional): what each wire
+  // last read before a pause — so a paused chip never drops an earned state silently.
+  const [lastEarned, setLastEarned] = React.useState<Readonly<Record<string, LastEarnedWire>> | null>(null);
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -956,6 +985,19 @@ export default function ProviderWireStrip({
     let refreshing = false;
     let visibilityRevision = 0;
     const isHidden = () => document.visibilityState === "hidden";
+    // The receipts this effect accepted, kept beside React state so the pause
+    // can say what was last read (state setters cannot be read back here).
+    const held: { matrix: AthosCapabilityMatrix | null; readiness: ReadinessPayload | null; moomooTicks: MoomooTickReceipt | null; longbridgeTicks: MoomooTickReceipt | null; webullTicks: (MoomooTickReceipt & WebullDataLaneReceipt) | null; webullBroker: WebullBrokerLaneReceipt | null; atMs: number | null } =
+      { matrix: null, readiness: null, moomooTicks: null, longbridgeTicks: null, webullTicks: null, webullBroker: null, atMs: null };
+    const rememberBeforePause = () => {
+      if (held.atMs === null) return;
+      // A note about the past must never break the strip: an unreadable held
+      // receipt simply leaves no "last read".
+      let earned: ProviderWireView[];
+      try { earned = selectProviderWires({ matrix: held.matrix, readiness: held.readiness, moomooTicks: held.moomooTicks, longbridgeTicks: held.longbridgeTicks, webullTicks: held.webullTicks, failures: new Set(), suspended: false, webullBroker: held.webullBroker }); } catch { return; }
+      const atMs = held.atMs;
+      setLastEarned(Object.fromEntries(earned.filter(w => w.evidenceless !== true && w.tone !== "SUSPENDED").map(w => [w.source, { label: w.label, atMs }])));
+    };
     const invalidateReceipts = () => {
       setMatrix(null);
       setReadiness(null);
@@ -1012,36 +1054,39 @@ export default function ProviderWireStrip({
       // older response cannot overwrite a newer failure or recovery receipt.
       await Promise.allSettled([
       readJson<AthosCapabilityMatrix>("/api/athos/market-data/capabilities")
-        .then((body) => { if (acceptsReceipt()) { setMatrix(body); clearFailure("market"); } })
+        .then((body) => { if (acceptsReceipt()) { setMatrix(body); held.matrix = body; held.atMs = Date.now(); clearFailure("market"); } })
         .catch((error: unknown) => recordFailure("market", error)),
       readJson<ReadinessPayload>("/api/broker/readiness")
-        .then((body) => { if (acceptsReceipt()) { setReadiness(body); clearFailure("readiness"); } })
+        .then((body) => { if (acceptsReceipt()) { setReadiness(body); held.readiness = body; clearFailure("readiness"); } })
         .catch((error: unknown) => recordFailure("readiness", error)),
       readProviderReceipt("moomoo")
-        .then((body) => { if (acceptsReceipt()) { setMoomooTicks(body); clearFailure("moomoo"); } })
+        .then((body) => { if (acceptsReceipt()) { setMoomooTicks(body); held.moomooTicks = body; clearFailure("moomoo"); } })
         .catch((error: unknown) => recordFailure("moomoo", error)),
       readProviderReceipt("longbridge")
-        .then((body) => { if (acceptsReceipt()) { setLongbridgeTicks(body); clearFailure("longbridge"); } })
+        .then((body) => { if (acceptsReceipt()) { setLongbridgeTicks(body); held.longbridgeTicks = body; clearFailure("longbridge"); } })
         .catch((error: unknown) => recordFailure("longbridge", error)),
       readProviderReceipt("webull")
-        .then((body) => { if (acceptsReceipt()) { setWebullTicks(body); clearFailure("webull"); } })
+        .then((body) => { if (acceptsReceipt()) { setWebullTicks(body as MoomooTickReceipt & WebullDataLaneReceipt); held.webullTicks = body as MoomooTickReceipt & WebullDataLaneReceipt; clearFailure("webull"); } })
         .catch((error: unknown) => recordFailure("webull", error)),
       // The Webull account lane, so the webull cell can say BOTH lanes. Its
       // own failure key: an unanswered account probe must never be read as a
       // market-data verdict, nor the other way round.
       readJson<WebullBrokerLaneReceipt>(WEBULL_BROKER_LANE_ROUTE)
-        .then((body) => { if (acceptsReceipt()) { setWebullBroker(body); clearFailure("webull-broker"); } })
+        .then((body) => { if (acceptsReceipt()) { setWebullBroker(body); held.webullBroker = body; clearFailure("webull-broker"); } })
         .catch((error: unknown) => recordFailure("webull-broker", error)),
       ]);
       // A background response must not leave a current-looking receipt ready
       // for the next foreground render. Recheck on return to the app.
-      if (active && isHidden()) { invalidateReceipts(); setSuspended(true); }
+      if (active && isHidden()) { rememberBeforePause(); invalidateReceipts(); setSuspended(true); }
+      // Back in view with fresh receipts: the "last read" note has served its purpose.
+      else if (active && held.atMs !== null) setLastEarned(null);
       refreshing = false;
       if (active && revision !== visibilityRevision && !isHidden()) void refresh();
     };
 
     const visibilityChanged = () => {
       visibilityRevision += 1;
+      if (isHidden()) rememberBeforePause();
       invalidateReceipts();
       void refresh();
     };
@@ -1057,7 +1102,7 @@ export default function ProviderWireStrip({
     };
   }, []);
 
-  const wires = selectProviderWires({ matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended, sourcedObservation, webullBroker });
+  const wires = selectProviderWires({ matrix, readiness, moomooTicks, longbridgeTicks, webullTicks, failures, suspended, sourcedObservation, webullBroker, lastEarned });
 
   return (
     <section aria-label="Market data provider wires" style={{ marginTop: compact ? 0 : 8, border: "1px solid rgba(240,180,41,0.18)", borderRadius: compact ? 8 : 10, background: "rgba(5,5,6,0.76)", padding: compact ? "6px 8px" : "9px 10px", flexShrink: 0 }}>

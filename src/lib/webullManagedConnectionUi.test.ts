@@ -16,7 +16,19 @@ describe("Webull managed connection UI", () => {
   });
 
   it("only renders connected from the provider-backed receipt", () => {
-    expect(panel).toContain("const connected = receipt?.connected === true");
+    // 2026-10-09 (ONE HISTORY, Sheriff P1-3) — the earning rule, restated, not loosened.
+    // "Connected" is still earned ONLY from a provider-backed observation that the
+    // SERVER returned on the status receipt, and from nothing the UI holds itself:
+    //   · when the receipt carries the certificate block (the keeper's signed read
+    //     of Webull, the same record /api/broker/certification reads), THAT
+    //     observation is the headline — connected only if it says so;
+    //   · otherwise (an older payload) the live signed probe on the same receipt.
+    // The pinned line used to be `const connected = receipt?.connected === true`;
+    // both arms below still read the receipt and nothing else.
+    expect(panel).toContain('const connected = history && history.basis !== "LIVE_ONLY" ? history.connected === true : receipt?.connected === true;');
+    // The history itself is built from the receipt's own fields — never from local state, storage or a default.
+    expect(panel).toMatch(/const history = broker\.id === "webull" && receipt\?\.certificate\s*\? webullOneHistory\(receipt\.certificate, receipt, /);
+    expect(panel).not.toMatch(/const connected = true|setConnected\(true\)|connected: true,?\s*\/\/ assume/);
     expect(panel).toContain("Webull account wire connected");
     expect(panel).toContain("receipt.accountCount");
     expect(panel).toContain("receipt.accountTypes");

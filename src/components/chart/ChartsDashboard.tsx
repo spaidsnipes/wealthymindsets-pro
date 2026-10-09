@@ -15,7 +15,7 @@ import { weatherInspectReading as selectWeatherInspectReading } from "@/lib/char
 import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsStore";
 
 import {
-  currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue,
+  adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue,
   proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind,
 } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
@@ -265,7 +265,7 @@ import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { lifecyclePhaseFor, lifecycleStageFor, stageForPhase } from "@/lib/experience/decisionLifecycle";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
 import { useAuth } from "@/contexts/AuthContext";
-import { LENS_FIXTURE_BANNER, lensFixturePressure, lensFixtureWeather, parseLensFixture } from "@/lib/chart/lensFixture";
+import { LENS_FIXTURE_BANNER, lensFixturePressure, lensFixtureWeather, parseAttentionFixture, parseLensFixture } from "@/lib/chart/lensFixture";
 // Real aggressor flow still grades the canonical capability state here;
 // detailed order-flow inspection belongs to the Smart Money doorway.
 import { selectAggressorFlow } from "@/lib/marketData/selectAggressorFlow";
@@ -654,6 +654,13 @@ function notifyLazy(kind: "success" | "error", message: string): void {
 
 export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?: string | null } = {}) {
   const { activeSymbol, setActiveSymbol } = useActiveSymbol();
+
+  // THE SCENE THIS MOUNT WAS ASKED FOR — handed to the scene owner before any
+  // preference is read (an initializer, for the reason given just below). On an
+  // in-app door the address bar still shows the room being left; the router's
+  // params are already this room's. See `adoptProofSceneSearch`.
+  const mountSearchParams = useSearchParams();
+  useState(() => { adoptProofSceneSearch(mountSearchParams?.toString() ?? ""); return null; });
 
   /**
    * MUST RUN BEFORE EVERY `lsGet` BELOW, which is why it is a `useState`
@@ -1582,6 +1589,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const { user: lensFixtureUser } = useAuth();
   const lensFixture = React.useMemo(
     () => (lensFixtureUser ? parseLensFixture(`?${optionSearchParams?.toString() ?? ""}`) : null),
+    [lensFixtureUser, optionSearchParams],
+  );
+  // Attention fixture: the governor's Question Lens quiet, held for this page
+  // load so its load order can be read on serving (same gates as the lens fixture).
+  const attentionFixture = React.useMemo(
+    () => (lensFixtureUser ? parseAttentionFixture(`?${optionSearchParams?.toString() ?? ""}`) : null),
     [lensFixtureUser, optionSearchParams],
   );
   const [lensFixtureAnchor, setLensFixtureAnchor] = useState<{ symbol: string; centre: number; nowMs: number; lastBarMs: number } | null>(null);
@@ -5555,6 +5568,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               // Garden 19 · the FVGs on the glass (selected first, then the
               // visible budget) — the same scene the chart painted, never a
               // second ledger. Absent while the layer is off.
+              // Garden 16 §20: the options scope from the pressure owner's one
+              // field, so SpaidBot reads the same word the glass prints. Absent
+              // while the options lenses are off or drew nothing.
+              ...(derivativesPressureVM?.drawn
+                ? { optionsScope: { ...derivativesPressureVM.chainScope, walls: derivativesPressureVM.walls.length } }
+                : {}),
               ...(fvgOn && fvgScene
                 ? { fvg: spaidbotFvgScene({ objects: [...fvgScene.visibility.open, ...fvgScene.visibility.scars], selectedObjectId: selectedMarketObjectId, selectedRelationships: fvgRelationships?.reading ?? null }) }
                 : {}),
@@ -7097,12 +7116,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   <div style={{ flex: 1, display:"flex", overflow:"hidden", minWidth:0, minHeight:0, position:"relative",
                     ...(chartLayout === "4" ? { width: "50%", flexShrink: 0 } : {}),
                   }}>
-                    {lensFixture ? (
+                    {lensFixture || attentionFixture ? (
                       <div data-testid="lens-fixture-banner" role="status"
                         className="pointer-events-none absolute left-1/2 top-2 z-[80] -translate-x-1/2 rounded-md border border-amber-400/60 bg-black/80 px-3 py-1 text-[11px] font-bold tracking-wide text-amber-200">
                         {LENS_FIXTURE_BANNER}
-                        {lensFixture.stage ? ` · weather ${lensFixture.stage}` : ""}
-                        {lensFixture.climate ? ` · pressure ${lensFixture.climate}` : ""}
+                        {lensFixture?.stage ? ` · weather ${lensFixture.stage}` : ""}
+                        {lensFixture?.climate ? ` · pressure ${lensFixture.climate}` : ""}
+                        {attentionFixture ? " · attention QUESTION QUIET (layers dimmed as if a question were asked)" : ""}
                       </div>
                     ) : null}
                     <ErrorBoundary>
@@ -7110,6 +7130,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       symbol={symbol}
                       timeframe={timeframe}
                       lensFixtureWeather={!!lensFixtureWeatherVM}
+                      attentionFixtureQuiet={attentionFixture === "QUESTION_QUIET"}
                       /* Canon F24 / C-101: the timeframe is chosen ON THE GLASS,
                          from one bordered chip at the bottom centre of the
                          candle pane. The setter is handed to THIS pane only.

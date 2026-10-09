@@ -1,3 +1,4 @@
+import { webullCertificateBlock } from "@/lib/broker/webullOneHistory";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { getAdapter } from "../../../../../lib/broker/adapters";
@@ -59,6 +60,9 @@ export async function GET(request: Request): Promise<Response> {
     credentialPresence: webullCredentialPresence(process.env),
     connectOAuth: webullConnectOAuthReadiness(process.env),
     ownerGate: owner.state,
+    // ONE HISTORY: the certificate's observation, from the keeper record read
+    // just above — no new fetch, and nothing is written on this GET.
+    certificate: webullCertificateBlock(keeper, Date.now()),
     // Whitelisted field by field: the keeper record holds codes and counts
     // only, and nothing it grows later leaks here by default.
     sessionKeeper: keeper

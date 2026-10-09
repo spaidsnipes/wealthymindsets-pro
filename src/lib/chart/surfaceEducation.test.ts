@@ -13,7 +13,11 @@ import { describe, expect, it } from "vitest";
 
 import { ALL_CATEGORY_TABS } from "@/lib/charts/categoryTabsFor";
 import { CAMERA_LOADOUTS } from "@/lib/marketData/viewModels/selectChartArrangement";
-import { educationFor, educationIdForSelection, educationTruthLines, firstTouchFor } from "@/lib/chart/inventionEducation";
+import {
+  CONCEPT_EDUCATION, INSTRUMENT_EDUCATION, INVENTION_EDUCATION, composeFirstTouch, educationFor, educationIdForSelection, educationTruthLines,
+  firstTouchFor, firstTouchRepeatsLabel,
+} from "@/lib/chart/inventionEducation";
+import { selectProfileMenu } from "@/lib/marketData/viewModels/selectProfileMenu";
 import {
   BAR_SELECTION_EDUCATION_ID, DRAWING_EDUCATION, LOADOUT_EDUCATION, REPLAY_EDUCATION_ID, SMART_MONEY_CARD_EDUCATION, SMART_MONEY_EDUCATION, smartMoneyCardEducationId, VIEW_EDUCATION,
   drawingEducationId, loadoutEducationId, smartMoneyEducationId, viewEducationId,
@@ -233,5 +237,42 @@ describe("the chain scope is known whenever ANY options-reading layer is on, and
     // The VM returns null — no selector call — unless that gate is on.
     expect(dash).toMatch(/if \(!pressureEvidenceOn \|\| !derivativesReceipt \|\| derivativesReceipt\.symbol !== symbol\) return null;/);
     expect(dash).toMatch(/const optionsChainScope = derivativesPressureVM\?\.drawn \? derivativesPressureVM\.chainScope : null;/);
+  });
+});
+
+describe("a first-touch line never opens by repeating its own label (serving 7f2ca59)", () => {
+  it("drops the label when the sentence already begins with it — case, punctuation and plural aside", () => {
+    expect(composeFirstTouch("Supply / demand zone", "Supply / demand zone — where price left fast; …").text).toBe("Supply / demand zone — where price left fast; …");
+    expect(composeFirstTouch("Brick Walls", "Brick wall — a strike with large open interest").label).toBeNull();
+    expect(composeFirstTouch("Candle", "Selected bar — the candle …").text).toBe("Candle · Selected bar — the candle …");
+    expect(firstTouchRepeatsLabel("Big Trades", "Big trade — an unusually large print")).toBe(true);
+    expect(firstTouchRepeatsLabel("Session Profile", "This session's volume profile")).toBe(false);
+  });
+  it("walks EVERY record with a first touch: the composed line never repeats its opening words", () => {
+    const menu = selectProfileMenu({ barsPresent: true, printsPresent: true, observedAggressorFlow: true, active: {} });
+    const labels = new Map<string, string>(menu.entries.map(e => [e.id as string, e.label]));
+    const fp = read("src/components/chart/FootprintControls.tsx");
+    for (const m of fp.matchAll(/\{ id: "([a-z-]+)",\s*label: "([^"]+)"/g)) labels.set(`FP_${m[1]}`, m[2]);
+    labels.set("FVG_IMBALANCE", "FVG / Imbalance"); labels.set("F11A", "Supply / demand zone"); labels.set("FP_big-trades", "Big Trades"); labels.set("BAR_SELECTION", "Candle");
+    const ids = [...Object.keys(INVENTION_EDUCATION), ...Object.keys(INSTRUMENT_EDUCATION), ...Object.keys(CONCEPT_EDUCATION), "BAR_SELECTION", "REPLAY"];
+    const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean).map(w => (w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w));
+    const doubled: string[] = [];
+    for (const id of ids) {
+      for (const objectId of [null, "ZONE:x:DEMAND"]) {
+        const sentence = firstTouchFor(id, objectId);
+        if (!sentence) continue;
+        // Its menu label where one exists; otherwise the worst case — the sentence's own opening phrase as the label.
+        const label = labels.get(id) ?? sentence.split("—")[0].trim();
+        const line = composeFirstTouch(label, sentence);
+        const l = norm(label), t = norm(line.text);
+        if (l.length && l.every((w, i) => t[i] === w) && l.every((w, i) => t[l.length + i] === w)) doubled.push(`${id}: ${line.text.slice(0, 70)}`);
+      }
+    }
+    expect(doubled).toEqual([]);
+  });
+  it("both carriers and the aria-label print the composed line", () => {
+    const ft = read("src/components/chart/SelectionFirstTouch.tsx");
+    expect(ft.match(/composeFirstTouch\(/g)!.length).toBeGreaterThanOrEqual(3);
+    expect(ft).not.toMatch(/aria-label=\{`\$\{label\}: /);
   });
 });

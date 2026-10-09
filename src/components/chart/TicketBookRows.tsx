@@ -32,7 +32,8 @@ export function TicketBookRows({ book, acks, busyId, onCancel, onFlatten }: {
       <div data-testid="trade-broker-position" data-state={p.state} data-protection={p.protection ?? undefined} style={{ display: "grid", gap: 2, ...MONO }}>
         <span style={small()}>POSITION STATE · tastytrade readback</span>
         <span style={{ color: p.state === "HOLDING" ? INK : p.state === "RECONCILING" ? GOLD : MUTED, overflowWrap: "anywhere" }}>
-          {p.protection ? <b style={{ color: p.protection === "PROTECTED" ? GREEN : RED }}>{p.protection === "PROTECTED" ? "STOP WORKING · " : "UNPROTECTED · "}</b> : null}{p.words}
+          {/* The protection word is in the row's words once; the dot only colours it (no second copy of the word). */}
+          {p.protection ? <b aria-hidden="true" style={{ color: p.protection === "PROTECTED" ? GREEN : RED }}>● </b> : null}{p.words}
         </span>
       </div>
 

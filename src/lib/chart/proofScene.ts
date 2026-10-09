@@ -242,10 +242,44 @@ export function proofSceneValue(scene: ProofScene, key: string): unknown {
 }
 
 let cached: { search: string; scene: ProofScene } | null = null;
+
+/**
+ * THE SEARCH A ROOM MOUNTED WITH, WHEN THE ADDRESS BAR HAS NOT CAUGHT UP.
+ *
+ * Serving 9f4d784, 2026-10-09: the Academy's "Show me on a chart" (an in-app
+ * link to `/charts?scene=clean&on=fvg`) landed on the member's own layers —
+ * Brick Walls, Visible Range, Evidence Lineage — while a fresh load of the
+ * same address was clean. An in-app navigation renders the destination room
+ * BEFORE the router commits the new address, so every preference initializer
+ * read `window.location.search` of the page being left and found no scene.
+ * The router's own params (`useSearchParams`) are already the destination's.
+ *
+ * The room hands them here once, at the top of its mount, before it reads a
+ * single preference. They stand only until the address bar moves (the commit,
+ * or any later in-room rewrite), after which the live address is read again.
+ * EVERY in-app door to a scene (Academy, Scanner, Backtest, Journal) lands on
+ * the scene it named.
+ *
+ * It also re-seats the write latch below for THIS mount: a member who came
+ * through a scene door and then walks to a plain /charts in-app must get their
+ * saves back, and one who arrives through a door must never have the scene's
+ * switches written into their own layers. A scene is a view, never a write.
+ */
+let adopted: { readonly search: string; readonly href: string } | null = null;
+export function adoptProofSceneSearch(search: string): void {
+  if (typeof window === "undefined") return;
+  const s = search ? (search.startsWith("?") ? search : `?${search}`) : "";
+  adopted = { search: s, href: window.location.href };
+  cached = null;
+  loadedAsProofScene = parseProofScene(s).active;
+}
+
 /** The scene of the current page (browser only), cached per URL search string. */
 export function currentProofScene(): ProofScene {
   if (typeof window === "undefined") return NO_PROOF_SCENE;
-  const search = window.location.search;
+  // The address bar has moved since the room mounted: the live address rules again.
+  if (adopted && window.location.href !== adopted.href) adopted = null;
+  const search = adopted ? adopted.search : window.location.search;
   if (cached && cached.search === search) return cached.scene;
   cached = { search, scene: parseProofScene(search) };
   return cached.scene;

@@ -64,7 +64,9 @@ describe("Command Deck hero price chronology", () => {
     expect(selectHeroPriceChronology(state("LIVE"))).toMatchObject({
       state: "OBSERVED_AGE",
       ageMs: 4,
-      label: "observed 4ms ago",
+      // Ruling 2026-10-09 (sheriff batch 5): trader words — "seen", in seconds.
+      // Was "observed 4ms ago". The exact age stays in `ageMs` above.
+      label: "seen under 0.1s ago",
     });
   });
 

@@ -1952,6 +1952,10 @@ input[type=range]::-webkit-slider-runnable-track {
     bottom: calc(56px + var(--wm-g19-plaque, 0px) + env(safe-area-inset-bottom)) !important;
     max-height: 58svh !important;
   }
+  /* PEEK / BUILD / REVIEW (compact ticket, 2026-10-09 — ticketLayout.ts): PEEK leaves the chart
+     readable (≤ ~50 % covered); a BUILD or REVIEW step fits without scrolling inside the sheet. */
+  [data-testid="trade-panel"][data-stage="PEEK"] { max-height: 40svh !important; }
+  [data-testid="trade-panel"][data-stage="ACT"] { max-height: 72svh !important; }
 }
 
 /* ── 3. PHONE: THE MASTHEAD SPENDS ITS ROWS ON JOBS ─────────────────────────

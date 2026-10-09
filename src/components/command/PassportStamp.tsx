@@ -20,13 +20,71 @@
  */
 
 import * as React from "react";
-import type { PassportStampVM } from "@/lib/experience/selectPassportStamp";
+import type { PassportStampVM, StampField } from "@/lib/experience/selectPassportStamp";
+import { traderClock } from "@/components/time/traderClock";
 
 export interface PassportStampProps {
   readonly vm: PassportStampVM;
 }
 
+/** Fields whose value is a machine identity: shown in the Receipt, not on the glass. */
+const RECEIPT_ONLY: ReadonlySet<string> = new Set(["Object ID", "Protocol"]);
+
+function StampCell({ label, f, children }: { label: string; f: Pick<StampField, "unresolved" | "absence">; children: React.ReactNode }) {
+  return (
+    <span data-stamp-field={label} style={{ display: "flex", alignItems: "baseline", gap: 7, minWidth: 0 }}>
+      <span
+        style={{
+          fontFamily: "Georgia, 'Times New Roman', serif",
+          fontSize: 9,
+          letterSpacing: 1.3,
+          textTransform: "uppercase",
+          color: "#8a8271",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontSize: 11.5,
+          letterSpacing: 0.3,
+          // THREE states, two marks, no new token.
+          //
+          //   finding   #ede6d3 upright   a reading the trader can act on
+          //   absence   #8a8271 upright   a reading whose content is "nothing"
+          //   no reading #8a8271 italic   nothing was compiled at all
+          //
+          // The INK answers "is this a finding?" and the FACE answers "is
+          // this a reading at all?". Measured live, STATE QUALITY
+          // UNAVAILABLE wore full ivory beside the protocol version — an
+          // absence in the ink reserved for facts. It is not folded into
+          // the italic, because "we never looked" and "we looked and there
+          // is nothing" are opposite facts about the engine.
+          color: f.unresolved || f.absence ? "#8a8271" : "#ede6d3",
+          fontStyle: f.unresolved ? "italic" : "normal",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {children}
+      </span>
+    </span>
+  );
+}
+
 export function PassportStamp({ vm }: PassportStampProps): React.ReactElement {
+  // Local time is the VIEWER's, so it is read only after mount: the server and
+  // the browser disagree about zone and locale, and printing it during the
+  // first render is the React #418 class selectPassportStamp's header names.
+  // Until then the cell shows a dash, never the UTC stamp wearing a local label.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
+  const issuedLocal = (f: StampField): string =>
+    f.unresolved || f.atMs == null ? f.value : mounted ? traderClock(f.atMs, { seconds: false, nowMs: Date.now() }) : "—";
+  const glass = vm.fields.filter((f) => !RECEIPT_ONLY.has(f.label));
+  const receipt = vm.fields.filter((f) => RECEIPT_ONLY.has(f.label) || f.label === "Issued");
   return (
     <section
       aria-label="Market object passport stamp"
@@ -56,51 +114,27 @@ export function PassportStamp({ vm }: PassportStampProps): React.ReactElement {
         Market Object Passport
       </span>
 
-      {vm.fields.map((f) => (
-        <span
-          key={f.label}
-          data-stamp-field={f.label}
-          style={{ display: "flex", alignItems: "baseline", gap: 7, minWidth: 0 }}
-        >
-          <span
-            style={{
-              fontFamily: "Georgia, 'Times New Roman', serif",
-              fontSize: 9,
-              letterSpacing: 1.3,
-              textTransform: "uppercase",
-              color: "#8a8271",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {f.label}
-          </span>
-          <span
-            style={{
-              fontSize: 11.5,
-              letterSpacing: 0.3,
-              // THREE states, two marks, no new token.
-              //
-              //   finding   #ede6d3 upright   a reading the trader can act on
-              //   absence   #8a8271 upright   a reading whose content is "nothing"
-              //   no reading #8a8271 italic   nothing was compiled at all
-              //
-              // The INK answers "is this a finding?" and the FACE answers "is
-              // this a reading at all?". Measured live, STATE QUALITY
-              // UNAVAILABLE wore full ivory beside the protocol version — an
-              // absence in the ink reserved for facts. It is not folded into
-              // the italic, because "we never looked" and "we looked and there
-              // is nothing" are opposite facts about the engine.
-              color: f.unresolved || f.absence ? "#8a8271" : "#ede6d3",
-              fontStyle: f.unresolved ? "italic" : "normal",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {f.value}
-          </span>
-        </span>
+      {glass.map((f) => (
+        <StampCell key={f.label} label={f.label} f={f}>
+          {f.label === "Issued" ? issuedLocal(f) : f.value}
+        </StampCell>
       ))}
+
+      {/* THE RECEIPT (ruling 2026-10-09, sheriff batch 5): the glass speaks
+          trader words — local time with its zone. The machine identity — the
+          object id, the protocol version and the exact UTC stamp, verbatim from
+          selectPassportStamp — sits one deliberate press below, never deleted.
+          A disclosure, not a link (the Command Deck carries no links). */}
+      <details data-testid="passport-stamp-receipt" style={{ flexBasis: "100%", minWidth: 0 }}>
+        <summary style={{ cursor: "pointer", fontSize: 10, letterSpacing: 1.3, textTransform: "uppercase", color: "#8a8271", minHeight: 24 }}>Receipt</summary>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 28px", paddingTop: 6 }}>
+          {receipt.map((f) => (
+            <StampCell key={f.label} label={f.label === "Issued" ? "Issued (UTC)" : f.label} f={f}>
+              {f.value}
+            </StampCell>
+          ))}
+        </div>
+      </details>
     </section>
   );
 }

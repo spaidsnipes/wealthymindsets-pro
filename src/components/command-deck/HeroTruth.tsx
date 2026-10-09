@@ -8,6 +8,7 @@ import {
 } from "@/lib/marketData/canonicalMarketState";
 import { selectHeroPriceChronology } from "@/lib/marketData/heroTruthChronology";
 import { selectPriceEvidence } from "@/lib/marketData/formatSpinePrice";
+import { displayPrecisionFor } from "@/lib/chart/pricePrecision";
 
 /**
  * HeroTruth — the ONE dominant first-second message on /command-deck.
@@ -78,12 +79,23 @@ export interface HeroTruthProps {
   className?: string;
 }
 
-function formatPrice(p: number): string {
-  if (p >= 10_000) return p.toFixed(0);
-  if (p >= 100) return p.toFixed(2);
-  if (p >= 1) return p.toFixed(3);
-  return p.toFixed(5);
+/**
+ * The instrument's own decimals, from the ONE precision owner (pricePrecision).
+ * The hand-rolled ladder here printed BTC as "82352" beside 2-decimal prices on
+ * every other surface (sheriff batch 5, 2026-10-09). The hero holds no bars, so
+ * the price itself stands in as the one-bar sample the owner reads its grid
+ * from; futures, FX and equities are answered by their class before that.
+ */
+function formatPrice(p: number, symbol: string): string {
+  const dp = displayPrecisionFor(symbol, [{ open: p, high: p, low: p, close: p }]);
+  return p.toFixed(dp);
 }
+
+/** A state name in words: the engine's token with its underscores as spaces ("TREND EXPANSION"). */
+const stateWords = (token: string): string => token.replace(/_/g, " ");
+
+/** The session in words. "24X7" is the store's token; the glass says what it means (ruling 2026-10-09). */
+const sessionWords = (token: string): string => (token === "24X7" ? "24 hours" : token);
 
 /**
  * The vendor half of a provider path.
@@ -272,9 +284,9 @@ export function HeroTruth({
               maxWidth: "100%",
               overflowWrap: "anywhere",
             }}
-            aria-label={`Market state ${marketState}${showResolutionQualifier ? ` (${marketStateResolution!.toLowerCase()})` : ""}`}
+            aria-label={`Market state ${stateWords(marketState)}${showResolutionQualifier ? ` (${marketStateResolution!.toLowerCase()})` : ""}`}
           >
-            {marketState}
+            {stateWords(marketState)}
           </span>
           {showResolutionQualifier && (
             <span style={{ marginLeft: 10, fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#8a8271" }}>
@@ -347,7 +359,7 @@ export function HeroTruth({
                 : `Price ${price}`
             }
           >
-            {formatPrice(price)}
+            {formatPrice(price, symbol)}
           </span>
         ) : (
           <span
@@ -425,7 +437,7 @@ export function HeroTruth({
         <span>
           <span style={{ color: "#8a8271" }}>session</span>{" "}
           <span style={{ color: "#ede6d3" }} title={sessionPresented?.detail}>
-            {sessionPresented?.value ?? "unknown"}
+            {sessionWords(sessionPresented?.value ?? "unknown")}
           </span>
         </span>
         {/* No sealed state means we know NOTHING — not zero. Rendering

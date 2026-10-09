@@ -17,7 +17,7 @@
  *   - Non-overlapping positions (i jumps past exit bar)
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { runRealBacktest } from "./engine";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
@@ -190,5 +190,41 @@ describe("runRealBacktest — the Date Range is the window traded (2026-10-04)",
     const early = runRealBacktest(bars, "TEST", "unknown", "Unknown", bars[0].time - 86_400 * 365);
     expect(early.equity[0].t).toBe(bars[25].time);
     expect(whole.meta.barCount).toBe(120);
+  });
+});
+
+describe("Backtest refusal — an unknown symbol is not 'try again' (2026-10-09)", () => {
+  const stub = (status: number, body: unknown) => vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status })));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("the route's wrapped upstream 404 (HTTP 500 + 'Yahoo HTTP 404') → the symbol is not known, with what to do", async () => {
+    const { BacktestBarsMissing, backtestRefusalWords, fetchBars } = await import("./engine");
+    stub(500, { error: "Error: Yahoo HTTP 404" });
+    const e = await fetchBars("ZZZZQ", "5m").catch(x => x);
+    expect(e).toBeInstanceOf(BacktestBarsMissing);
+    const words = backtestRefusalWords(e, "ZZZZQ", "5m");
+    expect(words).toBe("ZZZZQ is not a symbol WM Pro can find history for at 5m, so nothing was tested. Check the spelling (futures use the 1! form, e.g. NQ1!; crypto uses BTC-USD), or pick it from the symbol search.");
+    expect(words).not.toMatch(/try again/i);
+    expect(words).not.toMatch(/Yahoo|HTTP|404|Error:/);
+  });
+
+  it("a plain 404 / 400, a 200 that carries the not-found error, and an empty candle list are all 'not known'", async () => {
+    const { BacktestBarsMissing, fetchBars } = await import("./engine");
+    stub(404, {});
+    expect(await fetchBars("ZZZZQ", "5m").catch(x => x)).toBeInstanceOf(BacktestBarsMissing);
+    stub(200, { error: "symbol not found" });
+    expect(await fetchBars("ZZZZQ", "5m").catch(x => x)).toBeInstanceOf(BacktestBarsMissing);
+    stub(200, { candles: [] });
+    expect(await fetchBars("ZZZZQ", "5m").catch(x => x)).toBeInstanceOf(BacktestBarsMissing);
+  });
+
+  it("a genuine outage keeps the retry sentence; the bar-count sentence stays ours", async () => {
+    const { BacktestBarsMissing, backtestRefusalWords, fetchBars } = await import("./engine");
+    stub(502, { error: "upstream unavailable" });
+    const e = await fetchBars("NQ1!", "5m").catch(x => x);
+    expect(e).not.toBeInstanceOf(BacktestBarsMissing);
+    expect(backtestRefusalWords(e, "NQ1!", "5m")).toBe("The market history did not load just now, so nothing was tested. Try again in a moment.");
+    expect(backtestRefusalWords(new TypeError("Failed to fetch"), "NQ1!", "5m")).toMatch(/Try again in a moment/);
+    expect(backtestRefusalWords(new Error("Only 12 bars returned for X @ 1D. Try a higher timeframe or a different symbol."), "X", "1D")).toMatch(/^Only 12 bars/);
   });
 });

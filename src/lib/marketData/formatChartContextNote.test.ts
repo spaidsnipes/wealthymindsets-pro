@@ -385,3 +385,23 @@ describe("the deck sends price evidence, not the raw print field", () => {
     expect(span).not.toMatch(/price:\s*ticker\.price/);
   });
 });
+
+describe("§20 — the options scope reaches SpaidBot in the owner's words (2026-10-09)", () => {
+  it("a near-money subset names its scope, its grade and what is withheld", async () => {
+    const { formatOptionsScopeNote } = await import("./formatChartContextNote");
+    const { chainScopeWords } = await import("./viewModels/selectDerivativesPressure");
+    const note = formatOptionsScopeNote({ kind: "NEAR_MONEY_SUBSET", contracts: 123, reachPct: 4, walls: 1 });
+    expect(note).toContain(chainScopeWords({ kind: "NEAR_MONEY_SUBSET", contracts: 123, reachPct: 4 })!);
+    expect(note).toContain("grade PARTIAL");
+    expect(note).toContain("1 wall drawn");
+    expect(note).toMatch(/zero-gamma level, the pressure field and the dealer climate are WITHHELD/);
+    expect(note).toMatch(/do not state or imply a gamma flip/);
+  });
+  it("a whole chain says so; anything malformed says nothing", async () => {
+    const { formatOptionsScopeNote } = await import("./formatChartContextNote");
+    expect(formatOptionsScopeNote({ kind: "WHOLE", walls: 3 })).toBe(" [options positioning: whole listed chain heard · 3 walls drawn · dealer exposure is INFERRED, never observed]");
+    for (const bad of [null, "WHOLE", { kind: "EVERYTHING" }, { kind: "NEAR_MONEY_SUBSET", contracts: -1, reachPct: 4 }, { kind: "NEAR_MONEY_SUBSET", contracts: 123, reachPct: "4%" }, { kind: "NEAR_MONEY_SUBSET", contracts: 1.5, reachPct: 4 }]) {
+      expect(formatOptionsScopeNote(bad)).toBe("");
+    }
+  });
+});

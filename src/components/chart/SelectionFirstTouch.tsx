@@ -21,7 +21,7 @@
  */
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { educationFor, firstTouchFor, type EducationKey } from "@/lib/chart/inventionEducation";
+import { composeFirstTouch, educationFor, firstTouchFor, type EducationKey } from "@/lib/chart/inventionEducation";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 
 const GOLD = "#d4af37";
@@ -56,8 +56,11 @@ export function InspectFirstTouchLine() {
       // every width; every other selection keeps the phone-only rule.
       data-first-touch-everywhere={ctx.id === "BAR_SELECTION" ? "true" : undefined}
       className={`${ctx.id === "BAR_SELECTION" ? "block" : "hidden max-sm:block"} mt-1 text-[11px] leading-snug`} style={{ color: PEARL }}>
-      <span className="font-bold" style={{ color: GOLD }}>{ctx.label}</span>
-      <span style={{ color: MUTED }}> · </span>{firstTouchFor(ctx.id, ctx.objectId)}
+      {/* The label is dropped when the sentence already opens with it (composeFirstTouch — one rule for every record). */}
+      {(() => {
+        const line = composeFirstTouch(ctx.label, firstTouchFor(ctx.id, ctx.objectId) ?? "");
+        return <>{line.label ? <><span className="font-bold" style={{ color: GOLD }}>{line.label}</span><span style={{ color: MUTED }}> · </span></> : null}{line.sentence}</>;
+      })()}
     </div>
   );
 }
@@ -81,7 +84,7 @@ export function SelectionFirstTouch({ id, label, objectId, inspectOpen, onOpenIn
       data-testid="selection-first-touch"
       data-first-touch-id={id}
       aria-live="polite"
-      aria-label={`${label}: ${firstTouchFor(id, objectId)}`}
+      aria-label={composeFirstTouch(label, firstTouchFor(id, objectId) ?? "").text}
       data-inspect-open={inspectOpen ? "true" : "false"}
       // Sheriff sweep 2026-10-07 (desktop, BTC-USD big trades): with Inspect
       // docked left this card sat on top of the ticket's LOCATION IN STRUCTURE
@@ -97,7 +100,7 @@ export function SelectionFirstTouch({ id, label, objectId, inspectOpen, onOpenIn
       <div className="text-[9px] font-bold uppercase tracking-[0.16em] max-sm:hidden" style={{ color: MUTED }}>You selected</div>
       <div className="text-[12.5px] font-bold leading-tight max-sm:hidden" style={{ color: GOLD }}>{label}</div>
       <div className="mt-1 text-[12px] leading-snug max-sm:mt-0 max-sm:text-[11.5px]" style={{ color: PEARL }} data-testid="first-touch-line">
-        <span className="hidden max-sm:inline font-bold" style={{ color: GOLD }}>{label} · </span>{firstTouchFor(id, objectId)}
+        {composeFirstTouch(label, firstTouchFor(id, objectId) ?? "").label ? <span className="hidden max-sm:inline font-bold" style={{ color: GOLD }}>{label} · </span> : null}{firstTouchFor(id, objectId)}
       </div>
       {more ? (
         <div className="mt-1.5 text-[11.5px] leading-snug max-sm:hidden" style={{ color: PEARL }} data-testid="first-touch-more">

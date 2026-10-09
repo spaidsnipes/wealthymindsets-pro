@@ -164,7 +164,8 @@ describe("provider wire claim precedence", () => {
     expect(wires).toHaveLength(5);
     for (const wire of wires) {
       expect(wire.tone).toBe("SUSPENDED");
-      expect(wire.label).toBe("Paused");
+      // 2026-10-09: the pause names its reason and recovery (WIRE_PAUSED_LABEL).
+      expect(wire.label).toBe("Paused while this tab is hidden — resumes when you return");
       // The pause must carry its own recovery, not just its own excuse.
       expect(wire.detail).toContain("Reopen it to re-probe the wire.");
       expect(wire.detail).not.toContain("in progress");

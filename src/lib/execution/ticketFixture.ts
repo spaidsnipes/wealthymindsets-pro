@@ -52,7 +52,8 @@ export function ticketFixtureReadback(fx: TicketFixture, contract: string, refPx
   const px = refPx != null && Number.isFinite(refPx) && refPx > 0 ? refPx : 100;
   const long = fx.side === "BUY";
   const holding = fx.state !== "flat";
-  const stopPx = Math.round(px * (long ? 0.995 : 1.005) * 100) / 100;
+  // A whole number: on tick for every listed future and for any stock (never 30988.28 on a 0.25 tick).
+  const stopPx = Math.round(px * (long ? 0.995 : 1.005));
   const stop: TtOrderView = {
     id: "9000001", status: "Live", state: "WORKING", symbol: contract, action: long ? "Sell to Close" : "Buy to Close", quantity: 1, filled: 0,
     price: null, stopTrigger: String(stopPx), orderType: "Stop", externalId: null, cancellable: true, rejectReason: null, updatedAt: null,

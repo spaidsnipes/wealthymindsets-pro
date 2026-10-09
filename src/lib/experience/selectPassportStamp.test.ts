@@ -298,3 +298,15 @@ describe("SENTINEL — the band spells no value of its own", () => {
     expect(band).toBeLessThan(drawer);
   });
 });
+
+describe("the band's glass speaks trader words; the machine identity is a Receipt (ruling 2026-10-09)", () => {
+  const code = fs.readFileSync(path.join(process.cwd(), "src/components/command/PassportStamp.tsx"), "utf8");
+  it("Object ID and Protocol are receipt-only, the UTC stamp is labelled as such, and local time waits for mount", () => {
+    expect(code).toContain('new Set(["Object ID", "Protocol"])');
+    expect(code).toContain('data-testid="passport-stamp-receipt"');
+    expect(code).toContain('"Issued (UTC)"');
+    expect(code).toMatch(/mounted \? traderClock\(f\.atMs/);
+    // The Command Deck carries no links — the Receipt is a disclosure.
+    expect(code).not.toMatch(/<a\s|<Link\b|href=/);
+  });
+});

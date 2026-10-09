@@ -135,9 +135,12 @@ describe("HeroTruth session — the strip reads the owner, not the store key", (
     expect(html).not.toMatch(/>\s*RTH\s*</);
   });
 
-  it("crypto reads 24X7 — a continuous market has no session to miss", () => {
+  it("crypto reads 24 hours — a continuous market has no session to miss", () => {
     const html = stripFor("BTCUSD", SATURDAY);
-    expect(html).toContain("24X7");
+    // Ruling 2026-10-09 (sheriff batch 5): the glass says the session in words.
+    // The owner's token is still "24X7"; the hero prints what it means.
+    expect(html).toContain("24 hours");
+    expect(html).not.toMatch(/>\s*24X7\s*</);
   });
 
   it("a weekday future reads the published Globex schedule — OPEN, never the store key (2026-10-07)", () => {
@@ -390,7 +393,8 @@ describe("HeroTruth SOURCE trio pixel — role + asOf + source, no DevTools", ()
 
   it("asOf: a LIVE packet with valid chronology prints the observation age", () => {
     const html = renderAtRole("LIVE");
-    expect(html).toContain("observed 30.0s ago");
+    // Ruling 2026-10-09 (sheriff batch 5): "seen", not "observed" — trader words. Was "observed 30.0s ago".
+    expect(html).toContain("seen 30.0s ago");
     expect(html).toContain('data-chronology-state="OBSERVED_AGE"');
   });
 
@@ -406,7 +410,7 @@ describe("HeroTruth SOURCE trio pixel — role + asOf + source, no DevTools", ()
       const html = renderAtRole(role);
       expect(html, `${role} went silent on asOf`).toContain("observation age unverified");
       expect(html).toContain('data-chronology-state="UNVERIFIED"');
-      expect(html, `${role} leaked an exact age it cannot prove`).not.toContain("observed 30.0s ago");
+      expect(html, `${role} leaked an exact age it cannot prove`).not.toContain("seen 30.0s ago");
     }
   });
 
@@ -416,7 +420,7 @@ describe("HeroTruth SOURCE trio pixel — role + asOf + source, no DevTools", ()
     // different renders would never prove they co-occur.
     const html = renderAtRole("LIVE");
     expect(html, "role missing from the trio").toMatch(textNode("Live"));
-    expect(html, "asOf missing from the trio").toContain("observed 30.0s ago");
+    expect(html, "asOf missing from the trio").toContain("seen 30.0s ago");
     expect(html, "source missing from the trio").toContain(">source<");
   });
 });
