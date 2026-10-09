@@ -8,6 +8,7 @@
  * the client never sees the raw token. We expose user metadata here.
  */
 
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { isCoreTeam } from "@/lib/coreTeam";
@@ -103,7 +104,10 @@ function readCachedUser(): WMUser | null {
 function writeCachedUser(u: WMUser | null) {
   if (typeof window === "undefined") return;
   try {
-    if (u) localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+    // A proof scene writes nothing (2026-10-09): re-caching the SAME signed-in
+    // account on a scene load is held. A sign-out (u === null) is never held —
+    // clearing the cache is isolation, not a preference.
+    if (u) { if (!proofSceneHoldsWrites()) localStorage.setItem(SESSION_KEY, JSON.stringify(u)); }
     else localStorage.removeItem(SESSION_KEY);
   } catch {}
 }

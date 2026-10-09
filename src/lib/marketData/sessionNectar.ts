@@ -1,3 +1,4 @@
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { isPublicInfoPath } from "@/lib/authRoutes";
 import { MARKET_DATA_CAPABILITIES, type MarketDataCapability } from "./capabilityRegistry";
 import {
@@ -270,6 +271,9 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
       clearTimeout(persistTimer);
       persistTimer = null;
     }
+    // A proof scene writes nothing (2026-10-09): a verification sweep must not
+    // grow the trader's coverage record, here or on the server.
+    if (proofSceneHoldsWrites()) return;
     try {
       window.localStorage.setItem(COVERAGE_STORAGE_KEY, JSON.stringify(checkpoint()));
     } catch {
@@ -290,6 +294,7 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
       remotePersistTimer = null;
     }
     if (atSignedOutDoor()) return;
+    if (proofSceneHoldsWrites()) return;
     try {
       void fetch("/api/market-memory/coverage", {
         method: "POST",

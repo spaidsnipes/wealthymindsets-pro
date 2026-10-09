@@ -230,3 +230,30 @@ describe("Replay practice says what it does — the link uses the chart's own Re
     expect(eq).toMatch(/id: "bar-replay",\s*label: "Replay"/);
   });
 });
+
+describe("§33 lessons 12, 20, 21 — the Founder's wording, audited 2026-10-09", () => {
+  it("lesson 20 teaches how fear, impatience, FOMO and interference show up — as actions a record can show, never a diagnosis", () => {
+    const l = FVG_LESSONS[19];
+    const text = l.body.join(" ");
+    for (const w of ["Fear", "impatience", "fear of missing out", "interference"]) expect(text, w).toContain(w);
+    expect(text).toMatch(/interpretations; what a record can show is the action/);
+    expect(text).toMatch(/leaves the reason to you/);
+    // Evidence vs interpretation is still the spine of the lesson.
+    expect(text).toMatch(/Start with the evidence/);
+    // No diagnosis words about the trader.
+    expect(text).not.toMatch(/you (are|were) (afraid|greedy|undisciplined|emotional)/i);
+  });
+  it("lesson 21 names the Journal control that really exists, and the examples door", () => {
+    const text = FVG_LESSONS[20].body.join(" ");
+    expect(text).toContain("\"Reference an FVG\"");
+    expect(text).toContain("\"Show me my examples\"");
+    const field = readFileSync("src/components/journal/JournalFvgReferenceField.tsx", "utf8");
+    expect(field).toMatch(/Reference an FVG/i);
+  });
+  it("no lesson leans on 'often' / 'tends to' / 'likely' to say what price will do", () => {
+    for (const l of FVG_LESSONS) {
+      const text = [l.lede, ...l.body].join(" ");
+      expect(text, l.id).not.toMatch(/\boften\b|\btends? to\b|\blikely\b/i);
+    }
+  });
+});

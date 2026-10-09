@@ -10,11 +10,25 @@ import { resetManagementOwnerForTests, setManagementOwner } from "./managementOw
 afterEach(() => { vi.unstubAllGlobals(); resetManagementOwnerForTests(); });
 
 describe("journal round trip (proof scene)", () => {
+  it("§40: a context read with the reference survives save → reload with it", async () => {
+    const { fvgContextAtDecision } = await import("./fvgDecisionContext");
+    const { journalFixtureBars } = await import("./journalProofFixture");
+    const r = journalFixture().entries[0].fvgRef;
+    const c = fvgContextAtDecision(r, journalFixtureBars());
+    expect(c.ok).toBe(true);
+    if (!c.ok) return;
+    const p = journalRoundTrip(r, "SAMPLE-ROUNDTRIP-CTX", c.context);
+    const row = p.rows.find(x => x.field === "Context at the decision")!;
+    expect(row.same).toBe(true);
+    expect(row.before).toMatch(/^Context at the decision \(from \d+ closed bars\): structure .+ · profile .+ · wall silence · displacement bar .+ · regime UNTAGGED\.$/);
+    expect(p.verdict).toBe("SAME SNAPSHOT AFTER RELOAD");
+  });
   const ref = journalFixture().entries[0].fvgRef;
   it("the same snapshot comes back: every row equal, deep-equal reference, second save byte-stable", () => {
     const p = journalRoundTrip(ref);
     expect(p.readStatus).toBe("RESOLVED_CANONICAL");
-    expect(p.rows).toHaveLength(9);
+    expect(p.rows).toHaveLength(10);
+    expect(p.rows[9]).toMatchObject({ field: "Context at the decision", before: "Context at the decision: not recorded with this reference.", same: true });
     expect(p.rows.every(r => r.same)).toBe(true);
     expect(p.referenceDeepEqual).toBe(true);
     expect(p.secondSaveByteStable).toBe(true);

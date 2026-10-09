@@ -83,6 +83,9 @@ export interface JournalFixture {
   readonly management: ManagementCounterfactual;
 }
 
+/** The fixture's deterministic sample bars (also the input for the as-of context tests). */
+export function journalFixtureBars(): CanonicalBar[] { return bars(); }
+
 function bars(): CanonicalBar[] {
   let seed = 20260105;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -226,4 +229,27 @@ export function journalFixture(): JournalFixture {
   const management = managementCounterfactual(entries.map(e => ({ plan: e.plan, actuals: e.actuals, path: e.path, result: planResults[e.id], realizedR: e.realizedR })));
   cached = { ledger, entries, review, counterfactual, studyRows, examples, planResults, adherence, splits, management };
   return cached;
+}
+
+/** How many sample decisions the proof scene's Review shows before any link asks for another. */
+export const JOURNAL_FIXTURE_SHOWN = 6;
+
+/** The sample decision a URL fragment names (`#SAMPLE-24`), or null. Only ids the fixture really has. */
+export function fixtureAnchorId(hash: string | null | undefined, entries: readonly { readonly id: string }[]): string | null {
+  const raw = (hash ?? "").replace(/^#/, "");
+  let id = raw;
+  try { id = decodeURIComponent(raw); } catch { id = raw; }
+  return id && entries.some(e => e.id === id) ? id : null;
+}
+
+/**
+ * The decisions the Review section renders: the first JOURNAL_FIXTURE_SHOWN, plus the one a link's
+ * fragment names when it is not among them — so "Show me my examples → #SAMPLE-24" lands ON that
+ * decision instead of at the top of the page (education lane finding, 2026-10-09).
+ */
+export function shownFixtureEntries<T extends { readonly id: string }>(entries: readonly T[], anchorId: string | null): readonly T[] {
+  const first = entries.slice(0, JOURNAL_FIXTURE_SHOWN);
+  if (!anchorId || first.some(e => e.id === anchorId)) return first;
+  const hit = entries.find(e => e.id === anchorId);
+  return hit ? [...first, hit] : first;
 }

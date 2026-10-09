@@ -305,3 +305,47 @@ describe("journal stores under the same owner (Garden 19, 2026-10-08): the Found
     expect(readFileSync(path.join(SRC, "app/journal/page.tsx"), "utf8")).toContain("<HeldJournalClaim />");
   });
 });
+
+describe("Fix A (2026-10-09) — a read must not write: the legacy owner stamp is removed only when it is there", () => {
+  const counting = (st: ReturnType<typeof mem>) => {
+    const removes: string[] = [];
+    const real = st.removeItem.bind(st);
+    st.removeItem = (k: string) => { removes.push(k); real(k); };
+    return removes;
+  };
+
+  it("a signed-in page load with no stamp and no legacy rows makes ZERO removeItem calls (serving 559884e made four)", async () => {
+    const { setManagementOwner: set } = await import("./managementOwner");
+    const removes = counting(local);
+    set("member-a", undefined, "member-a");
+    set("member-a", undefined, "member-a");
+    set("member-a", undefined, "member-a");
+    expect(removes).toEqual([]);
+  });
+
+  it("a stamp that IS there is still removed once every legacy row has moved — and the rows are moved, never deleted", async () => {
+    const { setManagementOwner: set, memberKeyOf } = await import("./managementOwner");
+    local.setItem("wm:management-owner:v1", "member-a");
+    local.setItem("wm:management-plan:v1", JSON.stringify({ wmd_legacy: { decisionId: "wmd_legacy", frozenAtMs: 1 } }));
+    const removes = counting(local);
+    set("member-a", undefined, null);
+    expect(local.getItem(memberKeyOf("wm:management-plan:v1", "member-a"))).toContain("wmd_legacy");
+    expect(local.getItem("wm:management-owner:v1")).toBeNull();
+    expect(removes.filter(k => k === "wm:management-owner:v1")).toHaveLength(1);
+    // A second load: nothing left to remove.
+    removes.length = 0;
+    set("member-a", undefined, "member-a");
+    expect(removes).toEqual([]);
+  });
+
+  it("rows that cannot be tied to this member are held with their stamp: nothing is removed", async () => {
+    const { setManagementOwner: set } = await import("./managementOwner");
+    local.setItem("wm:management-owner:v1", "member-b");
+    local.setItem("wm:management-plan:v1", JSON.stringify({ wmd_b: { decisionId: "wmd_b", frozenAtMs: 1 } }));
+    const removes = counting(local);
+    set("member-a", undefined, "member-a");
+    expect(removes).toEqual([]);
+    expect(local.getItem("wm:management-plan:v1")).toContain("wmd_b");
+    expect(local.getItem("wm:management-owner:v1")).toBe("member-b");
+  });
+});

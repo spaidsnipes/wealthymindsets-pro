@@ -48,7 +48,7 @@ export const TERRITORY_LIFE: readonly { readonly stage: string; readonly line: s
  * the only file that holds phase labels.
  */
 export const LOOP_SENTENCE =
-  "LEARN → SEE → WAIT → UNDERSTAND → INSPECT → PLAN → DECIDE → TRADE → PROTECT → MANAGE → JOURNAL → REVIEW → MEASURE → LEARN YOURSELF";
+  "LEARN → SEE → WAIT → UNDERSTAND → INSPECT → PLAN → DECIDE → TRADE → PROTECT → MANAGE → JOURNAL → REVIEW → MEASURE → LEARN YOURSELF → RETURN TO MARKET BETTER";
 
 const LOOP_LINES: readonly string[] = [
   "Lessons on the same definitions the chart uses.",
@@ -65,6 +65,9 @@ const LOOP_LINES: readonly string[] = [
   "Plan against what actually happened.",
   "Counts with their denominators — never a promise.",
   "Your edge is what your own record shows.",
+  // §56 closes the loop. Both the step and its line are the Founder's own sentences, verbatim —
+  // no new claim is written here ("→ RETURN TO MARKET BETTER. That is a Trading Operating System.").
+  "That is a Trading Operating System.",
 ];
 
 export const OPERATING_LOOP: readonly { readonly step: string; readonly line: string }[] =

@@ -183,6 +183,17 @@ export function stampLegacyOwner(memberId: string | null | undefined, storage?: 
   try { if (st.getItem(LEGACY_OWNER_STAMP_KEY) == null) st.setItem(LEGACY_OWNER_STAMP_KEY, id); } catch { /* skip */ }
 }
 
+/**
+ * A READ MUST NOT WRITE (serving 559884e, 2026-10-09): every page load of a
+ * signed-in member called `removeItem` on the owner stamp — four times — though
+ * the stamp was absent each time. No row was ever at risk (this key is only the
+ * stamp), but it was a storage write on a read path. The stamp is removed only
+ * when it is actually there.
+ */
+function clearLegacyOwnerStamp(st: OwnerStorage): void {
+  try { if (st.getItem(LEGACY_OWNER_STAMP_KEY) != null) st.removeItem(LEGACY_OWNER_STAMP_KEY); } catch { /* skip */ }
+}
+
 export function setManagementOwner(next: string | null, storage?: OwnerStorage | null, legacyMarker?: string | null, sessionStorage?: OwnerStorage | null): void {
   const id = typeof next === "string" && next.trim() ? next.trim() : null;
   const changed = id !== owner;
@@ -192,7 +203,7 @@ export function setManagementOwner(next: string | null, storage?: OwnerStorage |
   if (st && id && legacyRowsBelongTo(id, legacyMarker, st)) {
     adoptLegacyManagementRows(id, st, ss);
     // The stamp goes only once every legacy row has moved (a row that could not move keeps its tie).
-    if (!anyLegacyRows(st)) { try { st.removeItem(LEGACY_OWNER_STAMP_KEY); } catch { /* skip */ } }
+    if (!anyLegacyRows(st)) clearLegacyOwnerStamp(st);
   }
   if (changed) notifyOwnerListeners();
 }
@@ -245,7 +256,7 @@ export function claimHeldLegacyRows(storage?: OwnerStorage | null, session?: Own
   const st = localOf(storage);
   if (!st) return null;
   adoptLegacyManagementRows(owner, st, sessionOf(storage, session));
-  if (!anyLegacyRows(st)) { try { st.removeItem(LEGACY_OWNER_STAMP_KEY); } catch { /* skip */ } }
+  if (!anyLegacyRows(st)) clearLegacyOwnerStamp(st);
   notifyOwnerListeners();   // every open surface re-reads the member's own keys
   return heldLegacyRows(storage, session);
 }

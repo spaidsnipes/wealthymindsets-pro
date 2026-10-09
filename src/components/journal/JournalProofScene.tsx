@@ -15,13 +15,14 @@
  *   · shown only when the token is present and a trader is signed in
  *     (JournalRouteSwitch) — inert for guests.
  */
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { StoryReviewRow } from "@/components/journal/BrokerTruthToday";
 import { PlanAdherenceView } from "@/components/journal/PlanAdherenceBySetup";
 import { FvgExamplesView } from "@/components/education/FvgLessonBody";
 import { FvgContextSplitsView, FvgReviewQuestionsView, ManagementCounterfactualView } from "@/components/journal/FvgContextSplitsView";
 import { additionalEvidenceComparison, fillTargetComparison, fillTargetSample, gapDecisionFrom } from "@/lib/journal/planFvgFillTargets";
-import { JOURNAL_FIXTURE_BANNER, journalFixture } from "@/lib/journal/journalProofFixture";
+import { fixtureAnchorId, JOURNAL_FIXTURE_BANNER, journalFixture, journalFixtureBars, shownFixtureEntries } from "@/lib/journal/journalProofFixture";
+import { fvgContextAtDecision } from "@/lib/journal/fvgDecisionContext";
 import { fvgReferenceSentence } from "@/lib/journal/fvgDecisionReference";
 import { behaviourCases } from "@/lib/journal/managementBehaviours";
 import { managementWalkthroughs } from "@/lib/journal/managementWalkthrough";
@@ -33,12 +34,31 @@ const GOLD = "#d4af37";
 
 export function JournalProofScene(): React.ReactElement {
   const f = useMemo(() => journalFixture(), []);
-  const shown = f.entries.slice(0, 6);
+  // A link's fragment (`#SAMPLE-24`, from the Academy's sample door) names ONE decision: it is rendered even when
+  // it is past the first six, scrolled into view and marked. Read from the URL only — nothing is stored.
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+  useEffect(() => {
+    const read = () => setAnchorId(fixtureAnchorId(window.location.hash, f.entries));
+    read();
+    window.addEventListener("hashchange", read);
+    return () => window.removeEventListener("hashchange", read);
+  }, [f]);
+  useEffect(() => {
+    if (!anchorId) return;
+    const el = document.getElementById(anchorId);
+    if (el) el.scrollIntoView({ block: "center" });
+  }, [anchorId]);
+  const shown = shownFixtureEntries(f.entries, anchorId);
   const behaviours = useMemo(() => behaviourCases(), []);
   const walkthroughs = useMemo(() => managementWalkthroughs(), []);
   // Save → reload of one sample entry with its FVG reference, in a throwaway in-memory Storage
   // (the Journal's own writer and reader; the browser's storage is never touched).
-  const roundTrip = useMemo(() => journalRoundTrip(f.entries[0].fvgRef), [f]);
+  const roundTrip = useMemo(() => {
+    const ref = f.entries[0].fvgRef;
+    // §40: the context read with the reference (same sample bars, as of the decision) travels with it.
+    const c = fvgContextAtDecision(ref, journalFixtureBars());
+    return journalRoundTrip(ref, "SAMPLE-ROUNDTRIP-1", c.ok ? c.context : null);
+  }, [f]);
   // Rows that need a Founder action on the real account, shown on a labelled SAMPLE through the same owners
   // and components: the plan's lifecycle (in memory), Review from a broker readback, auto-capture from a fill.
   const lifecycle = useMemo(() => planLifecycleRoundTrip(), []);
@@ -66,7 +86,9 @@ export function JournalProofScene(): React.ReactElement {
       <section aria-label="Review — FVG answers (sample)" data-testid="journal-proof-review" className="space-y-3">
         <h2 className="text-sm font-bold text-wm-text">Review · FVG answers (sample decisions)</h2>
         {shown.map(e => (
-          <div key={e.id} id={e.id} className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">
+          <div key={e.id} id={e.id} data-testid="journal-proof-decision" data-anchored={e.id === anchorId ? "yes" : "no"} className="rounded-lg border border-wm-border bg-wm-surface/40 p-3"
+            style={e.id === anchorId ? { outline: `2px solid ${GOLD}`, outlineOffset: 2, scrollMarginTop: 96 } : { scrollMarginTop: 96 }}>
+            {e.id === anchorId ? <div role="status" data-testid="journal-proof-anchored" className="text-[10px] font-bold tracking-wider" style={{ color: GOLD }}>OPENED FROM A LINK · this sample decision</div> : null}
             <div className="text-[11px] text-wm-text">{e.id} · {e.setup} · {e.symbol} · {e.date} · {e.result} {e.realizedR >= 0 ? "+" : ""}{e.realizedR}R</div>
             <div className="text-[10px] text-wm-text-muted mt-0.5">{fvgReferenceSentence(e.fvgRef)}</div>
             {/* The frozen sample plan + sample fills + sample path → the three columns, the management

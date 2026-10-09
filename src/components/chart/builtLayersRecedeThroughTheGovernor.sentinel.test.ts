@@ -304,3 +304,33 @@ describe("early LIVE layers open the frame on last frame's quiet (serving 559884
     expect(CHART.slice(i, i + 600)).toContain("att = att.withQuestionQuiet(questionQuiet);");
   });
 });
+
+describe("narrow legend status keeps its width; the price words yield (serving /desk SEB pane, 559884e, 2026-10-09)", () => {
+  const CSS = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+  it("the status box and its group never shrink in a narrow band, the change words may wrap, and nothing is display:none'd for it", () => {
+    expect(CHART).toContain('className="flex min-w-0 items-center gap-1.5 wm-legend-status"');
+    expect(CSS).toContain(".wm-legend-status:has([data-recency-narrow]) { flex-shrink: 0; min-width: max-content; }");
+    expect(CSS).toContain('[data-legend-group="price"] ~ div:has(.wm-legend-status [data-recency-narrow]) { flex-shrink: 0 !important; min-width: max-content; }');
+    expect(CSS).toContain('[data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) .wm-legend-words-short { display: inline-block; white-space: normal; line-height: 1.1; vertical-align: middle; }');
+    expect(CSS).toContain('[data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) { flex-shrink: 1; min-width: min-content; }');
+    // One lawful break only — before the scope; the headline price is never a shrink target.
+    expect(CHART).toContain('<span className="whitespace-nowrap" data-change-scope>{sw.slice(cut + 1)}</span>');
+    expect(CSS).not.toContain('[data-recency-narrow]) > * { min-width: 0; }');
+    expect(CSS).toContain(".wm-legend-recency-narrow { display: inline-block !important; max-width: 14ch; }");
+  });
+});
+
+describe("tablet all-on: names leave the newest candles' column (serving 834 + 390, 92895d6, 2026-10-09)", () => {
+  it("a level chip on the newest column is listed at any width, with its tick and a receipt", () => {
+    expect(CHART).toContain("if (W >= 640 && onNewestColumn(spotL.rect.x, spotL.rect.y, spotL.rect.w, spotL.rect.h)) {");
+    expect(CHART).toContain("ds.profileLevelChipsNewest = `HELD_OFF_NEWEST_COLUMN:${levelChipsNewestHeld}`");
+    // The phone rule is untouched.
+    expect(CHART).toContain("if (W < 640 && spotL.onCandles) {");
+  });
+  it("a swing tag and an OI tick word on the newest column are listed, not painted", () => {
+    expect(CHART).toContain("if (onNewestColumn(W - 84 - tw - 8, y - 7, tw + 8, 14)) {");
+    expect(CHART).toContain("ds.scaffoldingSwingTags = `LISTED:${swingTagsListed}`;");
+    expect(CHART).toContain("const offColumn = (k: number) => { const q = at(k); return !onNewestColumn(q.x, q.y, q.w, q.h); };");
+    expect(CHART).toContain('displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: x + tw / 2, y: t.y });');
+  });
+});

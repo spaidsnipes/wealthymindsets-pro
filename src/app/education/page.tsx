@@ -27,7 +27,8 @@ import {
   summarizeAcademyLessons,
 } from "@/lib/educationProgressTruth";
 import { FVG_ACADEMY_MODULE, FVG_LESSONS, FVG_QUIZ_BANK } from "@/lib/academy/fvgCourse";
-import { FvgLessonBody } from "@/components/education/FvgLessonBody";
+import { EDUCATION_FIXTURE_BANNER, EDUCATION_FIXTURE_NOTE, EDUCATION_FIXTURE_PASS_LINE, FvgLessonBody, educationFixtureOn } from "@/components/education/FvgLessonBody";
+import { useAuth } from "@/contexts/AuthContext";
 import { proofFixtureScene } from "@/lib/chart/proofScene";
 import { persistAcademyNote, readAcademyNote } from "@/lib/educationNotesStorage";
 import { persistAcademyProgress } from "@/lib/educationProgressStorage";
@@ -245,6 +246,8 @@ function LessonNotes({ lessonId }: { lessonId: string }) {
   // The parent keys this editor by lesson: no draft can migrate to a new key.
   // Read after hydration. An unreadable note is not an empty, writable note.
   useEffect(() => {
+    // The proof scene reads no saved note: an empty, page-only note.
+    if (proofFixtureScene(window.location.search) === "education-fixture") { setReadState("READ"); setText(""); return; }
     const result = readAcademyNote(() => window.localStorage, KEY);
     // This effect deliberately synchronizes React with browser-owned storage;
     // reading during initial render would make server/client hydration diverge.
@@ -256,6 +259,8 @@ function LessonNotes({ lessonId }: { lessonId: string }) {
   const onChange = (v: string) => {
     if (readState !== "READ") return;
     setText(v);
+    // A proof scene never writes: under `scene=education-fixture` the note stays in this page only.
+    if (proofFixtureScene(window.location.search) === "education-fixture") return;
     // localStorage is synchronous: finish the write/readback in the edit event,
     // before a route change or unmount can discard a pending autosave.
     setPersistence(persistAcademyNote(() => window.localStorage, KEY, v).status);
@@ -610,6 +615,8 @@ export default function EducationPage() {
 
   const [mods, setMods] = useState<Module[]>(() => {
     if (typeof window === "undefined") return MODULES;
+    // The proof scene starts from the course's blank progress; the member's saved progress is not read.
+    if (proofFixtureScene(window.location.search) === "education-fixture") return MODULES;
     try {
       const saved = JSON.parse(localStorage.getItem(EDU_KEY) ?? "null");
       if (!saved) return MODULES;
@@ -625,6 +632,17 @@ export default function EducationPage() {
     } catch { return MODULES; }
   });
   const [expandedId,   setExpandedId]   = useState<number | null>(1);
+  // PROOF SCENE (`?scene=education-fixture`, signed-in only): the quiz can be taken and its
+  // result read on screen with ZERO progress writes. The scene starts from the course's own
+  // blank progress — the member's saved progress is neither shown nor changed.
+  const { user: sceneUser } = useAuth();
+  const [quizScene, setQuizScene] = useState(false);
+  const [scenePass, setScenePass] = useState<string | null>(null);
+  useEffect(() => {
+    const on = educationFixtureOn(window.location.search, !!sceneUser);
+    setQuizScene(on);
+    if (on) setMods(MODULES);
+  }, [sceneUser]);
   const [activeLesson, setActiveLesson] = useState<{ lesson: Lesson; color: string } | null>(null);
   const [progressPersistence, setProgressPersistence] = useState<"IDLE" | "PERSISTED" | "UNAVAILABLE">("IDLE");
   // ACADEMY CONTINUITY (§53): arrived from a chart's "Learn this" — open that
@@ -664,7 +682,10 @@ export default function EducationPage() {
     });
     setMods(next);
     // A proof scene never writes: under `scene=education-fixture` progress stays in this page only.
-    if (proofFixtureScene(window.location.search) === "education-fixture") return;
+    if (proofFixtureScene(window.location.search) === "education-fixture") {
+      setScenePass(mods.flatMap(m => m.lessons).find(l => l.id === lessonId)?.title ?? lessonId);
+      return;
+    }
     const persistence = persistAcademyProgress(localStorage, EDU_KEY, serializeProgress(next));
     setProgressPersistence(persistence.status);
   };
@@ -752,6 +773,20 @@ export default function EducationPage() {
       {priorPracticeMarks > 0 && (
         <div className="shrink-0 border-b border-amber-700/20 bg-amber-950/20 px-3 py-1.5 text-[11px] text-amber-100 sm:px-4" role="status">
           {priorPracticeMarks} prior browser practice {priorPracticeMarks === 1 ? "mark is" : "marks are"} retained. Lesson completion remains unverified until content is published.
+        </div>
+      )}
+
+      {quizScene && (
+        <div role="status" data-testid="education-scene-banner" data-proof-scene="education-fixture"
+          className="shrink-0 border-b px-3 py-2 text-[12px] font-black tracking-wider sm:px-4"
+          style={{ borderColor: "rgba(212,175,55,0.45)", color: "#d4af37", background: "rgba(212,175,55,0.08)" }}>
+          {EDUCATION_FIXTURE_BANNER}
+          <span className="block text-[11px] font-normal tracking-normal text-wm-text-muted">{EDUCATION_FIXTURE_NOTE}</span>
+          {scenePass ? (
+            <span className="mt-1 block text-[11px] font-semibold tracking-normal text-wm-text" data-testid="education-scene-pass" aria-live="polite">
+              {scenePass} · {EDUCATION_FIXTURE_PASS_LINE}
+            </span>
+          ) : null}
         </div>
       )}
 

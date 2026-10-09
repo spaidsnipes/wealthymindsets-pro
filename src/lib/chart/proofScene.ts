@@ -282,6 +282,9 @@ export function adoptProofSceneSearch(search: string): void {
 /** The scene of the current page (browser only), cached per URL search string. */
 export function currentProofScene(): ProofScene {
   if (typeof window === "undefined") return NO_PROOF_SCENE;
+  // Asked from storage owners too (2026-10-09): a realm with no location (a
+  // worker, a test double) is not a proof scene — never a throw.
+  if (!window.location) return NO_PROOF_SCENE;
   // The address bar has moved since the room mounted: the live address rules again.
   if (adopted && window.location.href !== adopted.href) adopted = null;
   const search = adopted ? adopted.search : window.location.search;

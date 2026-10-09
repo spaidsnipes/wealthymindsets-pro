@@ -1,5 +1,6 @@
 "use client";
 
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, BellOff, X, Plus, ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
@@ -106,7 +107,8 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
 
   // Persist alerts
   useEffect(() => {
-    localStorage.setItem(ALERTS_KEY, JSON.stringify(alerts));
+    // A proof scene writes nothing (2026-10-09).
+    if (!proofSceneHoldsWrites()) localStorage.setItem(ALERTS_KEY, JSON.stringify(alerts));
     onAlertsChange(alerts);
   }, [alerts]); // eslint-disable-line react-hooks/exhaustive-deps
   const [addPrice, setAddPrice] = useState("");

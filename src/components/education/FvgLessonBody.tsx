@@ -23,6 +23,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { proofFixtureScene } from "@/lib/chart/proofScene";
 import { JOURNAL_FIXTURE_BANNER, journalFixture } from "@/lib/journal/journalProofFixture";
 
+/** The page-level words of the Academy proof scene (quiz results are shown, never saved). */
+export const EDUCATION_FIXTURE_BANNER = "PROOF SCENE — sample data, not your Academy progress";
+export const EDUCATION_FIXTURE_NOTE =
+  "Take any quiz here: the result and the verified mark appear on this page only. Nothing is saved, and your own progress and notes are not read or changed. Drop ?scene=education-fixture to return to your Academy.";
+export const EDUCATION_FIXTURE_PASS_LINE = "Marked verified on this page only — not saved (proof scene).";
+
 /** `/education?scene=education-fixture` — sample examples for a signed-in trader; false for a guest or without the token. */
 export function educationFixtureOn(search: string, signedIn: boolean): boolean {
   return signedIn && proofFixtureScene(search) === "education-fixture";

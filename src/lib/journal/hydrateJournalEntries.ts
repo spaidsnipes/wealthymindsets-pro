@@ -38,6 +38,7 @@
  */
 
 import { readJournalFvgReference, type JournalFvgReference } from "./fvgDecisionReference";
+import { readJournalFvgContext, type JournalFvgContext } from "./fvgDecisionContext";
 import type { DayModel } from "@/lib/proofLane/proofLaneR";
 import { readJournalCapture, type JournalCaptureDraft } from "./journalCaptureFromFill";
 import type { ProcessOutcome, ProcessQuality } from "@/lib/journalProcess";
@@ -110,6 +111,8 @@ export interface JournalEntry {
    * the facts as they stood — never "FVG = YES".
    */
   fvgRef?: JournalFvgReference;
+  /** §40: the market context the gap decision was taken in, read as of the decision (fvgDecisionContext). */
+  fvgContext?: JournalFvgContext;
 }
 
 const MOODS: readonly Mood[] = ["confident", "anxious", "neutral", "fomo", "disciplined"];
@@ -216,5 +219,7 @@ export function hydrateJournalEntry(value: unknown): JournalEntry | null {
     // Read field by field; an unknown provenance degrades to UNREPORTED, never to a value.
     ...(readJournalCapture(value.capture) ? { capture: readJournalCapture(value.capture) as JournalCaptureDraft } : {}),
     ...(readJournalFvgReference(value.fvgRef) ? { fvgRef: readJournalFvgReference(value.fvgRef) as JournalFvgReference } : {}),
+    // The context is kept only beside the reference it was read with; a damaged one is dropped whole.
+    ...(readJournalFvgReference(value.fvgRef) && readJournalFvgContext(value.fvgContext) ? { fvgContext: readJournalFvgContext(value.fvgContext) as JournalFvgContext } : {}),
   };
 }

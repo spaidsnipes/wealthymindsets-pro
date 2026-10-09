@@ -67,6 +67,7 @@
  * is not what B-501 draws — the sheet's six tabs are six views of one machine.
  */
 
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import type { ScopedDecisionIdentity } from "@/lib/expressionShortlist";
 import { canonicalInstrumentId } from "@/lib/marketData/canonicalIdentity";
 
@@ -216,7 +217,8 @@ export function readSceneDecision(
       const found = findBySpelling(storage, o, u);
       if (found != null) {
         raw = found;
-        try { storage.setItem(key, found); } catch { /* read still succeeds; migration retried next read */ }
+        // A proof scene writes nothing (2026-10-09): the read still succeeds; the migration waits for a plain load.
+        try { if (!proofSceneHoldsWrites()) storage.setItem(key, found); } catch { /* read still succeeds; migration retried next read */ }
       }
     }
     if (raw == null) return null;
@@ -265,6 +267,8 @@ export function writeSceneDecision(
   const storage =
     options.storage === undefined ? browserStorage() : options.storage;
   if (!key || !storage || !isDecisionIdentity(scoped.identity)) return false;
+  // A proof scene writes nothing (2026-10-09): the identity lives for this page only, and the caller is told it was not saved.
+  if (proofSceneHoldsWrites()) return false;
 
   const serialized = JSON.stringify({
     version: VERSION,

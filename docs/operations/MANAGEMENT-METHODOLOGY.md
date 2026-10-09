@@ -351,6 +351,20 @@ New York days, read from the FVG ledger.
 Tests: `managementPlanSlice3.test.ts`, `managementPlanSlice4.test.ts`, `managementPlanSlice5.test.ts`,
 `planFvgStudy.test.ts`, `founderAnalytics.test.ts`.
 
+### The context kept with a gap decision (§40)
+
+When the trader attaches "Reference an FVG" to a Journal entry, `fvgDecisionContext.ts` reads the
+market context from the same bars at the same moment and keeps it beside the reference:
+* structure, profile and wall relationships (or each owner's SILENCE);
+* the Response Matrix cell of the displacement bar (SILENT where a market reports no traded volume);
+* the regime tag.
+
+Only bars that had closed by the decision are read, so nothing later can change it. A context is used
+only with the reference it was read with, and a damaged one is dropped whole. An entry saved without
+one keeps reading "NOT RECORDED" in the splits; it is never back-filled from today's chart.
+
+Test: `fvgDecisionContext.test.ts`.
+
 ### FVG context splits and "Did management help?" (§23, §24)
 
 Both sit on the real Personal Edge block (`PlanAdherenceBySetup`) as well as in the journal proof

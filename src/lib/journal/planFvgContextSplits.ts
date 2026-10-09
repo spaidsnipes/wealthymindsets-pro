@@ -31,7 +31,6 @@
 
 import type { ResponseCell } from "@/lib/chart/effortEvidence";
 import type { FvgInteractionResponse } from "@/lib/marketData/fvg/fvgDefinition";
-import type { FvgRelationshipReading } from "@/lib/marketData/fvg/fvgRelationships";
 import type { JournalFvgReference } from "./fvgDecisionReference";
 import { DEPARTURES } from "./planAdherence";
 import type { PlanVsActualResult } from "./planVsActual";
@@ -40,10 +39,20 @@ import { INSUFFICIENT, insufficientLine, isMeasured, STAT_SAMPLE_MIN } from "./s
 export type SplitDimension = "STRUCTURE" | "PROFILE" | "ORDER FLOW" | "WALL" | "EFFORT→RESPONSE" | "SESSION" | "REGIME" | "TIMEFRAME" | "INSTRUMENT";
 export const SPLIT_DIMENSIONS: readonly SplitDimension[] = ["STRUCTURE", "PROFILE", "ORDER FLOW", "WALL", "EFFORT→RESPONSE", "SESSION", "REGIME", "TIMEFRAME", "INSTRUMENT"];
 
+/** The part of a relationship reading the splits use — a full FvgRelationshipReading satisfies it. */
+export interface SplitRelationships {
+  readonly relationships: readonly { readonly family: string; readonly kind: string }[];
+  readonly sources: readonly { readonly family: string; readonly evidence: string }[];
+}
+
 export interface SplitInput {
   readonly ref: JournalFvgReference;
-  /** Relationships as of formation (fvgRelationshipsFor / fvgBarOnlyRelationships); null = not recorded. */
-  readonly relationships?: FvgRelationshipReading | null;
+  /**
+   * Relationships as of formation (fvgRelationshipsFor / fvgBarOnlyRelationships, or the context stored with
+   * the journal entry — fvgDecisionContext); null = not recorded. Only family, kind and each owner's evidence
+   * word are read.
+   */
+  readonly relationships?: SplitRelationships | null;
   /** Response Matrix cell of the displacement bar b2; "SILENT" when the owner could not read; null = not recorded. */
   readonly effortCell?: ResponseCell | "SILENT" | null;
   /** The gap's regime tag at b2 (FvgObject.regime); null = not recorded. */

@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
 import { educationIdForSelection, educationTruthLines } from "@/lib/chart/inventionEducation";
 import { VIEW_EDUCATION, viewEducationId } from "@/lib/chart/surfaceEducation";
@@ -1151,7 +1152,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     setAllAlerts(prev => {
       const next = [...prev, alert];
       // Garden pass 2026-10-04: a refused write lost the alert on reload, unannounced.
-      try { localStorage.setItem("wm_price_alerts", JSON.stringify(next)); }
+      try { if (!proofSceneHoldsWrites()) localStorage.setItem("wm_price_alerts", JSON.stringify(next)); }
       catch { setTimeout(() => notifyLazy("error", "Alert set for this visit only — this browser refused to save it."), 0); }
       return next;
     });
@@ -7767,7 +7768,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       </AnimatePresence>
 
       {/* Alerts Panel */}
-      {compareSheetNode}
+      {/* At the document root, not inside the chart's own layer (z-1): there the
+          sheet sat under the masthead and the drawers. Client-only by nature —
+          `compareOpen` is false until a press. */}
+      {compareSheetNode && typeof document !== "undefined" ? createPortal(compareSheetNode, document.body) : null}
       <AlertsPanel
         open={alertsOpen}
         onClose={() => setAlertsOpen(false)}

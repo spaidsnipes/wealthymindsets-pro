@@ -1339,7 +1339,11 @@ export function ChartToolbar({
                 </div>
 
                 {/* category tabs */}
-                <div className="flex gap-1 px-2 py-1 border-b border-wm-border overflow-x-auto shrink-0" style={{ scrollbarWidth:"none" }}>
+                {/* The category chips WRAP on a phone, a tablet or under a finger. They
+                    used to scroll sideways with the scrollbar hidden — at 390 four of
+                    the twelve (Structure, Smart Money, Oscillators, Patterns) sat past
+                    the right edge with nothing to say they were there (sheriff batch 6). */}
+                <div className="flex gap-1 px-2 py-1 border-b border-wm-border overflow-x-auto shrink-0 max-[1023px]:flex-wrap [@media(pointer:coarse)]:flex-wrap" style={{ scrollbarWidth:"none" }}>
                   {IND_CATS.map(c => {
                     const isOF = c === "Order Flow";
                     const active = indCat === c;
@@ -1584,6 +1588,16 @@ export function ChartToolbar({
           </button>
           {advancedOpen && (() => {
             const rect = advancedRef.current?.getBoundingClientRect();
+            /*
+              ONE WAY OUT OF THE SHEET (sheriff batch 6, serving 92895d6). On a
+              phone or tablet this menu lives inside the Chart tools sheet, which
+              sits at the document root above the chart's own layer. Compare and
+              Price Alerts opened UNDER it — drawn, and unreachable. Every item
+              whose target is another surface closes the menu AND puts the sheet
+              down; only an in-place toggle (Display mode) stays. On desktop the
+              sheet is not open and the second call does nothing.
+            */
+            const leaveSheet = () => { setAdvancedOpen(false); onEquipmentClose?.(); };
             const itemClass = "flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-[11px] font-semibold text-wm-text-muted transition-colors hover:bg-wm-surface hover:text-wm-text";
             // This trigger lives at the FOOT of the drawer: at 1600x900 its
             // bottom is y 888, and a menu dropped below it showed 8px of 630.
@@ -1618,18 +1632,18 @@ export function ChartToolbar({
                     aria-haspopup="dialog"
                     aria-controls="chart-views-sheet"
                     className={itemClass}
-                    onClick={() => { setAdvancedOpen(false); onViews(); }}
+                    onClick={() => { leaveSheet(); onViews(); }}
                   >
                     <Layers size={12} aria-hidden="true" /> Views{viewsOpen ? " · open" : activeViewLabel && activeViewLabel !== "Chart" ? ` · ${activeViewLabel}` : ""}
                   </button>
                 )}
-                {onToggleStudyTools && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onToggleStudyTools(); }}><BarChart2 size={13} /> Flow &amp; studies{studyToolsOpen ? " · open" : ""}</button>}
-                <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onDOM(); }}><LayoutGrid size={13} /> Depth ladder</button>
-                <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onPineScript(); }}><span className="text-sm">ƒ</span> Pine workspace{pineActive ? " · active" : ""}</button>
+                {onToggleStudyTools && <button role="menuitem" className={itemClass} onClick={() => { leaveSheet(); onToggleStudyTools(); }}><BarChart2 size={13} /> Flow &amp; studies{studyToolsOpen ? " · open" : ""}</button>}
+                <button role="menuitem" className={itemClass} onClick={() => { leaveSheet(); onDOM(); }}><LayoutGrid size={13} /> Depth ladder</button>
+                <button role="menuitem" className={itemClass} onClick={() => { leaveSheet(); onPineScript(); }}><span className="text-sm">ƒ</span> Pine workspace{pineActive ? " · active" : ""}</button>
                 {onReplay && (
                   <>
                     <span className="flex items-center gap-1">
-                      <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onReplay(); }}><Play size={12} /> Replay{replayActive ? " · active" : ""}</button>
+                      <button role="menuitem" className={itemClass} onClick={() => { leaveSheet(); onReplay(); }}><Play size={12} /> Replay{replayActive ? " · active" : ""}</button>
                       {/* §9 · Replay has an ⓘ (Sheriff batch 3 #2): as-of-time, no live clock. */}
                       <InventionInfoButton scope="tb" id={REPLAY_EDUCATION_ID} label="Replay" open={replayEdu} compact onToggle={() => setReplayEdu(o => !o)} />
                     </span>
@@ -1642,7 +1656,7 @@ export function ChartToolbar({
                       <span style={{ display: "block", width: "min(380px, calc(100vw - 16px))", pointerEvents: "auto" }}>
                       <InventionPreview scope="tb" id={REPLAY_EDUCATION_ID} label="Replay" what={REPLAY_EDUCATION.what} familyWord="Workspace" symbol={symbol}
                         truth={educationTruthLines({ id: REPLAY_EDUCATION_ID, symbol })} active={!!replayActive}
-                        onAdd={() => { setAdvancedOpen(false); onReplay(); }} onClose={() => setReplayEdu(false)}
+                        onAdd={() => { leaveSheet(); onReplay(); }} onClose={() => setReplayEdu(false)}
                         action={{ add: "Start replay", on: "Replaying · stop" }} />
                     
                       </span>
@@ -1650,16 +1664,16 @@ export function ChartToolbar({
                     ) : null}
                   </>
                 )}
-                {onCompare && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onCompare(); }}><GitMerge size={12} /> Compare{compareActive ? " · active" : ""}</button>}
-                {onAlerts && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onAlerts(); }}><Bell size={12} /> Alerts{alertsActive ? " · active" : ""}</button>}
-                {onInstrumentProfile && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onInstrumentProfile(); }}><Info size={12} aria-hidden="true" /> Instrument profile{instrumentProfileActive ? " · open" : ""}</button>}
+                {onCompare && <button role="menuitem" className={itemClass} onClick={() => { leaveSheet(); onCompare(); }}><GitMerge size={12} /> Compare{compareActive ? " · active" : ""}</button>}
+                {onAlerts && <button role="menuitem" className={itemClass} onClick={() => { leaveSheet(); onAlerts(); }}><Bell size={12} /> Alerts{alertsActive ? " · active" : ""}</button>}
+                {onInstrumentProfile && <button role="menuitem" className={itemClass} onClick={() => { leaveSheet(); onInstrumentProfile(); }}><Info size={12} aria-hidden="true" /> Instrument profile{instrumentProfileActive ? " · open" : ""}</button>}
                 {onWatchlist && (
                   <button
                     role="menuitem"
                     aria-haspopup="dialog"
                     aria-controls="chart-watchlist-sheet"
                     className={itemClass}
-                    onClick={() => { setAdvancedOpen(false); onWatchlist(); }}
+                    onClick={() => { leaveSheet(); onWatchlist(); }}
                   >
                     <Star size={12} aria-hidden="true" /> Watchlist{watchlistOpen ? " · open" : ""}
                   </button>
@@ -1670,7 +1684,7 @@ export function ChartToolbar({
                     aria-haspopup="dialog"
                     aria-controls="chart-draw-sheet"
                     className={itemClass}
-                    onClick={() => { setAdvancedOpen(false); onDraw(); }}
+                    onClick={() => { leaveSheet(); onDraw(); }}
                   >
                     <Pencil size={12} aria-hidden="true" /> Drawing tools{drawOpen ? " · open" : ""}
                   </button>
@@ -1681,7 +1695,7 @@ export function ChartToolbar({
                     aria-haspopup="dialog"
                     aria-controls="chart-tools-sheet"
                     className={itemClass}
-                    onClick={() => { setAdvancedOpen(false); onCapture(); }}
+                    onClick={() => { leaveSheet(); onCapture(); }}
                   >
                     <Camera size={12} aria-hidden="true" /> Capture &amp; share{captureOpen ? " · open" : ""}
                   </button>
@@ -1697,7 +1711,7 @@ export function ChartToolbar({
                     role="menuitem"
                     className={itemClass}
                     aria-pressed={journalStatsOpen}
-                    onClick={() => { setAdvancedOpen(false); onJournalStats(); }}
+                    onClick={() => { leaveSheet(); onJournalStats(); }}
                   >
                     <DollarSign size={12} aria-hidden="true" /> Journal P&amp;L stats{journalStatsOpen ? " · open" : ""}
                   </button>
@@ -1707,7 +1721,7 @@ export function ChartToolbar({
                   aria-haspopup="dialog"
                   aria-controls="wm-broker-connect"
                   className={itemClass}
-                  onClick={() => { setAdvancedOpen(false); onConnectBrokers(); }}
+                  onClick={() => { leaveSheet(); onConnectBrokers(); }}
                 >
                   <Plug2 size={12} aria-hidden="true" /> Connect brokers
                 </button>

@@ -360,7 +360,7 @@ const ANATOMY_BLOCK_RECEIPTS = [
   // ASK-5 (2026-10-08) · the question's identity mark on the band.
   "questionLensMark",
   // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
-  "scaffoldingScale", "scaffoldingForm", "scaffoldingSilenceBand", "scaffoldingDock", "scaffoldingCardCandleHits",
+  "scaffoldingScale", "scaffoldingForm", "scaffoldingSilenceBand", "scaffoldingSwingTags", "scaffoldingDock", "scaffoldingCardCandleHits",
   "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
   "scaffoldingResistance",
 ] as const;
@@ -15594,6 +15594,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // Location on price: the nearest confirmed swings, dashed from
                 // the bar that made them, a □ on that bar (F05A).
                 let swingMarks = 0;
+                let swingTagsListed = 0;
                 for (const [lvl, t0, kind, tag] of [
                   [sc.swingAbove, sc.swingAboveTime, sc.swingAboveKind, "SWING ABOVE"],
                   [sc.swingBelow, sc.swingBelowTime, sc.swingBelowKind, "SWING BELOW"],
@@ -15619,6 +15620,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.font = font(700, 8);
                   const t = `${tag} · ${lvl.toFixed(pxDp)}`;
                   const tw = ctx.measureText(t).width;
+                  // The tag sits at a fixed place by the axis; when that place is the
+                  // newest candles' column (serving 390 + 834 all-on, 92895d6,
+                  // 2026-10-09: "SWING ABOVE · 31194.50" across the forming candle)
+                  // the dashed level stays and the words are listed instead.
+                  if (onNewestColumn(W - 84 - tw - 8, y - 7, tw + 8, 14)) {
+                    displacedNotes.push({ layer: "STRUCTURE", text: t, x: W - 84 - tw / 2, y });
+                    swingTagsListed++;
+                    continue;
+                  }
                   ctx.fillStyle = panel(0.97);
                   ctx.fillRect(W - 84 - tw - 8, y - 7, tw + 8, 14);
                   ctx.fillStyle = CREAM;
@@ -15626,6 +15636,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   floatingChips.push({ x: W - 84 - tw - 8, y: y - 7, w: tw + 8, h: 14 });
                 }
                 ds.scaffoldingSwingMarks = String(swingMarks);
+                ds.scaffoldingSwingTags = `LISTED:${swingTagsListed}`;
 
                 // The removal path — where this depth sits. Drawn inside the
                 // card (F/I) or the plaque (PRO), never as a strip of its own.
@@ -19364,6 +19375,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   rs.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y);
                 const fixedChips = [...floatingChips];
                 let stepped = 0;
+                let oiWordsListed = 0;
                 for (const t of [...tickWords].sort((p, q) => p.y - q.y)) {
                   const tw = ctx.measureText(t.text).width;
                   const x = plotRightD - tw - 6;
@@ -19373,9 +19385,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // edge, serving NQ 5m NEAREST scope: three ticks within 4px)
                   // clear of its own siblings at least — two tick labels never
                   // print over each other.
-                  const k = near.find(k => !over(at(k), [...placed, ...fixedChips]))
-                    ?? [...near, -4, 4, -5, 5, -6, 6].find(k => !over(at(k), placed))
-                    ?? 0;
+                  // …and never on the newest candles' column (serving 390 + 834
+                  // all-on, 92895d6, 2026-10-09: "CALL OI 31200 · 515" across the
+                  // forming candle). No clear row → the tick stays, the words are listed.
+                  const offColumn = (k: number) => { const q = at(k); return !onNewestColumn(q.x, q.y, q.w, q.h); };
+                  const kClear = near.find(k => offColumn(k) && !over(at(k), [...placed, ...fixedChips]))
+                    ?? [...near, -4, 4, -5, 5, -6, 6].find(k => offColumn(k) && !over(at(k), placed));
+                  if (kClear === undefined) {
+                    displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: x + tw / 2, y: t.y });
+                    oiWordsListed++;
+                    continue;
+                  }
+                  const k = kClear;
                   const by = t.y - 2 + k * ROW;
                   if (by !== t.y - 2) {
                     stepped++;
@@ -19391,7 +19412,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   placed.push(box);
                   floatingChips.push(box);
                 }
-                ds.oiTickWords = `N:${tickWords.length}|STEPPED:${stepped}`;
+                ds.oiTickWords = `N:${tickWords.length}|STEPPED:${stepped}${oiWordsListed ? `|LISTED:${oiWordsListed}` : ""}`;
               } else delete ds.oiTickWords;
 
               ctx.restore();
@@ -20399,6 +20420,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         let levelChipsYielded = 0;
         let levelChipsToStack = 0;
         let levelChipsNarrowHeld = 0;
+        let levelChipsNewestHeld = 0;
         // `leftX` anchors a chip by its LEFT end instead (TPO's, beside its column).
         const levelChip = (y: number, text: string, ink: string, opts: { rightX?: number; leftX?: number; minX?: number; floorY?: number } = {}) => {
           const floorY = opts.floorY ?? HEADER_FLOOR_Y;
@@ -20453,6 +20475,20 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // the forming candles and the WAIT tag) leaves the bodies. A wordless
           // 5px tick in the level's ink stays at the plot edge on its row; the
           // name goes to the §16 note composer (tap → listed), never deleted.
+          // TABLET TOO (serving all-on NQ1! / BTC-USD 5m at 834, 92895d6,
+          // 2026-10-09: LIVING VAH / POC / VAL and LEG POC sat across the newest
+          // candles — the phone rule above stopped at 640). At ANY width a level
+          // name whose only spot is the newest candles' column leaves the same
+          // way: the wordless tick stays on its row, the name is listed.
+          if (W >= 640 && onNewestColumn(spotL.rect.x, spotL.rect.y, spotL.rect.w, spotL.rect.h)) {
+            ctx.fillStyle = ink;
+            ctx.fillRect(Math.round(plotRight - 7), Math.round(y) - 1, 5, 2);
+            ctx.restore();
+            displacedNotes.push({ layer: "PROFILE", text, x: Math.max(8, rightX - cw / 2), y });
+            levelChipsYielded++;
+            levelChipsNewestHeld++;
+            return;
+          }
           if (W < 640 && spotL.onCandles) {
             ctx.fillStyle = ink;
             ctx.fillRect(Math.round(plotRight - 7), Math.round(y) - 1, 5, 2);
@@ -22834,6 +22870,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (levelChipsPlaced > 0) ds.profileLevelChips = `${levelChipsPlaced}:${levelChipsMoved}M:${levelChipsYielded}Y:${levelChipsToStack}S${levelChipsQuieted ? `:${levelChipsQuieted}Q` : ""}`;
         else delete ds.profileLevelChips;
         if (levelChipsNarrowHeld > 0) ds.profileLevelChipsNarrow = `HELD_OFF_CANDLES:${levelChipsNarrowHeld}`; else delete ds.profileLevelChipsNarrow;
+        if (levelChipsNewestHeld > 0) ds.profileLevelChipsNewest = `HELD_OFF_NEWEST_COLUMN:${levelChipsNewestHeld}`; else delete ds.profileLevelChipsNewest;
         if (levelChipsReordered > 0) ds.profileLevelChipsReordered = String(levelChipsReordered);
         else delete ds.profileLevelChipsReordered;
         // The organism glyphs painted this frame, in paint order — e.g.
@@ -27682,7 +27719,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // are on other layers and stay fully opaque.
   useEffect(() => {
     if (canvasRef.current) canvasRef.current.style.opacity = String(flowOpacity);
-    try { localStorage.setItem("wm_flow_opacity", String(flowOpacity)); } catch {}
+    try { if (!proofSceneHoldsWrites()) localStorage.setItem("wm_flow_opacity", String(flowOpacity)); } catch {}
   }, [flowOpacity]);
 
   /* ── Right-click context menu handler ──────────────────────── */
@@ -28302,7 +28339,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           >
             <span className={legendShortWords(headerChangeFact.text) !== headerChangeFact.text ? "wm-legend-words-full" : undefined}>{headerChangeFact.text}</span>
             {legendShortWords(headerChangeFact.text) !== headerChangeFact.text && (
-              <span className="wm-legend-words-short" aria-hidden="true">{legendShortWords(headerChangeFact.text)}</span>
+              <span className="wm-legend-words-short" aria-hidden="true">{(() => {
+                // The short change words break in ONE place only — before the
+                // scope ("-41.62 (-1.02%)" / "/5m bar") — when a narrow band asks
+                // them to yield to the feed status (serving /desk SEB pane,
+                // 2026-10-09: three ragged lines printed over the headline price).
+                const sw = legendShortWords(headerChangeFact.text);
+                const cut = sw.lastIndexOf(" /");
+                return cut <= 0 ? sw : <><span className="whitespace-nowrap">{sw.slice(0, cut)}</span>{" "}<span className="whitespace-nowrap" data-change-scope>{sw.slice(cut + 1)}</span></>;
+              })()}</span>
             )}
           </span>
           )}
@@ -28516,7 +28561,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             return (
               <div
-                className="flex min-w-0 items-center gap-1.5"
+                className="flex min-w-0 items-center gap-1.5 wm-legend-status"
                 aria-label={feedRecency.spoken}
                 data-feed-recency-kind={feedRecency.kind}
                 title={

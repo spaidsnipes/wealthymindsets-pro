@@ -24,6 +24,7 @@ import { loadFvgLedgerFor } from "@/lib/journal/planFvgLoader";
 import { DEPARTURES } from "@/lib/journal/planAdherence";
 import type { FvgLedger } from "@/lib/marketData/fvg/fvgEngine";
 import { fvgContextSplits, type SplitRow } from "@/lib/journal/planFvgContextSplits";
+import { splitContextOf } from "@/lib/journal/fvgDecisionContext";
 import { managementCounterfactual, type ManagementCounterfactual } from "@/lib/journal/planManagementCounterfactual";
 import { FvgContextSplitsView, FvgReviewQuestionsView, ManagementCounterfactualView } from "@/components/journal/FvgContextSplitsView";
 import { additionalEvidenceComparison, fillTargetComparison, gapDecisionFrom, type GroupComparison } from "@/lib/journal/planFvgFillTargets";
@@ -54,10 +55,11 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
       const byId = new Map(reviewed.map(r => [r.e.id, r.result]));
       const refd = entries.filter(e => e.fvgRef);
       setFvgRows(refd.length ? fvgStudyList(refd.map(e => ({ ref: e.fvgRef!, result: byId.get(e.id) ?? null, realizedR: e.realizedR ?? null }))) : []);
-      // §23 context splits from what the trader's own reference stored (session, timeframe, instrument,
-      // order flow). Context it did not store (structure, profile, wall, effort→response, regime, the
-      // territory's response) reads NOT RECORDED — never guessed from today's chart.
-      setSplits(refd.length ? fvgContextSplits(refd.map(e => ({ ref: e.fvgRef!, realizedR: e.realizedR ?? null, result: byId.get(e.id) ?? null }))) : []);
+      // §23 context splits from what the trader's own entry stored: the reference (session, timeframe,
+      // instrument, order flow) and, when it was read with the reference, the §40 context (structure,
+      // profile, wall, effort→response, regime). What an entry did not store reads NOT RECORDED — never
+      // guessed from today's chart. The territory's own response is not stored at the decision.
+      setSplits(refd.length ? fvgContextSplits(refd.map(e => ({ ref: e.fvgRef!, ...splitContextOf(e.fvgRef!, e.fvgContext), realizedR: e.realizedR ?? null, result: byId.get(e.id) ?? null }))) : []);
       // §24 did management help? A journal entry carries no price path, so the plan-alone side stays
       // INSUFFICIENT with its n until paths are loaded; restraint reads the trader's own recorded R.
       // §41: the trader's gap decisions, from the stored reference + the frozen plan + the recorded result.
@@ -96,7 +98,7 @@ export const PLAN_ADHERENCE_EMPTY_LINE = "Plan adherence: no trade in your Journ
 /** §23: no Journal entry references a gap yet — say what the splits need; never an empty table. */
 export const FVG_SPLITS_EMPTY_LINE = "FVG context splits: no Journal entry references a gap yet. Attach the FVG reference when you journal a gap trade — each decision is then split by session, timeframe, instrument and order flow as of the decision, with the market's answer and yours kept apart.";
 /** §23 on a real book: what the stored reference does not carry is named, not filled in. */
-export const FVG_SPLITS_CONTEXT_NOTE = "Structure, profile, wall, effort→response, regime and the territory's response are read only when the reference stored them; otherwise they show NOT RECORDED — never re-read from today's chart.";
+export const FVG_SPLITS_CONTEXT_NOTE = "Structure, profile, wall, effort→response and regime come from the context read with the reference at the decision; an entry saved without it shows NOT RECORDED — never re-read from today's chart.";
 
 /** The Personal Edge block itself — pure, so it can be proved without a signed-in book. */
 export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onCompare, splits, management, q41 }: {

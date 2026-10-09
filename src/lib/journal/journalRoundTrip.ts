@@ -11,6 +11,7 @@
  */
 
 import { readJournalStorage, writeJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
+import { fvgContextNote, type JournalFvgContext } from "./fvgDecisionContext";
 import { fvgReferenceSentence, type JournalFvgReference } from "./fvgDecisionReference";
 import { hydrateJournalEntries } from "./hydrateJournalEntries";
 
@@ -44,17 +45,18 @@ function memoryStorage() {
 const canon = (v: unknown): string => JSON.stringify(v, (_k, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x));
 
 /** One sample entry, shaped as the Journal page's form builds it (`{ ...form }`), carrying the reference. */
-export function sampleEntryWith(id: string, fvgRef: JournalFvgReference) {
+export function sampleEntryWith(id: string, fvgRef: JournalFvgReference, fvgContext?: JournalFvgContext | null) {
   return {
+    ...(fvgContext ? { fvgContext } : {}),
     id, date: new Date(fvgRef.decisionAtMs).toISOString().slice(0, 10), symbol: fvgRef.symbol, side: fvgRef.snapshot.direction === "BULLISH" ? "long" : "short",
     entry: 100, exit: 101, size: 1, pnl: 1, pct: 1, tags: [], notes: "sample entry (proof scene)", mood: "neutral", result: "win",
     processQuality: "UNRESOLVED", processOutcome: "UNRESOLVED", starred: false, images: [], voiceSec: 0, setup: "SAMPLE", mistakes: "", lessons: "", emojis: [], fvgRef,
   };
 }
 
-export function journalRoundTrip(fvgRef: JournalFvgReference, id = "SAMPLE-ROUNDTRIP-1"): RoundTripProof {
+export function journalRoundTrip(fvgRef: JournalFvgReference, id = "SAMPLE-ROUNDTRIP-1", fvgContext: JournalFvgContext | null = null): RoundTripProof {
   const st = memoryStorage();
-  const before = sampleEntryWith(id, fvgRef);
+  const before = sampleEntryWith(id, fvgRef, fvgContext);
   const json = JSON.stringify([before]);
   if (!writeJournalStorage(st, json)) {
     return { key: null, bytes: 0, readStatus: "NOT SAVED", rows: [], referenceDeepEqual: false, secondSaveByteStable: false, verdict: "NOT SAVED" };
@@ -75,6 +77,8 @@ export function journalRoundTrip(fvgRef: JournalFvgReference, id = "SAMPLE-ROUND
     row("Deepest penetration", String(s0.maxPenetration), s1 ? String(s1.maxPenetration) : null),
     row("Evidence senses", s0.evidence.map(e => `${e.sense}:${e.state}`).join(", "), s1 ? s1.evidence.map(e => `${e.sense}:${e.state}`).join(", ") : null),
     row("Sentence the trader reads", fvgReferenceSentence(fvgRef), a ? fvgReferenceSentence(a) : null),
+    // §40: the context read with the reference comes back with it (or stays "not recorded" on both sides).
+    row("Context at the decision", fvgContextNote(fvgRef, fvgContext), a ? fvgContextNote(a, after?.fvgContext) : null),
   ];
   // Second save → reload: the reloaded entry written back must produce the same bytes for the reference.
   const st2 = memoryStorage();

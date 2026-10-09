@@ -2212,6 +2212,18 @@ input[type=range]::-webkit-slider-runnable-track {
      line inside its box (min-w-0 + line-clamp-2) and never leaves the band. */
   .wm-legend-recency-wide { display: none !important; }
   .wm-legend-recency-narrow { display: inline !important; }
+  /* Serving /desk 4-up 1180 (559884e, 2026-10-09, SEB pane): with a longer
+     price line the status box (min-w-0) shrank to 0px and "196 BARS BEHIND"
+     was clipped away whole — inside the pane, and not on the glass. In a
+     narrow band the STATUS KEEPS ITS WIDTH (at most 14ch a line, two lines)
+     and the PRICE WORDS YIELD by wrapping once, before their scope
+     ("-41.62 (-1.02%)" / "/5m bar") — never over the headline price.
+     Nothing is hidden: every word stays on the glass. */
+  [data-legend-group="price"] ~ div:has(.wm-legend-status [data-recency-narrow]) { flex-shrink: 0 !important; min-width: max-content; }
+  .wm-legend-status:has([data-recency-narrow]) { flex-shrink: 0; min-width: max-content; }
+  .wm-legend-recency-narrow { display: inline-block !important; max-width: 14ch; }
+  [data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) { flex-shrink: 1; min-width: min-content; }
+  [data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) .wm-legend-words-short { display: inline-block; white-space: normal; line-height: 1.1; vertical-align: middle; }
 }
 .wm-legend-recency-narrow { display: none; }
 

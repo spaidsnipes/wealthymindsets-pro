@@ -1,3 +1,4 @@
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 /**
  * LIVING MARKET · LIVE / STILL — one presentation state (Garden 16 §7/§13/§15).
  *
@@ -27,7 +28,8 @@ export function readLivingMarket(): LivingMarket {
 
 export function writeLivingMarket(mode: LivingMarket): void {
   const previous = readLivingMarket();
-  try { window.localStorage.setItem(LIVING_MARKET_KEY, mode); } catch { /* storage unavailable: the state still holds for this page */ }
+  // A proof scene writes nothing (2026-10-09): the mode still holds for this page.
+  try { if (!proofSceneHoldsWrites()) window.localStorage.setItem(LIVING_MARKET_KEY, mode); } catch { /* storage unavailable: the state still holds for this page */ }
   if (typeof window !== "undefined" && previous !== mode && typeof window.dispatchEvent === "function") {
     window.dispatchEvent(new CustomEvent<LivingMarket>(LIVING_MARKET_EVENT, { detail: mode }));
   }

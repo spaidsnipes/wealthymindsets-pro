@@ -199,7 +199,7 @@ export const FVG_LESSONS: readonly FvgLesson[] = [
     ["Which swing did the displacement leg break?", "Is the territory inside a trend leg or inside a range?"],
     ["MarketStructure"]),
   L(12, "FVG + profile", "10m", "profile",
-    "A territory often lines up with thin volume — prices the auction passed through quickly.",
+    "A territory can line up with thin volume — prices the auction passed through quickly.",
     [
       "A volume profile shows where business was done. A territory that sits in a low-volume area agrees with it; one inside a high-volume area is a weaker observation.",
       "Agreement between two independent readings is context. It is still not a promise about what price does next.",
@@ -270,12 +270,17 @@ export const FVG_LESSONS: readonly FvgLesson[] = [
     [
       "\"Smart money defended the gap\" is a story. \"Price touched the territory, closed back outside on the origin side, without full mitigation\" is evidence. Start with the evidence.",
       "No mind-reading: the tape shows prints and sides where they exist, never intent.",
+      // §33 #20 (Founder order): "how fear, impatience, FOMO and interference may affect
+      // execution while distinguishing evidence from interpretation". Each is named as an
+      // ACTION a record can show, never as a diagnosis of the trader.
+      "The same rule applies to you. Fear, impatience, fear of missing out and interference are interpretations; what a record can show is the action: an exit taken before the plan's condition, an entry before the touch, an entry after the move had already left, an order changed again and again.",
+      "Review prints those actions as facts beside the plan — \"took profit before the condition\", \"changed orders repeatedly\" — and leaves the reason to you. A departure from the plan is evidence. Why it happened is yours to name, and only you can.",
     ],
-    ["Can I say it without naming a participant?", "Which closes support the label?"]),
+    ["Can I say it without naming a participant?", "Which closes support the label?", "Which of my actions departed from the plan — stated as an action, not a feeling?"]),
   L(21, "Your personal edge", "12m", "edge",
     "Your edge with territories is what YOUR journal shows, on YOUR markets — not what a course claims.",
     [
-      "Tag the trades you took at a territory as FVG in the Journal. Over time the Academy can show those trades beside this course.",
+      "When you write a Journal entry for a decision at a territory, use \"Reference an FVG\" to attach the gap as it stood at that moment. Those decisions then appear under \"Show me my examples\" in this course.",
       "Read them with lesson 16's rules: what was the sample, how large is N, which regime. Keep what the evidence supports; drop the rest.",
       FVG_NO_GUARANTEE,
     ],

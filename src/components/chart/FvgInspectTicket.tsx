@@ -17,7 +17,7 @@ import React from "react";
 import Link from "next/link";
 import { Crosshair, X } from "lucide-react";
 import { fvgInspectRows, type FvgObject } from "@/lib/chart/fvgGlass";
-import { CONCEPT_EDUCATION } from "@/lib/chart/inventionEducation";
+import { fvgLessonForState } from "@/lib/academy/fvgLessonForState";
 import { AskSpaidbotButton } from "@/components/ai/AskSpaidbotButton";
 import { fvgInspectAsk } from "@/lib/ai/spaidbotAsk";
 import type { FvgRelationshipReading } from "@/lib/marketData/fvg/fvgRelationships";
@@ -39,7 +39,8 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
   onClose: () => void;
 }) {
   const rows = fvgInspectRows(o, fmt, clock);
-  const academy = CONCEPT_EDUCATION.FVG_IMBALANCE.academy;
+  // §35 · the lesson about what THIS gap is doing (traded through → lesson 14, memory → 15 …), not always lesson 1.
+  const academy = fvgLessonForState(o.state);
   const bull = o.direction === "BULLISH";
   return (
     <section

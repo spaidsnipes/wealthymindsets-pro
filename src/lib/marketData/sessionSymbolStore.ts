@@ -18,6 +18,7 @@
  * multi-symbol panels) react without threading refs through the tree.
  */
 
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { runtimeTapeSourceAssetClass } from "./capabilityRegistry";
 import { canonicalAssetClass } from "./canonicalIdentity";
 
@@ -172,6 +173,8 @@ function scheduleFlush(): void {
   if (flushHandle) return;
   flushHandle = setTimeout(() => {
     flushHandle = null;
+    // A proof scene writes nothing (2026-10-09).
+    if (proofSceneHoldsWrites()) return;
     try {
       window.localStorage.setItem(LS_KEY, serializeCurrent(Math.floor(Date.now() / 1000)));
     } catch { /* quota / private mode → next flush will retry */ }

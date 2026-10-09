@@ -46,6 +46,34 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
     expect(Object.values(a.planResults).every(r => r.emotionalReason === "unknown")).toBe(true);
   });
 
+  it("a link's fragment lands ON its sample decision: every example href names an id the Review can show", async () => {
+    const { fixtureAnchorId, shownFixtureEntries, JOURNAL_FIXTURE_SHOWN } = await import("@/lib/journal/journalProofFixture");
+    const a = journalFixture();
+    expect(JOURNAL_FIXTURE_SHOWN).toBe(6);
+    // Every "Show me my examples" link points at an id the fixture has — and that id is rendered when asked for.
+    for (const x of a.examples) {
+      const id = fixtureAnchorId(x.href.slice(x.href.indexOf("#")), a.entries);
+      expect(id, x.href).not.toBeNull();
+      expect(shownFixtureEntries(a.entries, id).some(e => e.id === id), x.href).toBe(true);
+    }
+    // The case the education lane found: #SAMPLE-24 is past the first six — it is appended, not dropped.
+    expect(fixtureAnchorId("#SAMPLE-24", a.entries)).toBe("SAMPLE-24");
+    const shown = shownFixtureEntries(a.entries, "SAMPLE-24");
+    expect(shown.map(e => e.id)).toEqual(["SAMPLE-1", "SAMPLE-2", "SAMPLE-3", "SAMPLE-4", "SAMPLE-5", "SAMPLE-6", "SAMPLE-24"]);
+    // One of the first six adds nothing; an unknown or empty fragment names nothing.
+    expect(shownFixtureEntries(a.entries, "SAMPLE-3")).toHaveLength(6);
+    expect(shownFixtureEntries(a.entries, null)).toHaveLength(6);
+    expect(fixtureAnchorId("#SAMPLE-99", a.entries)).toBeNull();
+    expect(fixtureAnchorId("", a.entries)).toBeNull();
+    expect(fixtureAnchorId("#%E0%A4%A", a.entries)).toBeNull();          // a malformed fragment never throws
+    const scene = read("components/journal/JournalProofScene.tsx");
+    expect(scene).toContain("const shown = shownFixtureEntries(f.entries, anchorId);");
+    expect(scene).toContain('window.addEventListener("hashchange", read);');
+    expect(scene).toContain('el.scrollIntoView({ block: "center" });');
+    expect(scene).toContain('data-anchored={e.id === anchorId ? "yes" : "no"}');
+    expect(scene).toContain('data-testid="journal-proof-anchored"');
+  });
+
   it("rendering the scene makes ZERO storage writes and ZERO network calls; the banner is on screen", async () => {
     const setItem = vi.fn();
     const fetchSpy = vi.fn();
@@ -98,7 +126,8 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
       expect(html.match(/Not recorded\. WM does not fill this in\./g) ?? []).toHaveLength(3);
       // Save → reload of a sample entry in a throwaway in-memory store: 9 rows, all the same, verdict stated — and setItem on the real storage never called (below).
       expect(html).toContain('data-verdict="SAME SNAPSHOT AFTER RELOAD"');
-      expect(html.match(/data-testid="journal-proof-roundtrip-row" data-same="yes"/g) ?? []).toHaveLength(9);
+      expect(html.match(/data-testid="journal-proof-roundtrip-row" data-same="yes"/g) ?? []).toHaveLength(10);
+      expect(html).toMatch(/Context at the decision \(from \d+ closed bars\): structure /);
       expect(html).not.toContain('data-same="no"');
       // Rows that need a Founder action, on a labelled sample: plan lifecycle (6 steps, all holding), Review from a
       // tastytrade and a Webull readback with their UNKNOWN lines, and auto-capture with provenance per field.

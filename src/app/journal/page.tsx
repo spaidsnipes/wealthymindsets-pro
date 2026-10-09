@@ -20,6 +20,7 @@ import { captureToJournalForm } from "@/lib/journal/journalCaptureFromFill";
 import { takeJournalCapture } from "@/lib/journal/journalCaptureHandoff";
 import { JournalFvgReferenceField } from "@/components/journal/JournalFvgReferenceField";
 import { fvgReferenceSentence, parseFvgObjectId } from "@/lib/journal/fvgDecisionReference";
+import { fvgContextNote } from "@/lib/journal/fvgDecisionContext";
 import { journalReviewKey, reviewEvidenceFromCapture } from "@/lib/journal/captureReviewEvidence";
 import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
 import { planReviewInputForJournalEntry } from "@/lib/journal/planReview";
@@ -3275,6 +3276,8 @@ Trade the system, trust the process, winners every day 🚀`,
               {/* Garden 19 §40: one canonical FVG, referenced with its state AT DECISION TIME. */}
               <JournalFvgReferenceField key={fvgPrefillId ?? "none"} value={form.fvgRef}
                 onChange={ref => setForm(f => ({ ...f, fvgRef: ref }))}
+                onContext={ctx => setForm(f => ({ ...f, fvgContext: ctx }))}
+                contextNote={form.fvgRef ? fvgContextNote(form.fvgRef, form.fvgContext) : null}
                 initialObjectId={fvgPrefillId}
                 initialDecisionAtMs={form.capture?.filledAt.value ? Date.parse(form.capture.filledAt.value) : null} />
 

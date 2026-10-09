@@ -42,6 +42,30 @@ describe("education-fixture proof scene", () => {
     expect(body).not.toMatch(/localStorage\.setItem|\.setItem\(/);
   });
 
+  it("the quiz can be taken in the scene: result on screen, a banner, and no progress or note read or written", () => {
+    const page = read("src/app/education/page.tsx");
+    // Banner and the pass line are on the page, signed-in only.
+    expect(page).toMatch(/const on = educationFixtureOn\(window\.location\.search, !!sceneUser\);/);
+    expect(page).toMatch(/data-testid="education-scene-banner"/);
+    expect(page).toMatch(/data-testid="education-scene-pass"/);
+    // The verified mark is set on the page (setMods) BEFORE the scene returns without persisting.
+    const mark = page.slice(page.indexOf("const markLessonComplete"), page.indexOf("const allLessons"));
+    expect(mark.indexOf("setMods(next);")).toBeGreaterThan(-1);
+    expect(mark.indexOf("setMods(next);")).toBeLessThan(mark.indexOf('=== "education-fixture"'));
+    expect(mark.indexOf("setScenePass(")).toBeLessThan(mark.indexOf("persistAcademyProgress("));
+    // Saved progress and saved notes are not read in the scene; a typed note is not written.
+    const init = page.slice(page.indexOf("const [mods, setMods]"), page.indexOf("const [expandedId"));
+    expect(init.indexOf('=== "education-fixture") return MODULES;')).toBeLessThan(init.indexOf("localStorage.getItem(EDU_KEY)"));
+    expect(init.indexOf('=== "education-fixture") return MODULES;')).toBeGreaterThan(-1);
+    const noteRead = page.indexOf('if (proofFixtureScene(window.location.search) === "education-fixture") { setReadState("READ"); setText(""); return; }');
+    expect(noteRead).toBeGreaterThan(-1);
+    expect(noteRead).toBeLessThan(page.indexOf("readAcademyNote(() => window.localStorage, KEY)"));
+    const noteWrite = page.slice(page.indexOf("const onChange = (v: string) => {"), page.indexOf("persistAcademyNote(() => window.localStorage, KEY, v)"));
+    expect(noteWrite).toMatch(/=== "education-fixture"\) return;/);
+    // Every storage write in the page: the two guarded ones above, plus one unrelated click handler (a chart preference).
+    expect(page.match(/persistAcademyProgress\(|persistAcademyNote\(/g)!.length).toBe(2);
+  });
+
   it("Academy progress is not written under the scene", () => {
     const page = read("src/app/education/page.tsx");
     const guard = page.indexOf('if (proofFixtureScene(window.location.search) === "education-fixture") return;');

@@ -15,6 +15,7 @@ import {
   parseFvgObjectId,
   type JournalFvgReference,
 } from "@/lib/journal/fvgDecisionReference";
+import { fvgContextAtDecision, type JournalFvgContext } from "@/lib/journal/fvgDecisionContext";
 
 function toLocalInput(ms: number | null): string {
   if (ms === null || !Number.isFinite(ms)) return "";
@@ -23,9 +24,13 @@ function toLocalInput(ms: number | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function JournalFvgReferenceField({ value, onChange, initialObjectId, initialDecisionAtMs }: {
+export function JournalFvgReferenceField({ value, onChange, onContext, contextNote, initialObjectId, initialDecisionAtMs }: {
   value: JournalFvgReference | undefined;
   onChange: (ref: JournalFvgReference | undefined) => void;
+  /** §40: the market context read with the reference (same bars, as of the decision); undefined clears it. */
+  onContext?: (ctx: JournalFvgContext | undefined) => void;
+  /** One line saying what context is attached (or why none is). */
+  contextNote?: string | null;
   initialObjectId?: string | null;
   /** The fill time when the entry came from a broker capture; else the trader sets it. */
   initialDecisionAtMs?: number | null;
@@ -41,7 +46,8 @@ export function JournalFvgReferenceField({ value, onChange, initialObjectId, ini
         <div className="text-[9px] text-wm-text-dim uppercase tracking-wider mb-1">FVG referenced — its state at decision time</div>
         <p className="text-[11px] text-wm-text">{fvgReferenceSentence(value)}</p>
         <p className="mt-1 text-[10px] font-mono text-wm-text-dim break-all" aria-hidden="true">{value.objectId}</p>
-        <button type="button" onClick={() => onChange(undefined)} className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold mt-1 text-[10px] underline text-wm-text-muted">Remove the reference</button>
+        {contextNote ? <p data-testid="journal-fvg-context" className="mt-1 text-[10px] text-wm-text-dim">{contextNote}</p> : null}
+        <button type="button" onClick={() => { onChange(undefined); onContext?.(undefined); }} className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold mt-1 text-[10px] underline text-wm-text-muted">Remove the reference</button>
       </div>
     );
   }
@@ -66,6 +72,9 @@ export function JournalFvgReferenceField({ value, onChange, initialObjectId, ini
     const r = fvgReferenceAtDecision({ objectId: objectId.trim(), decisionAtMs: at, bars: bars.bars });
     if (!r.ok) { setRefusal(r.reason); return; }
     onChange(r.ref);
+    // The context of the SAME bars at the SAME moment; when it cannot be read, none is attached (never guessed).
+    const c = fvgContextAtDecision(r.ref, bars.bars);
+    onContext?.(c.ok ? c.context : undefined);
   };
 
   return (

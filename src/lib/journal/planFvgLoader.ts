@@ -4,6 +4,7 @@
  * field uses — so Review can see what happened to the territory after the
  * decision. Read only; asked only when the trader presses for it.
  */
+import type { CanonicalBar } from "@/lib/marketData/canonicalBar";
 import { detectFvgs, type FvgLedger } from "@/lib/marketData/fvg/fvgEngine";
 import { fetchFvgBars } from "@/lib/marketData/fvg/fvgBarSource";
 import { parseFvgObjectId } from "./fvgDecisionReference";
@@ -14,4 +15,13 @@ export async function loadFvgLedgerFor(objectId: string, nowMs: number, fetcher?
   const bars = await fetchFvgBars({ symbol: id.symbol, timeframe: id.timeframe, bars: 3000, nowMs, fetcher });
   if (!bars.ok) return { reason: bars.reason };
   return { ledger: detectFvgs(bars.bars, { symbolId: id.symbol, timeframe: id.timeframe }) };
+}
+
+/**
+ * The same engine over bars ALREADY in hand (no fetch) — for the journal's as-of context reader
+ * (fvgDecisionContext), which passes only the bars that had closed by the decision. Named here so the
+ * engine keeps its short list of readers (fvgCamera.sentinel).
+ */
+export function fvgLedgerFromClosedBars(bars: readonly CanonicalBar[], symbol: string, timeframe: string): FvgLedger {
+  return detectFvgs(bars, { symbolId: symbol, timeframe });
 }

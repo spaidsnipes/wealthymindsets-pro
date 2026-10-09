@@ -34,12 +34,14 @@ describe("§57 selling story — one owner, honest words", () => {
     expect(PRODUCT_KIND_TITLE.toUpperCase()).toBe(PRODUCT_KIND);
   });
 
-  it("the operating loop is the 14 steps, in order, ending where it began", () => {
+  it("the operating loop is the Founder's §56 loop — 15 steps, in order, closing with the return to the market", () => {
     expect(OPERATING_LOOP.map(s => s.step.toUpperCase())).toEqual([
       "LEARN", "SEE", "WAIT", "UNDERSTAND", "INSPECT", "PLAN", "DECIDE",
-      "TRADE", "PROTECT", "MANAGE", "JOURNAL", "REVIEW", "MEASURE", "LEARN YOURSELF",
+      "TRADE", "PROTECT", "MANAGE", "JOURNAL", "REVIEW", "MEASURE", "LEARN YOURSELF", "RETURN TO MARKET BETTER",
     ]);
     for (const s of OPERATING_LOOP) expect(s.line.length, s.step).toBeGreaterThan(10);
+    // The closing step carries the Founder's own next sentence, verbatim — no new claim.
+    expect(OPERATING_LOOP[14].line).toBe("That is a Trading Operating System.");
   });
 
   it("follows a territory through formation, interaction, response, memory, review and education", () => {
