@@ -41,6 +41,10 @@ function departureSample(n: number) {
 export function ProfileProofScene(): React.ReactElement {
   const books = useMemo(() => PROFILE_FIXTURE_SIZES.map(n => profileFixtureBook(n)), []);
   return (
+    // The shell hands this room its own scroll (`data-scroll-owner="workspace"`: main is
+    // overflow hidden). The real profile scrolls in its root; the proof scene had no
+    // scroller, so everything past the first screen was unreachable (read at 390, 2026-10-09).
+    <div className="h-full overflow-y-auto" data-testid="profile-proof-scroll">
     <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto" data-testid="profile-proof-scene" data-proof-scene="profile-fixture">
       <div role="status" data-testid="profile-proof-banner"
         className="rounded-lg border px-3 py-2 text-[12px] font-black tracking-wider"
@@ -66,6 +70,7 @@ export function ProfileProofScene(): React.ReactElement {
           ) : null}
         </section>
       ))}
+    </div>
     </div>
   );
 }

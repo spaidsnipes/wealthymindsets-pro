@@ -110,6 +110,8 @@ export const ATTENTION_FLOOR = 0.12;
  * present than on the desk: LIVE keeps 1, SUPPORTING 0.55, MEMORY 0.30
  * (coordinator numbers, 2026-10-09). Memory Ghost's own floor rule is separate.
  */
+/** On narrow glass a LIVE / SUPPORTING name is never fainter than this (before a question's quiet). */
+export const NARROW_TEXT_FLOOR = 0.8;
 export const NARROW_TIER_CEILING: Readonly<Partial<Record<AttentionTier, number>>> = { SUPPORTING: 0.55, MEMORY: 0.3 };
 /**
  * A fused object's two parents step back so the derived object reads as the
@@ -457,7 +459,13 @@ export function selectAttentionGovernor(
     receding,
     tierOf,
     alpha,
-    textAlpha: (key: AttentionLayerKey, opts?: AttentionAlphaOpts) => Math.max(TEXT_ALPHA_FLOOR, alpha(key, opts)),
+    // PHONE: the few words that still speak must READ (serving 390, e05c774:
+    // CALL / PUT OI names at the SUPPORTING 0.55 were dull against the candles).
+    // On narrow glass a context name keeps NARROW_TEXT_FLOOR — scaled by a
+    // question's quiet, never below the room's own text floor. MEMORY stays faint.
+    textAlpha: (key: AttentionLayerKey, opts?: AttentionAlphaOpts) => Math.max(
+      input.narrowGlass === true && tierOf(key, opts) !== "MEMORY" ? Math.max(TEXT_ALPHA_FLOOR, NARROW_TEXT_FLOOR * quiet) : TEXT_ALPHA_FLOOR,
+      alpha(key, opts)),
     withQuestionQuiet: (q: number) => selectAttentionGovernor({ ...input, questionQuiet: q }, asked, withheld),
     // A layer the depth withheld may have asked for its alpha before its
     // per-item gate refused every item; it painted nothing, so it is not listed.

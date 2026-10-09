@@ -53,9 +53,10 @@ const FACET_LABEL: Record<FvgStudyFacet, string> = {
   crossesSession: "Opening gap",
   structure: "Structure (swing broken / reclaimed / inside)",
   profile: "Prior-range profile level at the gap",
+  volatility: "Volatility at formation (from bars)",
 };
 
-const FILTER_FACETS: readonly FvgStudyFacet[] = ["instrument", "timeframe", "session", "regime", "direction", "displacement", "crossesSession", "structure", "profile"];
+const FILTER_FACETS: readonly FvgStudyFacet[] = ["instrument", "timeframe", "session", "regime", "direction", "displacement", "crossesSession", "structure", "profile", "volatility"];
 
 const RELATIONSHIP_VALUE_LABEL: Readonly<Record<string, string>> = {
   WITH_STRUCTURE: "With a structure relationship",
@@ -79,10 +80,18 @@ const SESSION_VALUE_LABEL: Readonly<Record<string, string>> = {
   NO_CLOCK: "No session clock",
 };
 const REGIME_VALUE_LABEL: Readonly<Record<string, string>> = { UNTAGGED: "Not tagged (no tape on these bars)" };
+/** The helper's four values (fvgFormationContext) in a trader's words. */
+const VOLATILITY_VALUE_LABEL: Readonly<Record<string, string>> = {
+  COMPRESSED: "Compressed (range below its normal)",
+  NORMAL: "Normal",
+  EXPANDED: "Expanded (range above its normal)",
+  NOT_READ: "Not read (too few bars before the gap)",
+};
 
 export function facetValueLabel(facet: FvgStudyFacet, v: string): string {
   if (facet === "session") return SESSION_VALUE_LABEL[v] ?? v;
   if (facet === "regime") return REGIME_VALUE_LABEL[v] ?? v;
+  if (facet === "volatility") return VOLATILITY_VALUE_LABEL[v] ?? v;
   if (facet === "displacement") return FVG_DISPLACEMENT_BAND_LABEL[v as keyof typeof FVG_DISPLACEMENT_BAND_LABEL] ?? v;
   if (facet === "crossesSession") return v === "CROSSES_SESSION" ? "Crosses a session boundary" : "Within one session";
   if (facet === "structure" || facet === "profile") return RELATIONSHIP_VALUE_LABEL[v] ?? v;
@@ -259,6 +268,7 @@ export function FvgStudyPanel({ symbol, timeframe, rangeDays, timeframes, onSymb
             ))}
           </div>
           {study.regimeNote && <p className="text-[10px] text-wm-text-dim mb-3">{study.regimeNote}</p>}
+          <p className="text-[10px] text-wm-text-dim mb-3" data-testid="fvg-study-volatility-note">{study.volatilityNote}</p>
           <p className="text-[10px] text-wm-text-dim mb-3" data-testid="fvg-study-relationship-note">
             Relationship filters read only bars from before each gap formed: structure = a confirmed swing it broke, reclaimed or contains;
             profile = a POC / VAH / VAL of the range profile of the 100 bars before it (candle-estimated, PARTIAL). Liquidity walls need a

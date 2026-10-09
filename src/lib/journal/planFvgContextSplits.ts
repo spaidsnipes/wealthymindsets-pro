@@ -22,6 +22,9 @@
  *                    decision knew of (§13) — "no touch bar read" when there was none
  *   SESSION          New York time of the decision
  *   REGIME           the gap's regime tag at b2 (UNTAGGED when no regime reading was attached)
+ *   VOLATILITY       (§5, bars scope) Market Breathing's word for the closed bars up to b2, or NOT READ
+ *   TAPE REGIME      (§5, tape scope) the live tape verdict the saving surface held at the decision, or
+ *                    NOT READ — never recomputed, never the bars' volatility under another name
  *   TIMEFRAME, INSTRUMENT  from the reference
  *
  * Context a record does not carry is its own group ("NOT RECORDED …"), never
@@ -42,8 +45,8 @@ import { DEPARTURES } from "./planAdherence";
 import type { PlanVsActualResult } from "./planVsActual";
 import { INSUFFICIENT, insufficientLine, isMeasured, STAT_SAMPLE_MIN } from "./statGuard";
 
-export type SplitDimension = "STRUCTURE" | "PROFILE" | "ORDER FLOW" | "WALL" | "EFFORT→RESPONSE" | "TOUCH EFFORT" | "SESSION" | "REGIME" | "TIMEFRAME" | "INSTRUMENT";
-export const SPLIT_DIMENSIONS: readonly SplitDimension[] = ["STRUCTURE", "PROFILE", "ORDER FLOW", "WALL", "EFFORT→RESPONSE", "TOUCH EFFORT", "SESSION", "REGIME", "TIMEFRAME", "INSTRUMENT"];
+export type SplitDimension = "STRUCTURE" | "PROFILE" | "ORDER FLOW" | "WALL" | "EFFORT→RESPONSE" | "TOUCH EFFORT" | "SESSION" | "REGIME" | "VOLATILITY" | "TAPE REGIME" | "TIMEFRAME" | "INSTRUMENT";
+export const SPLIT_DIMENSIONS: readonly SplitDimension[] = ["STRUCTURE", "PROFILE", "ORDER FLOW", "WALL", "EFFORT→RESPONSE", "TOUCH EFFORT", "SESSION", "REGIME", "VOLATILITY", "TAPE REGIME", "TIMEFRAME", "INSTRUMENT"];
 
 /** The part of a relationship reading the splits use — a full FvgRelationshipReading satisfies it. */
 export interface SplitRelationships {
@@ -63,6 +66,10 @@ export interface SplitInput {
   readonly effortCell?: ResponseCell | "SILENT" | null;
   /** The gap's regime tag at b2 (FvgObject.regime); null = not recorded. */
   readonly regime?: string | null;
+  /** §5 bars scope: volatility at formation (the owner's word or "NOT_READ"); null = not recorded. */
+  readonly volatility?: string | null;
+  /** §5 tape scope: the live tape regime at the decision (or "NOT_READ"); null = not recorded. */
+  readonly tapeRegime?: string | null;
   /** MARKET outcome: the territory's own response in the decision's interaction; null = not known. */
   readonly marketResponse?: FvgInteractionResponse | null;
   /** TRADER outcome. */
@@ -127,6 +134,8 @@ export function splitGroupsOf(x: SplitInput): Readonly<Record<SplitDimension, st
     "TOUCH EFFORT": touch,
     SESSION: sessionGroupOf(x.ref.decisionAtMs),
     REGIME: x.regime == null ? NOT : x.regime === "UNTAGGED" ? "Regime UNTAGGED (no regime reading attached)" : `Regime ${x.regime}`,
+    VOLATILITY: x.volatility == null ? NOT : x.volatility === "NOT_READ" ? "Volatility at formation NOT READ" : `Volatility at formation ${x.volatility}`,
+    "TAPE REGIME": x.tapeRegime == null ? NOT : x.tapeRegime === "NOT_READ" ? "Tape regime NOT READ at the decision (no tape held)" : `Tape regime ${x.tapeRegime} at the decision`,
     TIMEFRAME: `Timeframe ${x.ref.timeframe}`,
     INSTRUMENT: x.ref.symbol,
   };

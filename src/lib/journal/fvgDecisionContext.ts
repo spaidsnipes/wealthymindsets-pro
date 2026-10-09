@@ -17,6 +17,11 @@
  *   order flow  (§14, version 2) the ORDER_FLOW family. The Journal holds bars only — no signed volume — so the
  *               family is a stated SILENCE here, never read from candles.
  *   regime      the gap's regime tag at b2 ("UNTAGGED" when no regime reading was attached)
+ *   volatility  (§5, bars scope) Market Breathing's word for the closed bars up to b2 — COMPRESSED / NORMAL /
+ *               EXPANDED, or NOT_READ (fvgFormationContext). Never called "regime".
+ *   tape regime (§5, tape scope) the LIVE tape verdict at the decision, when the surface that saved the
+ *               decision held one — else NOT_READ. It is the regime as the trader had it then; it is never
+ *               recomputed later and never stamped on the gap. The Journal holds no tape, so it saves NOT_READ.
  *
  * AS OF THE DECISION: only bars that had CLOSED by the reference's `readAsOfMs` are read. Nothing after
  * the decision can change a stored context (future-leak test). A record that does not carry a context
@@ -26,6 +31,7 @@
 import type { ResponseCell } from "@/lib/chart/effortEvidence";
 import type { CanonicalBar } from "@/lib/marketData/canonicalBar";
 import { fvgBarContext, fvgBarOnlyRelationships } from "@/lib/marketData/fvg/fvgBarContext";
+import { FVG_VOLATILITY_FACET_VALUES, fvgVolatilityAtFormationByTime, fvgVolatilityFacet, type FvgVolatilityFacet } from "@/lib/marketData/fvg/fvgFormationContext";
 
 import type { JournalFvgReference } from "./fvgDecisionReference";
 import { fvgLedgerFromClosedBars } from "./planFvgLoader";
@@ -58,7 +64,14 @@ export interface JournalFvgContext {
    * (confirmationFact). Absent on a context saved before this field existed.
    */
   readonly responseAsOf?: FvgResponseAsOf;
+  /** §5 bars scope — volatility at formation, the owner's word or NOT_READ. Absent on a context saved before it existed. */
+  readonly volatilityAtFormation?: FvgVolatilityFacet;
+  /** §5 tape scope — the live tape regime verdict at the decision, or NOT_READ when no tape was held. Absent on older rows. */
+  readonly tapeRegimeAtDecision?: TapeRegimeAtDecision;
 }
+
+export const TAPE_REGIME_VALUES = ["TREND", "BALANCE", "TRANSITION", "EXPANSION", "COMPRESSION", "NOT_READ"] as const;
+export type TapeRegimeAtDecision = (typeof TAPE_REGIME_VALUES)[number];
 
 export type FvgResponseAsOf = "REJECTED" | "ACCEPTED" | "TRADED_THROUGH" | "NONE" | "OPEN" | "NO_TOUCH";
 const RESPONSES: readonly string[] = ["REJECTED", "ACCEPTED", "TRADED_THROUGH", "NONE", "OPEN", "NO_TOUCH"];
@@ -99,7 +112,12 @@ export function barsClosedBy(bars: readonly CanonicalBar[], asOfMs: number): Can
 }
 
 /** Read the context for a reference from the bars it was read from. */
-export function fvgContextAtDecision(ref: JournalFvgReference, bars: readonly CanonicalBar[]): FvgContextResult {
+export function fvgContextAtDecision(
+  ref: JournalFvgReference,
+  bars: readonly CanonicalBar[],
+  /** The live tape regime verdict the saving surface held at the decision (selectRegime's word); omit / null / UNKNOWN when it held no tape. */
+  live: { readonly tapeRegime?: string | null } = {},
+): FvgContextResult {
   const known = barsClosedBy(bars, ref.readAsOfMs);
   if (known.length < 3) return { ok: false, reason: "Too few closed bars at the decision time to read its context." };
   const ledger = fvgLedgerFromClosedBars(known, ref.symbol, ref.timeframe);
@@ -119,6 +137,9 @@ export function fvgContextAtDecision(ref: JournalFvgReference, bars: readonly Ca
       effortCell, regime: o.regime, barsRead: known.length,
       // The engine's word for the latest interaction it knew of, from the same closed bars.
       responseAsOf: o.interactions.length ? o.interactions[o.interactions.length - 1].response : "NO_TOUCH",
+      // §5 — volatility from the closed bars up to b2 (the bars-scope owner); the tape regime only as the surface held it live.
+      volatilityAtFormation: fvgVolatilityFacet(fvgVolatilityAtFormationByTime({ bars: known, b2OpenMs: o.bars.b2.asOf, timeOf: b => b.asOf })),
+      tapeRegimeAtDecision: live.tapeRegime && (TAPE_REGIME_VALUES as readonly string[]).includes(live.tapeRegime) ? (live.tapeRegime as TapeRegimeAtDecision) : "NOT_READ",
     },
   };
 }
@@ -133,6 +154,8 @@ export function readJournalFvgContext(raw: unknown): JournalFvgContext | null {
   if (!fin(o.decisionAtMs) || !fin(o.readAsOfMs) || !fin(o.barsRead) || o.readAsOfMs > o.decisionAtMs) return null;
   if (typeof o.effortCell !== "string" || !CELLS.includes(o.effortCell) || typeof o.regime !== "string" || !o.regime) return null;
   if (o.responseAsOf !== undefined && (typeof o.responseAsOf !== "string" || !RESPONSES.includes(o.responseAsOf))) return null;
+  if (o.volatilityAtFormation !== undefined && !(FVG_VOLATILITY_FACET_VALUES as readonly unknown[]).includes(o.volatilityAtFormation)) return null;
+  if (o.tapeRegimeAtDecision !== undefined && !(TAPE_REGIME_VALUES as readonly unknown[]).includes(o.tapeRegimeAtDecision)) return null;
   const rows = (v: unknown, second: "kind" | "evidence"): { family: string; second: string; state?: string }[] | null => {
     if (!Array.isArray(v) || v.length > 60) return null;
     const out: { family: string; second: string; state?: string }[] = [];
@@ -155,6 +178,8 @@ export function readJournalFvgContext(raw: unknown): JournalFvgContext | null {
     relationships, sources,
     effortCell: o.effortCell as JournalFvgContext["effortCell"], regime: o.regime.slice(0, 40), barsRead: o.barsRead,
     ...(typeof o.responseAsOf === "string" && RESPONSES.includes(o.responseAsOf) ? { responseAsOf: o.responseAsOf as FvgResponseAsOf } : {}),
+    ...(o.volatilityAtFormation !== undefined ? { volatilityAtFormation: o.volatilityAtFormation as FvgVolatilityFacet } : {}),
+    ...(o.tapeRegimeAtDecision !== undefined ? { tapeRegimeAtDecision: o.tapeRegimeAtDecision as TapeRegimeAtDecision } : {}),
   };
 }
 
@@ -168,9 +193,13 @@ export function splitContextOf(ref: JournalFvgReference, ctx: JournalFvgContext 
   readonly relationships: { readonly relationships: JournalFvgContext["relationships"]; readonly sources: JournalFvgContext["sources"] } | null;
   readonly effortCell: JournalFvgContext["effortCell"] | null;
   readonly regime: string | null;
+  readonly volatility: FvgVolatilityFacet | null;
+  readonly tapeRegime: TapeRegimeAtDecision | null;
 } {
   const c = contextFor(ref, ctx);
-  return c ? { relationships: { relationships: c.relationships, sources: c.sources }, effortCell: c.effortCell, regime: c.regime } : { relationships: null, effortCell: null, regime: null };
+  return c
+    ? { relationships: { relationships: c.relationships, sources: c.sources }, effortCell: c.effortCell, regime: c.regime, volatility: c.volatilityAtFormation ?? null, tapeRegime: c.tapeRegimeAtDecision ?? null }
+    : { relationships: null, effortCell: null, regime: null, volatility: null, tapeRegime: null };
 }
 
 /** One line for the Journal: what context is kept with this reference, in the trader's words. */
@@ -188,6 +217,9 @@ export function fvgContextNote(ref: JournalFvgReference, ctx: JournalFvgContext 
   const lastState = (kind: string) => { const rs = c.relationships.filter(r => r.kind === kind && r.state); return rs.length ? rs[rs.length - 1].state! : null; };
   const touch = has("EFFORT_RESPONSE") ? ` · touch bar ${lastState("TOUCH_EFFORT") ?? "none read"}` : "";
   const flowWord = lastState("TOUCH_FLOW") ?? lastState("DISPLACEMENT_FLOW");
+  // §5 — two scopes, two phrases; a row saved before them keeps its line.
+  const vol = c.volatilityAtFormation ? ` · volatility at formation ${c.volatilityAtFormation === "NOT_READ" ? "not read" : c.volatilityAtFormation.toLowerCase()} (from bars)` : "";
+  const tape = c.tapeRegimeAtDecision ? ` · tape regime at the decision ${c.tapeRegimeAtDecision === "NOT_READ" ? "not read (no tape held here)" : c.tapeRegimeAtDecision}` : "";
   const flow = has("ORDER_FLOW") ? ` · order flow ${flowWord ? flowWord.toLowerCase() : "silence (no signed volume in these bars)"}` : "";
-  return `Context at the decision (from ${c.barsRead} closed bars): structure ${fam("STRUCTURE")} · profile ${fam("PROFILE")} · wall ${fam("WALL")} · displacement bar ${c.effortCell}${touch}${flow} · regime ${c.regime}.`;
+  return `Context at the decision (from ${c.barsRead} closed bars): structure ${fam("STRUCTURE")} · profile ${fam("PROFILE")} · wall ${fam("WALL")} · displacement bar ${c.effortCell}${touch}${flow} · regime ${c.regime}${vol}${tape}.`;
 }

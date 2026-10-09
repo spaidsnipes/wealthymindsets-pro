@@ -228,7 +228,7 @@ describe("§37 evidence splits — order flow and walls are rows with reasons, n
     expect(src.length).toBeGreaterThan(1000);
     expect(src).not.toMatch(/selectDerivativesPressure|cboeDelayedOptions|derivatives:/);
     const { runFvgStudy: run } = await import("./fvgStudy");
-    expect(Object.keys(run({ series: [], asOfMs: 0 }).facets).sort()).toEqual(["crossesSession", "direction", "displacement", "instrument", "profile", "regime", "session", "structure", "timeframe"]);
+    expect(Object.keys(run({ series: [], asOfMs: 0 }).facets).sort()).toEqual(["crossesSession", "direction", "displacement", "instrument", "profile", "regime", "session", "structure", "timeframe", "volatility"]);
     const panel = readFileSync(path.join(process.cwd(), "src/components/backtest/FvgStudyPanel.tsx"), "utf8");
     expect(panel).toContain('data-testid="fvg-study-evidence-splits"');
     expect(panel).toContain("{study.evidenceSplits.map(");

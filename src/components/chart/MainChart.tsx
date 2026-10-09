@@ -2343,6 +2343,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   /** And the fourth. Four tape-rate readings, one rule. */
   const liquidityWeatherRef = useRef<LiquidityWeatherVM | null>(null);
   /** The Question Lens quiet of the last painted frame (1 = none) — the governor's load-cap hint. */
+  // PHONE: the scale row is closed at rest (one chip in the footer band opens it).
+  const [scaleRowOpen, setScaleRowOpen] = useState(false);
   const lensQuietLastRef = useRef(1);
   // Last frame's newest-candle column, for words painted before this frame measures it.
   const wordGateColumnRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -8581,7 +8583,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // §12 receipt: the governor's word for the two FVG tiers this frame.
             dsF.fvgGov = `LIVE:${govLive.toFixed(2)}|MEMORY:${govMemory.toFixed(2)}`;
             if (dsF.fvgClear !== frame.clear) dsF.fvgClear = frame.clear;
-            if (dsF.fvgDrawn !== frame.drawn) dsF.fvgDrawn = frame.drawn;
+            // Cert lane (2026-10-09): how many bands carry the APPROACH glow this frame.
+            const fvgDrawnWord = `${frame.drawn}|GLOW:${frame.bands.filter(b => b.g.approach).length}`;
+            if (dsF.fvgDrawn !== fvgDrawnWord) dsF.fvgDrawn = fvgDrawnWord;
             if (dsF.fvgSelected !== frame.selected) dsF.fvgSelected = frame.selected;
             if (frame.hit) { if (dsF.fvgHit !== frame.hit) dsF.fvgHit = frame.hit; } else delete dsF.fvgHit;
             fvgHitsRef.current = frame.hits.slice();
@@ -8616,14 +8620,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // a gold frame 2px outside its territory, like a zone's lit border
               // and a print's ring. No word; the geometry stays the band's own.
               let selMarked = false;
+              // Cert lane (2026-10-09): the receipt says WHERE the frame is — x,y,w,h.
+              let selFrameAt = "";
               for (const { g, sel } of frame.bands) {
                 if (!sel) continue;
                 ctx.strokeStyle = "rgba(232,198,104,0.95)";
                 ctx.lineWidth = 1.5;
-                ctx.strokeRect(Math.round(g.x0) - 1.5, Math.round(g.yTop) - 2.5, Math.max(4, Math.round(g.x1 - g.x0) + 3), Math.max(4, Math.round(g.yBottom - g.yTop) + 5));
+                const fx = Math.round(g.x0) - 1.5, fy = Math.round(g.yTop) - 2.5, fw = Math.max(4, Math.round(g.x1 - g.x0) + 3), fh = Math.max(4, Math.round(g.yBottom - g.yTop) + 5);
+                ctx.strokeRect(fx, fy, fw, fh);
+                selFrameAt = `@${Math.round(fx)},${Math.round(fy)},${Math.round(fw)},${Math.round(fh)}`;
                 selMarked = true;
               }
-              dsF.fvgSelectedMark = selMarked ? "FRAME:GOLD" : "NONE";
+              dsF.fvgSelectedMark = selMarked ? `FRAME:GOLD${selFrameAt}` : "NONE";
               ctx.restore();
             } else dsF.fvgSelectedMark = "NONE";
           }
@@ -19369,6 +19377,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // (serving NQ 5m, 2026-10-05: "CALL OI …" printed straight over
               // the brick texture and over its neighbour — unreadable).
               const tickWords: { y: number; text: string; rgb: string; a: number }[] = [];
+              // The NAMES read at the layer's text alpha (the phone's text floor
+              // lives in the governor); the ticks keep the layer's own alpha.
+              const oiWordA = att.textAlpha("derivativesPressure");
               const ev = optionsEvidenceRef.current;
               if (wallsOn && ev && ev.drawn) {
                 const oiMarks: string[] = [];
@@ -19389,7 +19400,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.stroke();
                   ctx.setLineDash([]);
                   const label = `${call ? "CALL" : "PUT"} OI ${Number.isInteger(w.strike) ? w.strike : fmtD(w.strike)} · ${w.openInterest >= 1000 ? `${Math.round(w.openInterest / 1000)}k` : w.openInterest}`;
-                  tickWords.push({ y, text: label, rgb, a: 0.95 * baseA });
+                  tickWords.push({ y, text: label, rgb, a: 0.95 * oiWordA });
                   oiMarks.push(`${w.type}@${w.strike}`);
                 }
                 ctx.textAlign = "left";
@@ -29581,9 +29592,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           );
         })()}
 
+        {/* PHONE (Sheriff, serving 390, 2026-10-09): the six scale chips sat over
+             the volume histogram and the axis foot. Under 640px the row is
+             CLOSED at rest — one chip in the footer band opens it, and says
+             which non-default modes are on so nothing is hidden by closing. */}
+        <button type="button" className="wm-chart-scale-toggle wm-tap-slop" data-testid="chart-scale-toggle"
+          aria-expanded={scaleRowOpen} aria-controls="wm-chart-scale-row"
+          aria-label={`Scale and motion controls${pctMode ? ", percent axis on" : ""}${logScale ? ", log scale on" : ""}${!autoScale ? ", auto-fit off" : ""}. ${scaleRowOpen ? "Close" : "Open"}.`}
+          onClick={() => setScaleRowOpen(o => !o)}>
+          {scaleRowOpen ? "×" : "⇕"}{pctMode ? " %" : ""}{logScale ? " L" : ""}{!autoScale ? " M" : ""}
+        </button>
         {/* ── Scale buttons — bottom-right, above the time axis so they
              no longer clutter / overlap the price action at top ─── */}
-        <div className="wm-chart-scale-row" style={{
+        <div className="wm-chart-scale-row" id="wm-chart-scale-row" data-phone-open={scaleRowOpen ? "true" : "false"} style={{
           position:"absolute", right: 64, bottom: 30, display:"flex", flexDirection:"row", gap: 4, zIndex: 50, alignItems:"center",
           padding: "3px 4px", borderRadius: 6,
           background: "rgba(8,12,20,0.55)", backdropFilter: "blur(3px)",

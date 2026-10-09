@@ -24,8 +24,10 @@
  * relationships to other owners' objects — structure, profile, options walls,
  * liquidity — exactly as `fvgRelationshipsFor` read them for Inspect (the one
  * relationship owner), as enums and numbers; each family with no reading is
- * listed as SILENCE with its reason. Order flow has no relationship family:
- * its only reading is the ORDER_FLOW sense, and the block says so.
+ * listed as SILENCE with its reason. Effort→response and order flow (§13,
+ * §14) are relationship families too: bar readings on the gap's own
+ * displacement and touch bars, in their owners' words — a silent family is
+ * said to be silent, and the block forbids inferring it from candles.
  *
  * PURE. No IO, no clock (the server passes nothing; times are printed as ISO).
  */
@@ -186,13 +188,15 @@ const WORD_RE = /^[A-Za-z0-9 _.,:()@\-/|]{1,80}$/;
 const STATES = new Set<string>(FVG_STATES);
 const MITIGATIONS = new Set(["NONE", "TOUCHED", "PARTIAL", "DEEP", "FULL"]);
 const RESPONSES = new Set(["REJECTED", "ACCEPTED", "TRADED_THROUGH", "NONE", "OPEN"]);
-const REL_FAMILIES = new Set(["STRUCTURE", "PROFILE", "WALL"]);
+const REL_FAMILIES = new Set(["STRUCTURE", "PROFILE", "WALL", "EFFORT_RESPONSE", "ORDER_FLOW"]);
+const BAR_FAMILIES = new Set(["EFFORT_RESPONSE", "ORDER_FLOW"]);
 const REL_KINDS: Readonly<Record<string, string>> = {
   BROKE_SWING: "broke the swing", RECLAIMED_SWING: "reclaimed the swing", SWING_INSIDE: "swing inside",
   POC: "POC", VAH: "VAH", VAL: "VAL", HVN: "HVN", LVN: "LVN",
   CALL_WALL: "call wall", PUT_WALL: "put wall", GAMMA_FLIP: "gamma flip", LIQUIDITY_POOL: "liquidity pool",
+  DISPLACEMENT_EFFORT: "displacement bar", TOUCH_EFFORT: "touch bar", DISPLACEMENT_FLOW: "displacement bar", TOUCH_FLOW: "touch bar",
 };
-const REL_RELATIONS = new Set(["INSIDE", "NEAR", "OVERLAPS", "AT_FORMATION"]);
+const REL_RELATIONS = new Set(["INSIDE", "NEAR", "OVERLAPS", "AT_FORMATION", "AT_TOUCH"]);
 const REL_EVIDENCE = new Set(["FULL", "PARTIAL", "DEGRADED", "SILENCE"]);
 
 const fin = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -230,6 +234,8 @@ function relationshipWords(raw: unknown): string {
     const where = hi !== null ? `${px(p)}–${px(hi)}` : px(p);
     const how = rel === "AT_FORMATION" ? "at formation" : rel === "NEAR" ? `near (${px(d)} away)` : rel.toLowerCase();
     const owner = x!.ownerState === null || x!.ownerState === undefined ? "" : word(x!.ownerState) ? `, owner says ${word(x!.ownerState)}` : "";
+    // §13 / §14: a bar reading (the owner's word for the displacement or a touch bar), not a price level.
+    if (BAR_FAMILIES.has(fam)) return `${fam} ${kind} ${rel === "AT_TOUCH" ? "at a touch" : "at formation"}${owner}, evidence ${ev}`;
     return `${fam} ${label} ${kind} ${where} ${how}${owner}, evidence ${ev}`;
   }).filter(Boolean);
   const silences = (Array.isArray(r.silences) ? r.silences : []).map(rec).filter(Boolean).map(s => {
@@ -240,7 +246,7 @@ function relationshipWords(raw: unknown): string {
   const parts = [
     rows.length ? rows.join("; ") : "no relationship to another owner's object",
     ...(silences.length ? [`silent: ${silences.join("; ")}`] : []),
-    "ORDER_FLOW has no relationship family — its only reading is the ORDER_FLOW sense above",
+    "EFFORT_RESPONSE and ORDER_FLOW are bar readings on the gap's own displacement and touch bars, in their owners' words; a family listed as silent has no reading — never infer it from candles",
   ];
   return parts.join(". ");
 }

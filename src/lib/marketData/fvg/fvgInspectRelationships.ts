@@ -18,6 +18,7 @@ import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarket
 import type { LivingProfileVM } from "@/lib/marketData/viewModels/selectLivingProfile";
 import type { DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
+import { fvgVolatilityAtFormationByTime } from "./fvgFormationContext";
 import { effortFlowIndex, fvgEffortInput, fvgFlowInput, type SignedBarVolume } from "./fvgEffortFlow";
 import {
   fvgRelationshipRows,
@@ -69,6 +70,25 @@ export function chartSignedAt(
   };
 }
 
+/** One bar's tape-regime reading as the chart's series holds it (selectRegimeSeries' own fields). */
+export interface TapeRegimePoint {
+  readonly time: number;
+  readonly state: string;
+  readonly basis: "TAPE" | "NO_TAPE";
+}
+
+/**
+ * §5 — the regime AT FORMATION, tape scope, BY REFERENCE: read from the chart's own regime series
+ * each time Inspect opens, never stored on the gap (a tape reading cannot be recomputed once the
+ * tape is gone). `series` is null when the chart keeps no series (Regime Lighting off).
+ */
+export function tapeRegimeAtFormationLine(series: readonly TapeRegimePoint[] | null | undefined, b2OpenSec: number): string {
+  if (!series) return "Regime at formation (tape): not read — the chart keeps the tape regime per bar only while Regime Lighting is on.";
+  const p = series.find(x => x.time === b2OpenSec);
+  if (!p || p.basis !== "TAPE" || p.state === "UNKNOWN") return "Regime at formation (tape): not read — the tape does not reach this bar.";
+  return `Regime at formation (tape): ${p.state}.`;
+}
+
 export interface FvgInspectRelationships {
   readonly reading: FvgRelationshipReading;
   readonly rows: readonly string[];
@@ -97,6 +117,11 @@ export function fvgInspectRelationships(input: {
    */
   readonly signedAt?: ((barTimeSec: number) => SignedBarVolume | null) | null;
   readonly flowSilenceWhy?: string | null;
+  /**
+   * §5 — the chart's per-bar tape regime series (selectRegimeSeries), or null when it keeps none.
+   * Leave undefined to print no regime line (a reader with no chart).
+   */
+  readonly regimeSeries?: readonly TapeRegimePoint[] | null;
   readonly fmt: (p: number) => string;
 }): FvgInspectRelationships {
   const barSec = relationshipBarSec(input.timeframe);
@@ -119,6 +144,13 @@ export function fvgInspectRelationships(input: {
     input.chartBars.map(b => ({ asOf: Number(b.time) * 1000, low: b.low, high: b.high, close: b.close })),
   );
   const { rows, silences, absences } = fvgRelationshipRows(reading, input.fmt);
+  // §5 — two named scopes, never one word: volatility from closed bars (Market Breathing, as of b2),
+  // and the regime from the tape, by reference. Both are sentences from their owners.
+  const context: string[] = [];
+  if (input.chartBars.length) {
+    context.push(fvgVolatilityAtFormationByTime({ bars: input.chartBars, b2OpenMs: input.o.bars.b2.asOf, timeOf: b => Number(b.time) * 1000, clocked: barSec !== null }).sentence);
+  }
+  if (input.regimeSeries !== undefined) context.push(tapeRegimeAtFormationLine(input.regimeSeries, input.o.bars.b2.asOf / 1000));
   // An owner that drew levels but none near the gap is said under the gap's rows, not left blank.
-  return { reading, rows: [...rows, ...absences], silences };
+  return { reading, rows: [...rows, ...absences, ...context], silences };
 }

@@ -116,7 +116,8 @@ describe("ASK-5 / ASK-6 receipts (2026-10-08)", () => {
 
 describe("ASK-10 (2026-10-08): a selected FVG reads on the glass with Inspect closed", () => {
   it("the selected band gets the gold selection frame, receipted", () => {
-    expect(CHART).toContain('dsF.fvgSelectedMark = selMarked ? "FRAME:GOLD" : "NONE";');
+    expect(CHART).toContain('dsF.fvgSelectedMark = selMarked ? `FRAME:GOLD${selFrameAt}` : "NONE";');
+    expect(CHART).toContain("const fvgDrawnWord = `${frame.drawn}|GLOW:${frame.bands.filter(b => b.g.approach).length}`;");
     expect(CHART).toContain('ctx.strokeStyle = "rgba(232,198,104,0.95)";');
   });
 });

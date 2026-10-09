@@ -58,9 +58,11 @@ export function PnLStatsPanel({ onClose }: { onClose: () => void }) {
   return (
     <div ref={landRef} tabIndex={-1} role="region" aria-label="Journal P&L stats" data-testid="pnl-stats-panel"
       className="border-t border-wm-border bg-wm-dark shrink-0 outline-none"
-      // Lands ABOVE the phone's thumb bar: read on serving ada59d4 at 390 the
-      // strip scrolled to y 803–880 of an 844 glass, under the fixed bar.
-      style={{ scrollMarginBottom: "calc(72px + env(safe-area-inset-bottom))" }}>
+      // Lands ABOVE everything fixed at the foot of a phone: the thumb bar (52px)
+      // AND the WAIT / WHY plaque over it (`--wm-g19-plaque`). Read on serving:
+      // ada59d4 it sat under the thumb bar; e05c774, with a 72px margin, it
+      // cleared the bar and sat under the plaque (y 731–808, bar at 792).
+      style={{ scrollMarginBottom: "calc(64px + var(--wm-g19-plaque, 56px) + env(safe-area-inset-bottom))" }}>
       <div className="flex items-center px-3 h-7 border-b border-wm-border">
         <span className="text-[10px] font-semibold text-wm-text-muted uppercase tracking-wider">P&amp;L Stats</span>
         <div className="flex items-center gap-1 ml-3">

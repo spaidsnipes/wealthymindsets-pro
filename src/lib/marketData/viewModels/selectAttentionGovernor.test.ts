@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { NARROW_TIER_CEILING,
+import { NARROW_TEXT_FLOOR, NARROW_TIER_CEILING,
   ATTENTION_FLOOR,
   LAYER_ATTENTION,
   SELECTION_RECEDE,
@@ -549,5 +549,20 @@ describe("phone opacity — the word budget does not dim ink (Founder, 2026-10-0
     const led = selectAttentionGovernor(input({ density: mid, narrowGlass: true, roles: { derivativesPressure: "PRIMARY" } }));
     expect(led.alpha("derivativesPressure")).toBeGreaterThanOrEqual(0.92);
     expect(asked.alpha("derivativesPressure", { selectedItem: true })).toBe(1);
+  });
+});
+
+describe("phone words read (serving 390, e05c774, 2026-10-09)", () => {
+  const mid = selectSemanticDensity("MID");
+  it("on narrow glass a context name keeps the phone text floor; memory stays faint; a question scales it; the desk is unchanged", () => {
+    const phone = selectAttentionGovernor(input({ density: mid, narrowGlass: true }));
+    expect(phone.alpha("derivativesPressure")).toBeCloseTo(NARROW_TIER_CEILING.SUPPORTING!, 10);
+    expect(phone.textAlpha("derivativesPressure")).toBeCloseTo(NARROW_TEXT_FLOOR, 10);
+    expect(phone.textAlpha("volumeProfile")).toBe(1);
+    expect(phone.textAlpha("profileMemory")).toBe(TEXT_ALPHA_FLOOR);
+    const asked = selectAttentionGovernor(input({ density: mid, narrowGlass: true, questionQuiet: 0.35 }));
+    expect(asked.textAlpha("derivativesPressure")).toBe(TEXT_ALPHA_FLOOR);
+    const desk = selectAttentionGovernor(input({ density: mid }));
+    expect(desk.textAlpha("derivativesPressure")).toBe(Math.max(TEXT_ALPHA_FLOOR, desk.alpha("derivativesPressure")));
   });
 });

@@ -3132,10 +3132,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           // §13 / §14 — the gap's own bars, asked of the effort and signed-volume owners (words only).
           effort: { symbol, volumeReal: volumeIsReal, volumeSilenceWhy: volumeIsReal ? null : needsTradedVolumeSentence(symbol) },
           signedAt: chartSignedAt(chartBars, flowLadderReader ? t => readLadderBar(flowLadderReader(t)) : null, barSides ? t => barSides.get(t) : null),
+          // §5 — the tape regime at formation, by reference (never stored on the gap).
+          regimeSeries: regimeSeriesVM,
           fmt: p => p.toFixed(chartDisplayDp),
         })
       : null,
-    [selectedFvgObject, timeframe, chartBars, chartStructureVM, livingProfileVM, derivativesPressureVM, chartLiquidityLifecycle, chartDisplayDp, symbol, volumeIsReal, flowLadderReader, barSides],
+    [selectedFvgObject, timeframe, chartBars, chartStructureVM, livingProfileVM, derivativesPressureVM, chartLiquidityLifecycle, chartDisplayDp, symbol, volumeIsReal, flowLadderReader, barSides, regimeSeriesVM],
   );
   const selectedObjectChain = selectedMarketObject
     ? buildInspectChain({

@@ -59,6 +59,85 @@ describe("fvgContextAtDecision — as of the decision", () => {
   });
 });
 
+describe("§13 / §14 in the stored context — version 2, as of the decision", () => {
+  it("no touch-bar reading for a touch that had not happened by the decision (no hindsight)", () => {
+    let checked = 0, untouched = 0;
+    for (const e of f.entries) {
+      const c = fvgContextAtDecision(e.fvgRef, BARS);
+      if (!c.ok) continue;
+      const touches = c.context.relationships.filter(r => r.kind === "TOUCH_EFFORT").length;
+      // Never more touch bars than interactions the reference itself knew of (+1 for one in progress at the decision).
+      expect(touches, e.id).toBeLessThanOrEqual(e.fvgRef.snapshot.interactionsSoFar + 1);
+      if (c.context.responseAsOf === "NO_TOUCH") { expect(touches, e.id).toBe(0); untouched++; }
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(20);
+    // A decision whose gap was touched only LATER in the series still stores no touch bar.
+    const k = f.entries.findIndex(e => { const c = fvgContextAtDecision(e.fvgRef, BARS); return c.ok && c.context.relationships.every(r => r.kind !== "TOUCH_EFFORT"); });
+    if (k >= 0) {
+      const o = f.ledger.objects.find(x => x.objectId === f.entries[k].fvgRef.objectId)!;
+      if (o.interactions.length) expect(ok(k).relationships.some(r => r.kind === "TOUCH_EFFORT")).toBe(false);
+    }
+    expect(untouched).toBeGreaterThanOrEqual(0);
+  });
+  it("order flow is a stated SILENCE in the Journal — bars carry no signed volume", () => {
+    const c = ok(3);
+    expect(c.sources.filter(s => s.family === "ORDER_FLOW")).toEqual([{ family: "ORDER_FLOW", evidence: "SILENCE" }]);
+    expect(c.relationships.some(r => r.family === "ORDER_FLOW")).toBe(false);
+    expect(splitGroupsOf({ ref: f.entries[3].fvgRef, ...splitContextOf(f.entries[3].fvgRef, c) })["ORDER FLOW"]).toBe("Order flow SILENT (no signed volume held for the gap's bars)");
+  });
+  it("the displacement cell is the relationship's own word; the touch bar is its own split", () => {
+    const i = f.entries.findIndex((_, k) => { const c = fvgContextAtDecision(f.entries[k].fvgRef, BARS); return c.ok && c.context.effortCell !== "SILENT" && c.context.relationships.some(r => r.kind === "TOUCH_EFFORT"); });
+    expect(i).toBeGreaterThanOrEqual(0);
+    const c = ok(i);
+    expect(c.relationships.find(r => r.kind === "DISPLACEMENT_EFFORT")?.state).toBe(c.effortCell);
+    const g = splitGroupsOf({ ref: f.entries[i].fvgRef, ...splitContextOf(f.entries[i].fvgRef, c) });
+    expect(g["EFFORT→RESPONSE"]).toBe(`Displacement bar ${c.effortCell}`);
+    const touches = c.relationships.filter(r => r.kind === "TOUCH_EFFORT");
+    expect(g["TOUCH EFFORT"]).toBe(`Touch bar ${touches[touches.length - 1].state}`);
+  });
+  it("a version-1 row saved before these families existed reads exactly as it was written", () => {
+    const c = ok(3);
+    const { volatilityAtFormation: _v, tapeRegimeAtDecision: _t, ...old } = c;
+    void _v; void _t;
+    const v1 = { ...old, version: 1 as const, relationships: c.relationships.filter(r => r.family !== "EFFORT_RESPONSE").map(r => ({ family: r.family, kind: r.kind })), sources: c.sources.filter(s => s.family !== "EFFORT_RESPONSE" && s.family !== "ORDER_FLOW") };
+    const back = readJournalFvgContext(JSON.parse(JSON.stringify(v1)));
+    expect(back).toEqual(v1);
+    // Its line stays the old line — no touch bar, no order-flow word invented for it.
+    expect(fvgContextNote(f.entries[3].fvgRef, back)).toMatch(/· displacement bar [A-Z]+ · regime UNTAGGED\.$/);
+    const g = splitGroupsOf({ ref: f.entries[3].fvgRef, ...splitContextOf(f.entries[3].fvgRef, back) });
+    expect(g["TOUCH EFFORT"]).toBe("NOT RECORDED with this reference");
+    expect(g["ORDER FLOW"]).toBe("Order flow NOT ATTACHED");
+  });
+  it("§5: volatility from the bars up to b2, the tape regime only as it was held live — two scopes, never one word", () => {
+    const c = ok(3);
+    expect(["COMPRESSED", "NORMAL", "EXPANDED", "NOT_READ"]).toContain(c.volatilityAtFormation);
+    expect(c.tapeRegimeAtDecision).toBe("NOT_READ");
+    expect(f.entries.some((_, i) => ok(i).volatilityAtFormation !== "NOT_READ")).toBe(true);
+    // A surface that held a live verdict saves the owner's word; anything else (UNKNOWN, a made-up word) is NOT_READ.
+    const live = (w: string | null) => { const r = fvgContextAtDecision(f.entries[3].fvgRef, BARS, { tapeRegime: w }); if (!r.ok) throw new Error(r.reason); return r.context.tapeRegimeAtDecision; };
+    expect(live("TREND")).toBe("TREND");
+    expect(live("UNKNOWN")).toBe("NOT_READ");
+    expect(live("BULLISH VIBES")).toBe("NOT_READ");
+    expect(live(null)).toBe("NOT_READ");
+    const g = splitGroupsOf({ ref: f.entries[3].fvgRef, ...splitContextOf(f.entries[3].fvgRef, c) });
+    expect(g.VOLATILITY).toMatch(/^Volatility at formation (COMPRESSED|NORMAL|EXPANDED|NOT READ)$/);
+    expect(g["TAPE REGIME"]).toBe("Tape regime NOT READ at the decision (no tape held)");
+    expect(g.REGIME).toBe("Regime UNTAGGED (no regime reading attached)");
+    expect(readJournalFvgContext({ ...c, volatilityAtFormation: "WILD" })).toBeNull();
+    expect(readJournalFvgContext({ ...c, tapeRegimeAtDecision: "UNKNOWN" })).toBeNull();
+    // Later bars cannot change the volatility word either.
+    expect(ok(3).volatilityAtFormation).toBe(c.volatilityAtFormation);
+  });
+  it("version 2 survives JSON and the reader with the owner's words intact", () => {
+    const c = ok(3);
+    expect(c.version).toBe(2);
+    const back = readJournalFvgContext(JSON.parse(JSON.stringify(c)));
+    expect(back).toEqual(c);
+    expect(readJournalFvgContext({ ...c, relationships: [{ family: "EFFORT_RESPONSE", kind: "TOUCH_EFFORT", state: 7 }] })).toBeNull();
+  });
+});
+
 describe("stored context: read back whole or not at all", () => {
   it("survives JSON and the reader unchanged", () => {
     const c = ok(3);
@@ -76,7 +155,7 @@ describe("stored context: read back whole or not at all", () => {
     expect(contextFor(f.entries[3].fvgRef, c)).toBe(c);
     expect(contextFor(f.entries[4].fvgRef, c)).toBeNull();
     expect(contextFor({ ...f.entries[3].fvgRef, decisionAtMs: f.entries[3].fvgRef.decisionAtMs + 1 }, c)).toBeNull();
-    expect(splitContextOf(f.entries[4].fvgRef, c)).toEqual({ relationships: null, effortCell: null, regime: null });
+    expect(splitContextOf(f.entries[4].fvgRef, c)).toEqual({ relationships: null, effortCell: null, regime: null, volatility: null, tapeRegime: null });
   });
   it("the journal's own loader keeps it beside its reference, and drops it when the reference is gone or it is damaged", () => {
     const c = ok(2);
@@ -113,7 +192,7 @@ describe("the splits become real on a real book (§23) — and stay NOT RECORDED
   });
   it("the note the trader reads names each part, or says not recorded", () => {
     expect(fvgContextNote(f.entries[0].fvgRef, null)).toBe("Context at the decision: not recorded with this reference.");
-    expect(fvgContextNote(f.entries[0].fvgRef, ok(0))).toMatch(/^Context at the decision \(from \d+ closed bars\): structure .+ · profile .+ · wall silence · displacement bar [A-Z]+ · touch bar [A-Za-z ]+ · order flow silence \(no signed volume in these bars\) · regime UNTAGGED\.$/);
+    expect(fvgContextNote(f.entries[0].fvgRef, ok(0))).toMatch(/^Context at the decision \(from \d+ closed bars\): structure .+ · profile .+ · wall silence · displacement bar [A-Z]+ · touch bar [A-Za-z ]+ · order flow silence \(no signed volume in these bars\) · regime UNTAGGED · volatility at formation (not read|compressed|normal|expanded) \(from bars\) · tape regime at the decision not read \(no tape held here\)\.$/);
   });
 });
 

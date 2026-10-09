@@ -72,7 +72,7 @@ describe("§30 — every item, from its owner", () => {
     ["displacement", /displacement context: middle-bar body\/range \d\.\d\d, range \d\.\d\d× ATR\(14\)/],
     ["structure relationship", /RELATIONSHIPS .*STRUCTURE Market structure broke the swing 103\.00 at formation, evidence PARTIAL/],
     ["wall relationship", /WALL Options walls put wall 101\.50 inside, owner says BORN, evidence DEGRADED/],
-    ["order-flow relationship (stated as the sense only)", /ORDER_FLOW has no relationship family — its only reading is the ORDER_FLOW sense above/],
+    ["effort / order-flow relationship families (bar readings; silence is never inferred from candles)", /EFFORT_RESPONSE and ORDER_FLOW are bar readings on the gap's own displacement and touch bars, in their owners' words; a family listed as silent has no reading — never infer it from candles/],
     ["order-flow sense", /ORDER_FLOW SILENCE \(no owner reading attached\)/],
     ["prior interaction", /1 interaction: \w+ \(deepest 40%\)/],
     ["limitations", /LIMITATIONS: read as of .* price does not have to fill it; a sense marked SILENCE says nothing either way/],

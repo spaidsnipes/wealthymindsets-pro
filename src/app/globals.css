@@ -233,6 +233,16 @@
     max-width: calc(100% - 120px);
   }
 }
+/* The phone's scale toggle: nothing at ≥ 640px (the row is always open there). */
+.wm-chart-scale-toggle {
+  display: none;
+  position: absolute; right: 4px; bottom: 3px; z-index: 61;
+  height: 28px; min-width: 32px; padding: 0 8px;
+  align-items: center; justify-content: center; gap: 2px;
+  border-radius: 4px; border: 1px solid rgba(183, 138, 52, 0.34);
+  background: rgba(11, 13, 20, 0.92); color: #c8c0ae;
+  font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 .wm-chart-market-standing [data-standing-direction="BULL"] { color: #00d4aa; }
 .wm-chart-market-standing [data-standing-direction="BEAR"] { color: #ff4d6a; }
 .wm-chart-market-standing [data-standing-direction="SIDE"] { color: #f0b429; }
@@ -566,6 +576,61 @@
   .wm-chart-scale-row {
     bottom: 60px !important;
   }
+  /* SHERIFF, serving 390 (e05c774, 2026-10-09): stepped up to 60px the six
+     chips (R · A · % · L · opacity · LIVE) sat across the volume histogram and
+     the axis foot. On a phone the row is CLOSED at rest; the one toggle chip
+     lives in the footer band's right corner and opens it as a small panel. */
+  .wm-chart-scale-row[data-phone-open="false"] { display: none !important; }
+  .wm-chart-scale-row[data-phone-open="true"] {
+    right: 4px !important;
+    bottom: 40px !important;
+    background: rgba(8, 12, 20, 0.94) !important;
+    border: 1px solid rgba(183, 138, 52, 0.34);
+  }
+  .wm-chart-scale-toggle {
+    display: inline-flex !important;
+  }
+
+  /* SHERIFF, same read: the timeframe chip is a 44px touch box in a 34px
+     footer band, so its painted box rose 13px over the time-axis labels. The
+     TOUCH box keeps its 44px (canon keeps the chip, reachability keeps the
+     target); only the INK shrinks to the band — a 28px pill at its foot. */
+  .wm-chart-timeframe-chip-trigger {
+    background: transparent !important;
+    border-color: transparent !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    position: relative;
+    display: flex !important;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 7px;
+    isolation: isolate;
+  }
+  .wm-chart-timeframe-chip-trigger::before {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 28px;
+    border-radius: 4px;
+    border: 1px solid rgba(183, 138, 52, 0.34);
+    background: rgba(11, 13, 20, 0.92);
+    z-index: -1;
+  }
+
+  /* SHERIFF, same read: the standing chip wrapped to two lines over the top
+     candles and repeated the legend's percent ("+0.39% today" sits in the
+     legend right above it). On a phone it is ONE line and carries what the
+     legend does not: the bias word and the tape regime. The percent stays in
+     the chip's spoken label. */
+  .wm-chart-market-standing {
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .wm-chart-market-standing [data-standing-change],
+  .wm-chart-market-standing [data-standing-change] + span[aria-hidden="true"] { display: none !important; }
 
   /* THE FULL LADDER UNDER THE STRIP (2026-09-26). Its servable rungs are
      `.wm-chart-timeframe` buttons and inherit the touch target above. The
@@ -1834,7 +1899,6 @@ input[type=range]::-webkit-slider-runnable-track {
   .wm-instrument-context-strip {
     -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
     mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
-    padding-inline-end: 32px !important;
   }
 }
 
@@ -2285,4 +2349,68 @@ input[type=range]::-webkit-slider-runnable-track {
 @media screen and (max-width: 639px) {
   .wm-chart-dashboard:has(.wm-live-session-chip) .wm-chart-market-standing--phone,
   body:has(.wm-live-session-chip) .wm-chart-market-standing--phone { display: none !important; }
+}
+
+/* The thumb bar's end padding (see "THE THUMB BAR SAYS IT SCROLLS"): the bar's
+   own phone rule sets `padding: … !important` further up, so the 32px that
+   lets the last plate clear the fade is read here, after it. Read on serving
+   e05c774: the fade was on, the end padding was still 8px. */
+@media (max-width: 767px) {
+  body .wm-instrument-context-strip { padding-inline-end: 32px !important; }
+}
+
+/* ── PHONE GLASS: THE DOM TYPE FLOOR IS 11px (ruling 2026-10-09) ──────────
+   MEASURED on serving f9f61fe, /charts NQ1! 5m at 390x844: 71 text nodes
+   under 11px (9, 9.5, 10 and 10.5px) — the fidelity badge, the standing
+   labels, pin labels, decision-spine labels, the honesty plaque, the
+   evidence-ladder chips, the thumb-bar words. Nearly all are INLINE pixel
+   sizes, so the floor is set where the size is written: at 430px and under,
+   each of the four sub-11 sizes — inline or Tailwind — reads 11px. One rule
+   per way of writing a size, not one per node. Desktop and tablet keep the
+   9px floor (domTypeFloor.sentinel).
+
+   THE MASTHEAD FEED READING IS EXCLUDED, and only that: at 11px its three
+   lines wrap to four and the masthead grows 133 -> 144px, taking 11px from
+   the chart (measured). The masthead's layout is the Founder's; the words
+   that would have to move are "LIVE — CERTIFIED QUOTE · certified realtime ·
+   asOf HH:MM:SS ET". The Workspace / Tools plate words DO take 11px: the
+   masthead keeps its 133px and nothing wraps or clips (measured).
+
+   Canvas-painted words are not DOM and are the chart lane's.
+
+   LAST IN THE FILE ON PURPOSE: several phone blocks above set a size with
+   !important at equal specificity (the symbol-row badge at 9px); the floor
+   has to be read after them. */
+@media (max-width: 430px) {
+  :is(
+    [style*="font-size: 9px"], [style*="font-size:9px"],
+    [style*="font-size: 9.5px"], [style*="font-size:9.5px"],
+    [style*="font-size: 10px"], [style*="font-size:10px"],
+    [style*="font-size: 10.5px"], [style*="font-size:10.5px"]
+  ):not(.wm-os-feed-standing):not(.wm-os-feed-standing *) {
+    font-size: 11px !important;
+  }
+  /* The same four sizes written through the `font:` shorthand ("700 10.5px/1 …"
+     — the Desk's buttons): a size followed by its line-height slash. */
+  :is(
+    [style*=" 9px/"], [style*=" 9px /"],
+    [style*=" 9.5px/"], [style*=" 9.5px /"],
+    [style*=" 10px/"], [style*=" 10px /"],
+    [style*=" 10.5px/"], [style*=" 10.5px /"]
+  ):not(.wm-os-feed-standing):not(.wm-os-feed-standing *) {
+    font-size: 11px !important;
+  }
+  :is(.text-\[9px\], .text-\[9\.5px\], .text-\[10px\], .text-\[10\.5px\]):not(.wm-os-feed-standing *) {
+    font-size: 11px !important;
+  }
+  /* Owners that set their size by class or by the `font:` shorthand. */
+  .wm-fidelity-badge,
+  .wm-chart-market-summary .wm-fidelity-badge--chrome,
+  .wm-instrument-context-strip > :is(button, a),
+  .wm-legend-recency-narrow,
+  .wm-mobile-nav-link,
+  .wm-chart-market-standing,
+  .wm-chart-market-standing-label {
+    font-size: 11px !important;
+  }
 }

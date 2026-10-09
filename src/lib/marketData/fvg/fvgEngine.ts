@@ -88,6 +88,7 @@ export interface FvgEngineConfig {
    */
   readonly closeTimeOf?: (bar: CanonicalBar) => number;
   /** Optional regime tag at b2, read from the regime owner by the caller. Default "UNTAGGED". */
+  // Left unused on purpose (ruling 2026-10-09): the regime is tape scope and cannot be stamped on an object that must be reproducible from bars; the bar-computable context is fvgFormationContext (volatility at formation).
   readonly regimeOf?: (b2: CanonicalBar, index: number) => string;
   /** Override the tick (else `instrumentTickFor(symbolId, b2.close)`); null = none on file. */
   readonly tickSize?: number | null;

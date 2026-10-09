@@ -20,7 +20,7 @@ describe("journal round trip (proof scene)", () => {
     const p = journalRoundTrip(r, "SAMPLE-ROUNDTRIP-CTX", c.context);
     const row = p.rows.find(x => x.field === "Context at the decision")!;
     expect(row.same).toBe(true);
-    expect(row.before).toMatch(/^Context at the decision \(from \d+ closed bars\): structure .+ · profile .+ · wall silence · displacement bar .+ · regime UNTAGGED\.$/);
+    expect(row.before).toMatch(/^Context at the decision \(from \d+ closed bars\): structure .+ · profile .+ · wall silence · displacement bar .+ · regime UNTAGGED · volatility at formation .+ \(from bars\) · tape regime at the decision not read \(no tape held here\)\.$/);
     expect(p.verdict).toBe("SAME SNAPSHOT AFTER RELOAD");
   });
   const ref = journalFixture().entries[0].fvgRef;

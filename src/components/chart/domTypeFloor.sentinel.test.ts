@@ -51,4 +51,68 @@ describe("DOM type floor on the trading shell", () => {
     expect(scannedSizes).toBeGreaterThan(50);
     expect(offenders).toEqual([]);
   });
+
+  /*
+    PHONE GLASS FLOOR = 11px (ruling 2026-10-09). 9px stays the floor at tablet
+    and desktop (the test above). Measured on serving f9f61fe at 390x844: 71
+    DOM text nodes under 11px on /charts, nearly all inline 9 / 9.5 / 10 /
+    10.5px. The floor is one stylesheet block at <=430px that lifts each way a
+    sub-11 size is written; this locks that block and its one stated exception.
+  */
+  describe("phone glass (<= 430px): 11px", () => {
+    const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    const at = css.indexOf("PHONE GLASS: THE DOM TYPE FLOOR IS 11px");
+    const block = css.slice(at);
+
+    it("the floor block exists, is the last block in the stylesheet, and is scoped to 430px", () => {
+      expect(at).toBeGreaterThan(-1);
+      expect(block).toMatch(/@media \(max-width: 430px\) \{/);
+      // Read after every other phone rule: nothing but this block follows it.
+      expect((block.match(/@media/g) ?? []).length).toBe(1);
+    });
+
+    it("every sub-11 size the shell writes is lifted — inline (both serialisations) and Tailwind", () => {
+      for (const size of ["9px", "9.5px", "10px", "10.5px"]) {
+        expect(block, size).toContain(`[style*="font-size: ${size}"]`);
+        expect(block, size).toContain(`[style*="font-size:${size}"]`);
+        expect(block, size).toContain(`.text-\\[${size.replace(".", "\\.")}\\]`);
+      }
+      // …and through the `font:` shorthand (size + line-height slash), as the Desk writes it.
+      for (const size of ["9px", "9.5px", "10px", "10.5px"]) {
+        expect(block, size).toContain(`[style*=" ${size}/"]`);
+        expect(block, size).toContain(`[style*=" ${size} /"]`);
+      }
+      expect((block.match(/font-size: 11px !important;/g) ?? []).length).toBe(4);
+    });
+
+    it("the owners that size by class or `font:` shorthand are named", () => {
+      for (const owner of [".wm-fidelity-badge,", ".wm-chart-market-summary .wm-fidelity-badge--chrome,", ".wm-instrument-context-strip > :is(button, a),", ".wm-legend-recency-narrow,", ".wm-mobile-nav-link,", ".wm-chart-market-standing,", ".wm-chart-market-standing-label {"]) {
+        expect(block, owner).toContain(owner);
+      }
+    });
+
+    it("the one exception is the masthead feed reading, and it is stated", () => {
+      expect((block.match(/:not\(\.wm-os-feed-standing/g) ?? []).length).toBe(5);
+      expect(block).toContain("133 -> 144px");
+      // No wider masthead exemption: the plate words take the floor.
+      expect(block).not.toMatch(/:not\(\.wm-os-masthead/);
+    });
+
+    it("no file in the shell list writes an inline size the phone rule cannot see", () => {
+      // The rule matches 9, 9.5, 10 and 10.5. Any OTHER size under 11 (9.25, 10.2 …) would slip past it.
+      const UNSEEN = /fontSize:\s*(\d+(?:\.\d+)?)\s*[,}\s]|text-\[(\d+(?:\.\d+)?)px\]/g;
+      let scanned = 0;
+      const offenders: string[] = [];
+      for (const rel of FILES) {
+        const src = readFileSync(path.join(process.cwd(), rel), "utf8");
+        for (const m of src.matchAll(UNSEEN)) {
+          const n = Number(m[1] ?? m[2]);
+          scanned++;
+          if (n >= 9 && n < 11 && ![9, 9.5, 10, 10.5].includes(n)) offenders.push(`${rel}: ${m[0].trim()}`);
+        }
+      }
+      expect(scanned).toBeGreaterThan(50);
+      expect(offenders).toEqual([]);
+    });
+  });
 });
