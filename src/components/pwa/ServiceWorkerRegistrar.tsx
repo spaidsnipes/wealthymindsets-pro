@@ -36,7 +36,9 @@ export function ServiceWorkerRegistrar() {
         window.location.reload();
         return;
       }
-      sessionStorage.removeItem(reloadKey);
+      // A read must not write (serving 0dd1130, 2026-10-09): every page load —
+      // a proof scene too — called removeItem on a marker that was not there.
+      if (sessionStorage.getItem(reloadKey) !== null) sessionStorage.removeItem(reloadKey);
     })();
 
     return () => {

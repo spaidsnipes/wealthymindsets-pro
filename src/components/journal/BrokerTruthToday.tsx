@@ -22,6 +22,7 @@ import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
 import { pathWindowFor } from "@/lib/journal/planPricePath";
 import { loadPlanPricePath } from "@/lib/journal/planPricePathLoader";
 import type { PricePath } from "@/lib/journal/planVsActual";
+import { SelfReportChooser } from "@/components/journal/SelfReportChooser";
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
 import { formatMoney } from "@/lib/marketData/contractEconomics";
 import { fvgAnswersFromReference, fvgContextFromLedger, fvgContextGroup, fvgReviewAnswersAt, type FvgReviewAnswers } from "@/lib/journal/planFvgContext";
@@ -251,6 +252,8 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
                 <textarea readOnly={readOnly} data-testid="plan-why" value={r.planWhy ?? ""} onChange={e => save({ ...r, planWhy: e.target.value })} rows={2}
                   style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />
               </label>
+              {/* §29: only the trader labels a decision, and only when he asks for the chips. */}
+              <SelfReportChooser labels={r.selfReport} readOnly={readOnly} onChange={next => save({ ...r, selfReport: next })} />
             </div>
           ) : null}
           {brokerNote ? <p data-testid="broker-note" style={{ margin: 0, fontSize: 11, color: MUTED }}>{brokerNote}</p> : null}

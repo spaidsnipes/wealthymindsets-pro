@@ -69,7 +69,12 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
     const scene = read("components/journal/JournalProofScene.tsx");
     expect(scene).toContain("const shown = shownFixtureEntries(f.entries, anchorId);");
     expect(scene).toContain('window.addEventListener("hashchange", read);');
-    expect(scene).toContain('el.scrollIntoView({ block: "center" });');
+    // Serving 0dd1130 showed two misses, both fixed: "center" left a tall decision's top off-screen, and the
+    // in-page sample door fired no hashchange.
+    expect(scene).toContain('el.scrollIntoView({ block: "start" });');
+    expect(scene).not.toContain('block: "center"');
+    expect(scene).toContain("onClickCapture={onDoor}");
+    expect(scene).toContain("const late = window.setTimeout(read, 400);");
     expect(scene).toContain('data-anchored={e.id === anchorId ? "yes" : "no"}');
     expect(scene).toContain('data-testid="journal-proof-anchored"');
   });

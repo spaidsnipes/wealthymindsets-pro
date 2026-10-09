@@ -92,6 +92,11 @@ describe("a proof scene writes nothing", () => {
     ["scene=clean", "?symbol=NQ1%21&tf=5m&scene=clean&on=fvg"],
     ["a door (on= / select=)", "?symbol=NQ1%21&tf=5m&on=fvg&select=fvg%3AFVG%7CNQ1%21%7C5m%7C1791478200000%7CBEARISH%7Cv1"],
     ["lens-fixture", "?symbol=NQ1%21&tf=5m&scene=lens-fixture&state=HEAVY"],
+    // The page fixture rooms (serving 0dd1130: the journal fixture wrote the session cache + the coverage record and POSTed it).
+    ["journal-fixture", "?scene=journal-fixture"],
+    ["profile-fixture", "?scene=profile-fixture"],
+    ["ticket-fixture", "?symbol=NQ1%21&tf=5m&scene=ticket-fixture&side=buy&state=flat"],
+    ["education-fixture", "?scene=education-fixture"],
   ])("%s → zero storage writes, zero removes, zero POSTs", async (_name, search) => {
     vi.useFakeTimers();
     const calls = browser(search);

@@ -302,9 +302,18 @@ export function currentProofScene(): ProofScene {
  */
 let loadedAsProofScene: boolean | null = null;
 
+/** The address names a page fixture scene (journal / profile / ticket / education / lens). */
+function fixtureRoomOpen(): boolean {
+  if (typeof window === "undefined" || !window.location) return false;
+  try { return proofFixtureScene(window.location.search ?? "") !== null; } catch { return false; }
+}
+
 /** True while a proof scene is open: nothing may be written back to saved preferences. */
 export function proofSceneHoldsWrites(): boolean {
-  const now = currentProofScene().active;
+  // A PAGE FIXTURE ROOM holds writes too (serving 0dd1130, 2026-10-09: /journal
+  // under scene=journal-fixture cached the session and checkpointed + POSTed the
+  // coverage record — the chart scenes held, the fixture rooms did not).
+  const now = currentProofScene().active || fixtureRoomOpen();
   if (loadedAsProofScene === null && typeof window !== "undefined") loadedAsProofScene = now;
   return now || loadedAsProofScene === true;
 }

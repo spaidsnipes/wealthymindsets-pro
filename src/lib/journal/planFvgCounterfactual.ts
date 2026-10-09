@@ -69,9 +69,35 @@ export interface ExecutionSummary {
   readonly sentence: string;
 }
 
+/**
+ * §24 "Did the trader enter too early?" — answered as a fact: decisions taken BEFORE the gap was touched
+ * beside decisions taken DURING a touch, each with its recorded R. No verdict; a comparison only at ≥ 20 each side.
+ */
+export interface TimingComparison {
+  readonly beforeTouch: { readonly decisions: number; readonly withR: number; readonly meanR: number | null };
+  readonly duringTouch: { readonly decisions: number; readonly withR: number; readonly meanR: number | null };
+  readonly state: "MEASURED" | "INSUFFICIENT EVIDENCE";
+  readonly sentence: string;
+}
+
+/**
+ * §24 "Did they avoid valid situations?" — answered as a fact: on the days the trader traded gaps, the settled
+ * touches he did NOT trade, and how the territory answered them. A share only at ≥ 20 untraded touches.
+ */
+export interface UntradedTouches {
+  readonly n: number;
+  readonly rejected: number;
+  readonly accepted: number;
+  readonly tradedThrough: number;
+  readonly state: "MEASURED" | "INSUFFICIENT EVIDENCE";
+  readonly sentence: string;
+}
+
 export interface FvgEdgeComparison {
   readonly market: readonly MarketComparison[];
   readonly execution: ExecutionSummary;
+  readonly timing: TimingComparison;
+  readonly untraded: UntradedTouches;
   /** Taken trades whose state has no untaken counterpart in this slice, or whose object the ledgers no longer hold. */
   readonly notCompared: { readonly state: string; readonly count: number }[];
   readonly days: readonly string[];
@@ -141,5 +167,29 @@ export function compareFvgTakenVsUntaken(ledgers: readonly FvgLedger[], taken: r
       ? `Your ${rs.length} FVG trades with a recorded R averaged ${meanR}R; ${pct(rs.filter(r => r > 0).length / rs.length)} closed above 0R. Plan followed on ${followed} of ${decided.length} decided trades. Descriptive only.`
       : `INSUFFICIENT EVIDENCE for execution: ${rs.length} of 20 FVG trades carry a recorded R; plan followed on ${followed} of ${decided.length} decided trades.`,
   };
-  return { market, execution, notCompared: [...notCompared].map(([state, count]) => ({ state, count })), days, claim: "DESCRIPTIVE — not evidence of edge" };
+  /* ── §24: entered before the touch, beside entered during a touch ────── */
+  const rOf = (xs: readonly TakenFvgTrade[]) => xs.map(t => t.realizedR).filter((r): r is number => typeof r === "number" && Number.isFinite(r));
+  const sideOf = (xs: readonly TakenFvgTrade[]) => { const r = rOf(xs); return { decisions: xs.length, withR: r.length, meanR: r.length ? round(r.reduce((a, x) => a + x, 0) / r.length, 2) : null }; };
+  const before = sideOf(taken.filter(t => t.interaction === "BEFORE_ANY_TOUCH"));
+  const during = sideOf(taken.filter(t => t.interaction === "DURING_FIRST_INTERACTION" || t.interaction === "DURING_LATER_INTERACTION"));
+  const tState = before.withR >= PATTERN_SAMPLE_MIN && during.withR >= PATTERN_SAMPLE_MIN ? "MEASURED" as const : "INSUFFICIENT EVIDENCE" as const;
+  const timing: TimingComparison = {
+    beforeTouch: before, duringTouch: during, state: tState,
+    sentence: tState === "MEASURED"
+      ? `Entered before the gap was touched: mean ${before.meanR}R over ${before.withR}. Entered during a touch: mean ${during.meanR}R over ${during.withR}. Descriptive only.`
+      : `You entered before the gap was touched on ${before.decisions} of ${taken.length} gap decisions, and during a touch on ${during.decisions}. INSUFFICIENT EVIDENCE to compare their results: ${before.withR} and ${during.withR} with a recorded R (20 each side needed).`,
+  };
+  /* ── §24: the settled touches the trader did not trade, on his own days ─ */
+  const all = [...untakenBy.FIRST_TOUCH, ...untakenBy.LATER_TOUCH];
+  const u = tally(all);
+  const uState = u.n >= PATTERN_SAMPLE_MIN ? "MEASURED" as const : "INSUFFICIENT EVIDENCE" as const;
+  const untraded: UntradedTouches = {
+    n: u.n, rejected: u.rejected, accepted: u.accepted, tradedThrough: u.tradedThrough, state: uState,
+    sentence: !taken.length || !ledgers.length
+      ? "Touches you did not trade: not read (no gap decision, or no ledger loaded)."
+      : uState === "MEASURED"
+        ? `On the days you traded gaps, ${u.n} touches you did not trade have settled: the territory rejected on ${u.rejected} (${pct(u.rejectedShare)}), was accepted on ${u.accepted} and traded through on ${u.tradedThrough}. Descriptive only — a touch you left is not a trade you missed.`
+        : `On the days you traded gaps, ${u.n} touches you did not trade have settled (rejected ${u.rejected}, accepted ${u.accepted}, traded through ${u.tradedThrough}). INSUFFICIENT EVIDENCE for a share — ${u.n} of 20.`,
+  };
+  return { market, execution, timing, untraded, notCompared: [...notCompared].map(([state, count]) => ({ state, count })), days, claim: "DESCRIPTIVE — not evidence of edge" };
 }

@@ -36,8 +36,9 @@ export function erasePlanForDecision(storage: Storage | null | undefined, decisi
   try {
     const all = { ...parseStoryReviews(storage.getItem(reviewKey)) };
     for (const [k, r] of Object.entries(all)) {
-      if (!reviewKeyBelongsTo(k, decisionId) || r.planWhy == null) continue;
-      const { planWhy: _gone, ...rest } = r;
+      // The "why" answer AND the trader's own labels (§29) are about this plan — both go with it.
+      if (!reviewKeyBelongsTo(k, decisionId) || (r.planWhy == null && !(r.selfReport?.length))) continue;
+      const { planWhy: _gone, selfReport: _labels, ...rest } = r;
       all[k] = rest;
       cleared++;
     }

@@ -25,6 +25,7 @@ import { DEPARTURES } from "@/lib/journal/planAdherence";
 import type { FvgLedger } from "@/lib/marketData/fvg/fvgEngine";
 import { fvgContextSplits, type SplitRow } from "@/lib/journal/planFvgContextSplits";
 import { splitContextOf } from "@/lib/journal/fvgDecisionContext";
+import { selfReportByDeparture, type SelfReportRow } from "@/lib/journal/selfReport";
 import { managementCounterfactual, type ManagementCounterfactual } from "@/lib/journal/planManagementCounterfactual";
 import { FvgContextSplitsView, FvgReviewQuestionsView, ManagementCounterfactualView } from "@/components/journal/FvgContextSplitsView";
 import { additionalEvidenceComparison, fillTargetComparison, gapDecisionFrom, type GroupComparison } from "@/lib/journal/planFvgFillTargets";
@@ -40,6 +41,7 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
   const [splits, setSplits] = useState<SplitRow[]>([]);
   const [management, setManagement] = useState<ManagementCounterfactual | null>(null);
   const [q41, setQ41] = useState<{ fill: GroupComparison; evidence: GroupComparison } | null>(null);
+  const [labelRows, setLabelRows] = useState<SelfReportRow[]>([]);
   const ownerVersion = useManagementOwnerVersion();
   useEffect(() => {
     try {
@@ -66,8 +68,10 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
       const inputById = new Map(reviewed.map(r => [r.e.id, r.input]));
       const gapDs = refd.map(e => { const inp = inputById.get(e.id); return gapDecisionFrom({ id: e.id, fvgRef: e.fvgRef!, plan: inp?.plan ?? null, entryPx: inp?.actuals?.entry?.px ?? null, exitPx: inp?.actuals?.exits[0]?.px ?? null, realizedR: e.realizedR ?? null }); });
       setQ41(gapDs.length ? { fill: fillTargetComparison(gapDs), evidence: additionalEvidenceComparison(gapDs) } : null);
+      // §29: the trader's OWN labels, counted beside the departure each was attached to. Never inferred.
+      setLabelRows(selfReportByDeparture(reviewed.map(r => ({ result: r.result, labels: reviews[journalReviewKey(r.e)]?.selfReport }))));
       setManagement(reviewed.length ? managementCounterfactual(reviewed.map(r => ({ plan: r.input.plan, actuals: r.input.actuals, path: r.input.path ?? null, result: r.result, realizedR: r.e.realizedR ?? null }))) : null);
-    } catch { setRows([]); setFvgRows([]); setSplits([]); setManagement(null); setQ41(null); }
+    } catch { setRows([]); setFvgRows([]); setSplits([]); setManagement(null); setQ41(null); setLabelRows([]); }
   }, [entries, ownerVersion]);
   const withRef = entries.filter(e => e.fvgRef);
   const compare = async () => {
@@ -89,7 +93,7 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
   // An empty book is the Journal's own empty state; this line speaks only once there are trades.
   if (!entries.length) return null;
   return <PlanAdherenceView rows={rows} fvgRows={fvgRows} edge={edge} edgeNote={edgeNote} showEdge={withRef.length > 0} onCompare={() => { void compare(); }}
-    splits={splits} management={management} q41={q41} />;
+    splits={splits} management={management} q41={q41} selfReport={labelRows} />;
 }
 
 /** §: no frozen plan in the book yet — say so and name the next action; never a 0% that measures nothing. */
@@ -101,7 +105,9 @@ export const FVG_SPLITS_EMPTY_LINE = "FVG context splits: no Journal entry refer
 export const FVG_SPLITS_CONTEXT_NOTE = "Structure, profile, wall, effort→response and regime come from the context read with the reference at the decision; an entry saved without it shows NOT RECORDED — never re-read from today's chart.";
 
 /** The Personal Edge block itself — pure, so it can be proved without a signed-in book. */
-export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onCompare, splits, management, q41 }: {
+export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onCompare, splits, management, q41, selfReport }: {
+  /** §29: the trader's own labels beside each departure (selfReport.selfReportByDeparture). */
+  readonly selfReport?: readonly SelfReportRow[];
   readonly q41?: { readonly fill: GroupComparison; readonly evidence: GroupComparison } | null;
   readonly splits?: readonly SplitRow[];
   readonly management?: ManagementCounterfactual | null;
@@ -124,6 +130,9 @@ export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onC
         <>
           {edge.market.map(m => <span key={m.group} data-state={m.state} style={{ fontSize: 11.5, color: m.state === "MEASURED" ? INK : MUTED }}>{m.sentence}</span>)}
           <span data-state={edge.execution.state} style={{ fontSize: 11.5, color: edge.execution.state === "MEASURED" ? INK : MUTED }}>{edge.execution.sentence}</span>
+          {/* §24: entered before the touch beside during a touch; the settled touches left untraded. Facts, no verdict. */}
+          <span data-testid="fvg-timing" data-state={edge.timing.state} style={{ fontSize: 11.5, color: edge.timing.state === "MEASURED" ? INK : MUTED, overflowWrap: "anywhere" }}>{edge.timing.sentence}</span>
+          <span data-testid="fvg-untraded" data-state={edge.untraded.state} style={{ fontSize: 11.5, color: edge.untraded.state === "MEASURED" ? INK : MUTED, overflowWrap: "anywhere" }}>{edge.untraded.sentence}</span>
           {edge.notCompared.map(n => <span key={n.state} style={{ fontSize: 10.5, color: MUTED }}>Not compared: {n.count} decision{n.count === 1 ? "" : "s"} {n.state.replace(/_/g, " ").toLowerCase()}.</span>)}
           <span style={{ fontSize: 10.5, color: MUTED, overflowWrap: "anywhere" }}>Days compared: {edge.days.join(", ") || "none"}. {edge.claim}.</span>
         </>
@@ -182,6 +191,14 @@ export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onC
       {edgeBlock}
       {splitsBlock}
       {managementBlock}
+      {selfReport && selfReport.length ? (
+        <div data-testid="self-report-by-departure" style={{ display: "grid", gap: 3, marginTop: 6 }}>
+          <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>YOUR OWN LABELS · beside the departure you attached them to · only what you labelled</span>
+          {selfReport.map(r => (
+            <span key={r.departure} data-testid="self-report-row" data-state={r.state} data-departure={r.departure} style={{ fontSize: 11.5, color: r.state === "MEASURED" ? INK : MUTED, overflowWrap: "anywhere" }}>{r.line}</span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

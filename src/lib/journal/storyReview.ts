@@ -14,6 +14,7 @@
  */
 
 import { managementKey } from "./managementOwner";
+import { readSelfReport, type SelfReportId } from "./selfReport";
 
 export const REVIEW_DIMENSIONS = ["READ", "DECISION", "ADHERENCE", "EXPRESSION", "EXECUTION", "SLIPPAGE", "RISK", "MANAGEMENT", "DISCIPLINE", "RESULT"] as const;
 export type ReviewDimension = (typeof REVIEW_DIMENSIONS)[number];
@@ -44,6 +45,11 @@ export interface StoryReview {
    * means the reason is unknown; WM never fills it in.
    */
   readonly planWhy?: string;
+  /**
+   * Garden 19 §29: labels the TRADER put on this decision himself (selfReport.ts owns the words). Never
+   * set by WM; absent means he has not labelled it.
+   */
+  readonly selfReport?: readonly SelfReportId[];
   readonly updatedAt: number;
 }
 
@@ -72,6 +78,7 @@ export function parseStoryReviews(raw: string | null): Readonly<Record<string, S
       lesson: typeof o.lesson === "string" ? o.lesson.slice(0, MAX_TEXT) : "",
       repeat: typeof o.repeat === "string" ? o.repeat.slice(0, MAX_TEXT) : "",
       ...(typeof o.planWhy === "string" && o.planWhy.trim() !== "" ? { planWhy: o.planWhy.slice(0, MAX_TEXT) } : {}),
+      ...(readSelfReport(o.selfReport).length ? { selfReport: readSelfReport(o.selfReport) } : {}),
       updatedAt: typeof o.updatedAt === "number" ? o.updatedAt : 0,
     };
   }
@@ -104,7 +111,10 @@ export function readStoryReviews(): Readonly<Record<string, StoryReview>> {
 export function writeStoryReview(key: string, review: StoryReview): Readonly<Record<string, StoryReview>> {
   const notes: Partial<Record<ReviewDimension, string>> = {};
   for (const d of REVIEW_DIMENSIONS) { const n = review.notes?.[d]; if (typeof n === "string" && n !== "") notes[d] = n.slice(0, MAX_TEXT); }
-  const all = { ...readStoryReviews(), [key]: { ...review, notes, lesson: review.lesson.slice(0, MAX_TEXT), repeat: review.repeat.slice(0, MAX_TEXT), ...(typeof review.planWhy === "string" ? { planWhy: review.planWhy.slice(0, MAX_TEXT) } : {}) } };
+  // The trader's own labels are stored only when he chose some (an empty list is not written).
+  const { selfReport: chosen, ...rest } = review;
+  const labels = readSelfReport(chosen);
+  const all = { ...readStoryReviews(), [key]: { ...rest, notes, lesson: review.lesson.slice(0, MAX_TEXT), repeat: review.repeat.slice(0, MAX_TEXT), ...(typeof review.planWhy === "string" ? { planWhy: review.planWhy.slice(0, MAX_TEXT) } : {}), ...(labels.length ? { selfReport: labels } : {}) } };
   const storeKey = storyReviewKey();
   if (storeKey) { try { localStorage.setItem(storeKey, JSON.stringify(all)); } catch { /* this visit only */ } }
   return all;

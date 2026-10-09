@@ -300,6 +300,22 @@ The journal proof scene shows the same walkthrough in six steps per decision.
   HELD_THROUGH_INVALIDATION, under the same rule. A pattern with nothing to count says
   "nothing to count yet".
 
+### The trader's own labels (§29)
+
+`selfReport.ts` is the only place in WM where the words fear, impatience, FOMO, revenge,
+over-management, hesitation, overconfidence and "a deliberate change of plan" exist — as labels the
+trader puts on his own decision in Review.
+* **Only he chooses.** WM never picks, suggests, pre-selects or infers one. The chips are not on the
+  glass until he presses "Label it yourself".
+* **Counted beside the departure.** Personal Edge shows, per kind of departure among decided trades,
+  how many he labelled and with what. A share appears only at 20 or more trades with that
+  departure; below that it is a count with INSUFFICIENT EVIDENCE.
+* **Every line says "you labelled".** It is a fact about what he wrote, never about what he felt.
+* **Erasure:** erasing a decision's plan clears its labels along with the "why" answer.
+
+Test: `selfReport.test.tsx` (includes the one-owner sentinel: no other journal, review, profile or
+SpaidBot source file carries a label word in a string, and a label is set only from a chip's press).
+
 ### Departures and their lesson doors on the profile
 
 `departureRows` (in `planAdherence.ts`) lists each kind of departure among the trader's decided

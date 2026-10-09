@@ -18,4 +18,9 @@ describe("ServiceWorkerRegistrar — retired cache-first shell cannot outlive a 
     expect(source).toContain("window.location.reload()");
     expect(source).not.toMatch(/localStorage\.clear|sessionStorage\.clear|document\.cookie/);
   });
+
+  it("clears the one-reload marker only when it is there (a page load is not a storage write)", () => {
+    expect(source).toContain("if (sessionStorage.getItem(reloadKey) !== null) sessionStorage.removeItem(reloadKey);");
+    expect(source.match(/sessionStorage\.removeItem\(/g)).toHaveLength(1);
+  });
 });

@@ -29,6 +29,8 @@ import { managementWalkthroughs } from "@/lib/journal/managementWalkthrough";
 import { journalRoundTrip } from "@/lib/journal/journalRoundTrip";
 import { brokerStoryFixtures, captureFixture, LIFECYCLE_BANNER, planLifecycleRoundTrip } from "@/lib/journal/journalLifecycleFixture";
 import { CapturedFacts } from "@/components/journal/CapturedFacts";
+import { SelfReportChooser } from "@/components/journal/SelfReportChooser";
+import { SELF_REPORT_LABELS, selfReportByDeparture } from "@/lib/journal/selfReport";
 
 const GOLD = "#d4af37";
 
@@ -37,17 +39,31 @@ export function JournalProofScene(): React.ReactElement {
   // A link's fragment (`#SAMPLE-24`, from the Academy's sample door) names ONE decision: it is rendered even when
   // it is past the first six, scrolled into view and marked. Read from the URL only — nothing is stored.
   const [anchorId, setAnchorId] = useState<string | null>(null);
+  // `anchorSeq` re-runs the scroll when the SAME decision is asked for again.
+  const [anchorSeq, setAnchorSeq] = useState(0);
   useEffect(() => {
-    const read = () => setAnchorId(fixtureAnchorId(window.location.hash, f.entries));
+    const read = () => { setAnchorId(fixtureAnchorId(window.location.hash, f.entries)); setAnchorSeq(n => n + 1); };
     read();
+    // The app router sets the fragment after this mounts on a client navigation, and fires no hashchange:
+    // read once more shortly after (measured on serving 0dd1130 — the in-page sample door did not land).
+    const late = window.setTimeout(read, 400);
     window.addEventListener("hashchange", read);
-    return () => window.removeEventListener("hashchange", read);
+    return () => { window.clearTimeout(late); window.removeEventListener("hashchange", read); };
   }, [f]);
+  /** A sample door INSIDE the scene (an example link to `#SAMPLE-n`): land on it from the press itself. */
+  const onDoor = (ev: React.MouseEvent) => {
+    const a = (ev.target as HTMLElement | null)?.closest?.("a[href*='#']") as HTMLAnchorElement | null;
+    const href = a?.getAttribute("href") ?? "";
+    const id = fixtureAnchorId(href.slice(href.indexOf("#")), f.entries);
+    if (id) { setAnchorId(id); setAnchorSeq(n => n + 1); }
+  };
   useEffect(() => {
     if (!anchorId) return;
     const el = document.getElementById(anchorId);
-    if (el) el.scrollIntoView({ block: "center" });
-  }, [anchorId]);
+    // block "start": a decision's Review is taller than the screen — its TOP (the "opened from a link" mark)
+    // must be what the trader lands on, not its middle (measured on serving 0dd1130: "center" left the top off-screen).
+    if (el) el.scrollIntoView({ block: "start" });
+  }, [anchorId, anchorSeq]);
   const shown = shownFixtureEntries(f.entries, anchorId);
   const behaviours = useMemo(() => behaviourCases(), []);
   const walkthroughs = useMemo(() => managementWalkthroughs(), []);
@@ -61,6 +77,7 @@ export function JournalProofScene(): React.ReactElement {
   }, [f]);
   // Rows that need a Founder action on the real account, shown on a labelled SAMPLE through the same owners
   // and components: the plan's lifecycle (in memory), Review from a broker readback, auto-capture from a fill.
+  const sampleLabels = useMemo(() => selfReportByDeparture(f.entries.map((e, i) => ({ result: f.planResults[e.id], labels: i % 3 === 0 ? [SELF_REPORT_LABELS[i % SELF_REPORT_LABELS.length].id] : [] }))), [f]);
   const lifecycle = useMemo(() => planLifecycleRoundTrip(), []);
   const brokerStories = useMemo(() => brokerStoryFixtures(), []);
   const capture = useMemo(() => captureFixture(), []);
@@ -72,7 +89,7 @@ export function JournalProofScene(): React.ReactElement {
     return { book: { fill: fillTargetComparison(book), evidence: additionalEvidenceComparison(book) }, wide: { fill: fillTargetComparison(wide), evidence: additionalEvidenceComparison(wide) } };
   }, [f]);
   return (
-    <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto" data-testid="journal-proof-scene" data-proof-scene="journal-fixture">
+    <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto" data-testid="journal-proof-scene" data-proof-scene="journal-fixture" onClickCapture={onDoor}>
       <div role="status" data-testid="journal-proof-banner"
         className="rounded-lg border px-3 py-2 text-[12px] font-black tracking-wider"
         style={{ borderColor: GOLD, color: GOLD, background: "rgba(212,175,55,0.08)" }}>
@@ -189,6 +206,12 @@ export function JournalProofScene(): React.ReactElement {
         <PlanAdherenceView rows={f.adherence} fvgRows={f.studyRows} edge={f.counterfactual} edgeNote="Read from the sample ledger in this page — nothing was fetched." showEdge onCompare={() => {}} />
         <FvgContextSplitsView rows={f.splits} />
         <ManagementCounterfactualView m={f.management} />
+        {/* §29: a SAMPLE trader's own labels (synthetic — every third departure labelled), counted beside the departure. */}
+        <div data-testid="journal-proof-self-report" className="mt-2 grid gap-1">
+          <span className="text-[10px] tracking-wider" style={{ color: GOLD }}>YOUR OWN LABELS · sample labels a trader chose himself · beside each departure</span>
+          {sampleLabels.map(r => <span key={r.departure} data-testid="self-report-row" data-state={r.state} className="text-[11px] text-wm-text-muted" style={{ overflowWrap: "anywhere" }}>{r.line}</span>)}
+          <SelfReportChooser labels={["IMPATIENCE"]} readOnly startOpen onChange={() => {}} />
+        </div>
         <div data-testid="journal-proof-q41-book"><FvgReviewQuestionsView fill={q41.book.fill} evidence={q41.book.evidence} /></div>
         <div data-testid="journal-proof-q41-wide" className="mt-2">
           <span className="block text-[10px] text-wm-text-muted">A second synthetic set — 48 sample gap decisions — so the measured form can be read:</span>

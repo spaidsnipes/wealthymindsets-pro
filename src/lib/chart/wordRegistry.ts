@@ -1,0 +1,235 @@
+/**
+ * THE WORD REGISTRY — one owner for every word on the chart glass.
+ *
+ * Serving all-on at 390 and 834 (92895d6, 2026-10-09): each painter that had
+ * been taught the keep-out was clean, and the glass still failed — the lens
+ * question, the TAPE REGIME line and the folded silence line shared one row;
+ * SUPPORT · BROKEN and the WAIT plaque sat across the newest candles; note
+ * anchors landed on lens words. Fixing them painter by painter leaves the next
+ * painter free to do it again. So the rule moves to the ONE place no painter
+ * can avoid: the context's own `fillText`.
+ *
+ * `installWordGate(ctx)` wraps `ctx.fillText` once. Every word is boxed
+ * (measured width × font size, in CSS pixels, transform-corrected) and CLAIMS
+ * its rect from the frame's registry before it paints:
+ *
+ *   PAINT        the rect is free — it is registered, the word paints
+ *   HELD_COLUMN  the rect touches the newest candles' column — at every width
+ *   HELD_WORD    the rect covers > 25% of a word already on the glass
+ *
+ * A held word is never silently dropped: `onHeld` receives it (the room folds
+ * it into the §16 note composer, or counts it as withheld with a receipt).
+ *
+ * MODES. `OBSERVE` registers and reports but paints everything — the gate's
+ * verdicts are a receipt, nothing on the glass changes. `ENFORCE` withholds.
+ * The room starts in OBSERVE and enforces by address (`gate=enforce`) until the
+ * verdicts have been read on serving at every form factor.
+ *
+ * NOT WORDS (pass through, never registered): text under 3 characters (glyphs,
+ * "×5"), ink at or under 0.15 alpha, rotated text, and anything painted inside
+ * `gate.sovereign(…)` — the allow-list for the axis and the price scale.
+ * The same text at the same place twice (a halo, then its fill) is one word.
+ */
+
+export interface WordRect { readonly x: number; readonly y: number; readonly w: number; readonly h: number }
+export type WordVerdict = "PAINT" | "HELD_COLUMN" | "HELD_WORD";
+export type WordGateMode = "OBSERVE" | "ENFORCE";
+export interface HeldWord { readonly text: string; readonly rect: WordRect; readonly verdict: Exclude<WordVerdict, "PAINT">; readonly against: string }
+
+/** A later word may cover at most this share of the smaller of the two boxes. */
+export const WORD_OVERLAP_MAX = 0.25;
+/** Text shorter than this is a glyph, not a word. */
+export const WORD_MIN_CHARS = 3;
+/** Ink at or under this alpha is texture, not a word. */
+export const WORD_MIN_ALPHA = 0.15;
+
+const area = (r: WordRect) => Math.max(0, r.w) * Math.max(0, r.h);
+const cut = (a: WordRect, b: WordRect) => {
+  const ix = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const iy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return ix > 0 && iy > 0 ? ix * iy : 0;
+};
+
+/** A word this much inside a panel is one of the panel's rows. */
+export const PANEL_ROW_INSIDE = 0.6;
+
+export interface WordRegistry {
+  /** Ask for a rect. PAINT registers it. */
+  claim(text: string, rect: WordRect): { verdict: WordVerdict; against: string };
+  /**
+   * A chip or card asks for its BOX before it draws the backing. PAINT → the
+   * box is registered and the rows inside it paint without asking again; held →
+   * the rows inside it are held with it, so no word is left without its box and
+   * no box without its word.
+   */
+  claimPanel(label: string, rect: WordRect): { verdict: WordVerdict; against: string };
+  /**
+   * A box that is MEANT to sit on top (the crosshair's words, Inspect and
+   * selection words, an opaque card's rows). Never judged, never held; its rows
+   * paint. `reason` is kept for the receipt.
+   */
+  sovereignPanel(rect: WordRect, reason: string): void;
+  readonly sovereignReasons: readonly string[];
+  /** The newest candles' column — a blocker at every width. `null` = none this frame. */
+  setColumn(rect: WordRect | null): void;
+  /** Every registered word's rect, for a placer that wants to step around them (note anchors). */
+  rects(): readonly WordRect[];
+  readonly words: number;
+  readonly held: readonly HeldWord[];
+}
+
+export function createWordRegistry(): WordRegistry {
+  const placed: { text: string; rect: WordRect }[] = [];
+  const held: HeldWord[] = [];
+  const panels: WordRect[] = [];
+  const heldPanels: HeldWord[] = [];
+  const sovereign: WordRect[] = [];
+  const sovereignReasons: string[] = [];
+  let column: WordRect | null = null;
+  const inside = (rect: WordRect, box: WordRect) => cut(rect, box) / Math.max(1, area(rect)) >= PANEL_ROW_INSIDE;
+  const judge = (text: string, rect: WordRect): { verdict: WordVerdict; against: string } => {
+      if (sovereign.some(z => inside(rect, z))) return { verdict: "PAINT", against: "" };
+      // A row of a panel shares the panel's verdict.
+      for (const h of heldPanels) if (inside(rect, h.rect)) return { verdict: h.verdict, against: h.against };
+      if (panels.some(b => inside(rect, b))) return { verdict: "PAINT", against: "" };
+      // The same word asking again (a halo then its fill; a chip's box then its text).
+      for (const p of placed) {
+        if (p.text === text && cut(rect, p.rect) / Math.max(1, Math.min(area(rect), area(p.rect))) > 0.5) return { verdict: "PAINT", against: "" };
+      }
+      for (const h of held) {
+        if (h.text === text && cut(rect, h.rect) / Math.max(1, Math.min(area(rect), area(h.rect))) > 0.5) return { verdict: h.verdict, against: h.against };
+      }
+      if (column && cut(rect, column) > 4) {
+        held.push({ text, rect, verdict: "HELD_COLUMN", against: "NEWEST_COLUMN" });
+        return { verdict: "HELD_COLUMN", against: "NEWEST_COLUMN" };
+      }
+      const a = area(rect);
+      for (const p of placed) {
+        const c = cut(rect, p.rect);
+        if (c > 0 && c / Math.max(1, Math.min(a, area(p.rect))) > WORD_OVERLAP_MAX) {
+          held.push({ text, rect, verdict: "HELD_WORD", against: p.text });
+          return { verdict: "HELD_WORD", against: p.text };
+        }
+      }
+      placed.push({ text, rect });
+      return { verdict: "PAINT", against: "" };
+  };
+  return {
+    claim: judge,
+    claimPanel(label, rect) {
+      const before = held.length;
+      const v = judge(label, rect);
+      if (v.verdict === "PAINT") panels.push(rect);
+      else if (held.length > before) heldPanels.push(held[held.length - 1]);
+      else heldPanels.push({ text: label, rect, verdict: v.verdict, against: v.against });
+      return v;
+    },
+    sovereignPanel(rect, reason) { sovereign.push(rect); if (!sovereignReasons.includes(reason)) sovereignReasons.push(reason); },
+    sovereignReasons,
+    setColumn(rect) { column = rect; },
+    rects: () => placed.map(p => p.rect),
+    get words() { return placed.length; },
+    held,
+  };
+}
+
+type GateCtx = Pick<CanvasRenderingContext2D, "fillText" | "strokeText" | "measureText" | "getTransform" | "font" | "textAlign" | "textBaseline" | "globalAlpha">;
+
+export interface WordGate {
+  /** A new frame: an empty registry, the mode, and where held words go. */
+  beginFrame(opts: { mode: WordGateMode; dpr: number; column?: WordRect | null; onHeld?: (w: HeldWord) => void }): void;
+  setColumn(rect: WordRect | null): void;
+  /** The allow-list: axis and price-scale text paints as-is and is not registered. */
+  sovereign<T>(paint: () => T): T;
+  /** A chip / card asks for its box BEFORE drawing the backing. False = draw nothing (ENFORCE only). */
+  panel(label: string, rect: WordRect): boolean;
+  /** Words meant to sit on top (crosshair, Inspect / selection, an opaque card): never judged. One-line reason required. */
+  sovereignPanel(rect: WordRect, reason: string): void;
+  rects(): readonly WordRect[];
+  /** `MODE|WORDS:n|HELD:k|COLUMN:c` */
+  receipt(): string;
+  /** The first few held words, for the proof file. */
+  heldSample(max?: number): string;
+}
+
+const GATES = new WeakMap<object, WordGate>();
+
+/** Box a text call in CSS pixels. `null` = not a word the registry judges. */
+export function wordBox(ctx: GateCtx, text: string, x: number, y: number, dpr: number): WordRect | null {
+  if (text.trim().length < WORD_MIN_CHARS || ctx.globalAlpha <= WORD_MIN_ALPHA) return null;
+  const tr = ctx.getTransform();
+  if (Math.abs(tr.b) > 1e-6 || Math.abs(tr.c) > 1e-6) return null;
+  const m = /(\d+(?:\.\d+)?)px/.exec(ctx.font);
+  const fs = m ? Number(m[1]) : 10;
+  const w = ctx.measureText(text).width;
+  let x0 = x;
+  if (ctx.textAlign === "center") x0 = x - w / 2;
+  else if (ctx.textAlign === "right" || ctx.textAlign === "end") x0 = x - w;
+  let y0 = y - fs * 0.8;
+  if (ctx.textBaseline === "top" || ctx.textBaseline === "hanging") y0 = y;
+  else if (ctx.textBaseline === "middle") y0 = y - fs / 2;
+  else if (ctx.textBaseline === "bottom" || ctx.textBaseline === "ideographic") y0 = y - fs;
+  const k = dpr > 0 ? dpr : 1;
+  const rect = { x: (tr.a * x0 + tr.e) / k, y: (tr.d * y0 + tr.f) / k, w: (w * tr.a) / k, h: (fs * tr.d) / k };
+  return rect.w < 4 || rect.h < 4 ? null : rect;
+}
+
+/** Wrap `ctx.fillText` once (idempotent). The gate does nothing until `beginFrame`. */
+export function installWordGate(ctx: GateCtx): WordGate {
+  const have = GATES.get(ctx);
+  if (have) return have;
+  const raw = ctx.fillText;
+  const rawStroke = ctx.strokeText;
+  let registry = createWordRegistry();
+  let mode: WordGateMode = "OBSERVE";
+  let dpr = 1;
+  let onHeld: ((w: HeldWord) => void) | undefined;
+  let sovereignDepth = 0;
+  let live = false;
+  const gated = (fn: CanvasRenderingContext2D["fillText"]) => function gatedText(this: GateCtx, text: string, x: number, y: number, maxWidth?: number) {
+    const paint = () => (maxWidth === undefined ? fn.call(this as CanvasRenderingContext2D, text, x, y) : fn.call(this as CanvasRenderingContext2D, text, x, y, maxWidth));
+    if (!live || sovereignDepth > 0) return paint();
+    let rect: WordRect | null = null;
+    try { rect = wordBox(this, String(text), x, y, dpr); } catch { rect = null; }
+    if (!rect) return paint();
+    const before = registry.held.length;
+    const { verdict } = registry.claim(String(text), rect);
+    if (verdict !== "PAINT" && registry.held.length > before) {
+      try { onHeld?.(registry.held[registry.held.length - 1]); } catch { /* a receipt must never stop the frame */ }
+    }
+    if (verdict === "PAINT" || mode === "OBSERVE") return paint();
+  } as CanvasRenderingContext2D["fillText"];
+  // A word's halo (strokeText) is the word: it asks the same registry, so a
+  // withheld word never leaves its outline behind.
+  ctx.fillText = gated(raw);
+  ctx.strokeText = gated(rawStroke);
+  const gate: WordGate = {
+    beginFrame(o) {
+      registry = createWordRegistry();
+      registry.setColumn(o.column ?? null);
+      mode = o.mode; dpr = o.dpr; onHeld = o.onHeld; sovereignDepth = 0; live = true;
+    },
+    setColumn: rect => registry.setColumn(rect),
+    sovereign(p) { sovereignDepth++; try { return p(); } finally { sovereignDepth--; } },
+    panel(label, rect) {
+      if (!live) return true;
+      const before = registry.held.length;
+      const { verdict } = registry.claimPanel(label, rect);
+      if (verdict !== "PAINT" && registry.held.length > before) {
+        try { onHeld?.(registry.held[registry.held.length - 1]); } catch { /* a receipt must never stop the frame */ }
+      }
+      return verdict === "PAINT" || mode === "OBSERVE";
+    },
+    sovereignPanel(rect, reason) { if (live) registry.sovereignPanel(rect, reason); },
+    rects: () => registry.rects(),
+    receipt: () => `${mode}|WORDS:${registry.words}|HELD:${registry.held.length}|COLUMN:${registry.held.filter(h => h.verdict === "HELD_COLUMN").length}${registry.sovereignReasons.length ? `|SOVEREIGN:${registry.sovereignReasons.join("+")}` : ""}`,
+    heldSample: (max = 6) => registry.held.slice(0, max).map(h => `${h.verdict === "HELD_COLUMN" ? "COL" : "WORD"}:${h.text.slice(0, 28)}`).join("|"),
+  };
+  GATES.set(ctx, gate);
+  return gate;
+}
+
+/** `gate=enforce` on the address turns withholding on for this page load. */
+export function wordGateModeFor(search: string): WordGateMode {
+  try { return new URLSearchParams(search).get("gate") === "enforce" ? "ENFORCE" : "OBSERVE"; } catch { return "OBSERVE"; }
+}

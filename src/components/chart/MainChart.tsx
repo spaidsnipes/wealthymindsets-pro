@@ -54,6 +54,7 @@ import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_M
 import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
+import { installWordGate, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
@@ -2338,6 +2339,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const liquidityWeatherRef = useRef<LiquidityWeatherVM | null>(null);
   /** The Question Lens quiet of the last painted frame (1 = none) — the governor's load-cap hint. */
   const lensQuietLastRef = useRef(1);
+  // Last frame's newest-candle column, for words painted before this frame measures it.
+  const wordGateColumnRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   // The layer last frame's question was ABOUT — its answer is never quieted by it.
   const lensAnswerLastRef = useRef<readonly ("absorption" | "exhaustion")[]>([]);
   const attentionFixtureQuietRef = useRef(false);
@@ -7569,6 +7572,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // GP12 §43/§81 — the labels-hidden recognition test (proofNoLabels.ts).
       if (setCanvasTextSilenced(ctx, proofNoLabelsRequested(window.location.search))) canvas.dataset.proof = "NOLABELS";
       else delete canvas.dataset.proof;
+      // THE WORD REGISTRY (wordRegistry.ts): every word this frame claims its
+      // rect through the context's own fillText — no painter can bypass it.
+      // OBSERVE by default (verdicts are a receipt; the glass is unchanged);
+      // `gate=enforce` on the address withholds. The newest candles' column is
+      // a blocker from the first word: last frame's until this frame measures.
+      const wordGate = installWordGate(ctx);
+      const wordGateMode = wordGateModeFor(window.location.search);
+      const wordGateHeld: HeldWord[] = [];
+      wordGate.beginFrame({ mode: wordGateMode, dpr, column: wordGateColumnRef.current, onHeld: w => { wordGateHeld.push(w); } });
 
       // G7 · EVERY LAYER IS ISOLATED AND NAMED (2026-09-29). A throw in one
       // layer used to either escape the frame (killing every later layer) or
@@ -13432,6 +13444,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           : "NONE";
         return newestColumnRect;
       };
+      // The registry's column blocker is this frame's measurement from here on.
+      wordGateColumnRef.current = newestColumnKeepOut();
+      wordGate.setColumn(wordGateColumnRef.current);
       const newestColumnRects = () => { const c = newestColumnKeepOut(); return c ? [c] : []; };
       const onNewestColumn = (x: number, y: number, w: number, h: number): boolean => {
         const c = newestColumnKeepOut();
@@ -26077,6 +26092,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           for (const n of displacedNotes) if (Number.isFinite(n.x) && Number.isFinite(n.y)) ctx.fillText(n.text, n.x, n.y);
           ctx.restore();
         }
+        // Words the registry withheld (ENFORCE only) are listed, never dropped.
+        if (wordGateMode === "ENFORCE") {
+          for (const hw of wordGateHeld) if (hw.text.trim().length >= 6) displacedNotes.push({ layer: "WORDS", text: hw.text.trim(), x: hw.rect.x + hw.rect.w / 2, y: hw.rect.y + hw.rect.h / 2 });
+        }
+        canvas.dataset.wordGate = wordGate.receipt();
+        if (wordGateHeld.length) canvas.dataset.wordGateHeld = wordGate.heldSample(); else delete canvas.dataset.wordGateHeld;
         const anchors = composeOn ? composeNoteAnchors(displacedNotes) : [];
         canvas.dataset.eventNotes = `ANCHORS:${anchors.length}|NOTES:${displacedNotes.length}|COMPOSE:${composeOn ? "ON" : "OFF"}`;
         const el = noteAnchorsElRef.current;
@@ -26092,6 +26113,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const pipHits: PipRect[] = [];
           // Anchors already seated this frame: a later one never lands on them.
           const anchorRects: { x: number; y: number; w: number; h: number }[] = [];
+          // THE ANCHORS READ THE SAME REGISTRY: every word on the glass is a
+          // blocker for an anchor's slot and for its top-row fallback (serving
+          // 390 + 834 all-on, 92895d6: anchors sat on the lens question and the
+          // verdict strip). Reserved for the placement, then released.
+          const wordRectsNow = wordGate.rects().map(q => ({ x: q.x, y: q.y, w: q.w, h: q.h }));
+          const chipsBeforeWords = floatingChips.length;
+          floatingChips.push(...wordRectsNow);
           const placed = anchors.map(a => {
             // A lone held word is a quiet 12px pip (tap lists it); only a
             // CLUSTER earns the words "N MARKET EVENTS" (serving NQ 5m, 8f7f6f4:
@@ -26114,7 +26142,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // down a row; bounded, so it never spins.
             if (sp.mode === "BLOCKED") {
               const onAnchor = (q: { x: number; y: number; w: number; h: number }) =>
-                anchorRects.some(o => q.x < o.x + o.w + 6 && q.x + q.w + 6 > o.x && q.y < o.y + o.h + 2 && q.y + q.h + 2 > o.y);
+                anchorRects.some(o => q.x < o.x + o.w + 6 && q.x + q.w + 6 > o.x && q.y < o.y + o.h + 2 && q.y + q.h + 2 > o.y)
+                || wordRectsNow.some(o => q.x < o.x + o.w + 2 && q.x + q.w + 2 > o.x && q.y < o.y + o.h + 1 && q.y + q.h + 1 > o.y);
               const leftMost = Math.max(4, keepOutMinX());
               for (let g = 0; g < 12 && onAnchor(r); g++) {
                 r = r.x - (w + 8) >= leftMost ? { ...r, x: r.x - (w + 8) } : { ...r, x: Math.max(leftMost, Math.min(plotRight - w - 4, pref.x)), y: r.y + h + 4 };
@@ -26132,6 +26161,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const seed = `${a.notes[0].layer}:${a.notes[0].text}`;
             return { a, r, seed, crowded: sp.mode === "BLOCKED", single };
           });
+          floatingChips.splice(chipsBeforeWords, wordRectsNow.length);
           canvas.dataset.eventNotePips = `${pipHits.length}|HIT:44|CLEAR_OF:${Math.round(pipClearLeft)}`;
           const offCount = composeOn ? 0 : displacedNotes.length;
           const key = `${anchorsKey(anchors)}|${placed.map(p => `${Math.round(p.r.x)},${Math.round(p.r.y)}`).join(";")}|${noteAnchorOpenRef.current ?? ""}|${offCount}`;
@@ -26625,6 +26655,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     setCanvasTextSilenced(ctx, proofNoLabelsRequested(window.location.search));
+    // The same registry law on this pane's context (its own frame, its own words).
+    const paneWordGate = installWordGate(ctx);
+    paneWordGate.beginFrame({ mode: wordGateModeFor(window.location.search), dpr });
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
 
