@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/kraken";
 import { buildObservedDom, deriveDomCenter, type DomLevel } from "@/lib/marketData/domTruth";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
+import { useLandOnOpen } from "@/lib/chart/useLandOnOpen";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 
 /* ── Crypto detection ──────────────────────────────────────── */
@@ -56,6 +57,9 @@ function buildRealDOM(
 export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => void }) {
   const sym    = symbol.toUpperCase();
   const crypto = isCrypto(sym);
+  // The panel mounts only when asked for; whichever branch renders takes focus.
+  const landAside = useLandOnOpen<HTMLElement>(!crypto);
+  const landDiv = useLandOnOpen<HTMLDivElement>(crypto);
   const base   = getBase(sym);
   const tick   = getTickSize(base);
   const dp     = tick < 0.01 ? (tick < 0.0001 ? 6 : 4) : 2;
@@ -231,8 +235,12 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
   if (!crypto) {
     return (
       <aside
-        aria-label={`Market depth unavailable for ${symbol}`}
-        className="wm-chart-dom border-l border-wm-border flex flex-col shrink-0"
+        aria-label={`Market depth: not read for ${symbol}`}
+        ref={landAside}
+        tabIndex={-1}
+        // `wm-chart-dom-sheet`: the trader ASKED for this panel, so below 1024px it
+        // opens as a sheet instead of being hidden with the idle rails (globals.css).
+        className="wm-chart-dom wm-chart-dom-sheet border-l border-wm-border flex flex-col shrink-0 outline-none"
         style={{ width: 190, background: "#0A0B10", fontSize: 13 }}
       >
         <div className="flex items-center gap-2 px-3 shrink-0" style={{ height: 38, borderBottom: "1px solid rgba(30,32,48,0.8)" }}>
@@ -250,8 +258,11 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
         </div>
         <div style={{ padding: "18px 14px", color: "#8B95A5", lineHeight: 1.5 }}>
           <div style={{ color: "#F0B429", fontSize: 10, fontWeight: 900, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 7 }}>No observed market depth</div>
+          {/* Why, in trader words (sheriff batch 6): the panel said only that
+              depth was "unavailable". The truth is WM Pro reads no order book
+              for this market — it is not a claim that the market has none. */}
           <p style={{ fontSize: 10, margin: 0 }}>
-            {symbol} has no observed bid-and-ask book. Quotes and trades are not displayed as depth.
+            WM Pro is not reading an order book for {symbol} — the resting bids and offers at each price. Quotes and trades are not displayed as depth.
           </p>
           {audience === "OWNER" ? (
             <Link href="/readiness" style={{ display: "inline-block", color: "#D8DCEA", fontSize: 10, fontWeight: 750, marginTop: 12, textDecoration: "none" }}>
@@ -282,7 +293,8 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
   const bookObserved  = totBid + totAsk > 0;
 
   return (
-    <div className="wm-chart-dom border-l border-wm-border flex flex-col shrink-0" style={{ width:230, background:"#0A0B10", fontSize:13 }}>
+    <div ref={landDiv} tabIndex={-1} role="complementary" aria-label={`Market depth for ${symbol}`}
+      className="wm-chart-dom wm-chart-dom-sheet border-l border-wm-border flex flex-col shrink-0 outline-none" style={{ width:230, background:"#0A0B10", fontSize:13 }}>
       {/* Header */}
       <div className="flex items-center gap-2 px-2.5 shrink-0" style={{ height:38, borderBottom:"1px solid rgba(30,32,48,0.8)" }}>
         <span style={{ fontSize:12, fontWeight:800, color:"#8b8fa8", letterSpacing:1.2, textTransform:"uppercase" }}>DOM</span>

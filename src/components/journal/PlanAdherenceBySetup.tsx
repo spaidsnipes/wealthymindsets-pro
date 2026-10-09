@@ -18,7 +18,8 @@ import { planAdherenceBySetup, type SetupAdherence } from "@/lib/journal/planAdh
 import { composePlanReview, planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import { DEVIATION_LABEL } from "@/lib/journal/planVsActual";
 import { readStoryReviews } from "@/lib/journal/storyReview";
-import { fvgStudyList, OLD_GAP_AGE_BARS, type FvgStudyRow } from "@/lib/journal/planFvgStudy";
+import { FVG_STUDY_DIMENSIONS, fvgStudyList, OLD_GAP_AGE_BARS, type FvgStudyRow } from "@/lib/journal/planFvgStudy";
+import { confirmingCloseDoor, confirmingCloseLine } from "@/lib/journal/confirmingClose";
 import { compareFvgTakenVsUntaken, type FvgEdgeComparison } from "@/lib/journal/planFvgCounterfactual";
 import { loadFvgLedgerFor } from "@/lib/journal/planFvgLoader";
 import { DEPARTURES } from "@/lib/journal/planAdherence";
@@ -56,7 +57,9 @@ export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly J
       // Garden 19 §23: the FVG study list — every decision that references a gap, by WHEN / DEPTH / AGE, as of each decision.
       const byId = new Map(reviewed.map(r => [r.e.id, r.result]));
       const refd = entries.filter(e => e.fvgRef);
-      setFvgRows(refd.length ? fvgStudyList(refd.map(e => ({ ref: e.fvgRef!, result: byId.get(e.id) ?? null, realizedR: e.realizedR ?? null }))) : []);
+      setFvgRows(refd.length ? fvgStudyList(refd.map(e => ({ ref: e.fvgRef!, result: byId.get(e.id) ?? null, realizedR: e.realizedR ?? null,
+        // §23 / §41 "did they wait?": the stored context's engine answer + the entry's own side.
+        context: e.fvgContext ?? null, side: e.side === "long" ? "LONG" as const : e.side === "short" ? "SHORT" as const : null }))) : []);
       // §23 context splits from what the trader's own entry stored: the reference (session, timeframe,
       // instrument, order flow) and, when it was read with the reference, the §40 context (structure,
       // profile, wall, effort→response, regime). What an entry did not store reads NOT RECORDED — never
@@ -176,8 +179,14 @@ export function PlanAdherenceView({ rows, fvgRows, edge, edgeNote, showEdge, onC
       {fvgRows.length ? (
         <div data-testid="plan-adherence-by-fvg" style={{ display: "grid", gap: 4, marginTop: 4 }}>
           <span style={{ fontSize: 10, letterSpacing: 1, color: GOLD }}>FVG STUDY LIST · as of each decision · old gap = more than {OLD_GAP_AGE_BARS} bars</span>
-          {(["WHEN", "DEPTH", "AGE"] as const).map(dim => (
+          {FVG_STUDY_DIMENSIONS.map(dim => (
             <div key={dim} data-dimension={dim} style={{ display: "grid", gap: 2 }}>
+              {dim === "WAITED" ? (
+                <span data-testid="fvg-confirming-close" style={{ fontSize: 10.5, color: MUTED, overflowWrap: "anywhere" }}>
+                  {confirmingCloseLine()}{" "}
+                  {confirmingCloseDoor() ? <Link href={confirmingCloseDoor()!.href} prefetch={false} data-testid="fvg-confirming-close-study" style={{ color: GOLD }}>Study: {confirmingCloseDoor()!.label} →</Link> : null}
+                </span>
+              ) : null}
               {fvgRows.filter(r => r.dimension === dim).map(r => (
                 <div key={r.group} data-state={r.rState} data-adherence={r.adherence?.state ?? "NONE"} style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 11.5, color: INK, fontVariantNumeric: "tabular-nums" }}>
                   <b style={{ fontWeight: 600 }}>{r.group}</b>

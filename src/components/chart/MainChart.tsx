@@ -7581,6 +7581,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const wordGateMode = wordGateModeFor(window.location.search);
       const wordGateHeld: HeldWord[] = [];
       wordGate.beginFrame({ mode: wordGateMode, dpr, column: wordGateColumnRef.current, onHeld: w => { wordGateHeld.push(w); } });
+      // ONE HELPER FOR EVERY CHIP: a chip asks for its BOX before it draws the
+      // backing, so a withheld word never leaves an empty box behind (and the
+      // word's own fillText shares the box's verdict). OBSERVE always says yes.
+      const chipBox = (label: string, box: { x: number; y: number; w: number; h: number }): boolean => wordGate.panel(label, box);
+      // WORDS MEANT TO SIT ON TOP are named, with the reason, so ENFORCE cannot
+      // remove them: the crosshair's words, Inspect / selection words, and the
+      // rows of an opaque card.
+      const onTop = (box: { x: number; y: number; w: number; h: number }, reason: "CROSSHAIR" | "SELECTION" | "INSPECT" | "OPAQUE_CARD") => wordGate.sovereignPanel(box, reason);
 
       // G7 · EVERY LAYER IS ISOLATED AND NAMED (2026-09-29). A throw in one
       // layer used to either escape the frame (killing every later layer) or
@@ -10755,6 +10763,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.setLineDash([2, 3]); ctx.strokeStyle = "rgba(237,230,211,0.55)"; ctx.lineWidth = 1;
               ctx.beginPath(); ctx.moveTo(bodyEdge, Math.round(+yw) + 0.5); ctx.lineTo(at.x + at.w, at.y + 7.5); ctx.stroke(); ctx.setLineDash([]);
               ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.95)"; ctx.shadowBlur = 3;
+              onTop(at, "CROSSHAIR"); // the hovered or selected bar names its parts
               ctx.fillStyle = "rgba(237,230,211,0.95)"; ctx.fillText(p.word, at.x + at.w - 3, at.y + 7);
               ctx.restore();
               forceChips.push(at);
@@ -10900,7 +10909,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (!Number.isFinite(my)) { wordsWithheld++; continue; }
           const rect = { x: mx - tw / 2, y: my - 12, w: tw, h: 13 };
           gapWordRects.push(rect);
-          ctx.fillStyle = "rgba(11,10,8,0.85)"; ctx.fillRect(mx - tw / 2, my - 12, tw, 13);
+          ctx.fillStyle = "rgba(11,10,8,0.85)"; if (chipBox(t, rect)) ctx.fillRect(mx - tw / 2, my - 12, tw, 13);
           ctx.fillStyle = "rgba(237,230,211,0.9)"; ctx.fillText(t, mx, my);
           forceChips.push({ x: mx - tw / 2, y: my - 12, w: tw, h: 13 });
           worded++;
@@ -12480,7 +12489,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.fillText(nameTxt, nameRect.x + 3, nameRect.y + nameRect.h / 2 + 0.5);
           ctx.font = LEVEL_CHIP_FONT;
           ctx.fillStyle = ink(0.92);
-          ctx.fillRect(cr.x, cr.y, cr.w, cr.h);
+          if (chipBox(chipTxt, cr)) ctx.fillRect(cr.x, cr.y, cr.w, cr.h);
           ctx.fillStyle = "rgba(11,10,8,0.95)";
           ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.fillText(chipTxt, cr.x + cr.w / 2, cr.y + cr.h / 2 + 0.5);
@@ -13161,6 +13170,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const tw = ctx.measureText(txt).width + 8;
                 const tx = side > 0 ? txNear : txNear - tw;
                 ctx.fillStyle = "rgba(11,10,8,0.88)";
+                onTop({ x: tx, y: ty - 7, w: tw, h: 14 }, "CROSSHAIR"); // the crosshair bar's anatomy part tags
                 ctx.fillRect(tx, ty - 7, tw, 14);
                 ctx.fillStyle = "rgba(236,214,160,0.98)";
                 ctx.fillText(txt, tx + 4, ty + 0.5);
@@ -15375,7 +15385,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                       ctx.restore();
                     }
                     ctx.fillStyle = muted ? "rgba(11,10,8,0.7)" : "rgba(11,10,8,0.88)";
-                    ctx.fillRect(r.x, r.y, r.w, r.h);
+                    if (chipBox(word, r)) ctx.fillRect(r.x, r.y, r.w, r.h);
                     ctx.fillStyle = muted ? "rgba(200,192,174,0.75)" : ink;
                     ctx.textAlign = "left"; ctx.textBaseline = "middle";
                     ctx.fillText(word, r.x + 5, r.y + r.h / 2 + 0.5);
@@ -15645,7 +15655,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     continue;
                   }
                   ctx.fillStyle = panel(0.97);
-                  ctx.fillRect(W - 84 - tw - 8, y - 7, tw + 8, 14);
+                  if (chipBox(t, { x: W - 84 - tw - 8, y: y - 7, w: tw + 8, h: 14 })) ctx.fillRect(W - 84 - tw - 8, y - 7, tw + 8, 14);
                   ctx.fillStyle = CREAM;
                   ctx.fillText(t, W - 84 - tw - 4, y);
                   floatingChips.push({ x: W - 84 - tw - 8, y: y - 7, w: tw + 8, h: 14 });
@@ -15998,6 +16008,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const silenceBase = shortPane ? H - 40 : H - 114;
                   const silenceBandReserve = { x: 0, y: silenceBase - SILENCE_ROWS_SHOWN * silenceStep - 7, w: silenceX + Math.min(W * 0.62, 760), h: (SILENCE_ROWS_SHOWN + 1) * silenceStep + 14 };
                   floatingChips.push(silenceBandReserve);
+                  // …and so is every word already on the glass (the registry): the
+                  // card never docks across a word it would hide or print through.
+                  const cardWordReserve = wordGate.rects().map(q => ({ x: q.x, y: q.y, w: q.w, h: q.h }));
+                  const chipsBeforeCard = floatingChips.length;
+                  floatingChips.push(...cardWordReserve);
                   let pick: { form: "FULL" | "COMPACT"; w: number; h: number; k: number; dock: ReturnType<typeof dockClearOfCandles> } | null = null;
                   for (const f of forms) {
                     const dock = dockClearOfCandles({
@@ -16014,6 +16029,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     const f = forms[forms.length - 1];
                     pick = { ...f, dock: dockClearOfCandles({ size: { w: f.w, h: f.h }, bounds, candles: candleRects, blockers: floatingChips, preferred: { x: x0, y: y0 - 9 } }) };
                   }
+                  floatingChips.splice(chipsBeforeCard, cardWordReserve.length);
                   { const iR = floatingChips.indexOf(silenceBandReserve); if (iR >= 0) floatingChips.splice(iR, 1); }
                   ds.scaffoldingSilenceBand = `RESERVED:${Math.round(silenceBandReserve.y)}+${Math.round(silenceBandReserve.h)}`;
                   const { x: cx0, y: cy0 } = pick.dock.rect;
@@ -16030,7 +16046,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // in Tools › Active and the receipts.
                   const cardOnNewest = onNewestColumn(cx0, cy0, w * k, h * k);
                   if (cardOnNewest) { ds.scaffoldingDock = "WITHHELD_NEWEST_COLUMN"; ds.scaffoldingForm = `${ds.scaffoldingForm}:WITHHELD`; }
-                  if (!cardOnNewest) {
+                  // NO CANDLE-FREE DOCK (serving all-on NQ1! 5m at 834, 92895d6,
+                  // 2026-10-09: the card yielded onto 17 candles with two other
+                  // lines printed through it). Under 1024px the card is withheld
+                  // rather than laid over the candles; at any width it is withheld
+                  // when words lie beneath it. The desktop translucent yield over
+                  // history is canon and stays. The read remains in Tools › Active.
+                  const cardRect = { x: cx0, y: cy0, w: w * k, h: h * k };
+                  const cardWordsBeneath = yielded ? cardWordReserve.filter(q => q.x < cardRect.x + cardRect.w && q.x + q.w > cardRect.x && q.y < cardRect.y + cardRect.h && q.y + q.h > cardRect.y).length : 0;
+                  const cardNoClearDock = !cardOnNewest && yielded && (W < 1024 || cardWordsBeneath > 0);
+                  if (cardNoClearDock) { ds.scaffoldingDock = cardWordsBeneath > 0 ? `WITHHELD_WORDS_BENEATH:${cardWordsBeneath}` : "WITHHELD_NO_CLEAR_DOCK"; ds.scaffoldingForm = `${ds.scaffoldingForm}:WITHHELD`; }
+                  // An opaque (docked) card owns its rows; a yielded one is judged like any panel.
+                  if (!cardOnNewest && !cardNoClearDock && !yielded) onTop(cardRect, "OPAQUE_CARD");
+                  if (!cardOnNewest && !cardNoClearDock) {
                   floatingChips.push({ x: cx0, y: cy0, w: w * k, h: h * k });
 
                   // The read window, bracketed under its own bars: which
@@ -17370,6 +17398,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const s = dvSpot.rect;
               floatingChips.push({ ...s });
               ctx.fillStyle = `rgba(14,12,8,${keepOutBackingAlpha(dvSpot, 0.9)})`;
+              onTop(s, "CROSSHAIR"); // the value candle's sentence under the crosshair
               ctx.fillRect(s.x, s.y, s.w, s.h);
               dvLines.forEach((t, i) => {
                 ctx.fillStyle = i === 0 ? "#d4af37" : t === glass.disclosure ? "rgba(237,230,211,0.55)" : "rgba(237,230,211,0.80)";
@@ -19275,7 +19304,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                         if (![...candlesF, ...tpoCol, ...forceChips, ...floatingChips].some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y)) { fx = cx; fy = by; clear = true; break spotF; }
                       }
                     }
-                    if (!clear) { ctx.fillStyle = `rgba(11,10,8,${0.85 * baseA})`; ctx.fillRect(fx - 3, fy - 12, fw + 6, 13); }
+                    if (!clear) { ctx.fillStyle = `rgba(11,10,8,${0.85 * baseA})`; if (chipBox(frontWords, { x: fx - 3, y: fy - 12, w: fw + 6, h: 13 })) ctx.fillRect(fx - 3, fy - 12, fw + 6, 13); }
                     ctx.fillStyle = `rgba(236,214,160,${0.95 * baseA})`;
                     ctx.fillText(frontWords, fx, fy);
                     floatingChips.push({ x: fx - 2, y: fy - 11, w: fw + 4, h: 12 });
@@ -19420,7 +19449,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ctx.beginPath(); ctx.moveTo(plotRightD - 4, t.y); ctx.lineTo(plotRightD - 4, by - 6); ctx.stroke();
                   }
                   ctx.fillStyle = `rgba(11,10,8,${(0.86 * t.a).toFixed(3)})`;
-                  ctx.fillRect(x - 3, by - 12, tw + 6, 13);
+                  if (chipBox(t.text, { x: x - 3, y: by - 12, w: tw + 6, h: 13 })) ctx.fillRect(x - 3, by - 12, tw + 6, 13);
                   ctx.fillStyle = `rgba(${t.rgb},${t.a.toFixed(3)})`;
                   ctx.fillText(t.text, x, by);
                   const box = { x: x - 3, y: by - 12, w: tw + 6, h: 13 };
@@ -19565,7 +19594,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const box = { x: lx - tw / 2 - 3, y: ly - 7, w: tw + 6, h: 13 };
                   if (!floatingChips.some(q => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y)) {
                     ctx.fillStyle = "rgba(11,10,8,0.85)";
-                    ctx.fillRect(box.x, box.y, box.w, box.h);
+                    if (chipBox(words, box)) ctx.fillRect(box.x, box.y, box.w, box.h);
                     ctx.fillStyle = `rgba(${rgb},0.95)`;
                     ctx.fillText(words, lx, ly);
                     floatingChips.push(box);
@@ -19611,6 +19640,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const boxW = tw + 12, boxH = lines.length * 14 + 8;
                 const bx = hv.x - boxW - 14 >= 4 ? hv.x - boxW - 14 : Math.min(plotRightD - boxW - 4, hv.x + 14);
                 const byT = Math.max(24, hv.y - boxH - 12);
+                onTop({ x: bx, y: byT, w: boxW, h: boxH }, "CROSSHAIR"); // the hovered / pinned options print's ticket
                 ctx.fillStyle = "rgba(11,10,8,0.94)";
                 ctx.fillRect(bx, byT, tw + 12, lines.length * 14 + 8);
                 ctx.strokeStyle = e.type === "call" ? "rgba(80,190,180,0.8)" : "rgba(214,120,150,0.8)";
@@ -22283,6 +22313,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 return;
               }
               recordKeepOut(keepOutLedger, spotP);
+              // The chip asks for its box first; withheld → nothing of it is drawn.
+              if (!chipBox(text, { x: spotP.rect.x, y: spotP.rect.y, w, h: 14 })) { ctx.restore(); return; }
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotP, 0.82)})`;
               ctx.fillRect(spotP.rect.x, spotP.rect.y, w, 14);
               ctx.fillStyle = pk.rgba("ANCHOR", 0.95);
@@ -23345,7 +23377,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               floatingChips.push({ x: spot.rect.x, y: spot.rect.y, w: tw, h: th });
               named.push(spot.rect);
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.82)})`;
-              ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
+              if (chipBox(t, { x: spot.rect.x, y: spot.rect.y, w: tw, h: th })) ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
               ctx.fillStyle = INK;
               ctx.fillText(t, spot.rect.x + 5, spot.rect.y + th / 2 + 0.5);
               levels.push(`${m.kind === "HIGH" ? "H" : "L"}:${m.price.toFixed(pxDp)}:${spot.mode}`);
@@ -25319,7 +25351,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.strokeStyle = color; ctx.globalAlpha = 0.55; ctx.setLineDash([2, 3]);
             ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(railX - 6, y); ctx.stroke();
             ctx.setLineDash([]); ctx.globalAlpha = 1;
-            ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotR, 0.88)})`; ctx.fillRect(x, y - h / 2, w, h);
+            ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotR, 0.88)})`; if (chipBox(text, { x, y: y - h / 2, w, h })) ctx.fillRect(x, y - h / 2, w, h);
             ctx.fillStyle = color; ctx.fillRect(x, y - h / 2, 2, h);
             ctx.fillStyle = color; ctx.textAlign = "left"; ctx.textBaseline = "middle";
             ctx.fillText(text, x + 6, sub ? y - 5.5 : y + 0.5);
@@ -25641,7 +25673,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const tw = ctx.measureText(words).width;
             const tx = Math.max(6, Math.min(bx - tw - 6, W - tw - 6));
             ctx.fillStyle = "rgba(11,10,8,0.82)";
-            ctx.fillRect(tx - 3, H - 50, tw + 6, 14);
+            if (chipBox(words, { x: tx - 3, y: H - 50, w: tw + 6, h: 14 })) ctx.fillRect(tx - 3, H - 50, tw + 6, 14);
             ctx.fillStyle = "rgba(200,192,174,0.92)";
             ctx.fillText(words, tx, H - 37);
             floatingChips.push({ x: tx - 3, y: H - 50, w: tw + 6, h: 14 });
@@ -25746,7 +25778,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               recordKeepOut(keepOutLedger, spot);
               floatingChips.push(spot.rect);
               ctx.fillStyle = "rgba(11,10,8,0.78)";
-              ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
+              if (chipBox(t, { x: spot.rect.x, y: spot.rect.y, w: tw, h: th })) ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
               ctx.fillStyle = "rgba(240,200,110,0.95)";
               ctx.fillText(t, spot.rect.x + 4, spot.rect.y + th / 2 + 0.5);
             }
@@ -26066,6 +26098,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.font = `600 9px ${MARKET_SANS}`;
                 ctx.fillStyle = "rgba(200,192,174,0.85)";
                 const prov = wl.provenance.length > 120 ? wl.provenance.slice(0, 119) + "…" : wl.provenance;
+                onTop({ x: r.x, y: r.y + th, w: ctx.measureText(prov).width + 8, h: 14 }, "INSPECT"); // the inspected bar's provenance line
                 ctx.fillText(prov, r.x + 4, r.y + th + 4);
               }
             }
@@ -26113,6 +26146,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const pipHits: PipRect[] = [];
           // Anchors already seated this frame: a later one never lands on them.
           const anchorRects: { x: number; y: number; w: number; h: number }[] = [];
+          let crowdedToPip = 0;
           // THE ANCHORS READ THE SAME REGISTRY: every word on the glass is a
           // blocker for an anchor's slot and for its top-row fallback (serving
           // 390 + 834 all-on, 92895d6: anchors sat on the lens question and the
@@ -26149,7 +26183,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 r = r.x - (w + 8) >= leftMost ? { ...r, x: r.x - (w + 8) } : { ...r, x: Math.max(leftMost, Math.min(plotRight - w - 4, pref.x)), y: r.y + h + 4 };
               }
             }
-            if (single) {
+            // STILL ON A WORD after stepping (serving 390 + 834 enforce, 16f363a:
+            // "N MARKET EVENTS" chips sat on OI words and "POC EST")? The chip
+            // gives up its words and becomes the quiet 12px pip at its cluster —
+            // a tap still lists everything it holds.
+            let pipForm = single;
+            if (!single && wordRectsNow.some(o => r.x < o.x + o.w + 2 && r.x + r.w + 2 > o.x && r.y < o.y + o.h + 1 && r.y + r.h + 1 > o.y)) {
+              pipForm = true; crowdedToPip++;
+              r = { x: Math.max(4, Math.min(plotRight - 16, a.x - 6)), y: clampY(a.y - 6), w: 12, h: 12 };
+            }
+            if (pipForm) {
               // Painted 12px, touched 44px (.wm-tap-slop): the square stays left
               // of the clear zone and off its neighbours' squares.
               const pr = placePipHit(r, pipClearLeft, pipHits, Math.max(4, keepOutMinX() - 16));
@@ -26159,8 +26202,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             floatingChips.push({ ...r });
             anchorRects.push({ ...r });
             const seed = `${a.notes[0].layer}:${a.notes[0].text}`;
-            return { a, r, seed, crowded: sp.mode === "BLOCKED", single };
+            return { a, r, seed, crowded: sp.mode === "BLOCKED", single: pipForm };
           });
+          canvas.dataset.eventNoteCrowded = `TO_PIP:${crowdedToPip}`;
           floatingChips.splice(chipsBeforeWords, wordRectsNow.length);
           canvas.dataset.eventNotePips = `${pipHits.length}|HIT:44|CLEAR_OF:${Math.round(pipClearLeft)}`;
           const offCount = composeOn ? 0 : displacedNotes.length;
@@ -26657,7 +26701,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     setCanvasTextSilenced(ctx, proofNoLabelsRequested(window.location.search));
     // The same registry law on this pane's context (its own frame, its own words).
     const paneWordGate = installWordGate(ctx);
-    paneWordGate.beginFrame({ mode: wordGateModeFor(window.location.search), dpr });
+    // The trader's OWN drawings and notes: never withheld — OBSERVE, permanently.
+    paneWordGate.beginFrame({ mode: "OBSERVE", dpr });
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
 

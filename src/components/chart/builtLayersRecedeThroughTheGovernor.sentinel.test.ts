@@ -311,7 +311,7 @@ describe("narrow legend status keeps its width; the price words yield (serving /
     expect(CHART).toContain('className="flex min-w-0 items-center gap-1.5 wm-legend-status"');
     expect(CSS).toContain(".wm-legend-status:has([data-recency-narrow]) { flex-shrink: 0; min-width: max-content; }");
     expect(CSS).toContain('[data-legend-group="price"] ~ div:has(.wm-legend-status [data-recency-narrow]) { flex-shrink: 0 !important; min-width: max-content; }');
-    expect(CSS).toContain('[data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) .wm-legend-words-short { display: inline-block; white-space: normal; line-height: 1.1; vertical-align: middle; }');
+    expect(CSS).toContain('[data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) .wm-legend-words-short:has([data-change-scope]) { display: inline-block; white-space: normal; line-height: 1.1; vertical-align: middle; }');
     expect(CSS).toContain('[data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) { flex-shrink: 1; min-width: min-content; }');
     // One lawful break only — before the scope; the headline price is never a shrink target.
     expect(CHART).toContain('<span className="whitespace-nowrap" data-change-scope>{sw.slice(cut + 1)}</span>');

@@ -89,6 +89,8 @@ export interface UntradedTouches {
   readonly rejected: number;
   readonly accepted: number;
   readonly tradedThrough: number;
+  /** Settled with no answer (neither rejected, accepted nor traded through) — said, so the counts add up to n. */
+  readonly noAnswer: number;
   readonly state: "MEASURED" | "INSUFFICIENT EVIDENCE";
   readonly sentence: string;
 }
@@ -184,12 +186,12 @@ export function compareFvgTakenVsUntaken(ledgers: readonly FvgLedger[], taken: r
   const u = tally(all);
   const uState = u.n >= PATTERN_SAMPLE_MIN ? "MEASURED" as const : "INSUFFICIENT EVIDENCE" as const;
   const untraded: UntradedTouches = {
-    n: u.n, rejected: u.rejected, accepted: u.accepted, tradedThrough: u.tradedThrough, state: uState,
+    n: u.n, rejected: u.rejected, accepted: u.accepted, tradedThrough: u.tradedThrough, noAnswer: u.none, state: uState,
     sentence: !taken.length || !ledgers.length
       ? "Touches you did not trade: not read (no gap decision, or no ledger loaded)."
       : uState === "MEASURED"
-        ? `On the days you traded gaps, ${u.n} touches you did not trade have settled: the territory rejected on ${u.rejected} (${pct(u.rejectedShare)}), was accepted on ${u.accepted} and traded through on ${u.tradedThrough}. Descriptive only — a touch you left is not a trade you missed.`
-        : `On the days you traded gaps, ${u.n} touches you did not trade have settled (rejected ${u.rejected}, accepted ${u.accepted}, traded through ${u.tradedThrough}). INSUFFICIENT EVIDENCE for a share — ${u.n} of 20.`,
+        ? `On the days you traded gaps, ${u.n} touches you did not trade have settled: the territory rejected on ${u.rejected} (${pct(u.rejectedShare)}), was accepted on ${u.accepted}${u.none ? `, traded through on ${u.tradedThrough} and gave no answer on ${u.none}` : ` and traded through on ${u.tradedThrough}`}. Descriptive only — a touch you left is not a trade you missed.`
+        : `On the days you traded gaps, ${u.n} touches you did not trade have settled (rejected ${u.rejected}, accepted ${u.accepted}, traded through ${u.tradedThrough}${u.none ? `, no answer ${u.none}` : ""}). INSUFFICIENT EVIDENCE for a share — ${u.n} of 20.`,
   };
   return { market, execution, timing, untraded, notCompared: [...notCompared].map(([state, count]) => ({ state, count })), days, claim: "DESCRIPTIVE — not evidence of edge" };
 }

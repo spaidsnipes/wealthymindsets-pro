@@ -108,7 +108,11 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
       expect(html).not.toContain('data-testid="plan-card"');
       expect(html).not.toContain('data-testid="plan-path-load"');
       expect(html).not.toContain('data-testid="plan-erase"');
-      expect(html).not.toContain('data-testid="review-ask-spaidbot"');
+      // ONE labelled sample door (2026-10-09): the first sample decision only, with its note.
+      expect(html.match(/data-testid="review-ask-spaidbot"/g) ?? []).toHaveLength(1);
+      expect(html.match(/data-testid="review-ask-sample-note"/g) ?? []).toHaveLength(1);
+      expect(html).toContain("Nothing is sent unless you press Send yourself.");
+      expect(html.indexOf('data-testid="review-ask-spaidbot"')).toBeLessThan(html.indexOf('id="SAMPLE-2"'));
       // §26: the eleven management behaviours, one sample trade each, every one found by its class.
       expect(html).toContain('data-testid="journal-proof-behaviours"');
       expect(html.match(/data-testid="journal-proof-behaviour"/g) ?? []).toHaveLength(11);
@@ -151,6 +155,41 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("the sample Ask SpaidBot door only pre-fills: pressing it makes ZERO requests (none to /api/spaidbot) and writes nothing", async () => {
+    const fetchSpy = vi.fn();
+    const setItem = vi.fn();
+    const heard: unknown[] = [];
+    vi.stubGlobal("fetch", fetchSpy);
+    vi.stubGlobal("localStorage", { getItem: () => null, setItem, removeItem: setItem, clear: setItem, key: () => null, length: 0 });
+    vi.stubGlobal("window", { dispatchEvent: (ev: { detail?: unknown }) => { heard.push(ev.detail); return true; }, location: { search: "?scene=journal-fixture" } });
+    try {
+      const ask = await import("@/lib/ai/spaidbotAsk");
+      const { fvgReferenceSentence } = await import("@/lib/journal/fvgDecisionReference");
+      const e = journalFixture().entries[0]!;
+      const off = ask.registerSpaidbotAskListener();
+      const sent = ask.askSpaidbot(ask.reviewDecisionAsk({ question: "What should I look at in this decision?", fvgReferenceSentence: fvgReferenceSentence(e.fvgRef), symbol: e.symbol }));
+      off();
+      expect(sent).toBe(true);
+      expect(heard).toHaveLength(1);
+      expect((heard[0] as { prompt: string }).prompt).toContain("My journal referenced this FVG at decision time");
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(fetchSpy.mock.calls.filter(c => String(c[0]).includes("/api/spaidbot"))).toHaveLength(0);
+      expect(setItem).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    // The door's own code holds no request and no storage: the button and the ask owner.
+    for (const f of ["components/ai/AskSpaidbotButton.tsx", "lib/ai/spaidbotAsk.ts"]) {
+      expect(read(f), f).not.toMatch(/fetch\(|\/api\/|setItem\(|localStorage|sessionStorage|XMLHttpRequest|sendBeacon/);
+    }
+    // Only the labelled row has it: read-only rows stay doorless unless the scene names them.
+    const row = read("components/journal/BrokerTruthToday.tsx");
+    expect(row).toContain("{readOnly && !sampleAskDoor ? null : <AskSpaidbotButton");
+    expect(row).toContain("{!composed && fvg && !readOnly ? <AskSpaidbotButton");
+    expect(read("components/journal/JournalProofScene.tsx").match(/sampleAskDoor/g)).toHaveLength(1);
+    expect(read("components/journal/JournalProofScene.tsx")).toContain("sampleAskDoor={i === 0}");
   });
 
   it("the scene path has no write in its source; the Review rows are readOnly; the switch needs token AND a signed-in trader", () => {

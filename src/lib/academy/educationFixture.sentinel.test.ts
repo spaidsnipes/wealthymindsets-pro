@@ -62,6 +62,11 @@ describe("education-fixture proof scene", () => {
     expect(noteRead).toBeLessThan(page.indexOf("readAcademyNote(() => window.localStorage, KEY)"));
     const noteWrite = page.slice(page.indexOf("const onChange = (v: string) => {"), page.indexOf("persistAcademyNote(() => window.localStorage, KEY, v)"));
     expect(noteWrite).toMatch(/=== "education-fixture"\) return;/);
+    // The pass screen never says the lesson is recorded while the scene is on (found on serving 0dd1130).
+    const result = page.slice(page.indexOf("{score}/{qs.length} correct"), page.indexOf('"Score 70%+ to pass the knowledge check."'));
+    expect(result.indexOf('=== "education-fixture"')).toBeGreaterThan(-1);
+    expect(result.indexOf("EDUCATION_FIXTURE_PASS_LINE")).toBeLessThan(result.indexOf("Closing records this lesson complete in this browser."));
+    expect(result.indexOf("EDUCATION_FIXTURE_PASS_LINE")).toBeGreaterThan(-1);
     // Every storage write in the page: the two guarded ones above, plus one unrelated click handler (a chart preference).
     expect(page.match(/persistAcademyProgress\(|persistAcademyNote\(/g)!.length).toBe(2);
   });

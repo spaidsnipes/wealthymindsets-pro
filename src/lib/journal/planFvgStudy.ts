@@ -16,6 +16,7 @@
  * Either is MEASURED only at ≥ 20, else INSUFFICIENT EVIDENCE. Descriptive.
  */
 
+import { confirmationFact, contextFor, type ConfirmationFact, type JournalFvgContext } from "./fvgDecisionContext";
 import type { JournalFvgReference } from "./fvgDecisionReference";
 import { PATTERN_SAMPLE_MIN } from "./founderAnalytics";
 import { planAdherenceByGroup, type SetupAdherence } from "./planAdherence";
@@ -24,15 +25,24 @@ import type { PlanVsActualResult } from "./planVsActual";
 /** A gap older than this many bars of its own timeframe at decision time is "old". */
 export const OLD_GAP_AGE_BARS = 50;
 
-export type FvgStudyDimension = "WHEN" | "DEPTH" | "AGE";
+export type FvgStudyDimension = "WHEN" | "DEPTH" | "AGE" | "WAITED";
+export const FVG_STUDY_DIMENSIONS: readonly FvgStudyDimension[] = ["WHEN", "DEPTH", "AGE", "WAITED"];
 
 export const FVG_STUDY_GROUPS: Readonly<Record<FvgStudyDimension, readonly string[]>> = {
   WHEN: ["Anticipatory (before any touch)", "First touch", "Later touch", "Between touches"],
   DEPTH: ["Untouched or touched", "Partial mitigation", "Deep or full mitigation"],
   AGE: ["Fresh gap", `Old gap (> ${OLD_GAP_AGE_BARS} bars)`],
+  // §23 "confirmed entries" / §41 "did they wait?" — from the confirmation FACT (fvgDecisionContext.confirmationFact).
+  WAITED: ["Waited for a confirming close", "Entered before a confirming close", "Entered before any touch", "Confirmation not recorded"],
 };
 
-export function fvgStudyGroupsOf(ref: JournalFvgReference): Readonly<Record<FvgStudyDimension, string>> {
+/** The WAITED group of a decision, from the confirmation fact. */
+export function waitedGroupOf(fact: ConfirmationFact): string {
+  const g = FVG_STUDY_GROUPS.WAITED;
+  return fact === "CONFIRMED_BEFORE" ? g[0] : fact === "NOT_YET_CONFIRMED" ? g[1] : fact === "NO_TOUCH_YET" ? g[2] : g[3];
+}
+
+export function fvgStudyGroupsOf(ref: JournalFvgReference): Readonly<Record<Exclude<FvgStudyDimension, "WAITED">, string>> {
   const s = ref.snapshot;
   const when = s.interaction === "BEFORE_ANY_TOUCH" ? 0 : s.interaction === "DURING_FIRST_INTERACTION" ? 1 : s.interaction === "DURING_LATER_INTERACTION" ? 2 : 3;
   const depth = s.mitigation === "PARTIAL" ? 1 : s.mitigation === "DEEP" || s.mitigation === "FULL" ? 2 : 0;
@@ -60,12 +70,26 @@ export interface FvgStudyInput {
   /** Plan-vs-actual for the entry's Decision_ID, when a plan was frozen. */
   readonly result: PlanVsActualResult | null;
   readonly realizedR: number | null;
+  /** The §40 context stored with the entry (for the confirmation fact); absent → "Confirmation not recorded". */
+  readonly context?: JournalFvgContext | null;
+  /** The entry's own side; absent → "Confirmation not recorded" (never guessed from the gap's direction). */
+  readonly side?: "LONG" | "SHORT" | null;
+}
+
+/**
+ * The confirmation fact for a study row. The stored context's engine answer decides it; when no answer is
+ * stored, the REFERENCE's own record "before any touch" still is a fact (nothing had been touched) —
+ * everything else stays not recorded.
+ */
+export function waitedFactOf(r: FvgStudyInput): ConfirmationFact {
+  const fact = confirmationFact(contextFor(r.ref, r.context), r.ref.snapshot.direction, r.side);
+  return fact === "SILENT" && r.ref.snapshot.interaction === "BEFORE_ANY_TOUCH" ? "NO_TOUCH_YET" : fact;
 }
 
 export function fvgStudyList(rows: readonly FvgStudyInput[]): FvgStudyRow[] {
   const out: FvgStudyRow[] = [];
-  for (const dim of ["WHEN", "DEPTH", "AGE"] as const) {
-    const tagged = rows.map(r => ({ ...r, group: fvgStudyGroupsOf(r.ref)[dim] }));
+  for (const dim of FVG_STUDY_DIMENSIONS) {
+    const tagged = rows.map(r => ({ ...r, group: dim === "WAITED" ? waitedGroupOf(waitedFactOf(r)) : fvgStudyGroupsOf(r.ref)[dim] }));
     const adherence = planAdherenceByGroup(tagged.filter(r => r.result).map(r => ({ group: r.group, result: r.result as PlanVsActualResult })));
     for (const group of FVG_STUDY_GROUPS[dim]) {
       const here = tagged.filter(r => r.group === group);

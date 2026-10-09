@@ -74,3 +74,25 @@ describe("every More-chart-tools item leaves the sheet, or acts in place (the cl
     expect(DASH).toContain("onAlerts={() => setAlertsOpen(o => !o)}");
   });
 });
+
+describe("a door opened from the menu lands the trader inside it (batch 6: focus fell to the page body)", () => {
+  it("Depth ladder, Replay and Journal P&L stats use the one landing hook; the study row focuses its first control", () => {
+    for (const f of ["DOMPanel.tsx", "BarReplayControls.tsx", "PnLStatsPanel.tsx"]) {
+      expect(read(`src/components/chart/${f}`), f).toContain("useLandOnOpen<");
+    }
+    expect(DASH).toContain('document.querySelector<HTMLElement>(".wm-chart-tools button, .wm-chart-tools select")');
+    // The replay bar stays mounted and is switched by a prop, so its hook sits before every return.
+    const replay = read("src/components/chart/BarReplayControls.tsx");
+    expect(replay.indexOf("useLandOnOpen<HTMLDivElement>(active && chartFollowsCursor)")).toBeLessThan(replay.indexOf("if (!active) return null;"));
+  });
+  it("the depth panel a trader asked for is a sheet below 1024px, not hidden with the idle rails", () => {
+    const css = read("src/app/globals.css");
+    expect(css).toContain(".wm-chart-dom.wm-chart-dom-sheet {\n    display: flex !important;");
+    expect((read("src/components/chart/DOMPanel.tsx").match(/wm-chart-dom wm-chart-dom-sheet/g) ?? []).length).toBe(2);
+  });
+  it("the replay bar wraps inside the glass", () => {
+    const replay = read("src/components/chart/BarReplayControls.tsx");
+    expect(replay).toContain('flexWrap: "wrap"');
+    expect(replay).toContain('maxWidth: "calc(100vw - 16px)"');
+  });
+});

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { X, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { useLandOnOpen } from "@/lib/chart/useLandOnOpen";
 import { journalStorageKeys } from "@/lib/traderMemory/adapters/journalStorage";
 import {
   compilePnlStats,
@@ -49,11 +50,14 @@ export function PnLStatsPanel({ onClose }: { onClose: () => void }) {
     return () => clearInterval(iv);
   }, []);
 
+  // Opens below the chart — at 390 that was below the fold (sheriff batch 6).
+  const landRef = useLandOnOpen<HTMLDivElement>();
   const headline = report?.headline;
   const tone: PnlTone = headline?.tone ?? "REFUSED";
 
   return (
-    <div className="border-t border-wm-border bg-wm-dark shrink-0">
+    <div ref={landRef} tabIndex={-1} role="region" aria-label="Journal P&L stats" data-testid="pnl-stats-panel"
+      className="border-t border-wm-border bg-wm-dark shrink-0 outline-none">
       <div className="flex items-center px-3 h-7 border-b border-wm-border">
         <span className="text-[10px] font-semibold text-wm-text-muted uppercase tracking-wider">P&amp;L Stats</span>
         <div className="flex items-center gap-1 ml-3">

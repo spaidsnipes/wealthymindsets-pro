@@ -454,7 +454,9 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
               </div>
               <div className="text-xs text-wm-text-muted mb-6">
                 {score}/{qs.length} correct · {pct>=70
-                  ? (academyLessonContentStatus(lesson.id) === "AVAILABLE"
+                  ? (typeof window !== "undefined" && proofFixtureScene(window.location.search) === "education-fixture"
+                    ? EDUCATION_FIXTURE_PASS_LINE
+                    : academyLessonContentStatus(lesson.id) === "AVAILABLE"
                     ? "Closing records this lesson complete in this browser."
                     : "The lesson remains incomplete until its video is published.")
                   : "Score 70%+ to pass the knowledge check."}

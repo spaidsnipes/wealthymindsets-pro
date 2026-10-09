@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Play, Pause, SkipBack, SkipForward, Square } from "lucide-react";
+import { useLandOnOpen } from "@/lib/chart/useLandOnOpen";
 
 export type ReplaySpeed = 0.5 | 1 | 2 | 5;
 
@@ -58,6 +59,9 @@ export function BarReplayControls({
   active, playing, speed, position, total, currentTime, chartFollowsCursor,
   onPlay, onPause, onStepBack, onStepForward, onStop, onSpeedChange, timeZone,
 }: Props) {
+  // Before any return: a hook may not sit behind `active`. It lands when the
+  // working bar opens (not for the "not wired" disclosure, which has no ref).
+  const landRef = useLandOnOpen<HTMLDivElement>(active && chartFollowsCursor);
   if (!active) return null;
 
   // M9 DISCLOSURE — the chart does not follow the cursor, so say so and stop
@@ -104,7 +108,18 @@ export function BarReplayControls({
     <div
       data-testid="bar-replay-controls"
       data-chart-follows-cursor="true"
+      ref={landRef}
+      tabIndex={-1}
+      role="group"
+      aria-label="Bar replay controls"
+      // Fits the glass: the bar was 622px on one line and ran from x −118 to
+      // 504 on a 390 phone (sheriff batch 6). It wraps inside the viewport;
+      // no control or word is dropped. `.wm-replay-controls` gives each
+      // button the 44px floor on touch (globals.css).
+      className="wm-replay-controls"
       style={{
+      flexWrap: "wrap", justifyContent: "center", rowGap: 6,
+      maxWidth: "calc(100vw - 16px)", width: "max-content", outline: "none",
       position: "absolute", bottom: 40, left: "50%", transform: "translateX(-50%)",
       zIndex: 400,
       background: "#141824",

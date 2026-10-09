@@ -47,6 +47,41 @@ export interface JournalFvgContext {
   readonly regime: string;
   /** How many closed bars were read (the as-of window). */
   readonly barsRead: number;
+  /**
+   * §23 / §41 "did they wait?": the ENGINE's own answer for the gap's interaction as of the decision —
+   * REJECTED / ACCEPTED / TRADED_THROUGH / NONE / OPEN, or NO_TOUCH when no interaction had begun.
+   * Stored as the engine's word; whether it CONFIRMED the trade is derived from the entry's side
+   * (confirmationFact). Absent on a context saved before this field existed.
+   */
+  readonly responseAsOf?: FvgResponseAsOf;
+}
+
+export type FvgResponseAsOf = "REJECTED" | "ACCEPTED" | "TRADED_THROUGH" | "NONE" | "OPEN" | "NO_TOUCH";
+const RESPONSES: readonly string[] = ["REJECTED", "ACCEPTED", "TRADED_THROUGH", "NONE", "OPEN", "NO_TOUCH"];
+
+export type ConfirmationFact = "CONFIRMED_BEFORE" | "NOT_YET_CONFIRMED" | "NO_TOUCH_YET" | "SILENT";
+
+/**
+ * Had the confirming close printed before the decision? The confirming close is the Academy's own
+ * (confirmingClose.ts → lesson fvg-9): for a trade WITH the gap, the engine's REJECTED — "after the
+ * touch, a bar closes back outside on the origin side". For a trade AGAINST the gap it is the
+ * trade-through of lesson fvg-14 — "a close beyond the far boundary". No second definition lives here.
+ *   NO_TOUCH_YET        no interaction had begun;
+ *   CONFIRMED_BEFORE    the interaction had already been answered in the trade's direction;
+ *   NOT_YET_CONFIRMED   touched, but that close had not printed (still open, no answer, or the other answer);
+ *   SILENT              no stored context / no stored answer, or the trade's side is not recorded.
+ */
+export function confirmationFact(
+  ctx: JournalFvgContext | null | undefined,
+  gapDirection: "BULLISH" | "BEARISH",
+  tradeSide: "LONG" | "SHORT" | null | undefined,
+): ConfirmationFact {
+  const r = ctx?.responseAsOf;
+  if (!r) return "SILENT";
+  if (r === "NO_TOUCH") return "NO_TOUCH_YET";
+  if (!tradeSide) return "SILENT";
+  const withGap = (gapDirection === "BULLISH") === (tradeSide === "LONG");
+  return r === (withGap ? "REJECTED" : "TRADED_THROUGH") ? "CONFIRMED_BEFORE" : "NOT_YET_CONFIRMED";
 }
 
 export type FvgContextResult = { readonly ok: true; readonly context: JournalFvgContext } | { readonly ok: false; readonly reason: string };
@@ -83,6 +118,8 @@ export function fvgContextAtDecision(ref: JournalFvgReference, bars: readonly Ca
       relationships: rel.relationships.map(r => ({ family: r.family, kind: r.kind })),
       sources: rel.sources.map(s => ({ family: s.family, evidence: s.evidence })),
       effortCell, regime: o.regime, barsRead: known.length,
+      // The engine's word for the latest interaction it knew of, from the same closed bars.
+      responseAsOf: o.interactions.length ? o.interactions[o.interactions.length - 1].response : "NO_TOUCH",
     },
   };
 }
@@ -96,6 +133,7 @@ export function readJournalFvgContext(raw: unknown): JournalFvgContext | null {
   const fin = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
   if (!fin(o.decisionAtMs) || !fin(o.readAsOfMs) || !fin(o.barsRead) || o.readAsOfMs > o.decisionAtMs) return null;
   if (typeof o.effortCell !== "string" || !CELLS.includes(o.effortCell) || typeof o.regime !== "string" || !o.regime) return null;
+  if (o.responseAsOf !== undefined && (typeof o.responseAsOf !== "string" || !RESPONSES.includes(o.responseAsOf))) return null;
   const rows = (v: unknown, second: "kind" | "evidence"): { family: string; second: string }[] | null => {
     if (!Array.isArray(v) || v.length > 60) return null;
     const out: { family: string; second: string }[] = [];
@@ -116,6 +154,7 @@ export function readJournalFvgContext(raw: unknown): JournalFvgContext | null {
     kind: FVG_CONTEXT_KIND, version: 1, objectId: o.objectId, decisionAtMs: o.decisionAtMs, readAsOfMs: o.readAsOfMs,
     relationships, sources,
     effortCell: o.effortCell as JournalFvgContext["effortCell"], regime: o.regime.slice(0, 40), barsRead: o.barsRead,
+    ...(typeof o.responseAsOf === "string" && RESPONSES.includes(o.responseAsOf) ? { responseAsOf: o.responseAsOf as FvgResponseAsOf } : {}),
   };
 }
 

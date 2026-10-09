@@ -839,6 +839,19 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [infoOpen,        setInfoOpen]        = useState(false); // collapsible right panel
   const [vpDomOpen,       setVpDomOpen]       = useState(false); // Open only when the trader asks for depth
   const [studyToolsOpen,  setStudyToolsOpen]  = useState(false); // Advanced controls stay quiet until requested
+  // Flow & studies opens a row on the chart; focus goes INTO it (it fell to the
+  // page body — sheriff batch 6). Not on first render: a restored-open row must
+  // not take focus from a trader who pressed nothing.
+  const studyRowFirstRender = useRef(true);
+  useEffect(() => {
+    if (studyRowFirstRender.current) { studyRowFirstRender.current = false; return; }
+    if (!studyToolsOpen) return;
+    const id = window.setTimeout(() => {
+      const first = document.querySelector<HTMLElement>(".wm-chart-tools button, .wm-chart-tools select");
+      if (first) { try { first.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch { /* focus still lands */ } first.focus({ preventScroll: true }); }
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [studyToolsOpen]);
 
   // ── Drawing tools ───────────────────────────────────────────
   const [drawingTool,     setDrawingTool]     = useState<DrawingTool>("cursor");

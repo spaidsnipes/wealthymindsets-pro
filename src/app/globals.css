@@ -1795,6 +1795,35 @@ input[type=range]::-webkit-slider-runnable-track {
   }
 }
 
+/* ── DEPTH LADDER AND REPLAY ON A NARROW GLASS (sheriff batch 6, 2026-10-09) ─
+   Below 1024px the idle rails are hidden (`.wm-chart-dom` in the list far
+   above) — and that also hid the depth panel the trader had just ASKED for:
+   Chart tools › Depth ladder was a dead door at 390 and 834. A panel that is
+   mounted only on request carries `.wm-chart-dom-sheet` and opens as a sheet
+   on the right edge instead. Later and more specific, so it wins.
+   The replay bar's buttons take the 44px floor on touch and at phone width. */
+@media (max-width: 1023px) {
+  .wm-chart-dom.wm-chart-dom-sheet {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 190;
+    width: min(320px, 100vw) !important;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.7);
+  }
+}
+@media (max-width: 767px), (pointer: coarse) {
+  .wm-replay-controls button,
+  .wm-chart-dom-sheet button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 /* ── DOCUMENT ROOMS MEET THE PHONE TAP FLOOR (canon sweep 2026-10-06) ───────
    Measured at 390: News carried 83 controls under 44px (filter chips 23–26px
    tall), Shop 53, Journal 31, WM TV 13 (28px channel rows), Radio 9 (25px
@@ -2223,7 +2252,7 @@ input[type=range]::-webkit-slider-runnable-track {
   .wm-legend-status:has([data-recency-narrow]) { flex-shrink: 0; min-width: max-content; }
   .wm-legend-recency-narrow { display: inline-block !important; max-width: 14ch; }
   [data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) { flex-shrink: 1; min-width: min-content; }
-  [data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) .wm-legend-words-short { display: inline-block; white-space: normal; line-height: 1.1; vertical-align: middle; }
+  [data-legend-group="price"]:has(~ div .wm-legend-status [data-recency-narrow]) .wm-legend-words-short:has([data-change-scope]) { display: inline-block; white-space: normal; line-height: 1.1; vertical-align: middle; }
 }
 .wm-legend-recency-narrow { display: none; }
 

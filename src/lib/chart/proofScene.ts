@@ -80,8 +80,13 @@ export const SELECT_PARAM = "select";
  *                     selector (fvgReferencedExamples); each door lands in the journal
  *                     proof scene. Signed-in only, a banner on screen, the member's
  *                     journal is never read and Academy progress is not written.
+ *   scanner-fixture → /scanner FVG conditions strip (2026-10-09): three SAMPLE daily bar
+ *                     sets (too few bars / newest bar old / reads) go through the real
+ *                     `fvgScanConditions` in place of the bar fetch, so its plain refusal
+ *                     sentences can be read (src/lib/scanner/scannerFixture.ts). Signed-in
+ *                     only, a banner on screen, no bar or chain request, no chart door.
  */
-export const PROOF_FIXTURE_SCENES = ["journal-fixture", "profile-fixture", "lens-fixture", "ticket-fixture", "education-fixture"] as const;
+export const PROOF_FIXTURE_SCENES = ["journal-fixture", "profile-fixture", "lens-fixture", "ticket-fixture", "education-fixture", "scanner-fixture"] as const;
 export type ProofFixtureScene = (typeof PROOF_FIXTURE_SCENES)[number];
 
 /** The fixture scene the URL asks for, or null. */

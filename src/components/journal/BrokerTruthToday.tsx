@@ -56,7 +56,10 @@ export const PLAN_ABSENT_JOURNAL = "This entry did not come from a WM ticket, so
  * dimension, and their own words. `evidence` (from a captured fill) sets the
  * machine facts beside the dimension they inform; they are never edited here.
  */
-export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, fvg: fvgIn, fvgRef, planAbsent, brokerNote, readOnly = false, defaultOpen = false }: {
+/** The label on the proof scene's one sample "Ask SpaidBot" door. */
+export const SAMPLE_ASK_DOOR_NOTE = "SAMPLE door — it fills SpaidBot's question box with this sample decision. Nothing is sent unless you press Send yourself.";
+
+export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionId, planSymbol, fvg: fvgIn, fvgRef, planAbsent, brokerNote, readOnly = false, sampleAskDoor = false, defaultOpen = false }: {
   storyKey: string;
   evidence?: Readonly<Record<ReviewDimension, readonly ReviewEvidenceLine[]>>;
   /** Garden 19 §27/§28: the frozen plan + this trade's actuals, when the story has a Decision_ID. */
@@ -75,10 +78,16 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
   brokerNote?: string | null;
   /**
    * PROOF SCENE ONLY (/journal?scene=journal-fixture): nothing is saved, loaded
-   * or asked — no storage write, no network read, no SpaidBot door. Every
-   * control is inert and says so.
+   * or asked — no storage write, no network read, no SpaidBot door (except the
+   * one labelled sample door below). Every control is inert and says so.
    */
   readOnly?: boolean;
+  /**
+   * PROOF SCENE ONLY (2026-10-09, coordinator order): ONE read-only sample row
+   * shows the "Ask SpaidBot about this decision" door, labelled. The door only
+   * PRE-FILLS the existing panel's question box — it sends nothing and saves nothing.
+   */
+  sampleAskDoor?: boolean;
   defaultOpen?: boolean;
 }) {
   const [fvgLoaded, setFvgLoaded] = useState<FvgReviewAnswers | null>(null);
@@ -247,7 +256,8 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
               ) : null}
               {planDecisionId ? <ManagementPlanCard mode="story" decisionId={planDecisionId} symbol={planSymbol ?? null} initial={plan?.plan ?? null} onPlanChange={s => { setPlanOverride(s); if (s === null) setAll(readStoryReviews()); }} /> : null}
               <span data-testid="plan-question" style={{ fontSize: 12, color: INK, overflowWrap: "anywhere" }}>SpaidBot asks: {composed.question}</span>
-              {readOnly ? null : <AskSpaidbotButton testId="review-ask-spaidbot" label="Ask SpaidBot about this decision" ask={askDecision} />}
+              {readOnly && !sampleAskDoor ? null : <AskSpaidbotButton testId="review-ask-spaidbot" label="Ask SpaidBot about this decision" ask={askDecision} />}
+              {readOnly && sampleAskDoor ? <span data-testid="review-ask-sample-note" style={{ fontSize: 11, color: MUTED }}>{SAMPLE_ASK_DOOR_NOTE}</span> : null}
               <label style={{ fontSize: 11, color: MUTED }}>Why did the plan change? (your words — WM never fills this in)
                 <textarea readOnly={readOnly} data-testid="plan-why" value={r.planWhy ?? ""} onChange={e => save({ ...r, planWhy: e.target.value })} rows={2}
                   style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, fontSize: 12, padding: 6, borderRadius: 4 }} />

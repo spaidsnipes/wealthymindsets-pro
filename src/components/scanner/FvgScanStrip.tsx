@@ -30,6 +30,9 @@ import {
 import { fvgScanUniverses, type FvgScanUniverseId } from "@/lib/scanner/fvgScanUniverse";
 import { loadFvgScanWalls } from "@/lib/scanner/fvgScanWalls";
 import { readStoredActiveWatchlist } from "@/lib/watchlist/activeWatchlist";
+import { proofFixtureScene } from "@/lib/chart/proofScene";
+import { useAuth } from "@/contexts/AuthContext";
+import { SCANNER_FIXTURE_BANNER, SCANNER_FIXTURE_LINE, SCANNER_FIXTURE_SYMBOLS, SCANNER_FIXTURE_WALLS, scannerFixtureBars } from "@/lib/scanner/scannerFixture";
 
 const TF = "1D";
 const BARS = 160;
@@ -43,11 +46,21 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
   // each time the strip opens.
   const [want, setWant] = useState<FvgScanUniverseId>("FIXED");
   const [watchlist, setWatchlist] = useState<{ name: string; symbols: string[] } | null>(null);
+  // PROOF SCENE (scene=scanner-fixture, signed-in only): SAMPLE bar sets go
+  // through the real engine in place of the bar fetch. Read from the address
+  // after mount; nothing is stored, fetched or sent, and no chart door is offered.
+  const { user } = useAuth();
+  const [sceneAsked, setSceneAsked] = useState(false);
+  useEffect(() => { setSceneAsked(proofFixtureScene(window.location.search) === "scanner-fixture"); }, []);
+  const fixture = sceneAsked && !!user;
+  useEffect(() => { if (fixture) setOpen(true); }, [fixture]);
   useEffect(() => {
-    if (!open) return;
+    if (!open || fixture) return;
     try { setWatchlist(readStoredActiveWatchlist(window.localStorage)); } catch { setWatchlist(null); }
-  }, [open]);
-  const { options: universes, active: universe } = fvgScanUniverses({ fixed: fixedSymbols, watchlist, want });
+  }, [open, fixture]);
+  const real = fvgScanUniverses({ fixed: fixedSymbols, watchlist, want });
+  const sample = { id: "FIXED" as const, label: "SAMPLE list", line: SCANNER_FIXTURE_LINE, symbols: SCANNER_FIXTURE_SYMBOLS as readonly string[] };
+  const { options: universes, active: universe } = fixture ? { options: [sample], active: sample } : real;
   const symbols = universe.symbols;
   const [running, setRunning] = useState(false);
   const [readings, setReadings] = useState<readonly FvgScanReading[]>([]);
@@ -66,12 +79,12 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
     const worker = async () => {
       for (let s = queue.shift(); s !== undefined && !ac.signal.aborted; s = queue.shift()) {
         const nowMs = Date.now();
-        const fetch = await fetchFvgBars({ symbol: s, timeframe: TF, bars: BARS, nowMs, signal: ac.signal });
+        const fetch = fixture ? scannerFixtureBars(s, nowMs) : await fetchFvgBars({ symbol: s, timeframe: TF, bars: BARS, nowMs, signal: ac.signal });
         if (ac.signal.aborted) return;
         let reading = fvgScanConditions({ symbol: s, timeframe: TF, fetch, nowMs });
         // §39 FVG + options wall: the chain is asked for only when this symbol met a condition.
         if (reading.status === "READ" && reading.hits.length && fetch.ok) {
-          const walls = await loadFvgScanWalls({ symbol: s, bars: fetch.bars, nowMs, signal: ac.signal });
+          const walls = fixture ? SCANNER_FIXTURE_WALLS : await loadFvgScanWalls({ symbol: s, bars: fetch.bars, nowMs, signal: ac.signal });
           if (ac.signal.aborted) return;
           reading = fvgScanConditions({ symbol: s, timeframe: TF, fetch, nowMs, walls });
         }
@@ -113,7 +126,13 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
   const showFlow = only === "ALL" || only === "FVG_PLUS_ORDER_FLOW";
 
   return (
-    <div className="shrink-0 border-b border-wm-border bg-wm-dark/60" data-testid="scanner-fvg">
+    <div className="shrink-0 border-b border-wm-border bg-wm-dark/60" data-testid="scanner-fvg" data-proof-scene={fixture ? "scanner-fixture" : undefined}>
+      {fixture ? (
+        <div role="status" data-testid="scanner-proof-banner" className="mx-4 mt-1.5 rounded-lg border border-wm-gold/60 bg-wm-gold/10 px-3 py-1.5 text-[11px] font-black tracking-wider text-wm-gold">
+          {SCANNER_FIXTURE_BANNER}
+          <span className="block text-[10px] font-normal tracking-normal text-wm-text-muted">The FVG conditions strip below reads three synthetic symbols. The rest of this page is your real scanner.</span>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2 px-4 py-1.5">
         <button onClick={() => setOpen(v => !v)} aria-expanded={open}
           className={clsx("wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all",
@@ -165,7 +184,7 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
             <ul className="divide-y divide-wm-border/30">
               {hits.map(h => (
                 <li key={`${h.condition}:${h.objectId}`}>
-                  <button onClick={() => { onOpenSymbol?.(h.symbol); router.push(h.href); }} data-testid="scanner-fvg-hit"
+                  <button onClick={() => { if (fixture) return; onOpenSymbol?.(h.symbol); router.push(h.href); }} disabled={fixture} data-testid="scanner-fvg-hit"
                     className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold w-full flex flex-wrap items-center gap-x-3 gap-y-0.5 py-1.5 text-left text-[11px] hover:bg-wm-surface/40">
                     <span className="font-bold text-wm-text w-16">{h.symbol}</span>
                     <span className="text-wm-gold">{FVG_SCAN_CONDITION_LABEL[h.condition]}</span>
@@ -173,7 +192,7 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
                     <span className="font-mono text-wm-text-muted">{h.bottom.toFixed(h.priceDp)} – {h.top.toFixed(h.priceDp)}</span>
                     <span className="text-wm-text-dim">{h.state.replace(/_/g, " ").toLowerCase()}</span>
                     {feedWords(h.symbol) ? <span data-testid="scanner-fvg-feed" className="text-[10px] text-wm-text-dim">{feedWords(h.symbol)}</span> : null}
-                    <span className="ml-auto text-wm-blue">Open on the chart →</span>
+                    <span className="ml-auto text-wm-blue">{fixture ? "Sample — no chart" : "Open on the chart →"}</span>
                   </button>
                 </li>
               ))}
@@ -183,14 +202,14 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
             <ul className="mt-1 divide-y divide-wm-border/30" data-testid="scanner-fvg-convergence">
               {conv.map(h => (
                 <li key={`${h.condition}:${h.objectId}`}>
-                  <button onClick={() => { onOpenSymbol?.(h.symbol); router.push(h.href); }} data-testid="scanner-fvg-convergence-hit"
+                  <button onClick={() => { if (fixture) return; onOpenSymbol?.(h.symbol); router.push(h.href); }} disabled={fixture} data-testid="scanner-fvg-convergence-hit"
                     className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold w-full text-left py-1.5 text-[11px] hover:bg-wm-surface/40">
                     <span className="flex flex-wrap items-center gap-x-3">
                       <span className="font-bold text-wm-text w-16">{h.symbol}</span>
                       <span className="text-wm-gold">{FVG_CONVERGENCE_LABEL[h.condition]}</span>
                       <span className="text-wm-text-dim">with {h.with.map(c => FVG_SCAN_CONDITION_LABEL[c].toLowerCase()).join(", ")}</span>
                       <span className="font-mono text-wm-text-muted">{h.bottom.toFixed(h.priceDp)} – {h.top.toFixed(h.priceDp)}</span>
-                      <span className="ml-auto text-wm-blue">Open on the chart →</span>
+                      <span className="ml-auto text-wm-blue">{fixture ? "Sample — no chart" : "Open on the chart →"}</span>
                     </span>
                     {h.relationships.map(line => <span key={line} className="block pl-16 text-[10px] text-wm-text-dim">{line}</span>)}
                   </button>

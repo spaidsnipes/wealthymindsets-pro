@@ -257,3 +257,24 @@ describe("§33 lessons 12, 20, 21 — the Founder's wording, audited 2026-10-09"
     }
   });
 });
+
+/*
+  The journal's WAITED group ("waited for the confirming close") points at
+  these lessons as its definition (coordinator ruling, 2026-10-09). The rule
+  sentences are pinned word for word so a later edit of the course cannot move
+  the definition out from under the journal without this test saying so.
+*/
+describe("the confirming-close definition the journal pins (lessons fvg-9, fvg-14, fvg-18)", () => {
+  const body = (id: string) => FVG_LESSONS.find(l => l.id === id)!.body;
+  it("lesson 9: rejection and acceptance are read from closes after the touch", () => {
+    expect(body("fvg-9")[0]).toBe(`REJECTION: after the touch, a bar closes back outside on the origin side, without full mitigation — within the first ${FVG_DEFINITION.rejectionWindowBars} bars of that visit. The market visited and refused to stay.`);
+    expect(body("fvg-9")[1]).toBe(`ACCEPTANCE: ${FVG_DEFINITION.acceptanceCloses} or more consecutive closes inside the territory, before any rejection. The market is now doing business there.`);
+    expect(body("fvg-9")[2]).toBe("Both are read from closes, not wicks. A wick in and out is a touch; what the closes do afterwards is the verdict.");
+  });
+  it("lesson 14: a close beyond the far boundary is trade-through", () => {
+    expect(body("fvg-14")[0]).toBe("A bullish territory is traded through when a bar closes below high(b1); a bearish one when a bar closes above low(b1).");
+  });
+  it("lesson 18: patience is waiting for the touch and then the closes that answer it", () => {
+    expect(body("fvg-18")[0]).toBe("A territory far from price may take many bars to be touched, or never be. Waiting for the touch, and then for the closes that answer it, is the discipline.");
+  });
+});

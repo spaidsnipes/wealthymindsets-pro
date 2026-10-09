@@ -45,6 +45,18 @@ describe("§24 · the settled touches the trader did not trade, on his own days"
     expect(c.sentence).toMatch(/^On the days you traded gaps, 40 touches you did not trade have settled: the territory rejected on \d+ \(\d+%\), was accepted on \d+ and traded through on \d+\. Descriptive only — a touch you left is not a trade you missed\.$/);
     expect(c.rejected + c.accepted + c.tradedThrough).toBe(40);
   });
+  it("the counts ADD UP: touches that settled with no answer are said (found on serving 16f363a: 4 + 2 + 8 of 26 left 12 unexplained)", () => {
+    const c = compareFvgTakenVsUntaken([ledger(42, i => (i % 4 === 0 ? "NONE" : i % 2 ? "REJECTED" : "ACCEPTED"))], [t(0, "DURING_FIRST_INTERACTION", 1), t(1, "DURING_FIRST_INTERACTION", 1)]).untraded;
+    expect(c.rejected + c.accepted + c.tradedThrough + c.noAnswer).toBe(c.n);
+    expect(c.noAnswer).toBeGreaterThan(0);
+    expect(c.sentence).toMatch(/traded through on 0 and gave no answer on \d+\. Descriptive only/);
+    const small = compareFvgTakenVsUntaken([ledger(8, i => (i % 2 ? "NONE" : "REJECTED"))], [t(0, "DURING_FIRST_INTERACTION", 1)]).untraded;
+    expect(small.sentence).toMatch(/\(rejected \d+, accepted 0, traded through 0, no answer \d+\)/);
+    expect(small.rejected + small.noAnswer).toBe(small.n);
+    // The fixture too.
+    const fx = journalFixture().counterfactual.untraded;
+    expect(fx.rejected + fx.accepted + fx.tradedThrough + fx.noAnswer).toBe(fx.n);
+  });
   it("OPEN interactions, the traded touches themselves, and other days are not counted", () => {
     const l = ledger(6, i => (i === 5 ? "OPEN" : "REJECTED"));
     (l.objects as unknown as { interactions: FvgInteraction[] }[])[4].interactions[0] = inter(1, T0 + 3 * 86_400_000, "REJECTED");   // another day

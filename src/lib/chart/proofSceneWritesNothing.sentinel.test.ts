@@ -97,6 +97,7 @@ describe("a proof scene writes nothing", () => {
     ["profile-fixture", "?scene=profile-fixture"],
     ["ticket-fixture", "?symbol=NQ1%21&tf=5m&scene=ticket-fixture&side=buy&state=flat"],
     ["education-fixture", "?scene=education-fixture"],
+    ["scanner-fixture", "?scene=scanner-fixture"],
   ])("%s → zero storage writes, zero removes, zero POSTs", async (_name, search) => {
     vi.useFakeTimers();
     const calls = browser(search);

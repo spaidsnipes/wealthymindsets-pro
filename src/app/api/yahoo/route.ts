@@ -6,6 +6,7 @@
  * GET /api/yahoo?sym=NQ1!&type=candles&tf=1m&bars=300 → OHLCV array
  */
 
+import { yahooFailureStatus } from "@/lib/marketData/yahooFailureStatus";
 import { foldYahooLastRow } from "@/lib/marketData/yahooLastRow";
 import { foldHourlyTrailingRow } from "./foldHourlyTrailingRow";
 import { withholdUntradedOutliers } from "@/lib/marketData/untradedOutlierBars";
@@ -379,6 +380,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });
 
   } catch (err: unknown) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    // A symbol the upstream says does not exist is a 404, not a fault of ours (yahooFailureStatus).
+    // Never stored: a "not found" must not be replayed by an edge or a browser as an outage (or as a fact) later.
+    return NextResponse.json({ error: String(err) }, { status: yahooFailureStatus(err), headers: { "Cache-Control": "no-store" } });
   }
 }

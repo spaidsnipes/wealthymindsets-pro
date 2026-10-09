@@ -10,8 +10,12 @@
  * HARD LIMITS (pinned by journalProofScene.sentinel.test.ts):
  *   · a banner that says it is sample data, always on screen;
  *   · ZERO storage writes and ZERO network writes — the Review rows are
- *     `readOnly` (no save, no ledger load, no SpaidBot door), the Personal
- *     Edge block is the pure view with a no-op compare;
+ *     `readOnly` (no save, no ledger load), the Personal Edge block is the
+ *     pure view with a no-op compare;
+ *   · ONE labelled row (the first sample decision) shows the Review's
+ *     "Ask SpaidBot about this decision" door (2026-10-09). It only PRE-FILLS
+ *     the existing panel's question box: no request is made and nothing is
+ *     sent — the trader would have to press Send himself;
  *   · shown only when the token is present and a trader is signed in
  *     (JournalRouteSwitch) — inert for guests.
  */
@@ -102,7 +106,7 @@ export function JournalProofScene(): React.ReactElement {
 
       <section aria-label="Review — FVG answers (sample)" data-testid="journal-proof-review" className="space-y-3">
         <h2 className="text-sm font-bold text-wm-text">Review · FVG answers (sample decisions)</h2>
-        {shown.map(e => (
+        {shown.map((e, i) => (
           <div key={e.id} id={e.id} data-testid="journal-proof-decision" data-anchored={e.id === anchorId ? "yes" : "no"} className="rounded-lg border border-wm-border bg-wm-surface/40 p-3"
             style={e.id === anchorId ? { outline: `2px solid ${GOLD}`, outlineOffset: 2, scrollMarginTop: 96 } : { scrollMarginTop: 96 }}>
             {e.id === anchorId ? <div role="status" data-testid="journal-proof-anchored" className="text-[10px] font-bold tracking-wider" style={{ color: GOLD }}>OPENED FROM A LINK · this sample decision</div> : null}
@@ -112,7 +116,7 @@ export function JournalProofScene(): React.ReactElement {
                 findings and the plan-alone line. No planDecisionId / planSymbol: no plan card (no amend /
                 delete) and no price-path loader — read only. */}
             <StoryReviewRow storyKey={`proof-scene:${e.id}`} fvg={f.review[e.id] ?? null} fvgRef={e.fvgRef}
-              plan={{ plan: e.plan, actuals: e.actuals, path: e.path }} readOnly defaultOpen />
+              plan={{ plan: e.plan, actuals: e.actuals, path: e.path }} readOnly sampleAskDoor={i === 0} defaultOpen />
           </div>
         ))}
       </section>

@@ -39,7 +39,7 @@ describe("every word claims its rect before it paints", () => {
   it("the allow-list is explicit: only wordGate.sovereign may paint unjudged, and MainChart does not use it for market words", () => {
     // Axis and price-scale text belong to the charting library's own canvases;
     // the overlay has no sovereign call today. Adding one is a reviewed act.
-    expect([...CHART.matchAll(/\.sovereign\(/g)].length).toBe(0);
+    expect([...CHART.matchAll(/wordGate\.sovereign\(/g)].length).toBe(0);
     expect(REG).toContain("if (!live || sovereignDepth > 0) return paint();");
   });
   it("the newest candles' column is a registry blocker at every width, from the first word of the frame", () => {
@@ -58,5 +58,35 @@ describe("every word claims its rect before it paints", () => {
   it("withholding is by address until the verdicts are read on serving (OBSERVE changes nothing on the glass)", () => {
     expect(REG).toContain('if (verdict === "PAINT" || mode === "OBSERVE") return paint();');
     expect(REG).toContain('get("gate") === "enforce" ? "ENFORCE" : "OBSERVE"');
+  });
+});
+
+describe("chips ask for their box; on-top words are named; the teaching card never lies on candles under 1024", () => {
+  it("one helper for every chip backing, and it is the registry's panel claim", () => {
+    expect(CHART).toContain("const chipBox = (label: string, box: { x: number; y: number; w: number; h: number }): boolean => wordGate.panel(label, box);");
+    expect([...CHART.matchAll(/if \(!?chipBox\(/g)].length).toBeGreaterThanOrEqual(12);
+    expect(REG).toContain("return verdict === \"PAINT\" || mode === \"OBSERVE\";");
+  });
+  it("every sovereign mark carries one of four reasons, on the line it is made", () => {
+    const marks = [...CHART.matchAll(/onTop\([^\n]*?, "(CROSSHAIR|SELECTION|INSPECT|OPAQUE_CARD)"\);/g)].map(m => m[1]);
+    expect(marks.length).toBeGreaterThanOrEqual(6);
+    expect([...CHART.matchAll(/\bonTop\(/g)].length).toBe(marks.length);
+    expect(CHART).toContain('reason: "CROSSHAIR" | "SELECTION" | "INSPECT" | "OPAQUE_CARD") => wordGate.sovereignPanel(box, reason);');
+  });
+  it("the trader's own drawings are never withheld", () => {
+    expect(CHART).toContain('paneWordGate.beginFrame({ mode: "OBSERVE", dpr });');
+  });
+  it("the teaching card docks around the registry's words, and with no candle-free dock it is withheld with a receipt (desktop yield stays canon)", () => {
+    const a = CHART.indexOf("floatingChips.push(...cardWordReserve);");
+    const dock = CHART.indexOf("bounds, candles: candleRects, blockers: floatingChips,", a);
+    const rel = CHART.indexOf("floatingChips.splice(chipsBeforeCard, cardWordReserve.length);", a);
+    expect(a).toBeGreaterThan(0); expect(dock).toBeGreaterThan(a); expect(rel).toBeGreaterThan(dock);
+    expect(CHART).toContain("const cardNoClearDock = !cardOnNewest && yielded && (W < 1024 || cardWordsBeneath > 0);");
+    expect(CHART).toContain('ds.scaffoldingDock = cardWordsBeneath > 0 ? `WITHHELD_WORDS_BENEATH:${cardWordsBeneath}` : "WITHHELD_NO_CLEAR_DOCK";');
+    expect(CHART).toContain("ctx.fillStyle = panel(yielded ? 0.3 : 0.97);"); // canon untouched
+  });
+  it("a note chip still on a word after stepping becomes the wordless pip", () => {
+    expect(CHART).toContain("pipForm = true; crowdedToPip++;");
+    expect(CHART).toContain('return { a, r, seed, crowded: sp.mode === "BLOCKED", single: pipForm };');
   });
 });

@@ -13,12 +13,17 @@ describe("§23 FVG study list — every group listed, n≥20 to MEASURE", () => 
     expect(fvgStudyGroupsOf(ref("DURING_LATER_INTERACTION", "DEEP", 50))).toEqual({ WHEN: "Later touch", DEPTH: "Deep or full mitigation", AGE: "Fresh gap" });
     expect(fvgStudyGroupsOf(ref("AFTER_FIRST_INTERACTION", "PARTIAL", 3)).WHEN).toBe("Between touches");
   });
-  it("lists all nine groups even when empty; R and adherence measured separately at ≥20", () => {
+  it("lists every group even when empty (nine + the four WAITED groups); R and adherence measured separately at ≥20", () => {
     const rows = fvgStudyList([
       ...Array.from({ length: 20 }, (_, i) => ({ ref: ref("DURING_FIRST_INTERACTION", "PARTIAL", 10), result: res(i < 12), realizedR: i < 10 ? 1 : -1 })),
       { ref: ref("BEFORE_ANY_TOUCH", "NONE", 90), result: null, realizedR: null },
     ]);
-    expect(rows.map(r => r.group)).toEqual([...FVG_STUDY_GROUPS.WHEN, ...FVG_STUDY_GROUPS.DEPTH, ...FVG_STUDY_GROUPS.AGE]);
+    // 2026-10-09: the WAITED dimension (§23 "confirmed entries" / §41 "did they wait?") joins the nine; every group is still listed.
+    expect(rows.map(r => r.group)).toEqual([...FVG_STUDY_GROUPS.WHEN, ...FVG_STUDY_GROUPS.DEPTH, ...FVG_STUDY_GROUPS.AGE, ...FVG_STUDY_GROUPS.WAITED]);
+    // These rows carry no stored context: the 20 touched ones are "Confirmation not recorded" (never placed by
+    // guess); the one the REFERENCE itself records as before any touch is a fact and is placed there.
+    expect(rows.find(r => r.group === "Confirmation not recorded")!.trades).toBe(20);
+    expect(rows.find(r => r.group === "Entered before any touch")!.trades).toBe(1);
     const first = rows.find(r => r.group === "First touch")!;
     expect(first).toMatchObject({ trades: 20, withR: 20, meanR: 0, rState: "MEASURED" });
     expect(first.adherence).toMatchObject({ state: "MEASURED", followed: 12 });

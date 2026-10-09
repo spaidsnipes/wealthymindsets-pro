@@ -381,6 +381,21 @@ one keeps reading "NOT RECORDED" in the splits; it is never back-filled from tod
 
 Test: `fvgDecisionContext.test.ts`.
 
+### Did they wait? The confirmation fact (§23, §41)
+
+The context stored with a gap decision also keeps the engine's own answer for the gap's interaction
+as of the decision (`responseAsOf`). From it and the entry's own side, `confirmationFact` says:
+* **CONFIRMED_BEFORE:** the confirming close had already printed;
+* **NOT_YET_CONFIRMED:** the gap was touched but that close had not printed;
+* **NO_TOUCH_YET:** nothing had been touched;
+* **SILENT:** no stored answer, or no recorded side.
+
+The confirming close has one definition, the Academy's (`confirmingClose.ts`): Lesson 9 for a trade
+with the gap, Lesson 14 for a trade against it. Personal Edge's study list gains the WAITED dimension
+with four groups, listed even when empty, each under the n ≥ 20 rule.
+
+Test: `confirmationFact.test.ts`.
+
 ### FVG context splits and "Did management help?" (§23, §24)
 
 Both sit on the real Personal Edge block (`PlanAdherenceBySetup`) as well as in the journal proof

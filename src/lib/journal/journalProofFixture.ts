@@ -28,6 +28,7 @@ import { fvgReferenceAtDecision, type JournalFvgReference } from "@/lib/journal/
 import { fvgContextFromLedger, fvgReviewAnswersAt, type FvgReviewAnswers } from "@/lib/journal/planFvgContext";
 import { compareFvgTakenVsUntaken, type FvgEdgeComparison } from "@/lib/journal/planFvgCounterfactual";
 import { fvgStudyList, type FvgStudyRow } from "@/lib/journal/planFvgStudy";
+import { fvgContextAtDecision } from "@/lib/journal/fvgDecisionContext";
 import { fvgReferencedExamples, type FvgJournalExample } from "@/lib/academy/fvgCourse";
 import { amendPlan, freezePlanSnapshot, type ManagementPlanSnapshot } from "@/lib/journal/managementPlan";
 import type { PricePath, TradeActuals, PlanVsActualResult } from "@/lib/journal/planVsActual";
@@ -200,7 +201,11 @@ export function journalFixture(): JournalFixture {
   const planResults: Record<string, PlanVsActualResult> = {};
   for (const e of entries) planResults[e.id] = composePlanReview({ plan: e.plan, actuals: e.actuals, path: e.path }).result;
   const adherence = planAdherenceBySetup(entries.map(e => ({ setup: e.setup, result: planResults[e.id] })));
-  const studyRows = fvgStudyList(entries.map(e => ({ ref: e.fvgRef, result: planResults[e.id], realizedR: e.realizedR })));
+  const studyRows = fvgStudyList(entries.map(e => {
+    // §23 / §41: the confirmation fact needs the as-of context (same sample bars) and the sample trade's side.
+    const c = fvgContextAtDecision(e.fvgRef, b);
+    return { ref: e.fvgRef, result: planResults[e.id], realizedR: e.realizedR, context: c.ok ? c.context : null, side: e.plan.base.direction.value };
+  }));
   const examples = fvgReferencedExamples(entries.map(e => ({ id: e.id, symbol: e.symbol, date: e.date, result: e.result, realizedR: e.realizedR, fvgRef: e.fvgRef })))
     .map(x => ({ ...x, href: `/journal?scene=journal-fixture#${x.id}` }));
   // Context as of formation, from the owners that can be asked from bars alone (structure; the
