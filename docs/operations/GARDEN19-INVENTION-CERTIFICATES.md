@@ -6,7 +6,7 @@ Written 2026-10-06, 23:50–00:30 CDT, by the INVENTION CENSUS lane. **This pass
 
 One row per section of the order's second part ("0 — PRIMARY ORDER" through "66 — GARDEN 19 CONSTITUTIONAL CLOSE"; §0 is the preamble and has no row). Titles are the Founder's. Section numbers in the last column of evidence (§5, §6a, §10, §13, §22, §23 …) point into THIS document; proof files are in `~/wm-held/proof/`. Only what this document and the proof files cite is counted: a row with no serving receipt is BUILT · NOT READ or lower. Production at writing: `16f363a` (LIVE 07:54:56 CDT).
 
-**Totals (66), as of 12:46 CDT Oct 9 (production `79bb6fd`):** **PROVED ON SERVING** 44 · **PROVED ON FIXTURE · real-account read owed** 11 · **BUILT · NOT READ** 1 · **PARTIAL** 8 · **NOT BUILT** 0 · **FOUNDER DECISION** 2. (At 11:50: 42 · 10 · 2 · 10 · 0 · 2. At 08:10: 39 · 5 · 2 · 18 · 0 · 2.)
+**Totals (66), as of 12:57 CDT Oct 9 (production `6e150db`):** **PROVED ON SERVING** 46 · **PROVED ON FIXTURE · real-account read owed** 12 · **BUILT · NOT READ** 1 · **PARTIAL** 5 · **NOT BUILT** 0 · **FOUNDER DECISION** 2. (At 12:46: 44 · 11 · 1 · 8 · 0 · 2. At 11:50: 42 · 10 · 2 · 10 · 0 · 2. At 08:10: 39 · 5 · 2 · 18 · 0 · 2.)
 
 | § | Founder's title | State | Proved by (build · time) — or exactly what is missing | Lane |
 |---|---|---|---|---|
@@ -22,8 +22,8 @@ One row per section of the order's second part ("0 — PRIMARY ORDER" through "6
 | 10 | REMAINING TERRITORY | **PROVED ON SERVING** | Geometry: remaining dense vs visited hatch with Inspect closed (`301d85d`, panel-erasure note in the inspect proof file). Words: "no unvisited territory" (`eea2771`, §6a). | FVG / chart lane |
 | 11 | TIME-TO-RETURN | **PROVED ON SERVING** | Bars to first touch read: "median first touch 2 bars (median of 139)" (`eea2771`, §6a). Missing: a serving read of the horizon classes (immediate / same session / later session / next session / multi-day / still open) — built in `fvgStats.ts` and `FvgStudyPanel.tsx`, no receipt. **UPDATE 2026-10-09 11:44 CDT → PROVED** (serving `ada59d4`, `~/wm-held/proof/fvg-serving-night-2026-10-07.txt`): all horizon classes read with n of m on the FVG study — NQ1! 5m: within 3 bars same session 116 of 191 (61%), later the same session 55 of 191 (29%), next session 12 of 191 (6%), 2–4 sessions later 2 of 191 (1%), 5+ sessions 0 of 191, not revisited 6 of 191 (3%), session not known 0 of 191; SPY 5m: 34 / 16 / 4 / 1 / 0 / 2 / 0 of 57. Median first touch 5 min (NQ1!) and 10 min (SPY). Wording defect read and fixed: "1 bars" → "1 bar". | scanner / backtest / replay / SpaidBot lane |
 | 12 | DISPLACEMENT CONTEXT | **PROVED ON SERVING** | Inspect size against ATR14 (`301d85d`); Backtest displacement-band filter (`c4de0f0`) and its INSUFFICIENT split at 390 (`fabce3a`, spaidbot-academy-backtest proof file). | FVG / chart lane |
-| 13 | FVG × EFFORT → RESPONSE | **PARTIAL** | Rejection / acceptance / trade-through at the gap are observed from closes (§9 above). Missing: effort → response is not a relationship on the gap — `fvgRelationships.ts` has three families only (STRUCTURE, PROFILE, WALL). It is kept only with a journal decision (`fvgDecisionContext.ts`, `0dd1130`, unit). **DESIGN CALL 2026-10-09 (coordinator):** effort → response becomes a relationship family on the gap, read as of the gap over a trailing 100-bar window. Not built yet. | FVG / chart lane |
-| 14 | FVG × ORDER FLOW | **PARTIAL** | The silence is proved: ORDER_FLOW reads NOT_ATTACHED / SILENCE on serving (`fabce3a`; `c02c2d4` "EVIDENCE COMPLETENESS DEGRADED"). Missing: no owner attaches footprint / delta / CVD / absorption to an interaction; the scanner's "FVG + order-flow interaction" is omitted (§5 SCANNER). **DESIGN CALL 2026-10-09 (coordinator):** order flow becomes a relationship family on the gap (same trailing 100-bar as-of window); where sides are inferred the evidence reads PARTIAL. Not built yet. | FVG / chart lane |
+| 13 | FVG × EFFORT → RESPONSE | **PROVED ON SERVING** | Rejection / acceptance / trade-through at the gap are observed from closes (§9 above). Missing: effort → response is not a relationship on the gap — `fvgRelationships.ts` has three families only (STRUCTURE, PROFILE, WALL). It is kept only with a journal decision (`fvgDecisionContext.ts`, `0dd1130`, unit). **DESIGN CALL 2026-10-09 (coordinator):** effort → response becomes a relationship family on the gap, read as of the gap over a trailing 100-bar window. Not built yet. **UPDATE → PROVED** (ticket lane's receipts, `fvg-serving-night-2026-10-07.txt`): serving `e05c774`, 12:02–12:04 CDT, NQ1! 5m under `scene=verify`, a gap selected by id — Inspect: "Effort→response displacement bar — at formation · owner says INITIATIVE · large effort · large response · effort 26.20× median volume · response 0.86 ATR (2.31× median) · FULL (traded volume; each bar ranked over the 100 closed bars ending at that bar)". Scanner on `6944df9`: one "FVG + effort→response" hit (MSTR) with the same sentence shape. Journal context and its splits read on the sample. Not read: a touch-bar row on real data; a spot-FX gap; the Backtest effort split; 390. Receipts also written as §10f of this document (touch-bar rows on real data, `6e150db` 12:54). | FVG / chart lane |
+| 14 | FVG × ORDER FLOW | **PROVED ON SERVING** | The silence is proved: ORDER_FLOW reads NOT_ATTACHED / SILENCE on serving (`fabce3a`; `c02c2d4` "EVIDENCE COMPLETENESS DEGRADED"). Missing: no owner attaches footprint / delta / CVD / absorption to an interaction; the scanner's "FVG + order-flow interaction" is omitted (§5 SCANNER). **DESIGN CALL 2026-10-09 (coordinator):** order flow becomes a relationship family on the gap (same trailing 100-bar as-of window); where sides are inferred the evidence reads PARTIAL. Not built yet. **UPDATE (ticket lane's receipts, same file):** serving `e05c774`, 12:02–12:04 — Inspect prints "Order flow displacement bar — at formation · owner says BALANCED · neither side took the larger share (buyers 50% · sellers 50%) · PARTIAL (the provider's per-bar bid / ask volume — an aggregate for the bar, not prints)". The PARTIAL path is proved on real data and says what it is. Still missing: a FULL row from captured tape (the tape only holds bars since the page opened — none seen); the scanner's order-flow condition reads UNAVAILABLE for want of signed tape. **UPDATE 12:57 CDT → PROVED ON SERVING — on provider bar volume and on one captured-tape touch bar (backfilled prints, NQ1! 1m, 6e150db 12:54:37 CDT); a fully tape-read gap not yet observed.** Receipts: §10f. | FVG / chart lane |
 | 15 | EVIDENCE INHERITANCE | **PROVED ON SERVING** | Evidence per sense, by reference, never upgraded: test + EURUSD price-only (`eea2771`), DEGRADED on SPY (`c02c2d4`), SpaidBot context SILENCE (`fabce3a`) — §13 row 15. | FVG / chart lane |
 | 16 | FVG × PROFILE | **PROVED ON SERVING** | Inspect: Living Profile VAH / POC / HVN near the gap, by reference (`301d85d`); scanner "FVG + profile" (`fabce3a`); Backtest profile split (`b290eef`, 06:52 Oct 9). | FVG / chart lane |
 | 17 | FVG × WALLS | **PROVED ON SERVING** | Built by reference. The only serving reads are silence: "Options walls: SILENCE — no options positioning attached" (`301d85d`); scanner 0 wall rows (`fabce3a`). Missing: one read of a gap with a wall attached. **UPDATE 2026-10-09 11:46 CDT → PROVED with a wall attached** (serving `ada59d4`, cert lane own tab, read-only; SPY 1h `scene=clean&on=fvg,BrickWalls,DerivativesPressure&select=fvg:FVG\|TASTYTRADE:SPY\|1h\|1791302400000\|BEARISH\|v1`, walls 778 / 780 / 785 drawn): Inspect → Relationships (by reference): "Options walls call wall 780.00 — near (0.19 away) · owner says TESTED · DEGRADED (DELAYED chain (3862 contracts); exposure INFERRED, tests OBSERVED)". The wall keeps its own state and its own evidence class. A gap farther than its approach distance from every wall (SPY 5m 777.66–777.72, wall 778) says nothing about walls — §24b. | FVG / chart lane |
@@ -42,7 +42,7 @@ One row per section of the order's second part ("0 — PRIMARY ORDER" through "6
 | 30 | SPAIDBOT × FVG | **PROVED ON SERVING** | Complete answer, facts tagged, limitations named (`14de5a0`); request body carries the selected gap (`02e593e`); only the selected record carries relationships; Inspect door pre-filled, 0 requests (`b290eef`, 06:53 Oct 9). | scanner / backtest / replay / SpaidBot lane |
 | 31 | SPAIDBOT × MANAGEMENT | **PROVED ON FIXTURE · real-account read owed** | Wired (`spaidbotContext`, `spaidbotPlanReview.ts`), unit-certified. No serving read of an answer (a provider call on the Founder's account) — §10c. **UPDATE 2026-10-09 12:03 CDT → PROVED ON FIXTURE** (serving `e05c774`, `~/wm-held/proof/fvg-serving-night-2026-10-07.txt`): the panel now publishes the two management fields of the context it would send (one builder, no request). On `/journal?scene=journal-fixture` the labelled sample door gave `data-ctx-decision="yes"` and `data-ctx-plan="plan frozen at the ticket's send: thesis “sample: price returns to the gap and holds it” · stop 100.94 · target 99.26 · …"`; 0 `/api/spaidbot` requests, 0 writes, Send not pressed. On the Founder's own account there are 0 stored plans (decision scenes for MNQ1! and NQ1! only), so a real-account read waits for one frozen plan (Founder list); no model answer was read (a provider call). | management lane |
 | 32 | ⓘ FVG EDUCATION | **PROVED ON SERVING** | Tools → "fvg" → ⓘ preview → Academy (`c02c2d4`, §13 row 21); the §32 sentence verbatim in `CONCEPT_EDUCATION.FVG_IMBALANCE`. | cert lane |
-| 33 | ACADEMY: FAIR VALUE GAPS & IMBALANCE | **PROVED ON SERVING** | 21 lessons in the one Academy, 63 / 63 layouts (`4769a31`); lesson 20 text (`0dd1130` 07:45 Oct 9). Quiz proved on the sample scene with 0 storage writes (`16f363a` 07:58–08:02). One wording fix for the scene's pass screen is in the tree, unshipped (§23b). **UPDATE 2026-10-09 11:43 CDT:** the scene's pass screen now reads "10/10 correct · Marked verified on this page only — not saved (proof scene)." (serving `ada59d4`). | cert lane |
+| 33 | ACADEMY: FAIR VALUE GAPS & IMBALANCE | **PROVED ON SERVING** | 21 lessons in the one Academy, 63 / 63 layouts (`4769a31`); lesson 20 text (`0dd1130` 07:45 Oct 9). Quiz proved on the sample scene with 0 storage writes (`16f363a` 07:58–08:02). One wording fix for the scene's pass screen is in the tree, unshipped (§23b). **UPDATE 2026-10-09 11:43 CDT:** the scene's pass screen now reads "10/10 correct · Marked verified on this page only — not saved (proof scene)." (serving `ada59d4`). **UPDATE 12:54 CDT** (serving `6e150db`, builtAt 17:49:21Z, 390): all 21 lesson drawings measure 318 px wide; **every label renders at 11.02 px (21 of 21 lessons, 93 labels), none runs past its drawing**; captions at 11 px; lesson 21 reads "Reference the gap on your FVG trades in the Journal." | cert lane |
 | 34 | ACADEMY MUST CHALLENGE MYTHS | **PROVED ON SERVING** | Myth card on lessons 1, 10, 14, 15, 16 in the Founder's words (`4769a31`; §22a). | cert lane |
 | 35 | ACADEMY ↔ LIVE MARKET | **PROVED ON SERVING** | 21 / 21 "Show me on a chart" links followed (`92895d6` 9, `0dd1130` 12); Practice in Replay starts Replay (`92895d6` 07:22); Inspect opens the lesson for the gap's own state — 14, 9, 15 (`0dd1130` 07:48–07:50) — §23b. | cert lane |
 | 36 | ACADEMY ↔ PERSONAL EDGE | **PROVED ON FIXTURE · real-account read owed** | "Show me my examples" on the sample scene (`559884e`). The sample row's landing on its decision shipped in `16f363a`, not read. Owed: a real FVG-referenced entry. **UPDATE 2026-10-09 11:44 CDT → sample landing PROVED** (serving `ada59d4`): the row `#SAMPLE-24` followed in-app lands on `/journal?scene=journal-fixture#SAMPLE-24`, the decision is in view and marked "OPENED FROM A LINK · this sample decision". Still owed: a real FVG-referenced entry. | cert lane |
@@ -68,14 +68,14 @@ One row per section of the order's second part ("0 — PRIMARY ORDER" through "6
 | 56 | THE FULL LEARNING LOOP | **PROVED ON SERVING** | Public loop 15 steps, signed out (`0dd1130` 07:50 Oct 9); product hops by integration test + serving walk (`6e65180`); lesson → journal hop on the sample (§19b). | cert lane |
 | 57 | ATH WEBSITE | **PROVED ON SERVING** | No indicator-launch claim; living-market language; $20 / month unchanged (`d5ac6ff`; `0dd1130`). The copy has never been redlined by the Founder (§23d). | cert lane |
 | 58 | PERFORMANCE LAW | **PARTIAL** | Paint within budget (`301d85d`, `c02c2d4`); compute per closed bar; bench at CPU ×4 (night proof file). Missing: a signed-in read on a real phone (§13 row 27). | FVG / chart lane |
-| 59 | KEEP / FIX / PROVE | **PARTIAL** | This table is the proof ledger; it is not all PROVED (see the totals). | coordinator |
+| 59 | KEEP / FIX / PROVE | **PARTIAL** | This table is the proof ledger; it is not all PROVED (see the totals). **12:57 CDT:** cannot close while any row is short of PROVED ON SERVING — it waits on the 12 sample-data rows (Founder actions), §52 / §58 (physical devices), §62 and §66. | coordinator |
 | 60 | BUILD ORDER | **PROVED ON SERVING** | Stages A–G shipped in order: SHA chain `4769a31` → … → `c02c2d4` (§13 row 29). | coordinator |
 | 61 | DO NOT LET THE NEW INVENTION BLOCK CURRENT RELEASE | **FOUNDER DECISION** | The layer ships default OFF (`683aecf` read: off in a clean scene). Default ON or OFF is the Founder's call (§13 row 30 h). | coordinator |
-| 62 | RELEASE EVIDENCE | **PARTIAL** | §13: 29 bullets. Still open there: Backtest wording re-read (row 24), real-entry Journal save → reload (row 26), real-phone performance (row 27), real examples (row 22). | cert lane |
+| 62 | RELEASE EVIDENCE | **PARTIAL** | §13: 29 bullets. Still open there: Backtest wording re-read (row 24), real-entry Journal save → reload (row 26), real-phone performance (row 27), real examples (row 22). **12:57 CDT:** the Backtest wording was read at 11:44 (§21). Still waits on: one real Journal entry saved and reloaded (Founder), one real "Show me my examples" entry (same action), and performance on a real phone (device). Nothing left for a lane to build. | cert lane |
 | 63 | FINAL FVG SHERIFF TEST | **FOUNDER DECISION** | The lanes ran it (`fvg-serving-sheriff-2026-10-07.txt`; first-tap screenshots on `c104669`). The test is the Founder's own walk on Market Home — owed, and the layer is off until he switches it on. | Sheriff lane |
 | 64 | FINAL PATIENCE / MANAGEMENT SHERIFF TEST | **PROVED ON FIXTURE · real-account read owed** | Market / planned / actual apart, factual deviations, new evidence preserved — sample walkthrough (§10b). Owed: one completed Founder trade. | management lane |
-| 65 | GARDEN 19 FINAL FVG LAW | **PARTIAL** | Every line has a row above except: other evidence present / absent at the gap is limited to structure, profile and walls (§13, §14, §17); "how the trader behaved" is proved on sample data only (§23). | FVG / chart lane |
-| 66 | GARDEN 19 CONSTITUTIONAL CLOSE | **PARTIAL** | Most pairs have rows above. Open: "broker acknowledgement before execution certainty" — the Webull server gate (`559884e`) is pinned by sentinel, not proved on serving (§21c); "permission before automation" — authorized execution is not built and needs the Founder's permission rule (§10c). | coordinator |
+| 65 | GARDEN 19 FINAL FVG LAW | **PROVED ON FIXTURE · real-account read owed** | Every line has a row above except: other evidence present / absent at the gap is limited to structure, profile and walls (§13, §14, §17); "how the trader behaved" is proved on sample data only (§23). **UPDATE 12:57 CDT:** with §13 and §14 proved, other evidence present / absent at the gap is now read for structure, profile, walls, effort → response and order flow. The one line left is "how the trader behaved" — proved on sample data only (§23, §24, §41). Closes with the Founder's real journal entries. | FVG / chart lane |
+| 66 | GARDEN 19 CONSTITUTIONAL CLOSE | **PARTIAL** | Most pairs have rows above. Open: "broker acknowledgement before execution certainty" — the Webull server gate (`559884e`) is pinned by sentinel, not proved on serving (§21c); "permission before automation" — authorized execution is not built and needs the Founder's permission rule (§10c). **12:57 CDT:** still waits on two things — (1) a serving read of the Webull order door's server gate refusing an order (not done: no order is sent on the Founder's account; needs a sample or dry-run path), with decision 6 on the GATED wording; (2) the Founder's permission rule for authorized execution. | coordinator |
 
 Struck from the open list: the memo-deps ask at `ChartsDashboard.tsx` ~2960 — closed in `7f2ca59` (coordinator, Oct 9).
 
@@ -2810,12 +2810,12 @@ Measured: the lesson column is 358 px on a 390-px phone, the drawing is 300 unit
 | Connect, door 2: Depth ladder → "Check connections →" | Leaves the chart for the Connections page (phone nav present). **390:** 0 of 223 leaves under 11 px; 5,532 px of page. **834:** 83 of 223 under 11 px. The page reads "7/10 providers configured", "13/40 required names present · Values stay sealed in approved runtime stores" | reached. **P2 (brokers lane):** operator words on a page a member reaches from the Depth sheet; the door leaves the chart without saying so |
 | Lesson diagram labels at 390 (lesson 21) | The drawing is **318 px** wide at 390, not the 358 px assumed at 12:26: all 7 labels render at **9.81 px**. "reference a gap" is on the drawing. The lesson's WHAT TO LOOK FOR still said "Tag FVG trades in the Journal." | **NOT at 11 px on serving.** Fixed in the tree 12:44: `LABEL_UNITS = 10.4` against the measured 318 px (11.02 px); four long labels shortened or end-anchored so none runs past the drawing; caption and lesson eyebrow at 11 px on phones; lesson 21's look line names the real control. Serving read owed after the next ship |
 
-### 26g. Remaining after `79bb6fd` — everything not PROVED ON SERVING (22 of 66)
+### 26g. Remaining — everything not PROVED ON SERVING (22 of 66 at 12:46; 21 at 12:55 after §13)
 
 | Group | Sections | What closes it | Owner |
 |---|---|---|---|
 | Fixture rows (11) | 23, 24, 26, 27, 28, 29, 31, 36, 40, 41, 64 | the Founder's real-account actions — handover (c) | Founder, then management lane reads |
-| Build gap | 13, 14 | effort → response and order flow as relationship families on the gap: tests shipped in `f37005c` / scanner conditions in `6944df9` per the commit notes — **no serving receipt in this document yet**; one read each on a gap with the reading attached | FVG / ticket lane to cite, cert lane to flip |
+| Build gap | 14 (13 closed 12:55) | §13 flipped from the ticket lane's receipts. §14: the PARTIAL path is proved; a FULL order-flow row from captured tape has not been seen on serving | ticket lane |
 | Devices | 52, 58 | physical phone and tablet — handover (d) | Founder |
 | Composite | 59, 62, 65, 66 | close when the rows above close; §66 also needs the Webull server gate read on serving and the Founder's permission rule for authorized execution | coordinator |
 | Founder decisions | 61, 63 | FVG default ON / OFF; his own Sheriff walk | Founder |
@@ -2849,8 +2849,9 @@ Measured: the lesson column is 358 px on a 390-px phone, the drawing is 300 unit
 | `6944df9` | **Price sovereignty on the phone** — discs and option marks step off the newest candles; stage nav on one row; four API tightenings |
 | `5b12137` | The absorption effort mass held to the fog cap and stopped at the newest candles |
 | `79bb6fd` | No notch behind the newest candles; one failure wording for guests and members; Personal Edge gap study on /profile; journal header on one row |
+| `6e150db` | Selected items keep their words on the phone; lesson drawings readable on a phone (every label 11 px) |
 
-Finish line at 12:46: **44 of 66 sections proved on serving, 11 proved on sample data, 8 partial, 1 built and unread, 2 waiting on you.**
+Finish line at 12:57: **46 of 66 sections proved on serving, 12 proved on sample data, 5 partial, 1 built and unread, 2 waiting on you.**
 
 ### (b) Decisions waiting on you — with the default in force today
 
@@ -2861,20 +2862,23 @@ Finish line at 12:46: **44 of 66 sections proved on serving, 11 proved on sample
 | 3 | The two selling strings added today: the loop sentence ends "→ RETURN TO MARKET BETTER"; the 15th line reads "That is a Trading Operating System." | **Live** on /welcome, /pricing, /login. Both are your own sentences; the selling copy as a whole has never been redlined by you |
 | 4 | Passport intro-offer line (first month $10, then $20) and the referral links | **Shown as display only**; referral links wait for your URLs. Four tiers $0 / $10 / $20 / $50 — confirmed by you today |
 | 5 | Futures option walls on a near-price chain: scoped (A) or withheld (B) | **A, shipped:** walls drawn as NEAR-PRICE OPEN INTEREST; zero-gamma and the pressure field withheld, with the reason on the glass |
-| 6 | Webull GATED wording, A or B (API audit P1-3) | **The wording now on serving stays.** The two candidate sentences are with the brokers lane — they are not written in this document |
-| 7 | Masthead feed reading at 11 px | **As shipped** (11-px floor on phones since `f37005c`). The open point is with the chart lane — not written in this document |
+| 6 | **Webull submit wording** (API audit P1-3). The glass says Webull submit is "GATED (submit order not switched on)", but the route sends once limits are set and an armed, confirmed order is within caps (`order-submit/route.ts` holds `liveOrdersEnabled: true`, per your 2026-10-01 instruction). **A:** add a real server switch, default off, so the sentence is literally true. **B:** keep the route and change the words to what is true | **The route sends when armed; the words say GATED.** The sentence on the glass is not true today |
+| 7 | **Masthead feed reading on phones.** "LIVE — CERTIFIED QUOTE · certified realtime · asOf HH:MM:SS ET" is under 11 px on phones: at 11 px its three lines wrap to four and the masthead grows from 133 to 144 px, taking 11 px from the chart. Raise it and accept the height, shorten the words, or leave it | **Left small** — the one exception to the 11-px phone floor |
 | 8 | GC1! decimals: the chart prints gold at 2 decimals, the ticket at the true tick | **Both stand** — chart 2 dp, ticket true tick |
 | 9 | Phone ticket: at most 55 % of the glass while acting? | **Not enforced as a limit.** Measured: PEEK 51 %; BUILD fits without inner scroll (592 px of 844) |
 | 10 | 390 px: where the Liquidity Weather lens's words live | **The lens yields at phone width** — its stage has no mark on the glass there |
 | 11 | Teaching card on desktop yields (docks clear of the silence band) | **Kept as canon** (coordinator ruling) — listed so you can overrule |
 | 12 | Memory Ghost: dashed outline (code) or the plate's faint filled candles | **Dashed, as coded** — deferred with your scope decision |
-| 13 | Living Profile line grammar | **As shipped.** The open question is with the chart lane — not written in this document |
+| 13 | **Living Profile line grammar.** Its P-110 plate draws the profile's lines in its own grammar; every other profile uses a solid POC and dashed value-area edges. Keep the plate's grammar, or adopt the shared one | **The plate's grammar** |
 | 14 | FVG layer default | **OFF.** A trader switches it on in Tools; lessons and doors switch it on for that visit only |
 | 15 | TED definition | **None.** Its ⓘ says "definition pending Founder"; nothing is drawn as TED on the candles |
+| 16 | **A server-read quote before order preflight** — should the server read its own quote before it checks an order, instead of trusting the page's | **Not in force.** The brokers lane is writing the plan |
+| 17 | BTC-USD depth shows the book WM reads, with no venue label | **DECIDED by you today** — in force since `e05c774`. Listed as a record, not a question |
+| 18 | **Radio link hosts** — which hosts a radio link may point at (archive.org, Dropbox) | the current list: archive.org and Dropbox |
 
 Also decided by you today and now in force: order books carry no venue or source label (Depth ladder only); phone opacity "not ATH" — fixed across `e05c774` → `79bb6fd`, your eye is the last check.
 
-### (c) Real-account actions that would close the 11 sample-data rows
+### (c) Real-account actions that would close the sample-data rows (11 at 12:46; 12 at 12:57 with §65)
 
 Each row is proved on labelled sample data. Nothing is ever written to your journal or sent on your account by the lanes, so only you can make the real record.
 
@@ -2899,3 +2903,73 @@ One trade and one journal entry (actions 1–5) close eight of the eleven; §23,
 - **Sign-in on the phone** (Supabase site URL items from Oct 6 still need your dashboard).
 
 What would close it: ten minutes on your phone and your iPad on /charts (tap a gap, open TRADE, open Tools, rotate), with screenshots sent to the team.
+
+### 10f. §13 / §14 receipts for the finish-line table — management lane, written 12:56 CDT Oct 9
+
+```
+
+== §13 / §14 RECEIPTS FOR THE FINISH-LINE TABLE — PATIENCE / MANAGEMENT LANE · written 12:56 CDT Oct 9 2026 by the lane that read them
+  METHOD (all): own tab, opened and closed; signed-in; sandboxed same-origin iframes; scene=verify ("VERIFICATION — real data, nothing is saved") for real-data reads, fixture scenes otherwise. Gaps selected by URL (select=fvg:<id>), once by a synthetic click on the chart canvas (selection only). Scanner / Backtest read buttons pressed under the write hold. No save, no order.
+
+  §13 FVG × EFFORT→RESPONSE
+   a) INSPECT, real data — e05c774, 12:02–12:04 CDT, /charts NQ1! 5m 1440, gap FVG|TASTYTRADE:/NQZ26:XCME|5m|1791552600000|BEARISH|v1 → HELD:
+      "Effort→response displacement bar — at formation · owner says INITIATIVE · large effort · large response · effort 26.20× median volume · response 0.86 ATR (2.31× median) · FULL (traded volume; each bar ranked over the 100 closed bars ending at that bar)"
+   b) INSPECT touch bars, real data — 6e150db, 12:54 CDT, /charts NQ1! 1m 1440, gap …|1m|1791567960000|BULLISH|v1 → HELD:
+      "Effort→response touch bar — at touch 1 · owner says QUIET · small effort · small response · effort 0.54× median volume · response 0.24 ATR (0.57× median) · FULL (…)"
+      "Effort→response touch bar — at touch 2 · owner says ORDINARY · ordinary effort and response · effort 1.00× median volume · response 0.57 ATR (1.38× median) · FULL (…)"
+   c) SCANNER, real data — 6944df9, 12:26 CDT, /scanner 1440: read 30 of 30 symbols, 0 refused; chip "FVG + effort→response"; hit MSTR · with deep mitigation · 133.42 – 164.49:
+      "Effort→response displacement bar — at formation · owner says INITIATIVE · large effort · large response · effort 3.05× median volume · response 1.85 ATR (4.85× median) · FULL (…)"
+   d) BACKTEST effort split, real data — 79bb6fd, 12:42 CDT, /backtesting FVG Study, NQ1! 5m added: 194 gaps = Not read 4 · Initiative 91 · Ordinary 77 · Vacuum 22 (adds up). "Not read" was listed second; ordered last in 6e150db (not re-read after that ship).
+   e) JOURNAL context + splits, fixture — e05c774 12:04 and 79bb6fd 12:41, 390 and 1440 identical: context line carries "displacement bar ORDINARY · touch bar ORDINARY"; splits displacement ORDINARY 16 / INITIATIVE 4 / VACUUM 3 / SILENT 1 (=24), touch ORDINARY 14 / INITIATIVE 6 / QUIET 2 / VACUUM 2 (=24); round trip 10 of 10.
+   NOT READ for §13: effort SILENCE on a real spot-FX gap (Inspect or scanner UNAVAILABLE line); Inspect rows at 390; a real saved journal entry (needs a Founder action).
+
+  §14 FVG × ORDER FLOW
+   a) INSPECT, provider bar volume — e05c774, 12:03 CDT, NQ1! 5m gap above:
+      "Order flow displacement bar — at formation · owner says BALANCED · neither side took the larger share (buyers 50% · sellers 50%) · PARTIAL (the provider's per-bar bid / ask volume — an aggregate for the bar, not prints)"
+   b) INSPECT touch row, provider bar volume — 79bb6fd, 12:42 CDT, NQ1! 1m gap …|1m|1791564840000|BEARISH|v1 (selected by a click on the canvas):
+      "Order flow touch bar — at touch 1 · owner says BUYERS · buyers took 56% of the bar's signed volume · PARTIAL (the provider's per-bar bid / ask volume — an aggregate for the bar, not prints)"
+   c) INSPECT, CAPTURED-TAPE ROW — 6e150db, 12:54:37 CDT, NQ1! 1m gap …|1m|1791567960000|BULLISH|v1 → HELD; html data-tape-coverage FROM:1791568200 (17:50Z) · SIDED_BARS:5; tape backfill "TASTYTRADE_TIMEANDSALE:1000prints … snapshot 17:50-17:54Z":
+      "Order flow displacement bar — at formation · owner says BUYERS · buyers took 64% of the bar's signed volume · from the provider's per-bar bid / ask volume · PARTIAL (mixed — captured signed prints on some of these bars, the provider's per-bar bid / ask volume (an aggregate, not prints) on the others; each row names its own)"
+      "Order flow touch bar — at touch 1 · owner says SELLERS · sellers took 60% of the bar's signed volume · from the provider's per-bar bid / ask volume · PARTIAL (mixed …)"
+      "Order flow touch bar — at touch 2 · owner says SELLERS · sellers took 60% of the bar's signed volume · from captured signed prints · PARTIAL (mixed …)"
+      → a TAPE-basis row read on real data (touch 2). HONEST LIMITS: the prints are tastytrade's time-and-sales snapshot the chart backfills at load (the last ~4 minutes), not prints accumulated live in the tab; the family word is PARTIAL because the gap's older bars predate that tape; a gap whose EVERY bar is tape (family FULL) was not observed — in a 13-minute watch on 79bb6fd no gap formed inside the tape window, and a background tab only gathered 12 sided bars in that time. Touch 1 and touch 2 both read "sellers 60%" from different sources — not cross-checked against the raw prints.
+   d) JOURNAL — fixture, 390 and 1440: "order flow silence (no signed volume in these bars)"; split "Order flow SILENT (no signed volume held for the gap's bars)" 24. SCANNER: "FVG + order flow: UNAVAILABLE for the 12 symbols with a condition — needs signed tape …". BACKTEST: order-flow split UNAVAILABLE (unit test; not re-read on serving).
+   NOT READ for §14: a family-FULL tape reading; a tape-partial ("the tape began inside this bar") row; 390.
+
+  ALSO READ 12:40–12:41 CDT on 79bb6fd: /journal header one 44px scrolling row at 834 and 390, nothing squeezed (title 88×21, tallest item 28px at 834 / 44px at 390, page h-scroll 0). /profile fixture Book C at 390 and 1440: gap study once, WAITED 5 / 19 / 0 / 0, "Study: Lesson 9 · Rejection vs acceptance →", timing and untraded sentences, 25 split rows, nothing past the right edge. §5 (C) journal line: "… regime UNTAGGED · volatility at formation normal (from bars) · tape regime at the decision not read (no tape held here)."; splits Volatility NORMAL 23 / NOT READ 1, Tape regime NOT READ 24.
+```
+
+### 26h. 12:57 CDT — §14 flipped, composites assessed (cert lane)
+
+§13 and §14 are PROVED ON SERVING (receipts §10f). §65 moves to sample-data: its last unread line is the trader's own behaviour. **Totals: 46 · 12 · 1 · 5 · 0 · 2.**
+
+| Composite | Can it close now? | Waits on |
+|---|---|---|
+| §59 KEEP / FIX / PROVE | No | every other row — it is the ledger |
+| §62 RELEASE EVIDENCE | No lane work left | one real Journal entry saved and reloaded + listed under "Show me my examples" (Founder); performance on a physical phone |
+| §65 FINAL FVG LAW | Moved to sample-data today | the Founder's real journal entries on gap decisions |
+| §66 CONSTITUTIONAL CLOSE | No | a serving read of the Webull server gate refusing (needs a sample or dry-run path), decision 6 on the GATED wording, and the Founder's permission rule for authorized execution |
+
+Remaining PARTIAL (5): 52, 58 (devices), 59, 62, 66.
+
+### 10g. Management / ticket lane serving receipts — 12:55–12:59 CDT Oct 9, 6e150db
+
+```
+
+  -- READ 5 · PATIENCE / MANAGEMENT / TICKET LANE · serving 6e150db · 12:55–12:59 CDT Oct 9 · own tab (opened + closed) · read-only
+  §13 EFFORT SILENCE ON REAL SPOT FX — /charts EURUSD 5m, scene=verify, gap FVG|EURUSD|5m|1791566400000|BEARISH|v1 selected by URL → HELD, 1440:
+      "Effort→response: SILENCE — needs traded volume — spot FX has none"
+      "Order flow: SILENCE — no signed volume was captured for the gap's displacement or touch bars — candles are never read as order flow"
+      "Volatility at formation: normal — range 0.80× its normal (from 1373 closed bars)."  → PASS.
+      NOT READ: the scanner's FVG + effort→response UNAVAILABLE line for a spot-FX symbol — the scanner's fixed list read today holds no FX symbol and I did not change the watchlist.
+  §13 / §14 INSPECT AT 390 — /charts NQ1! 5m, scene=verify, gap …|5m|1791552600000|BEARISH|v1 → HELD, viewport 386×844:
+      sheet 374 wide × 260 tall at y 476 (scrolls inside, 1653 of content); relationship block x 19–363; 9 lines, every line 11px; 0 lines past the right edge or clipped; page h-scroll 0.
+      Rows present: "Effort→response displacement bar — at formation · owner says INITIATIVE …", "Order flow displacement bar — at formation · owner says BALANCED …" → PASS.
+  BACKTEST EFFORT SPLIT ORDER — /backtesting, FVG Study, "Add NQ1! 5m to the study" (write hold on), 1440:
+      All (194) · Initiative (91) · Ordinary effort and response (77) · Vacuum (22) · Not read (no traded volume, or too few bars before the gap) (4) → "Not read" is last. PASS.
+  PHONE TICKET AT 390 (viewport 386×844; thumb bar at y 792, 52 tall):
+      BUILD  — ticket-fixture, BUY pre-picked: panel y 147–740 (593px, 70% of the screen), no inner scroll, KILL at 141,183 on top, sample banner present, nothing past the right edge, ends 52px above the thumb bar.
+      REVIEW — same scene, in-ticket "Review & preview ▸" pressed: panel y 189–741 (552px, 65%), no inner scroll, KILL at 141,225 on top, banner present, ends 51px above the thumb bar.
+      PEEK   — measured on the PLAIN ticket (the fixture address without a side is not a ticket scene, so this was the real ticket, opened with the Trade button and nothing else pressed): panel y 485–741 (256px, 30%), KILL at 141,521 on top, BUY and SELL 171×36 side by side, ends 51px above the thumb bar. The fixture's own PEEK (side picked, then folded) was not read this pass.
+      The Honesty Plaque is not on the phone glass at this width (its box sits at x 548, outside 386). No miss found; nothing changed.
+```

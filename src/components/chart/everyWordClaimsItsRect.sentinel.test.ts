@@ -90,3 +90,26 @@ describe("chips ask for their box; on-top words are named; the teaching card nev
     expect(CHART).toContain('return { a, r, seed, crowded: sp.mode === "BLOCKED", single: pipForm };');
   });
 });
+
+describe("truth lines have one home; level chips and the WAIT plate ask first; selected words are on top (2026-10-09)", () => {
+  it("a truth line handed to the note composer goes to the silence stack instead — one wrapper for every painter", () => {
+    expect(CHART).toContain("if (isTruthLine(n.text)) { if (!truthForSilence.includes(n.text)) truthForSilence.push(n.text); }");
+    const i = CHART.indexOf("for (const words of truthForSilence) {");
+    expect(i).toBeGreaterThan(0);
+    expect(CHART.slice(i, i + 500)).toContain("const yT = takeSilenceRow();");
+    // …and it is painted BEFORE the folded-silence summary counts its rows.
+    expect(i).toBeLessThan(CHART.indexOf("// The folded silences, as one line (see takeSilenceRow)."));
+  });
+  it("a level chip and the WAIT plate ask for their box before any leader, pin or backing", () => {
+    expect(CHART).toContain("if (!chipBox(text, r)) return;");
+    expect(CHART).toContain("|| !chipBox(tagT.word, spotT.rect)) {");
+  });
+  it("the selected zone's callout and the inspected bar's prices are on-top boxes", () => {
+    expect(CHART).toContain('onTop(spotZ.rect, "SELECTION");');
+    expect(CHART).toContain('onTop(spot.rect, "INSPECT");');
+  });
+  it("the tape-coverage line steps up past what is on its row, else the silence stack", () => {
+    expect(CHART).toContain("const tapeRow = [0, 1, 2, 3].map(k => H - 50 - k * 16).find(");
+    expect(CHART).toContain('canvas.dataset.tapeCoverageWords = "SILENCE_STACK";');
+  });
+});

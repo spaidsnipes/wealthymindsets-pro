@@ -27,6 +27,7 @@ import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
 import { Plug2 } from "lucide-react";
+import { memberConnections, type MemberConnections } from "@/lib/broker/memberConnectionsWords";
 import { BrokerConnectPanel } from "@/components/broker/BrokerConnectPanel";
 import { readJsonReceipt } from "@/lib/marketData/readJsonReceipt";
 import {
@@ -47,7 +48,8 @@ type LoadState =
   | { phase: "loading" }
   | { phase: "error"; message: string }
   | { phase: "ready"; wireboard: ReadinessWireboard }
-  | { phase: "guest" };
+  /** A signed-in member who is not the operator: trader words only (memberConnectionsWords). */
+  | { phase: "guest"; connections?: MemberConnections };
 
 /**
  * The certification board is loaded and rendered SEPARATELY from the readiness
@@ -130,7 +132,7 @@ export default function ReadinessPage() {
           readJsonReceipt<ReadinessPayload>(fetch, "/api/broker/readiness", controller.signal),
           readWebullLanes(fetch, controller.signal),
         ]);
-        if (payload.audience === "GUEST") { if (!cancelled) setState({ phase: "guest" }); return; }
+        if (payload.audience === "GUEST") { if (!cancelled) setState({ phase: "guest", connections: memberConnections(payload.providers) }); return; }
         const measurements = webullWireboardMeasurements(webullLanes);
         const probed = Object.values(WEBULL_LANE_PROVIDERS);
         if (!cancelled) setState({ phase: "ready", wireboard: selectReadinessWireboard(payload, measurements, probed) });
@@ -226,6 +228,30 @@ export default function ReadinessPage() {
               account of your own isn&apos;t available yet.
               To practise in the meantime, the <Link href="/paper" className="text-[#f0b429] underline-offset-2 hover:underline">Paper room →</Link> is open to you.
             </p>
+            {/* 2026-10-09: what a member can use here, and in what state — trader words only. The operator's
+                counts ("7/10 providers configured", "13/40 required names present") are in the owner's view alone. */}
+            {state.connections && state.connections.rows.length > 0 ? (
+              <div data-testid="readiness-member-connections" className="mt-4">
+                {(["Market data", "Brokers", "Live rooms"] as const).map(group => {
+                  const rows = state.connections!.rows.filter(r => r.group === group);
+                  if (rows.length === 0) return null;
+                  return (
+                    <section key={group} aria-label={group} className="mt-3">
+                      <h2 className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">{group}</h2>
+                      <ul className="mt-1 divide-y divide-white/5">
+                        {rows.map(r => (
+                          <li key={r.provider} data-member-provider={r.provider} data-available={r.available ? "yes" : "no"} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2">
+                            <span className="text-[13px] font-semibold text-neutral-100">{r.name}</span>
+                            <span className="text-[12px] text-neutral-400">{r.state}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  );
+                })}
+                <p data-testid="readiness-member-broker-line" className="mt-3 text-[12px] text-neutral-400">{state.connections.brokerLine}</p>
+              </div>
+            ) : null}
           </div>
         )}
 

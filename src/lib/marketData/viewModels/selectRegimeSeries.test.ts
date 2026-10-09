@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { regimeDimensionsAt, selectRegimeSeries } from "./selectRegimeSeries";
+import { regimeDimensionsAt, regimeSeriesReach, selectRegimeSeries, type RegimeSeriesPoint } from "./selectRegimeSeries";
 import { selectRegime } from "./selectRegime";
 import { createChartMarketStatePublication } from "../chartMarketStatePublisher";
 import { produceCanonicalMarketState } from "../produceCanonicalMarketState";
@@ -101,5 +101,22 @@ describe("tick (N-trade) bars: each bar owns [its open, the next bar's open) (20
     expect(s).toHaveLength(2);
     expect(s.every(p => p.basis === "TAPE")).toBe(true);
     expect(s[1].trades).toBeGreaterThanOrEqual(s[0].trades);
+  });
+});
+
+describe("regimeSeriesReach — how far back the tape regime is kept (cert lane, 2026-10-09)", () => {
+  const pt = (time: number, basis: "TAPE" | "NO_TAPE"): RegimeSeriesPoint => ({ time, basis, state: "UNKNOWN" as never, resolution: "UNKNOWN" as never, trades: 0, why: "" });
+  it("counts the newest unbroken run of TAPE bars and says it in a sentence, with the print count that bounds it", () => {
+    const pts = [...Array.from({ length: 289 }, (_, i) => pt(1000 + i * 60, "NO_TAPE")), ...Array.from({ length: 11 }, (_, i) => pt(1000 + (289 + i) * 60, "TAPE"))];
+    const r = regimeSeriesReach(pts);
+    expect(r.bars).toBe(11);
+    expect(r.fromTime).toBe(1000 + 289 * 60);
+    expect(r.prints).toBe(2000);
+    expect(r.words).toBe("The tape regime is kept for the last 11 bars — as far back as the newest 2,000 prints reach.");
+  });
+  it("no reach is said plainly; one bar is singular", () => {
+    expect(regimeSeriesReach([pt(1, "NO_TAPE")]).words).toBe("The tape regime is read from the newest 2,000 prints; none reach these bars.");
+    expect(regimeSeriesReach([pt(1, "NO_TAPE"), pt(2, "TAPE")]).words).toContain("the last 1 bar —");
+    expect(regimeSeriesReach([]).bars).toBe(0);
   });
 });

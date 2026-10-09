@@ -65,7 +65,9 @@ export async function GET(request: Request) {
       {
         surface: "broker-readiness",
         audience: "GUEST",
-        summary: readinessSummary(providers),
+        // 2026-10-09: the count of configured providers is the operator's ("7/10 configured"); a member's
+        // receipt carries each provider's status and no tally of the deployment's setup.
+        summary: "",
         providers: providers.map((p) => ({ ...p, missing: [], missingRecommended: [], note: "" })),
         envPresence: [],
         nearMisses: [],

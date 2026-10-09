@@ -115,3 +115,33 @@ export function selectRegimeSeries(input: RegimeSeriesInput): RegimeSeriesPoint[
   }
   return out;
 }
+
+/**
+ * HOW FAR BACK THE TAPE REGIME REACHES (cert lane, 2026-10-09: "Regime at
+ * formation" never read a word — the series reaches only ~11 one-minute bars).
+ * The series is read from per-trade prints, and the room holds the newest
+ * REGIME_SERIES_TAPE_RETENTION of them — a count of PRINTS, not of bars. So the
+ * reach in bars depends on how fast the instrument trades: a busy future burns
+ * 2,000 prints in minutes. This returns the reach of a computed series so a row
+ * can say it: "the tape regime is kept for the last N bars".
+ */
+export interface RegimeSeriesReach {
+  /** Bars at the newest end of the series that the held tape reaches. */
+  readonly bars: number;
+  /** The oldest reached bar's open (epoch seconds), or null when none is reached. */
+  readonly fromTime: number | null;
+  /** The print count the room holds — the real bound. */
+  readonly prints: number;
+  /** One sentence for a row. */
+  readonly words: string;
+}
+
+export function regimeSeriesReach(points: readonly RegimeSeriesPoint[], retention: number = REGIME_SERIES_TAPE_RETENTION): RegimeSeriesReach {
+  let bars = 0;
+  let fromTime: number | null = null;
+  for (let i = points.length - 1; i >= 0 && points[i].basis === "TAPE"; i--) { bars++; fromTime = points[i].time; }
+  const words = bars === 0
+    ? `The tape regime is read from the newest ${retention.toLocaleString("en-US")} prints; none reach these bars.`
+    : `The tape regime is kept for the last ${bars} bar${bars === 1 ? "" : "s"} — as far back as the newest ${retention.toLocaleString("en-US")} prints reach.`;
+  return { bars, fromTime, prints: retention, words };
+}

@@ -54,7 +54,7 @@ import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_M
 import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
-import { installWordGate, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
+import { installWordGate, isTruthLine, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
 import { FOG_CAP, FOG_FEATHER_PX, installFogGate } from "@/lib/chart/fieldFogBudget";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -7709,6 +7709,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // handed here instead of being dropped; the composer at the end of the
       // frame collapses neighbours into one "N MARKET EVENTS" anchor.
       const displacedNotes: DisplacedNote[] = [];
+      // A TRUTH LINE IS NEVER FOLDED INTO THE NOTE LIST (coordinator ruling
+      // 2026-10-09). Painters hand a word with no clear slot to the composer;
+      // when that word is a truth line (a named silence, WITHHELD, a data gap,
+      // UNAVAILABLE … — wordRegistry's one classifier) it goes to the SILENCE
+      // STACK instead, its fixed home on the glass. One rule, here, for every
+      // painter that pushes.
+      const truthForSilence: string[] = [];
+      {
+        const listNote = displacedNotes.push.bind(displacedNotes);
+        displacedNotes.push = (...notes: DisplacedNote[]): number => {
+          for (const n of notes) {
+            if (isTruthLine(n.text)) { if (!truthForSilence.includes(n.text)) truthForSilence.push(n.text); }
+            else listNote(n);
+          }
+          return displacedNotes.length;
+        };
+      }
       // What each drawn VP column measured — reported up for Profile Fusion.
       // Declared HERE, before any VP pass: runWMVP() runs early in the Big
       // Trades path, and a declaration further down threw 'Cannot access …
@@ -20697,6 +20714,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           if (spotL.onCandles) levelChipsYielded++;
           const chipAlpha = ctx.globalAlpha;
           const paintAt = (r: { x: number; y: number; w: number; h: number }) => {
+          // The chip asks for its box first: withheld → no leader, no box, no word.
+          if (!chipBox(text, r)) return;
           ctx.save();
           ctx.font = LEVEL_CHIP_FONT;
           ctx.globalAlpha = chipAlpha;
@@ -23326,6 +23345,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 },
               );
               recordKeepOut(keepOutLedger, spotZ);
+              onTop(spotZ.rect, "SELECTION"); // the selected zone's callout
               const cx = spotZ.rect.x, by = spotZ.rect.y;
               const gold = invalid ? "rgba(170,170,180,0.9)" : "rgba(240,180,41,0.95)";
               const boxAboveZone = by + bh2 < top - 4, boxBelowZone = by > top + h + 4;
@@ -25856,11 +25876,26 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ctx.textBaseline = "bottom";
             const tw = ctx.measureText(words).width;
             const tx = Math.max(6, Math.min(bx - tw - 6, W - tw - 6));
+            // ITS ROW MAY BE TAKEN (serving NQ1! saved view at 1180, 16f363a:
+            // this line printed over "VAL EST" / "POC EST" and a price on the
+            // foot row). It steps up a row at a time past the chips and words
+            // already there; with no free row it is said in the silence stack.
+            const tapeBusy = [...floatingChips, ...wordGate.rects()];
+            const tapeRow = [0, 1, 2, 3].map(k => H - 50 - k * 16).find(y0 => !tapeBusy.some(q => tx - 3 < q.x + q.w && tx + tw + 3 > q.x && y0 < q.y + q.h && y0 + 14 > q.y));
+            if (tapeRow === undefined) {
+              const yS = takeSilenceRow();
+              ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textBaseline = "middle";
+              ctx.fillText(fitSilence(words), silenceX, yS);
+              if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: tw, h: 14 });
+              canvas.dataset.tapeCoverageWords = "SILENCE_STACK";
+            } else {
             ctx.fillStyle = "rgba(11,10,8,0.82)";
-            if (chipBox(words, { x: tx - 3, y: H - 50, w: tw + 6, h: 14 })) ctx.fillRect(tx - 3, H - 50, tw + 6, 14);
+            if (chipBox(words, { x: tx - 3, y: tapeRow, w: tw + 6, h: 14 })) ctx.fillRect(tx - 3, tapeRow, tw + 6, 14);
             ctx.fillStyle = "rgba(200,192,174,0.92)";
-            ctx.fillText(words, tx, H - 37);
-            floatingChips.push({ x: tx - 3, y: H - 50, w: tw + 6, h: 14 });
+            ctx.fillText(words, tx, tapeRow + 13);
+            floatingChips.push({ x: tx - 3, y: tapeRow, w: tw + 6, h: 14 });
+            canvas.dataset.tapeCoverageWords = `ROW:${Math.round((H - 50 - tapeRow) / 16)}`;
+            }
             ctx.restore();
           }
           canvas.dataset.tapeCoverage = firstSided
@@ -25890,6 +25925,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ctx.restore();
         }
       } catch (err) { layerFault("PIVOT_SILENCE", err); }
+
+      // Truth lines a painter could not place: said in the silence stack (never listed).
+      try {
+        for (const words of truthForSilence) {
+          ctx.save();
+          ctx.font = marketFont("OBJECT_NAME");
+          ctx.fillStyle = "rgba(200,192,174,0.85)";
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          const yT = takeSilenceRow();
+          ctx.fillText(fitSilence(words), silenceX, yT);
+          if (yT > 0) floatingChips.push({ x: silenceX, y: yT - 7, w: ctx.measureText(words).width, h: 14 });
+          ctx.restore();
+        }
+        if (truthForSilence.length) canvas.dataset.truthToSilence = String(truthForSilence.length); else delete canvas.dataset.truthToSilence;
+      } catch (err) { layerFault("TRUTH_TO_SILENCE", err); }
 
       // The folded silences, as one line (see takeSilenceRow).
       try { if (silenceFolded > 0) {
@@ -25961,6 +26011,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (spot.mode === "BLOCKED") { displacedNotes.push({ layer: "TRUTH", text: t, x: pref.x + tw / 2, y: yy + th / 2 }); continue; }
               recordKeepOut(keepOutLedger, spot);
               floatingChips.push(spot.rect);
+              onTop(spot.rect, "INSPECT"); // the inspected bar's true high / low
               ctx.fillStyle = "rgba(11,10,8,0.78)";
               if (chipBox(t, { x: spot.rect.x, y: spot.rect.y, w: tw, h: th })) ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
               ctx.fillStyle = "rgba(240,200,110,0.95)";
@@ -26042,7 +26093,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // PRICE SOVEREIGNTY: on narrow glass the plate has a slot clear of
               // the newest column AND every candle body, or it is not painted —
               // the WAIT strip under the chart carries the word (it always does).
-              if (narrowGlass && (spotT.mode === "BLOCKED" || spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h))) {
+              // …and at any width the plate asks the registry for its box first:
+              // withheld → no leader, no pin, no plate (the WAIT strip carries it).
+              if ((narrowGlass && (spotT.mode === "BLOCKED" || spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h))) || !chipBox(tagT.word, spotT.rect)) {
                 waitFolded = true;
                 sovereigntyHeld++;
                 ctx.restore();
