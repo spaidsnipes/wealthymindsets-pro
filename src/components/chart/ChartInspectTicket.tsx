@@ -214,7 +214,7 @@ const EVIDENCE_COLOR: Record<EvidenceClass, string> = { FULL: READ_COLOR, PARTIA
 function EvidenceLine({ ev, timeZone, testId = "inspect-evidence" }: { ev: InspectEvidence; timeZone?: string | null; testId?: string }) {
   const clock = zonedClock(timeZone);
   return (
-    <div className="mt-1.5 rounded border-l-2 pl-2 text-[10px] leading-snug" data-testid={testId} data-inspect-evidence={ev.klass}
+    <div className="mt-1.5 rounded border-l-2 pl-2 text-[10px] max-sm:text-[11px] leading-snug" data-testid={testId} data-inspect-evidence={ev.klass}
       style={{ borderColor: EVIDENCE_COLOR[ev.klass], color: "#C8C0AE" }}>
       <div className="font-bold tracking-wide" style={{ color: EVIDENCE_COLOR[ev.klass] }}>EVIDENCE COMPLETENESS · {ev.klass}</div>
       <div>{ev.why}</div>

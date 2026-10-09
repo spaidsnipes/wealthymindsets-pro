@@ -57,7 +57,10 @@ export function PnLStatsPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <div ref={landRef} tabIndex={-1} role="region" aria-label="Journal P&L stats" data-testid="pnl-stats-panel"
-      className="border-t border-wm-border bg-wm-dark shrink-0 outline-none">
+      className="border-t border-wm-border bg-wm-dark shrink-0 outline-none"
+      // Lands ABOVE the phone's thumb bar: read on serving ada59d4 at 390 the
+      // strip scrolled to y 803–880 of an 844 glass, under the fixed bar.
+      style={{ scrollMarginBottom: "calc(72px + env(safe-area-inset-bottom))" }}>
       <div className="flex items-center px-3 h-7 border-b border-wm-border">
         <span className="text-[10px] font-semibold text-wm-text-muted uppercase tracking-wider">P&amp;L Stats</span>
         <div className="flex items-center gap-1 ml-3">
@@ -125,7 +128,7 @@ export function PnLStatsPanel({ onClose }: { onClose: () => void }) {
         <button
           onClick={onClose}
           aria-label="Close the P&L stats strip"
-          className="ml-auto p-1 hover:text-wm-text text-wm-text-dim transition-colors"
+          className="wm-tap-slop ml-auto p-1 hover:text-wm-text text-wm-text-dim transition-colors"
         >
           <X size={12} />
         </button>

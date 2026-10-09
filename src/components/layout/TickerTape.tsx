@@ -59,6 +59,7 @@ import {
 } from "@/lib/marketData/tapeSymbols";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 
 const TAPE_STORAGE_KEY = "wm-tape-symbols";
 
@@ -539,7 +540,8 @@ export function TickerTape() {
   // clobber the stored list before the after-mount load runs).
   useEffect(() => {
     if (!hydrated) return;
-    try { localStorage.setItem(TAPE_STORAGE_KEY, JSON.stringify(customSyms)); } catch {}
+    // A proof scene / verification load writes nothing (serving ada59d4: /desk and /profile under a holding token still re-saved this list on load).
+    try { if (!proofSceneHoldsWrites()) localStorage.setItem(TAPE_STORAGE_KEY, JSON.stringify(customSyms)); } catch {}
   }, [customSyms, hydrated]);
 
   useEscapeToClose(editOpen, () => setEditOpen(false));

@@ -22,6 +22,7 @@ import { AskSpaidbotButton } from "@/components/ai/AskSpaidbotButton";
 import { fvgInspectAsk } from "@/lib/ai/spaidbotAsk";
 import type { FvgRelationshipReading } from "@/lib/marketData/fvg/fvgRelationships";
 import { fvgInspectLayerOf, FVG_TRUTH_LAYERS } from "@/lib/chart/fvgTruthLayers";
+import { fvgInspectDock } from "@/lib/chart/fvgInspectDock";
 
 const GOLD = "#d4af37";
 
@@ -42,9 +43,34 @@ export function FvgInspectTicket({ o, fmt, clock, evidence, firstTouch, relation
   // §35 · the lesson about what THIS gap is doing (traded through → lesson 14, memory → 15 …), not always lesson 1.
   const academy = fvgLessonForState(o.state);
   const bull = o.direction === "BULLISH";
+  /*
+    §46 · THE WALL AWAY FROM THE GAP. The chart publishes where it drew the
+    selected gap's gold frame (`data-fvg-selected-mark="FRAME:GOLD@x,y,w,h"`);
+    the card stands on the other wall by the Passport's own rule
+    (fvgInspectDock → passportDockSide). No geometry published, or a narrow
+    pane (the phone sheet owns its own place): the left wall, as before.
+  */
+  const cardRef = React.useRef<HTMLElement>(null);
+  const [dock, setDock] = React.useState<"LEFT" | "RIGHT">("LEFT");
+  React.useLayoutEffect(() => {
+    const el = cardRef.current;
+    const host = el?.offsetParent as HTMLElement | null;
+    if (!el || !host || typeof MutationObserver === "undefined") return;
+    const measure = () => {
+      const paneWidth = host.getBoundingClientRect().width;
+      const mark = host.querySelector("canvas[data-fvg-selected-mark]")?.getAttribute("data-fvg-selected-mark") ?? null;
+      setDock(paneWidth >= 640 ? fvgInspectDock({ mark, paneWidth, cardWidth: el.offsetWidth || 268 }) : "LEFT");
+    };
+    measure();
+    const mo = new MutationObserver(measure);
+    mo.observe(host, { subtree: true, attributes: true, attributeFilter: ["data-fvg-selected-mark"] });
+    return () => mo.disconnect();
+  }, [o.objectId]);
   return (
     <section
-      className="absolute top-16 left-2 z-[75] w-[268px] max-w-[calc(100%-1rem)] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md"
+      ref={cardRef}
+      data-inspect-fvg-dock={dock}
+      className={`absolute top-16 ${dock === "RIGHT" ? "right-[76px]" : "left-2"} z-[75] w-[268px] max-w-[calc(100%-1rem)] max-h-[calc(100%-6rem)] overflow-y-auto rounded-lg border border-wm-gold/40 bg-wm-surface/95 p-3 shadow-2xl backdrop-blur-md`}
       data-testid="chart-inspect-ticket"
       data-inspect-fvg={o.objectId}
       data-inspect-fvg-state={o.state}

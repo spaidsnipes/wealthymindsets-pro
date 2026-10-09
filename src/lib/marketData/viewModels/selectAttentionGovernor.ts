@@ -106,6 +106,12 @@ export const TIER_CEILING: Readonly<Record<AttentionTier, number>> = {
 /** Dim, never delete (F27): no governed layer goes below this. */
 export const ATTENTION_FLOOR = 0.12;
 /**
+ * On glass narrower than NARROW_GLASS_MAX_PX context steps further behind the
+ * present than on the desk: LIVE keeps 1, SUPPORTING 0.55, MEMORY 0.30
+ * (coordinator numbers, 2026-10-09). Memory Ghost's own floor rule is separate.
+ */
+export const NARROW_TIER_CEILING: Readonly<Partial<Record<AttentionTier, number>>> = { SUPPORTING: 0.55, MEMORY: 0.3 };
+/**
  * A fused object's two parents step back so the derived object reads as the
  * subject. 0.25 since 2026-09-26 (GP12 §52 "parents survive… remain
  * inspectable", §64 "fade non-selected parents"; serving TSLA 15m 04:26 CDT:
@@ -405,10 +411,22 @@ export function selectAttentionGovernor(
       const staleDim = stale ? STALE_DIM : 1;
       // WAIT quiets the room: context steps back, the present does not.
       const postureDim = input.posture === "QUIET" && (tier === "SUPPORTING" || tier === "MEMORY") ? POSTURE_QUIET : 1;
-      // A QUIET layer (H-501 permission) is never louder than QUIET_CEILING.
-      const quietCap = permission.of(key, opts) === "QUIET" ? QUIET_CEILING : 1;
+      // A QUIET layer (H-501 permission) is never louder than QUIET_CEILING —
+      // when the DEPTH made it quiet. The phone's word budget also reads QUIET
+      // (its words are withheld), and that must NOT dim its ink: measured on
+      // serving at 390 and 430 (ada59d4, 2026-10-09) every LIVE layer sat at 0.6
+      // and SUPPORTING at 0.53 — one grey step, nothing crisp, nothing behind.
+      const quietCap = permission.quietBy(key, opts) === "DEPTH" ? QUIET_CEILING : 1;
       const layerQuiet = input.quietExempt?.includes(key) ? 1 : quiet;
       a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[spec.tier], quietCap, depth * layerQuiet * light * lane) * recede * staleDim * postureDim);
+      // NARROW GLASS — THREE CLEAR STEPS (Founder ruling 2026-10-09): the
+      // present at full ink, context clearly behind it, memory faint. The
+      // ceilings sit on top of posture and depth; a question's quiet and the
+      // selection recede still multiply below them as everywhere else.
+      if (input.narrowGlass === true) {
+        const cap = NARROW_TIER_CEILING[tier];
+        if (cap != null) a = Math.max(ATTENTION_FLOOR, Math.min(a, cap * Math.min(1, layerQuiet) * recede * staleDim));
+      }
       // The trader's role (§XXXVII): PRIMARY reads at a floor of 0.92 even at a
       // dimming depth; AMBIENT and LATENT recede; never below the floor.
       const role = input.roles?.[key];

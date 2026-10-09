@@ -318,7 +318,9 @@ export function fvgShareText(s: ShareLike, opts: { readonly insufficient?: boole
 export function fvgMedianText(median: number | null, sample: number, unit: string): string {
   if (median === null || sample === 0) return `none touched — no median (0 of ${sample})`;
   const v = Number.isInteger(median) ? String(median) : median.toFixed(1);
-  return `${v} ${unit} (median of ${sample})`;
+  // "1 bars" was read on serving ada59d4 (NQ1! 5m, 2026-10-09): exactly one takes the singular.
+  const word = median === 1 && unit.endsWith("s") ? unit.slice(0, -1) : unit;
+  return `${v} ${word} (median of ${sample})`;
 }
 
 /**

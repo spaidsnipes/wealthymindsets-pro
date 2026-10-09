@@ -95,13 +95,13 @@ describe("FVG relationships — owner readings by reference, never upgraded", ()
   it("an owner with nothing to say is listed as SILENCE, never omitted", () => {
     const r = fvgRelationshipsFor(obj, {});
     expect(r.relationships).toEqual([]);
-    expect(r.sources.map(s => `${s.family}:${s.evidence}`)).toEqual(["STRUCTURE:SILENCE", "PROFILE:SILENCE", "WALL:SILENCE", "WALL:SILENCE"]);
+    expect(r.sources.map(s => `${s.family}:${s.evidence}`)).toEqual(["STRUCTURE:SILENCE", "PROFILE:SILENCE", "WALL:SILENCE", "WALL:SILENCE", "EFFORT_RESPONSE:SILENCE", "ORDER_FLOW:SILENCE"]);
     expect(structureSource({ vm: vm({ measured: false, insufficientNote: "Only 3 bars" }), barSec: 60 })).toMatchObject({ evidence: "SILENCE", provenance: "Only 3 bars" });
     // Confirmed pivots without a readable sequence: the owner still publishes them → PARTIAL, never FULL.
     expect(structureSource({ vm: vm({ measured: false, insufficientNote: "1 high, 0 lows", swingHighs: [{ time: 1, price: 2 }] }), barSec: 60 })).toMatchObject({ evidence: "PARTIAL" });
     const rows = fvgRelationshipRows(r, p => p.toFixed(2));
     expect(rows.rows).toEqual([]);
-    expect(rows.silences).toHaveLength(4);
+    expect(rows.silences).toHaveLength(6);
   });
 
   it("Inspect rows: spatially ordered, each with its source evidence + provenance", () => {

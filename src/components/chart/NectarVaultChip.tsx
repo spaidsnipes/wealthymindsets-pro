@@ -112,7 +112,10 @@ export function NectarVaultChip({ activeSymbol }: { activeSymbol: string }) {
         */}
         <span className="wm-nectar-vault-chip__label">Evidence saved</span>
         <span style={{ color: "#8b8fa8" }}>
-          · {symbols.length} {symbols.length === 1 ? "symbol" : "symbols"}
+          {/* The separator belongs to the label before it. On a phone the label is
+              withheld, and the chip read "● · 16 symbols" — a dot joining nothing
+              (serving f9f61fe at 390, 2026-10-09). It goes with the label. */}
+          <span className="wm-nectar-vault-chip__label">· </span>{symbols.length} {symbols.length === 1 ? "symbol" : "symbols"}
         </span>
       </summary>
       <div

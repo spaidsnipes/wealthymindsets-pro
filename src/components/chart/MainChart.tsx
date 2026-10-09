@@ -55,6 +55,7 @@ import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, 
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { installWordGate, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
+import { installFogGate } from "@/lib/chart/fieldFogBudget";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
@@ -193,6 +194,10 @@ const KEEL_ATR_WAIT_FRAMES = 2;
 const KEEL_MIN_L = 3;
 /** Value Candle CoG reach past a narrow glass (ASK-6). */
 const VC_COG_EXT_NARROW = 3;
+/** PHONE (2026-10-09): a big-trade disc's largest radius on narrow glass (desk: BIG_TRADE_MAX_R 42). */
+const BIG_TRADE_NARROW_MAX_R = 22;
+/** PHONE (2026-10-09): a zone at rest is a band — two hairlines and this much fill (desk: 0.08 in a box). */
+const ZONE_BAND_NARROW_FILL = 0.04;
 /** A pressure wall shows at least this much body inside the pane, else it is an edge wall (ASK-15). */
 const WALL_EDGE_BODY_PX = 24;
 /** Footprint bid × ask cells narrower than this are not a readable grid (ASK-14). */
@@ -7922,6 +7927,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // a plot narrower than NARROW_GLASS_MAX_PX, or shorter than
       // NARROW_GLASS_MIN_PLOT_H (a phone on its side: ~700 wide, ~200 tall).
       const narrowGlass = plotRight < NARROW_GLASS_MAX_PX || pane0Bottom < NARROW_GLASS_MIN_PLOT_H;
+      // PHONE: stacked translucent fields share ONE cap (fieldFogBudget.ts) so
+      // their summed alpha over any candle never exceeds ~0.18. Desk: off.
+      const fogGate = installFogGate(ctx);
+      fogGate.beginFrame({ on: narrowGlass, plot: { w: Math.max(1, plotRight), h: Math.max(1, pane0Bottom) }, dpr });
+      // PHONE: the one folded-silence line has a fixed home under the header
+      // band (PHONE ASK 8). It is reserved from the first placer of the frame,
+      // so no other word lands on its row (serving 390, ada59d4: "4 SENSES
+      // SILENT" printed over the Profile Fusion line).
+      if (narrowGlass) forceChips.push({ x: 0, y: HEADER_FLOOR_Y + 2, w: Math.min(plotRight, 230), h: 16 });
 
       const restoreNativeAfterClarityLoss = () => {
         if (!clarityHidRef.current) return;
@@ -9682,6 +9696,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const bigAhead = bubblesRef.current.length - bigOnPlot.length;
         if (bigAhead > 0) canvas.dataset.bigTradeAheadOfBars = String(bigAhead);
         else delete canvas.dataset.bigTradeAheadOfBars;
+        // PHONE: a print's disc is capped (serving 390, ada59d4: a ~75px disc
+        // lay over the last candles of a 330px plot). Size still ranks prints —
+        // the cap only bounds the largest; the newest-column cut below stands.
+        const bigMaxR = narrowGlass ? BIG_TRADE_NARROW_MAX_R : BIG_TRADE_MAX_R;
         const bigClusters = clusterBigTrades<BigClusterInput>(bigOnPlot.map(b => ({
           key: b.spawnKey, x: b.x, y: b.y, r: b.baseR, size: Math.abs(b.value),
           timeSec: b.anchorTime, barTime: b.anchorBarTime, price: b.anchorPrice, bid: b.bid, ask: b.ask, b,
@@ -9706,6 +9724,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             born: Math.max(...c.members.map(m => m.b.born)),
           };
         });
+        // The phone's cap, applied to this frame's discs only (the prints' own
+        // eased radii and the cluster owner are untouched).
+        if (bigMaxR < BIG_TRADE_MAX_R) {
+          for (let i = 0; i < bigDiscs.length; i++) {
+            const d = bigDiscs[i];
+            if (d.r > bigMaxR || d.baseR > bigMaxR) bigDiscs[i] = { ...d, r: Math.min(d.r, bigMaxR), baseR: Math.min(d.baseR, bigMaxR) };
+          }
+        }
         bigTradeFrameRef.current = { discs: bigDiscs, clusters: bigClusterOf, intervalSec: intervalSec ?? 60 };
         // The one selection, located on THIS frame's discs: a selected print
         // that is now inside a cluster selects (and lights) its cluster.
@@ -22478,7 +22504,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             */
             if (on) {
               const words = fu ? fusionSilenceWords(fu, pxDp) : "PROFILE FUSION · silent — no reading";
-              if (words) {
+              if (words && narrowGlass) {
+                // PHONE: every named silence folds into the ONE summary line
+                // (takeSilenceRow) — this one printed on that line's own row.
+                takeSilenceRow();
+                ds.profileFusionSilence = `${fu ? fu.reason : "NO_READING"}:FOLDED`;
+              } else if (words) {
                 ctx.save(); ctx.globalAlpha = att.alpha("profileFusion");
                 const endXS = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : plotRight - 8;
                 quietWords(words, { x: endXS, y: HEADER_FLOOR_Y + 8, right: true }, pk.rgbaAs("TAIL", "VALUE", 0.9),
@@ -22948,6 +22979,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
             let selectedPainted = "";
             let zoneBrackets = 0;
+            let zoneBandsNarrow = 0;
             for (const z of zones) {
               const yh = srs.priceToCoordinate(z.object.priceHigh);
               const yl = srs.priceToCoordinate(z.object.priceLow);
@@ -23008,11 +23040,27 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // 2026-10-03); the plate draws a lit band with the passport
                 // mark at its centre. A soft band + solid hairline + the mark —
                 // still quieter than the selected zone (0.24 fill, 0.9 rim).
+                if (narrowGlass) {
+                  // PHONE: A ZONE IS A BAND, NOT A BLOCK (Founder 2026-10-09;
+                  // serving 390: a filled, boxed zone read as a dark slab over
+                  // the lower-left candles). Two hairlines at its prices and a
+                  // whisper of fill — the candles inside it stay the picture.
+                  ctx.fillStyle = `rgba(201,165,92,${ZONE_BAND_NARROW_FILL})`;
+                  ctx.fillRect(x0, top, zEnd - x0, h);
+                  ctx.strokeStyle = "rgba(201,165,92,0.6)";
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  ctx.moveTo(x0, Math.round(top) + 0.5); ctx.lineTo(zEnd, Math.round(top) + 0.5);
+                  ctx.moveTo(x0, Math.round(top + h) + 0.5); ctx.lineTo(zEnd, Math.round(top + h) + 0.5);
+                  ctx.stroke();
+                  zoneBandsNarrow++;
+                } else {
                 ctx.fillStyle = "rgba(201,165,92,0.08)";
                 ctx.fillRect(x0, top, zEnd - x0, h);
                 ctx.strokeStyle = "rgba(201,165,92,0.55)";
                 ctx.lineWidth = 1;
                 ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, zEnd - x0, Math.round(h));
+                }
                 if (h >= 14 && zEnd - x0 >= 48) {
                   // The passport mark: a small brass card with a ring — drawn
                   // strokes, no words (the callout carries the words on select).
@@ -23177,6 +23225,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             ctx.restore();
             ds.marketZonesForm = `CORNER_BRACKETS:${zoneBrackets}`;
+            ds.marketZonesBand = narrowGlass ? `BAND:${zoneBandsNarrow}|FILL:${ZONE_BAND_NARROW_FILL}` : "BOX";
             if (selectedPainted) ds.marketZoneSelected = selectedPainted;
             else delete ds.marketZoneSelected;
           } else {
@@ -26130,6 +26179,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           for (const hw of wordGateHeld) if (hw.text.trim().length >= 6) displacedNotes.push({ layer: "WORDS", text: hw.text.trim(), x: hw.rect.x + hw.rect.w / 2, y: hw.rect.y + hw.rect.h / 2 });
         }
         canvas.dataset.wordGate = wordGate.receipt();
+        canvas.dataset.wordGateTruth = wordGate.truthReceipt();
+        canvas.dataset.fieldFog = fogGate.receipt();
+        // The phone's own glass rules, in one receipt (desk: OFF).
+        canvas.dataset.phoneGlass = narrowGlass ? `DISC_R:${BIG_TRADE_NARROW_MAX_R}|ZONE:BAND:${ZONE_BAND_NARROW_FILL}|CONTEXT:0.55/0.3` : "OFF";
         if (wordGateHeld.length) canvas.dataset.wordGateHeld = wordGate.heldSample(); else delete canvas.dataset.wordGateHeld;
         const anchors = composeOn ? composeNoteAnchors(displacedNotes) : [];
         canvas.dataset.eventNotes = `ANCHORS:${anchors.length}|NOTES:${displacedNotes.length}|COMPOSE:${composeOn ? "ON" : "OFF"}`;

@@ -334,3 +334,26 @@ describe("tablet all-on: names leave the newest candles' column (serving 834 + 3
     expect(CHART).toContain('displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: x + tw / 2, y: t.y });');
   });
 });
+
+describe("phone opacity — above the hill (Founder, 2026-10-09; serving 390/430 ada59d4)", () => {
+  const GOV = readFileSync(path.join(process.cwd(), "src/lib/marketData/viewModels/selectAttentionGovernor.ts"), "utf8");
+  const PERM = readFileSync(path.join(process.cwd(), "src/lib/marketData/viewModels/selectSemanticPermission.ts"), "utf8");
+  it("the governor caps alpha for a DEPTH-quiet layer only — the phone's word budget never dims ink", () => {
+    expect(GOV).toContain('const quietCap = permission.quietBy(key, opts) === "DEPTH" ? QUIET_CEILING : 1;');
+    expect(GOV).not.toContain('permission.of(key, opts) === "QUIET" ? QUIET_CEILING');
+    expect(PERM).toContain('return narrow && p === "SPEAK" && !NARROW_GLASS_KEEPS_WORDS.has(layer) ? "NARROW" : null;');
+    expect(GOV).toContain("export const NARROW_TIER_CEILING: Readonly<Partial<Record<AttentionTier, number>>> = { SUPPORTING: 0.55, MEMORY: 0.3 };");
+  });
+  it("stacked fields share one cap on narrow glass, measured on the context itself", () => {
+    expect(CHART).toContain("fogGate.beginFrame({ on: narrowGlass, plot: { w: Math.max(1, plotRight), h: Math.max(1, pane0Bottom) }, dpr });");
+    expect(CHART).toContain("canvas.dataset.fieldFog = fogGate.receipt();");
+  });
+  it("a big-trade disc is capped on narrow glass; a zone is a band, not a block; the folded-silence row is reserved; Fusion's silence folds", () => {
+    expect(CHART).toContain("const bigMaxR = narrowGlass ? BIG_TRADE_NARROW_MAX_R : BIG_TRADE_MAX_R;");
+    expect(CHART).toContain("const BIG_TRADE_NARROW_MAX_R = 22;");
+    expect(CHART).toContain("ctx.fillStyle = `rgba(201,165,92,${ZONE_BAND_NARROW_FILL})`;");
+    expect(CHART).toContain('ctx.fillStyle = "rgba(201,165,92,0.08)";'); // the desk's box is untouched
+    expect(CHART).toContain("if (narrowGlass) forceChips.push({ x: 0, y: HEADER_FLOOR_Y + 2, w: Math.min(plotRight, 230), h: 16 });");
+    expect(CHART).toContain('ds.profileFusionSilence = `${fu ? fu.reason : "NO_READING"}:FOLDED`;');
+  });
+});

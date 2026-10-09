@@ -17,7 +17,7 @@ import { MARKET_EVENT_SCHEMA_VERSION, type CanonicalMarketEvent } from "@/lib/ma
 
 const read = (p: string) => readFileSync(path.join(process.cwd(), "src", p), "utf8");
 
-function browser(search: string) {
+function browser(search: string, pathname = "/charts") {
   const m = new Map<string, string>();
   const calls = { set: [] as string[], remove: [] as string[], post: [] as string[], get: [] as string[] };
   const storage = {
@@ -31,7 +31,7 @@ function browser(search: string) {
     return new Response(JSON.stringify({ record: null }), { status: 200 });
   });
   vi.stubGlobal("window", {
-    location: { search, pathname: "/charts" }, localStorage: storage, sessionStorage: storage,
+    location: { search, pathname }, localStorage: storage, sessionStorage: storage,
     addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => true,
   });
   vi.stubGlobal("localStorage", storage);
@@ -98,9 +98,11 @@ describe("a proof scene writes nothing", () => {
     ["ticket-fixture", "?symbol=NQ1%21&tf=5m&scene=ticket-fixture&side=buy&state=flat"],
     ["education-fixture", "?scene=education-fixture"],
     ["scanner-fixture", "?scene=scanner-fixture"],
-  ])("%s → zero storage writes, zero removes, zero POSTs", async (_name, search) => {
+    // scene=verify — VERIFICATION, real data: the same owners, the same zero, on every room.
+    ...(["/charts", "/backtesting", "/scanner", "/journal", "/profile", "/desk", "/command-deck", "/education"] as const).map(room => [`verify on ${room}`, room === "/charts" ? "?symbol=NQ1%21&tf=5m&scene=verify" : "?scene=verify", room] as [string, string, string]),
+  ] as [string, string, string?][])("%s → zero storage writes, zero removes, zero POSTs", async (_name, search, room) => {
     vi.useFakeTimers();
-    const calls = browser(search);
+    const calls = browser(search, room);
     const { saved } = await runOwners();
     expect(calls.set).toEqual([]);
     expect(calls.remove).toEqual([]);
@@ -112,6 +114,9 @@ describe("a proof scene writes nothing", () => {
 describe("the component-level writers ask the same hold (source pins)", () => {
   it("each on-load setItem sits behind proofSceneHoldsWrites()", () => {
     expect(read("contexts/AuthContext.tsx")).toContain("if (u) { if (!proofSceneHoldsWrites()) localStorage.setItem(SESSION_KEY, JSON.stringify(u)); }");
+    // The ticker tape (every room's shell) re-saved its list on load.
+    expect(read("components/layout/TickerTape.tsx")).toContain("if (!proofSceneHoldsWrites()) localStorage.setItem(TAPE_STORAGE_KEY, JSON.stringify(customSyms));");
+    expect(read("components/layout/TickerTape.tsx").match(/localStorage\.setItem\(/g)).toHaveLength(1);
     // A sign-out is never held.
     expect(read("contexts/AuthContext.tsx")).toContain("else localStorage.removeItem(SESSION_KEY);");
     expect(read("contexts/SymbolContext.tsx").match(/if \(!proofSceneHoldsWrites\(\)\) (window\.)?localStorage\.setItem\(LAST_SYMBOL_KEY/g)?.length).toBe(2);

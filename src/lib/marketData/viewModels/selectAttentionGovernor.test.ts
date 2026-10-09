@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
+import { NARROW_TIER_CEILING,
   ATTENTION_FLOOR,
   LAYER_ATTENTION,
   SELECTION_RECEDE,
@@ -506,5 +506,48 @@ describe("early LIVE layers are quieted by the question (serving 559884e, 2026-1
     expect(after.alpha("volumeProfile")).toBe(blind.alpha("volumeProfile"));
     expect(after.alpha("sessionBands")).toBe(blind.alpha("sessionBands"));
     expect(after.receipt).toContain("Q:1");
+  });
+});
+
+describe("phone opacity — the word budget does not dim ink (Founder, 2026-10-09; serving 390/430 ada59d4)", () => {
+  const mid = selectSemanticDensity("MID");
+  it("word-budget QUIET does not cap alpha; depth QUIET still does", () => {
+    const desk = selectAttentionGovernor(input({ density: mid }));
+    const phone = selectAttentionGovernor(input({ density: mid, narrowGlass: true }));
+    // LIVE layers the desk shows at full ink read the SAME on the phone (they sat at 0.6).
+    for (const k of ["volumeProfile", "bigTrades", "visibleRangeProfile", "marketZones"] as const) {
+      expect(LAYER_ATTENTION[k].tier, k).toBe("LIVE");
+      expect(desk.alpha(k), k).toBe(1);
+      expect(phone.alpha(k), k).toBe(1);
+    }
+    // A layer the DEPTH made quiet is still capped — on both.
+    expect(permissionAt("regimeField", "MID")).toBe("QUIET");
+    expect(desk.alpha("regimeField")).toBeCloseTo(QUIET_CEILING, 10);
+    expect(phone.alpha("regimeField")).toBeLessThanOrEqual(QUIET_CEILING);
+    for (const k of ["footprint", "deltaLevels", "profileFusion"] as const) {
+      if (permissionAt(k, "MID") === "QUIET") expect(phone.alpha(k), k).toBeLessThanOrEqual(QUIET_CEILING + 1e-9);
+    }
+  });
+  it("narrow glass has three clear steps: LIVE 1 · SUPPORTING 0.55 · MEMORY 0.30 — at rest and under WAIT", () => {
+    for (const posture of [undefined, "QUIET"] as const) {
+      const phone = selectAttentionGovernor(input({ density: mid, narrowGlass: true, posture: posture as never }));
+      expect(phone.alpha("volumeProfile")).toBe(1);
+      expect(phone.alpha("derivativesPressure")).toBeCloseTo(NARROW_TIER_CEILING.SUPPORTING!, 10);
+      expect(phone.alpha("liquidityLifecycle")).toBeCloseTo(NARROW_TIER_CEILING.SUPPORTING!, 10);
+      expect(phone.alpha("profileMemory")).toBeLessThanOrEqual(NARROW_TIER_CEILING.MEMORY! + 1e-9);
+      expect(phone.alpha("volumeProfile") - phone.alpha("derivativesPressure")).toBeGreaterThanOrEqual(0.4);
+      expect(phone.alpha("derivativesPressure") - phone.alpha("profileMemory")).toBeGreaterThanOrEqual(0.2);
+    }
+    // The desk is unchanged.
+    const desk = selectAttentionGovernor(input({ density: mid }));
+    expect(desk.alpha("derivativesPressure")).toBeGreaterThan(NARROW_TIER_CEILING.SUPPORTING!);
+  });
+  it("a question's quiet multiplies on top; a PRIMARY role keeps its floor; the selected item is full", () => {
+    const asked = selectAttentionGovernor(input({ density: mid, narrowGlass: true, questionQuiet: 0.35 }));
+    expect(asked.alpha("volumeProfile")).toBeCloseTo(0.35, 10);
+    expect(asked.alpha("derivativesPressure")).toBeCloseTo(Math.max(ATTENTION_FLOOR, NARROW_TIER_CEILING.SUPPORTING! * 0.35), 10);
+    const led = selectAttentionGovernor(input({ density: mid, narrowGlass: true, roles: { derivativesPressure: "PRIMARY" } }));
+    expect(led.alpha("derivativesPressure")).toBeGreaterThanOrEqual(0.92);
+    expect(asked.alpha("derivativesPressure", { selectedItem: true })).toBe(1);
   });
 });

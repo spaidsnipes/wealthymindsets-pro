@@ -9,11 +9,17 @@
  *                    a swing inside, none — or the structure owner's SILENCE
  *   PROFILE          fvgRelationships: POC / VAH / VAL or HVN / LVN inside or near (the
  *                    profile of the bars BEFORE formation), none — or SILENCE
- *   ORDER FLOW       the reference's own evidence word for ORDER_FLOW (by reference)
+ *   ORDER FLOW       fvgRelationships ORDER_FLOW family (§14): who took the larger share of the signed
+ *                    volume on the latest touch bar the decision knew of (else the displacement bar),
+ *                    in the side owner's word — or SILENT when no signed volume was held for those
+ *                    bars. A record saved before that family existed falls back to the reference's
+ *                    own evidence word for ORDER_FLOW (by reference).
  *   WALL             fvgRelationships WALL family (options wall, gamma flip, liquidity
  *                    pool), none — or SILENCE (bars carry no chain or book)
  *   EFFORT→RESPONSE  the Response Matrix cell of the displacement bar b2 (effortEvidence
  *                    thresholds, read over the bars up to b2) — or SILENT
+ *   TOUCH EFFORT     the same owner's cell for the first bar of the latest interaction the
+ *                    decision knew of (§13) — "no touch bar read" when there was none
  *   SESSION          New York time of the decision
  *   REGIME           the gap's regime tag at b2 (UNTAGGED when no regime reading was attached)
  *   TIMEFRAME, INSTRUMENT  from the reference
@@ -36,12 +42,12 @@ import { DEPARTURES } from "./planAdherence";
 import type { PlanVsActualResult } from "./planVsActual";
 import { INSUFFICIENT, insufficientLine, isMeasured, STAT_SAMPLE_MIN } from "./statGuard";
 
-export type SplitDimension = "STRUCTURE" | "PROFILE" | "ORDER FLOW" | "WALL" | "EFFORT→RESPONSE" | "SESSION" | "REGIME" | "TIMEFRAME" | "INSTRUMENT";
-export const SPLIT_DIMENSIONS: readonly SplitDimension[] = ["STRUCTURE", "PROFILE", "ORDER FLOW", "WALL", "EFFORT→RESPONSE", "SESSION", "REGIME", "TIMEFRAME", "INSTRUMENT"];
+export type SplitDimension = "STRUCTURE" | "PROFILE" | "ORDER FLOW" | "WALL" | "EFFORT→RESPONSE" | "TOUCH EFFORT" | "SESSION" | "REGIME" | "TIMEFRAME" | "INSTRUMENT";
+export const SPLIT_DIMENSIONS: readonly SplitDimension[] = ["STRUCTURE", "PROFILE", "ORDER FLOW", "WALL", "EFFORT→RESPONSE", "TOUCH EFFORT", "SESSION", "REGIME", "TIMEFRAME", "INSTRUMENT"];
 
 /** The part of a relationship reading the splits use — a full FvgRelationshipReading satisfies it. */
 export interface SplitRelationships {
-  readonly relationships: readonly { readonly family: string; readonly kind: string }[];
+  readonly relationships: readonly { readonly family: string; readonly kind: string; readonly state?: string | null; readonly ownerState?: string | null }[];
   readonly sources: readonly { readonly family: string; readonly evidence: string }[];
 }
 
@@ -97,12 +103,28 @@ export function splitGroupsOf(x: SplitInput): Readonly<Record<SplitDimension, st
   })();
   const wall = fam("WALL") ?? "A wall, flip or pool inside or near";
   const of = x.ref.snapshot.evidence.find(e => e.sense === "ORDER_FLOW");
+  // §13 / §14 bar readings: the LATEST touch the decision knew of (rows are in time order), else the displacement bar.
+  const word = (r: SplitRelationships["relationships"][number] | undefined) => r?.state ?? r?.ownerState ?? null;
+  const last = (family: string, kind: string) => { const rs = rel?.relationships.filter(r => r.family === family && r.kind === kind) ?? []; return rs[rs.length - 1]; };
+  const flowSrc = rel?.sources.filter(s => s.family === "ORDER_FLOW") ?? [];
+  const flowWord = word(last("ORDER_FLOW", "TOUCH_FLOW"));
+  const flowAtB2 = word(last("ORDER_FLOW", "DISPLACEMENT_FLOW"));
+  const flow = !flowSrc.length ? null
+    : flowWord ? `Touch bar signed volume: ${flowWord}`
+    : flowAtB2 ? `Displacement bar signed volume: ${flowAtB2}`
+    : "Order flow SILENT (no signed volume held for the gap's bars)";
+  const effortSrc = rel?.sources.filter(s => s.family === "EFFORT_RESPONSE") ?? [];
+  const touchCell = word(last("EFFORT_RESPONSE", "TOUCH_EFFORT"));
+  const touch = !rel || !effortSrc.length ? NOT
+    : effortSrc.every(s => s.evidence === "SILENCE") ? "Effort→response SILENT"
+    : touchCell ? `Touch bar ${touchCell}` : "No touch bar read at the decision";
   return {
     STRUCTURE: structure,
     PROFILE: profile,
-    "ORDER FLOW": of ? (of.state === "NOT_ATTACHED" ? "Order flow NOT ATTACHED" : `Order flow ${of.state}`) : NOT,
+    "ORDER FLOW": flow ?? (of ? (of.state === "NOT_ATTACHED" ? "Order flow NOT ATTACHED" : `Order flow ${of.state}`) : NOT),
     WALL: wall,
     "EFFORT→RESPONSE": x.effortCell == null ? NOT : x.effortCell === "SILENT" ? "Effort→response SILENT" : `Displacement bar ${x.effortCell}`,
+    "TOUCH EFFORT": touch,
     SESSION: sessionGroupOf(x.ref.decisionAtMs),
     REGIME: x.regime == null ? NOT : x.regime === "UNTAGGED" ? "Regime UNTAGGED (no regime reading attached)" : `Regime ${x.regime}`,
     TIMEFRAME: `Timeframe ${x.ref.timeframe}`,

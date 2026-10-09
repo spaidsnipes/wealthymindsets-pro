@@ -5,7 +5,7 @@ import { SPAIDBOT_PANEL_BOUNDARY } from "@/lib/execution/ticketTruth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { readSceneDecision } from "@/lib/traderMemory/decisionContinuity";
-import { SPAIDBOT_IDLE_TIMEOUT_MS, spaidbotFailureMessage, withSceneDecisionId, withScenePlan } from "@/lib/ai/spaidbotContext";
+import { SPAIDBOT_IDLE_TIMEOUT_MS, spaidbotFailureMessage, withSceneDecisionId, withScenePlan, spaidbotContextPublish, type SpaidbotContextPublish } from "@/lib/ai/spaidbotContext";
 import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
 import { SPAIDBOT_ASK_EVENT, contextWithAsk, readSpaidbotAsk, registerSpaidbotAskListener, rememberPendingAsk, takePendingAsk, type SpaidbotAsk } from "@/lib/ai/spaidbotAsk";
 import { motion, AnimatePresence } from "framer-motion";
@@ -123,9 +123,11 @@ export function SpadeBotButton({ launcher = true }: {
      nothing is sent for them. The ask's context patch (server-validated
      fields only) rides with the next question and is then dropped. */
   const askRef = useRef<SpaidbotAsk | null>(null);
+  const [askSeq, setAskSeq] = useState(0);
   useEffect(() => {
     const apply = (ask: SpaidbotAsk) => {
       askRef.current = ask;
+      setAskSeq(n => n + 1);
       setOpen(true);
       setInput(ask.prompt);
       setTimeout(() => inputRef.current?.focus(), 150);
@@ -158,11 +160,19 @@ export function SpadeBotButton({ launcher = true }: {
     } catch {}
     return {};
   }, [user?.id]);
+  /** THE ONE BUILDER of the context a question carries: the chart's context, then the waiting ask's patch. */
+  const peekContext = useCallback(() => contextWithAsk(getChartContext(), askRef.current), [getChartContext]);
   const getContext = useCallback(() => {
-    const ctx = contextWithAsk(getChartContext(), askRef.current);
+    const ctx = peekContext();
     askRef.current = null; // the ask's patch rides with ONE question only
     return ctx;
-  }, [getChartContext]);
+  }, [peekContext]);
+  // §31: on open (and when an ask arrives or a question has gone), publish the two management fields of
+  // that same context — Decision_ID present? and the plan line — as data attributes. No request is made.
+  const [published, setPublished] = useState<SpaidbotContextPublish | null>(null);
+  useEffect(() => {
+    setPublished(open ? spaidbotContextPublish(peekContext()) : null);
+  }, [open, askSeq, messages.length, peekContext]);
 
   /* ── Send to Claude (streaming) ── */
   const sendToClaude = useCallback(async (userText: string, history: Msg[]) => {
@@ -345,7 +355,7 @@ export function SpadeBotButton({ launcher = true }: {
             </div>
             {/* Sheriff P2-7 (2026-10-08): the boundary, on the panel itself — from the ONE
                 boundary owner the ticket also reads (ticketTruth.SPAIDBOT_PANEL_BOUNDARY). */}
-            <p data-testid="spaidbot-boundary" className="shrink-0 border-b border-wm-border px-3 py-1.5 text-[10px] leading-snug text-wm-text-dim">
+            <p data-testid="spaidbot-boundary" data-ctx-decision={published?.decision} data-ctx-plan={published?.plan} className="shrink-0 border-b border-wm-border px-3 py-1.5 text-[10px] leading-snug text-wm-text-dim">
               {SPAIDBOT_PANEL_BOUNDARY}
             </p>
 

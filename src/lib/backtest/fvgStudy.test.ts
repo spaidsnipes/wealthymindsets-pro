@@ -136,6 +136,10 @@ describe("FVG study — reads the one engine, labelled descriptive", () => {
     expect(fvgShareText({ count: 7, of: 9, share: 7 / 9 })).toBe("7 of 9 (78%)");
     expect(fvgShareText({ count: 0, of: 0, share: null })).toBe("0 of 0 — nothing to count");
     expect(fvgMedianText(2, 3, "bars")).toBe("2 bars (median of 3)");
+    // Serving ada59d4 read "1 bars (median of 185)": exactly one is singular; 1.5 and 0 are not.
+    expect(fvgMedianText(1, 185, "bars")).toBe("1 bar (median of 185)");
+    expect(fvgMedianText(1.5, 4, "bars")).toBe("1.5 bars (median of 4)");
+    expect(fvgMedianText(0, 4, "bars")).toBe("0 bars (median of 4)");
     expect(fvgMedianText(null, 0, "bars")).toMatch(/no median/);
   });
 

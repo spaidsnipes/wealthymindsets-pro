@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { CHUNK_RECOVERY_SCRIPT } from "@/components/layout/chunkRecoveryScript";
 import "./globals.css";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { VerifySceneBanner } from "@/components/layout/VerifySceneBanner";
 import { SymbolProvider } from "@/contexts/SymbolContext";
 import { WMSProvider } from "@/contexts/WMSContext";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -109,6 +110,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <WMSProvider>
               <SymbolProvider>
                 <MainLayout>{children}</MainLayout>
+                {/* scene=verify: the one visible mark of a verification load — every room, signed-in only. */}
+                <VerifySceneBanner />
               </SymbolProvider>
             </WMSProvider>
           </RadioProvider>

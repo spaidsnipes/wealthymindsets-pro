@@ -11,7 +11,11 @@
  *   structure   the structure owner's relationships to the gap (broke / reclaimed / swing inside), or SILENCE
  *   profile     the profile of the bars BEFORE formation (POC / VAH / VAL / HVN / LVN), or SILENCE
  *   wall        SILENCE from bars alone (no chain, no book) — said, never assumed absent
- *   effort      the Response Matrix cell of the displacement bar — SILENT where the market reports no traded volume
+ *   effort      the Response Matrix cell of the displacement bar — SILENT where the market reports no traded volume.
+ *               From version 2 (§13) it is the fvgRelationships EFFORT_RESPONSE family: the displacement bar AND the
+ *               first bar of every interaction known by the decision, each ranked over the closed bars ending at it.
+ *   order flow  (§14, version 2) the ORDER_FLOW family. The Journal holds bars only — no signed volume — so the
+ *               family is a stated SILENCE here, never read from candles.
  *   regime      the gap's regime tag at b2 ("UNTAGGED" when no regime reading was attached)
  *
  * AS OF THE DECISION: only bars that had CLOSED by the reference's `readAsOfMs` are read. Nothing after
@@ -19,9 +23,7 @@
  * keeps reading "NOT RECORDED" — never back-filled from today's chart.
  */
 
-import { readEffortResponseField } from "@/lib/chart/effortResponseField";
 import type { ResponseCell } from "@/lib/chart/effortEvidence";
-import { volumeTruthFor } from "@/lib/chart/volumeTruth";
 import type { CanonicalBar } from "@/lib/marketData/canonicalBar";
 import { fvgBarContext, fvgBarOnlyRelationships } from "@/lib/marketData/fvg/fvgBarContext";
 
@@ -29,18 +31,20 @@ import type { JournalFvgReference } from "./fvgDecisionReference";
 import { fvgLedgerFromClosedBars } from "./planFvgLoader";
 
 export const FVG_CONTEXT_KIND = "WM_FVG_DECISION_CONTEXT" as const;
-const FAMILIES = ["STRUCTURE", "PROFILE", "WALL"] as const;
+const FAMILIES = ["STRUCTURE", "PROFILE", "WALL", "EFFORT_RESPONSE", "ORDER_FLOW"] as const;
+const BAR_FAMILIES: readonly string[] = ["EFFORT_RESPONSE", "ORDER_FLOW"];
 const CELLS: readonly string[] = ["ABSORBED", "INITIATIVE", "VACUUM", "QUIET", "ORDINARY", "SILENT"];
 
 export interface JournalFvgContext {
   readonly kind: typeof FVG_CONTEXT_KIND;
-  readonly version: 1;
+  /** 1 = structure / profile / wall + `effortCell`; 2 adds the EFFORT_RESPONSE and ORDER_FLOW families (rows carry the owner's word). A stored version-1 row is read as it was written, never rewritten. */
+  readonly version: 1 | 2;
   /** The object and instant this context belongs to — it is only used with the reference that names the same two. */
   readonly objectId: string;
   readonly decisionAtMs: number;
   readonly readAsOfMs: number;
   /** Relationships found, by family and kind (the splits need no more). */
-  readonly relationships: readonly { readonly family: string; readonly kind: string }[];
+  readonly relationships: readonly { readonly family: string; readonly kind: string; readonly state?: string }[];
   /** Every owner consulted with its evidence word — SILENCE included. */
   readonly sources: readonly { readonly family: string; readonly evidence: string }[];
   readonly effortCell: ResponseCell | "SILENT";
@@ -103,19 +107,14 @@ export function fvgContextAtDecision(ref: JournalFvgReference, bars: readonly Ca
   if (!o) return { ok: false, reason: "The gap is not in the bars that had closed by the decision time — no context is recorded rather than a guess." };
   const ctx = fvgBarContext(known, ref.symbol, ref.timeframe);
   const rel = fvgBarOnlyRelationships(ctx, o);
-  const i2 = ctx.indexById.get(o.bars.b2.barId);
-  let effortCell: JournalFvgContext["effortCell"] = "SILENT";
-  if (i2 !== undefined && volumeTruthFor(ref.symbol, known).real) {
-    const tuples = known.map(x => ({ time: x.asOf / 1000, open: x.open, high: x.high, low: x.low, close: x.close, volume: x.volume }));
-    const field = readEffortResponseField(tuples, Math.max(0, i2 - 99), i2, { volumeReal: true });
-    // The cell of b2 itself; when the owner did not read b2 it is SILENT — never a neighbour's cell.
-    if (field.state === "DRAWN" && field.bars.length && field.bars[field.bars.length - 1].time === tuples[i2].time) effortCell = field.bars[field.bars.length - 1].cell;
-  }
+  // The displacement bar's cell IS the relationship's word (one reading, one owner); SILENT when the owner gave none.
+  const b2Cell = rel.relationships.find(r => r.kind === "DISPLACEMENT_EFFORT")?.ownerState;
+  const effortCell: JournalFvgContext["effortCell"] = b2Cell && CELLS.includes(b2Cell) ? (b2Cell as JournalFvgContext["effortCell"]) : "SILENT";
   return {
     ok: true,
     context: {
-      kind: FVG_CONTEXT_KIND, version: 1, objectId: ref.objectId, decisionAtMs: ref.decisionAtMs, readAsOfMs: ref.readAsOfMs,
-      relationships: rel.relationships.map(r => ({ family: r.family, kind: r.kind })),
+      kind: FVG_CONTEXT_KIND, version: 2, objectId: ref.objectId, decisionAtMs: ref.decisionAtMs, readAsOfMs: ref.readAsOfMs,
+      relationships: rel.relationships.map(r => ({ family: r.family, kind: r.kind, ...(BAR_FAMILIES.includes(r.family) && r.ownerState ? { state: r.ownerState } : {}) })),
       sources: rel.sources.map(s => ({ family: s.family, evidence: s.evidence })),
       effortCell, regime: o.regime, barsRead: known.length,
       // The engine's word for the latest interaction it knew of, from the same closed bars.
@@ -128,30 +127,31 @@ export function fvgContextAtDecision(ref: JournalFvgReference, bars: readonly Ca
 export function readJournalFvgContext(raw: unknown): JournalFvgContext | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
-  if (o.kind !== FVG_CONTEXT_KIND || o.version !== 1) return null;
+  if (o.kind !== FVG_CONTEXT_KIND || (o.version !== 1 && o.version !== 2)) return null;
   if (typeof o.objectId !== "string" || !o.objectId.startsWith("FVG|")) return null;
   const fin = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
   if (!fin(o.decisionAtMs) || !fin(o.readAsOfMs) || !fin(o.barsRead) || o.readAsOfMs > o.decisionAtMs) return null;
   if (typeof o.effortCell !== "string" || !CELLS.includes(o.effortCell) || typeof o.regime !== "string" || !o.regime) return null;
   if (o.responseAsOf !== undefined && (typeof o.responseAsOf !== "string" || !RESPONSES.includes(o.responseAsOf))) return null;
-  const rows = (v: unknown, second: "kind" | "evidence"): { family: string; second: string }[] | null => {
+  const rows = (v: unknown, second: "kind" | "evidence"): { family: string; second: string; state?: string }[] | null => {
     if (!Array.isArray(v) || v.length > 60) return null;
-    const out: { family: string; second: string }[] = [];
+    const out: { family: string; second: string; state?: string }[] = [];
     for (const x of v) {
       if (!x || typeof x !== "object") return null;
       const r = x as Record<string, unknown>;
       if (typeof r.family !== "string" || typeof r[second] !== "string" || !(FAMILIES as readonly string[]).includes(r.family)) return null;
-      out.push({ family: r.family, second: (r[second] as string).slice(0, 40) });
+      if (r.state !== undefined && typeof r.state !== "string") return null;
+      out.push({ family: r.family, second: (r[second] as string).slice(0, 40), ...(typeof r.state === "string" && r.state ? { state: r.state.slice(0, 40) } : {}) });
     }
     return out;
   };
   const rel = rows(o.relationships, "kind");
   const src = rows(o.sources, "evidence");
   if (!rel || !src) return null;
-  const relationships = rel.map(r => ({ family: r.family, kind: r.second }));
+  const relationships = rel.map(r => ({ family: r.family, kind: r.second, ...(r.state ? { state: r.state } : {}) }));
   const sources = src.map(r => ({ family: r.family, evidence: r.second }));
   return {
-    kind: FVG_CONTEXT_KIND, version: 1, objectId: o.objectId, decisionAtMs: o.decisionAtMs, readAsOfMs: o.readAsOfMs,
+    kind: FVG_CONTEXT_KIND, version: o.version, objectId: o.objectId, decisionAtMs: o.decisionAtMs, readAsOfMs: o.readAsOfMs,
     relationships, sources,
     effortCell: o.effortCell as JournalFvgContext["effortCell"], regime: o.regime.slice(0, 40), barsRead: o.barsRead,
     ...(typeof o.responseAsOf === "string" && RESPONSES.includes(o.responseAsOf) ? { responseAsOf: o.responseAsOf as FvgResponseAsOf } : {}),
@@ -183,5 +183,11 @@ export function fvgContextNote(ref: JournalFvgReference, ctx: JournalFvgContext 
     const src = c.sources.filter(s => s.family === f);
     return src.length && src.every(s => s.evidence === "SILENCE") ? "silence" : "none";
   };
-  return `Context at the decision (from ${c.barsRead} closed bars): structure ${fam("STRUCTURE")} · profile ${fam("PROFILE")} · wall ${fam("WALL")} · displacement bar ${c.effortCell} · regime ${c.regime}.`;
+  // Version 2 (§13 / §14): the latest touch bar's cell, and what the signed-volume owner said. A version-1 row keeps its line.
+  const has = (f: string) => c.sources.some(s => s.family === f);
+  const lastState = (kind: string) => { const rs = c.relationships.filter(r => r.kind === kind && r.state); return rs.length ? rs[rs.length - 1].state! : null; };
+  const touch = has("EFFORT_RESPONSE") ? ` · touch bar ${lastState("TOUCH_EFFORT") ?? "none read"}` : "";
+  const flowWord = lastState("TOUCH_FLOW") ?? lastState("DISPLACEMENT_FLOW");
+  const flow = has("ORDER_FLOW") ? ` · order flow ${flowWord ? flowWord.toLowerCase() : "silence (no signed volume in these bars)"}` : "";
+  return `Context at the decision (from ${c.barsRead} closed bars): structure ${fam("STRUCTURE")} · profile ${fam("PROFILE")} · wall ${fam("WALL")} · displacement bar ${c.effortCell}${touch}${flow} · regime ${c.regime}.`;
 }

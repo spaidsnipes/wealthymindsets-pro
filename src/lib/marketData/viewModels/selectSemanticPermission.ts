@@ -196,6 +196,15 @@ export interface SemanticPermissionVM {
   paints(layer: DepthLayer, opts?: PermissionOpts): boolean;
   /** Its words too (SPEAK only). */
   speaks(layer: DepthLayer, opts?: PermissionOpts): boolean;
+  /**
+   * WHY a layer is QUIET: "DEPTH" (H-501 — this depth asks for its geometry
+   * without its words, and quieter) or "NARROW" (the phone's WORD budget — the
+   * words are withheld; the geometry is not asked to dim). `null` = not QUIET.
+   * The attention governor caps alpha for DEPTH only (Founder, 2026-10-09:
+   * "the opacity on the phone version still sucks" — measured at 390/430,
+   * every LIVE layer sat at 0.6 because the word budget was dimming ink).
+   */
+  quietBy(layer: DepthLayer, opts?: PermissionOpts): "DEPTH" | "NARROW" | null;
   /** Candle brightness under the depth's veil: FAR_CANDLES_DIM at FAR, else 1. */
   readonly candlesDim: number;
   /** Every layer this depth silences, in table order. Empty when UNMEASURED. */
@@ -257,6 +266,12 @@ export function selectSemanticPermission(
     of,
     paints: (layer, opts) => of(layer, opts) !== "SILENT",
     speaks: (layer, opts) => of(layer, opts) === "SPEAK",
+    quietBy: (layer, opts) => {
+      if (opts?.selectedItem) return null;
+      const p = permissionAt(layer, d);
+      if (p === "QUIET") return "DEPTH";
+      return narrow && p === "SPEAK" && !NARROW_GLASS_KEEPS_WORDS.has(layer) ? "NARROW" : null;
+    },
     candlesDim: candles === "SPEAK" ? 1 : FAR_CANDLES_DIM,
     silent,
     receipt: measured ? `${d}|SILENT=${silent.join(",")}${narrow ? "|NARROW" : ""}` : null,

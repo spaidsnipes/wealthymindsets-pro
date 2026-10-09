@@ -40,6 +40,28 @@ export function withScenePlan(ctx: Record<string, unknown>, read: DecisionPlanRe
   return { ...ctx, plan: formatPlanContextLine(snap) };
 }
 
+/**
+ * WHAT THE PANEL WOULD SEND, PUBLISHED (Garden 19 §31, coordinator order
+ * 2026-10-09). The Decision_ID and the plan line are added to the context in
+ * memory, so nothing on the page showed them — §31 could only be read by
+ * making a provider call on the Founder's account. When the panel opens it now
+ * writes these two fields of the SAME context object the send path would post
+ * (one builder: `contextWithAsk(getChartContext(), ask)`), as data attributes.
+ * No request is made. PURE.
+ */
+export const SPAIDBOT_NO_PLAN = "no plan" as const;
+export interface SpaidbotContextPublish {
+  /** Whether the context carries a Decision_ID. */
+  readonly decision: "yes" | "no";
+  /** The plan line exactly as it would be sent, or "no plan". */
+  readonly plan: string;
+}
+export function spaidbotContextPublish(ctx: Readonly<Record<string, unknown>>): SpaidbotContextPublish {
+  const id = typeof ctx.decisionId === "string" ? ctx.decisionId.trim() : "";
+  const plan = typeof ctx.plan === "string" ? ctx.plan.trim() : "";
+  return { decision: id ? "yes" : "no", plan: plan || SPAIDBOT_NO_PLAN };
+}
+
 /** A stream silent this long is ended and SAID to have timed out (§8). */
 export const SPAIDBOT_IDLE_TIMEOUT_MS = 45_000;
 

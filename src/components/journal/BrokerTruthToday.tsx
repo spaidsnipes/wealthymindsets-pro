@@ -135,7 +135,9 @@ export function StoryReviewRow({ storyKey, evidence, plan: planIn, planDecisionI
     question: composed?.question ?? "What should I look at in this decision?",
     fvgReferenceSentence: fvgRef ? fvgReferenceSentence(fvgRef) : null,
     symbol: planSymbol ?? fvgRef?.symbol ?? null,
-    decisionId: planDecisionId ?? null,
+    // The proof scene's one sample door carries the SAMPLE plan's own Decision_ID, so the panel's
+    // published context shows a decision with its plan line (§31 on a fixture). Real rows are unchanged.
+    decisionId: planDecisionId ?? (sampleAskDoor ? plan?.plan?.base.decisionId ?? null : null),
     planLine: formatPlanContextLine(plan?.plan ?? null),
   });
   // Garden 19 §42: the FVG block keeps TRADER (what you recorded), MARKET × TRADER

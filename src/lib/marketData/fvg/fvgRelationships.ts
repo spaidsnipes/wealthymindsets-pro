@@ -36,6 +36,25 @@
  *   open): the structure owner's own confirmation lag, so no relationship can
  *   use a pivot the market had not yet confirmed.
  *
+ * EFFORT→RESPONSE and ORDER FLOW (Garden 19 §13, §14 — 2026-10-09). Two more
+ * families, ANCHORED TO BARS THE GAP ALREADY NAMES — the displacement bar b2
+ * and the first bar of each interaction the engine recorded — never a
+ * neighbour's bar:
+ *   effort      the Response Matrix cell of that bar, in its owner's word
+ *               (effortEvidence.cellFor via readEffortResponseField), each bar
+ *               ranked over the trailing closed bars ENDING at that bar, so no
+ *               later bar can re-rank it. Real traded volume → FULL; a market
+ *               that reports no traded volume (spot FX, a placeholder feed) or
+ *               a bar the field could not read → SILENCE with the owner's reason.
+ *   order flow  who took the larger share of that bar's SIGNED volume, in the
+ *               one side owner's word (tapeSideVerdict.readTapeSide). Captured
+ *               signed prints → FULL (PARTIAL when the tape cannot vouch for
+ *               the whole bar); the provider's per-bar bid / ask volume →
+ *               PARTIAL (an aggregate, never prints); no signed volume for the
+ *               bar → SILENCE. Candles are never read as order flow.
+ * The readings are handed in (fvgEffortFlow builds them from the owners); this
+ * module only places them on the gap and carries the evidence word.
+ *
  * PURE. No IO, no clock.
  */
 
@@ -48,7 +67,7 @@ import { profileEstWord } from "@/lib/marketData/viewModels/profileEvidenceWord"
 import { getTimeframe, normalizeTFId } from "@/lib/timeframes";
 
 export type RelationshipEvidence = "FULL" | "PARTIAL" | "DEGRADED" | "SILENCE";
-export type RelationshipFamily = "STRUCTURE" | "PROFILE" | "WALL";
+export type RelationshipFamily = "STRUCTURE" | "PROFILE" | "WALL" | "EFFORT_RESPONSE" | "ORDER_FLOW";
 
 export interface RelationshipSource {
   readonly family: RelationshipFamily;
@@ -64,9 +83,10 @@ export interface RelationshipSource {
 export type RelationshipKind =
   | "BROKE_SWING" | "RECLAIMED_SWING" | "SWING_INSIDE"
   | "POC" | "VAH" | "VAL" | "HVN" | "LVN"
-  | "CALL_WALL" | "PUT_WALL" | "GAMMA_FLIP" | "LIQUIDITY_POOL";
+  | "CALL_WALL" | "PUT_WALL" | "GAMMA_FLIP" | "LIQUIDITY_POOL"
+  | "DISPLACEMENT_EFFORT" | "TOUCH_EFFORT" | "DISPLACEMENT_FLOW" | "TOUCH_FLOW";
 
-export type RelationshipRelation = "INSIDE" | "NEAR" | "OVERLAPS" | "AT_FORMATION";
+export type RelationshipRelation = "INSIDE" | "NEAR" | "OVERLAPS" | "AT_FORMATION" | "AT_TOUCH";
 
 export interface FvgRelationship {
   readonly family: RelationshipFamily;
@@ -79,6 +99,10 @@ export interface FvgRelationship {
   readonly distance: number;
   /** The other owner's own state word, verbatim, when it has one (wall life, pool stage). */
   readonly ownerState: string | null;
+  /** The owner's own plain words for a bar reading (effort / order flow), or absent. */
+  readonly note?: string | null;
+  /** Which interaction a touch-bar reading belongs to (the engine's episode number), or absent. */
+  readonly episode?: number | null;
   readonly source: RelationshipSource;
   readonly tag: "DERIVED MEASUREMENT";
 }
@@ -89,6 +113,19 @@ export interface FvgRelationshipReading {
   readonly relationships: readonly FvgRelationship[];
   /** Every owner consulted, with its evidence word — SILENCE included. */
   readonly sources: readonly RelationshipSource[];
+  /**
+   * An owner that DREW levels, none of them inside or near this gap: said, with the nearest one, so
+   * "no row" is never mistaken for "nothing was read" (options walls, 2026-10-09).
+   */
+  readonly absences?: readonly RelationshipAbsence[];
+}
+
+export interface RelationshipAbsence {
+  readonly family: RelationshipFamily;
+  readonly label: string;
+  /** The owner's nearest level to the territory, and its distance from it (price units). */
+  readonly nearest: number;
+  readonly distance: number;
 }
 
 /* ── SOURCES: owner VM → evidence word + the levels it publishes ───────────── */
@@ -113,7 +150,41 @@ export interface ProfileInput {
   readonly reason?: string | null;
 }
 
+/** One bar's reading from an owner, placed on the gap by its anchor. */
+export interface AnchoredBarReading {
+  readonly anchor: "DISPLACEMENT" | "TOUCH";
+  /** The engine's episode number for a TOUCH reading; null for the displacement bar. */
+  readonly episode: number | null;
+  /** That bar's close. */
+  readonly price: number;
+  /** The owner's state word, verbatim (a Response Matrix cell; a tape side). */
+  readonly state: string;
+  /** The owner's plain words for the bar. */
+  readonly words: string;
+  /** Order flow only: the tape cannot vouch for the whole bar. */
+  readonly partial?: boolean;
+}
+
+export interface EffortInput {
+  /** volumeTruth's verdict for this market. */
+  readonly volumeReal: boolean;
+  /** Why nothing could be read, in the owner's words. */
+  readonly silenceWhy: string | null;
+  /** How many trailing closed bars each bar was ranked over. */
+  readonly windowBars: number;
+  readonly readings: readonly AnchoredBarReading[];
+}
+
+export interface FlowInput {
+  /** TAPE = captured signed prints; SIDES = the provider's per-bar bid / ask volume; null = neither. */
+  readonly basis: "TAPE" | "SIDES" | null;
+  readonly silenceWhy: string | null;
+  readonly readings: readonly AnchoredBarReading[];
+}
+
 export interface FvgRelationshipInputs {
+  readonly effort?: EffortInput | null;
+  readonly flow?: FlowInput | null;
   readonly structure?: StructureInput | null;
   readonly profiles?: readonly ProfileInput[];
   readonly derivatives?: DerivativesPressureVM | null;
@@ -164,6 +235,36 @@ export function liquiditySource(vm: LiquidityLifecycleVM | null | undefined): Re
   return vm.basis === "OBSERVED_BOOK"
     ? { family: "WALL", owner: "selectLiquidityLifecycle", label: "Liquidity pools", evidence: "FULL", provenance: `resting size observed on ${vm.venue ?? "one venue"}'s book` }
     : { family: "WALL", owner: "selectLiquidityLifecycle", label: "Liquidity pools", evidence: "PARTIAL", provenance: "volume-at-price estimated from candles" };
+}
+
+export const EFFORT_NOT_ATTACHED = "no effort→response reading attached";
+export const FLOW_NOT_ATTACHED = "no signed volume attached for the gap's bars — candles are never read as order flow";
+
+export function effortSource(e: EffortInput | null | undefined): RelationshipSource {
+  const base = { family: "EFFORT_RESPONSE" as const, owner: "readEffortResponseField", label: "Effort→response" };
+  if (!e) return { ...base, evidence: "SILENCE", provenance: EFFORT_NOT_ATTACHED };
+  if (!e.volumeReal) return { ...base, evidence: "SILENCE", provenance: e.silenceWhy ?? "this market reports no traded volume, so effort cannot be weighed" };
+  if (!e.readings.length) return { ...base, evidence: "SILENCE", provenance: e.silenceWhy ?? "the field could not read the gap's bars" };
+  return { ...base, evidence: "FULL", provenance: `traded volume; each bar ranked over the ${e.windowBars} closed bars ending at that bar` };
+}
+
+export function flowSource(f: FlowInput | null | undefined): RelationshipSource {
+  const base = { family: "ORDER_FLOW" as const, owner: "readTapeSide", label: "Order flow" };
+  if (!f || f.basis === null || !f.readings.length) return { ...base, evidence: "SILENCE", provenance: f?.silenceWhy ?? FLOW_NOT_ATTACHED };
+  if (f.basis === "SIDES") return { ...base, evidence: "PARTIAL", provenance: "the provider's per-bar bid / ask volume — an aggregate for the bar, not prints" };
+  return f.readings.some(r => r.partial)
+    ? { ...base, evidence: "PARTIAL", provenance: "captured signed prints; the tape cannot vouch for the whole of at least one of these bars" }
+    : { ...base, evidence: "FULL", provenance: "captured signed prints for these bars" };
+}
+
+function anchoredRelationships(family: "EFFORT_RESPONSE" | "ORDER_FLOW", readings: readonly AnchoredBarReading[], src: RelationshipSource): FvgRelationship[] {
+  if (src.evidence === "SILENCE") return [];
+  return readings.map(r => ({
+    family,
+    kind: (family === "EFFORT_RESPONSE" ? (r.anchor === "DISPLACEMENT" ? "DISPLACEMENT_EFFORT" : "TOUCH_EFFORT") : (r.anchor === "DISPLACEMENT" ? "DISPLACEMENT_FLOW" : "TOUCH_FLOW")) as RelationshipKind,
+    relation: (r.anchor === "DISPLACEMENT" ? "AT_FORMATION" : "AT_TOUCH") as RelationshipRelation,
+    price: r.price, priceHigh: null, distance: 0, ownerState: r.state, note: r.words, episode: r.episode, source: src, tag: "DERIVED MEASUREMENT" as const,
+  }));
 }
 
 /* ── GEOMETRY ──────────────────────────────────────────────────────────────── */
@@ -285,12 +386,28 @@ export function fvgRelationshipsFor(o: FvgObject, inputs: FvgRelationshipInputs,
   }
   const dSrc = derivativesSource(inputs.derivatives);
   sources.push(dSrc);
-  out.push(...derivativesRelationships(o, inputs.derivatives, dSrc));
+  const wallRels = derivativesRelationships(o, inputs.derivatives, dSrc);
+  out.push(...wallRels);
+  const absences: RelationshipAbsence[] = [];
+  if (inputs.derivatives?.drawn && dSrc.evidence !== "SILENCE" && !wallRels.length) {
+    const levels = [...inputs.derivatives.walls.map(w => w.strike), ...(inputs.derivatives.zeroGamma !== null ? [inputs.derivatives.zeroGamma] : [])].filter(Number.isFinite);
+    if (levels.length) {
+      const nearest = levels.reduce((a, b) => (distanceTo(o, b) < distanceTo(o, a) ? b : a));
+      absences.push({ family: "WALL", label: dSrc.label, nearest, distance: distanceTo(o, nearest) });
+    }
+  }
   const lSrc = liquiditySource(inputs.liquidity);
   sources.push(lSrc);
   out.push(...liquidityRelationships(o, inputs.liquidity, lSrc));
   out.sort((a, b) => (b.priceHigh ?? b.price) - (a.priceHigh ?? a.price));
-  return { objectId: o.objectId, relationships: out, sources };
+  // Bar readings follow the spatial ones, in time order (formation, then each touch) — they are about a bar, not a level.
+  const eSrc = effortSource(inputs.effort);
+  sources.push(eSrc);
+  if (inputs.effort) out.push(...anchoredRelationships("EFFORT_RESPONSE", inputs.effort.readings, eSrc));
+  const fSrc = flowSource(inputs.flow);
+  sources.push(fSrc);
+  if (inputs.flow) out.push(...anchoredRelationships("ORDER_FLOW", inputs.flow.readings, fSrc));
+  return { objectId: o.objectId, relationships: out, sources, ...(absences.length ? { absences } : {}) };
 }
 
 /** The families that hold at least one relationship (for scanner / backtest splits). */
@@ -299,17 +416,23 @@ export function fvgRelationshipFamilies(r: FvgRelationshipReading): ReadonlySet<
 }
 
 /** Inspect rows, one per relationship, spatially ordered; then the silences. Numbers formatted by the caller's `fmt`. */
-export function fvgRelationshipRows(r: FvgRelationshipReading, fmt: (p: number) => string): { readonly rows: readonly string[]; readonly silences: readonly string[] } {
+export function fvgRelationshipRows(r: FvgRelationshipReading, fmt: (p: number) => string): { readonly rows: readonly string[]; readonly silences: readonly string[]; readonly absences: readonly string[] } {
   const KIND: Readonly<Record<RelationshipKind, string>> = {
     BROKE_SWING: "broke the swing", RECLAIMED_SWING: "reclaimed the swing", SWING_INSIDE: "swing inside",
     POC: "POC", VAH: "VAH", VAL: "VAL", HVN: "HVN", LVN: "LVN",
     CALL_WALL: "call wall", PUT_WALL: "put wall", GAMMA_FLIP: "gamma flip", LIQUIDITY_POOL: "liquidity pool",
+    DISPLACEMENT_EFFORT: "displacement bar", TOUCH_EFFORT: "touch bar", DISPLACEMENT_FLOW: "displacement bar", TOUCH_FLOW: "touch bar",
   };
   const rows = r.relationships.map(x => {
+    if (x.family === "EFFORT_RESPONSE" || x.family === "ORDER_FLOW") {
+      const which = x.relation === "AT_FORMATION" ? "at formation" : `at touch${x.episode != null ? ` ${x.episode}` : ""}`;
+      return `${x.source.label} ${KIND[x.kind]} — ${which} · owner says ${x.ownerState}${x.note ? ` · ${x.note}` : ""} · ${x.source.evidence} (${x.source.provenance})`;
+    }
     const where = x.priceHigh !== null ? `${fmt(x.price)}–${fmt(x.priceHigh)}` : fmt(x.price);
     const how = x.relation === "AT_FORMATION" ? "at formation" : x.relation === "NEAR" ? `near (${fmt(x.distance)} away)` : x.relation.toLowerCase();
     return `${x.source.label} ${KIND[x.kind]} ${where} — ${how}${x.ownerState ? ` · owner says ${x.ownerState}` : ""} · ${x.source.evidence} (${x.source.provenance})`;
   });
   const silences = r.sources.filter(s => s.evidence === "SILENCE").map(s => `${s.label}: SILENCE — ${s.provenance}`);
-  return { rows, silences };
+  const absences = (r.absences ?? []).map(a => `${a.label}: none near this gap — nearest ${fmt(a.nearest)}, ${fmt(a.distance)} away`);
+  return { rows, silences, absences };
 }

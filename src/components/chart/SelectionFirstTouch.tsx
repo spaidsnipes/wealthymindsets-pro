@@ -22,7 +22,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { composeFirstTouch, educationFor, firstTouchFor, type EducationKey } from "@/lib/chart/inventionEducation";
-import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
+import { proofSceneHoldsWrites, proofVerifyOnly } from "@/lib/chart/proofScene";
 
 const GOLD = "#d4af37";
 const PEARL = "#E8EAF2";
@@ -33,7 +33,8 @@ const learnedKey = (id: string) => `wm:edu:firstTouch:${id}`;
 export const FIRST_TOUCH_SEEN_MS = 1500;
 
 function readLearned(id: string): boolean {
-  if (proofSceneHoldsWrites()) return false;
+  // A verification load (scene=verify) changes nothing visible: what the trader already learned still reads as learned.
+  if (proofSceneHoldsWrites() && !proofVerifyOnly()) return false;
   try { return localStorage.getItem(learnedKey(id)) === "1"; } catch { return false; }
 }
 

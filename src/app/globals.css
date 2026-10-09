@@ -1824,6 +1824,20 @@ input[type=range]::-webkit-slider-runnable-track {
   }
 }
 
+/* ── THE THUMB BAR SAYS IT SCROLLS (phone pass, serving f9f61fe, 2026-10-09) ─
+   At 390 the bar holds Trade · Watchlist · Indicators and then the room's
+   views in a sideways scroller with the scrollbar hidden: 386px shown of 905.
+   The fourth plate was cut mid-word ("OVER") at the hard right edge — it read
+   as a clipped control, not as "there is more". The right edge now fades, and
+   the scroller's own end padding lets the last plate clear the fade. */
+@media (max-width: 767px) {
+  .wm-instrument-context-strip {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    padding-inline-end: 32px !important;
+  }
+}
+
 /* ── DOCUMENT ROOMS MEET THE PHONE TAP FLOOR (canon sweep 2026-10-06) ───────
    Measured at 390: News carried 83 controls under 44px (filter chips 23–26px
    tall), Shop 53, Journal 31, WM TV 13 (28px channel rows), Radio 9 (25px

@@ -63,7 +63,9 @@ describe("select= opens Inspect through the one selection owner", () => {
 
   it("a proof scene never reads or writes the remembered selection", () => {
     const memory = between(ROOM, "const selectionKey = `wm:selectedObject:", "useEffect(() => {\n    if (!absorptionAnatomy)");
-    expect(memory).toMatch(/if \(!proofSceneHoldsWrites\(\)\) \{\s*try \{ saved = sessionStorage\.getItem\(selectionKey\);/);
+    // 2026-10-09: a VERIFICATION load (scene=verify) is not a proof scene's own glass — it changes nothing visible, so it
+    // still restores the remembered object (and still never writes it). Every real proof scene keeps the rule.
+    expect(memory).toMatch(/if \(!proofSceneHoldsWrites\(\) \|\| proofVerifyOnly\(\)\) \{\s*try \{ saved = sessionStorage\.getItem\(selectionKey\);/);
     expect(memory).toMatch(/useEffect\(\(\) => \{\s*if \(proofSceneHoldsWrites\(\)\) return;\s*try \{ if \(selectedMarketObjectId\) sessionStorage\.setItem/);
     expect(memory).toContain("if (releasesObject(chartSelection, action) && !proofSceneHoldsWrites()) {");
     // Every storage call in the selection memory sits behind the proof gate.

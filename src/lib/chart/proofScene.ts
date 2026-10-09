@@ -313,12 +313,55 @@ function fixtureRoomOpen(): boolean {
   try { return proofFixtureScene(window.location.search ?? "") !== null; } catch { return false; }
 }
 
+/**
+ * `scene=verify` — VERIFICATION (coordinator order 2026-10-09). The honest name
+ * for "read a plain page on serving without leaving a mark": REAL data and
+ * REAL reads on every room, nothing saved — `proofSceneHoldsWrites()` is true —
+ * and a banner on screen for the signed-in trader. It is NOT a clean scene and
+ * NOT a fixture: `parseProofScene` gives it no layer overrides, no room swaps
+ * its data for a sample, and every reader that normally falls back to canon in
+ * a proof scene keeps reading the member's own saved state (`proofVerifyOnly`).
+ * So the page looks exactly as it does without the token, plus the banner.
+ *
+ * Why it exists: three plain /backtesting verification loads on ada59d4 each
+ * checkpointed and POSTed the coverage record. From the next ship every lane's
+ * verification load of a plain page carries this token.
+ */
+export const PROOF_VERIFY_TOKEN = "verify" as const;
+export const PROOF_VERIFY_BANNER = "VERIFICATION — real data, nothing is saved" as const;
+
+/** The address asks for the verification hold. */
+export function proofVerifyScene(search: string): boolean {
+  try { return (new URLSearchParams(search).get(SCENE_PARAM) ?? "").trim() === PROOF_VERIFY_TOKEN; } catch { return false; }
+}
+
+/** Latched like the proof-scene hold: a door that rewrites the address does not end it. */
+let loadedAsVerify: boolean | null = null;
+
+/** True while this page load is a verification load (now, or since it opened). */
+export function proofVerifyOpen(): boolean {
+  if (typeof window === "undefined" || !window.location) return false;
+  let now = false;
+  try { now = proofVerifyScene(window.location.search ?? ""); } catch { now = false; }
+  if (loadedAsVerify === null) loadedAsVerify = now;
+  return now || loadedAsVerify === true;
+}
+
+/**
+ * The hold is ONLY the verification hold: no chart proof scene and no fixture
+ * room is open. Readers that show canon instead of the member's saved state in
+ * a proof scene ask this, and keep showing the member's own state.
+ */
+export function proofVerifyOnly(): boolean {
+  return proofVerifyOpen() && !currentProofScene().active && !fixtureRoomOpen();
+}
+
 /** True while a proof scene is open: nothing may be written back to saved preferences. */
 export function proofSceneHoldsWrites(): boolean {
   // A PAGE FIXTURE ROOM holds writes too (serving 0dd1130, 2026-10-09: /journal
   // under scene=journal-fixture cached the session and checkpointed + POSTed the
   // coverage record — the chart scenes held, the fixture rooms did not).
-  const now = currentProofScene().active || fixtureRoomOpen();
+  const now = currentProofScene().active || fixtureRoomOpen() || proofVerifyOpen();
   if (loadedAsProofScene === null && typeof window !== "undefined") loadedAsProofScene = now;
   return now || loadedAsProofScene === true;
 }

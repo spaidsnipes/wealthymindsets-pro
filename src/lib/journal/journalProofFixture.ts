@@ -28,14 +28,12 @@ import { fvgReferenceAtDecision, type JournalFvgReference } from "@/lib/journal/
 import { fvgContextFromLedger, fvgReviewAnswersAt, type FvgReviewAnswers } from "@/lib/journal/planFvgContext";
 import { compareFvgTakenVsUntaken, type FvgEdgeComparison } from "@/lib/journal/planFvgCounterfactual";
 import { fvgStudyList, type FvgStudyRow } from "@/lib/journal/planFvgStudy";
-import { fvgContextAtDecision } from "@/lib/journal/fvgDecisionContext";
+import { fvgContextAtDecision, splitContextOf } from "@/lib/journal/fvgDecisionContext";
 import { fvgReferencedExamples, type FvgJournalExample } from "@/lib/academy/fvgCourse";
 import { amendPlan, freezePlanSnapshot, type ManagementPlanSnapshot } from "@/lib/journal/managementPlan";
 import type { PricePath, TradeActuals, PlanVsActualResult } from "@/lib/journal/planVsActual";
 import { composePlanReview } from "@/lib/journal/planReview";
 import { planAdherenceBySetup, type SetupAdherence } from "@/lib/journal/planAdherence";
-import { fvgBarContext, fvgBarOnlyRelationships } from "@/lib/marketData/fvg/fvgBarContext";
-import { readEffortResponseField } from "@/lib/chart/effortResponseField";
 import { fvgContextSplits, type SplitRow } from "@/lib/journal/planFvgContextSplits";
 import { managementCounterfactual, type ManagementCounterfactual } from "@/lib/journal/planManagementCounterfactual";
 
@@ -208,24 +206,19 @@ export function journalFixture(): JournalFixture {
   }));
   const examples = fvgReferencedExamples(entries.map(e => ({ id: e.id, symbol: e.symbol, date: e.date, result: e.result, realizedR: e.realizedR, fvgRef: e.fvgRef })))
     .map(x => ({ ...x, href: `/journal?scene=journal-fixture#${x.id}` }));
-  // Context as of formation, from the owners that can be asked from bars alone (structure; the
-  // profile of the bars BEFORE b1; walls SILENCE), the Response Matrix cell of the displacement bar,
-  // the gap's regime tag, and the territory's own response in the decision's interaction (MARKET).
-  const ctx = fvgBarContext(b, JOURNAL_FIXTURE_SYMBOL, JOURNAL_FIXTURE_TF);
-  const tuples = b.map(x => ({ time: x.asOf / 1000, open: x.open, high: x.high, low: x.low, close: x.close, volume: x.volume }));
+  // Context AS OF EACH DECISION (fvgDecisionContext — the same reader the real Journal saves with):
+  // structure; the profile of the bars BEFORE b1; walls SILENCE; the effort→response cells of the
+  // displacement bar and of the touches known by then (§13); order flow SILENCE (bars carry no signed
+  // volume, §14); the gap's regime tag; and the territory's own response in the decision's interaction (MARKET).
   const byId = new Map(ledger.objects.map(o => [o.objectId, o] as const));
   const splits = fvgContextSplits(entries.map(e => {
     const o = byId.get(e.fvgRef.objectId)!;
-    const i2 = ctx.indexById.get(o.bars.b2.barId) ?? 0;
-    const field = readEffortResponseField(tuples, Math.max(0, i2 - 99), i2, { volumeReal: true });
+    const c = fvgContextAtDecision(e.fvgRef, b);
     const s0 = e.fvgRef.snapshot;
     const ep = s0.interaction === "BEFORE_ANY_TOUCH" ? 1 : s0.interaction === "AFTER_FIRST_INTERACTION" || s0.interaction === "AFTER_LATER_INTERACTION" ? s0.interactionsSoFar + 1 : s0.interactionsSoFar;
     return {
       ref: e.fvgRef,
-      relationships: fvgBarOnlyRelationships(ctx, o),
-      // The cell of b2 itself; if the owner did not read b2 (no volume / no ATR yet) it is SILENT, never a neighbour's cell.
-      effortCell: field.state === "DRAWN" && field.bars[field.bars.length - 1].time === tuples[i2].time ? field.bars[field.bars.length - 1].cell : "SILENT" as const,
-      regime: o.regime,
+      ...splitContextOf(e.fvgRef, c.ok ? c.context : null),
       marketResponse: o.interactions.find(x => x.episode === ep)?.response ?? null,
       realizedR: e.realizedR,
       result: planResults[e.id],

@@ -90,6 +90,11 @@ describe("a door opened from the menu lands the trader inside it (batch 6: focus
     expect(css).toContain(".wm-chart-dom.wm-chart-dom-sheet {\n    display: flex !important;");
     expect((read("src/components/chart/DOMPanel.tsx").match(/wm-chart-dom wm-chart-dom-sheet/g) ?? []).length).toBe(2);
   });
+  it("Journal P&L stats lands above the phone's thumb bar, and its close has a 44px hit area", () => {
+    const pnl = read("src/components/chart/PnLStatsPanel.tsx");
+    expect(pnl).toContain('scrollMarginBottom: "calc(72px + env(safe-area-inset-bottom))"');
+    expect(pnl).toContain('className="wm-tap-slop ml-auto p-1');
+  });
   it("the replay bar wraps inside the glass", () => {
     const replay = read("src/components/chart/BarReplayControls.tsx");
     expect(replay).toContain('flexWrap: "wrap"');

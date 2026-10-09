@@ -32,7 +32,7 @@ describe("Inspect relationships — the chart's owners' VMs, adapted, never re-r
     expect(r.rows[0]).toMatch(/^Market structure broke the swing 103\.00 — at formation/);
     expect(r.rows[1]).toMatch(/^Living Profile VAH 102\.20 — near/);
     expect(r.rows.some(x => /^Living Profile HVN 101\.60 — inside · FULL/.test(x))).toBe(true);
-    expect(r.silences).toEqual(["Options walls: SILENCE — no options positioning attached", "Liquidity pools: SILENCE — no liquidity reading attached"]);
+    expect(r.silences).toEqual(["Options walls: SILENCE — no options positioning attached", "Liquidity pools: SILENCE — no liquidity reading attached", "Effort→response: SILENCE — no effort→response reading attached", "Order flow: SILENCE — no signed volume attached for the gap's bars — candles are never read as order flow"]);
   });
 
   it("an unmeasured Living Profile is a SILENCE with the owner's own note", () => {

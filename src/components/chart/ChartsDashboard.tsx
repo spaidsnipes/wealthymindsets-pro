@@ -6,7 +6,7 @@ import { educationIdForSelection, educationTruthLines } from "@/lib/chart/invent
 import { VIEW_EDUCATION, viewEducationId } from "@/lib/chart/surfaceEducation";
 import { InventionInfoButton, InventionPreview } from "./InventionInfo";
 import { spaidbotFvgScene } from "@/lib/ai/spaidbotFvgFacts";
-import { fvgInspectRelationships } from "@/lib/marketData/fvg/fvgInspectRelationships";
+import { chartSignedAt, fvgInspectRelationships } from "@/lib/marketData/fvg/fvgInspectRelationships";
 import { FVG_INSTRUMENT_ID, FVG_PREF_KEY, isFvgObjectId, resolveFvgDoorTarget, type FvgCameraScene } from "@/lib/chart/fvgGlass";
 import { SelectionFirstTouch, InspectFirstTouchContext } from "./SelectionFirstTouch";
 import { orderFlowToolCapability } from "@/lib/marketData/orderFlowToolCapability";
@@ -15,10 +15,7 @@ import { servedTimeframeFor } from "@/lib/marketData/chartBarRoute";
 import { weatherInspectReading as selectWeatherInspectReading } from "@/lib/chart/weatherLensDrag";
 import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsStore";
 
-import {
-  adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue,
-  proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind,
-} from "@/lib/chart/proofScene";
+import { adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue, proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind, proofVerifyOnly } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
 import { listenForWatchlist } from "@/lib/os/watchlistDoor";
 import React, { useState, useCallback, useRef, useEffect } from "react";
@@ -2139,7 +2136,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     let saved: string | null = null;
     // A proof scene arrives on its own glass: the trader's remembered object
     // neither restores into it nor is overwritten by it (proofSceneHoldsWrites).
-    if (!proofSceneHoldsWrites()) {
+    // (A verification load — scene=verify — still restores it: that load changes nothing visible.)
+    if (!proofSceneHoldsWrites() || proofVerifyOnly()) {
       try { saved = sessionStorage.getItem(selectionKey); } catch { /* storage refused */ }
     }
     dispatchChartSelection({
@@ -3131,10 +3129,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           livingProfile: livingProfileVM,
           derivatives: derivativesPressureVM,
           liquidity: chartLiquidityLifecycle,
+          // §13 / §14 — the gap's own bars, asked of the effort and signed-volume owners (words only).
+          effort: { symbol, volumeReal: volumeIsReal, volumeSilenceWhy: volumeIsReal ? null : needsTradedVolumeSentence(symbol) },
+          signedAt: chartSignedAt(chartBars, flowLadderReader ? t => readLadderBar(flowLadderReader(t)) : null, barSides ? t => barSides.get(t) : null),
           fmt: p => p.toFixed(chartDisplayDp),
         })
       : null,
-    [selectedFvgObject, timeframe, chartBars, chartStructureVM, livingProfileVM, derivativesPressureVM, chartLiquidityLifecycle, chartDisplayDp],
+    [selectedFvgObject, timeframe, chartBars, chartStructureVM, livingProfileVM, derivativesPressureVM, chartLiquidityLifecycle, chartDisplayDp, symbol, volumeIsReal, flowLadderReader, barSides],
   );
   const selectedObjectChain = selectedMarketObject
     ? buildInspectChain({

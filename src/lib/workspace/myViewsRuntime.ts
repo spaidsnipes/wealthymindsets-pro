@@ -13,7 +13,7 @@
  * one trader edited on one device.
  */
 import { setStarterArmsOverride } from "@/lib/marketData/viewModels/selectChartArrangement";
-import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
+import { proofSceneHoldsWrites, proofVerifyOnly } from "@/lib/chart/proofScene";
 import { loadSavedLayouts, MY_VIEWS_EVENT, SAVED_LAYOUTS_STORAGE_KEY, starterArmsFromList, type SavedLayout } from "./savedLayouts";
 
 function pageStorage(): Pick<Storage, "getItem"> | null {
@@ -26,7 +26,8 @@ function pageStorage(): Pick<Storage, "getItem"> | null {
 
 /** Register the trader's starter edits with the compiler (canon in a proof scene). */
 export function syncStarterViews(list?: readonly SavedLayout[]): void {
-  if (proofSceneHoldsWrites()) {
+  // A verification load (scene=verify) keeps the trader's own starter edits on the glass; only writes are held.
+  if (proofSceneHoldsWrites() && !proofVerifyOnly()) {
     setStarterArmsOverride(null);
     return;
   }

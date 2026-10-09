@@ -74,9 +74,16 @@ export function JournalProofScene(): React.ReactElement {
   // Save → reload of one sample entry with its FVG reference, in a throwaway in-memory Storage
   // (the Journal's own writer and reader; the browser's storage is never touched).
   const roundTrip = useMemo(() => {
-    const ref = f.entries[0].fvgRef;
     // §40: the context read with the reference (same sample bars, as of the decision) travels with it.
-    const c = fvgContextAtDecision(ref, journalFixtureBars());
+    // §13: the first sample decision whose displacement bar the effort owner could READ (enough closed
+    // bars behind it), so the saved line shows a real cell rather than the early-series SILENT.
+    const bars = journalFixtureBars();
+    for (const e of f.entries.slice(0, 40)) {
+      const c = fvgContextAtDecision(e.fvgRef, bars);
+      if (c.ok && c.context.effortCell !== "SILENT") return journalRoundTrip(e.fvgRef, "SAMPLE-ROUNDTRIP-1", c.context);
+    }
+    const ref = f.entries[0].fvgRef;
+    const c = fvgContextAtDecision(ref, bars);
     return journalRoundTrip(ref, "SAMPLE-ROUNDTRIP-1", c.ok ? c.context : null);
   }, [f]);
   // Rows that need a Founder action on the real account, shown on a labelled SAMPLE through the same owners

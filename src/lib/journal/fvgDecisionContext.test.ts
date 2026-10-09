@@ -21,7 +21,7 @@ describe("fvgContextAtDecision — as of the decision", () => {
       if (!r.ok) continue;
       n++;
       const c = r.context;
-      expect(c).toMatchObject({ kind: FVG_CONTEXT_KIND, version: 1, objectId: e.fvgRef.objectId, decisionAtMs: e.fvgRef.decisionAtMs, readAsOfMs: e.fvgRef.readAsOfMs });
+      expect(c).toMatchObject({ kind: FVG_CONTEXT_KIND, version: 2, objectId: e.fvgRef.objectId, decisionAtMs: e.fvgRef.decisionAtMs, readAsOfMs: e.fvgRef.readAsOfMs });
       expect(c.barsRead).toBe(barsClosedBy(BARS, e.fvgRef.readAsOfMs).length);
       expect(c.barsRead).toBeLessThan(BARS.length);
       expect(c.sources.map(s => s.family).sort()).toEqual(expect.arrayContaining(["PROFILE", "STRUCTURE", "WALL"]));
@@ -66,7 +66,7 @@ describe("stored context: read back whole or not at all", () => {
   });
   it("anything malformed is dropped whole", () => {
     const c = ok(3);
-    for (const bad of [null, "FVG = YES", [], { ...c, kind: "X" }, { ...c, version: 2 }, { ...c, objectId: "nope" }, { ...c, effortCell: "GREAT" }, { ...c, regime: "" },
+    for (const bad of [null, "FVG = YES", [], { ...c, kind: "X" }, { ...c, version: 3 }, { ...c, objectId: "nope" }, { ...c, effortCell: "GREAT" }, { ...c, regime: "" },
       { ...c, readAsOfMs: c.decisionAtMs + 1 }, { ...c, sources: [{ family: "MOOD", evidence: "x" }] }, { ...c, relationships: "none" }, { ...c, barsRead: Number.NaN }]) {
       expect(readJournalFvgContext(bad), JSON.stringify(bad)?.slice(0, 60)).toBeNull();
     }
@@ -113,7 +113,7 @@ describe("the splits become real on a real book (§23) — and stay NOT RECORDED
   });
   it("the note the trader reads names each part, or says not recorded", () => {
     expect(fvgContextNote(f.entries[0].fvgRef, null)).toBe("Context at the decision: not recorded with this reference.");
-    expect(fvgContextNote(f.entries[0].fvgRef, ok(0))).toMatch(/^Context at the decision \(from \d+ closed bars\): structure .+ · profile .+ · wall silence · displacement bar [A-Z]+ · regime UNTAGGED\.$/);
+    expect(fvgContextNote(f.entries[0].fvgRef, ok(0))).toMatch(/^Context at the decision \(from \d+ closed bars\): structure .+ · profile .+ · wall silence · displacement bar [A-Z]+ · touch bar [A-Za-z ]+ · order flow silence \(no signed volume in these bars\) · regime UNTAGGED\.$/);
   });
 });
 

@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/kraken";
 import { buildObservedDom, deriveDomCenter, type DomLevel } from "@/lib/marketData/domTruth";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
+import { cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
 import { useLandOnOpen } from "@/lib/chart/useLandOnOpen";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 
@@ -21,6 +22,18 @@ const CRYPTO_SYMS = new Set([
   "BTC","ETH","SOL","XRP","ADA","DOGE","AVAX","LINK","DOT","LTC","ATOM","UNI"
 ]);
 function isCrypto(sym: string) { return CRYPTO_SYMS.has(sym.toUpperCase()); }
+/**
+ * The coin whose order book this panel reads, for ANY spelling of a crypto
+ * market — "BTC", "BTC-USD", "BTC/USD", "BTCUSD" (canonicalIdentity's one
+ * base-ticker owner). The list above holds bare tickers, so the chart's own
+ * "BTC-USD" matched nothing and the panel said depth was not read while the
+ * book for that very coin was one branch away (Founder decision 2026-10-09:
+ * the Depth ladder just shows the order book).
+ */
+export function depthBookSymbol(symbol: string): string | null {
+  const base = cryptoBaseTicker(symbol);
+  return base && CRYPTO_SYMS.has(base) ? base : null;
+}
 
 /* Futures/equities require a licensed Level 2 feed. The free build only renders
    an order book for crypto symbols backed by observed Kraken data. */
@@ -55,7 +68,9 @@ function buildRealDOM(
    DOMPanel component
 ══════════════════════════════════════════════════════════════ */
 export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => void }) {
-  const sym    = symbol.toUpperCase();
+  // `sym` is what every read below is keyed by: the coin for a crypto pair
+  // (the book's own key), the symbol as typed otherwise.
+  const sym    = depthBookSymbol(symbol) ?? symbol.toUpperCase();
   const crypto = isCrypto(sym);
   // The panel mounts only when asked for; whichever branch renders takes focus.
   const landAside = useLandOnOpen<HTMLElement>(!crypto);
@@ -297,10 +312,12 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
       className="wm-chart-dom wm-chart-dom-sheet border-l border-wm-border flex flex-col shrink-0 outline-none" style={{ width:230, background:"#0A0B10", fontSize:13 }}>
       {/* Header */}
       <div className="flex items-center gap-2 px-2.5 shrink-0" style={{ height:38, borderBottom:"1px solid rgba(30,32,48,0.8)" }}>
-        <span style={{ fontSize:12, fontWeight:800, color:"#8b8fa8", letterSpacing:1.2, textTransform:"uppercase" }}>DOM</span>
+        <span style={{ fontSize:12, fontWeight:800, color:"#8b8fa8", letterSpacing:1.2, textTransform:"uppercase" }}>Depth</span>
+        {/* A STATE word, never a source or a transport (Founder 2026-10-09: no
+            labels of where WM Pro gets its data). Streaming, or one snapshot. */}
         {crypto && (
-          <span style={{ fontSize:10, fontWeight:700, color: realConnected ? "#00C076" : "#F0B429", marginLeft:2 }}>
-            {realConnected ? "● LIVE" : "○ REST"}
+          <span data-testid="dom-book-state" style={{ fontSize:10, fontWeight:700, color: realConnected ? "#00C076" : "#F0B429", marginLeft:2 }}>
+            {realConnected ? "● LIVE" : "○ SNAPSHOT"}
           </span>
         )}
         {/* With no observed bar, `(close ?? 0) >= (open ?? 0)` is 0 >= 0 — true —
@@ -315,6 +332,12 @@ export function DOMPanel({ symbol, onClose }: { symbol: string; onClose?: () => 
             : "No bar observed for this interval, so no direction is shown."}>
           {priceObserved ? center.toFixed(dp) : "—"}
         </span>
+        {/* The way out. This branch had none — fine beside a desktop chart,
+            a trap in the phone sheet. */}
+        {onClose && (
+          <button type="button" onClick={onClose} aria-label="Close market depth panel"
+            style={{ border: 0, background: "transparent", color: "#8B95A5", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+        )}
       </div>
 
       {/* Bid/Ask ratio bar */}
