@@ -3,7 +3,7 @@ import { AUTH_LOGIN_LIMITER_BINDING, clientIp, edgeAllows, tooManyRequests } fro
 import { checkRateLimit } from "@/lib/rateLimit";
 
 import { setAuthCookie, signJWT, useSupabase } from "@/lib/auth";
-import { safePath, WOW_ORIGIN, wmClaimsFor } from "@/lib/passport/wowBridge";
+import { isWowOrigin, safePath, wmClaimsFor } from "@/lib/passport/wowBridge";
 import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +29,7 @@ export async function POST(request: Request): Promise<Response> {
     r.headers.set("Cache-Control", "no-store");
     return r;
   };
-  if (request.headers.get("origin") !== WOW_ORIGIN) return NextResponse.json({ error: "This door only opens from WOW World." }, { status: 403 });
+  if (!isWowOrigin(request.headers.get("origin"))) return NextResponse.json({ error: "This door only opens from WOW World." }, { status: 403 });
   const token = typeof form?.get("access_token") === "string" ? String(form?.get("access_token")) : "";
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;

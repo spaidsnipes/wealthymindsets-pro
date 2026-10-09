@@ -17,7 +17,19 @@
  */
 import type { JWTPayload } from "@/lib/auth";
 
-export const WOW_ORIGIN = "https://wow-world-os.dhill5711.workers.dev";
+/** WOW's canonical address. Sessions WM sends to WOW land here. */
+export const WOW_ORIGIN = "https://thewow.online";
+
+/**
+ * Every address WOW is served from. A Passport posted from any of them is
+ * accepted: the canonical domain, its www form, and the original workers.dev
+ * address (still live, so guests with an old tab or link are not stranded).
+ */
+export const WOW_ORIGINS: readonly string[] = [WOW_ORIGIN, "https://www.thewow.online", "https://wow-world-os.dhill5711.workers.dev"];
+
+export function isWowOrigin(origin: string | null): boolean {
+  return origin !== null && WOW_ORIGINS.includes(origin);
+}
 
 /** A same-site path to land on: relative, no scheme, no `//`, no backslash. */
 export function safePath(raw: unknown, fallback: string): string {

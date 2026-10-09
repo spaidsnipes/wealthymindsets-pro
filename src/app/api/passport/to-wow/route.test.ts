@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const WOW = "https://wow-world-os.dhill5711.workers.dev";
+const WOW = "https://thewow.online";
 let who: { sub: string; email: string } | null = { sub: "member-7", email: "m@wm.test" };
 
 vi.mock("@/lib/requireAuth", () => ({
