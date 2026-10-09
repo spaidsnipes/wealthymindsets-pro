@@ -366,7 +366,7 @@ const ANATOMY_BLOCK_RECEIPTS = [
   // ASK-5 (2026-10-08) · the question's identity mark on the band.
   "questionLensMark",
   // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
-  "scaffoldingScale", "scaffoldingForm", "scaffoldingSilenceBand", "scaffoldingSwingTags", "scaffoldingDock", "scaffoldingCardCandleHits",
+  "scaffoldingScale", "scaffoldingForm", "scaffoldingSilenceBand", "absorptionMassInk", "scaffoldingSwingTags", "scaffoldingDock", "scaffoldingCardCandleHits",
   "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
   "scaffoldingResistance",
 ] as const;
