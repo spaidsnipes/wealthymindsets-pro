@@ -40,6 +40,9 @@ import {
   normalizeDeltaLevelCap,
 } from "@/lib/marketData/deltaLevelCap";
 import OverlayDrawingLedgerBlock from "@/components/chart/OverlayDrawingLedgerBlock";
+import { InventionInfoButton, InventionPreview } from "@/components/chart/InventionInfo";
+import { educationTruthLines } from "@/lib/chart/inventionEducation";
+import { SMART_MONEY_EDUCATION, smartMoneyEducationId } from "@/lib/chart/surfaceEducation";
 import type { OverlayDrawingLedgerVM } from "@/lib/marketData/viewModels/selectOverlayDrawingLedger";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
@@ -478,6 +481,8 @@ export function SmartMoneyPanel({
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(["orderflow", "clc", "regime"]));
   const [pulse, setPulse] = useState(false);
   const [showEdu, setShowEdu] = useState(false);
+  // §9 · the open card ⓘ (one at a time), by card name.
+  const [cardEdu, setCardEdu] = useState<string | null>(null);
 
   // WM-UX-P0-01 — Delta bubble level-count control, migrated here from the Big
   // Trades gear so the selector sits with the bubbles it controls. Reuses the
@@ -1307,14 +1312,24 @@ export function SmartMoneyPanel({
                       />
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-1">
                           <span className="text-[10px] font-medium text-wm-text-muted break-words leading-snug">{sig.name}</span>
-                          {sig.bullish !== null && (
-                            sig.bullish
-                              ? <TrendingUp size={9} className="text-wm-green shrink-0" />
-                              : <TrendingDown size={9} className="text-wm-red shrink-0" />
-                          )}
+                          <span className="inline-flex items-center gap-1 shrink-0">
+                            {sig.bullish !== null && (
+                              sig.bullish
+                                ? <TrendingUp size={9} className="text-wm-green shrink-0" />
+                                : <TrendingDown size={9} className="text-wm-red shrink-0" />
+                            )}
+                            {/* §9 · every card has an ⓘ (cert §15a): what it measures, what it cannot. */}
+                            <InventionInfoButton scope="sm" id={smartMoneyEducationId(sig.name)} label={sig.name} open={cardEdu === sig.name} compact
+                              onToggle={() => setCardEdu(cur => (cur === sig.name ? null : sig.name))} />
+                          </span>
                         </div>
+                        {cardEdu === sig.name ? (
+                          <InventionPreview scope="sm" id={smartMoneyEducationId(sig.name)} label={sig.name} what={SMART_MONEY_EDUCATION[sig.name]?.what ?? sig.name} familyWord={sec.label} symbol={symbol}
+                            truth={educationTruthLines({ id: smartMoneyEducationId(sig.name), symbol })} active={false}
+                            onAdd={() => setCardEdu(null)} onClose={() => setCardEdu(null)} />
+                        ) : null}
                         <div
                           className="text-[10px] font-semibold break-words leading-snug"
                           style={{ color: SIGNAL_COLOR[sig.strength] }}
@@ -1336,7 +1351,16 @@ export function SmartMoneyPanel({
                       <ul className="mt-1 space-y-1 pl-3">
                         {unmeasured.map((sig, i) => (
                           <li key={i} className="text-[9px] leading-snug text-wm-text-dim">
-                            <span className="text-wm-text-muted">{sig.name}</span> — {sig.value.replace(/^N\/A\s*[—-]\s*/, "")}
+                            <span className="inline-flex items-center gap-1">
+                              <span className="text-wm-text-muted">{sig.name}</span>
+                              <InventionInfoButton scope="sm" id={smartMoneyEducationId(sig.name)} label={sig.name} open={cardEdu === sig.name} compact
+                                onToggle={() => setCardEdu(cur => (cur === sig.name ? null : sig.name))} />
+                            </span> — {sig.value.replace(/^N\/A\s*[—-]\s*/, "")}
+                            {cardEdu === sig.name ? (
+                              <InventionPreview scope="sm" id={smartMoneyEducationId(sig.name)} label={sig.name} what={SMART_MONEY_EDUCATION[sig.name]?.what ?? sig.name} familyWord={sec.label} symbol={symbol}
+                                truth={educationTruthLines({ id: smartMoneyEducationId(sig.name), symbol })} active={false}
+                                onAdd={() => setCardEdu(null)} onClose={() => setCardEdu(null)} />
+                            ) : null}
                           </li>
                         ))}
                       </ul>

@@ -15,9 +15,12 @@ import {
   LENS_FIXTURE_STAGES,
   lensFixtureChain,
   lensFixturePressure,
+  lensFixtureTape,
   lensFixtureWeather,
   parseLensFixture,
+  LENS_FIXTURE_BARS,
 } from "./lensFixture";
+import { selectLiquidityWeatherGlass } from "@/lib/marketData/viewModels/selectLiquidityWeatherGlass";
 
 const read = (p: string) => readFileSync(path.join(process.cwd(), p), "utf8");
 const NOW = Date.parse("2026-10-08T12:00:00Z");
@@ -61,6 +64,26 @@ describe("every weather stage, through the real owner, at any price scale", () =
       expect(vm.stage, `${stage} @ ${c}`).toBe(stage);
       expect(weatherGrain(vm.stage).receipt).toMatch(new RegExp(`^${stage}:(GRAIN\\d+(:JITTER)?|NONE)$`));
     }
+  });
+  it("with a window every print is dated inside the chart's newest bars, the stage is unchanged, and the glass has a place for the lens", () => {
+    const win = { endMs: Date.parse("2026-10-08T23:00:00Z"), barMs: 300_000 };
+    for (const stage of LENS_FIXTURE_STAGES) {
+      const tape = lensFixtureTape(stage, 31258.5, win);
+      expect(tape.every(t => typeof t.time === "number" && t.time! > win.endMs - LENS_FIXTURE_BARS * win.barMs && t.time! <= win.endMs)).toBe(true);
+      // The whole sample stays within ~1% of the last close (on camera).
+      expect(tape.every(t => Math.abs(t.price! / 31258.5 - 1) < 0.01)).toBe(true);
+      const vm = lensFixtureWeather(stage, 31258.5, win);
+      expect(vm.stage).toBe(stage);
+      const glass = selectLiquidityWeatherGlass(vm);
+      if (stage === "UNMEASURED") expect(glass.window).toBeNull();
+      else {
+        expect(glass.window).not.toBeNull();
+        expect(glass.window!.toTime).toBeLessThanOrEqual(win.endMs);
+        expect(glass.window!.fromTime).toBeGreaterThan(win.endMs - LENS_FIXTURE_BARS * win.barMs);
+      }
+    }
+    // Undated (no window): no place — the defect read on serving 48bdea6.
+    expect(selectLiquidityWeatherGlass(lensFixtureWeather("HEAVY", 31258.5)).window).toBeNull();
   });
   it("the seven stages give seven different grain receipts", () => {
     expect(new Set(LENS_FIXTURE_STAGES.map(s => weatherGrain(lensFixtureWeather(s, 774.69).stage).receipt)).size).toBe(7);

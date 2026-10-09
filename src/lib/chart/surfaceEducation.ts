@@ -206,7 +206,7 @@ function draw(what: string, q: string, appears: string, read: string, points = 2
     evidence: points === 0 ? "Nothing from the market — it acts on your existing drawings." : `${points === 1 ? "One point" : points === 3 ? "Three points" : "Two points"} you place on the chart. The market supplies nothing; the shape is yours.`,
     appears, read,
     full: "Drawn exactly where you placed it; it moves with the camera and stays on this symbol and timeframe.",
-    partial: "Snap (the magnet) moves a point to the nearest candle price — the drawn level is then a bar's price, not your pointer.",
+    partial: "With snap-to-price on, a point moves to the nearest candle price — the drawn level is then a bar's price, not your pointer.",
     degraded: "Drawings are hidden or locked — the shape is kept but not shown or not editable until you switch it back.",
     canon: DRAW_CANON,
   });

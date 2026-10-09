@@ -39,7 +39,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 
 import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/TastytradeLiveOrder";
-import { bookLine, orderActionLine, prefillNote, quoteStreamLabel, type Prefill } from "@/lib/execution/ticketTruth";
+import { orderActionLine, prefillNote, quoteStreamLabel, type Prefill } from "@/lib/execution/ticketTruth";
+import { brokerStateWords, ticketBook, type WorkingOrderRow } from "@/lib/execution/ticketBook";
+import type { WmOrderState } from "@/lib/broker/tastytradeOrderState";
+import { TicketBookRows, type CancelAck } from "@/components/chart/TicketBookRows";
 import { selectTapeQuoteFreshness } from "@/lib/marketData/tapeQuoteFreshness";
 import { PendingFillJournalOffers } from "@/components/journal/FillJournalOffer";
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
@@ -57,7 +60,6 @@ import { datedFuturesContract } from "@/lib/execution/liveOrderPreflight";
 import { isPreSendPhase, type LiveOrderPhase } from "@/lib/execution/liveOrderLifecycle";
 import { changeServerOrderLimits, useServerOrderLimits } from "@/lib/execution/useServerOrderLimits";
 import { useBrokerChartLines } from "@/lib/execution/useBrokerChartLines";
-import { planFlatten } from "@/lib/execution/brokerOrderLines";
 import { proposalToTicket, recordProposalEvent, type SpaidBotProposal } from "@/lib/execution/spaidbotProposal";
 import { dismissSpaidBotProposal, useSpaidBotProposal } from "@/lib/execution/spaidbotProposalInbox";
 
@@ -311,7 +313,30 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   // Sheriff P1-2: a chart's bar close is not a quote — the limit is never prefilled from it.
   const quoteLabel = quoteStreamLabel({ stream: snap.stream, bid: q?.bid, ask: q?.ask, quoteAtMs: q?.quoteAt, nowMs, contract: contract?.symbol ?? null, streamWords: STREAM_WORDS });
   const prefillLine = prefillNote({ prefill, limitPx: limitNum, currentTouch: prefill?.touch === "ASK" ? q?.ask : q?.bid, tick, nowMs });
-  const book = bookLine({ readback: broker?.readback ?? null, holding: !!broker?.position, working: broker?.working ?? 0, asOfMs: broker?.asOfMs ?? null, tails: broker?.tails ?? [] });
+  // §23 — POSITION STATE · WORKING ORDERS · MODIFY · FLATTEN, from the broker readback only; fail-closed.
+  const book = ticketBook(broker, contract?.symbol ?? null, { killSwitch: !!server.limits?.killSwitch, limitsSet: server.state === "SET" });
+  const [cancelAcks, setCancelAcks] = useState<Record<string, CancelAck>>({});
+  const [cancelBusy, setCancelBusy] = useState<string | null>(null);
+  useEffect(() => { setCancelAcks({}); setCancelBusy(null); }, [contract?.symbol]);
+  /** Cancel one working order read back from tastytrade. The words after are the broker's readback, never this ticket's. */
+  async function cancelWorking(o: WorkingOrderRow) {
+    if (!o.cancel.allowed || o.accountIndex == null || cancelBusy) return;
+    setCancelBusy(o.id);
+    try {
+      const r = await fetch(`/api/broker/tastytrade/orders?accountIndex=${o.accountIndex}&id=${encodeURIComponent(o.id)}`, { method: "DELETE" });
+      const j = await r.json().catch(() => null);
+      const back = j?.order && typeof j.order.state === "string" ? (j.order as { state: WmOrderState }) : null;
+      const ack: CancelAck = back
+        ? { state: back.state, words: brokerStateWords(back) }
+        : isOwnerRefusal(j, r.status) ? { state: "NOT_AVAILABLE", words: TASTYTRADE_NOT_AVAILABLE }
+        : { state: j?.state ?? `HTTP ${r.status}`, words: `${j?.state ? plainBrokerAnswer(j.state) : `tastytrade did not answer clearly (${r.status})`}${j?.reason ? ` · ${j.reason}` : ""} — the order may still be working.` };
+      setCancelAcks(prev => ({ ...prev, [o.id]: ack }));
+    } catch {
+      setCancelAcks(prev => ({ ...prev, [o.id]: { state: "NOT_SENT", words: "The cancel request did not return — the order may still be working. Check with tastytrade." } }));
+    } finally {
+      setCancelBusy(null);
+    }
+  }
 
   return (
     <section
@@ -388,19 +413,14 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           {proposalWhy ? <p role="status" style={{ color: GOLD }}>{proposalWhy}</p> : null}
           {loadedProposal ? <p data-testid="trade-proposal-loaded" style={{ color: MUTED, fontSize: 11 }}>Loaded from SpaidBot proposal {loadedProposal.proposalId} ({loadedProposal.reason}). Preview and confirmation are still yours.</p> : null}
 
-          {/* §23 — tastytrade's own position on this contract, read back. */}
-          {broker?.position ? (
-            <div data-testid="trade-broker-position" data-protection={broker.position.protection} data-readback={broker.readback} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", ...MONO }}>
-              <span>tastytrade · {broker.position.row.direction.toUpperCase()} {broker.position.row.quantity} @ {broker.position.row.averageOpenPrice}</span>
-              <span style={{ color: broker.position.pnlUsd == null ? MUTED : INK }}>{broker.position.pnlUsd == null ? "P&L —" : `${broker.position.pnlUsd >= 0 ? "+" : "−"}$${Math.abs(broker.position.pnlUsd).toFixed(2)}`}</span>
-              <span style={{ color: broker.position.protection === "PROTECTED" ? GREEN : RED, fontWeight: 700 }}>{broker.readback === "STALE" ? "RECONCILING" : broker.position.protection === "PROTECTED" ? "STOP WORKING" : "UNPROTECTED"}</span>
-              <button type="button" data-testid="trade-flatten" onClick={() => {
-                const f = planFlatten(broker.position!.row);
-                setSide(f.action === "Sell to Close" ? "SELL" : "BUY"); setClosing(true); setQty(f.qty); setEntryType("Market"); setAnswer("FLATTEN loaded: a closing MARKET order for the held quantity. Preview and confirm below to send it.");
-              }} style={btn(false, RED)}>Load FLATTEN</button>
-            </div>
-          ) : broker?.readback === "STALE" ? <p style={{ color: GOLD, fontSize: 11 }}>RECONCILING · tastytrade&apos;s orders and positions have not answered recently; the chart lines are the last answer, labelled as such.</p> : null}
-          {book ? <p data-testid="trade-book-line" style={{ color: MUTED, fontSize: 11, ...MONO }}>{book}</p> : null}
+          {/* §23 — the book, from tastytrade's readback only: position state, working orders (cancel), modify, flatten. */}
+          <TicketBookRows book={book} acks={cancelAcks} busyId={cancelBusy} onCancel={o => { void cancelWorking(o); }}
+            onFlatten={() => {
+              const f = book.flatten.plan;
+              if (!f) return;
+              setSide(f.action === "Sell to Close" ? "SELL" : "BUY"); setClosing(true); setQty(f.qty); setEntryType("Market");
+              setAnswer("FLATTEN loaded: a closing MARKET order for the held quantity. Preview and confirm below to send it.");
+            }} />
 
           {/* Side + open/close */}
           <div style={{ display: "flex", gap: 6 }}>

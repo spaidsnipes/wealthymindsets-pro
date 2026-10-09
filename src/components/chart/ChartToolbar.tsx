@@ -12,6 +12,7 @@ import { type ChartLayout } from "./ChartLayoutManager";
 import { isConfigurable } from "./indicatorConfig";
 import { InventionInfoButton, InventionPreview } from "./InventionInfo";
 import { INDICATOR_EDUCATION, indicatorEducationId } from "@/lib/chart/indicatorEducation";
+import { REPLAY_EDUCATION, REPLAY_EDUCATION_ID } from "@/lib/chart/surfaceEducation";
 import { educationTruthLines } from "@/lib/chart/inventionEducation";
 // `@/lib/timeframes` is NOT imported here any more. The three symbols this
 // file used to pull from it (CHART_TF_SHIPPED, getTimeframe,
@@ -730,6 +731,7 @@ export function ChartToolbar({
   const [indicatorOpen,  setIndicatorOpen] = useState(false);
   useEffect(() => { if (indicatorsRequest > 0) setIndicatorOpen(true); }, [indicatorsRequest]);
   const [advancedOpen,   setAdvancedOpen]  = useState(false);
+  const [replayEdu,      setReplayEdu]     = useState(false);
   const [extendedHoursLocal, setExtendedHoursLocal] = useState(false);
   // Controlled by the room when it passes its saved value; local otherwise.
   const extendedHours = extendedHoursValue ?? extendedHoursLocal;
@@ -1612,7 +1614,20 @@ export function ChartToolbar({
                 {onToggleStudyTools && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onToggleStudyTools(); }}><BarChart2 size={13} /> Flow &amp; studies{studyToolsOpen ? " · open" : ""}</button>}
                 <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onDOM(); }}><LayoutGrid size={13} /> Depth ladder</button>
                 <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onPineScript(); }}><span className="text-sm">ƒ</span> Pine workspace{pineActive ? " · active" : ""}</button>
-                {onReplay && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onReplay(); }}><Play size={12} /> Replay{replayActive ? " · active" : ""}</button>}
+                {onReplay && (
+                  <>
+                    <span className="flex items-center gap-1">
+                      <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onReplay(); }}><Play size={12} /> Replay{replayActive ? " · active" : ""}</button>
+                      {/* §9 · Replay has an ⓘ (Sheriff batch 3 #2): as-of-time, no live clock. */}
+                      <InventionInfoButton scope="tb" id={REPLAY_EDUCATION_ID} label="Replay" open={replayEdu} compact onToggle={() => setReplayEdu(o => !o)} />
+                    </span>
+                    {replayEdu ? (
+                      <InventionPreview scope="tb" id={REPLAY_EDUCATION_ID} label="Replay" what={REPLAY_EDUCATION.what} familyWord="Workspace" symbol={symbol}
+                        truth={educationTruthLines({ id: REPLAY_EDUCATION_ID, symbol })} active={!!replayActive}
+                        onAdd={() => { setAdvancedOpen(false); onReplay(); }} onClose={() => setReplayEdu(false)} />
+                    ) : null}
+                  </>
+                )}
                 {onCompare && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onCompare(); }}><GitMerge size={12} /> Compare{compareActive ? " · active" : ""}</button>}
                 {onAlerts && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onAlerts(); }}><Bell size={12} /> Alerts{alertsActive ? " · active" : ""}</button>}
                 {onInstrumentProfile && <button role="menuitem" className={itemClass} onClick={() => { setAdvancedOpen(false); onInstrumentProfile(); }}><Info size={12} aria-hidden="true" /> Instrument profile{instrumentProfileActive ? " · open" : ""}</button>}

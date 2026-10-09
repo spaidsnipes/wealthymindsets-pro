@@ -477,3 +477,26 @@ describe("an old bar reads its PROVIDER's sides, labelled bar-level (2026-10-05)
     expect(rowOf(live, "DELTA").value).toBe("+25");
   });
 });
+
+describe("the market's own limits and units (sheriff 2026-10-08, P2-8 / P2-9)", () => {
+  it("spot FX: the Volume row is a named silence, never a 0", () => {
+    const vm = base({ barVolume: 0, prints: [], ladderBar: null, noCentralVolume: "spot FX" });
+    const v = rowOf(vm, "VOLUME");
+    expect(v.state).toBe("UNREAD");
+    expect(v.value).toBeNull();
+    expect(v.absence).toContain("NO CENTRAL VOLUME · spot FX");
+    expect(vm.reachNote).not.toContain("Volume comes from the bar and survives");
+    expect(vm.reachNote).toContain("no central tape");
+  });
+  it("a market with central volume is unchanged", () => {
+    const vm = base({ barVolume: 0, prints: [], ladderBar: null });
+    expect(rowOf(vm, "VOLUME").value).toBe("0");
+    expect(vm.reachNote).toContain("Volume comes from the bar and survives");
+  });
+  it("Volume and Delta say what one unit is", () => {
+    const vm = base({ sizeUnit: "contracts" });
+    expect(rowOf(vm, "VOLUME").value).toBe("623 contracts");
+    expect(rowOf(vm, "DELTA").value).toMatch(/ contracts$/);
+    expect(rowOf(base(), "VOLUME").value).toBe("623");
+  });
+});

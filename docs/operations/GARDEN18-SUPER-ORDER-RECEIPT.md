@@ -980,7 +980,7 @@ Production at the start of this shift: `70f1bf4`. Times are from `date`. Nothing
 | 16:45 | §52 responsive run — **NOT RUN:** this lane was stopped by a usage-limit STOP from 13:56 (later ruled stale) and did not resume until 18:18 | — | — | MISSED (re-run 20:30) |
 | 17:43:26 | **LIVE `48bdea6`** (PR #27 merged on main; `/api/build-identity` builtAt 22:43:26Z) | `48bdea6` | read 18:20 | LIVE |
 
-## Evening shift — Oct 8 18:18 → 23:18 CDT (cert lane; Founder-ordered 5-hour shift)
+## Evening shift — Oct 8 18:18 → Oct 9 05:00 CDT (cert lane; down on the usage limit ~18:30 → 23:40)
 
 Production at the start: `48bdea6`. Times are from `date`. Nothing below is LIVE until the coordinator's ship gate says so.
 
@@ -988,5 +988,7 @@ Production at the start: `48bdea6`. Times are from `date`. Nothing below is LIVE
 |---|---|---|---|---|
 | 18:18–18:20 | NEW `src/lib/chart/surfaceEducation.ts` finished and made reachable through `educationFor` (SM: / DRAW: / VIEW: / LOADOUT: / REPLAY / BAR_SELECTION) — 29 Smart Money cards from `generateSignals` + `readTapeSide`, every `DrawingTool` id (incl. Long / Short Position), 16 Views, 4 loadouts, Replay, bar selection | tree | tsc clean; indicatorEducation + inventionEducation 21/21 | GREEN (records). Surfaces not yet wired |
 | 18:21 | FREEZE — GREEN + files sent | — | — | CLOSED |
-| ~20:30 | §52 public responsive run on production | pending | — | OPEN |
-| ~23:00 | §52 public responsive run on production | pending | — | OPEN |
+| 18:27:16 | **LIVE `4b470b8`** (coordinator ship gate): the `surfaceEducation` owner (records reachable through `educationFor`; surfaces not yet wired) | `4b470b8` | ship gate | LIVE |
+| 18:27–18:30 | Surface wiring applied (`wire_surfaces.py`) + NEW sentinel `surfaceEducation.test.ts`; first run 3 red (length floor, the word "magnet" in a drawing record) | tree | — | stopped by the usage limit at ~18:30 |
+| 20:30 / 23:00 | §52 responsive runs — **NOT RUN:** the lane was down on the usage limit from ~18:30 to 23:40 | — | — | MISSED (run after 23:40) |
+| 23:40–23:42 | **Surface ⓘ slice GREEN.** ⓘ wired on: Smart Money cards (measured rows and the "not measured" list), drawing tools (panel rows; rail names carry the record; active-tool ⓘ on the rail / sheet), Views sheet, loadout chips, Replay menu item, FootprintControls "?" → `FP_<mode>` registry record, bar selection first touch (Wisdom-line path → "Selected bar"). Expected Envelope ⓘ: "historical reach by time of day, not a forecast" | tree (uncommitted) | tsc clean; 13 targeted files 139 / 139 (`surfaceEducation.test.ts`, indicator / invention education, InventionInfo render, SavedLayoutsDoor render, Smart Money truthfulness / reflow / blocked-readings, screenReach sentinels, AriaControlsResolves) | SHIPPABLE. Serving read owed after it ships |

@@ -266,6 +266,16 @@ export interface InspectTicketInput {
    * and an imbalance, never a footprint (no price levels).
    */
   readonly barSides?: { readonly buy: number; readonly sell: number } | null;
+  /**
+   * The instrument's class has NO centralised traded volume (volumeTruth's
+   * `hasNoCentralVolume`: spot FX, spot metals). The feed's volume field is
+   * then a placeholder — the Volume row is a named silence, never "0"
+   * (sheriff 2026-10-08: EURUSD / GBPUSD / USDJPY Inspect read "Volume | 0"
+   * over "Volume comes from the bar and survives").
+   */
+  readonly noCentralVolume?: "spot FX" | "spot metals" | null;
+  /** What one unit of size IS here (sizeUnitFor: contracts / shares / BTC). Null → no unit is claimed. */
+  readonly sizeUnit?: string | null;
 }
 
 /**
@@ -415,6 +425,12 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
 
   const signed = inWindow.filter(p => p.side === "buy" || p.side === "sell");
 
+  /* ── THE MARKET'S OWN LIMITS (volumeTruth) AND THE SIZE UNIT ───────────── */
+  const noCentral = input.noCentralVolume === "spot FX" || input.noCentralVolume === "spot metals";
+  const noCentralNoun = input.noCentralVolume === "spot metals" ? "Spot metals" : "Spot FX";
+  const unit = typeof input.sizeUnit === "string" && input.sizeUnit.trim() ? input.sizeUnit.trim() : null;
+  const withUnit = (v: string) => (unit ? `${v} ${unit}` : v);
+
   /* ── REACH ─────────────────────────────────────────────────────────────── */
 
   let reach: TapeReach;
@@ -427,10 +443,13 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
       "Click a candle to open its ticket.";
   } else if (trades.length === 0) {
     reach = "NO_TAPE";
-    reachNote =
-      "This room is holding no per-trade prints at all. Volume comes from the " +
-      "bar and survives; delta and imbalance are readings about individual " +
-      "trades and cannot be taken.";
+    reachNote = noCentral
+      ? `${noCentralNoun} trades over the counter: there is no central tape and ` +
+        "no centralised volume, so volume, delta and imbalance are not read on " +
+        "this market. Price, range and structure still are."
+      : "This room is holding no per-trade prints at all. Volume comes from the " +
+        "bar and survives; delta and imbalance are readings about individual " +
+        "trades and cannot be taken.";
   } else if (signed.length >= MIN_PRINTS_FOR_DELTA) {
     reach = "COVERS_BAR";
     reachNote =
@@ -447,7 +466,7 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
     reachNote =
       `This room holds ${trades.length} per-trade prints, and none of them are ` +
       "from this bar. The tape is a live window of the last few moments — the " +
-      "trades that made this bar are no longer held. Its volume still reads.";
+      `trades that made this bar are no longer held.${noCentral ? "" : " Its volume still reads."}`;
   }
 
   /* ── VOLUME — FROM THE BAR, NOT THE TAPE ───────────────────────────────── */
@@ -455,16 +474,20 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
   const volumeRow = row(
     "VOLUME",
     "Volume",
-    barVolume !== null
+    barVolume !== null && !noCentral
       ? {
-          value: formatCount(barVolume),
+          value: withUnit(formatCount(barVolume)),
           basis:
             "Traded volume as the bar itself reports it. Not summed from the " +
             "held tape, so it is as good on an old bar as on the live one.",
         }
       : null,
-    "This bar carries no volume figure. The series loaded its prices without " +
-      "one, which some providers do on some symbols.",
+    noCentral
+      ? `NO CENTRAL VOLUME · ${input.noCentralVolume}. ${noCentralNoun} trades over the ` +
+        "counter across many dealers, so there is no traded-volume figure to read — " +
+        "the feed's volume field is a placeholder and is not shown as a count."
+      : "This bar carries no volume figure. The series loaded its prices without " +
+        "one, which some providers do on some symbols.",
   );
 
   /* ── DELTA AND IMBALANCE — FROM THE TAPE ───────────────────────────────── */
@@ -510,14 +533,14 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
     "Delta",
     canRead
       ? {
-          value: `${delta > 0 ? "+" : delta < 0 ? "−" : ""}${formatCount(Math.abs(delta))}`,
+          value: withUnit(`${delta > 0 ? "+" : delta < 0 ? "−" : ""}${formatCount(Math.abs(delta))}`),
           basis:
             `Ask-side minus bid-side volume on this bar's row of the one flow ` +
             `ladder — the row its footprint cells and delta bubbles read.`,
         }
       : sidesRead
         ? {
-            value: `${sideBuy - sideSell > 0 ? "+" : sideBuy - sideSell < 0 ? "−" : ""}${formatCount(Math.abs(sideBuy - sideSell))}`,
+            value: withUnit(`${sideBuy - sideSell > 0 ? "+" : sideBuy - sideSell < 0 ? "−" : ""}${formatCount(Math.abs(sideBuy - sideSell))}`),
             basis: SIDES_BASIS,
           }
         : null,

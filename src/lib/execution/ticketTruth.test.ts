@@ -84,7 +84,9 @@ describe("the ticket is wired to these owners", () => {
     expect(T).not.toMatch(/setLimit\(price\.toFixed/);                                   // no prefill from the chart close
     expect(T).toContain("This closes a position I hold\n");
     expect(T).not.toContain("This closes a position I hold ({action})");
-    expect(T).toContain('data-testid="trade-book-line"');
+    // §23: the book line now lives in the POSITION STATE row of the book rows (ticketBook → TicketBookRows).
+    expect(T).toContain("<TicketBookRows book={book}");
+    expect(readFileSync(path.resolve(__dirname, "ticketBook.ts"), "utf8")).toContain("bookLine({ readback: \"FRESH\", holding: false");
     expect(T).toContain('data-testid="trade-prefill-note"');
     expect(T).toContain('flexWrap: "wrap"');
     expect(T).toContain('width: "min(400px, calc(100vw - 48px))"');

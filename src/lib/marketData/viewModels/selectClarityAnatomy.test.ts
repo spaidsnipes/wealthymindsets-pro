@@ -135,3 +135,13 @@ describe("refusals", () => {
     expect(vm.lines.map(l => l.key)).toEqual(["RANGE", "BODY", "WICK", "GAP", "BALANCE", "BREATH"]);
   });
 });
+
+describe("a range wears the instrument's unit (sheriff 2026-10-08)", () => {
+  const bar = { open: 158.23, high: 158.278, low: 158.23, close: 158.25 };
+  it("USDJPY reads in pips; no symbol keeps the bare number", () => {
+    const fx = selectClarityAnatomy({ bar, priorBars: [], dp: 3, symbol: "USDJPY" });
+    expect(JSON.stringify(fx)).toContain("4.8 pips wide");
+    const bare = selectClarityAnatomy({ bar, priorBars: [], dp: 3 });
+    expect(JSON.stringify(bare)).toContain("0.048 wide");
+  });
+});

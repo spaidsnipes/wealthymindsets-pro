@@ -351,12 +351,12 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
   EXPECTED_ENVELOPE: {
     question: "How far does this market usually travel from the open — and is today unusual?",
     needs: "PRICE", evidence: "Recent completed sessions.",
-    appears: "A dotted envelope from the session open at the typical reach above and below it, drawn a few bars PAST the newest candle; the count of sessions that went as far as today sits beside it. The part right of the newest candle is the same reach carried forward, not a forecast path.",
-    grammar: "Price at the envelope edge with few sessions reaching further = an unusual day. Inside = ordinary.",
+    appears: "A dotted envelope from the session open: the HISTORICAL reach above and below the open BY TIME OF DAY, taken from recent completed sessions, with the count of sessions that went as far as today beside it. It is drawn a few bars past the newest candle because the time-of-day reach continues through the session — that part is history for that clock time, not a forecast.",
+    grammar: "Each point of the envelope is how far recent sessions had travelled from their open by that time of day. Price at the edge with few sessions having reached further = an unusual day so far. Inside = ordinary. It never says where price goes next.",
     full: "Enough completed sessions to count.",
     partial: "Few sessions — counts shown, read with care.",
     degraded: "No completed sessions — no envelope.",
-    firstTouch: "Expected envelope — the usual reach from the open.",
+    firstTouch: "Expected envelope — historical reach from the open by time of day, not a forecast.",
     canon: "H-801 Expected Envelope + Analogue Surprise",
   },
   CONTRADICTION: {
@@ -544,7 +544,7 @@ export const INSTRUMENT_EDUCATION: Readonly<Record<string, InventionEducation>> 
     question: "Where did one side overwhelm the other inside the bar?",
     needs: "SIDED_TAPE", evidence: "Sided prints at adjacent prices.",
     appears: "Highlighted cells where the bid/ask ratio passed the threshold.",
-    grammar: "An imbalance against the bar's direction can mark trapped traders.",
+    grammar: "A highlighted cell is a price where one side traded at least 2.5× the other on the diagonal. Consecutive highlighted cells are a stacked imbalance. It measures the ratio; who is positioned, and whether anyone is caught offside, is not observed.",
     full: SIDED_FULL, partial: SIDED_PARTIAL, degraded: SIDED_DEGRADED,
     firstTouch: "Imbalance cell — one side overwhelmed the other here.",
     canon: "F06 Imbalance",
@@ -562,7 +562,7 @@ export const INSTRUMENT_EDUCATION: Readonly<Record<string, InventionEducation>> 
     question: "Where did unusually large trades print?",
     needs: "PRINTS", evidence: "Per-trade prints.",
     appears: "Marks at the actual time and price of large prints, sized relative to this session.",
-    grammar: "Size is relative, not absolute. Click one to see what price did after it. No claim about who traded or why.",
+    grammar: "A print is marked when its notional size stands out against a rolling baseline of recent prints — size is relative, not absolute — and it carries the side that crossed the spread. Select one to see what price did after it. It does not say who traded or why.",
     full: "Every print observed with its side.",
     partial: "Prints observed, side inferred — labelled.",
     degraded: "No per-trade prints — no marks.",
@@ -699,7 +699,7 @@ export const CONCEPT_EDUCATION = {
   },
 } as const satisfies Readonly<Record<string, ConceptEducation>>;
 
-export type EducationKey = ProfileId | keyof typeof INSTRUMENT_EDUCATION | keyof typeof CONCEPT_EDUCATION;
+export type EducationKey = ProfileId | keyof typeof INSTRUMENT_EDUCATION | keyof typeof CONCEPT_EDUCATION | "BAR_SELECTION";
 
 /** The one lookup — a catalogue id, a Tool Finder instrument id, or a taught concept. */
 export function educationFor(id: string): InventionEducation | null {
@@ -782,6 +782,9 @@ export function educationTruthLines(input: {
       // Price is all it needs, and every chart has price: a fact, not a guess.
       verdict = "CAN DRAW HERE";
       lines.push("Built from the bars on this chart — price is all it needs.");
+    } else if (edu && (edu.needs === "YOUR_PLAN" || edu.needs === "OTHER_LAYERS" || edu.needs === "OPTIONS")) {
+      // The dependency is the verdict (named by the block below), not an unreported state.
+      verdict = "CAN DRAW HERE";
     } else {
       verdict = "STATE NOT REPORTED";
       lines.push("Its own readiness for this chart is shown on the chart once it is on.");
@@ -834,6 +837,8 @@ export function educationIdForSelection(sel:
   | { readonly kind: "SLICE" }
   | { readonly kind: "ANATOMY"; readonly reading: { readonly target: { readonly reading: "ABSORPTION" | "EXHAUSTION" } } }
   | { readonly kind: "MEMORY_GHOST" | "PRESSURE_WALL" | "PRESSURE_FRONT" | "WEATHER" }
+  // A bar selected by a WORD on the glass (Wisdom line, Delta keel, Effort → Response) — §15b gap.
+  | { readonly kind: "BAR" }
   | null,
 ): EducationKey | null {
   if (!sel) return null;
@@ -849,5 +854,6 @@ export function educationIdForSelection(sel:
     case "PRESSURE_WALL": return "BRICK_WALLS";
     case "PRESSURE_FRONT": return "DERIVATIVES_PRESSURE";
     case "WEATHER": return "LIQUIDITY_WEATHER";
+    case "BAR": return "BAR_SELECTION";
   }
 }

@@ -64,6 +64,9 @@ import {
 } from "@/lib/workspace/savedLayouts";
 import { notifyMyViewsChanged, subscribeMyViews, syncStarterViews } from "@/lib/workspace/myViewsRuntime";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
+import { InventionInfoButton, InventionPreview } from "@/components/chart/InventionInfo";
+import { educationTruthLines } from "@/lib/chart/inventionEducation";
+import { LOADOUT_EDUCATION, loadoutEducationId } from "@/lib/chart/surfaceEducation";
 import { readStoredProfileStrength, writeStoredProfileStrength } from "@/lib/chart/profileStrengthStore";
 import { readStoredRoles, writeStoredRoles } from "@/lib/workspace/visualRoles";
 import { announcedFootprintPrefs, requestFootprintPrefs } from "@/lib/workspace/footprintPrefs";
@@ -114,6 +117,7 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
   const store = storage === undefined ? pageStorage() : storage;
   const [layouts, setLayouts] = React.useState<readonly SavedLayout[]>(() => loadSavedLayouts(store));
   const [capture, setCapture] = React.useState<ArrangementCapture | null>(() => announcedArrangementCapture());
+  const [loadoutEdu, setLoadoutEdu] = React.useState<string | null>(null);
   const [own, setOwn] = React.useState<ArrangementCapture | null>(() => announcedOwnArrangement());
   const [naming, setNaming] = React.useState(false);
   const [draft, setDraft] = React.useState("");
@@ -341,8 +345,8 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
               {CAMERA_LOADOUTS.map(l => {
                 const on = savedArrangementInForce(loadoutSwitches(capture, l.id), capture);
                 return (
+                  <React.Fragment key={l.id}>
                   <button
-                    key={l.id}
                     type="button"
                     data-testid={`loadout-${l.id}`}
                     aria-pressed={on}
@@ -352,8 +356,23 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                   >
                     {l.label}
                   </button>
+                  {/* §9 · loadouts have an ⓘ (Sheriff batch 3 #15): a preset of switches, no reading of its own. */}
+                  <InventionInfoButton scope="loadout" id={loadoutEducationId(l.id)} label={l.label} open={loadoutEdu === l.id} compact
+                    onToggle={() => setLoadoutEdu(cur => (cur === l.id ? null : l.id))} />
+                  </React.Fragment>
                 );
               })}
+              {loadoutEdu ? (() => {
+                const l = CAMERA_LOADOUTS.find(x => x.id === loadoutEdu);
+                if (!l) return null;
+                return (
+                  <div style={{ flexBasis: "100%" }}>
+                    <InventionPreview scope="loadout" id={loadoutEducationId(l.id)} label={l.label} what={LOADOUT_EDUCATION[l.id]?.what ?? l.senses} familyWord="Loadout"
+                      truth={educationTruthLines({ id: loadoutEducationId(l.id) })} active={savedArrangementInForce(loadoutSwitches(capture, l.id), capture)}
+                      onAdd={() => requestSavedLayout({ layoutId: `loadout:${l.id}`, switches: loadoutSwitches(capture, l.id) })} onClose={() => setLoadoutEdu(null)} />
+                  </div>
+                );
+              })() : null}
             </div>
           </div>
         );

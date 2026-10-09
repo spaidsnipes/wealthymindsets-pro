@@ -6,8 +6,9 @@ import { createPortal } from "react-dom";
 import { clsx } from "clsx";
 import { Volume2, VolumeX, Settings, Layers, Pause, Play, RotateCcw, HelpCircle, X } from "lucide-react";
 import type { FootprintType } from "./ChartsDashboard";
-import { getIndicatorInfo } from "./indicatorDescriptions";
-import { orderFlowToolCapability } from "@/lib/marketData/orderFlowToolCapability";
+import { InventionInfoButton, InventionPreview } from "./InventionInfo";
+import { educationTruthLines } from "@/lib/chart/inventionEducation";
+import { orderFlowToolCapability, type OrderFlowToolCapability } from "@/lib/marketData/orderFlowToolCapability";
 import { SchemePresets } from "./SchemePresets";
 import { subscribeToolDoor, takePendingToolDoor } from "@/lib/workspace/toolDoor";
 
@@ -333,51 +334,23 @@ function BigTradesControls() {
   );
 }
 
-/* Rich "?" help popover for an order-flow type — TradingView-style sections
-   (Definition / Calculation / How to Use / What to Look For / Summary), pulled
-   from the shared indicatorDescriptions authoring. */
-function OrderFlowHelp({ label, desc }: { label: string; desc: string }) {
+/* The footprint mode's ⓘ — the SAME record (`FP_<mode>`, inventionEducation) and
+   the SAME preview as the Tool Finder (§9; cert §15a gap, 2026-10-08). It used
+   to read the old category boilerplate from a second description table (retired). The capability
+   compiler's own sentence is the "on this chart now" truth. */
+function OrderFlowHelp({ id, label, desc, cap, active, onAdd }: {
+  id: FootprintType; label: string; desc: string; cap: OrderFlowToolCapability; active: boolean; onAdd: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-
-  const info = getIndicatorInfo(label, "Order Flow", desc);
-  const sections: [string, string][] = [
-    ["Definition", info.definition],
-    ["Calculation", info.calculation],
-    ["How to Use", info.howToUse],
-    ["What to Look For", info.whatToLookFor],
-    ["Summary", info.summary],
-  ];
-
+  const btnRef = useRef<HTMLDivElement>(null);
+  const eduId = `FP_${id}`;
   return (
-    <div className="relative inline-flex items-center shrink-0">
-      <button
-        ref={btnRef}
-        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
-        title={`${label} — info`}
-        className={clsx(
-          "flex items-center justify-center w-5 h-5 ml-1 rounded border transition-all",
-          open ? "bg-wm-green/20 text-wm-green border-wm-green/60"
-               : "bg-wm-surface text-wm-text border-wm-border hover:text-wm-green hover:border-wm-green/50"
-        )}
-      >
-        <HelpCircle size={13} />
-      </button>
-      <PortalPopover anchorRef={btnRef} open={open} onClose={() => setOpen(false)} width={320}>
-        <div className="w-full rounded-lg border border-wm-border bg-wm-surface shadow-2xl p-3 text-left cursor-default">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[13px] font-bold text-wm-green">{label}</span>
-            <button aria-label="Close" onClick={() => setOpen(false)} className="text-wm-text-dim hover:text-wm-text"><X size={13} /></button>
-          </div>
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
-            {sections.map(([h, body]) => (
-              <div key={h}>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-wm-text-dim mb-0.5">{h}</div>
-                <p className="text-[11.5px] leading-snug text-wm-text">{body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+    <div ref={btnRef} className="relative inline-flex items-center shrink-0 ml-1">
+      <InventionInfoButton scope="fp" id={eduId} label={label} open={open} compact onToggle={() => setOpen(o => !o)} />
+      <PortalPopover anchorRef={btnRef} open={open} onClose={() => setOpen(false)} width={340}>
+        <InventionPreview scope="fp" id={eduId} label={label} what={desc} familyWord="Footprint" active={active}
+          truth={educationTruthLines({ instrumentTruth: { ok: cap.drawable, waiting: cap.state === "AWAITING_TAPE", sentence: cap.reason } })}
+          onAdd={onAdd} onClose={() => setOpen(false)} />
       </PortalPopover>
     </div>
   );
@@ -491,7 +464,7 @@ export const FOOTPRINT_TYPES: { id: FootprintType; label: string; desc: string }
   { id: "bid-ask",            label: "Bid × Ask",    desc: "Bid/ask split cells per price level — order flow footprint" },
   { id: "delta",              label: "Delta Bubbles", desc: "Net aggressive delta per price zone, drawn as bubbles on the candle. Teal = buying pressure, purple = selling" },
   { id: "volume-profile",     label: "Vol Profile",   desc: "Volume-at-price horizontal bars per candle" },
-  { id: "imbalance",          label: "Imbalance",     desc: "Highlight cells with >2.5× bid/ask ratio — spot trapped traders" },
+  { id: "imbalance",          label: "Imbalance",     desc: "Highlight cells where one side traded more than 2.5× the other — the ratio only, no positioning is read" },
   { id: "aggressive-passive", label: "Agg/Passive Proxy", desc: "Aggressor side is observed from tape; passive roles are location-based inferences, not resting-order observations" },
   { id: "big-trades",         label: "Big Trades",       desc: "Large observed trade prints on candles — no claim about participant identity or intent" },
 ];
@@ -625,7 +598,7 @@ export function FootprintControls({
           {id === "big-trades"
             ? <BigTradesControls />
             : <OrderFlowColorGear toolId={id} label={label} />}
-          <OrderFlowHelp label={label} desc={desc} />
+          <OrderFlowHelp id={id} label={label} desc={desc} cap={cap} active={selected} onAdd={() => onChange(id)} />
         </div>
         );
       })}

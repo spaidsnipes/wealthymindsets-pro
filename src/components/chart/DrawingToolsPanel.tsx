@@ -14,6 +14,9 @@ import {
   isStyleCapableTool,
 } from "@/types/chart";
 import { useEscapeToClose } from "@/lib/a11y/useEscapeToClose";
+import { InventionInfoButton, InventionPreview } from "./InventionInfo";
+import { educationTruthLines } from "@/lib/chart/inventionEducation";
+import { DRAWING_EDUCATION, drawingEducationId } from "@/lib/chart/surfaceEducation";
 
 export type { DrawingTool, DrawingStyle, DashStyle };
 export { DEFAULT_DRAWING_STYLE, isStyleCapableTool };
@@ -364,6 +367,7 @@ export function DrawingToolsPanel({
   const [open, setOpen] = useState(false);
   const [showStyle, setShowStyle] = useState(false);
   const [query, setQuery] = useState("");
+  const [toolEdu, setToolEdu] = useState<DrawingTool | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const styleRef = useRef<HTMLButtonElement>(null);
@@ -562,7 +566,9 @@ export function DrawingToolsPanel({
                   {group.tools.map(tool => {
                     const isActive = activeTool === tool.id;
                     return (
-                      <button key={tool.id} onClick={() => pick(tool.id)} title={tool.desc}
+                      <React.Fragment key={tool.id}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <button onClick={() => pick(tool.id)} title={DRAWING_EDUCATION[tool.id]?.what ?? tool.desc}
                         style={{
                           display: "flex", alignItems: "center", gap: 7, width: "100%",
                           padding: "5px 7px", borderRadius: 5,
@@ -580,6 +586,16 @@ export function DrawingToolsPanel({
                         </span>
                         <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tool.label}</span>
                       </button>
+                      {/* §9 · every drawing tool has an ⓘ (Sheriff batch 3 #14). */}
+                      <InventionInfoButton scope="draw" id={drawingEducationId(tool.id)} label={tool.label} open={toolEdu === tool.id} compact
+                        onToggle={() => setToolEdu(cur => (cur === tool.id ? null : tool.id))} />
+                      </div>
+                      {toolEdu === tool.id ? (
+                        <InventionPreview scope="draw" id={drawingEducationId(tool.id)} label={tool.label} what={DRAWING_EDUCATION[tool.id]?.what ?? tool.desc} familyWord={group.label}
+                          truth={educationTruthLines({ id: drawingEducationId(tool.id) })} active={isActive}
+                          onAdd={() => pick(tool.id)} onClose={() => setToolEdu(null)} />
+                      ) : null}
+                      </React.Fragment>
                     );
                   })}
                 </div>

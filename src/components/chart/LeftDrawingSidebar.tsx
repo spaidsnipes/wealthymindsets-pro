@@ -10,6 +10,9 @@ import {
 import type { DrawingTool, DrawingStyle } from "./DrawingToolsPanel";
 import { DrawingStylePopover, isStyleCapableTool } from "./DrawingToolsPanel";
 import { styleBesideFor, type ViewportRect } from "@/lib/ui/popoverPlacement";
+import { InventionInfoButton, InventionPreview } from "./InventionInfo";
+import { educationTruthLines } from "@/lib/chart/inventionEducation";
+import { DRAWING_EDUCATION, drawingEducationId } from "@/lib/chart/surfaceEducation";
 
 interface Item { id: DrawingTool; label: string; icon: React.ReactNode; }
 
@@ -99,6 +102,7 @@ export function LeftDrawingSidebar({
    */
   const isSheet = variant === "sheet";
   const [styleOpen, setStyleOpen] = useState(false);
+  const [toolEdu, setToolEdu] = useState(false);
   const railRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -217,8 +221,8 @@ export function LeftDrawingSidebar({
             <button
               key={it.id}
               className="wm-draw-btn"
-              title={it.label}
-              aria-label={it.label}
+              title={`${it.label} — ${DRAWING_EDUCATION[it.id]?.what ?? ""}`}
+              aria-label={`${it.label} — ${DRAWING_EDUCATION[it.id]?.what ?? ""}`}
               aria-pressed={activeTool === it.id}
               onClick={e => pickTool(it.id, e.currentTarget)}
               style={btn(activeTool === it.id)}
@@ -265,6 +269,14 @@ export function LeftDrawingSidebar({
         onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#FF4D6A"}
         onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#8B8FA8"}
       ><Trash2 size={14} /></button>
+      {/* §9 · the ACTIVE drawing tool's ⓘ on the rail / sheet (Sheriff batch 3 #14): the same record the panel row opens. */}
+      <InventionInfoButton scope="rail" id={drawingEducationId(activeTool)} label={GROUPS.flatMap(g => g.items).find(it => it.id === activeTool)?.label ?? activeTool} open={toolEdu} compact onToggle={() => setToolEdu(o => !o)} />
+      {toolEdu ? (
+        <div style={{ position: "absolute", left: isSheet ? 0 : "100%", top: isSheet ? "100%" : 0, zIndex: 80, width: 320, maxWidth: "calc(100vw - 16px)" }}>
+          <InventionPreview scope="rail" id={drawingEducationId(activeTool)} label={GROUPS.flatMap(g => g.items).find(it => it.id === activeTool)?.label ?? activeTool} what={DRAWING_EDUCATION[activeTool]?.what ?? activeTool} familyWord="Drawing tool"
+            truth={educationTruthLines({ id: drawingEducationId(activeTool) })} active={activeTool !== "cursor"} onAdd={() => onToolChange("cursor")} onClose={() => setToolEdu(false)} />
+        </div>
+      ) : null}
 
       {styleOpen && styleBeside && typeof document !== "undefined" && (
         <DrawingStylePopover

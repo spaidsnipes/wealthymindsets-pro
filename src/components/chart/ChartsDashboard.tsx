@@ -1,7 +1,9 @@
 "use client";
 
 import { zoneStateWords } from "@/lib/marketData/viewModels/selectZoneLifecycle";
-import { educationIdForSelection } from "@/lib/chart/inventionEducation";
+import { educationIdForSelection, educationTruthLines } from "@/lib/chart/inventionEducation";
+import { VIEW_EDUCATION, viewEducationId } from "@/lib/chart/surfaceEducation";
+import { InventionInfoButton, InventionPreview } from "./InventionInfo";
 import { spaidbotFvgScene } from "@/lib/ai/spaidbotFvgFacts";
 import { fvgInspectRelationships } from "@/lib/marketData/fvg/fvgInspectRelationships";
 import { FVG_INSTRUMENT_ID, FVG_PREF_KEY, isFvgObjectId, resolveFvgDoorTarget, type FvgCameraScene } from "@/lib/chart/fvgGlass";
@@ -27,7 +29,8 @@ import { ChartToolbar, INDICATOR_CATEGORY } from "./ChartToolbar";
 // Drawer-only panels load on open (dynamic chunks, warmed on idle) — see chartDrawers.
 import { TradePanel, DOMPanel, PnLStatsPanel, IndicatorSettingsModal } from "./chartDrawers";
 import { compileEvidenceLineage } from "@/lib/chart/evidenceLineage";
-import { senseIsQuiet, senseNeedsTradedVolume } from "@/lib/chart/senseEventStates";
+import { senseIsQuiet, senseNeedsTradedVolume, VOLUME_READING_SENSES } from "@/lib/chart/senseEventStates";
+import { sizeUnitFor } from "@/lib/marketData/sizeUnit";
 import { readMarketBreathing } from "@/lib/chart/marketBreathing";
 import { readResponseMatrix, readTemporalEvidenceDensity } from "@/lib/chart/effortEvidence";
 import { MainChart, type VpDrawnLevels } from "./MainChart";
@@ -1581,16 +1584,20 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     () => (lensFixtureUser ? parseLensFixture(`?${optionSearchParams?.toString() ?? ""}`) : null),
     [lensFixtureUser, optionSearchParams],
   );
-  const [lensFixtureAnchor, setLensFixtureAnchor] = useState<{ symbol: string; centre: number; nowMs: number } | null>(null);
+  const [lensFixtureAnchor, setLensFixtureAnchor] = useState<{ symbol: string; centre: number; nowMs: number; lastBarMs: number } | null>(null);
+  const lensFixtureLastBarSec = chartBars.length ? Number(chartBars[chartBars.length - 1].time) : null;
   const lensFixtureLastClose = chartBars.length ? chartBars[chartBars.length - 1].close : null;
   useEffect(() => {
     if (!lensFixture) { setLensFixtureAnchor(null); return; }
     if (lensFixtureLastClose == null || !(lensFixtureLastClose > 0)) return;
-    setLensFixtureAnchor(prev => (prev && prev.symbol === symbol ? prev : { symbol, centre: lensFixtureLastClose, nowMs: Date.now() }));
-  }, [lensFixture, symbol, lensFixtureLastClose]);
+    setLensFixtureAnchor(prev => (prev && prev.symbol === symbol ? prev : { symbol, centre: lensFixtureLastClose, nowMs: Date.now(), lastBarMs: (lensFixtureLastBarSec ?? Date.now() / 1000) * 1000 }));
+  }, [lensFixture, symbol, lensFixtureLastClose, lensFixtureLastBarSec]);
   const lensFixtureWeatherVM = React.useMemo(
-    () => (lensFixture?.stage ? lensFixtureWeather(lensFixture.stage, lensFixtureAnchor?.centre ?? 100) : null),
-    [lensFixture, lensFixtureAnchor],
+    // Dated across the chart's newest bars, so the glass has a window and the lens is placed.
+    () => (lensFixture?.stage
+      ? lensFixtureWeather(lensFixture.stage, lensFixtureAnchor?.centre ?? 100, lensFixtureAnchor ? { endMs: lensFixtureAnchor.lastBarMs, barMs: (valueCandleBarSec ?? 60) * 1000 } : null)
+      : null),
+    [lensFixture, lensFixtureAnchor, valueCandleBarSec],
   );
   const chartLiquidityWeather = React.useMemo(() => {
     if (lensFixtureWeatherVM) return lensFixtureWeatherVM;
@@ -2217,6 +2224,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // clear on finger-up (and moves elsewhere) do not unpin it; a second tap
   // on the same bar releases. A mouse never pins, so desktop hover is unchanged.
   const touchPinRef = useRef<number | null>(null);
+  // §15b · the bar a WORD selected (wisdom line, keel, effort mark) — its first-touch line is owed while Inspect reads it.
+  const [wordSelectedBar, setWordSelectedBar] = useState<number | null>(null);
+  const [viewEdu, setViewEdu] = useState<string | null>(null);
   const onOHLCAtCursorPinned = React.useCallback((o: { o: number; h: number; l: number; c: number; v: number; time: number } | null) => {
     if (touchPinRef.current != null && o?.time !== touchPinRef.current) return;
     setCursorBar(o);
@@ -2229,7 +2239,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     setCursorBar({ o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume, time: bar.time });
   }, [chartBars]);
   // A new instrument or timeframe never inherits a pin.
-  useEffect(() => { touchPinRef.current = null; }, [symbol, timeframe]);
+  useEffect(() => { touchPinRef.current = null; setWordSelectedBar(null); }, [symbol, timeframe]);
   /**
    * CLOSED ON ARRIVAL — A-201 LAYER 5 SAYS "OPTIONAL", AND OPTIONAL IS A WORD
    * ABOUT THE DEFAULT.
@@ -2297,9 +2307,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     activeSelectedAnatomy ?? activeSelectedGhost ?? activeSelectedWall ?? activeSelectedFront ?? activeSelectedWeather
     ?? (activeSelectedPrint ? { kind: "PRINT" as const, print: activeSelectedPrint } : null)
     ?? (selectedMarketObjectId ? { kind: "OBJECT" as const, objectId: selectedMarketObjectId } : null)
-    ?? (selectedSlicePrice != null ? { kind: "SLICE" as const } : null),
+    ?? (selectedSlicePrice != null ? { kind: "SLICE" as const } : null)
+    ?? (wordSelectedBar != null && chartSelection.inspectOpen && cursorBar?.time === wordSelectedBar ? { kind: "BAR" as const } : null),
   );
   const firstTouchLabel = firstTouchId == null ? ""
+    : firstTouchId === "BAR_SELECTION" ? "Selected bar"
     : firstTouchId === FVG_INSTRUMENT_ID ? "FVG / Imbalance"
     : firstTouchId === "FP_big-trades" ? "Big Trades"
     : firstTouchId === "F11A" ? "Supply / demand zone"
@@ -2437,6 +2449,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       bar: { open: inspectBar.o, high: inspectBar.h, low: inspectBar.l, close: inspectBar.c },
       priorBars: chartBars.slice(Math.max(0, end - BREATH_SAMPLE), end),
       dp: displayPrecisionFor(symbol, chartBars),
+      // A distance wears the instrument's unit: pips / pts + ticks / $ (P2-8, P2-9).
+      symbol,
     });
   }, [inspectBar, chartBars, symbol]);
 
@@ -3137,9 +3151,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // §15 — delta/imbalance are this bar's row of the chart's one ladder.
       ladderBar: inspectBar && flowLadderReader ? flowLadderReader(inspectBar.time) : null,
       barSides: inspectBar && barSides ? barSides.get(inspectBar.time) ?? null : null,
+      // Spot FX / spot metals: the Volume row is a named silence, never "0" (P2-8).
+      noCentralVolume: hasNoCentralVolume(symbol),
+      // Volume and Delta say what one unit IS: contracts / shares / the coin (P2-9).
+      sizeUnit: sizeUnitFor(symbol),
     }),
     [inspectBar, chartBarSpanMs, recentTicks, chartBarIdentityIndex, effortSubjectIsForming,
-      chartMarketObjects, selectedMarketObjectId, inspectDecisionId, flowLadderReader, barSides],
+      chartMarketObjects, selectedMarketObjectId, inspectDecisionId, flowLadderReader, barSides, symbol],
   );
   // Garden 19 §28 · the inspected bar's candle readings — the numbers the glass withholds.
   const inspectCandleReadings = React.useMemo(() => {
@@ -5295,11 +5313,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   ) : null;
   // H-301 Evidence Lineage: the indicators and Tools switches that are ON,
   // grouped by what each is computed from (plate 118, "do not count 7").
+  // The MARKET's limit does not wait for a paint: `senseEvents` arrives from
+  // the chart's receipts, and before the first frame (or while a hidden tab
+  // paints nothing) it is empty — EURUSD then counted "Classic VP, Session VP"
+  // and "Absorption Shelf" as two families (sheriff, serving 2026-10-08 07:19).
+  const noCentralVolumeHere = !!hasNoCentralVolume(symbol);
   const evidenceLineage = compileEvidenceLineage({
     indicators: [...activeInds].map(name => ({ name, cat: INDICATOR_CATEGORY[name] ?? null })),
     // A switch whose glass receipt says nothing is on this camera is named as
     // waiting, not counted as an observation (senseEvents = the chart's receipts).
-    tools: arrangementMenu.entries.filter(e => e.active).map(e => ({ id: e.id, label: e.label, quiet: senseIsQuiet(senseEvents[e.id]), needsVolume: senseNeedsTradedVolume(senseEvents[e.id]) })),
+    tools: arrangementMenu.entries.filter(e => e.active).map(e => ({ id: e.id, label: e.label, quiet: senseIsQuiet(senseEvents[e.id]), needsVolume: senseNeedsTradedVolume(senseEvents[e.id]) || (noCentralVolumeHere && VOLUME_READING_SENSES.has(e.id)) })),
   });
   const decisionSpineProps = {
     drawnPlan: riskPlan,
@@ -6141,8 +6164,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 {categoryTabsFor(assetClass).map((tab) => {
                   const applied = tab === activeTab;
                   return (
+                    <React.Fragment key={tab}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <button
-                      key={tab}
                       type="button"
                       aria-current={applied ? "true" : undefined}
                       onClick={() => { setActiveTab(tab); setViewShelfOpen(false); }}
@@ -6168,6 +6192,16 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       <span>{tab}</span>
                       {applied && <span style={{ fontSize: 9, letterSpacing: 0.6 }}>Applied</span>}
                     </button>
+                    {/* §9 · every View has an ⓘ (cert §15a gap): the same preview as every tool. */}
+                    <InventionInfoButton scope="view" id={viewEducationId(tab)} label={tab} open={viewEdu === tab}
+                      onToggle={() => setViewEdu(cur => (cur === tab ? null : tab))} />
+                    </div>
+                    {viewEdu === tab ? (
+                      <InventionPreview scope="view" id={viewEducationId(tab)} label={tab} what={VIEW_EDUCATION[tab]?.what ?? tab} familyWord="View" symbol={symbol}
+                        truth={educationTruthLines({ id: viewEducationId(tab), symbol })} active={applied}
+                        onAdd={() => { setActiveTab(tab); setViewShelfOpen(false); }} onClose={() => setViewEdu(null)} />
+                    ) : null}
+                    </React.Fragment>
                   );
                 })}
               </div>
@@ -7103,6 +7137,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         const bar = chartBars.find(b => b.time === t);
                         if (!bar) return;
                         setCursorBar({ o: bar.open, h: bar.high, l: bar.low, c: bar.close, v: bar.volume, time: bar.time });
+                        setWordSelectedBar(bar.time);
                         actOnChartSelection({ type: "clear" });
                         actOnChartSelection({ type: "openInspect" });
                       }}

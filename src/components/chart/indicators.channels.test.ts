@@ -171,18 +171,24 @@ describe("ichimoku", () => {
     }
   });
 
-  it("chikou is NaN for i < 26 (shift back 26 periods)", () => {
+  // 2026-10-08 indicator audit: the lagging span is the close plotted 26 bars
+  // BACK, so bar i carries close[i + 26] and the NEWEST 26 slots are empty. The
+  // old assertion pinned the shift the wrong way round (close[i - 26] at bar i).
+  it("chikou is the close 26 bars ahead; the newest 26 slots are empty", () => {
     const bars = risingBars(60);
     const i = ichimoku(bars);
-    for (let idx = 0; idx < 26; idx++) expect(Number.isNaN(i.chikou[idx])).toBe(true);
-    expect(Number.isFinite(i.chikou[26])).toBe(true);
+    for (let idx = 0; idx + 26 < 60; idx++) expect(i.chikou[idx]).toBe(bars[idx + 26].close);
+    for (let idx = 60 - 26; idx < 60; idx++) expect(Number.isNaN(i.chikou[idx])).toBe(true);
   });
 
-  it("senkouA = (tenkan + kijun) / 2 identity", () => {
+  // 2026-10-08 indicator audit: the identity still holds, DISPLACED — the span
+  // drawn at bar i is (tenkan + kijun) / 2 of the bar 26 before it.
+  it("senkouA at bar i = (tenkan + kijun) / 2 of bar i - 26; the first 26 are empty", () => {
     const bars = risingBars(60);
     const i = ichimoku(bars);
+    for (let idx = 0; idx < 26; idx++) expect(Number.isNaN(i.senkouA[idx])).toBe(true);
     for (let idx = 26; idx < 60; idx++) {
-      expect(i.senkouA[idx]).toBeCloseTo((i.tenkan[idx] + i.kijun[idx]) / 2);
+      expect(i.senkouA[idx]).toBeCloseTo((i.tenkan[idx - 26] + i.kijun[idx - 26]) / 2);
     }
   });
 });

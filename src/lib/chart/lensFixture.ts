@@ -57,29 +57,51 @@ export function parseLensFixture(search: string): LensFixture | null {
 const tick = (price: number, size: number, side: "buy" | "sell"): AggressorTick =>
   ({ price, size, side, trade: true, marketEvent: { aggressorMethod: "PROVIDER" as never } });
 
-/** `prints` prints travelling `span` (in units of `unit`) from `from`, fixed size. */
-function leg(from: number, span: number, prints: number, size: number, unit: number): AggressorTick[] {
-  return Array.from({ length: prints }, (_, i) =>
-    tick(Number(((from + (span * (i + 1)) / prints) * unit).toFixed(6)), size, i % 2 === 0 ? "buy" : "sell"));
+/** `prints` prints travelling `span` shape-units from `from`, fixed size. */
+function leg(from: number, span: number, prints: number, size: number): { p: number; size: number; side: "buy" | "sell" }[] {
+  return Array.from({ length: prints }, (_, i) => ({ p: from + (span * (i + 1)) / prints, size, side: i % 2 === 0 ? "buy" as const : "sell" as const }));
 }
 
-/** A deterministic tape that the real owner reads as `stage`, scaled to `centre`. */
-export function lensFixtureTape(stage: WeatherStage, centre: number): AggressorTick[] {
-  const u = centre > 0 && Number.isFinite(centre) ? centre / 100 : 1;
-  switch (stage) {
-    case "UNMEASURED": return [];
-    case "STEADY": return leg(100, 2, 120, 100, u);
-    case "THINNING": return [...leg(100, 1, 60, 400, u), ...leg(101, 1, 60, 40, u)];
-    case "THICKENING": return [...leg(100, 1, 60, 40, u), ...leg(101, 1, 60, 400, u)];
-    case "HEAVY": return [...leg(100, 2, 110, 50, u), ...Array.from({ length: 10 }, () => tick(Number((102 * u).toFixed(6)), 800, "buy"))];
-    case "AIRLESS": return [...leg(100, 1, 110, 500, u), ...leg(101, 1, 10, 5, u)];
-    case "ERRATIC": return Array.from({ length: 12 }, (_, s) => leg(100 + s * 0.5, 0.5, 12, s % 2 === 0 ? 20 : 2000, u)).flat();
-  }
+/** The sample's shape travels this share of price per shape-unit: the whole tape stays within ~1% of the chart's last close (on camera). */
+export const LENS_FIXTURE_PRICE_STEP = 0.0015;
+/** The sample's prints are spread over this many of the chart's newest bars — the lens's own span. */
+export const LENS_FIXTURE_BARS = 6;
+
+/** WHEN the sample's prints sit: the newest `LENS_FIXTURE_BARS` bars ending at `endMs`. Without it the prints are undated (the lens cannot be placed). */
+export interface LensFixtureWindow { readonly endMs: number; readonly barMs: number }
+
+/**
+ * A deterministic tape that the real owner reads as `stage`. Prices are an
+ * affine map of the shape round `centre` (the owner is scale-free); with a
+ * `span` every print is dated, evenly, across the chart's newest bars so the
+ * glass has a window and the lens is placed (serving 48bdea6: undated prints
+ * read UNTIMED and the stage grain never painted).
+ */
+export function lensFixtureTape(stage: WeatherStage, centre: number, span: LensFixtureWindow | null = null): AggressorTick[] {
+  const c = centre > 0 && Number.isFinite(centre) ? centre : 100;
+  const shape = (() => {
+    switch (stage) {
+      case "UNMEASURED": return [];
+      case "STEADY": return leg(100, 2, 120, 100);
+      case "THINNING": return [...leg(100, 1, 60, 400), ...leg(101, 1, 60, 40)];
+      case "THICKENING": return [...leg(100, 1, 60, 40), ...leg(101, 1, 60, 400)];
+      case "HEAVY": return [...leg(100, 2, 110, 50), ...Array.from({ length: 10 }, () => ({ p: 102, size: 800, side: "buy" as const }))];
+      case "AIRLESS": return [...leg(100, 1, 110, 500), ...leg(101, 1, 10, 5)];
+      case "ERRATIC": return Array.from({ length: 12 }, (_, s) => leg(100 + s * 0.5, 0.5, 12, s % 2 === 0 ? 20 : 2000)).flat();
+    }
+  })();
+  const dated = span && Number.isFinite(span.endMs) && span.barMs > 0 ? span : null;
+  const startMs = dated ? dated.endMs - LENS_FIXTURE_BARS * dated.barMs : 0;
+  const n = shape.length;
+  return shape.map((s, i) => ({
+    ...tick(Number((c * (1 + (s.p - 101) * LENS_FIXTURE_PRICE_STEP)).toFixed(8)), s.size, s.side),
+    ...(dated ? { time: Math.round(startMs + ((i + 1) / n) * LENS_FIXTURE_BARS * dated.barMs) } : {}),
+  }));
 }
 
 /** The real owner's reading of the sample tape. */
-export function lensFixtureWeather(stage: WeatherStage, centre: number): LiquidityWeatherVM {
-  return selectLiquidityWeather(lensFixtureTape(stage, centre));
+export function lensFixtureWeather(stage: WeatherStage, centre: number, span: LensFixtureWindow | null = null): LiquidityWeatherVM {
+  return selectLiquidityWeather(lensFixtureTape(stage, centre, span));
 }
 
 /* ── the synthetic chain ─────────────────────────────────────────────────── */

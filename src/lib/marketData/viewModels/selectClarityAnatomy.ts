@@ -38,6 +38,7 @@
  * PURE. DETERMINISTIC.
  */
 
+import { priceDistanceWords } from "@/lib/chart/priceDistanceUnit";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 
 export const CLARITY_ANATOMY_VERSION = 1;
@@ -106,6 +107,11 @@ export interface ClarityAnatomyInput {
   readonly priorBars: readonly ClarityBar[];
   /** The market's decimals (`pricePrecisionFromBars`), for printed prices and the gap tick. */
   readonly dp: number;
+  /**
+   * The instrument, so a DISTANCE wears its unit (pips / pts + ticks / $) —
+   * priceDistanceUnit, sheriff 2026-10-08. Omitted → the bare number, as before.
+   */
+  readonly symbol?: string | null;
 }
 
 const finite = (b: ClarityBar | null | undefined): b is ClarityBar =>
@@ -171,7 +177,8 @@ export function selectClarityAnatomy(input: ClarityAnatomyInput): ClarityAnatomy
   const lines: ClarityLine[] = [];
 
   // RANGE — F05B "ANATOMY OF ACTUAL TRUTH RANGE · RANGE WIDTH".
-  lines.push({ key: "RANGE", label: "Range", value: `${fmt(bar.low)} – ${fmt(bar.high)} · ${fmt(range)} wide` });
+  const dist = (v: number) => (input.symbol ? priceDistanceWords(input.symbol, v, dp, bar.close) : fmt(v));
+  lines.push({ key: "RANGE", label: "Range", value: `${fmt(bar.low)} – ${fmt(bar.high)} · ${dist(range)} wide` });
 
   // BODY — F05A "BODY EFFICIENCY 78%": how much of the range the body kept.
   const bodyEfficiencyPct = range > 0 ? pct(body / range) : null;
@@ -180,7 +187,7 @@ export function selectClarityAnatomy(input: ClarityAnatomyInput): ClarityAnatomy
     label: "Body efficiency",
     value: bodyEfficiencyPct === null
       ? "no range — open, high, low and close are one price"
-      : `${bodyEfficiencyPct}% · body ${fmt(body)} of ${fmt(range)}`,
+      : `${bodyEfficiencyPct}% · body ${dist(body)} of ${dist(range)}`,
   });
 
   // WICK — F05A "WICK INTENT · Upper Rejection".

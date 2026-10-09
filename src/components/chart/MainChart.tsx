@@ -214,6 +214,8 @@ const DNA_BRACKET_A = 0.65;
 const IMB_CELL_MIN_H = 3;
 /** A touch tap within this many px of a candle's high–low pins it (ASK-18). */
 const TOUCH_BAR_SLOP = 10;
+/** Swing High/Low indicator: each swing's rule runs this many bars from its own bar. */
+const SWING_RULE_BARS = 8;
 const LEVEL_FORM_DASH: Readonly<Record<"POC" | "EDGE", readonly number[]>> = { POC: [], EDGE: [3, 4] };
 function strokeLevelForm(ctx: CanvasRenderingContext2D, y: number, x0: number, x1: number, ink: string, kind: "POC" | "EDGE"): void {
   ctx.save();
@@ -5790,7 +5792,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // ── Pivot Points ──────────────────────────────────────────
     for (const [ptType, label] of [["standard","Pivot Points Standard"],["fibonacci","Pivot Points Fibonacci"],["camarilla","Pivot Points Camarilla"],["woodie","Pivot Points Woodie"],["demark","Pivot Points Demark"],["cpr","Pivot Points CPR"]] as const) {
       if (!inds.has(label)) continue;
-      const pv = IND.pivotPoints(bars, ptType);
+      // The PRIOR completed session (the one session owner), never the forming bar.
+      const pv = IND.pivotPoints(bars, ptType, sessionWindowFor(symbol, timeframe, !!extendedHours));
       const cols = { pp: "#F0B429", r1: "#ef5350", r2: "#ef5350", r3: "#ef5350", s1: "#26a69a", s2: "#26a69a", s3: "#26a69a" };
       for (const [key, color] of Object.entries(cols)) {
         const val = (pv as any)[key];
@@ -5979,7 +5982,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const tdn = m1.hist.map((v, i) => v < 0 ? Math.abs(bb2.upper[i] - bb2.lower[i]) : NaN);
       addOscHist(tup, "rgba(0,192,118,0.7)", "wae"); addOscHist(tdn, "rgba(255,77,103,0.7)", "wae");
     }
-    if (inds.has("Choppiness Index"))   { setupScale("chopi"); addOsc(IND.choppinessIndex(bars), "#67E8F9", "chopi"); refLine(61.8, "chopi", "rgba(255,77,103,0.2)"); refLine(38.2, "chopi", "rgba(0,192,118,0.2)"); }
+    // (Choppiness Index is drawn once, above.)
 
     // ── Volume indicators ─────────────────────────────────────
     if (inds.has("OBV"))              { setupScale("obv"); addOsc(IND.obv(bars), "#F97316", "obv"); }
@@ -6003,10 +6006,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (inds.has("Volume Oscillator"))     { setupScale("volosc"); addOsc(IND.volumeOscillator(bars), "#C084FC", "volosc"); refLine(0, "volosc", "rgba(255,255,255,0.1)"); }
     if (inds.has("RVOL"))                  { setupScale("rvol"); addOsc(IND.rvol(bars), "#FCD34D", "rvol"); refLine(1, "rvol", "rgba(255,255,255,0.2)"); }
     if (inds.has("Volume MA")) {
+      // Its own pane, in VOLUME units (2026-10-08 audit: a volume ratio was
+      // drawn on the PRICE scale, a line near zero under the candles).
       const vols = bars.map(b => b.volume);
-      addLine(IND.sma(vols, 20).map((v, i) => v / bars[i].volume), "rgba(150,150,255,0.5)", 1);
+      setupScale("volma"); addOsc(IND.sma(vols, 20), "rgba(150,150,255,0.85)", "volma");
     }
-    if (inds.has("Volume Weighted RSI"))   { setupScale("vwrsiosc"); addOsc(IND.volumeWeightedRsi(bars), "#34D399", "vwrsiosc"); }
+    // (Volume Weighted RSI is drawn once, with its 70 / 30 rails, above.)
 
     // ── Trend / Directional ───────────────────────────────────
     if (inds.has("Linear Regression Slope")) { setupScale("lrslope"); addOsc(IND.linearRegressionSlope(closes), "#F0B429", "lrslope"); refLine(0, "lrslope", "rgba(255,255,255,0.1)"); }
@@ -6020,11 +6025,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // "Fair Value Gaps" indicator entry now draws nothing here.
     if (inds.has("Swing High/Low")) {
       const swings = IND.swingHighLow(bars, CHART_SWING_LOOKBACK);
-      swings.highs.forEach(h => {
-        const s = chart.addSeries(LW.LineSeries,{ color: "#ef5350", lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-        s.setData([{ time: h.time as any, value: h.price }]);
+      // A one-point line draws NOTHING (2026-10-08 audit: the indicator was
+      // invisible). Each confirmed swing is a short rule from its own bar for
+      // SWING_RULE_BARS bars — highs and lows both, never into bars not loaded.
+      const idxOfT = new Map<number, number>();
+      bars.forEach((b, i) => idxOfT.set(Number(b.time), i));
+      const rule = (p: { time: number; price: number }, color: string) => {
+        const i0 = idxOfT.get(Number(p.time));
+        if (i0 == null) return;
+        const i1 = Math.min(bars.length - 1, i0 + SWING_RULE_BARS);
+        if (i1 <= i0) return;
+        const s = chart.addSeries(LW.LineSeries,{ color, lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        s.setData([{ time: bars[i0].time as any, value: p.price }, { time: bars[i1].time as any, value: p.price }]);
         indSeriesRef.current.push(s);
-      });
+      };
+      swings.highs.forEach(h => rule(h, "#ef5350"));
+      (swings.lows ?? []).forEach(l => rule(l, "#26a69a"));
     }
     if (inds.has("Prior Day High/Low") || inds.has("Daily Candle Levels")) {
       const pdhl = IND.priorDayHighLow(bars);
@@ -18455,6 +18471,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         ctx.save();
         try {
           const dp = derivativesPressureRef.current;
+          const sayBrickWallsSilence = (why: string) => {
+            ctx.save();
+            ctx.font = marketFont("OBJECT_NAME");
+            ctx.fillStyle = "rgba(200,192,174,0.85)";
+            ctx.textAlign = "left"; ctx.textBaseline = "middle";
+            const yS = takeSilenceRow();
+            const wordsS = `BRICK WALLS · ${why.toUpperCase()}`;
+            ctx.fillText(fitSilence(wordsS), silenceX, yS);
+            if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: ctx.measureText(wordsS).width, h: 14 });
+            ctx.restore();
+          };
           // Garden 18 §XXII: two switches on ONE pressure owner — the field
           // (Derivatives Pressure) and the masonry (Brick Walls). Either asks
           // for the evidence; each paints only its own manifestation.
@@ -18466,6 +18493,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ds.derivativesPressure = fieldOn ? dp.receipt : "FIELD_OFF";
             if (!fieldOn) delete ds.derivativesPressureTint;
             ds.brickWalls = !wallsOn ? "OFF" : !dp.drawn ? `ON:SILENT:${dp.reason}` : dp.walls.length ? `ON:${dp.walls.length}` : "ON:NO_CURRENT_WALL_EVENT";
+            // A switched-on sense that draws nothing SAYS why on the glass, in
+            // the shared silence stack (Sheriff batch, 2026-10-08) — a phone
+            // folds it into the one summary line.
+            if (wallsOn && (!dp.drawn || !dp.walls.length)) sayBrickWallsSilence(!dp.drawn ? `no options walls here — ${String(dp.reason).toLowerCase().replace(/_/g, " ")}` : "no wall event on this camera");
             const dpSpeaks = att.speaks("derivativesPressure");
             const tsD = chart.timeScale();
             let axisWD = 60;
@@ -19475,6 +19506,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ds.derivativesPressure = att.offWord(layerOnRef.current.derivativesPressure === true);
             delete ds.derivativesPressureTint;
             ds.brickWalls = wallsOn ? "ON:WAITING_FOR_EVIDENCE" : "OFF";
+            if (wallsOn) sayBrickWallsSilence("waiting for options open interest");
           }
           delete ds.derivativesPressureFault;
         } catch (err) {
@@ -21787,6 +21819,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // The chips print outside the clips (a chip is placed clear of the
             // candles; it is never cut into pieces by one), at TPO's loudness.
             ctx.save(); ctx.globalAlpha = att.alpha("tpo");
+            // A level off this camera has no row here (Sheriff batch, 2026-10-08:
+            // TPO chips printed at the pane edge for prices off camera). Its
+            // reference stroke was already clipped; its chip is not printed.
+            const tpoChipsAll = tpoChips.length;
+            for (let k = tpoChips.length - 1; k >= 0; k--) if (tpoChips[k].y < HEADER_FLOOR_Y || tpoChips[k].y > pane0Bottom) tpoChips.splice(k, 1);
+            ds.tpoChipsOffCamera = String(tpoChipsAll - tpoChips.length);
             for (const c of tpoChips) levelChip(c.y, c.text, c.ink, { leftX: leftEdge + colMax + 8, minX: leftEdge + colMax + 4 });
             // ⑩ BLOCKS — the organism glyph at the head of the column.
             if (Number.isFinite(tpoTop)) paintOrganismGlyph("TPO", leftEdge + 8, tpoTop - 12, pk.rgba("ANCHOR", 0.95), floatingChips);

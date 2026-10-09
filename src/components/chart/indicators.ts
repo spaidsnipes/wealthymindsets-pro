@@ -335,15 +335,56 @@ export function ichimoku(bars: LegacyOhlcvTuple[]): { tenkan: number[]; kijun: n
   const lowest  = (n: number, i: number) => { let l = Infinity;  for (let j = 0; j < n && i - j >= 0; j++) l = Math.min(l, bars[i - j].low);  return l; };
   const tenkan:  number[] = bars.map((_, i) => (highest(9,  i) + lowest(9,  i)) / 2);
   const kijun:   number[] = bars.map((_, i) => (highest(26, i) + lowest(26, i)) / 2);
-  const senkouA: number[] = bars.map((_, i) => (tenkan[i] + kijun[i]) / 2);
-  const senkouB: number[] = bars.map((_, i) => (highest(52, i) + lowest(52, i)) / 2);
-  const chikou:  number[] = bars.map((b, i) => i >= 26 ? bars[i - 26].close : NaN);
+  // DISPLACEMENT (2026-10-08 indicator audit): the two spans are PLOTTED 26
+  // bars ahead of the bar they are computed on, and the lagging span is the
+  // close plotted 26 bars BACK. The old code drew both spans unshifted and the
+  // lagging span shifted the wrong way (close[i-26] at bar i). With no future
+  // slots on this chart, a span value lands on the bar 26 after its source;
+  // the newest 26 lagging-span slots are honestly empty.
+  const rawA: number[] = bars.map((_, i) => (tenkan[i] + kijun[i]) / 2);
+  const rawB: number[] = bars.map((_, i) => (highest(52, i) + lowest(52, i)) / 2);
+  const senkouA: number[] = bars.map((_, i) => (i >= 26 ? rawA[i - 26] : NaN));
+  const senkouB: number[] = bars.map((_, i) => (i >= 26 ? rawB[i - 26] : NaN));
+  const chikou:  number[] = bars.map((_, i) => (i + 26 < bars.length ? bars[i + 26].close : NaN));
   return { tenkan, kijun, senkouA, senkouB, chikou };
 }
 
-export function pivotPoints(bars: LegacyOhlcvTuple[], type: "standard" | "fibonacci" | "camarilla" | "woodie" | "demark" | "cpr" = "standard"): { pp: number; r1: number; r2: number; r3: number; s1: number; s2: number; s3: number; tc?: number; bc?: number } {
-  if (bars.length < 1) return { pp: 0, r1: 0, r2: 0, r3: 0, s1: 0, s2: 0, s3: 0 };
-  const b = bars[bars.length - 1];
+/**
+ * The PRIOR COMPLETED SESSION's open / high / low / close (2026-10-08 indicator
+ * audit: pivots were computed from the FORMING bar, so every level moved with
+ * each tick). Daily-or-longer bars are whole sessions: the bar before the
+ * newest. Intraday bars group by the ONE session owner (sessionKeyOf); the
+ * prior session is the last key before the newest bar's own. None → null.
+ */
+export function priorSessionOHLC(bars: readonly LegacyOhlcvTuple[], win: SessionWindow | null): { open: number; high: number; low: number; close: number } | null {
+  if (!win || bars.length < 2) return null;
+  if (win.kind === "DAILY_WINDOW") {
+    const p = bars[bars.length - 2];
+    return { open: p.open, high: p.high, low: p.low, close: p.close };
+  }
+  const newestKey = sessionKeyOf(Number(bars[bars.length - 1].time), win);
+  let key: string | null = null;
+  let acc: { open: number; high: number; low: number; close: number } | null = null;
+  for (let i = bars.length - 1; i >= 0; i--) {
+    const b = bars[i];
+    const k = sessionKeyOf(Number(b.time), win);
+    if (k == null || k === newestKey) { if (acc) break; continue; }
+    if (key == null) key = k;
+    if (k !== key) break;
+    acc = acc ? { open: b.open, high: Math.max(acc.high, b.high), low: Math.min(acc.low, b.low), close: acc.close } : { open: b.open, high: b.high, low: b.low, close: b.close };
+  }
+  return acc;
+}
+
+export function pivotPoints(bars: LegacyOhlcvTuple[], type: "standard" | "fibonacci" | "camarilla" | "woodie" | "demark" | "cpr" = "standard", win?: SessionWindow | null): { pp: number; r1: number; r2: number; r3: number; s1: number; s2: number; s3: number; tc?: number; bc?: number } {
+  const NONE = { pp: NaN, r1: NaN, r2: NaN, r3: NaN, s1: NaN, s2: NaN, s3: NaN };
+  // No bars: a caller that named no session keeps the legacy zeros; one that
+  // did gets no levels at all.
+  if (bars.length < 1) return win === undefined ? { pp: 0, r1: 0, r2: 0, r3: 0, s1: 0, s2: 0, s3: 0 } : NONE;
+  // With a session window: the prior completed session, or nothing at all.
+  const prior = win !== undefined ? priorSessionOHLC(bars, win) : null;
+  if (win !== undefined && !prior) return NONE;
+  const b = prior ?? bars[bars.length - 1];
   const H = b.high, L = b.low, C = b.close, O = b.open;
   const HL = H - L;
 
@@ -916,7 +957,7 @@ export function vwap(bars: LegacyOhlcvTuple[]): number[] {
  * `vwap()` above accumulates from whatever bar the feed happened to load
  * first, so on a week of 15m bars it is a five-day anchored VWAP that no menu
  * promised. The menu promises "accumulated from the session open … it resets
- * at the start of each session" (indicatorDescriptions VWAP). This one resets
+ * at the start of each session" (the VWAP record in indicatorEducation). This one resets
  * on the ONE session owner, `sessionKeyOf(time, sessionWindowFor(...))`, so
  * VWAP, the Session Profile and every other session reader share one clock:
  * RTH / ETH for equities, the Globex (or grains / livestock) day for futures,
