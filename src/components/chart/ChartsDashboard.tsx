@@ -251,6 +251,7 @@ import {
   selectReplayWindow,
   stepReplayCursor,
   type ReplaySnapshot,
+  REPLAY_DOOR_NO_BARS_WORDS, REPLAY_DOOR_WAIT_MS, replayDoorNext, replayStartRequested, type ReplayDoorState,
 } from "@/lib/chart/replayWindow";
 // ARRANGEMENT_EQUIPMENT_ID is the single translation between the compiler's
 // desk names and the rail's door ids — see its note in the registry.
@@ -1481,6 +1482,27 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     setReplaySnapshot(null);
     if (replayRef.current) clearInterval(replayRef.current);
   }, []);
+
+  // THE REPLAY DOOR — `…&replay=start`, read ONCE at mount from the router's
+  // params (the address bar may still show the room being left). It calls the
+  // same `startReplay` as the Workspace control; with no bars to walk inside
+  // the wait it says so and offers the button (see replayWindow.ts).
+  const [replayDoor, setReplayDoor] = useState<ReplayDoorState>(() => (replayStartRequested(`?${mountSearchParams?.toString() ?? ""}`) ? "WAITING" : "NONE"));
+  const replayDoorSinceRef = useRef<number | null>(null);
+  useEffect(() => {
+    try { if (replayDoor === "NONE") delete document.documentElement.dataset.replayDoor; else document.documentElement.dataset.replayDoor = replayDoor; } catch { /* no document */ }
+    if (replayDoor !== "WAITING") return;
+    if (replayDoorSinceRef.current === null) replayDoorSinceRef.current = Date.now();
+    const step = () => {
+      const next = replayDoorNext("WAITING", { replayActive, bars: replaySourceRef.current.bars.length, waitedMs: Date.now() - (replayDoorSinceRef.current ?? Date.now()) });
+      if (next.start) startReplay();
+      else if (next.state !== "WAITING") setReplayDoor(next.state);
+    };
+    step();
+    const t = window.setInterval(step, 500);
+    const stopAt = window.setTimeout(step, REPLAY_DOOR_WAIT_MS + 50);
+    return () => { window.clearInterval(t); window.clearTimeout(stopAt); };
+  }, [replayDoor, replayActive, startReplay]);
 
   // A different instrument, timeframe or session is a different chart: the
   // frozen ancestry no longer describes it, so the replay is put down (and
@@ -3971,6 +3993,94 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                     if (t !== "big-trades") setBigTradesOverlay(false);
                   }
                 };
+
+  /*
+    COMPARE — THE DOOR MUST OPEN SOMETHING (sheriff batch 6, serving 2026-10-09).
+    The compare field lived only inside the study row, which is hidden until
+    "Flow & studies" is opened (`studyToolsOpen`, default false). Pressing
+    Chart tools › Compare therefore set `compareOpen` and drew nothing — a dead
+    door at every width, and the only path on a phone. The field is ONE node:
+    inside the study row when that row is open, otherwise in its own small
+    sheet above the chart (and above the Chart tools drawer that stays open).
+  */
+  const compareFieldNode = compareOpen ? (
+                  <div className="flex items-center gap-1" style={{ position:"relative" }}>
+                    <div style={{ position:"relative" }}>
+                      <input
+                        autoFocus
+                        value={compareInput}
+                        onChange={e => setCompareInput(e.target.value.toUpperCase())}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") {
+                            const pick = compareResults[0]?.sym ?? compareInput.trim().toUpperCase();
+                            if (pick) { setCompareSymbol(pick); setCompareInput(pick); setCompareResults([]); setCompareOpen(false); }
+                          }
+                          if (e.key === "Escape") { setCompareOpen(false); setCompareResults([]); }
+                        }}
+                        placeholder="Search symbol…"
+                        className="h-6 rounded text-[12px] border focus:outline-none px-2"
+                        style={{ width: 160, background:"#131520", borderColor:"#FF8C00", color:"#E2E8F0" }}
+                      />
+                      {compareResults.length > 0 && (
+                        <div role="listbox" aria-label="Compare search results" style={{
+                          position:"absolute", top:"100%", left:0, zIndex:9999,
+                          background:"#0D0E14", border:"1px solid #FF8C00", borderRadius:6,
+                          minWidth:240, maxHeight:220, overflowY:"auto",
+                          boxShadow:"0 8px 24px rgba(0,0,0,0.6)", marginTop:2,
+                        }}>
+                          {compareResults.map(r => (
+                            <div
+                              key={r.sym}
+                              onClick={() => { setCompareSymbol(r.sym); setCompareInput(r.sym); setCompareResults([]); setCompareOpen(false); }}
+                              role="option"
+                              aria-selected={false}
+                              tabIndex={0}
+                              onKeyDown={keyActivates}
+                              style={{
+                                padding:"6px 10px", cursor:"pointer",
+                                display:"flex", justifyContent:"space-between", alignItems:"center",
+                                borderBottom:"1px solid #1E2030",
+                              }}
+                              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = "rgba(255,140,0,0.1)"}
+                              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}
+                            >
+                              <span style={{ fontSize:11, fontWeight:700, color:"#FF8C00" }}>{r.sym}</span>
+                              <span style={{ fontSize:10, color:"#8B8FA8", marginLeft:8, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:140 }}>{r.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {compareResults.length === 0 && !compareSearching && compareInput.trim() !== "" && compareSettledQ === compareInput.trim().toUpperCase() && (
+                        <div role="status" style={{
+                          position:"absolute", top:"100%", left:0, zIndex:9999, marginTop:2,
+                          background:"#0D0E14", border:"1px solid #1E2030", borderRadius:6,
+                          padding:"6px 10px", fontSize:11, color:"#8B8FA8", whiteSpace:"nowrap",
+                        }}>
+                          No market matches “{compareInput.trim()}”.
+                        </div>
+                      )}
+                    </div>
+                    {compareSymbol && (
+                      <button onClick={() => { setCompareSymbol(""); setCompareInput(""); setCompareResults([]); setCompareOpen(false); }}
+                        style={{ fontSize:10, color:"#FF4D67", background:"none", border:"none", cursor:"pointer" }}>✕ Clear</button>
+                    )}
+                  </div>
+  ) : null;
+  const compareSheetNode = compareOpen && !studyToolsOpen ? (
+    <div role="dialog" aria-label="Compare with another market" data-testid="compare-sheet" data-touch-floor=""
+      style={{ position: "fixed", top: 96, left: "50%", transform: "translateX(-50%)", zIndex: 10000, width: "min(360px, calc(100vw - 16px))",
+        background: "#0D0E14", border: "1px solid #FF8C00", borderRadius: 10, padding: "10px 12px", boxShadow: "0 12px 40px rgba(0,0,0,0.75)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0" }}>Compare with another market</span>
+        <button type="button" aria-label="Close compare" onClick={() => { setCompareOpen(false); setCompareResults([]); }}
+          style={{ background: "none", border: "none", color: "#8B8FA8", cursor: "pointer", fontSize: 14 }}>✕</button>
+      </div>
+      {compareFieldNode}
+      <div style={{ fontSize: 11, color: "#8B8FA8", marginTop: 8 }}>
+        {compareSymbol ? `Comparing with ${compareSymbol}.` : "Type a symbol and press Enter, or pick a result. The second market is drawn on this chart."}
+      </div>
+    </div>
+  ) : null;
 
   /*
     TOOLS › ORDER FLOW — the order-flow CHART TOOLS, behind their own door.
@@ -6666,71 +6776,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 </optgroup>
               </select>
 
-              <AnimatePresence>
-                {compareOpen && (
-                  <div className="flex items-center gap-1" style={{ position:"relative" }}>
-                    <div style={{ position:"relative" }}>
-                      <input
-                        autoFocus
-                        value={compareInput}
-                        onChange={e => setCompareInput(e.target.value.toUpperCase())}
-                        onKeyDown={e => {
-                          if (e.key === "Enter") {
-                            const pick = compareResults[0]?.sym ?? compareInput.trim().toUpperCase();
-                            if (pick) { setCompareSymbol(pick); setCompareInput(pick); setCompareResults([]); setCompareOpen(false); }
-                          }
-                          if (e.key === "Escape") { setCompareOpen(false); setCompareResults([]); }
-                        }}
-                        placeholder="Search symbol…"
-                        className="h-6 rounded text-[12px] border focus:outline-none px-2"
-                        style={{ width: 160, background:"#131520", borderColor:"#FF8C00", color:"#E2E8F0" }}
-                      />
-                      {compareResults.length > 0 && (
-                        <div role="listbox" aria-label="Compare search results" style={{
-                          position:"absolute", top:"100%", left:0, zIndex:9999,
-                          background:"#0D0E14", border:"1px solid #FF8C00", borderRadius:6,
-                          minWidth:240, maxHeight:220, overflowY:"auto",
-                          boxShadow:"0 8px 24px rgba(0,0,0,0.6)", marginTop:2,
-                        }}>
-                          {compareResults.map(r => (
-                            <div
-                              key={r.sym}
-                              onClick={() => { setCompareSymbol(r.sym); setCompareInput(r.sym); setCompareResults([]); setCompareOpen(false); }}
-                              role="option"
-                              aria-selected={false}
-                              tabIndex={0}
-                              onKeyDown={keyActivates}
-                              style={{
-                                padding:"6px 10px", cursor:"pointer",
-                                display:"flex", justifyContent:"space-between", alignItems:"center",
-                                borderBottom:"1px solid #1E2030",
-                              }}
-                              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = "rgba(255,140,0,0.1)"}
-                              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}
-                            >
-                              <span style={{ fontSize:11, fontWeight:700, color:"#FF8C00" }}>{r.sym}</span>
-                              <span style={{ fontSize:10, color:"#8B8FA8", marginLeft:8, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:140 }}>{r.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {compareResults.length === 0 && !compareSearching && compareInput.trim() !== "" && compareSettledQ === compareInput.trim().toUpperCase() && (
-                        <div role="status" style={{
-                          position:"absolute", top:"100%", left:0, zIndex:9999, marginTop:2,
-                          background:"#0D0E14", border:"1px solid #1E2030", borderRadius:6,
-                          padding:"6px 10px", fontSize:11, color:"#8B8FA8", whiteSpace:"nowrap",
-                        }}>
-                          No market matches “{compareInput.trim()}”.
-                        </div>
-                      )}
-                    </div>
-                    {compareSymbol && (
-                      <button onClick={() => { setCompareSymbol(""); setCompareInput(""); setCompareResults([]); setCompareOpen(false); }}
-                        style={{ fontSize:10, color:"#FF4D67", background:"none", border:"none", cursor:"pointer" }}>✕ Clear</button>
-                    )}
-                  </div>
-                )}
-              </AnimatePresence>
+              {/* The compare field (one node, `compareFieldNode`): here when the study row is open. */}
+              {studyToolsOpen ? compareFieldNode : null}
 
               <button
                 onClick={() => setPaperTradesOn(o => !o)}
@@ -7422,6 +7469,18 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                         {`Inspect next fair value gap (${fvgGapsOnGlass.length} on the chart)`}
                       </button>
                     ) : null}
+                    {/* The Replay door could not start (no bars inside the wait): say so, offer the button. */}
+                    {replayDoor === "NO_BARS" && !replayActive ? (
+                      <div role="status" data-testid="replay-door-refusal" className="absolute left-2 top-10 z-[76] rounded-lg px-3 py-2 text-[12px]"
+                        style={{ background: "rgba(18,19,24,0.97)", border: "1px solid rgba(212,175,55,0.38)", color: "#E8EAF2", maxWidth: "min(320px, calc(100% - 16px))" }}>
+                        {REPLAY_DOOR_NO_BARS_WORDS}
+                        <button type="button" data-testid="replay-door-start" onClick={() => { startReplay(); setReplayDoor("NONE"); }}
+                          className="mt-1 inline-flex h-11 items-center rounded-md px-3 text-[11px] font-bold uppercase tracking-[0.12em] focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+                          style={{ display: "flex", color: "#d4af37", background: "none", border: "1px solid rgba(212,175,55,0.5)", cursor: "pointer" }}>
+                          Start Replay
+                        </button>
+                      </div>
+                    ) : null}
                     {/* Garden 19 §10 · on a phone the first-touch line rides in Inspect's header. */}
                     <InspectFirstTouchContext.Provider value={firstTouchId ? { id: firstTouchId, label: firstTouchLabel, objectId: firstTouchId === "MARKET_STRUCTURE" ? selectedMarketObjectId : null } : null}>
                     {activeTab === "Chart" && !gridView && chartBars.length >= 2 && (
@@ -7708,6 +7767,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       </AnimatePresence>
 
       {/* Alerts Panel */}
+      {compareSheetNode}
       <AlertsPanel
         open={alertsOpen}
         onClose={() => setAlertsOpen(false)}

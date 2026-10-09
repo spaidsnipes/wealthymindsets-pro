@@ -161,3 +161,34 @@ export function foldLiveBar(
   }
   return [...bars, bar];
 }
+
+/* ── THE REPLAY DOOR: `/charts?…&replay=start` (2026-10-09) ─────────────────
+ * An address that starts Replay on landing, so a lesson's "Practice in Replay"
+ * does what it says. It is a DOOR, not a second way to replay: the room reads
+ * it ONCE at mount and calls the same `startReplay` the Workspace control
+ * calls — the same frozen snapshot, the same as-of-time cursor, the same
+ * "no live clock" words. If the chart has no bars to walk within the wait, the
+ * room does not pretend: it says so and offers the button.
+ */
+export const REPLAY_START_PARAM = "replay";
+export const REPLAY_START_VALUE = "start";
+/** How long the door waits for bars before it says it could not start. */
+export const REPLAY_DOOR_WAIT_MS = 8000;
+export const REPLAY_DOOR_NO_BARS_WORDS = "Replay could not start — this chart has no bars to walk yet.";
+export type ReplayDoorState = "NONE" | "WAITING" | "STARTED" | "NO_BARS";
+
+/** Whether the address asks for Replay on landing. Any other value (or none) is not a request. */
+export function replayStartRequested(search: string): boolean {
+  let q: URLSearchParams;
+  try { q = new URLSearchParams(search); } catch { return false; }
+  return (q.get(REPLAY_START_PARAM) ?? "").trim().toLowerCase() === REPLAY_START_VALUE;
+}
+
+/** The door's next state: it starts once bars exist, gives up honestly after the wait, and never restarts. */
+export function replayDoorNext(state: ReplayDoorState, facts: { readonly replayActive: boolean; readonly bars: number; readonly waitedMs: number }): { readonly state: ReplayDoorState; readonly start: boolean } {
+  if (state !== "WAITING") return { state, start: false };
+  if (facts.replayActive) return { state: "STARTED", start: false };
+  if (facts.bars >= REPLAY_MIN_BARS) return { state: "WAITING", start: true };
+  if (facts.waitedMs >= REPLAY_DOOR_WAIT_MS) return { state: "NO_BARS", start: false };
+  return { state: "WAITING", start: false };
+}

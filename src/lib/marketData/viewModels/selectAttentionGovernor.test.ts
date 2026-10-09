@@ -473,3 +473,38 @@ describe("P2-E — layers that ask BEFORE the lens speaks (serving b290eef, 2026
     expect(selectAttentionGovernor(input({ density: d, loadQuietHint: 1 })).alpha("sessionBands")).toBe(blind.alpha("sessionBands"));
   });
 });
+
+describe("early LIVE layers are quieted by the question (serving 559884e, 2026-10-09)", () => {
+  const d = selectSemanticDensity("MID");
+  it("while the question stands, a layer that asks early reads the same as one that asks after the lens", () => {
+    // Frame N+1: the room hands in frame N's quiet before any layer asks.
+    const early = selectAttentionGovernor(input({ density: d, questionQuiet: 0.35, loadQuietHint: 0.35 }));
+    const late = early.withQuestionQuiet(0.35);
+    const blind = selectAttentionGovernor(input({ density: d }));
+    for (const k of ["volumeProfile", "flowCurrent"] as const) {
+      expect(early.alpha(k)).toBeLessThan(blind.alpha(k));
+      expect(early.alpha(k)).toBeCloseTo(selectAttentionGovernor(input({ density: d, questionQuiet: 0.35 })).alpha(k), 9);
+    }
+    expect(late.alpha("valueCandle")).toBeLessThan(blind.alpha("valueCandle"));
+  });
+  it("the answer layer and a PRIMARY role are not quieted by the question", () => {
+    const blind = selectAttentionGovernor(input({ density: d }));
+    const g = selectAttentionGovernor(input({ density: d, questionQuiet: 0.35, loadQuietHint: 0.35, quietExempt: ["absorption"], roles: { flowCurrent: "PRIMARY" } }));
+    expect(g.alpha("absorption")).toBe(blind.alpha("absorption"));
+    expect(g.alpha("flowCurrent")).toBeGreaterThanOrEqual(0.92);
+    expect(g.alpha("volumeProfile")).toBeLessThan(blind.alpha("volumeProfile"));
+    // The exemption survives the lens speaking later in the frame.
+    expect(g.withQuestionQuiet(0.35).alpha("exhaustion")).toBeLessThan(blind.alpha("exhaustion"));
+  });
+  it("both edges: the first frame of a question is unquieted early (one-frame lag); the frame after it ends is clear", () => {
+    const blind = selectAttentionGovernor(input({ density: d }));
+    // Edge in: last frame had no question → hint and quiet are 1.
+    const first = selectAttentionGovernor(input({ density: d, questionQuiet: 1, loadQuietHint: 1 }));
+    expect(first.alpha("volumeProfile")).toBe(blind.alpha("volumeProfile"));
+    // Edge out: the question ended last frame → the room stored 1 → nothing lingers.
+    const after = selectAttentionGovernor(input({ density: d, questionQuiet: 1, loadQuietHint: 1, quietExempt: [] }));
+    expect(after.alpha("volumeProfile")).toBe(blind.alpha("volumeProfile"));
+    expect(after.alpha("sessionBands")).toBe(blind.alpha("sessionBands"));
+    expect(after.receipt).toContain("Q:1");
+  });
+});

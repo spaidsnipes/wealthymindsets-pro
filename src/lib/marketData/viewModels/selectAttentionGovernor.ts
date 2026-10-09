@@ -241,6 +241,15 @@ export interface AttentionGovernorInput {
    * this hint; a layer's own alpha is still quieted only by the lens itself.
    */
   readonly loadQuietHint?: number;
+  /**
+   * Layers the question is ABOUT (its answer): never quieted by it. Early in
+   * the frame the room hands in last frame's quiet as `questionQuiet`, so the
+   * LIVE layers that ask before the lens speaks (volume profile, flow current)
+   * are quieted the same as the late ones (serving 559884e, 2026-10-09: both
+   * read LIVE:1 under a 0.35 question). The answer must not be dimmed by its
+   * own question, so the room names it here. PRIMARY is exempt by its floor.
+   */
+  readonly quietExempt?: readonly AttentionLayerKey[];
   /** The plot is narrower than NARROW_GLASS_MAX_PX (a phone): the narrow-glass word budget applies. */
   readonly narrowGlass?: boolean;
   /**
@@ -398,7 +407,8 @@ export function selectAttentionGovernor(
       const postureDim = input.posture === "QUIET" && (tier === "SUPPORTING" || tier === "MEMORY") ? POSTURE_QUIET : 1;
       // A QUIET layer (H-501 permission) is never louder than QUIET_CEILING.
       const quietCap = permission.of(key, opts) === "QUIET" ? QUIET_CEILING : 1;
-      a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[spec.tier], quietCap, depth * quiet * light * lane) * recede * staleDim * postureDim);
+      const layerQuiet = input.quietExempt?.includes(key) ? 1 : quiet;
+      a = Math.max(ATTENTION_FLOOR, Math.min(TIER_CEILING[spec.tier], quietCap, depth * layerQuiet * light * lane) * recede * staleDim * postureDim);
       // The trader's role (§XXXVII): PRIMARY reads at a floor of 0.92 even at a
       // dimming depth; AMBIENT and LATENT recede; never below the floor.
       const role = input.roles?.[key];

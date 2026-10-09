@@ -21,6 +21,7 @@ import {
   type WebullSigningProfile,
 } from "@/lib/marketData/webullSigningCanary";
 import { selectFirstBrokenJoint, type JointVerdict } from "@/lib/broker/selectFirstBrokenJoint";
+import { capabilityLadderWords } from "@/lib/broker/capabilityLadderWords";
 import { providerReportToStageEvidence } from "@/lib/broker/providerReportToStageEvidence";
 import type { ProviderReport } from "@/app/api/broker/status/route";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
@@ -528,7 +529,7 @@ function ApiConnectModal({ broker, onClose }: { broker: Broker; onClose: () => v
   );
 }
 
-interface ManagedConnectionReceipt {
+export interface ManagedConnectionReceipt {
   provider: string;
   authMode?: "SIGNED_OPENAPI";
   configured: boolean;
@@ -725,7 +726,7 @@ function WebullSigningCanary({ onObservation }: { onObservation?: (observation: 
  * is permitted to mean "this broker works" — the Provider Health Law is
  * explicit that provider health must be capability-matrix based.
  */
-function CapabilityLadderStatus({ broker }: { broker: Broker }) {
+function CapabilityLadderStatus({ broker, operator }: { broker: Broker; operator: boolean }) {
   const [state, setState] = useState<
     | { kind: "loading" }
     | { kind: "unreadable"; reason: string }
@@ -810,9 +811,19 @@ function CapabilityLadderStatus({ broker }: { broker: Broker }) {
     );
   }
 
-  const { verdict } = state;
-  const proven = verdict.verdictClass === "PROVEN_THROUGH";
-  const broken = verdict.verdictClass === "BROKEN_JOINT";
+  return <CapabilityLadderView verdict={state.verdict} operator={operator} />;
+}
+
+/**
+ * The ladder's verdict (2026-10-09). FIRST GLASS: trader words from the one
+ * words owner — no stage code, no env-var name. The codes, the engineering
+ * headline and the twelve rungs are the operator's, behind a collapsed,
+ * owner-only "Operator details" disclosure. Presentational: no fetch.
+ */
+export function CapabilityLadderView({ verdict, operator }: { verdict: JointVerdict; operator: boolean }) {
+  const words = capabilityLadderWords(verdict);
+  const proven = words.tone === "PROVEN";
+  const broken = words.tone === "BROKEN";
   // Three states, three colours. A break is red because it is a FACT; a gap
   // is neutral because it is an absence of measurement, and painting it red
   // would manufacture a defect out of a blank.
@@ -822,53 +833,124 @@ function CapabilityLadderStatus({ broker }: { broker: Broker }) {
     <div className="space-y-2">
       <div
         role="status"
+        data-testid="capability-ladder-words"
         className="rounded-xl border px-3 py-2.5"
         style={{ borderColor: `${accent}59`, background: `${accent}0F` }}
       >
         <div className="flex items-center gap-2 text-[11px] font-black" style={{ color: accent }}>
           {proven ? <Check size={12} /> : <AlertCircle size={12} />}
-          {verdict.headline}
+          {words.headline}
         </div>
         <p className="mt-1 text-[9px] leading-relaxed text-wm-text-dim">
-          {verdict.nextDiscriminatingAction}
+          {words.detail}
         </p>
       </div>
 
-      <ul className="space-y-0.5">
-        {verdict.stages.map((s) => {
-          const tone =
-            s.state === "PASS"
-              ? "#00C076"
-              : s.state === "FAIL"
-                ? "#FF4D4D"
-                : s.state === "NOT_APPLICABLE"
-                  ? "#6b7280"
-                  : "#9ca3af";
-          return (
-            <li
-              key={s.stage}
-              className="flex items-start gap-2 rounded-md px-2 py-1 text-[9px] leading-relaxed"
-              style={{ background: "rgba(255,255,255,0.02)" }}
-              title={s.question}
-            >
-              <span className="mt-[2px] inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone }} />
-              <span className="w-[128px] shrink-0 font-black tracking-tight text-wm-text-muted">{s.stage}</span>
-              <span className="shrink-0 font-bold" style={{ color: tone }}>{s.state}</span>
-              {s.note ? <span className="text-wm-text-dim">— {s.note}</span> : null}
-            </li>
-          );
-        })}
-      </ul>
+      {operator ? (
+        <details data-testid="operator-details" className="rounded-xl border border-wm-border bg-wm-surface/40 px-3 py-2">
+          <summary className="wm-tap-slop cursor-pointer text-[10px] font-bold text-wm-text-muted">Operator details</summary>
+          <div className="mt-2 text-[10px] font-black text-wm-text">{verdict.headline}</div>
+          <p className="mt-1 text-[9px] leading-relaxed text-wm-text-dim">
+            {verdict.nextDiscriminatingAction}
+          </p>
+          <ul className="mt-2 space-y-0.5">
+            {verdict.stages.map((s) => {
+              const tone =
+                s.state === "PASS"
+                  ? "#00C076"
+                  : s.state === "FAIL"
+                    ? "#FF4D4D"
+                    : s.state === "NOT_APPLICABLE"
+                      ? "#6b7280"
+                      : "#9ca3af";
+              return (
+                <li
+                  key={s.stage}
+                  className="flex items-start gap-2 rounded-md px-2 py-1 text-[9px] leading-relaxed"
+                  style={{ background: "rgba(255,255,255,0.02)" }}
+                  title={s.question}
+                >
+                  <span className="mt-[2px] inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone }} />
+                  <span className="w-[128px] shrink-0 font-black tracking-tight text-wm-text-muted">{s.stage}</span>
+                  <span className="shrink-0 font-bold" style={{ color: tone }}>{s.state}</span>
+                  {s.note ? <span className="text-wm-text-dim">— {s.note}</span> : null}
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * OPERATOR DETAILS (2026-10-09) — the runtime receipt, the Connect OAuth
+ * client names and the missing host secrets: env-var NAMES and setup words that
+ * belong to the operator. Rendered only for the broker OWNER, collapsed, and
+ * never on the first glass. Presentational: no fetch. Names only, never values.
+ */
+export function ManagedOperatorDetails({ receipt, connected, operator }: { receipt: ManagedConnectionReceipt; connected: boolean; operator: boolean }) {
+  if (!operator) return null;
+  const any = Boolean(receipt.credentialPresence) || Boolean(receipt.connectOAuth) || (!connected && (receipt.missing?.length ?? 0) > 0);
+  if (!any) return null;
+  return (
+    <details data-testid="operator-details" className="mt-2 rounded-lg border border-wm-border bg-wm-surface/40 px-2 py-1.5">
+      <summary className="wm-tap-slop cursor-pointer text-[10px] font-bold text-wm-text-muted">Operator details</summary>
+      {receipt.credentialPresence && (
+        <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
+          Runtime receipt · key {receipt.credentialPresence.appKey ? "present" : "absent"} · secret {receipt.credentialPresence.appSecret ? "present" : "absent"} · access token {receipt.credentialPresence.accessToken ? "present" : "not set"}
+        </p>
+      )}
+      {receipt.connectOAuth && (
+        <div className="mt-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "rgba(139, 146, 172, 0.35)", background: "rgba(139, 146, 172, 0.06)" }}>
+          <div className="text-[9px] font-black uppercase tracking-wider text-wm-text-muted">
+            Connect OAuth · {receipt.connectOAuth.state === "NOT_CONFIGURED" ? "not configured" : "callback not implemented"}
+          </div>
+          <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">{receipt.connectOAuth.note}</p>
+          {receipt.connectOAuth.missing.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {receipt.connectOAuth.missing.map(name => (
+                <code key={name} className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "#0b0b0d", border: "1px solid #333", color: "#aeb6d3" }}>{name}</code>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {/* Monday Test 2 — name the exact host secret(s) the Founder
+          must set to advance the wire. Same code-chip pattern as
+          /api/fmp NOT CONFIGURED. Anti-fabrication: only names,
+          never values. */}
+      {!connected && receipt.missing && receipt.missing.length > 0 && (
+        <div className="mt-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "rgba(244, 200, 107, 0.35)", background: "rgba(244, 200, 107, 0.06)" }}>
+          <div className="text-[9px] font-black uppercase tracking-wider" style={{ color: "#f4c86b" }}>
+            Missing host secret{receipt.missing.length === 1 ? "" : "s"}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {receipt.missing.map(m => (
+              <code key={m} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "#0b0b0d", border: "1px solid #333", color: "#f4c86b" }}>
+                {m}
+              </code>
+            ))}
+          </div>
+          <div className="mt-1.5 text-[9px] leading-snug text-wm-text-dim">
+            Set the above in Cloudflare Worker environment variables and press <em>Check wire</em>.
+          </div>
+        </div>
+      )}
+    </details>
   );
 }
 
 function ManagedConnectionStatus({
   broker,
   onObservation,
+  operator,
 }: {
   broker: Broker;
   onObservation?: (observation: SourcedObservation | null) => void;
+  /** The broker OWNER is reading (the server said so): the Operator details disclosure may render. */
+  operator: boolean;
 }) {
   const managed = broker.managedConnection!;
   const [loading, setLoading] = useState(true);
@@ -967,11 +1049,6 @@ function ManagedConnectionStatus({
               </div>
             )}
             <p className="mt-1 text-[10px] leading-relaxed text-wm-text-muted">{receipt.note}</p>
-            {receipt.credentialPresence && (
-              <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">
-                Runtime receipt · key {receipt.credentialPresence.appKey ? "present" : "absent"} · secret {receipt.credentialPresence.appSecret ? "present" : "absent"} · access token {receipt.credentialPresence.accessToken ? "present" : "not set"}
-              </p>
-            )}
             {/*
               CORRECTED 2026-09-20. This block used to say: "create the
               reusable token, approve it in the Webull app, store it
@@ -1062,48 +1139,19 @@ function ManagedConnectionStatus({
                 </p>
               </div>
             )}
-            {receipt.connectOAuth && (
-              <div className="mt-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "rgba(139, 146, 172, 0.35)", background: "rgba(139, 146, 172, 0.06)" }}>
-                <div className="text-[9px] font-black uppercase tracking-wider text-wm-text-muted">
-                  Connect OAuth · {receipt.connectOAuth.state === "NOT_CONFIGURED" ? "not configured" : "callback not implemented"}
-                </div>
-                <p className="mt-1 text-[9px] leading-snug text-wm-text-dim">{receipt.connectOAuth.note}</p>
-                {receipt.connectOAuth.missing.length > 0 && (
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {receipt.connectOAuth.missing.map(name => (
-                      <code key={name} className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "#0b0b0d", border: "1px solid #333", color: "#aeb6d3" }}>{name}</code>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
             {connected && (
               <p className="mt-1 text-[10px] text-wm-text-dim">
                 {receipt.accountCount} account{receipt.accountCount === 1 ? "" : "s"}
                 {receipt.accountTypes.length ? ` · ${receipt.accountTypes.join(" · ")}` : ""}
               </p>
             )}
-            {/* Monday Test 2 — name the exact host secret(s) the Founder
-                must set to advance the wire. Same code-chip pattern as
-                /api/fmp NOT CONFIGURED. Anti-fabrication: only names,
-                never values. */}
+            {/* 2026-10-09 — FIRST GLASS says it in trader words; the names live below. */}
             {!connected && receipt.missing && receipt.missing.length > 0 && (
-              <div className="mt-2 rounded-lg border px-2 py-1.5" style={{ borderColor: "rgba(244, 200, 107, 0.35)", background: "rgba(244, 200, 107, 0.06)" }}>
-                <div className="text-[9px] font-black uppercase tracking-wider" style={{ color: "#f4c86b" }}>
-                  Missing host secret{receipt.missing.length === 1 ? "" : "s"}
-                </div>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {receipt.missing.map(m => (
-                    <code key={m} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "#0b0b0d", border: "1px solid #333", color: "#f4c86b" }}>
-                      {m}
-                    </code>
-                  ))}
-                </div>
-                <div className="mt-1.5 text-[9px] leading-snug text-wm-text-dim">
-                  Set the above in Cloudflare Worker environment variables and press <em>Check wire</em>.
-                </div>
-              </div>
+              <p data-testid="managed-setup-incomplete" className="mt-1 text-[10px] leading-relaxed text-wm-text-muted">
+                A setup step on WM Pro&apos;s server is not complete, so this connection cannot be checked yet.{operator ? " The exact items are under Operator details." : ""}
+              </p>
             )}
+            <ManagedOperatorDetails receipt={receipt} connected={connected} operator={operator} />
           </>
         )}
         {!loading && error && <p className="mt-1 text-[10px] text-wm-red">{error}</p>}
@@ -1214,7 +1262,7 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
         {/* API-enabled brokers can be verified, but are not called connected until
             their provider has a real OAuth callback and token vault configured. */}
         {broker.managedConnection && ownerView ? (
-          <ManagedConnectionStatus broker={broker} onObservation={onObservation} />
+          <ManagedConnectionStatus broker={broker} onObservation={onObservation} operator={ownerView} />
         ) : broker.apiSupport && !ownersWire ? (
           <div className="space-y-2">
             <button
@@ -1247,7 +1295,7 @@ function BrokerCard({ broker, selected, onToggle, onObservation }: {
               to work. It is labelled as such so it can no longer be read as
               a claim about the current state.
             */}
-            <CapabilityLadderStatus broker={broker} />
+            <CapabilityLadderStatus broker={broker} operator={ownerView} />
             <div className="rounded-xl border border-wm-border bg-wm-surface/60 px-3 py-2.5">
               <div className="text-[11px] font-black" style={{ color: broker.color }}>{broker.runtimeConnection.label}</div>
               <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-wm-text-dim">How this wire is meant to work — not a measurement</p>

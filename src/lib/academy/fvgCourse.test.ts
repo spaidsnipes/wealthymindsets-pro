@@ -195,7 +195,7 @@ describe("§56 — Practice in Replay (as-of-time through the FVG camera)", () =
       expect(fvgReplayPractice(l, false), l.id).toBeNull();
       const r = fvgReplayPractice(l, true);
       if (FVG_REPLAY_LESSONS.includes(l.n)) {
-        expect(r?.href, l.id).toBe(fvgChartLink(l, true).href);
+        expect(r?.href, l.id).toBe(`${fvgChartLink(l, true).href}&replay=start`);
         expect(r?.steps).toMatch(/only what was knowable at the replay cursor/);
       } else expect(r, l.id).toBeNull();
     }
@@ -207,19 +207,22 @@ describe("§56 — Practice in Replay (as-of-time through the FVG camera)", () =
   });
 });
 
-describe("Replay practice says what it does — no invented Replay door", () => {
-  it("the chart has no URL-driven Replay entry, so the link only opens the chart and says so", () => {
-    const scene = readFileSync("src/lib/chart/proofScene.ts", "utf8");
-    // If the chart lane adds a replay token, this fails on purpose: point the link at it.
-    expect(scene).not.toMatch(/\breplay\b/i);
+describe("Replay practice says what it does — the link uses the chart's own Replay door", () => {
+  it("the chart has a Replay door (replay=start), so the link starts Replay and says so", () => {
+    // The door lives with the Replay owner, and the room reads it once at mount through the same startReplay.
+    const owner = readFileSync("src/lib/chart/replayWindow.ts", "utf8");
+    expect(owner).toMatch(/export function replayStartRequested/);
+    const dash = readFileSync("src/components/chart/ChartsDashboard.tsx", "utf8");
+    expect(dash).toMatch(/replayStartRequested\(`\?\$\{mountSearchParams\?\.toString\(\) \?\? ""\}`\)/);
+    expect(dash).toMatch(/if \(next\.start\) startReplay\(\);/);
     const r = fvgReplayPractice(FVG_LESSONS[5], true)!;
     expect(r.label).toBe(FVG_REPLAY_LINK_LABEL);
-    expect(r.label).toMatch(/then press Replay/);
-    expect(r.steps).toMatch(/does not start Replay by itself/);
+    expect(r.label).toBe("Practice in Replay");
+    expect(r.href).toBe(`${fvgChartLink(FVG_LESSONS[5], true).href}&replay=start`);
+    expect(r.steps).toMatch(/starts Replay on the loaded bars/);
+    expect(r.steps).toMatch(/If the chart has no bars yet it says so/);
     expect(r.steps).toMatch(/Workspace → Replay/);
-    expect(r.href).toBe(fvgChartLink(FVG_LESSONS[5], true).href);
     const ui = readFileSync("src/components/education/FvgLessonBody.tsx", "utf8");
-    expect(ui).not.toMatch(/Practice in Replay/);
     expect(ui).toContain("{replay.label}");
   });
   it("Replay is reached from the chart's Workspace control", () => {

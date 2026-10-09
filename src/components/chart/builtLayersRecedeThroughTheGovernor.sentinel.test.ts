@@ -277,3 +277,30 @@ describe("P3-J wisdom fold (Sheriff, 2026-10-08)", () => {
     expect(CHART).toContain("canvas.dataset.crossCandleWisdomTier = wisdomTierNow;");
   });
 });
+
+describe("all-on collisions read on serving (NQ1! 5m, 2026-10-09)", () => {
+  it("a crowded note anchor steps off the anchors already seated, bounded", () => {
+    expect(CHART).toContain("const anchorRects: { x: number; y: number; w: number; h: number }[] = [];");
+    expect(CHART).toContain("for (let g = 0; g < 12 && onAnchor(r); g++) {");
+    expect(CHART).toContain("anchorRects.push({ ...r });");
+  });
+  it("the teaching card docks clear of the silence band, and the reserve is released after the dock", () => {
+    const a = CHART.indexOf("floatingChips.push(silenceBandReserve);");
+    const dock = CHART.indexOf("bounds, candles: candleRects, blockers: floatingChips,", a);
+    const rel = CHART.indexOf("const iR = floatingChips.indexOf(silenceBandReserve); if (iR >= 0) floatingChips.splice(iR, 1);", a);
+    expect(a).toBeGreaterThan(0);
+    expect(dock).toBeGreaterThan(a);
+    expect(rel).toBeGreaterThan(dock);
+    expect(CHART).toContain("ds.scaffoldingSilenceBand = `RESERVED:");
+  });
+});
+
+describe("early LIVE layers open the frame on last frame's quiet (serving 559884e, 2026-10-09)", () => {
+  it("the frame's governor starts from the lens's last quiet, with the answer layer exempt, and both are re-stated each frame", () => {
+    expect(CHART).toContain("questionQuiet: lensQuietLastRef.current,");
+    expect(CHART).toContain("quietExempt: lensAnswerLastRef.current,");
+    const i = CHART.indexOf("lensQuietLastRef.current = questionQuiet;");
+    expect(CHART.slice(i, i + 400)).toContain("lensAnswerLastRef.current = questionQuiet < 1");
+    expect(CHART.slice(i, i + 600)).toContain("att = att.withQuestionQuiet(questionQuiet);");
+  });
+});

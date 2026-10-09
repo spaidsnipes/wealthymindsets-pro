@@ -12,6 +12,8 @@ vi.mock("@/lib/requireAuth", () => ({ requireAuth: mocks.requireAuth }));
 
 /** An env-var-shaped NAME, a repo path, or the near-miss words. */
 const INTERNALS = /\b[A-Z][A-Z0-9]{2,}_[A-Z0-9_]{2,}\b|README|services\/|host has|code reads/;
+/** The capability ladder's internal stage codes (2026-10-09): a member body carries none of them either. */
+const LADDER_CODES = /\b(DEPLOYED_SECRET_PRESENT|UI_PROJECTED|HUMAN_PROVEN|AUTHENTICATED|RECONCILABLE|RECOVERABLE)\b/;
 
 const asUser = (sub: string) => mocks.requireAuth.mockResolvedValue({ ok: true, user: { sub } });
 const get = async (mod: Promise<{ GET: (r: Request) => Promise<Response> }>, path: string) => {
@@ -56,6 +58,16 @@ describe("a MEMBER never receives operator internals", () => {
     const r = await get(import("./status/route"), "/api/broker/status");
     const body = JSON.parse(r.text);
     expect(body.providers.every((p: { note: string }) => p.note === "")).toBe(true);
+    expect(r.text).not.toMatch(LADDER_CODES);
+  });
+
+  it("no member body carries the ladder's stage codes (certification, readiness, status)", async () => {
+    asUser("member-9");
+    for (const [m, p] of [[import("./certification/route"), "/api/broker/certification"], [import("./readiness/route"), "/api/broker/readiness"], [import("./status/route"), "/api/broker/status"]] as const) {
+      const r = await get(m, p);
+      expect(r.status, p).toBe(200);
+      expect(r.text, p).not.toMatch(LADDER_CODES);
+    }
   });
 
   it("/api/broker/webull/status — refused outright to a non-owner (403)", async () => {

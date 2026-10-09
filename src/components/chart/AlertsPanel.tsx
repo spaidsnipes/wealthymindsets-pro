@@ -7,6 +7,16 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { wmConfirm } from "@/components/ui/wmConfirm";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 
+/**
+ * WHAT A PRICE ALERT IS TODAY — one sentence, one owner, read by this panel and
+ * by the Notifications drawer so the two cannot disagree. From the code below:
+ * the list is kept in this browser's localStorage, a level is checked only
+ * against the live price of the symbol on the open chart, and a hit shows an
+ * on-screen notice. Nothing is pushed, emailed or sent to another device.
+ */
+export const PRICE_ALERT_TRUTH =
+  "A price alert is saved in this browser only. It fires as an on-screen notice while this chart is open on that symbol — nothing is sent to your phone or email, and it does not fire when the chart is closed.";
+
 export interface PriceAlert {
   id: string;
   symbol: string;
@@ -290,7 +300,10 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
                 <div style={{ padding: 24, textAlign: "center" }}>
                   <BellOff size={24} color="#4A5580" style={{ margin: "0 auto 8px" }} />
                   <div style={{ fontSize: 12, color: "#8896BE" }}>No alerts set</div>
-                  <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4 }}>Create an alert above to get notified</div>
+                  {/* What an alert IS today, said at the control (sheriff batch 6,
+                      2026-10-09): the old line promised a notification that nothing
+                      delivers. */}
+                  <div data-testid="alerts-what-it-is" style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4, lineHeight: 1.45 }}>{PRICE_ALERT_TRUTH}</div>
                 </div>
               ) : alerts.map(alert => {
                 const up = alert.type === "above" || alert.type === "pct-up";
@@ -329,7 +342,7 @@ export function AlertsPanel({ open, onClose, symbol, currentPrice, onAlertsChang
                                    : alert.type === "below" ? `Price crosses below ${alert.price}`
                                    : alert.type === "pct-up" ? `+${alert.pct ?? "?"}% move up`
                                    : `-${alert.pct ?? "?"}% move down`;
-                        if (!(await wmConfirm(`Delete alert for ${alert.symbol}?\n\n${desc}\n\nYou will no longer be notified when this triggers.`))) return;
+                        if (!(await wmConfirm(`Delete alert for ${alert.symbol}?\n\n${desc}\n\nIt will no longer show its on-screen notice.`))) return;
                         removeAlert(alert.id);
                       }}
                       aria-label={`Delete ${alert.symbol} alert (requires confirmation)`}

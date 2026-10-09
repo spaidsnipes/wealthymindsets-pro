@@ -1,5 +1,6 @@
 "use client";
 
+import { PRICE_ALERT_TRUTH } from "@/components/chart/AlertsPanel";
 import toast from "react-hot-toast";
 
 /**
@@ -318,7 +319,7 @@ export function NotificationsPanel({
       titleId="wm-notifications-title"
       descriptionId="wm-notifications-description"
       title="Notifications"
-      description="Nothing creates a notification yet"
+      description="Nothing is delivered here yet"
       closeLabel="Close notifications"
       width={380}
       onClose={onClose}
@@ -333,7 +334,9 @@ export function NotificationsPanel({
           Mark all read
         </button>
       ) : undefined}
-      footer={<p className="text-center text-[10px] text-wm-text-dim">No alert source is connected yet — nothing will appear here until one is.</p>}
+      // Agrees with the Price Alerts panel (one sentence, PRICE_ALERT_TRUTH):
+      // a chart alert is an on-screen notice on that chart — it never arrives here.
+      footer={<p className="text-center text-[10px] text-wm-text-dim">No alert source is connected to this drawer yet. {PRICE_ALERT_TRUTH}</p>}
     >
       <div className="h-full">
         {notifs.length === 0 && (

@@ -21,6 +21,7 @@
  *
  * PURE: no React, no storage, no clock.
  */
+import { REPLAY_START_PARAM, REPLAY_START_VALUE } from "@/lib/chart/replayWindow";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import { parseProofScene } from "@/lib/chart/proofScene";
 import { readStoredText } from "@/lib/storedShape";
@@ -323,15 +324,15 @@ export function fvgChartLink(lesson: Pick<FvgLesson, "alsoOn">, shipped = fvgLay
  */
 export const FVG_REPLAY_LESSONS: readonly number[] = [6, 7, 8, 9, 10, 14, 15];
 
-/** The link's own words — it opens the chart; Replay is pressed there. */
-export const FVG_REPLAY_LINK_LABEL = "Open on the chart — then press Replay";
+/** The link's own words — it opens the chart AND starts Replay there (`replay=start`, the Replay door in replayWindow.ts). */
+export const FVG_REPLAY_LINK_LABEL = "Practice in Replay";
 
 export const FVG_REPLAY_STEPS =
-  "This opens the chart with the FVG layer on; it does not start Replay by itself. On the chart, open Workspace → Replay, then step forward bar by bar: each territory shows only what was knowable at the replay cursor — the touch, the depth and the closes appear as they happened, never before.";
+  "This opens the chart with the FVG layer on and starts Replay on the loaded bars — the live clock is off. If the chart has no bars yet it says so and offers a Start Replay button (Workspace → Replay does the same). Step forward bar by bar: each territory shows only what was knowable at the replay cursor — the touch, the depth and the closes appear as they happened, never before.";
 
 export function fvgReplayPractice(lesson: Pick<FvgLesson, "n" | "alsoOn">, shipped = fvgLayerShipped()): { href: string; label: string; steps: string } | null {
   if (!shipped || !FVG_REPLAY_LESSONS.includes(lesson.n)) return null;
-  return { href: fvgChartLink(lesson, true).href, label: FVG_REPLAY_LINK_LABEL, steps: FVG_REPLAY_STEPS };
+  return { href: `${fvgChartLink(lesson, true).href}&${REPLAY_START_PARAM}=${REPLAY_START_VALUE}`, label: FVG_REPLAY_LINK_LABEL, steps: FVG_REPLAY_STEPS };
 }
 
 /** The Academy deep link for a lesson. */

@@ -29,7 +29,8 @@ describe("Connect drawer — operator setup detail is the owner's", () => {
   const panel = read("src/components/broker/BrokerConnectPanel.tsx");
   it("the managed status and the capability ladder render only in the owner view", () => {
     expect(panel).toContain("{broker.managedConnection && ownerView ? (");
-    expect(panel).toMatch(/broker\.runtimeConnection && ownerView \? \([\s\S]{0,800}<CapabilityLadderStatus broker=\{broker\} \/>/);
+    // 2026-10-09: the ladder also takes the audience, for its Operator details disclosure.
+    expect(panel).toMatch(/broker\.runtimeConnection && ownerView \? \([\s\S]{0,800}<CapabilityLadderStatus broker=\{broker\} operator=\{ownerView\} \/>/);
     expect(panel).toContain('{panelAudience === "OWNER" && <ProviderWireStrip');
   });
 });

@@ -360,7 +360,7 @@ const ANATOMY_BLOCK_RECEIPTS = [
   // ASK-5 (2026-10-08) · the question's identity mark on the band.
   "questionLensMark",
   // The scaffolding glass (scaffoldingGlass.ts SCAFFOLDING_GLASS_RECEIPTS — kept equal by its sentinel).
-  "scaffoldingScale", "scaffoldingForm", "scaffoldingDock", "scaffoldingCardCandleHits",
+  "scaffoldingScale", "scaffoldingForm", "scaffoldingSilenceBand", "scaffoldingDock", "scaffoldingCardCandleHits",
   "scaffoldingGeometry", "scaffoldingPlaque", "scaffoldingCandlesKept", "scaffoldingSwingMarks",
   "scaffoldingResistance",
 ] as const;
@@ -2338,6 +2338,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const liquidityWeatherRef = useRef<LiquidityWeatherVM | null>(null);
   /** The Question Lens quiet of the last painted frame (1 = none) — the governor's load-cap hint. */
   const lensQuietLastRef = useRef(1);
+  // The layer last frame's question was ABOUT — its answer is never quieted by it.
+  const lensAnswerLastRef = useRef<readonly ("absorption" | "exhaustion")[]>([]);
   const attentionFixtureQuietRef = useRef(false);
   useEffect(() => { attentionFixtureQuietRef.current = attentionFixtureQuiet; }, [attentionFixtureQuiet]);
   const lensFixtureWeatherRef = useRef(false);
@@ -8219,7 +8221,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       } catch (err) { layerFault("ATTENTION_FOCUS", err); /* camera mid-transition: no focus this frame */ }
       let att = selectAttentionGovernor({
         density: semanticDensity,
-        questionQuiet: 1,
+        // EARLY LIVE LAYERS ARE QUIETED TOO (serving 559884e, 2026-10-09: volume
+        // profile and flow current read LIVE:1 under a 0.35 question — they ask
+        // before the lens speaks). The frame opens on LAST frame's quiet; the
+        // lens re-states it below. One frame of lag in, and the frame after the
+        // question ends the ref is back at 1. The answer layer is exempt.
+        questionQuiet: lensQuietLastRef.current,
+        quietExempt: lensAnswerLastRef.current,
         // Last frame's lens quiet, for the load cap of layers that ask before the lens speaks.
         loadQuietHint: lensQuietLastRef.current,
         // The phone's word budget (selectSemanticPermission, NARROW_GLASS_MAX_PX).
@@ -15956,6 +15964,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                         { form: "COMPACT" as const, ...SCAFFOLD_CARD_BOX.FOUNDATION_COMPACT, k: 1 },
                       ]
                     : [{ form: "COMPACT" as const, ...SCAFFOLD_CARD_BOX.INTERMEDIATE, k: 1 }];
+                  // TRUTH WORDS ARE NOT PAINTED THROUGH THE TEACHING CARD (serving
+                  // all-on NQ1! 5m b290eef, 2026-10-09: the bottom-left silence
+                  // lines — "ZERO-GAMMA · WITHHELD…" among them — ran across the
+                  // card's lower rows; the card docks before those lines exist).
+                  // The silence stack's band is reserved for the dock, then released.
+                  const silenceBase = shortPane ? H - 40 : H - 114;
+                  const silenceBandReserve = { x: 0, y: silenceBase - SILENCE_ROWS_SHOWN * silenceStep - 7, w: silenceX + Math.min(W * 0.62, 760), h: (SILENCE_ROWS_SHOWN + 1) * silenceStep + 14 };
+                  floatingChips.push(silenceBandReserve);
                   let pick: { form: "FULL" | "COMPACT"; w: number; h: number; k: number; dock: ReturnType<typeof dockClearOfCandles> } | null = null;
                   for (const f of forms) {
                     const dock = dockClearOfCandles({
@@ -15972,6 +15988,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     const f = forms[forms.length - 1];
                     pick = { ...f, dock: dockClearOfCandles({ size: { w: f.w, h: f.h }, bounds, candles: candleRects, blockers: floatingChips, preferred: { x: x0, y: y0 - 9 } }) };
                   }
+                  { const iR = floatingChips.indexOf(silenceBandReserve); if (iR >= 0) floatingChips.splice(iR, 1); }
+                  ds.scaffoldingSilenceBand = `RESERVED:${Math.round(silenceBandReserve.y)}+${Math.round(silenceBandReserve.h)}`;
                   const { x: cx0, y: cy0 } = pick.dock.rect;
                   const k = pick.k, w = pick.w, h = pick.h;
                   const yielded = pick.dock.mode === "NONE";
@@ -16386,6 +16404,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (attentionFixtureQuietRef.current) { questionQuiet = Math.min(questionQuiet, ATTENTION_FIXTURE_QUIET); canvas.dataset.attentionFixture = `QUESTION_QUIET:${ATTENTION_FIXTURE_QUIET}`; }
       else delete canvas.dataset.attentionFixture;
       lensQuietLastRef.current = questionQuiet;
+      lensAnswerLastRef.current = questionQuiet < 1 && canvas.dataset.questionChoice === "ABSORPTION" ? ["absorption"]
+        : questionQuiet < 1 && canvas.dataset.questionChoice === "EXHAUSTION" ? ["exhaustion"] : [];
       att = att.withQuestionQuiet(questionQuiet);
       canvas.dataset.attention = att.receipt;
 
@@ -26033,6 +26053,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             return xl == null ? plotRight : Math.min(plotRight, +xl - sp * 1.5);
           })();
           const pipHits: PipRect[] = [];
+          // Anchors already seated this frame: a later one never lands on them.
+          const anchorRects: { x: number; y: number; w: number; h: number }[] = [];
           const placed = anchors.map(a => {
             // A lone held word is a quiet 12px pip (tap lists it); only a
             // CLUSTER earns the words "N MARKET EVENTS" (serving NQ 5m, 8f7f6f4:
@@ -26048,6 +26070,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(Math.min(...alts.map(q => q.y)), Math.max(...alts.map(q => q.y)) + h)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: alts });
             const topRow = { ...pref, y: HEADER_FLOOR_Y + 4 };
             let r = sp.mode === "BLOCKED" ? topRow : sp.rect;
+            // ANCHORS NEVER OVERPRINT EACH OTHER (serving all-on NQ1! 5m b290eef,
+            // 2026-10-09: two "2 MARKET EVENTS" chips sat on one another in the
+            // top row — the BLOCKED fallback went there unchecked). A crowded
+            // anchor steps left along its row past the ones already seated, then
+            // down a row; bounded, so it never spins.
+            if (sp.mode === "BLOCKED") {
+              const onAnchor = (q: { x: number; y: number; w: number; h: number }) =>
+                anchorRects.some(o => q.x < o.x + o.w + 6 && q.x + q.w + 6 > o.x && q.y < o.y + o.h + 2 && q.y + q.h + 2 > o.y);
+              const leftMost = Math.max(4, keepOutMinX());
+              for (let g = 0; g < 12 && onAnchor(r); g++) {
+                r = r.x - (w + 8) >= leftMost ? { ...r, x: r.x - (w + 8) } : { ...r, x: Math.max(leftMost, Math.min(plotRight - w - 4, pref.x)), y: r.y + h + 4 };
+              }
+            }
             if (single) {
               // Painted 12px, touched 44px (.wm-tap-slop): the square stays left
               // of the clear zone and off its neighbours' squares.
@@ -26056,6 +26091,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               else r = { ...r, x: Math.max(4, Math.min(r.x, pipClearLeft - 40)) };
             }
             floatingChips.push({ ...r });
+            anchorRects.push({ ...r });
             const seed = `${a.notes[0].layer}:${a.notes[0].text}`;
             return { a, r, seed, crowded: sp.mode === "BLOCKED", single };
           });
