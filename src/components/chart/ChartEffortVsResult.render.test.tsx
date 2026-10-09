@@ -193,7 +193,8 @@ describe("the callout puts its verdict on the glass", () => {
   it("states the live-bar fallback instead of silently changing subject", () => {
     const live = markup(HIGH_EFFORT_WEAK_RESULT, plainCohort(), { followingLiveBar: true });
     expect(live).toMatch(/still forming/i);
-    expect(live).toContain("LIVE BAR");
+    expect(live).toContain("FORMING BAR");
+    expect(markup(HIGH_EFFORT_WEAK_RESULT, plainCohort(), { followingLiveBar: true, feedLive: true })).toContain("LIVE BAR");
     expect(markup(HIGH_EFFORT_WEAK_RESULT, plainCohort())).toContain("SELECTED BAR");
   });
 

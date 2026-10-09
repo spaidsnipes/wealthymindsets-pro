@@ -60,7 +60,7 @@ import { RESPONSE_BARS, type PrintResponseVM } from "@/lib/marketData/viewModels
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
-import { wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
+import { chainScopeWords, wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import { LEARN_LESSON, learnHref, type LearnableSelection } from "@/lib/academy/academyContinuity";
 import { printLocationInStructure, type PrintLocationVM } from "@/lib/marketData/viewModels/printLocationInStructure";
 import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarketStructure";
@@ -1376,7 +1376,9 @@ export function ChartInspectTicket({
       // against the switches and the tape, without parsing a human sentence.
       data-inspect-reach={vm.reach}
       data-inspect-read={vm.readCount}
-      aria-label={`Inspect ticket. ${vm.headline}. ${vm.reachNote}`}
+      // The spoken price is cut to the instrument's decimals like every printed
+      // one (serving EURUSD 2026-10-09: "Selected bar · 1.1234692335128784").
+      aria-label={`Inspect ticket. ${vm.price !== null && priceDp != null ? `Selected bar · ${vm.price.toFixed(priceDp)}` : vm.headline}. ${vm.reachNote}`}
     >
       <div className="flex items-center gap-2">
         <Crosshair size={11} className="text-wm-gold" />
@@ -1392,7 +1394,10 @@ export function ChartInspectTicket({
       <InspectFirstTouchLine />
 
       <div className="pt-1.5 text-[10px] font-bold tracking-wide text-wm-muted">
-        {followingLiveBar ? "LIVE BAR" : "SELECTED BAR"}
+        {/* LIVE is a claim about the feed, not about the bar (serving EURUSD
+            2026-10-09: "LIVE BAR" over "This chart has no live feed right now").
+            Only a LIVE feed earns it; otherwise the bar is simply still forming. */}
+        {followingLiveBar ? (feedIn === "LIVE" ? "LIVE BAR" : "FORMING BAR") : "SELECTED BAR"}
       </div>
       <div className="text-[11px] font-bold tabular-nums text-white">
         {time ? `${time}` : "—"}
@@ -1597,7 +1602,10 @@ export function ChartInspectTicket({
             <div>Fidelity · {dp.fidelity} · chain {clock.provider(dp.clocks.chainAsOf)} · underlying {clock.provider(dp.clocks.underlyingAsOf)} · {positioningSourceWords(dp.source).oi}</div>
             <div data-testid="inspect-pressure-wall-life">Life · {lifeWords[w.life]} · {w.tests} test{w.tests === 1 ? "" : "s"}{w.firstTestTime != null ? ` since ${clock.minute(w.firstTestTime)} ${clock.zone(w.firstTestTime)}` : ""}{w.closesBeyond ? ` · ${w.closesBeyond} close${w.closesBeyond === 1 ? "" : "s"} beyond` : ""}{wallTestSpanWords(dp.testSpanSec) ? ` · counted over the ${wallTestSpanWords(dp.testSpanSec)!.replace(" seen", "")} this chart has loaded — a longer timeframe sees more of the week` : ""}</div>
             <div>Contradiction · {contra}</div>
-            <div>Climate · {dp.climate.replace("_", " ")} at price ({dp.climateRatio.toFixed(2)}) · zero-gamma front {dp.zeroGamma != null ? mtfPx(dp.zeroGamma) : "none in ±20%"}</div>
+            {/* §20: on a near-money subset the scope is said, and no climate or front is claimed. */}
+            {chainScopeWords(dp.chainScope)
+              ? <div data-inspect-chain-scope={dp.chainScope.kind}>Scope · {chainScopeWords(dp.chainScope)} — climate and the zero-gamma front are withheld: only the contracts nearest price are heard, not the whole chain</div>
+              : <div data-inspect-chain-scope="WHOLE">Climate · {dp.climate.replace("_", " ")} at price ({dp.climateRatio.toFixed(2)}) · zero-gamma front {dp.zeroGamma != null ? mtfPx(dp.zeroGamma) : "none in ±20%"}</div>}
             <Receipt testId="inspect-wall-receipt"><div>Lineage · {positioningSourceWords(dp.source).name} OI + IV → selectDerivativesPressure v{dp.version} → this wall ({dp.contracts} contracts)</div></Receipt>
             <OptionsEvidenceBlock ev={pressureWall.evidence ?? null} px={mtfPx} onScope={pressureWall.onScope} />
           </div>

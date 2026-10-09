@@ -180,3 +180,18 @@ describe("SENTINEL — the toolbar consumes the compiler, it does not re-derive"
     expect(CONTROLS).toContain('armedCapability.state === "AWAITING_TAPE"');
   });
 });
+
+describe("the sentence follows the switch (Sheriff #13, 2026-10-08)", () => {
+  it("an OFF tool on a live sided tape CAN draw — it is never 'drawing'", () => {
+    const off = orderFlowToolCapability(...DELTA, { source: COINBASE, observedAggressorFlow: true, active: false });
+    expect(off.drawable).toBe(true);
+    expect(off.reason).not.toContain("is drawing");
+    expect(off.reason).toContain("can draw here, and is switched off");
+  });
+  it("an ON tool is drawing; an unstated switch speaks capability only", () => {
+    expect(orderFlowToolCapability(...DELTA, { source: COINBASE, observedAggressorFlow: true, active: true }).reason).toContain("is drawing from sided prints");
+    const unsaid = orderFlowToolCapability(...DELTA, { source: COINBASE, observedAggressorFlow: true }).reason;
+    expect(unsaid).toContain("can draw here:");
+    expect(unsaid).not.toContain("is drawing");
+  });
+});

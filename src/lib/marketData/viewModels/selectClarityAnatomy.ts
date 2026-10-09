@@ -212,10 +212,10 @@ export function selectClarityAnatomy(input: ClarityAnatomyInput): ClarityAnatomy
   const gapSize = prior ? Math.abs(bar.open - prior.close) : 0;
   const gapWords: Record<ClarityGap, string> = {
     NO_GAP: "No gap — opened at the prior close",
-    GAP_UP_FILLED: `Gap up ${fmt(gapSize)} · filled back to ${prior ? fmt(prior.close) : ""}`,
-    GAP_UP_OPEN: `Gap up ${fmt(gapSize)} · open above ${prior ? fmt(prior.close) : ""}`,
-    GAP_DOWN_FILLED: `Gap down ${fmt(gapSize)} · filled back to ${prior ? fmt(prior.close) : ""}`,
-    GAP_DOWN_OPEN: `Gap down ${fmt(gapSize)} · open below ${prior ? fmt(prior.close) : ""}`,
+    GAP_UP_FILLED: `Gap up ${dist(gapSize)} · filled back to ${prior ? fmt(prior.close) : ""}`,
+    GAP_UP_OPEN: `Gap up ${dist(gapSize)} · open above ${prior ? fmt(prior.close) : ""}`,
+    GAP_DOWN_FILLED: `Gap down ${dist(gapSize)} · filled back to ${prior ? fmt(prior.close) : ""}`,
+    GAP_DOWN_OPEN: `Gap down ${dist(gapSize)} · open below ${prior ? fmt(prior.close) : ""}`,
     NO_PRIOR_BAR: "First bar held — no prior close to gap from",
   };
   lines.push({ key: "GAP", label: "Truth gap", value: gapWords[gap] });

@@ -12,10 +12,14 @@
  *                         send gate does not decide this one: §14.6's exit permission does — it may
  *                         withhold ADDING risk, never the exit.
  *   CONNECTED           — the account was read.
+ *   PROOF_SCENE         — a sample book on a proof scene (ticket-fixture): no control can send, cancel
+ *                         or flatten, on any rail, and each says so at the control.
  */
 
-export type RailState = "CHECKING" | "NOT_CONNECTED" | "DISCONNECTED_BY_YOU" | "UNVERIFIED" | "CONNECTED";
-export const RAIL_STATES: readonly RailState[] = ["CHECKING", "NOT_CONNECTED", "DISCONNECTED_BY_YOU", "UNVERIFIED", "CONNECTED"];
+export type RailState = "CHECKING" | "NOT_CONNECTED" | "DISCONNECTED_BY_YOU" | "UNVERIFIED" | "CONNECTED" | "PROOF_SCENE";
+export const RAIL_STATES: readonly RailState[] = ["CHECKING", "NOT_CONNECTED", "DISCONNECTED_BY_YOU", "UNVERIFIED", "CONNECTED", "PROOF_SCENE"];
+/** The one reason every send / cancel / flatten control carries inside a proof scene. */
+export const PROOF_SCENE_REFUSAL = "PROOF SCENE · nothing can be sent";
 
 export interface RailSendGate {
   /** False = the send control is disabled, whatever else the ticket says. */
@@ -29,6 +33,7 @@ export function railSendGate(state: RailState, railName: string): RailSendGate {
     case "CHECKING": return { canSend: false, reason: `Checking your ${railName} account — nothing can be sent until it answers.` };
     case "NOT_CONNECTED": return { canSend: false, reason: `${railName} account not connected — nothing can be sent or closed here.` };
     case "DISCONNECTED_BY_YOU": return { canSend: false, reason: `You disconnected ${railName} on this device — reconnect it to send.` };
+    case "PROOF_SCENE": return { canSend: false, reason: PROOF_SCENE_REFUSAL };
     case "UNVERIFIED": return { canSend: true, reason: null };
     case "CONNECTED": return { canSend: true, reason: null };
   }

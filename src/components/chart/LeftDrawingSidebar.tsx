@@ -270,7 +270,7 @@ export function LeftDrawingSidebar({
         onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#8B8FA8"}
       ><Trash2 size={14} /></button>
       {/* §9 · the ACTIVE drawing tool's ⓘ on the rail / sheet (Sheriff batch 3 #14): the same record the panel row opens. */}
-      <InventionInfoButton scope="rail" id={drawingEducationId(activeTool)} label={GROUPS.flatMap(g => g.items).find(it => it.id === activeTool)?.label ?? activeTool} open={toolEdu} compact onToggle={() => setToolEdu(o => !o)} />
+      <InventionInfoButton scope="rail" id={drawingEducationId(activeTool)} label={GROUPS.flatMap(g => g.items).find(it => it.id === activeTool)?.label ?? activeTool} open={toolEdu} compact onToggle={() => { setStyleOpen(false); setToolEdu(o => !o); }} />
       {toolEdu ? (
         <div data-testid="draw-tool-edu" style={isSheet
           // In the sheet the record sits IN THE FLOW under the tools (serving 6350c69:

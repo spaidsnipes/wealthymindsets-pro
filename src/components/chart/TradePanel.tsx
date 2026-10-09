@@ -43,8 +43,10 @@ import { orderActionLine, prefillNote, protectBasisLine, quoteStreamLabel, SPAID
 import { brokerStateWords, ticketBook, type WorkingOrderRow } from "@/lib/execution/ticketBook";
 import type { WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { TicketBookRows, type CancelAck } from "@/components/chart/TicketBookRows";
-import { COMPACT_MAX_HEIGHT, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, type TicketSection } from "@/lib/execution/ticketLayout";
+import { COMPACT_ACT_MAX_HEIGHT, COMPACT_PEEK_MAX_HEIGHT, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, ticketStage, type TicketSection } from "@/lib/execution/ticketLayout";
 import { TicketSections } from "@/components/chart/TicketSections";
+import { parseTicketFixture, TICKET_FIXTURE_BANNER, ticketFixtureLines, type TicketFixture } from "@/lib/execution/ticketFixture";
+import { railSendGate } from "@/lib/broker/railSendGate";
 import { selectTapeQuoteFreshness } from "@/lib/marketData/tapeQuoteFreshness";
 import { PendingFillJournalOffers } from "@/components/journal/FillJournalOffer";
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
@@ -146,6 +148,13 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   // Sheriff P2-6: no side is pre-staged — nothing is built until the member picks BUY or SELL.
   const [side, setSide] = useState<"BUY" | "SELL" | null>(null);
   useEffect(() => { setSide(null); }, [symbol]);
+  // PROOF SCENE (`scene=ticket-fixture`): a SAMPLE book and a pre-picked side, for the signed-in owner only.
+  // Every send / cancel / flatten control is refused at the control and no order route can be reached.
+  const [sceneAsked, setSceneAsked] = useState<TicketFixture | null>(null);
+  useEffect(() => { setSceneAsked(typeof window !== "undefined" ? parseTicketFixture(window.location.search) : null); }, []);
+  const scene = audience === "OWNER" ? sceneAsked : null;
+  const sceneGate = scene ? railSendGate("PROOF_SCENE", "tastytrade") : null;
+  useEffect(() => { if (scene) setSide(scene.side); }, [scene, symbol]);
   // A clock for the quote's age and the prefill's staleness (said, not assumed).
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNowMs(Date.now()), 1000); return () => clearInterval(t); }, []);
@@ -240,7 +249,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
 
   // tastytrade's own working orders and position for this contract (read routes only).
   const mark = q?.bid != null && q?.ask != null ? (q.bid + q.ask) / 2 : q?.last ?? null;
-  const broker = useBrokerChartLines({ enabled: owner && tradable, chartSymbol: symbol, contract: contract?.symbol ?? null, mark, pointValue: kind === "FUTURE" ? pointValue : 1 });
+  const brokerRead = useBrokerChartLines({ enabled: owner && tradable && !scene, chartSymbol: symbol, contract: contract?.symbol ?? null, mark, pointValue: kind === "FUTURE" ? pointValue : 1 });
+  // In the proof scene the book is the SAMPLE readback, through the same selector; the broker is not read.
+  const broker = scene && contract ? ticketFixtureLines(scene, contract.symbol, mark ?? price, kind === "FUTURE" ? pointValue : 1, nowMs) : brokerRead;
   const dated = kind === "FUTURE" && contract ? datedFuturesContract(contract.symbol, Date.now()) : null;
   const quoteForGate = q ? { bid: q.bid, ask: q.ask, atMs: q.quoteAt } : null;
 
@@ -265,6 +276,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const decisionRef = useRef<string | null>(null);
   useEffect(() => { decisionRef.current = bornDecision?.decisionId ?? null; }, [bornDecision]);
   function ensureDecision(): string | null {
+    // PROOF SCENE: no decision is ever minted, so the live-order block refuses its preview and its send
+    // before either reaches a route ("No decision to express") — the block itself is not edited.
+    if (scene) return null;
     if (decisionRef.current) return decisionRef.current;
     const born = continueOrMint(bornDecision, { cause: "EXPLICIT_INTENT", deviceId: bornDecision?.bornOnDeviceId ?? thisDeviceId(), nowMs: Date.now(), nonce: crypto.randomUUID() });
     if (!born.ok) { setAnswer(born.reason); return null; }
@@ -274,7 +288,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   }
 
   async function dryRun() {
-    if (!contract || !instrumentType || !entryFields || !action || busy) return;
+    if (!contract || !instrumentType || !entryFields || !action || busy || scene) return;
     setBusy(true);
     try {
       const decisionId = ensureDecision();
@@ -323,17 +337,23 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     return () => mq.removeEventListener?.("change", on);
   }, []);
   const riskLine = compactRiskLine({ stopWrongSide, riskUsd, rewardUsd, entryKnown: referenceEntry != null });
+  // PEEK / ACT: folded to see the chart, or grown to act. CSS only — nothing unmounts; never folded while an order is in flight.
+  const [folded, setFolded] = useState(false);
+  useEffect(() => { if (side) setFolded(false); }, [side]);
+  const stageInput = { compact, sidePicked: side != null, folded, preSend: isPreSendPhase(entryPhase) && scene?.state !== "inflight" };
+  const stage = ticketStage(stageInput);
+  const fold = foldControl(stageInput);
   // Sheriff P1-2: a chart's bar close is not a quote — the limit is never prefilled from it.
   const quoteLabel = quoteStreamLabel({ stream: snap.stream, bid: q?.bid, ask: q?.ask, quoteAtMs: q?.quoteAt, nowMs, contract: contract?.symbol ?? null, streamWords: STREAM_WORDS });
   const prefillLine = prefillNote({ prefill, limitPx: limitNum, currentTouch: prefill?.touch === "ASK" ? q?.ask : q?.bid, tick, nowMs });
   // §23 — POSITION STATE · WORKING ORDERS · MODIFY · FLATTEN, from the broker readback only; fail-closed.
-  const book = ticketBook(broker, contract?.symbol ?? null, { killSwitch: !!server.limits?.killSwitch, limitsSet: server.state === "SET" });
+  const book = ticketBook(broker, contract?.symbol ?? null, { killSwitch: !!server.limits?.killSwitch, limitsSet: server.state === "SET", proofRefusal: sceneGate?.reason ?? null });
   const [cancelAcks, setCancelAcks] = useState<Record<string, CancelAck>>({});
   const [cancelBusy, setCancelBusy] = useState<string | null>(null);
   useEffect(() => { setCancelAcks({}); setCancelBusy(null); }, [contract?.symbol]);
   /** Cancel one working order read back from tastytrade. The words after are the broker's readback, never this ticket's. */
   async function cancelWorking(o: WorkingOrderRow) {
-    if (!o.cancel.allowed || o.accountIndex == null || cancelBusy) return;
+    if (scene || !o.cancel.allowed || o.accountIndex == null || cancelBusy) return;
     setCancelBusy(o.id);
     try {
       const r = await fetch(`/api/broker/tastytrade/orders?accountIndex=${o.accountIndex}&id=${encodeURIComponent(o.id)}`, { method: "DELETE" });
@@ -474,10 +494,10 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           </p>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button type="button" data-testid="trade-dry-run" disabled={!contract || !entryFields || !action || busy} onClick={() => void dryRun()} style={{ ...btn(true), opacity: !contract || !entryFields || !action ? 0.5 : 1 }}>
+            <button type="button" data-testid="trade-dry-run" disabled={!contract || !entryFields || !action || busy || !!scene} onClick={() => void dryRun()} style={{ ...btn(true), opacity: !contract || !entryFields || !action || scene ? 0.5 : 1 }}>
               {busy ? "Asking tastytrade…" : "Dry run on tastytrade"}
             </button>
-            <span style={{ color: MUTED, fontSize: 11 }}>Validates against your real account; places nothing.</span>
+            <span style={{ color: MUTED, fontSize: 11 }}>{sceneGate ? sceneGate.reason : "Validates against your real account; places nothing."}</span>
           </div>
           {answer ? <p role="status" style={{ color: /accepted/.test(answer) ? GREEN : GOLD }}>{answer}</p> : null}
     </>),
@@ -486,23 +506,30 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           <ManagementPlanCard mode="ticket" symbol={symbol} />
     </>),
     LIVE_ORDER: (<>
-          <TastytradeLiveOrder
-            intent={contract && instrumentType && action ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: contract.symbol, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate, chartSymbol: symbol } : null}
-            ensureDecision={ensureDecision}
-            onPhase={setEntryPhase}
-            journal={{ targetPx: closing ? null : targetNum, plannedStopPx: stopNum, orderIntentId: loadedProposal?.orderIntentId ?? null, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
-          />
-          <PendingFillJournalOffers />
+          {sceneGate ? <p role="status" data-testid="trade-proof-refusal" style={{ color: GOLD, fontSize: 11, margin: 0, fontWeight: 700 }}>{sceneGate.reason}</p> : null}
+          {/* In the scene the real block is shown at its real size inside a disabled fieldset: no control in it can be pressed. */}
+          <fieldset data-testid="trade-live-fieldset" disabled={!!scene} style={{ border: "none", padding: 0, margin: 0, minWidth: 0 }}>
+            <TastytradeLiveOrder
+              intent={contract && instrumentType && action ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: contract.symbol, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate, chartSymbol: symbol } : null}
+              ensureDecision={ensureDecision}
+              onPhase={setEntryPhase}
+              journal={{ targetPx: closing ? null : targetNum, plannedStopPx: stopNum, orderIntentId: loadedProposal?.orderIntentId ?? null, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
+            />
+          </fieldset>
+          {scene ? null : <PendingFillJournalOffers />}
     </>),
     PROTECT: (<>
           {/* §LXXVIII — PROTECTION, broker-native, each armed and pressed by the human. */}
           {kind !== "CRYPTO" && contract && instrumentType && side ? (
             <details data-testid="trade-protect" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px" }}>
               <summary style={{ cursor: "pointer", color: GOLD, fontWeight: 600 }}>Protect the position — stop & target at the broker</summary>
+              {sceneGate ? <p role="status" style={{ color: GOLD, fontSize: 11, fontWeight: 700 }}>{sceneGate.reason}</p> : null}
               <p data-testid="trade-protect-basis" style={{ color: MUTED, fontSize: 11, marginTop: 6 }}>
                 {/* Sheriff P1 (2026-10-08): this used to speak of "1 /NQZ6 long" from the STAGED side, as if it were a position. */}
                 {protectBasisLine({ positionState: book.position.state, held: broker?.position ? { direction: broker.position.row.direction, quantity: broker.position.row.quantity } : null, stagedSide: side, stagedQty: qty, contract: contract.symbol })}
               </p>
+              {/* PROOF SCENE: the protect blocks are natively disabled too (and refused by the null decision). */}
+              <fieldset data-testid="trade-protect-fieldset" disabled={!!scene} style={{ border: "none", padding: 0, margin: 0, minWidth: 0 }}>
               {stopNum != null && !stopWrongSide ? (
                 <TastytradeLiveOrder
                   intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: null, orderType: "Stop", stopPx: stopNum, tif: "GTC", describe: `${contract.symbol} protective stop`, quote: quoteForGate, chartSymbol: symbol }}
@@ -517,6 +544,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
                   journal={{ plannedStopPx: stopNum, targetPx: targetNum, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
                 />
               ) : <p style={{ color: MUTED, fontSize: 11 }}>Type a target above to send it as a resting Limit.</p>}
+              </fieldset>
             </details>
           ) : null}
     </>),
@@ -528,13 +556,14 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     <section
       data-testid="trade-panel"
       data-layout={compact ? "compact" : "full"}
+      data-stage={stage}
       aria-label={`Trade ${symbol}`}
       style={{
         // §XIV: a market instrument never covers the forming candle, the live
         // price or a stop/target on price — all at the chart's right edge
         // (serving MNQ 1m, 2026-10-01: the panel at right:24 hid the forming
         // bar). It stands at the chart's lower LEFT, over settled history.
-        position: "fixed", left: 24, bottom: 64, zIndex: 60, width: "min(400px, calc(100vw - 48px))", maxHeight: compact ? COMPACT_MAX_HEIGHT : "72vh", overflowY: "auto", overflowX: "hidden",
+        position: "fixed", left: 24, bottom: 64, zIndex: 60, width: "min(400px, calc(100vw - 48px))", maxHeight: stage === "PEEK" ? COMPACT_PEEK_MAX_HEIGHT : stage === "ACT" ? COMPACT_ACT_MAX_HEIGHT : "72vh", overflowY: "auto", overflowX: "hidden",
         background: "#0d0b08", border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 18px 48px rgba(0,0,0,0.6)", color: INK, fontSize: 12,
       }}
     >
@@ -548,14 +577,20 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", border: `1px solid ${liveArmed ? RED : LINE}`, color: liveArmed ? RED : MUTED, background: "none", cursor: "pointer" }}>
           {liveArmed ? "LIVE ARMED" : "LIVE DISARMED"}
         </button>}
-        {owner && <button type="button" data-testid="trade-kill-switch" disabled={!!server.limits?.killSwitch}
-          onClick={() => void changeServerOrderLimits({ killSwitch: true })}
+        {owner && <button type="button" data-testid="trade-kill-switch" disabled={!!server.limits?.killSwitch || !!scene}
+          onClick={() => { if (!scene) void changeServerOrderLimits({ killSwitch: true }); }}
           title={server.limits?.killSwitch ? "Kill switch engaged — release it in Settings › Execution" : "Kill switch: one press refuses every new live order (cancel stays open)"}
           style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", border: `1px solid ${RED}`, color: server.limits?.killSwitch ? "#fff" : RED, background: server.limits?.killSwitch ? "#7a2a22" : "none", cursor: "pointer" }}>
           {server.limits?.killSwitch ? "KILLED" : "KILL"}
         </button>}
+        {fold.shown ? <button type="button" data-testid="trade-fold" aria-label={fold.ariaLabel} aria-pressed={folded} disabled={!fold.enabled}
+          onClick={() => { if (fold.enabled) setFolded(v => !v); }}
+          style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", minHeight: 24, border: `1px solid ${LINE}`, color: fold.enabled ? GOLD : MUTED, background: "none", cursor: fold.enabled ? "pointer" : "not-allowed" }}>
+          {fold.label}
+        </button> : null}
         <button type="button" data-testid="trade-close" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", flexShrink: 0, minWidth: 32, minHeight: 32, color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
       </header>
+      {scene ? <p role="status" data-testid="trade-proof-banner" data-scene-state={scene.state} style={{ margin: 0, padding: "4px 12px", borderBottom: `1px solid ${GOLD}`, color: GOLD, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6 }}>{TICKET_FIXTURE_BANNER}</p> : null}
 
       {audience !== "OWNER" ? (
         <div data-testid="trade-guest" style={{ padding: 12 }}>
@@ -575,7 +610,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         </div>
       ) : (
         <div style={{ padding: compact ? "8px 10px" : 12, display: "grid", gap: compact ? 6 : 10 }}>
-          <TicketSections compact={compact} sections={sectionEl} summary={detailsSummary(book)} />
+          <TicketSections compact={compact} peek={stage === "PEEK"} sections={sectionEl} summary={detailsSummary(book)} />
         </div>
       )}
 

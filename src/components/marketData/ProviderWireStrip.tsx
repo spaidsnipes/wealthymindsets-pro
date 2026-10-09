@@ -543,6 +543,19 @@ export function matrixProviderWireView(
   if (/\b(?:HTTP 429|rate limit)/i.test(detail)) {
     return { source, tone: "LIMITED", label: "Rate limited", detail };
   }
+  // Sheriff P1-3 (2026-10-08): the chip read "tastytrade Not receiving" beside
+  // chart pills reading LIVE from tastytrade. Both were true of different
+  // things: the SERVER probe observed the quote token and (by design) never
+  // sees a market event, because tastytrade's quotes stream to the BROWSER over
+  // DXLink. "Not receiving" was a delivery claim the server cannot make. The
+  // measured note is named for what it is — capped at LIMITED, never LIVE: the
+  // chart's own pill, not this chip, says whether quotes are arriving.
+  if (/\bquote-token access was observed\b/i.test(detail)) {
+    return {
+      source, tone: "LIMITED", label: TASTY_TOKEN_READY_LABEL,
+      detail: `${detail} ${TASTY_BROWSER_STREAM_NOTE}`,
+    };
+  }
   if (/\bno (?:valid,? )?(?:symbol-matched )?(?:tick )?(?:observations|events|prints)\b/i.test(detail)
     || /\bdid not contain a valid\b|\bempty (?:quote|tick|trade) set\b|\breturned an empty\b/i.test(detail)) {
     return { source, tone: "LIMITED", label: "No events", detail };
@@ -635,6 +648,11 @@ export function matrixProviderWireView(
 }
 
 export const PROVIDER_SOURCES = ["moomoo", "longbridge", "webull", "tastytrade", "alpaca"] as const;
+
+/** The tastytrade chip when the server holds a quote token (the stream itself is the browser's). */
+export const TASTY_TOKEN_READY_LABEL = "Quote token ready · quotes stream in this browser";
+export const TASTY_BROWSER_STREAM_NOTE =
+  "tastytrade's quotes stream to this browser, so the server does not see market events on this rail; the chart's own feed pill says whether quotes are arriving.";
 
 /**
  * THE WITNESS — what the SAME PAGE is currently attributing a drawn observation

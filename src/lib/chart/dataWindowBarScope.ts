@@ -132,6 +132,12 @@ export function dataWindowBarScope(
   isLatestBar: boolean,
   nowMs?: number | null,
   timeZone?: string,
+  /**
+   * What one unit of this instrument's volume IS (sizeUnitFor: "contracts",
+   * "shares", "BTC"). The sentence named all three at once on every chart
+   * (sheriff 2026-10-08). Omitted → the generic sentence, as before.
+   */
+  sizeUnit?: string | null,
 ): DataWindowBarScope {
   const tf = (typeof timeframe === "string" ? timeframe.trim() : "") || "";
   const when = fmtBarTime(barOpenedAtSeconds, timeZone, timeframe);
@@ -205,7 +211,9 @@ export function dataWindowBarScope(
     volume: cell(
       "V",
       "Volume — the quantity traded",
-      "Measured in contracts, shares or coins; never currency.",
+      sizeUnit && sizeUnit.trim()
+        ? `Measured in ${sizeUnit.trim()}; never currency.`
+        : "Measured in contracts, shares or coins; never currency.",
     ),
   };
 }

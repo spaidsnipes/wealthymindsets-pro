@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { selectBrokerOrderLines, type BrokerReadback } from "./brokerOrderLines";
 import { ticketBook } from "./ticketBook";
-import { COMPACT_MAX_HEIGHT, COMPACT_TICKET_MAX_WIDTH, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, ticketSections } from "./ticketLayout";
+import { COMPACT_ACT_MAX_HEIGHT, COMPACT_PEEK_MAX_HEIGHT, COMPACT_PEEK_SECTIONS, COMPACT_TICKET_MAX_WIDTH, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, ticketSections, ticketStage } from "./ticketLayout";
 
 const NOW = Date.parse("2026-10-08T18:30:00Z");
 const rb = (over: Partial<BrokerReadback>): BrokerReadback => ({ asOfMs: NOW - 1000, ok: true, orders: [], positions: [], tails: ["5019"], orderAccounts: {}, ...over });
@@ -15,7 +15,7 @@ describe("ticketSections — one ticket, two orders", () => {
   it("the phone breakpoint is 430 px", () => {
     expect(COMPACT_TICKET_MAX_WIDTH).toBe(430);
     expect(COMPACT_TICKET_QUERY).toBe("(max-width: 430px)");
-    expect(COMPACT_MAX_HEIGHT).toBe("52vh");
+    expect([COMPACT_PEEK_MAX_HEIGHT, COMPACT_ACT_MAX_HEIGHT]).toEqual(["40vh", "80vh"]);
   });
   it("tablet / desktop: the flowing order, nothing folded, no phone-only line", () => {
     const l = ticketSections(false);
@@ -63,15 +63,45 @@ describe("TradePanel is ONE ticket in both layouts", () => {
   it("sections are built once and handed to the layout; KILL stays in the header; the phone height is capped", () => {
     expect(T.length).toBeGreaterThan(20_000);
     expect(T).toContain("const sectionEl: Record<TicketSection, React.ReactNode> = {");
-    expect(T).toContain("<TicketSections compact={compact} sections={sectionEl} summary={detailsSummary(book)} />");
     expect(T.match(/<TastytradeLiveOrder\b/g) ?? []).toHaveLength(3);          // entry + stop + target — not duplicated for the phone
     expect(T.match(/<TicketBookRows\b/g) ?? []).toHaveLength(1);
     expect(T.match(/data-testid="trade-buy"/g) ?? []).toHaveLength(1);
-    expect(T).toContain('maxHeight: compact ? COMPACT_MAX_HEIGHT : "72vh"');
+    expect(T).toContain('maxHeight: stage === "PEEK" ? COMPACT_PEEK_MAX_HEIGHT : stage === "ACT" ? COMPACT_ACT_MAX_HEIGHT : "72vh"');
+    expect(T).toContain('<TicketSections compact={compact} peek={stage === "PEEK"} sections={sectionEl} summary={detailsSummary(book)} />');
+    expect(T).toContain("const stageInput = { compact, sidePicked: side != null, folded, preSend: isPreSendPhase(entryPhase) && scene?.state !== \"inflight\" };");
+    expect(T).toContain("onClick={() => { if (fold.enabled) setFolded(v => !v); }}");
     expect(T).toContain("window.matchMedia?.(COMPACT_TICKET_QUERY)");
     // KILL is in the header, outside every section and every disclosure.
     const header = T.slice(T.indexOf('<header data-testid="trade-header"'), T.indexOf("</header>"));
     expect(header).toContain('data-testid="trade-kill-switch"');
     expect(T.slice(T.indexOf("const sectionEl"), T.indexOf("  return (\n    <section"))).not.toContain("trade-kill-switch");
+  });
+});
+
+describe("PEEK / ACT — fold to see the chart, grow to act", () => {
+  const base = { compact: true, sidePicked: false, folded: false, preSend: true };
+  it("tablet / desktop is always FULL", () => {
+    expect(ticketStage({ ...base, compact: false })).toBe("FULL");
+    expect(ticketStage({ compact: false, sidePicked: true, folded: true, preSend: false })).toBe("FULL");
+  });
+  it("phone: PEEK while no side is picked or when folded; ACT once a side is picked", () => {
+    expect(ticketStage(base)).toBe("PEEK");
+    expect(ticketStage({ ...base, sidePicked: true })).toBe("ACT");
+    expect(ticketStage({ ...base, sidePicked: true, folded: true })).toBe("PEEK");
+  });
+  it("an order in flight is ALWAYS ACT — its state is never folded away, even if the fold was pressed before", () => {
+    expect(ticketStage({ ...base, sidePicked: true, folded: true, preSend: false })).toBe("ACT");
+    expect(ticketStage({ ...base, sidePicked: false, folded: true, preSend: false })).toBe("ACT");
+  });
+  it("the fold control: hidden with no side; a toggle with a side; refused in flight with the reason as its label", () => {
+    expect(foldControl(base).shown).toBe(false);
+    expect(foldControl({ ...base, compact: false, sidePicked: true }).shown).toBe(false);
+    expect(foldControl({ ...base, sidePicked: true })).toMatchObject({ shown: true, enabled: true, label: "CHART ▾" });
+    expect(foldControl({ ...base, sidePicked: true, folded: true })).toMatchObject({ shown: true, enabled: true, label: "TICKET ▴" });
+    expect(foldControl({ ...base, sidePicked: true, preSend: false })).toEqual({ shown: true, enabled: false, label: "IN FLIGHT · stays open", ariaLabel: "An order is in flight — the ticket stays open until tastytrade answers" });
+  });
+  it("PEEK shows quote, a waiting proposal, and side + quantity — and nothing that can send", () => {
+    expect(COMPACT_PEEK_SECTIONS).toEqual(["QUOTE", "PROPOSAL", "SIDE_SIZE"]);
+    expect(COMPACT_PEEK_SECTIONS).not.toContain("LIVE_ORDER");
   });
 });

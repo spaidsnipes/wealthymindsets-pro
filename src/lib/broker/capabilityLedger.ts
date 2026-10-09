@@ -134,7 +134,9 @@ export function capabilityClaimWord(row: Pick<CapabilityRow, "capability" | "sta
   const name = stage.replace(/_/g, " ");
   if (!cert) return `BUILT · CERTIFICATE UNREAD (${name})`;
   if (cert.failedStages.includes(stage)) return `BUILT · CERTIFICATE FAILED (${name})`;
-  if (cert.blockedStages.includes(stage)) return `BUILT · CERTIFICATE BLOCKED (${name})`;
+  // Blocked with nothing failed is a GATE (not switched on), the same word the
+  // readiness board uses (selectCertificationJoint GATED) — never a fault.
+  if (cert.blockedStages.includes(stage)) return cert.failedStages.length === 0 ? `BUILT · GATED (${name} not switched on)` : `BUILT · CERTIFICATE BLOCKED (${name})`;
   if (!cert.passedStages.includes(stage)) return `BUILT · NOT PROVED (${name} not yet certified)`;
   return capabilityStateWord(row.state, arms);
 }

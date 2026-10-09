@@ -134,9 +134,12 @@ describe("selectCertificationJoint names the first link that is not holding", ()
     });
     const row = board.rows[0];
     expect(row.joint).toBe("account_discovery");
-    expect(row.jointClass).toBe("BLOCKED");
+    // No stage failed: the block is a GATE, not the consequence of a break
+    // (serving ea8ad94: Webull read "an earlier stage failed" with none failed).
+    expect(row.jointClass).toBe("GATED");
     expect(row.owner).toBe("NOBODY");
-    expect(row.detail).toContain("an earlier stage failed");
+    expect(row.detail).toContain("every stage before it passed and none failed");
+    expect(row.detail).not.toContain("an earlier stage failed");
     expect(row.neverMeasured).toBe(false);
   });
 
@@ -228,5 +231,52 @@ describe("the board refuses to present an absence of measurement as a score", ()
     expect(board.rows[0].passedStages).toEqual(["auth"]);
     expect(board.rows[0].passedCount).toBe(1);
     expect(board.rows[0].joint).toBe("account_discovery");
+  });
+});
+
+describe("Sheriff P1-3 (2026-10-09) — a gate is not a failure, and the certificate carries its clock", () => {
+  // The exact shape /api/broker/certification returned for Webull on serving ea8ad94.
+  const WEBULL = {
+    brokerId: "webull", certLevel: "READ_ONLY", summary: "READ_ONLY · 6/12 stages passed", fullyCertified: false, implemented: true,
+    passedStages: ["auth", "account_discovery", "capabilities", "read_market_data", "read_account_state", "reconnect_reconcile"],
+    pendingStages: [], failedStages: [],
+    blockedStages: ["submit_order", "acknowledgement", "partial_full_fill", "cancel_order", "journal_receipt"],
+    observedAt: "2026-10-09T05:12:10.000Z",
+  };
+
+  it("six passed, none failed, submit_order blocked → GATED, never 'an earlier stage failed'", () => {
+    const row = selectCertificationJoint({ brokers: [WEBULL] }).rows[0];
+    expect(row.joint).toBe("submit_order");
+    expect(row.jointClass).toBe("GATED");
+    expect(row.owner).toBe("NOBODY");
+    expect(row.detail).toBe("submit_order is gated for webull: every stage before it passed and none failed. The stage is not switched on — nothing is broken, and nothing here is a fault to fix.");
+    expect(row.passedCount).toBe(6);
+  });
+
+  it("a REAL earlier failure still reads BLOCKED and names the broken stage", () => {
+    const row = selectCertificationJoint({ brokers: [{ ...WEBULL, passedStages: ["auth"], failedStages: ["account_discovery"], blockedStages: ["capabilities", "read_market_data"] }] }).rows[0];
+    expect(row.joint).toBe("account_discovery");
+    expect(row.jointClass).toBe("FAILED");
+    const later = selectCertificationJoint({ brokers: [{ ...WEBULL, passedStages: ["auth", "account_discovery"], failedStages: ["read_market_data"], blockedStages: ["capabilities"] }] }).rows[0];
+    // capabilities is blocked while a LATER stage failed: not a clean gate (something failed), so it stays BLOCKED.
+    expect(later.joint).toBe("capabilities");
+    expect(later.jointClass).toBe("BLOCKED");
+  });
+
+  it("the row carries the certificate's own observation time; an unreadable or absent one is null, never 'now'", () => {
+    expect(selectCertificationJoint({ brokers: [WEBULL] }).rows[0].observedAt).toBe("2026-10-09T05:12:10.000Z");
+    expect(selectCertificationJoint({ brokers: [{ ...WEBULL, observedAt: undefined }] }).rows[0].observedAt).toBeNull();
+    expect(selectCertificationJoint({ brokers: [{ ...WEBULL, observedAt: "yesterday-ish" }] }).rows[0].observedAt).toBeNull();
+  });
+
+  it("the route emits observedAt per broker and the readiness board prints it", async () => {
+    const { readFileSync } = await import("node:fs");
+    const path = await import("node:path");
+    const route = readFileSync(path.join(process.cwd(), "src/app/api/broker/certification/route.ts"), "utf8");
+    expect(route).toContain("observedAt: newestObservedAt(reports),");
+    const page = readFileSync(path.join(process.cwd(), "src/app/readiness/page.tsx"), "utf8");
+    expect(page.length).toBeGreaterThan(5000);
+    expect(page).toContain('data-testid="cert-observed-at"');
+    expect(page).toContain('GATED: "GATED",');
   });
 });

@@ -22,6 +22,8 @@ export interface TicketGate {
   readonly killSwitch: boolean;
   /** Server limits saved (server.state === "SET"). Unset = every live send is refused. */
   readonly limitsSet: boolean;
+  /** A proof scene's sample book: every cancel / flatten / new order is refused with this reason (railSendGate — one owner). */
+  readonly proofRefusal?: string | null;
 }
 
 export interface PositionStateRow {
@@ -94,7 +96,8 @@ export function ticketBook(broker: BrokerLinesResult | null, contract: string | 
   /* ── WORKING ORDERS — each with a cancel (exit stays open) ──────────────── */
   const working: WorkingOrderRow[] = (broker?.workingOrders ?? []).map(o => {
     const acct = broker?.orderAccounts?.[o.id] ?? null;
-    const reason = !o.cancellable ? "tastytrade reports this order cannot be cancelled right now."
+    const reason = gate.proofRefusal ? gate.proofRefusal
+      : !o.cancellable ? "tastytrade reports this order cannot be cancelled right now."
       : acct == null ? "The account this order sits in was not read back — cancel it at tastytrade."
       : null;
     return {
@@ -105,7 +108,8 @@ export function ticketBook(broker: BrokerLinesResult | null, contract: string | 
   });
 
   /* ── MODIFY — never an atomic replace here ──────────────────────────────── */
-  const newOrderRefusal = gate.killSwitch ? "KILL SWITCH ENGAGED — the new order after the cancel is refused. Cancel stays open."
+  const newOrderRefusal = gate.proofRefusal ? gate.proofRefusal
+    : gate.killSwitch ? "KILL SWITCH ENGAGED — the new order after the cancel is refused. Cancel stays open."
     : !gate.limitsSet ? "Server limits are not set — the new order after the cancel is refused until they are saved in Settings › Execution."
     : null;
   const modify: ModifyRow = {
@@ -125,7 +129,8 @@ export function ticketBook(broker: BrokerLinesResult | null, contract: string | 
     flatten = { kind: "FLATTEN", state: "NOTHING TO FLATTEN", plan: null, refusal: null, words: `No position on ${contract ?? "this contract"} to flatten.` };
   } else {
     const plan = planFlatten(broker.position.row);
-    const refusal = gate.killSwitch ? "KILL SWITCH ENGAGED — a closing order is still a new order here; release it in Settings › Execution to flatten."
+    const refusal = gate.proofRefusal ? gate.proofRefusal
+      : gate.killSwitch ? "KILL SWITCH ENGAGED — a closing order is still a new order here; release it in Settings › Execution to flatten."
       : !gate.limitsSet ? "Server limits are not set — every live send is refused, including this closing order."
       : null;
     flatten = { kind: "FLATTEN", state: refusal ? "REFUSED" : "LOADABLE", plan, refusal, words: `${plan.action.toUpperCase()} ${plan.qty} ${plan.symbol} · MARKET · loads into this ticket; still needs preview and your confirmation.` };

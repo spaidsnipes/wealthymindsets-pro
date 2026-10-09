@@ -172,6 +172,15 @@ describe("the preview fits its host and names its own action (serving 6350c69, 2
     expect(educationTruthLines({ id: smartMoneyEducationId("VWAP"), symbol: "EURUSD" }).verdict).toBe("UNAVAILABLE HERE");
     expect(educationTruthLines({ id: "IND:OBV", symbol: "NQ1!" }).verdict).toBe("CAN DRAW HERE");
   });
+  it("the Replay record opens over the room, not inside the 210 px menu; the Draw ⓘ closes the style popover", () => {
+    expect(read("src/components/chart/ChartToolbar.tsx")).toMatch(/data-testid="replay-edu-host" style=\{\{ position: "fixed", inset: 0/);
+    expect(read("src/components/chart/LeftDrawingSidebar.tsx")).toMatch(/onToggle=\{\(\) => \{ setStyleOpen\(false\); setToolEdu/);
+  });
+  it("a footprint popover is pulled up so its bottom stays on the glass", () => {
+    const fp = read("src/components/chart/FootprintControls.tsx");
+    expect(fp).toMatch(/const over = pos\.top \+ h - \(window\.innerHeight - 8\)/);
+    expect(fp).toMatch(/top: pos\.top - lift/);
+  });
   it("the Workspace drawer's Replay door carries the Replay ⓘ", () => {
     const os = read("src/components/os/WMOperatingSystem.tsx");
     expect(os).toMatch(/item\.id === "bar-replay" \? <ReplayDoorInfo \/>/);

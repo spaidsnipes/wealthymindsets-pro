@@ -1,0 +1,87 @@
+/** scene=ticket-fixture — the SAMPLE book the trade ticket is fed on a proof scene. Pure; through the real selector. */
+import { describe, expect, it } from "vitest";
+
+import { PROOF_SCENE_REFUSAL, railSendGate } from "@/lib/broker/railSendGate";
+import { NO_PROOF_SCENE, parseProofScene, proofFixtureScene } from "@/lib/chart/proofScene";
+import { ticketBook } from "./ticketBook";
+import { parseTicketFixture, TICKET_FIXTURE_BANNER, TICKET_FIXTURE_TAIL, ticketFixtureLines, ticketFixtureReadback } from "./ticketFixture";
+
+const NOW = Date.parse("2026-10-09T05:00:00Z");
+const C = "/NQZ6";
+const gate = { killSwitch: false, limitsSet: true, proofRefusal: railSendGate("PROOF_SCENE", "tastytrade").reason };
+const bookOf = (state: "flat" | "holding" | "working" | "inflight", side: "BUY" | "SELL" = "BUY") => ticketBook(ticketFixtureLines({ side, state }, C, 31_000, 20, NOW), C, gate);
+
+describe("parseTicketFixture", () => {
+  it("needs the token AND a side; the state defaults to flat; unknown values are no scene", () => {
+    expect(parseTicketFixture("?scene=ticket-fixture&side=buy")).toEqual({ side: "BUY", state: "flat" });
+    expect(parseTicketFixture("?scene=ticket-fixture&side=SELL&state=Working")).toEqual({ side: "SELL", state: "working" });
+    expect(parseTicketFixture("?scene=ticket-fixture&side=buy&state=inflight")).toEqual({ side: "BUY", state: "inflight" });
+    expect(parseTicketFixture("?scene=ticket-fixture")).toBeNull();
+    expect(parseTicketFixture("?scene=ticket-fixture&side=hold")).toBeNull();
+    expect(parseTicketFixture("?scene=ticket-fixture&side=buy&state=filled")).toBeNull();
+    expect(parseTicketFixture("?scene=clean&side=buy")).toBeNull();
+    expect(parseTicketFixture("?side=buy&state=holding")).toBeNull();
+    expect(parseTicketFixture("")).toBeNull();
+  });
+  it("the token is a page fixture scene in the one owner, and not a chart clean scene", () => {
+    expect(proofFixtureScene("?scene=ticket-fixture&side=buy")).toBe("ticket-fixture");
+    expect(parseProofScene("?scene=ticket-fixture&side=buy")).toEqual(NO_PROOF_SCENE);
+  });
+  it("the banner says sample, not the account, nothing sent", () => {
+    expect(TICKET_FIXTURE_BANNER).toBe("PROOF SCENE — sample book, not your account · nothing can be sent");
+  });
+});
+
+describe("the sample readback, per state", () => {
+  it("flat: read, nothing held, nothing working; the tail cannot be mistaken for an account", () => {
+    const rb = ticketFixtureReadback({ side: "BUY", state: "flat" }, C, 31_000, NOW);
+    expect(rb).toMatchObject({ ok: true, asOfMs: NOW, positions: [], orders: [], tails: [TICKET_FIXTURE_TAIL] });
+    expect(TICKET_FIXTURE_TAIL).not.toMatch(/^\d{4}$/);
+    expect(bookOf("flat").position.state).toBe("FLAT");
+    expect(bookOf("flat").position.words).toMatch(/^FLAT · 0 working · read .+ from …SMPL$/);
+  });
+  it("holding: a position in the picked side's direction, UNPROTECTED, no working order", () => {
+    const b = bookOf("holding");
+    expect(b.position).toMatchObject({ state: "HOLDING", protection: "UNPROTECTED" });
+    expect(b.position.words).toMatch(/^LONG 1 \/NQZ6 @ 31000 · UNPROTECTED/);
+    expect(b.working).toEqual([]);
+    expect(bookOf("holding", "SELL").position.words).toMatch(/^SHORT 1 \/NQZ6 @ 31000/);
+  });
+  it("working / inflight: the same position WITH a working protective stop → PROTECTED and one working-order row", () => {
+    for (const st of ["working", "inflight"] as const) {
+      const b = bookOf(st);
+      expect(b.position, st).toMatchObject({ state: "HOLDING", protection: "PROTECTED" });
+      expect(b.working, st).toHaveLength(1);
+      expect(b.working[0].words, st).toBe("WORKING at tastytrade · #9000001 · Sell to Close 1 /NQZ6 · trigger 30845");
+      expect(b.working[0].tail, st).toBe("SMPL");
+    }
+    expect(bookOf("working", "SELL").working[0].words).toContain("Buy to Close 1 /NQZ6 · trigger 31155");
+  });
+  it("no reference price → 100, never NaN", () => {
+    expect(ticketFixtureReadback({ side: "BUY", state: "holding" }, C, null, NOW).positions[0].averageOpenPrice).toBe(100);
+    expect(ticketFixtureReadback({ side: "BUY", state: "holding" }, C, Number.NaN, NOW).positions[0].averageOpenPrice).toBe(100);
+  });
+});
+
+describe("every cancel / modify / flatten in the scene is refused AT the control with the one reason", () => {
+  it("the reason has one owner (railSendGate)", () => {
+    expect(railSendGate("PROOF_SCENE", "tastytrade")).toEqual({ canSend: false, reason: PROOF_SCENE_REFUSAL });
+    expect(PROOF_SCENE_REFUSAL).toBe("PROOF SCENE · nothing can be sent");
+  });
+  it("working order: Cancel not allowed, reason = the scene's; MODIFY refusal = the scene's", () => {
+    const b = bookOf("working");
+    expect(b.working[0].cancel).toEqual({ allowed: false, reason: PROOF_SCENE_REFUSAL });
+    expect(b.modify.refusal).toBe(PROOF_SCENE_REFUSAL);
+  });
+  it("FLATTEN: REFUSED with the scene's reason while holding; nothing to flatten when flat", () => {
+    expect(bookOf("holding").flatten).toMatchObject({ state: "REFUSED", refusal: PROOF_SCENE_REFUSAL });
+    expect(bookOf("holding").flatten.plan).toEqual({ action: "Sell to Close", qty: 1, type: "Market", symbol: C });
+    expect(bookOf("flat").flatten.state).toBe("NOTHING TO FLATTEN");
+  });
+  it("the scene's refusal outranks an open gate, a kill switch and unset limits alike", () => {
+    for (const g of [{ killSwitch: true, limitsSet: true }, { killSwitch: false, limitsSet: false }, { killSwitch: false, limitsSet: true }]) {
+      const b = ticketBook(ticketFixtureLines({ side: "BUY", state: "working" }, C, 31_000, 20, NOW), C, { ...g, proofRefusal: PROOF_SCENE_REFUSAL });
+      expect([b.working[0].cancel.reason, b.modify.refusal, b.flatten.refusal]).toEqual([PROOF_SCENE_REFUSAL, PROOF_SCENE_REFUSAL, PROOF_SCENE_REFUSAL]);
+    }
+  });
+});

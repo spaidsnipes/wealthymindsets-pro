@@ -23,6 +23,19 @@ describe("TicketSections", () => {
     expect(new Set(order(html)).size).toBe(order(html).length); // nothing twice
     expect(order(html)).toHaveLength(14);
   });
+  it("390 PEEK: quote, proposal, side + quantity show; price → stop/target → risk → preview are hidden with CSS but STILL MOUNTED", () => {
+    const html = renderToStaticMarkup(<TicketSections compact peek sections={sections} summary="Details · FLAT · 0 working" />);
+    const actStart = html.indexOf('data-testid="trade-act-sections"');
+    expect(order(html.slice(0, actStart))).toEqual(["QUOTE", "PROPOSAL", "SIDE_SIZE"]);
+    expect(html).toMatch(/data-testid="trade-act-sections" data-folded="yes" hidden="" style="display:none"/);
+    expect(order(html)).toHaveLength(14);                         // every section is in the DOM — nothing unmounted
+    expect(order(html.slice(actStart, html.indexOf("<details")))).toEqual(["PRICE", "RISK_INPUTS", "RISK_LINE", "PICK_STATUS", "LIVE_ORDER"]);
+  });
+  it("390 ACT: the same DOM, the act sections shown (display: contents), in order", () => {
+    const html = renderToStaticMarkup(<TicketSections compact sections={sections} summary="Details · FLAT · 0 working" />);
+    expect(html).toMatch(/data-testid="trade-act-sections" data-folded="no" style="display:contents"/);
+    expect(order(html.split("<details")[0])).toEqual(["QUOTE", "PROPOSAL", "SIDE_SIZE", "PRICE", "RISK_INPUTS", "RISK_LINE", "PICK_STATUS", "LIVE_ORDER"]);
+  });
   it("tablet / desktop: unchanged flowing order, no Details, no phone-only risk line", () => {
     const html = renderToStaticMarkup(<TicketSections compact={false} sections={sections} summary="x" />);
     expect(html).not.toContain("<details");

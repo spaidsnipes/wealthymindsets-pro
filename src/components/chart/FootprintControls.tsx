@@ -1,7 +1,7 @@
 "use client";
 
 import { permissionAt } from "@/lib/marketData/viewModels/selectSemanticPermission";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { clsx } from "clsx";
 import { Volume2, VolumeX, Settings, Layers, Pause, Play, RotateCcw, HelpCircle, X } from "lucide-react";
@@ -69,9 +69,21 @@ export function PortalPopover({
     return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
   }, [open, onClose, anchorRef]);
 
+  // KEEP IT ON THE GLASS (serving ea8ad94, 2026-10-09: a footprint ⓘ opened at
+  // y 445 ran to y 995 in a 786 px viewport — its action button unreachable).
+  // Once the content has a height, the popover is pulled up so its bottom
+  // stays 8 px inside the viewport; never above the 8 px top gutter.
+  const [lift, setLift] = useState(0);
+  useLayoutEffect(() => {
+    if (!open || !pos || !ref.current) { setLift(0); return; }
+    const h = ref.current.getBoundingClientRect().height;
+    const over = pos.top + h - (window.innerHeight - 8);
+    setLift(over > 0 ? Math.min(over, Math.max(0, pos.top - 8)) : 0);
+  }, [open, pos, children]);
+
   if (!open || !pos || typeof document === "undefined") return null;
   return createPortal(
-    <div ref={ref} style={{ position: "fixed", top: pos.top, left: pos.left, width, zIndex: 600 }}
+    <div ref={ref} data-popover-lift={lift ? Math.round(lift) : undefined} style={{ position: "fixed", top: pos.top - lift, left: pos.left, width, zIndex: 600 }}
          onClick={(e) => e.stopPropagation()}>
       {children}
     </div>,
@@ -497,7 +509,11 @@ export function FootprintControls({
   semanticDepth?: "FAR" | "MID" | "NEAR" | null;
 }) {
   const capabilityOf = (id: FootprintType, label: string) =>
-    orderFlowToolCapability(id, label, { source: tapeSource, observedAggressorFlow });
+    orderFlowToolCapability(id, label, {
+      source: tapeSource, observedAggressorFlow,
+      // Sheriff #13: the sentence follows the switch — an OFF tool is never "drawing".
+      active: (active === id && enabled) || (id === "big-trades" && bigTradesOverlay),
+    });
 
   // §B5 TOOL DOOR (2026-10-07): Active Tools' Configure on a footprint row
   // ("FP_<mode>") opened the W door — bring that mode's button forward. Only

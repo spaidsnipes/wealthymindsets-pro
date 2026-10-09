@@ -21,8 +21,50 @@ import type { TicketBook } from "./ticketBook";
 
 export const COMPACT_TICKET_MAX_WIDTH = 430;
 export const COMPACT_TICKET_QUERY = `(max-width: ${COMPACT_TICKET_MAX_WIDTH}px)`;
-/** Ticket height on a phone: with the ticket anchored above the bottom bar this covers ≤ ~55 % of the chart pane. */
+/**
+ * PEEK / ACT (approved 2026-10-09 after the serving read on 0971594: one static height measured
+ * 79 % coverage at 390 — the chart is 532 px tall there and the action path alone needs ~500 px).
+ *   PEEK — header (KILL), quote, side + quantity, the Details summary. ~290 px, ≤ ~50 % of the chart.
+ *          Shown while no side is picked, or when the trader folds the ticket to see the chart.
+ *   ACT  — once a side is picked the ticket grows so price → stop / target → risk → Preview show with
+ *          no inner scroll. It MAY cover more than 55 % of the chart while an order is being built;
+ *          holding ≤ 55 % in ACT needs the live-order block shortened — a Founder decision.
+ * The fold is CSS only: nothing is unmounted, so a live order's state cannot be lost, and the fold
+ * is refused while an order is in flight.
+ */
+export const COMPACT_PEEK_MAX_HEIGHT = "40vh";
+export const COMPACT_ACT_MAX_HEIGHT = "80vh";
+/** @deprecated the single phone height that measured 79 % coverage; kept so the reason is on record. */
 export const COMPACT_MAX_HEIGHT = "52vh";
+
+export type TicketStage = "FULL" | "PEEK" | "ACT";
+
+/** Which stage the ticket is in. An order in flight is always ACT: its state is never folded away. */
+export function ticketStage(x: { readonly compact: boolean; readonly sidePicked: boolean; readonly folded: boolean; readonly preSend: boolean }): TicketStage {
+  if (!x.compact) return "FULL";
+  if (!x.preSend) return "ACT";
+  return !x.sidePicked || x.folded ? "PEEK" : "ACT";
+}
+
+export interface FoldControl {
+  /** Whether the header shows the fold control at all (phone, and a side is picked). */
+  readonly shown: boolean;
+  readonly enabled: boolean;
+  /** The control's own words — when it is refused, the reason IS the label. */
+  readonly label: string;
+  readonly ariaLabel: string;
+}
+
+export function foldControl(x: { readonly compact: boolean; readonly sidePicked: boolean; readonly folded: boolean; readonly preSend: boolean }): FoldControl {
+  if (!x.compact || !x.sidePicked) return { shown: false, enabled: false, label: "", ariaLabel: "" };
+  if (!x.preSend) return { shown: true, enabled: false, label: "IN FLIGHT · stays open", ariaLabel: "An order is in flight — the ticket stays open until tastytrade answers" };
+  return x.folded
+    ? { shown: true, enabled: true, label: "TICKET ▴", ariaLabel: "Show the ticket — price, stop, target and preview" }
+    : { shown: true, enabled: true, label: "CHART ▾", ariaLabel: "Fold the ticket to see the chart — nothing is cleared" };
+}
+
+/** The sections a PEEK shows; the rest of the action path is hidden (still mounted) until ACT. */
+export const COMPACT_PEEK_SECTIONS: readonly TicketSection[] = ["QUOTE", "PROPOSAL", "SIDE_SIZE"];
 
 export type TicketSection =
   | "QUOTE" | "PROPOSAL" | "BOOK" | "SIDE_SIZE" | "ENTRY_TYPE" | "PRICE" | "RISK_INPUTS" | "RISK_LINE" | "ECONOMICS"

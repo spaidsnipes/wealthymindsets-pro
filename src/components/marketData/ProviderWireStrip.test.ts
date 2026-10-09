@@ -129,6 +129,24 @@ describe("matrixProviderWireView", () => {
     expect(matrixProviderWireView(matrix, "tastytrade")).toMatchObject({ tone: "OFFLINE", label: "Not receiving", detail: "refresh token missing" });
   });
 
+  it("tastytrade's observed quote token is not 'Not receiving': LIMITED, named, never LIVE (Sheriff P1-3)", async () => {
+    const { certifyTastytradeMarketData } = await import("@/lib/marketData/adapters/tastytradeMarketData");
+    const { TASTY_TOKEN_READY_LABEL, TASTY_BROWSER_STREAM_NOTE } = await import("./ProviderWireStrip");
+    // The REAL adapter's note for: configured, connected, quote token obtained.
+    const cert = certifyTastytradeMarketData({ configured: true, connected: true, quotes: true, realTime: null, note: "" } as never);
+    const matrix = buildAthosCapabilityMatrix([{ certification: cert, providerTier: "CERTIFIED_NEW" }], session);
+    const view = matrixProviderWireView(matrix, "tastytrade");
+    expect(view.label).toBe(TASTY_TOKEN_READY_LABEL);
+    expect(view.tone).toBe("LIMITED");
+    expect(view.tone).not.toBe("LIVE");
+    expect(view.detail).toContain("quote-token access was observed");
+    expect(view.detail).toContain(TASTY_BROWSER_STREAM_NOTE);
+    expect(view.evidenceless).not.toBe(true);
+    // The other tastytrade notes keep their own verdicts (no token → not this label).
+    const noToken = certifyTastytradeMarketData({ configured: true, connected: true, quotes: false, realTime: null, note: "" } as never);
+    expect(matrixProviderWireView(buildAthosCapabilityMatrix([{ certification: noToken, providerTier: "CERTIFIED_NEW" }], session), "tastytrade").label).not.toBe(TASTY_TOKEN_READY_LABEL);
+  });
+
   it("names an observed but unclassified HTTP 403 as access unproven", () => {
     const detail = "Webull Data API returned HTTP 403. Access was denied, but the failed edge was not proven.";
     const matrix = buildAthosCapabilityMatrix([

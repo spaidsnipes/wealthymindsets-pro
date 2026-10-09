@@ -1634,10 +1634,19 @@ export function ChartToolbar({
                       <InventionInfoButton scope="tb" id={REPLAY_EDUCATION_ID} label="Replay" open={replayEdu} compact onToggle={() => setReplayEdu(o => !o)} />
                     </span>
                     {replayEdu ? (
+                      // Centred over the room, NOT inside the 210 px menu (serving ea8ad94,
+                      // 2026-10-09: the menu is placed by its measured height, so a record
+                      // opened inside it pushed its own title above the viewport). A span,
+                      // because chartProgressiveDisclosure bounds this menu by its first closing div tag.
+                      <span data-testid="replay-edu-host" style={{ position: "fixed", inset: 0, zIndex: 10000, display: "grid", placeItems: "center", pointerEvents: "none" }}>
+                      <span style={{ display: "block", width: "min(380px, calc(100vw - 16px))", pointerEvents: "auto" }}>
                       <InventionPreview scope="tb" id={REPLAY_EDUCATION_ID} label="Replay" what={REPLAY_EDUCATION.what} familyWord="Workspace" symbol={symbol}
                         truth={educationTruthLines({ id: REPLAY_EDUCATION_ID, symbol })} active={!!replayActive}
                         onAdd={() => { setAdvancedOpen(false); onReplay(); }} onClose={() => setReplayEdu(false)}
                         action={{ add: "Start replay", on: "Replaying · stop" }} />
+                    
+                      </span>
+                      </span>
                     ) : null}
                   </>
                 )}

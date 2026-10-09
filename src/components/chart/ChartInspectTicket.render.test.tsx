@@ -133,7 +133,11 @@ describe("the ticket puts its verdict on the glass", () => {
     // A trader who moves the cursor off the chart gets a different set of
     // numbers. Unstated, that is the panel lying about which bar it describes.
     expect(markup(coveringTape(), { followingLiveBar: true })).toMatch(/still forming/i);
-    expect(markup(coveringTape(), { followingLiveBar: true })).toContain("LIVE BAR");
+    // LIVE is the feed's word: only a LIVE feed titles the forming bar LIVE BAR.
+    expect(markup(coveringTape(), { followingLiveBar: true, feed: "LIVE" })).toContain("LIVE BAR");
+    expect(markup(coveringTape(), { followingLiveBar: true, feed: "UNAVAILABLE" })).toContain("FORMING BAR");
+    expect(markup(coveringTape(), { followingLiveBar: true, feed: "UNAVAILABLE" })).not.toContain("LIVE BAR");
+    expect(markup(coveringTape(), { followingLiveBar: true })).toContain("FORMING BAR");
     expect(markup(coveringTape(), { followingLiveBar: false })).toContain("SELECTED BAR");
   });
 

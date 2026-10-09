@@ -62,6 +62,13 @@ export interface CboeOptionsReceipt {
   readonly rows: readonly CboeOptionRow[];
   /** Contracts dropped for an unreadable identity or a missing open interest. */
   readonly dropped: number;
+  /**
+   * Garden 16 §20 (2026-10-09): what part of the chain these rows ARE. Absent
+   * = the whole listed chain (Cboe, Deribit). A provider lane that hears only
+   * the strikes near price says so here, with its reach — the pressure owner
+   * then claims no more than was heard (selectDerivativesPressure.chainScope).
+   */
+  readonly scope?: { readonly kind: "NEAR_MONEY_SUBSET"; readonly reachPct: number };
 }
 
 const rec = (v: unknown): Record<string, unknown> | null =>

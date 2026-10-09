@@ -52,6 +52,8 @@ export interface CertificationBrokerPayload {
   /** Whether an adapter for this broker exists in-process. */
   readonly implemented?: boolean;
   readonly note?: string;
+  /** When the newest stage observation behind this report was made (ISO), or null. */
+  readonly observedAt?: string | null;
 }
 
 export interface CertificationPayload {
@@ -65,6 +67,13 @@ export type JointClass =
   | "UNPROBED"
   | "FAILED"
   | "BLOCKED"
+  /**
+   * The next stage is BLOCKED and NO earlier stage failed: it is gated (not
+   * switched on), not broken. Serving ea8ad94 (2026-10-09): Webull read
+   * "UNREACHABLE at submit_order — an earlier stage failed" with six stages
+   * passed and none failed; execution there is gated by design.
+   */
+  | "GATED"
   | "FULLY_CERTIFIED";
 
 /** Who has to move next. Kept separate from the class so the UI never has to
@@ -88,6 +97,8 @@ export interface CertificationJointRow {
   readonly detail: string;
   /** Stages proven to have passed, in canon order. */
   readonly passedStages: readonly CertStage[];
+  /** When the observation behind this row was made (ISO) — null when the report carries none. */
+  readonly observedAt: string | null;
   /**
    * True when NOTHING about this broker has ever been measured — every stage is
    * pending. Surfaced explicitly so a board can say "not measured" instead of
@@ -138,6 +149,8 @@ function describe(
       return blockedBy
         ? `${joint} is unreachable for ${brokerId} because ${blockedBy} failed. Fix that stage, not this one.`
         : `${joint} is unreachable for ${brokerId} — an earlier stage failed.`;
+    case "GATED":
+      return `${joint} is gated for ${brokerId}: every stage before it passed and none failed. The stage is not switched on — nothing is broken, and nothing here is a fault to fix.`;
     case "UNPROBED":
     default:
       return `Nothing has ever probed ${joint} for ${brokerId}. This is UNKNOWN, not failing — it needs a harness run, not a fix.`;
@@ -173,13 +186,15 @@ export function selectCertificationJoint(
       // Name the link that actually broke, so the reader is not sent to a stage
       // whose state is somebody else's consequence.
       blockedBy = CERT_STAGES.slice(0, CERT_STAGES.indexOf(joint)).reverse().find((s) => failed.has(s)) ?? null;
+      // No stage failed at all → the block is a gate, not a consequence of a break.
+      if (blockedBy === null && failed.size === 0) jointClass = "GATED";
     } else jointClass = "UNPROBED";
 
     const owner: JointOwner =
       jointClass === "FULLY_CERTIFIED" ? "NOBODY"
       : jointClass === "NOT_IMPLEMENTED" ? "ENGINEERING"
       : jointClass === "FAILED" ? "ENGINEERING"
-      : jointClass === "BLOCKED" ? "NOBODY"
+      : jointClass === "BLOCKED" || jointClass === "GATED" ? "NOBODY"
       : "HARNESS";
 
     return {
@@ -192,6 +207,7 @@ export function selectCertificationJoint(
       owner,
       detail: describe(broker.brokerId, joint, jointClass, blockedBy),
       passedStages,
+      observedAt: typeof broker.observedAt === "string" && Number.isFinite(Date.parse(broker.observedAt)) ? broker.observedAt : null,
       neverMeasured: passedStages.length === 0 && failed.size === 0 && blocked.size === 0,
     };
   });

@@ -48,6 +48,34 @@ export const MIN_ROWS = 40;
 /** Observed wall tests count only inside this window (days): positioning is this cycle's, not last year's. */
 export const WALL_TEST_WINDOW_DAYS = 7;
 
+/**
+ * WHAT PART OF THE CHAIN WAS HEARD (Garden 16 §20: never manufacture wall
+ * heat). Serving NQ1! / ES1!, 2026-10-08: walls, the zero-gamma front and the
+ * field were built from the ~125 contracts within ±4% of price as if they were
+ * the whole chain — the front drifted 800 points in 21 minutes as the window
+ * followed price. One field, read by the glass, Inspect, the ⓘ truth line and
+ * SpaidBot alike.
+ */
+export type ChainScope =
+  | { readonly kind: "WHOLE" }
+  | { readonly kind: "NEAR_MONEY_SUBSET"; readonly contracts: number; readonly reachPct: number };
+
+/** In a near-money subset, a strike in the outer EDGE_BAND of the window cannot be a wall: the edge is the window's, not the market's. */
+export const SUBSET_EDGE_BAND = 0.25;
+
+/** The scope in the words every surface prints; null for a whole chain. */
+export function chainScopeWords(scope: ChainScope): string | null {
+  return scope.kind === "WHOLE" ? null : `NEAR-PRICE OPEN INTEREST · ${scope.contracts} CONTRACTS · ±${scope.reachPct}%`;
+}
+/** Why the front / field / climate are withheld on a subset; null for a whole chain. */
+export function chainScopeWithheldWords(scope: ChainScope): string | null {
+  return scope.kind === "WHOLE" ? null : `ZERO-GAMMA · WITHHELD — ONLY THE ~${scope.contracts} CONTRACTS NEAREST PRICE ARE HEARD, NOT THE WHOLE CHAIN`;
+}
+/** The highest ⓘ grade the reading may claim: a subset is never FULL. */
+export function chainScopeGrade(scope: ChainScope): "FULL" | "PARTIAL" {
+  return scope.kind === "WHOLE" ? "FULL" : "PARTIAL";
+}
+
 export type Climate = "DAMPING" | "AMPLIFYING" | "MIXED" | "INSUFFICIENT_EVIDENCE";
 export type WallLife = "BORN" | "TESTED" | "DEFENDED" | "WEAKENING" | "BREAKING" | "BROKEN";
 
@@ -119,6 +147,8 @@ export type DerivativesPressureVM =
       readonly pockets: readonly PressurePocket[];
       readonly envelope: ExpectedMove | null;
       readonly contracts: number;
+      /** §20: WHOLE chain, or the near-money subset that was heard. On a subset the front, field, pockets and climate are withheld. */
+      readonly chainScope: ChainScope;
       readonly clocks: { readonly chainAsOf: string | null; readonly underlyingAsOf: string | null; readonly oiAsOf: "PRIOR_SESSION" | "CURRENT"; readonly modelAsOf: number };
       readonly source: OptionsPositioningSource;
       /** DELAYED (Cboe ≈15 min) or SNAPSHOT (Deribit public, polled). */
@@ -254,10 +284,16 @@ export function selectDerivativesPressure(
   const atSpot = netExposureAt(spot, prepared);
   if (!(atSpot.gross > 0)) return refuse("NO_EXPOSURE", prepared.length);
   const ratio = atSpot.net / atSpot.gross;
-  const climate: Climate = ratio > MIXED_BAND ? "DAMPING" : ratio < -MIXED_BAND ? "AMPLIFYING" : "MIXED";
+  const chainScope: ChainScope = receipt.scope?.kind === "NEAR_MONEY_SUBSET"
+    ? { kind: "NEAR_MONEY_SUBSET", contracts: prepared.length, reachPct: receipt.scope.reachPct }
+    : { kind: "WHOLE" };
+  const subset = chainScope.kind === "NEAR_MONEY_SUBSET";
+  // A net-over-gross of a window that follows price is not the market's climate.
+  const climate: Climate = subset ? "INSUFFICIENT_EVIDENCE" : ratio > MIXED_BAND ? "DAMPING" : ratio < -MIXED_BAND ? "AMPLIFYING" : "MIXED";
 
   const geography: GeographySample[] = [];
-  for (let i = 0; i <= SWEEP_STEPS; i++) {
+  // The field (and the front read off it) is withheld on a subset.
+  for (let i = 0; !subset && i <= SWEEP_STEPS; i++) {
     const price = spot * (1 - SWEEP + (2 * SWEEP * i) / SWEEP_STEPS);
     geography.push({ price, net: netExposureAt(price, prepared).net });
   }
@@ -273,7 +309,9 @@ export function selectDerivativesPressure(
 
   const oiAt = (strike: number, type: "call" | "put") =>
     prepared.reduce((s, p) => (p.row.strike === strike && p.row.type === type ? s + p.row.openInterest : s), 0);
-  const strikes = [...atSpot.byStrike.entries()].filter(([k]) => Math.abs(k / spot - 1) <= SWEEP);
+  // On a subset, the outer band of the heard window cannot hold a wall.
+  const wallReach = chainScope.kind === "NEAR_MONEY_SUBSET" ? (chainScope.reachPct / 100) * (1 - SUBSET_EDGE_BAND) : SWEEP;
+  const strikes = [...atSpot.byStrike.entries()].filter(([k]) => Math.abs(k / spot - 1) <= wallReach);
   const walls: PressureWall[] = strikes
     .filter(([, e]) => e > 0 && e / atSpot.gross >= WALL_MIN_SHARE)
     .sort((a, b) => b[1] - a[1])
@@ -284,7 +322,7 @@ export function selectDerivativesPressure(
       ...wallLife(strike, bars, spot),
     }))
     .sort((a, b) => a.strike - b.strike);
-  const pockets: PressurePocket[] = strikes
+  const pockets: PressurePocket[] = (subset ? [] : strikes)
     .filter(([, e]) => e < 0 && -e / atSpot.gross >= WALL_MIN_SHARE)
     .sort((a, b) => a[1] - b[1])
     .slice(0, MAX_POCKETS)
@@ -307,6 +345,7 @@ export function selectDerivativesPressure(
     `WALLS:${walls.map(w => `${w.strike}/${w.life}`).join(",") || "NONE"}`,
     `POCKETS:${pockets.map(p => p.strike).join(",") || "NONE"}`,
     `N:${prepared.length}`,
+    ...(subset ? [`SCOPE:NEAR_MONEY_SUBSET:±${chainScope.kind === "NEAR_MONEY_SUBSET" ? chainScope.reachPct : 0}%`] : []),
   ].join("|");
 
   return {
@@ -325,6 +364,7 @@ export function selectDerivativesPressure(
     pockets,
     envelope,
     contracts: prepared.length,
+    chainScope,
     clocks: { chainAsOf: receipt.chainAsOf, underlyingAsOf: receipt.underlyingAsOf, oiAsOf: receipt.source === "DERIBIT_PUBLIC" ? "CURRENT" : "PRIOR_SESSION", modelAsOf: Math.floor(nowMs / 1000) },
     source: receipt.source,
     fidelity: receipt.source === "DERIBIT_PUBLIC" ? "SNAPSHOT" : "DELAYED",

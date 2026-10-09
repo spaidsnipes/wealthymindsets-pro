@@ -90,3 +90,47 @@ describe("a wall says how much history its tests were counted over", () => {
     expect(wallTestSpanWords(WALL_TEST_WINDOW_DAYS * 86_400)).toBeNull();
   });
 });
+
+describe("§20 — a near-money subset claims no more than it heard (2026-10-09)", () => {
+  const sub = (rows: CboeOptionRow[]): CboeOptionsReceipt => ({ ...receipt(rows), source: "TASTYTRADE_LIVE", scope: { kind: "NEAR_MONEY_SUBSET", reachPct: 4 } });
+  // Strikes 96..104 (±4% of 100), several expiries so the row floor is met.
+  const exps = ["2026-10-02", "2026-10-09", "2026-10-16"];
+  const near = (fn: (k: number) => number) => exps.flatMap(e => Array.from({ length: 9 }, (_, i) => 96 + i).flatMap(k => [row("call", k, fn(k), e), row("put", k, 60, e)]));
+
+  it("a whole chain says WHOLE and keeps its front, field and climate", async () => {
+    const { chainScopeWords, chainScopeGrade } = await import("./selectDerivativesPressure");
+    const vm = selectDerivativesPressure(receipt(ladder(k => (k < 100 ? [row("put", k, 1500)] : [row("call", k, 1500)]))), [], NOW);
+    expect(vm.drawn).toBe(true);
+    if (!vm.drawn) return;
+    expect(vm.chainScope).toEqual({ kind: "WHOLE" });
+    expect(chainScopeWords(vm.chainScope)).toBeNull();
+    expect(chainScopeGrade(vm.chainScope)).toBe("FULL");
+    expect(vm.zeroGamma).not.toBeNull();
+    expect(vm.geography.length).toBeGreaterThan(0);
+  });
+
+  it("a subset withholds the front, the field, the pockets and the climate — and says its scope", async () => {
+    const { chainScopeWords, chainScopeWithheldWords, chainScopeGrade } = await import("./selectDerivativesPressure");
+    const vm = selectDerivativesPressure(sub(near(k => (k === 101 ? 5000 : 200))), [], NOW);
+    expect(vm.drawn).toBe(true);
+    if (!vm.drawn) return;
+    expect(vm.chainScope.kind).toBe("NEAR_MONEY_SUBSET");
+    expect(vm.zeroGamma).toBeNull();
+    expect(vm.geography).toEqual([]);
+    expect(vm.pockets).toEqual([]);
+    expect(vm.climate).toBe("INSUFFICIENT_EVIDENCE");
+    expect(chainScopeWords(vm.chainScope)).toBe(`NEAR-PRICE OPEN INTEREST · ${vm.contracts} CONTRACTS · ±4%`);
+    expect(chainScopeWithheldWords(vm.chainScope)).toBe(`ZERO-GAMMA · WITHHELD — ONLY THE ~${vm.contracts} CONTRACTS NEAREST PRICE ARE HEARD, NOT THE WHOLE CHAIN`);
+    expect(chainScopeGrade(vm.chainScope)).toBe("PARTIAL");
+    expect(vm.receipt).toContain("SCOPE:NEAR_MONEY_SUBSET:±4%");
+    // The open interest that WAS heard still draws: the heavy strike is a wall.
+    expect(vm.walls.map(w => w.strike)).toContain(101);
+  });
+
+  it("a strike in the outer band of the heard window cannot be a wall", () => {
+    // 104 is the window's edge (±4%, outer quarter = beyond ±3%): heavy, but not a wall.
+    const vm = selectDerivativesPressure(sub(near(k => (k === 104 ? 9000 : 200))), [], NOW);
+    expect(vm.drawn).toBe(true);
+    if (vm.drawn) expect(vm.walls.map(w => w.strike)).not.toContain(104);
+  });
+});

@@ -119,11 +119,14 @@ export function ChartEffortVsResult({
   vm,
   /** True when the bar read is the live one because the cursor is nowhere. */
   followingLiveBar,
+  feedLive = false,
   open,
   onOpenChange,
 }: {
   vm: EffortVsResultVM;
   followingLiveBar: boolean;
+  /** The chart's feed state is LIVE. Only then may the forming bar be titled LIVE BAR. */
+  feedLive?: boolean;
   open: boolean;
   onOpenChange: (next: boolean) => void;
 }) {
@@ -175,7 +178,8 @@ export function ChartEffortVsResult({
       </div>
 
       <div className="pt-1.5 text-[10px] font-bold tracking-wide text-wm-muted">
-        {followingLiveBar ? "LIVE BAR" : "SELECTED BAR"}
+        {/* LIVE only when the feed is LIVE — the same rule as the Inspect ticket. */}
+        {followingLiveBar ? (feedLive ? "LIVE BAR" : "FORMING BAR") : "SELECTED BAR"}
       </div>
       {/*
         Stated, not implied — the same rule the ticket follows. A trader whose

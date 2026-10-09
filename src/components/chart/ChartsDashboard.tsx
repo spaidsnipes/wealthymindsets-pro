@@ -4180,7 +4180,11 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         onToggle: () => onFootprintChange(t.id),
         // §9 · the ⓘ preview prints the order-flow capability owner's verdict for THIS feed.
         truth: (() => {
-          const cap = orderFlowToolCapability(t.id, t.id === "big-trades" ? "Big Trades" : `Footprint · ${t.label}`, { source, observedAggressorFlow: chartFlowSnap.hasFlow });
+          // Sheriff #13: the sentence follows the switch — an OFF tool is never "drawing".
+          const on = t.id === "big-trades"
+            ? (bigTradesSimul ? bigTradesOverlay : footprintEnabled && footprintType === "big-trades")
+            : footprintEnabled && footprintType === t.id;
+          const cap = orderFlowToolCapability(t.id, t.id === "big-trades" ? "Big Trades" : `Footprint · ${t.label}`, { source, observedAggressorFlow: chartFlowSnap.hasFlow, active: on });
           return { ok: cap.drawable, waiting: cap.state === "AWAITING_TAPE", sentence: cap.reason };
         })(),
       }))]}
@@ -7453,6 +7457,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       <ChartEffortVsResult
                         vm={effortVsResultVM}
                         followingLiveBar={inspectFollowingLiveBar}
+                        feedLive={chartCanvasState?.qualityState === "LIVE"}
                         open={effortOpen}
                         onOpenChange={setEffortOpen}
                       />

@@ -38,7 +38,8 @@ describe("the certificate outranks the Settings map (one owner per claim)", () =
     const exec = { capability: "EXEC_EQUITY" as const, state: "HUMAN_ARMED" as const };
     expect(capabilityClaimWord(exec, null, ARMED)).toBe("BUILT · CERTIFICATE UNREAD (submit order)");
     expect(capabilityClaimWord(exec, cert([], ["submit_order"]), ARMED)).toBe("BUILT · CERTIFICATE FAILED (submit order)");
-    expect(capabilityClaimWord(exec, cert([], [], ["submit_order"]), ARMED)).toBe("BUILT · CERTIFICATE BLOCKED (submit order)");
+    expect(capabilityClaimWord(exec, cert([], [], ["submit_order"]), ARMED)).toBe("BUILT · GATED (submit order not switched on)");
+    expect(capabilityClaimWord(exec, cert([], ["auth"], ["submit_order"]), ARMED)).toBe("BUILT · CERTIFICATE BLOCKED (submit order)");
     expect(capabilityClaimWord(exec, cert(["submit_order"]), ARMED)).toBe("ARMED BY YOU");
     expect(capabilityClaimWord(exec, cert(["submit_order"]), { device: false, server: false, killSwitch: false })).toMatch(/^DISARMED/);
   });

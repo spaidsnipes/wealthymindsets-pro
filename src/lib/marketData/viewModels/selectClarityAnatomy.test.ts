@@ -145,3 +145,14 @@ describe("a range wears the instrument's unit (sheriff 2026-10-08)", () => {
     expect(JSON.stringify(bare)).toContain("0.048 wide");
   });
 });
+
+describe("the truth gap wears the instrument's unit too (serving EURUSD 2026-10-09)", () => {
+  it("EURUSD gap reads in pips", () => {
+    const vm = selectClarityAnatomy({
+      bar: { open: 1.12347, high: 1.1236, low: 1.12347, close: 1.12355 },
+      priorBars: [{ open: 1.1232, high: 1.12325, low: 1.12315, close: 1.12322 }],
+      dp: 5, symbol: "EURUSD",
+    });
+    expect(JSON.stringify(vm)).toContain("Gap up 2.5 pips");
+  });
+});

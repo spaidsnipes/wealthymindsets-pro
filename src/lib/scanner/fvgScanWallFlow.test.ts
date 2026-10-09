@@ -49,7 +49,7 @@ const read = (rows: Row[], walls?: FvgScanWallEvidence) => {
 function drawnVm(strike: number): DerivativesPressureVM {
   return {
     drawn: true, version: 1, underlying: SYM, spot: 104.5, climate: "DAMPING", climateRatio: 0.4, netAtSpot: 1, gross: 2.5,
-    geography: [], zeroGamma: 80, testSpanSec: 0, pockets: [], envelope: null, contracts: 120,
+    geography: [], zeroGamma: 80, testSpanSec: 0, pockets: [], envelope: null, contracts: 120, chainScope: { kind: "WHOLE" },
     walls: [{ strike, exposure: 1, share: 0.2, callOi: 100, putOi: 900, side: "BELOW", life: "BORN", tests: 0, closesBeyond: 0, firstTestTime: null, testTimes: [] }],
     clocks: { chainAsOf: "2026-10-06T09:59:00Z", underlyingAsOf: null, oiAsOf: "PRIOR_SESSION", modelAsOf: 0 },
     source: "CBOE_DELAYED", fidelity: "DELAYED", epistemic: { exposure: "INFERRED", envelope: "DERIVED", tests: "OBSERVED" },

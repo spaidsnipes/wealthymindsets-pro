@@ -213,3 +213,10 @@ describe("MainChart adoption", () => {
     expect(CODE).toMatch(/last\.time as number,\s*timeframe,\s*true,\s*nowMs/);
   });
 });
+
+describe("the volume cell names the instrument's own unit (sheriff 2026-10-08)", () => {
+  it("a given unit replaces the generic three; omitted keeps the old sentence", () => {
+    expect(dataWindowBarScope(1_750_000_000, "5m", true, null, "UTC", "shares").volume.title).toContain("Measured in shares; never currency.");
+    expect(dataWindowBarScope(1_750_000_000, "5m", true, null, "UTC").volume.title).toContain("Measured in contracts, shares or coins; never currency.");
+  });
+});

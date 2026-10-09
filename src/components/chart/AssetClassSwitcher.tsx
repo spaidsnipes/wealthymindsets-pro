@@ -101,6 +101,17 @@ export function classOf(sym: string): string {
   return TAB_OF_CLASS[classifySymbol(raw)];
 }
 
+/**
+ * The chip names what the INSTRUMENT is. The "Indices" tab also lists the index
+ * ETFs (SPY, QQQ, IWM, DIA), and the chip read "Indices" on SPY — an ETF
+ * (sheriff, serving 2026-10-08). The tab keeps its name; the chip says ETF.
+ */
+export function chipLabelFor(symbol: string, tab: { readonly id: string; readonly label: string; readonly symbols: readonly { readonly sym: string; readonly name: string }[] }): string {
+  const raw = (symbol ?? "").trim().toUpperCase();
+  const entry = tab.symbols.find(s => s.sym.toUpperCase() === raw);
+  return entry && /\bETF$/.test(entry.name) ? "ETF" : tab.label;
+}
+
 export function AssetClassSwitcher({ symbol, onSelect }: { symbol: string; onSelect: (sym: string) => void }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab]   = useState(() => classOf(symbol));
@@ -149,7 +160,7 @@ export function AssetClassSwitcher({ symbol, onSelect }: { symbol: string; onSel
         }}
       >
         <span style={{ color: "#4FA3E0", display: "inline-flex" }}>{current.icon}</span>
-        {current.label}
+        {chipLabelFor(symbol, current)}
         <ChevronDown size={12} style={{ opacity: 0.7, transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
       </button>
 

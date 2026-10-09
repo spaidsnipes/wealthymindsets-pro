@@ -121,6 +121,8 @@ export function useTastyFuturesPositioning(symbol: string, enabled: boolean, pri
         underlyingAsOf: null,
         rows,
         dropped,
+        // Only strikes within ±STRIKE_REACH of price are subscribed (≤ MAX_CONTRACTS).
+        scope: { kind: "NEAR_MONEY_SUBSET", reachPct: STRIKE_REACH * 100 },
       },
     };
   }, [product, edge, chain, anchor, legs, snap, symbol, price]);

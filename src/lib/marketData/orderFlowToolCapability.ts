@@ -64,6 +64,13 @@ export interface OrderFlowTapeEvidence {
    * claim. A feed being ABLE to publish a side is not evidence that one arrived.
    */
   observedAggressorFlow: boolean;
+  /**
+   * Is the tool switched ON? Sheriff #13 (serving 2026-10-08): the ⓘ truth line
+   * read "Imbalance is drawing from sided prints…" while Order Flow was OFF. A
+   * tool that is off is not drawing; it CAN draw. Omitted → the caller did not
+   * say, and the sentence stays about capability, never about an act.
+   */
+  active?: boolean;
 }
 
 /** A feed's own name is better evidence than "the data provider". */
@@ -138,9 +145,12 @@ export function orderFlowToolCapability(
     toolId,
     drawable: true,
     state: "DRAWABLE",
-    reason:
-      `${toolLabel} is drawing from sided prints observed live on ${feed}, where ` +
-      `${methodPhrase(entry.aggressorMethod)}. Bars older than this session's tape stay empty — ` +
-      `historical OHLCV carries no per-trade side.`,
+    reason: evidence.active === true
+      ? `${toolLabel} is drawing from sided prints observed live on ${feed}, where ` +
+        `${methodPhrase(entry.aggressorMethod)}. Bars older than this session's tape stay empty — ` +
+        `historical OHLCV carries no per-trade side.`
+      : `${toolLabel} can draw here${evidence.active === false ? ", and is switched off — nothing of it is on the chart" : ""}: ` +
+        `sided prints are being observed live on ${feed}, where ${methodPhrase(entry.aggressorMethod)}. ` +
+        `Bars older than this session's tape would stay empty — historical OHLCV carries no per-trade side.`,
   };
 }

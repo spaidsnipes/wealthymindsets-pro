@@ -54,6 +54,13 @@ export interface BrokerCertificationReport {
   readonly implemented: boolean;
   /** Truthful note from the adapter's health(). */
   readonly note: string;
+  /**
+   * When the newest stage observation behind this report was made (ISO); null
+   * when no stage carries a time. The readiness board prints it, so a
+   * certificate read from an older record is not taken for the live probe's
+   * "connected now" (Sheriff P1-3).
+   */
+  readonly observedAt: string | null;
 }
 
 export interface BrokerCertificationResponse {
@@ -75,6 +82,15 @@ function deriveReports(implemented: boolean, envConfigured: boolean, connected: 
     return [{ stage: "auth", status: "PASS", note: "Derived from adapter.health() — connected in-process." }];
   }
   return [{ stage: "auth", status: "PENDING", note: "Adapter present; live cert harness has not run." }];
+}
+
+function newestObservedAt(reports: readonly CertStageReport[]): string | null {
+  let best: number | null = null;
+  for (const r of reports) {
+    const t = r.observedAt ? Date.parse(r.observedAt) : NaN;
+    if (Number.isFinite(t) && (best === null || t > best)) best = t;
+  }
+  return best === null ? null : new Date(best).toISOString();
 }
 
 async function buildBrokerCertification(nowMs: number, userId: string | null = null): Promise<Omit<BrokerCertificationResponse, "audience">> {
@@ -100,6 +116,7 @@ async function buildBrokerCertification(nowMs: number, userId: string | null = n
       fullyCertified: result.fullyCertified,
       implemented,
       note: h?.note ?? "Adapter not registered.",
+      observedAt: newestObservedAt(reports),
     };
   }));
   return {

@@ -76,6 +76,19 @@ describe("TicketBookRows — the four rows are always present, with honest state
     expect(acked).toMatch(/data-testid="trade-cancel-working" disabled=""/);
     expect(html(rb({ orders: [ORDER] }), OPEN, {}, "101")).toContain("Cancel requested…");
   });
+  it("PROOF SCENE refusal: Cancel and Load FLATTEN are disabled and each points at 'PROOF SCENE · nothing can be sent'; MODIFY shows it too", () => {
+    const scene: TicketGate = { killSwitch: false, limitsSet: true, proofRefusal: "PROOF SCENE · nothing can be sent" };
+    const h = html(rb({ positions: [LONG], orders: [ORDER] }), scene);
+    expect(h).toMatch(/data-testid="trade-cancel-working" disabled="" aria-describedby="trade-cancel-refusal-101"/);
+    expect(h).toMatch(/id="trade-cancel-refusal-101" role="status" data-testid="trade-cancel-refusal"[^>]*>PROOF SCENE · nothing can be sent</);
+    expect(h).toMatch(/data-testid="trade-flatten" disabled="" aria-describedby="trade-flatten-refusal"/);
+    expect(h).toMatch(/id="trade-flatten-refusal" role="status" data-testid="trade-flatten-refusal"[^>]*>PROOF SCENE · nothing can be sent</);
+    expect(h).toMatch(/data-testid="trade-modify-refusal"[^>]*>PROOF SCENE · nothing can be sent</);
+    expect(h).toContain('data-state="HOLDING" data-protection="PROTECTED"');
+    expect(h.match(/PROOF SCENE · nothing can be sent/g) ?? []).toHaveLength(3);
+    // No enabled control that could cancel or flatten remains.
+    expect(h).not.toMatch(/<button type="button" data-testid="trade-(cancel-working|flatten)"(?! disabled)/);
+  });
   it("the view has no network, no storage and no order route in its source", () => {
     const src = readFileSync(path.resolve(__dirname, "TicketBookRows.tsx"), "utf8");
     expect(src.length).toBeGreaterThan(2_000);

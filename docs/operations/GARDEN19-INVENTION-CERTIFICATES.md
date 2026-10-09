@@ -796,6 +796,8 @@ tab was closed afterwards. Nothing was saved, sent or clicked.
 | Sheriff P0-1 · Alpaca paper send disabled with the reason at the control when the rail is not connected | `railSendGate.test.ts`; serving `7c3405b` read 18:47:03Z (own tab, read only; TRADE → "Alpaca paper account" → Trade tab; NOTHING sent): "BUY 1 SPY — MARKET" `type="button"`, `disabled=true`, `aria-describedby="wm-alpaca-send-refusal"`; refusal at the control "Paper account not connected — nothing can be sent or closed here."; no ".env" / key names in the drawer; the live ticket stayed open behind the drawer | **PROVED on serving** |
 | Sheriff P1-2 / P1-4 / P2-6 · ticket truth: LIVE only with a fresh quote; no prefill from the chart close; no pre-staged side; book line; header on glass | `ticketTruth.test.ts` (12); serving `7c3405b` NQ1! read 18:46:46Z, 390 and 834 (own tab, read only): panel scroll overflow 0; KILL x 131–170 (390) / 37–76 (834) inside the panel; × 32×32 at x 329–361 (390) / 375–407 (834), inside panel and viewport; header "TRADE FUTURE /NQZ6 DEC 2026 LIVE DISARMED KILL ×" wraps; quote state "● connecting" `data-live="no"` (no LIVE word without a quote); "Pick BUY or SELL — nothing is staged until you do."; BUY not pressed; limit empty; book line "Position and working orders: not read from tastytrade yet — nothing is assumed flat." | **PROVED on serving** (geometry + truth words). The LIVE-with-fresh-quote path and the STALE prefill note are PROVED in unit only (the iframe never reached LIVE) |
 | §23 book rows on the ticket: POSITION STATE · WORKING ORDERS (cancel) · MODIFY · FLATTEN — broker readback only, fail-closed; no UI-only fill | `ticketBook.test.ts`, `TicketBookRows.render.test.tsx`, `noUiOnlyFill.sentinel.test.ts`; serving `6350c69` NQ1! read 2026-10-09 04:53:30Z (23:53 CDT), own tab, sandboxed same-origin iframe, 390 / 834 / 1440, TRADE opened only — NO cancel, send or flatten pressed: POSITION STATE "FLAT · 0 working · read 11:53 PM CDT from …####, …####" (two account tails); "WORKING ORDERS · none on this contract"; MODIFY "NOTHING TO MODIFY" with the cancel-then-new sentence; FLATTEN "NOTHING TO FLATTEN · No position on /NQZ6 to flatten." (no button); KILL + LIVE DISARMED present; panel overflow 0 and the book inside the panel at all three widths | **PROVED on serving** for the FLAT / no-working state at 390, 834, 1440. **NOT PROVABLE without a working order or a position on the Founder's account:** a working-order row with its Cancel control, the broker's ack words after a cancel, MODIFY's refusal at the control, FLATTEN loadable / refused, HOLDING with protection, RECONCILING — these are PROVED in unit / render tests only |
+| **DESIGN CALL (coordinator, 2026-10-08 / 09) · compact phone ticket, PEEK / ACT.** At ≤ 430 px the ONE trade ticket (same component, state and gates) orders its sections action-first and folds the book / MODIFY / FLATTEN / entry type / economics / protection + dry run / plan card / protect behind one "Details" disclosure whose summary states the book. **PEEK** (header with KILL, quote, side + quantity, Details summary; ~290 px, ≤ ~50 % of the chart) shows while no side is picked or when the trader folds the ticket. **ACT** grows once a side is picked so price → stop / target → risk → Preview show with no inner scroll. **ACT may exceed 55 % of the chart while an order is being built; holding ≤ 55 % in ACT is a FOUNDER DECISION, because it needs the live-order block shortened** (order code this lane does not edit). The fold is CSS only — nothing unmounts — and is refused while an order is in flight. A refusal stays beside its control in both states. Tablet / desktop unchanged | `ticketLayout.test.ts`, `TicketSections.render.test.tsx`. Serving `0971594` 390 × 844 read 2026-10-09 05:04Z (the FIRST, single-height build): layout compact, "Details · FLAT · 0 working", KILL + × visible, BUY/SELL + Quantity visible without inner scroll, overflow 0 — but **chart coverage 79.3 %** (panel y 270–740 over chart y 178–710) and no Preview before a side is picked → the miss that led to PEEK / ACT. 834: full layout, 44.2 % coverage; 1440: full layout, 28.7 % — unchanged | **PROVED** (unit / render) for PEEK / ACT order, the single fold, nothing unmounted, fold refused in flight. **PARTIAL on serving:** PEEK coverage and the ACT path without inner scroll must be measured at 390 on the ship that carries PEEK / ACT (ACT needs a side picked — a press that stages nothing and sends nothing) |
+| Sheriff ticket truth, second slice: FX ticket without the paper door; Alpaca drawer scoped banner + Account empty-state reason; protect line from the READ position; SpaidBot boundary on the ticket | `ticketTruth.test.ts`; serving `ea8ad94` read 2026-10-09 05:13:28–05:13:40Z (00:13 CDT), own tab, sandboxed iframe, nothing sent: **EURUSD 390** — "NO CONNECTED SPOT-FX EXECUTION RAIL…", footer empty (no "Alpaca paper account" door), KILL present. **SPY 1440 → Alpaca paper → Account tab** — "Paper account not connected — nothing can be sent or closed here."; banner "PAPER ONLY · Alpaca — this drawer cannot send a live order. The tastytrade line below is its connection status, read only."; the old "Live brokerage access is disabled" banner absent; the live ticket stayed open behind the drawer | **PROVED on serving** for the FX door, the Account empty state and the banner. **Protect line and SpaidBot boundary: PROVED in unit only** — the protect block renders only after a side is picked (not pressed in a read-only walk) and no proposal was waiting |
 
 
 ## 11. §34 INVENTORY AUDIT — every canonical invention × the certificate fields (2026-10-08, night shift)
@@ -2131,3 +2133,47 @@ Source of the new text: `src/lib/chart/inventionEducation.ts`, written 13:36–1
 | **TESTS** | `indicatorEducation.test.ts` (142 = 142, fields, subtitle = record, Order Flow tape-only, toolbar wiring, banned phrases, verdicts) |
 | **SERVING PROOF** | `7c3405b` (LIVE 13:45:27), own tab, 13:46–13:49 CDT. 1440 NQ1!: 142 ⓘ buttons (aria-label "About <name>", aria-expanded, 44×44). RSI, Supply/Demand Zones (STRUCTURE) and Pivot Points Standard previews show all six parts and ADD TO CHART, verdict CAN DRAW HERE. 390 EURUSD: OBV reads UNAVAILABLE HERE (no central volume); bottom sheet x 0–386, no page h-scroll |
 | **STATUS** | **PROVED** (`7c3405b`) |
+
+## 17. §28 CERTIFICATE UPDATES — builds `4b470b8`, `6350c69`, `0971594` (cert lane, written 00:06 CDT Oct 9)
+
+Append-only. "Design call" rows record a decision the coordinator made; the cert lane did not read those on serving unless the row says so.
+
+### 17a. `4b470b8` — LIVE 18:27:16 CDT Oct 8
+
+| Certificate | Field | Change | Proof |
+|---|---|---|---|
+| Surface ⓘ (new owner) | NAME / OWNER | `src/lib/chart/surfaceEducation.ts` — records for Smart Money cards, every drawing tool, Views, loadouts, Replay and bar selection, reachable through `educationFor` | tsc + education suites at ship. Surfaces not wired in this build |
+| §52 release | SERVING PROOF | public responsive 48 / 48 on `4b470b8` (23:41:49–23:45:03) | `~/wm-held/proof/release-52-2342/` |
+
+### 17b. `6350c69` — LIVE 23:52:24 CDT Oct 8
+
+| Certificate | Field | Change | Proof / status |
+|---|---|---|---|
+| §15a gaps: Drawing tools, Views, loadouts, Replay, Smart Money cards, footprint "?" | ⓘ | Every one opens the shared preview from a registry record. Footprint "?" reads `FP_<mode>` | **Wiring PROVED at 1440** (own tab, 23:58–00:01): loadouts 4, rail 18, footprint 6, Smart Money 29, Views 10, Replay 1. Five layout / wording defects found → §17d |
+| §15b: bar selection | ⓘ / FIRST TOUCH | A bar selected by a word resolves to `BAR_SELECTION` → "Selected bar — …" | tests; **serving read owed** (needs a Wisdom-line tap) |
+| H-801 Expected Envelope | PHYSICAL GRAMMAR, STATE GRAMMAR, FIRST TOUCH | "historical reach by time of day, not a forecast" | pinned in `surfaceEducation.test.ts` |
+| F06A footprint · Imbalance | ⓘ, catalogue line | "can mark trapped traders" / "spot trapped traders" removed; states the 2.5× ratio only | `educationClaims.test.ts`; read on serving 23:59 |
+| F07A Big Trades | STATE GRAMMAR | names notional size against a rolling baseline, the side, and "does not say who traded or why" | `educationClaims.test.ts` |
+| **Design call (coordinator): ONE DEFINITION** | OWNER | `indicatorDescriptions.ts` retired with its two tests; its claims are guarded against the surviving owners in `educationClaims.test.ts` | screenReach green |
+| Indicators (chart lane) | MANIFESTATION | Pivot Points from the prior completed session; Volume MA in its own pane; Swing High/Low visible (highs and lows); VW-RSI and Choppiness drawn once; Ichimoku spans and lagging line displaced | chart lane's `indicatorAudit.test.ts`; not read on serving by this lane |
+| §52 release | SERVING PROOF | public responsive 48 / 48 on `6350c69` (23:52:57–23:56:05) | `~/wm-held/proof/release-52-2354/` |
+
+### 17c. `0971594` — LIVE 00:03:03 CDT Oct 9
+
+| Certificate | Field | Change | Proof / status |
+|---|---|---|---|
+| §16c Indicators menu ⓘ | HONESTY NOTES | The six "defect" notes are withdrawn: the records now describe the fixed behaviour (12 rows) and TPO says a chip shows only when its price is in view. `6350c69` served the stale notes for about 10 minutes | tsc + 16 targeted files 304 / 304; serving re-read owed |
+| **Design call (coordinator): Weekly / Monthly Pivots** | MANIFESTATION / DEGRADED | From the prior COMPLETED ISO week / calendar month; when that period is not fully loaded nothing is drawn and the glass says so (`pivotsWeekly` / `pivotsMonthly` = `WITHHELD:<reason>`) | chart lane; not read on serving by this lane |
+| **Design call (coordinator): RTH / ETH** | CHROME | The RTH / ETH control is hidden on continuous markets, including crypto | not read on serving by this lane |
+| **Design call (coordinator): phone ticket** | NARROW | At ≤ 430 px the order ticket is compact with one Details fold (`ticketLayout.ts`) | `ticketLayout.test.ts`; not read on serving by this lane |
+| P110.3 Profile Fusion | RECEIPTS | One receipt (closes Sheriff batch 3 #9) | chart lane |
+| G19.WISDOM / Delta keel / Effort → Response | SELECTION | Delta keel and Effort → Response taps now select the bar, like the Wisdom line — all three reach the bar-selection first touch | chart lane; serving read owed |
+| Smart Money top cards | ⓘ | The five top cards carry an ⓘ (`SMCARD:` records) | another lane; counted in the 00:05 fix slice (no action button) |
+
+### 17d. Open after these builds
+
+| Item | Owner | Status |
+|---|---|---|
+| Five ⓘ layout / wording defects + Workspace Replay ⓘ | cert lane | Fix slice SHIPPABLE 00:05:33 (tree) — flips after LIVE + a 390 / 1440 read |
+| Footprint ⓘ truth line says "is drawing from sided prints…" while Order Flow is off | capability compiler's owner | OPEN |
+| 390 read of the surface ⓘ; bar-selection first touch on serving | cert lane | OWED |

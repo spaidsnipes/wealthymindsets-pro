@@ -61,3 +61,13 @@ describe("AssetClassSwitcher tab selection", () => {
     expect(classOf("")).toBe("stocks");
   });
 });
+
+describe("the chip names the instrument, not the tab (sheriff 2026-10-08)", () => {
+  it("SPY on the Indices tab reads ETF; VIX stays Indices", async () => {
+    const { chipLabelFor } = await import("./AssetClassSwitcher");
+    const tab = { id: "indices", label: "Indices", symbols: [{ sym: "SPY", name: "S&P 500 ETF" }, { sym: "VIX", name: "Volatility Index" }] };
+    expect(chipLabelFor("SPY", tab)).toBe("ETF");
+    expect(chipLabelFor("VIX", tab)).toBe("Indices");
+    expect(chipLabelFor("ES1!", { id: "futures", label: "Futures", symbols: [] })).toBe("Futures");
+  });
+});

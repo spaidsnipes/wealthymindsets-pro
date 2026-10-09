@@ -77,7 +77,9 @@ describe("no UI-only fill on the ticket path", () => {
     expect(b).not.toMatch(/fetch\(|useState|localStorage|sessionStorage|intent\b|entryPhase|sentTicket/);
     const t = code("components/chart/TradePanel.tsx");
     expect(t).toContain("const book = ticketBook(broker, contract?.symbol ?? null,");
-    expect(t).toContain("const broker = useBrokerChartLines({");
+    // The broker read is the book — except in the labelled proof scene, where a SAMPLE readback goes through the same selector.
+    expect(t).toContain("const brokerRead = useBrokerChartLines({");
+    expect(t).toContain("const broker = scene && contract ? ticketFixtureLines(scene, contract.symbol, mark ?? price, kind === \"FUTURE\" ? pointValue : 1, nowMs) : brokerRead;");
     // The position the ticket shows is never derived from the staged side or quantity.
     expect(t).not.toMatch(/position:\s*\{[^}]*side/);
     const hook = code("lib/execution/useBrokerChartLines.ts");

@@ -69,6 +69,7 @@ const JOINT_LABEL: Readonly<Record<JointClass, string>> = {
   UNPROBED: "NOT MEASURED",
   FAILED: "FAILED",
   BLOCKED: "UNREACHABLE",
+  GATED: "GATED",
 };
 
 export default function ReadinessPage() {
@@ -501,6 +502,14 @@ export default function ReadinessPage() {
                           </span>
                         </div>
                         <p className="mt-2 text-[11px] leading-relaxed text-neutral-400">{row.detail}</p>
+                        {/* Sheriff P1-3: the certificate's own clock. It is read from the
+                            last recorded observation, not from this page load — a live
+                            "connected" chip elsewhere may be newer. */}
+                        <p data-testid="cert-observed-at" className="mt-1 font-mono text-[10px] text-neutral-400">
+                          {row.observedAt
+                            ? `certificate observed ${new Date(row.observedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })} · a live connection check elsewhere on this page may be newer`
+                            : "certificate carries no observation time"}
+                        </p>
                         <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-neutral-400">
                           Owner: {row.owner === "NOBODY" ? "no direct action" : row.owner.toLowerCase()}
                         </p>

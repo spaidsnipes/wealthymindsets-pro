@@ -504,7 +504,8 @@ import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewMode
 import { DEFAULT_STACK_PREFS, orderStack, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectMtfAncestry, type MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
-import { wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
+import { chainScopeWithheldWords, chainScopeWords, wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
+import { EMPTY_WALL_LEDGER, stepWallExits, wallExitWords, type WallExitLedger } from "@/lib/chart/wallExit";
 import { livingMarketReceipt, motionAllowed, prefersReducedMotion, readLivingMarket, writeLivingMarket, listenForLivingMarket, type LivingMarket } from "@/lib/chart/livingMarket";
 import {
   arrowOutline,
@@ -2433,6 +2434,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const wisdomHitRef = useRef<{ x: number; y: number; w: number; h: number; time: number } | null>(null);
   // Bar-anchored marks painted this frame (Delta Keel glyphs, Effort → Response
   // columns): a tap on one selects ITS bar, through the Wisdom line's owner.
+  // §20: the walls of the last compilation, so one that leaves shows its exit.
+  const wallExitLedgerRef = useRef<WallExitLedger>(EMPTY_WALL_LEDGER);
   const barMarkHitsRef = useRef<{ x: number; y: number; w: number; h: number; time: number }[]>([]);
   // C-05 marks travel through a ref: they change on bar close, and the paint
   // loop must not be torn down for them.
@@ -19356,9 +19359,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // ── CLIMATE (global) — one line, the environment's name ────
               if (dpSpeaks) {
                 const srcW = positioningSourceWords(dp.source);
-                const word = fieldOn
+                // §20: a near-money subset names its scope in place of a climate it cannot claim.
+                const scopeW = chainScopeWords(dp.chainScope);
+                const wallsW = dp.walls.length === 0 ? "NO CURRENT WALL EVENT" : `${dp.walls.length} WALL${dp.walls.length === 1 ? "" : "S"}`;
+                const word = scopeW
+                  ? `${fieldOn ? "DERIVATIVES PRESSURE" : "BRICK WALLS"} · ${scopeW} · ${wallsW} · ${srcW.name} · INFERRED`
+                  : fieldOn
                   ? `DERIVATIVES PRESSURE · ${dp.climate.replace("_", " ")} · ${srcW.name} · ${srcW.oi} · INFERRED${dp.walls.length === 0 ? " · NO CURRENT WALL EVENT" : ""}`
-                  : `BRICK WALLS · ACTIVE · ${dp.walls.length === 0 ? "NO CURRENT WALL EVENT" : `${dp.walls.length} WALL${dp.walls.length === 1 ? "" : "S"}`} · ${srcW.name} · INFERRED`;
+                  : `BRICK WALLS · ACTIVE · ${wallsW} · ${srcW.name} · INFERRED`;
                 ctx.save();
                 ctx.globalAlpha = att.textAlpha("derivativesPressure");
                 ctx.font = marketFont("OBJECT_NAME");
@@ -19530,6 +19538,56 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // Where each wall is on this glass, for a browser proof to find and
             // click it (as memoryGhostHitAt): "strike@x,y" at the body's centre.
             ds.pressureFrontHitAt = pressureFrontHitRef.current ? `${Math.round(pressureFrontHitRef.current.x1 * 0.3)},${Math.round(pressureFrontHitRef.current.y)}` : "NONE";
+            // §20 · WITHHELD ON A SUBSET, SAID: the front, the field and the
+            // climate are not drawn from the contracts nearest price; the glass
+            // says so in the shared silence stack.
+            {
+              const scopeNow = dp.drawn ? dp.chainScope : null;
+              const withheldW = scopeNow ? chainScopeWithheldWords(scopeNow) : null;
+              if (withheldW && scopeNow) {
+                ctx.save();
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.fillStyle = "rgba(200,192,174,0.85)";
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                const yW = takeSilenceRow();
+                ctx.fillText(fitSilence(withheldW), silenceX, yW);
+                if (yW > 0) floatingChips.push({ x: silenceX, y: yW - 7, w: ctx.measureText(withheldW).width, h: 14 });
+                ctx.restore();
+                ds.pressureChainScope = `NEAR_MONEY_SUBSET:${scopeNow.kind === "NEAR_MONEY_SUBSET" ? `${scopeNow.contracts}:±${scopeNow.reachPct}%` : ""}|FRONT:WITHHELD|FIELD:WITHHELD`;
+              } else if (dp.drawn) ds.pressureChainScope = "WHOLE";
+              else delete ds.pressureChainScope;
+            }
+            // §20 · A WALL THAT LEAVES SHOWS ITS EXIT (wallExit.ts): a strike that
+            // was a wall last compilation and is no longer listed keeps a dashed,
+            // hollow mark at its price with the state it left in.
+            if (wallsOn) {
+              const led = wallExitLedgerRef.current = stepWallExits(wallExitLedgerRef.current, `${symbol}|${dp.drawn ? dp.source : "NONE"}`, dp.drawn ? dp.walls : [], Date.now());
+              const exitsShown: string[] = [];
+              for (const ex of led.exits) {
+                const yx = yOfD(ex.strike);
+                if (yx == null || yx < HEADER_FLOOR_Y + 8 || yx > paneBotD - 8) { exitsShown.push(`${ex.strike}:${ex.lastLife}:OFF_CAMERA`); continue; }
+                ctx.save();
+                ctx.globalAlpha = att.alpha("brickWalls");
+                ctx.strokeStyle = "rgba(200,192,174,0.8)"; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+                ctx.strokeRect(Math.round(plotRightD - 92) + 0.5, Math.round(yx - 6) + 0.5, 88, 12);
+                ctx.setLineDash([]);
+                if (wallsSpeak) {
+                  const wx = wallExitWords(ex, fmtD);
+                  ctx.font = marketFont("OBJECT_NAME");
+                  const tw = Math.ceil(ctx.measureText(wx).width);
+                  const pref = { x: plotRightD - 100 - tw, y: yx - 7, w: tw, h: 14 };
+                  const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + 14)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [{ ...pref, y: pref.y - 16 }, { ...pref, y: pref.y + 16 }] });
+                  if (sp.mode !== "BLOCKED") {
+                    ctx.fillStyle = "rgba(200,192,174,0.9)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                    ctx.fillText(wx, sp.rect.x, sp.rect.y + 7);
+                    floatingChips.push({ ...sp.rect });
+                  } else displacedNotes.push({ layer: "DERIVATIVES", text: wx, x: pref.x + tw / 2, y: yx });
+                }
+                ctx.restore();
+                exitsShown.push(`${ex.strike}:${ex.lastLife}`);
+              }
+              if (exitsShown.length) ds.pressureWallExits = exitsShown.join("|"); else delete ds.pressureWallExits;
+            } else { wallExitLedgerRef.current = EMPTY_WALL_LEDGER; delete ds.pressureWallExits; }
             ds.pressureWallHitAt = pressureWallHitRef.current.map(r => `${r.strike}@${Math.round(r.x + r.w / 2)},${Math.round(r.y + r.h / 2)}`).join("|") || "NONE";
           } else {
             ds.derivativesPressure = att.offWord(layerOnRef.current.derivativesPressure === true);

@@ -70,8 +70,13 @@ export const SELECT_PARAM = "select";
  *                     the real lens owners (src/lib/chart/lensFixture.ts). It is a
  *                     CLEAN chart proof scene (writes held) that switches on the
  *                     lens it fixes; the room uses it only for a signed-in trader.
+ *   ticket-fixture  → /charts TRADE ticket (2026-10-09): `side=buy|sell` and
+ *                     `state=flat|holding|working|inflight` feed a SAMPLE book into
+ *                     the real ticket (src/lib/execution/ticketFixture.ts). Every send /
+ *                     cancel / flatten control is refused at the control; it cannot reach
+ *                     an order route (ticketFixtureNeverSends.sentinel.test.ts).
  */
-export const PROOF_FIXTURE_SCENES = ["journal-fixture", "profile-fixture", "lens-fixture"] as const;
+export const PROOF_FIXTURE_SCENES = ["journal-fixture", "profile-fixture", "lens-fixture", "ticket-fixture"] as const;
 export type ProofFixtureScene = (typeof PROOF_FIXTURE_SCENES)[number];
 
 /** The fixture scene the URL asks for, or null. */
