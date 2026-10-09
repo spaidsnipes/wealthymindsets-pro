@@ -34,11 +34,15 @@ function Candle({ b, w = 14 }: { b: Bar; w?: number }) {
 
 /**
  * Label size in viewBox units. The drawing is 300 units wide and fills the
- * lesson column, which is 358 px on a 390-px phone (scale 1.19): 9.25 units
- * render at 11 px there — the phone floor. Measured on serving 2026-10-09: the
- * old 7.5-unit sub-labels rendered at 9 px. No label may be smaller than this.
+ * lesson column, which MEASURES 318 px on a 390-px phone (serving 79bb6fd,
+ * 2026-10-09; scale 1.06): 10.4 units render at 11 px there — the phone
+ * floor. The old 9-unit labels rendered at 9.5 px and the 7.5-unit sub-labels
+ * at 8 px. No label may be smaller than this; a label that would not fit at
+ * this size is shortened or end-anchored, never shrunk.
  */
-export const LABEL_UNITS = 9.25;
+export const LABEL_UNITS = 10.4;
+/** The lesson column's measured width on a 390-px phone, for the test that pins the floor. */
+export const LESSON_COLUMN_PX_AT_390 = 318;
 
 function Territory({ x1, x2, y1, y2, pat, label = "territory", dim = 1 }: { x1: number; x2: number; y1: number; y2: number; pat: string; label?: string | null; dim?: number }) {
   return (
@@ -87,7 +91,7 @@ function body(kind: FvgDiagramKind, pat: string): React.ReactNode {
         <Candle b={{ x: 50, h: 102, l: 126, o: 120, c: 108 }} />
         <Bars bars={BULL.map(b => ({ ...b, x: b.x + 20 }))} names={false} />
         <Territory x1={70} x2={290} y1={55} y2={100} pat={pat} label="thinly traded" />
-        <T x={20} y={20}>Price crossed this range fast — one side barely traded there.</T>
+        <T x={20} y={20}>Price crossed fast — one side barely traded here.</T>
       </g>);
     case "three-candle":
       return (<g>
@@ -123,7 +127,7 @@ function body(kind: FvgDiagramKind, pat: string): React.ReactNode {
         <line x1={250} x2={250} y1={60} y2={95} stroke={INK} strokeWidth={1} />
         <line x1={245} x2={255} y1={60} y2={60} stroke={INK} /><line x1={245} x2={255} y1={95} y2={95} stroke={INK} />
         <T x={244} y={78} a="end">height ≥ floor</T>
-        <T x={140} y={130} c={GRAPHITE}>floor = max(1 tick, 0.10 × ATR14)</T>
+        <T x={292} y={130} a="end" c={GRAPHITE}>floor = max(1 tick, 0.10 × ATR14)</T>
       </g>);
     case "touch":
       return (<g>
@@ -134,7 +138,7 @@ function body(kind: FvgDiagramKind, pat: string): React.ReactNode {
         <Candle b={{ x: 220, h: 36, l: 68, o: 40, c: 50 }} />
         <circle cx={220} cy={68} r={5} fill="none" stroke={GOLD} strokeWidth={1.4} />
         <T x={230} y={86} c={GOLD}>first touch</T>
-        <T x={20} y={140} c={GRAPHITE}>a wick reaching the near edge is enough — no close needed</T>
+        <T x={20} y={140} c={GRAPHITE}>a wick to the near edge is enough — no close needed</T>
       </g>);
     case "partial":
     case "full": {
@@ -242,7 +246,7 @@ function body(kind: FvgDiagramKind, pat: string): React.ReactNode {
         <Bars bars={BULL} names={false} />
         <Territory x1={50} x2={290} y1={55} y2={100} pat={pat} label="context" />
         <HLine x1={50} x2={290} y={110} dash="6 3" c={INK} />
-        <T x={130} y={124}>invalidation — written before entry</T>
+        <T x={292} y={124} a="end">invalidation — written before entry</T>
         <T x={130} y={20} c={GOLD}>context ≠ permission</T>
       </g>);
     case "patience":

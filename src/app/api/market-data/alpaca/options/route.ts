@@ -1,3 +1,4 @@
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
@@ -51,6 +52,8 @@ function invalidResponse(stage: InvalidResponseStage) {
 export async function GET(request: Request) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // API audit P2-9 (2026-10-09): a per-member ceiling before the operator's provider key is spent.
+  { const limited = await publicProxyLimit(request, "data"); if (limited) return limited; }
   const { searchParams } = new URL(request.url);
   const symbol = cleanSymbol(searchParams.get("symbol"));
   const spot = positiveNumber(searchParams.get("spot"));

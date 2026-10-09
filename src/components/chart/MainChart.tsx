@@ -196,6 +196,8 @@ const KEEL_MIN_L = 3;
 const VC_COG_EXT_NARROW = 3;
 /** PHONE (2026-10-09): a big-trade disc's largest radius on narrow glass (desk: BIG_TRADE_MAX_R 42). */
 const BIG_TRADE_NARROW_MAX_R = 22;
+/** PHONE (2026-10-09): a drawn handle / chevron / stem this close to the left of the newest-candle column is held too. */
+const SOVEREIGN_SHAPE_PAD = 20;
 /** PHONE (2026-10-09): a zone at rest is a band — two hairlines and this much fill (desk: 0.08 in a box). */
 const ZONE_BAND_NARROW_FILL = 0.04;
 /** A pressure wall shows at least this much body inside the pane, else it is an edge wall (ASK-15). */
@@ -10122,6 +10124,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.restore();
                 ctx.beginPath(); ctx.arc(rimX, rimY, 2.5, 0, Math.PI * 2);
                 ctx.fillStyle = "rgba(240,200,110,1)"; ctx.fill();
+                if (b.spawnKey === selDiscKey) onTop(r, "SELECTION"); // the selected print's callout
+                else if (b.spawnKey === hoveredKey) onTop(r, "CROSSHAIR"); // the hovered print's callout
                 // A backing on a protected body yields (keepOutBackingAlpha).
                 ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spot, 0.92)})`;
                 ctx.fillRect(r.x, r.y, r.w, r.h);
@@ -10421,6 +10425,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (!busy(down)) { ty = down; break; }
                 if (!busy(upY)) { ty = upY; break; }
               }
+              onTop({ x: tx, y: ty, w: tw, h: th }, "SELECTION"); // the selected print's force → response words
               ctx.fillStyle = "rgba(11,10,8,0.92)"; ctx.fillRect(tx, ty, tw, th);
               forceChips.push({ x: tx, y: ty, w: tw, h: th });
               lines.forEach((l, i) => {
@@ -14948,6 +14953,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   recordKeepOut(keepOutLedger, spotC);
                   const ly = spotC.rect.y;
                   ds.anatomyCardsCandleHits = String(candleHits(cardsLeft, ly, lw, lineBoxH));
+                  onTop({ x: cardsLeft, y: ly, w: lw, h: lineBoxH }, "SELECTION"); // the selected reading's folded card lines
                   ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotC, 0.92)})`;
                   ctx.fillRect(cardsLeft, ly, lw, lineBoxH);
                   floatingChips.push({ x: cardsLeft, y: ly, w: lw, h: lineBoxH });
@@ -14980,6 +14986,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // The pair is chrome on the glass: later chips step around it
                 // instead of printing over its numbers.
                 if (!compact) floatingChips.push({ x: cardsLeft, y: cardsTop, w: pairW * cardK, h: ch * cardK });
+                if (!compact) onTop({ x: cardsLeft, y: cardsTop, w: pairW * cardK, h: ch * cardK }, "SELECTION"); // the selected reading's anatomy card
                 if (!compact) shown.forEach((c, k) => {
                   // Scaled space: origin at (cardsLeft, cardsTop).
                   ctx.save();
@@ -17634,8 +17641,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.fillStyle = "rgba(237,230,211,0.85)";
               ctx.lineWidth = 1;
 
+              // PRICE SOVEREIGNTY (narrow glass): on the newest candles' column
+              // the stem and cap are not drawn (the words below are listed by the
+              // registry's column rule, so the reading is never lost).
+              const colEM = sovereignColumn();
+              const effortMarkHeld = colEM != null && x > colEM.x - SOVEREIGN_SHAPE_PAD && x < colEM.x + colEM.w + 4;
+              if (effortMarkHeld) sovereigntyHeld++;
               // A short stem off the bar's own extreme. Not an arrow: an arrow
               // points somewhere, and this reading refuses to say where.
+              if (!effortMarkHeld) {
               ctx.beginPath();
               ctx.moveTo(x, y + out * 3);
               ctx.lineTo(x, y + out * 13);
@@ -17646,6 +17660,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.beginPath();
               ctx.arc(x, y + out * 16, 2.5, 0, Math.PI * 2);
               ctx.stroke();
+              }
 
               ctx.font = marketFont("FIDELITY");
               ctx.textAlign = "center";
@@ -23171,7 +23186,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.lineWidth = 1;
                 ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, zEnd - x0, Math.round(h));
                 }
-                if (h >= 14 && zEnd - x0 >= 48) {
+                const colZM = sovereignColumn();
+                const zmX = Math.round(x0 + (zEnd - x0) / 2);
+                // PRICE SOVEREIGNTY (narrow glass): the passport mark is not drawn
+                // on the newest candles' column or 20px to its left.
+                if (colZM && zmX + 5 > colZM.x - SOVEREIGN_SHAPE_PAD && zmX - 5 < colZM.x + colZM.w + 4) sovereigntyHeld++;
+                else if (h >= 14 && zEnd - x0 >= 48) {
                   // The passport mark: a small brass card with a ring — drawn
                   // strokes, no words (the callout carries the words on select).
                   const gx = Math.round(x0 + (zEnd - x0) / 2) - 5, gy = Math.round(top + h / 2) - 6;
@@ -23464,7 +23484,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // FILLED chevron, a LOWER one (LH, LL) HOLLOW (outline only); an
             // unlettered swing stays filled.
             let pivFilled = 0, pivHollow = 0;
+            // PRICE SOVEREIGNTY (narrow glass): a chevron within the newest
+            // candles' column, or 20px to its left, is not drawn — the swing path
+            // still turns there, and the swing is named in Inspect.
+            const colPv = sovereignColumn();
             for (const m of marks) {
+              if (colPv && m.x > colPv.x - SOVEREIGN_SHAPE_PAD && m.x < colPv.x + colPv.w + 4) { sovereigntyHeld++; continue; }
               const s = m.isLast ? 7 : 5.5;
               const dir = m.kind === "HIGH" ? -1 : 1;
               const tipY = m.y + dir * 3;
@@ -28115,11 +28140,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (!(point && Number.isFinite(point.x) && Number.isFinite(point.y)
         && point.x >= 0 && point.y >= 0 && point.x <= width && point.y <= height)) return [];
       let x = point.x;
-      for (let k = 0; k < 6 && placed.some(p => Math.abs(p.x - x) < PIN && Math.abs(p.y - point.y) < PIN); k++) x += PIN;
+      // PRICE SOVEREIGNTY (narrow glass): an unselected object's handle never
+      // sits on the newest candles' column or 20px to its left — it steps left
+      // of it at its own price (the selected object's handle stays on its bar).
+      const colPin = width > 0 && width < 640 && target.object.objectId !== selectedMarketObjectId ? wordGateColumnRef.current : null;
+      if (colPin && x > colPin.x - SOVEREIGN_SHAPE_PAD && x < colPin.x + colPin.w + 12) x = Math.max(10, colPin.x - SOVEREIGN_SHAPE_PAD - 8);
+      for (let k = 0; k < 6 && placed.some(p => Math.abs(p.x - x) < PIN && Math.abs(p.y - point.y) < PIN); k++) x += colPin ? -PIN : PIN;
       placed.push({ x, y: point.y });
       return [{ ...target, point: { ...point, x } }];
     });
-  }, [logicalToPixel, marketObjectTargets, rangeVer]);
+  }, [logicalToPixel, marketObjectTargets, rangeVer, selectedMarketObjectId]);
   useEffect(() => {
     // The visible diamond is ≤ 13px; 18px keeps a plate's edge off its corners.
     marketObjectPinRectsRef.current = projectedMarketObjects.map(t => ({ x: t.point.x - 9, y: t.point.y - 9, w: 18, h: 18 }));

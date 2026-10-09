@@ -238,3 +238,55 @@ describe("the phone geometry gate covers the whole public surface", () => {
     }
   });
 });
+
+/**
+ * SHORT PAGES KEEP THEIR PROOF (2026-10-09).
+ *
+ * The harness lets a named route pass a smaller census than the global floor —
+ * /reset-password and /legal honestly hold fewer than 30 elements once the
+ * install card stopped rising over them (67720d11). That allowance is only
+ * honest while each such route names words the page itself prints and the
+ * harness waits for them. This pins the three ways it could rot: the global
+ * floor quietly lowered, an entry without a landmark, a landmark the page no
+ * longer prints.
+ */
+describe("short pages in the phone audit prove they are themselves", () => {
+  const source = SCRIPT_SOURCE ?? "";
+  const block = source.match(/const SHORT_PAGES = \{([\s\S]*?)\n\};/);
+  const entries = block
+    ? [...block[1].matchAll(/"([^"]+)":\s*\{\s*landmark:\s*"([^"]+)",\s*examined:\s*(\d+),\s*textLeaves:\s*(\d+)\s*\}/g)].map(
+        (m) => ({ route: m[1], landmark: m[2], examined: Number(m[3]), textLeaves: Number(m[4]) }),
+      )
+    : [];
+
+  it("ANTI-VACUITY: the short-page table was read and is populated", () => {
+    expect(block, "SHORT_PAGES could not be read out of the audit script").not.toBeNull();
+    expect(entries.length).toBeGreaterThan(0);
+    // Every line of the table parsed — a reshaped entry must not slip the rules below.
+    expect(entries.length).toBe((block?.[1].match(/landmark:/g) ?? []).length);
+  });
+
+  it("the global floor is still 30 elements / 5 text leaves", () => {
+    expect(source).toContain(": { examined: 30, textLeaves: 5 };");
+  });
+
+  it("a missing landmark fails the route and the landmark is waited for", () => {
+    expect(source).toContain("LANDMARK MISSING");
+    expect(source).toMatch(/waitFor\(\{ state: "visible", timeout: LANDMARK_WAIT \}\)/);
+    expect(source).toMatch(/if \(shortPage && !result\.landmarkSeen\) \{[\s\S]{0,600}?failed\+\+;\s*continue;/);
+  });
+
+  it("every short page is an audited route, prints its landmark, and keeps a real floor", () => {
+    for (const entry of entries) {
+      expect(AUDITED_ROUTES, `${entry.route} is a short page but is not audited by default`).toContain(entry.route);
+      const pagePath = resolve(process.cwd(), "src/app", entry.route.replace(/^\//, ""), "page.tsx");
+      expect(existsSync(pagePath), `${pagePath} is missing`).toBe(true);
+      expect(
+        readFileSync(pagePath, "utf8"),
+        `${entry.route} no longer prints "${entry.landmark}" — the audit would wait for words that never come`,
+      ).toContain(entry.landmark);
+      expect(entry.examined, `${entry.route}: an element floor under 10 would pass a bare shell`).toBeGreaterThanOrEqual(10);
+      expect(entry.textLeaves, `${entry.route}: a text floor under 4 would pass a logo and a spinner`).toBeGreaterThanOrEqual(4);
+    }
+  });
+});

@@ -1,5 +1,6 @@
 "use client";
 
+import { openWowWorld } from "@/lib/passport/openWowWorld";
 import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
@@ -715,7 +716,7 @@ function ProfilePageInner() {
               Broker record (Webull) → Journal · Broker Ledger
             </Link>
             <button type="button" data-testid="profile-wow-passport"
-              onClick={() => { window.open("/api/passport/to-wow?to=/passport", "_blank", "noopener"); }}
+              onClick={() => { openWowWorld("/passport"); }}
               className="inline-flex items-center min-h-11 rounded-lg border border-wm-border px-3 py-1.5 text-wm-text hover:border-wm-gold/60"
               title="This account is your WM World Passport — the same sign-in opens WOW World">
               WOW World Passport ↗

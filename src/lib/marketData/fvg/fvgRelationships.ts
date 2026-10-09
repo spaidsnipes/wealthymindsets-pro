@@ -163,6 +163,8 @@ export interface AnchoredBarReading {
   readonly words: string;
   /** Order flow only: the tape cannot vouch for the whole bar. */
   readonly partial?: boolean;
+  /** Order flow only: what THIS bar's signed volume rests on (a gap's bars can differ — older bars predate the tape). */
+  readonly basis?: "TAPE" | "SIDES";
 }
 
 export interface EffortInput {
@@ -251,6 +253,10 @@ export function effortSource(e: EffortInput | null | undefined): RelationshipSou
 export function flowSource(f: FlowInput | null | undefined): RelationshipSource {
   const base = { family: "ORDER_FLOW" as const, owner: "readTapeSide", label: "Order flow" };
   if (!f || f.basis === null || !f.readings.length) return { ...base, evidence: "SILENCE", provenance: f?.silenceWhy ?? FLOW_NOT_ATTACHED };
+  // Some bars from captured prints, others from the provider's aggregate: the family takes the weaker word and says it is mixed.
+  if (f.basis === "SIDES" && f.readings.some(r => r.basis === "TAPE")) {
+    return { ...base, evidence: "PARTIAL", provenance: "mixed — captured signed prints on some of these bars, the provider's per-bar bid / ask volume (an aggregate, not prints) on the others; each row names its own" };
+  }
   if (f.basis === "SIDES") return { ...base, evidence: "PARTIAL", provenance: "the provider's per-bar bid / ask volume — an aggregate for the bar, not prints" };
   return f.readings.some(r => r.partial)
     ? { ...base, evidence: "PARTIAL", provenance: "captured signed prints; the tape cannot vouch for the whole of at least one of these bars" }

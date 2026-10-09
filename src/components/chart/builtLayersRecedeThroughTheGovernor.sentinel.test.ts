@@ -430,3 +430,24 @@ describe("no hard notch behind the last candles; names and marks obey the column
     expect(REG).toContain("!isTruthLine(String(text)) && !registry.isSovereign(rect)");
   });
 });
+
+describe("selecting on a phone never withholds its own words; drawn shapes obey the column (2026-10-09)", () => {
+  it("the selected anatomy card, the selected force → response words and the selected / hovered big-print callout are on-top boxes", () => {
+    expect(CHART).toContain('onTop({ x: cardsLeft, y: ly, w: lw, h: lineBoxH }, "SELECTION");');
+    expect(CHART).toContain('if (!compact) onTop({ x: cardsLeft, y: cardsTop, w: pairW * cardK, h: ch * cardK }, "SELECTION");');
+    expect(CHART).toContain('onTop({ x: tx, y: ty, w: tw, h: th }, "SELECTION");');
+    expect(CHART).toContain('if (b.spawnKey === selDiscKey) onTop(r, "SELECTION");');
+    expect(CHART).toContain('else if (b.spawnKey === hoveredKey) onTop(r, "CROSSHAIR");');
+  });
+  it("pivot chevrons, the effort stem and cap, the zone passport mark and unselected object handles stay off the column and 20px to its left", () => {
+    expect(CHART).toContain("const SOVEREIGN_SHAPE_PAD = 20;");
+    expect(CHART).toContain("if (colPv && m.x > colPv.x - SOVEREIGN_SHAPE_PAD && m.x < colPv.x + colPv.w + 4) { sovereigntyHeld++; continue; }");
+    expect(CHART).toContain("const effortMarkHeld = colEM != null && x > colEM.x - SOVEREIGN_SHAPE_PAD && x < colEM.x + colEM.w + 4;");
+    expect(CHART).toContain("if (colZM && zmX + 5 > colZM.x - SOVEREIGN_SHAPE_PAD && zmX - 5 < colZM.x + colZM.w + 4) sovereigntyHeld++;");
+    // The selected object's handle stays on its bar.
+    expect(CHART).toContain("const colPin = width > 0 && width < 640 && target.object.objectId !== selectedMarketObjectId ? wordGateColumnRef.current : null;");
+    // The effort words are still asked for (so the registry lists them).
+    const i = CHART.indexOf("const effortMarkHeld =");
+    expect(CHART.slice(i, i + 1400)).toContain("ctx.fillText(m.label, x, y + out * 21);");
+  });
+});

@@ -1,3 +1,4 @@
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { NextResponse } from "next/server";
 import { DERIBIT_OPTIONS_SOURCE, deribitCurrencyFor, dvolFrom, normalizeDeribitOptions, normalizeDeribitTrades } from "@/lib/marketData/deribitOptions";
 import { normalizeDeribitChain } from "@/lib/marketData/deribitChain";
@@ -18,6 +19,8 @@ const BASE = "https://www.deribit.com/api/v2/public";
 export async function GET(request: Request) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // API audit P2-9 (2026-10-09): a per-member ceiling before the operator's provider key is spent.
+  { const limited = await publicProxyLimit(request, "data"); if (limited) return limited; }
   const currency = deribitCurrencyFor(new URL(request.url).searchParams.get("symbol") ?? "");
   if (!currency) {
     return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "UNSUPPORTED", error: "Deribit lists options on BTC and ETH only" }, { status: 400 });

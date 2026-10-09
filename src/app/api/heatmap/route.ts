@@ -13,6 +13,7 @@
  *   1Y  → (price_now - price_252d_ago) / price_252d_ago
  */
 
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { publicFailure } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
@@ -183,6 +184,8 @@ export async function GET(request: Request) {
   // spent the operator's provider quota for anyone on the internet.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // API audit P2-9 (2026-10-09): a per-member ceiling before the operator's provider key is spent.
+  { const limited = await publicProxyLimit(request, "data"); if (limited) return limited; }
   const { searchParams } = new URL(request.url);
   const period    = (searchParams.get("period") ?? "1D").toUpperCase();
   const symsParam = searchParams.get("syms") ?? "";

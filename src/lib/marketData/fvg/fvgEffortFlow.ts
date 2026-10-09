@@ -142,8 +142,9 @@ export function fvgFlowInput(
     const share = v.side === "BUYERS" ? `buyers took ${v.buyPct}% of the bar's signed volume` : v.side === "SELLERS" ? `sellers took ${v.sellPct}% of the bar's signed volume` : `neither side took the larger share (buyers ${v.buyPct}% · sellers ${v.sellPct}%)`;
     readings.push({
       anchor: a.anchor, episode: a.episode, price: b.close, state: v.side,
-      words: `${share}${keel?.failed ? " · the bar did not move that way (failed to displace)" : ""}`,
+      words: `${share}${keel?.failed ? " · the bar did not move that way (failed to displace)" : ""} · ${s.basis === "TAPE" ? `from captured signed prints${s.partial ? " (the tape began inside this bar)" : ""}` : "from the provider's per-bar bid / ask volume"}`,
       partial: s.partial === true,
+      basis: s.basis,
     });
     // One basis word for the family: SIDES if any reading rests on the provider aggregate (the weaker word wins).
     basis = basis === "SIDES" || s.basis === "SIDES" ? "SIDES" : "TAPE";

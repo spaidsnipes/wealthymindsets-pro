@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { AUTH_LOGIN_LIMITER_BINDING, clientIp, edgeAllows, tooManyRequests } from "@/lib/edgeRateLimit";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 import { setAuthCookie, signJWT, useSupabase } from "@/lib/auth";
 import { safePath, WOW_ORIGIN, wmClaimsFor } from "@/lib/passport/wowBridge";
@@ -16,6 +18,10 @@ export const dynamic = "force-dynamic";
  * failure lands on /login with the destination kept — never a dead end.
  */
 export async function POST(request: Request): Promise<Response> {
+  // API audit P2-5 (2026-10-09): this door sets a WM session from a token WOW posts. It had no ceiling;
+  // it now shares the sign-in limiter per address, as the hand-off door does.
+  if (!checkRateLimit(`from-wow:${clientIp(request)}`, { max: 20, windowMs: 600_000 }).ok) return tooManyRequests();
+  if (!(await edgeAllows([`from-wow:${clientIp(request)}`], AUTH_LOGIN_LIMITER_BINDING))) return tooManyRequests();
   const form = await request.formData().catch(() => null);
   const to = safePath(form?.get("to"), FOUNDER_LANDING_ROUTE);
   const toLogin = () => {

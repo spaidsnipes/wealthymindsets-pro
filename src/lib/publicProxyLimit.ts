@@ -32,11 +32,16 @@ import { getAuthToken, verifyJWT } from "@/lib/auth";
 import { clientIp, edgeAllows } from "@/lib/edgeRateLimit";
 import { checkRateLimit } from "@/lib/rateLimit";
 
-export type PublicProxyLane = "market" | "feed";
+export type PublicProxyLane = "market" | "feed" | "data";
 
 export const PUBLIC_PROXY_LIMIT: Readonly<Record<PublicProxyLane, { readonly perMinute: number; readonly binding: string }>> = {
   market: { perMinute: 1_800, binding: "PUBLIC_MARKET_PROXY_LIMITER" },
   feed: { perMinute: 120, binding: "PUBLIC_FEED_PROXY_LIMITER" },
+  // API audit P2-9 (2026-10-09): the signed-in data routes that spend the operator's provider keys
+  // (options chains, fundamentals, symbol search, discovery, video lookups) — per member, per minute.
+  // Sized from the same serving read: one /scanner load asks fundamentals for its 30 symbols (about
+  // 31–35 requests); a chart asks one chain. 600 is seventeen scanner loads inside one minute.
+  data: { perMinute: 600, binding: "MEMBER_DATA_PROXY_LIMITER" },
 };
 
 export const PUBLIC_PROXY_LIMITED = {

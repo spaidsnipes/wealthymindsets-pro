@@ -125,14 +125,14 @@ export function FvgLessonBody({ lesson, color }: { lesson: FvgLesson; color: str
   return (
     <div data-testid="fvg-lesson" data-fvg-lesson={lesson.id} className="px-4 py-4 space-y-4">
       <div>
-        <div className="text-[10px] font-black uppercase tracking-wider" style={{ color }}>Lesson {lesson.n} of 21 · FVG / Imbalance & Patience</div>
+        <div className="text-[10px] max-sm:text-[11px] font-black uppercase tracking-wider" style={{ color }}>Lesson {lesson.n} of 21 · FVG / Imbalance & Patience</div>
         <h2 className="mt-1 text-base font-bold text-wm-text" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 400 }}>{lesson.title}</h2>
         <p className="mt-1 text-[13px] text-wm-text leading-relaxed">{lesson.lede}</p>
       </div>
 
       <figure className="m-0">
         <FvgDiagram kind={lesson.diagram} title={lesson.title} />
-        <figcaption className="mt-1 text-[9px] text-wm-text-dim">Schematic drawing — not market data. Hollow bar: closed up · filled bar: closed down · hatched: the territory.</figcaption>
+        <figcaption className="mt-1 text-[9px] max-sm:text-[11px] text-wm-text-dim">Schematic drawing — not market data. Hollow bar: closed up · filled bar: closed down · hatched: the territory.</figcaption>
       </figure>
 
       <div className="space-y-2">

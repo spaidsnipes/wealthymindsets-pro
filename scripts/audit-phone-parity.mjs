@@ -63,6 +63,37 @@ const routes = argv.filter((a, i) => !a.startsWith("--") && !argv[i - 1]?.starts
 const ROUTES = routes.length ? routes : ["/login", "/login?mode=signup", "/reset-password", "/pricing", "/legal", "/legal/risk", "/legal/market-data", "/welcome"];
 
 /**
+ * SHORT PAGES — a route whose OWN content is honestly smaller than the census
+ * floor (2026-10-09).
+ *
+ * WHAT HAPPENED. From 2026-10-06 11:12 CDT (67720d11) the install card is
+ * withheld on every signed-out front-door page. Until then that card rose three
+ * seconds after load, inside the 4s settle, and added 28 elements and 10 text
+ * leaves to EVERY route this harness opened: /reset-password read 43/15 and
+ * /legal 57/25 on the last green run (e77a2f0). With the card gone they read
+ * what the pages themselves hold — 15/5 and 29/15 — and the 30/5 floor called
+ * both "MEASURED NOTHING" on every push for three days. The floor had been
+ * passing on an overlay, not on the page.
+ *
+ * WHAT IS NOT DONE. The global floor is not lowered. A floor of 12 would let a
+ * blank shell with a logo and a spinner pass on every route.
+ *
+ * WHAT IS DONE. A short page must PROVE it is itself: it names a `landmark` —
+ * words only that page prints — and the harness waits for those words to be
+ * VISIBLE before it measures, and fails the route by name if they never
+ * appear. Only then does the route's own smaller census apply. The floor still
+ * separates "walked" from "blank"; the landmark separates "this page" from
+ * "some page". A Sentinel (phoneAuditCoversPublicSurface) requires every entry
+ * here to carry a landmark that the page's source on disk still prints.
+ */
+const SHORT_PAGES = {
+  "/reset-password": { landmark: "Choose a new password", examined: 12, textLeaves: 4 },
+  "/legal": { landmark: "Not yet published", examined: 24, textLeaves: 12 },
+};
+/** How long a short page's landmark may take to paint before the route fails. */
+const LANDMARK_WAIT = Number(flag("landmark-wait", 20000));
+
+/**
  * Minimum comfortable touch target. WCAG 2.5.5 / Apple HIG both land on 44.
  *
  * Reported at 1px tolerance: `py-3` on a 3x device measures 43.5px, and a
@@ -306,6 +337,25 @@ for (const route of ROUTES) {
     await page.goto(`${BASE}${route}`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.waitForTimeout(SETTLE);
     result = await page.evaluate(probe, { minTap: MIN_TAP, tolerance: TAP_TOLERANCE });
+    // A short page proves itself by its own words, WAITED for (a suspense shell
+    // or a late hydration gets its time) and then required to be visible.
+    const short = SHORT_PAGES[route.split(/[?#]/)[0]];
+    if (short) {
+      result.landmarkSeen = await page
+        .getByText(short.landmark, { exact: false })
+        .first()
+        .waitFor({ state: "visible", timeout: LANDMARK_WAIT })
+        .then(() => true)
+        .catch(() => false);
+      // Measure AFTER the landmark is on the glass, so the census is of the
+      // page that printed it and not of the shell that preceded it.
+      if (result.landmarkSeen) {
+        result = {
+          ...(await page.evaluate(probe, { minTap: MIN_TAP, tolerance: TAP_TOLERANCE })),
+          landmarkSeen: true,
+        };
+      }
+    }
   } catch (error) {
     console.log(`${route}  ERROR  ${error.message.split("\n")[0]}`);
     failed++;
@@ -347,7 +397,19 @@ for (const route of ROUTES) {
   // separate "this page rendered and was walked" from "this page was blank, or
   // the probe's own traversal broke". The observed census on the thinnest of
   // these routes is an order of magnitude above them.
-  const VACUITY = { examined: 30, textLeaves: 5 };
+  const shortPage = SHORT_PAGES[route.split(/[?#]/)[0]];
+  if (shortPage && !result.landmarkSeen) {
+    console.log(
+      `${route}  LANDMARK MISSING — waited ${LANDMARK_WAIT}ms for "${shortPage.landmark}" and it never ` +
+        `became visible (walked ${result.examinedCount} elements). This route is allowed a smaller ` +
+        "census only because it proves it is itself; without its own words it proved nothing.",
+    );
+    failed++;
+    continue;
+  }
+  const VACUITY = shortPage
+    ? { examined: shortPage.examined, textLeaves: shortPage.textLeaves }
+    : { examined: 30, textLeaves: 5 };
   if (result.examinedCount < VACUITY.examined || result.textLeafCount < VACUITY.textLeaves) {
     console.log(
       `${route}  MEASURED NOTHING — walked ${result.examinedCount} elements and ` +
@@ -376,7 +438,8 @@ for (const route of ROUTES) {
     `${route}  offenders=${result.offenderCount}  evicted-text=${result.evictedCount}` +
       `  under-${MIN_TAP}px-taps=${result.smallTapCount}` +
       `  [saw ${result.examinedCount} els / ${result.textLeafCount} text / ` +
-      `${result.tappableCount} taps @ ${result.viewport}px]`,
+      `${result.tappableCount} taps @ ${result.viewport}px]` +
+      (shortPage ? `  [short page, landmark "${shortPage.landmark}" visible, floor ${VACUITY.examined}/${VACUITY.textLeaves}]` : ""),
   );
   for (const o of result.offenders) console.log(`    off by ${o.offBy}px  ${o.el}`);
   // Printed even though forgiven — a reclassification the reader can audit and

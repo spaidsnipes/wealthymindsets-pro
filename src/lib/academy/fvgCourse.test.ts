@@ -281,9 +281,15 @@ describe("the confirming-close definition the journal pins (lessons fvg-9, fvg-1
 
 describe("lesson diagrams — every label reads at 11 px on a 390-px phone", () => {
   const src = readFileSync("src/components/education/FvgDiagram.tsx", "utf8");
-  it("one label size, and it renders at 11 px or more in the 358-px lesson column", () => {
+  it("one label size, and it renders at 11 px or more in the measured 318-px lesson column", () => {
     const units = Number(/export const LABEL_UNITS = ([\d.]+);/.exec(src)![1]);
-    expect(units * (358 / 300)).toBeGreaterThanOrEqual(11);
+    const column = Number(/export const LESSON_COLUMN_PX_AT_390 = (\d+);/.exec(src)![1]);
+    expect(column).toBe(318);
+    expect(units * (column / 300)).toBeGreaterThanOrEqual(11);
+    // No start-anchored label runs past the drawing at this size (0.5 em per character is the measured ceiling).
+    for (const m of src.matchAll(/<T x=\{(\d+)\} y=\{\d+\}(?![^>]*a=)[^>]*>([^<{]+)<\/T>/g)) {
+      expect(Number(m[1]) + m[2].length * units * 0.5, m[2]).toBeLessThanOrEqual(298);
+    }
     // No label opts out with a smaller size of its own.
     expect(src).not.toMatch(/fontSize=\{\d/);
     expect(src).not.toMatch(/ s=\{\d/);

@@ -8,6 +8,7 @@
  * GET /api/finnhub?q=tesla&type=search  → symbol search results
  */
 
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { publicFailure, audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
@@ -127,6 +128,8 @@ export async function GET(request: Request) {
   // for anyone on the internet. A WM session is required.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // API audit P2-9 (2026-10-09): a per-member ceiling before the operator's provider key is spent.
+  { const limited = await publicProxyLimit(request, "market"); if (limited) return limited; }
   // Names for the operator only (ruling 2026-10-09): the typed failure bodies below are read through audienceBody.
   const operator = isOperator(auth.user.sub);
   const { searchParams } = new URL(request.url);

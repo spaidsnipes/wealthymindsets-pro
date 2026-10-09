@@ -86,7 +86,9 @@
     // API audit P1-6 (2026-10-09): the public upstream proxies. Per caller per minute — a member by user id,
     // a guest by address. Sized from serving measurements; see src/lib/publicProxyLimit.ts (the numbers must match).
     { "name": "PUBLIC_MARKET_PROXY_LIMITER", "namespace_id": "1008", "simple": { "limit": 1800, "period": 60 } },
-    { "name": "PUBLIC_FEED_PROXY_LIMITER", "namespace_id": "1009", "simple": { "limit": 120, "period": 60 } }
+    { "name": "PUBLIC_FEED_PROXY_LIMITER", "namespace_id": "1009", "simple": { "limit": 120, "period": 60 } },
+    // API audit P2-9 (2026-10-09): signed-in data routes that spend the operator's provider keys — per member per minute.
+    { "name": "MEMBER_DATA_PROXY_LIMITER", "namespace_id": "1010", "simple": { "limit": 600, "period": 60 } }
   ],
 
   "kv_namespaces": [

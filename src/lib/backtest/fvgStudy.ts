@@ -316,7 +316,8 @@ export function runFvgStudy(input: FvgStudyInput): FvgStudy {
     const counts = new Map<string, number>();
     for (const o of windowObjects) counts.set(FACET_KEY[k](o), (counts.get(FACET_KEY[k](o)) ?? 0) + 1);
     // Volatility reads in the helper's own order (compressed → normal → expanded → not read); the rest alphabetically.
-    const rank = (v: string) => (k === "volatility" ? String((FVG_VOLATILITY_FACET_VALUES as readonly string[]).indexOf(v)).padStart(2, "0") : v);
+    // Effort: the owner's cells alphabetically, the not-read group last — like every other split.
+    const rank = (v: string) => (k === "volatility" ? String((FVG_VOLATILITY_FACET_VALUES as readonly string[]).indexOf(v)).padStart(2, "0") : k === "effort" && v === FVG_STUDY_EFFORT_SILENT ? "~" : v);
     facets[k] = [...counts.entries()].sort(([a], [b]) => (rank(a) < rank(b) ? -1 : rank(a) > rank(b) ? 1 : 0)).map(([value, count]) => ({ value, count }));
   }
   const allUntagged = windowObjects.length > 0 && windowObjects.every(o => o.regime === "UNTAGGED");

@@ -1,3 +1,4 @@
+import { checkRateLimit } from "@/lib/rateLimit";
 import { isDecisionId } from "@/lib/traderMemory/decisionIdentity";
 /**
  * /api/decision-position — THE SHARED DECISION / POSITION AUTHORITY, wired.
@@ -162,6 +163,9 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   const mismatch = changedIntentOwner(request, auth.user.sub);
   if (mismatch) return mismatch;
+  // API audit P2-7 (2026-10-09): every POST is a stored write on the member's own record and had no
+  // ceiling. 60 a minute is one a second — far above a person amending a position, and a stop for a loop.
+  { const limited = checkRateLimit(`decision-position:${auth.user.sub}`, { max: 60, windowMs: 60_000 }); if (!limited.ok) return limited.response; }
 
   let body: unknown;
   try {

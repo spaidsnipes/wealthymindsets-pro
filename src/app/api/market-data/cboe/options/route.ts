@@ -1,3 +1,4 @@
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { NextResponse } from "next/server";
 import { CBOE_OPTIONS_SOURCE, cboeSymbolFor, normalizeCboeOptions } from "@/lib/marketData/cboeDelayedOptions";
 import { requireAuth } from "@/lib/requireAuth";
@@ -15,6 +16,8 @@ const CBOE = "https://cdn-api.cboe.com/api/global/delayed_quotes/options/";
 export async function GET(request: Request) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // API audit P2-9 (2026-10-09): a per-member ceiling before the operator's provider key is spent.
+  { const limited = await publicProxyLimit(request, "data"); if (limited) return limited; }
   const symbol = cboeSymbolFor(new URL(request.url).searchParams.get("symbol") ?? "");
   if (!symbol) {
     return NextResponse.json({ source: CBOE_OPTIONS_SOURCE, edge: "UNSUPPORTED", error: "No listed options for this symbol on Cboe" }, { status: 400 });

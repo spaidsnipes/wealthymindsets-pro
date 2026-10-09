@@ -122,7 +122,14 @@ describe("§14 order flow on the gap's own bars — signed volume only", () => {
     expect(fvgFlowInput(obj, BARS, at({ [b2.asOf]: { buy: 51, sell: 49, basis: "TAPE" } })).readings[0].state).toBe("BALANCED");
     // Mixed bases: the weaker word wins for the family.
     const t0 = BARS[touchIndex(0)];
-    expect(fvgFlowInput(obj, BARS, at({ [b2.asOf]: { buy: 20, sell: 80, basis: "TAPE" }, [t0.asOf]: { buy: 5, sell: 5, basis: "SIDES" } })).basis).toBe("SIDES");
+    const mixed = fvgFlowInput(obj, BARS, at({ [b2.asOf]: { buy: 30, sell: 70, basis: "SIDES" }, [t0.asOf]: { buy: 80, sell: 20, basis: "TAPE" } }));
+    expect(mixed.basis).toBe("SIDES");
+    // …and says so: the family is PARTIAL and mixed, and each row names what ITS bar rests on.
+    expect(flowSource(mixed)).toMatchObject({ evidence: "PARTIAL", provenance: expect.stringMatching(/^mixed — captured signed prints on some of these bars, the provider's per-bar bid \/ ask volume \(an aggregate, not prints\) on the others/) });
+    expect(mixed.readings.map(r => [r.anchor, r.basis])).toEqual([["DISPLACEMENT", "SIDES"], ["TOUCH", "TAPE"]]);
+    expect(mixed.readings[0].words).toMatch(/· from the provider's per-bar bid \/ ask volume$/);
+    expect(mixed.readings[1].words).toMatch(/· from captured signed prints$/);
+    expect(fvgFlowInput(obj, BARS, at({ [b2.asOf]: { buy: 20, sell: 80, basis: "TAPE", partial: true } })).readings[0].words).toMatch(/from captured signed prints \(the tape began inside this bar\)$/);
   });
 
   it("failure to displace is the keel owner's rule: strong signed share, the bar closed the other way", () => {

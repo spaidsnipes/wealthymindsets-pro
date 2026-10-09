@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { useSupabase } from "@/lib/auth";
 import { safePath, WOW_ORIGIN, wowCallbackUrl } from "@/lib/passport/wowBridge";
 import { requireAuth } from "@/lib/requireAuth";
+import { requestIsSameOrigin } from "@/lib/broker/credentialProbeGate";
 import { edgeAllows, COMMUNITY_WRITE_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { resolveSupabaseServiceKey } from "@/lib/supabaseConfigStatus";
 
@@ -17,15 +18,37 @@ export const dynamic = "force-dynamic";
  * WOW redeems it with Supabase. Signed out, or with
  * the identity backend not configured, the door still opens — WOW asks for
  * the Passport itself.
+ *
+ * POST + SAME-ORIGIN (API audit P2-4, approved 2026-10-09). This was a GET: any
+ * page on the internet could send a signed-in member's browser here with a
+ * top-level navigation (the SameSite=Lax cookie rides on those) and a sign-in
+ * link was minted. A GET now mints NOTHING — it opens WOW's plain front door,
+ * signed out, so an old bookmark still lands somewhere. Minting needs a POST
+ * that names THIS site as its Origin (the two WM buttons post a form into a new
+ * tab); a POST from any other origin is refused.
  */
 export async function GET(request: Request): Promise<Response> {
   const next = safePath(new URL(request.url).searchParams.get("to"), "/");
   const plain = NextResponse.redirect(new URL(next, WOW_ORIGIN), { status: 303 });
   plain.headers.set("Cache-Control", "no-store");
+  plain.headers.set("Referrer-Policy", "no-referrer");
+  return plain;
+}
+
+export async function POST(request: Request): Promise<Response> {
+  // A browser always names its Origin on a POST. Another site's — or none at all — never mints.
+  const origin = request.headers.get("origin");
+  if (!origin || !requestIsSameOrigin(request)) {
+    return NextResponse.json({ error: "Cross-site request refused.", code: "CROSS_SITE_REFUSED" }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  const form = await request.formData().catch(() => null);
+  const next = safePath(form?.get("to"), "/");
+  const plain = NextResponse.redirect(new URL(next, WOW_ORIGIN), { status: 303 });
+  plain.headers.set("Cache-Control", "no-store");
 
   const auth = await requireAuth(request);
   if (!auth.ok || !useSupabase()) return plain;
-  // Each GET mints a magic link through the service-role admin API; bound it
+  // Each POST mints a magic link through the service-role admin API; bound it
   // per user (garden pass 2026-10-04). Over the limit, the plain door still works.
   if (!(await edgeAllows([`to-wow:${auth.user.sub}`], COMMUNITY_WRITE_LIMITER_BINDING))) return plain;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

@@ -284,7 +284,7 @@ export const FVG_LESSONS: readonly FvgLesson[] = [
       "Read them with lesson 16's rules: what was the sample, how large is N, which regime. Keep what the evidence supports; drop the rest.",
       FVG_NO_GUARANTEE,
     ],
-    ["Tag FVG trades in the Journal.", "Review them by instrument, timeframe and session."]),
+    ["Reference the gap on your FVG trades in the Journal.", "Review them by instrument, timeframe and session."]),
 ];
 
 /** The course as the Academy catalogue registers it — once. */

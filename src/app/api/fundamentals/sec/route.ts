@@ -1,3 +1,4 @@
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 
@@ -46,6 +47,8 @@ export async function GET(request: Request): Promise<Response> {
   // spent the operator's provider quota for anyone on the internet.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // API audit P2-9 (2026-10-09): a per-member ceiling before the operator's provider key is spent.
+  { const limited = await publicProxyLimit(request, "data"); if (limited) return limited; }
   const symbol = (new URL(request.url).searchParams.get("symbol") ?? "").trim().toUpperCase();
   if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(symbol)) return NextResponse.json({ state: "INVALID_SYMBOL" }, { status: 400 });
 

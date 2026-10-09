@@ -9,6 +9,7 @@
  * GET /api/fmp?path=/v3/key-metrics-ttm/AAPL
  */
 
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
@@ -28,6 +29,8 @@ export async function GET(request: Request) {
   // for anyone on the internet. A WM session is required.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // API audit P2-9 (2026-10-09): a per-member ceiling before the operator's provider key is spent.
+  { const limited = await publicProxyLimit(request, "data"); if (limited) return limited; }
   const { searchParams } = new URL(request.url);
   const path = searchParams.get("path") ?? "";
   const limit = searchParams.get("limit");

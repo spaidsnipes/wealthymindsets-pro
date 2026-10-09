@@ -40,6 +40,7 @@
  * antique gold #c4a574 for BRAND AND RULES ONLY. Risk wears independent amber.
  */
 
+import { openWowWorld } from "@/lib/passport/openWowWorld";
 import { ToolsSlot } from "@/components/chart/orderFlowToolsSlot";
 import * as React from "react";
 import { InventionInfoButton, InventionPreview } from "@/components/chart/InventionInfo";
@@ -317,7 +318,7 @@ function WowWorldDoor(): React.ReactElement {
     <button
       type="button"
       data-testid="os-wow-world-door"
-      onClick={() => { window.open("/api/passport/to-wow", "_blank", "noopener"); }}
+      onClick={() => { openWowWorld(); }}
       style={{
         display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, width: "calc(100% - 20px)",
         margin: "10px 10px 4px", padding: "10px 12px", background: "transparent", cursor: "pointer", textAlign: "left",

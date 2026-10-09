@@ -93,6 +93,12 @@ describe("FVG study: the effort split (displacement bar)", () => {
     expect(groups.reduce((n, g) => n + g.count, 0)).toBe(s.detectedInWindow);
     expect(groups.every(g => ["ABSORBED", "INITIATIVE", "VACUUM", "QUIET", "ORDINARY", FVG_STUDY_EFFORT_SILENT].includes(g.value))).toBe(true);
     expect(groups.filter(g => g.value !== FVG_STUDY_EFFORT_SILENT).length).toBeGreaterThan(1);
+    // The not-read group is listed last, after the owner's cells in alphabetical order.
+    const named = groups.map(g => g.value).filter(v => v !== FVG_STUDY_EFFORT_SILENT);
+    expect(named).toEqual([...named].sort());
+    if (groups.some(g => g.value === FVG_STUDY_EFFORT_SILENT)) expect(groups[groups.length - 1].value).toBe(FVG_STUDY_EFFORT_SILENT);
+    const mixed = study(ALL.map((b, i) => (i % 97 === 5 ? { ...b, volume: 0 } : b)));
+    expect(mixed.facets.effort[mixed.facets.effort.length - 1].value).toBe(FVG_STUDY_EFFORT_SILENT);
     const pick = groups.find(g => g.value !== FVG_STUDY_EFFORT_SILENT)!;
     expect(study(ALL, SYM, pick.value).objects.length).toBe(pick.count);
     expect(Object.keys(s.by.effort).sort()).toEqual(groups.map(g => g.value).sort());

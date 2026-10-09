@@ -11,6 +11,7 @@
  * browser PUTs the audio straight to storage; `op: "file"` then records the
  * track, accepting only a path of the shape this route mints.
  */
+import { RADIO_LINK_REFUSAL, radioLinkAllowed } from "@/lib/radio/radioLinkHosts";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -109,6 +110,10 @@ export async function POST(request: Request): Promise<Response> {
       if (b.op === "url") {
         const u = clean(b.url, 600);
         if (!/^https:\/\/[^\s]+$/i.test(u)) return NextResponse.json({ error: "Paste an https:// link." }, { status: 400 });
+        // API audit P2-8 (2026-10-09): a link is fetched by every listener's browser, so a member could point the
+        // room at any site (tracking, or worse). Links are accepted from a short named list only; anything else
+        // is uploaded instead. On serving today all tracks are uploads — the list turns nobody away.
+        if (!radioLinkAllowed(u, c.url)) return NextResponse.json({ error: RADIO_LINK_REFUSAL, code: "LINK_HOST_NOT_ALLOWED" }, { status: 400 });
         public_url = u;
       } else {
         const p = clean(b.path, 80);

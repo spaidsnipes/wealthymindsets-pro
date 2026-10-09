@@ -20,6 +20,7 @@
  * sentence worth being able to say honestly.
  */
 
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { NextResponse } from "next/server";
 import {
   polygonCategory,
@@ -113,6 +114,9 @@ async function yahooSearch(q: string): Promise<SearchHit[]> {
 }
 
 export async function GET(request: Request) {
+  // API audit P2-9 (2026-10-09): this search answers guests too and spends a provider key — a ceiling per caller
+  // (a member by user id, a guest by address) before anything is asked.
+  { const limited = await publicProxyLimit(request, "data"); if (limited) return limited; }
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get("q") ?? "").trim().slice(0, 40);
   if (!q) return NextResponse.json({ results: [] });

@@ -9,7 +9,11 @@ import { describe, expect, it } from "vitest";
 
 const MC = readFileSync("src/components/chart/MainChart.tsx", "utf8");
 const at = MC.indexOf("UI-06 · THE EFFORT TERRAIN");
-const block = at > 0 ? MC.slice(at, at + 9500) : "";
+// The block runs from its own heading to the NEXT block's heading — anchored on
+// markers, not a character count (2026-10-09: a fixed 9,500-character window
+// put this sentinel one comment away from failing for the wrong reason).
+const end = at > 0 ? MC.indexOf("// ── BASIS. Compact, always visible", at) : -1;
+const block = at > 0 && end > at ? MC.slice(at, end) : "";
 
 describe("effort terrain", () => {
   it("reads the anatomy owner's own fields — nothing re-measured", () => {

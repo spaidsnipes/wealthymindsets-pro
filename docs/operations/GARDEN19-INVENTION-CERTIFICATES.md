@@ -6,7 +6,7 @@ Written 2026-10-06, 23:50–00:30 CDT, by the INVENTION CENSUS lane. **This pass
 
 One row per section of the order's second part ("0 — PRIMARY ORDER" through "66 — GARDEN 19 CONSTITUTIONAL CLOSE"; §0 is the preamble and has no row). Titles are the Founder's. Section numbers in the last column of evidence (§5, §6a, §10, §13, §22, §23 …) point into THIS document; proof files are in `~/wm-held/proof/`. Only what this document and the proof files cite is counted: a row with no serving receipt is BUILT · NOT READ or lower. Production at writing: `16f363a` (LIVE 07:54:56 CDT).
 
-**Totals (66), as of 12:28 CDT Oct 9 (production `6944df9`):** **PROVED ON SERVING** 44 · **PROVED ON FIXTURE · real-account read owed** 11 · **BUILT · NOT READ** 1 · **PARTIAL** 8 · **NOT BUILT** 0 · **FOUNDER DECISION** 2. (At 11:50: 42 · 10 · 2 · 10 · 0 · 2. At 08:10: 39 · 5 · 2 · 18 · 0 · 2.)
+**Totals (66), as of 12:46 CDT Oct 9 (production `79bb6fd`):** **PROVED ON SERVING** 44 · **PROVED ON FIXTURE · real-account read owed** 11 · **BUILT · NOT READ** 1 · **PARTIAL** 8 · **NOT BUILT** 0 · **FOUNDER DECISION** 2. (At 11:50: 42 · 10 · 2 · 10 · 0 · 2. At 08:10: 39 · 5 · 2 · 18 · 0 · 2.)
 
 | § | Founder's title | State | Proved by (build · time) — or exactly what is missing | Lane |
 |---|---|---|---|---|
@@ -14,7 +14,7 @@ One row per section of the order's second part ("0 — PRIMARY ORDER" through "6
 | 2 | THE EDUCATIONAL MATERIAL IS INPUT, NOT AUTHORITY | **BUILT · NOT READ** | WM's own definition, words and methodology exist (`FVG-METHODOLOGY.md`, `fvgCourse.ts`). No document cites a check that nothing was copied from the supplied lesson — an authorship law, not a serving read. | cert lane |
 | 3 | FAIR VALUE GAP / IMBALANCE DEFINITION | **PROVED ON SERVING** | §13 rows 1–3: `fvgDefinition.ts` + methodology; `DEF:FVG_3C@1` on glass, `eea2771` and `c02c2d4`; 268 / 268 FVG tests on `c104669`. | FVG / chart lane |
 | 4 | DEFINITION_ID | **PROVED ON SERVING** | §13 row 2; Backtest prints "definition FVG_3C v1" (`eea2771`, §6a); every OBJECT_ID carries `v1`. | FVG / chart lane |
-| 5 | FVG IS A CANONICAL MARKETOBJECT | **PROVED ON SERVING** | Identity, boundaries, creation, size in ticks / points / ATR read in Inspect (`eea2771` matrix file; `301d85d`). Missing: regime context reads UNTAGGED on bar-only history (`c4de0f0`, §6a); the order-flow and derivatives senses read NOT_ATTACHED (§5 TRUTH CLASS). **RULING 2026-10-09 11:59 CDT (§24e):** regime stays tape scope, by reference, never stamped on the gap; volatility at formation (bars scope) carries the bar-computable context. Helper in the tree (`fvgFormationContext.ts`); Inspect, journal and study consumers not built yet. **UPDATE 2026-10-09 12:19 CDT → PROVED** (serving `f37005c`, builtAt 17:14:44Z, cert lane own tab, read-only; NQ1! 5m, an OPEN bearish gap selected by id): Inspect prints both scopes — "Volatility at formation: expanded — range 1.33× its normal (from 4954 closed bars)." and "Regime at formation (tape): not read — the chart keeps the tape regime per bar only while Regime Lighting is on." Not yet read: the regime line with Regime Lighting on; the study's volatility facet; the journal context. | FVG / chart lane |
+| 5 | FVG IS A CANONICAL MARKETOBJECT | **PROVED ON SERVING** | Identity, boundaries, creation, size in ticks / points / ATR read in Inspect (`eea2771` matrix file; `301d85d`). Missing: regime context reads UNTAGGED on bar-only history (`c4de0f0`, §6a); the order-flow and derivatives senses read NOT_ATTACHED (§5 TRUTH CLASS). **RULING 2026-10-09 11:59 CDT (§24e):** regime stays tape scope, by reference, never stamped on the gap; volatility at formation (bars scope) carries the bar-computable context. Helper in the tree (`fvgFormationContext.ts`); Inspect, journal and study consumers not built yet. **UPDATE 2026-10-09 12:19 CDT → PROVED** (serving `f37005c`, builtAt 17:14:44Z, cert lane own tab, read-only; NQ1! 5m, an OPEN bearish gap selected by id): Inspect prints both scopes — "Volatility at formation: expanded — range 1.33× its normal (from 4954 closed bars)." and "Regime at formation (tape): not read — the chart keeps the tape regime per bar only while Regime Lighting is on." Not yet read: the regime line with Regime Lighting on; the study's volatility facet; the journal context. **UPDATE 12:41 CDT** (serving `79bb6fd`, Regime Lighting on through the URL switch `on=fvg,RegimeLighting` — the Founder's saved layer untouched): the regime line changes to "Regime at formation (tape): not read — the tape does not reach this bar." on a 5m gap 3.7 hours old and on a 1m gap 47 minutes old (the per-bar tape series reached 11 one-minute bars). A regime WORD at formation has not been read: it needs a gap born inside the last few minutes of tape. | FVG / chart lane |
 | 6 | OBJECT LINEAGE | **PROVED ON SERVING** | One OBJECT_ID minted once (`fvgEngine.test.ts`). The same id shape read in states REJECTED (`301d85d`), ACCEPTED → MEMORY, TRADED_THROUGH (`c104669` 07:23–07:38 Oct 8, §13 rows 9–12), MEMORY (`0dd1130` 07:50 Oct 9, §23b). | FVG / chart lane |
 | 7 | DO NOT TEACH FALSE CERTAINTY | **PROVED ON SERVING** | ⓘ no-guarantee sentence (`c02c2d4`, §13 row 21); SpaidBot answer "price does not have to fill" (`14de5a0`, §13 row 23); myth card (`4769a31`); copy sweeps in `fvgCourse.test.ts`, `sellingStory.test.ts`. | cert lane |
 | 8 | PHYSICAL GRAMMAR | **PROVED ON SERVING** | Dense / hatch / tick / inner line / dashed far edge: matrix `eea2771`; acceptance inner line and dashed far edge read as canvas pixels on `c104669` (§13 rows 9, 10); opacity rungs `f96618c`. "Restrained motion" has no receipt. | FVG / chart lane |
@@ -2800,3 +2800,102 @@ Thumb bar at 390: y 732–784. 0 storage writes on every read.
 ### 26e. Lesson diagrams (cert lane, tree, 12:26)
 
 Measured: the lesson column is 358 px on a 390-px phone, the drawing is 300 units wide, so the old 9-unit labels rendered at 10.7 px and the 7.5-unit sub-labels at 9 px. Now one size, `LABEL_UNITS = 9.25` (11 px at 390), no label smaller; the three sub-labels shortened to fit ("reference a gap" — replacing "tag FVG", a control that does not exist — "market · session", "what N supports"). `FvgDiagram.tsx`; two cases in `fvgCourse.test.ts`. Not shipped.
+
+### 26f. Serving reads on `79bb6fd` (builtAt 17:36:24Z; cert lane own tab, read-only, closed 12:43; 0 storage writes on every read)
+
+| Read | Result | State |
+|---|---|---|
+| Regime line with Regime Lighting on (`on=fvg,RegimeLighting`; the URL switch exists, no saved layer flipped) | Lighting drew (`regimeLighting RANGE`, verdict COMPRESSION, `regimeStateLine 3\|X1\|NOW:BALANCE`). The gap's Inspect: "Regime at formation (tape): not read — the tape does not reach this bar." (NQ1! 5m, gap 3.7 h old; NQ1! 1m, gap 47 min old, series 11 bars). Volatility lines: "expanded — range 1.51× its normal (from 4950 closed bars)", "compressed — range 0.71× its normal (from 2953 closed bars)" | both "not read" sentences PROVED; a regime word at formation NOT READ (no gap inside the tape's reach) |
+| Connect brokers, door 1: Chart tools → More chart tools → Connect brokers | **390:** full-screen sheet with its own Close; 358 text leaves, 0 under 11 px; 5 controls under 44 px (mouse pointer). **834:** sheet x 0–830; **312 of 363 text leaves under 11 px** (9–10 px); 4 controls under 44 px | clear of the thumb bar. **P2 (brokers lane): tablet type is 9–10 px** — the 11-px floor applies below 640 px only |
+| Connect, door 2: Depth ladder → "Check connections →" | Leaves the chart for the Connections page (phone nav present). **390:** 0 of 223 leaves under 11 px; 5,532 px of page. **834:** 83 of 223 under 11 px. The page reads "7/10 providers configured", "13/40 required names present · Values stay sealed in approved runtime stores" | reached. **P2 (brokers lane):** operator words on a page a member reaches from the Depth sheet; the door leaves the chart without saying so |
+| Lesson diagram labels at 390 (lesson 21) | The drawing is **318 px** wide at 390, not the 358 px assumed at 12:26: all 7 labels render at **9.81 px**. "reference a gap" is on the drawing. The lesson's WHAT TO LOOK FOR still said "Tag FVG trades in the Journal." | **NOT at 11 px on serving.** Fixed in the tree 12:44: `LABEL_UNITS = 10.4` against the measured 318 px (11.02 px); four long labels shortened or end-anchored so none runs past the drawing; caption and lesson eyebrow at 11 px on phones; lesson 21's look line names the real control. Serving read owed after the next ship |
+
+### 26g. Remaining after `79bb6fd` — everything not PROVED ON SERVING (22 of 66)
+
+| Group | Sections | What closes it | Owner |
+|---|---|---|---|
+| Fixture rows (11) | 23, 24, 26, 27, 28, 29, 31, 36, 40, 41, 64 | the Founder's real-account actions — handover (c) | Founder, then management lane reads |
+| Build gap | 13, 14 | effort → response and order flow as relationship families on the gap: tests shipped in `f37005c` / scanner conditions in `6944df9` per the commit notes — **no serving receipt in this document yet**; one read each on a gap with the reading attached | FVG / ticket lane to cite, cert lane to flip |
+| Devices | 52, 58 | physical phone and tablet — handover (d) | Founder |
+| Composite | 59, 62, 65, 66 | close when the rows above close; §66 also needs the Webull server gate read on serving and the Founder's permission rule for authorized execution | coordinator |
+| Founder decisions | 61, 63 | FVG default ON / OFF; his own Sheriff walk | Founder |
+| Law | 2 | authorship law — no serving proof exists | — |
+
+---
+
+## FOUNDER HANDOVER — Oct 9 (cert lane draft, written 12:46 CDT; production `79bb6fd`)
+
+### (a) What shipped today, by build
+
+**Night and morning (00:00 – 08:10)**
+
+| Build | For the trader |
+|---|---|
+| `0971594`, `ea8ad94` | Every indicator's ⓘ says what the tool does now; pivots no longer squash the candles; Brick Walls says its silence once |
+| `9f4d784`, `7f2ca59` | Futures options name a near-price chain and withhold what they cannot hear; phone ticket in two steps; footer volume names its unit |
+| `b290eef` | Every in-app door lands on a clean chart and gives your own layers back afterwards; Webull shows one history |
+| `559884e` | **The Webull order door runs the server gate (kill switch, arm, caps, quote, protection) before any broker call** — found missing at 06:54, closed 07:06 |
+| `92895d6` | Compare at every width; Alerts say what they are; "Practice in Replay" starts Replay |
+| `0dd1130` | Inspect opens the lesson for what the gap is doing; lessons 12, 20, 21 corrected; the loop ends RETURN TO MARKET BETTER; quiz sample scene; a proof scene writes nothing |
+| `16f363a`, `ada59d4` | Words on the chart claim their space; your own labels for why a plan changed; Depth ladder says why it has no book; scanner refusals in plain words |
+
+**This shift (11:43 → )**
+
+| Build | For the trader |
+|---|---|
+| `f9f61fe` | A truth line is never hidden by a lesser word; the 66-section finish-line table |
+| `e05c774` | **Phone glass no longer dimmed** (the cause: the phone word budget was dimming ink, not only words); Depth ladder without source labels; `scene=verify` (real data, nothing saved); Inspect type at 11 px |
+| `f37005c` | Phone names never fainter than 0.8; 11-px type floor on phones in every room; a gap's Inspect says volatility at formation and the regime line; the Inspect card moves away from the gap |
+| `6944df9` | **Price sovereignty on the phone** — discs and option marks step off the newest candles; stage nav on one row; four API tightenings |
+| `5b12137` | The absorption effort mass held to the fog cap and stopped at the newest candles |
+| `79bb6fd` | No notch behind the newest candles; one failure wording for guests and members; Personal Edge gap study on /profile; journal header on one row |
+
+Finish line at 12:46: **44 of 66 sections proved on serving, 11 proved on sample data, 8 partial, 1 built and unread, 2 waiting on you.**
+
+### (b) Decisions waiting on you — with the default in force today
+
+| # | Decision | Default in force until you rule |
+|---|---|---|
+| 1 | Order-submit rate limit, and a daily order cap | **None set.** The order doors run the server gate (kill switch, arm, caps, quote, protection) but there is no "N orders per window" and no per-day ceiling |
+| 2 | The 13 probable sweep symbols in the coverage ledger (AVAX 2, LTC 6, BZ1! 10, 6E1! 21, ZN1! 97, /ES 61, ESZ6 17, /BTC 3, RTY1! 5, /MNQH7 149, "BTC-" 1,821, DOGE 45, QQQ 34) | **Left in place.** Nothing edited or deleted |
+| 3 | The two selling strings added today: the loop sentence ends "→ RETURN TO MARKET BETTER"; the 15th line reads "That is a Trading Operating System." | **Live** on /welcome, /pricing, /login. Both are your own sentences; the selling copy as a whole has never been redlined by you |
+| 4 | Passport intro-offer line (first month $10, then $20) and the referral links | **Shown as display only**; referral links wait for your URLs. Four tiers $0 / $10 / $20 / $50 — confirmed by you today |
+| 5 | Futures option walls on a near-price chain: scoped (A) or withheld (B) | **A, shipped:** walls drawn as NEAR-PRICE OPEN INTEREST; zero-gamma and the pressure field withheld, with the reason on the glass |
+| 6 | Webull GATED wording, A or B (API audit P1-3) | **The wording now on serving stays.** The two candidate sentences are with the brokers lane — they are not written in this document |
+| 7 | Masthead feed reading at 11 px | **As shipped** (11-px floor on phones since `f37005c`). The open point is with the chart lane — not written in this document |
+| 8 | GC1! decimals: the chart prints gold at 2 decimals, the ticket at the true tick | **Both stand** — chart 2 dp, ticket true tick |
+| 9 | Phone ticket: at most 55 % of the glass while acting? | **Not enforced as a limit.** Measured: PEEK 51 %; BUILD fits without inner scroll (592 px of 844) |
+| 10 | 390 px: where the Liquidity Weather lens's words live | **The lens yields at phone width** — its stage has no mark on the glass there |
+| 11 | Teaching card on desktop yields (docks clear of the silence band) | **Kept as canon** (coordinator ruling) — listed so you can overrule |
+| 12 | Memory Ghost: dashed outline (code) or the plate's faint filled candles | **Dashed, as coded** — deferred with your scope decision |
+| 13 | Living Profile line grammar | **As shipped.** The open question is with the chart lane — not written in this document |
+| 14 | FVG layer default | **OFF.** A trader switches it on in Tools; lessons and doors switch it on for that visit only |
+| 15 | TED definition | **None.** Its ⓘ says "definition pending Founder"; nothing is drawn as TED on the candles |
+
+Also decided by you today and now in force: order books carry no venue or source label (Depth ladder only); phone opacity "not ATH" — fixed across `e05c774` → `79bb6fd`, your eye is the last check.
+
+### (c) Real-account actions that would close the 11 sample-data rows
+
+Each row is proved on labelled sample data. Nothing is ever written to your journal or sent on your account by the lanes, so only you can make the real record.
+
+| Your action | Closes | What we then read (read-only) |
+|---|---|---|
+| 1. In Morning Prep, write today's management rules; on a ticket, confirm the plan card and send **one order through WM** (paper or the smallest live size) | §27 plan snapshot | the plan frozen at the send, with later changes as dated amendments |
+| 2. Let that trade complete (exit by plan or not) | §26 management behaviours, §28 premature exit, §64 management Sheriff | market / planned / actual side by side; the factual departure, no emotion word |
+| 3. In the Journal, save one entry with **"Reference an FVG"**, then reload | §40 Journal, §36 Show me my examples | the same snapshot after reload; the entry listed under "Show me my examples" in the Academy |
+| 4. On that entry's Review row, pick your own label for why the plan changed (or leave it) | §29 psychology | your label counted beside the departure; nothing inferred |
+| 5. Ask SpaidBot one Review question on that decision | §31 SpaidBot × management | the answer quotes your plan and asks what changed it — no "you panicked" |
+| 6. Keep journaling gap decisions: the comparisons need **20** on each side | §23 Personal Edge, §24 counterfactual, §41 Review | counts today; a comparison only at 20 |
+
+One trade and one journal entry (actions 1–5) close eight of the eleven; §23, §24 and §41 show counts at once and comparisons at 20.
+
+### (d) What cannot be proved without a physical phone or tablet
+
+- **Touch size and tap behaviour.** Every measurement here is a mouse pointer in a resized window; rules that enlarge targets under a finger (`pointer: coarse`) do not apply in it. The 44-px floor is proved by emulation only.
+- **Safe areas** — the notch, the home bar, the on-screen keyboard over the ticket and the Journal.
+- **Real-phone performance** — the gap layer is measured at 4× CPU slowdown on this Mac (about 30 ms cold, 6–7 ms per closed bar), not on a phone.
+- **How the phone glass looks to you** — opacity, ink and the newest candles on a real OLED screen at arm's length. Today's four phone ships were measured in numbers; "ATH" is your eye.
+- **Tablet in both orientations with touch** — pinch, drag, long-press on the chart; the iPad drag has been pending since Oct 2.
+- **Sign-in on the phone** (Supabase site URL items from Oct 6 still need your dashboard).
+
+What would close it: ten minutes on your phone and your iPad on /charts (tap a gap, open TRADE, open Tools, rotate), with screenshots sent to the team.

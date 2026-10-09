@@ -10,6 +10,7 @@
  * A symbol the provider does not answer is COUNTED as missing, never zeroed.
  */
 
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { NextResponse } from "next/server";
 
 import { toYahooSymbol } from "@/lib/marketData/symbolAssetClass";
@@ -61,6 +62,8 @@ export async function GET(request: Request) {
   // cache — enough to get the IP throttled, which also starves /api/yahoo.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // API audit P2-9 (2026-10-09): a per-member ceiling before the operator's provider key is spent.
+  { const limited = await publicProxyLimit(request, "data"); if (limited) return limited; }
   const syms = [...new Set((new URL(request.url).searchParams.get("syms") ?? "")
     .split(",").map(s => s.trim().toUpperCase()).filter(s => /^[A-Z0-9.\-=!^]{1,12}$/.test(s)))].slice(0, MAX_SYMS);
   if (syms.length === 0) return NextResponse.json({ error: "syms required" }, { status: 400 });
