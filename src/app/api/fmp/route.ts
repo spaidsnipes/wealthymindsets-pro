@@ -9,6 +9,7 @@
  * GET /api/fmp?path=/v3/key-metrics-ttm/AAPL
  */
 
+import { audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 
@@ -52,7 +53,8 @@ export async function GET(request: Request) {
     // names…]} so consumers can render the honest edge instead of guessing.
     // Sentinel enforces this shape across the whole /api tree.
     return NextResponse.json(
-      { error: "FMP fundamentals provider is not configured", edge: "NOT CONFIGURED", missing: ["FMP_KEY (or NEXT_PUBLIC_FMP_KEY)"], source: "fmp" },
+      // Names for the operator only (ruling 2026-10-09): a member reads plain words, the same edge and a stable code.
+      audienceBody(isOperator(auth.user.sub), { error: "FMP fundamentals provider is not configured", edge: "NOT CONFIGURED", missing: ["FMP_KEY (or NEXT_PUBLIC_FMP_KEY)"], source: "fmp" }),
       { status: 503 },
     );
   }

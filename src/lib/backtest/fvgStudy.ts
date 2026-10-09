@@ -307,6 +307,12 @@ export function runFvgStudy(input: FvgStudyInput): FvgStudy {
   const facets = {} as Record<FvgStudyFacet, { value: string; count: number }[]>;
   for (const k of FACETS) {
     by[k] = k === "displacement" || k === "structure" || k === "profile" || k === "volatility" || k === "effort" ? splitBy(objects, FACET_KEY[k]) : describeFvgOutcomesBy(objects, k);
+    // The split table reads in the same order as the filter (serving 6944df9 printed Compressed · Expanded · Normal).
+    if (k === "volatility") {
+      const ordered: Record<string, FvgOutcomeStats> = {};
+      for (const v of FVG_VOLATILITY_FACET_VALUES) if (by[k][v]) ordered[v] = by[k][v]!;
+      by[k] = ordered;
+    }
     const counts = new Map<string, number>();
     for (const o of windowObjects) counts.set(FACET_KEY[k](o), (counts.get(FACET_KEY[k](o)) ?? 0) + 1);
     // Volatility reads in the helper's own order (compressed → normal → expanded → not read); the rest alphabetically.

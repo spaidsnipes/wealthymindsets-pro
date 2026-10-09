@@ -278,3 +278,18 @@ describe("the confirming-close definition the journal pins (lessons fvg-9, fvg-1
     expect(body("fvg-18")[0]).toBe("A territory far from price may take many bars to be touched, or never be. Waiting for the touch, and then for the closes that answer it, is the discipline.");
   });
 });
+
+describe("lesson diagrams — every label reads at 11 px on a 390-px phone", () => {
+  const src = readFileSync("src/components/education/FvgDiagram.tsx", "utf8");
+  it("one label size, and it renders at 11 px or more in the 358-px lesson column", () => {
+    const units = Number(/export const LABEL_UNITS = ([\d.]+);/.exec(src)![1]);
+    expect(units * (358 / 300)).toBeGreaterThanOrEqual(11);
+    // No label opts out with a smaller size of its own.
+    expect(src).not.toMatch(/fontSize=\{\d/);
+    expect(src).not.toMatch(/ s=\{\d/);
+  });
+  it("the Personal Edge drawing names the real Journal control, not a tag", () => {
+    expect(src).toContain('"reference a gap"');
+    expect(src).not.toContain("tag FVG");
+  });
+});

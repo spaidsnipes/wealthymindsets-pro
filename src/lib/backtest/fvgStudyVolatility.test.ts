@@ -27,6 +27,8 @@ describe("the volatility facet — one helper, bars scope", () => {
     expect(values.length).toBeGreaterThan(1);
     for (const v of values) expect(FVG_VOLATILITY_FACET_VALUES as readonly string[]).toContain(v);
     expect(values).toEqual((FVG_VOLATILITY_FACET_VALUES as readonly string[]).filter(v => values.includes(v)));
+    // The split table's groups read in that same order (serving 6944df9 printed Compressed · Expanded · Normal).
+    expect(Object.keys(study.by.volatility)).toEqual(values);
     // n of m: the groups account for every gap, exactly once.
     expect(study.facets.volatility.reduce((n, f) => n + f.count, 0)).toBe(study.detectedInWindow);
     expect(Object.values(study.by.volatility).reduce((n, s) => n + s.detected, 0)).toBe(study.filtered);

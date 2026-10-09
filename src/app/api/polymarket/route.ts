@@ -10,6 +10,7 @@
  * and normalise the shape for the chart layer.
  */
 
+import { publicFailure } from "@/lib/publicFailure";
 import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { NextResponse } from "next/server";
 
@@ -79,6 +80,7 @@ export async function GET(request: Request) {
     });
     return NextResponse.json({ markets, ts: Date.now() });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 502 });
+    // API audit P1-5: plain words + a stable code; the vendor's text goes to the server log.
+    return NextResponse.json(publicFailure(err, "polymarket"), { status: 502 });
   }
 }

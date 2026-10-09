@@ -93,6 +93,8 @@ describe("a door opened from the menu lands the trader inside it (batch 6: focus
   it("Journal P&L stats lands above the phone's thumb bar, and its close has a 44px hit area", () => {
     const pnl = read("src/components/chart/PnLStatsPanel.tsx");
     expect(pnl).toContain('scrollMarginBottom: "calc(64px + var(--wm-g19-plaque, 56px) + env(safe-area-inset-bottom))"');
+    // The page must be able to scroll that far: the strip brings the plaque's height as its own bottom margin.
+    expect(pnl).toContain('marginBottom: "var(--wm-g19-plaque, 0px)"');
     expect(pnl).toContain('className="wm-tap-slop ml-auto p-1');
   });
   it("the replay bar wraps inside the glass", () => {

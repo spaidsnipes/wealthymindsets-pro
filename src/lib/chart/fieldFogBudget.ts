@@ -26,6 +26,8 @@ export const FOG_CAP = 0.18;
 export const FOG_MIN_COVER = 0.06;
 export const FOG_OPAQUE = 0.6;
 export const FOG_GRID = 8;
+/** The column cut fades over this many pixels each side (half strength), so it is never a hard edge. */
+export const FOG_FEATHER_PX = 8;
 
 export interface FogFrame {
   /** The largest summed effective alpha over any one grid cell this frame (after scaling). */
@@ -137,13 +139,26 @@ export function installFogGate(ctx: FogCtx): FogGate {
     const s = large ? ledger.add(rect, ink * ga) : 1;
     if (crosses && col && tr.a !== 0 && tr.d !== 0) {
       cuts++;
+      // The column, in the context's own units — and a feather each side, so the
+      // cut never reads as a hard notch behind the last candles (serving 390,
+      // 6944df9: the area behind the newest bars read as a black block).
+      const cx = (col.x * k - tr.e) / tr.a, cy = (col.y * k - tr.f) / tr.d, cw = (col.w * k) / tr.a, chh = (col.h * k) / tr.d;
+      const fe = (FOG_FEATHER_PX * k) / tr.a;
+      // Pass 1 — full strength outside the feathered column.
       this.save();
       this.beginPath();
       this.rect(x, y, w, h);
-      // The column, in the context's own units.
-      this.rect((col.x * k - tr.e) / tr.a, (col.y * k - tr.f) / tr.d, (col.w * k) / tr.a, (col.h * k) / tr.d);
+      this.rect(cx - fe, cy, cw + 2 * fe, chh);
       this.clip("evenodd");
       if (s < 1) this.globalAlpha = ga * s;
+      try { raw.call(this as CanvasRenderingContext2D, x, y, w, h); } finally { this.restore(); }
+      // Pass 2 — half strength in the two feather strips beside the column.
+      this.save();
+      this.beginPath();
+      this.rect(cx - fe, cy, fe, chh);
+      this.rect(cx + cw, cy, fe, chh);
+      this.clip();
+      this.globalAlpha = ga * s * 0.5;
       try { return raw.call(this as CanvasRenderingContext2D, x, y, w, h); } finally { this.restore(); }
     }
     if (s >= 1) return raw.call(this as CanvasRenderingContext2D, x, y, w, h);

@@ -18,6 +18,7 @@ import PlaybookDNAPanel from "@/components/profile/PlaybookDNAPanel";
 import SessionEdgePanel from "@/components/profile/SessionEdgePanel";
 import { ProfilePerfTiles } from "@/components/profile/ProfilePerfTiles";
 import { DepartureLessonRowsFor } from "@/components/profile/DepartureLessonRows";
+import { PlanAdherenceView } from "@/components/journal/PlanAdherenceBySetup";
 import { journalFixture } from "@/lib/journal/journalProofFixture";
 import { PROFILE_FIXTURE_BANNER, PROFILE_FIXTURE_NOW_MS, PROFILE_FIXTURE_OWNER, PROFILE_FIXTURE_SIZES, profileFixtureBook } from "@/lib/profile/profileProofFixture";
 import { STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
@@ -40,6 +41,7 @@ function departureSample(n: number) {
 
 export function ProfileProofScene(): React.ReactElement {
   const books = useMemo(() => PROFILE_FIXTURE_SIZES.map(n => profileFixtureBook(n)), []);
+  const fx = useMemo(() => journalFixture(), []);
   return (
     // The shell hands this room its own scroll (`data-scroll-owner="workspace"`: main is
     // overflow hidden). The real profile scrolls in its root; the proof scene had no
@@ -64,6 +66,14 @@ export function ProfileProofScene(): React.ReactElement {
               <PersonalEdgePanel vm={selectPersonalEdge({ ownerId: PROFILE_FIXTURE_OWNER, decisions: b.snapshots, nowMs: PROFILE_FIXTURE_NOW_MS })} />
               {/* Departures with their lesson doors: the first N sample decisions of the journal fixture (synthetic plans). */}
               <DepartureLessonRowsFor results={departureSample(b.size)} />
+              {/* The Journal's Personal Edge view on the same sample decisions (book C only — the fixture's full set):
+                  FVG study list with WAITED, the timing and untraded-touch sentences, read from the sample ledger. */}
+              {b.size >= STAT_SAMPLE_MIN ? (
+                <div data-testid="profile-proof-gap-study" style={{ border: "1px solid rgba(139,106,41,0.35)", borderRadius: 10, background: "rgba(11,11,13,0.9)", padding: 16 }}>
+                  <span style={{ fontSize: 10, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9a55c", fontWeight: 800 }}>Personal Edge · your plans and gap decisions · SAMPLE</span>
+                  <PlanAdherenceView rows={fx.adherence} fvgRows={fx.studyRows} edge={fx.counterfactual} edgeNote="Read from the sample ledger in this page — nothing was fetched." showEdge onCompare={() => {}} splits={fx.splits} />
+                </div>
+              ) : null}
               <PlaybookDNAPanel vm={selectPlaybookDNA({ ownerId: PROFILE_FIXTURE_OWNER, decisions: b.snapshots, nowMs: PROFILE_FIXTURE_NOW_MS })} />
               <SessionEdgePanel vm={selectSessionEdge({ ownerId: PROFILE_FIXTURE_OWNER, decisions: b.snapshots, nowMs: PROFILE_FIXTURE_NOW_MS, metric: "avg_realized_r" })} />
             </>

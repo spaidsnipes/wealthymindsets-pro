@@ -7,6 +7,7 @@
  * GET ?ex=coinbase&coin=BTC&type=candles&tf=15m&bars=300
  */
 
+import { publicFailure } from "@/lib/publicFailure";
 import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { NextResponse } from "next/server";
 import {
@@ -362,6 +363,7 @@ export async function GET(req: Request) {
     }
     return NextResponse.json({ ex, coin, ...q });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 502 });
+    // API audit P1-5: plain words + a stable code; the vendor's text goes to the server log.
+    return NextResponse.json(publicFailure(err, "exchange"), { status: 502 });
   }
 }

@@ -1642,6 +1642,22 @@ input[type=range]::-webkit-slider-runnable-track {
     overflow-x: auto;
     scrollbar-width: none;
   }
+  /* A sideways scroller must not also SQUEEZE what it scrolls: its children
+     kept flex-shrink, so at 834 the title wrapped to two lines, each stat pill
+     was crushed to ~73px and wrapped five lines (66px tall), and at 390 the
+     tabs wrapped three lines (measured on serving f37005c, 2026-10-09). Every
+     item keeps its own width on one line; the row scrolls, as designed. */
+  .wm-journal-header > *,
+  .wm-journal-tabs > button,
+  .wm-journal-chips > *,
+  .wm-journal-tools > * {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .wm-journal-chips,
+  .wm-journal-tools {
+    flex-wrap: nowrap !important;
+  }
 }
 
 /* Garden 18 §LXXIX / §XXXIX — OPTIONS IS A SIDECAR. On desktop the decision
@@ -2349,6 +2365,26 @@ input[type=range]::-webkit-slider-runnable-track {
 @media screen and (max-width: 639px) {
   .wm-chart-dashboard:has(.wm-live-session-chip) .wm-chart-market-standing--phone,
   body:has(.wm-live-session-chip) .wm-chart-market-standing--phone { display: none !important; }
+}
+
+/* ── THE DESK ON A PHONE: EACH CONTROL BAR IS ONE ROW (batch 8, 2026-10-09) ─
+   MEASURED at 390x780 on /desk (4-up): the Desk's bars wrapped — per screen,
+   "SCREEN 1 · TSLA · 5m" / "Chart default · unlinked · OPEN ROOM" / "MAXIMIZE"
+   took three 44px rows — and the first chart began at y~365, with 47% of the
+   glass spent on controls. Each bar is now one row that scrolls sideways with
+   a fade at its right edge (the thumb bar's and the stage row's pattern); no
+   control is dropped and each keeps its 44px. Tablet and desktop unchanged. */
+@media (max-width: 767px) {
+  .wm-desk-chrome {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    padding-right: 28px !important;
+  }
+  .wm-desk-chrome > * { flex-shrink: 0; }
 }
 
 /* The thumb bar's end padding (see "THE THUMB BAR SAYS IT SCROLLS"): the bar's

@@ -8,6 +8,7 @@
  * GET /api/finnhub?q=tesla&type=search  → symbol search results
  */
 
+import { publicFailure, audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { toFinnhubSym } from "@/lib/finnhubSymbol";
@@ -126,6 +127,8 @@ export async function GET(request: Request) {
   // for anyone on the internet. A WM session is required.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // Names for the operator only (ruling 2026-10-09): the typed failure bodies below are read through audienceBody.
+  const operator = isOperator(auth.user.sub);
   const { searchParams } = new URL(request.url);
   const rawSym = (searchParams.get("sym") ?? "").toUpperCase();
   const type   = searchParams.get("type") ?? "quote";
@@ -291,7 +294,7 @@ export async function GET(request: Request) {
     // of reading a generic 500 (and never "delayed by entitlement").
     if (err instanceof FinnhubUpstreamError) {
       return NextResponse.json(
-        { error: err.message, edge: err.edge, source: "finnhub" },
+        audienceBody(operator, { error: err.message, edge: err.edge, source: "finnhub" }),
         { status: err.status },
       );
     }
@@ -300,10 +303,11 @@ export async function GET(request: Request) {
     // not a generic 500 server crash.
     if (err instanceof FinnhubConfigError) {
       return NextResponse.json(
-        { error: err.message, edge: err.edge, missing: err.missing, source: "finnhub" },
+        audienceBody(operator, { error: err.message, edge: err.edge, missing: err.missing, source: "finnhub" }),
         { status: 503 },
       );
     }
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    // API audit P1-5: the untyped residue — plain words + a stable code; the raw text goes to the server log.
+    return NextResponse.json(publicFailure(err, "finnhub"), { status: 500 });
   }
 }

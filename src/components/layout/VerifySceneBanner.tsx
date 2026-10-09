@@ -10,10 +10,12 @@
  */
 import React, { useEffect, useState } from "react";
 import { PROOF_VERIFY_BANNER, proofVerifyOpen } from "@/lib/chart/proofScene";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function VerifySceneBanner(): React.ReactElement | null {
   const { user } = useAuth();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // Read after mount (the address is a browser fact); latched by the owner.
   useEffect(() => { setOpen(proofVerifyOpen()); }, []);
@@ -57,12 +59,19 @@ export function VerifySceneBanner(): React.ReactElement | null {
     }
     window.addEventListener("resize", measure);
     return () => { waiting?.disconnect(); sized?.disconnect(); window.removeEventListener("resize", measure); };
-  }, [open, user]);
+    // `pathname`: a client-side route change can replace the shell header
+    // element. The effect then runs again — the old observers are disconnected
+    // by the cleanup above and the one-shot wait re-finds the new header.
+  }, [open, user, pathname]);
   if (!open || !user) return null;
   return (
     <div role="status" data-testid="verify-scene-banner" data-proof-scene="verify" data-banner-edge="top"
       style={{
-        position: "fixed", left: "50%", transform: "translateX(-50%)", zIndex: 2147483000, pointerEvents: "none",
+        // Centred with auto margins, not `left: 50%` + translate: a fixed box at
+        // left 50% can only shrink-to-fit HALF the viewport, so at 390 the line
+        // wrapped to two rows (43px) and covered the room's title (read on
+        // serving 6944df9). One line, sized to its words.
+        position: "fixed", left: 0, right: 0, marginInline: "auto", width: "fit-content", whiteSpace: "nowrap", zIndex: 2147483000, pointerEvents: "none",
         top: headerBottom != null ? headerBottom + 4 : "calc(env(safe-area-inset-top) + 6px)",
         maxWidth: "calc(100vw - 24px)", padding: "4px 10px", borderRadius: 8, border: "1px solid #d4af37",
         background: "rgba(11,10,8,0.92)", color: "#d4af37", fontSize: 11, fontWeight: 800, letterSpacing: ".06em", textAlign: "center",

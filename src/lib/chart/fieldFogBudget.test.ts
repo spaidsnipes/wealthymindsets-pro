@@ -103,7 +103,12 @@ describe("price sovereignty — nothing translucent is painted across the newest
     gate.beginFrame({ on: true, plot, dpr: 2 });
     gate.setKeepOut(col);
     ctx.fillRect(40, 180, 260, 30);            // a zone band across the newest candles
-    expect(ops).toEqual(["save", "begin", "rect:40,180,260,30", "rect:245,150,28,80", "clip:evenodd", "fill:40,180,260,30", "restore"]);
+    expect(ops).toEqual([
+      // full strength outside the column widened by the 8px feather…
+      "save", "begin", "rect:40,180,260,30", "rect:237,150,44,80", "clip:evenodd", "fill:40,180,260,30", "restore",
+      // …half strength in the two feather strips — no hard edge behind the last candles.
+      "save", "begin", "rect:237,150,8,80", "rect:273,150,8,80", "clip:undefined", "fill:40,180,260,30", "restore",
+    ]);
     expect(gate.columnCuts()).toBe(1);
     ops.length = 0;
     ctx.fillRect(40, 200, 260, 1);             // a hairline at a price

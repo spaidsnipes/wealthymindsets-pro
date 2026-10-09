@@ -147,6 +147,9 @@ describe("scene=verify — the banner", () => {
     expect(src).not.toMatch(/setItem\(|localStorage|sessionStorage|fetch\(/);
     // At the top edge, under the shell header — never on the thumb bar, the nav or the chart's foot (order 2026-10-09).
     expect(src).toContain('data-banner-edge="top"');
+    // One line at phone width: centred by auto margins (a left:50% box wraps at half the viewport).
+    expect(src).toContain('width: "fit-content", whiteSpace: "nowrap"');
+    expect(src).not.toContain('translateX(-50%)');
     expect(src).not.toMatch(/\bbottom:\s*\d/);
     expect(src).toContain('".wm-os-masthead, .wm-shell-header"');
     // No timer on a chart page: the header is observed, never polled, and the wait for it disconnects.
@@ -154,6 +157,8 @@ describe("scene=verify — the banner", () => {
     expect(code).not.toMatch(/setInterval|setTimeout|requestAnimationFrame/);
     expect(code).toContain("new ResizeObserver(measure)");
     expect(code).toContain("waiting?.disconnect();");
+    // A route change that replaces the header re-runs the one-shot wait.
+    expect(code).toContain("}, [open, user, pathname]);");
     expect(src).toContain("env(safe-area-inset-top)");
   });
 

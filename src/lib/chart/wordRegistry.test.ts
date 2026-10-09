@@ -200,3 +200,37 @@ describe("priority — truth first, then the answer, then everything else", () =
     expect(painted).toEqual(["TAPE REGIME · TREND"]);
   });
 });
+
+describe("price sovereignty — the column rule alone, enforced on narrow glass while the rest observes", () => {
+  it("a word or a two-character mark within the padded column is withheld and handed on; everything else still paints (OBSERVE)", () => {
+    const { ctx, painted } = fakeCtx();
+    const gate = installWordGate(ctx);
+    const held: HeldWord[] = [];
+    gate.beginFrame({ mode: "OBSERVE", dpr: 2, column: { x: 300, y: 0, w: 30, h: 400 }, onHeld: w => held.push(w) });
+    gate.setColumnRule({ enforce: true, padLeft: 20 });
+    ctx.fillText("SPENT · DIDN'T MOVE", 250, 100);   // reaches the padded column
+    ctx.fillText("LH", 305, 60);                       // a two-character mark on it
+    ctx.fillText("HL", 120, 60);                       // the same mark, clear of it
+    ctx.fillText("FIRST WORD", 10, 50);
+    ctx.fillText("SECOND WORD", 12, 51);               // word-on-word: observed only
+    ctx.fillText("ZERO-GAMMA · WITHHELD", 280, 200);   // truth: never held
+    gate.sovereignPanel({ x: 280, y: 290, w: 120, h: 30 }, "INSPECT");
+    ctx.fillText("Selected bar words", 286, 310);      // sovereign: never held
+    expect(painted).toEqual(["HL", "FIRST WORD", "SECOND WORD", "ZERO-GAMMA · WITHHELD", "Selected bar words"]);
+    expect(gate.columnHeld()).toBe(2);
+    expect(held.map(h => h.text)).toEqual(["SPENT · DIDN'T MOVE", "SECOND WORD"]);
+    expect(gate.truthReceipt()).toContain("TRUTH_HELD:0");
+  });
+  it("a chip that asks for its box on the column draws nothing; the rule is off again the next frame", () => {
+    const { ctx, painted } = fakeCtx();
+    const gate = installWordGate(ctx);
+    gate.beginFrame({ mode: "OBSERVE", dpr: 2, column: { x: 300, y: 0, w: 30, h: 400 } });
+    gate.setColumnRule({ enforce: true });
+    expect(gate.panel("CALL OI 31200", { x: 290, y: 40, w: 80, h: 13 })).toBe(false);
+    gate.beginFrame({ mode: "OBSERVE", dpr: 2, column: { x: 300, y: 0, w: 30, h: 400 } });
+    expect(gate.panel("CALL OI 31200", { x: 290, y: 40, w: 80, h: 13 })).toBe(true);
+    ctx.fillText("ON THE COLUMN", 290, 100);
+    expect(painted).toEqual(["ON THE COLUMN"]);
+    expect(gate.columnHeld()).toBe(0);
+  });
+});

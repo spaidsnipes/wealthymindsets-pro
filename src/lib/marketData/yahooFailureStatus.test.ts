@@ -31,7 +31,7 @@ describe("the bar route's failure status — a missing symbol is not a server fa
 
   it("the route's one catch asks this owner, and keeps the body it always sent", () => {
     const route = readFileSync(path.join(process.cwd(), "src/app/api/yahoo/route.ts"), "utf8");
-    expect(route).toContain('return NextResponse.json({ error: String(err) }, { status: yahooFailureStatus(err), headers: { "Cache-Control": "no-store" } });');
+    expect(route).toContain('return NextResponse.json(publicFailure(err, "yahoo"), { status: yahooFailureStatus(err), headers: { "Cache-Control": "no-store" } });');
     // Only the candles lane can reach that catch with an upstream status: the quote lane swallows its own upstream failures.
     expect(route.match(/yfFetch\([^)]*\)\.catch\(\(\) => null\)/g)).toHaveLength(2);
     expect(route).not.toContain("{ error: String(err) }, { status: 500 }");

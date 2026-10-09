@@ -5,6 +5,7 @@
  * every SpaidBot reply down with it (measured 2026-10-03).
  */
 
+import { publicFailure } from "@/lib/publicFailure";
 import { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -100,7 +101,8 @@ export async function POST(req: NextRequest) {
   if (!(await edgeAllows([`user:${auth.user.sub}`], SPAIDBOT_LIMITER_BINDING))) return tooManyRequests();
   if (!GEMINI_KEY) {
     return new Response(
-      `data: ${JSON.stringify({ error: "GEMINI_API_KEY not set." })}\n\ndata: [DONE]\n\n`,
+      // API audit P1-5: no variable name to a member. The panel reads "not configured" as "not switched on".
+      `data: ${JSON.stringify({ error: "SpaidBot is not configured on this server.", code: "NOT_CONFIGURED" })}\n\ndata: [DONE]\n\n`,
       { headers: { "Content-Type": "text/event-stream" } }
     );
   }
@@ -211,17 +213,18 @@ export async function POST(req: NextRequest) {
     }
     if (!geminiRes) {
       return new Response(
-        `data: ${JSON.stringify({ error: "No usable Gemini model is available for this key." })}\n\ndata: [DONE]\n\n`,
+        `data: ${JSON.stringify({ error: "SpaidBot's model did not answer.", code: "UPSTREAM_UNAVAILABLE" })}\n\ndata: [DONE]\n\n`,
         { headers: { "Content-Type": "text/event-stream" } }
       );
     }
 
     if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      let msg = `Gemini error ${geminiRes.status}`;
-      try { msg = (JSON.parse(errText) as { error?: { message?: string } }).error?.message ?? msg; } catch {}
+      // API audit P1-5: the provider's own message stays in the server log; the member reads plain words + a code.
+      const errText = await geminiRes.text().catch(() => "");
+      const said = publicFailure(new Error(`HTTP ${geminiRes.status} ${errText.slice(0, 300)}`), "spaidbot");
+      const busy = said.code === "UPSTREAM_BUSY";
       return new Response(
-        `data: ${JSON.stringify({ error: msg })}\n\ndata: [DONE]\n\n`,
+        `data: ${JSON.stringify({ error: busy ? "SpaidBot's model is busy — too many requests right now." : "SpaidBot's model did not answer.", code: busy ? "UPSTREAM_BUSY" : "UPSTREAM_UNAVAILABLE" })}\n\ndata: [DONE]\n\n`,
         { headers: { "Content-Type": "text/event-stream" } }
       );
     }
@@ -238,7 +241,7 @@ export async function POST(req: NextRequest) {
 
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify(publicFailure(err, "spaidbot")),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }

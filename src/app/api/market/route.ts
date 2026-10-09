@@ -1,3 +1,4 @@
+import { publicFailure } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { classifySymbol, unsupportedAssetClassReason } from "@/lib/marketData/symbolAssetClass";
@@ -160,7 +161,8 @@ export async function GET(request: Request) {
     // failure classes are handled above; this is the residue, and it is named
     // as OUR failure rather than dressed up as a provider verdict.
     return NextResponse.json(
-      { symbol, price: null, edge: "PROXY ERROR", error: `Quote proxy failed after an OK Finnhub response: ${String(err)}`, source: "finnhub" },
+      // API audit P1-5: OUR failure, named in plain words with a stable code; the raw text goes to the server log.
+      { symbol, price: null, edge: "PROXY ERROR", ...publicFailure(err, "market"), source: "finnhub" },
       { status: 500 },
     );
   }

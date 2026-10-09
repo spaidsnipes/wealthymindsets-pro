@@ -1,3 +1,4 @@
+import { audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { resolveSupabaseServiceKey, SERVICE_KEY_VARS } from "@/lib/supabaseConfigStatus";
 import { requireAuth } from "@/lib/requireAuth";
@@ -44,11 +45,12 @@ export async function GET(request: Request) {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
     if (!resolveSupabaseServiceKey(process.env)) missing.push(SERVICE_KEY_VARS.join(" (or ") + ")");
     return NextResponse.json(
-      {
+      // Names for the operator only (ruling 2026-10-09): a member or guest reads plain words, the same edge and a stable code.
+      audienceBody(isOperator(auth.user.sub), {
         error: `Durable coverage is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
         edge: "NOT CONFIGURED",
         missing,
-      },
+      }),
       { status: 503 },
     );
   }
@@ -107,11 +109,12 @@ export async function POST(request: Request) {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
     if (!resolveSupabaseServiceKey(process.env)) missing.push(SERVICE_KEY_VARS.join(" (or ") + ")");
     return NextResponse.json(
-      {
+      // Names for the operator only (ruling 2026-10-09): a member or guest reads plain words, the same edge and a stable code.
+      audienceBody(isOperator(auth.user.sub), {
         error: `Durable coverage is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
         edge: "NOT CONFIGURED",
         missing,
-      },
+      }),
       { status: 503 },
     );
   }

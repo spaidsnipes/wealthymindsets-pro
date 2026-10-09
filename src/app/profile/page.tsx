@@ -17,6 +17,7 @@ import { isCoreTeam } from "@/lib/coreTeam";
 import ProcessLandscape from "@/components/profile/ProcessLandscape";
 import PersonalEdgePanel from "@/components/profile/PersonalEdgePanel";
 import { DepartureLessonRows } from "@/components/profile/DepartureLessonRows";
+import { ProfileGapStudy } from "@/components/profile/ProfileGapStudy";
 import PlaybookDNAPanel from "@/components/profile/PlaybookDNAPanel";
 import SessionEdgePanel from "@/components/profile/SessionEdgePanel";
 import GrowthHero from "@/components/profile/GrowthHero";
@@ -920,6 +921,10 @@ function ProfilePageInner() {
               {/* Departures from the trader's own frozen plans, each with its lesson door at a sufficient sample
                   (the journal's mapping); no door, and the reason, while INSUFFICIENT EVIDENCE. */}
               <DepartureLessonRows />
+
+              {/* The Journal's own Personal Edge block, here too: FVG study list (incl. waited for a confirming
+                  close), timing / untraded touches, context splits. Same component; reads only. */}
+              <ProfileGapStudy />
 
               {/* Playbook DNA — per-playbook stats with truthful maturity. */}
               <PlaybookDNAPanel

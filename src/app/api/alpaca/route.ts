@@ -12,6 +12,7 @@
  * Futures: NOT supported — caller falls back to Yahoo.
  */
 
+import { publicFailure, audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
@@ -153,6 +154,8 @@ export async function GET(request: Request) {
   // for anyone on the internet. A WM session is required.
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
+  // Names for the operator only (ruling 2026-10-09): the typed failure bodies below are read through audienceBody.
+  const operator = isOperator(auth.user.sub);
   const { searchParams } = new URL(request.url);
   const rawSym = (searchParams.get("sym") ?? "").toUpperCase();
   const type   = searchParams.get("type") ?? "quote";
@@ -408,7 +411,7 @@ export async function GET(request: Request) {
     // entitlement" for what is actually an auth failure).
     if (err instanceof AlpacaUpstreamError) {
       return NextResponse.json(
-        { error: err.message, edge: err.edge, source: "alpaca" },
+        audienceBody(operator, { error: err.message, edge: err.edge, source: "alpaca" }),
         { status: err.status },
       );
     }
@@ -428,6 +431,7 @@ export async function GET(request: Request) {
     }
     const msg = String(err);
     const status = msg.includes("not configured") || msg.includes("not set") ? 503 : 500;
-    return NextResponse.json({ error: msg }, { status });
+    // API audit P1-5: the status is still read from the raw text; the body is plain words + a stable code.
+    return NextResponse.json(publicFailure(err, "alpaca"), { status });
   }
 }

@@ -1,3 +1,4 @@
+import { audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { resolveAlpacaLiveCredentials } from "@/lib/broker/alpacaCredentials";
 import { normalizeAlpacaOptionChain } from "@/lib/marketData/alpacaOptionChain";
@@ -59,12 +60,13 @@ export async function GET(request: Request) {
 
   const credentials = resolveAlpacaLiveCredentials();
   if (credentials.source === "missing") {
-    return NextResponse.json({
+    // Names for the operator only (ruling 2026-10-09).
+    return NextResponse.json(audienceBody(isOperator(auth.user.sub), {
       source: OPTION_CHAIN_SOURCE,
       edge: "NOT CONFIGURED",
       error: "Alpaca market-data credentials are not configured",
       missing: ["ALPACA_KEY + ALPACA_SECRET (or legacy Cloudflare pair)"],
-    }, { status: 503 });
+    }), { status: 503 });
   }
 
   const upstream = new URL(`/v1beta1/options/snapshots/${encodeURIComponent(symbol)}`, DATA_BASE);

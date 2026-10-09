@@ -32,16 +32,24 @@ function Candle({ b, w = 14 }: { b: Bar; w?: number }) {
   );
 }
 
+/**
+ * Label size in viewBox units. The drawing is 300 units wide and fills the
+ * lesson column, which is 358 px on a 390-px phone (scale 1.19): 9.25 units
+ * render at 11 px there — the phone floor. Measured on serving 2026-10-09: the
+ * old 7.5-unit sub-labels rendered at 9 px. No label may be smaller than this.
+ */
+export const LABEL_UNITS = 9.25;
+
 function Territory({ x1, x2, y1, y2, pat, label = "territory", dim = 1 }: { x1: number; x2: number; y1: number; y2: number; pat: string; label?: string | null; dim?: number }) {
   return (
     <g opacity={dim}>
       <rect x={x1} y={y1} width={x2 - x1} height={y2 - y1} fill={`url(#${pat})`} stroke={GOLD} strokeWidth={1} strokeDasharray="4 3" />
-      {label ? <text x={x2 - 4} y={(y1 + y2) / 2 + 3} textAnchor="end" fontSize={9} fill={GOLD}>{label}</text> : null}
+      {label ? <text x={x2 - 4} y={(y1 + y2) / 2 + 3} textAnchor="end" fontSize={LABEL_UNITS} fill={GOLD}>{label}</text> : null}
     </g>
   );
 }
 
-function T({ x, y, children, a = "start", c = INK, s = 9 }: { x: number; y: number; children: React.ReactNode; a?: "start" | "middle" | "end"; c?: string; s?: number }) {
+function T({ x, y, children, a = "start", c = INK, s = LABEL_UNITS }: { x: number; y: number; children: React.ReactNode; a?: "start" | "middle" | "end"; c?: string; s?: number }) {
   return <text x={x} y={y} textAnchor={a} fontSize={s} fill={c}>{children}</text>;
 }
 
@@ -267,11 +275,11 @@ function body(kind: FvgDiagramKind, pat: string): React.ReactNode {
       </g>);
     case "edge":
       return (<g>
-        {[["JOURNAL", "tag FVG"], ["REVIEW", "market · tf · session"], ["KEEP", "what N supports"]].map(([a, b], i) => (
+        {[["JOURNAL", "reference a gap"], ["REVIEW", "market · session"], ["KEEP", "what N supports"]].map(([a, b], i) => (
           <g key={a}>
             <rect x={14 + i * 96} y={44} width={84} height={44} fill="none" stroke={i === 2 ? GOLD : INK} strokeDasharray={i === 2 ? "4 3" : undefined} />
             <T x={56 + i * 96} y={62} a="middle" c={i === 2 ? GOLD : INK}>{a}</T>
-            <T x={56 + i * 96} y={78} a="middle" c={GRAPHITE} s={7.5}>{b}</T>
+            <T x={56 + i * 96} y={78} a="middle" c={GRAPHITE}>{b}</T>
             {i < 2 ? <path d={`M ${100 + i * 96} 66 l 8 0 m -4 -4 l 4 4 l -4 4`} fill="none" stroke={GOLD} /> : null}
           </g>
         ))}

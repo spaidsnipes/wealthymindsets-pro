@@ -13,6 +13,7 @@
  * normalise into the candle/quote shape the chart layer already consumes.
  */
 
+import { publicFailure } from "@/lib/publicFailure";
 import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { NextResponse } from "next/server";
 
@@ -111,6 +112,7 @@ export async function GET(request: Request) {
       .slice(0, 30);
     return NextResponse.json({ pairs: out, ts: Date.now() });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 502 });
+    // API audit P1-5: plain words + a stable code; the vendor's text goes to the server log.
+    return NextResponse.json(publicFailure(err, "memecoin"), { status: 502 });
   }
 }

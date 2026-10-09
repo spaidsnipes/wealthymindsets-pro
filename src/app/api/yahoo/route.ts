@@ -6,6 +6,7 @@
  * GET /api/yahoo?sym=NQ1!&type=candles&tf=1m&bars=300 → OHLCV array
  */
 
+import { publicFailure } from "@/lib/publicFailure";
 import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { yahooFailureStatus } from "@/lib/marketData/yahooFailureStatus";
 import { foldYahooLastRow } from "@/lib/marketData/yahooLastRow";
@@ -385,6 +386,7 @@ export async function GET(request: Request) {
   } catch (err: unknown) {
     // A symbol the upstream says does not exist is a 404, not a fault of ours (yahooFailureStatus).
     // Never stored: a "not found" must not be replayed by an edge or a browser as an outage (or as a fact) later.
-    return NextResponse.json({ error: String(err) }, { status: yahooFailureStatus(err), headers: { "Cache-Control": "no-store" } });
+    // API audit P1-5: plain words + a stable code; the vendor's text goes to the server log.
+    return NextResponse.json(publicFailure(err, "yahoo"), { status: yahooFailureStatus(err), headers: { "Cache-Control": "no-store" } });
   }
 }

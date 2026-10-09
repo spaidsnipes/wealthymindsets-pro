@@ -10,6 +10,7 @@
  * `fvgWireBars.ts`.
  */
 
+import { isPublicFailureCode } from "@/lib/publicFailure";
 import type { CanonicalBar, CanonicalBarIdentity, LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { closedFvgBars, rejoinCanonicalBars } from "./fvgWireBars";
 
@@ -60,6 +61,10 @@ export function upstreamSaysMissing(status: number, body: unknown): boolean {
   if (status === 404 || status === 400) return true;
   if (!body || typeof body !== "object") return false;
   const j = body as Record<string, unknown>;
+  // The stable code (publicFailure, 2026-10-09) is read first; the old plumbing text below is still
+  // accepted for one release, for a server or a browser that is one build behind.
+  if (j.code === "UPSTREAM_NOT_FOUND") return true;
+  if (isPublicFailureCode(j.code)) return false;
   const text = [j.error, j.reason, j.message].filter(v => typeof v === "string").join(" ");
   return /\bHTTP (404|400)\b|\bnot found\b|\bno data\b|\bdelisted\b/i.test(text);
 }
@@ -71,7 +76,8 @@ export function readFvgBarBody(
 ): FvgBarFetch {
   if (!body || typeof body !== "object") return { ok: false, reason: DID_NOT_LOAD };
   const j = body as Record<string, unknown>;
-  const said = traderWords(j.reason) ?? traderWords(j.message) ?? traderWords(j.error);
+  // A coded failure (publicFailure) is worded by its code below, never by the route's fragment.
+  const said = isPublicFailureCode(j.code) ? null : traderWords(j.reason) ?? traderWords(j.message) ?? traderWords(j.error);
   if (j.ok === false) return { ok: false, reason: said ?? noBars(input.symbol, input.timeframe) };
   const candles = Array.isArray(j.candles) ? (j.candles as LegacyOhlcvTuple[]) : null;
   if (!candles) return { ok: false, reason: said ?? noBars(input.symbol, input.timeframe) };
@@ -145,7 +151,9 @@ export async function fetchFvgBars(input: {
   }
   const body = got.body;
   if (!got.ok) {
-    const said = body && typeof body === "object" ? traderWords((body as Record<string, unknown>).reason) ?? traderWords((body as Record<string, unknown>).error) : null;
+    // A coded failure is worded HERE, by its code — the route's fragment is for a sentence of its own.
+    const coded = body && typeof body === "object" && isPublicFailureCode((body as Record<string, unknown>).code);
+    const said = !coded && body && typeof body === "object" ? traderWords((body as Record<string, unknown>).reason) ?? traderWords((body as Record<string, unknown>).error) : null;
     return { ok: false, reason: said ?? (upstreamSaysMissing(got.status, body) ? noBars(input.symbol, input.timeframe) : DID_NOT_LOAD) };
   }
   return readFvgBarBody(body, input);

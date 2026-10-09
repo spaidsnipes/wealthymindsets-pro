@@ -13,6 +13,7 @@
  *   1Y  → (price_now - price_252d_ago) / price_252d_ago
  */
 
+import { publicFailure } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 
@@ -245,6 +246,7 @@ export async function GET(request: Request) {
       sourceProvenance: "yahoo-finance-proxy",
     });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    // API audit P1-5: plain words + a stable code; the vendor's text goes to the server log.
+    return NextResponse.json(publicFailure(err, "heatmap"), { status: 500 });
   }
 }

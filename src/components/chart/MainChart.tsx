@@ -55,7 +55,7 @@ import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, 
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { installWordGate, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
-import { FOG_CAP, installFogGate } from "@/lib/chart/fieldFogBudget";
+import { FOG_CAP, FOG_FEATHER_PX, installFogGate } from "@/lib/chart/fieldFogBudget";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
@@ -7949,6 +7949,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const sovereignColumn = (): { x: number; y: number; w: number; h: number } | null => (narrowGlass ? wordGateColumnRef.current : null);
       let sovereigntyHeld = 0;
       fogGate.setKeepOut(sovereignColumn());
+      // …and so do the WORDS: on narrow glass the registry's column rule alone
+      // is enforced (the rest still observes). A name or a two-character mark
+      // within the column, or within 20px to its left, is listed — never
+      // painted across the last candles. Truth lines and on-top boxes are exempt.
+      wordGate.setColumnRule({ enforce: narrowGlass, padLeft: 20 });
 
       const restoreNativeAfterClarityLoss = () => {
         if (!clarityHidRef.current) return;
@@ -14421,22 +14426,26 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.save();
                 ctx.globalAlpha = att.alpha("absorption");
                 ctx.clip(cutT, "evenodd");
-                // PHONE (serving 390/430, f37005c, 2026-10-09): the four nested
-                // shells sum to 0.67 ink at the core — a grey fog around the
-                // candles once the phone's ink came back to full. On narrow glass
-                // the shells share the fog cap (their SUM is FOG_CAP; the contour
-                // hairlines keep the form), and the mass stops at the newest
-                // candles' column (price sovereignty).
+                // PHONE (f37005c, 2026-10-09): four shells sum to 0.67 ink — grey
+                // fog. On narrow glass their SUM is FOG_CAP.
                 const massK = narrowGlass ? FOG_CAP / (0.1 + 0.145 + 0.19 + 0.235) : 1;
+                // NO HARD NOTCH (6944df9): only the FILL leaves the newest column,
+                // feathered 8px each side; the contour hairlines run through.
                 const colM = sovereignColumn();
-                if (colM) {
-                  const cutCol = new Path2D();
-                  cutCol.rect(0, 0, W, H);
-                  cutCol.rect(colM.x, colM.y, colM.w, colM.h);
-                  ctx.clip(cutCol, "evenodd");
+                const massFar = colM ? new Path2D() : null, massFeather = colM ? new Path2D() : null;
+                if (colM && massFar && massFeather) {
+                  massFar.rect(0, 0, W, H);
+                  massFar.rect(colM.x - FOG_FEATHER_PX, colM.y, colM.w + 2 * FOG_FEATHER_PX, colM.h);
+                  massFeather.rect(colM.x - FOG_FEATHER_PX, colM.y, FOG_FEATHER_PX, colM.h);
+                  massFeather.rect(colM.x + colM.w, colM.y, FOG_FEATHER_PX, colM.h);
                   sovereigntyHeld++;
                 }
-                ds.absorptionMassInk = `SUM:${((0.1 + 0.145 + 0.19 + 0.235) * massK).toFixed(2)}${colM ? "|COLUMN_CUT" : ""}`;
+                const fillMassShell = () => {
+                  if (!massFar || !massFeather) { ctx.fill(); return; }
+                  ctx.save(); ctx.clip(massFar, "evenodd"); ctx.fill(); ctx.restore();
+                  ctx.save(); ctx.clip(massFeather); ctx.globalAlpha *= 0.5; ctx.fill(); ctx.restore();
+                };
+                ds.absorptionMassInk = `SUM:${((0.1 + 0.145 + 0.19 + 0.235) * massK).toFixed(2)}${colM ? "|COLUMN_FILL_FEATHERED" : ""}`;
                 const layers = [9, 5, 3, 1];
                 const spread = [1, 0.8, 0.6, 0.4];
                 const halves: number[][] = [];
@@ -14450,7 +14459,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   for (let i = terr.length - 1; i >= 0; i--) ctx.lineTo(terr[i].x, mid[i] + half[i]);
                   ctx.closePath();
                   ctx.fillStyle = `rgba(${170 + li * 18},${166 + li * 18},${158 + li * 18},${((0.1 + li * 0.045) * massK).toFixed(3)})`;
-                  ctx.fill();
+                  fillMassShell();
                   ctx.strokeStyle = `rgba(230,226,216,${(0.18 + li * 0.1).toFixed(2)})`;
                   ctx.lineWidth = li === layers.length - 1 ? 1.1 : 0.7;
                   ctx.beginPath();
@@ -22303,6 +22312,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // as Structure's box with every word hidden. Behind the candles.
               {
                 const x1 = Math.max(x0 + 6, (W - 76)), d = 5;
+                // PRICE SOVEREIGNTY (narrow glass): the box's border stops at
+                // the newest candles' column instead of running through it.
+                const colSB = sovereignColumn();
+                if (colSB) {
+                  const cutSB = new Path2D();
+                  cutSB.rect(0, 0, W, H);
+                  cutSB.rect(colSB.x - 2, colSB.y - 2, colSB.w + 4, colSB.h + 4);
+                  ctx.save(); ctx.clip(cutSB, "evenodd");
+                  sovereigntyHeld++;
+                }
                 ctx.strokeStyle = pk.rgba("ANCHOR", 0.5); ctx.lineWidth = 1;
                 ctx.strokeRect(x0 + 0.5, Math.round(top) + 0.5, x1 - x0, Math.round(bot - top));
                 ctx.beginPath();
@@ -22310,6 +22329,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.lineTo(x1 + d + 0.5, bot - d + 0.5); ctx.lineTo(x1 + 0.5, bot + 0.5);
                 ctx.moveTo(x1 + 0.5, top + 0.5); ctx.lineTo(x1 + d + 0.5, top - d + 0.5);
                 ctx.stroke();
+                if (colSB) ctx.restore();
               }
               ctx.strokeStyle = pk.rgba("ANCHOR", 0.7);
               ctx.lineWidth = 1;
@@ -26278,12 +26298,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // Words the registry withheld (ENFORCE only) are listed, never dropped.
         if (wordGateMode === "ENFORCE") {
           for (const hw of wordGateHeld) if (hw.text.trim().length >= 6) displacedNotes.push({ layer: "WORDS", text: hw.text.trim(), x: hw.rect.x + hw.rect.w / 2, y: hw.rect.y + hw.rect.h / 2 });
+        } else if (narrowGlass) {
+          // The enforced column rule (price sovereignty): what it withheld is listed.
+          for (const hw of wordGateHeld) if (hw.verdict === "HELD_COLUMN" && hw.text.trim().length >= 6) displacedNotes.push({ layer: "WORDS", text: hw.text.trim(), x: hw.rect.x + hw.rect.w / 2, y: hw.rect.y + hw.rect.h / 2 });
         }
         canvas.dataset.wordGate = wordGate.receipt();
         canvas.dataset.wordGateTruth = wordGate.truthReceipt();
         canvas.dataset.fieldFog = fogGate.receipt();
         // The phone's own glass rules, in one receipt (desk: OFF).
-        canvas.dataset.priceSovereignty = narrowGlass ? `NEWEST_COLUMN_CLEAR:${sovereigntyHeld + fogGate.columnCuts()}` : "OFF";
+        canvas.dataset.priceSovereignty = narrowGlass ? `NEWEST_COLUMN_CLEAR:${sovereigntyHeld + fogGate.columnCuts() + wordGate.columnHeld()}` : "OFF";
         canvas.dataset.phoneGlass = narrowGlass ? `DISC_R:${BIG_TRADE_NARROW_MAX_R}|ZONE:BAND:${ZONE_BAND_NARROW_FILL}|CONTEXT:0.55/0.3` : "OFF";
         if (wordGateHeld.length) canvas.dataset.wordGateHeld = wordGate.heldSample(); else delete canvas.dataset.wordGateHeld;
         const anchors = composeOn ? composeNoteAnchors(displacedNotes) : [];

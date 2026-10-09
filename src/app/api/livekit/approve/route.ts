@@ -1,3 +1,4 @@
+import { audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { RoomServiceClient } from "livekit-server-sdk";
 import { requireAuth } from "@/lib/requireAuth";
@@ -41,11 +42,12 @@ export async function POST(request: Request) {
     if (!apiSecret) missing.push("LIVEKIT_API_SECRET");
     if (!wsHost) missing.push("LIVEKIT_URL");
     return NextResponse.json(
-      {
+      // Names for the operator only (ruling 2026-10-09): a member or guest reads plain words, the same edge and a stable code.
+      audienceBody(isOperator(auth.user.sub), {
         error: `LiveKit is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Approval cannot be granted until they are set in the host runtime secrets.`,
         edge: "NOT CONFIGURED",
         missing,
-      },
+      }),
       { status: 503 },
     );
   }

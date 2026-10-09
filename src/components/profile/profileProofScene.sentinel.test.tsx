@@ -48,6 +48,29 @@ describe("profile proof scene", () => {
     expect(html).toContain("7 of 20 closed trades so far");
   });
 
+  it("Personal Edge on /profile is the Journal's own block (no fork): WAITED with the rule line and lesson door, timing, untraded", () => {
+    const html = renderToStaticMarkup(<ProfileProofScene />);
+    // Book C only (the fixture's full sample); books A and B carry no gap study.
+    expect(html.match(/data-testid="profile-proof-gap-study"/g) ?? []).toHaveLength(1);
+    expect(html.match(/data-dimension="WAITED"/g) ?? []).toHaveLength(1);
+    expect(html).toContain("Waited for a confirming close");
+    expect(html).toContain('data-testid="fvg-confirming-close"');
+    expect(html).toMatch(/data-testid="fvg-confirming-close-study"[^>]*>Study: Lesson 9/);
+    expect(html).toMatch(/data-testid="fvg-timing"[^>]*>You entered before the gap was touched on \d+ of \d+ gap decisions/);
+    expect(html).toMatch(/data-testid="fvg-untraded"[^>]*>On the days you traded gaps, \d+ touches you did not trade have settled/);
+    expect(html).toContain('data-testid="fvg-context-splits"');
+    // The trader's own profile mounts the Journal's container, reading only.
+    const page = read("app/profile/page.tsx");
+    expect(page).toContain("<ProfileGapStudy />");
+    const mount = read("components/profile/ProfileGapStudy.tsx");
+    expect(mount).toContain('import { PlanAdherenceBySetup } from "@/components/journal/PlanAdherenceBySetup";');
+    expect(mount).toContain("<PlanAdherenceBySetup entries={entries} />");
+    expect(mount).toContain("readJournalRaw(window.localStorage)");
+    expect(mount).not.toMatch(/setItem\(|removeItem\(|fetch\(|writeJournalStorage|sendBeacon|XMLHttpRequest/);
+    // No second study list: the mount declares no dimension, group or sentence of its own.
+    expect(mount).not.toMatch(/"WAITED"|fvgStudyList\(|compareFvgTakenVsUntaken\(|confirmingCloseLine\(/);
+  });
+
   it("writes nothing, fetches nothing; gated to a signed-in trader with the token; the profile shares the tile view", () => {
     for (const f of ["components/profile/ProfileProofScene.tsx", "lib/profile/profileProofFixture.ts", "components/profile/ProfilePerfTiles.tsx"]) {
       const src = read(f);

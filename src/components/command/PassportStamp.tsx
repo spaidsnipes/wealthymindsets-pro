@@ -126,7 +126,10 @@ export function PassportStamp({ vm }: PassportStampProps): React.ReactElement {
           selectPassportStamp — sits one deliberate press below, never deleted.
           A disclosure, not a link (the Command Deck carries no links). */}
       <details data-testid="passport-stamp-receipt" style={{ flexBasis: "100%", minWidth: 0 }}>
-        <summary style={{ cursor: "pointer", fontSize: 10, letterSpacing: 1.3, textTransform: "uppercase", color: "#8a8271", minHeight: 24 }}>Receipt</summary>
+        {/* 24px on a desk; 44px under a finger or at phone width — a class, because
+            inline min-height cannot follow the pointer (measured 284x24 at 390). */}
+        <summary className="min-h-[24px] max-[767px]:min-h-[44px] [@media(pointer:coarse)]:min-h-[44px] flex items-center"
+          style={{ cursor: "pointer", fontSize: 10, letterSpacing: 1.3, textTransform: "uppercase", color: "#8a8271" }}>Receipt</summary>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 28px", paddingTop: 6 }}>
           {receipt.map((f) => (
             <StampCell key={f.label} label={f.label === "Issued" ? "Issued (UTC)" : f.label} f={f}>

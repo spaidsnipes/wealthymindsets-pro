@@ -60,6 +60,8 @@ export interface HeldWord { readonly text: string; readonly rect: WordRect; read
 export const WORD_OVERLAP_MAX = 0.25;
 /** Text shorter than this is a glyph, not a word. */
 export const WORD_MIN_CHARS = 3;
+/** Under the enforced column rule a two-character mark is judged too. */
+export const COLUMN_MIN_CHARS = 2;
 /** Ink at or under this alpha is texture, not a word. */
 export const WORD_MIN_ALPHA = 0.15;
 
@@ -93,6 +95,8 @@ export interface WordRegistry {
    */
   sovereignPanel(rect: WordRect, reason: string): void;
   readonly sovereignReasons: readonly string[];
+  /** Is this rect inside a box that is meant to sit on top? */
+  isSovereign(rect: WordRect): boolean;
   /** The newest candles' column — a blocker at every width. `null` = none this frame. */
   setColumn(rect: WordRect | null): void;
   /** Every registered word's rect, for a placer that wants to step around them (note anchors). */
@@ -176,6 +180,7 @@ export function createWordRegistry(reserved: readonly ReservedWord[] = []): Word
     },
     sovereignPanel(rect, reason) { sovereign.push(rect); if (!sovereignReasons.includes(reason)) sovereignReasons.push(reason); },
     sovereignReasons,
+    isSovereign: rect => sovereign.some(z => inside(rect, z)),
     setColumn(rect) { column = rect; },
     rects: () => placed.map(p => p.rect),
     get words() { return placed.length; },
@@ -193,6 +198,16 @@ export interface WordGate {
   sovereign<T>(paint: () => T): T;
   /** A chip / card asks for its box BEFORE drawing the backing. False = draw nothing (ENFORCE only). */
   panel(label: string, rect: WordRect): boolean;
+  /**
+   * PRICE SOVEREIGNTY (narrow glass): enforce the COLUMN rule alone — a word or
+   * a two-character mark that touches the newest candles' column (widened to
+   * the left by `padLeft` px) is withheld and handed to `onHeld`, even while
+   * the registry's mode is OBSERVE. Truth lines and sovereign boxes are exempt
+   * as always. Reset to off every frame.
+   */
+  setColumnRule(opts: { enforce: boolean; padLeft?: number }): void;
+  /** How many words / marks the enforced column rule withheld this frame. */
+  columnHeld(): number;
   /** The asked question's own words paint as PRIMARY between setTier("PRIMARY") and setTier("OTHER"). Reset every frame. */
   setTier(tier: Exclude<WordTier, "TRUTH">): void;
   /** `TRUTH:n|TRUTH_HELD:0|YIELDED_TO_HIGHER:k` — TRUTH_HELD must always read 0. */
@@ -209,8 +224,8 @@ export interface WordGate {
 const GATES = new WeakMap<object, WordGate>();
 
 /** Box a text call in CSS pixels. `null` = not a word the registry judges. */
-export function wordBox(ctx: GateCtx, text: string, x: number, y: number, dpr: number): WordRect | null {
-  if (text.trim().length < WORD_MIN_CHARS || ctx.globalAlpha <= WORD_MIN_ALPHA) return null;
+export function wordBox(ctx: GateCtx, text: string, x: number, y: number, dpr: number, minChars: number = WORD_MIN_CHARS): WordRect | null {
+  if (text.trim().length < minChars || ctx.globalAlpha <= WORD_MIN_ALPHA) return null;
   const tr = ctx.getTransform();
   if (Math.abs(tr.b) > 1e-6 || Math.abs(tr.c) > 1e-6) return null;
   const m = /(\d+(?:\.\d+)?)px/.exec(ctx.font);
@@ -241,18 +256,32 @@ export function installWordGate(ctx: GateCtx): WordGate {
   let sovereignDepth = 0;
   let live = false;
   let scopeTier: WordTier = "OTHER";
+  // PRICE SOVEREIGNTY ON NARROW GLASS: the column rule alone may be enforced
+  // while the rest of the registry still only observes.
+  let columnEnforce = false;
+  let columnPadLeft = 0;
+  let columnRect: WordRect | null = null;
+  let columnHeld = 0;
+  const padded = (r: WordRect | null): WordRect | null => (r && columnPadLeft > 0 ? { x: r.x - columnPadLeft, y: r.y, w: r.w + columnPadLeft, h: r.h } : r);
   const tierOf = (text: string): WordTier => (isTruthLine(text) ? "TRUTH" : scopeTier);
   const gated = (fn: CanvasRenderingContext2D["fillText"]) => function gatedText(this: GateCtx, text: string, x: number, y: number, maxWidth?: number) {
     const paint = () => (maxWidth === undefined ? fn.call(this as CanvasRenderingContext2D, text, x, y) : fn.call(this as CanvasRenderingContext2D, text, x, y, maxWidth));
     if (!live || sovereignDepth > 0) return paint();
     let rect: WordRect | null = null;
-    try { rect = wordBox(this, String(text), x, y, dpr); } catch { rect = null; }
+    try { rect = wordBox(this, String(text), x, y, dpr, columnEnforce ? COLUMN_MIN_CHARS : WORD_MIN_CHARS); } catch { rect = null; }
     if (!rect) return paint();
+    // A two-character mark ("LH", "HL") is judged by the column rule only.
+    if (String(text).trim().length < WORD_MIN_CHARS) {
+      const col = padded(columnRect);
+      if (col && !isTruthLine(String(text)) && !registry.isSovereign(rect) && rect.x < col.x + col.w && rect.x + rect.w > col.x && rect.y < col.y + col.h && rect.y + rect.h > col.y) { columnHeld++; return; }
+      return paint();
+    }
     const before = registry.held.length;
     const { verdict } = registry.claim(String(text), rect, tierOf(String(text)));
     if (verdict !== "PAINT" && registry.held.length > before) {
       try { onHeld?.(registry.held[registry.held.length - 1]); } catch { /* a receipt must never stop the frame */ }
     }
+    if (verdict === "HELD_COLUMN" && columnEnforce) { columnHeld++; return; }
     if (verdict === "PAINT" || mode === "OBSERVE") return paint();
   } as CanvasRenderingContext2D["fillText"];
   // A word's halo (strokeText) is the word: it asks the same registry, so a
@@ -265,10 +294,13 @@ export function installWordGate(ctx: GateCtx): WordGate {
       // this frame's reservations (rebuilt every frame — nothing lingers).
       registry = createWordRegistry(live ? registry.reservations() : []);
       scopeTier = "OTHER";
+      columnEnforce = false; columnPadLeft = 0; columnHeld = 0; columnRect = o.column ?? null;
       registry.setColumn(o.column ?? null);
       mode = o.mode; dpr = o.dpr; onHeld = o.onHeld; sovereignDepth = 0; live = true;
     },
-    setColumn: rect => registry.setColumn(rect),
+    setColumn: rect => { columnRect = rect; registry.setColumn(padded(rect)); },
+    setColumnRule(o) { columnEnforce = o.enforce; columnPadLeft = o.enforce ? Math.max(0, o.padLeft ?? 0) : 0; registry.setColumn(padded(columnRect)); },
+    columnHeld: () => columnHeld,
     sovereign(p) { sovereignDepth++; try { return p(); } finally { sovereignDepth--; } },
     panel(label, rect) {
       if (!live) return true;
@@ -277,6 +309,7 @@ export function installWordGate(ctx: GateCtx): WordGate {
       if (verdict !== "PAINT" && registry.held.length > before) {
         try { onHeld?.(registry.held[registry.held.length - 1]); } catch { /* a receipt must never stop the frame */ }
       }
+      if (verdict === "HELD_COLUMN" && columnEnforce) { columnHeld++; return false; }
       return verdict === "PAINT" || mode === "OBSERVE";
     },
     sovereignPanel(rect, reason) { if (live) registry.sovereignPanel(rect, reason); },

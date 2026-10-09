@@ -157,6 +157,30 @@ describe("GET /api/finnhub — honest upstream failure classification", () => {
     expect(body.edge).toBe("NOT CONFIGURED");
     expect(spy).not.toHaveBeenCalled();
     expect(String(body.error).toUpperCase()).not.toContain("ENTITLEMENT");
+    // NEW RULE (Founder ruling 2026-10-09) — NAMES FOR THE OPERATOR ONLY. This test used to stand for the
+    // "every surface names the missing variable" contract. The caller here ("u1") is a member, not the
+    // operator: the edge and the status are unchanged, a stable code is added, and the variable name is gone.
+    expect(body.code).toBe("NOT_CONFIGURED");
+    expect(body.missing).toEqual([]);
+    expect(String(body.error)).not.toMatch(/FINNHUB_KEY|host runtime|[A-Z]{3,}_[A-Z_]{3,}/);
+    expect(body.source).toBe("finnhub");
+  });
+
+  it("the OPERATOR still reads the missing variable's name (names for the operator only, 2026-10-09)", async () => {
+    vi.unstubAllEnvs();
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("FINNHUB_KEY", "");
+    vi.stubEnv("NEXT_PUBLIC_FINNHUB_KEY", "");
+    vi.stubEnv("TASTYTRADE_OWNER_USER_ID", "u1");
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+    const { GET } = await loadRoute();
+    const res = await GET(new Request("http://localhost/api/finnhub?sym=TSLA&type=quote"));
+    const body = await res.json();
+    expect(res.status).toBe(503);
+    expect(body.edge).toBe("NOT CONFIGURED");
+    expect(body.code).toBe("NOT_CONFIGURED");
+    expect(body.missing).toContain("FINNHUB_KEY");
+    expect(String(body.error)).toContain("FINNHUB_KEY");
   });
 });
 

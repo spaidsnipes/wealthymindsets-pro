@@ -364,7 +364,7 @@ describe("price sovereignty on narrow glass — every painter consults the one k
   const FOG = readFileSync(path.join(process.cwd(), "src/lib/chart/fieldFogBudget.ts"), "utf8");
   it("one column, the words' own, and one receipt", () => {
     expect(CHART).toContain("const sovereignColumn = (): { x: number; y: number; w: number; h: number } | null => (narrowGlass ? wordGateColumnRef.current : null);");
-    expect(CHART).toContain("canvas.dataset.priceSovereignty = narrowGlass ? `NEWEST_COLUMN_CLEAR:${sovereigntyHeld + fogGate.columnCuts()}` : \"OFF\";");
+    expect(CHART).toContain("canvas.dataset.priceSovereignty = narrowGlass ? `NEWEST_COLUMN_CLEAR:${sovereigntyHeld + fogGate.columnCuts() + wordGate.columnHeld()}` : \"OFF\";");
   });
   it("big-trade disc: a ring at the column's left edge with a hairline, never a filled disc over the last bars; selected or hovered it draws in full", () => {
     const i = CHART.indexOf("const colBT = sovereignColumn();");
@@ -402,7 +402,31 @@ describe("phone reads on f37005c (2026-10-09): the scale toggle sits in its corn
   it("on narrow glass the mass's four shells sum to the fog cap and stop at the newest column", () => {
     expect(CHART).toContain("const massK = narrowGlass ? FOG_CAP / (0.1 + 0.145 + 0.19 + 0.235) : 1;");
     expect(CHART).toContain("${((0.1 + li * 0.045) * massK).toFixed(3)})`;");
-    const i = CHART.indexOf("const colM = sovereignColumn();");
-    expect(CHART.slice(i, i + 400)).toContain('ctx.clip(cutCol, "evenodd");');
+    expect(CHART).toContain("const colM = sovereignColumn();");
+  });
+});
+
+describe("no hard notch behind the last candles; names and marks obey the column (serving 390/430, 6944df9, 2026-10-09)", () => {
+  const FOG = readFileSync(path.join(process.cwd(), "src/lib/chart/fieldFogBudget.ts"), "utf8");
+  const REG = readFileSync(path.join(process.cwd(), "src/lib/chart/wordRegistry.ts"), "utf8");
+  it("the effort mass: only the FILL leaves the column, feathered; contour lines run through", () => {
+    expect(CHART).toContain("const fillMassShell = () => {");
+    expect(CHART).toContain("ctx.save(); ctx.clip(massFeather); ctx.globalAlpha *= 0.5; ctx.fill(); ctx.restore();");
+    // The block-level column clip (fill AND strokes) is gone.
+    expect(CHART).not.toContain('ctx.clip(cutCol, "evenodd");');
+    expect(FOG).toContain("export const FOG_FEATHER_PX = 8;");
+    expect(FOG).toContain("this.globalAlpha = ga * s * 0.5;");
+  });
+  it("the Structure Profile box's border stops at the column on narrow glass", () => {
+    const i = CHART.indexOf("const colSB = sovereignColumn();");
+    expect(i).toBeGreaterThan(0);
+    expect(CHART.slice(i, i + 1400)).toContain("if (colSB) ctx.restore();");
+  });
+  it("the registry's column rule alone is enforced on narrow glass, 20px wide of the column, and what it holds is listed", () => {
+    expect(CHART).toContain("wordGate.setColumnRule({ enforce: narrowGlass, padLeft: 20 });");
+    expect(CHART).toContain('if (hw.verdict === "HELD_COLUMN" && hw.text.trim().length >= 6) displacedNotes.push({ layer: "WORDS"');
+    expect(REG).toContain('if (verdict === "HELD_COLUMN" && columnEnforce) { columnHeld++; return; }');
+    // Truth and on-top boxes are exempt for two-character marks too.
+    expect(REG).toContain("!isTruthLine(String(text)) && !registry.isSovereign(rect)");
   });
 });

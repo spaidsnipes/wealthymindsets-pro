@@ -62,7 +62,11 @@ export function PnLStatsPanel({ onClose }: { onClose: () => void }) {
       // AND the WAIT / WHY plaque over it (`--wm-g19-plaque`). Read on serving:
       // ada59d4 it sat under the thumb bar; e05c774, with a 72px margin, it
       // cleared the bar and sat under the plaque (y 731–808, bar at 792).
-      style={{ scrollMarginBottom: "calc(64px + var(--wm-g19-plaque, 56px) + env(safe-area-inset-bottom))" }}>
+      // …and the page must be ABLE to scroll that far: read on f37005c the strip
+      // stopped at y 691–771 with the plaque starting at 743 — the page ran out
+      // of scroll 28px short. The strip carries the plaque's height as its own
+      // bottom margin (0 where there is no plaque: desktop, tablet).
+      style={{ scrollMarginBottom: "calc(64px + var(--wm-g19-plaque, 56px) + env(safe-area-inset-bottom))", marginBottom: "var(--wm-g19-plaque, 0px)" }}>
       <div className="flex items-center px-3 h-7 border-b border-wm-border">
         <span className="text-[10px] font-semibold text-wm-text-muted uppercase tracking-wider">P&amp;L Stats</span>
         <div className="flex items-center gap-1 ml-3">

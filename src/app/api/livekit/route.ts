@@ -1,3 +1,4 @@
+import { audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { AccessToken } from "livekit-server-sdk";
 import { requireAuth } from "@/lib/requireAuth";
@@ -57,12 +58,13 @@ export async function GET(request: Request) {
     // what to set instead of guessing which spelling this host honours.
     const accepted = missing.flatMap((name) => acceptedEnvNames(name));
     return NextResponse.json(
-      {
+      // Names for the operator only (ruling 2026-10-09): a member or guest reads plain words, the same edge and a stable code.
+      audienceBody(isOperator(auth.user.sub), {
         error: `LiveKit is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy. Accepted names: ${accepted.join(", ")}.`,
         edge: "NOT CONFIGURED",
         missing,
         accepted,
-      },
+      }),
       { status: 503 },
     );
   }

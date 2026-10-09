@@ -1,3 +1,4 @@
+import { audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { edgeAllows, tooManyRequests, COMMUNITY_WRITE_LIMITER_BINDING } from "@/lib/edgeRateLimit";
@@ -25,11 +26,12 @@ export async function GET(request: Request) {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
     if (!resolveSupabaseServiceKey(process.env)) missing.push(SERVICE_KEY_VARS.join(" (or ") + ")");
     return NextResponse.json(
-      {
+      // Names for the operator only (ruling 2026-10-09): a member or guest reads plain words, the same edge and a stable code.
+      audienceBody(isOperator(passport.sub), {
         error: `Growth Rings is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
         edge: "NOT CONFIGURED",
         missing,
-      },
+      }),
       { status: 503 },
     );
   }
@@ -58,11 +60,12 @@ export async function POST(request: Request) {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
     if (!resolveSupabaseServiceKey(process.env)) missing.push(SERVICE_KEY_VARS.join(" (or ") + ")");
     return NextResponse.json(
-      {
+      // Names for the operator only (ruling 2026-10-09): a member or guest reads plain words, the same edge and a stable code.
+      audienceBody(isOperator(passport.sub), {
         error: `Growth Rings is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
         edge: "NOT CONFIGURED",
         missing,
-      },
+      }),
       { status: 503 },
     );
   }

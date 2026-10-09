@@ -1,3 +1,4 @@
+import { audienceBody, isOperator } from "@/lib/publicFailure";
 import { NextResponse } from "next/server";
 import { edgeAllows, tooManyRequests, clientIp, AUTH_LOGIN_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { resolveSupabaseServiceKey, SERVICE_KEY_VARS } from "@/lib/supabaseConfigStatus";
@@ -18,11 +19,12 @@ export async function POST(request: Request) {
     if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)");
     if (!resolveSupabaseServiceKey(process.env)) missing.push(SERVICE_KEY_VARS.join(" (or ") + ")");
     return NextResponse.json(
-      {
+      // Names for the operator only (ruling 2026-10-09): a member or guest reads plain words, the same edge and a stable code.
+      audienceBody(false, {
         error: `WOW World Passport handoff is NOT CONFIGURED on this host runtime — missing required ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}. Set them in the host runtime secrets (e.g. Cloudflare) and redeploy.`,
         edge: "NOT CONFIGURED",
         missing,
-      },
+      }),
       { status: 503 },
     );
   }
