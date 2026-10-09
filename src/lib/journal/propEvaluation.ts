@@ -56,6 +56,11 @@ export interface PropInputs {
   /** Largest profitable day ÷ net profit may be at most this (0 < limit ≤ 1). */
   readonly consistencyLimit: number;
   readonly days: readonly PropDay[];
+  /**
+   * Where the daily list came from when it was read from a file ("imported file · <name> · as of <time> · …"),
+   * shown beside the list; null / absent when the trader typed the days. A hand edit of a day clears it.
+   */
+  readonly daysSource?: string | null;
   readonly maxDrawdownCents: Cents | null;
   readonly drawdownMethod: DrawdownMethod;
   /** The floor the firm's dashboard shows right now, when the trader has read it. */
@@ -411,6 +416,7 @@ export function readPropStored(raw: unknown): PropStored | null {
       nickname: text(i.nickname, 40), firm: text(i.firm, 60), program: text(i.program, 60),
       startingBalanceCents: centsOrNull(i.startingBalanceCents), currentBalanceCents: centsOrNull(i.currentBalanceCents), profitTargetCents: centsOrNull(i.profitTargetCents),
       consistencyLimit: limit, days,
+      ...(typeof i.daysSource === "string" && i.daysSource ? { daysSource: i.daysSource.slice(0, 240) } : {}),
       maxDrawdownCents: centsOrNull(i.maxDrawdownCents), drawdownMethod: method, drawdownFloorCents: centsOrNull(i.drawdownFloorCents),
       contractLimit: count(i.contractLimit), minTradingDays: count(i.minTradingDays), commissionsPerDayCents: centsOrNull(i.commissionsPerDayCents),
       verifiedAtMs: typeof i.verifiedAtMs === "number" && Number.isFinite(i.verifiedAtMs) ? i.verifiedAtMs : null,

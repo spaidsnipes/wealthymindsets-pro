@@ -1,8 +1,12 @@
 import { PARTIAL_TAPE_PROVENANCES, type PriceSourceBadge } from "../priceSource";
 import {
+  FIDELITY_REASONS,
+  MARKET_FIDELITIES,
   fidelityFromPipelineLabel,
   readMarketFidelity,
   type ExecutionOwnership,
+  type FidelityReason,
+  type MarketFidelity,
   type MarketFidelityReading,
 } from "./marketFidelityAlgebra";
 
@@ -102,6 +106,53 @@ export interface CanvasHonestyInput {
    * `null` means not established and folds exactly like `false`.
    */
   readonly execution: ExecutionOwnership | null;
+  /**
+   * The canonical market state's quality word — the SAME value the MARKET cell
+   * prints beside the plaque. Optional: a surface with no canonical state
+   * leaves it out and nothing changes. When present it CAPS the reading (see
+   * `capByCanonicalQuality`): freshness is part of fidelity.
+   */
+  readonly canonicalQuality?: string | null;
+}
+
+/*
+  ONE OWNER FOR "HOW GOOD IS THIS PRICE" (ruling 2026-10-09).
+
+  Read on serving c9303a7 at 18:28 CDT, NQ1! 15m, one band:
+      MARKET   STALE · asOf 6:28:16 PM CDT
+      PLAQUE   INDICATIVE — a real observed price to read
+  The MARKET cell reads the canonical market state; the plaque graded the chart
+  surface badge. Two graders, one price, two answers. The canonical state is the
+  owner: a price it calls STALE cannot be called a real observed price now.
+
+  So the canonical word caps the fold. It only ever LOWERS a reading — a
+  canonical LIVE never lifts a badge that graded lower — and it adds no
+  fidelity of its own: STALE is STALE, a delayed feed is DEGRADED with the
+  DELAYED reason, a partial or proxy feed is PARTIAL, replay carries its reason.
+  UNAVAILABLE is deliberately not a cap: it grades the PRINT channel, and a
+  chart carrying verified bars under it is already PARTIAL by the badge.
+*/
+export function capByCanonicalQuality(
+  folded: { readonly fidelity: MarketFidelity; readonly reasons: readonly FidelityReason[] },
+  canonicalQuality: string | null | undefined,
+): { readonly fidelity: MarketFidelity; readonly reasons: readonly FidelityReason[] } {
+  const q = typeof canonicalQuality === "string" ? canonicalQuality.trim().toUpperCase() : "";
+  const strong = folded.fidelity === MARKET_FIDELITIES.INDICATIVE || folded.fidelity === MARKET_FIDELITIES.EXECUTABLE;
+  const withReason = (reason: FidelityReason) =>
+    folded.reasons.includes(reason) ? folded.reasons : [...folded.reasons, reason];
+  switch (q) {
+    case "STALE":
+      return { fidelity: MARKET_FIDELITIES.STALE, reasons: folded.reasons };
+    case "DELAYED":
+      return strong ? { fidelity: MARKET_FIDELITIES.DEGRADED, reasons: withReason(FIDELITY_REASONS.DELAYED) } : folded;
+    case "PARTIAL":
+    case "PROXY":
+      return strong ? { fidelity: MARKET_FIDELITIES.PARTIAL, reasons: folded.reasons } : folded;
+    case "REPLAY":
+      return { fidelity: folded.fidelity, reasons: withReason(FIDELITY_REASONS.REPLAY_FROZEN) };
+    default:
+      return folded;
+  }
 }
 
 /**
@@ -120,7 +171,10 @@ export function readCanvasHonesty(input: CanvasHonestyInput): MarketFidelityRead
   // The badge's provenance is the only witness to the TAPE's scope: IEX is one
   // venue, and the plaque must say so rather than "No reason recorded".
   const partial = PARTIAL_TAPE_PROVENANCES.has(input.badge.provenance ?? "");
-  const folded = fidelityFromPipelineLabel(input.badge.label, input.execution, { partial });
+  const folded = capByCanonicalQuality(
+    fidelityFromPipelineLabel(input.badge.label, input.execution, { partial }),
+    input.canonicalQuality,
+  );
   // readMarketFidelity performs the final refusal itself. Duplicating the
   // finiteness check here would put a second owner on "what counts as a
   // moment", so the null is passed straight through to the one that owns it.

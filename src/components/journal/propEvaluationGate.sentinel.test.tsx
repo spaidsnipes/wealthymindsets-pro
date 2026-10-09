@@ -17,6 +17,15 @@ import { PropEvaluationDesk, PROP_SAMPLE_BANNER } from "./PropEvaluationDesk";
 import { PROP_EVALUATION_BASE_KEY, PropEvaluationGate } from "./PropEvaluationGate";
 
 const read = (p: string) => readFileSync(path.resolve(process.cwd(), "src", p), "utf8");
+
+// Scan-proof: every source this file reads is really there (kept above any regex-heavy block).
+it("the scanned sources are not empty", () => {
+  expect(read("components/journal/PropEvaluationGate.tsx").length).toBeGreaterThan(1000);
+  expect(read("components/journal/PropEvaluationDesk.tsx").length).toBeGreaterThan(1000);
+  expect(read("components/journal/JournalProofScene.tsx").length).toBeGreaterThan(1000);
+  expect(read("app/journal/page.tsx").length).toBeGreaterThan(1000);
+});
+
 beforeEach(() => { state.audience = "GUEST"; state.user = { id: "u-1" }; });
 
 describe("the gate — owner only, silent otherwise", () => {
@@ -72,6 +81,11 @@ describe("the desk — opens empty, says where it is kept, keeps truth and scena
     expect(code).toContain("if (sample || !loaded || !storageKey || proofSceneHoldsWrites()) return;");
     expect(code).not.toMatch(/fetch\(|sendBeacon|XMLHttpRequest|sessionStorage/);
     expect(code.match(/localStorage\.setItem\(/g)).toHaveLength(1);
+    // The proof scene mounts the sample through the SAME gate — owner-only there too.
+    const scene = read("components/journal/JournalProofScene.tsx");
+    expect(scene).toContain("<PropEvaluationGate sample />");
+    expect(scene).not.toContain("PropEvaluationDesk");
+    expect(scene.replace(/\/\*[\s\S]*?\*\/|\{\/\*[\s\S]*?\*\/\}/g, "")).not.toMatch(/prop evaluation/i);
     // The only mention of an account number is the label telling the trader NOT to type one.
     expect(code.replace("not an account number", "")).not.toMatch(/account number|account id|password|credential/i);
     expect(desk).not.toMatch(/you will pass|guarantee|you need to make|make \$?[\d,]+ today|should make|must make|daily goal|daily target/i);

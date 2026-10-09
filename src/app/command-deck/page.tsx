@@ -629,8 +629,10 @@ function CommandDeckInner() {
       observedAtMs: wsFeed.lastObservedAtMs,
       // The deck places nothing: no adapter owns its price.
       execution: { adapterOwnsCanvasPrice: false },
+      // The canonical state's own word caps the plaque (one owner, 2026-10-09).
+      canonicalQuality: state?.qualityState ?? null,
     });
-  }, [wsFeed.source, wsFeed.connected, wsFeed.ticker.price, wsFeed.lastObservedAtMs, deckCandles, quoteSession.sessionOpen, deckQuoteClockMs, state?.capturedAt]);
+  }, [state?.qualityState, wsFeed.source, wsFeed.connected, wsFeed.ticker.price, wsFeed.lastObservedAtMs, deckCandles, quoteSession.sessionOpen, deckQuoteClockMs, state?.capturedAt]);
 
   const expressionDirection = expressionDirectionFromCanonical(state?.direction);
   const expressionOwner = user?.id ?? "signed-out";

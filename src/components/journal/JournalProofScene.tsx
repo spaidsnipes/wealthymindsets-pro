@@ -33,6 +33,7 @@ import { managementWalkthroughs } from "@/lib/journal/managementWalkthrough";
 import { journalRoundTrip } from "@/lib/journal/journalRoundTrip";
 import { brokerStoryFixtures, captureFixture, LIFECYCLE_BANNER, planLifecycleRoundTrip } from "@/lib/journal/journalLifecycleFixture";
 import { CapturedFacts } from "@/components/journal/CapturedFacts";
+import { PropEvaluationGate } from "@/components/journal/PropEvaluationGate";
 import { SelfReportChooser } from "@/components/journal/SelfReportChooser";
 import { SELF_REPORT_LABELS, selfReportByDeparture } from "@/lib/journal/selfReport";
 
@@ -234,6 +235,10 @@ export function JournalProofScene(): React.ReactElement {
         <h2 className="text-sm font-bold text-wm-text mb-2">Academy · "Show me my examples" (sample)</h2>
         <FvgExamplesView examples={f.examples} heading={`Show me my examples · ${f.examples.length} sample decisions on gaps (proof scene)`} />
       </section>
+
+      {/* Owner-only sample of the prop evaluation desk (synthetic numbers, no storage). The gate renders
+          NOTHING — no heading, no name — for a member or a guest, so the section wrapper lives inside it. */}
+      <PropEvaluationGate sample />
     </div>
   );
 }

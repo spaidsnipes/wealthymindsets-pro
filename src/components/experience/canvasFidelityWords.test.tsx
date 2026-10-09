@@ -32,7 +32,7 @@ import {
   type MarketFidelity,
 } from "@/lib/marketData/marketFidelityAlgebra";
 import { CANONICAL_FIDELITY_LABELS } from "@/lib/marketData/canonicalFidelityLabels";
-import { readCanvasHonesty, readCanvasUngraded, type CanvasHonestyInput } from "@/lib/marketData/readCanvasHonesty";
+import { capByCanonicalQuality, readCanvasHonesty, readCanvasUngraded, type CanvasHonestyInput } from "@/lib/marketData/readCanvasHonesty";
 
 const reading = (f: MarketFidelity, reasons: FidelityReason[] = []) => {
   const r = readMarketFidelity(f, 1_700_000_000_000, reasons);
@@ -163,5 +163,67 @@ describe("the phone chip carries the plaque's word", () => {
     expect(src).toContain("<CanvasFidelityChip reading={chartHonesty} ungraded={chartHonestyUngraded} />");
     expect(src).toContain("honestyUngraded: chartHonestyUngraded,");
     expect(src).toContain("readCanvasUngraded(chartHonestyInput)");
+  });
+});
+
+/**
+ * ONE OWNER (ruling 2026-10-09). Serving c9303a7, 18:28 CDT: MARKET "STALE ·
+ * asOf 6:28:16 PM" beside a plaque reading INDICATIVE. The canonical state's
+ * quality word — the one the MARKET cell prints — caps the plaque's reading.
+ */
+describe("the plaque cannot read better than the MARKET cell's word", () => {
+  const live: CanvasHonestyInput = {
+    badge: { label: CANONICAL_FIDELITY_LABELS.LIVE_CERTIFIED_QUOTE, availability: undefined },
+    capturedAtMs: 1_700_000_000_000,
+    observedAtMs: null,
+    execution: { adapterOwnsCanvasPrice: true },
+  };
+  const STRONG = ["INDICATIVE", "EXECUTABLE"];
+
+  it("with no canonical word, or LIVE, nothing changes", () => {
+    expect(readCanvasHonesty(live)?.fidelity).toBe("EXECUTABLE");
+    expect(readCanvasHonesty({ ...live, canonicalQuality: null })?.fidelity).toBe("EXECUTABLE");
+    expect(readCanvasHonesty({ ...live, canonicalQuality: "LIVE" })?.fidelity).toBe("EXECUTABLE");
+  });
+
+  it.each([
+    ["STALE", "STALE"],
+    ["DELAYED", "DEGRADED"],
+    ["PARTIAL", "PARTIAL"],
+    ["PROXY", "PARTIAL"],
+  ])("canonical %s on a live certified badge reads %s — never a strong word", (quality, fidelity) => {
+    const r = readCanvasHonesty({ ...live, canonicalQuality: quality });
+    expect(r?.fidelity).toBe(fidelity);
+    expect(STRONG).not.toContain(r?.fidelity);
+  });
+
+  it("a delayed feed carries its reason; replay carries its reason without changing the word", () => {
+    expect(readCanvasHonesty({ ...live, canonicalQuality: "DELAYED" })?.reasons).toContain("DELAYED");
+    const replay = readCanvasHonesty({ ...live, canonicalQuality: "REPLAY" });
+    expect(replay?.fidelity).toBe("EXECUTABLE");
+    expect(replay?.reasons).toContain("REPLAY_FROZEN");
+  });
+
+  it("the cap only lowers: a canonical LIVE never lifts a lower badge, and STALE stays STALE", () => {
+    for (const f of Object.values(MARKET_FIDELITIES)) {
+      expect(capByCanonicalQuality({ fidelity: f, reasons: [] }, "LIVE").fidelity, f).toBe(f);
+      expect(capByCanonicalQuality({ fidelity: f, reasons: [] }, "STALE").fidelity, f).toBe("STALE");
+    }
+    expect(capByCanonicalQuality({ fidelity: "STALE", reasons: [] }, "DELAYED").fidelity).toBe("STALE");
+    expect(capByCanonicalQuality({ fidelity: "DEGRADED", reasons: [] }, "PARTIAL").fidelity).toBe("DEGRADED");
+  });
+
+  it("the chart room hands the plaque the very word the MARKET cell prints", () => {
+    const src = readFileSync(path.join(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
+    const WORD = "chartCanvasState?.qualityState ?? null";
+    expect(src).toContain(`canonicalQuality: ${WORD},`);
+    expect(src).toContain(`quality: ${WORD},`);
+    // The chip and the plaque both read the one capped reading.
+    expect(src).toContain("readCanvasHonesty(chartHonestyInput)");
+    expect(src).toContain("<CanvasFidelityChip reading={chartHonesty} ungraded={chartHonestyUngraded} />");
+  });
+
+  it("STALE no longer claims the chart is dimmed — it says what to do", () => {
+    expect(CANVAS_FIDELITY_MEANING.STALE).toBe("Too old to read as now. Do not act on this price.");
   });
 });

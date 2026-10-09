@@ -11,6 +11,8 @@ import { requireAuth } from "@/lib/requireAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { edgeAllows, tooManyRequests, SPAIDBOT_LIMITER_BINDING } from "@/lib/edgeRateLimit";
 import { formatChartContextNote, type ChartContextInput } from "@/lib/marketData/formatChartContextNote";
+import { tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
+import { SPAIDBOT_NO_PROMISE_RULES, SPAIDBOT_PROP_RULES, spaidbotAcademyBlock, spaidbotPropNote } from "@/lib/ai/spaidbotOwnerDesk";
 import { forgetGeminiModel, geminiGenerationConfig, lightGeminiModelFor, resolveGeminiModel } from "@/lib/ai/geminiModel";
 import { MIN_RETRY_FIRST_BYTE_MS, MODEL_DID_NOT_ANSWER, PRIMARY_FIRST_BYTE_MS, UPSTREAM_FIRST_BYTE_MS, UpstreamTimeout, fetchWithFirstByteTimeout, linkUntilHeaders, relayModelStream, type AnsweredBy } from "@/lib/ai/upstreamBounds";
 
@@ -18,7 +20,7 @@ const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
 const streamUrl  = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${GEMINI_KEY}`;
 
-const SYSTEM_PROMPT = `You are SpaidBot, the AI trading co-pilot for WealthyMindsets Pro — a professional trading platform built by traders for traders.
+const SYSTEM_PROMPT = `You are SpaidBot, the AI trading co-pilot for WealthyMindsets Pro — a Trading Operating System.
 
 Your personality: confident, direct, and precise. Never claim to see market data,
 orders, positions, indicators, or chart structure that was not supplied in the
@@ -86,7 +88,11 @@ Plan review and patience (Garden 19 §25–§31):
   afraid", "you got greedy", "revenge", "FOMO" are forbidden unless quoting the trader's own words).
 - Compare the trader's recorded plan with what happened as facts — "You exited before the
   management condition recorded in your plan" — then ASK what caused the change.
-- Keep MARKET facts, the trader's PLAN, and what the trader DID separate. No shame, no verdicts.`;
+- Keep MARKET facts, the trader's PLAN, and what the trader DID separate. No shame, no verdicts.
+
+${SPAIDBOT_NO_PROMISE_RULES}
+
+${spaidbotAcademyBlock()}`;
 
 
 export async function POST(req: NextRequest) {
@@ -133,7 +139,13 @@ export async function POST(req: NextRequest) {
     // reached the model as "(+0.00%)" while SYSTEM_PROMPT above told it never
     // to invent a price. Re-derived server-side on purpose: this route accepts
     // a client-supplied body and must not be talked into the claim.
-    const ctxNote = formatChartContextNote(context, Date.now());
+    // Supermax §8: the owner's prop-evaluation record rides ONE request, is re-validated here
+    // and run through the desk's own engine — for the owner only. A member's `prop` is ignored;
+    // nothing is stored.
+    const ownerAllowed = tastytradeOwnerGate(auth.user.sub, process.env).allowed;
+    const ctxNote = formatChartContextNote(context, Date.now())
+      + spaidbotPropNote((context as { prop?: unknown } | undefined)?.prop, ownerAllowed);
+    const systemText = SYSTEM_PROMPT + (ownerAllowed ? `\n\n${SPAIDBOT_PROP_RULES}` : "");
 
     const contents = messages.map((m, i) => ({
       role: m.role === "assistant" ? "model" : "user",
@@ -146,7 +158,7 @@ export async function POST(req: NextRequest) {
 
     // The config depends on the model (thinking off where it is on by default — geminiModel.ts).
     const payloadFor = (model: string) => JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      system_instruction: { parts: [{ text: systemText }] },
       contents,
       generationConfig: geminiGenerationConfig(model),
     });

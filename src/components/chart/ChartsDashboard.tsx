@@ -5361,8 +5361,12 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // PREVIEW, which prices and places nothing. So a fresh certified quote
       // reads INDICATIVE on the plaque, never EXECUTABLE (Garden 16 §13).
       execution: { adapterOwnsCanvasPrice: false },
+      // THE WORD THE MARKET CELL PRINTS (ruling 2026-10-09): the canonical
+      // state's quality caps the plaque, so MARKET "STALE" can never stand
+      // beside a plaque reading INDICATIVE. Same expression as `quality:` below.
+      canonicalQuality: chartCanvasState?.qualityState ?? null,
     }),
-    [chartSurfaceBadge, chartCanvasState?.capturedAt, lastObservedAtMs],
+    [chartSurfaceBadge, chartCanvasState?.capturedAt, chartCanvasState?.qualityState, lastObservedAtMs],
   );
   const chartHonesty = React.useMemo<MarketFidelityReading | null>(
     () => readCanvasHonesty(chartHonestyInput),

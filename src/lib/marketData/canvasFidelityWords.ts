@@ -32,7 +32,7 @@ export const CANVAS_FIDELITY_MEANING: Readonly<Record<MarketFidelity, string>> =
   EXECUTABLE: "The price on this chart is the one the connected broker will use for an order.",
   PARTIAL: "The bars are sound; part of the picture is missing — a live quote or the full tape.",
   DEGRADED: "Admitted with a known fault — late, or from a narrower source than the full market.",
-  STALE: "Too old to read as now. The chart is dimmed; do not act on it.",
+  STALE: "Too old to read as now. Do not act on this price.",
 });
 
 /** A recorded reason, in trader words. The raw key stays in the test id. */

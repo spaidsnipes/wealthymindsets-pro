@@ -56,6 +56,7 @@ import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { installWordGate, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
 import { FOG_CAP, FOG_FEATHER_PX, installFogGate } from "@/lib/chart/fieldFogBudget";
+import { installTypeFloor, NARROW_NAME_MIN_PX } from "@/lib/chart/typeFloor";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
@@ -196,6 +197,8 @@ const KEEL_MIN_L = 3;
 const VC_COG_EXT_NARROW = 3;
 /** PHONE (2026-10-09): a big-trade disc's largest radius on narrow glass (desk: BIG_TRADE_MAX_R 42). */
 const BIG_TRADE_NARROW_MAX_R = 22;
+/** PHONE (2026-10-09): the absorption / exhaustion figure's tallest size on narrow glass (desk: 92–150 by bar spacing). */
+const ABSORPTION_FIGURE_NARROW_H = 72;
 /** PHONE (2026-10-09): a drawn handle / chevron / stem this close to the left of the newest-candle column is held too. */
 const SOVEREIGN_SHAPE_PAD = 20;
 /** The price legend band's floor in the pane (the paint loop's HEADER_FLOOR_Y). Nothing that floats may start above it. */
@@ -7963,6 +7966,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // their summed alpha over any candle never exceeds ~0.18. Desk: off.
       const fogGate = installFogGate(ctx);
       fogGate.beginFrame({ on: narrowGlass, plot: { w: Math.max(1, plotRight), h: Math.max(1, pane0Bottom) }, dpr });
+      // PHONE TYPE (Founder, evening 2026-10-09; serving 390 c9303a7: names at
+      // 9–10px read as smudge whatever their ink). On narrow glass no NAME is
+      // set under 11px — raised as the font is set, so chips and placement are
+      // measured for the type that paints. Numbers (mono) keep their own floor.
+      const typeFloor = installTypeFloor(ctx);
+      typeFloor.setFloor(narrowGlass ? NARROW_NAME_MIN_PX : 0);
       // PHONE: the one folded-silence line has a fixed home under the header
       // band (PHONE ASK 8). It is reserved from the first placer of the frame,
       // so no other word lands on its row (serving 390, ada59d4: "4 SENSES
@@ -16451,7 +16460,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // G06 scale: a figure you can read at a glance, not a stick glyph.
             // SEMANTIC CAMERA: NEAR is physiology — the body grows into a
             // figure you can study; MID keeps it a companion to price.
-            const FH0 = spacingB >= 12 ? 150 : spacingB >= 7 ? 116 : 92;
+            // PHONE: candles outrank the figure (Founder ruling 2026-10-09 evening;
+            // serving 390: the 92–116px figure was the largest object in the lower
+            // half of a 330px plot). Narrow glass caps it; the desk keeps canon.
+            const FH0 = narrowGlass ? ABSORPTION_FIGURE_NARROW_H : spacingB >= 12 ? 150 : spacingB >= 7 ? 116 : 92;
             const placeBody = (fh: number, fw: number) => placeClearOfKeepOut({ x: b.x, y: b.y - fh / 2, w: fw, h: fh }, keepOut(), {
               // Never in the legend / D / EFFORT·INSPECT rows (serving BTC 5m, 2026-09-29).
               minX: keepOutMinX(), blockers: [...floatingChips, ...candleBlockers, { x: 0, y: 0, w: W, h: READING_ANCHOR_ROW_BOTTOM + 4 }], strict: true,
@@ -16468,7 +16480,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // when none does is the far, full-size spot kept.
             let FH = FH0, FW = Math.round(FH0 * 270 / 280);
             let spot: ReturnType<typeof placeBody> | null = null;
-            for (const fh of [FH0, 116, 92, 72].filter(h => h <= FH0)) {
+            for (const fh of [FH0, 116, 92, 72, 56].filter(h => h <= FH0 && (!narrowGlass || h >= 56) && (narrowGlass || h >= 72))) {
               const fw = Math.round(fh * 270 / 280);
               const cand = placeBody(fh, fw);
               if (cand.mode === "BLOCKED") continue;
@@ -22351,12 +22363,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (yr == null) continue;
                 const y = Math.round(+yr) - Math.floor(rowH / 2);
                 const w = Math.max(1, Math.round(r.share * colMax));
+                // PHONE: CRISP ROWS (serving 390, c9303a7: value rows at 0.4 and
+                // tails at 0.2 were soft grey on the grey effort mass). On narrow
+                // glass each row is stronger and carries a 1px bright leading
+                // edge, on whole pixels — the histogram reads as rows, not haze.
+                if (narrowGlass) {
+                  ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.9) : r.insideValueArea ? pk.rgba("VALUE", 0.62) : pk.rgba("TAIL", 0.4);
+                } else {
                 ctx.fillStyle = r.isPoc
                   ? pk.rgba("POC", 0.7)
                   : r.insideValueArea
                     ? pk.rgba("VALUE", 0.4)
                     : pk.rgba("TAIL", 0.2);
+                }
                 ctx.fillRect(histX, y, w, Math.max(1, rowH - 1));
+                if (narrowGlass && w >= 3) {
+                  ctx.fillStyle = r.isPoc ? pk.rgba("POC", 1) : r.insideValueArea ? pk.rgba("VALUE", 0.95) : pk.rgba("TAIL", 0.75);
+                  ctx.fillRect(histX + w - 1, y, 1, Math.max(1, rowH - 1));
+                }
                 drawnRows++;
               }
             }
@@ -26436,7 +26460,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.fieldFog = fogGate.receipt();
         // The phone's own glass rules, in one receipt (desk: OFF).
         canvas.dataset.priceSovereignty = narrowGlass ? `NEWEST_COLUMN_CLEAR:${sovereigntyHeld + fogGate.columnCuts() + wordGate.columnHeld()}` : "OFF";
-        canvas.dataset.phoneGlass = narrowGlass ? `DISC_R:${BIG_TRADE_NARROW_MAX_R}|ZONE:BAND:${ZONE_BAND_NARROW_FILL}|CONTEXT:0.55/0.3` : "OFF";
+        canvas.dataset.phoneGlass = narrowGlass ? `DISC_R:${BIG_TRADE_NARROW_MAX_R}|ZONE:BAND:${ZONE_BAND_NARROW_FILL}|CONTEXT:0.55/0.3|TYPE:${NARROW_NAME_MIN_PX}|FIGURE_H:${ABSORPTION_FIGURE_NARROW_H}` : "OFF";
+        canvas.dataset.typeFloor = narrowGlass ? `${NARROW_NAME_MIN_PX}|RAISED:${typeFloor.raised()}` : "OFF";
         if (wordGateHeld.length) canvas.dataset.wordGateHeld = wordGate.heldSample(); else delete canvas.dataset.wordGateHeld;
         const anchors = composeOn ? composeNoteAnchors(displacedNotes) : [];
         canvas.dataset.eventNotes = `ANCHORS:${anchors.length}|NOTES:${displacedNotes.length}|COMPOSE:${composeOn ? "ON" : "OFF"}`;

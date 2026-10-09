@@ -193,10 +193,25 @@ interface LedgerEntry {
  * below, not typed from memory.
  */
 const LEDGER: Readonly<Record<string, LedgerEntry>> = {
-  "src/lib/journal/propFillsImport.ts": {
+  "src/lib/billing/tiers.ts": {
     reason: "AWAITING_SURFACE",
     note:
-      "Prop-account fills from a file the trader exported (Garden 19 Supermax §8, 2026-10-09): the pure parser and the daily-results owner ship first so the ticket lane can mount them on the Journal's prop-evaluation desk (importPropFills → propDailyResults → PropDay[]). Until that mount lands no trader can open a file. Delete this entry in the commit that wires the first consumer — the suite will ask.",
+      "WM Pro billing, pure owners first (Garden 19 Supermax §11, 2026-10-09): the tier map (tier → the env var NAME of its Stripe price id; the client never sends a price). Nothing sells until the routes (/api/billing/checkout · webhook · standing · portal) and the pricing page's button land in the next slice — until then no trader can reach it. Delete this entry in the commit that wires the first consumer — the suite will ask.",
+  },
+  "src/lib/billing/standing.ts": {
+    reason: "AWAITING_SURFACE",
+    note:
+      "WM Pro billing, pure owners first (Garden 19 Supermax §11, 2026-10-09): the server's billing mode from the key prefix (NOT_CONFIGURED / TEST / LIVE), fail-closed. Nothing sells until the routes (/api/billing/checkout · webhook · standing · portal) and the pricing page's button land in the next slice — until then no trader can reach it. Delete this entry in the commit that wires the first consumer — the suite will ask.",
+  },
+  "src/lib/billing/webhookSignature.ts": {
+    reason: "AWAITING_SURFACE",
+    note:
+      "WM Pro billing, pure owners first (Garden 19 Supermax §11, 2026-10-09): the webhook signature check (HMAC-SHA256, 300 s tolerance, constant-time). Nothing sells until the routes (/api/billing/checkout · webhook · standing · portal) and the pricing page's button land in the next slice — until then no trader can reach it. Delete this entry in the commit that wires the first consumer — the suite will ask.",
+  },
+  "src/lib/billing/entitlement.ts": {
+    reason: "AWAITING_SURFACE",
+    note:
+      "WM Pro billing, pure owners first (Garden 19 Supermax §11, 2026-10-09): the entitlement record and its idempotent, order-safe reducer. Nothing sells until the routes (/api/billing/checkout · webhook · standing · portal) and the pricing page's button land in the next slice — until then no trader can reach it. Delete this entry in the commit that wires the first consumer — the suite will ask.",
   },
   "src/lib/marketing/bannedClaims.ts": {
     reason: "OPS_TOOLING",

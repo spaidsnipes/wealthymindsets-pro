@@ -19,6 +19,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 
+import { PropFillsImportPanel } from "@/components/journal/PropFillsImportPanel";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import {
   DRAWDOWN_METHODS, DRAWDOWN_METHOD_LABEL, EMPTY_PROP_INPUTS, PROP_DEVICE_LINE, PROP_SCENARIO_LABEL, PROP_STORAGE_KIND, PROP_UNVERIFIED, PROP_VERIFY_ACTION,
@@ -34,6 +35,19 @@ const BTN: React.CSSProperties = { minHeight: 44, padding: "6px 12px", borderRad
 
 export const PROP_SAMPLE_BANNER = "SAMPLE ACCOUNT — synthetic numbers, no one's evaluation. Nothing here is saved.";
 export const PROP_SAMPLE_ROWS: readonly Cents[] = [100_000, -30_000, 100_000, 63_334];
+/** A synthetic fills export for the sample mount: made-up fills on a sample day, one row with no price (so the PARTIAL line shows), no commission column. */
+export const PROP_SAMPLE_FILE = {
+  name: "SAMPLE-fills.csv",
+  openedAtMs: Date.UTC(2026, 0, 8, 15, 0, 0),
+  text: [
+    "Timestamp,Contract,B/S,Quantity,Price,Fill ID",
+    "01/05/2026 09:31:05,MNQH6,Buy,1,21000.00,S1",
+    "01/05/2026 09:44:10,MNQH6,Sell,1,21050.00,S2",
+    "01/06/2026 10:02:00,MNQH6,Sell,1,21100.00,S3",
+    "01/06/2026 10:20:30,MNQH6,Buy,1,21112.50,S4",
+    "01/06/2026 11:00:00,MNQH6,Buy,1,,S5",
+  ].join("\n"),
+} as const;
 
 function loadStored(key: string | null): PropStored | null {
   if (!key || typeof window === "undefined") return null;
@@ -162,16 +176,23 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
         </div>
 
         <div style={{ display: "grid", gap: 6 }}>
+          <PropFillsImportPanel sampleFile={sample ? PROP_SAMPLE_FILE : null}
+            onUseDays={x => edit({ days: x.days, daysSource: x.source, ...(x.basis === "AFTER_COMMISSIONS" ? { commissionsPerDayCents: null } : {}) })} />
           <span style={{ fontSize: 11, color: MUTED }}>Daily net results, one row per traded day (losses with a minus sign)</span>
+          {inputs.daysSource ? (
+            <span data-testid="prop-days-source" style={{ fontSize: 11, color: AMBER, overflowWrap: "anywhere" }}>
+              From an {inputs.daysSource} — {PROP_UNVERIFIED} until you read it back against the firm&apos;s dashboard.
+            </span>
+          ) : null}
           {inputs.days.map((d, i) => (
             <div key={i} data-testid="prop-day-row" style={{ display: "grid", gap: 6, gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) auto", alignItems: "end" }}>
               <label style={LABEL}><span>Date</span>
-                <input type="date" value={d.date} onChange={e => edit({ days: inputs.days.map((x, k) => (k === i ? { ...x, date: e.target.value } : x)) })} style={FIELD} /></label>
-              <MoneyField label="Net for the day" allowNegative valueCents={d.netCents} onCommit={c => edit({ days: inputs.days.map((x, k) => (k === i ? { ...x, netCents: c ?? 0 } : x)) })} />
-              <button type="button" aria-label={`Remove day ${i + 1}`} onClick={() => edit({ days: inputs.days.filter((_, k) => k !== i) })} style={BTN}>Remove</button>
+                <input type="date" value={d.date} onChange={e => edit({ daysSource: null, days: inputs.days.map((x, k) => (k === i ? { ...x, date: e.target.value } : x)) })} style={FIELD} /></label>
+              <MoneyField label="Net for the day" allowNegative valueCents={d.netCents} onCommit={c => { if ((c ?? 0) !== d.netCents) edit({ daysSource: null, days: inputs.days.map((x, k) => (k === i ? { ...x, netCents: c ?? 0 } : x)) }); }} />
+              <button type="button" aria-label={`Remove day ${i + 1}`} onClick={() => edit({ daysSource: null, days: inputs.days.filter((_, k) => k !== i) })} style={BTN}>Remove</button>
             </div>
           ))}
-          <button type="button" data-testid="prop-add-day" onClick={() => edit({ days: [...inputs.days, { date: "", netCents: 0 }] })} style={{ ...BTN, justifySelf: "start" }}>Add a traded day</button>
+          <button type="button" data-testid="prop-add-day" onClick={() => edit({ daysSource: null, days: [...inputs.days, { date: "", netCents: 0 }] })} style={{ ...BTN, justifySelf: "start" }}>Add a traded day</button>
         </div>
 
         <div style={{ ...GRID, borderTop: `1px solid ${LINE}`, paddingTop: 10 }} data-testid="prop-reading">
