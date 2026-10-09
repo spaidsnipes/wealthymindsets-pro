@@ -1,5 +1,5 @@
 /**
- * /charts?scene=ticket-fixture&side=buy|sell[&state=flat|holding|working|inflight] — a SAMPLE book
+ * /charts?scene=ticket-fixture&side=buy|sell[&state=flat|holding|working|inflight|noquote] — a SAMPLE book
  * for the trade ticket (coordinator order 2026-10-09). PURE.
  *
  * The Founder's ticket is never pressed to prove a layout. This scene pre-picks the side and feeds
@@ -18,7 +18,7 @@ import { selectBrokerOrderLines, type BrokerLinesResult, type BrokerReadback } f
 
 export const TICKET_FIXTURE_SCENE = "ticket-fixture";
 export const TICKET_FIXTURE_BANNER = "PROOF SCENE — sample book, not your account · nothing can be sent";
-export const TICKET_FIXTURE_STATES = ["flat", "holding", "working", "inflight"] as const;
+export const TICKET_FIXTURE_STATES = ["flat", "holding", "working", "inflight", "noquote"] as const;
 export type TicketFixtureState = (typeof TICKET_FIXTURE_STATES)[number];
 
 export interface TicketFixture {
@@ -47,11 +47,13 @@ export const TICKET_FIXTURE_TAIL = "SMPL";
  *   holding  — a position in the picked side's direction, UNPROTECTED (no stop working);
  *   working  — the same position WITH a working protective stop (PROTECTED) — a cancellable row;
  *   inflight — as `working`; the ticket additionally treats its entry order as in flight.
+ *   noquote  — as `flat`; the ticket additionally shows NO quote for the contract, so no limit is
+ *              prefilled and "Review & preview" is refused with its reason beside the button.
  */
 export function ticketFixtureReadback(fx: TicketFixture, contract: string, refPx: number | null, nowMs: number): BrokerReadback {
   const px = refPx != null && Number.isFinite(refPx) && refPx > 0 ? refPx : 100;
   const long = fx.side === "BUY";
-  const holding = fx.state !== "flat";
+  const holding = fx.state !== "flat" && fx.state !== "noquote";
   // A whole number: on tick for every listed future and for any stock (never 30988.28 on a 0.25 tick).
   const stopPx = Math.round(px * (long ? 0.995 : 1.005));
   const stop: TtOrderView = {

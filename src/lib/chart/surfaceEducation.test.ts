@@ -193,9 +193,18 @@ describe("the preview fits its host and names its own action (serving 6350c69, 2
 });
 
 describe("bar-selection first touch has a carrier at every width; Replay copy carries no receipt words", () => {
-  it("the in-Inspect line is not phone-only for a bar selection", () => {
+  it("the in-Inspect line shows at every width for every selection kind, once per kind", () => {
     const ft = read("src/components/chart/SelectionFirstTouch.tsx");
-    expect(ft).toMatch(/ctx\.id === "BAR_SELECTION" \? "block" : "hidden max-sm:block"/);
+    const fn = ft.slice(ft.indexOf("export function InspectFirstTouchLine"), ft.indexOf("export function SelectionFirstTouch("));
+    // No phone-only class and no per-kind exception left.
+    expect(fn).not.toMatch(/max-sm:block|hidden/);
+    expect(fn).not.toMatch(/BAR_SELECTION/);
+    expect(fn).toMatch(/className="block mt-1/);
+    // First touch only: remembered per kind through the card's own key, never under a proof scene.
+    expect(fn).toMatch(/readLearned\(id\)/);
+    expect(fn).toMatch(/proofSceneHoldsWrites\(\)\) return;/);
+    expect(fn).toMatch(/localStorage\.setItem\(learnedKey\(id\), "1"\)/);
+    expect(fn).toMatch(/if \(!ctx \|\| !edu \|\| learned\) return null;/);
   });
   it("the Replay record names no internal receipt", () => {
     const r = educationFor(REPLAY_EDUCATION_ID) as unknown as Record<string, string>;
@@ -272,7 +281,9 @@ describe("a first-touch line never opens by repeating its own label (serving 7f2
   });
   it("both carriers and the aria-label print the composed line", () => {
     const ft = read("src/components/chart/SelectionFirstTouch.tsx");
-    expect(ft.match(/composeFirstTouch\(/g)!.length).toBeGreaterThanOrEqual(3);
+    expect(ft.match(/composeFirstTouch\(/g)!.length).toBeGreaterThanOrEqual(4);
+    // The desktop card's heading obeys the same rule (it read the label twice, one line apart).
+    expect(ft).toMatch(/composeFirstTouch\(label, firstTouchFor\(id, objectId\) \?\? ""\)\.label \? \(\s*<div className="text-\[12\.5px\] font-bold/);
     expect(ft).not.toMatch(/aria-label=\{`\$\{label\}: /);
   });
 });

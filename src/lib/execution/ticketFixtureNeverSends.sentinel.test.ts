@@ -114,6 +114,15 @@ describe("5 · natively disabled, and the broker is not read", () => {
   });
 });
 
+describe("5b · state=noquote only REMOVES the quote — it adds no price and opens no path", () => {
+  it("the quote is dropped for that state; nothing is prefilled from anywhere else", () => {
+    expect(PANEL).toContain('const q = contract && scene?.state !== "noquote" ? snap.quotes.get(contract.streamer) : undefined;');
+    expect(PANEL).not.toMatch(/setLimit\(price\.toFixed/);
+    // The scene is still decided by the owner gate before the quote line reads it.
+    expect(PANEL.indexOf('const scene = audience === "OWNER" ? sceneAsked : null;')).toBeLessThan(PANEL.indexOf('scene?.state !== "noquote"'));
+  });
+});
+
 describe("6 · one reason, at the controls, and a banner", () => {
   it("the reason comes from railSendGate and reaches the book gate, the live block, the protect block and the dry run", () => {
     expect(PANEL).toContain('const sceneGate = scene ? railSendGate("PROOF_SCENE", "tastytrade") : null;');

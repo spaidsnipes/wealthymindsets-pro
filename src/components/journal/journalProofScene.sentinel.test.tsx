@@ -64,7 +64,7 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
       // Management: the three columns, the deviation lines and the plan-alone line on every shown
       // decision; adherence by setup with one MEASURED and one INSUFFICIENT row; no plan card, no
       // price-path loader, no delete — read only.
-      expect(html.match(/data-testid="plan-sheriff-market"/g)?.length).toBe(6);
+      expect(html.match(/data-testid="plan-sheriff-market"/g)?.length).toBe(8);   // 6 sample decisions + the tastytrade and Webull readback stories
       expect(html).toContain('data-testid="plan-sheriff-planned"');
       expect(html).toContain('data-testid="plan-sheriff-actual"');
       expect(html).toContain('data-testid="plan-deviations"');
@@ -100,6 +100,18 @@ describe("journal proof scene — sample data, read-only, token-gated", () => {
       expect(html).toContain('data-verdict="SAME SNAPSHOT AFTER RELOAD"');
       expect(html.match(/data-testid="journal-proof-roundtrip-row" data-same="yes"/g) ?? []).toHaveLength(9);
       expect(html).not.toContain('data-same="no"');
+      // Rows that need a Founder action, on a labelled sample: plan lifecycle (6 steps, all holding), Review from a
+      // tastytrade and a Webull readback with their UNKNOWN lines, and auto-capture with provenance per field.
+      expect(html).toContain('data-testid="journal-proof-lifecycle" data-all-ok="yes"');
+      expect(html.match(/data-testid="journal-proof-lifecycle-step" data-ok="yes"/g) ?? []).toHaveLength(6);
+      expect(html.match(/data-testid="journal-proof-broker-story"/g) ?? []).toHaveLength(2);
+      expect(html).toContain("UNKNOWN: whether tastytrade&#x27;s same-day order list keeps cancelled or replaced Stop orders");
+      expect(html).toContain("UNKNOWN: WM reads Webull fills only");
+      expect(html).toContain('data-testid="journal-proof-capture" data-ok="yes"');
+      expect(html).toContain('data-testid="captured-facts"');
+      expect(html).toContain("BROKER-REPORTED");
+      expect(html).toContain("UNREPORTED");
+      expect(html.match(/SAMPLE — not your account; nothing is saved, fetched or sent/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
       expect(setItem).not.toHaveBeenCalled();
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {

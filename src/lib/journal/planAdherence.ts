@@ -12,7 +12,8 @@
  */
 
 import { PATTERN_SAMPLE_MIN } from "./founderAnalytics";
-import type { DeviationId, PlanVsActualResult } from "./planVsActual";
+import { lessonForFinding, type LoopLink } from "./planLoop";
+import { DEVIATION_LABEL, type DeviationId, type PlanVsActualResult } from "./planVsActual";
 
 /** Findings that mean the trade departed from the plan as recorded. */
 export const DEPARTURES: readonly DeviationId[] = [
@@ -71,4 +72,47 @@ export function planAdherenceByGroup(rows: readonly { readonly group: string; re
     });
   }
   return out.sort((a, b) => b.sample - a.sample || a.setup.localeCompare(b.setup));
+}
+
+/**
+ * DEPARTURES, EACH WITH ITS LESSON DOOR — for the profile's Personal Edge (design call 2026-10-09).
+ *
+ * One row per kind of departure among the trader's DECIDED trades. The door to the Academy lesson
+ * ("Study: Lesson N · title →") comes from the SAME mapping the journal uses (planLoop.lessonForFinding —
+ * the education lane owns the lesson ids; nothing is forked here), and it is offered only when the
+ * sample is sufficient: ≥ 20 decided trades. Below that the row has NO door and says why — a lesson
+ * suggested from three trades would be a diagnosis WM has no evidence for.
+ */
+export interface DepartureRow {
+  readonly id: DeviationId;
+  readonly label: string;
+  /** Decided trades showing this departure. */
+  readonly count: number;
+  /** All decided trades — the sample. */
+  readonly decided: number;
+  readonly state: "MEASURED" | "INSUFFICIENT EVIDENCE";
+  readonly line: string;
+  /** The lesson door, only at a sufficient sample. */
+  readonly door: LoopLink | null;
+  /** Why there is no door (INSUFFICIENT EVIDENCE), else null. */
+  readonly why: string | null;
+}
+
+export function departureRows(results: readonly PlanVsActualResult[]): DepartureRow[] {
+  const decided = results.filter(r => r.decisionId && r.exitDecidable);
+  const counts = new Map<DeviationId, number>();
+  for (const r of decided) for (const id of new Set(r.findings.map(f => f.id))) if (DEPARTURES.includes(id)) counts.set(id, (counts.get(id) ?? 0) + 1);
+  const n = decided.length;
+  const measured = n >= PATTERN_SAMPLE_MIN;
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || DEPARTURES.indexOf(a[0]) - DEPARTURES.indexOf(b[0]))
+    .map(([id, count]): DepartureRow => ({
+      id, label: DEVIATION_LABEL[id], count, decided: n,
+      state: measured ? "MEASURED" : "INSUFFICIENT EVIDENCE",
+      line: measured
+        ? `${DEVIATION_LABEL[id]} on ${count} of ${n} decided trades (${Math.round((count / n) * 100)}%).`
+        : `${DEVIATION_LABEL[id]} on ${count} of ${n} decided trades.`,
+      door: measured ? lessonForFinding(id) : null,
+      why: measured ? null : `INSUFFICIENT EVIDENCE — ${n} of ${PATTERN_SAMPLE_MIN} decided trades so far, so no lesson is suggested from a sample this small.`,
+    }));
 }

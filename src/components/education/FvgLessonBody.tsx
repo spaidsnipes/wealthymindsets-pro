@@ -19,6 +19,14 @@ import { DEPARTURES } from "@/lib/journal/planAdherence";
 import { composePlanReview, planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import { FvgDiagram } from "./FvgDiagram";
 import { learnYourselfLinks } from "@/lib/journal/planLoop";
+import { useAuth } from "@/contexts/AuthContext";
+import { proofFixtureScene } from "@/lib/chart/proofScene";
+import { JOURNAL_FIXTURE_BANNER, journalFixture } from "@/lib/journal/journalProofFixture";
+
+/** `/education?scene=education-fixture` — sample examples for a signed-in trader; false for a guest or without the token. */
+export function educationFixtureOn(search: string, signedIn: boolean): boolean {
+  return signedIn && proofFixtureScene(search) === "education-fixture";
+}
 
 export function FvgMythCard() {
   return (
@@ -47,15 +55,40 @@ function adherenceById(records: readonly unknown[]): Map<string, string> {
 /** §36 — the trader's own decisions on gaps (journal FVG references), or one plain line until there are some. */
 function MyExamples() {
   const [examples, setExamples] = useState<FvgJournalExample[] | null>(null);
+  const [sample, setSample] = useState(false);
   const ownerVersion = useManagementOwnerVersion();
+  const { user } = useAuth();
   useEffect(() => {
+    // PROOF SCENE (education-fixture): the journal fixture's SAMPLE decisions through the
+    // same selector — the member's journal is NOT read, and nothing is written.
+    if (educationFixtureOn(window.location.search, !!user)) {
+      setSample(true);
+      setExamples([...journalFixture().examples]);
+      return;
+    }
+    setSample(false);
     try {
       const read = readJournalStorage(window.localStorage);
       const adh = adherenceById(read.records);
       setExamples(fvgReferencedExamples(read.records, id => adh.get(id) ?? null));
     } catch { setExamples([]); }
-  }, [ownerVersion]);
+  }, [ownerVersion, user]);
   if (examples === null) return null;
+  if (sample) {
+    return (
+      <div data-testid="fvg-examples-sample" data-proof-scene="education-fixture">
+        <div role="status" data-testid="education-proof-banner" className="mb-2 rounded-lg border px-3 py-2 text-[12px] font-black tracking-wider"
+          style={{ borderColor: "#d4af37", color: "#d4af37", background: "rgba(212,175,55,0.08)" }}>
+          {JOURNAL_FIXTURE_BANNER}
+          <span className="block text-[11px] font-normal tracking-normal text-wm-text-muted">
+            Synthetic decisions (SAMPLE-FVG) through the lesson&apos;s own examples list. Nothing here is read from or saved to your journal;
+            each door opens the journal proof scene.
+          </span>
+        </div>
+        <FvgExamplesView examples={examples} heading={`Show me my examples · SAMPLE · ${examples.length} synthetic decisions on gaps`} />
+      </div>
+    );
+  }
   return <FvgExamplesView examples={examples} />;
 }
 

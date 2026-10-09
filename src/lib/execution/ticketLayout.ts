@@ -33,8 +33,13 @@ export const COMPACT_TICKET_QUERY = `(max-width: ${COMPACT_TICKET_MAX_WIDTH}px)`
  * is refused while an order is in flight.
  */
 export const COMPACT_PEEK_MAX_HEIGHT = "40svh";
-/** BUILD and REVIEW each fit inside this; globals.css carries the same caps beside its 58svh phone rule. */
-export const COMPACT_ACT_MAX_HEIGHT = "72svh";
+/**
+ * BUILD and REVIEW each fit inside this; globals.css carries the same caps beside its 58svh phone rule.
+ * Measured on serving b290eef at 390 × 844 (mouse pointer): BUILD 592 px, no inner scroll; REVIEW hit the
+ * 72svh cap (608 px) with 26 px of inner scroll. So REVIEW now hides Details and the footer, and the cap
+ * is 84svh — room for the 44 px touch floor a real phone adds to every control.
+ */
+export const COMPACT_ACT_MAX_HEIGHT = "84svh";
 /** @deprecated the single phone height that measured 79 % coverage; kept so the reason is on record. */
 export const COMPACT_MAX_HEIGHT = "52vh";
 

@@ -1778,6 +1778,23 @@ input[type=range]::-webkit-slider-runnable-track {
   }
 }
 
+/* ── DRAWERS AND THE TOOL FINDER UNDER A FINGER (sheriff batch 6, 2026-10-09) ─
+   MEASURED on /charts at 390x844 and 834x1112 with the coarse rules applied:
+   Chart tools carried 354 controls under 44px (panel tabs 23–24px, category
+   chips 23px, the ✕ 13x13, every indicator row's ⓘ and star), the Tool Finder
+   51 (family chips 23px, the "Browse all tools" summary 17px), the Connect
+   drawer's provider rows 29px. The chart room is excluded from .wm-phone-taps
+   (it is a machine), but its DRAWERS are documents: on a phone or under a
+   finger every control in a shell drawer and in the Tool Finder is at least
+   44x44. `.wm-tap-exempt` opts a control out. Desktop is unchanged. */
+@media (max-width: 767px), (pointer: coarse) {
+  [data-touch-floor] :is(button, [role="button"], [role="switch"], [role="tab"], summary, select):not(.wm-tap-exempt),
+  [data-testid="tool-finder"] :is(button, [role="switch"], summary):not(.wm-tap-exempt) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 /* ── DOCUMENT ROOMS MEET THE PHONE TAP FLOOR (canon sweep 2026-10-06) ───────
    Measured at 390: News carried 83 controls under 44px (filter chips 23–26px
    tall), Shop 53, Journal 31, WM TV 13 (28px channel rows), Radio 9 (25px
@@ -1955,7 +1972,7 @@ input[type=range]::-webkit-slider-runnable-track {
   /* PEEK / BUILD / REVIEW (compact ticket, 2026-10-09 — ticketLayout.ts): PEEK leaves the chart
      readable (≤ ~50 % covered); a BUILD or REVIEW step fits without scrolling inside the sheet. */
   [data-testid="trade-panel"][data-stage="PEEK"] { max-height: 40svh !important; }
-  [data-testid="trade-panel"][data-stage="ACT"] { max-height: 72svh !important; }
+  [data-testid="trade-panel"][data-stage="ACT"] { max-height: 84svh !important; }
 }
 
 /* ── 3. PHONE: THE MASTHEAD SPENDS ITS ROWS ON JOBS ─────────────────────────
@@ -2189,7 +2206,14 @@ input[type=range]::-webkit-slider-runnable-track {
      ("LIVE — CERTIFIED QUOTE"), the same verdict twice. In a narrow band the
      chip alone carries it (its own title + aria); the duplicate steps out. */
   .wm-legend-live-dup { display: none !important; }
+  /* Serving /desk 4-up 1180 (b290eef, 2026-10-09): a STALE pane's status ran
+     110px past the pane. Narrow band: the owner's short recency words, without
+     the feed verdict the chip already carries; it may wrap to its own second
+     line inside its box (min-w-0 + line-clamp-2) and never leaves the band. */
+  .wm-legend-recency-wide { display: none !important; }
+  .wm-legend-recency-narrow { display: inline !important; }
 }
+.wm-legend-recency-narrow { display: none; }
 
 /* SpaidBot's panel stands ABOVE the chart's own chrome (cert lane, serving 390,
    2026-10-07 night: the "· 16 symbols" evidence chip (z 57) and the D button

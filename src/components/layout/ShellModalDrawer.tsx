@@ -113,6 +113,10 @@ function ShellModalDrawerContent({
           : { width: `min(${width}px, 100vw)`, paddingBottom: "env(safe-area-inset-bottom)" }}
         onKeyDown={onKeyDown}
         onMouseDown={event => event.stopPropagation()}
+        // Every shell drawer takes the 44px touch floor (globals.css
+        // [data-touch-floor]; sheriff batch 6: Chart tools carried 354 controls
+        // under 44px at 390 and 834 with a coarse pointer).
+        data-touch-floor=""
       >
         <div className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-wm-border px-4 py-2">
           <div className="min-w-0">

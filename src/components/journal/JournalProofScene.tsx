@@ -26,6 +26,8 @@ import { fvgReferenceSentence } from "@/lib/journal/fvgDecisionReference";
 import { behaviourCases } from "@/lib/journal/managementBehaviours";
 import { managementWalkthroughs } from "@/lib/journal/managementWalkthrough";
 import { journalRoundTrip } from "@/lib/journal/journalRoundTrip";
+import { brokerStoryFixtures, captureFixture, LIFECYCLE_BANNER, planLifecycleRoundTrip } from "@/lib/journal/journalLifecycleFixture";
+import { CapturedFacts } from "@/components/journal/CapturedFacts";
 
 const GOLD = "#d4af37";
 
@@ -37,6 +39,11 @@ export function JournalProofScene(): React.ReactElement {
   // Save → reload of one sample entry with its FVG reference, in a throwaway in-memory Storage
   // (the Journal's own writer and reader; the browser's storage is never touched).
   const roundTrip = useMemo(() => journalRoundTrip(f.entries[0].fvgRef), [f]);
+  // Rows that need a Founder action on the real account, shown on a labelled SAMPLE through the same owners
+  // and components: the plan's lifecycle (in memory), Review from a broker readback, auto-capture from a fill.
+  const lifecycle = useMemo(() => planLifecycleRoundTrip(), []);
+  const brokerStories = useMemo(() => brokerStoryFixtures(), []);
+  const capture = useMemo(() => captureFixture(), []);
   // §41: the 24 sample decisions (all targets 2R beyond the entry; references price-only) answer with
   // counts and INSUFFICIENT; a second synthetic set of 48 gap decisions shows the MEASURED form.
   const q41 = useMemo(() => {
@@ -90,6 +97,36 @@ export function JournalProofScene(): React.ReactElement {
         <p className="mt-2 text-[11px] font-bold" style={{ color: GOLD }}>
           {roundTrip.verdict}{roundTrip.secondSaveByteStable ? " · a second save → reload is byte-stable" : ""}
         </p>
+      </section>
+
+      <section aria-label="Plan lifecycle (sample)" data-testid="journal-proof-lifecycle" data-all-ok={lifecycle.allOk ? "yes" : "no"} className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">
+        <h2 className="text-sm font-bold text-wm-text">Plan · freeze → amend → reload → erase (one sample plan, in memory)</h2>
+        <p className="text-[11px] text-wm-text-muted">{LIFECYCLE_BANNER}. The plan store&apos;s own functions, run on a throwaway in-memory store under your member key.</p>
+        <ol className="mt-2 space-y-1 text-[11px]" style={{ overflowWrap: "anywhere" }}>
+          {lifecycle.steps.map(s => (
+            <li key={s.step} data-testid="journal-proof-lifecycle-step" data-ok={s.ok ? "yes" : "no"}>
+              <b className="text-wm-text">{s.step}</b>
+              <span className="block text-wm-text-muted">{s.outcome}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section aria-label="Review from a broker readback (sample)" data-testid="journal-proof-broker" className="space-y-3">
+        <h2 className="text-sm font-bold text-wm-text">Review · plan vs actual from a broker readback (sample stories in the feed&apos;s own shapes)</h2>
+        <p className="text-[11px] text-wm-text-muted">{LIFECYCLE_BANNER}.</p>
+        {brokerStories.map(b => (
+          <div key={b.broker} data-testid="journal-proof-broker-story" data-broker={b.broker} className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">
+            <div className="text-[11px] text-wm-text">{b.title}</div>
+            <StoryReviewRow storyKey={`proof-scene:broker:${b.broker}`} plan={b.input} readOnly defaultOpen />
+          </div>
+        ))}
+      </section>
+
+      <section aria-label="Auto-capture from a broker fill (sample)" data-testid="journal-proof-capture" data-ok={capture.ok ? "yes" : "no"} className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">
+        <h2 className="text-sm font-bold text-wm-text mb-1">Journal · auto-capture from a broker fill (one sample FILLED order)</h2>
+        <p className="text-[11px] text-wm-text-muted mb-2">{LIFECYCLE_BANNER}. Every field names where it came from; what the broker did not report stays UNREPORTED.</p>
+        {capture.ok ? <CapturedFacts capture={capture.draft} title="Captured from the broker (sample)" /> : <p className="text-[11px] text-wm-text-muted">{capture.reason}</p>}
       </section>
 
       <section aria-label="Management Sheriff walkthrough (sample)" data-testid="journal-proof-walkthrough" className="rounded-lg border border-wm-border bg-wm-surface/40 p-3 space-y-3">

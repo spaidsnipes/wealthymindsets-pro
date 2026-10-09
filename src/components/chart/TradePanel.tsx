@@ -138,8 +138,15 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     return () => { live = false; };
   }, [symbol, kind, setContract, setContractWhy]);
 
+  // PROOF SCENE (`scene=ticket-fixture`): asked by the URL, granted only to the signed-in owner (see below).
+  const [sceneAsked, setSceneAsked] = useState<TicketFixture | null>(null);
+  useEffect(() => { setSceneAsked(typeof window !== "undefined" ? parseTicketFixture(window.location.search) : null); }, []);
+  const scene = audience === "OWNER" ? sceneAsked : null;
+
   const snap = useTastyQuotes(contract ? [contract.streamer] : []);
-  const q = contract ? snap.quotes.get(contract.streamer) : undefined;
+  // `state=noquote`: the sample has NO quote for this contract — so no limit is prefilled and the review gate's
+  // reason can be read without typing. Every other state shows the real quote stream.
+  const q = contract && scene?.state !== "noquote" ? snap.quotes.get(contract.streamer) : undefined;
   const econ = useMemo(() => instrumentEconomics(contract?.symbol ?? symbol, price), [contract?.symbol, symbol, price]);
   const tick = econ.status === "PRICED" ? econ.tickSize : null;
   const pointValue = econ.status === "PRICED" ? econ.pointValue : null;
@@ -150,9 +157,6 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   useEffect(() => { setSide(null); }, [symbol]);
   // PROOF SCENE (`scene=ticket-fixture`): a SAMPLE book and a pre-picked side, for the signed-in owner only.
   // Every send / cancel / flatten control is refused at the control and no order route can be reached.
-  const [sceneAsked, setSceneAsked] = useState<TicketFixture | null>(null);
-  useEffect(() => { setSceneAsked(typeof window !== "undefined" ? parseTicketFixture(window.location.search) : null); }, []);
-  const scene = audience === "OWNER" ? sceneAsked : null;
   const sceneGate = scene ? railSendGate("PROOF_SCENE", "tastytrade") : null;
   useEffect(() => { if (scene) setSide(scene.side); }, [scene, symbol]);
   // A clock for the quote's age and the prefill's staleness (said, not assumed).
@@ -628,7 +632,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         </div>
       )}
 
-      <footer style={{ padding: "8px 12px", borderTop: `1px solid ${LINE}`, display: "flex", gap: 10 }}>
+      <footer data-testid="trade-footer" hidden={step === "REVIEW"} style={{ padding: "8px 12px", borderTop: `1px solid ${LINE}`, display: step === "REVIEW" ? "none" : "flex", gap: 10 }}>
         {kind === "STOCK" || kind === "FUTURE" ? (
           <button type="button" data-testid="trade-express-option" onClick={onOpenOptions} style={{ background: "none", border: "none", color: GOLD, fontSize: 11, cursor: "pointer" }}>
             Express it with an option →

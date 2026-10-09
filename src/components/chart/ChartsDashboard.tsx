@@ -3981,7 +3981,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     a screen. Same handlers as the study row and the profile doors.
   */
   const orderFlowToolsNode = (
-    <div data-testid="order-flow-tools" className="space-y-2">
+    // data-touch-floor: the same 44px touch rule the shell drawers carry (globals.css) —
+    // this card's toggles measured 20–21px tall under a finger (sheriff batch 6).
+    <div data-testid="order-flow-tools" data-touch-floor="" className="space-y-2">
       {/* DUAL ANATOMY (Garden 16 §17–§20): how the SAME absorption / exhaustion
           events are shown — mechanics, the Founder body (G06), or both fused. */}
       <div data-testid="anatomy-mode" className="flex flex-wrap items-center gap-1 px-1">

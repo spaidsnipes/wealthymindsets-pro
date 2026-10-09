@@ -28,6 +28,7 @@ import {
 } from "@/lib/educationProgressTruth";
 import { FVG_ACADEMY_MODULE, FVG_LESSONS, FVG_QUIZ_BANK } from "@/lib/academy/fvgCourse";
 import { FvgLessonBody } from "@/components/education/FvgLessonBody";
+import { proofFixtureScene } from "@/lib/chart/proofScene";
 import { persistAcademyNote, readAcademyNote } from "@/lib/educationNotesStorage";
 import { persistAcademyProgress } from "@/lib/educationProgressStorage";
 import { useShellModalFocus } from "@/components/layout/useShellModalFocus";
@@ -662,6 +663,8 @@ export default function EducationPage() {
       return { ...m, lessons: newLessons, completed: allDone };
     });
     setMods(next);
+    // A proof scene never writes: under `scene=education-fixture` progress stays in this page only.
+    if (proofFixtureScene(window.location.search) === "education-fixture") return;
     const persistence = persistAcademyProgress(localStorage, EDU_KEY, serializeProgress(next));
     setProgressPersistence(persistence.status);
   };

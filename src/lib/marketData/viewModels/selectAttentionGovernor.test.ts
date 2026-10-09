@@ -456,3 +456,20 @@ describe("P2-E load order (Sheriff §12 all-on, 2026-10-08)", () => {
     }
   });
 });
+
+describe("P2-E — layers that ask BEFORE the lens speaks (serving b290eef, 2026-10-09)", () => {
+  it("with last frame's quiet as the hint, early SUPPORTING context is capped under the quieted LIVE anatomy", () => {
+    const d = selectSemanticDensity("MID");
+    // Early in the frame the lens has not spoken: questionQuiet is still 1.
+    const blind = selectAttentionGovernor(input({ density: d }));
+    const hinted = selectAttentionGovernor(input({ density: d, loadQuietHint: 0.35 }));
+    const liveLater = hinted.withQuestionQuiet(0.35).alpha("valueCandle");
+    expect(blind.alpha("sessionBands")).toBeGreaterThan(liveLater);          // the defect
+    expect(hinted.alpha("sessionBands")).toBeLessThanOrEqual(liveLater + 1e-9);
+    expect(hinted.alpha("volumeField")).toBeLessThanOrEqual(liveLater + 1e-9);
+    // A LIVE layer's own alpha is never lowered by the hint.
+    expect(hinted.alpha("bubbles")).toBe(blind.alpha("bubbles"));
+    // No hint, or a hint of 1: unchanged.
+    expect(selectAttentionGovernor(input({ density: d, loadQuietHint: 1 })).alpha("sessionBands")).toBe(blind.alpha("sessionBands"));
+  });
+});

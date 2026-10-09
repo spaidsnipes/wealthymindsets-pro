@@ -9,7 +9,7 @@ import { parseTicketFixture, TICKET_FIXTURE_BANNER, TICKET_FIXTURE_TAIL, ticketF
 const NOW = Date.parse("2026-10-09T05:00:00Z");
 const C = "/NQZ6";
 const gate = { killSwitch: false, limitsSet: true, proofRefusal: railSendGate("PROOF_SCENE", "tastytrade").reason };
-const bookOf = (state: "flat" | "holding" | "working" | "inflight", side: "BUY" | "SELL" = "BUY") => ticketBook(ticketFixtureLines({ side, state }, C, 31_000, 20, NOW), C, gate);
+const bookOf = (state: "flat" | "holding" | "working" | "inflight" | "noquote", side: "BUY" | "SELL" = "BUY") => ticketBook(ticketFixtureLines({ side, state }, C, 31_000, 20, NOW), C, gate);
 
 describe("parseTicketFixture", () => {
   it("needs the token AND a side; the state defaults to flat; unknown values are no scene", () => {
@@ -56,6 +56,12 @@ describe("the sample readback, per state", () => {
       expect(b.working[0].tail, st).toBe("SMPL");
     }
     expect(bookOf("working", "SELL").working[0].words).toContain("Buy to Close 1 /NQZ6 · trigger 31155");
+  });
+  it("noquote: the book is flat (the missing quote is the ticket's part, not the book's)", () => {
+    expect(parseTicketFixture("?scene=ticket-fixture&side=buy&state=noquote")).toEqual({ side: "BUY", state: "noquote" });
+    const rb = ticketFixtureReadback({ side: "BUY", state: "noquote" }, C, 31_000, NOW);
+    expect(rb).toMatchObject({ positions: [], orders: [] });
+    expect(bookOf("noquote").position.state).toBe("FLAT");
   });
   it("no reference price → 100, never NaN", () => {
     expect(ticketFixtureReadback({ side: "BUY", state: "holding" }, C, null, NOW).positions[0].averageOpenPrice).toBe(100);

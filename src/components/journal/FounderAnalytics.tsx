@@ -23,12 +23,9 @@ import {
   type AnalyticsTrip, type JournalFact, type ProposedModel,
 } from "@/lib/journal/founderAnalytics";
 import { hydrateJournalEntries } from "@/lib/journal/hydrateJournalEntries";
-import { readPlanForDecision } from "@/lib/journal/managementPlanStore";
-import { composePlanReview, planReviewInputForJournalEntry } from "@/lib/journal/planReview";
 import type { PlanVsActualResult } from "@/lib/journal/planVsActual";
-import { readStoryReviews } from "@/lib/journal/storyReview";
-import { journalReviewKey } from "@/lib/journal/captureReviewEvidence";
 import { readJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
+import { readPlanResultsFromJournal } from "@/components/journal/usePlanResults";
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3", LINE = "rgba(139,106,41,0.25)";
 
@@ -44,17 +41,6 @@ function readJournalFacts(): JournalFact[] {
   } catch { return []; }
 }
 
-/** Garden 19 §28: plan vs actual for every journal entry whose Decision_ID has a frozen plan. Read only. */
-function readPlanReviews(): PlanVsActualResult[] {
-  try {
-    const read = readJournalStorage(window.localStorage);
-    const reviews = readStoryReviews();
-    return hydrateJournalEntries(read.records).entries.flatMap(e => {
-      const input = planReviewInputForJournalEntry(e, id => readPlanForDecision(window.localStorage, id));
-      return input?.plan ? [composePlanReview(input, reviews[journalReviewKey(e)]?.planWhy).result] : [];
-    });
-  } catch { return []; }
-}
 
 const MODEL_WORD: Readonly<Record<ProposedModel, string>> = { MODEL_1: "Model 1", MODEL_2: "Model 2", UNCLASSIFIED: "Unclassified" };
 
@@ -65,7 +51,7 @@ export function FounderAnalytics({ episodes, ttAccounts }: { episodes: readonly 
   const ownerVersion = useManagementOwnerVersion();
   useEffect(() => {
     setJournal(readJournalFacts());
-    setPlanReviews(readPlanReviews());
+    setPlanReviews(readPlanResultsFromJournal());   // the one reader (usePlanResults.ts)
     try { setMarks(parseModels(window.localStorage.getItem(EPISODE_MODELS_KEY))); } catch { setMarks({}); }
   }, [ownerVersion]);
 

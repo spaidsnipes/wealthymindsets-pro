@@ -77,6 +77,8 @@ describe("the wire chip's BROKER lane reads the certificate", () => {
     expect(v.label).toMatch(/^BROKER NOT PROVED · DATA /);
     expect(v.detail).toContain("Broker lane headline: certificate record observed");
     expect(v.detail).toContain("differs from the certificate's record");
+    // The chip prints the house clock (the trader's zone), the same as the card — never raw UTC.
+    expect(v.detail).not.toMatch(/\d\d:\d\d:\d\d UTC/);
   });
   it("agreeing record → CONNECTED from the record; no certificate block → the live lane, unchanged", () => {
     const cert = webullCertificateBlock(record(9), NOW);

@@ -300,6 +300,18 @@ The journal proof scene shows the same walkthrough in six steps per decision.
   HELD_THROUGH_INVALIDATION, under the same rule. A pattern with nothing to count says
   "nothing to count yet".
 
+### Departures and their lesson doors on the profile
+
+`departureRows` (in `planAdherence.ts`) lists each kind of departure among the trader's decided
+trades, most frequent first. The profile's Personal Edge shows them (`DepartureLessonRows`).
+* **At 20 or more decided trades:** the row gives the count and share, and carries "Study: Lesson N ·
+  title →". The door comes from `planLoop.lessonForFinding`, the same mapping the journal uses.
+* **Below 20:** the row gives the count only, has no door, and says why — no lesson is suggested
+  from a sample this small.
+* **No frozen plan:** the journal's own empty line.
+
+Test: `components/profile/departureLessonRows.test.tsx`.
+
 ### FVG study list (§23)
 
 Every journal decision that references an FVG (its as-of-decision snapshot,

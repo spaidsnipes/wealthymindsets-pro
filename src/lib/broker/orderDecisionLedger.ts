@@ -36,6 +36,30 @@ export async function putOrderDecision(kv: WebullKvNamespace, row: OrderDecision
   await kv.put(orderDecisionKey(row.broker, row.clientOrderId), JSON.stringify(row), { expirationTtl: TTL_SEC });
 }
 
+/**
+ * A REFUSED live send, written down (2026-10-09). Codes and sizes only — never a
+ * token, an account number or a price the broker did not see. Its own key, so a
+ * refusal can never be mistaken for (or block) an order's idempotency record.
+ */
+export interface OrderRefusalRow {
+  readonly broker: "tastytrade" | "webull";
+  readonly clientOrderId: string;
+  readonly decisionId: string;
+  readonly symbol: string;
+  readonly action: string;
+  readonly qty: number;
+  /** The preflight's refusal codes, in order. */
+  readonly codes: readonly string[];
+  readonly refusedAtMs: number;
+}
+
+export const orderRefusalKey = (broker: string, clientOrderId: string, atMs: number) => `wm:order-refusal:v1:${broker}:${clientOrderId || "no-key"}:${atMs}`;
+
+/** Best effort: the refusal has already been decided; a failed write never changes it. */
+export async function putOrderRefusal(kv: WebullKvNamespace, row: OrderRefusalRow): Promise<void> {
+  await kv.put(orderRefusalKey(row.broker, row.clientOrderId, row.refusedAtMs), JSON.stringify(row));
+}
+
 export async function getOrderDecision(kv: WebullKvNamespace, broker: string, clientOrderId: string): Promise<OrderDecisionRow | null> {
   const raw = await kv.get(orderDecisionKey(broker, clientOrderId));
   if (!raw) return null;

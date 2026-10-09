@@ -75,8 +75,13 @@ export const SELECT_PARAM = "select";
  *                     the real ticket (src/lib/execution/ticketFixture.ts). Every send /
  *                     cancel / flatten control is refused at the control; it cannot reach
  *                     an order route (ticketFixtureNeverSends.sentinel.test.ts).
+ *   education-fixture → /education (2026-10-09): the FVG lessons' "Show me my examples"
+ *                     lists the journal fixture's SAMPLE decisions through the real
+ *                     selector (fvgReferencedExamples); each door lands in the journal
+ *                     proof scene. Signed-in only, a banner on screen, the member's
+ *                     journal is never read and Academy progress is not written.
  */
-export const PROOF_FIXTURE_SCENES = ["journal-fixture", "profile-fixture", "lens-fixture", "ticket-fixture"] as const;
+export const PROOF_FIXTURE_SCENES = ["journal-fixture", "profile-fixture", "lens-fixture", "ticket-fixture", "education-fixture"] as const;
 export type ProofFixtureScene = (typeof PROOF_FIXTURE_SCENES)[number];
 
 /** The fixture scene the URL asks for, or null. */

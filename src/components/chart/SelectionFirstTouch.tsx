@@ -29,6 +29,8 @@ const PEARL = "#E8EAF2";
 const MUTED = "#8B8FA8";
 
 const learnedKey = (id: string) => `wm:edu:firstTouch:${id}`;
+/** How long a first-touch line must have been on screen before it counts as seen. */
+export const FIRST_TOUCH_SEEN_MS = 1500;
 
 function readLearned(id: string): boolean {
   if (proofSceneHoldsWrites()) return false;
@@ -46,21 +48,34 @@ export const InspectFirstTouchContext = createContext<{ id: EducationKey; label:
 export function InspectFirstTouchLine() {
   const ctx = useContext(InspectFirstTouchContext);
   const edu = ctx ? educationFor(ctx.id) : null;
-  if (!ctx || !edu) return null;
+  // ONCE PER KIND (coordinator ruling, 2026-10-09). The side card always yields
+  // to an open Inspect, and most selections open Inspect — so at desktop widths
+  // a first touch had no carrier (serving b290eef: a zone tap showed no line at
+  // 1440). The line rides here at EVERY width for EVERY selection kind, and it
+  // is a FIRST touch: once it has been on screen for a kind it is remembered
+  // (the same per-viewer key the card's "Got it" writes) and not shown again.
+  // A proof scene never writes it.
+  const id = ctx?.id ?? null;
+  const [learned, setLearned] = useState(false);
+  useEffect(() => {
+    if (!id) return;
+    const was = readLearned(id);
+    setLearned(was);
+    if (was) return;
+    const shownAt = Date.now();
+    return () => {
+      // Remember only a line that was really on screen (not a mount that was torn straight down).
+      if (Date.now() - shownAt < FIRST_TOUCH_SEEN_MS || proofSceneHoldsWrites()) return;
+      try { localStorage.setItem(learnedKey(id), "1"); } catch { /* storage refused */ }
+    };
+  }, [id]);
+  if (!ctx || !edu || learned) return null;
+  const line = composeFirstTouch(ctx.label, firstTouchFor(ctx.id, ctx.objectId) ?? "");
   return (
-    <div data-testid="inspect-first-touch" data-first-touch-id={ctx.id}
-      // A BAR selected by a word (effort mark, keel, wisdom line) ALWAYS opens
-      // Inspect, and the side card yields to an open Inspect — so at desktop
-      // widths its first-touch line had no carrier at all (serving ea8ad94,
-      // 2026-10-09: both carriers `display:none` at 1440). It rides here at
-      // every width; every other selection keeps the phone-only rule.
-      data-first-touch-everywhere={ctx.id === "BAR_SELECTION" ? "true" : undefined}
-      className={`${ctx.id === "BAR_SELECTION" ? "block" : "hidden max-sm:block"} mt-1 text-[11px] leading-snug`} style={{ color: PEARL }}>
+    <div data-testid="inspect-first-touch" data-first-touch-id={ctx.id} data-first-touch-everywhere="true"
+      className="block mt-1 text-[11px] leading-snug" style={{ color: PEARL }}>
       {/* The label is dropped when the sentence already opens with it (composeFirstTouch — one rule for every record). */}
-      {(() => {
-        const line = composeFirstTouch(ctx.label, firstTouchFor(ctx.id, ctx.objectId) ?? "");
-        return <>{line.label ? <><span className="font-bold" style={{ color: GOLD }}>{line.label}</span><span style={{ color: MUTED }}> · </span></> : null}{line.sentence}</>;
-      })()}
+      {line.label ? <><span className="font-bold" style={{ color: GOLD }}>{line.label}</span><span style={{ color: MUTED }}> · </span></> : null}{line.sentence}
     </div>
   );
 }
@@ -98,7 +113,11 @@ export function SelectionFirstTouch({ id, label, objectId, inspectOpen, onOpenIn
       }}
     >
       <div className="text-[9px] font-bold uppercase tracking-[0.16em] max-sm:hidden" style={{ color: MUTED }}>You selected</div>
-      <div className="text-[12.5px] font-bold leading-tight max-sm:hidden" style={{ color: GOLD }}>{label}</div>
+      {/* The heading is the label; when the sentence below already opens with it the heading is dropped
+          (serving b290eef, 2026-10-09: the desktop card read "Supply / demand zone" twice, one line apart). */}
+      {composeFirstTouch(label, firstTouchFor(id, objectId) ?? "").label ? (
+        <div className="text-[12.5px] font-bold leading-tight max-sm:hidden" data-testid="first-touch-heading" style={{ color: GOLD }}>{label}</div>
+      ) : null}
       <div className="mt-1 text-[12px] leading-snug max-sm:mt-0 max-sm:text-[11.5px]" style={{ color: PEARL }} data-testid="first-touch-line">
         {composeFirstTouch(label, firstTouchFor(id, objectId) ?? "").label ? <span className="hidden max-sm:inline font-bold" style={{ color: GOLD }}>{label} · </span> : null}{firstTouchFor(id, objectId)}
       </div>

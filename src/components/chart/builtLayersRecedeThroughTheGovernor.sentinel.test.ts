@@ -247,3 +247,33 @@ describe("late-night slices (2026-10-08)", () => {
     expect(CHART).toContain("|PAIR_OBJECT:${ds.profileFusionObject ?? \"NONE\"}");
   });
 });
+
+describe("narrow legend band keeps its status inside the pane (Desk 4-up, 2026-10-09)", () => {
+  const CSS = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+  it("short recency words without the chip's duplicated verdict, in the narrow container only", () => {
+    expect(CHART).toContain('<span className="wm-legend-recency-narrow" data-recency-narrow aria-hidden="true">{bare}</span>');
+    expect(CHART).toContain("const dup = `${candleStatus.label} · `;");
+    const narrow = CSS.slice(CSS.indexOf(".wm-legend-recency-wide { display: none !important; }") - 1400);
+    expect(narrow).toContain("@container wm-legend (max-width: 760px)");
+    expect(CSS).toContain(".wm-legend-recency-narrow { display: inline !important; }");
+    expect(CSS).toMatch(/\}\n\.wm-legend-recency-narrow \{ display: none; \}/);
+  });
+});
+
+describe("P3-I note anchors (Sheriff, 2026-10-08)", () => {
+  it("a lone-label pip stays a wordless 12px dot (no sub-10px type); the open list is translucent, clear of the newest candles; a row with a bar opens it", () => {
+    expect(CHART).toContain('b.textContent = p.single ? "" : p.a.word;');
+    expect(CHART).not.toMatch(/700 8px\/10px/);
+    expect(CHART).toContain("const listLeft = Math.max(4, Math.min(p.r.x, plotRight - 230, pipClearLeft - 232));");
+    expect(CHART).toContain('background: "rgba(17,15,11,0.8)", backdropFilter: "blur(2px)"');
+    expect(CHART).toContain('rb.type = "button"; rb.dataset.action = "open-bar"; rb.dataset.barTime = String(nt.time);');
+    expect(CHART).toContain('if (btn.dataset.action === "open-bar") {');
+  });
+});
+
+describe("P3-J wisdom fold (Sheriff, 2026-10-08)", () => {
+  it("the tier receipt is written after placement; a folded line says FOLDED and keeps its evidence bar", () => {
+    expect(CHART).toContain('time: wl.time }); canvas.dataset.crossCandleWisdomTier = "FOLDED:NOTE_COMPOSER"; }');
+    expect(CHART).toContain("canvas.dataset.crossCandleWisdomTier = wisdomTierNow;");
+  });
+});

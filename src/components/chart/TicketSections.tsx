@@ -60,7 +60,9 @@ export function TicketSections({ compact, peek = false, step = null, review, inF
           {each(COMPACT_REVIEW_SECTIONS)}
         </div>
       </div>
-      <details data-testid="trade-details" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px" }}>
+      {/* REVIEW is the live-order block alone: Details folds out of the way (CSS only — still mounted). Measured on
+          serving b290eef at 390: with Details below it REVIEW ran 26 px past the sheet. */}
+      <details data-testid="trade-details" hidden={reviewing} style={{ display: reviewing ? "none" : undefined, border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px" }}>
         <summary data-testid="trade-details-summary" style={{ cursor: "pointer", color: GOLD, fontWeight: 600, minHeight: 32 }}>{summary}</summary>
         <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
           {each(layout.details)}

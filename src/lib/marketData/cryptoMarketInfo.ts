@@ -12,7 +12,12 @@ const n = (v: unknown): number | null => {
   const x = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
   return Number.isFinite(x) ? x : null;
 };
-const px = (v: number | null) => (v == null ? null : v.toLocaleString(undefined, { maximumFractionDigits: v >= 100 ? 2 : 6 }));
+// A price at or above 1 prints exactly two decimals — "83,452.99" beside
+// "80,314.7" beside "83,139" in one panel read as three precisions (sheriff
+// batch 6, serving BTC-USD 2026-10-09). Sub-1 prices keep up to six.
+const px = (v: number | null) => (v == null ? null : v >= 1
+  ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  : v.toLocaleString("en-US", { maximumFractionDigits: 6 }));
 const qty = (v: number | null, unit: string) => (v == null ? null : `${v.toLocaleString(undefined, { maximumFractionDigits: v >= 1000 ? 0 : 2 })} ${unit}`);
 
 export function readCoinbaseStats(body: unknown, base: string, dvol: number | null): MetricRow[] {

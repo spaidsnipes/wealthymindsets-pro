@@ -38,7 +38,13 @@ type Lookup =
 
 const TERMINAL = new Set(["FILLED", "CANCELLED", "FAILED"]);
 
-export function WebullLiveOrder({ intent, accountIndex, accountLabel, decisionId }: {
+export function WebullLiveOrder({ intent, accountIndex, accountLabel, decisionId, quote = null }: {
+  /**
+   * The live, dated touch this order is priced against. The server gate
+   * (2026-10-09) refuses a risk-increasing order without a fresh one; a closing
+   * limit needs none. Never invented here — null when the ticket holds no live quote.
+   */
+  readonly quote?: { readonly bid: number | null; readonly ask: number | null; readonly atMs: number } | null;
   readonly intent: WebullOptionIntent;
   readonly accountIndex: number;
   /** "MARGIN · …2345", from the preview's own account list. */
@@ -89,6 +95,10 @@ export function WebullLiveOrder({ intent, accountIndex, accountLabel, decisionId
         body: JSON.stringify({
           optionOsi: intent.osi, positionIntent: intent.positionIntent, qty: intent.qty, type: "limit", limitPx: intent.limitPx, tif: "day",
           decisionId, clientOrderId: key, accountIndex, confirmLive: true,
+          // What this ticket shows the trader: a LIVE (production) Webull order — the
+          // server refuses if its own environment differs — and the touch it priced against.
+          environment: "production",
+          ...(quote ? { quote } : {}),
         }),
       });
       const j = await r.json().catch(() => null);

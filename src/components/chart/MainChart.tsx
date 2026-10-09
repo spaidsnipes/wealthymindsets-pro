@@ -2336,6 +2336,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
   /** And the fourth. Four tape-rate readings, one rule. */
   const liquidityWeatherRef = useRef<LiquidityWeatherVM | null>(null);
+  /** The Question Lens quiet of the last painted frame (1 = none) — the governor's load-cap hint. */
+  const lensQuietLastRef = useRef(1);
   const attentionFixtureQuietRef = useRef(false);
   useEffect(() => { attentionFixtureQuietRef.current = attentionFixtureQuiet; }, [attentionFixtureQuiet]);
   const lensFixtureWeatherRef = useRef(false);
@@ -8218,6 +8220,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       let att = selectAttentionGovernor({
         density: semanticDensity,
         questionQuiet: 1,
+        // Last frame's lens quiet, for the load cap of layers that ask before the lens speaks.
+        loadQuietHint: lensQuietLastRef.current,
         // The phone's word budget (selectSemanticPermission, NARROW_GLASS_MAX_PX).
         narrowGlass,
         regimeLight: layerOnRef.current.regimeLighting === true ? regimeLightingRef.current : null,
@@ -16381,6 +16385,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Attention fixture (proof scene, banner on): the lens's own quiet, held.
       if (attentionFixtureQuietRef.current) { questionQuiet = Math.min(questionQuiet, ATTENTION_FIXTURE_QUIET); canvas.dataset.attentionFixture = `QUESTION_QUIET:${ATTENTION_FIXTURE_QUIET}`; }
       else delete canvas.dataset.attentionFixture;
+      lensQuietLastRef.current = questionQuiet;
       att = att.withQuestionQuiet(questionQuiet);
       canvas.dataset.attention = att.receipt;
 
@@ -25959,16 +25964,21 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // the line's own inspected bar makes it the selection.
             const wlSel = { selectedItem: inspectedBarRef.current?.time === wl.time };
             ctx.globalAlpha = att.textAlpha("wisdomLine", wlSel);
-            // Painted after the frame's attentionTiers receipt, so it names its own.
-            canvas.dataset.crossCandleWisdomTier = `${att.tierOf("wisdomLine", wlSel)}:${ctx.globalAlpha.toFixed(2)}`;
+            // Painted after the frame's attentionTiers receipt, so it names its
+            // own — AFTER placement (P3-J): a line folded into the note composer
+            // was not painted at any tier, and says FOLDED.
+            const wisdomTierNow = `${att.tierOf("wisdomLine", wlSel)}:${ctx.globalAlpha.toFixed(2)}`;
             ctx.font = `700 10px ${MARKET_SANS}`; ctx.textBaseline = "top"; ctx.textAlign = "left";
             const tw = Math.ceil(ctx.measureText(wl.text).width) + 8, th = 14;
             const xr = chart.timeScale().timeToCoordinate(wl.time as never);
             const ax = xr == null ? plotRight - tw - 8 : Math.max(keepOutMinX(), Math.min(plotRight - tw - 8, +xr - tw / 2));
             const pref = { x: ax, y: HEADER_FLOOR_Y + 6, w: tw, h: th };
             const sp = placeClearOfKeepOut(pref, [...keepOut(), ...rowBodiesAt(pref.y, pref.y + th + 18)], { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [{ ...pref, y: pref.y + 18 }, { ...pref, y: pref.y + 36 }] });
-            if (sp.mode === "BLOCKED") displacedNotes.push({ layer: "WISDOM", text: wl.text, x: pref.x + tw / 2, y: pref.y + th / 2, time: wl.time });
+            // Folded: the note keeps its evidence bar (`time`), so its row in the
+            // anchor's list opens that candle.
+            if (sp.mode === "BLOCKED") { displacedNotes.push({ layer: "WISDOM", text: wl.text, x: pref.x + tw / 2, y: pref.y + th / 2, time: wl.time }); canvas.dataset.crossCandleWisdomTier = "FOLDED:NOTE_COMPOSER"; }
             else {
+              canvas.dataset.crossCandleWisdomTier = wisdomTierNow;
               const r = sp.rect;
               floatingChips.push({ ...r });
               // Tappable (ASK-3): a generous hit rect — at least 24px tall on touch.
@@ -26075,6 +26085,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               b.dataset.anchorSeed = p.seed;
               b.setAttribute("aria-expanded", noteAnchorOpenRef.current === p.seed ? "true" : "false");
               b.title = anchorListLines(p.a).join("\n");
+              // A pip is ALWAYS one held label (two or more collapse into the words
+              // "N MARKET EVENTS"), so it stays the quiet wordless 12px dot — no 8px
+              // digit on the glass (coordinator ruling 2026-10-09); its label is in
+              // the title, the aria-label and the tap list.
               b.textContent = p.single ? "" : p.a.word;
               b.setAttribute("aria-label", p.single ? `${p.a.word}: ${anchorListLines(p.a).join(", ")}` : p.a.word);
               Object.assign(b.style, {
@@ -26088,12 +26102,28 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (noteAnchorOpenRef.current === p.seed) {
                 const list = document.createElement("div");
                 list.dataset.testid = "event-note-list";
+                // P3-I: the open list was a 0.94-opaque card over the candles at
+                // its anchor. It now stands LEFT of the newest candles' clear zone
+                // and lets the market read through (0.8 + a light blur).
+                const listLeft = Math.max(4, Math.min(p.r.x, plotRight - 230, pipClearLeft - 232));
                 Object.assign(list.style, {
-                  position: "absolute", left: `${Math.round(Math.min(p.r.x, plotRight - 230))}px`, top: `${Math.round(p.r.y + p.r.h + 4)}px`, width: "226px",
-                  padding: "6px 8px", font: `600 10px ${MARKET_SANS}`, color: "#ede6d3", background: "rgba(17,15,11,0.94)",
+                  position: "absolute", left: `${Math.round(listLeft)}px`, top: `${Math.round(p.r.y + p.r.h + 4)}px`, width: "226px",
+                  padding: "6px 8px", font: `600 10px ${MARKET_SANS}`, color: "#ede6d3", background: "rgba(17,15,11,0.8)", backdropFilter: "blur(2px)",
                   border: "1px solid rgba(201,165,92,0.5)", borderRadius: "8px", pointerEvents: "auto", zIndex: "1",
                 });
-                for (const line of anchorListLines(p.a)) { const d = document.createElement("div"); d.textContent = line; d.style.padding = "2px 0"; list.appendChild(d); }
+                // P3-I: a row that knows its bar OPENS it (the Wisdom line's
+                // selection owner); a row with no bar stays a plain line.
+                p.a.notes.forEach((nt, k) => {
+                  const line = anchorListLines(p.a)[k];
+                  if (nt.time != null && Number.isFinite(nt.time)) {
+                    const rb = document.createElement("button");
+                    rb.type = "button"; rb.dataset.action = "open-bar"; rb.dataset.barTime = String(nt.time);
+                    rb.textContent = `${line} ›`;
+                    rb.setAttribute("aria-label", `${line} — open this candle in Inspect`);
+                    Object.assign(rb.style, { display: "block", width: "100%", textAlign: "left", minHeight: "24px", padding: "2px 0", color: "#ede6d3", background: "transparent", border: "none", cursor: "pointer", font: `600 10px ${MARKET_SANS}` });
+                    list.appendChild(rb);
+                  } else { const d = document.createElement("div"); d.textContent = line; d.style.padding = "2px 0"; list.appendChild(d); }
+                });
                 const off = document.createElement("button");
                 off.type = "button"; off.dataset.action = "compose-off"; off.textContent = "Show every label in place";
                 Object.assign(off.style, { marginTop: "4px", color: "#c9a55c", background: "transparent", border: "none", padding: "2px 0", cursor: "pointer", font: `700 10px ${MARKET_SANS}` });
@@ -27708,12 +27738,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const feedRecency = thinSessionRecency(feedRecencyClock, recencySessionVerdict);
   // Sheriff A11 (2026-10-07): the full sentence on desktop / tablet (two-line
   // clamp, A10 KEEP), the short form on a phone — the time never clipped away.
-  const recencyWords = (full: string, short: string) => (
-    <>
-      <span className="max-sm:hidden">{full}</span>
-      <span className="hidden max-sm:inline" data-recency-short>{short}</span>
-    </>
-  );
+  // NARROW LEGEND BAND (serving /desk 4-up at 1180, 2026-10-09: in a STALE pane
+  // "STALE PIPELINE · OVERNIGHT · THIN TAPE · BAR OPENED …" ran 110px past the
+  // pane's right edge). Inside the wm-legend container under 760px the words
+  // are the owner's SHORT form, and the feed verdict the fidelity chip beside
+  // the price already carries is not said a second time. Nothing is truncated:
+  // the full sentence stays in the element's title and spoken label.
+  const recencyWords = (full: string, short: string) => {
+    const dup = `${candleStatus.label} · `;
+    const bare = short.startsWith(dup) ? short.slice(dup.length) : short;
+    return (
+      <>
+        <span className="max-sm:hidden wm-legend-recency-wide">{full}</span>
+        <span className="hidden max-sm:inline wm-legend-recency-wide" data-recency-short>{short}</span>
+        <span className="wm-legend-recency-narrow" data-recency-narrow aria-hidden="true">{bare}</span>
+      </>
+    );
+  };
 
   /*
    * H-101 lives in price/time space. The target is projected from the
@@ -28439,7 +28480,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             return (
               <div
-                className="flex items-center gap-1.5"
+                className="flex min-w-0 items-center gap-1.5"
                 aria-label={feedRecency.spoken}
                 data-feed-recency-kind={feedRecency.kind}
                 title={
@@ -29027,6 +29068,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (btn.dataset.action === "compose-on") {
               composeNotesRef.current = true;
               if (!proofSceneHoldsWrites()) { try { localStorage.setItem(COMPOSE_NOTES_KEY, "true"); } catch { /* this visit only */ } }
+              return;
+            }
+            if (btn.dataset.action === "open-bar") {
+              const tBar = Number(btn.dataset.barTime);
+              if (Number.isFinite(tBar)) onSelectBarAt?.(tBar);
+              noteAnchorOpenRef.current = null;
+              noteAnchorsKeyRef.current = "";
               return;
             }
             if (btn.dataset.action === "compose-off") {

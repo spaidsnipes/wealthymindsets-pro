@@ -53,6 +53,7 @@ describe("TicketSections — phone", () => {
     expect(html).toMatch(/data-testid="trade-review-sections" style="display:contents"/);
     expect(order(part(html, "trade-review-sections", "trade-details"))).toEqual(["LIVE_ORDER"]);
     expect(order(html)[0]).toBe("QUOTE");
+    expect(html).toMatch(/<details data-testid="trade-details" hidden="" style="display:none/);   // Details folds out of REVIEW, still mounted
     expect(html).toMatch(/<button type="button" data-testid="trade-edit"(?! disabled)[^>]*>◂ Edit<\/button>/);
   });
   it("REVIEW in flight: Edit is refused and its own label says why", () => {

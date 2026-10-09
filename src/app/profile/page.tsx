@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isCoreTeam } from "@/lib/coreTeam";
 import ProcessLandscape from "@/components/profile/ProcessLandscape";
 import PersonalEdgePanel from "@/components/profile/PersonalEdgePanel";
+import { DepartureLessonRows } from "@/components/profile/DepartureLessonRows";
 import PlaybookDNAPanel from "@/components/profile/PlaybookDNAPanel";
 import SessionEdgePanel from "@/components/profile/SessionEdgePanel";
 import GrowthHero from "@/components/profile/GrowthHero";
@@ -915,6 +916,10 @@ function ProfilePageInner() {
                   nowMs: growthNowMs,
                 })}
               />
+
+              {/* Departures from the trader's own frozen plans, each with its lesson door at a sufficient sample
+                  (the journal's mapping); no door, and the reason, while INSUFFICIENT EVIDENCE. */}
+              <DepartureLessonRows />
 
               {/* Playbook DNA — per-playbook stats with truthful maturity. */}
               <PlaybookDNAPanel

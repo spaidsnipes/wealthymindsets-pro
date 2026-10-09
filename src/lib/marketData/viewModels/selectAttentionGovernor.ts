@@ -232,6 +232,15 @@ export interface AttentionGovernorInput {
   readonly density: SemanticDensityVM;
   /** Question Lens quiet: 1 = no lens, < 1 while a question is asked. */
   readonly questionQuiet: number;
+  /**
+   * The quiet the Question Lens set on the PREVIOUS frame (1 when none). The
+   * lens decides its quiet mid-frame, after the early context layers (session
+   * bands, the volume field) have already asked — so their load cap was read
+   * at quiet 1 and they painted at 0.6 over a LIVE candle anatomy at 0.21
+   * (serving b290eef, attention fixture, 2026-10-09). The LOAD CAP alone reads
+   * this hint; a layer's own alpha is still quieted only by the lens itself.
+   */
+  readonly loadQuietHint?: number;
   /** The plot is narrower than NARROW_GLASS_MAX_PX (a phone): the narrow-glass word budget applies. */
   readonly narrowGlass?: boolean;
   /**
@@ -361,7 +370,7 @@ export function selectAttentionGovernor(
   */
   const liveLoadRef = input.density.depth === "FAR"
     ? Infinity
-    : TIER_CEILING.LIVE * Math.min(fin(input.density.mid, 1), fin(input.density.micro, 1)) * quiet
+    : TIER_CEILING.LIVE * Math.min(fin(input.density.mid, 1), fin(input.density.micro, 1)) * Math.min(quiet, Math.min(1, Math.max(0, fin(input.loadQuietHint ?? 1, 1))))
       * (receding ? SELECTION_RECEDE : 1) * (stale ? STALE_DIM : 1);
   const LOAD_SHARE: Readonly<Partial<Record<LayerStanding, number>>> = {
     SUPPORTING: 1,

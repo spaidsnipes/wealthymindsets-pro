@@ -15,7 +15,7 @@ describe("ticketSections — one ticket, two orders", () => {
   it("the phone breakpoint is 430 px", () => {
     expect(COMPACT_TICKET_MAX_WIDTH).toBe(430);
     expect(COMPACT_TICKET_QUERY).toBe("(max-width: 430px)");
-    expect([COMPACT_PEEK_MAX_HEIGHT, COMPACT_ACT_MAX_HEIGHT]).toEqual(["40svh", "72svh"]);
+    expect([COMPACT_PEEK_MAX_HEIGHT, COMPACT_ACT_MAX_HEIGHT]).toEqual(["40svh", "84svh"]);
   });
   it("tablet / desktop: the flowing order, nothing folded, no phone-only line", () => {
     const l = ticketSections(false);
@@ -71,6 +71,7 @@ describe("TradePanel is ONE ticket in both layouts", () => {
     expect(T).toContain('<TicketSections compact={compact} peek={stage === "PEEK"} step={step} review={review} inFlight={!stageInput.preSend}');
     expect(T).toContain("onReview={() => { if (review.allowed) setReviewing(true); }} onEdit={() => { if (stageInput.preSend) setReviewing(false); }}");
     expect(T).toContain("const step = ticketStep({ stage, reviewing, preSend: stageInput.preSend });");
+    expect(T).toContain('<footer data-testid="trade-footer" hidden={step === "REVIEW"}');
     expect(T).toContain("const stageInput = { compact, sidePicked: side != null, folded, preSend: isPreSendPhase(entryPhase) && scene?.state !== \"inflight\" };");
     expect(T).toContain("onClick={() => { if (fold.enabled) setFolded(v => !v); }}");
     expect(T).toContain("window.matchMedia?.(COMPACT_TICKET_QUERY)");
@@ -132,7 +133,7 @@ describe("BUILD / REVIEW — the two ACT steps", () => {
     const css = readFileSync(path.resolve(__dirname, "../../app/globals.css"), "utf8");
     expect(css.length).toBeGreaterThan(50_000);
     expect(css).toContain('[data-testid="trade-panel"][data-stage="PEEK"] { max-height: 40svh !important; }');
-    expect(css).toContain('[data-testid="trade-panel"][data-stage="ACT"] { max-height: 72svh !important; }');
+    expect(css).toContain('[data-testid="trade-panel"][data-stage="ACT"] { max-height: 84svh !important; }');
     expect(css.indexOf('[data-stage="PEEK"]')).toBeGreaterThan(css.indexOf("max-height: 58svh !important;"));
   });
 });

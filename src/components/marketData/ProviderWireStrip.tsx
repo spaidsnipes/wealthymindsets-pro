@@ -1,6 +1,7 @@
 "use client";
 
 import { webullOneHistory } from "@/lib/broker/webullOneHistory";
+import { traderClock } from "@/components/time/traderClock";
 import * as React from "react";
 import Link from "next/link";
 import type { SourceCertification } from "@/lib/marketData/sourceCapabilityCertification";
@@ -326,7 +327,7 @@ export function webullLanesWireView(input: {
   // readiness board and the Connect card print — and the live check is said in
   // the detail with its own time. Without a certificate block the lane keeps
   // the live reading (older payload).
-  const history = !input.brokerPending && input.broker?.certificate ? webullOneHistory(input.broker.certificate, input.broker) : null;
+  const history = !input.brokerPending && input.broker?.certificate ? webullOneHistory(input.broker.certificate, input.broker, iso => traderClock(Date.parse(iso), { seconds: true })) : null;
   const historyLane: ProviderWireLane | null = !history || history.basis === "LIVE_ONLY"
     ? null
     : history.basis === "CERTIFICATE_UNKNOWN"
@@ -1108,7 +1109,7 @@ export default function ProviderWireStrip({
     <section aria-label="Market data provider wires" style={{ marginTop: compact ? 0 : 8, border: "1px solid rgba(240,180,41,0.18)", borderRadius: compact ? 8 : 10, background: "rgba(5,5,6,0.76)", padding: compact ? "6px 8px" : "9px 10px", flexShrink: 0 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: compact ? 5 : 7 }}>
         <span style={{ color: "#f0b429", fontSize: 10, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase" }}>{compact ? "Connections" : "Market data wires"}</span>
-        <Link href="/readiness" style={{ color: "#8b92ac", fontSize: 9, textDecoration: "none", whiteSpace: "nowrap" }}>{compact ? "View details →" : "read-only · capability truth"}</Link>
+        <Link href="/readiness" className="wm-tap-slop" style={{ color: "#8b92ac", fontSize: 9, textDecoration: "none", whiteSpace: "nowrap", display: "inline-block" }}>{compact ? "View details →" : "read-only · capability truth"}</Link>
       </div>
       <div style={compact
         ? { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 7 }

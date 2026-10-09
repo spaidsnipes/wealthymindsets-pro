@@ -167,6 +167,17 @@ export interface PreflightContext {
   readonly nowMs: number;
   /** Sends on this ticket still UNKNOWN / RECONCILING (the client says; the server also checks the broker by key). */
   readonly unresolvedSends?: number;
+  /**
+   * The protection rail of the broker this order goes to, when it is NOT the
+   * default (tastytrade's). A broker with no stop rail wired (Webull,
+   * 2026-10-09) passes "UNAVAILABLE": an opening order that would need a stop
+   * is refused rather than passed on a stop that will never be placed.
+   * TIGHTENING ONLY — it can replace BROKER-NATIVE with a weaker rail, and a
+   * weaker rail only ever refuses more.
+   */
+  readonly protectionRail?: ProtectionMode;
+  /** The broker's name for the refusal words (default "tastytrade"). */
+  readonly brokerName?: string;
 }
 
 export interface PreflightPass {
@@ -213,7 +224,7 @@ export function preflightLiveOrder(o: PreflightOrder, ctx: PreflightContext): Pr
   if (!L || L.updatedAtMs == null) refuse("LIMITS_UNSET", "No server-held order limits are set. Set them in Settings › Execution; until then nothing live can be sent.");
   if (L?.killSwitch) refuse("KILL_SWITCH", "The kill switch is engaged. No new live order can be sent until you release it in Settings › Execution.");
   if (L && !L.armed) refuse("DISARMED", "Live trading is DISARMED on the server. Arm it in Settings › Execution.");
-  if ((ctx.unresolvedSends ?? 0) > 0) refuse("UNKNOWN_ORDER_STATE", "An earlier send is still UNKNOWN. Reconcile it with tastytrade before sending anything else — a timeout is not a rejection.");
+  if ((ctx.unresolvedSends ?? 0) > 0) refuse("UNKNOWN_ORDER_STATE", `An earlier send is still UNKNOWN. Reconcile it with ${ctx.brokerName ?? "tastytrade"} before sending anything else — a timeout is not a rejection.`);
 
   // 2. Where it goes.
   if (o.environment == null) refuse("ENVIRONMENT", "The ticket did not state an environment (production or cert).");
@@ -265,7 +276,7 @@ export function preflightLiveOrder(o: PreflightOrder, ctx: PreflightContext): Pr
   }
 
   // 6. Protection: a verified bound on loss for every opening order.
-  let protection: ProtectionMode = protectionFor(o.instrumentType);
+  let protection: ProtectionMode = ctx.protectionRail ?? protectionFor(o.instrumentType);
   let riskBound: PreflightPass["riskBound"] = "CLOSING";
   let lossAtStopUsd: number | null = null;
   if (opening) {

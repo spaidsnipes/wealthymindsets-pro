@@ -1,3 +1,6 @@
+import { preflightLiveOrder, type ServerOrderLimits } from "@/lib/execution/liveOrderPreflight";
+import { loadServerOrderLimits } from "@/lib/execution/serverOrderLimitsStore";
+import type { TtAction } from "@/lib/broker/tastytradeOrder";
 import { NextResponse } from "next/server";
 
 import { authorizeExecution } from "@/lib/authority/executionAuthority";
@@ -12,7 +15,7 @@ import {
 } from "@/lib/broker/adapters/webullOrders";
 import { webullOwnerGate, webullOwnerRefusal } from "@/lib/broker/webullOwner";
 import { webullPreviewScope } from "@/lib/broker/webullPreviewScope";
-import { orderDecisionKv, putOrderDecision } from "@/lib/broker/orderDecisionLedger";
+import { orderDecisionKv, putOrderDecision, putOrderRefusal } from "@/lib/broker/orderDecisionLedger";
 import { requireAuth } from "@/lib/requireAuth";
 import { resolveWebullSessionToken, webullSessionStore, webullWorkerEnv } from "@/lib/marketData/webullSessionStore";
 
@@ -31,6 +34,13 @@ const POSITION_INTENTS = ["BUY_TO_OPEN", "BUY_TO_CLOSE", "SELL_TO_OPEN", "SELL_T
  *      OSI contract with an explicit open/close intent on an eligible underlying;
  *   3. executionAuthority: live = the human's approval in THIS request
  *      (`confirmLive: true`); an automated source cannot self-authorize;
+ *   3b. (2026-10-09, audit finding closed) the SERVER-HELD limits, the same
+ *      `preflightLiveOrder` the tastytrade door runs: kill switch, server arm
+ *      (default DISARMED), every applicable cap set and held, the environment
+ *      the ticket showed, a fresh quote for a risk-increasing order, and
+ *      verified protection — Webull has no stop rail wired, so an opening
+ *      order that would need one is refused. Unreadable limits refuse. This
+ *      runs BEFORE any call to Webull; a refusal is written to the ledger;
  *   4. the account the trader NAMED (by index) — never defaulted for money;
  *   5. a DURABLE ledger (KV) — refused without one, never memory for money;
  *   6. Webull's own preview must accept the order immediately before placing;
@@ -70,6 +80,53 @@ export async function POST(request: Request): Promise<Response> {
   if (!authority.authorized) return NextResponse.json({ state: "NOT_AUTHORIZED", reason: authority.reason, code: authority.reasonCode }, { status: 403, headers: NO_STORE });
 
   const env = await webullWorkerEnv();
+
+  // 3b — THE SERVER GATE, BEFORE ANY CALL TO WEBULL (2026-10-09). Until now this
+  // door consulted no server-held limit: the kill switch, the server arm and
+  // the caps stood only in front of tastytrade. Same owner, same words. Fail
+  // closed: no store, nothing stored, an unreadable record or any refusal →
+  // nothing is previewed and nothing is placed.
+  let limits: ServerOrderLimits | null = null;
+  try {
+    limits = await loadServerOrderLimits(orderDecisionKv(env), auth.user.sub);
+  } catch {
+    limits = null;
+  }
+  const px = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const quoteIn = (input.quote ?? null) as Record<string, unknown> | null;
+  // An option says whether it opens or closes. A stock order that does not say
+  // is judged as OPENING — the stricter reading.
+  const action: TtAction = positionIntent
+    ? ({ BUY_TO_OPEN: "Buy to Open", SELL_TO_OPEN: "Sell to Open", BUY_TO_CLOSE: "Buy to Close", SELL_TO_CLOSE: "Sell to Close" } as const)[positionIntent]
+    : side === "buy" ? "Buy to Open" : "Sell to Open";
+  const preflight = preflightLiveOrder({
+    instrumentType: contract ? "Equity Option" : "Equity",
+    symbol: osiIn ?? symbolIn,
+    action,
+    qty,
+    type: input.type === "market" ? "Market" : "Limit",
+    limitPx: px(input.limitPx),
+    stopPx: null,
+    protectiveStopPx: null,
+    environment: input.environment === "production" || input.environment === "cert" ? input.environment : null,
+    accountIndex: input.accountIndex as number,
+    quote: quoteIn && typeof quoteIn === "object" ? { bid: px(quoteIn.bid), ask: px(quoteIn.ask), atMs: px(quoteIn.atMs) } : null,
+    multiplier: null,
+  }, { limits, serverEnvironment: "production", nowMs: Date.now(), protectionRail: "UNAVAILABLE", brokerName: "Webull" });
+  if (!preflight.ok) {
+    const first = preflight.refusals[0]!;
+    const state = first.code === "KILL_SWITCH" ? "KILL_SWITCH" : first.code === "LIMITS_UNSET" ? "LIMITS_UNSET" : "REFUSED_PREFLIGHT";
+    try {
+      const kv = orderDecisionKv(env);
+      if (kv) await putOrderRefusal(kv, {
+        broker: "webull", clientOrderId: typeof input.clientOrderId === "string" ? input.clientOrderId : "",
+        decisionId: typeof input.decisionId === "string" ? input.decisionId : "", symbol: osiIn ?? symbolIn,
+        action, qty, codes: preflight.refusals.map(r => r.code), refusedAtMs: Date.now(),
+      });
+    } catch { /* the refusal stands whether or not it could be written down */ }
+    return NextResponse.json({ state, reason: preflight.refusals.map(r => r.reason).join(" "), refusals: preflight.refusals }, { status: 422, headers: NO_STORE });
+  }
+
   const ledger = durableWebullOrderLedger(env);
   if (!ledger) return NextResponse.json({ state: "NO_DURABLE_LEDGER", reason: "Live Webull orders need the durable order ledger (KV binding WEBULL_SESSION); none is bound here, so nothing is sent." }, { headers: NO_STORE });
 

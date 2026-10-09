@@ -249,6 +249,8 @@ export function OptionExpressionIntent({ ownerId, underlying, contract, source, 
     {decisionId && !busy && <OptionDecisionReceipt key={`${ownerId}:${decisionId}`} decisionId={decisionId} ownerId={ownerId} />}
     {/* Garden 18 §XC–§XCIII: broker eligibility → account → preflight, on the
         SAME decision this recorded expression belongs to. */}
-    <WebullOptionPreflight osi={contract.symbol} decisionId={decisionId || null} referenceAsk={isLive && liveQ?.ask != null ? liveQ.ask : contract.ask ?? null} referenceIsLive={isLive && liveQ?.ask != null} />
+    <WebullOptionPreflight osi={contract.symbol} decisionId={decisionId || null} referenceAsk={isLive && liveQ?.ask != null ? liveQ.ask : contract.ask ?? null} referenceIsLive={isLive && liveQ?.ask != null}
+      /* The dated touch the live send is judged against by the server gate (2026-10-09); null unless it is live. */
+      liveQuote={isLive && liveQ && liveQ.quoteAt != null ? { bid: liveQ.bid ?? null, ask: liveQ.ask ?? null, atMs: liveQ.quoteAt } : null} />
   </section>;
 }

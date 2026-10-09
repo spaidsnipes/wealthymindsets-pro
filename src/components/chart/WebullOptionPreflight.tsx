@@ -62,7 +62,9 @@ function dryRunWords(result: unknown): string {
   return `tastytrade accepted the dry run${parts.length ? ` · ${parts.join(" · ")}` : ""} — nothing was placed.`;
 }
 
-export function WebullOptionPreflight({ osi, decisionId, referenceAsk, referenceIsLive = false }: {
+export function WebullOptionPreflight({ osi, decisionId, referenceAsk, referenceIsLive = false, liveQuote = null }: {
+  /** The live, dated touch (tastytrade's stream) — forwarded to the server gate with a live Webull send. */
+  readonly liveQuote?: { readonly bid: number | null; readonly ask: number | null; readonly atMs: number } | null;
   readonly osi: string;
   /** The decision this expression belongs to; null until it is recorded. */
   readonly decisionId: string | null;
@@ -211,6 +213,7 @@ export function WebullOptionPreflight({ osi, decisionId, referenceAsk, reference
           accountIndex={accountIndex}
           accountLabel={(() => { const a = answer?.accounts?.find(x => x.index === accountIndex); return a ? `${a.accountType ?? "Account"} · …${a.tail}` : `account #${accountIndex + 1}`; })()}
           decisionId={decisionId}
+          quote={liveQuote}
         />
       ) : null}
       {state === "DRY_RUN_OK" && route === "TASTYTRADE" && decisionId ? (

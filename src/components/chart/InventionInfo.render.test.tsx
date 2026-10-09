@@ -74,13 +74,14 @@ describe("§10 on a phone — never a second card beside an open Inspect", () =>
     const closed = renderToStaticMarkup(<SelectionFirstTouch id="BRICK_WALLS" label="Brick Walls" inspectOpen={false} onOpenInspect={() => {}} />);
     expect(closed).toMatch(/data-testid="first-touch-read"[^>]*class="max-sm:hidden/);
   });
-  it("the same line rides in Inspect's header, phone only", async () => {
+  it("the same line rides in Inspect's header at every width (coordinator ruling 2026-10-09: the card always yields to Inspect)", async () => {
     const { InspectFirstTouchContext, InspectFirstTouchLine } = await import("./SelectionFirstTouch");
     const html = renderToStaticMarkup(
       <InspectFirstTouchContext.Provider value={{ id: "BRICK_WALLS", label: "Brick Walls" }}><InspectFirstTouchLine /></InspectFirstTouchContext.Provider>,
     );
     expect(html).toContain('data-testid="inspect-first-touch"');
-    expect(html).toContain("hidden max-sm:block");
+    expect(html).toContain('data-first-touch-everywhere="true"');
+    expect(html).not.toContain("hidden max-sm:block");
     expect(html).toContain("Brick wall — a strike with large open interest (inferred positioning)");
     expect(renderToStaticMarkup(<InspectFirstTouchLine />)).toBe("");
   });

@@ -17,6 +17,8 @@ import PersonalEdgePanel from "@/components/profile/PersonalEdgePanel";
 import PlaybookDNAPanel from "@/components/profile/PlaybookDNAPanel";
 import SessionEdgePanel from "@/components/profile/SessionEdgePanel";
 import { ProfilePerfTiles } from "@/components/profile/ProfilePerfTiles";
+import { DepartureLessonRowsFor } from "@/components/profile/DepartureLessonRows";
+import { journalFixture } from "@/lib/journal/journalProofFixture";
 import { PROFILE_FIXTURE_BANNER, PROFILE_FIXTURE_NOW_MS, PROFILE_FIXTURE_OWNER, PROFILE_FIXTURE_SIZES, profileFixtureBook } from "@/lib/profile/profileProofFixture";
 import { STAT_SAMPLE_MIN } from "@/lib/journal/statGuard";
 import { selectPersonalEdge } from "@/lib/traderMemory/viewModels/selectPersonalEdge";
@@ -29,6 +31,12 @@ const TITLE: Readonly<Record<number, string>> = {
   7: `Book B · 7 closed trades — below ${STAT_SAMPLE_MIN}: INSUFFICIENT EVIDENCE, never a rate`,
   24: `Book C · 24 closed trades — ${STAT_SAMPLE_MIN} or more: MEASURED`,
 };
+
+/** The first `n` synthetic plan-vs-actual results of the journal proof fixture (no storage, no network). */
+function departureSample(n: number) {
+  const f = journalFixture();
+  return f.entries.slice(0, n).map(e => f.planResults[e.id]);
+}
 
 export function ProfileProofScene(): React.ReactElement {
   const books = useMemo(() => PROFILE_FIXTURE_SIZES.map(n => profileFixtureBook(n)), []);
@@ -50,6 +58,8 @@ export function ProfileProofScene(): React.ReactElement {
           {b.size > 0 ? (
             <>
               <PersonalEdgePanel vm={selectPersonalEdge({ ownerId: PROFILE_FIXTURE_OWNER, decisions: b.snapshots, nowMs: PROFILE_FIXTURE_NOW_MS })} />
+              {/* Departures with their lesson doors: the first N sample decisions of the journal fixture (synthetic plans). */}
+              <DepartureLessonRowsFor results={departureSample(b.size)} />
               <PlaybookDNAPanel vm={selectPlaybookDNA({ ownerId: PROFILE_FIXTURE_OWNER, decisions: b.snapshots, nowMs: PROFILE_FIXTURE_NOW_MS })} />
               <SessionEdgePanel vm={selectSessionEdge({ ownerId: PROFILE_FIXTURE_OWNER, decisions: b.snapshots, nowMs: PROFILE_FIXTURE_NOW_MS, metric: "avg_realized_r" })} />
             </>

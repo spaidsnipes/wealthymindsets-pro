@@ -77,3 +77,16 @@ describe("G19 §22 tablet touch station", () => {
     expect(src).toContain('onPointerEnter={e => { if (e.pointerType === "mouse") handleMouseEnter(e, industry); }}');
   });
 });
+
+describe("shell drawers and the Tool Finder take the touch floor (sheriff batch 6, 2026-10-09)", () => {
+  it("the rule exists and the drawer carries its hook", () => {
+    expect(CSS).toContain('[data-touch-floor] :is(button, [role="button"], [role="switch"], [role="tab"], summary, select):not(.wm-tap-exempt)');
+    expect(CSS).toContain('[data-testid="tool-finder"] :is(button, [role="switch"], summary):not(.wm-tap-exempt)');
+    expect(read("components/layout/ShellModalDrawer.tsx")).toContain('data-touch-floor=""');
+    expect(read("components/chart/ToolFinder.tsx")).toContain('data-testid="tool-finder"');
+    // The order-flow tools card (Tools → WM Smart Money Tools) extends the same hook — no second rule.
+    expect(read("components/chart/ChartsDashboard.tsx")).toContain('data-testid="order-flow-tools" data-touch-floor=""');
+    // The Connections strip's "View details →" link carries the 44px slop.
+    expect(read("components/marketData/ProviderWireStrip.tsx")).toContain('<Link href="/readiness" className="wm-tap-slop"');
+  });
+});
