@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     try { r = await fetch(`${BASE}/get_last_trades_by_currency_and_time?currency=${currency}&kind=option&start_timestamp=${now - 20 * 3_600_000}&end_timestamp=${now}&count=1000&sorting=desc`, opts); } catch {
       return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "TRANSPORT", error: "Deribit public API unreachable" }, { status: 504 });
     }
-    if (r.status === 429) return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "RATE_LIMITED", error: "Deribit rate-limited the trades" }, { status: 429 });
+    if (r.status === 429) return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "RATE_LIMITED", error: "Deribit rate-limited the trades" }, { status: 429, headers: { "Retry-After": "30", "Cache-Control": "no-store" } });
     if (!r.ok) return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "PROVIDER ERROR", error: `Deribit HTTP ${r.status}` }, { status: 502 });
     const b = await r.json().catch(() => null);
     return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, ...normalizeDeribitTrades(b, currency) }, { headers: { "Cache-Control": "no-store" } });
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     try { r = await fetch(`${BASE}/get_book_summary_by_currency?currency=${currency}&kind=option`, opts); } catch {
       return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "TRANSPORT", error: "Deribit public API unreachable" }, { status: 504 });
     }
-    if (r.status === 429) return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "RATE_LIMITED", error: "Deribit rate-limited the book summary" }, { status: 429 });
+    if (r.status === 429) return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "RATE_LIMITED", error: "Deribit rate-limited the book summary" }, { status: 429, headers: { "Retry-After": "30", "Cache-Control": "no-store" } });
     if (!r.ok) return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "PROVIDER ERROR", error: `Deribit HTTP ${r.status}` }, { status: 502 });
     let b: unknown;
     try { b = await r.json(); } catch {
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "TRANSPORT", error: "Deribit public API unreachable" }, { status: 504 });
   }
   if (res.status === 429) {
-    return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "RATE_LIMITED", error: "Deribit rate-limited the book summary" }, { status: 429 });
+    return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "RATE_LIMITED", error: "Deribit rate-limited the book summary" }, { status: 429, headers: { "Retry-After": "30", "Cache-Control": "no-store" } });
   }
   if (!res.ok) {
     return NextResponse.json({ source: DERIBIT_OPTIONS_SOURCE, edge: "PROVIDER ERROR", error: `Deribit HTTP ${res.status}` }, { status: 502 });

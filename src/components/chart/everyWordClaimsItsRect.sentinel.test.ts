@@ -93,7 +93,7 @@ describe("chips ask for their box; on-top words are named; the teaching card nev
 
 describe("truth lines have one home; level chips and the WAIT plate ask first; selected words are on top (2026-10-09)", () => {
   it("a truth line handed to the note composer goes to the silence stack instead — one wrapper for every painter", () => {
-    expect(CHART).toContain("if (isTruthLine(n.text)) { if (!truthForSilence.includes(n.text)) truthForSilence.push(n.text); }");
+    expect(CHART).toContain("if (wordGate.isTruth(n.text)) { if (!truthForSilence.includes(n.text)) truthForSilence.push(n.text); }");
     const i = CHART.indexOf("for (const words of truthForSilence) {");
     expect(i).toBeGreaterThan(0);
     expect(CHART.slice(i, i + 500)).toContain("const yT = takeSilenceRow();");
@@ -106,10 +106,33 @@ describe("truth lines have one home; level chips and the WAIT plate ask first; s
   });
   it("the selected zone's callout and the inspected bar's prices are on-top boxes", () => {
     expect(CHART).toContain('onTop(spotZ.rect, "SELECTION");');
-    expect(CHART).toContain('onTop(spot.rect, "INSPECT");');
+    expect(CHART).toContain('onTop(spotRect, "INSPECT");');
   });
   it("the tape-coverage line steps up past what is on its row, else the silence stack", () => {
     expect(CHART).toContain("const tapeRow = [0, 1, 2, 3].map(k => H - 50 - k * 16).find(");
     expect(CHART).toContain('canvas.dataset.tapeCoverageWords = "SILENCE_STACK";');
+  });
+});
+
+describe("truth is declared by the silence stack's one function (enforce audit, serving b94f28c, 2026-10-09)", () => {
+  it("fitSilence declares the full and the fitted line; the envelope's provenance caption is declared; the receipt counts truth in the note list", () => {
+    const i = CHART.indexOf("const fitSilence = (t: string): string => {");
+    expect(i).toBeGreaterThan(0);
+    const body = CHART.slice(i, i + 1200);
+    expect(body).toContain("wordGate.declareTruth(t);");
+    expect(body).toContain("wordGate.declareTruth(fitted);");
+    expect(CHART).toContain("wordGate.declareTruth(capT);");
+    expect(CHART).toContain("canvas.dataset.truthInNoteList = String(displacedNotes.filter(n => wordGate.isTruth(n.text)).length);");
+    expect(REG).toContain("const isTruth = (text: string): boolean => declared.has(text) || isTruthLine(text);");
+  });
+  it("every line that takes a silence row is said through fitSilence (so it is declared)", () => {
+    const takes = [...CHART.matchAll(/= takeSilenceRow\(\);/g)].length;
+    const said = [...CHART.matchAll(/fitSilence\(/g)].length;
+    expect(takes).toBeGreaterThan(5);
+    expect(said).toBeGreaterThanOrEqual(takes);
+  });
+  it("a selected bar's true high / low keep their spot as an on-top box when no slot is clear — never the note list", () => {
+    expect(CHART).toContain('const spotRect = spot.mode === "BLOCKED" ? pref : spot.rect;');
+    expect(CHART).not.toContain('displacedNotes.push({ layer: "TRUTH"');
   });
 });

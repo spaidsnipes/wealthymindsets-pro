@@ -49,7 +49,14 @@ export interface ReservedWord { readonly text: string; readonly rect: WordRect; 
  * itself. These are the words that say what the glass does NOT know or is NOT
  * showing — the ones a trader must never lose to decoration.
  */
-const TRUTH_WORDS = /\b(SILENT|SILENCE|WITHHELD|CONTRADICTION|UNAVAILABLE|UNSUPPORTED|UNMEASURED|UNRESOLVED|STALE|DELAYED|DEGRADED|NOT ENOUGH|NOT ASKABLE|NO TAPE|NO DATA|NO BAR|NO VOLUME|NO CURRENT EVENT|NO READING|WAITING FOR|TAPE REQUIRED|CANDLE-ESTIMATED|ESTIMATED|PARTIAL|DATA GAP|BARS BEHIND|PROOF SCENE|SAMPLE|BAR TOTALS ONLY|CARRY NONE|NEEDS \d)/i;
+// The SECOND net. The first is declaration: the silence stack's one function
+// (and any painter of provenance) DECLARES its line as truth through the gate,
+// so truth no longer depends on wording (enforce audit, serving b94f28c,
+// 2026-10-09: "LIQUIDITY LIFECYCLE · ACTIVE · NO POOL IN VIEW", "FOUNDER ANATOMY ·
+// ACTIVE · NO CURRENT ABSORPTION / EXHAUSTION EVENT", "RISK ON PRICE · no position
+// drawn" and the envelope's "n=10 · prior sessions" caption were held and listed
+// because this list did not know their words).
+const TRUTH_WORDS = /\b(SILENT|SILENCE|WITHHELD|CONTRADICTION|UNAVAILABLE|UNSUPPORTED|UNMEASURED|UNRESOLVED|STALE|DELAYED|DEGRADED|NOT ENOUGH|NOT ASKABLE|NO TAPE|NO DATA|NO BAR|NO VOLUME|NO CURRENT|NO READING|NO POOL|NO POSITION|NO PRIOR|WAITING FOR|TAPE REQUIRED|CANDLE-ESTIMATED|ESTIMATED|PARTIAL|DATA GAP|BARS BEHIND|PROOF SCENE|SAMPLE|BAR TOTALS ONLY|CARRY NONE|NEEDS \d|ACTIVE · NO|PRIOR SESSIONS)\b|\bn=\d/i;
 export function isTruthLine(text: string): boolean {
   return TRUTH_WORDS.test(text);
 }
@@ -210,7 +217,15 @@ export interface WordGate {
   columnHeld(): number;
   /** The asked question's own words paint as PRIMARY between setTier("PRIMARY") and setTier("OTHER"). Reset every frame. */
   setTier(tier: Exclude<WordTier, "TRUTH">): void;
-  /** `TRUTH:n|TRUTH_HELD:0|YIELDED_TO_HIGHER:k` — TRUTH_HELD must always read 0. */
+  /**
+   * The owner of a line DECLARES it truth before painting it (the silence
+   * stack's one function; a provenance caption). A declared line is never held,
+   * whatever its wording. Per frame.
+   */
+  declareTruth(text: string): void;
+  /** Declared this frame, or truth by wording. */
+  isTruth(text: string): boolean;
+  /** `TRUTH:n|TRUTH_HELD:0|DECLARED:d|YIELDED_TO_HIGHER:k` — TRUTH_HELD must always read 0. */
   truthReceipt(): string;
   /** Words meant to sit on top (crosshair, Inspect / selection, an opaque card): never judged. One-line reason required. */
   sovereignPanel(rect: WordRect, reason: string): void;
@@ -263,7 +278,12 @@ export function installWordGate(ctx: GateCtx): WordGate {
   let columnRect: WordRect | null = null;
   let columnHeld = 0;
   const padded = (r: WordRect | null): WordRect | null => (r && columnPadLeft > 0 ? { x: r.x - columnPadLeft, y: r.y, w: r.w + columnPadLeft, h: r.h } : r);
-  const tierOf = (text: string): WordTier => (isTruthLine(text) ? "TRUTH" : scopeTier);
+  // Lines DECLARED truth this frame by their owner (the silence stack, a
+  // provenance caption). Declaration beats wording; rebuilt every frame.
+  let declared = new Set<string>();
+  let declaredHeld = 0;
+  const isTruth = (text: string): boolean => declared.has(text) || isTruthLine(text);
+  const tierOf = (text: string): WordTier => (isTruth(text) ? "TRUTH" : scopeTier);
   const gated = (fn: CanvasRenderingContext2D["fillText"]) => function gatedText(this: GateCtx, text: string, x: number, y: number, maxWidth?: number) {
     const paint = () => (maxWidth === undefined ? fn.call(this as CanvasRenderingContext2D, text, x, y) : fn.call(this as CanvasRenderingContext2D, text, x, y, maxWidth));
     if (!live || sovereignDepth > 0) return paint();
@@ -273,7 +293,7 @@ export function installWordGate(ctx: GateCtx): WordGate {
     // A two-character mark ("LH", "HL") is judged by the column rule only.
     if (String(text).trim().length < WORD_MIN_CHARS) {
       const col = padded(columnRect);
-      if (col && !isTruthLine(String(text)) && !registry.isSovereign(rect) && rect.x < col.x + col.w && rect.x + rect.w > col.x && rect.y < col.y + col.h && rect.y + rect.h > col.y) { columnHeld++; return; }
+      if (col && !isTruth(String(text)) && !registry.isSovereign(rect) && rect.x < col.x + col.w && rect.x + rect.w > col.x && rect.y < col.y + col.h && rect.y + rect.h > col.y) { columnHeld++; return; }
       return paint();
     }
     const before = registry.held.length;
@@ -295,6 +315,7 @@ export function installWordGate(ctx: GateCtx): WordGate {
       registry = createWordRegistry(live ? registry.reservations() : []);
       scopeTier = "OTHER";
       columnEnforce = false; columnPadLeft = 0; columnHeld = 0; columnRect = o.column ?? null;
+      declared = new Set<string>(); declaredHeld = 0;
       registry.setColumn(o.column ?? null);
       mode = o.mode; dpr = o.dpr; onHeld = o.onHeld; sovereignDepth = 0; live = true;
     },
@@ -314,7 +335,12 @@ export function installWordGate(ctx: GateCtx): WordGate {
     },
     sovereignPanel(rect, reason) { if (live) registry.sovereignPanel(rect, reason); },
     setTier(t) { scopeTier = t; },
-    truthReceipt: () => `TRUTH:${registry.truthWords}|TRUTH_HELD:${registry.held.filter(h => h.tier === "TRUTH" || isTruthLine(h.text)).length}|YIELDED_TO_HIGHER:${registry.held.filter(h => h.verdict === "HELD_PRIORITY").length}`,
+    declareTruth(text) { if (live && text) declared.add(text); },
+    isTruth,
+    // TRUTH_HELD counts every held word that is truth by DECLARATION or by wording
+    // — a line declared after it was held is counted too, so the receipt cannot
+    // read 0 while a silence line sits in the note list.
+    truthReceipt: () => `TRUTH:${registry.truthWords}|TRUTH_HELD:${registry.held.filter(h => h.tier === "TRUTH" || isTruth(h.text)).length + declaredHeld}|DECLARED:${declared.size}|YIELDED_TO_HIGHER:${registry.held.filter(h => h.verdict === "HELD_PRIORITY").length}`,
     rects: () => registry.rects(),
     receipt: () => `${mode}|WORDS:${registry.words}|HELD:${registry.held.length}|COLUMN:${registry.held.filter(h => h.verdict === "HELD_COLUMN").length}${registry.sovereignReasons.length ? `|SOVEREIGN:${registry.sovereignReasons.join("+")}` : ""}`,
     heldSample: (max = 6) => registry.held.slice(0, max).map(h => `${h.verdict === "HELD_COLUMN" ? "COL" : h.verdict === "HELD_PRIORITY" ? "YIELD" : "WORD"}:${h.text.slice(0, 28)}`).join("|"),

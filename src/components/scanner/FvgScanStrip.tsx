@@ -134,7 +134,7 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
       {fixture ? (
         <div role="status" data-testid="scanner-proof-banner" className="mx-4 mt-1.5 rounded-lg border border-wm-gold/60 bg-wm-gold/10 px-3 py-1.5 text-[11px] font-black tracking-wider text-wm-gold">
           {SCANNER_FIXTURE_BANNER}
-          <span className="block text-[10px] font-normal tracking-normal text-wm-text-muted">The FVG conditions strip below reads three synthetic symbols. The rest of this page is your real scanner.</span>
+          <span className="block text-[10px] font-normal tracking-normal text-wm-text-muted">The FVG conditions strip below reads four synthetic symbols. The rest of this page is your real scanner.</span>
         </div>
       ) : null}
       <div className="flex flex-wrap items-center gap-2 px-4 py-1.5">

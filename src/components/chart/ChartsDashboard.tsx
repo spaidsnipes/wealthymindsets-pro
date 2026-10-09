@@ -160,7 +160,7 @@ import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgeb
 // crossing from the seven pipeline labels into the five fidelities, chooses
 // which accept-site stamp the plaque names, and refuses rather than defaults.
 // The decision rail's Honesty Plaque is fed from here and from nowhere else.
-import { readCanvasHonesty } from "@/lib/marketData/readCanvasHonesty";
+import { readCanvasHonesty, readCanvasUngraded } from "@/lib/marketData/readCanvasHonesty";
 import { useFeedEvaluationClock, useProvenSessionClosure, useQuoteSessionClosure, useSessionClockDate } from "@/lib/marketData/useProvenSessionClosure";
 import { quoteAgeMs, quoteFreshness } from "@/lib/os/osChrome";
 import { CanonicalFidelityBadge } from "@/components/marketData/CanonicalFidelityBadge";
@@ -263,6 +263,7 @@ import type { TradePhase } from "@/lib/marketData/viewModels/selectDecisionChain
 import { useDecisionContext } from "@/lib/experience/useDecisionContext";
 import { lifecyclePhaseFor, lifecycleStageFor, stageForPhase } from "@/lib/experience/decisionLifecycle";
 import CanvasBadgeMini from "@/components/experience/CanvasBadgeMini";
+import { CanvasFidelityChip } from "@/components/experience/CanvasFidelityChip";
 import { useAuth } from "@/contexts/AuthContext";
 import { LENS_FIXTURE_BANNER, lensFixturePressure, lensFixtureWeather, parseAttentionFixture, parseLensFixture } from "@/lib/chart/lensFixture";
 // Real aggressor flow still grades the canonical capability state here;
@@ -5343,8 +5344,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
      `fidelityFromPipelineLabel` is the only sanctioned crossing from the seven
      pipeline labels into the five fidelities; inventing a local mapping here
      is how the seven quietly become de-facto badges. */
-  const chartHonesty = React.useMemo<MarketFidelityReading | null>(
-    () => readCanvasHonesty({
+  const chartHonestyInput = React.useMemo(
+    () => ({
       badge: chartSurfaceBadge,
       // THE MOMENT THE MARKET CELL ALREADY PRINTS. Measured live 2026-09-19:
       // the rail read "NO LIVE PRINT · asOf 22:32:10Z" beside a plaque reading
@@ -5362,6 +5363,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       execution: { adapterOwnsCanvasPrice: false },
     }),
     [chartSurfaceBadge, chartCanvasState?.capturedAt, lastObservedAtMs],
+  );
+  const chartHonesty = React.useMemo<MarketFidelityReading | null>(
+    () => readCanvasHonesty(chartHonestyInput),
+    [chartHonestyInput],
+  );
+  // WHICH QUESTION IS OPEN when there is no reading (serving b94f28c, NQ1! 5m,
+  // 2026-10-09: the plaque said UNMEASURED beside a MARKET cell reading LIVE).
+  // Same input, same owner — the plaque says what is not graded yet.
+  const chartHonestyUngraded = React.useMemo(
+    () => readCanvasUngraded(chartHonestyInput),
+    [chartHonestyInput],
   );
 
   /* V01 ONE CANVAS: day bias and canonical regime are supporting market
@@ -5502,6 +5514,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // so the chip and the plaque are two readers of one grading. `null` here is
     // a real, rendered state (UNMEASURED) and not an omission.
     honesty: chartHonesty,
+    honestyUngraded: chartHonestyUngraded,
     // F06A · ORDER FLOW CONTEXT beneath the plaque. The SAME aggressor snapshot
     // the fidelity chip's ORDER FLOW capability reads — one tape, one reading —
     // and only while the tape belongs to this symbol (`tickerOwner`, the guard
@@ -5818,6 +5831,14 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
               ariaLabel="Chart canvas verdict"
             />
           </div>
+        )}
+        {/* THE PLAQUE'S ONE WORD, IN THE FIRST SCREENFUL (ruling 2026-10-09).
+            On a phone the Honesty Plaque is the fourth cell of the band under
+            the camera: a scroll and two swipes away. Its one word stands here,
+            on the fixed WAIT / WHY row, named for what it grades. Same reading,
+            same owner as the plaque. */}
+        {narrowViewport && (
+          <CanvasFidelityChip reading={chartHonesty} ungraded={chartHonestyUngraded} />
         )}
         </div>
         {/* Internal depth readiness stays in the broker/capability drawer.

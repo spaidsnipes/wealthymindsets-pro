@@ -15,7 +15,7 @@ import { detectFvgs } from "./fvgEngine";
 import { BARS_CARRY_NO_SIGNED_VOLUME, fvgBarContext, fvgBarOnlyRelationships } from "./fvgBarContext";
 import { FVG_EFFORT_WINDOW, fvgEffortInput, fvgFlowInput, type SignedBarVolume } from "./fvgEffortFlow";
 import { fvgVolatilityAtFormationByTime } from "./fvgFormationContext";
-import { chartSignedAt, fvgInspectRelationships, tapeRegimeAtFormationLine } from "./fvgInspectRelationships";
+import { chartSignedAt, fvgInspectRelationships, tapeRegimeAtFormationLine, type TapeRegimePoint } from "./fvgInspectRelationships";
 import { effortSource, flowSource, fvgRelationshipRows, fvgRelationshipsFor } from "./fvgRelationships";
 
 const BARS = journalFixtureBars();
@@ -184,16 +184,51 @@ describe("§5 Inspect context — two named scopes, by reference", () => {
     expect(fvgInspectRelationships({ ...base, chartBars: cut }).rows).toContain(want);
   });
 
-  it("the tape regime at formation is read from the chart's series each time — or said not read", () => {
-    expect(tapeRegimeAtFormationLine([{ time: b2Sec, state: "TREND", basis: "TAPE" }], b2Sec)).toBe("Regime at formation (tape): TREND.");
-    const notReached = "Regime at formation (tape): not read — the tape does not reach this bar.";
-    expect(tapeRegimeAtFormationLine([{ time: b2Sec, state: "UNKNOWN", basis: "NO_TAPE" }], b2Sec)).toBe(notReached);
-    expect(tapeRegimeAtFormationLine([{ time: b2Sec + 300, state: "TREND", basis: "TAPE" }], b2Sec)).toBe(notReached);
-    expect(tapeRegimeAtFormationLine([], b2Sec)).toBe(notReached);
-    expect(tapeRegimeAtFormationLine(null, b2Sec)).toMatch(/^Regime at formation \(tape\): not read — the chart keeps the tape regime per bar only while Regime Lighting is on\.$/);
-    expect(fvgInspectRelationships({ ...base, regimeSeries: [{ time: b2Sec, state: "BALANCE", basis: "TAPE" }] }).rows).toContain("Regime at formation (tape): BALANCE.");
+  const pt = (time: number, state: string, basis: "TAPE" | "NO_TAPE", why = "why"): TapeRegimePoint =>
+    ({ time, state: state as TapeRegimePoint["state"], resolution: "UNKNOWN" as TapeRegimePoint["resolution"], basis, trades: basis === "TAPE" ? 400 : 0, why });
+  const NO_REACH = "The held tape does not reach this bar — regime is read from per-trade prints, never from candles.";
+  /** A 1m series: 6 bars before b2 without tape, b2 and 3 after it with tape. */
+  const around = (unit: 1 | 1000, b2State = "TREND", b2Why = "why") => [
+    ...[-6, -5, -4, -3, -2, -1].map(k => pt((b2Sec + k * 300) * unit, "UNKNOWN", "NO_TAPE", NO_REACH)),
+    pt(b2Sec * unit, b2State, "TAPE", b2Why), pt((b2Sec + 300) * unit, "BALANCE", "TAPE"), pt((b2Sec + 600) * unit, "BALANCE", "TAPE"), pt((b2Sec + 900) * unit, "BALANCE", "TAPE"),
+  ];
+
+  it("outcome 1 — the tape reaches the bar and the owner names it: the owner's word (series in seconds OR in ms; b2 in either)", () => {
+    for (const unit of [1, 1000] as const) for (const b2 of [b2Sec, b2Sec * 1000]) {
+      expect(tapeRegimeAtFormationLine(around(unit), b2), `${unit}/${b2}`).toBe("Regime at formation (tape): TREND.");
+    }
+  });
+
+  it("the bar is found by CONTAINMENT: b2's open inside a series bar (a differently aligned bucket) still reads that bar", () => {
+    // Series buckets open 90 s before the gap's own bar clock.
+    const shifted = around(1).map(p => ({ ...p, time: p.time - 90 }));
+    expect(tapeRegimeAtFormationLine(shifted, b2Sec)).toBe("Regime at formation (tape): TREND.");
+    expect(tapeRegimeAtFormationLine(shifted.map(p => ({ ...p, time: p.time * 1000 })), b2Sec * 1000)).toBe("Regime at formation (tape): TREND.");
+    // One bar later is the next bucket — BALANCE, not TREND.
+    expect(tapeRegimeAtFormationLine(shifted, b2Sec + 300)).toBe("Regime at formation (tape): BALANCE.");
+  });
+
+  it("outcome 2 — the tape reaches the bar but the owner gave no verdict: 'not classified' with the owner's reason, never 'does not reach'", () => {
+    const line = tapeRegimeAtFormationLine(around(1, "UNKNOWN", "Too little history behind this bar to name a regime."), b2Sec);
+    expect(line).toBe("Regime at formation (tape): not classified — Too little history behind this bar to name a regime.");
+    expect(line).not.toMatch(/does not reach|kept for the last/);
+  });
+
+  it("outcome 3 — the tape does not reach the bar: 'not read', with how far the tape regime does reach", () => {
+    const s = around(1);
+    expect(tapeRegimeAtFormationLine(s, b2Sec - 600)).toBe("Regime at formation (tape): not read — the tape does not reach this bar. The tape regime is kept for the last 4 bars — as far back as the newest 2,000 prints reach.");
+    // Before the series, after its newest bar, and an empty series: all 'not read' with the reach sentence.
+    expect(tapeRegimeAtFormationLine(s, b2Sec - 86_400)).toMatch(/^Regime at formation \(tape\): not read — the tape does not reach this bar\. The tape regime is kept for the last 4 bars/);
+    expect(tapeRegimeAtFormationLine(s, b2Sec + 86_400)).toMatch(/not read — the tape does not reach this bar\./);
+    expect(tapeRegimeAtFormationLine([], b2Sec)).toBe("Regime at formation (tape): not read — the tape does not reach this bar. The tape regime is read from the newest 2,000 prints; none reach these bars.");
+    // The reach sentence appears on this row ONLY.
+    expect(tapeRegimeAtFormationLine(s, b2Sec)).not.toMatch(/kept for the last/);
+  });
+
+  it("no series at all (Regime Lighting off) is its own sentence; a reader with no chart prints no regime line; nothing is stored on the gap", () => {
+    expect(tapeRegimeAtFormationLine(null, b2Sec)).toBe("Regime at formation (tape): not read — the chart keeps the tape regime per bar only while Regime Lighting is on.");
+    expect(fvgInspectRelationships({ ...base, regimeSeries: around(1, "BALANCE") }).rows).toContain("Regime at formation (tape): BALANCE.");
     expect(fvgInspectRelationships({ ...base, regimeSeries: null }).rows.some(r => /^Regime at formation \(tape\): not read/.test(r))).toBe(true);
-    // A reader with no chart prints no regime line at all — and nothing is ever written onto the gap.
     expect(fvgInspectRelationships(base).rows.some(r => /^Regime at formation/.test(r))).toBe(false);
     expect(obj.regime).toBe("UNTAGGED");
   });

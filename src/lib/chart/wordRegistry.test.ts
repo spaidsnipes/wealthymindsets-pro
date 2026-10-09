@@ -191,7 +191,7 @@ describe("priority — truth first, then the answer, then everything else", () =
     gate.setTier("PRIMARY"); ctx.fillText("ACTIVE QUESTION WORDS", 300, 100); gate.setTier("OTHER");
     ctx.fillText("5 SENSES SILENT — TOOLS", 12, 101);
     expect(painted).toEqual(["ACTIVE QUESTION WORDS", "5 SENSES SILENT — TOOLS"]);
-    expect(gate.truthReceipt()).toBe("TRUTH:1|TRUTH_HELD:0|YIELDED_TO_HIGHER:1");
+    expect(gate.truthReceipt()).toBe("TRUTH:1|TRUTH_HELD:0|DECLARED:0|YIELDED_TO_HIGHER:1");
     // The frame after truth leaves, nothing is reserved for it.
     gate.beginFrame({ mode: "ENFORCE", dpr: 2 });
     painted.length = 0;
@@ -232,5 +232,49 @@ describe("price sovereignty — the column rule alone, enforced on narrow glass 
     ctx.fillText("ON THE COLUMN", 290, 100);
     expect(painted).toEqual(["ON THE COLUMN"]);
     expect(gate.columnHeld()).toBe(0);
+  });
+});
+
+describe("truth is DECLARED by its owner, not guessed from wording (enforce audit, serving b94f28c, 2026-10-09)", () => {
+  it("the wordings the audit found held are truth by the second net too", () => {
+    for (const s of [
+      "LIQUIDITY LIFECYCLE · ACTIVE · NO POOL IN VIEW — 6 POOLS OFF CAMERA · SCROLL BACK OR ZOOM OUT",
+      "FOUNDER ANATOMY · ACTIVE · NO CURRENT ABSORPTION / EXHAUSTION EVENT",
+      "RISK ON PRICE · no position drawn — Draw › Long / Short Position to bracket its risk",
+      "analogue envelope n=10 · prior sessions, same bar from the open",
+      "WEEKLY PIVOTS · NO PRIOR WEEK YET",
+    ]) expect(isTruthLine(s), s).toBe(true);
+    for (const s of ["LIVING VAH 31211.00", "SPENT · DIDN'T MOVE", "STRUCTURE · FROM SWING LOW 31040.25 · 28 BARS", "NOW 31096.25"]) expect(isTruthLine(s), s).toBe(false);
+  });
+  it("a declared line is never held — over a word, on the column, in OBSERVE or ENFORCE — whatever it says; the declaration lasts one frame", () => {
+    const { ctx, painted } = fakeCtx();
+    const gate = installWordGate(ctx);
+    const held: HeldWord[] = [];
+    gate.beginFrame({ mode: "ENFORCE", dpr: 2, column: { x: 300, y: 0, w: 30, h: 400 }, onHeld: w => held.push(w) });
+    gate.setColumnRule({ enforce: true, padLeft: 20 });
+    ctx.fillText("SOME NAME HERE", 10, 50);
+    const line = "A SENSE SAYS WHY IT HAS NOTHING";       // no keyword at all
+    expect(isTruthLine(line)).toBe(false);
+    gate.declareTruth(line);
+    expect(gate.isTruth(line)).toBe(true);
+    ctx.fillText(line, 12, 51);                             // over a word
+    ctx.fillText(line, 290, 200);                           // on the column
+    expect(painted).toEqual(["SOME NAME HERE", line, line]);
+    expect(held).toHaveLength(0);
+    expect(gate.truthReceipt()).toBe("TRUTH:2|TRUTH_HELD:0|DECLARED:1|YIELDED_TO_HIGHER:0");
+    // Next frame, undeclared: it is a plain word again and can be held.
+    painted.length = 0;
+    gate.beginFrame({ mode: "ENFORCE", dpr: 2 });
+    gate.beginFrame({ mode: "ENFORCE", dpr: 2 });
+    ctx.fillText("SOME NAME HERE", 10, 50);
+    ctx.fillText(line, 12, 51);
+    expect(painted).toEqual(["SOME NAME HERE"]);
+  });
+  it("a declared chip box is never refused", () => {
+    const { ctx } = fakeCtx();
+    const gate = installWordGate(ctx);
+    gate.beginFrame({ mode: "ENFORCE", dpr: 2, column: { x: 300, y: 0, w: 30, h: 400 } });
+    gate.declareTruth("PROVENANCE CAPTION");
+    expect(gate.panel("PROVENANCE CAPTION", { x: 290, y: 40, w: 120, h: 13 })).toBe(true);
   });
 });

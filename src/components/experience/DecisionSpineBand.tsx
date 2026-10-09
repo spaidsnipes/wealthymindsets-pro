@@ -83,6 +83,7 @@ import {
 } from "@/lib/marketData/viewModels/selectWhySeverityBar";
 import { selectRiskReachBar } from "@/lib/traderMemory/viewModels/selectRiskReachBar";
 import { MarketHonestyPlaque } from "@/components/experience/MarketHonestyPlaque";
+import type { CanvasUngraded } from "@/lib/marketData/readCanvasHonesty";
 import { selectFoldEscalation } from "@/lib/marketData/viewModels/selectFoldEscalation";
 import { selectWaitPlaque, type PlaqueFlowContextVM } from "@/lib/marketData/viewModels/selectWaitPlaque";
 import type { MarketFidelityReading } from "@/lib/marketData/marketFidelityAlgebra";
@@ -263,6 +264,12 @@ export interface DecisionSpineBandProps {
    * the chip and this plate cannot disagree.
    */
   readonly honesty?: MarketFidelityReading | null;
+  /**
+   * Why `honesty` is null — which question is still open (bars loading, nothing
+   * answered, no time on the chart). The plaque prints it instead of a bare
+   * "UNMEASURED" beside a MARKET cell that reads LIVE.
+   */
+  readonly honestyUngraded?: CanvasUngraded | null;
   /**
    * F06A · ORDER FLOW CONTEXT beneath the plaque — the tape's aggressor split,
    * already compiled by `selectPlaqueFlowContext` from `selectAggressorFlow`.
@@ -1047,7 +1054,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
   const honestyCell = props.honesty !== undefined && (
     <div style={{ padding: rail ? "8px 10px" : "6px 8px", display: "flex" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <MarketHonestyPlaque reading={props.honesty} />
+        <MarketHonestyPlaque reading={props.honesty} ungraded={props.honestyUngraded ?? null} />
       </div>
     </div>
   );

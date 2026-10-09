@@ -18,6 +18,7 @@ import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarket
 import type { LivingProfileVM } from "@/lib/marketData/viewModels/selectLivingProfile";
 import type { DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import type { LiquidityLifecycleVM } from "@/lib/marketData/viewModels/selectLiquidityLifecycle";
+import { regimeSeriesReach, type RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegimeSeries";
 import { fvgVolatilityAtFormationByTime } from "./fvgFormationContext";
 import { effortFlowIndex, fvgEffortInput, fvgFlowInput, type SignedBarVolume } from "./fvgEffortFlow";
 import {
@@ -70,23 +71,46 @@ export function chartSignedAt(
   };
 }
 
-/** One bar's tape-regime reading as the chart's series holds it (selectRegimeSeries' own fields). */
-export interface TapeRegimePoint {
-  readonly time: number;
-  readonly state: string;
-  readonly basis: "TAPE" | "NO_TAPE";
-}
+/** One bar's tape-regime reading as the chart's series holds it (selectRegimeSeries' own point). */
+export type TapeRegimePoint = RegimeSeriesPoint;
+
+/** Epoch seconds, whichever unit a series or a caller used (ms values are far above any seconds clock). */
+const toSec = (t: number) => (Math.abs(t) > 1e11 ? t / 1000 : t);
 
 /**
  * §5 — the regime AT FORMATION, tape scope, BY REFERENCE: read from the chart's own regime series
  * each time Inspect opens, never stored on the gap (a tape reading cannot be recomputed once the
  * tape is gone). `series` is null when the chart keeps no series (Regime Lighting off).
+ *
+ * The bar is found by CONTAINMENT — the last series bar whose open is at or before b2's open and
+ * whose successor (if any) opens after it — so a session-aligned bucket or a clock in ms still
+ * finds its bar (cert-lane defect 2026-10-09: an exact-equality lookup never read a word).
+ *
+ * THREE honest outcomes, never two:
+ *   the tape reaches the bar and the regime owner names it   → the owner's word;
+ *   the tape reaches the bar but the owner gave no verdict   → "not classified", with the owner's reason
+ *                                                              (it is NOT "the tape does not reach");
+ *   the tape does not reach the bar (or it is not in the series) → "not read", with how far the tape
+ *                                                              regime does reach (regimeSeriesReach).
  */
-export function tapeRegimeAtFormationLine(series: readonly TapeRegimePoint[] | null | undefined, b2OpenSec: number): string {
+export function tapeRegimeAtFormationLine(series: readonly TapeRegimePoint[] | null | undefined, b2Open: number): string {
   if (!series) return "Regime at formation (tape): not read — the chart keeps the tape regime per bar only while Regime Lighting is on.";
-  const p = series.find(x => x.time === b2OpenSec);
-  if (!p || p.basis !== "TAPE" || p.state === "UNKNOWN") return "Regime at formation (tape): not read — the tape does not reach this bar.";
-  return `Regime at formation (tape): ${p.state}.`;
+  const at = toSec(b2Open);
+  let p: TapeRegimePoint | null = null;
+  for (let i = 0; i < series.length; i++) {
+    const open = toSec(series[i].time);
+    if (open > at) break;
+    const next = i + 1 < series.length ? toSec(series[i + 1].time) : Infinity;
+    if (at < next) { p = series[i]; break; }
+  }
+  // The newest bar has no successor: it only "contains" b2 when b2 opened within one bar length of it.
+  if (p && series.length > 1 && p === series[series.length - 1]) {
+    const step = toSec(series[series.length - 1].time) - toSec(series[series.length - 2].time);
+    if (step > 0 && at - toSec(p.time) >= step) p = null;
+  }
+  if (p && p.basis === "TAPE" && p.state !== "UNKNOWN") return `Regime at formation (tape): ${p.state}.`;
+  if (p && p.basis === "TAPE") return `Regime at formation (tape): not classified — ${p.why ? p.why.replace(/[.\s]+$/, "") : "the regime owner gave no verdict for this bar"}.`;
+  return `Regime at formation (tape): not read — the tape does not reach this bar. ${regimeSeriesReach(series).words}`;
 }
 
 export interface FvgInspectRelationships {
@@ -150,7 +174,7 @@ export function fvgInspectRelationships(input: {
   if (input.chartBars.length) {
     context.push(fvgVolatilityAtFormationByTime({ bars: input.chartBars, b2OpenMs: input.o.bars.b2.asOf, timeOf: b => Number(b.time) * 1000, clocked: barSec !== null }).sentence);
   }
-  if (input.regimeSeries !== undefined) context.push(tapeRegimeAtFormationLine(input.regimeSeries, input.o.bars.b2.asOf / 1000));
+  if (input.regimeSeries !== undefined) context.push(tapeRegimeAtFormationLine(input.regimeSeries, input.o.bars.b2.asOf));
   // An owner that drew levels but none near the gap is said under the gap's rows, not left blank.
   return { reading, rows: [...rows, ...absences, ...context], silences };
 }

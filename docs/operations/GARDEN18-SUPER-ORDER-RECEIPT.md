@@ -1059,5 +1059,47 @@ Production at the start: `b290eef` (LIVE 00:49:14). Times are from `date`. Nothi
 | 12:57 | Finish line: §14 → PROVED ON SERVING with the coordinator's qualifier; §65 → sample-data; composites 59, 62, 66 assessed (certificate §26h). **Totals: 46 proved on serving · 12 on fixture · 1 built, not read · 5 partial · 0 not built · 2 Founder decisions** | docs | ticket lane's receipts §10f | CLOSED (doc) |
 | 13:01 → 13:21 | **`b2727cd` committed 13:01; passed the ship gate and CI, but Cloudflare never started a build for it** (no Workers Builds check on the commit). An empty retrigger commit, **`b94f28c`** (13:17), built normally — **LIVE 13:21 CDT** (coordinator ship gate; build identity builtAt 18:18:44Z). Same content as `b2727cd`: truth lines always in the silence stack; level chips and the WAIT plate ask before drawing; Connections page in trader words for members, operator counts for the owner only; surfaces opened from a menu land again once the page settles | `b94f28c` | ship gate | LIVE. Deploy lesson: a green gate is not a deploy — check for the Workers Builds check on the commit, and retrigger when it is absent |
 | (CI) | **GitHub CI went green on `6e150db` for the first time since Oct 6.** Cause and fix, from the Sheriff lane's report: the install card had been padding short pages past the phone audit's floor; the CI phone audit now measures short pages by their own landmark | `6e150db` | Sheriff lane's report (not re-run by the cert lane) | CLOSED |
-| 13:22–13:24 | **Serving reads** (own tab, read-only, closed 13:24) | `b94f28c` | Connections page as the owner: unchanged, operator counts shown (member view stands on the render test — it cannot be read from the owner session). Regime row with Regime Lighting on: a 3-minute-old gap inside a 12-bar tape series still reads "not read — the tape does not reach this bar" (defect, ticket lane); the reach sentence shipped as a helper but no row prints it | certificate §26i |
-| 13:25 | Handover item 18 corrected (the radio host list — WM's store, archive.org, Dropbox — is a new restriction chosen today; the question is whether it is the right list). Item 16 waits for the brokers lane's Plan 1 facts. Totals unchanged: **46 · 12 · 1 · 5 · 0 · 2** | docs | certificate | CLOSED (doc) |
+| 13:22–13:23 | **Serving reads** (own tab, read-only, closed 13:23) | `b94f28c` | Connections page as the owner: unchanged, operator counts shown (member view stands on the render test — it cannot be read from the owner session). Regime row with Regime Lighting on: a 3-minute-old gap inside a 12-bar tape series still reads "not read — the tape does not reach this bar" (defect, ticket lane); the reach sentence shipped as a helper but no row prints it | certificate §26i |
+| 13:23 | Handover item 18 corrected (the radio host list — WM's store, archive.org, Dropbox — is a new restriction chosen today; the question is whether it is the right list). Item 16 waits for the brokers lane's Plan 1 facts. Totals unchanged: **46 · 12 · 1 · 5 · 0 · 2** | docs | certificate | CLOSED (doc) |
+| 13:32 | Timestamp slips corrected (13:24 / 13:25 → 13:23). Certificate §26j: enforce audit (no flip), regime-at-formation defect, decision band on the phone, the missed build, `e8ca9f2`. **§5 back to PARTIAL.** Handover item 16 carries the brokers lane's Plan 1 facts and four questions. **Totals: 45 proved on serving · 12 on fixture · 1 built, not read · 6 partial · 0 not built · 2 Founder decisions** | docs | certificate | CLOSED (doc) |
+
+## End of shift — Oct 9 11:43 → 16:43 CDT (cert lane; PREPARED 13:32 CDT with the shift still running — rows after 13:32 are added as they happen)
+
+### Builds, with LIVE times
+
+| Build | LIVE (CDT) | Source of the time | What it carried | What was proved on it |
+|---|---|---|---|---|
+| `ada59d4` | before the shift (08:08 commit) | build identity read 11:43 | Depth ladder sheet, Replay on a phone, scanner sample scene | quiz-scene pass sentence; Academy sample row lands on its decision; a gap with a wall attached (§17); §11, §21, §39 (brokers lane); phone opacity cause measured |
+| `f9f61fe` | 11:47:37 | coordinator ship gate | truth-line priority in the word registry; the finish-line table | public responsive run 48 / 48 |
+| `e05c774` | 12:02:19 | proof file ("first live") | phone word budget no longer dims ink; `scene=verify`; Depth ladder without source words; Inspect type 11 px | Inspect at 390: 0 of 71 text leaves under 11 px; signed-in pass 27 / 27 with 0 writes; §13 / §14 Inspect rows on real data (ticket lane) |
+| `f37005c` | by 12:17:46 | cert lane's build-identity read | phone glass second pass; selected-frame geometry; glow count; volatility + regime lines in Inspect | Inspect card docks RIGHT for a left-edge gap; `GLOW:1` on an approaching gap (§53 complete); volatility at formation line; opened surfaces at 390 |
+| `6944df9` | 12:26:36 | proof file | price sovereignty on phone glass; stage nav one row; verify banner at the top; API P1-1 / 2 / 4 / 6 | opened surfaces at 834; scanner effort → response hit (ticket lane); API tightening (brokers lane) |
+| `5b12137` | 12:33:06 | proof file | absorption effort mass held to the fog cap; public proxy limiters | limiters under normal load (brokers lane) |
+| `79bb6fd` | 12:39:37 | coordinator ship gate | no notch behind the newest candles; one failure wording; Personal Edge gap study on /profile | Connect brokers through both doors; regime line with Regime Lighting on ("does not reach"); lesson labels found at 9.81 px |
+| `6e150db` | 12:53:21 | coordinator ship gate | selected items keep their words; lesson drawings at 11 px; CI phone audit fixed | 21 of 21 lesson drawings at 11.02 px, none overrunning; captured-tape touch bar (§14, ticket lane); **GitHub CI green for the first time since Oct 6** |
+| `b2727cd` | **never built** | no Workers Builds check on the commit | (same content as `b94f28c`) | — |
+| `b94f28c` | 13:21 | coordinator ship gate | truth lines always in the silence stack; Connections page words by audience; regime reach helper | Connections page as the owner; enforce audit (no flip); regime row defect found; decision band on the phone measured (ticket lane) |
+| `e8ca9f2` | 13:31:04 | coordinator ship gate | read-only order-gate standing for the owner; WAIT plaque below the price legend; scanner names wrap on phones | not yet read by the cert lane |
+
+### Finish line across the shift
+
+| Time | Proved on serving | On sample data | Built, not read | Partial | Founder decision |
+|---|---|---|---|---|---|
+| 08:10 (before the shift) | 39 | 5 | 2 | 18 | 2 |
+| 11:50 | 42 | 10 | 2 | 10 | 2 |
+| 12:28 | 44 | 11 | 1 | 8 | 2 |
+| 12:57 | 46 | 12 | 1 | 5 | 2 |
+| 13:32 | 45 | 12 | 1 | 6 | 2 |
+
+### Open at 13:32
+
+| Open | Owner | Closes when |
+|---|---|---|
+| §5 regime line says "does not reach" for a reached, unclassified bar | ticket lane | a regime word or a "not classified" sentence is read on serving |
+| Word registry stays in OBSERVE: named silences held and listed under enforce; receipt blind to them | chart lane | enforce audit clean, then the flip |
+| Decision band under the fixed thumb bar on the phone; plaque says UNMEASURED beside LIVE | ticket lane | re-read at 390 |
+| Order-gate standing (`e8ca9f2`) not read; §66 waits on it | brokers lane to read, cert lane to cite | one serving read |
+| Signed-in pass P2s: /profile avatar (not reproduced by the ticket lane), Desk pane toolbars and words at 834, glass word collisions at 834, Tools drawer icon-only buttons, tablet type 9–10 px on Connect brokers | owners named in certificate §26c / §26d / §26f | each owner's next ship |
+| 12 sample-data rows | Founder | his real trade and journal entry (handover c) |
+| §52, §58 | Founder | physical phone and tablet (handover d) |
+| 18 handover items | Founder | his rulings (handover b) |

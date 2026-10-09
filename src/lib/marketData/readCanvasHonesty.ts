@@ -128,6 +128,26 @@ export function readCanvasHonesty(input: CanvasHonestyInput): MarketFidelityRead
 }
 
 /**
+ * WHY THERE IS NO READING — the same two refusals `readCanvasHonesty` makes,
+ * named, so the plaque can say which question is open instead of a bare
+ * "UNMEASURED" beside a feed that reads LIVE (serving b94f28c, 2026-10-09).
+ *
+ *   ASKING     the badge is still awaiting — bars have not settled
+ *   NO_ANSWER  the badge is unavailable — nothing answered
+ *   NO_MOMENT  graded, but the house holds no accept-site stamp to date it
+ *
+ * Returns null exactly when `readCanvasHonesty` returns a reading: the two are
+ * one decision read twice, and the test holds them together.
+ */
+export type CanvasUngraded = "ASKING" | "NO_ANSWER" | "NO_MOMENT";
+
+export function readCanvasUngraded(input: CanvasHonestyInput): CanvasUngraded | null {
+  if (input.badge.availability === "awaiting") return "ASKING";
+  if (input.badge.availability !== undefined) return "NO_ANSWER";
+  return readCanvasHonesty(input) === null ? "NO_MOMENT" : null;
+}
+
+/**
  * Named rather than inlined so the PREFERENCE ORDER is a visible decision.
  * `??` would be wrong: a stamp of `0` or `NaN` is present-but-unusable, and
  * nullish-coalescing would hand it onward as if it were an observation.

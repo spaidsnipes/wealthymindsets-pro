@@ -54,7 +54,7 @@ import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_M
 import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
-import { installWordGate, isTruthLine, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
+import { installWordGate, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
 import { FOG_CAP, FOG_FEATHER_PX, installFogGate } from "@/lib/chart/fieldFogBudget";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -7722,7 +7722,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const listNote = displacedNotes.push.bind(displacedNotes);
         displacedNotes.push = (...notes: DisplacedNote[]): number => {
           for (const n of notes) {
-            if (isTruthLine(n.text)) { if (!truthForSilence.includes(n.text)) truthForSilence.push(n.text); }
+            if (wordGate.isTruth(n.text)) { if (!truthForSilence.includes(n.text)) truthForSilence.push(n.text); }
             else listNote(n);
           }
           return displacedNotes.length;
@@ -7795,10 +7795,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         return Math.max(60, W - aw - silenceX - 8);
       })();
       const fitSilence = (t: string): string => {
+        // TRUTH IS DECLARED HERE (enforce audit, serving b94f28c, 2026-10-09):
+        // every line of the silence stack passes through this one function, so
+        // this is where it is declared truth to the word registry — in its full
+        // and its fitted form — and can never be held or listed, whatever it says.
+        const fitted = ((): string => {
         if (ctx.measureText(t).width <= silenceMaxW) return t;
         let lo = 0, hi = t.length;
         while (lo < hi) { const m = (lo + hi + 1) >> 1; if (ctx.measureText(t.slice(0, m) + "\u2026").width <= silenceMaxW) lo = m; else hi = m - 1; }
         return t.slice(0, lo).trimEnd() + "\u2026";
+        })();
+        wordGate.declareTruth(t);
+        wordGate.declareTruth(fitted);
+        return fitted;
       };
       // UI-02 × H-701 · ONE ENCODING OF VALUE PER BAR. The Value Candle block
       // (later this frame) records each bar it painted glass on here; the
@@ -18604,6 +18613,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // §4): when most of the fan reaches past the camera, the caption says so.
               const fanPastView = clippedTop + clippedBot > inView.length / 2;
               const capT = `analogue envelope n=${nNow} · prior sessions, same bar from the open`;
+              // Provenance with its sample size is evidence (coordinator ruling
+              // 2026-10-09): declared truth — never held, never listed.
+              wordGate.declareTruth(capT);
               const capShown = fanPastView ? `${capT} · reaches past this view ↕` : capT;
               ctx.font = marketFont("FIDELITY");
               const capW = ctx.measureText(capShown).width + 12, capH = 16;
@@ -26016,14 +26028,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 minX: keepOutMinX(), blockers: floatingChips, strict: true,
                 alternates: [{ ...pref, x: Math.min(mark.ceiling.x1 + 4, Math.max(8, W - axisWI) - tw - 2) }],
               });
-              if (spot.mode === "BLOCKED") { displacedNotes.push({ layer: "TRUTH", text: t, x: pref.x + tw / 2, y: yy + th / 2 }); continue; }
-              recordKeepOut(keepOutLedger, spot);
-              floatingChips.push(spot.rect);
-              onTop(spot.rect, "INSPECT"); // the inspected bar's true high / low
+              // A SELECTED BAR ALWAYS SHOWS ITS PRICES (enforce audit, serving
+              // b94f28c: with no clear slot they went to the note list and the
+              // glass showed "2 MARKET EVENTS" at the bar). With no clear slot
+              // they keep their preferred spot, as an on-top box.
+              const spotRect = spot.mode === "BLOCKED" ? pref : spot.rect;
+              if (spot.mode !== "BLOCKED") recordKeepOut(keepOutLedger, spot);
+              floatingChips.push(spotRect);
+              onTop(spotRect, "INSPECT"); // the inspected bar's true high / low
               ctx.fillStyle = "rgba(11,10,8,0.78)";
-              if (chipBox(t, { x: spot.rect.x, y: spot.rect.y, w: tw, h: th })) ctx.fillRect(spot.rect.x, spot.rect.y, tw, th);
+              if (chipBox(t, { x: spotRect.x, y: spotRect.y, w: tw, h: th })) ctx.fillRect(spotRect.x, spotRect.y, tw, th);
               ctx.fillStyle = "rgba(240,200,110,0.95)";
-              ctx.fillText(t, spot.rect.x + 4, spot.rect.y + th / 2 + 0.5);
+              ctx.fillText(t, spotRect.x + 4, spotRect.y + th / 2 + 0.5);
             }
             ctx.restore();
             canvas.dataset.inspectedBar = `MARKED:${ib.time}`;
@@ -26390,6 +26406,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
         canvas.dataset.wordGate = wordGate.receipt();
         canvas.dataset.wordGateTruth = wordGate.truthReceipt();
+        // The honest count: truth lines sitting in the note list right now (must read 0).
+        canvas.dataset.truthInNoteList = String(displacedNotes.filter(n => wordGate.isTruth(n.text)).length);
         canvas.dataset.fieldFog = fogGate.receipt();
         // The phone's own glass rules, in one receipt (desk: OFF).
         canvas.dataset.priceSovereignty = narrowGlass ? `NEWEST_COLUMN_CLEAR:${sovereigntyHeld + fogGate.columnCuts() + wordGate.columnHeld()}` : "OFF";

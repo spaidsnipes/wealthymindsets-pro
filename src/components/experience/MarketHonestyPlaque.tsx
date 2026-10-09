@@ -51,6 +51,19 @@ import {
 // the closed handle, and this foot rail one click below it — so it must have
 // one spelling. A private copy here is how a rename lands on only one of them.
 import { INTEGRITY_WORD } from "@/lib/marketData/viewModels/selectFoldEscalation";
+// What the plaque grades, in trader words — one owner (2026-10-09). The plaque
+// sat beside a MARKET cell reading LIVE and said UNMEASURED, or INDICATIVE with
+// "No reason recorded": true sentences that read as a contradiction because the
+// plaque never named its subject.
+import {
+  CANVAS_FIDELITY_LABEL,
+  CANVAS_FIDELITY_MEANING,
+  CANVAS_UNGRADED_UNKNOWN,
+  CANVAS_UNGRADED_WORDS,
+  FIDELITY_REASON_WORDS,
+  NO_FAULT_ON_FILE,
+} from "@/lib/marketData/canvasFidelityWords";
+import type { CanvasUngraded } from "@/lib/marketData/readCanvasHonesty";
 
 /* ── PALETTE ───────────────────────────────────────────────────────────────── */
 
@@ -72,6 +85,11 @@ export interface MarketHonestyPlaqueProps {
    * Null is a real state and is rendered — see below.
    */
   readonly reading: MarketFidelityReading | null;
+  /**
+   * Why there is no reading (only read when `reading` is null): which question
+   * is still open. Without it the plaque says only that the chart is not graded.
+   */
+  readonly ungraded?: CanvasUngraded | null;
   /** Rendered pre-expanded when the surface has room. Never auto-expands. */
   readonly showRaw?: boolean;
   /** Formats asOf. Injected so this component holds no clock of its own. */
@@ -83,6 +101,7 @@ const defaultFormatAsOf = (asOf: number): string => traderClock(asOf);
 
 export function MarketHonestyPlaque({
   reading,
+  ungraded = null,
   showRaw = false,
   formatAsOf = defaultFormatAsOf,
 }: MarketHonestyPlaqueProps): React.ReactElement {
@@ -102,8 +121,8 @@ export function MarketHonestyPlaque({
         data-fidelity="UNMEASURED"
         style={{ border: `1px solid ${HAIR}`, borderRadius: 8, padding: "8px 12px" }}
       >
-        <div style={{ fontSize: 10, letterSpacing: 1, color: MUTED, textTransform: "uppercase" }}>
-          Honesty plaque · one market fidelity
+        <div data-testid="honesty-plaque-subject" style={{ fontSize: 10, letterSpacing: 1, color: MUTED, textTransform: "uppercase" }}>
+          Honesty plaque · {CANVAS_FIDELITY_LABEL}
         </div>
         <div
           data-testid="honesty-plaque-fidelity"
@@ -111,8 +130,10 @@ export function MarketHonestyPlaque({
         >
           UNMEASURED
         </div>
-        <div style={{ fontSize: 11, color: MUTED }}>
-          No fidelity has been established for this canvas.
+        {/* WHICH QUESTION IS OPEN. "Unmeasured" beside a feed reading LIVE read
+            as the house contradicting itself; the cause is what was missing. */}
+        <div data-testid="honesty-plaque-ungraded" data-ungraded={ungraded ?? "UNKNOWN"} style={{ fontSize: 11, color: MUTED }}>
+          {ungraded ? CANVAS_UNGRADED_WORDS[ungraded] : CANVAS_UNGRADED_UNKNOWN}
         </div>
       </section>
     );
@@ -127,8 +148,8 @@ export function MarketHonestyPlaque({
       data-treatment={treatment}
       style={{ border: `1px solid ${HAIR}`, borderRadius: 8, padding: "8px 12px" }}
     >
-      <div style={{ fontSize: 10, letterSpacing: 1, color: MUTED, textTransform: "uppercase" }}>
-        Honesty plaque · one market fidelity
+      <div data-testid="honesty-plaque-subject" style={{ fontSize: 10, letterSpacing: 1, color: MUTED, textTransform: "uppercase" }}>
+        Honesty plaque · {CANVAS_FIDELITY_LABEL}
       </div>
 
       {/* THE ONE WORD. Not five chips. */}
@@ -137,6 +158,12 @@ export function MarketHonestyPlaque({
         style={{ fontSize: 18, letterSpacing: 1.2, color: IVORY }}
       >
         {reading.fidelity}
+      </div>
+
+      {/* WHAT THE WORD MEANS HERE, and what is missing — so INDICATIVE beside a
+          MARKET cell reading LIVE is two facts, not a disagreement. */}
+      <div data-testid="honesty-plaque-meaning" style={{ fontSize: 11, color: PARCHMENT, lineHeight: 1.35 }}>
+        {CANVAS_FIDELITY_MEANING[reading.fidelity]}
       </div>
 
       {/* Mandatory, and adjacent — a fidelity and its moment are one claim, and
@@ -157,8 +184,7 @@ export function MarketHonestyPlaque({
       {reading.reasons.length > 0 ? (
         <details open={showRaw} data-testid="honesty-plaque-raw">
           <summary style={{ fontSize: 10, letterSpacing: 0.8, color: BRASS, cursor: "pointer" }}>
-            Show raw · {reading.reasons.length} reason
-            {reading.reasons.length === 1 ? "" : "s"}
+            {reading.reasons.length} reason{reading.reasons.length === 1 ? "" : "s"} on file
           </summary>
           <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
             {reading.reasons.map((r) => (
@@ -167,7 +193,7 @@ export function MarketHonestyPlaque({
                 data-testid={`honesty-reason-${r}`}
                 style={{ fontSize: 11, color: PARCHMENT, listStyle: "none" }}
               >
-                {r}
+                {FIDELITY_REASON_WORDS[r]}
               </li>
             ))}
           </ul>
@@ -176,7 +202,7 @@ export function MarketHonestyPlaque({
         // LOOKED AND FOUND NOTHING. An absent disclosure and an empty one are
         // different claims, and this is the second.
         <div data-testid="honesty-plaque-no-reasons" style={{ fontSize: 10, color: MUTED }}>
-          No reason recorded against this reading.
+          {NO_FAULT_ON_FILE}
         </div>
       )}
 

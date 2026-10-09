@@ -427,7 +427,7 @@ describe("no hard notch behind the last candles; names and marks obey the column
     expect(CHART).toContain('if (hw.verdict === "HELD_COLUMN" && hw.text.trim().length >= 6) displacedNotes.push({ layer: "WORDS"');
     expect(REG).toContain('if (verdict === "HELD_COLUMN" && columnEnforce) { columnHeld++; return; }');
     // Truth and on-top boxes are exempt for two-character marks too.
-    expect(REG).toContain("!isTruthLine(String(text)) && !registry.isSovereign(rect)");
+    expect(REG).toContain("!isTruth(String(text)) && !registry.isSovereign(rect)");
   });
 });
 
