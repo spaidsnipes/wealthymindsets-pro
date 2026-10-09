@@ -52,6 +52,7 @@ const OWNER_SCOPED_KEYS = new Set<string>([
   "wm_desks_v1", "wm_desk_active_v1",
   "wm:journal-capture-handoff:v1",
   "wm:management-plan:v1",
+  "wm:prop-evaluation:v1", // Founder order §7: the owner's prop-evaluation desk (kept per owner id; purged at sign-out)
   "wm:management-plan-draft:v1",
   "wm:management-day-rules:v1",
   "wm:management-owner:v1",
@@ -59,7 +60,7 @@ const OWNER_SCOPED_KEYS = new Set<string>([
 ]);
 
 /** OWNER_SCOPED_PREFIXES from logoutIsolation.ts (matches by startsWith). */
-const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-", "wm_tv_chat_", "wm_draw:v1:", "wm:morning-prep:v2:", "wm:decision-identity:", "wm:risk-receipt:", "wm:management-plan:v1:", "wm:management-plan-draft:v1:", "wm:management-day-rules:v1:", "wm_journal_entries:", "wm-journal:", "wm_story_review_v1:", "wm:journal-ticket-at-send:v1:"];
+const OWNER_SCOPED_PREFIXES: readonly string[] = ["wm-notes-", "wm_tv_chat_", "wm_draw:v1:", "wm:morning-prep:v2:", "wm:decision-identity:", "wm:risk-receipt:", "wm:management-plan:v1:", "wm:management-plan-draft:v1:", "wm:management-day-rules:v1:", "wm_journal_entries:", "wm-journal:", "wm_story_review_v1:", "wm:journal-ticket-at-send:v1:", "wm:prop-evaluation:v1:"];
 
 /**
  * Keys cleared by a domain-specific `clearX()` invoked from

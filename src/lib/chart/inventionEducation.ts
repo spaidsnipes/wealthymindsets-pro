@@ -24,6 +24,7 @@
  * "no second past, no lookahead", Contradiction "never averaged".
  * A test pins: every menu row has a record, every record names a real id.
  */
+import { academyDoorForTool } from "@/lib/academy/academyDoorForTool";
 import type { ProfileId, ProfileMenuEntry } from "@/lib/marketData/viewModels/selectProfileMenu";
 import type { MarketQualityState } from "@/lib/marketData/canonicalMarketState";
 import { hasNoCentralVolume } from "@/lib/chart/volumeTruth";
@@ -703,13 +704,22 @@ export const CONCEPT_EDUCATION = {
 export type EducationKey = ProfileId | keyof typeof INSTRUMENT_EDUCATION | keyof typeof CONCEPT_EDUCATION | "BAR_SELECTION";
 
 /** The one lookup — a catalogue id, a Tool Finder instrument id, or a taught concept. */
+const DOORED = new Map<string, InventionEducation>();
+
 export function educationFor(id: string): InventionEducation | null {
-  return (INVENTION_EDUCATION as Record<string, InventionEducation>)[id] ?? INSTRUMENT_EDUCATION[id]
+  const base = (INVENTION_EDUCATION as Record<string, InventionEducation>)[id] ?? INSTRUMENT_EDUCATION[id]
     ?? (CONCEPT_EDUCATION as Record<string, ConceptEducation>)[id]
     // Indicators-menu rows (`IND:<catalogue name>`, Sheriff P1-C).
     ?? indicatorEducationFor(id)
     // Smart Money cards, drawing tools, views, loadouts, Replay, bar selection (`SM:` `DRAW:` `VIEW:` `LOADOUT:` …).
     ?? surfaceEducationFor(id) ?? null;
+  // Supermax §9 — the lesson that teaches this tool, readable from its ⓘ before it is switched on.
+  // One stable object per id (callers may compare by reference); a record's own door wins.
+  const door = base && !("academy" in base) ? academyDoorForTool(id) : null;
+  if (!base || !door) return base;
+  let withDoor = DOORED.get(id);
+  if (!withDoor) { withDoor = { ...base, academy: door } as InventionEducation; DOORED.set(id, withDoor); }
+  return withDoor;
 }
 
 /** What "now" means on this chart, for the preview's truth block. */

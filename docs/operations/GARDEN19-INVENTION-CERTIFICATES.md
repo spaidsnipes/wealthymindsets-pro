@@ -6,7 +6,7 @@ Written 2026-10-06, 23:50–00:30 CDT, by the INVENTION CENSUS lane. **This pass
 
 One row per section of the order's second part ("0 — PRIMARY ORDER" through "66 — GARDEN 19 CONSTITUTIONAL CLOSE"; §0 is the preamble and has no row). Titles are the Founder's. Section numbers in the last column of evidence (§5, §6a, §10, §13, §22, §23 …) point into THIS document; proof files are in `~/wm-held/proof/`. Only what this document and the proof files cite is counted: a row with no serving receipt is BUILT · NOT READ or lower. Production at writing: `16f363a` (LIVE 07:54:56 CDT).
 
-**Totals (66), as of 13:32 CDT Oct 9 (production `e8ca9f2`):** **PROVED ON SERVING** 45 · **PROVED ON FIXTURE · real-account read owed** 12 · **BUILT · NOT READ** 1 · **PARTIAL** 6 · **NOT BUILT** 0 · **FOUNDER DECISION** 2. (At 12:57: 46 · 12 · 1 · 5 · 0 · 2. At 11:50: 42 · 10 · 2 · 10 · 0 · 2. At 08:10: 39 · 5 · 2 · 18 · 0 · 2.)
+**Totals (66), as of 18:28 CDT Oct 9 (production `c9303a7`):** **PROVED ON SERVING** 46 · **PROVED ON FIXTURE · real-account read owed** 12 · **BUILT · NOT READ** 1 · **PARTIAL** 5 · **NOT BUILT** 0 · **FOUNDER DECISION** 2. (At 13:32: 45 · 12 · 1 · 6 · 0 · 2. At 11:50: 42 · 10 · 2 · 10 · 0 · 2. At 08:10: 39 · 5 · 2 · 18 · 0 · 2.)
 
 | § | Founder's title | State | Proved by (build · time) — or exactly what is missing | Lane |
 |---|---|---|---|---|
@@ -75,7 +75,7 @@ One row per section of the order's second part ("0 — PRIMARY ORDER" through "6
 | 63 | FINAL FVG SHERIFF TEST | **FOUNDER DECISION** | The lanes ran it (`fvg-serving-sheriff-2026-10-07.txt`; first-tap screenshots on `c104669`). The test is the Founder's own walk on Market Home — owed, and the layer is off until he switches it on. | Sheriff lane |
 | 64 | FINAL PATIENCE / MANAGEMENT SHERIFF TEST | **PROVED ON FIXTURE · real-account read owed** | Market / planned / actual apart, factual deviations, new evidence preserved — sample walkthrough (§10b). Owed: one completed Founder trade. | management lane |
 | 65 | GARDEN 19 FINAL FVG LAW | **PROVED ON FIXTURE · real-account read owed** | Every line has a row above except: other evidence present / absent at the gap is limited to structure, profile and walls (§13, §14, §17); "how the trader behaved" is proved on sample data only (§23). **UPDATE 12:57 CDT:** with §13 and §14 proved, other evidence present / absent at the gap is now read for structure, profile, walls, effort → response and order flow. The one line left is "how the trader behaved" — proved on sample data only (§23, §24, §41). Closes with the Founder's real journal entries. | FVG / chart lane |
-| 66 | GARDEN 19 CONSTITUTIONAL CLOSE | **PARTIAL** | Most pairs have rows above. Open: "broker acknowledgement before execution certainty" — the Webull server gate (`559884e`) is pinned by sentinel, not proved on serving (§21c); "permission before automation" — authorized execution is not built and needs the Founder's permission rule (§10c). **12:57 CDT:** still waits on two things — (1) a serving read of the Webull order door's server gate refusing an order (not done: no order is sent on the Founder's account; needs a sample or dry-run path), with decision 6 on the GATED wording; (2) the Founder's permission rule for authorized execution. | coordinator |
+| 66 | GARDEN 19 CONSTITUTIONAL CLOSE | **PROVED ON SERVING** | Most pairs have rows above. Open: "broker acknowledgement before execution certainty" — the Webull server gate (`559884e`) is pinned by sentinel, not proved on serving (§21c); "permission before automation" — authorized execution is not built and needs the Founder's permission rule (§10c). **12:57 CDT:** still waits on two things — (1) a serving read of the Webull order door's server gate refusing an order (not done: no order is sent on the Founder's account; needs a sample or dry-run path), with decision 6 on the GATED wording; (2) the Founder's permission rule for authorized execution. **UPDATE 18:28 CDT → PROVED ON SERVING** (brokers lane's receipt, "§66 receipt" in this document; serving `e8ca9f2`, 13:31:40–13:32:17 CDT): the server gate was READ with no order sent — owner, both brokers: limits UNSET → WOULD_REFUSE, `sent: false`, "would refuse: No server-held order limits are set…"; guest 401; every execute row in Settings › Connections prints the gate's verdict with its time. Still the Founder's: the Webull GATED wording (handover 6) and his permission rule for authorized execution. | coordinator |
 
 Struck from the open list: the memo-deps ask at `ChartsDashboard.tsx` ~2960 — closed in `7f2ca59` (coordinator, Oct 9).
 
@@ -3029,3 +3029,83 @@ Read through the owner-only, read-only `GET /api/broker/order-gate` (same limits
 | Settings › Connections | every execute row prints "server gate now: would refuse: No server-held order limits are set. … · as of 1:32:14 PM CDT" (tastytrade, 5 rows) / "… 1:32:17 PM CDT" (Webull, 2 rows); rows that are NOT BUILT / UNSUPPORTED print no gate line |
 
 **What it means today.** The server holds no order limits for the owner, so both live submit doors refuse any risk-increasing order before a broker is contacted. Not read (and not readable without changing a setting or sending an order): the DISARMED, KILL SWITCH, cap-not-set and "would pass" sentences on serving — those four are proved in the two test files only.
+
+
+---
+
+## SUPERMAX ORDER MAP — the Founder's "Garden 19 Supermax WOW Official finish-line order", 14 sections (cert lane, written 18:28 CDT Oct 9; shift to 00:00 CDT)
+
+Status words: **PROVED** (a serving receipt in this document covers it) · **PARTIAL** (what is missing is named) · **BUILDING tonight** · **FOUNDER** (waits on him). The section titles are as the coordinator relayed them; the order's full text was not in the cert lane's hands when this was written, so a requirement inside a section that is not named here is not yet mapped.
+
+| § | Section | Status today | Owner | Rows in this document that already cover it | Missing |
+|---|---|---|---|---|---|
+| 1 | Drive read | **PARTIAL** | coordinator | §0 (registry, manifestation map and plates read Oct 6–7) | no receipt in this document of a Drive read for THIS order |
+| 2 | WOW standard | **PARTIAL** | Sheriff lane | §26c / §26d (signed-in passes, 0 writes), erasure tests (finish-line §47–§51), phone glass builds `e05c774` → `e8ca9f2` | word registry still in OBSERVE (§26j); the signed-in pass P2s |
+| 3 | Canon station | **PARTIAL** | chart lane | §3a (plate ⇄ glass per certificate) | no serving read of the station tonight |
+| 4 | Visual manifestation | **PARTIAL** | chart lane | §11 inventory, §12 certificates, finish-line §8, §43–§46, §53 (§25) | §11c top gaps; glass word collisions at 834 (§26c #7) |
+| 5 | Appearance controls | **BUILDING tonight** | chart lane | §26d (Tools drawer read; per-tool controls are icon-only) | no certificate row for the controls themselves |
+| 6 | First-class trading | **PARTIAL · BUILDING tonight** | Sheriff lane (TRADE door on first paint, four sizes) + ticket / brokers lanes | §10b ticket rows, §21c, "§66 receipt", handover 1, 6, 16 | the TRADE door on first paint at four sizes; atomic MODIFY, bracket / OCO; real working-order cancel; Founder decisions 1, 6, 16 |
+| 7 | Founder prop-evaluation desk (Founder-only, inside Journal / Review) | **BUILDING tonight** | ticket / journal lane | none yet | **account truth** (firm, program, balances, target, consistency %, largest day, adjusted target, remaining, drawdown + method, contract limits, minimum days, as-of); **consistency engine** (required = max(target, largest day ÷ 0.30); remaining = required − net; a two-day plan is said to be impossible when the arithmetic says so); **scenario lab** (illustrative, never a target); **Founder-only privacy** |
+| 8 | Prop data + SpaidBot | **BUILDING tonight** (file import) · **FOUNDER** (dashboard read-back) | brokers lane (file-import owner) | finish-line §30, §31 | supported export / import only, with timestamps and provenance; no scraping, no credentials; SpaidBot reads the same Journal / account truth and never promises a pass |
+| 9 | Journal / Review / Academy | **PARTIAL** | management + cert lanes | finish-line §23–§29, §33–§36, §40–§42, §56; §22, §23, §26e–§26f | the 12 sample-data rows (Founder actions); tonight's Academy audit (Task 2) |
+| 10 | SpaidBot entry | **PARTIAL** | brokers / management lanes | finish-line §30 PROVED; Ask doors pre-filled, never sent (§6a); launcher docks in the nav (`e8ca9f2`, not read) | §31 answer on a real plan; the docked launcher read |
+| 11 | Passport / Stripe | **PARTIAL** (brokers audit in progress) · **FOUNDER** (referral URLs) | brokers lane | §22b (four tiers pinned; confirmed by the Founder today), handover 4; public-language sweep done (§27c) | the brokers lane's audit result; referral URLs |
+| 12 | Device parity | **PARTIAL** | Sheriff + chart lanes | finish-line §43, §52, §58; §26c–§26f | physical phone and tablet (handover d) |
+| 13 | Hourly checkpoints | **BUILDING tonight** | cert lane | the log below | — |
+| 14 | Release certification | **PARTIAL** | cert lane | the FINISH LINE table (66 rows); FOUNDER HANDOVER; end-of-shift receipt | 12 sample-data rows, §5, §52, §58, §59, §62; the 18 handover items |
+
+**Founder decisions already given today:** four tiers $0 / $10 / $20 / $50 confirmed; the Depth ladder shows the book without a venue label.
+
+### Hourly checkpoint log (real `date` stamps only; ship SHAs as the coordinator feeds them)
+
+| Stamp (CDT) | Production | Finish line (66) | Since the last checkpoint |
+|---|---|---|---|
+| 18:28 | `c9303a7` (committed 18:20; coordinator: LIVE 18:26, 17,734 tests) | 46 proved on serving · 12 sample data · 1 built, not read · 5 partial · 2 Founder | §66 flipped from the brokers lane's server-gate read; `f37005c` gate time recorded (12:17:44); this map written. Open from the last shift: §5 regime line (three-outcome sentence shipped in `c9303a7`, not read yet); registry in OBSERVE |
+| 18:35 | `c9303a7` (no ship since) | 46 · 12 · 1 · 5 · 2 Founder | Supermax §9 Academy audit built in the tree (ten list items covered, ON THE CHART box in 21 lessons, ⓘ doors for the named inventions); public-language sweep (one correction, the manifest); map rows 5–8 and 11 carry the order's text. Gate call — cert lane frozen green |
+
+## 27. Supermax §9 and §11 / §14 — Academy audit, ⓘ doors, public language (cert lane, written 18:35 CDT Oct 9; tree, not shipped)
+
+### 27a. The Founder's Academy list against the existing course ("FVG / Imbalance & Patience", 21 lessons — no new room, no new lesson)
+
+| Item on the list | Before tonight | Now (tree) |
+|---|---|---|
+| Three-candle structure | lesson 2 | unchanged |
+| Partial vs full mitigation | lessons 7, 8 | unchanged |
+| Rejection | lesson 9 (pinned for the journal) | unchanged |
+| Invalidation | lesson 14 | unchanged |
+| Session context | only as return timing (lesson 10) | **added to lesson 5:** "Session is context too…" — the session a gap formed in, the boundary flag, Session Bands |
+| Momentum / displacement | lesson 5 named the bar, not effort and response | **added to lesson 5:** momentum as two facts, effort and response, read from the middle bar; it describes the bar, it does not rate the gap |
+| Patience — waiting is a position | lesson 18 taught waiting, not in those words | **added to lesson 18:** "Waiting is a position. Flat, with a plan and a condition you are watching for, is a decision you are holding — not time lost." |
+| Trade management around a gap | lesson 19 was general | **added to lesson 19:** the plan's conditions are the gap's own events (touch, rejection, acceptance, trade-through), decided before entry |
+| Evidence-based limitations | lesson 13: no order-flow reading on spot FX | **added to lesson 13:** "What WM Pro cannot know: who traded, why they traded, or what price does next." and "On spot FX there is no central exchange, so there is no traded volume…"; absorption, options walls and resting liquidity as other owners' readings, each with its own grade |
+| A gap does not have to fill | the no-guarantee sentence only | **added to lessons 1 and 10:** "A gap does not have to fill. Some are revisited, some never are — WM Pro records which." The words "must fill" appear only on the MYTH card (pinned) |
+| Each lesson states what on the glass it corresponds to | not stated | **new "ON THE CHART" box in all 21 lessons** (`FVG_ON_THE_GLASS`): the band, the hatch, the tick, the dashed far edge, the Inspect rows, the ticket field, the Journal row — in the layer's own grammar |
+
+Paragraphs are appended, so the rule sentences the journal pins (lessons 9, 14, 18) keep their positions.
+
+### 27b. ⓘ → the lesson, before a tool is switched on
+
+The ⓘ preview is the same component at 390 and on desktop (Tool Finder, Profiles menu, footprint modes); it now carries an "Academy · <lesson> ›" link for these tools, through the one ⓘ owner (`educationFor`):
+
+| Invention | Lesson behind its ⓘ | Was |
+|---|---|---|
+| FVG / Imbalance | 1 · What is an imbalance? | already there |
+| Living Profile | 12 · FVG + profile | no door |
+| Brick Walls, Derivatives Pressure (walls) | 13 · FVG + order flow | no door |
+| Absorption | 13 · FVG + order flow | no door |
+| Effort → Response, Effort Mark | 5 · Displacement | no door |
+| Liquidity Weather, Liquidity Lifecycle | 13 · FVG + order flow | no door |
+| Footprint modes (bid × ask, delta, imbalance, volume profile, aggressive / passive, big trades) | 13 · FVG + order flow | no door |
+
+**Honest limit.** Only the FVG course has published lessons. Each door goes to the published lesson that teaches the tool beside a gap; no tool has a lesson of its own yet, and the rest of the catalogue (Order Flow Foundations, Footprint Mastery, Smart Money Signals …) is unpublished outlines — a door to an outline would promise a lesson that is not there. Not yet read on serving at 390 or desktop (tree only).
+
+### 27c. Public language — "merely a chart" sweep (§11 last line, §14)
+
+| File:line | Wording | Action |
+|---|---|---|
+| `src/app/manifest.ts:40` | "Elite trading dashboard, smart money tools, social community & creator economy" | **corrected** → "A trading operating system: market intelligence, order flow, decision memory and review — with honest UNKNOWN, STALE and INSUFFICIENT states." (the root layout's own sentence, shortened) |
+| `src/app/pricing/page.tsx:37` | "The chart and workspace, on your own account." ($10 tier tagline) | left — names what the tier contains (coordinator ruling) |
+| `src/app/manifest.ts:77` | "Open the trading chart" (Charts shortcut) | left — names the shortcut (coordinator ruling) |
+| `src/app/layout.tsx` title, description, keywords, Open Graph; /welcome, /pricing, /login, `sellingStory.ts`, the selling component, `/` | already "Trading Operating System"; no "charting platform" / "dashboard" wording | none |
+
+A test now pins the manifest, the root metadata and the public pages against "charting platform / trading dashboard" wording. The two unredlined selling strings are untouched.

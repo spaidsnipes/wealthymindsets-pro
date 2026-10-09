@@ -193,6 +193,11 @@ interface LedgerEntry {
  * below, not typed from memory.
  */
 const LEDGER: Readonly<Record<string, LedgerEntry>> = {
+  "src/lib/journal/propFillsImport.ts": {
+    reason: "AWAITING_SURFACE",
+    note:
+      "Prop-account fills from a file the trader exported (Garden 19 Supermax §8, 2026-10-09): the pure parser and the daily-results owner ship first so the ticket lane can mount them on the Journal's prop-evaluation desk (importPropFills → propDailyResults → PropDay[]). Until that mount lands no trader can open a file. Delete this entry in the commit that wires the first consumer — the suite will ask.",
+  },
   "src/lib/marketing/bannedClaims.ts": {
     reason: "OPS_TOOLING",
     note: "The §57 banned-claims patterns (night shift 2026-10-07): one owner read by sellingStory.test.ts and marketingSurfaces.sentinel.test.ts to sweep every marketing string. A release guard, not a screen — nothing a trader sees imports it.",

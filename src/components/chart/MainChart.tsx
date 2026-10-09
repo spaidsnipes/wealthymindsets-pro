@@ -7599,7 +7599,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // WORDS MEANT TO SIT ON TOP are named, with the reason, so ENFORCE cannot
       // remove them: the crosshair's words, Inspect / selection words, and the
       // rows of an opaque card.
-      const onTop = (box: { x: number; y: number; w: number; h: number }, reason: "CROSSHAIR" | "SELECTION" | "INSPECT" | "OPAQUE_CARD") => wordGate.sovereignPanel(box, reason);
+      const onTop = (box: { x: number; y: number; w: number; h: number }, reason: "CROSSHAIR" | "SELECTION" | "INSPECT" | "OPAQUE_CARD" | "ANSWER") => wordGate.sovereignPanel(box, reason);
 
       // G7 · EVERY LAYER IS ISOLATED AND NAMED (2026-09-29). A throw in one
       // layer used to either escape the frame (killing every later layer) or
@@ -13486,6 +13486,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Set only when the lens actually painted its full column this frame —
       // not merely when the layer is switched on with nothing to ask.
       let lensColumnActive = false;
+      // Bottom edge of the phone's compact question strip this frame (0 = none).
+      let lensNarrowBottom = 0;
       let lensFormPainted = false;
       // Screen boxes of the candles in view — what floating chrome must not
       // cover. Built at most once per frame, only when something asks.
@@ -15142,6 +15144,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const refuseW = W < 640 ? Math.max(120, W - 24) : stripW;
                 ctx.fillStyle = "rgba(11,10,8,0.94)"; ctx.fillRect(bx, by, refuseW, bh);
                 floatingChips.push({ x: bx, y: by, w: refuseW, h: bh });
+                onTop({ x: bx, y: by, w: refuseW, h: bh }, "ANSWER"); // the asked question's refusal strip
                 ctx.strokeStyle = "rgba(201,165,92,0.5)"; ctx.lineWidth = 1; ctx.strokeRect(bx + 0.5, by + 0.5, refuseW - 1, bh - 1);
                 ctx.textAlign = "left"; ctx.textBaseline = "middle";
                 const fit = (text: string) => {
@@ -15550,6 +15553,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const bx = 8, by = 96, bw = W - 16;
                   ctx.fillStyle = "rgba(11,10,8,0.9)"; ctx.fillRect(bx, by, bw, 34);
                   floatingChips.push({ x: bx, y: by, w: bw, h: 34 });
+                  onTop({ x: bx, y: by, w: bw, h: 34 }, "ANSWER"); // the asked question, compact (phone)
+                  // The folded-silence line's home is the row UNDER this strip while a
+                  // question is asked (they shared y 96–130 on serving 390, c9303a7).
+                  lensNarrowBottom = by + 34;
+                  floatingChips.push({ x: 0, y: by + 36, w: Math.min(plotRight, 230), h: 16 });
                   ctx.strokeStyle = lens.openDebt > 0 ? "rgba(226,92,92,0.6)" : "rgba(201,165,92,0.6)"; ctx.lineWidth = 1;
                   ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 33);
                   ctx.textAlign = "left"; ctx.textBaseline = "middle";
@@ -15573,6 +15581,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.fillStyle = "rgba(11,10,8,0.94)";
                   ctx.fillRect(bx, by, bw, bh);
                   floatingChips.push({ x: bx, y: by, w: bw, h: bh });
+                  onTop({ x: bx, y: by, w: bw, h: bh }, "ANSWER"); // the asked question's top strip
                   ctx.strokeStyle = "rgba(201,165,92,0.75)"; ctx.lineWidth = 1;
                   ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
                   const c1 = Math.round(bw * 0.58), c2 = Math.round(bw * 0.24);
@@ -15603,6 +15612,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   ctx.fillStyle = "rgba(11,10,8,0.94)";
                   ctx.fillRect(lx, top, colW, ch);
                   floatingChips.push({ x: lx, y: top, w: colW, h: ch });
+                  onTop({ x: lx, y: top, w: colW, h: ch }, "ANSWER"); // the asked question's evidence-debt card
                   ctx.strokeStyle = lens.openDebt > 0 ? "rgba(226,92,92,0.75)" : "rgba(201,165,92,0.75)";
                   ctx.strokeRect(lx + 0.5, top + 0.5, colW - 1, ch - 1);
                   // Ring: one arc per item — filled gold when paid, crimson outline when owed.
@@ -15658,6 +15668,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ctx.fillStyle = "rgba(11,10,8,0.94)";
                     ctx.fillRect(lx, cy, colW, cwh);
                     floatingChips.push({ x: lx, y: cy, w: colW, h: cwh });
+                    onTop({ x: lx, y: cy, w: colW, h: cwh }, "ANSWER"); // the asked question's control card
                     ctx.strokeStyle = "rgba(201,165,92,0.55)";
                     ctx.strokeRect(lx + 0.5, cy + 0.5, colW - 1, cwh - 1);
                     ctx.font = marketFont("WARNING");
@@ -18617,6 +18628,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // 2026-10-09): declared truth — never held, never listed.
               wordGate.declareTruth(capT);
               const capShown = fanPastView ? `${capT} · reaches past this view ↕` : capT;
+              wordGate.declareTruth(capShown);
               ctx.font = marketFont("FIDELITY");
               const capW = ctx.measureText(capShown).width + 12, capH = 16;
               const endC = inView[inView.length - 1];
@@ -18628,6 +18640,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 [...keepOut(), ...rowBodiesAt(Math.min(capAbove.y, capBelow.y), Math.max(capAbove.y, capBelow.y) + capH)],
                 { minX: keepOutMinX(), blockers: floatingChips, strict: true, alternates: [capBelow] },
               );
+              // No clear slot: a truth line never paints over another one's home
+              // (serving 390 / 430 enforce, c9303a7: this caption sat on the
+              // "N SENSES SILENT" row). It is said in the silence stack instead.
+              if (spotCap.mode === "BLOCKED") {
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                const yC = takeSilenceRow();
+                ctx.fillText(fitSilence(capShown), silenceX, yC);
+                if (yC > 0) floatingChips.push({ x: silenceX, y: yC - 7, w: ctx.measureText(capShown).width, h: 14 });
+                ds.expectedEnvelopeCaption = "SILENCE_STACK";
+              } else {
+              ds.expectedEnvelopeCaption = spotCap.mode;
               recordKeepOut(keepOutLedger, spotCap);
               floatingChips.push({ x: spotCap.rect.x, y: spotCap.rect.y, w: spotCap.rect.w, h: capH });
               ctx.fillStyle = `rgba(11,10,8,${keepOutBackingAlpha(spotCap, 0.85)})`;
@@ -18637,6 +18661,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.fillStyle = "rgba(237,230,211,0.9)";
               ctx.textAlign = "left";
               ctx.fillText(capShown, spotCap.rect.x + 6, spotCap.rect.y + capH / 2 + 0.5);
+              }
               ds.expectedEnvelopeCaption = spotCap.mode;
 
               // MARKET SURPRISE — a flag on the live event, only when the
@@ -25966,7 +25991,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // PHONE ASK 8 (erasure, 2026-10-07): on narrow glass the summary line
         // sat across the volume bars (and the DOM R/A/%/L chips). It moves to
         // the top-left of the price pane, under the header band.
-        const y = narrowGlass ? HEADER_FLOOR_Y + 10 : silenceRowY;
+        const y = narrowGlass ? (lensNarrowBottom > 0 ? lensNarrowBottom + 10 : HEADER_FLOOR_Y + 10) : silenceRowY;
         const words = narrowGlass
           ? `${silenceFolded} SENSE${silenceFolded === 1 ? "" : "S"} SILENT — TOOLS › ACTIVE`
           : `+${silenceFolded} MORE SENSE${silenceFolded === 1 ? "" : "S"} SILENT HERE — TOOLS › ACTIVE SAYS WHY`;

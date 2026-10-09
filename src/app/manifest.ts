@@ -37,7 +37,10 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "WealthyMindsets Pro",
     short_name: "WM Pro",
-    description: "Elite trading dashboard, smart money tools, social community & creator economy",
+    // The installed app's own sentence (Supermax §11 / §14): WM Pro is a Trading
+    // Operating System, never "a dashboard" or "a chart". The words are the
+    // root layout's description, shortened — no new claim is written here.
+    description: "A trading operating system: market intelligence, order flow, decision memory and review — with honest UNKNOWN, STALE and INSUFFICIENT states.",
     start_url: FOUNDER_LANDING_ROUTE,
     display: "standalone",
     display_override: ["window-controls-overlay", "standalone", "minimal-ui"],

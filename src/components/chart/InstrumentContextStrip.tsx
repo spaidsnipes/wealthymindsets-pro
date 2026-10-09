@@ -86,13 +86,22 @@ export function InstrumentContextStrip({
         <button
           type="button"
           data-testid="context-trade"
+          // THE TRADE DOOR IS THE LOUDEST CONTROL ON THE STRIP (Founder order §6,
+          // 2026-10-09: "the TRADE control must be prominent… order entry cannot
+          // be buried"). Read on serving c9303a7: it was a 75x26 outline with
+          // 10.5px gold words on a 14% gold tint — the same weight as Desk and
+          // Watchlist beside it. It is now the one FILLED control here: solid
+          // brass, dark words, 12px, 30px tall (44 on touch — globals.css). The
+          // fill is set in globals.css (.wm-trade-door) so the short-landscape
+          // rule that paints the strip's buttons black cannot blank it.
+          className="wm-trade-door"
           onClick={onTrade}
           aria-pressed={tradeOpen}
           aria-label={`Trade ${symbol}`}
           style={{
-            display: "inline-flex", alignItems: "center", gap: 6, minHeight: 26, padding: "0 14px", borderRadius: 3, marginRight: 6,
-            border: `1px solid ${GOLD}`, background: tradeOpen ? "rgba(201,165,92,.28)" : "rgba(201,165,92,.14)", color: GOLD,
-            cursor: "pointer", font: "800 10.5px/1 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".14em", textTransform: "uppercase",
+            display: "inline-flex", alignItems: "center", gap: 6, minHeight: 30, padding: "0 18px", borderRadius: 4, marginRight: 6,
+            border: `1px solid ${GOLD}`, background: GOLD, color: "#14110a",
+            cursor: "pointer", font: "800 12px/1 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".14em", textTransform: "uppercase",
           }}
         >
           Trade

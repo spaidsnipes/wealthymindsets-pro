@@ -140,6 +140,7 @@ import { keyActivates } from "@/lib/a11y/keyActivates";
 
 // HOT_ROOM (garden pass 2026-10-04): the Ledger tab, the genome inspector and
 // the canvas panel render only on demand; they no longer ride the first download.
+const PropEvaluationGate = dynamic(() => import("@/components/journal/PropEvaluationGate").then(m => m.PropEvaluationGate), { ssr: false });
 const WebullLifetimeLedger = dynamic(() => import("@/components/journal/WebullLifetimeLedger").then(m => m.WebullLifetimeLedger), { ssr: false });
 const MarketCanvasPanel = dynamic(() => import("@/components/experience/MarketCanvasPanel"), { ssr: false });
 const LearningGenomeInspector = dynamic(() => import("@/components/learningGenome/LearningGenomeInspector").then(m => m.LearningGenomeInspector), { ssr: false });
@@ -2334,6 +2335,8 @@ Trade the system, trust the process, winners every day 🚀`,
 
       {/* ── AI Coach tab ─────────────────────────────────────── */}
       {mainTab === "ledger" && <WebullLifetimeLedger />}
+      {/* Owner-only (the gate renders nothing at all for a member or a guest). */}
+      {mainTab === "ledger" && <PropEvaluationGate />}
       {mainTab === "coach" && (
         <div className="flex-1 overflow-y-auto">
           <StrategyCoach entries={entries} />

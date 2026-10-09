@@ -56,7 +56,7 @@ export interface ReservedWord { readonly text: string; readonly rect: WordRect; 
 // ACTIVE · NO CURRENT ABSORPTION / EXHAUSTION EVENT", "RISK ON PRICE · no position
 // drawn" and the envelope's "n=10 · prior sessions" caption were held and listed
 // because this list did not know their words).
-const TRUTH_WORDS = /\b(SILENT|SILENCE|WITHHELD|CONTRADICTION|UNAVAILABLE|UNSUPPORTED|UNMEASURED|UNRESOLVED|STALE|DELAYED|DEGRADED|NOT ENOUGH|NOT ASKABLE|NO TAPE|NO DATA|NO BAR|NO VOLUME|NO CURRENT|NO READING|NO POOL|NO POSITION|NO PRIOR|WAITING FOR|TAPE REQUIRED|CANDLE-ESTIMATED|ESTIMATED|PARTIAL|DATA GAP|BARS BEHIND|PROOF SCENE|SAMPLE|BAR TOTALS ONLY|CARRY NONE|NEEDS \d|ACTIVE · NO|PRIOR SESSIONS)\b|\bn=\d/i;
+const TRUTH_WORDS = /\b(SILENT|SILENCE|WITHHELD|CONTRADICTION|UNAVAILABLE|UNSUPPORTED|UNMEASURED|UNRESOLVED|STALE|DELAYED|DEGRADED|NOT ENOUGH|NOT ASKABLE|NO TAPE|NO DATA|NO BAR|NO VOLUME|NO CURRENT|NO READING|NO POOL|NO POSITION|NO PRIOR|REFUSED|WAITING FOR|TAPE REQUIRED|CANDLE-ESTIMATED|ESTIMATED|PARTIAL|DATA GAP|BARS BEHIND|PROOF SCENE|SAMPLE|BAR TOTALS ONLY|CARRY NONE|NEEDS \d|ACTIVE · NO|PRIOR SESSIONS)\b|\bn=\d/i;
 export function isTruthLine(text: string): boolean {
   return TRUTH_WORDS.test(text);
 }
@@ -94,7 +94,7 @@ export interface WordRegistry {
    * the rows inside it are held with it, so no word is left without its box and
    * no box without its word.
    */
-  claimPanel(label: string, rect: WordRect, tier?: WordTier): { verdict: WordVerdict; against: string };
+  claimPanel(label: string, rect: WordRect, tier?: WordTier, rows?: boolean): { verdict: WordVerdict; against: string };
   /**
    * A box that is MEANT to sit on top (the crosshair's words, Inspect and
    * selection words, an opaque card's rows). Never judged, never held; its rows
@@ -177,12 +177,20 @@ export function createWordRegistry(reserved: readonly ReservedWord[] = []): Word
     claim: judge,
     reservations: () => placed.filter(p => p.tier !== "OTHER").map(p => ({ text: p.text, rect: p.rect, tier: p.tier })),
     get truthWords() { return placed.filter(p => p.tier === "TRUTH").length; },
-    claimPanel(label, rect, tier) {
+    claimPanel(label, rect, tier, rows = false) {
       const before = held.length;
+      // A chip's box is judged exactly like its word (same text, same place —
+      // the word that follows is recognised as the same claim). It is NOT a
+      // free pass for whatever is painted inside it later: on serving 834
+      // (enforce, c9303a7) "MID" and "WAIT" painted over OI chips because any
+      // word mostly inside a painted box was taken for one of its rows. Only a
+      // box declared with `rows` (a multi-line card) owns the rows inside it.
       const v = judge(label, rect, tier);
-      if (v.verdict === "PAINT") panels.push(rect);
-      else if (held.length > before) heldPanels.push(held[held.length - 1]);
-      else heldPanels.push({ text: label, rect, verdict: v.verdict, against: v.against });
+      if (rows) {
+        if (v.verdict === "PAINT") panels.push(rect);
+        else if (held.length > before) heldPanels.push(held[held.length - 1]);
+        else heldPanels.push({ text: label, rect, verdict: v.verdict, against: v.against });
+      }
       return v;
     },
     sovereignPanel(rect, reason) { sovereign.push(rect); if (!sovereignReasons.includes(reason)) sovereignReasons.push(reason); },

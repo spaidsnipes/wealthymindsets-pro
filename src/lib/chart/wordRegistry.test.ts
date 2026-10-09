@@ -104,10 +104,10 @@ describe("chips and cards ask for their box before the backing; on-top words are
   it("a painted panel's rows paint without asking again; a held panel takes its rows with it", () => {
     const r = createWordRegistry();
     r.setColumn({ x: 300, y: 0, w: 30, h: 400 });
-    expect(r.claimPanel("FOUNDATION VIEW", { x: 10, y: 10, w: 200, h: 100 }).verdict).toBe("PAINT");
+    expect(r.claimPanel("FOUNDATION VIEW", { x: 10, y: 10, w: 200, h: 100 }, undefined, true).verdict).toBe("PAINT");
     expect(r.claim("1 MARKET STRUCTURE BIAS", { x: 16, y: 20, w: 120, h: 9 }).verdict).toBe("PAINT");
     expect(r.claim("2 EFFORT", { x: 16, y: 21, w: 50, h: 9 }).verdict).toBe("PAINT"); // rows of one panel never fight
-    expect(r.claimPanel("CALL OI 31200", { x: 250, y: 50, w: 80, h: 13 }).verdict).toBe("HELD_COLUMN");
+    expect(r.claimPanel("CALL OI 31200", { x: 250, y: 50, w: 80, h: 13 }, undefined, true).verdict).toBe("HELD_COLUMN");
     expect(r.claim("CALL OI 31200", { x: 253, y: 52, w: 74, h: 9 }).verdict).toBe("HELD_COLUMN");
     expect(r.held).toHaveLength(1); // the box and its word are ONE held thing
     // A later word across the painted panel is held against it.
@@ -276,5 +276,18 @@ describe("truth is DECLARED by its owner, not guessed from wording (enforce audi
     gate.beginFrame({ mode: "ENFORCE", dpr: 2, column: { x: 300, y: 0, w: 30, h: 400 } });
     gate.declareTruth("PROVENANCE CAPTION");
     expect(gate.panel("PROVENANCE CAPTION", { x: 290, y: 40, w: 120, h: 13 })).toBe(true);
+  });
+});
+
+describe("a chip's box is not a free pass for what is painted in it later (enforce audit, serving c9303a7, 2026-10-09)", () => {
+  it("a foreign word across a painted chip is held; the chip's own word is the same claim", () => {
+    const r = createWordRegistry();
+    expect(r.claimPanel("CALL OI 31150 · 196", { x: 600, y: 100, w: 110, h: 13 }).verdict).toBe("PAINT");
+    expect(r.claim("CALL OI 31150 · 196", { x: 603, y: 102, w: 104, h: 9 }).verdict).toBe("PAINT");
+    expect(r.claim("MID", { x: 640, y: 102, w: 22, h: 9 })).toEqual({ verdict: "HELD_WORD", against: "CALL OI 31150 · 196" });
+    expect(r.claim("WAIT", { x: 650, y: 100, w: 40, h: 12 }).verdict).toBe("HELD_WORD");
+  });
+  it("a refusal is a truth line", () => {
+    expect(isTruthLine("FUSION REFUSED · COMPOSITE + VISIBLE RANGE DISAGREE")).toBe(true);
   });
 });

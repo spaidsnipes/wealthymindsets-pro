@@ -87,6 +87,8 @@ export interface FvgLesson {
   readonly diagram: FvgDiagramKind;
   /** Extra proof-scene layer tokens beside the FVG tool (proofScene.ts grammar). */
   readonly alsoOn: readonly string[];
+  /** What this lesson corresponds to ON THE CHART — the mark, row or door a trader will actually see. */
+  readonly glass: string;
 }
 
 /** §34 — the one place the fill idea is written, and only as a myth. */
@@ -101,10 +103,67 @@ export const FVG_MYTH_LESSONS: readonly number[] = [1, 10, 14, 15, 16];
 /** §32 — the sentence every FVG surface carries. */
 export const FVG_NO_GUARANTEE = "No guaranteed return should be assumed. WM Pro tracks what actually happens.";
 
+/**
+ * The plain sentence (Supermax §9): said outright, in the negative, in the
+ * lessons where a trader is most likely to assume the opposite. The claim that
+ * a gap has to be revisited appears nowhere in the course except the MYTH card.
+ */
+export const FVG_DOES_NOT_HAVE_TO_FILL = "A gap does not have to fill. Some are revisited, some never are — WM Pro records which." as const;
+
+/**
+ * ON THE CHART — what each lesson corresponds to on the glass (Supermax §9:
+ * "each lesson states what on the glass it corresponds to"). The words follow
+ * the layer's own grammar (fvgGlass.ts) and Inspect's own rows; nothing here
+ * describes a mark the chart does not draw.
+ */
+export const FVG_ON_THE_GLASS: Readonly<Record<number, string>> = {
+  1: "With FVG / Imbalance switched on in Tools, each gap is a shaded band behind the candles, running right from the bar that completed it. No word or number is painted on it.",
+  2: "Tap a band: its gold frame marks the gap, and Inspect names the three bars' rule under DEFINITION and the gap's top and bottom under BOUNDARIES.",
+  3: "A bullish gap is drawn in the buy ink, below where price went. Inspect's DIRECTION row says the territory sits below the displacement and names its near edge.",
+  4: "A bearish gap is drawn in the sell ink, above where price went. Inspect's DIRECTION row says the territory sits above the displacement and names its near edge.",
+  5: "Inspect's SIZE and DISPLACEMENT rows give the gap's height in ticks and against ATR, and the middle bar's body share. Under Relationships, the effort → response row reads that same bar.",
+  6: "Before the touch the band is one even shade. When price comes close, the near edge glows toward price. At the touch the visited part turns to hatching.",
+  7: "The hatched part of the band is what price has visited; the solid part is what remains. Inspect's rows give the deepest reach and the territory left.",
+  8: "A fully mitigated gap is hatched edge to edge, and both edges are still solid — a wick reached the far side but no bar closed beyond it.",
+  9: "A rejection is a short tick on the bar that closed back outside. Acceptance is a filled interior with a quiet line through its middle. Inspect lists each visit and how it ended.",
+  10: "The band keeps running right until price touches it; Inspect says how many bars passed before the first touch. In Backtesting, the FVG Study counts returns by horizon.",
+  11: "Switch on Market Structure beside the gap: swing marks and the leg the displacement broke. Inspect's Relationships list the swings inside or near the gap.",
+  12: "Switch on a profile beside the gap: its POC and value-area lines cross or sit near the band. Inspect's Relationships name each level, how far away it is, and the profile's own evidence grade.",
+  13: "Inspect's EVIDENCE rows print one grade per sense — price, order flow, derivatives. Under Relationships, order flow, options walls and liquidity each speak in their own owner's words, or say they are silent.",
+  14: "A traded-through gap is drawn as a scar whose far edge is dashed. Inspect says a bar closed beyond the far edge and the lifecycle stopped.",
+  15: "Old gaps leave the live view and are counted as hidden, never deleted. Open one from the FVG Study or a scanner row and it is drawn again, faint, with a gold frame; Inspect says it aged into memory.",
+  16: "Nothing on the chart shows a percentage. The counts live in Backtesting → FVG Study, every one printed as n of m with its sample.",
+  17: "On the ticket, the stop / invalidation field and the risk line; with Risk on Price on, the plan's risk is drawn on the chart beside the gap.",
+  18: "The WAIT plate on the chart, and a band price has not reached. In the Journal, a decision on a gap is read as taken before the touch, at the touch, or after the closes that answered it.",
+  19: "The ticket's plan card before the trade; in the Journal's Review, what the market did, what you planned and what you did, side by side for that gap.",
+  20: "Review prints the action — exited before the plan's condition, entered before the touch — and leaves the reason blank for you to label. No emotion word is ever drawn on the chart.",
+  21: "\"Reference an FVG\" on a Journal entry, \"Show me my examples\" below this lesson, and the gap study on your profile.",
+};
+
+/** Paragraphs added by the Supermax §9 audit (2026-10-09), appended so earlier paragraphs keep their positions. */
+const AUDIT_BODY: Readonly<Record<number, readonly string[]>> = {
+  1: [FVG_DOES_NOT_HAVE_TO_FILL],
+  5: [
+    "Momentum is read from that middle bar, as two separate facts: effort (its volume against the bars before it) and response (its range against what is normal). Effort → response says which the bar was — large effort with large response, large effort with little progress, or an ordinary bar. It describes the bar; it does not rate the gap.",
+    "Session is context too. The same three bars carry different weight in a thin overnight hour than at the cash open. WM Pro records the session a gap formed in and flags one that spans a session boundary; Session Bands draw the sessions on the chart.",
+  ],
+  10: [FVG_DOES_NOT_HAVE_TO_FILL],
+  13: [
+    "Other senses work the same way. Absorption (large effort, little progress, at a price) belongs to the order-flow owner. Options walls come from open interest on a delayed chain. Resting liquidity comes from the order book, where one is read. Each is attached to a gap by reference, with its own grade — a gap near a wall is two facts side by side, not a stronger trade.",
+    "What WM Pro cannot know: who traded, why they traded, or what price does next. On spot FX there is no central exchange, so there is no traded volume — the gap is still drawn, from price alone, and a reading that needs volume says so, or names the related futures market it is reading instead.",
+  ],
+  18: [
+    "Waiting is a position. Flat, with a plan and a condition you are watching for, is a decision you are holding — not time lost.",
+  ],
+  19: [
+    "Around a gap the plan's conditions are the gap's own events: the touch, a close back outside (rejection), closes inside (acceptance), a close beyond the far edge (trade-through). Decide before entry what each one does to the position — hold, reduce, move the stop by rule, or exit — so the gap's next event is answered by the plan.",
+  ],
+};
+
 const L = (
   n: number, title: string, duration: string, diagram: FvgDiagramKind, lede: string,
   body: readonly string[], look: readonly string[], alsoOn: readonly string[] = [],
-): FvgLesson => ({ n, id: `fvg-${n}`, title, duration, diagram, lede, body, look, alsoOn });
+): FvgLesson => ({ n, id: `fvg-${n}`, title, duration, diagram, lede, body: [...body, ...(AUDIT_BODY[n] ?? [])], look, alsoOn, glass: FVG_ON_THE_GLASS[n] });
 
 export const FVG_LESSONS: readonly FvgLesson[] = [
   L(1, "What is an imbalance?", "8m", "imbalance",
@@ -406,7 +465,7 @@ export const FVG_EXAMPLES_EMPTY_LINE =
 
 /** Every sentence the course shows a learner — for the honesty sweep. */
 export function fvgCourseText(): string[] {
-  return FVG_LESSONS.flatMap(l => [l.title, l.lede, ...l.body, ...l.look]).concat(FVG_LAYER_PENDING_NOTE, FVG_EXAMPLES_EMPTY_LINE);
+  return FVG_LESSONS.flatMap(l => [l.title, l.lede, ...l.body, ...l.look, l.glass]).concat(FVG_LAYER_PENDING_NOTE, FVG_EXAMPLES_EMPTY_LINE);
 }
 
 // ── Knowledge check — questions on THIS definition, for the Academy's quiz ──

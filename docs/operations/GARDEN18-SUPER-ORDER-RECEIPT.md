@@ -1072,7 +1072,7 @@ Production at the start: `b290eef` (LIVE 00:49:14). Times are from `date`. Nothi
 | `ada59d4` | before the shift (08:08 commit) | build identity read 11:43 | Depth ladder sheet, Replay on a phone, scanner sample scene | quiz-scene pass sentence; Academy sample row lands on its decision; a gap with a wall attached (§17); §11, §21, §39 (brokers lane); phone opacity cause measured |
 | `f9f61fe` | 11:47:37 | coordinator ship gate | truth-line priority in the word registry; the finish-line table | public responsive run 48 / 48 |
 | `e05c774` | 12:02:19 | proof file ("first live") | phone word budget no longer dims ink; `scene=verify`; Depth ladder without source words; Inspect type 11 px | Inspect at 390: 0 of 71 text leaves under 11 px; signed-in pass 27 / 27 with 0 writes; §13 / §14 Inspect rows on real data (ticket lane) |
-| `f37005c` | by 12:17:46 | cert lane's build-identity read | phone glass second pass; selected-frame geometry; glow count; volatility + regime lines in Inspect | Inspect card docks RIGHT for a left-edge gap; `GLOW:1` on an approaching gap (§53 complete); volatility at formation line; opened surfaces at 390 |
+| `f37005c` | 12:17:44 | coordinator ship gate | phone glass second pass; selected-frame geometry; glow count; volatility + regime lines in Inspect | Inspect card docks RIGHT for a left-edge gap; `GLOW:1` on an approaching gap (§53 complete); volatility at formation line; opened surfaces at 390 |
 | `6944df9` | 12:26:36 | proof file | price sovereignty on phone glass; stage nav one row; verify banner at the top; API P1-1 / 2 / 4 / 6 | opened surfaces at 834; scanner effort → response hit (ticket lane); API tightening (brokers lane) |
 | `5b12137` | 12:33:06 | proof file | absorption effort mass held to the fog cap; public proxy limiters | limiters under normal load (brokers lane) |
 | `79bb6fd` | 12:39:37 | coordinator ship gate | no notch behind the newest candles; one failure wording; Personal Edge gap study on /profile | Connect brokers through both doors; regime line with Regime Lighting on ("does not reach"); lesson labels found at 9.81 px |
@@ -1103,3 +1103,11 @@ Production at the start: `b290eef` (LIVE 00:49:14). Times are from `date`. Nothi
 | 12 sample-data rows | Founder | his real trade and journal entry (handover c) |
 | §52, §58 | Founder | physical phone and tablet (handover d) |
 | 18 handover items | Founder | his rulings (handover b) |
+
+## Night shift — Oct 9 18:26 → 00:00 CDT (cert lane; Founder's "Garden 19 Supermax WOW Official finish-line order")
+
+| Time (CDT) | Slice | Build | Evidence | State |
+|---|---|---|---|---|
+| 18:28 | SUPERMAX ORDER MAP (14 sections) + hourly checkpoint log in the certificate; §66 flipped from the brokers lane's server-gate read; `f37005c` gate time 12:17:44 recorded | docs | certificate | CLOSED (doc). Finish line 46 · 12 · 1 · 5 · 0 · 2 |
+| 18:29 | §11 / §14 public language: the web manifest no longer says "Elite trading dashboard…" — it says a trading operating system (the root layout's own sentence). Nothing else on the public pages called WM Pro merely a chart | tree: `src/app/manifest.ts`, `sellingStory.test.ts` (3 cases) | tsc clean; vitest ran 11 test files, 144 / 144 | SHIPPABLE |
+| 18:30–18:35 | §9 Academy audit: session context, momentum as effort and response, "waiting is a position", management around a gap, what WM Pro cannot know, spot FX has no traded volume, and "A gap does not have to fill." added to the existing lessons; an ON THE CHART box in all 21 lessons; ⓘ doors to the published lesson for Living Profile, walls, absorption, effort → response, liquidity weather and the footprint modes | tree: `fvgCourse.ts`, `FvgLessonBody.tsx`, `inventionEducation.ts`, NEW `academyDoorForTool.ts`, NEW `academyDoorForTool.test.ts`, `fvgCourse.test.ts` | tsc clean; vitest ran 17 test files: 16 green; `screenReach.enforcement` red on two files that are not this lane's (`PropEvaluationDesk.tsx`, `propFillsImport.ts` — the prop desk being built tonight) | SHIPPABLE for the cert-lane files; serving reads owed (lessons at 390, ⓘ doors at 390 and desktop) |

@@ -109,3 +109,31 @@ describe("pricing stays the Founder's — tiers and prices locked", () => {
     expect(s).toContain("Paid plans are not on sale yet.");
   });
 });
+
+/*
+  Supermax §11 / §14 — WM Pro is never described as merely "a chart", "a
+  charting platform" or "a dashboard" in the words a visitor or an installer
+  reads before signing in: the root metadata (title, description, Open Graph)
+  and the web manifest. Tier taglines may still name what a tier contains.
+*/
+describe("public identity — a Trading Operating System, never merely a chart", () => {
+  const MERELY = /\b(charting (platform|app|tool|software)|chart(ing)? platform|trading dashboard|elite trading dashboard|indicator platform)\b/i;
+  it("the web manifest describes a trading operating system", () => {
+    const m = copyOf("src/app/manifest.ts");
+    const desc = /description: "([^"]+)",\n\s*start_url/.exec(m)![1];
+    expect(desc.toLowerCase()).toContain("trading operating system");
+    expect(desc).not.toMatch(MERELY);
+    expect(offenders(desc)).toEqual([]);
+  });
+  it("the root metadata names the Trading Operating System in title, description and Open Graph", () => {
+    const l = copyOf("src/app/layout.tsx");
+    expect(l.match(/Trading Operating System/g)!.length).toBeGreaterThanOrEqual(2);
+    expect(l).toMatch(/description: "A trading operating system/);
+    expect(l).not.toMatch(MERELY);
+  });
+  it("no public page calls the product merely a chart or a dashboard", () => {
+    for (const p of [...Object.values(PAGES), COMPONENT, "src/app/manifest.ts", "src/lib/marketing/sellingStory.ts"]) {
+      expect(copyOf(p), p).not.toMatch(MERELY);
+    }
+  });
+});

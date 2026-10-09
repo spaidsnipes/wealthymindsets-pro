@@ -2387,6 +2387,41 @@ input[type=range]::-webkit-slider-runnable-track {
   .wm-desk-chrome > * { flex-shrink: 0; }
 }
 
+/* ── PHONE: THE SELECTED OBJECT'S WAIT PLAQUE IS NOT UNDER THE INSPECT SHEET ─
+   Read on serving c9303a7 at 390x844 (NQ1! 15m, level 31,087.5 selected): the
+   plaque took its BELOW spot at y 627–696 and the inspect sheet — the bottom
+   46% of the camera, z 80 over the plaque's 73 — stood at 478–736. The plaque
+   was 100% covered. The plaque's placement (chart lane) does not know the
+   sheet exists; the sheet is this stylesheet's. So while the sheet is open on
+   a phone, a plaque in the BELOW spot stands under the camera's header row
+   instead: measured 248–317, clear of the sheet and of every object pin. */
+@media (max-width: 767px) {
+  .wm-chart-market-pane:has([data-testid="chart-inspect-ticket"]) [data-h101-wait-plaque][data-h101-wait-plaque-spot="BELOW"] {
+    top: 64px !important;
+    bottom: auto !important;
+  }
+}
+
+/* ── THE TRADE DOOR IS FILLED BRASS, AT EVERY SIZE (Founder order §6) ─────
+   The one filled control on the instrument strip. Stated here with !important
+   because the short-landscape block above paints every strip button
+   #0b0a08, which under dark words would have blanked the door. Open (pressed)
+   it stays brass with an inset ring, so the door never looks switched off. */
+.wm-instrument-context-strip > .wm-trade-door {
+  background-color: #c9a55c !important;
+  color: #14110a !important;
+  border-color: #e3c684 !important;
+  box-shadow: 0 1px 0 rgba(0,0,0,.45), 0 0 0 1px rgba(201,165,92,.25);
+}
+.wm-instrument-context-strip > .wm-trade-door[aria-pressed="true"] {
+  background-color: #b08d45 !important;
+  box-shadow: inset 0 0 0 2px #14110a, 0 0 0 1px #e3c684 !important;
+}
+.wm-instrument-context-strip > .wm-trade-door:focus-visible {
+  outline: 2px solid #ede6d3;
+  outline-offset: 2px;
+}
+
 /* ── PHONE: THE ASSISTANT DOCKS IN THE NAV BAR, NOT ON THE ROOM ───────────
    Sheriff batch 8 (serving 6944df9, 390x844): the launcher floated 70px up
    from the bottom edge, over whatever the room had scrolled there — the

@@ -139,8 +139,14 @@ export function FvgLessonBody({ lesson, color }: { lesson: FvgLesson; color: str
         {lesson.body.map((p, i) => <p key={i} className="text-[12px] text-wm-text-muted leading-relaxed">{p}</p>)}
       </div>
 
+      {/* Supermax §9 — what this lesson corresponds to on the glass (one owner: FVG_ON_THE_GLASS). */}
+      <div data-testid="fvg-lesson-glass" className="p-3 rounded-xl border bg-wm-surface/20" style={{ borderColor: "rgba(201,165,92,0.35)" }}>
+        <div className="text-[10px] max-sm:text-[11px] font-black uppercase tracking-wider mb-1" style={{ color }}>On the chart</div>
+        <p className="text-[12px] text-wm-text leading-relaxed">{lesson.glass}</p>
+      </div>
+
       <div className="p-3 rounded-xl border border-wm-border bg-wm-surface/20">
-        <div className="text-[10px] font-black uppercase tracking-wider mb-2" style={{ color }}>What to look for</div>
+        <div className="text-[10px] max-sm:text-[11px] font-black uppercase tracking-wider mb-2" style={{ color }}>What to look for</div>
         <ul className="space-y-1.5">
           {lesson.look.map((t, i) => <li key={i} className="text-[11px] text-wm-text leading-snug">· {t}</li>)}
         </ul>

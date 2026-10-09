@@ -68,6 +68,7 @@ const OWNER_SCOPED_KEYS: readonly string[] = [
   "wm_desks_v1",          // named trade desks
   "wm_desk_active_v1",    // the active desk
   "wm:journal-capture-handoff:v1", // §J: an unsaved fill draft on its way to /journal (order id, account tail)
+  "wm:prop-evaluation:v1", // Founder order §7: the owner's prop-evaluation desk (stored under `<base>:<owner id>`; the bare base is swept too)
   "wm:management-plan:v1", // Garden 19 §27: the trader's plan frozen per Decision_ID, with dated amendments
   "wm:management-plan-draft:v1", // Garden 19 §27: the trader's pre-trade plan-card draft per market
   "wm:management-day-rules:v1", // Garden 19 §55: today's management rules from Morning Prep
@@ -115,6 +116,9 @@ const OWNER_SCOPED_PREFIXES: readonly string[] = [
   "wm_journal_entries:",
   "wm-journal:",
   "wm_story_review_v1:",
+  // Founder order §7 (2026-10-09): the owner's prop-evaluation desk — balances and rules he typed, keyed by his id
+  // (PropEvaluationGate) AND purged at sign-out, like every other owner record on a shared device. The desk says so.
+  "wm:prop-evaluation:v1:",
 ] as const;
 
 /** Owner-scoped sessionStorage prefixes: tickets as sent, keyed per member (`wm:journal-ticket-at-send:v1:<member>`). */

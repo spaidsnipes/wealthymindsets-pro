@@ -67,11 +67,11 @@ describe("chips ask for their box; on-top words are named; the teaching card nev
     expect([...CHART.matchAll(/if \(!?chipBox\(/g)].length).toBeGreaterThanOrEqual(12);
     expect(REG).toContain("return verdict === \"PAINT\" || mode === \"OBSERVE\";");
   });
-  it("every sovereign mark carries one of four reasons, on the line it is made", () => {
-    const marks = [...CHART.matchAll(/onTop\([^\n]*?, "(CROSSHAIR|SELECTION|INSPECT|OPAQUE_CARD)"\);/g)].map(m => m[1]);
+  it("every sovereign mark carries one of five reasons, on the line it is made", () => {
+    const marks = [...CHART.matchAll(/onTop\([^\n]*?, "(CROSSHAIR|SELECTION|INSPECT|OPAQUE_CARD|ANSWER)"\);/g)].map(m => m[1]);
     expect(marks.length).toBeGreaterThanOrEqual(6);
     expect([...CHART.matchAll(/\bonTop\(/g)].length).toBe(marks.length);
-    expect(CHART).toContain('reason: "CROSSHAIR" | "SELECTION" | "INSPECT" | "OPAQUE_CARD") => wordGate.sovereignPanel(box, reason);');
+    expect(CHART).toContain('reason: "CROSSHAIR" | "SELECTION" | "INSPECT" | "OPAQUE_CARD" | "ANSWER") => wordGate.sovereignPanel(box, reason);');
   });
   it("the trader's own drawings are never withheld", () => {
     expect(CHART).toContain('paneWordGate.beginFrame({ mode: "OBSERVE", dpr });');
@@ -134,5 +134,25 @@ describe("truth is declared by the silence stack's one function (enforce audit, 
   it("a selected bar's true high / low keep their spot as an on-top box when no slot is clear — never the note list", () => {
     expect(CHART).toContain('const spotRect = spot.mode === "BLOCKED" ? pref : spot.rect;');
     expect(CHART).not.toContain('displacedNotes.push({ layer: "TRUTH"');
+  });
+});
+
+describe("the asked question keeps its words; a truth line never paints on another's home (enforce audit, serving c9303a7, 2026-10-09)", () => {
+  it("every Question Lens box is an on-top ANSWER box — refusal strip, phone strip, top strip, evidence-debt card, control card", () => {
+    expect([...CHART.matchAll(/onTop\([^\n]*?, "ANSWER"\);/g)].length).toBe(5);
+  });
+  it("on a phone the folded-silence line sits UNDER the compact question strip while a question is asked", () => {
+    expect(CHART).toContain("lensNarrowBottom = by + 34;");
+    expect(CHART).toContain("const y = narrowGlass ? (lensNarrowBottom > 0 ? lensNarrowBottom + 10 : HEADER_FLOOR_Y + 10) : silenceRowY;");
+  });
+  it("the envelope's provenance caption with no clear slot is said in the silence stack, never over another line", () => {
+    const i = CHART.indexOf('if (spotCap.mode === "BLOCKED") {');
+    expect(i).toBeGreaterThan(0);
+    expect(CHART.slice(i, i + 500)).toContain("ctx.fillText(fitSilence(capShown), silenceX, yC);");
+    expect(CHART).toContain("wordGate.declareTruth(capShown);");
+  });
+  it("a chip's box is judged like its word, with no row pass-through", () => {
+    expect(REG).toContain("claimPanel(label, rect, tier, rows = false) {");
+    expect(REG).toContain("if (rows) {");
   });
 });

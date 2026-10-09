@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  FVG_ACADEMY_MODULE, FVG_DEFINITION, FVG_EXAMPLES_EMPTY_LINE, FVG_LAYER_PENDING_NOTE, FVG_LESSONS,
+  FVG_ACADEMY_MODULE, FVG_DEFINITION, FVG_DOES_NOT_HAVE_TO_FILL, FVG_EXAMPLES_EMPTY_LINE, FVG_ON_THE_GLASS, FVG_LAYER_PENDING_NOTE, FVG_LESSONS,
   FVG_MYTH_CARD, FVG_MYTH_LESSONS, FVG_NO_GUARANTEE, FVG_QUIZ_BANK, fvgChartLink, fvgCourseText,
   fvgLessonHref, fvgReferencedExamples, fvgReplayPractice, FVG_REPLAY_LESSONS, FVG_REPLAY_LINK_LABEL,
 } from "./fvgCourse";
@@ -71,7 +71,8 @@ describe("Garden 19 §33 — the FVG course lives IN the one Academy", () => {
 
   it("never claims a gap has to be revisited — outside the myth framing", () => {
     expect(MUST_FILL.test(FVG_MYTH_CARD.myth)).toBe(true); // the sweep would catch it
-    for (const s of fvgCourseText()) expect(MUST_FILL.test(s), s).toBe(false);
+    // The one allowed sentence says the OPPOSITE, in the negative ("does not have to fill"); it is removed before the sweep.
+    for (const s of fvgCourseText()) expect(MUST_FILL.test(s.replace(FVG_DOES_NOT_HAVE_TO_FILL, "")), s).toBe(false);
     for (const q of FVG_QUIZ_BANK) {
       // A quiz may list a myth as a WRONG answer, never as the right one or the explanation.
       expect(MUST_FILL.test(q.choices[q.correct]), q.q).toBe(false);
@@ -297,5 +298,55 @@ describe("lesson diagrams — every label reads at 11 px on a 390-px phone", () 
   it("the Personal Edge drawing names the real Journal control, not a tag", () => {
     expect(src).toContain('"reference a gap"');
     expect(src).not.toContain("tag FVG");
+  });
+});
+
+/*
+  Supermax §9 — the Academy audit (2026-10-09). Every item on the Founder's
+  list is taught in the existing course, each lesson says what it corresponds
+  to on the chart, and the plain sentence is said outright.
+*/
+describe("Supermax §9 — the course covers the Founder's list, and every lesson names its mark on the chart", () => {
+  const text = (n: number) => { const l = FVG_LESSONS.find(x => x.n === n)!; return [l.lede, ...l.body].join(" "); };
+
+  it("the plain sentence: a gap does not have to fill — said outright, never as a requirement", () => {
+    expect(FVG_DOES_NOT_HAVE_TO_FILL).toBe("A gap does not have to fill. Some are revisited, some never are — WM Pro records which.");
+    expect(text(1)).toContain(FVG_DOES_NOT_HAVE_TO_FILL);
+    expect(text(10)).toContain(FVG_DOES_NOT_HAVE_TO_FILL);
+    // The words "must fill" appear in the course only on the MYTH card.
+    for (const s of fvgCourseText()) expect(s, s).not.toMatch(/must fill/i);
+  });
+
+  it("each item on the list has its lesson", () => {
+    expect(text(2)).toMatch(/b1, b2 and b3/);                                   // three-candle structure
+    expect(FVG_LESSONS.find(l => l.n === 7)!.title).toBe("Partial mitigation"); // partial …
+    expect(FVG_LESSONS.find(l => l.n === 8)!.title).toBe("Full mitigation");    // … vs full
+    expect(text(9)).toMatch(/REJECTION:/);                                      // rejection
+    expect(text(14)).toMatch(/invalidat/i);                                     // invalidation
+    expect(text(5)).toMatch(/Session is context/);                              // session context
+    expect(text(10)).toMatch(/session/i);
+    expect(text(5)).toMatch(/Momentum is read from that middle bar/);           // momentum / displacement
+    expect(text(18)).toMatch(/Waiting is a position\./);                        // patience
+    expect(text(19)).toMatch(/Around a gap the plan's conditions are the gap's own events/); // management around a gap
+    expect(text(13)).toMatch(/What WM Pro cannot know: who traded, why they traded, or what price does next\./); // limitations
+    expect(text(13)).toMatch(/On spot FX there is no central exchange, so there is no traded volume/);
+  });
+
+  it("every lesson says what it corresponds to on the chart, in words that promise nothing", () => {
+    expect(Object.keys(FVG_ON_THE_GLASS).map(Number).sort((a, b) => a - b)).toEqual(FVG_LESSONS.map(l => l.n));
+    for (const l of FVG_LESSONS) {
+      expect(l.glass, l.id).toBe(FVG_ON_THE_GLASS[l.n]);
+      expect(l.glass.length, l.id).toBeGreaterThan(60);
+      expect(l.glass, l.id).not.toMatch(/\b(will|guarantee|always|likely|often|tends? to|high.probability|profit)\b/i);
+    }
+    const ui = readFileSync("src/components/education/FvgLessonBody.tsx", "utf8");
+    expect(ui).toMatch(/data-testid="fvg-lesson-glass"/);
+    expect(ui).toMatch(/\{lesson\.glass\}/);
+  });
+
+  it("the added paragraphs kept the pinned rule sentences where the journal reads them", () => {
+    expect(FVG_LESSONS.find(l => l.id === "fvg-18")!.body[0]).toMatch(/^A territory far from price/);
+    expect(FVG_LESSONS.find(l => l.id === "fvg-9")!.body).toHaveLength(3);
+    expect(FVG_LESSONS.find(l => l.id === "fvg-14")!.body[0]).toMatch(/^A bullish territory is traded through/);
   });
 });
