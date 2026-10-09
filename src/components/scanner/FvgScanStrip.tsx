@@ -32,7 +32,7 @@ import { loadFvgScanWalls } from "@/lib/scanner/fvgScanWalls";
 import { readStoredActiveWatchlist } from "@/lib/watchlist/activeWatchlist";
 import { proofFixtureScene } from "@/lib/chart/proofScene";
 import { useAuth } from "@/contexts/AuthContext";
-import { SCANNER_FIXTURE_BANNER, SCANNER_FIXTURE_LINE, SCANNER_FIXTURE_SYMBOLS, SCANNER_FIXTURE_WALLS, scannerFixtureBars } from "@/lib/scanner/scannerFixture";
+import { SCANNER_FIXTURE_BANNER, SCANNER_FIXTURE_LINE, SCANNER_FIXTURE_SYMBOLS, SCANNER_FIXTURE_WALLS, scannerFixtureBars, scannerFixtureLabel } from "@/lib/scanner/scannerFixture";
 
 const TF = "1D";
 const BARS = 160;
@@ -118,6 +118,8 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
   const conv = readings.flatMap(r => (r.status === "READ" ? r.convergence : [])).filter(h => only === "ALL" || h.condition === only);
   const label = (c: FvgScanCondition | FvgConvergenceCondition) => (isConv(c) ? FVG_CONVERGENCE_LABEL[c] : FVG_SCAN_CONDITION_LABEL[c]);
   const refused = readings.filter((r): r is Extract<FvgScanReading, { status: "REFUSED" }> => r.status === "REFUSED");
+  // A sample symbol is printed by its label (the spot-FX-shaped sample is never shown as the bare pair).
+  const shown = (sym: string) => (fixture ? scannerFixtureLabel(sym) : sym);
   // §39: evidence conditions that could not be read, per symbol, with the reason — never silently absent.
   const unavailable = readings.flatMap(r => (r.status === "READ" ? r.unavailable.map(u => ({ ...u, symbol: r.symbol })) : []));
   const wallUnavailable = unavailable.filter(u => u.condition === "FVG_PLUS_WALL");
@@ -188,7 +190,7 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
                 <li key={`${h.condition}:${h.objectId}`}>
                   <button onClick={() => { if (fixture) return; onOpenSymbol?.(h.symbol); router.push(h.href); }} disabled={fixture} data-testid="scanner-fvg-hit"
                     className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold w-full flex flex-wrap items-center gap-x-3 gap-y-0.5 py-1.5 text-left text-[11px] hover:bg-wm-surface/40">
-                    <span className="font-bold text-wm-text w-16">{h.symbol}</span>
+                    <span className={fixture ? "font-bold text-wm-text" : "font-bold text-wm-text w-16"}>{shown(h.symbol)}</span>
                     <span className="text-wm-gold">{FVG_SCAN_CONDITION_LABEL[h.condition]}</span>
                     <span className={h.direction === "BULLISH" ? "text-wm-green" : "text-wm-red"}>{h.direction.toLowerCase()}</span>
                     <span className="font-mono text-wm-text-muted">{h.bottom.toFixed(h.priceDp)} – {h.top.toFixed(h.priceDp)}</span>
@@ -207,7 +209,7 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
                   <button onClick={() => { if (fixture) return; onOpenSymbol?.(h.symbol); router.push(h.href); }} disabled={fixture} data-testid="scanner-fvg-convergence-hit"
                     className="wm-tap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold w-full text-left py-1.5 text-[11px] hover:bg-wm-surface/40">
                     <span className="flex flex-wrap items-center gap-x-3">
-                      <span className="font-bold text-wm-text w-16">{h.symbol}</span>
+                      <span className={fixture ? "font-bold text-wm-text" : "font-bold text-wm-text w-16"}>{shown(h.symbol)}</span>
                       <span className="text-wm-gold">{FVG_CONVERGENCE_LABEL[h.condition]}</span>
                       <span className="text-wm-text-dim">with {h.with.map(c => FVG_SCAN_CONDITION_LABEL[c].toLowerCase()).join(", ")}</span>
                       <span className="font-mono text-wm-text-muted">{h.bottom.toFixed(h.priceDp)} – {h.top.toFixed(h.priceDp)}</span>
@@ -229,7 +231,7 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
               <summary className="text-[10px] text-wm-text-dim cursor-pointer">{FVG_CONVERGENCE_LABEL.FVG_PLUS_EFFORT}: UNAVAILABLE for {effortUnavailable.length} symbol{effortUnavailable.length === 1 ? "" : "s"} with a condition — why</summary>
               <ul className="mt-1 space-y-0.5">
                 {effortUnavailable.map(u => (
-                  <li key={u.symbol} className="text-[10px] text-wm-text-dim"><span className="font-bold text-wm-text-muted">{u.symbol}</span> — {u.reason}</li>
+                  <li key={u.symbol} className="text-[10px] text-wm-text-dim"><span className="font-bold text-wm-text-muted">{shown(u.symbol)}</span> — {u.reason}</li>
                 ))}
               </ul>
             </details>
@@ -239,7 +241,7 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
               <summary className="text-[10px] text-wm-text-dim cursor-pointer">{FVG_CONVERGENCE_LABEL.FVG_PLUS_WALL}: UNAVAILABLE for {wallUnavailable.length} of the {readings.filter(r => r.status === "READ" && r.hits.length).length} symbols with a condition — why</summary>
               <ul className="mt-1 space-y-0.5">
                 {wallUnavailable.map(u => (
-                  <li key={u.symbol} className="text-[10px] text-wm-text-dim"><span className="font-bold text-wm-text-muted">{u.symbol}</span> — {u.reason}</li>
+                  <li key={u.symbol} className="text-[10px] text-wm-text-dim"><span className="font-bold text-wm-text-muted">{shown(u.symbol)}</span> — {u.reason}</li>
                 ))}
               </ul>
             </details>
@@ -249,7 +251,7 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
               <summary className="text-[10px] text-wm-text-dim cursor-pointer">{refused.length} symbols not read — why</summary>
               <ul className="mt-1 space-y-0.5">
                 {refused.map(r => (
-                  <li key={r.symbol} className="text-[10px] text-wm-text-dim"><span className="font-bold text-wm-text-muted">{r.symbol}</span> — {r.reason}</li>
+                  <li key={r.symbol} className="text-[10px] text-wm-text-dim"><span className="font-bold text-wm-text-muted">{shown(r.symbol)}</span> — {r.reason}</li>
                 ))}
               </ul>
             </details>

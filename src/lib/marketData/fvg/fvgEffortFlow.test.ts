@@ -54,11 +54,14 @@ describe("§13 effort→response on the gap's own bars", () => {
   it("SILENCE where the market reports no traded volume — spot FX, and a placeholder feed", () => {
     const fx = fvgEffortInput(obj, BARS, "EURUSD");
     expect(fx).toMatchObject({ volumeReal: false, readings: [] });
-    expect(effortSource(fx)).toMatchObject({ evidence: "SILENCE", provenance: expect.stringMatching(/no centralised traded volume/) });
+    // The one clause every room prints for a market with no central volume.
+    expect(effortSource(fx)).toMatchObject({ evidence: "SILENCE", provenance: "needs traded volume — spot FX has none" });
+    expect(fvgBarOnlyRelationships(fvgBarContext(BARS.map(b => ({ ...b, symbolId: "EURUSD" })), "EURUSD", TF), obj).sources.find(s => s.family === "EFFORT_RESPONSE"))
+      .toMatchObject({ evidence: "SILENCE", provenance: "needs traded volume — spot FX has none" });
     const placeholder: CanonicalBar[] = BARS.map(b => ({ ...b, volume: 1 }));
     const ph = fvgEffortInput(obj, placeholder, SYM);
     expect(ph).toMatchObject({ volumeReal: false, readings: [] });
-    expect(effortSource(ph).evidence).toBe("SILENCE");
+    expect(effortSource(ph)).toMatchObject({ evidence: "SILENCE", provenance: expect.stringMatching(/carries a volume of 0 or 1 — a placeholder, not a count/) });
     const r = fvgRelationshipsFor(obj, { effort: fx });
     expect(r.relationships.filter(x => x.family === "EFFORT_RESPONSE")).toEqual([]);
     expect(fvgRelationshipRows(r, p => p.toFixed(2)).silences.some(s => /^Effort→response: SILENCE — /.test(s))).toBe(true);

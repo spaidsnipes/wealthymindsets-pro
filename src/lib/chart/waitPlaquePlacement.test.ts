@@ -42,7 +42,8 @@ describe("MainChart places the H-101 plaque through placeWaitPlaque", () => {
     expect(mc).toContain('data-h101-wait-plaque-spot={waitPlaqueLiveRef.current?.mode ?? waitPlaqueSpot?.mode ?? "RIGHT"}');
     // Every frame, against candles AND the labels/chips this frame put on the glass.
     // 2026-10-08 Garden 19 §15 P1-A: every visible candle box is still fed, plus the newest column's keep-out.
-    expect(mc).toContain("const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects()], floatingChips);");
+    // Tightened 2026-10-09: the plaque's first usable row is the legend band's floor.
+    expect(mc).toContain("const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H, top: HEADER_FLOOR_Y }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects()], floatingChips);");
   });
 });
 
@@ -66,5 +67,23 @@ describe("price first when no spot clears both", () => {
     expect(p.mode).not.toBe("BLOCKED");
     const r = { x: p.left, y: p.top, w: size.w, h: size.h };
     expect(candles.some(b => r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y)).toBe(false);
+  });
+});
+
+describe("the plaque never sits in the price legend band (serving 390, 6e150db, 2026-10-09)", () => {
+  it("with a top floor every candidate — RIGHT, LEFT, ABOVE, and the BLOCKED fallback — starts at or below it", () => {
+    const size = { w: 208, h: 60 };
+    const box = { w: 330, h: 468, top: 90 };
+    // A pin high in the pane: without the floor RIGHT lands at y 12, over the legend.
+    expect(placeWaitPlaque({ x: 160, y: 40 }, size, { w: 330, h: 468 }, []).top).toBe(12);
+    expect(placeWaitPlaque({ x: 160, y: 40 }, size, box, []).top).toBe(90);
+    // Everything blocked: the fallback still honours the floor.
+    const wall = [{ x: 0, y: 0, w: 330, h: 468 }];
+    const p = placeWaitPlaque({ x: 160, y: 40 }, size, box, wall);
+    expect(p.mode).toBe("BLOCKED");
+    expect(p.top).toBeGreaterThanOrEqual(90);
+    // ABOVE candidates are clamped to it too.
+    const blockedBelow = [{ x: 0, y: 150, w: 330, h: 318 }];
+    expect(placeWaitPlaque({ x: 160, y: 200 }, size, box, blockedBelow).top).toBeGreaterThanOrEqual(90);
   });
 });

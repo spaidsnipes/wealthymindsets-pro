@@ -13,7 +13,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PROOF_FIXTURE_SCENES, proofFixtureScene, parseProofScene, NO_PROOF_SCENE } from "@/lib/chart/proofScene";
 import { FVG_SCAN_MIN_BARS, fvgScanConditions, fvgScanCoverage } from "@/lib/scanner/fvgScanConditions";
 import {
-  SCANNER_FIXTURE_BANNER, SCANNER_FIXTURE_FRESH, SCANNER_FIXTURE_OLD, SCANNER_FIXTURE_SHORT, SCANNER_FIXTURE_SYMBOLS, SCANNER_FIXTURE_TF, scannerFixtureBars,
+  SCANNER_FIXTURE_BANNER, SCANNER_FIXTURE_FX, scannerFixtureLabel, SCANNER_FIXTURE_FRESH, SCANNER_FIXTURE_OLD, SCANNER_FIXTURE_SHORT, SCANNER_FIXTURE_SYMBOLS, SCANNER_FIXTURE_TF, scannerFixtureBars,
 } from "./scannerFixture";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {} }), usePathname: () => "/scanner", useSearchParams: () => new URLSearchParams() }));
@@ -49,7 +49,7 @@ describe("scanner-fixture — the real engine says its own refusals", () => {
   it.each(NOWS)("a fresh full set READS — the scene can show a refusal beside a reading, with the denominator (now %i)", nowMs => {
     const all = SCANNER_FIXTURE_SYMBOLS.map(s => scan(s, nowMs));
     expect(all.find(r => r.symbol === SCANNER_FIXTURE_FRESH)?.status).toBe("READ");
-    expect(fvgScanCoverage(all)).toEqual({ read: 1, refused: 2, of: 3 });
+    expect(fvgScanCoverage(all)).toEqual({ read: 2, refused: 2, of: 4 });
   });
 
   it("the sample bars are deterministic, closed, labelled SAMPLE, and unknown symbols are refused", () => {
@@ -62,6 +62,32 @@ describe("scanner-fixture — the real engine says its own refusals", () => {
     expect(a.bars.every(x => x.asOf + 86_400_000 <= now && x.source === "sample" && x.symbolId === SCANNER_FIXTURE_FRESH)).toBe(true);
     expect(a.provenance).toBe("SAMPLE");
     expect(scannerFixtureBars("TSLA", now).ok).toBe(false);
+  });
+});
+
+describe("scanner-fixture — the spot-FX-shaped sample (§13)", () => {
+  it.each(NOWS)("reads, reveals a condition, and FVG + effort→response is UNAVAILABLE with the one spot-FX clause (now %i)", nowMs => {
+    const r = scan(SCANNER_FIXTURE_FX, nowMs);
+    expect(r.status).toBe("READ");
+    if (r.status !== "READ") return;
+    expect(r.hits.length).toBeGreaterThan(0);
+    expect(r.unavailable).toContainEqual({ condition: "FVG_PLUS_EFFORT", reason: "needs traded volume — spot FX has none" });
+    expect(r.convergence.some(c => c.condition === "FVG_PLUS_EFFORT" || c.condition === "FVG_PLUS_ORDER_FLOW")).toBe(false);
+  });
+
+  it("is scanned under the pair id but always SHOWN by its sample label; its bars are synthetic and carry no volume", () => {
+    expect(SCANNER_FIXTURE_FX).toBe("EURUSD");
+    expect(scannerFixtureLabel(SCANNER_FIXTURE_FX)).toBe("SAMPLE · EURUSD-shaped");
+    expect(scannerFixtureLabel(SCANNER_FIXTURE_FRESH)).toBe(SCANNER_FIXTURE_FRESH);
+    const f = scannerFixtureBars(SCANNER_FIXTURE_FX, NOWS[0]!);
+    if (!f.ok) throw new Error("fx sample did not build");
+    expect(f.bars.every(b => b.volume === 0 && b.source === "sample" && b.symbolId === "EURUSD" && b.close > 0.9 && b.close < 1.4)).toBe(true);
+    expect(f.provenance).toBe("SAMPLE");
+    const strip = read("components/scanner/FvgScanStrip.tsx");
+    expect(strip).toContain("const shown = (sym: string) => (fixture ? scannerFixtureLabel(sym) : sym);");
+    // Every place the strip prints a symbol goes through the label — the bare pair is never printed in the scene.
+    expect(strip).not.toMatch(/>\{(h|u|r)\.symbol\}</);
+    expect(strip.match(/\{shown\((h|u|r)\.symbol\)\}/g)).toHaveLength(5);
   });
 });
 

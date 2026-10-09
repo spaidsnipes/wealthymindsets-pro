@@ -309,6 +309,9 @@ export function SpadeBotButton({ launcher = true }: {
         className="wm-spaidbot-launcher fixed bottom-5 right-5 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-xl"
         style={{ background: "linear-gradient(135deg,#c4a574,#8b6a29)", boxShadow: "0 4px 28px rgba(196,165,116,0.35)" }}
         title="SpaidBot — AI Trading Assistant"
+        // The button is an icon: its name is said, and so is whether the chat is open.
+        aria-label={open ? `Close ${botName}` : `Open ${botName}, the trading assistant`}
+        aria-expanded={open}
       >
         {open ? <X size={20} className="text-white"/> : <Zap size={20} className="text-white"/>}
         {!open && unread && (

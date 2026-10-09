@@ -30,15 +30,22 @@ const hits = (a: PlaqueRect, b: PlaqueRect) => a.x < b.x + b.w && a.x + a.w > b.
 export function placeWaitPlaque(
   pin: { readonly x: number; readonly y: number },
   size: { readonly w: number; readonly h: number },
-  container: { readonly w: number; readonly h: number },
+  /**
+   * `top` is the first row the plaque may use (default 10). The chart passes the
+   * price legend band's floor: on a phone the plaque for a selected zone sat
+   * over the legend's price at the top-left of the pane (serving 390, 6e150db,
+   * 2026-10-09) — the legend is the instrument's own headline and is never covered.
+   */
+  container: { readonly w: number; readonly h: number; readonly top?: number },
   candles: readonly PlaqueRect[],
   /** The labels and chips already on the glass this frame (the keep-out chip ledger). */
   chips: readonly PlaqueRect[] = [],
 ): WaitPlaquePlacement {
   const obstacles = [...candles, ...chips];
   const clampX = (x: number) => Math.min(x, Math.max(12, container.w - size.w - 16));
-  const clampY = (y: number) => Math.max(10, Math.min(y, Math.max(10, container.h - size.h - 10)));
-  const right = { mode: "RIGHT" as const, x: clampX(pin.x + 16), y: Math.max(10, pin.y - 28) };
+  const topFloor = Math.max(10, container.top ?? 10);
+  const clampY = (y: number) => Math.max(topFloor, Math.min(y, Math.max(topFloor, container.h - size.h - 10)));
+  const right = { mode: "RIGHT" as const, x: clampX(pin.x + 16), y: Math.max(topFloor, pin.y - 28) };
   const leftX = Math.max(12, pin.x - 16 - size.w);
   const centreX = clampX(Math.max(12, pin.x - size.w / 2));
   const cands: { mode: WaitPlaquePlacement["mode"]; x: number; y: number }[] = [

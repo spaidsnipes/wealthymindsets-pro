@@ -451,3 +451,17 @@ describe("selecting on a phone never withholds its own words; drawn shapes obey 
     expect(CHART.slice(i, i + 1400)).toContain("ctx.fillText(m.label, x, y + out * 21);");
   });
 });
+
+describe("the selected object's plaque stays out of the legend band; the forming candle's print mark is a ring on a phone (2026-10-09)", () => {
+  it("both plaque placements pass the legend band's floor, and the two floors are one number", () => {
+    expect(CHART).toContain("{ w: W - axisWP, h: H, top: HEADER_FLOOR_Y }");
+    expect(CHART).toContain("clientHeight ?? 600, top: PRICE_LEGEND_FLOOR_PX },");
+    expect(CHART).toContain("const PRICE_LEGEND_FLOOR_PX = 90;");
+    expect(CHART).toContain("const HEADER_FLOOR_Y = 90;");
+  });
+  it("on narrow glass the big print on the forming candle keeps its ring and drops the two side bars", () => {
+    const i = CHART.indexOf("if (narrowGlass) sovereigntyHeld++;\n            else {\n            ctx.fillRect(x - w / 2 - 8, +yb - 1, 6, 2);");
+    expect(i).toBeGreaterThan(0);
+    expect(CHART.slice(i, i + 600)).toContain("ctx.arc(x + w / 2 + 11, +yb, 3, 0, Math.PI * 2); ctx.stroke();");
+  });
+});

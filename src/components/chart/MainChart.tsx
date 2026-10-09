@@ -198,6 +198,8 @@ const VC_COG_EXT_NARROW = 3;
 const BIG_TRADE_NARROW_MAX_R = 22;
 /** PHONE (2026-10-09): a drawn handle / chevron / stem this close to the left of the newest-candle column is held too. */
 const SOVEREIGN_SHAPE_PAD = 20;
+/** The price legend band's floor in the pane (the paint loop's HEADER_FLOOR_Y). Nothing that floats may start above it. */
+const PRICE_LEGEND_FLOOR_PX = 90;
 /** PHONE (2026-10-09): a zone at rest is a band — two hairlines and this much fill (desk: 0.08 in a box). */
 const ZONE_BAND_NARROW_FILL = 0.04;
 /** A pressure wall shows at least this much body inside the pane, else it is an edge wall (ASK-15). */
@@ -12998,8 +13000,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // Beside the body, never across it — the forming candle is the
             // face (serving ETH-USD 1m NEAR, 2026-09-30: three sell bars ran
             // straight through the live body and its footprint cells).
+            // PRICE SOVEREIGNTY (narrow glass; serving 390/430, 6e150db: the two
+            // side bars read as a white arrow mark on the live price beside the
+            // last candle). On a phone the print registers as its ring alone.
+            if (narrowGlass) sovereigntyHeld++;
+            else {
             ctx.fillRect(x - w / 2 - 8, +yb - 1, 6, 2);
             ctx.fillRect(x + w / 2 + 2, +yb - 1, 6, 2);
+            }
             ctx.strokeStyle = `rgba(${rgbB},0.7)`;
             ctx.lineWidth = 1;
             ctx.beginPath(); ctx.arc(x + w / 2 + 11, +yb, 3, 0, Math.PI * 2); ctx.stroke();
@@ -26267,7 +26275,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (el && pin) {
           let axisWP = 0;
           try { axisWP = Math.max(0, Number(chart.priceScale("right").width()) || 0); } catch { /* keep 0 */ }
-          const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects()], floatingChips);
+          const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H, top: HEADER_FLOOR_Y }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects()], floatingChips);
           const prev = waitPlaqueLiveRef.current;
           const modeP = spotP.overChips ? `${spotP.mode}:OVER_CHIP` : spotP.mode;
           if (!prev || prev.left !== spotP.left || prev.top !== spotP.top || prev.mode !== modeP) {
@@ -28238,7 +28246,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       { w: 208, h: 60 },
       // The plot, not the container: the price axis is not a place for a
       // plaque (serving BTC-USD 15m select=level: its right edge sat on the axis).
-      { w: (containerRef.current?.clientWidth ?? 900) - plotAxisW, h: containerRef.current?.clientHeight ?? 600 },
+      // …and never the price legend band (the frame's HEADER_FLOOR_Y, 90px).
+      { w: (containerRef.current?.clientWidth ?? 900) - plotAxisW, h: containerRef.current?.clientHeight ?? 600, top: PRICE_LEGEND_FLOOR_PX },
       candles,
     );
   }, [selectedMarketObjectTarget, rangeVer]);

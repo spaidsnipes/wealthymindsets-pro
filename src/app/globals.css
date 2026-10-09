@@ -2387,6 +2387,78 @@ input[type=range]::-webkit-slider-runnable-track {
   .wm-desk-chrome > * { flex-shrink: 0; }
 }
 
+/* ── PHONE: THE ASSISTANT DOCKS IN THE NAV BAR, NOT ON THE ROOM ───────────
+   Sheriff batch 8 (serving 6944df9, 390x844): the launcher floated 70px up
+   from the bottom edge, over whatever the room had scrolled there — the
+   Personal Edge card's words on /profile, a row's price on /scanner. A button
+   that floats over a scrolling room is always on top of something. Below
+   768px, in every room that has the bottom nav, the nav gives up 56px at its
+   end and the launcher sits IN that space: inside the bar, above the home
+   indicator (safe area), over no reading. The chart room is unchanged — it
+   hides the launcher on phones and has no bottom nav. */
+@media (max-width: 767px) {
+  body:not(:has(.wm-spaidbot-chart-context)):has(.wm-spaidbot-launcher) .wm-mobile-nav {
+    padding-inline-end: calc(56px + env(safe-area-inset-right)) !important;
+  }
+  body:not(:has(.wm-spaidbot-chart-context)):has(.wm-mobile-nav) .wm-spaidbot-launcher {
+    bottom: calc(7px + env(safe-area-inset-bottom)) !important;
+    inset-inline-end: calc(6px + env(safe-area-inset-right)) !important;
+    width: 44px !important;
+    height: 44px !important;
+    z-index: 90 !important;
+  }
+  body:not(:has(.wm-spaidbot-chart-context)):has(.wm-mobile-nav) .wm-spaidbot-panel {
+    bottom: calc(66px + env(safe-area-inset-bottom)) !important;
+    max-height: calc(100dvh - 90px) !important;
+  }
+}
+
+/* ── PHONE SCANNER: THE COMPANY NAME READS (ruling 2026-10-09, option a) ──
+   Serving 6944df9 at 390: the symbol column was 64px (48px of words) and all
+   16 names were cut — "Advan…", "MicroS…", "Coinba…". The column takes 76px
+   (12px from the signal column) and the name wraps to two lines instead of
+   ending in an ellipsis. */
+@media (max-width: 767px) {
+  .wm-scanner-row {
+    grid-template-columns: 32px 76px minmax(92px, 1fr) 76px 66px !important;
+  }
+  .wm-scanner-row .wm-scanner-name {
+    white-space: normal !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.2;
+  }
+}
+
+/* ── TABLET (431–900px): THE SETTINGS AND CONNECT DRAWERS READ AT 11px ────
+   MEASURED on serving 6e150db at 834x1112 (cert lane ask, 2026-10-09): the
+   Connect brokers drawer carried 263 text nodes under 11px (215 at 9px, 48 at
+   10px) and the Settings drawer's Connections tab 29. With the phone floor's
+   size rules applied inside them: 0 and 0, nothing clipped, nothing outside
+   the drawer. The WHOLE glass was measured too and is NOT lifted: at 11px the
+   chart masthead grows 86 -> 105px (the Founder's layout) and the scanner
+   truncates four more names. So this is scoped to the two drawers by id, and
+   every other tablet surface keeps the 9px floor. Read BEFORE the phone block,
+   which stays last. */
+@media (min-width: 431px) and (max-width: 900px) {
+  :is(#wm-settings-drawer, #wm-broker-connect) :is(
+    [style*="font-size: 9px"], [style*="font-size:9px"],
+    [style*="font-size: 9.5px"], [style*="font-size:9.5px"],
+    [style*="font-size: 10px"], [style*="font-size:10px"],
+    [style*="font-size: 10.5px"], [style*="font-size:10.5px"],
+    [style*=" 9px/"], [style*=" 9px /"],
+    [style*=" 9.5px/"], [style*=" 9.5px /"],
+    [style*=" 10px/"], [style*=" 10px /"],
+    [style*=" 10.5px/"], [style*=" 10.5px /"],
+    .text-\[9px\], .text-\[9\.5px\], .text-\[10px\], .text-\[10\.5px\]
+  ) {
+    font-size: 11px !important;
+  }
+}
+
 /* The thumb bar's end padding (see "THE THUMB BAR SAYS IT SCROLLS"): the bar's
    own phone rule sets `padding: … !important` further up, so the 32px that
    lets the last plate clear the fade is read here, after it. Read on serving

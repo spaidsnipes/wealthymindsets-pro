@@ -68,7 +68,7 @@ describe("scanner: FVG + effort→response", () => {
   it("no traded volume → UNAVAILABLE with the volume owner's reason, never a hit (spot FX; a placeholder feed)", () => {
     const fx = scan(prefixes[0], "EURUSD");
     expect(fx.convergence.some(c => c.condition === "FVG_PLUS_EFFORT")).toBe(false);
-    expect(fx.unavailable.find(u => u.condition === "FVG_PLUS_EFFORT")?.reason).toMatch(/no centralised traded volume/);
+    expect(fx.unavailable.find(u => u.condition === "FVG_PLUS_EFFORT")?.reason).toBe("needs traded volume — spot FX has none");
     const ph = scan(prefixes[0].map(b => ({ ...b, volume: 1 })));
     expect(ph.convergence.some(c => c.condition === "FVG_PLUS_EFFORT")).toBe(false);
     expect(ph.unavailable.some(u => u.condition === "FVG_PLUS_EFFORT")).toBe(true);

@@ -115,4 +115,48 @@ describe("DOM type floor on the trading shell", () => {
       expect(offenders).toEqual([]);
     });
   });
+
+  /*
+    TABLET DRAWERS (431–900px) = 11px, Settings and Connect only (go 2026-10-09).
+    Measured at 834: those two drawers lift cleanly; the whole glass does not
+    (chart masthead 86 -> 105px, scanner names truncate). So the block is scoped
+    by drawer id and must never widen to the glass without a new measurement.
+  */
+  describe("tablet drawers (431–900px): 11px inside Settings and Connect only", () => {
+    const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    const at = css.indexOf("TABLET (431–900px): THE SETTINGS AND CONNECT DRAWERS READ AT 11px");
+    const end = css.indexOf("/* The thumb bar's end padding", at);
+    const block = at > -1 && end > at ? css.slice(at, end) : "";
+
+    it("the block exists, is read before the phone block, and carries one media query", () => {
+      expect(at).toBeGreaterThan(-1);
+      expect(block.length).toBeGreaterThan(200);
+      expect(at).toBeLessThan(css.indexOf("PHONE GLASS: THE DOM TYPE FLOOR IS 11px"));
+      expect(block).toContain("@media (min-width: 431px) and (max-width: 900px) {");
+      expect((block.match(/@media/g) ?? []).length).toBe(1);
+    });
+
+    it("every rule in it is scoped to the two drawers — never the glass", () => {
+      expect(block).toContain(":is(#wm-settings-drawer, #wm-broker-connect) :is(");
+      // One declaration, under the one scoped selector.
+      expect((block.match(/font-size: 11px !important;/g) ?? []).length).toBe(1);
+      expect((block.match(/\{/g) ?? []).length).toBe(2); // the media query and the one rule
+    });
+
+    it("the drawers it names still carry those ids", () => {
+      const settings = readFileSync(path.join(process.cwd(), "src/components/layout/shellPanels.tsx"), "utf8");
+      const connect = readFileSync(path.join(process.cwd(), "src/components/broker/BrokerConnectPanel.tsx"), "utf8");
+      expect(settings).toContain('id="wm-settings-drawer"');
+      expect(connect).toContain('id="wm-broker-connect"');
+    });
+
+    it("it lifts the same four sizes, each way they are written", () => {
+      for (const size of ["9px", "9.5px", "10px", "10.5px"]) {
+        expect(block, size).toContain(`[style*="font-size: ${size}"]`);
+        expect(block, size).toContain(`[style*="font-size:${size}"]`);
+        expect(block, size).toContain(`[style*=" ${size}/"]`);
+        expect(block, size).toContain(`.text-\\[${size.replace(".", "\\.")}\\]`);
+      }
+    });
+  });
 });

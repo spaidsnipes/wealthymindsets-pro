@@ -23,7 +23,7 @@ import type { CanonicalBar } from "@/lib/marketData/canonicalBar";
 import { selectMarketStructure } from "@/lib/marketData/viewModels/selectMarketStructure";
 import { selectVisibleRangeProfile } from "@/lib/marketData/viewModels/selectVisibleRangeProfile";
 import { instrumentTickFor } from "@/lib/chart/pricePrecision";
-import { volumeTruthFor, type VolumeTruth } from "@/lib/chart/volumeTruth";
+import { needsTradedVolumeSentence, volumeTruthFor, type VolumeTruth } from "@/lib/chart/volumeTruth";
 import type { FvgObject } from "./fvgEngine";
 import { effortFlowIndex, fvgEffortInput, fvgFlowInput } from "./fvgEffortFlow";
 import {
@@ -85,7 +85,7 @@ export const BARS_CARRY_NO_SIGNED_VOLUME = "these bars carry no signed volume (t
 export function fvgBarOnlyRelationships(ctx: FvgBarContext, o: FvgObject): FvgRelationshipReading {
   return fvgRelationshipsFor(o, {
     structure: ctx.structure, profiles: [fvgPriorProfile(ctx, o)], derivatives: null, liquidity: null,
-    effort: fvgEffortInput(o, ctx.bars, ctx.symbol, { index: ctx.indexByAsOf, volumeReal: ctx.volume.real, volumeSilenceWhy: ctx.volume.real ? null : ctx.volume.title }),
+    effort: fvgEffortInput(o, ctx.bars, ctx.symbol, { index: ctx.indexByAsOf, volumeReal: ctx.volume.real, volumeSilenceWhy: ctx.volume.real ? null : needsTradedVolumeSentence(ctx.symbol) ?? ctx.volume.title }),
     flow: fvgFlowInput(o, ctx.bars, null, { silenceWhy: BARS_CARRY_NO_SIGNED_VOLUME }),
   }, ctx.bars);
 }

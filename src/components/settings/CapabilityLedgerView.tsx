@@ -9,6 +9,7 @@ import React, { useEffect, useState } from "react";
 import { CAPABILITY_LABEL, CAPABILITY_LEDGER, STATE_WORD, capabilityClaimWord, type CapabilityCertificate, type CapabilityState, type ExecutionArms } from "@/lib/broker/capabilityLedger";
 import { GUARDRAILS_STORAGE_KEY, readGuardrails } from "@/lib/execution/guardrails";
 import { readServerOrderLimits } from "@/lib/execution/liveOrderPreflight";
+import { serverGateNowLine, type OrderGateStanding } from "@/lib/execution/orderGateStanding";
 
 const TONE: Readonly<Record<CapabilityState, string>> = {
   LIVE: "#7fd1a8", HUMAN_ARMED: "#d4af37", PARTIAL: "#d4af37", RECONSTRUCTED: "#c9a55c",
@@ -68,6 +69,19 @@ export function CapabilityLedgerView() {
     return () => { live = false; };
   }, [guest]);
   const cert = certs ? certs[provider.toLowerCase()] ?? null : null;
+  // §66: what the SERVER gate would say right now to a risk-increasing order on this broker — read from the
+  // owner-only, read-only route (no order, no broker call). Owner only; a failed read says "not read".
+  const [gate, setGate] = useState<{ provider: string; standing: OrderGateStanding | null } | null>(null);
+  useEffect(() => {
+    if (guest) return;
+    let live = true;
+    fetch(`/api/broker/order-gate?broker=${provider.toLowerCase()}`, { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (live) setGate({ provider, standing: j && j.state === "OK" && typeof j.sentence === "string" && typeof j.asOfMs === "number" ? (j as OrderGateStanding) : null }); })
+      .catch(() => { if (live) setGate({ provider, standing: null }); });
+    return () => { live = false; };
+  }, [guest, provider]);
+  const gateNow = gate && gate.provider === provider ? serverGateNowLine(gate.standing) : null;
   return (
     <section data-testid="capability-ledger" className="px-4 py-3">
       <div className="text-xs font-semibold text-wm-text">What each rail is for</div>
@@ -90,6 +104,9 @@ export function CapabilityLedgerView() {
             <span className="text-wm-text">{CAPABILITY_LABEL[r.capability]}</span>
             <span data-state={r.state} className="font-semibold tabular-nums" style={{ color: guest ? "#8a8271" : TONE[r.state] }}>{guest ? STATE_WORD[r.state] : capabilityClaimWord(r, cert, arms)}{guest && (r.state === "LIVE" || r.state === "HUMAN_ARMED" || r.state === "PARTIAL") ? " · once connected" : ""}</span>
             <span className="col-span-2 text-[10.5px] text-wm-text-dim">{r.note}</span>
+            {!guest && r.state === "HUMAN_ARMED" && gateNow ? (
+              <span data-testid="server-gate-now" data-capability={r.capability} className="col-span-2 text-[10.5px] text-wm-text-muted">{gateNow}</span>
+            ) : null}
           </li>
         ))}
       </ul>

@@ -28,7 +28,7 @@
 
 import { readKeels } from "@/lib/chart/barDeltaKeel";
 import { atrSeries, effortResponseWords, readEffortResponseField, type FieldBar } from "@/lib/chart/effortResponseField";
-import { volumeTruthFor } from "@/lib/chart/volumeTruth";
+import { needsTradedVolumeSentence, volumeTruthFor } from "@/lib/chart/volumeTruth";
 import { readTapeSide } from "@/lib/marketData/tapeSideVerdict";
 
 import type { CanonicalBar } from "@/lib/marketData/canonicalBar";
@@ -86,7 +86,9 @@ export function fvgEffortInput(
   const truth = opts.volumeReal === undefined ? volumeTruthFor(symbol, bars) : null;
   const real = opts.volumeReal ?? truth!.real;
   if (!real) {
-    const why = opts.volumeSilenceWhy ?? (truth && !truth.real ? truth.title : null) ?? "this market reports no traded volume, so effort cannot be weighed";
+    // ONE clause for every room (Inspect, Scanner, Backtest, Journal): the volume owner's own short sentence for a
+    // market with no central volume ("needs traded volume — spot FX has none"); a placeholder feed keeps its own reason.
+    const why = opts.volumeSilenceWhy ?? needsTradedVolumeSentence(symbol) ?? (truth && !truth.real ? truth.title : null) ?? "this market reports no traded volume, so effort cannot be weighed";
     return { volumeReal: false, silenceWhy: why, windowBars: FVG_EFFORT_WINDOW, readings: [] };
   }
   const index = opts.index ?? effortFlowIndex(bars);

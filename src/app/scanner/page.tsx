@@ -1119,7 +1119,7 @@ export default function ScannerPage() {
                   </div>
                   <div className="px-2">
                     <div className="text-xs font-bold text-wm-text">{r.symbol}</div>
-                    <div className="text-[9px] text-wm-text-dim truncate">{r.name}</div>
+                    <div className="wm-scanner-name text-[9px] text-wm-text-dim truncate">{r.name}</div>
                     <span
                       className={clsx(
                         "mt-0.5 inline-flex rounded border px-1 py-px text-[9px] font-black tracking-wide",
