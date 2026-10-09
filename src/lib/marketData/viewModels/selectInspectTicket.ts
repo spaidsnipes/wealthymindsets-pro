@@ -90,6 +90,7 @@
  * the held tape, and compiles what can honestly be said about the two together.
  */
 
+import { SESSION_BAND_LABEL, sessionsAt } from "@/lib/chart/sessionBands";
 import type { CanonicalBarIdentity } from "@/lib/marketData/canonicalBar";
 import { readLadderBar, readLadderLevels, type FlowLadderBar, type FlowLadderLevelRow } from "@/lib/marketData/flowLadder";
 import { buildInspectChain } from "@/lib/marketData/inspectChain";
@@ -292,6 +293,19 @@ export interface InspectTicketInput {
 export const MIN_PRINTS_FOR_DELTA = 4;
 
 const OWNER = "selectInspectTicket";
+
+/**
+ * The lineage's session, in the market's own words. An ingress that mints no
+ * session id leaves "SESSION_UNKNOWN" (Yahoo FX bars) — on spot FX the session
+ * IS knowable from the clock: which of Asia / London / New York is in business
+ * hours when the bar opened (sessionBands, the FX canon's three centres).
+ * Every other id is printed as its owner minted it.
+ */
+function sessionWordsFor(sessionId: string, barOpenMs: number | null, spotFx: boolean): string {
+  if (sessionId !== "SESSION_UNKNOWN" || !spotFx || barOpenMs === null) return sessionId;
+  const open = sessionsAt(Math.floor(barOpenMs / 1000)).map(id => SESSION_BAND_LABEL[id]);
+  return open.length ? open.join(" + ") : "BETWEEN CENTRES (Asia, London and New York outside business hours)";
+}
 
 const isFiniteNumber = (v: unknown): v is number =>
   typeof v === "number" && Number.isFinite(v);
@@ -604,7 +618,7 @@ export function selectInspectTicket(input: InspectTicketInput): InspectTicketVM 
         barId: admitted.identity.barId,
         line:
           `BAR ${admitted.identity.barId} · ${admitted.identity.source} · ` +
-          `${admitted.identity.provenance} · session ${admitted.identity.sessionId} · ` +
+          `${admitted.identity.provenance} · session ${sessionWordsFor(admitted.identity.sessionId, barOpenMs, input.noCentralVolume === "spot FX")} · ` +
           `epoch ${admitted.identity.truthEpoch} · ${heardAfter(admitted.identity)}`,
       }
     : { state: "UNREAD", barId: null, absence: admitted.short };

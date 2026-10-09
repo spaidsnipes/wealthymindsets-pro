@@ -197,6 +197,58 @@ export const SMART_MONEY_EDUCATION: Readonly<Record<string, SurfaceEducation>> =
   }),
 };
 
+/* ── Smart Money TOP CARDS (the five cards above the signal rows) ──────────
+   Kept apart from SMART_MONEY_EDUCATION, whose keys are locked to the signal
+   row names (surfaceEducation.test). Sheriff 2026-10-08: no card in the drawer
+   carried an ⓘ. */
+export const SMART_MONEY_CARD_EDUCATION: Readonly<Record<string, SurfaceEducation>> = {
+  "Delta Domination": rec({
+    what: "How this window's aggressive volume splits between buyers and sellers",
+    q: "Which side took more of the aggressive volume in this window?",
+    needs: "SIDED_TAPE", evidence: "Prints that state which side crossed the spread, summed over the tape window.",
+    appears: "A two-part bar (buyers left, sellers right) with each side's share, one verdict line and the net delta.",
+    read: "A side is named only when it took 55% or more; under that the card reads Balanced. When the named side and the candle's direction disagree the card says so as an observation. It does not say who is trading or what price does next.",
+    full: "A signed tape covering the window.", partial: "Sides inferred by tick rule or quote test — said in the note under the card.", degraded: "No signed tape — the card says it will not name a side.",
+    canon: SM_CANON,
+  }),
+  "Tape Pressure": rec({
+    what: "The same one-side verdict as Delta Domination, stated as a sentence with the share and net delta",
+    q: "Is one side pressing the tape, and by how much?",
+    needs: "SIDED_TAPE", evidence: "The same signed prints and the same 55% threshold as Delta Domination (one owner).",
+    appears: "A chip reading OBSERVED · BUY, OBSERVED · SELL, BALANCED or NO TAPE, and one sentence.",
+    read: "It can never disagree with Delta Domination — both speak one verdict. It describes observed tape only; it does not resolve location, risk or permission to trade.",
+    full: "A signed tape covering the window.", partial: "Inferred sides — labelled.", degraded: "No signed tape — reads NO TAPE.",
+    canon: SM_CANON,
+  }),
+  "WM Delta Bubbles": rec({
+    what: "Net buy-minus-sell size at each price level of the tape window, largest first",
+    q: "At which prices was the net aggressive size largest, and on which side?",
+    needs: "SIDED_TAPE", evidence: "Signed prints grouped by price level; the chart's bubbles use the same ranking and the same cap.",
+    appears: "One row per price level: the price, a bubble sized by net delta (green net buying, red net selling) and the signed number.",
+    read: "A bigger bubble is a more lopsided level in this window. The Levels shown setting keeps the largest; the chip says when levels are observed but not drawn. A level is where size traded, not a line price must respect.",
+    full: "A signed tape covering the window.", partial: "Inferred sides — labelled.", degraded: "No signed tape — reads NO TAPE and the level control is withheld.",
+    canon: "Smart Money panel · delta levels (selectDeltaLevels, deltaLevelCap)",
+  }),
+  "CLC Rule": rec({
+    what: "Whether Context, Location and Confirmation can each be read from the evidence on screen",
+    q: "Can the three parts of the CLC rule be named right now?",
+    needs: "OTHER_LAYERS", evidence: "Context: price against the session VWAP. Location: a validated structure zone (not built — always unresolved). Confirmation: the tape's side verdict.",
+    appears: "Three rows with a tick or an open mark, and a status line.",
+    read: "Location is unresolved until a real structure-zone model exists, so the card reads WAIT — LOCATION UNRESOLVED. It reports which parts are readable; it is not a trade instruction.",
+    full: "All three parts readable.", partial: "One or two parts readable — the missing part is named.", degraded: "No price yet — AWAITING DATA.",
+    canon: "Smart Money panel · CLC evidence (evaluateClcEvidence)",
+  }),
+  "WM Playbook": rec({
+    what: "Up to three study notes chosen for this instrument's asset class",
+    q: "What is worth checking on a chart of this kind?",
+    needs: "PRICE", evidence: "A fixed library of notes, filtered by asset class. Nothing here is computed from this chart's data.",
+    appears: "A title, one paragraph and one question per note.",
+    read: "The notes are context and questions to ask of the chart. They do not read the tape, name a direction or propose an entry.",
+    full: "Not applicable — the notes are the same on every feed.", partial: "Not applicable.", degraded: "Not applicable.",
+    canon: "Smart Money panel · playbook (fabio.ts, observation and questions only)",
+  }),
+};
+
 /* ── Drawing tools ─────────────────────────────────────────────────────── */
 
 const DRAW_CANON = "Trader-drawn geometry · no market claim";
@@ -431,6 +483,7 @@ export const BAR_SELECTION_EDUCATION: SurfaceEducation = rec({
 /* ── Lookup ────────────────────────────────────────────────────────────── */
 
 export const smartMoneyEducationId = (cardName: string): string => `SM:${cardName}`;
+export const smartMoneyCardEducationId = (card: string): string => `SMCARD:${card}`;
 export const drawingEducationId = (toolId: string): string => `DRAW:${toolId}`;
 export const viewEducationId = (tab: string): string => `VIEW:${tab}`;
 export const loadoutEducationId = (id: string): string => `LOADOUT:${id}`;
@@ -440,6 +493,7 @@ export const BAR_SELECTION_EDUCATION_ID = "BAR_SELECTION";
 export function surfaceEducationFor(id: string): SurfaceEducation | null {
   if (id === REPLAY_EDUCATION_ID) return REPLAY_EDUCATION;
   if (id === BAR_SELECTION_EDUCATION_ID) return BAR_SELECTION_EDUCATION;
+  if (id.startsWith("SMCARD:")) return SMART_MONEY_CARD_EDUCATION[id.slice(7)] ?? null;
   if (id.startsWith("SM:")) return SMART_MONEY_EDUCATION[id.slice(3)] ?? null;
   if (id.startsWith("DRAW:")) return DRAWING_EDUCATION[id.slice(5)] ?? null;
   if (id.startsWith("VIEW:")) return VIEW_EDUCATION[id.slice(5)] ?? null;

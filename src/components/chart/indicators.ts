@@ -376,6 +376,56 @@ export function priorSessionOHLC(bars: readonly LegacyOhlcvTuple[], win: Session
   return acc;
 }
 
+export type PivotPeriod = "WEEK" | "MONTH";
+export type PeriodPivots =
+  | { readonly drawn: true; readonly period: string; readonly pp: number; readonly r1: number; readonly s1: number }
+  | { readonly drawn: false; readonly reason: "NO_SESSION_CLOCK" | "NO_PRIOR_PERIOD" | "PRIOR_PERIOD_NOT_FULLY_LOADED" };
+
+/** ISO-8601 week of a YYYY-MM-DD date, as "YYYY-Www" (pure calendar arithmetic, no time zone). */
+export function isoWeekKey(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  const dow = t.getUTCDay() || 7;                 // Mon = 1 … Sun = 7
+  t.setUTCDate(t.getUTCDate() + 4 - dow);         // the week's Thursday decides its year
+  const yearStart = Date.UTC(t.getUTCFullYear(), 0, 1);
+  const week = Math.ceil(((t.getTime() - yearStart) / 86_400_000 + 1) / 7);
+  return `${t.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+/**
+ * WEEKLY / MONTHLY PIVOTS from the PRIOR COMPLETED period (2026-10-08: they
+ * were computed from the forming bar, as the session pivots were). A bar's
+ * DAY is its session day from the one session owner (sessionKeyOf), so the
+ * week / month is the instrument's own — a Sunday-evening Globex bar belongs
+ * to Monday's session and to that week. Daily-or-longer bars carry their own
+ * UTC date. Periods: ISO week, calendar month.
+ *
+ * TRUTH BEFORE DISPLAY: the prior period's high / low / close are only its
+ * own if the whole period is loaded. That is proven by a bar from a period
+ * BEFORE it being on the chart; otherwise the levels are withheld by name.
+ */
+export function periodPivots(bars: readonly LegacyOhlcvTuple[], win: SessionWindow | null, period: PivotPeriod): PeriodPivots {
+  if (!win || win.kind === "NO_CLOCK") return { drawn: false, reason: "NO_SESSION_CLOCK" };
+  const dayOf = (sec: number): string | null => win.kind === "DAILY_WINDOW" ? new Date(sec * 1000).toISOString().slice(0, 10) : sessionKeyOf(sec, win);
+  const keyOf = (day: string) => (period === "MONTH" ? day.slice(0, 7) : isoWeekKey(day));
+  let newest: string | null = null, prior: string | null = null, older = false;
+  let hi = -Infinity, lo = Infinity, close = NaN;
+  for (let i = bars.length - 1; i >= 0; i--) {
+    const day = dayOf(Number(bars[i].time));
+    if (day == null) continue;
+    const k = keyOf(day);
+    if (newest == null) newest = k;
+    if (k === newest) continue;
+    if (prior == null) { prior = k; close = bars[i].close; }
+    if (k !== prior) { older = true; break; }
+    hi = Math.max(hi, bars[i].high); lo = Math.min(lo, bars[i].low);
+  }
+  if (prior == null) return { drawn: false, reason: "NO_PRIOR_PERIOD" };
+  if (!older) return { drawn: false, reason: "PRIOR_PERIOD_NOT_FULLY_LOADED" };
+  const pp = (hi + lo + close) / 3;
+  return { drawn: true, period: prior, pp, r1: 2 * pp - lo, s1: 2 * pp - hi };
+}
+
 export function pivotPoints(bars: LegacyOhlcvTuple[], type: "standard" | "fibonacci" | "camarilla" | "woodie" | "demark" | "cpr" = "standard", win?: SessionWindow | null): { pp: number; r1: number; r2: number; r3: number; s1: number; s2: number; s3: number; tc?: number; bc?: number } {
   const NONE = { pp: NaN, r1: NaN, r2: NaN, r3: NaN, s1: NaN, s2: NaN, s3: NaN };
   // No bars: a caller that named no session keeps the legacy zeros; one that

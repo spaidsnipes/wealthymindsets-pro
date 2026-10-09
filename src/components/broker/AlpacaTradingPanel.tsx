@@ -485,7 +485,7 @@ export function AlpacaTradingPanel({
       titleId="wm-alpaca-paper-account-title"
       descriptionId="wm-alpaca-paper-account-description"
       title="Alpaca paper account"
-      description="Paper capital only. Live brokerage access is disabled."
+      description="Alpaca paper capital only. Nothing in this drawer reaches a live broker."
       closeLabel="Close Alpaca paper account"
       width={440}
       onClose={onClose}
@@ -595,7 +595,9 @@ export function AlpacaTradingPanel({
 
         <div className="mx-4 mt-2 px-3 py-1.5 rounded-lg text-[10px] font-bold text-wm-blue flex items-center gap-1.5 shrink-0"
           style={{ background: "rgba(79,163,224,0.08)", border: "1px solid rgba(79,163,224,0.25)" }}>
-          PAPER ONLY — Live brokerage access is disabled.
+          {/* Sheriff 2026-10-08: scoped to THIS drawer — it used to read "Live brokerage access is disabled"
+              directly above "tastytrade Connected", two broker truths that contradicted each other. */}
+          PAPER ONLY · Alpaca — this drawer cannot send a live order. The tastytrade line below is its connection status, read only.
         </div>
 
         {/* ── Tabs ── */}
@@ -992,6 +994,12 @@ export function AlpacaTradingPanel({
           )}
 
           {/* ─── ACCOUNT TAB ─── */}
+          {/* Sheriff P2 (2026-10-08): with no account this tab rendered nothing — no state, no reason. */}
+          {!disconnected && activeTab === "account" && !account && (
+            <div role="status" data-testid="alpaca-account-empty" className="p-4 text-[11px] text-wm-text-muted">
+              {railGate.reason ?? "The paper account could not be read just now, so there are no account figures to show. Use Refresh to ask again."}
+            </div>
+          )}
           {!disconnected && activeTab === "account" && account && (
             <div className="p-4 space-y-3">
               <div className="rounded-xl border border-wm-border bg-wm-card p-4 space-y-3">

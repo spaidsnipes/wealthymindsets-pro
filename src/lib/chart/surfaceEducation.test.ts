@@ -15,7 +15,7 @@ import { ALL_CATEGORY_TABS } from "@/lib/charts/categoryTabsFor";
 import { CAMERA_LOADOUTS } from "@/lib/marketData/viewModels/selectChartArrangement";
 import { educationFor, educationIdForSelection, educationTruthLines, firstTouchFor } from "@/lib/chart/inventionEducation";
 import {
-  BAR_SELECTION_EDUCATION_ID, DRAWING_EDUCATION, LOADOUT_EDUCATION, REPLAY_EDUCATION_ID, SMART_MONEY_EDUCATION, VIEW_EDUCATION,
+  BAR_SELECTION_EDUCATION_ID, DRAWING_EDUCATION, LOADOUT_EDUCATION, REPLAY_EDUCATION_ID, SMART_MONEY_CARD_EDUCATION, SMART_MONEY_EDUCATION, smartMoneyCardEducationId, VIEW_EDUCATION,
   drawingEducationId, loadoutEducationId, smartMoneyEducationId, viewEducationId,
 } from "@/lib/chart/surfaceEducation";
 
@@ -120,7 +120,7 @@ describe("footprint '?' → registry; bar selection first touch (§15b)", () => 
 describe("no advice or prediction in the surface records", () => {
   it("every surface record passes the banned-phrase scan", () => {
     const all = ([
-      ...Object.values(SMART_MONEY_EDUCATION), ...Object.values(DRAWING_EDUCATION), ...Object.values(VIEW_EDUCATION), ...Object.values(LOADOUT_EDUCATION),
+      ...Object.values(SMART_MONEY_EDUCATION), ...Object.values(SMART_MONEY_CARD_EDUCATION), ...Object.values(DRAWING_EDUCATION), ...Object.values(VIEW_EDUCATION), ...Object.values(LOADOUT_EDUCATION),
       educationFor(REPLAY_EDUCATION_ID), educationFor(BAR_SELECTION_EDUCATION_ID),
     ] as unknown[]) as Record<string, unknown>[];
     const hits: string[] = [];
@@ -135,5 +135,17 @@ describe("no advice or prediction in the surface records", () => {
     expect(e.appears).toMatch(/HISTORICAL reach/);
     expect(e.appears).toMatch(/BY TIME OF DAY/);
     expect(e.firstTouch).toMatch(/not a forecast/);
+  });
+});
+
+describe("the Smart Money top cards each carry a complete ⓘ record (sheriff 2026-10-08)", () => {
+  const CARDS = ["Delta Domination", "Tape Pressure", "WM Delta Bubbles", "CLC Rule", "WM Playbook"];
+  it("five cards, every field filled, reachable through educationFor", () => {
+    expect(Object.keys(SMART_MONEY_CARD_EDUCATION).sort()).toEqual([...CARDS].sort());
+    for (const c of CARDS) complete(smartMoneyCardEducationId(c));
+  });
+  it("the panel wires all five", () => {
+    const panel = read("src/components/smart-money/SmartMoneyPanel.tsx");
+    for (const c of CARDS) expect(panel, c).toContain(`<CardInfo card="${c}"`);
   });
 });

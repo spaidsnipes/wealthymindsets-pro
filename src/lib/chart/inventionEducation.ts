@@ -210,7 +210,7 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
   TPO_PROFILE: {
     question: "How much TIME did the market spend at each price?",
     needs: "PRICE", evidence: "Bars alone — time and price, no volume needed.",
-    appears: "Brass blocks against the price axis — one block per period that traded at each price — built over ALL loaded bars (not only the bars on screen), with TPO POC and value-area chips. Because it spans the whole history, its POC / VAL chips can sit far from the candles in view. No separate single-print mark is drawn.",
+    appears: "Brass blocks against the price axis — one block per period that traded at each price — built over ALL loaded bars (not only the bars on screen), with TPO POC and value-area chips. Because it spans the whole history, its POC or value area can lie outside the prices on screen — a chip is shown only when its price is in view. No separate single-print mark is drawn.",
     grammar: "Wide rows = more periods spent at that price (acceptance). One-block rows are prices the market passed through in a single period.",
     full: PRICE_FULL, partial: "Too few periods on screen — it says so instead of lettering a thin profile.", degraded: PRICE_DEGRADED,
     firstTouch: "TPO — blocks show how many periods the market spent at each price.",

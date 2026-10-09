@@ -325,8 +325,17 @@ export function formatSpinePrice(
   /** See `selectPriceEvidence`. Optional, last, and only `false` speaks. */
   barsSettled?: boolean,
   quote?: { readonly last?: number | null; readonly source?: string | null },
+  /**
+   * The instrument's display decimals (pricePrecision's `displayPrecisionFor`).
+   * Without it the cell printed the float as it arrived — serving EURUSD,
+   * 2026-10-08: "1.1188185214996338 LAST 5m BAR CLOSE" beside a header reading
+   * 1.11882. Omitted → the value as given, as before.
+   */
+  decimals?: number | null,
 ): SpinePriceDisplay {
   const evidence = selectPriceEvidence(last, lastBarClose, lastBarTimeframe, barsSettled, quote);
+  const dp = typeof decimals === "number" && Number.isFinite(decimals) ? Math.max(0, Math.min(8, Math.round(decimals))) : null;
+  const shown = (v: number) => (dp === null ? String(v) : v.toFixed(dp));
   // An open question has no sentence. PRICE UNKNOWN is an ANSWER — it asserts
   // WM looked and found nothing — so it may not be printed over a request that
   // is still in flight. The empty string is the honest render; the cell's own
@@ -335,8 +344,8 @@ export function formatSpinePrice(
   if (evidence.value == null) return { text: "PRICE UNKNOWN", provenance: "NONE" };
   return {
     text: evidence.qualifier
-      ? `${evidence.value} ${evidence.qualifier}`
-      : String(evidence.value),
+      ? `${shown(evidence.value)} ${evidence.qualifier}`
+      : shown(evidence.value),
     provenance: evidence.provenance,
   };
 }

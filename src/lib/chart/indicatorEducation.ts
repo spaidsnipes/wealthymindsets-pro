@@ -15,7 +15,7 @@
  * indicator block in the chart and the formulas in `indicators.ts` — with the
  * default windows those functions use. Where the drawing differs from the
  * catalogue's name (Stochastic Pop draws the SMI; Color RSI draws a smoothed
- * RSI with no colour fill; pivots read the LAST bar on the chart), the record
+ * RSI with no colour fill), the record
  * says what is drawn, not what the name promises. No advice, no prediction:
  * each record says what the line measures and how to read its marks.
  *
@@ -130,7 +130,7 @@ function ma(name: string, how: string, n: number): IndicatorEducation {
 const RANGE_OSC_READ = (lo: number, hi: number) =>
   `Dashed guides at ${lo} and ${hi}. Above ${hi} means the close sits near the top of its recent range; below ${lo}, near the bottom. That describes where price is — it does not say price must turn.`;
 
-const PIVOT_NOTE = "Computed from the LAST bar on this chart (its high, low and close). On an intraday chart that is the bar still forming, not the prior session, so the levels move while that bar is open.";
+const PIVOT_NOTE = "Computed from the PRIOR COMPLETED session's high, low and close (the chart's own session clock), so the levels hold still all session. If no completed prior session is loaded, nothing is drawn.";
 
 export const INDICATOR_EDUCATION: Readonly<Record<string, IndicatorEducation>> = {
   // ── Trend ───────────────────────────────────────────────────
@@ -200,7 +200,7 @@ export const INDICATOR_EDUCATION: Readonly<Record<string, IndicatorEducation>> =
     what: "Ichimoku lines: conversion (9), base (26), span A, span B (52), lagging close",
     q: "Where do the midpoints of the 9-, 26- and 52-bar ranges sit relative to price?",
     src: "hl", win: 52,
-    appears: "Five lines on the price scale. Note: the two spans are drawn at the current bar, NOT shifted 26 bars forward, and the lagging line is drawn at the current bar using the close from 26 bars ago — so this is not the textbook cloud layout.",
+    appears: "Five lines on the price scale. The two spans are plotted 26 bars after the bar they are computed on, and the lagging line is the close plotted 26 bars back, so its newest 26 slots are empty. The chart has no future slots, so the spans do not extend past the newest candle.",
     read: "Each line is the middle of a high–low range: conversion over 9 bars, base over 26, span B over 52; span A is the average of conversion and base. Read them as range midpoints.",
   }),
   Supertrend: rec({
@@ -261,39 +261,39 @@ export const INDICATOR_EDUCATION: Readonly<Record<string, IndicatorEducation>> =
 
   // ── Pivots ──────────────────────────────────────────────────
   "Pivot Points Standard": rec({
-    what: "Standard floor pivots (P, R1–R3, S1–S3) from the last bar's high, low and close",
+    what: "Standard floor pivots (P, R1–R3, S1–S3) from the prior completed session's high, low and close",
     q: "Where do the standard pivot formulas put levels for these numbers?",
-    src: "ohlc", win: 1, appears: "Seven flat lines across the chart: gold P, red R1–R3, green S1–S3.",
+    src: "ohlc", win: null, appears: "Seven flat lines across the chart: gold P, red R1–R3, green S1–S3.",
     read: `P = (H + L + C) / 3; R and S levels step out by the range. ${PIVOT_NOTE}`,
   }),
   "Pivot Points Fibonacci": rec({
-    what: "Fibonacci pivots: P ± 0.382 / 0.618 / 1.0 × range, from the last bar",
+    what: "Fibonacci pivots: P ± 0.382 / 0.618 / 1.0 × range, from the prior completed session",
     q: "Where do the Fibonacci pivot formulas put levels for these numbers?",
-    src: "ohlc", win: 1, appears: "Seven flat lines across the chart.",
-    read: `P = (H + L + C) / 3; levels are P plus or minus fractions of the bar's range. ${PIVOT_NOTE}`,
+    src: "ohlc", win: null, appears: "Seven flat lines across the chart.",
+    read: `P = (H + L + C) / 3; levels are P plus or minus fractions of that session's range. ${PIVOT_NOTE}`,
   }),
   "Pivot Points Camarilla": rec({
-    what: "Camarilla levels: close ± 1.083 / 1.167 / 1.25 × range, from the last bar",
+    what: "Camarilla levels: close ± 1.083 / 1.167 / 1.25 × range, from the prior completed session",
     q: "Where do the Camarilla formulas put levels around the close?",
-    src: "ohlc", win: 1, appears: "Seven flat lines across the chart.",
-    read: `Levels are the bar's close plus or minus multiples of its range. ${PIVOT_NOTE}`,
+    src: "ohlc", win: null, appears: "Seven flat lines across the chart.",
+    read: `Levels are that session's close plus or minus multiples of its range. ${PIVOT_NOTE}`,
   }),
   "Pivot Points Woodie": rec({
-    what: "Woodie pivots: P = (H + L + 2C) / 4, from the last bar",
+    what: "Woodie pivots: P = (H + L + 2C) / 4, from the prior completed session",
     q: "Where do the Woodie formulas put levels, weighting the close double?",
-    src: "ohlc", win: 1, appears: "Seven flat lines across the chart.",
+    src: "ohlc", win: null, appears: "Seven flat lines across the chart.",
     read: `Same steps as the standard pivots around a close-weighted P. ${PIVOT_NOTE}`,
   }),
   "Pivot Points Demark": rec({
-    what: "DeMark pivots (P, R1, S1) from the last bar",
+    what: "DeMark pivots (P, R1, S1) from the prior completed session",
     q: "Where does DeMark's open-vs-close rule put one level above and one below?",
-    src: "ohlc", win: 1, appears: "Three flat lines across the chart.",
-    read: `The formula weights the high or low double depending on whether the bar closed below or above its open. ${PIVOT_NOTE}`,
+    src: "ohlc", win: null, appears: "Three flat lines across the chart.",
+    read: `The formula weights the high or low double depending on whether that session closed below or above its open. ${PIVOT_NOTE}`,
   }),
   "Pivot Points CPR": rec({
-    what: "Central pivot range levels from the last bar",
+    what: "Central pivot range levels from the prior completed session",
     q: "Where do the central pivot formulas put P and its R / S levels?",
-    src: "ohlc", win: 1, appears: "Seven flat lines across the chart (the top and bottom central lines are computed but not drawn).",
+    src: "ohlc", win: null, appears: "Seven flat lines across the chart (the top and bottom central lines are computed but not drawn).",
     read: `P = (H + L + C) / 3 with standard R1–R3 and S1–S3. ${PIVOT_NOTE}`,
   }),
 
@@ -481,11 +481,11 @@ export const INDICATOR_EDUCATION: Readonly<Record<string, IndicatorEducation>> =
     read: "Bar height is the bar's volume. Colour follows the CANDLE (close above or below open) — it does not say who bought or sold.",
   }),
   "Volume MA": rec({
-    what: "20-bar average volume divided by each bar's volume, drawn on the price scale",
-    q: "How does each bar's volume compare with the 20-bar average?",
+    what: "20-bar simple average of bar volume",
+    q: "What is the average volume of the last 20 bars?",
     src: "volume", win: 20,
-    appears: "Currently a line ON THE PRICE SCALE whose values are a ratio near 1 — not a volume average beside the volume bars. On most symbols it pulls the price axis toward zero. Reported to the chart lane as a defect.",
-    read: "Values above 1 mean the bar traded less than the 20-bar average; below 1, more. Leave it off until the chart lane moves it to a volume pane.",
+    appears: OWN_PANE("A line in volume units"),
+    read: "The plain average of the last 20 bars' volume. A bar above the line traded more than that average; it says nothing about direction.",
   }),
   RVOL: rec({
     what: "Bar volume ÷ the average of the last 20 bars' volume",
@@ -574,7 +574,7 @@ export const INDICATOR_EDUCATION: Readonly<Record<string, IndicatorEducation>> =
   "Volume Weighted RSI": rec({
     what: "RSI (14) with each gain and loss weighted by its bar's volume",
     q: "Weighted by volume, were the recent up-closes larger than the down-closes?",
-    src: "volume", win: 14, appears: `${OWN_PANE("A line from 0 to 100")} Guides at 30 and 70. It is currently drawn twice (two panes) — reported to the chart lane.`,
+    src: "volume", win: 14, appears: `${OWN_PANE("A line from 0 to 100")} Guides at 30 and 70.`,
     read: `RSI arithmetic with volume in the averages. ${RANGE_OSC_READ(30, 70)}`,
   }),
 
@@ -723,11 +723,11 @@ export const INDICATOR_EDUCATION: Readonly<Record<string, IndicatorEducation>> =
     read: "Only neighbouring bars are compared. It marks the matching price, nothing more.",
   }),
   "Swing High/Low": rec({
-    what: "Swing highs (lows are not drawn)",
-    q: "Where are the recent swing highs?",
+    what: "Confirmed swing highs and swing lows, each as a short rule",
+    q: "Where are the recent confirmed swing highs and lows?",
     src: "hl", win: 11,
-    appears: "Each swing high is sent to the chart as a single-point line, which leaves no visible mark, and swing lows are not sent. Reported to the chart lane as a defect.",
-    read: "Until the chart lane fixes it, use Strong Highs/Lows or Supply/Demand Zones, which draw from the same swing points.",
+    appears: "A short dashed rule from each swing's own bar for 8 bars: red at swing highs, green at swing lows.",
+    read: "A swing high is a bar whose high is above the 5 bars either side, so it is confirmed 5 bars late. The rule marks where it printed; it is not extended as a level.",
   }),
   "VWAP Deviation Bands": rec({
     what: "Session VWAP with ±1σ, ±2σ and ±3σ bands",
@@ -825,7 +825,7 @@ export const INDICATOR_EDUCATION: Readonly<Record<string, IndicatorEducation>> =
   "Choppiness Index": rec({
     what: "Choppiness Index (14)",
     q: "Over 14 bars, has price travelled far net, or back and forth inside a range?",
-    src: "ohlc", win: 14, appears: `${OWN_PANE("A line from 0 to 100")} Guides at 38.2 and 61.8. It is currently drawn twice (two panes) — reported to the chart lane.`,
+    src: "ohlc", win: 14, appears: `${OWN_PANE("A line from 0 to 100")} Guides at 38.2 and 61.8.`,
     read: "Sum of true ranges ÷ (14-bar high − low), on a log scale to 0–100. High values: lots of travel for little net range.",
   }),
 

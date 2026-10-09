@@ -1,6 +1,7 @@
 "use client";
 // Canon F22A (2026-10-06): SpaidBot wears the house graphite + warm gold, not teal.
 
+import { SPAIDBOT_PANEL_BOUNDARY } from "@/lib/execution/ticketTruth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { readSceneDecision } from "@/lib/traderMemory/decisionContinuity";
@@ -342,6 +343,11 @@ export function SpadeBotButton({ launcher = true }: {
                 <X size={13}/>
               </button>
             </div>
+            {/* Sheriff P2-7 (2026-10-08): the boundary, on the panel itself — from the ONE
+                boundary owner the ticket also reads (ticketTruth.SPAIDBOT_PANEL_BOUNDARY). */}
+            <p data-testid="spaidbot-boundary" className="shrink-0 border-b border-wm-border px-3 py-1.5 text-[10px] leading-snug text-wm-text-dim">
+              {SPAIDBOT_PANEL_BOUNDARY}
+            </p>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0" style={{ background: "#0A0B10" }}>

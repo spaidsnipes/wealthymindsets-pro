@@ -1,5 +1,6 @@
 "use client";
 
+import { canonicalAssetClass as assetClassForSessionChoice } from "@/lib/marketData/canonicalIdentity";
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import {
   Search, ChevronDown,
@@ -406,12 +407,12 @@ const INDICATORS = [
   { cat:"Trend", name:"Linear Regression Channel", desc:"100-bar regression line with bands 2 standard errors away" },
   { cat:"Trend", name:"Alligator", desc:"Williams Alligator: averages of the bar midpoint (13, 8, 5) shifted forward 8, 5 and 3 bars" },
   // ─── Pivot Levels ──────────────────────────────────────
-  { cat:"Pivots", name:"Pivot Points Standard", desc:"Standard floor pivots (P, R1–R3, S1–S3) from the last bar's high, low and close" },
-  { cat:"Pivots", name:"Pivot Points Fibonacci", desc:"Fibonacci pivots: P ± 0.382 / 0.618 / 1.0 × range, from the last bar" },
-  { cat:"Pivots", name:"Pivot Points Camarilla", desc:"Camarilla levels: close ± 1.083 / 1.167 / 1.25 × range, from the last bar" },
-  { cat:"Pivots", name:"Pivot Points Woodie", desc:"Woodie pivots: P = (H + L + 2C) / 4, from the last bar" },
-  { cat:"Pivots", name:"Pivot Points Demark", desc:"DeMark pivots (P, R1, S1) from the last bar" },
-  { cat:"Pivots", name:"Pivot Points CPR", desc:"Central pivot range levels from the last bar" },
+  { cat:"Pivots", name:"Pivot Points Standard", desc:"Standard floor pivots (P, R1–R3, S1–S3) from the prior completed session's high, low and close" },
+  { cat:"Pivots", name:"Pivot Points Fibonacci", desc:"Fibonacci pivots: P ± 0.382 / 0.618 / 1.0 × range, from the prior completed session" },
+  { cat:"Pivots", name:"Pivot Points Camarilla", desc:"Camarilla levels: close ± 1.083 / 1.167 / 1.25 × range, from the prior completed session" },
+  { cat:"Pivots", name:"Pivot Points Woodie", desc:"Woodie pivots: P = (H + L + 2C) / 4, from the prior completed session" },
+  { cat:"Pivots", name:"Pivot Points Demark", desc:"DeMark pivots (P, R1, S1) from the prior completed session" },
+  { cat:"Pivots", name:"Pivot Points CPR", desc:"Central pivot range levels from the prior completed session" },
   // ─── Momentum ─────────────────────────────────────────
   { cat:"Momentum", name:"RSI", desc:"Relative Strength Index of the close (14)" },
   { cat:"Momentum", name:"ConnorsRSI", desc:"Connors RSI: average of a 3-bar RSI, a 2-bar streak RSI and a 100-bar percent rank" },
@@ -444,7 +445,7 @@ const INDICATORS = [
   { cat:"Momentum", name:"Schaff Trend Cycle", desc:"Schaff Trend Cycle (23, 50, 10)" },
   // ─── Volume ───────────────────────────────────────────
   { cat:"Volume", name:"Volume", desc:"Traded volume per bar" },
-  { cat:"Volume", name:"Volume MA", desc:"20-bar average volume divided by each bar's volume, drawn on the price scale" },
+  { cat:"Volume", name:"Volume MA", desc:"20-bar simple average of bar volume" },
   { cat:"Volume", name:"RVOL", desc:"Bar volume ÷ the average of the last 20 bars' volume" },
   { cat:"Volume", name:"OBV", desc:"On-Balance Volume: running total adding volume on up-closes, subtracting on down-closes" },
   { cat:"Volume", name:"Money Flow Index", desc:"Money Flow Index (14): an RSI of typical price × volume" },
@@ -486,7 +487,7 @@ const INDICATORS = [
   { cat:"Smart Money", name:"Liquidity Pools", desc:"Pairs of swing highs (or lows) within 0.12% of each other" },
   { cat:"Smart Money", name:"Strong Highs/Lows", desc:"Swing highs not exceeded since, and swing lows not undercut since" },
   { cat:"Smart Money", name:"Equal Highs/Lows", desc:"Adjacent bars whose highs (or lows) are within 0.08% of each other" },
-  { cat:"Smart Money", name:"Swing High/Low", desc:"Swing highs (lows are not drawn)" },
+  { cat:"Smart Money", name:"Swing High/Low", desc:"Confirmed swing highs and swing lows, each as a short rule" },
   { cat:"Smart Money", name:"VWAP Deviation Bands", desc:"Session VWAP with ±1σ, ±2σ and ±3σ bands" },
   // ─── Oscillators ──────────────────────────────────────
   { cat:"Oscillators", name:"Fisher Transform", desc:"Fisher Transform of the 10-bar midpoint position, and its signal line" },
@@ -686,6 +687,12 @@ const CAT_COLORS: Record<string, string> = {
   Futures:"#F0B429", Stock:"#8B95A5", ETF:"#00D4AA", Fund:"#00D4AA",
   Crypto:"#8B5CF6",  Forex:"#4FA3E0", Index:"#E06C9F",
 };
+
+/** Does a Regular / Extended hours choice mean anything for this instrument? Not on a continuous market. */
+export function sessionChoiceApplies(symbol: string): boolean {
+  const cls = assetClassForSessionChoice(symbol);
+  return cls !== "forex" && cls !== "crypto";
+}
 
 function SymbolRow({ s, symbol, onSelect }: { s: SymbolEntry; symbol: string; onSelect: () => void }) {
   return (
@@ -1209,8 +1216,13 @@ export function ChartToolbar({
             })()}
           </div>
 
-          {/* ══ Extended Hours dropdown ═════════════════════════ */}
-          <select
+          {/* ══ Extended Hours dropdown ═════════════════════════
+              RTH / ETH are exchange-session words. A continuous market has
+              neither (canonicalSession: "must never be applied to a continuous
+              market") — on spot FX and crypto the selector was a dead choice
+              in equity words (sheriff, serving EURUSD 2026-10-08). It is
+              simply absent there; the session reading lives in the header. */}
+          {sessionChoiceApplies(symbol) && <select
             value={extendedHours ? "eth" : "rth"}
             onChange={e => setExtendedHours(e.target.value === "eth")}
             title="Regular vs Extended Trading Hours"
@@ -1223,7 +1235,7 @@ export function ChartToolbar({
           >
             <option value="rth">RTH — Regular Hours</option>
             <option value="eth">ETH — Extended Hours</option>
-          </select>
+          </select>}
 
           {/* ══ Indicators ══════════════════════════════════════ */}
           <div className="relative shrink-0" ref={indRef}>

@@ -2431,6 +2431,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   livingDevelopmentRef.current = livingDevelopment;
   // ASK-3: the wisdom line's hit rect this frame (null when not drawn).
   const wisdomHitRef = useRef<{ x: number; y: number; w: number; h: number; time: number } | null>(null);
+  // Bar-anchored marks painted this frame (Delta Keel glyphs, Effort → Response
+  // columns): a tap on one selects ITS bar, through the Wisdom line's owner.
+  const barMarkHitsRef = useRef<{ x: number; y: number; w: number; h: number; time: number }[]>([]);
   // C-05 marks travel through a ref: they change on bar close, and the paint
   // loop must not be torn down for them.
   const effortMarksFieldRef = useRef<typeof effortMarksField>(null);
@@ -5800,8 +5803,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (isFinite(val)) addLine(bars.map(() => val), color, 1, 1);
       }
     }
-    if (inds.has("Weekly Pivots") || inds.has("Monthly Pivots")) {
-      const pv = IND.pivotPoints(bars, "standard");
+    // Weekly / Monthly Pivots: the PRIOR COMPLETED ISO week / calendar month in
+    // the instrument's own session days — never the forming bar. A prior period
+    // that is not fully loaded draws nothing and says so on the receipt.
+    for (const [label, period, key] of [["Weekly Pivots", "WEEK", "pivotsWeekly"], ["Monthly Pivots", "MONTH", "pivotsMonthly"]] as const) {
+      const dsP = canvasRef.current?.dataset;
+      if (!inds.has(label)) { if (dsP) delete dsP[key]; continue; }
+      const pv = IND.periodPivots(bars, sessionWindowFor(symbol, timeframe, !!extendedHours), period);
+      if (dsP) dsP[key] = pv.drawn ? `DRAWN:${pv.period}` : `WITHHELD:${pv.reason}`;
+      if (!pv.drawn) continue;
       addLine(bars.map(() => pv.pp), "#F0B429", 1, 2);
       addLine(bars.map(() => pv.r1), "rgba(239,83,80,0.5)", 1, 1);
       addLine(bars.map(() => pv.s1), "rgba(38,166,154,0.5)", 1, 1);
@@ -11142,6 +11152,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const t0ER = performance.now();
         const bs = barsRef.current || [];
         const vsER = volRef.current;
+        barMarkHitsRef.current = [];
         if (!effortResponseOn) { canvas.dataset.effortResponse = "OFF"; delete canvas.dataset.effortResponseWhy; }
         else if (bs.length < 2 || !vsER) canvas.dataset.effortResponse = "NO_BARS";
         else {
@@ -11218,6 +11229,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 : `rgba(237,230,211,${a.toFixed(3)})`;
               if (narrowER) classInk[b.cell === "ABSORBED" ? "A" : b.cell === "VACUUM" ? "V" : b.cell === "INITIATIVE" ? "I" : "O"]++;
               if (inside > 0) ctx.fillRect(x, yBase - inside, w, inside);
+              // What a tap hits: the column, padded to a finger-sized target.
+              { const hh = Math.max(hR, effortPx, 10); barMarkHitsRef.current.push({ x: x - 4, y: yBase - hh - 4, w: w + 8, h: hh + 8, time: b.time }); }
               if (hR > effortPx * 1.5 + 0.5) {
                 ctx.strokeStyle = `rgba(237,230,211,${(a * 0.9).toFixed(3)})`;
                 ctx.lineWidth = 1;
@@ -11523,6 +11536,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             canvas.dataset.barDeltaKeels = `${drawn}|BASIS:TAPE${nTape}+SIDES${nSides}|FAIL:${failed}`;
             if (narrowDK) canvas.dataset.barDeltaKeelsNarrow = "FAIL_ONLY|W2"; else delete canvas.dataset.barDeltaKeelsNarrow;
             canvas.dataset.barDeltaKeelsSalience = `L${KEEL_MIN_L}|W2`;
+            // What a tap hits: each painted keel's halo, padded (a keel is 2px tall).
+            {
+              const layHit = reuseGeo ? geoDK!.layout : layDK;
+              const gl = layHit?.glyphs ?? [];
+              for (let k = 0; k < gl.length && k < keels.length; k++) {
+                const g = gl[k];
+                if (g) barMarkHitsRef.current.push({ x: g.halo[0] - 5, y: g.halo[1] - 8, w: g.halo[2] + 10, h: g.halo[3] + 16, time: keels[k].time });
+              }
+            }
+            canvas.dataset.barMarkHits = String(barMarkHitsRef.current.length);
             const sel = insp != null ? keels.find(q => q.time === insp) : null;
             if (sel) canvas.dataset.barDeltaKeelInspect = `${sel.basis}|D${sel.delta}|R${sel.ratio.toFixed(2)}${sel.failed ? "|FAILED_TO_DISPLACE" : ""}`;
             else delete canvas.dataset.barDeltaKeelInspect;
@@ -22152,7 +22175,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         {
           const fu = profileFusionRef.current;
           const on = layerOnRef.current.profileFusion && att.paints("profileFusion");
-          ds.profileFusion = on ? (fu ? fu.reason : "NO_READING") : att.offWord(layerOnRef.current.profileFusion);
+          // Two Fusion facts, one receipt (Sheriff batch 3, 2026-10-08: "DRAWN"
+          // beside profileFusionObject=REFUSED read as a contradiction). The
+          // level KNOTS and the fused PAIR OBJECT are different objects; the
+          // layer's receipt names both, so one frame cannot appear to disagree.
+          ds.profileFusion = on ? `${fu ? fu.reason : "NO_READING"}|PAIR_OBJECT:${ds.profileFusionObject ?? "NONE"}` : att.offWord(layerOnRef.current.profileFusion);
           if (on && fu?.drawn) {
             ctx.save(); ctx.globalAlpha = att.alpha("profileFusion");
             const endX = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : W - 80;
@@ -25457,6 +25484,28 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("TAPE_COVERAGE", err); }
 
+      // WEEKLY / MONTHLY PIVOTS switched on and withheld SAY WHY on the glass,
+      // in trader words, in the shared silence stack (coordinator ruling
+      // 2026-10-08: never draw from a partial period — and never be silent
+      // about it). The indicator effect publishes the reason; this reads it.
+      try {
+        for (const [key, name, unit] of [["pivotsWeekly", "WEEKLY PIVOTS", "WEEK"], ["pivotsMonthly", "MONTHLY PIVOTS", "MONTH"]] as const) {
+          const why = canvas.dataset[key];
+          if (!why || !why.startsWith("WITHHELD:")) continue;
+          const words = why.endsWith("PRIOR_PERIOD_NOT_FULLY_LOADED") ? `${name} · NEEDS THE FULL PRIOR ${unit} — LOAD MORE HISTORY OR USE A HIGHER TIMEFRAME`
+            : why.endsWith("NO_PRIOR_PERIOD") ? `${name} · NO PRIOR ${unit} YET`
+            : `${name} · THIS CHART HAS NO SESSION CLOCK`;
+          ctx.save();
+          ctx.font = marketFont("OBJECT_NAME");
+          ctx.fillStyle = "rgba(200,192,174,0.85)";
+          ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          const yP = takeSilenceRow();
+          ctx.fillText(fitSilence(words), silenceX, yP);
+          if (yP > 0) floatingChips.push({ x: silenceX, y: yP - 7, w: ctx.measureText(words).width, h: 14 });
+          ctx.restore();
+        }
+      } catch (err) { layerFault("PIVOT_SILENCE", err); }
+
       // The folded silences, as one line (see takeSilenceRow).
       try { if (silenceFolded > 0) {
         // PHONE ASK 8 (erasure, 2026-10-07): on narrow glass the summary line
@@ -27156,6 +27205,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const wh = wisdomHitRef.current;
     if (wh && onSelectBarAt && x >= wh.x && x <= wh.x + wh.w && y >= wh.y && y <= wh.y + wh.h) { onSelectBarAt(wh.time); return; }
     if (selectBigTradeAt(x, y)) return;
+    // (After a print: a disc is the more specific object.)
+    // A tap on a Delta Keel or an Effort → Response column selects ITS bar — the
+    // same owner, so the "Selected bar" first-touch line appears (2026-10-08).
+    // The smallest painted mark under the finger wins.
+    const markHit = onSelectBarAt
+      ? barMarkHitsRef.current.filter(h => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h).sort((a, b) => a.w * a.h - b.w * b.h)[0]
+      : undefined;
+    if (markHit && onSelectBarAt) { onSelectBarAt(markHit.time); return; }
     /*
       H-501 NEAR · A CLICK ON A TAPE DOT SELECTS THAT PRINT — the one
       selection the bubbles use, so Inspect opens on it (F06B: its raw tape,
@@ -28421,7 +28478,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               data-market-object-target={target.object.objectId}
               className="wm-tap-slop"
               aria-pressed={selected}
-              aria-label={`Select ${target.object.kind.toLowerCase()} market object at ${target.object.priceHigh}`}
+              // Prices read aloud at the instrument's own precision, never a raw
+              // float ("…at 1.1175681352615356", a11y sweep 2026-10-08).
+              aria-label={`Select ${target.object.kind.toLowerCase()} market object at ${target.object.priceHigh.toFixed(displayPrecisionFor(symbol, barsRef.current ?? []))}`}
               onClick={() => onSelectMarketObject?.(target.object.objectId)}
               style={{
                 position: "absolute",

@@ -5377,6 +5377,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       // actually knows — labelled as a bar close, never as a print.
       lastBarClose: chartCanvasState?.lastBar?.close ?? null,
       lastBarTimeframe: chartCanvasState?.lastBar?.timeframe ?? null,
+      // The header's own precision, so the two never disagree on decimals.
+      priceDecimals: chartDisplayDp,
       // UNASKED IS NOT UNKNOWN — the same distinction the header slots above
       // were taught, arriving at the third surface that was printing a finding
       // over a question. Measured on prod at 25ms resolution through a cold

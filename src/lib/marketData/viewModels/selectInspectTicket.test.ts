@@ -500,3 +500,18 @@ describe("the market's own limits and units (sheriff 2026-10-08, P2-8 / P2-9)", 
     expect(rowOf(base(), "VOLUME").value).toBe("623");
   });
 });
+
+describe("spot FX lineage names its session from the clock (sheriff 2026-10-08)", () => {
+  const unknown = () => identity({ sessionId: "SESSION_UNKNOWN" as never });
+  it("on spot FX, SESSION_UNKNOWN becomes the centres in business hours (or says none are)", () => {
+    const fx = base({ identity: unknown(), noCentralVolume: "spot FX" });
+    expect(fx.lineage.state).toBe("READ");
+    const line = fx.lineage.state === "READ" ? fx.lineage.line : "";
+    expect(line).not.toContain("SESSION_UNKNOWN");
+    expect(line).toMatch(/session (ASIA|LONDON|NEW YORK|BETWEEN CENTRES)/);
+  });
+  it("off FX the owner's id is printed as minted", () => {
+    const vm = base({ identity: unknown() });
+    expect(vm.lineage.state === "READ" ? vm.lineage.line : "").toContain("session SESSION_UNKNOWN");
+  });
+});

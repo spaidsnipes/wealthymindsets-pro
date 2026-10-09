@@ -83,3 +83,39 @@ export function orderActionLine(side: "BUY" | "SELL" | null, closing: boolean): 
   if (!side) return "Pick BUY or SELL — nothing is staged until you do.";
   return `Order: ${side === "BUY" ? (closing ? "Buy to Close" : "Buy to Open") : (closing ? "Sell to Close" : "Sell to Open")}`;
 }
+
+/**
+ * §24 — the boundary a SpaidBot proposal sits behind, said on the ticket where the proposal lands:
+ * it observes, it proposes, and only the trader authorises. The kill switch and the server limits
+ * still stand between a loaded proposal and a send.
+ */
+export const SPAIDBOT_BOUNDARY =
+  "SpaidBot observes the chart and proposes. It cannot preview, confirm or send. Loading this only fills the ticket — you preview, you confirm, you send, and the kill switch and your server limits still apply.";
+
+/**
+ * The same boundary, said on the SpaidBot panel itself (Sheriff P2-7, 2026-10-08):
+ * observe → propose → you authorise, and the kill switch. Same owner, same facts
+ * as SPAIDBOT_BOUNDARY — no ticket is in front of the reader here.
+ */
+export const SPAIDBOT_PANEL_BOUNDARY =
+  "SpaidBot observes the chart and proposes — it cannot see your accounts and cannot preview, confirm or send an order. You authorise: you preview, you confirm, you send. The kill switch and your server limits (Settings › Execution) still apply.";
+
+/**
+ * What the "protect the position" orders would close — said from the broker's READ position when
+ * there is one, and otherwise named as the STAGED entry (never as a position the ticket has not read).
+ */
+export function protectBasisLine(x: {
+  readonly positionState: "FLAT" | "HOLDING" | "RECONCILING" | "NOT READ";
+  readonly held: { readonly direction: "Long" | "Short"; readonly quantity: number } | null;
+  readonly stagedSide: "BUY" | "SELL" | null;
+  readonly stagedQty: number;
+  readonly contract: string;
+}): string {
+  const staged = x.stagedSide ? `the staged ${x.stagedSide} ${x.stagedQty} ${x.contract}` : "the staged entry";
+  if (x.positionState === "HOLDING" && x.held) {
+    return `tastytrade reads ${x.held.direction.toUpperCase()} ${x.held.quantity} ${x.contract}. These orders close ${x.stagedQty} of it (${x.stagedSide === "BUY" ? "sells" : "buys"}) — check the quantity against what you hold.`;
+  }
+  if (x.positionState === "RECONCILING") return `Your position is RECONCILING — these would close ${staged}, but what you hold is not confirmed right now.`;
+  if (x.positionState === "NOT READ") return `Your position has not been read from tastytrade yet. These would close ${staged} once it fills.`;
+  return `tastytrade reads FLAT on ${x.contract}. These would close ${staged} — send them only after that entry fills.`;
+}

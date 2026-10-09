@@ -39,10 +39,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 
 import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/TastytradeLiveOrder";
-import { orderActionLine, prefillNote, quoteStreamLabel, type Prefill } from "@/lib/execution/ticketTruth";
+import { orderActionLine, prefillNote, protectBasisLine, quoteStreamLabel, SPAIDBOT_BOUNDARY, type Prefill } from "@/lib/execution/ticketTruth";
 import { brokerStateWords, ticketBook, type WorkingOrderRow } from "@/lib/execution/ticketBook";
 import type { WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { TicketBookRows, type CancelAck } from "@/components/chart/TicketBookRows";
+import { COMPACT_MAX_HEIGHT, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, type TicketSection } from "@/lib/execution/ticketLayout";
+import { TicketSections } from "@/components/chart/TicketSections";
 import { selectTapeQuoteFreshness } from "@/lib/marketData/tapeQuoteFreshness";
 import { PendingFillJournalOffers } from "@/components/journal/FillJournalOffer";
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
@@ -310,6 +312,17 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     background: on ? `${color}22` : "transparent", color: on ? color : INK, fontSize: 12, fontWeight: 600, cursor: "pointer",
   });
   const sizes = kind === "STOCK" ? [1, 10, 50, 100] : kind === "CRYPTO" ? [0.001, 0.01, 0.1, 1] : [1, 2, 3, 5];
+  // Compact phone ticket (≤ 430 px): the same ticket, action path first, the rest behind one Details disclosure.
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const mq = typeof window !== "undefined" ? window.matchMedia?.(COMPACT_TICKET_QUERY) : null;
+    if (!mq) return;
+    const on = () => setCompact(mq.matches);
+    on();
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
+  const riskLine = compactRiskLine({ stopWrongSide, riskUsd, rewardUsd, entryKnown: referenceEntry != null });
   // Sheriff P1-2: a chart's bar close is not a quote — the limit is never prefilled from it.
   const quoteLabel = quoteStreamLabel({ stream: snap.stream, bid: q?.bid, ask: q?.ask, quoteAtMs: q?.quoteAt, nowMs, contract: contract?.symbol ?? null, streamWords: STREAM_WORDS });
   const prefillLine = prefillNote({ prefill, limitPx: limitNum, currentTouch: prefill?.touch === "ASK" ? q?.ask : q?.bid, tick, nowMs });
@@ -338,20 +351,194 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     }
   }
 
+  // ── The ticket's sections, built ONCE; ticketLayout decides their order (phone: action first, the rest behind Details). ──
+  const sectionEl: Record<TicketSection, React.ReactNode> = {
+    QUOTE: (<>
+          {/* Live touch */}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, ...MONO }}>
+            <span style={{ color: MUTED }}>bid</span><strong>{q?.bid != null ? q.bid.toFixed(dp) : "—"}</strong>
+            <span style={{ color: MUTED }}>ask</span><strong>{q?.ask != null ? q.ask.toFixed(dp) : "—"}</strong>
+            <span data-testid="trade-quote-state" data-state={snap.stream} data-live={quoteLabel.live ? "yes" : "no"} style={{ marginLeft: "auto", color: quoteLabel.live ? GREEN : GOLD }}>● {quoteLabel.text}</span>
+          </div>
+          {contractWhy ? <p style={{ color: GOLD }}>{contractWhy}</p> : null}
+    </>),
+    PROPOSAL: (<>
+          {/* §24 — SpaidBot PROPOSES; the trader decides. */}
+          {proposal ? (
+            <div data-testid="trade-spaidbot-proposal" style={{ border: `1px dashed ${GOLD}`, borderRadius: 8, padding: 8, display: "grid", gap: 4 }}>
+              <strong style={{ color: GOLD, fontSize: 11, letterSpacing: 1 }}>SPAIDBOT PROPOSES · PROPOSE ONLY — nothing is sent</strong>
+              {/* §24 boundary, on the glass: observe → propose → you authorise. */}
+              <span data-testid="trade-proposal-boundary" style={{ color: MUTED, fontSize: 11 }}>{SPAIDBOT_BOUNDARY}</span>
+              <span style={MONO}>{proposal.side} {proposal.qty} @ {proposal.entryPx} · stop {proposal.stopPx}{proposal.targetPx != null ? ` · target ${proposal.targetPx}` : ""}</span>
+              <span>{proposal.reason}</span>
+              {proposal.evidence.map((e, i) => <span key={i} style={{ color: MUTED, fontSize: 11 }}>· {e.claim} — {e.source}</span>)}
+              <span style={{ color: MUTED, fontSize: 10 }}>{proposal.decisionId} · {proposal.orderIntentId}</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button type="button" data-testid="trade-load-proposal" onClick={() => loadProposal(proposal)} style={btn(true)}>Load into ticket</button>
+                <button type="button" onClick={() => dismissSpaidBotProposal(symbol)} style={btn(false)}>Dismiss</button>
+              </div>
+            </div>
+          ) : null}
+          {proposalWhy ? <p role="status" style={{ color: GOLD }}>{proposalWhy}</p> : null}
+          {loadedProposal ? <p data-testid="trade-proposal-loaded" style={{ color: MUTED, fontSize: 11 }}>Loaded from SpaidBot proposal {loadedProposal.proposalId} ({loadedProposal.reason}). Preview and confirmation are still yours.</p> : null}
+    </>),
+    BOOK: (<>
+          {/* §23 — the book, from tastytrade's readback only: position state, working orders (cancel), modify, flatten. */}
+          <TicketBookRows book={book} acks={cancelAcks} busyId={cancelBusy} onCancel={o => { void cancelWorking(o); }}
+            onFlatten={() => {
+              const f = book.flatten.plan;
+              if (!f) return;
+              setSide(f.action === "Sell to Close" ? "SELL" : "BUY"); setClosing(true); setQty(f.qty); setEntryType("Market");
+              setAnswer("FLATTEN loaded: a closing MARKET order for the held quantity. Preview and confirm below to send it.");
+            }} />
+    </>),
+    SIDE_SIZE: (<>
+          {/* Side + open/close */}
+          <div style={{ display: "flex", gap: 6 }}>
+            <button type="button" data-testid="trade-buy" aria-pressed={side === "BUY"} onClick={() => setSide("BUY")} style={{ ...btn(side === "BUY", GREEN), flex: 1, minHeight: 36, fontSize: 13 }}>BUY</button>
+            <button type="button" data-testid="trade-sell" aria-pressed={side === "SELL"} onClick={() => setSide("SELL")} style={{ ...btn(side === "SELL", RED), flex: 1, minHeight: 36, fontSize: 13 }}>SELL</button>
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, color: MUTED }}>
+            <input type="checkbox" checked={closing} onChange={e => setClosing(e.target.checked)} /> This closes a position I hold
+          </label>
+          <p data-testid="trade-order-action" style={{ color: side ? INK : GOLD, fontSize: 11, margin: 0 }}>{orderActionLine(side, closing)}</p>
+
+          {/* Size */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ color: MUTED, width: 64 }}>{kind === "FUTURE" ? "Contracts" : kind === "CRYPTO" ? (contract?.symbol.split("/")[0] ?? "Coins") : "Shares"}</span>
+            {sizes.map(n => <button key={n} type="button" data-testid={`trade-size-${n}`} aria-pressed={qty === n} onClick={() => setQty(n)} style={btn(qty === n)}>{n}</button>)}
+            <input type="number" min={fractional ? 0.00000001 : 1} step={fractional ? "any" : 1} value={qty} aria-label="Quantity"
+              onChange={e => { const v = Number(e.target.value); setQty(fractional ? (v > 0 ? v : 0.001) : Math.max(1, Math.floor(v || 1))); }}
+              style={{ width: 64, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
+          </div>
+    </>),
+    ENTRY_TYPE: (<>
+          {(kind === "FUTURE" || kind === "STOCK") ? <label style={{ color: MUTED }}>Entry order type
+            <select aria-label="Entry order type" value={entryType} onChange={e => { setEntryType(e.target.value as TastytradeEntryType); setAnswer(null); }} style={{ marginLeft: 8, background: "#0b0a08", color: INK }}>
+              {(["Market", "Limit", "Stop", "Stop Limit"] as const).map(type => <option key={type} value={type}>{type}</option>)}
+            </select>
+          </label> : null}
+    </>),
+    PRICE: (<>
+          {effectiveEntryType === "Market" ? <p style={{ color: MUTED }}>Market entry: fill price and entry risk are unknown until execution.</p> : null}
+          {(effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit") ? <label style={{ color: MUTED }}>Entry stop trigger
+            <input aria-label="Entry stop trigger" inputMode="decimal" value={entryTrigger} onChange={e => setEntryTrigger(e.target.value)} style={{ marginLeft: 8, width: 110, background: "#0b0a08", color: INK }} />
+            {pickBtn("ENTRY")}
+            {effectiveEntryType === "Stop" ? " · fill price is not guaranteed" : " · activates the limit order"}
+          </label> : null}
+          {(effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit") ? <>
+          {/* Limit */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ color: MUTED, width: 64 }}>Limit</span>
+            {pickBtn("ENTRY")}
+            <button type="button" aria-label="One tick lower" onClick={() => nudge(-1)} style={btn(false)}>−</button>
+            <input inputMode="decimal" value={limit} aria-label="Limit price" onChange={e => setLimit(e.target.value)}
+              style={{ width: 110, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
+            <button type="button" aria-label="One tick higher" onClick={() => nudge(1)} style={btn(false)}>+</button>
+            <button type="button" onClick={() => setTo(q?.bid)} style={btn(false)}>BID</button>
+            <button type="button" onClick={() => setTo(q?.bid != null && q?.ask != null ? (q.bid + q.ask) / 2 : null)} style={btn(false)}>MID</button>
+            <button type="button" onClick={() => setTo(q?.ask)} style={btn(false)}>ASK</button>
+          </div>
+          {prefillLine ? <p data-testid="trade-prefill-note" data-stale={prefillLine.stale ? "yes" : "no"} style={{ color: prefillLine.stale ? GOLD : MUTED, fontSize: 11, margin: 0 }}>{prefillLine.text}</p> : null}
+
+          </> : null}
+    </>),
+    RISK_INPUTS: (<>
+          {/* Risk on the ticket */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+            <label style={{ color: MUTED }}>Stop / invalidation {pickBtn("STOP")}
+              <input inputMode="decimal" value={stop} aria-label="Stop price" onChange={e => setStop(e.target.value)}
+                style={{ width: "100%", background: "#0b0a08", border: `1px solid ${stopWrongSide ? RED : LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
+            </label>
+            <label style={{ color: MUTED }}>Target {pickBtn("TARGET")}
+              <input inputMode="decimal" value={target} aria-label="Target price" onChange={e => setTarget(e.target.value)}
+                style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
+            </label>
+          </div>
+    </>),
+    ECONOMICS: (<>
+          <div data-testid="trade-economics" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, ...MONO }}>
+            {kind === "FUTURE" ? <><span style={{ color: MUTED }}>Point value</span><span>{pointValue != null ? `$${pointValue}/pt · tick ${tick} = $${econ.status === "PRICED" ? econ.tickValue : "—"}` : "not on file"}</span></> : null}
+            <span style={{ color: MUTED }}>{kind === "FUTURE" ? "Notional" : "Cost"}</span><span>{notional != null ? `$${notional.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}</span>
+            <span style={{ color: MUTED }}>Planned risk at stop</span><span style={{ color: riskUsd != null ? RED : MUTED }}>{stopWrongSide ? "stop is on the wrong side" : riskUsd != null ? `−$${riskUsd.toFixed(2)}` : referenceEntry == null ? "entry fill unknown" : "set a stop"}</span>
+            <span style={{ color: MUTED }}>Reward at target</span><span style={{ color: rewardUsd != null ? GREEN : MUTED }}>{rewardUsd != null ? `+$${rewardUsd.toFixed(2)}${riskUsd ? ` · ${(rewardUsd / riskUsd).toFixed(2)}R` : ""}` : "—"}</span>
+          </div>
+    </>),
+    PICK_STATUS: (<>
+          {pick ? <p role="status" data-testid="trade-pick-armed" style={{ color: GOLD, fontSize: 11 }}>Click a price on the chart for the {pick.role.toLowerCase()}.</p> : null}
+    </>),
+    PROTECTION_DRYRUN: (<>
+          <p data-testid="trade-protection" style={{ color: MUTED, fontSize: 11 }}>
+            An opening order is refused without a protective stop on the right side of the entry; the server checks the loss at that stop against your ceiling.{" "}
+            Protection is sent separately below, once you hold the position: a <strong style={{ color: GOLD }}>broker-native stop</strong> (a resting Stop at tastytrade, GTC) and a target (a resting Limit, GTC). They are <strong style={{ color: GOLD }}>not linked</strong> (no OCO yet) — if one fills, cancel the other.
+          </p>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button type="button" data-testid="trade-dry-run" disabled={!contract || !entryFields || !action || busy} onClick={() => void dryRun()} style={{ ...btn(true), opacity: !contract || !entryFields || !action ? 0.5 : 1 }}>
+              {busy ? "Asking tastytrade…" : "Dry run on tastytrade"}
+            </button>
+            <span style={{ color: MUTED, fontSize: 11 }}>Validates against your real account; places nothing.</span>
+          </div>
+          {answer ? <p role="status" style={{ color: /accepted/.test(answer) ? GREEN : GOLD }}>{answer}</p> : null}
+    </>),
+    PLAN: (<>
+          {/* Garden 19 §27: what the ticket does not carry — frozen with its stop and target at the send. */}
+          <ManagementPlanCard mode="ticket" symbol={symbol} />
+    </>),
+    LIVE_ORDER: (<>
+          <TastytradeLiveOrder
+            intent={contract && instrumentType && action ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: contract.symbol, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate, chartSymbol: symbol } : null}
+            ensureDecision={ensureDecision}
+            onPhase={setEntryPhase}
+            journal={{ targetPx: closing ? null : targetNum, plannedStopPx: stopNum, orderIntentId: loadedProposal?.orderIntentId ?? null, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
+          />
+          <PendingFillJournalOffers />
+    </>),
+    PROTECT: (<>
+          {/* §LXXVIII — PROTECTION, broker-native, each armed and pressed by the human. */}
+          {kind !== "CRYPTO" && contract && instrumentType && side ? (
+            <details data-testid="trade-protect" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px" }}>
+              <summary style={{ cursor: "pointer", color: GOLD, fontWeight: 600 }}>Protect the position — stop & target at the broker</summary>
+              <p data-testid="trade-protect-basis" style={{ color: MUTED, fontSize: 11, marginTop: 6 }}>
+                {/* Sheriff P1 (2026-10-08): this used to speak of "1 /NQZ6 long" from the STAGED side, as if it were a position. */}
+                {protectBasisLine({ positionState: book.position.state, held: broker?.position ? { direction: broker.position.row.direction, quantity: broker.position.row.quantity } : null, stagedSide: side, stagedQty: qty, contract: contract.symbol })}
+              </p>
+              {stopNum != null && !stopWrongSide ? (
+                <TastytradeLiveOrder
+                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: null, orderType: "Stop", stopPx: stopNum, tif: "GTC", describe: `${contract.symbol} protective stop`, quote: quoteForGate, chartSymbol: symbol }}
+                  ensureDecision={ensureDecision}
+                  journal={{ plannedStopPx: stopNum, targetPx: targetNum, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
+                />
+              ) : <p style={{ color: GOLD, fontSize: 11 }}>{stopWrongSide ? "The stop is on the wrong side of the entry." : "Type a stop above to send it as a resting Stop."}</p>}
+              {targetNum != null ? (
+                <TastytradeLiveOrder
+                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: targetNum, tif: "GTC", describe: `${contract.symbol} target`, quote: quoteForGate, chartSymbol: symbol }}
+                  ensureDecision={ensureDecision}
+                  journal={{ plannedStopPx: stopNum, targetPx: targetNum, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
+                />
+              ) : <p style={{ color: MUTED, fontSize: 11 }}>Type a target above to send it as a resting Limit.</p>}
+            </details>
+          ) : null}
+    </>),
+    RISK_LINE: (
+      <p data-testid="trade-risk-compact" role={riskLine.refusal ? "status" : undefined} style={{ color: riskLine.refusal ? RED : MUTED, fontSize: 11, margin: 0, ...MONO }}>{riskLine.text}</p>
+    ),
+  };
   return (
     <section
       data-testid="trade-panel"
+      data-layout={compact ? "compact" : "full"}
       aria-label={`Trade ${symbol}`}
       style={{
         // §XIV: a market instrument never covers the forming candle, the live
         // price or a stop/target on price — all at the chart's right edge
         // (serving MNQ 1m, 2026-10-01: the panel at right:24 hid the forming
         // bar). It stands at the chart's lower LEFT, over settled history.
-        position: "fixed", left: 24, bottom: 64, zIndex: 60, width: "min(400px, calc(100vw - 48px))", maxHeight: "72vh", overflowY: "auto", overflowX: "hidden",
+        position: "fixed", left: 24, bottom: 64, zIndex: 60, width: "min(400px, calc(100vw - 48px))", maxHeight: compact ? COMPACT_MAX_HEIGHT : "72vh", overflowY: "auto", overflowX: "hidden",
         background: "#0d0b08", border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 18px 48px rgba(0,0,0,0.6)", color: INK, fontSize: 12,
       }}
     >
-      <header data-testid="trade-header" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 8px", padding: "10px 12px", borderBottom: `1px solid ${LINE}`, minWidth: 0 }}>
+      <header data-testid="trade-header" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: compact ? "2px 8px" : "6px 8px", padding: compact ? "6px 10px" : "10px 12px", borderBottom: `1px solid ${LINE}`, minWidth: 0 }}>
         <strong style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 15, letterSpacing: 1 }}>TRADE</strong>
         <span data-testid="trade-kind" style={{ fontSize: 10, letterSpacing: 1.2, color: GOLD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 6px" }}>{kind === "FUTURE" ? "FUTURE" : kind}</span>
         <span style={{ fontWeight: 600, minWidth: 0, overflowWrap: "anywhere" }}>{contract?.symbol ?? symbol}</span>
@@ -387,153 +574,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           <button type="button" onClick={onOpenOptions} style={{ ...btn(true), marginTop: 8 }}>Open Options</button>
         </div>
       ) : (
-        <div style={{ padding: 12, display: "grid", gap: 10 }}>
-          {/* Live touch */}
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10, ...MONO }}>
-            <span style={{ color: MUTED }}>bid</span><strong>{q?.bid != null ? q.bid.toFixed(dp) : "—"}</strong>
-            <span style={{ color: MUTED }}>ask</span><strong>{q?.ask != null ? q.ask.toFixed(dp) : "—"}</strong>
-            <span data-testid="trade-quote-state" data-state={snap.stream} data-live={quoteLabel.live ? "yes" : "no"} style={{ marginLeft: "auto", color: quoteLabel.live ? GREEN : GOLD }}>● {quoteLabel.text}</span>
-          </div>
-          {contractWhy ? <p style={{ color: GOLD }}>{contractWhy}</p> : null}
-
-          {/* §24 — SpaidBot PROPOSES; the trader decides. */}
-          {proposal ? (
-            <div data-testid="trade-spaidbot-proposal" style={{ border: `1px dashed ${GOLD}`, borderRadius: 8, padding: 8, display: "grid", gap: 4 }}>
-              <strong style={{ color: GOLD, fontSize: 11, letterSpacing: 1 }}>SPAIDBOT PROPOSES · PROPOSE ONLY — nothing is sent</strong>
-              <span style={MONO}>{proposal.side} {proposal.qty} @ {proposal.entryPx} · stop {proposal.stopPx}{proposal.targetPx != null ? ` · target ${proposal.targetPx}` : ""}</span>
-              <span>{proposal.reason}</span>
-              {proposal.evidence.map((e, i) => <span key={i} style={{ color: MUTED, fontSize: 11 }}>· {e.claim} — {e.source}</span>)}
-              <span style={{ color: MUTED, fontSize: 10 }}>{proposal.decisionId} · {proposal.orderIntentId}</span>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button type="button" data-testid="trade-load-proposal" onClick={() => loadProposal(proposal)} style={btn(true)}>Load into ticket</button>
-                <button type="button" onClick={() => dismissSpaidBotProposal(symbol)} style={btn(false)}>Dismiss</button>
-              </div>
-            </div>
-          ) : null}
-          {proposalWhy ? <p role="status" style={{ color: GOLD }}>{proposalWhy}</p> : null}
-          {loadedProposal ? <p data-testid="trade-proposal-loaded" style={{ color: MUTED, fontSize: 11 }}>Loaded from SpaidBot proposal {loadedProposal.proposalId} ({loadedProposal.reason}). Preview and confirmation are still yours.</p> : null}
-
-          {/* §23 — the book, from tastytrade's readback only: position state, working orders (cancel), modify, flatten. */}
-          <TicketBookRows book={book} acks={cancelAcks} busyId={cancelBusy} onCancel={o => { void cancelWorking(o); }}
-            onFlatten={() => {
-              const f = book.flatten.plan;
-              if (!f) return;
-              setSide(f.action === "Sell to Close" ? "SELL" : "BUY"); setClosing(true); setQty(f.qty); setEntryType("Market");
-              setAnswer("FLATTEN loaded: a closing MARKET order for the held quantity. Preview and confirm below to send it.");
-            }} />
-
-          {/* Side + open/close */}
-          <div style={{ display: "flex", gap: 6 }}>
-            <button type="button" data-testid="trade-buy" aria-pressed={side === "BUY"} onClick={() => setSide("BUY")} style={{ ...btn(side === "BUY", GREEN), flex: 1, minHeight: 36, fontSize: 13 }}>BUY</button>
-            <button type="button" data-testid="trade-sell" aria-pressed={side === "SELL"} onClick={() => setSide("SELL")} style={{ ...btn(side === "SELL", RED), flex: 1, minHeight: 36, fontSize: 13 }}>SELL</button>
-          </div>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, color: MUTED }}>
-            <input type="checkbox" checked={closing} onChange={e => setClosing(e.target.checked)} /> This closes a position I hold
-          </label>
-          <p data-testid="trade-order-action" style={{ color: side ? INK : GOLD, fontSize: 11, margin: 0 }}>{orderActionLine(side, closing)}</p>
-
-          {/* Size */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: MUTED, width: 64 }}>{kind === "FUTURE" ? "Contracts" : kind === "CRYPTO" ? (contract?.symbol.split("/")[0] ?? "Coins") : "Shares"}</span>
-            {sizes.map(n => <button key={n} type="button" data-testid={`trade-size-${n}`} aria-pressed={qty === n} onClick={() => setQty(n)} style={btn(qty === n)}>{n}</button>)}
-            <input type="number" min={fractional ? 0.00000001 : 1} step={fractional ? "any" : 1} value={qty} aria-label="Quantity"
-              onChange={e => { const v = Number(e.target.value); setQty(fractional ? (v > 0 ? v : 0.001) : Math.max(1, Math.floor(v || 1))); }}
-              style={{ width: 64, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
-          </div>
-
-          {(kind === "FUTURE" || kind === "STOCK") ? <label style={{ color: MUTED }}>Entry order type
-            <select aria-label="Entry order type" value={entryType} onChange={e => { setEntryType(e.target.value as TastytradeEntryType); setAnswer(null); }} style={{ marginLeft: 8, background: "#0b0a08", color: INK }}>
-              {(["Market", "Limit", "Stop", "Stop Limit"] as const).map(type => <option key={type} value={type}>{type}</option>)}
-            </select>
-          </label> : null}
-          {effectiveEntryType === "Market" ? <p style={{ color: MUTED }}>Market entry: fill price and entry risk are unknown until execution.</p> : null}
-          {(effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit") ? <label style={{ color: MUTED }}>Entry stop trigger
-            <input aria-label="Entry stop trigger" inputMode="decimal" value={entryTrigger} onChange={e => setEntryTrigger(e.target.value)} style={{ marginLeft: 8, width: 110, background: "#0b0a08", color: INK }} />
-            {pickBtn("ENTRY")}
-            {effectiveEntryType === "Stop" ? " · fill price is not guaranteed" : " · activates the limit order"}
-          </label> : null}
-          {(effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit") ? <>
-          {/* Limit */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ color: MUTED, width: 64 }}>Limit</span>
-            {pickBtn("ENTRY")}
-            <button type="button" aria-label="One tick lower" onClick={() => nudge(-1)} style={btn(false)}>−</button>
-            <input inputMode="decimal" value={limit} aria-label="Limit price" onChange={e => setLimit(e.target.value)}
-              style={{ width: 110, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
-            <button type="button" aria-label="One tick higher" onClick={() => nudge(1)} style={btn(false)}>+</button>
-            <button type="button" onClick={() => setTo(q?.bid)} style={btn(false)}>BID</button>
-            <button type="button" onClick={() => setTo(q?.bid != null && q?.ask != null ? (q.bid + q.ask) / 2 : null)} style={btn(false)}>MID</button>
-            <button type="button" onClick={() => setTo(q?.ask)} style={btn(false)}>ASK</button>
-          </div>
-          {prefillLine ? <p data-testid="trade-prefill-note" data-stale={prefillLine.stale ? "yes" : "no"} style={{ color: prefillLine.stale ? GOLD : MUTED, fontSize: 11, margin: 0 }}>{prefillLine.text}</p> : null}
-
-          </> : null}
-
-          {/* Risk on the ticket */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-            <label style={{ color: MUTED }}>Stop / invalidation {pickBtn("STOP")}
-              <input inputMode="decimal" value={stop} aria-label="Stop price" onChange={e => setStop(e.target.value)}
-                style={{ width: "100%", background: "#0b0a08", border: `1px solid ${stopWrongSide ? RED : LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
-            </label>
-            <label style={{ color: MUTED }}>Target {pickBtn("TARGET")}
-              <input inputMode="decimal" value={target} aria-label="Target price" onChange={e => setTarget(e.target.value)}
-                style={{ width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
-            </label>
-          </div>
-          <div data-testid="trade-economics" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, ...MONO }}>
-            {kind === "FUTURE" ? <><span style={{ color: MUTED }}>Point value</span><span>{pointValue != null ? `$${pointValue}/pt · tick ${tick} = $${econ.status === "PRICED" ? econ.tickValue : "—"}` : "not on file"}</span></> : null}
-            <span style={{ color: MUTED }}>{kind === "FUTURE" ? "Notional" : "Cost"}</span><span>{notional != null ? `$${notional.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}</span>
-            <span style={{ color: MUTED }}>Planned risk at stop</span><span style={{ color: riskUsd != null ? RED : MUTED }}>{stopWrongSide ? "stop is on the wrong side" : riskUsd != null ? `−$${riskUsd.toFixed(2)}` : referenceEntry == null ? "entry fill unknown" : "set a stop"}</span>
-            <span style={{ color: MUTED }}>Reward at target</span><span style={{ color: rewardUsd != null ? GREEN : MUTED }}>{rewardUsd != null ? `+$${rewardUsd.toFixed(2)}${riskUsd ? ` · ${(rewardUsd / riskUsd).toFixed(2)}R` : ""}` : "—"}</span>
-          </div>
-          {pick ? <p role="status" data-testid="trade-pick-armed" style={{ color: GOLD, fontSize: 11 }}>Click a price on the chart for the {pick.role.toLowerCase()}.</p> : null}
-          <p data-testid="trade-protection" style={{ color: MUTED, fontSize: 11 }}>
-            An opening order is refused without a protective stop on the right side of the entry; the server checks the loss at that stop against your ceiling.{" "}
-            Protection is sent separately below, once you hold the position: a <strong style={{ color: GOLD }}>broker-native stop</strong> (a resting Stop at tastytrade, GTC) and a target (a resting Limit, GTC). They are <strong style={{ color: GOLD }}>not linked</strong> (no OCO yet) — if one fills, cancel the other.
-          </p>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button type="button" data-testid="trade-dry-run" disabled={!contract || !entryFields || !action || busy} onClick={() => void dryRun()} style={{ ...btn(true), opacity: !contract || !entryFields || !action ? 0.5 : 1 }}>
-              {busy ? "Asking tastytrade…" : "Dry run on tastytrade"}
-            </button>
-            <span style={{ color: MUTED, fontSize: 11 }}>Validates against your real account; places nothing.</span>
-          </div>
-          {answer ? <p role="status" style={{ color: /accepted/.test(answer) ? GREEN : GOLD }}>{answer}</p> : null}
-
-          {/* Garden 19 §27: what the ticket does not carry — frozen with its stop and target at the send. */}
-          <ManagementPlanCard mode="ticket" symbol={symbol} />
-
-          <TastytradeLiveOrder
-            intent={contract && instrumentType && action ? { instrumentType, symbol: contract.symbol, action, qty, orderType: effectiveEntryType, limitPx: effectiveEntryType === "Limit" || effectiveEntryType === "Stop Limit" ? limitNum : null, stopPx: effectiveEntryType === "Stop" || effectiveEntryType === "Stop Limit" ? triggerNum : null, describe: contract.symbol, protectiveStopPx: closing ? null : stopNum, quote: quoteForGate, chartSymbol: symbol } : null}
-            ensureDecision={ensureDecision}
-            onPhase={setEntryPhase}
-            journal={{ targetPx: closing ? null : targetNum, plannedStopPx: stopNum, orderIntentId: loadedProposal?.orderIntentId ?? null, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
-          />
-          <PendingFillJournalOffers />
-
-          {/* §LXXVIII — PROTECTION, broker-native, each armed and pressed by the human. */}
-          {kind !== "CRYPTO" && contract && instrumentType && side ? (
-            <details data-testid="trade-protect" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px" }}>
-              <summary style={{ cursor: "pointer", color: GOLD, fontWeight: 600 }}>Protect the position — stop & target at the broker</summary>
-              <p style={{ color: MUTED, fontSize: 11, marginTop: 6 }}>
-                These CLOSE {qty} {contract.symbol} {side === "BUY" ? "long" : "short"}. Send them after the entry fills.
-              </p>
-              {stopNum != null && !stopWrongSide ? (
-                <TastytradeLiveOrder
-                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: null, orderType: "Stop", stopPx: stopNum, tif: "GTC", describe: `${contract.symbol} protective stop`, quote: quoteForGate, chartSymbol: symbol }}
-                  ensureDecision={ensureDecision}
-                  journal={{ plannedStopPx: stopNum, targetPx: targetNum, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
-                />
-              ) : <p style={{ color: GOLD, fontSize: 11 }}>{stopWrongSide ? "The stop is on the wrong side of the entry." : "Type a stop above to send it as a resting Stop."}</p>}
-              {targetNum != null ? (
-                <TastytradeLiveOrder
-                  intent={{ instrumentType, symbol: contract.symbol, action: side === "BUY" ? "Sell to Close" : "Buy to Close", qty, limitPx: targetNum, tif: "GTC", describe: `${contract.symbol} target`, quote: quoteForGate, chartSymbol: symbol }}
-                  ensureDecision={ensureDecision}
-                  journal={{ plannedStopPx: stopNum, targetPx: targetNum, multiplier: kind === "FUTURE" ? pointValue : kind === "STOCK" ? 1 : null }}
-                />
-              ) : <p style={{ color: MUTED, fontSize: 11 }}>Type a target above to send it as a resting Limit.</p>}
-            </details>
-          ) : null}
+        <div style={{ padding: compact ? "8px 10px" : 12, display: "grid", gap: compact ? 6 : 10 }}>
+          <TicketSections compact={compact} sections={sectionEl} summary={detailsSummary(book)} />
         </div>
       )}
 
@@ -543,7 +585,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             Express it with an option →
           </button>
         ) : null}
-        <button type="button" onClick={onOpenPaper} style={{ background: "none", border: "none", color: MUTED, fontSize: 11, textDecoration: "underline", cursor: "pointer" }}>Alpaca paper account</button>
+        {/* Alpaca paper has no spot FX either — the door is not offered beside the FX refusal. */}
+        {kind !== "FX" ? <button type="button" data-testid="trade-open-paper" onClick={onOpenPaper} style={{ background: "none", border: "none", color: MUTED, fontSize: 11, textDecoration: "underline", cursor: "pointer" }}>Alpaca paper account</button> : null}
       </footer>
     </section>
   );

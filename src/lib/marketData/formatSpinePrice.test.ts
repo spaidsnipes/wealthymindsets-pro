@@ -339,3 +339,10 @@ describe("× THE FINDING PRINTED OVER A NUMBER: an unattributed quote", () => {
     expect(spine.text).toContain("UNCERTIFIED");
   });
 });
+
+describe("the MARKET cell prints at the instrument's precision (sheriff 2026-10-08)", () => {
+  it("a raw float bar close is cut to the given decimals; omitted keeps the old text", () => {
+    expect(formatSpinePrice(null, 1.1188185214996338, "5m", true, undefined, 5).text).toBe("1.11882 LAST 5m BAR CLOSE");
+    expect(formatSpinePrice(null, 1.1188185214996338, "5m", true).text).toBe("1.1188185214996338 LAST 5m BAR CLOSE");
+  });
+});

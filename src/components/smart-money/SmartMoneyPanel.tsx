@@ -42,7 +42,7 @@ import {
 import OverlayDrawingLedgerBlock from "@/components/chart/OverlayDrawingLedgerBlock";
 import { InventionInfoButton, InventionPreview } from "@/components/chart/InventionInfo";
 import { educationTruthLines } from "@/lib/chart/inventionEducation";
-import { SMART_MONEY_EDUCATION, smartMoneyEducationId } from "@/lib/chart/surfaceEducation";
+import { SMART_MONEY_CARD_EDUCATION, SMART_MONEY_EDUCATION, smartMoneyCardEducationId, smartMoneyEducationId } from "@/lib/chart/surfaceEducation";
 import type { OverlayDrawingLedgerVM } from "@/lib/marketData/viewModels/selectOverlayDrawingLedger";
 
 // ─── Signal types ────────────────────────────────────────────────────────────
@@ -229,6 +229,14 @@ const SECTIONS = [
  * like care.
  */
 export const SMART_MONEY_PANEL_ID = "wm-smart-money-panel";
+
+/** A top card's ⓘ button. Module-level so it keeps its identity across the panel's renders. */
+function CardInfo({ card, open, onToggle }: { card: string; open: boolean; onToggle: (card: string) => void }) {
+  return (
+    <InventionInfoButton scope="sm" id={smartMoneyCardEducationId(card)} label={card} open={open} compact
+      onToggle={() => onToggle(card)} />
+  );
+}
 
 export function SmartMoneyPanel({
   onClose,
@@ -483,6 +491,15 @@ export function SmartMoneyPanel({
   const [showEdu, setShowEdu] = useState(false);
   // §9 · the open card ⓘ (one at a time), by card name.
   const [cardEdu, setCardEdu] = useState<string | null>(null);
+  // The five TOP cards carry the same ⓘ the rows do (sheriff 2026-10-08): the
+  // button sits in the card's header (module-level `CardInfo`), the record
+  // opens under it. One open at a time, shared with the rows through `cardEdu`.
+  const toggleCard = React.useCallback((card: string) => setCardEdu(cur => (cur === `CARD:${card}` ? null : `CARD:${card}`)), []);
+  const cardRecord = (card: string) => cardEdu === `CARD:${card}` ? (
+    <InventionPreview scope="sm" id={smartMoneyCardEducationId(card)} label={card} what={SMART_MONEY_CARD_EDUCATION[card]?.what ?? card} familyWord="Smart Money" symbol={symbol}
+      truth={educationTruthLines({ id: smartMoneyCardEducationId(card), symbol })} active={false}
+      onAdd={() => setCardEdu(null)} onClose={() => setCardEdu(null)} />
+  ) : null;
 
   // WM-UX-P0-01 — Delta bubble level-count control, migrated here from the Big
   // Trades gear so the selector sits with the bubbles it controls. Reuses the
@@ -802,7 +819,8 @@ export function SmartMoneyPanel({
         <div className="flex items-center gap-1.5 mb-1.5">
           <Swords size={11} className="text-wm-gold" />
           <span className="text-[10px] font-bold text-wm-text">DELTA DOMINATION</span>
-          <span className="text-[9px] text-wm-text-dim">· who's winning?</span>
+          <span className="text-[9px] text-wm-text-dim">· which side took the tape?</span>
+          <CardInfo card="Delta Domination" open={cardEdu === "CARD:Delta Domination"} onToggle={toggleCard} />
           {/* MEASURED 2026-09-19 on live /charts at 1920: 12px wide — the
               SMALLEST control on the route — and named only by `title`, which
               is to say unnamed on touch.
@@ -827,6 +845,7 @@ export function SmartMoneyPanel({
           </button>
         </div>
 
+        {cardRecord("Delta Domination")}
         {flow.hasFlow ? (
           <>
             {/* Tug-of-war bar: green (buyers) vs red (sellers) */}
@@ -929,6 +948,7 @@ export function SmartMoneyPanel({
             flow.hasFlow         ? "text-wm-gold" : "text-wm-text-dim"
           )} />
           <span className="text-[10px] font-bold text-wm-text">TAPE PRESSURE</span>
+          <CardInfo card="Tape Pressure" open={cardEdu === "CARD:Tape Pressure"} onToggle={toggleCard} />
           <span className={clsx(
             "ml-auto px-1.5 py-0.5 rounded text-[9px] font-black",
             pressureSide === "BUY"  ? "bg-wm-green/15 text-wm-green" :
@@ -941,6 +961,7 @@ export function SmartMoneyPanel({
         </div>
 
         <p className="text-[9px] text-wm-text-dim leading-relaxed">{pressureReason}</p>
+        {cardRecord("Tape Pressure")}
 
       </div>
 
@@ -949,6 +970,7 @@ export function SmartMoneyPanel({
         <div className="flex items-center gap-1.5 mb-2">
           <Droplets size={11} className="text-wm-blue" />
           <span className="text-[10px] font-bold text-wm-text">WM DELTA BUBBLES</span>
+          <CardInfo card="WM Delta Bubbles" open={cardEdu === "CARD:WM Delta Bubbles"} onToggle={toggleCard} />
           {/* When the trader's own cap is hiding observed levels, the chip says
               so — "5 OF 9 LEVELS", not a bare "5 LEVELS". A count that silently
               means "how many survived your setting" on one surface and "how many
@@ -994,6 +1016,7 @@ export function SmartMoneyPanel({
             `!flow.hasFlow`, for the same reason the two sibling panels read it
             that way: the declaration and everything that defers to it must be
             impossible to get out of step. */}
+        {cardRecord("WM Delta Bubbles")}
         {missingTape === null ? (
         <div className="mb-2">
           <div className="flex items-center justify-between mb-1">
@@ -1211,7 +1234,9 @@ export function SmartMoneyPanel({
         )}>
           <Zap size={10} />
           CLC RULE — {!hasPrice ? "AWAITING DATA" : clcDecision.label}
+          <span className="ml-auto"><CardInfo card="CLC Rule" open={cardEdu === "CARD:CLC Rule"} onToggle={toggleCard} /></span>
         </div>
+        {cardRecord("CLC Rule")}
         <div className="space-y-1">
           {[
             // Context is the price's place against VWAP — read from the VWAP,
@@ -1246,7 +1271,9 @@ export function SmartMoneyPanel({
             <Eye size={11} className="text-wm-blue" />
             <span className="text-[10px] font-bold text-wm-text">WM PLAYBOOK</span>
             <span className="text-[9px] text-wm-text-dim">· {symbol}</span>
+            <span className="ml-auto"><CardInfo card="WM Playbook" open={cardEdu === "CARD:WM Playbook"} onToggle={toggleCard} /></span>
           </div>
+          {cardRecord("WM Playbook")}
           <div className="space-y-2">
             {playbook.map((p) => (
               <div key={p.id} className="border-l-2 border-wm-blue/50 pl-2">

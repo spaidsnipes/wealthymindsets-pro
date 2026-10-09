@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { traderClock } from "@/components/time/traderClock";
-import { bookLine, orderActionLine, prefillNote, quoteStreamLabel } from "./ticketTruth";
+import { bookLine, orderActionLine, prefillNote, protectBasisLine, quoteStreamLabel, SPAIDBOT_BOUNDARY } from "./ticketTruth";
 
 const NOW = Date.parse("2026-10-08T18:00:00Z");
 const WORDS = { CONNECTING: "connecting", NOT_CONNECTED: "quotes not connected" };
@@ -92,5 +92,55 @@ describe("the ticket is wired to these owners", () => {
     expect(T).toContain('width: "min(400px, calc(100vw - 48px))"');
     expect(D).toContain("onOpenPaper={() => setPaperOpen(true)}");
     expect(D).not.toContain("onOpenPaper={() => { setTradeOpen(false); setPaperOpen(true); }}");
+  });
+});
+
+describe("protect-the-position speaks from the READ position, never from the staged side as if it were held", () => {
+  const base = { stagedSide: "BUY" as const, stagedQty: 1, contract: "/NQZ6" };
+  it("flat / not read / reconciling name the STAGED entry as staged", () => {
+    expect(protectBasisLine({ ...base, positionState: "FLAT", held: null })).toBe("tastytrade reads FLAT on /NQZ6. These would close the staged BUY 1 /NQZ6 — send them only after that entry fills.");
+    expect(protectBasisLine({ ...base, positionState: "NOT READ", held: null })).toBe("Your position has not been read from tastytrade yet. These would close the staged BUY 1 /NQZ6 once it fills.");
+    expect(protectBasisLine({ ...base, positionState: "RECONCILING", held: null })).toMatch(/^Your position is RECONCILING/);
+  });
+  it("holding: the read position is stated, and the staged quantity is compared with it", () => {
+    expect(protectBasisLine({ ...base, stagedQty: 1, positionState: "HOLDING", held: { direction: "Long", quantity: 2 } }))
+      .toBe("tastytrade reads LONG 2 /NQZ6. These orders close 1 of it (sells) — check the quantity against what you hold.");
+  });
+  it("no line says long or short from the staged side alone", () => {
+    for (const st of ["FLAT", "NOT READ", "RECONCILING"] as const) expect(protectBasisLine({ ...base, positionState: st, held: null })).not.toMatch(/\b(long|short)\b/i);
+  });
+});
+
+describe("SpaidBot boundary on the SpaidBot panel (Sheriff P2-7)", () => {
+  it("observe → propose → you authorise, kill switch named; from the one boundary owner, on the panel", async () => {
+    const { SPAIDBOT_PANEL_BOUNDARY } = await import("./ticketTruth");
+    expect(SPAIDBOT_PANEL_BOUNDARY).toMatch(/observes the chart and proposes/);
+    expect(SPAIDBOT_PANEL_BOUNDARY).toMatch(/cannot see your accounts and cannot preview, confirm or send/);
+    expect(SPAIDBOT_PANEL_BOUNDARY).toMatch(/You authorise: you preview, you confirm, you send/);
+    expect(SPAIDBOT_PANEL_BOUNDARY).toMatch(/kill switch and your server limits \(Settings › Execution\) still apply/);
+    const P = readFileSync(path.resolve(__dirname, "../../components/layout/SpaidBotButton.tsx"), "utf8");
+    expect(P.length).toBeGreaterThan(1000);
+    expect(P).toContain('data-testid="spaidbot-boundary"');
+    expect(P).toContain("{SPAIDBOT_PANEL_BOUNDARY}");
+    // The route's own system prompt holds the same limits (it cannot access accounts or stage orders).
+    const R = readFileSync(path.resolve(__dirname, "../../app/api/spaidbot/route.ts"), "utf8");
+    expect(R).toContain("You cannot access broker accounts, credentials, balances, positions, or orders.");
+    expect(R).toContain("You cannot stage, submit, replace, or cancel paper or live orders.");
+  });
+});
+
+describe("SpaidBot proposal boundary on the ticket", () => {
+  it("observe → propose → you authorise; kill switch and server limits named", () => {
+    expect(SPAIDBOT_BOUNDARY).toMatch(/observes the chart and proposes/);
+    expect(SPAIDBOT_BOUNDARY).toMatch(/cannot preview, confirm or send/);
+    expect(SPAIDBOT_BOUNDARY).toMatch(/you preview, you confirm, you send/);
+    expect(SPAIDBOT_BOUNDARY).toMatch(/kill switch and your server limits still apply/);
+    const T = readFileSync(path.resolve(__dirname, "../../components/chart/TradePanel.tsx"), "utf8");
+    expect(T).toContain('data-testid="trade-proposal-boundary"');
+    expect(T).toContain('{kind !== "FX" ? <button type="button" data-testid="trade-open-paper"');
+    expect(T).not.toContain('{side === "BUY" ? "long" : "short"}. Send them after the entry fills.');
+    const A = readFileSync(path.resolve(__dirname, "../../components/broker/AlpacaTradingPanel.tsx"), "utf8");
+    expect(A).toContain('data-testid="alpaca-account-empty"');
+    expect(A).not.toContain("PAPER ONLY — Live brokerage access is disabled.");
   });
 });

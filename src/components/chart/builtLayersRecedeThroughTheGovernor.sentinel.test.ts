@@ -226,3 +226,24 @@ describe("Replay speaks no live words; clocks name their day (Sheriff batch 3, 2
     expect(DASH).toContain('const dataQualityState = `${chartCanvasState?.qualityState ?? "NONE"}|FEED:${chartHeaderFeedState}`;');
   });
 });
+
+describe("late-night slices (2026-10-08)", () => {
+  it("a tap on a keel or an Effort → Response column selects its bar, after a print", () => {
+    const up = CHART.slice(CHART.indexOf("const handleCursorSelectUp = useCallback("));
+    const print = up.indexOf("if (selectBigTradeAt(x, y)) return;");
+    const mark = up.indexOf("if (markHit && onSelectBarAt) { onSelectBarAt(markHit.time); return; }");
+    expect(print).toBeGreaterThan(-1);
+    expect(mark).toBeGreaterThan(print);
+    expect(CHART).toContain("barMarkHitsRef.current.push({ x: x - 4, y: yBase - hh - 4, w: w + 8, h: hh + 8, time: b.time });");
+  });
+  it("withheld Weekly / Monthly Pivots say why on the glass", () => {
+    expect(CHART).toContain("NEEDS THE FULL PRIOR ${unit} — LOAD MORE HISTORY OR USE A HIGHER TIMEFRAME");
+    expect(CHART).toContain("NO PRIOR ${unit} YET");
+  });
+  it("a market-object pin reads its price at the instrument's precision", () => {
+    expect(CHART).toContain("target.object.priceHigh.toFixed(displayPrecisionFor(symbol, barsRef.current ?? []))");
+  });
+  it("Profile Fusion's receipt names the pair object too", () => {
+    expect(CHART).toContain("|PAIR_OBJECT:${ds.profileFusionObject ?? \"NONE\"}");
+  });
+});

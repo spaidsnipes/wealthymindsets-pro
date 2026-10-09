@@ -176,6 +176,8 @@ export interface SpineMarketEvidence {
    */
   readonly quoteLast?: number | null;
   readonly quoteSource?: string | null;
+  /** The instrument's display decimals — the MARKET cell prints at the header's precision, never a raw float. */
+  readonly priceDecimals?: number | null;
 }
 
 export interface DecisionSpineBandProps {
@@ -825,6 +827,7 @@ export function DecisionSpineBand(props: DecisionSpineBandProps) {
     market.lastBarTimeframe,
     market.barsSettled,
     { last: market.quoteLast, source: market.quoteSource },
+    market.priceDecimals,
   );
   const drawnPlan = props.drawnPlan && props.drawnPlan.drawn && props.drawnPlan.reason === "BRACKETED"
     && props.drawnPlan.entry !== null && props.drawnPlan.stop !== null ? props.drawnPlan : null;
