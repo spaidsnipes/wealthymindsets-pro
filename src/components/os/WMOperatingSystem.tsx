@@ -42,6 +42,9 @@
 
 import { ToolsSlot } from "@/components/chart/orderFlowToolsSlot";
 import * as React from "react";
+import { InventionInfoButton, InventionPreview } from "@/components/chart/InventionInfo";
+import { educationTruthLines } from "@/lib/chart/inventionEducation";
+import { REPLAY_EDUCATION, REPLAY_EDUCATION_ID } from "@/lib/chart/surfaceEducation";
 // ── 2026-09-18: A ROOM MAY NOT REBOOT THE MACHINE ─────────────────────────
 //
 // Every door in this frame — the desktop rail and the phone bar — was a raw
@@ -823,6 +826,8 @@ function RoomWorkspaceRail({ activeHref, kind, heading = "Workspace", presentati
             ) : null}
           </span>
         </button>
+        {/* §9 · the Replay door has an ⓘ too (serving 6350c69: only the Chart tools menu item did). */}
+        {item.id === "bar-replay" ? <ReplayDoorInfo /> : null}
         {index === tailAfter ? arrangementTail : null}
         </React.Fragment>
         );
@@ -3098,3 +3103,17 @@ export function WMOperatingSystem({
 }
 
 export default WMOperatingSystem;
+
+/** The Workspace drawer's Replay door ⓘ — the same record the Chart tools menu opens; read-only here (the door itself starts Replay). */
+function ReplayDoorInfo() {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div data-testid="replay-door-info" style={{ margin: "-4px 10px 8px" }}>
+      <InventionInfoButton scope="door" id={REPLAY_EDUCATION_ID} label="Replay" open={open} onToggle={() => setOpen(o => !o)} />
+      {open ? (
+        <InventionPreview scope="door" id={REPLAY_EDUCATION_ID} label="Replay" what={REPLAY_EDUCATION.what} familyWord="Workspace"
+          truth={educationTruthLines({ id: REPLAY_EDUCATION_ID })} active={false} action={null} onClose={() => setOpen(false)} />
+      ) : null}
+    </div>
+  );
+}

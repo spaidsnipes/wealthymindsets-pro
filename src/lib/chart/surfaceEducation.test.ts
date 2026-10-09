@@ -149,3 +149,32 @@ describe("the Smart Money top cards each carry a complete ⓘ record (sheriff 20
     for (const c of CARDS) expect(panel, c).toContain(`<CardInfo card="${c}"`);
   });
 });
+
+describe("the preview fits its host and names its own action (serving 6350c69, 2026-10-09)", () => {
+  const info = read("src/components/chart/InventionInfo.tsx");
+  it("the preview is never taller than the glass: capped, scrolling inside itself", () => {
+    expect(info).toMatch(/sm:max-h-\[min\(70vh,560px\)\] sm:overflow-y-auto/);
+  });
+  it("a View opens, a loadout applies, Replay starts — none says 'Add to chart'; a Smart Money card has no button", () => {
+    expect(read("src/components/chart/ChartsDashboard.tsx")).toMatch(/action=\{\{ add: "Open this view"/);
+    expect(read("src/components/os/SavedLayoutsDoor.tsx")).toMatch(/action=\{\{ add: "Apply this loadout"/);
+    expect(read("src/components/chart/ChartToolbar.tsx")).toMatch(/action=\{\{ add: "Start replay"/);
+    const sm = read("src/components/smart-money/SmartMoneyPanel.tsx");
+    expect(sm.match(/<InventionPreview scope="sm"[\s\S]*?\/>/g)!.every(x => /action=\{null\}/.test(x))).toBe(true);
+    expect(info).toMatch(/action === null \? null/);
+  });
+  it("the Draw sheet's record sits in the flow, not over the tools", () => {
+    expect(read("src/components/chart/LeftDrawingSidebar.tsx")).toMatch(/\? \{ flexBasis: "100%", width: "100%" \}/);
+  });
+  it("Smart Money cards read the panel's own tape state; a volume record on a volume market can draw", () => {
+    expect(read("src/components/smart-money/SmartMoneyPanel.tsx")).toMatch(/truth=\{smTruth\(sig\.name\)\}/);
+    expect(educationTruthLines({ id: smartMoneyEducationId("VWAP"), symbol: "NQ1!" }).verdict).toBe("CAN DRAW HERE");
+    expect(educationTruthLines({ id: smartMoneyEducationId("VWAP"), symbol: "EURUSD" }).verdict).toBe("UNAVAILABLE HERE");
+    expect(educationTruthLines({ id: "IND:OBV", symbol: "NQ1!" }).verdict).toBe("CAN DRAW HERE");
+  });
+  it("the Workspace drawer's Replay door carries the Replay ⓘ", () => {
+    const os = read("src/components/os/WMOperatingSystem.tsx");
+    expect(os).toMatch(/item\.id === "bar-replay" \? <ReplayDoorInfo \/>/);
+    expect(os).toMatch(/<InventionInfoButton scope="door" id=\{REPLAY_EDUCATION_ID\}/);
+  });
+});

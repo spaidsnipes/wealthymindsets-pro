@@ -782,6 +782,11 @@ export function educationTruthLines(input: {
       // Price is all it needs, and every chart has price: a fact, not a guess.
       verdict = "CAN DRAW HERE";
       lines.push("Built from the bars on this chart — price is all it needs.");
+    } else if (edu && edu.needs === "VOLUME" && input.symbol && input.id?.includes(":")) {
+      // An indicator / panel / view record (`IND:` `SM:` `VIEW:`) that needs bar volume, on a
+      // market that HAS central volume (the no-volume case returned above): a fact, not a guess.
+      verdict = "CAN DRAW HERE";
+      lines.push("Built from the bars' traded volume on this chart.");
     } else if (edu && (edu.needs === "YOUR_PLAN" || edu.needs === "OTHER_LAYERS" || edu.needs === "OPTIONS")) {
       // The dependency is the verdict (named by the block below), not an unreported state.
       verdict = "CAN DRAW HERE";

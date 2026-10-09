@@ -5800,7 +5800,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const cols = { pp: "#F0B429", r1: "#ef5350", r2: "#ef5350", r3: "#ef5350", s1: "#26a69a", s2: "#26a69a", s3: "#26a69a" };
       for (const [key, color] of Object.entries(cols)) {
         const val = (pv as any)[key];
-        if (isFinite(val)) addLine(bars.map(() => val), color, 1, 1);
+        // A LEVEL never drives the price scale (serving NQ1! 5m 6350c69: the
+        // prior session's R3 / S3 stretched the axis and flattened the candles).
+        if (isFinite(val)) addLine(bars.map(() => val), color, 1, 1)?.applyOptions({ autoscaleInfoProvider: () => null });
       }
     }
     // Weekly / Monthly Pivots: the PRIOR COMPLETED ISO week / calendar month in
@@ -5812,9 +5814,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const pv = IND.periodPivots(bars, sessionWindowFor(symbol, timeframe, !!extendedHours), period);
       if (dsP) dsP[key] = pv.drawn ? `DRAWN:${pv.period}` : `WITHHELD:${pv.reason}`;
       if (!pv.drawn) continue;
-      addLine(bars.map(() => pv.pp), "#F0B429", 1, 2);
-      addLine(bars.map(() => pv.r1), "rgba(239,83,80,0.5)", 1, 1);
-      addLine(bars.map(() => pv.s1), "rgba(38,166,154,0.5)", 1, 1);
+      for (const sL of [addLine(bars.map(() => pv.pp), "#F0B429", 1, 2), addLine(bars.map(() => pv.r1), "rgba(239,83,80,0.5)", 1, 1), addLine(bars.map(() => pv.s1), "rgba(38,166,154,0.5)", 1, 1)]) {
+        sL?.applyOptions({ autoscaleInfoProvider: () => null });
+      }
     }
 
     // ── Standard Deviation ────────────────────────────────────
@@ -18519,7 +18521,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // A switched-on sense that draws nothing SAYS why on the glass, in
             // the shared silence stack (Sheriff batch, 2026-10-08) — a phone
             // folds it into the one summary line.
-            if (wallsOn && (!dp.drawn || !dp.walls.length)) sayBrickWallsSilence(!dp.drawn ? `no options walls here — ${String(dp.reason).toLowerCase().replace(/_/g, " ")}` : "no wall event on this camera");
+            // (Serving EURUSD 0971594, 2026-10-09: with nothing drawn the pressure
+            // owner's own line below already names the reason — a second line here
+            // said it twice. This one speaks only where that line cannot.)
+            if (wallsOn && dp.drawn && !dp.walls.length) sayBrickWallsSilence("no wall event on this camera");
+            else if (wallsOn && !dp.drawn && !att.speaks("derivativesPressure")) sayBrickWallsSilence(`no options walls here — ${String(dp.reason).toLowerCase().replace(/_/g, " ")}`);
             const dpSpeaks = att.speaks("derivativesPressure");
             const tsD = chart.timeScale();
             let axisWD = 60;

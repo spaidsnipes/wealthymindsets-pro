@@ -369,7 +369,8 @@ export function SavedLayoutsDoor({ ink, storage }: SavedLayoutsDoorProps): React
                   <div style={{ flexBasis: "100%" }}>
                     <InventionPreview scope="loadout" id={loadoutEducationId(l.id)} label={l.label} what={LOADOUT_EDUCATION[l.id]?.what ?? l.senses} familyWord="Loadout"
                       truth={educationTruthLines({ id: loadoutEducationId(l.id) })} active={savedArrangementInForce(loadoutSwitches(capture, l.id), capture)}
-                      onAdd={() => requestSavedLayout({ layoutId: `loadout:${l.id}`, switches: loadoutSwitches(capture, l.id) })} onClose={() => setLoadoutEdu(null)} />
+                      onAdd={() => requestSavedLayout({ layoutId: `loadout:${l.id}`, switches: loadoutSwitches(capture, l.id) })} onClose={() => setLoadoutEdu(null)}
+                      action={{ add: "Apply this loadout", on: "In force · apply again" }} />
                   </div>
                 );
               })() : null}

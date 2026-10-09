@@ -1636,7 +1636,8 @@ export function ChartToolbar({
                     {replayEdu ? (
                       <InventionPreview scope="tb" id={REPLAY_EDUCATION_ID} label="Replay" what={REPLAY_EDUCATION.what} familyWord="Workspace" symbol={symbol}
                         truth={educationTruthLines({ id: REPLAY_EDUCATION_ID, symbol })} active={!!replayActive}
-                        onAdd={() => { setAdvancedOpen(false); onReplay(); }} onClose={() => setReplayEdu(false)} />
+                        onAdd={() => { setAdvancedOpen(false); onReplay(); }} onClose={() => setReplayEdu(false)}
+                        action={{ add: "Start replay", on: "Replaying · stop" }} />
                     ) : null}
                   </>
                 )}

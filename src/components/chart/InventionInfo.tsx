@@ -84,7 +84,7 @@ const VERDICT_COLOR: Record<EducationTruth["verdict"], string> = {
   "NO LIVE FEED": AMBER,
 };
 
-export function InventionPreview({ scope, id, label, what, familyWord, symbol, truth, active, gestureNote, onAdd, onClose }: {
+export function InventionPreview({ scope, id, label, what, familyWord, symbol, truth, active, gestureNote, onAdd, onClose, action }: {
   scope: string;
   id: string;
   label: string;
@@ -96,8 +96,15 @@ export function InventionPreview({ scope, id, label, what, familyWord, symbol, t
   active: boolean;
   /** "drag a box on the chart to choose the range" — the DRAW gesture's own words. */
   gestureNote?: string;
-  onAdd: () => void;
+  /** Omitted when `action` is null (a read-only record: nothing to switch on). */
+  onAdd?: () => void;
   onClose: () => void;
+  /**
+   * The action button's words. Default: "Add to chart" / "On the chart · turn off".
+   * A View opens, a loadout applies, Replay starts — "Add to chart" was wrong
+   * there (serving 6350c69, 2026-10-09). `null` = no button (a Smart Money card).
+   */
+  action?: { readonly add: string; readonly on: string } | null;
 }) {
   const edu = educationFor(id);
   const ref = useRef<HTMLDivElement>(null);
@@ -135,6 +142,10 @@ export function InventionPreview({ scope, id, label, what, familyWord, symbol, t
       onClick={e => e.stopPropagation()}
       className={[
         "wm-edu-preview col-span-full my-1 rounded-lg p-3 text-left shadow-2xl outline-none",
+        // Never taller than the glass it opens in (serving 6350c69: the footprint
+        // popover ran 350 px below the viewport and the Replay record was 935 px
+        // tall inside a menu). It scrolls inside itself; the phone sheet has its own cap.
+        "sm:max-h-[min(70vh,560px)] sm:overflow-y-auto",
         // Phone: a bottom sheet over the drawer's own lower edge.
         "max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-[260] max-sm:my-0 max-sm:max-h-[78vh] max-sm:overflow-y-auto max-sm:rounded-b-none max-sm:pb-[calc(12px+env(safe-area-inset-bottom))]",
       ].join(" ")}
@@ -189,19 +200,21 @@ export function InventionPreview({ scope, id, label, what, familyWord, symbol, t
         </a>
       ) : null}
 
+      {action === null ? null : (
       <div className="mt-3 flex items-center gap-2">
         <button type="button" data-testid="edu-add" aria-pressed={active}
-          onClick={() => { onAdd(); close(); }}
+          onClick={() => { onAdd?.(); close(); }}
           className="inline-flex h-11 min-w-[44px] items-center justify-center rounded-lg px-4 text-[12px] font-bold uppercase tracking-[0.12em] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
           style={active
             ? { background: "transparent", color: GOLD, border: `1px solid ${GOLD}`, cursor: "pointer" }
             : { background: GOLD, color: "#14110a", border: `1px solid ${GOLD}`, cursor: "pointer" }}>
-          {active ? "On the chart · turn off" : "Add to chart"}
+          {active ? (action?.on ?? "On the chart · turn off") : (action?.add ?? "Add to chart")}
         </button>
         {!active && gestureNote ? (
           <span className="text-[10.5px] leading-snug" style={{ color: MUTED }}>Then {gestureNote}.</span>
         ) : null}
       </div>
+      )}
     </div>
   );
 }

@@ -272,9 +272,14 @@ export function LeftDrawingSidebar({
       {/* §9 · the ACTIVE drawing tool's ⓘ on the rail / sheet (Sheriff batch 3 #14): the same record the panel row opens. */}
       <InventionInfoButton scope="rail" id={drawingEducationId(activeTool)} label={GROUPS.flatMap(g => g.items).find(it => it.id === activeTool)?.label ?? activeTool} open={toolEdu} compact onToggle={() => setToolEdu(o => !o)} />
       {toolEdu ? (
-        <div style={{ position: "absolute", left: isSheet ? 0 : "100%", top: isSheet ? "100%" : 0, zIndex: 80, width: 320, maxWidth: "calc(100vw - 16px)" }}>
+        <div data-testid="draw-tool-edu" style={isSheet
+          // In the sheet the record sits IN THE FLOW under the tools (serving 6350c69:
+          // an absolute panel covered the tool buttons and lost its own title).
+          ? { flexBasis: "100%", width: "100%" }
+          : { position: "absolute", left: "100%", top: 0, zIndex: 80, width: 320, maxWidth: "calc(100vw - 16px)" }}>
           <InventionPreview scope="rail" id={drawingEducationId(activeTool)} label={GROUPS.flatMap(g => g.items).find(it => it.id === activeTool)?.label ?? activeTool} what={DRAWING_EDUCATION[activeTool]?.what ?? activeTool} familyWord="Drawing tool"
-            truth={educationTruthLines({ id: drawingEducationId(activeTool) })} active={activeTool !== "cursor"} onAdd={() => onToolChange("cursor")} onClose={() => setToolEdu(false)} />
+            truth={educationTruthLines({ id: drawingEducationId(activeTool) })} active={activeTool !== "cursor"} onAdd={() => onToolChange("cursor")} onClose={() => setToolEdu(false)}
+            action={activeTool === "cursor" ? null : { add: "Use this tool", on: "Selected · back to the pointer" }} />
         </div>
       ) : null}
 

@@ -593,7 +593,7 @@ export function DrawingToolsPanel({
                       {toolEdu === tool.id ? (
                         <InventionPreview scope="draw" id={drawingEducationId(tool.id)} label={tool.label} what={DRAWING_EDUCATION[tool.id]?.what ?? tool.desc} familyWord={group.label}
                           truth={educationTruthLines({ id: drawingEducationId(tool.id) })} active={isActive}
-                          onAdd={() => pick(tool.id)} onClose={() => setToolEdu(null)} />
+                          onAdd={() => pick(tool.id)} onClose={() => setToolEdu(null)} action={{ add: "Use this tool", on: "Selected" }} />
                       ) : null}
                       </React.Fragment>
                     );

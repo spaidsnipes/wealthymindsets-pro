@@ -98,6 +98,47 @@ export const STATE_WORD: Readonly<Record<CapabilityState, string>> = {
   NOT_CONNECTED: "NOT CONNECTED", NOT_BUILT: "NOT BUILT", UNSUPPORTED: "UNSUPPORTED",
 };
 
+/**
+ * THE CERTIFICATE OUTRANKS THE MAP (Sheriff P1-3, 2026-10-08: the Settings map
+ * read Webull "Cancel order LIVE" / "Positions LIVE" while the certificate had
+ * not proved those stages). The map says what a rail is BUILT for; whether it
+ * is PROVED is the certificate's fact (/api/broker/certification, the one
+ * observed owner). Each claim that can be proved names its certificate stage.
+ */
+export const CAPABILITY_CERT_STAGE: Readonly<Partial<Record<CapabilityId, string>>> = {
+  QUOTES: "read_market_data", BARS: "read_market_data", LIVE_PRINTS: "read_market_data",
+  OPTIONS_CHAIN: "read_market_data", GREEKS: "read_market_data", FUTURES_OPTIONS: "read_market_data",
+  POSITIONS: "read_account_state",
+  EXEC_EQUITY: "submit_order", EXEC_OPTION: "submit_order", EXEC_FUTURE: "submit_order",
+  EXEC_FUTURE_OPTION: "submit_order", EXEC_CRYPTO: "submit_order",
+  CANCEL: "cancel_order",
+};
+
+/** One broker's certificate as the route reports it (stage names only). */
+export interface CapabilityCertificate {
+  readonly passedStages: readonly string[];
+  readonly failedStages: readonly string[];
+  readonly blockedStages: readonly string[];
+}
+
+/**
+ * The word for one row given the certificate (null = not read) and the arms.
+ * A claim of LIVE / ARMED stands only when its certificate stage PASSED;
+ * otherwise the row says it is built and what the certificate says. Rows with
+ * no certificate stage (history, P&L, unsupported …) keep their own word.
+ */
+export function capabilityClaimWord(row: Pick<CapabilityRow, "capability" | "state">, cert: CapabilityCertificate | null, arms: ExecutionArms): string {
+  const claims = row.state === "LIVE" || row.state === "HUMAN_ARMED" || row.state === "PARTIAL";
+  const stage = CAPABILITY_CERT_STAGE[row.capability];
+  if (!claims || !stage) return capabilityStateWord(row.state, arms);
+  const name = stage.replace(/_/g, " ");
+  if (!cert) return `BUILT · CERTIFICATE UNREAD (${name})`;
+  if (cert.failedStages.includes(stage)) return `BUILT · CERTIFICATE FAILED (${name})`;
+  if (cert.blockedStages.includes(stage)) return `BUILT · CERTIFICATE BLOCKED (${name})`;
+  if (!cert.passedStages.includes(stage)) return `BUILT · NOT PROVED (${name} not yet certified)`;
+  return capabilityStateWord(row.state, arms);
+}
+
 /** The two arms a live order needs (device guardrail + server limits), each null when unread. */
 export interface ExecutionArms {
   readonly device: boolean | null;

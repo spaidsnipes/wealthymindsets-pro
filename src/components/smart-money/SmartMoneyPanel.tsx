@@ -494,11 +494,19 @@ export function SmartMoneyPanel({
   // The five TOP cards carry the same ⓘ the rows do (sheriff 2026-10-08): the
   // button sits in the card's header (module-level `CardInfo`), the record
   // opens under it. One open at a time, shared with the rows through `cardEdu`.
+  // §9 · what is true for a card ON THIS FEED NOW (serving 6350c69 read
+  // "state not reported" on cards whose tape state this panel already holds).
+  const smTruth = (name: string) => {
+    const rec = SMART_MONEY_EDUCATION[name];
+    if (rec && /not measured on any feed/.test(rec.what)) return educationTruthLines({ instrumentTruth: { ok: false, sentence: "Not measured on any feed this product has — the card shows no value." } });
+    if (rec?.needs === "SIDED_TAPE") return educationTruthLines({ instrumentTruth: { ok: flow.hasFlow, waiting: !flow.hasFlow, sentence: readTapeSide(flow.askVol, flow.bidVol, flow.hasFlow).words } });
+    return educationTruthLines({ id: smartMoneyEducationId(name), symbol });
+  };
   const toggleCard = React.useCallback((card: string) => setCardEdu(cur => (cur === `CARD:${card}` ? null : `CARD:${card}`)), []);
   const cardRecord = (card: string) => cardEdu === `CARD:${card}` ? (
     <InventionPreview scope="sm" id={smartMoneyCardEducationId(card)} label={card} what={SMART_MONEY_CARD_EDUCATION[card]?.what ?? card} familyWord="Smart Money" symbol={symbol}
       truth={educationTruthLines({ id: smartMoneyCardEducationId(card), symbol })} active={false}
-      onAdd={() => setCardEdu(null)} onClose={() => setCardEdu(null)} />
+      action={null} onClose={() => setCardEdu(null)} />
   ) : null;
 
   // WM-UX-P0-01 — Delta bubble level-count control, migrated here from the Big
@@ -1354,8 +1362,8 @@ export function SmartMoneyPanel({
                         </div>
                         {cardEdu === sig.name ? (
                           <InventionPreview scope="sm" id={smartMoneyEducationId(sig.name)} label={sig.name} what={SMART_MONEY_EDUCATION[sig.name]?.what ?? sig.name} familyWord={sec.label} symbol={symbol}
-                            truth={educationTruthLines({ id: smartMoneyEducationId(sig.name), symbol })} active={false}
-                            onAdd={() => setCardEdu(null)} onClose={() => setCardEdu(null)} />
+                            truth={smTruth(sig.name)} active={false}
+                            action={null} onClose={() => setCardEdu(null)} />
                         ) : null}
                         <div
                           className="text-[10px] font-semibold break-words leading-snug"
@@ -1385,8 +1393,8 @@ export function SmartMoneyPanel({
                             </span> — {sig.value.replace(/^N\/A\s*[—-]\s*/, "")}
                             {cardEdu === sig.name ? (
                               <InventionPreview scope="sm" id={smartMoneyEducationId(sig.name)} label={sig.name} what={SMART_MONEY_EDUCATION[sig.name]?.what ?? sig.name} familyWord={sec.label} symbol={symbol}
-                                truth={educationTruthLines({ id: smartMoneyEducationId(sig.name), symbol })} active={false}
-                                onAdd={() => setCardEdu(null)} onClose={() => setCardEdu(null)} />
+                                truth={smTruth(sig.name)} active={false}
+                                action={null} onClose={() => setCardEdu(null)} />
                             ) : null}
                           </li>
                         ))}

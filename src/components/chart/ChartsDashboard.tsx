@@ -6200,7 +6200,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                     </div>
                     {viewEdu === tab ? (
                       <InventionPreview scope="view" id={viewEducationId(tab)} label={tab} what={VIEW_EDUCATION[tab]?.what ?? tab} familyWord="View" symbol={symbol}
-                        truth={educationTruthLines({ id: viewEducationId(tab), symbol })} active={applied}
+                        truth={educationTruthLines(VIEW_EDUCATION[tab]?.needs === "SIDED_TAPE" || VIEW_EDUCATION[tab]?.needs === "PRINTS"
+                          // The room knows whether a signed tape is arriving — say it, not "state not reported".
+                          ? { instrumentTruth: chartFlowSnap.hasFlow
+                              ? { ok: true, sentence: "A signed tape is arriving on this chart — this view has prints to read." }
+                              : { ok: false, waiting: true, sentence: "No signed tape has arrived on this chart yet — the view opens empty and says what is missing." } }
+                          : { id: viewEducationId(tab), symbol })} active={applied}
+                        action={{ add: "Open this view", on: "Open now" }}
                         onAdd={() => { setActiveTab(tab); setViewShelfOpen(false); }} onClose={() => setViewEdu(null)} />
                     ) : null}
                     </React.Fragment>
