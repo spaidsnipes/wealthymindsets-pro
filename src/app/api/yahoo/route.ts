@@ -6,6 +6,7 @@
  * GET /api/yahoo?sym=NQ1!&type=candles&tf=1m&bars=300 → OHLCV array
  */
 
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { yahooFailureStatus } from "@/lib/marketData/yahooFailureStatus";
 import { foldYahooLastRow } from "@/lib/marketData/yahooLastRow";
 import { foldHourlyTrailingRow } from "./foldHourlyTrailingRow";
@@ -46,6 +47,8 @@ async function yfFetch(url: string, ttlMs = 10_000): Promise<unknown> {
 }
 
 export async function GET(request: Request) {
+  // API audit P1-6 (2026-10-09): a ceiling per caller before any vendor is asked (see publicProxyLimit for the numbers).
+  { const limited = await publicProxyLimit(request, "market"); if (limited) return limited; }
   const { searchParams } = new URL(request.url);
 
   /**

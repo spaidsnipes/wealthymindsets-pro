@@ -94,7 +94,7 @@ describe("volatility is not the regime", () => {
   it("the panel offers it as a filter and a split, words its values, and prints the scope note beside the regime note", () => {
     const panel = read("components/backtest/FvgStudyPanel.tsx");
     expect(panel).toContain('volatility: "Volatility at formation (from bars)",');
-    expect(panel).toMatch(/const FILTER_FACETS[^\n]*"volatility"\];/);
+    expect(panel).toMatch(/const FILTER_FACETS[^\n]*"volatility"[^\n]*\];/);
     expect(panel).toContain('if (facet === "volatility") return VOLATILITY_VALUE_LABEL[v] ?? v;');
     for (const v of FVG_VOLATILITY_FACET_VALUES) expect(panel, v).toContain(`${v}: "`);
     expect(panel).toContain('data-testid="fvg-study-volatility-note">{study.volatilityNote}</p>');

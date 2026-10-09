@@ -30,11 +30,17 @@ const buckets = new Map<string, number[]>();
 // Housekeeping: prune stale keys occasionally so the Map doesn't grow
 // unbounded across a lambda's lifetime. Runs at most once per 30s.
 let lastPruneMs = 0;
+// The longest window any caller has asked for. Housekeeping used the CURRENT
+// caller's window for every bucket (found 2026-10-09): a 60-second caller's
+// sweep threw away a ten-minute limiter's older hits, quietly shortening it to
+// about a minute. A sweep now only drops what no limiter could still count.
+let longestWindowMs = 0;
 function pruneStale(nowMs: number, windowMs: number) {
+  longestWindowMs = Math.max(longestWindowMs, windowMs);
   if (nowMs - lastPruneMs < 30_000) return;
   lastPruneMs = nowMs;
   for (const [k, times] of buckets) {
-    const kept = times.filter(t => nowMs - t < windowMs);
+    const kept = times.filter(t => nowMs - t < longestWindowMs);
     if (kept.length === 0) buckets.delete(k);
     else buckets.set(k, kept);
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
 import { emailConfigStatus } from "@/lib/email";
+import { operatorOnly } from "@/lib/operatorOnly";
 
 /**
  * Authenticated email-config health check. Returns booleans + the public sender
@@ -12,6 +13,9 @@ import { emailConfigStatus } from "@/lib/email";
 export async function GET(req: Request) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+  // API audit P1-4 (2026-10-09): the sender address, the app URL and the setup hint are the
+  // operator's. Any signed-in member used to receive them.
+  { const refusal = operatorOnly(auth.user.sub); if (refusal) return refusal; }
   const status = emailConfigStatus();
   return NextResponse.json({
     ...status,

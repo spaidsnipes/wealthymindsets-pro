@@ -10,6 +10,7 @@
  * and normalise the shape for the chart layer.
  */
 
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { NextResponse } from "next/server";
 
 const GAMMA = "https://gamma-api.polymarket.com";
@@ -33,6 +34,8 @@ function safeParse(v: unknown): any {
 }
 
 export async function GET(request: Request) {
+  // API audit P1-6 (2026-10-09): a ceiling per caller before any vendor is asked (see publicProxyLimit for the numbers).
+  { const limited = await publicProxyLimit(request, "feed"); if (limited) return limited; }
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type") ?? "markets";
 

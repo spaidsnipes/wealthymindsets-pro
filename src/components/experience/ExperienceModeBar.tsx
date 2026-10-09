@@ -123,6 +123,10 @@ export function ExperienceModeBar({ bus, className, collapsed = false, lifecycle
   const { context, setMode } = useDecisionContext(bus);
   const [open, setOpen] = React.useState(false);
   const chipRef = React.useRef<HTMLButtonElement | null>(null);
+  // The one-row stage nav: does it overflow its row right now, and is the
+  // current stage in view? Measured, because the row's width is the room's.
+  const navRef = React.useRef<HTMLElement | null>(null);
+  const [scrolls, setScrolls] = React.useState(false);
 
   // Re-seed when the route changes what the bar is FOR. Without this, expanding
   // the chip on the chart and then walking to a room that renders the full bar
@@ -171,6 +175,23 @@ export function ExperienceModeBar({ bus, className, collapsed = false, lifecycle
   }, [collapsed, open]);
 
   const expanded = !collapsed || open;
+
+  // Measure the one-row nav and bring the current stage into view. Runs when
+  // the bar appears, when the stage changes and when the row is resized.
+  const currentMode = context.mode;
+  React.useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const measure = () => setScrolls(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    const current = el.querySelector<HTMLElement>('[aria-current="true"]');
+    if (current && el.scrollWidth > el.clientWidth + 1) {
+      el.scrollLeft = Math.max(0, current.offsetLeft - (el.clientWidth - current.offsetWidth) / 2);
+    }
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [expanded, currentMode]);
 
   return (
     <div
@@ -227,17 +248,30 @@ export function ExperienceModeBar({ bus, className, collapsed = false, lifecycle
       )}
       {!expanded ? null : (
     <nav
+      ref={navRef}
       className={className}
+      data-stage-nav-scrolls={scrolls ? "true" : "false"}
       id={EXPERIENCE_MODE_GROUP_ID}
       aria-label="Experience mode"
       style={{
         display: "flex",
         alignItems: "center",
-        // Wrap gracefully on narrow (mobile) widths: the seven states must stay
-        // fully visible — never overflow their container and collide with the
-        // adjacent job descriptor. On desktop everything fits on one row, so
-        // wrap never triggers and the layout is unchanged.
-        flexWrap: "wrap",
+        // ONE ROW, ALWAYS (coordinator order 2026-10-09). The seven used to wrap
+        // to a second row at 390 — and in some rooms at 1440 — and the shell
+        // spent ~230 of a phone's 784px before any room content. They now sit
+        // on one line that scrolls sideways when it must: no stage is hidden
+        // without a way to it (the right edge fades while more remain, and the
+        // current stage is scrolled into view), and each keeps its full word.
+        flexWrap: "nowrap",
+        overflowX: "auto",
+        overflowY: "hidden",
+        scrollbarWidth: "none",
+        maxWidth: "100%",
+        ...(scrolls ? {
+          WebkitMaskImage: "linear-gradient(to right, #000 calc(100% - 28px), transparent)",
+          maskImage: "linear-gradient(to right, #000 calc(100% - 28px), transparent)",
+          paddingRight: 28,
+        } : null),
         gap: 2,
         background: WM.surface.deep,
         border: `1px solid ${WM.border.hair}`,
@@ -272,7 +306,7 @@ export function ExperienceModeBar({ bus, className, collapsed = false, lifecycle
               data-mode-route="ROOM"
               title={`${modeHint(mode)} — ${route.reason}`}
               style={{
-                flex: "1 1 auto",
+                flex: "1 0 auto",
                 minWidth: 52,
                 minHeight: 44,
                 display: "inline-flex",
@@ -366,9 +400,8 @@ export function ExperienceModeBar({ bus, className, collapsed = false, lifecycle
             aria-current={active ? "true" : undefined}
             title={modeHint(mode)}
             style={{
-              flex: "1 1 auto",
-              // Keep each tap target readable when the bar wraps on mobile;
-              // ignored on desktop where flex-grow spreads them across one row.
+              // Grow to fill a wide row; never shrink under the word (the row scrolls instead).
+              flex: "1 0 auto",
               minWidth: 52,
               // MEASURED 2026-09-13 at 390x844 by scripts/audit-phone-parity.mjs:
               // all seven buttons rendered 23px tall. minWidth alone had been

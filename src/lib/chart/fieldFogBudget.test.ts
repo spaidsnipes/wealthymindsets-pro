@@ -34,13 +34,17 @@ describe("field fog budget — stacked translucent fields never multiply over th
 describe("fog gate — on the context's own fillRect", () => {
   const fake = () => {
     const calls: { w: number; h: number; ga: number }[] = [];
+    const ops: string[] = [];
     const ctx = {
       fillStyle: "rgba(76, 175, 96, 0.2)" as string | CanvasGradient,
       globalAlpha: 1,
       getTransform: () => ({ a: 2, b: 0, c: 0, d: 2, e: 0, f: 0 }) as DOMMatrix,
       fillRect(_x: number, _y: number, w: number, h: number) { calls.push({ w, h, ga: this.globalAlpha }); },
+      save() { ops.push("save"); }, restore() { ops.push("restore"); }, beginPath() { ops.push("begin"); },
+      rect(x: number, y: number, w: number, h: number) { ops.push(`rect:${x},${y},${w},${h}`); },
+      clip(rule?: string) { ops.push(`clip:${rule}`); },
     };
-    return { ctx: ctx as unknown as CanvasRenderingContext2D, calls };
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, ops };
   };
   it("off (the desk): nothing counted, nothing scaled", () => {
     const { ctx, calls } = fake();
@@ -75,5 +79,50 @@ describe("fog gate — on the context's own fillRect", () => {
     gate.beginFrame({ on: true, plot, dpr: 2 });
     ctx.fillRect(0, 0, 320, 400);
     expect(calls[0].ga).toBe(1);
+  });
+});
+
+describe("price sovereignty — nothing translucent is painted across the newest candles on narrow glass", () => {
+  const fake2 = () => {
+    const ops: string[] = [];
+    const ctx = {
+      fillStyle: "rgba(201, 165, 92, 0.04)" as string,
+      globalAlpha: 1,
+      getTransform: () => ({ a: 2, b: 0, c: 0, d: 2, e: 0, f: 0 }) as DOMMatrix,
+      fillRect(x: number, y: number, w: number, h: number) { ops.push(`fill:${x},${y},${w},${h}`); },
+      save() { ops.push("save"); }, restore() { ops.push("restore"); }, beginPath() { ops.push("begin"); },
+      rect(x: number, y: number, w: number, h: number) { ops.push(`rect:${x},${y},${w},${h}`); },
+      clip(rule?: string) { ops.push(`clip:${rule}`); },
+    };
+    return { ctx: ctx as unknown as CanvasRenderingContext2D, ops };
+  };
+  const col = { x: 245, y: 150, w: 28, h: 80 };
+  it("a band wider than the column that crosses it is filled with the column cut out; a hairline, a narrow bar and an opaque backing pass whole", () => {
+    const { ctx, ops } = fake2();
+    const gate = installFogGate(ctx);
+    gate.beginFrame({ on: true, plot, dpr: 2 });
+    gate.setKeepOut(col);
+    ctx.fillRect(40, 180, 260, 30);            // a zone band across the newest candles
+    expect(ops).toEqual(["save", "begin", "rect:40,180,260,30", "rect:245,150,28,80", "clip:evenodd", "fill:40,180,260,30", "restore"]);
+    expect(gate.columnCuts()).toBe(1);
+    ops.length = 0;
+    ctx.fillRect(40, 200, 260, 1);             // a hairline at a price
+    ctx.fillRect(250, 160, 8, 60);             // a volume bar inside the column
+    ctx.fillRect(40, 20, 150, 30);             // a band that never reaches the column
+    (ctx as unknown as { fillStyle: string }).fillStyle = "rgba(11, 10, 8, 0.9)";
+    ctx.fillRect(40, 180, 260, 30);            // an opaque card backing
+    expect(ops.filter(o => o.startsWith("clip"))).toEqual([]);
+    expect(gate.columnCuts()).toBe(1);
+  });
+  it("no keep-out (the desk, or no column yet): nothing is cut; a new frame forgets the last one's", () => {
+    const { ctx, ops } = fake2();
+    const gate = installFogGate(ctx);
+    gate.beginFrame({ on: false, plot, dpr: 2 });
+    gate.setKeepOut(col);
+    ctx.fillRect(40, 180, 260, 30);
+    gate.beginFrame({ on: true, plot, dpr: 2 });
+    ctx.fillRect(40, 180, 260, 30);
+    expect(ops.filter(o => o.startsWith("clip"))).toEqual([]);
+    expect(gate.columnCuts()).toBe(0);
   });
 });

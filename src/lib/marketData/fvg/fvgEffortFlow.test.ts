@@ -210,6 +210,12 @@ describe("options walls drawn but none near the gap is SAID (2026-10-09)", () =>
     expect(ins.silences.some(s => /^Options walls: SILENCE/.test(s))).toBe(false);
   });
 
+  it("the owner drew, with no wall and no flip at all → said, not blank", () => {
+    const r = fvgRelationshipsFor(obj, { derivatives: d([]) });
+    expect(r.absences).toEqual([{ family: "WALL", label: "Options walls", nearest: null, distance: null }]);
+    expect(fvgRelationshipRows(r, p => p.toFixed(2)).absences).toEqual(["Options walls: none near this gap — the owner read the chain and published no wall or gamma flip"]);
+  });
+
   it("a wall inside the gap → its row, and no absence line", () => {
     const r = fvgRelationshipsFor(obj, { derivatives: d([(obj.top + obj.bottom) / 2, far]) });
     expect(r.relationships.some(x => x.kind === "CALL_WALL" && x.relation === "INSIDE")).toBe(true);

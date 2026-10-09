@@ -31,6 +31,15 @@
  *                        condition. The scanner reads daily HISTORY bars, and
  *                        no signed tape exists for them — always UNAVAILABLE
  *                        here, with that reason. Never read from candles.
+ * Garden 19 §13 (2026-10-09):
+ *   FVG_PLUS_EFFORT      the gap's displacement bar or a touch bar read
+ *                        ABSORBED, INITIATIVE or VACUUM by the Response Matrix
+ *                        owner (fvgRelationships EFFORT_RESPONSE, each bar
+ *                        ranked over the closed bars ending at it). ORDINARY
+ *                        and QUIET are readings, not convergence. Needs real
+ *                        traded volume: on spot FX / a placeholder feed, or
+ *                        where the owner could not read the bars, UNAVAILABLE
+ *                        with the owner's reason.
  * An UNAVAILABLE condition is listed per symbol with its reason; it is never
  * silently absent and never a hit.
  *
@@ -109,17 +118,20 @@ export interface FvgScanHit {
   readonly priceDp: number;
 }
 
-export const FVG_CONVERGENCE_CONDITIONS = ["FVG_PLUS_STRUCTURE", "FVG_PLUS_PROFILE", "FVG_PLUS_WALL", "FVG_PLUS_ORDER_FLOW"] as const;
+export const FVG_CONVERGENCE_CONDITIONS = ["FVG_PLUS_STRUCTURE", "FVG_PLUS_PROFILE", "FVG_PLUS_EFFORT", "FVG_PLUS_WALL", "FVG_PLUS_ORDER_FLOW"] as const;
+/** The Response Matrix cells that count as convergence — the three where effort and response disagree or both run large. */
+export const FVG_EFFORT_CONVERGENCE_CELLS: readonly string[] = ["ABSORBED", "INITIATIVE", "VACUUM"];
 export type FvgConvergenceCondition = (typeof FVG_CONVERGENCE_CONDITIONS)[number];
 export const FVG_CONVERGENCE_LABEL: Readonly<Record<FvgConvergenceCondition, string>> = {
   FVG_PLUS_STRUCTURE: "FVG + structure",
   FVG_PLUS_PROFILE: "FVG + profile",
+  FVG_PLUS_EFFORT: "FVG + effort→response",
   FVG_PLUS_WALL: "FVG + options wall",
   FVG_PLUS_ORDER_FLOW: "FVG + order flow",
 };
 
 /** The conditions whose evidence is not in the bars: read only when it exists, else UNAVAILABLE with a reason. */
-export type FvgEvidenceCondition = Extract<FvgConvergenceCondition, "FVG_PLUS_WALL" | "FVG_PLUS_ORDER_FLOW">;
+export type FvgEvidenceCondition = Extract<FvgConvergenceCondition, "FVG_PLUS_WALL" | "FVG_PLUS_ORDER_FLOW" | "FVG_PLUS_EFFORT">;
 
 export interface FvgScanUnavailable {
   readonly condition: FvgEvidenceCondition;
@@ -272,6 +284,8 @@ export function fvgScanConditionsFromBars(input: {
     unavailable.push({ condition: "FVG_PLUS_ORDER_FLOW", reason: FVG_SCAN_ORDER_FLOW_UNAVAILABLE });
     const ctx = fvgBarContext(input.bars, symbol, timeframe);
     const fmt = (x: number) => x.toFixed(dp);
+    let effortSilence: string | null = null;
+    let effortRead = false;
     for (const id of hitIds) {
       const o = now.objects.find(x => x.objectId === id)!;
       const reading = fvgBarOnlyRelationships(ctx, o);
@@ -282,6 +296,13 @@ export function fvgScanConditionsFromBars(input: {
         if (!fam.relationships.length) continue;
         convergence.push({ ...base, condition, with: withC, relationships: fvgRelationshipRows(fam, fmt).rows });
       }
+      // FVG + effort→response (§13): the owner's cell for the gap's own bars; only the three convergence cells are a hit.
+      const eSrc = reading.sources.find(x => x.family === "EFFORT_RESPONSE");
+      if (eSrc && eSrc.evidence !== "SILENCE") {
+        effortRead = true;
+        const fam = { ...reading, relationships: reading.relationships.filter(x => x.family === "EFFORT_RESPONSE" && FVG_EFFORT_CONVERGENCE_CELLS.includes(x.ownerState ?? "")) };
+        if (fam.relationships.length) convergence.push({ ...base, condition: "FVG_PLUS_EFFORT", with: withC, relationships: fvgRelationshipRows(fam, fmt).rows });
+      } else if (eSrc) effortSilence ??= eSrc.provenance;
       // FVG + options wall: the ONE options owner's walls / flip, through the one relationship owner.
       if (wallVm) {
         const walls = fvgRelationshipsFor(o, { derivatives: wallVm });
@@ -289,6 +310,8 @@ export function fvgScanConditionsFromBars(input: {
         if (fam.relationships.length) convergence.push({ ...base, condition: "FVG_PLUS_WALL", with: withC, relationships: fvgRelationshipRows(fam, fmt).rows });
       }
     }
+    // Effort could be read for none of the hit gaps: said once, with the owner's reason.
+    if (!effortRead && effortSilence !== null) unavailable.push({ condition: "FVG_PLUS_EFFORT", reason: effortSilence });
   }
   return {
     status: "READ",

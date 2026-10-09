@@ -7,6 +7,7 @@
  * GET ?ex=coinbase&coin=BTC&type=candles&tf=15m&bars=300
  */
 
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { NextResponse } from "next/server";
 import {
   resolveExchangeTimeframe,
@@ -250,6 +251,8 @@ async function getCandles(ex: Ex, coin: string, tf: ExchangeTimeframe, sec: numb
 }
 
 export async function GET(req: Request) {
+  // API audit P1-6 (2026-10-09): a ceiling per caller before any vendor is asked (see publicProxyLimit for the numbers).
+  { const limited = await publicProxyLimit(req, "market"); if (limited) return limited; }
   const { searchParams } = new URL(req.url);
   const ex   = (searchParams.get("ex") ?? "coinbase").toLowerCase() as Ex;
   const coin = (searchParams.get("coin") ?? "BTC").toUpperCase();

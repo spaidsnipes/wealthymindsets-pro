@@ -8,6 +8,7 @@
  * and normalise the shape so the chart layer consumes one format.
  */
 
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
 import { NextResponse } from "next/server";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
@@ -34,6 +35,8 @@ function classify(v: number): string {
 }
 
 export async function GET(request: Request) {
+  // API audit P1-6 (2026-10-09): a ceiling per caller before any vendor is asked (see publicProxyLimit for the numbers).
+  { const limited = await publicProxyLimit(request, "feed"); if (limited) return limited; }
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type") ?? "stocks";
 

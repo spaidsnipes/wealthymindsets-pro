@@ -123,9 +123,9 @@ export interface FvgRelationshipReading {
 export interface RelationshipAbsence {
   readonly family: RelationshipFamily;
   readonly label: string;
-  /** The owner's nearest level to the territory, and its distance from it (price units). */
-  readonly nearest: number;
-  readonly distance: number;
+  /** The owner's nearest level to the territory, and its distance from it (price units); null when the owner drew but published no level at all. */
+  readonly nearest: number | null;
+  readonly distance: number | null;
 }
 
 /* ── SOURCES: owner VM → evidence word + the levels it publishes ───────────── */
@@ -394,6 +394,9 @@ export function fvgRelationshipsFor(o: FvgObject, inputs: FvgRelationshipInputs,
     if (levels.length) {
       const nearest = levels.reduce((a, b) => (distanceTo(o, b) < distanceTo(o, a) ? b : a));
       absences.push({ family: "WALL", label: dSrc.label, nearest, distance: distanceTo(o, nearest) });
+    } else {
+      // The owner read the chain and published no wall and no flip: said, never left as a blank.
+      absences.push({ family: "WALL", label: dSrc.label, nearest: null, distance: null });
     }
   }
   const lSrc = liquiditySource(inputs.liquidity);
@@ -433,6 +436,8 @@ export function fvgRelationshipRows(r: FvgRelationshipReading, fmt: (p: number) 
     return `${x.source.label} ${KIND[x.kind]} ${where} — ${how}${x.ownerState ? ` · owner says ${x.ownerState}` : ""} · ${x.source.evidence} (${x.source.provenance})`;
   });
   const silences = r.sources.filter(s => s.evidence === "SILENCE").map(s => `${s.label}: SILENCE — ${s.provenance}`);
-  const absences = (r.absences ?? []).map(a => `${a.label}: none near this gap — nearest ${fmt(a.nearest)}, ${fmt(a.distance)} away`);
+  const absences = (r.absences ?? []).map(a => a.nearest !== null && a.distance !== null
+    ? `${a.label}: none near this gap — nearest ${fmt(a.nearest)}, ${fmt(a.distance)} away`
+    : `${a.label}: none near this gap — the owner read the chain and published no wall or gamma flip`);
   return { rows, silences, absences };
 }

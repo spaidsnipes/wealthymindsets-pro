@@ -55,7 +55,7 @@ import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, 
 import { absorptionAnalysisWindow } from "@/lib/chart/absorptionAnalysisWindow";
 import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proofNoLabels";
 import { installWordGate, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
-import { installFogGate } from "@/lib/chart/fieldFogBudget";
+import { FOG_CAP, installFogGate } from "@/lib/chart/fieldFogBudget";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
@@ -7938,6 +7938,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // so no other word lands on its row (serving 390, ada59d4: "4 SENSES
       // SILENT" printed over the Profile Fusion line).
       if (narrowGlass) forceChips.push({ x: 0, y: HEADER_FLOOR_Y + 2, w: Math.min(plotRight, 230), h: 16 });
+      // PRICE SOVEREIGNTY ON NARROW GLASS (Founder, 2026-10-09: after the
+      // opacity fix the busiest spot on the phone was still the newest candles
+      // and the last price). ONE keep-out — the newest candles' column, the
+      // same rect the words use — and every painter that could lay ink there
+      // consults it: big-trade discs, options-flow marks and their names, OI
+      // words, the WAIT plate, and (through the fog owner) every translucent
+      // band. Painters that run before this frame measures the column read last
+      // frame's. The receipt counts what was held off it.
+      const sovereignColumn = (): { x: number; y: number; w: number; h: number } | null => (narrowGlass ? wordGateColumnRef.current : null);
+      let sovereigntyHeld = 0;
+      fogGate.setKeepOut(sovereignColumn());
 
       const restoreNativeAfterClarityLoss = () => {
         if (!clarityHidRef.current) return;
@@ -9868,6 +9879,28 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         for (const b of [...bigDiscs].sort((a, z) => Math.abs(z.value) - Math.abs(a.value))) {
           const buy = b.side === "buy";
           const selB = selDiscKey != null && b.spawnKey === selDiscKey;
+          // PRICE SOVEREIGNTY: on narrow glass a print whose disc would reach
+          // the newest candles' column is NOT a filled disc over the last bars.
+          // It is a small ring at the column's left edge, at its own price,
+          // tied back to its bar by a hairline. Its anchor, hit area and
+          // Inspect are untouched; selected or hovered it draws in full.
+          const colBT = sovereignColumn();
+          if (colBT && !selB && hoverId !== b.id
+            && b.x + b.r > colBT.x && b.x - b.r < colBT.x + colBT.w && b.y + b.r > colBT.y && b.y - b.r < colBT.y + colBT.h) {
+            ctx.save();
+            ctx.globalAlpha = att.alpha("bigTrades");
+            const rq = Math.max(2.5, Math.min(5, b.r * 0.3));
+            const xr = Math.max(rq + 1, colBT.x - rq - 3);
+            ctx.strokeStyle = "rgba(232,184,92,0.45)"; ctx.lineWidth = 1; ctx.setLineDash([1, 2]);
+            ctx.beginPath(); ctx.moveTo(xr + rq, b.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.setLineDash([]);
+            ctx.beginPath(); ctx.arc(xr, b.y, rq, 0, Math.PI * 2);
+            ctx.strokeStyle = buy ? flowColorsRef.current.btBuy : flowColorsRef.current.btSell; ctx.lineWidth = 1.4; ctx.stroke();
+            ctx.restore();
+            forceChips.push({ x: xr - rq - 2, y: b.y - rq - 2, w: 2 * rq + 4, h: 2 * rq + 4 });
+            drawnDiscs.push({ x: xr, y: b.y, r: rq });
+            sovereigntyHeld++;
+            continue;
+          }
           if (bubbleRank++ >= BIG_TRADE_FULL && hoverId !== b.id && !selB) {
             ctx.save();
             ctx.globalAlpha = att.alpha("bigTrades");
@@ -13491,6 +13524,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // The registry's column blocker is this frame's measurement from here on.
       wordGateColumnRef.current = newestColumnKeepOut();
       wordGate.setColumn(wordGateColumnRef.current);
+      fogGate.setKeepOut(sovereignColumn());
       const newestColumnRects = () => { const c = newestColumnKeepOut(); return c ? [c] : []; };
       const onNewestColumn = (x: number, y: number, w: number, h: number): boolean => {
         const c = newestColumnKeepOut();
@@ -14387,6 +14421,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.save();
                 ctx.globalAlpha = att.alpha("absorption");
                 ctx.clip(cutT, "evenodd");
+                // PHONE (serving 390/430, f37005c, 2026-10-09): the four nested
+                // shells sum to 0.67 ink at the core — a grey fog around the
+                // candles once the phone's ink came back to full. On narrow glass
+                // the shells share the fog cap (their SUM is FOG_CAP; the contour
+                // hairlines keep the form), and the mass stops at the newest
+                // candles' column (price sovereignty).
+                const massK = narrowGlass ? FOG_CAP / (0.1 + 0.145 + 0.19 + 0.235) : 1;
+                const colM = sovereignColumn();
+                if (colM) {
+                  const cutCol = new Path2D();
+                  cutCol.rect(0, 0, W, H);
+                  cutCol.rect(colM.x, colM.y, colM.w, colM.h);
+                  ctx.clip(cutCol, "evenodd");
+                  sovereigntyHeld++;
+                }
+                ds.absorptionMassInk = `SUM:${((0.1 + 0.145 + 0.19 + 0.235) * massK).toFixed(2)}${colM ? "|COLUMN_CUT" : ""}`;
                 const layers = [9, 5, 3, 1];
                 const spread = [1, 0.8, 0.6, 0.4];
                 const halves: number[][] = [];
@@ -14399,7 +14449,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   for (let i = 0; i < terr.length; i++) (i ? ctx.lineTo(terr[i].x, mid[i] - half[i]) : ctx.moveTo(terr[i].x, mid[i] - half[i]));
                   for (let i = terr.length - 1; i >= 0; i--) ctx.lineTo(terr[i].x, mid[i] + half[i]);
                   ctx.closePath();
-                  ctx.fillStyle = `rgba(${170 + li * 18},${166 + li * 18},${158 + li * 18},${(0.1 + li * 0.045).toFixed(3)})`;
+                  ctx.fillStyle = `rgba(${170 + li * 18},${166 + li * 18},${158 + li * 18},${((0.1 + li * 0.045) * massK).toFixed(3)})`;
                   ctx.fill();
                   ctx.strokeStyle = `rgba(230,226,216,${(0.18 + li * 0.1).toFixed(2)})`;
                   ctx.lineWidth = li === layers.length - 1 ? 1.1 : 0.7;
@@ -19469,12 +19519,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   // …and never on the newest candles' column (serving 390 + 834
                   // all-on, 92895d6, 2026-10-09: "CALL OI 31200 · 515" across the
                   // forming candle). No clear row → the tick stays, the words are listed.
-                  const offColumn = (k: number) => { const q = at(k); return !onNewestColumn(q.x, q.y, q.w, q.h); };
+                  const offColumn = (k: number) => {
+                    const q = at(k);
+                    if (onNewestColumn(q.x, q.y, q.w, q.h)) return false;
+                    // PRICE SOVEREIGNTY (narrow glass): nor on any candle body on its row.
+                    return !(narrowGlass && rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y));
+                  };
                   const kClear = near.find(k => offColumn(k) && !over(at(k), [...placed, ...fixedChips]))
                     ?? [...near, -4, 4, -5, 5, -6, 6].find(k => offColumn(k) && !over(at(k), placed));
                   if (kClear === undefined) {
                     displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: x + tw / 2, y: t.y });
                     oiWordsListed++;
+                    if (narrowGlass) sovereigntyHeld++;
                     continue;
                   }
                   const k = kClear;
@@ -19609,6 +19665,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const glyph = s.e.side === "BUY" || s.e.side === "ASK_NEAR" ? "+" : s.e.side === "SELL" || s.e.side === "BID_NEAR" ? "−" : "?";
                 // Offset off the candle body: calls above the close, puts below.
                 const cy = s.y + (s.e.type === "call" ? -(r + 8) : r + 8);
+                // PRICE SOVEREIGNTY: a mark that would sit on the newest candles'
+                // column (narrow glass) is a small ring at the column's left edge
+                // with a hairline to its bar — still tappable, its ticket intact.
+                const colF = sovereignColumn();
+                if (colF && pinnedFlowRef.current !== s.e.id
+                  && s.x + r > colF.x && s.x - r < colF.x + colF.w && cy + r > colF.y && cy - r < colF.y + colF.h) {
+                  const rs = 3.5, xs = Math.max(rs + 1, colF.x - rs - 3);
+                  ctx.strokeStyle = `rgba(${rgb},0.45)`; ctx.lineWidth = 1; ctx.setLineDash([1, 2]);
+                  ctx.beginPath(); ctx.moveTo(xs + rs, cy); ctx.lineTo(s.x, cy); ctx.stroke(); ctx.setLineDash([]);
+                  ctx.strokeStyle = `rgba(${rgb},${s.e.sideStamped ? 0.95 : 0.6})`; ctx.lineWidth = 1.5;
+                  ctx.beginPath(); ctx.arc(xs, cy, rs, 0, Math.PI * 2); ctx.stroke();
+                  floatingChips.push({ x: xs - rs, y: cy - rs, w: 2 * rs, h: 2 * rs });
+                  flowHitRef.current.push({ id: s.e.id, x: xs, y: cy, r: rs + 6 });
+                  sovereigntyHeld++;
+                  return;
+                }
                 ctx.fillStyle = "rgba(11,10,8,0.85)";
                 ctx.beginPath(); ctx.arc(s.x, cy, r, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = `rgba(${rgb},${s.e.sideStamped ? 0.95 : 0.6})`;
@@ -19629,6 +19701,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const lx = Math.min(plotRightD - tw / 2 - 4, Math.max(tw / 2 + 4, s.x));
                   const ly = s.e.type === "call" ? cy - r - 9 : cy + r + 9;
                   const box = { x: lx - tw / 2 - 3, y: ly - 7, w: tw + 6, h: 13 };
+                  // PRICE SOVEREIGNTY: the print's name never on the newest column,
+                  // nor (narrow glass) on a candle body — it is listed instead.
+                  if (narrowGlass && (onNewestColumn(box.x, box.y, box.w, box.h) || rowBodiesAt(box.y, box.y + box.h).some(q => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y))) {
+                    displacedNotes.push({ layer: "DERIVATIVES", text: words, x: lx, y: ly });
+                    sovereigntyHeld++;
+                    return;
+                  }
                   if (!floatingChips.some(q => box.x < q.x + q.w && box.x + box.w > q.x && box.y < q.y + q.h && box.y + box.h > q.y)) {
                     ctx.fillStyle = "rgba(11,10,8,0.85)";
                     if (chipBox(words, box)) ctx.fillRect(box.x, box.y, box.w, box.h);
@@ -25862,6 +25941,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const tagT = debtTagRef.current;
         let tagState: "NONE" | "OFF_CAMERA" | "DRAWN" = "NONE";
         let tagMode: string | null = null;
+        let waitFolded = false;
         try {
           // H-501 · the WAIT tag is MID's and NEAR's: SILENT at FAR.
           if (tagT && att.paints("debtTag")) {
@@ -25914,6 +25994,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 strict: true,
                 alternates: [above, ...fartherT],
               });
+              // PRICE SOVEREIGNTY: on narrow glass the plate has a slot clear of
+              // the newest column AND every candle body, or it is not painted —
+              // the WAIT strip under the chart carries the word (it always does).
+              if (narrowGlass && (spotT.mode === "BLOCKED" || spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h))) {
+                waitFolded = true;
+                sovereigntyHeld++;
+                ctx.restore();
+              } else {
               recordKeepOut(keepOutLedger, spotT);
               floatingChips.push({ x: spotT.rect.x, y: spotT.rect.y, w: spotT.rect.w, h: spotT.rect.h });
               const r = spotT.rect;
@@ -25966,10 +26054,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ctx.restore();
               tagState = "DRAWN";
               tagMode = spotT.mode;
+              }
             }
           }
         } catch { /* camera mid-transition: the receipt below still names the state */ }
         canvas.dataset.debtTag = tagState;
+        if (waitFolded) canvas.dataset.debtTag = "FOLDED:WAIT_STRIP";
         if (tagT && !att.permission.paints("debtTag")) canvas.dataset.debtTag = att.offWord(true);
         if (tagState === "DRAWN" && tagT) {
           canvas.dataset.debtTagBar = String(tagT.barTimeSec);
@@ -26193,6 +26283,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         canvas.dataset.wordGateTruth = wordGate.truthReceipt();
         canvas.dataset.fieldFog = fogGate.receipt();
         // The phone's own glass rules, in one receipt (desk: OFF).
+        canvas.dataset.priceSovereignty = narrowGlass ? `NEWEST_COLUMN_CLEAR:${sovereigntyHeld + fogGate.columnCuts()}` : "OFF";
         canvas.dataset.phoneGlass = narrowGlass ? `DISC_R:${BIG_TRADE_NARROW_MAX_R}|ZONE:BAND:${ZONE_BAND_NARROW_FILL}|CONTEXT:0.55/0.3` : "OFF";
         if (wordGateHeld.length) canvas.dataset.wordGateHeld = wordGate.heldSample(); else delete canvas.dataset.wordGateHeld;
         const anchors = composeOn ? composeNoteAnchors(displacedNotes) : [];
@@ -29596,7 +29687,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
              the volume histogram and the axis foot. Under 640px the row is
              CLOSED at rest — one chip in the footer band opens it, and says
              which non-default modes are on so nothing is hidden by closing. */}
-        <button type="button" className="wm-chart-scale-toggle wm-tap-slop" data-testid="chart-scale-toggle"
+        <button type="button" className="absolute wm-chart-scale-toggle wm-tap-slop" data-testid="chart-scale-toggle"
           aria-expanded={scaleRowOpen} aria-controls="wm-chart-scale-row"
           aria-label={`Scale and motion controls${pctMode ? ", percent axis on" : ""}${logScale ? ", log scale on" : ""}${!autoScale ? ", auto-fit off" : ""}. ${scaleRowOpen ? "Close" : "Open"}.`}
           onClick={() => setScaleRowOpen(o => !o)}>

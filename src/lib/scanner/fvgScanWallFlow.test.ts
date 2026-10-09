@@ -66,7 +66,8 @@ describe("FVG + options wall — only from the one options owner, returning to t
     expect(w.href).toBe(r.hits[0].href);
     expect(w.with).toEqual(["NEW_FVG"]);
     expect(w.relationships.join(" ")).toMatch(/Options walls put wall 101\.50 — inside · owner says BORN · DEGRADED \(DELAYED chain \(120 contracts\)/);
-    expect(r.unavailable.map(u => u.condition)).toEqual(["FVG_PLUS_ORDER_FLOW"]);
+    // The 18-bar fixture is too short for the effort owner to rank a bar — said, beside the order-flow reason (§13).
+    expect(r.unavailable.map(u => u.condition)).toEqual(["FVG_PLUS_ORDER_FLOW", "FVG_PLUS_EFFORT"]);
   });
 
   it("a wall far from the gap is no convergence (and not UNAVAILABLE — it was read)", () => {

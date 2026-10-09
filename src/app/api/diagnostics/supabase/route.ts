@@ -11,6 +11,8 @@
  */
 
 import { NextResponse } from "next/server";
+import { tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
+import { requireAuth } from "@/lib/requireAuth";
 import {
   resolveSupabaseServiceKey,
   supabaseServiceKeySource,
@@ -21,10 +23,28 @@ import {
   supabaseEnvShape,
 } from "@/lib/supabaseConfigStatus";
 
-export async function GET() {
+export async function GET(request: Request) {
   const status = supabaseConfigStatus();
   const defects = supabaseEnvDefects();
   const capabilityGaps = supabaseCapabilityGaps();
+  const healthy = status.configured && defects.length === 0 && capabilityGaps.length === 0;
+
+  // API audit P1-4 (2026-10-09). This report stays PUBLIC only for the case it exists
+  // for — nobody can sign in, so the fix list must be readable without a session. When
+  // the backend is HEALTHY there is no lock-out to diagnose, and a standing map of the
+  // auth variables (which name carries the service key, each variable's shape) is not
+  // owed to a guest or a member: they get `{ healthy: true }`. The operator still
+  // receives the whole report.
+  if (healthy) {
+    let operator = false;
+    try {
+      const auth = await requireAuth(request);
+      operator = auth.ok && tastytradeOwnerGate(auth.user.sub, process.env).allowed;
+    } catch {
+      operator = false;
+    }
+    if (!operator) return NextResponse.json({ healthy: true }, { status: 200, headers: { "Cache-Control": "no-store" } });
+  }
 
   return NextResponse.json(
     {
@@ -51,7 +71,7 @@ export async function GET() {
       // does not say which of the two to go and set. A NAME, never a value.
       serviceRoleKeySource: supabaseServiceKeySource(process.env),
       serviceRoleKeyAcceptedNames: SERVICE_KEY_VARS,
-      healthy: status.configured && defects.length === 0 && capabilityGaps.length === 0,
+      healthy,
     },
     { status: 200, headers: { "Cache-Control": "no-store" } },
   );

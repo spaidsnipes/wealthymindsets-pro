@@ -84,13 +84,23 @@ export function inkAlpha(fillStyle: unknown): number | null {
   return m ? Number(m[1]) : 1;
 }
 
-type FogCtx = Pick<CanvasRenderingContext2D, "fillRect" | "fillStyle" | "globalAlpha" | "getTransform">;
+type FogCtx = Pick<CanvasRenderingContext2D, "fillRect" | "fillStyle" | "globalAlpha" | "getTransform" | "save" | "restore" | "beginPath" | "rect" | "clip">;
 
 export interface FogGate {
   /** Start a frame. `on: false` (the desk) counts nothing and scales nothing. */
   beginFrame(opts: { on: boolean; plot: { w: number; h: number }; dpr: number }): void;
   /** `OFF` · `WORST:<after>|RAW:<before>|K:<scale>|FILLS:<n>` — the frame so far. */
   receipt(): string;
+  /**
+   * PRICE SOVEREIGNTY ON NARROW GLASS (Founder, 2026-10-09: the busiest spot on
+   * the phone was the newest candles and the last price). While a keep-out is
+   * set, a translucent rectangle fill WIDER than the newest-candle column (a
+   * zone band, a lifecycle pool, an envelope wash) is painted with that column
+   * cut out of it. A fill 2px or thinner is a hairline and passes whole.
+   */
+  setKeepOut(rect: { x: number; y: number; w: number; h: number } | null): void;
+  /** How many fills had the newest column cut out of them this frame. */
+  columnCuts(): number;
 }
 
 const GATES = new WeakMap<object, FogGate>();
@@ -106,18 +116,36 @@ export function installFogGate(ctx: FogCtx): FogGate {
   let minArea = Infinity;
   let ledger: FogLedger | null = null;
   let nextScale = 1;
+  let keepOut: { x: number; y: number; w: number; h: number } | null = null;
+  let minWide = Infinity;
+  let cuts = 0;
   ctx.fillRect = function fogFillRect(this: FogCtx, x: number, y: number, w: number, h: number) {
-    // One multiplication for every small fill — candles, bars, cells, chips.
-    if (!on || !ledger || Math.abs(w * h) < minArea) return raw.call(this as CanvasRenderingContext2D, x, y, w, h);
+    // Two comparisons for every small fill — candles, bars, cells, chips.
+    if (!on || !ledger || (Math.abs(w * h) < minArea && Math.abs(w) < minWide)) return raw.call(this as CanvasRenderingContext2D, x, y, w, h);
     const ink = inkAlpha(this.fillStyle);
     if (ink == null || ink >= FOG_OPAQUE || ink <= 0) return raw.call(this as CanvasRenderingContext2D, x, y, w, h);
     const tr = this.getTransform();
     const k = dpr > 0 ? dpr : 1;
     const rx = (tr.a * x + tr.e) / k, ry = (tr.d * y + tr.f) / k, rw = (tr.a * w) / k, rh = (tr.d * h) / k;
     const rect = { x: Math.min(rx, rx + rw), y: Math.min(ry, ry + rh), w: Math.abs(rw), h: Math.abs(rh) };
-    if (rect.w * rect.h < plot.w * plot.h * FOG_MIN_COVER) return raw.call(this as CanvasRenderingContext2D, x, y, w, h);
+    const large = rect.w * rect.h >= plot.w * plot.h * FOG_MIN_COVER;
+    const col = keepOut;
+    const crosses = col != null && rect.h > 2 && rect.w >= 2 * col.w
+      && rect.x < col.x + col.w && rect.x + rect.w > col.x && rect.y < col.y + col.h && rect.y + rect.h > col.y;
+    if (!large && !crosses) return raw.call(this as CanvasRenderingContext2D, x, y, w, h);
     const ga = this.globalAlpha;
-    const s = ledger.add(rect, ink * ga);
+    const s = large ? ledger.add(rect, ink * ga) : 1;
+    if (crosses && col && tr.a !== 0 && tr.d !== 0) {
+      cuts++;
+      this.save();
+      this.beginPath();
+      this.rect(x, y, w, h);
+      // The column, in the context's own units.
+      this.rect((col.x * k - tr.e) / tr.a, (col.y * k - tr.f) / tr.d, (col.w * k) / tr.a, (col.h * k) / tr.d);
+      this.clip("evenodd");
+      if (s < 1) this.globalAlpha = ga * s;
+      try { return raw.call(this as CanvasRenderingContext2D, x, y, w, h); } finally { this.restore(); }
+    }
     if (s >= 1) return raw.call(this as CanvasRenderingContext2D, x, y, w, h);
     this.globalAlpha = ga * s;
     try { return raw.call(this as CanvasRenderingContext2D, x, y, w, h); } finally { this.globalAlpha = ga; }
@@ -131,7 +159,10 @@ export function installFogGate(ctx: FogCtx): FogGate {
       // In the context's own units a fill smaller than this can never be large (transform scale ≥ 1).
       minArea = plot.w * plot.h * FOG_MIN_COVER * 0.25;
       ledger = on ? createFogLedger(plot, nextScale) : null;
+      keepOut = null; minWide = Infinity; cuts = 0;
     },
+    setKeepOut(rect) { keepOut = on ? rect : null; minWide = keepOut ? 2 * keepOut.w : Infinity; },
+    columnCuts: () => cuts,
     receipt() {
       if (!on || !ledger) return "OFF";
       const f = ledger.frame();

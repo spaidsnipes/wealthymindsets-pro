@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { createHmac, createHash } from "crypto";
 import { requireAuth } from "@/lib/requireAuth";
+import { CREDENTIAL_PROBE_INVALID, credentialProbeGate } from "@/lib/broker/credentialProbeGate";
 
 export async function POST(req: Request) {
   // WM-SEC-P0-06: was unauthenticated credential-echo proxy.
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+  // API audit P1-1 (2026-10-09): same-origin, operator only, five probes per ten minutes.
+  { const refusal = credentialProbeGate(req, auth.user.sub); if (refusal) return refusal; }
   const { key, secret } = await req.json().catch(() => ({})) as { key?: string; secret?: string };
   if (!key || !secret) return NextResponse.json({ error: "API Key and Private Key are required" }, { status: 400 });
 
@@ -24,7 +27,8 @@ export async function POST(req: Request) {
 
   if (!res || !res.ok) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   const data = await res.json() as { result?: Record<string, string>; error?: string[] };
-  if (data.error && data.error.length > 0) return NextResponse.json({ error: data.error[0] }, { status: 401 });
+  // The provider's own error text stays on the server (P1-1): plain words only.
+  if (data.error && data.error.length > 0) return NextResponse.json({ error: CREDENTIAL_PROBE_INVALID }, { status: 401 });
 
   const balances = data.result ?? {};
   const zusd = parseFloat(balances["ZUSD"] ?? "0");

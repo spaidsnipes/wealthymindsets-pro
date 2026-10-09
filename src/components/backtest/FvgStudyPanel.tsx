@@ -54,9 +54,10 @@ const FACET_LABEL: Record<FvgStudyFacet, string> = {
   structure: "Structure (swing broken / reclaimed / inside)",
   profile: "Prior-range profile level at the gap",
   volatility: "Volatility at formation (from bars)",
+  effort: "Effort→response of the displacement bar",
 };
 
-const FILTER_FACETS: readonly FvgStudyFacet[] = ["instrument", "timeframe", "session", "regime", "direction", "displacement", "crossesSession", "structure", "profile", "volatility"];
+const FILTER_FACETS: readonly FvgStudyFacet[] = ["instrument", "timeframe", "session", "regime", "direction", "displacement", "crossesSession", "structure", "profile", "volatility", "effort"];
 
 const RELATIONSHIP_VALUE_LABEL: Readonly<Record<string, string>> = {
   WITH_STRUCTURE: "With a structure relationship",
@@ -88,7 +89,18 @@ const VOLATILITY_VALUE_LABEL: Readonly<Record<string, string>> = {
   NOT_READ: "Not read (too few bars before the gap)",
 };
 
+/** §13 — the Response Matrix's five cells (the owner's words) and the stated silence. */
+const EFFORT_VALUE_LABEL: Readonly<Record<string, string>> = {
+  ABSORBED: "Absorbed (large effort · small response)",
+  INITIATIVE: "Initiative (large effort · large response)",
+  VACUUM: "Vacuum (small effort · large response)",
+  QUIET: "Quiet (small effort · small response)",
+  ORDINARY: "Ordinary effort and response",
+  EFFORT_SILENT: "Not read (no traded volume, or too few bars before the gap)",
+};
+
 export function facetValueLabel(facet: FvgStudyFacet, v: string): string {
+  if (facet === "effort") return EFFORT_VALUE_LABEL[v] ?? v;
   if (facet === "session") return SESSION_VALUE_LABEL[v] ?? v;
   if (facet === "regime") return REGIME_VALUE_LABEL[v] ?? v;
   if (facet === "volatility") return VOLATILITY_VALUE_LABEL[v] ?? v;

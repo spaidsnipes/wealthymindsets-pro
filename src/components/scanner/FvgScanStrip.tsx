@@ -124,6 +124,8 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
   const flowUnavailable = unavailable.filter(u => u.condition === "FVG_PLUS_ORDER_FLOW");
   const showWall = only === "ALL" || only === "FVG_PLUS_WALL";
   const showFlow = only === "ALL" || only === "FVG_PLUS_ORDER_FLOW";
+  const effortUnavailable = unavailable.filter(u => u.condition === "FVG_PLUS_EFFORT");
+  const showEffort = only === "ALL" || only === "FVG_PLUS_EFFORT";
 
   return (
     <div className="shrink-0 border-b border-wm-border bg-wm-dark/60" data-testid="scanner-fvg" data-proof-scene={fixture ? "scanner-fixture" : undefined}>
@@ -221,6 +223,16 @@ export function FvgScanStrip({ symbols: fixedSymbols, onOpenSymbol }: { symbols:
             <p data-testid="scanner-fvg-unavailable-flow" className="mt-1 text-[10px] text-wm-text-dim">
               <span className="font-bold text-wm-text-muted">{FVG_CONVERGENCE_LABEL.FVG_PLUS_ORDER_FLOW}: UNAVAILABLE</span> for the {flowUnavailable.length} symbol{flowUnavailable.length === 1 ? "" : "s"} with a condition — {FVG_SCAN_ORDER_FLOW_UNAVAILABLE}.
             </p>
+          )}
+          {showEffort && effortUnavailable.length > 0 && (
+            <details className="mt-1" data-testid="scanner-fvg-unavailable-effort">
+              <summary className="text-[10px] text-wm-text-dim cursor-pointer">{FVG_CONVERGENCE_LABEL.FVG_PLUS_EFFORT}: UNAVAILABLE for {effortUnavailable.length} symbol{effortUnavailable.length === 1 ? "" : "s"} with a condition — why</summary>
+              <ul className="mt-1 space-y-0.5">
+                {effortUnavailable.map(u => (
+                  <li key={u.symbol} className="text-[10px] text-wm-text-dim"><span className="font-bold text-wm-text-muted">{u.symbol}</span> — {u.reason}</li>
+                ))}
+              </ul>
+            </details>
           )}
           {showWall && wallUnavailable.length > 0 && (
             <details className="mt-1" data-testid="scanner-fvg-unavailable-wall">

@@ -123,7 +123,15 @@ export interface FvgStudyFilters {
   readonly profile?: "WITH_PROFILE" | "NO_PROFILE" | "ALL";
   /** Volatility at formation, from closed bars up to the gap's middle bar (BARS scope — not the regime). */
   readonly volatility?: FvgVolatilityFacet | "ALL";
+  /**
+   * §13 — the Response Matrix cell of the gap's displacement bar, ranked over the closed bars ending
+   * at it (fvgRelationships EFFORT_RESPONSE, by reference), or EFFORT_SILENT where the bars carry no
+   * traded volume or the owner could not read that bar.
+   */
+  readonly effort?: string | "ALL";
 }
+
+export const FVG_STUDY_EFFORT_SILENT = "EFFORT_SILENT" as const;
 
 export interface FvgStudySeries {
   readonly symbolId: string;
@@ -151,7 +159,7 @@ export interface FvgStudySeriesReading {
   readonly detectedInWindow: number;
 }
 
-export type FvgStudyFacet = Exclude<FvgStatsDimension, never> | "displacement" | "structure" | "profile" | "volatility";
+export type FvgStudyFacet = Exclude<FvgStatsDimension, never> | "displacement" | "structure" | "profile" | "volatility" | "effort";
 
 export interface FvgStudy {
   readonly label: typeof FVG_STUDY_LABEL;
@@ -177,14 +185,28 @@ export interface FvgStudy {
 }
 
 /** Relationship families per object, cached per bars array (they read only pre-formation bars). */
-const relCache = new WeakMap<readonly CanonicalBar[], { ctx: FvgBarContext; byId: Map<string, ReadonlySet<RelationshipFamily>> }>();
+const relCache = new WeakMap<readonly CanonicalBar[], { ctx: FvgBarContext; byId: Map<string, { families: ReadonlySet<RelationshipFamily>; effort: string }> }>();
 
-export function fvgStudyRelationshipFamilies(s: FvgStudySeries, o: FvgObject): ReadonlySet<RelationshipFamily> {
+function studyRelationships(s: FvgStudySeries, o: FvgObject): { families: ReadonlySet<RelationshipFamily>; effort: string } {
   let c = relCache.get(s.bars);
   if (!c) { c = { ctx: fvgBarContext(s.bars, s.symbolId, s.timeframe), byId: new Map() }; relCache.set(s.bars, c); }
   let f = c.byId.get(o.objectId);
-  if (!f) { f = fvgRelationshipFamilies(fvgBarOnlyRelationships(c.ctx, o)); c.byId.set(o.objectId, f); }
+  if (!f) {
+    const reading = fvgBarOnlyRelationships(c.ctx, o);
+    // The displacement bar's cell only: fixed once b2 has closed, so a later touch can never move a gap's group.
+    f = { families: fvgRelationshipFamilies(reading), effort: reading.relationships.find(r => r.kind === "DISPLACEMENT_EFFORT")?.ownerState ?? FVG_STUDY_EFFORT_SILENT };
+    c.byId.set(o.objectId, f);
+  }
   return f;
+}
+
+export function fvgStudyRelationshipFamilies(s: FvgStudySeries, o: FvgObject): ReadonlySet<RelationshipFamily> {
+  return studyRelationships(s, o).families;
+}
+
+/** §13 — the displacement bar's effort→response cell (the owner's word), or EFFORT_SILENT. */
+export function fvgStudyEffort(s: FvgStudySeries, o: FvgObject): string {
+  return studyRelationships(s, o).effort;
 }
 
 /**
@@ -209,7 +231,7 @@ type Volatilities = ReadonlyMap<string, FvgVolatilityFacet>;
 type Families = ReadonlyMap<string, ReadonlySet<RelationshipFamily>>;
 const NO_FAMILIES: ReadonlySet<RelationshipFamily> = new Set();
 
-const facetKeys = (families: Families, volatilities: Volatilities = new Map()): Readonly<Record<FvgStudyFacet, (o: FvgObject) => string>> => {
+const facetKeys = (families: Families, volatilities: Volatilities = new Map(), efforts: ReadonlyMap<string, string> = new Map()): Readonly<Record<FvgStudyFacet, (o: FvgObject) => string>> => {
   const fam = (o: FvgObject) => families.get(o.objectId) ?? NO_FAMILIES;
   return {
   instrument: o => o.symbolId,
@@ -222,6 +244,7 @@ const facetKeys = (families: Families, volatilities: Volatilities = new Map()): 
   structure: o => (fam(o).has("STRUCTURE") ? "WITH_STRUCTURE" : "NO_STRUCTURE"),
   profile: o => (fam(o).has("PROFILE") ? "WITH_PROFILE" : "NO_PROFILE"),
   volatility: o => volatilities.get(o.objectId) ?? "NOT_READ",
+  effort: o => efforts.get(o.objectId) ?? FVG_STUDY_EFFORT_SILENT,
   };
 };
 
@@ -239,6 +262,7 @@ function passes(o: FvgObject, f: FvgStudyFilters, FACET_KEY: ReturnType<typeof f
     structure: f.structure,
     profile: f.profile,
     volatility: f.volatility,
+    effort: f.effort,
   };
   for (const k of FACETS) {
     const w = want[k];
@@ -260,12 +284,14 @@ export function runFvgStudy(input: FvgStudyInput): FvgStudy {
   const windowObjects: FvgObject[] = [];
   const families = new Map<string, ReadonlySet<RelationshipFamily>>();
   const volatilities = new Map<string, FvgVolatilityFacet>();
+  const efforts = new Map<string, string>();
   for (const s of input.series) {
     const ledger = fvgStudyLedger(s, input.asOfMs);
     const inWindow = ledger.objects.filter(o => fromMs === null || o.createdAt >= fromMs);
     windowObjects.push(...inWindow);
     for (const o of inWindow) families.set(o.objectId, fvgStudyRelationshipFamilies(s, o));
     for (const o of inWindow) volatilities.set(o.objectId, fvgStudyVolatility(s, o));
+    for (const o of inWindow) efforts.set(o.objectId, fvgStudyEffort(s, o));
     readings.push({
       symbolId: s.symbolId,
       timeframe: s.timeframe,
@@ -275,12 +301,12 @@ export function runFvgStudy(input: FvgStudyInput): FvgStudy {
       detectedInWindow: inWindow.length,
     });
   }
-  const FACET_KEY = facetKeys(families, volatilities);
+  const FACET_KEY = facetKeys(families, volatilities, efforts);
   const objects = windowObjects.filter(o => passes(o, filters, FACET_KEY));
   const by = {} as Record<FvgStudyFacet, Readonly<Record<string, FvgOutcomeStats>>>;
   const facets = {} as Record<FvgStudyFacet, { value: string; count: number }[]>;
   for (const k of FACETS) {
-    by[k] = k === "displacement" || k === "structure" || k === "profile" || k === "volatility" ? splitBy(objects, FACET_KEY[k]) : describeFvgOutcomesBy(objects, k);
+    by[k] = k === "displacement" || k === "structure" || k === "profile" || k === "volatility" || k === "effort" ? splitBy(objects, FACET_KEY[k]) : describeFvgOutcomesBy(objects, k);
     const counts = new Map<string, number>();
     for (const o of windowObjects) counts.set(FACET_KEY[k](o), (counts.get(FACET_KEY[k](o)) ?? 0) + 1);
     // Volatility reads in the helper's own order (compressed → normal → expanded → not read); the rest alphabetically.

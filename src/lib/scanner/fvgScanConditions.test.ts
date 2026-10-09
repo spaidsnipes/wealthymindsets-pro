@@ -118,7 +118,7 @@ describe("Scanner FVG conditions — the one engine, at the newest closed bar", 
   });
 
   it("CONVERGENCE: FVG + STRUCTURE when b2 broke a confirmed swing; FVG + PROFILE when a prior-range level sits at the gap", () => {
-    expect(FVG_CONVERGENCE_CONDITIONS).toEqual(["FVG_PLUS_STRUCTURE", "FVG_PLUS_PROFILE", "FVG_PLUS_WALL", "FVG_PLUS_ORDER_FLOW"]);
+    expect(FVG_CONVERGENCE_CONDITIONS).toEqual(["FVG_PLUS_STRUCTURE", "FVG_PLUS_PROFILE", "FVG_PLUS_EFFORT", "FVG_PLUS_WALL", "FVG_PLUS_ORDER_FLOW"]);
     // A swing high of 103 at bar 7 (confirmed 5 bars later, before b2 opens); b2 closes 103.8 through it.
     const swing: Row[] = FLAT.map((r, i) => (i === 7 ? [100, 103, 99, 100] as Row : r));
     const r = readAt([...swing, ...BULL]);

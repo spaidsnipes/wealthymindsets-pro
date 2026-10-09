@@ -145,6 +145,16 @@ describe("scene=verify — the banner", () => {
     expect(src).toContain('position: "fixed"');
     expect(src).toContain('pointerEvents: "none"');
     expect(src).not.toMatch(/setItem\(|localStorage|sessionStorage|fetch\(/);
+    // At the top edge, under the shell header — never on the thumb bar, the nav or the chart's foot (order 2026-10-09).
+    expect(src).toContain('data-banner-edge="top"');
+    expect(src).not.toMatch(/\bbottom:\s*\d/);
+    expect(src).toContain('".wm-os-masthead, .wm-shell-header"');
+    // No timer on a chart page: the header is observed, never polled, and the wait for it disconnects.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    expect(code).not.toMatch(/setInterval|setTimeout|requestAnimationFrame/);
+    expect(code).toContain("new ResizeObserver(measure)");
+    expect(code).toContain("waiting?.disconnect();");
+    expect(src).toContain("env(safe-area-inset-top)");
   });
 
   it("server render / guest: nothing is rendered (the banner appears only after mount, for a signed-in trader)", async () => {

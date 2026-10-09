@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/requireAuth";
+import { credentialProbeGate } from "@/lib/broker/credentialProbeGate";
 
 export async function POST(req: Request) {
   // WM-SEC-P0-06: was unauthenticated credential-echo proxy.
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
+  // API audit P1-1 (2026-10-09): same-origin, operator only, five probes per ten minutes.
+  { const refusal = credentialProbeGate(req, auth.user.sub); if (refusal) return refusal; }
   const { key } = await req.json().catch(() => ({})) as { key?: string };
   if (!key) return NextResponse.json({ error: "API Access Token is required" }, { status: 400 });
 

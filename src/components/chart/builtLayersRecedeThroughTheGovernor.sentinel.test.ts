@@ -331,7 +331,8 @@ describe("tablet all-on: names leave the newest candles' column (serving 834 + 3
   it("a swing tag and an OI tick word on the newest column are listed, not painted", () => {
     expect(CHART).toContain("if (onNewestColumn(W - 84 - tw - 8, y - 7, tw + 8, 14)) {");
     expect(CHART).toContain("ds.scaffoldingSwingTags = `LISTED:${swingTagsListed}`;");
-    expect(CHART).toContain("const offColumn = (k: number) => { const q = at(k); return !onNewestColumn(q.x, q.y, q.w, q.h); };");
+    expect(CHART).toContain("const offColumn = (k: number) => {");
+    expect(CHART).toContain("if (onNewestColumn(q.x, q.y, q.w, q.h)) return false;");
     expect(CHART).toContain('displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: x + tw / 2, y: t.y });');
   });
 });
@@ -356,5 +357,52 @@ describe("phone opacity — above the hill (Founder, 2026-10-09; serving 390/430
     expect(CHART).toContain('ctx.fillStyle = "rgba(201,165,92,0.08)";'); // the desk's box is untouched
     expect(CHART).toContain("if (narrowGlass) forceChips.push({ x: 0, y: HEADER_FLOOR_Y + 2, w: Math.min(plotRight, 230), h: 16 });");
     expect(CHART).toContain('ds.profileFusionSilence = `${fu ? fu.reason : "NO_READING"}:FOLDED`;');
+  });
+});
+
+describe("price sovereignty on narrow glass — every painter consults the one keep-out (Founder, 2026-10-09)", () => {
+  const FOG = readFileSync(path.join(process.cwd(), "src/lib/chart/fieldFogBudget.ts"), "utf8");
+  it("one column, the words' own, and one receipt", () => {
+    expect(CHART).toContain("const sovereignColumn = (): { x: number; y: number; w: number; h: number } | null => (narrowGlass ? wordGateColumnRef.current : null);");
+    expect(CHART).toContain("canvas.dataset.priceSovereignty = narrowGlass ? `NEWEST_COLUMN_CLEAR:${sovereigntyHeld + fogGate.columnCuts()}` : \"OFF\";");
+  });
+  it("big-trade disc: a ring at the column's left edge with a hairline, never a filled disc over the last bars; selected or hovered it draws in full", () => {
+    const i = CHART.indexOf("const colBT = sovereignColumn();");
+    expect(i).toBeGreaterThan(0);
+    const blk = CHART.slice(i, i + 1500);
+    expect(blk).toContain("if (colBT && !selB && hoverId !== b.id");
+    expect(blk).toContain("sovereigntyHeld++;");
+    expect(blk).toContain("continue;");
+    expect(blk.indexOf("continue;")).toBeLessThan(blk.indexOf("if (bubbleRank++ >= BIG_TRADE_FULL"));
+    // The print's own anchor is never rewritten.
+    expect(blk).not.toMatch(/\bb\.x\s*=[^=]/);
+  });
+  it("options-flow marks and their names, and the OI words, consult it", () => {
+    const i = CHART.indexOf("const colF = sovereignColumn();");
+    expect(i).toBeGreaterThan(0);
+    expect(CHART.slice(i, i + 1200)).toContain("flowHitRef.current.push({ id: s.e.id, x: xs, y: cy, r: rs + 6 });");
+    expect(CHART).toContain("if (narrowGlass && (onNewestColumn(box.x, box.y, box.w, box.h) || rowBodiesAt(box.y, box.y + box.h).some(");
+    expect(CHART).toContain("return !(narrowGlass && rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x && q.y < b.y + b.h && q.y + q.h > b.y));");
+  });
+  it("the WAIT plate has a slot clear of the column and every body, or it folds to the WAIT strip with a receipt", () => {
+    expect(CHART).toContain('if (narrowGlass && (spotT.mode === "BLOCKED" || spotT.onCandles || onNewestColumn(spotT.rect.x, spotT.rect.y, spotT.rect.w, spotT.rect.h))) {');
+    expect(CHART).toContain('if (waitFolded) canvas.dataset.debtTag = "FOLDED:WAIT_STRIP";');
+  });
+  it("translucent bands: the fog owner cuts the column out of any fill wider than it, this frame's column once measured", () => {
+    expect([...CHART.matchAll(/fogGate\.setKeepOut\(sovereignColumn\(\)\);/g)].length).toBe(2);
+    expect(FOG).toContain('this.clip("evenodd");');
+    expect(FOG).toContain("const crosses = col != null && rect.h > 2 && rect.w >= 2 * col.w");
+  });
+});
+
+describe("phone reads on f37005c (2026-10-09): the scale toggle sits in its corner; the absorption mass is not a grey fog", () => {
+  it("the toggle is positioned absolutely (wm-tap-slop makes a non-absolute element relative)", () => {
+    expect(CHART).toContain('<button type="button" className="absolute wm-chart-scale-toggle wm-tap-slop"');
+  });
+  it("on narrow glass the mass's four shells sum to the fog cap and stop at the newest column", () => {
+    expect(CHART).toContain("const massK = narrowGlass ? FOG_CAP / (0.1 + 0.145 + 0.19 + 0.235) : 1;");
+    expect(CHART).toContain("${((0.1 + li * 0.045) * massK).toFixed(3)})`;");
+    const i = CHART.indexOf("const colM = sovereignColumn();");
+    expect(CHART.slice(i, i + 400)).toContain('ctx.clip(cutCol, "evenodd");');
   });
 });

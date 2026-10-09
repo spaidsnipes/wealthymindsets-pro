@@ -11,6 +11,10 @@
  * GET /api/news-rss  →  { items: NormalizedNewsItem[] }
  */
 
+import { publicProxyLimit } from "@/lib/publicProxyLimit";
+import { requireAuth } from "@/lib/requireAuth";
+import { requestIsSameOrigin } from "@/lib/broker/credentialProbeGate";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { NextResponse } from "next/server";
 import { CANONICAL_URL } from "@/lib/canonicalUrl";
 
@@ -198,9 +202,23 @@ async function publicFeeds(): Promise<NormalizedNewsItem[]> {
   return items;
 }
 
+/** Caller-key lane: at most this many keyed reads per member per minute. */
+const CALLER_KEY_LIMIT = { max: 10, windowMs: 60_000 } as const;
+
 export async function GET(request: Request) {
-  const newsApiKey = request.headers.get("x-newsapi-key")?.trim();
-  const xBearer    = request.headers.get("x-x-bearer")?.trim();
+  // API audit P1-6 (2026-10-09): a ceiling per caller before any feed is asked.
+  { const limited = await publicProxyLimit(request, "feed"); if (limited) return limited; }
+  // API audit P1-2 (2026-10-09): this route relayed ANY caller's NewsAPI key / X bearer
+  // from WM's address, with no session — a public relay and a key oracle. The two
+  // caller-key lanes now need a signed-in session, this site's own origin and a
+  // small limiter. Anyone else gets the public feeds only; the keys are not used.
+  let newsApiKey = request.headers.get("x-newsapi-key")?.trim();
+  let xBearer    = request.headers.get("x-x-bearer")?.trim();
+  if (newsApiKey || xBearer) {
+    const auth = await requireAuth(request);
+    const keyed = auth.ok && requestIsSameOrigin(request) && checkRateLimit(`news-caller-keys:${auth.user.sub}`, CALLER_KEY_LIMIT).ok;
+    if (!keyed) { newsApiKey = undefined; xBearer = undefined; }
+  }
 
   const all = await Promise.all([
     publicFeeds(),
