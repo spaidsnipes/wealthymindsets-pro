@@ -64,7 +64,7 @@ import { installTypeFloor, NARROW_NAME_MIN_PX } from "@/lib/chart/typeFloor";
 import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
 import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLineLooks, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
-import { drawingSpeciesAlpha, lawfulSpeciesInks, layerDialOpacity } from "@/lib/chart/appearanceLaw";
+import { drawingSpeciesAlpha, inksDistinct, lawfulSpeciesInks, layerDialOpacity } from "@/lib/chart/appearanceLaw";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -772,7 +772,7 @@ import type { OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selec
 import { composeWallsGammaMarks, WALLS_GAMMA_OFF, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
 import { gexBucketAt, gexScopeWords, gexWords, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
 import { GAMMA_HEAT_PRESET_EVENT, gammaHeatPreset, gammaHeatStores, readGammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
-import { edgeChipWords, foldNarrowLine, offCameraShortWords, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
+import { CALL_WALL_RGB, PUT_WALL_RGB, edgeChipWords, foldNarrowLine, offCameraShortWords, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
@@ -1410,6 +1410,8 @@ interface Props {
     bigTradeBuy?: string; bigTradeSell?: string;
     deltaBuy?: string; deltaSell?: string;
     absorptionInk?: string; fusedProfileInk?: string;
+    // Per-invention colour (Founder G19 Supermax §5): absent = the shared ink they used before.
+    fvgBullInk?: string; fvgBearInk?: string; callWallInk?: string; putWallInk?: string;
     // Founder order §5 (2026-10-09): volume colours and the three opacity dials.
     volumeUp?: string; volumeDown?: string;
     profileOpacity?: number; wallOpacity?: number; memoryOpacity?: number;
@@ -3508,7 +3510,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const n = parseInt(m[1], 16);
     return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
   };
-  const flowColorsRef = useRef({ btBuy: "0,212,170", btSell: "255,77,106", dBuy: "34,197,94", dSell: "239,68,68", absorb: "224,190,92", fused: "240,190,70" });
+  const flowColorsRef = useRef({ btBuy: "0,212,170", btSell: "255,77,106", dBuy: "34,197,94", dSell: "239,68,68", absorb: "224,190,92", fused: "240,190,70", fvgBull: "34,197,94", fvgBear: "239,68,68", callWall: CALL_WALL_RGB, putWall: PUT_WALL_RGB });
   flowColorsRef.current = {
     absorb: hexRgb(chartSettings?.absorptionInk, "224,190,92"),
     fused: hexRgb(chartSettings?.fusedProfileInk, "240,190,70"),
@@ -3516,7 +3518,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     btSell: hexRgb(chartSettings?.bigTradeSell, "255,77,106"),
     dBuy: hexRgb(chartSettings?.deltaBuy, "34,197,94"),
     dSell: hexRgb(chartSettings?.deltaSell, "239,68,68"),
+    // FVG bands took the delta-bubble inks; they keep them until the trader picks their own.
+    fvgBull: hexRgb(chartSettings?.fvgBullInk ?? chartSettings?.deltaBuy, "34,197,94"),
+    fvgBear: hexRgb(chartSettings?.fvgBearInk ?? chartSettings?.deltaSell, "239,68,68"),
+    callWall: hexRgb(chartSettings?.callWallInk, CALL_WALL_RGB),
+    putWall: hexRgb(chartSettings?.putWallInk, PUT_WALL_RGB),
   };
+  // OPPOSED PAIRS STAY APART (appearanceLaw): a call ink the trader made the put's twin, or an FVG
+  // bull ink the bear's twin, falls back to the room's pair, whole.
+  {
+    const fc = flowColorsRef.current;
+    if (!inksDistinct(`rgb(${fc.callWall})`, `rgb(${fc.putWall})`)) { fc.callWall = CALL_WALL_RGB; fc.putWall = PUT_WALL_RGB; }
+    if (!inksDistinct(`rgb(${fc.fvgBull})`, `rgb(${fc.fvgBear})`)) { fc.fvgBull = "34,197,94"; fc.fvgBear = "239,68,68"; }
+  }
   // Live-readable timezone + clock format for the time axis / crosshair labels.
   const tzRef          = useRef<string>(chartSettings?.displayTimeZone || (typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "America/New_York"));
   const clock24hRef    = useRef<boolean>(chartSettings?.clock24h ?? false);
@@ -8847,7 +8861,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const yRefB = lastF ? srs.priceToCoordinate(lastF.close + Math.max(1e-9, Math.abs(lastF.close) * 0.01)) : null;
             const frameKey = `${W}x${H}|${vrK ? `${(+vrK.from).toFixed(3)},${(+vrK.to).toFixed(3)}` : "-"}|${bsp}|${yRefA},${yRefB}|${camF.length}|`
               + `${lastF ? `${lastF.time},${lastF.open},${lastF.high},${lastF.low},${lastF.close}` : "-"}|${selIdF}|${lineWordsF.map(w => w.price).join(",")}|`
-              + `${flowColorsRef.current.dBuy}|${flowColorsRef.current.dSell}|G${govLive.toFixed(2)},${govMemory.toFixed(2)}`;
+              + `${flowColorsRef.current.fvgBull}|${flowColorsRef.current.fvgBear}|G${govLive.toFixed(2)},${govMemory.toFixed(2)}`;
             let frame = fvgFrameRef.current;
             if (!frame || frame.scene !== scene || frame.key !== frameKey) {
               let axisF = 0;
@@ -8884,7 +8898,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // (selection, stale, posture, roles, depth) — never a second ceiling.
                 const rel = g.form === "LIVE" ? govLive / TIER_CEILING.LIVE : govMemory / TIER_CEILING.MEMORY;
                 const gov = selB ? 1 : Math.min(1, rel) * (weakBirth ? 0.7 : 1);
-                bands.push({ g, ink: g.bullish ? flowColorsRef.current.dBuy : flowColorsRef.current.dSell, sel: selB, gov });
+                bands.push({ g, ink: g.bullish ? flowColorsRef.current.fvgBull : flowColorsRef.current.fvgBear, sel: selB, gov });
                 maxX1 = Math.max(maxX1, g.x1);
               }
               const forms = { LIVE: 0, SCAR: 0, MEMORY: 0 };
@@ -20524,6 +20538,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               cutRects: cutsG, clearZone: clearG, keepRows: keepRowsG, preset,
               gammaAlpha: att.alpha("gammaHeatmap"), wallsAlpha: att.alpha("callWall"),
               pressureFieldOn: dpFieldOn, wallThickness: userMarksRef.current.wall,
+              callRgb: flowColorsRef.current.callWall, putRgb: flowColorsRef.current.putWall,
               lastPrice: barsG.length ? barsG[barsG.length - 1].close : null,
             });
             ds.gammaHeatmap = out.heat;

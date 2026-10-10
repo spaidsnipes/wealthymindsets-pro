@@ -52,6 +52,10 @@ export interface ChartSettings {
   deltaSell?: string;
   // Reading inks (same owner): the absorption shelf's words, the fused profile.
   absorptionInk?: string;
+  fvgBullInk?: string;
+  fvgBearInk?: string;
+  callWallInk?: string;
+  putWallInk?: string;
   fusedProfileInk?: string;
   // VOLUME (Founder order §5, 2026-10-09). Absent = the room's brass bars.
   volumeUp?: string;
@@ -97,6 +101,11 @@ export const FLOW_COLOR_DEFAULTS = {
   deltaSell: "#EF4444",
   absorptionInk: "#E0BE5C",
   fusedProfileInk: "#F0BE46",
+  // Per-invention colour (G19 Supermax §5). FVG bands borrowed the delta inks until now.
+  fvgBullInk: "#22C55E",
+  fvgBearInk: "#EF4444",
+  callWallInk: "#50BEB4",
+  putWallInk: "#D67896",
 } as const;
 
 export const DEFAULT_CHART_SETTINGS: ChartSettings = {
@@ -567,6 +576,11 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <ColorSwatch value={s.deltaSell ?? FLOW_COLOR_DEFAULTS.deltaSell}       onChange={v => set({ deltaSell: v })}      label="Delta bubble · net sell" />
                   <ColorSwatch value={s.absorptionInk ?? FLOW_COLOR_DEFAULTS.absorptionInk}     onChange={v => set({ absorptionInk: v })}   label="Absorption shelf · words" />
                   <ColorSwatch value={s.fusedProfileInk ?? FLOW_COLOR_DEFAULTS.fusedProfileInk} onChange={v => set({ fusedProfileInk: v })} label="Fused profile · outline + POC/VA" />
+                  <ColorSwatch value={s.fvgBullInk ?? s.deltaBuy ?? FLOW_COLOR_DEFAULTS.fvgBullInk}   onChange={v => set({ fvgBullInk: v })}   label="Fair Value Gap · bullish" />
+                  <ColorSwatch value={s.fvgBearInk ?? s.deltaSell ?? FLOW_COLOR_DEFAULTS.fvgBearInk}  onChange={v => set({ fvgBearInk: v })}   label="Fair Value Gap · bearish" />
+                  <ColorSwatch value={s.callWallInk ?? FLOW_COLOR_DEFAULTS.callWallInk} onChange={v => set({ callWallInk: v })} label="Call Wall (solid)" />
+                  <ColorSwatch value={s.putWallInk ?? FLOW_COLOR_DEFAULTS.putWallInk}   onChange={v => set({ putWallInk: v })}   label="Put Wall (dashed)" />
+                  <div style={{ fontSize: 11, color: "#8b8fa8", margin: "2px 0 4px" }}>A pair you make identical goes back to the room&apos;s pair.</div>
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Volume Colors</div>

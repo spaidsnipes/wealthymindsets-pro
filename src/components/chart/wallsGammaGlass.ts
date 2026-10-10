@@ -48,6 +48,9 @@ export interface WallsGammaGlassEnv {
   readonly wallThickness: number;
   /** The last price — which side of the camera an off-camera mark lies on. */
   readonly lastPrice: number | null;
+  /** The trader's call / put wall inks ("r,g,b"); absent = the room's. Call solid, put dashed either way. */
+  readonly callRgb?: string;
+  readonly putRgb?: string;
 }
 
 export interface WallsGammaLabelJob { readonly y: number; readonly text: string; readonly rgb: string; readonly kinds: readonly string[] }
@@ -69,8 +72,9 @@ export function edgeChipWords(dir: "above" | "below", marks: readonly WallsGamma
   return `${dir === "above" ? "▲" : "▼"} ${marks[0].label}${marks.length > 1 ? `  +${marks.length - 1} more` : ""}`;
 }
 
-const CALL_RGB = "80,190,180";
-const PUT_RGB = "214,120,150";
+/** The room's call / put wall inks; the trader's own (Chart Settings) arrive as env.callRgb / env.putRgb. */
+export const CALL_WALL_RGB = "80,190,180";
+export const PUT_WALL_RGB = "214,120,150";
 const FLIP_RGB = "236,222,190";
 
 const hatchCache = new Map<string, HTMLCanvasElement>();
@@ -204,7 +208,7 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
       ctx.save();
       if (kind === "CALL_WALL" || kind === "PUT_WALL") {
         const call = kind === "CALL_WALL";
-        rgb = call ? CALL_RGB : PUT_RGB;
+        rgb = call ? (env.callRgb ?? CALL_WALL_RGB) : (env.putRgb ?? PUT_WALL_RGB);
         ctx.strokeStyle = `rgba(${rgb},${(0.9 * env.wallsAlpha).toFixed(3)})`;
         ctx.lineWidth = 2.5 * env.wallThickness;
         // Call solid, put dashed: told apart without colour.
