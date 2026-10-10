@@ -501,3 +501,44 @@ describe("ASK-17 (2026-10-08): the header's feed verdict is the one grader", () 
     expect(createChartMarketStatePublication(base()).qualityState).toBe(createChartMarketStatePublication({ ...base(), feedState: null }).qualityState);
   });
 });
+
+/**
+ * CLOSED IS NOT STALE (2026-10-09). Serving c9303a7, Friday 18:28 CDT, NQ1! —
+ * CME shut since 17:00 ET: the MARKET cell read "STALE" while the header and
+ * the Honesty Plaque, both graded WITH the proven closure, read session-closed.
+ * The publisher graded the quote a third time and was never told the market was
+ * shut. It is now handed the same closure and says CLOSED.
+ */
+describe("a proven-closed session is CLOSED, never STALE", () => {
+  // A futures quote whose last print is older than the tape window.
+  const quiet = (): ChartMarketStatePublicationInput => ({ ...base(), symbol: "NQ1!", session: "ETH", source: "tastytrade" as const, capturedAt: 21_950 });
+
+  it("ANTI-VACUITY: without closure the same quiet tape still reads STALE", () => {
+    expect(createChartMarketStatePublication(quiet()).qualityState).toBe("STALE");
+    expect(createChartMarketStatePublication({ ...quiet(), sessionOpen: null }).qualityState).toBe("STALE");
+  });
+
+  it("with proven closure it reads CLOSED, and the header's DELAYED verdict does not change that", () => {
+    expect(createChartMarketStatePublication({ ...quiet(), sessionOpen: false }).qualityState).toBe("CLOSED");
+    expect(createChartMarketStatePublication({ ...quiet(), sessionOpen: false, feedState: "DELAYED" }).qualityState).toBe("CLOSED");
+  });
+
+  it("closure never manufactures a price: no observation is still UNAVAILABLE", () => {
+    expect(createChartMarketStatePublication({ ...quiet(), recentTicks: [], sessionOpen: false }).qualityState).toBe("UNAVAILABLE");
+  });
+
+  it("a continuous market cannot be called closed", () => {
+    expect(createChartMarketStatePublication({ ...base(), capturedAt: 21_950, sessionOpen: false }).qualityState).toBe("STALE");
+  });
+
+  it("`true` is never read as proof of anything — only `false` is", () => {
+    expect(createChartMarketStatePublication({ ...quiet(), sessionOpen: true }).qualityState).toBe("STALE");
+  });
+
+  it("both rooms hand the publisher the closure their header grader reads", () => {
+    const chart = readFileSync(resolve(process.cwd(), "src/components/chart/ChartsDashboard.tsx"), "utf8");
+    const deck = readFileSync(resolve(process.cwd(), "src/app/command-deck/page.tsx"), "utf8");
+    expect(chart).toContain("sessionOpen: quoteSession.sessionOpen,\n  });");
+    expect(deck).toContain("sessionOpen: quoteSession.sessionOpen,\n  });");
+  });
+});

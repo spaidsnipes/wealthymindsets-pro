@@ -2096,6 +2096,9 @@ input[type=range]::-webkit-slider-runnable-track {
      readable (≤ ~50 % covered); a BUILD or REVIEW step fits without scrolling inside the sheet. */
   [data-testid="trade-panel"][data-stage="PEEK"] { max-height: 40svh !important; }
   [data-testid="trade-panel"][data-stage="ACT"] { max-height: 84svh !important; }
+  /* HALF — the trader's own option (ticketLayout.halfControl): ACT at half the screen, scrolling inside,
+     so the chart's entry / stop / target lines stay in view while they are adjusted. Default unchanged. */
+  [data-testid="trade-panel"][data-stage="ACT"][data-half="yes"] { max-height: 50svh !important; }
 }
 
 /* ── 3. PHONE: THE MASTHEAD SPENDS ITS ROWS ON JOBS ─────────────────────────

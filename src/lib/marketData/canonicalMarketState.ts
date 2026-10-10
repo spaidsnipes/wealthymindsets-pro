@@ -4,7 +4,13 @@ import type { MarketFidelityClass } from "./marketEvent";
 export const CANONICAL_MARKET_STATE_SCHEMA_VERSION = "wm.market-state.v1" as const;
 
 export type MarketStateResolution = "RESOLVED" | "PARTIAL" | "UNKNOWN";
-export type MarketQualityState = "LIVE" | "DELAYED" | "STALE" | "PARTIAL" | "PROXY" | "REPLAY" | "UNAVAILABLE";
+/**
+ * CLOSED (2026-10-09): the session is PROVEN closed and the values are the last
+ * verified ones. It is not STALE — nothing failed — and not DELAYED. Before it
+ * existed the publisher graded a closed market without the closure it had been
+ * proven with, and called every Friday evening STALE (see qualityFor).
+ */
+export type MarketQualityState = "LIVE" | "DELAYED" | "STALE" | "PARTIAL" | "PROXY" | "REPLAY" | "UNAVAILABLE" | "CLOSED";
 
 export interface MarketStateEvidenceRef {
   eventId: string;

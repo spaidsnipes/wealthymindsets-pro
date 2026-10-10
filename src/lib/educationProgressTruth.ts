@@ -1,4 +1,5 @@
 import { FVG_LESSONS } from "@/lib/academy/fvgCourse";
+import { TOOL_PRIMERS } from "@/lib/academy/toolPrimers";
 
 export type AcademyLessonContentStatus = "COMING_SOON" | "AVAILABLE";
 
@@ -11,7 +12,9 @@ export const ACADEMY_LESSON_CONTENT_STATUS: AcademyLessonContentStatus = "COMING
  * definition, so passing that check records completion. Every other lesson
  * keeps the catalogue-wide status above.
  */
-const PUBLISHED_LESSON_IDS: ReadonlySet<string> = new Set(FVG_LESSONS.map(l => l.id));
+// …and the tool primers ("Reading the glass", Supermax §9): written from each tool's own ⓘ record,
+// with a knowledge check on the evidence grades.
+const PUBLISHED_LESSON_IDS: ReadonlySet<string> = new Set([...FVG_LESSONS.map(l => l.id), ...TOOL_PRIMERS.map(l => l.id)]);
 
 export function academyLessonContentStatus(lessonId: string): AcademyLessonContentStatus {
   return PUBLISHED_LESSON_IDS.has(lessonId) ? "AVAILABLE" : ACADEMY_LESSON_CONTENT_STATUS;

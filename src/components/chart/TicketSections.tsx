@@ -19,8 +19,10 @@ const GOLD = "#C9A55C", MUTED = "#8a8271", LINE = "rgba(139,106,41,0.35)";
 const show = (on: boolean): React.CSSProperties => ({ display: on ? "contents" : "none" });
 const stepBtn = (on: boolean): React.CSSProperties => ({ minHeight: 36, padding: "0 12px", borderRadius: 6, border: `1px solid ${on ? GOLD : LINE}`, background: on ? `${GOLD}22` : "transparent", color: on ? GOLD : MUTED, fontSize: 12, fontWeight: 700, cursor: on ? "pointer" : "not-allowed", justifySelf: "start" });
 
-export function TicketSections({ compact, peek = false, step = null, review, inFlight = false, onReview, onEdit, sections, summary }: {
+export function TicketSections({ compact, bookActive = false, peek = false, step = null, review, inFlight = false, onReview, onEdit, sections, summary }: {
   readonly compact: boolean;
+  /** Wide ticket: a position is held or an order is working, so the book block joins the entry path. */
+  readonly bookActive?: boolean;
   /** Phone PEEK: everything past the side buttons is hidden with CSS — still mounted, state kept. */
   readonly peek?: boolean;
   /** Phone ACT step. */
@@ -35,9 +37,20 @@ export function TicketSections({ compact, peek = false, step = null, review, inF
   /** "Details · FLAT · 0 working" */
   readonly summary: string;
 }) {
-  const layout = ticketSections(compact);
+  const layout = ticketSections(compact, bookActive);
   const each = (ids: readonly TicketSection[]) => ids.map(id => <React.Fragment key={id}>{sections[id]}</React.Fragment>);
-  if (!compact) return <>{each(layout.action)}</>;
+  if (!compact) {
+    // Tablet / desktop ACT: the entry path, then ONE Details fold (the same disclosure the phone uses).
+    return (
+      <>
+        <div data-testid="trade-entry-path" data-book={bookActive ? "active" : "flat"} style={{ display: "contents" }}>{each(layout.action)}</div>
+        <details data-testid="trade-details" style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "6px 8px" }}>
+          <summary data-testid="trade-details-summary" style={{ cursor: "pointer", color: GOLD, fontWeight: 600, minHeight: 32 }}>{summary}</summary>
+          <div style={{ display: "grid", gap: 10, marginTop: 8 }}>{each(layout.details)}</div>
+        </details>
+      </>
+    );
+  }
   const reviewing = step === "REVIEW";
   const canReview = review?.allowed ?? true;
   return (

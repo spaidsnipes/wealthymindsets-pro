@@ -193,26 +193,6 @@ interface LedgerEntry {
  * below, not typed from memory.
  */
 const LEDGER: Readonly<Record<string, LedgerEntry>> = {
-  "src/lib/billing/tiers.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "WM Pro billing, pure owners first (Garden 19 Supermax §11, 2026-10-09): the tier map (tier → the env var NAME of its Stripe price id; the client never sends a price). Nothing sells until the routes (/api/billing/checkout · webhook · standing · portal) and the pricing page's button land in the next slice — until then no trader can reach it. Delete this entry in the commit that wires the first consumer — the suite will ask.",
-  },
-  "src/lib/billing/standing.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "WM Pro billing, pure owners first (Garden 19 Supermax §11, 2026-10-09): the server's billing mode from the key prefix (NOT_CONFIGURED / TEST / LIVE), fail-closed. Nothing sells until the routes (/api/billing/checkout · webhook · standing · portal) and the pricing page's button land in the next slice — until then no trader can reach it. Delete this entry in the commit that wires the first consumer — the suite will ask.",
-  },
-  "src/lib/billing/webhookSignature.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "WM Pro billing, pure owners first (Garden 19 Supermax §11, 2026-10-09): the webhook signature check (HMAC-SHA256, 300 s tolerance, constant-time). Nothing sells until the routes (/api/billing/checkout · webhook · standing · portal) and the pricing page's button land in the next slice — until then no trader can reach it. Delete this entry in the commit that wires the first consumer — the suite will ask.",
-  },
-  "src/lib/billing/entitlement.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "WM Pro billing, pure owners first (Garden 19 Supermax §11, 2026-10-09): the entitlement record and its idempotent, order-safe reducer. Nothing sells until the routes (/api/billing/checkout · webhook · standing · portal) and the pricing page's button land in the next slice — until then no trader can reach it. Delete this entry in the commit that wires the first consumer — the suite will ask.",
-  },
   "src/lib/marketing/bannedClaims.ts": {
     reason: "OPS_TOOLING",
     note: "The §57 banned-claims patterns (night shift 2026-10-07): one owner read by sellingStory.test.ts and marketingSurfaces.sentinel.test.ts to sweep every marketing string. A release guard, not a screen — nothing a trader sees imports it.",

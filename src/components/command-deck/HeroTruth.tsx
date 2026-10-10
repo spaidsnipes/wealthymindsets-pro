@@ -26,7 +26,7 @@ import { displayPrecisionFor } from "@/lib/chart/pricePrecision";
  */
 
 const QUALITY_STYLES: Record<
-  "LIVE" | "DELAYED" | "STALE" | "PARTIAL" | "PROXY" | "REPLAY" | "UNAVAILABLE" | "UNKNOWN",
+  "LIVE" | "DELAYED" | "STALE" | "PARTIAL" | "PROXY" | "REPLAY" | "UNAVAILABLE" | "CLOSED" | "UNKNOWN",
   { color: string; glyph: string; label: string; halo: string }
 > = {
   LIVE:        { color: "#5cb85c", glyph: "●", label: "Live",         halo: "rgba(92,184,92,0.15)" },
@@ -36,6 +36,7 @@ const QUALITY_STYLES: Record<
   PROXY:       { color: "#8a8271", glyph: "≈", label: "Proxy",        halo: "rgba(139,106,41,0.15)" },
   REPLAY:      { color: "#8a8271", glyph: "⟲", label: "Replay",       halo: "rgba(139,106,41,0.15)" },
   UNAVAILABLE: { color: "#8a8271", glyph: "—", label: "Unavailable",  halo: "rgba(85,80,63,0.15)" },
+  CLOSED:      { color: "#8a8271", glyph: "◌", label: "Closed",       halo: "rgba(85,80,63,0.15)" },
   UNKNOWN:     { color: "#8a8271", glyph: "?", label: "Not yet observed", halo: "rgba(85,80,63,0.15)" },
 };
 

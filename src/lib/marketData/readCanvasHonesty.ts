@@ -131,6 +131,9 @@ export interface CanvasHonestyInput {
   DELAYED reason, a partial or proxy feed is PARTIAL, replay carries its reason.
   UNAVAILABLE is deliberately not a cap: it grades the PRINT channel, and a
   chart carrying verified bars under it is already PARTIAL by the badge.
+  CLOSED is not a cap either: a proven-closed session is graded by the badge
+  itself (SESSION CLOSED — LAST VERIFIED folds to INDICATIVE), and the canonical
+  word now says CLOSED from that same closure instead of STALE.
 */
 export function capByCanonicalQuality(
   folded: { readonly fidelity: MarketFidelity; readonly reasons: readonly FidelityReason[] },

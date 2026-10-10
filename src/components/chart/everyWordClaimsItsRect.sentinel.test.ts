@@ -55,9 +55,14 @@ describe("every word claims its rect before it paints", () => {
     expect(CHART).toContain("floatingChips.splice(chipsBeforeWords, wordRectsNow.length);");
     expect(CHART).toContain("canvas.dataset.wordGate = wordGate.receipt();");
   });
-  it("withholding is by address until the verdicts are read on serving (OBSERVE changes nothing on the glass)", () => {
+  it("THE FLIP: the registry enforces by default; OBSERVE is the address's way back and still changes nothing on the glass", () => {
     expect(REG).toContain('if (verdict === "PAINT" || mode === "OBSERVE") return paint();');
-    expect(REG).toContain('get("gate") === "enforce" ? "ENFORCE" : "OBSERVE"');
+    expect(REG).toContain('export const WORD_GATE_DEFAULT_MODE: WordGateMode = "ENFORCE";');
+    expect(REG).toContain('return g === "observe" ? "OBSERVE" : g === "enforce" ? "ENFORCE" : WORD_GATE_DEFAULT_MODE;');
+    // The trader's own drawings stay in OBSERVE permanently, whatever the default.
+    expect(CHART).toContain('paneWordGate.beginFrame({ mode: "OBSERVE", dpr });');
+    // The chart reads its mode from the one function — no second default in the room.
+    expect(CHART).toContain("const wordGateMode = wordGateModeFor(window.location.search);");
   });
 });
 

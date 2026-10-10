@@ -77,6 +77,13 @@ interface OrphanEntry {
  * accidentally-correct silence this codebase keeps mistaking for approval.
  */
 const NO_IN_APP_CALLER: Readonly<Record<string, OrphanEntry>> = {
+  "/api/billing/webhook": {
+    cls: "EXTERNAL_TOOLING",
+    evidence:
+      "Registered at birth, 2026-10-09 (Supermax §11). Stripe's servers POST signed events here; the caller is " +
+      "the webhook endpoint the Founder creates in the Stripe dashboard, never src. The route refuses anything " +
+      "without a valid Stripe-Signature (billingRoutes.route.test.ts), so an in-app caller could not use it.",
+  },
   "/api/diagnostics/supabase": {
     cls: "OPERATOR_DIAGNOSTIC",
     evidence:
@@ -352,7 +359,9 @@ describe("every API endpoint has something that actually calls it", () => {
     // 1 -> 0 on 2026-10-05: /api/build-identity gained an in-app caller —
     // deployVersionRecovery compares the serving build with the page's own
     // after a room crash (P0-A). The external receipt script still uses it.
-    expect(every.filter((e) => e.cls === "EXTERNAL_TOOLING").length).toBe(0);
+    // 0 -> 1 on 2026-10-09: /api/billing/webhook, called by Stripe's servers with a signed event —
+    // registered at birth; an external caller by design, not a script in this repo.
+    expect(every.filter((e) => e.cls === "EXTERNAL_TOOLING").length).toBe(1);
     // 1 -> 2 on 2026-10-02: /api/passport/from-wow, WOW World's door into WM
     // with the same Passport, registered at birth.
     expect(every.filter((e) => e.cls === "CROSS_PRODUCT").length).toBe(2);

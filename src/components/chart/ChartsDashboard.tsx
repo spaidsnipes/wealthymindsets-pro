@@ -1713,6 +1713,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     // ASK-17: the header's feed verdict (chartFeedReading — the same grader
     // and inputs MainChart's strip uses), so Inspect and header agree.
     feedState: chartHeaderFeedState,
+    // Proven closure, the same value the header's grader was just handed above.
+    sessionOpen: quoteSession.sessionOpen,
   });
 
   // ── Asset 06 · ABSORPTION ANATOMY ────────────────────────────────────

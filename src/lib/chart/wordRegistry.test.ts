@@ -94,9 +94,12 @@ describe("word gate — the context's own fillText asks the registry", () => {
     expect(painted).toEqual(["SAME PLACE A", "SAME PLACE B"]);
   });
   it("enforcement is by address until the verdicts are read on serving", () => {
+    // Flipped 2026-10-09 evening: ENFORCE is the default; the address can observe.
     expect(wordGateModeFor("?symbol=NQ1!&gate=enforce")).toBe("ENFORCE");
-    expect(wordGateModeFor("?symbol=NQ1!")).toBe("OBSERVE");
-    expect(wordGateModeFor("")).toBe("OBSERVE");
+    expect(wordGateModeFor("?symbol=NQ1!")).toBe("ENFORCE");
+    expect(wordGateModeFor("")).toBe("ENFORCE");
+    expect(wordGateModeFor("?symbol=NQ1!&gate=observe")).toBe("OBSERVE");
+    expect(wordGateModeFor("?gate=anything-else")).toBe("ENFORCE");
   });
 });
 

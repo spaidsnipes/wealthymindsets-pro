@@ -63,9 +63,21 @@ describe("TicketSections — phone", () => {
 });
 
 describe("TicketSections — tablet / desktop", () => {
-  it("the flowing order, no wrappers, no Details, no phone-only line or step buttons", () => {
-    const html = renderToStaticMarkup(<TicketSections compact={false} sections={sections} summary="x" />);
-    expect(html).not.toMatch(/<details|trade-review|trade-edit|trade-act-sections/);
-    expect(order(html)).toEqual(["QUOTE", "PROPOSAL", "BOOK", "SIDE", "CLOSING", "ACTION_LINE", "SIZE", "ENTRY_TYPE", "PRICE", "RISK_INPUTS", "ECONOMICS", "PICK_STATUS", "PROTECTION_DRYRUN", "PLAN", "LIVE_ORDER", "PROTECT"]);
+  it("ACT at every size: the entry path first, ONE Details fold after it, no phone steps; FLAT → only the quote above BUY / SELL", () => {
+    const html = renderToStaticMarkup(<TicketSections compact={false} sections={sections} summary="Details · FLAT · 0 working" />);
+    expect(html).not.toMatch(/trade-review|trade-edit|trade-act-sections/);
+    expect(html.match(/<details/g)).toHaveLength(1);
+    expect(html).toContain('data-testid="trade-entry-path" data-book="flat"');
+    expect(html).toContain("Details · FLAT · 0 working");
+    expect(order(html)).toEqual(["QUOTE", "SIDE", "CLOSING", "ACTION_LINE", "PROPOSAL", "SIZE", "ENTRY_TYPE", "PRICE", "RISK_INPUTS", "RISK_LINE", "PICK_STATUS", "LIVE_ORDER", "BOOK", "ECONOMICS", "PROTECTION_DRYRUN", "PLAN", "PROTECT"]);
+    // The entry path ends before the fold begins: LIVE_ORDER is outside <details>, the book inside it.
+    expect(html.indexOf("LIVE_ORDER")).toBeLessThan(html.indexOf("<details"));
+    expect(html.indexOf("BOOK")).toBeGreaterThan(html.indexOf("<details"));
+  });
+  it("holding or working: the book block is in the entry path, under the quote, outside the fold", () => {
+    const html = renderToStaticMarkup(<TicketSections compact={false} bookActive sections={sections} summary="Details · LONG · 1 working" />);
+    expect(html).toContain('data-book="active"');
+    expect(order(html).slice(0, 3)).toEqual(["QUOTE", "BOOK", "SIDE"]);
+    expect(html.indexOf("BOOK")).toBeLessThan(html.indexOf("<details"));
   });
 });

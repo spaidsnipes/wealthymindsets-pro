@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ACADEMY_DOOR_FOR_TOOL } from "@/lib/academy/academyDoorForTool";
 import { FVG_LESSONS } from "@/lib/academy/fvgCourse";
+import { TOOL_PRIMERS } from "@/lib/academy/toolPrimers";
 import { PROP_STORAGE_KIND, formatCents, planDaysVerdict, propSampleInputs, readPropEvaluation } from "@/lib/journal/propEvaluation";
 import {
   SPAIDBOT_NO_PROMISE_RULES, SPAIDBOT_PROP_RULES, formatPropEvaluationBlock, spaidbotAcademyBlock, spaidbotPropNote,
@@ -65,10 +66,11 @@ describe("Supermax §8 / §10 — SpaidBot explains the owner's evaluation arith
 describe("Supermax §9 / §10 — SpaidBot recommends only the lessons the ⓘ doors point at", () => {
   it("every recommended lesson is in the door table and in the course, by exact title and address", () => {
     const block = spaidbotAcademyBlock();
-    const cited = [...block.matchAll(/"([^"]+)" — (\/education\?lesson=fvg-\d+)/g)].map(m => ({ title: m[1], href: m[2] }));
+    const cited = [...block.matchAll(/"([^"]+)" — (\/education\?lesson=[a-z0-9-]+)/g)].map(m => ({ title: m[1], href: m[2] }));
     expect(cited.length).toBeGreaterThanOrEqual(8);
+    const lessons = [...FVG_LESSONS, ...TOOL_PRIMERS].map(x => ({ href: `/education?lesson=${x.id}`, title: x.title }));
     for (const c of cited) {
-      const l = FVG_LESSONS.find(x => `/education?lesson=${x.id}` === c.href);
+      const l = lessons.find(x => x.href === c.href);
       expect(l, c.href).toBeTruthy();
       expect(c.title).toBe(l!.title);
     }

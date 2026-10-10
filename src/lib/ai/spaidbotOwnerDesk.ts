@@ -70,7 +70,7 @@ export function spaidbotPropNote(rawProp: unknown, ownerAllowed: boolean): strin
 /** Tool names a trader would say, for the lessons the ⓘ doors already point at. */
 const TOOL_WORDS: Readonly<Record<string, string>> = {
   LIVING_PROFILE: "Living Profile / volume profile", ABSORPTION: "Absorption", BRICK_WALLS: "Brick Walls (options walls)",
-  DERIVATIVES_PRESSURE: "Derivatives Pressure", LIQUIDITY_WEATHER: "Liquidity Weather", LIQUIDITY_LIFECYCLE: "Liquidity Lifecycle",
+  DERIVATIVES_PRESSURE: "Derivatives Pressure", LIQUIDITY_WEATHER: "Liquidity Weather",
   "FP_bid-ask": "Footprint", EFFORT_RESPONSE: "Effort → Response",
 };
 

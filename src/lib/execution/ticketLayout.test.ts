@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { selectBrokerOrderLines, type BrokerReadback } from "./brokerOrderLines";
 import { ticketBook } from "./ticketBook";
-import { COMPACT_ACT_MAX_HEIGHT, COMPACT_BUILD_SECTIONS, COMPACT_PEEK_MAX_HEIGHT, COMPACT_PEEK_SECTIONS, COMPACT_REVIEW_SECTIONS, COMPACT_TICKET_MAX_WIDTH, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketSections, ticketStage, ticketStep } from "./ticketLayout";
+import { COMPACT_HALF_MAX_HEIGHT, halfControl, halfInForce, WIDE_TICKET_MAX_HEIGHT, bookIsActive, COMPACT_ACT_MAX_HEIGHT, COMPACT_BUILD_SECTIONS, COMPACT_PEEK_MAX_HEIGHT, COMPACT_PEEK_SECTIONS, COMPACT_REVIEW_SECTIONS, COMPACT_TICKET_MAX_WIDTH, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketSections, ticketStage, ticketStep } from "./ticketLayout";
 
 const NOW = Date.parse("2026-10-08T18:30:00Z");
 const rb = (over: Partial<BrokerReadback>): BrokerReadback => ({ asOfMs: NOW - 1000, ok: true, orders: [], positions: [], tails: ["5019"], orderAccounts: {}, ...over });
@@ -17,10 +17,26 @@ describe("ticketSections — one ticket, two orders", () => {
     expect(COMPACT_TICKET_QUERY).toBe("(max-width: 430px)");
     expect([COMPACT_PEEK_MAX_HEIGHT, COMPACT_ACT_MAX_HEIGHT]).toEqual(["40svh", "84svh"]);
   });
-  it("tablet / desktop: the flowing order, nothing folded, no phone-only line", () => {
+  it("tablet / desktop ACT (Founder P0 2026-10-09): the entry path first — when FLAT nothing but the quote sits above BUY / SELL — the rest behind Details", () => {
     const l = ticketSections(false);
-    expect(l.details).toEqual([]);
-    expect(l.action).toEqual(["QUOTE", "PROPOSAL", "BOOK", "SIDE", "CLOSING", "ACTION_LINE", "SIZE", "ENTRY_TYPE", "PRICE", "RISK_INPUTS", "ECONOMICS", "PICK_STATUS", "PROTECTION_DRYRUN", "PLAN", "LIVE_ORDER", "PROTECT"]);
+    expect(l.action).toEqual(["QUOTE", "SIDE", "CLOSING", "ACTION_LINE", "PROPOSAL", "SIZE", "ENTRY_TYPE", "PRICE", "RISK_INPUTS", "RISK_LINE", "PICK_STATUS", "LIVE_ORDER"]);
+    expect(l.details).toEqual(["BOOK", "ECONOMICS", "PROTECTION_DRYRUN", "PLAN", "PROTECT"]);
+    expect(l.action.slice(0, l.action.indexOf("SIDE"))).toEqual(["QUOTE"]);
+    // side → quantity → order type → price → stop / target → risk / reward → the live-order block (account, preview, send)
+    const order = ["SIDE", "SIZE", "ENTRY_TYPE", "PRICE", "RISK_INPUTS", "RISK_LINE", "LIVE_ORDER"].map(s => l.action.indexOf(s as never));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(order.every(i => i >= 0)).toBe(true);
+  });
+  it("holding or working: the position / MODIFY / FLATTEN block joins the entry path right under the quote, and leaves Details", () => {
+    const l = ticketSections(false, true);
+    expect(l.action.slice(0, 3)).toEqual(["QUOTE", "BOOK", "SIDE"]);
+    expect(l.details).toEqual(["ECONOMICS", "PROTECTION_DRYRUN", "PLAN", "PROTECT"]);
+    expect(new Set([...l.action, ...l.details]).size).toBe(l.action.length + l.details.length);
+    const flat = { position: { state: "FLAT" }, working: [] } as never;
+    const holding = { position: { state: "LONG" }, working: [] } as never;
+    const working = { position: { state: "FLAT" }, working: [{}] } as never;
+    expect([bookIsActive(flat), bookIsActive(holding), bookIsActive(working)]).toEqual([false, true, true]);
+    expect(WIDE_TICKET_MAX_HEIGHT).toBe("calc(100vh - 88px)");
   });
   it("phone: side → quantity → price → stop/target → risk line → preview/confirm come first; book / modify / flatten / protect fold", () => {
     const l = ticketSections(true);
@@ -29,11 +45,14 @@ describe("ticketSections — one ticket, two orders", () => {
     expect(l.action.indexOf("SIDE")).toBeLessThan(l.action.indexOf("SIZE"));
     expect(l.action.indexOf("SIZE")).toBeLessThan(l.action.indexOf("LIVE_ORDER"));
   });
-  it("nothing is dropped and nothing is rendered twice: phone = desktop's sections + the one risk line", () => {
-    const full = ticketSections(false).action;
+  it("nothing is dropped and nothing is rendered twice: phone and desktop hold the same sections, in either book state", () => {
     const phone = [...ticketSections(true).action, ...ticketSections(true).details];
     expect(new Set(phone).size).toBe(phone.length);
-    expect([...phone].filter(x => x !== "RISK_LINE").sort()).toEqual([...full].sort());
+    for (const active of [false, true]) {
+      const wide = [...ticketSections(false, active).action, ...ticketSections(false, active).details];
+      expect(new Set(wide).size).toBe(wide.length);
+      expect([...wide].sort()).toEqual([...phone].sort());
+    }
   });
 });
 
@@ -67,10 +86,13 @@ describe("TradePanel is ONE ticket in both layouts", () => {
     expect(T.match(/<TastytradeLiveOrder\b/g) ?? []).toHaveLength(3);          // entry + stop + target — not duplicated for the phone
     expect(T.match(/<TicketBookRows\b/g) ?? []).toHaveLength(1);
     expect(T.match(/data-testid="trade-buy"/g) ?? []).toHaveLength(1);
-    expect(T).toContain('maxHeight: stage === "PEEK" ? COMPACT_PEEK_MAX_HEIGHT : stage === "ACT" ? COMPACT_ACT_MAX_HEIGHT : "72vh"');
-    expect(T).toContain('<TicketSections compact={compact} peek={stage === "PEEK"} step={step} review={review} inFlight={!stageInput.preSend}');
+    expect(T).toContain('maxHeight: !compact ? WIDE_TICKET_MAX_HEIGHT : stage === "PEEK" ? COMPACT_PEEK_MAX_HEIGHT : halfOn ? COMPACT_HALF_MAX_HEIGHT : COMPACT_ACT_MAX_HEIGHT');
+    expect(T).toContain('data-half={halfOn ? "yes" : undefined}');
+    const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    expect(css).toContain('[data-testid="trade-panel"][data-stage="ACT"][data-half="yes"] { max-height: 50svh !important; }');
+    expect(T).toContain('<TicketSections compact={compact} bookActive={bookIsActive(book)} peek={stage === "PEEK"} step={step} review={review} inFlight={!stageInput.preSend}');
     expect(T).toContain("onReview={() => { if (review.allowed) setReviewing(true); }} onEdit={() => { if (stageInput.preSend) setReviewing(false); }}");
-    expect(T).toContain("const step = ticketStep({ stage, reviewing, preSend: stageInput.preSend });");
+    expect(T).toContain("const step = ticketStep({ stage, reviewing, preSend: stageInput.preSend, compact });");
     expect(T).toContain('<footer data-testid="trade-footer" hidden={step === "REVIEW"}');
     expect(T).toContain("const stageInput = { compact, sidePicked: side != null, folded, preSend: isPreSendPhase(entryPhase) && scene?.state !== \"inflight\" };");
     expect(T).toContain("onClick={() => { if (fold.enabled) setFolded(v => !v); }}");
@@ -84,9 +106,12 @@ describe("TradePanel is ONE ticket in both layouts", () => {
 
 describe("PEEK / ACT — fold to see the chart, grow to act", () => {
   const base = { compact: true, sidePicked: false, folded: false, preSend: true };
-  it("tablet / desktop is always FULL", () => {
-    expect(ticketStage({ ...base, compact: false })).toBe("FULL");
-    expect(ticketStage({ compact: false, sidePicked: true, folded: true, preSend: false })).toBe("FULL");
+  it("tablet / desktop opens in ACT — always, side picked or not (there is no long FULL stack any more)", () => {
+    expect(ticketStage({ ...base, compact: false })).toBe("ACT");
+    expect(ticketStage({ compact: false, sidePicked: true, folded: true, preSend: false })).toBe("ACT");
+    // …and a wide ticket takes no BUILD / REVIEW steps: the whole entry path shows at once.
+    expect(ticketStep({ stage: "ACT", reviewing: true, preSend: true, compact: false })).toBeNull();
+    expect(ticketStep({ stage: "ACT", reviewing: false, preSend: false, compact: false })).toBeNull();
   });
   it("phone: PEEK while no side is picked or when folded; ACT once a side is picked", () => {
     expect(ticketStage(base)).toBe("PEEK");
@@ -113,9 +138,27 @@ describe("PEEK / ACT — fold to see the chart, grow to act", () => {
   });
 });
 
+describe("HALF — the trader's own option on a phone; the default is unchanged", () => {
+  const act = { compact: true, stage: "ACT" as const, half: false, preSend: true };
+  it("offered only on the phone's ACT stage; off by default; on when the trader asks", () => {
+    expect(COMPACT_HALF_MAX_HEIGHT).toBe("50svh");
+    expect(halfControl({ ...act, compact: false }).shown).toBe(false);
+    expect(halfControl({ ...act, stage: "PEEK" }).shown).toBe(false);
+    expect(halfControl(act)).toMatchObject({ shown: true, enabled: true, label: "HALF ▾" });
+    expect(halfInForce(act)).toBe(false);
+    expect(halfControl({ ...act, half: true })).toMatchObject({ shown: true, enabled: true, label: "FULL ▴" });
+    expect(halfInForce({ ...act, half: true })).toBe(true);
+  });
+  it("an order in flight is never shrunk: the control is refused with its reason, and half is not in force", () => {
+    const c = halfControl({ ...act, half: true, preSend: false });
+    expect(c.enabled).toBe(false);
+    expect(c.ariaLabel).toMatch(/order is in flight/);
+    expect(halfInForce({ ...act, half: true, preSend: false })).toBe(false);
+  });
+});
+
 describe("BUILD / REVIEW — the two ACT steps", () => {
   it("no step outside ACT; BUILD first; REVIEW when asked; REVIEW forced while an order is in flight", () => {
-    expect(ticketStep({ stage: "FULL", reviewing: true, preSend: true })).toBeNull();
     expect(ticketStep({ stage: "PEEK", reviewing: true, preSend: true })).toBeNull();
     expect(ticketStep({ stage: "ACT", reviewing: false, preSend: true })).toBe("BUILD");
     expect(ticketStep({ stage: "ACT", reviewing: true, preSend: true })).toBe("REVIEW");

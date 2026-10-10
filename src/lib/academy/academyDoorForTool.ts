@@ -3,23 +3,16 @@
  *
  * A trader meeting an unfamiliar invention opens its ⓘ first. The preview
  * already says what the tool is and what it needs; this adds the door to the
- * published lesson that teaches it, so the lesson can be read BEFORE the
- * switch is flipped.
+ * published lesson about THAT tool — its primer in "Reading the glass"
+ * (toolPrimers.ts), which is built from the tool's own ⓘ record — so it can be
+ * read BEFORE the switch is flipped.
  *
- * Only published lessons are doors (the FVG / Imbalance & Patience course —
- * the rest of the catalogue has no published content yet, and a door to an
- * outline would promise a lesson that is not there). Each tool points at the
- * lesson that actually teaches it beside a gap:
+ * (First cut, 18:30 Oct 9: the doors landed on FVG lessons that mention the
+ * tool. Each tool now has a primer of its own.)
  *
- *   profiles                      → 12  FVG + profile
- *   footprint modes, absorption,
- *   options walls, liquidity      → 13  FVG + order flow (evidence per sense;
- *                                       walls and resting liquidity by reference)
- *   effort → response             → 5   Displacement (effort and response of the middle bar)
- *
- * A small table on purpose — the ⓘ owner must not import the whole course to
- * print one link. `academyDoorForTool.test.ts` pins every number and title to
- * the course, and pins that each lesson really names the tool it is a door for.
+ * A small table on purpose — the ⓘ owner must not import the primers (the
+ * primers read the ⓘ owner; importing them here would be a cycle).
+ * `academyDoorForTool.test.ts` pins every id and title to the primers.
  */
 
 export interface AcademyDoor {
@@ -28,28 +21,30 @@ export interface AcademyDoor {
   readonly title: string;
 }
 
-const door = (n: number, title: string): AcademyDoor => ({ lessonId: `fvg-${n}`, href: `/education?lesson=fvg-${n}`, title });
+/** A tool primer ("Reading the glass" — src/lib/academy/toolPrimers.ts). Titles are pinned to the primers by test. */
+const primer = (slug: string, title: string): AcademyDoor => ({ lessonId: `glass-${slug}`, href: `/education?lesson=glass-${slug}`, title });
 
-const PROFILE = door(12, "FVG + profile");
-const EVIDENCE = door(13, "FVG + order flow");
-const DISPLACEMENT = door(5, "Displacement");
+const PROFILE = primer("living-profile", "Living Profile");
+const WALLS = primer("walls", "Brick Walls and Derivatives Pressure");
+const ABSORPTION = primer("absorption", "Absorption");
+const WEATHER = primer("liquidity-weather", "Liquidity Weather");
+const EFFORT = primer("effort-response", "Effort → Response");
+const FOOTPRINT = primer("footprint", "Footprint");
 
 /** ⓘ record id (Tool Finder / Profiles menu / footprint mode) → its lesson. */
 export const ACADEMY_DOOR_FOR_TOOL: Readonly<Record<string, AcademyDoor>> = {
   LIVING_PROFILE: PROFILE,
-  ABSORPTION: EVIDENCE,
-  BRICK_WALLS: EVIDENCE,
-  DERIVATIVES_PRESSURE: EVIDENCE,
-  LIQUIDITY_WEATHER: EVIDENCE,
-  LIQUIDITY_LIFECYCLE: EVIDENCE,
-  "FP_bid-ask": EVIDENCE,
-  FP_delta: EVIDENCE,
-  FP_imbalance: EVIDENCE,
-  "FP_volume-profile": EVIDENCE,
-  "FP_aggressive-passive": EVIDENCE,
-  "FP_big-trades": EVIDENCE,
-  EFFORT_RESPONSE: DISPLACEMENT,
-  EFFORT_MARK: DISPLACEMENT,
+  ABSORPTION: ABSORPTION,
+  BRICK_WALLS: WALLS,
+  DERIVATIVES_PRESSURE: WALLS,
+  LIQUIDITY_WEATHER: WEATHER,
+  "FP_bid-ask": FOOTPRINT,
+  FP_delta: FOOTPRINT,
+  FP_imbalance: FOOTPRINT,
+  "FP_volume-profile": FOOTPRINT,
+  "FP_aggressive-passive": FOOTPRINT,
+  "FP_big-trades": FOOTPRINT,
+  EFFORT_RESPONSE: EFFORT,
 };
 
 export function academyDoorForTool(id: string): AcademyDoor | null {

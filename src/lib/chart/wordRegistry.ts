@@ -22,8 +22,8 @@
  *
  * MODES. `OBSERVE` registers and reports but paints everything — the gate's
  * verdicts are a receipt, nothing on the glass changes. `ENFORCE` withholds.
- * The room starts in OBSERVE and enforces by address (`gate=enforce`) until the
- * verdicts have been read on serving at every form factor.
+ * The room ENFORCES by default (flipped 2026-10-09 after the verdicts were read
+ * on serving at six sizes); `gate=observe` on the address observes instead.
  *
  * NOT WORDS (pass through, never registered): text under 3 characters (glyphs,
  * "×5"), ink at or under 0.15 alpha, rotated text, and anything painted inside
@@ -358,6 +358,17 @@ export function installWordGate(ctx: GateCtx): WordGate {
 }
 
 /** `gate=enforce` on the address turns withholding on for this page load. */
+/**
+ * THE FLIP (coordinator ruling 2026-10-09 evening, after two enforce audits on
+ * serving — c9303a7 and b72f896: truth lines in the note list 0 at every size
+ * read, the asked question's words paint, selections keep their words). The
+ * registry now ENFORCES by default. `gate=observe` on the address is the way
+ * back for one page load: it paints everything and only reports.
+ */
+export const WORD_GATE_DEFAULT_MODE: WordGateMode = "ENFORCE";
 export function wordGateModeFor(search: string): WordGateMode {
-  try { return new URLSearchParams(search).get("gate") === "enforce" ? "ENFORCE" : "OBSERVE"; } catch { return "OBSERVE"; }
+  try {
+    const g = new URLSearchParams(search).get("gate");
+    return g === "observe" ? "OBSERVE" : g === "enforce" ? "ENFORCE" : WORD_GATE_DEFAULT_MODE;
+  } catch { return WORD_GATE_DEFAULT_MODE; }
 }

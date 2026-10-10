@@ -27,6 +27,8 @@ import {
   summarizeAcademyLessons,
 } from "@/lib/educationProgressTruth";
 import { FVG_ACADEMY_MODULE, FVG_LESSONS, FVG_QUIZ_BANK } from "@/lib/academy/fvgCourse";
+import { TOOL_PRIMERS, TOOL_PRIMER_MODULE, TOOL_PRIMER_QUIZ_BANK } from "@/lib/academy/toolPrimers";
+import { ToolPrimerBody } from "@/components/education/ToolPrimerBody";
 import { EDUCATION_FIXTURE_BANNER, EDUCATION_FIXTURE_NOTE, EDUCATION_FIXTURE_PASS_LINE, FvgLessonBody, educationFixtureOn } from "@/components/education/FvgLessonBody";
 import { useAuth } from "@/contexts/AuthContext";
 import { proofFixtureScene } from "@/lib/chart/proofScene";
@@ -121,9 +123,13 @@ const BANK_GEN: QQ[] = [
 const BANK_FVG: QQ[] = FVG_QUIZ_BANK.map(q => ({ ...q, choices: [...q.choices] }));
 const FVG_LESSON_BY_ID = new Map(FVG_LESSONS.map(l => [l.id, l]));
 const isFvgLesson = (id: string) => FVG_LESSON_BY_ID.has(id);
+/** The tool primers' knowledge check — on the evidence grades every primer teaches. */
+const BANK_PRIMER: QQ[] = TOOL_PRIMER_QUIZ_BANK.map(q => ({ ...q, choices: [...q.choices] }));
+const TOOL_PRIMER_BY_ID = new Map(TOOL_PRIMERS.map(l => [l.id, l]));
 
 function getBank(title: string, lessonId?: string): QQ[] {
   if (lessonId && isFvgLesson(lessonId)) return BANK_FVG;
+  if (lessonId && TOOL_PRIMER_BY_ID.has(lessonId)) return BANK_PRIMER;
   const t = title.toLowerCase();
   if (t.includes("wyckoff") || t.includes("markov")) return BANK_WY;
   if (t.includes("order flow") || t.includes("footprint") || t.includes("cvd") || t.includes("delta")
@@ -229,6 +235,12 @@ const MODULES: Module[] = [
     duration:formatHoursMinutes(catalogueMinutes(FVG_LESSONS.map(l => l.duration)) ?? 0),
     level:FVG_ACADEMY_MODULE.level, locked:false, completed:false, color:FVG_ACADEMY_MODULE.color,
     lessons:FVG_LESSONS.map(l => ({ id:l.id, title:l.title, duration:l.duration, completed:false })) },
+  // READING THE GLASS (Supermax §9) — one primer per tool, each built from that
+  // tool's own ⓘ record (src/lib/academy/toolPrimers.ts). Same room, one more module.
+  { id:TOOL_PRIMER_MODULE.id, title:TOOL_PRIMER_MODULE.title,
+    duration:formatHoursMinutes(catalogueMinutes(TOOL_PRIMERS.map(l => l.duration)) ?? 0),
+    level:TOOL_PRIMER_MODULE.level, locked:false, completed:false, color:TOOL_PRIMER_MODULE.color,
+    lessons:TOOL_PRIMERS.map(l => ({ id:l.id, title:l.title, duration:l.duration, completed:false })) },
 ];
 
 const LEVEL_COLOR: Record<Module["level"],string> = {
@@ -495,12 +507,13 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
 function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; color: string; onClose: () => void; onComplete?: (id: string) => void }) {
   const [showQuiz, setShowQuiz] = useState(false);
   const fvgLesson = FVG_LESSON_BY_ID.get(lesson.id) ?? null;
+  const toolPrimer = TOOL_PRIMER_BY_ID.get(lesson.id) ?? null;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b border-wm-border shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          {fvgLesson ? <BookOpen size={12} style={{ color }}/> : <Play size={12} style={{ color }}/>}
+          {fvgLesson || toolPrimer ? <BookOpen size={12} style={{ color }}/> : <Play size={12} style={{ color }}/>}
           <span className="text-xs font-bold text-wm-text truncate">{lesson.title}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -519,7 +532,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
       </div>
 
       <div className="flex-1 overflow-y-auto" style={ACADEMY_SCROLL}>
-        {fvgLesson ? <FvgLessonBody lesson={fvgLesson} color={color}/> : (<>
+        {fvgLesson ? <FvgLessonBody lesson={fvgLesson} color={color}/> : toolPrimer ? <ToolPrimerBody primer={toolPrimer} color={color}/> : (<>
         {/* Video — coming soon */}
         <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden"
           style={{ aspectRatio:"16/9", background:`${color}08`, border:`1px solid ${color}25` }}>
@@ -550,7 +563,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
         </>)}
         {/* Notes + Quiz CTA */}
         <div className="px-4 py-4 space-y-4">
-          {fvgLesson ? null : <div data-testid="lesson-key-ideas" className="p-3 rounded-xl border border-wm-border bg-wm-surface/20">
+          {fvgLesson || toolPrimer ? null : <div data-testid="lesson-key-ideas" className="p-3 rounded-xl border border-wm-border bg-wm-surface/20">
             <div className="text-[11px] font-black uppercase tracking-wider mb-2.5" style={{ color }}>Key ideas</div>
             <ol className="space-y-2.5">
               {keyIdeasFor(lesson.title).map((k, i) => (

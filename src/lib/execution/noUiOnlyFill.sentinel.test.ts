@@ -82,9 +82,13 @@ describe("no UI-only fill on the ticket path", () => {
     expect(t).toContain("const broker = scene && contract ? ticketFixtureLines(scene, contract.symbol, mark ?? price, kind === \"FUTURE\" ? pointValue : 1, nowMs) : brokerRead;");
     // The position the ticket shows is never derived from the staged side or quantity.
     expect(t).not.toMatch(/position:\s*\{[^}]*side/);
+    // The read itself now lives in ONE shared store (brokerReadbackStore) the hook selects from — read routes only.
     const hook = code("lib/execution/useBrokerChartLines.ts");
-    expect(hook.match(/fetch\("\/api\/broker\/tastytrade\/(orders|positions)"/g) ?? []).toHaveLength(2);
-    expect(hook).not.toMatch(/method:\s*"(POST|DELETE|PUT|PATCH)"/);
+    expect(hook).toContain("useBrokerReadback(");
+    expect(hook).not.toMatch(/fetch\(|method:\s*"(POST|DELETE|PUT|PATCH)"/);
+    const store = code("lib/execution/brokerReadbackStore.ts");
+    expect(store.match(/fetch\("\/api\/broker\/tastytrade\/(orders|positions)"/g) ?? []).toHaveLength(2);
+    expect(store).not.toMatch(/method:\s*"(POST|DELETE|PUT|PATCH)"/);
   });
 
   it("FLATTEN and MODIFY never send: FLATTEN only loads the ticket; one road to order-submit", () => {

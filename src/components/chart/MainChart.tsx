@@ -7972,6 +7972,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // measured for the type that paints. Numbers (mono) keep their own floor.
       const typeFloor = installTypeFloor(ctx);
       typeFloor.setFloor(narrowGlass ? NARROW_NAME_MIN_PX : 0);
+      // The context's BASE font passes the floor too: a painter that draws after
+      // a restore() without setting a font inherits it (serving 390, 00e7002: one
+      // "LEG POC …" chip still painted at the canvas default, 10px).
+      ctx.font = ctx.font;
       // PHONE: the one folded-silence line has a fixed home under the header
       // band (PHONE ASK 8). It is reserved from the first placer of the frame,
       // so no other word lands on its row (serving 390, ada59d4: "4 SENSES
@@ -22056,10 +22060,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             if (!fr.ok) {
               const endXF = ds.profileStackLeft ? Number(ds.profileStackLeft) - 8 : plotRight - 8;
               ctx.save(); ctx.globalAlpha = att.alpha("fusedObject");
+              // A REFUSAL IS A TRUTH LINE: on a phone it never rides the top-right
+              // row across the newest candles (serving 390 / 430, b72f896 —
+              // "FUSION REFUSED…" sat on the newest column). Narrow glass says it
+              // in the silence stack; the desk keeps its place by the profile.
+              if (narrowGlass) {
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                const yR = takeSilenceRow();
+                ctx.fillText(fitSilence(fusionRefusalCaption(pair, fr.reason)), silenceX, yR);
+                ctx.restore();
+                ds.profileFusionRefusal = `${fr.reason}:SILENCE_STACK`;
+              } else {
               const rr = quietWords(fusionRefusalCaption(pair, fr.reason), { x: endXF, y: HEADER_FLOOR_Y + 26, right: true }, pk.rgbaAs("TAIL", "VALUE", 0.9),
                 [2, 3, 4, 5].map(k => ({ x: endXF, y: HEADER_FLOOR_Y + 8 + 18 * k, right: true })));
               ctx.restore();
               ds.profileFusionRefusal = `${fr.reason}:${Math.round(rr.x)},${Math.round(rr.y)}`;
+              }
             }
           } else {
             fusionObjectRef.current = null;
@@ -22497,6 +22514,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // a row away until it is clear, and then joins the ledger itself —
             // measured on serving: "LEG POC 84425" printed over "VRP POC 84420".
             const chip = (text: string, x: number, y: number, rowIfBlocked = false) => {
+              // PHONE: the caption fits the plot (serving 390, 00e7002: at the 11px
+              // floor "STRUCTURE · FROM SWING LOW … · 22 BARS…" ran 69px past the
+              // plot into the price axis). It ends in an ellipsis; Inspect has it whole.
+              if (narrowGlass) {
+                const maxW = Math.max(60, plotRight - LEFT_CHROME_RIGHT - 12);
+                if (ctx.measureText(text).width + 8 > maxW) {
+                  while (text.length > 8 && ctx.measureText(text + "…").width + 8 > maxW) text = text.slice(0, -1);
+                  text = text.trimEnd() + "…";
+                }
+              }
               const w = Math.ceil(ctx.measureText(text).width) + 8;
               const maxX = W - 76 - livingCol - w;
               // INSIDE THE PLOT, right of the left chrome (2026-09-26, serving:

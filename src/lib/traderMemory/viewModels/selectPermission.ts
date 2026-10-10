@@ -241,7 +241,9 @@ const evaluateCooldownAfterLoss: Evaluator = (rule, input) => {
 const evaluateDataQualityFloor: Evaluator = (rule, input) => {
   const quality: MarketQualityState = input.marketState?.qualityState ?? "UNAVAILABLE";
   // Rule engages when quality drops BELOW acceptable
-  const disallow: MarketQualityState[] = ["STALE", "UNAVAILABLE"];
+  // CLOSED joins them: a closed market was graded STALE here until 2026-10-09,
+  // and a proven-closed session is no more a floor to act on than a stale one.
+  const disallow: MarketQualityState[] = ["STALE", "UNAVAILABLE", "CLOSED"];
   const engaged = disallow.includes(quality);
   return {
     rule,

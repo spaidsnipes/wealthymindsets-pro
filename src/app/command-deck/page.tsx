@@ -407,6 +407,8 @@ function CommandDeckInner() {
     // printed the bars, or the receipt names a venue the numbers never came
     // from. See DECK_CANDLE_SOURCE for the live measurement that found this.
     barSource: DECK_CANDLE_SOURCE,
+    // Proven closure (one owner, 2026-10-09): a closed market is CLOSED, not STALE.
+    sessionOpen: quoteSession.sessionOpen,
   });
 
   const state = useCanonicalMarketState(identity);

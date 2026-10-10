@@ -43,11 +43,20 @@ export const COMPACT_ACT_MAX_HEIGHT = "84svh";
 /** @deprecated the single phone height that measured 79 % coverage; kept so the reason is on record. */
 export const COMPACT_MAX_HEIGHT = "52vh";
 
-export type TicketStage = "FULL" | "PEEK" | "ACT";
+/**
+ * ACT IS THE OPEN STATE AT EVERY SIZE (Founder P0 2026-10-09, "trading feels restricted and minimized";
+ * Sheriff measured 1,462 px of content in a 400 px desk panel). Tablet and desktop no longer open in a
+ * long flowing "FULL" stack: they open in ACT — the entry path first (BUY / SELL, quantity, order type,
+ * price, stop, target, risk / reward, then the live-order block with its account, preview and send row)
+ * — with everything else behind the same one "Details" fold the phone uses. The position / MODIFY /
+ * FLATTEN block joins the entry path only while a position is held or an order is working. The phone
+ * keeps PEEK and the BUILD / REVIEW steps; a wide ticket has room for the whole path and takes no steps.
+ */
+export type TicketStage = "PEEK" | "ACT";
 
 /** Which stage the ticket is in. An order in flight is always ACT: its state is never folded away. */
 export function ticketStage(x: { readonly compact: boolean; readonly sidePicked: boolean; readonly folded: boolean; readonly preSend: boolean }): TicketStage {
-  if (!x.compact) return "FULL";
+  if (!x.compact) return "ACT";
   if (!x.preSend) return "ACT";
   return !x.sidePicked || x.folded ? "PEEK" : "ACT";
 }
@@ -69,11 +78,33 @@ export function foldControl(x: { readonly compact: boolean; readonly sidePicked:
     : { shown: true, enabled: true, label: "CHART ▾", ariaLabel: "Fold the ticket to see the chart — nothing is cleared" };
 }
 
+/**
+ * HALF (Founder P0 2026-10-09): on a phone the ACT ticket covers the camera, so the staged entry / stop /
+ * target lines cannot be seen while they are adjusted. HALF is an OPTION the trader chooses — the same
+ * ACT ticket capped at half the screen and scrolling inside, so the upper half of the chart stays in view.
+ * The default is unchanged (the full ACT sheet). Nothing is unmounted; it is refused while an order is in
+ * flight, like the fold. Whether ACT should default to ≤ 55 % is still a Founder question.
+ */
+export const COMPACT_HALF_MAX_HEIGHT = "50svh";
+export interface HalfControl { readonly shown: boolean; readonly enabled: boolean; readonly label: string; readonly ariaLabel: string }
+export function halfControl(x: { readonly compact: boolean; readonly stage: TicketStage; readonly half: boolean; readonly preSend: boolean }): HalfControl {
+  if (!x.compact || x.stage !== "ACT") return { shown: false, enabled: false, label: "", ariaLabel: "" };
+  if (!x.preSend) return { shown: true, enabled: false, label: "½", ariaLabel: "An order is in flight — the ticket stays at full height until tastytrade answers" };
+  return x.half
+    ? { shown: true, enabled: true, label: "FULL ▴", ariaLabel: "Full-height ticket — every field without scrolling" }
+    : { shown: true, enabled: true, label: "HALF ▾", ariaLabel: "Half-height ticket — keep the chart and its order lines in view; the ticket scrolls inside" };
+}
+/** Is the half height in force? Never while an order is in flight. */
+export function halfInForce(x: { readonly compact: boolean; readonly stage: TicketStage; readonly half: boolean; readonly preSend: boolean }): boolean {
+  return x.compact && x.stage === "ACT" && x.half && x.preSend;
+}
+
 export type TicketStep = "BUILD" | "REVIEW";
 
 /** Which ACT step shows. An order in flight is always REVIEW — the order's state stays in view. */
-export function ticketStep(x: { readonly stage: TicketStage; readonly reviewing: boolean; readonly preSend: boolean }): TicketStep | null {
-  if (x.stage !== "ACT") return null;
+export function ticketStep(x: { readonly stage: TicketStage; readonly reviewing: boolean; readonly preSend: boolean; readonly compact?: boolean }): TicketStep | null {
+  // A wide ticket shows the whole entry path at once — it has no BUILD / REVIEW steps.
+  if (x.stage !== "ACT" || x.compact === false) return null;
   if (!x.preSend) return "REVIEW";
   return x.reviewing ? "REVIEW" : "BUILD";
 }
@@ -91,8 +122,18 @@ export type TicketSection =
   | "QUOTE" | "PROPOSAL" | "BOOK" | "SIDE" | "CLOSING" | "ACTION_LINE" | "SIZE" | "ENTRY_TYPE" | "PRICE" | "RISK_INPUTS" | "RISK_LINE" | "ECONOMICS"
   | "PICK_STATUS" | "PROTECTION_DRYRUN" | "PLAN" | "LIVE_ORDER" | "PROTECT";
 
-/** Tablet / desktop: the flowing order the ticket has always had (RISK_LINE is the phone's one-line economics). */
-const FULL: readonly TicketSection[] = ["QUOTE", "PROPOSAL", "BOOK", "SIDE", "CLOSING", "ACTION_LINE", "SIZE", "ENTRY_TYPE", "PRICE", "RISK_INPUTS", "ECONOMICS", "PICK_STATUS", "PROTECTION_DRYRUN", "PLAN", "LIVE_ORDER", "PROTECT"];
+/**
+ * Tablet / desktop ACT: the entry path. When FLAT with nothing working, nothing sits above BUY / SELL but
+ * the quote (symbol and price are in the header). RISK_LINE is the one-line risk / reward in money; the
+ * long economics table, the protection note, the plan card and protect-the-position fold into Details.
+ */
+export const WIDE_ACTION_SECTIONS: readonly TicketSection[] = ["QUOTE", "SIDE", "CLOSING", "ACTION_LINE", "PROPOSAL", "SIZE", "ENTRY_TYPE", "PRICE", "RISK_INPUTS", "RISK_LINE", "PICK_STATUS", "LIVE_ORDER"];
+export const WIDE_DETAILS_SECTIONS: readonly TicketSection[] = ["BOOK", "ECONOMICS", "PROTECTION_DRYRUN", "PLAN", "PROTECT"];
+/** Holding or working: the position / working-orders / MODIFY / FLATTEN block comes up beside the entry path, right under the quote. */
+function wideLayout(bookActive: boolean): { readonly action: readonly TicketSection[]; readonly details: readonly TicketSection[] } {
+  if (!bookActive) return { action: WIDE_ACTION_SECTIONS, details: WIDE_DETAILS_SECTIONS };
+  return { action: ["QUOTE", "BOOK", ...WIDE_ACTION_SECTIONS.filter(s => s !== "QUOTE")], details: WIDE_DETAILS_SECTIONS.filter(s => s !== "BOOK") };
+};
 /**
  * The phone's action path, in three groups (approved 2026-10-09 after the serving read on 9f4d784:
  * ACT measured 420 px of inner scroll — the path to Preview is ~770 px on a mouse pointer and taller
@@ -108,9 +149,17 @@ export const COMPACT_REVIEW_SECTIONS: readonly TicketSection[] = ["LIVE_ORDER"];
 const COMPACT_ACTION: readonly TicketSection[] = [...COMPACT_PEEK_SECTIONS, ...COMPACT_BUILD_SECTIONS, ...COMPACT_REVIEW_SECTIONS];
 const COMPACT_DETAILS: readonly TicketSection[] = ["BOOK", "ENTRY_TYPE", "ECONOMICS", "PROTECTION_DRYRUN", "PLAN", "PROTECT"];
 
-export function ticketSections(compact: boolean): { readonly action: readonly TicketSection[]; readonly details: readonly TicketSection[] } {
-  return compact ? { action: COMPACT_ACTION, details: COMPACT_DETAILS } : { action: FULL, details: [] };
+export function ticketSections(compact: boolean, bookActive = false): { readonly action: readonly TicketSection[]; readonly details: readonly TicketSection[] } {
+  return compact ? { action: COMPACT_ACTION, details: COMPACT_DETAILS } : wideLayout(bookActive);
 }
+
+/** Is a position held or an order working? (Broker readback only — never the draft.) */
+export function bookIsActive(book: TicketBook): boolean {
+  return book.position.state !== "FLAT" || book.working.length > 0;
+}
+
+/** The wide ticket's height: the whole entry path without an inner scroll on a 900 px desk; it still scrolls if the screen is shorter. */
+export const WIDE_TICKET_MAX_HEIGHT = "calc(100vh - 88px)";
 
 /** "Details · FLAT · 0 working" — the disclosure states the book before it is opened. */
 export function detailsSummary(book: TicketBook): string {

@@ -484,3 +484,12 @@ describe("phone, evening pass: type floor, figure cap, crisp profile rows (Found
     expect(CHART).toMatch(/\? pk\.rgba\("POC", 0\.7\)\s*: r\.insideValueArea\s*\? pk\.rgba\("VALUE", 0\.4\)\s*: pk\.rgba\("TAIL", 0\.2\);/);
   });
 });
+
+describe("phone type floor follow-ups (serving 390/430, 00e7002, 2026-10-09)", () => {
+  it("the context's base font passes the floor; the Structure caption is fitted to the plot on narrow glass; a refusal goes to the silence stack", () => {
+    const i = CHART.indexOf("typeFloor.setFloor(narrowGlass ? NARROW_NAME_MIN_PX : 0);");
+    expect(CHART.slice(i, i + 500)).toContain("ctx.font = ctx.font;");
+    expect(CHART).toContain('while (text.length > 8 && ctx.measureText(text + "…").width + 8 > maxW) text = text.slice(0, -1);');
+    expect(CHART).toContain("ds.profileFusionRefusal = `${fr.reason}:SILENCE_STACK`;");
+  });
+});

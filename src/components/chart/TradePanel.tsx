@@ -43,7 +43,7 @@ import { orderActionLine, prefillNote, protectBasisLine, quoteStreamLabel, SPAID
 import { brokerStateWords, ticketBook, type WorkingOrderRow } from "@/lib/execution/ticketBook";
 import type { WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { TicketBookRows, type CancelAck } from "@/components/chart/TicketBookRows";
-import { COMPACT_ACT_MAX_HEIGHT, COMPACT_PEEK_MAX_HEIGHT, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketStage, ticketStep, type TicketSection } from "@/lib/execution/ticketLayout";
+import { COMPACT_ACT_MAX_HEIGHT, COMPACT_HALF_MAX_HEIGHT, halfControl, halfInForce, COMPACT_PEEK_MAX_HEIGHT, COMPACT_TICKET_QUERY, WIDE_TICKET_MAX_HEIGHT, bookIsActive, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketStage, ticketStep, type TicketSection } from "@/lib/execution/ticketLayout";
 import { TicketSections } from "@/components/chart/TicketSections";
 import { parseTicketFixture, TICKET_FIXTURE_BANNER, ticketFixtureLines, type TicketFixture } from "@/lib/execution/ticketFixture";
 import { railSendGate } from "@/lib/broker/railSendGate";
@@ -347,11 +347,16 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const stageInput = { compact, sidePicked: side != null, folded, preSend: isPreSendPhase(entryPhase) && scene?.state !== "inflight" };
   const stage = ticketStage(stageInput);
   const fold = foldControl(stageInput);
+  // HALF: the trader's own option on a phone — ACT at half height so the chart's order lines stay in view.
+  const [half, setHalf] = useState(false);
+  const halfInput = { compact, stage, half, preSend: stageInput.preSend };
+  const halfCtl = halfControl(halfInput);
+  const halfOn = halfInForce(halfInput);
   // ACT has two steps on a phone: BUILD (closing, size, price, stop / target, risk) and REVIEW (the live-order
   // block alone). CSS only — both stay mounted. REVIEW is forced while an order is in flight.
   const [reviewing, setReviewing] = useState(false);
   useEffect(() => { setReviewing(false); }, [side, symbol]);
-  const step = ticketStep({ stage, reviewing, preSend: stageInput.preSend });
+  const step = ticketStep({ stage, reviewing, preSend: stageInput.preSend, compact });
   const review = reviewGate({ priceOk: entryFields != null, entryType: effectiveEntryType, stopWrongSide });
   // Sheriff P1-2: a chart's bar close is not a quote — the limit is never prefilled from it.
   const quoteLabel = quoteStreamLabel({ stream: snap.stream, bid: q?.bid, ask: q?.ask, quoteAtMs: q?.quoteAt, nowMs, contract: contract?.symbol ?? null, streamWords: STREAM_WORDS });
@@ -573,13 +578,14 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
       data-layout={compact ? "compact" : "full"}
       data-stage={stage}
       data-step={step ?? undefined}
+      data-half={halfOn ? "yes" : undefined}
       aria-label={`Trade ${symbol}`}
       style={{
         // §XIV: a market instrument never covers the forming candle, the live
         // price or a stop/target on price — all at the chart's right edge
         // (serving MNQ 1m, 2026-10-01: the panel at right:24 hid the forming
         // bar). It stands at the chart's lower LEFT, over settled history.
-        position: "fixed", left: 24, bottom: 64, zIndex: 60, width: "min(400px, calc(100vw - 48px))", maxHeight: stage === "PEEK" ? COMPACT_PEEK_MAX_HEIGHT : stage === "ACT" ? COMPACT_ACT_MAX_HEIGHT : "72vh", overflowY: "auto", overflowX: "hidden",
+        position: "fixed", left: 24, bottom: 64, zIndex: 60, width: "min(400px, calc(100vw - 48px))", maxHeight: !compact ? WIDE_TICKET_MAX_HEIGHT : stage === "PEEK" ? COMPACT_PEEK_MAX_HEIGHT : halfOn ? COMPACT_HALF_MAX_HEIGHT : COMPACT_ACT_MAX_HEIGHT, overflowY: "auto", overflowX: "hidden",
         background: "#0d0b08", border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 18px 48px rgba(0,0,0,0.6)", color: INK, fontSize: 12,
       }}
     >
@@ -604,6 +610,11 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", minHeight: 24, border: `1px solid ${LINE}`, color: fold.enabled ? GOLD : MUTED, background: "none", cursor: fold.enabled ? "pointer" : "not-allowed" }}>
           {fold.label}
         </button> : null}
+        {halfCtl.shown ? <button type="button" data-testid="trade-half" aria-label={halfCtl.ariaLabel} aria-pressed={halfOn} disabled={!halfCtl.enabled}
+          onClick={() => { if (halfCtl.enabled) setHalf(v => !v); }}
+          style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", minHeight: 24, border: `1px solid ${LINE}`, color: halfCtl.enabled ? GOLD : MUTED, background: "none", cursor: halfCtl.enabled ? "pointer" : "not-allowed" }}>
+          {halfCtl.label}
+        </button> : null}
         <button type="button" data-testid="trade-close" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", flexShrink: 0, minWidth: 32, minHeight: 32, color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
       </header>
       {scene ? <p role="status" data-testid="trade-proof-banner" data-scene-state={scene.state} style={{ margin: 0, padding: "4px 12px", borderBottom: `1px solid ${GOLD}`, color: GOLD, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6 }}>{TICKET_FIXTURE_BANNER}</p> : null}
@@ -626,7 +637,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         </div>
       ) : (
         <div style={{ padding: compact ? "8px 10px" : 12, display: "grid", gap: compact ? 6 : 10 }}>
-          <TicketSections compact={compact} peek={stage === "PEEK"} step={step} review={review} inFlight={!stageInput.preSend}
+          <TicketSections compact={compact} bookActive={bookIsActive(book)} peek={stage === "PEEK"} step={step} review={review} inFlight={!stageInput.preSend}
             onReview={() => { if (review.allowed) setReviewing(true); }} onEdit={() => { if (stageInput.preSend) setReviewing(false); }}
             sections={sectionEl} summary={detailsSummary(book)} />
         </div>

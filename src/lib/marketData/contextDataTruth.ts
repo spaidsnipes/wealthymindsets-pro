@@ -53,6 +53,8 @@ export function selectContextDataReading(
       return { value: "HISTORICAL", detail: "replay evidence" };
     case "STALE":
       return { value: "DEGRADED", detail: "stale canonical event" };
+    case "CLOSED":
+      return { value: "HISTORICAL", detail: "session closed · last verified values" };
     case "PARTIAL":
       return { value: "DEGRADED", detail: "partial market evidence" };
     case "PROXY":

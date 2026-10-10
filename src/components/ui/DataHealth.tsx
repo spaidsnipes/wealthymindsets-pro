@@ -36,6 +36,7 @@ const QUALITY_STYLES: Record<PublicQualityState, { text: string; border: string;
   PROXY:       { text: "#8a8271", border: "rgba(139,106,41,0.5)", glyph: "≈", label: "Proxy" },
   REPLAY:      { text: "#8a8271", border: "rgba(139,106,41,0.5)", glyph: "⟲", label: "Replay" },
   UNAVAILABLE: { text: "#8a8271", border: "rgba(85,80,63,0.5)",   glyph: "—", label: "Unavailable" },
+  CLOSED:      { text: "#8a8271", border: "rgba(85,80,63,0.5)",   glyph: "◌", label: "Closed" },
 };
 
 export interface QualityBadgeProps {

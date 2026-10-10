@@ -3,6 +3,7 @@ import { instrumentTickFor } from "@/lib/chart/pricePrecision";
 import { useEffect, useState } from "react";
 import type { MarketState, Tick } from "../../hooks/useWebSocket";
 import { priceSourceBadge, REST_QUOTE_SOURCES } from "../priceSource";
+import { CANONICAL_FIDELITY_LABELS } from "./canonicalFidelityLabels";
 import { publishCanonicalMarketState } from "./publishCanonicalMarketState";
 import {
   getSessionNectarSnapshot,
@@ -127,6 +128,16 @@ export interface ChartMarketStatePublicationInput {
    * (price present, tape provenance not matched) — never UNAVAILABLE.
    */
   readonly feedState?: "LIVE" | "STALE" | "DELAYED" | "UNAVAILABLE" | "AWAITING" | null;
+  /**
+   * PROVEN session closure, from the same hook the header's grader reads
+   * (`useQuoteSessionClosure`): `false` = proven closed, `null`/absent = not
+   * proven. Read on serving c9303a7, Friday 18:28 CDT, NQ1! — 88 minutes after
+   * CME closed for the weekend: the MARKET cell read "STALE" while the header
+   * and the Honesty Plaque, graded WITH closure, read session-closed. This
+   * publisher graded the same quote a third time and was never told the market
+   * was shut, so a quiet tape read as a failed pipeline. Closed is not stale.
+   */
+  readonly sessionOpen?: boolean | null;
 }
 
 // Asset class + instrument id + session all delegate to the single canonical
@@ -295,6 +306,7 @@ function qualityFor(
   connected: boolean,
   hasCanonicalPrice: boolean,
   tapeFresh: boolean,
+  sessionOpen?: boolean | null,
 ): MarketQualityState {
   // A per-trade-tape recency window is only a freshness receipt for sources
   // that actually carry a per-trade tape. Handing `fresh: false` to a
@@ -309,8 +321,11 @@ function qualityFor(
   // PriceObservationEvidence.fresh, and it lets the provider arm return the
   // honest ACTIVE DEGRADED -> PARTIAL verdict below.
   const fresh = REST_QUOTE_SOURCES.has(source) ? undefined : tapeFresh;
-  const badge = priceSourceBadge(source, connected, undefined, {present: hasCanonicalPrice, fresh});
+  // Closure is handed to the ONE grader, which already ranks it above
+  // freshness and never applies it to a continuous (crypto) source.
+  const badge = priceSourceBadge(source, connected, sessionOpen === false ? false : undefined, {present: hasCanonicalPrice, fresh});
   if (badge.availability === "unavailable") return "UNAVAILABLE";
+  if (badge.label === CANONICAL_FIDELITY_LABELS.SESSION_CLOSED_LAST_VERIFIED) return "CLOSED";
   if (badge.live) return hasCanonicalPrice ? "LIVE" : "PARTIAL";
   if (badge.label === "STALE PIPELINE") return "STALE";
   if (badge.label.startsWith("DELAYED")) return "DELAYED";
@@ -343,7 +358,7 @@ export function createChartMarketStatePublication(
     channel.instrumentId.toUpperCase() === executableIdentityFor(normalizedSymbol, assetClass)
   );
   const graded = qualityFor(input.source, input.connected, hasCanonicalPrice,
-    priceTick != null && input.capturedAt - priceTick.time < 20_000);
+    priceTick != null && input.capturedAt - priceTick.time < 20_000, input.sessionOpen);
   const qualityState: MarketQualityState = input.feedState === "LIVE"
     ? (hasCanonicalPrice ? "LIVE" : "PARTIAL")
     : input.feedState === "STALE" && graded === "LIVE" ? "STALE"
@@ -693,6 +708,7 @@ export function usePublishChartMarketState(
     // input is indistinguishable from absent evidence at the far end.
     barSource,
     feedState,
+    sessionOpen,
   }: Omit<ChartMarketStatePublicationInput, "capturedAt" | "nectar">,
 ): void {
   // THE BAR THAT CLOSES WHILE NOTHING CHANGES.
@@ -742,6 +758,7 @@ export function usePublishChartMarketState(
       bars,
       barSource,
       feedState,
+      sessionOpen,
       capturedAt: Date.now(),
       nectar: getSessionNectarSnapshot(),
     });
@@ -765,5 +782,5 @@ export function usePublishChartMarketState(
     // switches candle venue without re-publishing would keep stamping the old
     // venue on new numbers — a receipt that is wrong in the one way receipts
     // are supposed to make impossible.
-  }, [symbol, timeframe, session, ticker, recentTicks, source, connected, bars, barSource, feedState, recheck]);
+  }, [symbol, timeframe, session, ticker, recentTicks, source, connected, bars, barSource, feedState, sessionOpen, recheck]);
 }

@@ -45,7 +45,7 @@ export type InspectEvidenceInput =
   | { readonly kind: "BAR"; readonly signedTapeReaches: boolean; readonly barRead: boolean; readonly asOfMs: number | null; readonly source: string | null; /** The provider's own bar-level bid/ask volume was read (tastytrade candle sides). */ readonly barSidesRead?: boolean };
 
 /** Feed states that cap the class at DEGRADED (the measurement is not about NOW). */
-const CAPPING: ReadonlySet<MarketQualityState> = new Set(["DELAYED", "STALE", "REPLAY", "PROXY", "UNAVAILABLE"]);
+const CAPPING: ReadonlySet<MarketQualityState> = new Set(["DELAYED", "STALE", "REPLAY", "PROXY", "UNAVAILABLE", "CLOSED"]);
 
 function base(i: InspectEvidenceInput): Omit<InspectEvidence, "feedNote"> {
   switch (i.kind) {

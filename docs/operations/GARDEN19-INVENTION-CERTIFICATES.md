@@ -2875,6 +2875,12 @@ Finish line at 12:57: **46 of 66 sections proved on serving, 12 proved on sample
 | 16 | **A server-read quote before a live order is checked** (API audit P2-1; the brokers lane's Plan 1, written out under "Founder list — addition" in this document). Today the gate's quote — used for the staleness check and to price a market order — is the one the browser sends. Proposal: for a risk-increasing order the server reads its own quote; none, or a disagreement beyond a small band → refused in plain words; closing and protective orders unchanged. Read on `6e150db`: tastytrade answers for futures-option contracts on all eight products tried, **but a thin strike often has no bid** (1 of 3 on /CL and /ZN) — the collar would refuse those; Webull has no server-side option quote, so a Webull option order would be collared by a tastytrade quote, as it already is in the browser. **Four questions:** refuse when the server cannot read a two-sided quote? on thin strikes, refuse or allow a limit order you price? how wide the band (for example 0.5 % or two ticks)? is a tastytrade quote acceptable for a Webull option order? | **Not in force.** The gate uses the browser's quote; nothing is refused for want of a server quote. NOT BUILT until you decide |
 | 17 | BTC-USD depth shows the book WM reads, with no venue label | **DECIDED by you today** — in force since `e05c774`. Listed as a record, not a question |
 | 18 | **Radio link hosts.** A radio link may now point only at WM's own store, archive.org or Dropbox. This is a NEW restriction, chosen by the team today — is it the right list? | **The new list is in force:** WM's store, archive.org, Dropbox. Any other host is refused |
+| 19 | **Billing turn-on.** The billing owners are built (routes next). Turning it on needs six environment variables set by you, and the Terms and Privacy pages still say "not in effect yet" | **Off.** Nobody is charged by WM Pro; the four tiers are display only |
+| 20 | **WOW World live mode — findings only, nothing changed** (billing audit): a second subscription can be bought on top of a first; a refund leaves the membership active; the $20 purchase enforces nothing | **As found.** Yours to rule: fix in WOW World, or accept until WM Pro's own billing is on |
+| 21 | **Prop desk on sign-out** — should the desk's numbers be purged from the device when you sign out? | **Kept on this device** ("Kept on this device only"); not purged on sign-out |
+| 22 | **A real fills export is needed.** The prop desk's file import has only read synthetic files | **Synthetic-certified only.** One real export from the firm, from you, would certify the reader |
+| 23 | **TradeDay day boundary** — which clock ends a trading day for the consistency rule (the firm's rule decides the largest day) | **The days are as you type or import them**; WM applies no boundary of its own |
+| 24 | **Dashboard read-back** — the desk's figures are UNVERIFIED until you read them back from the firm's dashboard and stamp them | **UNVERIFIED** on every figure until stamped |
 
 Also decided by you today and now in force: order books carry no venue or source label (Depth ladder only); phone opacity "not ATH" — fixed across `e05c774` → `79bb6fd`, your eye is the last check.
 
@@ -3046,10 +3052,10 @@ Status words: **PROVED** (a serving receipt in this document covers it) · **PAR
 | 5 | Appearance controls | **BUILDING tonight** | chart lane | §26d (Tools drawer read; per-tool controls are icon-only) | no certificate row for the controls themselves |
 | 6 | First-class trading | **PARTIAL** | Sheriff lane (TRADE door) + ticket / brokers lanes | §10b ticket rows, §21c, "§66 receipt", handover 1, 6, 16 | brass TRADE door shipped in `b72f896` — not read by the cert lane; first paint at four sizes; atomic MODIFY, bracket / OCO; real working-order cancel; Founder decisions 1, 6, 16 |
 | 7 | Founder prop-evaluation desk (Founder-only, inside Journal / Review) | **BUILT · NOT READ** (`b72f896`) | ticket / journal lane | none yet — the desk and its engine (`propEvaluation.ts`) shipped in `b72f896` | a serving read: account truth, the consistency engine (required = max(target, largest day ÷ 0.30); remaining = required − net; a two-day plan said to be impossible when the arithmetic says so), the scenario lab (illustrative, never a target), and that a member cannot see it |
-| 8 | Prop data + SpaidBot | **BUILT · NOT MOUNTED** (file import, `b72f896`, synthetic tests only) · **tree** (SpaidBot explainer, §28) · **FOUNDER** (dashboard read-back) | brokers lane (file import); cert lane (SpaidBot files tonight) | finish-line §30, §31; §28 | mount the import; a serving read; SpaidBot's owner-only explainer is in the tree, not shipped, and no desk surface sends it the record yet |
-| 9 | Journal / Review / Academy | **PARTIAL** | management + cert lanes | finish-line §23–§29, §33–§36, §40–§42, §56; §27 (Academy audit — shipped `b72f896`, read on serving 18:44–18:45) | the 12 sample-data rows (Founder actions); the footprint modes' ⓘ door unread; no tool has a lesson of its own |
-| 10 | SpaidBot entry | **PARTIAL** | cert lane (SpaidBot files tonight) | finish-line §30 PROVED; §28 (entry and wiring audit) | the docked launcher on a room with the phone nav not read; instruction changes (§28) in the tree |
-| 11 | Passport / Stripe | **PARTIAL** (brokers audit in progress) · **FOUNDER** (referral URLs) | brokers lane | §22b (four tiers pinned; confirmed by the Founder today), handover 4; public-language sweep done (§27c) | the brokers lane's audit result; referral URLs |
+| 8 | Prop data + SpaidBot | **MOUNTED · synthetic-certified only** (file import + owner sample, `00e7002`) · SpaidBot explainer shipped (`00e7002`, unread) · **FOUNDER** (real fills export; dashboard read-back) | brokers lane (file import); cert lane (SpaidBot files tonight); ticket lane (the desk's "Ask SpaidBot about these rules" control) | finish-line §30, §31; §28 | a real fills export from the firm (only synthetic files have been read); the TradeDay day boundary; the dashboard read-back; the desk's Ask control; a serving read |
+| 9 | Journal / Review / Academy | **PARTIAL** | management + cert lanes | finish-line §23–§29, §33–§36, §40–§42, §56; §27 (Academy audit, read on serving); §29 (tool primers — tree) | the 12 sample-data rows (Founder actions); the six tool primers and their repointed ⓘ doors are in the tree, unshipped and unread; the footprint ⓘ door (Sheriff lane) |
+| 10 | SpaidBot entry | **PARTIAL** | cert lane (SpaidBot files tonight) | finish-line §30 PROVED; §28; §29b (launcher read) | on /desk at 390 the docked launcher sits over a "⇕" control (P2); an answer under the new rules cannot be read without a provider call |
+| 11 | Passport / Stripe | **BUILDING** (billing pure owners shipped in `00e7002`; routes next) · **FOUNDER** (turn-on) | brokers / billing lane | §22b, handover 4, 19–21 | the routes; six environment variables; Terms / Privacy still say "not in effect yet"; WOW World live-mode findings (handover 20) |
 | 12 | Device parity | **PARTIAL** | Sheriff + chart lanes | finish-line §43, §52, §58; §26c–§26f | physical phone and tablet (handover d) |
 | 13 | Hourly checkpoints | **BUILDING tonight** | cert lane | the log below | — |
 | 14 | Release certification | **PARTIAL** | cert lane | the FINISH LINE table (66 rows); FOUNDER HANDOVER; end-of-shift receipt | 12 sample-data rows, §5, §52, §58, §59, §62; the 18 handover items |
@@ -3063,6 +3069,7 @@ Status words: **PROVED** (a serving receipt in this document covers it) · **PAR
 | 18:28 | `c9303a7` (committed 18:20; coordinator: LIVE 18:26, 17,734 tests) | 46 proved on serving · 12 sample data · 1 built, not read · 5 partial · 2 Founder | §66 flipped from the brokers lane's server-gate read; `f37005c` gate time recorded (12:17:44); this map written. Open from the last shift: §5 regime line (three-outcome sentence shipped in `c9303a7`, not read yet); registry in OBSERVE |
 | 18:35 | `c9303a7` (no ship since) | 46 · 12 · 1 · 5 · 2 Founder | Supermax §9 Academy audit built in the tree (ten list items covered, ON THE CHART box in 21 lessons, ⓘ doors for the named inventions); public-language sweep (one correction, the manifest); map rows 5–8 and 11 carry the order's text. Gate call — cert lane frozen green |
 | 18:49 | **`b72f896` LIVE 18:42:54** (coordinator ship gate; 17,814 tests; build identity builtAt 23:40:43Z) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: brass TRADE door (§6 partial), Question Lens always painted, owner-only prop desk + engine (§7 built, unread), prop fills import (§8, unmounted), the Academy slice, the manifest. Read on it: lessons + ON THE CHART at 390; ⓘ doors at 1440 and 390 for six of the seven inventions (footprint ⓘ unread). §5 back to PROVED (regime word TRANSITION read on BTC-USD by the management lane). SpaidBot audited; owner-only evaluation explainer and no-promise rules in the tree. Gate call 2 — cert lane frozen green |
+| 19:02 | **`00e7002` LIVE 18:56:11** (coordinator ship gate; 17,877 tests). Another session's `733a34f` (passport bridge accepts thewow.online) is also in main | 47 · 12 · 1 · 4 · 2 Founder | Shipped: phone type floor / absorption cap / profile rows, one-owner fidelity word, prop desk file import + owner sample (§8 mounted, synthetic-certified only), billing pure owners (§11 building), the SpaidBot slice. Read on it: the SpaidBot launcher in non-chart rooms (§29b). In the tree: six tool primers + repointed ⓘ doors (§29a). Handover items 19–24 added |
 
 ## 27. Supermax §9 and §11 / §14 — Academy audit, ⓘ doors, public language (cert lane, written 18:35 CDT Oct 9; tree, not shipped)
 
@@ -3134,3 +3141,30 @@ No message was sent on the Founder's account. Serving reads on `b72f896` (own ta
 | **Academy recommendations** | SpaidBot may recommend only the lessons in the ⓘ door table (`academyDoorForTool`), by exact title and address — "never name another" | pinned to the course by test |
 
 **Not built:** no desk control sends the record yet (`PropEvaluationDesk.tsx` is the ticket / journal lane's file) — until one does, the explainer works from numbers the owner types in the conversation. No serving read of an answer (it would be a provider call on his account).
+
+## 29. Supermax §9 — tool primers; SpaidBot launcher read (cert lane, written 19:02 CDT Oct 9)
+
+### 29a. Six tool primers in the existing Academy ("Reading the glass" — module 10, tree, not shipped)
+
+**The course structure holds them without a new room:** one more module in the same catalogue (`/education`), the same lesson pane, the same knowledge-check and progress owners.
+
+| Primer | Tools it teaches | ⓘ doors now land on it |
+|---|---|---|
+| Living Profile | Living Profile | LIVING_PROFILE |
+| Brick Walls and Derivatives Pressure | both | BRICK_WALLS, DERIVATIVES_PRESSURE |
+| Absorption | Absorption Shelf | ABSORPTION |
+| Liquidity Weather | Liquidity Weather | LIQUIDITY_WEATHER |
+| Effort → Response | Effort → Response | EFFORT_RESPONSE |
+| Footprint | the six footprint modes | FP_bid-ask, FP_delta, FP_volume-profile, FP_imbalance, FP_aggressive-passive, FP_big-trades |
+
+**No new market claim.** Each primer is assembled from the tool's own ⓘ record (`educationFor`): its question, "On the chart" (`appears`), "How to read it" (`grammar`), "What it needs" (`evidence`), and FULL / PARTIAL / DEGRADED in that record's words — a test pins every sentence to the record verbatim. The only words written for the primers are the frame: "SILENCE: the tool draws nothing and says why. Silence is not evidence either way." and "What it cannot know: who traded, why they traded, or what price does next…" (the course's own sentences), plus a ten-question knowledge check on the evidence grades. FVG keeps lesson 1. Liquidity Lifecycle and Effort Mark, which had doors to FVG lessons since `b72f896`, have none now — no primer teaches them.
+
+### 29b. SpaidBot launcher in non-chart rooms — serving `00e7002`, own tab, no message sent (0 SpaidBot requests)
+
+| Room · width | Launcher | Reading |
+|---|---|---|
+| /journal · 390, 834, 1440 | none | the OS-shell rooms carry no floating launcher |
+| /profile · 390 | 44 × 44 at x 340–384, y 793–837, inside the bottom nav's band (y 786–844); "Open SpaidBot, the trading assistant" | docked; over no nav item; topmost at its centre |
+| /profile · 834 | 48 × 48 at x 766–814, y 726–774 — 12 px above the nav (y 786–844) | floating bottom-right (the dock applies below 768 px); over no text at rest |
+| /profile · 1440 | 48 × 48 at x 1372–1420, y 776–824 | bottom-right corner; no nav |
+| /desk · 390 | 44 × 44 at x 340–384, y 793–837 | docked — **over a "⇕" control** (P2, chart / Desk lane) |
