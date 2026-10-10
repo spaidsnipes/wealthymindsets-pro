@@ -20,7 +20,7 @@ const get = async (broker?: string) => {
   const { GET } = await import("./route");
   return GET(new NextRequest(`https://wm.test/api/broker/order-gate${broker === undefined ? "" : `?broker=${broker}`}`));
 };
-const stored = (o: Record<string, unknown>) => JSON.stringify({ armed: true, killSwitch: false, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 5000, maxLossUsdPerOrder: 500, updatedAtMs: Date.now() - 1000, ...o });
+const stored = (o: Record<string, unknown>) => JSON.stringify({ armed: true, killSwitch: false, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 5000, maxLossUsdPerOrder: 500, maxOrdersPerMinute: 5, maxOrdersPerDay: 50, updatedAtMs: Date.now() - 1000, ...o });
 
 beforeEach(() => {
   vi.resetModules();
@@ -69,8 +69,10 @@ describe("GET /api/broker/order-gate", () => {
     const body = await res.json() as Record<string, unknown>;
     expect(body).toMatchObject({ state: "OK", broker: "webull", limits: "UNSET", verdict: "WOULD_REFUSE", sent: false, limitsRead: "READ" });
     expect(String(body.sentence)).toBe("would refuse: No server-held order limits are set. Set them in Settings › Execution; until then nothing live can be sent.");
+    expect(body.orderRate).toMatchObject({ perMinute: null, perDay: null, usedToday: 0, remainingToday: null });
     expect(typeof body.asOf).toBe("string");
-    expect(mocks.kv!.get).toHaveBeenCalledTimes(1);
+    // The limits record, then the order-rate counters (today, this minute) — reads only (2026-10-10).
+    expect(mocks.kv!.get).toHaveBeenCalledTimes(3);
     expect(mocks.kv!.put).not.toHaveBeenCalled();
     expect(mocks.kv!.delete).not.toHaveBeenCalled();
     expect(globalThis.fetch).not.toHaveBeenCalled();

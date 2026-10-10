@@ -11,6 +11,7 @@
  * Nothing here fetches, stores or sends. The sample is labelled SAMPLE in every row a trader reads.
  */
 
+import type { ChartOrderLine } from "./chartOrderLines";
 import { SCENE_PARAM } from "@/lib/chart/proofScene";
 import type { TtOrderView } from "@/lib/broker/tastytradeOrderState";
 
@@ -68,6 +69,15 @@ export function ticketFixtureReadback(fx: TicketFixture, contract: string, refPx
     tails: [TICKET_FIXTURE_TAIL],
     orderAccounts: withStop ? { [stop.id]: { index: 0, tail: TICKET_FIXTURE_TAIL } } : {},
   };
+}
+
+/**
+ * The sample book's lines for the CHART (Sheriff, fixture state=working: the position and its resting stop are
+ * two things, but the canvas showed one line). Each line is the real selector's line, re-labelled SAMPLE in
+ * its words and its id, so it can never read as the account's own position or order.
+ */
+export function ticketFixtureChartLines(r: BrokerLinesResult | null): readonly ChartOrderLine[] {
+  return (r?.lines ?? []).map(l => ({ ...l, id: `sample-${l.id}`, detail: `SAMPLE · ${l.detail}` }));
 }
 
 /** The sample book rows' source, through the real selector — the same shape useBrokerChartLines returns. */

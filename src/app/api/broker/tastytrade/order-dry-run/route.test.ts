@@ -24,7 +24,7 @@ vi.mock("@/lib/marketData/webullSessionStore", () => ({
 import { POST } from "./route";
 import { serverLimitsKey } from "@/lib/execution/serverOrderLimitsStore";
 
-const LIMITS = { armed: true, killSwitch: false, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 100_000, maxLossUsdPerOrder: 300, maxQuoteAgeMs: 5_000, updatedAtMs: 1 };
+const LIMITS = { armed: true, killSwitch: false, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 100_000, maxLossUsdPerOrder: 300, maxQuoteAgeMs: 5_000, maxOrdersPerMinute: 5, maxOrdersPerDay: 50, updatedAtMs: 1 };
 const body = () => ({
   instrumentType: "Future", symbol: "/MNQZ6", action: "Buy to Open", qty: 1, type: "Limit", limitPx: 30_000, decisionId: "wmd_preview",
   accountIndex: 1, environment: "production", protectiveStopPx: 29_950, quote: { bid: 29_999.75, ask: 30_000, atMs: Date.now() },

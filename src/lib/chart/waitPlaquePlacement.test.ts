@@ -43,7 +43,9 @@ describe("MainChart places the H-101 plaque through placeWaitPlaque", () => {
     // Every frame, against candles AND the labels/chips this frame put on the glass.
     // 2026-10-08 Garden 19 §15 P1-A: every visible candle box is still fed, plus the newest column's keep-out.
     // Tightened 2026-10-09: the plaque's first usable row is the legend band's floor.
-    expect(mc).toContain("const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H, top: HEADER_FLOOR_Y }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects()], floatingChips);");
+    expect(mc).toContain("const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H, top: HEADER_FLOOR_Y }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects(), ...chartSheetRects()], floatingChips);");
+    // The inspect / passport sheet is a keep-out in both placements (Sheriff, 2026-10-09).
+    expect(mc).toContain("[...candles, ...chartSheetRects()],");
   });
 });
 

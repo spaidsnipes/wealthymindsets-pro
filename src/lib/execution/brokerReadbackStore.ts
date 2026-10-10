@@ -166,7 +166,10 @@ export function resolveBrokerContract(chartSymbol: string): ContractAnswer {
 /** A future whose contract could not be named is asked again the next time a reader mounts (a rail may have connected). */
 export function forgetUnresolvedContract(chartSymbol: string): void {
   const key = chartSymbol.toUpperCase();
-  if (contracts.get(key)?.state === "NONE" && canonicalAssetClass(chartSymbol) === "futures") contracts.delete(key);
+  if (contracts.get(key)?.state === "NONE" && canonicalAssetClass(chartSymbol) === "futures") {
+    contracts.delete(key);
+    for (const l of contractListeners) l();
+  }
 }
 
 export function useBrokerContract(chartSymbol: string, enabled = true): ContractAnswer {

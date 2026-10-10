@@ -18,12 +18,14 @@ const CAPS = [
   ["maxSharesPerOrder", "Max shares per order", "Stocks and ETFs"],
   ["maxNotionalUsdPerOrder", "Max notional per order ($)", "Entry × point value × quantity"],
   ["maxLossUsdPerOrder", "Max loss at the stop per order ($)", "|Entry − protective stop| × point value × quantity; a long option's premium"],
+  ["maxOrdersPerMinute", "Max live orders per minute", "Per broker; a whole number. Cancels are never counted"],
+  ["maxOrdersPerDay", "Max live orders per day", "Per broker, per Eastern-time day; resets at midnight ET"],
 ] as const;
 type CapKey = (typeof CAPS)[number][0];
 
 export function ServerOrderLimitsPanel() {
   const s = useServerOrderLimits();
-  const [draft, setDraft] = useState<Record<CapKey, string>>({ maxContractsPerOrder: "", maxSharesPerOrder: "", maxNotionalUsdPerOrder: "", maxLossUsdPerOrder: "" });
+  const [draft, setDraft] = useState<Record<CapKey, string>>({ maxContractsPerOrder: "", maxSharesPerOrder: "", maxNotionalUsdPerOrder: "", maxLossUsdPerOrder: "", maxOrdersPerMinute: "", maxOrdersPerDay: "" });
   const [note, setNote] = useState<string | null>(null);
   const [releasing, setReleasing] = useState(false);
   useEffect(() => {
@@ -33,6 +35,8 @@ export function ServerOrderLimitsPanel() {
       maxSharesPerOrder: l?.maxSharesPerOrder != null ? String(l.maxSharesPerOrder) : "",
       maxNotionalUsdPerOrder: l?.maxNotionalUsdPerOrder != null ? String(l.maxNotionalUsdPerOrder) : "",
       maxLossUsdPerOrder: l?.maxLossUsdPerOrder != null ? String(l.maxLossUsdPerOrder) : "",
+      maxOrdersPerMinute: l?.maxOrdersPerMinute != null ? String(l.maxOrdersPerMinute) : "",
+      maxOrdersPerDay: l?.maxOrdersPerDay != null ? String(l.maxOrdersPerDay) : "",
     });
   }, [s.limits]);
   if (s.state === "NOT_OWNER") return null;

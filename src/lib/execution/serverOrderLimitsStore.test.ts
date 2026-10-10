@@ -4,7 +4,7 @@ import { DEFAULT_SERVER_LIMITS } from "./liveOrderPreflight";
 import { applyLimitsChange, loadServerOrderLimits, saveServerOrderLimits, serverLimitsKey } from "./serverOrderLimitsStore";
 
 const T = 1_700_000_000_000;
-const SET = { ...DEFAULT_SERVER_LIMITS, armed: true, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 50_000, maxLossUsdPerOrder: 250, updatedAtMs: T - 1 };
+const SET = { ...DEFAULT_SERVER_LIMITS, armed: true, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 50_000, maxLossUsdPerOrder: 250, maxOrdersPerMinute: 5, maxOrdersPerDay: 50, updatedAtMs: T - 1 };
 
 describe("server-held limits change only in the directions the Founder allows", () => {
   it("the kill switch engages in one write and disarms with it", () => {

@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 import { PROOF_SCENE_REFUSAL, railSendGate } from "@/lib/broker/railSendGate";
 import { NO_PROOF_SCENE, parseProofScene, proofFixtureScene } from "@/lib/chart/proofScene";
 import { ticketBook } from "./ticketBook";
-import { parseTicketFixture, TICKET_FIXTURE_BANNER, TICKET_FIXTURE_TAIL, ticketFixtureLines, ticketFixtureReadback } from "./ticketFixture";
+import { parseTicketFixture, TICKET_FIXTURE_BANNER, TICKET_FIXTURE_TAIL, ticketFixtureChartLines, ticketFixtureLines, ticketFixtureReadback } from "./ticketFixture";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 const NOW = Date.parse("2026-10-09T05:00:00Z");
 const C = "/NQZ6";
@@ -89,5 +91,24 @@ describe("every cancel / modify / flatten in the scene is refused AT the control
       const b = ticketBook(ticketFixtureLines({ side: "BUY", state: "working" }, C, 31_000, 20, NOW), C, { ...g, proofRefusal: PROOF_SCENE_REFUSAL });
       expect([b.working[0].cancel.reason, b.modify.refusal, b.flatten.refusal]).toEqual([PROOF_SCENE_REFUSAL, PROOF_SCENE_REFUSAL, PROOF_SCENE_REFUSAL]);
     }
+  });
+});
+
+describe("the sample book on the CHART (Sheriff: fixture state=working showed one line for two things)", () => {
+  const R = (state: "flat" | "holding" | "working") => ticketFixtureLines({ side: "BUY", state }, "/NQZ6", 21000, 20, 1_000);
+  it("working → the position AND its resting stop, each labelled SAMPLE; holding → the position; flat → nothing", () => {
+    const w = ticketFixtureChartLines(R("working"));
+    expect(w.map(l => l.role).sort()).toEqual(["POSITION", "WORKING"]);
+    expect(w.every(l => l.id.startsWith("sample-") && l.detail.startsWith("SAMPLE · "))).toBe(true);
+    expect(w.find(l => l.role === "WORKING")!.detail).toMatch(/STOP/);
+    expect(ticketFixtureChartLines(R("holding")).map(l => l.role)).toEqual(["POSITION"]);
+    expect(ticketFixtureChartLines(R("flat"))).toEqual([]);
+    expect(ticketFixtureChartLines(null)).toEqual([]);
+  });
+  it("the ticket publishes them under their own 'sample' publisher only in the scene", () => {
+    const T = readFileSync(path.resolve(process.cwd(), "src/components/chart/TradePanel.tsx"), "utf8");
+    expect(T.length).toBeGreaterThan(10000);
+    expect(T).toContain('const sampleLinesKey = scene && contract ? JSON.stringify(ticketFixtureChartLines(broker)) : "[]";');
+    expect(T).toContain('publishChartOrderLines("sample", symbol, JSON.parse(sampleLinesKey));');
   });
 });

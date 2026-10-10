@@ -26437,7 +26437,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         if (el && pin) {
           let axisWP = 0;
           try { axisWP = Math.max(0, Number(chart.priceScale("right").width()) || 0); } catch { /* keep 0 */ }
-          const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H, top: HEADER_FLOOR_Y }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects()], floatingChips);
+          const spotP = placeWaitPlaque(pin, { w: 208, h: el.offsetHeight || 60 }, { w: W - axisWP, h: H, top: HEADER_FLOOR_Y }, [...rowBodiesAt(-1e9, 1e9), ...newestColumnRects(), ...chartSheetRects()], floatingChips);
           const prev = waitPlaqueLiveRef.current;
           const modeP = spotP.overChips ? `${spotP.mode}:OVER_CHIP` : spotP.mode;
           if (!prev || prev.left !== spotP.left || prev.top !== spotP.top || prev.mode !== modeP) {
@@ -28380,6 +28380,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // The visible diamond is ≤ 13px; 18px keeps a plate's edge off its corners.
     marketObjectPinRectsRef.current = projectedMarketObjects.map(t => ({ x: t.point.x - 9, y: t.point.y - 9, w: 18, h: 18 }));
   }, [projectedMarketObjects]);
+  // THE INSPECT / PASSPORT SHEET IS A KEEP-OUT for the selected object's plaque
+  // (Sheriff, serving 390 c9303a7 and e8ca9f2: the plaque took its BELOW spot
+  // and the sheet — z 80 over the plaque's 73 — covered it whole; a CSS rule
+  // had been lifting it after the fact). The sheet's rect, in this chart's
+  // container coordinates, is handed to the placer like any candle.
+  const chartSheetRects = useCallback((): { x: number; y: number; w: number; h: number }[] => {
+    const host = containerRef.current;
+    if (!host) return [];
+    const pane = host.closest(".wm-chart-market-pane") ?? host.parentElement;
+    if (!pane) return [];
+    const cr = host.getBoundingClientRect();
+    return [...pane.querySelectorAll<HTMLElement>('[data-testid="chart-inspect-ticket"]')]
+      .map(el => el.getBoundingClientRect())
+      .filter(r => r.width > 0 && r.height > 0)
+      .map(r => ({ x: r.left - cr.left, y: r.top - cr.top, w: r.width, h: r.height }));
+  }, []);
   const selectedMarketObjectTarget = projectedMarketObjects.find(
     target => target.object.objectId === selectedMarketObjectId,
   ) ?? null;
@@ -28413,7 +28429,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // plaque (serving BTC-USD 15m select=level: its right edge sat on the axis).
       // …and never the price legend band (the frame's HEADER_FLOOR_Y, 90px).
       { w: (containerRef.current?.clientWidth ?? 900) - plotAxisW, h: containerRef.current?.clientHeight ?? 600, top: PRICE_LEGEND_FLOOR_PX },
-      candles,
+      [...candles, ...chartSheetRects()],
     );
   }, [selectedMarketObjectTarget, rangeVer]);
   waitPlaquePinRef.current = selectedMarketObjectTarget ? selectedMarketObjectTarget.point : null;

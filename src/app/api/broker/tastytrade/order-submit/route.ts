@@ -1,3 +1,4 @@
+import { checkOrderRate, reserveOrderSend } from "@/lib/execution/orderRateLimit";
 import { NextRequest, NextResponse } from "next/server";
 
 import { authorizeExecution } from "@/lib/authority/executionAuthority";
@@ -107,6 +108,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ state, reason: preflight.refusals.map(r => r.reason).join(" "), refusals: preflight.refusals }, { status: 422, headers: NO_STORE });
   }
 
+  // ORDER RATE (2026-10-10): per owner, per broker, per minute and per ET day — read BEFORE any broker call.
+  let rateKv: Awaited<ReturnType<typeof orderDecisionKv>> = null;
+  try { rateKv = orderDecisionKv(await webullWorkerEnv()); } catch { rateKv = null; }
+  const rate = await checkOrderRate(rateKv, { broker: "tastytrade", ownerId: auth.user.sub, limits, nowMs: Date.now() });
+  if (!rate.ok) return NextResponse.json({ state: "RATE_LIMITED", code: rate.code, reason: rate.reason }, { status: 429, headers: { ...NO_STORE, "Retry-After": "60" } });
+
   let accountNumber: string;
   let tail: string;
   try {
@@ -144,6 +151,10 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return NextResponse.json({ state: "DRY_RUN_FAILED", reason: e instanceof Error ? e.message : "unknown", account: tail }, { status: 422, headers: NO_STORE });
   }
+
+  // Counted only now — every other check passed — and immediately before the one place call. Not counted → not sent.
+  const reserved = await reserveOrderSend(rateKv, { broker: "tastytrade", ownerId: auth.user.sub, limits, nowMs: Date.now() });
+  if (!reserved.ok) return NextResponse.json({ state: "RATE_LIMITED", code: reserved.code, reason: reserved.reason, account: tail }, { status: 429, headers: { ...NO_STORE, "Retry-After": "60" } });
 
   try {
     const placed = (await submitTastytradeOrder(accountNumber, mapped.order)) as { order?: unknown; warnings?: unknown[] } | null;

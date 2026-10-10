@@ -36,7 +36,8 @@ describe("components hold per-symbol state through the owner", () => {
     ["components/chart/MarketMetricsCard.tsx", ["const rows = readOwned(ownedRows, product);", "const list = readOwned(ownedList, product);", "const read = readOwned(ownedRead, q);"]],
     ["components/chart/StockInfoPanel.tsx", ["const realOHLC = readOwned(ownedOHLC, ownerKey);", "const favorited = readOwned(ownedFav, ownerKey) === true;"]],
     ["components/chart/DOMPanel.tsx", ["useSymbolOwnedState<DomLevel[]>(sym, [])"]],
-    ["components/chart/TradePanel.tsx", ["useSymbolOwnedState<{ symbol: string; streamer: string } | null>(contractKey, null)"]],
+    // The contract is owned by the chart symbol through the one shared resolver (brokerReadbackStore keys every answer by symbol).
+    ["components/chart/TradePanel.tsx", ["const contractAnswer = useBrokerContract(symbol,", 'contractAnswer.state === "RESOLVED" ? contractAnswer.contract : null']],
     ["components/broker/AlpacaTradingPanel.tsx", ["(symbol.trim().toUpperCase(), null);"]],
     ["lib/broker/tastyOptionStreamers.ts", ["return readOwned(ownedMap, underlying);"]],
   ])("%s", (file, lines) => {

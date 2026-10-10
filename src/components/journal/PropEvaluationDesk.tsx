@@ -20,6 +20,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import { PropFillsImportPanel } from "@/components/journal/PropFillsImportPanel";
+import { askSpaidbot, readSpaidbotAsk } from "@/lib/ai/spaidbotAsk";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import {
   DRAWDOWN_METHODS, DRAWDOWN_METHOD_LABEL, EMPTY_PROP_INPUTS, PROP_DEVICE_LINE, PROP_SCENARIO_LABEL, PROP_STORAGE_KIND, PROP_UNVERIFIED, PROP_VERIFY_ACTION,
@@ -32,6 +33,22 @@ const FIELD: React.CSSProperties = { background: "rgba(255,255,255,0.04)", borde
 const LABEL: React.CSSProperties = { display: "grid", gap: 3, fontSize: 11, color: MUTED, minWidth: 0 };
 const GRID: React.CSSProperties = { display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" };
 const BTN: React.CSSProperties = { minHeight: 44, padding: "6px 12px", borderRadius: 6, border: `1px solid ${LINE}`, background: "none", color: GOLD, fontSize: 12, fontWeight: 700, cursor: "pointer" };
+
+export const PROP_ASK_PROMPT = "Explain where my evaluation stands under these rules — the arithmetic only, step by step.";
+
+/** One collapsible part of the desk; its summary says what it holds before it is opened. */
+function Fold({ id, title, summary, startOpen, tone, children }: { readonly id: string; readonly title: string; readonly summary: string; readonly startOpen: boolean; readonly tone?: string; readonly children: React.ReactNode }) {
+  const [open, setOpen] = useState(startOpen);
+  return (
+    <details data-testid="prop-fold" data-fold={id} open={open} onToggle={e => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+      style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "4px 10px" }}>
+      <summary style={{ cursor: "pointer", minHeight: 44, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12, color: tone ?? GOLD, fontWeight: 700 }}>
+        {title} <span data-testid="prop-fold-summary" style={{ fontWeight: 400, color: MUTED, fontSize: 11, overflowWrap: "anywhere" }}>· {summary}</span>
+      </summary>
+      <div style={{ display: "grid", gap: 8, padding: "6px 0 8px" }}>{children}</div>
+    </details>
+  );
+}
 
 export const PROP_SAMPLE_BANNER = "SAMPLE ACCOUNT — synthetic numbers, no one's evaluation. Nothing here is saved.";
 export const PROP_SAMPLE_ROWS: readonly Cents[] = [100_000, -30_000, 100_000, 63_334];
@@ -123,6 +140,26 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
   const plan = planDays.trim() === "" ? null : planDaysVerdict(inputs, Number(planDays));
   const asOf = inputs.verifiedAtMs === null ? null : new Date(inputs.verifiedAtMs).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   const canStamp = r.netBasis !== "NONE" || inputs.profitTargetCents !== null;
+  // Collapsed sections, each with an honest summary of what it holds (the empty desk measured 2,731 px at 390).
+  const money = (c: Cents | null) => (c === null ? null : formatCents(c));
+  const identitySummary = [inputs.nickname, inputs.firm, inputs.program].filter(Boolean).join(" · ") || "not entered";
+  const balanceSummary = [
+    money(inputs.startingBalanceCents) && `start ${money(inputs.startingBalanceCents)}`,
+    money(inputs.currentBalanceCents) && `current ${money(inputs.currentBalanceCents)}`,
+    money(inputs.profitTargetCents) && `target ${money(inputs.profitTargetCents)}`,
+  ].filter(Boolean).join(" · ") + `${inputs.startingBalanceCents === null && inputs.currentBalanceCents === null && inputs.profitTargetCents === null ? "not entered" : ""} · limit ${pct(inputs.consistencyLimit)}`;
+  const drawdownSummary = `${DRAWDOWN_METHOD_LABEL[inputs.drawdownMethod]}${inputs.maxDrawdownCents !== null ? ` · max ${formatCents(inputs.maxDrawdownCents)}` : ""}${inputs.drawdownFloorCents !== null ? ` · floor ${formatCents(inputs.drawdownFloorCents)}` : ""}`;
+  const limitsSummary = [inputs.contractLimit !== null ? `${inputs.contractLimit} contracts` : null, inputs.minTradingDays !== null ? `${inputs.minTradingDays} days minimum` : null].filter(Boolean).join(" · ") || "not entered";
+  const daysSummary = inputs.days.length ? `${inputs.days.length} day${inputs.days.length === 1 ? "" : "s"}${inputs.daysSource ? " · from a file" : ""}` : "no days entered";
+  // Ask SpaidBot: the desk record rides ONE question as conversation context (never stored server-side). Offered only
+  // when SpaidBot's own ask reader keeps a `prop` patch — until then the control is not drawn (no button that does nothing).
+  const askCarriesProp = !sample && readSpaidbotAsk({ prompt: "x", context: { prop: {} } })?.context.prop !== undefined;
+  const [askNote, setAskNote] = useState<string | null>(null);
+  const askAboutRules = () => {
+    const record: PropStored = { kind: PROP_STORAGE_KIND, version: 1, inputs, scenarioRowsCents: rows };
+    const ok = askSpaidbot({ prompt: PROP_ASK_PROMPT, context: { prop: record } });
+    setAskNote(ok ? null : "SpaidBot is not open on this page — open it from the top bar, then ask again.");
+  };
 
   return (
     <section aria-label="Prop evaluation desk" data-testid="prop-evaluation-desk" data-sample={sample ? "yes" : undefined}
@@ -145,12 +182,15 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
             <span data-testid="prop-unverified" style={{ fontSize: 11, color: AMBER, border: `1px solid ${AMBER}`, borderRadius: 999, padding: "2px 8px", fontWeight: 700 }}>{PROP_UNVERIFIED} · every figure below is as typed, not checked</span>
           )}
         </div>
+        <Fold key={`identity-${loaded}`} id="identity" title="Account" summary={identitySummary} startOpen={!!(inputs.nickname || inputs.firm || inputs.program)}>
         <div style={GRID}>
           <label style={LABEL}><span>Nickname (free text — not an account number)</span>
             <input value={inputs.nickname} maxLength={40} onChange={e => edit({ nickname: e.target.value })} style={FIELD} autoComplete="off" /></label>
           <label style={LABEL}><span>Firm</span><input value={inputs.firm} maxLength={60} onChange={e => edit({ firm: e.target.value })} style={FIELD} autoComplete="off" /></label>
           <label style={LABEL}><span>Program</span><input value={inputs.program} maxLength={60} onChange={e => edit({ program: e.target.value })} style={FIELD} autoComplete="off" /></label>
         </div>
+        </Fold>
+        <Fold key={`balances-${loaded}`} id="balances" title="Balances, target and consistency" summary={balanceSummary} startOpen={inputs.startingBalanceCents !== null || inputs.currentBalanceCents !== null || inputs.profitTargetCents !== null}>
         <div style={GRID}>
           <MoneyField label="Starting balance" valueCents={inputs.startingBalanceCents} onCommit={c => edit({ startingBalanceCents: c })} testId="prop-start" />
           <MoneyField label="Current balance" valueCents={inputs.currentBalanceCents} onCommit={c => edit({ currentBalanceCents: c })} testId="prop-current" />
@@ -159,6 +199,8 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
             <input inputMode="decimal" defaultValue={String(inputs.consistencyLimit)} key={`lim-${loaded}`} data-testid="prop-limit"
               onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v > 0 && v <= 1) edit({ consistencyLimit: v }); }} style={FIELD} /></label>
         </div>
+        </Fold>
+        <Fold key={`drawdown-${loaded}`} id="drawdown" title="Drawdown and commissions" summary={drawdownSummary} startOpen={inputs.drawdownMethod !== "UNKNOWN" || inputs.maxDrawdownCents !== null || inputs.drawdownFloorCents !== null}>
         <div style={GRID}>
           <label style={LABEL}><span>Drawdown method</span>
             <select value={inputs.drawdownMethod} onChange={e => edit({ drawdownMethod: e.target.value as DrawdownMethod })} style={FIELD} data-testid="prop-dd-method">
@@ -168,6 +210,8 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
           <MoneyField label="Drawdown floor shown on the firm's dashboard (if you have read it)" valueCents={inputs.drawdownFloorCents} onCommit={c => edit({ drawdownFloorCents: c })} testId="prop-floor" />
           <MoneyField label="Commissions per traded day (optional)" valueCents={inputs.commissionsPerDayCents} onCommit={c => edit({ commissionsPerDayCents: c })} />
         </div>
+        </Fold>
+        <Fold key={`limits-${loaded}`} id="limits" title="Contract limit and minimum days" summary={limitsSummary} startOpen={inputs.contractLimit !== null || inputs.minTradingDays !== null}>
         <div style={GRID}>
           <label style={LABEL}><span>Contract limit</span>
             <input inputMode="numeric" value={inputs.contractLimit ?? ""} onChange={e => { const v = e.target.value.trim(); edit({ contractLimit: v === "" ? null : /^\d{1,4}$/.test(v) ? Number(v) : inputs.contractLimit }); }} style={FIELD} /></label>
@@ -175,6 +219,8 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
             <input inputMode="numeric" value={inputs.minTradingDays ?? ""} data-testid="prop-min-days" onChange={e => { const v = e.target.value.trim(); edit({ minTradingDays: v === "" ? null : /^\d{1,4}$/.test(v) ? Number(v) : inputs.minTradingDays }); }} style={FIELD} /></label>
         </div>
 
+        </Fold>
+        <Fold key={`days-${loaded}`} id="days" title="Daily results" summary={daysSummary} startOpen={inputs.days.length > 0}>
         <div style={{ display: "grid", gap: 6 }}>
           <PropFillsImportPanel sampleFile={sample ? PROP_SAMPLE_FILE : null}
             onUseDays={x => edit({ days: x.days, daysSource: x.source, ...(x.basis === "AFTER_COMMISSIONS" ? { commissionsPerDayCents: null } : {}) })} />
@@ -194,6 +240,7 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
           ))}
           <button type="button" data-testid="prop-add-day" onClick={() => edit({ daysSource: null, days: [...inputs.days, { date: "", netCents: 0 }] })} style={{ ...BTN, justifySelf: "start" }}>Add a traded day</button>
         </div>
+        </Fold>
 
         <div style={{ ...GRID, borderTop: `1px solid ${LINE}`, paddingTop: 10 }} data-testid="prop-reading">
           <Fact testId="prop-net" label={`Net evaluation profit${r.netBasis === "BALANCES" ? " (current − starting balance)" : r.netBasis === "DAILY_RESULTS" ? " (daily results" + (r.feesCents ? " − commissions)" : ")") : ""}`} value={say(r.netProfitCents, formatCents)} />
@@ -213,6 +260,8 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
         ) : null}
         {!sample ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            {askCarriesProp ? <button type="button" data-testid="prop-ask-spaidbot" onClick={askAboutRules} style={BTN}>Ask SpaidBot about these rules</button> : null}
+            {askNote ? <span role="status" data-testid="prop-ask-note" style={{ fontSize: 11, color: AMBER }}>{askNote}</span> : null}
             <button type="button" data-testid="prop-stamp" disabled={!canStamp || r.verified} onClick={() => setInputs(prev => stampVerified(prev, Date.now()))}
               style={{ ...BTN, opacity: !canStamp || r.verified ? 0.5 : 1, cursor: !canStamp || r.verified ? "default" : "pointer" }}>{PROP_VERIFY_ACTION}</button>
             <span style={{ fontSize: 11, color: MUTED, overflowWrap: "anywhere" }}>Press only after you have compared every figure above with the firm&apos;s own page. Changing any figure clears it.</span>
@@ -227,6 +276,7 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
           <span data-testid="prop-scenario-label" style={{ fontSize: 11, letterSpacing: 1, color: AMBER, fontWeight: 800 }}>SCENARIO LAB · {PROP_SCENARIO_LABEL}</span>
           <span style={{ fontSize: 11, color: MUTED, overflowWrap: "anywhere" }}>Rows you type here are what-if days added after the account above — profits and losses. They change nothing in the account, and no row is a goal for any day.</span>
         </div>
+        <Fold key={`scenario-${loaded}`} id="scenario" title="What-if days" summary={rows.length ? `${rows.length} row${rows.length === 1 ? "" : "s"} · ${formatCents(sc.rowsSumCents)}` : "no what-if rows"} startOpen={rows.length > 0} tone={AMBER}>
         {rows.map((v, i) => (
           <div key={i} data-testid="prop-scenario-row" style={{ display: "grid", gap: 6, gridTemplateColumns: "minmax(0,1fr) auto", alignItems: "end" }}>
             <MoneyField label={`What-if day ${i + 1}`} allowNegative valueCents={v} onCommit={c => setRows(rs => rs.map((x, k) => (k === i ? c ?? 0 : x)))} />
@@ -249,6 +299,7 @@ export function PropEvaluationDesk({ storageKey, sample = false }: {
             A row here is larger than the account&apos;s largest day, so the requirement rises{sc.requiredRoseByCents ? ` by ${formatCents(sc.requiredRoseByCents)}` : ""} — a bigger best day asks for a bigger total.
           </span>
         ) : null}
+        </Fold>
         <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 4 }}>
           {sc.conditions.map(c => (
             <li key={c.id} data-testid="prop-condition" data-condition={c.id} data-state={c.state} style={{ fontSize: 12, color: c.state === "MET" ? INK : c.state === "NOT_MET" ? RED : MUTED, overflowWrap: "anywhere" }}>

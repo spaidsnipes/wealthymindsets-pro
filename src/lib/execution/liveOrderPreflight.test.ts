@@ -12,7 +12,7 @@ import {
 const NOW = Date.UTC(2026, 9, 7, 5, 0, 0);
 const LIMITS: ServerOrderLimits = {
   armed: true, killSwitch: false, maxContractsPerOrder: 2, maxSharesPerOrder: 100,
-  maxNotionalUsdPerOrder: 200_000, maxLossUsdPerOrder: 300, maxQuoteAgeMs: 5_000, updatedAtMs: NOW - 60_000,
+  maxNotionalUsdPerOrder: 200_000, maxLossUsdPerOrder: 300, maxQuoteAgeMs: 5_000, maxOrdersPerMinute: 5, maxOrdersPerDay: 50, updatedAtMs: NOW - 60_000,
 };
 // MNQ: $2 a point. Long 1 at 25000 with a stop at 24900 risks $200.
 const MNQ: PreflightOrder = {
@@ -68,7 +68,8 @@ describe("refuse before send (P0.3)", () => {
     expect(codes(preflightLiveOrder(MNQ, ctx(null)))).toContain("LIMITS_UNSET");
     const c = codes(preflightLiveOrder(MNQ, ctx({ ...DEFAULT_SERVER_LIMITS, updatedAtMs: NOW })));
     expect(c).toContain("DISARMED");
-    expect(c.filter(x => x === "CAP_UNSET")).toHaveLength(3);
+    // 3 -> 5 on 2026-10-10: orders per minute and orders per day are caps too (orderRateLimit); unset refuses.
+    expect(c.filter(x => x === "CAP_UNSET")).toHaveLength(5);
   });
   it("the kill switch refuses even a fully armed, in-cap order", () => {
     expect(codes(preflightLiveOrder(MNQ, ctx({ ...LIMITS, killSwitch: true })))).toEqual(["KILL_SWITCH"]);

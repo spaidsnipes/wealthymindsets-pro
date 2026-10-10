@@ -493,3 +493,11 @@ describe("phone type floor follow-ups (serving 390/430, 00e7002, 2026-10-09)", (
     expect(CHART).toContain("ds.profileFusionRefusal = `${fr.reason}:SILENCE_STACK`;");
   });
 });
+
+describe("the selected object's plaque treats the inspect / passport sheet as a keep-out (Sheriff, 2026-10-09)", () => {
+  it("one helper reads the sheet's rect in container coordinates and both placements pass it", () => {
+    expect(CHART).toContain("const chartSheetRects = useCallback((): { x: number; y: number; w: number; h: number }[] => {");
+    expect(CHART).toContain(`pane.querySelectorAll<HTMLElement>('[data-testid="chart-inspect-ticket"]')`);
+    expect([...CHART.matchAll(/\.\.\.chartSheetRects\(\)/g)].length).toBe(2);
+  });
+});

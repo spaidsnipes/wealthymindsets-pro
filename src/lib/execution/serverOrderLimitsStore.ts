@@ -42,11 +42,13 @@ export interface LimitsPatch {
   readonly maxNotionalUsdPerOrder?: unknown;
   readonly maxLossUsdPerOrder?: unknown;
   readonly maxQuoteAgeMs?: unknown;
+  readonly maxOrdersPerMinute?: unknown;
+  readonly maxOrdersPerDay?: unknown;
 }
 
 export type LimitsChange = { readonly ok: true; readonly limits: ServerOrderLimits } | { readonly ok: false; readonly reason: string };
 
-const CAP_FIELDS = ["maxContractsPerOrder", "maxSharesPerOrder", "maxNotionalUsdPerOrder", "maxLossUsdPerOrder", "maxQuoteAgeMs"] as const;
+const CAP_FIELDS = ["maxContractsPerOrder", "maxSharesPerOrder", "maxNotionalUsdPerOrder", "maxLossUsdPerOrder", "maxQuoteAgeMs", "maxOrdersPerMinute", "maxOrdersPerDay"] as const;
 
 export function applyLimitsChange(current: ServerOrderLimits | null, patch: LimitsPatch, nowMs: number): LimitsChange {
   const base = readServerOrderLimits(current ?? null);

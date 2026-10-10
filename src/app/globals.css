@@ -2400,20 +2400,10 @@ input[type=range]::-webkit-slider-runnable-track {
   .wm-desk-chrome > * { flex-shrink: 0; }
 }
 
-/* ── PHONE: THE SELECTED OBJECT'S WAIT PLAQUE IS NOT UNDER THE INSPECT SHEET ─
-   Read on serving c9303a7 at 390x844 (NQ1! 15m, level 31,087.5 selected): the
-   plaque took its BELOW spot at y 627–696 and the inspect sheet — the bottom
-   46% of the camera, z 80 over the plaque's 73 — stood at 478–736. The plaque
-   was 100% covered. The plaque's placement (chart lane) does not know the
-   sheet exists; the sheet is this stylesheet's. So while the sheet is open on
-   a phone, a plaque in the BELOW spot stands under the camera's header row
-   instead: measured 248–317, clear of the sheet and of every object pin. */
-@media (max-width: 767px) {
-  .wm-chart-market-pane:has([data-testid="chart-inspect-ticket"]) [data-h101-wait-plaque][data-h101-wait-plaque-spot="BELOW"] {
-    top: 64px !important;
-    bottom: auto !important;
-  }
-}
+/* (2026-10-10) The phone rule that lifted a BELOW wait plaque to top:64px while
+   the inspect sheet was open is RETIRED: the chart lane's plaque placement now
+   treats the sheet as a keep-out itself, and the CSS lift put the plaque into
+   the 90px legend band. One owner for where the plaque stands — MainChart. */
 
 /* ── THE TRADE DOOR IS FILLED BRASS, AT EVERY SIZE (Founder order §6) ─────
    The one filled control on the instrument strip. Stated here with !important
@@ -2530,6 +2520,25 @@ input[type=range]::-webkit-slider-runnable-track {
    e05c774: the fade was on, the end padding was still 8px. */
 @media (max-width: 767px) {
   body .wm-instrument-context-strip { padding-inline-end: 32px !important; }
+}
+
+/* ── CHART SETTINGS ON A PHONE: EVERY CONTROL IS A 44px TARGET (Founder order §5,
+   2026-10-09). The colour swatches were 28×20 and the switches 36×18 — drawn
+   that size on purpose, so the glyphs stay; on a coarse pointer the TOUCH box
+   grows to 44px around them, and a dial's track gets a 44px row. */
+@media (pointer: coarse) {
+  .wm-settings-control { position: relative; }
+  .wm-settings-control::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    width: max(100%, 44px); height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+  /* Inputs take no ::after — the swatch and the track themselves grow. */
+  input[type="color"].wm-settings-control { min-width: 44px; min-height: 44px; }
+  input[type="range"].wm-settings-control { min-height: 44px; }
+  .wm-settings-dial { min-height: 44px !important; }
 }
 
 /* ── PHONE GLASS: THE DOM TYPE FLOOR IS 11px (ruling 2026-10-09) ──────────

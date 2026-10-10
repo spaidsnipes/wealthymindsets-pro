@@ -11,7 +11,7 @@ import { GATE_BROKERS, STANDING_REFUSAL_CODES, gateContextFor, gateProbes, order
 
 const read = (p: string) => readFileSync(path.join(process.cwd(), "src", p), "utf8");
 const NOW = Date.UTC(2026, 9, 9, 18, 30, 0);
-const SET: ServerOrderLimits = { ...DEFAULT_SERVER_LIMITS, armed: true, killSwitch: false, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 5_000, maxLossUsdPerOrder: 500, updatedAtMs: NOW - 60_000 };
+const SET: ServerOrderLimits = { ...DEFAULT_SERVER_LIMITS, armed: true, killSwitch: false, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 5_000, maxLossUsdPerOrder: 500, maxOrdersPerMinute: 5, maxOrdersPerDay: 50, updatedAtMs: NOW - 60_000 };
 const standing = (broker: "tastytrade" | "webull", limits: ServerOrderLimits | null) => orderGateStanding({ broker, limits, serverEnvironment: "production", nowMs: NOW });
 
 describe.each(GATE_BROKERS)("the standing gate for %s", broker => {

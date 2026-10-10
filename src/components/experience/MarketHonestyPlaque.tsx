@@ -99,6 +99,9 @@ export interface MarketHonestyPlaqueProps {
 // Local time with its zone (traderClock, F2 2026-10-07); was a bare UTC clock.
 const defaultFormatAsOf = (asOf: number): string => traderClock(asOf);
 
+/** What the chart does with a STALE price — true of the glass, not a paint claim. */
+export const STALE_CANVAS_WORDS = "Last verified bars shown · no live price";
+
 export function MarketHonestyPlaque({
   reading,
   ungraded = null,
@@ -228,7 +231,9 @@ export function MarketHonestyPlaque({
         {/* Stated, rather than left implied by the treatment word, because
             "may this be painted at all" is a different question from "how". */}
         <span data-testid="honesty-plaque-paintable">
-          {canPaint(reading) ? "Canvas paints" : "Canvas withheld"}
+          {/* A STALE price is not withheld from the glass: the chart paints the
+              last verified bars and no live price. Say exactly that. */}
+          {canPaint(reading) ? "Canvas paints" : STALE_CANVAS_WORDS}
         </span>
       </div>
     </section>

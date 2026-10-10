@@ -93,3 +93,36 @@ describe("the desk — opens empty, says where it is kept, keeps truth and scena
     expect(code.match(/\b\d{1,3}(_\d{3})+\b/g) ?? []).toEqual(["100_000", "30_000", "100_000", "63_334"]);
   });
 });
+
+describe("the desk at 390 — collapsed parts with honest summaries; Ask SpaidBot only when it can carry the record", () => {
+  it("an empty desk opens with every part folded, each summary saying it holds nothing", () => {
+    const html = renderToStaticMarkup(<PropEvaluationDesk storageKey="k" />);
+    const folds = html.match(/data-testid="prop-fold" data-fold="(\w+)"/g)?.map(x => x.replace(/.*data-fold="/, "").replace('"', "")) ?? [];
+    expect(folds).toEqual(["identity", "balances", "drawdown", "limits", "days", "scenario"]);
+    expect(html).not.toMatch(/data-testid="prop-fold"[^>]*\sopen=""/);
+    const summaries = [...html.matchAll(/data-testid="prop-fold-summary"[^>]*>· ([^<]*)</g)].map(m => m[1]);
+    expect(summaries).toEqual(["not entered", "not entered · limit 30%", "Not known yet", "not entered", "no days entered", "no what-if rows"]);
+    // The verdict and the UNVERIFIED chip are never folded away.
+    expect(html).toContain('data-testid="prop-unverified"');
+    expect(html).toContain('data-testid="prop-verdict"');
+  });
+  it("the sample desk opens its filled parts and summarises them", () => {
+    const html = renderToStaticMarkup(<PropEvaluationDesk storageKey={null} sample />);
+    expect(html).toMatch(/data-fold="balances" open=""/);
+    expect(html).toContain("· start $50,000.00 · current $51,000.00 · target $3,000.00 · limit 30%");
+    expect(html).toContain("· 3 days");
+    expect(html).toMatch(/data-fold="scenario" open=""/);
+  });
+  it("Ask SpaidBot: drawn only when SpaidBot's ask reader keeps a `prop` patch; the record rides the ask, nothing else", () => {
+    const desk = read("components/journal/PropEvaluationDesk.tsx");
+    expect(desk).toContain('const askCarriesProp = !sample && readSpaidbotAsk({ prompt: "x", context: { prop: {} } })?.context.prop !== undefined;');
+    expect(desk).toContain("const ok = askSpaidbot({ prompt: PROP_ASK_PROMPT, context: { prop: record } });");
+    expect(desk).toContain("{askCarriesProp ? <button");
+    // Today the reader's allow-list has no `prop`, so the control is not drawn (no button that does nothing).
+    const ask = read("lib/ai/spaidbotAsk.ts");
+    const carries = /PATCH_KEYS = new Set\(\[[^\]]*"prop"/.test(ask);
+    const html = renderToStaticMarkup(<PropEvaluationDesk storageKey="k" />);
+    expect(html.includes('data-testid="prop-ask-spaidbot"')).toBe(carries);
+    expect(renderToStaticMarkup(<PropEvaluationDesk storageKey={null} sample />)).not.toContain('data-testid="prop-ask-spaidbot"');
+  });
+});

@@ -28,7 +28,7 @@ vi.mock("@/lib/marketData/webullSessionStore", () => ({
 import { POST } from "./route";
 import { serverLimitsKey } from "@/lib/execution/serverOrderLimitsStore";
 
-const LIMITS = { armed: true, killSwitch: false, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 100_000, maxLossUsdPerOrder: 300, maxQuoteAgeMs: 5_000, updatedAtMs: 1 };
+const LIMITS = { armed: true, killSwitch: false, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 100_000, maxLossUsdPerOrder: 300, maxQuoteAgeMs: 5_000, maxOrdersPerMinute: 5, maxOrdersPerDay: 50, updatedAtMs: 1 };
 
 // The owner's two real accounts, by shape: …6649 is NOT futures-approved, …5019 is.
 const ACCOUNTS = [

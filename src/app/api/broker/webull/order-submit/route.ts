@@ -1,3 +1,4 @@
+import { checkOrderRate, reserveOrderSend } from "@/lib/execution/orderRateLimit";
 import { preflightLiveOrder, type ServerOrderLimits } from "@/lib/execution/liveOrderPreflight";
 import { loadServerOrderLimits } from "@/lib/execution/serverOrderLimitsStore";
 import type { TtAction } from "@/lib/broker/tastytradeOrder";
@@ -127,6 +128,11 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ state, reason: preflight.refusals.map(r => r.reason).join(" "), refusals: preflight.refusals }, { status: 422, headers: NO_STORE });
   }
 
+  // ORDER RATE (2026-10-10): per owner, per broker, per minute and per ET day — read BEFORE any broker call.
+  const rateKv = orderDecisionKv(env);
+  const rate = await checkOrderRate(rateKv, { broker: "webull", ownerId: auth.user.sub, limits, nowMs: Date.now() });
+  if (!rate.ok) return NextResponse.json({ state: "RATE_LIMITED", code: rate.code, reason: rate.reason }, { status: 429, headers: { ...NO_STORE, "Retry-After": "60" } });
+
   const ledger = durableWebullOrderLedger(env);
   if (!ledger) return NextResponse.json({ state: "NO_DURABLE_LEDGER", reason: "Live Webull orders need the durable order ledger (KV binding WEBULL_SESSION); none is bound here, so nothing is sent." }, { headers: NO_STORE });
 
@@ -163,6 +169,10 @@ export async function POST(request: Request): Promise<Response> {
   if (preview.state !== "PREVIEWED") {
     return NextResponse.json({ state: "PREVIEW_FAILED", reason: preview.reason, account: tail }, { status: 422, headers: NO_STORE });
   }
+
+  // Counted only now — every other check passed — and immediately before the one place call. Not counted → not sent.
+  const reserved = await reserveOrderSend(rateKv, { broker: "webull", ownerId: auth.user.sub, limits, nowMs: Date.now() });
+  if (!reserved.ok) return NextResponse.json({ state: "RATE_LIMITED", code: reserved.code, reason: reserved.reason, account: tail }, { status: 429, headers: { ...NO_STORE, "Retry-After": "60" } });
 
   const result = await submitWebullOrderOnce(fetch, { ...orderCfg, liveOrdersEnabled: true }, ledger, intent);
   // §XC: the order → Decision_ID link the Journal groups Webull fills by.

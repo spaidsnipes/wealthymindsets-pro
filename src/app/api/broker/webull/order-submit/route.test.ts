@@ -29,7 +29,7 @@ import { POST } from "./route";
 const OWNER = "owner-user-1";
 // The server-held limits (2026-10-09: this door now runs the same preflight as
 // tastytrade's). `limitsRecord` is what the KV holds for the owner's limits key.
-const ARMED_LIMITS = { armed: true, killSwitch: false, maxContractsPerOrder: 5, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 5000, maxLossUsdPerOrder: 2000, maxQuoteAgeMs: 5000, updatedAtMs: 1 };
+const ARMED_LIMITS = { armed: true, killSwitch: false, maxContractsPerOrder: 5, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 5000, maxLossUsdPerOrder: 2000, maxQuoteAgeMs: 5000, maxOrdersPerMinute: 5, maxOrdersPerDay: 50, updatedAtMs: 1 };
 const store: { limitsRecord: string | null; puts: [string, string][] } = { limitsRecord: JSON.stringify(ARMED_LIMITS), puts: [] };
 const KV = {
   get: vi.fn(async (key: string) => (key.startsWith("wm:execution-limits:") ? store.limitsRecord : null)),

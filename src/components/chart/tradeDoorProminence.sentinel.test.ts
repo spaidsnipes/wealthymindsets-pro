@@ -58,18 +58,8 @@ describe("the Trade door", () => {
 });
 
 describe("phone: the selected object's WAIT plaque and the inspect sheet", () => {
-  it("the plaque still publishes the spot the rule reads", () => {
-    expect(chart).toContain("data-h101-wait-plaque-spot=");
-    expect(chart).toContain('"BELOW"');
-  });
-
-  it("a BELOW plaque stands under the header row while the sheet is open, phone only", () => {
-    const at = css.indexOf("THE SELECTED OBJECT'S WAIT PLAQUE IS NOT UNDER THE INSPECT SHEET");
-    expect(at).toBeGreaterThan(-1);
-    const block = css.slice(at, css.indexOf("THE TRADE DOOR IS FILLED BRASS", at));
-    expect(block).toContain("@media (max-width: 767px) {");
-    expect(block).toContain('.wm-chart-market-pane:has([data-testid="chart-inspect-ticket"]) [data-h101-wait-plaque][data-h101-wait-plaque-spot="BELOW"] {');
-    expect(block).toContain("top: 64px !important;");
-    expect((block.match(/@media/g) ?? []).length).toBe(1);
+  it("the retired CSS lift stays retired — placement is the chart's one owner (2026-10-10)", () => {
+    expect(css).not.toContain('[data-h101-wait-plaque][data-h101-wait-plaque-spot="BELOW"]');
+    expect(css).toContain("is RETIRED: the chart lane's plaque placement now");
   });
 });

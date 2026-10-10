@@ -1,3 +1,4 @@
+import { readOrderRate } from "@/lib/execution/orderRateLimit";
 import { NextRequest, NextResponse } from "next/server";
 
 import { brokerOwnerRefusal, tastytradeOwnerGate } from "@/lib/broker/brokerOwner";
@@ -42,8 +43,9 @@ export async function GET(req: NextRequest) {
   // The SAME read the submit doors make. Unreadable limits read as none: the gate then refuses (fail closed).
   let limits: ServerOrderLimits | null = null;
   let limitsRead: "READ" | "NO_STORE" | "UNREADABLE" = "READ";
+  let kv: ReturnType<typeof orderDecisionKv> = null;
   try {
-    const kv = orderDecisionKv(await webullWorkerEnv());
+    kv = orderDecisionKv(await webullWorkerEnv());
     if (!kv) limitsRead = "NO_STORE";
     limits = await loadServerOrderLimits(kv, auth.user.sub);
   } catch {
@@ -52,8 +54,11 @@ export async function GET(req: NextRequest) {
   }
   const serverEnvironment = tastytradeConfigStatus().env === "cert" ? "cert" : "production";
   const standing = orderGateStanding({ broker, limits, serverEnvironment, nowMs: Date.now() });
+  // The order-rate budget, read only (the same counter the submit door reserves against).
+  let orderRate = null;
+  try { orderRate = await readOrderRate(kv, { broker, ownerId: auth.user.sub, limits, nowMs: standing.asOfMs }); } catch { orderRate = null; }
   return NextResponse.json(
-    { state: "OK", ...standing, limitsRead, asOf: new Date(standing.asOfMs).toISOString(), sent: false, note: "Read only: no order, no broker call, no ledger write." },
+    { state: "OK", ...standing, orderRate, limitsRead, asOf: new Date(standing.asOfMs).toISOString(), sent: false, note: "Read only: no order, no broker call, no ledger write." },
     { headers: NO_STORE },
   );
 }

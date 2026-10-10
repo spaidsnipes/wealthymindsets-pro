@@ -96,7 +96,12 @@ import {
 export const INTEGRITY_WORD: Readonly<Record<PaintTreatment, string>> = Object.freeze({
   FULL: "INTACT",
   WOUNDED: "WOUNDED",
-  DIM: "DIMMED",
+  // WORDS THAT ARE TRUE (Sheriff, serving 2026-10-09: the foot rail read
+  // "DIMMED · Canvas withheld" on a STALE price while the chart was neither
+  // dimmed nor withheld — it paints its last verified bars). STALE grades the
+  // PRICE; the word says what the trader is looking at, not a paint effect the
+  // chart may not be applying.
+  DIM: "LAST VERIFIED",
   NONE: "NOT PAINTED",
 });
 

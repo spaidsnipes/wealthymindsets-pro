@@ -100,16 +100,18 @@ describe("no reading is not a clean bill", () => {
 describe("the treatment is printed in words", () => {
   it("A DIMMED CHART AND A DIM MONITOR ARE THE SAME PICTURE", () => {
     // Which is why the treatment is not left to opacity alone.
-    expect(render({ reading: reading("STALE") })).toContain("DIMMED");
+    expect(render({ reading: reading("STALE") })).toContain("LAST VERIFIED");
     expect(render({ reading: reading("PARTIAL") })).toContain("WOUNDED");
     expect(render({ reading: reading("DEGRADED") })).toContain("WOUNDED");
     expect(render({ reading: reading("EXECUTABLE") })).toContain("INTACT");
     expect(render({ reading: reading("INDICATIVE") })).toContain("INTACT");
   });
 
-  it("STALE WITHHOLDS THE CANVAS, AND SAYS SO", () => {
+  it("STALE SAYS WHAT THE GLASS SHOWS — last verified bars, no live price — never a withholding the chart does not do", () => {
     const html = render({ reading: reading("STALE") });
-    expect(html).toContain("Canvas withheld");
+    expect(html).toContain("Last verified bars shown · no live price");
+    expect(html).not.toContain("Canvas withheld");
+    expect(html).not.toContain("DIMMED");
     expect(html).not.toContain("Canvas paints");
   });
 
@@ -117,7 +119,7 @@ describe("the treatment is printed in words", () => {
     // An empty integrity slot reads as integrity.
     for (const f of Object.values(MARKET_FIDELITIES)) {
       expect(render({ reading: reading(f) }), f).toMatch(
-        /data-integrity="(INTACT|WOUNDED|DIMMED|NOT PAINTED)"/,
+        /data-integrity="(INTACT|WOUNDED|LAST VERIFIED|NOT PAINTED)"/,
       );
     }
   });

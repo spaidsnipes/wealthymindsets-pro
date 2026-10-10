@@ -51,7 +51,7 @@ describe("selectFoldEscalation", () => {
 
   it("DISCLOSES for PARTIAL, STALE and UNMEASURED too", () => {
     expect(selectFoldEscalation(reading(MARKET_FIDELITIES.PARTIAL)).word).toBe("WOUNDED");
-    expect(selectFoldEscalation(reading(MARKET_FIDELITIES.STALE)).word).toBe("DIMMED");
+    expect(selectFoldEscalation(reading(MARKET_FIDELITIES.STALE)).word).toBe("LAST VERIFIED");
     expect(selectFoldEscalation(null).word).toBe("NOT PAINTED");
   });
 
@@ -123,7 +123,7 @@ describe("INTEGRITY_WORD", () => {
     expect(INTEGRITY_WORD).toEqual({
       FULL: "INTACT",
       WOUNDED: "WOUNDED",
-      DIM: "DIMMED",
+      DIM: "LAST VERIFIED",
       NONE: "NOT PAINTED",
     });
     expect(Object.isFrozen(INTEGRITY_WORD)).toBe(true);

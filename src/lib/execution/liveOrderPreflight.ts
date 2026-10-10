@@ -43,6 +43,10 @@ export interface ServerOrderLimits {
   readonly maxLossUsdPerOrder: number | null;
   /** How old the touch may be for a risk-increasing order. Bounded to [500 ms, 15 s]. */
   readonly maxQuoteAgeMs: number;
+  /** Live sends per broker per minute (orderRateLimit counts them). Unset → every live send is refused. */
+  readonly maxOrdersPerMinute: number | null;
+  /** Live sends per broker per Eastern-time day. Unset → every live send is refused. */
+  readonly maxOrdersPerDay: number | null;
   readonly updatedAtMs: number | null;
 }
 
@@ -58,7 +62,15 @@ export const DEFAULT_SERVER_LIMITS: ServerOrderLimits = {
   maxNotionalUsdPerOrder: null,
   maxLossUsdPerOrder: null,
   maxQuoteAgeMs: DEFAULT_QUOTE_AGE_MS,
+  maxOrdersPerMinute: null,
+  maxOrdersPerDay: null,
   updatedAtMs: null,
+};
+
+/** A count of orders: a whole number ≥ 1, or none. */
+const countCap = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  return Number.isInteger(n) && n >= 1 && n <= 10_000 ? n : null;
 };
 
 const ceiling = (v: unknown): number | null => {
@@ -81,6 +93,8 @@ export function readServerOrderLimits(raw: unknown): ServerOrderLimits {
     maxNotionalUsdPerOrder: ceiling(o.maxNotionalUsdPerOrder),
     maxLossUsdPerOrder: ceiling(o.maxLossUsdPerOrder),
     maxQuoteAgeMs: Number.isFinite(age) ? Math.min(MAX_QUOTE_AGE_MS, Math.max(MIN_QUOTE_AGE_MS, age)) : DEFAULT_QUOTE_AGE_MS,
+    maxOrdersPerMinute: countCap(o.maxOrdersPerMinute),
+    maxOrdersPerDay: countCap(o.maxOrdersPerDay),
     updatedAtMs: Number.isFinite(Number(o.updatedAtMs)) && Number(o.updatedAtMs) > 0 ? Number(o.updatedAtMs) : null,
   };
 }
@@ -250,6 +264,9 @@ export function preflightLiveOrder(o: PreflightOrder, ctx: PreflightContext): Pr
     }
     if (L.maxNotionalUsdPerOrder == null) refuse("CAP_UNSET", "Set a maximum notional per order on the server (Settings › Execution).");
     if (L.maxLossUsdPerOrder == null) refuse("CAP_UNSET", "Set a maximum loss per order on the server (Settings › Execution).");
+    // The order-rate limits (orderRateLimit) are caps too: unset refuses, like every other cap.
+    if (L.maxOrdersPerMinute == null) refuse("CAP_UNSET", "Set a maximum number of live orders per minute on the server (Settings › Execution).");
+    if (L.maxOrdersPerDay == null) refuse("CAP_UNSET", "Set a maximum number of live orders per day on the server (Settings › Execution).");
   }
 
   // 5. The price this order is judged at.

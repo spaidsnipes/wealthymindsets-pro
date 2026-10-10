@@ -75,7 +75,7 @@ One row per section of the order's second part ("0 — PRIMARY ORDER" through "6
 | 63 | FINAL FVG SHERIFF TEST | **FOUNDER DECISION** | The lanes ran it (`fvg-serving-sheriff-2026-10-07.txt`; first-tap screenshots on `c104669`). The test is the Founder's own walk on Market Home — owed, and the layer is off until he switches it on. | Sheriff lane |
 | 64 | FINAL PATIENCE / MANAGEMENT SHERIFF TEST | **PROVED ON FIXTURE · real-account read owed** | Market / planned / actual apart, factual deviations, new evidence preserved — sample walkthrough (§10b). Owed: one completed Founder trade. | management lane |
 | 65 | GARDEN 19 FINAL FVG LAW | **PROVED ON FIXTURE · real-account read owed** | Every line has a row above except: other evidence present / absent at the gap is limited to structure, profile and walls (§13, §14, §17); "how the trader behaved" is proved on sample data only (§23). **UPDATE 12:57 CDT:** with §13 and §14 proved, other evidence present / absent at the gap is now read for structure, profile, walls, effort → response and order flow. The one line left is "how the trader behaved" — proved on sample data only (§23, §24, §41). Closes with the Founder's real journal entries. | FVG / chart lane |
-| 66 | GARDEN 19 CONSTITUTIONAL CLOSE | **PROVED ON SERVING** | Most pairs have rows above. Open: "broker acknowledgement before execution certainty" — the Webull server gate (`559884e`) is pinned by sentinel, not proved on serving (§21c); "permission before automation" — authorized execution is not built and needs the Founder's permission rule (§10c). **12:57 CDT:** still waits on two things — (1) a serving read of the Webull order door's server gate refusing an order (not done: no order is sent on the Founder's account; needs a sample or dry-run path), with decision 6 on the GATED wording; (2) the Founder's permission rule for authorized execution. **UPDATE 18:28 CDT → PROVED ON SERVING** (brokers lane's receipt, "§66 receipt" in this document; serving `e8ca9f2`, 13:31:40–13:32:17 CDT): the server gate was READ with no order sent — owner, both brokers: limits UNSET → WOULD_REFUSE, `sent: false`, "would refuse: No server-held order limits are set…"; guest 401; every execute row in Settings › Connections prints the gate's verdict with its time. Still the Founder's: the Webull GATED wording (handover 6) and his permission rule for authorized execution. | coordinator |
+| 66 | GARDEN 19 CONSTITUTIONAL CLOSE | **PROVED ON SERVING** | Most pairs have rows above. Open: "broker acknowledgement before execution certainty" — the Webull server gate (`559884e`) is pinned by sentinel, not proved on serving (§21c); "permission before automation" — authorized execution is not built and needs the Founder's permission rule (§10c). **12:57 CDT:** still waits on two things — (1) a serving read of the Webull order door's server gate refusing an order (not done: no order is sent on the Founder's account; needs a sample or dry-run path), with decision 6 on the GATED wording; (2) the Founder's permission rule for authorized execution. **UPDATE 18:28 CDT → PROVED ON SERVING** (brokers lane's receipt, "§66 receipt" in this document; serving `e8ca9f2`, 13:31:40–13:32:17 CDT): the server gate was READ with no order sent — for the owner both brokers would refuse and nothing is sent; a guest is refused (account-level state details held privately); every execute row in Settings › Connections prints the gate's verdict with its time. Still the Founder's: the Webull GATED wording (handover 6) and his permission rule for authorized execution. | coordinator |
 
 Struck from the open list: the memo-deps ask at `ChartsDashboard.tsx` ~2960 — closed in `7f2ca59` (coordinator, Oct 9).
 
@@ -2559,23 +2559,7 @@ LIVE `0dd1130` at 07:40:28 CDT and `16f363a` at 07:54:56 CDT (coordinator ship g
 
 ### 23d. Founder list — additions
 
-1. **Thirteen probable sweep symbols in the coverage ledger** (table from the brokers lane; rows observed per symbol). These look like symbols written by automated sweeps rather than by a trader watching them. Nothing has been edited or deleted. **Leave or remove is the Founder's call.**
-
-| Symbol | Rows |
-|---|---|
-| AVAX | 2 |
-| LTC | 6 |
-| BZ1! | 10 |
-| 6E1! | 21 |
-| ZN1! | 97 |
-| /ES | 61 |
-| ESZ6 | 17 |
-| /BTC | 3 |
-| RTY1! | 5 |
-| /MNQH7 | 149 |
-| "BTC-" | 1,821 |
-| DOGE | 45 |
-| QQQ | 34 |
+1. **Probable sweep symbols in the coverage ledger** — the symbol list and row counts are details held privately. Nothing has been edited or deleted. **Leave or remove is the Founder's call.**
 
 2. **Selling copy has never been redlined by the Founder.** Two public strings were added today (`0dd1130`, on /welcome, /pricing, /login through `sellingStory.ts`), both his own sentences:
 
@@ -2765,7 +2749,7 @@ Same text as appended to `~/wm-held/proof/fvg-serving-night-2026-10-07.txt`. Fix
 
 ### 26b. API audit (brokers lane; recorded as reported by the coordinator, not re-run by this lane)
 
-No P0. Six P1: **P1-1, P1-2, P1-4, P1-6 closed in `6944df9`**; **P1-5 in progress**; **P1-3 (Webull wording) is a Founder decision**.
+No P0. The open P1 / P2 findings and their state are details held privately.
 
 ### 26c. Signed-in responsive pass under `scene=verify` — `e05c774`, 12:04–12:10
 
@@ -2807,7 +2791,7 @@ Measured: the lesson column is 358 px on a 390-px phone, the drawing is 300 unit
 |---|---|---|
 | Regime line with Regime Lighting on (`on=fvg,RegimeLighting`; the URL switch exists, no saved layer flipped) | Lighting drew (`regimeLighting RANGE`, verdict COMPRESSION, `regimeStateLine 3\|X1\|NOW:BALANCE`). The gap's Inspect: "Regime at formation (tape): not read — the tape does not reach this bar." (NQ1! 5m, gap 3.7 h old; NQ1! 1m, gap 47 min old, series 11 bars). Volatility lines: "expanded — range 1.51× its normal (from 4950 closed bars)", "compressed — range 0.71× its normal (from 2953 closed bars)" | both "not read" sentences PROVED; a regime word at formation NOT READ (no gap inside the tape's reach) |
 | Connect brokers, door 1: Chart tools → More chart tools → Connect brokers | **390:** full-screen sheet with its own Close; 358 text leaves, 0 under 11 px; 5 controls under 44 px (mouse pointer). **834:** sheet x 0–830; **312 of 363 text leaves under 11 px** (9–10 px); 4 controls under 44 px | clear of the thumb bar. **P2 (brokers lane): tablet type is 9–10 px** — the 11-px floor applies below 640 px only |
-| Connect, door 2: Depth ladder → "Check connections →" | Leaves the chart for the Connections page (phone nav present). **390:** 0 of 223 leaves under 11 px; 5,532 px of page. **834:** 83 of 223 under 11 px. The page reads "7/10 providers configured", "13/40 required names present · Values stay sealed in approved runtime stores" | reached. **P2 (brokers lane):** operator words on a page a member reaches from the Depth sheet; the door leaves the chart without saying so |
+| Connect, door 2: Depth ladder → "Check connections →" | Leaves the chart for the Connections page (phone nav present). **390:** 0 of 223 leaves under 11 px; 5,532 px of page. **834:** 83 of 223 under 11 px. Operator configuration counts shown to the owner (details held privately) | reached. **P2 (brokers lane):** operator words on a page a member reaches from the Depth sheet; the door leaves the chart without saying so |
 | Lesson diagram labels at 390 (lesson 21) | The drawing is **318 px** wide at 390, not the 358 px assumed at 12:26: all 7 labels render at **9.81 px**. "reference a gap" is on the drawing. The lesson's WHAT TO LOOK FOR still said "Tag FVG trades in the Journal." | **NOT at 11 px on serving.** Fixed in the tree 12:44: `LABEL_UNITS = 10.4` against the measured 318 px (11.02 px); four long labels shortened or end-anchored so none runs past the drawing; caption and lesson eyebrow at 11 px on phones; lesson 21's look line names the real control. Serving read owed after the next ship |
 
 ### 26g. Remaining — everything not PROVED ON SERVING (22 of 66 at 12:46; 21 at 12:55 after §13)
@@ -2857,12 +2841,12 @@ Finish line at 12:57: **46 of 66 sections proved on serving, 12 proved on sample
 
 | # | Decision | Default in force until you rule |
 |---|---|---|
-| 1 | Order-submit rate limit, and a daily order cap | **None set.** The order doors run the server gate (kill switch, arm, caps, quote, protection) but there is no "N orders per window" and no per-day ceiling |
-| 2 | The 13 probable sweep symbols in the coverage ledger (AVAX 2, LTC 6, BZ1! 10, 6E1! 21, ZN1! 97, /ES 61, ESZ6 17, /BTC 3, RTY1! 5, /MNQH7 149, "BTC-" 1,821, DOGE 45, QQQ 34) | **Left in place.** Nothing edited or deleted |
+| 1 | Order-submit limits (security finding) | details held privately |
+| 2 | Probable sweep symbols in the coverage ledger — leave or remove | Left in place; list details held privately |
 | 3 | The two selling strings added today: the loop sentence ends "→ RETURN TO MARKET BETTER"; the 15th line reads "That is a Trading Operating System." | **Live** on /welcome, /pricing, /login. Both are your own sentences; the selling copy as a whole has never been redlined by you |
 | 4 | Passport intro-offer line (first month $10, then $20) and the referral links | **Shown as display only**; referral links wait for your URLs. Four tiers $0 / $10 / $20 / $50 — confirmed by you today |
 | 5 | Futures option walls on a near-price chain: scoped (A) or withheld (B) | **A, shipped:** walls drawn as NEAR-PRICE OPEN INTEREST; zero-gamma and the pressure field withheld, with the reason on the glass |
-| 6 | **Webull submit wording** (API audit P1-3). The glass says Webull submit is "GATED (submit order not switched on)", but the route sends once limits are set and an armed, confirmed order is within caps (`order-submit/route.ts` holds `liveOrdersEnabled: true`, per your 2026-10-01 instruction). **A:** add a real server switch, default off, so the sentence is literally true. **B:** keep the route and change the words to what is true | **The route sends when armed; the words say GATED.** The sentence on the glass is not true today |
+| 6 | Webull submit wording (security finding, Founder decision A / B) | details held privately |
 | 7 | **Masthead feed reading on phones.** "LIVE — CERTIFIED QUOTE · certified realtime · asOf HH:MM:SS ET" is under 11 px on phones: at 11 px its three lines wrap to four and the masthead grows from 133 to 144 px, taking 11 px from the chart. Raise it and accept the height, shorten the words, or leave it | **Left small** — the one exception to the 11-px phone floor |
 | 8 | GC1! decimals: the chart prints gold at 2 decimals, the ticket at the true tick | **Both stand** — chart 2 dp, ticket true tick |
 | 9 | Phone ticket: at most 55 % of the glass while acting? | **Not enforced as a limit.** Measured: PEEK 51 %; BUILD fits without inner scroll (592 px of 844) |
@@ -2872,15 +2856,16 @@ Finish line at 12:57: **46 of 66 sections proved on serving, 12 proved on sample
 | 13 | **Living Profile line grammar.** Its P-110 plate draws the profile's lines in its own grammar; every other profile uses a solid POC and dashed value-area edges. Keep the plate's grammar, or adopt the shared one | **The plate's grammar** |
 | 14 | FVG layer default | **OFF.** A trader switches it on in Tools; lessons and doors switch it on for that visit only |
 | 15 | TED definition | **None.** Its ⓘ says "definition pending Founder"; nothing is drawn as TED on the candles |
-| 16 | **A server-read quote before a live order is checked** (API audit P2-1; the brokers lane's Plan 1, written out under "Founder list — addition" in this document). Today the gate's quote — used for the staleness check and to price a market order — is the one the browser sends. Proposal: for a risk-increasing order the server reads its own quote; none, or a disagreement beyond a small band → refused in plain words; closing and protective orders unchanged. Read on `6e150db`: tastytrade answers for futures-option contracts on all eight products tried, **but a thin strike often has no bid** (1 of 3 on /CL and /ZN) — the collar would refuse those; Webull has no server-side option quote, so a Webull option order would be collared by a tastytrade quote, as it already is in the browser. **Four questions:** refuse when the server cannot read a two-sided quote? on thin strikes, refuse or allow a limit order you price? how wide the band (for example 0.5 % or two ticks)? is a tastytrade quote acceptable for a Webull option order? | **Not in force.** The gate uses the browser's quote; nothing is refused for want of a server quote. NOT BUILT until you decide |
+| 16 | Live-order quote source (security finding, Founder decision) | details held privately |
 | 17 | BTC-USD depth shows the book WM reads, with no venue label | **DECIDED by you today** — in force since `e05c774`. Listed as a record, not a question |
 | 18 | **Radio link hosts.** A radio link may now point only at WM's own store, archive.org or Dropbox. This is a NEW restriction, chosen by the team today — is it the right list? | **The new list is in force:** WM's store, archive.org, Dropbox. Any other host is refused |
 | 19 | **Billing turn-on.** The billing owners are built (routes next). Turning it on needs six environment variables set by you, and the Terms and Privacy pages still say "not in effect yet" | **Off.** Nobody is charged by WM Pro; the four tiers are display only |
-| 20 | **WOW World live mode — findings only, nothing changed** (billing audit): a second subscription can be bought on top of a first; a refund leaves the membership active; the $20 purchase enforces nothing | **As found.** Yours to rule: fix in WOW World, or accept until WM Pro's own billing is on |
-| 21 | **Prop desk on sign-out** — should the desk's numbers be purged from the device when you sign out? | **Kept on this device** ("Kept on this device only"); not purged on sign-out |
+| 20 | WOW World live-mode billing findings | details held privately |
+| 21 | Prop desk data on sign-out (privacy) | details held privately |
 | 22 | **A real fills export is needed.** The prop desk's file import has only read synthetic files | **Synthetic-certified only.** One real export from the firm, from you, would certify the reader |
 | 23 | **TradeDay day boundary** — which clock ends a trading day for the consistency rule (the firm's rule decides the largest day) | **The days are as you type or import them**; WM applies no boundary of its own |
 | 24 | **Dashboard read-back** — the desk's figures are UNVERIFIED until you read them back from the firm's dashboard and stamp them | **UNVERIFIED** on every figure until stamped |
+| 25 | **The repository is public.** `wealthymindsets-pro` on GitHub is PUBLIC (`gh repo view`: visibility PUBLIC), so these certificate and handover documents are world-readable. Decide whether to make it private. The lanes have not changed its visibility | **Public.** Security-sensitive detail is now held outside the repository; what was already committed remains in git history |
 
 Also decided by you today and now in force: order books carry no venue or source label (Depth ladder only); phone opacity "not ATH" — fixed across `e05c774` → `79bb6fd`, your eye is the last check.
 
@@ -2980,27 +2965,9 @@ Remaining PARTIAL (5): 52, 58 (devices), 59, 62, 66.
       The Honesty Plaque is not on the phone glass at this width (its box sits at x 548, outside 386). No miss found; nothing changed.
 ```
 
-### Founder list — addition: the live-order price collar reads a quote the BROWSER supplies (API audit P2-1; brokers lane, written 13:20 CDT Oct 9; NOT BUILT — the Founder decides)
+### Founder list — addition: the live-order quote source (brokers lane, 13:20 CDT Oct 9)
 
-**What is true today.** Both live submit doors (`/api/broker/tastytrade/order-submit`, `/api/broker/webull/order-submit`) run the server gate before any broker call — kill switch, limits, caps, protection. One input to that gate, the quote (bid / ask / time) used for the staleness check and for pricing a market order, is the one the browser sends. It is owner-only, so this is self-protection, but a stale or wrong quote in the browser passes.
-
-**The proposal (tightening only).** For a risk-increasing order the server reads its OWN quote first and the gate uses that one: no server-read quote → the order is refused in plain words; the browser's and the server's quotes disagree by more than a small band → refused as stale, both shown. Closing and protective orders are unchanged (they are never held hostage to a quote). No new dependency is needed.
-
-**Two facts read on serving `6e150db`, 12:55–12:56 CDT Oct 9 (owner session, GETs only; `~/wm-held/proof/fvg-serving-night-2026-10-07.txt`):**
-
-| Question | Answer |
-|---|---|
-| Does tastytrade's by-type quote answer for the futures-option contracts the ticket can send? | **Yes, with a catch.** It answered for the order symbols on all eight products tried (/NQ, /ES, /GC, /CL, /ZN, /MNQ, /MES, /RTY), each with its updated-at time. But a **thin strike often has no bid**: on /CL and /ZN only 1 of 3 sampled contracts carried a bid, and one came back bid none / ask 1205.14. **A server-read collar would refuse those contracts** until a two-sided quote exists. |
-| Does Webull's server snapshot cover single-leg options? | **No.** WM's only server-side Webull quote reader is stock-only (`fetchWebullTickSnapshot`, category US_STOCK); no Webull option quote exists on the server and none was probed. The Webull option ticket already prices from **tastytrade's** quote in the browser. Server-side, tastytrade's by-type answered for TSLA options (3 of 3 sampled with bid and ask), so **the server can read the same vendor's quote the ticket already uses** — a Webull order would then be collared by a tastytrade quote, as it is in the browser today. |
-
-**The Founder's decision.**
-
-| Item | Question |
-|---|---|
-| Server-read quote before the gate | Should a risk-increasing live order be refused when WM's server cannot read its own two-sided quote for that contract? It closes the browser-quote gap; the cost is that an order the Founder means to send on a thin strike (no bid) is refused by WM, where today it would go to the broker. |
-| If yes — thin strikes | Refuse outright, or allow a LIMIT order priced by the Founder when only one side is quoted (the collar then checks the limit against the side that exists)? |
-| If yes — the band | How far may the browser's quote and the server's differ before the order is refused as stale (for example 0.5% or two ticks)? |
-| Webull options | Is a tastytrade quote an acceptable server reference for a Webull option order (the same vendor the ticket uses now), or must it be Webull's own (not available on the server today)? |
+An open security finding with a proposal and four questions for the Founder — details held privately.
 
 ### 26i. Reads on `b94f28c` (builtAt 18:18:44Z; cert lane own tab, read-only, closed 13:23; 0 storage writes)
 
@@ -3008,7 +2975,7 @@ Remaining PARTIAL (5): 52, 58 (devices), 59, 62, 66.
 
 | Read | Result | State |
 |---|---|---|
-| Connections page (`/readiness`) as the owner, 390, `scene=verify` | Unchanged for the owner, as designed: "7/10 providers configured", "13/40 required names present · Values stay sealed in approved runtime stores", "ACCOUNT SERVICE · SETUP PRESENT …". 234 text leaves, 1 under 11 px; no horizontal scroll; banner present | owner view PROVED. **The member view cannot be read from the owner's session** — it stands on the render test (`readinessAudience.render.test.tsx`), not on a serving read |
+| Connections page (`/readiness`) as the owner, 390, `scene=verify` | Unchanged for the owner, as designed: operator configuration counts (details held privately). 234 text leaves, 1 under 11 px; no horizontal scroll; banner present | owner view PROVED. **The member view cannot be read from the owner's session** — it stands on the render test (`readinessAudience.render.test.tsx`), not on a serving read |
 | Regime row with Regime Lighting on, a gap inside the tape's reach (NQ1! 1m, gap 3 minutes old; series `12\|X1\|NOW:BALANCE`) | "Regime at formation (tape): not read — the tape does not reach this bar." | **DEFECT (ticket lane owns the row):** the newest bars carry a tape verdict (NOW:BALANCE) yet a 3-minute-old gap is told the tape does not reach it. Probable cause, not confirmed: `tapeRegimeAtFormationLine` looks the bar up by exact equality (`x.time === b2OpenSec`) — check that the series' bar time and the gap's b2 open are the same clock and unit. File: `src/lib/marketData/fvg/fvgInspectRelationships.ts` ~line 87 |
 | The reach sentence | Not on the row. `regimeSeriesReach` ("The tape regime is kept for the last N bars — as far back as the newest 2,000 prints reach.") is in `selectRegimeSeries.ts` with its test, and nothing on a screen calls it | **BUILT · NOT WIRED** |
 
@@ -3022,20 +2989,9 @@ Remaining PARTIAL (5): 52, 58 (devices), 59, 62, 66.
 | **The `b2727cd` missed build** | Passed the gate and CI; Cloudflare started no build (no Workers Builds check on the commit). Empty retrigger `b94f28c` LIVE 13:21 | CLOSED. A green gate is not a deploy — check the commit for the build check |
 | `e8ca9f2` (LIVE 13:31:04) | Read-only order-gate standing for the owner (what the server gate would do now, no order sent); the selected object's WAIT plaque stays below the price legend; big-print side bars off the live price on phones; scanner names wrap on phones; SpaidBot launcher docks in the nav | not read by the cert lane. The order-gate standing is the read §66 was waiting for — a lane should read it and cite it |
 
-### §66 receipt — the server gate READ on serving, with no order sent (brokers lane, written 13:33 CDT Oct 9, serving `e8ca9f2`)
+### §66 receipt — the server gate read on serving with no order sent (brokers lane, serving `e8ca9f2`, 13:31:40–13:32:17 CDT Oct 9)
 
-Read through the owner-only, read-only `GET /api/broker/order-gate` (same limits load and the same `preflightLiveOrder` the submit doors run; no broker call, no ledger write — `orderGateStanding.sentinel.test.ts`, `order-gate/route.test.ts`). Receipt: `~/wm-held/proof/fvg-serving-night-2026-10-07.txt`, block "§66 SERVER GATE, READ".
-
-| Read | Result (13:31:40 – 13:32:17 CDT) |
-|---|---|
-| Guest, both brokers | 401 "Not authenticated" |
-| Owner, Webull | 200 · limits UNSET · kill switch not set · server arm not set · **WOULD_REFUSE** (`LIMITS_UNSET`) · `sent: false` |
-| Owner, tastytrade | 200 · limits UNSET · kill switch not set · server arm not set · **WOULD_REFUSE** (`LIMITS_UNSET`) · `sent: false` |
-| The sentence, both brokers | "would refuse: No server-held order limits are set. Set them in Settings › Execution; until then nothing live can be sent." |
-| Settings › Connections | every execute row prints "server gate now: would refuse: No server-held order limits are set. … · as of 1:32:14 PM CDT" (tastytrade, 5 rows) / "… 1:32:17 PM CDT" (Webull, 2 rows); rows that are NOT BUILT / UNSUPPORTED print no gate line |
-
-**What it means today.** The server holds no order limits for the owner, so both live submit doors refuse any risk-increasing order before a broker is contacted. Not read (and not readable without changing a setting or sending an order): the DISARMED, KILL SWITCH, cap-not-set and "would pass" sentences on serving — those four are proved in the two test files only.
-
+Read through the owner-only, read-only order-gate route: a guest is refused; for the owner, both brokers answer that the gate would refuse and nothing is sent; every execute row in Settings › Connections prints the gate's verdict with its time. The account-level state read is details held privately.
 
 ---
 
@@ -3050,12 +3006,12 @@ Status words: **PROVED** (a serving receipt in this document covers it) · **PAR
 | 3 | Canon station | **PARTIAL** | chart lane | §3a (plate ⇄ glass per certificate) | no serving read of the station tonight |
 | 4 | Visual manifestation | **PARTIAL** | chart lane | §11 inventory, §12 certificates, finish-line §8, §43–§46, §53 (§25) | §11c top gaps; glass word collisions at 834 (§26c #7) |
 | 5 | Appearance controls | **BUILDING tonight** | chart lane | §26d (Tools drawer read; per-tool controls are icon-only) | no certificate row for the controls themselves |
-| 6 | First-class trading | **PARTIAL** | Sheriff lane + ticket / brokers lanes | §10b ticket rows, §21c, "§66 receipt", handover 1, 6, 16 | `52824b6`: the ticket opens on order entry at every size with a phone HALF state, one shared broker readback — not read by the cert lane; atomic MODIFY, bracket / OCO; real working-order cancel; Founder decisions 1, 6, 16. **No order was sent tonight — trading evidence is sample-scene only** |
+| 6 | First-class trading | **PARTIAL** | Sheriff lane + ticket / brokers lanes | §10b ticket rows, §21c, "§66 receipt", handover 1, 6, 16 | built, not read by the cert lane: ticket opens on order entry + phone HALF (`52824b6`); drag lines + Trade at price, wide two-part ticket, owner position strip (`32c95db`). Real working-order cancel; Founder decisions 1, 6, 16. **No order was sent tonight — trading evidence is sample-scene only** |
 | 7 | Founder prop-evaluation desk (Founder-only, inside Journal / Review) | **BUILT · NOT READ** (`b72f896`) | ticket / journal lane | none yet — the desk and its engine (`propEvaluation.ts`) shipped in `b72f896` | a serving read: account truth, the consistency engine (required = max(target, largest day ÷ 0.30); remaining = required − net; a two-day plan said to be impossible when the arithmetic says so), the scenario lab (illustrative, never a target), and that a member cannot see it |
 | 8 | Prop data + SpaidBot | **MOUNTED · synthetic-certified only** (file import + owner sample, `00e7002`) · SpaidBot explainer shipped (`00e7002`, unread) · **FOUNDER** (real fills export; dashboard read-back) | brokers lane (file import); cert lane (SpaidBot files tonight); ticket lane (the desk's "Ask SpaidBot about these rules" control) | finish-line §30, §31; §28 | a real fills export from the firm (only synthetic files have been read); the TradeDay day boundary; the dashboard read-back; the desk's Ask control; a serving read |
 | 9 | Journal / Review / Academy | **PARTIAL** | management + cert lanes | finish-line §23–§29, §33–§36, §40–§42, §56; §27; §29 (tool primers — LIVE `52824b6`, read on serving 19:12–19:13) | the 12 sample-data rows (Founder actions); the footprint ⓘ door (Sheriff lane); Liquidity Lifecycle and Effort Mark folded into their primers in the tree |
 | 10 | SpaidBot entry | **PARTIAL** | cert lane (SpaidBot files tonight) | finish-line §30 PROVED; §28; §29b (launcher read) | on /desk at 390 the docked launcher sits over a "⇕" control (P2); an answer under the new rules cannot be read without a provider call |
-| 11 | Passport / Stripe | **BUILT · OFF** (billing routes + pricing buttons fail closed, `52824b6`) · **FOUNDER** (keys) | brokers / billing lane | §22b, handover 4, 19, 20 | the Founder's six environment variables; Terms / Privacy "not in effect yet"; guest checks being read by the billing lane; **Stripe has not been run** |
+| 11 | Passport / Stripe | **BUILT · OFF** · guest checks PASS on `52824b6` · **FOUNDER** (keys) | brokers / billing lane | §22b, handover 4, 19, 20; billing audit (outside the repository) | tiers read NOT_CONFIGURED (all false); standing / checkout / portal 401 for a guest; an unsigned or forged webhook 400; /pricing "Not on sale yet" ×3. Still: the Founder's keys; Terms / Privacy "not in effect yet" (a legal version owner shipped in `32c95db`); **Stripe has not been run** |
 | 12 | Device parity | **PARTIAL** | Sheriff + chart lanes | finish-line §43, §52, §58; §26c–§26f | physical phone and tablet (handover d) |
 | 13 | Hourly checkpoints | **BUILDING tonight** | cert lane | the log below | — |
 | 14 | Release certification | **PARTIAL** | cert lane | the FINISH LINE table (66 rows); FOUNDER HANDOVER; end-of-shift receipt | 12 sample-data rows, §5, §52, §58, §59, §62; the 18 handover items |
@@ -3071,6 +3027,7 @@ Status words: **PROVED** (a serving receipt in this document covers it) · **PAR
 | 18:49 | **`b72f896` LIVE 18:42:54** (coordinator ship gate; 17,814 tests; build identity builtAt 23:40:43Z) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: brass TRADE door (§6 partial), Question Lens always painted, owner-only prop desk + engine (§7 built, unread), prop fills import (§8, unmounted), the Academy slice, the manifest. Read on it: lessons + ON THE CHART at 390; ⓘ doors at 1440 and 390 for six of the seven inventions (footprint ⓘ unread). §5 back to PROVED (regime word TRANSITION read on BTC-USD by the management lane). SpaidBot audited; owner-only evaluation explainer and no-promise rules in the tree. Gate call 2 — cert lane frozen green |
 | 19:02 | **`00e7002` LIVE 18:56:11** (coordinator ship gate; 17,877 tests). Another session's `733a34f` (passport bridge accepts thewow.online) is also in main | 47 · 12 · 1 · 4 · 2 Founder | Shipped: phone type floor / absorption cap / profile rows, one-owner fidelity word, prop desk file import + owner sample (§8 mounted, synthetic-certified only), billing pure owners (§11 building), the SpaidBot slice. Read on it: the SpaidBot launcher in non-chart rooms (§29b). In the tree: six tool primers + repointed ⓘ doors (§29a). Handover items 19–24 added |
 | 19:16 | **`52824b6` LIVE 19:12:06** (coordinator ship gate; 17,936 tests; build identity builtAt 00:08:08Z) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: ticket opens on order entry at every size + phone HALF (§6), shared broker readback store, word registry ENFORCE by default, the canonical CLOSED word, billing routes + pricing buttons fail-closed (§11 built, off), the six tool primers. Read on it: six primers at 390 and 1440, repointed ⓘ doors at both. In the tree: Liquidity Lifecycle + Effort Mark folded into their primers; SpaidBot's note and instructions say "closed · last verified" for a closed market |
+| 00:36 Oct 10 | **`32c95db` LIVE 00:31:49 CDT Oct 10** (coordinator ship gate; 17,973 tests) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: drag lines + Trade at price, wide two-part ticket, owner position strip (all built, not read); legal version owner + operator billing readiness; SpaidBot CLOSED words; Liquidity Lifecycle and Effort Mark folded into their primers. Billing guest checks PASS on `52824b6` (billing lane). First stress run on `52824b6`: 20 s at 1440 × 900, frame p50 16.7 / p95 18.6 / max 34 ms (Sheriff; rest in progress). **Security-sensitive detail moved out of this public repository** (handover 25) |
 
 ## 27. Supermax §9 and §11 / §14 — Academy audit, ⓘ doors, public language (cert lane, written 18:35 CDT Oct 9; tree, not shipped)
 
@@ -3212,19 +3169,17 @@ No message was sent on the Founder's account. Serving reads on `b72f896` (own ta
 
 ### D. Trading evidence
 
-**Sample scene only — no order was sent, previewed or armed on any account tonight.** What is proved: the ticket's BUILD and REVIEW steps on the ticket sample scene (`559884e`, `f37005c`); the server gate READ with no order (`e8ca9f2`: both brokers WOULD_REFUSE, limits unset, `sent: false`); every execute row printing the gate's verdict. Not proved: a real order's path, a working-order cancel with the broker's acknowledgement, MODIFY as an atomic replace (not built), bracket / OCO (not built).
+**Sample scene only — no order was sent, previewed or armed on any account tonight.** What is proved: the ticket's BUILD and REVIEW steps on the ticket sample scene (`559884e`, `f37005c`); the server gate READ with no order (`e8ca9f2`: both brokers would refuse, nothing sent; account-level state details held privately); every execute row printing the gate's verdict. Not proved: a real order's path, a working-order cancel with the broker's acknowledgement, MODIFY as an atomic replace (not built), bracket / OCO (not built).
 
 ### E. Stripe / billing
 
-**Built, off, not run.** The billing owners and routes are in `52824b6`; the pricing buttons fail closed. No key is set, no checkout has been opened, no webhook has been received. Terms and Privacy still say "not in effect yet". WOW World live-mode findings (double subscription; a refund leaves the membership active; the $20 purchase enforces nothing) are recorded as findings only (handover 20).
+**Built, off, not run.** The billing owners and routes are in `52824b6`; the pricing buttons fail closed. No key is set, no checkout has been opened, no webhook has been received. Terms and Privacy still say "not in effect yet". WOW World live-mode billing findings are details held privately (handover 20).
 
 ### F. Open defects (19:16)
 
 | Defect | Owner | State |
 |---|---|---|
-| Webull submit: the glass says GATED while the route sends once armed and within caps | Founder decision 6 | open |
-| The live-order gate uses the browser's quote | Founder decision 16 | not built |
-| No order-submit rate limit and no daily cap | Founder decision 1 | none set |
+| Three open security findings (order path) | Founder decisions 1, 6, 16 | details held privately |
 | /desk at 390: the docked SpaidBot launcher sits over a "⇕" control | chart / Desk lane | open (P2) |
 | Connect brokers at 834: 312 of 363 text leaves under 11 px | brokers lane | open (P2) — not re-read since `79bb6fd` |
 | Desk pane toolbars and glass words crowd at 834 | chart lane | open (P2) — not re-read since `e05c774` |
@@ -3249,3 +3204,43 @@ The order's §14 text was not in the cert lane's hands (only its title, "release
 | 8. Eighteen-plus decisions wait on the Founder | handover (b), items 1–24 | his rulings |
 
 **What a guest can rely on today:** the public pages name a Trading Operating System and make no outcome promise; a proof scene and a verification load write nothing; every tool says its evidence grade or stays silent; no order can be sent without server-held limits, which are unset.
+
+### C′. Stress — first numbers (Sheriff lane, serving `52824b6`, relayed by the coordinator 00:36 Oct 10)
+
+One full 20-second run at 1440 × 900: frame time **p50 16.7 ms · p95 18.6 ms · max 34 ms**. The remaining runs (other sizes, the phone) are being completed by the Sheriff lane; the file `~/wm-held/proof/g19-stress-2026-10-09.md` is owed. One desktop run does not yet support a release claim.
+
+### G′. GUEST READY — the order's §14, line by line (cert lane, 00:36 CDT Oct 10; the coordinator rules)
+
+**Draft verdict: NOT YET.**
+
+| # | §14 line | Draft | Evidence row — or the blocker |
+|---|---|---|---|
+| 1 | All canonical invention species visibly exist and behave meaningfully | **PARTIAL** | §11 inventory, §12 certificates, finish-line §8, §9, §43–§51, §53 (24 fields complete). Blocker: §11c's not-built inventions and the TED definition (handover 15); no species census re-read on the final build |
+| 2 | Opacity, colour, thickness, numbers and customization work | **PARTIAL** | phone opacity cause and fix (`e05c774` → `79bb6fd`), fog cap, 11-px floor, word registry ENFORCE by default (`52824b6`). Blocker: appearance controls (Supermax §5) have no certificate row; per-tool controls icon-only (§26d); the Founder's eye on a real phone |
+| 3 | Trading is discoverable, capable and correctly broker-reconciled | **NOT YET** | discoverable / capable: brass TRADE door, order-entry opening, drag lines + Trade at price, two-part ticket, position strip — built (`b72f896` → `32c95db`), not read by this lane; BUILD / REVIEW on the sample scene; server gate read with no order (`e8ca9f2`). Blocker: no order has been sent, so nothing is broker-reconciled on a real order; Founder decisions 1, 6, 16 (details held privately) |
+| 4 | SpaidBot is modern, integrated and permission-aware | **PARTIAL** | §28, §29b; finish-line §30; owner-only desk explainer; no-promise rules; "closed · last verified" (`32c95db`). Blocker: no answer under these rules can be read without a provider call on the Founder's account; the desk's Ask control (ticket lane); /desk 390 launcher over a control |
+| 5 | Journal, Morning Prep, broker imports and Review connect | **PARTIAL** | §10 hand-off walk; finish-line §23–§29, §40–§42, §56. Blocker: twelve rows on sample data only (handover c); the fills import has read synthetic files only (handover 22) |
+| 6 | Founder TradeDay evaluation intelligence is private and mathematically correct | **PARTIAL** | engine unit-certified (required = max(target, largest ÷ 0.30); remaining = required − net); owner-only desk (`b72f896`); import mounted (`00e7002`). Blocker: not read on serving by this lane, including that a member cannot see it; handover 21–24 |
+| 7 | Academy explains real market behaviour without guarantees | **PASS** | finish-line §33–§35; §27 (the Founder's list, ON THE CHART on 21 lessons, "A gap does not have to fill."); §29 (six tool primers verbatim from each tool's ⓘ record) read at 390 and 1440 on `52824b6`. Owed, not blocking: footprint ⓘ door; Lifecycle / Effort Mark folds (`32c95db`) unread; §36 on a real entry |
+| 8 | Desktop, tablet and phone are usable under trading pressure | **NOT YET** | viewport passes 27 / 27 and opened surfaces clear (§26c, §26d). Blocker: no physical phone or tablet (handover d); pressure measured on desktop only (C′); open P2s at 834 |
+| 9 | Performance measurements support the release claim | **NOT YET** | one 20-s desktop run: p50 16.7 / p95 18.6 / max 34 ms (C′). Blocker: the full stress file; no phone or real-device run (finish-line §58) |
+| 10 | Passport and Stripe correctly handle subscriptions and access | **NOT YET** | guest checks PASS on `52824b6` (tiers NOT_CONFIGURED; standing / checkout / portal 401; forged webhook 400; "Not on sale yet" ×3). Blocker: Stripe has never been run; no keys; WOW World live-mode findings (details held privately); referral URLs |
+| 11 | Security, privacy and legal requirements are verified | **NOT YET** | API audit: no P0; several P1 closed (`6944df9`, `79bb6fd`); server gate before both order doors (`559884e`); guest 401 on owner routes; legal version owner shipped (`32c95db`). Blockers: open order-path findings and one P1 are Founder decisions (details held privately); Terms / Privacy "not in effect yet"; no member-session (non-owner) read; **the repository is public** (handover 25) — committed history still holds what was moved today |
+| 12 | Public ATH product language is accurate | **PARTIAL** | §22b, §27c (the manifest corrected, LIVE `b72f896`); banned-claims tests; pricing reads "Not on sale yet". Blocker: selling copy never redlined by the Founder (handover 3); the Sheriff's guest walk on the final build is owed |
+| 13 | Clip A / B / C remain production specifications until real footage is captured | **NOT YET — no evidence either way** | Searched the repository docs, `~/wm-held` (proof, canon and plate folders) and the source for "Clip A / B / C" and for clip specifications: **nothing found.** The only footage document is `docs/ATH_VIDEO_EVIDENCE_2026-07-28.md` (recordings reviewed in July; no Clip A / B / C). The public pages (/welcome, /pricing, /login, `/`, the selling components, metadata) carry **no video element** — so nothing public presents footage as captured. Blocker: the specifications themselves are not in any place this lane can read; whoever holds them should name the file |
+| 14 | No historical duplicate truth or competing market brain survives | **PARTIAL** | one-owner sentinels throughout (one gap detector, one selection owner, one regime owner §24e, one failure owner, one fidelity word `00e7002`, one broker readback store `52824b6`, one ⓘ registry feeding the primers verbatim). Blocker: no single audit of every duplicate; the Command Deck is kept as a labelled legacy surface |
+
+**Count:** 1 PASS · 7 PARTIAL · 6 NOT YET.
+
+### H. Order §5 check from the education side — does every ⓘ record state its evidence conditions? (00:36 CDT Oct 10)
+
+Read from the registry itself (`INVENTION_EDUCATION`, `INSTRUMENT_EDUCATION`, `CONCEPT_EDUCATION` — 57 records; the indicator, Smart Money, drawing and view records are a separate catalogue and were not part of this check).
+
+| Condition | Result |
+|---|---|
+| FULL | stated in **57 of 57** |
+| PARTIAL | stated in **57 of 57** |
+| DEGRADED | stated in **57 of 57** |
+| SILENCE | **there is no SILENCE field in the record shape.** The no-evidence case is folded into each record's DEGRADED line. Read one by one, 56 of 57 DEGRADED lines say what the tool does with no evidence (does not draw, no mark, no cards, no pools, UNMEASURED, nothing is detected, the plain unsupported line). The one exception is **Session Bands** ("Not applicable — a clock fact") — a clock has nothing to be silent about. The primers state SILENCE once for every tool (§29a) |
+
+**No record lacks a grade.** If the order wants SILENCE as its own named line per record, that is a registry change (one optional `silence` field, 57 records) — not made tonight.

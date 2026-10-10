@@ -27,7 +27,7 @@ export interface SpaidbotAsk {
   readonly context: Readonly<Record<string, unknown>>;
 }
 
-const PATCH_KEYS = new Set(["fvg", "symbol", "timeframe", "decisionId", "plan"]);
+const PATCH_KEYS = new Set(["fvg", "symbol", "timeframe", "decisionId", "plan", "prop"]);
 
 /** Validate an ask (from an event detail). Null when there is no usable prompt. */
 export function readSpaidbotAsk(raw: unknown): SpaidbotAsk | null {

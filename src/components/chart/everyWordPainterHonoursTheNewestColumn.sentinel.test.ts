@@ -43,7 +43,8 @@ describe("every word / plate painter honours the newest column (P1-A)", () => {
   });
 
   it("the WAIT plaque and the scaffolding card keep off the newest column", () => {
-    expect(SRC).toContain("[...rowBodiesAt(-1e9, 1e9), ...newestColumnRects()], floatingChips);");
+    // Tightened 2026-10-09: the newest column is still a keep-out, now beside the inspect sheet.
+    expect(SRC).toContain("[...rowBodiesAt(-1e9, 1e9), ...newestColumnRects(), ...chartSheetRects()], floatingChips);");
     expect(SRC).toContain("const koC = [...keepOut(), ...rowBodiesAt(aboveY, belowY + tallest)];");
     expect(SRC).toContain("const cardOnNewest = onNewestColumn(cx0, cy0, w * k, h * k);");
   });

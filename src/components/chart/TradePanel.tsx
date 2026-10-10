@@ -36,7 +36,6 @@ import { openSettings } from "@/components/layout/shellPanels";
 import { tastytradeEntryFields, type TastytradeEntryType } from "@/lib/broker/tastytradeEntryFields";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
 
 import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/TastytradeLiveOrder";
 import { chartDraftNote, chartEntryEffect, type ChartDraft, orderActionLine, prefillNote, protectBasisLine, quoteStreamLabel, SPAIDBOT_BOUNDARY, type Prefill } from "@/lib/execution/ticketTruth";
@@ -45,17 +44,16 @@ import type { WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { TicketBookRows, type CancelAck } from "@/components/chart/TicketBookRows";
 import { COMPACT_ACT_MAX_HEIGHT, COMPACT_HALF_MAX_HEIGHT, halfControl, halfInForce, COMPACT_PEEK_MAX_HEIGHT, COMPACT_TICKET_QUERY, WIDE_TICKET_MAX_HEIGHT, bookIsActive, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketStage, ticketStep, type TicketSection } from "@/lib/execution/ticketLayout";
 import { TicketSections } from "@/components/chart/TicketSections";
-import { parseTicketFixture, TICKET_FIXTURE_BANNER, ticketFixtureLines, type TicketFixture } from "@/lib/execution/ticketFixture";
+import { parseTicketFixture, TICKET_FIXTURE_BANNER, ticketFixtureChartLines, ticketFixtureLines, type TicketFixture } from "@/lib/execution/ticketFixture";
 import { railSendGate } from "@/lib/broker/railSendGate";
 import { selectTapeQuoteFreshness } from "@/lib/marketData/tapeQuoteFreshness";
 import { PendingFillJournalOffers } from "@/components/journal/FillJournalOffer";
 import { ManagementPlanCard } from "@/components/journal/ManagementPlanCard";
-import { tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { isOwnerRefusal, plainBrokerAnswer, TASTYTRADE_NOT_AVAILABLE } from "@/lib/broker/ownerRefusal";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
 import { useGuardrails } from "@/lib/execution/useGuardrails";
-import { canonicalAssetClass, cryptoBaseTicker } from "@/lib/marketData/canonicalIdentity";
+import { canonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
@@ -64,6 +62,7 @@ import { datedFuturesContract } from "@/lib/execution/liveOrderPreflight";
 import { isPreSendPhase, type LiveOrderPhase } from "@/lib/execution/liveOrderLifecycle";
 import { changeServerOrderLimits, useServerOrderLimits } from "@/lib/execution/useServerOrderLimits";
 import { useBrokerChartLines } from "@/lib/execution/useBrokerChartLines";
+import { forgetUnresolvedContract, useBrokerContract } from "@/lib/execution/brokerReadbackStore";
 import { proposalToTicket, recordProposalEvent, type SpaidBotProposal } from "@/lib/execution/spaidbotProposal";
 import { dismissSpaidBotProposal, useSpaidBotProposal } from "@/lib/execution/spaidbotProposalInbox";
 
@@ -117,29 +116,14 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const liveArmed = useGuardrails().liveArmed;
   // Garden 18 §4: the contract belongs to the symbol it was named for — the
   // first frame after a switch used to quote the PREVIOUS symbol's contract.
-  const contractKey = `${symbol.toUpperCase()}|${kind}`;
-  const [contract, setContract] = useSymbolOwnedState<{ symbol: string; streamer: string } | null>(contractKey, null);
-  const [contractWhy, setContractWhy] = useSymbolOwnedState<string | null>(contractKey, null);
-
-  // The actual contract — never a continuous symbol routed blind (§LXX).
-  useEffect(() => {
-    let live = true;
-    setContract(null); setContractWhy(null);
-    if (kind === "FUTURE") {
-      tastyFrontMonthFor(symbol).then(c => {
-        if (!live) return;
-        if (c) setContract(c); else setContractWhy("tastytrade did not name a tradable contract for this future (not connected, or no listed month).");
-      });
-    } else if (kind === "STOCK") {
-      setContract({ symbol: symbol.toUpperCase(), streamer: symbol.toUpperCase() });
-    } else if (kind === "CRYPTO") {
-      // §LXXII: the exact expression — spot, priced in USD, at tastytrade.
-      const base = cryptoBaseTicker(symbol);
-      if (base) setContract({ symbol: `${base}/USD`, streamer: `${base}/USD:CXTALP` });
-      else setContractWhy("This coin has no USD pair WM can name exactly.");
-    }
-    return () => { live = false; };
-  }, [symbol, kind, setContract, setContractWhy]);
+  // ONE contract resolution for the chart room (brokerReadbackStore): the ticket and the chart strip read the same
+  // answer, keyed by the chart symbol — so the first frame after a switch can never quote the previous symbol's
+  // contract, and never a continuous symbol routed blind (§LXX). A future whose contract could not be named is
+  // asked again when the ticket opens (a rail may have connected since).
+  useEffect(() => { forgetUnresolvedContract(symbol); }, [symbol]);
+  const contractAnswer = useBrokerContract(symbol, kind === "FUTURE" || kind === "STOCK" || kind === "CRYPTO");
+  const contract = contractAnswer.state === "RESOLVED" ? contractAnswer.contract : null;
+  const contractWhy = contractAnswer.state === "NONE" ? contractAnswer.why : null;
 
   // PROOF SCENE (`scene=ticket-fixture`): asked by the URL, granted only to the signed-in owner (see below).
   const [sceneAsked, setSceneAsked] = useState<TicketFixture | null>(null);
@@ -273,6 +257,13 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const brokerRead = useBrokerChartLines({ enabled: owner && tradable && !scene, chartSymbol: symbol, contract: contract?.symbol ?? null, mark, pointValue: kind === "FUTURE" ? pointValue : 1 });
   // In the proof scene the book is the SAMPLE readback, through the same selector; the broker is not read.
   const broker = scene && contract ? ticketFixtureLines(scene, contract.symbol, mark ?? price, kind === "FUTURE" ? pointValue : 1, nowMs) : brokerRead;
+  // Proof scene: the SAMPLE position and its working stop are drawn on the chart too, labelled SAMPLE
+  // (the broker publisher stays off in a scene — the account is never read).
+  const sampleLinesKey = scene && contract ? JSON.stringify(ticketFixtureChartLines(broker)) : "[]";
+  useEffect(() => {
+    publishChartOrderLines("sample", symbol, JSON.parse(sampleLinesKey));
+  }, [sampleLinesKey, symbol]);
+  useEffect(() => () => publishChartOrderLines("sample", symbol, []), [symbol]);
   const dated = kind === "FUTURE" && contract ? datedFuturesContract(contract.symbol, Date.now()) : null;
   const quoteForGate = q ? { bid: q.bid, ask: q.ask, atMs: q.quoteAt } : null;
 
