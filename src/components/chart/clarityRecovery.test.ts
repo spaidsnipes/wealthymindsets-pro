@@ -1,36 +1,24 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
+// The recovery behaviour itself (retry on a rejecting series, restore after a
+// sustained empty run, never on one frame) is tested on its owner:
+// src/lib/chart/clarityInkOwner.test.ts. Here: MainChart still calls it.
 const source = readFileSync("src/components/chart/MainChart.tsx", "utf8");
-const from = source.indexOf("const restoreNativeAfterClarityLoss = () => {");
-const to = source.indexOf("\n      };", from);
-const recovery = source.slice(from, to + "\n      };".length);
 
 describe("Clarity price sovereignty after a successful paint", () => {
-  it("restores native candle/wick ink and retries when a rebuilding series rejects restoration", () => {
-    expect(from).toBeGreaterThan(-1);
-    expect(to).toBeGreaterThan(from);
-    const factory = new Function("srs", "clarityHidRef", "chartSettings", "CANDLE_UP_DEFAULT", "CANDLE_DOWN_DEFAULT", `${recovery}; return restoreNativeAfterClarityLoss;`);
-    const ref = { current: true };
-    const applyOptions = vi.fn().mockImplementationOnce(() => { throw new Error("rebuilding"); });
-    const restore = factory({ applyOptions }, ref, { candleUp: "#abc123", wickUp: "#def456" }, "up", "down");
-    restore();
-    expect(ref.current).toBe(true);
-    restore();
-    expect(ref.current).toBe(false);
-    expect(applyOptions.mock.calls[1][0]).toMatchObject({ upColor: "#abc123", wickUpColor: "#def456", downColor: "down", wickDownColor: "down" });
-    restore();
-    expect(applyOptions).toHaveBeenCalledTimes(2);
+  it("restores native ink through the one ink owner, from LIVE settings", () => {
+    expect(source.length).toBeGreaterThan(100000);
+    expect(source).toContain("const restoreNativeAfterClarityLoss = () => clarityInkRef.current!.restore(srs, chartSettingsRef.current);");
   });
-  it("invokes recovery both when the painter loses all candles and when it faults", () => {
-    expect(source).toContain("if (drawnC === 0) restoreNativeAfterClarityLoss();");
+  it("invokes recovery when the painter faults, and hands every frame's count to the owner", () => {
     expect(source).toContain('catch (err) { restoreNativeAfterClarityLoss(); layerFault("CLARITY_CANDLE", err); }');
+    expect(source).toContain("clarityInkRef.current!.afterFrame(srs, chartSettingsRef.current, drawnC, bsC.length);");
   });
-  it("re-applying the trader's candle colours clears the hidden flag, so Clarity re-hides them (2026-10-01)", () => {
+  it("re-applying the trader's candle colours goes through the owner, which keeps a painting Clarity hidden (2026-10-10)", () => {
     const at = source.indexOf("// Update candle colors — skip for types that manage their own colors");
     const block = source.slice(at, source.indexOf("candleType === \"hollow\"", at));
     expect(at).toBeGreaterThan(-1);
-    expect(block).toContain("candleRef.current.applyOptions({");
-    expect(block).toContain("clarityHidRef.current = false;");
+    expect(block).toContain("clarityInkRef.current!.applySettings(candleRef.current, chartSettings, clarityOnRef.current);");
   });
 });

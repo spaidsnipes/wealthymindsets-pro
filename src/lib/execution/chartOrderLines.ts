@@ -21,6 +21,10 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { claimChartInteraction, placementAllowed, releaseChartInteraction } from "@/lib/chart/chartInteractionMode";
+
+/** The interaction-priority claim an ARMED pick holds (tier 2 PLACEMENT). */
+const PICK_CLAIM = "chart-price-pick";
 
 export type OrderLineRole = "ENTRY" | "STOP" | "TARGET" | "WORKING" | "POSITION";
 export type OrderLineStatus = "STAGED" | "WORKING" | "PARTIALLY_FILLED" | "RECONCILING" | "UNKNOWN" | "CANCEL_PENDING" | "POSITION";
@@ -155,7 +159,7 @@ export function registerChartPricePickHost(): () => void {
   hosts += 1;
   emit();
   let done = false;
-  return () => { if (done) return; done = true; hosts -= 1; if (hosts === 0) state = { ...state, pick: null }; emit(); };
+  return () => { if (done) return; done = true; hosts -= 1; if (hosts === 0) { state = { ...state, pick: null }; releaseChartInteraction(PICK_CLAIM); } emit(); };
 }
 const hostedSnapshot = () => hosts > 0;
 export function useChartPricePickHosted(): boolean {
@@ -163,12 +167,17 @@ export function useChartPricePickHosted(): boolean {
 }
 
 export function armChartPricePick(role: "ENTRY" | "STOP" | "TARGET", nowMs = Date.now()): void {
+  // Tier 1 outranks tier 2: no pick while an execution confirmation is up.
+  if (!placementAllowed()) return;
   state = { ...state, pick: { role, armedAtMs: nowMs } };
+  // While armed, every analytical layer stops taking the pointer (chartInteractionMode).
+  claimChartInteraction("PLACEMENT", PICK_CLAIM);
   emit();
 }
 export function cancelChartPricePick(): void {
   if (!state.pick) return;
   state = { ...state, pick: null };
+  releaseChartInteraction(PICK_CLAIM);
   emit();
 }
 /** For the chart lane: is the next click on the glass a price pick? (role, or null) */
@@ -182,6 +191,7 @@ export function chartPricePickArmed(): "ENTRY" | "STOP" | "TARGET" | null {
 export function deliverChartPricePick(chartSymbol: string, price: number): boolean {
   if (!state.pick || !Number.isFinite(price) || price <= 0) return false;
   state = { ...state, picked: { role: state.pick.role, symbol: key(chartSymbol), price, seq: ++seq, source: "PICK" }, pick: null };
+  releaseChartInteraction(PICK_CLAIM);
   emit();
   return true;
 }
@@ -193,6 +203,8 @@ export function deliverChartPricePick(chartSymbol: string, price: number): boole
  */
 export function deliverChartDraftPrice(chartSymbol: string, role: "ENTRY" | "STOP" | "TARGET", price: number, source: DraftPriceSource): boolean {
   if (!Number.isFinite(price) || price <= 0) return false;
+  // The price on an open confirmation is the price that is sent: nothing on the chart moves it.
+  if (!placementAllowed()) return false;
   state = { ...state, picked: { role, symbol: key(chartSymbol), price, seq: ++seq, source } };
   emit();
   return true;
@@ -208,6 +220,7 @@ export function useChartPricePick() {
 /** Test seam. */
 export function resetChartOrderLinesForTest(): void {
   state = { lines: new Map(), pick: null, picked: null };
+  releaseChartInteraction(PICK_CLAIM);
   hosts = 0;
   cache.clear();
   emit();

@@ -58,6 +58,7 @@ import { canonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
+import { claimChartInteraction } from "@/lib/chart/chartInteractionMode";
 import { armChartPricePick, cancelChartPricePick, publishChartOrderLines, useChartPricePick, useChartPricePickHosted, type ChartOrderLine } from "@/lib/execution/chartOrderLines";
 import { datedFuturesContract } from "@/lib/execution/liveOrderPreflight";
 import { isPreSendPhase, type LiveOrderPhase } from "@/lib/execution/liveOrderLifecycle";
@@ -66,6 +67,10 @@ import { useBrokerChartLines } from "@/lib/execution/useBrokerChartLines";
 import { forgetUnresolvedContract, useBrokerContract } from "@/lib/execution/brokerReadbackStore";
 import { proposalToTicket, recordProposalEvent, type SpaidBotProposal } from "@/lib/execution/spaidbotProposal";
 import { dismissSpaidBotProposal, useSpaidBotProposal } from "@/lib/execution/spaidbotProposalInbox";
+import { chartFamily, familyVerdict, TRADE_FAMILIES, type TradeFamily } from "@/lib/execution/instrumentCapability";
+import { instrumentRisk } from "@/lib/execution/instrumentRisk";
+import { useTradeRails } from "@/lib/execution/useTradeRails";
+import { FamilyContractPicker, TradeFamilySelector } from "@/components/chart/TradeFamilyPicker";
 
 /** guest audit 2026-10-04: quote-stream states in plain words (the enum stays in data-state). */
 const STREAM_WORDS: Readonly<Record<string, string>> = {
@@ -99,7 +104,9 @@ export const decimals = (tick: number | null): number => {
   return t.includes(".") ? Math.min(8, t.split(".")[1]!.length) : 0;
 };
 
-export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOptions, onOpenPaper, onClose }: {
+export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOptions, onOpenPaper, onClose, onChooseInstrument }: {
+  /** The family row's contract picker switches the CHART to the pick, so this one ticket trades what is on the glass. */
+  readonly onChooseInstrument?: (symbol: string) => void;
   readonly symbol: string;
   readonly price: number | null;
   readonly bornDecision: DecisionIdentity | null;
@@ -130,6 +137,16 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const [sceneAsked, setSceneAsked] = useState<TicketFixture | null>(null);
   useEffect(() => { setSceneAsked(typeof window !== "undefined" ? parseTicketFixture(window.location.search) : null); }, []);
   const scene = audience === "OWNER" ? sceneAsked : null;
+
+  // THE FAMILY ROW (Founder P0, 2026-10-10): six families, each with its real capability word. The ticket opens on
+  // the chart's own family; another family shows its contract picker, which switches the chart (one ticket).
+  const chartFam = chartFamily(symbol);
+  const [familyPick, setFamilyPick] = useState<TradeFamily | null>(null);
+  useEffect(() => { setFamilyPick(f => (f === chartFamily(symbol) ? null : f)); }, [symbol]);
+  const family = familyPick ?? chartFam;
+  const rails = useTradeRails(audience, scene != null);
+  const verdicts = useMemo(() => TRADE_FAMILIES.map(f => familyVerdict(f, rails)), [rails]);
+  const familyIsTicket = family === chartFam && (family === "STOCK" || family === "FUTURE" || family === "CRYPTO");
 
   const snap = useTastyQuotes(contract ? [contract.streamer] : []);
   // `state=noquote`: the sample has NO quote for this contract — so no limit is prefilled and the review gate's
@@ -198,11 +215,13 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   // Risk on the ticket (§LXXVII): $ at the stop, $ at the target, R.
   const stopNum = Number(stop) > 0 ? Number(stop) : null;
   const targetNum = Number(target) > 0 ? Number(target) : null;
-  const perUnit = pointValue ?? 1;
-  const riskUsd = referenceEntry != null && stopNum != null ? Math.abs(referenceEntry - stopNum) * perUnit * qty : null;
-  const rewardUsd = referenceEntry != null && targetNum != null ? Math.abs(targetNum - referenceEntry) * perUnit * qty : null;
+  // ONE risk calc, by family (instrumentRisk): a future with no published spec is REFUSED, never priced at $1 a point.
+  const risk = instrumentRisk({ family: kind === "FUTURE" ? "FUTURE" : kind === "CRYPTO" ? "CRYPTO" : "STOCK", symbol: contract?.symbol ?? symbol, qty, entry: referenceEntry, stop: stopNum, target: targetNum });
+  const riskUsd = risk.status === "PRICED" ? risk.riskUsd : null;
+  const rewardUsd = risk.status === "PRICED" ? risk.rewardUsd : null;
   const stopWrongSide = side != null && referenceEntry != null && stopNum != null && (side === "BUY" ? stopNum >= referenceEntry : stopNum <= referenceEntry);
-  const notional = referenceEntry != null ? referenceEntry * perUnit * qty : null;
+  const perUnit = kind === "FUTURE" ? pointValue : 1;
+  const notional = referenceEntry != null && perUnit != null ? referenceEntry * perUnit * qty : null;
 
   // ── Garden 19 §23 — TRADE FROM CHART ──────────────────────────────────────
   const owner = audience === "OWNER";
@@ -234,6 +253,13 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     setAnswer(null);
   }, [picked]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => cancelChartPricePick(), []);
+  // INTERACTION PRIORITY tier 1 (chartInteractionMode): while the confirmation is up, nothing on
+  // the chart — no pick, no line drag, no analytical layer — may move the price being confirmed.
+  useEffect(() => {
+    if (entryPhase !== "CONFIRMING") return;
+    cancelChartPricePick();
+    return claimChartInteraction("EXECUTION", "ticket-confirmation");
+  }, [entryPhase]);
   const pickBtn = (role: "ENTRY" | "STOP" | "TARGET") => pickHosted && owner ? (
     <button type="button" data-testid={`trade-pick-${role.toLowerCase()}`} aria-label={`Pick the ${role.toLowerCase()} on the chart`} aria-pressed={pick?.role === role}
       onClick={() => (pick?.role === role ? cancelChartPricePick() : armChartPricePick(role))} style={{ ...btn(pick?.role === role), minHeight: 26, padding: "0 6px" }}>⌖</button>
@@ -370,7 +396,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     e.preventDefault();
     if (a.kind === "SWALLOW_ENTER") return;
     if (a.kind === "CLOSE") { onClose(); return; }
-    if (a.kind === "SIDE") { if (owner && tradable) setSide(a.side); return; }
+    if (a.kind === "SIDE") { if (owner && tradable && familyIsTicket) setSide(a.side); return; }
     const set = a.field === "LIMIT" ? setLimit : a.field === "TRIGGER" ? setEntryTrigger : a.field === "STOP" ? setStop : setTarget;
     const cur = a.field === "LIMIT" ? limit : a.field === "TRIGGER" ? entryTrigger : a.field === "STOP" ? stop : target;
     const next = stepPriceText(cur, a.dir, tick, dp);
@@ -533,6 +559,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <span style={{ color: MUTED }}>{kind === "FUTURE" ? "Notional" : "Cost"}</span><span>{notional != null ? `$${notional.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}</span>
             <span style={{ color: MUTED }}>Planned risk at stop</span><span style={{ color: riskUsd != null ? RED : MUTED }}>{stopWrongSide ? "stop is on the wrong side" : riskUsd != null ? `−$${riskUsd.toFixed(2)}` : referenceEntry == null ? "entry fill unknown" : "set a stop"}</span>
             <span style={{ color: MUTED }}>Reward at target</span><span style={{ color: rewardUsd != null ? GREEN : MUTED }}>{rewardUsd != null ? `+$${rewardUsd.toFixed(2)}${riskUsd ? ` · ${(rewardUsd / riskUsd).toFixed(2)}R` : ""}` : "—"}</span>
+            <span data-testid="trade-risk-basis" style={{ color: risk.status === "PRICED" ? MUTED : GOLD, gridColumn: "1 / -1", fontSize: 10.5 }}>{risk.status === "PRICED" ? `${risk.basis} · ${risk.caveat}` : `$ risk withheld — ${risk.reason}`}</span>
           </div>
     </>),
     PICK_STATUS: (<>
@@ -662,22 +689,17 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         <button type="button" data-testid="trade-close" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", flexShrink: 0, minWidth: 32, minHeight: 32, color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
       </header>
       {scene ? <p role="status" data-testid="trade-proof-banner" data-scene-state={scene.state} style={{ margin: 0, padding: "4px 12px", borderBottom: `1px solid ${GOLD}`, color: GOLD, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6 }}>{TICKET_FIXTURE_BANNER}</p> : null}
+      {stage !== "PEEK" ? <TradeFamilySelector family={family} verdicts={verdicts} onPick={f => setFamilyPick(f === chartFam ? null : f)} /> : null}
 
-      {audience !== "OWNER" ? (
+      {!familyIsTicket ? (
+        <FamilyContractPicker family={family} verdict={verdicts.find(v => v.family === family)!} chartSymbol={symbol} price={price}
+          onChoose={s => onChooseInstrument?.(s)} onOpenChain={onOpenOptions} />
+      ) : audience !== "OWNER" ? (
         <div data-testid="trade-guest" style={{ padding: 12 }}>
           <p style={{ color: MUTED }}>
             {audience === null ? "Checking which broker rails are open on your account…" : "Live broker orders aren't available on your account. Practise this exact trade in Paper — same chart, same levels, no money at risk."}
           </p>
           {audience === "GUEST" && <button type="button" onClick={onOpenPaper} style={{ ...btn(true), marginTop: 8 }}>Open Paper</button>}
-        </div>
-      ) : kind === "FX" ? (
-        <p data-testid="trade-fx-truth" style={{ padding: 12, color: GOLD }}>
-          NO CONNECTED SPOT-FX EXECUTION RAIL. Neither tastytrade nor Webull offers spot FX here, and WM never swaps in a currency future (6E) on its own. The chart, levels and risk still work.
-        </p>
-      ) : kind === "OPTION" ? (
-        <div style={{ padding: 12 }}>
-          <p style={{ color: MUTED }}>Options trade from the Options family — chain, shortlist and ticket with live quotes.</p>
-          <button type="button" onClick={onOpenOptions} style={{ ...btn(true), marginTop: 8 }}>Open Options</button>
         </div>
       ) : (
         <div style={{ padding: compact ? "8px 10px" : 12, display: "grid", gap: compact ? 6 : 10 }}>

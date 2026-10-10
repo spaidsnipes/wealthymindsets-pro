@@ -22,6 +22,8 @@ import { isPersonalAdviceColumn } from "@/lib/news/marketRelevance";
 import { keyActivates } from "@/lib/a11y/keyActivates";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { plainSummary } from "./plainSummary";
+import { WM } from "@/lib/design/wmTokens";
+import { dayAwareStamp } from "@/lib/time/dayAwareStamp";
 
 /* ── Types ─────────────────────────────────────────────── */
 /** "JUST NOW" / "12m ago" / "3h ago" / "2d ago", from the publish time and a live clock. */
@@ -333,7 +335,7 @@ function FeedLeanTally({ news }: { news: NewsItem[] }) {
   return (
     <div className="flex items-center gap-4 px-4 py-2 bg-wm-dark border-b border-wm-border shrink-0">
       <div className="flex items-center gap-2">
-        <Brain size={13} style={{ color: "#8a8271" }} />
+        <Brain size={13} style={{ color: WM.text.muted }} />
         <span className="text-[10px] font-semibold text-wm-text-muted uppercase tracking-wider">
           Headline keyword lean
         </span>
@@ -344,20 +346,20 @@ function FeedLeanTally({ news }: { news: NewsItem[] }) {
           <span
             key={word}
             className="text-[10px]"
-            style={{ color: "#c2b892" }}
+            style={{ color: WM.text.body }}
             title={why}
           >
-            <span style={{ color: "#ede6d3" }}>{n}</span> {word}
+            <span style={{ color: WM.text.hero }}>{n}</span> {word}
           </span>
         ))}
-        <span className="text-[10px]" style={{ color: "#8a8271" }}>
+        <span className="text-[10px]" style={{ color: WM.text.muted }}>
           of {news.length} headlines
         </span>
       </div>
 
       <span
         className="ml-auto text-[9px] italic"
-        style={{ color: "#8a8271" }}
+        style={{ color: WM.text.muted }}
         title="The word lists include 'lead', 'clear', 'top', 'signal' and 'narrow', all of which appear innocently in headlines."
       >
         keyword tally over the headline text — not a prediction
@@ -871,7 +873,7 @@ export default function NewsPage() {
             style={{
               fontFamily: "Georgia, 'Times New Roman', serif",
               fontSize: 12, letterSpacing: 0.32,
-              color: "#c9a55c",
+              color: WM.gold.mark,
               textTransform: "uppercase",
               fontWeight: 400,
             }}
@@ -883,7 +885,7 @@ export default function NewsPage() {
             style={{
               fontFamily: "Georgia, 'Times New Roman', serif",
               fontSize: 14, fontWeight: 400,
-              color: "#ede6d3", letterSpacing: -0.1,
+              color: WM.text.hero, letterSpacing: -0.1,
               margin: 0,
             }}
           >
@@ -895,7 +897,7 @@ export default function NewsPage() {
               padding: "2px 8px", borderRadius: 999,
               border: "1px solid rgba(92,184,92,0.35)",
               background: "rgba(92,184,92,0.08)",
-              color: "#5cb85c",
+              color: WM.state.ok,
               fontSize: 9, letterSpacing: 0.32, fontWeight: 800,
               textTransform: "uppercase",
               fontVariantNumeric: "tabular-nums",
@@ -904,7 +906,7 @@ export default function NewsPage() {
             {/* Was an unconditional pulsing "LIVE · Sentiment": the wires poll
                 every 2 min only with AUTO-REFRESH on, and the lean is a headline
                 word tally, not a sentiment model (2026-10-04). */}
-            <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: 999, background: liveMode ? "#5cb85c" : "#8a8271" }} className={liveMode ? "animate-pulse" : undefined} />
+            <span aria-hidden="true" style={{ width: 5, height: 5, borderRadius: 999, background: liveMode ? WM.state.ok : WM.text.muted }} className={liveMode ? "animate-pulse" : undefined} />
             {liveMode ? "Refreshing · every 2 min" : "Headline word lean"}
           </div>
         </div>
@@ -1088,15 +1090,30 @@ export default function NewsPage() {
                     <div className="flex-1 min-w-0">
                       {/* Meta row */}
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-[10px] font-semibold text-wm-text-muted">{item.source}</span>
-                        <span className="text-[10px] text-wm-text-dim">{ageLabel(item.publishedMs, clockMs)}</span>
+                        {/*
+                          EDITORIAL BYLINE (house pass 2026-10-10). A wire row
+                          names WHO said it and WHEN, as an instant every reader
+                          shares: the wall-clock stamp carries its zone (and its
+                          date once it is not today) through the one time owner,
+                          `dayAwareStamp`. "12m ago" alone could not be checked
+                          against a chart, a calendar print or another desk.
+                        */}
+                        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: WM.text.body }} data-testid="news-row-source">{item.source}</span>
+                        <time
+                          dateTime={new Date(item.publishedMs).toISOString()}
+                          className="text-[10px] tabular-nums"
+                          style={{ color: WM.text.muted }}
+                          data-testid="news-row-stamp"
+                        >
+                          {dayAwareStamp(item.publishedMs, clockMs)} · {ageLabel(item.publishedMs, clockMs)}
+                        </time>
                         <span className={clsx(
-                          "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase",
+                          "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
                           item.impact === "high"   ? "bg-wm-red/20 text-wm-red" :
                           item.impact === "medium" ? "bg-wm-gold/15 text-wm-gold" :
                           "bg-wm-surface text-wm-text-dim"
-                        )}>
-                          {item.impact}
+                        )} data-testid="news-row-impact">
+                          {item.impact} impact
                         </span>
                         {/*
                           No arrow and no hue. An arrow is a direction the HOUSE
@@ -1107,7 +1124,7 @@ export default function NewsPage() {
                         {item.lean && (
                           <span
                             className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                            style={{ color: "#c2b892", background: "rgba(194,184,146,0.10)" }}
+                            style={{ color: WM.text.body, background: "rgba(192,184,160,0.10)" }}
                           >
                             {DIRECTION_WORD[item.lean.direction]}
                           </span>

@@ -62,11 +62,26 @@ export interface InventionEducation {
    * written once more under its own name — no new claim. A tool with no silence case says why.
    */
   readonly silence?: string;
+  /** What the reading does NOT prove (a model's limits) — printed in the ⓘ when present. */
+  readonly notProve?: string;
   /** One sentence for the moment its mark is selected on the market (§10). */
   readonly firstTouch: string;
   /** The canon it answers to (registry family / hard plate). */
   readonly canon: string;
 }
+
+/** WALLS & GAMMA shared words (2026-10-10) — one copy, every member reads it. */
+const OI_EVIDENCE = "Options open interest by strike — Cboe delayed (prior-session OI) for listed underlyings; BTC / ETH from Deribit public (current OI).";
+const OI_FULL = "Whole chain for this underlying, OI as of its source's clock (named on the glass).";
+const OI_PARTIAL = "Only the contracts nearest price were heard (futures options) — labelled.";
+const OI_SILENT = "No chain for this market, or no strike holding ≥5% of its side's OI near price — it draws nothing and says why.";
+const GEX_EVIDENCE = "Per contract: open interest and gamma (Cboe's own gamma) or the contract's own IV (Deribit mark IV → Black–Scholes, r = 4%, q = 0). GEX = Γ × OI × multiplier × S² × 0.01 ($ per 1% move; 100 shares per listed option, 1 coin per Deribit option).";
+const GEX_GRAMMAR = "Sign is an ASSUMPTION: dealers long calls, short puts (calls +, puts −). Positive = the modelled hedges lean against a move; negative = they go with it.";
+const GEX_FULL = "Whole chain, every contract in range carries gamma or its own IV, chain as of its source's clock.";
+const GEX_PARTIAL = "Some contracts carry no gamma or IV (excluded, counted), or only the strikes nearest price were heard — labelled with the reason.";
+const GEX_DEGRADED = "A quarter or more of the contracts carry no gamma or IV, or the chain is older than four days — labelled DEGRADED. With no chain, no price or too few contracts carrying gamma or IV it draws nothing and says why; a missing IV is never filled in.";
+const GEX_SILENT = GEX_DEGRADED;
+const GEX_NOT_PROVE = "Observed dealer inventory (the dealer side is assumed); that positive gamma pins price; that negative gamma guarantees volatility; anything about direction.";
 
 /** Shared ladder words for the sided order-flow readings (canon: ORDER-FLOW / DELTA EVIDENCE LADDER). */
 const SIDED_FULL = "Every print carries a stated aggressor side — the marks are measured, not estimated.";
@@ -441,6 +456,77 @@ export const INVENTION_EDUCATION: Readonly<Record<ProfileId, InventionEducation>
     degraded: "No chain for this market — no walls. While the chain loads it is silent (no chain yet); with a chain but no wall event at the current strikes it stays silent too.", silence: "No chain for this market — no walls. While the chain loads it is silent (no chain yet); with a chain but no wall event at the current strikes it stays silent too.",
     firstTouch: "Brick wall — a strike with large open interest (inferred positioning); cracks are observed tests.",
     canon: "Garden 16 §20 Brick Walls",
+  },
+  // ── WALLS & GAMMA family (Founder 2026-10-10) ──────────────────────────
+  CALL_WALL: {
+    question: "Which strikes above and below price hold the most CALL open interest?",
+    needs: "OPTIONS", evidence: OI_EVIDENCE,
+    appears: "A teal dashed tick at the strike on the right edge, named CALL WALL with its open interest.",
+    grammar: "Open interest is contracts held open at the last count — it is positioning, not orders resting on the book. A call wall is NOT gamma and NOT resistance by definition.",
+    full: OI_FULL, partial: OI_PARTIAL, degraded: OI_SILENT, silence: OI_SILENT,
+    notProve: "That price will stop, reverse or be pinned at the strike; who holds the contracts or on which side.",
+    firstTouch: "Call wall — the strike with concentrated call open interest (observed positioning, not gamma).",
+    canon: "Garden 18 super order §5 · OI concentration",
+  },
+  PUT_WALL: {
+    question: "Which strikes above and below price hold the most PUT open interest?",
+    needs: "OPTIONS", evidence: OI_EVIDENCE,
+    appears: "A rose dashed tick at the strike on the right edge, named PUT WALL with its open interest.",
+    grammar: "Open interest is contracts held open at the last count — it is positioning, not orders resting on the book. A put wall is NOT gamma and NOT support by definition.",
+    full: OI_FULL, partial: OI_PARTIAL, degraded: OI_SILENT, silence: OI_SILENT,
+    notProve: "That price will stop, reverse or be pinned at the strike; who holds the contracts or on which side.",
+    firstTouch: "Put wall — the strike with concentrated put open interest (observed positioning, not gamma).",
+    canon: "Garden 18 super order §5 · OI concentration",
+  },
+  GAMMA_HEATMAP: {
+    question: "At which strikes is modelled gamma exposure largest, and which way is it signed?",
+    needs: "OPTIONS", evidence: GEX_EVIDENCE,
+    appears: "Horizontal heat bands at each strike on price: solid cool fill = positive, diagonal amber hatching = negative; brighter = larger |GEX|. Candles, the live bar, last price and the axis stay clear.",
+    grammar: `${GEX_GRAMMAR} Intensity is |GEX| relative to the largest strike on this chain.`,
+    full: GEX_FULL, partial: GEX_PARTIAL, degraded: GEX_DEGRADED, silence: GEX_SILENT,
+    notProve: GEX_NOT_PROVE,
+    firstTouch: "Gamma exposure heatmap — modelled $ per 1% at each strike; the dealer side is an assumption.",
+    canon: "WALLS & GAMMA · GEX model",
+  },
+  GAMMA_POSITIVE: {
+    question: "Over which price span would total modelled gamma be positive?",
+    needs: "OPTIONS", evidence: GEX_EVIDENCE,
+    appears: "A solid cool rail on the left edge spanning each positive region, named +Γ REGION. While Derivatives Pressure is on, its field already shows this and the rail yields.",
+    grammar: `${GEX_GRAMMAR} The profile is re-priced at each hypothetical price (Black–Scholes, each contract's own IV) across the chain's strike range only.`,
+    full: GEX_FULL, partial: GEX_PARTIAL, degraded: GEX_DEGRADED, silence: GEX_SILENT,
+    notProve: GEX_NOT_PROVE,
+    firstTouch: "Positive gamma region — modelled, assumed dealer side; not a pin.",
+    canon: "WALLS & GAMMA · GEX model",
+  },
+  GAMMA_NEGATIVE: {
+    question: "Over which price span would total modelled gamma be negative?",
+    needs: "OPTIONS", evidence: GEX_EVIDENCE,
+    appears: "A hatched amber rail on the left edge spanning each negative region, named −Γ REGION. While Derivatives Pressure is on, its field already shows this and the rail yields.",
+    grammar: `${GEX_GRAMMAR} The profile is re-priced at each hypothetical price (Black–Scholes, each contract's own IV) across the chain's strike range only.`,
+    full: GEX_FULL, partial: GEX_PARTIAL, degraded: GEX_DEGRADED, silence: GEX_SILENT,
+    notProve: GEX_NOT_PROVE,
+    firstTouch: "Negative gamma region — modelled, assumed dealer side; not a promise of volatility.",
+    canon: "WALLS & GAMMA · GEX model",
+  },
+  GAMMA_FLIP: {
+    question: "Where does total modelled gamma change sign?",
+    needs: "OPTIONS", evidence: GEX_EVIDENCE,
+    appears: "A dash-dot line named Γ FLIP ≈ level · MODEL — only where the modelled profile crosses zero inside the chain's strike range. While Derivatives Pressure is on, its zero-gamma front is the one line.",
+    grammar: `${GEX_GRAMMAR} No crossing in range → it says so and draws nothing; several crossings → the one nearest price, with the count in Inspect.`,
+    full: GEX_FULL, partial: `${GEX_PARTIAL} On a near-price subset the flip is withheld.`, degraded: GEX_DEGRADED, silence: GEX_SILENT,
+    notProve: GEX_NOT_PROVE,
+    firstTouch: "Gamma flip — where modelled gamma changes sign; a numerical root, not a behavioural level.",
+    canon: "WALLS & GAMMA · GEX model",
+  },
+  GAMMA_CONCENTRATION: {
+    question: "Which few strikes hold the most modelled gamma exposure?",
+    needs: "OPTIONS", evidence: GEX_EVIDENCE,
+    appears: "A short diamond-tipped tick on the right edge at each strike holding ≥4% of gross |GEX| (at most five), named Γ with its signed $ per 1%. A strike that is also a call or put wall is ONE mark naming both measures.",
+    grammar: `${GEX_GRAMMAR} Gamma concentration is not open interest: a strike can hold large OI but little gamma (far from price, long-dated).`,
+    full: GEX_FULL, partial: GEX_PARTIAL, degraded: GEX_DEGRADED, silence: GEX_SILENT,
+    notProve: GEX_NOT_PROVE,
+    firstTouch: "Gamma concentration — a strike with a large share of modelled gamma exposure.",
+    canon: "WALLS & GAMMA · GEX model",
   },
 };
 

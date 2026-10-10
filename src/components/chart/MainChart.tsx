@@ -143,7 +143,8 @@ import { selectPerCapabilityFidelity } from "@/lib/marketData/selectPerCapabilit
 import { selectChartCloseLabel } from "@/lib/marketData/selectChartCloseLabel";
 import { chartBarRangeFact } from "@/lib/marketData/chartBarRangeFact";
 import { chartAxisControlLabel } from "@/lib/chart/chartAxisControlLabel";
-import { isChartChromeTarget } from "@/lib/chart/chartPointerTarget";
+import { CHART_CHROME_SELECTOR, isChartChromeTarget } from "@/lib/chart/chartPointerTarget";
+import { ANALYTICAL_LAYER_ATTR, CHART_INTERACTION_ATTR, analyticalLayersInert, chartInteractionMode, claimChartInteraction, mayRunAnalyticalHandler, placementAllowed, subscribeChartInteraction } from "@/lib/chart/chartInteractionMode";
 import { chartIdentityLabel } from "@/lib/chart/chartIdentityLabel";
 import { initialChartRange } from "@/lib/chart/initialChartRange";
 import { baselineBasePrice, mainSeriesPoints, toHeikinAshi, volumeSeriesPoints } from "@/lib/chart/mainSeriesPoints";
@@ -407,6 +408,7 @@ import { DATA_WINDOW_W, placeDataWindow } from "@/lib/chart/dataWindowPlacement"
 import { formatVolume } from "@/lib/chart/formatVolume";
 import { absorptionShelfRows, shelfRowCount } from "@/lib/chart/absorptionShelfRows";
 import { clarityBodyAlpha, readClarity, truthGaps, wickWords } from "@/lib/chart/clarityCandle";
+import { ClarityInkOwner, settingsContentKey } from "@/lib/chart/clarityInkOwner";
 import { VISUAL_ROLES_EVENT, readStoredRoles, rolesByLayer, clarityRoleOpacity, type VisualRoles } from "@/lib/workspace/visualRoles";
 import { exhaustionEffortResult } from "@/lib/chart/exhaustionEffortResult";
 import { chartBarCountdown } from "@/lib/chart/chartBarCountdown";
@@ -2207,10 +2209,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // APPEARANCE LAW (appearanceLaw.ts): the chart reads its appearance through
   // one pass — an opposed pair the trader made identical (bull = bear, up = down,
   // buy = sell) falls back to the room's own pair. Same object when lawful.
+  // KEYED ON CONTENT, not identity (Founder defect 2026-10-10, Clarity blink):
+  // the dashboard rebuilds this object on every render — every live tick — and
+  // each new identity re-ran the appearance effects (native red/green re-applied
+  // under the gold, a chart.applyOptions per tick). Same values → same object.
+  const chartSettingsKey = settingsContentKey(chartSettingsIn);
   const chartSettings = React.useMemo(
     () => lawfulSettings(chartSettingsIn, APPEARANCE_ROOM_PAIRS) ?? undefined,
-    [chartSettingsIn],
+    [chartSettingsKey], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const chartSettingsRef = useRef(chartSettings);
+  chartSettingsRef.current = chartSettings;
   const containerRef  = useRef<HTMLDivElement>(null);
   const wrapRef       = useRef<HTMLDivElement>(null);
   const canvasRef     = useRef<HTMLCanvasElement>(null);
@@ -2780,6 +2789,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   exhaustionOnRef.current = exhaustionOnChart;
   const clarityOnRef = useRef(false);
   clarityOnRef.current = clarityCandleOnChart && candleType === "candles";
+  // The ONE owner of the native candle ink while Clarity may be on (clarityInkOwner.ts).
+  const clarityInkRef = useRef<ClarityInkOwner | null>(null);
+  if (!clarityInkRef.current) clarityInkRef.current = new ClarityInkOwner();
   const flowCurrentOnRef = useRef(flowCurrentOnChart);
   useEffect(() => { flowCurrentOnRef.current = flowCurrentOnChart; }, [flowCurrentOnChart]);
   const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false, derivativesPressure: false, brickWalls: false });
@@ -4777,14 +4789,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         });
         cs.setData(displayData.map(b => ({ time: b.time, value: b.close } as any)));
       } else {
-        // Standard candles (default + Heikin Ashi) — Deep Charts color scheme
+        // Standard candles (default + Heikin Ashi) — Deep Charts color scheme.
+        // Born transparent when Clarity will paint it: a series born red/green
+        // showed one frame of red/green under the gold on every symbol or
+        // timeframe change (clarityInkOwner.ts).
         cs = chart.addSeries(LW.CandlestickSeries,{
-          upColor:          chartSettings?.candleUp   ?? CANDLE_UP_DEFAULT,
-          downColor:        chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
-          borderUpColor:    chartSettings?.borderUp   ?? CANDLE_UP_DEFAULT,
-          borderDownColor:  chartSettings?.borderDown ?? CANDLE_DOWN_DEFAULT,
-          wickUpColor:      chartSettings?.wickUp     ?? CANDLE_UP_DEFAULT,
-          wickDownColor:    chartSettings?.wickDown   ?? CANDLE_DOWN_DEFAULT,
+          ...clarityInkRef.current!.inkForNewSeries(chartSettings, clarityOnRef.current, mainPoints.length > 0),
           priceLineVisible: true,
           priceLineColor:   "#F0B429",
           priceLineWidth:   1,
@@ -4916,8 +4926,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (skipVendors) tickPaintKeyRef.current = `${canonicalSym}|${timeframe}`;
       chartRef.current  = chart;
       candleRef.current = cs;
-      // A new series paints its own ink; the Clarity layer re-hides it after it paints.
-      clarityHidRef.current = false;
+      // A new series paints its own ink unless it was born under Clarity.
+      // ("candles" is the only type Clarity paints; it set `hidden` at birth above.)
+      if (!clarityOnRef.current) clarityInkRef.current!.hidden = false;
       markersPluginRef.current = null; // fresh series → re-attach markers plugin on next update
       volRef.current    = vs;
       barsRef.current   = data;
@@ -4998,6 +5009,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           crosshairPointRef.current = param?.point && Number.isFinite(+param.point.x) && Number.isFinite(+param.point.y)
             ? { x: +param.point.x, y: +param.point.y }
             : null;
+          // Hover cards keyed on this point stay shut while a placement owns the pointer (chartInteractionMode).
+          if (!mayRunAnalyticalHandler("HOVER_CARD")) crosshairPointRef.current = null;
           onCrosshairTimeRef.current?.(param?.point && typeof param?.time === "number" ? param.time : null);
           if (!param || !param.time) {
             if (lastCursorKeyRef.current !== null) {
@@ -6904,9 +6917,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (raw == null || !Number.isFinite(Number(raw)) || Number(raw) <= 0) return null;
     return snapToTick(symbol, Number(raw));
   }, [symbol]);
+  const draftDragReleaseRef = useRef<(() => void) | null>(null);
   const beginDraftDrag = useCallback((l: ChartOrderLine, e: React.PointerEvent<HTMLButtonElement>) => {
     if (!chartOrderLineDraggable(l)) return;
     e.preventDefault(); e.stopPropagation();
+    // Tier 1 (an open confirmation) outranks the drag; the drag (tier 2) outranks every analytical layer.
+    if (!placementAllowed()) return;
+    draftDragReleaseRef.current?.();
+    draftDragReleaseRef.current = claimChartInteraction("PLACEMENT", "chart-draft-drag");
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* capture is a nicety */ }
     draftDragRef.current = { id: l.id, role: l.role as "ENTRY" | "STOP" | "TARGET", lastSent: l.price, raf: 0, pending: null };
     setDraftDrag({ id: l.id, price: l.price });
@@ -6933,8 +6951,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (d.raf) cancelAnimationFrame(d.raf);
     if (d.pending != null && d.pending !== d.lastSent) deliverChartDraftPrice(symbol, d.role, d.pending, "DRAG");
     draftDragRef.current = null;
+    draftDragReleaseRef.current?.(); draftDragReleaseRef.current = null;
     setDraftDrag(null);
   }, [symbol]);
+  useEffect(() => () => { draftDragReleaseRef.current?.(); draftDragReleaseRef.current = null; }, []);
   const nudgeDraftLine = useCallback((l: ChartOrderLine, ticks: number) => {
     if (!chartOrderLineDraggable(l)) return;
     // One tick of the instrument's own grid; with no tick on file, one unit of its display precision.
@@ -6982,6 +7002,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
   // This chart will deliver a price pick, so the ticket may offer "pick on chart".
   useEffect(() => registerChartPricePickHost(), []);
+  // THE PANE CARRIES THE INTERACTION MODE (chartInteractionMode): globals.css turns
+  // every [data-analytical-layer] inside it non-intercepting while a placement or an
+  // execution confirmation owns the pointer. Imperative — no render of this file.
+  const paneWrapRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const paint = () => {
+      const el = paneWrapRef.current;
+      if (el) el.setAttribute(CHART_INTERACTION_ATTR, chartInteractionMode());
+      if (analyticalLayersInert()) { bubbleHoverRef.current = null; setBubbleTip(null); setOver(false); crosshairPointRef.current = null; }
+    };
+    paint();
+    return subscribeChartInteraction(paint);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // An ARMED pick consumes the next press on the price glass: the price under
   // it goes to the ticket and the press does nothing else (no bar select, no
   // pan). Window capture so it runs before the chart's own handlers. Axis and
@@ -6992,8 +7025,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const onDown = (e: PointerEvent) => {
       if (!chartPricePickArmed()) return;
       const host = containerRef.current, series = candleRef.current, chart = chartRef.current;
-      if (!host || !series || !chart || !(e.target instanceof Node) || !host.contains(e.target)) return;
-      if ((e.target as HTMLElement).closest?.("button, a, input, select, textarea")) return;
+      const pane = paneWrapRef.current;
+      // THE PANE, not the lightweight-charts host (Founder P0 2026-10-10): a press on
+      // a zone / FVG / order-block pin, a note anchor, a hovered drawn box or any
+      // other analytical layer inside the pane IS the pick (chartInteractionMode).
+      // Only real chrome (axis controls, the timeframe chip) and the order-line
+      // handles keep their press; the ticket and anything outside the pane never pick.
+      if (!host || !pane || !series || !chart || !(e.target instanceof Element) || !pane.contains(e.target)) return;
+      const chrome = e.target.closest(CHART_CHROME_SELECTOR);
+      if (chrome && !chrome.closest(`[${ANALYTICAL_LAYER_ATTR}]`)) return;
       const rect = host.getBoundingClientRect();
       const x = e.clientX - rect.left, y = e.clientY - rect.top;
       let axisW = 60;
@@ -7044,6 +7084,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     let replaying = false;
     const down = (e: PointerEvent) => {
       if (replaying) return;
+      if (!mayRunAnalyticalHandler("WEATHER")) return;
       if (!e.isPrimary || e.button !== 0 || drawingToolRef.current !== "cursor" || window.innerWidth < LENS_DRAG_MIN_WIDTH) return;
       if ((e.target as Element)?.closest?.("[data-weather-lens-control]")) return;
       const hit = weatherLensHitRef.current;
@@ -7084,7 +7125,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       if (!weatherGrabRef.current) {
         // Hover says the glass can be taken.
         const hit = weatherLensHitRef.current;
-        if (hit && !nativePointer && e.buttons === 0) {
+        if (hit && !nativePointer && e.buttons === 0 && mayRunAnalyticalHandler("WEATHER")) {
           const r = host.getBoundingClientRect();
           const inside = isInsideWeatherLens(e.clientX - r.left, e.clientY - r.top, hit) || isWeatherLensBezel(e.clientX - r.left, e.clientY - r.top, hit);
           if (inside && host.style.cursor !== "grab") host.style.cursor = "grab";
@@ -7132,6 +7173,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // TABLET: the chart pans from TOUCH events, which pointer handling does not
     // stop. A finger inside the glass belongs to the glass (iPad landscape).
     const touchGuard = (e: TouchEvent) => {
+      if (!mayRunAnalyticalHandler("WEATHER")) return;
       if (window.innerWidth < LENS_DRAG_MIN_WIDTH || drawingToolRef.current !== "cursor") return;
       const hit = weatherLensHitRef.current;
       const t = e.touches[0] ?? e.changedTouches[0];
@@ -7143,6 +7185,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // Put the glass back on the live bars: double-click inside it, or Escape.
     const toLive = () => { weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); };
     const dbl = (e: MouseEvent) => {
+      if (!mayRunAnalyticalHandler("WEATHER")) return;
       const hit = weatherLensHitRef.current;
       if (!hit || !weatherApertureRef.current) return;
       const rect = host.getBoundingClientRect();
@@ -7378,18 +7421,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         "line", "area", "baseline", "bars", "hlc-bars", "columns", "renko", "range-bars"].includes(candleType);
       if (candleRef.current && chartSettings.candleUp && !skipBodyColorOverride) {
         try {
-          candleRef.current.applyOptions({
-            upColor: chartSettings.candleUp,
-            downColor: chartSettings.candleDown ?? CANDLE_DOWN_DEFAULT,
-            borderUpColor: chartSettings.borderUp ?? chartSettings.candleUp,
-            borderDownColor: chartSettings.borderDown ?? chartSettings.candleDown ?? CANDLE_DOWN_DEFAULT,
-            wickUpColor: chartSettings.wickUp ?? chartSettings.candleUp,
-            wickDownColor: chartSettings.wickDown ?? chartSettings.candleDown ?? CANDLE_DOWN_DEFAULT,
-          });
-          // The native ink is back on the series: if Clarity had hidden it,
-          // say so, so the Clarity layer hides it again on its next frame
-          // (serving TSLA 2026-10-01: green/red bodies showed through gold).
-          clarityHidRef.current = false;
+          // ONE INK OWNER (clarityInkOwner.ts): while Clarity is on and has
+          // painted, a re-applied appearance keeps the series transparent —
+          // re-applying red/green and letting the paint loop re-hide it a frame
+          // later WAS the blink (Founder, 2026-10-10; TSLA 2026-10-01 before it).
+          clarityInkRef.current!.applySettings(candleRef.current, chartSettings, clarityOnRef.current);
         } catch {}
       } else if (candleRef.current && chartSettings.candleUp && candleType === "hollow") {
         // For hollow candles: only update wicks and border, keep body as background color
@@ -7411,27 +7447,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // F05A: while Clarity Candles are on, the library's candles keep the price
   // scale, crosshair and last-price line but stop painting ink — the Clarity
   // layer paints the candle. Off restores the trader's own colours.
-  const clarityHidRef = useRef(false);
   useEffect(() => {
     const s = candleRef.current;
     if (!s || !ready) return;
     const on = clarityCandleOnChart && candleType === "candles";
-    try {
-      // Hiding happens in the paint loop, only AFTER the Clarity layer has
-      // painted (§XLIX: the face is never blank because a layer did not run).
-      if (on) return;
-      if (clarityHidRef.current) {
-        s.applyOptions({
-          upColor: chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
-          downColor: chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
-          borderUpColor: chartSettings?.borderUp ?? chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
-          borderDownColor: chartSettings?.borderDown ?? chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
-          wickUpColor: chartSettings?.wickUp ?? chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
-          wickDownColor: chartSettings?.wickDown ?? chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
-        });
-        clarityHidRef.current = false;
-      }
-    } catch { /* series mid-rebuild; the next run repaints */ }
+    // Hiding happens in the paint loop, only AFTER the Clarity layer has
+    // painted (§XLIX: the face is never blank because a layer did not run).
+    if (on) return;
+    clarityInkRef.current!.restore(s, chartSettings);
   }, [clarityCandleOnChart, candleType, ready, chartSettings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Footprint helper: real price-level bid/ask data ─────────
@@ -8127,20 +8150,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // painted across the last candles. Truth lines and on-top boxes are exempt.
       wordGate.setColumnRule({ enforce: narrowGlass, padLeft: 20 });
 
-      const restoreNativeAfterClarityLoss = () => {
-        if (!clarityHidRef.current) return;
-        try {
-          srs.applyOptions({
-            upColor: chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
-            downColor: chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
-            borderUpColor: chartSettings?.borderUp ?? chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
-            borderDownColor: chartSettings?.borderDown ?? chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
-            wickUpColor: chartSettings?.wickUp ?? chartSettings?.candleUp ?? CANDLE_UP_DEFAULT,
-            wickDownColor: chartSettings?.wickDown ?? chartSettings?.candleDown ?? CANDLE_DOWN_DEFAULT,
-          });
-          clarityHidRef.current = false;
-        } catch { /* series rebuilding; retain flag so the next frame retries */ }
-      };
+      // Live settings (a ref): this loop outlives renders, so a captured
+      // `chartSettings` restored the colours the trader had when it started.
+      const restoreNativeAfterClarityLoss = () => clarityInkRef.current!.restore(srs, chartSettingsRef.current);
       // ── F05A CLARITY CANDLE — the candle species (WM_NewMockup_72). Gold
       // ink; the body's fill strength IS body efficiency (decided range ÷
       // range); the dominant rejection wick is the bright one; real gaps get
@@ -8369,12 +8381,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           ds.clarityCallout = calloutFor;
           if (calloutFor === "NONE") delete ds.clarityReadMark;
           ds.clarityCandle = `DRAWN:${drawnC}bars:${gapsC}gaps:${openC}open`;
-          if (drawnC === 0) restoreNativeAfterClarityLoss();
-          // The species painted: now (and only now) the library's ink steps aside.
-          if (drawnC > 0 && !clarityHidRef.current) {
-            const clear = "rgba(0,0,0,0)";
-            try { srs.applyOptions({ upColor: clear, downColor: clear, borderUpColor: clear, borderDownColor: clear, wickUpColor: clear, wickDownColor: clear }); clarityHidRef.current = true; } catch { /* next frame */ }
-          }
+          // The species painted: now (and only now) the library's ink steps
+          // aside. An empty frame with bars on hand (a series/data swap) no
+          // longer flips red/green for one frame — only a sustained run does.
+          clarityInkRef.current!.afterFrame(srs, chartSettingsRef.current, drawnC, bsC.length);
         }
       } catch (err) { restoreNativeAfterClarityLoss(); layerFault("CLARITY_CANDLE", err); }
       finally { ctx.restore(); }
@@ -21969,6 +21979,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             let drawn = 0;
             let top = Infinity;
             ctx.lineWidth = 1;
+            // The lit-glass gradients: one per role per frame, spanning the lane.
+            const vrpLitOf = (dim: string, lit: string) => {
+              const g = ctx.createLinearGradient(right, 0, right - width, 0);
+              g.addColorStop(0, dim); g.addColorStop(1, lit);
+              return g;
+            };
+            const vrpLit = {
+              poc: vrpLitOf(pk.rgba("POC", 0.5), pk.rgba("POC", 0.9)),
+              value: vrpLitOf(pk.rgba("VALUE", 0.16), pk.rgba("VALUE", 0.58)),
+              tail: vrpLitOf(pk.rgbaAs("TAIL", "VALUE", 0.07), pk.rgbaAs("TAIL", "VALUE", 0.26)),
+            };
             // P-110 · BEHIND THE CANDLES: serving showed these as grey
             // hairlines through the newest candles. Same hollow "this camera"
             // form, in the family's ink, inside the one candle cut-out.
@@ -21979,14 +22000,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const y = Math.round(+yr) - Math.floor(rowH / 2);
               const w = Math.max(1, Math.round(r.share * width));
               const h = Math.max(1, rowH - 1);
-              // Hollow "this camera" bars: TAIL rests in the value ivory, fainter.
-              ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.45) : r.insideValueArea ? pk.rgba("VALUE", 0.2) : pk.rgbaAs("TAIL", "VALUE", 0.08);
+              // G19 (Oct 10, Founder: "white-line profiles without adequate
+              // visual embodiment"): the hollow hairline bars read as white
+              // outlines, not a histogram. VRP's material is now LIT GLASS —
+              // a solid row whose light rises with its reach (the lane's
+              // gradient runs dim at the axis, bright at full width, so a
+              // heavy row glows and a thin row stays dark: high- and
+              // low-volume prices read apart without claiming a node, which
+              // stays trade-based only), capped by a crisp 2-px leading tip.
+              // One-pixel gaps keep the rows crisp. Composite stays bone
+              // strata, Living stays solid gold — the species read apart.
+              ctx.fillStyle = r.isPoc ? vrpLit.poc : r.insideValueArea ? vrpLit.value : vrpLit.tail;
               ctx.fillRect(right - w, y, w, h);
-              ctx.strokeStyle = r.isPoc ? pk.rgba("POC", 0.95) : r.insideValueArea ? pk.rgba("VALUE", 0.65) : pk.rgbaAs("TAIL", "VALUE", 0.32);
-              if (h >= 3) ctx.strokeRect(right - w + 0.5, y + 0.5, Math.max(0, w - 1), h - 1);
+              ctx.fillStyle = r.isPoc ? pk.rgba("POC", 1) : r.insideValueArea ? pk.rgba("VALUE", 0.85) : pk.rgbaAs("TAIL", "VALUE", 0.42);
+              ctx.fillRect(right - w, y, Math.min(2, w), h);
               top = Math.min(top, y);
               drawn++;
             }
+            ds.visibleRangeProfileMaterial = "LIT_GLASS+TIP";
             // ASK-5 · the one level grammar on the Visible Range column.
             {
               let vrForms = 0;
@@ -22030,6 +22061,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           } else {
             if (vrpVM?.drawn && !lane?.fits) ds.visibleRangeProfile = "NO_ROOM";
             delete ds.visibleRangeProfileRows;
+            delete ds.visibleRangeProfileMaterial;
             delete ds.visibleRangeProfileBars;
             delete ds.visibleRangeProfilePoc;
           }
@@ -27906,6 +27938,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const handleCursorSelectDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary || e.button !== 0) return;
     if (drawingTool !== "cursor") return;
+    // Placement / execution own the pointer: no market object is selected under them.
+    if (!mayRunAnalyticalHandler("ZONE")) { cursorDownRef.current = null; return; }
     // A press on the pane's own chrome (axis controls, D, inspect toggles, the
     // timeframe chip) is that control's, never a market selection.
     if (isChartChromeTarget(e.target as Element)) { cursorDownRef.current = null; return; }
@@ -27999,6 +28033,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (drawingTool !== "cursor") return;
     const s = cursorDownRef.current; cursorDownRef.current = null;
     if (!s) return;
+    if (!mayRunAnalyticalHandler("ZONE")) return;
     const r = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
     if (Math.hypot(x - s.x, y - s.y) > 5) return;   // was a pan, not a click
@@ -28168,6 +28203,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // chart panning (drawing tools keep their own handler on drawCanvas).
   const handleOverlayPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary) return;
+    // A live handle drag / armed pick: no hover tip opens and no drawing takes the pointer.
+    if (!mayRunAnalyticalHandler("BUBBLE")) {
+      setOver(false);
+      if (bubbleHoverRef.current !== null) { bubbleHoverRef.current = null; setBubbleTip(null); }
+      return;
+    }
     // Cursor-mode: flip the draw-canvas to CAPTURE when hovering a drawing so a drag
     // moves it instead of panning the chart. Runs before the bubble early-return so
     // it works even with no bubbles present. (When capture is on, the canvas's own
@@ -28648,6 +28689,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            room reserved for furniture that was never delivered is the kind of
            dead space this shift is spending its time removing. */
         paddingBottom: setTimeframe ? TIMEFRAME_FOOTER_H : undefined }}
+        ref={paneWrapRef}
         onContextMenu={handleContextMenu}
         onPointerMove={e => { longPress.move(e); handleOverlayPointerMove(e); }}
         onPointerDown={e => { longPressHostRef.current = e.currentTarget; longPress.down(e); handleCursorSelectDown(e); }}
@@ -29438,12 +29480,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               key={target.object.objectId}
               type="button"
               data-market-object-target={target.object.objectId}
+              data-analytical-layer="market-object-pin"
               className="wm-tap-slop"
               aria-pressed={selected}
               // Prices read aloud at the instrument's own precision, never a raw
               // float ("…at 1.1175681352615356", a11y sweep 2026-10-08).
               aria-label={`Select ${target.object.kind.toLowerCase()} market object at ${target.object.priceHigh.toFixed(displayPrecisionFor(symbol, barsRef.current ?? []))}`}
-              onClick={() => onSelectMarketObject?.(target.object.objectId)}
+              onClick={() => { if (mayRunAnalyticalHandler("MARKET_OBJECT_PIN")) onSelectMarketObject?.(target.object.objectId); }}
               style={{
                 position: "absolute",
                 left: target.point.x,
@@ -29662,6 +29705,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           return (
             <div
               className="wm-live-session-chip"
+              data-analytical-layer="nectar-chip"
               data-nectar-received={nectar.receipts.received}
               data-nectar-accepted={nectar.receipts.accepted}
               data-nectar-quarantined={nectar.receipts.quarantined}
@@ -29821,6 +29865,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               ref={weatherDragHandleRef}
               type="button"
               data-weather-lens-control="drag"
+              data-analytical-layer="weather-lens"
               data-testid="weather-lens-drag"
               aria-label="Drag liquidity weather lens across candles; arrow keys move the selected window"
               title="Drag to inspect these candles. Selected weather is estimated from candle volume and range, not historical tape or order book. Double-click to return to live."
@@ -29871,7 +29916,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (logical != null && price != null) { weatherApertureRef.current = { logical: +logical, price: +price, rx: hit.rx, ry: hit.ry }; setWeatherDetached(true); }
               }}
             >DRAG LENS</button>
-            {weatherDetached && <button type="button" className="hidden md:block" data-weather-lens-control="live" data-testid="weather-lens-live" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); }} style={{ position: "absolute", right: 76, bottom: 42, zIndex: 22, color: "#d8cfb8", background: "#17140e", border: "1px solid #9e8245", borderRadius: 10, fontSize: 10, padding: "4px 9px" }}>Return lens to live</button>}
+            {weatherDetached && <button type="button" className="hidden md:block" data-weather-lens-control="live" data-analytical-layer="weather-lens" data-testid="weather-lens-live" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); weatherApertureRef.current = null; weatherSampleCacheRef.current = null; setWeatherDetached(false); }} style={{ position: "absolute", right: 76, bottom: 42, zIndex: 22, color: "#d8cfb8", background: "#17140e", border: "1px solid #9e8245", borderRadius: 10, fontSize: 10, padding: "4px 9px" }}>Return lens to live</button>}
           </>
         )}
         <canvas
@@ -29883,13 +29928,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         <div
           ref={noteAnchorsElRef}
           data-testid="event-note-anchors"
+          data-analytical-layer="note-anchors"
           className="absolute inset-0 pointer-events-none"
           style={{ zIndex: 21 }}
           onPointerDown={e => { if ((e.target as HTMLElement).closest("button")) e.stopPropagation(); }}
           onClick={e => {
             const t = e.target as HTMLElement;
             const btn = t.closest("button") as HTMLButtonElement | null;
-            if (!btn) return;
+            if (!btn || !mayRunAnalyticalHandler("NOTE_ANCHOR")) return;
             e.stopPropagation();
             if (btn.dataset.action === "compose-on") {
               composeNotesRef.current = true;
@@ -29990,6 +30036,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         {/* Drawing tools canvas — pointer-events only when tool is active */}
         <canvas
           ref={drawCanvasRef}
+          data-analytical-layer="drawings"
           className="absolute top-0 left-0"
             style={{
             cursor: drawingTool === "cursor" ? "default"

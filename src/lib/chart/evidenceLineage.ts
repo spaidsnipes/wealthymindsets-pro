@@ -56,6 +56,9 @@ const TOOL_FAMILY: Readonly<Record<string, EvidenceFamilyId>> = {
   // under "Liquidity · from resting orders in the book" beside a chip reading
   // "Cboe delayed · INFERRED". Same family as Derivatives Pressure — one source.
   BRICK_WALLS: "DERIVATIVES",
+  // WALLS & GAMMA (2026-10-10): the same options chain — one family, never counted twice.
+  CALL_WALL: "DERIVATIVES", PUT_WALL: "DERIVATIVES", GAMMA_HEATMAP: "DERIVATIVES", GAMMA_POSITIVE: "DERIVATIVES",
+  GAMMA_NEGATIVE: "DERIVATIVES", GAMMA_FLIP: "DERIVATIVES", GAMMA_CONCENTRATION: "DERIVATIVES",
   MARKET_STRUCTURE: "STRUCTURE", MTF_ANCESTRY: "STRUCTURE", SCAFFOLDING: "STRUCTURE",
   EXPECTED_ENVELOPE: "VOLATILITY",
   DERIVATIVES_PRESSURE: "DERIVATIVES",

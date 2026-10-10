@@ -181,10 +181,12 @@ export function InventionPreview({ scope, id, label, what, familyWord, symbol, t
       {row("What it needs", edu.evidence, "edu-evidence")}
       {row("On the chart", edu.appears, "edu-appears")}
       {row("How to read it", edu.grammar, "edu-grammar")}
+      {/* WALLS & GAMMA (2026-10-10): a model's limits, said before it is switched on. */}
+      {edu.notProve ? row("What it does not prove", edu.notProve, "edu-not-prove") : null}
 
       <div className="mt-2" data-testid="edu-ladder">
         <div className="text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: MUTED }}>Evidence quality</div>
-        {([["FULL", edu.full, GREEN], ["PARTIAL", edu.partial, GOLD], ["DEGRADED", edu.degraded, AMBER]] as const).map(([k, v, c]) => (
+        {([["FULL", edu.full, GREEN], ["PARTIAL", edu.partial, GOLD], ["DEGRADED", edu.degraded, AMBER], ...(edu.notProve && edu.silence ? [["SILENCE", edu.silence, MUTED] as const] : [])] as const).map(([k, v, c]) => (
           <div key={k} className="mt-1 flex gap-2 text-[11.5px] leading-snug">
             <span className="w-[62px] shrink-0 text-[9px] font-bold uppercase tracking-[0.12em] pt-[2px]" style={{ color: c }}>{k}</span>
             <span style={{ color: PEARL }}>{v}</span>

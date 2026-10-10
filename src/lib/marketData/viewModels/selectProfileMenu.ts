@@ -81,7 +81,15 @@ export type ProfileId =
   | "MARKET_STRUCTURE"
   | "MTF_ANCESTRY"
   | "DERIVATIVES_PRESSURE"
-  | "BRICK_WALLS";
+  | "BRICK_WALLS"
+  // WALLS & GAMMA family (2026-10-10): each its own switch, door and ⓘ.
+  | "CALL_WALL"
+  | "PUT_WALL"
+  | "GAMMA_HEATMAP"
+  | "GAMMA_POSITIVE"
+  | "GAMMA_NEGATIVE"
+  | "GAMMA_FLIP"
+  | "GAMMA_CONCENTRATION";
 
 /**
  * READY — it can draw now.
@@ -198,6 +206,13 @@ export const PROFILE_FAMILY: Readonly<Record<ProfileId, ProfileFamily>> = {
   // Garden 15 §2 / Garden 16 §20: a Market Sense read on the SAME camera.
   DERIVATIVES_PRESSURE: "READING",
   BRICK_WALLS: "READING",
+  CALL_WALL: "READING",
+  PUT_WALL: "READING",
+  GAMMA_HEATMAP: "READING",
+  GAMMA_POSITIVE: "READING",
+  GAMMA_NEGATIVE: "READING",
+  GAMMA_FLIP: "READING",
+  GAMMA_CONCENTRATION: "READING",
 };
 
 export interface ProfileMenuEntry {
@@ -800,6 +815,69 @@ const CATALOGUE: readonly ProfileSpec[] = [
     gesture: "TOGGLE",
     owner: "src/lib/marketData/viewModels/selectDerivativesPressure.ts",
     levels: ["Pressure walls", "Open-interest ticks", "Index walls mapped", "Options flow"],
+  },
+  /*
+    WALLS & GAMMA family (Founder 2026-10-10: "Walls show Call and Put but
+    don't clearly expose Gamma"). Call / Put walls are OPEN INTEREST
+    (selectOptionsBarrierEvidence); the five gamma inventions read the ONE GEX
+    owner (gammaExposure.ts). Level-shaped marks are composed once
+    (wallsGammaFamily.ts) so a strike carrying two measures is one mark.
+  */
+  {
+    id: "CALL_WALL",
+    label: "Call Wall",
+    what: "the strikes where CALL open interest concentrates — observed positioning (Cboe delayed; BTC / ETH Deribit public), not resistance and not gamma",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectOptionsBarrierEvidence.ts",
+    levels: ["Call OI concentration"],
+  },
+  {
+    id: "PUT_WALL",
+    label: "Put Wall",
+    what: "the strikes where PUT open interest concentrates — observed positioning (Cboe delayed; BTC / ETH Deribit public), not support and not gamma",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/viewModels/selectOptionsBarrierEvidence.ts",
+    levels: ["Put OI concentration"],
+  },
+  {
+    id: "GAMMA_HEATMAP",
+    label: "Gamma Exposure Heatmap",
+    what: "modelled gamma exposure ($ per 1% move) at every strike as a heat band on price — positive solid, negative hatched; dealer side is an ASSUMPTION (INFERRED)",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/gammaExposure.ts",
+    levels: ["GEX by strike"],
+  },
+  {
+    id: "GAMMA_POSITIVE",
+    label: "Positive Gamma Regions",
+    what: "the price spans where total modelled gamma exposure would be positive if price stood there (INFERRED, assumed dealer side)",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/gammaExposure.ts",
+    levels: ["Positive gamma region"],
+  },
+  {
+    id: "GAMMA_NEGATIVE",
+    label: "Negative Gamma Regions",
+    what: "the price spans where total modelled gamma exposure would be negative if price stood there (INFERRED, assumed dealer side)",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/gammaExposure.ts",
+    levels: ["Negative gamma region"],
+  },
+  {
+    id: "GAMMA_FLIP",
+    label: "Gamma Flip",
+    what: "the zero-gamma level — only where the modelled profile actually crosses zero inside the chain's strike range; otherwise it says none",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/gammaExposure.ts",
+    levels: ["Zero-gamma level"],
+  },
+  {
+    id: "GAMMA_CONCENTRATION",
+    label: "Gamma Concentration Levels",
+    what: "the few strikes holding the largest share of modelled gamma exposure, signed and sized in $ per 1% move (INFERRED)",
+    gesture: "TOGGLE",
+    owner: "src/lib/marketData/gammaExposure.ts",
+    levels: ["Gamma concentration"],
   },
 ];
 

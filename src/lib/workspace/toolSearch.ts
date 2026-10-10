@@ -23,7 +23,14 @@ export const TOOL_ALIASES: Readonly<Partial<Record<ProfileId, readonly string[]>
   DELTA_LEVELS: ["delta"],
   LIQUIDITY_WEATHER: ["weather", "liquidity"],
   LIQUIDITY_LIFECYCLE: ["liquidity", "walls", "lifecycle"],
-  BRICK_WALLS: ["brick", "walls", "liquidity wall", "options flow", "unusual options", "option prints", "open interest", "oi walls", "gamma walls"],
+  BRICK_WALLS: ["brick", "walls", "liquidity wall", "liquidity brick walls", "options flow", "unusual options", "option prints", "open interest", "oi walls"],
+  CALL_WALL: ["call wall", "walls", "call oi", "open interest", "options"],
+  PUT_WALL: ["put wall", "walls", "put oi", "open interest", "options"],
+  GAMMA_HEATMAP: ["gamma", "gex", "gamma exposure", "heatmap", "options"],
+  GAMMA_POSITIVE: ["gamma", "gex", "positive gamma", "long gamma", "regions"],
+  GAMMA_NEGATIVE: ["gamma", "gex", "negative gamma", "short gamma", "regions"],
+  GAMMA_FLIP: ["gamma", "gex", "zero gamma", "flip", "gamma flip"],
+  GAMMA_CONCENTRATION: ["gamma", "gex", "gamma walls", "concentration", "gamma levels"],
   EFFORT_MARK: ["effort", "effort response", "effort/response"],
   MARKET_STRUCTURE: ["structure", "bos", "choch", "swings"],
   MEMORY_GHOST: ["memory", "ghost"],
@@ -46,12 +53,15 @@ export const FAMILY_WORD: Readonly<Record<ProfileFamily, string>> = {
  * Finer than the three family doors (which stay as they are); every catalogue
  * tool has exactly one place here, so nothing important hides.
  */
-export const LIBRARY_CATEGORIES = ["ORDER FLOW", "LIQUIDITY", "PROFILE / AUCTION", "STRUCTURE", "MEMORY", "MARKET SENSE", "CANDLES / PHYSIOLOGY"] as const;
+// WALLS & GAMMA (Founder 2026-10-10): Brick Walls, Call / Put walls and the five gamma inventions, one door.
+export const LIBRARY_CATEGORIES = ["ORDER FLOW", "LIQUIDITY", "WALLS & GAMMA", "PROFILE / AUCTION", "STRUCTURE", "MEMORY", "MARKET SENSE", "CANDLES / PHYSIOLOGY"] as const;
 export type LibraryCategory = (typeof LIBRARY_CATEGORIES)[number];
 export const LIBRARY_CATEGORY: Readonly<Record<ProfileId, LibraryCategory>> = {
   ABSORPTION: "ORDER FLOW", EXHAUSTION: "ORDER FLOW", IMBALANCE_STACK: "ORDER FLOW", DELTA_DIVERGENCE: "ORDER FLOW",
   EFFORT_MARK: "ORDER FLOW", DELTA_LEVELS: "ORDER FLOW", DELTA_VP: "ORDER FLOW", FLOW_CURRENT: "ORDER FLOW",
-  LIQUIDITY_WEATHER: "LIQUIDITY", LIQUIDITY_LIFECYCLE: "LIQUIDITY", BRICK_WALLS: "LIQUIDITY",
+  LIQUIDITY_WEATHER: "LIQUIDITY", LIQUIDITY_LIFECYCLE: "LIQUIDITY",
+  BRICK_WALLS: "WALLS & GAMMA", CALL_WALL: "WALLS & GAMMA", PUT_WALL: "WALLS & GAMMA", GAMMA_HEATMAP: "WALLS & GAMMA",
+  GAMMA_POSITIVE: "WALLS & GAMMA", GAMMA_NEGATIVE: "WALLS & GAMMA", GAMMA_FLIP: "WALLS & GAMMA", GAMMA_CONCENTRATION: "WALLS & GAMMA",
   FIXED_RANGE: "PROFILE / AUCTION", SESSION: "PROFILE / AUCTION", LIVING_PROFILE: "PROFILE / AUCTION", TPO_PROFILE: "PROFILE / AUCTION",
   STRUCTURE_PROFILE: "PROFILE / AUCTION", PROFILE_DNA: "PROFILE / AUCTION", VALUE_MIGRATION: "PROFILE / AUCTION",
   PROFILE_FUSION: "PROFILE / AUCTION", COMPOSITE_PROFILE: "PROFILE / AUCTION", VISIBLE_RANGE_PROFILE: "PROFILE / AUCTION", ANCHORED_RANGE: "PROFILE / AUCTION",

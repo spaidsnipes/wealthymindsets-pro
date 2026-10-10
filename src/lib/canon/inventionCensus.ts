@@ -154,6 +154,14 @@ const RAW_CENSUS: readonly CensusEntry[] = [
   { id: "F08A", name: "Liquidity Lifecycle", family: "F08 Liquidity", status: "BUILT", owner: `${VM}selectLiquidityLifecycle.ts`, surface: sw("LIQUIDITY_LIFECYCLE"), plate: "WM_NewMockup_78_F08A_Liquidity_Lifecycle" },
   { id: "F08B", name: "Liquidity Weather (lens)", family: "F08 Liquidity", status: "BUILT", owner: `${VM}selectLiquidityWeather.ts`, surface: sw("LIQUIDITY_WEATHER"), plate: "WM_NewMockup_79_F08B_Weather_Lens" },
   { id: "F08.BRICK", name: "Brick Walls", family: "F08 Liquidity", status: "BUILT", owner: `${VM}selectProfileMenu.ts`, surface: sw("BRICK_WALLS"), plate: null },
+  // ── WALLS & GAMMA (Founder 2026-10-10) — each its own switch; no Drive plate yet.
+  { id: "WG.CALL", name: "Call Wall", family: "WALLS & GAMMA", status: "BUILT", owner: `${VM}selectOptionsBarrierEvidence.ts`, surface: sw("CALL_WALL"), plate: null },
+  { id: "WG.PUT", name: "Put Wall", family: "WALLS & GAMMA", status: "BUILT", owner: `${VM}selectOptionsBarrierEvidence.ts`, surface: sw("PUT_WALL"), plate: null },
+  { id: "WG.HEAT", name: "Gamma Exposure Heatmap", family: "WALLS & GAMMA", status: "BUILT", owner: "src/lib/marketData/gammaExposure.ts", surface: sw("GAMMA_HEATMAP"), plate: null },
+  { id: "WG.POS", name: "Positive Gamma Regions", family: "WALLS & GAMMA", status: "BUILT", owner: "src/lib/marketData/gammaExposure.ts", surface: sw("GAMMA_POSITIVE"), plate: null },
+  { id: "WG.NEG", name: "Negative Gamma Regions", family: "WALLS & GAMMA", status: "BUILT", owner: "src/lib/marketData/gammaExposure.ts", surface: sw("GAMMA_NEGATIVE"), plate: null },
+  { id: "WG.FLIP", name: "Gamma Flip", family: "WALLS & GAMMA", status: "BUILT", owner: "src/lib/marketData/gammaExposure.ts", surface: sw("GAMMA_FLIP"), plate: null },
+  { id: "WG.CONC", name: "Gamma Concentration Levels", family: "WALLS & GAMMA", status: "BUILT", owner: "src/lib/marketData/gammaExposure.ts", surface: sw("GAMMA_CONCENTRATION"), plate: null },
 
   // ── P-110 PROFILE FAMILY (the eleven) ──────────────────────────────────
   { id: "P110.1", name: "Living Profile", family: "P-110 Profiles", status: "BUILT", owner: `${VM}selectLivingProfile.ts`, surface: sw("LIVING_PROFILE"), plate: "WM_A_P110_LIVING_PROFILE_STACK · WM_NewMockup_121_F09_Living_Profile_Passport_Doorway" },
@@ -358,6 +366,14 @@ const FIELD_FACTS: Readonly<Record<string, { readonly manifestation: Manifestati
   "F03A": { manifestation: "TERRITORY", ink: ["BONE"], layer: "memoryGhost" },
   "F15.PRESSURE": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: "derivativesPressure" },
   "F08.BRICK": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: "brickWalls" },
+  // WALLS & GAMMA (2026-10-10): own paint layers land with the glass slice — null until then.
+  "WG.CALL": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: null },
+  "WG.PUT": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: null },
+  "WG.HEAT": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: null },
+  "WG.POS": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: null },
+  "WG.NEG": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: null },
+  "WG.FLIP": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: null },
+  "WG.CONC": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: null },
   "G19.FVG": { manifestation: "TERRITORY", ink: ["DELTA_SIDE"], layer: "fvg" },
 };
 

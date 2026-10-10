@@ -75,6 +75,14 @@ const ALL_IDS: readonly ProfileId[] = [
   // Garden 15 §2: Derivatives Pressure — Cboe delayed OI, not bars.
   "DERIVATIVES_PRESSURE",
   "BRICK_WALLS",
+  // WALLS & GAMMA family (2026-10-10).
+  "CALL_WALL",
+  "PUT_WALL",
+  "GAMMA_HEATMAP",
+  "GAMMA_POSITIVE",
+  "GAMMA_NEGATIVE",
+  "GAMMA_FLIP",
+  "GAMMA_CONCENTRATION",
 ];
 
 /** The rows that require provider-stated aggressor side. */

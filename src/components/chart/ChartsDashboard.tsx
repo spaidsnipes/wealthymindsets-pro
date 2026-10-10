@@ -18,7 +18,7 @@ import { readAppSettings, writeAppSettings } from "@/lib/settings/appSettingsSto
 import { adoptProofSceneSearch, currentProofScene, parseProofScene, pickNewestClosedBar, pickProofSelectObject, proofSceneHoldsWrites, proofSceneValue, proofSelectReceipt, proofSelectObjectVerdict, type ProofSelectKind, proofVerifyOnly } from "@/lib/chart/proofScene";
 import { useSearchParams } from "next/navigation";
 import { listenForWatchlist } from "@/lib/os/watchlistDoor";
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { repairChartPreferences } from "@/lib/chartPreferenceRepair";
 import { AnimatePresence } from "framer-motion";
 import { Camera, BookOpen, ChevronDown, Plus, Bell, Trash2, Settings, Target, Activity } from "lucide-react";
@@ -406,6 +406,7 @@ import { useTastyOptionFlow } from "@/lib/broker/useTastyOptionFlow";
 import { useTastyEquityOptionLegs } from "@/lib/broker/useTastyEquityOptionLegs";
 import { useDeribitOptionFlow } from "@/lib/marketData/useDeribitOptionFlow";
 import { selectOptionsBarrierEvidence, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
+import { parseWallsGamma, type WallsGammaPart, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
 import { INDEX_FOR_FUTURES, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
 // ON-DEMAND PANELS LOAD ON DEMAND (2026-10-04): each mounts only when its
@@ -1109,6 +1110,10 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // owner. First load inherits what the trader saw (walls showed with the
   // pressure layer), so nothing appears or vanishes on upgrade.
   const [brickWallsOn, setBrickWallsOn] = useState<boolean>(() => lsGet("wm_ofBrickWalls", lsGet("wm_ofDerivativesPressure", false) as boolean) as boolean);
+  // WALLS & GAMMA family (2026-10-10): Call Wall, Put Wall and the five gamma
+  // inventions — each its own switch (wallsGammaFamily.ts), one stored record.
+  const [wallsGamma, setWallsGamma] = useState<WallsGammaSelection>(() => parseWallsGamma(lsGet<unknown>("wm_wallsGamma", null)));
+  const toggleWallsGamma = (part: WallsGammaPart) => setWallsGamma(w => ({ ...w, [part]: !w[part] }));
   /** The pressure evidence is read while EITHER lens wants it. */
   const pressureEvidenceOn = derivativesPressureOn || brickWallsOn;
   // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
@@ -1224,8 +1229,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   // can't overwrite the saved value before the load effect runs.
   useEffect(() => { if (themeHydrated) lsSet("wm_theme", theme); }, [theme, themeHydrated]);
   // Chart Theme (from Settings panel) → candle color scheme override
+  // MEMOIZED (Founder defect 2026-10-10, Clarity blink): this whole palette
+  // chain built a NEW settings object on every render — every live tick — and
+  // MainChart re-applied native candle ink on each new identity.
+  const chartThemeKey = (appSettings.chartTheme as string | undefined) ?? "green-red";
+  const effChartSettings: ChartSettings = useMemo(() => {
   const chartThemeColors = (() => {
-    switch ((appSettings.chartTheme as string | undefined) ?? "green-red") {
+    switch (chartThemeKey) {
       case "gold-current":
         return {
           candleUp: CANDLE_UP_DEFAULT, candleDown: CANDLE_DOWN_DEFAULT,
@@ -1267,7 +1277,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
 
   // Display mode owns the room material, never the market-direction channels.
   // A trader's palette remains visible in both Original and WM Neon.
-  const effChartSettings: ChartSettings = theme === "neon"
+  return theme === "neon"
     ? {
         ...paletteChartSettings,
         background: "#02060A",
@@ -1276,6 +1286,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         neon: true,
       }
     : paletteChartSettings;
+  }, [chartSettings, chartThemeKey, theme]);
 
   const applyChartSettings = useCallback((next: ChartSettings) => {
     if (next === DEFAULT_CHART_SETTINGS) {
@@ -1385,6 +1396,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   usePersistOnChange("wm_ofMtfAncestry",      mtfAncestryOn);
   usePersistOnChange("wm_ofDerivativesPressure", derivativesPressureOn);
   usePersistOnChange("wm_ofBrickWalls", brickWallsOn);
+  usePersistOnChange("wm_wallsGamma", wallsGamma);
 
   // ── Bar replay ──────────────────────────────────────────────
   const [replayActive,   setReplayActive]   = useState(false);
@@ -3940,6 +3952,13 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   MTF_ANCESTRY: mtfAncestryOn,
                   DERIVATIVES_PRESSURE: derivativesPressureOn,
                   BRICK_WALLS: brickWallsOn,
+                  CALL_WALL: wallsGamma.CALL_WALL,
+                  PUT_WALL: wallsGamma.PUT_WALL,
+                  GAMMA_HEATMAP: wallsGamma.GAMMA_HEATMAP,
+                  GAMMA_POSITIVE: wallsGamma.GAMMA_POSITIVE,
+                  GAMMA_NEGATIVE: wallsGamma.GAMMA_NEGATIVE,
+                  GAMMA_FLIP: wallsGamma.GAMMA_FLIP,
+                  GAMMA_CONCENTRATION: wallsGamma.GAMMA_CONCENTRATION,
   };
   const onProfileMenuToggle = (id: ProfileId) => {
                   if (id === "FIXED_RANGE") setFixedVPActive(v => !v);
@@ -3975,6 +3994,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                   else if (id === "MTF_ANCESTRY") setMtfAncestryOn(v => !v);
                   else if (id === "DERIVATIVES_PRESSURE") setDerivativesPressureOn(v => !v);
                   else if (id === "BRICK_WALLS") setBrickWallsOn(v => !v);
+                  else if (id === "CALL_WALL" || id === "PUT_WALL" || id === "GAMMA_HEATMAP" || id === "GAMMA_POSITIVE" || id === "GAMMA_NEGATIVE" || id === "GAMMA_FLIP" || id === "GAMMA_CONCENTRATION") toggleWallsGamma(id);
                   else if (id === "SCAFFOLDING") {
                     setScaffoldingDepth(d => (d === "OFF" ? "FOUNDATION" : d === "FOUNDATION" ? "INTERMEDIATE" : d === "INTERMEDIATE" ? "PRO" : "OFF"));
                   }
@@ -7831,6 +7851,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       {tradeOpen && (
         <TradePanel
           symbol={symbol}
+          onChooseInstrument={setSymbol}
           price={chartBars.length ? chartBars[chartBars.length - 1].close : null}
           bornDecision={currentSceneDecision}
           onIdentity={(identity) => setSceneDecision((current) => adoptSceneDecision(current, { ...decisionScope, identity }))}

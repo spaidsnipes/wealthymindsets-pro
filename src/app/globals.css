@@ -1713,6 +1713,22 @@ input[type=range]::-webkit-slider-runnable-track {
   }
 }
 
+/* ── PLACEMENT OUTRANKS ANALYSIS (Founder P0 2026-10-10) ────────────────────
+   The chart pane carries its interaction mode (src/lib/chart/chartInteractionMode.ts).
+   While an entry / stop / target pick is armed, a draft line is being dragged, or
+   an execution confirmation is up, every analytical / decorative layer inside the
+   pane — zone / FVG / order-block pins, note anchors, the weather lens, drawings,
+   status chips — stops taking the pointer, including their tap-slop ::after.
+   The press falls through to the price glass, where the placement owns it. */
+[data-chart-interaction="PLACEMENT"] [data-analytical-layer],
+[data-chart-interaction="PLACEMENT"] [data-analytical-layer] *,
+[data-chart-interaction="PLACEMENT"] [data-analytical-layer]::after,
+[data-chart-interaction="EXECUTION"] [data-analytical-layer],
+[data-chart-interaction="EXECUTION"] [data-analytical-layer] *,
+[data-chart-interaction="EXECUTION"] [data-analytical-layer]::after {
+  pointer-events: none !important;
+}
+
 /* ── iOS ZOOMS INTO ANY FIELD UNDER 16px (phone pass 2026-10-06) ─────────────
    Safari on iPhone/iPad zooms the whole page when a focused text field's
    font-size is under 16px, and since the viewport no longer blocks pinch-zoom
