@@ -6,6 +6,7 @@
  * analytics and the profile's Personal Edge. Read only: it never writes, and it re-reads when the member changes.
  */
 
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import { useEffect, useState } from "react";
 
 import { journalReviewKey } from "@/lib/journal/captureReviewEvidence";
@@ -21,7 +22,7 @@ export function readPlanResultsFromJournal(): PlanVsActualResult[] {
   try {
     const read = readJournalStorage(window.localStorage);
     const reviews = readStoryReviews();
-    return hydrateJournalEntries(read.records).entries.flatMap(e => {
+    return hydrateJournalEntries(liveJournalRecords(read.records)).entries.flatMap(e => {
       const input = planReviewInputForJournalEntry(e, id => readPlanForDecision(window.localStorage, id));
       return input?.plan ? [composePlanReview(input, reviews[journalReviewKey(e)]?.planWhy).result] : [];
     });

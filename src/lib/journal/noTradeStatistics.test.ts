@@ -50,7 +50,9 @@ describe("/journal — an M0 no-trade day is never scored as a trade", () => {
   });
 
   it("THE DEFECT: the win-rate denominator is trades taken, not records kept", () => {
-    expect(code).toMatch(/const tradeRecords = selectTradeRecords\(entries\)/);
+    // Results are over LIVE records only (paper is a separate book — paperEntry.ts); still trades taken, not records kept.
+    expect(code).toMatch(/const liveEntries = liveJournalRecords\(entries\)/);
+    expect(code).toMatch(/const tradeRecords = selectTradeRecords\(liveEntries\)/);
     // The denominator is still trades taken; since the n ≥ 20 guard it is also gated on that same count.
     expect(code).toMatch(/winRate\s*=\s*isMeasured\(tradeRecords\.length\) \? \(\(wins \/ tradeRecords\.length\)/);
     expect(code).not.toMatch(/winRate\s*=\s*entries\.length \?/);

@@ -52,7 +52,9 @@ describe("the door the bad records came through is shut", () => {
     // must never come back is `read.records` arriving anywhere unchecked, and
     // the assertion above still holds that door shut.
     expect(hook).toMatch(/hydrateJournalEntries\(read\.records\)/);
-    expect(hook).toMatch(/journalEntriesToSnapshots\(hydration\.entries\s*,/);
+    // Snapshots are LIVE decisions: paper records are left out BEFORE the same guard (paperEntry.ts).
+    expect(hook).toMatch(/const live = hydrateJournalEntries\(liveJournalRecords\(read\.records\)\)/);
+    expect(hook).toMatch(/journalEntriesToSnapshots\(live\.entries\s*,/);
     expect(hook).not.toMatch(/journalEntriesToSnapshots\(\s*read\.records/);
   });
 

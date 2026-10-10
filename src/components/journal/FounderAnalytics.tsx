@@ -11,6 +11,7 @@
  * under 20 they say INSUFFICIENT EVIDENCE. No shame language: this is for
  * learning, discipline and measurable improvement.
  */
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import { useManagementOwnerVersion } from "@/lib/journal/useManagementOwner";
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -34,7 +35,7 @@ export interface TtTripsByAccount { readonly tail: string; readonly fills: numbe
 function readJournalFacts(): JournalFact[] {
   try {
     const read = readJournalStorage(window.localStorage);
-    return hydrateJournalEntries(read.records).entries.map(e => ({
+    return hydrateJournalEntries(liveJournalRecords(read.records)).entries.map(e => ({
       id: e.id, date: e.date, symbol: e.symbol, dayModel: e.dayModel as ModelMark | undefined,
       plannedRDollars: e.plannedRDollars, realizedR: e.realizedR, mfeR: e.mfeR,
     }));

@@ -1,5 +1,6 @@
 "use client";
 
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import { openWowWorld } from "@/lib/passport/openWowWorld";
 import Link from "next/link";
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -272,7 +273,7 @@ function ProfilePageInner() {
       setLikedTracks(liked);
 
       // Load recent trades from journal + paper trading
-      const journalRaw = JSON.parse(readJournalRaw(localStorage) ?? "[]") as Array<{
+      const journalRaw = liveJournalRecords(JSON.parse(readJournalRaw(localStorage) ?? "[]") as unknown[]) as Array<{
         symbol?: string; direction?: string; entryPrice?: number; exitPrice?: number; pnl?: number; rr?: number; date?: string; createdAt?: string;
       }>;
       const paperState = JSON.parse(localStorage.getItem("wm_paper_state") ?? "null");
@@ -346,7 +347,7 @@ function ProfilePageInner() {
   const [paperHeldOutNote, setPaperHeldOutNote] = useState<string | null>(null);
   useEffect(() => {
     try {
-      const journalEntries = JSON.parse(readJournalRaw(localStorage) ?? "[]") as Array<{ pnl?: number }>;
+      const journalEntries = liveJournalRecords(JSON.parse(readJournalRaw(localStorage) ?? "[]") as unknown[]) as Array<{ pnl?: number }>;
       const paperState = JSON.parse(localStorage.getItem("wm_paper_state") ?? "null");
       const paperTrades: Array<{ pnl?: number }> = paperState?.trades ?? [];
       // Garden 18 §4: paper simulation is never mixed into the trader's tiles.

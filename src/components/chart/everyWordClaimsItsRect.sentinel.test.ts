@@ -181,12 +181,43 @@ describe("trade from the chart: draggable DRAFT lines and Trade at <price> (Foun
     expect(CHART).toContain("return snapToTick(symbol, Number(raw));");
     expect(CHART).toContain('if (e.key === "ArrowUp") { e.preventDefault(); nudgeDraftLine(l, e.shiftKey ? 10 : 1); }');
     expect(CHART).toContain("onClick={can ? undefined : () => setBrokerLineNote(BROKER_LINE_NOT_MOVABLE)}");
-    expect(CHART).toContain("const words = can ? draftHandleWords(l, shown, dpH) : orderLineWords(l).text;");
+    expect(CHART).toContain(": orderLineWords(l).text;");
+    expect(CHART).toContain("draftHandleWords(l, shown, dpH)");
   });
   it("Trade at <price>: the menu item exists only with the prop; the room opens the ticket and hands the price to the draft as an ENTRY from the MENU", () => {
     expect(CHART).toContain("...(onTradeAtPrice ? [{");
     expect(CHART).toContain("action: () => onTradeAtPrice(snapToTick(symbol, ctxMenu.price)),");
     expect(ROOM).toContain('onTradeAtPrice={price => { setTradeOpen(true); deliverChartDraftPrice(symbol, "ENTRY", price, "MENU"); }}');
     expect([...ROOM.matchAll(/onTradeAtPrice=/g)].length).toBe(1); // the main chart mount only
+  });
+});
+
+describe("the chart menu on iPhone / iPad, handles clear of the phone ticket sheet, volume indicators that cannot read (2026-10-10)", () => {
+  const CSS = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+  it("a touch long-press opens the SAME menu without any contextmenu event, and is not also a candle tap", () => {
+    expect(CHART).toContain("onFire: (x, y) => { if (longPressHostRef.current) openCtxMenuAt(x, y, longPressHostRef.current, true); },");
+    expect(CHART).toContain("openCtxMenuAt(e.clientX, e.clientY, e.currentTarget as HTMLElement, false);");
+    expect(CHART).toContain("onPointerDown={e => { longPressHostRef.current = e.currentTarget; longPress.down(e); handleCursorSelectDown(e); }}");
+    expect(CHART).toContain("if (fired) { suppressClickRef.current = true; cursorDownRef.current = null; return; }");
+    expect(CHART).toContain("onPointerCancel={() => longPress.cancel()}");
+  });
+  it("the menu stays inside the pane, its items are 44px on touch, and on touch it closes on the backdrop only", () => {
+    expect(CHART).toContain("const my = Math.max(4, Math.min(cy, rect.height - footer - menuH));");
+    expect(CHART).toContain("onMouseLeave={ctxMenu.coarse ? undefined : () => setCtxMenu(null)}");
+    expect(CHART).toContain('className="wm-ctx-item"');
+    expect(CSS).toContain(".wm-ctx-item { min-height: 44px;");
+  });
+  it("a staged-line handle never sits under the phone ticket sheet", () => {
+    expect(CHART).toContain("const underSheet = ticketSheetTop != null && Number(yLine) > ticketSheetTop - 22;");
+    expect(CHART).toContain("? (underSheet ? `${l.role} ↓ ${shown.toFixed(dpH)}` : draftHandleWords(l, shown, dpH))");
+  });
+  it("volume indicators are partitioned before any series is added; a withheld one adds none and is said once", () => {
+    const gate = CHART.indexOf("const volGate = partitionVolumeIndicators(activeInds ?? [], symbol, bars);");
+    expect(gate).toBeGreaterThan(0);
+    const firstAdd = CHART.indexOf("chart.addSeries(LW.LineSeries", gate - 4000);
+    expect(firstAdd).toBeGreaterThan(gate);
+    expect(CHART).toContain("const inds   = new Set<string>([...(activeInds ?? new Set<string>())].filter(n => !volGate.withheld.includes(n)));");
+    expect(CHART).toContain("canvas.dataset.volumeIndicatorsWithheld = vg.receipt;");
+    expect(CHART).toContain("ctx.fillText(fitSilence(vg.silence.words), silenceX, yV);");
   });
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { TodayManagementRules } from "@/components/journal/TodayManagementRules";
 import { PropEvaluationToday } from "@/components/morning-prep/PropEvaluationToday";
@@ -132,7 +133,7 @@ function MorningPrepStreakBadge({ userId }: { userId: string }) {
     // `pnl` — so a record with no result and no pnl became a BREAKEVEN session
     // here and no session at all on the Proof Lane, from the same book. A day
     // with no trade on it was extending the discipline streak on this badge.
-    const projection = projectJournalRecordsToEdge(read.records);
+    const projection = projectJournalRecordsToEdge(liveJournalRecords(read.records));
     setEdge(projection.entries);
     setCoverage(projection.coverage);
   }, [userId]);

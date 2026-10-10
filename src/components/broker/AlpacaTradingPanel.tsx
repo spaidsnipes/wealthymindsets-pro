@@ -25,6 +25,19 @@ import { selectExitPermission } from "@/lib/exitPermission";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 import { wmConfirm } from "@/components/ui/wmConfirm";
+import { journalCaptureFromAlpacaPaperOrder } from "@/lib/journal/alpacaPaperCapture";
+import { JOURNAL_CAPTURE_URL, offerJournalCapture } from "@/lib/journal/journalCaptureHandoff";
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
+
+/**
+ * "Journal this PAPER trade": the paper account's own readback → a draft marked PAPER, through the Journal's one
+ * hand-off and save gate. It is never mixed into live results (paperEntry.ts). Nothing is saved here.
+ */
+function journalPaperOrder(ord: Parameters<typeof journalCaptureFromAlpacaPaperOrder>[0]): void {
+  if (typeof window === "undefined" || proofSceneHoldsWrites()) return;
+  const draft = journalCaptureFromAlpacaPaperOrder(ord, Date.now());
+  if (draft && offerJournalCapture(window.localStorage, draft, Date.now())) window.location.assign(JOURNAL_CAPTURE_URL);
+}
 
 /* ── Types ─────────────────────────────────────────────── */
 interface AlpacaAccount {
@@ -965,6 +978,12 @@ export function AlpacaTradingPanel({
                           {ord.filled_avg_price ? ` → filled @ ${fmt$(ord.filled_avg_price)}` : ""}
                         </div>
                         <div className="text-[9px] text-wm-text-dim mt-0.5">{fmtTime(ord.submitted_at)}</div>
+                        {isFilled && ordersLoad !== "failed" ? (
+                          <button type="button" data-testid="alpaca-journal-paper" onClick={() => journalPaperOrder(ord)}
+                            className="mt-1 text-[10px] font-bold min-h-11 px-2 rounded border" style={{ color: "#d9a441", borderColor: "#d9a44166" }}>
+                            Journal this PAPER trade
+                          </button>
+                        ) : null}
                       </div>
                       {isOpen && (
                         <button

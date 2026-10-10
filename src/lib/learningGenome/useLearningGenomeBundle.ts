@@ -1,5 +1,6 @@
 "use client";
 
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import * as React from "react";
 
 import { MANAGEMENT_OWNER_EVENT } from "@/lib/journal/managementOwner";
@@ -123,7 +124,7 @@ export function useLearningGenomeBundle(): LearningGenomeBundle | undefined {
   const compute = React.useCallback(() => {
     if (typeof window === "undefined") return;
     const read = readJournalStorage(window.localStorage);
-    const records = read.status === "RESOLVED_CANONICAL" || read.status === "RESOLVED_LEGACY" ? read.records : [];
+    const records = read.status === "RESOLVED_CANONICAL" || read.status === "RESOLVED_LEGACY" ? liveJournalRecords(read.records) : [];
     const entries = normalize(records);
     const { current, prior } = splitByWindow(entries, Date.now());
     setBundle(

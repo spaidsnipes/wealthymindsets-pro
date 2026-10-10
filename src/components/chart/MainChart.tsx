@@ -57,6 +57,8 @@ import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proof
 import { installWordGate, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
 import { FOG_CAP, FOG_FEATHER_PX, installFogGate } from "@/lib/chart/fieldFogBudget";
 import { installTypeFloor, NARROW_NAME_MIN_PX } from "@/lib/chart/typeFloor";
+import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
+import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
@@ -203,6 +205,8 @@ const BIG_TRADE_NARROW_MAX_R = 22;
 const ABSORPTION_FIGURE_NARROW_H = 72;
 /** PHONE (2026-10-09): a drawn handle / chevron / stem this close to the left of the newest-candle column is held too. */
 const SOVEREIGN_SHAPE_PAD = 20;
+/** The chart context menu's width (its style's minWidth), for keeping it inside the pane. */
+const CTX_MENU_W = 200;
 /** The room's own opposed pairs — what an unlawful (identical) custom pair falls back to. */
 const APPEARANCE_ROOM_PAIRS: Record<string, unknown> = { ...DEFAULT_CHART_SETTINGS, ...FLOW_COLOR_DEFAULTS, ...VOLUME_COLOR_PICKER_DEFAULTS };
 /** The price legend band's floor in the pane (the paint loop's HEADER_FLOOR_Y). Nothing that floats may start above it. */
@@ -2377,6 +2381,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // PHONE: the scale row is closed at rest (one chip in the footer band opens it).
   const [scaleRowOpen, setScaleRowOpen] = useState(false);
   const lensQuietLastRef = useRef(1);
+  // The indicator pass's volume gate, for the paint loop's receipt and silence line.
+  const volGateRef = useRef<ReturnType<typeof partitionVolumeIndicators> | null>(null);
   // The trader's opacity dials, read by the paint loop (no re-render per frame).
   const userOpacityRef = useRef<{ PROFILES?: number; WALLS?: number; MEMORY?: number }>({});
   userOpacityRef.current = { PROFILES: chartSettings?.profileOpacity, WALLS: chartSettings?.wallOpacity, MEMORY: chartSettings?.memoryOpacity };
@@ -3277,7 +3283,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   }, []);
 
   // Context menu state
-  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; price: number; nearDrawingIdx: number | null } | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; price: number; nearDrawingIdx: number | null; coarse?: boolean; at?: { x: number; y: number } } | null>(null);
 
   // Data window state
   const [dataWindowOpen, setDataWindowOpen] = useState(true);
@@ -5600,7 +5606,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     };
 
     const closes = bars.map(b => b.close);
-    const inds   = activeInds ?? new Set<string>();
+    // VOLUME INDICATORS ON A MARKET WITH NO TRADED VOLUME (Supermax §5, 2026-10-10;
+    // volumeIndicatorTruth.ts): the 21 volume indicators drew a flat line on spot
+    // FX. They are partitioned FIRST, before any series is added — a withheld one
+    // adds no series at all, and its silence is said once in the silence stack.
+    const volGate = partitionVolumeIndicators(activeInds ?? [], symbol, bars);
+    volGateRef.current = volGate;
+    const inds   = new Set<string>([...(activeInds ?? new Set<string>())].filter(n => !volGate.withheld.includes(n)));
     // Per-indicator custom params (length / mult / color) merged with defaults
     const ip = (name: string) => resolveParams(name, indSettings);
 
@@ -6861,6 +6873,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const [draftDrag, setDraftDrag] = useState<{ id: string; price: number } | null>(null);
   const draftDragRef = useRef<{ id: string; role: "ENTRY" | "STOP" | "TARGET"; lastSent: number; raf: number; pending: number | null } | null>(null);
   const [brokerLineNote, setBrokerLineNote] = useState<string | null>(null);
+  // THE PHONE TICKET SHEET IS A KEEP-OUT for the handles (Sheriff 2026-10-10):
+  // its top edge in this chart's coordinates, re-read while lines are staged on
+  // a narrow pane (the sheet grows and folds without telling the chart).
+  const [ticketSheetTop, setTicketSheetTop] = useState<number | null>(null);
+  useEffect(() => {
+    if (!chartOrderLines.length) { setTicketSheetTop(null); return; }
+    const read = () => {
+      const host = containerRef.current;
+      const sheet = typeof document !== "undefined" ? document.querySelector<HTMLElement>('[data-testid="trade-panel"]') : null;
+      if (!host || !sheet || host.clientWidth >= 640) { setTicketSheetTop(t => (t === null ? t : null)); return; }
+      const hr = host.getBoundingClientRect(), sr = sheet.getBoundingClientRect();
+      const top = sr.height > 0 && sr.top < hr.bottom && sr.bottom > hr.top ? Math.round(sr.top - hr.top) : null;
+      setTicketSheetTop(t => (t === top ? t : top));
+    };
+    read();
+    const iv = window.setInterval(read, 400);
+    return () => window.clearInterval(iv);
+  }, [chartOrderLines.length]);
   const draftPriceAt = useCallback((clientY: number): number | null => {
     const host = containerRef.current, series = candleRef.current;
     if (!host || !series) return null;
@@ -26120,6 +26150,22 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         }
       } catch (err) { layerFault("PIVOT_SILENCE", err); }
 
+      // Volume indicators withheld on this market: one line, in the silence stack.
+      try {
+        const vg = volGateRef.current;
+        if (vg && vg.receipt && vg.silence) {
+          canvas.dataset.volumeIndicatorsWithheld = vg.receipt;
+          canvas.dataset.volumeIndicatorsWithheldWords = vg.silence.words;
+          ctx.save();
+          ctx.font = marketFont("OBJECT_NAME");
+          ctx.fillStyle = "rgba(200,192,174,0.85)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+          const yV = takeSilenceRow();
+          ctx.fillText(fitSilence(vg.silence.words), silenceX, yV);
+          if (yV > 0) floatingChips.push({ x: silenceX, y: yV - 7, w: ctx.measureText(vg.silence.words).width, h: 14 });
+          ctx.restore();
+        } else { delete canvas.dataset.volumeIndicatorsWithheld; delete canvas.dataset.volumeIndicatorsWithheldWords; }
+      } catch (err) { layerFault("VOLUME_INDICATOR_SILENCE", err); }
+
       // Truth lines a painter could not place: said in the silence stack (never listed).
       try {
         for (const words of truthForSilence) {
@@ -28258,13 +28304,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   }, [flowOpacity]);
 
   /* ── Right-click context menu handler ──────────────────────── */
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
+  // ONE way to open the chart's context menu: right-click (contextmenu) and a
+  // touch long-press (iOS never fires contextmenu — Sheriff 2026-10-10) both
+  // land here. The menu is kept inside the pane and above the footer band.
+  const openCtxMenuAt = useCallback((clientX: number, clientY: number, host: HTMLElement, coarse: boolean) => {
     if (!candleRef.current) return;
     try {
-      const rect  = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const cx    = e.clientX - rect.left;
-      const cy    = e.clientY - rect.top;
+      const rect  = host.getBoundingClientRect();
+      const cx    = clientX - rect.left;
+      const cy    = clientY - rect.top;
       const price = candleRef.current.coordinateToPrice(cy);
       if (price == null) return;
 
@@ -28272,9 +28320,28 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const hit = hitTestDrawing(cx, cy, 10);
       if (hit >= 0) setSelectedIdx(hit);
 
-      setCtxMenu({ x: cx, y: cy, price: +price.toFixed(barsRef.current[0]?.close > 100 ? 2 : 4), nearDrawingIdx: hit >= 0 ? hit : null });
+      // Inside the pane: the menu's estimated size never runs past the right
+      // edge or below the footer band (the thumb bar on a phone).
+      const items = (onTradeAtPrice ? 1 : 0) + (hit >= 0 ? 2 : 0) + 4;
+      const menuW = CTX_MENU_W, menuH = 28 + items * (coarse ? 44 : 32);
+      const footer = TIMEFRAME_FOOTER_H + 4;
+      const mx = Math.max(4, Math.min(cx, rect.width - menuW - 4));
+      const my = Math.max(4, Math.min(cy, rect.height - footer - menuH));
+      setCtxMenu({ x: mx, y: my, price: +price.toFixed(barsRef.current[0]?.close > 100 ? 2 : 4), nearDrawingIdx: hit >= 0 ? hit : null, coarse, at: { x: cx, y: cy } });
     } catch {}
-  }, [hitTestDrawing]);
+  }, [hitTestDrawing, onTradeAtPrice]);
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    openCtxMenuAt(e.clientX, e.clientY, e.currentTarget as HTMLElement, false);
+  }, [openCtxMenuAt]);
+  // TOUCH LONG-PRESS → the same menu (longPress.ts). The pane element is
+  // remembered at press time so the menu opens in its coordinates.
+  const longPressHostRef = useRef<HTMLElement | null>(null);
+  const suppressClickRef = useRef(false);
+  const longPress = React.useMemo(() => createLongPress({
+    onFire: (x, y) => { if (longPressHostRef.current) openCtxMenuAt(x, y, longPressHostRef.current, true); },
+  }), [openCtxMenuAt]);
+  useEffect(() => () => longPress.cancel(), [longPress]);
 
   /* ── ONE FEED VERDICT, TWO READERS ───────────────────────────
      Hoisted out of the data-truth strip's IIFE because the candle countdown
@@ -28548,9 +28615,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            dead space this shift is spending its time removing. */
         paddingBottom: setTimeframe ? TIMEFRAME_FOOTER_H : undefined }}
         onContextMenu={handleContextMenu}
-        onPointerMove={handleOverlayPointerMove}
-        onPointerDown={handleCursorSelectDown}
-        onPointerUp={handleCursorSelectUp}
+        onPointerMove={e => { longPress.move(e); handleOverlayPointerMove(e); }}
+        onPointerDown={e => { longPressHostRef.current = e.currentTarget; longPress.down(e); handleCursorSelectDown(e); }}
+        onPointerUp={e => {
+          // A long-press that opened the menu is not also a candle tap.
+          const fired = longPress.consumeClick();
+          longPress.up(e);
+          if (fired) { suppressClickRef.current = true; cursorDownRef.current = null; return; }
+          handleCursorSelectUp(e);
+        }}
+        onPointerCancel={() => longPress.cancel()}
+        onClickCapture={e => { if (suppressClickRef.current) { suppressClickRef.current = false; e.preventDefault(); e.stopPropagation(); } }}
         onPointerLeave={() => { bubbleHoverRef.current = null; setBubbleTip(null); cursorDownRef.current = null; }}>
 
       {/* ── THE TIMEFRAME, WHERE CANON DRAWS IT ──────────────────────────
@@ -29256,10 +29331,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           return chartOrderLines.map(l => {
             const dragging = draftDrag?.id === l.id;
             const shown = dragging && draftDrag ? draftDrag.price : l.price;
-            const y = series.priceToCoordinate(shown);
-            if (y == null || !Number.isFinite(Number(y))) return null;
+            const yLine = series.priceToCoordinate(shown);
+            if (yLine == null || !Number.isFinite(Number(yLine))) return null;
             const can = chartOrderLineDraggable(l);
-            const words = can ? draftHandleWords(l, shown, dpH) : orderLineWords(l).text;
+            // Under the phone ticket sheet the handle stands at the sheet's top
+            // edge as a marker pointing down to its line — still draggable.
+            const underSheet = ticketSheetTop != null && Number(yLine) > ticketSheetTop - 22;
+            const y = underSheet && ticketSheetTop != null ? ticketSheetTop - 24 : Number(yLine);
+            const words = can
+              ? (underSheet ? `${l.role} ↓ ${shown.toFixed(dpH)}` : draftHandleWords(l, shown, dpH))
+              : orderLineWords(l).text;
             return (
               <button
                 key={`order-handle-${l.id}`}
@@ -29270,6 +29351,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 data-order-status={l.status}
                 data-draggable={can ? "true" : "false"}
                 data-dragging={dragging ? "true" : "false"}
+                data-under-sheet={underSheet ? "true" : "false"}
                 aria-label={can
                   ? `${words}. Drag, or press up or down, to move this ${l.role.toLowerCase()} in the ticket draft. Nothing is sent.`
                   : `${words}. ${BROKER_LINE_NOT_MOVABLE}`}
@@ -30370,7 +30452,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
               overflow: "hidden",
             }}
-            onMouseLeave={() => setCtxMenu(null)}
+            // A finger has no mouse-leave: on touch the menu closes on its backdrop only.
+            onMouseLeave={ctxMenu.coarse ? undefined : () => setCtxMenu(null)}
+            data-testid="chart-context-menu"
+            role="menu"
           >
             <div style={{ padding: "5px 10px 4px", borderBottom: "1px solid #263050" }}>
               <span style={{ fontSize: 10, color: "#8b8fa8" }}>
@@ -30427,6 +30512,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             ].map((item, i) => (
               <button
                 key={i}
+                role="menuitem"
+                className="wm-ctx-item"
                 onClick={() => {
                   item.action?.();
                   setCtxMenu(null);

@@ -78,6 +78,7 @@
  */
 
 import { hydrateJournalEntries } from "@/lib/journal/hydrateJournalEntries";
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import { describeLegacyFuturesMoney, NO_LEGACY_FUTURES_MONEY, type LegacyFuturesMoney } from "@/lib/journal/computePnl";
 
 export type PnlStatState =
@@ -170,7 +171,8 @@ export function compilePnlStats(rawJournal: string | null): PnlStatsReport {
   if (rawJournal != null && rawJournal.trim().length > 0) {
     try {
       const parsed: unknown = JSON.parse(rawJournal);
-      rows = Array.isArray(parsed) ? parsed : null;
+      // LIVE results only — paper trades are a separate book (paperEntry.ts).
+      rows = Array.isArray(parsed) ? liveJournalRecords(parsed) : null;
     } catch {
       rows = null;
     }

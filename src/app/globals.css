@@ -2555,6 +2555,8 @@ input[type=range]::-webkit-slider-runnable-track {
   input[type="color"].wm-settings-control { min-width: 44px; min-height: 44px; }
   input[type="range"].wm-settings-control { min-height: 44px; }
   .wm-settings-dial { min-height: 44px !important; }
+  /* The chart's context menu (right-click / long-press): every item a 44px row. */
+  .wm-ctx-item { min-height: 44px; display: flex !important; align-items: center; }
 }
 
 /* ── PHONE GLASS: THE DOM TYPE FLOOR IS 11px (ruling 2026-10-09) ──────────

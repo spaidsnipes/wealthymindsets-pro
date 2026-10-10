@@ -1,4 +1,5 @@
 "use client";
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import { useEffect, useState, useCallback } from "react";
 import { journalEntriesToSnapshots } from "./journalEntryToSnapshot";
 import { hydrateJournalEntries, type JournalEntry } from "@/lib/journal/hydrateJournalEntries";
@@ -118,8 +119,11 @@ export function readJournalBook(
   // about every field. Asserting an entry type here is what fed a `null` into
   // `entry.symbol` and threw on four mounted surfaces.
   const hydration = hydrateJournalEntries(read.records);
+  const live = hydrateJournalEntries(liveJournalRecords(read.records));
+  // Paper is never a live DECISION: Personal Edge, sessions and every snapshot consumer read live records only.
+  // `entries` stays the whole book (a paper close still asks for its own review).
   return {
-    snapshots: journalEntriesToSnapshots(hydration.entries, ownerId),
+    snapshots: journalEntriesToSnapshots(live.entries, ownerId),
     coverage: hydration.coverage,
     entries: hydration.entries,
   };

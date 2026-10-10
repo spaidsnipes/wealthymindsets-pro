@@ -3016,6 +3016,8 @@ Status words: **PROVED** (a serving receipt in this document covers it) · **PAR
 | 19:16 | **`52824b6` LIVE 19:12:06** (coordinator ship gate; 17,936 tests; build identity builtAt 00:08:08Z) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: ticket opens on order entry at every size + phone HALF (§6), shared broker readback store, word registry ENFORCE by default, the canonical CLOSED word, billing routes + pricing buttons fail-closed (§11 built, off), the six tool primers. Read on it: six primers at 390 and 1440, repointed ⓘ doors at both. In the tree: Liquidity Lifecycle + Effort Mark folded into their primers; SpaidBot's note and instructions say "closed · last verified" for a closed market |
 | 00:36 Oct 10 | **`32c95db` LIVE 00:31:49 CDT Oct 10** (coordinator ship gate; 17,973 tests) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: drag lines + Trade at price, wide two-part ticket, owner position strip (all built, not read); legal version owner + operator billing readiness; SpaidBot CLOSED words; Liquidity Lifecycle and Effort Mark folded into their primers. Billing guest checks PASS on `52824b6` (billing lane). First stress run on `52824b6`: 20 s at 1440 × 900, frame p50 16.7 / p95 18.6 / max 34 ms (Sheriff; rest in progress). **Security-sensitive detail moved out of this public repository** (handover 25) |
 | 00:50 Oct 10 | **`3180aae` LIVE 00:47:08 CDT** (coordinator ship gate; 18,001 tests) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: order-rate limiter + daily cap on every live send, unset refuses (built; the gate read not yet read on serving — the browser link has been down since 00:32); plaque keep-out + LAST VERIFIED wording; SAMPLE lines in the ticket scene; one contract resolution; desk folds + Ask SpaidBot (owner); "prop" in SpaidBot's ask allow-list; the cert lane's privacy move. Guest walk on `32c95db` (Sheriff, Playwright, signed out, 9 public + 14 interior routes at 390 / 1440): no P0, two P2s being fixed — `~/wm-held/proof/g19-guest-walk-2026-10-10.md` |
+| 01:01 Oct 10 | **`60e9994` LIVE 01:01:09 CDT** (ship gate; 18,033 tests) | 47 · 12 · 1 · 4 · 2 Founder | Chart Settings volume colours + three layer-opacity dials with a readable floor and the opposed-pair law (not seen on glass); Journal this trade for imported round trips; Morning Prep prop card + ORB / order-flow checklist items; phone ticket grip; guests no longer call the coverage ledger; icon buttons named; SILENCE in 57 ⓘ records; privacy sweep of older documents |
+| 01:15 Oct 10 | **`c4ce273` LIVE 01:13:43 CDT** (ship gate; 18,073 tests) | 47 · 12 · 1 · 4 · 2 Founder | Marks section (bubbles, footprint numbers, wall thickness, red / green preset, memory fade); the volume-indicator silence decision owner (`volumeIndicatorTruth.ts`, 21 indicators — **the chart hook is pending in the chart lane's next slice, so they still draw flat on spot FX**); Webull "Journal this trade"; intention → plan freeze; ticket keys (Enter never sends); `/api/auth/me` answers 200 signed-out; the strip in phone landscape; SILENCE in the 283-record catalogue. **Paper fills: not built** — the journal has no paper marker; the ticket lane is building the separation. In the tree: Gravity and Options view wording (§30d) |
 
 ## 27. Supermax §9 and §11 / §14 — Academy audit, ⓘ doors, public language (cert lane, written 18:35 CDT Oct 9; tree, not shipped)
 
@@ -3266,3 +3268,27 @@ The 14 "not measured on any feed" Smart Money cards say "Always — … is not c
 ### 30c. Privacy sweep — older documents (00:50)
 
 Closed-and-fixed items stay as one-line records: certificate §13 and §21c (the Webull server-gate finding, closed in `559884e`) are now one paragraph each, without the finding's detail. The 2026-09-11 baton's per-provider credential-presence table moved out. Reviewed and left as they are (no open finding, no account detail): the July FORGE handoff (its P1-3 is closed), MEMBER-BROKER-CONNECT (a design document), the Noah revert handoff, the 2026-09-15 dispatches. All moved text is in `~/wm-held/proof/g19-founder-private-2026-10-10.md`.
+
+### 30d. Gravity and Options views — what they show with no evidence, read from the code (01:15 CDT Oct 10; tree)
+
+| View | Code path | DEGRADED / SILENCE now |
+|---|---|---|
+| Gravity | `GravityValueView` → `ValueCandlePanel` over `selectValueCandle`: with no prints the selector returns UNMEASURED and the panel "draws no candle and no zero" | "No traded volume observed — the view reads UNMEASURED, "no trade volume observed — value cannot be located", and draws no value candle." |
+| Options | `OptionsChain`: with no available data it shows "Real options chain unavailable", the recovery step, and "WealthyMindsets will not fabricate contracts" | "No chain for this symbol — the view says "Real options chain unavailable" with what to do next, and lists no contract." |
+
+A test pins both sentences to the code they quote.
+
+### G″. §14 map — changes since `32c95db` (01:15 CDT Oct 10; the G′ table above stands; the coordinator rules)
+
+| # | Line | Was | Now | What moved it — or what still blocks |
+|---|---|---|---|---|
+| 2 | Opacity, colour, thickness, numbers, customization | PARTIAL | **PARTIAL** | built: Chart Settings volume colours + layer-opacity dials with a floor and the opposed-pair law (`60e9994`); Marks section — bubbles, footprint numbers, wall thickness, red / green preset, memory fade (`c4ce273`). **Not read on serving by this lane.** Still: the Founder's eye on a real phone |
+| 3 | Trading | NOT YET | **NOT YET** | built: ticket keys — Enter never sends (`c4ce273`); order-rate limit + daily cap, unset refuses (`3180aae`). Still: no order sent, nothing broker-reconciled; **paper fills are not separated in the journal (not built)**; Founder decisions (details held privately) |
+| 5 | Journal / Morning Prep / imports / Review | PARTIAL | **PARTIAL** | built: Webull and imported round trips → "Journal this trade" (`60e9994`, `c4ce273`); Morning Prep intention → plan freeze, prop card, ORB / order-flow checklist. Still: real-account reads (handover c); paper vs live separation |
+| 7 | Academy | PASS | **PASS** | SILENCE in all 57 registry records and 283 catalogue records (`60e9994`, `c4ce273`); fundamentals views say what they show for a non-equity |
+| 9 | Performance | NOT YET | **NOT YET** | first desktop stress run only (C′); the stress file owed |
+| 11 | Security / privacy / legal | NOT YET | **NOT YET** | guests no longer call the coverage ledger (`60e9994`); `/api/auth/me` answers 200 signed-out (`c4ce273`); security detail moved out of the public repository (`3180aae`, `60e9994`). Still: repository public (handover 25); Founder decisions; legal pages not in effect; no signed-in member session read |
+| 12 | Public language | PARTIAL | **PARTIAL** | guest walk on `32c95db`: no P0, two P2s being fixed |
+| 14 | Duplicate truth | PARTIAL | **PARTIAL** | one owner for "is there traded volume" now also decides the 21 volume indicators (decision shipped; hook pending) |
+
+**Count unchanged: 1 PASS · 7 PARTIAL · 6 NOT YET.** Nothing above was read on serving by the cert lane since `32c95db` — the browser link has been down since 00:32.

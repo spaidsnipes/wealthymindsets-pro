@@ -5,6 +5,7 @@
  * §32–36), rendered inside the Academy's own lesson pane. Content comes from
  * src/lib/academy/fvgCourse.ts — this component only lays it out.
  */
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import { useManagementOwnerVersion } from "@/lib/journal/useManagementOwner";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -75,8 +76,9 @@ function MyExamples() {
     setSample(false);
     try {
       const read = readJournalStorage(window.localStorage);
-      const adh = adherenceById(read.records);
-      setExamples(fvgReferencedExamples(read.records, id => adh.get(id) ?? null));
+      const live = liveJournalRecords(read.records);
+      const adh = adherenceById(live);
+      setExamples(fvgReferencedExamples(live, id => adh.get(id) ?? null));
     } catch { setExamples([]); }
   }, [ownerVersion, user]);
   if (examples === null) return null;

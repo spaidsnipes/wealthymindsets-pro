@@ -10,6 +10,7 @@
  * Reads the trader's own Journal once per member; writes nothing; renders nothing for an empty book.
  */
 
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import React, { useEffect, useState } from "react";
 
 import { PlanAdherenceBySetup } from "@/components/journal/PlanAdherenceBySetup";
@@ -23,7 +24,7 @@ export function ProfileGapStudy(): React.ReactElement | null {
   useEffect(() => {
     try {
       const raw = JSON.parse(readJournalRaw(window.localStorage) ?? "[]");
-      setEntries(Array.isArray(raw) ? hydrateJournalEntries(raw).entries : []);
+      setEntries(Array.isArray(raw) ? hydrateJournalEntries(liveJournalRecords(raw)).entries : []);
     } catch { setEntries([]); }
   }, [ownerVersion]);
   if (!entries.length) return null;

@@ -34,4 +34,13 @@ describe("every catalogue ⓘ record states FULL, PARTIAL, DEGRADED and SILENCE"
     }
     expect(VIEW_EDUCATION.Profile.degraded).toMatch(/the view says so and fills in nothing/);
   });
+  it("Gravity and Options say what they show with no volume / no chain — the views' own words", async () => {
+    const { readFileSync } = await import("node:fs");
+    const vc = readFileSync("src/lib/marketData/viewModels/selectValueCandle.ts", "utf8");
+    expect(vc).toContain('migrationDetail: "no trade volume observed — value cannot be located"');
+    expect(VIEW_EDUCATION.Gravity.degraded).toContain("no trade volume observed — value cannot be located");
+    const oc = readFileSync("src/components/chart/OptionsChain.tsx", "utf8");
+    expect(oc).toContain("Real options chain unavailable");
+    expect(VIEW_EDUCATION.Options.degraded).toContain('"Real options chain unavailable"');
+  });
 });

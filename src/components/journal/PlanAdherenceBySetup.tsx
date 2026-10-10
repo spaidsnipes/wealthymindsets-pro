@@ -6,6 +6,7 @@
  * happened and grouped by setup. MEASURED only at 20 decided trades.
  */
 
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import { useManagementOwnerVersion } from "@/lib/journal/useManagementOwner";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
@@ -33,7 +34,9 @@ import { additionalEvidenceComparison, fillTargetComparison, gapDecisionFrom, ty
 
 const GOLD = "#C9A55C", MUTED = "#8a8271", INK = "#ede6d3";
 
-export function PlanAdherenceBySetup({ entries }: { readonly entries: readonly JournalEntry[] }) {
+export function PlanAdherenceBySetup({ entries: book }: { readonly entries: readonly JournalEntry[] }) {
+  // Paper is never mixed into plan adherence or Personal Edge (paperEntry.ts).
+  const entries = React.useMemo(() => liveJournalRecords(book), [book]);
   const [rows, setRows] = useState<SetupAdherence[]>([]);
   const [fvgRows, setFvgRows] = useState<FvgStudyRow[]>([]);
   const [followedBy, setFollowedBy] = useState<Record<string, boolean | null>>({});

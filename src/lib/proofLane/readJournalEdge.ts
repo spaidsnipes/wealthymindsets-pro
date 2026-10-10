@@ -1,4 +1,5 @@
 import { readJournalStorage } from "@/lib/traderMemory/adapters/journalStorage";
+import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import { journalRecordsToEdgeEntries } from "./journalEdgeAdapter";
 import { selectSessionEdge, type SessionEdge } from "./selectSessionEdge";
 
@@ -22,6 +23,6 @@ export function readProofLaneJournalEdge(
   }
   return {
     status: "RESOLVED",
-    edge: selectSessionEdge(journalRecordsToEdgeEntries(read.records)),
+    edge: selectSessionEdge(journalRecordsToEdgeEntries(liveJournalRecords(read.records))),
   };
 }

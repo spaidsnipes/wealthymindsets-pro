@@ -193,11 +193,6 @@ interface LedgerEntry {
  * below, not typed from memory.
  */
 const LEDGER: Readonly<Record<string, LedgerEntry>> = {
-  "src/lib/chart/volumeIndicatorTruth.ts": {
-    reason: "AWAITING_SURFACE",
-    note:
-      "The volume indicators' silence on markets with no traded volume (Supermax §5, 2026-10-10). The decision is pure and ready; the chart's indicator pass (MainChart, chart lane) calls it in one hook. Until that hook ships, the 21 volume indicators still draw a flat line on spot FX. Delete this entry in the commit that adds the hook.",
-  },
   "src/lib/marketing/bannedClaims.ts": {
     reason: "OPS_TOOLING",
     note: "The §57 banned-claims patterns (night shift 2026-10-07): one owner read by sellingStory.test.ts and marketingSurfaces.sentinel.test.ts to sweep every marketing string. A release guard, not a screen — nothing a trader sees imports it.",
