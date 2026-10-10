@@ -155,3 +155,19 @@ export function snapToTick(tiers: readonly TickTier[], price: number): number | 
   const snapped = Math.round(price / tick) * tick;
   return Number(snapped.toFixed(6));
 }
+
+/**
+ * A product's LISTED contract months (`GET /instruments/futures?product-code[]=`, via
+ * /api/broker/tastytrade/chain?futures=), nearest first, each with tastytrade's own expiration
+ * date. Closing-only, inactive and expired contracts are left out — never a guessed month.
+ */
+export function readFuturesContracts(items: unknown): readonly FutureContract[] {
+  const list = Array.isArray(items) ? items : [];
+  return list.flatMap(f => {
+    const o = (f ?? {}) as Record<string, unknown>;
+    const symbol = str(o.symbol);
+    const dte = num(o["days-to-expiration"]);
+    if (!symbol || o.active === false || o["is-closing-only"] === true || (dte != null && dte < 0)) return [];
+    return [{ symbol: symbol.toUpperCase(), streamer: str(o["streamer-symbol"]), expiration: str(o["expiration-date"]), dte, activeMonth: o["active-month"] === true }];
+  }).sort((a, b) => (a.dte ?? 1e9) - (b.dte ?? 1e9));
+}

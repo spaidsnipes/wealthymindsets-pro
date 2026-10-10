@@ -22,6 +22,7 @@
 
 import { useSyncExternalStore } from "react";
 import { claimChartInteraction, placementAllowed, releaseChartInteraction } from "@/lib/chart/chartInteractionMode";
+import { ORDER_LINE_ROOM_LOOKS, inkAt, lwcLineStyle, type OrderLineLooks } from "@/lib/chart/appearanceLaw";
 
 /** The interaction-priority claim an ARMED pick holds (tier 2 PLACEMENT). */
 const PICK_CLAIM = "chart-price-pick";
@@ -47,9 +48,11 @@ export interface OrderLineWords {
   readonly price: number;
   readonly text: string;
   readonly ink: string;
+  /** The stroke: `ink` at the trader's (floored) opacity. Words and handles keep full `ink`. */
+  readonly stroke: string;
   /** lightweight-charts LineStyle: 0 solid, 1 dotted, 2 dashed. */
   readonly lineStyle: 0 | 1 | 2;
-  readonly lineWidth: 1 | 2;
+  readonly lineWidth: 1 | 2 | 3 | 4;
 }
 
 const INK: Readonly<Record<OrderLineStatus, string>> = {
@@ -64,17 +67,37 @@ const INK: Readonly<Record<OrderLineStatus, string>> = {
 
 const money = (n: number) => `${n < 0 ? "−" : "+"}$${Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
 
-/** The words and ink a chart paints for one line. PURE. */
-export function orderLineWords(l: ChartOrderLine): OrderLineWords {
+/** Statuses whose line wears its ROLE's look (stop red, target green, entry distinct). */
+const ROLE_LOOK_STATUSES: ReadonlySet<OrderLineStatus> = new Set(["STAGED", "WORKING", "PARTIALLY_FILLED"]);
+
+/**
+ * The words and ink a chart paints for one line. PURE.
+ *
+ * Founder P0 2026-10-10: an ENTRY / STOP / TARGET line wears its role's look —
+ * stop red, target green, entry distinct — from the appearance law (`looks`,
+ * the trader's lawful choices; the room's when absent). A STAGED line takes the
+ * trader's dash and width; a WORKING one is always solid and at least 2px. The
+ * alarm states (RECONCILING / UNKNOWN / CANCEL PENDING), broker WORKING lines
+ * and the position keep their status ink. Every line still SAYS its status.
+ */
+export function orderLineWords(l: ChartOrderLine, looks: OrderLineLooks = ORDER_LINE_ROOM_LOOKS): OrderLineWords {
   const status = l.status === "POSITION" ? "" : `${l.status.replace(/_/g, " ")} · `;
   const pnl = l.pnlUsd != null && Number.isFinite(l.pnlUsd) ? ` · ${money(l.pnlUsd)}` : "";
+  const text = `${status}${l.role} ${l.detail} ${l.contract}${pnl}`.replace(/\s+/g, " ").trim();
+  const look = (l.role === "ENTRY" || l.role === "STOP" || l.role === "TARGET") && ROLE_LOOK_STATUSES.has(l.status) ? looks[l.role] : null;
+  if (look) {
+    const staged = l.status === "STAGED";
+    const width = (staged ? look.width : Math.max(look.width, 2)) as 1 | 2 | 3 | 4;
+    return { id: l.id, price: l.price, text, ink: look.ink, stroke: inkAt(look.ink, look.alpha), lineStyle: staged ? lwcLineStyle(look.dash) : 0, lineWidth: width };
+  }
   // The P&L's sign is carried by its WORD (+ / −), never by a colour the line picks for itself (§9).
   const ink = INK[l.status];
   return {
     id: l.id,
     price: l.price,
-    text: `${status}${l.role} ${l.detail} ${l.contract}${pnl}`.replace(/\s+/g, " ").trim(),
+    text,
     ink,
+    stroke: ink,
     lineStyle: l.status === "STAGED" || l.status === "CANCEL_PENDING" ? 1 : l.status === "RECONCILING" || l.status === "UNKNOWN" ? 2 : 0,
     lineWidth: l.status === "WORKING" || l.status === "PARTIALLY_FILLED" || l.status === "POSITION" ? 2 : 1,
   };

@@ -103,6 +103,14 @@ export const SEMANTIC_PERMISSION = {
   // MID keeps it; NEAR hands the glass to candles/tape — QUIET: field + front, no words.
   derivativesPressure: [S, S, Q],
   brickWalls: [S, S, Q],
+  // WALLS & GAMMA (2026-10-10): same depth grammar as Brick Walls — NEAR keeps geometry, no words.
+  callWall: [S, S, Q],
+  putWall: [S, S, Q],
+  gammaHeatmap: [S, S, Q],
+  gammaPositive: [S, S, Q],
+  gammaNegative: [S, S, Q],
+  gammaFlip: [S, S, Q],
+  gammaConcentration: [S, S, Q],
 
   // ── Zones + profile + market objects: MID speaks ─────────────────────────
   marketZones: [X, S, Q],        // unselected zones are wordless outlines already

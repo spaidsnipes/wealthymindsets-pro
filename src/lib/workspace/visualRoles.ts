@@ -52,6 +52,7 @@ export const ROLE_LAYERS: Readonly<Partial<Record<ProfileId, readonly AttentionL
   MTF_ANCESTRY: ["mtfAncestry"],
   DERIVATIVES_PRESSURE: ["derivativesPressure"],
   BRICK_WALLS: ["brickWalls"],
+  CALL_WALL: ["callWall"], PUT_WALL: ["putWall"], GAMMA_HEATMAP: ["gammaHeatmap"], GAMMA_POSITIVE: ["gammaPositive"], GAMMA_NEGATIVE: ["gammaNegative"], GAMMA_FLIP: ["gammaFlip"], GAMMA_CONCENTRATION: ["gammaConcentration"],
   MEMORY_GHOST: ["memoryGhost"],
 };
 

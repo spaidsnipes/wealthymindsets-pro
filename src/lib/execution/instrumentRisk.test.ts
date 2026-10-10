@@ -73,3 +73,22 @@ describe("instrument-aware risk — reference cases per family", () => {
     expect(instrumentRisk({ family: "STOCK", symbol: "AAPL", qty: 0, entry: 10, stop: 9 }).status).toBe("REFUSED");
   });
 });
+
+import { qtyForRisk } from "./instrumentRisk";
+
+describe("size to risk — never past the budget", () => {
+  it("MES: $100 budget, 2 pts to the stop ($10 a contract) → 10 contracts", () => {
+    expect(qtyForRisk({ family: "FUTURE", symbol: "MES1!", entry: 6000, stop: 5998 }, 100, false)).toBe(10);
+  });
+  it("stocks floor (AAPL $3 to the stop, $250 → 83 shares)", () => {
+    expect(qtyForRisk({ family: "STOCK", symbol: "AAPL", entry: 200, stop: 197 }, 250, false)).toBe(83);
+  });
+  it("crypto rounds down to 0.0001 coin ($50, $1,000 to the stop → 0.05 BTC)", () => {
+    expect(qtyForRisk({ family: "CRYPTO", symbol: "BTC/USD", entry: 60000, stop: 59000 }, 50, true)).toBe(0.05);
+  });
+  it("no stop, a refused spec, or a budget below one unit → null", () => {
+    expect(qtyForRisk({ family: "STOCK", symbol: "AAPL", entry: 200, stop: null }, 250, false)).toBeNull();
+    expect(qtyForRisk({ family: "FUTURE", symbol: "ZZ1!", entry: 100, stop: 99 }, 250, false)).toBeNull();
+    expect(qtyForRisk({ family: "FUTURE", symbol: "ES1!", entry: 6000, stop: 5990 }, 100, false)).toBeNull();
+  });
+});

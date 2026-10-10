@@ -1,5 +1,6 @@
 "use client";
 
+import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import { openWowWorld } from "@/lib/passport/openWowWorld";
 import Link from "next/link";
@@ -1109,7 +1110,7 @@ function ProfilePageInner() {
               <button
                 onClick={() => router.push("/lounge")}
                 className="px-6 py-2.5 rounded-lg font-bold text-sm transition-all"
-                style={{ background: "linear-gradient(135deg, #00E5CC, #7B6CF7)", color: "#000" }}
+                style={WM_PRIMARY_ACTION}
               >
                 Open Lounge
               </button>

@@ -242,7 +242,7 @@ describe("options ⓘ truth line reads the pressure owner's chain scope (§20)",
 describe("the chain scope is known whenever ANY options-reading layer is on, and never computed when all are off", () => {
   const dash = read("src/components/chart/ChartsDashboard.tsx");
   it("one gate (Derivatives Pressure — which carries the zero-gamma front — or Brick Walls) feeds the pressure VM the ⓘ reads", () => {
-    expect(dash).toMatch(/const pressureEvidenceOn = derivativesPressureOn \|\| brickWallsOn;/);
+    expect(dash).toMatch(/const pressureEvidenceOn = derivativesPressureOn \|\| brickWallsOn \|\| anyWallsGamma\(wallsGamma\);/);
     // The VM returns null — no selector call — unless that gate is on.
     expect(dash).toMatch(/if \(!pressureEvidenceOn \|\| !derivativesReceipt \|\| derivativesReceipt\.symbol !== symbol\) return null;/);
     expect(dash).toMatch(/const optionsChainScope = derivativesPressureVM\?\.drawn \? derivativesPressureVM\.chainScope : null;/);

@@ -26,6 +26,7 @@ import { parseExchangeSymbol } from "@/lib/exchanges";
 import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker, marketClockET } from "@/lib/marketData/canonicalIdentity";
 import { DataVersionGuard } from "@/lib/chartContext";
 import { liveBarIsStale, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
+import { foldClosedLiveBars, foldFormingBar, liveDespikeApplies } from "@/lib/marketData/liveBarFold";
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketData/tapeCvd";
 import { continuousDayKeyFor, selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "@/lib/marketData/sessionWindow";
@@ -59,7 +60,7 @@ import { FOG_CAP, FOG_FEATHER_PX, installFogGate } from "@/lib/chart/fieldFogBud
 import { installTypeFloor, NARROW_NAME_MIN_PX } from "@/lib/chart/typeFloor";
 import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
 import { createLongPress } from "@/lib/chart/longPress";
-import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
+import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLineLooks, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -234,6 +235,9 @@ const LIFECYCLE_MIN_H = 6;
 /** Profile DNA, one salience step (ASK-6): quieter than the profile body (0.76), louder than 0.45 / 0.5. */
 const DNA_SPINE_A = 0.6;
 const DNA_BRACKET_A = 0.65;
+/** Profile DNA, salience step 2 (G19, Oct 10): geometry, not alpha — a dark halo and a larger mass diamond. */
+const DNA_HALO = "rgba(8,8,10,0.6)";
+const DNA_DIAMOND_R = 6;
 /** Footprint imbalance cells: outlined, at least this tall (ASK-6). */
 const IMB_CELL_MIN_H = 3;
 /** A touch tap within this many px of a candle's high–low pins it (ASK-18). */
@@ -750,6 +754,10 @@ import { barSlotAt } from "@/lib/chart/barSlotAt";
 import { selectValueCandleBars, type ValueCandleBar } from "@/lib/marketData/viewModels/selectValueCandle";
 import { mergeValueCandleBars } from "@/lib/marketData/viewModels/mergeValueCandleBars";
 import type { OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
+import { composeWallsGammaMarks, WALLS_GAMMA_OFF, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
+import { gexBucketAt, gexWords, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
+import { GAMMA_HEAT_PRESET_EVENT, GAMMA_HEAT_PRESET_KEY, gammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
+import { paintWallsGamma } from "@/components/chart/wallsGammaGlass";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
@@ -1391,6 +1399,9 @@ interface Props {
     volumeUp?: string; volumeDown?: string;
     profileOpacity?: number; wallOpacity?: number; memoryOpacity?: number;
     bubbleScale?: number; footprintNumberStep?: number; wallThickness?: number;
+    // ORDER LINES (Founder P0 2026-10-10) — made lawful by appearanceLaw.lawfulOrderLineLooks.
+    orderLineEntry?: string; orderLineStop?: string; orderLineTarget?: string;
+    orderLineOpacity?: number; orderLineWidth?: number; orderLineStyle?: "solid" | "dashed" | "dotted";
   };
   replayActive?:   boolean;
   replayBars?:     LegacyOhlcvTuple[];
@@ -1712,6 +1723,10 @@ interface Props {
   derivativesPressure?: DerivativesPressureVM | null;
   /** Garden 18 super order §5 — call / put OPEN-INTEREST concentration walls (OBSERVED positioning), painted under Brick Walls as their own material. */
   optionsEvidence?: OptionsBarrierEvidenceVM | null;
+  /** WALLS & GAMMA (2026-10-10): the family's seven switches (Brick Walls keeps its own prop). */
+  wallsGamma?: WallsGammaSelection;
+  /** The room's ONE GEX compilation (gammaExposure.ts); the canvas paints it and never recomputes it. */
+  gammaExposure?: GammaExposureVM | null;
   /** ATHOS order §6 — NDX / SPX option walls mapped onto this NQ / ES chart through a same-time basis (both levels named). */
   indexMapping?: IndexFuturesMappingVM | null;
   /** ATHOS §6 · P-03 — large futures-option prints (owner's tastytrade tape), marked on price under Brick Walls. */
@@ -2160,6 +2175,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   roomPosture = null,
   derivativesPressure = null,
   optionsEvidence = null,
+  wallsGamma = WALLS_GAMMA_OFF,
+  gammaExposure = null,
   indexMapping = null,
   optionFlow = null,
   onSelectPressureWall,
@@ -2661,6 +2678,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   derivativesPressureRef.current = derivativesPressure;
   const optionsEvidenceRef = useRef<OptionsBarrierEvidenceVM | null>(null);
   optionsEvidenceRef.current = optionsEvidence;
+  const wallsGammaRef = useRef<WallsGammaSelection>(WALLS_GAMMA_OFF);
+  wallsGammaRef.current = wallsGamma;
+  const gammaExposureRef = useRef<GammaExposureVM | null>(null);
+  gammaExposureRef.current = gammaExposure;
+  // The heatmap's appearance preset (gammaHeatAppearance) — the ⚙ writes it; the glass reads it here.
+  const gammaHeatPresetRef = useRef<unknown>(null);
+  useEffect(() => {
+    const read = () => { try { gammaHeatPresetRef.current = localStorage.getItem(GAMMA_HEAT_PRESET_KEY); } catch { gammaHeatPresetRef.current = null; } };
+    read();
+    window.addEventListener(GAMMA_HEAT_PRESET_EVENT, read);
+    window.addEventListener("storage", read);
+    return () => { window.removeEventListener(GAMMA_HEAT_PRESET_EVENT, read); window.removeEventListener("storage", read); };
+  }, []);
   const indexMappingRef = useRef<IndexFuturesMappingVM | null>(null);
   indexMappingRef.current = indexMapping;
   const optionFlowRef = useRef<OptionFlowVM | null>(null);
@@ -2794,7 +2824,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   if (!clarityInkRef.current) clarityInkRef.current = new ClarityInkOwner();
   const flowCurrentOnRef = useRef(flowCurrentOnChart);
   useEffect(() => { flowCurrentOnRef.current = flowCurrentOnChart; }, [flowCurrentOnChart]);
-  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false, derivativesPressure: false, brickWalls: false });
+  const layerOnRef = useRef({ stack: true, valueCandle: true, divergence: true, weather: true, effort: true, deltaLevels: true, livingProfile: true, marketStructure: true, tpo: false, structureProfile: false, profileDna: false, valueMigration: false, profileMemory: false, profileFusion: false, compositeProfile: false, visibleRangeProfile: false, regimeLighting: false, questionLens: false, anatomyCards: false, memoryGhost: false, expectedEnvelope: false, contradiction: false, riskOnPrice: true, liquidityLifecycle: false, mtfAncestry: false, derivativesPressure: false, brickWalls: false, callWall: false, putWall: false, gammaHeatmap: false, gammaPositive: false, gammaNegative: false, gammaFlip: false, gammaConcentration: false });
   useEffect(() => {
     layerOnRef.current = {
       stack: imbalanceStackOnChart,
@@ -2824,8 +2854,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       mtfAncestry: mtfAncestryOnChart,
       derivativesPressure: derivativesPressureOnChart,
       brickWalls: brickWallsOnChart,
+      callWall: wallsGamma.CALL_WALL,
+      putWall: wallsGamma.PUT_WALL,
+      gammaHeatmap: wallsGamma.GAMMA_HEATMAP,
+      gammaPositive: wallsGamma.GAMMA_POSITIVE,
+      gammaNegative: wallsGamma.GAMMA_NEGATIVE,
+      gammaFlip: wallsGamma.GAMMA_FLIP,
+      gammaConcentration: wallsGamma.GAMMA_CONCENTRATION,
     };
-  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart, riskOnPriceOnChart, liquidityLifecycleOnChart, mtfAncestryOnChart, derivativesPressureOnChart, brickWallsOnChart]);
+  }, [imbalanceStackOnChart, valueCandleOnChart, deltaDivergenceOnChart, liquidityWeatherOnChart, effortMarkOnChart, deltaLevelsOnChart, livingProfileOnChart, marketStructureOnChart, tpoProfileOnChart, structureProfileOnChart, profileDnaOnChart, valueMigrationOnChart, profileMemoryOnChart, profileFusionOnChart, compositeProfileOnChart, visibleRangeProfileOnChart, regimeLightingOnChart, questionLensOnChart, anatomyCardsOnChart, memoryGhostOnChart, expectedEnvelopeOnChart, contradictionOnChart, riskOnPriceOnChart, liquidityLifecycleOnChart, mtfAncestryOnChart, derivativesPressureOnChart, brickWallsOnChart, wallsGamma]);
   // ── Vertical price-drag (true body drag) ──────────────────────
   // LWC v4/v5 do NOT support vertical body panning natively — only axis
   // drag. We implement it via a manual price range fed through the candle
@@ -3558,7 +3595,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     return () => window.removeEventListener("wm-vp-colors", load);
   }, [profileStrength]);
 
-  const { liveBar, ticker, recentTicks, tapeSource, source, connected, quoteRefusal, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
+  const { liveBar, closedLiveBars, ticker, recentTicks, tapeSource, source, connected, quoteRefusal, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
   // Canon "CLOSED IS NOT DELAYED" — closure outranks the provider verdict, so
   // the chart chrome cannot claim an active session on a closed one (§8).
   // `null` until mount and on every weekday: provider labelling is unchanged.
@@ -5118,7 +5155,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // de-spike all measure against the LIVE bars in both routes.
     const route    = routeLiveTick(replayCameraRef.current);
     const price   = liveBar.close;
-    const prevBars = route === "HOLD_OFF_CAMERA" ? liveHeldBarsRef.current : barsRef.current;
+    let prevBars = route === "HOLD_OFF_CAMERA" ? liveHeldBarsRef.current : barsRef.current;
+    // BARS THAT CLOSED BETWEEN FLUSHES (liveBarFold.ts): folded first, in order,
+    // so the closing bar keeps its last prints and a bar that closed while the
+    // tab was hidden is drawn, not lost. Idempotent — the list may repeat, so
+    // an early return below loses nothing: the next flush folds it again.
+    // Painted only after the replay gate, with the forming bar.
+    const caught = foldClosedLiveBars(prevBars, closedLiveBars, b => extendedHours || getIntervalSec(timeframe) >= 86400 || !isEquitySymbol(symbol) || isRegularSession(b.time, 60));
+    prevBars = caught.bars;
     const lastBar  = prevBars[prevBars.length - 1];
 
     // M8: the published live bar is READ-ONLY (it is the hook's state, not this
@@ -5188,14 +5232,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (lastBar && !outsideRTH && liveBarIsStale(lastBar.time, t, intervalSec)) return;
     if (lastBar && shouldFoldChartLiveBar(lastBar.time, t, outsideRTH)) {
       t = lastBar.time; // update the current forming candle in place
-      bar = {
-        time:   t as any,
-        open:   lastBar.open,
-        high:   Math.max(lastBar.high, price),
-        low:    Math.min(lastBar.low, price),
-        close:  price,
-        volume: Math.max(lastBar.volume, liveBar.volume || 0),
-      };
+      // Same bucket: the hook's own high/low carry every print the flush
+      // coalesced (the close alone lost them — liveBarFold.ts).
+      bar = foldFormingBar(lastBar, liveBar, price);
     } else {
       bar = {
         time:   t as any,
@@ -5210,7 +5249,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     // ── LIVE DE-SPIKE: cap the forming bar's wicks to a sane multiple of the
     // recent median bar range, so even an in-threshold bad tick can never
     // balloon the candle and squash the price scale during a live session.
-    {
+    if (liveDespikeApplies(intervalSec)) {
       const recent = prevBars.slice(-30);
       if (recent.length >= 8) {
         const ranges = recent
@@ -5245,6 +5284,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     }
 
     try {
+      for (const u of caught.updates) { try { candleRef.current.update(u as any); } catch { /* series mid-rebuild */ } }
       candleRef.current.update(bar as any);
       noteSeries(performance.now());
       // No histogram point for a placeholder volume (volumeTruth.ts): EURUSD's
@@ -6882,6 +6922,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
      the shown market has not reached. Nothing here sends anything. */
   const chartOrderLines = useChartOrderLines(symbol);
   const orderLinesRef = useRef<any[]>([]);
+  // Stop red, target green, entry distinct — the trader's choices made lawful (visible, stop ≠ target).
+  const orderLineLooks = React.useMemo(
+    () => lawfulOrderLineLooks(chartSettings, chartSettings?.background ?? MARKET_FIELD_DEFAULT),
+    [chartSettings],
+  );
   /* DRAGGABLE DRAFT LINES (Founder P0 2026-10-09: "let the trader trade").
      A STAGED entry / stop / target carries a 44px handle at the plot's right
      edge: drag it (mouse or touch) or nudge it with ↑ / ↓ and the snapped price
@@ -6975,12 +7020,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (proofCaptureOpen()) return;
     if (replayCameraOn) { try { if (canvasRef.current) canvasRef.current.dataset.orderLines = `WITHHELD:REPLAY:${chartOrderLines.length}`; } catch {} return; }
     for (const l of chartOrderLines) {
-      const w = orderLineWords(l);
+      const w = orderLineWords(l, orderLineLooks);
       if (!Number.isFinite(w.price) || w.price <= 0) continue;
       try {
         const line = series.createPriceLine({
           price: w.price,
-          color: w.ink,
+          color: w.stroke,
           lineWidth: w.lineWidth,
           lineStyle: w.lineStyle,
           axisLabelVisible: true,
@@ -6998,7 +7043,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       priceLineWordsRef.current.order = [];
       try { if (canvasRef.current) canvasRef.current.dataset.orderLines = "NONE"; } catch {}
     };
-  }, [chartOrderLines, ready, replayCameraOn]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chartOrderLines, ready, replayCameraOn, orderLineLooks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // This chart will deliver a price pick, so the ticket may offer "pick on chart".
   useEffect(() => registerChartPricePickHost(), []);
@@ -19684,7 +19729,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.font = marketFont("OBJECT_NAME");
                 ctx.textAlign = "right";
                 ctx.textBaseline = "bottom";
-                for (const w of [...ev.callWalls, ...ev.putWalls]) {
+                // WALLS & GAMMA: a switched-on Call / Put Wall draws those strikes — Brick Walls yields them (drawn once).
+                const wgY = wallsGammaRef.current;
+                for (const w of [...(wgY.CALL_WALL ? [] : ev.callWalls), ...(wgY.PUT_WALL ? [] : ev.putWalls)]) {
                   const y = yOfD(w.strike);
                   if (y == null) { oiMarks.push(`${w.type}@${w.strike}:OFF_CAMERA`); continue; }
                   const call = w.type === "CALL_OI";
@@ -20081,6 +20128,180 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           delete ds.derivativesPressureFault;
         } catch (err) {
           ds.derivativesPressureFault = (err instanceof Error ? `${err.name}: ${err.message}` : String(err)).slice(0, 120);
+        } finally { ctx.restore(); }
+
+        /* ══ WALLS & GAMMA (Founder 2026-10-10) ════════════════════════════════
+           Call Wall / Put Wall (OI, selectOptionsBarrierEvidence) and the five
+           gamma inventions from the room's ONE GEX compilation, composed into
+           one mark list (a strike carrying two measures is ONE mark) and
+           painted by wallsGammaGlass — never recomputed here. Isolated: a throw
+           is named (wallsGammaFault) and later layers still paint. */
+        delete ds.wallsGammaFault;
+        ctx.save();
+        try {
+          // One switch per invention, each asking the permission table for itself.
+          const sel: WallsGammaSelection = {
+            CALL_WALL: layerOnRef.current.callWall === true && att.paints("callWall"),
+            PUT_WALL: layerOnRef.current.putWall === true && att.paints("putWall"),
+            GAMMA_HEATMAP: layerOnRef.current.gammaHeatmap === true && att.paints("gammaHeatmap"),
+            GAMMA_POSITIVE: layerOnRef.current.gammaPositive === true && att.paints("gammaPositive"),
+            GAMMA_NEGATIVE: layerOnRef.current.gammaNegative === true && att.paints("gammaNegative"),
+            GAMMA_FLIP: layerOnRef.current.gammaFlip === true && att.paints("gammaFlip"),
+            GAMMA_CONCENTRATION: layerOnRef.current.gammaConcentration === true && att.paints("gammaConcentration"),
+          };
+          const wallsWG = sel.CALL_WALL || sel.PUT_WALL;
+          const gammaWG = sel.GAMMA_HEATMAP || sel.GAMMA_POSITIVE || sel.GAMMA_NEGATIVE || sel.GAMMA_FLIP || sel.GAMMA_CONCENTRATION;
+          if ((wallsWG || gammaWG) && srs) {
+            const gex = gammaWG ? gammaExposureRef.current : null;
+            const evW = wallsWG ? optionsEvidenceRef.current : null;
+            const tsG = chart.timeScale();
+            let axisWG = 60;
+            try { axisWG = chart.priceScale("right").width(); } catch { /* keep default */ }
+            const plotRightG = Math.max(8, W - axisWG);
+            let paneBotG = H;
+            try { const ps = (chart as any).paneSize?.(0); if (ps && Number.isFinite(ps.height) && ps.height > 0) paneBotG = ps.height; } catch { /* keep */ }
+            const yOfG = (p: number): number | null => { const y = srs.priceToCoordinate(p); return y == null ? null : +y; };
+            const dpG = displayPrecisionFor(symbol, barsRef.current ?? []);
+            const fmtG = (p: number) => (Number.isInteger(p) ? String(p) : p.toFixed(Math.min(dpG, 2)));
+            const barsG = barsRef.current ?? [];
+            const vrG = tsG.getVisibleLogicalRange();
+            const cutsG = candleCutOutRects(barsG, {
+              visible: vrG ? { from: +vrG.from, to: +vrG.to } : null,
+              barSpacing: bsp,
+              timeToX: t => { const xk = tsG.timeToCoordinate(t as never); return xk == null ? null : +xk; },
+              priceToY: p => yOfG(p),
+            }, 0, plotRightG);
+            // The newest bars' corridor and the current candle stay clear of heat.
+            let clearG: { x: number; y: number; w: number; h: number } | null = null;
+            {
+              const n = Math.min(12, barsG.length);
+              if (n > 0) {
+                let lo = Infinity, hi = -Infinity;
+                for (let i = barsG.length - n; i < barsG.length; i++) { lo = Math.min(lo, barsG[i].low); hi = Math.max(hi, barsG[i].high); }
+                const xk = tsG.timeToCoordinate(barsG[barsG.length - n].time as never);
+                const yh = yOfG(hi), yl = yOfG(lo);
+                if (xk != null && yh != null && yl != null) { const x0 = Math.max(0, +xk - bsp); if (x0 < plotRightG) clearG = { x: x0, y: yh - 12, w: plotRightG - x0, h: yl - yh + 24 }; }
+              }
+            }
+            // The last price row and every order line stay clear.
+            const keepRowsG: number[] = [];
+            const lastG = barsG.length ? yOfG(barsG[barsG.length - 1].close) : null;
+            if (lastG != null) keepRowsG.push(lastG);
+            for (const line of orderLinesRef.current) { try { const yp = yOfG(Number(line.options().price)); if (yp != null) keepRowsG.push(yp); } catch { /* a removed line */ } }
+            const evDrawn = evW && evW.drawn ? evW : null;
+            const dpFieldOn = layerOnRef.current.derivativesPressure === true && att.paints("derivativesPressure") && !!derivativesPressureRef.current?.drawn;
+            const composed = composeWallsGammaMarks({
+              selection: sel,
+              callWalls: evDrawn ? evDrawn.callWalls : [],
+              putWalls: evDrawn ? evDrawn.putWalls : [],
+              gex,
+              pressureFieldOn: dpFieldOn,
+              mergeWithin: gex?.drawn ? gex.bucketWidth / 2 : 0,
+              fmt: fmtG,
+            });
+            const preset = gammaHeatPreset(gammaHeatPresetRef.current);
+            const out = paintWallsGamma({
+              ctx, sel, gex, marks: composed.marks, yOf: yOfG, plotRight: plotRightG, top: HEADER_FLOOR_Y, bottom: paneBotG,
+              cutRects: cutsG, clearZone: clearG, keepRows: keepRowsG, preset,
+              gammaAlpha: att.alpha("gammaHeatmap"), wallsAlpha: att.alpha("callWall"),
+              pressureFieldOn: dpFieldOn, wallThickness: userMarksRef.current.wall,
+            });
+            ds.gammaHeatmap = out.heat;
+            ds.gammaRegions = out.regions;
+            ds.wallsGammaMarks = out.marks;
+            ds.wallsGammaYield = Object.entries(composed.yielded).map(([k]) => k).join("|") || "NONE";
+            ds.gammaExposure = gex ? gex.receipt : gammaWG ? "WAITING_FOR_CHAIN" : "OFF";
+            ds.optionWalls = !wallsWG ? "OFF" : !evW ? "WAITING_FOR_EVIDENCE" : evW.drawn ? `ON:C${evW.callWalls.length}:P${evW.putWalls.length}` : `SILENT:${evW.reason}`;
+            // Labels — one placer: right-aligned on the tick, stepping off siblings, never on the newest column.
+            // Words only where an on invention may speak at this depth (NEAR keeps geometry, no words).
+            const wordsSpeak = (sel.CALL_WALL && att.speaks("callWall")) || (sel.PUT_WALL && att.speaks("putWall")) || (sel.GAMMA_HEATMAP && att.speaks("gammaHeatmap")) || (sel.GAMMA_POSITIVE && att.speaks("gammaPositive")) || (sel.GAMMA_NEGATIVE && att.speaks("gammaNegative")) || (sel.GAMMA_FLIP && att.speaks("gammaFlip")) || (sel.GAMMA_CONCENTRATION && att.speaks("gammaConcentration"));
+            if (wordsSpeak && out.labels.length) {
+              ctx.font = marketFont("OBJECT_NAME");
+              ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+              const placed: { x: number; y: number; w: number; h: number }[] = [];
+              const hit = (q: { x: number; y: number; w: number; h: number }, rs: readonly { x: number; y: number; w: number; h: number }[]) => rs.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y);
+              const textA = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
+              for (const t of [...out.labels].sort((a, b) => a.y - b.y)) {
+                const tw = ctx.measureText(t.text).width;
+                const x = plotRightG - tw - 6;
+                const at = (k: number) => ({ x: x - 3, y: t.y - 14 + k * 13, w: tw + 6, h: 13 });
+                const k = [0, -1, 1, -2, 2, -3, 3].find(k2 => { const q = at(k2); return !onNewestColumn(q.x, q.y, q.w, q.h) && !hit(q, [...placed, ...floatingChips]); });
+                if (k === undefined) { displacedNotes.push({ layer: "DERIVATIVES", text: t.text, x: x + tw / 2, y: t.y }); continue; }
+                const box = at(k);
+                if (k !== 0) { ctx.strokeStyle = `rgba(${t.rgb},${(0.5 * textA).toFixed(3)})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(plotRightG - 4, t.y); ctx.lineTo(plotRightG - 4, box.y + box.h); ctx.stroke(); }
+                ctx.fillStyle = `rgba(11,10,8,${(0.86 * textA).toFixed(3)})`;
+                if (chipBox(t.text, box)) ctx.fillRect(box.x, box.y, box.w, box.h);
+                ctx.fillStyle = `rgba(${t.rgb},${(0.95 * textA).toFixed(3)})`;
+                ctx.fillText(t.text, x, box.y + 12);
+                placed.push(box); floatingChips.push(box);
+              }
+            }
+            // INSPECT — the bucket under the crosshair: strike, expiry, GEX, OI, IV, source, as-of.
+            const cpG = crosshairPointRef.current;
+            delete ds.gammaInspect;
+            if (gex?.drawn && cpG && cpG.x < plotRightG && (sel.GAMMA_HEATMAP || sel.GAMMA_CONCENTRATION)) {
+              const priceAt = srs.coordinateToPrice(cpG.y);
+              const b = priceAt == null ? null : gexBucketAt(gex, Number(priceAt));
+              const near = b && (sel.GAMMA_HEATMAP ? out.heatHits.some(h => h.i === gex.buckets.indexOf(b)) : gex.concentration.some(c => c.price === b.price));
+              if (b && near) {
+                const src = positioningSourceWords(gex.source);
+                const top = b.expiries[0];
+                const asOf = gex.clocks.chainAsOf ? new Date(gex.clocks.chainAsOf).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short", hour: "2-digit", minute: "2-digit" }) + " ET" : "as-of unknown";
+                const lines = [
+                  `STRIKE ${fmtG(b.price)} · GEX ${gexWords(b.net)} (MODEL)`,
+                  `CALL ${gexWords(b.callGex)} · PUT ${gexWords(b.putGex)}`,
+                  `OI C ${Math.round(b.callOi).toLocaleString()} · P ${Math.round(b.putOi).toLocaleString()} · IV ${b.iv != null ? (b.iv * 100).toFixed(1) + "%" : "—"}`,
+                  top ? `EXPIRY ${top.expiration} ${gexWords(top.net)}${b.expiries.length > 1 ? ` · +${b.expiries.length - 1} more` : ""}` : "EXPIRY —",
+                  `${src.name} · ${src.oi} · as of ${asOf}`,
+                  `${gex.grade} · dealer side ASSUMED`,
+                ];
+                ctx.font = marketFont("OBJECT_NAME");
+                const cw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 14, ch = lines.length * 13 + 8;
+                let cx = cpG.x + 14, cy = cpG.y + 10;
+                if (cx + cw > plotRightG - 92) cx = cpG.x - cw - 14;
+                if (cy + ch > paneBotG) cy = paneBotG - ch - 4;
+                ctx.fillStyle = "rgba(11,10,8,0.92)"; ctx.fillRect(cx, cy, cw, ch);
+                ctx.fillStyle = `rgba(${b.net >= 0 ? preset.posRgb : preset.negRgb},0.95)`; ctx.fillRect(cx, cy, 3, ch);
+                ctx.fillStyle = "rgba(236,222,190,0.95)"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+                lines.forEach((l, i) => ctx.fillText(l, cx + 8, cy + 4 + i * 13));
+                ds.gammaInspect = `${b.price}:${b.net.toExponential(2)}`;
+              }
+            }
+            // ONE status line for the family: grade, source, OI clock, and what yields or waits.
+            if (wordsSpeak) {
+              const src = gex?.drawn ? positioningSourceWords(gex.source) : null;
+              const asOfW = gex?.drawn && gex.clocks.chainAsOf ? new Date(gex.clocks.chainAsOf).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) + " ET" : null;
+              const parts: string[] = [];
+              if (gammaWG) {
+                if (!gex) parts.push(`GAMMA · waiting for the options chain for ${symbol}`);
+                else if (!gex.drawn) parts.push(`GAMMA · ${gex.reason === "NO_CHAIN" ? `no options chain for ${symbol}` : gex.reason.replace(/_/g, " ").toLowerCase()}`);
+                else {
+                  const flipW = sel.GAMMA_FLIP && !composed.yielded.GAMMA_FLIP && gex.flip.kind === "NONE" ? ` · FLIP: ${gex.flip.reason.replace(/_/g, " ").toLowerCase()}` : "";
+                  parts.push(`GAMMA · ${gex.grade} · ${src!.name} · ${src!.oi}${asOfW ? ` · as of ${asOfW}` : ""} · MODEL, ASSUMED DEALER SIDE${flipW}`);
+                }
+                if (composed.yielded.GAMMA_FLIP || composed.yielded.GAMMA_POSITIVE || composed.yielded.GAMMA_NEGATIVE) parts.push("flip / regions shown by Derivatives Pressure");
+              }
+              if (wallsWG && (!evW || !evW.drawn)) parts.push(`CALL / PUT WALL · ${!evW ? "waiting for options open interest" : `silent — ${evW.reason.replace(/_/g, " ").toLowerCase()}`}`);
+              for (const words of parts) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.fillStyle = "rgba(200,192,174,0.9)";
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                const yS = takeSilenceRow();
+                ctx.fillText(fitSilence(words), silenceX, yS);
+                if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: ctx.measureText(words).width, h: 14 });
+                ctx.restore();
+              }
+            }
+          } else {
+            const anyGammaSwitch = layerOnRef.current.gammaHeatmap === true || layerOnRef.current.gammaPositive === true || layerOnRef.current.gammaNegative === true || layerOnRef.current.gammaFlip === true || layerOnRef.current.gammaConcentration === true;
+            ds.gammaExposure = att.offWord(anyGammaSwitch);
+            ds.optionWalls = att.offWord(layerOnRef.current.callWall === true || layerOnRef.current.putWall === true);
+            delete ds.gammaHeatmap; delete ds.gammaRegions; delete ds.wallsGammaMarks; delete ds.gammaInspect;
+          }
+        } catch (err) {
+          ds.wallsGammaFault = (err instanceof Error ? `${err.name}: ${err.message}` : String(err)).slice(0, 120);
         } finally { ctx.restore(); }
 
         /* ══ T-210 / F10 · MTF IS NOT FOUR CHARTS — ancestry on the one chart ══
@@ -21061,11 +21282,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // 1.5px — readable at MID, still under the profile it describes.
                 ctx.strokeStyle = dna.measured ? pk.rgba("VALUE", DNA_SPINE_A) : pk.rgba("VALUE", 0.25);
                 ctx.lineWidth = 1.5;
+                // G19 (Oct 10, "profiles without adequate visual embodiment";
+                // cert P110.5 open item "the spine and diamond are too small to
+                // read with words erased"): salience by GEOMETRY, not alpha —
+                // the ASK-6 ceiling (quieter than the body) stands. A dark
+                // halo under the spine lifts it off the candles behind it.
+                ctx.save(); ctx.strokeStyle = DNA_HALO; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.moveTo(sx, +yHi); ctx.lineTo(sx, +yLo); ctx.stroke();
+                ctx.restore();
                 ctx.setLineDash(dna.estimated ? [2, 2] : []);
                 ctx.beginPath(); ctx.moveTo(sx, +yHi); ctx.lineTo(sx, +yLo); ctx.stroke();
                 ctx.setLineDash([]);
                 ds.profileDnaSpine = `${Math.round(+yLo)}-${Math.round(+yHi)}`;
-                ds.profileDnaSalience = `STEP1|SPINE:${DNA_SPINE_A}@1.5|BRACKET:${DNA_BRACKET_A}`;
+                ds.profileDnaSalience = `STEP2|SPINE:${DNA_SPINE_A}@1.5+HALO|BRACKET:${DNA_BRACKET_A}|DIAMOND:R${DNA_DIAMOND_R}`;
                 // ⑤ DNA (a helix) — the organism glyph at the head of the spine.
                 paintOrganismGlyph("DNA", sx, Math.min(+yHi, +yLo) - 14, pk.rgba("VALUE", 0.9), floatingChips);
                 let yMass: number | null = null;
@@ -21092,10 +21321,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     yMass = +ym;
                     // Hollow: the bracket stays visible through it, and no dark
                     // fill lands on the candles beside the lane.
-                    ctx.strokeStyle = "rgba(233,196,106,0.95)"; ctx.lineWidth = 1.25;
+                    // Larger (R 4 → DNA_DIAMOND_R) and haloed, still hollow.
+                    const dr = DNA_DIAMOND_R;
                     ctx.beginPath();
-                    ctx.moveTo(sx, yMass - 4); ctx.lineTo(sx + 4, yMass); ctx.lineTo(sx, yMass + 4); ctx.lineTo(sx - 4, yMass);
-                    ctx.closePath(); ctx.stroke();
+                    ctx.moveTo(sx, yMass - dr); ctx.lineTo(sx + dr, yMass); ctx.lineTo(sx, yMass + dr); ctx.lineTo(sx - dr, yMass);
+                    ctx.closePath();
+                    ctx.strokeStyle = DNA_HALO; ctx.lineWidth = 3.5; ctx.stroke();
+                    ctx.strokeStyle = "rgba(233,196,106,0.95)"; ctx.lineWidth = 1.6; ctx.stroke();
                   }
                 }
                 ctx.restore();
@@ -22571,17 +22803,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // tails at 0.2 were soft grey on the grey effort mass). On narrow
                 // glass each row is stronger and carries a 1px bright leading
                 // edge, on whole pixels — the histogram reads as rows, not haze.
+                // G19 (Oct 10, "white-line profiles"): desktop read the same
+                // soft haze (serving BTC-USD 15m 1440, value rows 0.4 / tails
+                // 0.2 inside the cube box). Every width now takes the crisp
+                // form — desktop one step quieter than the phone — with the
+                // bright leading edge that makes each row a row.
                 if (narrowGlass) {
                   ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.9) : r.insideValueArea ? pk.rgba("VALUE", 0.62) : pk.rgba("TAIL", 0.4);
                 } else {
-                ctx.fillStyle = r.isPoc
-                  ? pk.rgba("POC", 0.7)
-                  : r.insideValueArea
-                    ? pk.rgba("VALUE", 0.4)
-                    : pk.rgba("TAIL", 0.2);
+                  ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.82) : r.insideValueArea ? pk.rgba("VALUE", 0.54) : pk.rgba("TAIL", 0.32);
                 }
                 ctx.fillRect(histX, y, w, Math.max(1, rowH - 1));
-                if (narrowGlass && w >= 3) {
+                if (w >= 3) {
                   ctx.fillStyle = r.isPoc ? pk.rgba("POC", 1) : r.insideValueArea ? pk.rgba("VALUE", 0.95) : pk.rgba("TAIL", 0.75);
                   ctx.fillRect(histX + w - 1, y, 1, Math.max(1, rowH - 1));
                 }
@@ -22800,11 +23033,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
 
             ctx.restore();
             ds.structureProfileRows = String(drawnRows);
+            if (drawnRows > 0) ds.structureProfileRowEdge = narrowGlass ? "CRISP+EDGE:NARROW" : "CRISP+EDGE"; else delete ds.structureProfileRowEdge;
             ds.structureProfileAnchor = `${sp.anchor.kind}@${sp.anchor.time}`;
             ds.structureProfileLegBars = String(sp.legBars);
           } else {
             if (on && sp?.drawn && ax == null) ds.structureProfile = "ANCHOR_OFF_CAMERA";
             delete ds.structureProfileRows;
+            delete ds.structureProfileRowEdge;
             delete ds.structureProfileAnchor;
             delete ds.structureProfileLegBars;
             delete ds.structureProfileForm;
@@ -26510,9 +26745,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const h = 16;
             const x = rightEnd - w;
             if (x < keepOutMinX()) { placedP.push({ kind: wd.kind, price: wd.price, mode: "WITHHELD" }); continue; }
-            // Centred on the line, then just above it, then just below it.
-            const onLine = { x, y: y - h / 2, w, h };
-            const alts = [{ x, y: y - h - 2, w, h }, { x, y: y + 2, w, h }];
+            // Centred on the line, then just above it, then just below it. An ORDER
+            // line's stroke is drawn ABOVE this canvas (the order-line stroke), so its
+            // words sit beside the line — above, else below — never under its stroke.
+            const above = { x, y: y - h - 2, w, h }, below = { x, y: y + 2, w, h };
+            const onLine = wd.kind === "ORDER" ? above : { x, y: y - h / 2, w, h };
+            const alts = wd.kind === "ORDER" ? [below] : [above, below];
             const spotP = placeClearOfKeepOut(
               onLine,
               [...keepOut(), ...rowBodiesAt(y - h - 2, y + h + 2)],
@@ -29422,9 +29660,23 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const words = can
               ? (underSheet ? `${l.role} ↓ ${shown.toFixed(dpH)}` : draftHandleWords(l, shown, dpH))
               : orderLineWords(l).text;
+            const look = orderLineWords(l, orderLineLooks);
             return (
+              <React.Fragment key={`order-line-${l.id}`}>
+              {/* THE STROKE ABOVE THE GLASS (Founder P0 2026-10-10): the native price
+                  line sits on the candle canvas, under the profile body, zones and the
+                  weather glow this pane paints over it. This copy of the stroke stands
+                  above every analytical layer (z71, under the handles), never takes a
+                  pointer, and follows the drag. The axis price stays the native line's. */}
+              {underSheet ? null : (
+                <div aria-hidden="true" data-testid="order-line-stroke" data-order-line={l.id} data-order-role={l.role}
+                  style={{
+                    position: "absolute", left: 0, right: axisWH, top: Math.round(Number(yLine)) - Math.floor(look.lineWidth / 2), height: 0,
+                    borderTop: `${look.lineWidth}px ${look.lineStyle === 0 ? "solid" : look.lineStyle === 1 ? "dotted" : "dashed"} ${look.stroke}`,
+                    zIndex: 71, pointerEvents: "none",
+                  }} />
+              )}
               <button
-                key={`order-handle-${l.id}`}
                 type="button"
                 data-testid={can ? "draft-line-handle" : "broker-line-tag"}
                 data-order-line={l.id}
@@ -29456,14 +29708,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               >
                 <span aria-hidden="true" style={{
                   display: "inline-flex", alignItems: "center", gap: 6, height: 22, padding: "0 8px", borderRadius: 4,
-                  background: "rgba(11,10,8,0.92)", border: `1px ${can ? "solid" : "dashed"} ${orderLineWords(l).ink}`,
-                  color: can ? "#ead9ad" : orderLineWords(l).ink, font: "700 11px ui-monospace, SFMono-Regular, Menlo, monospace", whiteSpace: "nowrap",
+                  background: "rgba(11,10,8,0.92)", border: `1px ${can ? "solid" : "dashed"} ${look.ink}`,
+                  color: can ? "#ead9ad" : look.ink, font: "700 11px ui-monospace, SFMono-Regular, Menlo, monospace", whiteSpace: "nowrap",
                   boxShadow: dragging ? "0 0 0 2px rgba(201,165,92,0.35)" : "none",
                 }}>
-                  {can ? <span style={{ color: orderLineWords(l).ink }}>⇕</span> : null}
+                  {can ? <span style={{ color: look.ink }}>⇕</span> : null}
                   {can ? words : `${l.role} · broker`}
                 </span>
               </button>
+              </React.Fragment>
             );
           });
         })()}

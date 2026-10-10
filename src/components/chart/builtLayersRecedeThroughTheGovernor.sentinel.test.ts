@@ -481,7 +481,11 @@ describe("phone, evening pass: type floor, figure cap, crisp profile rows (Found
   it("Structure Profile rows are stronger and edged on narrow glass; the desk's inks are untouched", () => {
     expect(CHART).toContain('ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.9) : r.insideValueArea ? pk.rgba("VALUE", 0.62) : pk.rgba("TAIL", 0.4);');
     expect(CHART).toContain("ctx.fillRect(histX + w - 1, y, 1, Math.max(1, rowH - 1));");
-    expect(CHART).toMatch(/\? pk\.rgba\("POC", 0\.7\)\s*: r\.insideValueArea\s*\? pk\.rgba\("VALUE", 0\.4\)\s*: pk\.rgba\("TAIL", 0\.2\);/);
+    // Pin updated 2026-10-10 (Founder, "white-line profiles without adequate
+    // visual embodiment"; coordinator ruling to the profiles lane): the desk
+    // left its 0.7 / 0.4 / 0.2 haze for the crisp form, one step quieter than
+    // the phone, edged at every width (profileSalienceStep2.sentinel.test.ts).
+    expect(CHART).toContain('ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.82) : r.insideValueArea ? pk.rgba("VALUE", 0.54) : pk.rgba("TAIL", 0.32);');
   });
 });
 

@@ -25,6 +25,7 @@ import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/ma
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
 import { absorbOutOfOrderPrint, applyTickToClock } from "@/lib/marketData/liveBarPolicy";
+import { noteClosedLiveBar } from "@/lib/marketData/liveBarFold";
 import { liveBarBucketSec } from "@/lib/timeframes";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
@@ -214,6 +215,13 @@ export interface OrderBookLevel {
 export interface MarketState {
   ticker:      { price: number; change: number; changePct: number; volume: number };
   liveBar:     LegacyOhlcvTuple | null;
+  /**
+   * The newest bars this clock CLOSED (oldest first, bounded — liveBarFold.ts).
+   * `liveBar` is only the forming bar; a bucket that rolled between two flushes
+   * (or while the tab was hidden and rAF paused) would otherwise lose its last
+   * prints, or the whole bar. Same array until a bar closes.
+   */
+  closedLiveBars?: readonly LegacyOhlcvTuple[];
   recentTicks: Tick[];
   orderBook:   { bids: OrderBookLevel[]; asks: OrderBookLevel[] };
   connected:   boolean;
@@ -1313,6 +1321,10 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // rather than as a local copy of that shape under a second name.
   const barRef     = useRef<LegacyOhlcvTuple | null>(null);
   const lastBarEventAtRef = useRef<number | null>(null);
+  // Bars this clock closed (liveBarFold.noteClosedLiveBar); `closedDirtyRef`
+  // says a flush must publish a new copy.
+  const closedBarsRef = useRef<LegacyOhlcvTuple[]>([]);
+  const closedDirtyRef = useRef(false);
   const tickBuf    = useRef<Tick[]>([]);      // batched buffer (bounded — see boundTickBuffer)
   const droppedRef = useRef({ count: 0, size: 0 }); // prints shed from the buffer before a flush
   const bookRef    = useRef(buildBook());
@@ -1399,6 +1411,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       ? Math.max(0, now - last.time)
       : undefined;
 
+    // Read before the updater runs (it may run later than this line).
+    const closedPub = closedDirtyRef.current ? closedBarsRef.current.slice() : null;
+    closedDirtyRef.current = false;
     setState(prev => {
       const newVol = prev.ticker.volume + dropped.size + ticks.reduce((s, t) => s + t.size, 0);
       // Day-change is vs the REAL prior close (from the quote). Falling back to
@@ -1422,6 +1437,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             }
           : { ...prev.ticker, price, volume: newVol },
         liveBar:     barRef.current ? { ...barRef.current } : null,
+        closedLiveBars: closedPub ?? prev.closedLiveBars,
         recentTicks: retainRecentTicks(ticks, prev.recentTicks),
         orderBook:   bookRef.current,
         connected:   true,
@@ -1482,6 +1498,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     tickBuf.current.push(tick);
     boundTickBuffer(tickBuf.current, droppedRef.current);
     noteArrival(performance.now());
+    if (noteClosedLiveBar(closedBarsRef.current, barRef.current, barUpdate.bar)) closedDirtyRef.current = true;
     barRef.current = barUpdate.bar;
     lastBarEventAtRef.current = barUpdate.lastEventAt;
     // Only an OBSERVED print dates the feed. A synthetic seed tick (isReal
@@ -1506,6 +1523,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     if (barUpdate.status === "LATE_EVENT_IGNORED") return;
     priceRef.current = price;
     priceObservedRef.current = true;
+    const closedNow = noteClosedLiveBar(closedBarsRef.current, barRef.current, barUpdate.bar);
     barRef.current = barUpdate.bar;
     lastBarEventAtRef.current = barUpdate.lastEventAt;
     hasRealDataRef.current = true;
@@ -1521,6 +1539,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       // A clockless id builds no bar (applyTickToClock); `{ ...null }` would
       // publish an empty object as if it were one.
       liveBar: barUpdate.bar ? { ...barUpdate.bar } : null,
+      closedLiveBars: closedNow ? closedBarsRef.current.slice() : previous.closedLiveBars,
       source,
       connected: true,
       latency: Math.max(0, now - time),
@@ -1547,6 +1566,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     tastyRefCloseRef.current = false;
     barRef.current   = null;
     lastBarEventAtRef.current = null;
+    closedBarsRef.current = [];
+    closedDirtyRef.current = false;
     bookRef.current  = buildBook();
     retryCount.current = 0;
     hasRealDataRef.current = false;
@@ -2174,6 +2195,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   useEffect(() => {
     barRef.current = null;
     lastBarEventAtRef.current = null;
+    closedBarsRef.current = [];
+    closedDirtyRef.current = true;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeframe]);
 

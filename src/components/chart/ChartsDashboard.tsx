@@ -406,7 +406,8 @@ import { useTastyOptionFlow } from "@/lib/broker/useTastyOptionFlow";
 import { useTastyEquityOptionLegs } from "@/lib/broker/useTastyEquityOptionLegs";
 import { useDeribitOptionFlow } from "@/lib/marketData/useDeribitOptionFlow";
 import { selectOptionsBarrierEvidence, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
-import { parseWallsGamma, type WallsGammaPart, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
+import { anyGammaPart, anyWallsGamma, parseWallsGamma, type WallsGammaPart, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
+import { selectGammaExposure, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
 import { INDEX_FOR_FUTURES, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
 // ON-DEMAND PANELS LOAD ON DEMAND (2026-10-04): each mounts only when its
@@ -1115,7 +1116,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   const [wallsGamma, setWallsGamma] = useState<WallsGammaSelection>(() => parseWallsGamma(lsGet<unknown>("wm_wallsGamma", null)));
   const toggleWallsGamma = (part: WallsGammaPart) => setWallsGamma(w => ({ ...w, [part]: !w[part] }));
   /** The pressure evidence is read while EITHER lens wants it. */
-  const pressureEvidenceOn = derivativesPressureOn || brickWallsOn;
+  // WALLS & GAMMA (2026-10-10): every family switch fetches the chain on its own.
+  const pressureEvidenceOn = derivativesPressureOn || brickWallsOn || anyWallsGamma(wallsGamma);
   // Scaffolding depth: one switch, three depths. OFF → FOUNDATION → INTERMEDIATE → PRO → OFF.
   const [scaffoldingDepth, setScaffoldingDepth] = useState<ScaffoldingDepth | "OFF">(() => {
     const v = lsGet("wm_ofScaffolding", "OFF") as string;
@@ -3034,6 +3036,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     if (!derivativesPressureVM?.drawn || !derivativesReceipt?.receipt) return null;
     return selectOptionsBarrierEvidence(derivativesReceipt.receipt, derivativesPressureVM.spot, Date.now(), optionsScope);
   }, [derivativesPressureVM, derivativesReceipt, optionsScope]);
+  // WALLS & GAMMA — the ONE GEX compilation, once per chain update (never per
+  // frame, never per tick: the chain's own spot is the model's spot). Obeys the
+  // same replay no-look-ahead gate as the pressure reading.
+  const gammaOn = anyGammaPart(wallsGamma);
+  const gexReplayWithheld = !!derivativesPressureVM && !derivativesPressureVM.drawn && derivativesPressureVM.reason === "AFTER_REPLAY_CLOCK";
+  const gexChartSpot = derivativesReceipt?.receipt?.spot ? null : (chartBars.length ? Number(chartBars[chartBars.length - 1].close) : null);
+  const gammaExposureVM = React.useMemo<GammaExposureVM | null>(() => {
+    if (!gammaOn || !derivativesReceipt || derivativesReceipt.symbol !== symbol) return null;
+    if (gexReplayWithheld) return { drawn: false, version: 1, underlying: symbol, reason: "AFTER_REPLAY_CLOCK", scope: optionsScope, receipt: "GEX:SILENCE:AFTER_REPLAY_CLOCK" };
+    return selectGammaExposure({ receipt: derivativesReceipt.receipt, chartSpot: gexChartSpot, nowMs: Date.now(), scope: optionsScope });
+  }, [gammaOn, derivativesReceipt, symbol, gexReplayWithheld, gexChartSpot, optionsScope]);
   // ATHOS order §6 — the cash-index chain behind an NQ / ES chart (NDX / SPX),
   // mapped through a same-time basis. Fetched only while Brick Walls is on a
   // mapped future; a stale or missing basis refuses (selectIndexFuturesMapping).
@@ -7487,6 +7500,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                       roomPosture={chartCanvasVM.oneStory?.decision?.value === "WAIT" || chartCanvasVM.oneStory?.decision?.value === "NO TRADE" ? "QUIET" : null}
                       derivativesPressure={derivativesPressureVM}
                       optionsEvidence={optionsEvidenceVM}
+                      wallsGamma={wallsGamma}
+                      gammaExposure={gammaExposureVM}
                       indexMapping={indexMappingVM}
                       optionFlow={optionFlowVM}
                       onSemanticDepth={setSemanticDepth}

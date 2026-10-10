@@ -123,3 +123,84 @@ export function applyProfilePreset(store: Pick<Storage, "setItem" | "removeItem"
   }
   notify?.();
 }
+
+/* ── ORDER LINES (Founder P0 2026-10-10) ───────────────────────────────────
+   "entry/stop/target lines must be crisp, default stop RED, target GREEN,
+   entry distinct; colour/opacity/thickness/line-style configurable". The
+   trader may restyle them; the law keeps three things true whatever is stored:
+     · VISIBLE — opacity never below ORDER_LINE_ALPHA_FLOOR, width 1–4 px, and
+       an ink the field cannot swallow (too close to the background → the
+       room's ink);
+     · STOP ≠ TARGET — a pair the trader made alike falls back to the room's
+       pair, both halves (the same rule as candles);
+     · ENTRY DISTINCT — an entry alike to the stop or the target falls back to
+       the room's entry ink (and if that still collides, the pair does too).
+   The room's inks are the ticket's own (TradePanel INK / RED / GREEN), so the
+   line on the glass and the field in the ticket are one colour. ───────────── */
+
+export type OrderLineDash = "solid" | "dashed" | "dotted";
+export type OrderLineRoleKey = "ENTRY" | "STOP" | "TARGET";
+export interface OrderLineLook { readonly ink: string; readonly alpha: number; readonly width: number; readonly dash: OrderLineDash }
+export type OrderLineLooks = Readonly<Record<OrderLineRoleKey, OrderLineLook>>;
+/** The trader's stored order-line knobs (ChartSettings carries them). */
+export interface OrderLineAppearance {
+  readonly orderLineEntry?: string;
+  readonly orderLineStop?: string;
+  readonly orderLineTarget?: string;
+  readonly orderLineOpacity?: number;
+  readonly orderLineWidth?: number;
+  readonly orderLineStyle?: OrderLineDash;
+}
+/** The room's order-line inks — the ticket's INK / RED / GREEN. */
+export const ORDER_LINE_ROOM_INK: Readonly<Record<OrderLineRoleKey, string>> = { ENTRY: "#ede6d3", STOP: "#e0786b", TARGET: "#7fd1a8" };
+export const ORDER_LINE_ALPHA_FLOOR = 0.6;
+export const ORDER_LINE_WIDTH_DEFAULT = 2;
+export const ORDER_LINE_DASH_DEFAULT: OrderLineDash = "dashed";
+
+export function clampOrderLineAlpha(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? v : 1;
+  return Math.min(1, Math.max(ORDER_LINE_ALPHA_FLOOR, Math.round(n * 100) / 100));
+}
+export function clampOrderLineWidth(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? Math.round(v) : ORDER_LINE_WIDTH_DEFAULT;
+  return Math.min(4, Math.max(1, n));
+}
+const ORDER_DASHES: readonly OrderLineDash[] = ["solid", "dashed", "dotted"];
+export const lawfulOrderLineDash = (v: unknown): OrderLineDash =>
+  (ORDER_DASHES.includes(v as OrderLineDash) ? (v as OrderLineDash) : ORDER_LINE_DASH_DEFAULT);
+
+/** lightweight-charts LineStyle for a dash: 0 solid, 1 dotted, 2 dashed. */
+export const lwcLineStyle = (d: OrderLineDash): 0 | 1 | 2 => (d === "solid" ? 0 : d === "dotted" ? 1 : 2);
+
+/** "#rrggbb" at `alpha` → "rgba(…)"; an ink this cannot read is returned as-is. */
+export function inkAt(ink: string, alpha: number): string {
+  const rgb = rgbOf(ink);
+  if (!rgb || alpha >= 1) return ink;
+  return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
+}
+
+/**
+ * The three looks the chart paints, made lawful. PURE. `background` is the
+ * field the lines sit on (an ink too close to it cannot be seen → room ink).
+ */
+export function lawfulOrderLineLooks(s: OrderLineAppearance | null | undefined, background: string): OrderLineLooks {
+  const room = ORDER_LINE_ROOM_INK;
+  const seen = (c: string | undefined, fallback: string) =>
+    typeof c === "string" && rgbOf(c) && inksDistinct(c, background) ? c : fallback;
+  let stop = seen(s?.orderLineStop, room.STOP);
+  let target = seen(s?.orderLineTarget, room.TARGET);
+  if (!inksDistinct(stop, target)) { stop = room.STOP; target = room.TARGET; }
+  let entry = seen(s?.orderLineEntry, room.ENTRY);
+  if (!inksDistinct(entry, stop) || !inksDistinct(entry, target)) entry = room.ENTRY;
+  if (!inksDistinct(entry, stop) || !inksDistinct(entry, target)) { stop = room.STOP; target = room.TARGET; }
+  const alpha = clampOrderLineAlpha(s?.orderLineOpacity);
+  const width = clampOrderLineWidth(s?.orderLineWidth);
+  const dash = lawfulOrderLineDash(s?.orderLineStyle);
+  return {
+    ENTRY: { ink: entry, alpha, width, dash },
+    STOP: { ink: stop, alpha, width, dash },
+    TARGET: { ink: target, alpha, width, dash },
+  };
+}
+/** The room's looks (nothing stored), on the room's field. */
+export const ORDER_LINE_ROOM_LOOKS: OrderLineLooks = lawfulOrderLineLooks(null, "#07080a");

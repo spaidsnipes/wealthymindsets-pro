@@ -9,6 +9,7 @@
  * • Full entry detail with attachments viewer
  */
 
+import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import { marketDayKey } from "@/lib/journal/localDayKey";
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
@@ -2282,7 +2283,7 @@ Trade the system, trust the process, winners every day 🚀`,
           </button>
           <button onClick={() => { setNewMode(true); setSelected(null); }}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-wm-black transition-all hover:opacity-90"
-            style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
+            style={WM_PRIMARY_ACTION}>
             <Plus size={12} /> New Entry
           </button>
         </div>
@@ -2764,7 +2765,7 @@ Trade the system, trust the process, winners every day 🚀`,
               </div>
               <button onClick={() => setNewMode(true)}
                 className="px-4 py-2 rounded-lg text-sm font-bold text-wm-black"
-                style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
+                style={WM_PRIMARY_ACTION}>
                 + Log New Trade
               </button>
             </div>
@@ -3696,7 +3697,7 @@ Trade the system, trust the process, winners every day 🚀`,
                 )}
                 style={formPricing.status === "UNPRICEABLE"
                   ? undefined
-                  : { background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
+                  : WM_PRIMARY_ACTION}>
                 Save Trade Entry
               </button>
             </motion.div>

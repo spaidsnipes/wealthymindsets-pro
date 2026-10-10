@@ -4,7 +4,7 @@ import React, { useState, useRef } from "react";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X, Settings, Info, BarChart2 } from "lucide-react";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
-import { applyProfilePreset, PROFILE_PRESET_RED_GREEN } from "@/lib/chart/appearanceLaw";
+import { applyProfilePreset, lawfulOrderLineLooks, ORDER_LINE_ALPHA_FLOOR, PROFILE_PRESET_RED_GREEN, type OrderLineDash } from "@/lib/chart/appearanceLaw";
 
 import {
   CANDLE_DOWN_DEFAULT,
@@ -61,6 +61,15 @@ export interface ChartSettings {
   bubbleScale?: number;          // big-trade disc size, 0.6–1.4
   footprintNumberStep?: number;  // footprint numbers, −1…+2 px against the row fit
   wallThickness?: number;        // options-wall ticks, 1–3 ×
+  // ORDER LINES (Founder P0 2026-10-10). Absent = the room's: stop red, target
+  // green, entry ivory, dashed 2px. Made lawful by appearanceLaw.lawfulOrderLineLooks
+  // (never invisible, stop ≠ target, entry distinct) before anything paints.
+  orderLineEntry?: string;
+  orderLineStop?: string;
+  orderLineTarget?: string;
+  orderLineOpacity?: number;     // 0.6–1 (floored)
+  orderLineWidth?: number;       // 1–4 px
+  orderLineStyle?: OrderLineDash;
 }
 
 /** The volume bars' shipped colours as a picker can show them (the alpha is the room's, kept on paint). */
@@ -527,6 +536,29 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                     </span>
                   </div>
                   <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4 }}>Nothing you turn on can be dialled below readable.</div>
+
+                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Order Lines</div>
+                  {(() => {
+                    // The swatches show what will PAINT (the lawful look), so a choice the law refused reads back as refused.
+                    const looks = lawfulOrderLineLooks(s, s.background);
+                    return (
+                      <div data-testid="order-line-settings">
+                        <ColorSwatch value={looks.ENTRY.ink}  onChange={v => set({ orderLineEntry: v })}  label="Entry line" />
+                        <ColorSwatch value={looks.STOP.ink}   onChange={v => set({ orderLineStop: v })}   label="Stop line" />
+                        <ColorSwatch value={looks.TARGET.ink} onChange={v => set({ orderLineTarget: v })} label="Target line" />
+                        <Choice label="Line opacity" value={looks.STOP.alpha} onChange={v => set({ orderLineOpacity: v })}
+                          options={[{ v: ORDER_LINE_ALPHA_FLOOR, label: "Soft" }, { v: 0.8, label: "Medium" }, { v: 1, label: "Full" }]} />
+                        <Choice label="Line thickness" value={looks.STOP.width} onChange={v => set({ orderLineWidth: v })}
+                          options={[{ v: 1, label: "1px" }, { v: 2, label: "2px" }, { v: 3, label: "3px" }, { v: 4, label: "4px" }]} />
+                        <Choice label="Line style (staged)" value={looks.STOP.dash} onChange={v => set({ orderLineStyle: v })}
+                          options={[{ v: "solid", label: "Solid" }, { v: "dashed", label: "Dashed" }, { v: "dotted", label: "Dotted" }]} />
+                        <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4 }}>
+                          Never fainter than {Math.round(ORDER_LINE_ALPHA_FLOOR * 100)}%. A stop and a target you make alike go back to red and green; an entry alike to either goes back to ivory. A working order is always solid.
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 

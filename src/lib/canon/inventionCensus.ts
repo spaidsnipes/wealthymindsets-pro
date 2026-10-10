@@ -366,14 +366,14 @@ const FIELD_FACTS: Readonly<Record<string, { readonly manifestation: Manifestati
   "F03A": { manifestation: "TERRITORY", ink: ["BONE"], layer: "memoryGhost" },
   "F15.PRESSURE": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: "derivativesPressure" },
   "F08.BRICK": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: "brickWalls" },
-  // WALLS & GAMMA (2026-10-10): own paint layers land with the glass slice — null until then.
-  "WG.CALL": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: null },
-  "WG.PUT": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: null },
-  "WG.HEAT": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: null },
-  "WG.POS": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: null },
-  "WG.NEG": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: null },
-  "WG.FLIP": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: null },
-  "WG.CONC": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: null },
+  // WALLS & GAMMA (2026-10-10): one paint layer per invention.
+  "WG.CALL": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: "callWall" },
+  "WG.PUT": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: "putWall" },
+  "WG.HEAT": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: "gammaHeatmap" },
+  "WG.POS": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: "gammaPositive" },
+  "WG.NEG": { manifestation: "TERRITORY", ink: ["OPTIONS_NET"], layer: "gammaNegative" },
+  "WG.FLIP": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: "gammaFlip" },
+  "WG.CONC": { manifestation: "EVENT", ink: ["OPTIONS_NET"], layer: "gammaConcentration" },
   "G19.FVG": { manifestation: "TERRITORY", ink: ["DELTA_SIDE"], layer: "fvg" },
 };
 

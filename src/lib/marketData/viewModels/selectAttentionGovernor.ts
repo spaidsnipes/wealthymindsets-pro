@@ -112,7 +112,7 @@ export const USER_OPACITY_FAMILY: Readonly<Partial<Record<AttentionLayerKey, Use
   volumeProfile: "PROFILES", livingProfile: "PROFILES", livingProfileMovie: "PROFILES", profileDna: "PROFILES",
   compositeProfile: "PROFILES", visibleRangeProfile: "PROFILES", tpo: "PROFILES", structureProfile: "PROFILES",
   profileFusion: "PROFILES", fusedObject: "PROFILES",
-  derivativesPressure: "WALLS", brickWalls: "WALLS",
+  derivativesPressure: "WALLS", brickWalls: "WALLS", callWall: "WALLS", putWall: "WALLS", gammaHeatmap: "WALLS", gammaPositive: "WALLS", gammaNegative: "WALLS", gammaFlip: "WALLS", gammaConcentration: "WALLS",
   profileMemory: "MEMORY", sessionGhosts: "MEMORY", valueMigration: "MEMORY", memoryGhost: "MEMORY", fvgMemory: "MEMORY",
 };
 /** A dial's range. Below 0.4 a layer stops reading as itself; above 1.6 it outshouts price. */
@@ -204,6 +204,14 @@ export const LAYER_ATTENTION = {
   // Garden 15 §2: the derivatives pressure world — an environment under price.
   derivativesPressure: { tier: "SUPPORTING", depth: null, light: null },
   brickWalls: { tier: "SUPPORTING", depth: null, light: null },
+  // WALLS & GAMMA (2026-10-10): call / put OI walls and the gamma family — context under price.
+  callWall: { tier: "SUPPORTING", depth: null, light: null },
+  putWall: { tier: "SUPPORTING", depth: null, light: null },
+  gammaHeatmap: { tier: "SUPPORTING", depth: null, light: null },
+  gammaPositive: { tier: "SUPPORTING", depth: null, light: null },
+  gammaNegative: { tier: "SUPPORTING", depth: null, light: null },
+  gammaFlip: { tier: "SUPPORTING", depth: null, light: null },
+  gammaConcentration: { tier: "SUPPORTING", depth: null, light: null },
   // H-901's own fixtures, measured from the bars on camera: context drawn
   // about the regime reading, lit by its breaker.
   regimeMagnets: { tier: "SUPPORTING", depth: null, light: "MAGNET_FIXTURES" },

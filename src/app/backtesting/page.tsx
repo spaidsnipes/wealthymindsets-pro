@@ -6,6 +6,7 @@
  * realistic entry/exit logic, drawdown, and full performance metrics.
  */
 
+import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
@@ -225,7 +226,7 @@ function WalkForwardGuide({ onSendToJournal }: { onSendToJournal: () => void }) 
       <button
         onClick={onSendToJournal}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black text-wm-black transition-all hover:opacity-90"
-        style={{ background:"linear-gradient(135deg,#8B5CF6,#4FA3E0)" }}
+        style={WM_PRIMARY_ACTION}
       >
         <BookOpen size={15} /> Send Walk-Forward Results to Journal
       </button>
@@ -527,7 +528,7 @@ export default function BacktestingPage() {
             onClick={run}
             disabled={running}
             className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black text-wm-black transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-            style={{ background: "linear-gradient(135deg,#00D4AA,#4FA3E0)" }}
+            style={WM_PRIMARY_ACTION}
           >
             {running ? <Square size={14} /> : <Play size={14} />}
             {running ? "Running..." : "Run Backtest"}
@@ -572,7 +573,7 @@ export default function BacktestingPage() {
               >
                 <motion.div
                   className="h-full rounded-full"
-                  style={{ background: "linear-gradient(90deg,#00D4AA,#4FA3E0)", width: "35%" }}
+                  style={{ background: WM_PRIMARY_ACTION.background, width: "35%" }}
                   animate={{ x: ["-40%", "180%"] }}
                   transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
                 />

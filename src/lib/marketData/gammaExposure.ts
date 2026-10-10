@@ -58,7 +58,7 @@ export const GEX_CONCENTRATION_MIN_SHARE = 0.04;
 export const GEX_MAX_CONCENTRATION = 5;
 
 export type GexGrade = "FULL" | "PARTIAL" | "DEGRADED";
-export type GexSilence = "NO_CHAIN" | "NO_SPOT" | "NO_CONTRACTS_IN_SCOPE" | "TOO_FEW_PRICED" | "NO_EXPOSURE";
+export type GexSilence = "NO_CHAIN" | "AFTER_REPLAY_CLOCK" | "NO_SPOT" | "NO_CONTRACTS_IN_SCOPE" | "TOO_FEW_PRICED" | "NO_EXPOSURE";
 
 export interface GexExpirySlice {
   readonly expiration: string;

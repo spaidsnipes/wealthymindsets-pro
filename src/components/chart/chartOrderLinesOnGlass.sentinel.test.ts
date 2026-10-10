@@ -17,8 +17,10 @@ const block = (() => {
 
 describe("chart order lines on the glass", () => {
   it("subscribes to the one store and paints its words, not its own", () => {
-    expect(block).toMatch(/const w = orderLineWords\(l\);/);
-    expect(block).toMatch(/color: w\.ink,/);
+    // The words and the stroke come from the store, wearing the appearance law's lawful looks.
+    expect(block).toMatch(/const w = orderLineWords\(l, orderLineLooks\);/);
+    expect(block).toMatch(/color: w\.stroke,/);
+    expect(CHART).toMatch(/lawfulOrderLineLooks\(chartSettings, /);
     expect(block).toMatch(/lineStyle: w\.lineStyle,/);
     expect(block).toMatch(/title: PRICE_LINE_NATIVE_TITLE/);
     expect(block).toMatch(/kind: "ORDER"/);
@@ -33,6 +35,15 @@ describe("chart order lines on the glass", () => {
     expect(block).toMatch(/useEffect\(\(\) => registerChartPricePickHost\(\), \[\]\);/);
     expect(block).toMatch(/if \(!chartPricePickArmed\(\)\) return;/);
     expect(block).toMatch(/deliverChartPricePick\(pickSymbolRef\.current, \+p\)/);
+  });
+  it("the stroke stands ABOVE the analytical glass and never takes a pointer (Founder P0 2026-10-10)", () => {
+    const at = CHART.indexOf('data-testid="order-line-stroke"');
+    expect(at).toBeGreaterThan(-1);
+    const el = CHART.slice(at, at + 700);
+    expect(el).toMatch(/zIndex: 71, pointerEvents: "none"/);
+    expect(el).toMatch(/\$\{look\.stroke\}/);
+    // Its words sit beside the line (above, else below), never under the stroke.
+    expect(CHART).toMatch(/const onLine = wd\.kind === "ORDER" \? above :/);
   });
   it("sends nothing", () => {
     expect(block).not.toMatch(/fetch\(|order-submit|placeOrder|submitOrder/);

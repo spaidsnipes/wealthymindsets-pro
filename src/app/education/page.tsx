@@ -5,6 +5,7 @@
  * Notes save browser-locally with exact readback. Quizzes shuffle questions on every retake.
  */
 
+import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import { catalogueMinutes, formatHoursMinutes } from "@/lib/academy/catalogueMinutes";
 import { shufflePick } from "@/lib/shufflePick";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
@@ -449,7 +450,7 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
               {answered && (
                 <button onClick={next}
                   className="mt-4 min-h-11 w-full py-3 rounded-xl text-sm font-bold text-wm-black hover:opacity-90 transition-all"
-                  style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
+                  style={WM_PRIMARY_ACTION}>
                   {cur+1>=qs.length ? "See Results" : "Next Question →"}
                 </button>
               )}
@@ -491,7 +492,7 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
                     contentStatus: academyLessonContentStatus(lesson.id),
                   }))}
                   className="min-h-11 flex-1 py-2.5 rounded-xl text-sm font-bold text-wm-black hover:opacity-90 transition-all"
-                  style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}>
+                  style={WM_PRIMARY_ACTION}>
                   {pct >= 70 ? "Close Knowledge Check" : "Done"}
                 </button>
               </div>

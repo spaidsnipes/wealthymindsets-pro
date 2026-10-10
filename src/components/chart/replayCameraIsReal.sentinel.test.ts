@@ -110,7 +110,7 @@ describe.runIf(REPLAY_DRIVES_THE_CAMERA)("THE GLASS — the window is painted, l
   it("the tick fold asks the gate FIRST and returns before any series is touched", () => {
     const fold = between(MAIN, "const myTickVersion = versionGuardRef.current.currentVersion;", "}, [liveBar, ready]);");
     expect(fold).toContain("const route    = routeLiveTick(replayCameraRef.current);");
-    expect(fold).toContain('const prevBars = route === "HOLD_OFF_CAMERA" ? liveHeldBarsRef.current : barsRef.current;');
+    expect(fold).toContain('let prevBars = route === "HOLD_OFF_CAMERA" ? liveHeldBarsRef.current : barsRef.current;');
     const hold = fold.indexOf('if (route === "HOLD_OFF_CAMERA") {');
     const paint = fold.indexOf("candleRef.current.update(bar as any);");
     expect(hold, "the HOLD_OFF_CAMERA branch is gone — live ticks paint the replay camera").toBeGreaterThan(-1);

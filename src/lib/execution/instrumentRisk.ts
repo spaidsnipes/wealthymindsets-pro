@@ -147,3 +147,18 @@ export function instrumentRisk(x: RiskInput): RiskAnswer {
     }
   }
 }
+
+/**
+ * SIZE TO RISK — the largest size whose $ at the stop stays inside `budgetUsd`, from the family's own
+ * per-unit risk (instrumentRisk at qty 1). Whole units for shares / contracts; crypto rounds DOWN to
+ * 0.0001 coin. Null when the per-unit risk is unknown or the budget cannot buy one unit — never 0, never
+ * rounded up past the budget.
+ */
+export function qtyForRisk(x: Omit<RiskInput, "qty">, budgetUsd: number, fractional: boolean): number | null {
+  if (!pos(budgetUsd)) return null;
+  const one = instrumentRisk({ ...x, qty: 1, target: null });
+  if (one.status !== "PRICED" || !pos(one.riskUsd)) return null;
+  const raw = budgetUsd / one.riskUsd;
+  const q = fractional ? Math.floor(raw * 10_000) / 10_000 : Math.floor(raw + 1e-9);
+  return q > 0 ? q : null;
+}

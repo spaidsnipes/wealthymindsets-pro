@@ -80,7 +80,10 @@ describe("Clarity ink owner — gold never reverts to red/green under a live str
     const owner = new ClarityInkOwner();
     expect(owner.inkForNewSeries(RED_GREEN, false, true)).toEqual(traderCandleInk(RED_GREEN));
     expect(owner.hidden).toBe(false);
-    expect(owner.inkForNewSeries(RED_GREEN, true, false)).toEqual(traderCandleInk(RED_GREEN));
+    // Born EMPTY under Clarity is born hidden too (serving 135eec5: one red/green
+    // frame per rebuild when the first live print painted the trader's ink).
+    expect(isHiddenInk(owner.inkForNewSeries(RED_GREEN, true, false))).toBe(true);
+    expect(owner.hidden).toBe(true);
     expect(CLARITY_HIDDEN_INK.upColor).toBe("rgba(0,0,0,0)");
   });
 

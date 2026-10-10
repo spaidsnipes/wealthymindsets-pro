@@ -281,15 +281,6 @@ const ALLOWED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       + "its text is: it describes the freshness of a socket rather than the "
       + "wisdom of a decision, and the trader can check it against the tape.",
   },
-  "src/app/journal/page.tsx": {
-    "#00D4AA":
-      "WM brand teal in a decorative gradient on the song-generation control. "
-      + "Caught only by proximity — a `status` check happens to sit within the "
-      + "three-line lookback — and it names no condition and grades nothing. "
-      + "Kept in the ledger rather than tuning the window smaller, because a "
-      + "narrower window would have missed the multi-line DLARStrip violation "
-      + "this sentinel was written for.",
-  },
 };
 
 describe("§9 Sentinel — a verdict may not choose its own colour", () => {

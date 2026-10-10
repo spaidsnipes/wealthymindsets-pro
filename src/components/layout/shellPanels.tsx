@@ -1,5 +1,6 @@
 "use client";
 
+import { WM, WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import { PRICE_ALERT_TRUTH } from "@/components/chart/AlertsPanel";
 import toast from "react-hot-toast";
 
@@ -470,14 +471,18 @@ export function SettingsPanel({
         "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
       )}
     >
+      {/* House pass 2026-10-10: ON is the canonical active brass with an obsidian
+          knob (OFF: a muted knob in the empty track), not teal market-green and
+          a pure-white knob. A preference
+          being on is not a market reading and must not borrow its colour. */}
       <span aria-hidden="true" className={clsx(
         "relative inline-flex h-5 w-9 rounded-full transition-colors",
-        on ? "bg-wm-green" : "border border-wm-border bg-wm-surface"
-      )}>
+        on ? "" : "border border-wm-border bg-wm-surface"
+      )} style={on ? { background: WM.gold.hero } : undefined}>
         <span className={clsx(
-          "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+          "absolute left-0.5 top-0.5 h-4 w-4 rounded-full shadow transition-transform",
           on ? "translate-x-4" : "translate-x-0"
-        )} />
+        )} style={{ background: on ? WM.surface.deepest : WM.text.muted }} />
       </span>
     </button>
   );
@@ -553,7 +558,7 @@ export function SettingsPanel({
               onClose();
             }}
             className="min-h-11 w-full rounded-xl text-sm font-bold text-wm-black transition-all hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wm-gold"
-            style={{ background:"linear-gradient(135deg,#00D4AA,#4FA3E0)" }}
+            style={WM_PRIMARY_ACTION}
           >
             Save Settings
           </button>

@@ -16,8 +16,13 @@ import type { TtOrderView } from "@/lib/broker/tastytradeOrderState";
 const STAGED: ChartOrderLine = { id: "e", role: "ENTRY", status: "STAGED", price: 25_000, contract: "/MNQZ6", detail: "BUY 1 LIMIT" };
 
 describe("order lines say what they are — a staged idea never reads as a working order", () => {
-  it("STAGED is dotted and muted and says STAGED", () => {
-    expect(orderLineWords(STAGED)).toMatchObject({ text: "STAGED · ENTRY BUY 1 LIMIT /MNQZ6", lineStyle: 1, lineWidth: 1, ink: "#8a8271" });
+  it("STAGED says STAGED and wears its role's look (Founder P0 2026-10-10: entry distinct, dashed 2px by default)", () => {
+    expect(orderLineWords(STAGED)).toMatchObject({ text: "STAGED · ENTRY BUY 1 LIMIT /MNQZ6", lineStyle: 2, lineWidth: 2, ink: "#ede6d3", stroke: "#ede6d3" });
+  });
+  it("stop is red and target is green by default; a WORKING stop is solid and stays red", () => {
+    expect(orderLineWords({ ...STAGED, role: "STOP" }).ink).toBe("#e0786b");
+    expect(orderLineWords({ ...STAGED, role: "TARGET" }).ink).toBe("#7fd1a8");
+    expect(orderLineWords({ ...STAGED, role: "STOP", status: "WORKING" })).toMatchObject({ ink: "#e0786b", lineStyle: 0, lineWidth: 2 });
   });
   it("WORKING is solid; UNKNOWN and RECONCILING are dashed", () => {
     expect(orderLineWords({ ...STAGED, status: "WORKING", role: "WORKING" })).toMatchObject({ lineStyle: 0, lineWidth: 2 });

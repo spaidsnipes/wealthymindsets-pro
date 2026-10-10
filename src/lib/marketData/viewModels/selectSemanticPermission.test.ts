@@ -40,7 +40,7 @@ describe("semantic permission — one table, every painting layer", () => {
     // + derivativesPressure (2026-09-27): Garden 16 §32 puts "major pressure
     // geography" at FAR — CURRENT canon; the field, front and walls speak there.
     expect(at("FAR", "SPEAK")).toEqual(
-      ["brickWalls", "candleTimer", "derivativesPressure", "expectedEnvelope", "farEnvelope", "questionLens", "regimeField", "regimeLighting", "riskOnPrice", "zoomPlate"].sort(),
+      ["brickWalls", "callWall", "candleTimer", "derivativesPressure", "expectedEnvelope", "farEnvelope", "gammaConcentration", "gammaFlip", "gammaHeatmap", "gammaNegative", "gammaPositive", "putWall", "questionLens", "regimeField", "regimeLighting", "riskOnPrice", "zoomPlate"].sort(),
     );
     // Reduced forms: dimmed candles, major swings with the owner's letters,
     // Living's skeleton, and the fidelity bridges (an outage keeps its words).

@@ -91,10 +91,18 @@ export class ClarityInkOwner {
   hidden = false;
   private emptyFrames = 0;
 
-  /** Ink a NEW candle series is born with. */
-  inkForNewSeries(settings: CandleInkSettings | null | undefined, clarityOn: boolean, hasBars: boolean): CandleInk {
+  /**
+   * Ink a NEW candle series is born with. Hidden whenever Clarity is on — even
+   * with no bars yet: a series born empty took the trader's ink, and the first
+   * live print painted one red/green candle before Clarity's next frame
+   * (serving 135eec5, BTC-USD 15s with no history: one frame per rebuild,
+   * 228–1636 red/green px). `hasBars` is kept for the receipt only; an empty
+   * series shows nothing either way, and a Clarity layer that never paints is
+   * still caught by the empty-frame restore below.
+   */
+  inkForNewSeries(settings: CandleInkSettings | null | undefined, clarityOn: boolean, _hasBars: boolean): CandleInk {
     this.emptyFrames = 0;
-    if (clarityOn && hasBars) { this.hidden = true; return { ...CLARITY_HIDDEN_INK }; }
+    if (clarityOn) { this.hidden = true; return { ...CLARITY_HIDDEN_INK }; }
     this.hidden = false;
     return traderCandleInk(settings);
   }

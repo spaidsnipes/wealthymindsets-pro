@@ -155,6 +155,25 @@ export function wmPanelStyle(active = false): React.CSSProperties {
   };
 }
 
+/**
+ * THE ONE PRIMARY ACTION — the house's commit button (house pass 2026-10-10).
+ *
+ * Measured across every room: eight primary buttons (Settings Save, Journal
+ * New Entry / Log New Trade / Save Trade Entry, Academy Next / Close, Backtest
+ * Run and its progress bar) were painted `linear-gradient(#00D4AA → #4FA3E0)`,
+ * a teal-to-blue pair owned by neither colour owner — the single most
+ * third-party-looking element in the product. The sign-in door already wore
+ * the canonical one: hero brass into line brass, obsidian ink. Gold here is
+ * semantic, not decoration — it marks the one action that commits the screen.
+ * Market direction never uses this; it keeps its own green and red.
+ *
+ * `primaryActionStyle.sentinel.test.ts` forbids the retired gradient pairs.
+ */
+export const WM_PRIMARY_ACTION: Readonly<React.CSSProperties> = {
+  background: `linear-gradient(135deg, ${WM.gold.hero}, ${WM.gold.line})`,
+  color: WM.surface.deepest,
+};
+
 /** Standard tone→colour helper (never colour-only — always paired with a glyph). */
 export function wmToneColor(
   tone: "ok" | "watch" | "warn" | "objection" | "unknown" | "neutral",

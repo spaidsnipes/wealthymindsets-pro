@@ -1,5 +1,6 @@
 "use client";
 
+import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import toast from "react-hot-toast";
 
 /**
@@ -407,7 +408,7 @@ export function CustomIndicatorBuilder({ onClose, bars, onAddToChart, activeCode
                     onClick={runScript}
                     disabled={running}
                     className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold text-wm-black transition-all hover:opacity-90 active:scale-[0.98]"
-                    style={{ background: "linear-gradient(135deg,#00D4AA,#4FA3E0)" }}
+                    style={WM_PRIMARY_ACTION}
                   >
                     {running ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
                     {running ? "Running..." : "Run Preview"}

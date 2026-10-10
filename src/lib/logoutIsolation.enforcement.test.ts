@@ -109,6 +109,7 @@ const DEVICE_LEVEL_EXEMPT = new Set<string>([
   "wm_ofMyStack",             // the trader's saved profile stack — device chart layout pref, like wm_chartLayout
   "wm_absorptionAnatomy",     // absorption layer on/off — device chart pref (set by the Academy door)
   "wm_flow_opacity",          // orderflow opacity — device chart pref
+  "wm_gammaHeatPreset",       // gamma heatmap appearance preset — device chart pref
   "wm_fixedVP",               // fixed VP config — device chart pref
   "wm_sessionVP",             // session VP config — device chart pref
   "wm_vp_up", "wm_vp_dn",     // VP colors — device chart pref

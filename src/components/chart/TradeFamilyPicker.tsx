@@ -16,10 +16,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import { instrumentEconomics } from "@/lib/marketData/contractEconomics";
+import { futuresRootOf } from "@/lib/marketData/symbolAssetClass";
 import {
   chartFamily, CRYPTO_PICKS, FAMILY_LABEL, FAMILY_STATE_WORD, FUTURES_PAIRS, FX_PICKS, STOCK_PICKS, TRADE_FAMILIES,
   type FamilyState, type FamilyVerdict, type TradeFamily,
 } from "@/lib/execution/instrumentCapability";
+import type { FutureContract } from "@/lib/broker/tastytradeFuturesChain";
 import { FX_LOT_UNITS, fxPair, fxPipSize, instrumentRisk, RISK_ESTIMATE_CAVEAT, type FxLot, type RiskAnswer } from "@/lib/execution/instrumentRisk";
 
 const GOLD = "#C9A55C";
@@ -110,7 +112,7 @@ function FxCalculator({ chartSymbol, price, onChoose, executable }: {
     <div data-testid="trade-fx-calculator" style={{ display: "grid", gap: 6 }}>
       {!executable ? (
         <p data-testid="trade-fx-truth" style={{ margin: 0, color: GOLD, fontWeight: 600 }}>
-          PIP CALCULATOR · no broker connected — nothing can be sent. Neither tastytrade nor Webull offers spot forex here, and WM never swaps in a currency future (/6E).
+          PIP CALCULATOR · no broker connected — nothing can be sent.
         </p>
       ) : null}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -144,7 +146,7 @@ function OptionRisk({ family }: { readonly family: "EQUITY_OPTION" | "FUTURE_OPT
   const answer = instrumentRisk({ family, symbol: "", qty: num(qty) ?? 0, entry: num(entry), stop: num(stop), target: num(target), multiplier: null });
   return (
     <div data-testid="trade-option-risk" style={{ display: "grid", gap: 6 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6, color: MUTED, fontSize: 11 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(72px, 1fr))", gap: 6, color: MUTED, fontSize: 11 }}>
         <label>Contracts<input aria-label="Option contracts" inputMode="numeric" value={qty} onChange={e => setQty(e.target.value)} style={field} /></label>
         <label>Premium<input aria-label="Premium" inputMode="decimal" value={entry} onChange={e => setEntry(e.target.value)} style={field} /></label>
         <label>Stop<input aria-label="Premium stop" inputMode="decimal" value={stop} onChange={e => setStop(e.target.value)} style={field} /></label>
@@ -213,7 +215,7 @@ export function FamilyContractPicker({ family, verdict, chartSymbol, price, onCh
         <FxCalculator chartSymbol={chartSymbol} price={price} onChoose={onChoose} executable={verdict.state === "EXECUTABLE"} />
       ) : family === "EQUITY_OPTION" ? <>
         {chartFam === "STOCK" ? (
-          <button type="button" data-testid="trade-open-chain" onClick={onOpenChain} style={{ ...chip(true), justifySelf: "start", minHeight: 34 }}>
+          <button type="button" data-testid="trade-open-chain" onClick={onOpenChain} style={{ ...chip(true), justifySelf: "stretch", minHeight: 34, whiteSpace: "normal", textAlign: "left", padding: "6px 10px" }}>
             Open the {chartSymbol.toUpperCase()} chain — expiration · strike · call / put →
           </button>
         ) : <>
@@ -223,7 +225,7 @@ export function FamilyContractPicker({ family, verdict, chartSymbol, price, onCh
         <OptionRisk family="EQUITY_OPTION" />
       </> : <>
         {chartFam === "FUTURE" ? (
-          <button type="button" data-testid="trade-open-chain" onClick={onOpenChain} style={{ ...chip(true), justifySelf: "start", minHeight: 34 }}>
+          <button type="button" data-testid="trade-open-chain" onClick={onOpenChain} style={{ ...chip(true), justifySelf: "stretch", minHeight: 34, whiteSpace: "normal", textAlign: "left", padding: "6px 10px" }}>
             Open the {chartSymbol.toUpperCase()} futures-option chain — expiration · strike · call / put →
           </button>
         ) : <>
@@ -234,6 +236,40 @@ export function FamilyContractPicker({ family, verdict, chartSymbol, price, onCh
       </>}
       {!sends && family !== "FX" ? <p data-testid="trade-family-nosend" style={{ margin: 0, color: GOLD, fontSize: 11 }}>{verdict.reason}</p> : null}
       <p style={{ margin: 0, color: MUTED, fontSize: 10 }}>Risk on this ticket is {RISK_ESTIMATE_CAVEAT}.</p>
+    </div>
+  );
+}
+
+/**
+ * CONTRACT MONTH + SIZE for a futures ticket: tastytrade's own listed months (nearest first, with
+ * their expiration dates) and the mini / micro sibling. A pick switches the chart to that contract.
+ */
+export function FuturesMonthRow({ chartSymbol, contract, months, why, loading, onChoose }: {
+  readonly chartSymbol: string;
+  readonly contract: string | null;
+  readonly months: readonly FutureContract[];
+  readonly why: string | null;
+  readonly loading: boolean;
+  readonly onChoose: (symbol: string) => void;
+}) {
+  const up = chartSymbol.toUpperCase();
+  const root = futuresRootOf(contract ?? up) ?? futuresRootOf(up);
+  const pair = root ? FUTURES_PAIRS.find(p => p.mini === `${root}1!` || p.micro === `${root}1!`) : undefined;
+  const sibling = pair && root ? (pair.micro === `${root}1!` ? { word: "Mini", sym: pair.mini } : { word: "Micro", sym: pair.micro }) : null;
+  const date = (iso: string | null) => (iso ? new Date(`${iso}T12:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : "date not listed");
+  return (
+    <div data-testid="trade-futures-months" style={{ display: "grid", gap: 4 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
+        <span style={{ color: MUTED, fontSize: 11, marginRight: 2 }}>Contract month</span>
+        {months.slice(0, 3).map(m => (
+          <button key={m.symbol} type="button" data-testid={`trade-month-${m.symbol}`} aria-pressed={m.symbol === contract} onClick={() => onChoose(m.symbol)}
+            title={`${m.symbol} expires ${date(m.expiration)}`} style={{ ...chip(m.symbol === contract), fontSize: 10.5, ...MONO }}>
+            {m.symbol} · exp {date(m.expiration)}{m.activeMonth ? " · active" : ""}
+          </button>
+        ))}
+        {sibling ? <button type="button" data-testid="trade-size-sibling" onClick={() => onChoose(sibling.sym)} style={{ ...chip(false), fontSize: 10.5 }}>{sibling.word}: {sibling.sym.replace("1!", "")} →</button> : null}
+      </div>
+      {loading ? <span style={{ color: MUTED, fontSize: 10.5 }}>Reading tastytrade&apos;s listed months…</span> : why ? <span style={{ color: GOLD, fontSize: 10.5 }}>{why}</span> : null}
     </div>
   );
 }

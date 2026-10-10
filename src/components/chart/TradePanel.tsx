@@ -68,9 +68,11 @@ import { forgetUnresolvedContract, useBrokerContract } from "@/lib/execution/bro
 import { proposalToTicket, recordProposalEvent, type SpaidBotProposal } from "@/lib/execution/spaidbotProposal";
 import { dismissSpaidBotProposal, useSpaidBotProposal } from "@/lib/execution/spaidbotProposalInbox";
 import { chartFamily, familyVerdict, TRADE_FAMILIES, type TradeFamily } from "@/lib/execution/instrumentCapability";
-import { instrumentRisk } from "@/lib/execution/instrumentRisk";
+import { instrumentRisk, qtyForRisk } from "@/lib/execution/instrumentRisk";
 import { useTradeRails } from "@/lib/execution/useTradeRails";
-import { FamilyContractPicker, TradeFamilySelector } from "@/components/chart/TradeFamilyPicker";
+import { FamilyContractPicker, FuturesMonthRow, TradeFamilySelector } from "@/components/chart/TradeFamilyPicker";
+import { useFuturesMonths } from "@/lib/execution/useFuturesMonths";
+import { futuresRootOf } from "@/lib/marketData/symbolAssetClass";
 
 /** guest audit 2026-10-04: quote-stream states in plain words (the enum stays in data-state). */
 const STREAM_WORDS: Readonly<Record<string, string>> = {
@@ -147,6 +149,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const rails = useTradeRails(audience, scene != null);
   const verdicts = useMemo(() => TRADE_FAMILIES.map(f => familyVerdict(f, rails)), [rails]);
   const familyIsTicket = family === chartFam && (family === "STOCK" || family === "FUTURE" || family === "CRYPTO");
+  // Contract months for a futures ticket: tastytrade's own listed months (read route only), never computed here.
+  const futMonths = useFuturesMonths(kind === "FUTURE" ? futuresRootOf(symbol) : null, audience === "OWNER");
 
   const snap = useTastyQuotes(contract ? [contract.streamer] : []);
   // `state=noquote`: the sample has NO quote for this contract — so no limit is prefilled and the review gate's
@@ -218,6 +222,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   // ONE risk calc, by family (instrumentRisk): a future with no published spec is REFUSED, never priced at $1 a point.
   const risk = instrumentRisk({ family: kind === "FUTURE" ? "FUTURE" : kind === "CRYPTO" ? "CRYPTO" : "STOCK", symbol: contract?.symbol ?? symbol, qty, entry: referenceEntry, stop: stopNum, target: targetNum });
   const riskUsd = risk.status === "PRICED" ? risk.riskUsd : null;
+  const [riskBudget, setRiskBudget] = useState("");
+  const sizedQty = qtyForRisk({ family: kind === "FUTURE" ? "FUTURE" : kind === "CRYPTO" ? "CRYPTO" : "STOCK", symbol: contract?.symbol ?? symbol, entry: referenceEntry, stop: stopNum }, Number(riskBudget), kind === "CRYPTO");
   const rewardUsd = risk.status === "PRICED" ? risk.rewardUsd : null;
   const stopWrongSide = side != null && referenceEntry != null && stopNum != null && (side === "BUY" ? stopNum >= referenceEntry : stopNum <= referenceEntry);
   const perUnit = kind === "FUTURE" ? pointValue : 1;
@@ -453,6 +459,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <span data-testid="trade-quote-state" data-state={snap.stream} data-live={quoteLabel.live ? "yes" : "no"} style={{ marginLeft: "auto", color: quoteLabel.live ? GREEN : GOLD }}>● {quoteLabel.text}</span>
           </div>
           {contractWhy ? <p style={{ color: GOLD }}>{contractWhy}</p> : null}
+          {kind === "FUTURE" ? <FuturesMonthRow chartSymbol={symbol} contract={contract?.symbol ?? null} months={futMonths.months} why={futMonths.why} loading={futMonths.loading} onChoose={s => onChooseInstrument?.(s)} /> : null}
     </>),
     PROPOSAL: (<>
           {/* §24 — SpaidBot PROPOSES; the trader decides. */}
@@ -487,8 +494,10 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     SIDE: (<>
           {/* Side + open/close */}
           <div style={{ display: "flex", gap: 6 }}>
-            <button type="button" data-testid="trade-buy" aria-pressed={side === "BUY"} onClick={() => setSide("BUY")} style={{ ...btn(side === "BUY", GREEN), flex: 1, minHeight: 36, fontSize: 13 }}>BUY</button>
-            <button type="button" data-testid="trade-sell" aria-pressed={side === "SELL"} onClick={() => setSide("SELL")} style={{ ...btn(side === "SELL", RED), flex: 1, minHeight: 36, fontSize: 13 }}>SELL</button>
+            <button type="button" data-testid="trade-buy" aria-pressed={side === "BUY"} onClick={() => setSide("BUY")} style={{ ...btn(side === "BUY", GREEN), flex: 1, minHeight: 36, fontSize: 13 }}>BUY{q?.ask != null ? <span style={{ fontSize: 10.5, fontWeight: 500, marginLeft: 6, ...MONO }}>ask {q.ask.toFixed(dp)}</span> : null}</button>
+            {/* The spread between the two touches, as a broker ticket shows it (never a price of its own). */}
+            {q?.bid != null && q?.ask != null ? <span data-testid="trade-spread" title="Spread between bid and ask" style={{ alignSelf: "center", color: MUTED, fontSize: 10, ...MONO }}>{(q.ask - q.bid).toFixed(dp)}</span> : null}
+            <button type="button" data-testid="trade-sell" aria-pressed={side === "SELL"} onClick={() => setSide("SELL")} style={{ ...btn(side === "SELL", RED), flex: 1, minHeight: 36, fontSize: 13 }}>SELL{q?.bid != null ? <span style={{ fontSize: 10.5, fontWeight: 500, marginLeft: 6, ...MONO }}>bid {q.bid.toFixed(dp)}</span> : null}</button>
           </div>
     </>),
     CLOSING: (<>
@@ -507,6 +516,16 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <input type="number" min={fractional ? 0.00000001 : 1} step={fractional ? "any" : 1} value={qty} aria-label="Quantity"
               onChange={e => { const v = Number(e.target.value); setQty(fractional ? (v > 0 ? v : 0.001) : Math.max(1, Math.floor(v || 1))); }}
               style={{ width: 64, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
+          </div>
+          {/* SIZE TO RISK: the size whose $ at the stop stays inside the trader's budget — sets the field, sends nothing. */}
+          <div data-testid="trade-size-to-risk" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ color: MUTED, width: 64 }}>Risk $</span>
+            <input inputMode="decimal" aria-label="Risk budget in dollars" value={riskBudget} onChange={e => setRiskBudget(e.target.value)} placeholder="e.g. 100"
+              style={{ width: 80, background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO }} />
+            <button type="button" data-testid="trade-size-to-risk-apply" disabled={sizedQty == null} onClick={() => { if (sizedQty != null) setQty(sizedQty); }} style={{ ...btn(false), opacity: sizedQty == null ? 0.5 : 1 }}>
+              {sizedQty != null ? `Size ${sizedQty}` : "Size"}
+            </button>
+            <span style={{ color: MUTED, fontSize: 10.5 }}>{sizedQty != null ? "fits the budget at the stop" : referenceEntry == null || stopNum == null ? "needs a limit and a stop" : "budget is below one unit at this stop"}</span>
           </div>
     </>),
     ENTRY_TYPE: (<>
@@ -559,7 +578,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <span style={{ color: MUTED }}>{kind === "FUTURE" ? "Notional" : "Cost"}</span><span>{notional != null ? `$${notional.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}</span>
             <span style={{ color: MUTED }}>Planned risk at stop</span><span style={{ color: riskUsd != null ? RED : MUTED }}>{stopWrongSide ? "stop is on the wrong side" : riskUsd != null ? `−$${riskUsd.toFixed(2)}` : referenceEntry == null ? "entry fill unknown" : "set a stop"}</span>
             <span style={{ color: MUTED }}>Reward at target</span><span style={{ color: rewardUsd != null ? GREEN : MUTED }}>{rewardUsd != null ? `+$${rewardUsd.toFixed(2)}${riskUsd ? ` · ${(rewardUsd / riskUsd).toFixed(2)}R` : ""}` : "—"}</span>
-            <span data-testid="trade-risk-basis" style={{ color: risk.status === "PRICED" ? MUTED : GOLD, gridColumn: "1 / -1", fontSize: 10.5 }}>{risk.status === "PRICED" ? `${risk.basis} · ${risk.caveat}` : `$ risk withheld — ${risk.reason}`}</span>
+            <span data-testid="trade-risk-basis" style={{ color: risk.status === "PRICED" ? MUTED : GOLD, gridColumn: "1 / -1", fontSize: 10.5 }}>{risk.status === "PRICED" ? `${risk.basis}${referenceEntry != null && stopNum != null ? ` (${(Math.abs(referenceEntry - stopNum) / referenceEntry * 100).toFixed(2)}% away)` : ""} · ${risk.caveat}` : `$ risk withheld — ${risk.reason}`}</span>
           </div>
     </>),
     PICK_STATUS: (<>
