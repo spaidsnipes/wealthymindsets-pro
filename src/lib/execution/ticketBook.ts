@@ -156,3 +156,16 @@ export function ticketBook(broker: BrokerLinesResult | null, contract: string | 
 
   return { rejected, position, working, modify, flatten };
 }
+
+/**
+ * THE BOOK'S TRUTH THAT MUST BE SEEN BEFORE ACTING (ruling 2026-10-10): a broker rejection, a RECONCILING
+ * readback, a partial fill. On the phone ticket the book sits below the fold, so this one line is shown first.
+ * Null when the book holds none of them.
+ */
+export function bookAlert(book: TicketBook): { readonly kind: "REJECTED" | "RECONCILING" | "PARTIAL"; readonly words: string } | null {
+  if (book.rejected) return { kind: "REJECTED", words: `${book.rejected.words} · tastytrade says: ${book.rejected.brokerReason != null ? `“${book.rejected.brokerReason}”` : "no reason was given"}` };
+  if (book.position.state === "RECONCILING") return { kind: "RECONCILING", words: book.position.words };
+  const partial = book.working.find(w => w.state === "PARTIALLY FILLED");
+  if (partial) return { kind: "PARTIAL", words: partial.words };
+  return null;
+}

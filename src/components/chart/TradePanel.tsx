@@ -39,7 +39,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { TastytradeLiveOrder, type TastytradeIntent } from "@/components/chart/TastytradeLiveOrder";
 import { chartDraftNote, chartEntryEffect, type ChartDraft, orderActionLine, prefillNote, protectBasisLine, quoteStreamLabel, SPAIDBOT_BOUNDARY, type Prefill } from "@/lib/execution/ticketTruth";
-import { brokerStateWords, ticketBook, type WorkingOrderRow } from "@/lib/execution/ticketBook";
+import { bookAlert, brokerStateWords, ticketBook, type WorkingOrderRow } from "@/lib/execution/ticketBook";
 import type { WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { TicketBookRows, type CancelAck } from "@/components/chart/TicketBookRows";
 import { stepPriceText, ticketKeyAction } from "@/lib/execution/ticketKeys";
@@ -465,6 +465,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     else setAnswer(book.flatten.refusal ? `CLOSE refused — ${book.flatten.refusal}` : book.flatten.words);
     consumeCloseRequest(closeSeq);
   }, [closeSeq, book.flatten.state]); // eslint-disable-line react-hooks/exhaustive-deps
+  const phoneBookAlert = bookAlert(book);
   const [cancelAcks, setCancelAcks] = useState<Record<string, CancelAck>>({});
   const [cancelBusy, setCancelBusy] = useState<string | null>(null);
   useEffect(() => { setCancelAcks({}); setCancelBusy(null); }, [contract?.symbol]);
@@ -764,6 +765,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         </div>
       ) : null}
       {scene ? <p role="status" data-testid="trade-proof-banner" data-scene-state={scene.state} style={{ margin: 0, padding: "4px 12px", borderBottom: `1px solid ${GOLD}`, color: GOLD, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6 }}>{TICKET_FIXTURE_BANNER}</p> : null}
+      {/* Phone: a rejection, a RECONCILING readback or a partial fill is said FIRST — the book itself sits below the fold. */}
+      {compact && phoneBookAlert ? <p role="status" data-testid="trade-book-alert" data-kind={phoneBookAlert.kind} style={{ margin: 0, padding: "6px 10px", borderBottom: `1px solid ${phoneBookAlert.kind === "REJECTED" ? RED : GOLD}`, color: phoneBookAlert.kind === "REJECTED" ? RED : GOLD, fontSize: 11, fontWeight: 600, overflowWrap: "anywhere" }}>{phoneBookAlert.words}</p> : null}
       {stage !== "PEEK" && step !== "REVIEW" ? <TradeFamilySelector family={family} verdicts={verdicts} onPick={f => setFamilyPick(f === chartFam ? null : f)} /> : null}
 
       {!familyIsTicket ? (

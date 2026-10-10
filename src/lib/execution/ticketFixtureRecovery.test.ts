@@ -71,3 +71,26 @@ describe("a rejection is never folded away (glass d84f247: the flat book hid it 
     expect(bookIsActive(book("flat").book)).toBe(false);
   });
 });
+
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { bookAlert } from "./ticketBook";
+
+describe("phone: the book's truth is said in the first view (ruling 2026-10-10)", () => {
+  it("rejected / stale / partial each produce the alert line; flat and holding do not", () => {
+    expect(bookAlert(book("rejected").book)).toMatchObject({ kind: "REJECTED" });
+    expect(bookAlert(book("rejected").book)?.words).toContain(`tastytrade says: “${TICKET_FIXTURE_REJECT_REASON}”`);
+    expect(bookAlert(book("stale").book)).toMatchObject({ kind: "RECONCILING" });
+    expect(bookAlert(book("partial").book)?.words).toContain("filled 1 of 3 · 2 still working");
+    expect(bookAlert(book("flat").book)).toBeNull();
+    expect(bookAlert(book("holding").book)).toBeNull();
+  });
+  it("the phone ticket renders it above the family row", () => {
+    const panel = readFileSync(path.join(process.cwd(), "src/components/chart/TradePanel.tsx"), "utf8");
+    expect(panel.length).toBeGreaterThan(10_000);
+    const at = panel.indexOf('data-testid="trade-book-alert"');
+    expect(at).toBeGreaterThan(0);
+    expect(at).toBeLessThan(panel.indexOf("<TradeFamilySelector"));
+    expect(panel).toContain("{compact && phoneBookAlert ?");
+  });
+});

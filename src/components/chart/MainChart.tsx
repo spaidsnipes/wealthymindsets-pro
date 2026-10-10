@@ -343,6 +343,11 @@ const DATA_WINDOW_TOGGLE_PX = 22;
  */
 const READING_ANCHOR_ROW_BOTTOM = 64 + 24;
 /**
+ * Derivatives Pressure field, at rest: the Founder plate's region fill
+ * (Drive 02-market-sense-hedging-profile.svg — long-gamma 0.11, short-gamma 0.10).
+ */
+const DP_FIELD_FLOOR_ALPHA = 0.1;
+/**
  * G06 FOUNDER BODIES — the plate's own figures (WM_GuestTour_G06_Academy_
  * Anatomy_Teach), keyed off the plate so the chart carries THE Founder's
  * anatomy, not a stick approximation of it: the gold absorbing body (core
@@ -19232,7 +19237,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   if (top > paneBotD || top + h < HEADER_FLOOR_Y) continue;
                   const net = (a.net + b.net) / 2;
                   const k = Math.min(1, Math.abs(net) / maxAbs);
-                  const alpha = (0.06 + 0.24 * Math.sqrt(k)) * baseA * mult;
+                  // AT-REST FLOOR = the plate's region fill (Drive 02-market-sense-hedging-profile.svg:
+                  // long-gamma #78a9ff @0.11, short-gamma #ed6874 @0.10). Was 0.06 — a "faint blue wash"
+                  // on BTC 5m (profiles lane, 2026-10-10). Intensity above the floor stays |net|-driven.
+                  const alpha = (DP_FIELD_FLOOR_ALPHA + 0.22 * Math.sqrt(k)) * baseA * mult;
                   ctx.fillStyle = net >= 0 ? `rgba(84,140,204,${alpha})` : `rgba(222,108,44,${alpha})`;
                   ctx.fillRect(0, top, plotRightD, h);
                 }
@@ -19353,11 +19361,60 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.restore();
               }
               if (fieldOn) painted.push(`FIELD:${geo.length}`);
+              // REGION NAMES (plate 02: "LONG-GAMMA REGION · modeled countertrend hedge
+              // tendency" / "SHORT-GAMMA REGION · modeled protrend hedge tendency"): each
+              // contiguous on-camera run of one sign is named once at its top-left edge,
+              // where no candle body or chip sits. Words only where the layer speaks.
+              if (fieldOn && dpSpeaks) {
+                const runs: { pos: boolean; yTop: number; yBot: number }[] = [];
+                for (let i = 0; i < geo.length - 1; i++) {
+                  const ya = yOfD(geo[i].price), yb = yOfD(geo[i + 1].price);
+                  if (ya == null || yb == null) continue;
+                  const t = Math.max(HEADER_FLOOR_Y, Math.min(ya, yb)), b = Math.min(paneBotD, Math.max(ya, yb));
+                  if (b <= t) continue;
+                  const pos = (geo[i].net + geo[i + 1].net) / 2 >= 0;
+                  const last = runs[runs.length - 1];
+                  if (last && last.pos === pos) { last.yTop = Math.min(last.yTop, t); last.yBot = Math.max(last.yBot, b); }
+                  else runs.push({ pos, yTop: t, yBot: b });
+                }
+                ctx.save();
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                ctx.globalAlpha = att.textAlpha("derivativesPressure");
+                const named: string[] = [];
+                for (const r of runs) {
+                  if (r.yBot - r.yTop < 28) continue;
+                  const words = r.pos ? "LONG-GAMMA REGION · modeled countertrend hedge tendency" : "SHORT-GAMMA REGION · modeled protrend hedge tendency";
+                  const tw = ctx.measureText(words).width;
+                  const ys = r.pos ? [r.yTop + 10, r.yTop + 24, r.yBot - 10] : [r.yBot - 10, r.yBot - 24, r.yTop + 10];
+                  let seat: { x: number; y: number; w: number; h: number } | null = null;
+                  for (const yC of ys) {
+                    for (let x = silenceX; x + tw + 8 < plotRightD - 60 && !seat; x += 48) {
+                      const q = { x: x - 3, y: yC - 7, w: tw + 6, h: 14 };
+                      if (!rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x) && !floatingChips.some(c => q.x < c.x + c.w && q.x + q.w > c.x && q.y < c.y + c.h && q.y + q.h > c.y) && !onNewestColumn(q.x, q.y, q.w, q.h)) seat = q;
+                    }
+                    if (seat) break;
+                  }
+                  if (!seat) continue;
+                  ctx.fillStyle = r.pos ? "rgba(120,169,255,0.95)" : "rgba(237,104,116,0.95)";
+                  ctx.fillText(words, seat.x + 3, seat.y + 7.5);
+                  floatingChips.push(seat);
+                  named.push(r.pos ? "LONG" : "SHORT");
+                }
+                ctx.restore();
+                ds.derivativesPressureRegionNames = named.join(",") || "NONE";
+              } else delete ds.derivativesPressureRegionNames;
 
               // ── POCKETS (acceleration corridors) ────────────────────────
+              // Off camera they are named at the edge (dpOffCamera, below) — never silently dropped.
+              const dpOffCamera: { up: boolean; words: string; rgb: string; price: number }[] = [];
               for (const pk of fieldOn ? dp.pockets : []) {
                 const y = yOfD(pk.strike);
-                if (y == null || y < HEADER_FLOOR_Y || y > paneBotD) continue;
+                if (y == null || y < HEADER_FLOOR_Y || y > paneBotD) {
+                  dpOffCamera.push({ up: y != null ? y < HEADER_FLOOR_Y : pk.strike > dp.spot, words: `POCKET ${fmtD(pk.strike)} · AMPLIFYING · ${Math.round(pk.share * 100)}%`, rgb: "246,160,96", price: pk.strike });
+                  painted.push(`POCKET@${pk.strike}:OFF_CAMERA`);
+                  continue;
+                }
                 const hh = 6 + 10 * Math.min(1, pk.share / 0.1);
                 ctx.fillStyle = `rgba(226,118,56,${0.12 * baseA})`;
                 ctx.fillRect(0, y - hh, plotRightD, hh * 2);
@@ -19896,7 +19953,51 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     painted.push(`FRONT_WORDS@${Math.round(fx)}:${clear ? "CLEAR" : "BACKED"}`);
                   }
                   painted.push(`FRONT@${dp.zeroGamma.toFixed(2)}`);
-                } else painted.push("FRONT:OFF_CAMERA");
+                } else {
+                  painted.push("FRONT:OFF_CAMERA");
+                  const ampAboveOff = (dp.geography.find(g => g.price > dp.zeroGamma! * 1.004)?.net ?? 0) < 0;
+                  dpOffCamera.push({ up: y != null ? y < HEADER_FLOOR_Y : dp.zeroGamma > dp.spot, words: `ZERO-GAMMA FRONT ${fmtD(dp.zeroGamma)} · ${ampAboveOff ? "amplifying above" : "amplifying below"}`, rgb: "236,214,160", price: dp.zeroGamma });
+                }
+              }
+              /* OFF-CAMERA POINTERS (profiles lane on BTC 5m, 2026-10-10: every pocket
+                 and the front off camera, nothing pointed to them). The Walls & Gamma
+                 edge-chip grammar: "▲ / ▼ <name> <price> · <state>", nearest first,
+                 right-aligned under the header / above the pane floor, clear of chips
+                 and the newest column. The chevron + rule always paint; the words
+                 only where the layer speaks. */
+              {
+                const nearest = (a: { price: number }, b: { price: number }) => Math.abs(a.price - dp.spot) - Math.abs(b.price - dp.spot);
+                let drawnOff = 0;
+                for (const up of [true, false]) {
+                  const same = dpOffCamera.filter(o => o.up === up).sort(nearest);
+                  if (!same.length) continue;
+                  const lead = same[0];
+                  const words = `${up ? "▲" : "▼"} ${lead.words}${same.length > 1 ? `  +${same.length - 1} more` : ""}`;
+                  ctx.save();
+                  ctx.font = marketFont("OBJECT_NAME");
+                  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                  const tw = dpSpeaks ? ctx.measureText(words).width : 0;
+                  const rows = Array.from({ length: 6 }, (_, i) => (up ? HEADER_FLOOR_Y + 18 + i * 15 : paneBotD - 30 - i * 15));
+                  const slot = rows.map(yC => ({ x: plotRightD - tw - 24, y: yC - 7, w: tw + 20, h: 14 }))
+                    .find(q => !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y) && !onNewestColumn(q.x, q.y, q.w, q.h));
+                  if (slot) {
+                    // The pointer: a short rule to the pane edge and a chevron off camera.
+                    ctx.strokeStyle = `rgba(${lead.rgb},${0.9 * baseA})`;
+                    ctx.lineWidth = 1.4;
+                    const cx = plotRightD - 10, cy = slot.y + 7;
+                    ctx.beginPath(); ctx.moveTo(cx - 4, cy + (up ? 3 : -3)); ctx.lineTo(cx, cy + (up ? -2 : 2)); ctx.lineTo(cx + 4, cy + (up ? 3 : -3)); ctx.stroke();
+                    if (dpSpeaks) {
+                      ctx.fillStyle = `rgba(11,10,8,${(0.86 * att.textAlpha("derivativesPressure")).toFixed(3)})`;
+                      if (chipBox(words, slot)) ctx.fillRect(slot.x, slot.y, slot.w - 16, slot.h);
+                      ctx.fillStyle = `rgba(${lead.rgb},${(0.95 * att.textAlpha("derivativesPressure")).toFixed(3)})`;
+                      ctx.fillText(words, slot.x + 4, slot.y + 7.5);
+                    }
+                    floatingChips.push(slot);
+                    drawnOff++;
+                  } else if (dpSpeaks) displacedNotes.push({ layer: "DERIVATIVES", text: words, x: plotRightD - 60, y: rows[0] });
+                  ctx.restore();
+                }
+                ds.derivativesPressureOffCamera = dpOffCamera.length ? `${dpOffCamera.filter(o => o.up).length}/${dpOffCamera.filter(o => !o.up).length}|DRAWN:${drawnOff}` : "NONE";
               }
 
               // ── EXPECTED MOVE at the live edge ─────────────────────────
