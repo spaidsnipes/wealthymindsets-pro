@@ -28,8 +28,8 @@ describe("what the strip prints", () => {
 
   it("a position says side, size, price, protection and the working count", () => {
     const held: BrokerBookStrip = { ...base, state: "LONG", quantity: 2, averagePrice: 25010.25, protection: "UNPROTECTED", working: 1 };
-    expect(texts(held)).toEqual(["LONG 2 @ 25010.25", "UNPROTECTED", "1 working", "as of 2:31 PM CDT"]);
-    expect(texts({ ...held, state: "SHORT", protection: "PROTECTED" })).toEqual(["SHORT 2 @ 25010.25", "PROTECTED", "1 working", "as of 2:31 PM CDT"]);
+    expect(texts(held)).toEqual(["LONG 2", "@ 25010.25", "UNPROTECTED", "1 working", "as of 2:31 PM CDT"]);
+    expect(texts({ ...held, state: "SHORT", protection: "PROTECTED" })).toEqual(["SHORT 2", "@ 25010.25", "PROTECTED", "1 working", "as of 2:31 PM CDT"]);
   });
 
   it("UNPROTECTED is a truth word at every width; the phone drops only price and a fresh as-of", () => {
@@ -120,5 +120,37 @@ describe("the strip on the glass", () => {
   it("only one of the two shows at any width, and the phone one takes the 44px floor", () => {
     expect(css).toMatch(/@media \(max-width: 767px\) \{\s*\.wm-book-strip--bar \{ display: none !important; \}\s*\.wm-book-strip--row \{ min-height: 44px !important;/);
     expect(css).toMatch(/@media \(min-width: 768px\) \{\s*\.wm-book-strip--row \{ display: none !important; \}/);
+  });
+});
+
+/**
+ * PHONE LANDSCAPE (≤520px tall, 2026-10-10 parity pass): the WAIT / WHY row is
+ * hidden there and the instrument bar shows only Trade / Watchlist / Indicators,
+ * so the position had no home. It stands as a fourth pill and drops its detail
+ * parts — never a truth word.
+ */
+describe("phone landscape: the position strip is a pill in short form", () => {
+  const held: BrokerBookStrip = { ...base, state: "LONG", quantity: 2, averagePrice: 25010.25, protection: "UNPROTECTED", working: 1 };
+
+  it("only the average price and a fresh as-of are detail; truth words never are", () => {
+    const d = bookStripDisplay(held, { compact: false, sample: true, clock })!;
+    expect(d.parts.filter(p => p.detail).map(p => p.text)).toEqual(["@ 25010.25", "as of 2:31 PM CDT"]);
+    for (const p of d.parts) expect(p.truth && p.detail, p.text).toBeFalsy();
+    const stale = bookStripDisplay({ ...held, freshness: "STALE" }, { compact: false, sample: false, clock })!;
+    expect(stale.parts.find(p => p.text.startsWith("STALE"))?.detail).toBeFalsy();
+  });
+
+  it("the component marks detail parts, and the short-landscape block shows the strip and hides only them", () => {
+    const strip = readFileSync(path.join(process.cwd(), "src/components/chart/ChartBookStrip.tsx"), "utf8");
+    expect(strip).toContain('data-book-detail={part.detail ? "yes" : undefined}');
+    const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    const at = css.indexOf("PHONE LANDSCAPE: THE POSITION IS THE FOURTH PILL");
+    expect(at).toBeGreaterThan(-1);
+    const block = css.slice(at, css.indexOf("}\n}", at) + 3);
+    expect(block).toContain("@media (max-height: 520px) and (max-width: 1023px) {");
+    expect(block).toContain(".wm-instrument-context-strip > .wm-book-strip--bar {");
+    expect(block).toContain(".wm-book-strip [data-book-detail] { display: none !important; }");
+    // Read after the block that hides every strip child but the three pills.
+    expect(at).toBeGreaterThan(css.indexOf(".wm-instrument-context-strip > * { display: none !important; }"));
   });
 });

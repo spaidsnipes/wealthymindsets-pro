@@ -103,6 +103,7 @@ export function ChartBookStrip({
           key={`${part.text}-${i}`}
           aria-hidden="true"
           data-book-truth={part.truth ? "yes" : undefined}
+          data-book-detail={part.detail ? "yes" : undefined}
           style={{ color: TONE[part.tone], flexShrink: 0, fontWeight: part.truth ? 800 : 700 }}
         >
           {part.text}

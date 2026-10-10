@@ -57,7 +57,7 @@ import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proof
 import { installWordGate, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
 import { FOG_CAP, FOG_FEATHER_PX, installFogGate } from "@/lib/chart/fieldFogBudget";
 import { installTypeFloor, NARROW_NAME_MIN_PX } from "@/lib/chart/typeFloor";
-import { lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
+import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -89,7 +89,7 @@ import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/der
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
 import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
 import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
-import { MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
+import { MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
@@ -1382,6 +1382,7 @@ interface Props {
     // Founder order §5 (2026-10-09): volume colours and the three opacity dials.
     volumeUp?: string; volumeDown?: string;
     profileOpacity?: number; wallOpacity?: number; memoryOpacity?: number;
+    bubbleScale?: number; footprintNumberStep?: number; wallThickness?: number;
   };
   replayActive?:   boolean;
   replayBars?:     LegacyOhlcvTuple[];
@@ -2379,6 +2380,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // The trader's opacity dials, read by the paint loop (no re-render per frame).
   const userOpacityRef = useRef<{ PROFILES?: number; WALLS?: number; MEMORY?: number }>({});
   userOpacityRef.current = { PROFILES: chartSettings?.profileOpacity, WALLS: chartSettings?.wallOpacity, MEMORY: chartSettings?.memoryOpacity };
+  // Slice B marks (Chart Settings › Marks), read by the paint loop; clamped in appearanceLaw.
+  const userMarksRef = useRef({ bubble: 1, fpStep: 0, wall: 1 });
+  userMarksRef.current = { bubble: clampBubbleScale(chartSettings?.bubbleScale), fpStep: chartSettings?.footprintNumberStep ?? 0, wall: clampWallThickness(chartSettings?.wallThickness) };
   // Last frame's newest-candle column, for words painted before this frame measures it.
   const wordGateColumnRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   // The layer last frame's question was ABOUT — its answer is never quieted by it.
@@ -8954,7 +8958,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // on any tint. The font never exceeds the row (9–12px, 8px when a cell is
       // tight — footprintCanon's CELL_MIN_PX) so rows never overprint.
       // §15/§16 · one typography owner: 9…12 px mono, never below the floor.
-      const cellFs = (rH: number) => footprintCellPx(rH);
+      // The trader's footprint-number step (Chart Settings › Marks): never past the row, never under the floor.
+      const cellFs = (rH: number) => footprintNumberPx(footprintCellPx(rH), rH, userMarksRef.current.fpStep, MARKET_NUMBER_MIN_PX);
       const cellNum = (txt: string, px: number, py: number, align: CanvasTextAlign, fs: number, color = "#ffffff") => {
         // Leave zero-volume rows BLANK like a pro footprint (TradingView/Bookmap).
         // On crypto, sub-0.005 BTC rows format to "0.00"; painting them turned the
@@ -9882,6 +9887,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         });
         // The phone's cap, applied to this frame's discs only (the prints' own
         // eased radii and the cluster owner are untouched).
+        // The trader's bubble size (Chart Settings › Marks) — this frame's discs
+        // only; the prints' own radii and the cluster owner are untouched.
+        const bubbleK = userMarksRef.current.bubble;
+        if (bubbleK !== 1) for (let i = 0; i < bigDiscs.length; i++) bigDiscs[i] = { ...bigDiscs[i], r: bigDiscs[i].r * bubbleK, baseR: bigDiscs[i].baseR * bubbleK };
         if (bigMaxR < BIG_TRADE_MAX_R) {
           for (let i = 0; i < bigDiscs.length; i++) {
             const d = bigDiscs[i];
@@ -19633,7 +19642,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   const call = w.type === "CALL_OI";
                   const rgb = call ? "80,190,180" : "214,120,150";
                   ctx.strokeStyle = `rgba(${rgb},${0.85 * baseA})`;
-                  ctx.lineWidth = 2;
+                  ctx.lineWidth = 2 * userMarksRef.current.wall; // Chart Settings › Marks › Wall thickness
                   ctx.setLineDash([5, 3]);
                   ctx.beginPath();
                   ctx.moveTo(plotRightD - 56, y);

@@ -34,6 +34,8 @@ import { behaviourTags, type BehaviourTag } from "@/lib/journal/behaviorTags";
 import { ledgerCsv } from "@/lib/broker/ledgerCsv";
 import { reconcileDay } from "@/lib/broker/reconcile";
 import { UnsettledEstimate } from "@/components/journal/UnsettledEstimate";
+import { journalCaptureFromWebullEpisode, webullEpisodeJournalable } from "@/lib/journal/webullEpisodeCapture";
+import { JOURNAL_CAPTURE_URL, offerJournalCapture } from "@/lib/journal/journalCaptureHandoff";
 
 const GOLD = "#C9A55C";
 const MUTED = "#8a8271";
@@ -138,8 +140,14 @@ function BucketTable({ title, rows, keyLabel }: { title: string; rows: LedgerSum
   );
 }
 
-function EpisodeRow({ e, all, conds, tags }: { e: Episode; all: readonly Episode[]; conds: Map<string, EpisodeConditions>; tags: readonly BehaviourTag[] }) {
+function EpisodeRow({ e, all, conds, tags, asOf }: { e: Episode; all: readonly Episode[]; conds: Map<string, EpisodeConditions>; tags: readonly BehaviourTag[]; asOf?: string }) {
   const [open, setOpen] = useState(false);
+  // "Journal this trade" (Supermax §8): the SAME hand-off as the ticket; the Journal's form opens and nothing is
+  // saved until the trader presses Save there.
+  const journalThis = () => {
+    const draft = journalCaptureFromWebullEpisode(e, asOf ?? new Date().toISOString(), Date.now());
+    if (draft && offerJournalCapture(window.localStorage, draft, Date.now())) window.location.assign(JOURNAL_CAPTURE_URL);
+  };
   return (
     <div data-testid="ledger-episode" data-label={e.label} style={{ borderTop: `1px solid ${LINE}`, padding: "6px 0" }}>
       <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
@@ -155,6 +163,9 @@ function EpisodeRow({ e, all, conds, tags }: { e: Episode; all: readonly Episode
         <div style={{ margin: "6px 0 2px 16px", fontSize: 11, color: MUTED }}>
           <div style={{ marginBottom: 4 }}>
             <Link href={`/charts?symbol=${encodeURIComponent(e.symbol)}&tf=1m`} data-testid="ledger-open-chart" style={{ color: GOLD, marginRight: 8 }}>Open {e.symbol} chart →</Link>
+            {webullEpisodeJournalable(e) ? (
+              <button type="button" data-testid="ledger-journal-this" onClick={journalThis} style={{ background: "none", border: `1px solid ${GOLD}`, borderRadius: 6, color: GOLD, minHeight: 32, padding: "0 10px", marginRight: 8, cursor: "pointer", font: "inherit" }}>Journal this trade →</button>
+            ) : null}
             <span style={{ color: GOLD }}>{e.label}</span> · gross {usd(e.gross)} · fees {usd(e.fees, false)}{e.feesUnreportedFills ? <span data-testid="ledger-fees-unreported"> (+ UNREPORTED on {e.feesUnreportedFills} fill{e.feesUnreportedFills === 1 ? "" : "s"} — Webull stated no fees; not counted as $0)</span> : null} · net <span style={{ color: tone(e.net) }}>{usd(e.net)}</span> · ×{e.multiplier} per contract{e.note ? ` · ${e.note}` : ""}
           </div>
           {[...e.entries.map(f => ({ ...f, role: "ENTRY" })), ...e.exits.map(f => ({ ...f, role: "EXIT" }))].sort((a, b) => a.at.localeCompare(b.at)).map(f => (
@@ -436,7 +447,7 @@ export function WebullLifetimeLedger() {
             <div className="wm-ledger-row" style={{ display: "grid", gap: 8, fontSize: 10, color: MUTED, letterSpacing: 0.8 }}>
               <span>OPENED</span><span>INSTRUMENT</span><span className="wm-ledger-wide" style={{ textAlign: "right" }}>AVG IN</span><span className="wm-ledger-wide" style={{ textAlign: "right" }}>AVG OUT</span><span className="wm-ledger-wide" style={{ textAlign: "right" }}>HELD</span><span style={{ textAlign: "right" }}>NET</span>
             </div>
-            {episodes.slice(0, shown).map(e => <EpisodeRow key={e.id} e={e} all={data.episodes ?? []} conds={conds} tags={tagMap.get(e.id) ?? []} />)}
+            {episodes.slice(0, shown).map(e => <EpisodeRow key={e.id} e={e} all={data.episodes ?? []} conds={conds} tags={tagMap.get(e.id) ?? []} asOf={data.asOf} />)}
             {episodes.length > shown ? <button type="button" onClick={() => setShown(n => n + 100)} style={{ marginTop: 6, fontSize: 11, color: GOLD, background: "none", border: `1px solid ${LINE}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>Show more ({episodes.length - shown} left)</button> : null}
           </div>
         </>

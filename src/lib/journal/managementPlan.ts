@@ -204,7 +204,7 @@ export function freezePlanSnapshot(input: FreezePlanInput): ManagementPlanSnapsh
       targetPx: price(p.targetPx, s),
       conditions,
       expectedHoldMin: positive(p.expectedHoldMin, s),
-      context: text(p.context, s),
+      context: text(p.context, input.fieldSources?.context ?? s),
       riskUsd: positive(p.riskUsd, s),
       session: text(p.session, input.fieldSources?.session ?? s),
     },

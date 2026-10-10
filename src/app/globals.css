@@ -2441,6 +2441,22 @@ input[type=range]::-webkit-slider-runnable-track {
 @media (pointer: coarse) {
   .wm-book-strip { min-height: 44px !important; }
 }
+/* PHONE LANDSCAPE: THE POSITION IS THE FOURTH PILL (parity pass 2026-10-10).
+   At 520px tall or less the WAIT / WHY row is hidden and the strip's bar keeps
+   only Trade / Watchlist / Indicators as pills, so a phone turned sideways had
+   no position reading at all. The bar's strip joins them, in short form: the
+   average price and a fresh as-of drop; UNPROTECTED, STALE, SAMPLE and the
+   working count stay. */
+@media (max-height: 520px) and (max-width: 1023px) {
+  .wm-instrument-context-strip > .wm-book-strip--bar {
+    display: inline-flex !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+    background-color: #0b0a08 !important;
+    box-shadow: 0 6px 18px rgba(0,0,0,.5) !important;
+  }
+  .wm-book-strip [data-book-detail] { display: none !important; }
+}
 
 /* ── PHONE: THE ASSISTANT DOCKS IN THE NAV BAR, NOT ON THE ROOM ───────────
    Sheriff batch 8 (serving 6944df9, 390x844): the launcher floated 70px up

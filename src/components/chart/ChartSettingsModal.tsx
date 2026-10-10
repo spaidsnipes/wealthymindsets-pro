@@ -4,6 +4,7 @@ import React, { useState, useRef } from "react";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X, Settings, Info, BarChart2 } from "lucide-react";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
+import { applyProfilePreset, PROFILE_PRESET_RED_GREEN } from "@/lib/chart/appearanceLaw";
 
 import {
   CANDLE_DOWN_DEFAULT,
@@ -56,6 +57,10 @@ export interface ChartSettings {
   profileOpacity?: number;
   wallOpacity?: number;
   memoryOpacity?: number;
+  // SLICE B (Founder order §5): marks' size and weight. Absent = as shipped.
+  bubbleScale?: number;          // big-trade disc size, 0.6–1.4
+  footprintNumberStep?: number;  // footprint numbers, −1…+2 px against the row fit
+  wallThickness?: number;        // options-wall ticks, 1–3 ×
 }
 
 /** The volume bars' shipped colours as a picker can show them (the alpha is the room's, kept on paint). */
@@ -174,6 +179,24 @@ function Dial({ value, onChange, label }: { value: number | undefined; onChange:
         <span style={{ fontSize: 11, color: "#8b8fa8", fontFamily: "monospace", minWidth: 36, textAlign: "right" }}>{Math.round(v * 100)}%</span>
       </span>
     </label>
+  );
+}
+
+/** A row of choice chips — each a 44px target on a phone. */
+function Choice<T extends string | number>({ value, options, onChange, label }: { value: T; options: readonly { v: T; label: string }[]; onChange: (v: T) => void; label: string }) {
+  return (
+    <div role="group" aria-label={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0" }}>
+      <span style={{ fontSize: 12, color: "#8896BE" }}>{label}</span>
+      <span style={{ display: "flex", gap: 4 }}>
+        {options.map(o => (
+          <button key={String(o.v)} type="button" aria-pressed={o.v === value} onClick={() => onChange(o.v)} className="wm-settings-control"
+            style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer",
+              background: o.v === value ? "rgba(201,165,92,0.22)" : "#141824", border: `1px solid ${o.v === value ? "#C9A55C" : "#263050"}`, color: o.v === value ? "#ead9ad" : "#8896BE" }}>
+            {o.label}
+          </button>
+        ))}
+      </span>
+    </div>
   );
 }
 
@@ -481,7 +504,28 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Layer Opacity</div>
                   <Dial value={s.profileOpacity} onChange={v => set({ profileOpacity: v })} label="Profiles" />
                   <Dial value={s.wallOpacity}    onChange={v => set({ wallOpacity: v })}    label="Walls & options" />
-                  <Dial value={s.memoryOpacity}  onChange={v => set({ memoryOpacity: v })}  label="Memory" />
+                  <Dial value={s.memoryOpacity}  onChange={v => set({ memoryOpacity: v })}  label="Memory (fade)" />
+
+                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Marks</div>
+                  <Choice label="Big-trade bubbles" value={s.bubbleScale ?? 1} onChange={v => set({ bubbleScale: v })}
+                    options={[{ v: 0.7, label: "Small" }, { v: 1, label: "As shipped" }, { v: 1.3, label: "Large" }]} />
+                  <Choice label="Footprint numbers" value={s.footprintNumberStep ?? 0} onChange={v => set({ footprintNumberStep: v })}
+                    options={[{ v: -1, label: "Smaller" }, { v: 0, label: "Fit" }, { v: 1, label: "Larger" }, { v: 2, label: "Largest" }]} />
+                  <Choice label="Wall thickness" value={s.wallThickness ?? 1} onChange={v => set({ wallThickness: v })}
+                    options={[{ v: 1, label: "Thin" }, { v: 1.5, label: "Medium" }, { v: 2, label: "Thick" }]} />
+                  <div role="group" aria-label="Profile colours" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0" }}>
+                    <span style={{ fontSize: 12, color: "#8896BE" }}>Profile colours</span>
+                    <span style={{ display: "flex", gap: 4 }}>
+                      {([["Room brass", null], ["Red / Green", PROFILE_PRESET_RED_GREEN]] as const).map(([lbl, preset]) => (
+                        <button key={lbl} type="button" className="wm-settings-control"
+                          onClick={() => { try { applyProfilePreset(localStorage, preset, () => window.dispatchEvent(new Event("wm-vp-colors"))); } catch { /* private mode */ } }}
+                          style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer", background: "#141824", border: "1px solid #263050", color: "#8896BE" }}>
+                          {lbl}
+                        </button>
+                      ))}
+                    </span>
+                  </div>
                   <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4 }}>Nothing you turn on can be dialled below readable.</div>
                 </div>
               )}

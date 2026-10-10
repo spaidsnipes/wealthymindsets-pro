@@ -31,3 +31,19 @@ describe("appearance stays lawful", () => {
     for (const m of pairs) expect(inksDistinct(`rgb(${m[1]})`, `rgb(${m[2]})`), `${m[1]} vs ${m[2]}`).toBe(true);
   });
 });
+
+describe("Slice B marks are read by the chart and clamped by the one owner", () => {
+  it("bubble size, footprint numbers and wall thickness reach the paint through appearanceLaw", () => {
+    for (const k of ["bubbleScale", "footprintNumberStep", "wallThickness"]) {
+      expect(MODAL, k).toContain(`s.${k}`);
+      expect(CHART, k).toMatch(new RegExp(`chartSettings\\?\\.${k}\\b`));
+    }
+    expect(CHART).toContain("footprintNumberPx(footprintCellPx(rH), rH, userMarksRef.current.fpStep, MARKET_NUMBER_MIN_PX)");
+    expect(CHART).toContain("ctx.lineWidth = 2 * userMarksRef.current.wall;");
+    expect(CHART).toContain("const bubbleK = userMarksRef.current.bubble;");
+  });
+  it("the profile preset writes the five VP keys through the one helper and tells the chart", () => {
+    expect(MODAL).toContain('applyProfilePreset(localStorage, preset, () => window.dispatchEvent(new Event("wm-vp-colors")))');
+    expect(CHART).toContain('window.addEventListener("wm-vp-colors", load);');
+  });
+});

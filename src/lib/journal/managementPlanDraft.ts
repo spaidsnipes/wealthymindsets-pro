@@ -16,6 +16,17 @@
 import type { FillCaptureIntent } from "./journalCaptureFromFill";
 import { freezePlanSnapshot, planSnapshotFromTicket, type ManagementPlanSnapshot, type TraderPlanInput } from "./managementPlan";
 import { sessionPlanForFreeze } from "./managementDayRules";
+import { INTENTION_SOURCE, readTodaysIntention } from "./morningPrepIntention";
+
+/** Morning Prep's session plan and intention join a freeze only where the trader's own draft left the field empty. */
+function withMorningPrep(storage: Storage, draft: TraderPlanInput, at: number): { plan: TraderPlanInput; sources: Partial<Record<keyof TraderPlanInput, string>> } {
+  const day = draft.session ? null : sessionPlanForFreeze(storage, at);
+  const intention = draft.context ? null : readTodaysIntention(at, storage);
+  return {
+    plan: { ...draft, ...(day ? { session: day } : {}), ...(intention ? { context: intention } : {}) },
+    sources: { ...(day ? { session: "morning prep session plan" } : {}), ...(intention ? { context: INTENTION_SOURCE } : {}) },
+  };
+}
 import { managementKey } from "./managementOwner";
 import { freezePlanOnce, readAllPlans, readPlanForDecision, type FreezeOutcome } from "./managementPlanStore";
 
@@ -109,8 +120,8 @@ export function freezeAtTicketSend(storage: Storage | null | undefined, ticket: 
   if (readPlanForDecision(storage, ticket.decisionId)) return "ALREADY_FROZEN";
   const at = ticket.sentAtMs ?? nowMs;
   const draft = takeDraftForFreeze(storage, ticket.chartSymbol, at) ?? {};
-  const day = draft.session ? null : sessionPlanForFreeze(storage, at);
-  return freezePlanOnce(storage, planSnapshotFromTicket(ticket, day ? { ...draft, session: day } : draft, at, day ? { session: "morning prep session plan" } : undefined));
+  const m = withMorningPrep(storage, draft, at);
+  return freezePlanOnce(storage, planSnapshotFromTicket(ticket, m.plan, at, Object.keys(m.sources).length ? m.sources : undefined));
 }
 
 /** The subset of a paper Trade this reads. */
@@ -141,11 +152,11 @@ export function freezePaperFillPlans(storage: Storage | null | undefined, trades
     if (readPlanForDecision(storage, decisionId)) continue;
     const draft = takeDraftForFreeze(storage, t.symbol, t.ts);
     if (!draft) continue;
-    const day = draft.session ? null : sessionPlanForFreeze(storage, t.ts);
+    const m = withMorningPrep(storage, draft, t.ts);
     const snap = freezePlanSnapshot({
       decisionId, frozenAt: "PAPER_FILL", atMs: t.ts, source: "plan card before the paper fill",
-      plan: { ...draft, ...(day ? { session: day } : {}), symbol: t.symbol, direction: t.side === "buy" ? "LONG" : "SHORT" },
-      ...(day ? { fieldSources: { session: "morning prep session plan" } } : {}),
+      plan: { ...m.plan, symbol: t.symbol, direction: t.side === "buy" ? "LONG" : "SHORT" },
+      ...(Object.keys(m.sources).length ? { fieldSources: m.sources } : {}),
     });
     if (freezePlanOnce(storage, snap) === "FROZEN") frozen++;
   }

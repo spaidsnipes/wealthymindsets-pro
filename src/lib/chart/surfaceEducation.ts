@@ -28,10 +28,12 @@ export interface SurfaceEducation extends InventionEducation {
 type Spec = {
   what: string; q: string; needs: EvidenceNeed; evidence: string; appears: string; read: string;
   full: string; partial: string; degraded: string; touch?: string; canon: string;
+  /** SILENCE, when it is not the DEGRADED sentence itself (Supermax §5). */
+  silence?: string;
 };
 const rec = (s: Spec): SurfaceEducation => ({
   what: s.what, question: s.q, needs: s.needs, evidence: s.evidence, appears: s.appears, grammar: s.read,
-  full: s.full, partial: s.partial, degraded: s.degraded, firstTouch: s.touch ?? s.what, canon: s.canon,
+  full: s.full, partial: s.partial, degraded: s.degraded, silence: s.silence ?? s.degraded, firstTouch: s.touch ?? s.what, canon: s.canon,
 });
 
 /* ── Smart Money cards ─────────────────────────────────────────────────── */
@@ -245,6 +247,7 @@ export const SMART_MONEY_CARD_EDUCATION: Readonly<Record<string, SurfaceEducatio
     appears: "A title, one paragraph and one question per note.",
     read: "The notes are context and questions to ask of the chart. They do not read the tape, name a direction or propose an entry.",
     full: "Not applicable — the notes are the same on every feed.", partial: "Not applicable.", degraded: "Not applicable.",
+    silence: "No silence case — a fixed library of notes, the same on every feed; nothing on it is read from this chart.",
     canon: "Smart Money panel · playbook (fabio.ts, observation and questions only)",
   }),
 };
@@ -423,17 +426,17 @@ export const VIEW_EDUCATION: Readonly<Record<string, SurfaceEducation>> = {
   Options: view("The options chain for this underlying", "What strikes and expiries trade on this symbol?", "OPTIONS", "An options chain.",
     "Strikes by expiry with open interest and greeks where the feed carries them.", "Open interest is positioning that exists; what it will do is not stated.", "Fresh chain.", "Delayed chain — said in the label.", "No chain for this symbol."),
   ETFs: view("ETFs that hold this symbol", "Which funds hold this stock?", "PRICE", "Reference data from the fundamentals feed.",
-    "A list of funds and weights.", "Reference data, as of its own date.", "Feed answered.", "Partial list.", "No reference data for this class."),
+    "A list of funds and weights.", "Reference data, as of its own date.", "Feed answered.", "Partial list.", "Not an equity — the view says fund holdings apply to equities only and shows no list."),
   Financials: view("Income statement, balance sheet and cash flow", "What do the company's statements say?", "PRICE", "Reference data from the fundamentals feed.",
-    "Statement tables by period.", "Reported figures, as filed.", "Feed answered.", "Some periods missing.", "Not an equity — no statements."),
+    "Statement tables by period.", "Reported figures, as filed.", "Feed answered.", "Some periods missing.", "Not an equity — the view says statements apply to equities only and shows no figure. A cash index says it has no income, ratios or shareholders."),
   Valuation: view("Valuation ratios", "How is this company priced against its earnings, sales and book?", "PRICE", "Reference data from the fundamentals feed.",
-    "Ratio tables.", "Ratios are arithmetic on reported figures and the last price.", "Feed answered.", "Some ratios missing.", "Not an equity."),
+    "Ratio tables.", "Ratios are arithmetic on reported figures and the last price.", "Feed answered.", "Some ratios missing.", "Not an equity — the view says ratios apply to equities only and shows no figure."),
   "Corporate Actions": view("Dividends, splits and other corporate actions", "What has the company done to its shares?", "PRICE", "Reference data from the fundamentals feed.",
-    "A dated list.", "Historical record.", "Feed answered.", "Partial history.", "Not an equity."),
+    "A dated list.", "Historical record.", "Feed answered.", "Partial history.", "Not an equity — the view says corporate actions apply to equities only and shows no list."),
   Shareholders: view("Major holders", "Who holds this stock?", "PRICE", "Reference data from the fundamentals feed.",
-    "A list of holders and stakes as of their filing dates.", "Filing data, dated.", "Feed answered.", "Partial list.", "Not an equity."),
+    "A list of holders and stakes as of their filing dates.", "Filing data, dated.", "Feed answered.", "Partial list.", "Not an equity — the view says holders apply to equities only and shows no list."),
   Profile: view("The instrument's reference profile", "What is this instrument — name, venue, contract spec?", "PRICE", "Reference data.",
-    "Name, venue, class, contract specifications.", "Reference facts about the instrument.", "Feed answered.", "Some fields missing.", "No reference data."),
+    "Name, venue, class, contract specifications.", "Reference facts about the instrument.", "Feed answered.", "Some fields missing.", "No reference data — the view says so and fills in nothing; a coin, pair or future shows its own market card instead."),
 };
 
 /* ── Loadouts, Replay, bar selection ───────────────────────────────────── */

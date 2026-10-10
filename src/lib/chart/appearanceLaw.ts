@@ -76,3 +76,50 @@ export function lawfulSettings<T extends Pairable>(s: T | null | undefined, room
   }
   return (out ?? s) as T;
 }
+
+/* ── SLICE B KNOBS (Founder order §5) — clamped here, so no stored value can push
+   a mark out of its cell, off its floor, or over price. ─────────────────────── */
+
+/** Big-trade disc size: 0.6–1.4 × the size owner's radius (the narrow-glass cap still applies after). */
+export function clampBubbleScale(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? v : 1;
+  return Math.min(1.4, Math.max(0.6, Math.round(n * 10) / 10));
+}
+/** Footprint numbers: −1 … +2 px against the row-fitted size. */
+export function clampFootprintNumberStep(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? Math.round(v) : 0;
+  return Math.min(2, Math.max(-1, n));
+}
+/**
+ * The footprint number's px for a row: the owner's fit plus the trader's step,
+ * never above the row (numbers never overprint the next row) and never below
+ * the number floor (a number that does not fit is dropped, never shrunk).
+ */
+export function footprintNumberPx(fitPx: number, rowH: number, step: unknown, floorPx: number): number {
+  const k = clampFootprintNumberStep(step);
+  const want = fitPx + k;
+  return Math.max(floorPx, Math.min(want, Math.max(fitPx, Math.floor(rowH))));
+}
+/** Options-wall tick thickness: 1–3 × the shipped 2px. */
+export function clampWallThickness(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? v : 1;
+  return Math.min(3, Math.max(1, Math.round(n * 2) / 2));
+}
+
+/** The five profile-palette keys the VP gear owns (marketFieldMaterial's ladder). */
+export const PROFILE_PALETTE_KEYS = ["wm_vp_up", "wm_vp_dn", "wm_vp_poc", "wm_vp_vah", "wm_vp_val"] as const;
+/**
+ * RED / GREEN profile preset (Founder order §5). Up and down are a market pair;
+ * POC is its own ink (not up, not down) and the value-area edges share a quiet
+ * third — so the profile still reads as bars, a centre and two edges.
+ */
+export const PROFILE_PRESET_RED_GREEN: Readonly<Record<(typeof PROFILE_PALETTE_KEYS)[number], string>> = {
+  wm_vp_up: "#00C076", wm_vp_dn: "#FF4D67", wm_vp_poc: "#F2D27A", wm_vp_vah: "#9AA3B2", wm_vp_val: "#9AA3B2",
+};
+/** Write a preset (or `null` = the room's own palette: the keys are removed). Tells the chart. */
+export function applyProfilePreset(store: Pick<Storage, "setItem" | "removeItem">, preset: Readonly<Record<string, string>> | null, notify?: () => void): void {
+  for (const k of PROFILE_PALETTE_KEYS) {
+    if (preset) store.setItem(k, preset[k]); else store.removeItem(k);
+  }
+  notify?.();
+}

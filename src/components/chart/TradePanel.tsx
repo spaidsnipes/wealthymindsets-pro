@@ -42,6 +42,7 @@ import { chartDraftNote, chartEntryEffect, type ChartDraft, orderActionLine, pre
 import { brokerStateWords, ticketBook, type WorkingOrderRow } from "@/lib/execution/ticketBook";
 import type { WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { TicketBookRows, type CancelAck } from "@/components/chart/TicketBookRows";
+import { stepPriceText, ticketKeyAction } from "@/lib/execution/ticketKeys";
 import { COMPACT_ACT_MAX_HEIGHT, COMPACT_HALF_MAX_HEIGHT, halfControl, halfFromDrag, halfInForce, COMPACT_PEEK_MAX_HEIGHT, COMPACT_TICKET_QUERY, WIDE_TICKET_MAX_HEIGHT, bookIsActive, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketStage, ticketStep, type TicketSection } from "@/lib/execution/ticketLayout";
 import { TicketSections } from "@/components/chart/TicketSections";
 import { parseTicketFixture, TICKET_FIXTURE_BANNER, ticketFixtureChartLines, ticketFixtureLines, type TicketFixture } from "@/lib/execution/ticketFixture";
@@ -361,6 +362,20 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const halfCtl = halfControl(halfInput);
   const halfOn = halfInForce(halfInput);
   const gripY = useRef<number | null>(null);
+  // Keyboard (order §6): B / S side, Esc closes, ↑ / ↓ steps a focused price by a tick — and Enter NEVER sends.
+  const onTicketKey = (e: React.KeyboardEvent<HTMLElement>) => {
+    const t = e.target as HTMLElement;
+    const a = ticketKeyAction({ key: e.key, ctrl: e.ctrlKey, meta: e.metaKey, alt: e.altKey, composing: e.nativeEvent.isComposing, tag: t.tagName, label: t.getAttribute("aria-label"), preSend: stageInput.preSend });
+    if (!a) return;
+    e.preventDefault();
+    if (a.kind === "SWALLOW_ENTER") return;
+    if (a.kind === "CLOSE") { onClose(); return; }
+    if (a.kind === "SIDE") { if (owner && tradable) setSide(a.side); return; }
+    const set = a.field === "LIMIT" ? setLimit : a.field === "TRIGGER" ? setEntryTrigger : a.field === "STOP" ? setStop : setTarget;
+    const cur = a.field === "LIMIT" ? limit : a.field === "TRIGGER" ? entryTrigger : a.field === "STOP" ? stop : target;
+    const next = stepPriceText(cur, a.dir, tick, dp);
+    if (next !== null) set(next);
+  };
   // ACT has two steps on a phone: BUILD (closing, size, price, stop / target, risk) and REVIEW (the live-order
   // block alone). CSS only — both stay mounted. REVIEW is forced while an order is in flight.
   const [reviewing, setReviewing] = useState(false);
@@ -592,6 +607,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   return (
     <section
       data-testid="trade-panel"
+      onKeyDown={onTicketKey}
       data-layout={compact ? "compact" : "full"}
       data-stage={stage}
       data-step={step ?? undefined}

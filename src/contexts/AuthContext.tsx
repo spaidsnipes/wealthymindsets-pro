@@ -155,6 +155,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // response to be an account, and it is this branch that WRITES the
         // cache — so an id-less 200 body did not just render wrong once, it
         // was persisted and re-read on every subsequent load.
+        // 200 { user: null } is the route's answer to a browser that sent no
+        // session at all (2026-10-10). Signed out, exactly like a 401: tie any
+        // legacy (pre-isolation) rows to the account this browser last held
+        // before the cache that names it is cleared below.
+        if (data?.user == null) stampLegacyOwner(readCachedUser()?.id);
         const hydrated = hydrateCachedUser(data.user);
         const u: WMUser | null = hydrated && {
           ...hydrated,

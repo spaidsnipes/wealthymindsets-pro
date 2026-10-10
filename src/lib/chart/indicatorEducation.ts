@@ -93,6 +93,7 @@ function rec(s: Spec): IndicatorEducation {
     appears: s.appears,
     grammar: s.read,
     firstTouch: s.touch ?? s.what,
+    silence: ladder(s.src, s.win).degraded,
     canon: s.src === "volume" ? "Classic indicator · price + bar volume" : s.src === "tape" ? "Order flow · sided tape" : "Classic indicator · price only",
   };
 }

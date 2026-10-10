@@ -25,6 +25,11 @@ export interface BookStripPart {
   readonly tone: "STATE" | "RISK" | "SAFE" | "MUTED" | "WARN";
   /** Never shrunk, never truncated. */
   readonly truth?: boolean;
+  /**
+   * Detail a short glass may drop by CSS (the average price, a fresh as-of):
+   * the same parts `compact` leaves out. Never set on a truth word.
+   */
+  readonly detail?: boolean;
 }
 
 export interface BookStripDisplay {
@@ -51,8 +56,8 @@ export function bookStripDisplay(
     parts.push({ text: "FLAT", tone: "STATE" });
     parts.push({ text: working, tone: strip.working > 0 ? "STATE" : "MUTED" });
   } else {
-    const size = `${strip.state} ${strip.quantity ?? "?"}`;
-    parts.push({ text: opts.compact || strip.averagePrice == null ? size : `${size} @ ${strip.averagePrice}`, tone: "STATE" });
+    parts.push({ text: `${strip.state} ${strip.quantity ?? "?"}`, tone: "STATE" });
+    if (!opts.compact && strip.averagePrice != null) parts.push({ text: `@ ${strip.averagePrice}`, tone: "STATE", detail: true });
     if (strip.protection === "UNPROTECTED") parts.push({ text: "UNPROTECTED", tone: "RISK", truth: true });
     else if (strip.protection === "PROTECTED") parts.push({ text: "PROTECTED", tone: "SAFE" });
     parts.push({ text: working, tone: strip.working > 0 ? "STATE" : "MUTED" });
@@ -62,7 +67,7 @@ export function bookStripDisplay(
   if (strip.freshness === "STALE") {
     parts.push({ text: `STALE · as of ${asOf ?? "—"}`, tone: "WARN", truth: true });
   } else if (!opts.compact && asOf) {
-    parts.push({ text: `as of ${asOf}`, tone: "MUTED" });
+    parts.push({ text: `as of ${asOf}`, tone: "MUTED", detail: true });
   }
 
   const contract = strip.contract ? ` on ${strip.contract}` : "";

@@ -15,7 +15,13 @@ const RENEW_AFTER_SECONDS = 7 * 24 * 60 * 60;
 
 export async function GET(req: Request) {
   const token = getAuthToken(req);
-  if (!token) return NextResponse.json({ user: null }, { status: 401 });
+  // NO COOKIE IS A GUEST, NOT A FAILURE (guest walk, serving 32c95db, 2026-10-10).
+  // Every signed-out page asked this route "who am I" and was answered 401,
+  // which the browser logs as a red console error on every guest visit. A
+  // visitor who sent no session has nothing to reject: the answer is "nobody",
+  // 200. A session that WAS sent and fails — bad signature, expired, revoked —
+  // is still refused with 401 below.
+  if (!token) return NextResponse.json({ user: null });
 
   const payload = verifyJWT(token);
   if (!payload) return NextResponse.json({ user: null }, { status: 401 });

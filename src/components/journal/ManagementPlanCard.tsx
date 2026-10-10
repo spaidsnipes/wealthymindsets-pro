@@ -27,6 +27,7 @@ import { LOOP_DOORS } from "@/lib/journal/planLoop";
 import { freezePlanSnapshot, parseManagementCondition, planLine, type ManagementPlanSnapshot, type TraderPlanInput } from "@/lib/journal/managementPlan";
 import { DRAFT_MAX_AGE_MS, latestPlanForSymbol, readDraft, writeDraft } from "@/lib/journal/managementPlanDraft";
 import { draftWithDayRules, readDayRules, type ManagementDayRules } from "@/lib/journal/managementDayRules";
+import { readTodaysIntention } from "@/lib/journal/morningPrepIntention";
 import { erasePlanForDecision } from "@/lib/journal/managementPlanErase";
 import { appendPlanAmendment, freezePlanOnce, readPlanForDecision } from "@/lib/journal/managementPlanStore";
 
@@ -197,6 +198,8 @@ export function ManagementPlanCard(props:
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [newPlan, setNewPlan] = useState(false);
   const [dayRules, setDayRules] = useState<ManagementDayRules | null>(null);
+  // Morning Prep's own words for the day — read-only here, frozen with the plan at send (morningPrepIntention).
+  const [intention, setIntention] = useState<string | null>(null);
   const symbol = props.symbol ?? null;
   const decisionId = props.mode === "story" ? props.decisionId : null;
 
@@ -208,6 +211,7 @@ export function ManagementPlanCard(props:
     setDraft(d ? fromPlan(d.plan) : EMPTY_DRAFT);
     setSavedAt(d?.updatedAtMs ?? null);
     setDayRules(props.mode === "ticket" ? readDayRules(st, Date.now()) : null);
+    setIntention(props.mode === "ticket" ? readTodaysIntention(Date.now()) : null);
   }, [props.mode, decisionId, symbol]);
   const ownerVersion = useManagementOwnerVersion();   // re-read under the member AuthContext resolves
   useEffect(() => { refresh(); }, [refresh, ownerVersion]);
@@ -251,6 +255,12 @@ export function ManagementPlanCard(props:
           </>
         ) : (
           <>
+            {intention ? (
+              <p data-testid="plan-day-intention" style={{ margin: 0, fontSize: 10.5, color: MUTED, overflowWrap: "anywhere" }}>
+                Today&apos;s intention (Morning Prep): <span style={{ color: INK }}>{intention}</span>
+                {!draft.context ? " — joins this decision at its freeze." : " — your own context above is frozen instead."}
+              </p>
+            ) : null}
             {dayRules && (dayRules.conditions.length || dayRules.expectedHoldMin != null) ? (
               <div data-testid="plan-day-rules" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 10.5, color: MUTED }}>
                 <span>Today&apos;s rules from Morning Prep: {[...dayRules.conditions, dayRules.expectedHoldMin != null ? `hold ${dayRules.expectedHoldMin} min` : ""].filter(Boolean).join(" · ")}</span>
