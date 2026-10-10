@@ -56,6 +56,7 @@ export interface ChartSettings {
   fvgBearInk?: string;
   callWallInk?: string;
   putWallInk?: string;
+  brickWallInk?: string;
   fusedProfileInk?: string;
   // VOLUME (Founder order §5, 2026-10-09). Absent = the room's brass bars.
   volumeUp?: string;
@@ -106,6 +107,7 @@ export const FLOW_COLOR_DEFAULTS = {
   fvgBearInk: "#EF4444",
   callWallInk: "#50BEB4",
   putWallInk: "#D67896",
+  brickWallInk: "#D6B070",
 } as const;
 
 export const DEFAULT_CHART_SETTINGS: ChartSettings = {
@@ -580,6 +582,7 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <ColorSwatch value={s.fvgBearInk ?? s.deltaSell ?? FLOW_COLOR_DEFAULTS.fvgBearInk}  onChange={v => set({ fvgBearInk: v })}   label="Fair Value Gap · bearish" />
                   <ColorSwatch value={s.callWallInk ?? FLOW_COLOR_DEFAULTS.callWallInk} onChange={v => set({ callWallInk: v })} label="Call Wall (solid)" />
                   <ColorSwatch value={s.putWallInk ?? FLOW_COLOR_DEFAULTS.putWallInk}   onChange={v => set({ putWallInk: v })}   label="Put Wall (dashed)" />
+                  <ColorSwatch value={s.brickWallInk ?? FLOW_COLOR_DEFAULTS.brickWallInk} onChange={v => set({ brickWallInk: v })} label="Brick Wall · brick face" />
                   <div style={{ fontSize: 11, color: "#8b8fa8", margin: "2px 0 4px" }}>A pair you make identical goes back to the room&apos;s pair.</div>
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />

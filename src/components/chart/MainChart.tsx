@@ -1411,7 +1411,7 @@ interface Props {
     deltaBuy?: string; deltaSell?: string;
     absorptionInk?: string; fusedProfileInk?: string;
     // Per-invention colour (Founder G19 Supermax §5): absent = the shared ink they used before.
-    fvgBullInk?: string; fvgBearInk?: string; callWallInk?: string; putWallInk?: string;
+    fvgBullInk?: string; fvgBearInk?: string; callWallInk?: string; putWallInk?: string; brickWallInk?: string;
     // Founder order §5 (2026-10-09): volume colours and the three opacity dials.
     volumeUp?: string; volumeDown?: string;
     profileOpacity?: number; wallOpacity?: number; memoryOpacity?: number;
@@ -3524,6 +3524,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     callWall: hexRgb(chartSettings?.callWallInk, CALL_WALL_RGB),
     putWall: hexRgb(chartSettings?.putWallInk, PUT_WALL_RGB),
   };
+  // BRICK WALLS face ink (G19 Supermax §5). Absent = the room's fired clay (214,176,112).
+  const brickFaceRef = useRef<readonly [number, number, number]>([214, 176, 112]);
+  brickFaceRef.current = (hexRgb(chartSettings?.brickWallInk, "214,176,112").split(",").map(Number) as unknown) as readonly [number, number, number];
   // OPPOSED PAIRS STAY APART (appearanceLaw): a call ink the trader made the put's twin, or an FVG
   // bull ink the bear's twin, falls back to the room's pair, whole.
   {
@@ -19646,8 +19649,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     // Fired clay: each brick its own tone, lit from the upper left.
                     const tone = 0.72 + 0.28 * r;
                     const face = ctx.createLinearGradient(bx0, yb, bx0 + bw * 0.4, yb + courseH);
-                    face.addColorStop(0, `rgba(${Math.round(214 * tone)},${Math.round(176 * tone)},${Math.round(112 * tone)},${0.78 * baseA})`);
-                    face.addColorStop(1, `rgba(${Math.round(146 * tone)},${Math.round(110 * tone)},${Math.round(62 * tone)},${0.78 * baseA})`);
+                    // The trader's brick ink (Chart Settings) is the lit face; the shaded face keeps the
+                    // room's clay ratios (146/214, 110/176, 62/112), so the brick stays a brick.
+                    const [fr, fg, fb] = brickFaceRef.current;
+                    face.addColorStop(0, `rgba(${Math.round(fr * tone)},${Math.round(fg * tone)},${Math.round(fb * tone)},${0.78 * baseA})`);
+                    face.addColorStop(1, `rgba(${Math.round(fr * 0.682 * tone)},${Math.round(fg * 0.625 * tone)},${Math.round(fb * 0.554 * tone)},${0.78 * baseA})`);
                     ctx.fillStyle = face;
                     ctx.fillRect(bx0, yb, bw, courseH - 2);
                     // Arris light on the top edge, shade on the bottom edge.

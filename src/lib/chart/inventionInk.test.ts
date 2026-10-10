@@ -46,7 +46,13 @@ describe("wired", () => {
     expect(CHART).toContain("if (!inksDistinct(`rgb(${fc.callWall})`, `rgb(${fc.putWall})`)) { fc.callWall = CALL_WALL_RGB; fc.putWall = PUT_WALL_RGB; }");
     expect(CHART).toContain("if (!inksDistinct(`rgb(${fc.fvgBull})`, `rgb(${fc.fvgBear})`))");
   });
-  it("Chart Settings offers the four swatches", () => {
-    for (const l of ["Fair Value Gap · bullish", "Fair Value Gap · bearish", "Call Wall (solid)", "Put Wall (dashed)"]) expect(MODAL).toContain(`label="${l}"`);
+  it("Chart Settings offers the five swatches", () => {
+    for (const l of ["Fair Value Gap · bullish", "Fair Value Gap · bearish", "Call Wall (solid)", "Put Wall (dashed)", "Brick Wall · brick face"]) expect(MODAL).toContain(`label="${l}"`);
+  });
+  it("Brick Walls: the trader's ink is the lit face; the shade keeps the clay ratios; untouched = the room's clay", () => {
+    expect(FLOW_COLOR_DEFAULTS.brickWallInk).toBe("#D6B070");
+    expect(CHART).toContain('brickFaceRef.current = (hexRgb(chartSettings?.brickWallInk, "214,176,112")');
+    expect(CHART).toContain("const [fr, fg, fb] = brickFaceRef.current;");
+    expect(CHART).toContain("rgba(${Math.round(fr * 0.682 * tone)},${Math.round(fg * 0.625 * tone)},${Math.round(fb * 0.554 * tone)}");
   });
 });
