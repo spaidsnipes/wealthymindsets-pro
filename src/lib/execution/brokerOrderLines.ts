@@ -61,6 +61,8 @@ export interface BrokerLinesResult {
   readonly working?: number;
   /** The working orders themselves (broker readback), for the ticket's cancel controls. */
   readonly workingOrders?: readonly TtOrderView[];
+  /** Orders on this contract the broker REJECTED, as read (2026-10-10: the reason is shown verbatim in the book). */
+  readonly rejectedOrders?: readonly TtOrderView[];
   readonly orderAccounts?: BrokerReadback["orderAccounts"];
   readonly asOfMs?: number | null;
   readonly tails?: readonly string[];
@@ -104,7 +106,8 @@ export function selectBrokerOrderLines(rb: BrokerReadback, contract: string, mar
     });
   }
   const workingOrders = mine.filter(o => WORKING.has(o.state));
-  return { lines, readback, position, working: workingOrders.length, workingOrders, orderAccounts: rb.orderAccounts ?? {}, asOfMs: rb.asOfMs, tails: rb.tails ?? [] };
+  const rejectedOrders = mine.filter(o => o.state === "REJECTED");
+  return { lines, readback, position, working: workingOrders.length, workingOrders, rejectedOrders, orderAccounts: rb.orderAccounts ?? {}, asOfMs: rb.asOfMs, tails: rb.tails ?? [] };
 }
 
 /**

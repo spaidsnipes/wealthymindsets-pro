@@ -52,5 +52,5 @@ export function stepWallExits(prev: WallExitLedger, key: string, now: readonly W
 
 /** The words on the glass for one exit. */
 export function wallExitWords(e: WallExit, fmt: (p: number) => string): string {
-  return `WALL ${fmt(e.strike)} · NO LONGER LISTED · WAS ${e.lastLife}`;
+  return `WALL ${fmt(e.strike)} · NO LONGER LISTED · WAS ${e.lastLife === "WEAKENING" ? "WEAKENED" : e.lastLife}`;
 }

@@ -10,6 +10,7 @@
  */
 
 import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
+import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
 import { marketDayKey } from "@/lib/journal/localDayKey";
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
@@ -2659,11 +2660,11 @@ Trade the system, trust the process, winners every day 🚀`,
 
           <div className="flex-1 overflow-y-auto">
             {filtered.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-2">
-                <FileText size={24} className="opacity-30" />
-                <span className="text-xs">
-                  {linkedFilterActive ? "No linked decisions found" : "No entries found"}
-                </span>
+              <div className="flex h-full items-center justify-center p-3">
+                <RoomStatePlaque kind="empty" align="center" testId="journal-list-empty" icon={<FileText size={12} />}
+                  title={linkedFilterActive ? "No linked decisions found" : "No entries found"}>
+                  {linkedFilterActive ? "No journal entry is linked to this decision yet." : "Nothing in the journal matches these filters."}
+                </RoomStatePlaque>
               </div>
             )}
             {filtered.map(e => {
@@ -2757,17 +2758,16 @@ Trade the system, trust the process, winners every day 🚀`,
 
           {/* Placeholder */}
           {!selected && !newMode && (
-            <div className="flex min-h-full flex-col items-center justify-center gap-4 py-6 text-wm-text-muted">
-              <BarChart2 size={40} className="opacity-20" />
-              <div className="text-center">
-                <div className="font-semibold text-sm">Select an entry or create a new one</div>
-                <div className="text-xs mt-1">Track every trade — wins and losses both teach</div>
-              </div>
-              <button onClick={() => setNewMode(true)}
-                className="px-4 py-2 rounded-lg text-sm font-bold text-wm-black"
-                style={WM_PRIMARY_ACTION}>
-                + Log New Trade
-              </button>
+            <div className="flex min-h-full items-center justify-center px-4 py-6">
+              <RoomStatePlaque kind="empty" align="center" testId="journal-detail-empty" icon={<BarChart2 size={12} />}
+                title="Select an entry or create a new one">
+                <p>Track every trade — wins and losses both teach.</p>
+                <button onClick={() => setNewMode(true)}
+                  className="mt-3 min-h-11 px-4 py-2 rounded-lg text-sm font-bold text-wm-black"
+                  style={WM_PRIMARY_ACTION}>
+                  + Log New Trade
+                </button>
+              </RoomStatePlaque>
             </div>
           )}
 

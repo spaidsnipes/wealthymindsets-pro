@@ -111,7 +111,12 @@ The canon fixes exactly eleven (VIC-01 / H-601; "Anchored" maps to Structure or 
   - VALUE / TAIL / WASH roles have no control (`PROFILE_INK_FOLLOWS` = null);
   - edge weight, heat, numeric density and z-order controls (G19A-21).
 - **Update (a60366c, LIVE 11:30:35):** one opacity dial per species (11; Session and Classic VP share one painter) under Chart Settings → Layer Opacity → "Profiles · each species". It goes through `appearanceLaw.lawfulSpeciesOpacity`, and the attention governor applies it after the family dial, with the same 0.4–1.6 clamp and readable floor. The two drawings (Fixed Range, Bid/Ask) apply it at their paint site. **Read on serving 11:34** (BTC-USD 15m clean, 834): Composite dial 0.4 → `attentionTiers` `compositeProfile:LIVE:0.6` → `0.24`, with `tpo:LIVE:1` unchanged; `wm_chartSettings` in localStorage untouched (null before and after). Pinned by `chartSettingsHeldInProofScene.sentinel.test.ts`. Defect seen: at 834 the Chart tools drawer overlaps the Chart Settings sliders. **Per-species colour: OPEN** (in build).
-- **Status (colour): OPEN.** These controls live in `ChartSettingsModal.tsx` / `appearanceLaw.ts`. This lane will not touch them without telling the coordinator first.
+- **Per-species colour (e3f7686, LIVE 11:54:47).** Chart Settings → "Profile colour · each species" offers one swatch for each of 9 species. Session · Classic VP keeps the VP palette and Bid/Ask keeps the delta inks.
+  - `appearanceLaw.lawfulSpeciesInks` refuses an ink, by name, that the field would swallow, that is too close to the POC, that twins another species, or that is not a colour. The refusal is shown under the swatch.
+  - `ProfileInk.species()` restyles VALUE / TAIL / WASH only; the POC and the value-area edges stay the family's.
+  - **Read on serving 11:56** (BTC-USD 15m clean, 834): Composite set to `#3a7bd5` → blue pixels on the canvases 78 → 4,674. The Composite body is blue and the CMP POC chip stays brass (screenshot). No refusal shown. `wm_chartSettings` untouched.
+- **Status (colour): PROVED** for the colour path on Composite; the other species share the same code path, unread.
+- These controls live in `ChartSettingsModal.tsx` / `appearanceLaw.ts`. This lane will not touch them without telling the coordinator first.
 
 ### 2a. Repair — Visible Range Profile material (this lane, tree, SHIPPABLE 10:27 CDT)
 
@@ -127,6 +132,54 @@ The weakest material was the Visible Range Profile.
 - **New receipt:** `visibleRangeProfileMaterial=LIT_GLASS+TIP`, withdrawn when the lane does not draw.
 - **Gate:** the new `src/components/chart/visibleRangeLitGlass.sentinel.test.ts`, plus the profile family's six existing sentinels (7 files, 142 tests, green at 10:27).
 - **Serving:** LIVE in `135eec5` (10:36:07 CDT). Read at 834 at 10:39: `LIT_GLASS+TIP`, 79 rows. **Owed:** 1440 and 390.
+
+---
+
+## 2d. Flow & Order Flow family — nine-gate certification matrix (FF-xx)
+
+**What was read.** Read on serving `e3f7686` at 11:57–12:01 CDT, BTC-USD 1m, `scene=clean`, at 834, in this lane's own tab.
+- Read-only, except one tool toggled in the Tools drawer for Exhaustion. That is held in a proof scene: `wm_exhaustion` read `"false"` after the toggle.
+- Receipts are `canvas.dataset`, quoted as read.
+- Absorption's body-vs-geometry question stays a **FOUNDER DECISION** (K-03) and is not judged here.
+
+**The nine gates.**
+
+| Gate | What it asks |
+|---|---|
+| E | exists on glass |
+| D | data contract honest (evidence grade, refusal) |
+| G | geometry at the real time / price |
+| C | cinematic / material, not a hairline |
+| Ct | appearance controls |
+| I | interaction (Inspect / first touch) |
+| P | performance receipt |
+| R | responsiveness (sizes read) |
+| T | truth (no fabrication) |
+
+**Cell marks.** ✔ read today · ◐ partial · ✗ failed · — not read today.
+
+| ID | Invention | Receipt (serving, today) | E | D | G | C | Ct | I | P | R | T | Status |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| FF-01 | Footprint · Bid × Ask | `footprintForm=CELLS`, 25 bars / 93 rows, `tapeCoverage …SIDED_BARS:25\|COVERS_VIEW`, `nearTapeSides=OBSERVED`, `fpCellText=0` | ✔ | ✔ | ✔ | ◐ | ◐ | — | — | ◐ (834) | ✔ | **PARTIALLY PROVED**: cell numbers are withheld at this zoom (`fpCellText=0`); Inspect not read |
+| FF-02 | Delta (per bar) | `nearBarDelta=12`, `nearBarDeltaBasis=PROVIDER`, row of signed Δ under the bars | ✔ | ✔ | ✔ | ✔ | — | — | — | ◐ | ✔ | **PARTIALLY PROVED** |
+| FF-03 | Delta bubbles | `footprintForm=TRAIL`, `deltaBubblesDrawn=65`, `footprintRings=65` | ✔ | ✔ | ✔ | ✔ | ✔ (delta inks) | — | — | ◐ | ✔ | **PARTIALLY PROVED** (Inspect, other sizes) |
+| FF-04 | CVD (notch on price) | `cvdNotches=PROPOSED:10\|SIDES:0\|M35\|U0`, `cvdSource=OFF` | ✔ | ◐ | ✔ | ◐ (small triangles) | — | — | — | ◐ | ✔ | **PARTIALLY PROVED**: the CVD source reads OFF while notches are proposed. Owed: a read of what feeds them |
+| FF-05 | Big trades | `bigTradeBubbleStatus=DRAWN`, 15 bubbles, `INDIVIDUAL_EXECUTION`, `bigTradeOverlaps=0`, `bigTradeFormingCut=YIELDS:5` | ✔ | ✔ | ✔ | ✔ | ✔ (size, inks) | — | — | ◐ | ✔ | **PROVED** (834; cert F07A PROVED) |
+| FF-06 | Stacked imbalances | `imbalanceStack=DRAWN`, `imbalanceSlabs=2\|BUY:2`, `RUNS:10\|BARS:25`, `imbalanceCellsSalience=OUTLINE1\|MIN_H3` | ✔ | ✔ | ✔ | ✔ (slabs) | — | — | — | ◐ | ✔ | **PROVED** (834) |
+| FF-07 | Intra-candle distribution (footprint volume profile) | `footprintForm=HISTOGRAM`, 25 bars / 98 rows | ✔ | ✔ | ✔ | ✗ | — | — | — | ◐ | ✔ | **OPEN**: rows are **brass hairlines** beside each body, the same white-line defect. Next repair |
+| FF-08 | Aggressive / Passive | `footprintForm=TRAIL`, `aggPassiveRings=62`, `aggPassiveIntoExtreme=12` | ✔ | ✔ | ✔ | ✔ | — | — | — | ◐ | ✔ | **PARTIALLY PROVED** |
+| FF-09 | Effort → Response | `effortResponse=DRAWN:N39\|A3\|I3\|V1…`, `responseCells=39\|ABS:3\|INIT:3\|VAC:1`, cost `0.10ms\|MET` | ✔ | ✔ | ✔ | ◐ | — | — | ✔ | ◐ | ✔ | **PARTIALLY PROVED** |
+| FF-10 | Failed aggression | Delta Keel `barDeltaKeels=38\|BASIS:TAPE39\|FAIL:13`, cost `0.20ms\|MET`; the wisdom line reads `crossCandleWisdom=SILENT:NO_EVIDENCE_OBJECT` | ◐ | ✔ | ✔ | ✗ (keel ticks 1–3 px) | — | — | ✔ | ◐ | ✔ | **PARTIALLY PROVED**: failures are counted, but the keel is tiny (`L3\|W2`), and the cert's C-09 plate is still absent |
+| FF-11 | Absorption | `absorption=DRAWN`, 3 zones, `absorptionBasis=INFERRED_DELTA`, `SHELF+EFFORT_TICKS`, terrain 30 bars | ✔ | ✔ (says INFERRED) | ✔ | ✔ | ✔ (shelf ink) | — | — | ◐ | ✔ | **PARTIALLY PROVED** (form: K-03 FOUNDER DECISION) |
+| FF-12 | Exhaustion | `exhaustion=1`, `exhaustionGeometry=FUEL:3+SLOTS:3`, `exhaustionEffortResult=DOWN:EFFORT_64%+RESULT_28PX` | ✔ | ✔ | ✔ | ✔ | — | — | — | ◐ | ✔ | **PARTIALLY PROVED**: first serving read; the cert said "never read on serving" |
+
+**What the matrix says.**
+- The family exists and is honest on a sided market: no FULL claim without observed sides, and refusals carry their reasons.
+- The open gates are:
+  - **C** (material) for intra-candle distribution and the Delta Keel;
+  - **I** (Inspect), not read this pass;
+  - **R**: 834 only.
+- Next repair: **FF-07**, the intra-candle histogram, out of hairlines.
 
 ### 2c. Repair — Fixed Range solid slab (this lane, `c4d4d4c`, LIVE 11:12:23 CDT)
 

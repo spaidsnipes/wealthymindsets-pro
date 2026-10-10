@@ -170,7 +170,8 @@ describe("trade from the chart: draggable DRAFT lines and Trade at <price> (Foun
     const j = CHART.indexOf("useEffect(() => {\n    if (!brokerLineNote) return;", i);
     expect(i).toBeGreaterThan(0); expect(j).toBeGreaterThan(i);
     const block = CHART.slice(i, j);
-    expect(block).toContain('deliverChartDraftPrice(symbol, cur.role, cur.pending, "DRAG")');
+    // Delivered in the move itself (no rAF hop — one frame faster to the ticket, 2026-10-10).
+    expect(block).toContain('deliverChartDraftPrice(symbol, d.role, px, "DRAG")');
     expect(block).not.toMatch(/fetch\(|\/api\/|placeOrder|submitOrder|sendOrder|localStorage/);
     expect(block).toContain("if (!chartOrderLineDraggable(l)) return;");
     expect(LINES).toContain('return l.status === "STAGED" && (l.role === "ENTRY" || l.role === "STOP" || l.role === "TARGET");');

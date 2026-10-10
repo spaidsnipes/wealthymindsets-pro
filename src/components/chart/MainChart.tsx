@@ -539,7 +539,7 @@ import { selectMemoryGhost, type MemoryGhostVM } from "@/lib/marketData/viewMode
 import { DEFAULT_STACK_PREFS, orderStack, stackWidth, type ProfileStackPrefs } from "@/lib/marketData/viewModels/profileStackPrefs";
 import { selectExpectedEnvelope, type ExpectedEnvelopeVM } from "@/lib/marketData/viewModels/selectExpectedEnvelope";
 import { selectMtfAncestry, type MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
-import { chainScopeWithheldWords, chainScopeWords, wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
+import { chainScopeWithheldWords, chainScopeWords, wallLifeWord, wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import { EMPTY_WALL_LEDGER, stepWallExits, wallExitWords, type WallExitLedger } from "@/lib/chart/wallExit";
 import { livingMarketReceipt, motionAllowed, prefersReducedMotion, readLivingMarket, writeLivingMarket, listenForLivingMarket, type LivingMarket } from "@/lib/chart/livingMarket";
 import {
@@ -7053,8 +7053,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const releaseDraftDragScale = useCallback(() => {
     if (!draftDragScaleHeldRef.current) return;
     draftDragScaleHeldRef.current = false;
-    manualPriceRangeRef.current = null;
-    try { candleRef.current?.applyOptions({ autoscaleInfoProvider: autoscaleProviderRef.current }); } catch { /* next fit restores */ }
+    try { chartRef.current?.priceScale("right").applyOptions({ autoScale: true }); } catch { /* next fit restores */ }
   }, []);
   const beginDraftDrag = useCallback((l: ChartOrderLine, e: React.PointerEvent<HTMLButtonElement>) => {
     if (!chartOrderLineDraggable(l)) return;
@@ -7064,17 +7063,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     draftDragReleaseRef.current?.();
     draftDragReleaseRef.current = claimChartInteraction("PLACEMENT", "chart-draft-drag");
     // THE PRICE SCALE HOLDS STILL UNDER THE HAND: a tick that re-fits the auto scale
-    // mid-drag would slide the price out from under the finger. The current range is
-    // pinned for the drag (only if the trader had none) and released at the end.
-    if (!manualPriceRangeRef.current) {
-      const cs = candleRef.current, h = containerRef.current?.clientHeight ?? 0;
-      const top = cs && h > 0 ? cs.coordinateToPrice(0) : null, bot = cs && h > 0 ? cs.coordinateToPrice(h) : null;
-      if (cs && top != null && bot != null && Number.isFinite(+top) && Number.isFinite(+bot)) {
-        manualPriceRangeRef.current = { min: Math.min(+top, +bot), max: Math.max(+top, +bot) };
-        draftDragScaleHeldRef.current = true;
-        try { cs.applyOptions({ autoscaleInfoProvider: autoscaleProviderRef.current }); } catch { /* scale keeps fitting */ }
-      }
-    }
+    // mid-drag would slide the price out from under the finger. Auto-fit is switched
+    // off for the drag — the library then keeps EXACTLY the range on screen (a range
+    // rebuilt from pixel edges did not: serving e3f7686 drifted a net-zero drag
+    // 31070 → 31013.75) — and switched back on at the end only if it was on.
+    try {
+      const ps = chartRef.current?.priceScale("right");
+      if (ps && ps.options().autoScale) { ps.applyOptions({ autoScale: false }); draftDragScaleHeldRef.current = true; }
+    } catch { /* the scale keeps fitting */ }
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* capture is a nicety */ }
     draftDragRef.current = { id: l.id, role: l.role as "ENTRY" | "STOP" | "TARGET", lastSent: l.price, raf: 0, pending: null };
     setDraftDrag({ id: l.id, price: l.price });
@@ -7086,13 +7082,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (px == null) return;
     setDraftDrag({ id: d.id, price: px });
     d.pending = px;
-    // At most one delivery a frame, and only when the snapped price changed.
-    if (!d.raf) d.raf = requestAnimationFrame(() => {
-      const cur = draftDragRef.current;
-      if (!cur) return;
-      cur.raf = 0;
-      if (cur.pending != null && cur.pending !== cur.lastSent) { cur.lastSent = cur.pending; deliverChartDraftPrice(symbol, cur.role, cur.pending, "DRAG"); }
-    });
+    // Delivered IN the move, only when the snapped price changed: the browser already
+    // coalesces pointer moves to one per frame, and a rAF hop here cost the ticket a
+    // whole extra frame (serving e3f7686: handle p95 20 ms, ticket field p95 35 ms).
+    // Handle and ticket now commit in the same render.
+    if (px !== d.lastSent) { d.lastSent = px; deliverChartDraftPrice(symbol, d.role, px, "DRAG"); }
   }, [draftPriceAt, symbol]);
   const endDraftDrag = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
     const d = draftDragRef.current;
@@ -7985,6 +7979,36 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const chart = chartRef.current;
       if (!chart || !candleRef.current) return;
       const srs = candleRef.current;
+      // THE LIBRARY'S OWN MARKER WORDS (pattern "E"/"CHoCH"/"3WS", Pine shapes)
+      // are painted by lightweight-charts on its canvas, outside this gate, so
+      // overlay words used to land on them (Founder: text overlap, 2026-10-10).
+      // Each visible marker's text CLAIMS its box first; later overlay words
+      // that would cover it yield like any other overlap. The verdict is
+      // ignored: the library has already painted the marker.
+      try {
+        const mk = [
+          ...((markersPluginRef.current?.markers?.() ?? []) as { time: number; position?: string; text?: string }[]),
+          ...((pineMarkersPluginRef.current?.markers?.() ?? []) as { time: number; position?: string; text?: string }[]),
+        ].filter(m => typeof m.text === "string" && m.text.trim().length > 0);
+        if (mk.length) {
+          const byTime = new Map<number, LegacyOhlcvTuple>();
+          for (const b of barsRef.current ?? []) byTime.set(b.time as number, b);
+          const tsM = chart.timeScale();
+          ctx.save();
+          ctx.font = `12px ${MARKET_SANS}`;
+          for (const m of mk) {
+            const b = byTime.get(m.time as number);
+            const xr = tsM.timeToCoordinate(m.time as never);
+            if (!b || xr == null) continue;
+            const yH = srs.priceToCoordinate(b.high), yL = srs.priceToCoordinate(b.low);
+            if (yH == null || yL == null) continue;
+            const w = Math.ceil(ctx.measureText(m.text!).width) + 4, h = 34;
+            const y = m.position === "belowBar" ? +yL + 2 : m.position === "aboveBar" ? +yH - 2 - h : (+yH + +yL) / 2 - h / 2;
+            wordGate.panel(m.text!, { x: +xr - w / 2, y, w, h });
+          }
+          ctx.restore();
+        }
+      } catch { /* a marker read never stops the frame */ }
 
       /* ══ H-501 · SEMANTIC DENSITY — which geometry may speak at this depth ══
          Computed ONCE per frame from the same visible-bar count the zoom
@@ -19349,7 +19373,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 // brick-stack mark carries it, never a sliver.
                 const edgeUp = yc < HEADER_FLOOR_Y + WALL_EDGE_BODY_PX;
                 if (edgeUp || yc > paneBotD - WALL_EDGE_BODY_PX) {
-                  offCamera.push(`${edgeUp ? "▲" : "▼"} WALL ${fmtD(w.strike)} · ${w.life}`);
+                  offCamera.push(`${edgeUp ? "▲" : "▼"} WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}`);
                   offWalls.push({ strike: w.strike, share: Number.isFinite(w.share) ? w.share : 0, up: edgeUp });
                   painted.push(`WALL@${w.strike}:${w.life}:OFF_CAMERA`);
                   continue;
@@ -19396,7 +19420,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 const top = yc - wallH / 2;
                 const brickW = 26;
                 const depth = 7;
-                const broken = w.life === "BROKEN";
+                // §11 lifecycle, one look per state: BORN clean · TESTED one crack ·
+                // DEFENDED cracks + a brass reinforced coping · WEAKENED knocked-out
+                // bricks · BREAKING a breach · BROKEN the ghost + rubble · SCARRED an
+                // outline only (the break accepted — history, not a wall).
+                const scarred = w.life === "SCARRED";
+                const broken = w.life === "BROKEN" || scarred;
                 const breaking = w.life === "BREAKING";
                 const weak = w.life === "WEAKENING";
                 // Deterministic per-brick variation (material, never random per frame).
@@ -19484,6 +19513,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     if (bw < 4) continue;
                     const r = hash(c, n);
                     if (breaking && Math.abs(bx0 + bw / 2 - gapMid) < gapHalf) continue;
+                    if (scarred) continue; // no bricks: the outline below is all that is left
                     if (weak && r < 0.2) {
                       // A knocked-out brick: a dark socket, not just absence.
                       ctx.fillStyle = `rgba(6,5,4,${0.8 * baseA})`;
@@ -19552,7 +19582,27 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                     ctx.fillRect(rx, ry, rs, rs * 0.7);
                   }
                 }
-                if (broken) {
+                if (scarred) {
+                  // SCARRED: the wall's footprint as one dashed outline and a faint
+                  // 45° hatch — where a wall stood and the market has since lived beyond.
+                  ctx.strokeStyle = `rgba(200,172,120,${0.38 * baseA})`;
+                  ctx.setLineDash([4, 4]);
+                  ctx.strokeRect(x0 + 0.5, top + 0.5, len - 1, wallH - 1);
+                  ctx.setLineDash([]);
+                  ctx.save();
+                  ctx.beginPath(); ctx.rect(x0, top, len, wallH); ctx.clip();
+                  ctx.strokeStyle = `rgba(200,172,120,${0.14 * baseA})`;
+                  ctx.beginPath();
+                  for (let hx = x0 - wallH; hx < x1; hx += 9) { ctx.moveTo(hx, top + wallH); ctx.lineTo(hx + wallH, top); }
+                  ctx.stroke();
+                  ctx.restore();
+                }
+                if (w.life === "DEFENDED") {
+                  // DEFENDED: a brass reinforced coping — the tests held.
+                  ctx.fillStyle = `rgba(212,175,55,${0.75 * baseA})`;
+                  ctx.fillRect(x0 + depth, top - depth - 1, len - depth, 2);
+                }
+                if (broken && !scarred) {
                   // The scar: a rubble line along the foot of the ghost.
                   ctx.fillStyle = `rgba(150,124,82,${0.4 * baseA})`;
                   for (let k = 0; k < Math.floor(len / 9); k++) {
@@ -19662,7 +19712,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.restore();
                 masonryRects.push({ x: x0, y: top - 2, w: len + 2, h: wallH + 4 });
                 const seenW = wallTestSpanWords(dp.testSpanSec);
-                if (wallsSpeak) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${w.life}${w.tests ? ` ×${w.tests}` : ""}${seenW ? ` · ${seenW}` : ""}`, x: x0, y: top + wallH / 2 });
+                if (wallsSpeak) wallWords.push({ word: `WALL ${fmtD(w.strike)} · ${wallLifeWord(w.life)}${w.tests ? ` ×${w.tests}` : ""}${seenW ? ` · ${seenW}` : ""}`, x: x0, y: top + wallH / 2 });
                 painted.push(`WALL@${w.strike}:${w.life}:${w.tests}`);
               }
               void strikesSorted;
@@ -20373,7 +20423,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             // ONE status line for the family: grade, source, OI clock, and what yields or waits.
             const wgNarrowTruth: string[] = [];
-            if (wordsSpeak) {
+            // Narrow glass withholds a SUPPORTING layer's words (the phone budget), but the family's
+            // TRUTH — grade, source, OI clock, as-of, MODEL — is said once, folded (below), like a data gap.
+            if (wordsSpeak || narrowGlass) {
               const src = gex?.drawn ? positioningSourceWords(gex.source) : null;
               const asOfW = gex?.drawn && gex.clocks.chainAsOf ? new Date(gex.clocks.chainAsOf).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) + " ET" : null;
               const parts: string[] = [];
@@ -20403,7 +20455,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             // OFF-CAMERA marks are named at the glass edge (▲ above / ▼ below), never silently dropped.
             ds.wallsGammaEdge = `${out.offCamera.above.length}/${out.offCamera.below.length}`;
-            if (wordsSpeak && narrowGlass) {
+            if (narrowGlass) {
               // ONE FOLDED LINE, left at the silence column, clear of the newest column and every chip;
               // declared truth to the word registry, so it is never held and never cut.
               ctx.save();

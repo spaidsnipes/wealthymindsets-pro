@@ -37,6 +37,12 @@ export function TicketBookRows({ book, acks, busyId, onCancel, onFlatten }: {
         </span>
       </div>
 
+      {book.rejected ? (
+        <div role="status" data-testid="trade-rejected-order" data-order-id={book.rejected.id} style={{ display: "grid", gap: 2 }}>
+          <span style={{ color: RED, fontSize: 11, fontWeight: 700, overflowWrap: "anywhere" }}>{book.rejected.words}</span>
+          <span style={{ color: INK, fontSize: 11, overflowWrap: "anywhere" }}>tastytrade says: {book.rejected.brokerReason != null ? <q data-testid="trade-reject-reason">{book.rejected.brokerReason}</q> : "no reason was given"}</span>
+        </div>
+      ) : null}
       <div data-testid="trade-working-orders" data-count={book.working.length} style={{ display: "grid", gap: 4, ...MONO }}>
         <span style={small()}>WORKING ORDERS · {book.working.length === 0 ? (p.state === "NOT READ" ? "not read" : "none on this contract") : `${book.working.length} · cancel stays open`}</span>
         {book.working.map(o => {

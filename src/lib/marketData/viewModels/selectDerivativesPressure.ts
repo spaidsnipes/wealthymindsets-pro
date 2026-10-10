@@ -77,7 +77,19 @@ export function chainScopeGrade(scope: ChainScope): "FULL" | "PARTIAL" {
 }
 
 export type Climate = "DAMPING" | "AMPLIFYING" | "MIXED" | "INSUFFICIENT_EVIDENCE";
-export type WallLife = "BORN" | "TESTED" | "DEFENDED" | "WEAKENING" | "BREAKING" | "BROKEN";
+export type WallLife = "BORN" | "TESTED" | "DEFENDED" | "WEAKENING" | "BREAKING" | "BROKEN" | "SCARRED";
+/**
+ * SCARRED (order §11: BORN → TESTED → DEFENDED → WEAKENED → BROKEN → SCARRED,
+ * 2026-10-10): a broken wall whose break the market has ACCEPTED — this many
+ * consecutive observed session closes beyond it. BROKEN is the fresh break
+ * (2–3 sessions); SCARRED is history: the strike still holds open interest,
+ * but price has lived on the far side. Observed closes only, never inferred.
+ */
+export const WALL_SCAR_SESSIONS = 4;
+/** The canon's word for each lifecycle state (WEAKENING is drawn and said as WEAKENED). */
+export function wallLifeWord(life: WallLife): string {
+  return life === "WEAKENING" ? "WEAKENED" : life;
+}
 
 /** The chart's own bar shape (M8: no private bar shapes). */
 export type PressureBar = Pick<LegacyOhlcvTuple, "time" | "open" | "high" | "low" | "close">;
@@ -247,7 +259,8 @@ export function wallLife(strike: number, barsIn: readonly PressureBar[], spot: n
   }
   const crossed = closesBeyond > 0 && origin !== side ? closesBeyond : 0;
   let life: WallLife;
-  if (crossed >= 2) life = "BROKEN";
+  if (crossed >= WALL_SCAR_SESSIONS) life = "SCARRED";
+  else if (crossed >= 2) life = "BROKEN";
   else if (crossed >= 1) life = "BREAKING";
   else if (tests >= 4) life = "WEAKENING";
   else if (tests >= 2) life = "DEFENDED";

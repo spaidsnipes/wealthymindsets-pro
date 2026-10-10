@@ -54,7 +54,7 @@ describe("WORKING ORDERS — each has a cancel; the words are the broker's", () 
     expect(w.words).toBe("WORKING at tastytrade · #101 · Sell to Close 1 /MNQZ6 · trigger 24900");
   });
   it("partially filled and cancel-pending use the broker's own state", () => {
-    expect(withOrder({ state: "PARTIALLY FILLED", filled: 1, quantity: 3, price: "25050", stopTrigger: null, orderType: "Limit" }).working[0].words).toBe("PARTIALLY FILLED · #101 · Sell to Close 1/3 /MNQZ6 @ 25050");
+    expect(withOrder({ state: "PARTIALLY FILLED", filled: 1, quantity: 3, price: "25050", stopTrigger: null, orderType: "Limit" }).working[0].words).toBe("PARTIALLY FILLED · #101 · Sell to Close filled 1 of 3 · 2 still working /MNQZ6 @ 25050"); // 2026-10-10: both halves said
     expect(withOrder({ state: "CANCEL_PENDING" }).working[0].words).toMatch(/^CANCEL REQUESTED · not yet confirmed · #101/);
   });
   it("cancel is refused AT the control when tastytrade says not cancellable, or the account was not read back", () => {

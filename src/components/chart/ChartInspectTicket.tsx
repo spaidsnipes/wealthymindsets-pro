@@ -60,7 +60,7 @@ import { RESPONSE_BARS, type PrintResponseVM } from "@/lib/marketData/viewModels
 import type { ContradictionVM } from "@/lib/marketData/viewModels/selectContradiction";
 import type { MemoryGhostVM } from "@/lib/marketData/viewModels/selectMemoryGhost";
 import type { MtfAncestryVM } from "@/lib/marketData/viewModels/selectMtfAncestry";
-import { chainScopeWords, wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
+import { chainScopeWords, WALL_SCAR_SESSIONS, wallLifeWord, wallTestSpanWords, type DerivativesPressureVM } from "@/lib/marketData/viewModels/selectDerivativesPressure";
 import { LEARN_LESSON, learnHref, type LearnableSelection } from "@/lib/academy/academyContinuity";
 import { printLocationInStructure, type PrintLocationVM } from "@/lib/marketData/viewModels/printLocationInStructure";
 import type { MarketStructureVM } from "@/lib/marketData/viewModels/selectMarketStructure";
@@ -1582,16 +1582,17 @@ export function ChartInspectTicket({
           DEFENDED: "tested and held more than once",
           WEAKENING: "tested repeatedly — each test costs it material",
           BREAKING: "price is closing beyond it",
-          BROKEN: "accepted through — what remains is a scar",
+          BROKEN: "closed beyond for 2–3 sessions — freshly broken",
+          SCARRED: `accepted through for ${WALL_SCAR_SESSIONS}+ sessions — what remains is a scar, history not a wall`,
         };
         const contra = dp.climate === "AMPLIFYING"
           ? "The global climate is AMPLIFYING while this strike is locally defensive — local geography and global climate disagree."
-          : w.life === "WEAKENING" || w.life === "BREAKING" || w.life === "BROKEN"
+          : w.life === "WEAKENING" || w.life === "BREAKING" || w.life === "BROKEN" || w.life === "SCARRED"
             ? "The model expects damping here; the observed response is failing to confirm it. Actual response outranks the model."
             : "None observed: the response so far agrees with the expected defence.";
         return (
           <div className="mt-1.5 border-t border-wm-border pt-1 text-[10px] leading-snug" data-inspect-pressure-wall={`${w.strike}:${w.life}`} style={{ color: "#C8C0AE" }}>
-            <div className="font-bold tracking-wide text-wm-gold">PRESSURE WALL {mtfPx(w.strike)} · {w.life}</div>
+            <div className="font-bold tracking-wide text-wm-gold">PRESSURE WALL {mtfPx(w.strike)} · {wallLifeWord(w.life)}</div>
             <EvidenceLine timeZone={timeZone} testId="inspect-wall-evidence" ev={inspectEvidence({ kind: "DERIVATIVES", drawn: true, fidelity: dp.fidelity, sourceName: positioningSourceWords(dp.source).name, asOfMs: dp.clocks.modelAsOf * 1000 }, feed)} />
             <div>What · a damping concentration: dealer hedging expected to lean AGAINST moves through {mtfPx(w.strike)} (not a direction call)</div>
             <div>Where · strike {mtfPx(w.strike)}, price {w.side === "ABOVE" ? "above" : "below"} it · {(w.share * 100).toFixed(1)}% of gross exposure</div>

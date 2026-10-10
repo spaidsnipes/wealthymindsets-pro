@@ -101,12 +101,13 @@ describe("sync: ticket → line and line → ticket", () => {
 });
 
 describe("the price scale holds still under a drag", () => {
-  it("the drag pins the visible range only if the trader had none, and releases it at the end", () => {
+  it("auto-fit is switched off for the drag (the library keeps the exact range) and back on at the end only if it was on", () => {
     const begin = CHART.slice(CHART.indexOf("const beginDraftDrag = useCallback("), CHART.indexOf("const moveDraftDrag = useCallback("));
-    expect(begin).toMatch(/if \(!manualPriceRangeRef\.current\) \{/);
-    expect(begin).toContain("draftDragScaleHeldRef.current = true;");
+    expect(begin).toMatch(/if \(ps && ps\.options\(\)\.autoScale\) \{ ps\.applyOptions\(\{ autoScale: false \}\); draftDragScaleHeldRef\.current = true; \}/);
+    // No range rebuilt from pixel edges (it drifted a net-zero drag on serving e3f7686).
+    expect(begin).not.toMatch(/manualPriceRangeRef\.current = \{/);
     const end = CHART.slice(CHART.indexOf("const endDraftDrag = useCallback("), CHART.indexOf("const nudgeDraftLine = useCallback("));
     expect(end).toContain("releaseDraftDragScale();");
-    expect(CHART).toMatch(/if \(!draftDragScaleHeldRef\.current\) return;\s*draftDragScaleHeldRef\.current = false;\s*manualPriceRangeRef\.current = null;/);
+    expect(CHART).toMatch(/if \(!draftDragScaleHeldRef\.current\) return;\s*draftDragScaleHeldRef\.current = false;\s*try \{ chartRef\.current\?\.priceScale\("right"\)\.applyOptions\(\{ autoScale: true \}\); \}/);
   });
 });

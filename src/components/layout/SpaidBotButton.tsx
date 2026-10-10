@@ -3,6 +3,7 @@
 
 import { SPAIDBOT_PANEL_BOUNDARY } from "@/lib/execution/ticketTruth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { WM } from "@/lib/design/wmTokens";
 import { useAuth } from "@/contexts/AuthContext";
 import { readSceneDecision } from "@/lib/traderMemory/decisionContinuity";
 import { SPAIDBOT_IDLE_TIMEOUT_MS, spaidbotFailureMessage, withSceneDecisionId, withScenePlan, spaidbotContextPublish, type SpaidbotContextPublish } from "@/lib/ai/spaidbotContext";
@@ -329,11 +330,11 @@ export function SpadeBotButton({ launcher = true }: {
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ type: "spring", stiffness: 420, damping: 32 }}
             className="wm-spaidbot-panel fixed bottom-20 right-5 z-50 flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-wm-border"
-            style={{ width: panelW, height: panelH, background: "#0D0E14", transition: "width .25s, height .25s" }}
+            style={{ width: panelW, height: panelH, background: WM.surface.deep, borderColor: WM.border.line, transition: "width .25s, height .25s" }}
           >
             {/* Header */}
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-wm-border shrink-0"
-              style={{ background: "linear-gradient(90deg,#0F1018,#111320)" }}>
+              style={{ background: `linear-gradient(90deg, ${WM.surface.mid}, ${WM.surface.deep})`, borderColor: WM.border.line }}>
               <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: "linear-gradient(135deg,#c4a574,#8b6a29)" }}>
                 <Zap size={15} className="text-white"/>
@@ -341,9 +342,10 @@ export function SpadeBotButton({ launcher = true }: {
               <div className="flex-1 min-w-0">
                 <div className="text-[13px] font-black text-wm-text">{botName}</div>
                 <div className="text-[9px] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full inline-block animate-pulse"
-                    style={{ background: "#4FA3E0" }}/>
-                  <span className="text-wm-blue font-semibold">Analysis and learning mode</span>
+                  {/* A mode label, not a live signal: a still brass mark, no pulse. */}
+                  <span className="w-1.5 h-1.5 rounded-full inline-block"
+                    style={{ background: WM.gold.mark }}/>
+                  <span className="font-semibold" style={{ color: WM.gold.mark }}>Analysis and learning mode</span>
                 </div>
               </div>
               <button type="button" onClick={() => setExpanded(e => !e)}
@@ -363,7 +365,7 @@ export function SpadeBotButton({ launcher = true }: {
             </p>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0" style={{ background: "#0A0B10" }}>
+            <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0" style={{ background: WM.surface.deepest }}>
               {messages.map((m, i) => {
                 const isUser = m.role === "user";
                 const displayText = m.content;
@@ -383,9 +385,9 @@ export function SpadeBotButton({ launcher = true }: {
                         <div
                           className="rounded-xl px-3 py-2.5 text-[12px] leading-relaxed"
                           style={{
-                            background: isUser ? "linear-gradient(135deg,#c4a57418,#8b6a2918)" : "#111320",
-                            border: isUser ? "1px solid rgba(196,165,116,0.22)" : "1px solid #1E2030",
-                            color: isUser ? "#E2E8F0" : "#C8D0E0",
+                            background: isUser ? "linear-gradient(135deg,#c4a57418,#8b6a2918)" : WM.surface.mid,
+                            border: isUser ? "1px solid rgba(196,165,116,0.22)" : `1px solid ${WM.border.line}`,
+                            color: isUser ? WM.text.hero : WM.text.body,
                           }}
                           dangerouslySetInnerHTML={{ __html: renderMd(displayText) }}
                         />
@@ -403,7 +405,7 @@ export function SpadeBotButton({ launcher = true }: {
               {streaming && (
                 <div className="flex items-center gap-1.5 px-1">
                   {[0,150,300].map(d => (
-                    <span key={d} className="w-1.5 h-1.5 rounded-full bg-wm-green animate-bounce"
+                    <span key={d} className="w-1.5 h-1.5 rounded-full bg-wm-brass-mark animate-bounce"
                       style={{ animationDelay: `${d}ms` }}/>
                   ))}
                 </div>
@@ -413,15 +415,15 @@ export function SpadeBotButton({ launcher = true }: {
 
             {/* Suggestions strip */}
             {messages.length <= 1 && (
-              <div className="px-3 py-2 border-t border-wm-border shrink-0" style={{ background: "#0D0E14" }}>
+              <div className="px-3 py-2 border-t border-wm-border shrink-0" style={{ background: WM.surface.deep, borderColor: WM.border.hair }}>
                 <p className="text-[9px] text-wm-text-dim mb-1.5 font-semibold uppercase tracking-wide">Quick commands</p>
                 <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
                   {SUGGESTIONS.map(s => (
                     <button key={s} onClick={() => send(s)}
                       className="text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap border shrink-0 transition-all"
-                      style={{ background: "rgba(255,255,255,0.04)", borderColor: "#1E2030", color: "#8B8FA8" }}
+                      style={{ background: WM.surface.mid, borderColor: WM.border.line, color: WM.text.muted }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.cssText += ";border-color:rgba(196,165,116,0.4);color:#c9a55c"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.cssText += ";border-color:#1E2030;color:#8B8FA8"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.cssText += `;border-color:${WM.border.line};color:${WM.text.muted}`; }}
                     >{s}</button>
                   ))}
                 </div>
@@ -430,7 +432,7 @@ export function SpadeBotButton({ launcher = true }: {
 
             {/* Input */}
             <div className="flex items-center gap-2 px-3 py-2.5 border-t border-wm-border shrink-0"
-              style={{ background: "#0D0E14" }}>
+              style={{ background: WM.surface.deep, borderColor: WM.border.hair }}>
               <input
                 ref={inputRef}
                 value={input}
@@ -439,9 +441,9 @@ export function SpadeBotButton({ launcher = true }: {
                 placeholder={streaming ? "Thinking…" : "Ask about evidence, risk, or market structure…"}
                 disabled={streaming}
                 className="flex-1 rounded-xl px-3 py-2 text-[12px] text-wm-text placeholder-wm-text-dim outline-none transition-all"
-                style={{ background: "#111320", border: "1px solid #1E2030" }}
+                style={{ background: WM.surface.mid, border: `1px solid ${WM.border.line}` }}
                 onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(196,165,116,0.4)"; }}
-                onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = "#1E2030"; }}
+                onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = WM.border.line; }}
               />
               {streaming ? (
                 <button aria-label="Stop response" onClick={stopStreaming}

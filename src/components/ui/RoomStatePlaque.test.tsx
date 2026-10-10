@@ -39,6 +39,8 @@ describe("RoomStatePlaque", () => {
       ["app/research-heat/page.tsx", "heat-archive-empty"],
       ["app/backtesting/page.tsx", "backtest-empty"],
       ["app/news/page.tsx", "news-empty-state"],
+      ["app/journal/page.tsx", "journal-list-empty"],
+      ["app/journal/page.tsx", "journal-detail-empty"],
     ] as const) {
       const src = readFileSync(resolve(SRC, file), "utf8");
       expect(src.length, file).toBeGreaterThan(2000);

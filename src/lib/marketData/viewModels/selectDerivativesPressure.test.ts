@@ -134,3 +134,19 @@ describe("§20 — a near-money subset claims no more than it heard (2026-10-09)
     if (vm.drawn) expect(vm.walls.map(w => w.strike)).not.toContain(104);
   });
 });
+
+describe("§11 wall lifecycle: BORN → TESTED → DEFENDED → WEAKENED → BROKEN → SCARRED (2026-10-10)", () => {
+  it("SCARRED needs WALL_SCAR_SESSIONS observed session closes beyond; BROKEN is the fresh 2–3", async () => {
+    const { wallLife, wallLifeWord, WALL_SCAR_SESSIONS } = await import("./selectDerivativesPressure");
+    const day = 86_400;
+    // Price came from below 100, then closed above it session after session.
+    const mk = (closes: number[]) => closes.map((c, i) => ({ time: 1_700_000_000 + i * day + 15 * 3600, open: c, high: c + 0.5, low: c - 0.5, close: c }));
+    const broken = wallLife(100, mk([98, 98.5, 101, 102]), 102);
+    expect(broken.life).toBe("BROKEN");
+    const scar = wallLife(100, mk([98, 98.5, ...Array(WALL_SCAR_SESSIONS).fill(103)]), 103);
+    expect(scar.life).toBe("SCARRED");
+    expect(scar.closesBeyond).toBeGreaterThanOrEqual(WALL_SCAR_SESSIONS);
+    expect(wallLifeWord("WEAKENING")).toBe("WEAKENED");
+    expect(wallLifeWord("SCARRED")).toBe("SCARRED");
+  });
+});

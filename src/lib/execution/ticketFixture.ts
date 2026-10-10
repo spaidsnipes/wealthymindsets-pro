@@ -19,7 +19,12 @@ import { selectBrokerOrderLines, type BrokerLinesResult, type BrokerReadback } f
 
 export const TICKET_FIXTURE_SCENE = "ticket-fixture";
 export const TICKET_FIXTURE_BANNER = "PROOF SCENE — sample book, not your account · nothing can be sent";
-export const TICKET_FIXTURE_STATES = ["flat", "holding", "working", "inflight", "noquote"] as const;
+export const TICKET_FIXTURE_STATES = ["flat", "holding", "working", "inflight", "noquote", "rejected", "stale", "partial"] as const;
+
+/** The SAMPLE broker rejection reason (state=rejected) — shown VERBATIM, as a real one would be. */
+export const TICKET_FIXTURE_REJECT_REASON = "SAMPLE — Insufficient buying power: this order requires 2,145.00, the account has 512.30 available.";
+/** How old the stale sample readback is (state=stale): past READBACK_STALE_MS, so everything reads RECONCILING. */
+export const TICKET_FIXTURE_STALE_AGE_MS = 45_000;
 export type TicketFixtureState = (typeof TICKET_FIXTURE_STATES)[number];
 
 export interface TicketFixture {
@@ -54,6 +59,28 @@ export const TICKET_FIXTURE_TAIL = "SMPL";
 export function ticketFixtureReadback(fx: TicketFixture, contract: string, refPx: number | null, nowMs: number): BrokerReadback {
   const px = refPx != null && Number.isFinite(refPx) && refPx > 0 ? refPx : 100;
   const long = fx.side === "BUY";
+  /*   rejected — flat; the entry order came back REJECTED with the broker's reason (shown verbatim);
+   *   stale    — holding + a working stop, but the last answer is TICKET_FIXTURE_STALE_AGE_MS old and the
+   *              latest read failed: every line and row reads RECONCILING; no fill is claimed;
+   *   partial  — the entry order is PARTIALLY FILLED (1 of 3): 1 held, 2 still working. */
+  if (fx.state === "rejected") {
+    const rejected: TtOrderView = {
+      id: "9000002", status: "Rejected", state: "REJECTED", symbol: contract, action: long ? "Buy to Open" : "Sell to Open", quantity: 1, filled: 0,
+      price: String(px), stopTrigger: null, orderType: "Limit", externalId: null, cancellable: false, rejectReason: TICKET_FIXTURE_REJECT_REASON, updatedAt: null,
+    };
+    return { asOfMs: nowMs, ok: true, positions: [], orders: [rejected], tails: [TICKET_FIXTURE_TAIL], orderAccounts: { [rejected.id]: { index: 0, tail: TICKET_FIXTURE_TAIL } } };
+  }
+  if (fx.state === "partial") {
+    const entry: TtOrderView = {
+      id: "9000003", status: "Partially Filled", state: "PARTIALLY FILLED", symbol: contract, action: long ? "Buy to Open" : "Sell to Open", quantity: 3, filled: 1,
+      price: String(px), stopTrigger: null, orderType: "Limit", externalId: null, cancellable: true, rejectReason: null, updatedAt: null,
+    };
+    return {
+      asOfMs: nowMs, ok: true,
+      positions: [{ symbol: contract, quantity: 1, direction: long ? "Long" : "Short", averageOpenPrice: px, instrumentType: null }],
+      orders: [entry], tails: [TICKET_FIXTURE_TAIL], orderAccounts: { [entry.id]: { index: 0, tail: TICKET_FIXTURE_TAIL } },
+    };
+  }
   const holding = fx.state !== "flat" && fx.state !== "noquote";
   // A whole number: on tick for every listed future and for any stock (never 30988.28 on a 0.25 tick).
   const stopPx = Math.round(px * (long ? 0.995 : 1.005));
@@ -61,9 +88,10 @@ export function ticketFixtureReadback(fx: TicketFixture, contract: string, refPx
     id: "9000001", status: "Live", state: "WORKING", symbol: contract, action: long ? "Sell to Close" : "Buy to Close", quantity: 1, filled: 0,
     price: null, stopTrigger: String(stopPx), orderType: "Stop", externalId: null, cancellable: true, rejectReason: null, updatedAt: null,
   };
-  const withStop = fx.state === "working" || fx.state === "inflight";
+  const withStop = fx.state === "working" || fx.state === "inflight" || fx.state === "stale";
+  const stale = fx.state === "stale";
   return {
-    asOfMs: nowMs, ok: true,
+    asOfMs: stale ? nowMs - TICKET_FIXTURE_STALE_AGE_MS : nowMs, ok: !stale,
     positions: holding ? [{ symbol: contract, quantity: 1, direction: long ? "Long" : "Short", averageOpenPrice: px, instrumentType: null }] : [],
     orders: withStop ? [stop] : [],
     tails: [TICKET_FIXTURE_TAIL],

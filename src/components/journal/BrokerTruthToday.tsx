@@ -396,13 +396,45 @@ export function BrokerTruthToday() {
                   </ul>
                 ) : null}
                 {st.fills.length ? (
-                  <ul style={{ marginTop: 6, display: "grid", gap: 2, fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
+                  <>
+                  {/*
+                    A FILL LEDGER, NOT A RUN-ON SENTENCE (house pass 2026-10-10).
+                    Each fill was one dot-joined line, so the times, sizes and
+                    prices of eight fills never lined up and could not be read
+                    down a column. Same facts, same words, now in aligned,
+                    tabular columns — the broker's ledger read like a ledger.
+                    Wide enough tables scroll sideways on a phone instead of
+                    wrapping a price onto its own line.
+                  */}
+                  <div style={{ marginTop: 6, overflowX: "auto" }}>
+                  <table data-testid="broker-fill-ledger" style={{ borderCollapse: "collapse", fontSize: 12, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+                    <thead>
+                      <tr style={{ color: MUTED, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", textAlign: "left" }}>
+                        <th scope="col" style={{ padding: "2px 10px 4px 0", fontWeight: 700 }}>Fill</th>
+                        <th scope="col" style={{ padding: "2px 10px 4px 0", fontWeight: 700 }}>Time</th>
+                        <th scope="col" style={{ padding: "2px 10px 4px 0", fontWeight: 700 }}>Side</th>
+                        <th scope="col" style={{ padding: "2px 10px 4px 0", fontWeight: 700, textAlign: "right" }}>Qty</th>
+                        <th scope="col" style={{ padding: "2px 10px 4px 0", fontWeight: 700 }}>Instrument</th>
+                        <th scope="col" style={{ padding: "2px 10px 4px 0", fontWeight: 700, textAlign: "right" }}>Price</th>
+                        <th scope="col" style={{ padding: "2px 0 4px 0", fontWeight: 700, textAlign: "right" }}>Fees</th>
+                      </tr>
+                    </thead>
+                    <tbody>
                     {st.fills.map(f => (
-                      <li key={f.id}>
-                        <span style={{ color: "#7fd1a8" }}>FILL</span> · {time(f.executedAt)} · {f.action} {f.quantity} {f.symbol} @ {fillPx(f.price)}
-                        <span style={{ color: MUTED }}> · {f.feesReported === false ? "fees not reported" : `fees ${money(f.fees)}`}</span>
-                      </li>
+                      <tr key={f.id} style={{ borderTop: "1px solid rgba(139,106,41,0.15)" }}>
+                        <td style={{ padding: "2px 10px 2px 0", color: "#7fd1a8", fontWeight: 700 }}>FILL</td>
+                        <td style={{ padding: "2px 10px 2px 0" }}>{time(f.executedAt)}</td>
+                        <td style={{ padding: "2px 10px 2px 0" }}>{f.action}</td>
+                        <td style={{ padding: "2px 10px 2px 0", textAlign: "right" }}>{f.quantity}</td>
+                        <td style={{ padding: "2px 10px 2px 0" }}>{f.symbol}</td>
+                        <td style={{ padding: "2px 10px 2px 0", textAlign: "right" }}>{fillPx(f.price)}</td>
+                        <td style={{ padding: "2px 0", textAlign: "right", color: MUTED }}>{f.feesReported === false ? "not reported" : money(f.fees)}</td>
+                      </tr>
                     ))}
+                    </tbody>
+                  </table>
+                  </div>
+                  <ul style={{ marginTop: 4, display: "grid", gap: 2, fontSize: 12, fontVariantNumeric: "tabular-nums" }}>
                     {st.broker === "webull" ? (
                       // The rows above print Webull's fees where Webull states them
                       // (webullFills: feesReported); this footnote said "no fees"
@@ -414,6 +446,7 @@ export function BrokerTruthToday() {
                       <li style={{ color: MUTED }}>Net cash {cashKnown ? money(cash) : "not stated for every fill"} · fees {feesKnown ? money(fees) : "not reported for every fill"} — as tastytrade states it; P/L on open positions is not claimed here.</li>
                     )}
                   </ul>
+                  </>
                 ) : st.orders.length ? <p style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>No fill yet.</p> : null}
                 {(() => {
                   // Garden 19 §26/§28: the frozen plan against tastytrade's own fills and stop / target orders.

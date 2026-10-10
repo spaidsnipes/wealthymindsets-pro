@@ -60,7 +60,17 @@ export interface FlattenRow {
   readonly refusal: string | null;
 }
 
+/** The latest order on this contract the broker REJECTED — its reason quoted exactly as the broker sent it. */
+export interface RejectedRow {
+  readonly kind: "REJECTED ORDER";
+  readonly id: string;
+  readonly words: string;
+  /** The broker's own reason, verbatim (null when the broker gave none — said, not invented). */
+  readonly brokerReason: string | null;
+}
+
 export interface TicketBook {
+  readonly rejected: RejectedRow | null;
   readonly position: PositionStateRow;
   readonly working: readonly WorkingOrderRow[];
   readonly modify: ModifyRow;
@@ -102,7 +112,8 @@ export function ticketBook(broker: BrokerLinesResult | null, contract: string | 
       : null;
     return {
       kind: "WORKING ORDER", id: o.id, accountIndex: acct?.index ?? null, tail: acct?.tail ?? null, state: o.state,
-      words: `${brokerStateWords(o)} · #${o.id} · ${o.action ?? ""} ${o.filled != null && o.quantity != null && o.filled > 0 ? `${o.filled}/${o.quantity}` : o.quantity ?? ""} ${o.symbol ?? ""}${o.price ? ` @ ${o.price}` : o.stopTrigger ? ` · trigger ${o.stopTrigger}` : ""}${readback === "STALE" ? " · RECONCILING" : ""}`.replace(/\s+/g, " ").trim(),
+      // A partial fill says both halves: what the broker FILLED and what is still WORKING (2026-10-10).
+      words: `${brokerStateWords(o)} · #${o.id} · ${o.action ?? ""} ${o.filled != null && o.quantity != null && o.filled > 0 ? `filled ${o.filled} of ${o.quantity} · ${o.quantity - o.filled} still working` : o.quantity ?? ""} ${o.symbol ?? ""}${o.price ? ` @ ${o.price}` : o.stopTrigger ? ` · trigger ${o.stopTrigger}` : ""}${readback === "STALE" ? " · RECONCILING" : ""}`.replace(/\s+/g, " ").trim(),
       cancel: { allowed: reason == null, reason },
     };
   });
@@ -136,5 +147,12 @@ export function ticketBook(broker: BrokerLinesResult | null, contract: string | 
     flatten = { kind: "FLATTEN", state: refusal ? "REFUSED" : "LOADABLE", plan, refusal, words: `${plan.action.toUpperCase()} ${plan.qty} ${plan.symbol} · MARKET · loads into this ticket; still needs preview and your confirmation.` };
   }
 
-  return { position, working, modify, flatten };
+  /* ── REJECTED — the broker's answer, quoted; never re-worded, never retried from here ─ */
+  const last = (broker?.rejectedOrders ?? []).at(-1) ?? null;
+  const rejected: RejectedRow | null = last ? {
+    kind: "REJECTED ORDER", id: last.id, brokerReason: last.rejectReason,
+    words: `REJECTED by tastytrade · #${last.id} · ${last.action ?? ""} ${last.quantity ?? ""} ${last.symbol ?? ""}${last.price ? ` @ ${last.price}` : ""} · nothing was filled`.replace(/\s+/g, " ").trim(),
+  } : null;
+
+  return { rejected, position, working, modify, flatten };
 }
