@@ -501,3 +501,13 @@ describe("the selected object's plaque treats the inspect / passport sheet as a 
     expect([...CHART.matchAll(/\.\.\.chartSheetRects\(\)/g)].length).toBe(2);
   });
 });
+
+describe("phone: Living Profile levels keep their names (ruling 2026-10-10)", () => {
+  it("on narrow glass a Living POC / VAH / VAL chip with no clear spot slides left of the newest column — same chip grammar, declared truth, on-top — instead of the note list", () => {
+    expect(CHART).toContain("const truthLevel = levelChipTruthLevel && narrowGlass;");
+    expect(CHART).toContain("levelChipTruthLevel = true;");
+    expect(CHART).toContain("if (truthLevel && (spotL.onCandles || onNewestColumn(spotL.rect.x, spotL.rect.y, spotL.rect.w, spotL.rect.h))) {");
+    expect(CHART).toContain("const kx = Math.max(keepOutMinX(), (col ? col.x : plotRight) - SOVEREIGN_SHAPE_PAD - cw);");
+    expect(CHART).toContain("wordGate.declareTruth(text);");
+  });
+});

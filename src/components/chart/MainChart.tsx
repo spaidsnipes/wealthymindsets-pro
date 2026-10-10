@@ -91,7 +91,7 @@ import { deriveBarOverBarChange, deriveLastBarClose } from "@/lib/marketData/der
 import { chartHeaderPriceFact } from "@/lib/marketData/chartHeaderPriceFact";
 import { requestTastyCandles } from "@/lib/broker/tastyQuoteStream";
 import { isQuoteSampleSeries, quoteSampleSentence } from "@/lib/marketData/quoteSampleSeries";
-import { MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
+import { MARKET_MONO, MARKET_NUMBER_MIN_PX, MARKET_SANS, crispText, footprintCellPx, marketFont } from "@/lib/chart/marketType";
 import { tastyCandleStreamerFor, tastyFrontMonthFor } from "@/lib/broker/tastyFrontMonth";
 import { fetchTastyTimeAndSales } from "@/lib/broker/tastyHistory";
 import { tastyTimeAndSaleToMarketEvent } from "@/lib/marketData/adapters/tastytradeFuturesTicks";
@@ -20820,8 +20820,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         let levelChipsToStack = 0;
         let levelChipsNarrowHeld = 0;
         let levelChipsNewestHeld = 0;
+        let levelChipsTruthKept = 0;
+        let levelChipTruthLevel = false;
         // `leftX` anchors a chip by its LEFT end instead (TPO's, beside its column).
         const levelChip = (y: number, text: string, ink: string, opts: { rightX?: number; leftX?: number; minX?: number; floorY?: number } = {}) => {
+          // A TRUTH LEVEL (Living POC / VAH / VAL) is flagged by its caller for this one call.
+          const truthLevel = levelChipTruthLevel && narrowGlass;
           const floorY = opts.floorY ?? HEADER_FLOOR_Y;
           const rowFloor = floorY + LEVEL_CHIP_H / 2;
           let yy = nearestFreeLabelY(Math.max(y, rowFloor), levelChipYs, LEVEL_CHIP_H + 1);
@@ -20879,6 +20883,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           // candles — the phone rule above stopped at 640). At ANY width a level
           // name whose only spot is the newest candles' column leaves the same
           // way: the wordless tick stays on its row, the name is listed.
+          // PHONE: A TRUTH LEVEL KEEPS ITS NAME (coordinator ruling 2026-10-10;
+          // serving eefa215 at 390/430: Living POC / VAH / VAL painted their lines
+          // but their only names were in the note list). The SAME chip, on its
+          // own row, stands just left of the newest candles' column instead —
+          // declared truth and on-top, so no budget or registry can list it.
+          if (truthLevel && (spotL.onCandles || onNewestColumn(spotL.rect.x, spotL.rect.y, spotL.rect.w, spotL.rect.h))) {
+            const col = newestColumnKeepOut();
+            const kx = Math.max(keepOutMinX(), (col ? col.x : plotRight) - SOVEREIGN_SHAPE_PAD - cw);
+            spotL = { ...spotL, rect: { ...spotL.rect, x: kx, y: yy - LEVEL_CHIP_H / 2 }, onCandles: false, mode: "SLID" };
+            wordGate.declareTruth(text);
+            onTop(spotL.rect, "INSPECT"); // a truth level's own name, kept on the phone
+            levelChipsTruthKept++;
+          }
           if (W >= 640 && onNewestColumn(spotL.rect.x, spotL.rect.y, spotL.rect.w, spotL.rect.h)) {
             ctx.fillStyle = ink;
             ctx.fillRect(Math.round(plotRight - 7), Math.round(y) - 1, 5, 2);
@@ -21567,8 +21584,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (yAt == null) return;
               // The row in price order (rowsInPriceOrder below), else the level's own.
               const yr = rowFor.get(text.includes("POC ") ? "POC" : text.includes("VAH ") ? "VAH" : "VAL") ?? +yAt;
+              levelChipTruthLevel = true; // (declared per frame, so a throw cannot carry it over)
               levelChip(+yr, text, ink);
               livingChips++;
+              levelChipTruthLevel = false;
             };
             // The three words keep the order of their prices (rowsInPriceOrder):
             // a narrow value area steps VAH up and VAL down around the POC's
@@ -23325,6 +23344,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         else delete ds.profileLevelChips;
         if (levelChipsNarrowHeld > 0) ds.profileLevelChipsNarrow = `HELD_OFF_CANDLES:${levelChipsNarrowHeld}`; else delete ds.profileLevelChipsNarrow;
         if (levelChipsNewestHeld > 0) ds.profileLevelChipsNewest = `HELD_OFF_NEWEST_COLUMN:${levelChipsNewestHeld}`; else delete ds.profileLevelChipsNewest;
+        if (levelChipsTruthKept > 0) ds.profileLevelTruthKept = `LIVING:${levelChipsTruthKept}`; else delete ds.profileLevelTruthKept;
         if (levelChipsReordered > 0) ds.profileLevelChipsReordered = String(levelChipsReordered);
         else delete ds.profileLevelChipsReordered;
         // The organism glyphs painted this frame, in paint order — e.g.
