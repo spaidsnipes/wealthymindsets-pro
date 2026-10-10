@@ -195,7 +195,9 @@ describe("trade from the chart: draggable DRAFT lines and Trade at <price> (Foun
 describe("the chart menu on iPhone / iPad, handles clear of the phone ticket sheet, volume indicators that cannot read (2026-10-10)", () => {
   const CSS = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
   it("a touch long-press opens the SAME menu without any contextmenu event, and is not also a candle tap", () => {
-    expect(CHART).toContain("onFire: (x, y) => { if (longPressHostRef.current) openCtxMenuAt(x, y, longPressHostRef.current, true); },");
+    expect(CHART).toContain("onFire: (x, y) => { if (longPressHostRef.current) openCtxMenuAtRef.current(x, y, longPressHostRef.current, true); },");
+    // Built ONCE: a ticking market re-renders faster than the press delay.
+    expect(CHART).toMatch(/const longPress = React\.useMemo\(\(\) => createLongPress\(\{[\s\S]{0,200}?\}\), \[\]\);/);
     expect(CHART).toContain("openCtxMenuAt(e.clientX, e.clientY, e.currentTarget as HTMLElement, false);");
     expect(CHART).toContain("onPointerDown={e => { longPressHostRef.current = e.currentTarget; longPress.down(e); handleCursorSelectDown(e); }}");
     expect(CHART).toContain("if (fired) { suppressClickRef.current = true; cursorDownRef.current = null; return; }");
@@ -209,6 +211,7 @@ describe("the chart menu on iPhone / iPad, handles clear of the phone ticket she
   });
   it("a staged-line handle never sits under the phone ticket sheet", () => {
     expect(CHART).toContain("const underSheet = ticketSheetTop != null && Number(yLine) > ticketSheetTop - 22;");
+    expect(CHART).toContain("if (underSheet && ticketSheetTop != null && ticketSheetTop - 24 < SHEET_MARKER_MIN_TOP) return null;");
     expect(CHART).toContain("? (underSheet ? `${l.role} ↓ ${shown.toFixed(dpH)}` : draftHandleWords(l, shown, dpH))");
   });
   it("volume indicators are partitioned before any series is added; a withheld one adds none and is said once", () => {

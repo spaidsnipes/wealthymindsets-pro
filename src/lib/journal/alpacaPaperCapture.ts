@@ -29,6 +29,17 @@ export interface AlpacaPaperOrder {
 
 export const ALPACA_PAPER_SOURCE = "Alpaca paper order readback";
 
+/**
+ * SAMPLE orders for a proof scene (ruling 2026-10-10): the paper panel shows them instead of reading the account,
+ * so "Journal this PAPER trade" can be seen. Synthetic ids and prices; in a scene the button does nothing.
+ */
+export const ALPACA_PAPER_SAMPLE_ORDERS: readonly (AlpacaPaperOrder & { readonly type: string; readonly limit_price: string | null })[] = [
+  { id: "SAMPLE-paper-1", symbol: "SAMPLE", side: "buy", type: "limit", status: "filled", qty: "10", filled_qty: "10", filled_avg_price: "100.00", limit_price: "100.05", submitted_at: "2026-01-05T14:31:00Z", filled_at: "2026-01-05T14:31:02Z" },
+  { id: "SAMPLE-paper-2", symbol: "SAMPLE", side: "sell", type: "market", status: "filled", qty: "10", filled_qty: "10", filled_avg_price: "101.50", limit_price: null, submitted_at: "2026-01-05T15:02:00Z", filled_at: "2026-01-05T15:02:01Z" },
+  { id: "SAMPLE-paper-3", symbol: "SAMPLE", side: "buy", type: "limit", status: "new", qty: "5", filled_qty: "0", filled_avg_price: null, limit_price: "99.00", submitted_at: "2026-01-05T15:10:00Z", filled_at: null },
+];
+export const ALPACA_PAPER_SAMPLE_LINE = "SAMPLE orders — proof scene. Nothing is read from or sent to Alpaca; the Journal button opens nothing.";
+
 /** A draft for a FILLED paper order; null for anything Alpaca has not read back as filled with a price. */
 export function journalCaptureFromAlpacaPaperOrder(o: AlpacaPaperOrder, nowMs: number): JournalCaptureDraft | null {
   const filledQty = Number(o.filled_qty), px = Number(o.filled_avg_price);

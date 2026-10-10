@@ -990,8 +990,8 @@ export default function LoungePage() {
                       {r.label}
                       {/* Who is actually broadcasting (ATHOS order P0.8) — a card is not a live room. */}
                       {onAir && ((onAir[r.name] ?? 0) > 0
-                        ? <span className="text-[8px] font-black text-wm-red">ON AIR</span>
-                        : <span className="text-[8px] font-black text-wm-text-dim">OFF AIR</span>)}
+                        ? <span className="text-[9px] font-black text-wm-red">ON AIR</span>
+                        : <span className="text-[9px] font-black text-wm-text-dim">OFF AIR</span>)}
                     </div>
                     <div className="text-[9px] text-wm-text-dim mb-1">{r.desc}</div>
                     <div className="flex gap-1">

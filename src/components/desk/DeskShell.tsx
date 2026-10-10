@@ -454,8 +454,14 @@ export function DeskShell() {
     setAsk(null);
   };
 
+  // THE DESK FILLS ITS ROOM, NOT THE VIEWPORT (2026-10-10). It was
+  // calc(100vh - 64px): at 390x844 the desk ran y 45–825 while its room ended
+  // at 786, where the bottom nav starts, so the chart's "⇕" scale control
+  // (785–813) sat under the nav and the assistant's launcher took its taps. It
+  // overran at 834 (1048 vs 1010) and 1440 (836 vs 804) too. 100% of the room
+  // surface: measured 741 / 1010 / 804, nothing under the nav.
   return (
-    <div data-testid="desk" data-desk-layout={working.layout} data-hydrated={hydrated} data-touch={touch} data-desk-form={phone ? "PHONE" : tabletPortrait ? "TABLET_PORTRAIT" : "GRID"} style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 64px)", background: "#07060a", color: INK }}>
+    <div data-testid="desk" data-desk-layout={working.layout} data-hydrated={hydrated} data-touch={touch} data-desk-form={phone ? "PHONE" : tabletPortrait ? "TABLET_PORTRAIT" : "GRID"} style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, background: "#07060a", color: INK }}>
       {touch ? <style>{DESK_TOUCH_CSS}</style> : null}
       <div className="wm-desk-chrome" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: `1px solid ${LINE}` }}>
         <Link href={INSTRUMENT_VIEW_ROUTE} style={{ ...btn(), display: "inline-flex", alignItems: "center", textDecoration: "none" }}>← Charts</Link>

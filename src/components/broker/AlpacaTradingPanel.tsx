@@ -25,7 +25,7 @@ import { selectExitPermission } from "@/lib/exitPermission";
 import { ShellModalDrawer } from "@/components/layout/ShellModalDrawer";
 import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
 import { wmConfirm } from "@/components/ui/wmConfirm";
-import { journalCaptureFromAlpacaPaperOrder } from "@/lib/journal/alpacaPaperCapture";
+import { ALPACA_PAPER_SAMPLE_LINE, ALPACA_PAPER_SAMPLE_ORDERS, journalCaptureFromAlpacaPaperOrder } from "@/lib/journal/alpacaPaperCapture";
 import { JOURNAL_CAPTURE_URL, offerJournalCapture } from "@/lib/journal/journalCaptureHandoff";
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 
@@ -170,6 +170,7 @@ export function AlpacaTradingPanel({
     positionClock >= positionsAsOf &&
     positionClock - positionsAsOf <= DEFAULT_POSITION_STALENESS_MS;
   const [ordersLoad,    setOrdersLoad]    = useState<"pending" | "ok" | "failed">("pending");
+  const [sampleOrders,  setSampleOrders]  = useState(false);
   const [cancelError,   setCancelError]   = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
 
@@ -318,6 +319,8 @@ export function AlpacaTradingPanel({
   }, []);
 
   const loadOrders = useCallback(async () => {
+    // Proof scene: SAMPLE orders, no request (so "Journal this PAPER trade" can be seen; it does nothing in a scene).
+    if (proofSceneHoldsWrites()) { setOrders([...ALPACA_PAPER_SAMPLE_ORDERS] as Order[]); setOrdersLoad("ok"); setSampleOrders(true); return; }
     orderRead.current?.cancel();
     const controller = new AbortController();
     let active = true;
@@ -935,6 +938,7 @@ export function AlpacaTradingPanel({
                   {cancelError}
                 </div>
               )}
+              {sampleOrders ? <div role="status" data-testid="alpaca-sample-orders" className="rounded border px-2 py-1 text-[11px] font-bold" style={{ color: "#d9a441", borderColor: "#d9a44188" }}>{ALPACA_PAPER_SAMPLE_LINE}</div> : null}
               {ordersLoad === "failed" && (
                 <div role="alert" className="text-center py-12 text-wm-red text-[12px]">
                   <Clock size={28} className="mx-auto mb-3 opacity-40" />

@@ -24,7 +24,8 @@ describe("charts Asset-10 hierarchy", () => {
     const secondaryPanel = source.indexOf('id="wm-chart-category-panel"');
     const chartPanel = source.indexOf('id="wm-chart-category-panel-chart"');
     const optionsChain = source.indexOf("<OptionsChain", chartPanel);
-    const rail = source.indexOf('<DecisionSpineBand {...decisionSpineProps} presentation="rail" />');
+    // ONE MOUNT (Sheriff 2026-10-10): the rail position is now a slot the single spine moves into.
+    const rail = source.indexOf('data-spine-slot="rail"');
 
     expect(marketRoom, "shared market room is missing").toBeGreaterThan(0);
     expect(marketColumn, "MARKET column is missing").toBeGreaterThan(marketRoom);
@@ -34,11 +35,13 @@ describe("charts Asset-10 hierarchy", () => {
     expect(optionsChain).toBeGreaterThan(chartPanel);
     expect(rail).toBeGreaterThan(optionsChain);
     expect(source.slice(marketRoom, marketColumn)).not.toContain("<ChartToolbar");
-    expect(source.match(/<DecisionSpineBand\b/g) ?? []).toHaveLength(2);
-    expect(source.match(/presentation="rail"/g) ?? []).toHaveLength(1);
-    expect(source.match(/presentation="band"/g) ?? []).toHaveLength(1);
-    expect(source).toMatch(/\{!narrowViewport && !optionsOpen && \(\s*<DecisionSpineBand \{\.\.\.decisionSpineProps\} presentation="rail" \/>\s*\)\}/);
-    expect(source).toMatch(/\{\(narrowViewport \|\| optionsOpen\) && \(\s*<DecisionSpineBand \{\.\.\.decisionSpineProps\} presentation="band" \/>\s*\)\}/);
+    // One spine component, one mount; the rail / band choice is a prop, and the
+    // two places it may stand are slots its stable host moves between.
+    expect(source.match(/<DecisionSpineBand\b/g) ?? []).toHaveLength(1);
+    expect(source).toContain('<DecisionSpineBand {...decisionSpineProps} presentation={narrowViewport || optionsOpen ? "band" : "rail"} />');
+    expect(source).toMatch(/\{!narrowViewport && !optionsOpen && \(\s*<div ref=\{spineRailSlotRef\} data-spine-slot="rail"/);
+    expect(source).toMatch(/\{\(narrowViewport \|\| optionsOpen\) && \(\s*<div ref=\{spineBandSlotRef\} data-spine-slot="band"/);
+    expect(source).toContain("slot.appendChild(spineHost);");
     expect(source.match(/const decisionSpineProps =/g)).toHaveLength(1);
   });
 

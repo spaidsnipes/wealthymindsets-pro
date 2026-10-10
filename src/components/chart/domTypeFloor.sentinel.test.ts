@@ -6,7 +6,7 @@
  * inline fontSize, or a Tailwind text-[Npx], under 9.
  */
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const FILES = [
@@ -98,20 +98,29 @@ describe("DOM type floor on the trading shell", () => {
       expect(block).not.toMatch(/:not\(\.wm-os-masthead/);
     });
 
-    it("no file in the shell list writes an inline size the phone rule cannot see", () => {
-      // The rule matches 9, 9.5, 10 and 10.5. Any OTHER size under 11 (9.25, 10.2 …) would slip past it.
-      const UNSEEN = /fontSize:\s*(\d+(?:\.\d+)?)\s*[,}\s]|text-\[(\d+(?:\.\d+)?)px\]/g;
+    it("no DOM size under 11px anywhere in src slips past the phone rule (2026-10-10)", () => {
+      // CSS cannot select by computed size, so the floor is exact only if every size the
+      // source WRITES is one the rule names. Was a list of nine shell files, and only
+      // 9–11px was checked: an 8.5px course tag (FabioInsights, on /education) and
+      // 8px ON AIR tags (/lounge) painted under the floor at 390. Now: every .tsx in
+      // src, every way a DOM size is written, every size under 11.
+      const SIZE = /fontSize:\s*"?(\d+(?:\.\d+)?)(?:px)?"?\s*[,}\s]|text-\[(\d+(?:\.\d+)?)px\]|font:\s*[`"'][^`"']*?\s(\d+(?:\.\d+)?)px\s*\//g;
+      const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(e =>
+        e.isDirectory() ? walk(path.join(dir, e.name)) : e.name.endsWith(".tsx") && !e.name.includes(".test.") ? [path.join(dir, e.name)] : []);
+      const files = walk(path.join(process.cwd(), "src"));
       let scanned = 0;
       const offenders: string[] = [];
-      for (const rel of FILES) {
-        const src = readFileSync(path.join(process.cwd(), rel), "utf8");
-        for (const m of src.matchAll(UNSEEN)) {
-          const n = Number(m[1] ?? m[2]);
+      for (const f of files) {
+        for (const m of readFileSync(f, "utf8").matchAll(SIZE)) {
+          const n = Number(m[1] ?? m[2] ?? m[3]);
+          if (!(n < 11)) continue;
           scanned++;
-          if (n >= 9 && n < 11 && ![9, 9.5, 10, 10.5].includes(n)) offenders.push(`${rel}: ${m[0].trim()}`);
+          if (![9, 9.5, 10, 10.5].includes(n)) offenders.push(`${path.relative(process.cwd(), f)}: ${m[0].trim()}`);
         }
       }
-      expect(scanned).toBeGreaterThan(50);
+      // ANTI-VACUITY: the walk found the source tree and its many small sizes.
+      expect(files.length).toBeGreaterThan(250);
+      expect(scanned).toBeGreaterThan(1000);
       expect(offenders).toEqual([]);
     });
   });

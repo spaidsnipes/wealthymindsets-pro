@@ -98,7 +98,7 @@ export function ChartBookStrip({
         font: "700 11px/1.1 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".04em", whiteSpace: "nowrap",
       }}
     >
-      <span aria-hidden="true" style={{ color: "#8a8271", letterSpacing: ".1em" }}>POSITION</span>
+      <span aria-hidden="true" data-book-label="yes" style={{ color: "#8a8271", letterSpacing: ".1em" }}>POSITION</span>
       {display.parts.map((part, i) => (
         <span
           key={`${part.text}-${i}`}

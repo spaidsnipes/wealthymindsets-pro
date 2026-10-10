@@ -207,6 +207,8 @@ const ABSORPTION_FIGURE_NARROW_H = 72;
 const SOVEREIGN_SHAPE_PAD = 20;
 /** The chart context menu's width (its style's minWidth), for keeping it inside the pane. */
 const CTX_MENU_W = 200;
+/** The highest a handle may stand above the phone ticket sheet (clear of the legend band). */
+const SHEET_MARKER_MIN_TOP = 90;
 /** The room's own opposed pairs — what an unlawful (identical) custom pair falls back to. */
 const APPEARANCE_ROOM_PAIRS: Record<string, unknown> = { ...DEFAULT_CHART_SETTINGS, ...FLOW_COLOR_DEFAULTS, ...VOLUME_COLOR_PICKER_DEFAULTS };
 /** The price legend band's floor in the pane (the paint loop's HEADER_FLOOR_Y). Nothing that floats may start above it. */
@@ -28344,9 +28346,15 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // remembered at press time so the menu opens in its coordinates.
   const longPressHostRef = useRef<HTMLElement | null>(null);
   const suppressClickRef = useRef(false);
+  // ONE long-press for the life of the chart (serving eefa215, BTC-USD live at
+  // 430: the menu never opened — the press was rebuilt, and its timer cancelled,
+  // on every render of a ticking market, which comes faster than 500ms). It
+  // reaches the latest opener through a ref.
+  const openCtxMenuAtRef = useRef(openCtxMenuAt);
+  openCtxMenuAtRef.current = openCtxMenuAt;
   const longPress = React.useMemo(() => createLongPress({
-    onFire: (x, y) => { if (longPressHostRef.current) openCtxMenuAt(x, y, longPressHostRef.current, true); },
-  }), [openCtxMenuAt]);
+    onFire: (x, y) => { if (longPressHostRef.current) openCtxMenuAtRef.current(x, y, longPressHostRef.current, true); },
+  }), []);
   useEffect(() => () => longPress.cancel(), [longPress]);
 
   /* ── ONE FEED VERDICT, TWO READERS ───────────────────────────
@@ -29343,6 +29351,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // Under the phone ticket sheet the handle stands at the sheet's top
             // edge as a marker pointing down to its line — still draggable.
             const underSheet = ticketSheetTop != null && Number(yLine) > ticketSheetTop - 22;
+            // A sheet that leaves no chart above it (the ticket open to ACT on a
+            // phone — serving eefa215 at 390: the marker floated over the app
+            // header at y 4) leaves no glass to drag on: the ticket carries the
+            // prices, and the handle waits until the sheet folds.
+            if (underSheet && ticketSheetTop != null && ticketSheetTop - 24 < SHEET_MARKER_MIN_TOP) return null;
             const y = underSheet && ticketSheetTop != null ? ticketSheetTop - 24 : Number(yLine);
             const words = can
               ? (underSheet ? `${l.role} ↓ ${shown.toFixed(dpH)}` : draftHandleWords(l, shown, dpH))

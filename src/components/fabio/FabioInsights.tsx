@@ -48,7 +48,7 @@ function InsightCard({ ins, compact }: { ins: FabioInsight; compact?: boolean })
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
         <span
           style={{
-            fontSize: 8.5, fontWeight: 800, letterSpacing: 0.3,
+            fontSize: 9, fontWeight: 800, letterSpacing: 0.3,
             padding: "1px 6px", borderRadius: 4,
             background: `${color}18`, color, border: `1px solid ${color}40`,
             textTransform: "uppercase",

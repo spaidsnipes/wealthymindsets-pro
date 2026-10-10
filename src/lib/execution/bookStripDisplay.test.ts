@@ -110,17 +110,23 @@ describe("the strip on the glass", () => {
     expect(strip).not.toMatch(/textOverflow|ellipsis|truncate/);
   });
 
-  it("the room mounts it beside the TRADE door and on the phone row, both opening the ticket", () => {
-    expect((room.match(/<ChartBookStrip\b/g) ?? []).length).toBe(2);
+  it("the room mounts it once, beside the TRADE door, and never on the WAIT / WHY row (2026-10-10)", () => {
+    expect((room.match(/<ChartBookStrip\b/g) ?? []).length).toBe(1);
     expect(room).toContain('placement="BAR"');
-    expect(room).toContain('placement="ROW"');
-    expect((room.match(/onOpenTicket=\{\(\) => setTradeOpen\(true\)\}/g) ?? []).length).toBe(2);
+    expect(room).not.toContain('placement="ROW"');
+    expect(room).toContain("onOpenTicket={() => setTradeOpen(true)}");
   });
 
-  it("only one of the two shows at any width, and the phone one takes the 44px floor", () => {
-    expect(css).toMatch(/@media \(max-width: 767px\) \{\s*\.wm-book-strip--bar \{ display: none !important; \}\s*\.wm-book-strip--row \{ min-height: 44px !important;/);
-    expect(css).toMatch(/@media \(min-width: 768px\) \{\s*\.wm-book-strip--row \{ display: none !important; \}/);
-  });
+  it("below 1280px TRADE and the strip lead the bar and detail drops; on a phone the label drops", () => {
+    const at = css.indexOf("THE POSITION STRIP STANDS BESIDE TRADE AT EVERY SIZE");
+    expect(at).toBeGreaterThan(-1);
+    const block = css.slice(at, css.indexOf("@media (pointer: coarse)", at));
+    expect(block).toMatch(/@media \(max-width: 1279px\) \{\s*\.wm-instrument-context-strip > \[data-testid="context-trade"\],\s*\.wm-instrument-context-strip > \.wm-book-strip--bar \{ order: -3; \}\s*\.wm-book-strip \[data-book-detail\] \{ display: none !important; \}/);
+    expect(block).toContain(".wm-book-strip [data-book-label] { display: none !important; }");
+    expect(block).not.toContain(".wm-book-strip--bar { display: none");
+    // The label is the only thing the phone drops besides detail; truth words carry neither mark.
+    expect(strip).toContain('data-book-label="yes"');
+});
 });
 
 /**

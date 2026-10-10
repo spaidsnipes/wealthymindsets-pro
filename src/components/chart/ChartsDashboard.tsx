@@ -5441,6 +5441,26 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
   useEffect(() => { setMounted(true); }, []);
   // Garden 18 v2 §70 — today's broker trades against the profile's rules, on the rail.
   const todayRules = useTodayRuleState();
+  // The spine's stable host and its two slots (see ONE MOUNT below).
+  const spineRailSlotRef = useRef<HTMLDivElement | null>(null);
+  const spineBandSlotRef = useRef<HTMLDivElement | null>(null);
+  const [spineHost, setSpineHost] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = document.createElement("div");
+    el.style.display = "contents";
+    el.dataset.spineHost = "true";
+    setSpineHost(el);
+    return () => { el.remove(); };
+  }, []);
+  React.useLayoutEffect(() => {
+    if (!spineHost) return;
+    const slot = (narrowViewport || optionsOpen) ? spineBandSlotRef.current : spineRailSlotRef.current;
+    if (!slot || spineHost.parentElement === slot) return;
+    // Moving a node resets its scroll; carry every scrolled box's offsets across.
+    const scrolled = [...spineHost.querySelectorAll<HTMLElement>("*")].filter(e => e.scrollTop || e.scrollLeft).map(e => [e, e.scrollTop, e.scrollLeft] as const);
+    slot.appendChild(spineHost);
+    for (const [e, t, l] of scrolled) { e.scrollTop = t; e.scrollLeft = l; }
+  });
   if (!mounted) {
     return (
       // SSR/hydration placeholder — must match the transparent room the
@@ -5849,17 +5869,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
         {narrowViewport && (
           <CanvasFidelityChip reading={chartHonesty} ungraded={chartHonestyUngraded} />
         )}
-        {/* The same position strip, on the phone's WAIT / WHY row (CSS shows
-            this one below 768px and the bar's one above it). */}
-        {narrowViewport && (
-          <ChartBookStrip
-            symbol={symbol}
-            lastPrice={chartBars.length ? chartBars[chartBars.length - 1].close : null}
-            placement="ROW"
-            onOpenTicket={() => setTradeOpen(true)}
-            ticketOpen={tradeOpen}
-          />
-        )}
+        {/* The position strip is NOT on this row (2026-10-10): at 390 it pushed
+            the Why button off the glass (verdict + CHART chip + Why already
+            fill the row). It stands beside TRADE on the thumb bar instead. */}
         </div>
         {/* Internal depth readiness stays in the broker/capability drawer.
             A missing L2 wire must not occupy permanent chart chrome, and the
@@ -7750,7 +7762,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
                 Options keeps the full width it needs; narrow viewports use the
                 proven scrollable band below. */}
             {!narrowViewport && !optionsOpen && (
-              <DecisionSpineBand {...decisionSpineProps} presentation="rail" />
+              <div ref={spineRailSlotRef} data-spine-slot="rail" style={{ display: "contents" }} />
             )}
           </div>
 
@@ -7763,7 +7775,17 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
           Narrow and Options views retain the horizontal, scrollable band so
           neither chart width nor option-chain legibility is sacrificed. */}
       {(narrowViewport || optionsOpen) && (
-        <DecisionSpineBand {...decisionSpineProps} presentation="band" />
+        <div ref={spineBandSlotRef} data-spine-slot="band" style={{ display: "contents" }} />
+      )}
+      {/* ONE MOUNT (Sheriff 2026-10-10): the spine used to be TWO components — a
+          rail beside MARKET and a band below — so crossing the narrow breakpoint
+          (rotating an iPad, resizing a window) unmounted one and mounted the
+          other, dropping its fold and scroll. It is now one component at one
+          place in the tree, rendered into a stable host that MOVES to whichever
+          slot is showing; the presentation follows by prop. */}
+      {spineHost && createPortal(
+        <DecisionSpineBand {...decisionSpineProps} presentation={narrowViewport || optionsOpen ? "band" : "rail"} />,
+        spineHost,
       )}
       {pnlOpen && <PnLStatsPanel onClose={() => setPnlOpen(false)} />}
       {smartMoneyOpen && (

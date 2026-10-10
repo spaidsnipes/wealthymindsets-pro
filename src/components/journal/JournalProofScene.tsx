@@ -34,6 +34,34 @@ import { journalRoundTrip } from "@/lib/journal/journalRoundTrip";
 import { brokerStoryFixtures, captureFixture, LIFECYCLE_BANNER, planLifecycleRoundTrip } from "@/lib/journal/journalLifecycleFixture";
 import { CapturedFacts } from "@/components/journal/CapturedFacts";
 import { PropEvaluationGate } from "@/components/journal/PropEvaluationGate";
+import { JournalPaperFilter, PaperMark, paperHeldOutNote, type PaperFilter } from "@/components/journal/JournalPaperFilter";
+import { isPaperEntry, liveJournalRecords } from "@/lib/journal/paperEntry";
+
+/** SAMPLE book: two live trades and one PAPER trade (capture environment PAPER) — proves the filter and the live-only results. */
+export const PAPER_SAMPLE_BOOK = [
+  { id: "SAMPLE-LIVE-1", symbol: "SAMPLE-A", pnl: 250 },
+  { id: "SAMPLE-PAPER-1", symbol: "SAMPLE-B", pnl: 900, capture: { environment: { value: "PAPER", provenance: "BROKER-REPORTED", source: "Alpaca paper order readback" } } },
+  { id: "SAMPLE-LIVE-2", symbol: "SAMPLE-C", pnl: -100 },
+] as const;
+
+function PaperSample() {
+  const [f, setF] = React.useState<PaperFilter>("all");
+  const live = liveJournalRecords(PAPER_SAMPLE_BOOK);
+  const paperCount = PAPER_SAMPLE_BOOK.length - live.length;
+  const shown = PAPER_SAMPLE_BOOK.filter(e => f === "all" || (f === "paper") === isPaperEntry(e));
+  const net = live.reduce((s, e) => s + e.pnl, 0);
+  return (
+    <section aria-label="Live and paper (sample)" data-testid="journal-proof-paper" className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">
+      <h2 className="text-sm font-bold text-wm-text mb-1">Live and paper · sample book</h2>
+      <p data-testid="journal-proof-paper-header" className="text-[11px] text-wm-text-dim m-0">{PAPER_SAMPLE_BOOK.length} entries{paperHeldOutNote(paperCount)}</p>
+      <JournalPaperFilter paperCount={paperCount} value={f} onChange={setF} />
+      <ul className="mt-1 space-y-0.5">
+        {shown.map(e => <li key={e.id} data-testid="journal-proof-paper-row" className="text-[12px] text-wm-text">{e.symbol}{isPaperEntry(e) ? <PaperMark /> : null} · {e.pnl >= 0 ? "+" : "−"}${Math.abs(e.pnl).toFixed(2)}</li>)}
+      </ul>
+      <p data-testid="journal-proof-paper-results" className="text-[11px] text-wm-text-dim m-0 mt-1">Results are LIVE only: {live.length} trades · net {net >= 0 ? "+" : "−"}${Math.abs(net).toFixed(2)} — the paper trade is listed, never counted.</p>
+    </section>
+  );
+}
 import { SelfReportChooser } from "@/components/journal/SelfReportChooser";
 import { SELF_REPORT_LABELS, selfReportByDeparture } from "@/lib/journal/selfReport";
 
@@ -235,6 +263,8 @@ export function JournalProofScene(): React.ReactElement {
         <h2 className="text-sm font-bold text-wm-text mb-2">Academy · "Show me my examples" (sample)</h2>
         <FvgExamplesView examples={f.examples} heading={`Show me my examples · ${f.examples.length} sample decisions on gaps (proof scene)`} />
       </section>
+
+      <PaperSample />
 
       {/* Owner-only sample of the prop evaluation desk (synthetic numbers, no storage). The gate renders
           NOTHING — no heading, no name — for a member or a guest, so the section wrapper lives inside it. */}

@@ -18,6 +18,7 @@ import { BrokerTruthToday, PLAN_ABSENT_JOURNAL, StoryReviewRow } from "@/compone
 import { CapturedFacts } from "@/components/journal/CapturedFacts";
 import { captureToJournalForm } from "@/lib/journal/journalCaptureFromFill";
 import { isPaperEntry, liveJournalRecords } from "@/lib/journal/paperEntry";
+import { JournalPaperFilter, PaperMark, paperHeldOutNote, type PaperFilter } from "@/components/journal/JournalPaperFilter";
 import { takeJournalCapture } from "@/lib/journal/journalCaptureHandoff";
 import { JournalFvgReferenceField } from "@/components/journal/JournalFvgReferenceField";
 import { fvgReferenceSentence, parseFvgObjectId } from "@/lib/journal/fvgDecisionReference";
@@ -1107,7 +1108,7 @@ function JournalPageInner() {
   // J-Bkt 9: starred-only filter. One-click "show me my best trades" review.
   const [filterStarred, setFilterStarred] = useState(false);
   // Paper is a separate book (paperEntry.ts): the list can show live, paper or both; results are LIVE only.
-  const [filterPaper, setFilterPaper] = useState<"all" | "live" | "paper">("all");
+  const [filterPaper, setFilterPaper] = useState<PaperFilter>("all");
   // Canon §9 Trader Misread Map filter — click the MISREAD chip in the
   // header to isolate all trades that fell into that misread bucket
   // (drill-in from diagnostic to specific entries). "all" = no filter.
@@ -1800,7 +1801,7 @@ Trade the system, trust the process, winners every day 🚀`,
         <span className="text-[10px] text-wm-text-dim">
           {entries.length} entries
           {noTradeHeldOut > 0 && ` · ${noTradeHeldOut} M0 NO TRADE not scored`}
-          {paperCount > 0 && ` · ${paperCount} PAPER not in results`}
+          {paperHeldOutNote(paperCount)}
         </span>
         {/* flex-wrap so the WR/PnL/Session-R/Week-Edge/GENOME/TREND/MISREAD
             chip stack reflows on narrow viewports (390px mobile) instead
@@ -2178,16 +2179,7 @@ Trade the system, trust the process, winners every day 🚀`,
             <input value={search} onChange={e => setSearch(e.target.value)} aria-label="Search journal" placeholder="Search journal..."
               className="bg-transparent text-xs text-wm-text outline-none w-32 placeholder-wm-text-dim" />
           </div>
-          {paperCount > 0 ? (
-            <div role="group" aria-label="Live or paper" className="flex items-center gap-1">
-              {(["all","live","paper"] as const).map(k => (
-                <button key={k} type="button" data-testid="journal-paper-filter" data-filter={k} aria-pressed={filterPaper === k} onClick={() => setFilterPaper(k)}
-                  className={clsx("px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all", filterPaper === k ? "bg-wm-surface text-wm-text border-wm-border" : "text-wm-text-muted border-transparent hover:border-wm-border")}>
-                  {k === "all" ? "Live + paper" : k === "live" ? "Live" : `Paper (${paperCount})`}
-                </button>
-              ))}
-            </div>
-          ) : null}
+          <JournalPaperFilter paperCount={paperCount} value={filterPaper} onChange={setFilterPaper} />
           {(["all","win","loss","be"] as const).map(r => (
             <button key={r} onClick={() => setFilterRes(r)}
               className={clsx("px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-all",
@@ -2695,7 +2687,7 @@ Trade the system, trust the process, winners every day 🚀`,
                   <div className={clsx("w-1 rounded-full shrink-0 mt-1", up ? "bg-wm-green" : outcome.isTrade && e.result === "loss" ? "bg-wm-red" : "bg-wm-text-dim")} style={{ minHeight:40 }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-xs font-bold text-wm-text">{e.symbol}{isPaperEntry(e) ? <span data-testid="journal-paper-mark" className="ml-1.5 px-1 rounded text-[10px] font-bold border" style={{ color: "#d9a441", borderColor: "#d9a44188" }}>PAPER</span> : null}</span>
+                      <span className="text-xs font-bold text-wm-text">{e.symbol}{isPaperEntry(e) ? <PaperMark /> : null}</span>
                       {outcome.hasMoney ? (
                         <span className={`text-[10px] font-mono font-bold ${up ? "text-wm-green" : e.result === "loss" ? "text-wm-red" : "text-wm-text-muted"}`}>
                           {fmtPnl(e.pnl)}
