@@ -684,8 +684,8 @@ const IND_CATS = ["All", ...PINNED, ...ALL_IND_CATS.filter(c => !PINNED.includes
 const SYM_CATS = ["All", "Futures", "Stock", "ETF", "Index", "Crypto", "Forex"];
 
 const CAT_COLORS: Record<string, string> = {
-  Futures:"#F0B429", Stock:"#8B95A5", ETF:"#00D4AA", Fund:"#00D4AA",
-  Crypto:"#8B5CF6",  Forex:"#4FA3E0", Index:"#E06C9F",
+  Futures:"#F0B429", Stock:"#8B95A5", ETF:"#c9a55c", Fund:"#c9a55c",
+  Crypto:"#ffd76a",  Forex:"#ede6d3", Index:"#c0b8a0",
 };
 
 /** Does a Regular / Extended hours choice mean anything for this instrument? Not on a continuous market. */
@@ -1089,7 +1089,7 @@ export function ChartToolbar({
                 }}
                 placeholder={symbol}
                 className="flex-1 bg-transparent text-[12px] font-black text-wm-text outline-none placeholder-wm-text-muted w-[80px]"
-                style={{ caretColor: "#4FA3E0" }}
+                style={{ caretColor: "#d4af37" }}
               />
               {symbolSearch ? (
                 <button aria-label="Clear symbol search" onClick={e => { e.stopPropagation(); setSymbolSearch(""); setSymbolOpen(false); }}>
@@ -1320,7 +1320,7 @@ export function ChartToolbar({
                       }}
                       placeholder={`Search ${INDICATORS.length} indicators…  ↵ toggle top match`}
                       className="flex-1 bg-transparent text-[11px] text-wm-text outline-none placeholder-wm-text-dim"
-                      style={{ caretColor: "#00D4AA" }}
+                      style={{ caretColor: "#d4af37" }}
                     />
                     {indSearch && (
                       <button aria-label="Clear indicator search" onClick={() => setIndSearch("")}>

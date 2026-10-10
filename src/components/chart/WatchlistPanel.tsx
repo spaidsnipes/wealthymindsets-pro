@@ -723,7 +723,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                           style={{
                             flex: 1, textAlign: "left", padding: isSheet ? "13px 10px" : "7px 9px", borderRadius: 5, border: "none", cursor: "pointer",
                             fontSize: 12, fontWeight: name === activeList ? 800 : 600,
-                            color: name === activeList ? "#00D4AA" : "#cdd6e8",
+                            color: name === activeList ? "#d4af37" : "#cdd6e8",
                             background: name === activeList ? "rgba(0,212,170,0.1)" : "transparent",
                           }}
                         >{name} <span style={{ color: "#8b8fa8", fontWeight: 500 }}>({(lists[name]||[]).length})</span></button>
@@ -756,12 +756,12 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                             cursor: newListName.trim() ? "pointer" : "not-allowed",
                             fontSize: 12, fontWeight: 800,
                             color: newListName.trim() ? "#0B0E1A" : "#8b8fa8",
-                            background: newListName.trim() ? "#00D4AA" : "#1E2030" }}>Add</button>
+                            background: newListName.trim() ? "#d4af37" : "#1E2030" }}>Add</button>
                       </div>
                     ) : (
                       <button onClick={createList}
                         style={{ width: "100%", textAlign: "left", padding: "7px 9px", marginTop: 2, borderRadius: 5,
-                          border: "1px dashed #2a3550", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#4FA3E0", background: "none" }}>
+                          border: "1px dashed #2a3550", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#c9a55c", background: "none" }}>
                         ＋ New watchlist
                       </button>
                     )}
@@ -786,12 +786,12 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
               <div style={{ display: "flex", gap: isSheet ? 0 : 8, alignItems: "center" }}>
                 <button onClick={() => onGridViewChange?.(true)} title="Grid view — live mini-chart cards"
                   aria-label="Grid view"
-                  style={{ background: "none", border: "none", cursor: "pointer", color: gridView ? "#00D4AA" : "#4A5070", display: "flex", padding: 0, ...tap }}>
+                  style={{ background: "none", border: "none", cursor: "pointer", color: gridView ? "#d4af37" : "#4A5070", display: "flex", padding: 0, ...tap }}>
                   <LayoutGrid size={iconPx} />
                 </button>
                 <button onClick={() => onGridViewChange?.(false)} title="List view"
                   aria-label="List view"
-                  style={{ background: "none", border: "none", cursor: "pointer", color: !gridView ? "#00D4AA" : "#4A5070", display: "flex", padding: 0, ...tap }}>
+                  style={{ background: "none", border: "none", cursor: "pointer", color: !gridView ? "#d4af37" : "#4A5070", display: "flex", padding: 0, ...tap }}>
                   <List size={iconPx} />
                 </button>
                 <button onClick={createList} title="Create new watchlist"
@@ -838,7 +838,7 @@ export function WatchlistPanel({ open, gridView = false, onGridViewChange, varia
                         style={{
                           width: "100%", textAlign: "left", padding: isSheet ? "13px 10px" : "6px 8px", borderRadius: 4, border: "none",
                           cursor: "pointer", fontSize: isSheet ? 13 : 11, fontWeight: viewFilter === key ? 800 : 600,
-                          color: viewFilter === key ? "#00D4AA" : "#cdd6e8",
+                          color: viewFilter === key ? "#d4af37" : "#cdd6e8",
                           background: viewFilter === key ? "rgba(0,212,170,0.1)" : "transparent",
                         }}>{lbl}</button>
                     ))}

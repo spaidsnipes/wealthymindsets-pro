@@ -142,7 +142,7 @@ export function LeftDrawingSidebar({
   // `@media (pointer: coarse)` query can enlarge the hit area on touch without
   // regressing the compact desktop rail (WM-DRAW-P0-01 §8.1 / Micah "keep the
   // visual small inside a larger hit area").
-  const btn = (active: boolean, activeColor = "#00D4AA"): React.CSSProperties => ({
+  const btn = (active: boolean, activeColor = "#d4af37"): React.CSSProperties => ({
     background: active ? `${activeColor}22` : "transparent",
     border: `1px solid ${active ? `${activeColor}55` : "transparent"}`,
     color: active ? activeColor : "#8B8FA8",
@@ -195,7 +195,7 @@ export function LeftDrawingSidebar({
         .wm-draw-rail .wm-draw-swatch:focus-visible,
         .wm-draw-sheet .wm-draw-btn:focus-visible,
         .wm-draw-sheet .wm-draw-swatch:focus-visible {
-          outline: 2px solid #4FA3E0; outline-offset: 2px;
+          outline: 2px solid #d4af37; outline-offset: 2px;
         }
         @media (pointer: coarse) {
           .wm-draw-rail { width: 48px; }
@@ -254,13 +254,13 @@ export function LeftDrawingSidebar({
           style={{
             width: 22, height: 22, borderRadius: 5,
             background: style.color,
-            border: `2px solid ${styleOpen ? "#4FA3E0" : "rgba(255,255,255,0.25)"}`,
+            border: `2px solid ${styleOpen ? "#d4af37" : "rgba(255,255,255,0.25)"}`,
             opacity: style.opacity / 100,
           }}
         />
       </button>
 
-      <button className="wm-draw-btn" title="Magnet — snap to price" aria-label="Magnet — snap to price" aria-pressed={magnetActive} onClick={onMagnetToggle} style={btn(magnetActive, "#4FA3E0")}><Magnet size={14} /></button>
+      <button className="wm-draw-btn" title="Magnet — snap to price" aria-label="Magnet — snap to price" aria-pressed={magnetActive} onClick={onMagnetToggle} style={btn(magnetActive, "#d4af37")}><Magnet size={14} /></button>
       <button className="wm-draw-btn" title="Lock drawings" aria-label="Lock drawings" aria-pressed={lockActive} onClick={onLockToggle} style={btn(lockActive, "#F0B429")}><Lock size={14} /></button>
       <button className="wm-draw-btn" title={visible ? "Hide drawings" : "Show drawings"} aria-label={visible ? "Hide drawings" : "Show drawings"} aria-pressed={!visible} onClick={onVisToggle} style={btn(false)}>
         {visible ? <Eye size={14} /> : <EyeOff size={14} />}

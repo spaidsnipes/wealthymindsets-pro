@@ -159,7 +159,7 @@ export function AssetClassSwitcher({ symbol, onSelect }: { symbol: string; onSel
           color: "#cdd6e8",
         }}
       >
-        <span style={{ color: "#4FA3E0", display: "inline-flex" }}>{current.icon}</span>
+        <span style={{ color: "#c9a55c", display: "inline-flex" }}>{current.icon}</span>
         {chipLabelFor(symbol, current)}
         <ChevronDown size={12} style={{ opacity: 0.7, transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
       </button>
@@ -179,7 +179,7 @@ export function AssetClassSwitcher({ symbol, onSelect }: { symbol: string; onSel
                 fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
                 background: tab === c.id ? "rgba(47,128,237,0.2)" : "transparent",
                 border: `1px solid ${tab === c.id ? "rgba(47,128,237,0.45)" : "transparent"}`,
-                color: tab === c.id ? "#4FA3E0" : "#8B8FA8",
+                color: tab === c.id ? "#d4af37" : "#8B8FA8",
               }}>{c.icon}{c.label}</button>
             ))}
           </div>
@@ -196,7 +196,7 @@ export function AssetClassSwitcher({ symbol, onSelect }: { symbol: string; onSel
                 onMouseEnter={e => { if (s.sym !== symbol) (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.04)"; }}
                 onMouseLeave={e => { if (s.sym !== symbol) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
               >
-                <span style={{ fontSize: 13, fontWeight: 800, color: s.sym === symbol ? "#00D4AA" : "#E2E8F0" }}>{s.sym}</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: s.sym === symbol ? "#d4af37" : "#E2E8F0" }}>{s.sym}</span>
                 <span style={{ fontSize: 11, color: "#8b8fa8" }}>{s.name}</span>
               </button>
             ))}

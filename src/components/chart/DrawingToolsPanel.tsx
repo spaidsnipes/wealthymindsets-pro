@@ -26,7 +26,7 @@ interface ToolGroup { label: string; color: string; tools: ToolItem[]; }
 
 const TOOL_GROUPS: ToolGroup[] = [
   {
-    label: "Lines", color: "#4FA3E0",
+    label: "Lines", color: "#ede6d3",
     tools: [
       { id: "trendline",     label: "Trend Line",      icon: "╱", desc: "Sloped line between two points to map a trend." },
       { id: "ray",           label: "Ray",             icon: "→", desc: "Line from a point extending to the right edge." },
@@ -40,7 +40,7 @@ const TOOL_GROUPS: ToolGroup[] = [
     ],
   },
   {
-    label: "Channels", color: "#00D4AA",
+    label: "Channels", color: "#c9a55c",
     tools: [
       { id: "parallel-channel", label: "Parallel Channel", icon: "⫽", desc: "Two parallel trend lines forming a channel." },
       { id: "regression",       label: "Regression Trend", icon: "⟋", desc: "Least-squares fit with ±2σ deviation bands." },
@@ -49,7 +49,7 @@ const TOOL_GROUPS: ToolGroup[] = [
     ],
   },
   {
-    label: "Pitchforks", color: "#8B5CF6",
+    label: "Pitchforks", color: "#ffd76a",
     tools: [
       { id: "pitchfork",        label: "Pitchfork",          icon: "Ψ",  desc: "Andrews' Pitchfork from three pivot points." },
       { id: "schiff",           label: "Schiff",             icon: "Ψ₁", desc: "Schiff variation — median from midpoint." },
@@ -112,7 +112,7 @@ const TOOL_GROUPS: ToolGroup[] = [
     ],
   },
   {
-    label: "Measure", color: "#00D4AA",
+    label: "Measure", color: "#c9a55c",
     tools: [
       { id: "price-range",      label: "Price Range",       icon: "↕", desc: "Measure price & % move between two levels." },
       { id: "date-range",       label: "Date Range",        icon: "↔", desc: "Measure bars & time between two points." },
@@ -128,14 +128,14 @@ const TOOL_GROUPS: ToolGroup[] = [
     ],
   },
   {
-    label: "Order Flow", color: "#00D4AA",
+    label: "Order Flow", color: "#c9a55c",
     tools: [
       { id: "delta-vp", label: "Delta + VP Box", icon: "⧉", desc: "Draw a box: left = per-level delta profile (green buy / red sell), right = volume profile bars with POC. Numbers on every row." },
       { id: "anchored-vp", label: "Fixed Range VP", icon: "▤", desc: "Drag across the bars you choose: volume by price for exactly that span, from bars alone (no aggressor side needed). It stays anchored when you scroll." },
     ],
   },
   {
-    label: "Arrows", color: "#4FA3E0",
+    label: "Arrows", color: "#ede6d3",
     tools: [
       { id: "arrow",      label: "Arrow",           icon: "↗", desc: "Straight arrow between two points." },
       { id: "arrow-up",   label: "Arrow Mark Up",   icon: "⬆", desc: "Up marker placed at a single point." },
@@ -150,7 +150,7 @@ const TOOL_GROUPS: ToolGroup[] = [
     ],
   },
   {
-    label: "Shapes", color: "#8B5CF6",
+    label: "Shapes", color: "#ffd76a",
     tools: [
       { id: "rect",         label: "Rectangle",         icon: "▭", desc: "Box to highlight a zone." },
       { id: "rotated-rect", label: "Rotated Rectangle", icon: "◇", desc: "Rectangle at an arbitrary angle." },
@@ -253,8 +253,8 @@ export function DrawingStylePopover({ style, onChange, anchor, beside, onClose }
   const chip = (active: boolean): React.CSSProperties => ({
     minWidth: 28, height: 24, padding: "0 6px", borderRadius: 5, cursor: "pointer",
     fontSize: 10, fontWeight: 700, color: active ? "#0B0E1A" : "#C7D0E8",
-    background: active ? "#4FA3E0" : "rgba(255,255,255,0.05)",
-    border: `1px solid ${active ? "#4FA3E0" : "rgba(255,255,255,0.10)"}`,
+    background: active ? "#d4af37" : "rgba(255,255,255,0.05)",
+    border: `1px solid ${active ? "#d4af37" : "rgba(255,255,255,0.10)"}`,
   });
 
   return createPortal(
@@ -333,7 +333,7 @@ export function DrawingStylePopover({ style, onChange, anchor, beside, onClose }
             type="range" min={10} max={100} step={5}
             value={style.opacity}
             onChange={e => onChange({ opacity: Number(e.target.value) })}
-            style={{ flex: 1, minWidth: 0, accentColor: "#4FA3E0" }}
+            style={{ flex: 1, minWidth: 0, accentColor: "#d4af37" }}
           />
           <span style={{ fontSize: 9, fontWeight: 700, color: "#C7D0E8", width: 28, textAlign: "right" }}>{style.opacity}%</span>
         </div>
@@ -454,7 +454,7 @@ export function DrawingToolsPanel({
           background: open ? "rgba(0,212,170,0.15)" : "#131520",
           border: `1px solid ${open ? "rgba(0,212,170,0.5)" : "#1E2030"}`,
           borderRadius: 6, cursor: "pointer",
-          color: activeTool !== "cursor" ? "#00D4AA" : (open ? "#00D4AA" : "#8B8FA8"),
+          color: activeTool !== "cursor" ? "#d4af37" : (open ? "#d4af37" : "#8B8FA8"),
           fontSize: 11, fontWeight: 700, transition: "all 0.15s", whiteSpace: "nowrap",
         }}
         title="Drawing Tools"
@@ -479,9 +479,9 @@ export function DrawingToolsPanel({
       />
 
       {/* ── Utility buttons ── */}
-      <button onClick={onMagnetToggle} title="Magnet — snap to OHLC" aria-label="Magnet — snap drawings to open, high, low or close" aria-pressed={magnetActive} style={utilBtnStyle(magnetActive, "#4FA3E0")}><Magnet size={11} aria-hidden="true" /></button>
+      <button onClick={onMagnetToggle} title="Magnet — snap to OHLC" aria-label="Magnet — snap drawings to open, high, low or close" aria-pressed={magnetActive} style={utilBtnStyle(magnetActive, "#d4af37")}><Magnet size={11} aria-hidden="true" /></button>
       <button onClick={onLockToggle}   title="Lock drawings"        aria-label="Lock drawings" aria-pressed={lockActive} style={utilBtnStyle(lockActive,   "#F0B429")}><Lock   size={11} aria-hidden="true" /></button>
-      <button onClick={onVisToggle}    title={visible ? "Hide drawings" : "Show drawings"} aria-label={visible ? "Hide drawings" : "Show drawings"} style={utilBtnStyle(false, "#00D4AA")}>
+      <button onClick={onVisToggle}    title={visible ? "Hide drawings" : "Show drawings"} aria-label={visible ? "Hide drawings" : "Show drawings"} style={utilBtnStyle(false, "#d4af37")}>
         {visible ? <Eye size={11} aria-hidden="true" /> : <EyeOff size={11} aria-hidden="true" />}
       </button>
       <button
@@ -532,7 +532,7 @@ export function DrawingToolsPanel({
                       padding: "3px 9px", borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: "pointer",
                       background: on ? "rgba(0,212,170,0.15)" : "rgba(255,255,255,0.04)",
                       border: `1px solid ${on ? "rgba(0,212,170,0.4)" : "#1E2030"}`,
-                      color: on ? "#00D4AA" : "#8B8FA8",
+                      color: on ? "#d4af37" : "#8B8FA8",
                     }}>
                     {t.icon} {t.label}
                   </button>
