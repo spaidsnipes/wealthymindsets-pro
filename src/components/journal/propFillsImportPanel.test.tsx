@@ -94,7 +94,10 @@ describe("imported days in the account", () => {
     const read = (p: string) => readFileSync(path.resolve(process.cwd(), "src", p), "utf8");
     const panel = read("components/journal/PropFillsImportPanel.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
     expect(panel).toContain("new FileReader()");
-    expect(panel).not.toMatch(/fetch\(|XMLHttpRequest|sendBeacon|FormData|localStorage|sessionStorage|action=/);
+    expect(panel).not.toMatch(/fetch\(|XMLHttpRequest|sendBeacon|FormData|sessionStorage|action=/);
+    // The one storage touch is the Journal's own capture hand-off ("Journal this trade"), nothing else.
+    expect(panel.match(/localStorage/g)).toHaveLength(1);
+    expect(panel).toContain("offerJournalCapture(window.localStorage,");
     const desk = read("components/journal/PropEvaluationDesk.tsx");
     // Through `edit`, which clears the stamp — imported days can never arrive verified.
     expect(desk).toContain("onUseDays={x => edit({ days: x.days, daysSource: x.source,");

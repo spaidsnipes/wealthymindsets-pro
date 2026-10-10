@@ -33,6 +33,7 @@ export interface ToolPrimerSection {
   readonly full: string;
   readonly partial: string;
   readonly degraded: string;
+  readonly silence: string;
 }
 
 export interface ToolPrimer {
@@ -67,7 +68,7 @@ const DEFS: readonly { slug: string; title: string; duration: string; tools: rea
 function sectionFor(t: ToolPrimerTool): ToolPrimerSection {
   const r = educationFor(t.id);
   if (!r) throw new Error(`toolPrimers: no ⓘ record for ${t.id}`);
-  return { tool: t.label, question: r.question, appears: r.appears, grammar: r.grammar, evidence: r.evidence, full: r.full, partial: r.partial, degraded: r.degraded };
+  return { tool: t.label, question: r.question, appears: r.appears, grammar: r.grammar, evidence: r.evidence, full: r.full, partial: r.partial, degraded: r.degraded, silence: r.silence ?? r.degraded };
 }
 
 export const TOOL_PRIMERS: readonly ToolPrimer[] = DEFS.map((d, i) => ({
@@ -78,7 +79,7 @@ export const toolPrimerHref = (id: string): string => `/education?lesson=${id}`;
 
 /** Every sentence a primer shows, for the copy sweeps. */
 export function toolPrimerText(): string[] {
-  return TOOL_PRIMERS.flatMap(p => [p.title, ...p.sections.flatMap(s => [s.question, s.appears, s.grammar, s.evidence, s.full, s.partial, s.degraded])])
+  return TOOL_PRIMERS.flatMap(p => [p.title, ...p.sections.flatMap(s => [s.question, s.appears, s.grammar, s.evidence, s.full, s.partial, s.degraded, s.silence])])
     .concat(PRIMER_SILENCE, PRIMER_CANNOT_KNOW, PRIMER_GRADES_LEDE);
 }
 

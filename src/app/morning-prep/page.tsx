@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { TodayManagementRules } from "@/components/journal/TodayManagementRules";
+import { PropEvaluationToday } from "@/components/morning-prep/PropEvaluationToday";
 import Link from "next/link";
 import { FOUNDER_LANDING_ROUTE } from "@/lib/routing/founderLanding";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
@@ -305,6 +306,10 @@ const STARTER_CHECKLIST = [
   "News / catalysts reviewed",
   "Execution focus chosen (setup type / entry rules)",
   "Hydration + focus reset (5 min breathwork)",
+  // Founder order §7 (2026-10-10): his workflow — market structure, opening range, VWAP, order flow. Appended
+  // (never inserted) so every existing item keeps its place; saved checklists carry their own items and load unchanged.
+  "Opening range marked (first 5 / 15 minutes) and the plan for a break vs a failure written",
+  "Order flow read at the levels (delta / absorption / big trades) — no trade without a read",
 ];
 
 // Checklist items whose work happens in another room carry a door to that
@@ -314,6 +319,8 @@ const PREP_ITEM_DOORS: Record<string, { href: string; label: string }> = {
   "Key levels prepared (support / resistance / VWAP / POC)": { href: FOUNDER_LANDING_ROUTE, label: "Chart" },
   "News / catalysts reviewed": { href: "/news", label: "News" },
   "Mental state honest — logged mood": { href: "/journal", label: "Journal" },
+  // Lifecycle check 2026-10-10: the execution focus is carried on the chart ticket's management plan card.
+  "Execution focus chosen (setup type / entry rules)": { href: FOUNDER_LANDING_ROUTE, label: "Chart ticket" },
 };
 
 const GROWTH_PRACTICES = {
@@ -642,6 +649,9 @@ export default function MorningPrepPage() {
 
         {/* Garden 19 §55: patience and management are prepared here, before the bell. */}
         {ownerId ? <TodayManagementRules /> : null}
+
+        {/* Founder order §7 (Monday preparation): where the prop evaluation stands — owner only; the rules, not a target. */}
+        {ownerId ? <PropEvaluationToday /> : null}
 
         {/* Yesterday's Mirror — retrospective patterns from journal.
             Renders NOTHING when 0 patterns detected (silence-is-a-feature).

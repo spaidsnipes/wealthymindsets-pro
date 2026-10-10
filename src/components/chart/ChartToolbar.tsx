@@ -1426,6 +1426,7 @@ export function ChartToolbar({
                           <button
                             onClick={e => { e.stopPropagation(); onIndicatorSettings(ind.name); }}
                             title="Indicator settings"
+                            aria-label={`${ind.name} settings`}
                             className={clsx("shrink-0 transition-colors", on ? "text-wm-blue hover:text-wm-text" : "text-wm-text-dim hover:text-wm-text")}
                           >
                             <Settings size={11} />

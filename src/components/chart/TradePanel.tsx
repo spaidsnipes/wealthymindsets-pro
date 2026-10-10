@@ -42,7 +42,7 @@ import { chartDraftNote, chartEntryEffect, type ChartDraft, orderActionLine, pre
 import { brokerStateWords, ticketBook, type WorkingOrderRow } from "@/lib/execution/ticketBook";
 import type { WmOrderState } from "@/lib/broker/tastytradeOrderState";
 import { TicketBookRows, type CancelAck } from "@/components/chart/TicketBookRows";
-import { COMPACT_ACT_MAX_HEIGHT, COMPACT_HALF_MAX_HEIGHT, halfControl, halfInForce, COMPACT_PEEK_MAX_HEIGHT, COMPACT_TICKET_QUERY, WIDE_TICKET_MAX_HEIGHT, bookIsActive, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketStage, ticketStep, type TicketSection } from "@/lib/execution/ticketLayout";
+import { COMPACT_ACT_MAX_HEIGHT, COMPACT_HALF_MAX_HEIGHT, halfControl, halfFromDrag, halfInForce, COMPACT_PEEK_MAX_HEIGHT, COMPACT_TICKET_QUERY, WIDE_TICKET_MAX_HEIGHT, bookIsActive, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketStage, ticketStep, type TicketSection } from "@/lib/execution/ticketLayout";
 import { TicketSections } from "@/components/chart/TicketSections";
 import { parseTicketFixture, TICKET_FIXTURE_BANNER, ticketFixtureChartLines, ticketFixtureLines, type TicketFixture } from "@/lib/execution/ticketFixture";
 import { railSendGate } from "@/lib/broker/railSendGate";
@@ -360,6 +360,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const halfInput = { compact, stage, half, preSend: stageInput.preSend };
   const halfCtl = halfControl(halfInput);
   const halfOn = halfInForce(halfInput);
+  const gripY = useRef<number | null>(null);
   // ACT has two steps on a phone: BUILD (closing, size, price, stop / target, risk) and REVIEW (the live-order
   // block alone). CSS only — both stay mounted. REVIEW is forced while an order is in flight.
   const [reviewing, setReviewing] = useState(false);
@@ -605,6 +606,17 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         background: "#0d0b08", border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 18px 48px rgba(0,0,0,0.6)", color: INK, fontSize: 12,
       }}
     >
+      {/* The HALF grip: drag the sheet's top edge down to half height, up to full (snaps on release). Same rules as
+          the HALF ▾ button beside KILL — refused while an order is in flight. */}
+      {halfCtl.shown ? (
+        <div data-testid="trade-half-grip" role="separator" aria-orientation="horizontal" aria-label={halfCtl.ariaLabel}
+          onPointerDown={e => { gripY.current = e.clientY; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); }}
+          onPointerUp={e => { const y0 = gripY.current; gripY.current = null; if (y0 == null) return; const next = halfFromDrag(e.clientY - y0, halfCtl); if (next !== null) setHalf(next); }}
+          onPointerCancel={() => { gripY.current = null; }}
+          style={{ height: 20, display: "grid", placeItems: "center", cursor: halfCtl.enabled ? "ns-resize" : "not-allowed", touchAction: "none" }}>
+          <span aria-hidden="true" style={{ width: 40, height: 4, borderRadius: 2, background: halfCtl.enabled ? GOLD : MUTED, opacity: 0.7 }} />
+        </div>
+      ) : null}
       <header data-testid="trade-header" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: compact ? "2px 8px" : "6px 8px", padding: compact ? "6px 10px" : "10px 12px", borderBottom: `1px solid ${LINE}`, minWidth: 0 }}>
         <strong style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 15, letterSpacing: 1 }}>TRADE</strong>
         <span data-testid="trade-kind" style={{ fontSize: 10, letterSpacing: 1.2, color: GOLD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 6px" }}>{kind === "FUTURE" ? "FUTURE" : kind}</span>
@@ -655,7 +667,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         <div style={{ padding: compact ? "8px 10px" : 12, display: "grid", gap: compact ? 6 : 10 }}>
           <TicketSections compact={compact} bookActive={bookIsActive(book)} peek={stage === "PEEK"} step={step} review={review} inFlight={!stageInput.preSend}
             onReview={() => { if (review.allowed) setReviewing(true); }} onEdit={() => { if (stageInput.preSend) setReviewing(false); }}
-            sections={sectionEl} summary={detailsSummary(book)} />
+            sections={sectionEl} summary={detailsSummary(book, { inside: owner && tradable })} />
         </div>
       )}
 

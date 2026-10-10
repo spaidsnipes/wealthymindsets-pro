@@ -242,6 +242,8 @@ function BigTradesControls() {
         ref={btnRef}
         onClick={() => setOpen(o => !o)}
         title="Big Trades settings"
+        aria-label="Big Trades settings"
+        aria-expanded={open}
         className={clsx(
           "flex items-center justify-center w-5 h-5 ml-1 rounded transition-all border",
           open ? "bg-wm-green/15 text-wm-green border-wm-green/40"
@@ -416,7 +418,7 @@ function OrderFlowColorGear({ toolId, label = "Order Flow" }: { toolId: Footprin
 
   return (
     <div className="relative inline-flex items-center shrink-0">
-      <button ref={btnRef} onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }} title={`${label} — colours`}
+      <button ref={btnRef} onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }} title={`${label} — colours`} aria-label={`${label} — colours`} aria-expanded={open}
         className={clsx("flex items-center justify-center w-5 h-5 ml-1 rounded transition-all border",
           open
             ? "bg-wm-green/20 text-wm-green border-wm-green/60 shadow-[0_0_6px_rgba(0,229,204,0.35)]"

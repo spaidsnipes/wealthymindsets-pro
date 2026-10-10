@@ -57,6 +57,8 @@ import { proofNoLabelsRequested, setCanvasTextSilenced } from "@/lib/chart/proof
 import { installWordGate, wordGateModeFor, type HeldWord } from "@/lib/chart/wordRegistry";
 import { FOG_CAP, FOG_FEATHER_PX, installFogGate } from "@/lib/chart/fieldFogBudget";
 import { installTypeFloor, NARROW_NAME_MIN_PX } from "@/lib/chart/typeFloor";
+import { lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
+import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
 import { useSymbolOwnedState } from "@/lib/marketData/useSymbolOwnedState";
@@ -201,6 +203,8 @@ const BIG_TRADE_NARROW_MAX_R = 22;
 const ABSORPTION_FIGURE_NARROW_H = 72;
 /** PHONE (2026-10-09): a drawn handle / chevron / stem this close to the left of the newest-candle column is held too. */
 const SOVEREIGN_SHAPE_PAD = 20;
+/** The room's own opposed pairs — what an unlawful (identical) custom pair falls back to. */
+const APPEARANCE_ROOM_PAIRS: Record<string, unknown> = { ...DEFAULT_CHART_SETTINGS, ...FLOW_COLOR_DEFAULTS, ...VOLUME_COLOR_PICKER_DEFAULTS };
 /** The price legend band's floor in the pane (the paint loop's HEADER_FLOOR_Y). Nothing that floats may start above it. */
 const PRICE_LEGEND_FLOOR_PX = 90;
 /** PHONE (2026-10-09): a zone at rest is a band — two hairlines and this much fill (desk: 0.08 in a box). */
@@ -1375,6 +1379,9 @@ interface Props {
     bigTradeBuy?: string; bigTradeSell?: string;
     deltaBuy?: string; deltaSell?: string;
     absorptionInk?: string; fusedProfileInk?: string;
+    // Founder order §5 (2026-10-09): volume colours and the three opacity dials.
+    volumeUp?: string; volumeDown?: string;
+    profileOpacity?: number; wallOpacity?: number; memoryOpacity?: number;
   };
   replayActive?:   boolean;
   replayBars?:     LegacyOhlcvTuple[];
@@ -2072,7 +2079,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   onCreatePriceAlert,
   onDrawingComplete,
   drawingsVisible = true, clearTrigger = 0, activeInds, indSettings, extendedHours,
-  alertLevels = [], chartSettings, replayActive = false, replayBars,
+  alertLevels = [], chartSettings: chartSettingsIn, replayActive = false, replayBars,
   compareSymbol, onPriceAtCursor, onOHLCAtCursor, onCrosshairTime, onCrosshairHandle, onSelectBigTrade, proofSelectBigTradeRef, selectedPrintOnChart = null,
   onSelectProfileSlice, selectedProfileSlicePrice = null, selectionInspected = false,
   onSelectAnatomy, selectedAnatomy = null, onAnatomyReading,
@@ -2190,6 +2197,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   structureZones = [],
   selectedMarketObjectWait = null,
 }: Props) {
+  // APPEARANCE LAW (appearanceLaw.ts): the chart reads its appearance through
+  // one pass — an opposed pair the trader made identical (bull = bear, up = down,
+  // buy = sell) falls back to the room's own pair. Same object when lawful.
+  const chartSettings = React.useMemo(
+    () => lawfulSettings(chartSettingsIn, APPEARANCE_ROOM_PAIRS) ?? undefined,
+    [chartSettingsIn],
+  );
   const containerRef  = useRef<HTMLDivElement>(null);
   const wrapRef       = useRef<HTMLDivElement>(null);
   const canvasRef     = useRef<HTMLCanvasElement>(null);
@@ -2362,6 +2376,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // PHONE: the scale row is closed at rest (one chip in the footer band opens it).
   const [scaleRowOpen, setScaleRowOpen] = useState(false);
   const lensQuietLastRef = useRef(1);
+  // The trader's opacity dials, read by the paint loop (no re-render per frame).
+  const userOpacityRef = useRef<{ PROFILES?: number; WALLS?: number; MEMORY?: number }>({});
+  userOpacityRef.current = { PROFILES: chartSettings?.profileOpacity, WALLS: chartSettings?.wallOpacity, MEMORY: chartSettings?.memoryOpacity };
   // Last frame's newest-candle column, for words painted before this frame measures it.
   const wordGateColumnRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   // The layer last frame's question was ABOUT — its answer is never quieted by it.
@@ -3805,8 +3822,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     });
     const vpts = volumeSeriesPoints(
       bars,
-      chartSettings?.neon ? "rgba(0,255,163,0.70)" : VOLUME_UP_DEFAULT,
-      chartSettings?.neon ? "rgba(255,46,99,0.70)"  : VOLUME_DOWN_DEFAULT,
+      chartSettings?.neon ? "rgba(0,255,163,0.70)" : volumeInk(chartSettings?.volumeUp, VOLUME_UP_DEFAULT),
+      chartSettings?.neon ? "rgba(255,46,99,0.70)"  : volumeInk(chartSettings?.volumeDown, VOLUME_DOWN_DEFAULT),
       symbol,
     );
     const full = change.kind === "reset" || pts.length !== bars.length || vpts.length !== bars.length;
@@ -4806,8 +4823,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // so it takes the same two-luminance brass held well back with alpha.
       // The WM Neon theme is a deliberate trader opt-in and keeps its own
       // vocabulary — it is a chosen costume, not the room's default material.
-      const volUp   = chartSettings?.neon ? "rgba(0,255,163,0.70)" : VOLUME_UP_DEFAULT;
-      const volDown = chartSettings?.neon ? "rgba(255,46,99,0.70)"  : VOLUME_DOWN_DEFAULT;
+      const volUp   = chartSettings?.neon ? "rgba(0,255,163,0.70)" : volumeInk(chartSettings?.volumeUp, VOLUME_UP_DEFAULT);
+      const volDown = chartSettings?.neon ? "rgba(255,46,99,0.70)"  : volumeInk(chartSettings?.volumeDown, VOLUME_DOWN_DEFAULT);
       vs.setData(volumeSeriesPoints(data, volUp, volDown, symbol) as any);
 
       // CANDLE DENSITY — match TradingView / Moomoo / Webull.
@@ -5349,8 +5366,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     try {
       vs.setData(volumeSeriesPoints(
         bars,
-        chartSettings?.neon ? "rgba(0,255,163,0.70)" : VOLUME_UP_DEFAULT,
-        chartSettings?.neon ? "rgba(255,46,99,0.70)"  : VOLUME_DOWN_DEFAULT,
+        chartSettings?.neon ? "rgba(0,255,163,0.70)" : volumeInk(chartSettings?.volumeUp, VOLUME_UP_DEFAULT),
+        chartSettings?.neon ? "rgba(255,46,99,0.70)"  : volumeInk(chartSettings?.volumeDown, VOLUME_DOWN_DEFAULT),
         symbol,
       ) as any);
     } catch { /* same */ }
@@ -8386,6 +8403,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       } catch (err) { layerFault("ATTENTION_FOCUS", err); /* camera mid-transition: no focus this frame */ }
       let att = selectAttentionGovernor({
         density: semanticDensity,
+        // The trader's opacity dials (Chart Settings › Layer Opacity), applied last, floored.
+        userOpacity: userOpacityRef.current,
         // EARLY LIVE LAYERS ARE QUIETED TOO (serving 559884e, 2026-10-09: volume
         // profile and flow current read LIVE:1 under a 0.35 question — they ask
         // before the lens speaks). The frame opens on LAST frame's quiet; the
@@ -29931,7 +29950,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                   <div style={{ position: "absolute", top: 28, left: 0, zIndex: 140, padding: 5, borderRadius: 8, display: "flex", gap: 4,
                     background: "#0E1322", border: "1px solid #2A3350", boxShadow: "0 8px 26px rgba(0,0,0,0.6)" }}>
                     {[1, 2, 3, 4, 6].map(w => (
-                      <button key={w} title={`${w}px`} onClick={() => { d.style.width = w; bump(); setDrawPopover(null); }}
+                      <button key={w} title={`${w}px`} aria-label={`Line width ${w} pixels`} aria-pressed={Math.round(d.style.width) === w}
+                        onClick={() => { d.style.width = w; bump(); setDrawPopover(null); }}
                         style={btn(Math.round(d.style.width) === w)}>
                         <span style={{ display: "inline-block", width: 16, height: w, background: "currentColor", borderRadius: 2 }} />
                       </button>

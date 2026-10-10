@@ -14,6 +14,9 @@
 
 import React, { useMemo, useState } from "react";
 
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
+import { importedRoundTrips, importedTripLine, journalCaptureFromImportedTrip } from "@/lib/journal/importedRoundTrip";
+import { JOURNAL_CAPTURE_URL, offerJournalCapture } from "@/lib/journal/journalCaptureHandoff";
 import { formatCents, type PropDay } from "@/lib/journal/propEvaluation";
 import { PROP_DAY_RULE_WORDS, importPropFills, propDailyResults, type PropDayRule } from "@/lib/journal/propFillsImport";
 
@@ -52,7 +55,7 @@ export function readPropImport(file: { readonly name: string; readonly text: str
   if (!imp.ok) return { ok: false as const, reason: imp.reason };
   const daily = propDailyResults(imp, rule);
   const basisWords = daily.basis === "AFTER_COMMISSIONS" ? "AFTER commissions" : "BEFORE commissions";
-  return { ok: true as const, imp, daily, basisWords, source: `${imp.provenance} · ${PROP_DAY_RULE_LABEL[rule]} · ${basisWords}` };
+  return { ok: true as const, imp, daily, basisWords, trips: importedRoundTrips(imp), source: `${imp.provenance} · ${PROP_DAY_RULE_LABEL[rule]} · ${basisWords}` };
 }
 
 export function PropFillsImportPanel({ onUseDays, sampleFile = null, disabled = false }: {
@@ -65,6 +68,17 @@ export function PropFillsImportPanel({ onUseDays, sampleFile = null, disabled = 
   const [zone, setZone] = useState(sampleFile ? "America/Chicago" : "");
   const [rule, setRule] = useState<PropDayRule>("ET_CALENDAR_DAY");
   const [readError, setReadError] = useState<string | null>(null);
+  const [journalNote, setJournalNote] = useState<string | null>(null);
+  // "Journal this trade": the SAME hand-off the live ticket uses — one draft, opened once in the Journal's new-entry
+  // form, where its own save gate applies. Nothing is saved here; nothing at all in a proof scene or the sample.
+  const journalTrip = (id: string) => {
+    if (!r || !r.ok || sampleFile || proofSceneHoldsWrites()) return;
+    const t = r.trips.find(x => x.id === id);
+    if (!t) return;
+    const ok = offerJournalCapture(window.localStorage, journalCaptureFromImportedTrip(t, r.imp.provenance, Date.now()), Date.now());
+    if (ok) window.location.assign(JOURNAL_CAPTURE_URL);
+    else setJournalNote("This browser would not hold the draft — nothing was opened.");
+  };
   const r = useMemo(() => readPropImport(file, zone, rule, file?.openedAtMs ?? 0), [file, zone, rule]);
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,6 +135,16 @@ export function PropFillsImportPanel({ onUseDays, sampleFile = null, disabled = 
               ))}
             </ul>
           ) : <span style={{ fontSize: 12, color: MUTED }}>No closed round trip in this file — no day has a result.</span>}
+          <div data-testid="prop-import-trips" style={{ display: "grid", gap: 4, borderTop: `1px solid ${LINE}`, paddingTop: 6 }}>
+            <span style={{ fontSize: 11, color: MUTED }}>Round trips in this file ({r.trips.length}) — open one in the Journal as a new entry; you review it and press Save.</span>
+            {r.trips.length ? r.trips.map(t => (
+              <div key={t.id} data-testid="prop-import-trip" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 10px", fontSize: 12, color: INK, fontVariantNumeric: "tabular-nums" }}>
+                <span style={{ overflowWrap: "anywhere" }}>{importedTripLine(t)}</span>
+                {!sampleFile ? <button type="button" data-testid="prop-import-journal-trip" onClick={() => journalTrip(t.id)} style={{ ...BTN, minHeight: 44 }}>Journal this trade</button> : null}
+              </div>
+            )) : <span style={{ fontSize: 12, color: MUTED }}>No closed round trip in this file.</span>}
+            {journalNote ? <span role="status" style={{ fontSize: 11, color: RED }}>{journalNote}</span> : null}
+          </div>
           {!sampleFile ? (
             <button type="button" data-testid="prop-import-use" disabled={disabled || !r.daily.days.length} onClick={() => onUseDays({ days: r.daily.days, source: r.source, basis: r.daily.basis })}
               style={{ ...BTN, justifySelf: "start", opacity: r.daily.days.length ? 1 : 0.5 }}>

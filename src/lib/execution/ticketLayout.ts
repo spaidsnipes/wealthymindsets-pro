@@ -94,6 +94,16 @@ export function halfControl(x: { readonly compact: boolean; readonly stage: Tick
     ? { shown: true, enabled: true, label: "FULL ▴", ariaLabel: "Full-height ticket — every field without scrolling" }
     : { shown: true, enabled: true, label: "HALF ▾", ariaLabel: "Half-height ticket — keep the chart and its order lines in view; the ticket scrolls inside" };
 }
+/** The grip: a vertical drag of at least this many px snaps the sheet (down → HALF, up → FULL). */
+export const HALF_DRAG_SNAP_PX = 40;
+/** What a finished drag on the grip asks for; null = not far enough, or the control is refused. PURE. */
+export function halfFromDrag(dyPx: number, ctl: HalfControl): boolean | null {
+  if (!ctl.shown || !ctl.enabled || !Number.isFinite(dyPx)) return null;
+  if (dyPx >= HALF_DRAG_SNAP_PX) return true;
+  if (dyPx <= -HALF_DRAG_SNAP_PX) return false;
+  return null;
+}
+
 /** Is the half height in force? Never while an order is in flight. */
 export function halfInForce(x: { readonly compact: boolean; readonly stage: TicketStage; readonly half: boolean; readonly preSend: boolean }): boolean {
   return x.compact && x.stage === "ACT" && x.half && x.preSend;
@@ -170,10 +180,12 @@ export function bookIsActive(book: TicketBook): boolean {
 export const WIDE_TICKET_MAX_HEIGHT = "calc(100vh - 88px)";
 
 /** "Details · FLAT · 0 working" — the disclosure states the book before it is opened. */
-export function detailsSummary(book: TicketBook): string {
+export function detailsSummary(book: TicketBook, plan?: { readonly inside: boolean }): string {
   const n = book.working.length;
   const refused = [book.modify.refusal, book.flatten.refusal].filter(Boolean).length;
-  return `Details · ${book.position.state} · ${n} working${refused ? ` · ${refused} refused` : ""}`;
+  // Lifecycle check 2026-10-10: the management plan card (with Morning Prep's day rules) folds into Details, so the
+  // summary says it is there — the plan is never hidden without a word.
+  return `Details · ${book.position.state} · ${n} working${refused ? ` · ${refused} refused` : ""}${plan?.inside ? " · management plan + today's rules" : ""}`;
 }
 
 /** The phone's one-line economics, beside the stop and target: the wrong-side refusal is never folded away. */

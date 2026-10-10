@@ -521,6 +521,7 @@ function VPColorGear() {
         ref={btnRef}
         onClick={toggle}
         title="Volume Profile & candle colors"
+        aria-label="Volume Profile and candle colours"
         className="flex items-center justify-center w-5 h-5 rounded border transition-all"
         style={{
           // The gear's own OPEN state was a green chip. An equipment control

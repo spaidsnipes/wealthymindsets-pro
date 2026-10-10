@@ -34,6 +34,7 @@ export function ToolPrimerBody({ primer, color }: { primer: ToolPrimer; color: s
             <Row k="FULL:" v={s.full} />
             <Row k="PARTIAL:" v={s.partial} />
             <Row k="DEGRADED:" v={s.degraded} />
+            <Row k="SILENCE:" v={s.silence} />
           </div>
         </section>
       ))}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { NARROW_TEXT_FLOOR, NARROW_TIER_CEILING,
+import { clampUserOpacity, USER_OPACITY_FAMILY, USER_OPACITY_READABLE_FLOOR, NARROW_TEXT_FLOOR, NARROW_TIER_CEILING,
   ATTENTION_FLOOR,
   LAYER_ATTENTION,
   SELECTION_RECEDE,
@@ -564,5 +564,35 @@ describe("phone words read (serving 390, e05c774, 2026-10-09)", () => {
     expect(asked.textAlpha("derivativesPressure")).toBe(TEXT_ALPHA_FLOOR);
     const desk = selectAttentionGovernor(input({ density: mid }));
     expect(desk.textAlpha("derivativesPressure")).toBe(Math.max(TEXT_ALPHA_FLOOR, desk.alpha("derivativesPressure")));
+  });
+});
+
+describe("the trader's opacity dials (Founder order §5, 2026-10-09)", () => {
+  const mid = selectSemanticDensity("MID");
+  it("absent or 1 changes nothing — defaults are byte-identical", () => {
+    const base = selectAttentionGovernor(input({ density: mid }));
+    const one = selectAttentionGovernor(input({ density: mid, userOpacity: { PROFILES: 1, WALLS: 1, MEMORY: 1 } }));
+    for (const k of Object.keys(LAYER_ATTENTION) as AttentionLayerKey[]) expect(one.alpha(k), k).toBe(base.alpha(k));
+  });
+  it("a dial multiplies its family only, never past the tier ceiling, never under the readable floor", () => {
+    const base = selectAttentionGovernor(input({ density: mid }));
+    const down = selectAttentionGovernor(input({ density: mid, userOpacity: { WALLS: 0.4 } }));
+    expect(down.alpha("derivativesPressure")).toBeCloseTo(Math.max(Math.min(base.alpha("derivativesPressure"), USER_OPACITY_READABLE_FLOOR), base.alpha("derivativesPressure") * 0.4), 10);
+    expect(down.alpha("derivativesPressure")).toBeGreaterThanOrEqual(USER_OPACITY_READABLE_FLOOR - 1e-9);
+    expect(down.alpha("volumeProfile")).toBe(base.alpha("volumeProfile")); // other families untouched
+    const up = selectAttentionGovernor(input({ density: mid, userOpacity: { MEMORY: 1.6 } }));
+    expect(up.alpha("memoryGhost")).toBeGreaterThan(base.alpha("memoryGhost"));
+    expect(up.alpha("memoryGhost")).toBeLessThanOrEqual(TIER_CEILING.MEMORY);
+    const zero = selectAttentionGovernor(input({ density: mid, userOpacity: { PROFILES: 0 } }));
+    expect(zero.alpha("volumeProfile")).toBeGreaterThanOrEqual(USER_OPACITY_READABLE_FLOOR); // 0 clamps to the minimum
+    expect(clampUserOpacity(0)).toBe(0.4); expect(clampUserOpacity(9)).toBe(1.6); expect(clampUserOpacity("x")).toBe(1);
+  });
+  it("the selected item and text keep their own floors", () => {
+    const g = selectAttentionGovernor(input({ density: mid, userOpacity: { PROFILES: 0.4 } }));
+    expect(g.alpha("volumeProfile", { selectedItem: true })).toBe(1);
+    expect(g.textAlpha("volumeProfile")).toBeGreaterThanOrEqual(TEXT_ALPHA_FLOOR);
+    expect(USER_OPACITY_FAMILY.volumeProfile).toBe("PROFILES");
+    expect(USER_OPACITY_FAMILY.derivativesPressure).toBe("WALLS");
+    expect(USER_OPACITY_FAMILY.memoryGhost).toBe("MEMORY");
   });
 });

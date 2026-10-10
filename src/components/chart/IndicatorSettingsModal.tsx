@@ -94,7 +94,7 @@ export function IndicatorSettingsModal({
             <div className="text-[10px] text-wm-text-dim">Indicator settings</div>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={reset} title="Reset to defaults"
+            <button onClick={reset} title="Reset to defaults" aria-label="Reset to defaults"
               className="p-1.5 rounded text-wm-text-dim hover:text-wm-text hover:bg-wm-surface transition-colors">
               <RotateCcw size={13} />
             </button>

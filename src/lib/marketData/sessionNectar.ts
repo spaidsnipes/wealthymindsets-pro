@@ -1,5 +1,6 @@
 import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { isPublicInfoPath } from "@/lib/authRoutes";
+import { currentManagementOwner, MANAGEMENT_OWNER_EVENT } from "@/lib/journal/managementOwner";
 import { MARKET_DATA_CAPABILITIES, type MarketDataCapability } from "./capabilityRegistry";
 import {
   createChannelCoverage,
@@ -288,12 +289,21 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
     // Public information pages (/welcome, /pricing, /legal) are signed-out
     // ground too: the ledger answered 401 there on every guest visit (2026-10-06).
     || isPublicInfoPath(window.location.pathname);
+  // NO MEMBER, NO LEDGER (guest walk, serving 32c95db, 2026-10-10): every room
+  // opened signed out — /charts, /journal, /desk… — called this ledger and was
+  // answered 401 in the instant before the shell redirected to /login. The path
+  // test above cannot see that: the path IS a room. What it lacks is a member.
+  // The ledger is the signed-in member's, so it is read and written only once
+  // the auth owner has named one (AuthContext → setManagementOwner); before
+  // that, and for a resolved guest, nothing is sent.
+  const noMember = () => typeof currentManagementOwner() !== "string";
+  const noLedger = () => atSignedOutDoor() || noMember();
   const persistRemote = () => {
     if (remotePersistTimer) {
       clearTimeout(remotePersistTimer);
       remotePersistTimer = null;
     }
-    if (atSignedOutDoor()) return;
+    if (noLedger()) return;
     if (proofSceneHoldsWrites()) return;
     try {
       void fetch("/api/market-memory/coverage", {
@@ -309,7 +319,7 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
     }
   };
   sessionNectarCollector.subscribe(() => {
-    if (!remoteHydrated && !atSignedOutDoor()) hydrateRemote();
+    if (!remoteHydrated && !noLedger()) hydrateRemote();
     if (!persistTimer) persistTimer = setTimeout(persist, 2_000);
     if (!remotePersistTimer) remotePersistTimer = setTimeout(persistRemote, 15_000);
   });
@@ -337,7 +347,12 @@ if (typeof window !== "undefined" && !sessionNectarRuntime.continuityInitialized
     // Offline/degraded mode continues with the bounded local summary.
   });
   }
-  if (!atSignedOutDoor()) hydrateRemote();
+  if (!noLedger()) hydrateRemote();
+  // A member named after load (the usual case: /api/auth/me answers after the
+  // first paint) reads the ledger then — once per sign-in.
+  window.addEventListener(MANAGEMENT_OWNER_EVENT, () => {
+    if (!remoteHydrated && !noLedger()) hydrateRemote();
+  });
 }
 
 export function ingestSessionNectarEvent(event: CanonicalMarketEvent): SessionNectarIngestResult {

@@ -2393,16 +2393,9 @@ Append-only. A row is flipped only where a serving receipt with its build and ti
 | Ticket coverage while building an order | Is ≤ 55% of the glass the limit for the phone ticket while an order is being built? |
 | GC1! decimals | The chart prints gold at 2 decimals, the ticket at the true tick — which rules? |
 
-## 13. AUDIT FINDING — the server gate did not stand in front of Webull live orders (found and closed 2026-10-09)
+## 13. AUDIT FINDING — the Webull order door's server gate (found 06:54 and closed in `559884e`, LIVE 07:06:21 CDT Oct 9)
 
-| When (CDT) | What | Evidence |
-|---|---|---|
-| 2026-10-09 06:54 — FOUND (read-only audit, FVG lane) | `/api/broker/webull/order-submit` ran the owner gate, the asset scope, the human's `confirmLive`, the durable ledger, Webull's preview and the submit-once idempotency — but it never loaded the server-held limits and never ran `preflightLiveOrder`. The server kill switch, the server arm (default DISARMED) and the per-order caps stood only in front of tastytrade. The certificate's "Execution is gated by design: WM places no Webull order" and the Settings / readiness word GATED were therefore not true of the server: with the owner signed in and `confirmLive` sent, the route could place. No order was sent, previewed or placed to learn this — source reading only | `src/app/api/broker/webull/order-submit/route.ts` at b290eef (no `preflightLiveOrder`, `liveOrdersEnabled: true`) |
-| 2026-10-09 07:00 — CLOSED in tree (tightening only, fail closed; ships in the next batch) | The Webull door now loads the same server-held limits and runs the same `preflightLiveOrder` as tastytrade's, BEFORE any call to Webull: kill switch, server arm, every applicable cap set and held, the environment the ticket showed (the Webull door trades production), a fresh quote for a risk-increasing order, and verified protection. Webull has no stop rail wired, so an opening stock order — or a stock order that does not say open / close — and a sold-to-open option are refused; a long option (bounded by its premium) and closing orders pass. Limits never set, unreadable, or a store that throws → refused. A refusal answers in the tastytrade door's own words, names no env var, and is written to its own ledger key (`wm:order-refusal:v1:webull:…`). Nothing became more permissive: owner gate, asset scope, `confirmLive`, ledger and idempotency are unchanged. The ticket now sends the environment it shows and the live dated touch | `route.test.ts` (kill switch / arm off / limits unset, unreadable, store down / caps / environment / quote / protection — each refused before any Webull call; a passing order still previews then places once); `src/lib/execution/serverGateBeforeBroker.sentinel.test.ts` pins limits → preflight → refusal-return BEFORE the first broker call in BOTH submit doors |
-| Founder list (not built) | A dedicated order-submit rate limiter (per owner; cancels never limited) and an optional daily order-count cap. Today neither live door has any rate limit; the Alpaca paper routes have an in-memory 30 / minute limiter | audit 2026-10-09 06:54 |
-
-With the gate in place the word GATED on the Webull rows (readiness board, Settings map) describes the server: the order stages are not switched on, and the kill switch and arm now stand in front of the door that could reach them.
-
+Closed: both live order doors now run the same server gate before any broker call, fail closed; pinned by the sentinel `serverGateBeforeBroker`. The finding's detail is held privately.
 
 ## 21. §28 CERTIFICATE UPDATES — rulings, `559884e`, `92895d6`, Webull server gate (cert lane, written 07:23 CDT Oct 9)
 
@@ -2432,13 +2425,7 @@ Append-only. Chart-lane receipts are cited from `~/wm-held/proof/fvg-serving-nig
 
 ### 21c. Webull order door — server gate (found and closed Oct 9)
 
-| Field | Record |
-|---|---|
-| **Found** | 06:54 CDT, by a read-only audit: the Webull order-submit route skipped `preflightLiveOrder` — the kill switch, the arm state and the caps were not consulted on the server before the broker call |
-| **Closed** | `559884e`, LIVE 07:06:21 CDT: the route runs the same server gate (kill switch, arm, caps, quote, protection) before any broker call and fails closed |
-| **Pinned** | sentinel `serverGateBeforeBroker` on both order doors |
-| **Serving proof** | **NOT proved on serving** — proving it needs Arm / Send to be pressed, and nobody presses them. Tests and code reading only |
-| **Owner** | brokers / execution lane (not this lane) |
+Closed in `559884e` (LIVE 07:06:21 CDT); pinned by `serverGateBeforeBroker`; the gate was read on serving with no order on `e8ca9f2`. Detail held privately.
 
 ### 21d. Chart rows flipped from the chart lane's receipts (`559884e`)
 
@@ -3028,6 +3015,7 @@ Status words: **PROVED** (a serving receipt in this document covers it) · **PAR
 | 19:02 | **`00e7002` LIVE 18:56:11** (coordinator ship gate; 17,877 tests). Another session's `733a34f` (passport bridge accepts thewow.online) is also in main | 47 · 12 · 1 · 4 · 2 Founder | Shipped: phone type floor / absorption cap / profile rows, one-owner fidelity word, prop desk file import + owner sample (§8 mounted, synthetic-certified only), billing pure owners (§11 building), the SpaidBot slice. Read on it: the SpaidBot launcher in non-chart rooms (§29b). In the tree: six tool primers + repointed ⓘ doors (§29a). Handover items 19–24 added |
 | 19:16 | **`52824b6` LIVE 19:12:06** (coordinator ship gate; 17,936 tests; build identity builtAt 00:08:08Z) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: ticket opens on order entry at every size + phone HALF (§6), shared broker readback store, word registry ENFORCE by default, the canonical CLOSED word, billing routes + pricing buttons fail-closed (§11 built, off), the six tool primers. Read on it: six primers at 390 and 1440, repointed ⓘ doors at both. In the tree: Liquidity Lifecycle + Effort Mark folded into their primers; SpaidBot's note and instructions say "closed · last verified" for a closed market |
 | 00:36 Oct 10 | **`32c95db` LIVE 00:31:49 CDT Oct 10** (coordinator ship gate; 17,973 tests) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: drag lines + Trade at price, wide two-part ticket, owner position strip (all built, not read); legal version owner + operator billing readiness; SpaidBot CLOSED words; Liquidity Lifecycle and Effort Mark folded into their primers. Billing guest checks PASS on `52824b6` (billing lane). First stress run on `52824b6`: 20 s at 1440 × 900, frame p50 16.7 / p95 18.6 / max 34 ms (Sheriff; rest in progress). **Security-sensitive detail moved out of this public repository** (handover 25) |
+| 00:50 Oct 10 | **`3180aae` LIVE 00:47:08 CDT** (coordinator ship gate; 18,001 tests) | 47 · 12 · 1 · 4 · 2 Founder | Shipped: order-rate limiter + daily cap on every live send, unset refuses (built; the gate read not yet read on serving — the browser link has been down since 00:32); plaque keep-out + LAST VERIFIED wording; SAMPLE lines in the ticket scene; one contract resolution; desk folds + Ask SpaidBot (owner); "prop" in SpaidBot's ask allow-list; the cert lane's privacy move. Guest walk on `32c95db` (Sheriff, Playwright, signed out, 9 public + 14 interior routes at 390 / 1440): no P0, two P2s being fixed — `~/wm-held/proof/g19-guest-walk-2026-10-10.md` |
 
 ## 27. Supermax §9 and §11 / §14 — Academy audit, ⓘ doors, public language (cert lane, written 18:35 CDT Oct 9; tree, not shipped)
 
@@ -3225,8 +3213,8 @@ One full 20-second run at 1440 × 900: frame time **p50 16.7 ms · p95 18.6 ms �
 | 8 | Desktop, tablet and phone are usable under trading pressure | **NOT YET** | viewport passes 27 / 27 and opened surfaces clear (§26c, §26d). Blocker: no physical phone or tablet (handover d); pressure measured on desktop only (C′); open P2s at 834 |
 | 9 | Performance measurements support the release claim | **NOT YET** | one 20-s desktop run: p50 16.7 / p95 18.6 / max 34 ms (C′). Blocker: the full stress file; no phone or real-device run (finish-line §58) |
 | 10 | Passport and Stripe correctly handle subscriptions and access | **NOT YET** | guest checks PASS on `52824b6` (tiers NOT_CONFIGURED; standing / checkout / portal 401; forged webhook 400; "Not on sale yet" ×3). Blocker: Stripe has never been run; no keys; WOW World live-mode findings (details held privately); referral URLs |
-| 11 | Security, privacy and legal requirements are verified | **NOT YET** | API audit: no P0; several P1 closed (`6944df9`, `79bb6fd`); server gate before both order doors (`559884e`); guest 401 on owner routes; legal version owner shipped (`32c95db`). Blockers: open order-path findings and one P1 are Founder decisions (details held privately); Terms / Privacy "not in effect yet"; no member-session (non-owner) read; **the repository is public** (handover 25) — committed history still holds what was moved today |
-| 12 | Public ATH product language is accurate | **PARTIAL** | §22b, §27c (the manifest corrected, LIVE `b72f896`); banned-claims tests; pricing reads "Not on sale yet". Blocker: selling copy never redlined by the Founder (handover 3); the Sheriff's guest walk on the final build is owed |
+| 11 | Security, privacy and legal requirements are verified | **NOT YET** | API audit: no P0; several P1 closed (`6944df9`, `79bb6fd`); server gate before both order doors (`559884e`); guest 401 on owner routes; legal version owner shipped (`32c95db`). Blockers: open order-path findings and one P1 are Founder decisions (details held privately); Terms / Privacy "not in effect yet"; a non-owner read exists for the signed-out guest only (guest walk, `32c95db`) — no signed-in member session has been read; **the repository is public** (handover 25) — committed history still holds what was moved today |
+| 12 | Public ATH product language is accurate | **PARTIAL** (guest walk on `32c95db`: no P0, two P2s in fix — `g19-guest-walk-2026-10-10.md`, outside the repository) | §22b, §27c (the manifest corrected, LIVE `b72f896`); banned-claims tests; pricing reads "Not on sale yet". Blocker: selling copy never redlined by the Founder (handover 3); the Sheriff's guest walk on the final build is owed |
 | 13 | Clip A / B / C remain production specifications until real footage is captured | **NOT YET — no evidence either way** | Searched the repository docs, `~/wm-held` (proof, canon and plate folders) and the source for "Clip A / B / C" and for clip specifications: **nothing found.** The only footage document is `docs/ATH_VIDEO_EVIDENCE_2026-07-28.md` (recordings reviewed in July; no Clip A / B / C). The public pages (/welcome, /pricing, /login, `/`, the selling components, metadata) carry **no video element** — so nothing public presents footage as captured. Blocker: the specifications themselves are not in any place this lane can read; whoever holds them should name the file |
 | 14 | No historical duplicate truth or competing market brain survives | **PARTIAL** | one-owner sentinels throughout (one gap detector, one selection owner, one regime owner §24e, one failure owner, one fidelity word `00e7002`, one broker readback store `52824b6`, one ⓘ registry feeding the primers verbatim). Blocker: no single audit of every duplicate; the Command Deck is kept as a labelled legacy surface |
 
@@ -3244,3 +3232,37 @@ Read from the registry itself (`INVENTION_EDUCATION`, `INSTRUMENT_EDUCATION`, `C
 | SILENCE | **there is no SILENCE field in the record shape.** The no-evidence case is folded into each record's DEGRADED line. Read one by one, 56 of 57 DEGRADED lines say what the tool does with no evidence (does not draw, no mark, no cards, no pools, UNMEASURED, nothing is detected, the plain unsupported line). The one exception is **Session Bands** ("Not applicable — a clock fact") — a clock has nothing to be silent about. The primers state SILENCE once for every tool (§29a) |
 
 **No record lacks a grade.** If the order wants SILENCE as its own named line per record, that is a registry change (one optional `silence` field, 57 records) — not made tonight.
+
+## 30. SILENCE in every ⓘ record; the rest of the ⓘ catalogue swept (cert lane, written 00:50 CDT Oct 10; tree, not shipped)
+
+### 30a. The registry now states SILENCE (Supermax §5)
+
+The record shape gains an optional `silence` line. All 57 records in the invention, instrument and concept registries carry it. It is each record's own no-evidence sentence — its DEGRADED line, written once more under its own name; a test pins that the two are identical, so no claim was added. The one exception is **Session Bands**: "No silence case — a clock fact: the session clock always has an answer." The tool primers now print a SILENCE line per tool from it. Test: `inventionEducationSilence.test.ts` (every record has all four; SILENCE equals DEGRADED except Session Bands).
+
+### 30b. The indicator / Smart Money / drawing / view catalogue (283 records) — read from the code
+
+| Catalogue | Records | FULL / PARTIAL / DEGRADED stated | SILENCE as its own line |
+|---|---|---|---|
+| Indicators menu (`IND:`) | 142 | 142 / 142 | 0 |
+| Smart Money cards (`SM:`) | 31 | 31 / 31 | 0 |
+| Smart Money panel cards (`SMCARD:`) | 5 | 5 / 5 | 0 |
+| Drawing tools (`DRAW:`) | 83 | 83 / 83 | 0 |
+| Views (`VIEW:`) | 16 | 16 / 16 | 0 |
+| Loadouts (`LOADOUT:`) | 4 | 4 / 4 | 0 |
+| Replay, bar selection | 2 | 2 / 2 | 0 |
+
+**No record lacks a grade. None has a SILENCE line.** Where the DEGRADED line does not say what the surface does when its evidence is absent:
+
+| Gap | Records | What the line says now | Owner |
+|---|---|---|---|
+| **Draws anyway, flat, on markets with no traded volume** — a truth gap, not a wording gap | 10 volume indicators: VWAP, VWAP Bands, Anchored VWAP, Volume, OBV, Accumulation / Distribution, Price Volume Trend, Negative Volume Index, Positive Volume Index, VWAP Deviation Bands | "No central traded volume (spot FX, spot metals) — the volume terms are zero, so what draws is flat or meaningless. Leave it off on those markets." The indicator still draws; every other volume tool in the house stays silent instead | chart lane (indicator engine) |
+| Names the missing evidence, not the result | Views: Gravity ("No central volume."), Options ("No chain for this symbol."), ETFs, Financials, Valuation, Corporate Actions, Shareholders, Profile ("Not an equity." / "No reference data.") | the reason only | cert lane (wording, next slice) |
+| Not applicable | Smart Money panel card "WM Playbook" ("Not applicable.") | — | cert lane |
+
+The 14 "not measured on any feed" Smart Money cards say "Always — … is not carried by any connected source" and show an honest blank; that is a silence, stated.
+
+**Next slice (not done):** a `silence` line for the 283 catalogue records, written from each record's existing words in the same way.
+
+### 30c. Privacy sweep — older documents (00:50)
+
+Closed-and-fixed items stay as one-line records: certificate §13 and §21c (the Webull server-gate finding, closed in `559884e`) are now one paragraph each, without the finding's detail. The 2026-09-11 baton's per-provider credential-presence table moved out. Reviewed and left as they are (no open finding, no account detail): the July FORGE handoff (its P1-3 is closed), MEMBER-BROKER-CONNECT (a design document), the Noah revert handoff, the 2026-09-15 dispatches. All moved text is in `~/wm-held/proof/g19-founder-private-2026-10-10.md`.

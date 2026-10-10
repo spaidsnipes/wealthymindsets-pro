@@ -20,6 +20,7 @@ export const PROVENANCE_INK: Readonly<Record<CaptureProvenance, string>> = {
   "BROKER-REPORTED": "#7fd1a8",
   "TICKET-INTENT": GOLD,
   DERIVED: "#9fb8d9",
+  "IMPORTED-FILE": "#d9a441",
   UNREPORTED: MUTED,
 };
 
@@ -40,7 +41,9 @@ export function CapturedFacts({ capture, title = "Captured from the broker" }: {
       <strong style={{ color: GOLD, fontSize: 11, letterSpacing: ".08em" }}>{title.toUpperCase()}</strong>
       <dl style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1.4fr) auto", gap: "2px 8px", margin: 0, fontSize: 11, fontVariantNumeric: "tabular-nums" }}>
         {CAPTURE_FIELD_LABELS.map(([k, label]) => {
-          const f = capture[k] as CapturedField<string | number>;
+          const f = capture[k] as CapturedField<string | number> | undefined;
+          // A field only some drafts carry (an imported round trip's exit) is simply absent from the others.
+          if (!f) return null;
           return (
             <React.Fragment key={k}>
               <dt style={{ color: MUTED, overflowWrap: "anywhere" }}>{label}</dt>
@@ -53,7 +56,7 @@ export function CapturedFacts({ capture, title = "Captured from the broker" }: {
       <details style={{ fontSize: 10.5, color: MUTED }}>
         <summary style={{ cursor: "pointer", minHeight: 24 }}>Where each value came from</summary>
         <ul style={{ margin: "4px 0 0", paddingLeft: 14 }}>
-          {CAPTURE_FIELD_LABELS.map(([k, label]) => <li key={k}>{label} — {(capture[k] as CapturedField<string | number>).source}</li>)}
+          {CAPTURE_FIELD_LABELS.map(([k, label]) => { const f = capture[k] as CapturedField<string | number> | undefined; return f ? <li key={k}>{label} — {f.source}</li> : null; })}
         </ul>
       </details>
       <p style={{ margin: 0, fontSize: 10.5, color: MUTED }}>Unreported stays unreported — it is never filled with 0.</p>

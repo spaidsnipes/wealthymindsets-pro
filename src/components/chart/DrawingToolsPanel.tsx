@@ -292,7 +292,7 @@ export function DrawingStylePopover({ style, onChange, anchor, beside, onClose }
         <span style={lbl}>WIDTH</span>
         <div style={{ display: "flex", gap: 4 }}>
           {[1, 2, 3, 4].map(w => (
-            <button key={w} title={`${w}px`} onClick={() => onChange({ width: w })} style={chip(style.width === w)}>
+            <button key={w} title={`${w}px`} aria-label={`Line width ${w} pixels`} aria-pressed={style.width === w} onClick={() => onChange({ width: w })} style={chip(style.width === w)}>
               <span style={{ display: "inline-block", width: 14, height: w, background: "currentColor", borderRadius: 2 }} />
             </button>
           ))}
@@ -474,13 +474,15 @@ export function DrawingToolsPanel({
           opacity: style.opacity / 100,
         }}
         title="Drawing style"
+        aria-label="Drawing style — colour, width and opacity"
+        aria-expanded={showStyle}
       />
 
       {/* ── Utility buttons ── */}
-      <button onClick={onMagnetToggle} title="Magnet — snap to OHLC" style={utilBtnStyle(magnetActive, "#4FA3E0")}><Magnet size={11} /></button>
-      <button onClick={onLockToggle}   title="Lock drawings"        style={utilBtnStyle(lockActive,   "#F0B429")}><Lock   size={11} /></button>
-      <button onClick={onVisToggle}    title={visible ? "Hide drawings" : "Show drawings"} style={utilBtnStyle(false, "#00D4AA")}>
-        {visible ? <Eye size={11} /> : <EyeOff size={11} />}
+      <button onClick={onMagnetToggle} title="Magnet — snap to OHLC" aria-label="Magnet — snap drawings to open, high, low or close" aria-pressed={magnetActive} style={utilBtnStyle(magnetActive, "#4FA3E0")}><Magnet size={11} aria-hidden="true" /></button>
+      <button onClick={onLockToggle}   title="Lock drawings"        aria-label="Lock drawings" aria-pressed={lockActive} style={utilBtnStyle(lockActive,   "#F0B429")}><Lock   size={11} aria-hidden="true" /></button>
+      <button onClick={onVisToggle}    title={visible ? "Hide drawings" : "Show drawings"} aria-label={visible ? "Hide drawings" : "Show drawings"} style={utilBtnStyle(false, "#00D4AA")}>
+        {visible ? <Eye size={11} aria-hidden="true" /> : <EyeOff size={11} aria-hidden="true" />}
       </button>
       <button
         onClick={async () => {

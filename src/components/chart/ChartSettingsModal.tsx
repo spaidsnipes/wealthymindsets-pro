@@ -48,7 +48,18 @@ export interface ChartSettings {
   // Reading inks (same owner): the absorption shelf's words, the fused profile.
   absorptionInk?: string;
   fusedProfileInk?: string;
+  // VOLUME (Founder order §5, 2026-10-09). Absent = the room's brass bars.
+  volumeUp?: string;
+  volumeDown?: string;
+  // OPACITY DIALS — multipliers the attention governor applies last, floored so
+  // nothing the trader turned on becomes unreadable. Absent = 1 (unchanged).
+  profileOpacity?: number;
+  wallOpacity?: number;
+  memoryOpacity?: number;
 }
+
+/** The volume bars' shipped colours as a picker can show them (the alpha is the room's, kept on paint). */
+export const VOLUME_COLOR_PICKER_DEFAULTS = { volumeUp: "#c4a574", volumeDown: "#6e5a3c" } as const;
 
 /** The shipped order-flow colours — the exact values the chart painted before. */
 export const FLOW_COLOR_DEFAULTS = {
@@ -139,11 +150,30 @@ function ColorSwatch({ value, onChange, label }: { value: string; onChange: (v: 
         <input
           type="color"
           value={value}
+          aria-label={label}
+          className="wm-settings-control"
           onChange={e => onChange(e.target.value)}
           style={{ width: 28, height: 20, borderRadius: 4, border: "1px solid #263050", background: "none", cursor: "pointer", padding: 0 }}
         />
       </div>
     </div>
+  );
+}
+
+/** A dial: 0.4–1.6 in tenths, 1 = as shipped. The whole row is the 44px touch target on a phone. */
+function Dial({ value, onChange, label }: { value: number | undefined; onChange: (v: number) => void; label: string }) {
+  const v = typeof value === "number" && Number.isFinite(value) ? value : 1;
+  return (
+    <label className="wm-settings-dial" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "6px 0", minHeight: 32 }}>
+      <span style={{ fontSize: 12, color: "#8896BE" }}>{label}</span>
+      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input type="range" min={0.4} max={1.6} step={0.1} value={v} aria-label={label}
+          aria-valuetext={`${Math.round(v * 100)} percent`}
+          onChange={e => onChange(Number(e.target.value))}
+          className="wm-settings-control" style={{ width: 120, accentColor: "#C9A55C" }} />
+        <span style={{ fontSize: 11, color: "#8b8fa8", fontFamily: "monospace", minWidth: 36, textAlign: "right" }}>{Math.round(v * 100)}%</span>
+      </span>
+    </label>
   );
 }
 
@@ -156,6 +186,7 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: bool
         role="switch"
         aria-checked={value}
         aria-label={label}
+        className="wm-settings-control"
         onClick={() => onChange(!value)}
         style={{
           width: 36, height: 18, borderRadius: 9, cursor: "pointer", border: "none",
@@ -440,6 +471,18 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <ColorSwatch value={s.deltaSell ?? FLOW_COLOR_DEFAULTS.deltaSell}       onChange={v => set({ deltaSell: v })}      label="Delta bubble · net sell" />
                   <ColorSwatch value={s.absorptionInk ?? FLOW_COLOR_DEFAULTS.absorptionInk}     onChange={v => set({ absorptionInk: v })}   label="Absorption shelf · words" />
                   <ColorSwatch value={s.fusedProfileInk ?? FLOW_COLOR_DEFAULTS.fusedProfileInk} onChange={v => set({ fusedProfileInk: v })} label="Fused profile · outline + POC/VA" />
+
+                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Volume Colors</div>
+                  <ColorSwatch value={s.volumeUp ?? VOLUME_COLOR_PICKER_DEFAULTS.volumeUp}     onChange={v => set({ volumeUp: v })}   label="Volume · up bar" />
+                  <ColorSwatch value={s.volumeDown ?? VOLUME_COLOR_PICKER_DEFAULTS.volumeDown} onChange={v => set({ volumeDown: v })} label="Volume · down bar" />
+
+                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Layer Opacity</div>
+                  <Dial value={s.profileOpacity} onChange={v => set({ profileOpacity: v })} label="Profiles" />
+                  <Dial value={s.wallOpacity}    onChange={v => set({ wallOpacity: v })}    label="Walls & options" />
+                  <Dial value={s.memoryOpacity}  onChange={v => set({ memoryOpacity: v })}  label="Memory" />
+                  <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4 }}>Nothing you turn on can be dialled below readable.</div>
                 </div>
               )}
 

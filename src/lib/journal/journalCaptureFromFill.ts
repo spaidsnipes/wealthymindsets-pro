@@ -25,9 +25,13 @@
 
 import { datedFuturesContract } from "@/lib/execution/liveOrderPreflight";
 
-export type CaptureProvenance = "BROKER-REPORTED" | "TICKET-INTENT" | "DERIVED" | "UNREPORTED";
+/**
+ * IMPORTED-FILE (Supermax §8, 2026-10-10): read from a fills export the trader opened in the browser — the
+ * platform's own file, but not a live broker readback, so it never wears BROKER-REPORTED.
+ */
+export type CaptureProvenance = "BROKER-REPORTED" | "TICKET-INTENT" | "DERIVED" | "IMPORTED-FILE" | "UNREPORTED";
 
-export const CAPTURE_PROVENANCES: readonly CaptureProvenance[] = ["BROKER-REPORTED", "TICKET-INTENT", "DERIVED", "UNREPORTED"];
+export const CAPTURE_PROVENANCES: readonly CaptureProvenance[] = ["BROKER-REPORTED", "TICKET-INTENT", "DERIVED", "IMPORTED-FILE", "UNREPORTED"];
 
 export interface CapturedField<T> {
   /** null exactly when provenance is UNREPORTED. */
@@ -160,6 +164,8 @@ export interface JournalCaptureDraft {
   readonly plannedRiskUsd: CapturedField<number>;
   readonly pnlUsd: CapturedField<number>;
   readonly realizedR: CapturedField<number>;
+  /** A closed round trip's average exit price — only an imported round trip carries it (a live fill is one side). */
+  readonly exitPx?: CapturedField<number>;
 }
 
 export type JournalCaptureResult =
@@ -343,6 +349,8 @@ export interface JournalFormPrefill {
   readonly date?: string;
   readonly contractType?: "stock" | "option";
   readonly plannedRDollars?: number;
+  /** Only for a draft that carries a closed round trip's exit (an imported file). */
+  readonly exit?: number;
   readonly capture: JournalCaptureDraft;
 }
 
@@ -369,6 +377,8 @@ export function captureToJournalForm(draft: JournalCaptureDraft, dayKeyOf: (d: D
   if (/^equity option$/i.test(type)) out.contractType = "option";
   else if (/^equity$/i.test(type)) out.contractType = "stock";
   if (draft.plannedRiskUsd.value != null && draft.plannedRiskUsd.value > 0) out.plannedRDollars = draft.plannedRiskUsd.value;
+  // An imported ROUND TRIP knows both sides: the opening average is the entry, the closing average the exit.
+  if (draft.exitPx?.value != null && draft.exitPx.value > 0) out.exit = draft.exitPx.value;
   return out;
 }
 
@@ -404,6 +414,7 @@ export function readJournalCapture(raw: unknown): JournalCaptureDraft | null {
   if (o.kind !== "WM_FILL_CAPTURE" || o.version !== 1) return null;
   const out: Record<string, unknown> = { kind: "WM_FILL_CAPTURE", version: 1, capturedAtMs: typeof o.capturedAtMs === "number" && Number.isFinite(o.capturedAtMs) ? o.capturedAtMs : 0 };
   for (const k of DRAFT_FIELDS) out[k] = readField(o[k], NUMERIC.has(k));
+  if (o.exitPx !== undefined) out.exitPx = readField(o.exitPx, true);
   const draft = out as unknown as JournalCaptureDraft;
   return draft.orderId.value != null ? draft : null;
 }
@@ -418,5 +429,5 @@ export const CAPTURE_FIELD_LABELS: readonly (readonly [keyof JournalCaptureDraft
   ["quoteBid", "Bid at send"], ["quoteAsk", "Ask at send"], ["spread", "Spread at send"], ["quoteAgeAtSendMs", "Quote age at send (ms)"],
   ["slippage", "Slippage vs touch"], ["slippageUsd", "Slippage $"],
   ["stopPx", "Planned stop (SL)"], ["targetPx", "Planned target (TP)"], ["plannedRiskUsd", "Planned risk $ (1R)"],
-  ["pnlUsd", "P&L"], ["realizedR", "R"],
+  ["pnlUsd", "P&L"], ["realizedR", "R"], ["exitPx", "Exit price"],
 ];

@@ -105,6 +105,25 @@ export const TIER_CEILING: Readonly<Record<AttentionTier, number>> = {
 
 /** Dim, never delete (F27): no governed layer goes below this. */
 export const ATTENTION_FLOOR = 0.12;
+
+/** The families a trader can dial. */
+export type UserOpacityFamily = "PROFILES" | "WALLS" | "MEMORY";
+export const USER_OPACITY_FAMILY: Readonly<Partial<Record<AttentionLayerKey, UserOpacityFamily>>> = {
+  volumeProfile: "PROFILES", livingProfile: "PROFILES", livingProfileMovie: "PROFILES", profileDna: "PROFILES",
+  compositeProfile: "PROFILES", visibleRangeProfile: "PROFILES", tpo: "PROFILES", structureProfile: "PROFILES",
+  profileFusion: "PROFILES", fusedObject: "PROFILES",
+  derivativesPressure: "WALLS", brickWalls: "WALLS",
+  profileMemory: "MEMORY", sessionGhosts: "MEMORY", valueMigration: "MEMORY", memoryGhost: "MEMORY", fvgMemory: "MEMORY",
+};
+/** A dial's range. Below 0.4 a layer stops reading as itself; above 1.6 it outshouts price. */
+export const USER_OPACITY_MIN = 0.4;
+export const USER_OPACITY_MAX = 1.6;
+/** No dial takes an enabled layer under this (it stays readable — Founder rule). */
+export const USER_OPACITY_READABLE_FLOOR = 0.2;
+export function clampUserOpacity(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? v : 1;
+  return Math.min(USER_OPACITY_MAX, Math.max(USER_OPACITY_MIN, n));
+}
 /**
  * On glass narrower than NARROW_GLASS_MAX_PX context steps further behind the
  * present than on the desk: LIVE keeps 1, SUPPORTING 0.55, MEMORY 0.30
@@ -260,6 +279,14 @@ export interface AttentionGovernorInput {
   readonly quietExempt?: readonly AttentionLayerKey[];
   /** The plot is narrower than NARROW_GLASS_MAX_PX (a phone): the narrow-glass word budget applies. */
   readonly narrowGlass?: boolean;
+  /**
+   * THE TRADER'S OPACITY DIALS (Founder order §5, 2026-10-09: "opacity, color,
+   * readability — complete control"). One multiplier per family, from the one
+   * appearance owner (ChartSettings). Applied LAST, on top of everything the
+   * governor decided, and floored so no setting can make an enabled layer
+   * unreadable. Absent = 1 (nothing changes until the trader touches a dial).
+   */
+  readonly userOpacity?: Partial<Record<UserOpacityFamily, number>>;
   /**
    * Garden 16 emergency order §15 — WAIT IS A MARKET POSTURE. "QUIET" when the
    * one compiled decision grants no authorization (WAIT / NO TRADE): the
@@ -445,6 +472,15 @@ export function selectAttentionGovernor(
       // P2-E: context under the present's load (a PRIMARY role is the trader's lead — exempt).
       const share = LOAD_SHARE[spec.tier];
       if (share != null && role !== "PRIMARY") a = Math.max(ATTENTION_FLOOR, Math.min(a, liveLoadRef * share));
+    }
+    // The trader's dial, last: multiplies, never past the tier's ceiling, never
+    // under the readable floor. The selected item and CHROME are not dialled.
+    const fam = USER_OPACITY_FAMILY[key];
+    const dial = fam ? input.userOpacity?.[fam] : undefined;
+    if (dial != null && tier !== "CHROME" && tier !== "SELECTED" && !opts?.selectedItem) {
+      const k = clampUserOpacity(dial);
+      // Floor: a dial DOWN stops at the readable floor (or the layer's own alpha, if it was already lower).
+      if (k !== 1) a = Math.min(TIER_CEILING[spec.tier], Math.max(Math.min(a, USER_OPACITY_READABLE_FLOOR), a * k));
     }
     // The receipt records what the layer was actually given, when it asked —
     // a layer painted before the Question Lens was not quieted by it.

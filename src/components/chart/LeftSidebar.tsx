@@ -618,7 +618,7 @@ function ModalShell({ title, icon, onClose, children, width = 520 }: {
         }}>
           <span style={{ color: ACCENT, display: "flex" }}>{icon}</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: "#E2E8F0", flex: 1 }}>{title}</span>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#8896BE", cursor: "pointer", display: "flex" }} title="Close">
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#8896BE", cursor: "pointer", display: "flex" }} title="Close" aria-label="Close">
             <X size={18} />
           </button>
         </div>

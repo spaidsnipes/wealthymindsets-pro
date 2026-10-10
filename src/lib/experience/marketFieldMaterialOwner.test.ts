@@ -405,7 +405,9 @@ describe("the market field has ONE material owner", () => {
       // the neon read specifically, so moving volume onto some unrelated
       // ternary does not silently satisfy this.
       const themed =
-        src.match(new RegExp(`chartSettings\\?\\.neon\\s*\\?[^;]{0,60}?:\\s*${name}`, "g")) ?? [];
+        // (2026-10-09: the default arm may pass through the trader's own volume
+        // colour first — `volumeInk(chartSettings?.volumeUp, NAME)` still ends at the owner.)
+        src.match(new RegExp(`chartSettings\\?\\.neon\\s*\\?[^;]{0,60}?:\\s*(?:volumeInk\\(chartSettings\\?\\.volume(?:Up|Down),\\s*)?${name}`, "g")) ?? [];
       // ONE further lawful use: the SERIES-LEVEL `color`, which is not a bar
       // colour at all — it is what Lightweight-Charts draws the price line and
       // the axis tag from. See THE LAST RED THREAD below for why that had to

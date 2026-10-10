@@ -204,13 +204,7 @@ JPY=X 153.724, BTC-USD 77128.75, ETH-USD 2543.39.
 the app says so correctly.** Read from production through the Founder's
 authenticated session:
 
-| Provider | implemented | env configured | connected | what is actually blocking |
-|---|---|---|---|---|
-| webull | ✅ | ✅ | ❌ | **HTTP 401 → `BLOCKED_AUTH`.** appKey + appSecret present, accessToken absent. Webull Connect OAuth not registered (`WEBULL_CONNECT_CLIENT_ID` / `_SECRET`). |
-| alpaca | ✅ | ✅ | ❌ | live creds present, paper creds absent. **This is the only provider actually serving data.** |
-| tastytrade | ✅ | ❌ | ❌ | needs `CLIENT_ID` + `CLIENT_SECRET` + `REFRESH_TOKEN` |
-| moomoo | ✅ | ❌ | ❌ | needs `MOOMOO_BRIDGE_URL` + `_TOKEN` **and a host running OpenD** |
-| longbridge | ✅ | ❌ | ❌ | bridge URL / shared token not set |
+The per-provider configuration and credential-presence table read that day is held privately (the repository is public).
 
 **What the app can actually see right now**, per the capability matrix:
 

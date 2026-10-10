@@ -24,14 +24,14 @@ describe("Supermax §9 — tool primers: one per tool, written from the tool's o
       p.tools.forEach((t, i) => {
         const r = educationFor(t.id)!;
         const s = p.sections[i];
-        expect(s, t.id).toMatchObject({ question: r.question, appears: r.appears, grammar: r.grammar, evidence: r.evidence, full: r.full, partial: r.partial, degraded: r.degraded });
+        expect(s, t.id).toMatchObject({ question: r.question, appears: r.appears, grammar: r.grammar, evidence: r.evidence, full: r.full, partial: r.partial, degraded: r.degraded, silence: r.silence });
       });
     }
   });
 
   it("each primer says what it is on the glass, what it cannot know, and how to read the four grades", () => {
     const ui = readFileSync("src/components/education/ToolPrimerBody.tsx", "utf8");
-    for (const word of ["On the chart:", "How to read it:", "What it needs:", "FULL:", "PARTIAL:", "DEGRADED:", "{PRIMER_SILENCE}", "{PRIMER_CANNOT_KNOW}"]) expect(ui).toContain(word);
+    for (const word of ["On the chart:", "How to read it:", "What it needs:", "FULL:", "PARTIAL:", "DEGRADED:", "SILENCE:", "{PRIMER_SILENCE}", "{PRIMER_CANNOT_KNOW}"]) expect(ui).toContain(word);
     expect(PRIMER_SILENCE).toMatch(/^SILENCE: the tool draws nothing and says why\./);
     expect(PRIMER_CANNOT_KNOW).toMatch(/who traded, why they traded, or what price does next/);
   });

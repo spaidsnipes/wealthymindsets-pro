@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { selectBrokerOrderLines, type BrokerReadback } from "./brokerOrderLines";
 import { ticketBook } from "./ticketBook";
-import { wideSendSections, COMPACT_HALF_MAX_HEIGHT, halfControl, halfInForce, WIDE_TICKET_MAX_HEIGHT, bookIsActive, COMPACT_ACT_MAX_HEIGHT, COMPACT_BUILD_SECTIONS, COMPACT_PEEK_MAX_HEIGHT, COMPACT_PEEK_SECTIONS, COMPACT_REVIEW_SECTIONS, COMPACT_TICKET_MAX_WIDTH, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketSections, ticketStage, ticketStep } from "./ticketLayout";
+import { HALF_DRAG_SNAP_PX, halfFromDrag, wideSendSections, COMPACT_HALF_MAX_HEIGHT, halfControl, halfInForce, WIDE_TICKET_MAX_HEIGHT, bookIsActive, COMPACT_ACT_MAX_HEIGHT, COMPACT_BUILD_SECTIONS, COMPACT_PEEK_MAX_HEIGHT, COMPACT_PEEK_SECTIONS, COMPACT_REVIEW_SECTIONS, COMPACT_TICKET_MAX_WIDTH, COMPACT_TICKET_QUERY, compactRiskLine, detailsSummary, foldControl, reviewGate, ticketSections, ticketStage, ticketStep } from "./ticketLayout";
 
 const NOW = Date.parse("2026-10-08T18:30:00Z");
 const rb = (over: Partial<BrokerReadback>): BrokerReadback => ({ asOfMs: NOW - 1000, ok: true, orders: [], positions: [], tails: ["5019"], orderAccounts: {}, ...over });
@@ -67,6 +67,10 @@ describe("detailsSummary — the disclosure states the book before it is opened"
     const held = rb({ orders: [order], positions: [{ symbol: "/NQZ6", quantity: 1, direction: "Long", averageOpenPrice: 100, instrumentType: "Future" }], orderAccounts: { "101": { index: 0, tail: "5019" } } });
     expect(detailsSummary(book(held))).toBe("Details · HOLDING · 1 working");
     expect(detailsSummary(book(held, { killSwitch: true, limitsSet: true }))).toBe("Details · HOLDING · 1 working · 2 refused");
+    // Lifecycle (Morning Prep → plan → ticket → Journal): the plan card folds into Details, and the summary says so.
+    expect(detailsSummary(book(rb({})), { inside: true })).toBe("Details · FLAT · 0 working · management plan + today's rules");
+    expect(detailsSummary(book(rb({})), { inside: false })).toBe("Details · FLAT · 0 working");
+    expect(readFileSync(path.join(process.cwd(), "src/components/chart/TradePanel.tsx"), "utf8")).toContain("summary={detailsSummary(book, { inside: owner && tradable })}");
   });
 });
 
@@ -161,6 +165,22 @@ describe("HALF — the trader's own option on a phone; the default is unchanged"
     expect(c.enabled).toBe(false);
     expect(c.ariaLabel).toMatch(/order is in flight/);
     expect(halfInForce({ ...act, half: true, preSend: false })).toBe(false);
+  });
+});
+
+describe("HALF grip — drag the sheet's edge; snaps on release", () => {
+  const on = { shown: true, enabled: true, label: "HALF ▾", ariaLabel: "x" };
+  it("down ≥ 40 px → half, up ≥ 40 px → full, a small move nothing; refused or hidden → nothing", () => {
+    expect(HALF_DRAG_SNAP_PX).toBe(40);
+    expect(halfFromDrag(60, on)).toBe(true);
+    expect(halfFromDrag(-60, on)).toBe(false);
+    expect(halfFromDrag(20, on)).toBeNull();
+    expect(halfFromDrag(80, { ...on, enabled: false })).toBeNull();
+    expect(halfFromDrag(80, { ...on, shown: false })).toBeNull();
+    expect(halfFromDrag(Number.NaN, on)).toBeNull();
+    const T = readFileSync(path.join(process.cwd(), "src/components/chart/TradePanel.tsx"), "utf8");
+    expect(T).toContain('data-testid="trade-half-grip"');
+    expect(T).toContain("const next = halfFromDrag(e.clientY - y0, halfCtl); if (next !== null) setHalf(next);");
   });
 });
 
