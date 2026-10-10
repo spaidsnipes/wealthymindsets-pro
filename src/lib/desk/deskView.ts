@@ -88,6 +88,8 @@ export const DESK_PENDING_READINGS: readonly ProfileId[] = [
   "MEMORY_GHOST",
   "EXPECTED_ENVELOPE", "CONTRADICTION", "MTF_ANCESTRY", "DERIVATIVES_PRESSURE",
   "BRICK_WALLS", "REGIME_LIGHTING",
+  // WALLS & GAMMA (2026-10-10): the Desk has no options chain wired yet.
+  "CALL_WALL", "PUT_WALL", "GAMMA_HEATMAP", "GAMMA_POSITIVE", "GAMMA_NEGATIVE", "GAMMA_FLIP", "GAMMA_CONCENTRATION",
 ];
 
 export function pendingDeskReadings(switches: LayoutSwitches | null) {

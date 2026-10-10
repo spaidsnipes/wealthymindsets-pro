@@ -89,7 +89,11 @@ export async function readOrderRate(kv: RateKv | null, input: { readonly broker:
 }
 
 /** The verdict, in trader words with when it resets. */
-export async function checkOrderRate(kv: RateKv | null, input: { readonly broker: RateBroker; readonly ownerId: string; readonly limits: ServerOrderLimits | null; readonly nowMs: number }): Promise<OrderRateCheck> {
+export async function checkOrderRate(kv: RateKv | null, input: { readonly broker: RateBroker; readonly ownerId: string; readonly limits: ServerOrderLimits | null; readonly nowMs: number; readonly cost?: number }): Promise<OrderRateCheck> {
+  // COST (2026-10-10): what one send costs against the budget — 1 for a single order, BRACKET_RATE_COST (3)
+  // for an attached bracket, which is three orders at the broker. Anything not a whole number ≥ 1 is 1.
+  const cost = Number.isInteger(input.cost) && (input.cost as number) >= 1 ? (input.cost as number) : 1;
+  const as = cost > 1 ? ` This send counts as ${cost} orders.` : "";
   const name = input.broker === "webull" ? "Webull" : "tastytrade";
   if (input.limits?.maxOrdersPerMinute == null || input.limits?.maxOrdersPerDay == null) {
     return { ok: false, code: "ORDER_RATE_UNSET", reason: "Set a maximum number of live orders per minute and per day on the server (Settings › Execution); until then nothing live can be sent.", standing: null };
@@ -97,11 +101,11 @@ export async function checkOrderRate(kv: RateKv | null, input: { readonly broker
   let st: OrderRateStanding | null = null;
   try { st = await readOrderRate(kv, input); } catch { st = null; }
   if (!st) return { ok: false, code: "ORDER_RATE_UNREADABLE", reason: "The order count could not be read, so nothing live is sent. Try again in a moment.", standing: null };
-  if (st.usedToday >= input.limits.maxOrdersPerDay) {
-    return { ok: false, code: "OVER_ORDERS_PER_DAY", reason: `You have sent ${st.usedToday} live ${name} orders today — your daily limit is ${input.limits.maxOrdersPerDay}. It resets at midnight Eastern (${clock(st.dayResetsAtMs)}). Cancelling stays open.`, standing: st };
+  if (st.usedToday + cost > input.limits.maxOrdersPerDay) {
+    return { ok: false, code: "OVER_ORDERS_PER_DAY", reason: `You have sent ${st.usedToday} live ${name} orders today — your daily limit is ${input.limits.maxOrdersPerDay}.${as} It resets at midnight Eastern (${clock(st.dayResetsAtMs)}). Cancelling stays open.`, standing: st };
   }
-  if (st.usedThisMinute >= input.limits.maxOrdersPerMinute) {
-    return { ok: false, code: "OVER_ORDERS_PER_MINUTE", reason: `You have sent ${st.usedThisMinute} live ${name} orders this minute — your limit is ${input.limits.maxOrdersPerMinute} a minute. Try again at ${clock(st.minuteResetsAtMs)}.`, standing: st };
+  if (st.usedThisMinute + cost > input.limits.maxOrdersPerMinute) {
+    return { ok: false, code: "OVER_ORDERS_PER_MINUTE", reason: `You have sent ${st.usedThisMinute} live ${name} orders this minute — your limit is ${input.limits.maxOrdersPerMinute} a minute.${as} Try again at ${clock(st.minuteResetsAtMs)}.`, standing: st };
   }
   return { ok: true, standing: st };
 }
@@ -110,15 +114,16 @@ export async function checkOrderRate(kv: RateKv | null, input: { readonly broker
  * Immediately before the place call: re-check, then record the send. A count
  * that cannot be written refuses — the order is never sent uncounted.
  */
-export async function reserveOrderSend(kv: RateKv | null, input: { readonly broker: RateBroker; readonly ownerId: string; readonly limits: ServerOrderLimits | null; readonly nowMs: number }): Promise<OrderRateCheck> {
+export async function reserveOrderSend(kv: RateKv | null, input: { readonly broker: RateBroker; readonly ownerId: string; readonly limits: ServerOrderLimits | null; readonly nowMs: number; readonly cost?: number }): Promise<OrderRateCheck> {
   const check = await checkOrderRate(kv, input);
   if (!check.ok) return check;
   const st = check.standing;
+  const n = Number.isInteger(input.cost) && (input.cost as number) >= 1 ? (input.cost as number) : 1;
   try {
-    await kv!.put(orderRateDayKey(input.broker, input.ownerId, st.etDate), String(st.usedToday + 1), { expirationTtl: 3 * 86_400 });
-    await kv!.put(orderRateMinuteKey(input.broker, input.ownerId, Math.floor(input.nowMs / 60_000)), String(st.usedThisMinute + 1), { expirationTtl: 120 });
+    await kv!.put(orderRateDayKey(input.broker, input.ownerId, st.etDate), String(st.usedToday + n), { expirationTtl: 3 * 86_400 });
+    await kv!.put(orderRateMinuteKey(input.broker, input.ownerId, Math.floor(input.nowMs / 60_000)), String(st.usedThisMinute + n), { expirationTtl: 120 });
   } catch {
     return { ok: false, code: "ORDER_RATE_UNREADABLE", reason: "The order count could not be recorded, so this order was NOT sent. Try again in a moment.", standing: st };
   }
-  return { ok: true, standing: { ...st, usedToday: st.usedToday + 1, usedThisMinute: st.usedThisMinute + 1, remainingToday: st.remainingToday == null ? null : Math.max(0, st.remainingToday - 1) } };
+  return { ok: true, standing: { ...st, usedToday: st.usedToday + n, usedThisMinute: st.usedThisMinute + n, remainingToday: st.remainingToday == null ? null : Math.max(0, st.remainingToday - n) } };
 }

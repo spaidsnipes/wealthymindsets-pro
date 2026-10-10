@@ -46,6 +46,8 @@ export interface WallsGammaGlassEnv {
   /** Derivatives Pressure's field is on — regions yield to it. */
   readonly pressureFieldOn: boolean;
   readonly wallThickness: number;
+  /** The last price — which side of the camera an off-camera mark lies on. */
+  readonly lastPrice: number | null;
 }
 
 export interface WallsGammaLabelJob { readonly y: number; readonly text: string; readonly rgb: string; readonly kinds: readonly string[] }
@@ -57,6 +59,14 @@ export interface WallsGammaGlassResult {
   readonly labels: readonly WallsGammaLabelJob[];
   /** Heat bands on glass, for Inspect hit-testing (bucket index → rect). */
   readonly heatHits: readonly { readonly i: number; readonly y0: number; readonly y1: number }[];
+  /** Marks beyond the camera, nearest first — the glass names them at its edge, never silently drops them. */
+  readonly offCamera: { readonly above: readonly WallsGammaMark[]; readonly below: readonly WallsGammaMark[] };
+}
+
+/** One edge chip's words: the nearest off-camera mark in full, then how many more. */
+export function edgeChipWords(dir: "above" | "below", marks: readonly WallsGammaMark[]): string | null {
+  if (!marks.length) return null;
+  return `${dir === "above" ? "▲" : "▼"} ${marks[0].label}${marks.length > 1 ? `  +${marks.length - 1} more` : ""}`;
 }
 
 const CALL_RGB = "80,190,180";
@@ -180,9 +190,15 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
 
   // ── LEVEL MARKS ──────────────────────────────────────────────────────────
   const markWords: string[] = [];
+  const above: WallsGammaMark[] = [], below: WallsGammaMark[] = [];
   for (const m of env.marks) {
     const y = yOf(m.price);
-    if (y == null || y < top || y > bottom) { markWords.push(`${m.kinds.join("+")}@${m.price}:OFF_CAMERA`); continue; }
+    if (y == null || y < top || y > bottom) {
+      markWords.push(`${m.kinds.join("+")}@${m.price}:OFF_CAMERA`);
+      const up = y != null ? y < top : env.lastPrice != null ? m.price > env.lastPrice : false;
+      (up ? above : below).push(m);
+      continue;
+    }
     let rgb = FLIP_RGB;
     for (const kind of m.kinds) {
       ctx.save();
@@ -223,5 +239,8 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
     labels.push({ y, text: m.label, rgb, kinds: m.kinds });
     markWords.push(`${m.kinds.join("+")}@${m.price}`);
   }
-  return { heat, regions, marks: markWords.join("|") || "NONE", labels, heatHits };
+  // Nearest the camera first.
+  above.sort((a, b) => a.price - b.price);
+  below.sort((a, b) => b.price - a.price);
+  return { heat, regions, marks: markWords.join("|") || "NONE", labels, heatHits, offCamera: { above, below } };
 }

@@ -23,6 +23,7 @@ import { keyActivates } from "@/lib/a11y/keyActivates";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { plainSummary } from "./plainSummary";
 import { WM } from "@/lib/design/wmTokens";
+import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
 import { dayAwareStamp } from "@/lib/time/dayAwareStamp";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -1215,21 +1216,27 @@ export default function NewsPage() {
         </AnimatePresence>
 
         {!loading && filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Filter size={32} className="text-wm-text-dim mb-3" />
-            <p className="text-sm text-wm-text-muted">
-              {feedsDown && news.length === 0
-                ? "The news wires did not answer just now. This room checks again every two minutes."
+          <div className="py-12">
+            <RoomStatePlaque
+              kind={feedsDown && news.length === 0 ? "unavailable" : "empty"}
+              align="center"
+              testId="news-empty-state"
+              icon={<Filter size={12} />}
+              title={feedsDown && news.length === 0
+                ? "The news wires did not answer just now."
                 : search
                 ? `No headline in the last ${news.length} names ${search}${searchTerms.words.length ? ` (${searchTerms.words.slice(0, 2).join(", ")})` : ""} right now.`
                 : "No news matches your filters."}
-            </p>
-            <button
-              onClick={() => { setTagFilter("All"); setSourceFilter("All Sources"); setSearch(""); }}
-              className="mt-3 text-xs text-wm-blue hover:underline"
             >
-              Clear all filters
-            </button>
+              {feedsDown && news.length === 0 ? <p>This room checks again every two minutes.</p> : null}
+              <button
+                onClick={() => { setTagFilter("All"); setSourceFilter("All Sources"); setSearch(""); }}
+                className="mt-2 inline-flex min-h-11 items-center text-xs font-semibold hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-wm-gold"
+                style={{ color: WM.gold.mark }}
+              >
+                Clear all filters
+              </button>
+            </RoomStatePlaque>
           </div>
         )}
       </div>

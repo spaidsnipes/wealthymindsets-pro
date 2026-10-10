@@ -7,6 +7,7 @@
  */
 
 import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
+import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { FEEDLESS_SURFACE } from "@/lib/os/osChrome";
@@ -582,12 +583,11 @@ export default function BacktestingPage() {
           )}
 
           {!result && !running && (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-wm-text-muted">
-              <BarChart2 size={48} className="opacity-15" />
-              <div className="text-center">
-                <div className="font-semibold text-sm">Configure and run a backtest</div>
-                <div className="text-xs mt-1">Select symbol, strategy, timeframe and date range</div>
-              </div>
+            <div className="flex h-full items-center justify-center p-4">
+              <RoomStatePlaque kind="empty" align="center" testId="backtest-empty" icon={<BarChart2 size={12} />}
+                title="No backtest has been run in this session.">
+                Choose a symbol, a strategy, a timeframe and a date range, then press Run Backtest. The result is computed from the bars the market-data rail returns.
+              </RoomStatePlaque>
             </div>
           )}
 

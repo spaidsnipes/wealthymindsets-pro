@@ -24,6 +24,7 @@
  * or send.
  */
 
+import { requestClose } from "@/lib/execution/closeRequest";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { traderClock } from "@/components/time/traderClock";
@@ -79,7 +80,11 @@ export function ChartBookStrip({
   const display = bookStripDisplay(strip, { compact, sample: sample !== null, clock: ms => traderClock(ms, { seconds: false }) });
   if (!display) return null;
 
+  // CLOSE beside a held position (2026-10-10): opens the ONE ticket and asks it to load FLATTEN — the same
+  // closing order, gate and confirmation as the ticket's own Load FLATTEN. It sends nothing.
+  const holding = strip.state === "LONG" || strip.state === "SHORT";
   return (
+    <>
     <button
       type="button"
       data-testid="chart-book-strip"
@@ -111,6 +116,17 @@ export function ChartBookStrip({
         </span>
       ))}
     </button>
+    {holding ? (
+      <button type="button" data-testid="chart-book-close" className={`wm-book-strip wm-book-strip--${placement.toLowerCase()} wm-tap-slop`}
+        onClick={() => { requestClose(symbol); onOpenTicket(); }}
+        aria-label={`Close the ${strip.state.toLowerCase()} position — loads FLATTEN into the trade ticket; you still preview and confirm`}
+        style={{ display: "inline-flex", alignItems: "center", minHeight: 30, padding: "0 10px", marginRight: 6, borderRadius: 4, flexShrink: 0,
+          border: "1px solid rgba(224,120,107,.6)", background: "transparent", color: "#e0786b", cursor: "pointer",
+          font: "800 11px/1 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".1em" }}>
+        CLOSE
+      </button>
+    ) : null}
+    </>
   );
 }
 

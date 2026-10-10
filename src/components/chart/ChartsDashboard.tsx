@@ -406,7 +406,7 @@ import { useTastyOptionFlow } from "@/lib/broker/useTastyOptionFlow";
 import { useTastyEquityOptionLegs } from "@/lib/broker/useTastyEquityOptionLegs";
 import { useDeribitOptionFlow } from "@/lib/marketData/useDeribitOptionFlow";
 import { selectOptionsBarrierEvidence, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
-import { anyGammaPart, anyWallsGamma, parseWallsGamma, type WallsGammaPart, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
+import { anyGammaPart, anyWallsGamma, parseWallsGamma, WALLS_GAMMA_PARTS, type WallsGammaPart, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
 import { selectGammaExposure, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
 import { INDEX_FOR_FUTURES, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 import { tastyCandleSeconds } from "@/lib/marketData/adapters/tastytradeCandles";
@@ -4459,6 +4459,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       if (s.MTF_ANCESTRY !== undefined) setMtfAncestryOn(s.MTF_ANCESTRY);
       if (s.DERIVATIVES_PRESSURE !== undefined) setDerivativesPressureOn(s.DERIVATIVES_PRESSURE);
       if (s.BRICK_WALLS !== undefined) setBrickWallsOn(s.BRICK_WALLS);
+      // WALLS & GAMMA: a View carries each of the seven switches; a switch it does not name stands.
+      if (WALLS_GAMMA_PARTS.some(id => s[id] !== undefined)) setWallsGamma(w => { const n = { ...w }; for (const id of WALLS_GAMMA_PARTS) if (s[id] !== undefined) n[id] = s[id] === true; return n; });
       if (s.SCAFFOLDING !== undefined) setScaffoldingDepth(d => (s.SCAFFOLDING ? (d === "OFF" ? "FOUNDATION" : d) : "OFF"));
     },
     [],
@@ -4518,6 +4520,7 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       MTF_ANCESTRY: mtfAncestryOn,
       DERIVATIVES_PRESSURE: derivativesPressureOn,
                   BRICK_WALLS: brickWallsOn,
+      ...wallsGamma,
     },
   });
 

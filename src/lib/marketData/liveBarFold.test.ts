@@ -158,5 +158,16 @@ describe("15 s live aggregation — replay fixtures", () => {
     // Caught-up closed bars carry their volume; the fold receipt is debug-only.
     expect(mc).toContain("if (volReal) for (const u of caught.updates) {");
     expect(mc).toContain("if (foldDebugRef.current && canvasRef.current) {");
+    // ONE VENUE IN THE BAR: Coinbase speaking closes the Binance.US fallback and
+    // the fallback's ticks are dropped while Coinbase is speaking (serving
+    // c4d4d4c: Binance mids at 83039.6x painted into Coinbase 15 s bars).
+    expect(hook).toContain("(tick, isReal) => { if (Date.now() - coinbaseHeardAt < 15_000) return; processTick(tick, isReal); },");
+    expect(hook).toContain("if (cryptoFallback && !fallbackClosed) {");
+    expect(hook).toContain("cleanupFns.current.push(closeFallback);");
+    // Once a print is heard, quotes/mids no longer build the bar.
+    expect(hook).toContain("if (tick.trade === true) tradeHeardRef.current = true;\n    else if (tradeHeardRef.current) return;");
+    // The parent hears the forming bar at most every LIVE_EMIT_MS; a new bar at once.
+    expect(mc).toContain("const LIVE_EMIT_MS = 250;");
+    expect(mc).toContain("if (grew || nowMs - liveEmitAtRef.current >= LIVE_EMIT_MS) emit();");
   });
 });

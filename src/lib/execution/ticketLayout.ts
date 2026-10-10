@@ -203,8 +203,11 @@ export function compactRiskLine(x: {
   readonly riskUsd: number | null;
   readonly rewardUsd: number | null;
   readonly entryKnown: boolean;
+  /** A target on the wrong side of the entry: said as a refusal, never as reward money. */
+  readonly targetWrongSide?: boolean;
 }): { readonly refusal: boolean; readonly text: string } {
   if (x.stopWrongSide) return { refusal: true, text: "The stop is on the wrong side of the entry — an opening order would be refused." };
+  if (x.targetWrongSide) return { refusal: true, text: "The target is on the wrong side of the entry — it would never be a profit." };
   const risk = x.riskUsd != null ? `Risk −$${x.riskUsd.toFixed(2)}` : !x.entryKnown ? "Risk: entry fill unknown" : "Risk: set a stop";
   const reward = x.rewardUsd != null ? ` · Reward +$${x.rewardUsd.toFixed(2)}${x.riskUsd ? ` · ${(x.rewardUsd / x.riskUsd).toFixed(2)}R` : ""}` : "";
   return { refusal: false, text: `${risk}${reward}` };

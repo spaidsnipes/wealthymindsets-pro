@@ -1379,6 +1379,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
 
   // Flag: ignore non-observed ticks once real data arrives
   const hasRealDataRef = useRef(false);
+  // A real print (`trade: true`) has been heard for this symbol (see processTick).
+  const tradeHeardRef = useRef(false);
 
   // THE CLOCK IS THE REGISTRY'S (2026-09-26, Garden 16 §22). This was a
   // private table with "1t"/"5t"/"30t" keys no caller could reach and a
@@ -1477,6 +1479,13 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // The magnitude/deviation check lives in MainChart against lastBar.close,
     // which is reliably refetched per symbol.
     if (!Number.isFinite(tick.price) || tick.price <= 0) return;
+
+    // ONCE THE TAPE SPEAKS, ONLY PRINTS BUILD THE BAR (2026-10-10). A quote
+    // mid, a 24 h ticker's last or a REST quote (synthetic size 0.01 / 1) is not
+    // a trade: before any print arrives it may still move a quote-only chart,
+    // but after one it would paint a wick and volume nobody traded.
+    if (tick.trade === true) tradeHeardRef.current = true;
+    else if (tradeHeardRef.current) return;
 
     const barUpdate = applyTickToClock(barRef.current, lastBarEventAtRef.current, tick, getIntervalSec());
     if (barUpdate.status === "LATE_EVENT_IGNORED") {
@@ -1596,6 +1605,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     bookRef.current  = buildBook();
     retryCount.current = 0;
     hasRealDataRef.current = false;
+    tradeHeardRef.current = false;
 
     tapeSourceRef.current = null;
     // A new symbol has not spoken yet. Carrying the previous symbol's
@@ -1758,10 +1768,36 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     let cryptoFallbackTimer: ReturnType<typeof setTimeout> | null = null;
     if (isCrypto) {
       let gotCoinbase = false;
+      // ONE VENUE IN THE BAR (Founder 15 s defect, serving c4d4d4c 2026-10-10):
+      // the Binance.US fallback, once started, was never stood down — its
+      // bookTicker MIDS, its 24 h ticker and its own trades (≈ $20–70 off
+      // Coinbase) were folded into the same candles as Coinbase's prints. A
+      // 15 s bar measured 83043.94 high where Coinbase traded 82971.34 at most.
+      // Coinbase speaking closes the fallback; until then the fallback's ticks
+      // are dropped whenever Coinbase has spoken in the last 15 s.
+      let coinbaseHeardAt = 0;
+      let fallbackClosed = false;
+      const closeFallback = () => {
+        if (fallbackClosed || !cryptoFallback) return;
+        fallbackClosed = true;
+        try { cryptoFallback(); } catch { /* already gone */ }
+      };
+      const onCoinbaseTick: typeof processTick = (tick, isReal) => {
+        const first = coinbaseHeardAt === 0;
+        coinbaseHeardAt = Date.now();
+        if (cryptoFallback && !fallbackClosed) {
+          closeFallback();
+          tapeSourceRef.current = "coinbase";
+          setState(p => ({ ...p, source: "coinbase", tapeSource: "coinbase", connected: true }));
+        } else if (first && tapeSourceRef.current !== "coinbase") {
+          tapeSourceRef.current = "coinbase";
+        }
+        processTick(tick, isReal);
+      };
       cryptoCleanup = joinTape(
         `coinbase:${symbol.toUpperCase()}`,
         (onTick, onStatus) => tryCoinbase(symbol, onTick, onStatus),
-        processTick,
+        onCoinbaseTick,
         (ok) => {
           if (ok) {
             gotCoinbase = true;
@@ -1796,13 +1832,13 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       // If Coinbase hasn't connected within 4s, spin up Binance.US too.
       cryptoFallbackTimer = setTimeout(() => {
         cryptoFallbackTimer = null;
-        if (!disposed && !gotCoinbase && !cryptoFallback) {
+        if (!disposed && !gotCoinbase && coinbaseHeardAt === 0 && !cryptoFallback) {
           cryptoFallback = joinTape(
             `binance:${symbol.toUpperCase()}`,
             (onTick, onStatus) => tryBinance(symbol, onTick, onStatus),
-            processTick,
+            (tick, isReal) => { if (Date.now() - coinbaseHeardAt < 15_000) return; processTick(tick, isReal); },
             (ok) => {
-              if (ok) {
+              if (ok && Date.now() - coinbaseHeardAt >= 15_000) {
                 hasRealDataRef.current = true;
                 tapeSourceRef.current = "binance";
                 setState(p => ({ ...p, source: "binance", tapeSource: "binance", connected: true }));
@@ -1811,8 +1847,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           );
           // The effect may be disposed while joinTape is being established.
           // Never leave a late fallback subscription outside the cleanup path.
-          if (disposed) cryptoFallback?.();
-          else if (cryptoFallback) cleanupFns.current.push(cryptoFallback);
+          if (disposed) closeFallback();
+          else if (cryptoFallback) cleanupFns.current.push(closeFallback);
         }
       }, 4000);
     }

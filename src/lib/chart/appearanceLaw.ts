@@ -226,3 +226,81 @@ export function rgbTripletOf(hex: string): string | null {
   const v = rgbOf(hex);
   return v ? v.map(n => Math.round(n)).join(",") : null;
 }
+
+/* ── PROFILE SPECIES (Founder 2026-10-10: "all eleven profiles … independent
+   colour / opacity per invention") ────────────────────────────────────────
+   One opacity dial per species, on top of the family's Profiles dial. The law:
+     · CLAMPED to the governor's own dial range (0.4–1.6) — a species can be
+       quieter or louder, never off and never over price; the governor's
+       readable floor still applies after (selectAttentionGovernor);
+     · SPECIES STAY APART — a dial changes loudness, never material or
+       geometry, so no setting can make two species identical (each keeps its
+       own form: Living gold body, VRP lit glass, Composite strata, Structure
+       crisp edge, Fixed Range slab, TPO letters, DNA spine …);
+     · unknown keys are dropped; an untouched species is absent (= 1).
+   Session and Classic VP share one painter (drawWMVP) and one governed layer,
+   so they share one dial — named as such, not hidden. Bid/Ask Split and Fixed
+   Range are drawings: their dial is applied at their paint site. ─────────── */
+export const PROFILE_SPECIES = [
+  "LIVING", "STRUCTURE", "FUSION", "MEMORY", "DNA", "SESSION_CLASSIC",
+  "VISIBLE_RANGE", "FIXED_RANGE", "COMPOSITE", "TPO", "BID_ASK",
+] as const;
+export type ProfileSpeciesKey = (typeof PROFILE_SPECIES)[number];
+export const PROFILE_SPECIES_LABEL: Readonly<Record<ProfileSpeciesKey, string>> = {
+  LIVING: "Living", STRUCTURE: "Structure", FUSION: "Fusion", MEMORY: "Memory", DNA: "DNA",
+  SESSION_CLASSIC: "Session · Classic VP", VISIBLE_RANGE: "Visible Range", FIXED_RANGE: "Fixed Range",
+  COMPOSITE: "Composite", TPO: "TPO / Auction", BID_ASK: "Bid/Ask Split",
+};
+/** The governed layers each species paints through (attention-governor keys). Drawings have none. */
+export const PROFILE_SPECIES_LAYERS: Readonly<Record<ProfileSpeciesKey, readonly string[]>> = {
+  LIVING: ["livingProfile", "livingProfileMovie"],
+  STRUCTURE: ["structureProfile"],
+  FUSION: ["profileFusion", "fusedObject"],
+  MEMORY: ["profileMemory"],
+  DNA: ["profileDna"],
+  SESSION_CLASSIC: ["volumeProfile"],
+  VISIBLE_RANGE: ["visibleRangeProfile"],
+  FIXED_RANGE: [],
+  COMPOSITE: ["compositeProfile"],
+  TPO: ["tpo"],
+  BID_ASK: [],
+};
+export const SPECIES_OPACITY_MIN = 0.4;
+export const SPECIES_OPACITY_MAX = 1.6;
+export function clampSpeciesOpacity(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? v : 1;
+  return Math.min(SPECIES_OPACITY_MAX, Math.max(SPECIES_OPACITY_MIN, Math.round(n * 10) / 10));
+}
+/** The stored per-species dials made lawful: known species only, each clamped; 1 is dropped (absent = untouched). */
+export function lawfulSpeciesOpacity(v: unknown): Partial<Record<ProfileSpeciesKey, number>> {
+  const out: Partial<Record<ProfileSpeciesKey, number>> = {};
+  if (!v || typeof v !== "object") return out;
+  for (const sp of PROFILE_SPECIES) {
+    const raw = (v as Record<string, unknown>)[sp];
+    if (raw == null) continue;
+    const k = clampSpeciesOpacity(raw);
+    if (k !== 1) out[sp] = k;
+  }
+  return out;
+}
+/** Per governed layer, the species dial that layer answers to (for the attention governor). */
+export function speciesLayerOpacity(v: unknown): Record<string, number> {
+  const law = lawfulSpeciesOpacity(v);
+  const out: Record<string, number> = {};
+  for (const sp of PROFILE_SPECIES) {
+    const k = law[sp];
+    if (k == null) continue;
+    for (const layer of PROFILE_SPECIES_LAYERS[sp]) out[layer] = k;
+  }
+  return out;
+}
+/**
+ * A drawing species' alpha with its dial (Fixed Range, Bid/Ask Split): the
+ * paint site's own alpha × the dial, never above 1 and never below the same
+ * readable floor the governor keeps (0.2) — unless the site was already lower.
+ */
+export function drawingSpeciesAlpha(siteAlpha: number, dial: unknown): number {
+  const k = clampSpeciesOpacity(dial);
+  if (k === 1) return siteAlpha;
+  return Math.min(1, Math.max(Math.min(siteAlpha, 0.2), siteAlpha * k));
+}

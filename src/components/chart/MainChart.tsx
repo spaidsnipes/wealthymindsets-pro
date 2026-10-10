@@ -27,6 +27,8 @@ import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker, marketClo
 import { DataVersionGuard } from "@/lib/chartContext";
 import { liveBarIsStale, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { foldClosedLiveBars, foldFormingBar, liveDespikeApplies } from "@/lib/marketData/liveBarFold";
+/** The parent hears the forming bar at most this often (a new bar: at once). */
+const LIVE_EMIT_MS = 250;
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
 import { selectTapeCvd, tapeCvdCaption, type TapeCvdResult } from "@/lib/marketData/tapeCvd";
 import { continuousDayKeyFor, selectSessionWindowBars, sessionKeyOf, sessionWindowFor } from "@/lib/marketData/sessionWindow";
@@ -61,6 +63,7 @@ import { installTypeFloor, NARROW_NAME_MIN_PX } from "@/lib/chart/typeFloor";
 import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
 import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLineLooks, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
+import { drawingSpeciesAlpha, speciesLayerOpacity } from "@/lib/chart/appearanceLaw";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -757,8 +760,8 @@ import { mergeValueCandleBars } from "@/lib/marketData/viewModels/mergeValueCand
 import type { OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 import { composeWallsGammaMarks, WALLS_GAMMA_OFF, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
 import { gexBucketAt, gexWords, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
-import { GAMMA_HEAT_CUSTOM_KEY, GAMMA_HEAT_PRESET_EVENT, GAMMA_HEAT_PRESET_KEY, gammaHeatPreset, parseGammaHeatCustom } from "@/lib/chart/gammaHeatAppearance";
-import { paintWallsGamma } from "@/components/chart/wallsGammaGlass";
+import { GAMMA_HEAT_PRESET_EVENT, gammaHeatPreset, gammaHeatStores, readGammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
+import { edgeChipWords, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
@@ -1399,6 +1402,7 @@ interface Props {
     // Founder order §5 (2026-10-09): volume colours and the three opacity dials.
     volumeUp?: string; volumeDown?: string;
     profileOpacity?: number; wallOpacity?: number; memoryOpacity?: number;
+    profileSpeciesOpacity?: Partial<Record<string, number>>;
     bubbleScale?: number; footprintNumberStep?: number; wallThickness?: number;
     // ORDER LINES (Founder P0 2026-10-10) — made lawful by appearanceLaw.lawfulOrderLineLooks.
     orderLineEntry?: string; orderLineStop?: string; orderLineTarget?: string;
@@ -2247,6 +2251,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // not a behaviour. Published by the paint loop's receipt line below.
   const renderCountRef = useRef(0);
   renderCountRef.current++;
+  // Paced live emission to the parent (see the live fold's onBarsReady).
+  const liveEmitAtRef = useRef(0);
+  const liveEmitLenRef = useRef(-1);
+  const liveEmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drawCanvasRef = useRef<HTMLCanvasElement>(null); // drawing tools overlay
   /**
    * THE DECLINE THE TRADER CAN READ.
@@ -2421,6 +2429,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // The trader's opacity dials, read by the paint loop (no re-render per frame).
   const userOpacityRef = useRef<{ PROFILES?: number; WALLS?: number; MEMORY?: number }>({});
   userOpacityRef.current = { PROFILES: chartSettings?.profileOpacity, WALLS: chartSettings?.wallOpacity, MEMORY: chartSettings?.memoryOpacity };
+  // Per-species profile dials (appearanceLaw): governed layers through the governor, drawings at their paint site.
+  const speciesOpacityRef = useRef<Record<string, number>>({});
+  speciesOpacityRef.current = speciesLayerOpacity(chartSettings?.profileSpeciesOpacity);
+  const speciesDrawDialRef = useRef<{ FIXED_RANGE?: number; BID_ASK?: number }>({});
+  speciesDrawDialRef.current = { FIXED_RANGE: chartSettings?.profileSpeciesOpacity?.FIXED_RANGE, BID_ASK: chartSettings?.profileSpeciesOpacity?.BID_ASK };
   // Slice B marks (Chart Settings › Marks), read by the paint loop; clamped in appearanceLaw.
   const userMarksRef = useRef({ bubble: 1, fpStep: 0, wall: 1 });
   userMarksRef.current = { bubble: clampBubbleScale(chartSettings?.bubbleScale), fpStep: chartSettings?.footprintNumberStep ?? 0, wall: clampWallThickness(chartSettings?.wallThickness) };
@@ -2692,7 +2705,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // The heatmap's appearance preset (gammaHeatAppearance) — the ⚙ writes it; the glass reads it here.
   const gammaHeatPresetRef = useRef<ReturnType<typeof gammaHeatPreset>>(gammaHeatPreset(null));
   useEffect(() => {
-    const read = () => { try { gammaHeatPresetRef.current = gammaHeatPreset(localStorage.getItem(GAMMA_HEAT_PRESET_KEY), parseGammaHeatCustom(localStorage.getItem(GAMMA_HEAT_CUSTOM_KEY))); } catch { gammaHeatPresetRef.current = gammaHeatPreset(null); } };
+    const read = () => { try { const st = gammaHeatStores(proofSceneHoldsWrites()); gammaHeatPresetRef.current = st ? readGammaHeatPreset(st.read) : gammaHeatPreset(null); } catch { gammaHeatPresetRef.current = gammaHeatPreset(null); } };
     read();
     window.addEventListener(GAMMA_HEAT_PRESET_EVENT, read);
     window.addEventListener("storage", read);
@@ -5386,9 +5399,24 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       } catch { /* receipt only */ }
     }
 
-    // Emit updated bars to parent for Pine Script execution
+    // Emit updated bars to parent for Pine Script execution.
+    // PACED (Founder "no spazzing", 2026-10-10; serving c4d4d4c BTC-USD 15s:
+    // this component rendered 10×/s). Every emission re-renders the whole
+    // dashboard and, through it, this chart. A new or closed bar is emitted at
+    // once; changes inside the forming bar at most every LIVE_EMIT_MS, with a
+    // trailing emit so the newest state always lands. The candle itself is
+    // painted above on every flush — only the parent's copy is paced.
     if (barsRef.current.length) {
-      onBarsReady?.(barsRef.current, barIdentitiesRef.current);
+      const nowMs = performance.now();
+      const grew = barsRef.current.length !== liveEmitLenRef.current || caught.updates.length > 0;
+      const emit = () => {
+        if (liveEmitTimerRef.current) { clearTimeout(liveEmitTimerRef.current); liveEmitTimerRef.current = null; }
+        liveEmitAtRef.current = performance.now();
+        liveEmitLenRef.current = barsRef.current.length;
+        onBarsReady?.(barsRef.current, barIdentitiesRef.current);
+      };
+      if (grew || nowMs - liveEmitAtRef.current >= LIVE_EMIT_MS) emit();
+      else if (!liveEmitTimerRef.current) liveEmitTimerRef.current = setTimeout(emit, LIVE_EMIT_MS - (nowMs - liveEmitAtRef.current));
     }
     // NOTE: Big-Trade bubbles spawn in the canvas loop (Pass A) from tickAccRef
     // ONLY — real aggressor tape, never synthetic footprint. No bubble without
@@ -5396,6 +5424,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   }, [liveBar, ready]); // eslint-disable-line react-hooks/exhaustive-deps
   // A new symbol or timeframe is a new market clock measurement (marketClockProbe).
   useEffect(() => { resetMarketClock(); }, [symbol, timeframe]);
+  // A paced emission never outlives its market (or the chart).
+  useEffect(() => () => { if (liveEmitTimerRef.current) { clearTimeout(liveEmitTimerRef.current); liveEmitTimerRef.current = null; } liveEmitLenRef.current = -1; }, [symbol, timeframe]);
   /* THE FORMING CANDLE'S OWN PRINTS (Garden 16 five-hour order: "the candle
      participates … the probe develops … tempo becomes perceptible where
      evidence supports it"). A bounded ring of real executed prints (price,
@@ -8546,6 +8576,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         density: semanticDensity,
         // The trader's opacity dials (Chart Settings › Layer Opacity), applied last, floored.
         userOpacity: userOpacityRef.current,
+        speciesOpacity: speciesOpacityRef.current,
         // EARLY LIVE LAYERS ARE QUIETED TOO (serving 559884e, 2026-10-09: volume
         // profile and flow current read LIVE:1 under a 0.35 question — they ask
         // before the lens speaks). The frame opens on LAST frame's quiet; the
@@ -20249,6 +20280,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               cutRects: cutsG, clearZone: clearG, keepRows: keepRowsG, preset,
               gammaAlpha: att.alpha("gammaHeatmap"), wallsAlpha: att.alpha("callWall"),
               pressureFieldOn: dpFieldOn, wallThickness: userMarksRef.current.wall,
+              lastPrice: barsG.length ? barsG[barsG.length - 1].close : null,
             });
             ds.gammaHeatmap = out.heat;
             ds.gammaRegions = out.regions;
@@ -20279,6 +20311,61 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ctx.fillText(t.text, x, box.y + 12);
                 placed.push(box); floatingChips.push(box);
               }
+            }
+            // ONE status line for the family: grade, source, OI clock, and what yields or waits.
+            if (wordsSpeak) {
+              const src = gex?.drawn ? positioningSourceWords(gex.source) : null;
+              const asOfW = gex?.drawn && gex.clocks.chainAsOf ? new Date(gex.clocks.chainAsOf).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) + " ET" : null;
+              const parts: string[] = [];
+              if (gammaWG) {
+                if (!gex) parts.push(`GAMMA · waiting for the options chain for ${symbol}`);
+                else if (!gex.drawn) parts.push(`GAMMA · ${gex.reason === "NO_CHAIN" ? `no options chain for ${symbol}` : gex.reason.replace(/_/g, " ").toLowerCase()}`);
+                else {
+                  const flipW = sel.GAMMA_FLIP && !composed.yielded.GAMMA_FLIP && gex.flip.kind === "NONE" ? ` · FLIP: ${gex.flip.reason.replace(/_/g, " ").toLowerCase()}` : "";
+                  parts.push(`GAMMA · ${gex.grade} · ${src!.name} · ${src!.oi}${asOfW ? ` · as of ${asOfW}` : ""} · MODEL, ASSUMED DEALER SIDE${flipW}`);
+                }
+                if (composed.yielded.GAMMA_FLIP || composed.yielded.GAMMA_POSITIVE || composed.yielded.GAMMA_NEGATIVE) parts.push("flip / regions shown by Derivatives Pressure");
+              }
+              if (wallsWG && (!evW || !evW.drawn)) parts.push(`CALL / PUT WALL · ${!evW ? "waiting for options open interest" : `silent — ${evW.reason.replace(/_/g, " ").toLowerCase()}`}`);
+              for (const words of parts) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
+                ctx.font = marketFont("OBJECT_NAME");
+                ctx.fillStyle = "rgba(200,192,174,0.9)";
+                ctx.textAlign = "left"; ctx.textBaseline = "middle";
+                const yS = takeSilenceRow();
+                ctx.fillText(fitSilence(words), silenceX, yS);
+                if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: ctx.measureText(words).width, h: 14 });
+                ctx.restore();
+              }
+            }
+            // OFF-CAMERA marks are named at the glass edge (▲ above / ▼ below), never silently dropped.
+            ds.wallsGammaEdge = `${out.offCamera.above.length}/${out.offCamera.below.length}`;
+            if (wordsSpeak) {
+              ctx.save();
+              ctx.font = marketFont("OBJECT_NAME");
+              ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              const edgeA = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
+              for (const dir of ["above", "below"] as const) {
+                const raw = edgeChipWords(dir, out.offCamera[dir]);
+                if (!raw) continue;
+                let words = raw;
+                const maxW = Math.max(60, plotRightG - 24);
+                while (words.length > 8 && ctx.measureText(words).width > maxW) words = words.slice(0, -2);
+                if (words !== raw) words = words.replace(/.$/, "…");
+                const tw = ctx.measureText(words).width;
+                const rows = dir === "above" ? [HEADER_FLOOR_Y + 44, HEADER_FLOOR_Y + 60, HEADER_FLOOR_Y + 76] : [paneBotG - 12, paneBotG - 28, paneBotG - 44];
+                const slot = rows.map(yC => ({ x: plotRightG - tw - 12, y: yC - 7, w: tw + 8, h: 14 })).find(q => !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y) && !onNewestColumn(q.x, q.y, q.w, q.h));
+                if (!slot) { displacedNotes.push({ layer: "DERIVATIVES", text: words, x: plotRightG - tw / 2, y: rows[0] }); continue; }
+                const lead = out.offCamera[dir][0];
+                const rgb = lead.kinds.includes("CALL_WALL") ? "80,190,180" : lead.kinds.includes("PUT_WALL") ? "214,120,150" : lead.kinds.includes("GAMMA_CONC_NEG") ? preset.negRgb : lead.kinds.includes("GAMMA_CONC_POS") ? preset.posRgb : "236,222,190";
+                ctx.fillStyle = `rgba(11,10,8,${(0.88 * edgeA).toFixed(3)})`;
+                if (chipBox(words, slot)) ctx.fillRect(slot.x, slot.y, slot.w, slot.h);
+                ctx.fillStyle = `rgba(${rgb},${(0.95 * edgeA).toFixed(3)})`;
+                ctx.fillText(words, slot.x + 4, slot.y + 7.5);
+                floatingChips.push(slot);
+              }
+              ctx.restore();
             }
             // INSPECT — the bucket under the crosshair: strike, expiry, GEX, OI, IV, source, as-of.
             const cpG = crosshairPointRef.current;
@@ -20311,38 +20398,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 ds.gammaInspect = `${b.price}:${b.net.toExponential(2)}`;
               }
             }
-            // ONE status line for the family: grade, source, OI clock, and what yields or waits.
-            if (wordsSpeak) {
-              const src = gex?.drawn ? positioningSourceWords(gex.source) : null;
-              const asOfW = gex?.drawn && gex.clocks.chainAsOf ? new Date(gex.clocks.chainAsOf).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) + " ET" : null;
-              const parts: string[] = [];
-              if (gammaWG) {
-                if (!gex) parts.push(`GAMMA · waiting for the options chain for ${symbol}`);
-                else if (!gex.drawn) parts.push(`GAMMA · ${gex.reason === "NO_CHAIN" ? `no options chain for ${symbol}` : gex.reason.replace(/_/g, " ").toLowerCase()}`);
-                else {
-                  const flipW = sel.GAMMA_FLIP && !composed.yielded.GAMMA_FLIP && gex.flip.kind === "NONE" ? ` · FLIP: ${gex.flip.reason.replace(/_/g, " ").toLowerCase()}` : "";
-                  parts.push(`GAMMA · ${gex.grade} · ${src!.name} · ${src!.oi}${asOfW ? ` · as of ${asOfW}` : ""} · MODEL, ASSUMED DEALER SIDE${flipW}`);
-                }
-                if (composed.yielded.GAMMA_FLIP || composed.yielded.GAMMA_POSITIVE || composed.yielded.GAMMA_NEGATIVE) parts.push("flip / regions shown by Derivatives Pressure");
-              }
-              if (wallsWG && (!evW || !evW.drawn)) parts.push(`CALL / PUT WALL · ${!evW ? "waiting for options open interest" : `silent — ${evW.reason.replace(/_/g, " ").toLowerCase()}`}`);
-              for (const words of parts) {
-                ctx.save();
-                ctx.globalAlpha = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
-                ctx.font = marketFont("OBJECT_NAME");
-                ctx.fillStyle = "rgba(200,192,174,0.9)";
-                ctx.textAlign = "left"; ctx.textBaseline = "middle";
-                const yS = takeSilenceRow();
-                ctx.fillText(fitSilence(words), silenceX, yS);
-                if (yS > 0) floatingChips.push({ x: silenceX, y: yS - 7, w: ctx.measureText(words).width, h: 14 });
-                ctx.restore();
-              }
-            }
           } else {
             const anyGammaSwitch = layerOnRef.current.gammaHeatmap === true || layerOnRef.current.gammaPositive === true || layerOnRef.current.gammaNegative === true || layerOnRef.current.gammaFlip === true || layerOnRef.current.gammaConcentration === true;
             ds.gammaExposure = att.offWord(anyGammaSwitch);
             ds.optionWalls = att.offWord(layerOnRef.current.callWall === true || layerOnRef.current.putWall === true);
-            delete ds.gammaHeatmap; delete ds.gammaRegions; delete ds.wallsGammaMarks; delete ds.gammaInspect;
+            delete ds.gammaHeatmap; delete ds.gammaRegions; delete ds.wallsGammaMarks; delete ds.gammaInspect; delete ds.wallsGammaEdge;
           }
         } catch (err) {
           ds.wallsGammaFault = (err instanceof Error ? `${err.name}: ${err.message}` : String(err)).slice(0, 120);
@@ -27645,6 +27705,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const x1 = Math.max(A.x, B.x);
           const rw = Math.max(1, x1 - x0);
           ctx.save();
+          ctx.globalAlpha = drawingSpeciesAlpha(ctx.globalAlpha, speciesDrawDialRef.current.FIXED_RANGE);
           ctx.setLineDash([]);
           if (vm.drawn) {
             // The rails span the bars' own price range, not the drag's y: a
@@ -27753,6 +27814,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const rx = Math.min(A.x, B.x), ry = Math.min(A.y, B.y);
           const rw = Math.abs(B.x - A.x), rh = Math.abs(B.y - A.y);
           ctx.save();
+          ctx.globalAlpha = drawingSpeciesAlpha(ctx.globalAlpha, speciesDrawDialRef.current.BID_ASK);
           ctx.setLineDash([]);
           ctx.fillStyle = col + "0E"; ctx.fillRect(rx, ry, rw, rh);
           ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.strokeRect(rx, ry, rw, rh);

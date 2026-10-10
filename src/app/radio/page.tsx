@@ -840,11 +840,11 @@ export default function RadioPage() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* ── Header ──────────────────────────────────────────────── */}
-      <div className="shrink-0 px-6 pt-6 pb-4" style={{ borderBottom:"1px solid rgba(30,32,48,0.8)" }}>
-        <div className="flex items-center gap-3 mb-4">
+      <div className="shrink-0 px-4 pt-5 pb-4 sm:px-6 sm:pt-6" style={{ borderBottom:"1px solid rgba(30,32,48,0.8)" }}>
+        <div className="flex flex-wrap items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
             style={{ background:"linear-gradient(135deg, #C9A55C44, #C9A55C18)", border:"1px solid rgba(196,165,116,0.3)" }}>
-            <Radio size={18} className="text-wm-green" />
+            <Radio size={18} className="text-wm-brass-mark" />
           </div>
           <div>
             <h1 className="text-[20px] font-black text-wm-text tracking-tight">WM Radio</h1>
@@ -852,7 +852,7 @@ export default function RadioPage() {
           </div>
 
           {/* Live badge */}
-          <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full"
             style={{ background:"rgba(232,185,35,0.10)", border:"1px solid rgba(232,185,35,0.35)" }}>
             <div className="w-1.5 h-1.5 rounded-full bg-wm-gold" />
             <span style={{ fontSize:10, fontWeight:800, color:"#E8B923", letterSpacing:0.5 }}>
@@ -862,13 +862,13 @@ export default function RadioPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={clsx(
-                "flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-[11px] font-bold transition-all",
+                "flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 sm:px-4 rounded-xl text-[11px] font-bold transition-all",
                 tab === t.id
-                  ? "bg-wm-green text-wm-black"
+                  ? "bg-wm-brass-mark text-wm-black"
                   : "text-wm-text-muted hover:text-wm-text hover:bg-wm-surface"
               )}>
               {t.icon}{t.label}

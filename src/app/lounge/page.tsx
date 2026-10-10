@@ -446,7 +446,7 @@ function CreatePostModal({ onClose, onPost, user }:
                 <button key={t} onClick={() => setPostType(t)}
                   className={clsx("px-2 py-0.5 rounded text-[10px] font-bold capitalize transition-all border",
                     postType === t
-                      ? "bg-wm-green/15 text-wm-green border-wm-green/30"
+                      ? "bg-wm-brass-mark/15 text-wm-brass-mark border-wm-brass-mark/40"
                       : "text-wm-text-dim border-transparent hover:text-wm-text")}>
                   {t}
                 </button>
@@ -537,7 +537,7 @@ function CreatePostModal({ onClose, onPost, user }:
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-wm-text-dim">{text.length}/1000</span>
             <button onClick={submit} disabled={!text.trim() || submitting}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-wm-green/15 border border-wm-green/30 text-wm-green text-xs font-bold hover:bg-wm-green/25 transition-all disabled:opacity-40">
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-wm-brass-mark/15 border border-wm-brass-mark/40 text-wm-brass-mark text-xs font-bold hover:bg-wm-brass-mark/25 transition-all disabled:opacity-40">
               <Send size={12}/> {submitting ? "Posting…" : "Post"}
             </button>
           </div>
@@ -1065,7 +1065,7 @@ export default function LoungePage() {
                 className="w-32 bg-transparent text-xs text-wm-text outline-none placeholder-wm-text-dim"/>
             </div>
             <button onClick={() => myHandle ? setShowCreate(true) : toast.error("Sign in to post")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-wm-green/15 border border-wm-green/30 text-wm-green text-xs font-bold hover:bg-wm-green/25 transition-all">
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-wm-brass-mark/15 border border-wm-brass-mark/40 text-wm-brass-mark text-xs font-bold hover:bg-wm-brass-mark/25 transition-all">
               <Plus size={13}/> Post
             </button>
           </div>
@@ -1140,7 +1140,7 @@ export default function LoungePage() {
                 </p>
                 {myHandle && (
                   <button onClick={() => setShowCreate(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-wm-green/15 border border-wm-green/30 text-wm-green text-xs font-bold hover:bg-wm-green/25 transition-all">
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-wm-brass-mark/15 border border-wm-brass-mark/40 text-wm-brass-mark text-xs font-bold hover:bg-wm-brass-mark/25 transition-all">
                     <Plus size={12}/> Create first post
                   </button>
                 )}

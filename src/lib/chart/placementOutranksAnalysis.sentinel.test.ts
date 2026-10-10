@@ -149,6 +149,15 @@ describe("E. the owners hold their tiers", () => {
     expect(body(STORE, "export function cancelChartPricePick(")).toContain("releaseChartInteraction(PICK_CLAIM)");
     expect(body(STORE, "export function deliverChartPricePick(")).toContain("releaseChartInteraction(PICK_CLAIM)");
   });
+  it("on a phone, a placement folds the ticket sheet to its header + placing strip, and nothing else changes", () => {
+    expect(PANEL).toMatch(/const placingFold = compact && interaction === "PLACEMENT" && stageInput\.preSend;/);
+    expect(PANEL).toMatch(/\.\.\.\(placingFold \? \{ maxHeight: PLACING_FOLD_MAX_HEIGHT, overflowY: "hidden" as const \} : null\)/);
+    expect(PANEL).toContain('data-testid="trade-placing"');
+    expect(PANEL).toMatch(/data-testid="trade-placing-cancel" onClick=\{\(\) => cancelChartPricePick\(\)\}/);
+    // CSS only: the fold never writes the ticket's own fold / half state.
+    const at = PANEL.indexOf("const placingFold");
+    expect(PANEL.slice(at, PANEL.indexOf("\n", at))).not.toMatch(/setFolded|setHalf/);
+  });
   it("the ticket's confirmation claims EXECUTION", () => {
     expect(PANEL).toMatch(/entryPhase !== "CONFIRMING"\) return;[\s\S]{0,80}claimChartInteraction\("EXECUTION", "ticket-confirmation"\)/);
   });

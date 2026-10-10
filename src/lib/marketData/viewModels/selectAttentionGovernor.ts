@@ -296,6 +296,12 @@ export interface AttentionGovernorInput {
    */
   readonly userOpacity?: Partial<Record<UserOpacityFamily, number>>;
   /**
+   * Per-SPECIES dial (Founder 2026-10-10, profiles: "independent colour /
+   * opacity"), keyed by governed layer (appearanceLaw.speciesLayerOpacity).
+   * Multiplies after the family dial, under the same clamp and readable floor.
+   */
+  readonly speciesOpacity?: Readonly<Partial<Record<string, number>>>;
+  /**
    * Garden 16 emergency order §15 — WAIT IS A MARKET POSTURE. "QUIET" when the
    * one compiled decision grants no authorization (WAIT / NO TRADE): the
    * supporting and memory layers step back together; price, live anchors,
@@ -488,6 +494,12 @@ export function selectAttentionGovernor(
     if (dial != null && tier !== "CHROME" && tier !== "SELECTED" && !opts?.selectedItem) {
       const k = clampUserOpacity(dial);
       // Floor: a dial DOWN stops at the readable floor (or the layer's own alpha, if it was already lower).
+      if (k !== 1) a = Math.min(TIER_CEILING[spec.tier], Math.max(Math.min(a, USER_OPACITY_READABLE_FLOOR), a * k));
+    }
+    // The species' own dial, after the family's — same clamp, same floor, same exemptions.
+    const sDial = input.speciesOpacity?.[key];
+    if (sDial != null && tier !== "CHROME" && tier !== "SELECTED" && !opts?.selectedItem) {
+      const k = clampUserOpacity(sDial);
       if (k !== 1) a = Math.min(TIER_CEILING[spec.tier], Math.max(Math.min(a, USER_OPACITY_READABLE_FLOOR), a * k));
     }
     // The receipt records what the layer was actually given, when it asked —

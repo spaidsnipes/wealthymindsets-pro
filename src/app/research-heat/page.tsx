@@ -19,6 +19,7 @@ import Link from "next/link";
 import { usePublishOsStanding } from "@/components/os/osStandingContext";
 import { selectHeatmapFeedObservation } from "@/lib/os/selectHeatmapFeedObservation";
 import { WM } from "@/lib/design/wmTokens";
+import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
 import { heatCellCameraHref } from "@/lib/routing/opportunityMap";
 import {
   deleteHeatSnapshot, heatBreadth, heatLeaders, heatShifts, readHeatArchive,
@@ -109,12 +110,9 @@ export default function ResearchHeatArchivePage() {
       </p>
 
       {list.length === 0 ? (
-        <section data-testid="heat-archive-empty" style={{ border: `1px solid ${WM.border.line}`, borderRadius: 8, padding: 18, background: WM.surface.mid }}>
-          <div style={{ color: WM.text.hero, fontWeight: 700, marginBottom: 4 }}>No saved heat yet.</div>
-          <div style={{ fontSize: 13 }}>
-            Open the <Link href="/scanner/map" style={{ color: WM.gold.mark }}>Opportunity Map</Link> and press <b>Save this heat</b> at a moment you want to remember — an open, a breakout day, a flush.
-          </div>
-        </section>
+        <RoomStatePlaque kind="empty" testId="heat-archive-empty" title="No saved heat yet.">
+          Open the <Link href="/scanner/map" style={{ color: WM.gold.mark }}>Opportunity Map</Link> and press <b>Save this heat</b> at a moment you want to remember — an open, a breakout day, a flush.
+        </RoomStatePlaque>
       ) : (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
           <ul aria-label="Saved heat" style={{ listStyle: "none", margin: 0, padding: 0, flex: "1 1 260px", maxWidth: 360, display: "flex", flexDirection: "column", gap: 6 }}>

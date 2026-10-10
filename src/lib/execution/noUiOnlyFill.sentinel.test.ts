@@ -93,7 +93,11 @@ describe("no UI-only fill on the ticket path", () => {
 
   it("FLATTEN and MODIFY never send: FLATTEN only loads the ticket; one road to order-submit", () => {
     const t = code("components/chart/TradePanel.tsx");
-    expect(t).toMatch(/onFlatten=\{\(\) => \{[\s\S]{0,400}setEntryType\("Market"\)/);
+    // 2026-10-10 (one-trade lane): FLATTEN is one function, loadFlatten, shared by the book's Load FLATTEN and
+    // the position strip's CLOSE request. It only loads the ticket (closing MARKET, held qty) and only when the
+    // book says LOADABLE; the send stays behind preview, the server order gate and the trader's confirmation.
+    expect(t).toContain("onFlatten={loadFlatten}");
+    expect(t).toMatch(/function loadFlatten\(\) \{[\s\S]{0,400}setEntryType\("Market"\)/);
     expect(t).not.toContain("order-submit");
     expect(code("components/chart/TicketBookRows.tsx")).not.toMatch(/fetch\(|order-submit/);
     const submitters = TICKET_PATH.filter(f => code(f).includes("/api/broker/tastytrade/order-submit"));

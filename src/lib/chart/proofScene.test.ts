@@ -148,3 +148,16 @@ describe("select=fvg:<OBJECT_ID> — one named FVG object (Garden 19 §22)", () 
     expect(parseProofScene("?symbol=TSLA")).toEqual(NO_PROOF_SCENE);
   });
 });
+
+describe("WALLS & GAMMA in a proof scene (2026-10-10)", () => {
+  it("wg:<PART> tokens turn switches on for this load only", async () => {
+    const { parseProofScene, proofSceneValue, WALLS_GAMMA_SCENE_KEY } = await import("./proofScene");
+    const s = parseProofScene("?symbol=SPY&scene=clean&on=wg:CALL_WALL,wg:gamma_heatmap,BrickWalls");
+    expect(proofSceneValue(s, WALLS_GAMMA_SCENE_KEY)).toEqual({ CALL_WALL: true, GAMMA_HEATMAP: true });
+  });
+  it("a clean scene ignores the saved switches (reads {}), and a verify scene leaves them to the saved value", async () => {
+    const { parseProofScene, proofSceneValue, WALLS_GAMMA_SCENE_KEY } = await import("./proofScene");
+    expect(proofSceneValue(parseProofScene("?scene=clean"), WALLS_GAMMA_SCENE_KEY)).toEqual({});
+    expect(proofSceneValue(parseProofScene("?scene=verify"), WALLS_GAMMA_SCENE_KEY)).toBeUndefined();
+  });
+});

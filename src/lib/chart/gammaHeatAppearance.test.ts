@@ -41,3 +41,13 @@ describe("the ⚙ writes through the appearance owner", () => {
     expect(parseGammaHeatCustom("{bad")).toBeNull();
   });
 });
+
+describe("a proof tab's choice never reaches the saved preset", () => {
+  it("reads the first store holding an id", async () => {
+    const { readGammaHeatPreset } = await import("@/lib/chart/gammaHeatAppearance");
+    const mk = (o: Record<string, string>) => ({ getItem: (k: string) => o[k] ?? null });
+    expect(readGammaHeatPreset([mk({}), mk({ wm_gammaHeatPreset: "SUBTLE" })]).id).toBe("SUBTLE");
+    expect(readGammaHeatPreset([mk({ wm_gammaHeatPreset: "HIGH_CONTRAST" }), mk({ wm_gammaHeatPreset: "SUBTLE" })]).id).toBe("HIGH_CONTRAST");
+    expect(readGammaHeatPreset([mk({})]).id).toBe("BALANCED");
+  });
+});

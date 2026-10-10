@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { GAMMA_HEAT_CUSTOM_KEY, GAMMA_HEAT_PRESET_EVENT, GAMMA_HEAT_PRESET_KEY, GAMMA_HEAT_PRESETS, gammaHeatPreset, parseGammaHeatCustom } from "@/lib/chart/gammaHeatAppearance";
+import { GAMMA_HEAT_PRESET_EVENT, GAMMA_HEAT_PRESETS, gammaHeatPreset, gammaHeatStores, readGammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
+import { proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X, Settings, Info, BarChart2 } from "lucide-react";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { applyGammaHeatPreset, rgbTripletOf, applyProfilePreset, lawfulOrderLineLooks, ORDER_LINE_ALPHA_FLOOR, PROFILE_PRESET_RED_GREEN, type OrderLineDash } from "@/lib/chart/appearanceLaw";
+import { PROFILE_SPECIES, PROFILE_SPECIES_LABEL, lawfulSpeciesOpacity, type ProfileSpeciesKey } from "@/lib/chart/appearanceLaw";
 
 import {
   CANDLE_DOWN_DEFAULT,
@@ -58,6 +60,9 @@ export interface ChartSettings {
   profileOpacity?: number;
   wallOpacity?: number;
   memoryOpacity?: number;
+  // PER-SPECIES profile dials (Founder 2026-10-10). Absent = 1. Clamped by
+  // appearanceLaw.lawfulSpeciesOpacity; loudness only, never a species' form.
+  profileSpeciesOpacity?: Partial<Record<ProfileSpeciesKey, number>>;
   // SLICE B (Founder order §5): marks' size and weight. Absent = as shipped.
   bubbleScale?: number;          // big-trade disc size, 0.6–1.4
   footprintNumberStep?: number;  // footprint numbers, −1…+2 px against the row fit
@@ -196,11 +201,14 @@ function Dial({ value, onChange, label }: { value: number | undefined; onChange:
 /** ⚙ Walls & Gamma heatmap — five presets + Custom, written through the appearance owner. */
 function GammaHeatSettings() {
   const readStore = () => {
-    try { return gammaHeatPreset(localStorage.getItem(GAMMA_HEAT_PRESET_KEY), parseGammaHeatCustom(localStorage.getItem(GAMMA_HEAT_CUSTOM_KEY))); } catch { return gammaHeatPreset(null); }
+    const st = gammaHeatStores(proofSceneHoldsWrites());
+    return st ? readGammaHeatPreset(st.read) : gammaHeatPreset(null);
   };
   const [cur, setCur] = useState(readStore);
   const write = (id: string, custom: { posRgb?: string; negRgb?: string; maxAlpha?: number } | null) => {
-    try { applyGammaHeatPreset(localStorage, id, custom, () => window.dispatchEvent(new Event(GAMMA_HEAT_PRESET_EVENT))); } catch { /* private mode */ }
+    // A proof scene writes to this tab only — the trader's saved preset is never touched.
+    const st = gammaHeatStores(proofSceneHoldsWrites());
+    try { if (st) applyGammaHeatPreset(st.write, id, custom, () => window.dispatchEvent(new Event(GAMMA_HEAT_PRESET_EVENT))); } catch { /* private mode */ }
     setCur(readStore());
   };
   const toHex = (rgb: string) => "#" + rgb.split(",").map(n => Number(n).toString(16).padStart(2, "0")).join("");
@@ -551,6 +559,13 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                   <Dial value={s.profileOpacity} onChange={v => set({ profileOpacity: v })} label="Profiles" />
                   <Dial value={s.wallOpacity}    onChange={v => set({ wallOpacity: v })}    label="Walls & options" />
                   <Dial value={s.memoryOpacity}  onChange={v => set({ memoryOpacity: v })}  label="Memory (fade)" />
+                  <details data-profile-species-dials style={{ marginTop: 4 }}>
+                    <summary style={{ fontSize: 12, color: "#8896BE", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Profiles · each species</summary>
+                    {PROFILE_SPECIES.map(sp => (
+                      <Dial key={sp} value={s.profileSpeciesOpacity?.[sp]} label={PROFILE_SPECIES_LABEL[sp]}
+                        onChange={v => set({ profileSpeciesOpacity: lawfulSpeciesOpacity({ ...(s.profileSpeciesOpacity ?? {}), [sp]: v }) })} />
+                    ))}
+                  </details>
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Marks</div>

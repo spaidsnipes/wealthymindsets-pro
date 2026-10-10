@@ -86,3 +86,32 @@ describe("NEVER SENT — no WM code posts a bracket; the ticket says it is not a
     expect(bracketSupport("Webull").supported).toBe(false);
   });
 });
+
+import { checkOrderRate, reserveOrderSend, type RateKv } from "@/lib/execution/orderRateLimit";
+
+describe("the SAME order-rate limiter charges a bracket BRACKET_RATE_COST (still never sent)", () => {
+  const L: ServerOrderLimits = { ...DEFAULT_SERVER_LIMITS, armed: true, maxContractsPerOrder: 2, maxSharesPerOrder: 100, maxNotionalUsdPerOrder: 5000, maxLossUsdPerOrder: 500, maxOrdersPerMinute: 4, maxOrdersPerDay: 5, updatedAtMs: 1 };
+  const kvOf = () => { const m = new Map<string, string>(); return { m, kv: { get: async (k: string) => m.get(k) ?? null, put: async (k: string, v: string) => { m.set(k, v); } } as RateKv }; };
+  const at = (nowMs: number, limits: ServerOrderLimits = L) => ({ broker: "tastytrade" as const, ownerId: "owner-1", limits, nowMs, cost: BRACKET_RATE_COST });
+  const T = Date.UTC(2026, 9, 10, 14, 30, 5);
+  it("one bracket uses 3 of the minute; a second would exceed 4 a minute and is refused, saying it counts as 3", async () => {
+    const { kv } = kvOf();
+    const roomy = { ...L, maxOrdersPerDay: 50 };
+    const first = await reserveOrderSend(kv, at(T, roomy));
+    expect(first.ok && first.standing.usedThisMinute).toBe(3);
+    const second = await checkOrderRate(kv, at(T + 5_000, roomy));
+    expect(second.ok).toBe(false);
+    if (!second.ok) { expect(second.code).toBe("OVER_ORDERS_PER_MINUTE"); expect(second.reason).toMatch(/counts as 3 orders/); }
+  });
+  it("the daily cap counts 3 per bracket too (5 a day: one bracket, then no second)", async () => {
+    const { kv } = kvOf();
+    expect((await reserveOrderSend(kv, at(T))).ok).toBe(true);
+    const next = await checkOrderRate(kv, at(T + 120_000));
+    expect(!next.ok && next.code).toBe("OVER_ORDERS_PER_DAY");
+  });
+  it("a single order still costs 1 (cost omitted)", async () => {
+    const { kv } = kvOf();
+    const r = await reserveOrderSend(kv, { broker: "tastytrade", ownerId: "owner-1", limits: L, nowMs: T });
+    expect(r.ok && r.standing.usedThisMinute).toBe(1);
+  });
+});

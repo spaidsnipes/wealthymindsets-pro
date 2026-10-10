@@ -83,6 +83,9 @@ describe("compactRiskLine — the wrong-side refusal is never folded away", () =
   it("wrong side is a refusal, said beside the stop", () => {
     expect(compactRiskLine({ stopWrongSide: true, riskUsd: 10, rewardUsd: 20, entryKnown: true })).toEqual({ refusal: true, text: "The stop is on the wrong side of the entry — an opening order would be refused." });
   });
+  it("a wrong-side target is a refusal too — never reward money", () => {
+    expect(compactRiskLine({ stopWrongSide: false, riskUsd: 20, rewardUsd: null, entryKnown: true, targetWrongSide: true })).toEqual({ refusal: true, text: "The target is on the wrong side of the entry — it would never be a profit." });
+  });
   it("risk, reward and R; unset stop; unknown entry", () => {
     expect(compactRiskLine({ stopWrongSide: false, riskUsd: 50, rewardUsd: 125, entryKnown: true }).text).toBe("Risk −$50.00 · Reward +$125.00 · 2.50R");
     expect(compactRiskLine({ stopWrongSide: false, riskUsd: null, rewardUsd: null, entryKnown: true }).text).toBe("Risk: set a stop");

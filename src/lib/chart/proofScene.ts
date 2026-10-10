@@ -16,6 +16,10 @@
  *                   <Name>        → wm_of<Name>      (LivingProfile, TpoProfile, …)
  *                   sessionVP | fixedVP | absorptionAnatomy | sessionBands | effortResponse | deltaKeel | wisdomLine | rvolTone
  *                   fvg           → wm_fvg (FVG / Imbalance territory, FVG_3C v1; Garden 19 lane D, 2026-10-07)
+ *                   wg:<PART>     → one Walls & Gamma switch for this load (CALL_WALL, PUT_WALL,
+ *                                   GAMMA_HEATMAP, GAMMA_POSITIVE, GAMMA_NEGATIVE, GAMMA_FLIP,
+ *                                   GAMMA_CONCENTRATION); repeat for several. A clean scene
+ *                                   ignores the saved switches and never writes them.
  *                   fp:<mode>     → footprint on, that mode (bid-ask, delta,
  *                                   volume-profile, imbalance, aggressive-passive, big-trades)
  *                   scaff:<depth> → scaffolding depth (FOUNDATION, INTERMEDIATE, ADVANCED, OFF)
@@ -165,6 +169,8 @@ const QUESTION_CHOICE_KEY = "wm_questionChoice";
 const ANATOMY_MODE_SCENE_KEY = "wm_anatomyMode";
 const ANATOMY_MODE_TOKENS = new Set(["OFF", "MARKET", "FOUNDER", "FUSION"]);
 const NON_BOOLEAN_OF_KEYS = new Set([SCAFFOLDING_KEY, "wm_ofStackPrefs", "wm_ofMyStack"]);
+/** The Walls & Gamma family's stored switch record (ChartsDashboard reads it through lsGet). */
+export const WALLS_GAMMA_SCENE_KEY = "wm_wallsGamma";
 const PLAIN_TOGGLES = new Set(["sessionVP", "fixedVP", "absorptionAnatomy", "sessionBands", "effortResponse", "deltaKeel", "wisdomLine", "rvolTone", "fvg", "breathRibbon", "cvdNotch"]);
 
 export interface ProofScene {
@@ -221,6 +227,13 @@ export function parseProofScene(search: string): ProofScene {
     } else if (/^ask:/i.test(token)) {
       // The room validates the id against QUESTION_CHOICES; an unknown one reads AUTO.
       overrides[QUESTION_CHOICE_KEY] = token.slice(4).toUpperCase();
+    } else if (/^wg:/i.test(token)) {
+      // wg:<PART> — a WALLS & GAMMA switch for this load (CALL_WALL, PUT_WALL,
+      // GAMMA_HEATMAP, GAMMA_POSITIVE, GAMMA_NEGATIVE, GAMMA_FLIP,
+      // GAMMA_CONCENTRATION); repeat the token for several. Read, never written.
+      const part = token.slice(3).toUpperCase();
+      const cur = (overrides[WALLS_GAMMA_SCENE_KEY] as Record<string, boolean> | undefined) ?? {};
+      overrides[WALLS_GAMMA_SCENE_KEY] = { ...cur, [part]: true };
     } else if (PLAIN_TOGGLES.has(token)) {
       overrides[`wm_${token}`] = true;
     } else if (/^[A-Z][A-Za-z]+$/.test(token)) {
@@ -248,6 +261,9 @@ export function proofSceneValue(scene: ProofScene, key: string): unknown {
   // comparison (serving NQ1! 5m, 2026-10-06: a G06 figure stood beside the
   // absorption shelf in a scene=clean proof). MARKET is the room's default.
   if (key === ANATOMY_MODE_SCENE_KEY) return "MARKET";
+  // A clean scene reads NO saved Walls & Gamma switches (only its own wg: tokens);
+  // the stored value is never written or zeroed — this is a read for this load only.
+  if (key === WALLS_GAMMA_SCENE_KEY) return {};
   if ((CLEAN_EXTRA_OFF as readonly string[]).includes(key)) return false;
   if (key.startsWith(CLEAN_BOOLEAN_PREFIX) && !key.startsWith("wm_of_") && !NON_BOOLEAN_OF_KEYS.has(key)) return false;
   return undefined;

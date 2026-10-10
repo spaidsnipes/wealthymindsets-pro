@@ -67,3 +67,22 @@ export function parseGammaHeatCustom(raw: string | null): GammaHeatCustom | null
   if (!raw) return null;
   try { const v = JSON.parse(raw); return v && typeof v === "object" ? (v as GammaHeatCustom) : null; } catch { return null; }
 }
+
+/**
+ * The store the heatmap preset lives in for THIS page: a proof scene keeps its
+ * choice in the tab's sessionStorage (the trader's saved preset is never
+ * touched); otherwise localStorage. A proof tab reads its own choice first.
+ */
+export function gammaHeatStores(holdsWrites: boolean): { write: Storage; read: Storage[] } | null {
+  try {
+    return holdsWrites ? { write: sessionStorage, read: [sessionStorage, localStorage] } : { write: localStorage, read: [localStorage] };
+  } catch { return null; }
+}
+/** The resolved preset from the first store that holds an id. */
+export function readGammaHeatPreset(stores: readonly Pick<Storage, "getItem">[]): GammaHeatPreset {
+  for (const st of stores) {
+    const id = st.getItem(GAMMA_HEAT_PRESET_KEY);
+    if (id) return gammaHeatPreset(id, parseGammaHeatCustom(st.getItem(GAMMA_HEAT_CUSTOM_KEY)));
+  }
+  return gammaHeatPreset(null);
+}

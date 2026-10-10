@@ -101,7 +101,12 @@ describe("the strip on the glass", () => {
   it("is a door only: it opens the ticket and holds no order control", () => {
     expect(strip).toContain("onClick={onOpenTicket}");
     expect(strip).not.toMatch(/\/api\/|method:/);
-    expect((strip.match(/<button/g) ?? []).length).toBe(1);
+    // 2026-10-10 (one-trade lane): a SECOND button, CLOSE, stands beside a held position. It is a door
+    // too — it asks the one ticket to load FLATTEN (closeRequest) and opens it; preview, the server
+    // order gate (preflightLiveOrder: limits, kill switch, arm) and the trader's confirmation still
+    // stand before any send. No third control, and neither button reaches a route.
+    expect((strip.match(/<button/g) ?? []).length).toBe(2);
+    expect(strip).toMatch(/onClick=\{\(\) => \{ requestClose\(symbol\); onOpenTicket\(\); \}\}/);
   });
 
   it("truth words never shrink", () => {

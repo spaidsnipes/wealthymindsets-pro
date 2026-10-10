@@ -58,7 +58,7 @@ import { canonicalAssetClass } from "@/lib/marketData/canonicalIdentity";
 import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisionIdentity";
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
-import { claimChartInteraction } from "@/lib/chart/chartInteractionMode";
+import { claimChartInteraction, useChartInteractionMode } from "@/lib/chart/chartInteractionMode";
 import { draftLineFacts } from "@/lib/execution/draftLineFacts";
 import { armChartPricePick, cancelChartPricePick, publishChartOrderLines, useChartPricePick, useChartPricePickHosted, type ChartOrderLine } from "@/lib/execution/chartOrderLines";
 import { datedFuturesContract } from "@/lib/execution/liveOrderPreflight";
@@ -73,6 +73,7 @@ import { instrumentRisk, qtyForRisk } from "@/lib/execution/instrumentRisk";
 import { useTradeRails } from "@/lib/execution/useTradeRails";
 import { FamilyContractPicker, FuturesMonthRow, TradeFamilySelector } from "@/components/chart/TradeFamilyPicker";
 import { useFuturesMonths } from "@/lib/execution/useFuturesMonths";
+import { consumeCloseRequest, useCloseRequestSeq } from "@/lib/execution/closeRequest";
 import { futuresRootOf } from "@/lib/marketData/symbolAssetClass";
 
 /** guest audit 2026-10-04: quote-stream states in plain words (the enum stays in data-state). */
@@ -81,6 +82,8 @@ const STREAM_WORDS: Readonly<Record<string, string>> = {
   NOT_OWNER: "live quotes not on your account", NOT_CONNECTED: "quotes not connected",
 };
 const GOLD = "#C9A55C";
+/** The phone sheet while a placement owns the chart: the header (+ grip) and the placing strip only. */
+const PLACING_FOLD_MAX_HEIGHT = 124;
 const INK = "#ede6d3";
 const MUTED = "#8a8271";
 const LINE = "rgba(139,106,41,0.35)";
@@ -221,7 +224,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const stopNum = Number(stop) > 0 ? Number(stop) : null;
   const targetNum = Number(target) > 0 ? Number(target) : null;
   // ONE risk calc, by family (instrumentRisk): a future with no published spec is REFUSED, never priced at $1 a point.
-  const risk = instrumentRisk({ family: kind === "FUTURE" ? "FUTURE" : kind === "CRYPTO" ? "CRYPTO" : "STOCK", symbol: contract?.symbol ?? symbol, qty, entry: referenceEntry, stop: stopNum, target: targetNum });
+  const risk = instrumentRisk({ family: kind === "FUTURE" ? "FUTURE" : kind === "CRYPTO" ? "CRYPTO" : "STOCK", symbol: contract?.symbol ?? symbol, qty, entry: referenceEntry, stop: stopNum, target: targetNum, side: closing ? null : side });
+  const targetWrongSide = risk.status === "PRICED" && risk.targetWrongSide;
   const riskUsd = risk.status === "PRICED" ? risk.riskUsd : null;
   const [riskBudget, setRiskBudget] = useState("");
   const sizedQty = qtyForRisk({ family: kind === "FUTURE" ? "FUTURE" : kind === "CRYPTO" ? "CRYPTO" : "STOCK", symbol: contract?.symbol ?? symbol, entry: referenceEntry, stop: stopNum }, Number(riskBudget), kind === "CRYPTO");
@@ -237,6 +241,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const [entryPhase, setEntryPhase] = useState<LiveOrderPhase>("DISARMED");
   const pickHosted = useChartPricePickHosted();
   const { pick, picked } = useChartPricePick();
+  // PLACEMENT owns the pointer (an armed pick, or a draft line being dragged on the chart).
+  const interaction = useChartInteractionMode();
   // A draft price from the chart — an armed pick, a drag of the staged line, or "Trade at <price>" — edits the
   // DRAFT only. It is applied once (consumedChartDraftSeq outlives the panel, so a draft delivered while the
   // ticket was closed is applied when it opens, and one already applied is never re-applied on a reopen).
@@ -391,12 +397,16 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     mq.addEventListener?.("change", on);
     return () => mq.removeEventListener?.("change", on);
   }, []);
-  const riskLine = compactRiskLine({ stopWrongSide, riskUsd, rewardUsd, entryKnown: referenceEntry != null });
+  const riskLine = compactRiskLine({ stopWrongSide, riskUsd, rewardUsd, entryKnown: referenceEntry != null, targetWrongSide });
   // PEEK / ACT: folded to see the chart, or grown to act. CSS only — nothing unmounts; never folded while an order is in flight.
   const [folded, setFolded] = useState(false);
   useEffect(() => { if (side) setFolded(false); }, [side]);
   const stageInput = { compact, sidePicked: side != null, folded, preSend: isPreSendPhase(entryPhase) && scene?.state !== "inflight" };
   const stage = ticketStage(stageInput);
+  // PHONE PLACEMENT FOLD (Founder ruling 2026-10-10): while a pick is armed or a line is dragged on narrow
+  // glass, the sheet folds to its header + one placing strip, so the zones under it can be reached; it returns
+  // to whatever it was when the pick lands, is cancelled, or the drag ends. CSS only — no state is touched.
+  const placingFold = compact && interaction === "PLACEMENT" && stageInput.preSend;
   const fold = foldControl(stageInput);
   // HALF: the trader's own option on a phone — ACT at half height so the chart's order lines stay in view.
   const [half, setHalf] = useState(false);
@@ -436,6 +446,21 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const prefillLine = prefillNote({ prefill, limitPx: limitNum, currentTouch: prefill?.touch === "ASK" ? q?.ask : q?.bid, tick, nowMs });
   // §23 — POSITION STATE · WORKING ORDERS · MODIFY · FLATTEN, from the broker readback only; fail-closed.
   const book = ticketBook(broker, contract?.symbol ?? null, { killSwitch: !!server.limits?.killSwitch, limitsSet: server.state === "SET", proofRefusal: sceneGate?.reason ?? null });
+  /** FLATTEN into this ticket — a closing MARKET order for the held quantity; preview, the gate and confirmation still stand. */
+  function loadFlatten() {
+    const f = book.flatten.plan;
+    if (!f || book.flatten.state !== "LOADABLE") return;
+    setSide(f.action === "Sell to Close" ? "SELL" : "BUY"); setClosing(true); setQty(f.qty); setEntryType("Market");
+    setAnswer("FLATTEN loaded: a closing MARKET order for the held quantity. Preview and confirm below to send it.");
+  }
+  // CLOSE asked from the position strip: answered once the book has read the position — loaded, or the refusal said.
+  const closeSeq = useCloseRequestSeq(symbol);
+  useEffect(() => {
+    if (closeSeq == null || book.flatten.state === "NOT READ") return;
+    if (book.flatten.state === "LOADABLE") loadFlatten();
+    else setAnswer(book.flatten.refusal ? `CLOSE refused — ${book.flatten.refusal}` : book.flatten.words);
+    consumeCloseRequest(closeSeq);
+  }, [closeSeq, book.flatten.state]); // eslint-disable-line react-hooks/exhaustive-deps
   const [cancelAcks, setCancelAcks] = useState<Record<string, CancelAck>>({});
   const [cancelBusy, setCancelBusy] = useState<string | null>(null);
   useEffect(() => { setCancelAcks({}); setCancelBusy(null); }, [contract?.symbol]);
@@ -494,12 +519,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     BOOK: (<>
           {/* §23 — the book, from tastytrade's readback only: position state, working orders (cancel), modify, flatten. */}
           <TicketBookRows book={book} acks={cancelAcks} busyId={cancelBusy} onCancel={o => { void cancelWorking(o); }}
-            onFlatten={() => {
-              const f = book.flatten.plan;
-              if (!f) return;
-              setSide(f.action === "Sell to Close" ? "SELL" : "BUY"); setClosing(true); setQty(f.qty); setEntryType("Market");
-              setAnswer("FLATTEN loaded: a closing MARKET order for the held quantity. Preview and confirm below to send it.");
-            }} />
+            onFlatten={loadFlatten} />
+          {/* REVERSE is not built: it is two orders (close, then open the other way), and WM sends one at a time. */}
+          {book.position.state === "HOLDING" ? <p data-testid="trade-reverse-not-built" style={{ color: MUTED, fontSize: 10.5, margin: 0 }}>REVERSE · not built — it is two orders (close, then open the other way). Load FLATTEN, confirm it, then build the new side here.</p> : null}
     </>),
     SIDE: (<>
           {/* Side + open/close */}
@@ -587,7 +609,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             {kind === "FUTURE" ? <><span style={{ color: MUTED }}>Point value</span><span>{pointValue != null ? `$${pointValue}/pt · tick ${tick} = $${econ.status === "PRICED" ? econ.tickValue : "—"}` : "not on file"}</span></> : null}
             <span style={{ color: MUTED }}>{kind === "FUTURE" ? "Notional" : "Cost"}</span><span>{notional != null ? `$${notional.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}</span>
             <span style={{ color: MUTED }}>Planned risk at stop</span><span style={{ color: riskUsd != null ? RED : MUTED }}>{stopWrongSide ? "stop is on the wrong side" : riskUsd != null ? `−$${riskUsd.toFixed(2)}` : referenceEntry == null ? "entry fill unknown" : "set a stop"}</span>
-            <span style={{ color: MUTED }}>Reward at target</span><span style={{ color: rewardUsd != null ? GREEN : MUTED }}>{rewardUsd != null ? `+$${rewardUsd.toFixed(2)}${riskUsd ? ` · ${(rewardUsd / riskUsd).toFixed(2)}R` : ""}` : "—"}</span>
+            <span style={{ color: MUTED }}>Reward at target</span><span data-testid="trade-reward" style={{ color: targetWrongSide ? RED : rewardUsd != null ? GREEN : MUTED }}>{targetWrongSide ? "target is on the wrong side" : rewardUsd != null ? `+$${rewardUsd.toFixed(2)}${riskUsd ? ` · ${(rewardUsd / riskUsd).toFixed(2)}R` : ""}` : "—"}</span>
             <span data-testid="trade-risk-basis" style={{ color: risk.status === "PRICED" ? MUTED : GOLD, gridColumn: "1 / -1", fontSize: 10.5 }}>{risk.status === "PRICED" ? `${risk.basis}${referenceEntry != null && stopNum != null ? ` (${(Math.abs(referenceEntry - stopNum) / referenceEntry * 100).toFixed(2)}% away)` : ""} · ${risk.caveat}` : `$ risk withheld — ${risk.reason}`}</span>
           </div>
     </>),
@@ -670,6 +692,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
       data-stage={stage}
       data-step={step ?? undefined}
       data-half={halfOn ? "yes" : undefined}
+      data-placing={placingFold ? "yes" : undefined}
       aria-label={`Trade ${symbol}`}
       style={{
         // §XIV: a market instrument never covers the forming candle, the live
@@ -678,6 +701,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         // bar). It stands at the chart's lower LEFT, over settled history.
         position: "fixed", left: 24, bottom: 64, zIndex: 60, width: "min(400px, calc(100vw - 48px))", maxHeight: !compact ? WIDE_TICKET_MAX_HEIGHT : stage === "PEEK" ? COMPACT_PEEK_MAX_HEIGHT : halfOn ? COMPACT_HALF_MAX_HEIGHT : COMPACT_ACT_MAX_HEIGHT, overflowY: "auto", overflowX: "hidden",
         background: "#0d0b08", border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 18px 48px rgba(0,0,0,0.6)", color: INK, fontSize: 12,
+        // The phone placement fold wins over every stage while it lasts (see placingFold).
+        ...(placingFold ? { maxHeight: PLACING_FOLD_MAX_HEIGHT, overflowY: "hidden" as const } : null),
       }}
     >
       {/* The HALF grip: drag the sheet's top edge down to half height, up to full (snaps on release). Same rules as
@@ -719,6 +744,13 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         </button> : null}
         <button type="button" data-testid="trade-close" aria-label="Close trade panel" onClick={onClose} style={{ marginLeft: "auto", flexShrink: 0, minWidth: 32, minHeight: 32, color: MUTED, fontSize: 16, background: "none", border: "none", cursor: "pointer" }}>×</button>
       </header>
+      {placingFold ? (
+        <div role="status" data-testid="trade-placing" style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderBottom: `1px solid ${LINE}`, color: GOLD, fontSize: 11, fontWeight: 700 }}>
+          <span style={{ flex: 1, minWidth: 0 }}>{pick ? `Placing ${pick.role} — tap its price on the chart` : "Moving a line on the chart — let go to set it"}</span>
+          {pick ? <button type="button" data-testid="trade-placing-cancel" onClick={() => cancelChartPricePick()}
+            style={{ minHeight: 32, padding: "0 10px", borderRadius: 4, border: `1px solid ${LINE}`, background: "none", color: INK, fontSize: 11, cursor: "pointer" }}>Cancel pick</button> : null}
+        </div>
+      ) : null}
       {scene ? <p role="status" data-testid="trade-proof-banner" data-scene-state={scene.state} style={{ margin: 0, padding: "4px 12px", borderBottom: `1px solid ${GOLD}`, color: GOLD, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6 }}>{TICKET_FIXTURE_BANNER}</p> : null}
       {stage !== "PEEK" ? <TradeFamilySelector family={family} verdicts={verdicts} onPick={f => setFamilyPick(f === chartFam ? null : f)} /> : null}
 

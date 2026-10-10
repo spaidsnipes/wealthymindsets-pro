@@ -43,6 +43,11 @@ export interface RiskInput {
   readonly multiplier?: number | null;
   /** FX cross only: 1 unit of the QUOTE currency in USD (EUR/GBP → GBP→USD). */
   readonly quoteToUsd?: number | null;
+  /**
+   * The side being built. When known, a stop or target on the WRONG side of the entry is refused —
+   * never priced as money (trade lane, 2026-10-10: a long's target below entry read "+$40.00").
+   */
+  readonly side?: "BUY" | "SELL" | null;
 }
 
 export type RiskAnswer =
@@ -53,6 +58,9 @@ export type RiskAnswer =
       /** How the number was made, in trader words ("4 ticks × $1.25 × 2 contracts"). */
       readonly basis: string;
       readonly caveat: typeof RISK_ESTIMATE_CAVEAT;
+      /** The stop / target sits on the wrong side of the entry for the side being built (its $ is null). */
+      readonly stopWrongSide: boolean;
+      readonly targetWrongSide: boolean;
     }
   | { readonly status: "REFUSED"; readonly reason: string };
 
@@ -89,11 +97,24 @@ export function fxPipValueUsd(symbol: string, units: number, price: number | nul
 }
 
 function finish(riskUsd: number | null, rewardUsd: number | null, basis: string): RiskAnswer {
-  return { status: "PRICED", riskUsd, rewardUsd, basis, caveat: RISK_ESTIMATE_CAVEAT };
+  return { status: "PRICED", riskUsd, rewardUsd, basis, caveat: RISK_ESTIMATE_CAVEAT, stopWrongSide: false, targetWrongSide: false };
+}
+
+/** Wrong-side exits are refused AFTER pricing, so every family follows the one rule. */
+function sided(a: RiskAnswer, x: RiskInput): RiskAnswer {
+  if (a.status !== "PRICED" || !x.side || !pos(x.entry)) return a;
+  const long = x.side === "BUY";
+  const stopWrongSide = pos(x.stop) && (long ? x.stop >= x.entry : x.stop <= x.entry);
+  const targetWrongSide = pos(x.target) && (long ? x.target <= x.entry : x.target >= x.entry);
+  return { ...a, riskUsd: stopWrongSide ? null : a.riskUsd, rewardUsd: targetWrongSide ? null : a.rewardUsd, stopWrongSide, targetWrongSide };
 }
 
 /** $ at the stop and at the target for one ticket — the family decides the formula. */
 export function instrumentRisk(x: RiskInput): RiskAnswer {
+  return sided(priceRisk(x), x);
+}
+
+function priceRisk(x: RiskInput): RiskAnswer {
   const { family, qty, entry, stop } = x;
   const target = x.target ?? null;
   if (!pos(qty)) return { status: "REFUSED", reason: "size the trade first" };

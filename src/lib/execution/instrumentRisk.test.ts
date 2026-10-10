@@ -92,3 +92,22 @@ describe("size to risk — never past the budget", () => {
     expect(qtyForRisk({ family: "FUTURE", symbol: "ES1!", entry: 6000, stop: 5990 }, 100, false)).toBeNull();
   });
 });
+
+describe("wrong-side exits are refused, never priced (trade lane, 2026-10-10)", () => {
+  it("a long's target below entry has no reward money; its stop still prices", () => {
+    const a = instrumentRisk({ family: "FUTURE", symbol: "MNQ1!", qty: 1, entry: 21000, stop: 20990, target: 20980, side: "BUY" });
+    expect(a.status === "PRICED" && a.targetWrongSide).toBe(true);
+    expect(a.status === "PRICED" && a.rewardUsd).toBeNull();
+    expect(a.status === "PRICED" && a.riskUsd).toBeCloseTo(20, 6);
+  });
+  it("a short's stop below entry has no risk money", () => {
+    const a = instrumentRisk({ family: "STOCK", symbol: "AAPL", qty: 10, entry: 200, stop: 198, target: 190, side: "SELL" });
+    expect(a.status === "PRICED" && a.stopWrongSide).toBe(true);
+    expect(a.status === "PRICED" && a.riskUsd).toBeNull();
+    expect(a.status === "PRICED" && a.rewardUsd).toBeCloseTo(100, 6);
+  });
+  it("with no side (a calculator), distances price as before", () => {
+    const a = instrumentRisk({ family: "STOCK", symbol: "AAPL", qty: 10, entry: 200, stop: 198, target: 190 });
+    expect(a.status === "PRICED" && a.targetWrongSide).toBe(false);
+  });
+});
