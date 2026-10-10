@@ -1,5 +1,6 @@
 "use client";
 
+import { WM, WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { TodayManagementRules } from "@/components/journal/TodayManagementRules";
@@ -698,7 +699,7 @@ export default function MorningPrepPage() {
             </p>
             <button type="button" onClick={() => { if (ownerId) setShowCompose(true); }} disabled={!ownerId}
               className="flex min-h-11 items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ background: "rgba(0,212,170,0.15)", border: "1px solid rgba(0,212,170,0.35)", color: "#00D4AA" }}>
+              style={{ background: "rgba(201,165,92,0.14)", border: `1px solid ${WM.gold.line}`, color: WM.gold.mark }}>
               <Plus size={14} /> {ownerId ? "Create first entry" : "Sign in to save"}
             </button>
           </div>
@@ -901,7 +902,7 @@ function ComposeModal({ onClose, onSave }: { onClose: () => void; onSave: (e: Pr
               className="flex-1 rounded-lg px-3 py-2 text-sm text-white outline-none"
               style={{ background: "#161A24", border: "1px solid #1E2030" }} />
             <button aria-label="Add checklist item" onClick={addItem} className="px-3 rounded-lg text-sm font-bold"
-              style={{ background: "rgba(0,212,170,0.15)", border: "1px solid rgba(0,212,170,0.35)", color: "#00D4AA" }}>
+              style={{ background: "rgba(201,165,92,0.14)", border: `1px solid ${WM.gold.line}`, color: WM.gold.mark }}>
               <Plus size={15} />
             </button>
           </div>
@@ -930,7 +931,7 @@ function ComposeModal({ onClose, onSave }: { onClose: () => void; onSave: (e: Pr
         <div className="flex justify-end gap-2 pt-2 border-t" style={{ borderColor: "#1E2030" }}>
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-bold" style={{ color: "#8B8FA8" }}>Cancel</button>
           <button onClick={save} className="px-5 py-2 rounded-xl text-sm font-bold"
-            style={{ background: "rgba(0,212,170,0.15)", border: "1px solid rgba(0,212,170,0.35)", color: "#00D4AA" }}>
+            style={WM_PRIMARY_ACTION}>
             Save Prep
           </button>
         </div>

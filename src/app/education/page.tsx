@@ -164,14 +164,14 @@ function keyIdeasFor(title: string, n = 4): { idea: string; explain: string }[] 
 
 /* ── Modules ─────────────────────────────────────────────── */
 const MODULES: Module[] = [
-  { id:1, title:"Order Flow Foundations",              duration:"4h 20m", level:"Beginner",     locked:false, completed:false, color:"#00D4AA",
+  { id:1, title:"Order Flow Foundations",              duration:"4h 20m", level:"Beginner",     locked:false, completed:false, color:"#c9a55c",
     lessons:[
       { id:"of-1", title:"What is Order Flow? Market Mechanics Explained",  duration:"18m", completed:false },
       { id:"of-2", title:"Tape Reading: Time & Sales Deep Dive",            duration:"22m", completed:false },
       { id:"of-3", title:"DOM (Depth of Market) Explained",                 duration:"25m", completed:false },
       { id:"of-4", title:"Bid, Ask, and Spread Dynamics",                   duration:"15m", completed:false },
     ]},
-  { id:2, title:"Footprint Charts Mastery",            duration:"5h 45m", level:"Intermediate", locked:false, completed:false, color:"#4FA3E0",
+  { id:2, title:"Footprint Charts Mastery",            duration:"5h 45m", level:"Intermediate", locked:false, completed:false, color:"#ede6d3",
     lessons:[
       { id:"fp-1", title:"Footprint Chart Types: Bid×Ask vs Delta vs Vol Profile vs Imbalance", duration:"35m", completed:false },
       { id:"fp-2", title:"Aggressive vs Passive Order Flow — Key Difference",                   duration:"28m", completed:false },
@@ -179,7 +179,7 @@ const MODULES: Module[] = [
       { id:"fp-4", title:"Volume Profile: POC, VAH, VAL, and How to Trade Them",               duration:"40m", completed:false },
       { id:"fp-5", title:"Delta & Cumulative Volume Delta (CVD) Analysis",                      duration:"38m", completed:false },
     ]},
-  { id:3, title:"Smart Money Signals",                 duration:"6h 10m", level:"Intermediate", locked:false, completed:false, color:"#8B5CF6",
+  { id:3, title:"Smart Money Signals",                 duration:"6h 10m", level:"Intermediate", locked:false, completed:false, color:"#ffd76a",
     lessons:[
       { id:"sm-1", title:"Absorption: When Large Players Absorb Selling",        duration:"30m", completed:false },
       { id:"sm-2", title:"Volume Tails & What They Mean for Reversals",           duration:"22m", completed:false },
@@ -191,13 +191,13 @@ const MODULES: Module[] = [
       { id:"sm-8", title:"Stop Runs: How Smart Money Hunts Liquidity",           duration:"28m", completed:false },
       { id:"sm-9", title:"Trapped Sellers: Identifying & Exploiting",            duration:"25m", completed:false },
     ]},
-  { id:4, title:"Iceberg Orders & Dark Pools",         duration:"3h 30m", level:"Advanced",     locked:false, completed:false, color:"#F0B429",
+  { id:4, title:"Iceberg Orders & Dark Pools",         duration:"3h 30m", level:"Advanced",     locked:false, completed:false, color:"#d4af37",
     lessons:[
       { id:"dp-1", title:"Iceberg Order Detection — Clip Size Patterns",       duration:"30m", completed:false },
       { id:"dp-2", title:"Dark Pool Prints: Reading Institutional Footprints", duration:"35m", completed:false },
       { id:"dp-3", title:"Block Trades & Their Directional Bias",              duration:"28m", completed:false },
     ]},
-  { id:5, title:"CLC Rule — Context + Location + Confirmation", duration:"4h", level:"Advanced", locked:false, completed:false, color:"#FF4D6A",
+  { id:5, title:"CLC Rule — Context + Location + Confirmation", duration:"4h", level:"Advanced", locked:false, completed:false, color:"#8a8271",
     lessons:[
       { id:"clc-1", title:"The CLC Rule Explained — Foundation of Smart Entries",        duration:"45m", completed:false },
       { id:"clc-2", title:"Context: Reading Market Regime (Trend vs Range vs Reversal)", duration:"35m", completed:false },
@@ -206,7 +206,7 @@ const MODULES: Module[] = [
       { id:"clc-5", title:"Best Opportunity / Smallest Risk Setup Framework",           duration:"35m", completed:false },
       { id:"clc-6", title:"CLC in Action: Live Trade Walkthroughs",                    duration:"55m", completed:false },
     ]},
-  { id:6, title:"Wyckoff Method & Market Regimes",     duration:"5h 20m", level:"Advanced",     locked:false, completed:false, color:"#00B4D8",
+  { id:6, title:"Wyckoff Method & Market Regimes",     duration:"5h 20m", level:"Advanced",     locked:false, completed:false, color:"#c0b8a0",
     lessons:[
       { id:"wy-1", title:"Wyckoff Phases: Accumulation, Markup, Distribution, Markdown", duration:"45m", completed:false },
       { id:"wy-2", title:"Wyckoff Schematics in Modern Markets",                          duration:"40m", completed:false },
@@ -215,13 +215,13 @@ const MODULES: Module[] = [
       { id:"wy-5", title:"Markov Regime Model: Quantifying Market State",                 duration:"40m", completed:false },
       { id:"wy-6", title:"Spring Pattern: The Shakeout Before the Rally",                 duration:"35m", completed:false },
     ]},
-  { id:7, title:"VWAP Trading Strategies",             duration:"3h",     level:"Intermediate", locked:true,  completed:false, color:"#06D6A0",
+  { id:7, title:"VWAP Trading Strategies",             duration:"3h",     level:"Intermediate", locked:true,  completed:false, color:"#8b6a29",
     lessons:[
       { id:"vw-1", title:"VWAP Reclaim & Rejection Setups",    duration:"30m", completed:false },
       { id:"vw-2", title:"VWAP Bands (σ1, σ2, σ3) Strategy",  duration:"35m", completed:false },
       { id:"vw-3", title:"Anchored VWAP for Swing Traders",    duration:"28m", completed:false },
     ]},
-  { id:8, title:"SpaidBot: AI-Assisted Trading",       duration:"2h",     level:"Pro",          locked:true,  completed:false, color:"#F97316",
+  { id:8, title:"SpaidBot: AI-Assisted Trading",       duration:"2h",     level:"Pro",          locked:true,  completed:false, color:"#b08d57",
     lessons:[
       { id:"ai-1", title:"SpaidBot Overview & Capabilities",                duration:"20m", completed:false },
       // Night shift 2026-10-07: SpaidBot answers questions from the evidence it
@@ -245,7 +245,8 @@ const MODULES: Module[] = [
 ];
 
 const LEVEL_COLOR: Record<Module["level"],string> = {
-  Beginner:"#00D4AA", Intermediate:"#4FA3E0", Advanced:"#F0B429", Pro:"#8B5CF6",
+  // House ladder (G19 cinematic pass 2026-10-10): levels read as brass strength and their word, not SaaS teal / blue / purple.
+  Beginner:"#c0b8a0", Intermediate:"#c9a55c", Advanced:"#d4af37", Pro:"#ffd76a",
 };
 
 /* ── Notes component ─────────────────────────────────────── */
@@ -459,8 +460,8 @@ function QuizPanel({ lesson, onClose }: { lesson: Lesson; onClose: (passed?: boo
             <div className="flex flex-col items-center py-4">
               <div className="w-24 h-24 rounded-full flex items-center justify-center mb-4"
                 style={{ background:pct>=70?"rgba(0,212,170,0.15)":"rgba(255,77,106,0.15)",
-                         border:`3px solid ${pct>=70?"#00D4AA":"#FF4D6A"}` }}>
-                <span className="text-2xl font-black" style={{ color:pct>=70?"#00D4AA":"#FF4D6A" }}>{pct}%</span>
+                         border:`3px solid ${pct>=70?WM.state.ok:WM.state.objection}` }}>
+                <span className="text-2xl font-black" style={{ color:pct>=70?WM.state.ok:WM.state.objection }}>{pct}%</span>
               </div>
               <div className="text-lg font-black text-wm-text mb-1">
                 {pct>=90?"🏆 Knowledge Check Mastered":pct>=70?"✅ Knowledge Check Passed":"📚 Keep Studying"}
@@ -941,8 +942,8 @@ export default function EducationPage() {
             <div className="flex flex-col items-center justify-center h-full gap-6 text-wm-text-muted">
               <div className="grid grid-cols-3 gap-2 sm:gap-4 px-3 sm:px-0">
                 {[
-                  { label:"Verified Lessons", value:completed, color:"#00D4AA", icon:<CheckCircle2 size={18}/> },
-                  { label:"Modules",      value:`${mods.filter(m => !m.locked && !moduleVerified(m)).length} active`, color:"#4FA3E0", icon:<BookOpen size={18}/> },
+                  { label:"Verified Lessons", value:completed, color:"#d4af37", icon:<CheckCircle2 size={18}/> },
+                  { label:"Modules",      value:`${mods.filter(m => !m.locked && !moduleVerified(m)).length} active`, color:"#ede6d3", icon:<BookOpen size={18}/> },
                   // Summed from the catalogue, not typed; "planned" until lesson content ships.
                   { label: contentAvailable ? "Total Time" : "Planned Time", value: catalogueTotal != null ? formatHoursMinutes(catalogueTotal) : "—", color:"#F0B429", icon:<Clock size={18}/> },
                 ].map(({label,value,color,icon})=>(
@@ -961,7 +962,7 @@ export default function EducationPage() {
               <div className="relative w-20 h-20">
                 <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
                   <circle cx="18" cy="18" r="15.9" fill="none" stroke="#1a1f2e" strokeWidth="2.5"/>
-                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#00D4AA" strokeWidth="2.5"
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#d4af37" strokeWidth="2.5"
                     strokeDasharray={`${pct} ${100-pct}`} strokeLinecap="round"/>
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">

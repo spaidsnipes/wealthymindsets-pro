@@ -1,5 +1,6 @@
 "use client";
 
+import { WM } from "@/lib/design/wmTokens";
 import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
 import Link from "next/link";
 import React, { useState, useRef, useCallback, useEffect } from "react";
@@ -80,10 +81,12 @@ interface Comment {
    HELPERS
 ══════════════════════════════════════════════════════════════ */
 const TIER_STYLE: Record<string, { bg:string; text:string; border:string }> = {
-  ELITE:   { bg:"rgba(240,180,41,0.18)",  text:"#F0B429", border:"rgba(240,180,41,0.40)" },
-  PRO:     { bg:"rgba(0,212,170,0.15)",   text:"#00D4AA", border:"rgba(0,212,170,0.35)" },
-  CREATOR: { bg:"rgba(139,92,246,0.15)",  text:"#8B5CF6", border:"rgba(139,92,246,0.35)" },
-  BASIC:   { bg:"rgba(79,163,224,0.12)",  text:"#4FA3E0", border:"rgba(79,163,224,0.30)" },
+  // House materials (G19 cinematic pass 2026-10-10): tiers are told apart by their WORD and by brass
+  // strength — not by third-party teal / purple / blue. Green stays the market's word, never an identity.
+  ELITE:   { bg:"rgba(212,175,55,0.18)",  text:WM.gold.hero, border:"rgba(212,175,55,0.45)" },
+  PRO:     { bg:"rgba(201,165,92,0.12)",  text:WM.gold.mark, border:"rgba(201,165,92,0.35)" },
+  CREATOR: { bg:"rgba(237,230,211,0.08)", text:WM.text.hero, border:"rgba(237,230,211,0.25)" },
+  BASIC:   { bg:"rgba(138,130,113,0.10)", text:WM.text.body, border:"rgba(138,130,113,0.30)" },
 };
 
 function timeAgo(iso: string) {
@@ -115,7 +118,7 @@ function VerifiedBadge({ ceo, size = 12 }: { ceo?: boolean; size?: number }) {
       </span>
     );
   }
-  return <CheckCircle size={size} className="inline-block" style={{ color:"#4FA3E0", fill:"#4FA3E0" }} />;
+  return <CheckCircle size={size} className="inline-block" style={{ color:WM.gold.mark, fill:"rgba(201,165,92,0.25)" }} />;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -325,16 +328,16 @@ function PostCard({ post, myHandle, myName, myAvatar, myColor, onDelete }:
           {post.music && (
             <div className="p-3 rounded-xl bg-wm-surface border border-wm-purple/20 flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                style={{background:"linear-gradient(135deg,#8B5CF6,#4FA3E0)"}}>
-                <Music size={16} className="text-white"/>
+                style={{background:`linear-gradient(135deg, ${WM.gold.hero}, ${WM.gold.line})`}}>
+                <Music size={16} style={{ color: WM.surface.deepest }}/>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold text-wm-text">{post.music.title}</div>
                 <div className="text-[10px] text-wm-text-muted">{post.music.artist} · {post.music.duration}</div>
               </div>
               <div className="w-8 h-8 rounded-full flex items-center justify-center"
-                style={{background:"linear-gradient(135deg,#8B5CF6,#4FA3E0)"}}>
-                <Play size={13} className="text-white ml-0.5"/>
+                style={{background:`linear-gradient(135deg, ${WM.gold.hero}, ${WM.gold.line})`}}>
+                <Play size={13} className="ml-0.5" style={{ color: WM.surface.deepest }}/>
               </div>
             </div>
           )}
@@ -552,11 +555,11 @@ function CreatePostModal({ onClose, onPost, user }:
    MAIN PAGE
 ══════════════════════════════════════════════════════════════ */
 const LIVE_ROOMS = [
-  { name: "wm-wealthy-mindsets", label: "Wealthy Mindsets", color: "#00FFC2", desc: "The main room — community & live trading" },
-  { name: "wm-nq-morning",   label: "Smart Money Talk", color: "#00D4AA", desc: "Futures & order flow" },
-  { name: "wm-crypto-talk",  label: "Crypto Talk",   color: "#F0B429", desc: "BTC, ETH, alts" },
-  { name: "wm-beats-vibes",  label: "Beats & Vibes", color: "#8B5CF6", desc: "Music & community" },
-  { name: "wm-market-open",  label: "Market Open",   color: "#FF4D6A", desc: "Pre-market & open" },
+  { name: "wm-wealthy-mindsets", label: "Wealthy Mindsets", color: WM.gold.hero, desc: "The main room — community & live trading" },
+  { name: "wm-nq-morning",   label: "Smart Money Talk", color: WM.gold.mark, desc: "Futures & order flow" },
+  { name: "wm-crypto-talk",  label: "Crypto Talk",   color: WM.text.hero, desc: "BTC, ETH, alts" },
+  { name: "wm-beats-vibes",  label: "Beats & Vibes", color: WM.text.body, desc: "Music & community" },
+  { name: "wm-market-open",  label: "Market Open",   color: WM.gold.halo, desc: "Pre-market & open" },
 ];
 
 const SIDEBAR_TAGS: Record<string, string[]> = {
@@ -729,7 +732,7 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
         </div>
         {stories.map(u => (
           <div key={u.handle} className="flex flex-col items-center gap-1 shrink-0">
-            <div className="rounded-full p-[2px]" style={{ background: "conic-gradient(from 210deg, #E8B923, #FF6B9D, #8B5CF6, #059669, #E8B923)" }}>
+            <div className="rounded-full p-[2px]" style={{ background: `conic-gradient(from 210deg, ${WM.gold.hero}, ${WM.gold.line}, ${WM.text.hero}, ${WM.gold.mark}, ${WM.gold.hero})` }}>
               <div className="rounded-full p-[2px] bg-wm-dark">
                 <Avatar src={u.avatar} name={u.name} color={u.color} size={44} ceo={u.ceo} />
               </div>
@@ -789,7 +792,7 @@ export default function LoungePage() {
   const myHandle  = user?.handle  ?? user?.email?.split("@")[0] ?? "";
   const myName    = user?.displayName ?? "You";
   const myAvatar  = user?.avatar  ?? "";
-  const myColor   = "#00D4AA";
+  const myColor   = WM.gold.mark;
   const myTier    = "BASIC";
   const myVerified = false;
   const myCeo     = false;
@@ -952,11 +955,11 @@ export default function LoungePage() {
         </div>
 
         {[
-          { icon:<Flame size={13}/>,      label:"Hot Right Now", color:"#FF4D6A" },
-          { icon:<TrendingUp size={13}/>, label:"Trade Setups",  color:"#00D4AA" },
-          { icon:<BarChart2 size={13}/>,  label:"Market Talk",   color:"#4FA3E0" },
-          { icon:<Star size={13}/>,       label:"Chart Snaps",   color:"#00D4AA" },
-          { icon:<Crown size={13}/>,      label:"Creator Hub",   color:"#F0B429" },
+          { icon:<Flame size={13}/>,      label:"Hot Right Now", color:WM.gold.halo },
+          { icon:<TrendingUp size={13}/>, label:"Trade Setups",  color:WM.gold.mark },
+          { icon:<BarChart2 size={13}/>,  label:"Market Talk",   color:WM.text.hero },
+          { icon:<Star size={13}/>,       label:"Chart Snaps",   color:WM.gold.mark },
+          { icon:<Crown size={13}/>,      label:"Creator Hub",   color:WM.gold.hero },
         ].map(({icon,label,color}) => (
           <button key={label}
             onClick={() => setSidebarFilter(f => f === label ? null : label)}
@@ -976,7 +979,7 @@ export default function LoungePage() {
               key={activeRoom}
               roomName={activeRoom}
               roomLabel={LIVE_ROOMS.find(r => r.name === activeRoom)?.label ?? activeRoom}
-              color={LIVE_ROOMS.find(r => r.name === activeRoom)?.color ?? "#00D4AA"}
+              color={LIVE_ROOMS.find(r => r.name === activeRoom)?.color ?? WM.gold.mark}
               userName={myHandle || myName}
               isHost={activeRoomIsHost}
               onClose={() => { setActiveRoom(null); setActiveRoomIsHost(false); }}
@@ -1096,7 +1099,7 @@ export default function LoungePage() {
                   </button>
                 </div>
                 <div className="flex items-center gap-2 mt-2.5">
-                  {[{ icon: <Image size={13} />, label: "Photo", c: "#4FA3E0" }, { icon: <TrendingUp size={13} />, label: "Trading Insights", c: "#00D4AA" }, { icon: <Music size={13} />, label: "Music Share", c: "#8B5CF6" }, { icon: <Radio size={13} />, label: "Voice", c: "#E8B923" }].map(b => (
+                  {[{ icon: <Image size={13} />, label: "Photo", c: WM.text.hero }, { icon: <TrendingUp size={13} />, label: "Trading Insights", c: WM.gold.mark }, { icon: <Music size={13} />, label: "Music Share", c: WM.text.body }, { icon: <Radio size={13} />, label: "Voice", c: WM.gold.hero }].map(b => (
                     <button key={b.label} onClick={() => setShowCreate(true)}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all hover:scale-105"
                       style={{ background: `${b.c}14`, color: b.c, border: `1px solid ${b.c}2a` }}>

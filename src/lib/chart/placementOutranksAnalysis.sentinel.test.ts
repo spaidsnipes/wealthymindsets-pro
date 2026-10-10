@@ -142,6 +142,9 @@ describe("D. the armed pick takes the whole pane", () => {
     // both testids really are the handle's
     expect(MAIN).toContain('data-testid={can ? "draft-line-handle" : "broker-line-tag"}');
   });
+  it("chart words treat the order-line handles' pills as occupied (no label cut in half under ENTRY)", () => {
+    expect(MAIN).toContain('document.querySelectorAll(`.wm-chart-reading-anchor, ${ORDER_LINE_HANDLE_SELECTOR.split(", ").map(q => `${q} > span`).join(", ")}`)');
+  });
   it("the Data Window, which trails the cursor, is hidden while a price is placed", () => {
     expect(MAIN).toContain('data-yields-to-placement="data-window"');
     expect(GLOBALS).toMatch(/\[data-chart-interaction="PLACEMENT"\] \[data-yields-to-placement\],\s*\[data-chart-interaction="EXECUTION"\] \[data-yields-to-placement\] \{\s*visibility: hidden !important;/);

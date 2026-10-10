@@ -193,7 +193,7 @@ function fmtSec(s: number) {
 }
 
 /* ── Waveform bars (visual only) ──────────────────────────── */
-function WaveformBars({ n = 20, color = "#00D4AA" }: { n?: number; color?: string }) {
+function WaveformBars({ n = 20, color = "#c9a55c" }: { n?: number; color?: string }) {
   const bars = Array.from({ length: n }, (_, i) => 10 + Math.sin(i * 0.8) * 8 + ((i * 17) % 7));
   return (
     <svg width={n * 4} height={24} className="shrink-0">
@@ -372,7 +372,7 @@ function VoiceMemoRow({ recorder }: { recorder: ReturnType<typeof useVoiceRecord
           <button onClick={togglePlay} className="text-wm-gold hover:opacity-80">
             {playing ? <Pause size={13} /> : <Play size={13} />}
           </button>
-          <WaveformBars n={18} color="#8B5CF6" />
+          <WaveformBars n={18} color="#c9a55c" />
           <span className="text-[10px] text-wm-text-dim font-mono">{fmtSec(memo.sec || sec)}</span>
           <button aria-label="Discard voice memo" onClick={reset} className="text-wm-text-dim hover:text-wm-red ml-1">
             <X size={11} />
@@ -3148,7 +3148,7 @@ Trade the system, trust the process, winners every day 🚀`,
               {selected.voiceSec > 0 && (
                 <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg border border-wm-gold/30 bg-wm-gold/5">
                   <Play size={13} className="text-wm-gold shrink-0" />
-                  <WaveformBars n={24} color="#8B5CF6" />
+                  <WaveformBars n={24} color="#c9a55c" />
                   <span className="text-[10px] text-wm-text-dim font-mono">{fmtSec(selected.voiceSec)}</span>
                   <span className="text-[9px] text-wm-text-dim ml-auto">Voice Memo</span>
                 </div>

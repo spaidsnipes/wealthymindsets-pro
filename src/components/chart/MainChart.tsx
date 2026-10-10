@@ -8082,7 +8082,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const rectsD: { x: number; y: number; w: number; h: number }[] = [];
           try {
             const cr = canvas.getBoundingClientRect();
-            document.querySelectorAll(".wm-chart-reading-anchor").forEach(el => {
+            // ORDER-LINE HANDLES TOO (P0 proof, serving 1e90db0 NQ1! 5m 2026-10-10 18:07: "LIVING VAH 3…"
+            // was cut in half under the ENTRY handle). Their visible pill, not the 44 px thumb slop.
+            document.querySelectorAll(`.wm-chart-reading-anchor, ${ORDER_LINE_HANDLE_SELECTOR.split(", ").map(q => `${q} > span`).join(", ")}`).forEach(el => {
               const r = (el as HTMLElement).getBoundingClientRect();
               if (r.width > 0 && r.height > 0 && r.right > cr.left && r.left < cr.right && r.bottom > cr.top && r.top < cr.bottom) {
                 rectsD.push({ x: r.left - cr.left - 2, y: r.top - cr.top - 2, w: r.width + 4, h: r.height + 4 });

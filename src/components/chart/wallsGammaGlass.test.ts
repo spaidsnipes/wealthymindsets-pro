@@ -26,7 +26,8 @@ describe("DOM reading chips are keep-outs every placer and the word registry can
   it("measures .wm-chart-reading-anchor into the floating-chip seed and declares each as a registry panel", () => {
     const src = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
     expect(src.length).toBeGreaterThan(100_000);
-    expect(src).toContain('document.querySelectorAll(".wm-chart-reading-anchor")');
+    // 2026-10-10 19:00: the same query now also measures the order-line handles' pills (one keep-out list).
+    expect(src).toContain('document.querySelectorAll(`.wm-chart-reading-anchor, ${ORDER_LINE_HANDLE_SELECTOR');
     expect(src).toContain('for (const r of memoD.rects) { forceChips.push(r); wordGate.panel("DOM READING CHIP", r); }');
     expect(src).toContain("canvas.dataset.domChipKeepOut =");
   });

@@ -157,7 +157,9 @@ const SIGNAL_META: Record<Signal, { label: string; color: string; icon: string }
 };
 
 const STRENGTH_COLOR: Record<AlertStrength, string> = {
-  "A+":"#00D4AA","A":"#4FA3E0","B":"#F0B429","C":"#94A3B8",
+  // Brass strength, strongest first (G19 house pass 2026-10-10): a grade is quality, not direction —
+  // it must not wear the market's green or a SaaS blue. The grade's letters carry it without colour.
+  "A+":"#d4af37","A":"#c9a55c","B":"#c0b8a0","C":"#8a8271",
 };
 
 const SIGNALS: Signal[] = [
