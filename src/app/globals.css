@@ -1728,6 +1728,14 @@ input[type=range]::-webkit-slider-runnable-track {
 [data-chart-interaction="EXECUTION"] [data-analytical-layer]::after {
   pointer-events: none !important;
 }
+/* A cursor-following reading (the Data Window) steps away while a price is being
+   placed: it trails the pointer, so it sat beside — and over — the very prices the
+   stop / target was being dragged to (serving 1e90db0, NQ1! 5m, 2026-10-10 18:07,
+   "SM BAR · Bar under your cursor" open beside an armed TARGET pick). */
+[data-chart-interaction="PLACEMENT"] [data-yields-to-placement],
+[data-chart-interaction="EXECUTION"] [data-yields-to-placement] {
+  visibility: hidden !important;
+}
 
 /* ── iOS ZOOMS INTO ANY FIELD UNDER 16px (phone pass 2026-10-06) ─────────────
    Safari on iPhone/iPad zooms the whole page when a focused text field's

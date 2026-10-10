@@ -342,6 +342,8 @@ const DATA_WINDOW_TOGGLE_PX = 22;
  * TSLA 5m, 2026-09-28: "NO BAR · 1 interval" slid onto EFFORT).
  */
 const READING_ANCHOR_ROW_BOTTOM = 64 + 24;
+/** Order-line handles and broker tags. An armed price pick takes a press on them as the pick (Founder P0 2026-10-10). */
+const ORDER_LINE_HANDLE_SELECTOR = '[data-testid="draft-line-handle"], [data-testid="broker-line-tag"]';
 /**
  * Derivatives Pressure field, at rest: the Founder plate's region fill
  * (Drive 02-market-sense-hedging-profile.svg — long-gamma 0.11, short-gamma 0.10).
@@ -7182,11 +7184,17 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // THE PANE, not the lightweight-charts host (Founder P0 2026-10-10): a press on
       // a zone / FVG / order-block pin, a note anchor, a hovered drawn box or any
       // other analytical layer inside the pane IS the pick (chartInteractionMode).
-      // Only real chrome (axis controls, the timeframe chip) and the order-line
-      // handles keep their press; the ticket and anything outside the pane never pick.
+      // Only real chrome (axis controls, the timeframe chip) keeps its press; the
+      // ticket and anything outside the pane never pick.
+      // AN ORDER-LINE HANDLE IS NOT A WALL EITHER (serving 1e90db0 at 390, NQ1! 5m,
+      // 2026-10-10 18:12): the ENTRY handle is 44 px tall for a thumb, so with the STOP
+      // pick armed a tap 20 px under the entry line — a demand-zone pin's own price —
+      // landed on the handle and nothing was picked. While a pick is armed the press on
+      // any order-line handle or broker tag is the pick at the price under the finger;
+      // the handle drags again once the pick lands or is cancelled.
       if (!host || !pane || !series || !chart || !(e.target instanceof Element) || !pane.contains(e.target)) return;
       const chrome = e.target.closest(CHART_CHROME_SELECTOR);
-      if (chrome && !chrome.closest(`[${ANALYTICAL_LAYER_ATTR}]`)) return;
+      if (chrome && !chrome.closest(`[${ANALYTICAL_LAYER_ATTR}]`) && !chrome.closest(ORDER_LINE_HANDLE_SELECTOR)) return;
       const rect = host.getBoundingClientRect();
       const x = e.clientX - rect.left, y = e.clientY - rect.top;
       let axisW = 60;
@@ -31118,6 +31126,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           <div
             role="group"
             aria-label={scope.spoken}
+            data-yields-to-placement="data-window"
             data-data-window-historical={scope.historical ? "true" : "false"}
             data-data-window-side={dwPlace.side}
             style={{

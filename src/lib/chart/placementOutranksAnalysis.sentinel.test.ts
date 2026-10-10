@@ -135,7 +135,16 @@ describe("D. the armed pick takes the whole pane", () => {
     expect(eff).toContain("const pane = paneWrapRef.current;");
     expect(eff).toContain("!pane.contains(e.target)");
     expect(eff).not.toMatch(/!host\.contains\(e\.target\)/);
-    expect(eff).toMatch(/if \(chrome && !chrome\.closest\(`\[\$\{ANALYTICAL_LAYER_ATTR\}\]`\)\) return;/);
+    expect(eff).toMatch(/if \(chrome && !chrome\.closest\(`\[\$\{ANALYTICAL_LAYER_ATTR\}\]`\) && !chrome\.closest\(ORDER_LINE_HANDLE_SELECTOR\)\) return;/);
+  });
+  it("an order-line handle's 44 px thumb slop never holds an armed pick (serving 1e90db0 at 390, 2026-10-10)", () => {
+    expect(MAIN).toContain(`const ORDER_LINE_HANDLE_SELECTOR = '[data-testid="draft-line-handle"], [data-testid="broker-line-tag"]';`);
+    // both testids really are the handle's
+    expect(MAIN).toContain('data-testid={can ? "draft-line-handle" : "broker-line-tag"}');
+  });
+  it("the Data Window, which trails the cursor, is hidden while a price is placed", () => {
+    expect(MAIN).toContain('data-yields-to-placement="data-window"');
+    expect(GLOBALS).toMatch(/\[data-chart-interaction="PLACEMENT"\] \[data-yields-to-placement\],\s*\[data-chart-interaction="EXECUTION"\] \[data-yields-to-placement\] \{\s*visibility: hidden !important;/);
   });
 });
 
