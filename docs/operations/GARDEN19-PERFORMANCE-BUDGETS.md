@@ -35,7 +35,7 @@ equities closed — Saturday).
 | MainChart renders/s on a live tape | ≤ 4/s | ≤ 4/s | ≤ 4/s | PROPOSED (follows from the emission pace) |
 | Drag latency (pointer → chart moved) | ≤ 1 frame | ≤ 1 frame | ≤ 2 frames | PROPOSED |
 | Heap drift over 30 min live | ≤ +10 MB after GC | same | same | PROPOSED |
-| Red/green frames under Clarity gold | 0 | 0 | 0 | Founder defect A (2026-10-10) |
+| Red/green frames under Clarity gold | 0 | 0 | 0 | Founder defect A (2026-10-10) — desktop MEASURED 0 in 2,500 frames incl. 4 rebuilds (10ffd25, row above) |
 
 ## Measured today (2026-10-10)
 
@@ -50,7 +50,7 @@ equities closed — Saturday).
 | MainChart renders/s | 10.00 (c4d4d4c, 20 s window) → 3.64 (a60366c, 154 s window, after paced emission) — tick rate not controlled between windows | BTC-USD 15s, `debug=fold` | UNMEASURED | UNMEASURED |
 | Red/green frames under Clarity | 3 in ~9,000 frames, one per empty-series rebuild (135eec5) → 0 in 2,500 frames incl. 4 rebuilds (10ffd25) | BTC-USD 15s/5s/1m/15m switches, ETH↔BTC | UNMEASURED | UNMEASURED |
 | Heap (usedJSHeapSize) | 44.6 MB → 50.9 MB over 6.9 min; sawtooth 44.6–71.0 MB; 14 samples (timers throttled while another lane's tab was in front) | e3f7686, BTC-USD 15s live | UNMEASURED | UNMEASURED |
-| Drag latency | UNMEASURED | — | UNMEASURED | UNMEASURED |
+| Drag latency (order line: pointermove → handle label and ticket Stop field committed) | p50 4.2 / p95 11.8 / max 21.1 ms over 30 moves of 3 px; 0 missed; handle and ticket committed in the same turn every time (same-frame sync). Within the ≤ 1 frame budget | a3c3cb5, NQ1! 5m `scene=ticket-fixture&on=fvg,LivingProfile,BrickWalls`, synthetic PointerEvents on the STOP handle, MessageChannel polling, Claude-in-Chrome tab in a HIDDEN window with the visibility shim (2026-10-10 18:40 CDT) — measures the React/DOM path, not the display's paint | UNMEASURED | UNMEASURED |
 | 15s bar fidelity vs venue | 17 of 19 live bars exact on O/H/L/C/V vs Coinbase public trades (the 2 others: the load bucket, and a bar still filling at read time) | e3f7686, `debug=fold` | n/a | n/a |
 | Hidden-tab catch-up | hidden 37 s → 3 buckets present, 2 caught up from the closed-bar ring, no hole | c4d4d4c | UNMEASURED | UNMEASURED |
 

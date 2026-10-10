@@ -1,5 +1,6 @@
 "use client";
 
+import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
 import Link from "next/link";
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
@@ -1127,18 +1128,13 @@ export default function LoungePage() {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="text-4xl mb-3">
-                  {feedTab === "following" ? "👥" : "📝"}
-                </div>
-                <p className="text-sm font-semibold text-wm-text mb-1">
-                  {feedTab === "following" ? "No posts from people you follow" : "No posts yet"}
-                </p>
-                <p className="text-xs text-wm-text-muted mb-4">
+              <div className="flex flex-col items-center justify-center gap-4 py-16 px-4">
+                <RoomStatePlaque kind="empty" align="center" testId="lounge-feed-empty"
+                  title={feedTab === "following" ? "No posts from people you follow" : "No posts yet"}>
                   {feedTab === "following"
                     ? "Follow some traders to see their posts here."
                     : "Be the first to share a trade idea or insight."}
-                </p>
+                </RoomStatePlaque>
                 {myHandle && (
                   <button onClick={() => setShowCreate(true)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-wm-brass-mark/15 border border-wm-brass-mark/40 text-wm-brass-mark text-xs font-bold hover:bg-wm-brass-mark/25 transition-all">

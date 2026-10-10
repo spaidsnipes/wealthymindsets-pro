@@ -1,5 +1,6 @@
 "use client";
 
+import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
 import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import { liveJournalRecords } from "@/lib/journal/paperEntry";
 import { openWowWorld } from "@/lib/passport/openWowWorld";
@@ -1009,11 +1010,9 @@ function ProfilePageInner() {
           {tab === "trades" && (
             <div className="space-y-2">
               {recentTrades.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-40 gap-3 text-wm-text-muted">
-                  <BarChart2 size={32} className="opacity-20" />
-                  <div className="text-sm">No trades yet</div>
-                  <div className="text-xs text-wm-text-dim text-center max-w-xs">Your closed trades from the Journal and Paper Trading will appear here automatically. Your Webull history is in <Link href="/journal?tab=ledger" prefetch={false} className="inline-block py-[15px] -my-[15px] underline text-wm-text">Journal → Broker Ledger</Link>.</div>
-                </div>
+                <RoomStatePlaque kind="empty" align="center" testId="profile-trades-empty" icon={<BarChart2 size={12} />} title="No trades yet">
+                  <div className="text-xs text-wm-text-dim max-w-xs">Your closed trades from the Journal and Paper Trading will appear here automatically. Your Webull history is in <Link href="/journal?tab=ledger" prefetch={false} className="inline-block py-[15px] -my-[15px] underline text-wm-text">Journal → Broker Ledger</Link>.</div>
+                </RoomStatePlaque>
               ) : recentTrades.map((t, i) => (
                 <div key={i} className="glass rounded-xl p-3 flex items-center gap-4 hover:border-wm-border/80 transition-all">
                   {/* The BASIS rides under the date. This one column is fed the

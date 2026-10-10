@@ -5,6 +5,7 @@
  * blotter, equity curve, and risk controls. All state is in-memory.
  */
 
+import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
 import { formatTickerPrice, tickerDecimals } from "@/components/layout/tickerFormat";
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { fetchYahooQuoteBody } from "@/lib/marketData/yahooQuoteRounds";
@@ -3507,9 +3508,11 @@ export default function PaperTradingPage() {
                   <span className="max-w-md text-[10px] text-wm-text-muted">WM will not derive trade count, wins, losses, or realized return from a partial saved book.</span>
                 </div>
               ) : trades.length===0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-wm-text-muted gap-2">
-                  <BarChart2 size={28} className="opacity-20"/>
-                  <span className="text-xs">No trades yet.</span>
+                <div className="flex h-full items-center justify-center p-4">
+                  <RoomStatePlaque kind="empty" align="center" testId="paper-blotter-empty" icon={<BarChart2 size={12}/>}
+                    title="No trades yet.">
+                    Simulated fills appear here as you place them. Nothing here touches a broker.
+                  </RoomStatePlaque>
                 </div>
               ) : (
                 <>
