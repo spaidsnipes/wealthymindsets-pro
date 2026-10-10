@@ -334,15 +334,21 @@ function FeedLeanTally({ news }: { news: NewsItem[] }) {
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 bg-wm-dark border-b border-wm-border shrink-0">
-      <div className="flex items-center gap-2">
+    /* ONE ROW ON A PHONE (Garden 19 house pass, serving 450527a at 390, 2026-10-10
+       18:27 CDT): this block wrapped to 103 px and was the tallest thing between
+       the room title and the first headline (first byline at y 708 of 844). Under
+       640 it is one row that scrolls sideways, and "not a prediction" rides beside
+       the label so it can never scroll out of view. From 640 up it wraps as before. */
+    <div data-testid="news-lean-row" className="flex flex-nowrap sm:flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1.5 sm:py-2 bg-wm-dark border-b border-wm-border shrink-0 overflow-x-auto sm:overflow-visible" style={{ scrollbarWidth: "none" }}>
+      <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
         <Brain size={13} style={{ color: WM.text.muted }} />
         <span className="text-[10px] font-semibold text-wm-text-muted uppercase tracking-wider">
           Headline keyword lean
         </span>
+        <span className="sm:hidden text-[10px] italic" style={{ color: WM.text.muted }}>· not a prediction</span>
       </div>
 
-      <div className="flex items-center gap-3 flex-wrap" data-testid="news-feed-tally">
+      <div className="flex items-center gap-3 flex-nowrap sm:flex-wrap shrink-0 sm:shrink whitespace-nowrap sm:whitespace-normal" data-testid="news-feed-tally">
         {LINES.filter(([, n]) => n > 0).map(([word, n, why]) => (
           <span
             key={word}
@@ -359,7 +365,7 @@ function FeedLeanTally({ news }: { news: NewsItem[] }) {
       </div>
 
       <span
-        className="ml-auto text-[9px] italic"
+        className="hidden sm:inline ml-auto text-[9px] italic"
         style={{ color: WM.text.muted }}
         title="The word lists include 'lead', 'clear', 'top', 'signal' and 'narrow', all of which appear innocently in headlines."
       >

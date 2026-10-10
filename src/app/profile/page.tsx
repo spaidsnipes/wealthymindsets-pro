@@ -545,7 +545,10 @@ function ProfilePageInner() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
+    // TABULAR NUMERALS ACROSS THE ROOM (house audit 2026-10-10: 29 proportional numerics at
+    // 834 — win rates, R, counts and dates did not line up down a column). Inherited by every
+    // tile; no glyph changes, only digit widths.
+    <div className="flex flex-col h-full overflow-y-auto tabular-nums" data-testid="profile-room">
       {/* Profile banner */}
       <div className="relative shrink-0" style={{
         height: 230,
