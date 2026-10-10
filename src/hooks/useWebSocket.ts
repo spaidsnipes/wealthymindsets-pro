@@ -1325,6 +1325,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   // says a flush must publish a new copy.
   const closedBarsRef = useRef<LegacyOhlcvTuple[]>([]);
   const closedDirtyRef = useRef(false);
+  // Unsigned observations (processUnsignedObservation) publish once per frame.
+  const obsPendingRef = useRef<{ volume: number; source: "longbridge" | "webull" | "tastytrade" | null; time: number; closed: boolean }>({ volume: 0, source: null, time: 0, closed: false });
+  const obsRafRef = useRef(0);
   const tickBuf    = useRef<Tick[]>([]);      // batched buffer (bounded — see boundTickBuffer)
   const droppedRef = useRef({ count: 0, size: 0 }); // prints shed from the buffer before a flush
   const bookRef    = useRef(buildBook());
@@ -1523,7 +1526,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     if (barUpdate.status === "LATE_EVENT_IGNORED") return;
     priceRef.current = price;
     priceObservedRef.current = true;
-    const closedNow = noteClosedLiveBar(closedBarsRef.current, barRef.current, barUpdate.bar);
+    if (noteClosedLiveBar(closedBarsRef.current, barRef.current, barUpdate.bar)) obsPendingRef.current.closed = true;
     barRef.current = barUpdate.bar;
     lastBarEventAtRef.current = barUpdate.lastEventAt;
     hasRealDataRef.current = true;
@@ -1532,19 +1535,38 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // Otherwise the primary equity surface moves its price on every print with
     // nothing anywhere able to say when that price arrived.
     lastObservedAtRef.current = Math.max(lastObservedAtRef.current ?? 0, time);
-    const now = Date.now();
-    setState(previous => ({
-      ...previous,
-      ticker: { ...previous.ticker, price, volume: previous.ticker.volume + size },
-      // A clockless id builds no bar (applyTickToClock); `{ ...null }` would
-      // publish an empty object as if it were one.
-      liveBar: barUpdate.bar ? { ...barUpdate.bar } : null,
-      closedLiveBars: closedNow ? closedBarsRef.current.slice() : previous.closedLiveBars,
-      source,
-      connected: true,
-      latency: Math.max(0, now - time),
-      lastObservedAtMs: lastObservedAtRef.current,
-    }));
+    // ONE STATE WRITE PER FRAME (Founder "no spazzing", 2026-10-10): this path
+    // used to setState on EVERY print — every consumer of the hook (the whole
+    // chart among them) re-rendered per print on a busy equity tape. The prints
+    // still fold into the bar above as they arrive; the frame publishes once.
+    const pend = obsPendingRef.current;
+    pend.volume += size;
+    pend.source = source;
+    pend.time = Math.max(pend.time, time);
+    if (obsRafRef.current) return;
+    obsRafRef.current = requestAnimationFrame(() => {
+      obsRafRef.current = 0;
+      const p = obsPendingRef.current;
+      obsPendingRef.current = { volume: 0, source: null, time: 0, closed: false };
+      if (!p.source) return;
+      const bar = barRef.current;
+      const closed = p.closed ? closedBarsRef.current.slice() : null;
+      const price = priceRef.current, size = p.volume;
+      // Measured from the newest print's own timestamp, at publish.
+      const now = Date.now(), time = p.time;
+      setState(previous => ({
+        ...previous,
+        ticker: { ...previous.ticker, price, volume: previous.ticker.volume + size },
+        // A clockless id builds no bar (applyTickToClock); `{ ...null }` would
+        // publish an empty object as if it were one.
+        liveBar: bar ? { ...bar } : null,
+        closedLiveBars: closed ?? previous.closedLiveBars,
+        source: p.source!,
+        connected: true,
+        latency: Math.max(0, now - time),
+        lastObservedAtMs: lastObservedAtRef.current,
+      }));
+    });
   }, [getIntervalSec]);
 
   /* ── Mount / symbol change ──────────────────────────────── */
@@ -1555,6 +1577,9 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     // Zeroed, or scheduleFlush would short-circuit forever on a frame that will never fire.
     rafRef.current = 0;
+    if (obsRafRef.current) cancelAnimationFrame(obsRafRef.current);
+    obsRafRef.current = 0;
+    obsPendingRef.current = { volume: 0, source: null, time: 0, closed: false };
     tickBuf.current = [];
     droppedRef.current = { count: 0, size: 0 };
 
@@ -2187,6 +2212,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
       document.removeEventListener("visibilitychange", onVisibleMoomoo);
       cleanupFns.current.forEach(fn => fn());
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (obsRafRef.current) { cancelAnimationFrame(obsRafRef.current); obsRafRef.current = 0; }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol]);

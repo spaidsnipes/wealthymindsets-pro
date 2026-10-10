@@ -25,13 +25,13 @@ export type CapabilityState =
 export type CapabilityId =
   | "QUOTES" | "BARS" | "LIVE_PRINTS" | "DEPTH" | "OPTIONS_CHAIN" | "GREEKS"
   | "FUTURES_OPTIONS" | "EXEC_EQUITY" | "EXEC_OPTION" | "EXEC_FUTURE" | "EXEC_FUTURE_OPTION"
-  | "EXEC_CRYPTO" | "EXEC_FX" | "CANCEL" | "MODIFY" | "PROTECTION" | "POSITIONS" | "FILLS_HISTORY" | "PNL";
+  | "EXEC_CRYPTO" | "EXEC_FX" | "BRACKET" | "CANCEL" | "MODIFY" | "PROTECTION" | "POSITIONS" | "FILLS_HISTORY" | "PNL";
 
 export const CAPABILITY_LABEL: Readonly<Record<CapabilityId, string>> = {
   QUOTES: "Quotes", BARS: "Bars / candles", LIVE_PRINTS: "Live prints (tape)", DEPTH: "Book depth",
   OPTIONS_CHAIN: "Options chain", GREEKS: "Greeks", FUTURES_OPTIONS: "Futures options",
   EXEC_EQUITY: "Execute · stock / ETF", EXEC_OPTION: "Execute · equity option", EXEC_FUTURE: "Execute · future",
-  EXEC_FUTURE_OPTION: "Execute · futures option", EXEC_CRYPTO: "Execute · crypto", EXEC_FX: "Execute · spot forex", CANCEL: "Cancel order",
+  EXEC_FUTURE_OPTION: "Execute · futures option", EXEC_CRYPTO: "Execute · crypto", EXEC_FX: "Execute · spot forex", BRACKET: "Attached bracket (stop + target, OCO)", CANCEL: "Cancel order",
   MODIFY: "Modify / replace order", PROTECTION: "Protection (stop · bracket)", POSITIONS: "Positions / balance",
   FILLS_HISTORY: "Fills & order history", PNL: "Realised P&L",
 };
@@ -63,6 +63,7 @@ export const CAPABILITY_LEDGER: readonly CapabilityRow[] = [
   { provider: T, capability: "EXEC_FUTURE_OPTION", state: "HUMAN_ARMED", owner: "src/lib/broker/fopTicket.ts", note: "futures-approved account only" },
   { provider: T, capability: "EXEC_CRYPTO", state: "HUMAN_ARMED", owner: "src/lib/broker/tastytradeOrder.ts", note: "GTC only (tastytrade's crypto rule)" },
   { provider: T, capability: "EXEC_FX", state: "UNSUPPORTED", owner: null, note: "tastytrade offers no spot forex — a currency future (/6E) is a futures trade, never swapped in for EUR/USD" },
+  { provider: T, capability: "BRACKET", state: "NOT_BUILT", owner: null, note: "OTOCO payload built and tested (src/lib/broker/tastytradeBracket.ts); no route sends it until tastytrade's complex-order dry run is proved on your account" },
   { provider: T, capability: "CANCEL", state: "LIVE", owner: "src/app/api/broker/tastytrade/orders/route.ts", note: "working orders" },
   { provider: T, capability: "MODIFY", state: "NOT_BUILT", owner: null, note: "cancel and re-enter until replace is built" },
   { provider: T, capability: "PROTECTION", state: "PARTIAL", owner: "src/lib/broker/tastytradeEntryFields.ts", note: "broker-native Stop / Stop Limit; bracket / OCO not built" },
@@ -87,6 +88,7 @@ export const CAPABILITY_LEDGER: readonly CapabilityRow[] = [
   { provider: W, capability: "EXEC_FUTURE_OPTION", state: "UNSUPPORTED", owner: null, note: "not on this rail in WM" },
   { provider: W, capability: "EXEC_CRYPTO", state: "NOT_BUILT", owner: null, note: "crypto orders route through tastytrade" },
   { provider: W, capability: "EXEC_FX", state: "UNSUPPORTED", owner: null, note: "Webull's OpenAPI in WM carries no spot forex orders" },
+  { provider: W, capability: "BRACKET", state: "NOT_BUILT", owner: null, note: "no broker-native stop is wired for Webull, so nothing can be attached" },
   { provider: W, capability: "CANCEL", state: "LIVE", owner: "src/app/api/broker/webull/orders/route.ts", note: "working orders" },
   { provider: W, capability: "MODIFY", state: "NOT_BUILT", owner: null, note: "cancel and re-enter until replace is built" },
   { provider: W, capability: "PROTECTION", state: "NOT_BUILT", owner: null, note: "no broker-native stop wired for Webull yet" },

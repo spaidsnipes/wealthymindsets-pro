@@ -204,3 +204,25 @@ export function lawfulOrderLineLooks(s: OrderLineAppearance | null | undefined, 
 }
 /** The room's looks (nothing stored), on the room's field. */
 export const ORDER_LINE_ROOM_LOOKS: OrderLineLooks = lawfulOrderLineLooks(null, "#07080a");
+
+/* ── WALLS & GAMMA heatmap appearance (2026-10-10) — presets live in
+   gammaHeatAppearance.ts (Balanced / High contrast / Subtle / Positive focus /
+   Negative focus / Custom); this is the ONE write path the ⚙ uses. Custom inks
+   pass the same pair law as every other opposed pair (gammaHeatPreset). ── */
+export const GAMMA_HEAT_PRESET_STORE_KEY = "wm_gammaHeatPreset";
+export const GAMMA_HEAT_CUSTOM_STORE_KEY = "wm_gammaHeatCustom";
+export function applyGammaHeatPreset(
+  store: Pick<Storage, "setItem">,
+  id: string,
+  custom: { readonly posRgb?: string; readonly negRgb?: string; readonly maxAlpha?: number } | null,
+  notify?: () => void,
+): void {
+  store.setItem(GAMMA_HEAT_PRESET_STORE_KEY, id);
+  if (custom) store.setItem(GAMMA_HEAT_CUSTOM_STORE_KEY, JSON.stringify(custom));
+  notify?.();
+}
+/** "#rrggbb" → "r,g,b" (the heatmap's ink form); null when not a colour. */
+export function rgbTripletOf(hex: string): string | null {
+  const v = rgbOf(hex);
+  return v ? v.map(n => Math.round(n)).join(",") : null;
+}

@@ -746,6 +746,7 @@ import {
   migrateVolumeProfilePalette,
 } from "@/lib/chart/marketFieldMaterial";
 import { PROFILE_INK_AT_REST, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength, resolveProfileInk, type ProfileStrength } from "@/lib/chart/profileFamilyInk";
+import { mergeIntoBands, rowsPerBand, PROFILE_ROW_MIN_PX } from "@/lib/chart/profileDisplayBands";
 // The legend headline steps past an open Workspace/Tools door (see openDoorEdge.ts).
 import { ClearOfOpenDoor } from "@/components/os/ClearOfOpenDoor";
 import { doorInsetFor, openDoorEdge } from "@/lib/os/openDoorEdge";
@@ -756,7 +757,7 @@ import { mergeValueCandleBars } from "@/lib/marketData/viewModels/mergeValueCand
 import type { OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 import { composeWallsGammaMarks, WALLS_GAMMA_OFF, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
 import { gexBucketAt, gexWords, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
-import { GAMMA_HEAT_PRESET_EVENT, GAMMA_HEAT_PRESET_KEY, gammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
+import { GAMMA_HEAT_CUSTOM_KEY, GAMMA_HEAT_PRESET_EVENT, GAMMA_HEAT_PRESET_KEY, gammaHeatPreset, parseGammaHeatCustom } from "@/lib/chart/gammaHeatAppearance";
 import { paintWallsGamma } from "@/components/chart/wallsGammaGlass";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
@@ -2240,6 +2241,12 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const containerRef  = useRef<HTMLDivElement>(null);
   const wrapRef       = useRef<HTMLDivElement>(null);
   const canvasRef     = useRef<HTMLCanvasElement>(null);
+  // `debug=fold` on the address: the live fold writes its receipt (liveFoldTail).
+  const foldDebugRef  = useRef<boolean>(typeof window !== "undefined" && /(?:^|[?&])debug=fold(?:&|$)/.test(window.location.search));
+  // RENDER RECEIPT: how often this (very large) component renders — a measure,
+  // not a behaviour. Published by the paint loop's receipt line below.
+  const renderCountRef = useRef(0);
+  renderCountRef.current++;
   const drawCanvasRef = useRef<HTMLCanvasElement>(null); // drawing tools overlay
   /**
    * THE DECLINE THE TRADER CAN READ.
@@ -2683,9 +2690,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   const gammaExposureRef = useRef<GammaExposureVM | null>(null);
   gammaExposureRef.current = gammaExposure;
   // The heatmap's appearance preset (gammaHeatAppearance) — the ⚙ writes it; the glass reads it here.
-  const gammaHeatPresetRef = useRef<unknown>(null);
+  const gammaHeatPresetRef = useRef<ReturnType<typeof gammaHeatPreset>>(gammaHeatPreset(null));
   useEffect(() => {
-    const read = () => { try { gammaHeatPresetRef.current = localStorage.getItem(GAMMA_HEAT_PRESET_KEY); } catch { gammaHeatPresetRef.current = null; } };
+    const read = () => { try { gammaHeatPresetRef.current = gammaHeatPreset(localStorage.getItem(GAMMA_HEAT_PRESET_KEY), parseGammaHeatCustom(localStorage.getItem(GAMMA_HEAT_CUSTOM_KEY))); } catch { gammaHeatPresetRef.current = gammaHeatPreset(null); } };
     read();
     window.addEventListener(GAMMA_HEAT_PRESET_EVENT, read);
     window.addEventListener("storage", read);
@@ -5289,7 +5296,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       noteSeries(performance.now());
       // No histogram point for a placeholder volume (volumeTruth.ts): EURUSD's
       // live 1 was drawn as a full-height bar over a week of 0s (2026-09-26).
-      if (volumeTruthFor(symbol, [...prevBars, bar]).real) volRef.current.update({
+      const volReal = volumeTruthFor(symbol, [...prevBars, bar]).real;
+      // Caught-up closed bars carry their volume too (liveBarFold.ts).
+      if (volReal) for (const u of caught.updates) {
+        try {
+          volRef.current.update({ time: u.time, value: u.volume, color: u.close >= u.open
+            ? (chartSettings?.neon ? "rgba(0,255,163,0.70)" : "rgba(0,212,170,0.55)")
+            : (chartSettings?.neon ? "rgba(255,46,99,0.70)"  : "rgba(255,77,106,0.55)") } as any);
+        } catch { /* series mid-rebuild */ }
+      }
+      if (volReal) volRef.current.update({
         time:  bar.time,
         value: bar.volume,
         color: bar.close >= bar.open
@@ -5361,6 +5377,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     const next = foldLiveBar(prevBars, bar);
     barsRef.current = next;
     setCandles(next);
+    // FOLD RECEIPT (debug=fold on the address only): the newest bars as the
+    // chart holds them, so the glass can be checked against the venue's trades.
+    if (foldDebugRef.current && canvasRef.current) {
+      try {
+        canvasRef.current.dataset.liveFoldTail = JSON.stringify(next.slice(-6).map(b => [b.time, b.open, b.high, b.low, b.close, +(b.volume || 0).toFixed(6)]));
+        canvasRef.current.dataset.liveFoldCaught = String(+(canvasRef.current.dataset.liveFoldCaught ?? 0) + caught.updates.length);
+      } catch { /* receipt only */ }
+    }
 
     // Emit updated bars to parent for Pine Script execution
     if (barsRef.current.length) {
@@ -6963,6 +6987,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     return snapToTick(symbol, Number(raw));
   }, [symbol]);
   const draftDragReleaseRef = useRef<(() => void) | null>(null);
+  const draftDragScaleHeldRef = useRef(false);
+  const releaseDraftDragScale = useCallback(() => {
+    if (!draftDragScaleHeldRef.current) return;
+    draftDragScaleHeldRef.current = false;
+    manualPriceRangeRef.current = null;
+    try { candleRef.current?.applyOptions({ autoscaleInfoProvider: autoscaleProviderRef.current }); } catch { /* next fit restores */ }
+  }, []);
   const beginDraftDrag = useCallback((l: ChartOrderLine, e: React.PointerEvent<HTMLButtonElement>) => {
     if (!chartOrderLineDraggable(l)) return;
     e.preventDefault(); e.stopPropagation();
@@ -6970,6 +7001,18 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (!placementAllowed()) return;
     draftDragReleaseRef.current?.();
     draftDragReleaseRef.current = claimChartInteraction("PLACEMENT", "chart-draft-drag");
+    // THE PRICE SCALE HOLDS STILL UNDER THE HAND: a tick that re-fits the auto scale
+    // mid-drag would slide the price out from under the finger. The current range is
+    // pinned for the drag (only if the trader had none) and released at the end.
+    if (!manualPriceRangeRef.current) {
+      const cs = candleRef.current, h = containerRef.current?.clientHeight ?? 0;
+      const top = cs && h > 0 ? cs.coordinateToPrice(0) : null, bot = cs && h > 0 ? cs.coordinateToPrice(h) : null;
+      if (cs && top != null && bot != null && Number.isFinite(+top) && Number.isFinite(+bot)) {
+        manualPriceRangeRef.current = { min: Math.min(+top, +bot), max: Math.max(+top, +bot) };
+        draftDragScaleHeldRef.current = true;
+        try { cs.applyOptions({ autoscaleInfoProvider: autoscaleProviderRef.current }); } catch { /* scale keeps fitting */ }
+      }
+    }
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* capture is a nicety */ }
     draftDragRef.current = { id: l.id, role: l.role as "ENTRY" | "STOP" | "TARGET", lastSent: l.price, raf: 0, pending: null };
     setDraftDrag({ id: l.id, price: l.price });
@@ -6997,8 +7040,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
     if (d.pending != null && d.pending !== d.lastSent) deliverChartDraftPrice(symbol, d.role, d.pending, "DRAG");
     draftDragRef.current = null;
     draftDragReleaseRef.current?.(); draftDragReleaseRef.current = null;
+    releaseDraftDragScale();
     setDraftDrag(null);
-  }, [symbol]);
+  }, [symbol, releaseDraftDragScale]);
   useEffect(() => () => { draftDragReleaseRef.current?.(); draftDragReleaseRef.current = null; }, []);
   const nudgeDraftLine = useCallback((l: ChartOrderLine, ticks: number) => {
     if (!chartOrderLineDraggable(l)) return;
@@ -20199,7 +20243,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               mergeWithin: gex?.drawn ? gex.bucketWidth / 2 : 0,
               fmt: fmtG,
             });
-            const preset = gammaHeatPreset(gammaHeatPresetRef.current);
+            const preset = gammaHeatPresetRef.current;
             const out = paintWallsGamma({
               ctx, sel, gex, marks: composed.marks, yOf: yOfG, plotRight: plotRightG, top: HEADER_FLOOR_Y, bottom: paneBotG,
               cutRects: cutsG, clearZone: clearG, keepRows: keepRowsG, preset,
@@ -27170,6 +27214,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         // MARKET CLOCK → PAINT (marketClockProbe): the newest candle update reached this paint.
         notePaint(performance.now());
         if (canvasRef.current) canvasRef.current.dataset.marketClock = marketClockReceipt();
+        if (canvasRef.current) canvasRef.current.dataset.mainChartRenders = String(renderCountRef.current);
         // draw() has just republished the receipt, so nothing is being withheld.
         if (canvasRef.current) delete canvasRef.current.dataset.vpSuspended;
         // Published on paint only — at most ~30 writes/sec, and a frame that
@@ -27640,13 +27685,31 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               rowH = Math.max(2, Math.min(10, Math.round(gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] || 2)));
             }
             const maxW = Math.max(12, Math.min(rw - 4, 180));
-            for (const r of vm.rows) {
-              const y = priceY(r.price);
-              if (y == null) continue;
-              const w = Math.max(1, Math.round(r.share * maxW));
-              ctx.fillStyle = r.isPoc ? pk.rgba("POC", 0.85) : r.insideValueArea ? pk.rgba("VALUE", 0.45) : pk.rgba("TAIL", 0.22);
-              ctx.fillRect(x0 + 2, Math.round(y) - Math.floor(rowH / 2), w, Math.max(1, rowH - 1));
+            // G19 (Oct 10, "white-line profiles"): at ~2 px of pitch each row
+            // was a 1-px hairline — the Fixed Range read on serving as a comb
+            // of white lines (BTC-USD 15m, 41 bars). Adjacent rows now merge
+            // into bands of at least PROFILE_ROW_MIN_PX (a coarser display grid
+            // of the same distribution — volume summed, POC kept, value only
+            // when every row is value; the exact POC / VAH / VAL stay on their
+            // own rules below). Its own material: a SOLID SLAB hung from the
+            // trader's anchor — each band carries a 2-px brass seam where it
+            // meets the left rail, so the profile reads as "built from the
+            // span you chose" (VRP is lit glass, Structure crisp-edged, Living
+            // gold).
+            const k = rowsPerBand(rowH, PROFILE_ROW_MIN_PX);
+            const bands = mergeIntoBands(vm.rows, k);
+            for (const bd of bands) {
+              const yA = priceY(bd.lo), yB = priceY(bd.hi);
+              if (yA == null || yB == null) continue;
+              const yTopB = Math.round(Math.min(+yA, +yB) - rowH / 2);
+              const hB = Math.max(1, Math.round(Math.abs(+yA - +yB) + rowH) - 1);
+              const w = Math.max(2, Math.round(bd.share * maxW));
+              ctx.fillStyle = bd.isPoc ? pk.rgba("POC", 0.78) : bd.insideValueArea ? pk.rgba("VALUE", 0.5) : pk.rgba("TAIL", 0.3);
+              ctx.fillRect(x0 + 2, yTopB, w, hB);
+              ctx.fillStyle = pk.rgba("ANCHOR", bd.isPoc ? 1 : 0.85);
+              ctx.fillRect(x0 + 2, yTopB, 2, hB);
             }
+            fixedRangeReceipts.push(`SLAB:${bands.length}x${k}`);
             const hline = (price: number | null, ink: string, dash: number[]) => {
               if (price == null) return;
               const y = priceY(price);

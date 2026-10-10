@@ -333,7 +333,7 @@ function FeedLeanTally({ news }: { news: NewsItem[] }) {
   ];
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2 bg-wm-dark border-b border-wm-border shrink-0">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 bg-wm-dark border-b border-wm-border shrink-0">
       <div className="flex items-center gap-2">
         <Brain size={13} style={{ color: WM.text.muted }} />
         <span className="text-[10px] font-semibold text-wm-text-muted uppercase tracking-wider">
@@ -430,6 +430,18 @@ function LiveNewsPlayer() {
   const [muted,         setMuted]         = useState(true);
   const [recentVideos,  setRecentVideos]  = useState<RecentVideo[]>([]);
   const [selectedRecent,setSelectedRecent]= useState<string | null>(null);
+
+  /*
+    THE WIRE LEADS ON A PHONE (house pass 2026-10-10). Measured at 390: the
+    300px broadcast panel plus the filter rows put the first headline ~450px
+    down — a news room that opened on a video shelf. Under 640px the player
+    starts folded to its 36px bar (one tap on "Expand" brings it back); on a
+    tablet and a desk it opens as before. Read after mount, so the server and
+    the first client paint agree.
+  */
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia?.("(max-width: 639px)").matches) setMinimized(true);
+  }, []);
 
   useEffect(() => {
     const allChannels = LIVE_STREAMS.map(s => s.channelId).join(",");

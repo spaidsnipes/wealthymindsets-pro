@@ -41,6 +41,10 @@ export interface ChartOrderLine {
   readonly detail: string;
   /** Signed USD at this line vs the entry (stop/target), or open P&L (position). */
   readonly pnlUsd?: number | null;
+  /** The TICKET's distance words vs its entry ("−34.50 pts · 138 ticks"); the chart computes none. */
+  readonly distance?: string | null;
+  /** The TICKET's reason this placement is refused ("stop is on the wrong side…"); shown instead of money. */
+  readonly invalid?: string | null;
 }
 
 export interface OrderLineWords {
@@ -82,7 +86,7 @@ const ROLE_LOOK_STATUSES: ReadonlySet<OrderLineStatus> = new Set(["STAGED", "WOR
  */
 export function orderLineWords(l: ChartOrderLine, looks: OrderLineLooks = ORDER_LINE_ROOM_LOOKS): OrderLineWords {
   const status = l.status === "POSITION" ? "" : `${l.status.replace(/_/g, " ")} · `;
-  const pnl = l.pnlUsd != null && Number.isFinite(l.pnlUsd) ? ` · ${money(l.pnlUsd)}` : "";
+  const pnl = l.invalid ? ` · ${l.invalid}` : l.pnlUsd != null && Number.isFinite(l.pnlUsd) ? ` · ${money(l.pnlUsd)}` : "";
   const text = `${status}${l.role} ${l.detail} ${l.contract}${pnl}`.replace(/\s+/g, " ").trim();
   const look = (l.role === "ENTRY" || l.role === "STOP" || l.role === "TARGET") && ROLE_LOOK_STATUSES.has(l.status) ? looks[l.role] : null;
   if (look) {
@@ -120,10 +124,17 @@ export function chartOrderLineDraggable(l: ChartOrderLine): boolean {
 /** What a non-draggable line answers when the trader tries to move it. */
 export const BROKER_LINE_NOT_MOVABLE = "Broker line — not movable from the chart. Change it in the ticket.";
 
-/** The drag handle's words: role, the shown (snapped) price, and the TICKET's own money figure. PURE. */
+/**
+ * The drag handle's words: role, the shown (snapped) price, then the TICKET's
+ * own distance and money — or, when the ticket refuses the placement, the
+ * ticket's reason and no money. PURE.
+ */
 export function draftHandleWords(l: ChartOrderLine, shownPrice: number, decimals: number): string {
+  const px = `${l.role} ${shownPrice.toFixed(Math.max(0, Math.min(8, decimals)))}`;
+  if (l.invalid) return `${px} · ${l.invalid}`;
+  const dist = l.distance ? ` · ${l.distance}` : "";
   const pnl = l.pnlUsd != null && Number.isFinite(l.pnlUsd) ? ` · ${money(l.pnlUsd)}` : "";
-  return `${l.role} ${shownPrice.toFixed(Math.max(0, Math.min(8, decimals)))}${pnl}`;
+  return `${px}${dist}${pnl}`;
 }
 
 /* ── The store ───────────────────────────────────────────────────────────── */

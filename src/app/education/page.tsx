@@ -5,7 +5,7 @@
  * Notes save browser-locally with exact readback. Quizzes shuffle questions on every retake.
  */
 
-import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
+import { WM, WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import { catalogueMinutes, formatHoursMinutes } from "@/lib/academy/catalogueMinutes";
 import { shufflePick } from "@/lib/shufflePick";
 import { FabioInsights } from "@/components/fabio/FabioInsights";
@@ -14,7 +14,7 @@ import { returnLabel, safeChartsReturn } from "@/lib/academy/academyContinuity";
 import Link from "next/link";
 import { INSTRUMENT_VIEW_ROUTE } from "@/lib/routing/founderLanding";
 import {
-  Play, BookOpen, CheckCircle2, Lock, Star,
+  BookOpen, CheckCircle2, Lock, Star,
   ChevronRight, ChevronUp, Pencil,
   RotateCcw, Trophy, Clock, GraduationCap, FileText,
   CheckCircle, XCircle, HelpCircle, X,
@@ -514,7 +514,7 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b border-wm-border shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          {fvgLesson || toolPrimer ? <BookOpen size={12} style={{ color }}/> : <Play size={12} style={{ color }}/>}
+          <BookOpen size={12} style={{ color }}/>
           <span className="text-xs font-bold text-wm-text truncate">{lesson.title}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -534,29 +534,23 @@ function VideoPlayer({ lesson, color, onClose, onComplete }: { lesson: Lesson; c
 
       <div className="flex-1 overflow-y-auto" style={ACADEMY_SCROLL}>
         {fvgLesson ? <FvgLessonBody lesson={fvgLesson} color={color}/> : toolPrimer ? <ToolPrimerBody primer={toolPrimer} color={color}/> : (<>
-        {/* Video — coming soon */}
-        <div className="relative mx-4 mt-4 rounded-2xl overflow-hidden"
-          style={{ aspectRatio:"16/9", background:`${color}08`, border:`1px solid ${color}25` }}>
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-            <svg width={200} height={36}>
-              {Array.from({ length:40 }, (_,i) => {
-                const h = 5 + Math.sin(i*0.7)*12 + (i%3)*3;
-                return <rect key={i} x={i*5} y={(36-h)/2} width={3} height={h} fill={color} rx={1.5} opacity={0.35}/>;
-              })}
-            </svg>
-            <div className="w-14 h-14 rounded-full flex items-center justify-center opacity-40"
-              style={{ background:color }}>
-              <Play size={22} className="text-wm-black ml-1"/>
-            </div>
-            <div className="text-center px-4">
-              <div className="text-sm font-bold text-wm-text">{lesson.title}</div>
-              <div className="text-xs text-wm-text-muted mt-1 flex items-center justify-center gap-2">
-                <Clock size={10}/>{lesson.duration}
-              </div>
-              <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold"
-                style={{ background:`${color}18`, color, border:`1px solid ${color}35` }}>
-                🎬 Video lesson coming soon
-              </div>
+        {/*
+          NO FAKE PLAYER (house pass 2026-10-10). This was a full 16:9 player —
+          waveform, a Play disc and "Video lesson coming soon" — with no video
+          behind it: the Play glyph invited a press that did nothing, and the
+          box pushed the lesson itself below the fold. It is now one honest
+          plaque in the module's hairline, and the written lesson leads.
+        */}
+        <div data-testid="academy-no-video-plaque"
+          className="mx-4 mt-4 flex items-center gap-3 rounded-xl px-4 py-3"
+          style={{ background: WM.surface.deep, border: `1px solid ${color}40` }}>
+          <span aria-hidden="true" className="h-8 w-1 shrink-0 rounded-full" style={{ background: color }} />
+          <div className="min-w-0">
+            <div className="text-sm font-bold" style={{ color: WM.text.hero }}>{lesson.title}</div>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px]" style={{ color: WM.text.muted }}>
+              <span className="inline-flex items-center gap-1 tabular-nums"><Clock size={10} aria-hidden="true" />{lesson.duration}</span>
+              <span>·</span>
+              <span>No recorded video for this lesson. The written lesson below is the lesson.</span>
             </div>
           </div>
         </div>

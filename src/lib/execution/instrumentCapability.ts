@@ -178,3 +178,15 @@ export const FUTURES_PAIRS: readonly { readonly market: string; readonly mini: s
 export const STOCK_PICKS: readonly string[] = ["SPY", "QQQ", "IWM", "AAPL", "NVDA", "TSLA", "MSFT", "AMZN"];
 export const CRYPTO_PICKS: readonly string[] = ["BTC", "ETH", "SOL", "XRP", "LINK"];
 export const FX_PICKS: readonly string[] = ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD", "EUR/JPY", "EUR/GBP"];
+
+/**
+ * ATTACHED PROTECTION (bracket: entry + stop + target, OCO between the exits) on a rail — read from
+ * the ledger's BRACKET row. The ticket says "BRACKET · stop + target attached" ONLY when the row is
+ * HUMAN_ARMED; otherwise it says attached protection is not available on this rail, and why.
+ */
+export function bracketSupport(rail: "tastytrade" | "Webull"): { readonly supported: boolean; readonly words: string } {
+  const row = CAPABILITY_LEDGER.find(r => r.provider === rail && r.capability === "BRACKET");
+  return row?.state === "HUMAN_ARMED"
+    ? { supported: true, words: "BRACKET · stop + target attached" }
+    : { supported: false, words: `Attached protection (bracket) is not available on ${rail} yet — ${row?.note ?? "not built"}.` };
+}

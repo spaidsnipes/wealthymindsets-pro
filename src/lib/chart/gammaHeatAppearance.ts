@@ -10,8 +10,9 @@
  */
 import { inksDistinct } from "@/lib/chart/appearanceLaw";
 
-/** Where the chosen preset id is stored, and the event that tells the chart. */
+/** Where the chosen preset id (and the Custom record) is stored, and the event that tells the chart. */
 export const GAMMA_HEAT_PRESET_KEY = "wm_gammaHeatPreset";
+export const GAMMA_HEAT_CUSTOM_KEY = "wm_gammaHeatCustom";
 export const GAMMA_HEAT_PRESET_EVENT = "wm-gamma-heat-preset";
 
 export const GAMMA_HEAT_PRESET_IDS = ["BALANCED", "HIGH_CONTRAST", "SUBTLE", "FOCUS_POSITIVE", "FOCUS_NEGATIVE", "CUSTOM"] as const;
@@ -59,4 +60,10 @@ export function gammaHeatPreset(id: unknown, custom?: GammaHeatCustom | null): G
   if (!inksDistinct(`rgb(${pos})`, `rgb(${neg})`)) { pos = base.posRgb; neg = base.negRgb; }
   const a = typeof custom?.maxAlpha === "number" && Number.isFinite(custom.maxAlpha) ? custom.maxAlpha : base.maxAlpha;
   return { id: "CUSTOM", label: "Custom", posRgb: pos, negRgb: neg, maxAlpha: Math.min(GAMMA_HEAT_MAX_ALPHA, Math.max(GAMMA_HEAT_MIN_ALPHA, a)), floor: base.floor, focus: "BOTH" };
+}
+
+/** Stored Custom JSON → its fields (unknown shapes read as none). */
+export function parseGammaHeatCustom(raw: string | null): GammaHeatCustom | null {
+  if (!raw) return null;
+  try { const v = JSON.parse(raw); return v && typeof v === "object" ? (v as GammaHeatCustom) : null; } catch { return null; }
 }

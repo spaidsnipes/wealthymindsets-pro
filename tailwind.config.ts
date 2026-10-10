@@ -74,6 +74,25 @@ const config: Config = {
            * mint a third value. See tokenOwnership.enforcement.test.ts.
            */
           "text-dim":   "#8a8271",
+          ivory:        "#ede6d3",
+          "ivory-body": "#c0b8a0",
+          brass:        "#8b6a29",
+          "brass-mark": "#c9a55c",
+          ok:           "#5cb85c",
+          watch:        "#c9a55c",
+          warn:         "#c05a4a",
+          /**
+           * CANONICAL ALIASES (house pass 2026-10-10). Each value ABOVE is a
+           * `wmTokens.ts` value copied BY VALUE, so tokenOwnership finds none
+           * of them foreign, and `wmScaleAliasesCanon.sentinel.test.ts` fails
+           * if one ever drifts from its owner. They exist so a room written in
+           * classes can say ivory, brass and three of the states without reaching
+           * for the Tailwind built-in neutral / emerald / amber / rose palettes.
+           *
+           *   ivory = WM.text.hero    ivory-body = WM.text.body
+           *   brass = WM.gold.line    brass-mark = WM.gold.mark
+           *   ok = WM.state.ok   watch = WM.state.watch   warn = WM.state.warn
+           */
         },
         // Shadcn compat
         background: "hsl(var(--background))",

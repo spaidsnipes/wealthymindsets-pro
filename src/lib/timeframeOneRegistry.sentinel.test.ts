@@ -91,7 +91,9 @@ describe("the live forming bar's clock comes from the registry", () => {
     expect(hook.match(/applyTickToClock\(/g)).toHaveLength(2);
     // A clockless id publishes null, not an empty object dressed as a bar.
     expect(hook).not.toMatch(/liveBar:\s*\{\s*\.\.\.barUpdate\.bar\s*\}/);
-    expect(hook).toContain("liveBar: barUpdate.bar ? { ...barUpdate.bar } : null");
+    // The unsigned-observation path publishes once per frame (2026-10-10) and
+    // keeps the null rule: no bar → null, never `{ ...null }`.
+    expect(hook).toContain("liveBar: bar ? { ...bar } : null");
   });
 });
 

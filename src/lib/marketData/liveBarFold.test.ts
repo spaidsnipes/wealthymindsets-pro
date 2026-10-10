@@ -150,5 +150,13 @@ describe("15 s live aggregation — replay fixtures", () => {
     const hook = readFileSync("src/hooks/useWebSocket.ts", "utf8");
     expect(hook.length).toBeGreaterThan(10000);
     expect(hook.match(/noteClosedLiveBar\(closedBarsRef\.current, barRef\.current, barUpdate\.bar\)/g)?.length).toBe(2);
+    // Unsigned observations publish once per frame, never setState per print.
+    const obs = hook.slice(hook.indexOf("const processUnsignedObservation"), hook.indexOf("/* ── Mount / symbol change"));
+    expect(obs.length).toBeGreaterThan(500);
+    expect(obs).toContain("obsRafRef.current = requestAnimationFrame(");
+    expect(obs.indexOf("setState(")).toBeGreaterThan(obs.indexOf("requestAnimationFrame("));
+    // Caught-up closed bars carry their volume; the fold receipt is debug-only.
+    expect(mc).toContain("if (volReal) for (const u of caught.updates) {");
+    expect(mc).toContain("if (foldDebugRef.current && canvasRef.current) {");
   });
 });

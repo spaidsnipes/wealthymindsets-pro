@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import { GAMMA_HEAT_CUSTOM_KEY, GAMMA_HEAT_PRESET_EVENT, GAMMA_HEAT_PRESET_KEY, GAMMA_HEAT_PRESETS, gammaHeatPreset, parseGammaHeatCustom } from "@/lib/chart/gammaHeatAppearance";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X, Settings, Info, BarChart2 } from "lucide-react";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
-import { applyProfilePreset, lawfulOrderLineLooks, ORDER_LINE_ALPHA_FLOOR, PROFILE_PRESET_RED_GREEN, type OrderLineDash } from "@/lib/chart/appearanceLaw";
+import { applyGammaHeatPreset, rgbTripletOf, applyProfilePreset, lawfulOrderLineLooks, ORDER_LINE_ALPHA_FLOOR, PROFILE_PRESET_RED_GREEN, type OrderLineDash } from "@/lib/chart/appearanceLaw";
 
 import {
   CANDLE_DOWN_DEFAULT,
@@ -192,6 +193,42 @@ function Dial({ value, onChange, label }: { value: number | undefined; onChange:
 }
 
 /** A row of choice chips — each a 44px target on a phone. */
+/** ⚙ Walls & Gamma heatmap — five presets + Custom, written through the appearance owner. */
+function GammaHeatSettings() {
+  const readStore = () => {
+    try { return gammaHeatPreset(localStorage.getItem(GAMMA_HEAT_PRESET_KEY), parseGammaHeatCustom(localStorage.getItem(GAMMA_HEAT_CUSTOM_KEY))); } catch { return gammaHeatPreset(null); }
+  };
+  const [cur, setCur] = useState(readStore);
+  const write = (id: string, custom: { posRgb?: string; negRgb?: string; maxAlpha?: number } | null) => {
+    try { applyGammaHeatPreset(localStorage, id, custom, () => window.dispatchEvent(new Event(GAMMA_HEAT_PRESET_EVENT))); } catch { /* private mode */ }
+    setCur(readStore());
+  };
+  const toHex = (rgb: string) => "#" + rgb.split(",").map(n => Number(n).toString(16).padStart(2, "0")).join("");
+  const presets = [...Object.values(GAMMA_HEAT_PRESETS).map(p => ({ id: p.id as string, label: p.label })), { id: "CUSTOM", label: "Custom" }];
+  return (
+    <div data-testid="gamma-heat-settings">
+      <div role="group" aria-label="Gamma heatmap preset" style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "6px 0" }}>
+        {presets.map(p => (
+          <button key={p.id} type="button" aria-pressed={cur.id === p.id} className="wm-settings-control"
+            onClick={() => write(p.id, p.id === "CUSTOM" ? { posRgb: cur.posRgb, negRgb: cur.negRgb, maxAlpha: cur.maxAlpha } : null)}
+            style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer", background: cur.id === p.id ? "#263050" : "#141824", border: `1px solid ${cur.id === p.id ? "#d4af37" : "#263050"}`, color: cur.id === p.id ? "#d4af37" : "#8896BE" }}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {cur.id === "CUSTOM" ? (
+        <>
+          <ColorSwatch value={toHex(cur.posRgb)} onChange={v => write("CUSTOM", { posRgb: rgbTripletOf(v) ?? cur.posRgb, negRgb: cur.negRgb, maxAlpha: cur.maxAlpha })} label="Positive gamma (solid)" />
+          <ColorSwatch value={toHex(cur.negRgb)} onChange={v => write("CUSTOM", { posRgb: cur.posRgb, negRgb: rgbTripletOf(v) ?? cur.negRgb, maxAlpha: cur.maxAlpha })} label="Negative gamma (hatched)" />
+          <Choice label="Heat strength" value={cur.maxAlpha} onChange={v => write("CUSTOM", { posRgb: cur.posRgb, negRgb: cur.negRgb, maxAlpha: v })}
+            options={[{ v: 0.12, label: "Faint" }, { v: 0.24, label: "Medium" }, { v: 0.36, label: "Strong" }, { v: 0.5, label: "Max" }]} />
+        </>
+      ) : null}
+      <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4 }}>Positive is solid, negative is hatched in every preset. Two inks you make alike go back to the room's pair; heat never goes above 50% so candles stay readable.</div>
+    </div>
+  );
+}
+
 function Choice<T extends string | number>({ value, options, onChange, label }: { value: T; options: readonly { v: T; label: string }[]; onChange: (v: T) => void; label: string }) {
   return (
     <div role="group" aria-label={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 0" }}>
@@ -536,6 +573,10 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                     </span>
                   </div>
                   <div style={{ fontSize: 10, color: "#8b8fa8", marginTop: 4 }}>Nothing you turn on can be dialled below readable.</div>
+
+                  <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Gamma Heatmap</div>
+                  <GammaHeatSettings />
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
                   <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Order Lines</div>

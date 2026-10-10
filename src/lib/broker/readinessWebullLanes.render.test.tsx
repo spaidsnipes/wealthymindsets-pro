@@ -153,12 +153,16 @@ describe("Surface B · /readiness renders both Webull lanes from their measureme
     expect(text).toContain("Setup present — NOT MEASURED. No live probe exists for this provider yet");
   });
 
-  it("an entitlement refusal is drawn amber, not in the rose of a broken wire", () => {
+  // House pass 2026-10-10: /readiness moved off the raw Tailwind palettes onto the
+  // canonical aliases — amber is now `wm-watch` (WM.state.watch), rose is `wm-warn`
+  // (WM.state.warn, "something broke"). The distinction this test guards is unchanged.
+  it("an entitlement refusal is drawn amber (watch), not in the rose (warn) of a broken wire", () => {
     const html = renderPage(BROKER_CONNECTED, DATA_ENTITLEMENT);
     const li = html.slice(html.lastIndexOf("<li", html.indexOf('data-provider="webull-data"')), html.indexOf("</li>", html.indexOf('data-provider="webull-data"')));
     const live = /<div class="([^"]+)" data-live-class="ENTITLEMENT BLOCKED"/.exec(li);
     expect(live, "the live block for the data row was not rendered").not.toBeNull();
-    expect(live![1]).toContain("border-amber-400/30");
+    expect(live![1]).toContain("border-wm-watch/30");
+    expect(live![1]).not.toContain("wm-warn");
     expect(live![1]).not.toContain("rose");
   });
 });

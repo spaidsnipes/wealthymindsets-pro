@@ -59,6 +59,7 @@ import { continueOrMint, type DecisionIdentity } from "@/lib/traderMemory/decisi
 import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 import { claimChartInteraction } from "@/lib/chart/chartInteractionMode";
+import { draftLineFacts } from "@/lib/execution/draftLineFacts";
 import { armChartPricePick, cancelChartPricePick, publishChartOrderLines, useChartPricePick, useChartPricePickHosted, type ChartOrderLine } from "@/lib/execution/chartOrderLines";
 import { datedFuturesContract } from "@/lib/execution/liveOrderPreflight";
 import { isPreSendPhase, type LiveOrderPhase } from "@/lib/execution/liveOrderLifecycle";
@@ -67,7 +68,7 @@ import { useBrokerChartLines } from "@/lib/execution/useBrokerChartLines";
 import { forgetUnresolvedContract, useBrokerContract } from "@/lib/execution/brokerReadbackStore";
 import { proposalToTicket, recordProposalEvent, type SpaidBotProposal } from "@/lib/execution/spaidbotProposal";
 import { dismissSpaidBotProposal, useSpaidBotProposal } from "@/lib/execution/spaidbotProposalInbox";
-import { chartFamily, familyVerdict, TRADE_FAMILIES, type TradeFamily } from "@/lib/execution/instrumentCapability";
+import { bracketSupport, chartFamily, familyVerdict, TRADE_FAMILIES, type TradeFamily } from "@/lib/execution/instrumentCapability";
 import { instrumentRisk, qtyForRisk } from "@/lib/execution/instrumentRisk";
 import { useTradeRails } from "@/lib/execution/useTradeRails";
 import { FamilyContractPicker, FuturesMonthRow, TradeFamilySelector } from "@/components/chart/TradeFamilyPicker";
@@ -279,10 +280,19 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     const exit = side === "BUY" ? "SELL" : "BUY";
     const lines: ChartOrderLine[] = [];
     if (stagedEntryPx != null) lines.push({ id: "ticket-entry", role: "ENTRY", status: "STAGED", price: stagedEntryPx, contract: c, detail: `${side} ${qty} ${effectiveEntryType.toUpperCase()}` });
-    if (stopNum != null && !closing) lines.push({ id: "ticket-stop", role: "STOP", status: "STAGED", price: stopNum, contract: c, detail: `${exit} ${qty}`, pnlUsd: riskUsd != null ? -riskUsd : null });
-    if (targetNum != null && !closing) lines.push({ id: "ticket-target", role: "TARGET", status: "STAGED", price: targetNum, contract: c, detail: `${exit} ${qty}`, pnlUsd: rewardUsd });
+    // Distance and refusal words come from THIS ticket's entry, tick and verdicts (draftLineFacts); the chart computes none.
+    const family = kind === "FUTURE" ? "FUTURE" : kind === "CRYPTO" ? "CRYPTO" : "STOCK";
+    const targetWrongSide = referenceEntry != null && targetNum != null && (side === "BUY" ? targetNum <= referenceEntry : targetNum >= referenceEntry);
+    if (stopNum != null && !closing) {
+      const f = draftLineFacts({ role: "STOP", family, entry: referenceEntry, price: stopNum, tick, dp, wrongSide: stopWrongSide });
+      lines.push({ id: "ticket-stop", role: "STOP", status: "STAGED", price: stopNum, contract: c, detail: `${exit} ${qty}`, pnlUsd: f.invalid || riskUsd == null ? null : -riskUsd, distance: f.distance, invalid: f.invalid });
+    }
+    if (targetNum != null && !closing) {
+      const f = draftLineFacts({ role: "TARGET", family, entry: referenceEntry, price: targetNum, tick, dp, wrongSide: targetWrongSide });
+      lines.push({ id: "ticket-target", role: "TARGET", status: "STAGED", price: targetNum, contract: c, detail: `${exit} ${qty}`, pnlUsd: f.invalid ? null : rewardUsd, distance: f.distance, invalid: f.invalid });
+    }
     publishChartOrderLines("ticket", symbol, lines);
-  }, [contract?.symbol, owner, tradable, entryPhase, stagedEntryPx, stopNum, targetNum, side, qty, effectiveEntryType, closing, riskUsd, rewardUsd, symbol]);
+  }, [contract?.symbol, owner, tradable, entryPhase, stagedEntryPx, stopNum, targetNum, side, qty, effectiveEntryType, closing, riskUsd, rewardUsd, symbol, kind, referenceEntry, tick, dp, stopWrongSide]);
   useEffect(() => () => publishChartOrderLines("ticket", symbol, []), [symbol]);
 
   // tastytrade's own working orders and position for this contract (read routes only).
@@ -586,6 +596,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
           {pick ? <p role="status" data-testid="trade-pick-armed" style={{ color: GOLD, fontSize: 11 }}>Click a price on the chart for the {pick.role.toLowerCase()}.</p> : null}
     </>),
     PROTECTION_DRYRUN: (<>
+          {/* ATTACHED PROTECTION: "BRACKET · stop + target attached" only when the rail's ledger row says it is built; else why not. */}
+          <p data-testid="trade-bracket-state" data-supported={bracketSupport("tastytrade").supported ? "yes" : "no"} style={{ color: bracketSupport("tastytrade").supported ? GREEN : GOLD, fontSize: 11, margin: 0, fontWeight: 600 }}>{bracketSupport("tastytrade").words}</p>
           <p data-testid="trade-protection" style={{ color: MUTED, fontSize: 11 }}>
             An opening order is refused without a protective stop on the right side of the entry; the server checks the loss at that stop against your ceiling.{" "}
             Protection is sent separately below, once you hold the position: a <strong style={{ color: GOLD }}>broker-native stop</strong> (a resting Stop at tastytrade, GTC) and a target (a resting Limit, GTC). They are <strong style={{ color: GOLD }}>not linked</strong> (no OCO yet) — if one fills, cancel the other.

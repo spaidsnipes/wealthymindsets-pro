@@ -169,5 +169,7 @@ export function readFuturesContracts(items: unknown): readonly FutureContract[] 
     const dte = num(o["days-to-expiration"]);
     if (!symbol || o.active === false || o["is-closing-only"] === true || (dte != null && dte < 0)) return [];
     return [{ symbol: symbol.toUpperCase(), streamer: str(o["streamer-symbol"]), expiration: str(o["expiration-date"]), dte, activeMonth: o["active-month"] === true }];
-  }).sort((a, b) => (a.dte ?? 1e9) - (b.dte ?? 1e9));
+  // Serving 2026-10-10: the list came back /MNQH7, /MNQM7, /MNQZ6 — tastytrade's own expiration DATE orders
+  // the months (ISO dates sort as text); days-to-expiration only breaks ties when a date is missing.
+  }).sort((a, b) => (a.expiration ?? "9999") < (b.expiration ?? "9999") ? -1 : (a.expiration ?? "9999") > (b.expiration ?? "9999") ? 1 : (a.dte ?? 1e9) - (b.dte ?? 1e9));
 }

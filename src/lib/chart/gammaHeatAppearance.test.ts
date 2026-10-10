@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { GAMMA_HEAT_MAX_ALPHA, GAMMA_HEAT_PRESETS, gammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
-import { inksDistinct } from "@/lib/chart/appearanceLaw";
+import { applyGammaHeatPreset, inksDistinct, rgbTripletOf } from "@/lib/chart/appearanceLaw";
+import { GAMMA_HEAT_CUSTOM_KEY, GAMMA_HEAT_PRESET_KEY, parseGammaHeatCustom } from "@/lib/chart/gammaHeatAppearance";
 
 describe("gamma heatmap presets", () => {
   it("every preset keeps positive and negative distinct and under the candle-readable cap", () => {
@@ -26,5 +27,17 @@ describe("gamma heatmap presets", () => {
     const ok = gammaHeatPreset("CUSTOM", { posRgb: "0,200,255", negRgb: "255,80,0", maxAlpha: 0.2 });
     expect(ok).toMatchObject({ posRgb: "0,200,255", negRgb: "255,80,0", maxAlpha: 0.2 });
     expect(gammaHeatPreset("CUSTOM", { posRgb: "#fff" }).posRgb).toBe(GAMMA_HEAT_PRESETS.BALANCED.posRgb);
+  });
+});
+
+describe("the ⚙ writes through the appearance owner", () => {
+  it("stores the id and the Custom record, tells the chart, and reads back lawfully", () => {
+    const store = new Map<string, string>();
+    let told = 0;
+    applyGammaHeatPreset({ setItem: (k, v) => { store.set(k, v); } }, "CUSTOM", { posRgb: rgbTripletOf("#00c8ff")!, negRgb: "255,80,0", maxAlpha: 0.24 }, () => { told++; });
+    expect(told).toBe(1);
+    const p = gammaHeatPreset(store.get(GAMMA_HEAT_PRESET_KEY), parseGammaHeatCustom(store.get(GAMMA_HEAT_CUSTOM_KEY) ?? null));
+    expect(p).toMatchObject({ id: "CUSTOM", posRgb: "0,200,255", negRgb: "255,80,0", maxAlpha: 0.24 });
+    expect(parseGammaHeatCustom("{bad")).toBeNull();
   });
 });
