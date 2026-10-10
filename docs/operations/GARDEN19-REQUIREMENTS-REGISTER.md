@@ -110,7 +110,8 @@ The canon fixes exactly eleven (VIC-01 / H-601; "Anchored" maps to Structure or 
   - independent per-species colour and opacity for Structure, Fusion, Memory, DNA, Session, TPO, Fixed Range and Bid/Ask;
   - VALUE / TAIL / WASH roles have no control (`PROFILE_INK_FOLLOWS` = null);
   - edge weight, heat, numeric density and z-order controls (G19A-21).
-- **Status: OPEN.** These controls live in `ChartSettingsModal.tsx` / `appearanceLaw.ts`. This lane will not touch them without telling the coordinator first.
+- **Update (a60366c, LIVE 11:30:35):** one opacity dial per species (11; Session and Classic VP share one painter) under Chart Settings → Layer Opacity → "Profiles · each species". It goes through `appearanceLaw.lawfulSpeciesOpacity`, and the attention governor applies it after the family dial, with the same 0.4–1.6 clamp and readable floor. The two drawings (Fixed Range, Bid/Ask) apply it at their paint site. **Read on serving 11:34** (BTC-USD 15m clean, 834): Composite dial 0.4 → `attentionTiers` `compositeProfile:LIVE:0.6` → `0.24`, with `tpo:LIVE:1` unchanged; `wm_chartSettings` in localStorage untouched (null before and after). Pinned by `chartSettingsHeldInProofScene.sentinel.test.ts`. Defect seen: at 834 the Chart tools drawer overlaps the Chart Settings sliders. **Per-species colour: OPEN** (in build).
+- **Status (colour): OPEN.** These controls live in `ChartSettingsModal.tsx` / `appearanceLaw.ts`. This lane will not touch them without telling the coordinator first.
 
 ### 2a. Repair — Visible Range Profile material (this lane, tree, SHIPPABLE 10:27 CDT)
 

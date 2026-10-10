@@ -21,3 +21,13 @@ describe("Walls & Gamma off camera is named at the edge, never dropped", () => {
     expect(inspect).toBeGreaterThan(edge);
   });
 });
+
+describe("DOM reading chips are keep-outs every placer and the word registry can read", () => {
+  it("measures .wm-chart-reading-anchor into the floating-chip seed and declares each as a registry panel", () => {
+    const src = readFileSync(path.join(process.cwd(), "src/components/chart/MainChart.tsx"), "utf8");
+    expect(src.length).toBeGreaterThan(100_000);
+    expect(src).toContain('document.querySelectorAll(".wm-chart-reading-anchor")');
+    expect(src).toContain('for (const r of memoD.rects) { forceChips.push(r); wordGate.panel("DOM READING CHIP", r); }');
+    expect(src).toContain("canvas.dataset.domChipKeepOut =");
+  });
+});

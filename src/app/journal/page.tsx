@@ -561,7 +561,7 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
       <LegacyFuturesMoneyNote records={entries} testId="journal-coach-legacy-futures-note" />
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           // n ≥ 20 (statGuard): below 20 entries a rate is INSUFFICIENT EVIDENCE, uncoloured.
           { l:"Win Rate",   v: isMeasured(entries.length) ? `${wr.toFixed(0)}%` : INSUFFICIENT, good: isMeasured(entries.length) ? wr >= 50 : null },
@@ -579,7 +579,7 @@ function StrategyCoach({ entries: records }: { entries: JournalEntry[] }) {
             {m.v === INSUFFICIENT ? (
               <div data-testid="coach-stat-insufficient" className="text-[10px] font-bold mt-1 text-wm-text-muted leading-tight" title={insufficientLine(entries.length)}>{INSUFFICIENT}<span className="block font-normal">{entries.length} of {STAT_SAMPLE_MIN}</span></div>
             ) : (
-              <div className={clsx("text-base font-black mt-1", m.good === null ? "text-wm-text-muted" : m.good ? "text-wm-green" : "text-wm-red")}>{m.v}</div>
+              <div className={clsx("text-base font-black mt-1 tabular-nums", m.good === null ? "text-wm-text-muted" : m.good ? "text-wm-green" : "text-wm-red")}>{m.v}</div>
             )}
           </div>
         ))}
@@ -2847,7 +2847,7 @@ Trade the system, trust the process, winners every day 🚀`,
               </div>
 
               {/* Stats grid */}
-              <div className="grid grid-cols-4 gap-2 mb-4">
+              <div className="grid grid-cols-2 gap-2 mb-4 sm:grid-cols-4">
                 {[
                   { l:"Entry",  v: selected.entry.toLocaleString("en-US",{minimumFractionDigits:2}) },
                   { l:"Exit",   v: selected.exit.toLocaleString("en-US",{minimumFractionDigits:2}) },

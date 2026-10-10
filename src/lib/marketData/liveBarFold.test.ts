@@ -161,7 +161,7 @@ describe("15 s live aggregation — replay fixtures", () => {
     // ONE VENUE IN THE BAR: Coinbase speaking closes the Binance.US fallback and
     // the fallback's ticks are dropped while Coinbase is speaking (serving
     // c4d4d4c: Binance mids at 83039.6x painted into Coinbase 15 s bars).
-    expect(hook).toContain("(tick, isReal) => { if (Date.now() - coinbaseHeardAt < 15_000) return; processTick(tick, isReal); },");
+    expect(hook).toContain("(tick, isReal) => { if (Date.now() - coinbaseHeardAt < 15_000) return; if (!admitVenue(\"binance\")) return; processTick(tick, isReal); },");
     expect(hook).toContain("if (cryptoFallback && !fallbackClosed) {");
     expect(hook).toContain("cleanupFns.current.push(closeFallback);");
     // Once a print is heard, quotes/mids no longer build the bar.
@@ -169,5 +169,35 @@ describe("15 s live aggregation — replay fixtures", () => {
     // The parent hears the forming bar at most every LIVE_EMIT_MS; a new bar at once.
     expect(mc).toContain("const LIVE_EMIT_MS = 250;");
     expect(mc).toContain("if (grew || nowMs - liveEmitAtRef.current >= LIVE_EMIT_MS) emit();");
+  });
+});
+
+describe("one venue builds the bar (admitBarVenue)", () => {
+  it("a lower-ranked venue is refused while the owner speaks, admitted after 15 s of silence", async () => {
+    const { admitBarVenue, BAR_VENUE_SILENT_MS } = await import("./liveBarFold");
+    let o = admitBarVenue(null, "coinbase", 0).owner;
+    expect(admitBarVenue(o, "binance", 1_000).admit).toBe(false);
+    o = admitBarVenue(o, "coinbase", 2_000).owner;
+    expect(admitBarVenue(o, "binance", 2_000 + BAR_VENUE_SILENT_MS - 1).admit).toBe(false);
+    expect(admitBarVenue(o, "binance", 2_000 + BAR_VENUE_SILENT_MS).admit).toBe(true);
+  });
+  it("a higher-ranked venue takes the bar over at once; IEX never sums beside the consolidated tape", async () => {
+    const { admitBarVenue } = await import("./liveBarFold");
+    const alp = admitBarVenue(null, "alpaca", 0).owner;
+    const fh = admitBarVenue(alp, "finnhub", 10);
+    expect(fh.admit).toBe(true);
+    expect(admitBarVenue(fh.owner, "alpaca", 20).admit).toBe(false);
+  });
+  it("tastytrade's signed and unsigned equity labels are one venue", async () => {
+    const { admitBarVenue } = await import("./liveBarFold");
+    const o = admitBarVenue(null, "tastytrade-equity", 0).owner;
+    expect(admitBarVenue(o, "tastytrade", 5).admit).toBe(true);
+  });
+  it("every bar-building lane in the hook asks the venue owner", () => {
+    const hook = readFileSync("src/hooks/useWebSocket.ts", "utf8");
+    expect(hook.length).toBeGreaterThan(10000);
+    for (const v of ['admitVenue("finnhub")', 'admitVenue("alpaca")', 'admitVenue("binance")', 'admitVenue("coinbase")', 'admitVenue("tastytrade")', 'admitVenue("tastytrade-equity")', "admitVenue(electedSource)", "admitVenue(source)"]) {
+      expect(hook, v).toContain(v);
+    }
   });
 });

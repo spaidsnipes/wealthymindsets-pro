@@ -108,3 +108,35 @@ export function foldFormingBar(last: Bar, live: Bar, price: number): Bar {
 export function liveDespikeApplies(intervalSec: number): boolean {
   return intervalSec >= 60;
 }
+
+/* ── ONE VENUE BUILDS THE BAR ─────────────────────────────────────────────
+ * Serving c4d4d4c (BTC-USD 15 s, 2026-10-10): a fallback venue left running
+ * beside the primary folded its own prices into the same candles. The same
+ * class exists for equities: the consolidated Finnhub tape and Alpaca's IEX
+ * relay (a SUBSET of the same prints) both fed the bar, so every IEX print was
+ * counted twice in volume, and a polled provider lane could join them. One
+ * venue owns the bar at a time: a higher-ranked venue takes it over, a
+ * lower-ranked one is admitted only after the owner has been silent for
+ * BAR_VENUE_SILENT_MS.
+ */
+export const BAR_VENUE_SILENT_MS = 15_000;
+const BAR_VENUE_RANK: Readonly<Record<string, number>> = {
+  tastytrade: 5,
+  coinbase: 4, finnhub: 4,
+  moomoo: 3, longbridge: 3, webull: 3,
+  alpaca: 2,
+  binance: 1,
+};
+export interface BarVenueOwner { readonly venue: string; readonly at: number }
+
+/** Does a print from `venue` at `now` (ms) build the bar? Returns the next owner. */
+export function admitBarVenue(owner: BarVenueOwner | null, venueIn: string, now: number): { admit: boolean; owner: BarVenueOwner | null } {
+  // One feed under two labels (tastytrade's equity lane names its signed prints
+  // "tastytrade-equity", its unsigned ones "tastytrade") is one venue.
+  const venue = venueIn === "tastytrade-equity" ? "tastytrade" : venueIn;
+  if (!owner || owner.venue === venue || now - owner.at >= BAR_VENUE_SILENT_MS
+    || (BAR_VENUE_RANK[venue] ?? 0) > (BAR_VENUE_RANK[owner.venue] ?? 0)) {
+    return { admit: true, owner: { venue, at: now } };
+  }
+  return { admit: false, owner };
+}

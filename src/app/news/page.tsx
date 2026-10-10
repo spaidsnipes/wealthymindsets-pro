@@ -956,13 +956,20 @@ export default function NewsPage() {
             🔑 Connect API Keys
           </button>
 
+          {/*
+            ONE ROW ON A PHONE (house pass 2026-10-10). At 390 the eleven
+            topic chips wrapped to three rows above the wire. Under 640 they
+            are one row that scrolls sideways (the source row below already
+            does); from 640 up they wrap as before.
+          */}
+          <div className="flex w-full min-w-0 gap-1 overflow-x-auto sm:w-auto sm:flex-wrap sm:overflow-visible" style={{ scrollbarWidth: "none" }} data-testid="news-topic-chips">
           {FILTERS.map(f => (
             <button
               key={f}
               onClick={() => setTagFilter(f)}
               aria-pressed={tagFilter === f}
               className={clsx(
-                "px-2 py-1 rounded text-[10px] font-medium transition-all",
+                "shrink-0 whitespace-nowrap px-2 py-1 rounded text-[10px] font-medium transition-all",
                 tagFilter === f
                   // Canon sweep 2026-10-06: the house selected state (gold), as
                   // the source row below already wears — not a lone blue.
@@ -973,6 +980,7 @@ export default function NewsPage() {
               {f}
             </button>
           ))}
+          </div>
         </div>
       </div>
 

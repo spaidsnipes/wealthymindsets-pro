@@ -211,7 +211,8 @@ describe("the chart menu on iPhone / iPad, handles clear of the phone ticket she
   });
   it("a staged-line handle never sits under the phone ticket sheet", () => {
     expect(CHART).toContain("const underSheet = ticketSheetTop != null && Number(yLine) > ticketSheetTop - 22;");
-    expect(CHART).toContain("if (underSheet && ticketSheetTop != null && ticketSheetTop - 24 < SHEET_MARKER_MIN_TOP) return null;");
+    // Markers at the sheet's edge stack upward (one per line); one that would rise above the floor waits.
+    expect(CHART).toContain("if (underSheet && (markerY == null || markerY < SHEET_MARKER_MIN_TOP)) return null;");
     expect(CHART).toContain("? (underSheet ? `${l.role} ↓ ${shown.toFixed(dpH)}` : draftHandleWords(l, shown, dpH))");
   });
   it("volume indicators are partitioned before any series is added; a withheld one adds none and is said once", () => {

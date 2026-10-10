@@ -115,3 +115,12 @@ describe("the SAME order-rate limiter charges a bracket BRACKET_RATE_COST (still
     expect(r.ok && r.standing.usedThisMinute).toBe(1);
   });
 });
+
+describe("the not-available words are trader words (serving a60366c printed a file path)", () => {
+  it("no file path, no payload jargon", () => {
+    for (const rail of ["tastytrade", "Webull"] as const) {
+      const w = bracketSupport(rail).words;
+      expect(w).not.toMatch(/src\/|\.ts\b|OTOCO|payload/);
+    }
+  });
+});

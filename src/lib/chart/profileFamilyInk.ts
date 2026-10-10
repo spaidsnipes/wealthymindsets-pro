@@ -148,6 +148,8 @@ export type ProfilePalette = {
   poc?: Rgb | null;
   vah?: Rgb | null;
   val?: Rgb | null;
+  /** Per-species body inks (already lawful — appearanceLaw.lawfulSpeciesInks). */
+  species?: Readonly<Partial<Record<string, Rgb | null>>> | null;
 };
 
 export type ProfileInk = {
@@ -172,6 +174,16 @@ export type ProfileInk = {
   chosenOr(role: ProfileInkRole, alpha: number, identity: string): string;
   /** `r,g,b` for sites that composite their own alpha string (TPO's letter cache). */
   rgb(role: ProfileInkRole): string;
+  /**
+   * ONE OWNER, SPECIES-AWARE (Founder 2026-10-10: "independent colour per
+   * species"). The same family ink with ONE species' body — VALUE, TAIL and
+   * WASH — in the ink the trader chose for that species (made lawful by
+   * appearanceLaw.lawfulSpeciesInks: distinct from the field, from the POC and
+   * from every other species). POC and the value-area EDGES stay the family's:
+   * a POC means one thing on every species. A species with no choice gets the
+   * family ink itself (same object).
+   */
+  species(sp: string): ProfileInk;
 };
 
 const isInk = (c: Rgb | null | undefined): c is Rgb =>
@@ -214,15 +226,37 @@ export function resolveProfileInk(palette?: ProfilePalette | null, strength: Pro
   }
 
   const k = PROFILE_STRENGTH_EXPONENT[strength] ?? 1;
-  const rgba = (r: ProfileInkRole, alpha: number) => `rgba(${rgbText[r]},${k === 1 ? alpha : strengthAlpha(alpha, k)})`;
-  return Object.freeze({
-    role: Object.freeze(role),
-    chosen: Object.freeze(chosen),
-    rgba,
-    rgbaAs: (r: ProfileInkRole, rest: ProfileInkRole, alpha: number) => rgba(chosen[r] ? r : rest, alpha),
-    chosenOr: (r: ProfileInkRole, alpha: number, identity: string) => (chosen[r] ? rgba(r, alpha) : identity),
-    rgb: (r: ProfileInkRole) => rgbText[r],
-  });
+  const build = (roleIn: Record<ProfileInkRole, Rgb>, chosenIn: Record<ProfileInkRole, boolean>, species: (sp: string) => ProfileInk): ProfileInk => {
+    const text = {} as Record<ProfileInkRole, string>;
+    for (const r of PROFILE_INK_ROLES) text[r] = `${roleIn[r][0]},${roleIn[r][1]},${roleIn[r][2]}`;
+    const rgba = (r: ProfileInkRole, alpha: number) => `rgba(${text[r]},${k === 1 ? alpha : strengthAlpha(alpha, k)})`;
+    return Object.freeze({
+      role: Object.freeze(roleIn),
+      chosen: Object.freeze(chosenIn),
+      rgba,
+      rgbaAs: (r: ProfileInkRole, rest: ProfileInkRole, alpha: number) => rgba(chosenIn[r] ? r : rest, alpha),
+      chosenOr: (r: ProfileInkRole, alpha: number, identity: string) => (chosenIn[r] ? rgba(r, alpha) : identity),
+      rgb: (r: ProfileInkRole) => text[r],
+      species,
+    });
+  };
+  const cache = new Map<string, ProfileInk>();
+  let family: ProfileInk;
+  const speciesOf = (sp: string): ProfileInk => {
+    const ink = palette?.species?.[sp];
+    if (!isInk(ink)) return family;
+    const hit = cache.get(sp);
+    if (hit) return hit;
+    const body = Object.freeze([ink[0], ink[1], ink[2]] as const);
+    const r2 = { ...role, VALUE: body, TAIL: body, WASH: body } as Record<ProfileInkRole, Rgb>;
+    const c2 = { ...chosen, VALUE: true, TAIL: true, WASH: true } as Record<ProfileInkRole, boolean>;
+    const made = build(r2, c2, speciesOf);
+    cache.set(sp, made);
+    return made;
+  };
+  family = build(role, chosen, speciesOf);
+  void rgbText;
+  return family;
 }
 
 /**

@@ -25,7 +25,7 @@ import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/ma
 import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
 import { absorbOutOfOrderPrint, applyTickToClock } from "@/lib/marketData/liveBarPolicy";
-import { noteClosedLiveBar } from "@/lib/marketData/liveBarFold";
+import { admitBarVenue, noteClosedLiveBar, type BarVenueOwner } from "@/lib/marketData/liveBarFold";
 import { liveBarBucketSec } from "@/lib/timeframes";
 import type { LegacyOhlcvTuple } from "@/lib/marketData/canonicalBar";
 import { ingestSessionNectarEvent } from "@/lib/marketData/sessionNectar";
@@ -1381,6 +1381,14 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   const hasRealDataRef = useRef(false);
   // A real print (`trade: true`) has been heard for this symbol (see processTick).
   const tradeHeardRef = useRef(false);
+  // ONE VENUE BUILDS THE BAR (liveBarFold.admitBarVenue): the venue whose
+  // prints currently own the bar; another venue joins only by rank or silence.
+  const barVenueRef = useRef<BarVenueOwner | null>(null);
+  const admitVenue = (venue: string): boolean => {
+    const r = admitBarVenue(barVenueRef.current, venue, Date.now());
+    barVenueRef.current = r.owner;
+    return r.admit;
+  };
 
   // THE CLOCK IS THE REGISTRY'S (2026-09-26, Garden 16 §22). This was a
   // private table with "1t"/"5t"/"30t" keys no caller could reach and a
@@ -1527,6 +1535,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
      intentionally never enters recentTicks, tapeSource, Delta, CVD, or DOM. */
   const processUnsignedObservation = useCallback((event: CanonicalMarketEvent, source: "longbridge" | "webull" | "tastytrade") => {
     if (source !== "tastytrade" && Date.now() - tastyEquityLastAtRef.current < 15_000) return;
+    if (!admitVenue(source)) return;
     const price = event.price;
     const size = event.size;
     const time = event.timestampProvider ?? event.timestampReceived;
@@ -1606,6 +1615,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     retryCount.current = 0;
     hasRealDataRef.current = false;
     tradeHeardRef.current = false;
+    barVenueRef.current = null;
 
     tapeSourceRef.current = null;
     // A new symbol has not spoken yet. Carrying the previous symbol's
@@ -1716,6 +1726,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           providerTapeLastAcceptedAt = acceptedAt;
           // Only the elected tape owner may enter the canonical session store.
           // A valid-but-rejected alternate provider remains diagnostics evidence.
+          if (!admitVenue(electedSource)) continue;
           processTick({
             price: inspected.event.price!,
             size: inspected.event.size!,
@@ -1792,6 +1803,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
         } else if (first && tapeSourceRef.current !== "coinbase") {
           tapeSourceRef.current = "coinbase";
         }
+        if (!admitVenue("coinbase")) return;
         processTick(tick, isReal);
       };
       cryptoCleanup = joinTape(
@@ -1836,7 +1848,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           cryptoFallback = joinTape(
             `binance:${symbol.toUpperCase()}`,
             (onTick, onStatus) => tryBinance(symbol, onTick, onStatus),
-            (tick, isReal) => { if (Date.now() - coinbaseHeardAt < 15_000) return; processTick(tick, isReal); },
+            (tick, isReal) => { if (Date.now() - coinbaseHeardAt < 15_000) return; if (!admitVenue("binance")) return; processTick(tick, isReal); },
             (ok) => {
               if (ok && Date.now() - coinbaseHeardAt >= 15_000) {
                 hasRealDataRef.current = true;
@@ -1926,7 +1938,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
                 // beside a session tape counting trades, 2026-10-02).
                 ingestSessionNectarEvent(inferred);
                 tapeSourceRef.current = "tastytrade-equity";
-                processTick({
+                if (admitVenue("tastytrade-equity")) processTick({
                   price: inferred.price!,
                   size: inferred.size!,
                   side: inferred.aggressorSide === "BUY" ? "buy" : "sell",
@@ -1943,7 +1955,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
               }
               ingestSessionNectarEvent(print);
               tapeSourceRef.current = "tastytrade";
-              processTick({
+              if (admitVenue("tastytrade")) processTick({
                 price: print.price!,
                 size: print.size!,
                 side: print.aggressorSide === "BUY" ? "buy" : "sell",
@@ -2013,7 +2025,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
           (onTick, onStatus) => tryFinnhub(fhWsSym, finnhubKey, onTick, onStatus),
           // §LXXXI: while tastytrade's live lane speaks, this lane stands down
           // (one price, never two streams summed into one bar).
-          (tick, isReal) => { if (tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000) return; processTick(tick, isReal); },
+          (tick, isReal) => { if (tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000) return; if (!admitVenue("finnhub")) return; processTick(tick, isReal); },
           (ok) => {
             if (ok && !(tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000)) {
               hasRealDataRef.current = true;
@@ -2212,6 +2224,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
             if (tick.marketEvent?.aggressorSide === "UNKNOWN") return;
             // §LXXXI: one venue's prints (IEX) yield to the live consolidated lane.
             if (tastyLiveAtRef.current != null && Date.now() - tastyLiveAtRef.current < 15_000) return;
+            // IEX is a subset of the consolidated prints: never summed beside them.
+            if (!admitVenue("alpaca")) return;
             tapeSourceRef.current = "alpaca";
             processTick(tick, isReal);
             // A transport-open callback is not market data. Elect Alpaca only

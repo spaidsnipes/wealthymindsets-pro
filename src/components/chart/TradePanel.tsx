@@ -494,7 +494,8 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <span data-testid="trade-quote-state" data-state={snap.stream} data-live={quoteLabel.live ? "yes" : "no"} style={{ marginLeft: "auto", color: quoteLabel.live ? GREEN : GOLD }}>● {quoteLabel.text}</span>
           </div>
           {contractWhy ? <p style={{ color: GOLD }}>{contractWhy}</p> : null}
-          {kind === "FUTURE" ? <FuturesMonthRow chartSymbol={symbol} contract={contract?.symbol ?? null} months={futMonths.months} why={futMonths.why} loading={futMonths.loading} onChoose={s => onChooseInstrument?.(s)} /> : null}
+          {/* Walk 2026-10-10: the phone REVIEW step is the confirm boundary alone — no picker above it. */}
+          {kind === "FUTURE" && step !== "REVIEW" ? <FuturesMonthRow chartSymbol={symbol} contract={contract?.symbol ?? null} months={futMonths.months} why={futMonths.why} loading={futMonths.loading} onChoose={s => onChooseInstrument?.(s)} /> : null}
     </>),
     PROPOSAL: (<>
           {/* §24 — SpaidBot PROPOSES; the trader decides. */}
@@ -557,7 +558,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
             <button type="button" data-testid="trade-size-to-risk-apply" disabled={sizedQty == null} onClick={() => { if (sizedQty != null) setQty(sizedQty); }} style={{ ...btn(false), opacity: sizedQty == null ? 0.5 : 1 }}>
               {sizedQty != null ? `Size ${sizedQty}` : "Size"}
             </button>
-            <span style={{ color: MUTED, fontSize: 10.5 }}>{sizedQty != null ? "fits the budget at the stop" : referenceEntry == null || stopNum == null ? "needs a limit and a stop" : "budget is below one unit at this stop"}</span>
+            <span style={{ color: MUTED, fontSize: 10.5 }}>{sizedQty != null ? "fits the budget at the stop" : referenceEntry == null || stopNum == null ? "needs a limit and a stop" : !(Number(riskBudget) > 0) ? "type the most you will lose at the stop" : "budget is below one unit at this stop"}</span>
           </div>
     </>),
     ENTRY_TYPE: (<>
@@ -752,7 +753,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         </div>
       ) : null}
       {scene ? <p role="status" data-testid="trade-proof-banner" data-scene-state={scene.state} style={{ margin: 0, padding: "4px 12px", borderBottom: `1px solid ${GOLD}`, color: GOLD, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6 }}>{TICKET_FIXTURE_BANNER}</p> : null}
-      {stage !== "PEEK" ? <TradeFamilySelector family={family} verdicts={verdicts} onPick={f => setFamilyPick(f === chartFam ? null : f)} /> : null}
+      {stage !== "PEEK" && step !== "REVIEW" ? <TradeFamilySelector family={family} verdicts={verdicts} onPick={f => setFamilyPick(f === chartFam ? null : f)} /> : null}
 
       {!familyIsTicket ? (
         <FamilyContractPicker family={family} verdict={verdicts.find(v => v.family === family)!} chartSymbol={symbol} price={price}

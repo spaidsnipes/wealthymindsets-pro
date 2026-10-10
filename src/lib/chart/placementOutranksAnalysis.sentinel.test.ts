@@ -153,10 +153,16 @@ describe("E. the owners hold their tiers", () => {
     expect(PANEL).toMatch(/const placingFold = compact && interaction === "PLACEMENT" && stageInput\.preSend;/);
     expect(PANEL).toMatch(/\.\.\.\(placingFold \? \{ maxHeight: PLACING_FOLD_MAX_HEIGHT, overflowY: "hidden" as const \} : null\)/);
     expect(PANEL).toContain('data-testid="trade-placing"');
+    // The phone sheet's height is owned by !important stage rules in globals.css; the placing rule must outrank them.
+    expect(GLOBALS).toMatch(/\[data-testid="trade-panel"\]\[data-placing="yes"\] \{ max-height: 124px !important; overflow-y: hidden !important; \}/);
     expect(PANEL).toMatch(/data-testid="trade-placing-cancel" onClick=\{\(\) => cancelChartPricePick\(\)\}/);
     // CSS only: the fold never writes the ticket's own fold / half state.
     const at = PANEL.indexOf("const placingFold");
     expect(PANEL.slice(at, PANEL.indexOf("\n", at))).not.toMatch(/setFolded|setHalf/);
+  });
+  it("markers waiting at the phone sheet's edge stack, never one on another", () => {
+    expect(MAIN).toMatch(/const markerY = ticketSheetTop != null \? ticketSheetTop - 24 - \(underSheet \? underSheetK \* 46 : 0\) : null;/);
+    expect(MAIN).toContain("if (underSheet) underSheetK += 1;");
   });
   it("the ticket's confirmation claims EXECUTION", () => {
     expect(PANEL).toMatch(/entryPhase !== "CONFIRMING"\) return;[\s\S]{0,80}claimChartInteraction\("EXECUTION", "ticket-confirmation"\)/);

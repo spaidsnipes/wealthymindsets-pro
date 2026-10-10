@@ -63,7 +63,7 @@ export const CAPABILITY_LEDGER: readonly CapabilityRow[] = [
   { provider: T, capability: "EXEC_FUTURE_OPTION", state: "HUMAN_ARMED", owner: "src/lib/broker/fopTicket.ts", note: "futures-approved account only" },
   { provider: T, capability: "EXEC_CRYPTO", state: "HUMAN_ARMED", owner: "src/lib/broker/tastytradeOrder.ts", note: "GTC only (tastytrade's crypto rule)" },
   { provider: T, capability: "EXEC_FX", state: "UNSUPPORTED", owner: null, note: "tastytrade offers no spot forex — a currency future (/6E) is a futures trade, never swapped in for EUR/USD" },
-  { provider: T, capability: "BRACKET", state: "NOT_BUILT", owner: null, note: "OTOCO payload built and tested (src/lib/broker/tastytradeBracket.ts); no route sends it until tastytrade's complex-order dry run is proved on your account" },
+  { provider: T, capability: "BRACKET", state: "NOT_BUILT", owner: null, note: "the bracket order is built and tested in WM, but nothing sends it until tastytrade's own preview has accepted one on your account" },
   { provider: T, capability: "CANCEL", state: "LIVE", owner: "src/app/api/broker/tastytrade/orders/route.ts", note: "working orders" },
   { provider: T, capability: "MODIFY", state: "NOT_BUILT", owner: null, note: "cancel and re-enter until replace is built" },
   { provider: T, capability: "PROTECTION", state: "PARTIAL", owner: "src/lib/broker/tastytradeEntryFields.ts", note: "broker-native Stop / Stop Limit; bracket / OCO not built" },

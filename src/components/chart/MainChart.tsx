@@ -27,6 +27,7 @@ import { canonicalAssetClass, canonicalInstrumentId, cryptoBaseTicker, marketClo
 import { DataVersionGuard } from "@/lib/chartContext";
 import { liveBarIsStale, shouldFoldChartLiveBar } from "@/lib/marketData/liveBarPolicy";
 import { foldClosedLiveBars, foldFormingBar, liveDespikeApplies } from "@/lib/marketData/liveBarFold";
+import { barsFromPrints } from "@/lib/marketData/printBars";
 /** The parent hears the forming bar at most this often (a new bar: at once). */
 const LIVE_EMIT_MS = 250;
 import { tapeHorizonBarStart, tapeHorizonLabel } from "@/lib/tapeHorizon";
@@ -2439,6 +2440,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   userMarksRef.current = { bubble: clampBubbleScale(chartSettings?.bubbleScale), fpStep: chartSettings?.footprintNumberStep ?? 0, wall: clampWallThickness(chartSettings?.wallThickness) };
   // Last frame's newest-candle column, for words painted before this frame measures it.
   const wordGateColumnRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  /** The DOM reading-anchor chips' rects in canvas px, re-measured at most every 500ms. */
+  const domChipMemoRef = useRef<{ at: number; rects: { x: number; y: number; w: number; h: number }[] } | null>(null);
   // The layer last frame's question was ABOUT — its answer is never quieted by it.
   const lensAnswerLastRef = useRef<readonly ("absorption" | "exhaustion")[]>([]);
   const attentionFixtureQuietRef = useRef(false);
@@ -4509,7 +4512,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       const tapeCoinbase = parseExchangeSymbol(symbol) ? null : coinbaseProduct(symbol);
       const exParsed = parseExchangeSymbol(symbol)
         ?? (tapeCoinbase ? { coin: tapeCoinbase.split("-")[0], exchange: "coinbase" as const } : null);
-      const exchangeData: CanonicalCandleBatch | null = skipVendors ? tickBatchRef.current() : exParsed
+      // SECONDS ON COINBASE (2026-10-10): the venue publishes no candle under a
+      // minute, so 5s/15s/30s history came only when tastytrade's candle
+      // snapshot happened to answer (serving: 137 bars one load, "NO BAR
+      // HISTORY" the next). The tape IS Coinbase; its public trades are the same
+      // prints, bucketed here (printBars.ts). The oldest bucket is dropped
+      // unless the pages reached past it — a partial bar is not drawn as whole.
+      const coinbaseSeconds: CanonicalCandleBatch | null = !skipVendors && exParsed?.exchange === "coinbase" && intervalSec < 60
+        ? await (async () => {
+            const product = coinbaseProductFor(`${exParsed.coin}-USD`);
+            if (!product) return null;
+            const sinceMs = Date.now() - Math.min(barCount * intervalSec, 30 * 60) * 1000;
+            const r = await fetchCoinbaseTradeHistory(product, symbol, { sinceMs, maxPages: 12, signal: myAbortSignal }).catch(() => null);
+            if (!r || r.ticks.length === 0) return null;
+            let bars = barsFromPrints(r.ticks.map(t => ({ time: t.time, price: t.price, size: t.size, id: t.marketEvent?.sourceEventId })), intervalSec);
+            if (!r.complete && bars.length) bars = bars.slice(1);
+            return bars.length >= 2 ? { candles: bars, identities: [] } : null;
+          })()
+        : null;
+      const exchangeData: CanonicalCandleBatch | null = skipVendors ? tickBatchRef.current() : coinbaseSeconds ? coinbaseSeconds : exParsed
         ? await fetch(`/api/exchange?ex=${exParsed.exchange}&coin=${exParsed.coin}&type=candles&tf=${timeframe}&bars=${barCount}`, { cache: "no-store", signal: myAbortSignal })
             .then(r => r.json()).then(j => candleBatch(j, barCount)).catch(() => null)
         : null;
@@ -7981,6 +8002,32 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // Chips painted before the floating-chip owner exists (print tickets,
       // the force→response tag, NEAR anatomy); it is seeded from this list.
       const forceChips: { x: number; y: number; w: number; h: number }[] = [];
+      // DOM CHIPS ARE KEEP-OUTS (Walls & Gamma demo, 2026-10-10: "Γ 85000 …"
+      // printed under the DOM INSPECT chip). The reading-anchor chips (EFFORT /
+      // INSPECT, `.wm-chart-reading-anchor`) are measured — at most twice a
+      // second — in this canvas's coordinates, seed the floating-chip owner and
+      // are declared to the word registry as occupied panels, so every placer
+      // and the registry can see them.
+      {
+        const nowD = performance.now();
+        let memoD = domChipMemoRef.current;
+        if (!memoD || nowD - memoD.at > 500) {
+          const rectsD: { x: number; y: number; w: number; h: number }[] = [];
+          try {
+            const cr = canvas.getBoundingClientRect();
+            document.querySelectorAll(".wm-chart-reading-anchor").forEach(el => {
+              const r = (el as HTMLElement).getBoundingClientRect();
+              if (r.width > 0 && r.height > 0 && r.right > cr.left && r.left < cr.right && r.bottom > cr.top && r.top < cr.bottom) {
+                rectsD.push({ x: r.left - cr.left - 2, y: r.top - cr.top - 2, w: r.width + 4, h: r.height + 4 });
+              }
+            });
+          } catch { /* no layout yet */ }
+          memoD = { at: nowD, rects: rectsD };
+          domChipMemoRef.current = memoD;
+        }
+        for (const r of memoD.rects) { forceChips.push(r); wordGate.panel("DOM READING CHIP", r); }
+        canvas.dataset.domChipKeepOut = memoD.rects.map(r => `${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.w)}x${Math.round(r.h)}`).join("|") || "NONE";
+      }
       // §16: a Class-B word that cannot find a clear spot by its mark is
       // handed here instead of being dropped; the composer at the end of the
       // frame collapses neighbours into one "N MARKET EVENTS" anchor.
@@ -20354,7 +20401,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 while (words.length > 8 && ctx.measureText(words).width > maxW) words = words.slice(0, -2);
                 if (words !== raw) words = words.replace(/.$/, "…");
                 const tw = ctx.measureText(words).width;
-                const rows = dir === "above" ? [HEADER_FLOOR_Y + 44, HEADER_FLOOR_Y + 60, HEADER_FLOOR_Y + 76] : [paneBotG - 12, paneBotG - 28, paneBotG - 44];
+                const rows = Array.from({ length: 8 }, (_, i) => (dir === "above" ? HEADER_FLOOR_Y + 44 + i * 16 : paneBotG - 12 - i * 16));
                 const slot = rows.map(yC => ({ x: plotRightG - tw - 12, y: yC - 7, w: tw + 8, h: 14 })).find(q => !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y) && !onNewestColumn(q.x, q.y, q.w, q.h));
                 if (!slot) { displacedNotes.push({ layer: "DERIVATIVES", text: words, x: plotRightG - tw / 2, y: rows[0] }); continue; }
                 const lead = out.offCamera[dir][0];
@@ -29767,6 +29814,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           let axisWH = 60;
           try { axisWH = Math.max(0, Number(chartRef.current?.priceScale("right").width()) || 60); } catch { /* keep default */ }
           const dpH = displayPrecisionFor(symbol, barsRef.current ?? []);
+          // Markers waiting at the sheet's top edge stack upward, one handle-height apart —
+          // never one on top of another (serving a60366c at 390: ENTRY and STOP at one spot).
+          let underSheetK = 0;
           return chartOrderLines.map(l => {
             const dragging = draftDrag?.id === l.id;
             const shown = dragging && draftDrag ? draftDrag.price : l.price;
@@ -29780,8 +29830,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             // phone — serving eefa215 at 390: the marker floated over the app
             // header at y 4) leaves no glass to drag on: the ticket carries the
             // prices, and the handle waits until the sheet folds.
-            if (underSheet && ticketSheetTop != null && ticketSheetTop - 24 < SHEET_MARKER_MIN_TOP) return null;
-            const y = underSheet && ticketSheetTop != null ? ticketSheetTop - 24 : Number(yLine);
+            const markerY = ticketSheetTop != null ? ticketSheetTop - 24 - (underSheet ? underSheetK * 46 : 0) : null;
+            if (underSheet && (markerY == null || markerY < SHEET_MARKER_MIN_TOP)) return null;
+            if (underSheet) underSheetK += 1;
+            const y = underSheet && markerY != null ? markerY : Number(yLine);
             const words = can
               ? (underSheet ? `${l.role} ↓ ${shown.toFixed(dpH)}` : draftHandleWords(l, shown, dpH))
               : orderLineWords(l).text;
