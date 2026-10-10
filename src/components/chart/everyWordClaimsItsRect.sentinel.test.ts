@@ -181,7 +181,8 @@ describe("trade from the chart: draggable DRAFT lines and Trade at <price> (Foun
     expect(CHART).toContain("height: 44, minWidth: 44,");
     expect(CHART).toContain("return snapToTick(symbol, Number(raw));");
     expect(CHART).toContain('if (e.key === "ArrowUp") { e.preventDefault(); nudgeDraftLine(l, e.shiftKey ? 10 : 1); }');
-    expect(CHART).toContain("onClick={can ? undefined : () => setBrokerLineNote(BROKER_LINE_NOT_MOVABLE)}");
+    // A broker line is never dragged; a WORKING one opens MODIFY in the ticket (a draft), any other says it cannot move.
+    expect(CHART).toContain("onClick={can ? undefined : () => { const oid = workingOrderIdOfLine(l); setBrokerLineNote(oid && askChartLineModify(symbol, l) ? workingLineModifyNote(oid) : BROKER_LINE_NOT_MOVABLE); }}");
     expect(CHART).toContain(": orderLineWords(l).text;");
     expect(CHART).toContain("draftHandleWords(l, shown, dpH)");
   });

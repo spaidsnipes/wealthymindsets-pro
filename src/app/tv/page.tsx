@@ -160,7 +160,7 @@ function WMTVHome({ onOpenLive, onOpenPodcast }: { onOpenLive: () => void; onOpe
         <div className="pointer-events-none absolute inset-x-8 bottom-4 flex items-end justify-between" style={{ height: 44, opacity: 0.35 }}>
           {Array.from({ length: 60 }).map((_, i) => {
             const h = Math.min(100, 16 + Math.abs(Math.sin(i * 0.5) + Math.sin(i * 0.2)) * 44);
-            return <div key={i} style={{ width: 3, height: `${h}%`, borderRadius: 2, transformOrigin: "bottom", background: i % 5 === 0 ? "rgba(232,185,35,0.7)" : "rgba(232,185,35,0.28)", animation: `wmtv-eq ${(0.8 + (i % 5) * 0.12).toFixed(2)}s ease-in-out ${(i * 0.03).toFixed(2)}s infinite alternate` }} />;
+            return <div key={i} style={{ width: 3, height: `${h}%`, borderRadius: 2, transformOrigin: "bottom", background: i % 5 === 0 ? "rgba(232,185,35,0.7)" : "rgba(232,185,35,0.28)" /* still: no verified room is live here (2026-10-10) */ }} />;
           })}
         </div>
       </div>

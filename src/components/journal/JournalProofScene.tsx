@@ -36,6 +36,7 @@ import { CapturedFacts } from "@/components/journal/CapturedFacts";
 import { PropEvaluationGate } from "@/components/journal/PropEvaluationGate";
 import { JournalPaperFilter, PaperMark, paperHeldOutNote, type PaperFilter } from "@/components/journal/JournalPaperFilter";
 import { isPaperEntry, liveJournalRecords } from "@/lib/journal/paperEntry";
+import { JournalDayLedger } from "@/components/journal/JournalDayLedger";
 
 /** SAMPLE book: two live trades and one PAPER trade (capture environment PAPER) — proves the filter and the live-only results. */
 export const PAPER_SAMPLE_BOOK = [
@@ -43,6 +44,44 @@ export const PAPER_SAMPLE_BOOK = [
   { id: "SAMPLE-PAPER-1", symbol: "SAMPLE-B", pnl: 900, capture: { environment: { value: "PAPER", provenance: "BROKER-REPORTED", source: "Alpaca paper order readback" } } },
   { id: "SAMPLE-LIVE-2", symbol: "SAMPLE-C", pnl: -100 },
 ] as const;
+
+/**
+ * SAMPLE book for the Day Ledger (house pass 2026-10-10): sample live trades on
+ * sample days across two months, ONE paper trade (left out and counted), ONE
+ * trade whose P&L is unreadable (counted on its day, never summed as $0) and
+ * one M0 no-trade day (held out). Every symbol says SAMPLE; nothing is stored.
+ */
+const SAMPLE_PAPER_CAPTURE = { environment: { value: "PAPER", provenance: "BROKER-REPORTED", source: "Alpaca paper order readback" } } as const;
+export const DAY_LEDGER_SAMPLE_BOOK = [
+  { id: "SAMPLE-DL-01", symbol: "SAMPLE-A", date: "2026-09-01", pnl: 180 },
+  { id: "SAMPLE-DL-02", symbol: "SAMPLE-A", date: "2026-09-02", pnl: -95 },
+  { id: "SAMPLE-DL-03", symbol: "SAMPLE-B", date: "2026-09-04", pnl: 320 },
+  { id: "SAMPLE-DL-04", symbol: "SAMPLE-B", date: "2026-09-04", pnl: -40 },
+  { id: "SAMPLE-DL-05", symbol: "SAMPLE-C", date: "2026-09-09", pnl: -210 },
+  { id: "SAMPLE-DL-06", symbol: "SAMPLE-C", date: "2026-09-11", pnl: -130 },
+  { id: "SAMPLE-DL-07", symbol: "SAMPLE-A", date: "2026-09-16", pnl: 260 },
+  { id: "SAMPLE-DL-08", symbol: "SAMPLE-A", date: "2026-09-23", pnl: 75 },
+  { id: "SAMPLE-DL-09", symbol: "SAMPLE-B", date: "2026-09-29", pnl: -60 },
+  { id: "SAMPLE-DL-10", symbol: "SAMPLE-B", date: "2026-10-01", pnl: 140 },
+  { id: "SAMPLE-DL-11", symbol: "SAMPLE-C", date: "2026-10-02", pnl: null },
+  { id: "SAMPLE-DL-12", symbol: "SAMPLE-C", date: "2026-10-05", pnl: -185 },
+  { id: "SAMPLE-DL-13", symbol: "SAMPLE-A", date: "2026-10-06", pnl: 410 },
+  { id: "SAMPLE-DL-14", symbol: "SAMPLE-A", date: "2026-10-07", pnl: 55 },
+  { id: "SAMPLE-DL-15", symbol: "SAMPLE-B", date: "2026-10-08", pnl: 900, capture: SAMPLE_PAPER_CAPTURE },
+  { id: "SAMPLE-DL-16", symbol: "SAMPLE-B", date: "2026-10-09", pnl: 0, dayModel: "M0" as const },
+] as const;
+
+function DayLedgerSample() {
+  return (
+    <section aria-label="Day ledger (sample)" data-testid="journal-proof-day-ledger" className="rounded-lg border border-wm-border bg-wm-surface/40 p-3">
+      <h2 className="text-sm font-bold text-wm-text mb-1">Day ledger · sample book</h2>
+      <p className="text-[11px] text-wm-text-muted m-0">Sixteen sample records: one paper trade left out, one P&amp;L that cannot be read, one no-trade (M0) day held out. Nothing is saved.</p>
+      <div className="-mx-4">
+        <JournalDayLedger entries={DAY_LEDGER_SAMPLE_BOOK} />
+      </div>
+    </section>
+  );
+}
 
 function PaperSample() {
   const [f, setF] = React.useState<PaperFilter>("all");
@@ -265,6 +304,8 @@ export function JournalProofScene(): React.ReactElement {
       </section>
 
       <PaperSample />
+
+      <DayLedgerSample />
 
       {/* Owner-only sample of the prop evaluation desk (synthetic numbers, no storage). The gate renders
           NOTHING — no heading, no name — for a member or a guest, so the section wrapper lives inside it. */}

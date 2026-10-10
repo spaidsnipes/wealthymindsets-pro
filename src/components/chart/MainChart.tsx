@@ -52,7 +52,7 @@ import { FVG_OPACITY, fvgAlpha, fvgBandGeometry, fvgClearZoneX, fvgCostReceipt, 
 import type { RegimeSeriesPoint } from "@/lib/marketData/viewModels/selectRegimeSeries";
 import { bucketStep, profileContribution } from "@/lib/chart/profileContribution";
 import type { LivingDevelopmentPoint } from "@/lib/marketData/viewModels/selectLivingProfile";
-import { BROKER_LINE_NOT_MOVABLE, chartOrderLineDraggable, chartPricePickArmed, deliverChartDraftPrice, deliverChartPricePick, draftHandleWords, orderLineWords, registerChartPricePickHost, useChartOrderLines, type ChartOrderLine } from "@/lib/execution/chartOrderLines";
+import { BROKER_LINE_NOT_MOVABLE, askChartLineModify, workingLineModifyNote, workingOrderIdOfLine, chartOrderLineDraggable, chartPricePickArmed, deliverChartDraftPrice, deliverChartPricePick, draftHandleWords, orderLineWords, registerChartPricePickHost, useChartOrderLines, type ChartOrderLine } from "@/lib/execution/chartOrderLines";
 import { anchorListLines, anchorsKey, COMPOSE_NOTES_KEY, composeNoteAnchors, pipHitRect, placePipHit, type DisplacedNote, type PipRect } from "@/lib/chart/eventNoteComposer";
 import { logicalForTime, xForLogical, SESSION_BAND_LABEL, SESSION_BANDS_BUDGET_MS, sessionSpans, sessionsAt, type SessionSpan } from "@/lib/chart/sessionBands";
 import { hasNoCentralVolume, needsTradedVolumeSentence, needsTradedVolumeWords, volumeBearingBars, volumeTruthFor } from "@/lib/chart/volumeTruth";
@@ -203,6 +203,9 @@ const DELTA_LEVELS_ALPHA_FLOOR = 0.8;
 const KEEL_ATR_WAIT_FRAMES = 2;
 /** Delta Keel salience floor (ASK-6): no keel shorter than this, at any width. */
 const KEEL_MIN_L = 3;
+/** A FAILED keel (failed aggression) on wide glass: at least this long and tall (G19, Oct 10). */
+const KEEL_FAIL_MIN_L = 8;
+const KEEL_FAIL_H = 4;
 /** Value Candle CoG reach past a narrow glass (ASK-6). */
 const VC_COG_EXT_NARROW = 3;
 /** PHONE (2026-10-09): a big-trade disc's largest radius on narrow glass (desk: BIG_TRADE_MAX_R 42). */
@@ -760,7 +763,7 @@ import { selectValueCandleBars, type ValueCandleBar } from "@/lib/marketData/vie
 import { mergeValueCandleBars } from "@/lib/marketData/viewModels/mergeValueCandleBars";
 import type { OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
 import { composeWallsGammaMarks, WALLS_GAMMA_OFF, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
-import { gexBucketAt, gexWords, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
+import { gexBucketAt, gexScopeWords, gexWords, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
 import { GAMMA_HEAT_PRESET_EVENT, gammaHeatPreset, gammaHeatStores, readGammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
 import { edgeChipWords, foldNarrowLine, offCameraShortWords, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
@@ -9647,7 +9650,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
          row is tall enough and the number ends before the next column.
       ══════════════════════════════════════════════════════ */
       try { if (effectiveFP === "volume-profile") {
-        let rowNumbers = 0;
+        let rowNumbers = 0, fpVpSidePair = 0;
         const vpDepth = semanticDensity.depth;
         const vpNumbers = vpDepth === "NEAR";
         ctx.save();
@@ -9671,13 +9674,25 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             const rowY = Math.round(yH + li * rowH);
             const rH   = Math.max(1, Math.round(yH + (li + 1) * rowH) - rowY - 1);
             const hr = footprintHistogramRow(lv, maxTot, colW);
+            // G19 (Oct 10, FF-07): on serving the split read as brass on
+            // brass — the profile VP gear's up / down rest as two brasses (by
+            // design, "not a rainbow"), so buy vs sell inside a candle could
+            // not be told apart and the rows read as hairlines over the body.
+            // This mode's split is ORDER FLOW: it paints in the footprint
+            // tool's own side pair (the volume-profile gear, like every other
+            // footprint mode), solid, with a 2-px dominant-side leading edge.
             if (li === pocIdx) {
               ctx.fillStyle = pk.rgba("POC", 0.9);
               ctx.fillRect(x, rowY, hr.width, rH);
             } else {
-              ctx.fillStyle = vpUpRgba(0.7); ctx.fillRect(x, rowY, hr.buyWidth, rH);
-              ctx.fillStyle = vpDnRgba(0.7); ctx.fillRect(x + hr.buyWidth, rowY, hr.sellWidth, rH);
+              ctx.fillStyle = buyRgba(0.78); ctx.fillRect(x, rowY, hr.buyWidth, rH);
+              ctx.fillStyle = sellRgba(0.78); ctx.fillRect(x + hr.buyWidth, rowY, hr.sellWidth, rH);
+              if (hr.width >= 4) {
+                ctx.fillStyle = hr.buyWidth >= hr.sellWidth ? buyRgba(1) : sellRgba(1);
+                ctx.fillRect(x + hr.width - 2, rowY, 2, rH);
+              }
             }
+            fpVpSidePair++;
             if (vpNumbers && rH >= 11) {
               const fs = cellFs(rH), txt = fmtV(lv.total);
               const tx = x + hr.width + 3, tw = measureCell(txt, fs);
@@ -9694,6 +9709,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         });
         ctx.restore();
         canvas.dataset.vpRowNumbers = vpNumbers ? String(rowNumbers) : "NOT_NEAR";
+        canvas.dataset.fpVpRowInk = `SIDE_PAIR+EDGE:${fpVpSidePair}`;
       } } catch (err) { layerFault("FP_VOLUME_PROFILE", err); }
 
       /* ══════════════════════════════════════════════════════
@@ -11822,6 +11838,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
         const realBody = candleType === "candles" || candleType === "hollow" || candleType === "orderflow-candles" || candleType === "bars";
         deltaKeelLastRef.current = null;
         delete canvas.dataset.barDeltaKeelsSalience;
+        delete canvas.dataset.barDeltaKeelsFailSalience;
         if (!deltaKeelOn) canvas.dataset.barDeltaKeels = "OFF";
         else if (!realBody) canvas.dataset.barDeltaKeels = `SILENT:NOT_REAL_OHLC:${candleType}`;
         else if (bs.length < 2 || !csDK) canvas.dataset.barDeltaKeels = "NO_BARS";
@@ -11990,10 +12007,16 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               if (xr == null || yc == null || +xr < 0 || +xr > plotRight) return null;
               // ASK-6 (Sheriff re-run 69fb204): at MID a 1px keel on a 4px body
               // was sub-perceptual — every keel is at least KEEL_MIN_L px long.
-              const L = Math.max(KEEL_MIN_L, keelLength(kl.ratio, bodyW));
+              const L0 = Math.max(KEEL_MIN_L, keelLength(kl.ratio, bodyW));
+              // G19 (Oct 10, FF-10): a FAILED keel is the failed-aggression
+              // mark — at 3 × 2 px it was unreadable on serving (BTC-USD 1m,
+              // FAIL:13). It is at least KEEL_FAIL_MIN_L long and KEEL_FAIL_H
+              // tall, still hollow (hollow = the push did not displace).
+              const L = kl.failed && !narrowDK ? Math.max(KEEL_FAIL_MIN_L, L0) : L0;
+              const hK = kl.failed && !narrowDK ? KEEL_FAIL_H : 2;
               const up = bar.close >= bar.open;
               // Just OUTSIDE the close edge: above an up body, below a down one.
-              const y = Math.round(+yc + (up ? -5 : 3));
+              const y = Math.round(+yc + (up ? -(hK + 3) : 3));
               const x = Math.round(+xr - L / 2);
               const side = kl.ratio > 0 ? "B" : "S";
               const bucket = insp === kl.time ? 4 : Math.min(3, Math.floor(4 * (keels.length > 1 ? k / (keels.length - 1) : 1)));
@@ -12001,8 +12024,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               // Dark halo: the keel is its own mark, never read as more body.
               return {
                 group: `${side}${bucket}`, hollow, failed: kl.failed,
-                rect: hollow ? [x + 0.5, y + 0.5, Math.max(1, L - 1), 2] : [x, y, L, 2],
-                halo: [x - 1, y - 1, L + 2, 4],
+                rect: hollow ? [x + 0.5, y + 0.5, Math.max(1, L - 1), hK - 1] : [x, y, L, hK],
+                halo: [x - 1, y - 1, L + 2, hK + 2],
               };
             };
             let geoDK = deltaKeelGeoRef.current;
@@ -12051,6 +12074,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             canvas.dataset.barDeltaKeels = `${drawn}|BASIS:TAPE${nTape}+SIDES${nSides}|FAIL:${failed}`;
             if (narrowDK) canvas.dataset.barDeltaKeelsNarrow = "FAIL_ONLY|W2"; else delete canvas.dataset.barDeltaKeelsNarrow;
             canvas.dataset.barDeltaKeelsSalience = `L${KEEL_MIN_L}|W2`;
+            canvas.dataset.barDeltaKeelsFailSalience = narrowDK ? "NARROW:SOLID" : `L${KEEL_FAIL_MIN_L}|H${KEEL_FAIL_H}|HOLLOW`;
             // What a tap hits: each painted keel's halo, padded (a keel is 2px tall).
             {
               const layHit = reuseGeo ? geoDK!.layout : layDK;
@@ -20434,7 +20458,8 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 else if (!gex.drawn) parts.push(`GAMMA · ${gex.reason === "NO_CHAIN" ? `no options chain for ${symbol}` : gex.reason.replace(/_/g, " ").toLowerCase()}`);
                 else {
                   const flipW = sel.GAMMA_FLIP && !composed.yielded.GAMMA_FLIP && gex.flip.kind === "NONE" ? ` · FLIP: ${gex.flip.reason.replace(/_/g, " ").toLowerCase()}` : "";
-                  parts.push(`GAMMA · ${gex.grade} · ${src!.name} · ${src!.oi}${asOfW ? ` · as of ${asOfW}` : ""} · MODEL, ASSUMED DEALER SIDE${flipW}`);
+                  const scopeW = gexScopeWords(gex);
+                  parts.push(`GAMMA · ${gex.grade} · ${src!.name} · ${src!.oi}${asOfW ? ` · as of ${asOfW}` : ""}${scopeW ? ` · ${scopeW}` : ""} · MODEL, ASSUMED DEALER SIDE${flipW}`);
                 }
                 if (composed.yielded.GAMMA_FLIP || composed.yielded.GAMMA_POSITIVE || composed.yielded.GAMMA_NEGATIVE) parts.push("flip / regions shown by Derivatives Pressure");
               }
@@ -20464,8 +20489,10 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               const rowsN = foldNarrowLine([...wgNarrowTruth, ...offCameraShortWords(out.offCamera)], Math.max(80, plotRightG - silenceX - 10), t => ctx.measureText(t).width);
               const RH = 13;
               const boxAt = (y0: number, i: number) => ({ x: silenceX - 3, y: y0 + i * RH, w: Math.max(...rowsN.map(r => ctx.measureText(r).width)) + 6, h: RH });
-              const clear = (y0: number) => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h) && !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y); });
-              const starts = [...Array.from({ length: 10 }, (_, k) => HEADER_FLOOR_Y + 44 + k * RH), ...Array.from({ length: 10 }, (_, k) => paneBotG - (rowsN.length + k) * RH - 4)];
+              // PRICE SOVEREIGNTY: never on a candle body either — the volume floor is tried first.
+              const onBody = (q: { x: number; y: number; w: number; h: number }) => rowBodiesAt(q.y, q.y + q.h).some(b => q.x < b.x + b.w && q.x + q.w > b.x);
+              const clear = (y0: number) => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h) && !onBody(q) && !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y); });
+              const starts = [...Array.from({ length: 10 }, (_, k) => paneBotG - (rowsN.length + k) * RH - 4), ...Array.from({ length: 10 }, (_, k) => HEADER_FLOOR_Y + 44 + k * RH)];
               // A truth line is never folded into the note list: with no fully clear seat it takes the first seat off the newest column.
               const y0N = starts.find(clear) ?? starts.find(y0 => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h); }));
               if (rowsN.length && y0N !== undefined) {
@@ -29976,12 +30003,14 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 aria-label={can
                   ? `${words}. Drag, or press up or down, to move this ${l.role.toLowerCase()} in the ticket draft. Nothing is sent.`
                   : `${words}. ${BROKER_LINE_NOT_MOVABLE}`}
-                title={can ? "Drag to move this draft price — nothing is sent" : BROKER_LINE_NOT_MOVABLE}
+                title={can ? "Drag to move this draft price — nothing is sent" : workingOrderIdOfLine(l) ? "Press to open MODIFY for this order in the ticket — nothing is sent" : BROKER_LINE_NOT_MOVABLE}
                 onPointerDown={can ? e => beginDraftDrag(l, e) : undefined}
                 onPointerMove={can ? moveDraftDrag : undefined}
                 onPointerUp={can ? endDraftDrag : undefined}
                 onPointerCancel={can ? endDraftDrag : undefined}
-                onClick={can ? undefined : () => setBrokerLineNote(BROKER_LINE_NOT_MOVABLE)}
+                // A WORKING broker line is never dragged; a press opens the ticket's MODIFY for that
+                // order with this price as a draft (cancel-then-new, preview, gate, confirm — 2026-10-10).
+                onClick={can ? undefined : () => { const oid = workingOrderIdOfLine(l); setBrokerLineNote(oid && askChartLineModify(symbol, l) ? workingLineModifyNote(oid) : BROKER_LINE_NOT_MOVABLE); }}
                 onContextMenu={can ? undefined : e => { e.preventDefault(); e.stopPropagation(); setBrokerLineNote(BROKER_LINE_NOT_MOVABLE); }}
                 onKeyDown={can ? e => {
                   if (e.key === "ArrowUp") { e.preventDefault(); nudgeDraftLine(l, e.shiftKey ? 10 : 1); }

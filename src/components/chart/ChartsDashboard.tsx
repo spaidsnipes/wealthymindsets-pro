@@ -85,7 +85,7 @@ import { LeftDrawingSidebar } from "./LeftDrawingSidebar";
 import { WatchlistPanel } from "./WatchlistPanel";
 import { AlertsPanel, type PriceAlert } from "./AlertsPanel";
 import { ChartSettingsModal, type ChartSettings, DEFAULT_CHART_SETTINGS } from "./ChartSettingsModal";
-import { deliverChartDraftPrice } from "@/lib/execution/chartOrderLines";
+import { deliverChartDraftPrice, useChartLineModifyAsk } from "@/lib/execution/chartOrderLines";
 import {
   CANDLE_DOWN_DEFAULT,
   CANDLE_UP_DEFAULT,
@@ -720,6 +720,9 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
     return () => window.removeEventListener(BROKER_CONNECT_EVENT, knock);
   }, [openBrokerConnect]);
   const [tradeOpen,       setTradeOpen]       = useState(false);
+  // A WORKING order line pressed on the chart opens the ticket on its MODIFY (chartOrderLines.askChartLineModify).
+  const chartModifyAsk = useChartLineModifyAsk();
+  useEffect(() => { if (chartModifyAsk) setTradeOpen(true); }, [chartModifyAsk?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
   // The Alpaca paper ticket, still one tap away from the Trade panel.
   const [paperOpen,       setPaperOpen]       = useState(false);
   const [optionSelection, setOptionSelection] = useState<{ underlying: string; owner: string; contract: OptionContract; source: OptionChainSource; fidelity: OptionChainFidelity; providerPath: string | null; rightsPolicyId: string | null } | null>(null);

@@ -181,6 +181,19 @@ The weakest material was the Visible Range Profile.
   - **R**: 834 only.
 - Next repair: **FF-07**, the intra-candle histogram, out of hairlines.
 
+**Repairs (tree, 12:12 CDT; owed: serving reads after ship).**
+
+- **FF-07, intra-candle distribution.**
+  - *What was wrong:* the buy / sell split painted in the profile VP gear's up / down. At rest those are two brasses ("not a rainbow"), so the split was brass on brass and read as hairlines over the body.
+  - *Change:* the split now paints in the footprint tool's own side pair, the volume-profile gear, the same as every other footprint mode. Fills are solid (0.78), with a 2-px dominant-side leading edge. The POC row keeps the family's POC ink.
+  - *Receipt:* `fpVpRowInk=SIDE_PAIR+EDGE:<rows>`, withdrawn with the mode receipts.
+- **FF-10, failed aggression.**
+  - *Change:* on wide glass a FAILED Delta Keel is at least 8 px long and 4 px tall (it was 3 × 2) and stays hollow, because hollow means the push did not displace. Narrow glass keeps its solid fail-only form.
+  - *Receipt:* `barDeltaKeelsFailSalience=L8|H4|HOLLOW`.
+  - *Pins:* the KEEL_MIN_L pin is updated with a dated note.
+- **Gate:** NEW `flowFamilySalience.sentinel.test.ts`.
+- **FF-04 CVD source: resolved by reading the code.** The `cvdSource` receipt names the **CVD pane** (the tape CVD indicator), which was off in that scene. The CVD **notches** take their signed rows from the Delta Keel's tape rows: `barDeltaKeels …BASIS:TAPE39`, with `cvdNotches …\|SIDES:0\|M35\|U0`. A notch whose sides were inferred is drawn dashed. So the notches are sourced, and nothing reads as fabricated. FF-04 stays PARTIALLY PROVED only for salience (small triangles).
+
 ### 2c. Repair — Fixed Range solid slab (this lane, `c4d4d4c`, LIVE 11:12:23 CDT)
 
 - **Rows:** adjacent rows merge into display bands of at least 4 px, through the new pure owner `src/lib/chart/profileDisplayBands.ts`.

@@ -354,3 +354,15 @@ export function gexBucketAt(vm: GammaExposureVM, price: number): GexBucket | nul
   if (!vm.drawn) return null;
   return vm.buckets.find(b => price >= b.lo && price < b.hi) ?? null;
 }
+
+/**
+ * §14 PRODUCT / CONTRACT SCOPE in words: which expiries were counted and what one
+ * contract is — "ALL EXPIRIES 10-13–12-05 (9) · 100 SH/CONTRACT". Null when silent.
+ */
+export function gexScopeWords(vm: GammaExposureVM): string | null {
+  if (!vm.drawn || !vm.expiries.length) return null;
+  const first = vm.expiries[0].slice(5), last = vm.expiries[vm.expiries.length - 1].slice(5);
+  const span = first === last ? first : `${first}–${last}`;
+  const unit = vm.source === "DERIBIT_PUBLIC" ? "1 COIN/CONTRACT" : vm.multiplier === 100 ? "100 SH/CONTRACT" : `${vm.multiplier}/CONTRACT`;
+  return `${vm.scope === "ALL" ? "ALL EXPIRIES" : vm.scope} ${span} (${vm.expiries.length}) · ${unit}`;
+}

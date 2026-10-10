@@ -1027,7 +1027,7 @@ export function AlpacaTradingPanel({
             <div className="p-4 space-y-3">
               <div className="rounded-xl border border-wm-border bg-wm-card p-4 space-y-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: isLive ? "#ef4444" : "#00C076" }} />
+                  <span className="w-2 h-2 rounded-full" style={{ background: isLive ? "#ef4444" : "#00C076" }} /* still: the word beside it carries the environment; a pulse here ran on nothing (2026-10-10) */ />
                   <span className="text-xs font-black" style={{ color: isLive ? "#ef4444" : "#00C076" }}>
                     {account._env}
                   </span>

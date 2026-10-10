@@ -60,6 +60,7 @@ import { thisDeviceId } from "@/lib/traderMemory/deviceIdentity";
 import { useBrokerAudience } from "@/lib/broker/useBrokerAudience";
 import { claimChartInteraction, useChartInteractionMode } from "@/lib/chart/chartInteractionMode";
 import { draftLineFacts } from "@/lib/execution/draftLineFacts";
+import { useChartLineModifyAsk } from "@/lib/execution/chartOrderLines";
 import { armChartPricePick, cancelChartPricePick, publishChartOrderLines, useChartPricePick, useChartPricePickHosted, type ChartOrderLine } from "@/lib/execution/chartOrderLines";
 import { datedFuturesContract } from "@/lib/execution/liveOrderPreflight";
 import { isPreSendPhase, type LiveOrderPhase } from "@/lib/execution/liveOrderLifecycle";
@@ -243,6 +244,9 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
   const { pick, picked } = useChartPricePick();
   // PLACEMENT owns the pointer (an armed pick, or a draft line being dragged on the chart).
   const interaction = useChartInteractionMode();
+  // A WORKING line pressed on the chart opens MODIFY for that order, its price a draft (book rows show it).
+  const modifyAsk = useChartLineModifyAsk();
+  const modifyDraft = modifyAsk && modifyAsk.symbol === symbol.toUpperCase() ? { orderId: modifyAsk.orderId, price: (tick ? Math.round(modifyAsk.price / tick) * tick : modifyAsk.price).toFixed(dp) } : null;
   // A draft price from the chart — an armed pick, a drag of the staged line, or "Trade at <price>" — edits the
   // DRAFT only. It is applied once (consumedChartDraftSeq outlives the panel, so a draft delivered while the
   // ticket was closed is applied when it opens, and one already applied is never re-applied on a reopen).
@@ -520,7 +524,7 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
     BOOK: (<>
           {/* §23 — the book, from tastytrade's readback only: position state, working orders (cancel), modify, flatten. */}
           <TicketBookRows book={book} acks={cancelAcks} busyId={cancelBusy} onCancel={o => { void cancelWorking(o); }}
-            onFlatten={loadFlatten} />
+            onFlatten={loadFlatten} modifyDraft={modifyDraft && book.working.some(w => w.id === modifyDraft.orderId) ? modifyDraft : null} />
           {/* REVERSE is not built: it is two orders (close, then open the other way), and WM sends one at a time. */}
           {book.position.state === "HOLDING" ? <p data-testid="trade-reverse-not-built" style={{ color: MUTED, fontSize: 10.5, margin: 0 }}>REVERSE · not built — it is two orders (close, then open the other way). Load FLATTEN, confirm it, then build the new side here.</p> : null}
     </>),

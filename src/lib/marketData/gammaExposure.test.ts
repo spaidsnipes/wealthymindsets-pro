@@ -165,3 +165,23 @@ describe("composeWallsGammaMarks — never the same line twice", () => {
     expect(parseWallsGamma("nonsense")).toEqual(WALLS_GAMMA_OFF);
   });
 });
+
+describe("§14 derivatives distinctions: expiry, concentration, scope", () => {
+  it("a wall and a Γ level name the expiry carrying most of them; the scope names expiries and contract size", async () => {
+    const { expiryShareWords } = await import("@/lib/marketData/wallsGammaFamily");
+    const { gexScopeWords } = await import("@/lib/marketData/gammaExposure");
+    const { selectOptionsBarrierEvidence } = await import("@/lib/marketData/viewModels/selectOptionsBarrierEvidence");
+    expect(expiryShareWords({ expiration: "2026-10-17", share: 0.624 })).toBe(" · 10-17 62%");
+    expect(expiryShareWords(null)).toBe("");
+    const rows = [...callsOnly(), row(110, "call", 30_000, 0.01, 0.2, "2026-11-20")];
+    const ev = selectOptionsBarrierEvidence(receipt(rows), 100, NOW, "ALL");
+    if (!ev.drawn) throw new Error("expected drawn");
+    const w110 = ev.callWalls.find(w => w.strike === 110)!;
+    expect(w110.topExpiry?.expiration).toBe("2026-11-20");
+    expect(w110.topExpiry!.share).toBeCloseTo(30_000 / 31_000, 6);
+    const vm = selectGammaExposure({ receipt: receipt(rows), chartSpot: null, nowMs: NOW });
+    expect(gexScopeWords(vm)).toBe("ALL EXPIRIES 10-30–11-20 (2) · 100 SH/CONTRACT");
+    const d = selectGammaExposure({ receipt: receipt(rows.map(r => ({ ...r, gamma: null })), { source: "DERIBIT_PUBLIC" }), chartSpot: null, nowMs: NOW });
+    expect(gexScopeWords(d)).toMatch(/1 COIN\/CONTRACT$/);
+  });
+});

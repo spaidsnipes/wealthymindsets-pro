@@ -61,6 +61,8 @@ export interface ConcentrationWall {
   /** OBSERVED session volume at this strike, this side — reported, never added to OI. Null when the source did not carry it. */
   readonly volume: number | null;
   readonly side: "ABOVE" | "BELOW" | "AT";
+  /** §14 (2026-10-10): the expiry holding the most of this strike's OI, and its share (0–1). OBSERVED. */
+  readonly topExpiry?: { readonly expiration: string; readonly share: number } | null;
 }
 
 export interface GreekContribution {
@@ -180,11 +182,12 @@ export function rootKind(roots: readonly number[]): RootKind {
 }
 
 function concentration(rows: readonly CboeOptionRow[], type: "call" | "put", spot: number): ConcentrationWall[] {
-  const byStrike = new Map<number, { oi: number; vol: number | null }>();
+  const byStrike = new Map<number, { oi: number; vol: number | null; exp: Map<string, number> }>();
   for (const r of rows) {
     if (r.type !== type || !(r.openInterest > 0) || Math.abs(r.strike / spot - 1) > OI_WINDOW) continue;
-    const cur = byStrike.get(r.strike) ?? { oi: 0, vol: null };
+    const cur = byStrike.get(r.strike) ?? { oi: 0, vol: null, exp: new Map<string, number>() };
     cur.oi += r.openInterest;
+    cur.exp.set(r.expiration, (cur.exp.get(r.expiration) ?? 0) + r.openInterest);
     if (r.volume != null && Number.isFinite(r.volume)) cur.vol = (cur.vol ?? 0) + r.volume;
     byStrike.set(r.strike, cur);
   }
@@ -201,6 +204,11 @@ function concentration(rows: readonly CboeOptionRow[], type: "call" | "put", spo
       share: v.oi / total,
       volume: v.vol,
       side: Math.abs(strike - spot) / spot < 0.0005 ? "AT" as const : strike > spot ? "ABOVE" as const : "BELOW" as const,
+      topExpiry: (() => {
+        let best: [string, number] | null = null;
+        for (const e of v.exp) if (!best || e[1] > best[1] || (e[1] === best[1] && e[0] < best[0])) best = e;
+        return best && v.oi > 0 ? { expiration: best[0], share: best[1] / v.oi } : null;
+      })(),
     }))
     .sort((a, b) => a.strike - b.strike);
 }

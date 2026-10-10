@@ -694,7 +694,8 @@ function LoungeVibeHeader({ name, handle, avatar, color, ceo, postCount, stories
             </div>
             {/* now playing — spinning vinyl + waveform */}
             <div className="flex items-center gap-2.5 rounded-xl px-3 py-2 shrink-0" style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${theme.accent}33`, minWidth: 210 }}>
-              <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center animate-[spin_4s_linear_infinite]" style={{ background: "repeating-radial-gradient(circle, #141310 0 1.5px, #08080c 1.5px 3.5px)", border: `1px solid ${theme.accent}66` }}>
+              {/* Still: "No track selected" — a spinning disc would say something plays (no motion on nothing, 2026-10-10). */}
+              <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center" style={{ background: "repeating-radial-gradient(circle, #141310 0 1.5px, #08080c 1.5px 3.5px)", border: `1px solid ${theme.accent}66` }}>
                 <div className="w-3 h-3 rounded-full" style={{ background: theme.accent }} />
               </div>
               <div className="flex-1 min-w-0">

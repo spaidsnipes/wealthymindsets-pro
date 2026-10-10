@@ -11,6 +11,7 @@
 
 import { WM_PRIMARY_ACTION } from "@/lib/design/wmTokens";
 import { RoomStatePlaque } from "@/components/ui/RoomStatePlaque";
+import { JournalDayLedger } from "@/components/journal/JournalDayLedger";
 import { marketDayKey } from "@/lib/journal/localDayKey";
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
@@ -2351,6 +2352,8 @@ Trade the system, trust the process, winners every day 🚀`,
       {mainTab === "ledger" && <PropEvaluationGate />}
       {mainTab === "coach" && (
         <div className="flex-1 overflow-y-auto">
+          {/* The month and the running net before the coach's numbers (order §18). */}
+          <JournalDayLedger entries={entries} />
           <StrategyCoach entries={entries} />
         </div>
       )}

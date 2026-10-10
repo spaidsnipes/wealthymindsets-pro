@@ -23,7 +23,8 @@ import { TastytradeLiveOrder } from "@/components/chart/TastytradeLiveOrder";
 
 import { expectedMove, readFopTicket } from "@/lib/broker/fopTicket";
 import { isOwnerRefusal } from "@/lib/broker/ownerRefusal";
-import { readContractQuote, type ContractQuoteState } from "@/lib/broker/tastyContractQuote";
+import { readContractQuote } from "@/lib/broker/tastyContractQuote";
+import { CHAIN_HEAD, CHAIN_PAIR_WORDS, CHAIN_WIDE_MIN_PX, callColumns, chainCell, DEFAULT_NARROW_PAIR, putColumns, type ChainPair } from "@/lib/broker/chainColumns";
 import { useTastyQuotes } from "@/lib/broker/tastyQuoteStream";
 import { fopStreamWords } from "@/lib/broker/fopStreamWords";
 import { firstLiveExpiration, futuresProductFor, readEquityOptionChain, readFuturesOptionChain, snapToTick, strikesNear, tickFor, type FopExpiration, type FuturesOptionChain } from "@/lib/broker/tastytradeFuturesChain";
@@ -46,19 +47,10 @@ const usd = (n: number | null | undefined) => (n == null || !Number.isFinite(n) 
 const grp = (n: number | null | undefined, d = 2) => (n == null || !Number.isFinite(n) ? "—" : n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }));
 const ageWords = (ms: number | null) => (ms == null ? "—" : ms < 1000 ? "<1s" : ms < 60_000 ? `${Math.round(ms / 1000)}s` : `${Math.round(ms / 60_000)}m`);
 
-type Columns = "DELTA_THETA" | "GAMMA_VEGA" | "IV_OI";
 type Show = "CALLS" | "BOTH" | "PUTS";
 type Side = "BUY" | "SELL";
 type Effect = "OPEN" | "CLOSE";
 interface Pick { symbol: string; streamer: string | null; strike: number; right: "CALL" | "PUT" }
-
-const COLS: Record<Columns, readonly [string, string]> = { DELTA_THETA: ["Δ", "Θ"], GAMMA_VEGA: ["Γ", "Vega"], IV_OI: ["IV", "OI"] };
-function colVals(q: ContractQuoteState | undefined, c: Columns): [string, string] {
-  if (!q) return ["—", "—"];
-  if (c === "DELTA_THETA") return [px(q.delta, 2), px(q.theta, 3)];
-  if (c === "GAMMA_VEGA") return [px(q.gamma, 4), px(q.vega, 3)];
-  return [q.iv != null ? `${(q.iv * 100).toFixed(1)}%` : "—", q.openInterest != null ? String(Math.round(q.openInterest)) : "—"];
-}
 
 /** When this expiration's options stop trading, as epoch ms (tastytrade's own instant, else 16:00 ET on the date). */
 function expiryMs(e: FopExpiration | null): number | null {
@@ -99,7 +91,19 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
   const [parent, setParent] = useState("");
   const [expiry, setExpiry] = useState("");
   const [show, setShow] = useState<Show>("BOTH");
-  const [columns, setColumns] = useState<Columns>("DELTA_THETA");
+  // Ruling 2026-10-10: desktop shows every column; tablet / phone keep one switchable pair (default Mid · Spread).
+  const [pair, setPair] = useState<ChainPair>(DEFAULT_NARROW_PAIR);
+  const [wide, setWide] = useState(false);
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    const mw = typeof window !== "undefined" ? window.matchMedia?.(`(min-width: ${CHAIN_WIDE_MIN_PX}px)`) : null;
+    const mp = typeof window !== "undefined" ? window.matchMedia?.("(max-width: 599px)") : null;
+    if (!mw || !mp) return;
+    const on = () => { setWide(mw.matches); setPhone(mp.matches); };
+    on();
+    mw.addEventListener?.("change", on); mp.addEventListener?.("change", on);
+    return () => { mw.removeEventListener?.("change", on); mp.removeEventListener?.("change", on); };
+  }, []);
   const [strikeCount, setStrikeCount] = useState(16);
   const [pick, setPick] = useState<Pick | null>(null);
   const [side, setSide] = useState<Side>("BUY");
@@ -300,7 +304,8 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
     optionsQuoted: optionStreamers.filter(s => { const v = live.quotes.get(s); return v != null && (v.bid != null || v.ask != null || v.last != null); }).length,
   });
   const streamWords = chainWords.word;
-  const [c1, c2] = COLS[columns];
+  const callCols = callColumns(wide, pair);
+  const putCols = putColumns(wide, pair);
   const priceRowIndex = center == null ? -1 : rows.findIndex(r => r.strike > center);
   // Open (and re-open per expiry) centred on the price line, like the broker screen.
   const chainRef = useRef<HTMLDivElement | null>(null);
@@ -316,7 +321,7 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
 
   // ── render ───────────────────────────────────────────────────────────────
   const cellBtn = (on: boolean, tone: "bid" | "ask", disabled: boolean): React.CSSProperties => ({
-    width: "100%", padding: "4px 6px", textAlign: "right", borderRadius: 2, cursor: disabled ? "default" : "pointer",
+    width: "100%", padding: phone ? "4px 2px" : "4px 6px", textAlign: "right", borderRadius: 2, cursor: disabled ? "default" : "pointer",
     border: `1px solid ${on ? GOLD : "transparent"}`, background: on ? GOLD_SOFT : "transparent",
     color: disabled ? MUTED : tone === "bid" ? "#e3b8a8" : "#a9d9c2", ...MONO,
   });
@@ -389,20 +394,22 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
             <select aria-label="Strikes shown" value={strikeCount} onChange={e => setStrikeCount(Number(e.target.value))} style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: "4px 6px", borderRadius: 3 }}>
               {[10, 16, 24, 40].map(n => <option key={n} value={n}>{n} strikes</option>)}
             </select>
-            <select aria-label="Columns" value={columns} onChange={e => setColumns(e.target.value as Columns)} style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: "4px 6px", borderRadius: 3 }}>
-              <option value="DELTA_THETA">Δ · Θ</option><option value="GAMMA_VEGA">Γ · Vega</option><option value="IV_OI">IV · OI</option>
-            </select>
+            {!wide ? (
+              <select aria-label="Columns" value={pair} onChange={e => setPair(e.target.value as ChainPair)} style={{ background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: "4px 6px", borderRadius: 3 }}>
+                {(Object.keys(CHAIN_PAIR_WORDS) as ChainPair[]).map(k => <option key={k} value={k}>{CHAIN_PAIR_WORDS[k]}</option>)}
+              </select>
+            ) : null}
           </div>
 
           {/* ── THE CHAIN ── */}
           {/* The chain keeps at least ~8 rows on glass even with the ticket open. */}
           <div ref={chainRef} style={{ flex: 1, minHeight: 230, overflowY: "auto", scrollbarColor: "rgba(201,165,92,.35) transparent" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", ...MONO }}>
+            <table data-testid="fop-chain" data-wide={wide ? "yes" : "no"} style={{ width: "100%", borderCollapse: "collapse", tableLayout: phone ? "fixed" : undefined, fontSize: phone ? 10.5 : wide ? 11 : 12, ...MONO }}>
               <thead style={{ position: "sticky", top: 0, background: "#0d0b08", zIndex: 1 }}>
                 <tr style={{ color: MUTED, fontSize: 10.5, letterSpacing: ".06em" }}>
-                  {show !== "PUTS" ? <><th style={{ padding: "6px 6px", textAlign: "right" }}>{c2}</th><th style={{ textAlign: "right" }}>{c1}</th><th style={{ textAlign: "right" }}>BID</th><th style={{ textAlign: "right" }}>ASK</th></> : null}
-                  <th style={{ textAlign: "center", color: GOLD, minWidth: 74 }}>{show === "PUTS" ? "STRIKE" : show === "CALLS" ? "STRIKE" : "CALLS · STRIKE · PUTS"}</th>
-                  {show !== "CALLS" ? <><th style={{ textAlign: "right" }}>BID</th><th style={{ textAlign: "right" }}>ASK</th><th style={{ textAlign: "right" }}>{c1}</th><th style={{ textAlign: "right", paddingRight: 10 }}>{c2}</th></> : null}
+                  {show !== "PUTS" ? callCols.map(k => <th key={`c-${k}`} style={{ padding: phone ? "6px 2px" : "6px 6px", textAlign: "right" }}>{CHAIN_HEAD[k]}</th>) : null}
+                  <th style={{ textAlign: "center", color: GOLD, minWidth: phone ? 0 : 74, width: phone ? 52 : undefined }}>{show === "PUTS" ? "STRIKE" : show === "CALLS" ? "STRIKE" : "CALLS · STRIKE · PUTS"}</th>
+                  {show !== "CALLS" ? putCols.map((k, i) => <th key={`p-${k}`} style={{ padding: phone ? "6px 2px" : "6px 6px", textAlign: "right", paddingRight: i === putCols.length - 1 ? 10 : undefined }}>{CHAIN_HEAD[k]}</th>) : null}
                 </tr>
               </thead>
               <tbody>
@@ -410,14 +417,12 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
                   const cq = q(s.callStreamer), pq = q(s.putStreamer);
                   const callItm = center != null && s.strike < center;
                   const putItm = center != null && s.strike > center;
-                  const [cv1, cv2] = colVals(cq, columns);
-                  const [pv1, pv2] = colVals(pq, columns);
                   const isPick = (sym: string | null, sd: Side) => pick?.symbol === sym && side === sd;
                   const callP: Pick | null = s.call ? { symbol: s.call, streamer: s.callStreamer, strike: s.strike, right: "CALL" } : null;
                   const putP: Pick | null = s.put ? { symbol: s.put, streamer: s.putStreamer, strike: s.strike, right: "PUT" } : null;
                   const priceRow = i === priceRowIndex && center != null ? (
                     <tr key={`px-${s.strike}`} aria-hidden ref={priceRowRef}>
-                      <td colSpan={9} style={{ padding: 0 }}>
+                      <td colSpan={callCols.length + putCols.length + 1} style={{ padding: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 10px" }}>
                           <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${GOLD})` }} />
                           <span style={{ color: GOLD, fontWeight: 700, fontSize: 10.5, letterSpacing: ".08em" }}>◆ {parent} {grp(center, 2)}</span>
@@ -430,35 +435,37 @@ export function FuturesOptionsPanel({ chartSymbol, initialOptionSymbol = null, p
                     <React.Fragment key={s.strike}>
                       {priceRow}
                       <tr style={{ borderTop: "1px solid rgba(201,165,92,.07)" }}>
-                        {show !== "PUTS" ? (
-                          <>
-                            <td style={{ padding: "1px 6px", textAlign: "right", color: MUTED, background: callItm ? "rgba(127,209,168,.045)" : undefined }}>{cv2}</td>
-                            <td style={{ textAlign: "right", color: MUTED, background: callItm ? "rgba(127,209,168,.045)" : undefined }}>{cv1}</td>
-                            <td style={{ background: callItm ? "rgba(127,209,168,.045)" : undefined }}>
+                        {show !== "PUTS" ? callCols.map(k => {
+                          const bg = callItm ? "rgba(127,209,168,.045)" : undefined;
+                          if (k === "BID") return (
+                            <td key="c-BID" style={{ background: bg }}>
                               <button type="button" disabled={!callP} aria-label={`Sell ${s.strike} call at the bid`} data-quote-state={readContractQuote(cq, live.stream, now).state}
                                 onClick={() => callP && choose(callP, "SELL")} style={cellBtn(isPick(s.call, "SELL"), "bid", !callP)} title="Click the bid to SELL">{cq?.quoteAt != null ? px(cq.bid) : "…"}</button>
-                            </td>
-                            <td style={{ background: callItm ? "rgba(127,209,168,.045)" : undefined }}>
+                            </td>);
+                          if (k === "ASK") return (
+                            <td key="c-ASK" style={{ background: bg }}>
                               <button type="button" disabled={!callP} aria-label={`Buy ${s.strike} call at the ask`} data-quote-state={readContractQuote(cq, live.stream, now).state}
                                 onClick={() => callP && choose(callP, "BUY")} style={cellBtn(isPick(s.call, "BUY"), "ask", !callP)} title="Click the ask to BUY">{cq?.quoteAt != null ? px(cq.ask) : "…"}</button>
-                            </td>
-                          </>
-                        ) : null}
+                            </td>);
+                          const c = chainCell(cq, live.stream, now, k);
+                          return <td key={`c-${k}`} data-col={k} title={c.why ?? undefined} style={{ padding: phone ? "1px 2px" : "1px 6px", textAlign: "right", color: MUTED, background: bg }}>{c.text}</td>;
+                        }) : null}
                         <td style={{ textAlign: "center", fontWeight: 700, color: atm?.strike === s.strike ? GOLD : INK, background: "rgba(201,165,92,.05)" }}>{grp(s.strike, s.strike % 1 ? 2 : 0)}</td>
-                        {show !== "CALLS" ? (
-                          <>
-                            <td style={{ background: putItm ? "rgba(224,120,107,.045)" : undefined }}>
+                        {show !== "CALLS" ? putCols.map((k, i) => {
+                          const bg = putItm ? "rgba(224,120,107,.045)" : undefined;
+                          if (k === "BID") return (
+                            <td key="p-BID" style={{ background: bg }}>
                               <button type="button" disabled={!putP} aria-label={`Sell ${s.strike} put at the bid`} data-quote-state={readContractQuote(pq, live.stream, now).state}
                                 onClick={() => putP && choose(putP, "SELL")} style={cellBtn(isPick(s.put, "SELL"), "bid", !putP)} title="Click the bid to SELL">{pq?.quoteAt != null ? px(pq.bid) : "…"}</button>
-                            </td>
-                            <td style={{ background: putItm ? "rgba(224,120,107,.045)" : undefined }}>
+                            </td>);
+                          if (k === "ASK") return (
+                            <td key="p-ASK" style={{ background: bg }}>
                               <button type="button" disabled={!putP} aria-label={`Buy ${s.strike} put at the ask`} data-quote-state={readContractQuote(pq, live.stream, now).state}
                                 onClick={() => putP && choose(putP, "BUY")} style={cellBtn(isPick(s.put, "BUY"), "ask", !putP)} title="Click the ask to BUY">{pq?.quoteAt != null ? px(pq.ask) : "…"}</button>
-                            </td>
-                            <td style={{ textAlign: "right", color: MUTED, background: putItm ? "rgba(224,120,107,.045)" : undefined }}>{pv1}</td>
-                            <td style={{ textAlign: "right", color: MUTED, paddingRight: 10, background: putItm ? "rgba(224,120,107,.045)" : undefined }}>{pv2}</td>
-                          </>
-                        ) : null}
+                            </td>);
+                          const c = chainCell(pq, live.stream, now, k);
+                          return <td key={`p-${k}`} data-col={k} title={c.why ?? undefined} style={{ padding: phone ? "1px 2px" : "1px 6px", paddingRight: i === putCols.length - 1 ? 10 : undefined, textAlign: "right", color: MUTED, background: bg }}>{c.text}</td>;
+                        }) : null}
                       </tr>
                     </React.Fragment>
                   );

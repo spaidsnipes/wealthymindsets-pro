@@ -186,7 +186,8 @@ function fmtMins(s: number) {
 /* ══════════════════════════════════════════════════════════════
    WAVEFORM ANIMATION
 ══════════════════════════════════════════════════════════════ */
-function LiveWave({ color }: { color: string }) {
+/** `still`: the selection is shown, but no stream is connected — no dancing on nothing (2026-10-10). */
+function LiveWave({ color, still = false }: { color: string; still?: boolean }) {
   return (
     <div className="flex items-end gap-[2px]" style={{ height: 16 }}>
       {[1,2,3,4,5].map(i => (
@@ -194,7 +195,7 @@ function LiveWave({ color }: { color: string }) {
           key={i}
           style={{
             width: 2, background: color, borderRadius: 1,
-            animation: `wm-wave-bar 0.8s ease-in-out ${i * 0.1}s infinite alternate`,
+            ...(still ? { height: 4 + (i % 3) * 3, opacity: 0.6 } : { animation: `wm-wave-bar 0.8s ease-in-out ${i * 0.1}s infinite alternate` }),
           }}
         />
       ))}
@@ -269,7 +270,7 @@ function StationCard({ station, active, onPlay, artIndex }: {
           style={{ background: `repeating-radial-gradient(circle at 84% 44%, ${c} 0 1px, transparent 1px 7px)` }} />
 
         {/* Spinning vinyl disc — slow idle, quick when tuned in, medium on hover */}
-        <div className={`absolute -right-6 -top-5 w-[104px] h-[104px] rounded-full ${active ? "animate-[spin_3.6s_linear_infinite]" : "animate-[spin_18s_linear_infinite] group-hover:animate-[spin_7s_linear_infinite]"}`}
+        <div className={`absolute -right-6 -top-5 w-[104px] h-[104px] rounded-full ${active ? "animate-[spin_3.6s_linear_infinite]" : "group-hover:animate-[spin_7s_linear_infinite]" /* idle is still; hover is the trader's own motion */}`}
           style={{ background: "repeating-radial-gradient(circle, #14130c 0 2px, #0a0a06 2px 4px)", border: `1px solid ${c}55`, boxShadow: "0 8px 22px rgba(0,0,0,0.5)" }}>
           <div className="absolute inset-0 m-auto rounded-full" style={{ width: 30, height: 30, background: `linear-gradient(135deg, ${c}, ${c}77)`, boxShadow: `0 0 12px ${c}66` }} />
           <div className="absolute inset-0 m-auto rounded-full bg-black/85" style={{ width: 6, height: 6 }} />
@@ -324,7 +325,7 @@ function StationCard({ station, active, onPlay, artIndex }: {
           <span className="text-[10px] font-mono text-wm-text-muted">Stream not connected</span>
           {active ? (
             <div className="flex items-center gap-1.5">
-              <LiveWave color={c} />
+              <LiveWave color={c} still />
               <span style={{ fontSize: 9, color: c, fontWeight: 800, letterSpacing: 0.5 }}>TUNED IN</span>
             </div>
           ) : (
@@ -944,7 +945,7 @@ export default function RadioPage() {
 
                   {/* Right — realistic spinning vinyl record + play */}
                   <div className="relative shrink-0 hidden md:flex items-center justify-center" style={{ width: 200, height: 200 }}>
-                    <div className={`relative rounded-full ${activeStation === "WM Radio" && playing ? "animate-[spin_3.6s_linear_infinite]" : "animate-[spin_22s_linear_infinite]"}`}
+                    <div className={`relative rounded-full ${activeStation === "WM Radio" && playing ? "animate-[spin_3.6s_linear_infinite]" : "" /* still when nothing plays (2026-10-10) */}`}
                       style={{ width: 190, height: 190,
                         background: "repeating-radial-gradient(circle at 50% 50%, #0a0a0c 0 1px, #17171b 1px 2px, #0a0a0c 2px 3px)",
                         boxShadow: "0 14px 44px rgba(0,0,0,0.7), inset 0 0 44px rgba(0,0,0,0.6)" }}>
@@ -1113,7 +1114,7 @@ export default function RadioPage() {
             {/* Featured station card */}
             <div className="relative rounded-2xl overflow-hidden mb-4 p-4 flex items-center gap-4"
               style={{ background: "linear-gradient(135deg, rgba(232,185,35,0.10), rgba(13,14,20,0.9))", border: "1px solid rgba(232,185,35,0.25)" }}>
-              <div className="w-12 h-12 rounded-full shrink-0 flex items-center justify-center animate-[spin_5s_linear_infinite]"
+              <div className="w-12 h-12 rounded-full shrink-0 flex items-center justify-center" /* still: a featured card is not playing */
                 style={{ background: "repeating-radial-gradient(circle, #141310 0 1.5px, #08080c 1.5px 4px)", border: "1px solid rgba(232,185,35,0.4)" }}>
                 <div className="w-4 h-4 rounded-full" style={{ background: "linear-gradient(135deg,#E8B923,#8B6A29)" }} />
               </div>

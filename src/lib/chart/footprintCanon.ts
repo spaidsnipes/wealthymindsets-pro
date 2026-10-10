@@ -836,6 +836,7 @@ export const FOOTPRINT_MODE_RECEIPTS = [
   "fpDeltaText",
   "deltaBubblesDrawn",
   "vpRowNumbers",
+  "fpVpRowInk",
   "imbalanceRows",
   "imbalanceRuns",
   "imbalanceRunWords",

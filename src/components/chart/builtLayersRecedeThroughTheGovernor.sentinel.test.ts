@@ -87,7 +87,10 @@ describe("ASK-4 (2026-10-08): Delta Levels' sign survives erasure by FORM, never
 describe("ASK-6 (2026-10-08): Delta Keel salience floor at every width", () => {
   it("no keel shorter than KEEL_MIN_L, named in its receipt", () => {
     expect(CHART).toContain("const KEEL_MIN_L = 3;");
-    expect(CHART).toContain("const L = Math.max(KEEL_MIN_L, keelLength(kl.ratio, bodyW));");
+    // Pin updated 2026-10-10 (Founder "white-line" pass; register FF-10): the floor
+    // line now names L0, and a FAILED keel takes its own larger floor on wide glass
+    // (flowFamilySalience.sentinel.test.ts). KEEL_MIN_L still holds every keel.
+    expect(CHART).toContain("const L0 = Math.max(KEEL_MIN_L, keelLength(kl.ratio, bodyW));");
     expect(CHART).toContain("canvas.dataset.barDeltaKeelsSalience = `L${KEEL_MIN_L}|W2`;");
   });
 });

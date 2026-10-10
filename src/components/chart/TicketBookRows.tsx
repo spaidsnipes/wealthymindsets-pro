@@ -18,8 +18,10 @@ const ctl = (color: string, on: boolean): React.CSSProperties => ({ minHeight: 3
 
 export interface CancelAck { readonly state: string; readonly words: string }
 
-export function TicketBookRows({ book, acks, busyId, onCancel, onFlatten }: {
+export function TicketBookRows({ book, acks, busyId, onCancel, onFlatten, modifyDraft = null }: {
   readonly book: TicketBook;
+  /** A working line pressed on the chart: MODIFY opens for that order with the line's price as a DRAFT (2026-10-10). */
+  readonly modifyDraft?: { readonly orderId: string; readonly price: string } | null;
   /** Broker-ack words per order id after a cancel request (readback only). */
   readonly acks: Readonly<Record<string, CancelAck>>;
   readonly busyId: string | null;
@@ -50,7 +52,8 @@ export function TicketBookRows({ book, acks, busyId, onCancel, onFlatten }: {
           const busy = busyId === o.id;
           const can = o.cancel.allowed && !busy && !ack;
           return (
-            <div key={o.id} data-testid="trade-working-order" data-state={o.state} data-order-id={o.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2px 8px" }}>
+            <div key={o.id} data-testid="trade-working-order" data-state={o.state} data-order-id={o.id} data-modify-draft={modifyDraft?.orderId === o.id ? "yes" : undefined}
+              style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2px 8px", ...(modifyDraft?.orderId === o.id ? { outline: `1px solid ${GOLD}`, borderRadius: 4 } : null) }}>
               <span style={{ color: GOLD, overflowWrap: "anywhere" }}>{o.words}{o.tail ? ` · …${o.tail}` : ""}</span>
               <button type="button" data-testid="trade-cancel-working" disabled={!can} aria-describedby={!o.cancel.allowed ? `trade-cancel-refusal-${o.id}` : undefined}
                 onClick={() => { if (can) onCancel(o); }} style={ctl(GOLD, can)}>
@@ -66,8 +69,13 @@ export function TicketBookRows({ book, acks, busyId, onCancel, onFlatten }: {
       {/* MODIFY behind its own disclosure (ruling 2026-10-10: the wide ticket's book column must fit). Its refusal — a
           modify is NOT atomic — is never folded away: it stays inline under the summary. */}
       <div data-testid="trade-modify" data-state={book.modify.state} style={{ display: "grid", gap: 2 }}>
-        <details data-testid="trade-modify-details">
+        <details data-testid="trade-modify-details" open={modifyDraft ? true : undefined}>
           <summary style={{ ...small(), cursor: "pointer", minHeight: 24 }}>MODIFY · {book.modify.state}</summary>
+          {modifyDraft ? (
+            <span role="status" data-testid="trade-modify-draft" data-order-id={modifyDraft.orderId} data-price={modifyDraft.price} style={{ color: INK, fontSize: 11, display: "block" }}>
+              From the chart: #{modifyDraft.orderId} at <b style={MONO}>{modifyDraft.price}</b> — a DRAFT. MODIFY here is cancel #{modifyDraft.orderId}, then a new order at that price; preview, the server gate and your confirmation still decide. Nothing is sent.
+            </span>
+          ) : null}
           <span style={{ color: MUTED, fontSize: 11 }}>{book.modify.words}</span>
         </details>
         {book.modify.refusal ? <span role="status" data-testid="trade-modify-refusal" style={{ color: GOLD, fontSize: 11 }}>{book.modify.refusal}</span> : null}

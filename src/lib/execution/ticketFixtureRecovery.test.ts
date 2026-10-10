@@ -62,3 +62,12 @@ describe("every recovery scene still sends nothing", () => {
     }
   });
 });
+
+import { bookIsActive } from "./ticketLayout";
+
+describe("a rejection is never folded away (glass d84f247: the flat book hid it behind Details)", () => {
+  it("state=rejected keeps the book in the action path", () => {
+    expect(bookIsActive(book("rejected").book)).toBe(true);
+    expect(bookIsActive(book("flat").book)).toBe(false);
+  });
+});

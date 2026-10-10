@@ -38,6 +38,11 @@ const chip = (on: boolean): React.CSSProperties => ({
   minHeight: 30, padding: "0 8px", borderRadius: 6, border: `1px solid ${on ? GOLD : LINE}`, background: on ? `${GOLD}22` : "transparent",
   color: on ? GOLD : INK, fontSize: 11.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
 });
+/** The options families' one door to the chain (ruling 2026-10-10: prominent — the filled control of the family body). */
+const CHAIN_DOOR: React.CSSProperties = {
+  justifySelf: "stretch", minHeight: 44, padding: "8px 12px", borderRadius: 6, border: `1px solid ${GOLD}`, background: GOLD, color: "#14110a",
+  font: "800 12.5px/1.25 ui-sans-serif, system-ui, sans-serif", letterSpacing: ".04em", textAlign: "left", whiteSpace: "normal", cursor: "pointer",
+};
 const field: React.CSSProperties = { width: "100%", background: "#0b0a08", border: `1px solid ${LINE}`, color: INK, padding: 4, borderRadius: 4, ...MONO };
 
 export function TradeFamilySelector({ family, verdicts, onPick }: {
@@ -215,7 +220,7 @@ export function FamilyContractPicker({ family, verdict, chartSymbol, price, onCh
         <FxCalculator chartSymbol={chartSymbol} price={price} onChoose={onChoose} executable={verdict.state === "EXECUTABLE"} />
       ) : family === "EQUITY_OPTION" ? <>
         {chartFam === "STOCK" ? (
-          <button type="button" data-testid="trade-open-chain" onClick={onOpenChain} style={{ ...chip(true), justifySelf: "stretch", minHeight: 34, whiteSpace: "normal", textAlign: "left", padding: "6px 10px" }}>
+          <button type="button" data-testid="trade-open-chain" onClick={onOpenChain} style={CHAIN_DOOR}>
             Open the {chartSymbol.toUpperCase()} chain — expiration · strike · call / put →
           </button>
         ) : <>
@@ -225,7 +230,7 @@ export function FamilyContractPicker({ family, verdict, chartSymbol, price, onCh
         <OptionRisk family="EQUITY_OPTION" />
       </> : <>
         {chartFam === "FUTURE" ? (
-          <button type="button" data-testid="trade-open-chain" onClick={onOpenChain} style={{ ...chip(true), justifySelf: "stretch", minHeight: 34, whiteSpace: "normal", textAlign: "left", padding: "6px 10px" }}>
+          <button type="button" data-testid="trade-open-chain" onClick={onOpenChain} style={CHAIN_DOOR}>
             Open the {chartSymbol.toUpperCase()} futures-option chain — expiration · strike · call / put →
           </button>
         ) : <>

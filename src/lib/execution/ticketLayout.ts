@@ -182,7 +182,8 @@ export function ticketSections(compact: boolean, bookActive = false): { readonly
 
 /** Is a position held or an order working? (Broker readback only — never the draft.) */
 export function bookIsActive(book: TicketBook): boolean {
-  return book.position.state !== "FLAT" || book.working.length > 0;
+  // A broker REJECTION is never folded behind Details (glass d84f247, state=rejected: the flat book hid it).
+  return book.position.state !== "FLAT" || book.working.length > 0 || book.rejected != null;
 }
 
 /** The wide ticket's height: the whole entry path without an inner scroll on a 900 px desk; it still scrolls if the screen is shorter. */

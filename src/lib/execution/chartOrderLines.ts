@@ -251,8 +251,40 @@ export function useChartPricePick() {
   return { pick, picked };
 }
 
+/* ── A working broker line asks the ticket for MODIFY ─────────────────────────
+   TradingView parity, ruled 2026-10-10: a WORKING broker line stays NOT draggable
+   (a drag would read as a replace that this broker path does not do), but a click /
+   tap on it opens the ticket's MODIFY for THAT order with the line's price as a
+   DRAFT. MODIFY is cancel-then-new and still goes through preview, the server gate
+   and confirmation. Nothing here sends; it only names the order and the price. */
+
+/** The broker order id a working line carries (`tt-order-<id>`, `sample-tt-order-<id>`); null for any other line. PURE. */
+export function workingOrderIdOfLine(l: Pick<ChartOrderLine, "id" | "role" | "status">): string | null {
+  if (l.role !== "WORKING" || !(l.status === "WORKING" || l.status === "PARTIALLY_FILLED")) return null;
+  const m = /(?:^|-)tt-order-([A-Za-z0-9_-]+)$/.exec(l.id);
+  return m ? m[1] : null;
+}
+
+export interface ChartModifyAsk { readonly orderId: string; readonly symbol: string; readonly price: number; readonly sample: boolean; readonly seq: number }
+let modifyAsk: ChartModifyAsk | null = null;
+/** Chart → ticket: open MODIFY for this working line's order, its price as a draft. False for any other line. */
+export function askChartLineModify(chartSymbol: string, l: ChartOrderLine): boolean {
+  const orderId = workingOrderIdOfLine(l);
+  if (!orderId || !Number.isFinite(l.price) || l.price <= 0) return false;
+  modifyAsk = { orderId, symbol: key(chartSymbol), price: l.price, sample: l.id.startsWith("sample-"), seq: ++seq };
+  emit();
+  return true;
+}
+const modifyAskSnapshot = () => modifyAsk;
+export function useChartLineModifyAsk(): ChartModifyAsk | null {
+  return useSyncExternalStore(subscribe, modifyAskSnapshot, () => null);
+}
+/** The words beside a working line the trader pressed. */
+export const workingLineModifyNote = (orderId: string) => `MODIFY for #${orderId} opened in the ticket — the line's price is a draft; nothing is sent.`;
+
 /** Test seam. */
 export function resetChartOrderLinesForTest(): void {
+  modifyAsk = null;
   state = { lines: new Map(), pick: null, picked: null };
   releaseChartInteraction(PICK_CLAIM);
   hosts = 0;
