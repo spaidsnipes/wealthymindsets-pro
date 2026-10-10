@@ -5,6 +5,8 @@ import {
   PROFILE_SPECIES, PROFILE_SPECIES_LABEL, PROFILE_SPECIES_LAYERS,
   clampSpeciesOpacity, drawingSpeciesAlpha, lawfulSpeciesOpacity, speciesLayerOpacity,
 } from "./appearanceLaw";
+import * as law from "./appearanceLaw";
+import * as ink from "./profileFamilyInk";
 import { LAYER_ATTENTION, selectAttentionGovernor, type AttentionGovernorInput } from "@/lib/marketData/viewModels/selectAttentionGovernor";
 import { selectSemanticDensity } from "@/lib/marketData/viewModels/selectSemanticDensity";
 import { DEFAULT_STACK_PREFS } from "@/lib/marketData/viewModels/profileStackPrefs";
@@ -78,5 +80,45 @@ describe("wired end to end", () => {
   it("Chart Settings offers one dial per species, written through the law", () => {
     expect(MODAL).toContain("{PROFILE_SPECIES.map(sp => (");
     expect(MODAL).toContain("set({ profileSpeciesOpacity: lawfulSpeciesOpacity({ ...(s.profileSpeciesOpacity ?? {}), [sp]: v }) })");
+  });
+});
+
+describe("per-species colour — one owner, species-aware, never two species alike", () => {
+  const ctx = { field: "#07080a", poc: "#c9a55c" };
+
+  it("keeps a lawful ink as an [r,g,b]", () => {
+    expect(law.lawfulSpeciesInks({ COMPOSITE: "#4a90d9" }, ctx).inks.COMPOSITE).toEqual([74, 144, 217]);
+  });
+  it("refuses the field, the POC, a twin and garbage — and says which", () => {
+    const r = law.lawfulSpeciesInks({ LIVING: "#08090b", STRUCTURE: "#caa65d", COMPOSITE: "#4a90d9", VISIBLE_RANGE: "#4b91da", TPO: "nope" }, ctx);
+    // PROFILE_SPECIES order decides who keeps an ink: Visible Range comes before Composite.
+    expect(r.refused).toEqual({ LIVING: "FIELD", STRUCTURE: "POC", COMPOSITE: "TWIN", TPO: "INVALID" });
+    expect(Object.keys(r.inks)).toEqual(["VISIBLE_RANGE"]);
+  });
+  it("Session · Classic VP and Bid/Ask keep their own palettes", () => {
+    expect(law.SPECIES_INK_KEYS).not.toContain("SESSION_CLASSIC");
+    expect(law.SPECIES_INK_KEYS).not.toContain("BID_ASK");
+    expect(law.lawfulSpeciesInks({ BID_ASK: "#4a90d9" }, ctx).inks).toEqual({});
+  });
+  it("species() restyles only that species' body; POC and edges stay the family's", () => {
+    const fam = ink.resolveProfileInk({ species: { COMPOSITE: [74, 144, 217] } });
+    const cmp = fam.species("COMPOSITE");
+    expect(cmp.rgba("VALUE", 0.5)).toBe("rgba(74,144,217,0.5)");
+    expect(cmp.rgba("TAIL", 0.2)).toBe("rgba(74,144,217,0.2)");
+    expect(cmp.rgba("POC", 1)).toBe(fam.rgba("POC", 1));
+    expect(cmp.rgba("EDGE_HIGH", 1)).toBe(fam.rgba("EDGE_HIGH", 1));
+    expect(fam.species("TPO")).toBe(fam);
+    expect(fam.species("COMPOSITE")).toBe(cmp);
+  });
+  it("an untouched palette is byte-identical to the family at rest", () => {
+    const fam = ink.resolveProfileInk(null);
+    expect(fam.rgba("VALUE", 0.4)).toBe(ink.PROFILE_INK_AT_REST.rgba("VALUE", 0.4));
+    expect(fam.species("LIVING")).toBe(fam);
+  });
+  it("Chart Settings offers a swatch per inkable species, names a refusal, and resets", () => {
+    const MODAL = readFileSync(path.join(process.cwd(), "src/components/chart/ChartSettingsModal.tsx"), "utf8");
+    expect(MODAL).toContain("{SPECIES_INK_KEYS.map(sp => (");
+    expect(MODAL).toContain("Not applied — {why[law.refused[sp]!]}; the family ink stays.");
+    expect(MODAL).toContain("set({ profileSpeciesInk: undefined })");
   });
 });

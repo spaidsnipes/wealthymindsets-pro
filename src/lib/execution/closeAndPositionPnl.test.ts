@@ -57,3 +57,18 @@ describe("CLOSE from the strip — a request to the one ticket, never a send", (
     expect(panel).toMatch(/data-testid="trade-reverse-not-built"/);
   });
 });
+
+describe("phone CLOSE (Founder ruling 2026-10-10): never behind a sideways scroll, never over UNPROTECTED", () => {
+  const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+  const panel = readFileSync(path.join(process.cwd(), "src/components/chart/TradePanel.tsx"), "utf8");
+  it("the strip's CLOSE is not drawn at ≤767px; it travels with the strip below 1280px", () => {
+    expect(css.length).toBeGreaterThan(10_000);
+    expect(css).toMatch(/@media \(max-width: 767px\) \{\s*\.wm-instrument-context-strip > \.wm-book-close \{ display: none !important; \}/);
+    expect(css).toMatch(/@media \(max-width: 1279px\) \{\s*\.wm-instrument-context-strip > \.wm-book-close \{ order: -3; \}/);
+  });
+  it("on the phone ticket, CLOSE is the header's first control when holding — the same request", () => {
+    expect(panel).toMatch(/compact && owner && book\.position\.state === "HOLDING" \? <button type="button" data-testid="trade-header-close" onClick=\{\(\) => requestClose\(symbol\)\}/);
+    const header = panel.slice(panel.indexOf('data-testid="trade-header"'));
+    expect(header.indexOf("trade-header-close")).toBeLessThan(header.indexOf("trade-live-arm"));
+  });
+});

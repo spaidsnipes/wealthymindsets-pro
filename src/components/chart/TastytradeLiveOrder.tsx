@@ -378,7 +378,7 @@ export function TastytradeLiveOrder({ intent, ensureDecision, onPhase, journal }
         <span data-testid="tt-environment" style={{ color: environment === "production" ? RED : GOLD, fontWeight: 700, fontSize: 10, letterSpacing: ".08em" }}>{environment ? environment.toUpperCase() : "ENVIRONMENT UNKNOWN"}</span>
         <label style={{ color: MUTED, display: "flex", gap: 4, alignItems: "center" }}>
           Account
-          <select value={accountIndex ?? ""} onChange={e => setAccountIndex(Number(e.target.value))} style={{ background: "#0b0a08", border: "1px solid #3a3326", padding: 2 }}>
+          <select aria-label="Account" value={accountIndex ?? ""} onChange={e => setAccountIndex(Number(e.target.value))} style={{ background: "#0b0a08", border: "1px solid #3a3326", padding: 2 }}>
             {(accounts ?? []).map(a => (
               <option key={a.index} value={a.index}>…{a.tail}{a.accountType ? ` · ${a.accountType}` : ""}{futures ? (a.futuresApproved ? " · futures" : " · no futures") : ""}</option>
             ))}

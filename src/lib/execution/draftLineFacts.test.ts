@@ -41,8 +41,8 @@ describe("distance from the ticket's own entry and tick", () => {
     expect(draftLineFacts({ role: "STOP", family: "FUTURE", entry: 100, price: 99, tick: null, dp: 2, wrongSide: false }).distance).toBe("−1.00 pts");
   });
   it("stocks and crypto: price units and percent", () => {
-    expect(draftLineFacts({ role: "TARGET", family: "STOCK", entry: 200, price: 203, tick: 0.01, dp: 2, wrongSide: false }).distance).toBe("+$3.00 · +1.50%");
-    expect(draftLineFacts({ role: "STOP", family: "CRYPTO", entry: 60_000, price: 59_400, tick: 0.01, dp: 2, wrongSide: false }).distance).toBe("−$600.00 · −1.00%");
+    expect(draftLineFacts({ role: "TARGET", family: "STOCK", entry: 200, price: 203, tick: 0.01, dp: 2, wrongSide: false }).distance).toBe("+3.00 · +1.50%");
+    expect(draftLineFacts({ role: "STOP", family: "CRYPTO", entry: 60_000, price: 59_400, tick: 0.01, dp: 2, wrongSide: false }).distance).toBe("−600.00 · −1.00%");
   });
   it("entry unknown → no distance (never a guess)", () => {
     expect(draftLineFacts({ role: "STOP", family: "FUTURE", entry: null, price: 31_000, tick: 0.25, dp: 2, wrongSide: false })).toEqual({ distance: null, invalid: null });

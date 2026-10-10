@@ -2489,6 +2489,16 @@ input[type=range]::-webkit-slider-runnable-track {
   .wm-book-strip [data-book-detail] { display: none !important; }
 }
 
+/* CLOSE BESIDE A HELD POSITION (one-trade lane, 2026-10-10). It travels with the strip below 1280px, and on a
+   phone it is NOT drawn (Founder ruling): there it would hide behind a sideways scroll or push UNPROTECTED off
+   screen. The strip opens the ticket, and the ticket header shows CLOSE first — the same request, the same gate. */
+@media (max-width: 1279px) {
+  .wm-instrument-context-strip > .wm-book-close { order: -3; }
+}
+@media (max-width: 767px) {
+  .wm-instrument-context-strip > .wm-book-close { display: none !important; }
+}
+
 /* ── PHONE: THE ASSISTANT DOCKS IN THE NAV BAR, NOT ON THE ROOM ───────────
    Sheriff batch 8 (serving 6944df9, 390x844): the launcher floated 70px up
    from the bottom edge, over whatever the room had scrolled there — the

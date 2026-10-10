@@ -260,10 +260,15 @@ describe("one palette, one loader, one resolution", () => {
     expect(loader.length).toBeGreaterThan(400);
     expect(loader).toMatch(/localStorage\.getItem\("wm_vp_poc"\)/);
     // Garden 18 §XXXIV: the trader's profile strength rides the same load.
-    expect(loader).toContain("profileInkRef.current = resolveProfileInk(vpColorsRef.current, profileStrength ?? parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)));");
+    // Pin updated 2026-10-10 (Founder: "independent colour per species"; coordinator
+    // ruling to the profiles lane): still ONE resolve in ONE load — it now also
+    // carries the per-species body inks, made lawful (appearanceLaw.lawfulSpeciesInks)
+    // in the same load, after the palette.
+    expect(loader).toContain("profileInkRef.current = resolveProfileInk({ ...vpColorsRef.current, species: speciesInks }, profileStrength ?? parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)));");
+    expect(loader.indexOf("const speciesInks = lawfulSpeciesInks(")).toBeGreaterThan(loader.indexOf("vpColorsRef.current = {"));
     // Scoped Desk strength must flow through this same owner and update when
     // the selected View changes; storage remains the ordinary chart fallback.
-    expect(CODE).toMatch(/removeEventListener\("wm-vp-colors", load\);\s*\}, \[profileStrength\]\);/);
+    expect(CODE).toMatch(/removeEventListener\("wm-vp-colors", load\);\s*\}, \[profileStrength, speciesInkKey\]\);/);
     // Resolved AFTER the palette is assigned, so the family never lags a frame
     // behind the gear.
     expect(loader.indexOf("profileInkRef.current = resolveProfileInk(")).toBeGreaterThan(
@@ -283,7 +288,14 @@ describe("one palette, one loader, one resolution", () => {
 
   it("each paint pass reads the resolved ink once, from the ref", () => {
     // The rAF overlay and the drawings canvas (Fixed Range) are the two passes.
-    expect((CODE.match(/const pk = profileInkRef\.current;/g) ?? []).length).toBe(2);
+    // Pin updated 2026-10-10 (species-aware, same owner): the overlay reads the
+    // family ink once and each species block shadows it with pkFamily.species(…);
+    // the drawings pass reads the Fixed Range species of the same resolved ink.
+    expect((CODE.match(/const pk = profileInkRef\.current;/g) ?? []).length).toBe(1);
+    expect((CODE.match(/const pk = profileInkRef\.current\.species\("FIXED_RANGE"\);/g) ?? []).length).toBe(1);
+    for (const sp of ["LIVING", "STRUCTURE", "FUSION", "MEMORY", "DNA", "VISIBLE_RANGE", "COMPOSITE", "TPO"]) {
+      expect(CODE, `${sp} block does not take its species ink`).toContain(`const pk = pkFamily.species("${sp}");`);
+    }
     expect(CODE).toMatch(/import \{ PROFILE_INK_AT_REST, PROFILE_STRENGTH_STORAGE_KEY, parseProfileStrength, resolveProfileInk, type ProfileStrength \} from "@\/lib\/chart\/profileFamilyInk";/);
     expect(CODE).toMatch(/const profileInkRef = useRef\(PROFILE_INK_AT_REST\);/);
   });

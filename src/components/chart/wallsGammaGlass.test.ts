@@ -31,3 +31,35 @@ describe("DOM reading chips are keep-outs every placer and the word registry can
     expect(src).toContain("canvas.dataset.domChipKeepOut =");
   });
 });
+
+describe("narrow glass: one folded line, words never cut", () => {
+  it("wraps between ' · ' pieces only, truth first, then the off-camera levels", async () => {
+    const { foldNarrowLine, offCameraShortWords } = await import("@/components/chart/wallsGammaGlass");
+    const measure = (t: string) => t.length * 6;
+    const truth = "GAMMA · PARTIAL · Cboe delayed · OI prior session · as of Sat, Oct 10, 04:44 AM ET · MODEL, ASSUMED DEALER SIDE";
+    const off = offCameraShortWords({
+      above: [{ price: 790, kinds: ["CALL_WALL"], label: "CALL WALL 790 · OI 121k" }, { price: 800, kinds: ["CALL_WALL"], label: "CALL WALL 800 · OI 90k" }],
+      below: [{ price: 740, kinds: ["PUT_WALL"], label: "PUT WALL 740 · OI 222k" }],
+    });
+    expect(off).toEqual(["▲ CALL WALL 790 +1", "▼ PUT WALL 740"]);
+    const rows = foldNarrowLine([truth, ...off], 300, measure);
+    expect(rows.length).toBeGreaterThan(1);
+    for (const r of rows) expect(measure(r) <= 300 || !r.includes(" · ")).toBe(true);
+    // Every piece survives whole, in order.
+    expect(rows.join(" · ")).toBe([truth, ...off].join(" · "));
+  });
+});
+
+describe("a Walls & Gamma tool's ⚙ opens Chart Settings at its own section", () => {
+  it("gamma tools → GAMMA HEATMAP, call/put walls → Marks; other tools keep their family door", async () => {
+    const { settingsSectionFor } = await import("@/lib/workspace/toolDoor");
+    expect(settingsSectionFor("GAMMA_HEATMAP")).toBe("gamma-heat");
+    expect(settingsSectionFor("GAMMA_FLIP")).toBe("gamma-heat");
+    expect(settingsSectionFor("CALL_WALL")).toBe("marks");
+    expect(settingsSectionFor("LIVING_PROFILE")).toBeNull();
+    const modal = readFileSync(path.join(process.cwd(), "src/components/chart/ChartSettingsModal.tsx"), "utf8");
+    expect(modal.length).toBeGreaterThan(5_000);
+    expect(modal).toContain('data-settings-section="gamma-heat"');
+    expect(modal).toContain('data-settings-section="marks"');
+  });
+});

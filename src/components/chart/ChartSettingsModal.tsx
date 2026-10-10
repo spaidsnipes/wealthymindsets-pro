@@ -7,7 +7,8 @@ import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { X, Settings, Info, BarChart2 } from "lucide-react";
 import { DialogBehaviour } from "@/components/ui/DialogFrame";
 import { applyGammaHeatPreset, rgbTripletOf, applyProfilePreset, lawfulOrderLineLooks, ORDER_LINE_ALPHA_FLOOR, PROFILE_PRESET_RED_GREEN, type OrderLineDash } from "@/lib/chart/appearanceLaw";
-import { PROFILE_SPECIES, PROFILE_SPECIES_LABEL, lawfulSpeciesOpacity, type ProfileSpeciesKey } from "@/lib/chart/appearanceLaw";
+import { PROFILE_SPECIES, PROFILE_SPECIES_LABEL, SPECIES_INK_KEYS, lawfulSpeciesInks, lawfulSpeciesOpacity, type ProfileSpeciesKey } from "@/lib/chart/appearanceLaw";
+import { PROFILE_INK_AT_REST } from "@/lib/chart/profileFamilyInk";
 
 import {
   CANDLE_DOWN_DEFAULT,
@@ -63,6 +64,10 @@ export interface ChartSettings {
   // PER-SPECIES profile dials (Founder 2026-10-10). Absent = 1. Clamped by
   // appearanceLaw.lawfulSpeciesOpacity; loudness only, never a species' form.
   profileSpeciesOpacity?: Partial<Record<ProfileSpeciesKey, number>>;
+  // PER-SPECIES body ink (VALUE / TAIL / WASH). POC and edges stay the family's.
+  // Made lawful by appearanceLaw.lawfulSpeciesInks (never the field, never the
+  // POC, never two species alike); a refused ink is named here, not hidden.
+  profileSpeciesInk?: Partial<Record<ProfileSpeciesKey, string>>;
   // SLICE B (Founder order §5): marks' size and weight. Absent = as shipped.
   bubbleScale?: number;          // big-trade disc size, 0.6–1.4
   footprintNumberStep?: number;  // footprint numbers, −1…+2 px against the row fit
@@ -159,6 +164,8 @@ interface Props {
   symbol: string;
   settings: ChartSettings;
   onSettingsChange: (s: ChartSettings) => void;
+  /** Open at this section (a tool's ⚙ from Active tools): the Chart tab, scrolled to it. */
+  section?: string | null;
 }
 
 function ColorSwatch({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
@@ -214,7 +221,7 @@ function GammaHeatSettings() {
   const toHex = (rgb: string) => "#" + rgb.split(",").map(n => Number(n).toString(16).padStart(2, "0")).join("");
   const presets = [...Object.values(GAMMA_HEAT_PRESETS).map(p => ({ id: p.id as string, label: p.label })), { id: "CUSTOM", label: "Custom" }];
   return (
-    <div data-testid="gamma-heat-settings">
+    <div data-testid="gamma-heat-settings" data-settings-section="gamma-heat">
       <div role="group" aria-label="Gamma heatmap preset" style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "6px 0" }}>
         {presets.map(p => (
           <button key={p.id} type="button" aria-pressed={cur.id === p.id} className="wm-settings-control"
@@ -308,9 +315,18 @@ const TABS: { id: Tab; icon: React.ReactNode; label: string }[] = [
   { id: "chart",   icon: <BarChart2 size={13} />, label: "Chart" },
 ];
 
-export function ChartSettingsModal({ open, onClose, symbol, settings, onSettingsChange }: Props) {
+export function ChartSettingsModal({ open, onClose, symbol, settings, onSettingsChange, section = null }: Props) {
   const dlgRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>("chart");
+  React.useEffect(() => {
+    if (!open || !section) return;
+    setTab("chart");
+    const t = window.setTimeout(() => {
+      const el = dlgRef.current?.querySelector(`[data-settings-section="${section}"]`);
+      if (el instanceof HTMLElement) { el.scrollIntoView({ block: "start" }); el.querySelector<HTMLElement>("button")?.focus({ preventScroll: true }); }
+    }, 60);
+    return () => window.clearTimeout(t);
+  }, [open, section]);
   const dragControls = useDragControls();
   const s = settings;
   const set = (patch: Partial<ChartSettings>) => onSettingsChange({ ...s, ...patch });
@@ -566,9 +582,36 @@ export function ChartSettingsModal({ open, onClose, symbol, settings, onSettings
                         onChange={v => set({ profileSpeciesOpacity: lawfulSpeciesOpacity({ ...(s.profileSpeciesOpacity ?? {}), [sp]: v }) })} />
                     ))}
                   </details>
+                  <details data-profile-species-inks style={{ marginTop: 4 }}>
+                    <summary style={{ fontSize: 12, color: "#8896BE", cursor: "pointer", minHeight: 32, display: "flex", alignItems: "center" }}>Profile colour · each species</summary>
+                    {(() => {
+                      const law = lawfulSpeciesInks(s.profileSpeciesInk, { field: s.background, poc: `rgb(${PROFILE_INK_AT_REST.rgb("POC")})` });
+                      const why = { INVALID: "not a colour", FIELD: "too close to the chart background", POC: "too close to the POC", TWIN: "too close to another species" } as const;
+                      const restHex = `#${PROFILE_INK_AT_REST.role.VALUE.map(n => n.toString(16).padStart(2, "0")).join("")}`;
+                      return (
+                        <>
+                          {SPECIES_INK_KEYS.map(sp => (
+                            <div key={sp} data-species-ink={sp}>
+                              <ColorSwatch value={s.profileSpeciesInk?.[sp] ?? restHex} label={PROFILE_SPECIES_LABEL[sp]}
+                                onChange={v => set({ profileSpeciesInk: { ...(s.profileSpeciesInk ?? {}), [sp]: v } })} />
+                              {law.refused[sp] && (
+                                <div role="status" style={{ fontSize: 11, color: "#E0B46A", margin: "-2px 0 4px" }}>
+                                  Not applied — {why[law.refused[sp]!]}; the family ink stays.
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          <button type="button" className="wm-settings-control" onClick={() => set({ profileSpeciesInk: undefined })}
+                            style={{ fontSize: 11, padding: "3px 8px", marginTop: 4, borderRadius: 4, cursor: "pointer", background: "#141824", border: "1px solid #263050", color: "#8896BE" }}>
+                            Family ink for every species
+                          </button>
+                        </>
+                      );
+                    })()}
+                  </details>
 
                   <div style={{ height: 1, background: "#263050", margin: "12px 0" }} />
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Marks</div>
+                  <div data-settings-section="marks" style={{ fontSize: 10, fontWeight: 700, color: "#8b8fa8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Marks</div>
                   <Choice label="Big-trade bubbles" value={s.bubbleScale ?? 1} onChange={v => set({ bubbleScale: v })}
                     options={[{ v: 0.7, label: "Small" }, { v: 1, label: "As shipped" }, { v: 1.3, label: "Large" }]} />
                   <Choice label="Footprint numbers" value={s.footprintNumberStep ?? 0} onChange={v => set({ footprintNumberStep: v })}

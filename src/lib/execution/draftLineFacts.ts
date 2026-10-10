@@ -7,8 +7,8 @@
  *
  * The TICKET calls this with its own entry, tick, side and its own wrong-side
  * verdicts, and publishes the answer on the line; the chart only prints it.
- * Distance: futures in points and ticks; stocks and crypto in price units and
- * percent. A line on the wrong side of the entry carries the ticket's reason
+ * Distance: futures in points and ticks; stocks and crypto in price units (no
+ * currency sign — the money is the separate total) and percent. A line on the wrong side of the entry carries the ticket's reason
  * and NO money — a dollar figure beside a stop the ticket would refuse reads as
  * a risk the trader has, which is not true. PURE.
  */
@@ -53,5 +53,7 @@ export function draftLineFacts(x: DraftLineFactsInput): DraftLineFacts {
     return { distance: `${signed(d, abs.toFixed(dp))} pts${t}`, invalid: null };
   }
   const pct = (abs / x.entry) * 100;
-  return { distance: `${signed(d, `$${abs.toFixed(dp)}`)} · ${signed(d, `${pct.toFixed(2)}%`)}`, invalid: null };
+  // Price units, no "$": the money after it is the ticket's total for the size, and a per-share "$1.30"
+  // beside a total "$1.30" read as one number said twice (serving a60366c, SPY ×1).
+  return { distance: `${signed(d, abs.toFixed(dp))} · ${signed(d, `${pct.toFixed(2)}%`)}`, invalid: null };
 }

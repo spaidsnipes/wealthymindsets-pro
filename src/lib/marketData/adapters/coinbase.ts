@@ -81,3 +81,28 @@ export function normalizeCoinbaseTicker(
     rawLineageRef: `coinbase:ticker:${sourceEventId}`,
   };
 }
+
+/**
+ * THE MATCHES CHANNEL — every match with its own size (2026-10-10).
+ *
+ * The `ticker` channel BATCHES cascading matches: one message carries only the
+ * last match's size, so a 15 s bar built from it missed volume (serving
+ * 4de217a, BTC-USD: chart 0.0234 vs Coinbase's own trades 0.0365 in one
+ * bucket). `matches` is public (no auth) and sends each match. Same trade_id →
+ * same eventId as the ticker and the REST backfill, so a print heard twice is
+ * one print. `side` is the MAKER's side here too; the aggressor is opposite.
+ */
+export function normalizeCoinbaseMatch(
+  raw: unknown,
+  appSymbol: string,
+  receivedAtMs: number,
+  processedAtMs = Date.now(),
+): CanonicalMarketEvent | null {
+  const m = raw as CoinbaseTickerMessage & { size?: unknown };
+  if (!m || (m.type !== "match" && m.type !== "last_match")) return null;
+  // Re-use the ticker normalizer's checks and shape: a match is a ticker
+  // message whose size field is `size`.
+  const asTicker = { ...m, type: "ticker", last_size: m.size };
+  const ev = normalizeCoinbaseTicker(asTicker, appSymbol, receivedAtMs, processedAtMs);
+  return ev ? { ...ev, normalizationVersion: "coinbase-match.v1", rawLineageRef: `coinbase:matches:${ev.sourceEventId}` } : null;
+}

@@ -41,8 +41,29 @@ export function familyDoorFor(id: string): ToolDoorId | null {
 
 let pending: { readonly id: string; readonly at: number } | null = null;
 
+/**
+ * A TOOL WHOSE KNOBS LIVE IN CHART SETTINGS (Walls & Gamma, 2026-10-10): its ⚙
+ * opens Chart Settings at its own section instead of the family drawer, where
+ * the heatmap presets were three doors deep.
+ */
+export const CHART_SETTINGS_SECTION_EVENT = "wm-chart-settings-section";
+export type ChartSettingsSection = "gamma-heat" | "marks";
+const SETTINGS_SECTION_FOR: Readonly<Record<string, ChartSettingsSection>> = {
+  GAMMA_HEATMAP: "gamma-heat", GAMMA_POSITIVE: "gamma-heat", GAMMA_NEGATIVE: "gamma-heat",
+  GAMMA_FLIP: "gamma-heat", GAMMA_CONCENTRATION: "gamma-heat",
+  CALL_WALL: "marks", PUT_WALL: "marks",
+};
+export function settingsSectionFor(id: string): ChartSettingsSection | null {
+  return SETTINGS_SECTION_FOR[id] ?? null;
+}
+
 /** Open the tool's family door and ask it to bring the tool forward. False when no door holds it. */
 export function openToolDoor(id: string, now: number = Date.now()): boolean {
+  const section = settingsSectionFor(id);
+  if (section && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent<{ section: ChartSettingsSection }>(CHART_SETTINGS_SECTION_EVENT, { detail: { section } }));
+    return true;
+  }
   const door = familyDoorFor(id);
   if (!door || typeof document === "undefined") return false;
   pending = { id, at: now };

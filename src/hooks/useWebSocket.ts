@@ -22,7 +22,7 @@
 import { noteArrival, noteFlush } from "@/lib/chart/marketClockProbe";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { MarketEventGuard, type CanonicalMarketEvent } from "@/lib/marketData/marketEvent";
-import { normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
+import { normalizeCoinbaseMatch, normalizeCoinbaseTicker } from "@/lib/marketData/adapters/coinbase";
 import { normalizeAlpacaRelayTrade } from "@/lib/marketData/adapters/alpacaRelay";
 import { absorbOutOfOrderPrint, applyTickToClock } from "@/lib/marketData/liveBarPolicy";
 import { admitBarVenue, noteClosedLiveBar, type BarVenueOwner } from "@/lib/marketData/liveBarFold";
@@ -1111,7 +1111,9 @@ function tryCoinbase(
 
     ws.onopen = () => {
       retry = 0;
-      ws?.send(JSON.stringify({ type: "subscribe", product_ids: [product], channels: ["ticker"] }));
+      // `matches`: every match with its own size (the ticker channel batches
+      // cascades and carries only the last size — normalizeCoinbaseMatch).
+      ws?.send(JSON.stringify({ type: "subscribe", product_ids: [product], channels: ["matches"] }));
       onStatus(true);
     };
 
@@ -1120,7 +1122,7 @@ function tryCoinbase(
       try {
         const m = JSON.parse(ev.data as string);
         const receivedAtMs = Date.now();
-        const event = normalizeCoinbaseTicker(m, symbol, receivedAtMs, Date.now());
+        const event = normalizeCoinbaseMatch(m, symbol, receivedAtMs, Date.now()) ?? normalizeCoinbaseTicker(m, symbol, receivedAtMs, Date.now());
         if (event) {
           const guarded = eventGuard.inspect(event);
           if (guarded.status === "ACCEPTED") {
@@ -1381,6 +1383,8 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
   const hasRealDataRef = useRef(false);
   // A real print (`trade: true`) has been heard for this symbol (see processTick).
   const tradeHeardRef = useRef(false);
+  // The symbol's bars are built from prints only, from the start (crypto).
+  const tradeTapeOnlyRef = useRef(false);
   // ONE VENUE BUILDS THE BAR (liveBarFold.admitBarVenue): the venue whose
   // prints currently own the bar; another venue joins only by rank or silence.
   const barVenueRef = useRef<BarVenueOwner | null>(null);
@@ -1492,8 +1496,12 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // mid, a 24 h ticker's last or a REST quote (synthetic size 0.01 / 1) is not
     // a trade: before any print arrives it may still move a quote-only chart,
     // but after one it would paint a wick and volume nobody traded.
+    // Crypto is a 24×7 trade tape with trade history behind every bucket
+    // (printBars): a quote or mid never opens or moves a crypto bar, not even
+    // before the first print (serving a60366c: a volume-0 bar at a price
+    // Coinbase never traded in that bucket opened the chart).
     if (tick.trade === true) tradeHeardRef.current = true;
-    else if (tradeHeardRef.current) return;
+    else if (tradeHeardRef.current || tradeTapeOnlyRef.current) return;
 
     const barUpdate = applyTickToClock(barRef.current, lastBarEventAtRef.current, tick, getIntervalSec());
     if (barUpdate.status === "LATE_EVENT_IGNORED") {
@@ -1657,6 +1665,7 @@ export function useWebSocket({ symbol, timeframe }: { symbol: string; timeframe:
     // that could only ever answer nothing.
     const isFuture = classifySymbol(symbol) !== "EQUITY";
     const isCrypto = binancePair(symbol) != null;
+    tradeTapeOnlyRef.current = isCrypto;
     let disposed = false;
 
     // Moomoo OpenD executed-print lane. This remains a bounded authenticated

@@ -244,3 +244,34 @@ export function paintWallsGamma(env: WallsGammaGlassEnv): WallsGammaGlassResult 
   below.sort((a, b) => b.price - a.price);
   return { heat, regions, marks: markWords.join("|") || "NONE", labels, heatHits, offCamera: { above, below } };
 }
+
+/**
+ * NARROW GLASS — ONE FOLDED LINE (phone, 2026-10-10). On 390 every family word
+ * (status line, edge chips, mark labels) was folded away into the phone's
+ * summary. Narrow glass gets ONE line instead, seated left at the silence
+ * column: the truth (grade · source · OI clock · as-of · MODEL) first, then the
+ * off-camera levels. Words are never cut: the line wraps between " · " pieces
+ * onto as few rows as the width needs.
+ */
+export function foldNarrowLine(segments: readonly string[], maxW: number, measure: (t: string) => number): string[] {
+  const pieces = segments.flatMap(s => s.split(" · ")).map(p => p.trim()).filter(Boolean);
+  const rows: string[] = [];
+  let cur = "";
+  for (const p of pieces) {
+    const next = cur ? `${cur} · ${p}` : p;
+    if (!cur || measure(next) <= maxW) { cur = next; continue; }
+    rows.push(cur);
+    cur = p;
+  }
+  if (cur) rows.push(cur);
+  return rows;
+}
+
+/** The off-camera levels in the fewest words: "▲ CALL WALL 790 +1" / "▼ PUT WALL 740". */
+export function offCameraShortWords(off: { readonly above: readonly WallsGammaMark[]; readonly below: readonly WallsGammaMark[] }): string[] {
+  const head = (m: WallsGammaMark) => m.label.split(" · ")[0];
+  const out: string[] = [];
+  if (off.above.length) out.push(`▲ ${head(off.above[0])}${off.above.length > 1 ? ` +${off.above.length - 1}` : ""}`);
+  if (off.below.length) out.push(`▼ ${head(off.below[0])}${off.below.length > 1 ? ` +${off.below.length - 1}` : ""}`);
+  return out;
+}

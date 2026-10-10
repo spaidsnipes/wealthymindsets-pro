@@ -64,7 +64,7 @@ import { installTypeFloor, NARROW_NAME_MIN_PX } from "@/lib/chart/typeFloor";
 import { partitionVolumeIndicators } from "@/lib/chart/volumeIndicatorTruth";
 import { createLongPress } from "@/lib/chart/longPress";
 import { clampBubbleScale, clampWallThickness, footprintNumberPx, lawfulOrderLineLooks, lawfulSettings, volumeInk } from "@/lib/chart/appearanceLaw";
-import { drawingSpeciesAlpha, speciesLayerOpacity } from "@/lib/chart/appearanceLaw";
+import { drawingSpeciesAlpha, lawfulSpeciesInks, speciesLayerOpacity } from "@/lib/chart/appearanceLaw";
 import { DEFAULT_CHART_SETTINGS, FLOW_COLOR_DEFAULTS, VOLUME_COLOR_PICKER_DEFAULTS } from "./ChartSettingsModal";
 import { currentProofScene, proofCaptureOpen, proofSceneHoldsWrites } from "@/lib/chart/proofScene";
 import { inspectedBarMark } from "@/lib/chart/inspectedBarMark";
@@ -762,7 +762,7 @@ import type { OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selec
 import { composeWallsGammaMarks, WALLS_GAMMA_OFF, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
 import { gexBucketAt, gexWords, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
 import { GAMMA_HEAT_PRESET_EVENT, gammaHeatPreset, gammaHeatStores, readGammaHeatPreset } from "@/lib/chart/gammaHeatAppearance";
-import { edgeChipWords, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
+import { edgeChipWords, foldNarrowLine, offCameraShortWords, paintWallsGamma } from "@/components/chart/wallsGammaGlass";
 import type { IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
 
 /* ── Symbol base prices — verified against MooMoo/TradingView Jun 16 2026 ── */
@@ -1404,6 +1404,7 @@ interface Props {
     volumeUp?: string; volumeDown?: string;
     profileOpacity?: number; wallOpacity?: number; memoryOpacity?: number;
     profileSpeciesOpacity?: Partial<Record<string, number>>;
+    profileSpeciesInk?: Partial<Record<string, string>>;
     bubbleScale?: number; footprintNumberStep?: number; wallThickness?: number;
     // ORDER LINES (Founder P0 2026-10-10) — made lawful by appearanceLaw.lawfulOrderLineLooks.
     orderLineEntry?: string; orderLineStop?: string; orderLineTarget?: string;
@@ -3588,6 +3589,11 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
   // two brass conversions. Derived from the owning hex so the triplet cannot
   // drift from the swatch a trader sees in the gear.
   const vpColorsRef = useRef(VP_DEFAULT_TRIPLETS);
+  // Per-species body inks (Founder 2026-10-10), made lawful against the field
+  // and the POC before the family ink is resolved — one owner, species-aware.
+  const speciesInkKey = JSON.stringify(chartSettings?.profileSpeciesInk ?? {});
+  const speciesInkSrcRef = useRef(chartSettings?.profileSpeciesInk);
+  speciesInkSrcRef.current = chartSettings?.profileSpeciesInk;
   // The rest of the profile family — Living, Composite, Visible Range, TPO,
   // Structure, Fusion, Memory, Migration, DNA, Fixed Range — resolves its inks
   // from the SAME triplets in the SAME load, so a POC or VAH/VAL chosen in the
@@ -3609,14 +3615,19 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           poc: poc ?? VP_DEFAULT_TRIPLETS.poc, vah: vah ?? VP_DEFAULT_TRIPLETS.vah,
           val: val ?? VP_DEFAULT_TRIPLETS.val,
         };
-        profileInkRef.current = resolveProfileInk(vpColorsRef.current, profileStrength ?? parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)));
+        const pv = vpColorsRef.current.poc;
+        const speciesInks = lawfulSpeciesInks(speciesInkSrcRef.current, {
+          field: chartSettingsRef.current?.background ?? MARKET_FIELD_DEFAULT,
+          poc: [`rgb(${pv[0]},${pv[1]},${pv[2]})`, `rgb(${PROFILE_INK_AT_REST.rgb("POC")})`],
+        }).inks;
+        profileInkRef.current = resolveProfileInk({ ...vpColorsRef.current, species: speciesInks }, profileStrength ?? parseProfileStrength(localStorage.getItem(PROFILE_STRENGTH_STORAGE_KEY)));
       } catch {}
       setRangeVer(v => v + 1);
     };
     load();
     window.addEventListener("wm-vp-colors", load);
     return () => window.removeEventListener("wm-vp-colors", load);
-  }, [profileStrength]);
+  }, [profileStrength, speciesInkKey]);
 
   const { liveBar, closedLiveBars, ticker, recentTicks, tapeSource, source, connected, quoteRefusal, lastObservedAtMs } = useWebSocket({ symbol, timeframe });
   // Canon "CLOSED IS NOT DELAYED" — closure outranks the provider verdict, so
@@ -9168,6 +9179,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
       // The profile family's inks, by ROLE, from the same palette this frame.
       // Sites keep their own alphas; this only says what POC, EDGE, VALUE… are.
       const pk = profileInkRef.current;
+      const pkFamily = pk; // each species block shadows `pk` with pkFamily.species("…")
 
       // Cell numbers are drawn pure white with a dark halo so they stay legible
       // on any tint. The font never exceeds the row (9–12px, 8px when a cell is
@@ -20360,6 +20372,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
             }
             // ONE status line for the family: grade, source, OI clock, and what yields or waits.
+            const wgNarrowTruth: string[] = [];
             if (wordsSpeak) {
               const src = gex?.drawn ? positioningSourceWords(gex.source) : null;
               const asOfW = gex?.drawn && gex.clocks.chainAsOf ? new Date(gex.clocks.chainAsOf).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) + " ET" : null;
@@ -20374,7 +20387,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
                 if (composed.yielded.GAMMA_FLIP || composed.yielded.GAMMA_POSITIVE || composed.yielded.GAMMA_NEGATIVE) parts.push("flip / regions shown by Derivatives Pressure");
               }
               if (wallsWG && (!evW || !evW.drawn)) parts.push(`CALL / PUT WALL · ${!evW ? "waiting for options open interest" : `silent — ${evW.reason.replace(/_/g, " ").toLowerCase()}`}`);
-              for (const words of parts) {
+              // NARROW GLASS: the status, the off-camera levels and nothing else, as ONE folded line (below).
+              if (narrowGlass) wgNarrowTruth.push(...parts);
+              for (const words of narrowGlass ? [] : parts) {
                 ctx.save();
                 ctx.globalAlpha = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
                 ctx.font = marketFont("OBJECT_NAME");
@@ -20388,7 +20403,35 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             }
             // OFF-CAMERA marks are named at the glass edge (▲ above / ▼ below), never silently dropped.
             ds.wallsGammaEdge = `${out.offCamera.above.length}/${out.offCamera.below.length}`;
-            if (wordsSpeak) {
+            if (wordsSpeak && narrowGlass) {
+              // ONE FOLDED LINE, left at the silence column, clear of the newest column and every chip;
+              // declared truth to the word registry, so it is never held and never cut.
+              ctx.save();
+              ctx.font = marketFont("OBJECT_NAME");
+              ctx.textAlign = "left"; ctx.textBaseline = "middle";
+              const rowsN = foldNarrowLine([...wgNarrowTruth, ...offCameraShortWords(out.offCamera)], Math.max(80, plotRightG - silenceX - 10), t => ctx.measureText(t).width);
+              const RH = 13;
+              const boxAt = (y0: number, i: number) => ({ x: silenceX - 3, y: y0 + i * RH, w: Math.max(...rowsN.map(r => ctx.measureText(r).width)) + 6, h: RH });
+              const clear = (y0: number) => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h) && !floatingChips.some(r => q.x < r.x + r.w && q.x + q.w > r.x && q.y < r.y + r.h && q.y + q.h > r.y); });
+              const starts = [...Array.from({ length: 10 }, (_, k) => HEADER_FLOOR_Y + 44 + k * RH), ...Array.from({ length: 10 }, (_, k) => paneBotG - (rowsN.length + k) * RH - 4)];
+              // A truth line is never folded into the note list: with no fully clear seat it takes the first seat off the newest column.
+              const y0N = starts.find(clear) ?? starts.find(y0 => rowsN.every((_, i) => { const q = boxAt(y0, i); return q.y >= HEADER_FLOOR_Y && q.y + q.h <= paneBotG && !onNewestColumn(q.x, q.y, q.w, q.h); }));
+              if (rowsN.length && y0N !== undefined) {
+                const nA = Math.max(att.textAlpha("gammaHeatmap"), att.textAlpha("callWall"));
+                rowsN.forEach((r, i) => {
+                  const q = boxAt(y0N, i);
+                  wordGate.declareTruth(r);
+                  ctx.fillStyle = `rgba(11,10,8,${(0.86 * nA).toFixed(3)})`;
+                  ctx.fillRect(q.x, q.y, q.w, q.h);
+                  ctx.fillStyle = `rgba(220,208,180,${(0.95 * nA).toFixed(3)})`;
+                  ctx.fillText(r, silenceX, q.y + RH / 2 + 0.5);
+                  floatingChips.push(q);
+                });
+                ds.wallsGammaNarrow = `ROWS:${rowsN.length}@${Math.round(y0N)}`;
+              } else ds.wallsGammaNarrow = rowsN.length ? "NO_CLEAR_ROWS" : "NONE";
+              ctx.restore();
+            } else delete ds.wallsGammaNarrow;
+            if (wordsSpeak && !narrowGlass) {
               ctx.save();
               ctx.font = marketFont("OBJECT_NAME");
               ctx.textAlign = "left"; ctx.textBaseline = "middle";
@@ -21418,6 +21461,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           sentence). Never a card. Returns whether it drew.
         */
         const paintProfileDnaAt = (sx: number): boolean => {
+              const pk = pkFamily.species("DNA");
               const dna = profileDnaRef.current;
               const dnaOn = layerOnRef.current.profileDna && att.paints("profileDna");
               const spineOwned = dnaOn && dna != null && (dna.measured || dna.reason === "THIN_SAMPLE");
@@ -21495,6 +21539,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
               }
         };
         {
+          const pk = pkFamily.species("LIVING");
           const lp = livingProfileRef.current;
           const on = layerOnRef.current.livingProfile && att.paints("livingProfile");
           ds.livingProfile = on ? (lp ? lp.reason : "NO_READING") : att.offWord(layerOnRef.current.livingProfile);
@@ -22119,6 +22164,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            POC in brass. Labels sit left of its own lane.
         ═══════════════════════════════════════════════════════════════════ */
         {
+          const pk = pkFamily.species("COMPOSITE");
           const cp = compositeProfileRef.current;
           const on = layerOnRef.current.compositeProfile && att.paints("compositeProfile");
           ds.compositeProfile = on ? (cp ? cp.reason : "NO_READING") : att.offWord(layerOnRef.current.compositeProfile);
@@ -22307,6 +22353,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            as another settled profile; the header says it moves with the view.
         ═══════════════════════════════════════════════════════════════════ */
         {
+          const pk = pkFamily.species("VISIBLE_RANGE");
           const lane = stackPlan.lanes.VISIBLE_RANGE;
           if (vrpVM?.drawn && lane?.fits) {
             ctx.save(); ctx.globalAlpha = att.alpha("visibleRangeProfile");
@@ -22468,6 +22515,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
             and value area (never an average of POCs); the parents keep
             drawing, quieter (the governor's fusedParents).
           */
+          const pk = pkFamily.species("FUSION");
           const autoPair: StackSpecies[] | null = fusionAutoPair;
           const pair = stackPrefsRef.current.fusion ?? autoPair;
           ds.profileFusionPair = pair && pair.length === 2 ? `${stackPrefsRef.current.fusion ? "TRADER" : "AUTO"}:${pair.join("+")}` : "NONE";
@@ -22672,6 +22720,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            neutral facts and neither may borrow a market colour.
         ═══════════════════════════════════════════════════════════════════ */
         {
+          const pk = pkFamily.species("TPO");
           const tpo = tpoProfileRef.current;
           // (No Liquidity Lifecycle caption line is reserved here any more: the
           // caption left the bottom-left word stack on 2026-09-25 — F08A pools
@@ -22879,6 +22928,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            Muted parchment, no hue: a leg's value is not a side.
         ═══════════════════════════════════════════════════════════════════ */
         {
+          const pk = pkFamily.species("STRUCTURE");
           const sp = structureProfileRef.current;
           const on = layerOnRef.current.structureProfile && att.paints("structureProfile");
           ds.structureProfile = on ? (sp ? sp.reason : "NO_READING") : att.offWord(layerOnRef.current.structureProfile);
@@ -23212,6 +23262,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            Inspect's to say, not the glass's.
         ═══════════════════════════════════════════════════════════════════ */
         {
+          const pk = pkFamily.species("FUSION");
           const fu = profileFusionRef.current;
           const on = layerOnRef.current.profileFusion && att.paints("profileFusion");
           // Two Fusion facts, one receipt (Sheriff batch 3, 2026-10-08: "DRAWN"
@@ -23343,6 +23394,7 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            glass names the levels the market has not been back to.
         ═══════════════════════════════════════════════════════════════════ */
         {
+          const pk = pkFamily.species("MEMORY");
           const mem = profileMemoryRef.current;
           const on = layerOnRef.current.profileMemory && att.paints("profileMemory");
           ds.profileMemory = on ? (mem ? mem.reason : "NO_READING") : att.offWord(layerOnRef.current.profileMemory);
@@ -27746,8 +27798,9 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
           const tLo = Math.min(d.pts[0].time, d.pts[1].time);
           const tHi = Math.max(d.pts[0].time, d.pts[1].time);
           const vm = selectTimeRangeProfile([...volumeBearingBars(symbol, barsRef.current || [])], tLo, tHi);
-          // The same family ink the overlay reads: a Fixed Range POC is a POC.
-          const pk = profileInkRef.current;
+          // The same family ink the overlay reads: a Fixed Range POC is a POC;
+          // its body takes the trader's Fixed Range ink when one is set.
+          const pk = profileInkRef.current.species("FIXED_RANGE");
           const x0 = Math.min(A.x, B.x);
           const x1 = Math.max(A.x, B.x);
           const rw = Math.max(1, x1 - x0);
@@ -29098,7 +29151,13 @@ export function MainChart({ showEvidenceVault = true, symbol, timeframe, setTime
            5m/15m panes get no setter, so they get no band — a strip of empty
            room reserved for furniture that was never delivered is the kind of
            dead space this shift is spending its time removing. */
-        paddingBottom: setTimeframe ? TIMEFRAME_FOOTER_H : undefined }}
+        paddingBottom: setTimeframe ? TIMEFRAME_FOOTER_H : undefined,
+        /* ONE LAYER FOR THE PANE (ticket-lane acceptance walk 2026-10-10, 1440): the order-line
+           strokes (z71), handles (z73) and pins (z72) sat in the page's stacking context and so
+           painted OVER the TRADE panel (fixed, z60) — across its BUY / SELL and account rows.
+           Isolated, everything in the pane keeps its order INSIDE the pane and the pane as a
+           whole stays under every panel, sheet and menu outside it. */
+        isolation: "isolate" }}
         ref={paneWrapRef}
         onContextMenu={handleContextMenu}
         onPointerMove={e => { longPress.move(e); handleOverlayPointerMove(e); }}

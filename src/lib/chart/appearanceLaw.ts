@@ -304,3 +304,44 @@ export function drawingSpeciesAlpha(siteAlpha: number, dial: unknown): number {
   if (k === 1) return siteAlpha;
   return Math.min(1, Math.max(Math.min(siteAlpha, 0.2), siteAlpha * k));
 }
+
+/* ── PROFILE SPECIES COLOUR (Founder 2026-10-10) ─────────────────────────────
+   One body ink per species (its VALUE / TAIL / WASH — profileFamilyInk
+   `species()`); the POC and the value-area edges stay the family's, so a POC
+   means one thing on every species. The law, whatever is stored:
+     · a VALID colour only (hex or rgb);
+     · NEVER SWALLOWED — distinct from the market field;
+     · NEVER THE POC — distinct from the family POC ink, or the centre of the
+       profile could not be told from its body;
+     · NO TWO SPECIES IDENTICAL — a species whose ink is too close to one kept
+       earlier (in PROFILE_SPECIES order) falls back to the family ink and is
+       named in `refused`, so the settings can say why.
+   Session · Classic VP and Bid/Ask Split are coloured by their own palettes
+   (VP gear, delta inks) and take no body ink here. ───────────────────────── */
+export const SPECIES_INK_KEYS: readonly ProfileSpeciesKey[] = PROFILE_SPECIES.filter(sp => sp !== "SESSION_CLASSIC" && sp !== "BID_ASK");
+export interface LawfulSpeciesInks {
+  /** Kept inks as [r,g,b], keyed by species. */
+  readonly inks: Partial<Record<ProfileSpeciesKey, readonly [number, number, number]>>;
+  /** Species whose stored ink was refused, with the reason. */
+  readonly refused: Partial<Record<ProfileSpeciesKey, "INVALID" | "FIELD" | "POC" | "TWIN">>;
+}
+export function lawfulSpeciesInks(v: unknown, ctx: { field: string; poc: string | readonly string[] }): LawfulSpeciesInks {
+  const pocs = typeof ctx.poc === "string" ? [ctx.poc] : ctx.poc;
+  const inks: Partial<Record<ProfileSpeciesKey, readonly [number, number, number]>> = {};
+  const refused: Partial<Record<ProfileSpeciesKey, "INVALID" | "FIELD" | "POC" | "TWIN">> = {};
+  if (!v || typeof v !== "object") return { inks, refused };
+  const kept: string[] = [];
+  for (const sp of SPECIES_INK_KEYS) {
+    const raw = (v as Record<string, unknown>)[sp];
+    if (raw == null || raw === "") continue;
+    const rgb = typeof raw === "string" ? rgbOf(raw) : null;
+    if (!rgb || rgb.some(n => !Number.isFinite(n) || n < 0 || n > 255)) { refused[sp] = "INVALID"; continue; }
+    const hex = raw as string;
+    if (!inksDistinct(hex, ctx.field)) { refused[sp] = "FIELD"; continue; }
+    if (pocs.some(pc => !inksDistinct(hex, pc))) { refused[sp] = "POC"; continue; }
+    if (kept.some(k => !inksDistinct(hex, k))) { refused[sp] = "TWIN"; continue; }
+    kept.push(hex);
+    inks[sp] = [Math.round(rgb[0]), Math.round(rgb[1]), Math.round(rgb[2])] as const;
+  }
+  return { inks, refused };
+}

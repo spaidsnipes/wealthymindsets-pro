@@ -406,6 +406,7 @@ import { useTastyOptionFlow } from "@/lib/broker/useTastyOptionFlow";
 import { useTastyEquityOptionLegs } from "@/lib/broker/useTastyEquityOptionLegs";
 import { useDeribitOptionFlow } from "@/lib/marketData/useDeribitOptionFlow";
 import { selectOptionsBarrierEvidence, type ExpiryScope, type OptionsBarrierEvidenceVM } from "@/lib/marketData/viewModels/selectOptionsBarrierEvidence";
+import { CHART_SETTINGS_SECTION_EVENT, type ChartSettingsSection } from "@/lib/workspace/toolDoor";
 import { anyGammaPart, anyWallsGamma, parseWallsGamma, WALLS_GAMMA_PARTS, type WallsGammaPart, type WallsGammaSelection } from "@/lib/marketData/wallsGammaFamily";
 import { selectGammaExposure, type GammaExposureVM } from "@/lib/marketData/gammaExposure";
 import { INDEX_FOR_FUTURES, mappedFuturesRoot, selectIndexFuturesMapping, type IndexFuturesMappingVM } from "@/lib/marketData/viewModels/selectIndexFuturesMapping";
@@ -1189,6 +1190,32 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
 
   // ── NEW: Chart settings ─────────────────────────────────────
   const [settingsOpen,   setSettingsOpen]   = useState(false);
+  // A tool's ⚙ (Active tools) can open Chart Settings at its own section (toolDoor.settingsSectionFor).
+  const [settingsSection, setSettingsSection] = useState<ChartSettingsSection | null>(null);
+  useEffect(() => {
+    const onSection = (e: Event) => { const sec = (e as CustomEvent<{ section?: ChartSettingsSection }>).detail?.section; if (sec) { setSettingsSection(sec); setSettingsOpen(true); } };
+    window.addEventListener(CHART_SETTINGS_SECTION_EVENT, onSection);
+    return () => window.removeEventListener(CHART_SETTINGS_SECTION_EVENT, onSection);
+  }, []);
+  /*
+    ONE SHEET AT A TIME ON A TABLET (house pass 2026-10-10, found by the
+    profiles lane at 834): with Chart tools open, opening Chart Settings drew
+    the settings sheet UNDER the tools drawer, so its sliders were covered and
+    could not be reached. Below 1280px (or on any touch screen) the two never
+    stand together: whichever was opened LAST stays, the other is put down.
+    A desk keeps both, side by side, as before.
+  */
+  const sheetPrevRef = useRef({ settings: false, tools: false });
+  useEffect(() => {
+    const prev = sheetPrevRef.current;
+    const settingsJustOpened = settingsOpen && !prev.settings;
+    const toolsJustOpened = chartEquipmentOpen && !prev.tools;
+    sheetPrevRef.current = { settings: settingsOpen, tools: chartEquipmentOpen };
+    if (!(settingsOpen && chartEquipmentOpen)) return;
+    if (typeof window === "undefined" || !window.matchMedia?.("(max-width: 1279px), (pointer: coarse)").matches) return;
+    if (settingsJustOpened) setChartEquipmentOpen(false);
+    else if (toolsJustOpened) setSettingsOpen(false);
+  }, [settingsOpen, chartEquipmentOpen]);
   const [chartSettings,  setChartSettings]  = useState<ChartSettings>(
     // MIGRATED ON READ. The persist effect below writes the WHOLE settings
     // object, so every untouched default got frozen into storage as an
@@ -7916,7 +7943,8 @@ export function ChartsDashboard({ initialTimeframe = null }: { initialTimeframe?
       {/* Chart Settings Modal */}
       <ChartSettingsModal
         open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        section={settingsSection}
+        onClose={() => { setSettingsOpen(false); setSettingsSection(null); }}
         symbol={symbol}
         settings={effChartSettings}
         onSettingsChange={applyChartSettings}

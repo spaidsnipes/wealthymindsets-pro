@@ -73,7 +73,7 @@ import { instrumentRisk, qtyForRisk } from "@/lib/execution/instrumentRisk";
 import { useTradeRails } from "@/lib/execution/useTradeRails";
 import { FamilyContractPicker, FuturesMonthRow, TradeFamilySelector } from "@/components/chart/TradeFamilyPicker";
 import { useFuturesMonths } from "@/lib/execution/useFuturesMonths";
-import { consumeCloseRequest, useCloseRequestSeq } from "@/lib/execution/closeRequest";
+import { consumeCloseRequest, requestClose, useCloseRequestSeq } from "@/lib/execution/closeRequest";
 import { futuresRootOf } from "@/lib/marketData/symbolAssetClass";
 
 /** guest audit 2026-10-04: quote-stream states in plain words (the enum stays in data-state). */
@@ -722,6 +722,13 @@ export function TradePanel({ symbol, price, bornDecision, onIdentity, onOpenOpti
         <span data-testid="trade-kind" style={{ fontSize: 10, letterSpacing: 1.2, color: GOLD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "1px 6px" }}>{kind === "FUTURE" ? "FUTURE" : kind}</span>
         <span style={{ fontWeight: 600, minWidth: 0, overflowWrap: "anywhere" }}>{contract?.symbol ?? symbol}</span>
         {kind === "FUTURE" && contract && contract.symbol !== symbol.toUpperCase() ? <span data-testid="trade-dated-contract" title={`${symbol} → ${dated?.label ?? contract.symbol}`} style={{ color: MUTED, whiteSpace: "nowrap" }}>{dated ? `${dated.month} ${dated.year}` : `from ${symbol}`}</span> : null}
+        {/* PHONE CLOSE (Founder ruling 2026-10-10): the first control when holding — the strip's own request
+            (requestClose → loadFlatten when LOADABLE, else the refusal), the same gate and confirmation. */}
+        {compact && owner && book.position.state === "HOLDING" ? <button type="button" data-testid="trade-header-close" onClick={() => requestClose(symbol)}
+          aria-label="Close the held position — loads FLATTEN into this ticket; you still preview and confirm"
+          style={{ fontSize: 10, letterSpacing: 1.1, fontWeight: 800, borderRadius: 4, padding: "2px 8px", minHeight: 30, border: `1px solid ${RED}`, color: RED, background: "none", cursor: "pointer" }}>
+          CLOSE
+        </button> : null}
         {audience === "OWNER" && <button type="button" data-testid="trade-live-arm" onClick={() => openSettings("execution")}
           title={liveArmed ? "Live orders can be armed — open Settings › Execution" : "Live trading is disarmed — open Settings › Execution; nothing can be sent until it is armed there"}
           style={{ fontSize: 9.5, letterSpacing: 1.1, fontWeight: 700, borderRadius: 4, padding: "2px 6px", border: `1px solid ${liveArmed ? RED : LINE}`, color: liveArmed ? RED : MUTED, background: "none", cursor: "pointer" }}>

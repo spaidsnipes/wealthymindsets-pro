@@ -936,7 +936,7 @@ export default function NewsPage() {
           />
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-1">
+        <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-1">
           <button
             onClick={() => setLiveMode(l => !l)}
             className={clsx(

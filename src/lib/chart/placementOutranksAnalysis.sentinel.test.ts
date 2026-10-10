@@ -160,6 +160,10 @@ describe("E. the owners hold their tiers", () => {
     const at = PANEL.indexOf("const placingFold");
     expect(PANEL.slice(at, PANEL.indexOf("\n", at))).not.toMatch(/setFolded|setHalf/);
   });
+  it("the pane is its own stacking layer, so order lines / handles / pins never paint over the ticket or any panel", () => {
+    const at = MAIN.indexOf("ref={paneWrapRef}");
+    expect(MAIN.slice(at - 1200, at)).toMatch(/isolation: "isolate" \}\}\s*$/);
+  });
   it("markers waiting at the phone sheet's edge stack, never one on another", () => {
     expect(MAIN).toMatch(/const markerY = ticketSheetTop != null \? ticketSheetTop - 24 - \(underSheet \? underSheetK \* 46 : 0\) : null;/);
     expect(MAIN).toContain("if (underSheet) underSheetK += 1;");

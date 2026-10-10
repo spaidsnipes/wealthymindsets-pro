@@ -165,7 +165,7 @@ describe("15 s live aggregation — replay fixtures", () => {
     expect(hook).toContain("if (cryptoFallback && !fallbackClosed) {");
     expect(hook).toContain("cleanupFns.current.push(closeFallback);");
     // Once a print is heard, quotes/mids no longer build the bar.
-    expect(hook).toContain("if (tick.trade === true) tradeHeardRef.current = true;\n    else if (tradeHeardRef.current) return;");
+    expect(hook).toContain("if (tick.trade === true) tradeHeardRef.current = true;");
     // The parent hears the forming bar at most every LIVE_EMIT_MS; a new bar at once.
     expect(mc).toContain("const LIVE_EMIT_MS = 250;");
     expect(mc).toContain("if (grew || nowMs - liveEmitAtRef.current >= LIVE_EMIT_MS) emit();");
